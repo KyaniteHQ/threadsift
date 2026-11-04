@@ -21,10 +21,17 @@ One web app where the owner pastes a link to something they saved (a Reddit post
 | Themes | Light, Dark, Sepia and Match system. Match system follows the device; with no setting stored, the app draws Light. | 2026-11-03 |
 | Settings storage | All eleven settings (Layout, Open items as, Theme and the eight Look settings) are stored together in the browser. Each Item's reading place is kept for the browser tab, so reopening an Item returns to where the owner stopped. | 2026-11-03 |
 | Tech stack | Not part of this spec; chosen later. | 2026-11-03 |
+| Delete | The owner can delete an Item from the Reader, after a confirmation. Deleting removes the Item, its Digest, its stored images, its highlights and its note. Agents use `DELETE /api/items/:id`. | 2026-11-04 |
+| Share from phone | The app is an installable web app with a Web Share Target, so the Android Share menu sends a link straight into the same Paste as the paste box. | 2026-11-04 |
+| Highlights and notes | In the Reader, the owner selects text in the post text or a Kept comment to keep it as a highlight, and writes one free-text note per Item. Highlights stay marked in the Reader. When a refresh changes the text so a highlight no longer matches, the highlight is kept and marked as no longer found in the Item. | 2026-11-04 |
+| Highlights page | A second page lists every highlight and every Item note, newest first, each with its Item's Source, title and date and a link back to that place in the Reader. Search and the Source, Topic and Tag filters work there too. | 2026-11-04 |
+| Design of new screens | The Highlights page, the highlight mark and menu in the Reader and the note box are built from `design/system/` and match the existing screens; the owner approves them from screenshots in every theme before they land. No Claude Design round. | 2026-11-04 |
+| Agent access | Besides the HTTP API, the app serves an MCP endpoint whose tools search Items, read one Item with its Digest, highlights and note, and add a link. Each tool runs the same code as the matching HTTP call. | 2026-11-04 |
+| Export | The owner downloads the library as a zip with one Markdown file per Item: front matter with Source, URL, author, dates, Topic, Tags and Read state, then the Summary, Key points, highlights, note, post text and Kept comments, with the Item's stored images beside it. | 2026-11-04 |
 
 ## Design
 
-The design is done; the app takes its look from these files, not from new design work.
+The design is done for every screen in the first spec; the app takes its look from these files, not from new design work. The screens added on 2026-11-04 (Highlights page, highlight mark and menu, note box) follow the Design of new screens decision above.
 
 - **Values:** `design/system/tokens.css` is the one source for every colour, size, spacing, radius, shadow, motion and breakpoint value. Each option of each Look setting is a `data-*` rule on the app's root, and the default option is the plain value.
 - **Settings:** `design/system/settings.js` is the one settings table: each setting's id, label, root attribute, options, group and default. Every other list (the defaults, the Look settings that Reset look covers, the root attributes) is built from it.
@@ -79,13 +86,17 @@ Agent CLI: one headless call per item with JSON output. During the build, a 20-i
 ## Storage and search
 
 - Language, runtime, database and libraries are chosen later.
-- Stored records: items (source, URL, author, dates, cleaned content), kept comments, media, digests (agent output), topics, tags.
-- Full-text search over title, post text, kept comments, summary and tags.
-- Read or unread is the only state a user changes.
+- Stored records: items (source, URL, author, dates, cleaned content), kept comments, media, digests (agent output), topics, tags, highlights, notes.
+- Full-text search over title, post text, kept comments, summary, tags, highlights and notes.
+- The owner changes only Read state, highlights and notes, and can delete an Item; the agent sets everything else.
+- Backups of the stored records and images are not decided yet; they are settled with the other technical details.
 
 ## Interfaces
 
-- The paste box and agents use the same HTTP API: `POST /api/items {url}` to add, `GET /api/items?q=&topic=&tag=&source=` to query, so an agent (Codex, Grok, Claude) can add or read items without the UI.
+- The paste box and agents use the same HTTP API: `POST /api/items {url}` to add, `GET /api/items?q=&topic=&tag=&source=` to query, so an agent (Codex, Grok, Claude) can add or read items without the UI. `DELETE /api/items/:id` deletes an Item.
+- The MCP endpoint offers the same search, read and add for agents that speak MCP (see Agent access above).
+- The Web Share Target hands a shared link to the same Paste.
+- The export is one download of the whole library (see Export above).
 
 ## Deployment
 
