@@ -2,17 +2,21 @@ import { isRefusedHost } from "./addresses.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { isRedditOrXLink, isShortLink } from "./links.ts";
 import { metaRefreshTarget } from "./meta-refresh.ts";
-import { type Network, NetworkFailure, type NetworkFailureReason } from "./ports.ts";
+import {
+  HOP_DEADLINE_MS,
+  type Network,
+  NetworkFailure,
+  type NetworkFailureReason,
+} from "./ports.ts";
 
 const MAX_REDIRECTS = 20;
-const HOP_DEADLINE_MS = 8000;
 const MAX_BODY_BYTES = 512 * 1024;
 const DEADLINE_REASON = "deadline";
 const REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308]);
 const HTML_TYPE = /^(?:text\/html|application\/xhtml\+xml)\b/iu;
 const CHARSET = /;\s*charset\s*=\s*"?(?<label>[^";\s]+)/iu;
 
-type GuardFailure = Exclude<FetchFailure, "no-title" | "unreadable">;
+type GuardFailure = Exclude<FetchFailure, "no-title" | "unreadable" | "redirect-stopped">;
 
 interface Failed {
   readonly kind: "failed";
@@ -95,17 +99,19 @@ function decoderFor(contentType: string | null): TextDecoder {
   }
 }
 
-function hopUrl(address: string, base?: string): URL | null {
+type Target = { readonly kind: "target"; readonly url: URL } | Failed;
+
+function hopTarget(address: string, base?: string): Target {
   const url = URL.canParse(address, base) ? new URL(address, base) : null;
 
   if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
-    return null;
+    return failed("unsupported");
   }
 
   url.username = "";
   url.password = "";
 
-  return isRefusedHost(url.hostname) ? null : url;
+  return isRefusedHost(url.hostname) ? failed("refused") : { kind: "target", url };
 }
 
 function advance(
@@ -114,19 +120,19 @@ function advance(
   location: string,
   redirects: number,
 ): Promise<GuardOutcome> {
-  const next = hopUrl(location, from.href);
+  const next = hopTarget(location, from.href);
 
-  if (next === null) {
-    return Promise.resolve(failed("refused"));
+  if (next.kind === "failed") {
+    return Promise.resolve(next);
   }
 
-  if (isRedditOrXLink(next.href)) {
-    return Promise.resolve({ kind: "stopped", url: next.href });
+  if (redirects === MAX_REDIRECTS) {
+    return Promise.resolve(failed("redirect-limit"));
   }
 
-  return redirects === MAX_REDIRECTS
-    ? Promise.resolve(failed("redirect-limit"))
-    : follow(network, next, redirects + 1);
+  return isRedditOrXLink(next.url.href)
+    ? Promise.resolve({ kind: "stopped", url: next.url.href })
+    : follow(network, next.url, redirects + 1);
 }
 
 async function follow(network: Network, url: URL, redirects: number): Promise<GuardOutcome> {
@@ -153,7 +159,7 @@ async function follow(network: Network, url: URL, redirects: number): Promise<Gu
 }
 
 export function guardedFetch(network: Network, address: string): Promise<GuardOutcome> {
-  const url = hopUrl(address);
+  const first = hopTarget(address);
 
-  return url === null ? Promise.resolve(failed("refused")) : follow(network, url, 0);
+  return first.kind === "failed" ? Promise.resolve(first) : follow(network, first.url, 0);
 }

@@ -33,7 +33,7 @@ const saveItemRoute = createRoute({
     ),
     200: jsonBody(
       SavedItemResponseSchema,
-      "An Item with the same normalized URL already existed and was fetched again.",
+      "An Item with the same normalized URL already existed. It was looked up again, and fetched when its Source allows.",
     ),
     400: jsonBody(
       ErrorResponseSchema,

@@ -1,7 +1,7 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import { itemIdOf } from "../../src/core/item-path.ts";
-import type { SaveOutcome, SaveResult } from "./api.ts";
+import { type SaveOutcome, type SaveResult, noticeOf } from "./api.ts";
 import { useBands } from "./bands.ts";
 import type { Attention } from "./ItemRow.tsx";
 import { type ListState, useLibrary } from "./library.ts";
@@ -59,7 +59,7 @@ function useSaveAndShow(
         return { saved: false, notice: result.outcome, focus: "field" };
       }
 
-      const notice = result.fetch === "ok" ? null : result.fetch;
+      const notice = noticeOf(result);
       const focusRow = result.known && notice === null;
 
       if (result.known) {

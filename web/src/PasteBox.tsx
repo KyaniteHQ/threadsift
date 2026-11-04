@@ -151,10 +151,10 @@ function PasteNotice({
   dismiss: () => void;
   retry: () => void;
 }>) {
-  const isInputError = NOTICE_KINDS[notice.key] === "input-error";
+  const isAlert = NOTICE_KINDS[notice.key] !== "save-note";
 
   return (
-    <div id={id} className="ps" role={isInputError ? "alert" : undefined}>
+    <div id={id} className="ps" role={isAlert ? "alert" : undefined}>
       <p className="ps-head">
         <Icon name="warn" className="ic tone-warn" />
         <span className="ps-title">{NOTICES[notice.key]}</span>
@@ -221,7 +221,9 @@ export function PasteBox({ save }: Readonly<{ save: Save }>) {
           </span>
         </button>
       </form>
-      <output className="vh">{announcement(saving, notice)}</output>
+      <output className="vh" aria-live="polite" aria-atomic="true">
+        {announcement(saving, notice)}
+      </output>
       {notice === null ? null : (
         <PasteNotice id={noticeId} notice={notice} dismiss={dismiss} retry={retry} />
       )}

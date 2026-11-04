@@ -47,18 +47,6 @@ html {
   visibility: hidden;
 }
 
-.btn[aria-disabled="true"] {
-  cursor: default;
-  color: var(--muted);
-  border-color: var(--line-2);
-  background: transparent;
-}
-
-.btn[aria-disabled="true"]:hover {
-  background: transparent;
-  filter: none;
-}
-
 .items {
   margin: 0;
   padding: 0;
@@ -95,8 +83,8 @@ html {
   color: var(--muted);
   font-size: var(--t-meta);
   font-family: var(--f-mono);
-  font-weight: normal;
-  letter-spacing: normal;
+  font-weight: inherit;
+  letter-spacing: inherit;
 }
 
 [data-layout="list"] .it-date {

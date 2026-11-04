@@ -23,6 +23,16 @@ export type SaveResult =
       readonly fetch: FetchResult;
     };
 
+type Saved = Extract<SaveResult, { readonly outcome: "saved" }>;
+
+export function noticeOf({ known, item, fetch: fetched }: Readonly<Saved>): NoticeKey | null {
+  if (fetched === "ok" || fetched === "not-requested") {
+    return null;
+  }
+
+  return known && item.title !== null ? "title-kept" : fetched;
+}
+
 export async function fetchItems(): Promise<Item[]> {
   const response = await fetch("/api/items");
 

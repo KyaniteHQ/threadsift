@@ -13,7 +13,7 @@ function fetchedOfPage(outcome: Readonly<GuardOutcome>): Fetched {
     return detailsOfPage(outcome.text);
   }
 
-  return { status: outcome.kind === "stopped" ? "no-title" : outcome.reason };
+  return { status: outcome.kind === "stopped" ? "redirect-stopped" : outcome.reason };
 }
 
 async function fetchedOfOembed(network: Network, normalizedUrl: string): Promise<Fetched> {

@@ -115,29 +115,9 @@ const NOT_GLOBALLY_REACHABLE_IPV6 = ["2001::/23", "2001:db8::/32", "2002::/16", 
 );
 
 const NAT64 = blockOf("64:ff9b::/96");
-const LOCAL_USE_NAT64 = blockOf("64:ff9b:1::/48");
-
-const BYTE_MASK = 0xffn;
-
-function byteOf(address: bigint, index: number): bigint {
-  return (address >> BigInt((15 - index) * 8)) & BYTE_MASK;
-}
 
 function embeddedIpv4(address: bigint): bigint | null {
-  if (contains(NAT64, address)) {
-    return address & 0xffff_ffffn;
-  }
-
-  if (contains(LOCAL_USE_NAT64, address)) {
-    return (
-      (byteOf(address, 6) << 24n) |
-      (byteOf(address, 7) << 16n) |
-      (byteOf(address, 9) << 8n) |
-      byteOf(address, 10)
-    );
-  }
-
-  return null;
+  return contains(NAT64, address) ? address & 0xffff_ffffn : null;
 }
 
 function isGlobalIpv4(address: bigint): boolean {
@@ -169,8 +149,12 @@ export function isGlobalAddress(address: string): boolean {
   return parsed !== null && isGlobalIpv4(parsed);
 }
 
+export function withoutTrailingDot(hostname: string): string {
+  return hostname.replace(/\.$/u, "");
+}
+
 function isLocalhostName(hostname: string): boolean {
-  const name = hostname.toLowerCase().replace(/\.$/u, "");
+  const name = withoutTrailingDot(hostname.toLowerCase());
 
   return name === "localhost" || name.endsWith(".localhost");
 }

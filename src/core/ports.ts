@@ -2,6 +2,8 @@ import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
 export type Database = BaseSQLiteDatabase<"async", unknown>;
 
+export const HOP_DEADLINE_MS = 8000;
+
 export interface NetworkResponse {
   readonly status: number;
   readonly location: string | null;

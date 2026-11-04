@@ -1,3 +1,4 @@
+import { withoutTrailingDot } from "./addresses.ts";
 import type { Kind, Source } from "./kinds.ts";
 
 export interface Link {
@@ -122,7 +123,8 @@ function keptQuery(search: string, host: string): string {
 
 const MOBILE_X_HOST = /^mobile\.(?:x|twitter)\.com$/u;
 
-function canonicalHost(host: string): string {
+function canonicalHost(rawHost: string): string {
+  const host = withoutTrailingDot(rawHost);
   const desktop = MOBILE_X_HOST.test(host) ? host.slice("mobile.".length) : host;
   const bare = desktop.startsWith("www.") ? desktop.slice("www.".length) : desktop;
 

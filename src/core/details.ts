@@ -10,10 +10,10 @@ export interface Found {
 }
 
 export type Fetched =
-  | { readonly status: "ok"; readonly found: Found | null }
-  | { readonly status: FetchFailure };
+  | { readonly status: "ok"; readonly found: Found }
+  | { readonly status: FetchFailure | "not-requested" };
 
-export const NOT_REQUESTED: Fetched = { status: "ok", found: null };
+export const NOT_REQUESTED: Fetched = { status: "not-requested" };
 
 const SUBREDDIT_LINK = /^https:\/\/www\.reddit\.com\/r\/(?<name>[^/?#]+)\//u;
 

@@ -1,12 +1,13 @@
 import { lookup } from "node:dns";
 import { type IncomingMessage, request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import type { LookupFunction } from "node:net";
+import type { LookupFunction, TcpNetConnectOpts } from "node:net";
 import { type Readable, type Transform, pipeline } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
 import { isGlobalAddress } from "../../core/addresses.ts";
 import {
+  HOP_DEADLINE_MS,
   type Network,
   type NetworkResponse,
   REQUEST_HEADERS,
@@ -15,6 +16,10 @@ import {
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
 const IDENTITY = "identity";
+
+const CONNECT_OPTIONS: Pick<TcpNetConnectOpts, "autoSelectFamilyAttemptTimeout"> = {
+  autoSelectFamilyAttemptTimeout: HOP_DEADLINE_MS,
+};
 
 const DECODERS: ReadonlyMap<string, () => Transform> = new Map([
   ["gzip", createGunzip],
@@ -64,6 +69,7 @@ export const nodeNetwork: Network = {
           method: "GET",
           headers: { ...REQUEST_HEADERS, "accept-encoding": ACCEPT_ENCODING },
           lookup: globalAddressesOnly,
+          ...CONNECT_OPTIONS,
           signal,
           agent: false,
         },
