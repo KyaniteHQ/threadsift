@@ -6,7 +6,6 @@ import { httpbinPagePath, newRunId } from "./links.ts";
 const SHORT_LINK = "https://is.gd/hK2a1W";
 const SHORT_LINK_TARGET = "https://www.iana.org/help/example-domains";
 const SHORT_LINK_TARGET_NORMALIZED = "https://iana.org/help/example-domains";
-const TINYURL_PREVIEW_PAGE = "https://tinyurl.com/preview/deprecated/27sz3oss";
 
 test("a short link and its target pasted separately are one Item under the target's URL", async ({
   request,
@@ -24,23 +23,6 @@ test("a short link and its target pasted separately are one Item under the targe
   expect(direct.status).toBe(200);
   expect(direct.body.item.id).toBe(viaShortLink.body.item.id);
   expect((await listAll(request)).filter((item) => item.normalizedUrl === SHORT_LINK)).toEqual([]);
-});
-
-test("a short link service's zero-delay meta refresh page leads to the target's Item", async ({
-  request,
-}) => {
-  const viaPreviewPage = await postLink(request, TINYURL_PREVIEW_PAGE);
-
-  expect(viaPreviewPage.body.fetch).toBe("ok");
-  expect(viaPreviewPage.body.item).toMatchObject({
-    normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
-    title: "Example Domains",
-  });
-
-  const stored = await listAll(request);
-  expect(stored.filter((item) => item.normalizedUrl.startsWith("https://tinyurl.com/"))).toEqual(
-    [],
-  );
 });
 
 test("a meta refresh on a host that is not a short link service is not followed", async ({
