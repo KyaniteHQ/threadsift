@@ -20,7 +20,7 @@ Use these exact terms in code, docs and issues.
 
 ## Issues
 
-Work is tracked in GitHub issues on `kyanitehq/commonplace` (use `gh`). The `ready-for-agent` label marks an issue an agent can pick up as written.
+Work is tracked in GitHub issues on `kyanitehq/threadsift` (use `gh`). The `ready-for-agent` label marks an issue an agent can pick up as written.
 
 ## Data and private values
 
