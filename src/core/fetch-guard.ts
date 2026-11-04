@@ -1,6 +1,7 @@
 import { isRefusedHost } from "./addresses.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import { isRedditOrXLink } from "./links.ts";
+import { isRedditOrXLink, isShortLink } from "./links.ts";
+import { metaRefreshTarget } from "./meta-refresh.ts";
 import { type Network, NetworkFailure, type NetworkFailureReason } from "./ports.ts";
 
 const MAX_REDIRECTS = 20;
@@ -8,6 +9,7 @@ const HOP_DEADLINE_MS = 8000;
 const MAX_BODY_BYTES = 512 * 1024;
 const DEADLINE_REASON = "deadline";
 const REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308]);
+const HTML_TYPE = /^(?:text\/html|application\/xhtml\+xml)\b/iu;
 const CHARSET = /;\s*charset\s*=\s*"?(?<label>[^";\s]+)/iu;
 
 type GuardFailure = Exclude<FetchFailure, "no-title" | "unreadable">;
@@ -106,6 +108,27 @@ function hopUrl(address: string, base?: string): URL | null {
   return isRefusedHost(url.hostname) ? null : url;
 }
 
+function advance(
+  network: Network,
+  from: URL,
+  location: string,
+  redirects: number,
+): Promise<GuardOutcome> {
+  const next = hopUrl(location, from.href);
+
+  if (next === null) {
+    return Promise.resolve(failed("refused"));
+  }
+
+  if (isRedditOrXLink(next.href)) {
+    return Promise.resolve({ kind: "stopped", url: next.href });
+  }
+
+  return redirects === MAX_REDIRECTS
+    ? Promise.resolve(failed("redirect-limit"))
+    : follow(network, next, redirects + 1);
+}
+
 async function follow(network: Network, url: URL, redirects: number): Promise<GuardOutcome> {
   const hop = await requestHop(network, url.href);
 
@@ -113,23 +136,20 @@ async function follow(network: Network, url: URL, redirects: number): Promise<Gu
     return hop;
   }
 
-  if (hop.kind === "page") {
-    return { kind: "page", url: url.href, text: decoderFor(hop.contentType).decode(hop.bytes) };
+  if (hop.kind === "redirect") {
+    return advance(network, url, hop.location, redirects);
   }
 
-  const next = hopUrl(hop.location, url.href);
+  const text = decoderFor(hop.contentType).decode(hop.bytes);
 
-  if (next === null) {
-    return failed("refused");
-  }
+  const refreshTo =
+    isShortLink(url.href) && HTML_TYPE.test(hop.contentType ?? "")
+      ? metaRefreshTarget(text, url.href)
+      : null;
 
-  if (isRedditOrXLink(next.href)) {
-    return { kind: "stopped", url: next.href };
-  }
-
-  return redirects === MAX_REDIRECTS
-    ? failed("redirect-limit")
-    : follow(network, next, redirects + 1);
+  return refreshTo === null
+    ? { kind: "page", url: url.href, text }
+    : advance(network, url, refreshTo, redirects);
 }
 
 export function guardedFetch(network: Network, address: string): Promise<GuardOutcome> {
