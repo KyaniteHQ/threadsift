@@ -19,7 +19,7 @@
    element carrying the setting's attribute, and its block names it in a
    comment (plain: <id>); every other option is a [data-*="<id>"] rule that
    lists only what differs. Which option is the default is owned by the
-   settings table (Library.SETTINGS in components/bundle.js), and
+   settings table (Library.SETTINGS in settings.js), and
    Library.checkDefaults() confirms that the option the table names as
    default is the one drawn when no attribute is set.
 
