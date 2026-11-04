@@ -111,7 +111,7 @@ A comment the agent kept because it adds a fact, a fix, a working link or comman
 _Avoid_: Top comment, filtered comment
 
 **Context stub**:
-A dropped parent comment shown as one line so a Kept comment under it still reads correctly.
+One line in a comment tree that stands in for comments not shown: a dropped parent, so a Kept comment under it still reads correctly, or replies behind a Reddit `more` stub, which say they were not saved.
 _Avoid_: Placeholder, removed comment
 
 **Reader**:

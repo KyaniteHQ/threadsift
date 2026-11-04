@@ -125,7 +125,7 @@ Names follow `CONTEXT.md`. Columns are settled during the build.
 | Table | Holds |
 |---|---|
 | `items` | Source, Source id (text), normalized URL (unique), original URL, author, posted and saved dates, title, post text as Markdown, status (`processing`, `ready`, `failed` with reason), Read state |
-| `comments` | per Item: Source id (text), parent id, author, date, body as Markdown, Kept flag; dropped parents of Kept comments render as Context stubs |
+| `comments` | per Item: Source id (text), parent id, author, date, body as Markdown, Kept flag; dropped parents of Kept comments and Reddit's unfetched `more` stubs render as Context stubs |
 | `media` | per Item: file key or video URL, kind, size |
 | `digests` | per Item: the Digest JSON, Provider and model, created date |
 | `topics`, `tags`, `item_tags` | the agent's lists and the links; `catalog_version` counts changes to the Topic and Tag lists |
@@ -165,7 +165,7 @@ Each Source has one fetcher behind a `Fetcher` port: `matches(url)` and `fetch(u
 
 - **Article:** a plain `fetch`, then Defuddle on a linkedom document, with Markdown output. Its CPU cost is why the Cloudflare target needs Workers Paid (see Cloudflare deploy button). No Browser Rendering: pages that need JavaScript or a login come in through the Extension.
 - **GitHub:** the GitHub REST API, with an optional token in settings for the higher rate limit.
-- **Reddit:** oEmbed for a Link-only Item, the `.json` paste parser, and the Extension's content. No server-side Reddit fetch (`docs/spec.md`, Fetchers).
+- **Reddit:** oEmbed for a Link-only Item, and one `.json` parser for both the `.json` paste and the JSON the Extension sends; the Extension's Defuddle content when its `.json` request failed. A `more` stub becomes a Context stub. No server-side Reddit fetch (`docs/spec.md`, Fetchers).
 - **X:** the Grok Bot intake webhook on both targets; the grok CLI in the container. `grok --json-schema` returns the parsed result in a `structuredOutput` field (grok 1.0.70, run on 2026-11-04). On Cloudflare without a Grok Bot webhook, an X link becomes a Link-only Item.
 - **Other:** a Link-only Item with the page's `<title>` or its oEmbed title, and no AI task, because there is no text to digest.
 - **One hop:** only when the linked URL is an article or a GitHub repository.
@@ -216,7 +216,10 @@ Every model call is an AI task with a kind, inputs, an input revision and a Zod 
 
 ## Extension and Threadsift bot
 
-- The Extension is built with WXT for Chrome and Firefox (Manifest V3). Its content script runs Defuddle, whose Reddit extractor reads the rendered thread in the owner's tab, and posts `{url, content}` to `POST /api/items` with an agent token. It saves one page per click and never crawls.
+- The Extension is built with WXT for desktop Chrome and Firefox (Manifest V3) and posts to `POST /api/items` with an agent token. It saves one page per click and never crawls.
+  - **Reddit.** On Save it requests `<thread>/.json?limit=500&raw_json=1` once from the owner's tab and posts the JSON as the content; the server's `.json` paste parser reads it. Replies behind a `more` stub are not requested: `/api/morechildren` answered 403 to the signed-in session (owner's browser, 2026-11-04), and a request per stub would be crawling. When the `.json` request fails, the content script runs Defuddle's Reddit extractor on the rendered thread and posts `{url, content}`.
+  - **Fill when opened.** On a Reddit thread, the Extension asks `GET /api/items?url=<thread link>`, which matches by normalized URL, whether it is a Link-only Reddit Item, and if so saves it as above. Nothing fills in the background.
+  - **Other pages.** The content script runs Defuddle on the page and posts `{url, content}`.
 - The Threadsift bot's skill files live in `bot/` and call the same HTTP API and the AI task callback. The OpenAPI document from `@hono/zod-openapi` is their contract.
 
 ## Vault mirror
