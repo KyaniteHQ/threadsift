@@ -20,6 +20,7 @@ Status: chosen on 2026-11-04 in a grill with the owner and revised after four mo
 - [Cloudflare deploy button](#cloudflare-deploy-button)
 - [Development environment](#development-environment)
 - [Lint and format](#lint-and-format)
+- [Dependency updates](#dependency-updates)
 - [CI, releases and rollback](#ci-releases-and-rollback)
 - [Testing](#testing)
 - [Open items and unverified claims](#open-items-and-unverified-claims)
@@ -93,7 +94,11 @@ extension/                        WXT extension (own package in the pnpm workspa
 bot/                              Threadsift bot skill files
 e2e/                              Playwright suite run against both targets
 tools/oxlint/                     lint rule plugins: vendored anti-slop and Threadsift's own rules
+tools/copy/                       write-copy.sh, which writes every text a user reads
 .claude/                          the implementer agent, its skills and the lint hook (docs/agents/)
+.agents/skills/                   skills the Antigravity CLI loads: humanizer
+PRODUCT.md                        who the product is for, read by the impeccable skill
+renovate.json                     the dependency update rules
 .github/workflows/                the gate, the release and the update workflow for Cloudflare copies
 design/                           design system and prototype
 ```
@@ -204,7 +209,7 @@ Every model call is an AI task with a kind, inputs, an input revision and a Zod 
 - A React 19 single-page app built by Vite (owner's decision, 2026-11-04). One static build serves Workers static assets and Hono's `serveStatic` on Node, and it is the shape Tauri and Capacitor take for a later desktop or mobile app. No server rendering: one owner behind a login gains nothing from it.
 - React-specific libraries stay few, so the app can try Preact 11 through `preact/compat` after the first release if page weight matters: in a small comparable build, React's framework JavaScript was 68.0 KB gzip and Preact's 7.7 KB (measured 2026-11-04 in a scratch build, not on this app).
 - The prototype is Claude Design's own template format on React 18 classes, so the app rewrites it. Its behaviour (reader bar fitting, folding by measured height, reading-place restore, the keys) is plain DOM code and becomes plain TypeScript modules that take an element. Highlights are drawn with the CSS Custom Highlight API.
-- `design/system/tokens.css`, `components.css` and `settings.js` stay the one source of values and settings. The build reconciles them with the spec first: `settings.js` gains the Style row (attribute `data-style`, default Library, a Look setting that Reset look covers), its Theme default follows the spec's "with no setting stored, the app draws Light", and the 10 Style blocks move from `design/prototype/tokens.css` into `design/system/tokens.css` with their theme selectors rewritten from classes (`.th-dark`) to `[data-theme]`. `checkDefaults()` confirms the table and the tokens agree.
+- `design/system/tokens.css`, `components.css` and `settings.js` stay the one source of values and settings. The build reconciles them with the spec first: `settings.js` gains the Style row (attribute `data-style`, default Library, a Look setting that Reset look covers) and the Text size row (attribute `data-size`, Small, Medium and Large, default Medium, a Look setting in the Reading group), with one `[data-size]` block per option in `tokens.css` that scales the reading size and keeps Small at 12px or more, its Theme default follows the spec's "with no setting stored, the app draws Light", and the 10 Style blocks move from `design/prototype/tokens.css` into `design/system/tokens.css` with their theme selectors rewritten from classes (`.th-dark`) to `[data-theme]`. `checkDefaults()` confirms the table and the tokens agree.
 - `tokens.css` loads its fonts from Google Fonts; the build removes that `@import` and serves the same font files itself, so a self-hosted Instance makes no third-party request.
 - The paste card polls `GET /api/items/:id` until the Item is ready or failed; no websocket, so both targets serve it the same way.
 - The PWA is a web manifest with `share_target` and a small service worker, both hand-written.
@@ -274,6 +279,15 @@ oxlint and oxfmt run directly, not through Vite+. Vite+ 1.5.0 bundles the same o
 - **Only safe fixes run unattended.** The commit hook and the agent hook (`.claude/hooks/lint-fix.sh`, after each edit to a file in the project) apply safe fixes; suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
 - **Markdown is not formatted.** oxfmt pads every table column to its widest cell, so a one-cell change in a doc would rewrite the whole table.
 - **`design/` is not linted yet.** Its prototype is reference code, and `design/system/settings.js` still carries comments and gets rewritten when the web app starts (Web app); it joins the lint with that change.
+
+## Dependency updates
+
+Renovate, the GitHub App, is the one update bot; `renovate.json` holds its rules.
+
+- **Schedule.** Every minor and patch npm update arrives in one PR on Monday morning (Istanbul time); each major gets its own PR, except that `oxlint` and `@oxlint/plugins` always move together, because they must share one exact version. Lock file maintenance refreshes the indirect packages on the first day of each month. The Dependency Dashboard issue lists every pending and waiting update, so it is where an update is noticed. Renovate never merges on its own.
+- **Release age.** Renovate proposes an npm version only once it is 3 days old, the same wait as pnpm's `minimumReleaseAge` in `pnpm-workspace.yaml`, so a PR never asks for a version pnpm refuses.
+- **Security.** GitHub's Dependabot alerts and the OSV database feed Renovate's security PRs, which open at any time and skip the wait (Renovate docs, `vulnerabilityAlerts`, read 2026-11-04). A fix younger than 3 days still fails pnpm's install, so that PR also adds the package to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`. Dependabot's own version and security PRs stay off, because both bots would open a PR for the same bump.
+- **Local check.** `pnpm outdated` lists the npm updates before Renovate's next run. `devenv.lock` moves by hand with `devenv update`, because Renovate's `nix` manager reads only `flake.nix` and is still in beta (Renovate docs, Nix manager, read 2026-11-04).
 
 ## CI, releases and rollback
 

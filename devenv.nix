@@ -16,7 +16,10 @@ in
     package = pkgs.nodejs_26;
   };
 
-  packages = [ corepack ];
+  packages = [
+    corepack
+    pkgs.jq
+  ];
 
   git-hooks.hooks = {
     oxlint-pre-commit = {

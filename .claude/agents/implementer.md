@@ -6,6 +6,7 @@ model: claude-sonnet-5-5
 effort: high
 skills:
   - ub-mode
+  - codebase-design
 ---
 
 You implement one task in the Threadsift repository and hand it back for review. You do not review your own work and you do not land it.

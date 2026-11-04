@@ -36,6 +36,7 @@ export default defineConfig({
       },
     ],
     "unicorn/no-abusive-eslint-disable": "error",
+    "unicorn/prefer-node-protocol": "error",
     "eslint/no-inline-comments": [
       "error",
       { ignorePattern: "^\\s*(?:@vite-ignore|[#@]__(?:PURE|NO_SIDE_EFFECTS)__)\\s*$" },
@@ -46,7 +47,11 @@ export default defineConfig({
     "typescript/no-explicit-any": "error",
     "typescript/prefer-readonly-parameter-types": [
       "error",
-      { allow: [{ from: "package", name: "Context", package: "@oxlint/plugins" }] },
+      {
+        allow: [
+          { from: "package", name: ["Context", "ImportExpression"], package: "@oxlint/plugins" },
+        ],
+      },
     ],
     "import/extensions": ["error", "always", { ignorePackages: true }],
     "import/no-unassigned-import": ["error", { allow: ["**/*.css"] }],
@@ -67,7 +72,32 @@ export default defineConfig({
     "anti-slop/no-unsafe-dictionary-type": "error",
     "anti-slop/require-readable-spacing": "error",
   },
-  overrides: [{ files: ["*.config.ts", "tools/**"], env: { node: true } }],
+  overrides: [
+    { files: ["*.config.ts", "tools/**"], env: { node: true } },
+    {
+      files: ["src/core/**", "src/http/**"],
+      rules: {
+        "threadsift/static-import-source": "error",
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              {
+                regex: "^(node|cloudflare):",
+                message:
+                  "src/core/ and src/http/ run on both targets; a runtime module belongs in an adapter under src/targets/ (docs/architecture.md, One codebase, two install targets).",
+              },
+              {
+                regex: "(^|[/#@])targets(/|$)",
+                message:
+                  "src/core/ and src/http/ never import an adapter; the target entry passes ports in through createApp(ports).",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
   ignorePatterns: ["design/**", "tools/oxlint/anti-slop/**", ".claude/**"],
   options: {
     typeAware: true,

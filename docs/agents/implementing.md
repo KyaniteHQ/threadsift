@@ -22,6 +22,26 @@ Three kinds of comment stay:
 
 `threadsift/no-comments` (`tools/oxlint/threadsift/rules/no-comments.ts`) holds the exact patterns and refuses every other comment, doc comments on exported functions included. Lint cannot judge whether a kept suppression or link line is true, so before finishing, read `.claude/agents/comment-sicko.md` and judge every comment the diff adds by its keep-list and its hunt.
 
+## Design
+
+The app is one core with ports, and each install target supplies an adapter per port: ports and adapters, also called hexagonal architecture (`docs/architecture.md`, One codebase, two install targets). Before adding or changing a module, a port or an interface, load the `codebase-design` skill (`.claude/skills/codebase-design/`) and use its words: module, interface, seam, adapter, depth, leverage. Where the skill differs from this page or from `docs/testing.md`, they win.
+
+- A module hides a lot of behaviour behind a small interface. A module whose interface is as big as its body is shallow: merge it into its caller or deepen it.
+- `src/core/` and `src/http/` run on both targets and call ports only. Lint refuses there a `node:` or `cloudflare:` import, any import from `targets/`, and an `import()` whose source is not a plain string; the target's entry passes adapters in through `createApp(ports)`.
+- A port exists only when two production adapters need it, such as the Node and Worker targets or two Providers. A test adapter does not count, because tests use no fakes (`docs/testing.md`).
+- Names come from `CONTEXT.md`.
+
+## Interface text
+
+Every text a user reads is written by `tools/copy/write-copy.sh`, never by hand: labels, buttons, messages, empty states, errors, onboarding, and README and site prose. The owner chose this instead of picking a voice by hand. The script runs the Antigravity CLI (`agy`) on Gemini 4 Argon at high effort, falls back to Gemini 3.8 Flash at high effort when Argon is rate limited, and has it follow the vendored `humanizer` skill (`.agents/skills/humanizer/`) with `PRODUCT.md` and `CONTEXT.md` as context.
+
+1. Write a brief to a file outside the repository: where the text shows, what it must say, the facts it may use, length and case limits, and the neighbouring texts it must match.
+2. Run `tools/copy/write-copy.sh <brief>`. It prints the text, or exits non-zero with the reason: 64 for a missing brief, 69 when `agy` is not installed, is signed out or does not list both models, 75 when both models are rate limited, 1 for any other failure.
+3. Use the text as printed. When it is wrong, fix the brief and run the script again.
+4. Quote the brief and the printed text in the commit message and in the report, so the reviewer can check the text came from the script.
+
+`agy` must be signed in on the machine; a contributor without it leaves a visible placeholder, `[text needed]`, for the owner to run the script.
+
 ## Code
 
 - Load the `ub-mode` skill before writing code. Where it differs from this page or from `docs/testing.md`, they win: its TDD, Crapper and Mutator sections give way to `docs/testing.md`, and its Commit and Push section gives way to the caller's branch and review flow.

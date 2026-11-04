@@ -15,7 +15,9 @@ Use these exact terms in code, docs and issues.
 | What v1 does, and the decisions behind it | `docs/spec.md` |
 | The tech stack, the module seams, the data model, the two install targets and the testing approach | `docs/architecture.md` |
 | Before writing, changing or deleting a test | `docs/testing.md` |
-| Before writing or changing code, config or scripts: official docs first, no comments, the finish checks | `docs/agents/implementing.md`; the `implementer` agent (`.claude/agents/implementer.md`) runs it |
+| Before writing or changing code, config or scripts: official docs first, module design, no comments, the finish checks | `docs/agents/implementing.md`; the `implementer` agent (`.claude/agents/implementer.md`) runs it |
+| Before writing any text a user reads (labels, messages, empty states, README) | `docs/agents/implementing.md`, Interface text |
+| What the product is and who it is for, before design work | `PRODUCT.md` |
 | Before reviewing a change | `docs/agents/review.md` |
 | Any colour, size, spacing, font or setting value | `design/system/tokens.css`, the one source for every value; `design/system/settings.js` owns each setting's id, label, attribute and default |
 | How a screen behaves (reader bar fitting, comment folds, reading place, settings panel) | `design/prototype/`, served as the README shows |

@@ -147,7 +147,7 @@ How Grid opens an Item: Page (full page) or Sheet (a centred sheet over the dimm
 _Avoid_: Open mode, modal
 
 **Look settings**:
-The settings that change only appearance: Style, Font, Text width, Density, Comment style, Accent, Tag style and Card images.
+The settings that change only appearance: Style, Font, Text size, Text width, Density, Comment style, Accent, Tag style and Card images.
 _Avoid_: Preferences, theme settings
 
 **Style**:
