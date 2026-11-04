@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 
 import { z } from "zod";
 
-const LIMIT_MIB = 64;
+const LIMIT_MIB = 1;
 const BYTES_PER_UNIT = { B: 1, KiB: 1024, MiB: 1024 ** 2, GiB: 1024 ** 3 };
 const BYTES_PER_MIB = 1024 ** 2;
 const TOTAL_UPLOAD = /Total Upload: (?<amount>\d+(?:\.\d+)?) (?<unit>B|KiB|MiB|GiB)/u;
