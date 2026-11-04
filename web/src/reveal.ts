@@ -22,9 +22,11 @@ export function revealInPane(element: HTMLElement): void {
 
   const paneBox = pane.getBoundingClientRect();
   const box = element.getBoundingClientRect();
+  const inset = Number(getComputedStyle(pane).scrollPaddingTop.replace(/px$/u, ""));
+  const top = paneBox.top + (Number.isNaN(inset) ? 0 : inset);
 
-  if (box.top < paneBox.top) {
-    pane.scrollTop -= paneBox.top - box.top;
+  if (box.top < top) {
+    pane.scrollTop -= top - box.top;
   } else if (box.bottom > paneBox.bottom) {
     pane.scrollTop += box.bottom - paneBox.bottom;
   }
@@ -36,4 +38,10 @@ export function scrollToTop(element: HTMLElement): void {
   if (pane !== null) {
     pane.scrollTop = 0;
   }
+}
+
+export function focusListStart(pane: HTMLElement): void {
+  const start = pane.querySelector<HTMLElement>(".it-open, .noresults button");
+
+  (start ?? pane).focus();
 }

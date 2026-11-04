@@ -22,7 +22,11 @@ test("Add with an empty box or text that is not a link shows a refusal and saves
 
   await page.getByRole("textbox", { name: "Paste a link to save" }).fill("not a url");
   await page.getByRole("button", { name: "Add" }).click();
-  await expect(page.getByRole("alert")).toContainText("That doesn't look like a link.");
+  await expect(page.getByRole("alert")).toContainText("That doesn’t look like a link.");
+
+  await page.getByRole("textbox", { name: "Paste a link to save" }).fill("example.com/bare-domain");
+  await page.getByRole("button", { name: "Add" }).click();
+  await expect(page.getByRole("alert")).toContainText("Links must start with https:// or http://.");
 
   expect(await rowCount(page)).toBe(rows);
   expect(await listAll(request)).toHaveLength(stored);
@@ -117,3 +121,40 @@ test("a saved link returns focus to the field and the list shows it at the top",
   );
   expect(await list.evaluate((element) => element.scrollTop)).toBe(0);
 });
+
+for (const width of [390, 1280]) {
+  test(`Shift+Tab up the list never leaves a focused row under the list header at ${width}px`, async ({
+    page,
+    request,
+  }) => {
+    const run = newRunId();
+
+    for (let index = 0; index < 20; index += 1) {
+      await postLink(request, `https://example.com/${run}/walk-${index}`);
+    }
+
+    await page.setViewportSize({ width, height: 600 });
+    await page.goto("/");
+    const links = page.locator("article.it .it-open");
+    await expect(links.nth(14)).toBeVisible();
+    await links.nth(14).focus();
+    await page.keyboard.press("Tab");
+
+    for (let step = 0; step < 14; step += 1) {
+      await page.keyboard.press("Shift+Tab");
+      const focused = page.locator("article.it:has(.it-open:focus)");
+
+      const covered = await page.evaluate(() => {
+        const row = document.querySelector("article.it:has(.it-open:focus)");
+        const header = document.querySelector(".list-head");
+
+        return row === null || header === null
+          ? true
+          : row.getBoundingClientRect().top < header.getBoundingClientRect().bottom - 0.5;
+      });
+
+      await expect(focused).toHaveCount(1);
+      expect(covered, `step ${step}`).toBe(false);
+    }
+  });
+}

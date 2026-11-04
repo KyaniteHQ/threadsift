@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import { itemIdOf } from "../../src/core/item-path.ts";
 import type { SaveOutcome } from "./api.ts";
@@ -7,7 +7,7 @@ import { Icon } from "./Icon.tsx";
 import { ItemRow } from "./ItemRow.tsx";
 import { type ListState, useLibrary } from "./library.ts";
 import { PasteBox } from "./PasteBox.tsx";
-import { scrollToTop } from "./reveal.ts";
+import { focusListStart, scrollToTop } from "./reveal.ts";
 import {
   EMPTY_LIST,
   LOADING_LABEL,
@@ -24,11 +24,13 @@ function Loading() {
     <>
       <output className="vh">{LOADING_LABEL}</output>
       {SKELETON_ROWS.map((row) => (
-        <div key={row} className="it" aria-hidden="true">
-          <div className="skel">
+        <div key={row} className="it it-ghost" aria-hidden="true">
+          <p className="it-meta">
             <i />
+          </p>
+          <p className="it-title">
             <i />
-          </div>
+          </p>
         </div>
       ))}
     </>
@@ -80,6 +82,24 @@ function ListBody({
   );
 }
 
+function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
+  const retried = useRef(false);
+
+  const retryAndKeepPlace = useCallback(() => {
+    retried.current = true;
+    retry();
+  }, [retry]);
+
+  useEffect(() => {
+    if (retried.current && list.status !== "loading" && pane.current !== null) {
+      retried.current = false;
+      focusListStart(pane.current);
+    }
+  }, [list.status, pane]);
+
+  return retryAndKeepPlace;
+}
+
 export function App() {
   const root = useRef<HTMLDivElement>(null);
   const listPane = useRef<HTMLElement>(null);
@@ -100,6 +120,8 @@ export function App() {
     [save],
   );
 
+  const retryAndKeepPlace = useKeptPlace(list, retry, listPane);
+
   const isEmpty = list.status === "ready" && list.items.length === 0;
 
   return (
@@ -112,8 +134,8 @@ export function App() {
             </div>
             <PasteBox save={saveAndShow} />
           </header>
-          <main ref={listPane} className="list">
-            <ListBody list={list} openId={openId} retry={retry} />
+          <main ref={listPane} className="list" tabIndex={-1}>
+            <ListBody list={list} openId={openId} retry={retryAndKeepPlace} />
           </main>
         </div>
       </div>

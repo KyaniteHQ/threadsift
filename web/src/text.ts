@@ -6,7 +6,7 @@ export const ADD_LABEL = "Add";
 
 export const REFUSALS = {
   empty: "Paste a link first.",
-  invalid: "That doesn't look like a link.",
+  invalid: "That doesn’t look like a link. Links must start with https:// or http://.",
   failed: "Couldn’t save this link.",
 } as const;
 
