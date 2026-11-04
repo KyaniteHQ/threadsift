@@ -6,6 +6,7 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
+    "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -14,7 +15,7 @@
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": true,
     "skipLibCheck": true,
-    "types": []
+    "types": ["node", "vite/client"]
   },
-  "include": ["*.ts", "tools/oxlint/threadsift/**/*.ts"]
+  "include": ["*.ts", "src/**/*.ts", "web/**/*.ts", "web/**/*.tsx", "e2e/**/*.ts", "tools/**/*.ts"]
 }

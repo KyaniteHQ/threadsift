@@ -25,6 +25,7 @@ export default defineConfig({
   ],
   rules: {
     "threadsift/no-comments": "error",
+    "react/react-in-jsx-scope": "off",
     "typescript/ban-ts-comment": [
       "error",
       {
@@ -48,8 +49,18 @@ export default defineConfig({
     "typescript/prefer-readonly-parameter-types": [
       "error",
       {
+        ignoreInferredTypes: true,
         allow: [
           { from: "package", name: ["Context", "ImportExpression"], package: "@oxlint/plugins" },
+          { from: "file", name: "Database" },
+          { from: "package", name: "ZodError", package: "zod" },
+          { from: "package", name: "DatabaseSync", package: "@types/node" },
+          { from: "lib", name: ["Request", "HTMLElement"] },
+          {
+            from: "package",
+            name: ["RefObject", "ChangeEvent", "SubmitEvent"],
+            package: "@types/react",
+          },
         ],
       },
     ],
@@ -74,6 +85,13 @@ export default defineConfig({
   },
   overrides: [
     { files: ["*.config.ts", "tools/**"], env: { node: true } },
+    {
+      files: ["e2e/**"],
+      rules: {
+        "eslint/no-await-in-loop": "off",
+        "typescript/prefer-readonly-parameter-types": "off",
+      },
+    },
     {
       files: ["src/core/**", "src/http/**"],
       rules: {
