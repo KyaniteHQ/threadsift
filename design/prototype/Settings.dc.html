@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<script src="./library.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="./tokens.css">
+<style>
+body{margin:0}
+[data-sc-name="Settings"] { display: contents; }   /* the gear sits in the row it is placed in */
+/* Settings: a gear button (a 44px target) and the settings panel: the rows in three groups,
+   then Reset look. The row the gear sits in places the panel: under the header's left edge
+   (position: relative on .brand) or under the reader bar's right end. Under 760px it is a
+   sheet from the bottom with a header (title and Close) and a footer (Reset look) that stay
+   put while the rows scroll between them; every control is 44px there. The panel keeps the
+   default type pair (data-font on the panel) whatever the Font setting is. Every value is a
+   token from tokens.css. */
+.st-gear { display: grid; place-items: center; flex: none; align-self: center; width: var(--target); height: var(--target); padding: 0; border: 0; border-radius: var(--r2); background: transparent; color: var(--muted); cursor: pointer; }
+.st-gear:hover, .st-gear[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
+.st-gear .ic { width: var(--ic-m); height: var(--ic-m); }
+.st-pop { position: absolute; top: calc(100% + var(--s2)); left: 0; z-index: var(--z-popover); display: flex; flex-direction: column; width: var(--pop-w); max-width: calc(100vw - var(--s4) * 2); max-height: calc(var(--vh) - var(--bar-h) * 2 - var(--s6)); overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-label); }
+.st-pop:focus { outline: none; }
+.st-pop p, .st-pop h2 { margin: 0; }
+.st-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: var(--bar-h); padding: 0 var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
+.st-title { font-size: var(--t-body); font-weight: 600; }
+.st-close { display: grid; place-items: center; width: var(--target); height: var(--target); padding: 0; border: 0; border-radius: var(--r2); background: transparent; color: var(--text); cursor: pointer; }
+.st-close:hover { background: var(--surface-2); }
+.st-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--s4); padding: var(--s4); overscroll-behavior: contain; }
+.st-group { display: flex; flex-direction: column; gap: var(--s2); }
+.st-group + .st-group { padding-top: var(--s4); border-top: 1px solid var(--line); }
+.st-foot { flex: none; padding: var(--s3) var(--s4); border-top: 1px solid var(--line); background: var(--surface); }
+.st-gh { color: var(--muted); font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; }
+.st-row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: var(--s1) var(--s3); }
+.st-l { font-weight: 500; }
+.st-note { grid-column: 2; color: var(--muted); font-size: var(--t-label); }
+.st-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); }
+.st-b { flex: 1 1 auto; min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); cursor: pointer; font: inherit; white-space: nowrap; }
+.st-b:hover { background: var(--surface); }
+.st-b[aria-pressed="true"] { background: var(--acc); color: var(--on-acc); font-weight: 600; }
+/* a row that doesn't apply at this width: shown, muted, and its note says why */
+.st-row.off .st-l, .st-row.off .st-b { color: var(--muted); }
+.st-row.off .st-b { cursor: default; }
+.st-row.off .st-b:hover { background: transparent; }
+.st-row.off .st-b[aria-pressed="true"] { background: var(--surface); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-2); }
+.st-row.off .st-sel { color: var(--muted); border-color: var(--line-2); }
+.st-row.off .st-sw { cursor: default; opacity: 0.4; }
+.st-sel { width: 100%; min-height: var(--ctl-h); padding: 0 var(--s2); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font: inherit; }
+.st-sws { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.st-sw { width: var(--ctl-h); height: var(--ctl-h); padding: 0; border: 2px solid transparent; border-radius: var(--r4); background: oklch(var(--acc-l) var(--acc-c) var(--ah)); box-shadow: inset 0 0 0 3px var(--surface); cursor: pointer; }   /* data-accent on each swatch sets its hue */
+.st-sw[aria-pressed="true"] { border-color: var(--text); }
+.st-reset { min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; font-weight: 500; }
+.st-reset:hover { background: var(--surface-2); }
+.st-gear:focus-visible, .st-pop .st-b:focus-visible, .st-sel:focus-visible, .st-sw:focus-visible, .st-reset:focus-visible, .st-close:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.st-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); background: var(--scrim); }
+/* under 760px: a sheet from the bottom; under 480px each label sits above its control */
+.app[data-bp~="narrow"] .st-pop { position: fixed; top: auto; right: 0; bottom: 0; left: 0; width: auto; max-width: none; max-height: 85%; border-width: 1px 0 0; border-radius: var(--r3) var(--r3) 0 0; }
+.app[data-bp~="narrow"] .st-b, .app[data-bp~="narrow"] .st-sel, .app[data-bp~="narrow"] .st-reset { min-height: var(--target); }
+.app[data-bp~="narrow"] .st-sw { width: var(--target); height: var(--target); }
+.app[data-bp~="phone"] .st-row { grid-template-columns: minmax(0, 1fr); }
+.app[data-bp~="phone"] .st-note { grid-column: 1; }
+</style>
+</helmet>
+<button type="button" class="st-gear" id="{{gearId}}" aria-label="Settings" title="Settings" aria-expanded="{{expanded}}" aria-controls="{{popId}}" onClick="{{toggle}}" onKeyDown="{{onKey}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+<sc-if value="{{open}}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{narrow}}" hint-placeholder-val="{{ false }}"><div class="st-backdrop" aria-hidden="true" onClick="{{closeBack}}"></div></sc-if>
+<div class="st-pop" id="{{popId}}" role="dialog" aria-label="{{dialogLabel}}" aria-labelledby="{{titleRef}}" data-font="{{uiFont}}" tabindex="-1" onKeyDown="{{onKey}}" onBlur="{{onBlur}}">
+<sc-if value="{{narrow}}" hint-placeholder-val="{{ false }}"><div class="st-head"><h2 class="st-title" id="{{titleId}}">Settings</h2><button type="button" class="st-close" aria-label="Close settings" title="Close" onClick="{{closeBtn}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div></sc-if>
+<div class="st-body">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<section class="st-group" aria-labelledby="{{g.id}}">
+<h2 class="st-gh" id="{{g.id}}">{{g.label}}</h2>
+<sc-for list="{{g.rows}}" as="r" hint-placeholder-count="3">
+<div class="st-row {{r.cls}}">
+<span class="st-l" id="{{r.labelId}}">{{r.label}}</span>
+<sc-if value="{{r.seg}}" hint-placeholder-val="{{ true }}"><div class="st-seg" role="group" aria-labelledby="{{r.labelId}}" aria-describedby="{{r.noteRef}}"><sc-for list="{{r.seg}}" as="o" hint-placeholder-count="2"><button type="button" class="st-b" aria-pressed="{{o.pressed}}" aria-disabled="{{o.disabled}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></div></sc-if>
+<sc-if value="{{r.select}}" hint-placeholder-val="{{ false }}"><select class="st-sel" aria-labelledby="{{r.labelId}}" aria-describedby="{{r.noteRef}}" aria-disabled="{{r.select.disabled}}" value="{{r.select.value}}" onChange="{{r.select.change}}"><sc-for list="{{r.select.opts}}" as="o" hint-placeholder-count="5"><option value="{{o.id}}">{{o.label}}</option></sc-for></select></sc-if>
+<sc-if value="{{r.swatch}}" hint-placeholder-val="{{ false }}"><div class="st-sws" role="group" aria-labelledby="{{r.labelId}}" aria-describedby="{{r.noteRef}}"><sc-for list="{{r.swatch}}" as="o" hint-placeholder-count="5"><button type="button" class="st-sw" data-accent="{{o.id}}" aria-pressed="{{o.pressed}}" aria-disabled="{{o.disabled}}" aria-label="{{o.label}}" title="{{o.label}}" onClick="{{o.pick}}"></button></sc-for></div></sc-if>
+<sc-if value="{{r.note}}" hint-placeholder-val="{{ false }}"><p class="st-note" id="{{r.noteId}}">{{r.note}}</p></sc-if>
+</div>
+</sc-for>
+</section>
+</sc-for>
+</div>
+<div class="st-foot"><button type="button" class="st-reset" title="Font, text width, density, comment style, accent, tag style and card images go back to their defaults" onClick="{{reset}}">Reset look</button></div>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"value":{"editor":null},"narrow":{"editor":null},"resolved":{"editor":null},"covered":{"editor":null},"onChange":{"editor":null},"onReset":{"editor":null},"$preview":{"width":440,"height":640}}'>
+// The app's settings panel, in the groups LIB.SETTING_GROUPS lists; the rows, their controls
+// and their options come from LIB.SETTINGS. Each row carries exactly one of seg, select or
+// swatch: its control.
+// value: the app's settings; narrow: the app is under the narrow breakpoint (items always open
+// full screen, so Open items as is shown but off, and the panel is a sheet from the bottom);
+// resolved: what Match system stands for now (light or dark); covered: the app's header is
+// behind an open item, which closes the panel; onChange(key, id) saves and applies one choice;
+// onReset() puts the look settings back to their defaults (the panel stays open).
+// While a style other than Library is on, Font and Accent are shown but off: the style sets them.
+// Open items as shows only with the Grid layout. Escape and Close shut the panel and focus
+// returns to the gear; so does a tap on the dimmed page behind the phone sheet. A click
+// elsewhere, or focus moving out of the panel, closes it too.
+var count = 0;
+var STYLE_NOTE = 'Set by the style';
+function narrowNote() {   // built from the narrow breakpoint in tokens.css
+  var b = LIB.breakpoints();
+  return 'Under ' + (b ? b.narrow + 'px' : 'the narrow width') + ' wide, items always open full screen';
+}
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var n = ++count;
+    this.gearId = 'st-gear-' + n; this.popId = 'st-pop-' + n;
+    this.state = { open: false };
+    var self = this;
+    this.toggle = function () { self.setOpen(!self.state.open, false); };
+    this.onKey = function (e) { if (e.key === 'Escape' && self.state.open) { e.preventDefault(); e.stopPropagation(); self.setOpen(false, true); } };
+    this.onBlur = function (e) { var to = e.relatedTarget, pop = document.getElementById(self.popId); if (to && pop && !pop.contains(to) && to.id !== self.gearId) self.setOpen(false, false); };
+    // A press outside closes the panel, except on the phone sheet's dimmed page, which closes it
+    // on its click (so the tap can't land on what is behind it) and returns focus to the gear.
+    this.onDown = function (e) {
+      var pop = document.getElementById(self.popId), gear = document.getElementById(self.gearId), t = e.target;
+      if (t && t.classList && t.classList.contains('st-backdrop')) return;
+      if (pop && !pop.contains(t) && gear && !gear.contains(t)) self.setOpen(false, false);
+    };
+    this.closeBack = function () { self.setOpen(false, true); };
+    this.closeBtn = function () { self.setOpen(false, true); };
+    this.reset = function () { if (self.props.onReset) self.props.onReset(); };
+  }
+  componentDidUpdate() { if (this.props.covered && this.state.open) this.setOpen(false, false); }
+  componentWillUnmount() { document.removeEventListener('pointerdown', this.onDown, true); }
+  setOpen(open, refocus) {
+    var self = this;
+    if (open) document.addEventListener('pointerdown', this.onDown, true);
+    else document.removeEventListener('pointerdown', this.onDown, true);
+    this.setState({ open: open }, function () {
+      var el = open ? document.querySelector('#' + self.popId + ' .st-body [aria-pressed="true"]') || document.getElementById(self.popId) : refocus ? document.getElementById(self.gearId) : null;
+      if (el) el.focus();
+    });
+  }
+  renderVals() {
+    var self = this, v = Object.assign({}, LIB.SETTINGS_DEFAULT, this.props.value || {}), on = this.props.onChange, narrow = !!this.props.narrow;
+    var styled = v.style !== LIB.SETTINGS_DEFAULT.style;
+    var pick = function (k, id) { return function () { if (on) on(k, id); }; };
+    var note = function (k) {
+      if (k === 'openAs' && narrow) return narrowNote();
+      if (styled && LIB.STYLE_SETS.indexOf(k) >= 0) return STYLE_NOTE;
+      if (k === 'theme' && v.theme === 'system' && self.props.resolved) return 'Match system · ' + self.props.resolved + ' now';
+      return '';
+    };
+    return {
+      gearId: this.gearId, popId: this.popId, open: this.state.open, expanded: LIB.pressed(this.state.open), narrow: narrow,
+      titleId: this.popId + '-title', titleRef: narrow ? this.popId + '-title' : undefined, dialogLabel: narrow ? undefined : 'Settings',
+      uiFont: LIB.SETTINGS_DEFAULT.font,
+      toggle: this.toggle, onKey: this.onKey, onBlur: this.onBlur, reset: this.reset, closeBack: this.closeBack, closeBtn: this.closeBtn,
+      groups: LIB.SETTING_GROUPS.map(function (g) {
+        var keys = g.keys.filter(function (k) { return k !== 'openAs' || v.layout === 'grid'; });
+        return {
+          id: self.popId + '-g-' + g.keys[0], label: g.label,
+          rows: keys.map(function (k) {
+            var S = LIB.SETTINGS[k], off = (k === 'openAs' && narrow) || (styled && LIB.STYLE_SETS.indexOf(k) >= 0), n = note(k);
+            var row = { label: S.label, labelId: self.popId + '-' + k, note: n, noteId: self.popId + '-' + k + '-note', noteRef: n ? self.popId + '-' + k + '-note' : undefined, cls: off ? 'off' : '' };
+            if (S.kind === 'select') row.select = { value: v[k], opts: S.options, disabled: off ? 'true' : undefined, change: function (e) { if (on && !off) on(k, e.target.value); } };
+            else row[S.kind] = S.options.map(function (o) { return { id: String(o.id), label: o.label, pressed: LIB.pressed(v[k] === o.id), disabled: off ? 'true' : undefined, pick: off ? undefined : pick(k, o.id) }; });
+            return row;
+          })
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

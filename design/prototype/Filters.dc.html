@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Filters</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<script src="./library.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="./tokens.css">
+<style>
+body{margin:0}
+/* Filters. "rail": segmented Source and Status rows with counts, then Topic and Tags as
+   collapsible groups (the List layout's sidebar). "bar": chips and selects in one wrapping row (Grid).
+   Collapsible: a Filters button shows or hides the panel on narrow apps. The open groups and
+   the open panel are this component's own state. */
+.fl { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.fl-panel { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.fl-toggle { align-self: flex-start; }
+.fl-rail .fl-toggle, [data-bp~="narrow"] .fl-toggle { align-self: stretch; }   /* a full row: the List sidebar, and every layout under 760px */
+.fl-seg { display: flex; gap: 1px; padding: 2px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--bg); }
+.fl-seg-b { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--s1); min-width: var(--seg-h); min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); cursor: pointer; font-size: var(--t-meta); white-space: nowrap; }
+.fl-wrap { flex-wrap: wrap; }
+.fl-seg-b:hover { background: var(--surface-2); }
+.fl-seg-b[aria-pressed="true"] { background: var(--acc-soft); font-weight: 600; }
+.fl-n { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+[aria-pressed="true"] > .fl-n { color: var(--text); }
+.fl-group { display: flex; flex-direction: column; }
+.fl-group-h { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: var(--ctl-h); padding: 0 var(--s2); border: 0; border-radius: var(--r2); background: transparent; cursor: pointer; }
+.fl-group-h:hover { background: var(--surface-2); }
+.fl-group-h .ic { color: var(--muted); transition: transform var(--dur-fade); }
+.fl-group-h[aria-expanded="true"] .ic { transform: rotate(180deg); }
+.fl-rows { display: flex; flex-direction: column; gap: 1px; }
+.fl-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); width: 100%; min-height: var(--row-h); padding: 0 var(--s3); border: 0; border-radius: var(--r2); background: transparent; color: var(--text); cursor: pointer; text-align: left; font-size: var(--t-meta); }
+.fl-row:hover { background: var(--surface-2); }
+.fl-row[aria-pressed="true"] { background: var(--acc-soft); font-weight: 600; }
+.fl-link { align-self: flex-start; min-height: var(--ctl-h); padding: 0 var(--s3); border: 0; background: none; color: var(--acc-ink); cursor: pointer; font-size: var(--t-meta); text-decoration: underline; text-underline-offset: 2px; }
+.fl-bar .fl-panel { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); }
+.fl-g { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.fl-chip { display: inline-flex; align-items: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font-size: var(--t-meta); }
+.fl-chip:hover { border-color: var(--ctl-line); }
+.fl-chip[aria-pressed="true"] { border-color: var(--acc); background: var(--acc); color: var(--on-acc); font-weight: 600; }
+.fl-chip[aria-pressed="true"] > .fl-n { color: var(--on-acc); }
+.fl-sel { min-height: var(--ctl-h); max-width: 100%; padding: 0 var(--s2); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font-size: var(--t-meta); }
+[data-bp~="narrow"] .fl-bar .fl-panel { flex-direction: column; align-items: stretch; }
+[data-bp~="narrow"] .fl-g { width: 100%; }
+[data-bp~="narrow"] .fl-sel { flex: 1; }
+[data-bp~="medium"] .fl-rail .fl-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(15em, 100%), 1fr)); align-items: start; gap: var(--s3) var(--s5); }
+</style>
+</helmet>
+<div class="fl fl-{{mode}}">
+<sc-if value="{{collapsible}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn fl-toggle" aria-expanded="{{openPressed}}" onClick="{{toggle}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"></path></svg>{{f.toggleLabel}}</button></sc-if>
+<sc-if value="{{showPanel}}" hint-placeholder-val="{{ true }}">
+<div class="fl-panel">
+<sc-if value="{{isRail}}" hint-placeholder-val="{{ true }}">
+<div class="fl-seg fl-wrap" role="group" aria-label="Source"><sc-for list="{{f.sources}}" as="o" hint-placeholder-count="5"><button type="button" class="fl-seg-b" aria-pressed="{{o.pressed}}" title="{{o.title}}" onClick="{{o.pick}}">{{o.label}}<span class="fl-n">{{o.n}}</span></button></sc-for></div>
+<div class="fl-seg" role="group" aria-label="Status"><sc-for list="{{f.reads}}" as="o" hint-placeholder-count="3"><button type="button" class="fl-seg-b" aria-pressed="{{o.pressed}}" title="{{o.title}}" onClick="{{o.pick}}">{{o.label}}<span class="fl-n">{{o.n}}</span></button></sc-for></div>
+<div class="fl-group">
+<button type="button" class="fl-group-h" aria-expanded="{{f.topic.expanded}}" onClick="{{f.topic.toggle}}"><span class="label">Topic</span><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<sc-if value="{{f.topic.open}}" hint-placeholder-val="{{ true }}"><div class="fl-rows" role="group" aria-label="Topic"><sc-for list="{{f.topic.rows}}" as="o" hint-placeholder-count="5"><button type="button" class="fl-row" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}"><span>{{o.label}}</span><span class="fl-n">{{o.n}}</span></button></sc-for><sc-if value="{{f.topic.hasMore}}" hint-placeholder-val="{{ true }}"><button type="button" class="fl-link" aria-expanded="{{f.topic.allExpanded}}" onClick="{{f.topic.toggleAll}}">{{f.topic.moreLabel}}</button></sc-if></div></sc-if>
+</div>
+<div class="fl-group">
+<button type="button" class="fl-group-h" aria-expanded="{{f.tags.expanded}}" onClick="{{f.tags.toggle}}"><span class="label">Tags</span><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<sc-if value="{{f.tags.open}}" hint-placeholder-val="{{ false }}"><div class="fl-rows" role="group" aria-label="Tags"><sc-for list="{{f.tags.rows}}" as="o" hint-placeholder-count="5"><button type="button" class="fl-row" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}"><span>{{o.label}}</span><span class="fl-n">{{o.n}}</span></button></sc-for><sc-if value="{{f.tags.hasMore}}" hint-placeholder-val="{{ true }}"><button type="button" class="fl-link" aria-expanded="{{f.tags.allExpanded}}" onClick="{{f.tags.toggleAll}}">{{f.tags.moreLabel}}</button></sc-if></div></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{isBar}}" hint-placeholder-val="{{ false }}">
+<div class="fl-g" role="group" aria-label="Source"><span class="label" aria-hidden="true">Source</span><sc-for list="{{f.sources}}" as="o" hint-placeholder-count="5"><button type="button" class="fl-chip" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}">{{o.label}}<span class="fl-n">{{o.n}}</span></button></sc-for></div>
+<div class="fl-g" role="group" aria-label="Status"><span class="label" aria-hidden="true">Status</span><sc-for list="{{f.reads}}" as="o" hint-placeholder-count="3"><button type="button" class="fl-chip" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}">{{o.label}}<span class="fl-n">{{o.n}}</span></button></sc-for></div>
+<label class="fl-g"><span class="label">Topic</span><select class="fl-sel" value="{{f.topicValue}}" onChange="{{onTopic}}"><sc-for list="{{f.topicOpts}}" as="o" hint-placeholder-count="8"><option value="{{o.value}}">{{o.optLabel}}</option></sc-for></select></label>
+<label class="fl-g"><span class="label">Tag</span><select class="fl-sel" value="{{f.tagValue}}" onChange="{{onTag}}"><sc-for list="{{f.tagOpts}}" as="o" hint-placeholder-count="8"><option value="{{o.value}}">{{o.optLabel}}</option></sc-for></select></label>
+</sc-if>
+<sc-if value="{{f.any}}" hint-placeholder-val="{{ false }}"><button type="button" class="fl-link" onClick="{{onClear}}">Clear filters</button></sc-if>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"facets":{"editor":null},"value":{"editor":null},"searching":{"editor":null},"mode":{"editor":null},"collapsible":{"editor":null},"onSet":{"editor":null},"onClear":{"editor":null},"$preview":{"width":280,"height":520}}'>
+// facets: the counts the app worked out ({ sources, reads, topics, tags, allTopic, allTag },
+// each row { id, label, n }); value: the current filters; onSet(key, id) and onClear change them.
+// The labels, the pressed states and the open groups are built and kept here.
+var SHOWN = 5;   // rows a closed group shows before "All N"
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { topic: true, tags: false, topicAll: false, tagsAll: false, panel: false };
+    var self = this;
+    this.toggle = function () { self.setState({ panel: !self.state.panel }); };
+    this.onTopic = function (e) { self.props.onSet('topic', e.target.value); };
+    this.onTag = function (e) { self.props.onSet('tag', e.target.value); };
+  }
+  flip(k) { var p = {}; p[k] = !this.state[k]; this.setState(p); }
+  renderVals() {
+    var self = this, F = this.props.facets, f = this.props.value || {}, st = this.state, P = LIB.pressed;
+    var mode = this.props.mode === 'bar' ? 'bar' : 'rail', collapsible = !!this.props.collapsible;
+    if (!F) return { f: { sources: [], reads: [], topic: { rows: [] }, tags: { rows: [] }, topicOpts: [], tagOpts: [] }, mode: mode, isRail: false, isBar: false, collapsible: false, showPanel: false };
+    var rows = function (key, list) {
+      return list.map(function (o) {
+        return { value: o.id, label: o.label, n: o.n, optLabel: o.label + ' (' + o.n + ')', title: o.label + ' · ' + o.n + (o.n === 1 ? ' item' : ' items'),
+          pressed: P(f[key] === o.id), pick: function () { self.props.onSet(key, f[key] === o.id && o.id !== 'all' ? 'all' : o.id); } };
+      });
+    };
+    // With a search active, rows with no matches are hidden (a selected row stays).
+    var visible = function (list, key) { return self.props.searching ? list.filter(function (o) { return o.n > 0 || f[key] === o.value; }) : list; };
+    var group = function (name, key, list, noun) {
+      var all = st[name + 'All'];
+      return { open: st[name], expanded: P(st[name]), rows: all ? list : list.filter(function (o, i) { return i < SHOWN || o.value === f[key]; }),
+        hasMore: list.length > SHOWN, allExpanded: P(all), moreLabel: all ? 'Show fewer' : 'All ' + list.length + ' ' + noun,
+        toggle: function () { self.flip(name); }, toggleAll: function () { self.flip(name + 'All'); } };
+    };
+    var topics = visible(rows('topic', F.topics), 'topic'), tags = visible(rows('tag', F.tags), 'tag');
+    var active = ['src', 'topic', 'tag', 'read'].filter(function (k) { return f[k] && f[k] !== 'all'; }).length;
+    return {
+      f: {
+        sources: rows('src', F.sources), reads: rows('read', F.reads),
+        topic: group('topic', 'topic', topics, 'topics'), tags: group('tags', 'tag', tags, 'tags'),
+        topicOpts: [{ value: 'all', optLabel: 'All topics (' + F.allTopic + ')' }].concat(topics),
+        tagOpts: [{ value: 'all', optLabel: 'All tags (' + F.allTag + ')' }].concat(tags),
+        topicValue: f.topic, tagValue: f.tag, any: active > 0, toggleLabel: 'Filters' + (active ? ' · ' + active : '')
+      },
+      mode: mode, isRail: mode === 'rail', isBar: mode === 'bar',
+      collapsible: collapsible, showPanel: !collapsible || st.panel, openPressed: P(st.panel),
+      toggle: this.toggle, onTopic: this.onTopic, onTag: this.onTag, onClear: this.props.onClear
+    };
+  }
+}
+</script>
+</body>
+</html>

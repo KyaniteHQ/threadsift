@@ -1,0 +1,286 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Instrument+Sans:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap');
+/* =====================================================================
+   tokens.css: the Library's design tokens, the one source for every value
+   in its design system. Every component uses these with no fallback values;
+   the app's script only sets attributes on the app's root.
+
+   1. Fixed tokens: type, line heights, spacing, radii, controls, icons,
+      layers, motion.
+   2. The look: every option of every look setting (Font, Text width,
+      Density, Accent, Comment style, Tag style, Card images), picked by an
+      attribute on the app's root.
+   3. Layouts: List and Grid (data-layout).
+   4. Themes: Light, Dark and Sepia (data-theme).
+   5. Widths: the breakpoints and grid columns, and the values that change at
+      each width (data-bp).
+
+   Who owns a default. This file owns what each option looks like. Every
+   setting's default option is its plain value, declared on :root and on any
+   element carrying the setting's attribute, and its block names it in a
+   comment (plain: <id>); every other option is a [data-*="<id>"] rule that
+   lists only what differs. Which option is the default is owned by the
+   settings table (Library.SETTINGS in components/bundle.js), and
+   Library.checkDefaults() confirms that the option the table names as
+   default is the one drawn when no attribute is set.
+
+   The app's root carries every attribute, built from the settings table:
+   data-layout, data-theme, data-font, data-width, data-density,
+   data-accent, data-comments, data-tags, data-images and data-open-as; and
+   two the app works out: data-reader (pane, page or sheet: from the layout,
+   Open items as and the width) and data-bp (every width band the app is
+   under: "narrow medium wide full" at 600px).
+
+   Per-element variables, set by a component on one element, never on the
+   root: --d (a comment's depth, inline style on .cm), --tag-h (a tag's hue,
+   from the tag's data-tag), --progress (how far the reader has scrolled,
+   0 to 1, set on .rd-bar by script) and --fade-to (the colour a sideways-
+   scrolling box fades into, set on its wrapper).
+
+   --vh is the app's visible height: 100vh unless a host that draws the app
+   inside a frame or scaled sets it.
+
+   Literal values that stay in the component styles, on purpose:
+   - 1px hairline borders, the 1.5px unread-dot ring, the 3px swatch inner
+     ring, blockquote bar and open-row bar, and the 2px focus ring, its
+     offset, the progress line and the segmented controls' inset;
+   - font weights (400 to 700), SVG stroke widths (1.8, and 1.4 on the large
+     empty-state icons), opacity and brightness steps (0.45, 0.9, 1.07);
+   - geometry: 100%, 50%, -50%, rotations, grid line numbers, the 85% height
+     of the phone settings sheet and the fade-out stops of folded text;
+   - text-relative sizes in em: the Markdown rhythm in post text (0.2em to
+     1.8em), list indents (1.2em, 1.3em), the position text's width (4.6em),
+     the settings label column (7.5em), the empty-state width (34em), the
+     filter rail's column minimum (15em);
+   - the 180px height of a media placeholder in X posts.
+   ===================================================================== */
+
+/* 1. Fixed tokens -------------------------------------------------------
+   Eight type sizes: label, meta, code (code blocks, the one exception to the
+   16px reading floor), body (list text), title (list titles), read (post,
+   comment and summary text, never under 16px), h2 (section headings in the
+   reader) and display (wordmark, reader title). Six spacing steps, four radii. */
+:root {
+  --t-label: 12px; --t-meta: 13px; --t-code: 14px; --t-h2: 20px;
+  --lh-display: 1.15; --lh-title: 1.25; --lh-label: 1.4; --lh-ui: 1.45; --lh-text: 1.5; --lh-read: 1.6; --lh-code: 1.5;
+  --ls-label: 0.06em;                 /* uppercase labels */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --r1: 4px; --r2: 8px; --r3: 14px; --r4: 999px;
+  --target: 44px;                     /* the smallest touch target: phone controls, the settings gear, the sheet's side buttons */
+  --ctl-h: 34px; --field-h: 40px; --seg-h: 30px; --row-h: 32px; --dot-hit: 28px; --link-pad: 0px;
+  --dot: 10px; --av: 26px; --av-l: 40px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
+  --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the gear, the read mark on phones, empty states */
+  --pop-w: 400px;                     /* the settings panel beside a wide app */
+  --tag-c: 0.13;                      /* tag colour chroma; lightness per theme (--tag-l), hue per tag (data-tag) */
+  --reader-pad: var(--s6); --code-pad-y: 10px; --code-pad-x: 12px;
+  --bar-h: 56px;                      /* the reader bar, and the phone settings sheet's header: one row, its bottom line included */
+  --fold-show: 6;                     /* lines a folded comment shows */
+  --code-show: 14;                    /* lines a folded code block shows */
+  /* motion: an item growing out of its card and back, and every fade or small turn */
+  --dur-move: 280ms; --dur-fade: 200ms; --ease-move: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --loop-spin: 0.9s; --loop-pulse: 1.6s;   /* the reading spinner and the loading shimmer */
+  /* layers, bottom to top */
+  --z-raise: 1;                       /* a card's whole-card link */
+  --z-sticky: 3;                      /* the reader bar and the sheet's key hint */
+  --z-float: 6;                       /* the paste card over the grid */
+  --z-reader: 20;                     /* the full-page reader */
+  --z-scrim: 20;                      /* the dimmed grid behind the sheet */
+  --z-sheet: 21;                      /* the sheet */
+  --z-sheet-nav: 22;                  /* the sheet's side buttons */
+  --z-popover: 40;                    /* the settings panel */
+  --vh: 100vh;
+}
+
+/* 2. The look ------------------------------------------------------------ */
+
+/* Font: the type pair's families, the display weights, the display size factor
+   (--dz), the display letter spacing, the reading size factor (--rz) and --cw, the reading
+   font's average character width in em, which turns the text width into a column. */
+/* plain: plex */
+:root, [data-font] {
+  --f-display: 'IBM Plex Sans', system-ui, sans-serif; --f-ui: 'IBM Plex Sans', system-ui, sans-serif;
+  --f-read: 'IBM Plex Sans', system-ui, sans-serif; --f-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --dw: 600; --dw-soft: 500; --dw-strong: 700; --dz: 1; --dls: -0.01em; --rz: 1; --cw: 0.453;
+}
+[data-font="news"] {
+  --f-display: 'Newsreader', Georgia, serif; --f-ui: 'Instrument Sans', system-ui, sans-serif; --f-read: 'Newsreader', Georgia, serif;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1.08; --dls: -0.012em; --rz: 1.08; --cw: 0.42;
+}
+[data-font="brico"] {
+  --f-display: 'Bricolage Grotesque', system-ui, sans-serif; --f-ui: 'Figtree', system-ui, sans-serif; --f-read: 'Figtree', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --dw: 700; --dls: -0.02em; --cw: 0.47;
+}
+[data-font="inst"] {
+  --f-display: 'Instrument Serif', Georgia, serif; --f-ui: 'Geist', system-ui, sans-serif; --f-read: 'Geist', system-ui, sans-serif;
+  --f-mono: 'Geist Mono', ui-monospace, monospace;
+  --dw: 400; --dw-soft: 400; --dw-strong: 400; --dz: 1.22; --dls: -0.005em; --cw: 0.461;
+}
+[data-font="mono"] {
+  --f-display: 'JetBrains Mono', ui-monospace, monospace; --f-ui: 'JetBrains Mono', ui-monospace, monospace; --f-read: 'Source Serif 4', Georgia, serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --dw: 700; --dw-soft: 400; --dz: 0.92; --dls: -0.02em; --rz: 1.06; --cw: 0.44;
+}
+
+/* Text width: the reading column in average characters per line (68 at most). */
+/* plain: medium */
+:root, [data-width] { --chars: 62; }
+[data-width="narrow"] { --chars: 56; }
+[data-width="wide"] { --chars: 68; }
+
+/* Density: list spacing (--k multiplies the list's vertical spacing) and list
+   text only. Reader text never shrinks below 16px. */
+/* plain: compact */
+:root, [data-density] { --k: 0.75; --t-body: 13.5px; --t-title-px: 15px; }
+[data-density="comfortable"] { --k: 1; --t-body: 14.5px; --t-title-px: 16.5px; }
+[data-density="roomy"] { --k: 1.25; --t-body: 15.5px; --t-title-px: 18px; }
+
+/* Accent: the hue. Its lightness and chroma come with the theme (--acc-l,
+   --acc-c); the colour itself (--acc) is worked out below, on every element that carries
+   data-accent, so a swatch shows its own accent as the current theme draws it. */
+/* plain: cobalt */
+:root, [data-accent] { --ah: 258; }
+[data-accent="rust"] { --ah: 42; }
+[data-accent="moss"] { --ah: 145; }
+[data-accent="iris"] { --ah: 300; }
+[data-accent="teal"] { --ah: 200; }
+
+/* Comment style. --cm-guide is the indent guide drawn left of each reply (the
+   comment tree sizes it by depth) and --cm-guide-x its offset; --cm-pad and --cm-stub-pad pad
+   a kept comment and a context stub; --cm-box, --cm-stub-box, --cm-radius and --cm-bg draw
+   them; --cm-gap is the space between comments; --cm-split is the rule above each new
+   top-level thread and --cm-split-gap the space above it; --cm-av shows the avatar (Rail only).
+   Each option's phone values (under 480px) follow it. */
+/* plain: lines */
+:root, [data-comments] {
+  --cm-guide: repeating-linear-gradient(to right, var(--line-2) 0 1px, transparent 1px var(--ind)); --cm-guide-x: var(--s1);
+  --cm-pad: var(--s3) 0 var(--s3) var(--s3); --cm-stub-pad: var(--s2) 0 var(--s2) var(--s3);
+  --cm-box: 0; --cm-stub-box: 0; --cm-radius: 0; --cm-bg: transparent; --cm-gap: 0;
+  --cm-split: 1px solid var(--line); --cm-split-gap: var(--s2); --cm-av: none;
+}
+[data-comments="cards"] {
+  --cm-guide: none;
+  --cm-pad: var(--s3) var(--s4); --cm-stub-pad: var(--s2) var(--s3);
+  --cm-box: 1px solid var(--line); --cm-stub-box: 1px dashed var(--line-2); --cm-radius: var(--r2); --cm-bg: var(--surface); --cm-gap: var(--s2);
+  --cm-split: 0; --cm-split-gap: 0;
+}
+[data-bp~="phone"][data-comments="cards"] { --cm-pad: var(--s3); }
+[data-comments="rail"] {
+  --cm-guide: repeating-linear-gradient(to right, transparent 0 calc(var(--av) / 2 - 1px), var(--line-2) calc(var(--av) / 2 - 1px) calc(var(--av) / 2), transparent calc(var(--av) / 2) var(--ind));
+  --cm-guide-x: 0px;
+  --cm-pad: var(--s3) 0 var(--s3) calc(var(--av) + var(--s3)); --cm-stub-pad: var(--s2) 0 var(--s2) calc(var(--av) + var(--s3));
+  --cm-split: 0; --cm-split-gap: 0; --cm-av: grid;
+}
+[data-bp~="phone"][data-comments="rail"] { --cm-pad: var(--s3) 0 var(--s3) calc(var(--av) + var(--s2)); --cm-stub-pad: var(--s2) 0 var(--s2) calc(var(--av) + var(--s2)); }
+
+/* Tag style: dots (a coloured dot before the name), text ("#name") or chips.
+   --tag-pad and --tag-pad-y pad a chip around its name. */
+/* plain: dots */
+:root, [data-tags] { --tag-dot: inline-block; --tag-mark: none; --tag-pad: 0px; --tag-pad-y: 0px; --tag-box: 0; --tag-bg: transparent; --tag-fg: var(--muted); }
+[data-tags="text"] { --tag-dot: none; --tag-mark: '#'; }
+[data-tags="chips"] { --tag-dot: none; --tag-pad: var(--s2); --tag-pad-y: calc(var(--s1) / 2); --tag-box: 1px solid var(--line); --tag-bg: var(--surface-2); --tag-fg: var(--text); }
+/* A tag's hue: one of eight, picked by data-tag on the tag (the app hashes the tag's name to
+   0 to 7, so a tag keeps its colour everywhere). */
+[data-tag="0"] { --tag-h: 20; }
+[data-tag="1"] { --tag-h: 60; }
+[data-tag="2"] { --tag-h: 105; }
+[data-tag="3"] { --tag-h: 150; }
+[data-tag="4"] { --tag-h: 195; }
+[data-tag="5"] { --tag-h: 240; }
+[data-tag="6"] { --tag-h: 285; }
+[data-tag="7"] { --tag-h: 330; }
+
+/* Card images: the pictures on list rows and cards. The reader always shows an
+   item's picture. With pictures off, the app renders no card picture at all (nothing is
+   loaded), and every card is laid out as a text card. */
+/* plain: on */
+:root, [data-images] { --card-media: block; }
+[data-images="off"] { --card-media: none; }
+
+/* Worked out from the inputs above, declared again on every element where an input can
+   change: the accent colour, the title, reading and display sizes, and the reading column. */
+:root, .app, [data-layout], [data-theme], [data-font], [data-width], [data-density], [data-accent] {
+  --acc: oklch(var(--acc-l) var(--acc-c) var(--ah));
+  --t-title: calc(var(--t-title-px) * var(--dz));
+  --t-read: max(16px, calc(17px * var(--rz)));
+  --t-display: calc(var(--display-px) * var(--dz) * var(--display-x));
+  --measure: calc(var(--chars) * var(--cw) * 1em);
+}
+
+/* 3. Layouts. Each layout's sizes, and the hue and chroma of its greys (--nh,
+   --nc; Sepia ignores them). ---------------------------------------------- */
+/* plain: list */
+:root, [data-layout] {
+  --nh: 255; --nc: 0.008; --display-px: 24px;
+  --thumb: 40px; --rail-w: 264px; --list-min: 300px; --list-w: 420px; --sum-lines: 2;
+}
+[data-layout="grid"] {
+  --nh: 292; --nc: 0.01; --display-px: 30px;
+  --img-ratio: 16 / 10; --sum-lines: 3; --sum-lines-text: 6; --page-max: 1480px; --paste-min: 280px; --paste-w: 420px;
+  /* the sheet: its widest, the room kept on each side for its side buttons (a 44px button,
+     12px from the sheet, and 16px from the window's edge), and its width now */
+  --sheet-w: 760px; --side-gap: calc(var(--target) + var(--s3) + var(--s4));
+  --sheet-now: min(var(--sheet-w), calc(100% - var(--side-gap) * 2));
+}
+
+/* 4. Themes. --acc-l and --acc-c are the accent's lightness and chroma. ---- */
+/* plain: light */
+:root, [data-theme] {
+  color-scheme: light;
+  --bg: oklch(0.976 var(--nc) var(--nh)); --surface: oklch(0.995 calc(var(--nc) * 0.5) var(--nh)); --surface-2: oklch(0.948 var(--nc) var(--nh));
+  --line: oklch(0.89 var(--nc) var(--nh)); --line-2: oklch(0.80 var(--nc) var(--nh)); --ctl-line: oklch(0.60 var(--nc) var(--nh));
+  --text: oklch(0.22 var(--nc) var(--nh)); --muted: oklch(0.46 var(--nc) var(--nh));
+  --acc-l: 0.50; --acc-c: 0.14; --acc-ink: oklch(0.47 0.14 var(--ah)); --on-acc: oklch(0.99 0 0); --acc-soft: oklch(0.935 0.035 var(--ah));
+  --ok: oklch(0.47 0.12 150); --warn: oklch(0.50 0.16 35);
+  --shadow: 0 1px 2px oklch(0.2 0 0 / 0.05), 0 6px 20px oklch(0.2 0 0 / 0.06); --shadow-lg: 0 18px 50px oklch(0.2 0 0 / 0.22);
+  --scrim: oklch(0.2 0.01 var(--nh) / 0.42); --tag-l: 0.62;
+  --reader-bg: var(--bg);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(0.175 var(--nc) var(--nh)); --surface: oklch(0.215 var(--nc) var(--nh)); --surface-2: oklch(0.25 var(--nc) var(--nh));
+  --line: oklch(0.31 var(--nc) var(--nh)); --line-2: oklch(0.40 var(--nc) var(--nh)); --ctl-line: oklch(0.54 var(--nc) var(--nh));
+  --text: oklch(0.94 var(--nc) var(--nh)); --muted: oklch(0.74 var(--nc) var(--nh));
+  --acc-l: 0.75; --acc-c: 0.12; --acc-ink: oklch(0.79 0.11 var(--ah)); --on-acc: oklch(0.19 0.02 var(--ah)); --acc-soft: oklch(0.31 0.05 var(--ah));
+  --ok: oklch(0.78 0.12 150); --warn: oklch(0.78 0.13 50);
+  --shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px oklch(0 0 0 / 0.3); --shadow-lg: 0 18px 50px oklch(0 0 0 / 0.5);
+  --scrim: oklch(0.05 0 0 / 0.7); --tag-l: 0.72;
+  --reader-bg: var(--bg);
+}
+/* Sepia's selected-row tint (--acc-soft) is the accent's light tint mixed 45% into Sepia's
+   surface-2, in oklab, so its hue cancels toward the paper: Cobalt and Iris come out a warm
+   grey, Moss and Rust a warm cream, Teal a faint sage, never a blue or cyan block. --acc-ink
+   on it is 4.5:1 or more with every accent. */
+[data-theme="sepia"] {
+  color-scheme: light;
+  --bg: oklch(0.948 0.026 84); --surface: oklch(0.972 0.019 86); --surface-2: oklch(0.918 0.03 82);
+  --line: oklch(0.86 0.032 78); --line-2: oklch(0.77 0.035 74); --ctl-line: oklch(0.57 0.04 68);
+  --text: oklch(0.27 0.035 58); --muted: oklch(0.44 0.04 60);
+  --acc-l: 0.47; --acc-c: 0.13; --acc-ink: oklch(0.445 0.13 var(--ah)); --on-acc: oklch(0.985 0.01 86);
+  --acc-soft: color-mix(in oklab, oklch(0.895 0.03 var(--ah)) 45%, var(--surface-2));
+  --ok: oklch(0.44 0.11 150); --warn: oklch(0.47 0.15 35);
+  --shadow: 0 1px 2px oklch(0.3 0.04 60 / 0.08), 0 6px 20px oklch(0.3 0.04 60 / 0.08); --shadow-lg: 0 18px 50px oklch(0.3 0.04 60 / 0.25);
+  --scrim: oklch(0.25 0.03 60 / 0.4); --tag-l: 0.6;
+  --reader-bg: var(--bg);
+}
+
+/* 5. Widths --------------------------------------------------------------
+   The breakpoints and the grid's columns: one table, read by the app's script, which
+   measures the app's own width and marks its root with data-bp.
+     band     under    grid columns
+     phone     480     1
+     narrow    760     2      (items always open full screen)
+     medium   1080     3
+     wide     1440     3
+     full       -      4
+   data-bp, not media queries: the app answers to its own width, and a preview can draw the
+   phone form inside a wide window. */
+:root {
+  --bp-phone: 480px; --bp-narrow: 760px; --bp-medium: 1080px; --bp-wide: 1440px;
+  --cols-phone: 1; --cols-narrow: 2; --cols-medium: 3; --cols-wide: 3; --cols-full: 4;
+  --display-x: 1;
+}
+.app { --cols: var(--cols-full); }
+.app[data-bp~="wide"] { --cols: var(--cols-wide); }
+.app[data-bp~="medium"] { --cols: var(--cols-medium); }
+.app[data-bp~="narrow"] { --cols: var(--cols-narrow); --reader-pad: var(--s4); --display-x: 0.85; }
+.app[data-bp~="phone"] { --cols: var(--cols-phone); --ctl-h: var(--target); --field-h: var(--target); --seg-h: var(--target); --row-h: var(--target); --dot-hit: var(--target); --link-pad: 13px; --ind: 8px; --ind-max: 16px; --av: 22px; }

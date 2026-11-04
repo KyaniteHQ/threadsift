@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reader</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<script src="./library.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="./tokens.css">
+<style>
+body{margin:0}
+[data-sc-name="Reader"] { display: flex; flex-direction: column; min-height: 100%; }   /* so the sheet's key hint can sit at its bottom edge */
+/* =====================================================================
+   Reader: the bar, then one text column capped at the reading measure (68
+   characters a line at most). Post and comment text never drops below 16px.
+   The app decides where the reader sits and passes the item's facts (item)
+   and the controls for that placement (ui); this file builds the rest.
+   ===================================================================== */
+.reader { flex: 1 0 auto; display: flex; flex-direction: column; background: var(--reader-bg); color: var(--text); }
+
+/* bar: always one 56px row, measured after each render, once fonts load and when its width
+   changes (BAR_STEPS below says what it gives up first). Without labels, Comments, Mark read
+   and Open are icon buttons whose labels stay for screen readers. Under 480px every control is
+   44px. A 2px line along the bottom shows how far you have read (--progress, 0 to 1, set while
+   the reader scrolls). */
+.rd-bar { --progress: 0; position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--s2); min-height: var(--bar-h); padding: calc((var(--bar-h) - 1px - var(--target)) / 2) var(--reader-pad); border-bottom: 1px solid var(--line); background: var(--reader-bg); }
+.rd-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--acc); transform: scaleX(var(--progress)); transform-origin: 0 0; pointer-events: none; }
+.rd-back { padding-left: var(--s2); }
+.rd-back.bare { width: var(--ctl-h); padding: 0; }
+.rd-back.bare span, .rd-pos.vh-pos { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.rd-cm { font-variant-numeric: tabular-nums; }
+.rd-cm.full .rd-cm-ic { display: none; }   /* "Comments 2 of 14" in words; shorter forms get the icon */
+.rd-cm:not(.full) { gap: var(--s1); padding: 0 var(--s2); }
+.rd-nav { display: flex; align-items: center; gap: var(--s1); }
+.rd-pos { min-width: 4.6em; color: var(--muted); font-size: var(--t-meta); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+.rd-actions { display: flex; align-items: center; gap: var(--s2); min-width: 0; margin-left: auto; }
+.rd-hint { min-width: 0; margin: 0 var(--s1) 0 0; overflow: hidden; color: var(--muted); font-size: var(--t-label); line-height: var(--lh-label); text-align: right; white-space: nowrap; }   /* whole or not at all: the bar drops it before it would be cut */
+.rd-hint-below { margin: 0; color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); line-height: var(--lh-label); }   /* the key hint when the bar has no room for it */
+.rd-hint-edge { position: sticky; bottom: 0; z-index: var(--z-sticky); margin: 0; padding: var(--s2) var(--reader-pad); border-top: 1px solid var(--line); background: var(--reader-bg); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); line-height: var(--lh-label); text-align: center; }   /* the sheet's key hint, pinned to its bottom edge */
+.rd-bar .st-pop { left: auto; right: var(--reader-pad); }   /* the settings popover opens under the bar's right end */
+.rd-bar.icons .rd-act { width: var(--ctl-h); padding: 0; }
+.rd-bar.icons .rd-act-l { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.rd-bar:not(.icons) .rd-read-ic { display: none; }
+.rd-read-ic circle { fill: none; }
+.rd-read-ic.on circle { fill: currentColor; }
+.rd-read-ic.on path { stroke: var(--bg); }
+[data-bp~="phone"] .rd-bar { gap: var(--s1); }   /* 44px controls; the padding leaves room for one, so the gear fits at every width */
+[data-bp~="phone"] .rd-read-ic { width: var(--ic-l); height: var(--ic-l); }
+[data-bp~="phone"] .rd-pos { min-width: 0; padding: 0 2px; }
+
+/* the reading column */
+.rd-col { flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--s5); width: 100%; max-width: calc(var(--measure) + var(--reader-pad) * 2); margin: 0 auto; padding: var(--s5) var(--reader-pad) var(--s6); font-family: var(--f-read); font-size: var(--t-read); }
+.rd-col p, .rd-col h2, .rd-col h3, .rd-col ul, .rd-col dl, .rd-col figure { margin: 0; }
+.rd-head { display: flex; flex-direction: column; gap: var(--s2); }
+.rd-src, .rd-meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.rd-src span:empty { display: none; }
+.rd-title { font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); overflow-wrap: anywhere; }
+.rd-title:focus { outline: none; }
+
+.rd-agent { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); }
+.rd-filed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); font-family: var(--f-ui); font-size: var(--t-meta); }
+.rd-topic { font-weight: 600; }
+.rd-summary { line-height: var(--lh-text); text-wrap: pretty; }   /* no line ends on one stray word */
+.rd-points { display: flex; flex-direction: column; gap: var(--s1); padding-left: 1.2em; line-height: var(--lh-text); text-wrap: pretty; }
+.rd-points li::marker { color: var(--muted); }
+.rd-sec-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }
+.rd-kept { color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; }
+.rd-orig, .rd-readme, .rd-comments { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.rd-comments h3:focus { outline: none; }
+.rd-note { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); font-style: italic; }
+
+.rd-media { overflow: hidden; border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface-2); }
+.rd-media .pic { height: auto; max-height: var(--media-max); object-fit: contain; object-position: center top; }
+.th-dark .rd-media { border-color: transparent; }
+.rd-byline { display: flex; align-items: center; gap: var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.rd-byline strong { color: var(--text); }
+.x-av { display: grid; place-items: center; flex: none; width: var(--av-l); height: var(--av-l); border: 1px solid var(--line-2); border-radius: var(--r4); background: var(--surface-2); font-weight: 700; }
+.x-media { display: grid; grid-template-columns: 1fr; gap: var(--s2); }
+.x-media.many { grid-template-columns: 1fr 1fr; }
+.media-ph { display: flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 180px; border: 1px dashed var(--line-2); border-radius: var(--r3); background: var(--surface-2); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.x-quote { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3) var(--s4); border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); }
+.x-q-head { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.x-q-head strong { color: var(--text); }
+.x-metrics { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.x-metrics div { display: flex; gap: var(--s1); }
+.x-metrics dt { order: 2; }
+.x-metrics dd { margin: 0; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.repo { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); }
+.repo-name { font-family: var(--f-mono); overflow-wrap: anywhere; }
+.repo-name span { color: var(--muted); }
+.repo-stats { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); font-family: var(--f-ui); font-size: var(--t-meta); }
+.repo-stats div { display: flex; flex-direction: column; }
+.repo-stats dd { margin: 0; font-weight: 600; }
+.gh-topics { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.gh-topics-l { margin-right: var(--s1); font-weight: 600; }
+.readme-ph { padding: var(--s5); border: 1px dashed var(--ctl-line); border-radius: var(--r2); color: var(--muted); font-family: var(--f-mono); font-size: var(--t-meta); text-align: center; }
+
+/* comments: one tree; the Comment style setting picks the --cm-* values (tokens.css): the
+   indent guide, padding, box and fill of a comment and of a context stub, the gap between
+   comments, the rule above each new thread and the avatar. Indent per level is --ind, capped at
+   --ind-max; on phones the cap is 16px and deeper levels get a thin rail only. */
+.tree { display: flex; flex-direction: column; gap: var(--cm-gap); margin: 0; padding: 0; list-style: none; }
+.cm { position: relative; padding-left: min(calc(var(--d) * var(--ind)), var(--ind-max)); background-image: var(--cm-guide); background-repeat: no-repeat; background-size: min(calc(var(--d) * var(--ind)), var(--ind-max)) 100%; background-position: var(--cm-guide-x) 0; }
+.cm.top { margin-top: var(--cm-split-gap); border-top: var(--cm-split); }
+.cm-card { position: relative; padding: var(--cm-pad); border: var(--cm-box); border-radius: var(--cm-radius); background: var(--cm-bg); }
+.rd-col .cm-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); margin-bottom: var(--s1); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.cm-author { color: var(--text); font-weight: 600; }
+.op { padding: 0 var(--s2); border-radius: var(--r1); background: var(--acc-soft); color: var(--text); font-size: var(--t-label); font-weight: 700; }
+.cm-av { position: absolute; left: 0; top: var(--s3); display: var(--cm-av); place-items: center; width: var(--av); height: var(--av); border: 1px solid var(--line-2); border-radius: var(--r4); background: var(--surface-2); color: var(--text); font-size: var(--t-label); font-weight: 700; }
+.cm-stub .cm-av { top: var(--s1); border-style: dashed; background: transparent; color: var(--muted); }
+.cm-fold.folded { max-height: calc(var(--t-read) * var(--lh-read) * var(--fold-show)); overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 65%, transparent); mask-image: linear-gradient(to bottom, #000 65%, transparent); }
+.cm-more { min-width: 0; margin-top: var(--s1); padding: 0; color: var(--acc-ink); text-decoration: underline; text-underline-offset: 2px; }   /* lined up with the text above */
+.cm-more-top { margin: 0 0 var(--s1); }
+.cm-stub { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); min-width: 0; padding: var(--cm-stub-pad); border: var(--cm-stub-box); border-radius: var(--cm-radius); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.cm-ctx { flex: none; padding: 0 var(--s2); border: 1px dashed var(--ctl-line); border-radius: var(--r1); font-size: var(--t-label); cursor: help; }
+.cm-stub .cm-author { flex: none; color: var(--muted); white-space: nowrap; }   /* a name never breaks: u/James-w07 stays whole */
+.cm-prev { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+[data-bp~="phone"] .cm.deep > .cm-card, [data-bp~="phone"] .cm.deep > .cm-stub { box-shadow: inset 1px 0 0 var(--line-2); }
+</style>
+</helmet>
+<sc-if value="{{has}}" hint-placeholder-val="{{ false }}">
+<section class="reader" role="{{ui.role}}" aria-modal="{{ui.modal}}" aria-labelledby="{{titleId}}">
+<div class="rd-bar {{barCls}}">
+<sc-if value="{{hasBack}}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-plain rd-back {{backCls}}" onClick="{{ui.close}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><sc-for list="{{backIcon}}" as="d" hint-placeholder-count="0"><path d="{{d}}"></path></sc-for></svg><span>{{backLabel}}</span></button></sc-if>
+<sc-if value="{{hasPos}}" hint-placeholder-val="{{ false }}">
+<div class="rd-nav" role="group" aria-label="Item position">
+<sc-if value="{{navButtons}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-icon" aria-label="Previous item" title="Previous item (← or k)" aria-keyshortcuts="ArrowLeft k" disabled="{{ui.noPrev}}" onClick="{{ui.prev}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button></sc-if>
+<span class="rd-pos {{posCls}}">{{ui.pos}}</span>
+<sc-if value="{{navButtons}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-icon" aria-label="Next item" title="Next item (→ or j)" aria-keyshortcuts="ArrowRight j" disabled="{{ui.noNext}}" onClick="{{ui.next}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button></sc-if>
+</div>
+</sc-if>
+<div class="rd-actions">
+<sc-if value="{{hintBar}}" hint-placeholder-val="{{ false }}"><p class="rd-hint" aria-hidden="true">{{hintBar}}</p></sc-if>
+<sc-if value="{{hasKept}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn rd-cm {{cmCls}}" aria-label="{{cmLabel}}" onClick="{{toComments}}"><svg class="ic rd-cm-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10H10l-4 4v-4H5z"></path></svg><span>{{cmText}}</span></button></sc-if>
+<sc-if value="{{ui.settings}}" hint-placeholder-val="{{ false }}"><dc-import name="Settings" value="{{ui.settings.value}}" narrow="{{ui.settings.narrow}}" resolved="{{ui.settings.resolved}}" on-change="{{ui.settings.onChange}}" on-reset="{{ui.settings.onReset}}" hint-size="44px,44px"></dc-import></sc-if>
+<button type="button" class="btn rd-act" aria-keyshortcuts="M" onClick="{{onToggleRead}}"><svg class="ic rd-read-ic {{readOn}}" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.3l2.7 2.7L16 9.6"></path></svg><span class="rd-act-l">{{readLabel}}</span></button>
+<a class="btn rd-act" href="{{item.url}}" target="_blank" rel="noopener noreferrer"><span class="rd-act-l">{{openLabel}}</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><sc-for list="{{externalIcon}}" as="d" hint-placeholder-count="0"><path d="{{d}}"></path></sc-for></svg></a>
+</div>
+<i class="rd-progress" aria-hidden="true"></i>
+</div>
+
+<div class="rd-col">
+<header class="rd-head">
+<p class="rd-src"><span class="src">{{sourceLabel}}</span><span>{{item.where}}</span><span>{{byline}}</span><span>{{item.postedLabel}}</span><span>{{item.savedLabel}}</span></p>
+<h2 class="rd-title" id="{{titleId}}" tabindex="-1">{{item.title}}</h2>
+<p class="rd-meta"><sc-for list="{{meta}}" as="m" hint-placeholder-count="2"><span>{{m}}</span></sc-for></p>
+<sc-if value="{{hintBelow}}" hint-placeholder-val="{{ false }}"><p class="rd-hint-below" aria-hidden="true">{{hintBelow}}</p></sc-if>
+</header>
+
+<aside class="rd-agent" aria-label="Summary">
+<p class="rd-filed"><span class="rd-topic">{{item.topic}}</span><span class="tags"><sc-for list="{{item.tagView}}" as="t" hint-placeholder-count="3"><span class="tag" style="--tag-h: {{t.hue}}"><i class="tag-dot"></i>{{t.name}}</span></sc-for></span></p>
+<p class="rd-summary">{{item.summary}}</p>
+<h3 class="label">Key points</h3>
+<ul class="rd-points"><sc-for list="{{item.points}}" as="pt" hint-placeholder-count="3"><li>{{pt}}</li></sc-for></ul>
+</aside>
+
+<div class="rd-orig">
+<h3 class="label">{{origTitle}}</h3>
+<sc-if value="{{hasByline}}" hint-placeholder-val="{{ false }}"><p class="rd-byline"><span class="x-av" aria-hidden="true">{{initial}}</span><span><strong>{{authorName}}</strong> {{authorSub}}</span></p></sc-if>
+<sc-if value="{{hasImage}}" hint-placeholder-val="{{ false }}"><figure class="rd-media"><dc-import name="Picture" file="{{imageFile}}" alt="{{imageAlt}}" hint-size="100%,240px"></dc-import></figure></sc-if>
+<sc-if value="{{isRepo}}" hint-placeholder-val="{{ false }}">
+<div class="repo">
+<p class="repo-name"><span>{{repo.owner}} / </span><strong>{{repo.name}}</strong></p>
+<p>{{repo.description}}</p>
+<dl class="repo-stats">
+<div><dt class="label">Stars</dt><dd>{{repo.stars}}</dd></div>
+<div><dt class="label">Language</dt><dd>{{repo.language}}</dd></div>
+<div><dt class="label">License</dt><dd>{{repo.license}}</dd></div>
+<div><dt class="label">Last push</dt><dd>{{repo.pushed}}</dd></div>
+</dl>
+<sc-if value="{{repo.topicsText}}" hint-placeholder-val="{{ false }}"><p class="gh-topics"><span class="gh-topics-l">Topics on GitHub</span> {{repo.topicsText}}</p></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{hasBody}}" hint-placeholder-val="{{ false }}"><dc-import name="Text" blocks="{{body}}" hint-size="100%,120px"></dc-import></sc-if>
+<sc-if value="{{bodyCut}}" hint-placeholder-val="{{ false }}"><p class="rd-note">The saved copy of this post stops here. The full post is on {{sourceLabel}}.</p></sc-if>
+<sc-if value="{{hasMedia}}" hint-placeholder-val="{{ false }}">
+<div class="x-media {{mediaCls}}"><sc-for list="{{media}}" as="m" hint-placeholder-count="1"><div class="media-ph"><sc-if value="{{m.isVideo}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l8 5-8 5z"></path></svg></sc-if><sc-if value="{{m.isImage}}" hint-placeholder-val="{{ true }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.5"></circle><path d="M20 16l-5-5-8 8"></path></svg></sc-if><span>{{m.label}}</span></div></sc-for></div>
+</sc-if>
+<sc-if value="{{hasQuoted}}" hint-placeholder-val="{{ false }}">
+<div class="x-quote"><p class="x-q-head"><span class="vh">Quoted post: </span><strong>{{quoted.name}}</strong> {{quoted.handle}} · {{quoted.dateLabel}}</p><dc-import name="Text" blocks="{{quoted.body}}" hint-size="100%,24px"></dc-import></div>
+</sc-if>
+<sc-if value="{{isX}}" hint-placeholder-val="{{ false }}"><dl class="x-metrics"><sc-for list="{{metrics}}" as="mx" hint-placeholder-count="5"><div><dt>{{mx.label}}</dt><dd>{{mx.n}}</dd></div></sc-for></dl></sc-if>
+</div>
+
+<sc-if value="{{isRepo}}" hint-placeholder-val="{{ false }}">
+<section class="rd-readme" aria-label="README">
+<h3 class="label">README</h3>
+<sc-if value="{{hasReadme}}" hint-placeholder-val="{{ false }}"><dc-import name="Text" blocks="{{readme}}" hint-size="100%,120px"></dc-import></sc-if>
+<sc-if value="{{noReadme}}" hint-placeholder-val="{{ true }}"><p class="readme-ph">[README excerpt]</p></sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{showComments}}" hint-placeholder-val="{{ false }}">
+<div class="rd-comments">
+<div class="rd-sec-h"><h3 class="label" id="{{commentsId}}" tabindex="-1">{{commentsTitle}}</h3><p class="rd-kept">{{keptLabel}}</p></div>
+<sc-if value="{{noneKept}}" hint-placeholder-val="{{ false }}"><p class="rd-note">{{noneLabel}}</p></sc-if>
+<ol class="tree">
+<sc-for list="{{comments}}" as="c" hint-placeholder-count="4">
+<li class="cm {{c.cls}}" style="--d: {{c.depth}}">
+<sc-if value="{{c.isContext}}" hint-placeholder-val="{{ false }}">
+<div class="cm-stub"><span class="cm-av" aria-hidden="true">{{c.initial}}</span><span class="cm-ctx" title="Removed comment shown so the replies below make sense">Context<span class="vh">: removed comment shown so the replies below make sense.</span></span><span class="cm-author">{{c.authorLabel}}</span><span class="cm-prev">{{c.preview}}</span></div>
+</sc-if>
+<sc-if value="{{c.isKept}}" hint-placeholder-val="{{ true }}">
+<div class="cm-card">
+<p class="cm-head"><span class="cm-av" aria-hidden="true">{{c.initial}}</span><span class="cm-author">{{c.authorLabel}}</span><sc-if value="{{c.isOp}}" hint-placeholder-val="{{ false }}"><span class="op">OP</span></sc-if><span>{{c.scoreLabel}}</span></p>
+<sc-if value="{{c.topLess}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-plain cm-more cm-more-top" aria-expanded="true" onClick="{{c.lessFromTop}}">Show less</button></sc-if>
+<div class="cm-fold {{c.foldCls}}" data-id="{{c.id}}"><dc-import name="Text" blocks="{{c.blocks}}" hint-size="100%,48px"></dc-import><sc-if value="{{c.cut}}" hint-placeholder-val="{{ false }}"><p class="rd-note">The saved copy of this comment stops here.</p></sc-if></div>
+<sc-if value="{{c.showFold}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-plain cm-more" aria-expanded="{{c.foldExpanded}}" onClick="{{c.toggleFold}}">{{c.foldLabel}}</button></sc-if>
+</div>
+</sc-if>
+</li>
+</sc-for>
+</ol>
+</div>
+</sc-if>
+</div>
+<sc-if value="{{hintEdge}}" hint-placeholder-val="{{ false }}"><p class="rd-hint-edge" aria-hidden="true">{{hintEdge}}</p></sc-if>
+</section>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"item":{"editor":null},"read":{"editor":null},"onToggleRead":{"editor":null},"ui":{"editor":null},"cut":{"editor":null},"asOf":{"editor":null},"$preview":{"width":760,"height":900}}'>
+// The reader for every layout.
+// item: the item's facts (prepared by library.js); read and onToggleRead: its read state.
+// ui: the controls for where the app placed the reader: role and modal, back, nav ('none',
+//   'bar' or 'sides'), pos, prev, next, noPrev, noNext, close; hint (the key hint's text) and
+//   hintMode: 'pane' (List's reader beside the list: in the bar when it fits, otherwise the app
+//   shows it under its search field; onHintPlaced(inBar) tells it which), 'page' (in the bar,
+//   otherwise under the item header when hintBelowOK) or 'edge' (the sheet: pinned to its
+//   bottom edge); settings (the gear, when the reader covers the list: { value, narrow,
+//   resolved, onChange, onReset }); phone (bool), titleId.
+// cut: show the saved copy as if the fetch had stopped partway (a Tweaks demo).
+// Comment folds are measured, not estimated: when the reader mounts, once the fonts are ready,
+// when a comment's text appears (it can render after the reader) and when a comment's size
+// changes. A kept comment taller than FOLD_OVER lines folds to --fold-show lines (tokens.css;
+// its paragraph gaps count, since the fold is a height). Which comments are open is this
+// file's state.
+var FOLD_OVER = 8;
+/* The bar is measured, never estimated. It starts with everything and gives up, in this order,
+   until nothing overflows the bar, overlaps or is cut: the key hint, the position text ("3 of
+   18", kept for screen readers), the button labels (Mark read and Open become icons, Back to
+   grid becomes Back, Comments becomes "2 of 14"), the comments total ("2"), then Back's word.
+   Under 480px it starts with icons and Back as an icon, so its 44px controls fit. It starts
+   over when the item, its read state, the controls, the bar's width or its font change, and
+   when a font finishes loading. */
+var BAR_STEPS = [
+  { hint: true,  pos: true,  labels: true,  back: 'label', cm: 'full' },
+  { hint: false, pos: true,  labels: true,  back: 'label', cm: 'full' },
+  { hint: false, pos: false, labels: true,  back: 'label', cm: 'full' },
+  { hint: false, pos: false, labels: false, back: 'short', cm: 'short' },
+  { hint: false, pos: false, labels: false, back: 'short', cm: 'count' },
+  { hint: false, pos: false, labels: false, back: 'icon',  cm: 'count' }
+];
+var PHONE_STEPS = [
+  { hint: false, pos: true,  labels: false, back: 'icon', cm: 'short' },
+  { hint: false, pos: false, labels: false, back: 'icon', cm: 'short' },
+  { hint: false, pos: false, labels: false, back: 'icon', cm: 'count' }
+];
+var BAR_PARTS = '.rd-back, .rd-nav > :not(.vh-pos), .rd-hint, .rd-cm, .rd-bar .st-gear, .rd-act';
+var BAR_CONTROLS = '.rd-back, .rd-nav .btn, .rd-cm, .rd-bar .st-gear, .rd-act';   // the same at every step
+// Whether any part of the bar sticks out of its padding box, overlaps the part before it or
+// has its own text cut.
+function barOverflows(bar) {
+  var b = bar.getBoundingClientRect(), cs = getComputedStyle(bar), z = b.width / bar.offsetWidth || 1;
+  var left = b.left + parseFloat(cs.paddingLeft) * z - 0.5, right = b.right - parseFloat(cs.paddingRight) * z + 0.5, prev = null;
+  var parts = bar.querySelectorAll(BAR_PARTS);
+  for (var i = 0; i < parts.length; i++) {
+    var el = parts[i], r = el.getBoundingClientRect();
+    if (!r.width) continue;
+    if (r.left < left || r.right > right) return true;
+    if (el.scrollWidth > el.clientWidth + 1) return true;
+    if (prev !== null && r.left < prev - 0.5) return true;
+    prev = r.right;
+  }
+  return false;
+}
+var CUT_BLOCKS = 3;   // how much of a post the "stops partway" demo keeps
+function plain(spans) { return (spans || []).map(function (s) { return s.text; }).join(''); }
+function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+function reducedMotion() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: {}, tall: {}, long: {}, step: 0 };
+    var self = this;
+    this.onFonts = function () { self._fitSig = ''; self.fit(); };
+    this.onScroll = function () { if (!self._raf) self._raf = requestAnimationFrame(function () { self._raf = 0; self.progress(); }); };
+    this.toComments = function () { self.scrollToComments(); };
+  }
+  componentDidMount() {
+    var self = this;
+    this.attach();
+    this.measure();
+    this.fit();
+    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', this.onFonts);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { self.measure(); self.onFonts(); });
+  }
+  componentDidUpdate() { this.attach(); this.fit(); }
+  componentWillUnmount() {
+    if (document.fonts && document.fonts.removeEventListener) document.fonts.removeEventListener('loadingdone', this.onFonts);
+    if (this._barRO) this._barRO.disconnect();
+    if (this._ro) this._ro.disconnect();
+    if (this._mo) this._mo.disconnect();
+    if (this._slot) this._slot.removeEventListener('scroll', this.onScroll);
+    cancelAnimationFrame(this._raf);
+  }
+  root() { var t = document.getElementById((this.props.ui && this.props.ui.titleId) || 'rd-title'); return t ? t.closest('.reader') : null; }
+  // After each render: follow the scroller for the progress line, watch each kept comment's width.
+  attach() {
+    var self = this, root = this.root();
+    if (!root) return;
+    var slot = root.closest('.reader-slot');
+    if (slot !== this._slot) {
+      if (this._slot) this._slot.removeEventListener('scroll', this.onScroll);
+      this._slot = slot;
+      if (slot) slot.addEventListener('scroll', this.onScroll, { passive: true });
+    }
+    this.progress();
+    if (typeof ResizeObserver === 'undefined') { this.measure(); return; }
+    // the bar: fit it again whenever its width changes
+    var bar = root.querySelector('.rd-bar');
+    if (bar !== this._bar) {
+      if (this._barRO) this._barRO.disconnect();
+      this._bar = bar;
+      if (bar) { this._barRO = new ResizeObserver(function () { self.fit(); }); this._barRO.observe(bar); }
+    }
+    // Each comment's text is watched, not its fold box: folding doesn't fire it, a new width,
+    // new text or a new font does. Observing also fires once for a comment that just rendered.
+    if (!this._ro) this._ro = new ResizeObserver(function () { self.measure(); });
+    if (this._for !== this.props.item.key) { this._for = this.props.item.key; this._ro.disconnect(); this._seen = new WeakSet(); }
+    root.querySelectorAll('.cm-fold .md').forEach(function (el) { if (!self._seen.has(el)) { self._seen.add(el); self._ro.observe(el); } });
+    // a comment's text can arrive after this render (its component loads on its own): watch for it
+    if (!this._mo && typeof MutationObserver !== 'undefined') {
+      this._mo = new MutationObserver(function () { if (!self._mraf) self._mraf = requestAnimationFrame(function () { self._mraf = 0; self.attach(); self.measure(); }); });
+      this._mo.observe(root, { childList: true, subtree: true });
+    } else if (this._mo && this._moRoot !== root) { this._mo.disconnect(); this._mo.observe(root, { childList: true, subtree: true }); }
+    this._moRoot = root;
+  }
+  measure() {
+    var root = this.root();
+    if (!root) return;
+    var tall = {}, long = {}, screen = this._slot ? this._slot.clientHeight : window.innerHeight;
+    root.querySelectorAll('.cm-fold[data-id]').forEach(function (el) {
+      var lh = parseFloat(getComputedStyle(el.querySelector('.md') || el).lineHeight) || 27;
+      var h = el.scrollHeight;   // the full height, folded or not
+      var id = el.getAttribute('data-id');
+      if (h / lh > FOLD_OVER) tall[id] = true;
+      if (h > screen) long[id] = true;
+    });
+    if (!same(tall, this.state.tall) || !same(long, this.state.long)) this.setState({ tall: tall, long: long });
+  }
+  steps() { return this.props.ui && this.props.ui.phone ? PHONE_STEPS : BAR_STEPS; }
+  step() { var steps = this.steps(); return steps[Math.min(this.state.step, steps.length - 1)]; }
+  hintCanBar() { var ui = this.props.ui || {}; return !!ui.hint && (ui.hintMode === 'pane' || ui.hintMode === 'page'); }
+  // Everything the bar's parts depend on except the step itself.
+  fitSig(bar) {
+    var ui = this.props.ui || {};
+    return [this.props.item.key, !!this.props.read, ui.nav, ui.back ? ui.back.label : '', !!ui.phone, ui.hint, ui.hintMode,
+      bar.clientWidth, getComputedStyle(bar).fontFamily, bar.querySelectorAll(BAR_CONTROLS).length].join('|');
+  }
+  fit() {
+    var root = this.root(), bar = root && root.querySelector('.rd-bar');
+    if (!bar || !bar.clientWidth) return;
+    var sig = this.fitSig(bar), at = this.state.step;
+    if (sig !== this._fitSig) {   // start over with everything
+      this._fitSig = sig;
+      var start = !(this.props.ui || {}).phone && !this.hintCanBar() ? 1 : 0;
+      if (at !== start) { this.setState({ step: start }); return; }
+    }
+    if (at < this.steps().length - 1 && barOverflows(bar)) { this.setState({ step: at + 1 }); return; }
+    var ui = this.props.ui || {}, inBar = !!(this.step().hint && this.hintCanBar());
+    if (ui.onHintPlaced && inBar !== this._placed) { this._placed = inBar; ui.onHintPlaced(inBar); }
+  }
+  progress() {
+    var slot = this._slot, root = this.root();
+    if (!slot || !root) return;
+    var max = slot.scrollHeight - slot.clientHeight, bar = root.querySelector('.rd-bar');
+    if (bar) bar.style.setProperty('--progress', max > 0 ? Math.min(1, Math.max(0, slot.scrollTop / max)).toFixed(4) : '0');
+  }
+  scrollToComments() {
+    var root = this.root(), slot = this._slot, h = root && root.querySelector('.rd-comments h3'), bar = root && root.querySelector('.rd-bar');
+    if (!h) return;
+    if (slot) {
+      var top = slot.scrollTop + h.getBoundingClientRect().top - slot.getBoundingClientRect().top - (bar ? bar.offsetHeight : 56) - 16;
+      slot.scrollTo({ top: top, behavior: reducedMotion() ? 'auto' : 'smooth' });
+    }
+    h.focus({ preventScroll: true });
+  }
+  toggleFold(id, fromTop) {
+    var o = Object.assign({}, this.state.open), root = this.root();
+    if (o[id]) delete o[id]; else o[id] = true;
+    this.setState({ open: o }, function () {
+      if (!fromTop || !root) return;   // the top button is gone: focus moves to the one at the end
+      var btn = root.querySelector('.cm-fold[data-id="' + id + '"] ~ .cm-more');
+      if (btn) btn.focus({ preventScroll: true });
+    });
+  }
+  renderVals() {
+    var self = this, it = this.props.item, ui = this.props.ui || {}, st = this.state;
+    if (!it || !it.key) return { has: false };
+    var K = it.K, read = !!this.props.read, cut = !!this.props.cut, asOf = this.props.asOf;
+    var meta = [];
+    if (it.kind === 'reddit-post') meta.push(LIB.compact(it.score) + ' pts', LIB.num(it.commentCount) + ' comments');
+    if (it.kind === 'reddit-comment') meta.push(LIB.compact(it.score) + ' pts');
+    if (it.kind === 'x-post') meta.push(LIB.compact(it.metrics.likes) + ' likes');
+    if (it.kind === 'github-repo') meta.push(LIB.num(it.repo.stars) + ' stars', it.repo.language);
+    var cutDone = false;
+    var comments = (it.comments || []).map(function (c, i) {
+      var kept = c.role === 'kept', open = !!st.open[c.id], can = kept && !!st.tall[c.id];
+      var blocks = kept ? c.body : [];
+      var stop = kept && cut && !cutDone && blocks.length > 1;
+      if (stop) { cutDone = true; blocks = blocks.slice(0, 1); }
+      return {
+        id: c.id, depth: c.depth, isKept: kept, isContext: !kept, cut: stop,
+        authorLabel: (K.source === 'reddit' ? 'u/' : '@') + c.author, isOp: c.author === it.author,
+        initial: String(c.author).replace(/^[@_\-\s]+/, '').charAt(0).toUpperCase(),
+        scoreLabel: c.score == null ? '' : c.score + ' pts', blocks: blocks,
+        preview: kept ? '' : LIB.plainBlocks(c.body).replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim().slice(0, 160),
+        cls: [c.depth === 0 && i > 0 ? 'top' : '', c.depth > 2 ? 'deep' : ''].join(' '),
+        foldCls: can && !open ? 'folded' : '', showFold: can, foldExpanded: LIB.pressed(open), foldLabel: open ? 'Show less' : 'Show full comment',
+        topLess: can && open && !!st.long[c.id],
+        toggleFold: function () { self.toggleFold(c.id, false); }, lessFromTop: function () { self.toggleFold(c.id, true); }
+      };
+    });
+    // A README's or post's first level-1 heading that repeats the item's name is left out.
+    var name = (it.repo ? it.repo.name : it.title).toLowerCase().trim();
+    var dropTitle = function (blocks) {
+      var first = blocks.findIndex(function (b) { return b.type === 'h'; });
+      return first >= 0 && blocks[first].level === 1 && [name, it.title.toLowerCase().trim()].indexOf(plain(blocks[first].spans).toLowerCase().trim()) >= 0
+        ? blocks.slice(0, first).concat(blocks.slice(first + 1)) : blocks;
+    };
+    var body = dropTitle(it.body || []), hasComments = K.noun !== '';
+    var readme = it.repo && it.repo.readme && it.repo.readme.length ? dropTitle(it.repo.readme) : null;
+    var back = ui.back || null, titleId = ui.titleId || 'rd-title', s = this.step();
+    var hintBar = s.hint && this.hintCanBar() ? ui.hint : '';
+    return {
+      has: true, item: it, ui: ui, titleId: titleId, commentsId: titleId + '-comments',
+      cmText: LIB.commentsLabel(it, s.cm), cmLabel: LIB.commentsLabel(it, 'full'), cmCls: s.cm === 'full' ? 'full' : '',
+      barCls: s.labels ? '' : 'icons', backCls: s.back === 'icon' ? 'bare' : '', posCls: s.pos ? '' : 'vh-pos',
+      hasBack: !!back, backLabel: back ? (s.back === 'short' ? back.short : back.label) : '', backIcon: back ? LIB.ICONS[back.icon] : [],
+      hintBar: hintBar, hintBelow: !hintBar && ui.hintMode === 'page' && ui.hintBelowOK ? ui.hint : '', hintEdge: ui.hintMode === 'edge' ? ui.hint : '',
+      hasPos: ui.nav === 'bar' || ui.nav === 'sides', navButtons: ui.nav === 'bar',
+      hasKept: it.keptN > 0, toComments: this.toComments,
+      readOn: read ? 'on' : '', readLabel: read ? 'Mark unread' : 'Mark read', onToggleRead: this.props.onToggleRead,
+      openLabel: K.open, externalIcon: LIB.ICONS.external,
+      sourceLabel: K.label, meta: meta, origTitle: K.orig,
+      byline: it.kind === 'reddit-post' ? 'u/' + it.author : it.kind === 'reddit-comment' ? 'comment by u/' + it.author : '',
+      hasByline: it.kind === 'x-post' || it.kind === 'reddit-comment',
+      initial: String(it.authorName || it.author || '').replace(/^[@_\-]+/, '').charAt(0).toUpperCase(),
+      authorName: it.kind === 'x-post' ? it.authorName : 'u/' + it.author,
+      authorSub: it.kind === 'x-post' ? '@' + it.author + ' · ' + LIB.ago(it.posted, asOf) : '· ' + LIB.compact(it.score) + ' pts · ' + LIB.ago(it.posted, asOf),
+      hasImage: !!it.image, imageFile: it.image ? it.image.file : '', imageAlt: it.image ? it.image.alt : '',
+      isRepo: it.kind === 'github-repo',
+      repo: it.repo ? { owner: it.repo.owner, name: it.repo.name, description: it.repo.description, stars: LIB.num(it.repo.stars),
+        language: it.repo.language || 'None stated', license: it.repo.license || 'None stated', pushed: LIB.ago(it.posted, asOf),
+        topicsText: (it.repo.topics || []).join(', ') } : {},
+      hasReadme: !!readme, noReadme: !readme, readme: readme || [],
+      hasBody: body.length > 0, body: cut && body.length > CUT_BLOCKS ? body.slice(0, CUT_BLOCKS) : body, bodyCut: cut && body.length > CUT_BLOCKS,
+      hasMedia: !!(it.media && it.media.length),
+      media: (it.media || []).map(function (m) { return { isVideo: m.type === 'video', isImage: m.type !== 'video', label: m.type === 'video' ? 'Video · ' + Math.floor(m.seconds / 60) + ':' + String(m.seconds % 60).padStart(2, '0') : 'Image' }; }),
+      mediaCls: it.media && it.media.length > 1 ? 'many' : '',
+      hasQuoted: !!it.quoted,
+      quoted: it.quoted ? { name: it.quoted.authorName || '@' + it.quoted.author, handle: '@' + it.quoted.author, dateLabel: LIB.ago(it.quoted.posted, asOf), body: it.quoted.body } : { body: [] },
+      isX: it.kind === 'x-post',
+      metrics: it.metrics ? ['replies', 'reposts', 'likes', 'bookmarks', 'views'].map(function (k) { return { label: k, n: LIB.compact(it.metrics[k]) }; }) : [],
+      showComments: hasComments, comments: comments, commentsTitle: K.noun === 'replies' ? 'Replies' : 'Comments',
+      keptLabel: hasComments ? 'Kept ' + it.keptN + ' of ' + LIB.num(it.commentCount) + ' ' + K.noun : '',
+      noneKept: hasComments && it.keptN === 0, noneLabel: 'None of the ' + K.noun + ' added anything the post doesn’t already say.'
+    };
+  }
+}
+</script>
+</body>
+</html>

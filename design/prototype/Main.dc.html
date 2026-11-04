@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Library</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<script src="./library.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+/* =====================================================================
+   PROTOTYPE TOOL ONLY: the Compare shell. It shows the Library app once,
+   or twice side by side, and holds the Tweaks panel. Its own variables;
+   not part of the app's design. The app's styles live in Library.dc.html.
+   ===================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+.tool { --tool-shell: #0e0f11; --tool-bg: #17181b; --tool-fg: #ececed; --tool-muted: #b9bdc5; --tool-font: 'Geist', system-ui, sans-serif; --tool-t: 12.5px; --tool-pad: 12px; --label-h: 0px; --z: 1; }
+.shell { display: flex; width: 100%; height: 100vh; background: var(--tool-shell); }
+.shell.is-compare { --label-h: 36px; --z: 0.5; }
+.panes { flex: 1 1 auto; min-width: 0; display: flex; }
+.pane { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.pane + .pane { border-left: 2px solid var(--tool-shell); }
+.pane-label { flex: none; display: flex; align-items: center; gap: 10px; height: var(--label-h); padding: 0 var(--tool-pad); overflow: hidden; background: var(--tool-bg); color: var(--tool-fg); font: 500 var(--tool-t)/1 var(--tool-font); white-space: nowrap; }
+.pane-label span { overflow: hidden; color: var(--tool-muted); text-overflow: ellipsis; }
+.pane-body { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+/* Each app is drawn at --z and told its visible height in --vh, the one variable it takes from here. */
+.pane-scale { position: absolute; top: 0; left: 0; width: calc(100% / var(--z)); height: calc(100% / var(--z)); transform: scale(var(--z)); transform-origin: 0 0; --vh: calc((100vh - var(--label-h)) / var(--z)); }
+</style>
+</helmet>
+
+<div class="tool shell {{shellCls}}">
+<div class="panes">
+<sc-for list="{{panes}}" as="p" hint-placeholder-count="1">
+<div class="pane">
+<sc-if value="{{compare}}" hint-placeholder-val="{{ false }}"><div class="pane-label"><b>{{p.side}}</b><span>{{p.label}}</span></div></sc-if>
+<div class="pane-body"><div class="pane-scale">
+<dc-import name="Library" store="{{p.store}}" defaults="{{p.defaults}}" initial-open="{{p.open}}" initial-by="{{p.by}}" initial-empty="{{p.empty}}" width-hint="{{p.width}}" page-keys="{{p.pageKeys}}" cut="{{cut}}" request="{{p.req}}" on-report="{{p.report}}" hint-size="100%,100%"></dc-import>
+</div></div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{tweaksOpen}}" hint-placeholder-val="{{ false }}"><dc-import name="Tweaks" current="{{info.current}}" screen="{{info.screen}}" compare="{{compare}}" left="{{info.left}}" right="{{info.right}}" can-cut="{{info.canCut}}" paste-mode="{{info.pasteMode}}" cut="{{cut}}" presets="{{presets}}" set-screen="{{setScreen}}" set-paste="{{setPaste}}" set-cut="{{setCut}}" save-preset="{{savePreset}}" load-preset="{{loadPreset}}" delete-preset="{{deletePreset}}" shuffle="{{shuffle}}" toggle-compare="{{toggleCompare}}" set-side="{{setSide}}" hide="{{hide}}" hint-size="352px,640px"></dc-import></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+/* Main: the Compare shell. PROTOTYPE TOOL ONLY.
+   It shows the Library app (Library.dc.html) once, or twice side by side in Compare, each copy
+   with its own settings (layout, look, theme: the app saves them itself, each copy under its
+   own key), width and open item. The shell owns the presets, the saved open item and the
+   Tweaks panel, and sends Tweaks' choices to the apps as numbered requests. The app itself
+   knows nothing about any of this. */
+var STORE = 'library:v4', STORE_PRESETS = 'library:v5:presets';
+var SIDES = {   // where each copy keeps its settings, and what the right one starts as
+  L: { store: 'library:settings', defaults: null },
+  R: { store: 'library:settings:compare-right', defaults: { layout: 'grid', openAs: 'sheet' } }
+};
+var TOOL_W = 320, COMPARE_Z = 0.5;
+// The first render's guess at each app's width; each app measures its own right after.
+function guessWidth(s) {
+  var w = window.innerWidth || 1440;
+  return s.cmp ? Math.max(320, (w - (s.tw ? TOOL_W : 0)) / 2) / COMPARE_Z : w;
+}
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var presets = [];
+    try { presets = JSON.parse(LIB.safeGet(STORE_PRESETS) || '[]') || []; } catch (e) { presets = []; }
+    this.state = {
+      s: LIB.readState(STORE), presets: presets.filter(function (p) { return p && p.name && LIB.parseCode(p.code); }),
+      info: { L: null, R: null }, req: { L: { n: 0 }, R: { n: 0 } }, n: 0, cut: false
+    };
+    var self = this;
+    ['setScreen', 'setPaste', 'setCut', 'savePreset', 'loadPreset', 'deletePreset', 'shuffle', 'toggleCompare', 'setSide', 'hide']
+      .forEach(function (m) { self[m] = self[m].bind(self); });
+    this.reportL = function (r) { self.report('L', r); };
+    this.reportR = function (r) { self.report('R', r); };
+    this.onKey = function (e) { self.handleKey(e); };
+  }
+  componentDidMount() { document.addEventListener('keydown', this.onKey); LIB.writeState(this.state.s, STORE); }
+  componentWillUnmount() { document.removeEventListener('keydown', this.onKey); }
+
+  // Every change to the saved state goes through setS, which writes it at once.
+  setS(patch, extra) {
+    var s = Object.assign({}, this.state.s, patch);
+    LIB.writeState(s, STORE);
+    this.setState(Object.assign({ s: s }, extra || {}));
+  }
+  setPresets(list) { LIB.safeSet(STORE_PRESETS, JSON.stringify(list)); this.setState({ presets: list }); }
+  // A request for one side ('L' or 'R') or both.
+  ask(r, side) {
+    var n = this.state.n + 1, req = Object.assign({}, this.state.req);
+    (side ? [side] : ['L', 'R']).forEach(function (k) { req[k] = Object.assign({ n: n }, r); });
+    this.setState({ n: n, req: req });
+  }
+  // The left (or only) app's open item and empty screen are saved; the right one's are not.
+  report(side, r) {
+    var info = Object.assign({}, this.state.info), s = this.state.s;
+    info[side] = r;
+    if (side === 'L' && (r.open !== s.open || r.by !== s.by || r.empty !== s.empty)) this.setS({ open: r.open, by: r.by, empty: r.empty }, { info: info });
+    else this.setState({ info: info });
+  }
+
+  /* ----- what the Tweaks panel can change. Presets, Shuffle and Load act on the left (or
+     only) app's settings; Compare's Left and Right pick a combination or a preset per side. */
+  setScreen(id) { this.ask({ screen: id }); }
+  setPaste(mode) { this.ask({ paste: mode }); }
+  setCut(v) { this.setState({ cut: v }); }
+  savePreset(name) {
+    var L = this.state.info.L;
+    if (!L) return;
+    var code = LIB.codeOf(L.settings);
+    this.setPresets(this.state.presets.filter(function (p) { return p.name !== name; }).concat([{ name: name, code: code }]).slice(-12));
+  }
+  loadPreset(code) { var set = LIB.parseCode(code); if (set) this.ask({ settings: set }, 'L'); }
+  deletePreset(name) { this.setPresets(this.state.presets.filter(function (p) { return p.name !== name; })); }
+  shuffle() {
+    var set = {};
+    LIB.SETTING_KEYS.forEach(function (k) { set[k] = pick(LIB.SETTINGS[k].options).id; });
+    this.ask({ settings: set }, 'L');
+  }
+  toggleCompare() { this.setS({ cmp: !this.state.s.cmp }, { info: { L: this.state.info.L, R: null } }); }
+  setSide(side, value) {   // a combination id, 'preset:' + a preset's code, or 'style:' + a style's id
+    var c = LIB.byId(LIB.COMBOS, value), set = value.indexOf('preset:') === 0 ? LIB.parseCode(value.slice(7)) : value.indexOf('style:') === 0 ? { style: value.slice(6) } : c ? c.set : null;
+    if (set) this.ask({ settings: set }, side);
+  }
+  hide() { this.setS({ tw: false }); }
+
+  // t shows or hides Tweaks, anywhere on the page except in a text field.
+  handleKey(e) {
+    var t = e.target, tag = t && t.tagName ? t.tagName.toLowerCase() : '';
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (t && t.isContentEditable)) return;
+    if (e.key === 't' || e.key === 'T') { e.preventDefault(); this.setS({ tw: !this.state.s.tw }); }
+  }
+
+  allPresets() { return LIB.PRESETS.map(function (p) { return { name: p.name, code: LIB.codeOf(p.set), builtin: true }; }).concat(this.state.presets); }
+  renderVals() {
+    var self = this, st = this.state, s = st.s, cmp = s.cmp, w = guessWidth(s), L = st.info.L, R = st.info.R;
+    var presets = this.allPresets();
+    var sideValue = function (r) {   // the preset this side matches, or else its combination
+      if (!r) return '';
+      var code = LIB.codeOf(r.settings), p = presets.filter(function (x) { return x.code === code; })[0];
+      return p ? 'preset:' + p.code : LIB.comboOf(r.settings);
+    };
+    var pane = function (side, label) {
+      var r = st.info[side];
+      return { side: label, label: r ? LIB.autoName(r.settings) : '', store: SIDES[side].store, defaults: SIDES[side].defaults,
+        open: side === 'L' ? s.open : '', by: side === 'L' ? s.by : '', empty: side === 'L' ? s.empty : false,
+        width: w, pageKeys: !cmp, req: st.req[side], report: side === 'L' ? self.reportL : self.reportR };
+    };
+    return {
+      shellCls: cmp ? 'is-compare' : '', compare: cmp, s: s, cut: st.cut,
+      panes: cmp ? [pane('L', 'Left'), pane('R', 'Right')] : [pane('L', '')],
+      tweaksOpen: s.tw && !!L,
+      info: { current: L ? L.settings : null, screen: L ? L.screen : 'library', canCut: !!(L && L.canCut) || !!(cmp && R && R.canCut),
+        pasteMode: L ? L.pasteMode : 'idle', left: sideValue(L), right: sideValue(R) },
+      presets: presets,
+      setScreen: this.setScreen, setPaste: this.setPaste, setCut: this.setCut,
+      savePreset: this.savePreset, loadPreset: this.loadPreset, deletePreset: this.deletePreset, shuffle: this.shuffle,
+      toggleCompare: this.toggleCompare, setSide: this.setSide, hide: this.hide
+    };
+  }
+}
+</script>
+</body>
+</html>

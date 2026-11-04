@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inline text</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<script src="./library.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="./tokens.css">
+<style>
+body{margin:0}
+[data-sc-name="Inline"] { display: contents; }   /* the spans flow inside the paragraph, heading, list item or cell */
+/* Inline: plain, bold, italic, link and code spans, rendered once. Text imports it inside
+   paragraphs, headings, quotes, list items and table cells. */
+.il-a { color: var(--acc-ink); text-underline-offset: 2px; overflow-wrap: anywhere; padding-block: var(--link-pad); }
+.il-code { padding: 0 var(--s1); border-radius: var(--r1); background: var(--surface-2); font-family: var(--f-mono); font-size: inherit; }
+</style>
+</helmet>
+<sc-for list="{{spans}}" as="sp" hint-placeholder-count="1"><sc-if value="{{sp.isText}}" hint-placeholder-val="{{ true }}"><span>{{sp.text}}</span></sc-if><sc-if value="{{sp.isBold}}" hint-placeholder-val="{{ false }}"><strong>{{sp.text}}</strong></sc-if><sc-if value="{{sp.isItalic}}" hint-placeholder-val="{{ false }}"><em>{{sp.text}}</em></sc-if><sc-if value="{{sp.isLink}}" hint-placeholder-val="{{ false }}"><a class="il-a" href="{{sp.href}}" target="_blank" rel="noopener noreferrer">{{sp.text}}</a></sc-if><sc-if value="{{sp.isCode}}" hint-placeholder-val="{{ false }}"><code class="il-code">{{sp.text}}</code></sc-if></sc-for>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"spans":{"editor":null},"$preview":{"width":480,"height":60}}'>
+// spans: the facts from data.json ({ type, text, href }). A link whose text is its own
+// address shows the short form.
+class Component extends DCLogic {
+  renderVals() {
+    var spans = Array.isArray(this.props.spans) ? this.props.spans : [];
+    return {
+      spans: spans.map(function (sp) {
+        var isLink = sp.type === 'link';
+        return { isText: sp.type === 'text', isBold: sp.type === 'bold', isItalic: sp.type === 'italic', isLink: isLink, isCode: sp.type === 'code',
+          href: sp.href || '', text: isLink && sp.text === sp.href ? LIB.shortUrl(sp.text) : sp.text };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Paste status</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<script src="./library.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="./tokens.css">
+<style>
+body{margin:0}
+/* The paste status card: icon and title, the item, the link wrapped in full, a note, then
+   the actions stacked at full width. It takes the width of the box it is placed in. */
+.ps { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; padding: var(--s3); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); font-size: var(--t-meta); line-height: var(--lh-label); }
+.ps p { margin: 0; }
+.ps-head { display: flex; align-items: center; gap: var(--s2); }
+.ps-title { color: var(--text); font-weight: 600; }
+.ps-item { color: var(--text); }
+.ps-url { color: var(--muted); font-family: var(--f-mono); overflow-wrap: anywhere; }
+.ps-sub { color: var(--muted); }
+.ps-acts { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s2); }
+.ps-acts .btn { width: 100%; }
+.st-acc { color: var(--acc-ink); }
+.st-ok { color: var(--ok); }
+.st-warn { color: var(--warn); }
+</style>
+</helmet>
+<sc-if value="{{show}}" hint-placeholder-val="{{ false }}">
+<div class="ps">
+<p class="ps-head"><svg class="ic {{tone}}" viewBox="0 0 24 24" aria-hidden="true"><sc-for list="{{icon}}" as="d" hint-placeholder-count="0"><path d="{{d}}"></path></sc-for></svg><span class="ps-title">{{title}}</span></p>
+<sc-if value="{{itemTitle}}" hint-placeholder-val="{{ false }}"><p class="ps-item">{{itemTitle}}</p></sc-if>
+<p class="ps-url">{{url}}</p>
+<sc-if value="{{sub}}" hint-placeholder-val="{{ false }}"><p class="ps-sub">{{sub}}</p></sc-if>
+<sc-if value="{{hasActions}}" hint-placeholder-val="{{ false }}"><div class="ps-acts"><sc-for list="{{actions}}" as="a" hint-placeholder-count="2"><button type="button" class="{{a.cls}}" onClick="{{a.run}}">{{a.label}}</button></sc-for></div></sc-if>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"paste":{"editor":null},"item":{"editor":null},"onOpen":{"editor":null},"onRetry":{"editor":null},"onDismiss":{"editor":null},"$preview":{"width":320,"height":200}}'>
+// paste: the app's paste box { mode, url, key, reason }; item: the saved item it names, if any.
+// Open and Try again are the primary actions; Dismiss stays a plain button.
+var ACTIONS = { open: { label: 'Open', primary: true }, retry: { label: 'Try again', primary: true }, dismiss: { label: 'Dismiss', primary: false } };
+class Component extends DCLogic {
+  renderVals() {
+    var p = this.props.paste, item = this.props.item, self = this;
+    if (!p || p.mode === 'idle' || !LIB.PASTE[p.mode]) return { show: false };
+    var M = LIB.PASTE[p.mode];
+    var run = { open: this.props.onOpen, retry: this.props.onRetry, dismiss: this.props.onDismiss };
+    var actions = M.actions.filter(function (a) { return !(a === 'retry' && p.reason === 'invalid') && !(a === 'open' && !item); });
+    return {
+      show: true, tone: 'st-' + M.tone + (M.icon === 'spin' ? ' spin' : ''), icon: LIB.ICONS[M.icon],
+      title: LIB.pasteTitle(p), url: String(p.url).replace(/^https?:\/\/(www\.)?/, ''),
+      itemTitle: item && p.mode !== 'processing' ? item.title : '',
+      sub: p.mode === 'processing' ? M.sub : item && p.mode !== 'failed' ? 'Filed under ' + item.topic + ' · ' + item.tags.join(', ') : '',
+      hasActions: actions.length > 0,
+      actions: actions.map(function (a) { return { label: ACTIONS[a].label, cls: ACTIONS[a].primary ? 'btn btn-acc' : 'btn', run: run[a] }; })
+    };
+  }
+}
+</script>
+</body>
+</html>

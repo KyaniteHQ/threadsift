@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Library</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<script src="./library.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="./tokens.css">
+<style>
+/* =====================================================================
+   Library: the app's shared pieces and layout. Every value is a token from
+   tokens.css (linked above); Reader, Filters, PasteStatus, Settings, Text,
+   Inline and Picture carry their own styles in their files and use the same tokens.
+   ===================================================================== */
+[data-sc-name="Library"] { display: block; height: 100%; }
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+.vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------------------------------------------------------------------
+   1. The app's root. Every value comes from tokens.css.
+   --------------------------------------------------------------------- */
+.app { height: var(--vh); overflow-x: hidden; overflow-y: auto; background: var(--bg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); -webkit-font-smoothing: antialiased; }
+
+/* ---------------------------------------------------------------------
+   2. Shared pieces (also used inside the component files)
+   --------------------------------------------------------------------- */
+.ic { width: var(--ic); height: var(--ic); flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ic-s { width: var(--ic-s); height: var(--ic-s); }
+.ic-xl { width: var(--ic-xl); height: var(--ic-xl); stroke-width: 1.4; }
+.spin { animation: spin var(--loop-spin) linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .spin, .skel i { animation: none; } }
+:where(.app) button, :where(.app) input, :where(.app) select { font: inherit; color: inherit; }
+.app :focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.label { margin: 0; color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label); line-height: var(--lh-label); text-transform: uppercase; }
+.kbd { padding: 0 var(--s1); border: 1px solid var(--line-2); border-radius: var(--r1); color: var(--muted); font-family: var(--f-mono); font-size: var(--t-label); line-height: var(--lh-label); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font-size: var(--t-meta); font-weight: 500; text-decoration: none; white-space: nowrap; }
+.btn:hover { background: var(--surface-2); }
+.btn-acc { border-color: var(--acc); background: var(--acc); color: var(--on-acc); font-weight: 600; }
+.btn-acc:hover { background: var(--acc); filter: brightness(1.07); }
+.btn-plain { border-color: transparent; background: transparent; }
+.btn-icon { width: var(--ctl-h); padding: 0; }
+.btn:disabled { cursor: default; color: var(--muted); border-color: var(--line-2); background: transparent; }
+.field { display: flex; align-items: center; gap: var(--s2); min-height: var(--field-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--muted); }
+.field:focus-within { border-color: var(--acc-ink); box-shadow: 0 0 0 1px var(--acc-ink); }
+.field input { flex: 1; align-self: stretch; min-width: 0; margin: -1px 0; padding: 0; border: 0; background: transparent; color: var(--text); font-size: var(--t-body); outline: none; }   /* reaches over the field's border, so the input itself is the field's full height (44px on phones) */
+.field input::placeholder { color: var(--muted); opacity: 1; }
+.app .field input:focus-visible { outline: none; }
+.src { color: var(--text); font-weight: 600; }
+/* tags: the Tag style setting picks the --tag-* values (tokens.css) */
+.tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }
+.tag { display: inline-flex; align-items: center; gap: var(--s1); padding: 0 var(--tag-pad); border: var(--tag-box); border-radius: var(--r4); background: var(--tag-bg); color: var(--tag-fg); }
+.tag::before { content: var(--tag-mark); }
+.tag-dot { display: var(--tag-dot); flex: none; width: var(--dot); height: var(--dot); border-radius: var(--r4); background: oklch(var(--tag-l) var(--tag-c) var(--tag-h)); }
+
+/* ---------------------------------------------------------------------
+   3. Layout: masthead, paste box, search, list
+   --------------------------------------------------------------------- */
+.lib { min-height: var(--vh); }
+.bg { display: contents; }
+.lib.covered .bg { visibility: hidden; }
+.mast { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.brand { position: relative; display: flex; align-items: baseline; gap: var(--s2); }   /* holds the settings popover */
+.L-rows .mast:has(.st-pop) { z-index: var(--z-popover); overflow: visible; }   /* the settings panel reaches past the List sidebar, above the list, while it is open */
+.brand h1 { margin: 0; font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); }
+.brand-n { color: var(--muted); font-variant-numeric: tabular-nums; }
+.paste { position: relative; display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.paste-row { display: flex; gap: var(--s2); min-width: 0; }
+.paste-row .field { flex: 1 1 auto; min-width: 0; }
+.search, .filters-slot { min-width: 0; }
+.app[data-bp~="narrow"] .search .kbd { display: none; }
+.list-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s1) var(--s3); }
+.list-head p { margin: 0; }
+.results { color: var(--muted); }
+.list { min-width: 0; }
+
+/* list items: one structure; rows and cards place the parts with grid areas */
+.it { position: relative; display: grid; min-width: 0; }
+.it > * { min-width: 0; }
+.it-media { grid-area: media; display: var(--card-media); overflow: hidden; background: var(--surface-2); }   /* the Card images setting (tokens.css) */
+.it-dot { grid-area: dot; position: relative; z-index: calc(var(--z-raise) + 1); display: inline-grid; place-items: center; width: var(--dot-hit); height: var(--dot-hit); padding: 0; border: 0; border-radius: var(--r4); background: transparent; cursor: pointer; }
+.it-dot:hover { background: var(--surface-2); }
+.it-dot i { display: block; width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r4); }
+.it.unread .it-dot i { border-color: var(--acc); background: var(--acc); }
+.it-meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); margin: 0; color: var(--muted); }
+.it-title { grid-area: title; margin: calc(var(--s1) * var(--k)) 0 0; font-size: var(--t-title); font-weight: inherit; line-height: var(--lh-title); }
+.it-open { all: unset; cursor: pointer; color: var(--text); font-family: var(--f-display); font-weight: var(--dw-soft); letter-spacing: var(--dls); overflow-wrap: anywhere; }
+.it.unread .it-open { font-weight: var(--dw-strong); }
+.it-open::after { content: ''; position: absolute; inset: 0; z-index: var(--z-raise); }
+.it:has(.it-open:focus-visible) { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.app .it-open:focus-visible { outline: none; }
+.it-sum { grid-area: sum; display: -webkit-box; margin: calc(var(--s1) * var(--k)) 0 0; overflow: hidden; color: var(--muted); font-size: var(--t-body); line-height: var(--lh-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: var(--sum-lines); text-wrap: pretty; }   /* a long token wraps instead of being cut; no line ends on one stray word */
+.it-snip { grid-area: snip; margin: var(--s1) 0 0; color: var(--muted); text-wrap: pretty; }
+.app mark { padding: 0 1px; border-radius: var(--r1); background: var(--acc-soft); color: var(--text); }
+.it-foot { grid-area: foot; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); margin: calc(var(--s2) * var(--k)) 0 0; color: var(--muted); }
+.it-topic { color: var(--text); font-weight: 600; }
+.it-badge { padding: 0 var(--s2); border-radius: var(--r4); background: var(--acc); color: var(--on-acc); font-size: var(--t-label); font-weight: 700; }
+.it.is-back { outline: 2px solid var(--acc); outline-offset: 2px; }
+.it-proc .it-title { font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
+.proc-ic { color: var(--acc-ink); }
+.skel { grid-area: sum; display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s2); }
+.skel i { display: block; height: var(--s2); border-radius: var(--r1); background: var(--surface-2); animation: shimmer var(--loop-pulse) ease-in-out infinite; }
+.skel i + i { width: 60%; }
+
+/* rows (List): unread dot on the left, 40px thumbnail on the right, 2-line summary */
+.L-rows .it { grid-template-columns: var(--s4) minmax(0, 1fr) auto; grid-template-areas: "dot meta media" "dot title media" "dot sum sum" "dot snip snip" "dot foot foot"; column-gap: var(--s3); padding: calc(var(--s3) * var(--k)) var(--s4) calc(var(--s3) * var(--k)) var(--s3); border-bottom: 1px solid var(--line); }
+.L-rows .it:hover { background: var(--surface-2); }
+.L-rows .it.open, .L-rows .it.open:hover { background: var(--acc-soft); }
+.L-rows .it-dot { align-self: start; justify-self: center; margin-top: calc(var(--lh-ui) * 0.5em - var(--dot-hit) / 2); }   /* centred on the first line of the meta row */
+.L-rows .it-date { margin-left: auto; }
+.L-rows .it-media { width: var(--thumb); height: var(--thumb); margin-left: var(--s2); border-radius: var(--r1); }
+
+/* cards (Grid): unread dot in the body next to the source, never on the image */
+.L-cards .it { grid-template-columns: var(--s4) auto minmax(0, 1fr) var(--s4); grid-template-areas: "media media media media" ". dot meta ." ". title title ." ". sum sum ." ". snip snip ." ". foot foot ."; padding-bottom: var(--s4); overflow: hidden; border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow); }
+.L-cards .it:hover { border-color: var(--line-2); }
+.L-cards .it.open { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc), var(--shadow); }
+.L-cards .it-media { aspect-ratio: var(--img-ratio); border-bottom: 1px solid var(--line); }
+.th-dark.L-cards .it-media { border-bottom: 0; }   /* theme and layout classes sit on the same element */
+.L-cards .it-meta { margin-top: var(--s4); }
+.L-cards .it-dot { align-self: center; margin: calc(var(--s4) - (var(--dot-hit) - var(--dot)) / 2) calc(var(--s2) - (var(--dot-hit) - var(--dot)) / 2) calc((var(--dot-hit) - var(--dot)) / -2) calc((var(--dot-hit) - var(--dot)) / -2); }
+/* a card without a picture (too dark or flat to read at card size, or Card images off) is a text card */
+.L-cards .it.text-only .it-sum, .L-cards[data-images="off"] .it-sum { --sum-lines: var(--sum-lines-text); color: var(--text); font-family: var(--f-read); font-size: var(--t-read); line-height: var(--lh-text); }
+.L-cards .it-proc { border-style: dashed; box-shadow: none; }
+
+/* List: rail | list | reader. Medium: header over list | reader. Narrow: one column. */
+.L-rows .lib { display: grid; grid-template-columns: var(--rail-w) minmax(var(--list-min), var(--list-w)) minmax(0, 1fr); grid-template-rows: auto auto 1fr; }
+.L-rows .mast { grid-column: 1; grid-row: 1 / -1; position: sticky; top: 0; height: var(--vh); overflow-y: auto; padding: var(--s5) var(--s4); border-right: 1px solid var(--line); background: var(--surface-2); }
+.L-rows .brand { padding: 0 var(--s2); }
+.L-rows .search { grid-column: 2; grid-row: 1; position: sticky; top: 0; z-index: var(--z-sticky); padding: var(--s4) var(--s4) var(--s2); background: var(--bg); }
+.list-hint { margin: var(--s2) 0 0; color: var(--muted); font-size: var(--t-label); line-height: var(--lh-label); }   /* List's keys, when the reader bar has no room for them */
+.L-rows .list-head { grid-column: 2; grid-row: 2; padding: var(--s1) var(--s4) var(--s2); border-bottom: 1px solid var(--line); }
+.L-rows .list { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; }
+.L-rows .search, .L-rows .list-head, .L-rows .list { border-right: 1px solid var(--line); }
+.L-rows .lib.is-empty .list { grid-column: 2 / -1; grid-row: 1 / -1; border-right: 0; }
+.L-rows[data-bp~="medium"] .lib { grid-template-columns: minmax(var(--list-min), var(--list-w)) minmax(0, 1fr); grid-template-rows: auto auto auto 1fr; }
+.L-rows[data-bp~="medium"] .mast { grid-column: 1 / -1; grid-row: 1; position: static; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "brand paste" "filters filters"; align-items: start; gap: var(--s3) var(--s5); height: auto; overflow: visible; padding: var(--s3) var(--s4); border-right: 0; border-bottom: 1px solid var(--line); }
+.L-rows[data-bp~="medium"] .brand { grid-area: brand; padding: var(--s2) 0 0; }
+.L-rows[data-bp~="medium"] .paste { grid-area: paste; }
+.L-rows[data-bp~="medium"] .filters-slot { grid-area: filters; }
+.L-rows[data-bp~="medium"] .search { grid-column: 1; grid-row: 2; }
+.L-rows[data-bp~="medium"] .list-head { grid-column: 1; grid-row: 3; }
+.L-rows[data-bp~="medium"] .list { grid-column: 1; grid-row: 4; }
+.L-rows[data-bp~="medium"] .lib.is-empty .list { grid-column: 1 / -1; grid-row: 2 / -1; }
+.L-rows[data-bp~="narrow"] .lib { display: flex; flex-direction: column; }
+.L-rows[data-bp~="narrow"] .mast { display: flex; flex-direction: column; align-items: stretch; gap: var(--s3); padding: var(--s4); }
+.L-rows[data-bp~="narrow"] .search, .L-rows[data-bp~="narrow"] .list-head, .L-rows[data-bp~="narrow"] .list { border-right: 0; }
+
+/* Grid: header (wordmark, search, paste box), filters, then the grid */
+.L-cards .lib { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(var(--paste-min), var(--paste-w)); grid-template-areas: "brand search paste" "filters filters filters" "lhead lhead lhead" "list list list"; align-content: start; align-items: start; gap: var(--s4) var(--s5); max-width: var(--page-max); margin: 0 auto; padding: var(--s5) var(--s6) var(--s6); }
+.L-cards .lib.is-empty { grid-template-areas: "brand . paste" "list list list"; }
+.L-cards .mast { display: contents; }
+.L-cards .brand { grid-area: brand; padding-top: var(--s1); }
+.L-cards .search { grid-area: search; }
+.L-cards .filters-slot { grid-area: filters; }
+.L-cards .paste { grid-area: paste; }
+.L-cards .paste-card { position: absolute; top: calc(100% + var(--s2)); right: 0; z-index: var(--z-float); width: min(var(--paste-w), 100%); border-radius: var(--r2); box-shadow: var(--shadow-lg); }   /* floats over the grid, which doesn't move */
+.L-cards[data-bp~="narrow"] .paste-card { position: static; width: auto; box-shadow: none; }   /* under 760px: a full-width row in the page */
+.L-cards .list-head { grid-area: lhead; }
+.L-cards .list { grid-area: list; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); align-items: start; gap: var(--s5); }
+.L-cards .empty, .L-cards .noresults { grid-column: 1 / -1; justify-self: center; }
+.L-cards[data-bp~="medium"] .lib { grid-template-columns: minmax(0, 1fr) minmax(var(--paste-min), var(--paste-w)); grid-template-areas: "brand paste" "search search" "filters filters" "lhead lhead" "list list"; }
+.L-cards[data-bp~="medium"] .lib.is-empty { grid-template-areas: "brand paste" "list list"; }
+.L-cards[data-bp~="narrow"] .lib { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brand" "paste" "search" "filters" "lhead" "list"; gap: var(--s3); padding: var(--s4) var(--s4) var(--s6); }
+.L-cards[data-bp~="narrow"] .lib.is-empty { grid-template-areas: "brand" "paste" "list"; }
+.L-cards[data-bp~="narrow"] .list { gap: var(--s4); }
+
+/* empty library and no results */
+.empty { display: flex; flex-direction: column; align-items: center; gap: var(--s2); max-width: 34em; margin: 0 auto; padding: var(--s6) var(--s5); color: var(--muted); font-size: var(--t-body); text-align: center; }
+.empty h2 { margin: var(--s2) 0 var(--s1); color: var(--text); font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); }
+.empty p { margin: 0; }
+.noresults { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); padding: var(--s5) var(--s4); color: var(--muted); }
+.noresults p { margin: 0; }
+
+/* ---------------------------------------------------------------------
+   4. Where the reader sits, by the layout row's reader: pane (List), page (over the
+   whole app: Grid as Page, and both layouts under 760px) or sheet (centred over the
+   dimmed grid: Grid as Sheet).
+   --------------------------------------------------------------------- */
+.reader-slot { min-width: 0; background: var(--reader-bg); overflow-anchor: none; }   /* the app keeps the reading place itself (keepPlace), so the browser's own scroll anchoring is off */
+.reader-ph { display: grid; place-items: center; align-content: center; gap: var(--s3); color: var(--muted); text-align: center; }
+.R-pane .reader-slot, .R-pane .reader-ph { grid-column: 3; grid-row: 1 / -1; position: sticky; top: 0; height: var(--vh); overflow-y: auto; }
+.R-pane[data-bp~="medium"] .reader-slot, .R-pane[data-bp~="medium"] .reader-ph { grid-column: 2; grid-row: 2 / -1; }
+.R-page .reader-slot { position: fixed; inset: 0; z-index: var(--z-reader); height: auto; overflow-y: auto; }
+.R-sheet { --sheet-now: min(var(--sheet-w), calc(100% - var(--side-gap) * 2)); }   /* the sheet's width, used by the sheet and its side buttons */
+.R-sheet .reader-slot { position: fixed; z-index: var(--z-sheet); top: var(--s5); bottom: var(--s5); left: 50%; width: var(--sheet-now); overflow-y: auto; transform: translateX(-50%); border-radius: var(--r3); box-shadow: var(--shadow-lg); }
+.th-dark.R-sheet .reader-slot { --reader-bg: var(--surface); border: 1px solid var(--line-2); }   /* the sheet's edge shows on the dark scrim */
+.scrim { position: fixed; inset: 0; z-index: var(--z-scrim); padding: 0; border: 0; background: var(--scrim); cursor: default; }
+.side-nav { position: fixed; z-index: var(--z-sheet-nav); top: 50%; display: grid; place-items: center; width: var(--target); height: var(--target); padding: 0; transform: translateY(-50%); border: 1px solid var(--ctl-line); border-radius: var(--r4); background: var(--surface); color: var(--text); cursor: pointer; box-shadow: var(--shadow); }
+.side-nav:disabled { cursor: default; color: var(--muted); border-color: var(--line-2); }
+.side-prev { left: calc((100% - var(--sheet-now)) / 2 - var(--target) - var(--s3)); }
+.side-next { right: calc((100% - var(--sheet-now)) / 2 - var(--target) - var(--s3)); }
+
+/* open and close: the card and the reader share one name while the view changes */
+.app.vt .it.vt-src, .app.vt .reader-slot { view-transition-name: lib-item; }
+::view-transition-group(lib-item) { animation-duration: var(--dur-move); animation-timing-function: var(--ease-move); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-fade); }
+
+.loading { margin: 0; padding: var(--s6); color: var(--muted); }
+</style>
+</helmet>
+
+<div class="{{cls}}" id="{{uid}}" data-bp="{{bp}}" data-style="{{look.style}}" data-font="{{look.font}}" data-width="{{look.width}}" data-density="{{look.density}}" data-accent="{{look.accent}}" data-comments="{{look.comments}}" data-tags="{{look.tags}}" data-images="{{look.images}}">
+<div class="{{libCls}}">
+<div class="bg" inert="{{bgInert}}">
+<div class="mast">
+<div class="brand"><h1>Library</h1><span class="brand-n">{{count}}</span><dc-import name="Settings" value="{{settings}}" narrow="{{narrow}}" resolved="{{resolved}}" covered="{{headerCovered}}" on-change="{{setSetting}}" on-reset="{{resetLook}}" hint-size="44px,44px"></dc-import></div>
+<div class="paste">
+<div class="paste-row"><label class="field"><span class="vh">Paste a link to save</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg><input type="text" inputmode="url" enterkeyhint="go" autocomplete="off" spellcheck="false" placeholder="Paste a link" value="{{pasteInput}}" onChange="{{onPasteInput}}" onKeyDown="{{onPasteKey}}"></label><button type="button" class="btn btn-acc" onClick="{{onPasteAdd}}">Add</button></div>
+<p class="vh" aria-live="polite">{{announce}}</p>
+<sc-if value="{{showPaste}}" hint-placeholder-val="{{ false }}"><div class="paste-card" onMouseEnter="{{cardEnter}}" onMouseLeave="{{cardLeave}}" onFocus="{{cardFocus}}" onBlur="{{cardBlur}}" onKeyDown="{{onCardKey}}"><dc-import name="PasteStatus" paste="{{paste}}" item="{{pasteItem}}" on-open="{{pasteOpen}}" on-retry="{{pasteRetry}}" on-dismiss="{{pasteDismiss}}" hint-size="100%,140px"></dc-import></div></sc-if>
+</div>
+<sc-if value="{{showList}}" hint-placeholder-val="{{ true }}"><div class="filters-slot"><dc-import name="Filters" facets="{{facets}}" value="{{f}}" searching="{{searching}}" mode="{{filterStyle}}" collapsible="{{filtersCollapse}}" on-set="{{setFilter}}" on-clear="{{clearFilters}}" hint-size="100%,40px"></dc-import></div></sc-if>
+</div>
+
+<sc-if value="{{showList}}" hint-placeholder-val="{{ true }}">
+<div class="search"><label class="field"><span class="vh">Search</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" placeholder="Search everything" autocomplete="off" aria-keyshortcuts="/" value="{{q}}" onChange="{{onSearch}}"><span class="kbd" aria-hidden="true">/</span></label><sc-if value="{{listHint}}" hint-placeholder-val="{{ false }}"><p class="list-hint" aria-hidden="true">{{listHint}}</p></sc-if></div>
+<div class="list-head"><p class="results" aria-live="polite">{{resultsLabel}}</p><p class="label">Newest saved first</p></div>
+</sc-if>
+
+<div class="list">
+<sc-if value="{{loadingText}}" hint-placeholder-val="{{ false }}"><p class="loading">{{loadingText}}</p></sc-if>
+<sc-if value="{{procRow}}" hint-placeholder-val="{{ false }}">
+<div class="it it-proc">
+<p class="it-meta"><svg class="ic ic-s proc-ic spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 0 8 8"></path></svg><span class="src">Processing</span><span>just now</span></p>
+<p class="it-title">{{procUrl}}</p>
+<div class="skel" aria-hidden="true"><i></i><i></i></div>
+</div>
+</sc-if>
+<sc-for list="{{rows}}" as="it" hint-placeholder-count="6">
+<article class="it {{it.cls}}" data-key="{{it.key}}">
+<sc-if value="{{it.showPic}}" hint-placeholder-val="{{ false }}"><div class="it-media"><dc-import name="Picture" file="{{it.imageFile}}" alt="" hint-size="100%,100%"></dc-import></div></sc-if>
+<button type="button" class="it-dot" aria-label="{{it.readAria}}" title="{{it.readTitle}}" onClick="{{it.toggleRead}}"><i></i></button>
+<p class="it-meta"><span class="src">{{it.sourceLabel}}</span><span>{{it.where}}</span><sc-if value="{{it.badge}}" hint-placeholder-val="{{ false }}"><span class="it-badge">{{it.badge}}</span></sc-if><span class="it-date">{{it.postedLabel}}</span></p>
+<h2 class="it-title"><button type="button" class="it-open" aria-current="{{it.current}}" onClick="{{it.open}}">{{it.title}}</button></h2>
+<p class="it-sum">{{it.summary}}</p>
+<sc-if value="{{it.snip.has}}" hint-placeholder-val="{{ false }}"><p class="it-snip"><span>{{it.snip.pre}}</span><mark>{{it.snip.hit}}</mark><span>{{it.snip.post}}</span></p></sc-if>
+<p class="it-foot"><span class="it-topic">{{it.topic}}</span><span class="tags"><sc-for list="{{it.tags}}" as="t" hint-placeholder-count="3"><span class="tag" style="--tag-h: {{t.hue}}"><i class="tag-dot"></i>{{t.name}}</span></sc-for></span><span>{{it.keptShort}}</span></p>
+</article>
+</sc-for>
+<sc-if value="{{noResults}}" hint-placeholder-val="{{ false }}"><div class="noresults"><p>Nothing matches.</p><button type="button" class="btn" onClick="{{clearAll}}">Clear search and filters</button></div></sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}"><div class="empty"><svg class="ic ic-xl" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l2.5-7h11l2.5 7"></path><path d="M4 13v5h16v-5h-5a3 3 0 0 1-6 0z"></path></svg><h2>Nothing saved yet</h2><p>Paste a Reddit, X, GitHub or article link in the box.</p><p>The agent files it with a topic, up to 3 tags and a short summary.</p></div></sc-if>
+</div>
+</div>
+
+<sc-if value="{{placeholder}}" hint-placeholder-val="{{ false }}"><div class="reader-ph"><svg class="ic ic-xl" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"></path><path d="M9 12h6M9 16h4"></path></svg><span>Select an item to read</span></div></sc-if>
+<sc-if value="{{scrim}}" hint-placeholder-val="{{ false }}"><button type="button" class="scrim" tabindex="-1" aria-hidden="true" onClick="{{close}}"></button></sc-if>
+<sc-if value="{{hasReader}}" hint-placeholder-val="{{ false }}"><div class="reader-slot"><dc-import name="Reader" item="{{openItem}}" read="{{openRead}}" on-toggle-read="{{toggleOpenRead}}" ui="{{ui}}" cut="{{cut}}" as-of="{{asOf}}" hint-size="100%,480px"></dc-import></div></sc-if>
+<sc-if value="{{sideNav}}" hint-placeholder-val="{{ false }}"><button type="button" class="side-nav side-prev" aria-label="Previous item" title="Previous item (← or k)" aria-keyshortcuts="ArrowLeft k" disabled="{{ui.noPrev}}" onClick="{{prev}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button><button type="button" class="side-nav side-next" aria-label="Next item" title="Next item (→ or j)" aria-keyshortcuts="ArrowRight j" disabled="{{ui.noNext}}" onClick="{{next}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button></sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"initialOpen":{"editor":"text"},"initialBy":{"editor":null},"initialEmpty":{"editor":null},"widthHint":{"editor":null},"pageKeys":{"editor":null},"cut":{"editor":null},"request":{"editor":null},"onReport":{"editor":null},"store":{"editor":null},"defaults":{"editor":null},"$preview":{"width":1440,"height":900}}'>
+/* Library: the app. One layout, one width, one open item, its own settings and its own keys.
+   It knows nothing about Compare: Main mounts it once, or twice side by side.
+   Props
+     store         where the app saves its settings (default 'library:settings'); reading places
+                   for the session go under the same name in sessionStorage
+     defaults      settings to start from when none are saved (see LIB.SETTINGS)
+     initialOpen   the item open on load; ignored when it isn't in the data
+     initialBy     who opened it: 'user', or 'auto' when List opened it by itself
+     initialEmpty  start on the first-run screen
+     widthHint     the expected width, so the first render already has the right layout
+     pageKeys      also take keys pressed while focus is on the page itself
+     cut           show saved copies as if the fetch had stopped partway (a Tweaks demo)
+     request       { n, screen }, { n, paste } or { n, settings } from Tweaks; each n is applied once
+     onReport      gets { open, by, empty, screen, canCut, pasteMode, settings } whenever one changes
+   Widths come from the breakpoints in tokens.css (LIB.bpOf); every style value from tokens.css,
+   picked by the attributes and classes this script sets on the app's root.
+   1. Layouts and their rules   2. The key hint   3. Look   4. Component */
+
+/* 1. Layouts. One row for each way the app shows the list and an item; the settings pick the
+   row: Layout, Open items as (Grid only) and, under the narrow breakpoint (--bp-narrow, 760px),
+   each layout's narrow row, where an item always opens full screen.
+   list      rows or cards
+   reader    pane: beside the list. page: over the whole app. sheet: centred over the dimmed grid
+   back      the reader's way out: full label, short label, icon (none beside the list)
+   nav       none, bar (previous/next in the reader bar) or sides (beside the sheet; in the bar
+             instead at a width that leaves no room beside it, see checkSides)
+   autoOpen  open the first unread item by itself */
+var BACK = {
+  list: { label: 'Back to list', short: 'Back', icon: 'left' },
+  grid: { label: 'Back to grid', short: 'Back', icon: 'left' },
+  sheet: { label: 'Close', short: 'Close', icon: 'x' }
+};
+var LAYOUTS = {
+  'list':        { layout: 'list', list: 'rows',  reader: 'pane',  back: null,       nav: 'none',  autoOpen: true },
+  'list-narrow': { layout: 'list', list: 'rows',  reader: 'page',  back: BACK.list,  nav: 'none',  autoOpen: false },
+  'grid-page':   { layout: 'grid', list: 'cards', reader: 'page',  back: BACK.grid,  nav: 'bar',   autoOpen: false },
+  'grid-sheet':  { layout: 'grid', list: 'cards', reader: 'sheet', back: BACK.sheet, nav: 'sides', autoOpen: false },
+  'grid-narrow': { layout: 'grid', list: 'cards', reader: 'page',  back: BACK.grid,  nav: 'bar',   autoOpen: false }
+};
+function rowKey(set, bp) { return bp.is.narrow ? set.layout + '-narrow' : set.layout === 'list' ? 'list' : 'grid-' + set.openAs; }
+/* The row's rules, worked out once from the row and the width.
+   listHidden  an open item covers the list (page)
+   covers      the list can't be used while an item is open (page, or behind the sheet)
+   modal       the reader is a dialog over the dimmed grid
+   animated    opening and closing grow the card into the reader and back
+   placeholder an empty reader pane says what to do
+   filterStyle rail (List) or bar (Grid); filtersCollapse: behind a Filters button at this width
+   hintMode    where the key hint goes (section 2) */
+function layoutRules(D, bp) {
+  var page = D.reader === 'page', sheet = D.reader === 'sheet';
+  return {
+    listHidden: page, covers: page || sheet, modal: sheet, animated: page || sheet,
+    autoOpen: D.autoOpen, placeholder: D.reader === 'pane',
+    filterStyle: D.list === 'rows' ? 'rail' : 'bar', filtersCollapse: !!(bp.is.narrow || (D.list === 'rows' && bp.is.medium)),
+    nav: D.nav, back: D.back, hintMode: sheet ? 'edge' : page ? 'page' : 'pane'
+  };
+}
+
+/* 2. The key hint. The reader measures its own bar (Reader.dc.html) and puts the hint in it
+   when everything fits; otherwise the hint goes under the item header (a page at least
+   760px wide), under the search field (List's reader beside the list, which tells the app
+   through onHintPlaced) or nowhere. The sheet always pins it to its bottom edge. */
+var HINTS = { list: 'j k move · Enter open · m read · / search', reader: 'j k or ← → move · m read · Esc back', readerNoArrows: 'j k move · m read · Esc back' };
+function hintFor(R) { return !R.covers ? HINTS.list : R.nav === 'none' ? HINTS.readerNoArrows : HINTS.reader; }   // List under 760px has no arrow keys
+
+/* 3. The look: the attributes tokens.css picks every look value by. A style other than Library
+   sets the fonts and the accent itself (its block in tokens.css comes after theirs). */
+function lookAttrs(set) {
+  return { style: set.style, font: set.font, width: set.width, density: set.density, accent: set.accent, comments: set.comments, tags: set.tags, images: set.images ? 'on' : 'off' };
+}
+
+// Pictures darker than this, or this flat, read as a black box at card size: those cards are text-only.
+var IMAGE_MIN = { lightness: 0.15, contrast: 0.2 };
+function clearImage(img) { return !!img && img.lightness >= IMAGE_MIN.lightness && img.contrast >= IMAGE_MIN.contrast; }
+function keptShort(it) {
+  if (it.kind === 'github-repo') return LIB.num(it.repo.stars) + ' stars';
+  if (it.kind === 'reddit-comment') return 'Saved comment · ' + LIB.compact(it.score) + ' pts';
+  return it.keptN + ' of ' + LIB.num(it.commentCount) + ' kept';
+}
+var STORE = 'library:settings';
+var HIGHLIGHT_MS = 1800, PASTE_MS = 2400, CLOSE_MS = 6000, PLACE_MS = 400;
+var NO_FILTERS = { src: 'all', topic: 'all', tag: 'all', read: 'all' };
+var READS = [{ id: 'all', label: 'All' }, { id: 'unread', label: 'Unread' }, { id: 'read', label: 'Read' }];
+var FOCUSABLE = 'a[href], button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
+// The blocks the reader keeps in place when text reflows (a new layout, font, width or density):
+// leaves only, so a container such as the whole post body is never the anchor.
+var ANCHORS = '.rd-head, .rd-agent, .rd-byline, .rd-media, .repo, .md > *, .x-metrics, .rd-sec-h, .cm-stub, .cm-head';
+function normUrl(u) { return String(u || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[?#].*$/, '').replace(/\/+$/, ''); }
+function reducedMotion() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+function darkQuery() { try { return window.matchMedia('(prefers-color-scheme: dark)'); } catch (e) { return null; } }
+var uidCount = 0;
+
+/* 4. Component */
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.uid = 'lib-' + (++uidCount) + '-' + Math.random().toString(36).slice(2, 7);
+    this._n = props.request ? props.request.n : 0;
+    var dq = darkQuery();
+    this.state = {
+      data: null, err: '', width: props.widthHint || window.innerWidth || 1440,
+      settings: LIB.readSettings(props.store || STORE, props.defaults), systemDark: !!(dq && dq.matches),
+      open: props.initialOpen || '', by: props.initialOpen ? (props.initialBy === 'auto' ? 'auto' : 'user') : '', empty: !!props.initialEmpty, autoDone: false,
+      q: '', f: Object.assign({}, NO_FILTERS), readOv: {}, pasteInput: '',
+      paste: { mode: 'idle', url: '', key: '', reason: '' },
+      vt: '', highlight: '', hintInBar: false, sidesAt: 0, tokens: !!LIB.breakpoints()
+    };
+    var self = this;
+    this.onKey = function (e) { self.handleKey(e); };
+    this.onScheme = function (e) { self.setState({ systemDark: !!e.matches }); };
+    this.onPasteInput = function (e) { self.setState({ pasteInput: e.target.value }); };
+    this.onPasteKey = function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); self.submitPaste(self.state.pasteInput); }
+      if (e.key === 'Escape' && self.state.paste.mode !== 'idle') { e.preventDefault(); e.stopPropagation(); self.setPaste({ mode: 'idle' }); }
+    };
+    this.onPasteAdd = function () { self.submitPaste(self.state.pasteInput); };
+    this.onSearch = function (e) { self.setState({ q: e.target.value }); };
+    this.setFilter = function (k, v) { var f = Object.assign({}, self.state.f); f[k] = v; self.setState({ f: f }); };
+    this.clearFilters = function () { self.setState({ f: Object.assign({}, NO_FILTERS) }); };
+    this.clearAll = function () { self.setState({ q: '', f: Object.assign({}, NO_FILTERS) }); };
+    this.setSetting = function (k, v) { var p = {}; p[k] = v; self.setSettings(p); };
+    // Reset look: the look settings go back to their defaults; Layout, Open items as and Theme stay.
+    this.resetLook = function () { var p = {}; LIB.LOOK_KEYS.forEach(function (k) { p[k] = LIB.SETTINGS_DEFAULT[k]; }); self.setSettings(p); };
+    this.hintPlaced = function (inBar) { if (inBar !== self.state.hintInBar) self.setState({ hintInBar: inBar }); };
+    this.close = function () { self.go('', 'close'); };
+    this.prev = function () { self.step(-1); };
+    this.next = function () { self.step(1); };
+    this.toggleOpenRead = function () { self.toggleRead(self.state.open); };
+    this.pasteOpen = function () { var key = self.state.paste.key; self.setPaste({ mode: 'idle' }); if (key) self.go(key, 'pick'); };
+    this.pasteRetry = function () { self.setPaste({ mode: 'processing', url: self.state.paste.url }); };
+    this.pasteDismiss = function () { self.setPaste({ mode: 'idle' }); };
+    // The card's own pointer and focus events are the only ones that change whether it is hovered.
+    this.cardEnter = function () { self.hoverPaste('pointer', true); };
+    this.cardLeave = function () { self.hoverPaste('pointer', false); };
+    this.cardFocus = function () { self.hoverPaste('focus', true); };
+    this.cardBlur = function (e) { if (!e.currentTarget.contains(e.relatedTarget)) self.hoverPaste('focus', false); };
+    this.onScroll = function (e) {   // remember the reading place a moment after scrolling stops
+      if (!e.target.classList || !e.target.classList.contains('reader-slot')) return;
+      clearTimeout(self._placeT);
+      self._placeT = setTimeout(function () { self.savePlace(self.state.open); }, PLACE_MS);
+    };
+    this._hover = { pointer: false, focus: false };
+    this._places = {};
+    try { this._places = JSON.parse(window.sessionStorage.getItem(this.placesKey()) || '{}') || {}; } catch (e) { this._places = {}; }
+    this.onCardKey = function (e) {
+      if (e.key !== 'Escape') return;
+      e.preventDefault(); e.stopPropagation(); self.setPaste({ mode: 'idle' });
+      var input = self.root() && self.root().querySelector('.paste input');
+      if (input) input.focus();
+    };
+  }
+
+  componentDidMount() {
+    var self = this, dq = darkQuery();
+    document.addEventListener('keydown', this.onKey, true);
+    if (dq && dq.addEventListener) { dq.addEventListener('change', this.onScheme); this._dq = dq; }
+    if (typeof ResizeObserver !== 'undefined') {
+      this._ro = new ResizeObserver(function () { self.measure(); });
+      if (this.root()) this._ro.observe(this.root());
+    }
+    if (this.root()) this.root().addEventListener('scroll', this.onScroll, true);
+    this.measure();
+    this.waitTokens(600);
+    fetch('./data.json').then(function (r) { return r.json(); }).then(function (raw) {
+      var data = LIB.prepare(raw), open = data.byKey[self.state.open] ? self.state.open : '';   // an open= that isn't in the data is dropped
+      // Starting with an item open: its row or card is centred in the list behind it, and the
+      // reader returns to its place from earlier in the session.
+      self.setState({ data: data, open: open, by: open ? self.state.by : '' }, function () { if (open) { self.reveal(open); self.restorePlace(open, 20); } });
+    }).catch(function (e) { self.setState({ err: String(e) }); });
+  }
+  componentWillUnmount() {
+    document.removeEventListener('keydown', this.onKey, true);
+    if (this._dq) this._dq.removeEventListener('change', this.onScheme);
+    if (this._ro) this._ro.disconnect();
+    if (this.root()) this.root().removeEventListener('scroll', this.onScroll, true);
+    clearTimeout(this._pasteT);
+    clearTimeout(this._placeT);
+    clearTimeout(this._hl);
+  }
+  // A Tweaks request, then the app's own first open, then the report.
+  componentDidUpdate() {
+    var req = this.props.request;
+    if (!this.state.data) return;
+    if (req && req.n !== this._n) { this._n = req.n; this.apply(req); return; }
+    if (!this.state.autoDone) { this.setState({ autoDone: true }); this.autoOpen(); return; }
+    this.checkSides();
+    this.report();
+  }
+  // The widths are tokens: until tokens.css has loaded, the app waits for them (a frame at a time).
+  waitTokens(tries) {
+    var self = this;
+    if (LIB.breakpoints()) { if (!this.state.tokens) this.setState({ tokens: true }); return; }
+    if (tries > 0) requestAnimationFrame(function () { self.waitTokens(tries - 1); });
+  }
+  // The sheet's side buttons sit wholly outside it, inside the app; when they can't (the room
+  // beside the sheet is too narrow), Previous and Next move into the reader bar at this width.
+  checkSides() {
+    var root = this.root(), btn = root && root.querySelector('.side-prev'), slot = root && root.querySelector('.reader-slot');
+    if (!btn || !slot) return;
+    var a = root.getBoundingClientRect(), b = btn.getBoundingClientRect(), r = slot.getBoundingClientRect();
+    if (b.left < a.left || b.right > r.left) this.setState({ sidesAt: this.state.width });
+  }
+
+  /* ----- where the app is, and what it is showing ----- */
+  root() { return document.getElementById(this.uid); }
+  card(key) { var r = this.root(); return r ? r.querySelector('.list [data-key="' + key + '"]') : null; }
+  measure() { var r = this.root(), w = r ? r.offsetWidth : 0; if (w && w !== this.state.width) this.setState({ width: w }); }
+  theme() { var t = this.state.settings.theme; return t === 'system' ? (this.state.systemDark ? 'dark' : 'light') : t; }
+  layout() { return LAYOUTS[rowKey(this.state.settings, LIB.bpOf(this.state.width))]; }
+  rules() {
+    var w = this.state.width, R = layoutRules(this.layout(), LIB.bpOf(w));
+    if (R.nav === 'sides' && this.state.sidesAt === w) R.nav = 'bar';   // no room beside the sheet at this width
+    return R;
+  }
+  isRead(it) { var o = this.state.readOv[it.key]; return o != null ? o : it.read; }
+  openItem() { var st = this.state; return st.data && !st.empty && st.open ? st.data.byKey[st.open] || null : null; }
+  matches(it, skip, tokens) {
+    var f = this.state.f;
+    if (skip !== 'src' && f.src !== 'all' && it.source !== f.src) return false;
+    if (skip !== 'topic' && f.topic !== 'all' && it.topic !== f.topic) return false;
+    if (skip !== 'tag' && f.tag !== 'all' && it.tags.indexOf(f.tag) < 0) return false;
+    if (skip !== 'read' && f.read !== 'all' && (f.read === 'read') !== this.isRead(it)) return false;
+    for (var i = 0; i < tokens.length; i++) if (it.lower.indexOf(tokens[i]) < 0) return false;
+    return true;
+  }
+  lists() {
+    var st = this.state, self = this;
+    if (!st.data || st.empty) return { all: [], shown: [], tokens: [] };
+    var hide = st.paste.mode === 'processing' ? st.paste.key : '';   // the item being read isn't in the list yet
+    var all = st.data.items.filter(function (it) { return it.key !== hide; });
+    var tokens = st.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return { all: all, shown: all.filter(function (it) { return self.matches(it, null, tokens); }), tokens: tokens };
+  }
+  firstUnreadKey() { var self = this, it = this.lists().shown.filter(function (x) { return !self.isRead(x); })[0]; return it ? it.key : ''; }
+  autoOpen() {
+    if (!this.rules().autoOpen || this.state.open || this.state.empty) return;
+    var key = this.firstUnreadKey();
+    if (key) this.go(key, 'auto');
+  }
+  screenName() {
+    var st = this.state, it = this.openItem();
+    return st.empty ? 'empty' : st.paste.mode !== 'idle' ? 'paste' : it ? it.K.screen : 'library';
+  }
+  canCut() {   // whether the Tweaks "saved copy stops partway" demo changes this item (Reader keeps 3 blocks of a post, 1 of a longer comment)
+    var it = this.openItem();
+    return !!it && ((it.body || []).length > 3 || (it.comments || []).some(function (c) { return c.role === 'kept' && c.body.length > 1; }));
+  }
+  report() {
+    if (!this.props.onReport) return;
+    var st = this.state, r = { open: st.open, by: st.by, empty: st.empty, screen: this.screenName(), canCut: this.canCut(), pasteMode: st.paste.mode, settings: st.settings };
+    var code = JSON.stringify(r);
+    if (code !== this._reported) { this._reported = code; this.props.onReport(r); }
+  }
+
+  /* ----- settings: saved at once; the open item, the filters and the reading place stay ----- */
+  // List to Grid keeps an open item only when you opened it; one List opened by itself closes,
+  // and its card is shown, highlighted, in the grid. Grid to List keeps the open item.
+  setSettings(patch) {
+    var st = this.state, cur = st.settings, next = Object.assign({}, cur), self = this;
+    Object.keys(patch).forEach(function (k) { var v = LIB.settingValue(k, patch[k]); if (v !== null) next[k] = v; });
+    LIB.writeSettings(next, this.props.store || STORE);
+    var anchor = this.readerAnchor(), covered = !!this.openItem() && this.rules().covers;
+    var drop = cur.layout === 'list' && next.layout === 'grid' && st.open && st.by === 'auto' ? st.open : '';
+    if (drop) this.savePlace(drop);
+    this.setState({ settings: next, autoDone: next.layout !== cur.layout ? false : st.autoDone, open: drop ? '' : st.open, by: drop ? '' : st.by }, function () {
+      if (drop) { self.reveal(drop); self.flash(drop); return; }
+      self.keepPlace(anchor);
+      // a new layout that covers the header with the open item: focus goes to the item;
+      // a gear that went away with its reader hands focus to the header's gear
+      if (!covered && self.openItem() && self.rules().covers) self.focusIn('.reader-slot .rd-title', 30);
+      else if (!document.activeElement || document.activeElement === document.body) self.focusIn('.brand .st-gear', 10);
+    });
+  }
+  // Back to the same block after a change of layout or look: now, and again once a new font
+  // has loaded and the comments have folded, unless you have scrolled in between.
+  keepPlace(anchor) {
+    var self = this;
+    if (!anchor) return;
+    requestAnimationFrame(function () {
+      self.restoreAnchor(anchor);
+      var slot = self.root() && self.root().querySelector('.reader-slot'), at = slot ? slot.scrollTop : 0;
+      var again = function () { if (slot && slot.isConnected && slot.scrollTop === at) { self.restoreAnchor(anchor); at = slot.scrollTop; } };
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { setTimeout(again, 120); });
+      setTimeout(again, 450);
+    });
+  }
+  /* Reading places for the session: per item, the block at the top of the reader and how far
+     below the bar it sits; kept when you leave an item and a moment after you stop scrolling. */
+  placesKey() { return (this.props.store || STORE) + ':places'; }
+  savePlace(key) {
+    if (!key) return;
+    var a = this.readerAnchor();
+    if (a) this._places[key] = a; else delete this._places[key];
+    try { window.sessionStorage.setItem(this.placesKey(), JSON.stringify(this._places)); } catch (e) { /* storage blocked */ }
+  }
+  // Return to an item's place: once now, then again once its text has settled (fonts, folds),
+  // unless you have scrolled in between. tries: frames to wait for the reader to render.
+  restorePlace(key, tries) {
+    var self = this, a = this._places[key], root = this.root(), slot = root && root.querySelector('.reader-slot');
+    if (!a) return;
+    if (!slot || !slot.querySelectorAll(ANCHORS)[a.i]) { if (tries > 0) requestAnimationFrame(function () { self.restorePlace(key, tries - 1); }); return; }
+    this.restoreAnchor(a);
+    var at = slot.scrollTop;
+    setTimeout(function () { if (self.state.open === key && slot.isConnected && slot.scrollTop === at) self.restoreAnchor(a); }, 450);
+  }
+  // The first block at the top of the reader: how far into it the top line falls (a fraction of
+  // its height, so a reflowed paragraph is found at the same sentence), or how far below the bar
+  // it starts.
+  readerAnchor() {
+    var root = this.root(), slot = root && root.querySelector('.reader-slot');
+    if (!slot || !slot.scrollTop) return null;
+    var top = this.readerTop(slot), all = slot.querySelectorAll(ANCHORS);
+    for (var i = 0; i < all.length; i++) {
+      var r = all[i].getBoundingClientRect();
+      if (r.bottom > top) return { i: i, frac: r.top < top && r.height ? (top - r.top) / r.height : 0, off: r.top < top ? 0 : r.top - top };
+    }
+    return null;
+  }
+  restoreAnchor(a) {
+    var root = this.root(), slot = root && root.querySelector('.reader-slot');
+    if (!a || !slot) return;
+    var el = slot.querySelectorAll(ANCHORS)[a.i];
+    if (!el) return;
+    var r = el.getBoundingClientRect(), z = slot.getBoundingClientRect().height / slot.offsetHeight || 1;
+    slot.scrollTop += (r.top + (a.frac || 0) * r.height - (a.off || 0) - this.readerTop(slot)) / z;
+  }
+  readerTop(slot) { return slot.getBoundingClientRect().top + (slot.querySelector('.rd-bar') || { offsetHeight: 56 }).offsetHeight; }
+
+  /* ----- Tweaks requests: a screen, a paste state or settings ----- */
+  apply(req) {
+    var R = this.rules(), demo = this.state.data.demo;
+    if (req.settings) { this.setSettings(req.settings); return; }
+    if (req.paste) { this.demoPaste(req.paste); return; }
+    var sc = req.screen;
+    if (sc === 'empty') { this.setPaste({ mode: 'idle' }); this.setState({ empty: true }); this.go('', 'screen'); return; }
+    this.setState({ empty: false });
+    if (sc === 'paste') { this.demoPaste('processing'); if (R.covers) this.go('', 'screen'); return; }
+    this.setPaste({ mode: 'idle' });
+    if (sc === 'library') this.go(R.autoOpen ? this.firstUnreadKey() : '', 'screen');
+    else this.go(demo.screens[sc], 'screen');
+  }
+
+  /* ----- the paste box: one object { mode, url, key, reason }, changed only here.
+     key names the saved item the paste is about. A real paste is read for PASTE_MS and then
+     turns out already saved (refreshed) or fails. Done appears only from the Tweaks panel.
+     Demo pastes carry their own item and link. Whether the card is hovered (pointer or focus
+     inside it) is one fact, this._hover, changed only by the card's own events. ----- */
+  setPaste(next) {
+    var self = this, p = { mode: next.mode || 'idle', url: next.url || '', key: next.key || '', reason: next.reason || '' };
+    if (p.mode === 'idle') this._hover = { pointer: false, focus: false };   // the card is gone, and the pointer with it
+    this.setState({ paste: p }, function () { self.pasteTimer(); });
+  }
+  // One timer: a real paste being read decides after PASTE_MS; Added and Refreshed close after
+  // CLOSE_MS while the card isn't hovered; Failed (and a demo paste being read) has none.
+  pasteTimer() {
+    var self = this, p = this.state.paste, hovered = this._hover.pointer || this._hover.focus;
+    clearTimeout(this._pasteT);
+    if (p.mode === 'processing' && !p.key) this._pasteT = setTimeout(function () { self.setPaste(self.pasteOutcome(p.url)); }, PASTE_MS);
+    if ((p.mode === 'done' || p.mode === 'refreshed') && !hovered) this._pasteT = setTimeout(function () { self.setPaste({ mode: 'idle' }); }, CLOSE_MS);
+  }
+  hoverPaste(kind, on) {
+    this._hover[kind] = on;
+    var mode = this.state.paste.mode;
+    if (mode === 'done' || mode === 'refreshed') this.pasteTimer();   // hover never touches a paste being read
+  }
+  demoPaste(mode) {
+    var demo = this.state.data.demo.paste, byKey = this.state.data.byKey;
+    var item = mode === 'failed' ? null : byKey[mode === 'refreshed' ? demo.refreshed : demo.processing];
+    this.setPaste({ mode: mode, url: item ? item.url : demo.failedUrl, key: item ? item.key : '', reason: mode === 'failed' ? 'blocked' : '' });
+  }
+  pasteOutcome(url) {
+    var n = normUrl(url), hit = this.state.data.items.filter(function (it) { return normUrl(it.url) === n; })[0];
+    if (hit) return { mode: 'refreshed', url: url, key: hit.key };   // keeps its first saved date and its place
+    return { mode: 'failed', url: url, reason: /reddit\.com|redd\.it/i.test(url) ? 'blocked' : 'unreadable' };
+  }
+  submitPaste(raw) {
+    var url = String(raw || '').trim();
+    if (!url || !this.state.data) return;
+    this.setState({ pasteInput: '' });
+    if (!/^(https?:\/\/)?([\w-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(url)) { this.setPaste({ mode: 'failed', url: url, reason: 'invalid' }); return; }
+    this.setPaste({ mode: 'processing', url: url });
+  }
+  toggleRead(key) {
+    var it = this.state.data && this.state.data.byKey[key];
+    if (!it) return;
+    var ov = Object.assign({}, this.state.readOv);
+    ov[key] = !this.isRead(it);
+    this.setState({ readOv: ov });
+  }
+
+  /* ----- opening, closing and stepping: all through go(), in this order:
+     1. a covering reader that closes first brings its card into view (centred, only if it
+        isn't fully visible), 2. the view changes, as a view transition for page and sheet,
+     3. scroll, focus and highlight.
+     how: pick, step, close, auto (List's own first item) or screen (Tweaks). ----- */
+  go(next, how) {
+    var st = this.state, prev = st.open, self = this, R = this.rules();
+    if (next === prev || !st.data) return;
+    var a = document.activeElement, root = this.root();
+    var c = { next: next, prev: prev, how: how, inReader: !!(root && a && root.contains(a) && a.closest('.reader-slot, .side-nav')) };
+    if (prev) this.savePlace(prev);
+    if (!next && how === 'close' && R.covers) this.reveal(prev);
+    var by = !next ? '' : how === 'auto' ? 'auto' : 'user';   // auto: List opened it by itself
+    var change = function (done) { self.setState({ open: next, by: by }, done); };
+    var settle = function () { self.settle(c); };
+    if (R.animated && (how === 'pick' || how === 'close') && (!prev || !next)) this.transition(next || prev, change, settle);
+    else change(settle);
+  }
+  step(dir) {   // one key or one click moves one item
+    var keys = this.lists().shown.map(function (it) { return it.key; }), at = keys.indexOf(this.state.open);
+    var next = at < 0 ? keys[dir > 0 ? 0 : keys.length - 1] : keys[at + dir];
+    if (next) this.go(next, 'step');
+  }
+  // The card and the reader share one view-transition name, so the browser grows one into the
+  // other and back. Skipped without support or with reduced motion.
+  transition(key, change, after) {
+    var self = this;
+    if (!document.startViewTransition || reducedMotion()) { change(after); return; }
+    this.setState({ vt: key }, function () {
+      var vt, end = function () { self.setState({ vt: '' }, after); };
+      try { vt = document.startViewTransition(function () { return new Promise(function (res) { change(res); }); }); }
+      catch (e) { self.setState({ vt: '' }); change(after); return; }
+      vt.ready.catch(function () { /* skipped, e.g. the frame was resized: the change still happens */ });
+      vt.finished.then(end, end);
+    });
+  }
+  bounds() {   // the visible part of the list: the app, below List's pinned search
+    var root = this.root(), box = root.getBoundingClientRect(), head = root.querySelector('.L-rows .search');
+    return { top: head ? Math.max(box.top, head.getBoundingClientRect().bottom) : box.top, bottom: box.bottom };
+  }
+  reveal(key) {   // centre a row or card that isn't fully visible; a visible one stays put
+    var card = this.card(key);
+    if (!card) return;
+    var b = this.bounds(), r = card.getBoundingClientRect();
+    if (r.top >= b.top && r.bottom <= b.bottom) return;
+    this.scrollBy(((r.top + r.bottom) - (b.top + b.bottom)) / 2);
+  }
+  nearest(key) {   // scroll a row just into view
+    var card = this.card(key);
+    if (!card) return;
+    var b = this.bounds(), r = card.getBoundingClientRect();
+    if (r.top < b.top) this.scrollBy(r.top - b.top); else if (r.bottom > b.bottom) this.scrollBy(r.bottom - b.bottom);
+  }
+  scrollBy(visual) {   // the app may be drawn scaled; scrollTop counts unscaled pixels
+    var root = this.root(), z = root.getBoundingClientRect().height / root.offsetHeight || 1;
+    root.scrollTop += visual / z;
+  }
+  settle(c) {
+    var self = this, R = this.rules();
+    if (c.next) {
+      var root = this.root(), slot = root && root.querySelector('.reader-slot');
+      if (slot) slot.scrollTop = 0;
+      this.restorePlace(c.next, 0);
+      if (!R.covers) this.nearest(c.next);
+      var a = document.activeElement, lost = !a || a === document.body || a.disabled;
+      if (c.how === 'pick' && R.covers) this.focusIn('.reader-slot .rd-title', 30);
+      if (c.how === 'step') {
+        if (c.inReader) { if (lost) this.focusIn('.reader-slot .rd-title', 30); }
+        else this.focusIn(R.covers ? '.reader-slot .rd-title' : '.list [data-key="' + c.next + '"] .it-open', 30);
+      }
+    } else if (c.how === 'close') {
+      this.focusIn('.list [data-key="' + c.prev + '"] .it-open', 10);
+      if (this.layout().list === 'cards') this.flash(c.prev);
+    }
+  }
+  flash(key) {   // a short outline on a card, so the eye finds it again
+    var self = this;
+    clearTimeout(this._hl);
+    this.setState({ highlight: key });
+    this._hl = setTimeout(function () { self.setState({ highlight: '' }); }, HIGHLIGHT_MS);
+  }
+  focusIn(sel, tries) {
+    var self = this, root = this.root(), el = root && root.querySelector(sel);
+    if (el && el.getClientRects().length) { try { el.focus({ preventScroll: true }); } catch (e) { /* focus refused */ } return; }
+    if (tries > 0) requestAnimationFrame(function () { self.focusIn(sel, tries - 1); });
+  }
+  moveFocus(dir) {   // j and k over the cards (or rows) while nothing is open
+    var root = this.root(), btns = root ? Array.prototype.slice.call(root.querySelectorAll('.list .it-open')) : [];
+    if (!btns.length) return;
+    var cur = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.it') : null;
+    var i = cur ? btns.indexOf(cur.querySelector('.it-open')) : -1;
+    var next = btns[Math.max(0, Math.min(btns.length - 1, i < 0 ? 0 : i + dir))];
+    next.focus({ preventScroll: true });
+    this.nearest(next.closest('.it').getAttribute('data-key'));
+  }
+
+  /* ----- keys: only those pressed inside this app (or on the page itself, with pageKeys),
+     and none from inside the settings popover, which handles its own ----- */
+  handleKey(e) {
+    var st = this.state, root = this.root(), t = e.target;
+    if (!root || !st.data) return;
+    if (!(root.contains(t) || (this.props.pageKeys && (t === document.body || t === document.documentElement)))) return;
+    if (t.closest && t.closest('.st-pop')) return;
+    var R = this.rules(), open = !!this.openItem(), covered = open && R.covers;
+    if (e.key === 'Tab' && open && R.modal) { this.trapTab(e); return; }
+    var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (t && t.isContentEditable)) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var mine = function () { e.preventDefault(); e.stopPropagation(); };
+    var k = e.key;
+    if (k === '/') { var q = root.querySelector('.search input'); if (q && !covered) { mine(); q.focus(); } return; }
+    if ((k === 'ArrowLeft' || k === 'ArrowRight') && open && R.nav !== 'none') {
+      if (t.closest && t.closest('pre, .tbl')) return;   // a code block or table scrolls sideways with the arrows
+      mine(); this.step(k === 'ArrowRight' ? 1 : -1); return;
+    }
+    if (k === 'j' || k === 'k') {
+      mine();
+      var dir = k === 'j' ? 1 : -1;
+      if (open || !R.covers) this.step(dir);   // something open, or List's reader beside the list: the next item
+      else this.moveFocus(dir);                // the grid with nothing open: the next card
+      return;
+    }
+    if (k === 'm' || k === 'M') {
+      var row = !covered && document.activeElement && document.activeElement.closest ? document.activeElement.closest('.it[data-key]') : null;
+      var key = row ? row.getAttribute('data-key') : st.open;
+      if (key) { mine(); this.toggleRead(key); }
+      return;
+    }
+    if (k === 'Escape' && covered) { mine(); this.go('', 'close'); }
+  }
+  trapTab(e) {   // the sheet holds focus: its own controls and the side buttons, nothing else
+    var root = this.root(), slot = root && root.querySelector('.reader-slot');
+    if (!slot) return;
+    var pool = Array.prototype.slice.call(slot.querySelectorAll(FOCUSABLE))
+      .concat(Array.prototype.slice.call(root.querySelectorAll('.side-nav:not([disabled])')))
+      .filter(function (x) { return x.getClientRects().length > 0 && x.tabIndex !== -1; });
+    if (!pool.length) return;
+    var a = document.activeElement, at = pool.indexOf(a);
+    if (at < 0) {   // focus on something that isn't a stop (the title): the browser moves on from it, unless it is outside the sheet
+      if (!slot.contains(a)) { e.preventDefault(); pool[0].focus(); }
+      return;
+    }
+    else if (e.shiftKey && at === 0) { e.preventDefault(); pool[pool.length - 1].focus(); }
+    else if (!e.shiftKey && at === pool.length - 1) { e.preventDefault(); pool[0].focus(); }
+  }
+
+  /* ----- view ----- */
+  facetCounts(L) {
+    var self = this, data = this.state.data;
+    var count = function (skip, test) { return L.all.filter(function (it) { return self.matches(it, skip, L.tokens) && test(it); }).length; };
+    var facet = function (key, list, test) { return list.map(function (o) { return { id: o.id, label: o.label, n: count(key, function (it) { return o.id === 'all' || test(it, o.id); }) }; }); };
+    var named = function (list) { return list.map(function (x) { return { id: x, label: x }; }); };
+    return {
+      sources: facet('src', [{ id: 'all', label: 'All' }].concat(LIB.SOURCES), function (it, v) { return it.source === v; }),
+      reads: facet('read', READS, function (it, v) { return (v === 'read') === self.isRead(it); }),
+      topics: facet('topic', named(data.topics), function (it, v) { return it.topic === v; }),
+      tags: facet('tag', named(data.tags), function (it, v) { return it.tags.indexOf(v) >= 0; }),
+      allTopic: count('topic', function () { return true; }), allTag: count('tag', function () { return true; })
+    };
+  }
+  rowView(it, ctx) {   // one list row or card
+    var snip = { has: false, pre: '', hit: '', post: '' }, t = ctx.tokens[0];
+    if (t && it.titleLower.indexOf(t) < 0) {
+      var at = it.lower.indexOf(t);
+      if (at >= 0) {
+        var a = Math.max(0, at - 48);
+        snip = { has: true, pre: (a > 0 ? '…' : '') + it.search.slice(a, at), hit: it.search.substr(at, t.length), post: it.search.slice(at + t.length, at + t.length + 72) + '…' };
+      }
+    }
+    var self = this, pic = clearImage(it.image), mark = ctx.read ? 'Mark as unread' : 'Mark as read';
+    return {
+      key: it.key, title: it.title, summary: it.summary, sourceLabel: it.K.label, where: it.where, postedLabel: it.postedLabel,
+      topic: it.topic, tags: it.tagView, keptShort: keptShort(it), imageFile: pic ? it.image.file : '', showPic: pic,
+      snip: snip, badge: ctx.badge, current: LIB.pressed(ctx.open), readAria: mark, readTitle: mark + ' (m)',
+      cls: [ctx.read ? '' : 'unread', ctx.open ? 'open' : '', pic ? '' : 'text-only', ctx.back ? 'is-back' : '', ctx.vt ? 'vt-src' : ''].join(' '),
+      open: function () { self.go(it.key, 'pick'); }, toggleRead: function () { self.toggleRead(it.key); }
+    };
+  }
+  renderVals() {
+    var self = this, st = this.state, data = st.data, set = st.settings, bp = LIB.bpOf(st.width), D = LAYOUTS[rowKey(set, bp)];
+    var R = this.rules();
+    var it = this.openItem(), isOpen = !!it, empty = st.empty, p = st.paste;
+    var L = this.lists(), shown = L.shown, tokens = L.tokens;
+    var hidden = isOpen && R.listHidden, modal = isOpen && R.modal;
+    var any = Object.keys(NO_FILTERS).some(function (k) { return st.f[k] !== 'all'; });
+    var unread = L.all.filter(function (x) { return !self.isRead(x); }).length;
+    var at = isOpen ? shown.map(function (x) { return x.key; }).indexOf(it.key) : -1;
+    var badgeKey = (p.mode === 'done' || p.mode === 'refreshed') ? p.key : '';
+    var theme = this.theme();
+    return {
+      uid: this.uid, bp: bp.attr, look: lookAttrs(set),
+      cls: ['app', 'L-' + D.list, 'R-' + D.reader, 'th-' + theme, st.vt ? 'vt' : ''].join(' '),
+      libCls: ['lib', hidden ? 'covered' : '', empty ? 'is-empty' : ''].join(' '),
+      bgInert: hidden || modal ? '' : undefined,   // React 18 writes an empty string as the bare attribute
+      loadingText: data ? '' : st.err ? 'Couldn’t load the library data.' : 'Loading…',
+      count: data && !empty ? String(L.all.length) : '',
+      settings: set, narrow: !!bp.is.narrow, resolved: theme, headerCovered: hidden || modal, setSetting: this.setSetting, resetLook: this.resetLook,
+      pasteInput: st.pasteInput, onPasteInput: this.onPasteInput, onPasteKey: this.onPasteKey, onPasteAdd: this.onPasteAdd,
+      announce: p.mode === 'idle' ? '' : LIB.pasteTitle(p) + ' ' + LIB.shortUrl(p.url),
+      showPaste: p.mode !== 'idle', paste: p, pasteItem: data && p.key ? data.byKey[p.key] || null : null,
+      pasteOpen: this.pasteOpen, pasteRetry: this.pasteRetry, pasteDismiss: this.pasteDismiss,
+      cardEnter: this.cardEnter, cardLeave: this.cardLeave, cardFocus: this.cardFocus, cardBlur: this.cardBlur, onCardKey: this.onCardKey,
+      // Grid shows "Reading the link" in the card only and adds the item when it is ready.
+      procRow: p.mode === 'processing' && !empty && D.list === 'rows', procUrl: LIB.shortUrl(p.url),
+      showList: !!data && !empty, facets: data ? this.facetCounts(L) : null, f: st.f, searching: tokens.length > 0,
+      setFilter: this.setFilter, clearFilters: this.clearFilters, filterStyle: R.filterStyle, filtersCollapse: R.filtersCollapse,
+      q: st.q, onSearch: this.onSearch,
+      listHint: data && D.list === 'rows' && !bp.is.narrow && !(isOpen && st.hintInBar) ? HINTS.list : '',
+      resultsLabel: tokens.length || any ? shown.length + ' of ' + L.all.length + (st.q.trim() ? ' for “' + st.q.trim() + '”' : '') : L.all.length + ' items · ' + unread + ' unread',
+      rows: shown.map(function (x) {
+        var o = isOpen && it.key === x.key;
+        return self.rowView(x, { read: self.isRead(x), open: o, tokens: tokens, badge: badgeKey === x.key ? (p.mode === 'done' ? 'New' : 'Refreshed') : '', back: st.highlight === x.key, vt: st.vt === x.key && !o });
+      }),
+      noResults: !!data && !empty && shown.length === 0, isEmpty: empty, clearAll: this.clearAll,
+      placeholder: !!data && R.placeholder && !isOpen && !empty, scrim: modal, close: this.close,
+      hasReader: isOpen, openItem: it, openRead: isOpen && this.isRead(it), toggleOpenRead: this.toggleOpenRead,
+      cut: !!this.props.cut, asOf: data ? data.asOf : '',
+      sideNav: isOpen && R.nav === 'sides', prev: this.prev, next: this.next,
+      ui: {
+        role: R.modal ? 'dialog' : 'region', modal: LIB.pressed(R.modal), back: R.back, nav: R.nav,
+        pos: (at + 1) + ' of ' + shown.length, prev: this.prev, next: this.next, noPrev: at <= 0, noNext: at < 0 || at >= shown.length - 1,
+        close: this.close, phone: !!bp.is.phone, titleId: this.uid + '-title',
+        hint: hintFor(R), hintMode: R.hintMode, hintBelowOK: !bp.is.narrow, onHintPlaced: this.hintPlaced,
+        // a reader over the list carries the settings gear, since the header's is behind it
+        settings: R.covers ? { value: set, narrow: !!bp.is.narrow, resolved: theme, onChange: this.setSetting, onReset: this.resetLook } : null
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,466 @@
+/* =====================================================================
+   components.css: the Library's components. Every value is a token from
+   tokens.css (linked first); the literals tokens.css lists in its header are
+   the only others. Rules read the attributes on the app's root:
+   data-layout (list, grid), data-reader (pane, page, sheet), data-theme,
+   data-bp and the look attributes.
+
+   1. Base: the app's root, icons, labels, keys, buttons, fields, tags
+   2. Settings: the gear and the settings panel (a sheet under 760px)
+   3. Paste box and paste card
+   4. Filters: rail (List) and bar (Grid)
+   5. Items: list rows and grid cards
+   6. Layouts: List, Grid, and every width; what scrolls
+   7. Where the reader sits: pane, page, sheet
+   8. Reader: bar, column, header, summary, sections, repository, comments
+   9. Post text, inline text and pictures
+   10. Empty library, no results, loading
+   ===================================================================== */
+
+/* 1. Base ------------------------------------------------------------- */
+.app, .app *, .app *::before, .app *::after { box-sizing: border-box; }
+.vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The app's root never scrolls (overflow: clip): each pane scrolls itself (section 6). */
+.app { height: var(--vh); overflow: clip; background: var(--bg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); -webkit-font-smoothing: antialiased; }
+.ic { width: var(--ic); height: var(--ic); flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ic-s { width: var(--ic-s); height: var(--ic-s); }
+.ic-xl { width: var(--ic-xl); height: var(--ic-xl); stroke-width: 1.4; }
+.spin { animation: spin var(--loop-spin) linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .spin, .skel i { animation: none; } .fl-group-h .ic { transition: none; } }
+:where(.app) button, :where(.app) input, :where(.app) select { font: inherit; color: inherit; }
+.app :focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.label { margin: 0; color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label); line-height: var(--lh-label); text-transform: uppercase; }
+.kbd { padding: 0 var(--s1); border: 1px solid var(--line-2); border-radius: var(--r1); color: var(--muted); font-family: var(--f-mono); font-size: var(--t-label); line-height: var(--lh-label); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font-size: var(--t-meta); font-weight: 500; text-decoration: none; white-space: nowrap; }
+.btn:hover { background: var(--surface-2); }
+.btn-acc { border-color: var(--acc); background: var(--acc); color: var(--on-acc); font-weight: 600; }
+.btn-acc:hover { background: var(--acc); filter: brightness(1.07); }
+.btn-plain { border-color: transparent; background: transparent; }
+.btn-icon { width: var(--ctl-h); padding: 0; }
+.btn:disabled { cursor: default; color: var(--muted); border-color: var(--line-2); background: transparent; }
+.field { display: flex; align-items: center; gap: var(--s2); min-height: var(--field-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--muted); }
+.field:focus-within { border-color: var(--acc-ink); box-shadow: 0 0 0 1px var(--acc-ink); }
+.field input { flex: 1; align-self: stretch; min-width: 0; margin: -1px 0; padding: 0; border: 0; background: transparent; color: var(--text); font-size: var(--t-body); outline: none; }   /* reaches over the field's border, so the input itself is the field's full height (44px on phones) */
+.field input::placeholder { color: var(--muted); opacity: 1; }
+.app .field input:focus-visible { outline: none; }
+.src { color: var(--text); font-weight: 600; }
+/* tags: the Tag style setting picks the --tag-* values; data-tag on each tag picks its hue */
+.tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }
+.tag { display: inline-flex; align-items: center; gap: var(--s1); padding: var(--tag-pad-y) var(--tag-pad); border: var(--tag-box); border-radius: var(--r4); background: var(--tag-bg); color: var(--tag-fg); }
+.tag::before { content: var(--tag-mark); }
+.tag-dot { display: var(--tag-dot); flex: none; width: var(--dot); height: var(--dot); border-radius: var(--r4); background: oklch(var(--tag-l) var(--tag-c) var(--tag-h)); }
+
+/* 2. Settings ---------------------------------------------------------
+   A gear button (a 44px target) and the settings panel: the rows in three groups, then the
+   footer with Reset look and, in words, what it leaves alone. The row the gear sits in places
+   the panel: under the header's left edge (.brand is position: relative) or under the reader
+   bar's right end. Under 760px it is a sheet from the bottom with a header (title and Close)
+   and the footer, which stay put while the rows scroll between them; every control is 44px
+   there. The panel keeps the plain type pair (data-font="plex" on the panel) whatever the Font
+   setting is. */
+.st-gear { display: grid; place-items: center; flex: none; align-self: center; width: var(--target); height: var(--target); padding: 0; border: 0; border-radius: var(--r2); background: transparent; color: var(--muted); cursor: pointer; }
+.st-gear:hover, .st-gear[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
+.st-gear .ic { width: var(--ic-m); height: var(--ic-m); }
+.st-pop { position: absolute; top: calc(100% + var(--s2)); left: 0; z-index: var(--z-popover); display: flex; flex-direction: column; width: var(--pop-w); max-width: calc(100vw - var(--s4) * 2); max-height: calc(var(--vh) - var(--bar-h) * 2 - var(--s6)); overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-label); }
+.st-pop:focus { outline: none; }
+.st-pop p, .st-pop h2 { margin: 0; }
+.st-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: var(--bar-h); padding: 0 var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
+.st-title { font-size: var(--t-body); font-weight: 600; }
+.st-close { display: grid; place-items: center; width: var(--target); height: var(--target); padding: 0; border: 0; border-radius: var(--r2); background: transparent; color: var(--text); cursor: pointer; }
+.st-close:hover { background: var(--surface-2); }
+.st-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--s4); padding: var(--s4); overscroll-behavior: contain; }
+.st-group { display: flex; flex-direction: column; gap: var(--s2); }
+.st-group + .st-group { padding-top: var(--s4); border-top: 1px solid var(--line); }
+.st-foot { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding: var(--s3) var(--s4); border-top: 1px solid var(--line); background: var(--surface); }
+.st-foot-note { flex: 1 1 14em; color: var(--muted); font-size: var(--t-label); }
+.st-gh { color: var(--muted); font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; }
+.st-row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: var(--s1) var(--s3); }
+.st-l { font-weight: 500; }
+.st-note { grid-column: 2; color: var(--muted); font-size: var(--t-label); }
+.st-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); }
+.st-b { flex: 1 1 auto; min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); cursor: pointer; font: inherit; white-space: nowrap; }
+.st-b:hover { background: var(--surface); }
+.st-b[aria-pressed="true"] { background: var(--acc); color: var(--on-acc); font-weight: 600; }
+/* a row that doesn't apply at this width: shown, muted, and its note says why */
+.st-row.off .st-l, .st-row.off .st-b { color: var(--muted); }
+.st-row.off .st-b { cursor: default; }
+.st-row.off .st-b:hover { background: transparent; }
+.st-row.off .st-b[aria-pressed="true"] { background: var(--surface); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-2); }
+.st-sel { width: 100%; min-height: var(--ctl-h); padding: 0 var(--s2); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font: inherit; }
+.st-sws { display: flex; flex-wrap: wrap; gap: var(--s2); }
+/* data-accent on each swatch works out its own --acc (tokens.css) */
+.st-sw { width: var(--ctl-h); height: var(--ctl-h); padding: 0; border: 2px solid transparent; border-radius: var(--r4); background: var(--acc); box-shadow: inset 0 0 0 3px var(--surface); cursor: pointer; }
+.st-sw[aria-pressed="true"] { border-color: var(--text); }
+.st-reset { min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; font-weight: 500; }
+.st-reset:hover { background: var(--surface-2); }
+.st-gear:focus-visible, .st-pop .st-b:focus-visible, .st-sel:focus-visible, .st-sw:focus-visible, .st-reset:focus-visible, .st-close:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.st-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); background: var(--scrim); }
+/* under 760px: a sheet from the bottom; under 480px each label sits above its control */
+.app[data-bp~="narrow"] .st-pop { position: fixed; top: auto; right: 0; bottom: 0; left: 0; width: auto; max-width: none; max-height: 85%; border-width: 1px 0 0; border-radius: var(--r3) var(--r3) 0 0; }
+.app[data-bp~="narrow"] .st-b, .app[data-bp~="narrow"] .st-sel, .app[data-bp~="narrow"] .st-reset { min-height: var(--target); }
+.app[data-bp~="narrow"] .st-sw { width: var(--target); height: var(--target); }
+.app[data-bp~="phone"] .st-row { grid-template-columns: minmax(0, 1fr); }
+.app[data-bp~="phone"] .st-note { grid-column: 1; }
+
+/* 3. Paste box and paste card -------------------------------------------- */
+.paste { position: relative; display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.paste-row { display: flex; gap: var(--s2); min-width: 0; }
+.paste-row .field { flex: 1 1 auto; min-width: 0; }
+/* The paste card: icon and title, the item, the link wrapped in full, a note, then the actions
+   stacked at full width. It takes the width of the box it is placed in. */
+.ps { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; padding: var(--s3); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); font-size: var(--t-meta); line-height: var(--lh-label); }
+.ps p { margin: 0; }
+.ps-head { display: flex; align-items: center; gap: var(--s2); }
+.ps-title { color: var(--text); font-weight: 600; }
+.ps-item { color: var(--text); }
+.ps-url { color: var(--muted); font-family: var(--f-mono); overflow-wrap: anywhere; }
+.ps-sub { color: var(--muted); }
+.ps-acts { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s2); }
+.ps-acts .btn { width: 100%; }
+.tone-acc { color: var(--acc-ink); }
+.tone-ok { color: var(--ok); }
+.tone-warn { color: var(--warn); }
+[data-layout="grid"] .paste-card { position: absolute; top: calc(100% + var(--s2)); right: 0; z-index: var(--z-float); width: min(var(--paste-w), 100%); border-radius: var(--r2); box-shadow: var(--shadow-lg); }   /* floats over the grid, which doesn't move */
+[data-layout="grid"][data-bp~="narrow"] .paste-card { position: static; width: auto; box-shadow: none; }   /* under 760px: a full-width row in the page */
+
+/* 4. Filters -------------------------------------------------------------
+   rail: segmented Source and Status rows with counts, then Topic and Tags as collapsible
+   groups (List's sidebar). bar: chips and selects in one wrapping row (Grid). Behind a
+   Filters button on narrow apps (and List under 1080px). */
+.fl { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.fl-panel { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.fl-toggle { align-self: flex-start; }
+.fl-rail .fl-toggle, [data-bp~="narrow"] .fl-toggle { align-self: stretch; }
+.fl-seg { display: flex; gap: 1px; padding: 2px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--bg); }
+.fl-seg-b { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--s1); min-width: var(--seg-h); min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); cursor: pointer; font-size: var(--t-meta); white-space: nowrap; }
+.fl-wrap { flex-wrap: wrap; }
+.fl-seg-b:hover { background: var(--surface-2); }
+.fl-seg-b[aria-pressed="true"] { background: var(--acc-soft); font-weight: 600; }
+.fl-n { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+[aria-pressed="true"] > .fl-n { color: var(--text); }
+.fl-group { display: flex; flex-direction: column; }
+.fl-group-h { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: var(--ctl-h); padding: 0 var(--s2); border: 0; border-radius: var(--r2); background: transparent; cursor: pointer; }
+.fl-group-h:hover { background: var(--surface-2); }
+.fl-group-h .ic { color: var(--muted); transition: transform var(--dur-fade); }
+.fl-group-h[aria-expanded="true"] .ic { transform: rotate(180deg); }
+.fl-rows { display: flex; flex-direction: column; gap: 1px; }
+.fl-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); width: 100%; min-height: var(--row-h); padding: 0 var(--s3); border: 0; border-radius: var(--r2); background: transparent; color: var(--text); cursor: pointer; text-align: left; font-size: var(--t-meta); }
+.fl-row:hover { background: var(--surface-2); }
+.fl-row[aria-pressed="true"] { background: var(--acc-soft); font-weight: 600; }
+.fl-link { align-self: flex-start; min-height: var(--ctl-h); padding: 0 var(--s3); border: 0; background: none; color: var(--acc-ink); cursor: pointer; font-size: var(--t-meta); text-decoration: underline; text-underline-offset: 2px; }
+.fl-bar .fl-panel { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); }
+.fl-g { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.fl-chip { display: inline-flex; align-items: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font-size: var(--t-meta); }
+.fl-chip:hover { border-color: var(--ctl-line); }
+.fl-chip[aria-pressed="true"] { border-color: var(--acc); background: var(--acc); color: var(--on-acc); font-weight: 600; }
+.fl-chip[aria-pressed="true"] > .fl-n { color: var(--on-acc); }
+.fl-sel { min-height: var(--ctl-h); max-width: 100%; padding: 0 var(--s2); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font-size: var(--t-meta); }
+[data-bp~="narrow"] .fl-bar .fl-panel { flex-direction: column; align-items: stretch; }
+[data-bp~="narrow"] .fl-g { width: 100%; }
+[data-bp~="narrow"] .fl-sel { flex: 1; }
+[data-bp~="medium"] .fl-rail .fl-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(15em, 100%), 1fr)); align-items: start; gap: var(--s3) var(--s5); }
+
+/* 5. Items: one structure; rows and cards place the parts with grid areas ------ */
+.list-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s1) var(--s3); }
+.list-head p { margin: 0; }
+.results { color: var(--muted); }
+.it { position: relative; display: grid; min-width: 0; }
+.it > * { min-width: 0; }
+.it-media { grid-area: media; display: var(--card-media); overflow: hidden; background: var(--surface-2); }   /* the Card images setting; with Off the app renders no picture at all */
+.it-dot { grid-area: dot; position: relative; z-index: calc(var(--z-raise) + 1); display: inline-grid; place-items: center; width: var(--dot-hit); height: var(--dot-hit); padding: 0; border: 0; border-radius: var(--r4); background: transparent; cursor: pointer; }
+.it-dot:hover { background: var(--surface-2); }
+.it-dot i { display: block; width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r4); }
+.it.unread .it-dot i { border-color: var(--acc); background: var(--acc); }
+.it-meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); margin: 0; color: var(--muted); }
+.it-title { grid-area: title; margin: calc(var(--s1) * var(--k)) 0 0; font-size: var(--t-title); font-weight: inherit; line-height: var(--lh-title); }
+.it-open { all: unset; cursor: pointer; color: var(--text); font-family: var(--f-display); font-weight: var(--dw-soft); letter-spacing: var(--dls); overflow-wrap: anywhere; }
+.it.unread .it-open { font-weight: var(--dw-strong); }
+.it-open::after { content: ''; position: absolute; inset: 0; z-index: var(--z-raise); }
+.it:has(.it-open:focus-visible) { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.app .it-open:focus-visible { outline: none; }
+.it-sum { grid-area: sum; display: -webkit-box; margin: calc(var(--s1) * var(--k)) 0 0; overflow: hidden; color: var(--muted); font-size: var(--t-body); line-height: var(--lh-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: var(--sum-lines); text-wrap: pretty; }
+.it-snip { grid-area: snip; margin: var(--s1) 0 0; color: var(--muted); text-wrap: pretty; }
+.app mark { padding: 0 1px; border-radius: var(--r1); background: var(--acc-soft); color: var(--text); }
+.it-foot { grid-area: foot; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); margin: calc(var(--s2) * var(--k)) 0 0; color: var(--muted); }
+.it-topic { color: var(--text); font-weight: 600; }
+.it-badge { padding: 0 var(--s2); border-radius: var(--r4); background: var(--acc); color: var(--on-acc); font-size: var(--t-label); font-weight: 700; }
+.it.is-back { outline: 2px solid var(--acc); outline-offset: 2px; }
+.it-proc .it-title { font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
+.proc-ic { color: var(--acc-ink); }
+.skel { grid-area: sum; display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s2); }
+.skel i { display: block; height: var(--s2); border-radius: var(--r1); background: var(--surface-2); animation: shimmer var(--loop-pulse) ease-in-out infinite; }
+.skel i + i { width: 60%; }
+
+/* rows (List): unread dot on the left, 40px thumbnail on the right, 2-line summary. The open
+   row is tinted and carries a 3px bar on its left edge, so it is told apart from a hovered row
+   by shape as well as colour. */
+[data-layout="list"] .it { grid-template-columns: var(--s4) minmax(0, 1fr) auto; grid-template-areas: "dot meta media" "dot title media" "dot sum sum" "dot snip snip" "dot foot foot"; column-gap: var(--s3); padding: calc(var(--s3) * var(--k)) var(--s4) calc(var(--s3) * var(--k)) var(--s3); border-bottom: 1px solid var(--line); }
+[data-layout="list"] .it:hover { background: var(--surface-2); }
+[data-layout="list"] .it.open, [data-layout="list"] .it.open:hover { background: var(--acc-soft); box-shadow: inset 3px 0 0 var(--acc); }
+[data-layout="list"] .it-dot { align-self: start; justify-self: center; margin-top: calc(var(--lh-ui) * 0.5em - var(--dot-hit) / 2); }   /* centred on the first line of the meta row */
+[data-layout="list"] .it-date { margin-left: auto; }
+[data-layout="list"] .it-media { width: var(--thumb); height: var(--thumb); margin-left: var(--s2); border-radius: var(--r1); }
+
+/* cards (Grid): unread dot in the body next to the source, never on the image */
+[data-layout="grid"] .it { grid-template-columns: var(--s4) auto minmax(0, 1fr) var(--s4); grid-template-areas: "media media media media" ". dot meta ." ". title title ." ". sum sum ." ". snip snip ." ". foot foot ."; padding-bottom: var(--s4); overflow: hidden; border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow); }
+[data-layout="grid"] .it:hover { border-color: var(--line-2); }
+[data-layout="grid"] .it.open { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc), var(--shadow); }
+[data-layout="grid"] .it-media { aspect-ratio: var(--img-ratio); border-bottom: 1px solid var(--line); }
+[data-theme="dark"][data-layout="grid"] .it-media { border-bottom: 0; }
+[data-layout="grid"] .it-meta { margin-top: var(--s4); }
+[data-layout="grid"] .it-dot { align-self: center; margin: calc(var(--s4) - (var(--dot-hit) - var(--dot)) / 2) calc(var(--s2) - (var(--dot-hit) - var(--dot)) / 2) calc((var(--dot-hit) - var(--dot)) / -2) calc((var(--dot-hit) - var(--dot)) / -2); }
+/* a card without a picture (too dark or flat to read at card size, or Card images off) is a text card */
+[data-layout="grid"] .it.text-only .it-sum, [data-layout="grid"][data-images="off"] .it-sum { --sum-lines: var(--sum-lines-text); color: var(--text); font-family: var(--f-read); font-size: var(--t-read); line-height: var(--lh-text); }
+[data-layout="grid"] .it-proc { border-style: dashed; box-shadow: none; }
+
+/* 6. Layouts ---------------------------------------------------------------
+   What scrolls. The app's root never does. List: the rail, the list pane (.list) and the
+   reader pane each scroll on their own; the search field and the list's head stay above the
+   list pane. Grid, and List under 760px: .lib, the full-width page under the app's root.
+   Keeping an item in view scrolls its own pane only (Library.revealInPane), never with
+   scrollIntoView, which would also move every scrolling ancestor. */
+.lib { min-width: 0; }
+.bg { display: contents; }
+.lib.covered .bg { visibility: hidden; }
+.mast { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.brand { position: relative; display: flex; align-items: baseline; gap: var(--s2); }   /* holds the settings popover */
+.brand h1 { margin: 0; font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); }
+.brand-n { color: var(--muted); font-variant-numeric: tabular-nums; }
+.search, .filters-slot { min-width: 0; }
+.app[data-bp~="narrow"] .search .kbd { display: none; }
+.list { min-width: 0; }
+.list-hint { margin: var(--s2) 0 0; color: var(--muted); font-size: var(--t-label); line-height: var(--lh-label); }   /* List's keys, when the reader bar has no room for them */
+
+/* List: rail | list | reader. Medium: header over list | reader. Narrow: one column. */
+[data-layout="list"] .lib { display: grid; height: 100%; grid-template-columns: var(--rail-w) minmax(var(--list-min), var(--list-w)) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+[data-layout="list"] .mast { grid-column: 1; grid-row: 1 / -1; overflow-y: auto; padding: var(--s5) var(--s4); border-right: 1px solid var(--line); background: var(--surface-2); }
+[data-layout="list"] .mast:has(.st-pop) { z-index: var(--z-popover); overflow: visible; }   /* the settings panel reaches past the sidebar, above the list, while it is open */
+[data-layout="list"] .brand { padding: 0 var(--s2); }
+[data-layout="list"] .search { grid-column: 2; grid-row: 1; padding: var(--s4) var(--s4) var(--s2); background: var(--bg); }
+[data-layout="list"] .list-head { grid-column: 2; grid-row: 2; padding: var(--s1) var(--s4) var(--s2); border-bottom: 1px solid var(--line); }
+[data-layout="list"] .list { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; }
+[data-layout="list"] .search, [data-layout="list"] .list-head, [data-layout="list"] .list { border-right: 1px solid var(--line); }
+[data-layout="list"] .lib.is-empty .list { grid-column: 2 / -1; grid-row: 1 / -1; border-right: 0; }
+[data-layout="list"][data-bp~="medium"] .lib { grid-template-columns: minmax(var(--list-min), var(--list-w)) minmax(0, 1fr); grid-template-rows: auto auto auto minmax(0, 1fr); }
+[data-layout="list"][data-bp~="medium"] .mast { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "brand paste" "filters filters"; align-items: start; gap: var(--s3) var(--s5); overflow: visible; padding: var(--s3) var(--s4); border-right: 0; border-bottom: 1px solid var(--line); }
+[data-layout="list"][data-bp~="medium"] .brand { grid-area: brand; padding: var(--s2) 0 0; }
+[data-layout="list"][data-bp~="medium"] .paste { grid-area: paste; }
+[data-layout="list"][data-bp~="medium"] .filters-slot { grid-area: filters; }
+[data-layout="list"][data-bp~="medium"] .search { grid-column: 1; grid-row: 2; }
+[data-layout="list"][data-bp~="medium"] .list-head { grid-column: 1; grid-row: 3; }
+[data-layout="list"][data-bp~="medium"] .list { grid-column: 1; grid-row: 4; }
+[data-layout="list"][data-bp~="medium"] .lib.is-empty .list { grid-column: 1 / -1; grid-row: 2 / -1; }
+[data-layout="list"][data-bp~="narrow"] .lib { display: flex; flex-direction: column; overflow-y: auto; }
+[data-layout="list"][data-bp~="narrow"] .mast { display: flex; flex-direction: column; align-items: stretch; gap: var(--s3); overflow: visible; padding: var(--s4); }
+[data-layout="list"][data-bp~="narrow"] .list { overflow: visible; }
+[data-layout="list"][data-bp~="narrow"] .search, [data-layout="list"][data-bp~="narrow"] .list-head, [data-layout="list"][data-bp~="narrow"] .list { border-right: 0; }
+
+/* Grid: header (wordmark, search, paste box), filters, then the grid. .lib spans the app and
+   scrolls; its side padding centres a column of at most --page-max. */
+[data-layout="grid"] .lib { display: grid; height: 100%; overflow-y: auto; grid-template-columns: auto minmax(0, 1fr) minmax(var(--paste-min), var(--paste-w)); grid-template-areas: "brand search paste" "filters filters filters" "lhead lhead lhead" "list list list"; align-content: start; align-items: start; gap: var(--s4) var(--s5); padding: var(--s5) max(var(--s6), calc((100% - var(--page-max)) / 2 + var(--s6))) var(--s6); }
+[data-layout="grid"] .lib.is-empty { grid-template-areas: "brand . paste" "list list list"; }
+[data-layout="grid"] .mast { display: contents; }
+[data-layout="grid"] .brand { grid-area: brand; padding-top: var(--s1); }
+[data-layout="grid"] .search { grid-area: search; }
+[data-layout="grid"] .filters-slot { grid-area: filters; }
+[data-layout="grid"] .paste { grid-area: paste; }
+[data-layout="grid"] .list-head { grid-area: lhead; }
+[data-layout="grid"] .list { grid-area: list; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); align-items: start; gap: var(--s5); }
+[data-layout="grid"] .empty, [data-layout="grid"] .noresults { grid-column: 1 / -1; justify-self: center; }
+[data-layout="grid"][data-bp~="medium"] .lib { grid-template-columns: minmax(0, 1fr) minmax(var(--paste-min), var(--paste-w)); grid-template-areas: "brand paste" "search search" "filters filters" "lhead lhead" "list list"; }
+[data-layout="grid"][data-bp~="medium"] .lib.is-empty { grid-template-areas: "brand paste" "list list"; }
+[data-layout="grid"][data-bp~="narrow"] .lib { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brand" "paste" "search" "filters" "lhead" "list"; gap: var(--s3); padding: var(--s4) var(--s4) var(--s6); }
+[data-layout="grid"][data-bp~="narrow"] .lib.is-empty { grid-template-areas: "brand" "paste" "list"; }
+[data-layout="grid"][data-bp~="narrow"] .list { gap: var(--s4); }
+
+/* 7. Where the reader sits: pane (List: beside the list), page (over the whole app: Grid as
+   Page, and both layouts under 760px) or sheet (centred over the dimmed grid: Grid as Sheet).
+   ------------------------------------------------------------------------- */
+.reader-slot { min-width: 0; background: var(--reader-bg); overflow-anchor: none; }   /* the app keeps the reading place itself, so the browser's scroll anchoring is off */
+.reader-ph { display: grid; place-items: center; align-content: center; gap: var(--s3); color: var(--muted); text-align: center; }
+[data-reader="pane"] .reader-slot, [data-reader="pane"] .reader-ph { grid-column: 3; grid-row: 1 / -1; min-height: 0; overflow-y: auto; }
+[data-reader="pane"][data-bp~="medium"] .reader-slot, [data-reader="pane"][data-bp~="medium"] .reader-ph { grid-column: 2; grid-row: 2 / -1; }
+[data-reader="page"] .reader-slot { position: fixed; inset: 0; z-index: var(--z-reader); overflow-y: auto; }
+[data-reader="sheet"] .reader-slot { position: fixed; z-index: var(--z-sheet); top: var(--s5); bottom: var(--s5); left: 50%; width: var(--sheet-now); overflow-y: auto; transform: translateX(-50%); border-radius: var(--r3); box-shadow: var(--shadow-lg); }
+[data-theme="dark"][data-reader="sheet"] .reader-slot { --reader-bg: var(--surface); border: 1px solid var(--line-2); }   /* the sheet's edge shows on the dark scrim */
+.scrim { position: fixed; inset: 0; z-index: var(--z-scrim); padding: 0; border: 0; background: var(--scrim); cursor: default; }
+/* the sheet's Previous and Next sit wholly outside it, in the room --side-gap keeps */
+.side-nav { position: fixed; z-index: var(--z-sheet-nav); top: 50%; display: grid; place-items: center; width: var(--target); height: var(--target); padding: 0; transform: translateY(-50%); border: 1px solid var(--ctl-line); border-radius: var(--r4); background: var(--surface); color: var(--text); cursor: pointer; box-shadow: var(--shadow); }
+.side-nav:disabled { cursor: default; color: var(--muted); border-color: var(--line-2); }
+.side-prev { left: calc((100% - var(--sheet-now)) / 2 - var(--target) - var(--s3)); }
+.side-next { right: calc((100% - var(--sheet-now)) / 2 - var(--target) - var(--s3)); }
+/* open and close: the card and the reader share one name while the view changes */
+.app.vt .it.vt-src, .app.vt .reader-slot { view-transition-name: lib-item; }
+::view-transition-group(lib-item) { animation-duration: var(--dur-move); animation-timing-function: var(--ease-move); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-fade); }
+
+/* 8. Reader ----------------------------------------------------------------
+   The bar, then one text column capped at the reading measure (68 characters a line at
+   most). Post and comment text never drops below 16px. */
+.reader { flex: 1 0 auto; display: flex; flex-direction: column; min-height: 100%; background: var(--reader-bg); color: var(--text); }
+/* bar: always one 56px row, measured after each render, once fonts load and when its width
+   changes; it gives up, in order, the key hint, the position text, the button labels, the
+   comments total and Back's word. Under 480px every control is 44px. A 2px line along the
+   bottom shows how far you have read (--progress, 0 to 1). */
+.rd-bar { --progress: 0; position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--s2); min-height: var(--bar-h); padding: calc((var(--bar-h) - 1px - var(--target)) / 2) var(--reader-pad); border-bottom: 1px solid var(--line); background: var(--reader-bg); }
+.rd-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--acc); transform: scaleX(var(--progress)); transform-origin: 0 0; pointer-events: none; }
+.rd-back { padding-left: var(--s2); }
+.rd-back.bare { width: var(--ctl-h); padding: 0; }
+.rd-back.bare span, .rd-pos.vh-pos { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.rd-cm { font-variant-numeric: tabular-nums; }
+.rd-cm.full .rd-cm-ic { display: none; }   /* "Comments 2 of 14" in words; shorter forms get the icon */
+.rd-cm:not(.full) { gap: var(--s1); padding: 0 var(--s2); }
+.rd-nav { display: flex; align-items: center; gap: var(--s1); }
+.rd-pos { min-width: 4.6em; color: var(--muted); font-size: var(--t-meta); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+.rd-actions { display: flex; align-items: center; gap: var(--s2); min-width: 0; margin-left: auto; }
+.rd-hint { min-width: 0; margin: 0 var(--s1) 0 0; overflow: hidden; color: var(--muted); font-size: var(--t-label); line-height: var(--lh-label); text-align: right; white-space: nowrap; }   /* whole or not at all: the bar drops it before it would be cut */
+.rd-hint-below { margin: 0; color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); line-height: var(--lh-label); }   /* the key hint when the bar has no room for it */
+.rd-hint-edge { position: sticky; bottom: 0; z-index: var(--z-sticky); margin: 0; padding: var(--s2) var(--reader-pad); border-top: 1px solid var(--line); background: var(--reader-bg); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); line-height: var(--lh-label); text-align: center; }   /* the sheet's key hint, pinned to its bottom edge */
+.rd-bar .st-pop { left: auto; right: var(--reader-pad); }   /* the settings panel opens under the bar's right end */
+.rd-bar.icons .rd-act { width: var(--ctl-h); padding: 0; }
+.rd-bar.icons .rd-act-l { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.rd-bar:not(.icons) .rd-read-ic { display: none; }
+.rd-read-ic circle { fill: none; }
+.rd-read-ic.on circle { fill: currentColor; }
+.rd-read-ic.on path { stroke: var(--bg); }
+[data-bp~="phone"] .rd-bar { gap: var(--s1); }   /* 44px controls; the padding leaves room for one, so the gear fits at every width */
+[data-bp~="phone"] .rd-read-ic { width: var(--ic-l); height: var(--ic-l); }
+[data-bp~="phone"] .rd-pos { min-width: 0; padding: 0 2px; }
+
+/* the reading column */
+.rd-col { flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--s5); width: 100%; max-width: calc(var(--measure) + var(--reader-pad) * 2); margin: 0 auto; padding: var(--s5) var(--reader-pad) var(--s6); font-family: var(--f-read); font-size: var(--t-read); }
+.rd-col p, .rd-col h2, .rd-col h3, .rd-col ul, .rd-col dl, .rd-col figure { margin: 0; }
+.rd-head { display: flex; flex-direction: column; gap: var(--s2); }
+.rd-src, .rd-meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.rd-src span:empty { display: none; }
+.rd-title { font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); overflow-wrap: anywhere; }
+.rd-title:focus { outline: none; }
+/* Section headings (h3): Original post, Saved comment, Repository, README, Comments or
+   Replies. They outrank every heading inside a post (h4 to h6, never larger than the reading
+   size), so the page reads in the same order as its outline. */
+.rd-h { color: var(--text); font-family: var(--f-display); font-size: var(--t-h2); font-weight: var(--dw); letter-spacing: var(--dls); line-height: var(--lh-title); }
+.rd-h:focus { outline: none; }
+
+/* the summary: topic, tags, the 2-line summary and the key points. A box on the page; flat
+   inside the sheet, which is a box already. */
+.rd-agent { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); }
+[data-reader="sheet"] .rd-agent { padding: 0 0 var(--s5); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+.rd-filed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); font-family: var(--f-ui); font-size: var(--t-meta); }
+.rd-topic { font-weight: 600; }
+.rd-summary { line-height: var(--lh-text); text-wrap: pretty; }
+.rd-points { display: flex; flex-direction: column; gap: var(--s1); padding-left: 1.2em; line-height: var(--lh-text); text-wrap: pretty; }
+.rd-points li::marker { color: var(--muted); }
+.rd-sec-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }
+.rd-kept { color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; }
+.rd-orig, .rd-readme, .rd-comments { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.rd-note { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); font-style: italic; }
+
+.rd-media { overflow: hidden; border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface-2); }
+.rd-media .pic { height: auto; max-height: var(--media-max); object-fit: contain; object-position: center top; }
+[data-theme="dark"] .rd-media { border-color: transparent; }
+.rd-byline { display: flex; align-items: center; gap: var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.rd-byline strong { color: var(--text); }
+.x-av { display: grid; place-items: center; flex: none; width: var(--av-l); height: var(--av-l); border: 1px solid var(--line-2); border-radius: var(--r4); background: var(--surface-2); font-weight: 700; }
+.x-media { display: grid; grid-template-columns: 1fr; gap: var(--s2); }
+.x-media.many { grid-template-columns: 1fr 1fr; }
+.media-ph { display: flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 180px; border: 1px dashed var(--line-2); border-radius: var(--r3); background: var(--surface-2); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.x-quote { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3) var(--s4); border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); }
+.x-q-head { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.x-q-head strong { color: var(--text); }
+.x-metrics { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.x-metrics div { display: flex; gap: var(--s1); }
+.x-metrics dt { order: 2; }
+.x-metrics dd { margin: 0; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* the GitHub repository block */
+.repo { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); }
+.repo-name { font-family: var(--f-mono); overflow-wrap: anywhere; }
+.repo-name span { color: var(--muted); }
+.repo-stats { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); font-family: var(--f-ui); font-size: var(--t-meta); }
+.repo-stats div { display: flex; flex-direction: column; }
+.repo-stats dd { margin: 0; font-weight: 600; }
+.gh-topics { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.gh-topics-l { margin-right: var(--s1); font-weight: 600; }
+.readme-ph { padding: var(--s5); border: 1px dashed var(--ctl-line); border-radius: var(--r2); color: var(--muted); font-family: var(--f-mono); font-size: var(--t-meta); text-align: center; }
+
+/* comments: one tree; the Comment style setting picks the --cm-* values. Indent per level is
+   --ind, capped at --ind-max; on phones the cap is 16px and deeper levels get a thin rail. */
+.tree { display: flex; flex-direction: column; gap: var(--cm-gap); margin: 0; padding: 0; list-style: none; }
+.cm { position: relative; padding-left: min(calc(var(--d) * var(--ind)), var(--ind-max)); background-image: var(--cm-guide); background-repeat: no-repeat; background-size: min(calc(var(--d) * var(--ind)), var(--ind-max)) 100%; background-position: var(--cm-guide-x) 0; }
+.cm.top { margin-top: var(--cm-split-gap); border-top: var(--cm-split); }
+.cm-card { position: relative; padding: var(--cm-pad); border: var(--cm-box); border-radius: var(--cm-radius); background: var(--cm-bg); }
+.rd-col .cm-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); margin-bottom: var(--s1); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.cm-author { color: var(--text); font-weight: 600; }
+.op { padding: 0 var(--s2); border-radius: var(--r1); background: var(--acc-soft); color: var(--text); font-size: var(--t-label); font-weight: 700; }
+.cm-av { position: absolute; left: 0; top: var(--s3); display: var(--cm-av); place-items: center; width: var(--av); height: var(--av); border: 1px solid var(--line-2); border-radius: var(--r4); background: var(--surface-2); color: var(--text); font-size: var(--t-label); font-weight: 700; }
+.cm-stub .cm-av { top: var(--s1); border-style: dashed; background: transparent; color: var(--muted); }
+.cm-fold.folded { max-height: calc(var(--t-read) * var(--lh-read) * var(--fold-show)); overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 65%, transparent); mask-image: linear-gradient(to bottom, #000 65%, transparent); }
+.cm-more { min-width: 0; margin-top: var(--s1); padding: 0; color: var(--acc-ink); text-decoration: underline; text-underline-offset: 2px; }   /* lined up with the text above */
+.cm-more-top { margin: 0 0 var(--s1); }
+.cm-stub { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); min-width: 0; padding: var(--cm-stub-pad); border: var(--cm-stub-box); border-radius: var(--cm-radius); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.cm-ctx { flex: none; padding: 0 var(--s2); border: 1px dashed var(--ctl-line); border-radius: var(--r1); font-size: var(--t-label); cursor: help; }
+.cm-stub .cm-author { flex: none; color: var(--muted); white-space: nowrap; }   /* a name never breaks: u/James-w07 stays whole */
+.cm-prev { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+[data-bp~="phone"] .cm.deep > .cm-card, [data-bp~="phone"] .cm.deep > .cm-stub { box-shadow: inset 1px 0 0 var(--line-2); }
+
+/* 9. Post text, inline text, pictures ----------------------------------------
+   Paragraphs, headings, rules, quotes, both list types, code and tables. Prose is set at the
+   one reading size (--t-read, never below 16px); code blocks are the one exception, at
+   --t-code. Long unbroken strings may break anywhere only in code and link text; prose breaks
+   a word only when it can't fit at all, and table cells never break inside a word, and never
+   inside a number range (kept whole by a .nw span). */
+.md { min-width: 0; font-family: var(--f-read); font-size: var(--t-read); line-height: var(--lh-read); overflow-wrap: break-word; }
+.md .il-code { overflow-wrap: anywhere; }
+.md p, .md ul, .md ol, .md blockquote, .md .code, .md .h, .md .sxw { margin: 0 0 0.75em; }
+.md > :last-child { margin-bottom: 0; }
+.md p, .md li, .md blockquote { text-wrap: pretty; }
+/* headings: h4 (levels 1 and 2) has a hairline above; h5 and h6 (levels 3 and 4) don't. Both at
+   the reading size, under the reader's 20px section headings. A rule right before a level-2
+   heading is its hairline. */
+.md .h { font-size: var(--t-read); line-height: var(--lh-title); }
+.md .h-2 { margin-top: 1.8em; padding-top: 0.7em; border-top: 1px solid var(--line); font-family: var(--f-display); font-weight: var(--dw-strong); letter-spacing: var(--dls); }
+.md .h-3 { margin-top: 1.2em; font-family: var(--f-read); font-weight: 600; }
+.md > .h:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.md hr { height: 0; margin: 1.6em 0; border: 0; border-top: 1px solid var(--line-2); }
+.md hr:has(+ .h-2) { display: none; }
+.md ul, .md ol { padding-left: 1.3em; }
+.md li + li { margin-top: 0.2em; }
+.md li.sub { margin-left: 1.3em; list-style-type: circle; }
+.md blockquote { padding: 0 0 0 var(--s3); border-left: 3px solid var(--line-2); font-style: italic; }
+/* boxes that scroll sideways (code blocks and wide tables): a fade on the right edge while
+   more is hidden (data-more="1" on the wrapper), and a focus ring, so the arrow keys scroll them */
+.md .sxw { position: relative; }
+.md .sx:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.md .sxw[data-more="1"]::after { content: ''; position: absolute; top: 1px; right: 1px; bottom: 1px; width: calc(var(--s6) + var(--s4)); border-radius: 0 var(--r2) var(--r2) 0; background: linear-gradient(to right, transparent, var(--fade-to)); pointer-events: none; }
+/* code blocks: one size, scroll sideways, and fold to --code-show lines behind "Show all N
+   lines" when longer than 20 lines */
+.md .code .sxw { --fade-to: var(--surface-2); margin: 0; }
+.md pre { margin: 0; padding: var(--code-pad-y) var(--code-pad-x); overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface-2); font-family: var(--f-mono); font-size: var(--t-code); line-height: var(--lh-code); }
+.md pre code { white-space: pre; overflow-wrap: normal; }
+.md .code.folded pre { max-height: calc(var(--t-code) * var(--lh-code) * var(--code-show) + var(--code-pad-y) * 2); overflow-y: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 75%, transparent); mask-image: linear-gradient(to bottom, #000 75%, transparent); }
+.md .code-more { min-height: var(--ctl-h); margin-top: var(--s1); padding: 0; border: 0; border-radius: var(--r2); background: transparent; color: var(--acc-ink); cursor: pointer; font-family: var(--f-ui); font-size: var(--t-meta); text-decoration: underline; text-underline-offset: 2px; }
+.md .code-more:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+/* tables: cells wrap between words only; a table whose words can't fit scrolls sideways */
+.md .tblw { --fade-to: var(--reader-bg); }
+.md .tbl { overflow-x: auto; }
+.md table { min-width: min-content; border-collapse: collapse; font-family: var(--f-ui); font-size: inherit; }
+.md th, .md td { padding: var(--s1) var(--s3); border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: normal; word-break: normal; }
+.md th .il-a, .md td .il-a, .md th .il-code, .md td .il-code { overflow-wrap: normal; }
+.md .nw { white-space: nowrap; }
+/* inline: plain, bold, italic, link and code spans */
+.il-a { color: var(--acc-ink); text-underline-offset: 2px; overflow-wrap: anywhere; padding-block: var(--link-pad); }
+.il-code { padding: 0 var(--s1); border-radius: var(--r1); background: var(--surface-2); font-family: var(--f-mono); font-size: inherit; }
+/* one picture: crops keep the top-left corner, where a screenshot's first line starts; dark
+   theme: 90% brightness and a 1px border */
+.pic { display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top; }
+[data-theme="dark"] .pic { filter: brightness(0.9); border: 1px solid var(--line-2); }
+
+/* 10. Empty library, no results, loading ------------------------------------- */
+.empty { display: flex; flex-direction: column; align-items: center; gap: var(--s2); max-width: 34em; margin: 0 auto; padding: var(--s6) var(--s5); color: var(--muted); font-size: var(--t-body); text-align: center; }
+.empty h2 { margin: var(--s2) 0 var(--s1); color: var(--text); font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); }
+.empty p { margin: 0; }
+.noresults { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); padding: var(--s5) var(--s4); color: var(--muted); }
+.noresults p { margin: 0; }
+.loading { margin: 0; padding: var(--s6); color: var(--muted); }

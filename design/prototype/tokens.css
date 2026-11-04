@@ -1,0 +1,626 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Instrument+Sans:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Fira+Mono:wght@400;500&family=Nunito:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=Fraunces:wght@300;400;600&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Cal+Sans&family=Space+Mono:wght@400;700&family=Roboto+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500&family=Inter:wght@300&display=swap');   /* the faces only the styles 6 to 10 use, apart from Library's own list above */
+/* =====================================================================
+   tokens.css: the Library's design tokens, the one source for its design
+   system. Every component links this file and uses these with no fallback
+   values; the app's script only sets attributes and classes on the app's root.
+
+   1. Fixed tokens: type, line heights, spacing, radii, controls, icons,
+      layers, motion.
+   2. The look: every option of every look setting, picked by an attribute
+      on the app's root: data-font, data-width, data-density, data-accent,
+      data-comments, data-tags, data-images. The default option is the plain
+      value, declared on :root and on any element carrying that attribute
+      (so values made from theme colours are worked out on that element, and
+      a swatch or the settings panel can ask for the default by name); every
+      other option comes later and lists only what differs. A few values are
+      worked out from the others; they are declared again wherever an input
+      can change (:root, .app and any element carrying data-font).
+   3. Layouts: List (.L-rows, also the default) and Grid (.L-cards).
+   4. Themes, a class on the app's root: light (also the default), dark, sepia.
+   5. Widths: the breakpoints and grid columns, and the values that change at
+      each width. The app reads --bp-* to mark its root with data-bp (every
+      width band it is under: "narrow medium wide full" at 600px).
+   6. Styles: whole looks from ten references (Anthropic, Slash, Modal, mymind,
+      Monocle, Linear, Switch-Lit, Cursor, Steep, Cal.com), picked by data-style on
+      the app's root. Library, the default, is everything above; each style is one
+      block that sets only tokens, and no two styles share both display and body face.
+   The Compare shell supplies one more value, --vh: the app's visible height.
+
+   Literal values that stay in the component files, on purpose:
+   - 1px hairline borders, the 1.5px unread-dot ring, the 3px swatch inner
+     ring and blockquote bar, and the 2px focus ring, its offset, the
+     progress line and the segmented controls' inset;
+   - font weights (400 to 700), SVG stroke widths (1.8, and 1.4 on the large
+     empty-state icons), opacity and brightness steps (0.45, 0.9, 1.07);
+   - geometry: 100%, 50%, -50%, rotations, grid line numbers, the 85% height
+     of the phone settings sheet and the fade-out stops of folded text;
+   - text-relative sizes in em: the Markdown rhythm in Text (0.2em to 1.8em),
+     list indents (1.2em, 1.3em), the position text's width (4.6em), the
+     settings label column (7.5em), the empty-state width (34em), the Filters
+     rail's column minimum (15em);
+   - the 180px height of a media placeholder in X posts.
+   Main and Tweaks (prototype tools) keep their own variables.
+   ===================================================================== */
+
+/* 1. Fixed tokens -------------------------------------------------------
+   Eight type sizes: label, meta, code (code blocks, the one exception to the
+   16px reading floor), body (list text), title (list titles), read (post,
+   comment and summary text, never under 16px), h2 (headings in posts and
+   READMEs) and display (wordmark, reader title). Six spacing steps, four radii. */
+:root {
+  --t-label: 12px; --t-meta: 13px; --t-code: 14px; --t-h2: 20px;
+  --lh-display: 1.15; --lh-title: 1.25; --lh-label: 1.4; --lh-ui: 1.45; --lh-text: 1.5; --lh-read: 1.6; --lh-code: 1.5;
+  --ls-label: 0.06em;                 /* uppercase labels */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --r1: 4px; --r2: 8px; --r3: 14px; --r4: 999px;
+  --target: 44px;                     /* the smallest touch target: phone controls, the settings gear, the sheet's side buttons */
+  --ctl-h: 34px; --field-h: 40px; --seg-h: 30px; --row-h: 32px; --dot-hit: 28px; --link-pad: 0px;
+  --dot: 10px; --av: 26px; --av-l: 40px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
+  --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the gear, the read mark on phones, empty states */
+  --pop-w: 400px;                     /* the settings panel beside a wide app */
+  --tag-c: 0.13;                      /* tag colour chroma; lightness per theme (--tag-l), hue per tag */
+  --reader-pad: var(--s6); --code-pad-y: 10px; --code-pad-x: 12px;
+  --bar-h: 56px;                      /* the reader bar, and the phone settings sheet's header: one row, its bottom line included */
+  --fold-show: 6;                     /* lines a folded comment shows */
+  --code-show: 14;                    /* lines a folded code block shows */
+  /* motion: an item growing out of its card and back, and every fade or small turn */
+  --dur-move: 280ms; --dur-fade: 200ms; --ease-move: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --loop-spin: 0.9s; --loop-pulse: 1.6s;   /* the reading spinner and the loading shimmer */
+  /* layers, bottom to top */
+  --z-raise: 1;                       /* a card's whole-card link */
+  --z-sticky: 3;                      /* the pinned search, the reader bar and the sheet's key hint */
+  --z-float: 6;                       /* the paste card over the grid */
+  --z-reader: 20;                     /* the full-page reader */
+  --z-scrim: 20;                      /* the dimmed grid behind the sheet */
+  --z-sheet: 21;                      /* the sheet */
+  --z-sheet-nav: 22;                  /* the sheet's side buttons */
+  --z-popover: 40;                    /* the settings panel */
+  --vh: 100vh;
+}
+
+/* 2. The look ------------------------------------------------------------ */
+
+/* Font: the type pair's families, the display weights, the display size factor (--dz), the
+   display letter spacing, the reading size factor (--rz) and --cw, the reading font's average
+   character width in em, which turns the text width into a column. */
+:root, [data-font] {
+  --f-display: 'IBM Plex Sans', system-ui, sans-serif; --f-ui: 'IBM Plex Sans', system-ui, sans-serif;
+  --f-read: 'IBM Plex Sans', system-ui, sans-serif; --f-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --dw: 600; --dw-soft: 500; --dw-strong: 700; --dz: 1; --dls: -0.01em; --rz: 1; --cw: 0.453;
+}
+[data-font="news"] {
+  --f-display: 'Newsreader', Georgia, serif; --f-ui: 'Instrument Sans', system-ui, sans-serif; --f-read: 'Newsreader', Georgia, serif;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1.08; --dls: -0.012em; --rz: 1.08; --cw: 0.42;
+}
+[data-font="brico"] {
+  --f-display: 'Bricolage Grotesque', system-ui, sans-serif; --f-ui: 'Figtree', system-ui, sans-serif; --f-read: 'Figtree', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --dw: 700; --dls: -0.02em; --cw: 0.47;
+}
+[data-font="inst"] {
+  --f-display: 'Instrument Serif', Georgia, serif; --f-ui: 'Geist', system-ui, sans-serif; --f-read: 'Geist', system-ui, sans-serif;
+  --f-mono: 'Geist Mono', ui-monospace, monospace;
+  --dw: 400; --dw-soft: 400; --dw-strong: 400; --dz: 1.22; --dls: -0.005em; --cw: 0.461;
+}
+[data-font="mono"] {
+  --f-display: 'JetBrains Mono', ui-monospace, monospace; --f-ui: 'JetBrains Mono', ui-monospace, monospace; --f-read: 'Source Serif 4', Georgia, serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --dw: 700; --dw-soft: 400; --dz: 0.92; --dls: -0.02em; --rz: 1.06; --cw: 0.44;
+}
+
+/* Text width: the reading column in average characters per line (68 at most). */
+:root, [data-width] { --chars: 62; }
+[data-width="narrow"] { --chars: 56; }
+[data-width="wide"] { --chars: 68; }
+
+/* Density: list spacing (--k multiplies the list's vertical spacing) and list text only.
+   Reader text never shrinks below 16px. */
+:root, [data-density] { --k: 0.75; --t-body: 13.5px; --t-title-px: 15px; }
+[data-density="comfortable"] { --k: 1; --t-body: 14.5px; --t-title-px: 16.5px; }
+[data-density="roomy"] { --k: 1.25; --t-body: 15.5px; --t-title-px: 18px; }
+
+/* Accent: the hue. Its lightness and chroma come with the theme (--acc-l, --acc-c). */
+:root, [data-accent] { --ah: 258; }
+[data-accent="rust"] { --ah: 42; }
+[data-accent="moss"] { --ah: 145; }
+[data-accent="iris"] { --ah: 300; }
+[data-accent="teal"] { --ah: 200; }
+
+/* Comment style. --cm-guide is the indent guide drawn left of each reply (Reader sizes it by
+   depth) and --cm-guide-x its offset; --cm-pad and --cm-stub-pad pad a kept comment and a
+   context stub; --cm-box, --cm-stub-box, --cm-radius and --cm-bg draw them; --cm-gap is the
+   space between comments; --cm-split is the rule above each new top-level thread and
+   --cm-split-gap the space above it; --cm-av shows the avatar (Rail only). */
+:root, [data-comments] {
+  --cm-guide: repeating-linear-gradient(to right, var(--line-2) 0 1px, transparent 1px var(--ind)); --cm-guide-x: var(--s1);
+  --cm-pad: var(--s3) 0 var(--s3) var(--s3); --cm-stub-pad: var(--s2) 0 var(--s2) var(--s3);
+  --cm-box: 0; --cm-stub-box: 0; --cm-radius: 0; --cm-bg: transparent; --cm-gap: 0;
+  --cm-split: 1px solid var(--line); --cm-split-gap: var(--s2); --cm-av: none;
+}
+[data-comments="cards"] {
+  --cm-guide: none;
+  --cm-pad: var(--s3) var(--s4); --cm-stub-pad: var(--s2) var(--s3);
+  --cm-box: 1px solid var(--line); --cm-stub-box: 1px dashed var(--line-2); --cm-radius: var(--r2); --cm-bg: var(--surface); --cm-gap: var(--s2);
+  --cm-split: 0; --cm-split-gap: 0;
+}
+[data-comments="rail"] {
+  --cm-guide: repeating-linear-gradient(to right, transparent 0 calc(var(--av) / 2 - 1px), var(--line-2) calc(var(--av) / 2 - 1px) calc(var(--av) / 2), transparent calc(var(--av) / 2) var(--ind));
+  --cm-guide-x: 0px;
+  --cm-pad: var(--s3) 0 var(--s3) calc(var(--av) + var(--s3)); --cm-stub-pad: var(--s2) 0 var(--s2) calc(var(--av) + var(--s3));
+  --cm-split: 0; --cm-split-gap: 0; --cm-av: grid;
+}
+
+/* Tag style: dots (a coloured dot before the name), text ("#name") or chips. */
+:root, [data-tags] { --tag-dot: inline-block; --tag-mark: none; --tag-pad: 0px; --tag-box: 0; --tag-bg: transparent; --tag-fg: var(--muted); }
+[data-tags="text"] { --tag-dot: none; --tag-mark: '#'; }
+[data-tags="chips"] { --tag-dot: none; --tag-pad: var(--s2); --tag-box: 1px solid var(--line); --tag-bg: var(--surface-2); --tag-fg: var(--text); }
+
+/* Card images: the pictures on list rows and cards. The reader always shows an item's picture.
+   With pictures off, every card is laid out as a text card (Library). */
+:root, [data-images] { --card-media: block; }
+[data-images="off"] { --card-media: none; }
+
+/* Worked out from the inputs above. */
+:root, .app, [data-font] {
+  --t-title: calc(var(--t-title-px) * var(--dz));
+  --t-read: max(16px, calc(17px * var(--rz)));
+  --t-display: calc(var(--display-px) * var(--dz) * var(--display-x));
+  --measure: calc(var(--chars) * var(--cw) * 1em);
+}
+
+/* 3. Layouts: each layout's sizes, and the hue and chroma of its greys (--nh, --nc; Sepia
+   ignores them). ------------------------------------------------------------- */
+:root, .L-rows {
+  --nh: 255; --nc: 0.008; --display-px: 24px;
+  --thumb: 40px; --rail-w: 264px; --list-min: 300px; --list-w: 420px; --sum-lines: 2;
+}
+.L-cards {
+  --nh: 292; --nc: 0.01; --display-px: 30px;
+  --img-ratio: 16 / 10; --sum-lines: 3; --sum-lines-text: 6; --page-max: 1480px; --paste-min: 280px; --paste-w: 420px;
+  --sheet-w: 760px; --side-gap: 72px;   /* the sheet's widest, and the room kept beside it for its side buttons */
+}
+
+/* 4. Themes. --acc-l and --acc-c are the accent's lightness and chroma, so a swatch shows its
+   accent as the current theme draws it. ---------------------------------- */
+:root, .th-light {
+  color-scheme: light;
+  --bg: oklch(0.976 var(--nc) var(--nh)); --surface: oklch(0.995 calc(var(--nc) * 0.5) var(--nh)); --surface-2: oklch(0.948 var(--nc) var(--nh));
+  --line: oklch(0.89 var(--nc) var(--nh)); --line-2: oklch(0.80 var(--nc) var(--nh)); --ctl-line: oklch(0.60 var(--nc) var(--nh));
+  --text: oklch(0.22 var(--nc) var(--nh)); --muted: oklch(0.46 var(--nc) var(--nh));
+  --acc-l: 0.50; --acc-c: 0.14; --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); --acc-ink: oklch(0.47 0.14 var(--ah)); --on-acc: oklch(0.99 0 0); --acc-soft: oklch(0.935 0.035 var(--ah));
+  --ok: oklch(0.47 0.12 150); --warn: oklch(0.50 0.16 35);
+  --shadow: 0 1px 2px oklch(0.2 0 0 / 0.05), 0 6px 20px oklch(0.2 0 0 / 0.06); --shadow-lg: 0 18px 50px oklch(0.2 0 0 / 0.22);
+  --scrim: oklch(0.2 0.01 var(--nh) / 0.42); --tag-l: 0.62;
+  --reader-bg: var(--bg);
+}
+.th-dark {
+  color-scheme: dark;
+  --bg: oklch(0.175 var(--nc) var(--nh)); --surface: oklch(0.215 var(--nc) var(--nh)); --surface-2: oklch(0.25 var(--nc) var(--nh));
+  --line: oklch(0.31 var(--nc) var(--nh)); --line-2: oklch(0.40 var(--nc) var(--nh)); --ctl-line: oklch(0.54 var(--nc) var(--nh));
+  --text: oklch(0.94 var(--nc) var(--nh)); --muted: oklch(0.74 var(--nc) var(--nh));
+  --acc-l: 0.75; --acc-c: 0.12; --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); --acc-ink: oklch(0.79 0.11 var(--ah)); --on-acc: oklch(0.19 0.02 var(--ah)); --acc-soft: oklch(0.31 0.05 var(--ah));
+  --ok: oklch(0.78 0.12 150); --warn: oklch(0.78 0.13 50);
+  --shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px oklch(0 0 0 / 0.3); --shadow-lg: 0 18px 50px oklch(0 0 0 / 0.5);
+  --scrim: oklch(0.05 0 0 / 0.7); --tag-l: 0.72;
+  --reader-bg: var(--bg);
+}
+/* Sepia's selected-row tint (--acc-soft) has a third less chroma than light's, so cool accents stay warm here. */
+.th-sepia {
+  color-scheme: light;
+  --bg: oklch(0.948 0.026 84); --surface: oklch(0.972 0.019 86); --surface-2: oklch(0.918 0.03 82);
+  --line: oklch(0.86 0.032 78); --line-2: oklch(0.77 0.035 74); --ctl-line: oklch(0.57 0.04 68);
+  --text: oklch(0.27 0.035 58); --muted: oklch(0.44 0.04 60);
+  --acc-l: 0.47; --acc-c: 0.13; --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); --acc-ink: oklch(0.445 0.13 var(--ah)); --on-acc: oklch(0.985 0.01 86); --acc-soft: oklch(0.895 0.03 var(--ah));
+  --ok: oklch(0.44 0.11 150); --warn: oklch(0.47 0.15 35);
+  --shadow: 0 1px 2px oklch(0.3 0.04 60 / 0.08), 0 6px 20px oklch(0.3 0.04 60 / 0.08); --shadow-lg: 0 18px 50px oklch(0.3 0.04 60 / 0.25);
+  --scrim: oklch(0.25 0.03 60 / 0.4); --tag-l: 0.6;
+  --reader-bg: var(--bg);
+}
+
+/* 5. Widths --------------------------------------------------------------
+   The breakpoints and the grid's columns: one table, read by the app's script.
+     band     under    grid columns
+     phone     480     1
+     narrow    760     2      (items always open full screen)
+     medium   1080     3
+     wide     1440     3
+     full       -      4
+   NOTE: a real build should use container queries; data-bp exists because Compare
+   scales two apps inside one page, where media queries see the window. */
+:root {
+  --bp-phone: 480px; --bp-narrow: 760px; --bp-medium: 1080px; --bp-wide: 1440px;
+  --cols-phone: 1; --cols-narrow: 2; --cols-medium: 3; --cols-wide: 3; --cols-full: 4;
+  --display-x: 1;
+}
+.app { --cols: var(--cols-full); }
+.app[data-bp~="wide"] { --cols: var(--cols-wide); }
+.app[data-bp~="medium"] { --cols: var(--cols-medium); }
+.app[data-bp~="narrow"] { --cols: var(--cols-narrow); --reader-pad: var(--s4); --display-x: 0.85; }
+.app[data-bp~="phone"] { --cols: var(--cols-phone); --ctl-h: var(--target); --field-h: var(--target); --seg-h: var(--target); --row-h: var(--target); --dot-hit: var(--target); --link-pad: 13px; --ind: 8px; --ind-max: 16px; --av: 22px; }
+.app[data-bp~="phone"][data-comments="cards"] { --cm-pad: var(--s3); }
+.app[data-bp~="phone"][data-comments="rail"] { --cm-pad: var(--s3) 0 var(--s3) calc(var(--av) + var(--s2)); --cm-stub-pad: var(--s2) 0 var(--s2) calc(var(--av) + var(--s2)); }
+
+/* 6. Styles ---------------------------------------------------------------
+   A style is a whole look taken from a reference, picked by data-style on the app's root (ten so far).
+   Library (the default) is the plain values above and has no block. Each style sets only
+   tokens: its type pair, weights and size factors, radii, tag chroma and label spacing, and
+   for each theme its neutrals and surfaces, accent, tag lightness, borders and shadows. It
+   comes last, so its fonts and accent win over data-font and data-accent (the settings panel
+   shows those rows as set by the style); text width, density, comment style, tag style and
+   card images still apply on top. --acc fills (the Add button, chosen controls, unread dots),
+   --acc-ink is the accent as text (links, focus rings) and --acc-soft tints a chosen row.
+   A style's "no shadow" is 0 0 0 0 transparent, since --shadow is also used inside lists.
+   Every text colour in every theme is 4.5:1 or more on --bg, --surface, --surface-2 and
+   --acc-soft (and --on-acc on --acc). */
+
+/* Anthropic: a scientific field journal on warm parchment (light). Ivory and oat surfaces, serif
+   voice for display and body, sans for UI chrome, one clay accent for action, hairlines instead of
+   shadows.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - Anthropic Serif -> Source Serif 4 (the DESIGN.md fallback Source Serif Pro, now Source Serif 4
+     on Google Fonts)
+   - Anthropic Sans -> Inter (named substitute)
+   - Anthropic Mono -> JetBrains Mono (named substitute)
+   Changed for contrast or legibility:
+   - muted text: Cloud Medium #b0aea5 is 2:1 on the canvas, darkened to #5c5b55 (light) for 4.5:1
+   - accent: Clay Deep #c6613f (the guide's canonical accent token) in light and sepia, so the
+     unread dot reaches 3:1 on parchment; Clay #d97757 in dark */
+[data-style="anthropic"] {
+  --f-display: 'Source Serif 4', Georgia, serif; --f-ui: 'Inter', system-ui, sans-serif;
+  --f-read: 'Source Serif 4', Georgia, serif; --f-mono: 'JetBrains Mono', ui-monospace, monospace; --dw: 400;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1.08; --dls: 0em; --rz: 1.06; --cw: 0.41; --ls-label: 0.06em;
+  --r1: 2px; --r2: 8px; --r3: 24px; --tag-c: 0.07;
+  &.th-light {
+    color-scheme: light; --bg: #f0eee6; --surface: #faf9f5; --surface-2: #e3dacc; --line: #cccbc8; --line-2: #b0aea5;
+    --ctl-line: #87867f; --text: #141413; --muted: #5c5b55; --acc: #c6613f; --acc-ink: #141413; --on-acc: #141413;
+    --acc-soft: #f5e3c7; --ok: #3f6b35; --warn: #a33a1f; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #cccbc8; --scrim: rgba(20, 20, 19, 0.42); --tag-l: 0.56; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #141413; --surface: #1c1c1a; --surface-2: #262624; --line: #30302e; --line-2: #3d3d3a;
+    --ctl-line: #87867f; --text: #faf9f5; --muted: #b0aea5; --acc: #d97757; --acc-ink: #faf9f5; --on-acc: #141413;
+    --acc-soft: #3b2b22; --ok: #9cc08a; --warn: #e8957a; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #3d3d3a; --scrim: rgba(0, 0, 0, 0.66); --tag-l: 0.72; --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #e9e1cf; --surface: #f4eee1; --surface-2: #ddd2bb; --line: #cdc1a8; --line-2: #b1a58c;
+    --ctl-line: #857a63; --text: #1c1913; --muted: #554d40; --acc: #c6613f; --acc-ink: #1c1913; --on-acc: #141413;
+    --acc-soft: #efd6b2; --ok: #3a6230; --warn: #9b3a1e; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #cdc1a8; --scrim: rgba(40, 32, 20, 0.42); --tag-l: 0.54; --reader-bg: var(--bg);
+  }
+}
+
+/* Slash: a midnight vault with gilded ledger lines (dark). Near-black canvas, bone text, a didone
+   serif for display beside Inter, white filled actions, copper only for links, thin borders and no
+   shadows.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - Ivy Presto -> Playfair Display (first named substitute)
+   - Inter -> Inter
+   - no mono face named -> JetBrains Mono */
+[data-style="slash"] {
+  --f-display: 'Playfair Display', Georgia, serif; --f-ui: 'Inter', system-ui, sans-serif;
+  --f-read: 'Inter', system-ui, sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, monospace; --dw: 400;
+  --dw-soft: 500; --dw-strong: 700; --dz: 1.08; --dls: 0.01em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
+  --r1: 2px; --r2: 10px; --r3: 10px; --tag-c: 0;
+  &.th-light {
+    color-scheme: light; --bg: #f6f6f7; --surface: #ffffff; --surface-2: #ececef; --line: #e2e3e9; --line-2: #c7c9d1;
+    --ctl-line: #777a88; --text: #08080a; --muted: #5e616e; --acc: #08080a; --acc-ink: #8a5530; --on-acc: #ffffff;
+    --acc-soft: #f4ebe2; --ok: #2f6a3d; --warn: #a5391d; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px rgba(8, 8, 10, 0.16); --scrim: rgba(8, 8, 10, 0.4); --tag-l: 0.5; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #08080a; --surface: #121317; --surface-2: #1c1d22; --line: #1c1d22; --line-2: #2e3038;
+    --ctl-line: #777a88; --text: #e2e3e9; --muted: #9194a1; --acc: #ffffff; --acc-ink: #cc9166; --on-acc: #08080a;
+    --acc-soft: #231c16; --ok: #93bf9b; --warn: #e3a07e; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.2); --scrim: rgba(0, 0, 0, 0.72); --tag-l: 0.72;
+    --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #f0e8da; --surface: #f8f2e7; --surface-2: #e6dccb; --line: #d8ccb6; --line-2: #bfb19a;
+    --ctl-line: #7d7263; --text: #14110d; --muted: #574e42; --acc: #14110d; --acc-ink: #83502c; --on-acc: #f8f2e7;
+    --acc-soft: #eadac4; --ok: #2f6339; --warn: #9c381c; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px rgba(20, 17, 13, 0.18); --scrim: rgba(40, 30, 18, 0.42); --tag-l: 0.5;
+    --reader-bg: var(--bg);
+  }
+}
+
+/* Modal: a phosphor terminal in a darkened server room (dark). Black void, phosphor-pale green
+   text, sage for quiet text, a lime LED accent for action and state, green-tinted hairlines and no
+   shadows.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - Goga -> Space Grotesk (named substitute)
+   - Inter Variable -> Inter
+   - code windows: Fira Mono -> Fira Mono */
+[data-style="modal"] {
+  --f-display: 'Space Grotesk', system-ui, sans-serif; --f-ui: 'Inter', system-ui, sans-serif;
+  --f-read: 'Inter', system-ui, sans-serif; --f-mono: 'Fira Mono', ui-monospace, monospace; --dw: 500;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1; --dls: -0.012em; --rz: 1; --cw: 0.48; --ls-label: 0.05em;
+  --r1: 4px; --r2: 12px; --r3: 8px; --tag-c: 0;
+  &.th-light {
+    color-scheme: light; --bg: #f2f8f1; --surface: #fafdf9; --surface-2: #def0dd; --line: #cde0cb; --line-2: #aec4ab;
+    --ctl-line: #5f735c; --text: #0f1a0e; --muted: #465843; --acc: #139146; --acc-ink: #2b6527; --on-acc: #0b170a;
+    --acc-soft: #d3ecce; --ok: #25662a; --warn: #9e3b17; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #aec4ab; --scrim: rgba(10, 24, 10, 0.4); --tag-l: 0.5; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #000000; --surface: #181818; --surface-2: #212525; --line: #1f2a33; --line-2: #485346;
+    --ctl-line: #677d64; --text: #ddffdc; --muted: #8cab87; --acc: #7fee64; --acc-ink: #859984; --on-acc: #181818;
+    --acc-soft: #14261a; --ok: #9cbf93; --warn: #f0b27a; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #485346; --scrim: rgba(0, 0, 0, 0.74); --tag-l: 0.74; --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #ece6d5; --surface: #f5f0e3; --surface-2: #e1d9c4; --line: #d0c6ae; --line-2: #b3a78c;
+    --ctl-line: #6e6552; --text: #172015; --muted: #4b5444; --acc: #329040; --acc-ink: #29602a; --on-acc: #0b170a;
+    --acc-soft: #dfe3c4; --ok: #28612b; --warn: #983a18; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #b3a78c; --scrim: rgba(30, 34, 20, 0.42); --tag-l: 0.5; --reader-bg: var(--bg);
+  }
+}
+
+/* mymind: a sunlit personal archive (light). Barely-off-white canvas, pastel and white surfaces, a
+   quiet editorial serif for display, rounded Nunito for UI and a humanist sans for reading, ember
+   for marks, cobalt for links.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - Louize -> Playfair Display at weight 400 (named substitute)
+   - Nunito -> Nunito (UI labels and buttons)
+   - Avenir LT Book -> DM Sans (named substitute, reading text)
+   - no mono face named -> DM Mono
+   Changed for contrast or legibility:
+   - muted text: Steel #717286 is under 4.5:1 on the slate-blue card surface, darkened to #5c5e72
+   - links: Cobalt #1573dd is under 4.5:1 on that surface, deepened to #1160c0
+   - accent: Ember #ff5924 is 2.998:1 on the light canvas, nudged to #fc5622 for 3:1 */
+[data-style="mymind"] {
+  --f-display: 'Playfair Display', Georgia, serif; --f-ui: 'Nunito', system-ui, sans-serif;
+  --f-read: 'DM Sans', system-ui, sans-serif; --f-mono: 'DM Mono', ui-monospace, monospace; --dw: 400;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1.1; --dls: -0.03em; --rz: 1.04; --cw: 0.42; --ls-label: 0.1em;
+  --r1: 6px; --r2: 12px; --r3: 16px; --tag-c: 0.13;
+  &.th-light {
+    color-scheme: light; --bg: #f9fafc; --surface: #ffffff; --surface-2: #e5eaf2; --line: #e2e2e2; --line-2: #c9ced8;
+    --ctl-line: #748297; --text: #3a475a; --muted: #5c5e72; --acc: #fc5622; --acc-ink: #1160c0; --on-acc: #24272d;
+    --acc-soft: #fff1f1; --ok: #2f7d4f; --warn: #b8410f; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: rgba(140, 142, 151, 0.32) 0px 4px 7px -4px, 0 18px 50px rgba(58, 71, 90, 0.16);
+    --scrim: rgba(36, 39, 45, 0.4); --tag-l: 0.62; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #15171b; --surface: #1f2329; --surface-2: #2a2f37; --line: #2f343c; --line-2: #444a55;
+    --ctl-line: #748297; --text: #f9fafc; --muted: #afb5c1; --acc: #ff5924; --acc-ink: #6aa7ee; --on-acc: #15171b;
+    --acc-soft: #3a241d; --ok: #8cc9a0; --warn: #ff9a73; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #2f343c, 0 18px 50px rgba(0, 0, 0, 0.5); --scrim: rgba(0, 0, 0, 0.66); --tag-l: 0.72;
+    --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #f3eee2; --surface: #fbf8f1; --surface-2: #e8e1d1; --line: #ddd5c3; --line-2: #c4baa4;
+    --ctl-line: #7b7466; --text: #363c48; --muted: #5a5650; --acc: #f04a16; --acc-ink: #0f58ac; --on-acc: #15171b;
+    --acc-soft: #fbe6da; --ok: #2c6f47; --warn: #a63c10; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: rgba(120, 100, 80, 0.3) 0px 4px 7px -4px, 0 18px 50px rgba(80, 60, 40, 0.16);
+    --scrim: rgba(50, 40, 30, 0.4); --tag-l: 0.6; --reader-bg: var(--bg);
+  }
+}
+
+/* Monocle: a quality broadsheet on cream paper (light). Black ink on newsprint cream, a serif for
+   everything editorial, a utility sans for chrome, square corners, hairline rules and no shadows;
+   signal yellow as the one colour, used as the highlighter.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - Plantin -> Spectral (named substitute; Source Serif 4 is Anthropic's face)
+   - Helvetica Neue -> Inter (named substitute)
+   - no mono face named -> IBM Plex Mono
+   Changed for contrast or legibility:
+   - muted text: Caption Gray #6e6e6e is under 4.5:1 on the gray panel, darkened to #5c5c5c */
+[data-style="monocle"] {
+  --f-display: 'Spectral', Georgia, serif; --f-ui: 'Inter', system-ui, sans-serif;
+  --f-read: 'Spectral', Georgia, serif; --f-mono: 'IBM Plex Mono', ui-monospace, monospace; --dw: 400;
+  --dw-soft: 400; --dw-strong: 700; --dz: 1.04; --dls: -0.02em; --rz: 1.04; --cw: 0.44; --ls-label: 0.075em;
+  --r1: 0px; --r2: 0px; --r3: 0px; --tag-c: 0;
+  &.th-light {
+    color-scheme: light; --bg: #fdfcf3; --surface: #ffffff; --surface-2: #e7e7e7; --line: #d9d9d9; --line-2: #b3b3b3;
+    --ctl-line: #6e6e6e; --text: #000000; --muted: #5c5c5c; --acc: #000000; --acc-ink: #000000; --on-acc: #fdfcf3;
+    --acc-soft: #ffe792; --ok: #2e6b3a; --warn: #b3261e; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #d9d9d9; --scrim: rgba(0, 0, 0, 0.4); --tag-l: 0.5; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #121110; --surface: #1b1a18; --surface-2: #262421; --line: #33302c; --line-2: #4a4741;
+    --ctl-line: #8a8680; --text: #fdfcf3; --muted: #b3b3b3; --acc: #fdfcf3; --acc-ink: #fdfcf3; --on-acc: #121110;
+    --acc-soft: #3d3410; --ok: #93c79e; --warn: #f08c80; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #4a4741; --scrim: rgba(0, 0, 0, 0.7); --tag-l: 0.72; --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #f3ead5; --surface: #faf4e4; --surface-2: #e7dcc3; --line: #d6c9ab; --line-2: #b9aa88;
+    --ctl-line: #6e6553; --text: #16130d; --muted: #554d3e; --acc: #16130d; --acc-ink: #16130d; --on-acc: #faf4e4;
+    --acc-soft: #f3d77a; --ok: #2b6235; --warn: #a3271d; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #d6c9ab; --scrim: rgba(40, 30, 15, 0.42); --tag-l: 0.5; --reader-bg: var(--bg);
+  }
+}
+
+/* Linear: a midnight precision instrument (dark). Near-black surfaces, cool grey text, one acid-
+   lime accent for action, Inter throughout in a low 400 to 590 weight band, hairline borders and
+   6/12px radii.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - Inter Variable -> Inter (its 510 and 590 weights are set as 500 and 600, the nearest static
+     weights)
+   - Berkeley Mono -> JetBrains Mono (named substitute)
+   Changed for contrast or legibility:
+   - links and focus rings: Pulse Green, the guide's accent for focused edges (lime stays the one
+     fill)
+   - light and sepia: acid lime is under 3:1 on a pale canvas, so the fill there is a deep
+     chartreuse (#8b9509, #818a08) */
+[data-style="linear"] {
+  --f-display: 'Inter', system-ui, sans-serif; --f-ui: 'Inter', system-ui, sans-serif;
+  --f-read: 'Inter', system-ui, sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, monospace; --dw: 500;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1; --dls: -0.012em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
+  --r1: 4px; --r2: 6px; --r3: 12px; --tag-c: 0.12;
+  &.th-light {
+    color-scheme: light; --bg: #f7f8f8; --surface: #ffffff; --surface-2: #eef0f2; --line: #e1e3e6; --line-2: #c8cbd0;
+    --ctl-line: #8a8f98; --text: #08090a; --muted: #5a5f67; --acc: #8b9509; --acc-ink: #1d7d33; --on-acc: #08090a;
+    --acc-soft: #f1f6c9; --ok: #1d7d33; --warn: #b42318; --shadow: rgba(8, 9, 10, 0.06) 0px 1px 2px 0px;
+    --shadow-lg: rgba(8, 9, 10, 0.12) 0px 4px 32px 0px, 0 0 0 1px #e1e3e6; --scrim: rgba(8, 9, 10, 0.4);
+    --tag-l: 0.55; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #08090a; --surface: #0f1011; --surface-2: #161718; --line: #23252a; --line-2: #383b3f;
+    --ctl-line: #62666d; --text: #d0d6e0; --muted: #8a8f98; --acc: #e4f222; --acc-ink: #27a644; --on-acc: #08090a;
+    --acc-soft: #1d2010; --ok: #4cc26a; --warn: #f08080; --shadow: rgba(0, 0, 0, 0.4) 0px 2px 4px 0px;
+    --shadow-lg: rgba(8, 9, 10, 0.6) 0px 4px 32px 0px, 0 0 0 1px #23252a; --scrim: rgba(0, 0, 0, 0.7); --tag-l: 0.7;
+    --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #ece6d8; --surface: #f4efe4; --surface-2: #e2dbcb; --line: #d4cbb7; --line-2: #b8ad96;
+    --ctl-line: #7d735f; --text: #16150f; --muted: #575142; --acc: #818a08; --acc-ink: #186a2d; --on-acc: #08090a;
+    --acc-soft: #e5ea9c; --ok: #1b7030; --warn: #a52a1c; --shadow: rgba(40, 30, 15, 0.08) 0px 1px 2px 0px;
+    --shadow-lg: rgba(40, 30, 15, 0.14) 0px 4px 32px 0px, 0 0 0 1px #d4cbb7; --scrim: rgba(40, 30, 15, 0.42);
+    --tag-l: 0.52; --reader-bg: var(--bg);
+  }
+}
+
+/* Switch-Lit: an inked editorial grid on cream paper (light). Every edge drawn in one black
+   hairline, a light flared serif for headings over a typeset grotesque, and highlighter lime as the
+   one colour.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - ABC Arizona Flare -> Fraunces at weight 300 (a flared, light editorial serif; the named GT
+     Sectra, Lyon and Tiempos are commercial)
+   - ABC Arizona Sans -> Inter (named substitute)
+   - no mono face named -> Space Mono
+   Changed for contrast or legibility:
+   - muted text: the guide draws everything in Press Black and names no grey for text; #4f544e (a
+     dark sage grey) is used for meta and summaries
+   - accent: highlighter lime is about 1:1 on cream, so it is the chosen-row and highlight fill
+     (--acc-soft) and the fills and unread dots are Press Black */
+[data-style="switch-lit"] {
+  --f-display: 'Fraunces', Georgia, serif; --f-ui: 'Inter', system-ui, sans-serif;
+  --f-read: 'Inter', system-ui, sans-serif; --f-mono: 'Space Mono', ui-monospace, monospace; --dw: 300;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1.06; --dls: 0.004em; --rz: 1; --cw: 0.48; --ls-label: 0.067em;
+  --r1: 3px; --r2: 6px; --r3: 12px; --tag-c: 0.14;
+  &.th-light {
+    color-scheme: light; --bg: #f9f9f7; --surface: #f9f9f7; --surface-2: #edf0e9; --line: #000000; --line-2: #000000;
+    --ctl-line: #000000; --text: #000000; --muted: #4f544e; --acc: #000000; --acc-ink: #000000; --on-acc: #f9f9f7;
+    --acc-soft: #edfe5e; --ok: #1d6b3c; --warn: #a8231a; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #000000; --scrim: rgba(0, 0, 0, 0.36); --tag-l: 0.72; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #0f0f0e; --surface: #0f0f0e; --surface-2: #1d1f1b; --line: #e9ece5; --line-2: #e9ece5;
+    --ctl-line: #e9ece5; --text: #f9f9f7; --muted: #b4bab1; --acc: #f9f9f7; --acc-ink: #f9f9f7; --on-acc: #0f0f0e;
+    --acc-soft: #3a400f; --ok: #7fdcaa; --warn: #f59b8f; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #e9ece5; --scrim: rgba(0, 0, 0, 0.72); --tag-l: 0.76; --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #f1ead8; --surface: #f1ead8; --surface-2: #e4dcc6; --line: #1d1a12; --line-2: #1d1a12;
+    --ctl-line: #1d1a12; --text: #1d1a12; --muted: #544d3b; --acc: #1d1a12; --acc-ink: #1d1a12; --on-acc: #f1ead8;
+    --acc-soft: #e4f062; --ok: #1e6338; --warn: #9c2a1c; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 1px #1d1a12; --scrim: rgba(40, 30, 15, 0.4); --tag-l: 0.7; --reader-bg: var(--bg);
+  }
+}
+
+/* Cursor: a warm parchment atelier lit by embers (light). Cream canvas, warm ink, whisper-weight
+   sans headlines with tight tracking, Garamond for prose, ember for links only, 4px corners and
+   soft warm shadows.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - CursorGothic -> Inter (named substitute)
+   - EB Garamond -> EB Garamond (on Google Fonts as is)
+   - berkeleyMono -> IBM Plex Mono (the guide names only system monospace fonts)
+   Changed for contrast or legibility:
+   - muted text: Ash #7a7974 is under 4.5:1 on Linen, darkened to #5f5e59
+   - links: Ember #f54e00 is 3:1 on Parchment, deepened to #b83b00 (still ember, never a fill) */
+[data-style="cursor"] {
+  --f-display: 'Inter', system-ui, sans-serif; --f-ui: 'Inter', system-ui, sans-serif;
+  --f-read: 'EB Garamond', Georgia, serif; --f-mono: 'IBM Plex Mono', ui-monospace, monospace; --dw: 400;
+  --dw-soft: 400; --dw-strong: 500; --dz: 1; --dls: -0.02em; --rz: 1.12; --cw: 0.38; --ls-label: 0.05em;
+  --r1: 2px; --r2: 4px; --r3: 4px; --tag-c: 0.11;
+  &.th-light {
+    color-scheme: light; --bg: #f7f7f4; --surface: #f2f1ed; --surface-2: #e6e5e0; --line: #cdcdc9; --line-2: #a1a19f;
+    --ctl-line: #84847e; --text: #26251e; --muted: #5f5e59; --acc: #26251e; --acc-ink: #b83b00; --on-acc: #f7f7f4;
+    --acc-soft: #f6e3d6; --ok: #1f7a58; --warn: #b0263f; --shadow: rgba(38, 37, 30, 0.06) 0px 14px 32px 0px;
+    --shadow-lg: rgba(0, 0, 0, 0.14) 0px 28px 70px 0px, rgba(0, 0, 0, 0.1) 0px 14px 32px 0px;
+    --scrim: rgba(38, 37, 30, 0.4); --tag-l: 0.58; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #14130f; --surface: #1c1b17; --surface-2: #26251e; --line: #33322b; --line-2: #4a4940;
+    --ctl-line: #84847e; --text: #f2f1ed; --muted: #a1a19f; --acc: #f2f1ed; --acc-ink: #ff7a3d; --on-acc: #26251e;
+    --acc-soft: #3a2516; --ok: #62c49c; --warn: #f2789a; --shadow: rgba(0, 0, 0, 0.3) 0px 14px 32px 0px;
+    --shadow-lg: rgba(0, 0, 0, 0.5) 0px 28px 70px 0px, 0 0 0 1px #33322b; --scrim: rgba(0, 0, 0, 0.68);
+    --tag-l: 0.72; --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #f0e9da; --surface: #ebe3d2; --surface-2: #e0d6c2; --line: #cfc4ad; --line-2: #ada28b;
+    --ctl-line: #7f7663; --text: #26251e; --muted: #57523f; --acc: #26251e; --acc-ink: #a33400; --on-acc: #f0e9da;
+    --acc-soft: #f0d6bf; --ok: #1d6e50; --warn: #a3233a; --shadow: rgba(60, 40, 20, 0.08) 0px 14px 32px 0px;
+    --shadow-lg: rgba(60, 40, 20, 0.16) 0px 28px 70px 0px, rgba(60, 40, 20, 0.1) 0px 14px 32px 0px;
+    --scrim: rgba(40, 30, 15, 0.42); --tag-l: 0.55; --reader-bg: var(--bg);
+  }
+}
+
+/* Steep: serif analytics on warm paper (light). A white canvas with mist cards, regular-weight
+   serif headlines, a quiet sans for everything else, near-black pill actions and one peach wash;
+   large soft radii and almost no shadow.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - Signifier -> Newsreader (a regular-weight transitional serif with optical sizes; the named
+     Source Serif 4 is Anthropic's face, GT Sectra and Tiempos are commercial)
+   - Sohne -> Inter (named substitute)
+   - no mono face named -> Roboto Mono
+   Changed for contrast or legibility:
+   - muted text: Slate Gray #777b86 is under 4.5:1 on the mist card, darkened to #5c606a
+   - links: Slate Gray as a link colour is under 4.5:1, so links are ink (underlined) */
+[data-style="steep"] {
+  --f-display: 'Newsreader', Georgia, serif; --f-ui: 'Inter', system-ui, sans-serif;
+  --f-read: 'Inter', system-ui, sans-serif; --f-mono: 'Roboto Mono', ui-monospace, monospace; --dw: 400;
+  --dw-soft: 400; --dw-strong: 500; --dz: 1.14; --dls: -0.015em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
+  --r1: 6px; --r2: 14px; --r3: 24px; --tag-c: 0;
+  &.th-light {
+    color-scheme: light; --bg: #ffffff; --surface: #f2f2f3; --surface-2: #e8e8ea; --line: #ececec; --line-2: #d6d7da;
+    --ctl-line: #84868e; --text: #17191c; --muted: #5c606a; --acc: #17191c; --acc-ink: #17191c; --on-acc: #ffffff;
+    --acc-soft: #fbe1d1; --ok: #1f6b45; --warn: #5d2a1a; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: rgba(0, 0, 0, 0.05) 0px 0px 0px 1px, rgba(0, 0, 0, 0.1) 0px 8px 40px 0px;
+    --scrim: rgba(23, 25, 28, 0.36); --tag-l: 0.55; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #121315; --surface: #1b1c1f; --surface-2: #25262a; --line: #2a2b2f; --line-2: #3b3d42;
+    --ctl-line: #8a8d96; --text: #f2f2f3; --muted: #a3a6af; --acc: #f2f2f3; --acc-ink: #f2f2f3; --on-acc: #17191c;
+    --acc-soft: #3d2a20; --ok: #7fcfa3; --warn: #f4b49a; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: rgba(255, 255, 255, 0.06) 0px 0px 0px 1px, rgba(0, 0, 0, 0.5) 0px 8px 40px 0px;
+    --scrim: rgba(0, 0, 0, 0.68); --tag-l: 0.72; --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #f6f0e5; --surface: #ece5d7; --surface-2: #e2d9c8; --line: #e0d7c6; --line-2: #c8bda7;
+    --ctl-line: #847a68; --text: #17191c; --muted: #585246; --acc: #17191c; --acc-ink: #17191c; --on-acc: #f6f0e5;
+    --acc-soft: #f6d6c0; --ok: #1e6643; --warn: #5d2a1a; --shadow: 0 0 0 0 transparent;
+    --shadow-lg: rgba(60, 40, 20, 0.06) 0px 0px 0px 1px, rgba(60, 40, 20, 0.12) 0px 8px 40px 0px;
+    --scrim: rgba(40, 30, 15, 0.4); --tag-l: 0.55; --reader-bg: var(--bg);
+  }
+}
+
+/* Cal.com: monochrome utility with a human touch (light). Light grey paper, white cards lifted by
+   soft shadows, a geometric semibold display face, ink-black actions and one functional blue for
+   links.
+   Fonts (Google Fonts for the commercial faces the style names):
+   - Cal Sans -> Cal Sans (open source, on Google Fonts as is)
+   - Cal Sans UI Variable Light -> Inter at 400 (the named substitute is Inter Light; 300 is too
+     thin for 16px reading text on grey, so the regular weight is used)
+   - Inter -> Inter; no mono face named -> Geist Mono
+   Changed for contrast or legibility:
+   - muted text: Slate #6b7280 is under 4.5:1 on the silver panel, darkened to #565c68
+   - links: Action Blue #0099ff is under 4.5:1 on white, deepened to #006bb2 */
+[data-style="cal-com"] {
+  --f-display: 'Cal Sans', system-ui, sans-serif; --f-ui: 'Inter', system-ui, sans-serif;
+  --f-read: 'Inter', system-ui, sans-serif; --f-mono: 'Geist Mono', ui-monospace, monospace; --dw: 400;
+  --dw-soft: 400; --dw-strong: 400; --dz: 1; --dls: 0.01em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
+  --r1: 4px; --r2: 8px; --r3: 12px; --tag-c: 0;
+  &.th-light {
+    color-scheme: light; --bg: #f4f4f4; --surface: #ffffff; --surface-2: #e5e7eb; --line: #e5e7eb; --line-2: #d1d5db;
+    --ctl-line: #898989; --text: #242424; --muted: #565c68; --acc: #101010; --acc-ink: #006bb2; --on-acc: #ffffff;
+    --acc-soft: #eff6fe; --ok: #1e7a3c; --warn: #b42318; --shadow: rgba(36, 36, 36, 0.05) 0px 4px 8px 0px;
+    --shadow-lg: rgba(36, 36, 36, 0.7) 0px 1px 5px -4px, rgba(34, 42, 53, 0.1) 0px 12px 32px 0px, 0 0 0 1px rgba(0, 0, 0, 0.04);
+    --scrim: rgba(16, 16, 16, 0.4); --tag-l: 0.55; --reader-bg: var(--bg);
+  }
+  &.th-dark {
+    color-scheme: dark; --bg: #101010; --surface: #1a1a1a; --surface-2: #242424; --line: #2b2b2b; --line-2: #3a3a3a;
+    --ctl-line: #898989; --text: #f4f4f4; --muted: #a3a3a3; --acc: #f4f4f4; --acc-ink: #4db3ff; --on-acc: #101010;
+    --acc-soft: #13263a; --ok: #6fd394; --warn: #f7958a; --shadow: rgba(0, 0, 0, 0.4) 0px 4px 8px 0px;
+    --shadow-lg: rgba(0, 0, 0, 0.6) 0px 12px 32px 0px, 0 0 0 1px #2b2b2b; --scrim: rgba(0, 0, 0, 0.7); --tag-l: 0.72;
+    --reader-bg: var(--bg);
+  }
+  &.th-sepia {
+    color-scheme: light; --bg: #f2ece1; --surface: #fbf8f2; --surface-2: #e6dfd2; --line: #e3dccf; --line-2: #cbc2b1;
+    --ctl-line: #85796a; --text: #242424; --muted: #57524a; --acc: #101010; --acc-ink: #005ea6; --on-acc: #fbf8f2;
+    --acc-soft: #e3ecf2; --ok: #1d6e38; --warn: #a5281a; --shadow: rgba(60, 40, 20, 0.06) 0px 4px 8px 0px;
+    --shadow-lg: rgba(60, 40, 20, 0.5) 0px 1px 5px -4px, rgba(60, 40, 20, 0.12) 0px 12px 32px 0px;
+    --scrim: rgba(40, 30, 15, 0.4); --tag-l: 0.55; --reader-bg: var(--bg);
+  }
+}

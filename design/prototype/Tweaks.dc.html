@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tweaks panel</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<script src="./library.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+[data-sc-name="Tweaks"] { display: contents; }   /* the panel itself is the docked column in Compare */
+/* =====================================================================
+   PROTOTYPE TOOL ONLY. The Tweaks panel, with its own variables; not part
+   of the app's design. Floating bottom-right; docked at the right in Compare.
+   ===================================================================== */
+.tw {
+  --tw-bg: #17181b; --tw-fg: #ececed; --tw-muted: #b9bdc5; --tw-faint: #9ea4ae; --tw-line: #2f3136;
+  --tw-ctl: #232529; --tw-ctl-hover: #2e3136; --tw-ctl-line: #44474e; --tw-on-bg: #f1f1f2; --tw-on-fg: #111215; --tw-ring: #8fb8ff;
+  --tw-font: 'Geist', system-ui, sans-serif; --tw-mono: 'Geist Mono', ui-monospace, monospace;
+  --tw-t: 12.5px; --tw-t-s: 12px; --tw-w: 352px; --tw-gap: 16px; --tw-pad: 12px; --tw-r: 14px; --tw-r-s: 7px; --tw-h: 28px;
+  position: fixed; right: var(--tw-gap); bottom: var(--tw-gap); z-index: 100; width: var(--tw-w); max-height: calc(100vh - var(--tw-gap) * 2); overflow-y: auto;
+  display: flex; flex-direction: column; gap: 5px; padding: 10px var(--tw-pad) var(--tw-pad); border: 1px solid var(--tw-line); border-radius: var(--tw-r);
+  background: var(--tw-bg); color: var(--tw-fg); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); font: var(--tw-t)/1.35 var(--tw-font);
+}
+.tw.docked { position: static; flex: none; width: 320px; height: 100vh; max-height: none; border-width: 0 0 0 1px; border-radius: 0; box-shadow: none; }
+.tw > * { flex: none; }
+.tw p { margin: 0; }
+.tw button, .tw select, .tw input { font: inherit; }
+.tw :focus-visible { outline: 2px solid var(--tw-ring); outline-offset: 1px; }
+.tw-head { display: flex; align-items: center; gap: 8px; padding-bottom: 2px; }
+.tw-head h2 { margin: 0; font-size: 13.5px; font-weight: 600; }
+.tw-kbd { padding: 0 5px; border: 1px solid var(--tw-ctl-line); border-radius: 4px; color: #c3c7ce; font: var(--tw-t-s)/16px var(--tw-mono); }
+.tw-x { display: grid; place-items: center; width: 26px; height: 26px; margin-left: auto; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #c3c7ce; cursor: pointer; }
+.tw-x:hover { background: var(--tw-ctl-hover); color: #fff; }
+.tw-row { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: center; gap: 8px; min-height: var(--tw-h); }
+.tw-l { color: var(--tw-muted); }
+.tw-grp { display: flex; align-items: center; gap: 8px; margin-top: 5px; color: var(--tw-faint); font-size: var(--tw-t-s); font-weight: 600; }
+.tw-grp::after { content: ''; flex: 1; height: 1px; background: var(--tw-line); }
+.tw-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 8px; background: var(--tw-ctl); }
+.tw-seg.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tw-seg-b { flex: 1 1 auto; min-height: 24px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: #dcdee2; cursor: pointer; white-space: nowrap; }
+.tw-seg-b:hover { background: var(--tw-ctl-hover); }
+.tw-seg-b[aria-pressed="true"] { background: var(--tw-on-bg); color: var(--tw-on-fg); font-weight: 600; }
+.tw-sel, .tw-in { width: 100%; min-height: var(--tw-h); padding: 0 8px; border: 1px solid var(--tw-ctl-line); border-radius: var(--tw-r-s); background: var(--tw-ctl); color: var(--tw-fg); }
+.tw-in::placeholder { color: var(--tw-faint); opacity: 1; }
+.tw-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--tw-h); padding: 0 10px; border: 1px solid var(--tw-ctl-line); border-radius: var(--tw-r-s); background: var(--tw-ctl); color: var(--tw-fg); cursor: pointer; white-space: nowrap; }
+.tw-btn:hover { background: var(--tw-ctl-hover); }
+.tw-btn[aria-pressed="true"] { border-color: var(--tw-on-bg); background: var(--tw-on-bg); color: var(--tw-on-fg); font-weight: 600; }
+.tw .ic { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tw-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.tw-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tw-chip { display: inline-flex; align-items: center; border: 1px solid #383b41; border-radius: 999px; background: var(--tw-ctl); }
+.tw-chip.on { border-color: var(--tw-on-bg); }
+.tw-chip-b { min-height: 24px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: #e4e6ea; cursor: pointer; }
+.tw-chip-x { display: grid; place-items: center; width: 22px; height: 24px; margin-left: -6px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--tw-muted); cursor: pointer; }
+.tw-chip-x:hover { color: #fff; }
+.tw-actions { display: flex; gap: 6px; }
+.tw-actions .tw-btn { flex: 1; }
+.tw-note { color: var(--tw-faint); font-size: var(--tw-t-s); }
+.vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</helmet>
+<sc-if value="{{ready}}" hint-placeholder-val="{{ false }}">
+<aside class="tw {{dockCls}}" aria-label="Tweaks">
+<div class="tw-head"><h2>Tweaks</h2><span class="tw-kbd" title="Press T to show or hide">T</span><button type="button" class="tw-x" aria-label="Hide Tweaks" title="Hide (T)" onClick="{{hide}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+<div class="tw-row"><span class="tw-l">Screen</span><div class="tw-seg grid3" role="group" aria-label="Screen"><sc-for list="{{screens}}" as="o" hint-placeholder-count="6"><button type="button" class="tw-seg-b" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></div></div>
+<sc-for list="{{rows}}" as="row" hint-placeholder-count="2">
+<div class="tw-row"><span class="tw-l">{{row.label}}</span><div class="tw-seg" role="group" aria-label="{{row.label}}"><sc-for list="{{row.opts}}" as="o" hint-placeholder-count="3"><button type="button" class="tw-seg-b" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></div></div>
+</sc-for>
+<p class="tw-grp">Presets (the whole settings set)</p>
+<div class="tw-save"><label><span class="vh">Preset name</span><input class="tw-in" type="text" placeholder="{{autoName}}" value="{{presetName}}" onChange="{{onName}}" onKeyDown="{{onNameKey}}"></label><button type="button" class="tw-btn" onClick="{{save}}">Save preset</button></div>
+<div class="tw-chips"><sc-for list="{{presets}}" as="pr" hint-placeholder-count="3"><span class="tw-chip {{pr.cls}}"><button type="button" class="tw-chip-b" title="{{pr.title}}" onClick="{{pr.load}}">{{pr.name}}</button><sc-if value="{{pr.deletable}}" hint-placeholder-val="{{ false }}"><button type="button" class="tw-chip-x" aria-label="{{pr.delLabel}}" onClick="{{pr.del}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg></button></sc-if></span></sc-for></div>
+<div class="tw-actions">
+<button type="button" class="tw-btn" title="Random settings for the app" onClick="{{shuffle}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3c4 0 6 10 10 10h3"></path><path d="M4 17h3c1.5 0 2.7-1.4 3.7-3"></path><path d="M14 10c1-1.7 2-3 3-3h3"></path><path d="M18 5l2 2-2 2M18 15l2 2-2 2"></path></svg>Shuffle</button>
+<button type="button" class="tw-btn" aria-pressed="{{comparePressed}}" onClick="{{toggleCompare}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M12 5v14"></path></svg>Compare</button>
+</div>
+<sc-if value="{{compare}}" hint-placeholder-val="{{ false }}">
+<div class="tw-row"><span class="tw-l">Left</span><select class="tw-sel" aria-label="Left side" value="{{left}}" onChange="{{onLeft}}"><sc-for list="{{sideOpts}}" as="o" hint-placeholder-count="5"><option value="{{o.value}}">{{o.label}}</option></sc-for></select></div>
+<div class="tw-row"><span class="tw-l">Right</span><select class="tw-sel" aria-label="Right side" value="{{right}}" onChange="{{onRight}}"><sc-for list="{{sideOpts}}" as="o" hint-placeholder-count="5"><option value="{{o.value}}">{{o.label}}</option></sc-for></select></div>
+<p class="tw-note">Each side is its own copy of the app, drawn at 50%, with its own settings (also under its gear) and open item. A combination changes only Layout and Open items as, a style only the Style; a preset sets everything.</p>
+</sc-if>
+<p class="tw-note">Layout, style, theme, font, width, density, comment style, accent, tags and images are the app's own settings, under the gear in its header and in the reader bar. Presets, Shuffle and loading act on the left (or only) app. Keys: T panel · j k move · Enter open · m read · / search · ← → previous/next and Esc back when an item covers the grid</p>
+</aside>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"current":{"editor":null},"screen":{"editor":null},"compare":{"editor":null},"left":{"editor":null},"right":{"editor":null},"canCut":{"editor":null},"pasteMode":{"editor":null},"cut":{"editor":null},"presets":{"editor":null},"setScreen":{"editor":null},"setPaste":{"editor":null},"setCut":{"editor":null},"savePreset":{"editor":null},"loadPreset":{"editor":null},"deletePreset":{"editor":null},"shuffle":{"editor":null},"toggleCompare":{"editor":null},"setSide":{"editor":null},"hide":{"editor":null},"$preview":{"width":352,"height":520}}'>
+// PROTOTYPE TOOL ONLY: what is not a user setting. Main (the Compare shell) passes its state and
+// its own methods. current: the left (or only) app's settings; left and right: each side's
+// value in Compare (a combination id, 'preset:' + a preset's code, or 'style:' + a style's id).
+var SCREENS = [{ id: 'library', label: 'Library' }, { id: 'reddit', label: 'Reddit' }, { id: 'x', label: 'X post' }, { id: 'github', label: 'GitHub' }, { id: 'paste', label: 'Paste' }, { id: 'empty', label: 'Empty' }];
+var PASTE_DEMO = [{ id: 'processing', label: 'Processing' }, { id: 'done', label: 'Done' }, { id: 'refreshed', label: 'Refreshed' }, { id: 'failed', label: 'Failed' }];
+var CUT = [{ id: false, label: 'Full' }, { id: true, label: 'Stops partway' }];
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { name: '' };
+  }
+  renderVals() {
+    var self = this, pr = this.props, cur = pr.current, P = LIB.pressed;
+    if (!cur) return { ready: false };
+    var seg = function (label, list, value, set) {
+      return { label: label, opts: list.map(function (o) { return { label: o.label, pressed: P(value === o.id), pick: function () { set(o.id); } }; }) };
+    };
+    var rows = [];
+    if (pr.screen === 'paste') rows.push(seg('Paste box', PASTE_DEMO, pr.pasteMode, pr.setPaste));
+    if (pr.canCut) rows.push(seg('Saved copy', CUT, !!pr.cut, pr.setCut));
+    var code = LIB.codeOf(cur), name = LIB.autoName(cur);
+    var save = function () { pr.savePreset(self.state.name.trim() || name); self.setState({ name: '' }); };
+    return {
+      ready: true, dockCls: pr.compare ? 'docked' : '', compare: !!pr.compare, left: pr.left, right: pr.right,
+      hide: pr.hide, shuffle: pr.shuffle, toggleCompare: pr.toggleCompare, comparePressed: P(pr.compare),
+      screens: SCREENS.map(function (o) { return { label: o.label, pressed: P(pr.screen === o.id), pick: function () { pr.setScreen(o.id); } }; }),
+      rows: rows, autoName: name, presetName: this.state.name,
+      onName: function (e) { self.setState({ name: e.target.value }); },
+      onNameKey: function (e) { if (e.key === 'Enter') { e.preventDefault(); save(); } },
+      save: save,
+      presets: pr.presets.map(function (p) {
+        return { name: p.name, title: 'Load ' + p.name, cls: p.code === code ? 'on' : '', deletable: !p.builtin, delLabel: 'Delete preset ' + p.name,
+          load: function () { pr.loadPreset(p.code); }, del: function () { pr.deletePreset(p.name); } };
+      }),
+      sideOpts: LIB.COMBOS.map(function (c) { return { value: c.id, label: c.label }; })
+        .concat(pr.presets.map(function (p) { return { value: 'preset:' + p.code, label: 'Preset · ' + p.name }; }))
+        .concat(LIB.STYLES.map(function (st) { return { value: 'style:' + st.id, label: 'Style · ' + st.label }; })),
+      onLeft: function (e) { pr.setSide('L', e.target.value); }, onRight: function (e) { pr.setSide('R', e.target.value); }
+    };
+  }
+}
+</script>
+</body>
+</html>
