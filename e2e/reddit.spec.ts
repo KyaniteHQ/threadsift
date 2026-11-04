@@ -100,8 +100,8 @@ test("a short link to a Reddit post gives the post's Item, and one to an X post 
   request,
 }) => {
   const post = await postLink(request, POST_FORMS[0] ?? "");
-  await waitForRedditTurn("https://tinyurl.com/264mqbvn");
-  const viaShortLink = await postLink(request, "https://tinyurl.com/264mqbvn");
+  await waitForRedditTurn("https://is.gd/Writti");
+  const viaShortLink = await postLink(request, "https://is.gd/Writti");
 
   expect(viaShortLink.body.item.id).toBe(post.body.item.id);
   expect(viaShortLink.body.item).toMatchObject({
@@ -110,7 +110,7 @@ test("a short link to a Reddit post gives the post's Item, and one to an X post 
     title: POST_TITLE,
   });
 
-  const x = await postLink(request, "https://tinyurl.com/283xytr8");
+  const x = await postLink(request, "https://is.gd/V9XoSo");
   expect(x.body.item).toMatchObject({
     source: "x",
     kind: "x-post",

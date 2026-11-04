@@ -11,7 +11,7 @@ import { restartTarget } from "./target.ts";
 const POST = "https://reddit.com/r/all/comments/2a4qo6/";
 const POST_TITLE = "Wallabag - A 'read it later' app similar like Instapaper or Pocket";
 const REDDIT_FIELDS = { source: "reddit", title: POST_TITLE, author: "tamale_uk" } as const;
-const SHORT_LINK = "https://tinyurl.com/27sz3oss";
+const SHORT_LINK = "https://is.gd/hK2a1W";
 const SHORT_LINK_TARGET = "https://www.iana.org/help/example-domains";
 const SHORT_LINK_TARGET_NORMALIZED = "https://iana.org/help/example-domains";
 const X_POST = "https://x.com/jack/status/20";

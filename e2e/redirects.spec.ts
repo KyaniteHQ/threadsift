@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { listAll, postLink } from "./api.ts";
 import { newRunId } from "./links.ts";
 
-const SHORT_LINK = "https://tinyurl.com/27sz3oss";
+const SHORT_LINK = "https://is.gd/hK2a1W";
 const SHORT_LINK_TARGET = "https://www.iana.org/help/example-domains";
 const SHORT_LINK_TARGET_NORMALIZED = "https://iana.org/help/example-domains";
 
