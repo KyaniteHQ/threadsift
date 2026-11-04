@@ -1,3 +1,17 @@
 design/prototype/data.json
 design/prototype/img/
 docs/private/
+node_modules/
+.devenv*
+.direnv/
+.pre-commit-config.yaml
+devenv.local.nix
+.claude/settings.local.json
+.claude/skills/impeccable/scripts/bin/
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+.impeccable/live/*
+!.impeccable/live/config.json
+.impeccable/critique/*
+!.impeccable/critique/ignore.md

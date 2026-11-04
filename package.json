@@ -1,0 +1,23 @@
+{
+  "name": "threadsift",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "pnpm run fmt:check && pnpm run lint",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint --format=agent",
+    "lint:fix": "oxlint --fix --fix-suggestions"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.90.0",
+    "oxfmt": "0.75.0",
+    "oxlint": "1.90.0",
+    "oxlint-tsgolint": "7.0.2005",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "packageManager": "pnpm@12.17.0"
+}

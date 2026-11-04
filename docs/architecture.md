@@ -19,6 +19,7 @@ Status: chosen on 2026-11-04 in a grill with the owner and revised after four mo
 - [Container image](#container-image)
 - [Cloudflare deploy button](#cloudflare-deploy-button)
 - [Development environment](#development-environment)
+- [Lint and format](#lint-and-format)
 - [CI, releases and rollback](#ci-releases-and-rollback)
 - [Testing](#testing)
 - [Open items and unverified claims](#open-items-and-unverified-claims)
@@ -44,9 +45,9 @@ Status: chosen on 2026-11-04 in a grill with the owner and revised after four mo
 | Extension | WXT, Defuddle's Reddit extractor | n/a | n/a |
 | MCP | `@modelcontextprotocol/server` `createMcpHandler` behind a token check | same | same |
 | Validation | Zod 4.5 or later | same | same |
-| Tooling | devenv (`nodejs_26`), pnpm through corepack, Vite+ (`vp lint`), Playwright | | |
+| Tooling | devenv (`nodejs_26`), pnpm through corepack, oxlint and oxfmt, Playwright | | |
 
-Every library above is MIT, ISC or Apache-2.0, which AGPL-3.0-only code may use. The owner chose pnpm with Node 26 over Bun on 2026-11-04: Bun 1.4.3 ran the database spike with the same results, but Vite+, Playwright and wrangler run on Node anyway, so Bun would be a third runtime to test.
+Every library above is MIT, ISC or Apache-2.0, which AGPL-3.0-only code may use. The owner chose pnpm with Node 26 over Bun on 2026-11-04: Bun 1.4.3 ran the database spike with the same results, but Vite, oxlint, Playwright and wrangler run on Node anyway, so Bun would be a third runtime to test.
 
 Two words this file uses beyond `CONTEXT.md`: a **port** is an interface the core calls (Database, FileStore, JobQueue, Scheduler, AiExecutor, Fetcher), and an **executor** is the adapter that runs an AI task for one kind of Provider.
 
@@ -91,6 +92,8 @@ web/                              React SPA; imports design/system/
 extension/                        WXT extension (own package in the pnpm workspace)
 bot/                              Threadsift bot skill files
 e2e/                              Playwright suite run against both targets
+tools/oxlint/                     lint rule plugins: vendored anti-slop and Threadsift's own rules
+.claude/                          the implementer agent, its skills and the lint hook (docs/agents/)
 .github/workflows/                the gate, the release and the update workflow for Cloudflare copies
 design/                           design system and prototype
 ```
@@ -250,24 +253,32 @@ Every model call is an AI task with a kind, inputs, an input revision and a Zod 
 
 ## Development environment
 
-devenv owns everything a contributor or CI runs.
+devenv owns everything a contributor or CI runs. A contributor needs Nix, devenv and direnv, and runs `direnv allow` once per clone or worktree; the git hooks and the agent edit hook find Node through that shell.
 
 | devenv feature | Use |
 |---|---|
-| `languages.javascript` | `nodejs_26` and pnpm through corepack, so the shell, CI and Workers Builds run the pnpm version in `packageManager` |
+| `languages.javascript` and `packages` | `nodejs_26`, and pnpm through corepack, so the shell, CI and Workers Builds run the pnpm version in `packageManager`. Corepack comes from `pkgs.corepack` built on `nodejs-slim_26`, because nixpkgs' `nodejs_26` (26.12.1) ships no `corepack` binary and devenv's `languages.javascript.corepack.enable` fails to build against it (devenv 2.4.0, 2026-11-04); the override goes once that option builds on `nodejs_26` |
 | `processes` with automatic ports | `devenv up` starts the Vite web app, `wrangler dev` (the Worker) and the Node server, in any number of worktrees at once |
-| `tasks` | the gate: `ci:install`, `ci:lint`, `ci:types`, `ci:build`, `ci:audit`, `e2e:container`, `e2e:worker`, `image:build`; GitHub Actions runs the same tasks |
-| `git-hooks` | lint staged files before each commit |
-| `enterTest` | `devenv test` runs the gate |
+| `tasks` | the gate: `ci:install` and `ci:check` (`pnpm check`: oxfmt, then oxlint with the type check) now; `ci:build`, `ci:audit`, `e2e:container`, `e2e:worker` and `image:build` join with the app. GitHub Actions runs the same tasks |
+| `git-hooks` | before each commit, `oxlint --fix` and `oxfmt` on the staged files; before each push, `pnpm check` |
+| `enterTest` | `devenv test` installs the packages, runs the commit hooks on every file, then runs `ci:check` |
 | `packages` | Playwright browsers pinned from nixpkgs, podman, jq, `gh` |
 | `secretspec` | declares the live-test secrets (OpenRouter key, `CLAUDE_CODE_OAUTH_TOKEN`, a Cloudflare token for Workers AI): environment variables in CI, a local provider on the owner's machine |
 
-Vite+ (`vp lint`, `vp fmt`) lints and formats; TypeScript runs `strict`.
+## Lint and format
+
+oxlint and oxfmt run directly, not through Vite+. Vite+ 1.5.0 bundles the same oxlint and oxfmt, but its docs advise against `oxlint.config.ts` and `.oxfmtrc.json` and document only `--fix`, `--type-aware` and `-c` for `vp lint` (viteplus.dev/guide/lint, read 2026-11-04). Direct use keeps every oxlint flag and lets oxlint update on its own schedule. `oxlint.config.ts` and `.oxfmtrc.json` hold the rules; what they cannot show:
+
+- **No separate `tsc` step.** `options.typeCheck` makes `oxlint-tsgolint` report TypeScript errors with the lint, and it needs TypeScript 7.
+- **Rule plugins in `tools/oxlint/`.** `anti-slop/` is dmmulroy/anti-slop, vendored (its `UPSTREAM.md`). `threadsift/` holds `no-comments` (`docs/agents/implementing.md`, No comments). Anti-slop's `require-safety-comment-for-type-assertion` and its two assertion rules are off, because `typescript/consistent-type-assertions` set to `never` bans the assertion itself, and the safety rule would ask for a comment.
+- **Only safe fixes run unattended.** The commit hook and the agent hook (`.claude/hooks/lint-fix.sh`, after each edit to a file in the project) apply safe fixes; suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
+- **Markdown is not formatted.** oxfmt pads every table column to its widest cell, so a one-cell change in a doc would rewrite the whole table.
+- **`design/` is not linted yet.** Its prototype is reference code, and `design/system/settings.js` still carries comments and gets rewritten when the web app starts (Web app); it joins the lint with that change.
 
 ## CI, releases and rollback
 
-- **Gate.** GitHub Actions runs the devenv tasks as parallel jobs on every pull request and every push to `main`: lint, type check, build (with a check that the Worker bundle stays under Cloudflare's script size limit), `pnpm audit --prod --audit-level high`, and the end-to-end suite on each target. The pnpm store is cached; a failed end-to-end job uploads the Playwright report.
-- **Docs-only changes.** When every changed path matches `docs/**` or a root `*.md` file, the end-to-end jobs skip themselves with a job-level `if:`; lint, type check and build still run. A path outside that list runs every job, so a file missing from the list costs a longer run, never a skipped check.
+- **Gate.** GitHub Actions runs the devenv tasks as parallel jobs on every pull request and every push to `main`: `ci:check` (format, lint and type check), build (with a check that the Worker bundle stays under Cloudflare's script size limit), `pnpm audit --prod --audit-level high`, and the end-to-end suite on each target. The pnpm store is cached; a failed end-to-end job uploads the Playwright report.
+- **Docs-only changes.** When every changed path matches `docs/**` or a root `*.md` file, the end-to-end jobs skip themselves with a job-level `if:`; `ci:check` and the build still run. A path outside that list runs every job, so a file missing from the list costs a longer run, never a skipped check.
 - **Merging.** `main` requires one aggregate `gate` job that needs every other job and passes when each passed or skipped itself; a workflow-level `paths` filter is not used, because a workflow it skips leaves its required checks pending. Renovate opens dependency updates after a 3-day wait.
 - **Secrets and forks.** A pull request from a fork gets no secrets, and a rerun does not change that (GitHub Actions docs). The AI jobs are skipped on fork pull requests; after reading the change, a maintainer pushes it to a branch in the repository, where the AI jobs run. `pull_request_target` is not used, because it would run the fork's code with the secrets.
 - **Releases.** A release tag builds and publishes the image with that tag and moves the `release` branch to it.

@@ -1,0 +1,46 @@
+# Implementing
+
+Rules for every agent that writes or changes code, config or scripts here. The `implementer` agent (`.claude/agents/implementer.md`) runs them; a session that edits code directly follows them too.
+
+## Official sources first
+
+Hono, Drizzle, Workers, React, oxlint and the AI SDK release every few weeks, so a model's memory of them is stale.
+
+- Before using an API, a config key, a CLI flag or a library function, read its official docs, its source at the installed version under `node_modules/`, or its versioned schema. A CLI's own `--help` counts.
+- When the docs and the installed source disagree, the installed source wins.
+- The commit message cites each source: the URL, and for a repository the commit SHA or tag.
+
+## No comments
+
+Agents copy what they read, so a comment that excuses a workaround teaches the next agent to write another one. Names, types and small functions carry the meaning instead. A fact the code cannot show goes into the commit message or the doc that owns its topic.
+
+Three kinds of comment stay:
+
+- A tool directive that a tool reads: a lint suppression that names its rule and gives its reason after `--`, `@ts-expect-error` with its reason, `/// <reference ... />`, `// oxfmt-ignore`, and the bundler annotations `/* @vite-ignore */`, `/* #__PURE__ */`, `/* #__NO_SIDE_EFFECTS__ */` and `/** @jsxImportSource ... */`. The comment holds the directive alone, with no prose around it. `prettier-ignore` is refused, because oxfmt reads `oxfmt-ignore`.
+- A licence header at the top of the file: a block comment that holds an `SPDX-License-Identifier:` line and any copyright lines, or the single line `// SPDX-License-Identifier: <id>`.
+- One line that names a constraint an outside dependency, platform or protocol forces and ends with its upstream `https://` link. It sits on its own line, because `eslint/no-inline-comments` refuses a comment after code.
+
+`threadsift/no-comments` (`tools/oxlint/threadsift/rules/no-comments.ts`) holds the exact patterns and refuses every other comment, doc comments on exported functions included. Lint cannot judge whether a kept suppression or link line is true, so before finishing, read `.claude/agents/comment-sicko.md` and judge every comment the diff adds by its keep-list and its hunt.
+
+## Code
+
+- Load the `ub-mode` skill before writing code. Where it differs from this page or from `docs/testing.md`, they win: its TDD, Crapper and Mutator sections give way to `docs/testing.md`, and its Commit and Push section gives way to the caller's branch and review flow.
+- Outside data is parsed with Zod where it enters. `as` assertions fail lint (`typescript/consistent-type-assertions`); `as const` is allowed.
+
+## Tests
+
+`docs/testing.md` governs. A feature is proven end to end through the real app on both install targets, with no fakes and no recordings; a unit test is written only when the owner asks for one.
+
+## Screens and browser code
+
+- For any change to what a screen shows or how it behaves, load the `impeccable` skill. Every value comes from `design/system/`.
+- For HTML, CSS and browser APIs, load the `modern-web-guidance` skill (its plugin is enabled in `.claude/settings.json`) and follow the guide it returns. The browser target is Baseline Widely available.
+
+## Finish
+
+1. Run `pnpm lint:fix`. It also applies suggestion fixes, which can change behaviour, so read its diff and keep or revert each one. Dangerous fixes (`--fix-dangerously`) are never applied.
+2. Run `pnpm check`.
+3. Judge every comment the diff adds with `.claude/agents/comment-sicko.md`, and act on each verdict.
+4. Prove the change the way its caller meets it, and keep the command and its output as the artifact. A change to what the app does gets the end-to-end proof `docs/testing.md` asks for. A change to tooling, config or scripts gets a run of that tool as its caller runs it, such as the edit hook fed a sample payload, a commit through the git hooks, or `devenv test`.
+
+Done when all four pass on the final version of every changed file. `docs/agents/review.md` says what happens next.
