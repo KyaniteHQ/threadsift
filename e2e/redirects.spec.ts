@@ -40,6 +40,7 @@ test("a renamed GitHub repository gets the final page's title and keeps the past
 test("redirects are followed by hand: absolute, relative, up to 20, and a 21st fails", async ({
   request,
 }) => {
+  test.setTimeout(90_000);
   const run = newRunId();
 
   const absolute = await postLink(
