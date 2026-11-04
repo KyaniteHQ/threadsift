@@ -55,4 +55,11 @@ Karakeep, the closest open-source tool, has no comment-thread model, so a saved 
 
 ## Accessibility & Inclusion
 
-Every text and background pair is at least 4.5:1 and every mark, border and icon at least 3:1, in every theme with every accent and Style; text is never under 12px; under 480px every target is at least 44px; the open row is marked by a bar as well as by colour; motion has a reduced-motion form (`docs/spec.md`, Design).
+`docs/spec.md` (Design) holds the accessibility floor:
+
+- Every text and background pair is at least 4.5:1 in every theme with every accent and Style.
+- Every mark, icon and border a person needs to see a control or its state is at least 3:1 in the same combinations (W3C, WCAG 2.2 Non-text Contrast). Dividers, and the edge of a control that shows visible text, may be fainter.
+- Text is never under 12px.
+- Under 480px every target is at least 44px.
+- The open row is marked by a bar as well as by colour.
+- Motion has a reduced-motion form.

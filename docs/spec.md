@@ -66,7 +66,7 @@ The design is done for every screen in the first spec; the app takes its look fr
 - **Behaviour:** `design/prototype/` shows how each screen behaves: the reader bar drops the key hint, then the position, then button labels until nothing overflows; long comments and code blocks fold; the reading place is restored; the settings panel becomes a bottom sheet with a fixed header and footer under 760px wide.
 - **Styles:** the 10 Style blocks exist only in `design/prototype/tokens.css`, because the design system was built before them. Moving them into `design/system/tokens.css` is part of building the app.
 - **Breakpoints:** 480, 760, 1080 and 1440px, with 1, 2, 3, 3 and 4 grid columns from the narrowest band up.
-- **Accessibility:** every text and background pair is at least 4.5:1 and every mark, border and icon at least 3:1, in every theme with every accent and Style; text is never under 12px; under 480px every target is at least 44px; the open row is marked by a bar as well as by colour; motion has a reduced-motion form.
+- **Accessibility:** every text and background pair is at least 4.5:1 in every theme with every accent and Style. Every mark, icon and border a person needs to see a control or its state is at least 3:1 in the same combinations (W3C, WCAG 2.2 Non-text Contrast). Dividers, and the edge of a control that shows visible text, may be fainter. Text is never under 12px. Under 480px every target is at least 44px. The open row is marked by a bar as well as by colour. Motion has a reduced-motion form.
 - **Keyboard:** j and k move through Items, Enter opens, m marks read or unread, / focuses search, the left and right arrows step to the previous or next Item while one is open in Grid, and Escape closes the open Item.
 
 ## Ingest flow

@@ -238,7 +238,7 @@
 [data-theme="dark"] {
   color-scheme: dark;
   --bg: oklch(0.175 var(--nc) var(--nh)); --surface: oklch(0.215 var(--nc) var(--nh)); --surface-2: oklch(0.25 var(--nc) var(--nh));
-  --line: oklch(0.31 var(--nc) var(--nh)); --line-2: oklch(0.40 var(--nc) var(--nh)); --ctl-line: oklch(0.54 var(--nc) var(--nh));
+  --line: oklch(0.31 var(--nc) var(--nh)); --line-2: oklch(0.40 var(--nc) var(--nh)); --ctl-line: oklch(0.60 var(--nc) var(--nh));
   --text: oklch(0.94 var(--nc) var(--nh)); --muted: oklch(0.74 var(--nc) var(--nh));
   --acc-l: 0.75; --acc-c: 0.12; --acc-ink: oklch(0.79 0.11 var(--ah)); --on-acc: oklch(0.19 0.02 var(--ah)); --acc-soft: oklch(0.31 0.05 var(--ah));
   --ok: oklch(0.78 0.12 150); --warn: oklch(0.78 0.13 50);
