@@ -23,7 +23,7 @@ test("an empty browser with a dark system preference draws Light, titled Threads
   await expect(page.locator(".it").first()).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Threadsift");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Threadsift X");
   const app = page.locator(".app");
   await expect(app).not.toHaveAttribute("data-theme", /./u);
   const drawn = await app.evaluate((element) => getComputedStyle(element).getPropertyValue("--bg"));
