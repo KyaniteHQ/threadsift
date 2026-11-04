@@ -26,4 +26,4 @@ The project's testing policy. Read it before writing, changing or deleting a tes
 
 ## Live Cloudflare runs
 
-A large test against live Cloudflare (a bulk import, a restore rehearsal, a load test) needs the owner's approval of its cases, estimated rows written, cost and cleanup first. Development and regression runs use `wrangler dev`.
+A large test against live Cloudflare (a bulk import, a restore rehearsal, a load test) needs its cases, estimated rows written, cost and cleanup written in the pull request first; the building agent decides it (owner, 2026-11-04). Development and regression runs use `wrangler dev`.
