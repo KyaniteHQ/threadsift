@@ -27,7 +27,7 @@ export async function refusedWith(request: APIRequestContext, body: string | und
     body === undefined ? {} : { headers: { "content-type": "application/json" }, data: body },
   );
 
-  const reason = z.object({ error: z.string().min(1) }).parse(await response.json());
+  const parsed = z.object({ error: z.string().min(1) }).safeParse(await response.json());
 
-  return { status: response.status(), reason: reason.error };
+  return { status: response.status(), reason: parsed.success ? parsed.data.error : null };
 }

@@ -26,12 +26,12 @@ setTimeout(() => process.exit(0), 600000);
 `;
 
 const LISTENING = /^listening (?<port>\d+) (?<ipv6>true|false)$/u;
+const BARRIER_PATH = "/barrier";
 const REQUEST = /^request (?<seen>.+)$/u;
 
 export interface Listener {
   readonly port: number;
-  readonly controlRequests: readonly string[];
-  seen(): readonly string[];
+  expectSilent(): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -43,8 +43,17 @@ function runInAppNetwork(source: string, args: readonly string[] = []) {
 
 function announcement(child: ChildProcessWithoutNullStreams, seen: string[]) {
   const lines = createInterface({ input: child.stdout });
+  let errors = "";
 
-  return new Promise<{ port: number; hasIpv6: boolean }>((resolve) => {
+  child.stderr.on("data", (chunk) => {
+    errors += String(chunk);
+  });
+
+  return new Promise<{ port: number; hasIpv6: boolean }>((resolve, reject) => {
+    child.once("close", (code) => {
+      reject(new Error(`the listener exited with code ${code} before it announced: ${errors}`));
+    });
+
     lines.on("line", (line) => {
       const listening = LISTENING.exec(line)?.groups;
       const request = REQUEST.exec(line)?.groups?.["seen"];
@@ -77,18 +86,24 @@ export async function startListener(): Promise<Listener> {
   const child = runInAppNetwork(LISTENER_SOURCE);
   const seen: string[] = [];
   const { port, hasIpv6 } = await announcement(child, seen);
-  const controlRequests = [`127.0.0.1:${port}/control`];
-  await sendControlRequest(`http://127.0.0.1:${port}/control`);
 
-  if (hasIpv6) {
-    controlRequests.push(`[::1]:${port}/control`);
-    await sendControlRequest(`http://[::1]:${port}/control`);
-  }
+  expect(hasIpv6, "the listener binds ::1 in the app's network").toBe(true);
+
+  const expected = [`127.0.0.1:${port}/control`, `[::1]:${port}/control`];
+  await sendControlRequest(`http://${expected[0]}`);
+  await sendControlRequest(`http://${expected[1]}`);
 
   return {
     port,
-    controlRequests,
-    seen: () => seen,
+    expectSilent: async () => {
+      const barrier = `127.0.0.1:${port}${BARRIER_PATH}/${expected.length}`;
+      expected.push(barrier);
+      await sendControlRequest(`http://${barrier}`);
+      await expect
+        .poll(() => seen.includes(barrier), "the barrier request reached the listener")
+        .toBe(true);
+      expect(seen, "requests that reached the listener").toEqual(expected);
+    },
     stop: async () => {
       if (child.exitCode === null) {
         child.stdin.end();

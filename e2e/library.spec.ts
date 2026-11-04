@@ -1,5 +1,3 @@
-import { setTimeout as sleep } from "node:timers/promises";
-
 import { type Page, expect, test } from "@playwright/test";
 
 import type { Item } from "../src/http/schemas.ts";
@@ -55,7 +53,9 @@ function expectedItems(redirect: string) {
 
 async function libraryItems(page: Page, redirect: string) {
   const expected = expectedItems(redirect);
-  const items = (await listAll(page.request)).filter((item) => expected.has(item.normalizedUrl));
+  const stored = await listAll(page.request);
+  expect(stored.filter((item) => item.normalizedUrl === SHORT_LINK)).toEqual([]);
+  const items = stored.filter((item) => expected.has(item.normalizedUrl));
 
   expect(items.map((item) => item.normalizedUrl).toSorted()).toEqual(
     [...expected.keys()].toSorted(),
@@ -99,7 +99,7 @@ async function expectRefusalsStoreNothing(page: Page) {
   }
 
   expect(await listAll(page.request)).toHaveLength(total);
-  expect(listener.seen()).toEqual(listener.controlRequests);
+  await listener.expectSilent();
 }
 
 test("nine pasted links make seven Items with their titles, and the library keeps them across a restart", async ({
@@ -115,14 +115,13 @@ test("nine pasted links make seven Items with their titles, and the library keep
   }
 
   await expectRowsShowTitles(page, redirect);
-  expect(listener.seen()).toEqual(listener.controlRequests);
+  await listener.expectSilent();
   await expectRefusalsStoreNothing(page);
 
   const before = await libraryItems(page, redirect);
   await restartTarget(baseURL ?? "");
   expect(await libraryItems(page, redirect)).toEqual(before);
 
-  await sleep(50);
   await page.goto("/");
   await pasteLink(page, "https://m.reddit.com/r/selfhosted/comments/2a4qo6/");
 

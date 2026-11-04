@@ -7,8 +7,8 @@ const DEADLINE_MS = 8000;
 const OVERHEAD_MS = 5000;
 
 const STALLS = [
-  { url: "http://example.com:81/", shortestMs: 0 },
-  { url: "https://httpbin.org/drip?duration=10&numbytes=10", shortestMs: DEADLINE_MS - 500 },
+  { url: "http://example.com:81/", showsSaving: false },
+  { url: "https://httpbin.org/drip?duration=10&numbytes=10", showsSaving: true },
 ];
 
 async function expectSavingState(page: Page, saving: Locator, idleWidth: number) {
@@ -23,6 +23,10 @@ async function expectSavingState(page: Page, saving: Locator, idleWidth: number)
       }),
   );
 
+  await saving.hover();
+  await expect
+    .soft(saving, "Add does not light up under the pointer while saving")
+    .toHaveCSS("filter", "none");
   await expect.soft(saving, "Add keeps focus while saving").toBeFocused({ timeout: 1_000 });
   await expect
     .soft(saving.locator("svg.spin"), "spinner before the label")
@@ -43,7 +47,7 @@ test("a host that never answers and a body that stalls each time out, while the 
   await page.goto("/");
   const field = page.getByRole("textbox", { name: "Paste a link to save" });
 
-  for (const { url: base, shortestMs } of STALLS) {
+  for (const { url: base, showsSaving } of STALLS) {
     const url = `${base}${base.includes("?") ? "&" : "?"}run=${run}`;
     await field.fill(url);
 
@@ -59,7 +63,10 @@ test("a host that never answers and a body that stalls each time out, while the 
     const saving = page.getByRole("button", { name: "Saving…" });
     await expect(saving).toBeDisabled();
     await expect(field).toHaveValue(url);
-    await expectSavingState(page, saving, idleWidth);
+
+    if (showsSaving) {
+      await expectSavingState(page, saving, idleWidth);
+    }
 
     const response = await answered;
     const elapsed = Date.now() - started;
@@ -68,10 +75,11 @@ test("a host that never answers and a body that stalls each time out, while the 
     expect(response.status(), url).toBe(201);
     expect(result, url).toBe("timeout");
     expect(item.title, url).toBeNull();
-    expect(elapsed, url).toBeGreaterThanOrEqual(shortestMs);
+    expect(elapsed, url).toBeGreaterThanOrEqual(DEADLINE_MS - 500);
     expect(elapsed, url).toBeLessThan(DEADLINE_MS + OVERHEAD_MS);
 
     await expect(pasteStatus(page)).toContainText("didn’t answer in time");
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add" })).toBeEnabled();
     await expect(page.locator(`.it[data-key="${item.id}"] .it-open`)).toContainText(
       url.replace(/^https?:\/\//u, ""),

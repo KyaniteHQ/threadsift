@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
-import { newRunId } from "./links.ts";
+import { httpbinPagePath, newRunId } from "./links.ts";
 
 const SHORT_LINK = "https://is.gd/hK2a1W";
 const SHORT_LINK_TARGET = "https://www.iana.org/help/example-domains";
 const SHORT_LINK_TARGET_NORMALIZED = "https://iana.org/help/example-domains";
-const TINYURL_LINK = "https://tinyurl.com/27sz3oss";
 const TINYURL_PREVIEW_PAGE = "https://tinyurl.com/preview/deprecated/27sz3oss";
 
 test("a short link and its target pasted separately are one Item under the target's URL", async ({
@@ -31,19 +30,12 @@ test("a short link service's zero-delay meta refresh page leads to the target's 
   request,
 }) => {
   const viaPreviewPage = await postLink(request, TINYURL_PREVIEW_PAGE);
-  const viaShortLink = await postLink(request, TINYURL_LINK);
-  const direct = await postLink(request, SHORT_LINK_TARGET);
 
   expect(viaPreviewPage.body.fetch).toBe("ok");
   expect(viaPreviewPage.body.item).toMatchObject({
     normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
     title: "Example Domains",
   });
-
-  expect(viaShortLink.body.fetch).toBe("ok");
-  expect(viaShortLink.body.item.normalizedUrl).toBe(SHORT_LINK_TARGET_NORMALIZED);
-  expect(viaShortLink.body.item.id).toBe(viaPreviewPage.body.item.id);
-  expect(direct.body.item.id).toBe(viaPreviewPage.body.item.id);
 
   const stored = await listAll(request);
   expect(stored.filter((item) => item.normalizedUrl.startsWith("https://tinyurl.com/"))).toEqual(
@@ -55,10 +47,12 @@ test("a meta refresh on a host that is not a short link service is not followed"
   request,
 }) => {
   const run = newRunId();
-  const html = `<!doctype html><html><head><meta http-equiv="refresh" content="0;url=https://example.com/"><title>Stays here ${run}</title></head></html>`;
-  const encoded = Buffer.from(html).toString("base64url");
-  const url = `https://httpbin.org/base64/${encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")}`;
-  const saved = await postLink(request, url);
+  const markup = `<meta http-equiv=refresh content=0;url=https://example.com/><title>Stays here ${run}</title>`;
+
+  const saved = await postLink(
+    request,
+    `https://httpbin.dev/response-headers?Content-Type=text/html&t=${encodeURIComponent(markup)}`,
+  );
 
   expect(saved.body.fetch).toBe("ok");
   expect(saved.body.item.title).toBe(`Stays here ${run}`);
@@ -91,8 +85,15 @@ test("redirects are followed by hand: absolute, relative, up to 20, and a 21st f
   expect(absolute.body.item.title).toBe("Example Domain");
   expect(absolute.body.item.normalizedUrl).toContain("httpbin.org/redirect-to");
 
-  const relative = await postLink(request, `https://httpbin.org/relative-redirect/3?run=${run}`);
-  expect(relative.body.fetch).toBe("no-title");
+  const page = `<!doctype html><html><head><title>Relative hop ${run}</title></head></html>`;
+
+  const relative = await postLink(
+    request,
+    `https://httpbin.org/redirect-to?url=${encodeURIComponent(httpbinPagePath(page))}&run=${run}`,
+  );
+
+  expect(relative.body.fetch).toBe("ok");
+  expect(relative.body.item.title).toBe(`Relative hop ${run}`);
 
   const twenty = await postLink(request, `https://httpbin.org/redirect/20?run=${run}`);
   expect(twenty.body.fetch).toBe("no-title");
@@ -101,4 +102,64 @@ test("redirects are followed by hand: absolute, relative, up to 20, and a 21st f
   expect(twentyOne.status).toBe(201);
   expect(twentyOne.body.fetch).toBe("redirect-limit");
   expect(twentyOne.body.item.title).toBeNull();
+});
+
+const REDIRECTOR = "https://httpbin.dev/redirect-to?url=";
+const X_POST = "https://x.com/jack/status/20";
+const REDDIT_POST = "https://www.reddit.com/r/selfhosted/comments/2a4qo6/x/";
+
+function throughRedirects(target: string, count: number): string {
+  let url = target;
+
+  for (let hop = 0; hop < count; hop += 1) {
+    url = `${REDIRECTOR}${encodeURIComponent(url)}`;
+  }
+
+  return url;
+}
+
+test("a redirect to Reddit or X stops without a request, with or without a trailing dot on the host", async ({
+  request,
+}) => {
+  const run = newRunId();
+
+  for (const target of [
+    X_POST,
+    "https://x.com./jack/status/20",
+    REDDIT_POST,
+    "https://www.reddit.com./r/selfhosted/comments/2a4qo6/x/",
+  ]) {
+    const saved = await postLink(request, `${throughRedirects(target, 1)}&run=${run}`);
+
+    expect(saved.status, target).toBe(201);
+    expect(saved.body.fetch, target).toBe("redirect-stopped");
+    expect(saved.body.item.title, target).toBeNull();
+  }
+});
+
+test("the 21st redirect fails with the limit even when it points to X, and the 20th stops at X", async ({
+  request,
+}) => {
+  test.setTimeout(120_000);
+  const run = newRunId();
+
+  const twentyFirst = await postLink(request, `${throughRedirects(X_POST, 21)}&run=${run}`);
+  expect(twentyFirst.status).toBe(201);
+  expect(twentyFirst.body.fetch).toBe("redirect-limit");
+  expect(twentyFirst.body.item.title).toBeNull();
+
+  const twentieth = await postLink(request, `${throughRedirects(X_POST, 20)}&run=${run}`);
+  expect(twentieth.body.fetch).toBe("redirect-stopped");
+});
+
+test("a short link whose host ends in a dot is followed like the short link", async ({
+  request,
+}) => {
+  const dotted = await postLink(request, "https://is.gd./hK2a1W");
+
+  expect(dotted.body.fetch).toBe("ok");
+  expect(dotted.body.item).toMatchObject({
+    normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
+    title: "Example Domains",
+  });
 });

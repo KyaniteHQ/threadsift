@@ -1,39 +1,90 @@
 import { expect, test } from "@playwright/test";
 import { z } from "zod";
 
-const Operation = z.looseObject({ responses: z.record(z.string(), z.unknown()) });
+interface ApiSchema {
+  $ref?: string | undefined;
+  properties?: Record<string, ApiSchema> | undefined;
+  items?: ApiSchema | undefined;
+}
+
+const SchemaNode: z.ZodType<ApiSchema> = z.lazy(() =>
+  z.looseObject({
+    $ref: z.string().optional(),
+    properties: z.record(z.string(), SchemaNode).optional(),
+    items: SchemaNode.optional(),
+  }),
+);
+
+const Body = z.looseObject({
+  content: z.record(z.string(), z.looseObject({ schema: SchemaNode })),
+});
+
+const Operation = z.looseObject({ responses: z.record(z.string(), Body) });
 
 const OpenApiDocument = z.looseObject({
   openapi: z.string(),
+  components: z.looseObject({ schemas: z.record(z.string(), SchemaNode) }),
   paths: z.looseObject({
     "/api/items": z.looseObject({
       get: Operation,
-      post: Operation.extend({
-        requestBody: z.looseObject({ content: z.record(z.string(), z.unknown()) }),
-      }),
+      post: Operation.extend({ requestBody: Body }),
     }),
   }),
 });
 
+type Schemas = z.infer<typeof OpenApiDocument>["components"]["schemas"];
+
+function resolved(schemas: Schemas, node: ApiSchema): ApiSchema {
+  const name = node.$ref?.replace("#/components/schemas/", "");
+  const target = name === undefined ? undefined : schemas[name];
+
+  return target === undefined ? node : resolved(schemas, target);
+}
+
+function propertyNames(schemas: Schemas, node: ApiSchema): string[] {
+  return Object.keys(resolved(schemas, node).properties ?? {});
+}
+
+function propertyOf(schemas: Schemas, node: ApiSchema, name: string): ApiSchema {
+  const property = resolved(schemas, node).properties?.[name];
+  expect(property, `the schema describes ${name}`).toBeDefined();
+
+  return property ?? {};
+}
+
+function jsonSchemaOf(body: z.infer<typeof Body>): ApiSchema {
+  const schema = body.content["application/json"]?.["schema"];
+  expect(schema, "an application/json body").toBeDefined();
+
+  return schema ?? {};
+}
+
 test("the served OpenAPI document describes the items routes", async ({ request }) => {
   const response = await request.get("/api/openapi.json");
   expect(response.headers()["content-type"]).toContain("application/json");
-  const { paths } = OpenApiDocument.parse(await response.json());
+  const { paths, components } = OpenApiDocument.parse(await response.json());
+  const { schemas } = components;
   const items = paths["/api/items"];
 
   expect(Object.keys(items.post.requestBody.content)).toEqual(["application/json"]);
   expect(Object.keys(items.post.responses).toSorted()).toEqual(["200", "201", "400"]);
   expect(Object.keys(items.get.responses)).toEqual(["200"]);
-  expect(JSON.stringify(items.post.requestBody)).toContain('"url"');
-  expect(JSON.stringify(items.post.responses["201"])).toContain('"item"');
-  expect(JSON.stringify(items.get.responses["200"])).toContain('"items"');
+  expect(propertyNames(schemas, jsonSchemaOf(items.post.requestBody))).toEqual(["url"]);
 
-  for (const field of ["title", "author", "community", "fetchedAt"]) {
-    expect(JSON.stringify(items.get.responses["200"]), field).toContain(`"${field}"`);
-    expect(JSON.stringify(items.post.responses["201"]), field).toContain(`"${field}"`);
+  const saved = jsonSchemaOf(items.post.responses["201"] ?? { content: {} });
+  expect(propertyNames(schemas, saved)).toEqual(expect.arrayContaining(["item", "url", "fetch"]));
+
+  const listed = propertyOf(
+    schemas,
+    jsonSchemaOf(items.get.responses["200"] ?? { content: {} }),
+    "items",
+  );
+
+  for (const item of [propertyOf(schemas, saved, "item"), listed.items ?? {}]) {
+    expect(propertyNames(schemas, item)).toEqual(
+      expect.arrayContaining(["title", "author", "community", "fetchedAt"]),
+    );
   }
-
-  expect(JSON.stringify(items.post.responses["201"])).toContain('"fetch"');
 });
 
 test("a path with a file extension that matches no file is a 404 and a page path is the page", async ({

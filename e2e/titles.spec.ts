@@ -1,9 +1,7 @@
-import { setTimeout as sleep } from "node:timers/promises";
-
 import { expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
-import { newRunId, pasteLink } from "./links.ts";
+import { newRunId, pasteLink, titledPage } from "./links.ts";
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
 
@@ -40,38 +38,27 @@ test("pages served with gzip and with Brotli get their titles", async ({ request
   expect(gzip.body.item.title).toContain("KyaniteHQ/threadsift");
 
   const brotli = await postLink(request, "https://example.com/");
+  expect(brotli.body.fetch).toBe("ok");
   expect(brotli.body.item.title).toBe("Example Domain");
 });
 
 const UTF8_TITLE = "Café ☕ Threadsift";
 
-function titledPage(title: string): string {
-  const html = `<!doctype html><html><head><title>${title}</title></head></html>`;
-
-  const encoded = Buffer.from(html).toString("base64url");
-
-  return `https://httpbin.org/base64/${encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")}`;
-}
-
-function base64Page(run: string): string {
-  return titledPage(`${UTF8_TITLE} ${run}`);
-}
-
-test("a body is decoded as UTF-8, and an unknown charset label is no error", async ({
-  request,
-}) => {
+test("a body is decoded as UTF-8, also when its charset label is unknown", async ({ request }) => {
   const run = newRunId();
-  const utf8 = await postLink(request, base64Page(run));
+  const utf8 = await postLink(request, titledPage(`${UTF8_TITLE} ${run}`));
   expect(utf8.body.item.title).toBe(`${UTF8_TITLE} ${run}`);
+
+  const markup = encodeURIComponent(`<title>${UTF8_TITLE} ${run}</title>`);
 
   const unknown = await postLink(
     request,
-    `https://httpbin.org/response-headers?Content-Type=text/html;+charset=not-real&run=${run}`,
+    `https://httpbin.dev/response-headers?Content-Type=text/html%3B%20charset%3Dnot-real&t=${markup}`,
   );
 
   expect(unknown.status).toBe(201);
-  expect(unknown.body.fetch).toBe("no-title");
-  expect(unknown.body.item.title).toBeNull();
+  expect(unknown.body.fetch).toBe("ok");
+  expect(unknown.body.item.title).toBe(`${UTF8_TITLE} ${run}`);
 });
 
 test("a second Paste fetches again: fetchedAt moves forward while the id and saved date stay", async ({
@@ -79,7 +66,6 @@ test("a second Paste fetches again: fetchedAt moves forward while the id and sav
 }) => {
   const url = `https://example.com/?run=${newRunId()}`;
   const first = await postLink(request, url);
-  await sleep(50);
   const second = await postLink(request, url);
 
   expect(first.status).toBe(201);
@@ -102,14 +88,14 @@ test("a title is read in its own direction, so an Arabic title and an English on
   const english = await postLink(request, titledPage(`Hello world ${run}`));
   await page.goto("/");
 
-  const directionOf = (id: number) =>
-    page.locator(`.it[data-key="${id}"] .it-open bdi`).evaluate((bdi) => ({
-      attribute: bdi.getAttribute("dir"),
-      used: getComputedStyle(bdi).direction,
-    }));
+  const directionOf = (id: number, title: string) =>
+    page
+      .locator(`.it[data-key="${id}"] .it-open`)
+      .getByText(title)
+      .evaluate((element) => getComputedStyle(element).direction);
 
-  expect(await directionOf(arabic.body.item.id)).toEqual({ attribute: "auto", used: "rtl" });
-  expect(await directionOf(english.body.item.id)).toEqual({ attribute: "auto", used: "ltr" });
+  expect(await directionOf(arabic.body.item.id, `${ARABIC_TITLE} ${run}`)).toBe("rtl");
+  expect(await directionOf(english.body.item.id, `Hello world ${run}`)).toBe("ltr");
 });
 
 function normalised(family: string): string {

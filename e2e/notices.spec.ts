@@ -1,13 +1,18 @@
 import { expect, test } from "@playwright/test";
 
 import { listAll, listForRun } from "./api.ts";
-import { newRunId, pasteStatus } from "./links.ts";
+import { newRunId, pasteLink, pasteStatus } from "./links.ts";
 
 const REDIRECTOR = "https://httpbin.dev/redirect-to?url=";
 
 function failedLinks(run: string) {
   return [
     [`${REDIRECTOR}${encodeURIComponent("http://127.0.0.1:9/")}&run=${run}`, "private network"],
+    [`${REDIRECTOR}${encodeURIComponent("ftp://example.com/file")}&run=${run}`, "isn’t a web page"],
+    [
+      `${REDIRECTOR}${encodeURIComponent("https://x.com/jack/status/20")}&run=${run}`,
+      "redirected to Reddit or X",
+    ],
     [`https://httpbin.org/redirect/21?run=${run}`, "redirected too many times"],
     [`https://example.com/missing-${run}`, "answered with an error"],
     [`https://no-such-host-${run}.invalid/`, "Couldn’t reach the website"],
@@ -24,13 +29,13 @@ test("each failed fetch shows its own notice and the list still shows the saved 
   await page.goto("/");
   const field = page.getByRole("textbox", { name: "Paste a link to save" });
 
-  for (const [url, sentence] of failedLinks(run)) {
+  for (const [index, [url, sentence]] of failedLinks(run).entries()) {
     await field.fill(url);
     await page.getByRole("button", { name: "Add" }).click();
     await expect(pasteStatus(page)).toContainText(sentence, { timeout: 20_000 });
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(field).toHaveValue("");
-    await expect(page.locator("article.it", { hasText: run }).first()).toBeVisible();
+    await expect(page.locator("article.it", { hasText: run })).toHaveCount(index + 1);
   }
 
   const stored = (await listAll(request)).filter((item) => item.normalizedUrl.includes(run));
@@ -104,5 +109,39 @@ test("after a save that worked the field is not marked invalid and still points 
   await expect(notice).toContainText("answered with an error");
   await expect(field).toHaveValue("");
   await expect(field).not.toHaveAttribute("aria-invalid", /./u);
-  await expect(field).toHaveAttribute("aria-describedby", (await notice.getAttribute("id")) ?? "");
+  const noticeId = await notice.getAttribute("id");
+  expect(noticeId).toBeTruthy();
+  await expect(field).toHaveAttribute("aria-describedby", noticeId ?? "");
+});
+
+test("the status region announces its whole text politely", async ({ page }) => {
+  await page.goto("/");
+  const status = pasteStatus(page);
+
+  await expect(status).toHaveAttribute("aria-live", "polite");
+  await expect(status).toHaveAttribute("aria-atomic", "true");
+});
+
+test("a known link whose title cannot be fetched again keeps its title and says so", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/");
+  await pasteLink(page, "https://news.ycombinator.com/");
+
+  const field = page.getByRole("textbox", { name: "Paste a link to save" });
+  await field.fill("https://www.news.ycombinator.com/");
+  await page.getByRole("button", { name: "Add" }).click();
+
+  await expect(pasteStatus(page)).toContainText("the title saved earlier was kept", {
+    timeout: 20_000,
+  });
+
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  const kept = (await listAll(request)).filter(
+    (item) => item.normalizedUrl === "https://news.ycombinator.com/",
+  );
+
+  expect(kept.map((item) => item.title)).toEqual(["Hacker News"]);
 });

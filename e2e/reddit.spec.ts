@@ -22,6 +22,7 @@ const POST_FORMS = [
   `https://www.reddit.com/user/tamale_uk/comments/${POST_ID}/x/`,
   `https://redd.it/${POST_ID}`,
   `https://www.reddit.com/r/typescript/comments/${POST_ID}/x/`,
+  `https://www.reddit.com./r/selfhosted/comments/${POST_ID}/x/`,
 ];
 
 test("a pasted Reddit post saves oEmbed's title, author and subreddit, whatever subreddit the path names", async ({
@@ -49,7 +50,7 @@ test("a pasted Reddit post saves oEmbed's title, author and subreddit, whatever 
   await expect(row.locator(".it-meta > span").nth(1)).toHaveText("r/evolutionReddit");
 });
 
-test("one Reddit post pasted 8 ways is one Item, and its comments are Items of their own", async ({
+test("one Reddit post pasted 9 ways is one Item, and its comments are Items of their own", async ({
   request,
 }) => {
   test.setTimeout(120_000);
@@ -118,5 +119,20 @@ test("a short link to a Reddit post gives the post's Item, and one to an X post 
     title: null,
     fetchedAt: null,
   });
-  expect(x.body.fetch).toBe("ok");
+  expect(x.body.fetch).toBe("not-requested");
+});
+
+test("an X link whose host ends in a dot is the same Item as without it, and is not requested", async ({
+  request,
+}) => {
+  const dotted = await postLink(request, "https://x.com./jack/status/20");
+
+  expect(dotted.body.fetch).toBe("not-requested");
+  expect(dotted.body.item).toMatchObject({
+    source: "x",
+    kind: "x-post",
+    normalizedUrl: "https://x.com/jack/status/20",
+    title: null,
+    fetchedAt: null,
+  });
 });

@@ -8,6 +8,18 @@ export function newRunId(): string {
   return String(Date.now());
 }
 
+const HTTPBIN = "https://httpbin.org";
+
+export function httpbinPagePath(html: string): string {
+  const encoded = Buffer.from(html).toString("base64url");
+
+  return `/base64/${encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")}`;
+}
+
+export function titledPage(title: string): string {
+  return `${HTTPBIN}${httpbinPagePath(`<!doctype html><html><head><title>${title}</title></head></html>`)}`;
+}
+
 export function scenarioLinks(run: string): string[] {
   const long = `${"segment-".repeat(30)}end`;
 
