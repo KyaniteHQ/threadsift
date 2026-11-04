@@ -3,84 +3,10 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from "react"
 import { itemIdOf } from "../../src/core/item-path.ts";
 import type { SaveOutcome } from "./api.ts";
 import { useBands } from "./bands.ts";
-import { Icon } from "./Icon.tsx";
-import { ItemRow } from "./ItemRow.tsx";
 import { type ListState, useLibrary } from "./library.ts";
+import { type Attention, ListBody } from "./ListBody.tsx";
 import { PasteBox } from "./PasteBox.tsx";
 import { focusListStart, scrollToTop } from "./reveal.ts";
-import {
-  EMPTY_LIST,
-  LOADING_LABEL,
-  LOAD_FAILED,
-  RETRY_LABEL,
-  SORT_LABEL,
-  countLabel,
-} from "./text.ts";
-
-const SKELETON_ROWS = [0, 1, 2] as const;
-
-function Loading() {
-  return (
-    <>
-      <output className="vh">{LOADING_LABEL}</output>
-      {SKELETON_ROWS.map((row) => (
-        <div key={row} className="it it-ghost" aria-hidden="true">
-          <p className="it-meta">
-            <i />
-          </p>
-          <p className="it-title">
-            <i />
-          </p>
-        </div>
-      ))}
-    </>
-  );
-}
-
-function ListBody({
-  list,
-  openId,
-  retry,
-}: Readonly<{ list: ListState; openId: number | null; retry: () => void }>) {
-  if (list.status === "loading") {
-    return <Loading />;
-  }
-
-  if (list.status === "failed") {
-    return (
-      <div className="noresults" role="alert">
-        <p>{LOAD_FAILED}</p>
-        <button type="button" className="btn" onClick={retry}>
-          {RETRY_LABEL}
-        </button>
-      </div>
-    );
-  }
-
-  if (list.items.length === 0) {
-    return (
-      <div className="empty">
-        <Icon name="tray" className="ic ic-xl" />
-        <h2>{EMPTY_LIST.heading}</h2>
-        <p>{EMPTY_LIST.line}</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="list-head">
-        <p className="results" aria-live="polite">
-          {countLabel(list.items.length)}
-        </p>
-        <p className="label">{SORT_LABEL}</p>
-      </div>
-      {list.items.map((item) => (
-        <ItemRow key={item.id} item={item} now={list.loadedAt} isOpen={item.id === openId} />
-      ))}
-    </>
-  );
-}
 
 function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
   const retried = useRef(false);
@@ -100,24 +26,46 @@ function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLEl
   return retryAndKeepPlace;
 }
 
+function useOpenItem(list: ListState) {
+  const [openId] = useState(() => itemIdOf(window.location.pathname));
+  const [attention, setAttention] = useState<Attention>(openId === null ? null : { id: openId });
+
+  const missing =
+    list.status === "ready" && openId !== null && !list.items.some((item) => item.id === openId);
+
+  useEffect(() => {
+    if (missing) {
+      window.history.replaceState(null, "", "/");
+    }
+  }, [missing]);
+
+  return { openId, attention, attend: setAttention };
+}
+
 export function App() {
   const root = useRef<HTMLDivElement>(null);
   const listPane = useRef<HTMLElement>(null);
   const bands = useBands(root);
   const { list, save, retry } = useLibrary();
-  const [openId] = useState(() => itemIdOf(window.location.pathname));
+  const { openId, attention, attend } = useOpenItem(list);
 
   const saveAndShow = useCallback(
     async (url: string): Promise<SaveOutcome> => {
-      const outcome = await save(url);
+      const result = await save(url);
 
-      if (outcome === "saved" && listPane.current !== null) {
+      if (result.outcome === "refused") {
+        return "refused";
+      }
+
+      if (result.outcome === "known") {
+        attend({ id: result.item.id });
+      } else if (listPane.current !== null) {
         scrollToTop(listPane.current);
       }
 
-      return outcome;
+      return "saved";
     },
-    [save],
+    [attend, save],
   );
 
   const retryAndKeepPlace = useKeptPlace(list, retry, listPane);
@@ -135,7 +83,7 @@ export function App() {
             <PasteBox save={saveAndShow} />
           </header>
           <main ref={listPane} className="list" tabIndex={-1}>
-            <ListBody list={list} openId={openId} retry={retryAndKeepPlace} />
+            <ListBody list={list} openId={openId} attention={attention} retry={retryAndKeepPlace} />
           </main>
         </div>
       </div>

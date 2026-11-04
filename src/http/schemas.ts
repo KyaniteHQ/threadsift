@@ -4,7 +4,7 @@ import { KINDS, SOURCES } from "../core/kinds.ts";
 
 const HttpUrlSchema = z.url({ protocol: /^https?$/u });
 
-export const ItemSchema = z.object({
+const ItemSchema = z.object({
   id: z.number().int(),
   source: z.enum(SOURCES),
   kind: z.enum(KINDS),

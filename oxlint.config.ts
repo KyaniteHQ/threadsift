@@ -115,6 +115,35 @@ export default defineConfig({
         ],
       },
     },
+    {
+      files: ["src/core/**", "src/http/**", "web/**"],
+      rules: {
+        "eslint/no-restricted-globals": [
+          "error",
+          ...["process", "Buffer", "global", "__dirname", "__filename", "require"].map((name) => ({
+            name,
+            message:
+              "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture.md, One codebase, two install targets).",
+          })),
+        ],
+      },
+    },
+    {
+      files: ["web/**"],
+      rules: {
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              {
+                regex: "^(node|cloudflare):",
+                message: "web/ runs in the browser, so it imports no runtime module.",
+              },
+            ],
+          },
+        ],
+      },
+    },
   ],
   ignorePatterns: ["design/**", "tools/oxlint/anti-slop/**", ".claude/**"],
   options: {

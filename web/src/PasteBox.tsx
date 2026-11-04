@@ -60,7 +60,7 @@ function usePaste(save: Save) {
       const outcome = url === "" ? "empty" : await attempt(url);
 
       if (outcome === "saved") {
-        setValue("");
+        setValue((current) => (current.trim() === url ? "" : current));
       }
 
       setNotice(outcome === "empty" ? "empty" : NOTICE_OF[outcome]);

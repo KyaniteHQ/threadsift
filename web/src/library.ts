@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { type SaveOutcome, fetchItems, saveLink } from "./api.ts";
+import { type SaveResult, fetchItems, saveLink } from "./api.ts";
 
 export type ListState =
   | { readonly status: "loading" }
@@ -32,14 +32,14 @@ export function useLibrary() {
   }, [load]);
 
   const save = useCallback(
-    async (url: string): Promise<SaveOutcome> => {
-      const outcome = await saveLink(url);
+    async (url: string): Promise<SaveResult> => {
+      const result = await saveLink(url);
 
-      if (outcome === "saved") {
+      if (result.outcome !== "refused") {
         await load();
       }
 
-      return outcome;
+      return result;
     },
     [load],
   );

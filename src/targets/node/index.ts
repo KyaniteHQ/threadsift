@@ -58,6 +58,10 @@ app.use("*", compress());
 
 app.route("/", createApp({ db: database.db }));
 
+app.get("/index.html", (context) => context.redirect("/", 307));
+
+app.get("/_headers", (context, next) => document(context, next));
+
 app.use("*", files);
 
 app.get("*", (context, next) =>

@@ -29,15 +29,11 @@ test("an empty browser with a dark system preference draws Light, titled Threads
   await expect(app).not.toHaveAttribute("data-theme", /./u);
   const drawn = await app.evaluate((element) => getComputedStyle(element).getPropertyValue("--bg"));
   await app.evaluate((element) => {
-    {
-      element.dataset["theme"] = "dark";
-    }
+    element.dataset["theme"] = "dark";
   });
   const dark = await app.evaluate((element) => getComputedStyle(element).getPropertyValue("--bg"));
   await app.evaluate((element) => {
-    {
-      element.dataset["theme"] = "light";
-    }
+    element.dataset["theme"] = "light";
   });
   const light = await app.evaluate((element) => getComputedStyle(element).getPropertyValue("--bg"));
 
@@ -63,6 +59,10 @@ test("a link saved before midnight reads as yesterday, not today, in the owner's
 
   await page.clock.setFixedTime(item.savedAt);
   await page.goto("/");
+  await expect(date).toHaveText("saved today");
+
+  await page.clock.setFixedTime(nextMidnight - 60_000);
+  await page.reload();
   await expect(date).toHaveText("saved today");
 
   await page.clock.setFixedTime(nextMidnight + 60_000);

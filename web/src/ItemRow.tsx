@@ -1,28 +1,25 @@
-import { useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
+import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { revealInPane } from "./reveal.ts";
 import { savedLabel } from "./saved-label.ts";
 import { NEW_TAB_LABEL, SOURCE_LABELS } from "./text.ts";
-import { whereOf } from "./where.ts";
 
 function withoutScheme(url: string): string {
   return url.replace(/^https?:\/\//u, "");
 }
 
-export function ItemRow({
-  item,
-  now,
-  isOpen,
-}: Readonly<{ item: Item; now: number; isOpen: boolean }>) {
-  const row = useRef<HTMLElement>(null);
-  const link = useRef<HTMLAnchorElement>(null);
-
+function useAttention(
+  row: RefObject<HTMLElement | null>,
+  link: RefObject<HTMLAnchorElement | null>,
+  attention: Readonly<{ id: number }> | null,
+) {
   useEffect(() => {
     const element = row.current;
 
-    if (isOpen && element !== null) {
+    if (attention !== null && element !== null) {
       const reveal = (): void => {
         revealInPane(element);
       };
@@ -31,7 +28,23 @@ export function ItemRow({
       link.current?.focus({ preventScroll: true });
       void document.fonts.ready.then(reveal);
     }
-  }, [isOpen]);
+  }, [attention, link, row]);
+}
+
+export function ItemRow({
+  item,
+  now,
+  isOpen,
+  attention,
+}: Readonly<{
+  item: Item;
+  now: number;
+  isOpen: boolean;
+  attention: Readonly<{ id: number }> | null;
+}>) {
+  const row = useRef<HTMLElement>(null);
+  const link = useRef<HTMLAnchorElement>(null);
+  useAttention(row, link, attention);
 
   return (
     <article ref={row} className={isOpen ? "it open" : "it"} data-key={item.id}>

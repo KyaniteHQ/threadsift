@@ -1,7 +1,9 @@
-FROM docker.io/library/node:26-slim AS base
-RUN npm install --global pnpm@12.17.0
+FROM docker.io/library/node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS node
+
+FROM node AS base
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN npm install --global "$(node -p 'require("./package.json").packageManager')"
 
 FROM base AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
@@ -14,7 +16,7 @@ COPY src src
 COPY web web
 RUN pnpm exec vite build
 
-FROM docker.io/library/node:26-slim
+FROM node
 ENV NODE_ENV=production DATA_DIR=/data PORT=8080
 WORKDIR /app
 COPY --from=prod-deps /app/node_modules node_modules

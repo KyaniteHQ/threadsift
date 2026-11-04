@@ -1,6 +1,14 @@
-import { ItemListResponseSchema, type Item } from "../../src/http/schemas.ts";
+import {
+  ItemListResponseSchema,
+  SavedItemResponseSchema,
+  type Item,
+} from "../../src/http/schemas.ts";
 
 export type SaveOutcome = "saved" | "refused";
+
+export type SaveResult =
+  | { readonly outcome: "refused" }
+  | { readonly outcome: "created" | "known"; readonly item: Item };
 
 export async function fetchItems(): Promise<Item[]> {
   const response = await fetch("/api/items");
@@ -12,7 +20,7 @@ export async function fetchItems(): Promise<Item[]> {
   return ItemListResponseSchema.parse(await response.json()).items;
 }
 
-export async function saveLink(url: string): Promise<SaveOutcome> {
+export async function saveLink(url: string): Promise<SaveResult> {
   const response = await fetch("/api/items", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -20,12 +28,14 @@ export async function saveLink(url: string): Promise<SaveOutcome> {
   });
 
   if (response.status === 400) {
-    return "refused";
+    return { outcome: "refused" };
   }
 
   if (!response.ok) {
     throw new Error(`POST /api/items answered ${response.status}`);
   }
 
-  return "saved";
+  const { item } = SavedItemResponseSchema.parse(await response.json());
+
+  return { outcome: response.status === 201 ? "created" : "known", item };
 }

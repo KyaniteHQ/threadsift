@@ -158,3 +158,61 @@ for (const width of [390, 1280]) {
     }
   });
 }
+
+test("a finished save leaves a different link typed while it ran", async ({ page }) => {
+  const run = newRunId();
+  await page.goto("/");
+  const field = page.getByRole("textbox", { name: "Paste a link to save" });
+  await field.fill(`https://example.com/${run}/first`);
+
+  await page.evaluate((second) => {
+    document.querySelector<HTMLButtonElement>("button[type=submit]")?.click();
+    const input = document.querySelector<HTMLInputElement>("input");
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    descriptor?.set?.call(input, second);
+    input?.dispatchEvent(new Event("input", { bubbles: true }));
+  }, `https://example.com/${run}/second`);
+
+  await expect(page.locator("article.it").first().locator(".it-open")).toContainText(
+    `${run}/first`,
+  );
+  await expect(field).toHaveValue(`https://example.com/${run}/second`);
+});
+
+test("pasting a known link brings its row into view and focuses it", async ({ page, request }) => {
+  const run = newRunId();
+
+  for (let index = 0; index < 30; index += 1) {
+    await postLink(request, `https://example.com/${run}/known-${index}`);
+  }
+
+  await page.goto("/");
+  await expect(page.locator("article.it").nth(29)).toBeVisible();
+  const field = page.getByRole("textbox", { name: "Paste a link to save" });
+  await field.fill(`https://example.com/${run}/known-3`);
+  await page.getByRole("button", { name: "Add" }).click();
+
+  const row = page.locator("article.it", { hasText: `${run}/known-3` });
+  await expect(row.locator(".it-open")).toBeFocused();
+
+  const covered = await page.evaluate(() => {
+    const top = document
+      .querySelector(".it-open:focus")
+      ?.closest("article")
+      ?.getBoundingClientRect();
+
+    const header = document.querySelector(".list-head")?.getBoundingClientRect();
+
+    return top === undefined || header === undefined || top.top < header.bottom - 0.5;
+  });
+
+  expect(covered).toBe(false);
+});
+
+test("an Item URL that matches no Item opens the plain list at /", async ({ page, request }) => {
+  await postLink(request, `https://example.com/${newRunId()}/exists`);
+  await page.goto("/items/999999999");
+  await expect(page.locator("article.it").first()).toBeVisible();
+  await expect(page).toHaveURL(/\/$/u);
+  await expect(page.locator("article.it.open")).toHaveCount(0);
+});

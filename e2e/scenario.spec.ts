@@ -1,10 +1,8 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { listAll, listForRun, refusedWith } from "./api.ts";
-import { newRunId, pasteLink, scenarioLinks } from "./links.ts";
+import { newRunId, pasteLink, scenarioLinks, scenarioUrls } from "./links.ts";
 import { restartTarget } from "./target.ts";
-
-const SOURCE_LABELS = ["Reddit", "X", "GitHub", "Other"];
 
 const REFUSED_BODIES = [
   '{"url":"javascript:alert(1)"}',
@@ -19,27 +17,20 @@ function listedRows(page: Page, count: number) {
     (rows, limit) =>
       rows.slice(0, limit).map((row) => ({
         link: row.querySelector(".it-open")?.firstChild?.textContent ?? "",
-        source: row.querySelector(".src")?.textContent ?? "",
         date: row.querySelector(".it-date")?.textContent ?? "",
       })),
     count,
   );
 }
 
-async function expectListMatches(
-  page: Page,
-  run: string,
-  request: Parameters<typeof listForRun>[0],
-) {
-  const items = await listForRun(request, run);
-  await expect(page.locator("article.it").nth(items.length - 1)).toBeVisible();
-  const rows = await listedRows(page, items.length);
+async function expectListMatches(page: Page, expectedUrls: readonly string[]) {
+  await expect(page.locator("article.it").nth(expectedUrls.length - 1)).toBeVisible();
+  const rows = await listedRows(page, expectedUrls.length);
   expect(rows.map((row) => row.link)).toEqual(
-    items.map((item) => item.normalizedUrl.replace(/^https?:\/\//u, "")),
+    expectedUrls.map((url) => url.replace(/^https?:\/\//u, "")),
   );
 
   for (const row of rows) {
-    expect(SOURCE_LABELS).toContain(row.source);
     expect(row.date).toMatch(/^saved /u);
   }
 }
@@ -51,6 +42,7 @@ test("twelve pasted links make eleven Items that keep their order across a resta
 }) => {
   const run = newRunId();
   const links = scenarioLinks(run);
+  const newestFirst = scenarioUrls(run).toReversed();
   await page.goto("/");
 
   for (const url of links) {
@@ -59,10 +51,8 @@ test("twelve pasted links make eleven Items that keep their order across a resta
 
   const before = await listForRun(request, run);
   expect(before).toHaveLength(11);
-  expect(before.map((item) => item.id)).toEqual(
-    before.toSorted((a, b) => b.savedAt - a.savedAt || b.id - a.id).map((item) => item.id),
-  );
-  await expectListMatches(page, run, request);
+  expect(before.map((item) => item.normalizedUrl)).toEqual(newestFirst);
+  await expectListMatches(page, newestFirst);
 
   const total = (await listAll(request)).length;
 
@@ -76,7 +66,7 @@ test("twelve pasted links make eleven Items that keep their order across a resta
   await restartTarget(baseURL ?? "");
   expect(await listForRun(request, run)).toEqual(before);
   await page.goto("/");
-  await expectListMatches(page, run, request);
+  await expectListMatches(page, newestFirst);
 
   await pasteLink(page, links[2] ?? "");
   expect(await listForRun(request, run)).toEqual(before);

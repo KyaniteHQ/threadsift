@@ -36,10 +36,24 @@ test("a path with a file extension that matches no file is a 404 and a page path
     expect((await request.get(path)).status(), path).toBe(404);
   }
 
-  for (const path of ["/", "/items/1", "/anything/else"]) {
+  for (const path of ["/", "/items/1", "/anything/else", "/_headers"]) {
+    for (const method of ["get", "head"] as const) {
+      const response = await request[method](path);
+      expect(response.status(), `${method} ${path}`).toBe(200);
+      expect(response.headers()["content-type"], `${method} ${path}`).toContain("text/html");
+    }
+  }
+
+  const index = await request.get("/index.html", { maxRedirects: 0 });
+  expect(index.status()).toBe(307);
+  expect(index.headers()["location"]).toBe("/");
+});
+
+test("/api answers JSON on its own and under any path, never the page", async ({ request }) => {
+  for (const path of ["/api", "/api/", "/api/nothing-here"]) {
     const response = await request.get(path);
-    expect(response.status(), path).toBe(200);
-    expect(response.headers()["content-type"], path).toContain("text/html");
+    expect(response.status(), path).toBe(404);
+    expect(response.headers()["content-type"], path).toContain("application/json");
   }
 });
 

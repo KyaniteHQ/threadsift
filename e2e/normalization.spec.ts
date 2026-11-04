@@ -2,7 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { expect, test } from "@playwright/test";
 
-import { listAll, postLink } from "./api.ts";
+import { postLink } from "./api.ts";
 import { newRunId } from "./links.ts";
 
 test("one link pasted a second way is one Item with the same id and saved date", async ({
@@ -23,6 +23,22 @@ test("one link pasted a second way is one Item with the same id and saved date",
   expect(second.body.item.savedAt).toBe(first.body.item.savedAt);
   expect(second.body.url).toBe(first.body.url);
   expect(first.body.url).toContain(String(first.body.item.id));
+
+  const withCredentials = await postLink(request, `https://user:secret@example.com/${run}/page`);
+  expect(withCredentials.status).toBe(200);
+  expect(withCredentials.body.item.id).toBe(first.body.item.id);
+  expect(withCredentials.body.item.normalizedUrl).not.toContain("secret");
+});
+
+test("two saves of one link sent at once make one Item and both answers name it", async ({
+  request,
+}) => {
+  const link = `https://example.com/${newRunId()}/concurrent`;
+  const answers = await Promise.all([postLink(request, link), postLink(request, link)]);
+
+  expect(answers.map((answer) => answer.status).toSorted((a, b) => a - b)).toEqual([200, 201]);
+  expect(answers[0]?.body.item.id).toBe(answers[1]?.body.item.id);
+  expect(answers[0]?.body.item.savedAt).toBe(answers[1]?.body.item.savedAt);
 });
 
 test("links that differ in a kept query parameter or in path case stay separate", async ({
@@ -56,7 +72,16 @@ test("x.com and twitter.com drop their share parameters but keep other hosts' s 
   const other = await postLink(request, `https://example.com/${run}?s=1&t=2`);
   expect(x.body.item.normalizedUrl).toBe(`https://x.com/someone/status/${run}1?lang=en`);
   expect(other.body.item.normalizedUrl).toBe(`https://example.com/${run}?s=1&t=2`);
+
+  const mobile = await postLink(
+    request,
+    `https://mobile.x.com/someone/status/${run}1?s=20&lang=en`,
+  );
+
+  expect(mobile.body.item.id).toBe(x.body.item.id);
 });
+
+const SOURCE_LABELS = { reddit: "Reddit", x: "X", github: "GitHub", other: "Other" } as const;
 
 function linkCases(run: string) {
   return [
@@ -91,6 +116,9 @@ function linkCases(run: string) {
     ],
     [`https://github.com/topics/typescript?run=${run}`, "link", "other", "github.com"],
     [`https://blog.example.com/${run}/an-article`, "link", "other", "blog.example.com"],
+    [`https://github.com/user-attachments/assets/${run}`, "link", "other", "github.com"],
+    [`https://github.com/resources/articles?run=${run}`, "link", "other", "github.com"],
+    [`https://mobile.twitter.com/someone/status/${run}3`, "x-post", "x", "@someone"],
   ] as const;
 }
 
@@ -111,12 +139,13 @@ test("each link shape gets its kind and Source, and its row says where it is fro
   expect(saved.map((item) => [item.kind, item.source])).toEqual(
     cases.map(([, kind, source]) => [kind, source]),
   );
-  expect((await listAll(request)).length).toBeGreaterThanOrEqual(cases.length);
 
   await page.goto("/");
 
   for (const [index, item] of saved.entries()) {
+    const [, , source, where] = cases[index] ?? ["", "", "other", ""];
     const meta = page.locator(`.it[data-key="${item.id}"] .it-meta > span`);
-    await expect(meta.nth(1)).toHaveText(cases[index]?.[3] ?? "");
+    await expect(meta.nth(0)).toHaveText(SOURCE_LABELS[source]);
+    await expect(meta.nth(1)).toHaveText(where);
   }
 });

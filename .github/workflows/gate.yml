@@ -34,7 +34,7 @@ jobs:
             pull_request) range=(HEAD^1 HEAD) ;;
             push) range=("$BEFORE" HEAD) ;;
           esac
-          if [[ ${#range[@]} -gt 0 ]] && git diff --name-only "${range[@]}" > changed.txt 2>/dev/null && [[ -s changed.txt ]]; then
+          if [[ ${#range[@]} -gt 0 ]] && git diff --no-renames --name-only "${range[@]}" > changed.txt 2>/dev/null && [[ -s changed.txt ]]; then
             docs_only=true
             while IFS= read -r path; do
               if [[ $path == docs/* || ( $path != */* && $path == *.md ) ]]; then continue; fi

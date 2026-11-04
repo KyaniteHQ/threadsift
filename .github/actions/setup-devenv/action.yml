@@ -11,9 +11,9 @@ runs:
     - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
       with:
         name: devenv
-    - name: Install devenv
+    - name: Install devenv v2.4.0
       shell: bash
-      run: nix profile add github:cachix/devenv/v2.4.0#devenv
+      run: nix profile add github:cachix/devenv/b904dcb51fe48c30db250038241507f60752f222#devenv
     - name: Point pnpm at a cached store
       if: inputs.cache-pnpm == 'true'
       shell: bash

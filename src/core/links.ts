@@ -39,22 +39,31 @@ const GITHUB_NON_OWNER_PATHS: ReadonlySet<string> = new Set([
   "customer-stories",
   "dashboard",
   "discussions",
+  "education",
   "enterprise",
   "events",
   "explore",
   "features",
+  "github-copilot",
+  "home",
   "issues",
   "join",
   "login",
   "logout",
   "marketplace",
+  "mobile",
   "new",
+  "nonprofit",
   "notifications",
-  "orgs",
+  "open-source",
   "organizations",
+  "orgs",
+  "partners",
+  "premium-support",
   "pricing",
   "pulls",
   "readme",
+  "resources",
   "search",
   "security",
   "sessions",
@@ -69,6 +78,7 @@ const GITHUB_NON_OWNER_PATHS: ReadonlySet<string> = new Set([
   "teams",
   "topics",
   "trending",
+  "user-attachments",
   "users",
   "watching",
   "why-github",
@@ -97,10 +107,17 @@ function keptQuery(search: string, host: string): string {
   return kept.length > 0 ? `?${kept.join("&")}` : "";
 }
 
-function withoutWww(host: string): string {
-  const bare = host.startsWith("www.") ? host.slice("www.".length) : host;
+const MOBILE_X_HOST = /^mobile\.(?:x|twitter)\.com$/u;
 
-  return bare.includes(".") ? bare : host;
+function canonicalHost(host: string): string {
+  const desktop = MOBILE_X_HOST.test(host) ? host.slice("mobile.".length) : host;
+  const bare = desktop.startsWith("www.") ? desktop.slice("www.".length) : desktop;
+
+  return bare.includes(".") ? bare : desktop;
+}
+
+function segmentsOf(pathname: string): string[] {
+  return pathname.split("/").filter((segment) => segment !== "");
 }
 
 function redditKind(segments: readonly string[]): Kind | null {
@@ -127,7 +144,7 @@ function githubKind(segments: readonly string[]): Kind {
 }
 
 function kindOf(host: string, pathname: string): Kind {
-  const segments = pathname.split("/").filter((segment) => segment !== "");
+  const segments = segmentsOf(pathname);
 
   if (host === "reddit.com" || host.endsWith(".reddit.com")) {
     return redditKind(segments) ?? "link";
@@ -142,11 +159,32 @@ function kindOf(host: string, pathname: string): Kind {
 
 export function parseLink(absoluteUrl: string): Link {
   const url = new URL(absoluteUrl);
-  const host = withoutWww(url.hostname);
+  const host = canonicalHost(url.hostname);
   url.hostname = host;
+  url.username = "";
+  url.password = "";
   url.hash = "";
   url.search = keptQuery(url.search, host);
   const kind = kindOf(host, url.pathname);
 
   return { normalizedUrl: url.href, kind, source: SOURCE_OF_KIND[kind] };
+}
+
+export function whereOf({ source, kind, normalizedUrl }: Readonly<Link>): string {
+  const { host, pathname } = new URL(normalizedUrl);
+  const [first = "", second = ""] = segmentsOf(pathname);
+
+  if (source === "reddit" && second !== "" && REDDIT_PATH_PREFIXES.has(first)) {
+    return first === "r" ? `r/${second}` : `u/${second}`;
+  }
+
+  if (kind === "x-post" && first !== "i") {
+    return `@${first}`;
+  }
+
+  if (kind === "github-repo") {
+    return `${first}/${second}`;
+  }
+
+  return host;
 }
