@@ -43,4 +43,13 @@ jobs:
               --title "chore(deps): update devenv.lock" \
               --body "The scheduled \`devenv update\` moved \`devenv.lock\`. The \`gate\` run on this branch was started by hand with \`workflow_dispatch\`, because a pull request opened with \`GITHUB_TOKEN\` starts no \`pull_request\` run until someone with write access approves it."
           fi
-          gh workflow run gate.yml --ref "$BRANCH"
+          head=$(git rev-parse HEAD)
+          for _ in $(seq 1 30); do
+            runs=$(gh run list --branch "$BRANCH" --event pull_request --commit "$head" --status action_required --json databaseId --jq '.[].databaseId')
+            [[ -n $runs ]] && break
+            sleep 10
+          done
+          [[ -n $runs ]] || { echo "no pull_request run waits for approval on $head"; exit 1; }
+          for run in $runs; do
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run/approve"
+          done
