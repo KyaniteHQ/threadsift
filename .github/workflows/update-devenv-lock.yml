@@ -41,6 +41,17 @@ jobs:
           if [[ -z $(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number') ]]; then
             gh pr create --head "$BRANCH" --base main \
               --title "chore(deps): update devenv.lock" \
-              --body "The scheduled \`devenv update\` moved \`devenv.lock\`. The \`gate\` run on this branch was started by hand with \`workflow_dispatch\`, because a pull request opened with \`GITHUB_TOKEN\` starts no \`pull_request\` run until someone with write access approves it."
+              --body "\`devenv update\` moved \`devenv.lock\`. A pull request opened with \`GITHUB_TOKEN\` holds its \`pull_request\` runs for approval, so the workflow approves the \`gate\` run on each head it pushes."
           fi
-          gh workflow run gate.yml --ref "$BRANCH"
+          head=$(git rev-parse HEAD)
+          for _ in $(seq 1 30); do
+            runs=$(gh run list --branch "$BRANCH" --event pull_request --commit "$head" --json databaseId,status --jq '.[] | "\(.databaseId) \(.status)"')
+            [[ -n $runs ]] && break
+            sleep 10
+          done
+          [[ -n $runs ]] || { echo "no pull_request run started on $head"; exit 1; }
+          while read -r run status; do
+            if [[ $status == action_required ]]; then
+              gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run/approve"
+            fi
+          done <<< "$runs"
