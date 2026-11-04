@@ -12,6 +12,7 @@ import {
 } from "./text.ts";
 
 const SKELETON_ROWS = [0, 1, 2] as const;
+const RESULTS_ID = "results";
 
 function Loading() {
   return (
@@ -47,20 +48,28 @@ function ItemList({
   return (
     <>
       <div className="list-head">
-        <p className="results" aria-live="polite">
+        <p id={RESULTS_ID} className="results" aria-live="polite">
           {countLabel(items.length)}
         </p>
         <p className="label">{SORT_LABEL}</p>
       </div>
-      {items.map((item) => (
-        <ItemRow
-          key={item.id}
-          item={item}
-          now={loadedAt}
-          isOpen={item.id === openId}
-          attention={item.id === attention?.id ? attention : null}
-        />
-      ))}
+      <ol
+        // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from an ol with list-style none
+        role="list"
+        className="items"
+        aria-labelledby={RESULTS_ID}
+      >
+        {items.map((item) => (
+          <li key={item.id}>
+            <ItemRow
+              item={item}
+              now={loadedAt}
+              isOpen={item.id === openId}
+              attention={item.id === attention?.id ? attention : null}
+            />
+          </li>
+        ))}
+      </ol>
     </>
   );
 }

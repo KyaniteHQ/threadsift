@@ -1,7 +1,7 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-import { postLink } from "./api.ts";
+import { listAll, postLink } from "./api.ts";
 import { newRunId } from "./links.ts";
 
 test("an empty browser with a dark system preference draws Light, titled Threadsift, from one origin", async ({
@@ -83,4 +83,24 @@ test("every part of the page sits inside a landmark", async ({ page, request }) 
   expect(results.violations.map((violation) => violation.nodes.map((node) => node.html))).toEqual(
     [],
   );
+});
+
+test("the saved Items are one list, named by its count, with one list item per Item", async ({
+  page,
+  request,
+}) => {
+  const run = newRunId();
+
+  for (const name of ["first", "second", "third"]) {
+    await postLink(request, `https://example.com/${run}/${name}`);
+  }
+
+  const total = (await listAll(request)).length;
+  await page.goto("/");
+
+  const list = page.getByRole("list");
+  await expect(list).toHaveCount(1);
+  await expect(list).toHaveAccessibleName(`${total} links saved`);
+  await expect(list.getByRole("listitem")).toHaveCount(total);
+  await expect(list.getByRole("listitem").first().getByRole("article")).toBeVisible();
 });

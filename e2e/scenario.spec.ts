@@ -16,7 +16,9 @@ function listedRows(page: Page, count: number) {
   return page.locator("article.it").evaluateAll(
     (rows, limit) =>
       rows.slice(0, limit).map((row) => ({
-        link: row.querySelector(".it-open")?.firstChild?.textContent ?? "",
+        link: [...(row.querySelector(".it-open")?.childNodes ?? [])]
+          .flatMap((node) => (node.nodeType === Node.TEXT_NODE ? [node.textContent] : []))
+          .join(""),
         date: row.querySelector(".it-date")?.textContent ?? "",
       })),
     count,

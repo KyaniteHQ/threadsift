@@ -80,3 +80,40 @@ test("a long link is clamped to two lines in its row title", async ({ page }) =>
     expect(lines.cut, `title is cut at ${width}px`).toBe(true);
   }
 });
+
+test("a row title breaks between path parts on a phone and holds the reading measure on a wide screen", async ({
+  page,
+}) => {
+  const run = newRunId();
+  const path = `${run}/my_home_server_backup_strategy_after_losing_a_disk/`;
+  const saved = await postLink(page.request, `https://example.com/${path}`);
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto(saved.body.url);
+  const link = page.locator(".it.open .it-open");
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAccessibleName(`example.com/${path} opens in a new tab`);
+
+  const split = await link.evaluate((element) =>
+    [...element.childNodes].flatMap((node) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+
+      return node.nodeType === Node.TEXT_NODE && range.getClientRects().length > 1
+        ? [node.textContent]
+        : [];
+    }),
+  );
+
+  expect(split, "path parts broken across lines").toEqual([]);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  const widths = await page.locator(".it.open").evaluate((row) => ({
+    row: row.getBoundingClientRect().width,
+    title: row.querySelector(".it-title")?.getBoundingClientRect().width ?? 0,
+  }));
+
+  expect(widths.row, "row width at 1440px").toBeGreaterThan(1000);
+  expect(widths.title, "title width at 1440px").toBeLessThan(430);
+});

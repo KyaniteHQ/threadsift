@@ -30,6 +30,12 @@ html {
   background: var(--bg);
 }
 
+.items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .it-title {
   display: -webkit-box;
   overflow: hidden;
@@ -49,6 +55,10 @@ html {
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas: "meta media" "title media" "sum sum" "snip snip" "foot foot";
   padding-left: var(--s4);
+}
+
+[data-layout="list"] .it-title {
+  max-inline-size: var(--measure);
 }
 
 [data-layout="list"] .it-date {
