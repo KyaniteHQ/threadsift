@@ -19,7 +19,7 @@ One web app where the owner pastes a link to something they saved (a Reddit post
 | Look settings | The look is not locked to one preset. The settings also hold Font (5 pairs), Text width (Narrow, Medium, Wide), Density (Compact, Comfortable, Roomy), Comment style (Indented lines, Cards, Rail), Accent (5 colours), Tag style (Chips, Text, Dots) and Card images (On, Off). Defaults: Plex, Medium, Compact, Indented lines, Cobalt, Dots, images on. "Reset look" resets only the Look settings, Style included; Layout, Open items as and Theme stay, and the panel says so in visible text. "Card images" hides the card picture only, never the reader's, and Off does not load the card pictures at all. | 2026-11-03 |
 | Style | One more look setting, "Style": Library (default) plus 10 styles taken from refero.design (`docs/design/styles.md`). While a style is on, its fonts and accent replace the Font and Accent settings. | 2026-11-04 |
 | Themes | Light, Dark, Sepia and Match system. Match system follows the device; with no setting stored, the app draws Light. | 2026-11-03 |
-| Settings storage | All ten settings are stored together in the browser. Each Item's reading place is kept for the browser tab, so reopening an Item returns to where the owner stopped. | 2026-11-03 |
+| Settings storage | All eleven settings (Layout, Open items as, Theme and the eight Look settings) are stored together in the browser. Each Item's reading place is kept for the browser tab, so reopening an Item returns to where the owner stopped. | 2026-11-03 |
 | Tech stack | Not part of this spec; chosen later. | 2026-11-03 |
 
 ## Design
