@@ -4,9 +4,10 @@ Threadsift is a reading library. You paste a link to something you saved (a Redd
 
 ## Status
 
-The design is done and the app is not built yet. The tech stack is not chosen.
+The design is done and the tech stack is chosen; the app is not built yet.
 
 - `docs/spec.md`: what v1 does.
+- `docs/architecture.md`: what it is built with and where each part runs.
 - `CONTEXT.md`: the words the project uses.
 - `design/prototype/`: the clickable prototype from Claude Design.
 - `design/system/`: the design system's tokens, component styles and settings table.

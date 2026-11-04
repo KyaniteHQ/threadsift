@@ -52,6 +52,10 @@ _Avoid_: Grok integration, assistant
 The agent's output for one Item, stored apart from the fetched content: clean title, Topic, Tags, Summary, Key points and the ids of Kept comments.
 _Avoid_: Analysis, enrichment, AI output
 
+**AI task**:
+One piece of agent work on the library: a Digest, a Topic page overview, a pick of Related Items, or the weekly Proposals.
+_Avoid_: Job, prompt, request, AI call
+
 ### Sorting
 
 **Topic**:

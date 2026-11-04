@@ -1,6 +1,6 @@
 # Threadsift: v1 spec
 
-Status: agreed in grill sessions with the owner on 2026-11-03 and 2026-11-04. The visual design of the first screens is finished: a prototype and a design system built in Claude Design (see Design below). The tech stack is not chosen yet.
+Status: agreed in grill sessions with the owner on 2026-11-03 and 2026-11-04. The visual design of the first screens is finished: a prototype and a design system built in Claude Design (see Design below). The tech stack is chosen in `docs/architecture.md`.
 
 ## Goal
 
@@ -45,13 +45,14 @@ The owner is also a user: they have many saved bookmarks to bring in and read.
 | Style | One more look setting, "Style": Library (default) plus 10 styles taken from refero.design (`docs/design/styles.md`). While a style is on, its fonts and accent replace the Font and Accent settings. | 2026-11-04 |
 | Themes | Light, Dark, Sepia and Match system. Match system follows the device; with no setting stored, the app draws Light. | 2026-11-03 |
 | Settings storage | All eleven look and view settings (Layout, Open items as, Theme and the eight Look settings) are stored together in the browser. Each Item's reading place is kept for the browser tab, so reopening an Item returns to where the owner stopped. The AI, Grok Bot and Obsidian settings are stored on the server. | 2026-11-04 |
-| Tech stack | Not part of this spec; chosen later. The two install targets in Install and deployment bind it. | 2026-11-04 |
+| Tech stack | TypeScript on Node 26 and Cloudflare Workers, Hono, SQLite with FTS5 through Drizzle (D1 on Cloudflare), a React single-page app, the AI SDK for HTTP Providers. `docs/architecture.md` holds every choice, its trade-off and its evidence. | 2026-11-04 |
 | Delete | The owner can delete an Item from the Reader, after a confirmation. Deleting removes the Item, its Digest, its stored images, its Highlights and its Note. Agents use `DELETE /api/items/:id`. | 2026-11-04 |
 | Share from phone | The app is an installable web app with a Web Share Target, so the Android Share menu sends a link straight into the same Paste as the paste box. | 2026-11-04 |
 | Highlights and Notes | In the Reader, the owner selects text in the post text or a Kept comment to keep it as a Highlight, and writes one free-text Note per Item. Highlights stay marked in the Reader. When a refresh changes the text so a Highlight no longer matches, the Highlight is kept and marked as no longer found in the Item. | 2026-11-04 |
 | Highlights page | A second page lists every Highlight and every Item Note, newest first, each with its Item's Source, title and date and a link back to that place in the Reader. Search and the Source, Topic and Tag filters work there too. | 2026-11-04 |
 | Design of new screens | Every screen the first design lacks is built from `design/system/` to match the existing screens: the Highlights page, the Highlight mark and menu, the Note box, the login, Topic pages, Related Items in the Reader, the Index, the Log, the Proposals page, Import, and the AI, Grok Bot and Obsidian settings. The owner approves each from screenshots in every theme before it lands. No Claude Design round. | 2026-11-04 |
 | Agent access | Besides the HTTP API, the app serves an MCP endpoint whose tools search Items, read one Item with its Digest, Highlights and Note, and add a link. Each tool runs the same code as the matching HTTP call. | 2026-11-04 |
+| Backup and restore | The export zip also holds every library record (everything except secrets, login data and work in flight), and a new Instance can restore from it after its setup code is entered, so the same zip backs up both install targets and moves a library between them (`docs/architecture.md`, Export, backup and restore). | 2026-11-04 |
 | Export | The owner downloads the library as a zip with one Markdown file per Item: front matter with Source, URL, author, dates, Topic, Tags and Read state, then the Summary, Key points, Highlights, Note, post text and Kept comments, with the Item's stored images beside it. | 2026-11-04 |
 | README | The README sells the project: a hero screenshot, a short recording of a Paste turning into a Digest, screenshots of the Reader, the Highlights page and a Topic page in several Styles, the two deploy routes as buttons, and a short feature list. An agent drafts its prose and the owner approves it. | 2026-11-04 |
 
@@ -134,10 +135,10 @@ The owner picks one Provider in the AI settings, and the screen shows only the f
 |---|---|---|---|
 | OpenRouter, by key or the Connect button | yes | yes | yes |
 | Anthropic, OpenAI or xAI API key | yes | yes | yes |
-| Any OpenAI-compatible URL (Ollama and others) | yes | yes | no |
+| Any OpenAI-compatible URL (Ollama and others) | yes | yes, at a public HTTPS address | no |
 | Workers AI | no | yes | maybe |
 | Claude Code, Codex or Grok CLI signed in on this server | yes, when the app finds the CLI | no | no |
-| Grok Bot (the owner's plan writes the Digest) | yes | yes | yes |
+| Grok Bot (the owner's plan runs every AI task: Digests, Topic overviews, Related Items, Proposals) | yes | yes | yes |
 | Sign in with ChatGPT | later | later | only after OpenAI approves it |
 
 - **CLIs:** the app never reads or stores a CLI's login; the owner signs in with the CLI's own command, and the AI settings show that command when the CLI is signed out. The CLI runs with its tools turned off in an empty folder, because every Digest call reads other people's posts.
@@ -163,6 +164,7 @@ C. Intake webhook
 - **Setup:** the owner connects Threadsift to Grok Bot once, with Threadsift's URL and a token. For C, they paste the webhook routine's URL and key into Threadsift's Grok Bot settings, which has a Test button that sends a harmless ping. The key stays on the server.
 - **The Threadsift bot:** a public Grok Bot template with skills that save links dropped in chat, search the library, run the X bookmark sync and answer Threadsift's webhook. Its setup skill walks the user through adding their Threadsift URL and token, because a template cannot carry a custom MCP server.
 - **What the API needs for it:** `POST /api/items` is idempotent by URL, accepts content and a Digest the caller already wrote, and returns the Item's URL so the bot can link it in chat; a batch call takes many Items with a cursor (the last bookmark id), so a routine sends only what is new.
+- **AI tasks:** when Grok Bot is the Provider, Threadsift also sends it each wiki task (a Topic overview, a Related Items pick, the weekly Proposals) through the same webhook, and the bot posts the result back; without Grok Bot, every task runs on the Provider the owner picked (decided 2026-11-04, `docs/architecture.md`, AI tasks and Providers).
 - **Speed:** an X link through the webhook takes seconds to tens of seconds longer than a direct fetch (Grok Bot's own estimate, not measured), because the bot has to wake and run.
 - **Later:** a listing in Grok Bot's plugin catalog, once the way a third party gets listed is known. That listing needs OAuth on the MCP endpoint.
 
@@ -171,16 +173,16 @@ Grok Bot's capabilities above come from asking the owner's Grok Bot on 2026-11-0
 ## Obsidian vault mirror
 
 - Each Item is one Markdown note in a folder of the owner's vault: front matter with Source, URL, author, dates, Topic, Tags and Read state, then the Summary, Key points, Highlights, Note, post text and Kept comments, with its images beside it. Related Items are wikilinks between notes, and Topic pages, the Index and the Log are notes too.
-- Threadsift writes the vault in one of two ways: it commits and pushes to the vault's Git repo, or it writes to a vault folder on the same machine. Every change to an Item updates its note.
+- Threadsift writes the vault in one of two ways: it commits to the vault's repository on GitHub through GitHub's API, on both install targets, or, in the container only, it writes to a vault folder on the same machine. Every change to an Item updates its note. Vault repositories on other Git hosts are not in the first release (decided 2026-11-04, `docs/architecture.md`, Vault mirror).
 - The mirror is one-way: the owner reads in Obsidian and edits Highlights and Notes in Threadsift. Readwise's Obsidian sync works the same way.
 
 ## Storage and search
 
-- Language, runtime, database and libraries are chosen later.
+- Language, runtime, database and libraries: `docs/architecture.md`.
 - Stored records: Items (Source, URL, author, dates, cleaned content), Kept comments, media, Digests, Topics, Tags, Topic pages, Related Items, Log entries, Proposals, Pins, Highlights, Notes, agent tokens and the server-side settings.
 - Full-text search over title, post text, Kept comments, Summary, Tags, Highlights and Notes.
 - The owner changes only Read state, Highlights and Notes, accepts or rejects Proposals, and can delete an Item; the agent sets everything else.
-- Backups of the stored records and images are not decided yet; they are settled with the other technical details.
+- Backups: the export zip with its record file, restored on a new Instance (Backup and restore decision above).
 
 ## Interfaces
 
@@ -194,10 +196,11 @@ Grok Bot's capabilities above come from asking the owner's Grok Bot on 2026-11-0
 | | Container (Podman or Docker) | Cloudflare deploy button |
 |---|---|---|
 | Storage | SQLite and a folder for images | D1 and R2 |
-| AI Providers | every row of AI providers marked for the container | API keys, OpenRouter, Workers AI, Grok Bot |
-| X fetching | grok CLI or Grok Bot webhook | Grok Bot webhook |
+| AI Providers | every row of AI providers marked for the container | API keys, OpenRouter, an OpenAI-compatible URL at a public HTTPS address, Workers AI, Grok Bot |
+| X fetching | grok CLI or Grok Bot webhook | Grok Bot webhook; without it, X links are Link-only Items |
 | Reddit | Extension, `.json` paste, Link-only Items, own adapter if added | Extension, `.json` paste, Link-only Items |
-| Cost to the self-hoster | their own server | likely Cloudflare's $5 a month Workers plan, because the free plan allows 10 ms of CPU per request (Cloudflare docs, read on 2026-11-04) |
+| Vault mirror | GitHub repository or a local vault folder | GitHub repository |
+| Cost to the self-hoster | their own server | Cloudflare's $5 a month Workers Paid plan; the reason is in `docs/architecture.md` (Cloudflare deploy button) |
 
 - One codebase serves both: the database, the file store, the job queue and the AI caller each have one adapter per target. EdgeEver and Open Managed Agents already ship one app on both.
 - The owner's own Instance runs in the container on the owner's home server, at a public HTTPS address with the owner login, so Grok Bot can reach it.

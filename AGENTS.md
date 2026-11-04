@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This repo holds Threadsift, a reading library: paste a link, an agent keeps the useful parts and grows a small wiki of the library, read everything on one page. The first screens are designed; the app is not built and the tech stack is not chosen.
+This repo holds Threadsift, a reading library: paste a link, an agent keeps the useful parts and grows a small wiki of the library, read everything on one page. The first screens are designed and the tech stack is chosen; the app is not built yet.
 
 ## Domain language: read before naming anything
 
@@ -13,6 +13,8 @@ Use these exact terms in code, docs and issues.
 | Need | Read |
 |---|---|
 | What v1 does, and the decisions behind it | `docs/spec.md` |
+| The tech stack, the module seams, the data model, the two install targets and the testing approach | `docs/architecture.md` |
+| Before writing, changing or deleting a test | `docs/testing.md` |
 | Any colour, size, spacing, font or setting value | `design/system/tokens.css`, the one source for every value; `design/system/settings.js` owns each setting's id, label, attribute and default |
 | How a screen behaves (reader bar fitting, comment folds, reading place, settings panel) | `design/prototype/`, served as the README shows |
 | Style blocks (the 10 Styles) | `design/prototype/tokens.css`; the design system predates them, so they still have to move into `design/system/tokens.css` |
