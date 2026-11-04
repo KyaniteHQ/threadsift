@@ -15,3 +15,8 @@ devenv.local.nix
 !.impeccable/live/config.json
 .impeccable/critique/*
 !.impeccable/critique/ignore.md
+dist/
+.wrangler/
+.data/
+playwright-report/
+test-results/

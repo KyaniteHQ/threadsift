@@ -25,6 +25,7 @@ export default defineConfig({
   ],
   rules: {
     "threadsift/no-comments": "error",
+    "react/react-in-jsx-scope": "off",
     "typescript/ban-ts-comment": [
       "error",
       {
@@ -48,8 +49,18 @@ export default defineConfig({
     "typescript/prefer-readonly-parameter-types": [
       "error",
       {
+        ignoreInferredTypes: true,
         allow: [
           { from: "package", name: ["Context", "ImportExpression"], package: "@oxlint/plugins" },
+          { from: "file", name: "Database" },
+          { from: "package", name: "ZodError", package: "zod" },
+          { from: "package", name: "DatabaseSync", package: "@types/node" },
+          { from: "lib", name: ["Request", "HTMLElement"] },
+          {
+            from: "package",
+            name: ["RefObject", "ChangeEvent", "SubmitEvent"],
+            package: "@types/react",
+          },
         ],
       },
     ],
@@ -75,6 +86,13 @@ export default defineConfig({
   overrides: [
     { files: ["*.config.ts", "tools/**"], env: { node: true } },
     {
+      files: ["e2e/**"],
+      rules: {
+        "eslint/no-await-in-loop": "off",
+        "typescript/prefer-readonly-parameter-types": "off",
+      },
+    },
+    {
       files: ["src/core/**", "src/http/**"],
       rules: {
         "threadsift/static-import-source": "error",
@@ -91,6 +109,35 @@ export default defineConfig({
                 regex: "(^|[/#@])targets(/|$)",
                 message:
                   "src/core/ and src/http/ never import an adapter; the target entry passes ports in through createApp(ports).",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      files: ["src/core/**", "src/http/**", "web/**"],
+      rules: {
+        "eslint/no-restricted-globals": [
+          "error",
+          ...["process", "Buffer", "global", "__dirname", "__filename", "require"].map((name) => ({
+            name,
+            message:
+              "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture.md, One codebase, two install targets).",
+          })),
+        ],
+      },
+    },
+    {
+      files: ["web/**"],
+      rules: {
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              {
+                regex: "^(node|cloudflare):",
+                message: "web/ runs in the browser, so it imports no runtime module.",
               },
             ],
           },
