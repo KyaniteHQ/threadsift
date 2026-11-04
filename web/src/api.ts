@@ -10,6 +10,7 @@ import type { NoticeKey } from "./text.ts";
 export interface SaveOutcome {
   readonly saved: boolean;
   readonly notice: NoticeKey | null;
+  readonly focus: "field" | "row";
 }
 
 export type SaveResult =

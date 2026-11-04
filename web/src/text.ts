@@ -4,6 +4,7 @@ export const PASTE_LABEL = "Paste a link to save";
 export const PASTE_PLACEHOLDER = "Paste a link";
 export const ADD_LABEL = "Add";
 export const SAVING_LABEL = "Saving…";
+export const SAVING_STATUS = "Saving link and fetching page title…";
 
 export const NOTICES = {
   empty: "Paste a link first.",
@@ -21,6 +22,22 @@ export const NOTICES = {
 } as const;
 
 export type NoticeKey = keyof typeof NOTICES;
+
+export const NOTICE_KINDS: Readonly<Record<NoticeKey, "input-error" | "save-note">> = {
+  empty: "input-error",
+  invalid: "input-error",
+  failed: "input-error",
+  private: "input-error",
+  timeout: "save-note",
+  refused: "save-note",
+  "redirect-limit": "save-note",
+  status: "save-note",
+  network: "save-note",
+  "no-title": "save-note",
+  unreadable: "save-note",
+};
+
+export const RETRYABLE_NOTICES: ReadonlySet<NoticeKey> = new Set(["timeout", "network"]);
 
 export const DISMISS_LABEL = "Dismiss";
 export const RETRY_LABEL = "Try again";

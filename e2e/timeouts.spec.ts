@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
-import { newRunId } from "./links.ts";
+import { newRunId, pasteStatus } from "./links.ts";
 
 const DEADLINE_MS = 8000;
 const OVERHEAD_MS = 5000;
@@ -10,6 +10,30 @@ const STALLS = [
   { url: "http://example.com:81/", shortestMs: 0 },
   { url: "https://httpbin.org/drip?duration=10&numbytes=10", shortestMs: DEADLINE_MS - 500 },
 ];
+
+async function expectSavingState(page: Page, saving: Locator, idleWidth: number) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      }),
+  );
+
+  await expect.soft(saving, "Add keeps focus while saving").toBeFocused({ timeout: 1_000 });
+  await expect
+    .soft(saving.locator("svg.spin"), "spinner before the label")
+    .toBeVisible({ timeout: 1_000 });
+  expect
+    .soft((await saving.boundingBox())?.width, "button width while saving")
+    .toBeCloseTo(idleWidth, 0);
+  await expect
+    .soft(pasteStatus(page), "saving announced")
+    .toHaveText("Saving link and fetching page title…", { timeout: 1_000 });
+}
 
 test("a host that never answers and a body that stalls each time out, while the paste box shows it is saving", async ({
   page,
@@ -27,12 +51,15 @@ test("a host that never answers and a body that stalls each time out, while the 
       (response) => response.url().endsWith("/api/items") && response.request().method() === "POST",
     );
 
+    const add = page.getByRole("button", { name: "Add" });
+    const idleWidth = (await add.boundingBox())?.width ?? 0;
     const started = Date.now();
-    await page.getByRole("button", { name: "Add" }).click();
+    await add.click();
 
-    await expect(page.getByRole("button", { name: "Saving…" })).toBeDisabled();
-    await expect(page.locator("form[aria-busy='true']")).toHaveCount(1);
+    const saving = page.getByRole("button", { name: "Saving…" });
+    await expect(saving).toBeDisabled();
     await expect(field).toHaveValue(url);
+    await expectSavingState(page, saving, idleWidth);
 
     const response = await answered;
     const elapsed = Date.now() - started;
@@ -44,7 +71,7 @@ test("a host that never answers and a body that stalls each time out, while the 
     expect(elapsed, url).toBeGreaterThanOrEqual(shortestMs);
     expect(elapsed, url).toBeLessThan(DEADLINE_MS + OVERHEAD_MS);
 
-    await expect(page.getByRole("alert")).toContainText("didn’t answer in time");
+    await expect(pasteStatus(page)).toContainText("didn’t answer in time");
     await expect(page.getByRole("button", { name: "Add" })).toBeEnabled();
     await expect(page.locator(`.it[data-key="${item.id}"] .it-open`)).toContainText(
       url.replace(/^https?:\/\//u, ""),

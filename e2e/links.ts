@@ -1,4 +1,4 @@
-import { type Page, expect } from "@playwright/test";
+import { type Locator, type Page, expect } from "@playwright/test";
 
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
@@ -52,4 +52,8 @@ export async function pasteLink(page: Page, url: string): Promise<void> {
   await expect(page.getByRole("textbox", { name: "Paste a link to save" })).toHaveValue("", {
     timeout: PASTE_TIMEOUT_MS,
   });
+}
+
+export function pasteStatus(page: Page): Locator {
+  return page.locator(".paste").getByRole("status");
 }

@@ -45,10 +45,16 @@ test("pages served with gzip and with Brotli get their titles", async ({ request
 
 const UTF8_TITLE = "Café ☕ Threadsift";
 
-function base64Page(run: string): string {
-  const html = `<!doctype html><html><head><title>${UTF8_TITLE} ${run}</title></head></html>`;
+function titledPage(title: string): string {
+  const html = `<!doctype html><html><head><title>${title}</title></head></html>`;
 
-  return `https://httpbin.org/base64/${Buffer.from(html).toString("base64url")}`;
+  const encoded = Buffer.from(html).toString("base64url");
+
+  return `https://httpbin.org/base64/${encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")}`;
+}
+
+function base64Page(run: string): string {
+  return titledPage(`${UTF8_TITLE} ${run}`);
 }
 
 test("a body is decoded as UTF-8, and an unknown charset label is no error", async ({
@@ -83,4 +89,63 @@ test("a second Paste fetches again: fetchedAt moves forward while the id and sav
   expect(first.body.item.fetchedAt).not.toBeNull();
   expect(second.body.item.fetchedAt).toBeGreaterThan(first.body.item.fetchedAt ?? 0);
   expect(second.body.item.title).toBe("Example Domain");
+});
+
+const ARABIC_TITLE = "مرحبا بالعالم";
+
+test("a title is read in its own direction, so an Arabic title and an English one each sit right", async ({
+  page,
+  request,
+}) => {
+  const run = newRunId();
+  const arabic = await postLink(request, titledPage(`${ARABIC_TITLE} ${run}`));
+  const english = await postLink(request, titledPage(`Hello world ${run}`));
+  await page.goto("/");
+
+  const directionOf = (id: number) =>
+    page.locator(`.it[data-key="${id}"] .it-open bdi`).evaluate((bdi) => ({
+      attribute: bdi.getAttribute("dir"),
+      used: getComputedStyle(bdi).direction,
+    }));
+
+  expect(await directionOf(arabic.body.item.id)).toEqual({ attribute: "auto", used: "rtl" });
+  expect(await directionOf(english.body.item.id)).toEqual({ attribute: "auto", used: "ltr" });
+});
+
+function normalised(family: string): string {
+  return family.replaceAll(/["'\s]/gu, "");
+}
+
+test("a link-only row shows its link in the mono face at meta size and muted ink, and a titled row does not", async ({
+  page,
+  request,
+}) => {
+  const run = newRunId();
+  const linkOnly = await postLink(request, `https://example.com/missing-${run}`);
+  const titled = await postLink(request, `https://example.com/?run=${run}`);
+  expect(linkOnly.body.item.title).toBeNull();
+  expect(titled.body.item.title).toBe("Example Domain");
+  await page.goto("/");
+
+  const looksOf = (id: number, selector: string) =>
+    page.locator(`.it[data-key="${id}"] ${selector}`).evaluate((element) => {
+      const { fontFamily, fontSize, color } = getComputedStyle(element);
+
+      return { fontFamily, fontSize, color };
+    });
+
+  const mono = await page
+    .locator(".app")
+    .evaluate((element) => getComputedStyle(element).getPropertyValue("--f-mono"));
+
+  const bare = await looksOf(linkOnly.body.item.id, ".it-open");
+  const meta = await looksOf(linkOnly.body.item.id, ".it-meta");
+  const full = await looksOf(titled.body.item.id, ".it-open");
+
+  expect(normalised(bare.fontFamily)).toBe(normalised(mono));
+  expect(bare.fontSize).toBe(meta.fontSize);
+  expect(bare.color).toBe(meta.color);
+  expect(normalised(full.fontFamily)).not.toBe(normalised(mono));
+  expect(full.fontSize).not.toBe(meta.fontSize);
+  expect(full.color).not.toBe(meta.color);
 });
