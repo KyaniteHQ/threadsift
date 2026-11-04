@@ -10,7 +10,20 @@ export const REFUSALS = {
   failed: "Couldn’t save this link.",
 } as const;
 
+export const DISMISS_LABEL = "Dismiss";
+export const RETRY_LABEL = "Try again";
+export const SORT_LABEL = "Newest saved first";
+export const NEW_TAB_LABEL = "opens in a new tab";
+export const LOADING_LABEL = "Loading saved links…";
+
 export const LOAD_FAILED = "Couldn’t load your saved links.";
+
+const COUNT_ONE = "1 link saved";
+const COUNT_MANY = "{count} links saved";
+
+export function countLabel(count: number): string {
+  return count === 1 ? COUNT_ONE : COUNT_MANY.replace("{count}", String(count));
+}
 
 export const EMPTY_LIST = {
   heading: "Nothing saved yet",

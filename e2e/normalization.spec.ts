@@ -58,25 +58,49 @@ test("x.com and twitter.com drop their share parameters but keep other hosts' s 
   expect(other.body.item.normalizedUrl).toBe(`https://example.com/${run}?s=1&t=2`);
 });
 
-test("each link shape gets its kind and Source", async ({ request }) => {
-  const run = newRunId();
-
-  const cases = [
-    [`https://www.reddit.com/r/typescript/comments/r${run}/title/`, "reddit-post", "reddit"],
+function linkCases(run: string) {
+  return [
+    [
+      `https://www.reddit.com/r/typescript/comments/r${run}/title/`,
+      "reddit-post",
+      "reddit",
+      "r/typescript",
+    ],
     [
       `https://www.reddit.com/r/typescript/comments/r${run}/title/k9xyz12/`,
       "reddit-comment",
       "reddit",
+      "r/typescript",
     ],
-    [`https://www.reddit.com/r/typescript/?run=${run}`, "link", "other"],
-    [`https://x.com/someone/status/${run}1`, "x-post", "x"],
-    [`https://twitter.com/someone/status/${run}2`, "x-post", "x"],
-    [`https://x.com/someone?run=${run}`, "link", "other"],
-    [`https://github.com/KyaniteHQ/repo-${run}`, "github-repo", "github"],
-    [`https://github.com/KyaniteHQ/repo-${run}/pull/9`, "github-repo", "github"],
-    [`https://github.com/topics/typescript?run=${run}`, "link", "other"],
-    [`https://blog.example.com/${run}/an-article`, "link", "other"],
+    [
+      `https://www.reddit.com/user/someone/comments/r${run}/title/`,
+      "reddit-post",
+      "reddit",
+      "u/someone",
+    ],
+    [`https://www.reddit.com/r/typescript/?run=${run}`, "link", "other", "reddit.com"],
+    [`https://x.com/someone/status/${run}1`, "x-post", "x", "@someone"],
+    [`https://twitter.com/someone/status/${run}2`, "x-post", "x", "@someone"],
+    [`https://x.com/someone?run=${run}`, "link", "other", "x.com"],
+    [`https://github.com/KyaniteHQ/repo-${run}`, "github-repo", "github", `KyaniteHQ/repo-${run}`],
+    [
+      `https://github.com/KyaniteHQ/repo-${run}/pull/9`,
+      "github-repo",
+      "github",
+      `KyaniteHQ/repo-${run}`,
+    ],
+    [`https://github.com/topics/typescript?run=${run}`, "link", "other", "github.com"],
+    [`https://blog.example.com/${run}/an-article`, "link", "other", "blog.example.com"],
   ] as const;
+}
+
+test("each link shape gets its kind and Source, and its row says where it is from", async ({
+  page,
+  request,
+}) => {
+  const run = newRunId();
+
+  const cases = linkCases(run);
 
   const saved = [];
 
@@ -88,4 +112,11 @@ test("each link shape gets its kind and Source", async ({ request }) => {
     cases.map(([, kind, source]) => [kind, source]),
   );
   expect((await listAll(request)).length).toBeGreaterThanOrEqual(cases.length);
+
+  await page.goto("/");
+
+  for (const [index, item] of saved.entries()) {
+    const meta = page.locator(`.it[data-key="${item.id}"] .it-meta > span`);
+    await expect(meta.nth(1)).toHaveText(cases[index]?.[3] ?? "");
+  }
 });

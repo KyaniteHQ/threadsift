@@ -1,36 +1,30 @@
-import { type ChangeEvent, type SubmitEvent, useCallback, useState } from "react";
+import { type ChangeEvent, type SubmitEvent, useCallback, useId, useRef, useState } from "react";
 
 import type { SaveOutcome } from "./api.ts";
 import { Icon } from "./Icon.tsx";
-import { ADD_LABEL, PASTE_LABEL, PASTE_PLACEHOLDER, REFUSALS } from "./text.ts";
+import { ADD_LABEL, DISMISS_LABEL, PASTE_LABEL, PASTE_PLACEHOLDER, REFUSALS } from "./text.ts";
 
 type Notice = keyof typeof REFUSALS | null;
 
 type Save = (url: string) => Promise<SaveOutcome>;
 
-function usePaste(save: Save) {
-  const [value, setValue] = useState("");
-  const [notice, setNotice] = useState<Notice>(null);
+const NOTICE_OF: Readonly<Record<SaveOutcome | "failed", Notice>> = {
+  saved: null,
+  refused: "invalid",
+  failed: "failed",
+};
+
+function useSaving(save: Save) {
   const [saving, setSaving] = useState(false);
 
-  const change = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setValue(event.target.value);
-    setNotice(null);
-  }, []);
-
-  const saveValue = useCallback(
-    async (url: string) => {
+  const attempt = useCallback(
+    async (url: string): Promise<SaveOutcome | "failed"> => {
       setSaving(true);
 
       try {
-        const outcome = await save(url);
-        setNotice(outcome === "saved" ? null : "invalid");
-
-        if (outcome === "saved") {
-          setValue("");
-        }
+        return await save(url);
       } catch {
-        setNotice("failed");
+        return "failed";
       } finally {
         setSaving(false);
       }
@@ -38,38 +32,77 @@ function usePaste(save: Save) {
     [save],
   );
 
+  return { saving, attempt };
+}
+
+function usePaste(save: Save) {
+  const [value, setValue] = useState("");
+  const [notice, setNotice] = useState<Notice>(null);
+  const field = useRef<HTMLInputElement>(null);
+  const { saving, attempt } = useSaving(save);
+
+  const focusField = useCallback(() => {
+    field.current?.focus();
+  }, []);
+
+  const change = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setValue(event.target.value);
+    setNotice(null);
+  }, []);
+
+  const dismiss = useCallback(() => {
+    setNotice(null);
+    focusField();
+  }, [focusField]);
+
+  const saveValue = useCallback(
+    async (url: string) => {
+      const outcome = url === "" ? "empty" : await attempt(url);
+
+      if (outcome === "saved") {
+        setValue("");
+      }
+
+      setNotice(outcome === "empty" ? "empty" : NOTICE_OF[outcome]);
+      focusField();
+    },
+    [attempt, focusField],
+  );
+
   const submit = useCallback(
     (event: SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
-      const url = value.trim();
-
-      if (url === "") {
-        setNotice("empty");
-
-        return;
-      }
-
-      void saveValue(url);
+      void saveValue(value.trim());
     },
     [saveValue, value],
   );
 
-  return { value, notice, saving, change, submit };
+  return { field, value, notice, saving, change, dismiss, submit };
 }
 
-function PasteNotice({ notice }: Readonly<{ notice: keyof typeof REFUSALS }>) {
+function PasteNotice({
+  id,
+  notice,
+  dismiss,
+}: Readonly<{ id: string; notice: keyof typeof REFUSALS; dismiss: () => void }>) {
   return (
-    <div className="ps" role="alert">
+    <div id={id} className="ps" role="alert">
       <p className="ps-head">
         <Icon name="warn" className="ic tone-warn" />
         <span className="ps-title">{REFUSALS[notice]}</span>
       </p>
+      <div className="ps-acts">
+        <button type="button" className="btn btn-plain" onClick={dismiss}>
+          {DISMISS_LABEL}
+        </button>
+      </div>
     </div>
   );
 }
 
 export function PasteBox({ save }: Readonly<{ save: Save }>) {
-  const { value, notice, saving, change, submit } = usePaste(save);
+  const { field, value, notice, saving, change, dismiss, submit } = usePaste(save);
+  const noticeId = useId();
 
   return (
     <div className="paste">
@@ -78,6 +111,7 @@ export function PasteBox({ save }: Readonly<{ save: Save }>) {
           <span className="vh">{PASTE_LABEL}</span>
           <Icon name="link" className="ic" />
           <input
+            ref={field}
             type="text"
             inputMode="url"
             enterKeyHint="go"
@@ -85,6 +119,8 @@ export function PasteBox({ save }: Readonly<{ save: Save }>) {
             spellCheck={false}
             placeholder={PASTE_PLACEHOLDER}
             value={value}
+            aria-invalid={notice === null ? undefined : true}
+            aria-describedby={notice === null ? undefined : noticeId}
             onChange={change}
           />
         </label>
@@ -92,7 +128,7 @@ export function PasteBox({ save }: Readonly<{ save: Save }>) {
           {ADD_LABEL}
         </button>
       </form>
-      {notice === null ? null : <PasteNotice notice={notice} />}
+      {notice === null ? null : <PasteNotice id={noticeId} notice={notice} dismiss={dismiss} />}
     </div>
   );
 }

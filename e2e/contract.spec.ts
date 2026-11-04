@@ -28,3 +28,31 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   expect(JSON.stringify(items.post.responses["201"])).toContain('"item"');
   expect(JSON.stringify(items.get.responses["200"])).toContain('"items"');
 });
+
+test("a path with a file extension that matches no file is a 404 and a page path is the page", async ({
+  request,
+}) => {
+  for (const path of ["/favicon.ico", "/assets/missing.js", "/robots.txt"]) {
+    expect((await request.get(path)).status(), path).toBe(404);
+  }
+
+  for (const path of ["/", "/items/1", "/anything/else"]) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBe(200);
+    expect(response.headers()["content-type"], path).toContain("text/html");
+  }
+});
+
+test("hashed assets are cached for good and the page is always revalidated", async ({
+  request,
+}) => {
+  const page = await request.get("/");
+  const asset = /\/assets\/[^"]+\.js/u.exec(await page.text())?.[0] ?? "";
+  expect(asset).not.toBe("");
+
+  expect(page.headers()["cache-control"]).toBe("no-cache");
+  expect((await request.get("/items/1")).headers()["cache-control"]).toBe("no-cache");
+  expect((await request.get(asset)).headers()["cache-control"]).toBe(
+    "public, max-age=31536000, immutable",
+  );
+});

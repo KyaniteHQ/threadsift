@@ -5,6 +5,7 @@ export function collectViolations(): string[] {
   const FLOOR = 12;
   const TARGET = 44;
   const found: string[] = [];
+  const px = (value: string): number => Number(value.replace(/px$/u, ""));
   const canvas = document.createElement("canvas");
   canvas.width = 1;
   canvas.height = 1;
@@ -90,7 +91,7 @@ export function collectViolations(): string[] {
       const style = getComputedStyle(element);
       checkRatio(`text ${name(element)}`, rgba(style.color), backdrop(element), TEXT);
 
-      if (Number(style.fontSize) < FLOOR) {
+      if (px(style.fontSize) < FLOOR) {
         found.push(`text ${name(element)}: ${style.fontSize} is under ${FLOOR}px`);
       }
     }
@@ -107,7 +108,7 @@ export function collectViolations(): string[] {
     checkRatio("field border against the field", border, backdrop(field), MARK);
   }
 
-  for (const button of document.querySelectorAll(".app .btn")) {
+  for (const button of document.querySelectorAll(".app .btn:not(.btn-plain)")) {
     const style = getComputedStyle(button);
 
     const edge = rgba(
@@ -124,6 +125,39 @@ export function collectViolations(): string[] {
   for (const row of document.querySelectorAll(".app .it.open")) {
     const bar = rgba(getComputedStyle(row).getPropertyValue("--acc"));
     checkRatio("open row bar against its tint", bar, backdrop(row), MARK);
+  }
+
+  for (const row of document.querySelectorAll(".app .it:has(.it-open:focus-visible)")) {
+    const style = getComputedStyle(row);
+    const reach = px(style.outlineWidth) + px(style.outlineOffset);
+    let pane = row.parentElement;
+
+    while (pane !== null && !["auto", "scroll"].includes(getComputedStyle(pane).overflowY)) {
+      pane = pane.parentElement;
+    }
+
+    const box = row.getBoundingClientRect();
+    const bounds = (pane ?? document.documentElement).getBoundingClientRect();
+
+    if (style.outlineStyle === "none") {
+      found.push(`focus ring: ${name(row)} draws none`);
+    } else if (
+      box.left - reach < bounds.left ||
+      box.right + reach > bounds.right ||
+      box.top - reach < bounds.top
+    ) {
+      found.push(`focus ring: ${name(row)} reaches outside its scrolling pane, which clips it`);
+    }
+  }
+
+  const canvasColor = getComputedStyle(document.documentElement).backgroundColor;
+
+  const appColor = getComputedStyle(
+    document.querySelector(".app") ?? document.body,
+  ).backgroundColor;
+
+  if (canvasColor !== appColor) {
+    found.push(`page canvas ${canvasColor} differs from the app background ${appColor}`);
   }
 
   if (innerWidth < 480) {

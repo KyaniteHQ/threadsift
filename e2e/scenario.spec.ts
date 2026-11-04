@@ -15,10 +15,10 @@ const REFUSED_BODIES = [
 ];
 
 function listedRows(page: Page, count: number) {
-  return page.locator(".it").evaluateAll(
+  return page.locator("article.it").evaluateAll(
     (rows, limit) =>
       rows.slice(0, limit).map((row) => ({
-        link: row.querySelector(".it-open")?.textContent ?? "",
+        link: row.querySelector(".it-open")?.firstChild?.textContent ?? "",
         source: row.querySelector(".src")?.textContent ?? "",
         date: row.querySelector(".it-date")?.textContent ?? "",
       })),
@@ -32,7 +32,7 @@ async function expectListMatches(
   request: Parameters<typeof listForRun>[0],
 ) {
   const items = await listForRun(request, run);
-  await expect(page.locator(".it").nth(items.length - 1)).toBeVisible();
+  await expect(page.locator("article.it").nth(items.length - 1)).toBeVisible();
   const rows = await listedRows(page, items.length);
   expect(rows.map((row) => row.link)).toEqual(
     items.map((item) => item.normalizedUrl.replace(/^https?:\/\//u, "")),

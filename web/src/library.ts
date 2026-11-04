@@ -26,6 +26,11 @@ export function useLibrary() {
     void load();
   }, [load]);
 
+  const retry = useCallback(() => {
+    setList({ status: "loading" });
+    void load();
+  }, [load]);
+
   const save = useCallback(
     async (url: string): Promise<SaveOutcome> => {
       const outcome = await saveLink(url);
@@ -39,5 +44,5 @@ export function useLibrary() {
     [load],
   );
 
-  return { list, save };
+  return { list, save, retry };
 }

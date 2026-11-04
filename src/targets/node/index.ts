@@ -1,12 +1,14 @@
 import { mkdirSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
+import { compress } from "hono/compress";
 import { z } from "zod";
 
 import { createApp } from "../../http/app.ts";
+import { isDocumentPath } from "../../http/document-path.ts";
 import { openDatabase } from "./database.ts";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
@@ -27,13 +29,40 @@ const database = openDatabase(
 
 const webRoot = relative(process.cwd(), join(repositoryRoot, "dist", "web"));
 
+const IMMUTABLE = "public, max-age=31536000, immutable";
+const REVALIDATE = "no-cache";
+const hashedAssetsDir = join(webRoot, "assets") + sep;
+
+function cacheControlOf(path: string): string {
+  return path.startsWith(hashedAssetsDir) ? IMMUTABLE : REVALIDATE;
+}
+
+const files = serveStatic({
+  root: webRoot,
+  onFound: (path, context) => {
+    context.header("Cache-Control", cacheControlOf(path));
+  },
+});
+
+const document = serveStatic({
+  root: webRoot,
+  path: "index.html",
+  onFound: (path, context) => {
+    context.header("Cache-Control", cacheControlOf(path));
+  },
+});
+
 const app = new Hono();
+
+app.use("*", compress());
 
 app.route("/", createApp({ db: database.db }));
 
-app.use("*", serveStatic({ root: webRoot }));
+app.use("*", files);
 
-app.get("*", serveStatic({ root: webRoot, path: "index.html" }));
+app.get("*", (context, next) =>
+  isDocumentPath(context.req.path) ? document(context, next) : next(),
+);
 
 const server = serve({ fetch: app.fetch, port: env.PORT });
 
