@@ -86,7 +86,7 @@ export function ItemRow({
           rel="noreferrer"
           aria-current={isOpen ? "true" : undefined}
         >
-          <BreakableLink text={withoutScheme(item.normalizedUrl)} />
+          {item.title ?? <BreakableLink text={withoutScheme(item.normalizedUrl)} />}
           <span className="vh">{` ${NEW_TAB_LABEL}`}</span>
         </a>
       </h2>

@@ -53,17 +53,17 @@ export function App() {
     async (url: string): Promise<SaveOutcome> => {
       const result = await save(url);
 
-      if (result.outcome === "refused") {
-        return "refused";
+      if (result.outcome !== "saved") {
+        return { saved: false, notice: result.outcome };
       }
 
-      if (result.outcome === "known") {
+      if (result.known) {
         attend({ id: result.item.id });
       } else if (listPane.current !== null) {
         scrollToTop(listPane.current);
       }
 
-      return "saved";
+      return { saved: true, notice: result.fetch === "ok" ? null : result.fetch };
     },
     [attend, save],
   );

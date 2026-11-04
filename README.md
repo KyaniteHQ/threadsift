@@ -4,7 +4,7 @@ Threadsift is a reading library. You paste a link to something you saved (a Redd
 
 ## Status
 
-The build has started: the paste box saves and lists pasted links on both install targets (container image and local Cloudflare Worker). Pages are not fetched yet and there is no agent, reader, login or release, so do not deploy it; issue #1 tracks progress.
+The build has started: the paste box saves and lists pasted links on both install targets (container image and local Cloudflare Worker). A pasted link gets its title (Reddit through oEmbed, other pages from their `<title>`), but there is no agent, reader, login or release, so do not deploy it; issue #1 tracks progress.
 
 - `docs/spec.md`: what v1 does.
 - `docs/architecture.md`: what it is built with and where each part runs.

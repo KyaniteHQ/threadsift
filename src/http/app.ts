@@ -27,9 +27,18 @@ const saveItemRoute = createRoute({
     },
   },
   responses: {
-    201: jsonBody(SavedItemResponseSchema, "The link was new and is now an Item."),
-    200: jsonBody(SavedItemResponseSchema, "An Item with the same normalized URL already existed."),
-    400: jsonBody(ErrorResponseSchema, "The body is not an absolute http or https URL."),
+    201: jsonBody(
+      SavedItemResponseSchema,
+      "The link was new and is now an Item. `fetch` says whether its title was fetched.",
+    ),
+    200: jsonBody(
+      SavedItemResponseSchema,
+      "An Item with the same normalized URL already existed and was fetched again.",
+    ),
+    400: jsonBody(
+      ErrorResponseSchema,
+      "The body is not an absolute http or https URL, or its host is not globally reachable.",
+    ),
   },
 });
 
@@ -43,6 +52,8 @@ const listItemsRoute = createRoute({
     },
   },
 });
+
+const REFUSED_HOST = "url: the host is not globally reachable";
 
 function reasonOf(error: ZodError): string {
   return error.issues
@@ -58,9 +69,16 @@ export function createApp(ports: Ports): OpenAPIHono {
 
   app.openapi(saveItemRoute, async (c) => {
     const { url } = c.req.valid("json");
-    const { item, created } = await saveItem(ports.db, url);
+    const saved = await saveItem(ports, url);
 
-    return c.json({ item, url: itemPath(item.id) }, created ? 201 : 200);
+    if (saved.kind === "refused") {
+      return c.json({ error: REFUSED_HOST, fetch: "refused" }, 400);
+    }
+
+    return c.json(
+      { item: saved.item, url: itemPath(saved.item.id), fetch: saved.fetch },
+      saved.created ? 201 : 200,
+    );
   });
 
   app.openapi(listItemsRoute, async (c) => c.json({ items: await listItems(ports.db) }, 200));

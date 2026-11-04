@@ -21,3 +21,15 @@ export async function restartTarget(baseUrl: string): Promise<void> {
     expect(response.status).toBe(200);
   }).toPass({ timeout: RESTART_TIMEOUT_MS });
 }
+
+export function isContainerTarget(): boolean {
+  return process.env["THREADSIFT_TARGET"] === "container";
+}
+
+export function nodeInAppNetwork(): { command: string; args: string[] } {
+  const words = (process.env["THREADSIFT_APP_EXEC"] ?? "").split(" ").filter((word) => word !== "");
+
+  return words.length === 0
+    ? { command: "node", args: [] }
+    : { command: words[0] ?? "", args: [...words.slice(1), "node"] };
+}

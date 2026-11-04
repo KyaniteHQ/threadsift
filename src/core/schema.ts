@@ -12,6 +12,9 @@ export const items = sqliteTable(
     originalUrl: text("original_url").notNull(),
     savedAt: integer("saved_at").notNull(),
     title: text("title"),
+    author: text("author"),
+    community: text("community"),
+    fetchedAt: integer("fetched_at"),
   },
   (table) => [index("items_saved_at_id").on(table.savedAt, table.id)],
 );

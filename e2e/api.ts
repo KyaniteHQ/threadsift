@@ -2,8 +2,10 @@ import type { APIRequestContext } from "@playwright/test";
 import { z } from "zod";
 
 import { ItemListResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
 export async function postLink(request: APIRequestContext, url: string) {
+  await waitForRedditTurnIfNeeded(url);
   const response = await request.post("/api/items", { data: { url } });
 
   return { status: response.status(), body: SavedItemResponseSchema.parse(await response.json()) };

@@ -35,7 +35,7 @@ export function useLibrary() {
     async (url: string): Promise<SaveResult> => {
       const result = await saveLink(url);
 
-      if (result.outcome !== "refused") {
+      if (result.outcome === "saved") {
         await load();
       }
 

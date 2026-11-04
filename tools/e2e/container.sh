@@ -18,6 +18,8 @@ podman run --detach --name "$name" --publish "127.0.0.1:$port:8080" --volume "$v
 
 export THREADSIFT_BASE_URL="http://127.0.0.1:$port"
 export THREADSIFT_RESTART="podman restart $name"
+export THREADSIFT_TARGET=container
+export THREADSIFT_APP_EXEC="podman exec -i $name"
 
 for _ in $(seq 1 60); do
   curl --silent --fail "$THREADSIFT_BASE_URL/api/items" >/dev/null && break

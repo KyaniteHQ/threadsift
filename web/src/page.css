@@ -39,6 +39,7 @@ html {
 .it-title {
   display: -webkit-box;
   overflow: hidden;
+  overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }

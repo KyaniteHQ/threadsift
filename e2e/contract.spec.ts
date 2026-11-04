@@ -27,6 +27,13 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   expect(JSON.stringify(items.post.requestBody)).toContain('"url"');
   expect(JSON.stringify(items.post.responses["201"])).toContain('"item"');
   expect(JSON.stringify(items.get.responses["200"])).toContain('"items"');
+
+  for (const field of ["title", "author", "community", "fetchedAt"]) {
+    expect(JSON.stringify(items.get.responses["200"]), field).toContain(`"${field}"`);
+    expect(JSON.stringify(items.post.responses["201"]), field).toContain(`"${field}"`);
+  }
+
+  expect(JSON.stringify(items.post.responses["201"])).toContain('"fetch"');
 });
 
 test("a path with a file extension that matches no file is a 404 and a page path is the page", async ({

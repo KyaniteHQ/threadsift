@@ -1,5 +1,9 @@
 import { type Page, expect } from "@playwright/test";
 
+import { waitForRedditTurnIfNeeded } from "./reddit.ts";
+
+const PASTE_TIMEOUT_MS = 20_000;
+
 export function newRunId(): string {
   return String(Date.now());
 }
@@ -27,8 +31,8 @@ export function scenarioUrls(run: string): string[] {
   const long = `${"segment-".repeat(30)}end`;
 
   return [
-    `https://reddit.com/r/typescript/comments/r${run}/a_post_title/`,
-    `https://old.reddit.com/r/typescript/comments/r${run}/a_post_title/k9xyz12/`,
+    `https://reddit.com/r/all/comments/r${run}/`,
+    `https://reddit.com/r/all/comments/r${run}/_/k9xyz12/`,
     `https://x.com/someone/status/${run}1`,
     `https://twitter.com/someone/status/${run}2`,
     `https://github.com/KyaniteHQ/repo-${run}`,
@@ -42,7 +46,10 @@ export function scenarioUrls(run: string): string[] {
 }
 
 export async function pasteLink(page: Page, url: string): Promise<void> {
+  await waitForRedditTurnIfNeeded(url);
   await page.getByRole("textbox", { name: "Paste a link to save" }).fill(url);
   await page.getByRole("button", { name: "Add" }).click();
-  await expect(page.getByRole("textbox", { name: "Paste a link to save" })).toHaveValue("");
+  await expect(page.getByRole("textbox", { name: "Paste a link to save" })).toHaveValue("", {
+    timeout: PASTE_TIMEOUT_MS,
+  });
 }

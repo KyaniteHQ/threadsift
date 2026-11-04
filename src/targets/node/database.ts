@@ -1,5 +1,5 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import type { RemoteCallback } from "drizzle-orm/sqlite-proxy";
@@ -70,6 +70,7 @@ function proxyTo(sqlite: DatabaseSync): RemoteCallback {
 }
 
 export function openDatabase(file: string, migrationsDir: string): OpenDatabase {
+  mkdirSync(dirname(file), { recursive: true });
   const sqlite = new DatabaseSync(file);
   applyMigrations(sqlite, migrationsDir);
 

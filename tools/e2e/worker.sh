@@ -59,5 +59,6 @@ start "$state" "$port" "$inspector"
 
 export THREADSIFT_BASE_URL="http://127.0.0.1:$port"
 export THREADSIFT_RESTART="bash $PWD/tools/e2e/worker.sh restart $state $port $inspector"
+export THREADSIFT_TARGET=worker
 
 pnpm exec playwright test "$@"

@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 
 import { createApp } from "../../http/app.ts";
 import { isApiPath, isDocumentPath } from "../../http/document-path.ts";
+import { workerNetwork } from "./network.ts";
 
 interface Env {
   readonly DB: Parameters<typeof drizzle>[0];
@@ -11,7 +12,7 @@ interface Env {
 let app: ReturnType<typeof createApp> | undefined;
 
 function apiApp(env: Env): ReturnType<typeof createApp> {
-  app ??= createApp({ db: drizzle(env.DB) });
+  app ??= createApp({ db: drizzle(env.DB), network: workerNetwork });
 
   return app;
 }

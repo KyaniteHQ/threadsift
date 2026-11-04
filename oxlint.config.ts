@@ -54,8 +54,22 @@ export default defineConfig({
           { from: "package", name: ["Context", "ImportExpression"], package: "@oxlint/plugins" },
           { from: "file", name: "Database" },
           { from: "package", name: "ZodError", package: "zod" },
-          { from: "package", name: "DatabaseSync", package: "@types/node" },
-          { from: "lib", name: ["Request", "HTMLElement"] },
+          {
+            from: "package",
+            name: ["DatabaseSync", "IncomingMessage", "ErrnoException"],
+            package: "@types/node",
+          },
+          {
+            from: "lib",
+            name: [
+              "Request",
+              "HTMLElement",
+              "AbortSignal",
+              "URL",
+              "ReadableStream",
+              "AsyncIterable",
+            ],
+          },
           {
             from: "package",
             name: ["RefObject", "ChangeEvent", "SubmitEvent"],
