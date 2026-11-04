@@ -1,6 +1,6 @@
-# Implementing
+# Changing code
 
-Rules for every agent that writes or changes code, config or scripts here. The `implementer` agent (`.claude/agents/implementer.md`) runs them; a session that edits code directly follows them too.
+Rules for every agent that writes or changes code, config, scripts, docs, commit messages or PR bodies here. The `implementer` agent (`.claude/agents/implementer.md`) runs them; a session that edits code directly follows them too.
 
 ## Official sources first
 
@@ -45,7 +45,12 @@ Every text a user reads is written by `tools/copy/write-copy.sh`, never by hand:
 ## Code
 
 - Load the `ub-mode` skill before writing code. Where it differs from this page or from `docs/testing.md`, they win: its TDD, Crapper and Mutator sections give way to `docs/testing.md`, and its Commit and Push section gives way to the caller's branch and review flow.
+- For TypeScript, follow the `typescript-best-practices` skill (`.claude/skills/typescript-best-practices/`): discriminated unions, branded types, schemas before hand-written guards, exhaustive switches.
 - Outside data is parsed with Zod where it enters. `as` assertions fail lint (`typescript/consistent-type-assertions`); `as const` is allowed.
+
+## Docs, commit messages and PR bodies
+
+Write them by the `technical-writing` skill (`.claude/skills/technical-writing/`). A doc points at the code and never restates or copies it: it names the file, symbol or command, and holds only what the code cannot show, such as the reason for a choice, a constraint, a measured fact with its command, or a procedure.
 
 ## Tests
 
@@ -63,4 +68,4 @@ Every text a user reads is written by `tools/copy/write-copy.sh`, never by hand:
 3. Judge every comment the diff adds with `.claude/agents/comment-sicko.md`, and act on each verdict.
 4. Prove the change the way its caller meets it, and keep the command and its output as the artifact. A change to what the app does gets the end-to-end proof `docs/testing.md` asks for. A change to tooling, config or scripts gets a run of that tool as its caller runs it, such as the edit hook fed a sample payload, a commit through the git hooks, or `devenv test`.
 
-Done when all four pass on the final version of every changed file. `docs/agents/review.md` says what happens next.
+Done when all four pass on the final version of every changed file. `docs/agents/reviewing-code.md` says what happens next.

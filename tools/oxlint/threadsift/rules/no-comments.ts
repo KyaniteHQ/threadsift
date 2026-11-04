@@ -57,7 +57,7 @@ export const noCommentsRule = defineRule({
     type: "suggestion",
     docs: {
       description:
-        "Disallow prose comments; names, types and structure carry the meaning (docs/agents/implementing.md, No comments).",
+        "Disallow prose comments; names, types and structure carry the meaning (docs/agents/changing-code.md, No comments).",
     },
     messages: {
       comment:

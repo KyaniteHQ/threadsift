@@ -1,4 +1,4 @@
-# Review
+# Reviewing code
 
 Each implemented change gets one review from an agent that did not write it: the main session on Claude Opus, or gpt-6.1-sol at medium effort. The review runs on the owner's machine, never in CI, because OpenAI's CI guide rules out the ChatGPT plan in a public repository (`docs/architecture.md`, Testing).
 
@@ -12,7 +12,7 @@ Each implemented change gets one review from an agent that did not write it: the
    6. Logic sits in the module that owns its concept and calls the helper that already exists.
    7. Independent work runs in parallel, and a multi-step update cannot stop half applied.
 3. Judge every comment the diff adds. Claude Code runs the `no-comments` skill (`.claude/skills/no-comments/`); Codex follows `.claude/agents/comment-sicko.md` itself.
-4. Check the diff against `docs/agents/implementing.md` and `docs/testing.md`: every source cited, each new or changed module deep and each port backed by two production adapters (the `codebase-design` skill, `.claude/skills/codebase-design/`), every new text a user reads printed by `tools/copy/write-copy.sh`, with its brief and output quoted in the commit message, each suppression justified, each test allowed by `docs/testing.md`, and the Finish artifact present and run on the final files.
+4. Check the diff against `docs/agents/changing-code.md` and `docs/testing.md`: every source cited, each new or changed module deep and each port backed by two production adapters (the `codebase-design` skill, `.claude/skills/codebase-design/`), TypeScript that follows the `typescript-best-practices` skill (`.claude/skills/typescript-best-practices/`), docs, commit message and PR body that follow the `technical-writing` skill (`.claude/skills/technical-writing/`) with no restated or copied code, every new text a user reads printed by `tools/copy/write-copy.sh`, with its brief and output quoted in the commit message, each suppression justified, each test allowed by `docs/testing.md`, and the Finish artifact present and run on the final files.
 5. Fix every finding, low ones included, then check the fixes with `git range-diff`. Fixes after review get no second review agent.
 
 Done when every finding is fixed or named in the landing report with the rule that keeps it.

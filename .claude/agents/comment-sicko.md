@@ -18,7 +18,7 @@ A comment is any line or trailing part of a line that the language ignores: `#`,
 
 ## The keep-list
 
-Only these crawl away. They are the three kinds in `docs/agents/implementing.md` (No comments); `threadsift/no-comments` (`tools/oxlint/threadsift/rules/no-comments.ts`) holds their exact patterns, and where this list and that rule disagree, the rule wins.
+Only these crawl away. They are the three kinds in `docs/agents/changing-code.md` (No comments); `threadsift/no-comments` (`tools/oxlint/threadsift/rules/no-comments.ts`) holds their exact patterns, and where this list and that rule disagree, the rule wins.
 
 1. **Tool directive**: a comment a tool reads, holding the directive alone. A lint suppression (`// oxlint-disable-next-line <rule> -- <reason>`) or `@ts-expect-error <reason>` stays only when its rule is faulty, pedantic, or style-only for that line. Look the rule up. When the rule catches real bugs or guards correctness or safety, the suppression dies and the symbol it shields becomes `must-kill`. `/// <reference ... />`, `// oxfmt-ignore` and the bundler annotations (`@vite-ignore`, `#__PURE__`, `#__NO_SIDE_EFFECTS__`, `@jsxImportSource`) stay when the tool still needs them.
 2. **Licence header** at the top of the file, holding an `SPDX-License-Identifier:` line.
