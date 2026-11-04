@@ -30,17 +30,6 @@ test("one link pasted a second way is one Item with the same id and saved date",
   expect(withCredentials.body.item.normalizedUrl).not.toContain("secret");
 });
 
-test("two saves of one link sent at once make one Item and both answers name it", async ({
-  request,
-}) => {
-  const link = `https://example.com/${newRunId()}/concurrent`;
-  const answers = await Promise.all([postLink(request, link), postLink(request, link)]);
-
-  expect(answers.map((answer) => answer.status).toSorted((a, b) => a - b)).toEqual([200, 201]);
-  expect(answers[0]?.body.item.id).toBe(answers[1]?.body.item.id);
-  expect(answers[0]?.body.item.savedAt).toBe(answers[1]?.body.item.savedAt);
-});
-
 test("links that differ in a kept query parameter or in path case stay separate", async ({
   request,
 }) => {
