@@ -1,8 +1,6 @@
-# commonplace
+# Threadsift
 
-Library is a personal reading library. You paste a link to something you saved (a Reddit post or comment, an X post, a GitHub repo, an article), the app fetches it, an agent keeps only the useful comments and writes a topic, tags, a two-line summary and key points, and everything reads, searches and filters on one page.
-
-The name comes from the commonplace book, where a reader copies out the passages worth keeping.
+Threadsift is a reading library. You paste a link to something you saved (a Reddit post or comment, an X post, a GitHub repo, an article), the app fetches it, an agent keeps only the useful comments and writes a topic, tags, a two-line summary and key points, and everything reads, searches and filters on one page.
 
 ## Status
 

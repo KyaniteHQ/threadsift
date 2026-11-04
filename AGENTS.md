@@ -1,6 +1,6 @@
 # AGENTS.md
 
-commonplace holds Library, a personal reading library: paste a link, an agent keeps the useful parts, read everything on one page. The design is done; the app is not built and the tech stack is not chosen.
+This repo holds Threadsift, a reading library: paste a link, an agent keeps the useful parts and grows a small wiki of the library, read everything on one page. The first screens are designed; the app is not built and the tech stack is not chosen.
 
 ## Domain language: read before naming anything
 
