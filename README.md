@@ -28,4 +28,6 @@ The prototype's sample data is not in the repo, because it is the owner's real s
 
 ## License
 
-MIT
+Copyright (C) 2026 Kyanite Labs.
+
+Threadsift is licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). See [LICENSE](LICENSE). Outside contributions need a signed contributor licence agreement, which the repo adds before the first one.
