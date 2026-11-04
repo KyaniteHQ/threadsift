@@ -33,7 +33,7 @@ One of up to 3 short labels the agent sets on an Item; the UI never edits Tags.
 _Avoid_: Label, keyword
 
 **Read state**:
-Whether the owner has read an Item; the only state the owner changes.
+Whether the owner has read an Item; the owner sets it, never the agent.
 _Avoid_: Status, archived, done
 
 ### Reading
@@ -55,8 +55,22 @@ A dropped parent comment shown as one line so a Kept comment under it still read
 _Avoid_: Placeholder, removed comment
 
 **Reader**:
-The view that shows one Item in full: header, Summary, Key points, post text and Kept comments.
+The view that shows one Item in full: header, Summary, Key points, post text, Kept comments, and the owner's Highlights and Note.
 _Avoid_: Detail view, article view
+
+### Keeping
+
+**Highlight**:
+A passage of an Item's post text or of one Kept comment that the owner selected to keep; it stays when a refresh changes the text, marked as no longer found.
+_Avoid_: Clip, quote, annotation, bookmark
+
+**Note**:
+The owner's one free-text note on an Item.
+_Avoid_: Comment, annotation, memo
+
+**Highlights page**:
+The page that lists every Highlight and Note across the library, newest first, each linked back to its place in the Reader.
+_Avoid_: Clippings, journal, notebook
 
 ### Settings
 
