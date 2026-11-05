@@ -62,13 +62,18 @@ async function checkPanel(page: Page, what: string): Promise<void> {
 
   const controls = [
     dialog.getByRole("combobox", { name: "Font" }),
+    dialog.getByRole("radio", { name: "Dark" }),
     dialog.getByRole("radio", { name: "Moss" }),
     dialog.getByRole("button", { name: "Reset look" }),
     gear(page),
   ];
 
-  for (const control of controls) {
+  const isSheet = await dialog.evaluate((element) => element.matches(":modal"));
+
+  for (const control of isSheet ? controls.slice(0, -1) : controls) {
+    await page.keyboard.press("Shift");
     await control.focus();
+    await expect(page.locator(".st-pop :focus-visible, .st-gear:focus-visible")).toHaveCount(1);
     await expectNoViolations(page, `panel open, a control focused, ${what}`);
   }
 
@@ -99,11 +104,11 @@ test("the page keeps the design checks at four widths in every theme and accent,
       await showAlertAndFocusRow(page);
       await expect(app(page)).toHaveAttribute("data-theme", theme);
       await expect(app(page)).toHaveAttribute("data-accent", accent);
-      expect(await computed(page, ".app", "--ah"), `--ah for ${accent}`).toBe(hue);
 
       for (const [width, bands] of BANDS_AT_WIDTH) {
         const what = `${theme}, ${accent} at ${width}px`;
         await resize(page, width, bands);
+        expect(await computed(page, ".app", "--ah"), `--ah for ${accent} at ${width}px`).toBe(hue);
         await checkRows(page, what);
         await checkPanel(page, what);
 
@@ -122,6 +127,9 @@ test("no text is under 12px at Small text size and Compact density in any Font, 
 
   for (const option of FONT_ROW?.options ?? []) {
     await loadWith(page, "/", { font: option.id, size: "small", density: "compact" });
+    await expect(app(page)).toHaveAttribute("data-font", option.id);
+    await expect(app(page)).toHaveAttribute("data-size", "small");
+    await expect(app(page)).toHaveAttribute("data-density", "compact");
 
     for (const [width, bands] of [BANDS_AT_WIDTH[0], BANDS_AT_WIDTH[2]]) {
       const what = `${option.id} font, Small and Compact at ${width}px`;

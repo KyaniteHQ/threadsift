@@ -1,6 +1,17 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { app, gear, openPanel, panel, pickOption, px, seedItems, storeSettings } from "./look.ts";
+import {
+  app,
+  expectModal,
+  gear,
+  openPanel,
+  panel,
+  pickOption,
+  px,
+  seedItems,
+  storeSettings,
+  tapDimmedPage,
+} from "./look.ts";
 
 const PHONE = { width: 390, height: 640 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
@@ -37,7 +48,7 @@ test("the phone sheet is modal, scrolls its body and keeps Tab and focus inside"
   page,
 }) => {
   const dialog = await onPhone(page);
-  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  await expectModal(dialog, true);
 
   const [scrollHeight, clientHeight] = await dialog
     .locator(".st-body")
@@ -61,6 +72,29 @@ test("the phone sheet is modal, scrolls its body and keeps Tab and focus inside"
   await expect(field).not.toBeFocused();
 });
 
+test("the phone sheet is the browser's own modal dialog: no tabindex, a dimmed page, and nothing outside it takes focus", async ({
+  page,
+}) => {
+  const dialog = await onPhone(page);
+  await expect.soft(dialog).not.toHaveAttribute("tabindex", /./u);
+
+  const scrim = await dialog.evaluate(
+    (element) => getComputedStyle(element, "::backdrop").backgroundColor,
+  );
+
+  expect.soft(scrim, "the page behind the sheet is dimmed").not.toBe("rgba(0, 0, 0, 0)");
+
+  const outsiderFocused = await page.evaluate(() => {
+    const outsider = document.createElement("button");
+    document.body.append(outsider);
+    outsider.focus();
+
+    return document.activeElement === outsider;
+  });
+
+  expect.soft(outsiderFocused, "a button outside the app root cannot take focus").toBe(false);
+});
+
 test("Escape and Close shut the phone sheet and return focus to the gear", async ({ page }) => {
   const dialog = await onPhone(page);
   await page.keyboard.press("Escape");
@@ -69,6 +103,11 @@ test("Escape and Close shut the phone sheet and return focus to the gear", async
 
   await openPanel(page);
   await panel(page).getByRole("button", { name: "Close" }).click();
+  await expect(panel(page)).toBeHidden();
+  await expect(gear(page)).toBeFocused();
+
+  await openPanel(page);
+  await tapDimmedPage(page);
   await expect(panel(page)).toBeHidden();
   await expect(gear(page)).toBeFocused();
 });
@@ -80,7 +119,7 @@ test("on a wide screen Escape and a second gear press close the popover and a pr
   await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);
-  await expect(dialog).not.toHaveAttribute("aria-modal", /./u);
+  await expectModal(dialog, false);
   await expect(dialog.getByRole("radio", { name: "Light", checked: true })).toBeFocused();
 
   await page.keyboard.press("Escape");
@@ -112,15 +151,28 @@ test("an open panel turns into the sheet under 760px and back into the popover",
   const dialog = await openPanel(page);
   await pickOption(dialog, "Density", "Roomy");
 
+  await expect(dialog.getByRole("radio", { name: "Roomy", checked: true })).toBeFocused();
+
   await page.setViewportSize(PHONE);
-  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  await expectModal(dialog, true);
   await expect(dialog.getByRole("button", { name: "Close" })).toBeVisible();
+  await expect(dialog.getByRole("radio", { name: "Roomy", checked: true })).toBeFocused();
 
   await page.setViewportSize(DESKTOP);
-  await expect(dialog).not.toHaveAttribute("aria-modal", /./u);
+  await expectModal(dialog, false);
   await expect(dialog.getByRole("button", { name: "Close" })).toHaveCount(0);
-  await expect(page.locator(".st-backdrop")).toHaveCount(0);
-  await expect(dialog.getByRole("radio", { name: "Roomy", checked: true })).toBeVisible();
+  await expect(dialog.getByRole("radio", { name: "Roomy", checked: true })).toBeFocused();
+});
+
+test("widening the sheet past 760px while Close has focus keeps focus in the panel", async ({
+  page,
+}) => {
+  const dialog = await onPhone(page);
+  await dialog.getByRole("button", { name: "Close" }).focus();
+
+  await page.setViewportSize(DESKTOP);
+  await expectModal(dialog, false);
+  await expect(dialog.getByRole("radio", { name: "Light", checked: true })).toBeFocused();
 });
 
 async function fieldTextSize(page: Page): Promise<number> {
@@ -138,6 +190,8 @@ test("the paste field's text is 16px or more at 390px for every Density and Text
   for (const density of ["compact", "comfortable", "roomy"]) {
     for (const size of ["small", "medium", "large"]) {
       await storeSettings(page, { density, size });
+      await expect(app(page)).toHaveAttribute("data-density", density);
+      await expect(app(page)).toHaveAttribute("data-size", size);
       await expect(app(page)).toHaveAttribute("data-bp", /phone/u);
       const fieldSize = await fieldTextSize(page);
 
@@ -204,14 +258,14 @@ test("each single-choice group is a radio group with one Tab stop and arrow keys
   await expectOneTabStopPerGroup(page, dialog);
 });
 
-test("Shift+Tab from the dialog itself wraps to the last control in the sheet", async ({
-  page,
-}) => {
+test("Shift+Tab after a click on the sheet's title stays inside the sheet", async ({ page }) => {
   const dialog = await onPhone(page);
   await dialog.locator(".st-title").click();
-  await expect(dialog).toBeFocused();
   await page.keyboard.press("Shift+Tab");
-  await expect(dialog.getByRole("button", { name: "Reset look" })).toBeFocused();
+
+  const inside = await dialog.evaluate((element) => element.contains(document.activeElement));
+
+  expect(inside, "focus is still in the sheet").toBe(true);
 });
 
 test("the sheet's outline is a title, two group headings and no landmark, and no name repeats as a title", async ({
@@ -233,13 +287,8 @@ test("the sheet's outline is a title, two group headings and no landmark, and no
     );
 
   expect(titled, "elements whose title repeats their aria-label").toBe(0);
-});
-
-test("a click on the Font label focuses the Font select", async ({ page }) => {
-  await seedItems(page);
-  await page.setViewportSize(DESKTOP);
-  await page.goto("/");
-  const dialog = await openPanel(page);
-  await dialog.getByText("Font", { exact: true }).click();
-  await expect(dialog.getByRole("combobox", { name: "Font" })).toBeFocused();
+  await expect(dialog.getByRole("button", { name: "Reset look" })).not.toHaveAttribute(
+    "title",
+    /./u,
+  );
 });

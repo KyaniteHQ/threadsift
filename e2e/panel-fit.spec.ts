@@ -1,7 +1,7 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../design/system/settings.ts";
-import { gear, openPanel, seedItems, storeSettings } from "./look.ts";
+import { app, gear, openPanel, seedItems, storeSettings } from "./look.ts";
 
 async function openAtRootSize(page: Page, width: number, percent: number) {
   await seedItems(page);
@@ -45,21 +45,32 @@ test("at a 200% root font size the popover widens with it and keeps every row an
   expect(overflow).toEqual([]);
 });
 
-test("a popover narrower than its rows can use stacks each label above its control", async ({
-  page,
-}) => {
-  const dialog = await openAtRootSize(page, 780, 200);
-  const row = dialog.locator(".st-row").first();
-  const label = await row.locator(".st-l").boundingBox();
-  const control = await row.locator(".st-seg").boundingBox();
+async function expectLabelsAboveControls(dialog: Locator): Promise<void> {
+  for (const row of await dialog.locator(".st-row").all()) {
+    const label = await row.locator(".st-l").boundingBox();
+    const control = await row.locator(".st-seg, .st-sws, .st-sel").boundingBox();
 
-  expect(
-    (label?.y ?? 0) + (label?.height ?? 0),
-    "the label ends above the control",
-  ).toBeLessThanOrEqual(control?.y ?? 0);
+    expect(
+      (label?.y ?? 0) + (label?.height ?? 0),
+      "the label ends above the control",
+    ).toBeLessThanOrEqual(control?.y ?? 0);
+  }
+
   const sideways = await dialog.evaluate((element) => element.scrollWidth - element.clientWidth);
 
   expect(sideways, "nothing scrolls sideways").toBeLessThanOrEqual(0);
+}
+
+test("a popover narrower than its rows can use, and a sheet under 480px, stack each label above its control", async ({
+  page,
+}) => {
+  await expectLabelsAboveControls(await openAtRootSize(page, 780, 200));
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "";
+  });
+  await expectLabelsAboveControls(await openPanel(page));
 });
 
 test("the gear sits on the wordmark's centre line at the row's end whatever the Font", async ({
@@ -74,6 +85,7 @@ test("the gear sits on the wordmark's centre line at the row's end whatever the 
 
     for (const { id } of fonts) {
       await storeSettings(page, { font: id });
+      await expect(app(page)).toHaveAttribute("data-font", id);
 
       const [wordmark, gearBox, brand] = await Promise.all([
         page.locator(".brand h1").boundingBox(),

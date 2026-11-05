@@ -53,7 +53,8 @@ export function checkDefaults(settings: readonly DefaultsInput[]): Promise<Defau
 
         for (const id of options) {
           const drawn = tokensOf(attribute, id);
-          const differs = [...bare.keys()].filter((name) => drawn.get(name) !== bare.get(name));
+          const names = new Set([...bare.keys(), ...drawn.keys()]);
+          const differs = [...names].filter((name) => drawn.get(name) !== bare.get(name));
 
           if (id === chosen && differs.length > 0) {
             result.violations.push(

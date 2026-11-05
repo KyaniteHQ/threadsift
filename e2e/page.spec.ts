@@ -1,8 +1,33 @@
 import { AxeBuilder } from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
 import { newRunId } from "./links.ts";
+
+async function expectLightDrawn(page: Page, colorScheme: string): Promise<void> {
+  for (const root of [page.locator(".app"), page.locator("html")]) {
+    await expect(root, `${colorScheme} system preference`).toHaveAttribute("data-theme", "light");
+    await expect(root, `${colorScheme} system preference`).toHaveCSS("color-scheme", "light");
+  }
+
+  const drawn = await page.evaluate(() => {
+    const [light, dark] = ["light", "dark"].map((theme) => {
+      const probe = document.createElement("div");
+      probe.dataset["theme"] = theme;
+      probe.style.background = "var(--bg)";
+      document.body.append(probe);
+      const colour = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+
+      return colour;
+    });
+
+    return { html: getComputedStyle(document.documentElement).backgroundColor, light, dark };
+  });
+
+  expect(drawn.html, `${colorScheme} system preference: Light's background`).toBe(drawn.light);
+  expect(drawn.html, `${colorScheme} system preference: not Dark's`).not.toBe(drawn.dark);
+}
 
 test("an empty browser draws Light under a dark and a light system preference, titled Threadsift, from one origin", async ({
   browser,
@@ -27,11 +52,7 @@ test("an empty browser draws Light under a dark and a light system preference, t
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Threadsift");
 
-    for (const root of [page.locator(".app"), page.locator("html")]) {
-      await expect(root, `${colorScheme} system preference`).toHaveAttribute("data-theme", "light");
-      await expect(root, `${colorScheme} system preference`).toHaveCSS("color-scheme", "light");
-    }
-
+    await expectLightDrawn(page, colorScheme);
     expect([...origins]).toEqual([new URL(baseURL ?? "").origin]);
     await context.close();
   }

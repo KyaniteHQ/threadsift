@@ -44,6 +44,14 @@ export function panel(page: Page): Locator {
   return page.getByRole("dialog", { name: SETTINGS_TITLE });
 }
 
+export async function expectModal(dialog: Locator, modal: boolean): Promise<void> {
+  await expect.poll(() => dialog.evaluate((element) => element.matches(":modal"))).toBe(modal);
+}
+
+export async function tapDimmedPage(page: Page): Promise<void> {
+  await page.mouse.click(10, 10);
+}
+
 export function app(page: Page): Locator {
   return page.locator(".app");
 }
@@ -94,6 +102,12 @@ export async function expectChosen(dialog: Locator, group: string, option: strin
       .getByRole("radiogroup", { name: group, exact: true })
       .getByRole("radio", { name: option, exact: true }),
   ).toBeChecked();
+}
+
+export function titleStyle(page: Page, property: string): Promise<string> {
+  return titledRow(page)
+    .locator(".it-title")
+    .evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);
 }
 
 export function px(value: string): number {

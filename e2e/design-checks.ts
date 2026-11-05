@@ -267,16 +267,26 @@ export function collectViolations(defaultFont: string): string[] {
     ...document.querySelectorAll(".app, .lib, .mast, .list, .st-pop, .st-body"),
   ];
 
+  const panelIsOpen = document.querySelector(".st-pop") !== null;
+
   for (const scroller of scrollers) {
     const spills = getComputedStyle(scroller).overflowX === "visible";
 
-    if (scroller !== document.documentElement && spills) {
+    if (scroller !== document.documentElement && spills && panelIsOpen) {
       continue;
     }
 
     if (scroller.scrollWidth > scroller.clientWidth + 1) {
       found.push(`${name(scroller)} scrolls sideways`);
     }
+  }
+
+  const panelBox = document.querySelector(".st-pop")?.getBoundingClientRect();
+
+  if (panelBox !== undefined && (panelBox.left < 0 || panelBox.right > innerWidth + 1)) {
+    found.push(
+      `the settings panel spans ${panelBox.left} to ${panelBox.right} in a ${innerWidth}px window`,
+    );
   }
 
   if (document.documentElement.scrollHeight > innerHeight + 1) {

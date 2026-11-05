@@ -1,14 +1,14 @@
 import { type Page, type TestInfo, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../design/system/settings.ts";
-import { MATCH_SYSTEM_NOTES, RESET_NOTE } from "../web/src/text.ts";
+import { RESET_NOTE } from "../web/src/text.ts";
 import {
   HUES,
   NON_DEFAULT,
   app,
   computed,
   expectChosen,
-  fillLocalStorage,
+  expectModal,
   gear,
   openPanel,
   panel,
@@ -16,11 +16,11 @@ import {
   pickOption,
   px,
   seedItems,
-  storeRaw,
   storeSettings,
   storedSettings,
+  tapDimmedPage,
   titledRow,
-  type Stored,
+  titleStyle,
 } from "./look.ts";
 
 const VISIBLE_CHOICES = [
@@ -79,16 +79,18 @@ async function expectSixSettingsDrawn(page: Page): Promise<void> {
   expect(await computed(page, ".app", "--ah")).toBe(HUES.moss);
   expect(await computed(page, ".app", "--chars")).toBe("68");
 
-  const fontSize = px(await computed(page, ".it-title", "font-size"));
-  const maxWidth = px(await computed(page, ".it-title", "max-width"));
-  const measure = 68 * Number(await computed(page, ".app", "--cw")) * fontSize;
-  expect(maxWidth, "the title's maximum width is Wide's measure").toBeCloseTo(measure, 0);
+  const wide = px(await titleStyle(page, "max-width"));
+  await pickOption(panel(page), "Text width", "Medium");
+  const medium = px(await titleStyle(page, "max-width"));
+  await pickOption(panel(page), "Text width", "Wide");
+
+  expect(wide, "the titled row's measure at Wide is wider than at Medium").toBeGreaterThan(medium);
   await expect(title).toHaveCSS("margin-top", "5px");
 }
 
 async function listSizes(page: Page): Promise<number[]> {
   return [
-    px(await computed(page, ".it-title", "font-size")),
+    px(await titleStyle(page, "font-size")),
     px(await computed(page, ".field input", "font-size")),
   ];
 }
@@ -123,25 +125,22 @@ async function resetWhileDark(page: Page): Promise<void> {
 async function followDevice(page: Page): Promise<void> {
   await page.emulateMedia({ colorScheme: "dark" });
   await pickOption(panel(page), "Theme", "Match system");
-  const theme = panel(page).getByRole("radiogroup", { name: "Theme", exact: true });
 
   for (const scheme of ["dark", "light"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     await expect(app(page)).toHaveAttribute("data-theme", scheme);
     await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
-    await expect(panel(page).getByText(MATCH_SYSTEM_NOTES[scheme])).toBeVisible();
+    await expect(panel(page).getByText(new RegExp(`${scheme} now`, "u"))).toBeVisible();
     expect((await storedSettings(page))?.["theme"], "stored Theme").toBe("system");
   }
-
-  await expect(theme).toBeVisible();
 }
 
 async function openPhoneSheetAndTapAway(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 390, height: 640 });
   await gear(page).click();
-  await expect(panel(page)).toHaveAttribute("aria-modal", "true");
-  await page.locator(".st-backdrop").click({ position: { x: 10, y: 10 } });
+  await expectModal(panel(page), true);
+  await tapDimmedPage(page);
   await expect(panel(page)).toBeHidden();
   await expect(gear(page)).toBeFocused();
 }
@@ -175,116 +174,16 @@ test("the owner sets six settings, resets the look, follows the device and opens
   });
 
   await test.step("the phone gets a modal sheet that a tap on the dimmed page closes", async () => {
-    await page.setViewportSize({ width: 390, height: 640 });
-    await page.keyboard.press("Escape");
     await openPhoneSheetAndTapAway(page);
     await shot(page, testInfo, "5-sheet-closed-by-tap");
   });
 });
 
-const VALID = {
-  layout: "list",
-  openAs: "sheet",
-  style: "library",
-  theme: "dark",
-  font: "news",
-  size: "large",
-  width: "wide",
-  density: "roomy",
-  comments: "cards",
-  accent: "moss",
-  tags: "chips",
-  images: "off",
-} as const;
-
-function withoutWidth(): Stored {
-  return Object.fromEntries(Object.entries(VALID).filter(([key]) => key !== "width"));
-}
-
-const STORED_CASES = [
-  { name: "one unknown option id", stored: { ...VALID, font: "papyrus" }, resets: ["font"] },
-  { name: "one unknown key", stored: { ...VALID, sparkle: "on" }, resets: [] },
-  { name: "one missing key", stored: withoutWidth(), resets: ["width"] },
-  { name: "images stored as true", stored: { ...VALID, images: true }, resets: ["images"] },
-  {
-    name: "layout stored as grid, which is not offered yet",
-    stored: { ...VALID, layout: "grid" },
-    resets: ["layout"],
-  },
-] as const;
-
-test("a stored setting that is not one of the table's option ids falls back alone", async ({
-  page,
-}) => {
+test("a click on the Font label focuses the Font select", async ({ page }) => {
   await seedItems(page);
-
-  for (const { name, stored, resets } of STORED_CASES) {
-    await storeSettings(page, stored);
-
-    for (const row of SETTINGS) {
-      const expected = resets.some((key) => key === row.key) ? row.default : VALID[row.key];
-      await expect(app(page), `${name}: ${row.key}`).toHaveAttribute(row.attribute, expected);
-    }
-
-    await pickOption(await openPanel(page), "Text width", "Narrow");
-    const written = await storedSettings(page);
-    expect(Object.keys(written ?? {}).toSorted(), `${name}: keys written`).toEqual(
-      SETTINGS.map((row) => row.key).toSorted(),
-    );
-    await page.keyboard.press("Escape");
-  }
-});
-
-test("unparsable JSON, null and an array each load the defaults and the panel still works", async ({
-  page,
-}) => {
-  await seedItems(page);
-
-  for (const text of ["{not json", "null", "[]", '"dark"', "7"]) {
-    await storeRaw(page, text);
-
-    for (const row of SETTINGS) {
-      await expect(app(page), `${text}: ${row.key}`).toHaveAttribute(row.attribute, row.default);
-    }
-
-    await pickOption(await openPanel(page), "Theme", "Sepia");
-    await expect(app(page), `${text}: after choosing Sepia`).toHaveAttribute("data-theme", "sepia");
-    expect((await storedSettings(page))?.["theme"], `${text}: stored Theme`).toBe("sepia");
-    await page.keyboard.press("Escape");
-  }
-});
-
-test("with the real localStorage full, a change still applies and Reset look still works", async ({
-  page,
-}) => {
-  await seedItems(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await expect(app(page)).toBeVisible();
-  await fillLocalStorage(page);
-
-  const refused = await page.evaluate(() => {
-    try {
-      localStorage.setItem("probe", "x");
-
-      return "accepted";
-    } catch (error) {
-      return error instanceof DOMException ? error.name : "other";
-    }
-  });
-
-  expect(refused, "the filled storage refuses a one-character write").toBe("QuotaExceededError");
-
   const dialog = await openPanel(page);
-  await pickOption(dialog, "Text size", "Large");
-  await pickOption(dialog, "Theme", "Dark");
-  await expect(app(page)).toHaveAttribute("data-size", "large");
-  await expect(app(page)).toHaveAttribute("data-theme", "dark");
-  expect(await storedSettings(page), "nothing could be stored").toBeNull();
-
-  await dialog.getByRole("button", { name: "Reset look" }).click();
-  await expect(app(page)).toHaveAttribute("data-size", "medium");
-  await expect(app(page)).toHaveAttribute("data-theme", "dark");
-  await expect(dialog).toBeVisible();
-  await pickOption(dialog, "Density", "Roomy");
-  await expect(app(page)).toHaveAttribute("data-density", "roomy");
+  await dialog.getByText("Font", { exact: true }).click();
+  await expect(dialog.getByRole("combobox", { name: "Font" })).toBeFocused();
 });

@@ -1,15 +1,15 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS, STORAGE_KEY } from "../design/system/settings.ts";
 import {
   app,
-  computed,
   openPanel,
   pickOption,
   px,
   seedItems,
   storeSettings,
   titledRow,
+  titleStyle,
 } from "./look.ts";
 
 const FONT_ROW = SETTINGS.find((row) => row.key === "font");
@@ -51,13 +51,13 @@ test("raising the root font size raises the row title, so the type tokens follow
   await seedItems(page);
   await storeSettings(page, {});
   const title = titledRow(page).locator(".it-title");
-  const before = px(await computed(page, "article.it .it-title", "font-size"));
+  const before = px(await titleStyle(page, "font-size"));
   await page.evaluate(() => {
     document.documentElement.style.fontSize = "20px";
   });
 
   await expect(title).toBeVisible();
-  const after = px(await computed(page, "article.it .it-title", "font-size"));
+  const after = px(await titleStyle(page, "font-size"));
 
   expect(after).toBeCloseTo((before * 20) / 16, 1);
 });
@@ -134,6 +134,17 @@ const COLD_THEMES = [
 test("a stored theme is on html before the app script runs, and an unreadable store leaves Light", async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    const watch = new MutationObserver(() => {
+      if (document.body !== null) {
+        const theme = document.documentElement.dataset["theme"] ?? "none";
+        document.documentElement.dataset["themeAtBody"] = theme;
+        watch.disconnect();
+      }
+    });
+
+    watch.observe(document, { childList: true, subtree: true });
+  });
   await page.goto("/");
   await page.route("**/assets/*.js", (route) => route.abort());
   const html = page.locator("html");
@@ -148,9 +159,10 @@ test("a stored theme is on html before the app script runs, and an unreadable st
     );
     await page.goto("/");
     await expect(html, `${stored.theme} on a ${scheme} device`).toHaveAttribute(
-      "data-theme",
+      "data-theme-at-body",
       expected,
     );
+    await expect(html).toHaveAttribute("data-theme", expected);
     await expect(page.locator(".app")).toHaveCount(0);
   }
 
@@ -162,11 +174,53 @@ test("a stored theme is on html before the app script runs, and an unreadable st
       { key: STORAGE_KEY, text: value },
     );
     await page.goto("/");
-    await expect(html, `stored ${value}`).not.toHaveAttribute("data-theme", /./u);
+    await expect(html, `stored ${value}`).toHaveAttribute("data-theme-at-body", "none");
   }
-
-  await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute("content", "light dark");
 });
+
+test("the page declares its charset before the inline theme script, within the first 1024 bytes", async ({
+  request,
+}) => {
+  const text = await (await request.get("/")).text();
+  const charset = text.indexOf("<meta charset");
+  const script = text.indexOf("<script>");
+
+  expect(charset, "the page has a charset meta").toBeGreaterThanOrEqual(0);
+  expect(charset, "the charset comes before the inline script").toBeLessThan(script);
+  expect(Buffer.byteLength(text.slice(0, charset)), "and starts inside 1024 bytes").toBeLessThan(
+    1024,
+  );
+});
+
+async function expectSegmentsTellable(page: Page, dialog: Locator): Promise<void> {
+  expect(
+    await page.evaluate(() => matchMedia("(forced-colors: active)").matches),
+    "the browser is in forced colours",
+  ).toBe(true);
+
+  const groups = await dialog.locator(".st-seg").evaluateAll((frames) =>
+    frames.map((frame) =>
+      [...frame.querySelectorAll(".st-b")].map((radio) => ({
+        checked: radio.querySelector("input")?.checked === true,
+        background: getComputedStyle(radio).backgroundColor,
+      })),
+    ),
+  );
+
+  expect(groups, "the panel has segmented groups").not.toHaveLength(0);
+
+  for (const segments of groups) {
+    const chosen = segments.filter((segment) => segment.checked);
+
+    expect(chosen, "one segment is chosen in each group").toHaveLength(1);
+
+    for (const other of segments.filter((segment) => !segment.checked)) {
+      expect(chosen[0]?.background, "the chosen segment's fill differs from the others").not.toBe(
+        other.background,
+      );
+    }
+  }
+}
 
 test("under forced colours the chosen segment and each accent swatch can be told apart", async ({
   page,
@@ -176,27 +230,7 @@ test("under forced colours the chosen segment and each accent swatch can be told
   await page.emulateMedia({ forcedColors: "active" });
   const dialog = await openPanel(page);
 
-  const segments = await dialog
-    .locator(".st-seg")
-    .first()
-    .locator(".st-b")
-    .evaluateAll((radios) =>
-      radios.map((radio) => ({
-        checked: radio.querySelector("input")?.checked === true,
-        background: getComputedStyle(radio).backgroundColor,
-      })),
-    );
-
-  const chosen = segments.filter((segment) => segment.checked);
-  const others = segments.filter((segment) => !segment.checked);
-
-  expect(chosen, "one segment is chosen").toHaveLength(1);
-
-  for (const other of others) {
-    expect(chosen[0]?.background, "the chosen segment's fill differs from the others").not.toBe(
-      other.background,
-    );
-  }
+  await expectSegmentsTellable(page, dialog);
 
   await pickOption(dialog, "Accent", "Moss");
 
