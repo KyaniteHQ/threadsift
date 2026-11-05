@@ -75,7 +75,7 @@ function selectedText(page: Page): Promise<string> {
 
     return active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement
       ? active.value.slice(active.selectionStart ?? 0, active.selectionEnd ?? 0)
-      : "";
+      : (window.getSelection()?.toString() ?? "");
   });
 }
 
@@ -88,7 +88,7 @@ function frameOf(button: Locator): Promise<string> {
 }
 
 function valueField(page: Page) {
-  return page.getByRole("textbox", { name: SETTINGS.tokenValue });
+  return page.getByRole("status", { name: SETTINGS.tokenValue });
 }
 
 function lastLineWords(sentence: Locator): Promise<number> {

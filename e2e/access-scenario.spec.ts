@@ -120,7 +120,7 @@ async function stepToken(run: Run): Promise<string> {
 
   await tokenNameField(page).fill("Extension");
   await page.getByRole("button", { name: SETTINGS.createToken }).click();
-  const value = await page.getByLabel(SETTINGS.tokenValue).inputValue();
+  const value = (await page.getByLabel(SETTINGS.tokenValue).textContent()) ?? "";
   expect(value).toMatch(/^tsa_/u);
   await shot(run, "4-token-shown-once");
 

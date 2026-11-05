@@ -137,14 +137,13 @@
 .reveal-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--s2);
 }
 .reveal-value {
   flex: 1 1 14em;
   box-sizing: border-box;
   min-width: 0;
-  min-height: var(--field-h);
   padding: var(--s2) var(--s3);
   border: 1px solid var(--ctl-line);
   border-radius: var(--r2);
@@ -153,12 +152,10 @@
   font-family: var(--f-mono);
   font-size: var(--t-code);
   word-break: break-all;
-  resize: none;
+  user-select: all;
 }
 .app:not([data-bp~="narrow"]) .reveal-value {
   flex: 0 1 auto;
-  height: var(--field-h);
-  padding: calc((var(--field-h) - 1lh - 2px) / 2) var(--s2);
   font-size: var(--t-label);
 }
 .reveal-row .btn {

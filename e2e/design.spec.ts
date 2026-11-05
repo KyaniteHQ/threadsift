@@ -70,15 +70,14 @@ test("the page keeps the design checks at four widths in every theme and accent,
 }, testInfo) => {
   const run = newRunId();
   const seedUrl = (path: string) => `https://example.com/${run}/${path}`;
-  const first = await postLink(page.request, seedUrl("a".repeat(300)));
 
-  await Promise.all(
-    ["short", "docs/guide?id=alpha&page=2", "x", "y", "z"].map((path) =>
+  const [first] = await Promise.all([
+    postLink(page.request, seedUrl("a".repeat(300))),
+    ...["short", "docs/guide?id=alpha&page=2", "x", "y", "z"].map((path) =>
       postLink(page.request, seedUrl(path)),
     ),
-  );
-
-  await postLink(page.request, "https://example.com/");
+    postLink(page.request, "https://example.com/"),
+  ]);
 
   for (const theme of THEMES) {
     for (const [accent, hue] of Object.entries(HUES)) {

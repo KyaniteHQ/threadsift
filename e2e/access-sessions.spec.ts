@@ -14,7 +14,7 @@ import {
   sessionValueOf,
   test,
 } from "./access.ts";
-import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
+import { openSignedIn } from "./fresh-screen.ts";
 
 const Sessions = z.array(z.object({ digest: z.string(), expires_at: z.number() }));
 
@@ -91,18 +91,12 @@ test("a session extends at most once a day and sends its cookie again, and an ex
   await api.dispose();
 });
 
-test.describe("a sign-out the server cannot finish", () => {
-  let screen: FreshScreen;
+test("a sign-out the server cannot finish leaves the owner signed in and says so", async ({
+  browser,
+}) => {
+  const screen = await openSignedIn(browser, newCode(), minimumPassword());
 
-  test.beforeAll(async ({ browser }) => {
-    screen = await openSignedIn(browser, newCode(), minimumPassword());
-  });
-
-  test.afterAll(async () => {
-    await screen.close();
-  });
-
-  test("leaves the owner signed in and says so", async () => {
+  try {
     const { page, fresh } = screen;
     await page.goto("/settings");
     const title = page.getByRole("heading", { level: 1, name: SETTINGS.title });
@@ -116,5 +110,7 @@ test.describe("a sign-out the server cannot finish", () => {
     fresh.sql("ALTER TABLE sessions_away RENAME TO sessions");
     await page.reload();
     await expect(title).toBeVisible();
-  });
+  } finally {
+    await screen.close();
+  }
 });

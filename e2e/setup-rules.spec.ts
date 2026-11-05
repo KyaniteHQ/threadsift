@@ -162,8 +162,7 @@ test("ten wrong passwords lock login for everyone but sessions already open, and
   rules.restart();
   await expectLocked(await login(LIGATURE_PASSWORD), "the right password after a restart");
 
-  endLock(rules, "login");
-  expect((await login(LIGATURE_PASSWORD)).status(), "after the lock ends").toBe(204);
+  await endLockAndSignIn();
 });
 
 async function endLockAndSignIn(): Promise<void> {

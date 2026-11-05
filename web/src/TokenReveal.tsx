@@ -2,17 +2,22 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { SETTINGS, filled } from "./access-text.ts";
 import { Alert } from "./AuthShell.tsx";
-import { useFocusOnMount } from "./use-form.ts";
 
 const COPIED_MS = 2000;
-const TOKEN_ROWS = 2;
 
 function useCopy(value: string) {
-  const field = useRef<HTMLTextAreaElement>(null);
+  const field = useRef<HTMLOutputElement>(null);
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  useFocusOnMount(field);
+  const showValue = useCallback(() => {
+    if (field.current !== null) {
+      field.current.focus();
+      window.getSelection()?.selectAllChildren(field.current);
+    }
+  }, []);
+
+  useEffect(showValue, [showValue]);
 
   useEffect(() => {
     const timer = copied
@@ -34,19 +39,14 @@ function useCopy(value: string) {
         setCopied(true);
       } catch {
         setFailed(true);
-        field.current?.focus();
-        field.current?.select();
+        showValue();
       }
     };
 
     void write();
-  }, [value]);
+  }, [showValue, value]);
 
-  const selectValue = useCallback(() => {
-    field.current?.select();
-  }, []);
-
-  return { field, copied, failed, copy, selectValue };
+  return { field, copied, failed, copy };
 }
 
 export function TokenReveal({
@@ -54,7 +54,7 @@ export function TokenReveal({
   value,
   done,
 }: Readonly<{ name: string; value: string; done: () => void }>) {
-  const { field, copied, failed, copy, selectValue } = useCopy(value);
+  const { field, copied, failed, copy } = useCopy(value);
   const titleId = useId();
   const noteId = useId();
 
@@ -65,18 +65,15 @@ export function TokenReveal({
       </h3>
       <p id={noteId}>{SETTINGS.revealPaste}</p>
       <div className="reveal-row">
-        <textarea
+        <output
           ref={field}
           className="reveal-value"
-          readOnly
-          rows={TOKEN_ROWS}
-          cols={value.length}
-          spellCheck={false}
-          value={value}
+          tabIndex={-1}
           aria-label={SETTINGS.tokenValue}
           aria-describedby={noteId}
-          onFocus={selectValue}
-        />
+        >
+          {value}
+        </output>
         <button type="button" className="btn" onClick={copy}>
           {copied ? SETTINGS.copied : SETTINGS.copy}
         </button>
