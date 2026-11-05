@@ -1,6 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 import { postLink } from "./api.ts";
 import { newRunId, rowOf } from "./links.ts";
@@ -42,15 +42,10 @@ test("links that differ in a kept query parameter or in path case stay separate"
     `https://github.com/owner/repo-${run}`,
   ];
 
-  const ids = new Set<number>();
+  const posted = await Promise.all(links.map((url) => postLink(request, url)));
 
-  for (const url of links) {
-    const { status, body } = await postLink(request, url);
-    expect(status).toBe(201);
-    ids.add(body.item.id);
-  }
-
-  expect(ids.size).toBe(links.length);
+  expect(posted.map(({ status }) => status)).toEqual(links.map(() => 201));
+  expect(new Set(posted.map(({ body }) => body.item.id)).size).toBe(links.length);
 });
 
 test("x.com and twitter.com drop their share parameters but keep other hosts' s and t", async ({
@@ -111,28 +106,38 @@ function linkCases(run: string) {
   ] as const;
 }
 
+async function postTogether(request: APIRequestContext, cases: ReturnType<typeof linkCases>) {
+  const reddit = cases.filter(([, , source]) => source === "reddit");
+  const others = cases.filter(([, , source]) => source !== "reddit");
+  const pending = Promise.all(others.map(([url]) => postLink(request, url)));
+  const spaced = [];
+
+  for (const [url] of reddit) {
+    spaced.push(await postLink(request, url));
+  }
+
+  const together = await pending;
+
+  return {
+    ordered: [...reddit, ...others],
+    saved: [...spaced, ...together].map(({ body }) => body.item),
+  };
+}
+
 test("each link shape gets its kind and Source, and its row says where it is from", async ({
   page,
   request,
 }) => {
-  const run = newRunId();
-
-  const cases = linkCases(run);
-
-  const saved = [];
-
-  for (const [url] of cases) {
-    saved.push((await postLink(request, url)).body.item);
-  }
+  const { ordered, saved } = await postTogether(request, linkCases(newRunId()));
 
   expect(saved.map((item) => [item.kind, item.source])).toEqual(
-    cases.map(([, kind, source]) => [kind, source]),
+    ordered.map(([, kind, source]) => [kind, source]),
   );
 
   await page.goto("/");
 
   for (const [index, item] of saved.entries()) {
-    const [, , source, where] = cases[index] ?? ["", "", "other", ""];
+    const [, , source, where] = ordered[index] ?? ["", "", "other", ""];
     const meta = rowOf(page, item.id).locator(".it-meta > span");
     await expect(meta.nth(0)).toHaveText(SOURCE_LABELS[source]);
     await expect(meta.nth(1)).toHaveText(where);

@@ -2,6 +2,11 @@ import { expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
 import {
+  MOVED_PAGE,
+  MOVED_PAGE_NORMALIZED,
+  MOVED_PAGE_TARGET,
+  MOVED_PAGE_TARGET_NORMALIZED,
+  MOVED_PAGE_TITLE,
   SHORT_LINK,
   SHORT_LINK_TARGET,
   SHORT_LINK_TARGET_NORMALIZED,
@@ -44,16 +49,17 @@ test("a meta refresh on a host that is not a short link service is not followed"
   expect(saved.body.item.title).toBe(`Stays here ${run}`);
 });
 
-test("a renamed GitHub repository gets the final page's title and keeps the pasted URL as its identity", async ({
+test("a moved page gets the final page's title and keeps the pasted URL as its identity", async ({
   request,
 }) => {
-  const renamed = await postLink(request, "https://github.com/KyaniteHQ/commonplace");
-  const current = await postLink(request, "https://github.com/KyaniteHQ/threadsift");
+  const moved = await postLink(request, MOVED_PAGE);
+  const current = await postLink(request, MOVED_PAGE_TARGET);
 
-  expect(renamed.body.fetch).toBe("ok");
-  expect(renamed.body.item.normalizedUrl).toBe("https://github.com/KyaniteHQ/commonplace");
-  expect(renamed.body.item.title).toContain("KyaniteHQ/threadsift");
-  expect(current.body.item.id).not.toBe(renamed.body.item.id);
+  expect(moved.body.fetch).toBe("ok");
+  expect(moved.body.item.normalizedUrl).toBe(MOVED_PAGE_NORMALIZED);
+  expect(moved.body.item.title).toBe(MOVED_PAGE_TITLE);
+  expect(current.body.item.normalizedUrl).toBe(MOVED_PAGE_TARGET_NORMALIZED);
+  expect(current.body.item.id).not.toBe(moved.body.item.id);
 });
 
 test("redirects are followed by hand, absolute and relative", async ({ request }) => {

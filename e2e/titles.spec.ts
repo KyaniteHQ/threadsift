@@ -5,6 +5,7 @@ import { newRunId, pasteLink, rowOf, titledPage } from "./links.ts";
 import { app, computed } from "./look.ts";
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
+const GZIP_PAGE = "https://www.wikipedia.org/";
 
 async function encodingOf(url: string): Promise<string | null> {
   const response = await fetch(url, { headers: { "accept-encoding": ACCEPT_ENCODING } });
@@ -31,12 +32,12 @@ test("a pasted page gets its title and its row shows it", async ({ page, request
 });
 
 test("pages served with gzip and with Brotli get their titles", async ({ request }) => {
-  expect(await encodingOf("https://github.com/KyaniteHQ/threadsift")).toBe("gzip");
+  expect(await encodingOf(GZIP_PAGE)).toBe("gzip");
   expect(await encodingOf("https://example.com/")).toBe("br");
 
-  const gzip = await postLink(request, "https://github.com/KyaniteHQ/threadsift");
+  const gzip = await postLink(request, GZIP_PAGE);
   expect(gzip.body.fetch).toBe("ok");
-  expect(gzip.body.item.title).toContain("KyaniteHQ/threadsift");
+  expect(gzip.body.item.title).toBe("Wikipedia");
 
   const brotli = await postLink(request, "https://example.com/");
   expect(brotli.body.fetch).toBe("ok");

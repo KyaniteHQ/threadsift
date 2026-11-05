@@ -4,6 +4,9 @@ import type { Item } from "../src/http/schemas.ts";
 import { mainInstance } from "./access.ts";
 import { listAll, refusedWith } from "./api.ts";
 import {
+  MOVED_PAGE,
+  MOVED_PAGE_NORMALIZED,
+  MOVED_PAGE_TITLE,
   SHORT_LINK,
   SHORT_LINK_TARGET,
   SHORT_LINK_TARGET_NORMALIZED,
@@ -17,7 +20,6 @@ import { type Listener, startListener } from "./listener.ts";
 import { POST_TITLE, POST_URL } from "./reddit.ts";
 
 const REDDIT_FIELDS = { source: "reddit", title: POST_TITLE, author: "tamale_uk" } as const;
-const RENAMED_REPOSITORY = "https://github.com/KyaniteHQ/commonplace";
 
 let listener: Listener;
 
@@ -35,7 +37,7 @@ function pastedLinks(redirect: string): string[] {
     "https://old.reddit.com/r/selfhosted/comments/2a4qo6/other_slug/",
     "https://www.reddit.com/r/selfhosted/comments/2a4qo6/wallabag/cisdfvv/",
     "https://example.com/",
-    RENAMED_REPOSITORY,
+    MOVED_PAGE,
     SHORT_LINK,
     SHORT_LINK_TARGET,
     X_POST,
@@ -48,7 +50,7 @@ function expectedItems(redirect: string) {
     [POST_URL, { ...REDDIT_FIELDS, community: "selfhosted" }],
     [`${POST_URL}_/cisdfvv/`, { ...REDDIT_FIELDS, community: "selfhosted" }],
     ["https://example.com/", { source: "other", title: "Example Domain" }],
-    [RENAMED_REPOSITORY, { source: "github" }],
+    [MOVED_PAGE_NORMALIZED, { source: "other", title: MOVED_PAGE_TITLE }],
     [SHORT_LINK_TARGET_NORMALIZED, { source: "other", title: "Example Domains" }],
     [X_POST, { source: "x", title: null }],
     [redirect, { source: "other", title: null }],
@@ -68,10 +70,6 @@ async function libraryItems(page: Page, redirect: string) {
   for (const item of items) {
     expect(item).toMatchObject(expected.get(item.normalizedUrl) ?? {});
   }
-
-  expect(items.find((item) => item.normalizedUrl === RENAMED_REPOSITORY)?.title).toContain(
-    "KyaniteHQ/threadsift",
-  );
 
   return items;
 }
