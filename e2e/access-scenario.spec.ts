@@ -21,7 +21,7 @@ import {
   minimumPassword,
 } from "./access.ts";
 import { type Entry, call, violations, watchPage } from "./ledger.ts";
-import { newRunId, pasteField, pasteLink } from "./links.ts";
+import { addButton, newRunId, pasteField, pasteLink } from "./links.ts";
 import {
   choosePassword,
   codeField,
@@ -271,7 +271,7 @@ test("a Paste after the owner signed out in another tab shows the login screen, 
   await expect(first.getByRole("heading", { name: LOGIN.heading })).toBeVisible();
 
   await pasteField(second).fill("https://example.com/x");
-  await second.getByRole("button", { name: "Add" }).click();
+  await addButton(second).click();
   await expect(second.getByRole("heading", { name: LOGIN.heading })).toBeVisible();
   await expect(passwordField(second)).toBeFocused();
   await expect(second.getByRole("alert")).toHaveCount(0);

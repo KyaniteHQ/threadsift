@@ -3,6 +3,7 @@ import { type Page, expect, test } from "@playwright/test";
 import { LOGIN, SETUP } from "../web/src/access-text.ts";
 import { SIGNED_OUT, newCode } from "./access.ts";
 import { type FreshScreen, openFresh } from "./fresh-screen.ts";
+import { DESKTOP } from "./look.ts";
 import { codeField, enterCode, passwordField, submitPassword } from "./setup-screens.ts";
 
 const code = newCode();
@@ -26,7 +27,7 @@ async function markTop(page: Page): Promise<number> {
 
 test("the wordmark stays put while the card changes height", async () => {
   const { page } = screen;
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize(DESKTOP);
   await page.goto("/");
   await expect(codeField(page)).toBeFocused();
   const resting = await markTop(page);

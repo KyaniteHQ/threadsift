@@ -1,14 +1,16 @@
-import { type Locator, type Page, type TestInfo, expect, test } from "@playwright/test";
+import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../design/system/settings.ts";
 import { postLink } from "./api.ts";
 import { checkDefaults } from "./default-tokens.ts";
 import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
-import { newRunId } from "./links.ts";
+import { newRunId, pasteField } from "./links.ts";
 import {
+  DESKTOP,
   HUES,
   type Stored,
   app,
+  attachScreenshot,
   computed,
   gear,
   openPanel,
@@ -25,7 +27,7 @@ async function loadWith(page: Page, url: string, stored: Stored): Promise<void> 
 }
 
 async function showAlertAndFocusRow(page: Page): Promise<void> {
-  await page.getByRole("textbox", { name: "Paste a link to save" }).press("Enter");
+  await pasteField(page).press("Enter");
   await expect(page.getByRole("alert")).toBeVisible();
   await page.locator(".it.open .it-open").focus();
 }
@@ -63,10 +65,6 @@ async function checkPanel(page: Page, what: string): Promise<void> {
   await expect(panel(page)).toBeHidden();
 }
 
-async function attach(page: Page, testInfo: TestInfo, name: string): Promise<void> {
-  await testInfo.attach(name, { body: await page.screenshot(), contentType: "image/png" });
-}
-
 test("the page keeps the design checks at four widths in every theme and accent, panel open and closed", async ({
   page,
 }, testInfo) => {
@@ -90,12 +88,12 @@ test("the page keeps the design checks at four widths in every theme and accent,
       for (const [width, bands] of BANDS_AT_WIDTH) {
         const what = `${theme}, ${accent} at ${width}px`;
         await resize(page, width, bands);
-        expect(await computed(page, ".app", "--ah"), `--ah for ${accent} at ${width}px`).toBe(hue);
+        expect(await computed(app(page), "--ah"), `--ah for ${accent} at ${width}px`).toBe(hue);
         await checkRows(page, what);
         await checkPanel(page, what);
 
         if (accent === "cobalt") {
-          await attach(page, testInfo, `${theme}-${width}`);
+          await attachScreenshot(page, testInfo, `${theme}-${width}`);
         }
       }
     }
@@ -216,7 +214,7 @@ test("a row title breaks between path parts on a phone and holds the reading mea
   expect(phoneLines.length, "title lines at 390px").toBeGreaterThan(1);
   expect(breaksMidPart(phoneLines), "line breaks inside a path part").toEqual([]);
 
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize(DESKTOP);
 
   const wideLines = await renderedLines(link);
   expect(

@@ -1,11 +1,13 @@
-import { type Page, type TestInfo, expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../design/system/settings.ts";
 import { RESET_NOTE } from "../web/src/text.ts";
 import {
+  DESKTOP,
   HUES,
   NON_DEFAULT,
   app,
+  attachScreenshot,
   computed,
   expectChosen,
   expectModal,
@@ -20,7 +22,6 @@ import {
   storedSettings,
   tapDimmedPage,
   titledRow,
-  titleStyle,
 } from "./look.ts";
 
 const VISIBLE_CHOICES = [
@@ -33,10 +34,6 @@ const VISIBLE_CHOICES = [
 
 function attributeOf(key: string): string {
   return SETTINGS.find((row) => row.key === key)?.attribute ?? "";
-}
-
-async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
-  await testInfo.attach(name, { body: await page.screenshot(), contentType: "image/png" });
 }
 
 async function setSixSettings(page: Page): Promise<void> {
@@ -76,12 +73,12 @@ async function expectSixSettingsDrawn(page: Page): Promise<void> {
     "font-family",
     /Newsreader Variable/u,
   );
-  expect(await computed(page, ".app", "--ah")).toBe(HUES.moss);
-  expect(await computed(page, ".app", "--chars")).toBe("68");
+  expect(await computed(app(page), "--ah")).toBe(HUES.moss);
+  expect(await computed(app(page), "--chars")).toBe("68");
 
-  const wide = px(await titleStyle(page, "max-width"));
+  const wide = px(await computed(title, "max-width"));
   await pickOption(panel(page), "Text width", "Medium");
-  const medium = px(await titleStyle(page, "max-width"));
+  const medium = px(await computed(title, "max-width"));
   await pickOption(panel(page), "Text width", "Wide");
 
   expect(wide, "the titled row's measure at Wide is wider than at Medium").toBeGreaterThan(medium);
@@ -90,8 +87,8 @@ async function expectSixSettingsDrawn(page: Page): Promise<void> {
 
 async function listSizes(page: Page): Promise<number[]> {
   return [
-    px(await titleStyle(page, "font-size")),
-    px(await computed(page, ".field input", "font-size")),
+    px(await computed(titledRow(page).locator(".it-title"), "font-size")),
+    px(await computed(page.locator(".field input").first(), "font-size")),
   ];
 }
 
@@ -149,39 +146,39 @@ test("the owner sets six settings, resets the look, follows the device and opens
   page,
 }, testInfo) => {
   await seedItems(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize(DESKTOP);
   await storeSettings(page, { comments: "cards", tags: "chips", images: "off", openAs: "sheet" });
 
   await test.step("six settings are kept across a reload", async () => {
     await setSixSettings(page);
-    await shot(page, testInfo, "1-six-settings-set");
+    await attachScreenshot(page, testInfo, "1-six-settings-set");
     await page.reload();
     await expect(titledRow(page)).toBeVisible();
     await expectSixSettingsKept(page);
     await expectSixSettingsDrawn(page);
     await expectLargerThanMedium(page);
-    await shot(page, testInfo, "2-after-reload");
+    await attachScreenshot(page, testInfo, "2-after-reload");
   });
 
   await test.step("Reset look keeps Theme dark on a light device", async () => {
     await resetWhileDark(page);
-    await shot(page, testInfo, "3-after-reset-look");
+    await attachScreenshot(page, testInfo, "3-after-reset-look");
   });
 
   await test.step("Match system follows the device with the panel open", async () => {
     await followDevice(page);
-    await shot(page, testInfo, "4-match-system-light");
+    await attachScreenshot(page, testInfo, "4-match-system-light");
   });
 
   await test.step("the phone gets a modal sheet that a tap on the dimmed page closes", async () => {
     await openPhoneSheetAndTapAway(page);
-    await shot(page, testInfo, "5-sheet-closed-by-tap");
+    await attachScreenshot(page, testInfo, "5-sheet-closed-by-tap");
   });
 });
 
 test("a click on the Font label focuses the Font select", async ({ page }) => {
   await seedItems(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);
   await dialog.getByText("Font", { exact: true }).click();

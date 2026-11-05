@@ -3,7 +3,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { ownerContext } from "./access.ts";
 import { listAll, postLink } from "./api.ts";
-import { newRunId } from "./links.ts";
+import { addButton, newRunId } from "./links.ts";
 
 async function expectLightDrawn(page: Page, colorScheme: string): Promise<void> {
   for (const root of [page.locator(".app"), page.locator("html")]) {
@@ -88,7 +88,7 @@ test("every part of the page sits inside a landmark", async ({ page, request }) 
   await postLink(request, `https://example.com/${newRunId()}/landmarks`);
   await page.goto("/");
   await expect(page.locator("article.it").first()).toBeVisible();
-  await page.getByRole("button", { name: "Add" }).click();
+  await addButton(page).click();
   await expect(page.getByRole("alert")).toBeVisible();
 
   const results = await new AxeBuilder({ page }).withRules(["region"]).analyze();

@@ -6,6 +6,10 @@ import { parseLink } from "../src/core/links.ts";
 
 const OEMBED_SPACING_MS = 2000;
 
+export const POST_ID = "2a4qo6";
+export const POST_URL = `https://reddit.com/r/all/comments/${POST_ID}/`;
+export const POST_TITLE = "Wallabag - A 'read it later' app similar like Instapaper or Pocket";
+
 let lastCallAt = 0;
 
 export async function waitForRedditTurn(url: string): Promise<void> {

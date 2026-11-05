@@ -1,11 +1,11 @@
 /* oxlint-disable max-lines-per-function -- page.evaluate serialises this one function, so its helpers must sit inside it */
-export interface DefaultsInput {
+interface DefaultsInput {
   attribute: string;
   default: string;
   options: string[];
 }
 
-export interface DefaultsResult {
+interface DefaultsResult {
   violations: string[];
   changingTokens: string[];
 }

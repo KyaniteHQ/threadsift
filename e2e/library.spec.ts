@@ -3,16 +3,20 @@ import { type Page, expect, test } from "@playwright/test";
 import type { Item } from "../src/http/schemas.ts";
 import { mainInstance } from "./access.ts";
 import { listAll, refusedWith } from "./api.ts";
-import { newRunId, pasteLink } from "./links.ts";
+import {
+  SHORT_LINK,
+  SHORT_LINK_TARGET,
+  SHORT_LINK_TARGET_NORMALIZED,
+  X_POST,
+  newRunId,
+  pasteLink,
+  rowOf,
+  throughRedirects,
+} from "./links.ts";
 import { type Listener, startListener } from "./listener.ts";
+import { POST_TITLE, POST_URL } from "./reddit.ts";
 
-const POST = "https://reddit.com/r/all/comments/2a4qo6/";
-const POST_TITLE = "Wallabag - A 'read it later' app similar like Instapaper or Pocket";
 const REDDIT_FIELDS = { source: "reddit", title: POST_TITLE, author: "tamale_uk" } as const;
-const SHORT_LINK = "https://is.gd/hK2a1W";
-const SHORT_LINK_TARGET = "https://www.iana.org/help/example-domains";
-const SHORT_LINK_TARGET_NORMALIZED = "https://iana.org/help/example-domains";
-const X_POST = "https://x.com/jack/status/20";
 const RENAMED_REPOSITORY = "https://github.com/KyaniteHQ/commonplace";
 
 let listener: Listener;
@@ -41,8 +45,8 @@ function pastedLinks(redirect: string): string[] {
 
 function expectedItems(redirect: string) {
   return new Map<string, Partial<Item>>([
-    [POST, { ...REDDIT_FIELDS, community: "selfhosted" }],
-    [`${POST}_/cisdfvv/`, { ...REDDIT_FIELDS, community: "selfhosted" }],
+    [POST_URL, { ...REDDIT_FIELDS, community: "selfhosted" }],
+    [`${POST_URL}_/cisdfvv/`, { ...REDDIT_FIELDS, community: "selfhosted" }],
     ["https://example.com/", { source: "other", title: "Example Domain" }],
     [RENAMED_REPOSITORY, { source: "github" }],
     [SHORT_LINK_TARGET_NORMALIZED, { source: "other", title: "Example Domains" }],
@@ -74,7 +78,7 @@ async function libraryItems(page: Page, redirect: string) {
 
 async function expectRowsShowTitles(page: Page, redirect: string) {
   for (const item of await libraryItems(page, redirect)) {
-    const link = page.locator(`.it[data-key="${item.id}"] .it-open`);
+    const link = rowOf(page, item.id).locator(".it-open");
     await expect(link).toBeVisible();
 
     if (item.title !== null) {
@@ -106,7 +110,7 @@ test("nine pasted links make seven Items with their titles, and the library keep
   page,
 }) => {
   test.setTimeout(180_000);
-  const redirect = `https://httpbin.dev/redirect-to?url=${encodeURIComponent(`http://127.0.0.1:${listener.port}/`)}&run=${newRunId()}`;
+  const redirect = `${throughRedirects(`http://127.0.0.1:${listener.port}/`, 1)}&run=${newRunId()}`;
   await page.goto("/");
 
   for (const url of pastedLinks(redirect)) {
@@ -124,8 +128,8 @@ test("nine pasted links make seven Items with their titles, and the library keep
   await page.goto("/");
   await pasteLink(page, "https://m.reddit.com/r/selfhosted/comments/2a4qo6/");
 
-  const post = before.find((item) => item.normalizedUrl === POST);
-  const after = (await listAll(page.request)).find((item) => item.normalizedUrl === POST);
+  const post = before.find((item) => item.normalizedUrl === POST_URL);
+  const after = (await listAll(page.request)).find((item) => item.normalizedUrl === POST_URL);
   expect(after?.id).toBe(post?.id);
   expect(after?.savedAt).toBe(post?.savedAt);
   expect(after?.fetchedAt).toBeGreaterThan(post?.fetchedAt ?? Number.POSITIVE_INFINITY);

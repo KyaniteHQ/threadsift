@@ -1,9 +1,8 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
-import { openPanel, px, seedItems } from "./look.ts";
+import { DESKTOP, openPanel, px, seedItems } from "./look.ts";
 
-const DESKTOP = { width: 1440, height: 900 } as const;
 const PHONE = { width: 390, height: 844 } as const;
 const HALF_PIXEL = 0.5;
 

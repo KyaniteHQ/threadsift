@@ -1,11 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 import { listAll, postLink, refusedWith } from "./api.ts";
-import { newRunId } from "./links.ts";
+import { newRunId, throughRedirects } from "./links.ts";
 import { type Listener, startListener } from "./listener.ts";
 import { isContainerTarget } from "./target.ts";
-
-const REDIRECTOR = "https://httpbin.dev/redirect-to?url=";
 
 let listener: Listener;
 
@@ -73,13 +71,9 @@ test("a public redirect to a private address saves the Item without a title and 
   const { port } = listener;
   const targets = redirectTargets(port);
 
-  const links = [
-    ...targets.map((target) => `${REDIRECTOR}${encodeURIComponent(target)}&run=${run}`),
-    ...targets.map(
-      (target) =>
-        `${REDIRECTOR}${encodeURIComponent(`${REDIRECTOR}${encodeURIComponent(target)}`)}&run=${run}`,
-    ),
-  ];
+  const links = [1, 2].flatMap((hops) =>
+    targets.map((target) => `${throughRedirects(target, hops)}&run=${run}`),
+  );
 
   for (const url of links) {
     const { status, body } = await postLink(request, url);
@@ -99,7 +93,7 @@ test("a redirect to ftp:// saves the Item without a title and names an unsupport
 
   const { status, body } = await postLink(
     request,
-    `${REDIRECTOR}${encodeURIComponent("ftp://example.com/file")}&run=${run}`,
+    `${throughRedirects("ftp://example.com/file", 1)}&run=${run}`,
   );
 
   expect(status).toBe(201);
@@ -122,7 +116,7 @@ test.describe("a name that resolves to a private address", () => {
 
     const redirected = await postLink(
       request,
-      `${REDIRECTOR}${encodeURIComponent(`http://localtest.me:${port}/`)}&run=${run}`,
+      `${throughRedirects(`http://localtest.me:${port}/`, 1)}&run=${run}`,
     );
 
     for (const saved of [direct, redirected]) {

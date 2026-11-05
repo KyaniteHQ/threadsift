@@ -3,7 +3,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@playwright/test";
 
 import { postLink } from "./api.ts";
-import { newRunId } from "./links.ts";
+import { newRunId, rowOf } from "./links.ts";
 
 test("one link pasted a second way is one Item with the same id and saved date", async ({
   request,
@@ -133,7 +133,7 @@ test("each link shape gets its kind and Source, and its row says where it is fro
 
   for (const [index, item] of saved.entries()) {
     const [, , source, where] = cases[index] ?? ["", "", "other", ""];
-    const meta = page.locator(`.it[data-key="${item.id}"] .it-meta > span`);
+    const meta = rowOf(page, item.id).locator(".it-meta > span");
     await expect(meta.nth(0)).toHaveText(SOURCE_LABELS[source]);
     await expect(meta.nth(1)).toHaveText(where);
   }

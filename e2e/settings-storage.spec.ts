@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-import { SETTINGS } from "../design/system/settings.ts";
+import { DEFAULTS, SETTINGS } from "../design/system/settings.ts";
 import {
   app,
+  NON_DEFAULT,
   fillLocalStorage,
   openPanel,
   pickOption,
@@ -13,20 +14,7 @@ import {
   type Stored,
 } from "./look.ts";
 
-const VALID = {
-  layout: "list",
-  openAs: "sheet",
-  style: "library",
-  theme: "dark",
-  font: "news",
-  size: "large",
-  width: "wide",
-  density: "roomy",
-  comments: "cards",
-  accent: "moss",
-  tags: "chips",
-  images: "off",
-} as const;
+const VALID = { ...DEFAULTS, ...NON_DEFAULT } as const;
 
 function withoutWidth(): Stored {
   return Object.fromEntries(Object.entries(VALID).filter(([key]) => key !== "width"));

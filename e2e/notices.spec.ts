@@ -1,18 +1,21 @@
 import { expect, test } from "@playwright/test";
 
 import { listAll, listForRun } from "./api.ts";
-import { newRunId, pasteLink, pasteStatus } from "./links.ts";
-
-const REDIRECTOR = "https://httpbin.dev/redirect-to?url=";
+import {
+  X_POST,
+  newRunId,
+  pasteField,
+  pasteLink,
+  pasteStatus,
+  submitLink,
+  throughRedirects,
+} from "./links.ts";
 
 function failedLinks(run: string) {
   return [
-    [`${REDIRECTOR}${encodeURIComponent("http://127.0.0.1:9/")}&run=${run}`, "private network"],
-    [`${REDIRECTOR}${encodeURIComponent("ftp://example.com/file")}&run=${run}`, "isn’t a web page"],
-    [
-      `${REDIRECTOR}${encodeURIComponent("https://x.com/jack/status/20")}&run=${run}`,
-      "redirected to Reddit or X",
-    ],
+    [`${throughRedirects("http://127.0.0.1:9/", 1)}&run=${run}`, "private network"],
+    [`${throughRedirects("ftp://example.com/file", 1)}&run=${run}`, "isn’t a web page"],
+    [`${throughRedirects(X_POST, 1)}&run=${run}`, "redirected to Reddit or X"],
     [`https://httpbin.org/redirect/21?run=${run}`, "redirected too many times"],
     [`https://example.com/missing-${run}`, "answered with an error"],
     [`https://no-such-host-${run}.invalid/`, "Couldn’t reach the website"],
@@ -27,18 +30,17 @@ test("each failed fetch shows its own notice and the list still shows the saved 
   test.setTimeout(90_000);
   const run = newRunId();
   await page.goto("/");
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
+  const field = pasteField(page);
 
   for (const [index, [url, sentence]] of failedLinks(run).entries()) {
-    await field.fill(url);
-    await page.getByRole("button", { name: "Add" }).click();
+    await submitLink(page, url);
     await expect(pasteStatus(page)).toContainText(sentence, { timeout: 20_000 });
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(field).toHaveValue("");
     await expect(page.locator("article.it", { hasText: run })).toHaveCount(index + 1);
   }
 
-  const stored = (await listAll(request)).filter((item) => item.normalizedUrl.includes(run));
+  const stored = await listForRun(request, run);
   expect(stored).toHaveLength(failedLinks(run).length);
   expect(stored.map((item) => item.title)).toEqual(stored.map(() => null));
 });
@@ -49,9 +51,8 @@ test("a link to a private address shows a notice, keeps the text and saves nothi
 }) => {
   const before = (await listAll(request)).length;
   await page.goto("/");
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
-  await field.fill("http://127.0.0.1:9/");
-  await page.getByRole("button", { name: "Add" }).click();
+  const field = pasteField(page);
+  await submitLink(page, "http://127.0.0.1:9/");
 
   await expect(page.getByRole("alert")).toContainText("can’t be saved");
   await expect(field).toHaveValue("http://127.0.0.1:9/");
@@ -62,16 +63,13 @@ test("a notice about a saved link names that link and offers Try again only when
   page,
 }) => {
   const run = newRunId();
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
   await page.goto("/");
 
-  await field.fill(`https://example.com/missing-${run}`);
-  await page.getByRole("button", { name: "Add" }).click();
+  await submitLink(page, `https://example.com/missing-${run}`);
   await expect(page.locator(".ps .ps-url")).toHaveText(`example.com/missing-${run}`);
   await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(0);
 
-  await field.fill(`https://www.no-such-host-${run}.invalid/a`);
-  await page.getByRole("button", { name: "Add" }).click();
+  await submitLink(page, `https://www.no-such-host-${run}.invalid/a`);
   await expect(page.locator(".ps .ps-url")).toHaveText(`no-such-host-${run}.invalid/a`);
 });
 
@@ -79,9 +77,8 @@ test("Try again on an unreachable website saves the same link again", async ({ p
   const run = newRunId();
   const url = `https://no-such-host-${run}.invalid/`;
   await page.goto("/");
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
-  await field.fill(url);
-  await page.getByRole("button", { name: "Add" }).click();
+  const field = pasteField(page);
+  await submitLink(page, url);
 
   const tryAgain = page.getByRole("button", { name: "Try again" });
   await expect(tryAgain).toBeVisible({ timeout: 20_000 });
@@ -101,9 +98,8 @@ test("after a save that worked the field is not marked invalid and still points 
   page,
 }) => {
   await page.goto("/");
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
-  await field.fill(`https://example.com/missing-${newRunId()}`);
-  await page.getByRole("button", { name: "Add" }).click();
+  const field = pasteField(page);
+  await submitLink(page, `https://example.com/missing-${newRunId()}`);
 
   const notice = page.locator(".ps");
   await expect(notice).toContainText("answered with an error");
@@ -129,9 +125,7 @@ test("a known link whose title cannot be fetched again keeps its title and says 
   await page.goto("/");
   await pasteLink(page, "https://news.ycombinator.com/");
 
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
-  await field.fill("https://www.news.ycombinator.com/");
-  await page.getByRole("button", { name: "Add" }).click();
+  await submitLink(page, "https://www.news.ycombinator.com/");
 
   await expect(pasteStatus(page)).toContainText("the title saved earlier was kept", {
     timeout: 20_000,

@@ -8,8 +8,8 @@ import {
   px,
   seedItems,
   storeSettings,
+  computed,
   titledRow,
-  titleStyle,
 } from "./look.ts";
 
 const FONT_ROW = SETTINGS.find((row) => row.key === "font");
@@ -51,13 +51,13 @@ test("raising the root font size raises the row title, so the type tokens follow
   await seedItems(page);
   await storeSettings(page, {});
   const title = titledRow(page).locator(".it-title");
-  const before = px(await titleStyle(page, "font-size"));
+  const before = px(await computed(title, "font-size"));
   await page.evaluate(() => {
     document.documentElement.style.fontSize = "20px";
   });
 
   await expect(title).toBeVisible();
-  const after = px(await titleStyle(page, "font-size"));
+  const after = px(await computed(title, "font-size"));
 
   expect(after).toBeCloseTo((before * 20) / 16, 1);
 });

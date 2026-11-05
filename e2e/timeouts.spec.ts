@@ -1,7 +1,7 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
-import { newRunId, pasteStatus } from "./links.ts";
+import { addButton, newRunId, pasteField, pasteStatus, rowOf } from "./links.ts";
 
 const DEADLINE_MS = 8000;
 const OVERHEAD_MS = 5000;
@@ -45,7 +45,7 @@ test("a host that never answers and a body that stalls each time out, while the 
   test.setTimeout(90_000);
   const run = newRunId();
   await page.goto("/");
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
+  const field = pasteField(page);
 
   for (const { url: base, showsSaving } of STALLS) {
     const url = `${base}${base.includes("?") ? "&" : "?"}run=${run}`;
@@ -55,7 +55,7 @@ test("a host that never answers and a body that stalls each time out, while the 
       (response) => response.url().endsWith("/api/items") && response.request().method() === "POST",
     );
 
-    const add = page.getByRole("button", { name: "Add" });
+    const add = addButton(page);
     const idleWidth = (await add.boundingBox())?.width ?? 0;
     const started = Date.now();
     await add.click();
@@ -80,8 +80,8 @@ test("a host that never answers and a body that stalls each time out, while the 
 
     await expect(pasteStatus(page)).toContainText("didn’t answer in time");
     await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add" })).toBeEnabled();
-    await expect(page.locator(`.it[data-key="${item.id}"] .it-open`)).toContainText(
+    await expect(addButton(page)).toBeEnabled();
+    await expect(rowOf(page, item.id).locator(".it-open")).toContainText(
       url.replace(/^https?:\/\//u, ""),
     );
   }
