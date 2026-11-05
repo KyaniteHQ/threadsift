@@ -69,18 +69,19 @@ test("the page keeps the design checks at four widths in every theme and accent,
   page,
 }, testInfo) => {
   const run = newRunId();
-  const seeded = [];
-  const paths = ["a".repeat(300), "short", "docs/guide?id=alpha&page=2", "x", "y", "z"];
+  const seedUrl = (path: string) => `https://example.com/${run}/${path}`;
 
-  for (const path of paths) {
-    seeded.push(await postLink(page.request, `https://example.com/${run}/${path}`));
-  }
-
-  await postLink(page.request, "https://example.com/");
+  const [first] = await Promise.all([
+    postLink(page.request, seedUrl("a".repeat(300))),
+    ...["short", "docs/guide?id=alpha&page=2", "x", "y", "z"].map((path) =>
+      postLink(page.request, seedUrl(path)),
+    ),
+    postLink(page.request, "https://example.com/"),
+  ]);
 
   for (const theme of THEMES) {
     for (const [accent, hue] of Object.entries(HUES)) {
-      await loadWith(page, seeded[0]?.body.url ?? "/", { theme, accent });
+      await loadWith(page, first.body.url, { theme, accent });
       await showAlertAndFocusRow(page);
       await expect(app(page)).toHaveAttribute("data-theme", theme);
       await expect(app(page)).toHaveAttribute("data-accent", accent);

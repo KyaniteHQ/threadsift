@@ -190,17 +190,18 @@ test("the whole token value is on screen and selected when the field has focus",
   await create(page, "Whole");
   const field = valueField(page);
 
-  const shown = await field.evaluate((element) => ({
-    value: "value" in element ? String(element.value) : (element.textContent ?? ""),
-    cutOff:
-      element.scrollWidth > element.clientWidth || element.scrollHeight > element.clientHeight,
-  }));
+  const value = await field.inputValue();
 
-  expect(shown.value).toMatch(/^tsa_/u);
-  expect(shown.cutOff, "no part of the value is clipped").toBe(false);
+  const cutOff = await field.evaluate(
+    (element) =>
+      element.scrollWidth > element.clientWidth || element.scrollHeight > element.clientHeight,
+  );
+
+  expect(value).toMatch(/^tsa_/u);
+  expect(cutOff, "no part of the value is clipped").toBe(false);
   await expect(field).toBeFocused();
   const selected = await selectedText(page);
-  expect(selected).toBe(shown.value);
+  expect(selected).toBe(value);
 });
 
 test("the reveal sentence does not end on a lone word at 390px", async () => {
@@ -227,7 +228,7 @@ test("a refused copy is announced and leaves the value selected in a focused fie
   await expect(page.getByRole("alert")).toHaveText(SETTINGS.copyFailed);
   await expect(valueField(page)).toBeFocused();
   const selected = await selectedText(page);
-  expect(selected).toMatch(/^tsa_/u);
+  expect(selected).toBe(await valueField(page).inputValue());
 });
 
 async function addToken(page: Page, name: string): Promise<void> {

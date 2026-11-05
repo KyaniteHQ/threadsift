@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { cookieHeader, expectRefusal } from "./access-helpers.ts";
 import { type Instance, launchFresh, newCode, sessionValueOf, strangerPool } from "./access.ts";
+import { endLock } from "./fresh-screen.ts";
 
 const LIGATURE_PASSWORD = `\uFB01${"x".repeat(12)}\u00E9`;
 const OTHER_FORMS = [LIGATURE_PASSWORD.normalize("NFD"), LIGATURE_PASSWORD.normalize("NFKC")];
@@ -88,7 +89,7 @@ test("ten wrong codes, alternating between the two setup calls, lock both, and t
   rules.restart();
   await expectLocked(await setupCall("/api/setup/code", code), "the right code after a restart");
 
-  rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'setup'");
+  endLock(rules, "setup");
   expect((await setupCall("/api/setup/code", code)).status(), "after the lock ends").toBe(204);
   const rows = rules.query("SELECT kind FROM throttles WHERE kind = 'setup'", Throttles);
   expect(rows, "a success resets the count").toEqual([]);
@@ -161,12 +162,11 @@ test("ten wrong passwords lock login for everyone but sessions already open, and
   rules.restart();
   await expectLocked(await login(LIGATURE_PASSWORD), "the right password after a restart");
 
-  rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'login'");
-  expect((await login(LIGATURE_PASSWORD)).status(), "after the lock ends").toBe(204);
+  await endLockAndSignIn();
 });
 
 async function endLockAndSignIn(): Promise<void> {
-  rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'login'");
+  endLock(rules, "login");
   expect((await login(LIGATURE_PASSWORD)).status(), "the right password after the lock").toBe(204);
 }
 
@@ -188,7 +188,7 @@ test("a wrong password after a lock ends doubles the next lock", async () => {
     expect((await login(`first-lock-${attempt}`)).status(), `wrong password ${attempt}`).toBe(401);
   }
 
-  rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'login'");
+  endLock(rules, "login");
   await expectRefusal(await login("after-the-first-lock"), 401, "a wrong password", "wrong");
   const second = await login(LIGATURE_PASSWORD);
   await expectRefusal(second, 429, "the right password in the second lock", "locked");

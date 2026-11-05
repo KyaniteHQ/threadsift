@@ -2,8 +2,9 @@ import { expect } from "@playwright/test";
 import { z } from "zod";
 
 import { SETTINGS } from "../web/src/access-text.ts";
-import { DAY_MS, MAX_AGE, expectRefusal, sha256Hex, signIn } from "./access-helpers.ts";
+import { DAY_MS, expectRefusal, sha256Hex, signIn } from "./access-helpers.ts";
 import {
+  MAX_AGE,
   SAME_ORIGIN,
   SESSION_COOKIE,
   mainInstance,
@@ -94,18 +95,22 @@ test("a sign-out the server cannot finish leaves the owner signed in and says so
   browser,
 }) => {
   const screen = await openSignedIn(browser, newCode(), minimumPassword());
-  const { page, fresh } = screen;
-  await page.goto("/settings");
-  const title = page.getByRole("heading", { level: 1, name: SETTINGS.title });
-  await expect(title).toBeVisible();
 
-  fresh.sql("ALTER TABLE sessions RENAME TO sessions_away");
-  await page.getByRole("button", { name: SETTINGS.signOut }).click();
-  await expect(page.getByRole("alert")).toHaveText(SETTINGS.signOutFailed);
-  await expect(title).toBeVisible();
+  try {
+    const { page, fresh } = screen;
+    await page.goto("/settings");
+    const title = page.getByRole("heading", { level: 1, name: SETTINGS.title });
+    await expect(title).toBeVisible();
 
-  fresh.sql("ALTER TABLE sessions_away RENAME TO sessions");
-  await page.reload();
-  await expect(title).toBeVisible();
-  await screen.close();
+    fresh.sql("ALTER TABLE sessions RENAME TO sessions_away");
+    await page.getByRole("button", { name: SETTINGS.signOut }).click();
+    await expect(page.getByRole("alert")).toHaveText(SETTINGS.signOutFailed);
+    await expect(title).toBeVisible();
+
+    fresh.sql("ALTER TABLE sessions_away RENAME TO sessions");
+    await page.reload();
+    await expect(title).toBeVisible();
+  } finally {
+    await screen.close();
+  }
 });

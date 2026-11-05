@@ -7,7 +7,6 @@ import { z } from "zod";
 import type { RefusalCode } from "../src/http/schemas.ts";
 import { SAME_ORIGIN, SESSION_COOKIE, anonymous, ownerPassword, sessionValueOf } from "./access.ts";
 
-export const MAX_AGE = 2_592_000;
 export const DAY_MS = 86_400_000;
 
 export const ErrorBody = z.object({ error: z.string().min(1) });
