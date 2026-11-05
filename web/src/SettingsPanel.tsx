@@ -1,8 +1,9 @@
-import { type MouseEvent, type RefObject, useCallback, useId } from "react";
+import { type RefObject, useId } from "react";
 
 import { DEFAULTS, type Settings } from "../../design/system/settings.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Icon } from "./Icon.tsx";
+import { useInternalLink } from "./session.ts";
 import { type Choose, SettingsRows } from "./SettingsRows.tsx";
 import {
   CLOSE_LABEL,
@@ -53,13 +54,7 @@ function SheetHeader({ titleId, close }: Readonly<{ titleId: string; close: () =
 }
 
 function InstanceLink({ open }: Readonly<{ open: () => void }>) {
-  const follow = useCallback(
-    (event: MouseEvent<HTMLAnchorElement>) => {
-      event.preventDefault();
-      open();
-    },
-    [open],
-  );
+  const follow = useInternalLink(open);
 
   return (
     <a className="fl-link" href="/settings" onClick={follow}>

@@ -13,12 +13,14 @@ export function Screen({
   view,
   path,
   look,
+  arrived,
   refresh,
   navigate,
 }: Readonly<{
   view: View;
   path: string;
   look: Look;
+  arrived: boolean;
   refresh: () => void;
   navigate: (to: string) => void;
 }>) {
@@ -46,7 +48,7 @@ export function Screen({
       return path === SETTINGS_PATH ? (
         <SettingsPage back={toLibrary} signedOut={signedOut} />
       ) : (
-        <Library look={look} openSettings={toSettings} />
+        <Library look={look} arrived={arrived} openSettings={toSettings} />
       );
     case "loading":
       return null;

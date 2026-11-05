@@ -79,8 +79,9 @@ export type Look = Omit<ReturnType<typeof useRoot>, "ref" | "attributes">;
 
 export function Library({
   look,
+  arrived,
   openSettings,
-}: Readonly<{ look: Look; openSettings: () => void }>) {
+}: Readonly<{ look: Look; arrived: boolean; openSettings: () => void }>) {
   const listPane = useRef<HTMLElement>(null);
   const { narrow, settings, isDark, pick, reset } = look;
   const { list, save, retry } = useLibrary();
@@ -107,7 +108,7 @@ export function Library({
               openInstanceSettings={openSettings}
             />
           </div>
-          <PasteBox save={saveAndShow} />
+          <PasteBox save={saveAndShow} focusOnMount={arrived} />
         </header>
         <main ref={listPane} className="list" tabIndex={-1}>
           <ListBody list={list} openId={openId} attention={attention} retry={retryAndKeepPlace} />

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
+import { useInternalLink } from "./session.ts";
 import { TokensSection } from "./TokensSection.tsx";
 
 export function SettingsPage({
@@ -14,6 +15,8 @@ export function SettingsPage({
     titleField.current?.focus();
   }, []);
 
+  const follow = useInternalLink(back);
+
   const signOut = useCallback(() => {
     void logOut().then(signedOut);
   }, [signedOut]);
@@ -21,9 +24,9 @@ export function SettingsPage({
   return (
     <div className="pg">
       <header className="pg-bar">
-        <button type="button" className="btn" onClick={back}>
+        <a className="btn" href="/" onClick={follow}>
           {SETTINGS.back}
-        </button>
+        </a>
         <h1 ref={titleField} className="pg-title" tabIndex={-1}>
           {SETTINGS.title}
         </h1>

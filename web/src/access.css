@@ -221,6 +221,9 @@
   text-wrap: pretty;
   overflow-wrap: anywhere;
 }
+a.btn {
+  text-decoration: none;
+}
 .btn-flush {
   align-self: flex-start;
   margin-inline-start: calc(-1 * (var(--s3) + 1px));

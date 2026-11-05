@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { type MouseEvent, useCallback, useEffect, useState } from "react";
 
 const SIGNED_OUT = "threadsift:signed-out";
 
@@ -57,4 +57,20 @@ export function usePath() {
   }, []);
 
   return { path, navigate };
+}
+
+export function useInternalLink(open: () => void) {
+  return useCallback(
+    (event: MouseEvent<HTMLAnchorElement>) => {
+      const modified = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+
+      if (event.button !== 0 || modified) {
+        return;
+      }
+
+      event.preventDefault();
+      open();
+    },
+    [open],
+  );
 }

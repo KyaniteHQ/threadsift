@@ -4,6 +4,7 @@ import {
   type SetStateAction,
   type SubmitEvent,
   useCallback,
+  useEffect,
   useId,
   useRef,
   useState,
@@ -104,13 +105,19 @@ function useSaveValue({
   return { saving, saveValue };
 }
 
-function usePaste(save: Save) {
+function usePaste(save: Save, focusOnMount: boolean) {
   const [value, setValue] = useState("");
   const field = useRef<HTMLInputElement>(null);
 
   const focusField = useCallback(() => {
     field.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (focusOnMount) {
+      focusField();
+    }
+  }, [focusField, focusOnMount]);
 
   const { notice, setNotice, dismiss } = useNotice(focusField);
   const { saving, saveValue } = useSaveValue({ save, setValue, setNotice, focusField });
@@ -185,8 +192,12 @@ function announcement(saving: boolean, notice: Shown | null): string {
   return notice !== null && NOTICE_KINDS[notice.key] === "save-note" ? NOTICES[notice.key] : "";
 }
 
-export function PasteBox({ save }: Readonly<{ save: Save }>) {
-  const { field, value, notice, saving, change, dismiss, submit, retry } = usePaste(save);
+export function PasteBox({ save, focusOnMount }: Readonly<{ save: Save; focusOnMount: boolean }>) {
+  const { field, value, notice, saving, change, dismiss, submit, retry } = usePaste(
+    save,
+    focusOnMount,
+  );
+
   const noticeId = useId();
   const isInputError = notice !== null && NOTICE_KINDS[notice.key] === "input-error";
 
