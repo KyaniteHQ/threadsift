@@ -1,11 +1,14 @@
 import { parseHTML } from "linkedom";
 
+import { resolveUrl } from "./links.ts";
+
 const WHITESPACE = /[\t\n\f\r ]/u;
 const DIGIT = /[0-9]/u;
 const DIGIT_OR_DOT = /[0-9.]/u;
 const SEPARATOR = /[;,\t\n\f\r ]/u;
 const URL_KEYWORD = /^url[\t\n\f\r ]*=[\t\n\f\r ]*/iu;
 const QUOTE = /["']/u;
+const HTTP_EQUIV = /http-equiv/iu;
 
 interface Refresh {
   readonly seconds: number;
@@ -72,31 +75,36 @@ function parseRefresh(input: string): Refresh | null {
 }
 
 function resolved(urlString: string, pageUrl: string): URL | null {
-  if (!URL.canParse(urlString, pageUrl)) {
-    return null;
-  }
+  const url = resolveUrl(urlString, pageUrl);
 
-  const url = new URL(urlString, pageUrl);
-
-  return url.protocol === "javascript:" ? null : url;
+  return url?.protocol === "javascript:" ? null : url;
 }
 
 export function metaRefreshTarget(html: string, pageUrl: string): string | null {
+  if (!HTTP_EQUIV.test(html)) {
+    return null;
+  }
+
   const { document } = parseHTML(html);
 
   for (const meta of document.querySelectorAll("meta[http-equiv][content]")) {
-    const refresh =
-      meta.getAttribute("http-equiv")?.toLowerCase() === "refresh"
-        ? parseRefresh(meta.getAttribute("content") ?? "")
-        : null;
+    if (meta.getAttribute("http-equiv")?.toLowerCase() !== "refresh") {
+      continue;
+    }
 
-    if (refresh?.urlString === null) {
+    const refresh = parseRefresh(meta.getAttribute("content") ?? "");
+
+    if (refresh === null) {
+      continue;
+    }
+
+    if (refresh.urlString === null) {
       return null;
     }
 
-    const target = refresh === null ? null : resolved(refresh.urlString, pageUrl);
+    const target = resolved(refresh.urlString, pageUrl);
 
-    if (refresh !== null && target !== null) {
+    if (target !== null) {
       return refresh.seconds === 0 ? target.href : null;
     }
   }

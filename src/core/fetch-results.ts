@@ -1,4 +1,4 @@
-export const FETCH_FAILURES = [
+const FETCH_FAILURES = [
   "timeout",
   "refused",
   "unsupported",

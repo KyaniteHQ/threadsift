@@ -24,11 +24,12 @@ async function store(
   fetched: Readonly<Fetched>,
 ) {
   const found = fetched.status === "ok" ? fetched.found : null;
-  const details = found === null ? null : { ...found, fetchedAt: Date.now() };
+  const now = Date.now();
+  const details = found === null ? null : { ...found, fetchedAt: now };
 
   const [inserted] = await db
     .insert(items)
-    .values({ source, kind, normalizedUrl, originalUrl, savedAt: Date.now(), ...details })
+    .values({ source, kind, normalizedUrl, originalUrl, savedAt: now, ...details })
     .onConflictDoNothing({ target: items.normalizedUrl })
     .returning();
 

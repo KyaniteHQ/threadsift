@@ -12,7 +12,7 @@ const SqlParamsSchema = z.array(
   z.union([z.null(), z.number(), z.bigint(), z.string(), z.instanceof(Uint8Array)]),
 );
 
-export interface OpenDatabase {
+interface OpenDatabase {
   readonly db: Database;
   close(): void;
 }
