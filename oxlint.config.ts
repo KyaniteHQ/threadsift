@@ -52,6 +52,8 @@ export default defineConfig({
         ignoreInferredTypes: true,
         allow: [
           { from: "package", name: ["Context", "ImportExpression"], package: "@oxlint/plugins" },
+          { from: "package", name: "Context", package: "hono" },
+          { from: "package", name: "OpenAPIHono", package: "@hono/zod-openapi" },
           { from: "file", name: "Database" },
           { from: "package", name: "ZodError", package: "zod" },
           {
@@ -68,6 +70,7 @@ export default defineConfig({
               "AbortSignal",
               "URL",
               "ReadableStream",
+              "Uint8Array",
               "AsyncIterable",
             ],
           },

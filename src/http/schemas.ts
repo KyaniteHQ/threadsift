@@ -35,6 +35,34 @@ export const ItemListResponseSchema = z.object({
 export const ErrorResponseSchema = z.object({
   error: z.string(),
   fetch: z.literal("refused").optional(),
+  setup: z.enum(["missing", "short"]).optional(),
 });
+
+export const SessionStateSchema = z.object({ state: z.enum(["setup", "signed-out", "signed-in"]) });
+
+export const SetupCodeRequestSchema = z.object({ code: z.string() });
+
+export const SetupRequestSchema = z.object({ code: z.string(), password: z.string() });
+
+export const LoginRequestSchema = z.object({ password: z.string() });
+
+export const TokenNameSchema = z.string().trim().min(1).max(80);
+
+export const CreateTokenRequestSchema = z.object({ name: TokenNameSchema });
+
+export const TokenSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  createdAt: z.number().int(),
+  lastUsedAt: z.number().int().nullable(),
+});
+
+export const CreatedTokenResponseSchema = z.object({ token: TokenSchema, value: z.string() });
+
+export const TokenListResponseSchema = z.object({ tokens: z.array(TokenSchema) });
+
+export const TokenIdParamSchema = z.object({ id: z.coerce.number().int().positive() });
+
+export type Token = z.infer<typeof TokenSchema>;
 
 export type Item = z.infer<typeof ItemSchema>;

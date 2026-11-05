@@ -5,6 +5,8 @@ import type { ZodError } from "zod";
 import { itemPath } from "../core/item-path.ts";
 import { listItems, saveItem } from "../core/items.ts";
 import type { Ports } from "../core/ports.ts";
+import { registerAccessRoutes } from "./access-routes.ts";
+import { guard } from "./guard.ts";
 import {
   ErrorResponseSchema,
   ItemListResponseSchema,
@@ -61,12 +63,7 @@ function reasonOf(error: ZodError): string {
     .join("; ");
 }
 
-export function createApp(ports: Ports): OpenAPIHono {
-  const app = new OpenAPIHono({
-    defaultHook: (result, c) =>
-      result.success ? undefined : c.json({ error: reasonOf(result.error) }, 400),
-  });
-
+function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(saveItemRoute, async (c) => {
     const { url } = c.req.valid("json");
     const saved = await saveItem(ports, url);
@@ -82,6 +79,18 @@ export function createApp(ports: Ports): OpenAPIHono {
   });
 
   app.openapi(listItemsRoute, async (c) => c.json({ items: await listItems(ports.db) }, 200));
+}
+
+export function createApp(ports: Ports): OpenAPIHono {
+  const app = new OpenAPIHono({
+    defaultHook: (result, c) =>
+      result.success ? undefined : c.json({ error: reasonOf(result.error) }, 400),
+  });
+
+  app.use("/api/*", guard(ports));
+
+  registerAccessRoutes(app, ports);
+  registerItemRoutes(app, ports);
 
   app.doc("/api/openapi.json", {
     openapi: "3.1.0",
@@ -90,9 +99,15 @@ export function createApp(ports: Ports): OpenAPIHono {
 
   app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
 
-  app.onError((error, c) => {
+  app.onError(async (error, c) => {
     if (error instanceof HTTPException) {
-      return c.json({ error: error.message }, error.status);
+      const refusal = error.getResponse();
+
+      if (refusal.headers.get("content-type")?.includes("application/json") === true) {
+        return refusal;
+      }
+
+      return c.json({ error: (await refusal.text()) || "Request refused" }, error.status);
     }
 
     console.error(error);
