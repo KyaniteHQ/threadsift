@@ -144,17 +144,24 @@ function usePaste(save: Save, focusOnMount: boolean) {
 
 function usePasteRequest(
   request: PasteRequest | null,
-  { guard, saveValue }: Readonly<Pick<ReturnType<typeof usePaste>, "guard" | "saveValue">>,
+  {
+    guard,
+    saveValue,
+    saving,
+  }: Readonly<Pick<ReturnType<typeof usePaste>, "guard" | "saveValue" | "saving">>,
 ) {
+  const answered = useRef(0);
+
   const run = useEffectEvent((url: string) => {
     guard(() => saveValue(url, false));
   });
 
   useEffect(() => {
-    if (request !== null) {
+    if (request !== null && request.seq !== answered.current && !saving) {
+      answered.current = request.seq;
       run(request.url);
     }
-  }, [request]);
+  }, [request, saving]);
 }
 
 function useCardFace(

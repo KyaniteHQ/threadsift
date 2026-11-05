@@ -47,6 +47,7 @@ function useOpenItem(list: ListState) {
 
 function useSaveAndShow(
   save: (url: string) => Promise<SaveResult>,
+  attend: (attention: Attention) => void,
   pane: RefObject<HTMLElement | null>,
 ) {
   return useCallback(
@@ -57,13 +58,15 @@ function useSaveAndShow(
         return { saved: false, notice: result.outcome };
       }
 
-      if (!result.refreshed && pane.current !== null) {
+      if (result.known) {
+        attend({ id: result.item.id, focus: false });
+      } else if (pane.current !== null) {
         scrollToTop(pane.current);
       }
 
       return { saved: true, itemId: result.item.id, refreshed: result.refreshed };
     },
-    [pane, save],
+    [attend, pane, save],
   );
 }
 
@@ -88,7 +91,7 @@ export function useListActions(
     attention,
     request,
     tryAgain,
-    saveAndShow: useSaveAndShow(actions.save, pane),
+    saveAndShow: useSaveAndShow(actions.save, attend, pane),
     retryAndKeepPlace: useKeptPlace(list, actions.retry, pane),
   };
 }

@@ -3,7 +3,6 @@ import { Fragment, type RefObject, memo, useCallback, useEffect, useId, useRef }
 import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
-import { failureReasonOf } from "./paste-card.ts";
 import { revealInPane } from "./reveal.ts";
 import { savedLabel } from "./saved-label.ts";
 import { CARD_TITLES, FAILURE_TITLES, NEW_TAB_LABEL, RETRY_LABEL, SOURCE_LABELS } from "./text.ts";
@@ -76,7 +75,11 @@ function Failed({
   item,
   describedBy,
   tryAgain,
-}: Readonly<{ item: Item; describedBy: string; tryAgain: (item: Item) => void }>) {
+}: Readonly<{
+  item: Extract<Item, { status: "failed" }>;
+  describedBy: string;
+  tryAgain: (item: Item) => void;
+}>) {
   const retry = useCallback(() => {
     tryAgain(item);
   }, [item, tryAgain]);
@@ -85,7 +88,7 @@ function Failed({
     <div className="it-fail">
       <p>
         <Icon name="warn" className="ic ic-s tone-warn" />
-        {FAILURE_TITLES[failureReasonOf(item)]}
+        {FAILURE_TITLES[item.reason]}
       </p>
       <button type="button" className="btn" aria-describedby={describedBy} onClick={retry}>
         {RETRY_LABEL}

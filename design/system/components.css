@@ -223,7 +223,7 @@ a.btn { text-decoration: none; }
 .it.is-back { outline: 2px solid var(--acc); outline-offset: 2px; }
 .it-proc .it-title { min-height: calc(var(--t-title) * var(--lh-title)); font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
 .proc-ic { color: var(--acc-ink); }
-.skel { grid-area: sum; position: relative; height: 0; }  
+.skel { grid-area: sum; position: relative; height: 0; }
 .skel i, .it-ghost i { display: block; height: var(--s2); border-radius: var(--r1); background: var(--surface-2); animation: shimmer var(--loop-pulse) ease-in-out infinite; }
 .skel i { position: absolute; top: var(--s1); width: 60%; height: var(--s1); }
 
@@ -270,8 +270,7 @@ a.btn { text-decoration: none; }
 /* List: rail | list | reader. Medium: header over list | reader. Narrow: one column. */
 [data-layout="list"] .lib { display: grid; height: 100%; grid-template-columns: var(--rail-w) minmax(var(--list-min), var(--list-w)) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
 [data-layout="list"] .mast { grid-column: 1; grid-row: 1 / -1; overflow-y: auto; padding: var(--s5) var(--s4); border-right: 1px solid var(--line); background: var(--surface-2); }
-[data-layout="list"] .mast:has(.st-pop) { overflow: visible; }   /* the settings panel reaches past the sidebar while it is open */
-[data-layout="list"] .mast:has(.st-pop) { z-index: var(--z-popover); }   /* the panel also sits above the list */
+[data-layout="list"] .mast:has(.st-pop) { z-index: var(--z-popover); overflow: visible; }   /* the settings panel reaches past the sidebar, above the list, while it is open */
 [data-layout="list"] .brand { padding: 0 var(--s2); }
 [data-layout="list"] .search { grid-column: 2; grid-row: 1; padding: var(--s4) var(--s4) var(--s2); background: var(--bg); }
 [data-layout="list"] .list-head { grid-column: 2; grid-row: 2; padding: var(--s1) var(--s4) var(--s2); border-bottom: 1px solid var(--line); }

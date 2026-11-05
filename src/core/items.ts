@@ -92,13 +92,15 @@ async function saveSettled(
 
   const known = await itemAt(db, normalizedUrl);
 
-  const [updated] = await db
-    .update(items)
-    .set(settle(fetched, known.title, now))
-    .where(eq(items.id, known.id))
-    .returning();
+  const [, [item]] = await db.batch([
+    db
+      .update(items)
+      .set(settle(fetched, known.title, now))
+      .where(and(eq(items.id, known.id), notExists(hasOpenJob("fetch")))),
+    db.select().from(items).where(eq(items.id, known.id)),
+  ]);
 
-  return { kind: "saved", item: updated ?? known, created: false };
+  return { kind: "saved", item: foundItem(item, normalizedUrl), created: false };
 }
 
 async function saveShortLink(ports: Ports, address: string): Promise<SaveResult> {

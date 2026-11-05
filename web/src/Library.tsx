@@ -1,14 +1,11 @@
 import { useRef } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
-import { useLibrary } from "./library.ts";
+import { knownItems, useLibrary } from "./library.ts";
 import { ListBody } from "./ListBody.tsx";
 import { PasteBox } from "./PasteBox.tsx";
 import { SettingsPanel } from "./SettingsPanel.tsx";
 import { useListActions } from "./use-list-actions.ts";
 import type { useRoot } from "./use-root.ts";
-
-const NO_ITEMS: readonly Item[] = [];
 
 export type Look = Omit<ReturnType<typeof useRoot>, "ref" | "attributes">;
 
@@ -41,7 +38,7 @@ export function Library({
           <PasteBox
             save={actions.saveAndShow}
             focusOnMount={arrived}
-            items={list.status === "ready" ? list.items : NO_ITEMS}
+            items={knownItems(list)}
             request={actions.request}
           />
         </header>

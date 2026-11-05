@@ -15,6 +15,7 @@ import {
   ItemResponseSchema,
   SaveItemRequestSchema,
   SavedItemResponseSchema,
+  itemView,
 } from "./schemas.ts";
 
 const saveItemRoute = createRoute({
@@ -73,16 +74,23 @@ function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
       return c.json({ error: REFUSED_HOST, fetch: "refused" as const }, 400);
     }
 
-    return c.json({ item: saved.item, url: itemPath(saved.item.id) }, saved.created ? 201 : 200);
+    return c.json(
+      { item: itemView(saved.item), url: itemPath(saved.item.id) },
+      saved.created ? 201 : 200,
+    );
   });
 
   app.openapi(getItemRoute, async (c) => {
     const item = await getItem(ports.db, c.req.valid("param").id);
 
-    return item === undefined ? c.json({ error: NOT_FOUND }, 404) : c.json({ item }, 200);
+    return item === undefined
+      ? c.json({ error: NOT_FOUND }, 404)
+      : c.json({ item: itemView(item) }, 200);
   });
 
-  app.openapi(listItemsRoute, async (c) => c.json({ items: await listItems(ports.db) }, 200));
+  app.openapi(listItemsRoute, async (c) =>
+    c.json({ items: (await listItems(ports.db)).map((row) => itemView(row)) }, 200),
+  );
 }
 
 export function createApp(ports: Ports): OpenAPIHono {

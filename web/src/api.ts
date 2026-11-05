@@ -10,7 +10,12 @@ import { call, parsedFrom, unexpected } from "./session.ts";
 export type SaveResult =
   | { readonly outcome: "invalid" }
   | { readonly outcome: "private" }
-  | { readonly outcome: "saved"; readonly refreshed: boolean; readonly item: Item };
+  | {
+      readonly outcome: "saved";
+      readonly known: boolean;
+      readonly refreshed: boolean;
+      readonly item: Item;
+    };
 
 export async function fetchItem(id: number): Promise<Item> {
   return (await parsedFrom("GET", `/api/items/${id}`, ItemResponseSchema)).item;
@@ -35,5 +40,7 @@ export async function saveLink(url: string): Promise<SaveResult> {
 
   const { item } = SavedItemResponseSchema.parse(await response.json());
 
-  return { outcome: "saved", refreshed: response.status !== 201 && item.fetch !== null, item };
+  const known = response.status !== 201;
+
+  return { outcome: "saved", known, refreshed: known && item.fetch !== null, item };
 }
