@@ -9,8 +9,6 @@ export const SETUP = {
   stepOne: "Step 1 of 2",
   stepTwo: "Step 2 of 2",
   codeTitle: "Enter the setup code",
-  codeWhere:
-    "Find it in the container’s log or SETUP_CODE variable, or the Worker’s SETUP_CODE secret.",
   codeWhereContainer:
     'Find it in the container’s SETUP_CODE variable or the "Setup code:" log line.',
   codeWhereWorker: "On Cloudflare, find it in the Worker’s SETUP_CODE secret.",
@@ -43,7 +41,6 @@ export const FIELDS = {
 } as const;
 
 export const LOGIN = {
-  title: "Sign in",
   heading: "Open your library",
   signIn: "Sign in",
   signingIn: "Signing in…",

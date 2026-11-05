@@ -46,7 +46,7 @@ export function LoginScreen({ refresh }: Readonly<{ refresh: () => void }>) {
   return (
     <AuthShell>
       <form className="stack" method="post" onSubmit={onSubmit}>
-        <h1 className="auth-title">{LOGIN.title}</h1>
+        <h1 className="auth-title">{LOGIN.heading}</h1>
         <UsernameHint />
         <PasswordField
           field={password}

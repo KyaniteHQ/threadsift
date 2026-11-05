@@ -119,7 +119,7 @@ export function PasswordStep(props: Readonly<PasswordStepProps>) {
         busy={busy}
         blocked={lock.locked}
       />
-      <button type="button" className="btn btn-plain" onClick={props.back}>
+      <button type="button" className="btn btn-plain btn-flush" onClick={props.back}>
         {SETUP.backToCode}
       </button>
     </form>

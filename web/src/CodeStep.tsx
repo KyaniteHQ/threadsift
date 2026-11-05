@@ -66,7 +66,10 @@ export function CodeStep(props: Readonly<CodeStepProps>) {
     <form className="stack" method="post" onSubmit={onSubmit}>
       <p className="label">{SETUP.stepOne}</p>
       <h1 className="auth-title">{SETUP.codeTitle}</h1>
-      <p className="fld-help">{SETUP.codeWhere}</p>
+      <div className="help-pair">
+        <p className="fld-help">{SETUP.codeWhereContainer}</p>
+        <p className="fld-help">{SETUP.codeWhereWorker}</p>
+      </div>
       <FormField field={code} label={SETUP.codeLabel} kind={CODE_INPUT} />
       <Alert text={lock.message} />
       <SwapButton

@@ -247,11 +247,11 @@ test("a Paste after the owner signed out in another tab shows the login screen, 
 
   await openSettings(first);
   await first.getByRole("button", { name: SETTINGS.signOut }).click();
-  await expect(first.getByRole("heading", { name: LOGIN.title })).toBeVisible();
+  await expect(first.getByRole("heading", { name: LOGIN.heading })).toBeVisible();
 
   await second.getByRole("textbox", { name: "Paste a link to save" }).fill("https://example.com/x");
   await second.getByRole("button", { name: "Add" }).click();
-  await expect(second.getByRole("heading", { name: LOGIN.title })).toBeVisible();
+  await expect(second.getByRole("heading", { name: LOGIN.heading })).toBeVisible();
   await expect(second.getByLabel(FIELDS.password, { exact: true })).toBeFocused();
   await expect(second.getByRole("alert")).toHaveCount(0);
   await context.close();

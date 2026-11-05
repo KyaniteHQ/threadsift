@@ -61,7 +61,7 @@ test("the login screen keeps the design rules at every width in every theme", as
 
   for (const theme of THEMES) {
     await storeSettings(page, { theme });
-    await expect(page.getByRole("heading", { name: LOGIN.title })).toBeVisible();
+    await expect(page.getByRole("heading", { name: LOGIN.heading })).toBeVisible();
     await checkAtEveryWidth(page, `login, ${theme}`);
 
     await passwordField(page).fill(`${password}x`);

@@ -4,7 +4,7 @@
   align-items: center;
   height: 100%;
   overflow-y: auto;
-  padding: var(--s5) var(--s4) calc(var(--s6) * 2);
+  padding: calc(var(--s6) * 2) var(--s4) calc(var(--s6) * 2);
 }
 .auth-col {
   display: flex;
@@ -12,8 +12,12 @@
   gap: var(--s4);
   width: 100%;
   max-width: var(--measure);
-  margin-block: auto;
   font-size: var(--t-read);
+}
+.help-pair {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
 }
 .auth-mark {
   margin: 0;
@@ -242,6 +246,9 @@ a.btn {
 .btn-flush {
   align-self: flex-start;
   margin-inline-start: calc(-1 * (var(--s3) + 1px));
+}
+.app[data-bp~="phone"] .stack .btn-flush {
+  margin-inline-start: 0;
 }
 .toks {
   margin: 0;
