@@ -16,7 +16,6 @@ import {
 import { postLink } from "./api.ts";
 import { envValue } from "./env.ts";
 import { setUpByApi } from "./fresh-screen.ts";
-import { newRunId } from "./links.ts";
 
 function keep(name: string, content: string): void {
   writeFileSync(join(stateDir(), name), content, { mode: 0o600 });
@@ -30,10 +29,13 @@ export default async function globalSetup(): Promise<void> {
   const owner = await request.newContext({ baseURL, extraHTTPHeaders: cookieHeader(session) });
   const created = await createToken(owner, "Suite");
 
-  await Promise.all([
-    postLink(owner, "https://example.com/"),
-    postLink(owner, `https://example.com/${newRunId()}/link-only`),
-  ]);
+  const titled = await postLink(owner, "https://example.com/");
+
+  if (titled.body.fetch !== "ok" || titled.body.item.title !== "Example Domain") {
+    throw new Error(
+      `the suite's titled Item came back as fetch "${titled.body.fetch}" with title ${JSON.stringify(titled.body.item.title)}; example.com did not answer`,
+    );
+  }
 
   await owner.dispose();
 

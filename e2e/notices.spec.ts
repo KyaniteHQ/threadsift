@@ -7,6 +7,7 @@ import {
   pasteField,
   pasteLink,
   pasteStatus,
+  retryButton,
   submitLink,
   throughRedirects,
 } from "./links.ts";
@@ -67,7 +68,7 @@ test("a notice about a saved link names that link and offers Try again only when
 
   await submitLink(page, `https://example.com/missing-${run}`);
   await expect(page.locator(".ps .ps-url")).toHaveText(`example.com/missing-${run}`);
-  await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(0);
+  await expect(retryButton(page)).toHaveCount(0);
 
   await submitLink(page, `https://www.no-such-host-${run}.invalid/a`);
   await expect(page.locator(".ps .ps-url")).toHaveText(`no-such-host-${run}.invalid/a`);
@@ -80,7 +81,7 @@ test("Try again on an unreachable website saves the same link again", async ({ p
   const field = pasteField(page);
   await submitLink(page, url);
 
-  const tryAgain = page.getByRole("button", { name: "Try again" });
+  const tryAgain = retryButton(page);
   await expect(tryAgain).toBeVisible({ timeout: 20_000 });
 
   const again = page.waitForRequest(

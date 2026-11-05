@@ -1,6 +1,6 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
-import { ADD_LABEL, PASTE_LABEL } from "../web/src/text.ts";
+import { ADD_LABEL, PASTE_LABEL, RETRY_LABEL } from "../web/src/text.ts";
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
 const PASTE_TIMEOUT_MS = 20_000;
@@ -77,6 +77,10 @@ export function pasteField(page: Page): Locator {
 
 export function addButton(page: Page): Locator {
   return page.getByRole("button", { name: ADD_LABEL });
+}
+
+export function retryButton(page: Page): Locator {
+  return page.getByRole("button", { name: RETRY_LABEL });
 }
 
 export function rowOf(page: Page, id: number): Locator {

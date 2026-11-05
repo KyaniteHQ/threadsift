@@ -21,6 +21,7 @@ The project's testing policy. Read it before writing, changing or deleting a tes
 - A test names the requirement it proves and the regression it would catch, and nothing else already catches that regression. A test that cannot name both is not written.
 - A new test fails against the code before the change.
 - Each contract has one owner test, at the strongest real boundary that reaches it. Add a case to the owner instead of writing a second test of the same contract.
+- An end-to-end test keeps the values the spec or the ticket states (lengths, limits, counts) as literals in the e2e constants instead of importing them from `src/`, so it checks the app against the spec and not against itself. Interface labels may still come from `web/src/text.ts`.
 - Not allowed: tests that pass by construction, tests that assert exact SQL, call order or log wording, tests with no assertion, tests that read source code to enforce a style rule (that is a lint rule), and tests written to raise a coverage number.
 - Unit tests are written only when the owner asks for one; the end-to-end suite is the default.
 

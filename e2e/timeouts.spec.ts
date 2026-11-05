@@ -2,8 +2,9 @@ import { type Locator, type Page, expect, test } from "@playwright/test";
 import type { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { SAVING_LABEL } from "../web/src/text.ts";
 import { postLink } from "./api.ts";
-import { addButton, newRunId, pasteField, pasteStatus, rowOf } from "./links.ts";
+import { addButton, newRunId, pasteField, pasteStatus, retryButton, rowOf } from "./links.ts";
 import { afterTwoFrames } from "./look.ts";
 
 const DEADLINE_MS = 8000;
@@ -58,7 +59,7 @@ async function addWhileSaving(page: Page, url: string) {
   const started = Date.now();
   await add.click();
 
-  const saving = page.getByRole("button", { name: "Saving…" });
+  const saving = page.getByRole("button", { name: SAVING_LABEL });
   await expect(saving).toBeDisabled();
   await expect(field).toHaveValue(url);
   await expectSavingState(page, saving, idleWidth);
@@ -94,7 +95,7 @@ test("a host that never answers and a body that stalls each time out, while the 
   expectTimedOut(dripping, status, saved, elapsed);
 
   await expect(pasteStatus(page)).toContainText("didn’t answer in time");
-  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  await expect(retryButton(page)).toBeVisible();
   await expect(addButton(page)).toBeEnabled();
   await expect(rowOf(page, saved.item.id).locator(".it-open")).toContainText(
     dripping.replace(/^https?:\/\//u, ""),
