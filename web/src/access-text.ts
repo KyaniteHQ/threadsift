@@ -11,6 +11,9 @@ export const SETUP = {
   codeTitle: "Enter the setup code",
   codeWhere:
     "Find it in the container’s log or SETUP_CODE variable, or the Worker’s SETUP_CODE secret.",
+  codeWhereContainer:
+    'Find it in the container’s SETUP_CODE variable or the "Setup code:" log line.',
+  codeWhereWorker: "On Cloudflare, find it in the Worker’s SETUP_CODE secret.",
   codeLabel: "Setup code",
   continue: "Continue",
   checking: "Checking…",
@@ -41,6 +44,7 @@ export const FIELDS = {
 
 export const LOGIN = {
   title: "Sign in",
+  heading: "Open your library",
   signIn: "Sign in",
   signingIn: "Signing in…",
   wrong: "That password is wrong.",
@@ -55,6 +59,7 @@ export const WAIT = {
   minutes: "{count} minutes",
   hour: "1 hour",
   hours: "{count} hours",
+  over: "You can try again now.",
 } as const;
 
 export const SETTINGS = {
@@ -66,11 +71,14 @@ export const SETTINGS = {
   tokenName: "Token name",
   tokenNamePlaceholder: "Extension",
   tokenNameRequired: "Enter a token name first.",
+  tokenNameTooLong: "Use 80 characters or fewer for the token name.",
   createToken: "Create token",
   tokenCreateFailed: "Couldn’t create the token, so try again.",
   tokensLoadFailed: "Couldn’t load agent tokens.",
   revealTitle: "New agent token",
   revealNote: "Copy this token now, because it won’t be shown again.",
+  revealTitleNamed: "New token for {name}",
+  revealPaste: "This token is shown once, so copy it now and paste it into that agent’s settings.",
   tokenValue: "Token value",
   copy: "Copy",
   copied: "Copied",
@@ -80,6 +88,8 @@ export const SETTINGS = {
   lastUsed: "last used {when}",
   neverUsed: "never used",
   revoke: "Revoke",
+  revokeNamed: "Revoke {name}",
+  revokeEffect: "The agent that uses this token stops working at once.",
   revokeAsk: "Revoke {name}?",
   revokeConfirm: "Revoke token",
   cancel: "Cancel",
