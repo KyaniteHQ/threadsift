@@ -66,7 +66,6 @@ test("a host that stalls shows a failure with Try again and Dismiss, and the car
 }) => {
   test.setTimeout(90_000);
   const run = newRunId();
-  await page.clock.install();
   await seed(page, request, run);
 
   const announced = await watchAnnouncements(page);
@@ -74,6 +73,7 @@ test("a host that stalls shows a failure with Try again and Dismiss, and the car
   await expect(cardTitle(page)).toHaveText(READING);
 
   await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
+  const shown = Date.now();
   const said = await announced();
   expect(
     said.polite.some((text) => text.startsWith(READING)),
@@ -88,7 +88,8 @@ test("a host that stalls shows a failure with Try again and Dismiss, and the car
   await expect(alertRegion(page)).toContainText(TIMED_OUT);
   await expect(rowOf(page, id).locator(".it-fail")).toContainText(TIMED_OUT);
 
-  await expectClosesAfterSixSeconds(page);
+  await expect(pasteCard(page)).toBeHidden({ timeout: CLOSE_MS + 3000 });
+  expect(Date.now() - shown).toBeGreaterThanOrEqual(CLOSE_MS - 700);
   await expect(rowOf(page, id).locator(".it-fail")).toContainText(TIMED_OUT);
 });
 
@@ -98,19 +99,20 @@ test("the failure card holds while hovered, closes 6 s after the pointer leaves,
 }) => {
   test.setTimeout(60_000);
   const run = newRunId();
-  await page.clock.install();
   const first = await seed(page, request, run);
 
   const id = await pasteForId(page, unreachableUrl(run));
   await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
 
   await pasteCard(page).hover();
-  await page.clock.fastForward(CLOSE_MS + 1500);
+  await page.waitForTimeout(CLOSE_MS + 1500);
   await expect(pasteCard(page)).toBeVisible();
 
   await rowOf(page, first.id).locator("a.it-open").focus();
   await page.locator("h1").hover();
-  await expectClosesAfterSixSeconds(page);
+  const left = Date.now();
+  await expect(pasteCard(page)).toBeHidden({ timeout: CLOSE_MS + 3000 });
+  expect(Date.now() - left).toBeGreaterThanOrEqual(CLOSE_MS - 700);
   await expect(rowOf(page, first.id).locator("a.it-open")).toBeFocused();
   await expect(rowOf(page, id).getByRole("button", { name: RETRY_LABEL })).toBeVisible();
 });
