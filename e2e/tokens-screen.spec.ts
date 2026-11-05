@@ -1,6 +1,6 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { SETTINGS } from "../web/src/access-text.ts";
+import { SETTINGS, filled } from "../web/src/access-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 
@@ -12,8 +12,6 @@ const PIXEL = 1;
 let screen: FreshScreen;
 const code = newCode();
 const password = newPassword().slice(0, PASSWORD_LENGTH);
-
-test.describe.configure({ mode: "serial" });
 
 test.beforeAll(async ({ browser }) => {
   screen = await openSignedIn(browser, code, password);
@@ -67,4 +65,127 @@ test("Create stays level with the name field while the field shows an error", as
   const withError = await centreOf(createButton(page).boundingBox());
   const inputWithError = await centreOf(nameField(page).boundingBox());
   expect(Math.abs(withError - inputWithError), "Create stays level").toBeLessThan(PIXEL);
+});
+
+const PHONE = { width: 390, height: 844 } as const;
+const DESKTOP = { width: 1440, height: 900 } as const;
+
+async function create(page: Page, name: string): Promise<void> {
+  await page.goto("/settings");
+  await nameField(page).fill(name);
+  await createButton(page).click();
+  await expect(valueField(page)).toBeVisible();
+}
+
+function selectedText(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const active = document.activeElement;
+
+    return active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement
+      ? active.value.slice(active.selectionStart ?? 0, active.selectionEnd ?? 0)
+      : "";
+  });
+}
+
+function valueField(page: Page) {
+  return page.getByRole("textbox", { name: SETTINGS.tokenValue });
+}
+
+function lastLineWords(sentence: Locator): Promise<number> {
+  return sentence.evaluate((element) => {
+    const node = element.firstChild;
+
+    if (!(node instanceof Text)) {
+      return 0;
+    }
+
+    const text = node.textContent;
+    const tops: number[] = [];
+
+    for (const match of text.matchAll(/\S+/gu)) {
+      const range = document.createRange();
+      range.setStart(node, match.index);
+      range.setEnd(node, match.index + match[0].length);
+      tops.push(Math.round(range.getBoundingClientRect().top));
+    }
+
+    const last = Math.max(...tops);
+
+    return tops.filter((top) => top === last).length;
+  });
+}
+
+test("the new token's field is described by the sentence that says where the value goes", async () => {
+  const { page } = screen;
+  await page.setViewportSize(DESKTOP);
+  await create(page, "Described");
+  await expect(valueField(page)).toHaveAccessibleDescription(SETTINGS.revealPaste);
+});
+
+test("the reveal names its token, keeps Copy beside the value and puts Done below as a plain button", async () => {
+  const { page } = screen;
+  await page.setViewportSize(PHONE);
+  await create(page, "Beside");
+  await expect(
+    page.getByRole("heading", { name: filled(SETTINGS.revealTitleNamed, { name: "Beside" }) }),
+  ).toBeVisible();
+  const value = await valueField(page).boundingBox();
+  const copy = await page.getByRole("button", { name: SETTINGS.copy }).boundingBox();
+  const done = page.getByRole("button", { name: SETTINGS.done });
+  const doneBox = await done.boundingBox();
+
+  expect(value && copy && doneBox).toBeTruthy();
+  expect(copy?.y ?? 0, "Copy shares the value's row").toBeLessThan(
+    (value?.y ?? 0) + (value?.height ?? 0),
+  );
+  expect(doneBox?.y ?? 0, "Done sits below Copy").toBeGreaterThanOrEqual(
+    (copy?.y ?? 0) + (copy?.height ?? 0),
+  );
+  await expect(done).toHaveClass(/btn-plain/u);
+});
+
+test("the whole token value is on screen and selected when the field has focus", async () => {
+  const { page } = screen;
+  await page.setViewportSize(PHONE);
+  await create(page, "Whole");
+  const field = valueField(page);
+
+  const shown = await field.evaluate((element) => ({
+    value: "value" in element ? String(element.value) : (element.textContent ?? ""),
+    cutOff:
+      element.scrollWidth > element.clientWidth || element.scrollHeight > element.clientHeight,
+  }));
+
+  expect(shown.value).toMatch(/^tsa_/u);
+  expect(shown.cutOff, "no part of the value is clipped").toBe(false);
+  await expect(field).toBeFocused();
+  const selected = await selectedText(page);
+  expect(selected).toBe(shown.value);
+});
+
+test("the reveal sentence does not end on a lone word at 390px", async () => {
+  const { page } = screen;
+  await page.setViewportSize(PHONE);
+  await create(page, "Sentence");
+  const sentence = page.locator(".reveal p").first();
+  expect(await lastLineWords(sentence)).toBeGreaterThan(1);
+});
+
+test("a refused copy is announced and leaves the value selected in a focused field", async ({
+  browser,
+}) => {
+  const { page, fresh } = screen;
+  await page.setViewportSize(DESKTOP);
+  await create(page, "Refused");
+  const session = await browser.newBrowserCDPSession();
+  await session.send("Browser.setPermission", {
+    permission: { name: "clipboard-write" },
+    setting: "denied",
+    origin: new URL(fresh.url).origin,
+  });
+  await page.getByRole("button", { name: SETTINGS.copy }).click();
+  await expect(page.getByRole("alert")).toHaveText(SETTINGS.copyFailed);
+  await expect(valueField(page)).toBeFocused();
+  const selected = await selectedText(page);
+  expect(selected).toMatch(/^tsa_/u);
 });

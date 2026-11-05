@@ -1,11 +1,13 @@
-import { type FocusEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { SETTINGS } from "./access-text.ts";
+import { SETTINGS, filled } from "./access-text.ts";
+import { Alert } from "./AuthShell.tsx";
 
 const COPIED_MS = 2000;
+const TOKEN_ROWS = 3;
 
 function useCopy(value: string) {
-  const field = useRef<HTMLInputElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -33,6 +35,7 @@ function useCopy(value: string) {
         setCopied(true);
       } catch {
         setFailed(true);
+        field.current?.focus();
         field.current?.select();
       }
     };
@@ -40,41 +43,49 @@ function useCopy(value: string) {
     void write();
   }, [value]);
 
-  return { field, copied, failed, copy };
+  const selectValue = useCallback(() => {
+    field.current?.select();
+  }, []);
+
+  return { field, copied, failed, copy, selectValue };
 }
 
-const selectAll = (event: FocusEvent<HTMLInputElement>): void => {
-  event.target.select();
-};
-
-export function TokenReveal({ value, done }: Readonly<{ value: string; done: () => void }>) {
-  const { field, copied, failed, copy } = useCopy(value);
+export function TokenReveal({
+  name,
+  value,
+  done,
+}: Readonly<{ name: string; value: string; done: () => void }>) {
+  const { field, copied, failed, copy, selectValue } = useCopy(value);
+  const titleId = useId();
+  const noteId = useId();
 
   return (
-    <section className="reveal" aria-labelledby="reveal-title">
-      <h3 id="reveal-title" className="reveal-title">
-        {SETTINGS.revealTitle}
+    <section className="reveal" aria-labelledby={titleId}>
+      <h3 id={titleId} className="reveal-title">
+        {filled(SETTINGS.revealTitleNamed, { name })}
       </h3>
-      <p>{SETTINGS.revealNote}</p>
+      <p id={noteId}>{SETTINGS.revealPaste}</p>
       <div className="reveal-row">
-        <input
+        <textarea
           ref={field}
           className="reveal-value"
           readOnly
+          rows={TOKEN_ROWS}
           spellCheck={false}
           value={value}
           aria-label={SETTINGS.tokenValue}
-          onFocus={selectAll}
+          aria-describedby={noteId}
+          onFocus={selectValue}
         />
         <button type="button" className="btn" onClick={copy}>
           {copied ? SETTINGS.copied : SETTINGS.copy}
         </button>
-        <button type="button" className="btn" onClick={done}>
-          {SETTINGS.done}
-        </button>
       </div>
       <output className="vh">{copied ? SETTINGS.copied : ""}</output>
-      {failed ? <p className="fld-err">{SETTINGS.copyFailed}</p> : null}
+      <Alert text={failed ? SETTINGS.copyFailed : null} />
+      <button type="button" className="btn btn-plain btn-flush" onClick={done}>
+        {SETTINGS.done}
+      </button>
     </section>
   );
 }

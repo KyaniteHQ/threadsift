@@ -194,22 +194,36 @@
 .reveal-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--s2);
 }
 .reveal-value {
   flex: 1 1 14em;
+  box-sizing: border-box;
+  field-sizing: content;
   min-width: 0;
   min-height: var(--field-h);
-  padding: 0 var(--s3);
+  padding: var(--s2) var(--s3);
   border: 1px solid var(--ctl-line);
   border-radius: var(--r2);
   background: var(--surface);
   color: var(--text);
   font-family: var(--f-mono);
   font-size: var(--t-code);
+  overflow-wrap: anywhere;
+  resize: none;
 }
 .reveal-row .btn {
   min-height: var(--field-h);
+}
+.reveal p,
+.reveal-title {
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.btn-flush {
+  align-self: flex-start;
+  margin-inline-start: calc(-1 * (var(--s3) + 1px));
 }
 .toks {
   margin: 0;

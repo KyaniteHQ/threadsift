@@ -16,6 +16,11 @@ type Loaded =
 
 const NO_TOKENS: readonly Token[] = [];
 
+interface Revealed {
+  readonly name: string;
+  readonly value: string;
+}
+
 function useTokens() {
   const [tokens, setTokens] = useState<Loaded>({ status: "loading" });
 
@@ -66,7 +71,7 @@ function useFirstFocus(tokens: Loaded, name: FieldState): void {
 
 export function TokensSection() {
   const name = useField();
-  const [revealed, setRevealed] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<Revealed | null>(null);
   const { ref: nameRef } = name;
 
   const { tokens, add, remove } = useTokens();
@@ -75,7 +80,7 @@ export function TokensSection() {
   const created = useCallback(
     (token: Token, value: string) => {
       add(token);
-      setRevealed(value);
+      setRevealed({ name: token.name, value });
     },
     [add],
   );
@@ -92,7 +97,9 @@ export function TokensSection() {
       </h2>
       <p>{SETTINGS.tokensIntro}</p>
       <TokenForm name={name} created={created} />
-      {revealed === null ? null : <TokenReveal value={revealed} done={dismiss} />}
+      {revealed === null ? null : (
+        <TokenReveal name={revealed.name} value={revealed.value} done={dismiss} />
+      )}
       <Alert text={tokens.status === "failed" ? SETTINGS.tokensLoadFailed : null} />
       <TokenList
         tokens={tokens.status === "ready" ? tokens.tokens : NO_TOKENS}

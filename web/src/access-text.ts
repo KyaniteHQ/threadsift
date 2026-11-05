@@ -75,8 +75,6 @@ export const SETTINGS = {
   createToken: "Create token",
   tokenCreateFailed: "Couldn’t create the token, so try again.",
   tokensLoadFailed: "Couldn’t load agent tokens.",
-  revealTitle: "New agent token",
-  revealNote: "Copy this token now, because it won’t be shown again.",
   revealTitleNamed: "New token for {name}",
   revealPaste: "This token is shown once, so copy it now and paste it into that agent’s settings.",
   tokenValue: "Token value",
