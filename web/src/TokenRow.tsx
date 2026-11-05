@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
 
 import type { Token } from "../../src/http/schemas.ts";
 import { SETTINGS, filled } from "./access-text.ts";
@@ -28,15 +28,15 @@ function Confirm({
   revoke,
 }: Readonly<{ token: Token; cancel: () => void; revoke: () => void }>) {
   const cancelButton = useRef<HTMLButtonElement>(null);
+  const questionId = useId();
 
   useEffect(() => {
     cancelButton.current?.focus();
   }, []);
 
   return (
-    <fieldset className="tok-ask">
-      <legend className="vh">{filled(SETTINGS.revokeAsk, { name: token.name })}</legend>
-      <p>{filled(SETTINGS.revokeAsk, { name: token.name })}</p>
+    <fieldset className="tok-ask" aria-labelledby={questionId}>
+      <p id={questionId}>{filled(SETTINGS.revokeAsk, { name: token.name })}</p>
       <button type="button" className="btn btn-danger" onClick={revoke}>
         {SETTINGS.revokeConfirm}
       </button>

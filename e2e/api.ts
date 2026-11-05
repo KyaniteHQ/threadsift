@@ -22,10 +22,10 @@ export async function listForRun(request: APIRequestContext, run: string) {
 }
 
 export async function refusedWith(request: APIRequestContext, body: string | undefined) {
-  const response = await request.post(
-    "/api/items",
-    body === undefined ? {} : { headers: { "content-type": "application/json" }, data: body },
-  );
+  const response = await request.post("/api/items", {
+    headers: { "content-type": "application/json" },
+    data: body,
+  });
 
   const parsed = z.object({ error: z.string().min(1) }).safeParse(await response.json());
 

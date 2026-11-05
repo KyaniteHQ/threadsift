@@ -1,5 +1,5 @@
 free_port() {
-  node -e 'const s = require("node:net").createServer().listen(0, "127.0.0.1", () => { console.log(s.address().port); s.close(); })'
+  node -e 'const s = require("node:net").createServer().listen(0, "127.0.0.1", () => { console.log(String(s.address().port)); s.close(); })'
 }
 
 new_code() {

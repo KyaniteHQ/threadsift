@@ -255,8 +255,9 @@ export function collectViolations(defaultFont: string): string[] {
       ".app button, .app input, .app select, .app a[href]",
     )) {
       const box = (target.closest(".it") ?? target).getBoundingClientRect();
+      const drawsNoBox = box.width === 0 && box.height === 0;
 
-      if (Math.min(box.width, box.height) < TARGET - 0.5) {
+      if (!drawsNoBox && Math.min(box.width, box.height) < TARGET - 0.5) {
         found.push(`target ${name(target)}: ${box.width}x${box.height} is under ${TARGET}px`);
       }
     }
@@ -264,7 +265,7 @@ export function collectViolations(defaultFont: string): string[] {
 
   const scrollers = [
     document.documentElement,
-    ...document.querySelectorAll(".app, .lib, .mast, .list, .st-pop, .st-body"),
+    ...document.querySelectorAll(".app, .lib, .mast, .list, .st-pop, .st-body, .auth, .pg"),
   ];
 
   const panelIsOpen = document.querySelector(".st-pop") !== null;
