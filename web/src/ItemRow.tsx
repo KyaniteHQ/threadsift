@@ -1,4 +1,4 @@
-import { Fragment, type RefObject, memo, useCallback, useEffect, useRef } from "react";
+import { Fragment, type RefObject, memo, useCallback, useEffect, useId, useRef } from "react";
 
 import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
@@ -37,11 +37,10 @@ function showsSkeleton(item: Readonly<Item>): boolean {
   return item.status === "processing" && item.title === null;
 }
 
-function rowClasses(item: Readonly<Item>, isOpen: boolean, isMarked: boolean): string {
+function rowClasses(item: Readonly<Item>, isOpen: boolean): string {
   return [
     "it",
     ...(isOpen ? ["open"] : []),
-    ...(isMarked ? ["is-back"] : []),
     ...(item.title === null ? ["it-link-only"] : []),
     ...(showsSkeleton(item) ? ["it-proc"] : []),
   ].join(" ");
@@ -73,7 +72,11 @@ function useAttention(
   }, [attention, link, row]);
 }
 
-function Failed({ item, tryAgain }: Readonly<{ item: Item; tryAgain: (item: Item) => void }>) {
+function Failed({
+  item,
+  describedBy,
+  tryAgain,
+}: Readonly<{ item: Item; describedBy: string; tryAgain: (item: Item) => void }>) {
   const retry = useCallback(() => {
     tryAgain(item);
   }, [item, tryAgain]);
@@ -84,7 +87,7 @@ function Failed({ item, tryAgain }: Readonly<{ item: Item; tryAgain: (item: Item
         <Icon name="warn" className="ic ic-s tone-warn" />
         {FAILURE_TITLES[failureReasonOf(item)]}
       </p>
-      <button type="button" className="btn" onClick={retry}>
+      <button type="button" className="btn" aria-describedby={describedBy} onClick={retry}>
         {RETRY_LABEL}
       </button>
     </div>
@@ -96,19 +99,24 @@ function Skeleton() {
     <>
       <div className="skel" aria-hidden="true">
         <i />
-        <i />
       </div>
       <span className="vh">{CARD_TITLES.reading}</span>
     </>
   );
 }
 
-function Status({ item, tryAgain }: Readonly<{ item: Item; tryAgain: (item: Item) => void }>) {
+function Status({
+  item,
+  describedBy,
+  tryAgain,
+}: Readonly<{ item: Item; describedBy: string; tryAgain: (item: Item) => void }>) {
   if (showsSkeleton(item)) {
     return <Skeleton />;
   }
 
-  return item.status === "failed" ? <Failed item={item} tryAgain={tryAgain} /> : null;
+  return item.status === "failed" ? (
+    <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
+  ) : null;
 }
 
 function Meta({ item, now }: Readonly<{ item: Item; now: number }>) {
@@ -129,25 +137,24 @@ export const ItemRow = memo(function ItemRow({
   item,
   now,
   isOpen,
-  isMarked,
   attention,
   tryAgain,
 }: Readonly<{
   item: Item;
   now: number;
   isOpen: boolean;
-  isMarked: boolean;
   attention: Attention;
   tryAgain: (item: Item) => void;
 }>) {
   const row = useRef<HTMLElement>(null);
   const link = useRef<HTMLAnchorElement>(null);
+  const titleId = useId();
   useAttention(row, link, attention);
 
   return (
-    <article ref={row} className={rowClasses(item, isOpen, isMarked)} data-key={item.id}>
+    <article ref={row} className={rowClasses(item, isOpen)} data-key={item.id}>
       <Meta item={item} now={now} />
-      <h2 className="it-title">
+      <h2 id={titleId} className="it-title">
         <a
           ref={link}
           className="it-open"
@@ -164,7 +171,7 @@ export const ItemRow = memo(function ItemRow({
           <span className="vh">{` ${NEW_TAB_LABEL}`}</span>
         </a>
       </h2>
-      <Status item={item} tryAgain={tryAgain} />
+      <Status item={item} describedBy={titleId} tryAgain={tryAgain} />
     </article>
   );
 });

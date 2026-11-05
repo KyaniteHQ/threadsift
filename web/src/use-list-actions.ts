@@ -5,7 +5,7 @@ import type { Item } from "../../src/http/schemas.ts";
 import type { SaveResult } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./library.ts";
-import type { SaveOutcome } from "./PasteBox.tsx";
+import type { PasteRequest, SaveOutcome } from "./PasteBox.tsx";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 
 function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
@@ -67,63 +67,28 @@ function useSaveAndShow(
   );
 }
 
-const HIGHLIGHT_MS = 1800;
-
-function useMark() {
-  const [marked, setMarked] = useState<number | null>(null);
-  const timer = useRef(0);
-
-  useEffect(
-    () => () => {
-      window.clearTimeout(timer.current);
-    },
-    [],
-  );
-
-  const mark = useCallback((id: number) => {
-    window.clearTimeout(timer.current);
-    setMarked(id);
-
-    timer.current = window.setTimeout(() => {
-      setMarked(null);
-    }, HIGHLIGHT_MS);
-  }, []);
-
-  return { marked, mark };
-}
-
 export function useListActions(
   list: ListState,
   actions: Readonly<{ save: (url: string) => Promise<SaveResult>; retry: () => void }>,
   pane: RefObject<HTMLElement | null>,
 ) {
-  const { save } = actions;
   const { openId, attention, attend } = useOpenItem(list);
-  const { marked, mark } = useMark();
-
-  const openItem = useCallback(
-    (id: number) => {
-      attend({ id, focus: true });
-      mark(id);
-    },
-    [attend, mark],
-  );
+  const [request, setRequest] = useState<PasteRequest | null>(null);
 
   const tryAgain = useCallback(
     (item: Item) => {
       attend({ id: item.id, focus: true });
-      void save(item.originalUrl);
+      setRequest((current) => ({ url: item.originalUrl, seq: (current?.seq ?? 0) + 1 }));
     },
-    [attend, save],
+    [attend],
   );
 
   return {
     openId,
     attention,
-    marked,
-    openItem,
+    request,
     tryAgain,
-    saveAndShow: useSaveAndShow(save, pane),
+    saveAndShow: useSaveAndShow(actions.save, pane),
     retryAndKeepPlace: useKeptPlace(list, actions.retry, pane),
   };
 }

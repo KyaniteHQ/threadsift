@@ -63,7 +63,6 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
 };
 
 export const DISMISS_LABEL = "Dismiss";
-export const OPEN_LABEL = "Open";
 export const RETRY_LABEL = "Try again";
 
 export const CARD_TITLES = {

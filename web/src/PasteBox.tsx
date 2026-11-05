@@ -4,6 +4,8 @@ import {
   type SetStateAction,
   type SubmitEvent,
   useCallback,
+  useEffect,
+  useEffectEvent,
   useId,
   useRef,
   useState,
@@ -11,7 +13,7 @@ import {
 
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
-import { PasteCard, type Shown, announcementOf, faceOf } from "./PasteCard.tsx";
+import { PasteCard, type Shown, announcementsOf, faceOf } from "./PasteCard.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import {
   ADD_LABEL,
@@ -29,6 +31,8 @@ export type SaveOutcome =
   | { readonly saved: true; readonly itemId: number; readonly refreshed: boolean };
 
 type Save = (url: string) => Promise<SaveOutcome>;
+
+export type PasteRequest = Readonly<{ url: string; seq: number }>;
 
 const FAILED: SaveOutcome = { saved: false, notice: "failed" };
 const EMPTY: SaveOutcome = { saved: false, notice: "empty" };
@@ -61,7 +65,7 @@ function useSaveValue({
   const sequence = useRef(0);
 
   return useCallback(
-    async (url: string) => {
+    async (url: string, refocus = true) => {
       setShown(null);
       const outcome = url === "" ? EMPTY : await attempt(save, url);
 
@@ -71,10 +75,26 @@ function useSaveValue({
 
       sequence.current += 1;
       setShown(shownOf(outcome, url, sequence.current));
-      focusField();
+
+      if (refocus) {
+        focusField();
+      }
     },
     [focusField, save, setShown, setValue],
   );
+}
+
+function useCloseCard(setShown: Dispatch<SetStateAction<Shown | null>>, focusField: () => void) {
+  const close = useCallback(() => {
+    setShown(null);
+  }, [setShown]);
+
+  const dismiss = useCallback(() => {
+    close();
+    focusField();
+  }, [close, focusField]);
+
+  return { close, dismiss };
 }
 
 function usePaste(save: Save, focusOnMount: boolean) {
@@ -106,10 +126,7 @@ function usePaste(save: Save, focusOnMount: boolean) {
     [guard, saveValue, saving, value],
   );
 
-  const dismiss = useCallback(() => {
-    setShown(null);
-    focusField();
-  }, [focusField]);
+  const { close, dismiss } = useCloseCard(setShown, focusField);
 
   const change = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setValue(event.target.value);
@@ -122,24 +139,31 @@ function usePaste(save: Save, focusOnMount: boolean) {
     }
   }, [guard, saveValue, shown]);
 
-  return { field, value, shown, setShown, saving, change, dismiss, submit, retry };
+  return { field, value, shown, saving, change, close, dismiss, submit, retry, guard, saveValue };
 }
 
-function useCard(
-  { shown, setShown }: Readonly<Pick<ReturnType<typeof usePaste>, "shown" | "setShown">>,
+function usePasteRequest(
+  request: PasteRequest | null,
+  { guard, saveValue }: Readonly<Pick<ReturnType<typeof usePaste>, "guard" | "saveValue">>,
+) {
+  const run = useEffectEvent((url: string) => {
+    guard(() => saveValue(url, false));
+  });
+
+  useEffect(() => {
+    if (request !== null) {
+      run(request.url);
+    }
+  }, [request]);
+}
+
+function useCardFace(
+  { shown }: Readonly<Pick<ReturnType<typeof usePaste>, "shown">>,
   items: readonly Item[],
-  open: (id: number) => void,
 ) {
   const item = shown?.kind === "item" ? items.find((each) => each.id === shown.itemId) : undefined;
 
-  const openItem = useCallback(() => {
-    if (shown?.kind === "item") {
-      setShown(null);
-      open(shown.itemId);
-    }
-  }, [open, setShown, shown]);
-
-  return { face: shown === null ? null : faceOf(shown, item), openItem };
+  return shown === null ? null : faceOf(shown, item);
 }
 
 function PasteForm({
@@ -180,23 +204,38 @@ function PasteForm({
   );
 }
 
+function Announcements({ polite, alert }: Readonly<{ polite: string; alert: string }>) {
+  return (
+    <>
+      <output className="vh" aria-live="polite" aria-atomic="true">
+        {polite}
+      </output>
+      <div className="vh" role="alert">
+        {alert}
+      </div>
+    </>
+  );
+}
+
 export function PasteBox({
   save,
   focusOnMount,
   items,
-  open,
+  request,
 }: Readonly<{
   save: Save;
   focusOnMount: boolean;
   items: readonly Item[];
-  open: (id: number) => void;
+  request: PasteRequest | null;
 }>) {
   const paste = usePaste(save, focusOnMount);
-  const { shown, saving, dismiss, retry } = paste;
-  const { face, openItem } = useCard(paste, items, open);
+  const { shown, saving, close, dismiss, retry } = paste;
+  const face = useCardFace(paste, items);
+  const { polite, alert } = announcementsOf(face);
   const root = useRef<HTMLDivElement>(null);
   const cardId = useId();
   useEscape(dismiss, root, shown !== null);
+  usePasteRequest(request, paste);
 
   return (
     <div ref={root} className="paste">
@@ -209,18 +248,16 @@ export function PasteBox({
         describedBy={face === null ? undefined : cardId}
         invalid={shown?.kind === "notice" && NOTICES[shown.key].kind === "input-error"}
       />
-      <output className="vh" aria-live="polite" aria-atomic="true">
-        {saving ? SAVING_STATUS : announcementOf(face)}
-      </output>
+      <Announcements polite={saving ? SAVING_STATUS : polite} alert={alert} />
       {shown === null || face === null ? null : (
         <PasteCard
           key={shown.seq}
           id={cardId}
-          url={shown.url}
+          url={shown.kind === "item" ? shown.url : ""}
           face={face}
+          close={close}
           dismiss={dismiss}
           retry={retry}
-          open={openItem}
         />
       )}
     </div>

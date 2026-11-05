@@ -42,7 +42,7 @@ export function Library({
             save={actions.saveAndShow}
             focusOnMount={arrived}
             items={list.status === "ready" ? list.items : NO_ITEMS}
-            open={actions.openItem}
+            request={actions.request}
           />
         </header>
         <main ref={listPane} className="list" tabIndex={-1}>
@@ -50,7 +50,6 @@ export function Library({
             list={list}
             openId={actions.openId}
             attention={actions.attention}
-            marked={actions.marked}
             retry={actions.retryAndKeepPlace}
             tryAgain={actions.tryAgain}
           />

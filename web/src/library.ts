@@ -51,10 +51,15 @@ function processingIds(list: Readonly<ListState>): string {
 function pollItem(id: number, onRead: (item: Readonly<Item>) => void): () => void {
   let timer = 0;
   let stopped = false;
+  let paused = false;
 
   const schedule = (): void => {
     timer = window.setTimeout(() => {
-      void read();
+      if (document.hidden) {
+        paused = true;
+      } else {
+        void read();
+      }
     }, POLL_MS);
   };
 
@@ -70,11 +75,20 @@ function pollItem(id: number, onRead: (item: Readonly<Item>) => void): () => voi
     }
   };
 
+  const resume = (): void => {
+    if (paused && !document.hidden) {
+      paused = false;
+      void read();
+    }
+  };
+
+  document.addEventListener("visibilitychange", resume);
   schedule();
 
   return () => {
     stopped = true;
     window.clearTimeout(timer);
+    document.removeEventListener("visibilitychange", resume);
   };
 }
 

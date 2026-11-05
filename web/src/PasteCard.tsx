@@ -1,5 +1,6 @@
 import { type FocusEvent, useState } from "react";
 
+import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { type CardView, viewOf } from "./paste-card.ts";
@@ -8,7 +9,6 @@ import {
   DISMISS_LABEL,
   FAILURE_TITLES,
   NOTICES,
-  OPEN_LABEL,
   READING_NOTE,
   RETRY_LABEL,
   type NoticeKey,
@@ -31,22 +31,58 @@ interface Face {
   readonly icon: "spin" | "check" | "refresh" | "warn";
   readonly tone: Tone;
   readonly title: string;
+  readonly name: string | null;
   readonly note: string | null;
   readonly itemTitle: string | null;
   readonly alert: boolean;
-  readonly actions: "open" | "retry" | "dismiss" | "none";
+  readonly closes: boolean;
+  readonly actions: "retry" | "dismiss" | "none";
 }
 
-function faceOfView(view: Readonly<CardView>, itemTitle: string | null): Face {
+function savedLook(view: Readonly<Extract<CardView, { kind: "added" | "refreshed" }>>) {
+  if (view.note !== null) {
+    return { icon: "warn", tone: "tone-warn" } as const;
+  }
+
+  return view.kind === "added"
+    ? ({ icon: "check", tone: "tone-ok" } as const)
+    : ({ icon: "refresh", tone: "tone-acc" } as const);
+}
+
+function noteOf(view: Readonly<Extract<CardView, { kind: "added" | "refreshed" }>>): string | null {
+  return view.note === null ? null : NOTICES[view.note].text;
+}
+
+function savedFace(
+  view: Readonly<Extract<CardView, { kind: "added" | "refreshed" }>>,
+  item: Readonly<Item>,
+): Face {
+  return {
+    ...savedLook(view),
+    title: CARD_TITLES[view.kind],
+    name: item.title ?? whereOf(item),
+    note: noteOf(view),
+    itemTitle: item.title,
+    alert: false,
+    closes: true,
+    actions: "dismiss",
+  };
+}
+
+function faceOfView(view: Readonly<CardView>, item: Readonly<Item>): Face {
+  const name = item.title ?? whereOf(item);
+
   switch (view.kind) {
     case "reading": {
       return {
         icon: "spin",
         tone: "tone-acc",
         title: CARD_TITLES.reading,
+        name,
         note: READING_NOTE,
         itemTitle: null,
         alert: false,
+        closes: false,
         actions: "none",
       };
     }
@@ -56,24 +92,18 @@ function faceOfView(view: Readonly<CardView>, itemTitle: string | null): Face {
         icon: "warn",
         tone: "tone-warn",
         title: FAILURE_TITLES[view.reason],
+        name,
         note: null,
         itemTitle: null,
         alert: true,
+        closes: true,
         actions: "retry",
       };
     }
 
     case "added":
     case "refreshed": {
-      return {
-        icon: view.kind === "added" ? "check" : "refresh",
-        tone: view.kind === "added" ? "tone-ok" : "tone-acc",
-        title: CARD_TITLES[view.kind],
-        note: view.note === null ? null : NOTICES[view.note].text,
-        itemTitle,
-        alert: false,
-        actions: "open",
-      };
+      return savedFace(view, item);
     }
 
     default: {
@@ -90,18 +120,28 @@ export function faceOf(shown: Readonly<Shown>, item: Readonly<Item> | undefined)
       icon: "warn",
       tone: "tone-warn",
       title: NOTICES[shown.key].text,
+      name: null,
       note: null,
       itemTitle: null,
       alert: true,
+      closes: false,
       actions: "dismiss",
     };
   }
 
-  return item === undefined ? null : faceOfView(viewOf(item, shown.refreshed), item.title);
+  return item === undefined ? null : faceOfView(viewOf(item, shown.refreshed), item);
 }
 
-export function announcementOf(face: Readonly<Face> | null): string {
-  return face === null || face.alert ? "" : [face.title, face.note].filter(Boolean).join(". ");
+export function announcementsOf(face: Readonly<Face> | null) {
+  if (face === null) {
+    return { polite: "", alert: "" };
+  }
+
+  const said = [face.name === null ? face.title : `${face.title}: ${face.name}`, face.note]
+    .filter(Boolean)
+    .join(". ");
+
+  return face.alert ? { polite: "", alert: said } : { polite: said, alert: "" };
 }
 
 function useHeld() {
@@ -132,12 +172,10 @@ function Actions({
   actions,
   dismiss,
   retry,
-  open,
 }: Readonly<{
   actions: Face["actions"];
   dismiss: () => void;
   retry: () => void;
-  open: () => void;
 }>) {
   if (actions === "none") {
     return null;
@@ -145,11 +183,6 @@ function Actions({
 
   return (
     <div className="ps-acts">
-      {actions === "open" ? (
-        <button type="button" className="btn btn-acc" onClick={open}>
-          {OPEN_LABEL}
-        </button>
-      ) : null}
       {actions === "retry" ? (
         <button type="button" className="btn btn-acc" onClick={retry}>
           {RETRY_LABEL}
@@ -166,22 +199,22 @@ export function PasteCard({
   id,
   url,
   face,
+  close,
   dismiss,
   retry,
-  open,
 }: Readonly<{
   id: string;
   url: string;
   face: Face;
+  close: () => void;
   dismiss: () => void;
   retry: () => void;
-  open: () => void;
 }>) {
   const { held, handlers } = useHeld();
-  useAfter(face.actions === "open" && !held, CLOSE_MS, dismiss);
+  useAfter(face.closes && !held, CLOSE_MS, close);
 
   return (
-    <div id={id} className="ps paste-card" role={face.alert ? "alert" : undefined} {...handlers}>
+    <div id={id} className="ps paste-card" {...handlers}>
       <p className="ps-head">
         <Icon
           name={face.icon}
@@ -192,7 +225,7 @@ export function PasteCard({
       {face.itemTitle === null ? null : <p className="ps-item">{face.itemTitle}</p>}
       {url === "" ? null : <p className="ps-url">{url.replace(SCHEME_AND_WWW, "")}</p>}
       {face.note === null ? null : <p className="ps-sub">{face.note}</p>}
-      <Actions actions={face.actions} dismiss={dismiss} retry={retry} open={open} />
+      <Actions actions={face.actions} dismiss={dismiss} retry={retry} />
     </div>
   );
 }

@@ -50,14 +50,12 @@ function ItemList({
   loadedAt,
   openId,
   attention,
-  marked,
   tryAgain,
 }: Readonly<{
   items: readonly Item[];
   loadedAt: number;
   openId: number | null;
   attention: Attention;
-  marked: number | null;
   tryAgain: (item: Item) => void;
 }>) {
   return (
@@ -80,7 +78,6 @@ function ItemList({
               item={item}
               now={loadedAt}
               isOpen={item.id === openId}
-              isMarked={item.id === marked}
               attention={item.id === attention?.id ? attention : null}
               tryAgain={tryAgain}
             />
@@ -95,14 +92,12 @@ export const ListBody = memo(function ListBody({
   list,
   openId,
   attention,
-  marked,
   retry,
   tryAgain,
 }: Readonly<{
   list: ListState;
   openId: number | null;
   attention: Attention;
-  marked: number | null;
   retry: () => void;
   tryAgain: (item: Item) => void;
 }>) {
@@ -130,7 +125,6 @@ export const ListBody = memo(function ListBody({
       loadedAt={list.loadedAt}
       openId={openId}
       attention={attention}
-      marked={marked}
       tryAgain={tryAgain}
     />
   );
