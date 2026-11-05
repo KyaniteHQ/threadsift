@@ -156,6 +156,11 @@
   overflow-wrap: anywhere;
   resize: none;
 }
+.app:not([data-bp~="narrow"]) .reveal-value {
+  flex: 0 1 auto;
+  padding: calc((var(--field-h) - 1lh - 2px) / 2) var(--s2);
+  font-size: var(--t-label);
+}
 .reveal-row .btn {
   min-height: var(--field-h);
 }

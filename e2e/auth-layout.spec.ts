@@ -70,6 +70,24 @@ test("step 1 names each install target and gives it one sentence", async () => {
   await expect(page.getByText(SETUP.codeWhereWorker, { exact: true })).toBeVisible();
 });
 
+test("step 1 shows the names to look for in code style", async () => {
+  const { page } = screen;
+  await page.goto("/");
+
+  const container = page.getByText(SETUP.codeWhereContainer, { exact: true });
+  await expect(container.locator("code")).toHaveText(["SETUP_CODE", "Setup code:"]);
+  await expect(page.getByText(SETUP.codeWhereWorker, { exact: true }).locator("code")).toHaveText(
+    "SETUP_CODE",
+  );
+
+  const [inCode, around] = await container.evaluate((paragraph) => [
+    getComputedStyle(paragraph.querySelector("code") ?? paragraph).fontFamily,
+    getComputedStyle(paragraph).fontFamily,
+  ]);
+
+  expect(inCode).not.toBe(around);
+});
+
 test("the sign-in heading differs from the Sign in button", async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL: baseURL ?? "", storageState: SIGNED_OUT });
   const page = await context.newPage();

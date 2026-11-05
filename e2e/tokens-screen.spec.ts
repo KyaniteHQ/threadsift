@@ -79,6 +79,14 @@ function selectedText(page: Page): Promise<string> {
   });
 }
 
+function frameOf(button: Locator): Promise<string> {
+  return button.evaluate((element) => {
+    const style = getComputedStyle(element);
+
+    return `${style.borderTopWidth} ${style.borderTopStyle} ${style.borderTopColor}`;
+  });
+}
+
 function valueField(page: Page) {
   return page.getByRole("textbox", { name: SETTINGS.tokenValue });
 }
@@ -114,7 +122,7 @@ test("the new token's field is described by the sentence that says where the val
   await expect(valueField(page)).toHaveAccessibleDescription(SETTINGS.revealPaste);
 });
 
-test("the reveal names its token, keeps Copy beside the value and puts Done below as a plain button", async () => {
+test("the reveal names its token, keeps Copy beside the value and puts Done below as a framed button", async () => {
   const { page } = screen;
   await page.setViewportSize(PHONE);
   await create(page, "Beside");
@@ -133,7 +141,47 @@ test("the reveal names its token, keeps Copy beside the value and puts Done belo
   expect(doneBox?.y ?? 0, "Done sits below Copy").toBeGreaterThanOrEqual(
     (copy?.y ?? 0) + (copy?.height ?? 0),
   );
-  await expect(done).toHaveClass(/btn-plain/u);
+
+  expect(await frameOf(done), "Done has the frame Copy has").toBe(
+    await frameOf(page.getByRole("button", { name: SETTINGS.copy })),
+  );
+});
+
+async function expectOneLine(width: number): Promise<void> {
+  const { page } = screen;
+  await page.setViewportSize({ width, height: 900 });
+  await create(page, `Wide ${String(width)}`);
+
+  const takesOneLine = await valueField(page).evaluate((element) => {
+    const style = getComputedStyle(element);
+
+    const padding =
+      Number(style.paddingTop.slice(0, -2)) + Number(style.paddingBottom.slice(0, -2));
+
+    return element.scrollHeight - padding < 2 * Number(style.fontSize.slice(0, -2));
+  });
+
+  expect(takesOneLine, "the value takes one line").toBe(true);
+  const value = await valueField(page).boundingBox();
+  const copy = await page.getByRole("button", { name: SETTINGS.copy }).boundingBox();
+  expect(copy?.x ?? 0, "Copy sits right of the value").toBeGreaterThanOrEqual(
+    (value?.x ?? 0) + (value?.width ?? 0),
+  );
+  await page.getByRole("button", { name: SETTINGS.done }).click();
+}
+
+test("the token value is one line with Copy beside it at 760px", async () => {
+  await expectOneLine(760);
+});
+
+test("the token value is one line with Copy beside it at 1440px", async () => {
+  await expectOneLine(1440);
+});
+
+test("the token name field has no placeholder", async () => {
+  const { page } = screen;
+  await page.goto("/settings");
+  await expect(tokenNameField(page)).not.toHaveAttribute("placeholder");
 });
 
 test("the whole token value is on screen and selected when the field has focus", async () => {

@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { type Attempt, checkSetupCode } from "./access-api.ts";
 import { SETUP } from "./access-text.ts";
 import { Alert } from "./AuthShell.tsx";
+import { CodeText } from "./CodeText.tsx";
 import { FormField } from "./FormField.tsx";
 import type { GoTo } from "./setup-step.ts";
 import { SwapButton } from "./SwapButton.tsx";
@@ -66,8 +67,12 @@ export function CodeStep(props: Readonly<CodeStepProps>) {
       <p className="label">{SETUP.stepOne}</p>
       <h1 className="auth-title">{SETUP.codeTitle}</h1>
       <div className="help-pair">
-        <p className="fld-help">{SETUP.codeWhereContainer}</p>
-        <p className="fld-help">{SETUP.codeWhereWorker}</p>
+        <p className="fld-help">
+          <CodeText text={SETUP.codeWhereContainer} />
+        </p>
+        <p className="fld-help">
+          <CodeText text={SETUP.codeWhereWorker} />
+        </p>
       </div>
       <FormField field={code} label={SETUP.codeLabel} kind={CODE_INPUT} />
       <Alert text={lock.message} />

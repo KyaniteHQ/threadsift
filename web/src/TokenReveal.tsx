@@ -5,7 +5,7 @@ import { Alert } from "./AuthShell.tsx";
 import { useFocusOnMount } from "./use-form.ts";
 
 const COPIED_MS = 2000;
-const TOKEN_ROWS = 3;
+const TOKEN_ROWS = 1;
 
 function useCopy(value: string) {
   const field = useRef<HTMLTextAreaElement>(null);
@@ -82,7 +82,7 @@ export function TokenReveal({
       </div>
       <output className="vh">{copied ? SETTINGS.copied : ""}</output>
       <Alert text={failed ? SETTINGS.copyFailed : null} />
-      <button type="button" className="btn btn-plain btn-flush" onClick={done}>
+      <button type="button" className="btn btn-block" onClick={done}>
         {SETTINGS.done}
       </button>
     </section>

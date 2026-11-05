@@ -71,7 +71,6 @@ export const SETTINGS = {
   tokensTitle: "Agent tokens",
   tokensIntro: "Give the Extension, Grok Bot and each MCP client their own token to save links.",
   tokenName: "Token name",
-  tokenNamePlaceholder: "Extension",
   tokenNameRequired: "Enter a token name first.",
   createToken: "Create token",
   tokenCreateFailed: "Couldn’t create the token, so try again.",

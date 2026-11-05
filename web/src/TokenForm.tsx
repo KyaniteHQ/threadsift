@@ -12,7 +12,7 @@ const NAME_INPUT = {
   type: "text",
   autoComplete: "off",
   mono: undefined,
-  placeholder: SETTINGS.tokenNamePlaceholder,
+  placeholder: undefined,
   maxLength: TOKEN_NAME_MAX,
 } as const;
 
