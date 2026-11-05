@@ -24,12 +24,14 @@ export function SettingsPage({
   return (
     <div className="pg">
       <header className="pg-bar">
-        <a className="btn" href="/" onClick={follow}>
-          {SETTINGS.back}
-        </a>
-        <h1 ref={titleField} className="pg-title" tabIndex={-1}>
-          {SETTINGS.title}
-        </h1>
+        <div className="pg-bar-in">
+          <a className="btn" href="/" onClick={follow}>
+            {SETTINGS.back}
+          </a>
+          <h1 ref={titleField} className="pg-title" tabIndex={-1}>
+            {SETTINGS.title}
+          </h1>
+        </div>
       </header>
       <main className="pg-col">
         <TokensSection />
@@ -38,11 +40,9 @@ export function SettingsPage({
             {SETTINGS.signOutTitle}
           </h2>
           <p>{SETTINGS.signOutNote}</p>
-          <div>
-            <button type="button" className="btn" onClick={signOut}>
-              {SETTINGS.signOut}
-            </button>
-          </div>
+          <button type="button" className="btn btn-block" onClick={signOut}>
+            {SETTINGS.signOut}
+          </button>
         </section>
       </main>
     </div>

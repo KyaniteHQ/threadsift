@@ -49,8 +49,12 @@
 .stack .btn {
   align-self: flex-start;
 }
-.app[data-bp~="phone"] .stack .btn {
+.app[data-bp~="phone"] .stack .btn,
+.app[data-bp~="phone"] .btn-block {
   align-self: stretch;
+}
+.btn-block {
+  align-self: flex-start;
 }
 .fld {
   display: flex;
@@ -101,18 +105,29 @@
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
   min-height: var(--bar-h);
-  padding: calc((var(--bar-h) - 1px - var(--target)) / 2) var(--reader-pad);
+  padding-block: calc((var(--bar-h) - 1px - var(--target)) / 2);
   border-bottom: 1px solid var(--line);
   background: var(--bg);
 }
+.pg-bar-in {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  max-width: calc(var(--measure) + var(--reader-pad) * 2);
+  margin: 0 auto;
+  padding-inline: var(--reader-pad);
+  font-size: var(--t-read);
+}
 .pg-title {
   margin: 0;
-  font-size: var(--t-body);
-  font-weight: 600;
+  color: var(--text);
+  font-family: var(--f-display);
+  font-size: var(--t-display);
+  font-weight: var(--dw);
+  letter-spacing: var(--dls);
+  line-height: var(--lh-title);
 }
 .pg-title:focus {
   outline: none;
@@ -128,7 +143,7 @@
   padding: var(--s5) var(--reader-pad) var(--s6);
   font-size: var(--t-read);
 }
-.app[data-bp~="phone"] .pg-bar,
+.app[data-bp~="phone"] .pg-bar-in,
 .app[data-bp~="phone"] .pg-col {
   padding-inline: var(--s4);
 }

@@ -76,6 +76,8 @@
 .st-group { display: flex; flex-direction: column; gap: var(--s2); }
 .st-group + .st-group { padding-top: var(--s4); border-top: 1px solid var(--line); }
 .st-foot { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding: var(--s3) var(--s4); border-top: 1px solid var(--line); background: var(--surface); }
+.st-more { flex: none; display: flex; padding: var(--s1) var(--s4); border-top: 1px solid var(--line); background: var(--surface); }
+.st-more .fl-link { padding-inline: 0; }
 .st-foot-note { flex: 1 1 14em; color: var(--muted); font-size: var(--t-label); }
 .st-gh { color: var(--muted); font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; }
 .st-row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: var(--s1) var(--s3); }

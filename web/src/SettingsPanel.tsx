@@ -57,9 +57,11 @@ function InstanceLink({ open }: Readonly<{ open: () => void }>) {
   const follow = useInternalLink(open);
 
   return (
-    <a className="fl-link" href="/settings" onClick={follow}>
-      {SETTINGS.instanceSettings}
-    </a>
+    <div className="st-more">
+      <a className="fl-link" href="/settings" onClick={follow}>
+        {SETTINGS.instanceSettings}
+      </a>
+    </div>
   );
 }
 
@@ -111,8 +113,8 @@ export function SettingsPanel({
           {modal ? <SheetHeader titleId={titleId} close={closeToGear} /> : null}
           <div className="st-body">
             <SettingsRows settings={settings} isDark={isDark} idBase={idBase} choose={choose} />
-            <InstanceLink open={openInstanceSettings} />
           </div>
+          <InstanceLink open={openInstanceSettings} />
           <Footer noteId={`${idBase}-reset-note`} reset={reset} />
         </dialog>
       ) : null}
