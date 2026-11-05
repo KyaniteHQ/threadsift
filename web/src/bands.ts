@@ -22,7 +22,7 @@ export function useBands(root: RefObject<HTMLElement | null>): string[] {
   const [bands, setBands] = useState(["full"]);
   useLayoutEffect(() => {
     const element = root.current;
-    const limits = readBreakpoints();
+    let limits = readBreakpoints();
 
     const measure = (): void => {
       if (element !== null) {
@@ -38,11 +38,16 @@ export function useBands(root: RefObject<HTMLElement | null>): string[] {
       observer.observe(element);
     }
 
-    window.addEventListener("load", measure);
+    const remeasure = (): void => {
+      limits = readBreakpoints();
+      measure();
+    };
+
+    window.addEventListener("load", remeasure);
 
     return () => {
       observer.disconnect();
-      window.removeEventListener("load", measure);
+      window.removeEventListener("load", remeasure);
     };
   }, [root]);
 
