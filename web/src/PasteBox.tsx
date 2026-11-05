@@ -1,5 +1,6 @@
 import {
   type ChangeEvent,
+  type SubmitEvent,
   type Dispatch,
   type SetStateAction,
   useCallback,
@@ -22,7 +23,7 @@ import {
   SAVING_LABEL,
   SAVING_STATUS,
 } from "./text.ts";
-import { useFocusOnMount, useSubmit } from "./use-form.ts";
+import { useFocusOnMount, useGuard } from "./use-form.ts";
 
 type Save = (url: string) => Promise<SaveOutcome>;
 
@@ -83,8 +84,21 @@ function usePaste(save: Save, focusOnMount: boolean) {
 
   const saveValue = useSaveValue({ save, setValue, setNotice, focusField });
 
-  const saveTyped = useCallback(() => saveValue(value.trim()), [saveValue, value]);
-  const { busy: saving, onSubmit: submit, guard } = useSubmit(saveTyped);
+  const { busy: saving, guard } = useGuard();
+
+  const submit = useCallback(
+    (event: SubmitEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const url = value.trim();
+
+      if (url !== "") {
+        guard(() => saveValue(url));
+      } else if (!saving) {
+        void saveValue(url);
+      }
+    },
+    [guard, saveValue, saving, value],
+  );
 
   const dismiss = useCallback(() => {
     setNotice(null);
@@ -129,7 +143,7 @@ function PasteNotice({
         <p className="ps-url">{notice.url.replace(SCHEME_AND_WWW, "")}</p>
       )}
       <div className="ps-acts">
-        {notice.retry === true ? (
+        {notice.retry ? (
           <button type="button" className="btn btn-acc" onClick={retry}>
             {RETRY_LABEL}
           </button>

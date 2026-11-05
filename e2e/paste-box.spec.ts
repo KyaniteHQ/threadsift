@@ -1,5 +1,6 @@
 import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 
+import { SAVING_LABEL, SAVING_STATUS } from "../web/src/text.ts";
 import { listAll, postLink } from "./api.ts";
 import { addButton, newRunId, pasteField, rowOf, submitLink } from "./links.ts";
 
@@ -28,6 +29,31 @@ test("Add with an empty box or text that is not a link shows a refusal and saves
 
   expect(await rowCount(page)).toBe(rows);
   expect(await listAll(request)).toHaveLength(stored);
+});
+
+test("Add on an empty box never shows the saving state", async ({ page }) => {
+  await page.goto("/");
+
+  const texts = await page.evaluateHandle(() => {
+    const seen: string[] = [];
+
+    new MutationObserver(() => {
+      seen.push(document.querySelector(".paste")?.textContent ?? "");
+    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+
+    return seen;
+  });
+
+  await addButton(page).click();
+  await expect(page.getByRole("alert")).toContainText("Paste a link first.");
+
+  const sawSaving = await texts.evaluate(
+    (seen, [status, label]) =>
+      seen.some((text) => text.includes(status ?? "") || text.includes(label ?? "")),
+    [SAVING_STATUS, SAVING_LABEL],
+  );
+
+  expect(sawSaving, "the paste box showed Saving… for an empty Add").toBe(false);
 });
 
 test("an Item's own URL shows the list with that row in view and focused", async ({

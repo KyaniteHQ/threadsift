@@ -51,7 +51,7 @@ export function useFocusOnMount(ref: RefObject<HTMLElement | null>, enabled = tr
   }, [enabled, ref]);
 }
 
-export function useSubmit(run: () => Promise<void>, blocked = false) {
+export function useGuard(blocked = false) {
   const [busy, setBusy] = useState(false);
 
   const guard = useCallback(
@@ -68,6 +68,12 @@ export function useSubmit(run: () => Promise<void>, blocked = false) {
     [blocked, busy],
   );
 
+  return { busy, guard };
+}
+
+export function useSubmit(run: () => Promise<void>, blocked = false) {
+  const { busy, guard } = useGuard(blocked);
+
   const onSubmit = useCallback(
     (event: SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -76,7 +82,7 @@ export function useSubmit(run: () => Promise<void>, blocked = false) {
     [guard, run],
   );
 
-  return { busy, onSubmit, guard };
+  return { busy, onSubmit };
 }
 
 const TICK_MS = 1000;
