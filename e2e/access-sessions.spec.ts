@@ -2,8 +2,9 @@ import { expect } from "@playwright/test";
 import { z } from "zod";
 
 import { SETTINGS } from "../web/src/access-text.ts";
-import { DAY_MS, MAX_AGE, expectRefusal, sha256Hex, signIn } from "./access-helpers.ts";
+import { DAY_MS, expectRefusal, sha256Hex, signIn } from "./access-helpers.ts";
 import {
+  MAX_AGE,
   SAME_ORIGIN,
   SESSION_COOKIE,
   mainInstance,
@@ -13,7 +14,7 @@ import {
   sessionValueOf,
   test,
 } from "./access.ts";
-import { openSignedIn } from "./fresh-screen.ts";
+import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 
 const Sessions = z.array(z.object({ digest: z.string(), expires_at: z.number() }));
 
@@ -90,22 +91,30 @@ test("a session extends at most once a day and sends its cookie again, and an ex
   await api.dispose();
 });
 
-test("a sign-out the server cannot finish leaves the owner signed in and says so", async ({
-  browser,
-}) => {
-  const screen = await openSignedIn(browser, newCode(), minimumPassword());
-  const { page, fresh } = screen;
-  await page.goto("/settings");
-  const title = page.getByRole("heading", { level: 1, name: SETTINGS.title });
-  await expect(title).toBeVisible();
+test.describe("a sign-out the server cannot finish", () => {
+  let screen: FreshScreen;
 
-  fresh.sql("ALTER TABLE sessions RENAME TO sessions_away");
-  await page.getByRole("button", { name: SETTINGS.signOut }).click();
-  await expect(page.getByRole("alert")).toHaveText(SETTINGS.signOutFailed);
-  await expect(title).toBeVisible();
+  test.beforeAll(async ({ browser }) => {
+    screen = await openSignedIn(browser, newCode(), minimumPassword());
+  });
 
-  fresh.sql("ALTER TABLE sessions_away RENAME TO sessions");
-  await page.reload();
-  await expect(title).toBeVisible();
-  await screen.close();
+  test.afterAll(async () => {
+    await screen.close();
+  });
+
+  test("leaves the owner signed in and says so", async () => {
+    const { page, fresh } = screen;
+    await page.goto("/settings");
+    const title = page.getByRole("heading", { level: 1, name: SETTINGS.title });
+    await expect(title).toBeVisible();
+
+    fresh.sql("ALTER TABLE sessions RENAME TO sessions_away");
+    await page.getByRole("button", { name: SETTINGS.signOut }).click();
+    await expect(page.getByRole("alert")).toHaveText(SETTINGS.signOutFailed);
+    await expect(title).toBeVisible();
+
+    fresh.sql("ALTER TABLE sessions_away RENAME TO sessions");
+    await page.reload();
+    await expect(title).toBeVisible();
+  });
 });

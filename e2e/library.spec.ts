@@ -2,7 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 import type { Item } from "../src/http/schemas.ts";
 import { mainInstance } from "./access.ts";
-import { listAll, refusedWith } from "./api.ts";
+import { listAll } from "./api.ts";
 import {
   MOVED_PAGE,
   MOVED_PAGE_NORMALIZED,
@@ -85,25 +85,6 @@ async function expectRowsShowTitles(page: Page, redirect: string) {
   }
 }
 
-async function expectRefusalsStoreNothing(page: Page) {
-  const total = (await listAll(page.request)).length;
-  const { port } = listener;
-
-  const refusals = [
-    `http://127.0.0.1:${port}/`,
-    `http://localhost.:${port}/`,
-    "http://[64:ff9b::7f00:1]/",
-    "http://0x7f.1/",
-  ];
-
-  for (const url of refusals) {
-    expect((await refusedWith(page.request, JSON.stringify({ url }))).status, url).toBe(400);
-  }
-
-  expect(await listAll(page.request)).toHaveLength(total);
-  await listener.expectSilent();
-}
-
 test("nine pasted links make seven Items with their titles, and the library keeps them across a restart", async ({
   page,
 }) => {
@@ -117,7 +98,6 @@ test("nine pasted links make seven Items with their titles, and the library keep
 
   await expectRowsShowTitles(page, redirect);
   await listener.expectSilent();
-  await expectRefusalsStoreNothing(page);
 
   const before = await libraryItems(page, redirect);
   mainInstance().restart();

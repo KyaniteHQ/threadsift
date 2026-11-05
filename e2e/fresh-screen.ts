@@ -54,6 +54,10 @@ export function lockFor(instance: Instance, kind: ThrottleKind, milliseconds: nu
   );
 }
 
+export function endLock(instance: Instance, kind: ThrottleKind): void {
+  instance.sql(`UPDATE throttles SET locked_until = 0 WHERE kind = '${kind}'`);
+}
+
 export async function openSignedIn(
   browser: Browser,
   code: string,

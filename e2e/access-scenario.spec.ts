@@ -107,7 +107,7 @@ async function stepSetup(run: Run): Promise<void> {
   expect(names, "Chromium keeps the Secure cookie set over http").toContain(SESSION_COOKIE);
 }
 
-async function openSettings(page: Page): Promise<void> {
+async function openInstanceSettings(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await expect(page).toHaveTitle("Settings, Threadsift");
@@ -115,7 +115,7 @@ async function openSettings(page: Page): Promise<void> {
 
 async function stepToken(run: Run): Promise<string> {
   const { page } = run;
-  await openSettings(page);
+  await openInstanceSettings(page);
   await expect(tokenNameField(page)).toBeFocused();
 
   await tokenNameField(page).fill("Extension");
@@ -161,7 +161,7 @@ async function stepSignOut(run: Run, links: readonly string[]): Promise<void> {
   const { page, context, outside, ledger } = run;
   const cookie = (await context.cookies()).find((entry) => entry.name === SESSION_COOKIE);
   await seeRows(page, links);
-  await openSettings(page);
+  await openInstanceSettings(page);
   await page.getByRole("button", { name: SETTINGS.signOut }).click();
 
   await expect(page).toHaveTitle("Sign in to Threadsift");
@@ -195,7 +195,7 @@ async function stepSignOut(run: Run, links: readonly string[]): Promise<void> {
 
 async function stepRevoke(run: Run, value: string): Promise<void> {
   const { page } = run;
-  await openSettings(page);
+  await openInstanceSettings(page);
   await page
     .getByRole("button", { name: filled(SETTINGS.revokeNamed, { name: "Extension" }), exact: true })
     .click();
@@ -266,7 +266,7 @@ test("a Paste after the owner signed out in another tab shows the login screen, 
   await second.goto("/");
   await expect(pasteField(second)).toBeVisible();
 
-  await openSettings(first);
+  await openInstanceSettings(first);
   await first.getByRole("button", { name: SETTINGS.signOut }).click();
   await expect(first.getByRole("heading", { name: LOGIN.heading })).toBeVisible();
 

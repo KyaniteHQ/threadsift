@@ -13,10 +13,10 @@ import {
 } from "@playwright/test";
 import type { z } from "zod";
 
-import { SESSION_MAX_AGE_SECONDS } from "../src/core/sessions.ts";
 import { envValue } from "./env.ts";
 
 export const SESSION_COOKIE = "__Host-threadsift_session";
+export const MAX_AGE = 2_592_000;
 
 type StorageStateObject = Exclude<NonNullable<BrowserContextOptions["storageState"]>, string>;
 
@@ -107,7 +107,7 @@ export function sessionStateOf(value: string, baseURL: string): StorageStateObje
         value,
         domain: url.hostname,
         path: "/",
-        expires: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS,
+        expires: Math.floor(Date.now() / 1000) + MAX_AGE,
         httpOnly: true,
         secure: true,
         sameSite: "Lax",
