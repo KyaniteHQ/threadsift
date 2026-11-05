@@ -25,7 +25,7 @@ stop_all() {
 run_suite() {
   local script=$1
   shift
-  local dir code
+  local code
   dir=$(mktemp -d)
   code=$(new_code)
   trap 'status=$?; stop_all "$dir"; rm -rf "$dir"; exit "$status"' EXIT

@@ -12,18 +12,9 @@ import {
   sessionValueOf,
   stateDir,
 } from "./access.ts";
+import { envValue } from "./env.ts";
 
 const CreatedSchema = z.object({ value: z.string() });
-
-function envValue(name: string): string {
-  const value = process.env[name];
-
-  if (value === undefined) {
-    throw new Error(`Set ${name}; tools/e2e/container.sh and tools/e2e/worker.sh do`);
-  }
-
-  return value;
-}
 
 function keep(name: string, content: string): void {
   writeFileSync(join(stateDir(), name), content, { mode: 0o600 });

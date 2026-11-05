@@ -7,7 +7,7 @@ import {
   TokenListResponseSchema,
   type Token,
 } from "../../src/http/schemas.ts";
-import { ownerFetch } from "./session.ts";
+import { ownerFetch, ownerGetOk } from "./session.ts";
 
 export type SessionState = z.infer<typeof SessionStateSchema>["state"];
 
@@ -97,11 +97,7 @@ export async function logOut(): Promise<void> {
 }
 
 export async function fetchTokens(): Promise<Token[]> {
-  const response = await ownerFetch("/api/tokens");
-
-  if (!response.ok) {
-    throw new Error(`GET /api/tokens answered ${response.status}`);
-  }
+  const response = await ownerGetOk("/api/tokens");
 
   return TokenListResponseSchema.parse(await response.json()).tokens;
 }

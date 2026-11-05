@@ -12,6 +12,7 @@ import {
 import { z } from "zod";
 
 import { SESSION_DAYS } from "../src/core/sessions.ts";
+import { envValue } from "./env.ts";
 
 export const SESSION_COOKIE = "__Host-threadsift_session";
 
@@ -38,13 +39,7 @@ const PasswordFileSchema = z.object({ password: z.string() });
 export type StorageState = z.infer<typeof StorageStateSchema>;
 
 export function stateDir(): string {
-  const dir = process.env["THREADSIFT_E2E_DIR"];
-
-  if (dir === undefined) {
-    throw new Error("Set THREADSIFT_E2E_DIR; tools/e2e/container.sh and tools/e2e/worker.sh do");
-  }
-
-  return dir;
+  return envValue("THREADSIFT_E2E_DIR");
 }
 
 function readState<T>(name: string, schema: z.ZodType<T>): T {
@@ -131,13 +126,7 @@ export interface Instance {
 }
 
 function instanceScript(): string[] {
-  const script = process.env["THREADSIFT_INSTANCE_SCRIPT"];
-
-  if (script === undefined) {
-    throw new Error("Set THREADSIFT_INSTANCE_SCRIPT; the target scripts do");
-  }
-
-  return script.split(" ");
+  return envValue("THREADSIFT_INSTANCE_SCRIPT").split(" ");
 }
 
 function runInstance(args: readonly string[], code: string | null): string {

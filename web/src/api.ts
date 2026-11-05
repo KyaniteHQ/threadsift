@@ -5,7 +5,7 @@ import {
   SavedItemResponseSchema,
   type Item,
 } from "../../src/http/schemas.ts";
-import { ownerFetch } from "./session.ts";
+import { ownerFetch, ownerGetOk } from "./session.ts";
 import type { NoticeKey } from "./text.ts";
 
 export interface SaveOutcome {
@@ -35,11 +35,7 @@ export function noticeOf({ known, item, fetch: fetched }: Readonly<Saved>): Noti
 }
 
 export async function fetchItems(): Promise<Item[]> {
-  const response = await ownerFetch("/api/items");
-
-  if (!response.ok) {
-    throw new Error(`GET /api/items answered ${response.status}`);
-  }
+  const response = await ownerGetOk("/api/items");
 
   return ItemListResponseSchema.parse(await response.json()).items;
 }

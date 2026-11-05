@@ -16,6 +16,16 @@ export async function ownerFetch(path: string, init?: RequestInit): Promise<Resp
   return response;
 }
 
+export async function ownerGetOk(path: string): Promise<Response> {
+  const response = await ownerFetch(path);
+
+  if (!response.ok) {
+    throw new Error(`GET ${path} answered ${response.status}`);
+  }
+
+  return response;
+}
+
 export function useSignedOutListener(onSignedOut: () => void): void {
   useEffect(() => {
     window.addEventListener(SIGNED_OUT, onSignedOut);
