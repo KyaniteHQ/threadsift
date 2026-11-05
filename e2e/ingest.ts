@@ -23,18 +23,19 @@ const JobRows = z.array(
 
 const Ids = z.array(z.object({ id: z.number() }));
 
-export function jobsOf(itemId: number) {
+function jobsWhere(condition: string) {
   return mainInstance().query(
-    `SELECT id, state, attempts, next_attempt_at, claim_expires FROM jobs WHERE item_id = ${itemId} ORDER BY id`,
+    `SELECT j.id, j.state, j.attempts, j.next_attempt_at, j.claim_expires FROM jobs j JOIN items i ON i.id = j.item_id WHERE ${condition} ORDER BY j.id`,
     JobRows,
   );
 }
 
+export function jobsOf(itemId: number) {
+  return jobsWhere(`i.id = ${itemId}`);
+}
+
 export function jobsAt(normalizedUrl: string) {
-  return mainInstance().query(
-    `SELECT j.id, j.state, j.attempts, j.next_attempt_at, j.claim_expires FROM jobs j JOIN items i ON i.id = j.item_id WHERE i.normalized_url = '${normalizedUrl}' ORDER BY j.id`,
-    JobRows,
-  );
+  return jobsWhere(`i.normalized_url = '${normalizedUrl}'`);
 }
 
 export function itemIdAt(normalizedUrl: string): number {
