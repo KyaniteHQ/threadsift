@@ -5,9 +5,9 @@
 
    1. Fixed tokens: type, line heights, spacing, radii, controls, icons,
       layers, motion.
-   2. The look: every option of every look setting (Font, Text width,
-      Density, Accent, Comment style, Tag style, Card images), picked by an
-      attribute on the app's root.
+   2. The look: every option of every look setting (Font, Text size, Text
+      width, Density, Accent, Comment style, Tag style, Card images), picked
+      by an attribute on the app's root.
    3. Layouts: List and Grid (data-layout).
    4. Themes: Light, Dark and Sepia (data-theme).
    5. Widths: the breakpoints and grid columns, and the values that change at
@@ -18,16 +18,18 @@
    element carrying the setting's attribute, and its block names it in a
    comment (plain: <id>); every other option is a [data-*="<id>"] rule that
    lists only what differs. Which option is the default is owned by the
-   settings table (Library.SETTINGS in settings.js), and
-   Library.checkDefaults() confirms that the option the table names as
-   default is the one drawn when no attribute is set.
+   settings table (SETTINGS in design/system/settings.ts), and
+   checkDefaults() in e2e/design-checks.ts confirms that the option the table
+   names as default is the one drawn when no attribute is set.
 
    The app's root carries every attribute, built from the settings table:
-   data-layout, data-theme, data-font, data-width, data-density,
-   data-accent, data-comments, data-tags, data-images and data-open-as; and
-   two the app works out: data-reader (pane, page or sheet: from the layout,
-   Open items as and the width) and data-bp (every width band the app is
-   under: "narrow medium wide full" at 600px).
+   data-layout, data-open-as, data-style, data-theme, data-font, data-size,
+   data-width, data-density, data-comments, data-accent, data-tags and
+   data-images; and two the app works out: data-reader (pane, page or sheet:
+   from the layout, Open items as and the width) and data-bp (every width
+   band the app is under: "narrow medium wide full" at 600px). The page's
+   html element carries the same data-theme, so the page background and
+   color-scheme follow the theme past the app's edges.
 
    Per-element variables, set by a component on one element, never on the
    root: --d (a comment's depth, inline style on .cm), --tag-h (a tag's hue,
@@ -35,7 +37,7 @@
    0 to 1, set on .rd-bar by script) and --fade-to (the colour a sideways-
    scrolling box fades into, set on its wrapper).
 
-   --vh is the app's visible height: 100vh unless a host that draws the app
+   --vh is the app's visible height: 100dvh unless a host that draws the app
    inside a frame or scaled sets it.
 
    Literal values that stay in the component styles, on purpose:
@@ -57,9 +59,14 @@
    Eight type sizes: label, meta, code (code blocks, the one exception to the
    16px reading floor), body (list text), title (list titles), read (post,
    comment and summary text, never under 16px), h2 (section headings in the
-   reader) and display (wordmark, reader title). Six spacing steps, four radii. */
+   reader) and display (wordmark, reader title). They are in rem, so the
+   browser's own font size scales them (1rem is 16px at its default); Text size
+   (--tz, below) scales body, title and read, and label and meta never scale, so
+   no text is under 12px. --t-floor is the 16px that reading text and a phone's
+   text field never go under: iOS Safari zooms the page when a focused field's
+   text is smaller. Six spacing steps, four radii. */
 :root {
-  --t-label: 12px; --t-meta: 13px; --t-code: 14px; --t-h2: 20px;
+  --t-label: 0.75rem; --t-meta: 0.8125rem; --t-code: 0.875rem; --t-h2: 1.25rem; --t-read-base: 1.0625rem; --t-floor: 16px;
   --lh-display: 1.15; --lh-title: 1.25; --lh-label: 1.4; --lh-ui: 1.45; --lh-text: 1.5; --lh-read: 1.6; --lh-code: 1.5;
   --ls-label: 0.06em;                 /* uppercase labels */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
@@ -86,12 +93,13 @@
   --z-sheet: 21;                      /* the sheet */
   --z-sheet-nav: 22;                  /* the sheet's side buttons */
   --z-popover: 40;                    /* the settings panel */
-  --vh: 100vh;
+  --vh: 100dvh;
 }
 
 /* 2. The look ------------------------------------------------------------ */
 
-/* Font: the type pair's families, the display weights, the display size factor
+/* Font: the type pair's families (a variable font's family carries the suffix Fontsource gives it,
+   Variable, and the plain name follows as the fallback), the display weights, the display size factor
    (--dz), the display letter spacing, the reading size factor (--rz) and --cw, the reading
    font's average character width in em, which turns the text width into a column. */
 /* plain: plex */
@@ -101,24 +109,33 @@
   --dw: 600; --dw-soft: 500; --dw-strong: 700; --dz: 1; --dls: -0.01em; --rz: 1; --cw: 0.453;
 }
 [data-font="news"] {
-  --f-display: 'Newsreader', Georgia, serif; --f-ui: 'Instrument Sans', system-ui, sans-serif; --f-read: 'Newsreader', Georgia, serif;
+  --f-display: 'Newsreader Variable', 'Newsreader', Georgia, serif; --f-ui: 'Instrument Sans Variable', 'Instrument Sans', system-ui, sans-serif; --f-read: 'Newsreader Variable', 'Newsreader', Georgia, serif;
   --dw-soft: 400; --dw-strong: 600; --dz: 1.08; --dls: -0.012em; --rz: 1.08; --cw: 0.42;
 }
 [data-font="brico"] {
-  --f-display: 'Bricolage Grotesque', system-ui, sans-serif; --f-ui: 'Figtree', system-ui, sans-serif; --f-read: 'Figtree', system-ui, sans-serif;
-  --f-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --f-display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif; --f-ui: 'Figtree Variable', 'Figtree', system-ui, sans-serif; --f-read: 'Figtree Variable', 'Figtree', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
   --dw: 700; --dls: -0.02em; --cw: 0.47;
 }
 [data-font="inst"] {
-  --f-display: 'Instrument Serif', Georgia, serif; --f-ui: 'Geist', system-ui, sans-serif; --f-read: 'Geist', system-ui, sans-serif;
-  --f-mono: 'Geist Mono', ui-monospace, monospace;
+  --f-display: 'Instrument Serif', Georgia, serif; --f-ui: 'Geist Variable', 'Geist', system-ui, sans-serif; --f-read: 'Geist Variable', 'Geist', system-ui, sans-serif;
+  --f-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
   --dw: 400; --dw-soft: 400; --dw-strong: 400; --dz: 1.22; --dls: -0.005em; --cw: 0.461;
 }
 [data-font="mono"] {
-  --f-display: 'JetBrains Mono', ui-monospace, monospace; --f-ui: 'JetBrains Mono', ui-monospace, monospace; --f-read: 'Source Serif 4', Georgia, serif;
-  --f-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --f-display: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace; --f-ui: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace; --f-read: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+  --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
   --dw: 700; --dw-soft: 400; --dz: 0.92; --dls: -0.02em; --rz: 1.06; --cw: 0.44;
 }
+
+/* Text size: one factor (--tz) that scales the list's body and title sizes and the reading size.
+   The reading size keeps its 16px floor (--t-floor), so Small never takes it under 16px; label and
+   meta text do not scale. Small is 0.9 so the smallest list text (13.5px body, and the Mono pair's
+   15px title at its 0.92 size factor) stays at 12px or more. */
+/* plain: medium */
+:root, [data-size] { --tz: 1; }
+[data-size="small"] { --tz: 0.9; }
+[data-size="large"] { --tz: 1.15; }
 
 /* Text width: the reading column in average characters per line (68 at most). */
 /* plain: medium */
@@ -127,11 +144,12 @@
 [data-width="wide"] { --chars: 68; }
 
 /* Density: list spacing (--k multiplies the list's vertical spacing) and list
-   text only. Reader text never shrinks below 16px. */
+   text only, before Text size scales it (--t-body-base, --t-title-base). Reader text never
+   shrinks below 16px. */
 /* plain: compact */
-:root, [data-density] { --k: 0.75; --t-body: 13.5px; --t-title-px: 15px; }
-[data-density="comfortable"] { --k: 1; --t-body: 14.5px; --t-title-px: 16.5px; }
-[data-density="roomy"] { --k: 1.25; --t-body: 15.5px; --t-title-px: 18px; }
+:root, [data-density] { --k: 0.75; --t-body-base: 0.84375rem; --t-title-base: 0.9375rem; }
+[data-density="comfortable"] { --k: 1; --t-body-base: 0.90625rem; --t-title-base: 1.03125rem; }
+[data-density="roomy"] { --k: 1.25; --t-body-base: 0.96875rem; --t-title-base: 1.125rem; }
 
 /* Accent: the hue. Its lightness and chroma come with the theme (--acc-l,
    --acc-c); the colour itself (--acc) is worked out below, on every element that carries
@@ -196,12 +214,13 @@
 [data-images="off"] { --card-media: none; }
 
 /* Worked out from the inputs above, declared again on every element where an input can
-   change: the accent colour, the title, reading and display sizes, and the reading column. */
-:root, .app, [data-layout], [data-theme], [data-font], [data-width], [data-density], [data-accent] {
+   change: the accent colour, the body, title, reading and display sizes, and the reading column. */
+:root, .app, [data-layout], [data-theme], [data-font], [data-size], [data-width], [data-density], [data-accent] {
   --acc: oklch(var(--acc-l) var(--acc-c) var(--ah));
-  --t-title: calc(var(--t-title-px) * var(--dz));
-  --t-read: max(16px, calc(17px * var(--rz)));
-  --t-display: calc(var(--display-px) * var(--dz) * var(--display-x));
+  --t-body: calc(var(--t-body-base) * var(--tz));
+  --t-title: calc(var(--t-title-base) * var(--dz) * var(--tz));
+  --t-read: max(var(--t-floor), calc(var(--t-read-base) * var(--rz) * var(--tz)));
+  --t-display: calc(var(--display-base) * var(--dz) * var(--display-x));
   --measure: calc(var(--chars) * var(--cw) * 1em);
 }
 
@@ -209,11 +228,11 @@
    --nc; Sepia ignores them). ---------------------------------------------- */
 /* plain: list */
 :root, [data-layout] {
-  --nh: 255; --nc: 0.008; --display-px: 24px;
+  --nh: 255; --nc: 0.008; --display-base: 1.5rem;
   --thumb: 40px; --rail-w: 264px; --list-min: 300px; --list-w: 420px; --sum-lines: 2;
 }
 [data-layout="grid"] {
-  --nh: 292; --nc: 0.01; --display-px: 30px;
+  --nh: 292; --nc: 0.01; --display-base: 1.875rem;
   --img-ratio: 16 / 10; --sum-lines: 3; --sum-lines-text: 6; --page-max: 1480px; --paste-min: 280px; --paste-w: 420px;
   /* the sheet: its widest, the room kept on each side for its side buttons (a 44px button,
      12px from the sheet, and 16px from the window's edge), and its width now */

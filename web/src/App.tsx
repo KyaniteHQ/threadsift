@@ -2,12 +2,13 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from "react"
 
 import { itemIdOf } from "../../src/core/item-path.ts";
 import { type SaveOutcome, type SaveResult, noticeOf } from "./api.ts";
-import { useBands } from "./bands.ts";
 import type { Attention } from "./ItemRow.tsx";
 import { type ListState, useLibrary } from "./library.ts";
 import { ListBody } from "./ListBody.tsx";
 import { PasteBox } from "./PasteBox.tsx";
 import { focusListStart, scrollToTop } from "./reveal.ts";
+import { SettingsPanel } from "./SettingsPanel.tsx";
+import { useRoot } from "./use-root.ts";
 
 function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
   const retried = useRef(false);
@@ -75,9 +76,8 @@ function useSaveAndShow(
 }
 
 export function App() {
-  const root = useRef<HTMLDivElement>(null);
   const listPane = useRef<HTMLElement>(null);
-  const bands = useBands(root);
+  const { ref, attributes, narrow, settings, isDark, pick, reset } = useRoot();
   const { list, save, retry } = useLibrary();
   const { openId, attention, attend } = useOpenItem(list);
 
@@ -88,12 +88,19 @@ export function App() {
   const isEmpty = list.status === "ready" && list.items.length === 0;
 
   return (
-    <div ref={root} className="app" data-layout="list" data-reader="pane" data-bp={bands}>
+    <div ref={ref} className="app" {...attributes} data-reader="pane">
       <div className={isEmpty ? "lib is-empty" : "lib"}>
         <div className="bg">
           <header className="mast">
             <div className="brand">
               <h1>Threadsift</h1>
+              <SettingsPanel
+                settings={settings}
+                isDark={isDark}
+                modal={narrow}
+                choose={pick}
+                reset={reset}
+              />
             </div>
             <PasteBox save={saveAndShow} />
           </header>

@@ -1,5 +1,5 @@
 /* oxlint-disable max-lines-per-function, unicorn/consistent-function-scoping -- page.evaluate serialises this one function, so its helpers must sit inside it */
-export function collectViolations(): string[] {
+export function collectViolations(defaultFont: string): string[] {
   const TEXT = 4.5;
   const MARK = 3;
   const FLOOR = 12;
@@ -108,7 +108,7 @@ export function collectViolations(): string[] {
     checkRatio("field border against the field", border, backdrop(field), MARK);
   }
 
-  for (const button of document.querySelectorAll(".app .btn:not(.btn-plain)")) {
+  for (const button of document.querySelectorAll(".app .btn:not(.btn-plain), .app .st-reset")) {
     const style = getComputedStyle(button);
 
     const edge = rgba(
@@ -120,6 +120,95 @@ export function collectViolations(): string[] {
 
   for (const icon of document.querySelectorAll(".app svg.ic")) {
     checkRatio("icon", rgba(getComputedStyle(icon).color), backdrop(icon), MARK);
+  }
+
+  for (const select of document.querySelectorAll(".app select")) {
+    const style = getComputedStyle(select);
+    checkRatio(`select text ${name(select)}`, rgba(style.color), backdrop(select), TEXT);
+    checkRatio("select edge", rgba(style.borderTopColor), backdrop(select.parentElement), MARK);
+
+    if (px(style.fontSize) < FLOOR) {
+      found.push(`select ${name(select)}: ${style.fontSize} is under ${FLOOR}px`);
+    }
+  }
+
+  for (const swatch of document.querySelectorAll(".app .st-sw")) {
+    const style = getComputedStyle(swatch);
+    const label = swatch.getAttribute("aria-label");
+    const surface = backdrop(swatch.parentElement);
+    checkRatio(`swatch ${label}`, rgba(style.backgroundColor), surface, MARK);
+
+    if (swatch.getAttribute("aria-pressed") === "true") {
+      checkRatio(`selected swatch ${label} edge`, rgba(style.borderTopColor), surface, MARK);
+    }
+  }
+
+  for (const pressed of document.querySelectorAll('.app .st-b[aria-pressed="true"]')) {
+    const fill = rgba(getComputedStyle(pressed).backgroundColor);
+    checkRatio(`selected segment ${name(pressed)}`, fill, backdrop(pressed.parentElement), MARK);
+  }
+
+  const family = (value: string): string =>
+    value
+      .replaceAll(/["']/gu, "")
+      .replaceAll(/\s*,\s*/gu, ",")
+      .trim();
+
+  const plainFont = document.createElement("div");
+  plainFont.dataset["font"] = defaultFont;
+  document.querySelector(".app")?.append(plainFont);
+  const plainFamily = family(getComputedStyle(plainFont).getPropertyValue("--f-ui"));
+  plainFont.remove();
+
+  for (const element of document.querySelectorAll(".st-pop *")) {
+    const hasText = [...element.childNodes].some(
+      (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== "",
+    );
+
+    if ((hasText || element.tagName === "SELECT") && visible(element)) {
+      const used = family(getComputedStyle(element).fontFamily);
+
+      if (used !== plainFamily) {
+        found.push(
+          `panel text ${name(element)}: ${used} is not the default UI font ${plainFamily}`,
+        );
+      }
+    }
+  }
+
+  for (const element of document.querySelectorAll(
+    ".st-pop :focus-visible, .st-gear:focus-visible",
+  )) {
+    const style = getComputedStyle(element);
+    const box = element.getBoundingClientRect();
+    const reach = px(style.outlineWidth) + px(style.outlineOffset);
+
+    if (style.outlineStyle === "none") {
+      found.push(`focus ring: ${name(element)} draws none`);
+    } else {
+      checkRatio(
+        `focus ring ${name(element)}`,
+        rgba(style.outlineColor),
+        backdrop(element.parentElement),
+        MARK,
+      );
+    }
+
+    for (const clip of [element.closest(".st-body"), element.closest(".st-pop")]) {
+      const bounds = clip?.getBoundingClientRect();
+
+      if (
+        bounds !== undefined &&
+        (box.left - reach < bounds.left ||
+          box.right + reach > bounds.right ||
+          box.top - reach < bounds.top ||
+          box.bottom + reach > bounds.bottom)
+      ) {
+        found.push(
+          `focus ring: ${name(element)} reaches outside ${name(clip ?? element)}, which clips it`,
+        );
+      }
+    }
   }
 
   for (const row of document.querySelectorAll(".app .it.open")) {
@@ -161,7 +250,9 @@ export function collectViolations(): string[] {
   }
 
   if (innerWidth < 480) {
-    for (const target of document.querySelectorAll(".app button, .app input, .app a[href]")) {
+    for (const target of document.querySelectorAll(
+      ".app button, .app input, .app select, .app a[href]",
+    )) {
       const box = (target.closest(".it") ?? target).getBoundingClientRect();
 
       if (Math.min(box.width, box.height) < TARGET - 0.5) {
@@ -172,10 +263,16 @@ export function collectViolations(): string[] {
 
   const scrollers = [
     document.documentElement,
-    ...document.querySelectorAll(".app, .lib, .mast, .list"),
+    ...document.querySelectorAll(".app, .lib, .mast, .list, .st-pop, .st-body"),
   ];
 
   for (const scroller of scrollers) {
+    const spills = getComputedStyle(scroller).overflowX === "visible";
+
+    if (scroller !== document.documentElement && spills) {
+      continue;
+    }
+
     if (scroller.scrollWidth > scroller.clientWidth + 1) {
       found.push(`${name(scroller)} scrolls sideways`);
     }

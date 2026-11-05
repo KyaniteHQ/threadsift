@@ -4,7 +4,8 @@
   "sortImports": true,
   "ignorePatterns": [
     "**/*.md",
-    "design/**",
+    "design/prototype/**",
+    "design/system/*.css",
     ".claude/skills/**",
     "tools/oxlint/anti-slop/**",
     "pnpm-lock.yaml"

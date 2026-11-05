@@ -152,7 +152,7 @@ components:
 
 Threadsift is a quiet library room. The saved text leads, and the interface stays in the background. The mood is quiet, bookish and exact. Chrome is drawn in near-white surfaces, cool greys and hairlines, and one accent hue marks state. The reading column holds post and comment text at one size and one line length. The metadata, controls and lists around it are smaller and greyer than that text.
 
-The look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens. Today these are Font, Text width, Density, Comment style, Accent, Tag style and Card images. Text size and Style follow the same pattern when the app is built. Theme (Light, Dark, Sepia and Match system, which follows the device) and Layout (List, Grid) are attributes on the same root. With no Theme stored, the app draws Light (`docs/spec.md`, Themes). `design/system/tokens.css` is the source every value is read from, and `design/system/settings.js` owns which option is the default. The tokens in this file record the default look: Light theme, the Plex font pair, Cobalt accent, Medium text width, Compact density and the List layout.
+The look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens. Today these are Font, Text size, Text width, Density, Comment style, Accent, Tag style, Card images and Style, which has the one option Library until the 10 Styles arrive. Theme (Light, Dark, Sepia and Match system, which follows the device) and Layout (List, Grid) are attributes on the same root. With no Theme stored, the app draws Light (`docs/spec.md`, Themes). `design/system/tokens.css` is the source every value is read from, and `design/system/settings.ts` owns which option is the default. The page's `html` element carries the same `data-theme` as the app root, so the page background and `color-scheme` follow the theme past the app's edges. The tokens in this file record the default look: Light theme, the Plex font pair, Cobalt accent, Medium text size, Medium text width, Compact density and the List layout.
 
 Density is compact by default, because a library with hundreds of saves needs many rows on screen, but the reading column never gets denser with it. Components are refined and restrained. Two looks are rejected. One is a social feed: Reddit's or X's own chrome, with vote arrows, avatars ahead of the item title, and engagement counts as the loudest thing on a row. The other is a SaaS dashboard: gradient hero cards, number tiles and icons in coloured circles.
 
@@ -209,7 +209,7 @@ Dark and Sepia redefine every neutral and the accent's lightness and chroma in `
 - **Label** (`--t-label`: 600, 12px, 0.06em, uppercase): names of controls, filter groups, settings groups and data fields such as Stars and Language.
 - **Code** (`--t-code`: 400, 14px, 1.5, mono): code blocks. Inline code keeps the size of the text around it.
 
-Text size (Small, Medium, Large) is a Look setting in `docs/spec.md` and is not yet in `design/system/`. Small may set reading text as small as 12px, which is the floor for all text.
+Type sizes are in rem, so the browser's own font size scales them, and the pixel values above are the ones at its default of 16px. Text size (Small 0.9, Medium 1, Large 1.15) multiplies the title, list body and reading sizes through `--tz`. Reading text keeps its 16px floor (`--t-floor`) at Small, and label and meta text never scale, so no text is under 12px. Under 480px the paste field's text is at least 16px, because iOS Safari zooms the page when a focused field's text is smaller.
 
 ### Named Rules
 **The One Reading Size Rule.** Post, comment and summary text share one size (`--t-read`). Headings inside a post render at that same size, so the reader's section headings (`--t-h2`) always outrank them and the page reads in outline order.
@@ -288,7 +288,7 @@ Opening an item grows its card or row into the reader over `--dur-move` (280ms) 
 
 ### Do:
 - **Do** take every value from a token in `design/system/tokens.css`. The only literals are the ones the header of that file lists.
-- **Do** add a new Look option as a `data-*` rule on the app root that lists only the tokens it changes, and add the option to the settings table in `design/system/settings.js`.
+- **Do** add a new Look option as a `data-*` rule on the app root that lists only the tokens it changes, and add the option to the settings table in `design/system/settings.ts`.
 - **Do** keep every text and background pair at 4.5:1 or more, and every mark, icon and border a person needs to see a control or its state at 3:1 or more, in every theme with every accent and Style.
 - **Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or an empty unread dot. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.
 - **Do** make every target at least 44px under 480px.

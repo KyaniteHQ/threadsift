@@ -17,5 +17,13 @@
     "skipLibCheck": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["*.ts", "src/**/*.ts", "web/**/*.ts", "web/**/*.tsx", "e2e/**/*.ts", "tools/**/*.ts"]
+  "include": [
+    "*.ts",
+    "design/system/*.ts",
+    "src/**/*.ts",
+    "web/**/*.ts",
+    "web/**/*.tsx",
+    "e2e/**/*.ts",
+    "tools/**/*.ts"
+  ]
 }

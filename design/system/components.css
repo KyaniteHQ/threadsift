@@ -46,6 +46,7 @@
 .field input { flex: 1; align-self: stretch; min-width: 0; margin: -1px 0; padding: 0; border: 0; background: transparent; color: var(--text); font-size: var(--t-body); outline: none; }   /* reaches over the field's border, so the input itself is the field's full height (44px on phones) */
 .field input::placeholder { color: var(--muted); opacity: 1; }
 .app .field input:focus-visible { outline: none; }
+.app[data-bp~="phone"] .field input { font-size: max(var(--t-floor), var(--t-body)); }
 .src { color: var(--text); font-weight: 600; }
 /* tags: the Tag style setting picks the --tag-* values; data-tag on each tag picks its hue */
 .tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }
@@ -57,14 +58,14 @@
    A gear button (a 44px target) and the settings panel: the rows in three groups, then the
    footer with Reset look and, in words, what it leaves alone. The row the gear sits in places
    the panel: under the header's left edge (.brand is position: relative) or under the reader
-   bar's right end. Under 760px it is a sheet from the bottom with a header (title and Close)
-   and the footer, which stay put while the rows scroll between them; every control is 44px
-   there. The panel keeps the plain type pair (data-font="plex" on the panel) whatever the Font
+   bar's right end. Under 760px it is a modal sheet from the bottom over a dimmed page
+   (.st-backdrop), with a header (title and Close) and the footer, which stay put while the rows
+   scroll between them; every control is 44px there. The panel keeps the plain type pair (data-font="plex" on the panel) whatever the Font
    setting is. */
 .st-gear { display: grid; place-items: center; flex: none; align-self: center; width: var(--target); height: var(--target); padding: 0; border: 0; border-radius: var(--r2); background: transparent; color: var(--muted); cursor: pointer; }
 .st-gear:hover, .st-gear[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
 .st-gear .ic { width: var(--ic-m); height: var(--ic-m); }
-.st-pop { position: absolute; top: calc(100% + var(--s2)); left: 0; z-index: var(--z-popover); display: flex; flex-direction: column; width: var(--pop-w); max-width: calc(100vw - var(--s4) * 2); max-height: calc(var(--vh) - var(--bar-h) * 2 - var(--s6)); overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-label); }
+.st-pop { position: absolute; top: calc(100% + var(--s2)); left: 0; z-index: var(--z-popover); display: flex; margin: 0; padding: 0; flex-direction: column; width: var(--pop-w); max-width: calc(100vw - var(--s4) * 2); max-height: calc(var(--vh) - var(--bar-h) * 2 - var(--s6)); overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-label); }
 .st-pop:focus { outline: none; }
 .st-pop p, .st-pop h2 { margin: 0; }
 .st-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: var(--bar-h); padding: 0 var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
@@ -80,7 +81,7 @@
 .st-row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: var(--s1) var(--s3); }
 .st-l { font-weight: 500; }
 .st-note { grid-column: 2; color: var(--muted); font-size: var(--t-label); }
-.st-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); }
+.st-seg { display: flex; flex-wrap: wrap; gap: 2px; min-width: 0; margin: 0; padding: 2px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); }
 .st-b { flex: 1 1 auto; min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); cursor: pointer; font: inherit; white-space: nowrap; }
 .st-b:hover { background: var(--surface); }
 .st-b[aria-pressed="true"] { background: var(--acc); color: var(--on-acc); font-weight: 600; }
@@ -90,7 +91,7 @@
 .st-row.off .st-b:hover { background: transparent; }
 .st-row.off .st-b[aria-pressed="true"] { background: var(--surface); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-2); }
 .st-sel { width: 100%; min-height: var(--ctl-h); padding: 0 var(--s2); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font: inherit; }
-.st-sws { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.st-sws { display: flex; flex-wrap: wrap; gap: var(--s2); min-width: 0; margin: 0; padding: 0; border: 0; }
 /* data-accent on each swatch works out its own --acc (tokens.css) */
 .st-sw { width: var(--ctl-h); height: var(--ctl-h); padding: 0; border: 2px solid transparent; border-radius: var(--r4); background: var(--acc); box-shadow: inset 0 0 0 3px var(--surface); cursor: pointer; }
 .st-sw[aria-pressed="true"] { border-color: var(--text); }

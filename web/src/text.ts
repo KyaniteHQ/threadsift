@@ -55,6 +55,19 @@ export const LOADING_LABEL = "Loading saved links…";
 
 export const LOAD_FAILED = "Couldn’t load your saved links.";
 
+export const SETTINGS_GEAR_LABEL = "Settings";
+export const SETTINGS_TITLE = "Settings";
+export const CLOSE_LABEL = "Close";
+export const RESET_LABEL = "Reset look";
+
+export const RESET_NOTE =
+  "Reset look puts look settings back to their defaults and leaves Theme alone.";
+
+export const MATCH_SYSTEM_NOTES = {
+  dark: "Match system · dark now",
+  light: "Match system · light now",
+} as const;
+
 const COUNT_ONE = "1 link saved";
 const COUNT_MANY = "{count} links saved";
 
