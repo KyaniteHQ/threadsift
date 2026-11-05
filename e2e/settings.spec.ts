@@ -123,7 +123,7 @@ async function resetWhileDark(page: Page): Promise<void> {
 async function followDevice(page: Page): Promise<void> {
   await page.emulateMedia({ colorScheme: "dark" });
   await pickOption(panel(page), "Theme", "Match system");
-  const theme = panel(page).getByRole("group", { name: "Theme", exact: true });
+  const theme = panel(page).getByRole("radiogroup", { name: "Theme", exact: true });
 
   for (const scheme of ["dark", "light"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
@@ -206,6 +206,11 @@ const STORED_CASES = [
   { name: "one unknown key", stored: { ...VALID, sparkle: "on" }, resets: [] },
   { name: "one missing key", stored: withoutWidth(), resets: ["width"] },
   { name: "images stored as true", stored: { ...VALID, images: true }, resets: ["images"] },
+  {
+    name: "layout stored as grid, which is not offered yet",
+    stored: { ...VALID, layout: "grid" },
+    resets: ["layout"],
+  },
 ] as const;
 
 test("a stored setting that is not one of the table's option ids falls back alone", async ({

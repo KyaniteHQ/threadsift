@@ -62,7 +62,7 @@ async function checkPanel(page: Page, what: string): Promise<void> {
 
   const controls = [
     dialog.getByRole("combobox", { name: "Font" }),
-    dialog.getByRole("button", { name: "Moss" }),
+    dialog.getByRole("radio", { name: "Moss" }),
     dialog.getByRole("button", { name: "Reset look" }),
     gear(page),
   ];
@@ -149,7 +149,7 @@ test("the default option of every setting draws the tokens of an element with no
 
   expect(result.violations).toEqual([]);
   expect(result.changingTokens.toSorted(), "the settings whose options change tokens").toEqual(
-    SETTINGS.filter((row) => !["openAs", "style"].includes(row.key))
+    SETTINGS.filter((row) => row.options.length > 1 && row.key !== "openAs")
       .map((row) => row.attribute)
       .toSorted(),
   );

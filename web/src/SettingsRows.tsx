@@ -30,9 +30,33 @@ type ControlProps = Readonly<{
   row: SettingRow;
   value: string;
   labelId: string;
+  controlId: string;
   noteId: string | undefined;
   choose: Choose;
 }>;
+
+const NEXT = (index: number, count: number): number => (index + 1) % count;
+const PREVIOUS = (index: number, count: number): number => (index + count - 1) % count;
+
+const MOVES: ReadonlyMap<string, (index: number, count: number) => number> = new Map([
+  ["ArrowRight", NEXT],
+  ["ArrowDown", NEXT],
+  ["ArrowLeft", PREVIOUS],
+  ["ArrowUp", PREVIOUS],
+  ["Home", () => 0],
+  ["End", (_index, count) => count - 1],
+]);
+
+function radioAfter(key: string, current: HTMLElement): HTMLElement | undefined {
+  const move = MOVES.get(key);
+
+  const radios = [
+    ...(current.closest('[role="radiogroup"]')?.querySelectorAll<HTMLElement>('[role="radio"]') ??
+      []),
+  ];
+
+  return move === undefined ? undefined : radios[move(radios.indexOf(current), radios.length)];
+}
 
 function noteOf(row: SettingRow, settings: Settings, isDark: boolean): string | null {
   if (row.key !== "theme" || !followsDevice(settings)) {
@@ -42,7 +66,7 @@ function noteOf(row: SettingRow, settings: Settings, isDark: boolean): string | 
   return MATCH_SYSTEM_NOTES[isDark ? "dark" : "light"];
 }
 
-function SelectControl({ row, value, labelId, noteId, choose }: ControlProps) {
+function SelectControl({ row, value, controlId, noteId, choose }: ControlProps) {
   const change = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
       choose(row.key, event.target.value);
@@ -52,8 +76,8 @@ function SelectControl({ row, value, labelId, noteId, choose }: ControlProps) {
 
   return (
     <select
+      id={controlId}
       className="st-sel"
-      aria-labelledby={labelId}
       aria-describedby={noteId}
       value={value}
       onChange={change}
@@ -70,12 +94,12 @@ function SelectControl({ row, value, labelId, noteId, choose }: ControlProps) {
 function Choice({
   row,
   option,
-  pressed,
+  checked,
   choose,
 }: Readonly<{
   row: SettingRow;
   option: Readonly<{ id: string; label: string }>;
-  pressed: boolean;
+  checked: boolean;
   choose: Choose;
 }>) {
   const isSwatch = row.kind === "swatches";
@@ -84,15 +108,30 @@ function Choice({
     choose(row.key, option.id);
   }, [choose, row.key, option.id]);
 
+  const move = useCallback(
+    (event: Readonly<{ key: string; currentTarget: HTMLElement; preventDefault: () => void }>) => {
+      const target = radioAfter(event.key, event.currentTarget);
+
+      if (target !== undefined) {
+        event.preventDefault();
+        target.focus();
+        target.click();
+      }
+    },
+    [],
+  );
+
   return (
     <button
       type="button"
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a segment or a swatch is a styled button in the APG radio group pattern
+      role="radio"
       className={isSwatch ? "st-sw" : "st-b"}
-      {...(isSwatch
-        ? { [row.attribute]: option.id, "aria-label": option.label, title: option.label }
-        : {})}
-      aria-pressed={pressed}
+      {...(isSwatch ? { [row.attribute]: option.id, "aria-label": option.label } : {})}
+      aria-checked={checked}
+      tabIndex={checked ? 0 : -1}
       onClick={pick}
+      onKeyDown={move}
     >
       {isSwatch ? null : option.label}
     </button>
@@ -103,7 +142,8 @@ function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
   const isSwatches = row.kind === "swatches";
 
   return (
-    <fieldset
+    <div
+      role="radiogroup"
       className={isSwatches ? "st-sws" : "st-seg"}
       aria-labelledby={labelId}
       aria-describedby={noteId}
@@ -113,11 +153,11 @@ function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
           key={option.id}
           row={row}
           option={option}
-          pressed={value === option.id}
+          checked={value === option.id}
           choose={choose}
         />
       ))}
-    </fieldset>
+    </div>
   );
 }
 
@@ -135,19 +175,28 @@ function Row({
   choose: Choose;
 }>) {
   const labelId = `${idBase}-${row.key}`;
+  const controlId = `${labelId}-control`;
   const noteId = `${labelId}-note`;
   const note = noteOf(row, settings, isDark);
-  const Control = row.kind === "select" ? SelectControl : ButtonsControl;
+  const isSelect = row.kind === "select";
+  const Control = isSelect ? SelectControl : ButtonsControl;
 
   return (
     <div className="st-row">
-      <span className="st-l" id={labelId}>
-        {row.label}
-      </span>
+      {isSelect ? (
+        <label className="st-l" htmlFor={controlId}>
+          {row.label}
+        </label>
+      ) : (
+        <span className="st-l" id={labelId}>
+          {row.label}
+        </span>
+      )}
       <Control
         row={row}
         value={settings[row.key]}
         labelId={labelId}
+        controlId={controlId}
         noteId={note === null ? undefined : noteId}
         choose={choose}
       />
@@ -167,10 +216,8 @@ export function SettingsRows({
   choose,
 }: Readonly<{ settings: Settings; isDark: boolean; idBase: string; choose: Choose }>) {
   return SHOWN_GROUPS.map(({ group, rows }) => (
-    <section key={group} className="st-group" aria-labelledby={`${idBase}-group-${rows[0]?.key}`}>
-      <h2 className="st-gh" id={`${idBase}-group-${rows[0]?.key}`}>
-        {group}
-      </h2>
+    <div key={group} className="st-group">
+      <h3 className="st-gh">{group}</h3>
       {rows.map((row) => (
         <Row
           key={row.key}
@@ -181,6 +228,6 @@ export function SettingsRows({
           choose={choose}
         />
       ))}
-    </section>
+    </div>
   ));
 }

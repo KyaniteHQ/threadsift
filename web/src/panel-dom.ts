@@ -42,7 +42,7 @@ function tabWrapTarget(panel: HTMLElement, backwards: boolean): HTMLElement | nu
   const stops = [...panel.querySelectorAll<HTMLElement>("button, select")];
   const [first, last] = [stops.at(0), stops.at(-1)];
 
-  if (backwards && document.activeElement === first) {
+  if (backwards && (document.activeElement === first || document.activeElement === panel)) {
     return last ?? null;
   }
 

@@ -1,7 +1,16 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { SETTINGS } from "../design/system/settings.ts";
-import { app, computed, px, seedItems, storeSettings, titledRow } from "./look.ts";
+import { SETTINGS, STORAGE_KEY } from "../design/system/settings.ts";
+import {
+  app,
+  computed,
+  openPanel,
+  pickOption,
+  px,
+  seedItems,
+  storeSettings,
+  titledRow,
+} from "./look.ts";
 
 const FONT_ROW = SETTINGS.find((row) => row.key === "font");
 const FAMILY_TOKENS = ["--f-display", "--f-ui", "--f-read", "--f-mono"] as const;
@@ -114,4 +123,94 @@ test("every Font pair's families load from the app's own origin", async ({ page,
   }
 
   expect([...origins], "every request goes to the app's origin").toEqual([origin]);
+});
+
+const COLD_THEMES = [
+  { stored: { theme: "dark" }, scheme: "light", expected: "dark" },
+  { stored: { theme: "system" }, scheme: "dark", expected: "dark" },
+  { stored: { theme: "system" }, scheme: "light", expected: "light" },
+] as const;
+
+test("a stored theme is on html before the app script runs, and an unreadable store leaves Light", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.route("**/assets/*.js", (route) => route.abort());
+  const html = page.locator("html");
+
+  for (const { stored, scheme, expected } of COLD_THEMES) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.evaluate(
+      ({ key, value }) => {
+        localStorage.setItem(key, value);
+      },
+      { key: STORAGE_KEY, value: JSON.stringify(stored) },
+    );
+    await page.goto("/");
+    await expect(html, `${stored.theme} on a ${scheme} device`).toHaveAttribute(
+      "data-theme",
+      expected,
+    );
+    await expect(page.locator(".app")).toHaveCount(0);
+  }
+
+  for (const value of ["{not json", '{"theme":"neon"}', "null"]) {
+    await page.evaluate(
+      ({ key, text }) => {
+        localStorage.setItem(key, text);
+      },
+      { key: STORAGE_KEY, text: value },
+    );
+    await page.goto("/");
+    await expect(html, `stored ${value}`).not.toHaveAttribute("data-theme", /./u);
+  }
+
+  await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute("content", "light dark");
+});
+
+test("under forced colours the chosen segment and each accent swatch can be told apart", async ({
+  page,
+}) => {
+  await seedItems(page);
+  await page.goto("/");
+  await page.emulateMedia({ forcedColors: "active" });
+  const dialog = await openPanel(page);
+
+  const segments = await dialog
+    .locator(".st-seg")
+    .first()
+    .locator(".st-b")
+    .evaluateAll((radios) =>
+      radios.map((radio) => ({
+        checked: radio.getAttribute("aria-checked") === "true",
+        background: getComputedStyle(radio).backgroundColor,
+      })),
+    );
+
+  const chosen = segments.filter((segment) => segment.checked);
+  const others = segments.filter((segment) => !segment.checked);
+
+  expect(chosen, "one segment is chosen").toHaveLength(1);
+
+  for (const other of others) {
+    expect(chosen[0]?.background, "the chosen segment's fill differs from the others").not.toBe(
+      other.background,
+    );
+  }
+
+  await pickOption(dialog, "Accent", "Moss");
+
+  const swatches = await dialog.locator(".st-sw").evaluateAll((radios) =>
+    radios.map((radio) => ({
+      checked: radio.getAttribute("aria-checked") === "true",
+      background: getComputedStyle(radio).backgroundColor,
+      outline: getComputedStyle(radio).outlineStyle,
+    })),
+  );
+
+  expect(new Set(swatches.map((swatch) => swatch.background)).size, "five accent fills").toBe(5);
+
+  for (const swatch of swatches) {
+    expect(swatch.outline !== "none", "only the chosen swatch is outlined").toBe(swatch.checked);
+  }
 });

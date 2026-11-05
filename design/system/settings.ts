@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 export const GROUPS = ["View", "Reading", "Cards and tags"] as const;
 
 export interface Option {
@@ -25,7 +23,7 @@ function setting<const Row extends Setting>(
   return row;
 }
 
-const THEME = setting({
+export const THEME = setting({
   key: "theme",
   label: "Theme",
   attribute: "data-theme",
@@ -50,10 +48,7 @@ export const SETTINGS = [
     group: "View",
     look: false,
     default: "list",
-    options: [
-      { id: "list", label: "List" },
-      { id: "grid", label: "Grid" },
-    ],
+    options: [{ id: "list", label: "List" }],
   }),
   setting({
     key: "openAs",
@@ -200,41 +195,47 @@ export type SettingRow = (typeof SETTINGS)[number];
 
 export type SettingKey = SettingRow["key"];
 
-const SettingsSchema = z.record(z.enum(SETTINGS.map((row) => row.key)), z.string());
+export type Settings = Readonly<Record<SettingKey, string>>;
 
-export type Settings = Readonly<z.infer<typeof SettingsSchema>>;
+export const DARK_SCHEME = "(prefers-color-scheme: dark)";
 
 function optionsOf(row: Setting): readonly Option[] {
   return row.options;
 }
 
+function hasEveryKey(values: Readonly<Record<string, string>>): values is Settings {
+  return SETTINGS.every((row) => row.key in values);
+}
+
 function build(valueOf: (row: SettingRow) => string): Settings {
-  return SettingsSchema.parse(Object.fromEntries(SETTINGS.map((row) => [row.key, valueOf(row)])));
+  const values = Object.fromEntries(SETTINGS.map((row) => [row.key, valueOf(row)]));
+
+  if (!hasEveryKey(values)) {
+    throw new Error("the settings table built an object without every key");
+  }
+
+  return values;
 }
 
 export const DEFAULTS = build((row) => row.default);
 
 export const STORAGE_KEY = "threadsift.settings";
 
-function storedValues(text: string | null) {
+function storedEntries(text: string | null): ReadonlyMap<string, unknown> {
   try {
-    return z
-      .record(z.string(), z.unknown())
-      .catch({})
-      .parse(JSON.parse(text ?? "null"));
+    const parsed: unknown = JSON.parse(text ?? "null");
+
+    return new Map(parsed instanceof Object ? Object.entries(parsed) : []);
   } catch {
-    return {};
+    return new Map();
   }
 }
 
 export function readStored(text: string | null): Settings {
-  const stored = storedValues(text);
+  const stored = storedEntries(text);
 
-  return build((row) =>
-    z
-      .enum(optionsOf(row).map((option) => option.id))
-      .catch(row.default)
-      .parse(stored[row.key]),
+  return build(
+    (row) => optionsOf(row).find((option) => option.id === stored.get(row.key))?.id ?? row.default,
   );
 }
 

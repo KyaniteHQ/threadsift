@@ -29,7 +29,6 @@ function Gear({
       type="button"
       className="st-gear"
       aria-label={SETTINGS_GEAR_LABEL}
-      title={SETTINGS_GEAR_LABEL}
       aria-expanded={open}
       aria-controls={controls}
       onClick={toggle}
@@ -45,13 +44,7 @@ function SheetHeader({ titleId, close }: Readonly<{ titleId: string; close: () =
       <h2 className="st-title" id={titleId}>
         {SETTINGS_TITLE}
       </h2>
-      <button
-        type="button"
-        className="st-close"
-        aria-label={CLOSE_LABEL}
-        title={CLOSE_LABEL}
-        onClick={close}
-      >
+      <button type="button" className="st-close" aria-label={CLOSE_LABEL} onClick={close}>
         <Icon name="close" className="ic" />
       </button>
     </div>

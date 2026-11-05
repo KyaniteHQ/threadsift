@@ -79,8 +79,8 @@ export async function openPanel(page: Page): Promise<Locator> {
 
 export async function pickOption(dialog: Locator, group: string, option: string): Promise<void> {
   await dialog
-    .getByRole("group", { name: group, exact: true })
-    .getByRole("button", { name: option, exact: true })
+    .getByRole("radiogroup", { name: group, exact: true })
+    .getByRole("radio", { name: option, exact: true })
     .click();
 }
 
@@ -91,9 +91,9 @@ export async function pickFont(dialog: Locator, label: string): Promise<void> {
 export async function expectChosen(dialog: Locator, group: string, option: string): Promise<void> {
   await expect(
     dialog
-      .getByRole("group", { name: group, exact: true })
-      .getByRole("button", { name: option, exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+      .getByRole("radiogroup", { name: group, exact: true })
+      .getByRole("radio", { name: option, exact: true }),
+  ).toBeChecked();
 }
 
 export function px(value: string): number {

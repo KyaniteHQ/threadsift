@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { NOTHING, type PanelRefs, isolate, watchPanel } from "./panel-dom.ts";
 
-const FIRST_CHOICE = '.st-body [aria-pressed="true"]';
+const FIRST_CHOICE = '.st-body [aria-checked="true"]';
 
 type View = Readonly<{ open: boolean; refocusGear: boolean }>;
 

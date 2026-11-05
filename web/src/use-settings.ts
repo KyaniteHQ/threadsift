@@ -1,6 +1,7 @@
-import { useCallback, useLayoutEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
 
 import {
+  DARK_SCHEME,
   STORAGE_KEY,
   type SettingKey,
   type Settings,
@@ -11,8 +12,6 @@ import {
   rootAttributes,
   serialize,
 } from "../../design/system/settings.ts";
-
-const DARK_SCHEME = "(prefers-color-scheme: dark)";
 
 function readStorage(): string | null {
   try {
@@ -53,6 +52,24 @@ export function useSettings() {
   useLayoutEffect(() => {
     document.documentElement.dataset["theme"] = theme;
   }, [theme]);
+
+  useEffect(() => {
+    const listeners = new AbortController();
+
+    addEventListener(
+      "storage",
+      (event) => {
+        if (event.key === STORAGE_KEY || event.key === null) {
+          setSettings(readStored(event.newValue));
+        }
+      },
+      { signal: listeners.signal },
+    );
+
+    return () => {
+      listeners.abort();
+    };
+  }, []);
 
   const apply = useCallback((next: Settings) => {
     setSettings(next);

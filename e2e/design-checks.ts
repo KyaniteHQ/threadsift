@@ -138,12 +138,12 @@ export function collectViolations(defaultFont: string): string[] {
     const surface = backdrop(swatch.parentElement);
     checkRatio(`swatch ${label}`, rgba(style.backgroundColor), surface, MARK);
 
-    if (swatch.getAttribute("aria-pressed") === "true") {
+    if (swatch.getAttribute("aria-checked") === "true") {
       checkRatio(`selected swatch ${label} edge`, rgba(style.borderTopColor), surface, MARK);
     }
   }
 
-  for (const pressed of document.querySelectorAll('.app .st-b[aria-pressed="true"]')) {
+  for (const pressed of document.querySelectorAll('.app .st-b[aria-checked="true"]')) {
     const fill = rgba(getComputedStyle(pressed).backgroundColor);
     checkRatio(`selected segment ${name(pressed)}`, fill, backdrop(pressed.parentElement), MARK);
   }

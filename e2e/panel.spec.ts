@@ -81,7 +81,7 @@ test("on a wide screen Escape and a second gear press close the popover and a pr
   await page.goto("/");
   const dialog = await openPanel(page);
   await expect(dialog).not.toHaveAttribute("aria-modal", /./u);
-  await expect(dialog.getByRole("button", { name: "Light", pressed: true })).toBeFocused();
+  await expect(dialog.getByRole("radio", { name: "Light", checked: true })).toBeFocused();
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
@@ -120,7 +120,7 @@ test("an open panel turns into the sheet under 760px and back into the popover",
   await expect(dialog).not.toHaveAttribute("aria-modal", /./u);
   await expect(dialog.getByRole("button", { name: "Close" })).toHaveCount(0);
   await expect(page.locator(".st-backdrop")).toHaveCount(0);
-  await expect(dialog.getByRole("button", { name: "Roomy", pressed: true })).toBeVisible();
+  await expect(dialog.getByRole("radio", { name: "Roomy", checked: true })).toBeVisible();
 });
 
 async function fieldTextSize(page: Page): Promise<number> {
@@ -147,4 +147,95 @@ test("the paste field's text is 16px or more at 390px for every Density and Text
       ).toBeGreaterThanOrEqual(16);
     }
   }
+});
+
+test("each single-choice group is a radio group with one Tab stop and arrow keys", async ({
+  page,
+}) => {
+  await seedItems(page);
+  await page.setViewportSize(DESKTOP);
+  await page.goto("/");
+  const dialog = await openPanel(page);
+  const theme = dialog.getByRole("radiogroup", { name: "Theme", exact: true });
+
+  await expect(dialog.getByRole("radiogroup")).toHaveCount(5);
+  await expect(dialog.locator('[role="radio"]:not([tabindex="-1"])')).toHaveCount(5);
+  await expect(theme.getByRole("radio", { name: "Light" })).toBeFocused();
+
+  const order = ["Dark", "Sepia", "Match system", "Light"] as const;
+
+  for (const name of order) {
+    await page.keyboard.press("ArrowRight");
+    await expect(theme.getByRole("radio", { name })).toBeFocused();
+    await expect(theme.getByRole("radio", { name })).toBeChecked();
+  }
+
+  await page.keyboard.press("ArrowLeft");
+  await expect(theme.getByRole("radio", { name: "Match system" })).toBeChecked();
+  await page.keyboard.press("ArrowUp");
+  await expect(theme.getByRole("radio", { name: "Sepia" })).toBeChecked();
+  await page.keyboard.press("Home");
+  await expect(theme.getByRole("radio", { name: "Light" })).toBeChecked();
+  await page.keyboard.press("End");
+  await expect(theme.getByRole("radio", { name: "Match system" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(theme.getByRole("radio", { name: "Light" })).toBeChecked();
+  await expect(app(page)).toHaveAttribute("data-theme", "light");
+
+  const reset = dialog.getByRole("button", { name: "Reset look" });
+
+  for (const stop of [
+    dialog.getByRole("combobox", { name: "Font" }),
+    dialog.getByRole("radiogroup", { name: "Text size" }).getByRole("radio", { name: "Medium" }),
+  ]) {
+    await page.keyboard.press("Tab");
+    await expect(stop).toBeFocused();
+  }
+
+  await dialog
+    .getByRole("radiogroup", { name: "Accent" })
+    .getByRole("radio", { name: "Cobalt" })
+    .focus();
+  await page.keyboard.press("Tab");
+  await expect(reset).toBeFocused();
+});
+
+test("Shift+Tab from the dialog itself wraps to the last control in the sheet", async ({
+  page,
+}) => {
+  const dialog = await onPhone(page);
+  await dialog.locator(".st-title").click();
+  await expect(dialog).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "Reset look" })).toBeFocused();
+});
+
+test("the sheet's outline is a title, two group headings and no landmark, and no name repeats as a title", async ({
+  page,
+}) => {
+  const dialog = await onPhone(page);
+
+  await expect(dialog.getByRole("heading", { level: 2 })).toHaveText(["Settings"]);
+  await expect(dialog.getByRole("heading", { level: 3 })).toHaveText(["Reading", "Cards and tags"]);
+  await expect(dialog.getByRole("region")).toHaveCount(0);
+
+  const titled = await page
+    .locator("[title]")
+    .evaluateAll(
+      (elements) =>
+        elements.filter(
+          (element) => element.getAttribute("title") === element.getAttribute("aria-label"),
+        ).length,
+    );
+
+  expect(titled, "elements whose title repeats their aria-label").toBe(0);
+});
+
+test("a click on the Font label focuses the Font select", async ({ page }) => {
+  await seedItems(page);
+  await page.setViewportSize(DESKTOP);
+  await page.goto("/");
+  const dialog = await openPanel(page);
+  await dialog.getByText("Font", { exact: true }).click();
+  await expect(dialog.getByRole("combobox", { name: "Font" })).toBeFocused();
 });

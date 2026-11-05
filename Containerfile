@@ -12,6 +12,7 @@ FROM base AS web-build
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json vite.config.ts ./
 COPY design design
+COPY tools/theme-script.ts tools/theme-script.ts
 COPY src src
 COPY web web
 RUN pnpm exec vite build
