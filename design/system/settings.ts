@@ -13,6 +13,7 @@ export interface Setting {
   readonly kind: "segments" | "select" | "swatches";
   readonly group: (typeof GROUPS)[number];
   readonly look: boolean;
+  readonly shown: boolean;
   readonly default: string;
   readonly options: readonly [Option, ...Option[]];
 }
@@ -30,6 +31,7 @@ export const THEME = setting({
   kind: "segments",
   group: "Reading",
   look: false,
+  shown: true,
   default: "light",
   options: [
     { id: "light", label: "Light" },
@@ -47,6 +49,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "View",
     look: false,
+    shown: false,
     default: "list",
     options: [{ id: "list", label: "List" }],
   }),
@@ -57,6 +60,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "View",
     look: false,
+    shown: false,
     default: "page",
     options: [
       { id: "page", label: "Page" },
@@ -70,6 +74,7 @@ export const SETTINGS = [
     kind: "select",
     group: "Reading",
     look: true,
+    shown: false,
     default: "library",
     options: [{ id: "library", label: "Library" }],
   }),
@@ -81,6 +86,7 @@ export const SETTINGS = [
     kind: "select",
     group: "Reading",
     look: true,
+    shown: true,
     default: "plex",
     options: [
       { id: "plex", label: "IBM Plex Sans + Plex Mono" },
@@ -97,6 +103,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "Reading",
     look: true,
+    shown: true,
     default: "medium",
     options: [
       { id: "small", label: "Small" },
@@ -111,6 +118,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "Reading",
     look: true,
+    shown: true,
     default: "medium",
     options: [
       { id: "narrow", label: "Narrow" },
@@ -125,6 +133,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "Reading",
     look: true,
+    shown: true,
     default: "compact",
     options: [
       { id: "compact", label: "Compact" },
@@ -139,6 +148,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "Reading",
     look: true,
+    shown: false,
     default: "lines",
     options: [
       { id: "lines", label: "Indented lines" },
@@ -153,6 +163,7 @@ export const SETTINGS = [
     kind: "swatches",
     group: "Cards and tags",
     look: true,
+    shown: true,
     default: "cobalt",
     options: [
       { id: "cobalt", label: "Cobalt" },
@@ -169,6 +180,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "Cards and tags",
     look: true,
+    shown: false,
     default: "dots",
     options: [
       { id: "chips", label: "Chips" },
@@ -183,6 +195,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "Cards and tags",
     look: true,
+    shown: false,
     default: "on",
     options: [
       { id: "on", label: "On" },
@@ -195,7 +208,11 @@ export type SettingRow = (typeof SETTINGS)[number];
 
 export type SettingKey = SettingRow["key"];
 
-export type Settings = Readonly<Record<SettingKey, string>>;
+type RowOf<K extends SettingKey> = Extract<SettingRow, { readonly key: K }>;
+
+export type OptionId<K extends SettingKey> = RowOf<K>["options"][number]["id"];
+
+export type Settings = Readonly<{ [K in SettingKey]: OptionId<K> }>;
 
 export const DARK_SCHEME = "(prefers-color-scheme: dark)";
 
@@ -203,15 +220,15 @@ function optionsOf(row: Setting): readonly Option[] {
   return row.options;
 }
 
-function hasEveryKey(values: Readonly<Record<string, string>>): values is Settings {
-  return SETTINGS.every((row) => row.key in values);
+function isSettings(values: Readonly<Record<string, string>>): values is Settings {
+  return SETTINGS.every((row) => optionsOf(row).some((option) => option.id === values[row.key]));
 }
 
 function build(valueOf: (row: SettingRow) => string): Settings {
   const values = Object.fromEntries(SETTINGS.map((row) => [row.key, valueOf(row)]));
 
-  if (!hasEveryKey(values)) {
-    throw new Error("the settings table built an object without every key");
+  if (!isSettings(values)) {
+    throw new Error("the settings table built a value that is not one of its row's option ids");
   }
 
   return values;
@@ -244,7 +261,11 @@ export function serialize(settings: Settings): string {
 }
 
 export function choose(settings: Settings, key: SettingKey, id: string): Settings {
-  return build((row) => (row.key === key ? id : settings[row.key]));
+  return build((row) =>
+    row.key === key
+      ? (optionsOf(row).find((option) => option.id === id)?.id ?? settings[row.key])
+      : settings[row.key],
+  );
 }
 
 export function resetLook(settings: Settings): Settings {

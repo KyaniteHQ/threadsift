@@ -24,13 +24,6 @@ function themeScript(): string {
 export function themeScriptPlugin(): Plugin {
   return {
     name: "threadsift-theme-script",
-    transformIndexHtml: () => [
-      {
-        tag: "meta",
-        attrs: { name: "color-scheme", content: "light dark" },
-        injectTo: "head-prepend",
-      },
-      { tag: "script", children: themeScript(), injectTo: "head-prepend" },
-    ],
+    transformIndexHtml: () => [{ tag: "script", children: themeScript(), injectTo: "head" }],
   };
 }

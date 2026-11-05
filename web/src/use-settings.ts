@@ -21,13 +21,11 @@ function readStorage(): string | null {
   }
 }
 
-function writeStorage(text: string): boolean {
+function writeStorage(text: string): void {
   try {
     localStorage.setItem(STORAGE_KEY, text);
-
-    return true;
   } catch {
-    return false;
+    return undefined;
   }
 }
 

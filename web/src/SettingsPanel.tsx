@@ -80,23 +80,19 @@ export function SettingsPanel({
   const idBase = useId();
   const panelId = `${idBase}-panel`;
   const titleId = `${idBase}-title`;
-  const { open, toggle, closeToGear, gear, panel, backdrop } = usePanel(modal);
+  const { open, toggle, closeToGear, gear, panel } = usePanel(modal);
 
   return (
     <>
       <Gear gear={gear} open={open} controls={panelId} toggle={toggle} />
-      {open && modal ? <div ref={backdrop} className="st-backdrop" aria-hidden="true" /> : null}
       {open ? (
         <dialog
           ref={panel}
-          open
           id={panelId}
           className="st-pop"
-          aria-modal={modal ? true : undefined}
           aria-label={modal ? undefined : SETTINGS_TITLE}
           aria-labelledby={modal ? titleId : undefined}
           data-font={DEFAULTS.font}
-          tabIndex={-1}
         >
           {modal ? <SheetHeader titleId={titleId} close={closeToGear} /> : null}
           <div className="st-body">

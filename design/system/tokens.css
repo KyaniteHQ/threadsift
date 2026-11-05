@@ -19,7 +19,7 @@
    comment (plain: <id>); every other option is a [data-*="<id>"] rule that
    lists only what differs. Which option is the default is owned by the
    settings table (SETTINGS in design/system/settings.ts), and
-   checkDefaults() in e2e/design-checks.ts confirms that the option the table
+   checkDefaults() in e2e/default-tokens.ts confirms that the option the table
    names as default is the one drawn when no attribute is set.
 
    The app's root carries every attribute, built from the settings table:
@@ -44,6 +44,10 @@
    - 1px hairline borders, the 1.5px unread-dot ring, the 3px swatch inner
      ring, blockquote bar and open-row bar, and the 2px focus ring, its
      offset, the progress line and the segmented controls' inset;
+   - the swatch's 2px border and the 2px overlay that covers it, the 2px
+     outline that marks the chosen swatch under forced colours, and the 24rem
+     panel width under which the settings panel stacks each label above its
+     control (a container query's size cannot read a custom property);
    - font weights (400 to 700), SVG stroke widths (1.8, and 1.4 on the large
      empty-state icons), opacity and brightness steps (0.45, 0.9, 1.07);
    - geometry: 100%, 50%, -50%, rotations, grid line numbers, the 85% height
@@ -75,7 +79,7 @@
   --ctl-h: 34px; --field-h: 40px; --seg-h: 30px; --row-h: 32px; --dot-hit: 28px; --link-pad: 0px;
   --dot: 10px; --av: 26px; --av-l: 40px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
   --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the gear, the read mark on phones, empty states */
-  --pop-w: 25rem;                     /* the settings panel beside a wide app */
+  --pop-w: 25rem;                     /* the settings panel under the gear */
   --tag-c: 0.13;                      /* tag colour chroma; lightness per theme (--tag-l), hue per tag (data-tag) */
   --reader-pad: var(--s6); --code-pad-y: 10px; --code-pad-x: 12px;
   --bar-h: 56px;                      /* the reader bar, and the phone settings sheet's header: one row, its bottom line included */

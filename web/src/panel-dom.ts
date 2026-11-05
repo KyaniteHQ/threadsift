@@ -3,40 +3,7 @@ import type { RefObject } from "react";
 export type PanelRefs = Readonly<{
   gear: RefObject<HTMLButtonElement | null>;
   panel: RefObject<HTMLDialogElement | null>;
-  backdrop: RefObject<HTMLDivElement | null>;
 }>;
-
-export const NOTHING = (): void => undefined;
-
-export function isolate(modal: HTMLElement | null, spared: HTMLElement | null): () => void {
-  const root = modal?.closest(".app");
-
-  if (modal === null || spared === null || root === null || root === undefined) {
-    return NOTHING;
-  }
-
-  const isolated: HTMLElement[] = [];
-
-  for (let node = modal; node !== root && node.parentElement !== null; node = node.parentElement) {
-    for (const sibling of node.parentElement.children) {
-      if (
-        sibling instanceof HTMLElement &&
-        sibling !== node &&
-        sibling !== spared &&
-        !sibling.inert
-      ) {
-        sibling.inert = true;
-        isolated.push(sibling);
-      }
-    }
-  }
-
-  return () => {
-    for (const element of isolated) {
-      element.inert = false;
-    }
-  };
-}
 
 function tabWrapTarget(panel: HTMLElement, backwards: boolean): HTMLElement | null {
   const stops = [...panel.querySelectorAll<HTMLElement>("button, select")];
@@ -61,6 +28,20 @@ function isOutside(refs: PanelRefs, target: EventTarget | null): boolean {
   );
 }
 
+function isInside(
+  panel: HTMLElement,
+  point: Readonly<{ clientX: number; clientY: number }>,
+): boolean {
+  const box = panel.getBoundingClientRect();
+
+  return (
+    point.clientX >= box.left &&
+    point.clientX <= box.right &&
+    point.clientY >= box.top &&
+    point.clientY <= box.bottom
+  );
+}
+
 type Close = (refocusGear: boolean) => void;
 
 function watchPointer(refs: PanelRefs, modal: boolean, close: Close, signal: AbortSignal): void {
@@ -77,7 +58,9 @@ function watchPointer(refs: PanelRefs, modal: boolean, close: Close, signal: Abo
   document.addEventListener(
     "click",
     (event) => {
-      if (modal && event.target === refs.backdrop.current) {
+      const panel = refs.panel.current;
+
+      if (modal && panel !== null && event.target === panel && !isInside(panel, event)) {
         close(true);
       }
     },
@@ -101,7 +84,7 @@ function watchKeys(refs: PanelRefs, modal: boolean, close: Close, signal: AbortS
     (event) => {
       const panel = refs.panel.current;
 
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !modal) {
         event.preventDefault();
         event.stopPropagation();
         close(true);
@@ -126,4 +109,13 @@ export function watchPanel(
 ): void {
   watchPointer(refs, modal, close, signal);
   watchKeys(refs, modal, close, signal);
+
+  refs.panel.current?.addEventListener(
+    "cancel",
+    (event) => {
+      event.preventDefault();
+      close(true);
+    },
+    { signal },
+  );
 }

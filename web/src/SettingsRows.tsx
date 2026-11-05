@@ -10,18 +10,9 @@ import {
 } from "../../design/system/settings.ts";
 import { MATCH_SYSTEM_NOTES } from "./text.ts";
 
-const SHOWN_KEYS: ReadonlySet<SettingKey> = new Set([
-  "theme",
-  "font",
-  "size",
-  "width",
-  "density",
-  "accent",
-]);
-
 const SHOWN_GROUPS = GROUPS.map((group) => ({
   group,
-  rows: SETTINGS.filter((row) => row.group === group && SHOWN_KEYS.has(row.key)),
+  rows: SETTINGS.filter((row) => row.group === group && row.shown),
 })).filter(({ rows }) => rows.length > 0);
 
 export type Choose = (key: SettingKey, id: string) => void;

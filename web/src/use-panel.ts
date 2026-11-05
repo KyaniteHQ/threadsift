@@ -1,26 +1,48 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { NOTHING, type PanelRefs, isolate, watchPanel } from "./panel-dom.ts";
+import { type PanelRefs, watchPanel } from "./panel-dom.ts";
 
 const FIRST_CHOICE = '.st-body input[type="radio"]:checked';
 
+const NOTHING = (): void => undefined;
+
 type View = Readonly<{ open: boolean; refocusGear: boolean }>;
 
-function useFocusFlow({ open, refocusGear }: View, refs: PanelRefs) {
+function useShownAs(open: boolean, modal: boolean, refs: PanelRefs) {
+  const held = useRef<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    const dialog = refs.panel.current;
+
+    if (!open || dialog === null) {
+      held.current = null;
+
+      return NOTHING;
+    }
+
+    if (modal) {
+      dialog.showModal();
+    } else {
+      dialog.show();
+    }
+
+    const back = held.current?.isConnected === true ? held.current : null;
+    (back ?? dialog.querySelector<HTMLElement>(FIRST_CHOICE))?.focus();
+
+    return () => {
+      const focused = document.activeElement;
+      held.current = focused instanceof HTMLElement && dialog.contains(focused) ? focused : null;
+      dialog.close();
+    };
+  }, [open, modal, refs]);
+}
+
+function useGearFocus({ open, refocusGear }: View, refs: PanelRefs) {
   useEffect(() => {
-    if (open) {
-      (refs.panel.current?.querySelector<HTMLElement>(FIRST_CHOICE) ?? refs.panel.current)?.focus();
-    } else if (refocusGear) {
+    if (!open && refocusGear) {
       refs.gear.current?.focus();
     }
   }, [open, refocusGear, refs]);
-}
-
-function useModalIsolation(open: boolean, modal: boolean, refs: PanelRefs) {
-  useEffect(
-    () => (open && modal ? isolate(refs.panel.current, refs.backdrop.current) : NOTHING),
-    [open, modal, refs],
-  );
 }
 
 function useDismissal(
@@ -46,15 +68,14 @@ export function usePanel(modal: boolean) {
   const [view, setView] = useState<View>({ open: false, refocusGear: false });
   const gear = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDialogElement>(null);
-  const backdrop = useRef<HTMLDivElement>(null);
-  const refs = useMemo(() => ({ gear, panel, backdrop }), [gear, panel, backdrop]);
+  const refs = useMemo(() => ({ gear, panel }), [gear, panel]);
 
   const close = useCallback((refocusGear: boolean) => {
     setView({ open: false, refocusGear });
   }, []);
 
-  useFocusFlow(view, refs);
-  useModalIsolation(view.open, modal, refs);
+  useShownAs(view.open, modal, refs);
+  useGearFocus(view, refs);
   useDismissal(view.open, modal, refs, close);
 
   const toggle = useCallback(() => {
@@ -69,5 +90,5 @@ export function usePanel(modal: boolean) {
     close(true);
   }, [close]);
 
-  return { open: view.open, toggle, closeToGear, gear, panel, backdrop };
+  return { open: view.open, toggle, closeToGear, gear, panel };
 }

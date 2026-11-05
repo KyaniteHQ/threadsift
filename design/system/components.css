@@ -59,14 +59,14 @@
    footer with Reset look and, in words, what it leaves alone. The row the gear sits in places
    the panel: under the header's left edge (.brand is position: relative) or under the reader
    bar's right end. Under 760px it is a modal sheet from the bottom over a dimmed page
-   (.st-backdrop), with a header (title and Close) and the footer, which stay put while the rows
+   (.st-pop::backdrop), with a header (title and Close) and the footer, which stay put while the rows
    scroll between them; every control is 44px there. The panel keeps the plain type pair (data-font="plex" on the panel) whatever the Font
    setting is. */
 .st-gear { display: grid; place-items: center; flex: none; margin-left: auto; width: var(--target); height: var(--target); padding: 0; border: 0; border-radius: var(--r2); background: transparent; color: var(--muted); cursor: pointer; }
 .st-gear:hover, .st-gear[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
 .st-gear .ic { width: var(--ic-m); height: var(--ic-m); }
 .st-pop { position: absolute; top: calc(100% + var(--s2)); left: 0; z-index: var(--z-popover); display: flex; margin: 0; padding: 0; flex-direction: column; width: var(--pop-w); container-type: inline-size; max-width: calc(100vw - var(--s4) * 2); max-height: calc(var(--vh) - var(--bar-h) * 2 - var(--s6)); overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-label); }
-.st-pop:focus { outline: none; }
+.st-pop::backdrop { background: var(--scrim); }
 .st-pop p, .st-pop h2, .st-pop h3 { margin: 0; }
 .st-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: var(--bar-h); padding: 0 var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
 .st-title { font-size: var(--t-body); font-weight: 600; }
@@ -100,7 +100,6 @@
 .st-reset { min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; font-weight: 500; }
 .st-reset:hover { background: var(--surface-2); }
 .st-gear:focus-visible, .st-pop .st-b:has(:focus-visible), .st-sel:focus-visible, .st-sw:has(:focus-visible), .st-reset:focus-visible, .st-close:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
-.st-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); background: var(--scrim); }
 /* under 760px: a sheet from the bottom; under 480px each label sits above its control */
 .app[data-bp~="narrow"] .st-pop { position: fixed; top: auto; right: 0; bottom: 0; left: 0; width: auto; max-width: none; max-height: 85%; border-width: 1px 0 0; border-radius: var(--r3) var(--r3) 0 0; }
 .app[data-bp~="narrow"] .st-b, .app[data-bp~="narrow"] .st-sel, .app[data-bp~="narrow"] .st-reset { min-height: var(--target); }
