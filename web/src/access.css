@@ -262,6 +262,11 @@
   align-items: center;
   gap: var(--s2) var(--s3);
 }
+.tok-effect {
+  flex: 1 0 100%;
+  color: var(--muted);
+  font-size: var(--t-meta);
+}
 .btn-danger {
   color: var(--warn);
 }

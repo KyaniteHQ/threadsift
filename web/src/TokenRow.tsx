@@ -34,9 +34,24 @@ function Confirm({
     cancelButton.current?.focus();
   }, []);
 
+  useEffect(() => {
+    const onKeyDown = ({ key }: Readonly<{ key: string }>): void => {
+      if (key === "Escape") {
+        cancel();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [cancel]);
+
   return (
     <fieldset className="tok-ask" aria-labelledby={questionId}>
       <p id={questionId}>{filled(SETTINGS.revokeAsk, { name: token.name })}</p>
+      <p className="tok-effect">{SETTINGS.revokeEffect}</p>
       <button type="button" className="btn btn-danger" onClick={revoke}>
         {SETTINGS.revokeConfirm}
       </button>
@@ -76,7 +91,13 @@ export function TokenRow({
       {asking ? (
         <Confirm token={token} cancel={cancelThis} revoke={revokeThis} />
       ) : (
-        <button type="button" className="btn" data-revoke={id} onClick={askThis}>
+        <button
+          type="button"
+          className="btn"
+          data-revoke={id}
+          aria-label={filled(SETTINGS.revokeNamed, { name: token.name })}
+          onClick={askThis}
+        >
           {SETTINGS.revoke}
         </button>
       )}

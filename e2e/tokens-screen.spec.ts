@@ -189,3 +189,53 @@ test("a refused copy is announced and leaves the value selected in a focused fie
   const selected = await selectedText(page);
   expect(selected).toMatch(/^tsa_/u);
 });
+
+async function addToken(page: Page, name: string): Promise<void> {
+  await nameField(page).fill(name);
+  await createButton(page).click();
+  await expect(valueField(page)).toBeVisible();
+  await page.getByRole("button", { name: SETTINGS.done }).click();
+}
+
+function rowRevoke(page: Page, name: string) {
+  return page.locator(".tok", { hasText: name }).getByRole("button", { name: SETTINGS.revoke });
+}
+
+function revokeOf(page: Page, name: string) {
+  return page.getByRole("button", {
+    name: filled(SETTINGS.revokeNamed, { name }),
+    exact: true,
+  });
+}
+
+test("each Revoke button is named for its token", async () => {
+  const { page } = screen;
+  await page.setViewportSize(DESKTOP);
+  await page.goto("/settings");
+  await addToken(page, "Named one");
+  await addToken(page, "Named two");
+  await expect(revokeOf(page, "Named one")).toHaveCount(1);
+  await expect(revokeOf(page, "Named two")).toHaveCount(1);
+  await expect(revokeOf(page, "Named one")).toHaveText(SETTINGS.revoke);
+});
+
+test("the revoke question says what revoking does", async () => {
+  const { page } = screen;
+  await page.setViewportSize(DESKTOP);
+  await page.goto("/settings");
+  await addToken(page, "Effect");
+  await rowRevoke(page, "Effect").click();
+  await expect(page.getByText(SETTINGS.revokeEffect)).toBeVisible();
+});
+
+test("Escape cancels the revoke question and returns focus to that token's Revoke", async () => {
+  const { page } = screen;
+  await page.setViewportSize(DESKTOP);
+  await page.goto("/settings");
+  await addToken(page, "Escaped");
+  await rowRevoke(page, "Escaped").click();
+  await expect(page.getByRole("button", { name: SETTINGS.cancel })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: SETTINGS.revokeConfirm })).toHaveCount(0);
+  await expect(rowRevoke(page, "Escaped")).toBeFocused();
+});

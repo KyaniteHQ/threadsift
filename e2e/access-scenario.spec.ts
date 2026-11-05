@@ -8,7 +8,7 @@ import {
   test,
 } from "@playwright/test";
 
-import { FIELDS, LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
+import { FIELDS, LOGIN, SETTINGS, SETUP, filled } from "../web/src/access-text.ts";
 import {
   type Instance,
   SESSION_COOKIE,
@@ -175,7 +175,9 @@ async function stepSignOut(run: Run, links: readonly string[]): Promise<void> {
 async function stepRevoke(run: Run, value: string): Promise<void> {
   const { page } = run;
   await openSettings(page);
-  await page.getByRole("button", { name: SETTINGS.revoke, exact: true }).first().click();
+  await page
+    .getByRole("button", { name: filled(SETTINGS.revokeNamed, { name: "Extension" }), exact: true })
+    .click();
   await expect(page.getByText("Revoke Extension?")).toBeVisible();
   await shot(run, "5-revoke-asks-in-place");
   await page.getByRole("button", { name: SETTINGS.revokeConfirm }).click();
