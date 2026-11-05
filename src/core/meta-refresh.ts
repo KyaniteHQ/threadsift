@@ -1,6 +1,6 @@
 import { parseHTML } from "linkedom";
 
-import { resolveUrl } from "./links.ts";
+import { resolveUrl } from "./addresses.ts";
 
 const WHITESPACE = /[\t\n\f\r ]/u;
 const DIGIT = /[0-9]/u;

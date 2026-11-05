@@ -1,6 +1,5 @@
-import { isRefusedHost } from "./addresses.ts";
+import { isRefusedHost, resolveUrl } from "./addresses.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import { resolveUrl } from "./links.ts";
 import { metaRefreshTarget } from "./meta-refresh.ts";
 import {
   HOP_DEADLINE_MS,

@@ -213,10 +213,6 @@ export function parseLink(absoluteUrl: string): Link {
   return { normalizedUrl: url.href, kind, source: SOURCE_OF_KIND[kind] };
 }
 
-export function resolveUrl(address: string, base?: string): URL | null {
-  return URL.canParse(address, base) ? new URL(address, base) : null;
-}
-
 export function isShortLink(absoluteUrl: string): boolean {
   return SHORT_LINK_HOSTS.has(canonicalHost(new URL(absoluteUrl).hostname));
 }

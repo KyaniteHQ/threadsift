@@ -62,46 +62,48 @@ type ChoiceProps = Readonly<{
   choose: Choose;
 }>;
 
-function usePick({ row, option, choose }: ChoiceProps) {
-  return useCallback(() => {
+function inputIdOf({ name, option }: ChoiceProps): string {
+  return `${name}-${option.id}`;
+}
+
+function ChoiceInput(props: ChoiceProps & Readonly<{ label: string | undefined }>) {
+  const { row, option, name, checked, choose, label } = props;
+
+  const pick = useCallback(() => {
     choose(row.key, option.id);
   }, [choose, row.key, option.id]);
+
+  return (
+    <input
+      id={inputIdOf(props)}
+      type="radio"
+      className="st-in"
+      name={name}
+      value={option.id}
+      checked={checked}
+      aria-label={label}
+      onChange={pick}
+    />
+  );
 }
 
 function Swatch(props: ChoiceProps) {
-  const { row, option, name, checked } = props;
-  const pick = usePick(props);
-
   return (
-    <label className="st-sw" {...{ [row.attribute]: option.id }}>
-      <input
-        type="radio"
-        className="st-in"
-        name={name}
-        value={option.id}
-        checked={checked}
-        aria-label={option.label}
-        onChange={pick}
-      />
+    <label
+      className="st-sw"
+      htmlFor={inputIdOf(props)}
+      {...{ [props.row.attribute]: props.option.id }}
+    >
+      <ChoiceInput {...props} label={props.option.label} />
     </label>
   );
 }
 
 function Segment(props: ChoiceProps) {
-  const { option, name, checked } = props;
-  const pick = usePick(props);
-
   return (
-    <label className="st-b">
-      <input
-        type="radio"
-        className="st-in"
-        name={name}
-        value={option.id}
-        checked={checked}
-        onChange={pick}
-      />
-      {option.label}
+    <label className="st-b" htmlFor={inputIdOf(props)}>
+      <ChoiceInput {...props} label={undefined} />
+      {props.option.label}
     </label>
   );
 }

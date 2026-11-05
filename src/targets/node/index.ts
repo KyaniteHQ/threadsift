@@ -2,8 +2,7 @@ import { join, relative, resolve, sep } from "node:path";
 
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { Hono } from "hono";
-import type { Context } from "hono";
+import { type Context, Hono } from "hono";
 import { compress } from "hono/compress";
 import { z } from "zod";
 

@@ -13,16 +13,17 @@ export type NoticeKey = FetchFailure | "empty" | "invalid" | "failed" | "title-k
 export interface Notice {
   readonly text: string;
   readonly kind: "input-error" | "save-error" | "save-note";
-  readonly retry?: true;
+  readonly retry: boolean;
 }
 
 export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
-  empty: { text: "Paste a link first.", kind: "input-error" },
+  empty: { text: "Paste a link first.", kind: "input-error", retry: false },
   invalid: {
     text: "That doesn’t look like a link. Links must start with https:// or http://.",
     kind: "input-error",
+    retry: false,
   },
-  failed: { text: "Couldn’t save this link.", kind: "save-error" },
+  failed: { text: "Couldn’t save this link.", kind: "save-error", retry: false },
   timeout: {
     text: "The website didn’t answer in time, so this link was saved without a title.",
     kind: "save-note",
@@ -31,22 +32,27 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
   refused: {
     text: "This link leads to a private network or your computer, so it was saved without a title.",
     kind: "save-note",
+    retry: false,
   },
   unsupported: {
     text: "This link redirected to an address that isn’t a web page, so it was saved without a title.",
     kind: "save-note",
+    retry: false,
   },
   "redirect-limit": {
     text: "This link redirected too many times, so it was saved without a title.",
     kind: "save-note",
+    retry: false,
   },
   "redirect-stopped": {
     text: "This link redirected to Reddit or X, so it was saved without a title.",
     kind: "save-note",
+    retry: false,
   },
   status: {
     text: "The website answered with an error, so this link was saved without a title.",
     kind: "save-note",
+    retry: false,
   },
   network: {
     text: "Couldn’t reach the website, so this link was saved without a title.",
@@ -56,18 +62,22 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
   "no-title": {
     text: "This page has no title, so the link was saved without one.",
     kind: "save-note",
+    retry: false,
   },
   unreadable: {
     text: "Couldn’t read Reddit’s answer, so this link was saved without a title.",
     kind: "save-note",
+    retry: false,
   },
   "title-kept": {
     text: "Couldn’t update the title for this link, so the title saved earlier was kept.",
     kind: "save-note",
+    retry: false,
   },
   private: {
     text: "Links to a private network or your own computer can’t be saved.",
     kind: "input-error",
+    retry: false,
   },
 };
 
