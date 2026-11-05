@@ -12,7 +12,7 @@ function UnavailableBlock({ reason }: Readonly<{ reason: SetupCodeProblem }>) {
     <div role="alert" className="stack">
       <h1 className="auth-title">{reason === "missing" ? SETUP.missingTitle : SETUP.shortTitle}</h1>
       <p>{reason === "missing" ? SETUP.missingHelp : SETUP.shortHelp}</p>
-      {reason === "missing" ? <pre className="code">{SETUP.missingCommand}</pre> : null}
+      {reason === "missing" ? <pre className="cmd">{SETUP.missingCommand}</pre> : null}
     </div>
   );
 }

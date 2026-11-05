@@ -47,6 +47,23 @@
 .field input::placeholder { color: var(--muted); opacity: 1; }
 .app .field input:focus-visible { outline: none; }
 .app[data-bp~="phone"] .field input { font-size: max(var(--t-floor), var(--t-body)); }
+.fld { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--s2); row-gap: var(--s1); min-width: 0; }
+.fld:has(> .fld-action) { grid-template-columns: minmax(0, 1fr) auto; }
+.fld > * { grid-column: 1 / -1; }
+.fld > .field { grid-column: 1; color: var(--text); }
+.fld > .fld-action { grid-column: 2; display: flex; }
+.fld > .fld-action .btn { min-height: var(--field-h); }
+.app[data-bp~="narrow"] .fld > .field, .app[data-bp~="narrow"] .fld > .fld-action { grid-column: 1 / -1; }
+.app[data-bp~="narrow"] .fld > .fld-action .btn { flex: 1; }
+.fld-help { margin: 0; color: var(--muted); font-size: var(--t-meta); }
+.fld-err { margin: 0; color: var(--warn); font-size: var(--t-meta); font-weight: 500; }
+.field input.mono { font-family: var(--f-mono); font-size: var(--t-code); }
+.cmd { margin: 0; padding: var(--code-pad-y) var(--code-pad-x); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); line-height: var(--lh-code); overflow-wrap: anywhere; white-space: pre-wrap; user-select: all; }
+a.btn { text-decoration: none; }
+.btn-block { align-self: flex-start; }
+.app[data-bp~="phone"] .btn-block { align-self: stretch; }
+.btn-flush { align-self: flex-start; margin-inline-start: calc(-1 * (var(--s3) + 1px)); }
+.btn-danger { color: var(--warn); }
 .src { color: var(--text); font-weight: 600; }
 /* tags: the Tag style setting picks the --tag-* values; data-tag on each tag picks its hue */
 .tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }

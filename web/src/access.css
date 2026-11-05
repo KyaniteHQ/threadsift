@@ -53,50 +53,8 @@
 .stack .btn {
   align-self: flex-start;
 }
-.app[data-bp~="phone"] .stack .btn,
-.app[data-bp~="phone"] .btn-block {
+.app[data-bp~="phone"] .stack .btn {
   align-self: stretch;
-}
-.btn-block {
-  align-self: flex-start;
-}
-.fld {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-  min-width: 0;
-}
-.fld-help {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--t-meta);
-}
-.fld-err {
-  margin: 0;
-  color: var(--warn);
-  font-size: var(--t-meta);
-  font-weight: 500;
-}
-.fld .field {
-  color: var(--text);
-}
-.field input.mono {
-  font-family: var(--f-mono);
-  font-size: var(--t-code);
-}
-.code {
-  margin: 0;
-  padding: var(--code-pad-y) var(--code-pad-x);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r2);
-  background: var(--surface-2);
-  color: var(--text);
-  font-family: var(--f-mono);
-  font-size: var(--t-code);
-  line-height: var(--lh-code);
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  user-select: all;
 }
 
 .pg {
@@ -158,45 +116,10 @@
   font-size: var(--t-body);
 }
 .sec p,
-.sec h2,
-.sec h3 {
+.sec h2 {
   margin: 0;
 }
 
-.tok-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-}
-.app:not([data-bp~="narrow"]) .tok-form {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  column-gap: var(--s2);
-  row-gap: var(--s1);
-}
-.app:not([data-bp~="narrow"]) .tok-form .fld {
-  display: contents;
-}
-.app:not([data-bp~="narrow"]) .tok-form .label {
-  grid-column: 1;
-  grid-row: 1;
-}
-.app:not([data-bp~="narrow"]) .tok-form .field {
-  grid-column: 1;
-  grid-row: 2;
-}
-.app:not([data-bp~="narrow"]) .tok-form .fld-err,
-.app:not([data-bp~="narrow"]) .tok-form .fld-help {
-  grid-column: 1;
-  grid-row: 3;
-}
-.app:not([data-bp~="narrow"]) .tok-form .btn {
-  grid-column: 2;
-  grid-row: 2;
-}
-.tok-form .btn {
-  min-height: var(--field-h);
-}
 .reveal {
   display: flex;
   flex-direction: column;
@@ -207,6 +130,7 @@
   background: var(--acc-soft);
 }
 .reveal-title {
+  margin: 0;
   font-size: var(--t-body);
   font-weight: 600;
 }
@@ -239,13 +163,6 @@
 .reveal-title {
   text-wrap: pretty;
   overflow-wrap: anywhere;
-}
-a.btn {
-  text-decoration: none;
-}
-.btn-flush {
-  align-self: flex-start;
-  margin-inline-start: calc(-1 * (var(--s3) + 1px));
 }
 .app[data-bp~="phone"] .stack .btn-flush {
   margin-inline-start: 0;
@@ -291,7 +208,4 @@ a.btn {
   flex: 1 0 100%;
   color: var(--muted);
   font-size: var(--t-meta);
-}
-.btn-danger {
-  color: var(--warn);
 }

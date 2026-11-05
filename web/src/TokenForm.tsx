@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { TOKEN_NAME_MAX, type Token } from "../../src/http/schemas.ts";
 import { createToken } from "./access-api.ts";
@@ -44,10 +44,14 @@ export function TokenForm({
 
   const { busy, onSubmit } = useSubmit(run);
 
+  const create = useMemo(
+    () => <SwapButton label={SETTINGS.createToken} busyLabel={SETUP.creating} busy={busy} />,
+    [busy],
+  );
+
   return (
-    <form className="tok-form" noValidate onSubmit={onSubmit}>
-      <FormField field={name} label={SETTINGS.tokenName} kind={NAME_INPUT} />
-      <SwapButton label={SETTINGS.createToken} busyLabel={SETUP.creating} busy={busy} />
+    <form noValidate onSubmit={onSubmit}>
+      <FormField field={name} label={SETTINGS.tokenName} kind={NAME_INPUT} action={create} />
     </form>
   );
 }

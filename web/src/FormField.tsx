@@ -55,12 +55,14 @@ export function FormField({
   label,
   help,
   kind,
+  action,
   children,
 }: Readonly<{
   field: FieldState;
   label: string;
   help?: string | undefined;
   kind: InputKind;
+  action?: ReactNode;
   children?: ReactNode;
 }>) {
   const id = useId();
@@ -76,6 +78,7 @@ export function FormField({
         <Input field={field} id={id} kind={kind} described={describedBy(helpId, errorId)} />
         {children}
       </div>
+      {action === undefined ? null : <div className="fld-action">{action}</div>}
       {helpId === null ? null : (
         <p className="fld-help" id={helpId}>
           {help}
