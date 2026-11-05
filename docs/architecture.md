@@ -70,6 +70,7 @@ Cloudflare: D1           R2         Queues     Cron       HTTP, Workers AI, Grok
 ```
 
 - The core imports no runtime module (`node:*`, `cloudflare:*`). Only the two target entry files and their adapters do, so a core change runs on both targets by construction.
+- The `Crypto` port has one adapter, `nodeCrypto` in `src/targets/shared/`, and both targets pass it, because the Worker runs `node:crypto` through `nodejs_compat`. This is the accepted exception to the two-adapter rule. The port exists because the lint bans `node:` imports in `src/core` and `src/http`.
 - Ports reach routes through `createApp(ports)`, never through `c.env`, because `c.env` holds Worker bindings on Cloudflare and Node's request and response on Node. `waitUntil` lives in the Worker entry for the same reason: Hono's Node adapter passes no execution context.
 - Code that only one target has (CLI Providers, the grok X fetcher, fetcher plug-ins, the local vault folder, Workers AI) is an adapter the other target does not register. The settings screens list only registered adapters, as `docs/spec.md` (AI providers) asks.
 - Hono, not Next.js: the container target runs plain Node, and Hono runs on Node and Workers with the same app object. Nitro v3 was the runner-up and was rejected for now: it is a release candidate, its database layer has no `batch`, it has no job queue on Node, and the deploy button's handling of its generated Wrangler config is undocumented. Hono 5 is at its first release candidate; the app moves to it once it is stable.
