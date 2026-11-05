@@ -210,6 +210,7 @@ async function expectOneTabStopPerGroup(page: Page, dialog: Locator): Promise<vo
     dialog.getByRole("radiogroup", { name: "Text width" }).getByRole("radio", { name: "Medium" }),
     dialog.getByRole("radiogroup", { name: "Density" }).getByRole("radio", { name: "Compact" }),
     dialog.getByRole("radiogroup", { name: "Accent" }).getByRole("radio", { name: "Cobalt" }),
+    dialog.getByRole("link", { name: "Instance settings" }),
     dialog.getByRole("button", { name: "Reset look" }),
   ];
 

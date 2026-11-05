@@ -3,10 +3,9 @@ import { type Locator, type Page, type TestInfo, expect, test } from "@playwrigh
 import { SETTINGS } from "../design/system/settings.ts";
 import { postLink } from "./api.ts";
 import { checkDefaults } from "./default-tokens.ts";
-import { collectViolations } from "./design-checks.ts";
+import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
 import { newRunId } from "./links.ts";
 import {
-  DEFAULT_FONT,
   HUES,
   type Stored,
   app,
@@ -18,20 +17,7 @@ import {
   storedSettings,
 } from "./look.ts";
 
-const BANDS_AT_WIDTH = [
-  [390, "phone narrow medium wide full"],
-  [600, "narrow medium wide full"],
-  [1440, "full"],
-  [1920, "full"],
-] as const;
-
-const THEMES = ["light", "dark", "sepia"] as const;
 const FONT_ROW = SETTINGS.find((row) => row.key === "font");
-
-async function resize(page: Page, width: number, bands: string): Promise<void> {
-  await page.setViewportSize({ width, height: width < 480 ? 640 : 900 });
-  await expect(app(page)).toHaveAttribute("data-bp", bands);
-}
 
 async function loadWith(page: Page, url: string, stored: Stored): Promise<void> {
   await storeSettings(page, stored, url);
@@ -42,10 +28,6 @@ async function showAlertAndFocusRow(page: Page): Promise<void> {
   await page.getByRole("textbox", { name: "Paste a link to save" }).press("Enter");
   await expect(page.getByRole("alert")).toBeVisible();
   await page.locator(".it.open .it-open").focus();
-}
-
-async function expectNoViolations(page: Page, what: string): Promise<void> {
-  expect(await page.evaluate(collectViolations, DEFAULT_FONT), what).toEqual([]);
 }
 
 async function checkRows(page: Page, what: string): Promise<void> {

@@ -1,6 +1,7 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { type Page, expect, test } from "@playwright/test";
 
+import { ownerContext } from "./access.ts";
 import { listAll, postLink } from "./api.ts";
 import { newRunId } from "./links.ts";
 
@@ -37,10 +38,7 @@ test("an empty browser draws Light under a dark and a light system preference, t
   await postLink(request, `https://example.com/${newRunId()}/seed`);
 
   for (const colorScheme of ["dark", "light"] as const) {
-    const context = await browser.newContext({
-      colorScheme,
-      storageState: { cookies: [], origins: [] },
-    });
+    const context = await ownerContext(browser, { colorScheme });
 
     const page = await context.newPage();
     const origins = new Set<string>();
@@ -68,7 +66,7 @@ test("a link saved before midnight reads as yesterday, not today, in the owner's
   const DAY_MS = 86_400_000;
   const nextMidnight = (Math.floor((item.savedAt + OFFSET_MS) / DAY_MS) + 1) * DAY_MS - OFFSET_MS;
 
-  const context = await browser.newContext({ timezoneId: "Europe/Istanbul" });
+  const context = await ownerContext(browser, { timezoneId: "Europe/Istanbul" });
   const page = await context.newPage();
   const date = page.locator("article.it", { hasText: run }).locator(".it-date");
 

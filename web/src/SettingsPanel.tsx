@@ -1,7 +1,9 @@
 import { type RefObject, useId } from "react";
 
 import { DEFAULTS, type Settings } from "../../design/system/settings.ts";
+import { SETTINGS } from "./access-text.ts";
 import { Icon } from "./Icon.tsx";
+import { SETTINGS_PATH, useInternalLink } from "./session.ts";
 import { type Choose, SettingsRows } from "./SettingsRows.tsx";
 import {
   CLOSE_LABEL,
@@ -51,6 +53,18 @@ function SheetHeader({ titleId, close }: Readonly<{ titleId: string; close: () =
   );
 }
 
+function InstanceLink({ open }: Readonly<{ open: () => void }>) {
+  const follow = useInternalLink(open);
+
+  return (
+    <div className="st-more">
+      <a className="fl-link" href={SETTINGS_PATH} onClick={follow}>
+        {SETTINGS.instanceSettings}
+      </a>
+    </div>
+  );
+}
+
 function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void }>) {
   return (
     <div className="st-foot">
@@ -70,12 +84,14 @@ export function SettingsPanel({
   modal,
   choose,
   reset,
+  openInstanceSettings,
 }: Readonly<{
   settings: Settings;
   isDark: boolean;
   modal: boolean;
   choose: Choose;
   reset: () => void;
+  openInstanceSettings: () => void;
 }>) {
   const idBase = useId();
   const panelId = `${idBase}-panel`;
@@ -98,6 +114,7 @@ export function SettingsPanel({
           <div className="st-body">
             <SettingsRows settings={settings} isDark={isDark} idBase={idBase} choose={choose} />
           </div>
+          <InstanceLink open={openInstanceSettings} />
           <Footer noteId={`${idBase}-reset-note`} reset={reset} />
         </dialog>
       ) : null}

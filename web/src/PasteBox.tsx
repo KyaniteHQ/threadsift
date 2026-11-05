@@ -11,6 +11,7 @@ import {
 
 import type { SaveOutcome } from "./api.ts";
 import { Icon } from "./Icon.tsx";
+import { SwapButton } from "./SwapButton.tsx";
 import {
   ADD_LABEL,
   DISMISS_LABEL,
@@ -24,6 +25,7 @@ import {
   SAVING_LABEL,
   SAVING_STATUS,
 } from "./text.ts";
+import { useFocusOnMount } from "./use-form.ts";
 
 type Save = (url: string) => Promise<SaveOutcome>;
 
@@ -103,13 +105,15 @@ function useSaveValue({
   return { saving, saveValue };
 }
 
-function usePaste(save: Save) {
+function usePaste(save: Save, focusOnMount: boolean) {
   const [value, setValue] = useState("");
   const field = useRef<HTMLInputElement>(null);
 
   const focusField = useCallback(() => {
     field.current?.focus();
   }, []);
+
+  useFocusOnMount(field, focusOnMount);
 
   const { notice, setNotice, dismiss } = useNotice(focusField);
   const { saving, saveValue } = useSaveValue({ save, setValue, setNotice, focusField });
@@ -184,8 +188,12 @@ function announcement(saving: boolean, notice: Shown | null): string {
   return notice !== null && NOTICE_KINDS[notice.key] === "save-note" ? NOTICES[notice.key] : "";
 }
 
-export function PasteBox({ save }: Readonly<{ save: Save }>) {
-  const { field, value, notice, saving, change, dismiss, submit, retry } = usePaste(save);
+export function PasteBox({ save, focusOnMount }: Readonly<{ save: Save; focusOnMount: boolean }>) {
+  const { field, value, notice, saving, change, dismiss, submit, retry } = usePaste(
+    save,
+    focusOnMount,
+  );
+
   const noticeId = useId();
   const isInputError = notice !== null && NOTICE_KINDS[notice.key] === "input-error";
 
@@ -209,17 +217,7 @@ export function PasteBox({ save }: Readonly<{ save: Save }>) {
             onChange={change}
           />
         </label>
-        <button
-          type="submit"
-          className="btn btn-acc swap"
-          aria-disabled={saving ? true : undefined}
-        >
-          <span className={saving ? "swap-off" : undefined}>{ADD_LABEL}</span>
-          <span className={saving ? undefined : "swap-off"}>
-            <Icon name="spin" className="ic ic-s spin" />
-            {SAVING_LABEL}
-          </span>
-        </button>
+        <SwapButton label={ADD_LABEL} busyLabel={SAVING_LABEL} busy={saving} />
       </form>
       <output className="vh" aria-live="polite" aria-atomic="true">
         {announcement(saving, notice)}

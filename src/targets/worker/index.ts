@@ -2,17 +2,25 @@ import { drizzle } from "drizzle-orm/d1";
 
 import { createApp } from "../../http/app.ts";
 import { isApiPath, isDocumentPath } from "../../http/document-path.ts";
+import { nodeCrypto } from "../shared/crypto.ts";
+import { configuredSetupCode } from "../shared/setup-code.ts";
 import { workerNetwork } from "./network.ts";
 
 interface Env {
   readonly DB: Parameters<typeof drizzle>[0];
+  readonly SETUP_CODE?: string;
   readonly ASSETS: Readonly<{ fetch: (input: Request) => Promise<Response> }>;
 }
 
 let app: ReturnType<typeof createApp> | undefined;
 
 function apiApp(env: Env): ReturnType<typeof createApp> {
-  app ??= createApp({ db: drizzle(env.DB), network: workerNetwork });
+  app ??= createApp({
+    db: drizzle(env.DB),
+    network: workerNetwork,
+    crypto: nodeCrypto,
+    setupCode: configuredSetupCode(env.SETUP_CODE),
+  });
 
   return app;
 }
