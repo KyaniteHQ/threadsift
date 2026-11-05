@@ -164,7 +164,7 @@ export function countListReads(page: Page) {
 }
 
 export async function expectClosesAfterSixSeconds(page: Page): Promise<void> {
-  await page.clock.pauseAt(Date.now() + 50);
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 50);
   await page.clock.fastForward(CLOSE_MS - 3000);
   await expect(pasteCard(page)).toBeVisible();
   await page.clock.fastForward(4000);

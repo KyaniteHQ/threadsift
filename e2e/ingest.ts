@@ -30,6 +30,13 @@ export function jobsOf(itemId: number) {
   );
 }
 
+export function jobsAt(normalizedUrl: string) {
+  return mainInstance().query(
+    `SELECT j.id, j.state, j.attempts, j.next_attempt_at, j.claim_expires FROM jobs j JOIN items i ON i.id = j.item_id WHERE i.normalized_url = '${normalizedUrl}' ORDER BY j.id`,
+    JobRows,
+  );
+}
+
 export function itemIdAt(normalizedUrl: string): number {
   const [row] = mainInstance().query(
     `SELECT id FROM items WHERE normalized_url = '${normalizedUrl}'`,

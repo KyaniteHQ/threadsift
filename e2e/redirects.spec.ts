@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { mainInstance } from "./access.ts";
 import { listAll, postLink, postLinkRaw } from "./api.ts";
-import { itemIdAt, jobsOf } from "./ingest.ts";
+import { itemIdAt, jobsAt, jobsOf } from "./ingest.ts";
 import {
   SHORT_LINK,
   SHORT_LINK_TARGET,
@@ -16,8 +16,9 @@ import {
 test("a short link and its target pasted separately are one Item under the target's URL", async ({
   request,
 }) => {
+  const jobsBefore = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
   const viaShortLink = await postLinkRaw(request, SHORT_LINK);
-  const jobsAfterShortLink = jobsOf(viaShortLink.body.item.id);
+  const jobsAfterShortLink = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
   const direct = await postLink(request, SHORT_LINK_TARGET);
 
   expect(viaShortLink.body.item).toMatchObject({
@@ -28,7 +29,7 @@ test("a short link and its target pasted separately are one Item under the targe
     title: "Example Domains",
   });
 
-  expect(jobsAfterShortLink, "a short link opens no job").toEqual([]);
+  expect(jobsAfterShortLink, "a short link opens no job").toEqual(jobsBefore);
   expect(direct.status).toBe(200);
   expect(direct.body.item.id).toBe(viaShortLink.body.item.id);
   expect((await listAll(request)).filter((item) => item.normalizedUrl === SHORT_LINK)).toEqual([]);
