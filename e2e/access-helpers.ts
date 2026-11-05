@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { request as httpRequest } from "node:http";
 
 import { type APIRequestContext, type APIResponse, expect } from "@playwright/test";
 import { z } from "zod";
@@ -61,4 +62,25 @@ export async function signIn(baseURL: string) {
   const value = sessionValueOf(response.headers()["set-cookie"] ?? "");
 
   return { value, headers: cookieHeader(value), api };
+}
+
+export function getRaw(
+  baseURL: string,
+  path: string,
+  headers: Readonly<Record<string, string>>,
+): Promise<{ readonly status: number; readonly body: string }> {
+  return new Promise((resolve, reject) => {
+    const outgoing = httpRequest(new URL(path, baseURL), { headers }, (incoming) => {
+      const chunks: Buffer[] = [];
+      incoming.on("data", (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
+      incoming.on("end", () => {
+        resolve({ status: incoming.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8") });
+      });
+    });
+
+    outgoing.on("error", reject);
+    outgoing.end();
+  });
 }

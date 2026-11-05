@@ -1,6 +1,6 @@
 import type { APIRequestContext, APIResponse, Page } from "@playwright/test";
 
-import { isPublic } from "../src/http/access-rules.ts";
+import { isSpecifiedPublic } from "./public-routes.ts";
 
 export type Caller = "owner" | "agent token" | "nobody" | "revoked token" | "ended session";
 
@@ -47,7 +47,7 @@ export function violations(ledger: readonly Entry[]): string[] {
   return ledger.flatMap((entry) =>
     MUST_BE_REFUSED.has(entry.caller) &&
     entry.status < FIRST_ERROR_STATUS &&
-    !isPublic(entry.method, entry.path)
+    !isSpecifiedPublic(entry.method, entry.path)
       ? [`${entry.caller}: ${entry.method} ${entry.path} answered ${entry.status}`]
       : [],
   );

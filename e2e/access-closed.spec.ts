@@ -1,26 +1,24 @@
 import { expect } from "@playwright/test";
 import { z } from "zod";
 
-import { cookieHeader, createToken, expectRefusal, revokeToken } from "./access-helpers.ts";
-import { agentToken, bearer, test } from "./access.ts";
+import {
+  cookieHeader,
+  ErrorBody,
+  createToken,
+  expectRefusal,
+  getRaw,
+  revokeToken,
+} from "./access-helpers.ts";
+import { SESSION_COOKIE, agentToken, bearer, mainInstance, test } from "./access.ts";
 import { newRunId } from "./links.ts";
+import { isSpecifiedPublic } from "./public-routes.ts";
+import { isContainerTarget } from "./target.ts";
 
 const METHODS = ["get", "post", "put", "patch", "delete"] as const;
 
 const OpenApiPaths = z.object({
   paths: z.record(z.string(), z.record(z.string(), z.unknown())),
 });
-
-const SPECIFIED_PUBLIC = new Set([
-  "GET /api/session",
-  "POST /api/setup/code",
-  "POST /api/setup",
-  "POST /api/login",
-]);
-
-function isSpecifiedPublic(method: string, path: string): boolean {
-  return SPECIFIED_PUBLIC.has(`${method.toUpperCase()} ${path}`);
-}
 
 test("with no credentials every method and path of the OpenAPI document except the public list answers 401, and so does an unknown path", async ({
   stranger,
@@ -67,6 +65,25 @@ test("a malformed Authorization header gets 400 and a revoked token gets 401, ne
 
   const unknown = await stranger.get("/api/items", { headers: cookieHeader("nonsense") });
   await expectRefusal(unknown, 401, "an unknown session");
+});
+
+test("an empty Authorization header gets 400 and a valid cookie does not rescue it", async ({
+  request,
+}) => {
+  test.skip(
+    !isContainerTarget(),
+    "wrangler 4.156.0 passes an empty Authorization header to the Worker as no header (a raw request with Authorization: '' answered 'Sign in or send an agent token')",
+  );
+  const { cookies } = await request.storageState();
+  const session = cookies.find((cookie) => cookie.name === SESSION_COOKIE)?.value ?? "";
+
+  const answer = await getRaw(mainInstance().url, "/api/items", {
+    authorization: "",
+    ...cookieHeader(session),
+  });
+
+  expect(answer.status, "an empty header and a valid cookie").toBe(400);
+  expect(ErrorBody.safeParse(JSON.parse(answer.body)).success, "a JSON { error }").toBe(true);
 });
 
 test("a valid token gets 403 on the owner's routes whatever the body, and works on the rest", async ({

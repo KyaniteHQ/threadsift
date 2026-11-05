@@ -1,4 +1,4 @@
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { bodyLimit } from "hono/body-limit";
 import { csrf } from "hono/csrf";
@@ -10,13 +10,17 @@ import { ownerHasSession } from "./session-cookie.ts";
 
 export const BODY_LIMIT_BYTES = 64 * 1024;
 
+const NOT_BEARER = "Authorization header is not a bearer token";
+
+function notBearer(c: Context): Response {
+  return c.json({ error: NOT_BEARER }, 400);
+}
+
 function bearerCheck(ports: Ports): MiddlewareHandler {
   return bearerAuth({
     verifyToken: (value) => tokenIsValid(ports, value),
-    noAuthenticationHeader: { message: { error: "Authorization header missing" } },
-    invalidAuthenticationHeader: {
-      message: { error: "Authorization header is not a bearer token" },
-    },
+    noAuthenticationHeader: { message: notBearer },
+    invalidAuthenticationHeader: { message: { error: NOT_BEARER } },
     invalidToken: { message: { error: "Unknown or revoked agent token" } },
   });
 }
