@@ -18,6 +18,7 @@ import "@fontsource/instrument-serif/400.css";
 import "../../design/system/tokens.css";
 import "../../design/system/components.css";
 import "./page.css";
+import "./access.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 

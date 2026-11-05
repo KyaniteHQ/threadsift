@@ -180,7 +180,7 @@ function registerSetupRoutes(app: OpenAPIHono, ports: Ports): void {
     }
 
     if (result.kind === "password") {
-      return c.json({ error: PASSWORD_LENGTH[result.length] }, 400);
+      return c.json({ error: PASSWORD_LENGTH[result.length], password: result.length }, 400);
     }
 
     return refuse(c, result);

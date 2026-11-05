@@ -1,114 +1,31 @@
-import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
-
-import { itemIdOf } from "../../src/core/item-path.ts";
-import { type SaveOutcome, type SaveResult, noticeOf } from "./api.ts";
-import type { Attention } from "./ItemRow.tsx";
-import { type ListState, useLibrary } from "./library.ts";
-import { ListBody } from "./ListBody.tsx";
-import { PasteBox } from "./PasteBox.tsx";
-import { focusListStart, scrollToTop } from "./reveal.ts";
-import { SettingsPanel } from "./SettingsPanel.tsx";
+import { TITLES } from "./access-text.ts";
+import { SETTINGS_PATH, Screen } from "./Screen.tsx";
+import { usePath } from "./session.ts";
+import { useDocumentTitle } from "./use-document-title.ts";
 import { useRoot } from "./use-root.ts";
+import { type View, useSessionView } from "./use-session-view.ts";
 
-function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
-  const retried = useRef(false);
+function titleOf(view: View, path: string): string {
+  if (view === "setup") {
+    return TITLES.setup;
+  }
 
-  const retryAndKeepPlace = useCallback(() => {
-    retried.current = true;
-    retry();
-  }, [retry]);
+  if (view === "signed-out") {
+    return TITLES.login;
+  }
 
-  useEffect(() => {
-    if (retried.current && list.status !== "loading" && pane.current !== null) {
-      retried.current = false;
-      focusListStart(pane.current);
-    }
-  }, [list.status, pane]);
-
-  return retryAndKeepPlace;
-}
-
-function useOpenItem(list: ListState) {
-  const [openId] = useState(() => itemIdOf(window.location.pathname));
-
-  const [attention, setAttention] = useState<Attention>(
-    openId === null ? null : { id: openId, focus: true },
-  );
-
-  const missing =
-    list.status === "ready" && openId !== null && !list.items.some((item) => item.id === openId);
-
-  useEffect(() => {
-    if (missing) {
-      window.history.replaceState(null, "", "/");
-    }
-  }, [missing]);
-
-  return { openId, attention, attend: setAttention };
-}
-
-function useSaveAndShow(
-  save: (url: string) => Promise<SaveResult>,
-  attend: (attention: Attention) => void,
-  pane: RefObject<HTMLElement | null>,
-) {
-  return useCallback(
-    async (url: string): Promise<SaveOutcome> => {
-      const result = await save(url);
-
-      if (result.outcome !== "saved") {
-        return { saved: false, notice: result.outcome, focus: "field" };
-      }
-
-      const notice = noticeOf(result);
-      const focusRow = result.known && notice === null;
-
-      if (result.known) {
-        attend({ id: result.item.id, focus: focusRow });
-      } else if (pane.current !== null) {
-        scrollToTop(pane.current);
-      }
-
-      return { saved: true, notice, focus: focusRow ? "row" : "field" };
-    },
-    [attend, pane, save],
-  );
+  return view === "signed-in" && path === SETTINGS_PATH ? TITLES.settings : TITLES.library;
 }
 
 export function App() {
-  const listPane = useRef<HTMLElement>(null);
-  const { ref, attributes, narrow, settings, isDark, pick, reset } = useRoot();
-  const { list, save, retry } = useLibrary();
-  const { openId, attention, attend } = useOpenItem(list);
-
-  const saveAndShow = useSaveAndShow(save, attend, listPane);
-
-  const retryAndKeepPlace = useKeptPlace(list, retry, listPane);
-
-  const isEmpty = list.status === "ready" && list.items.length === 0;
+  const { ref, attributes, ...look } = useRoot();
+  const { view, refresh } = useSessionView();
+  const { path, navigate } = usePath();
+  useDocumentTitle(titleOf(view, path));
 
   return (
     <div ref={ref} className="app" {...attributes} data-reader="pane">
-      <div className={isEmpty ? "lib is-empty" : "lib"}>
-        <div className="bg">
-          <header className="mast">
-            <div className="brand">
-              <h1>Threadsift</h1>
-              <SettingsPanel
-                settings={settings}
-                isDark={isDark}
-                modal={narrow}
-                choose={pick}
-                reset={reset}
-              />
-            </div>
-            <PasteBox save={saveAndShow} />
-          </header>
-          <main ref={listPane} className="list" tabIndex={-1}>
-            <ListBody list={list} openId={openId} attention={attention} retry={retryAndKeepPlace} />
-          </main>
-        </div>
-      </div>
+      <Screen view={view} path={path} look={look} refresh={refresh} navigate={navigate} />
     </div>
   );
 }

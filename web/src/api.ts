@@ -5,6 +5,7 @@ import {
   SavedItemResponseSchema,
   type Item,
 } from "../../src/http/schemas.ts";
+import { ownerFetch } from "./session.ts";
 import type { NoticeKey } from "./text.ts";
 
 export interface SaveOutcome {
@@ -34,7 +35,7 @@ export function noticeOf({ known, item, fetch: fetched }: Readonly<Saved>): Noti
 }
 
 export async function fetchItems(): Promise<Item[]> {
-  const response = await fetch("/api/items");
+  const response = await ownerFetch("/api/items");
 
   if (!response.ok) {
     throw new Error(`GET /api/items answered ${response.status}`);
@@ -44,7 +45,7 @@ export async function fetchItems(): Promise<Item[]> {
 }
 
 export async function saveLink(url: string): Promise<SaveResult> {
-  const response = await fetch("/api/items", {
+  const response = await ownerFetch("/api/items", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ url }),

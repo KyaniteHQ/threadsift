@@ -36,6 +36,7 @@ export const ErrorResponseSchema = z.object({
   error: z.string(),
   fetch: z.literal("refused").optional(),
   setup: z.enum(["missing", "short"]).optional(),
+  password: z.enum(["short", "long"]).optional(),
 });
 
 export const SessionStateSchema = z.object({ state: z.enum(["setup", "signed-out", "signed-in"]) });

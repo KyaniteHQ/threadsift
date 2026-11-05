@@ -17,7 +17,7 @@ function restartCommand(): string {
 export async function restartTarget(baseUrl: string): Promise<void> {
   execSync(restartCommand(), { stdio: "inherit" });
   await expect(async () => {
-    const response = await fetch(new URL("/api/items", baseUrl));
+    const response = await fetch(new URL("/api/session", baseUrl));
     expect(response.status).toBe(200);
   }).toPass({ timeout: RESTART_TIMEOUT_MS });
 }

@@ -1,6 +1,7 @@
-import { type RefObject, useId } from "react";
+import { type MouseEvent, type RefObject, useCallback, useId } from "react";
 
 import { DEFAULTS, type Settings } from "../../design/system/settings.ts";
+import { SETTINGS } from "./access-text.ts";
 import { Icon } from "./Icon.tsx";
 import { type Choose, SettingsRows } from "./SettingsRows.tsx";
 import {
@@ -51,6 +52,22 @@ function SheetHeader({ titleId, close }: Readonly<{ titleId: string; close: () =
   );
 }
 
+function InstanceLink({ open }: Readonly<{ open: () => void }>) {
+  const follow = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>) => {
+      event.preventDefault();
+      open();
+    },
+    [open],
+  );
+
+  return (
+    <a className="fl-link" href="/settings" onClick={follow}>
+      {SETTINGS.instanceSettings}
+    </a>
+  );
+}
+
 function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void }>) {
   return (
     <div className="st-foot">
@@ -70,12 +87,14 @@ export function SettingsPanel({
   modal,
   choose,
   reset,
+  openInstanceSettings,
 }: Readonly<{
   settings: Settings;
   isDark: boolean;
   modal: boolean;
   choose: Choose;
   reset: () => void;
+  openInstanceSettings: () => void;
 }>) {
   const idBase = useId();
   const panelId = `${idBase}-panel`;
@@ -97,6 +116,7 @@ export function SettingsPanel({
           {modal ? <SheetHeader titleId={titleId} close={closeToGear} /> : null}
           <div className="st-body">
             <SettingsRows settings={settings} isDark={isDark} idBase={idBase} choose={choose} />
+            <InstanceLink open={openInstanceSettings} />
           </div>
           <Footer noteId={`${idBase}-reset-note`} reset={reset} />
         </dialog>

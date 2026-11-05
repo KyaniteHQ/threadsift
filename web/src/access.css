@@ -1,0 +1,230 @@
+.auth {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--s5) var(--s4) calc(var(--s6) * 2);
+}
+.auth-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  width: 100%;
+  max-width: var(--measure);
+  margin-block: auto;
+  font-size: var(--t-read);
+}
+.auth-mark {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: var(--dw);
+  letter-spacing: var(--dls);
+  font-size: var(--t-display);
+  line-height: var(--lh-display);
+}
+.auth-block {
+  padding: var(--s5);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r3);
+  background: var(--surface);
+  font-size: var(--t-body);
+}
+.auth-title {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: var(--dw);
+  letter-spacing: var(--dls);
+  font-size: var(--t-h2);
+  line-height: var(--lh-title);
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+.stack p {
+  margin: 0;
+}
+.stack .btn {
+  align-self: flex-start;
+}
+.app[data-bp~="phone"] .stack .btn {
+  align-self: stretch;
+}
+.fld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 0;
+}
+.fld-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-meta);
+}
+.fld-err {
+  margin: 0;
+  color: var(--warn);
+  font-size: var(--t-meta);
+  font-weight: 500;
+}
+.fld .field {
+  color: var(--text);
+}
+.field input.mono {
+  font-family: var(--f-mono);
+  font-size: var(--t-code);
+}
+.code {
+  margin: 0;
+  padding: var(--code-pad-y) var(--code-pad-x);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r2);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--f-mono);
+  font-size: var(--t-code);
+  line-height: var(--lh-code);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  user-select: all;
+}
+
+.pg {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+.pg-bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: var(--bar-h);
+  padding: calc((var(--bar-h) - 1px - var(--target)) / 2) var(--reader-pad);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.pg-title {
+  margin: 0;
+  font-size: var(--t-body);
+  font-weight: 600;
+}
+.pg-title:focus {
+  outline: none;
+}
+.pg-col {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  width: 100%;
+  max-width: calc(var(--measure) + var(--reader-pad) * 2);
+  margin: 0 auto;
+  padding: var(--s5) var(--reader-pad) var(--s6);
+  font-size: var(--t-read);
+}
+.app[data-bp~="phone"] .pg-bar,
+.app[data-bp~="phone"] .pg-col {
+  padding-inline: var(--s4);
+}
+.sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  font-size: var(--t-body);
+}
+.sec p,
+.sec h2,
+.sec h3 {
+  margin: 0;
+}
+
+.tok-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.tok-form .fld {
+  flex: 1 1 auto;
+}
+.app:not([data-bp~="narrow"]) .tok-form {
+  flex-direction: row;
+  align-items: flex-end;
+}
+.tok-form .btn {
+  min-height: var(--field-h);
+}
+.reveal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r3);
+  background: var(--acc-soft);
+}
+.reveal-title {
+  font-size: var(--t-body);
+  font-weight: 600;
+}
+.reveal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.reveal-value {
+  flex: 1 1 14em;
+  min-width: 0;
+  min-height: var(--field-h);
+  padding: 0 var(--s3);
+  border: 1px solid var(--ctl-line);
+  border-radius: var(--r2);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--f-mono);
+  font-size: var(--t-code);
+}
+.reveal-row .btn {
+  min-height: var(--field-h);
+}
+.toks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.tok {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2) var(--s3);
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.tok-main {
+  flex: 1 1 14em;
+  min-width: 0;
+}
+.tok-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.tok-meta {
+  color: var(--muted);
+  font-size: var(--t-meta);
+}
+.tok-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+}
+.btn-danger {
+  color: var(--warn);
+}

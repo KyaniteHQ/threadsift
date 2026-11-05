@@ -10,23 +10,25 @@ function daysBetween(savedAt: number, now: number): number {
   return Math.round((todayUtc - savedUtc) / DAY_MS);
 }
 
-export function savedLabel(savedAt: number, now: number): string {
+export function ageLabel(savedAt: number, now: number): string {
   const sameYear = new Date(savedAt).getFullYear() === new Date(now).getFullYear();
   const days = daysBetween(savedAt, now);
 
   if (sameYear && days < 1) {
-    return "saved today";
+    return "today";
   }
 
   if (sameYear && days < WEEK_DAYS) {
-    return `saved ${days}d ago`;
+    return `${days}d ago`;
   }
 
-  const date = new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: sameYear ? undefined : "numeric",
   }).format(savedAt);
+}
 
-  return `saved ${date}`;
+export function savedLabel(savedAt: number, now: number): string {
+  return `saved ${ageLabel(savedAt, now)}`;
 }
