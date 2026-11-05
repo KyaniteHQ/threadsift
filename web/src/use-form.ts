@@ -51,6 +51,38 @@ export function useFocusOnMount(ref: RefObject<HTMLElement | null>, enabled = tr
   }, [enabled, ref]);
 }
 
+export function useAfter(enabled: boolean, ms: number, run: () => void): void {
+  useEffect(() => {
+    const timer = enabled ? window.setTimeout(run, ms) : 0;
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [enabled, ms, run]);
+}
+
+export function useEscape(
+  onEscape: () => void,
+  within?: RefObject<HTMLElement | null>,
+  active = true,
+): void {
+  useEffect(() => {
+    const target = within === undefined ? document.documentElement : within.current;
+
+    const onKeyDown = ({ key }: Readonly<{ key: string }>): void => {
+      if (active && key === "Escape") {
+        onEscape();
+      }
+    };
+
+    target?.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      target?.removeEventListener("keydown", onKeyDown);
+    };
+  }, [active, onEscape, within]);
+}
+
 export function useGuard(blocked = false) {
   const [busy, setBusy] = useState(false);
 

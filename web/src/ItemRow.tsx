@@ -3,6 +3,7 @@ import { Fragment, type RefObject, memo, useCallback, useEffect, useRef } from "
 import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
+import { failureReasonOf } from "./paste-card.ts";
 import { revealInPane } from "./reveal.ts";
 import { savedLabel } from "./saved-label.ts";
 import { CARD_TITLES, FAILURE_TITLES, NEW_TAB_LABEL, RETRY_LABEL, SOURCE_LABELS } from "./text.ts";
@@ -32,13 +33,17 @@ function BreakableLink({ text }: Readonly<{ text: string }>) {
   );
 }
 
+function showsSkeleton(item: Readonly<Item>): boolean {
+  return item.status === "processing" && item.title === null;
+}
+
 function rowClasses(item: Readonly<Item>, isOpen: boolean, isMarked: boolean): string {
   return [
     "it",
     ...(isOpen ? ["open"] : []),
     ...(isMarked ? ["is-back"] : []),
     ...(item.title === null ? ["it-link-only"] : []),
-    ...(item.status === "processing" && item.title === null ? ["it-proc"] : []),
+    ...(showsSkeleton(item) ? ["it-proc"] : []),
     ...(item.status === "failed" ? ["it-failed"] : []),
   ].join(" ");
 }
@@ -78,7 +83,7 @@ function Failed({ item, tryAgain }: Readonly<{ item: Item; tryAgain: (item: Item
     <div className="it-fail">
       <p>
         <Icon name="warn" className="ic ic-s tone-warn" />
-        {FAILURE_TITLES[item.reason ?? "gave-up"]}
+        {FAILURE_TITLES[failureReasonOf(item)]}
       </p>
       <button type="button" className="btn" onClick={retry}>
         {RETRY_LABEL}
@@ -100,7 +105,7 @@ function Skeleton() {
 }
 
 function Status({ item, tryAgain }: Readonly<{ item: Item; tryAgain: (item: Item) => void }>) {
-  if (item.status === "processing" && item.title === null) {
+  if (showsSkeleton(item)) {
     return <Skeleton />;
   }
 

@@ -1,11 +1,4 @@
-import {
-  type Dispatch,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useState,
-} from "react";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { type SaveResult, fetchItem, fetchItems, saveLink } from "./api.ts";
@@ -15,7 +8,7 @@ export type ListState =
   | { readonly status: "failed" }
   | { readonly status: "ready"; readonly items: readonly Item[]; readonly loadedAt: number };
 
-export const POLL_MS = 1000;
+const POLL_MS = 1000;
 
 type SetList = Dispatch<SetStateAction<ListState>>;
 
@@ -34,40 +27,73 @@ function withItem(list: Readonly<ListState>, item: Readonly<Item>): ListState {
   };
 }
 
-function withRead(list: Readonly<ListState>, asked: Readonly<Item>, read: Readonly<Item>) {
-  const current = list.status === "ready" ? list.items.find((item) => item.id === asked.id) : null;
+function withRead(list: Readonly<ListState>, read: Readonly<Item>): ListState {
+  const current = list.status === "ready" ? list.items.find((item) => item.id === read.id) : null;
 
-  return current === asked ? withItem(list, read) : list;
+  return current === undefined || current === null || sameItem(current, read)
+    ? list
+    : withItem(list, read);
 }
 
-function processingIn(list: Readonly<ListState>): readonly Item[] {
-  return list.status === "ready" ? list.items.filter((item) => item.status === "processing") : [];
+function sameItem(left: Readonly<Item>, right: Readonly<Item>): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
-async function readOne(asked: Readonly<Item>, setList: SetList): Promise<void> {
-  const read = await fetchItem(asked.id).catch(() => asked);
+function processingIds(list: Readonly<ListState>): string {
+  return list.status === "ready"
+    ? list.items
+        .filter((item) => item.status === "processing")
+        .map((item) => item.id)
+        .join(",")
+    : "";
+}
 
-  setList((list) => withRead(list, asked, read));
+function pollItem(id: number, onRead: (item: Readonly<Item>) => void): () => void {
+  let timer = 0;
+  let stopped = false;
+
+  const schedule = (): void => {
+    timer = window.setTimeout(() => {
+      void read();
+    }, POLL_MS);
+  };
+
+  const read = async (): Promise<void> => {
+    const item = await fetchItem(id).catch(() => null);
+
+    if (!stopped) {
+      if (item !== null) {
+        onRead(item);
+      }
+
+      schedule();
+    }
+  };
+
+  schedule();
+
+  return () => {
+    stopped = true;
+    window.clearTimeout(timer);
+  };
 }
 
 function usePolling(list: Readonly<ListState>, setList: SetList): void {
-  const readAll = useEffectEvent(() => {
-    for (const asked of processingIn(list)) {
-      void readOne(asked, setList);
-    }
-  });
-
-  const key = processingIn(list)
-    .map((item) => item.id)
-    .join(",");
+  const key = processingIds(list);
 
   useEffect(() => {
-    const timer = key === "" ? 0 : window.setInterval(readAll, POLL_MS);
+    const stops = (key === "" ? [] : key.split(",")).map((id) =>
+      pollItem(Number(id), (read) => {
+        setList((current) => withRead(current, read));
+      }),
+    );
 
     return () => {
-      window.clearInterval(timer);
+      for (const stop of stops) {
+        stop();
+      }
     };
-  }, [key]);
+  }, [key, setList]);
 }
 
 export function useLibrary() {

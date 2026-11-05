@@ -67,7 +67,7 @@ function useSaveAndShow(
   );
 }
 
-export const HIGHLIGHT_MS = 1800;
+const HIGHLIGHT_MS = 1800;
 
 function useMark() {
   const [marked, setMarked] = useState<number | null>(null);

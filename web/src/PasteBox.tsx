@@ -1,11 +1,9 @@
 import {
   type ChangeEvent,
   type Dispatch,
-  type RefObject,
   type SetStateAction,
   type SubmitEvent,
   useCallback,
-  useEffect,
   useId,
   useRef,
   useState,
@@ -24,7 +22,7 @@ import {
   SAVING_LABEL,
   SAVING_STATUS,
 } from "./text.ts";
-import { useFocusOnMount, useGuard } from "./use-form.ts";
+import { useEscape, useFocusOnMount, useGuard } from "./use-form.ts";
 
 export type SaveOutcome =
   | { readonly saved: false; readonly notice: NoticeKey }
@@ -141,25 +139,7 @@ function useCard(
     }
   }, [open, setShown, shown]);
 
-  return { item, face: shown === null ? null : faceOf(shown, item), openItem };
-}
-
-function useEscape(root: RefObject<HTMLElement | null>, active: boolean, dismiss: () => void) {
-  useEffect(() => {
-    const element = root.current;
-
-    const onKeyDown = ({ key }: Readonly<{ key: string }>): void => {
-      if (active && key === "Escape") {
-        dismiss();
-      }
-    };
-
-    element?.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      element?.removeEventListener("keydown", onKeyDown);
-    };
-  }, [active, dismiss, root]);
+  return { face: shown === null ? null : faceOf(shown, item), openItem };
 }
 
 function PasteForm({
@@ -213,10 +193,10 @@ export function PasteBox({
 }>) {
   const paste = usePaste(save, focusOnMount);
   const { shown, saving, dismiss, retry } = paste;
-  const { item, face, openItem } = useCard(paste, items, open);
+  const { face, openItem } = useCard(paste, items, open);
   const root = useRef<HTMLDivElement>(null);
   const cardId = useId();
-  useEscape(root, shown !== null, dismiss);
+  useEscape(dismiss, root, shown !== null);
 
   return (
     <div ref={root} className="paste">
@@ -236,9 +216,8 @@ export function PasteBox({
         <PasteCard
           key={shown.seq}
           id={cardId}
-          shown={shown}
+          url={shown.url}
           face={face}
-          item={item}
           dismiss={dismiss}
           retry={retry}
           open={openItem}

@@ -22,6 +22,10 @@ const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
   unreadable: "unreadable",
 };
 
+export function failureReasonOf(item: Readonly<Item>): FailureReason {
+  return item.reason ?? "gave-up";
+}
+
 function noteOf(item: Readonly<Item>, refreshed: boolean): NoticeKey | null {
   if (item.fetch === null || item.fetch === "ok") {
     return null;
@@ -36,12 +40,8 @@ export function viewOf(item: Readonly<Item>, refreshed: boolean): CardView {
   }
 
   if (item.status === "failed") {
-    return { kind: "failed", reason: item.reason ?? "gave-up" };
+    return { kind: "failed", reason: failureReasonOf(item) };
   }
 
   return { kind: refreshed ? "refreshed" : "added", note: noteOf(item, refreshed) };
-}
-
-export function isSettled(view: Readonly<CardView>): boolean {
-  return view.kind === "added" || view.kind === "refreshed";
 }

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 
 import { SETTINGS, filled } from "./access-text.ts";
 import { Alert } from "./AuthShell.tsx";
-import { useFocusOnMount } from "./use-form.ts";
+import { useAfter, useFocusOnMount } from "./use-form.ts";
 
 const COPIED_MS = 2000;
 const TOKEN_ROWS = 2;
@@ -14,17 +14,11 @@ function useCopy(value: string) {
 
   useFocusOnMount(field);
 
-  useEffect(() => {
-    const timer = copied
-      ? window.setTimeout(() => {
-          setCopied(false);
-        }, COPIED_MS)
-      : 0;
+  const clearCopied = useCallback(() => {
+    setCopied(false);
+  }, []);
 
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [copied]);
+  useAfter(copied, COPIED_MS, clearCopied);
 
   const copy = useCallback(() => {
     const write = async (): Promise<void> => {

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useId, useRef } from "react";
+import { useCallback, useId, useRef } from "react";
 
 import type { Token } from "../../src/http/schemas.ts";
 import { SETTINGS, filled } from "./access-text.ts";
 import { ageLabel } from "./saved-label.ts";
-import { useFocusOnMount } from "./use-form.ts";
+import { useEscape, useFocusOnMount } from "./use-form.ts";
 
 export interface RowActions {
   readonly ask: (id: number) => void;
@@ -32,19 +32,7 @@ function Confirm({
   const questionId = useId();
   useFocusOnMount(cancelButton);
 
-  useEffect(() => {
-    const onKeyDown = ({ key }: Readonly<{ key: string }>): void => {
-      if (key === "Escape") {
-        cancel();
-      }
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [cancel]);
+  useEscape(cancel);
 
   return (
     <fieldset className="tok-ask" aria-labelledby={questionId}>

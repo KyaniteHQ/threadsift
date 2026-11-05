@@ -1,8 +1,8 @@
-import { type FocusEvent, useEffect, useState } from "react";
+import { type FocusEvent, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
-import { type CardView, isSettled, viewOf } from "./paste-card.ts";
+import { type CardView, viewOf } from "./paste-card.ts";
 import {
   CARD_TITLES,
   DISMISS_LABEL,
@@ -13,8 +13,9 @@ import {
   RETRY_LABEL,
   type NoticeKey,
 } from "./text.ts";
+import { useAfter } from "./use-form.ts";
 
-export const CLOSE_MS = 6000;
+const CLOSE_MS = 6000;
 
 const SCHEME_AND_WWW = /^https?:\/\/(www\.)?/u;
 
@@ -31,11 +32,12 @@ interface Face {
   readonly tone: Tone;
   readonly title: string;
   readonly note: string | null;
+  readonly itemTitle: string | null;
   readonly alert: boolean;
   readonly actions: "open" | "retry" | "dismiss" | "none";
 }
 
-function faceOfView(view: Readonly<CardView>): Face {
+function faceOfView(view: Readonly<CardView>, itemTitle: string | null): Face {
   switch (view.kind) {
     case "reading": {
       return {
@@ -43,6 +45,7 @@ function faceOfView(view: Readonly<CardView>): Face {
         tone: "tone-acc",
         title: CARD_TITLES.reading,
         note: READING_NOTE,
+        itemTitle: null,
         alert: false,
         actions: "none",
       };
@@ -54,6 +57,7 @@ function faceOfView(view: Readonly<CardView>): Face {
         tone: "tone-warn",
         title: FAILURE_TITLES[view.reason],
         note: null,
+        itemTitle: null,
         alert: true,
         actions: "retry",
       };
@@ -66,6 +70,7 @@ function faceOfView(view: Readonly<CardView>): Face {
         tone: view.kind === "added" ? "tone-ok" : "tone-acc",
         title: CARD_TITLES[view.kind],
         note: view.note === null ? null : NOTICES[view.note].text,
+        itemTitle,
         alert: false,
         actions: "open",
       };
@@ -86,12 +91,13 @@ export function faceOf(shown: Readonly<Shown>, item: Readonly<Item> | undefined)
       tone: "tone-warn",
       title: NOTICES[shown.key].text,
       note: null,
+      itemTitle: null,
       alert: true,
       actions: "dismiss",
     };
   }
 
-  return item === undefined ? null : faceOfView(viewOf(item, shown.refreshed));
+  return item === undefined ? null : faceOfView(viewOf(item, shown.refreshed), item.title);
 }
 
 export function announcementOf(face: Readonly<Face> | null): string {
@@ -120,16 +126,6 @@ function useHeld() {
   };
 
   return { held: pointer || focus, handlers };
-}
-
-function useCloseAfter(enabled: boolean, dismiss: () => void): void {
-  useEffect(() => {
-    const timer = enabled ? window.setTimeout(dismiss, CLOSE_MS) : 0;
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [enabled, dismiss]);
 }
 
 function Actions({
@@ -168,29 +164,21 @@ function Actions({
 
 export function PasteCard({
   id,
-  shown,
+  url,
   face,
-  item,
   dismiss,
   retry,
   open,
 }: Readonly<{
   id: string;
-  shown: Shown;
+  url: string;
   face: Face;
-  item: Item | undefined;
   dismiss: () => void;
   retry: () => void;
   open: () => void;
 }>) {
   const { held, handlers } = useHeld();
-
-  const settled =
-    shown.kind === "item" && item !== undefined && isSettled(viewOf(item, shown.refreshed));
-
-  const itemTitle = settled ? (item?.title ?? null) : null;
-
-  useCloseAfter(settled && !held, dismiss);
+  useAfter(face.actions === "open" && !held, CLOSE_MS, dismiss);
 
   return (
     <div id={id} className="ps paste-card" role={face.alert ? "alert" : undefined} {...handlers}>
@@ -201,8 +189,8 @@ export function PasteCard({
         />
         <span className="ps-title">{face.title}</span>
       </p>
-      {itemTitle === null ? null : <p className="ps-item">{itemTitle}</p>}
-      {shown.url === "" ? null : <p className="ps-url">{shown.url.replace(SCHEME_AND_WWW, "")}</p>}
+      {face.itemTitle === null ? null : <p className="ps-item">{face.itemTitle}</p>}
+      {url === "" ? null : <p className="ps-url">{url.replace(SCHEME_AND_WWW, "")}</p>}
       {face.note === null ? null : <p className="ps-sub">{face.note}</p>}
       <Actions actions={face.actions} dismiss={dismiss} retry={retry} open={open} />
     </div>
