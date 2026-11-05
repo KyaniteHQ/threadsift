@@ -84,9 +84,7 @@ test("the tokens screen keeps the design rules at every width in every theme", a
     await storeSettings(page, { theme }, "/settings");
     await expect(page.getByRole("heading", { name: SETTINGS.title })).toBeVisible();
 
-    if (theme === THEMES[0]) {
-      await checkAtEveryWidth(page, `tokens, no token yet, ${theme}`);
-    }
+    await checkAtEveryWidth(page, `tokens, no token yet, ${theme}`);
 
     await tokenNameField(page).fill(`Extension ${theme}`);
     await page.getByRole("button", { name: SETTINGS.createToken }).click();
@@ -100,5 +98,9 @@ test("the tokens screen keeps the design rules at every width in every theme", a
     await expect(page.getByRole("button", { name: SETTINGS.revokeConfirm })).toBeVisible();
     await checkAtEveryWidth(page, `revoke question, ${theme}`);
     await page.getByRole("button", { name: SETTINGS.cancel }).click();
+
+    await page.getByRole("button", { name: SETTINGS.revoke }).first().click();
+    await page.getByRole("button", { name: SETTINGS.revokeConfirm }).click();
+    await expect(page.getByRole("button", { name: SETTINGS.revoke })).toHaveCount(0);
   }
 });
