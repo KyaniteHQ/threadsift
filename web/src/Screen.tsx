@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 
+import type { Unavailable } from "./CodeStep.tsx";
 import { Library, type Look } from "./Library.tsx";
 import { LoginScreen } from "./LoginScreen.tsx";
 import { SettingsPage } from "./SettingsPage.tsx";
@@ -11,6 +12,7 @@ export const SETTINGS_PATH = "/settings";
 
 export function Screen({
   view,
+  unavailable,
   path,
   look,
   arrived,
@@ -18,6 +20,7 @@ export function Screen({
   navigate,
 }: Readonly<{
   view: View;
+  unavailable: Unavailable | null;
   path: string;
   look: Look;
   arrived: boolean;
@@ -39,7 +42,7 @@ export function Screen({
 
   switch (view) {
     case "setup":
-      return <SetupScreen refresh={refresh} />;
+      return <SetupScreen refresh={refresh} unavailable={unavailable} />;
     case "signed-out":
       return <LoginScreen refresh={refresh} />;
     case "unreachable":

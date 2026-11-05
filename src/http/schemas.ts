@@ -39,7 +39,10 @@ export const ErrorResponseSchema = z.object({
   password: z.enum(["short", "long"]).optional(),
 });
 
-export const SessionStateSchema = z.object({ state: z.enum(["setup", "signed-out", "signed-in"]) });
+export const SessionStateSchema = z.discriminatedUnion("state", [
+  z.object({ state: z.literal("setup"), code: z.enum(["missing", "short", "set"]) }),
+  z.object({ state: z.enum(["signed-out", "signed-in"]) }),
+]);
 
 export const SetupCodeRequestSchema = z.object({ code: z.string() });
 

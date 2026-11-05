@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
-import { checkSetupCode, hasOwner, login, setUpOwner } from "../core/owner.ts";
+import { checkSetupCode, hasOwner, login, setUpOwner, setupCodeStatus } from "../core/owner.ts";
 import type { SetupBlock } from "../core/owner.ts";
 import type { Ports } from "../core/ports.ts";
 import { endSession } from "../core/sessions.ts";
@@ -38,7 +38,8 @@ const sessionRoute = createRoute({
   path: "/api/session",
   responses: {
     200: {
-      description: "`setup` while no owner exists, else `signed-in` or `signed-out`.",
+      description:
+        "`setup` while no owner exists, with `code` saying whether the Instance has a usable setup code (`set`, `missing` or `short`), else `signed-in` or `signed-out`.",
       content: { "application/json": { schema: SessionStateSchema } },
     },
   },
@@ -155,7 +156,7 @@ function refuse(c: Context, block: SetupBlock) {
 function registerSetupRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(sessionRoute, async (c) => {
     if (!(await hasOwner(ports.db))) {
-      return c.json({ state: "setup" } as const, 200);
+      return c.json({ state: "setup", code: setupCodeStatus(ports) } as const, 200);
     }
 
     const state = (await ownerHasSession(c, ports)) ? "signed-in" : "signed-out";

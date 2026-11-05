@@ -1,5 +1,13 @@
-import { type APIRequestContext, type APIResponse, expect, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type APIResponse,
+  type Page,
+  expect,
+  test,
+} from "@playwright/test";
+import type { z } from "zod";
 
+import { SessionStateSchema } from "../src/http/schemas.ts";
 import { SETUP } from "../web/src/access-text.ts";
 import { ErrorBody, expectRefusal } from "./access-helpers.ts";
 import { type Instance, anonymous, launchFresh, newCode } from "./access.ts";
@@ -44,6 +52,29 @@ function loggedCodes(instance: Instance): string[] {
   return [...instance.logs().matchAll(LOG_LINE)].flatMap((match) => match[1] ?? []);
 }
 
+async function sessionOf(instance: Instance): Promise<z.infer<typeof SessionStateSchema>> {
+  const stranger = await anonymous(instance.url);
+  strangers.push(stranger);
+
+  return SessionStateSchema.parse(await (await stranger.get("/api/session")).json());
+}
+
+async function openBlocked(page: Page, instance: Instance, title: string): Promise<void> {
+  const asked: string[] = [];
+
+  page.on("request", (request) => {
+    asked.push(new URL(request.url()).pathname);
+  });
+
+  await page.goto(instance.url);
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(codeField(page)).toHaveCount(0);
+  expect(
+    asked.filter((path) => path.startsWith("/api/setup")),
+    "no setup call is needed to show the block",
+  ).toEqual([]);
+}
+
 async function expectUnavailable(
   instance: Instance,
   setup: "missing" | "short",
@@ -69,10 +100,8 @@ test("a setup code of 15 characters is refused on both calls, shown as too short
   await expectUnavailable(instance, "short", short);
   expect(loggedCodes(instance), "no generated code is logged").toEqual([]);
 
-  await page.goto(instance.url);
-  await codeField(page).fill(short);
-  await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: SETUP.shortTitle })).toBeVisible();
+  expect(await sessionOf(instance)).toEqual({ state: "setup", code: "short" });
+  await openBlocked(page, instance, SETUP.shortTitle);
 });
 
 test("a setup code of 16 characters works", async () => {
@@ -115,9 +144,7 @@ test("the Worker with no SETUP_CODE answers 503 missing and the screen names the
   const instance = start(null);
   await expectUnavailable(instance, "missing", newCode());
 
-  await page.goto(instance.url);
-  await codeField(page).fill(newCode());
-  await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: SETUP.missingTitle })).toBeVisible();
+  expect(await sessionOf(instance)).toEqual({ state: "setup", code: "missing" });
+  await openBlocked(page, instance, SETUP.missingTitle);
   await expect(page.getByText(SETUP.missingCommand)).toBeVisible();
 });

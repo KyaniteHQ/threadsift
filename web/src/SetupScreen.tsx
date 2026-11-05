@@ -20,8 +20,10 @@ function UnavailableBlock({ reason }: Readonly<{ reason: Unavailable }>) {
   );
 }
 
-function useSteps() {
-  const [step, setStep] = useState<Step>({ name: "code", wrong: false });
+function useSteps(blocked: Unavailable | null) {
+  const [step, setStep] = useState<Step>(
+    blocked === null ? { name: "code", wrong: false } : { name: "unavailable", reason: blocked },
+  );
 
   const accepted = useCallback((code: string) => {
     setStep({ name: "password", code });
@@ -42,8 +44,11 @@ function useSteps() {
   return { step, accepted, unavailable, toCode, toWrongCode };
 }
 
-export function SetupScreen({ refresh }: Readonly<{ refresh: () => void }>) {
-  const { step, accepted, unavailable, toCode, toWrongCode } = useSteps();
+export function SetupScreen({
+  refresh,
+  unavailable: blocked,
+}: Readonly<{ refresh: () => void; unavailable: Unavailable | null }>) {
+  const { step, accepted, unavailable, toCode, toWrongCode } = useSteps(blocked);
 
   return (
     <AuthShell>

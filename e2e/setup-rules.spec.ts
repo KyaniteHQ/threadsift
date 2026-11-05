@@ -63,7 +63,7 @@ function expectLocked(response: APIResponse, what: string): void {
 
 test("a fresh Instance says setup, refuses a wrong code on both calls and moves on with the right one", async () => {
   const state = await send("get", "/api/session");
-  expect(await state.json()).toEqual({ state: "setup" });
+  expect(await state.json()).toEqual({ state: "setup", code: "set" });
 
   await expectRefusal(await setupCall("/api/setup/code", `${code}x`), 401, "a wrong code");
   await expectRefusal(
@@ -116,6 +116,11 @@ test("after setup both setup calls answer 409, the stored hash names its cost an
     await expectRefusal(await setupCall(path, code), 409, `${path} after setup`);
     await expectRefusal(await setupCall(path, "wrong"), 409, `a wrong code on ${path} after setup`);
   }
+
+  expect(
+    await (await send("get", "/api/session")).json(),
+    "no code field once an owner exists",
+  ).toEqual({ state: "signed-out" });
 
   const [stored] = rules.query("SELECT password_hash FROM owner", Hash);
   expect(stored?.password_hash.startsWith("scrypt$N=32768$r=8$p=3$"), "N, r and p").toBe(true);

@@ -11,6 +11,11 @@ import { ownerFetch, ownerGetOk } from "./session.ts";
 
 export type SessionState = z.infer<typeof SessionStateSchema>["state"];
 
+export interface SessionSnapshot {
+  readonly state: SessionState;
+  readonly unavailable: "missing" | "short" | null;
+}
+
 export type Refusal =
   | { readonly kind: "wrong" }
   | { readonly kind: "locked"; readonly retryAfter: number }
@@ -70,14 +75,19 @@ async function attempt(path: string, json: string): Promise<Attempt> {
   }
 }
 
-export async function fetchSessionState(): Promise<SessionState> {
+export async function fetchSessionState(): Promise<SessionSnapshot> {
   const response = await fetch("/api/session");
 
   if (!response.ok) {
     throw new Error(`GET /api/session answered ${response.status}`);
   }
 
-  return SessionStateSchema.parse(await response.json()).state;
+  const body = SessionStateSchema.parse(await response.json());
+
+  return {
+    state: body.state,
+    unavailable: body.state === "setup" && body.code !== "set" ? body.code : null,
+  };
 }
 
 export function checkSetupCode(code: string): Promise<Attempt> {

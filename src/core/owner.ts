@@ -6,9 +6,11 @@ import { gateOf, recordFailure, recordSuccess } from "./throttle.ts";
 
 export const SETUP_CODE_MIN = 16;
 
+export type SetupCodeStatus = "missing" | "short" | "set";
+
 export type SetupBlock =
   | { readonly kind: "owner-exists" }
-  | { readonly kind: "unavailable"; readonly reason: "missing" | "short" }
+  | { readonly kind: "unavailable"; readonly reason: Exclude<SetupCodeStatus, "set"> }
   | { readonly kind: "locked"; readonly retryAfter: number }
   | { readonly kind: "wrong" };
 
@@ -34,20 +36,28 @@ async function passwordHashOf(db: Database): Promise<string | undefined> {
   return row?.hash;
 }
 
+export function setupCodeStatus({ setupCode }: Pick<Ports, "setupCode">): SetupCodeStatus {
+  const configured = setupCode ?? "";
+
+  if (configured === "") {
+    return "missing";
+  }
+
+  return configured.length < SETUP_CODE_MIN ? "short" : "set";
+}
+
 export async function checkSetupCode(ports: Ports, code: string): Promise<SetupBlock | null> {
   if (await hasOwner(ports.db)) {
     return { kind: "owner-exists" };
   }
 
+  const status = setupCodeStatus(ports);
+
+  if (status !== "set") {
+    return { kind: "unavailable", reason: status };
+  }
+
   const configured = ports.setupCode ?? "";
-
-  if (configured === "") {
-    return { kind: "unavailable", reason: "missing" };
-  }
-
-  if (configured.length < SETUP_CODE_MIN) {
-    return { kind: "unavailable", reason: "short" };
-  }
 
   const gate = await gateOf(ports.db, "setup", Date.now());
 

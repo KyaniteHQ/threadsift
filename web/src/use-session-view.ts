@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { type SessionState, fetchSessionState } from "./access-api.ts";
+import { type SessionSnapshot, type SessionState, fetchSessionState } from "./access-api.ts";
 import { useSignedOutListener } from "./session.ts";
 
 export type View = SessionState | "loading" | "unreachable";
 
 export function useSessionView() {
   const [view, setView] = useState<View>("loading");
+  const [unavailable, setUnavailable] = useState<SessionSnapshot["unavailable"]>(null);
+
+  const apply = useCallback((snapshot: SessionSnapshot) => {
+    setUnavailable(snapshot.unavailable);
+    setView(snapshot.state);
+  }, []);
 
   const refresh = useCallback(() => {
-    fetchSessionState().then(setView, () => {
+    fetchSessionState().then(apply, () => {
       setView("unreachable");
     });
-  }, []);
+  }, [apply]);
 
   useEffect(refresh, [refresh]);
 
@@ -22,5 +28,5 @@ export function useSessionView() {
 
   useSignedOutListener(signedOut);
 
-  return { view, refresh };
+  return { view, unavailable, refresh };
 }

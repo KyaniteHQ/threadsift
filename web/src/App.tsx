@@ -28,7 +28,7 @@ function screenOf(view: View, path: string): string {
 
 export function App() {
   const { ref, attributes, ...look } = useRoot();
-  const { view, refresh } = useSessionView();
+  const { view, unavailable, refresh } = useSessionView();
   const { path, navigate } = usePath();
   useDocumentTitle(titleOf(view, path));
   const arrived = useArrival(screenOf(view, path));
@@ -37,6 +37,7 @@ export function App() {
     <div ref={ref} className="app" {...attributes} data-reader="pane">
       <Screen
         view={view}
+        unavailable={unavailable}
         path={path}
         look={look}
         arrived={arrived}
