@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { NOTHING, type PanelRefs, isolate, watchPanel } from "./panel-dom.ts";
 
-const FIRST_CHOICE = '.st-body [aria-checked="true"]';
+const FIRST_CHOICE = '.st-body input[type="radio"]:checked';
 
 type View = Readonly<{ open: boolean; refocusGear: boolean }>;
 

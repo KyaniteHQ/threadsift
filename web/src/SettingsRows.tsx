@@ -35,29 +35,6 @@ type ControlProps = Readonly<{
   choose: Choose;
 }>;
 
-const NEXT = (index: number, count: number): number => (index + 1) % count;
-const PREVIOUS = (index: number, count: number): number => (index + count - 1) % count;
-
-const MOVES: ReadonlyMap<string, (index: number, count: number) => number> = new Map([
-  ["ArrowRight", NEXT],
-  ["ArrowDown", NEXT],
-  ["ArrowLeft", PREVIOUS],
-  ["ArrowUp", PREVIOUS],
-  ["Home", () => 0],
-  ["End", (_index, count) => count - 1],
-]);
-
-function radioAfter(key: string, current: HTMLElement): HTMLElement | undefined {
-  const move = MOVES.get(key);
-
-  const radios = [
-    ...(current.closest('[role="radiogroup"]')?.querySelectorAll<HTMLElement>('[role="radio"]') ??
-      []),
-  ];
-
-  return move === undefined ? undefined : radios[move(radios.indexOf(current), radios.length)];
-}
-
 function noteOf(row: SettingRow, settings: Settings, isDark: boolean): string | null {
   if (row.key !== "theme" || !followsDevice(settings)) {
     return null;
@@ -94,11 +71,13 @@ function SelectControl({ row, value, controlId, noteId, choose }: ControlProps) 
 function Choice({
   row,
   option,
+  name,
   checked,
   choose,
 }: Readonly<{
   row: SettingRow;
   option: Readonly<{ id: string; label: string }>;
+  name: string;
   checked: boolean;
   choose: Choose;
 }>) {
@@ -108,33 +87,22 @@ function Choice({
     choose(row.key, option.id);
   }, [choose, row.key, option.id]);
 
-  const move = useCallback(
-    (event: Readonly<{ key: string; currentTarget: HTMLElement; preventDefault: () => void }>) => {
-      const target = radioAfter(event.key, event.currentTarget);
-
-      if (target !== undefined) {
-        event.preventDefault();
-        target.focus();
-        target.click();
-      }
-    },
-    [],
-  );
-
   return (
-    <button
-      type="button"
-      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a segment or a swatch is a styled button in the APG radio group pattern
-      role="radio"
+    <label
       className={isSwatch ? "st-sw" : "st-b"}
-      {...(isSwatch ? { [row.attribute]: option.id, "aria-label": option.label } : {})}
-      aria-checked={checked}
-      tabIndex={checked ? 0 : -1}
-      onClick={pick}
-      onKeyDown={move}
+      {...(isSwatch ? { [row.attribute]: option.id } : {})}
     >
+      <input
+        type="radio"
+        className="st-in"
+        name={name}
+        value={option.id}
+        checked={checked}
+        aria-label={isSwatch ? option.label : undefined}
+        onChange={pick}
+      />
       {isSwatch ? null : option.label}
-    </button>
+    </label>
   );
 }
 
@@ -153,6 +121,7 @@ function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
           key={option.id}
           row={row}
           option={option}
+          name={labelId}
           checked={value === option.id}
           choose={choose}
         />

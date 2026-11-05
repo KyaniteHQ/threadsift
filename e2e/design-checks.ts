@@ -97,7 +97,7 @@ export function collectViolations(defaultFont: string): string[] {
     }
   }
 
-  for (const input of document.querySelectorAll(".app input")) {
+  for (const input of document.querySelectorAll(".app input[placeholder]")) {
     const placeholder = getComputedStyle(input, "::placeholder");
     checkRatio("placeholder", rgba(placeholder.color), backdrop(input), TEXT);
   }
@@ -134,16 +134,16 @@ export function collectViolations(defaultFont: string): string[] {
 
   for (const swatch of document.querySelectorAll(".app .st-sw")) {
     const style = getComputedStyle(swatch);
-    const label = swatch.getAttribute("aria-label");
+    const label = swatch.querySelector("input")?.getAttribute("aria-label");
     const surface = backdrop(swatch.parentElement);
     checkRatio(`swatch ${label}`, rgba(style.backgroundColor), surface, MARK);
 
-    if (swatch.getAttribute("aria-checked") === "true") {
+    if (swatch.querySelector("input:checked") !== null) {
       checkRatio(`selected swatch ${label} edge`, rgba(style.borderTopColor), surface, MARK);
     }
   }
 
-  for (const pressed of document.querySelectorAll('.app .st-b[aria-checked="true"]')) {
+  for (const pressed of document.querySelectorAll(".app .st-b:has(input:checked)")) {
     const fill = rgba(getComputedStyle(pressed).backgroundColor);
     checkRatio(`selected segment ${name(pressed)}`, fill, backdrop(pressed.parentElement), MARK);
   }
@@ -179,8 +179,9 @@ export function collectViolations(defaultFont: string): string[] {
   for (const element of document.querySelectorAll(
     ".st-pop :focus-visible, .st-gear:focus-visible",
   )) {
-    const style = getComputedStyle(element);
-    const box = element.getBoundingClientRect();
+    const ringed = element.closest(".st-b, .st-sw") ?? element;
+    const style = getComputedStyle(ringed);
+    const box = ringed.getBoundingClientRect();
     const reach = px(style.outlineWidth) + px(style.outlineOffset);
 
     if (style.outlineStyle === "none") {
@@ -189,7 +190,7 @@ export function collectViolations(defaultFont: string): string[] {
       checkRatio(
         `focus ring ${name(element)}`,
         rgba(style.outlineColor),
-        backdrop(element.parentElement),
+        backdrop(ringed.parentElement),
         MARK,
       );
     }

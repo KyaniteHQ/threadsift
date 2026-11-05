@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { app, gear, openPanel, panel, pickOption, px, seedItems, storeSettings } from "./look.ts";
 
@@ -149,6 +149,22 @@ test("the paste field's text is 16px or more at 390px for every Density and Text
   }
 });
 
+async function expectOneTabStopPerGroup(page: Page, dialog: Locator): Promise<void> {
+  const stops = [
+    dialog.getByRole("combobox", { name: "Font" }),
+    dialog.getByRole("radiogroup", { name: "Text size" }).getByRole("radio", { name: "Medium" }),
+    dialog.getByRole("radiogroup", { name: "Text width" }).getByRole("radio", { name: "Medium" }),
+    dialog.getByRole("radiogroup", { name: "Density" }).getByRole("radio", { name: "Compact" }),
+    dialog.getByRole("radiogroup", { name: "Accent" }).getByRole("radio", { name: "Cobalt" }),
+    dialog.getByRole("button", { name: "Reset look" }),
+  ];
+
+  for (const stop of stops) {
+    await page.keyboard.press("Tab");
+    await expect(stop).toBeFocused();
+  }
+}
+
 test("each single-choice group is a radio group with one Tab stop and arrow keys", async ({
   page,
 }) => {
@@ -159,7 +175,12 @@ test("each single-choice group is a radio group with one Tab stop and arrow keys
   const theme = dialog.getByRole("radiogroup", { name: "Theme", exact: true });
 
   await expect(dialog.getByRole("radiogroup")).toHaveCount(5);
-  await expect(dialog.locator('[role="radio"]:not([tabindex="-1"])')).toHaveCount(5);
+
+  const names = await dialog
+    .locator('input[type="radio"]')
+    .evaluateAll((inputs) => new Set(inputs.map((input) => input.getAttribute("name"))).size);
+
+  expect(names, "one native radio name for each of the five settings").toBe(5);
   await expect(theme.getByRole("radio", { name: "Light" })).toBeFocused();
 
   const order = ["Dark", "Sepia", "Match system", "Light"] as const;
@@ -174,30 +195,13 @@ test("each single-choice group is a radio group with one Tab stop and arrow keys
   await expect(theme.getByRole("radio", { name: "Match system" })).toBeChecked();
   await page.keyboard.press("ArrowUp");
   await expect(theme.getByRole("radio", { name: "Sepia" })).toBeChecked();
-  await page.keyboard.press("Home");
-  await expect(theme.getByRole("radio", { name: "Light" })).toBeChecked();
-  await page.keyboard.press("End");
-  await expect(theme.getByRole("radio", { name: "Match system" })).toBeFocused();
   await page.keyboard.press("ArrowDown");
+  await expect(theme.getByRole("radio", { name: "Match system" })).toBeChecked();
+  await page.keyboard.press("ArrowRight");
   await expect(theme.getByRole("radio", { name: "Light" })).toBeChecked();
   await expect(app(page)).toHaveAttribute("data-theme", "light");
 
-  const reset = dialog.getByRole("button", { name: "Reset look" });
-
-  for (const stop of [
-    dialog.getByRole("combobox", { name: "Font" }),
-    dialog.getByRole("radiogroup", { name: "Text size" }).getByRole("radio", { name: "Medium" }),
-  ]) {
-    await page.keyboard.press("Tab");
-    await expect(stop).toBeFocused();
-  }
-
-  await dialog
-    .getByRole("radiogroup", { name: "Accent" })
-    .getByRole("radio", { name: "Cobalt" })
-    .focus();
-  await page.keyboard.press("Tab");
-  await expect(reset).toBeFocused();
+  await expectOneTabStopPerGroup(page, dialog);
 });
 
 test("Shift+Tab from the dialog itself wraps to the last control in the sheet", async ({

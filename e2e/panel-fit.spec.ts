@@ -67,7 +67,7 @@ test("the gear sits on the wordmark's centre line at the row's end whatever the 
 }) => {
   await seedItems(page);
 
-  for (const width of [1440, 390]) {
+  for (const width of [390, 600, 900, 1440, 1920]) {
     await page.setViewportSize({ width, height: 900 });
     const rights: number[] = [];
     const fonts = SETTINGS.find((row) => row.key === "font")?.options ?? [];

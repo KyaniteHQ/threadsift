@@ -182,7 +182,7 @@ test("under forced colours the chosen segment and each accent swatch can be told
     .locator(".st-b")
     .evaluateAll((radios) =>
       radios.map((radio) => ({
-        checked: radio.getAttribute("aria-checked") === "true",
+        checked: radio.querySelector("input")?.checked === true,
         background: getComputedStyle(radio).backgroundColor,
       })),
     );
@@ -202,7 +202,7 @@ test("under forced colours the chosen segment and each accent swatch can be told
 
   const swatches = await dialog.locator(".st-sw").evaluateAll((radios) =>
     radios.map((radio) => ({
-      checked: radio.getAttribute("aria-checked") === "true",
+      checked: radio.querySelector("input")?.checked === true,
       background: getComputedStyle(radio).backgroundColor,
       outline: getComputedStyle(radio).outlineStyle,
     })),

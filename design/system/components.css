@@ -82,22 +82,24 @@
 .st-l { font-weight: 500; }
 .st-note { grid-column: 2; color: var(--muted); font-size: var(--t-label); }
 .st-seg { display: flex; flex-wrap: wrap; gap: 2px; min-width: 0; margin: 0; padding: 2px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); }
-.st-b { flex: 1 1 auto; min-width: 0; min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); cursor: pointer; font: inherit; }
+.st-b { position: relative; display: flex; align-items: center; justify-content: center; flex: 1 1 auto; min-width: 0; min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); cursor: pointer; font: inherit; }
 .st-b:hover { background: var(--surface); }
-.st-b[aria-checked="true"] { background: var(--acc); color: var(--on-acc); font-weight: 600; }
+.st-b:has(:checked) { background: var(--acc); color: var(--on-acc); font-weight: 600; }
 /* a row that doesn't apply at this width: shown, muted, and its note says why */
 .st-row.off .st-l, .st-row.off .st-b { color: var(--muted); }
 .st-row.off .st-b { cursor: default; }
 .st-row.off .st-b:hover { background: transparent; }
-.st-row.off .st-b[aria-checked="true"] { background: var(--surface); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-2); }
+.st-row.off .st-b:has(:checked) { background: var(--surface); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-2); }
+.st-in { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: inherit; }
+.st-sw > .st-in { inset: -2px; width: calc(100% + 4px); height: calc(100% + 4px); }
 .st-sel { width: 100%; min-height: var(--ctl-h); padding: 0 var(--s2); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font: inherit; }
 .st-sws { display: flex; flex-wrap: wrap; gap: var(--s2); min-width: 0; margin: 0; padding: 0; border: 0; }
 /* data-accent on each swatch works out its own --acc (tokens.css) */
-.st-sw { width: var(--ctl-h); height: var(--ctl-h); padding: 0; border: 2px solid transparent; border-radius: var(--r4); background: var(--acc); box-shadow: inset 0 0 0 3px var(--surface); cursor: pointer; }
-.st-sw[aria-checked="true"] { border-color: var(--text); }
+.st-sw { position: relative; display: block; width: var(--ctl-h); height: var(--ctl-h); padding: 0; border: 2px solid transparent; border-radius: var(--r4); background: var(--acc); box-shadow: inset 0 0 0 3px var(--surface); cursor: pointer; }
+.st-sw:has(:checked) { border-color: var(--text); }
 .st-reset { min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; font-weight: 500; }
 .st-reset:hover { background: var(--surface-2); }
-.st-gear:focus-visible, .st-pop .st-b:focus-visible, .st-sel:focus-visible, .st-sw:focus-visible, .st-reset:focus-visible, .st-close:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.st-gear:focus-visible, .st-pop .st-b:has(:focus-visible), .st-sel:focus-visible, .st-sw:has(:focus-visible), .st-reset:focus-visible, .st-close:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
 .st-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); background: var(--scrim); }
 /* under 760px: a sheet from the bottom; under 480px each label sits above its control */
 .app[data-bp~="narrow"] .st-pop { position: fixed; top: auto; right: 0; bottom: 0; left: 0; width: auto; max-width: none; max-height: 85%; border-width: 1px 0 0; border-radius: var(--r3) var(--r3) 0 0; }
@@ -110,9 +112,9 @@
   .st-note { grid-column: 1; }
 }
 @media (forced-colors: active) {
-  .st-b[aria-checked="true"] { background: Highlight; color: HighlightText; }
+  .st-b:has(:checked) { background: Highlight; color: HighlightText; }
   .st-sw { forced-color-adjust: none; }
-  .st-sw[aria-checked="true"] { outline: 2px solid CanvasText; outline-offset: 2px; }
+  .st-sw:has(:checked) { outline: 2px solid CanvasText; outline-offset: 2px; }
 }
 
 /* 3. Paste box and paste card -------------------------------------------- */
@@ -255,7 +257,7 @@
 [data-layout="list"] .search, [data-layout="list"] .list-head, [data-layout="list"] .list { border-right: 1px solid var(--line); }
 [data-layout="list"] .lib.is-empty .list { grid-column: 2 / -1; grid-row: 1 / -1; border-right: 0; }
 [data-layout="list"][data-bp~="medium"] .lib { grid-template-columns: minmax(var(--list-min), var(--list-w)) minmax(0, 1fr); grid-template-rows: auto auto auto minmax(0, 1fr); }
-[data-layout="list"][data-bp~="medium"] .mast { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "brand paste" "filters filters"; align-items: start; gap: var(--s3) var(--s5); overflow: visible; padding: var(--s3) var(--s4); border-right: 0; border-bottom: 1px solid var(--line); }
+[data-layout="list"][data-bp~="medium"] .mast { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: minmax(var(--rail-w), auto) minmax(0, 1fr); grid-template-areas: "brand paste" "filters filters"; align-items: start; gap: var(--s3) var(--s5); overflow: visible; padding: var(--s3) var(--s4); border-right: 0; border-bottom: 1px solid var(--line); }
 [data-layout="list"][data-bp~="medium"] .brand { grid-area: brand; padding: var(--s2) 0 0; }
 [data-layout="list"][data-bp~="medium"] .paste { grid-area: paste; }
 [data-layout="list"][data-bp~="medium"] .filters-slot { grid-area: filters; }
