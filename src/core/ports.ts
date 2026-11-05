@@ -13,7 +13,7 @@ export interface NetworkResponse {
 }
 
 export interface JobQueue {
-  readonly enqueue: (jobId: number, delayMs: number) => Promise<void>;
+  readonly enqueue: (jobIds: readonly number[], delayMs: number) => Promise<void>;
 }
 
 export interface Network {

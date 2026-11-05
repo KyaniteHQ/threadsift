@@ -18,15 +18,11 @@ interface JobBatch {
   readonly messages: readonly JobMessage[];
 }
 
-interface Schedule {
-  readonly cron: string;
-}
-
 interface Env {
   readonly DB: Parameters<typeof drizzle>[0];
   readonly JOBS: Readonly<{
-    send: (
-      body: Readonly<{ jobId: number }>,
+    sendBatch: (
+      messages: readonly Readonly<{ body: Readonly<{ jobId: number }> }>[],
       options: Readonly<{ delaySeconds: number }>,
     ) => Promise<void>;
   }>;
@@ -44,8 +40,11 @@ function portsOf(env: Env): Ports {
     db: drizzle(env.DB),
     network: workerNetwork,
     jobs: {
-      enqueue: (jobId, delayMs) =>
-        env.JOBS.send({ jobId }, { delaySeconds: Math.ceil(delayMs / 1000) }),
+      enqueue: (jobIds, delayMs) =>
+        env.JOBS.sendBatch(
+          jobIds.map((jobId) => ({ body: { jobId } })),
+          { delaySeconds: Math.ceil(delayMs / 1000) },
+        ),
     },
     crypto: nodeCrypto,
     setupCode: configuredSetupCode(env.SETUP_CODE),
@@ -91,5 +90,6 @@ export default {
   queue: async (batch: Readonly<JobBatch>, env: Env): Promise<void> => {
     await Promise.all(batch.messages.map((message) => runMessage(env, message)));
   },
-  scheduled: (_schedule: Readonly<Schedule>, env: Env): Promise<void> => tick(portsOf(env)),
+  scheduled: (_controller: Readonly<{ cron: string }>, env: Env): Promise<void> =>
+    tick(portsOf(env)),
 };

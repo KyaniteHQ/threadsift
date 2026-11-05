@@ -1,20 +1,19 @@
-import { and, desc, eq, notExists, sql } from "drizzle-orm";
+import { and, desc, eq, notExists } from "drizzle-orm";
 
 import { isRefusedHost } from "./addresses.ts";
+import type { Fetched } from "./details.ts";
 import { fetchLink } from "./fetch-link.ts";
-import { FETCH_DEADLINE_MS, hasOpenJob } from "./jobs.ts";
+import { enqueueQuietly, hasOpenJob, openingJob } from "./jobs.ts";
 import { type Link, isShortLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
-import { type ItemRow, items, jobs } from "./schema.ts";
+import { type ItemRow, items } from "./schema.ts";
 import { settle } from "./settle.ts";
 
 export type SaveResult =
   | { readonly kind: "saved"; readonly item: ItemRow; readonly created: boolean }
   | { readonly kind: "refused" };
 
-async function itemAt(db: Database, normalizedUrl: string): Promise<ItemRow> {
-  const [item] = await db.select().from(items).where(eq(items.normalizedUrl, normalizedUrl));
-
+function foundItem(item: ItemRow | undefined, normalizedUrl: string): ItemRow {
   if (item === undefined) {
     throw new Error(`Item ${normalizedUrl} was neither inserted nor found`);
   }
@@ -22,34 +21,10 @@ async function itemAt(db: Database, normalizedUrl: string): Promise<ItemRow> {
   return item;
 }
 
-async function enqueueQuietly(ports: Ports, jobId: number): Promise<void> {
-  try {
-    await ports.jobs.enqueue(jobId, 0);
-  } catch (error) {
-    console.error(`Job ${jobId} was saved but not queued; the next sweep queues it`, error);
-  }
-}
+async function itemAt(db: Database, normalizedUrl: string): Promise<ItemRow> {
+  const [item] = await db.select().from(items).where(eq(items.normalizedUrl, normalizedUrl));
 
-function openingJob(db: Database, address: string, normalizedUrl: string, now: number) {
-  return db
-    .insert(jobs)
-    .select(
-      db
-        .select({
-          id: sql<null>`null`.as("id"),
-          kind: sql<"fetch">`'fetch'`.as("kind"),
-          itemId: items.id,
-          address: sql<string>`${address}`.as("address"),
-          state: sql<"queued">`'queued'`.as("state"),
-          attempts: sql<number>`0`.as("attempts"),
-          nextAttemptAt: sql<number>`${now}`.as("next_attempt_at"),
-          claimExpires: sql<null>`null`.as("claim_expires"),
-        })
-        .from(items)
-        .where(and(eq(items.normalizedUrl, normalizedUrl), notExists(hasOpenJob("fetch")))),
-    )
-    .onConflictDoNothing()
-    .returning({ id: jobs.id });
+  return foundItem(item, normalizedUrl);
 }
 
 async function saveQueued(
@@ -60,7 +35,7 @@ async function saveQueued(
   const { db } = ports;
   const now = Date.now();
 
-  const [inserted, , queued] = await db.batch([
+  const [inserted, , queued, [item]] = await db.batch([
     db
       .insert(items)
       .values({
@@ -77,23 +52,24 @@ async function saveQueued(
       .update(items)
       .set({ status: "processing", reason: null })
       .where(and(eq(items.normalizedUrl, normalizedUrl), notExists(hasOpenJob("fetch")))),
-    openingJob(db, address, normalizedUrl, now),
+    openingJob(db, { kind: "fetch", address, normalizedUrl, now }),
+    db.select().from(items).where(eq(items.normalizedUrl, normalizedUrl)),
   ]);
 
   const [job] = queued;
 
   if (job !== undefined) {
-    await enqueueQuietly(ports, job.id);
+    await enqueueQuietly(ports, [job.id], 0);
   }
 
-  return { kind: "saved", item: await itemAt(db, normalizedUrl), created: inserted.length > 0 };
+  return { kind: "saved", item: foundItem(item, normalizedUrl), created: inserted.length > 0 };
 }
 
 async function saveSettled(
   db: Database,
   address: string,
   { normalizedUrl, kind, source }: Readonly<Link>,
-  fetched: Parameters<typeof settle>[0],
+  fetched: Readonly<Fetched>,
 ): Promise<SaveResult> {
   const now = Date.now();
 
@@ -126,11 +102,7 @@ async function saveSettled(
 }
 
 async function saveShortLink(ports: Ports, address: string): Promise<SaveResult> {
-  const { link, fetched } = await fetchLink(
-    ports.network,
-    address,
-    AbortSignal.timeout(FETCH_DEADLINE_MS),
-  );
+  const { link, fetched } = await fetchLink(ports.network, address);
 
   return saveSettled(ports.db, address, link, fetched);
 }

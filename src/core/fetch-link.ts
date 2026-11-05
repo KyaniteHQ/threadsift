@@ -9,6 +9,8 @@ interface FetchedLink {
   readonly fetched: Fetched;
 }
 
+export const FETCH_DEADLINE_MS = 120_000;
+
 const POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
   followMetaRefresh: isShortLink,
@@ -81,11 +83,8 @@ async function followShortLink(
   return { link, fetched: fetchedOf(outcome, detailsOfPage, "redirect-stopped") };
 }
 
-export async function fetchLink(
-  network: Network,
-  address: string,
-  deadline: AbortSignal,
-): Promise<FetchedLink> {
+export async function fetchLink(network: Network, address: string): Promise<FetchedLink> {
+  const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
   const pasted = parseLink(address);
 
   if (isShortLink(address)) {

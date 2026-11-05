@@ -17,6 +17,20 @@ interface OpenDatabase {
   close(): void;
 }
 
+function inTransaction<T>(sqlite: DatabaseSync, work: () => T): T {
+  sqlite.exec("BEGIN");
+
+  try {
+    const result = work();
+    sqlite.exec("COMMIT");
+
+    return result;
+  } catch (error) {
+    sqlite.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 function applyMigrations(sqlite: DatabaseSync, migrationsDir: string): void {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS d1_migrations(
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,16 +50,10 @@ function applyMigrations(sqlite: DatabaseSync, migrationsDir: string): void {
     .toSorted();
 
   for (const name of pending) {
-    sqlite.exec("BEGIN");
-
-    try {
+    inTransaction(sqlite, () => {
       sqlite.exec(readFileSync(join(migrationsDir, name), "utf8"));
       sqlite.prepare("INSERT INTO d1_migrations (name) VALUES (?)").run(name);
-      sqlite.exec("COMMIT");
-    } catch (error) {
-      sqlite.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 }
 
@@ -81,20 +89,6 @@ function promised<T>(work: () => T): Promise<T> {
 
 function proxyTo(sqlite: DatabaseSync): RemoteCallback {
   return (sql, params, method) => promised(() => execute(sqlite, { sql, params, method }));
-}
-
-function inTransaction<T>(sqlite: DatabaseSync, work: () => T): T {
-  sqlite.exec("BEGIN");
-
-  try {
-    const result = work();
-    sqlite.exec("COMMIT");
-
-    return result;
-  } catch (error) {
-    sqlite.exec("ROLLBACK");
-    throw error;
-  }
 }
 
 function batchTo(sqlite: DatabaseSync): AsyncBatchRemoteCallback {

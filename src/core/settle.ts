@@ -6,7 +6,7 @@ import type { ItemRow } from "./schema.ts";
 type Settled = Pick<ItemRow, "status" | "reason" | "fetch"> &
   Partial<Pick<ItemRow, "title" | "author" | "community" | "fetchedAt">>;
 
-function isRetryable(result: FetchResult): result is Extract<FailureReason, FetchResult> {
+export function isRetryable(result: FetchResult): result is Extract<FailureReason, FetchResult> {
   return result === "timeout" || result === "network";
 }
 

@@ -7,11 +7,9 @@ import {
 } from "../../core/jobs.ts";
 import type { JobQueue } from "../../core/ports.ts";
 
-export const LOOP_WIDTH = 4;
-export const LOOP_POLL_MS = 5000;
-export const TICK_MS = 60_000;
-
-type BasePorts = Omit<JobPorts, "jobs">;
+const LOOP_WIDTH = 4;
+const LOOP_POLL_MS = 5000;
+const TICK_MS = 60_000;
 
 function report(what: string, error: Readonly<Error>): void {
   console.error(`${what}: ${error.message}`);
@@ -32,8 +30,7 @@ export class JobLoop {
   private wokenWhileDraining = false;
   private readonly timers: NodeJS.Timeout[] = [];
 
-  async start(base: Readonly<BasePorts>): Promise<void> {
-    const ports: JobPorts = { ...base, jobs: this.queue };
+  async start(ports: JobPorts): Promise<void> {
     await abandonRunning(ports.db);
     this.ports = ports;
 
