@@ -40,6 +40,8 @@ Every text a user reads is written by `tools/copy/write-copy.sh`, never by hand:
 3. Use the text as printed. When it is wrong, fix the brief and run the script again.
 4. Quote the brief and the printed text in the commit message and in the report, so the reviewer can check the text came from the script.
 
+The `error` text of the HTTP API is read by agents and `curl` and never shown by the web app, so it is code and stays as written; the script covers only text a person reads in the product.
+
 `agy` must be signed in on the machine; a contributor without it leaves a visible placeholder, `[text needed]`, for the owner to run the script.
 
 ## Code
