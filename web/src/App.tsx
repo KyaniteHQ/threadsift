@@ -1,10 +1,11 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import { itemIdOf } from "../../src/core/item-path.ts";
-import type { SaveOutcome } from "./api.ts";
+import { type SaveOutcome, type SaveResult, noticeOf } from "./api.ts";
 import { useBands } from "./bands.ts";
+import type { Attention } from "./ItemRow.tsx";
 import { type ListState, useLibrary } from "./library.ts";
-import { type Attention, ListBody } from "./ListBody.tsx";
+import { ListBody } from "./ListBody.tsx";
 import { PasteBox } from "./PasteBox.tsx";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 
@@ -28,7 +29,10 @@ function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLEl
 
 function useOpenItem(list: ListState) {
   const [openId] = useState(() => itemIdOf(window.location.pathname));
-  const [attention, setAttention] = useState<Attention>(openId === null ? null : { id: openId });
+
+  const [attention, setAttention] = useState<Attention>(
+    openId === null ? null : { id: openId, focus: true },
+  );
 
   const missing =
     list.status === "ready" && openId !== null && !list.items.some((item) => item.id === openId);
@@ -42,6 +46,34 @@ function useOpenItem(list: ListState) {
   return { openId, attention, attend: setAttention };
 }
 
+function useSaveAndShow(
+  save: (url: string) => Promise<SaveResult>,
+  attend: (attention: Attention) => void,
+  pane: RefObject<HTMLElement | null>,
+) {
+  return useCallback(
+    async (url: string): Promise<SaveOutcome> => {
+      const result = await save(url);
+
+      if (result.outcome !== "saved") {
+        return { saved: false, notice: result.outcome, focus: "field" };
+      }
+
+      const notice = noticeOf(result);
+      const focusRow = result.known && notice === null;
+
+      if (result.known) {
+        attend({ id: result.item.id, focus: focusRow });
+      } else if (pane.current !== null) {
+        scrollToTop(pane.current);
+      }
+
+      return { saved: true, notice, focus: focusRow ? "row" : "field" };
+    },
+    [attend, pane, save],
+  );
+}
+
 export function App() {
   const root = useRef<HTMLDivElement>(null);
   const listPane = useRef<HTMLElement>(null);
@@ -49,24 +81,7 @@ export function App() {
   const { list, save, retry } = useLibrary();
   const { openId, attention, attend } = useOpenItem(list);
 
-  const saveAndShow = useCallback(
-    async (url: string): Promise<SaveOutcome> => {
-      const result = await save(url);
-
-      if (result.outcome === "refused") {
-        return "refused";
-      }
-
-      if (result.outcome === "known") {
-        attend({ id: result.item.id });
-      } else if (listPane.current !== null) {
-        scrollToTop(listPane.current);
-      }
-
-      return "saved";
-    },
-    [attend, save],
-  );
+  const saveAndShow = useSaveAndShow(save, attend, listPane);
 
   const retryAndKeepPlace = useKeptPlace(list, retry, listPane);
 

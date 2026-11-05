@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
 import { newRunId } from "./links.ts";
@@ -179,34 +179,60 @@ test("a finished save leaves a different link typed while it ran", async ({ page
   await expect(field).toHaveValue(`https://example.com/${run}/second`);
 });
 
-test("pasting a known link brings its row into view and focuses it", async ({ page, request }) => {
+async function pasteKnownLinkBelowTheFold(
+  page: Page,
+  request: APIRequestContext,
+  link: string,
+): Promise<number> {
   const run = newRunId();
+  const known = await postLink(request, link);
 
   for (let index = 0; index < 30; index += 1) {
-    await postLink(request, `https://example.com/${run}/known-${index}`);
+    await postLink(request, `https://example.com/${run}/newer-${index}`);
   }
 
   await page.goto("/");
-  await expect(page.locator("article.it").nth(29)).toBeVisible();
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
-  await field.fill(`https://example.com/${run}/known-3`);
+  await expect(page.locator("article.it").nth(30)).toBeVisible();
+  await page.getByRole("textbox", { name: "Paste a link to save" }).fill(link);
   await page.getByRole("button", { name: "Add" }).click();
+  await expect(page.getByRole("textbox", { name: "Paste a link to save" })).toHaveValue("");
 
-  const row = page.locator("article.it", { hasText: `${run}/known-3` });
-  await expect(row.locator(".it-open")).toBeFocused();
+  return known.body.item.id;
+}
 
-  const covered = await page.evaluate(() => {
-    const top = document
-      .querySelector(".it-open:focus")
-      ?.closest("article")
-      ?.getBoundingClientRect();
+async function expectRowInPaneView(page: Page, key: number) {
+  const box = await page.evaluate((id) => {
+    const row = document.querySelector(`article.it[data-key="${id}"]`)?.getBoundingClientRect();
 
-    const header = document.querySelector(".list-head")?.getBoundingClientRect();
+    return {
+      top: row?.top ?? Number.NaN,
+      bottom: row?.bottom ?? Number.NaN,
+      headerBottom: document.querySelector(".list-head")?.getBoundingClientRect().bottom ?? 0,
+      paneBottom: document.querySelector(".list")?.getBoundingClientRect().bottom ?? 0,
+    };
+  }, key);
 
-    return top === undefined || header === undefined || top.top < header.bottom - 0.5;
-  });
+  expect(box.top, "row top against the list header").toBeGreaterThanOrEqual(box.headerBottom - 0.5);
+  expect(box.bottom, "row bottom against the list pane").toBeLessThanOrEqual(box.paneBottom + 0.5);
+}
 
-  expect(covered).toBe(false);
+test("pasting a known link brings its row into view and focuses it", async ({ page, request }) => {
+  const id = await pasteKnownLinkBelowTheFold(page, request, "https://example.com/");
+
+  await expect(page.locator(`article.it[data-key="${id}"] .it-open`)).toBeFocused();
+  await expectRowInPaneView(page, id);
+});
+
+test("pasting a known link that shows a notice keeps focus in the field and still shows its row", async ({
+  page,
+  request,
+}) => {
+  const link = `https://example.com/missing-${newRunId()}`;
+  const id = await pasteKnownLinkBelowTheFold(page, request, link);
+
+  await expect(page.getByRole("textbox", { name: "Paste a link to save" })).toBeFocused();
+  await expect(page.locator(".ps")).toContainText("answered with an error");
+  await expectRowInPaneView(page, id);
 });
 
 test("an Item URL that matches no Item opens the plain list at /", async ({ page, request }) => {

@@ -2,8 +2,10 @@ import type { APIRequestContext } from "@playwright/test";
 import { z } from "zod";
 
 import { ItemListResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
 export async function postLink(request: APIRequestContext, url: string) {
+  await waitForRedditTurnIfNeeded(url);
   const response = await request.post("/api/items", { data: { url } });
 
   return { status: response.status(), body: SavedItemResponseSchema.parse(await response.json()) };
@@ -25,7 +27,7 @@ export async function refusedWith(request: APIRequestContext, body: string | und
     body === undefined ? {} : { headers: { "content-type": "application/json" }, data: body },
   );
 
-  const reason = z.object({ error: z.string().min(1) }).parse(await response.json());
+  const parsed = z.object({ error: z.string().min(1) }).safeParse(await response.json());
 
-  return { status: response.status(), reason: reason.error };
+  return { status: response.status(), reason: parsed.success ? parsed.data.error : null };
 }

@@ -75,19 +75,19 @@ const SOURCE_LABELS = { reddit: "Reddit", x: "X", github: "GitHub", other: "Othe
 function linkCases(run: string) {
   return [
     [
-      `https://www.reddit.com/r/typescript/comments/r${run}/title/`,
+      `https://www.reddit.com/r/typescript/comments/r${run}a/title/`,
       "reddit-post",
       "reddit",
       "r/typescript",
     ],
     [
-      `https://www.reddit.com/r/typescript/comments/r${run}/title/k9xyz12/`,
+      `https://www.reddit.com/r/typescript/comments/r${run}b/title/k9xyz12/`,
       "reddit-comment",
       "reddit",
       "r/typescript",
     ],
     [
-      `https://www.reddit.com/user/someone/comments/r${run}/title/`,
+      `https://www.reddit.com/user/someone/comments/r${run}c/title/`,
       "reddit-post",
       "reddit",
       "u/someone",

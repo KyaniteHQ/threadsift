@@ -32,10 +32,16 @@ function BreakableLink({ text }: Readonly<{ text: string }>) {
   );
 }
 
+function rowClasses(isOpen: boolean, title: string | null): string {
+  return ["it", ...(isOpen ? ["open"] : []), ...(title === null ? ["it-link-only"] : [])].join(" ");
+}
+
+export type Attention = Readonly<{ id: number; focus: boolean }> | null;
+
 function useAttention(
   row: RefObject<HTMLElement | null>,
   link: RefObject<HTMLAnchorElement | null>,
-  attention: Readonly<{ id: number }> | null,
+  attention: Attention,
 ) {
   useEffect(() => {
     const element = row.current;
@@ -46,7 +52,11 @@ function useAttention(
       };
 
       reveal();
-      link.current?.focus({ preventScroll: true });
+
+      if (attention.focus) {
+        link.current?.focus({ preventScroll: true });
+      }
+
       void document.fonts.ready.then(reveal);
     }
   }, [attention, link, row]);
@@ -61,14 +71,14 @@ export function ItemRow({
   item: Item;
   now: number;
   isOpen: boolean;
-  attention: Readonly<{ id: number }> | null;
+  attention: Attention;
 }>) {
   const row = useRef<HTMLElement>(null);
   const link = useRef<HTMLAnchorElement>(null);
   useAttention(row, link, attention);
 
   return (
-    <article ref={row} className={isOpen ? "it open" : "it"} data-key={item.id}>
+    <article ref={row} className={rowClasses(isOpen, item.title)} data-key={item.id}>
       <p className="it-meta">
         <span className="src">{SOURCE_LABELS[item.source]}</span>
         <span>{whereOf(item)}</span>
@@ -86,7 +96,11 @@ export function ItemRow({
           rel="noreferrer"
           aria-current={isOpen ? "true" : undefined}
         >
-          <BreakableLink text={withoutScheme(item.normalizedUrl)} />
+          {item.title === null ? (
+            <BreakableLink text={withoutScheme(item.normalizedUrl)} />
+          ) : (
+            <bdi dir="auto">{item.title}</bdi>
+          )}
           <span className="vh">{` ${NEW_TAB_LABEL}`}</span>
         </a>
       </h2>

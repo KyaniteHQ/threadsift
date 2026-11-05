@@ -1,4 +1,3 @@
-import { mkdirSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 
 import { serve } from "@hono/node-server";
@@ -10,6 +9,7 @@ import { z } from "zod";
 import { createApp } from "../../http/app.ts";
 import { isDocumentPath } from "../../http/document-path.ts";
 import { openDatabase } from "./database.ts";
+import { nodeNetwork } from "./network.ts";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 
@@ -19,8 +19,6 @@ const env = z
     DATA_DIR: z.string().default(join(repositoryRoot, ".data")),
   })
   .parse(process.env);
-
-mkdirSync(env.DATA_DIR, { recursive: true });
 
 const database = openDatabase(
   join(env.DATA_DIR, "threadsift.db"),
@@ -56,7 +54,7 @@ const app = new Hono();
 
 app.use("*", compress());
 
-app.route("/", createApp({ db: database.db }));
+app.route("/", createApp({ db: database.db, network: nodeNetwork }));
 
 app.get("/index.html", (context) => context.redirect("/", 307));
 

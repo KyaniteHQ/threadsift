@@ -1,6 +1,6 @@
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
-import { ItemRow } from "./ItemRow.tsx";
+import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { ListState } from "./library.ts";
 import {
   EMPTY_LIST,
@@ -31,8 +31,6 @@ function Loading() {
     </>
   );
 }
-
-export type Attention = Readonly<{ id: number }> | null;
 
 function ItemList({
   items,

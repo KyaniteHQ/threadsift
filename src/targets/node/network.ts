@@ -1,0 +1,100 @@
+import { lookup } from "node:dns";
+import { type IncomingMessage, request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+import type { LookupFunction, TcpNetConnectOpts } from "node:net";
+import { type Readable, type Transform, pipeline } from "node:stream";
+import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
+
+import { isGlobalAddress } from "../../core/addresses.ts";
+import {
+  HOP_DEADLINE_MS,
+  type Network,
+  type NetworkResponse,
+  REQUEST_HEADERS,
+  NetworkFailure,
+} from "../../core/ports.ts";
+
+const ACCEPT_ENCODING = "gzip, deflate, br";
+const IDENTITY = "identity";
+
+const CONNECT_OPTIONS: Pick<TcpNetConnectOpts, "autoSelectFamilyAttemptTimeout"> = {
+  autoSelectFamilyAttemptTimeout: HOP_DEADLINE_MS,
+};
+
+const DECODERS: ReadonlyMap<string, () => Transform> = new Map([
+  ["gzip", createGunzip],
+  ["deflate", createInflate],
+  ["br", createBrotliDecompress],
+]);
+
+const globalAddressesOnly: LookupFunction = (hostname, options, callback) => {
+  lookup(hostname, { ...options, all: true }, (error, resolved) => {
+    if (error !== null) {
+      callback(error, []);
+
+      return;
+    }
+
+    const addresses = resolved.filter(({ address }) => isGlobalAddress(address));
+    const [first] = addresses;
+
+    if (first === undefined) {
+      callback(new NetworkFailure("refused", `${hostname} has no globally reachable address`), []);
+    } else if (options.all === true) {
+      callback(null, addresses);
+    } else {
+      callback(null, first.address, first.family);
+    }
+  });
+};
+
+function encodingOf(response: IncomingMessage): string {
+  return (response.headers["content-encoding"] ?? IDENTITY).trim().toLowerCase();
+}
+
+function decodedBody(response: IncomingMessage, encoding: string): Readable {
+  const decoder = DECODERS.get(encoding)?.();
+
+  return decoder === undefined ? response : pipeline(response, decoder, () => {});
+}
+
+export const nodeNetwork: Network = {
+  get: (url, signal) =>
+    new Promise<NetworkResponse>((resolve, reject) => {
+      const send = url.startsWith("https:") ? httpsRequest : httpRequest;
+
+      const request = send(
+        url,
+        {
+          method: "GET",
+          headers: { ...REQUEST_HEADERS, "accept-encoding": ACCEPT_ENCODING },
+          lookup: globalAddressesOnly,
+          ...CONNECT_OPTIONS,
+          signal,
+          agent: false,
+        },
+        (response) => {
+          const encoding = encodingOf(response);
+
+          if (encoding !== IDENTITY && !DECODERS.has(encoding)) {
+            response.destroy();
+            reject(new Error(`unsupported content-encoding ${encoding}`));
+
+            return;
+          }
+
+          resolve({
+            status: response.statusCode ?? 0,
+            location: response.headers.location ?? null,
+            contentType: response.headers["content-type"] ?? null,
+            body: decodedBody(response, encoding),
+          });
+        },
+      );
+
+      request.on("error", (error: NodeJS.ErrnoException) => {
+        reject(error.code === "ETIMEDOUT" ? new NetworkFailure("timeout", error.message) : error);
+      });
+      request.end();
+    }),
+};

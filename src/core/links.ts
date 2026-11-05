@@ -1,3 +1,4 @@
+import { withoutTrailingDot } from "./addresses.ts";
 import type { Kind, Source } from "./kinds.ts";
 
 export interface Link {
@@ -26,7 +27,19 @@ const TRACKING_PARAMS: ReadonlySet<string> = new Set([
 ]);
 
 const X_HOSTS: ReadonlySet<string> = new Set(["x.com", "twitter.com"]);
+
 const X_ONLY_TRACKING_PARAMS: ReadonlySet<string> = new Set(["s", "t"]);
+
+const SHORT_LINK_HOSTS: ReadonlySet<string> = new Set([
+  "t.co",
+  "bit.ly",
+  "buff.ly",
+  "tinyurl.com",
+  "ow.ly",
+  "lnkd.in",
+  "dlvr.it",
+  "is.gd",
+]);
 
 const GITHUB_NON_OWNER_PATHS: ReadonlySet<string> = new Set([
   "about",
@@ -87,6 +100,7 @@ const GITHUB_NON_OWNER_PATHS: ReadonlySet<string> = new Set([
 const GITHUB_NAME = /^[\w.-]+$/u;
 const X_POST_PATH = /^\/(?:[^/]+|i\/web)\/status\/\d+(?:\/|$)/u;
 const REDDIT_PATH_PREFIXES: ReadonlySet<string> = new Set(["r", "user", "u"]);
+const REDDIT_ID = /^[a-z\d]+$/iu;
 
 function isTrackingParam(pair: string, host: string): boolean {
   const key = (new URLSearchParams(pair).keys().next().value ?? "").toLowerCase();
@@ -109,7 +123,8 @@ function keptQuery(search: string, host: string): string {
 
 const MOBILE_X_HOST = /^mobile\.(?:x|twitter)\.com$/u;
 
-function canonicalHost(host: string): string {
+function canonicalHost(rawHost: string): string {
+  const host = withoutTrailingDot(rawHost);
   const desktop = MOBILE_X_HOST.test(host) ? host.slice("mobile.".length) : host;
   const bare = desktop.startsWith("www.") ? desktop.slice("www.".length) : desktop;
 
@@ -120,16 +135,42 @@ function segmentsOf(pathname: string): string[] {
   return pathname.split("/").filter((segment) => segment !== "");
 }
 
-function redditKind(segments: readonly string[]): Kind | null {
+interface RedditRef {
+  readonly postId: string;
+  readonly commentId: string | undefined;
+}
+
+function isRedditHost(host: string): boolean {
+  return host === "reddit.com" || host.endsWith(".reddit.com");
+}
+
+function redditRef(host: string, segments: readonly string[]): RedditRef | null {
+  if (host === "redd.it") {
+    const [postId] = segments;
+
+    return segments.length === 1 && postId !== undefined && REDDIT_ID.test(postId)
+      ? { postId, commentId: undefined }
+      : null;
+  }
+
   const at = segments.indexOf("comments");
   const prefix = segments[0] ?? "";
   const hasPrefix = at === 2 && REDDIT_PATH_PREFIXES.has(prefix);
+  const postId = segments[at + 1];
 
-  if (!(at === 0 || hasPrefix) || segments[at + 1] === undefined) {
+  if (!isRedditHost(host) || !(at === 0 || hasPrefix) || postId === undefined) {
     return null;
   }
 
-  return segments[at + 3] === undefined ? "reddit-post" : "reddit-comment";
+  return { postId, commentId: segments[at + 3] };
+}
+
+function redditLink({ postId, commentId }: Readonly<RedditRef>): Link {
+  const post = `https://reddit.com/r/all/comments/${postId}/`;
+
+  return commentId === undefined
+    ? { normalizedUrl: post, kind: "reddit-post", source: "reddit" }
+    : { normalizedUrl: `${post}_/${commentId}/`, kind: "reddit-comment", source: "reddit" };
 }
 
 function githubKind(segments: readonly string[]): Kind {
@@ -146,10 +187,6 @@ function githubKind(segments: readonly string[]): Kind {
 function kindOf(host: string, pathname: string): Kind {
   const segments = segmentsOf(pathname);
 
-  if (host === "reddit.com" || host.endsWith(".reddit.com")) {
-    return redditKind(segments) ?? "link";
-  }
-
   if (X_HOSTS.has(host)) {
     return X_POST_PATH.test(pathname) ? "x-post" : "link";
   }
@@ -165,17 +202,52 @@ export function parseLink(absoluteUrl: string): Link {
   url.password = "";
   url.hash = "";
   url.search = keptQuery(url.search, host);
+  const reddit = redditRef(host, segmentsOf(url.pathname));
+
+  if (reddit !== null) {
+    return redditLink(reddit);
+  }
+
   const kind = kindOf(host, url.pathname);
 
   return { normalizedUrl: url.href, kind, source: SOURCE_OF_KIND[kind] };
 }
 
-export function whereOf({ source, kind, normalizedUrl }: Readonly<Link>): string {
+export function isShortLink(absoluteUrl: string): boolean {
+  return SHORT_LINK_HOSTS.has(canonicalHost(new URL(absoluteUrl).hostname));
+}
+
+export function isRedditOrXLink(absoluteUrl: string): boolean {
+  const host = canonicalHost(new URL(absoluteUrl).hostname);
+
+  return host === "redd.it" || isRedditHost(host) || X_HOSTS.has(host);
+}
+
+export interface LinkPlace extends Link {
+  readonly originalUrl: string;
+  readonly community: string | null;
+}
+
+export function whereOf({
+  source,
+  kind,
+  normalizedUrl,
+  originalUrl,
+  community,
+}: Readonly<LinkPlace>): string {
   const { host, pathname } = new URL(normalizedUrl);
   const [first = "", second = ""] = segmentsOf(pathname);
 
-  if (source === "reddit" && second !== "" && REDDIT_PATH_PREFIXES.has(first)) {
-    return first === "r" ? `r/${second}` : `u/${second}`;
+  if (community !== null) {
+    return `r/${community}`;
+  }
+
+  if (source === "reddit") {
+    const [pastedFirst = "", pastedSecond = ""] = segmentsOf(new URL(originalUrl).pathname);
+
+    if (pastedSecond !== "" && REDDIT_PATH_PREFIXES.has(pastedFirst)) {
+      return pastedFirst === "r" ? `r/${pastedSecond}` : `u/${pastedSecond}`;
+    }
   }
 
   if (kind === "x-post" && first !== "i") {

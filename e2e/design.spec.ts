@@ -24,6 +24,8 @@ test("the page keeps the design checks at four widths in three themes", async ({
     seeded.push(await postLink(page.request, `https://example.com/${run}/${path}`));
   }
 
+  await postLink(page.request, "https://example.com/");
+
   await page.goto(seeded[0]?.body.url ?? "/");
   await expect(page.locator(".it.open")).toBeVisible();
   await page.getByRole("textbox", { name: "Paste a link to save" }).press("Enter");

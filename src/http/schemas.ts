@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { KINDS, SOURCES } from "../core/kinds.ts";
 
 const HttpUrlSchema = z.url({ protocol: /^https?$/u });
@@ -12,6 +13,9 @@ const ItemSchema = z.object({
   originalUrl: HttpUrlSchema,
   savedAt: z.number().int(),
   title: z.string().nullable(),
+  author: z.string().nullable(),
+  community: z.string().nullable(),
+  fetchedAt: z.number().int().nullable(),
 });
 
 export const SaveItemRequestSchema = z.object({
@@ -21,6 +25,7 @@ export const SaveItemRequestSchema = z.object({
 export const SavedItemResponseSchema = z.object({
   item: ItemSchema,
   url: z.string(),
+  fetch: z.enum(FETCH_RESULTS),
 });
 
 export const ItemListResponseSchema = z.object({
@@ -29,6 +34,7 @@ export const ItemListResponseSchema = z.object({
 
 export const ErrorResponseSchema = z.object({
   error: z.string(),
+  fetch: z.literal("refused").optional(),
 });
 
 export type Item = z.infer<typeof ItemSchema>;
