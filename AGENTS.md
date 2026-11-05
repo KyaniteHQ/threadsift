@@ -20,7 +20,7 @@ Use these exact terms in code, docs and issues.
 | Before writing or changing a doc, a commit message or a PR body | `docs/agents/changing-code.md`, Docs, commit messages and PR bodies |
 | Before screen work: who the product is for, then the look, the components and the do's and don'ts every screen follows | `PRODUCT.md`, then `DESIGN.md` |
 | Before reviewing a change | `docs/agents/reviewing-code.md` |
-| Any colour, size, spacing, font or setting value | `design/system/tokens.css`, the one source for every value; `design/system/settings.js` owns each setting's id, label, attribute and default |
+| Any colour, size, spacing, font or setting value | `design/system/tokens.css`, the one source for every value; `design/system/settings.ts` owns each setting's id, label, attribute and default |
 | How a screen behaves (reader bar fitting, comment folds, reading place, settings panel) | `design/prototype/`, served as the README shows |
 | Style blocks (the 10 Styles) | `design/prototype/tokens.css`; the design system predates them, so they still have to move into `design/system/tokens.css` |
 | Why a design choice was made | `docs/design/claude-design-prompts.md` and `docs/design/reviews/round-7/` |

@@ -1,46 +1,61 @@
 import { AxeBuilder } from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
 import { newRunId } from "./links.ts";
 
-test("an empty browser with a dark system preference draws Light, titled Threadsift, from one origin", async ({
+async function expectLightDrawn(page: Page, colorScheme: string): Promise<void> {
+  for (const root of [page.locator(".app"), page.locator("html")]) {
+    await expect(root, `${colorScheme} system preference`).toHaveAttribute("data-theme", "light");
+    await expect(root, `${colorScheme} system preference`).toHaveCSS("color-scheme", "light");
+  }
+
+  const drawn = await page.evaluate(() => {
+    const [light, dark] = ["light", "dark"].map((theme) => {
+      const probe = document.createElement("div");
+      probe.dataset["theme"] = theme;
+      probe.style.background = "var(--bg)";
+      document.body.append(probe);
+      const colour = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+
+      return colour;
+    });
+
+    return { html: getComputedStyle(document.documentElement).backgroundColor, light, dark };
+  });
+
+  expect(drawn.html, `${colorScheme} system preference: Light's background`).toBe(drawn.light);
+  expect(drawn.html, `${colorScheme} system preference: not Dark's`).not.toBe(drawn.dark);
+}
+
+test("an empty browser draws Light under a dark and a light system preference, titled Threadsift, from one origin", async ({
   browser,
   baseURL,
   request,
 }) => {
   await postLink(request, `https://example.com/${newRunId()}/seed`);
 
-  const context = await browser.newContext({
-    colorScheme: "dark",
-    storageState: { cookies: [], origins: [] },
-  });
+  for (const colorScheme of ["dark", "light"] as const) {
+    const context = await browser.newContext({
+      colorScheme,
+      storageState: { cookies: [], origins: [] },
+    });
 
-  const page = await context.newPage();
-  const origins = new Set<string>();
-  page.on("request", (pageRequest) => origins.add(new URL(pageRequest.url()).origin));
+    const page = await context.newPage();
+    const origins = new Set<string>();
+    page.on("request", (pageRequest) => origins.add(new URL(pageRequest.url()).origin));
 
-  await page.goto(baseURL ?? "/");
-  await expect(page.locator("article.it").first()).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
+    await page.goto(baseURL ?? "/");
+    await expect(page.locator("article.it").first()).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
 
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Threadsift");
-  const app = page.locator(".app");
-  await expect(app).not.toHaveAttribute("data-theme", /./u);
-  const drawn = await app.evaluate((element) => getComputedStyle(element).getPropertyValue("--bg"));
-  await app.evaluate((element) => {
-    element.dataset["theme"] = "dark";
-  });
-  const dark = await app.evaluate((element) => getComputedStyle(element).getPropertyValue("--bg"));
-  await app.evaluate((element) => {
-    element.dataset["theme"] = "light";
-  });
-  const light = await app.evaluate((element) => getComputedStyle(element).getPropertyValue("--bg"));
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Threadsift");
 
-  expect(drawn).toBe(light);
-  expect(drawn).not.toBe(dark);
-  expect([...origins]).toEqual([new URL(baseURL ?? "").origin]);
-  await context.close();
+    await expectLightDrawn(page, colorScheme);
+    expect([...origins]).toEqual([new URL(baseURL ?? "").origin]);
+    await context.close();
+  }
 });
 
 test("a link saved before midnight reads as yesterday, not today, in the owner's time zone", async ({

@@ -1,8 +1,22 @@
-import { type Locator, expect, test } from "@playwright/test";
+import { type Locator, type Page, type TestInfo, expect, test } from "@playwright/test";
 
+import { SETTINGS } from "../design/system/settings.ts";
 import { postLink } from "./api.ts";
+import { checkDefaults } from "./default-tokens.ts";
 import { collectViolations } from "./design-checks.ts";
 import { newRunId } from "./links.ts";
+import {
+  DEFAULT_FONT,
+  HUES,
+  type Stored,
+  app,
+  computed,
+  gear,
+  openPanel,
+  panel,
+  storeSettings,
+  storedSettings,
+} from "./look.ts";
 
 const BANDS_AT_WIDTH = [
   [390, "phone narrow medium wide full"],
@@ -11,9 +25,67 @@ const BANDS_AT_WIDTH = [
   [1920, "full"],
 ] as const;
 
-const THEMES = ["light", "dark", "sepia"];
+const THEMES = ["light", "dark", "sepia"] as const;
+const FONT_ROW = SETTINGS.find((row) => row.key === "font");
 
-test("the page keeps the design checks at four widths in three themes", async ({
+async function resize(page: Page, width: number, bands: string): Promise<void> {
+  await page.setViewportSize({ width, height: width < 480 ? 640 : 900 });
+  await expect(app(page)).toHaveAttribute("data-bp", bands);
+}
+
+async function loadWith(page: Page, url: string, stored: Stored): Promise<void> {
+  await storeSettings(page, stored, url);
+  await expect(page.locator("article.it").first()).toBeVisible();
+}
+
+async function showAlertAndFocusRow(page: Page): Promise<void> {
+  await page.getByRole("textbox", { name: "Paste a link to save" }).press("Enter");
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page.locator(".it.open .it-open").focus();
+}
+
+async function expectNoViolations(page: Page, what: string): Promise<void> {
+  expect(await page.evaluate(collectViolations, DEFAULT_FONT), what).toEqual([]);
+}
+
+async function checkRows(page: Page, what: string): Promise<void> {
+  for (const row of [".it.open", "article.it:not(.open)"]) {
+    await page.locator(`${row} .it-open`).first().focus();
+    await expect(page.locator(".it:has(.it-open:focus-visible)")).toHaveCount(1);
+    await expectNoViolations(page, `${row} focused, ${what}`);
+  }
+}
+
+async function checkPanel(page: Page, what: string): Promise<void> {
+  const dialog = await openPanel(page);
+  await expectNoViolations(page, `panel open, first choice focused, ${what}`);
+
+  const controls = [
+    dialog.getByRole("combobox", { name: "Font" }),
+    dialog.getByRole("radio", { name: "Dark" }),
+    dialog.getByRole("radio", { name: "Moss" }),
+    dialog.getByRole("button", { name: "Reset look" }),
+    gear(page),
+  ];
+
+  const isSheet = await dialog.evaluate((element) => element.matches(":modal"));
+
+  for (const control of isSheet ? controls.slice(0, -1) : controls) {
+    await page.keyboard.press("Shift");
+    await control.focus();
+    await expect(page.locator(".st-pop :focus-visible, .st-gear:focus-visible")).toHaveCount(1);
+    await expectNoViolations(page, `panel open, a control focused, ${what}`);
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(panel(page)).toBeHidden();
+}
+
+async function attach(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+  await testInfo.attach(name, { body: await page.screenshot(), contentType: "image/png" });
+}
+
+test("the page keeps the design checks at four widths in every theme and accent, panel open and closed", async ({
   page,
 }, testInfo) => {
   const run = newRunId();
@@ -26,36 +98,70 @@ test("the page keeps the design checks at four widths in three themes", async ({
 
   await postLink(page.request, "https://example.com/");
 
-  await page.goto(seeded[0]?.body.url ?? "/");
-  await expect(page.locator(".it.open")).toBeVisible();
-  await page.getByRole("textbox", { name: "Paste a link to save" }).press("Enter");
-  await expect(page.getByRole("alert")).toBeVisible();
-  await page.locator(".it.open .it-open").focus();
+  for (const theme of THEMES) {
+    for (const [accent, hue] of Object.entries(HUES)) {
+      await loadWith(page, seeded[0]?.body.url ?? "/", { theme, accent });
+      await showAlertAndFocusRow(page);
+      await expect(app(page)).toHaveAttribute("data-theme", theme);
+      await expect(app(page)).toHaveAttribute("data-accent", accent);
 
-  for (const [width, bands] of BANDS_AT_WIDTH) {
-    await page.setViewportSize({ width, height: 900 });
+      for (const [width, bands] of BANDS_AT_WIDTH) {
+        const what = `${theme}, ${accent} at ${width}px`;
+        await resize(page, width, bands);
+        expect(await computed(page, ".app", "--ah"), `--ah for ${accent} at ${width}px`).toBe(hue);
+        await checkRows(page, what);
+        await checkPanel(page, what);
 
-    for (const theme of THEMES) {
-      await page.evaluate((value) => {
-        document.documentElement.dataset["theme"] = value;
-      }, theme);
-      await expect(page.locator(".app")).toHaveAttribute("data-bp", bands);
-
-      for (const row of [".it.open", "article.it:not(.open)"]) {
-        await page.locator(`${row} .it-open`).first().focus();
-        await expect(page.locator(".it:has(.it-open:focus-visible)")).toHaveCount(1);
-        expect(
-          await page.evaluate(collectViolations),
-          `${row} focused, ${theme} at ${width}px`,
-        ).toEqual([]);
+        if (accent === "cobalt") {
+          await attach(page, testInfo, `${theme}-${width}`);
+        }
       }
-
-      await testInfo.attach(`${theme}-${width}`, {
-        body: await page.screenshot(),
-        contentType: "image/png",
-      });
     }
   }
+});
+
+test("no text is under 12px at Small text size and Compact density in any Font, and the panel keeps its font", async ({
+  page,
+}) => {
+  await postLink(page.request, "https://example.com/");
+
+  for (const option of FONT_ROW?.options ?? []) {
+    await loadWith(page, "/", { font: option.id, size: "small", density: "compact" });
+    await expect(app(page)).toHaveAttribute("data-font", option.id);
+    await expect(app(page)).toHaveAttribute("data-size", "small");
+    await expect(app(page)).toHaveAttribute("data-density", "compact");
+
+    for (const [width, bands] of [BANDS_AT_WIDTH[0], BANDS_AT_WIDTH[2]]) {
+      const what = `${option.id} font, Small and Compact at ${width}px`;
+      await resize(page, width, bands);
+      await expectNoViolations(page, what);
+      await checkPanel(page, what);
+    }
+  }
+});
+
+test("the default option of every setting draws the tokens of an element with no attribute", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(app(page)).toBeVisible();
+
+  const result = await page.evaluate(
+    checkDefaults,
+    SETTINGS.map((row) => ({
+      attribute: row.attribute,
+      default: row.default,
+      options: row.options.map((option) => option.id),
+    })),
+  );
+
+  expect(result.violations).toEqual([]);
+  expect(result.changingTokens.toSorted(), "the settings whose options change tokens").toEqual(
+    SETTINGS.filter((row) => row.options.length > 1 && row.key !== "openAs")
+      .map((row) => row.attribute)
+      .toSorted(),
+  );
+  expect(await storedSettings(page), "the check stores nothing").toBeNull();
 });
 
 test("a long link is clamped to two lines in its row title", async ({ page }) => {

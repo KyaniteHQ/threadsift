@@ -64,6 +64,7 @@ export default defineConfig({
             name: [
               "Request",
               "HTMLElement",
+              "EventTarget",
               "AbortSignal",
               "URL",
               "ReadableStream",
@@ -159,7 +160,7 @@ export default defineConfig({
       },
     },
   ],
-  ignorePatterns: ["design/**", "tools/oxlint/anti-slop/**", ".claude/**"],
+  ignorePatterns: ["design/prototype/**", "tools/oxlint/anti-slop/**", ".claude/**"],
   options: {
     typeAware: true,
     typeCheck: true,

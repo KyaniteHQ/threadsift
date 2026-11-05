@@ -62,7 +62,7 @@ The owner is also a user: they have many saved bookmarks to bring in and read.
 The design is done for every screen in the first spec; the app takes its look from these files, not from new design work. Screens added later follow the Design of new screens decision above.
 
 - **Values:** `design/system/tokens.css` is the one source for every colour, size, spacing, radius, shadow, motion and breakpoint value. Each option of each Look setting is a `data-*` rule on the app's root, and the default option is the plain value.
-- **Settings:** `design/system/settings.js` is the one settings table: each setting's id, label, root attribute, options, group and default. Every other list (the defaults, the Look settings that Reset look covers, the root attributes) is built from it.
+- **Settings:** `design/system/settings.ts` is the one settings table: each setting's id, label, root attribute, kind, group, Look flag, options and default. Every other list (the defaults, the Look settings that Reset look covers, the stored-settings reader, the root attributes) is built from it, and `web/` imports it.
 - **Behaviour:** `design/prototype/` shows how each screen behaves: the reader bar drops the key hint, then the position, then button labels until nothing overflows; long comments and code blocks fold; the reading place is restored; the settings panel becomes a bottom sheet with a fixed header and footer under 760px wide.
 - **Styles:** the 10 Style blocks exist only in `design/prototype/tokens.css`, because the design system was built before them. Moving them into `design/system/tokens.css` is part of building the app.
 - **Breakpoints:** 480, 760, 1080 and 1440px, with 1, 2, 3, 3 and 4 grid columns from the narrowest band up.
