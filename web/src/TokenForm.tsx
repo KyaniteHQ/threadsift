@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { Token } from "../../src/http/schemas.ts";
+import { TOKEN_NAME_MAX, type Token } from "../../src/http/schemas.ts";
 import { createToken } from "./access-api.ts";
 import { SETTINGS, SETUP } from "./access-text.ts";
 import { FormField } from "./FormField.tsx";
@@ -13,6 +13,7 @@ const NAME_INPUT = {
   autoComplete: "off",
   mono: undefined,
   placeholder: SETTINGS.tokenNamePlaceholder,
+  maxLength: TOKEN_NAME_MAX,
 } as const;
 
 export function TokenForm({
@@ -34,6 +35,13 @@ export function TokenForm({
 
     try {
       const result = await createToken(trimmed);
+
+      if (result.kind === "invalid") {
+        fail(SETTINGS.tokenNameTooLong);
+
+        return;
+      }
+
       clear();
       created(result.token, result.value);
     } catch {

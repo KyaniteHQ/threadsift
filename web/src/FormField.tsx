@@ -8,6 +8,7 @@ interface InputKind {
   readonly autoComplete: string;
   readonly mono: boolean | undefined;
   readonly placeholder: string | undefined;
+  readonly maxLength?: number | undefined;
 }
 
 function describedBy(help: string | null, error: string | null): string | undefined {
@@ -40,6 +41,7 @@ function Input({
       autoCapitalize="off"
       className={kind.mono === true ? "mono" : undefined}
       placeholder={kind.placeholder}
+      maxLength={kind.maxLength}
       value={value}
       aria-invalid={error === null ? undefined : true}
       aria-describedby={described}

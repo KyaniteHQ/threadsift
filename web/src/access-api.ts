@@ -102,20 +102,26 @@ export async function fetchTokens(): Promise<Token[]> {
   return TokenListResponseSchema.parse(await response.json()).tokens;
 }
 
-export async function createToken(
-  name: string,
-): Promise<z.infer<typeof CreatedTokenResponseSchema>> {
+export type CreatedToken =
+  | ({ readonly kind: "created" } & z.infer<typeof CreatedTokenResponseSchema>)
+  | { readonly kind: "invalid" };
+
+export async function createToken(name: string): Promise<CreatedToken> {
   const response = await ownerFetch("/api/tokens", {
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify({ name }),
   });
 
+  if (response.status === 400) {
+    return { kind: "invalid" };
+  }
+
   if (response.status !== 201) {
     throw new Error(`POST /api/tokens answered ${response.status}`);
   }
 
-  return CreatedTokenResponseSchema.parse(await response.json());
+  return { kind: "created", ...CreatedTokenResponseSchema.parse(await response.json()) };
 }
 
 export async function revokeToken(id: number): Promise<void> {

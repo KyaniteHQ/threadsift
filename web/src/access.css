@@ -149,12 +149,31 @@
   flex-direction: column;
   gap: var(--s2);
 }
-.tok-form .fld {
-  flex: 1 1 auto;
-}
 .app:not([data-bp~="narrow"]) .tok-form {
-  flex-direction: row;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: var(--s2);
+  row-gap: var(--s1);
+}
+.app:not([data-bp~="narrow"]) .tok-form .fld {
+  display: contents;
+}
+.app:not([data-bp~="narrow"]) .tok-form .label {
+  grid-column: 1;
+  grid-row: 1;
+}
+.app:not([data-bp~="narrow"]) .tok-form .field {
+  grid-column: 1;
+  grid-row: 2;
+}
+.app:not([data-bp~="narrow"]) .tok-form .fld-err,
+.app:not([data-bp~="narrow"]) .tok-form .fld-help {
+  grid-column: 1;
+  grid-row: 3;
+}
+.app:not([data-bp~="narrow"]) .tok-form .btn {
+  grid-column: 2;
+  grid-row: 2;
 }
 .tok-form .btn {
   min-height: var(--field-h);

@@ -49,3 +49,16 @@ export function lockFor(instance: Instance, kind: "setup" | "login", millisecond
     `INSERT INTO throttles (kind, failures, locked_until) VALUES ('${kind}', 10, ${until}) ON CONFLICT (kind) DO UPDATE SET failures = 10, locked_until = ${until}`,
   );
 }
+
+export async function openSignedIn(
+  browser: Browser,
+  code: string,
+  password: string,
+): Promise<FreshScreen> {
+  const screen = await openFresh(browser, code);
+  await setUpByApi(screen.fresh, code, password);
+  const login = await screen.context.request.post("/api/login", { data: { password } });
+  expect(login.status(), "login through the API").toBe(204);
+
+  return screen;
+}

@@ -47,7 +47,9 @@ export const SetupRequestSchema = z.object({ code: z.string(), password: z.strin
 
 export const LoginRequestSchema = z.object({ password: z.string() });
 
-export const TokenNameSchema = z.string().trim().min(1).max(80);
+export const TOKEN_NAME_MAX = 80;
+
+export const TokenNameSchema = z.string().trim().min(1).max(TOKEN_NAME_MAX);
 
 export const CreateTokenRequestSchema = z.object({ name: TokenNameSchema });
 
