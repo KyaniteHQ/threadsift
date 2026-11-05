@@ -96,20 +96,10 @@ html {
 }
 
 .it-ghost i {
-  display: block;
   width: 40%;
   height: 1lh;
-  border-radius: var(--r1);
-  background: var(--surface-2);
-  animation: shimmer var(--loop-pulse) ease-in-out infinite;
 }
 
 .it-ghost .it-title i {
   width: 70%;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .it-ghost i {
-    animation: none;
-  }
 }
