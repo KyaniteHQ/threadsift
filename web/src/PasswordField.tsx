@@ -5,9 +5,38 @@ import { FormField } from "./FormField.tsx";
 import { Icon } from "./Icon.tsx";
 import type { FieldState } from "./use-form.ts";
 
-function passwordInput(autoComplete: string, shown: boolean) {
+export function usePasswordVisibility() {
+  const [shown, setShown] = useState(false);
+
+  const toggle = useCallback(() => {
+    setShown((current) => !current);
+  }, []);
+
+  const hide = useCallback(() => {
+    setShown(false);
+  }, []);
+
+  return { shown, toggle, hide };
+}
+
+export function UsernameHint() {
+  return (
+    <input
+      type="text"
+      className="vh"
+      name="username"
+      autoComplete="username"
+      tabIndex={-1}
+      aria-hidden="true"
+      value="owner"
+      readOnly
+    />
+  );
+}
+
+function passwordInput(name: string, autoComplete: string, shown: boolean) {
   return {
-    name: "password",
+    name,
     type: shown ? "text" : "password",
     autoComplete,
     mono: undefined,
@@ -32,25 +61,28 @@ function ShowToggle({ shown, toggle }: Readonly<{ shown: boolean; toggle: () => 
 export function PasswordField({
   field,
   label,
+  name,
   autoComplete,
   help,
-  withToggle,
+  shown,
+  toggle,
 }: Readonly<{
   field: FieldState;
   label: string;
+  name: string;
   autoComplete: "new-password" | "current-password";
   help?: string | undefined;
-  withToggle: boolean;
+  shown: boolean;
+  toggle?: (() => void) | undefined;
 }>) {
-  const [shown, setShown] = useState(false);
-
-  const toggle = useCallback(() => {
-    setShown((current) => !current);
-  }, []);
-
   return (
-    <FormField field={field} label={label} kind={passwordInput(autoComplete, shown)} help={help}>
-      {withToggle ? <ShowToggle shown={shown} toggle={toggle} /> : null}
+    <FormField
+      field={field}
+      label={label}
+      kind={passwordInput(name, autoComplete, shown)}
+      help={help}
+    >
+      {toggle === undefined ? null : <ShowToggle shown={shown} toggle={toggle} />}
     </FormField>
   );
 }

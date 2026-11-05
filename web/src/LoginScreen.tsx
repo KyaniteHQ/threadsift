@@ -3,13 +3,15 @@ import { useCallback } from "react";
 import { type Attempt, logIn } from "./access-api.ts";
 import { FIELDS, LOGIN } from "./access-text.ts";
 import { Alert, AuthShell } from "./AuthShell.tsx";
-import { PasswordField } from "./PasswordField.tsx";
+import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
 
 function useLogin(refresh: () => void) {
   const password = useField();
   const lock = useLock();
+  const visibility = usePasswordVisibility();
+  const { hide } = visibility;
   const { fail, clear, value } = password;
   const { start, dismiss } = lock;
 
@@ -21,10 +23,11 @@ function useLogin(refresh: () => void) {
         start(result.retryAfter);
       } else {
         clear();
+        hide();
         fail(result.kind === "wrong" ? LOGIN.wrong : LOGIN.unreachable);
       }
     },
-    [clear, fail, refresh, start],
+    [clear, fail, hide, refresh, start],
   );
 
   const run = useCallback(async () => {
@@ -33,23 +36,25 @@ function useLogin(refresh: () => void) {
     settle(await logIn(value));
   }, [dismiss, fail, settle, value]);
 
-  return { password, lock, ...useSubmit(run, lock.locked) };
+  return { password, lock, visibility, ...useSubmit(run, lock.locked) };
 }
 
 export function LoginScreen({ refresh }: Readonly<{ refresh: () => void }>) {
-  const { password, lock, busy, onSubmit } = useLogin(refresh);
+  const { password, lock, visibility, busy, onSubmit } = useLogin(refresh);
   useFocusOnMount(password);
 
   return (
     <AuthShell>
-      <form className="stack" onSubmit={onSubmit}>
+      <form className="stack" method="post" onSubmit={onSubmit}>
         <h1 className="auth-title">{LOGIN.title}</h1>
-        <input type="text" name="username" autoComplete="username" value="owner" hidden readOnly />
+        <UsernameHint />
         <PasswordField
           field={password}
           label={FIELDS.password}
+          name="password"
           autoComplete="current-password"
-          withToggle
+          shown={visibility.shown}
+          toggle={visibility.toggle}
         />
         <Alert text={lock.message} />
         <SwapButton

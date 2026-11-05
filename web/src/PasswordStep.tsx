@@ -4,7 +4,7 @@ import { type Attempt, setUp } from "./access-api.ts";
 import { FIELDS, SETUP } from "./access-text.ts";
 import { Alert } from "./AuthShell.tsx";
 import type { Unavailable } from "./CodeStep.tsx";
-import { PasswordField } from "./PasswordField.tsx";
+import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { type FieldState, useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
 
@@ -88,25 +88,29 @@ function usePasswordStep(props: Readonly<PasswordStepProps>) {
 
 export function PasswordStep(props: Readonly<PasswordStepProps>) {
   const { password, confirm, lock, failed, busy, onSubmit } = usePasswordStep(props);
+  const { shown, toggle } = usePasswordVisibility();
   useFocusOnMount(password);
 
   return (
-    <form className="stack" onSubmit={onSubmit}>
+    <form className="stack" method="post" onSubmit={onSubmit}>
       <p className="label">{SETUP.stepTwo}</p>
       <h1 className="auth-title">{SETUP.passwordTitle}</h1>
-      <input type="text" name="username" autoComplete="username" value="owner" hidden readOnly />
+      <UsernameHint />
       <PasswordField
         field={password}
         label={FIELDS.password}
+        name="password"
         autoComplete="new-password"
         help={SETUP.passwordHelp}
-        withToggle={false}
+        shown={shown}
+        toggle={toggle}
       />
       <PasswordField
         field={confirm}
         label={FIELDS.confirmPassword}
+        name="confirm-password"
         autoComplete="new-password"
-        withToggle={false}
+        shown={shown}
       />
       <Alert text={lock.message ?? (failed ? SETUP.failed : null)} />
       <SwapButton

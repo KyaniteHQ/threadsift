@@ -256,8 +256,9 @@ export function collectViolations(defaultFont: string): string[] {
     )) {
       const box = (target.closest(".it") ?? target).getBoundingClientRect();
       const drawsNoBox = box.width === 0 && box.height === 0;
+      const isHint = target.closest(".vh") !== null;
 
-      if (!drawsNoBox && Math.min(box.width, box.height) < TARGET - 0.5) {
+      if (!drawsNoBox && !isHint && Math.min(box.width, box.height) < TARGET - 0.5) {
         found.push(`target ${name(target)}: ${box.width}x${box.height} is under ${TARGET}px`);
       }
     }

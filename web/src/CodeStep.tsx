@@ -63,7 +63,7 @@ export function CodeStep(props: Readonly<CodeStepProps>) {
   useFocusOnMount(code);
 
   return (
-    <form className="stack" onSubmit={onSubmit}>
+    <form className="stack" method="post" onSubmit={onSubmit}>
       <p className="label">{SETUP.stepOne}</p>
       <h1 className="auth-title">{SETUP.codeTitle}</h1>
       <p className="fld-help">{SETUP.codeWhere}</p>
