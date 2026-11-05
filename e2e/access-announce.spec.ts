@@ -1,18 +1,21 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { LOGIN, SETUP, WAIT } from "../web/src/access-text.ts";
-import { newCode, newPassword } from "./access.ts";
-import { type FreshScreen, lockFor, openFresh, setUpByApi } from "./fresh-screen.ts";
+import { LOGIN, SETUP } from "../web/src/access-text.ts";
+import { newCode, minimumPassword } from "./access.ts";
+import {
+  type FreshScreen,
+  LOCK_MS,
+  expectCountdown,
+  lockFor,
+  openFresh,
+  setUpByApi,
+} from "./fresh-screen.ts";
+import { pasteField } from "./links.ts";
 import { codeField, confirmField, passwordField } from "./setup-screens.ts";
-
-const PASSWORD_LENGTH = 15;
-const LOCK_MS = 5000;
-const COUNTDOWN_MS = 4000;
-const OVER_MS = 9000;
 
 let screen: FreshScreen;
 const code = newCode();
-const password = newPassword().slice(0, PASSWORD_LENGTH);
+const password = minimumPassword();
 
 test.describe.configure({ mode: "serial" });
 
@@ -50,7 +53,7 @@ test("setup: a wrong code and a short password are announced, tied to their fiel
 
 test("sign-in: a wrong password is announced, and a lock counts down and says when it ends", async () => {
   const { page, fresh } = screen;
-  await setUpByApi(fresh, code, password);
+  await setUpByApi(fresh.url, code, password);
   await page.goto("/");
   await passwordField(page).fill(`${password}x`);
   await passwordField(page).press("Enter");
@@ -60,9 +63,7 @@ test("sign-in: a wrong password is announced, and a lock counts down and says wh
   lockFor(fresh, "login", LOCK_MS);
   await passwordField(page).fill(password);
   await passwordField(page).press("Enter");
-  await expect(alertOf(page)).toHaveText(/wait [3-5] seconds/u);
-  await expect(alertOf(page)).toHaveText(/wait [1-3] seconds/u, { timeout: COUNTDOWN_MS });
-  await expect(alertOf(page)).toHaveText(WAIT.over, { timeout: OVER_MS });
+  await expectCountdown(alertOf(page));
   await expect(page.getByRole("button", { name: LOGIN.signIn })).not.toHaveAttribute(
     "aria-disabled",
     "true",
@@ -70,5 +71,5 @@ test("sign-in: a wrong password is announced, and a lock counts down and says wh
 
   await passwordField(page).fill(password);
   await passwordField(page).press("Enter");
-  await expect(page.getByRole("textbox", { name: "Paste a link to save" })).toBeVisible();
+  await expect(pasteField(page)).toBeVisible();
 });

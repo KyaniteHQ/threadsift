@@ -1,5 +1,13 @@
-import { type Browser, type BrowserContext, type Page, expect } from "@playwright/test";
+import {
+  type Browser,
+  type BrowserContext,
+  type Locator,
+  type Page,
+  expect,
+} from "@playwright/test";
 
+import type { ThrottleKind } from "../src/core/kinds.ts";
+import { WAIT } from "../web/src/access-text.ts";
 import { type Instance, anonymous, launchFresh } from "./access.ts";
 
 export interface FreshScreen {
@@ -25,12 +33,8 @@ export async function openFresh(browser: Browser, code: string | null): Promise<
   };
 }
 
-export async function setUpByApi(
-  instance: Instance,
-  code: string,
-  password: string,
-): Promise<string> {
-  const stranger = await anonymous(instance.url);
+export async function setUpByApi(url: string, code: string, password: string): Promise<string> {
+  const stranger = await anonymous(url);
 
   try {
     const response = await stranger.post("/api/setup", { data: { code, password } });
@@ -42,7 +46,7 @@ export async function setUpByApi(
   }
 }
 
-export function lockFor(instance: Instance, kind: "setup" | "login", milliseconds: number): void {
+export function lockFor(instance: Instance, kind: ThrottleKind, milliseconds: number): void {
   const until = `CAST(strftime('%s', 'now') AS INTEGER) * 1000 + ${milliseconds}`;
 
   instance.sql(
@@ -56,9 +60,19 @@ export async function openSignedIn(
   password: string,
 ): Promise<FreshScreen> {
   const screen = await openFresh(browser, code);
-  await setUpByApi(screen.fresh, code, password);
+  await setUpByApi(screen.fresh.url, code, password);
   const login = await screen.context.request.post("/api/login", { data: { password } });
   expect(login.status(), "login through the API").toBe(204);
 
   return screen;
+}
+
+export const LOCK_MS = 5000;
+const COUNTDOWN_MS = 4000;
+const OVER_MS = 9000;
+
+export async function expectCountdown(alert: Locator): Promise<void> {
+  await expect(alert).toHaveText(/wait [3-5] seconds/u);
+  await expect(alert).toHaveText(/wait [1-3] seconds/u, { timeout: COUNTDOWN_MS });
+  await expect(alert).toHaveText(WAIT.over, { timeout: OVER_MS });
 }

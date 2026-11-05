@@ -1,16 +1,10 @@
-import {
-  type APIRequestContext,
-  type APIResponse,
-  type Page,
-  expect,
-  test,
-} from "@playwright/test";
+import { type APIResponse, type Page, expect, test } from "@playwright/test";
 import type { z } from "zod";
 
 import { SessionStateSchema } from "../src/http/schemas.ts";
 import { SETUP } from "../web/src/access-text.ts";
 import { ErrorBody, expectRefusal } from "./access-helpers.ts";
-import { type Instance, anonymous, launchFresh, newCode } from "./access.ts";
+import { type Instance, launchFresh, newCode, strangerPool } from "./access.ts";
 import { codeField } from "./setup-screens.ts";
 import { isContainerTarget } from "./target.ts";
 
@@ -19,10 +13,10 @@ const LOG_LINE = /^Setup code: (\S+)$/gmu;
 const PASSWORD = "p".repeat(20);
 
 const running: Instance[] = [];
-const strangers: APIRequestContext[] = [];
+const strangers = strangerPool();
 
 test.afterEach(async () => {
-  await Promise.all(strangers.splice(0).map((stranger) => stranger.dispose()));
+  await strangers.disposeAll();
 
   for (const instance of running.splice(0)) {
     instance.stop();
@@ -42,8 +36,7 @@ interface SetupBody {
 }
 
 async function post(instance: Instance, path: string, data: SetupBody): Promise<APIResponse> {
-  const stranger = await anonymous(instance.url);
-  strangers.push(stranger);
+  const stranger = await strangers.at(instance.url);
 
   return stranger.post(path, { data });
 }
@@ -53,8 +46,7 @@ function loggedCodes(instance: Instance): string[] {
 }
 
 async function sessionOf(instance: Instance): Promise<z.infer<typeof SessionStateSchema>> {
-  const stranger = await anonymous(instance.url);
-  strangers.push(stranger);
+  const stranger = await strangers.at(instance.url);
 
   return SessionStateSchema.parse(await (await stranger.get("/api/session")).json());
 }

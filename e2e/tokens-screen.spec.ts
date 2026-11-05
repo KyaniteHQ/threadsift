@@ -1,17 +1,17 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS, filled } from "../web/src/access-text.ts";
-import { newCode, newPassword } from "./access.ts";
+import { newCode, minimumPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
+import { tokenNameField } from "./setup-screens.ts";
 
-const PASSWORD_LENGTH = 15;
 const NAME_LIMIT = 80;
 const TOO_LONG = NAME_LIMIT + 27;
 const PIXEL = 1;
 
 let screen: FreshScreen;
 const code = newCode();
-const password = newPassword().slice(0, PASSWORD_LENGTH);
+const password = minimumPassword();
 
 test.beforeAll(async ({ browser }) => {
   screen = await openSignedIn(browser, code, password);
@@ -20,10 +20,6 @@ test.beforeAll(async ({ browser }) => {
 test.afterAll(async () => {
   await screen.close();
 });
-
-function nameField(page: Page) {
-  return page.getByLabel(SETTINGS.tokenName);
-}
 
 function createButton(page: Page) {
   return page.getByRole("button", { name: SETTINGS.createToken });
@@ -39,9 +35,9 @@ async function centreOf(box: Promise<{ y: number; height: number } | null>): Pro
 test("the token name stops at 80 characters", async () => {
   const { page } = screen;
   await page.goto("/settings");
-  await expect(nameField(page)).toHaveAttribute("maxlength", String(NAME_LIMIT));
-  await nameField(page).pressSequentially("n".repeat(TOO_LONG));
-  await expect(nameField(page)).toHaveValue("n".repeat(NAME_LIMIT));
+  await expect(tokenNameField(page)).toHaveAttribute("maxlength", String(NAME_LIMIT));
+  await tokenNameField(page).pressSequentially("n".repeat(TOO_LONG));
+  await expect(tokenNameField(page)).toHaveValue("n".repeat(NAME_LIMIT));
 });
 
 test("Create stays level with the name field while the field shows an error", async () => {
@@ -49,24 +45,28 @@ test("Create stays level with the name field while the field shows an error", as
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/settings");
   const quiet = await centreOf(createButton(page).boundingBox());
-  const input = await centreOf(nameField(page).boundingBox());
+  const input = await centreOf(tokenNameField(page).boundingBox());
   expect(Math.abs(quiet - input), "Create is level with the field").toBeLessThan(PIXEL);
 
-  await nameField(page).press("Enter");
+  await tokenNameField(page).press("Enter");
   await expect(page.getByRole("alert")).toHaveText(SETTINGS.tokenNameRequired);
   const withError = await centreOf(createButton(page).boundingBox());
-  const inputWithError = await centreOf(nameField(page).boundingBox());
+  const inputWithError = await centreOf(tokenNameField(page).boundingBox());
   expect(Math.abs(withError - inputWithError), "Create stays level").toBeLessThan(PIXEL);
 });
 
 const PHONE = { width: 390, height: 844 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
 
-async function create(page: Page, name: string): Promise<void> {
-  await page.goto("/settings");
-  await nameField(page).fill(name);
+async function mint(page: Page, name: string): Promise<void> {
+  await tokenNameField(page).fill(name);
   await createButton(page).click();
   await expect(valueField(page)).toBeVisible();
+}
+
+async function create(page: Page, name: string): Promise<void> {
+  await page.goto("/settings");
+  await mint(page, name);
 }
 
 function selectedText(page: Page): Promise<string> {
@@ -183,14 +183,8 @@ test("a refused copy is announced and leaves the value selected in a focused fie
 });
 
 async function addToken(page: Page, name: string): Promise<void> {
-  await nameField(page).fill(name);
-  await createButton(page).click();
-  await expect(valueField(page)).toBeVisible();
+  await mint(page, name);
   await page.getByRole("button", { name: SETTINGS.done }).click();
-}
-
-function rowRevoke(page: Page, name: string) {
-  return page.locator(".tok", { hasText: name }).getByRole("button", { name: SETTINGS.revoke });
 }
 
 function revokeOf(page: Page, name: string) {
@@ -216,7 +210,7 @@ test("the revoke question says what revoking does", async () => {
   await page.setViewportSize(DESKTOP);
   await page.goto("/settings");
   await addToken(page, "Effect");
-  await rowRevoke(page, "Effect").click();
+  await revokeOf(page, "Effect").click();
   await expect(page.getByText(SETTINGS.revokeEffect)).toBeVisible();
 });
 
@@ -225,9 +219,9 @@ test("Escape cancels the revoke question and returns focus to that token's Revok
   await page.setViewportSize(DESKTOP);
   await page.goto("/settings");
   await addToken(page, "Escaped");
-  await rowRevoke(page, "Escaped").click();
+  await revokeOf(page, "Escaped").click();
   await expect(page.getByRole("button", { name: SETTINGS.cancel })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: SETTINGS.revokeConfirm })).toHaveCount(0);
-  await expect(rowRevoke(page, "Escaped")).toBeFocused();
+  await expect(revokeOf(page, "Escaped")).toBeFocused();
 });

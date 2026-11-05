@@ -1,8 +1,8 @@
 import { type Page, expect, test } from "@playwright/test";
 
+import { mainInstance } from "./access.ts";
 import { listAll, listForRun, refusedWith } from "./api.ts";
 import { newRunId, pasteLink, scenarioLinks, scenarioUrls } from "./links.ts";
-import { restartTarget } from "./target.ts";
 
 const REFUSED_BODIES = [
   '{"url":"javascript:alert(1)"}',
@@ -40,7 +40,6 @@ async function expectListMatches(page: Page, expectedUrls: readonly string[]) {
 test("twelve pasted links make eleven Items that keep their order across a restart", async ({
   page,
   request,
-  baseURL,
 }) => {
   const run = newRunId();
   const links = scenarioLinks(run);
@@ -65,7 +64,7 @@ test("twelve pasted links make eleven Items that keep their order across a resta
 
   expect(await listAll(request)).toHaveLength(total);
 
-  await restartTarget(baseURL ?? "");
+  mainInstance().restart();
   expect(await listForRun(request, run)).toEqual(before);
   await page.goto("/");
   await expectListMatches(page, newestFirst);

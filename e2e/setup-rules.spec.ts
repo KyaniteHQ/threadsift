@@ -1,9 +1,9 @@
-import { type APIRequestContext, type APIResponse, expect, test } from "@playwright/test";
+import { type APIResponse, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { LOGIN } from "../web/src/access-text.ts";
 import { cookieHeader, expectRefusal } from "./access-helpers.ts";
-import { type Instance, anonymous, launchFresh, newCode, sessionValueOf } from "./access.ts";
+import { type Instance, launchFresh, newCode, sessionValueOf, strangerPool } from "./access.ts";
 import { passwordField } from "./setup-screens.ts";
 
 const LIGATURE_PASSWORD = `\uFB01${"x".repeat(12)}\u00E9`;
@@ -15,7 +15,7 @@ const Hash = z.array(z.object({ password_hash: z.string() }));
 const Throttles = z.array(z.object({ kind: z.string() }));
 
 let rules: Instance;
-const strangers: APIRequestContext[] = [];
+const strangers = strangerPool();
 const code = newCode();
 
 test.describe.configure({ mode: "serial" });
@@ -25,7 +25,7 @@ test.beforeAll(() => {
 });
 
 test.afterAll(async () => {
-  await Promise.all(strangers.map((stranger) => stranger.dispose()));
+  await strangers.disposeAll();
   rules.stop();
 });
 
@@ -34,8 +34,7 @@ async function send(
   path: string,
   options: { data?: unknown; headers?: Record<string, string> } = {},
 ): Promise<APIResponse> {
-  const stranger = await anonymous(rules.url);
-  strangers.push(stranger);
+  const stranger = await strangers.at(rules.url);
 
   return stranger[method](path, options);
 }

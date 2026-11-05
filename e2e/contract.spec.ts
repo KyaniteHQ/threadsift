@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { z } from "zod";
 
-import { anonymous } from "./access.ts";
+import { test } from "./access.ts";
 
 interface ApiSchema {
   $ref?: string | undefined;
@@ -111,10 +111,8 @@ test("a path with a file extension that matches no file is a 404 and a page path
 
 test("/api answers JSON on its own and under any path, never the page", async ({
   request,
-  baseURL,
+  stranger,
 }) => {
-  const stranger = await anonymous(baseURL ?? "");
-
   for (const [caller, status] of [
     [request, 404],
     [stranger, 401],
@@ -125,8 +123,6 @@ test("/api answers JSON on its own and under any path, never the page", async ({
       expect(response.headers()["content-type"], path).toContain("application/json");
     }
   }
-
-  await stranger.dispose();
 });
 
 test("hashed assets are cached for good and the page is always revalidated", async ({

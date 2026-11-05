@@ -1,19 +1,14 @@
-import { type Page, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { LOGIN, SETTINGS } from "../web/src/access-text.ts";
-import { newCode, newPassword } from "./access.ts";
+import { newCode, minimumPassword } from "./access.ts";
 import { type FreshScreen, openFresh, openSignedIn } from "./fresh-screen.ts";
+import { pasteField } from "./links.ts";
 import { passwordField, setUpInBrowser } from "./setup-screens.ts";
-
-const PASSWORD_LENGTH = 15;
 
 let screen: FreshScreen;
 const code = newCode();
-const password = newPassword().slice(0, PASSWORD_LENGTH);
-
-function pasteField(page: Page) {
-  return page.getByRole("textbox", { name: "Paste a link to save" });
-}
+const password = minimumPassword();
 
 test.describe("setup", () => {
   test.beforeAll(async ({ browser }) => {

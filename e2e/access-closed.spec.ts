@@ -1,9 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { z } from "zod";
 
-import { PUBLIC_ROUTES } from "../src/http/access-rules.ts";
 import { cookieHeader, createToken, expectRefusal, revokeToken } from "./access-helpers.ts";
-import { agentToken, anonymous, bearer } from "./access.ts";
+import { agentToken, bearer, test } from "./access.ts";
 import { newRunId } from "./links.ts";
 
 const METHODS = ["get", "post", "put", "patch", "delete"] as const;
@@ -12,16 +11,20 @@ const OpenApiPaths = z.object({
   paths: z.record(z.string(), z.record(z.string(), z.unknown())),
 });
 
-function isPublic(method: string, path: string): boolean {
-  return PUBLIC_ROUTES.some(
-    (route) => route.method === method.toUpperCase() && route.path === path,
-  );
+const SPECIFIED_PUBLIC = new Set([
+  "GET /api/session",
+  "POST /api/setup/code",
+  "POST /api/setup",
+  "POST /api/login",
+]);
+
+function isSpecifiedPublic(method: string, path: string): boolean {
+  return SPECIFIED_PUBLIC.has(`${method.toUpperCase()} ${path}`);
 }
 
 test("with no credentials every method and path of the OpenAPI document except the public list answers 401, and so does an unknown path", async ({
-  baseURL,
+  stranger,
 }) => {
-  const stranger = await anonymous(baseURL ?? "");
   const document = await stranger.get("/api/openapi.json", { headers: bearer(agentToken()) });
   const { paths } = OpenApiPaths.parse(await document.json());
   expect(Object.keys(paths)).toEqual(expect.arrayContaining(["/api/items", "/api/tokens/{id}"]));
@@ -29,10 +32,9 @@ test("with no credentials every method and path of the OpenAPI document except t
 
   for (const [path, operations] of Object.entries(paths)) {
     for (const method of METHODS.filter((name) => name in operations)) {
-      if (!isPublic(method, path)) {
+      if (!isSpecifiedPublic(method, path)) {
         const url = path.replace("{id}", "1");
-        const data = method === "get" ? undefined : {};
-        await expectRefusal(await stranger.fetch(url, { method, data }), 401, `${method} ${url}`);
+        await expectRefusal(await stranger.fetch(url, { method }), 401, `${method} ${url}`);
         probed.push(`${method} ${url}`);
       }
     }
@@ -43,12 +45,11 @@ test("with no credentials every method and path of the OpenAPI document except t
   await expectRefusal(await stranger.get("/api/no-such-route"), 401, "an unknown path");
   await expectRefusal(await stranger.get("/api/tokens/"), 401, "a trailing slash");
   expect((await stranger.get("/api/session")).status(), "a public route").toBe(200);
-  await stranger.dispose();
 });
 
 test("a malformed Authorization header gets 400 and a revoked token gets 401, neither falling back to the cookie", async ({
   request,
-  baseURL,
+  stranger,
 }) => {
   const created = await createToken(request, `precedence ${newRunId()}`);
 
@@ -64,10 +65,8 @@ test("a malformed Authorization header gets 400 and a revoked token gets 401, ne
   await expectRefusal(afterwards, 401, "a revoked token with a valid cookie");
   await expectRefusal(await revokeToken(request, created.token.id), 404, "twice");
 
-  const stranger = await anonymous(baseURL ?? "");
   const unknown = await stranger.get("/api/items", { headers: cookieHeader("nonsense") });
   await expectRefusal(unknown, 401, "an unknown session");
-  await stranger.dispose();
 });
 
 test("a valid token gets 403 on the owner's routes whatever the body, and works on the rest", async ({

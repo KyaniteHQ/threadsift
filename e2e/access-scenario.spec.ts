@@ -4,24 +4,32 @@ import {
   type Page,
   type TestInfo,
   expect,
-  request,
   test,
 } from "@playwright/test";
 
-import { FIELDS, LOGIN, SETTINGS, SETUP, filled } from "../web/src/access-text.ts";
+import { LOGIN, SETTINGS, SETUP, filled } from "../web/src/access-text.ts";
+import { cookieHeader } from "./access-helpers.ts";
 import {
   type Instance,
   SESSION_COOKIE,
+  anonymous,
   bearer,
   launchFresh,
   newCode,
-  newPassword,
+  minimumPassword,
 } from "./access.ts";
 import { type Entry, call, violations, watchPage } from "./ledger.ts";
-import { newRunId, pasteLink } from "./links.ts";
-import { choosePassword, codeField, enterCode, passwordField } from "./setup-screens.ts";
+import { newRunId, pasteField, pasteLink } from "./links.ts";
+import {
+  choosePassword,
+  codeField,
+  enterCode,
+  libraryHeading,
+  passwordField,
+  submitPassword,
+  tokenNameField,
+} from "./setup-screens.ts";
 
-const PASSWORD_LENGTH = 15;
 const TEST_TIMEOUT_MS = 120_000;
 const CLIPBOARD = ["clipboard-read", "clipboard-write"];
 
@@ -35,7 +43,7 @@ interface Run {
 
 let fresh: Instance;
 const code = newCode();
-const password = newPassword().slice(0, PASSWORD_LENGTH);
+const password = minimumPassword();
 
 test.describe.configure({ mode: "serial" });
 
@@ -76,13 +84,11 @@ async function stepSetup(run: Run): Promise<void> {
   await expect(passwordField(page)).toBeFocused();
   await shot(run, "2-setup-password");
 
-  await passwordField(page).fill(password);
-  await page.getByLabel(FIELDS.confirmPassword).fill(`${password}x`);
-  await page.getByRole("button", { name: SETUP.create }).click();
+  await submitPassword(page, password, `${password}x`);
   await expect(page.getByText(SETUP.passwordMismatch)).toBeVisible();
 
   await choosePassword(page, password);
-  await expect(page.getByRole("heading", { level: 1, name: "Threadsift" })).toBeVisible();
+  await expect(libraryHeading(page)).toBeVisible();
   await expect(page).toHaveTitle("Threadsift");
   const names = (await run.context.cookies()).map((cookie) => cookie.name);
   expect(names, "Chromium keeps the Secure cookie set over http").toContain(SESSION_COOKIE);
@@ -97,9 +103,9 @@ async function openSettings(page: Page): Promise<void> {
 async function stepToken(run: Run): Promise<string> {
   const { page } = run;
   await openSettings(page);
-  await expect(page.getByLabel(SETTINGS.tokenName)).toBeFocused();
+  await expect(tokenNameField(page)).toBeFocused();
 
-  await page.getByLabel(SETTINGS.tokenName).fill("Extension");
+  await tokenNameField(page).fill("Extension");
   await page.getByRole("button", { name: SETTINGS.createToken }).click();
   const value = await page.getByLabel(SETTINGS.tokenValue).inputValue();
   expect(value).toMatch(/^tsa_/u);
@@ -145,26 +151,26 @@ async function stepSignOut(run: Run, links: readonly string[]): Promise<void> {
   await page.getByRole("button", { name: SETTINGS.signOut }).click();
 
   await expect(page).toHaveTitle("Sign in to Threadsift");
-  await expect(page.getByLabel(FIELDS.password, { exact: true })).toBeFocused();
+  await expect(passwordField(page)).toBeFocused();
   await shot(run, "4-login");
 
-  const ended = { cookie: `${SESSION_COOKIE}=${cookie?.value ?? ""}` };
+  const ended = cookieHeader(cookie?.value ?? "");
 
   const afterwards = await call(ledger, "ended session", outside, "GET", "/api/items", {
     headers: ended,
   });
 
   expect(afterwards.status(), "a signed-out session").toBe(401);
-  const anonymous = await call(ledger, "nobody", outside, "GET", "/api/items");
-  expect(anonymous.status()).toBe(401);
+  const nobody = await call(ledger, "nobody", outside, "GET", "/api/items");
+  expect(nobody.status()).toBe(401);
 
-  await page.getByLabel(FIELDS.password, { exact: true }).fill(`${password}x`);
+  await passwordField(page).fill(`${password}x`);
   await page.getByRole("button", { name: LOGIN.signIn }).click();
   await expect(page.getByText(LOGIN.wrong)).toBeVisible();
-  await expect(page.getByLabel(FIELDS.password, { exact: true })).toBeFocused();
-  await expect(page.getByLabel(FIELDS.password, { exact: true })).toHaveValue("");
+  await expect(passwordField(page)).toBeFocused();
+  await expect(passwordField(page)).toHaveValue("");
 
-  await page.getByLabel(FIELDS.password, { exact: true }).fill(password);
+  await passwordField(page).fill(password);
   await page.getByRole("button", { name: LOGIN.signIn }).click();
   await seeRows(page, links);
 }
@@ -201,7 +207,7 @@ test("a fresh Instance is set up, saved to, signed out of and its token revoked 
   const run: Run = {
     page: await context.newPage(),
     context,
-    outside: await request.newContext({ baseURL: fresh.url }),
+    outside: await anonymous(fresh.url),
     info: testInfo,
     ledger: [],
   };
@@ -236,20 +242,20 @@ test("a Paste after the owner signed out in another tab shows the login screen, 
   const context = await browser.newContext({ baseURL: fresh.url });
   const [first, second] = [await context.newPage(), await context.newPage()];
   await first.goto("/");
-  await first.getByLabel(FIELDS.password, { exact: true }).fill(password);
+  await passwordField(first).fill(password);
   await first.getByRole("button", { name: LOGIN.signIn }).click();
-  await expect(first.getByRole("textbox", { name: "Paste a link to save" })).toBeVisible();
+  await expect(pasteField(first)).toBeVisible();
   await second.goto("/");
-  await expect(second.getByRole("textbox", { name: "Paste a link to save" })).toBeVisible();
+  await expect(pasteField(second)).toBeVisible();
 
   await openSettings(first);
   await first.getByRole("button", { name: SETTINGS.signOut }).click();
   await expect(first.getByRole("heading", { name: LOGIN.heading })).toBeVisible();
 
-  await second.getByRole("textbox", { name: "Paste a link to save" }).fill("https://example.com/x");
+  await pasteField(second).fill("https://example.com/x");
   await second.getByRole("button", { name: "Add" }).click();
   await expect(second.getByRole("heading", { name: LOGIN.heading })).toBeVisible();
-  await expect(second.getByLabel(FIELDS.password, { exact: true })).toBeFocused();
+  await expect(passwordField(second)).toBeFocused();
   await expect(second.getByRole("alert")).toHaveCount(0);
   await context.close();
 });

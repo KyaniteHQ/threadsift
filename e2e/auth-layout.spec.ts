@@ -1,12 +1,11 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { LOGIN, SETUP } from "../web/src/access-text.ts";
-import { newCode } from "./access.ts";
+import { SIGNED_OUT, newCode } from "./access.ts";
 import { type FreshScreen, openFresh } from "./fresh-screen.ts";
-import { codeField, confirmField, enterCode, passwordField } from "./setup-screens.ts";
+import { codeField, enterCode, passwordField, submitPassword } from "./setup-screens.ts";
 
 const code = newCode();
-const SIGNED_OUT = { cookies: [], origins: [] };
 const HALF_PIXEL = 0.5;
 
 let screen: FreshScreen;
@@ -32,19 +31,15 @@ test("the wordmark stays put while the card changes height", async () => {
   await expect(codeField(page)).toBeFocused();
   const resting = await markTop(page);
 
-  await codeField(page).fill(`${code}x`);
-  await page.getByRole("button", { name: SETUP.continue }).click();
+  await enterCode(page, `${code}x`);
   await expect(page.getByRole("alert")).toHaveText(SETUP.codeWrong);
   expect(await markTop(page), "with a wrong-code error").toBe(resting);
 
-  await codeField(page).fill(code);
-  await page.getByRole("button", { name: SETUP.continue }).click();
+  await enterCode(page, code);
   await expect(passwordField(page)).toBeFocused();
   expect(await markTop(page), "on the password step").toBe(resting);
 
-  await passwordField(page).fill("a-long-enough-password");
-  await confirmField(page).fill("a-different-password");
-  await page.getByRole("button", { name: SETUP.create }).click();
+  await submitPassword(page, "a-long-enough-password", "a-different-password");
   await expect(page.getByRole("alert")).toHaveText(SETUP.passwordMismatch);
   expect(await markTop(page), "with a mismatch error").toBe(resting);
 });

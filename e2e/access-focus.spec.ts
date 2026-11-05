@@ -1,9 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 import { FIELDS } from "../web/src/access-text.ts";
+import { SIGNED_OUT } from "./access.ts";
 import { passwordField } from "./setup-screens.ts";
-
-const SIGNED_OUT = { cookies: [], origins: [] };
 
 test("a focused text field keeps a visible outline in forced colours", async ({
   browser,

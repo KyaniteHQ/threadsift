@@ -3,15 +3,10 @@ import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 import { OWNER_STATE_FILE } from "./e2e/access.ts";
+import { envValue } from "./e2e/env.ts";
 
-const baseURL = process.env["THREADSIFT_BASE_URL"];
-const stateDir = process.env["THREADSIFT_E2E_DIR"];
-
-if (baseURL === undefined || stateDir === undefined) {
-  throw new Error(
-    "Set THREADSIFT_BASE_URL and THREADSIFT_E2E_DIR; tools/e2e/container.sh and tools/e2e/worker.sh do",
-  );
-}
+const baseURL = envValue("THREADSIFT_BASE_URL");
+const stateDir = envValue("THREADSIFT_E2E_DIR");
 
 export default defineConfig({
   testDir: "e2e",

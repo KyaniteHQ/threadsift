@@ -1,10 +1,10 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import type { Item } from "../src/http/schemas.ts";
+import { mainInstance } from "./access.ts";
 import { listAll, refusedWith } from "./api.ts";
 import { newRunId, pasteLink } from "./links.ts";
 import { type Listener, startListener } from "./listener.ts";
-import { restartTarget } from "./target.ts";
 
 const POST = "https://reddit.com/r/all/comments/2a4qo6/";
 const POST_TITLE = "Wallabag - A 'read it later' app similar like Instapaper or Pocket";
@@ -104,7 +104,6 @@ async function expectRefusalsStoreNothing(page: Page) {
 
 test("nine pasted links make seven Items with their titles, and the library keeps them across a restart", async ({
   page,
-  baseURL,
 }) => {
   test.setTimeout(180_000);
   const redirect = `https://httpbin.dev/redirect-to?url=${encodeURIComponent(`http://127.0.0.1:${listener.port}/`)}&run=${newRunId()}`;
@@ -119,7 +118,7 @@ test("nine pasted links make seven Items with their titles, and the library keep
   await expectRefusalsStoreNothing(page);
 
   const before = await libraryItems(page, redirect);
-  await restartTarget(baseURL ?? "");
+  mainInstance().restart();
   expect(await libraryItems(page, redirect)).toEqual(before);
 
   await page.goto("/");

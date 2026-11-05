@@ -26,7 +26,7 @@ let signIn: FreshScreen;
 test.beforeAll(async ({ browser }) => {
   setup = await openFresh(browser, code);
   signIn = await openFresh(browser, code);
-  await setUpByApi(signIn.fresh, code, password);
+  await setUpByApi(signIn.fresh.url, code, password);
 });
 
 test.afterAll(async () => {

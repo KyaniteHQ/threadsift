@@ -1,14 +1,14 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { z } from "zod";
 
 import { DAY_MS, ErrorBody, MAX_AGE, expectRefusal, sha256Hex, signIn } from "./access-helpers.ts";
 import {
   SAME_ORIGIN,
   SESSION_COOKIE,
-  anonymous,
   mainInstance,
   ownerPassword,
   sessionValueOf,
+  test,
 } from "./access.ts";
 
 const Sessions = z.array(z.object({ digest: z.string(), expires_at: z.number() }));
@@ -22,9 +22,8 @@ function expiryOf(digest: string): number | undefined {
 }
 
 test("login sets a __Host- cookie for 30 days and the sessions table holds only a digest", async ({
-  baseURL,
+  stranger,
 }) => {
-  const stranger = await anonymous(baseURL ?? "");
   const wrong = await stranger.post("/api/login", { data: { password: `${ownerPassword()}x` } });
   await expectRefusal(wrong, 401, "a wrong password");
 
@@ -42,11 +41,9 @@ test("login sets a __Host- cookie for 30 days and the sessions table holds only 
   const digests = storedSessions().map((row) => row.digest);
   expect(digests).toContain(sha256Hex(value));
   expect(digests, "no raw session id is stored").not.toContain(value);
-  await stranger.dispose();
 });
 
-test("a wrong password always gets the same message", async ({ baseURL }) => {
-  const stranger = await anonymous(baseURL ?? "");
+test("a wrong password always gets the same message", async ({ stranger }) => {
   const messages = new Set<string>();
 
   for (const suffix of ["a", "b"]) {
@@ -58,7 +55,6 @@ test("a wrong password always gets the same message", async ({ baseURL }) => {
   }
 
   expect(messages.size).toBe(1);
-  await stranger.dispose();
 });
 
 test("after logout the old cookie gets 401 and its row is gone", async ({ baseURL }) => {

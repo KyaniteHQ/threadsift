@@ -7,63 +7,47 @@ import {
   type APIRequestContext,
   type Browser,
   type BrowserContext,
+  type BrowserContextOptions,
+  test as base,
   request,
 } from "@playwright/test";
-import { z } from "zod";
+import type { z } from "zod";
 
-import { SESSION_DAYS } from "../src/core/sessions.ts";
+import { SESSION_MAX_AGE_SECONDS } from "../src/core/sessions.ts";
 import { envValue } from "./env.ts";
 
 export const SESSION_COOKIE = "__Host-threadsift_session";
 
-const StorageStateSchema = z.object({
-  cookies: z.array(
-    z.object({
-      name: z.string(),
-      value: z.string(),
-      domain: z.string(),
-      path: z.string(),
-      expires: z.number(),
-      httpOnly: z.boolean(),
-      secure: z.boolean(),
-      sameSite: z.enum(["Strict", "Lax", "None"]),
-    }),
-  ),
-  origins: z.tuple([]),
-});
-
-const TokenFileSchema = z.object({ value: z.string() });
-
-const PasswordFileSchema = z.object({ password: z.string() });
-
-export type StorageState = z.infer<typeof StorageStateSchema>;
+type StorageStateObject = Exclude<NonNullable<BrowserContextOptions["storageState"]>, string>;
 
 export function stateDir(): string {
   return envValue("THREADSIFT_E2E_DIR");
 }
 
-function readState<T>(name: string, schema: z.ZodType<T>): T {
-  return schema.parse(JSON.parse(readFileSync(join(stateDir(), name), "utf8")));
+function readText(name: string): string {
+  return readFileSync(join(stateDir(), name), "utf8").trim();
 }
 
 export const OWNER_STATE_FILE = "owner.json";
-export const TOKEN_FILE = "token.json";
-export const PASSWORD_FILE = "password.json";
-
-export function ownerState(): StorageState {
-  return readState(OWNER_STATE_FILE, StorageStateSchema);
-}
+export const TOKEN_FILE = "token.txt";
+export const PASSWORD_FILE = "password.txt";
 
 export function agentToken(): string {
-  return readState(TOKEN_FILE, TokenFileSchema).value;
+  return readText(TOKEN_FILE);
 }
 
 export function ownerPassword(): string {
-  return readState(PASSWORD_FILE, PasswordFileSchema).password;
+  return readText(PASSWORD_FILE);
 }
+
+const MINIMUM_PASSWORD_LENGTH = 15;
 
 export function newPassword(): string {
   return randomBytes(18).toString("base64url");
+}
+
+export function minimumPassword(): string {
+  return newPassword().slice(0, MINIMUM_PASSWORD_LENGTH);
 }
 
 export function newCode(): string {
@@ -76,18 +60,44 @@ export function bearer(token: string) {
   return { authorization: `Bearer ${token}` };
 }
 
+export const SIGNED_OUT = { cookies: [], origins: [] };
+
 export function anonymous(baseURL: string): Promise<APIRequestContext> {
-  return request.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+  return request.newContext({ baseURL, storageState: SIGNED_OUT });
+}
+
+export const test = base.extend<{ stranger: APIRequestContext }>({
+  stranger: async ({ baseURL }, provide) => {
+    const context = await anonymous(baseURL ?? "");
+    await provide(context);
+    await context.dispose();
+  },
+});
+
+export function strangerPool() {
+  const open: APIRequestContext[] = [];
+
+  return {
+    async at(url: string): Promise<APIRequestContext> {
+      const context = await anonymous(url);
+      open.push(context);
+
+      return context;
+    },
+    async disposeAll(): Promise<void> {
+      await Promise.all(open.splice(0).map((context) => context.dispose()));
+    },
+  };
 }
 
 export function ownerContext(
   browser: Browser,
   extra: Parameters<Browser["newContext"]>[0] = {},
 ): Promise<BrowserContext> {
-  return browser.newContext({ storageState: ownerState(), ...extra });
+  return browser.newContext({ storageState: join(stateDir(), OWNER_STATE_FILE), ...extra });
 }
 
-export function sessionStateOf(value: string, baseURL: string): StorageState {
+export function sessionStateOf(value: string, baseURL: string): StorageStateObject {
   const url = new URL(baseURL);
 
   return {
@@ -97,7 +107,7 @@ export function sessionStateOf(value: string, baseURL: string): StorageState {
         value,
         domain: url.hostname,
         path: "/",
-        expires: Math.floor(Date.now() / 1000) + SESSION_DAYS * 86_400,
+        expires: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS,
         httpOnly: true,
         secure: true,
         sameSite: "Lax",

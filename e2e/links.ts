@@ -1,5 +1,6 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
+import { PASTE_LABEL } from "../web/src/text.ts";
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
 const PASTE_TIMEOUT_MS = 20_000;
@@ -57,13 +58,15 @@ export function scenarioUrls(run: string): string[] {
   ];
 }
 
+export function pasteField(page: Page): Locator {
+  return page.getByRole("textbox", { name: PASTE_LABEL });
+}
+
 export async function pasteLink(page: Page, url: string): Promise<void> {
   await waitForRedditTurnIfNeeded(url);
-  await page.getByRole("textbox", { name: "Paste a link to save" }).fill(url);
+  await pasteField(page).fill(url);
   await page.getByRole("button", { name: "Add" }).click();
-  await expect(page.getByRole("textbox", { name: "Paste a link to save" })).toHaveValue("", {
-    timeout: PASTE_TIMEOUT_MS,
-  });
+  await expect(pasteField(page)).toHaveValue("", { timeout: PASTE_TIMEOUT_MS });
 }
 
 export function pasteStatus(page: Page): Locator {

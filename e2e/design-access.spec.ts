@@ -1,19 +1,25 @@
 import { type BrowserContext, type Page, expect, test } from "@playwright/test";
 
 import { LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
-import { type Instance, launchFresh, newCode, newPassword } from "./access.ts";
+import { type Instance, launchFresh, newCode, minimumPassword } from "./access.ts";
 import { THEMES, checkAtEveryWidth } from "./design-screens.ts";
 import { storeSettings } from "./look.ts";
-import { confirmField, enterCode, passwordField, setUpInBrowser } from "./setup-screens.ts";
+import {
+  enterCode,
+  libraryHeading,
+  passwordField,
+  setUpInBrowser,
+  submitPassword,
+  tokenNameField,
+} from "./setup-screens.ts";
 
-const PASSWORD_LENGTH = 15;
 const TEST_TIMEOUT_MS = 180_000;
 
 let fresh: Instance;
 let context: BrowserContext;
 let page: Page;
 const code = newCode();
-const password = newPassword().slice(0, PASSWORD_LENGTH);
+const password = minimumPassword();
 
 test.describe.configure({ mode: "serial", timeout: TEST_TIMEOUT_MS });
 
@@ -46,9 +52,7 @@ test("the setup screens keep the design rules at every width in every theme", as
     await expect(page.getByRole("heading", { name: SETUP.passwordTitle })).toBeVisible();
     await checkAtEveryWidth(page, `setup password step, ${theme}`);
 
-    await passwordField(page).fill(password);
-    await confirmField(page).fill(`${password}x`);
-    await page.getByRole("button", { name: SETUP.create }).click();
+    await submitPassword(page, password, `${password}x`);
     await expectMessage(SETUP.passwordMismatch);
     await checkAtEveryWidth(page, `setup password step with an error, ${theme}`);
   }
@@ -74,7 +78,7 @@ test("the login screen keeps the design rules at every width in every theme", as
 test("the tokens screen keeps the design rules at every width in every theme", async () => {
   await passwordField(page).fill(password);
   await page.getByRole("button", { name: LOGIN.signIn }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Threadsift" })).toBeVisible();
+  await expect(libraryHeading(page)).toBeVisible();
 
   for (const theme of THEMES) {
     await storeSettings(page, { theme }, "/settings");
@@ -84,7 +88,7 @@ test("the tokens screen keeps the design rules at every width in every theme", a
       await checkAtEveryWidth(page, `tokens, no token yet, ${theme}`);
     }
 
-    await page.getByLabel(SETTINGS.tokenName).fill(`Extension ${theme}`);
+    await tokenNameField(page).fill(`Extension ${theme}`);
     await page.getByRole("button", { name: SETTINGS.createToken }).click();
     await expect(page.getByLabel(SETTINGS.tokenValue)).toBeVisible();
     await checkAtEveryWidth(page, `token shown once, ${theme}`);

@@ -1,6 +1,6 @@
 import { type Page, expect } from "@playwright/test";
 
-import { FIELDS, SETUP } from "../web/src/access-text.ts";
+import { FIELDS, SETTINGS, SETUP } from "../web/src/access-text.ts";
 
 export function codeField(page: Page) {
   return page.getByLabel(SETUP.codeLabel);
@@ -19,11 +19,27 @@ export async function enterCode(page: Page, code: string): Promise<void> {
   await page.getByRole("button", { name: SETUP.continue }).click();
 }
 
+export function tokenNameField(page: Page) {
+  return page.getByLabel(SETTINGS.tokenName);
+}
+
+export function libraryHeading(page: Page) {
+  return page.getByRole("heading", { level: 1, name: "Threadsift" });
+}
+
+export async function submitPassword(
+  page: Page,
+  password: string,
+  confirm = password,
+): Promise<void> {
+  await passwordField(page).fill(password);
+  await confirmField(page).fill(confirm);
+  await page.getByRole("button", { name: SETUP.create }).click();
+}
+
 export async function choosePassword(page: Page, password: string): Promise<void> {
   await expect(page.getByRole("heading", { name: SETUP.passwordTitle })).toBeVisible();
-  await passwordField(page).fill(password);
-  await confirmField(page).fill(password);
-  await page.getByRole("button", { name: SETUP.create }).click();
+  await submitPassword(page, password);
 }
 
 export async function setUpInBrowser(page: Page, code: string, password: string): Promise<void> {
@@ -31,5 +47,5 @@ export async function setUpInBrowser(page: Page, code: string, password: string)
   await expect(page.getByRole("heading", { name: SETUP.codeTitle })).toBeVisible();
   await enterCode(page, code);
   await choosePassword(page, password);
-  await expect(page.getByRole("heading", { level: 1, name: "Threadsift" })).toBeVisible();
+  await expect(libraryHeading(page)).toBeVisible();
 }

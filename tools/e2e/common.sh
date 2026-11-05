@@ -8,9 +8,9 @@ new_code() {
 
 wait_for_session_route() {
   local url=$1 tries=$2
-  for _ in $(seq 1 "$tries"); do
+  for _ in $(seq 1 $((tries * 5))); do
     curl --silent --fail "$url/api/session" >/dev/null && return 0
-    sleep 1
+    sleep 0.2
   done
   return 1
 }
@@ -32,10 +32,8 @@ run_suite() {
   SETUP_CODE=$code "$script" launch "$dir"
   export THREADSIFT_BASE_URL
   THREADSIFT_BASE_URL=$(<"$dir/url")
-  export THREADSIFT_RESTART="bash $script restart $dir"
   export THREADSIFT_INSTANCE_SCRIPT="bash $script"
   export THREADSIFT_E2E_DIR=$dir
   export THREADSIFT_SETUP_CODE=$code
-  [[ -f $dir/exec ]] && export THREADSIFT_APP_EXEC="$(<"$dir/exec")"
   pnpm exec playwright test "$@"
 }

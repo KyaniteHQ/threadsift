@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { expectRefusal } from "./access-helpers.ts";
-import { agentToken, anonymous, bearer } from "./access.ts";
+import { agentToken, bearer, test } from "./access.ts";
 import { newRunId } from "./links.ts";
 
 const KIB = 1024;
@@ -44,7 +44,7 @@ test("a bearer post with no content type reaches its route, and a cross-site bod
 
 test("a body over 64 KiB gets 413 with a JSON error and a 1 KiB body gets through", async ({
   request,
-  baseURL,
+  stranger,
 }) => {
   const run = newRunId();
   const padded = (size: number) => ({ url: `https://example.com/${run}/${"a".repeat(size)}` });
@@ -52,8 +52,6 @@ test("a body over 64 KiB gets 413 with a JSON error and a 1 KiB body gets throug
   await expectRefusal(await request.post("/api/items", { data: padded(65 * KIB) }), 413, "65 KiB");
   expect((await request.post("/api/items", { data: padded(KIB) })).status(), "1 KiB").toBe(201);
 
-  const stranger = await anonymous(baseURL ?? "");
   const login = await stranger.post("/api/login", { data: { password: "x".repeat(65 * KIB) } });
   await expectRefusal(login, 413, "65 KiB to the public login route");
-  await stranger.dispose();
 });
