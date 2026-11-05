@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { listAll, listForRun } from "./api.ts";
+import { alertRegion } from "./card.ts";
 import {
   X_POST,
   newRunId,
@@ -36,7 +37,7 @@ test("each failed fetch shows its own notice and the list still shows the saved 
   for (const [index, [url, sentence]] of failedLinks(run).entries()) {
     await submitLink(page, url);
     await expect(pasteStatus(page)).toContainText(sentence, { timeout: 20_000 });
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(alertRegion(page)).toHaveText("");
     await expect(field).toHaveValue("");
     await expect(page.locator("article.it", { hasText: run })).toHaveCount(index + 1);
   }
@@ -55,7 +56,7 @@ test("a link to a private address shows a notice, keeps the text and saves nothi
   const field = pasteField(page);
   await submitLink(page, "http://127.0.0.1:9/");
 
-  await expect(page.getByRole("alert")).toContainText("can’t be saved");
+  await expect(alertRegion(page)).toContainText("can’t be saved");
   await expect(field).toHaveValue("http://127.0.0.1:9/");
   expect(await listAll(request)).toHaveLength(before);
 });
@@ -93,7 +94,7 @@ test("Try again on an unreachable website saves the same link again", async ({ p
   await tryAgain.click();
   expect((await again).postDataJSON()).toEqual({ url });
   await expect(pasteCard(page)).toContainText("Couldn’t reach the website", { timeout: 20_000 });
-  await expect(page.getByRole("alert")).toContainText("Couldn’t reach the website");
+  await expect(alertRegion(page)).toContainText("Couldn’t reach the website");
   await expect(field).toBeFocused();
   expect(await listForRun(request, run)).toHaveLength(1);
 });
@@ -137,7 +138,7 @@ test("a known link whose title cannot be fetched again keeps its title and says 
 
   await expect(pasteCard(page).locator(".ps-title")).toHaveText("Already saved, refreshed");
 
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(alertRegion(page)).toHaveText("");
 
   const kept = (await listAll(request)).filter(
     (item) => item.normalizedUrl === "https://news.ycombinator.com/",

@@ -1,7 +1,6 @@
 import { type APIRequestContext, type Page, type TestInfo, expect, test } from "@playwright/test";
 
 import type { Item } from "../src/http/schemas.ts";
-import { RETRY_LABEL } from "../web/src/text.ts";
 import { mainInstance } from "./access.ts";
 import { itemOf, postLink, postLinkRaw, settled } from "./api.ts";
 import {
@@ -10,6 +9,7 @@ import {
   READING,
   REFRESHED,
   TIMED_OUT,
+  alertRegion,
   attachStatuses,
   cardTitle,
   countListReads,
@@ -25,7 +25,15 @@ import {
   sweepNow,
   waitForRunning,
 } from "./ingest.ts";
-import { newRunId, openButton, pasteCard, rowOf, titledPage } from "./links.ts";
+import {
+  dismissButton,
+  newRunId,
+  pasteCard,
+  pasteField,
+  retryButton,
+  rowOf,
+  titledPage,
+} from "./links.ts";
 import { attachScreenshot } from "./look.ts";
 import { isContainerTarget } from "./target.ts";
 
@@ -50,8 +58,8 @@ async function firstPaste({ page, request, info, run, trace, shot }: Run, savedI
   await expect(rowOf(page, first)).toContainText(`First ${run}`);
   expect((await trace()).skeleton, "the row showed its skeleton").toBe(true);
   expect((await trace()).titles).toEqual([READING, ADDED]);
-  await openButton(page).click();
-  await expect(rowOf(page, first).locator("a.it-open")).toBeFocused();
+  await dismissButton(page).click();
+  await expect(pasteField(page)).toBeFocused();
   await attachStatuses(request, info, "1-first-paste", [savedId, first]);
 }
 
@@ -71,16 +79,15 @@ async function stalledBesideFast({ page, request, info, run }: Run) {
 }
 
 async function tryAgain({ page, request, info, shot }: Run, stalled: number) {
-  const alert = page.getByRole("alert");
-
-  await expect(alert).toContainText(TIMED_OUT, { timeout: 30_000 });
+  await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
+  await expect(alertRegion(page)).toContainText(TIMED_OUT);
   await expect(rowOf(page, stalled).locator(".it-fail")).toContainText(TIMED_OUT);
   await shot("3-failed");
   expect(await itemOf(request, stalled)).toMatchObject({ status: "failed", reason: "timeout" });
-  await alert.getByRole("button", { name: RETRY_LABEL }).click();
+  await retryButton(page).click();
   await expect(cardTitle(page)).toHaveText(READING);
   expect((await itemOf(request, stalled)).status).toBe("processing");
-  await expect(alert).toContainText(TIMED_OUT, { timeout: 30_000 });
+  await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
   expect(await itemOf(request, stalled)).toMatchObject({ status: "failed", fetch: "timeout" });
   expect(jobsOf(stalled).map((job) => job.state)).toEqual(["done", "done"]);
   await attachStatuses(request, info, "3-try-again", [stalled]);
@@ -123,7 +130,7 @@ test("the ingest scenario: first Paste, a stall beside a fast link, Try again, a
   await attachStatuses(request, info, "6-lost-job", [await loseAJob(page, request, run)]);
 
   reads.expectNoNewReads();
-  expect((await trace()).tops, "the first row moved while a card showed").toHaveLength(1);
+  expect((await trace()).overlaps, "the card covered a list row").toBe(0);
 });
 
 async function loseAJob(page: Page, request: APIRequestContext, run: string) {

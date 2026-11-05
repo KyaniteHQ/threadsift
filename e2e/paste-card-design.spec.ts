@@ -13,7 +13,7 @@ import {
 } from "./card.ts";
 import { THEMES, checkAtEveryWidth } from "./design-screens.ts";
 import { STALLED } from "./ingest.ts";
-import { newRunId, openButton, pasteCard } from "./links.ts";
+import { dismissButton, newRunId, pasteCard } from "./links.ts";
 import { app, storeSettings } from "./look.ts";
 
 const WIDTHS = [
@@ -30,7 +30,7 @@ function checkAtFourWidths(page: Page, what: string): Promise<void> {
 async function checkHeld(page: Page, url: string, title: string, what: string): Promise<void> {
   await pasteOnly(page, url);
   await expect(cardTitle(page)).toHaveText(title, { timeout: 30_000 });
-  await openButton(page).focus();
+  await dismissButton(page).focus();
   await checkAtFourWidths(page, what);
 }
 
@@ -47,7 +47,7 @@ for (const theme of THEMES) {
     await expect(app(page)).toHaveAttribute("data-theme", theme);
 
     await pasteOnly(page, "not a url");
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(pasteCard(page)).toBeVisible();
     await checkAtFourWidths(page, `input error card, ${theme}`);
 
     await checkHeld(page, `https://example.com/${run}/added`, ADDED, `Added, ${theme}`);
@@ -60,7 +60,7 @@ for (const theme of THEMES) {
     await checkAtFourWidths(page, `Reading the link, ${theme}`);
 
     await pasteOnly(page, unreachableUrl(run));
-    await expect(page.getByRole("alert")).toContainText(UNREACHABLE, { timeout: 30_000 });
+    await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
     await checkAtFourWidths(page, `failure with Try again, ${theme}`);
   });
 }

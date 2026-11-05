@@ -1,6 +1,6 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
-import { ADD_LABEL, OPEN_LABEL, PASTE_LABEL, RETRY_LABEL } from "../web/src/text.ts";
+import { ADD_LABEL, DISMISS_LABEL, PASTE_LABEL, RETRY_LABEL } from "../web/src/text.ts";
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
 const PASTE_TIMEOUT_MS = 20_000;
@@ -86,8 +86,8 @@ export function retryButton(page: Page): Locator {
   return pasteCard(page).getByRole("button", { name: RETRY_LABEL });
 }
 
-export function openButton(page: Page): Locator {
-  return page.getByRole("button", { name: OPEN_LABEL });
+export function dismissButton(page: Page): Locator {
+  return pasteCard(page).getByRole("button", { name: DISMISS_LABEL });
 }
 
 export function rowOf(page: Page, id: number): Locator {

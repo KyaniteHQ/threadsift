@@ -22,6 +22,10 @@ export function cardTitle(page: Page): Locator {
   return pasteCard(page).locator(".ps-title");
 }
 
+export function alertRegion(page: Page): Locator {
+  return page.locator(".paste [role='alert']");
+}
+
 export async function pasteOnly(page: Page, url: string): Promise<void> {
   await pasteField(page).fill(url);
   await pasteField(page).press("Enter");
@@ -30,14 +34,34 @@ export async function pasteOnly(page: Page, url: string): Promise<void> {
 export interface CardTrace {
   readonly titles: readonly string[];
   readonly skeleton: boolean;
-  readonly tops: readonly number[];
+  readonly overlaps: number;
+}
+
+export function rowsUnderCard(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const card = document.querySelector(".paste .ps")?.getBoundingClientRect();
+
+    if (card === undefined) {
+      throw new Error("no card is showing");
+    }
+
+    return [...document.querySelectorAll("article.it")].filter((row) => {
+      const box = row.getBoundingClientRect();
+
+      return (
+        box.left < card.right &&
+        box.right > card.left &&
+        box.top < card.bottom &&
+        box.bottom > card.top
+      );
+    }).length;
+  });
 }
 
 export async function watchCard(page: Page): Promise<() => Promise<CardTrace>> {
   const trace = await page.evaluateHandle(() => {
     const titles: string[] = [];
-    const tops = new Set<number>();
-    const seen = { titles, skeleton: false, tops };
+    const seen = { titles, skeleton: false, overlaps: 0 };
 
     const note = (): void => {
       const text = document.querySelector(".paste .ps-title")?.textContent ?? "";
@@ -48,10 +72,21 @@ export async function watchCard(page: Page): Promise<() => Promise<CardTrace>> {
 
       seen.skeleton ||= document.querySelector(".it .skel") !== null;
 
-      const first = document.querySelector("article.it");
+      const card = document.querySelector(".paste .ps")?.getBoundingClientRect();
 
-      if (first !== null) {
-        tops.add(Math.round(first.getBoundingClientRect().top));
+      if (card !== undefined) {
+        for (const row of document.querySelectorAll("article.it")) {
+          const box = row.getBoundingClientRect();
+
+          if (
+            box.left < card.right &&
+            box.right > card.left &&
+            box.top < card.bottom &&
+            box.bottom > card.top
+          ) {
+            seen.overlaps += 1;
+          }
+        }
       }
     };
 
@@ -68,8 +103,41 @@ export async function watchCard(page: Page): Promise<() => Promise<CardTrace>> {
     trace.evaluate((seen) => ({
       titles: [...seen.titles],
       skeleton: seen.skeleton,
-      tops: [...seen.tops],
+      overlaps: seen.overlaps,
     }));
+}
+
+export async function watchAnnouncements(
+  page: Page,
+): Promise<
+  () => Promise<{ readonly polite: readonly string[]; readonly alert: readonly string[] }>
+> {
+  const trace = await page.evaluateHandle(() => {
+    const seen = { polite: new Array<string>(), alert: new Array<string>() };
+
+    const regions = [
+      [document.querySelector(".paste output"), seen.polite],
+      [document.querySelector(".paste [role='alert']"), seen.alert],
+    ] as const;
+
+    for (const [region, texts] of regions) {
+      if (region === null) {
+        throw new Error("a live region is not mounted");
+      }
+
+      new MutationObserver(() => {
+        const text = region.textContent ?? "";
+
+        if (text !== "" && texts.at(-1) !== text) {
+          texts.push(text);
+        }
+      }).observe(region, { subtree: true, childList: true, characterData: true });
+    }
+
+    return seen;
+  });
+
+  return () => trace.evaluate((seen) => ({ polite: [...seen.polite], alert: [...seen.alert] }));
 }
 
 export function countListReads(page: Page) {

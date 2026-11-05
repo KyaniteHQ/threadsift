@@ -2,15 +2,8 @@ import { type APIRequestContext, type Page, expect, test } from "@playwright/tes
 
 import { SAVING_STATUS } from "../web/src/text.ts";
 import { listAll, postLink } from "./api.ts";
-import {
-  addButton,
-  newRunId,
-  openButton,
-  pasteCard,
-  pasteField,
-  rowOf,
-  submitLink,
-} from "./links.ts";
+import { alertRegion } from "./card.ts";
+import { addButton, newRunId, pasteCard, pasteField, rowOf, submitLink } from "./links.ts";
 
 function rowCount(page: Page): Promise<number> {
   return page.locator("article.it").count();
@@ -27,13 +20,15 @@ test("Add with an empty box or text that is not a link shows a refusal and saves
   const stored = (await listAll(request)).length;
 
   await addButton(page).click();
-  await expect(page.getByRole("alert")).toContainText("Paste a link first.");
+  await expect(pasteCard(page)).toContainText("Paste a link first.");
+  await expect(alertRegion(page)).toContainText("Paste a link first.");
 
   await submitLink(page, "not a url");
-  await expect(page.getByRole("alert")).toContainText("That doesn’t look like a link.");
+  await expect(pasteCard(page)).toContainText("That doesn’t look like a link.");
+  await expect(pasteCard(page).locator(".ps-url")).toHaveCount(0);
 
   await submitLink(page, "example.com/bare-domain");
-  await expect(page.getByRole("alert")).toContainText("Links must start with https:// or http://.");
+  await expect(pasteCard(page)).toContainText("Links must start with https:// or http://.");
 
   expect(await rowCount(page)).toBe(rows);
   expect(await listAll(request)).toHaveLength(stored);
@@ -66,7 +61,7 @@ test("Add on an empty box never shows the saving state", async ({ page }) => {
   });
 
   await addButton(page).click();
-  await expect(page.getByRole("alert")).toContainText("Paste a link first.");
+  await expect(pasteCard(page)).toContainText("Paste a link first.");
 
   const sawSaving = await changes.evaluate(
     (seen, status) =>
@@ -120,19 +115,19 @@ test("Add gives the field focus, ties a refusal to it, and Dismiss clears the re
   const field = pasteField(page);
 
   await addButton(page).click();
-  const alert = page.getByRole("alert");
-  await expect(alert).toContainText("Paste a link first.");
+  const card = pasteCard(page);
+  await expect(card).toContainText("Paste a link first.");
   await expect(field).toBeFocused();
   await expect(field).toHaveAttribute("aria-invalid", "true");
-  await expect(field).toHaveAttribute("aria-describedby", (await alert.getAttribute("id")) ?? "");
+  await expect(field).toHaveAttribute("aria-describedby", (await card.getAttribute("id")) ?? "");
 
-  await alert.getByRole("button", { name: "Dismiss" }).click();
-  await expect(alert).toHaveCount(0);
+  await card.getByRole("button", { name: "Dismiss" }).click();
+  await expect(card).toHaveCount(0);
   await expect(field).toBeFocused();
   await expect(field).not.toHaveAttribute("aria-invalid", /./u);
 
   await submitLink(page, "not a url");
-  await expect(alert).toBeVisible();
+  await expect(card).toBeVisible();
   await expect(field).toBeFocused();
 });
 
@@ -226,9 +221,9 @@ async function pasteKnownLinkBelowTheFold(
   page: Page,
   request: APIRequestContext,
   link: string,
-): Promise<number> {
+): Promise<void> {
   const run = newRunId();
-  const known = await postLink(request, link);
+  await postLink(request, link);
 
   for (let index = 0; index < 30; index += 1) {
     await postLink(request, `https://example.com/${run}/newer-${index}`);
@@ -238,51 +233,18 @@ async function pasteKnownLinkBelowTheFold(
   await expect(page.locator("article.it").nth(30)).toBeVisible();
   await submitLink(page, link);
   await expect(pasteField(page)).toHaveValue("");
-
-  return known.body.item.id;
 }
 
-async function expectRowInPaneView(page: Page, key: number) {
-  const box = await page.evaluate((id) => {
-    const row = document.querySelector(`article.it[data-key="${id}"]`)?.getBoundingClientRect();
-
-    return {
-      top: row?.top ?? Number.NaN,
-      bottom: row?.bottom ?? Number.NaN,
-      headerBottom: document.querySelector(".list-head")?.getBoundingClientRect().bottom ?? 0,
-      paneBottom: document.querySelector(".list")?.getBoundingClientRect().bottom ?? 0,
-    };
-  }, key);
-
-  expect(box.top, "row top against the list header").toBeGreaterThanOrEqual(box.headerBottom - 0.5);
-  expect(box.bottom, "row bottom against the list pane").toBeLessThanOrEqual(box.paneBottom + 0.5);
-}
-
-test("Open on the card of a known link brings its row into view and focuses it", async ({
-  page,
-  request,
-}) => {
-  const id = await pasteKnownLinkBelowTheFold(page, request, "https://example.com/");
-
-  await expect(pasteField(page)).toBeFocused();
-  await openButton(page).click();
-  await expect(rowOf(page, id).locator(".it-open")).toBeFocused();
-  await expect(pasteCard(page)).toHaveCount(0);
-  await expectRowInPaneView(page, id);
-});
-
-test("pasting a known link that shows a note keeps focus in the field until Open", async ({
+test("pasting a known link that shows a note keeps focus in the field", async ({
   page,
   request,
 }) => {
   const link = `https://example.com/missing-${newRunId()}`;
-  const id = await pasteKnownLinkBelowTheFold(page, request, link);
+  await pasteKnownLinkBelowTheFold(page, request, link);
 
   await expect(pasteField(page)).toBeFocused();
   await expect(pasteCard(page)).toContainText("answered with an error", { timeout: 20_000 });
   await expect(pasteField(page)).toBeFocused();
-  await openButton(page).click();
-  await expectRowInPaneView(page, id);
 });
 
 test("an Item URL that matches no Item opens the plain list at /", async ({ page, request }) => {
