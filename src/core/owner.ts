@@ -8,7 +8,7 @@ import type { Database, Ports } from "./ports.ts";
 import { owner } from "./schema.ts";
 import { type StartedSession, startSession } from "./sessions.ts";
 import { type SetupCodeProblem, checkConfiguredCode } from "./setup-code.ts";
-import { gateOf, settleAttempt } from "./throttle.ts";
+import { settleAttempt } from "./throttle.ts";
 
 export type SetupBlock =
   | { readonly kind: "owner-exists" }
@@ -48,9 +48,8 @@ export async function checkSetupCode(ports: Ports, code: string): Promise<SetupB
   }
 
   const { crypto } = ports;
-  const gate = await gateOf(ports.db, "setup", Date.now());
 
-  const outcome = await settleAttempt(ports.db, "setup", gate, () =>
+  const outcome = await settleAttempt(ports.db, "setup", () =>
     Promise.resolve(crypto.equal(crypto.sha256(code), crypto.sha256(configured.code))),
   );
 
@@ -90,17 +89,11 @@ export async function setUpOwner(
 }
 
 export async function login(ports: Ports, password: string): Promise<LoginResult> {
-  const [gate, stored] = await Promise.all([
-    gateOf(ports.db, "login", Date.now()),
-    passwordHashOf(ports.db),
-  ]);
+  const outcome = await settleAttempt(ports.db, "login", async () => {
+    const stored = await passwordHashOf(ports.db);
 
-  const outcome = await settleAttempt(
-    ports.db,
-    "login",
-    gate,
-    async () => stored !== undefined && (await passwordMatches(ports.crypto, password, stored)),
-  );
+    return stored !== undefined && (await passwordMatches(ports.crypto, password, stored));
+  });
 
   return outcome.kind === "ok"
     ? { kind: "signed-in", session: await startSession(ports) }

@@ -10,6 +10,8 @@ const LIGATURE_PASSWORD = `\uFB01${"x".repeat(12)}\u00E9`;
 const OTHER_FORMS = [LIGATURE_PASSWORD.normalize("NFD"), LIGATURE_PASSWORD.normalize("NFKC")];
 const WRONG_ATTEMPTS = 10;
 const MAX_FIRST_LOCK_SECONDS = 60;
+const BURST = 40;
+const SECOND_LOCK_SECONDS = 120;
 
 const Hash = z.array(z.object({ password_hash: z.string() }));
 const Throttles = z.array(z.object({ kind: z.string() }));
@@ -163,6 +165,41 @@ test("ten wrong passwords lock login for everyone but sessions already open, and
 
   rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'login'");
   expect((await login(LIGATURE_PASSWORD)).status(), "after the lock ends").toBe(204);
+});
+
+async function endLockAndSignIn(): Promise<void> {
+  rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'login'");
+  expect((await login(LIGATURE_PASSWORD)).status(), "the right password after the lock").toBe(204);
+}
+
+test("forty wrong passwords sent at once: ten are checked and the other thirty get 429", async () => {
+  const answers = await Promise.all(
+    Array.from({ length: BURST }, (_, attempt) => login(`burst-${attempt}`)),
+  );
+
+  const statuses = answers.map((answer) => answer.status());
+
+  expect(statuses.filter((status) => status === 401)).toHaveLength(WRONG_ATTEMPTS);
+  expect(statuses.filter((status) => status === 429)).toHaveLength(BURST - WRONG_ATTEMPTS);
+  await expectLocked(await login(LIGATURE_PASSWORD), "the right password after the burst");
+  await endLockAndSignIn();
+});
+
+test("a wrong password after a lock ends doubles the next lock", async () => {
+  for (let attempt = 0; attempt < WRONG_ATTEMPTS; attempt += 1) {
+    expect((await login(`first-lock-${attempt}`)).status(), `wrong password ${attempt}`).toBe(401);
+  }
+
+  rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'login'");
+  await expectRefusal(await login("after-the-first-lock"), 401, "a wrong password", "wrong");
+  const second = await login(LIGATURE_PASSWORD);
+  await expectRefusal(second, 429, "the right password in the second lock", "locked");
+  const seconds = Number(second.headers()["retry-after"]);
+  expect(seconds, "the second lock is longer than the first").toBeGreaterThan(
+    MAX_FIRST_LOCK_SECONDS,
+  );
+  expect(seconds, "the second lock doubles the first").toBeLessThanOrEqual(SECOND_LOCK_SECONDS);
+  await endLockAndSignIn();
 });
 
 test("the sign-in screen says when to try again while login is locked and sends nothing more", async ({

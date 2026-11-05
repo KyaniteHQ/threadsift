@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, lte, sql } from "drizzle-orm";
 
 import type { ThrottleKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
@@ -9,68 +9,61 @@ const FIRST_LOCK_MS = 60_000;
 const LONGEST_LOCK_MS = 3_600_000;
 const LAST_DOUBLING = 6;
 
-export type Gate =
-  | { readonly locked: false; readonly tracked: boolean }
-  | { readonly locked: true; readonly retryAfter: number };
-
 export type Attempt =
   | { readonly kind: "ok" }
   | { readonly kind: "wrong" }
   | { readonly kind: "locked"; readonly retryAfter: number };
 
-export async function gateOf(db: Database, kind: ThrottleKind, now: number): Promise<Gate> {
-  const [row] = await db.select().from(throttles).where(eq(throttles.kind, kind));
+type Admission =
+  | { readonly admitted: true; readonly number: number }
+  | { readonly admitted: false; readonly retryAfter: number };
 
-  if (row === undefined) {
-    return { locked: false, tracked: false };
-  }
+async function admit(db: Database, kind: ThrottleKind, now: number): Promise<Admission> {
+  const number = sql`${throttles.failures} + 1`;
+  const doublings = sql`min(${number} - ${LOCK_AFTER_FAILURES}, ${LAST_DOUBLING})`;
 
-  if (row.lockedUntil <= now) {
-    return { locked: false, tracked: true };
-  }
-
-  return { locked: true, retryAfter: Math.ceil((row.lockedUntil - now) / 1000) };
-}
-
-async function recordFailure(db: Database, kind: ThrottleKind, now: number): Promise<void> {
-  const failures = sql`${throttles.failures} + 1`;
-  const doublings = sql`min(${failures} - ${LOCK_AFTER_FAILURES}, ${LAST_DOUBLING})`;
-
-  await db
+  const [counted] = await db
     .insert(throttles)
     .values({ kind, failures: 1, lockedUntil: 0 })
     .onConflictDoUpdate({
       target: throttles.kind,
       set: {
-        failures,
-        lockedUntil: sql`CASE WHEN ${failures} >= ${LOCK_AFTER_FAILURES} THEN ${now} + min(${LONGEST_LOCK_MS}, ${FIRST_LOCK_MS} << ${doublings}) ELSE 0 END`,
+        failures: number,
+        lockedUntil: sql`CASE WHEN ${number} >= ${LOCK_AFTER_FAILURES} THEN ${now} + min(${LONGEST_LOCK_MS}, ${FIRST_LOCK_MS} << ${doublings}) ELSE 0 END`,
       },
-    });
-}
+      setWhere: lte(throttles.lockedUntil, now),
+    })
+    .returning({ number: throttles.failures });
 
-async function recordSuccess(db: Database, kind: ThrottleKind): Promise<void> {
-  await db.delete(throttles).where(eq(throttles.kind, kind));
+  if (counted !== undefined) {
+    return { admitted: true, number: counted.number };
+  }
+
+  const [row] = await db.select().from(throttles).where(eq(throttles.kind, kind));
+
+  return row !== undefined && row.lockedUntil > now
+    ? { admitted: false, retryAfter: Math.ceil((row.lockedUntil - now) / 1000) }
+    : admit(db, kind, now);
 }
 
 export async function settleAttempt(
   db: Database,
   kind: ThrottleKind,
-  gate: Gate,
   verify: () => Promise<boolean>,
 ): Promise<Attempt> {
-  if (gate.locked) {
-    return { kind: "locked", retryAfter: gate.retryAfter };
+  const admission = await admit(db, kind, Date.now());
+
+  if (!admission.admitted) {
+    return { kind: "locked", retryAfter: admission.retryAfter };
   }
 
   if (!(await verify())) {
-    await recordFailure(db, kind, Date.now());
-
     return { kind: "wrong" };
   }
 
-  if (gate.tracked) {
-    await recordSuccess(db, kind);
-  }
+  await db
+    .delete(throttles)
+    .where(and(eq(throttles.kind, kind), eq(throttles.failures, admission.number)));
 
   return { kind: "ok" };
 }
