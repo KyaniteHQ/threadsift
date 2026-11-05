@@ -20,6 +20,7 @@ import {
 } from "./card.ts";
 import {
   STALLED,
+  itemIdAt,
   jobsOf,
   storeProcessingItemWithDueJob,
   sweepNow,
@@ -34,7 +35,6 @@ import {
   rowOf,
   titledPage,
 } from "./links.ts";
-import { attachScreenshot } from "./look.ts";
 import { isContainerTarget } from "./target.ts";
 
 const NARROW_WIDTH = 760;
@@ -46,9 +46,23 @@ interface Run {
   readonly run: string;
   readonly trace: () => Promise<CardTrace>;
   readonly shot: (name: string) => Promise<void>;
+  readonly attempts: Map<number, readonly number[]>;
 }
 
-async function firstPaste({ page, request, info, run, trace, shot }: Run, savedId: number) {
+function attachStep(
+  { request, info, attempts }: Run,
+  step: string,
+  changes: Readonly<Record<number, readonly number[]>>,
+): Promise<void> {
+  for (const [id, made] of Object.entries(changes)) {
+    attempts.set(Number(id), made);
+  }
+
+  return attachStatuses(request, info, step, attempts);
+}
+
+async function firstPaste(context: Run, savedId: number) {
+  const { page, run, trace, shot } = context;
   const first = await pasteForId(page, titledPage(`First ${run}`));
 
   await expect(cardTitle(page)).toHaveText(READING);
@@ -56,14 +70,17 @@ async function firstPaste({ page, request, info, run, trace, shot }: Run, savedI
   await expect(cardTitle(page)).toHaveText(ADDED);
   await shot("1-added");
   await expect(rowOf(page, first)).toContainText(`First ${run}`);
-  expect((await trace()).skeleton, "the row showed its skeleton").toBe(true);
+  expect((await trace()).skeletonKeys, "the first Paste's row showed its skeleton").toContain(
+    String(first),
+  );
   expect((await trace()).titles).toEqual([READING, ADDED]);
   await dismissButton(page).click();
   await expect(pasteField(page)).toBeFocused();
-  await attachStatuses(request, info, "1-first-paste", [savedId, first]);
+  await attachStep(context, "1-first-paste", { [savedId]: [0], [first]: [0] });
 }
 
-async function stalledBesideFast({ page, request, info, run }: Run) {
+async function stalledBesideFast(context: Run) {
+  const { page, request, run } = context;
   const stalled = await pasteForId(page, `${STALLED}?run=${run}&step=2`);
   const api = (await postLinkRaw(request, titledPage(`Api ${run}`))).body.item.id;
   const apiItem = await settled(request, api);
@@ -73,12 +90,13 @@ async function stalledBesideFast({ page, request, info, run }: Run) {
   expect(stalledNow.status === "processing", "the stalled Item ended before the fast one").toBe(
     isContainerTarget(),
   );
-  await attachStatuses(request, info, "2-stalled-beside-fast", [stalled, api]);
+  await attachStep(context, "2-stalled-beside-fast", { [stalled]: [0], [api]: [0] });
 
   return stalled;
 }
 
-async function tryAgain({ page, request, info, shot }: Run, stalled: number) {
+async function tryAgain(context: Run, stalled: number) {
+  const { page, request, shot } = context;
   await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
   await expect(alertRegion(page)).toContainText(TIMED_OUT);
   await expect(rowOf(page, stalled).locator(".it-fail")).toContainText(TIMED_OUT);
@@ -90,24 +108,26 @@ async function tryAgain({ page, request, info, shot }: Run, stalled: number) {
   await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
   expect(await itemOf(request, stalled)).toMatchObject({ status: "failed", fetch: "timeout" });
   expect(jobsOf(stalled).map((job) => job.state)).toEqual(["done", "done"]);
-  await attachStatuses(request, info, "3-try-again", [stalled]);
+  await attachStep(context, "3-try-again", { [stalled]: [0, 0] });
 }
 
-async function refresh({ page, request, info, shot }: Run, saved: Item) {
+async function refresh(context: Run, saved: Item) {
+  const { page, shot } = context;
   await pasteOnly(page, saved.originalUrl);
   await expect(cardTitle(page)).toHaveText(REFRESHED, { timeout: 30_000 });
   await shot("4-already-saved-refreshed");
-  await attachStatuses(request, info, "4-refresh", [saved.id]);
+  await attachStep(context, "4-refresh", { [saved.id]: [0, 0] });
 }
 
-async function dismissedCard({ page, request, info, run }: Run) {
+async function dismissedCard(context: Run) {
+  const { page, run } = context;
   const id = await pasteForId(page, `${STALLED}?run=${run}&step=5`);
 
   await expect(cardTitle(page)).toHaveText(READING);
   await page.keyboard.press("Escape");
   await expect(pasteCard(page)).toBeHidden();
   await expect(rowOf(page, id).locator(".it-fail")).toContainText(TIMED_OUT, { timeout: 30_000 });
-  await attachStatuses(request, info, "5-dismissed-card", [id]);
+  await attachStep(context, "5-dismissed-card", { [id]: [0] });
 }
 
 test("the ingest scenario: first Paste, a stall beside a fast link, Try again, a refresh, a dismissed card, and a lost job", async ({
@@ -120,20 +140,27 @@ test("the ingest scenario: first Paste, a stall beside a fast link, Try again, a
   await openLibrary(page, NARROW_WIDTH);
   const trace = await watchCard(page);
   const reads = countListReads(page);
-  const shot = (name: string) => attachScreenshot(page, info, name);
-  const context: Run = { page, request, info, run, trace, shot };
+
+  const shot = async (name: string) => {
+    const file = info.outputPath(`${name}.png`);
+    await page.screenshot({ path: file });
+    await info.attach(name, { path: file, contentType: "image/png" });
+  };
+
+  const context: Run = { page, request, info, run, trace, shot, attempts: new Map() };
 
   await firstPaste(context, saved.id);
   await tryAgain(context, await stalledBesideFast(context));
   await refresh(context, saved);
   await dismissedCard(context);
-  await attachStatuses(request, info, "6-lost-job", [await loseAJob(page, request, run)]);
+  const lost = await loseAJob(context);
+  await attachStep(context, "6-lost-job", { [lost]: [isContainerTarget() ? 1 : 0] });
 
   reads.expectNoNewReads();
   expect((await trace()).overlaps, "the card covered a list row").toBe(0);
 });
 
-async function loseAJob(page: Page, request: APIRequestContext, run: string) {
+async function loseAJob({ page, request, run }: Run) {
   if (!isContainerTarget()) {
     const id = storeProcessingItemWithDueJob(`https://example.com/${run}/due`);
     await sweepNow(request);
@@ -145,7 +172,11 @@ async function loseAJob(page: Page, request: APIRequestContext, run: string) {
   const id = await pasteForId(page, `${STALLED}?run=${run}&step=6`);
   await waitForRunning(id);
   mainInstance().restart();
-  expect(await settled(request, id)).toMatchObject({ status: "failed", reason: "timeout" });
+
+  const item = await settled(request, id);
+  expect(item).toMatchObject({ status: "failed", reason: "timeout" });
+  expect(itemIdAt(item.normalizedUrl), "the restart ran the same Item, not a new Paste").toBe(id);
+  expect(jobsOf(id)).toEqual([expect.objectContaining({ state: "done", attempts: 1 })]);
 
   return id;
 }

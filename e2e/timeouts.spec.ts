@@ -87,7 +87,7 @@ test("a short link whose target answers slowly keeps the paste box in its saving
 
   const response = await answered;
   expect(Date.now() - started).toBeGreaterThanOrEqual(5_000);
-  expect([200, 201]).toContain(response.status());
+  expect(response.status()).toBe(201);
   await expect(pasteCard(page)).toContainText(ADDED, { timeout: 10_000 });
   await expect(addButton(page)).toBeEnabled();
 });

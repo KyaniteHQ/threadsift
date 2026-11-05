@@ -9,7 +9,6 @@ import {
   HOP_DEADLINE_MS,
   STALLED,
   expireClaim,
-  itemIdAt,
   jobsOf,
   makeDue,
   storeProcessingItemWithDueJob,
@@ -102,28 +101,6 @@ test("a done job is not run again by a later sweep", async ({ request }) => {
 
   expect(await itemOf(request, body.item.id)).toEqual(before);
   expect(jobsOf(body.item.id)).toEqual(jobs);
-});
-
-test("a restart while a fetch job runs ends with the Item out of processing and no new Paste", async ({
-  request,
-}) => {
-  test.skip(
-    !isContainerTarget(),
-    "the Worker has no process to restart; its queue is the platform's",
-  );
-  test.setTimeout(90_000);
-  const url = `${STALLED}?restart=${newRunId()}`;
-  const { body } = await postLinkRaw(request, url);
-  const { id } = body.item;
-
-  await waitForRunning(id);
-  mainInstance().restart();
-
-  const item = await settled(request, id);
-  expect(item).toMatchObject({ status: "failed", reason: "timeout" });
-  const [job] = jobsOf(id);
-  expect(job).toMatchObject({ state: "done", attempts: 1 });
-  expect(itemIdAt(item.normalizedUrl)).toBe(id);
 });
 
 test("a second message for a job that finished while it waited does not run it again", async ({

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { mainInstance } from "./access.ts";
 import { listAll, listForRun } from "./api.ts";
 import { alertRegion } from "./card.ts";
 import {
@@ -137,6 +138,7 @@ test("a known link whose title cannot be fetched again keeps its title and says 
   });
 
   await expect(pasteCard(page).locator(".ps-title")).toHaveText("Already saved, refreshed");
+  await expect(pasteCard(page)).toContainText("the title saved earlier was kept");
 
   await expect(alertRegion(page)).toHaveText("");
 
@@ -145,4 +147,22 @@ test("a known link whose title cannot be fetched again keeps its title and says 
   );
 
   expect(kept.map((item) => item.title)).toEqual(["Hacker News"]);
+});
+
+test("a first fetch that fails on an Item saved before the fetch record keeps its title and says so", async ({
+  page,
+}) => {
+  const run = newRunId();
+  const url = `https://no-such-host-${run}.invalid/migrated`;
+
+  mainInstance().sql(
+    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title, status) VALUES ('other', 'link', 'https://no-such-host-${run}.invalid/migrated', '${url}', ${Date.now()}, 'Saved long ago', 'ready')`,
+  );
+
+  await page.goto("/");
+  await submitLink(page, url);
+
+  await expect(pasteCard(page).locator(".ps-title")).toHaveText("Added", { timeout: 30_000 });
+  await expect(pasteCard(page)).toContainText("the title saved earlier was kept");
+  await expect(pasteCard(page).locator(".ic.tone-warn")).toBeVisible();
 });

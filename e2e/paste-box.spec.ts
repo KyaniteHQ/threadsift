@@ -221,9 +221,9 @@ async function pasteKnownLinkBelowTheFold(
   page: Page,
   request: APIRequestContext,
   link: string,
-): Promise<void> {
+): Promise<number> {
   const run = newRunId();
-  await postLink(request, link);
+  const known = await postLink(request, link);
 
   for (let index = 0; index < 30; index += 1) {
     await postLink(request, `https://example.com/${run}/newer-${index}`);
@@ -233,18 +233,48 @@ async function pasteKnownLinkBelowTheFold(
   await expect(page.locator("article.it").nth(30)).toBeVisible();
   await submitLink(page, link);
   await expect(pasteField(page)).toHaveValue("");
+
+  return known.body.item.id;
 }
+
+async function expectRowInPaneView(page: Page, key: number) {
+  const box = await page.evaluate((id) => {
+    const row = document.querySelector(`article.it[data-key="${id}"]`)?.getBoundingClientRect();
+
+    return {
+      top: row?.top ?? Number.NaN,
+      bottom: row?.bottom ?? Number.NaN,
+      headerBottom: document.querySelector(".list-head")?.getBoundingClientRect().bottom ?? 0,
+      paneBottom: document.querySelector(".list")?.getBoundingClientRect().bottom ?? 0,
+    };
+  }, key);
+
+  expect(box.top, "row top against the list header").toBeGreaterThanOrEqual(box.headerBottom - 0.5);
+  expect(box.bottom, "row bottom against the list pane").toBeLessThanOrEqual(box.paneBottom + 0.5);
+}
+
+test("pasting a known link brings its row into view and keeps focus in the field", async ({
+  page,
+  request,
+}) => {
+  const id = await pasteKnownLinkBelowTheFold(page, request, "https://example.com/");
+
+  await expectRowInPaneView(page, id);
+  await expect(pasteField(page)).toBeFocused();
+  await expect(pasteCard(page)).toBeVisible();
+});
 
 test("pasting a known link that shows a note keeps focus in the field", async ({
   page,
   request,
 }) => {
   const link = `https://example.com/missing-${newRunId()}`;
-  await pasteKnownLinkBelowTheFold(page, request, link);
+  const id = await pasteKnownLinkBelowTheFold(page, request, link);
 
   await expect(pasteField(page)).toBeFocused();
   await expect(pasteCard(page)).toContainText("answered with an error", { timeout: 20_000 });
   await expect(pasteField(page)).toBeFocused();
+  await expectRowInPaneView(page, id);
 });
 
 test("an Item URL that matches no Item opens the plain list at /", async ({ page, request }) => {

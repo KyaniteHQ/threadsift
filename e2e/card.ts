@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+
 import type { APIRequestContext, Locator, Page, TestInfo } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { z } from "zod";
@@ -6,6 +8,7 @@ import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { CARD_TITLES, FAILURE_TITLES } from "../web/src/text.ts";
 import { mainInstance } from "./access.ts";
 import { itemOf, postLink } from "./api.ts";
+import { jobsOf } from "./ingest.ts";
 import { pasteCard, pasteField } from "./links.ts";
 import { viewportAt } from "./look.ts";
 
@@ -33,7 +36,7 @@ export async function pasteOnly(page: Page, url: string): Promise<void> {
 
 export interface CardTrace {
   readonly titles: readonly string[];
-  readonly skeleton: boolean;
+  readonly skeletonKeys: readonly string[];
   readonly overlaps: number;
 }
 
@@ -61,33 +64,35 @@ export function rowsUnderCard(page: Page): Promise<number> {
 export async function watchCard(page: Page): Promise<() => Promise<CardTrace>> {
   const trace = await page.evaluateHandle(() => {
     const titles: string[] = [];
-    const seen = { titles, skeleton: false, overlaps: 0 };
+    const seen = { titles, skeletonKeys: new Set<string>(), overlaps: 0 };
 
     const note = (): void => {
       const text = document.querySelector(".paste .ps-title")?.textContent ?? "";
+      const card = document.querySelector(".paste .ps")?.getBoundingClientRect();
+
+      const covered = (row: Element): boolean => {
+        const box = row.getBoundingClientRect();
+
+        return (
+          card !== undefined &&
+          box.left < card.right &&
+          box.right > card.left &&
+          box.top < card.bottom &&
+          box.bottom > card.top
+        );
+      };
 
       if (text !== "" && seen.titles.at(-1) !== text) {
         seen.titles.push(text);
       }
 
-      seen.skeleton ||= document.querySelector(".it .skel") !== null;
-
-      const card = document.querySelector(".paste .ps")?.getBoundingClientRect();
-
-      if (card !== undefined) {
-        for (const row of document.querySelectorAll("article.it")) {
-          const box = row.getBoundingClientRect();
-
-          if (
-            box.left < card.right &&
-            box.right > card.left &&
-            box.top < card.bottom &&
-            box.bottom > card.top
-          ) {
-            seen.overlaps += 1;
-          }
-        }
+      for (const row of document.querySelectorAll("article.it:has(.skel)")) {
+        seen.skeletonKeys.add(row instanceof HTMLElement ? (row.dataset["key"] ?? "") : "");
       }
+
+      seen.overlaps += [...document.querySelectorAll("article.it")].filter((row) =>
+        covered(row),
+      ).length;
     };
 
     new MutationObserver(note).observe(document.body, {
@@ -102,7 +107,7 @@ export async function watchCard(page: Page): Promise<() => Promise<CardTrace>> {
   return () =>
     trace.evaluate((seen) => ({
       titles: [...seen.titles],
-      skeleton: seen.skeleton,
+      skeletonKeys: [...seen.skeletonKeys],
       overlaps: seen.overlaps,
     }));
 }
@@ -159,9 +164,10 @@ export function countListReads(page: Page) {
 }
 
 export async function expectClosesAfterSixSeconds(page: Page): Promise<void> {
-  await page.clock.fastForward(CLOSE_MS - 1500);
+  await page.clock.pauseAt(Date.now() + 50);
+  await page.clock.fastForward(CLOSE_MS - 3000);
   await expect(pasteCard(page)).toBeVisible();
-  await page.clock.fastForward(2500);
+  await page.clock.fastForward(4000);
   await expect(pasteCard(page)).toBeHidden();
 }
 
@@ -191,41 +197,34 @@ export function stuckProcessingItems(): number {
   return row?.n ?? 0;
 }
 
-const Doubled = z.array(z.object({ item_id: z.number() }));
-
-export function itemsWithTwoRunningJobs(): number[] {
-  return mainInstance()
-    .query(
-      "SELECT item_id FROM jobs WHERE state = 'running' GROUP BY item_id HAVING count(*) > 1",
-      Doubled,
-    )
-    .map((row) => row.item_id);
-}
-
 export async function attachStatuses(
   request: APIRequestContext,
   info: TestInfo,
   step: string,
-  ids: readonly number[],
+  attemptsOf: ReadonlyMap<number, readonly number[]>,
 ): Promise<void> {
   const items = await Promise.all(
-    ids.map(async (id) => {
+    [...attemptsOf].map(async ([id, attempts]) => {
       const { status, reason, fetch, normalizedUrl } = await itemOf(request, id);
+      const jobs = jobsOf(id).map(({ state, attempts: made }) => ({ state, attempts: made }));
 
-      return { id, normalizedUrl, status, reason, fetch };
+      expect(
+        jobs.map((job) => job.attempts),
+        `after ${step}, the attempts of each job of Item ${String(id)}`,
+      ).toEqual(attempts);
+
+      return { id, normalizedUrl, status, reason, fetch, jobs };
     }),
   );
 
-  await info.attach(`statuses-${step}.json`, {
-    body: JSON.stringify({ step, items }, null, 2),
-    contentType: "application/json",
-  });
+  const file = info.outputPath(`statuses-${step}.json`);
+  await writeFile(file, JSON.stringify({ step, items }, null, 2));
+  await info.attach(`statuses-${step}.json`, { path: file, contentType: "application/json" });
 
   expect(
     stuckProcessingItems(),
     `after ${step}, an Item stays processing after its job ended`,
   ).toBe(0);
-  expect(itemsWithTwoRunningJobs(), `after ${step}, a job runs twice at once`).toEqual([]);
 }
 
 export async function openLibrary(page: Page, width = 1440): Promise<void> {

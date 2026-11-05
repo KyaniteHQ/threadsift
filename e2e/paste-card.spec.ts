@@ -1,12 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import { NOTICES, READING_NOTE, RETRY_LABEL } from "../web/src/text.ts";
-import { postLink } from "./api.ts";
 import {
   ADDED,
   CLOSE_MS,
   READING,
-  REFRESHED,
   SLOW_PAGE,
   TIMED_OUT,
   UNREACHABLE,
@@ -14,7 +12,6 @@ import {
   cardTitle,
   countListReads,
   expectClosesAfterSixSeconds,
-  openLibrary,
   pasteForId,
   pasteOnly,
   seed,
@@ -49,6 +46,7 @@ test("a slow page shows Reading the link, then Added with its note, and its row 
   await expect(pasteCard(page)).toContainText(READING_NOTE);
   await expect(pasteCard(page).getByRole("button")).toHaveCount(0);
   await expect(rowOf(page, id).locator(".skel i")).toBeVisible();
+  await expect(rowOf(page, id).locator(".it-open")).toContainText("delay/3");
 
   await expect(cardTitle(page)).toHaveText(ADDED, { timeout: 30_000 });
   await expect(pasteCard(page)).toContainText(NOTICES["no-title"].text);
@@ -62,7 +60,7 @@ test("a slow page shows Reading the link, then Added with its note, and its row 
   reads.expectNoNewReads();
 });
 
-test("a host that stalls shows a failure with Try again and Dismiss, the card closes itself, and the row's Try again runs a new fetch through the paste box", async ({
+test("a host that stalls shows a failure with Try again and Dismiss, and the card closes itself while the row keeps the reason", async ({
   page,
   request,
 }) => {
@@ -70,7 +68,6 @@ test("a host that stalls shows a failure with Try again and Dismiss, the card cl
   const run = newRunId();
   await page.clock.install();
   await seed(page, request, run);
-  const reads = countListReads(page);
 
   const announced = await watchAnnouncements(page);
   const id = await pasteForId(page, `${STALLED}?run=${run}`);
@@ -93,12 +90,6 @@ test("a host that stalls shows a failure with Try again and Dismiss, the card cl
 
   await expectClosesAfterSixSeconds(page);
   await expect(rowOf(page, id).locator(".it-fail")).toContainText(TIMED_OUT);
-
-  await rowOf(page, id).getByRole("button", { name: RETRY_LABEL }).click();
-  await expect(cardTitle(page)).toHaveText(READING);
-  await expect(rowOf(page, id).locator(".skel i")).toBeVisible();
-  await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
-  reads.expectNoNewReads();
 });
 
 test("the failure card holds while hovered, closes 6 s after the pointer leaves, and a timer close leaves focus where it was", async ({
@@ -124,17 +115,20 @@ test("the failure card holds while hovered, closes 6 s after the pointer leaves,
   await expect(rowOf(page, id).getByRole("button", { name: RETRY_LABEL })).toBeVisible();
 });
 
-test("Added closes itself after 6 s", async ({ page, request }) => {
+test("Added closes itself after 6 s and leaves focus where it was", async ({ page, request }) => {
   const run = newRunId();
-  await seed(page, request, run);
+  const first = await seed(page, request, run);
 
   await pasteOnly(page, titledPage(`Closes ${run}`));
   await expect(cardTitle(page)).toHaveText(ADDED);
   await expect(pasteCard(page).locator(".ic.tone-ok")).toBeVisible();
   const shown = Date.now();
+  const link = rowOf(page, first.id).locator("a.it-open");
+  await link.focus();
 
   await expect(pasteCard(page)).toBeHidden({ timeout: CLOSE_MS + 3000 });
   expect(Date.now() - shown).toBeGreaterThanOrEqual(CLOSE_MS - 700);
+  await expect(link).toBeFocused();
 });
 
 test("Added stays while the pointer is over it and closes 6 s after the pointer leaves", async ({
@@ -204,14 +198,4 @@ test("Escape dismisses the card and focuses the paste field, from the card and f
   await page.keyboard.press("Escape");
   await expect(pasteCard(page)).toBeHidden();
   await expect(pasteField(page)).toBeFocused();
-});
-
-test("a refresh of a known link shows Already saved, refreshed", async ({ page, request }) => {
-  const run = newRunId();
-  const { body } = await postLink(request, `https://example.com/${run}/known`);
-  await openLibrary(page);
-
-  await pasteOnly(page, body.item.originalUrl);
-  await expect(cardTitle(page)).toHaveText(REFRESHED);
-  await expect(dismissButton(page)).toBeVisible();
 });

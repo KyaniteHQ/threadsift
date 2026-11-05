@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { NOTICES } from "../web/src/text.ts";
 import { postLink } from "./api.ts";
 import {
+  ADDED,
   READING,
   REFRESHED,
   SLOW_PAGE,
@@ -13,7 +14,7 @@ import {
   rowsUnderCard,
   unreachableUrl,
 } from "./card.ts";
-import { addButton, dismissButton, newRunId, pasteField, retryButton } from "./links.ts";
+import { addButton, dismissButton, newRunId, pasteCard, pasteField, retryButton } from "./links.ts";
 import { afterTwoFrames } from "./look.ts";
 
 const WIDTHS = [390, 760, 1080, 1440, 1920] as const;
@@ -39,6 +40,7 @@ for (const width of WIDTHS) {
 
     const states: readonly (readonly [string, string, string])[] = [
       ["input error", "not a url", NOTICES.invalid.text],
+      ["Added", `https://example.com/${run}/added`, ADDED],
       ["refreshed", body.item.originalUrl, REFRESHED],
       ["Reading the link", `${SLOW_PAGE}?run=${run}`, READING],
       ["failure", unreachableUrl(run), UNREACHABLE],
@@ -53,6 +55,12 @@ for (const width of WIDTHS) {
       if (width >= 1080) {
         expect(await firstTop(), `${state}: the first row's top`).toBe(before);
       }
+    }
+
+    if (width >= 1080) {
+      await dismissButton(page).click();
+      await expect(pasteCard(page)).toBeHidden();
+      expect(await firstTop(), "after the card closes: the first row's top").toBe(before);
     }
   });
 }

@@ -1,39 +1,24 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 import { RETRY_LABEL } from "../web/src/text.ts";
+import { settled } from "./api.ts";
 import {
   ADDED,
   READING,
+  REFRESHED,
   SLOW_PAGE,
   UNREACHABLE,
   alertRegion,
-  unreachableUrl,
   cardTitle,
   countListReads,
+  openLibrary,
   pasteForId,
   pasteOnly,
   seed,
+  unreachableUrl,
   watchAnnouncements,
 } from "./card.ts";
-import { newRunId, pasteCard, rowOf } from "./links.ts";
-
-test("a processing row updates in place after Escape dismissed its card", async ({
-  page,
-  request,
-}) => {
-  test.setTimeout(60_000);
-  const run = newRunId();
-  await seed(page, request, run);
-  const reads = countListReads(page);
-
-  const id = await pasteForId(page, `${SLOW_PAGE}?run=${run}&via=escape`);
-  await expect(cardTitle(page)).toHaveText(READING);
-  await page.keyboard.press("Escape");
-  await expect(pasteCard(page)).toBeHidden();
-  await expect(rowOf(page, id).locator(".skel i")).toBeVisible();
-  await expect(rowOf(page, id).locator(".skel")).toHaveCount(0, { timeout: 30_000 });
-  reads.expectNoNewReads();
-});
+import { newRunId, pasteField, rowOf, titledPage } from "./links.ts";
 
 test("a processing row updates in place after a newer Paste replaced its card", async ({
   page,
@@ -65,7 +50,7 @@ test("a processing row found at page load updates in place", async ({ page, requ
   reads.expectNoNewReads();
 });
 
-test("a failed row has Try again that sets it processing and ends failed again, without a list reload", async ({
+test("a row's Try again is a Paste: the card shows, both live regions follow it, the button is described by the row's name, and the list is not read again", async ({
   page,
   request,
 }) => {
@@ -73,26 +58,6 @@ test("a failed row has Try again that sets it processing and ends failed again, 
   const run = newRunId();
   await seed(page, request, run);
   const reads = countListReads(page);
-
-  const id = await pasteForId(page, unreachableUrl(run));
-  await expect(cardTitle(page)).toHaveText(READING);
-  await page.keyboard.press("Escape");
-  const row = rowOf(page, id);
-  await expect(row.locator(".it-fail")).toContainText(UNREACHABLE, { timeout: 30_000 });
-
-  await row.getByRole("button", { name: RETRY_LABEL }).click();
-  await expect(row.locator(".skel i")).toBeVisible();
-  await expect(row.locator(".it-fail")).toContainText(UNREACHABLE, { timeout: 30_000 });
-  reads.expectNoNewReads();
-});
-
-test("a row's Try again is a Paste: the card shows, both live regions follow it, and the button is described by the row's name", async ({
-  page,
-  request,
-}) => {
-  test.setTimeout(60_000);
-  const run = newRunId();
-  await seed(page, request, run);
 
   const id = await pasteForId(page, unreachableUrl(run));
   await page.keyboard.press("Escape");
@@ -106,16 +71,19 @@ test("a row's Try again is a Paste: the card shows, both live regions follow it,
   const trace = await watchAnnouncements(page);
   await retry.click();
 
+  await expect(row.locator(".skel i")).toBeVisible();
   await expect(cardTitle(page)).toHaveText(READING);
   await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
   await expect(alertRegion(page)).toHaveText(`${UNREACHABLE}: ${name}`);
+  await expect(row.locator(".it-fail")).toContainText(UNREACHABLE);
 
   const seen = await trace();
   expect(seen.polite.some((text) => text.startsWith(`${READING}: ${name}`))).toBe(true);
   expect(seen.alert).toContain(`${UNREACHABLE}: ${name}`);
+  reads.expectNoNewReads();
 });
 
-test("a hidden tab stops reading a processing Item and reads once when it is visible again", async ({
+test("a row's Try again pressed while another Paste is saving runs when that Paste ends", async ({
   page,
   request,
 }) => {
@@ -123,27 +91,189 @@ test("a hidden tab stops reading a processing Item and reads once when it is vis
   const run = newRunId();
   await seed(page, request, run);
 
-  const id = await pasteForId(page, `${SLOW_PAGE}?run=${run}&via=hidden`);
-  await expect(cardTitle(page)).toHaveText(READING);
+  const id = await pasteForId(page, unreachableUrl(run));
+  await page.keyboard.press("Escape");
+  const row = rowOf(page, id);
+  await expect(row.locator(".it-fail")).toContainText(UNREACHABLE, { timeout: 30_000 });
 
-  let itemReads = 0;
-
-  page.on("request", (sent) => {
-    if (new URL(sent.url()).pathname === `/api/items/${id}`) {
-      itemReads += 1;
+  await page.route(/\/api\/items$/u, async (route) => {
+    if (route.request().method() === "POST") {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 2000);
+      });
     }
+
+    await route.continue();
   });
 
-  await page.evaluate(() => {
-    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
-  });
-  await page.waitForTimeout(5000);
-  expect(itemReads, "reads while the tab was hidden").toBeLessThanOrEqual(1);
+  await pasteOnly(page, titledPage(`Held ${run}`));
+  await row.getByRole("button", { name: RETRY_LABEL }).click();
 
-  await page.evaluate(() => {
-    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
-    document.dispatchEvent(new Event("visibilitychange"));
+  await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
+  await expect(row.locator(".it-fail")).toContainText(UNREACHABLE);
+});
+
+async function holdFirstItemRead(page: Page) {
+  let taken = false;
+  const mayFetch = Promise.withResolvers<void>();
+  const wasFetched = Promise.withResolvers<void>();
+  const mayRelease = Promise.withResolvers<void>();
+
+  await page.route(/\/api\/items\/\d+$/u, async (route) => {
+    if (taken || route.request().method() !== "GET") {
+      await route.continue();
+
+      return;
+    }
+
+    taken = true;
+    await mayFetch.promise;
+    const response = await route.fetch();
+    wasFetched.resolve();
+    await mayRelease.promise;
+    await route.fulfill({ response });
   });
-  await expect(rowOf(page, id).locator(".skel")).toHaveCount(0, { timeout: 10_000 });
-  expect(itemReads, "reads after the tab was visible again").toBeGreaterThanOrEqual(1);
+
+  return {
+    ready: () => {
+      mayFetch.resolve();
+    },
+    wasFetched: wasFetched.promise,
+    release: () => {
+      mayRelease.resolve();
+    },
+  };
+}
+
+test("a read that left before a refresh does not overwrite the refresh", async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(90_000);
+  const run = newRunId();
+  await seed(page, request, run);
+  const held = await holdFirstItemRead(page);
+  const url = `${SLOW_PAGE}?run=${run}&via=stale`;
+
+  const id = await pasteForId(page, url);
+  await settled(request, id);
+  held.ready();
+  await held.wasFetched;
+
+  await pasteOnly(page, url);
+  await expect(cardTitle(page)).toHaveText(READING);
+  held.release();
+  await page.waitForTimeout(500);
+
+  await expect(rowOf(page, id).locator(".skel i")).toBeVisible();
+  await expect(rowOf(page, id).locator(".skel")).toHaveCount(0, { timeout: 30_000 });
+  await expect(cardTitle(page)).toHaveText(REFRESHED, { timeout: 30_000 });
+});
+
+test("a Paste while the list failed to load shows its card and its row once the list loads", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const run = newRunId();
+  let failed = false;
+
+  await page.route(/\/api\/items$/u, async (route) => {
+    if (route.request().method() === "GET" && !failed) {
+      failed = true;
+      await route.abort();
+
+      return;
+    }
+
+    await route.continue();
+  });
+
+  await page.goto("/");
+  await expect(pasteField(page)).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Couldn’t load" })).toBeVisible();
+
+  const trace = await watchAnnouncements(page);
+  const id = await pasteForId(page, `${SLOW_PAGE}?run=${run}&via=list-failed`);
+
+  await expect(cardTitle(page)).toHaveText(READING);
+  await expect(cardTitle(page)).toHaveText(ADDED, { timeout: 30_000 });
+  expect((await trace()).polite.some((text) => text.startsWith(READING))).toBe(true);
+
+  await page.getByRole("button", { name: RETRY_LABEL }).click();
+  await expect(rowOf(page, id)).toHaveCount(1);
+  await expect(rowOf(page, id).locator(".skel")).toHaveCount(0);
+});
+
+for (const width of [390, 1440]) {
+  test(`a processing row is as tall as a one-line titled ready row at ${width} px`, async ({
+    page,
+    request,
+  }, info) => {
+    test.setTimeout(60_000);
+    const run = newRunId();
+    await seed(page, request, run);
+    await openLibrary(page, width);
+
+    const titled = await pasteForId(page, titledPage(`Height ${run}`));
+    const ready = rowOf(page, titled);
+    await expect(ready).toContainText(`Height ${run}`);
+    await expect(ready.locator(".skel")).toHaveCount(0);
+
+    const processing = await pasteForId(page, `${SLOW_PAGE}?r=${run}`);
+    await expect(rowOf(page, processing).locator(".skel i")).toBeVisible();
+
+    const height = async (id: number) =>
+      Math.round((await rowOf(page, id).boundingBox())?.height ?? 0);
+
+    const heights = { width, processing: await height(processing), ready: await height(titled) };
+
+    await info.attach(`row-heights-${width}.json`, {
+      body: JSON.stringify(heights),
+      contentType: "application/json",
+    });
+    expect(heights.processing).toBe(heights.ready);
+  });
+}
+
+test("under forced colours the skeleton bar and the icons keep a system-colour edge", async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(60_000);
+  const run = newRunId();
+  await page.emulateMedia({ forcedColors: "active" });
+  await seed(page, request, run);
+
+  const id = await pasteForId(page, `${SLOW_PAGE}?run=${run}&via=forced`);
+  await expect(rowOf(page, id).locator(".skel i")).toBeVisible();
+
+  const seen = await page.evaluate((key) => {
+    const probe = document.createElement("span");
+    probe.style.color = "CanvasText";
+    document.body.append(probe);
+    const canvasText = getComputedStyle(probe).color;
+    probe.remove();
+
+    const bar = document.querySelector(`.it[data-key="${key}"] .skel i`);
+    const icon = document.querySelector(".paste .ic");
+
+    if (bar === null || icon === null) {
+      throw new Error("the skeleton or an icon is missing");
+    }
+
+    const barStyle = getComputedStyle(bar);
+
+    return {
+      canvasText,
+      outlineStyle: barStyle.outlineStyle,
+      outlineWidth: barStyle.outlineWidth,
+      outlineColor: barStyle.outlineColor,
+      stroke: getComputedStyle(icon).stroke,
+    };
+  }, id);
+
+  expect(seen.outlineStyle).toBe("solid");
+  expect(seen.outlineWidth).toBe("1px");
+  expect(seen.outlineColor).toBe(seen.canvasText);
+  expect(seen.stroke).toBe(seen.canvasText);
 });

@@ -7,6 +7,7 @@ interface ApiSchema {
   $ref?: string | undefined;
   properties?: Record<string, ApiSchema> | undefined;
   items?: ApiSchema | undefined;
+  oneOf?: ApiSchema[] | undefined;
 }
 
 const SchemaNode: z.ZodType<ApiSchema> = z.lazy(() =>
@@ -14,6 +15,7 @@ const SchemaNode: z.ZodType<ApiSchema> = z.lazy(() =>
     $ref: z.string().optional(),
     properties: z.record(z.string(), SchemaNode).optional(),
     items: SchemaNode.optional(),
+    oneOf: z.array(SchemaNode).optional(),
   }),
 );
 
@@ -45,7 +47,14 @@ function resolved(schemas: Schemas, node: ApiSchema): ApiSchema {
 }
 
 function propertyNames(schemas: Schemas, node: ApiSchema): string[] {
-  return Object.keys(resolved(schemas, node).properties ?? {});
+  const { properties, oneOf } = resolved(schemas, node);
+
+  return [
+    ...new Set([
+      ...Object.keys(properties ?? {}),
+      ...(oneOf ?? []).flatMap((branch) => propertyNames(schemas, branch)),
+    ]),
+  ];
 }
 
 function propertyOf(schemas: Schemas, node: ApiSchema, name: string): ApiSchema {

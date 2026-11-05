@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-import { listAll, postLink } from "./api.ts";
+import { mainInstance } from "./access.ts";
+import { listAll, postLink, postLinkRaw } from "./api.ts";
+import { itemIdAt, jobsOf } from "./ingest.ts";
 import {
   SHORT_LINK,
   SHORT_LINK_TARGET,
@@ -14,16 +16,19 @@ import {
 test("a short link and its target pasted separately are one Item under the target's URL", async ({
   request,
 }) => {
-  const viaShortLink = await postLink(request, SHORT_LINK);
+  const viaShortLink = await postLinkRaw(request, SHORT_LINK);
+  const jobsAfterShortLink = jobsOf(viaShortLink.body.item.id);
   const direct = await postLink(request, SHORT_LINK_TARGET);
 
-  expect(viaShortLink.body.item.fetch).toBe("ok");
   expect(viaShortLink.body.item).toMatchObject({
+    status: "ready",
+    fetch: "ok",
     normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
     originalUrl: SHORT_LINK,
     title: "Example Domains",
   });
 
+  expect(jobsAfterShortLink, "a short link opens no job").toEqual([]);
   expect(direct.status).toBe(200);
   expect(direct.body.item.id).toBe(viaShortLink.body.item.id);
   expect((await listAll(request)).filter((item) => item.normalizedUrl === SHORT_LINK)).toEqual([]);
@@ -111,4 +116,35 @@ test("a short link whose host ends in a dot is followed like the short link", as
     normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
     title: "Example Domains",
   });
+});
+
+test("a short link pasted while its target's fetch job is open leaves the Item processing and the job alone", async ({
+  request,
+}) => {
+  const instance = mainInstance();
+  const now = Date.now();
+
+  instance.sql(
+    `DELETE FROM jobs WHERE item_id IN (SELECT id FROM items WHERE normalized_url = '${SHORT_LINK_TARGET_NORMALIZED}')`,
+  );
+  instance.sql(`DELETE FROM items WHERE normalized_url = '${SHORT_LINK_TARGET_NORMALIZED}'`);
+  instance.sql(
+    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, status) VALUES ('other', 'link', '${SHORT_LINK_TARGET_NORMALIZED}', '${SHORT_LINK_TARGET}', ${now}, 'processing')`,
+  );
+
+  const id = itemIdAt(SHORT_LINK_TARGET_NORMALIZED);
+
+  instance.sql(
+    `INSERT INTO jobs (kind, item_id, address, state, attempts, next_attempt_at) VALUES ('fetch', ${id}, '${SHORT_LINK_TARGET}', 'queued', 0, ${now + 3_600_000})`,
+  );
+
+  const before = jobsOf(id);
+  const pasted = await postLinkRaw(request, SHORT_LINK);
+
+  expect(pasted.status).toBe(200);
+  expect(pasted.body.item).toMatchObject({ id, status: "processing", reason: null });
+  expect(jobsOf(id)).toEqual(before);
+
+  instance.sql(`DELETE FROM jobs WHERE item_id = ${id}`);
+  instance.sql(`DELETE FROM items WHERE id = ${id}`);
 });

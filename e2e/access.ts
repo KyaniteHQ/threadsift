@@ -177,11 +177,19 @@ export function mainInstance(): Instance {
 
 let launched = 0;
 
-export function launchFresh(code: string | null): Instance {
-  launched += 1;
-  const dir = join(stateDir(), `fresh-${launched}-${randomBytes(3).toString("hex")}`);
+export function launchAt(dir: string, code: string | null): Instance {
   mkdirSync(dir, { recursive: true });
   runInstance(["launch", dir], code);
 
   return instanceAt(dir);
+}
+
+export function freshDir(): string {
+  launched += 1;
+
+  return join(stateDir(), `fresh-${launched}-${randomBytes(3).toString("hex")}`);
+}
+
+export function launchFresh(code: string | null): Instance {
+  return launchAt(freshDir(), code);
 }
