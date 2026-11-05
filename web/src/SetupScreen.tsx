@@ -1,16 +1,13 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
+import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
 import { SETUP } from "./access-text.ts";
 import { AuthShell } from "./AuthShell.tsx";
-import { CodeStep, type Unavailable } from "./CodeStep.tsx";
+import { CodeStep } from "./CodeStep.tsx";
 import { PasswordStep } from "./PasswordStep.tsx";
+import type { SetupStep } from "./setup-step.ts";
 
-type Step =
-  | { readonly name: "code"; readonly wrong: boolean }
-  | { readonly name: "password"; readonly code: string }
-  | { readonly name: "unavailable"; readonly reason: Unavailable };
-
-function UnavailableBlock({ reason }: Readonly<{ reason: Unavailable }>) {
+function UnavailableBlock({ reason }: Readonly<{ reason: SetupCodeProblem }>) {
   return (
     <div role="alert" className="stack">
       <h1 className="auth-title">{reason === "missing" ? SETUP.missingTitle : SETUP.shortTitle}</h1>
@@ -20,57 +17,42 @@ function UnavailableBlock({ reason }: Readonly<{ reason: Unavailable }>) {
   );
 }
 
-function useSteps(blocked: Unavailable | null) {
-  const [step, setStep] = useState<Step>(
-    blocked === null ? { name: "code", wrong: false } : { name: "unavailable", reason: blocked },
-  );
-
-  const accepted = useCallback((code: string) => {
-    setStep({ name: "password", code });
-  }, []);
-
-  const unavailable = useCallback((reason: Unavailable) => {
-    setStep({ name: "unavailable", reason });
-  }, []);
-
-  const toCode = useCallback(() => {
-    setStep({ name: "code", wrong: false });
-  }, []);
-
-  const toWrongCode = useCallback(() => {
-    setStep({ name: "code", wrong: true });
-  }, []);
-
-  return { step, accepted, unavailable, toCode, toWrongCode };
+function StepView({
+  step,
+  go,
+  refresh,
+  signedIn,
+}: Readonly<{
+  step: SetupStep;
+  go: (step: SetupStep) => void;
+  refresh: () => void;
+  signedIn: () => void;
+}>) {
+  switch (step.name) {
+    case "code":
+    case "code-wrong":
+      return <CodeStep wrong={step.name === "code-wrong"} go={go} exists={refresh} />;
+    case "password":
+      return <PasswordStep code={step.code} go={go} exists={refresh} done={signedIn} />;
+    case "unavailable":
+      return <UnavailableBlock reason={step.reason} />;
+    default:
+      return step satisfies never;
+  }
 }
 
 export function SetupScreen({
+  problem,
   refresh,
-  unavailable: blocked,
-}: Readonly<{ refresh: () => void; unavailable: Unavailable | null }>) {
-  const { step, accepted, unavailable, toCode, toWrongCode } = useSteps(blocked);
+  signedIn,
+}: Readonly<{ problem: SetupCodeProblem | null; refresh: () => void; signedIn: () => void }>) {
+  const [step, setStep] = useState<SetupStep>(
+    problem === null ? { name: "code" } : { name: "unavailable", reason: problem },
+  );
 
   return (
     <AuthShell>
-      {step.name === "code" ? (
-        <CodeStep
-          wrongAtStart={step.wrong}
-          accepted={accepted}
-          unavailable={unavailable}
-          exists={refresh}
-        />
-      ) : null}
-      {step.name === "password" ? (
-        <PasswordStep
-          code={step.code}
-          back={toCode}
-          wrongCode={toWrongCode}
-          unavailable={unavailable}
-          exists={refresh}
-          done={refresh}
-        />
-      ) : null}
-      {step.name === "unavailable" ? <UnavailableBlock reason={step.reason} /> : null}
+      <StepView step={step} go={setStep} refresh={refresh} signedIn={signedIn} />
     </AuthShell>
   );
 }

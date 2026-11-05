@@ -1,6 +1,6 @@
-import { and, desc, eq, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, isNull, lte, or } from "drizzle-orm";
 
-import { base64url, hex } from "./encoding.ts";
+import { digestOf, randomSecret } from "./encoding.ts";
 import type { Ports } from "./ports.ts";
 import { type AgentTokenRow, agentTokens } from "./schema.ts";
 
@@ -10,22 +10,17 @@ const LAST_USE_STEP_MS = 3_600_000;
 
 export type TokenSummary = Omit<AgentTokenRow, "digest">;
 
-const summary = {
-  id: agentTokens.id,
-  name: agentTokens.name,
-  createdAt: agentTokens.createdAt,
-  lastUsedAt: agentTokens.lastUsedAt,
-};
+const { digest: _digest, ...summary } = getTableColumns(agentTokens);
 
 export async function createToken(
   ports: Ports,
   name: string,
 ): Promise<{ readonly token: TokenSummary; readonly value: string }> {
-  const value = `${TOKEN_PREFIX}${base64url(ports.crypto.randomBytes(TOKEN_BYTES))}`;
+  const value = `${TOKEN_PREFIX}${randomSecret(ports.crypto, TOKEN_BYTES)}`;
 
   const [token] = await ports.db
     .insert(agentTokens)
-    .values({ name, digest: hex(ports.crypto.sha256(value)), createdAt: Date.now() })
+    .values({ name, digest: digestOf(ports.crypto, value), createdAt: Date.now() })
     .returning(summary);
 
   if (token === undefined) {
@@ -53,26 +48,28 @@ export async function revokeToken(ports: Ports, id: number): Promise<boolean> {
 
 export async function tokenIsValid(ports: Ports, value: string): Promise<boolean> {
   const now = Date.now();
-  const digest = hex(ports.crypto.sha256(value));
+  const staleBefore = now - LAST_USE_STEP_MS;
 
   const [row] = await ports.db
-    .select(summary)
+    .select({ id: agentTokens.id, lastUsedAt: agentTokens.lastUsedAt })
     .from(agentTokens)
-    .where(eq(agentTokens.digest, digest));
+    .where(eq(agentTokens.digest, digestOf(ports.crypto, value)));
 
   if (row === undefined) {
     return false;
   }
 
-  await ports.db
-    .update(agentTokens)
-    .set({ lastUsedAt: now })
-    .where(
-      and(
-        eq(agentTokens.id, row.id),
-        or(isNull(agentTokens.lastUsedAt), lte(agentTokens.lastUsedAt, now - LAST_USE_STEP_MS)),
-      ),
-    );
+  if (row.lastUsedAt === null || row.lastUsedAt <= staleBefore) {
+    await ports.db
+      .update(agentTokens)
+      .set({ lastUsedAt: now })
+      .where(
+        and(
+          eq(agentTokens.id, row.id),
+          or(isNull(agentTokens.lastUsedAt), lte(agentTokens.lastUsedAt, staleBefore)),
+        ),
+      );
+  }
 
   return true;
 }

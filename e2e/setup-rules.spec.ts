@@ -54,8 +54,8 @@ function login(password: string): Promise<APIResponse> {
   return send("post", "/api/login", { data: { password } });
 }
 
-function expectLocked(response: APIResponse, what: string): void {
-  expect(response.status(), what).toBe(429);
+async function expectLocked(response: APIResponse, what: string): Promise<void> {
+  await expectRefusal(response, 429, what, "locked");
   const seconds = Number(response.headers()["retry-after"]);
   expect(seconds, `${what}: Retry-After`).toBeGreaterThan(0);
   expect(seconds, `${what}: Retry-After`).toBeLessThanOrEqual(MAX_FIRST_LOCK_SECONDS);
@@ -65,11 +65,12 @@ test("a fresh Instance says setup, refuses a wrong code on both calls and moves 
   const state = await send("get", "/api/session");
   expect(await state.json()).toEqual({ state: "setup", code: "set" });
 
-  await expectRefusal(await setupCall("/api/setup/code", `${code}x`), 401, "a wrong code");
+  await expectRefusal(await setupCall("/api/setup/code", `${code}x`), 401, "a wrong code", "wrong");
   await expectRefusal(
     await setupCall("/api/setup", `${code}x`),
     401,
     "a wrong code with a password",
+    "wrong",
   );
   expect((await setupCall("/api/setup/code", code)).status(), "the right code").toBe(204);
 });
@@ -81,12 +82,12 @@ test("ten wrong codes, alternating between the two setup calls, lock both, and t
   }
 
   for (const path of ["/api/setup/code", "/api/setup"] as const) {
-    expectLocked(await setupCall(path, code), `the right code on ${path}`);
-    expectLocked(await setupCall(path, "wrong-again"), `a wrong code on ${path}`);
+    await expectLocked(await setupCall(path, code), `the right code on ${path}`);
+    await expectLocked(await setupCall(path, "wrong-again"), `a wrong code on ${path}`);
   }
 
   rules.restart();
-  expectLocked(await setupCall("/api/setup/code", code), "the right code after a restart");
+  await expectLocked(await setupCall("/api/setup/code", code), "the right code after a restart");
 
   rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'setup'");
   expect((await setupCall("/api/setup/code", code)).status(), "after the lock ends").toBe(204);
@@ -95,11 +96,17 @@ test("ten wrong codes, alternating between the two setup calls, lock both, and t
 });
 
 test("a password is counted after NFKC: 14 and 1,025 characters get 400, 14 that make 15 are accepted", async () => {
-  await expectRefusal(await setupCall("/api/setup", code, "a".repeat(14)), 400, "14 characters");
+  await expectRefusal(
+    await setupCall("/api/setup", code, "a".repeat(14)),
+    400,
+    "14 characters",
+    "password-short",
+  );
   await expectRefusal(
     await setupCall("/api/setup", code, "a".repeat(1025)),
     400,
     "1,025 characters",
+    "password-long",
   );
 
   const created = await setupCall("/api/setup", code, LIGATURE_PASSWORD);
@@ -113,8 +120,13 @@ test("a password is counted after NFKC: 14 and 1,025 characters get 400, 14 that
 
 test("after setup both setup calls answer 409, the stored hash names its cost and other Unicode forms log in", async () => {
   for (const path of ["/api/setup/code", "/api/setup"] as const) {
-    await expectRefusal(await setupCall(path, code), 409, `${path} after setup`);
-    await expectRefusal(await setupCall(path, "wrong"), 409, `a wrong code on ${path} after setup`);
+    await expectRefusal(await setupCall(path, code), 409, `${path} after setup`, "owner-exists");
+    await expectRefusal(
+      await setupCall(path, "wrong"),
+      409,
+      `a wrong code on ${path} after setup`,
+      "owner-exists",
+    );
   }
 
   expect(
@@ -134,18 +146,21 @@ test("ten wrong passwords lock login for everyone but sessions already open, and
   const opened = sessionValueOf((await login(LIGATURE_PASSWORD)).headers()["set-cookie"] ?? "");
 
   for (let attempt = 0; attempt < WRONG_ATTEMPTS; attempt += 1) {
-    expect((await login(`wrong-password-${attempt}`)).status(), `wrong password ${attempt}`).toBe(
+    await expectRefusal(
+      await login(`wrong-password-${attempt}`),
       401,
+      `wrong password ${attempt}`,
+      "wrong",
     );
   }
 
-  expectLocked(await login("wrong-password-again"), "an eleventh wrong password");
-  expectLocked(await login(LIGATURE_PASSWORD), "the right password while locked");
+  await expectLocked(await login("wrong-password-again"), "an eleventh wrong password");
+  await expectLocked(await login(LIGATURE_PASSWORD), "the right password while locked");
   const open = await send("get", "/api/items", { headers: cookieHeader(opened) });
   expect(open.status(), "an open session keeps working").toBe(200);
 
   rules.restart();
-  expectLocked(await login(LIGATURE_PASSWORD), "the right password after a restart");
+  await expectLocked(await login(LIGATURE_PASSWORD), "the right password after a restart");
 
   rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'login'");
   expect((await login(LIGATURE_PASSWORD)).status(), "after the lock ends").toBe(204);

@@ -70,6 +70,8 @@ export function newCode(): string {
   return randomBytes(24).toString("base64url");
 }
 
+export const SAME_ORIGIN = { "sec-fetch-site": "same-origin" } as const;
+
 export function bearer(token: string) {
   return { authorization: `Bearer ${token}` };
 }

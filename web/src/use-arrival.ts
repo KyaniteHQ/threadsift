@@ -1,11 +1,13 @@
 import { useState } from "react";
 
+import type { ScreenName } from "./screens.ts";
+
 interface Seen {
-  readonly current: string;
-  readonly previous: string;
+  readonly current: ScreenName;
+  readonly previous: ScreenName;
 }
 
-export function useArrival(screen: string): boolean {
+export function useArrival(screen: ScreenName): boolean {
   const [seen, setSeen] = useState<Seen>({ current: screen, previous: "loading" });
 
   if (seen.current !== screen) {

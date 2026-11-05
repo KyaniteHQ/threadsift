@@ -35,13 +35,6 @@ export function TokenForm({
 
     try {
       const result = await createToken(trimmed);
-
-      if (result.kind === "invalid") {
-        fail(SETTINGS.tokenNameTooLong);
-
-        return;
-      }
-
       clear();
       created(result.token, result.value);
     } catch {

@@ -86,8 +86,8 @@ async function expectUnavailable(
   ] as const) {
     const response = await post(instance, path, data);
     expect(response.status(), path).toBe(503);
-    const body = ErrorBody.extend({ setup: ErrorBody.shape.error }).parse(await response.json());
-    expect(body.setup, `${path}: setup`).toBe(setup);
+    const body = ErrorBody.extend({ code: ErrorBody.shape.error }).parse(await response.json());
+    expect(body.code, `${path}: code`).toBe(`setup-${setup}`);
   }
 }
 

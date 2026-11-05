@@ -1,74 +1,77 @@
 import { useCallback, useState } from "react";
 
+import { passwordLength } from "../../src/core/passwords.ts";
 import { type Attempt, setUp } from "./access-api.ts";
 import { FIELDS, SETUP } from "./access-text.ts";
 import { Alert } from "./AuthShell.tsx";
-import type { Unavailable } from "./CodeStep.tsx";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
+import type { GoTo } from "./setup-step.ts";
 import { SwapButton } from "./SwapButton.tsx";
 import { type FieldState, useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
-
-const MIN_CHARACTERS = 15;
-const MAX_CHARACTERS = 1024;
+import { useOutcome } from "./use-outcome.ts";
 
 export interface PasswordStepProps {
   readonly code: string;
-  readonly back: () => void;
-  readonly wrongCode: () => void;
-  readonly unavailable: (reason: Unavailable) => void;
+  readonly go: GoTo;
   readonly exists: () => void;
   readonly done: () => void;
 }
 
+const LENGTH_PROBLEM = {
+  short: SETUP.passwordTooShort,
+  long: SETUP.passwordTooLong,
+} as const;
+
 function lengthProblem(password: string): string | null {
-  const length = Array.from(password.normalize("NFKC")).length;
+  const length = passwordLength(password);
 
-  if (length < MIN_CHARACTERS) {
-    return SETUP.passwordTooShort;
-  }
-
-  return length > MAX_CHARACTERS ? SETUP.passwordTooLong : null;
+  return length === "ok" ? null : LENGTH_PROBLEM[length];
 }
 
 function useServerOutcome(
-  props: Readonly<PasswordStepProps>,
+  { code, go, exists, done }: Readonly<PasswordStepProps>,
   password: FieldState,
   startLock: (seconds: number) => void,
 ) {
   const [failed, setFailed] = useState(false);
-  const { wrongCode, unavailable, exists, done } = props;
   const { fail } = password;
+
+  const showFailed = useCallback(() => {
+    setFailed(true);
+  }, []);
+
+  const refuse = useOutcome({ locked: startLock, failed: showFailed, go, exists });
 
   const settle = useCallback(
     (result: Attempt) => {
       if (result.kind === "ok") {
         done();
       } else if (result.kind === "password") {
-        fail(result.length === "short" ? SETUP.passwordTooShort : SETUP.passwordTooLong);
+        fail(LENGTH_PROBLEM[result.length]);
       } else if (result.kind === "wrong") {
-        wrongCode();
-      } else if (result.kind === "locked") {
-        startLock(result.retryAfter);
-      } else if (result.kind === "unavailable") {
-        unavailable(result.reason);
-      } else if (result.kind === "owner-exists") {
-        exists();
+        go({ name: "code-wrong" });
       } else {
-        setFailed(true);
+        refuse(result);
       }
     },
-    [done, exists, fail, startLock, unavailable, wrongCode],
+    [done, fail, go, refuse],
   );
 
-  return { failed, setFailed, settle };
+  const check = useCallback(
+    async (typed: string) => {
+      settle(await setUp(code, typed));
+    },
+    [code, settle],
+  );
+
+  return { failed, setFailed, check };
 }
 
 function usePasswordStep(props: Readonly<PasswordStepProps>) {
   const password = useField();
   const confirm = useField();
   const lock = useLock();
-  const { failed, setFailed, settle } = useServerOutcome(props, password, lock.start);
-  const { code } = props;
+  const { failed, setFailed, check } = useServerOutcome(props, password, lock.start);
 
   const run = useCallback(async () => {
     const problem = lengthProblem(password.value);
@@ -79,9 +82,9 @@ function usePasswordStep(props: Readonly<PasswordStepProps>) {
     lock.dismiss();
 
     if (problem === null && mismatch === null) {
-      settle(await setUp(code, password.value));
+      await check(password.value);
     }
-  }, [code, confirm, lock, password, setFailed, settle]);
+  }, [check, confirm, lock, password, setFailed]);
 
   return { password, confirm, lock, failed, ...useSubmit(run, lock.locked) };
 }
@@ -89,6 +92,12 @@ function usePasswordStep(props: Readonly<PasswordStepProps>) {
 export function PasswordStep(props: Readonly<PasswordStepProps>) {
   const { password, confirm, lock, failed, busy, onSubmit } = usePasswordStep(props);
   const { shown, toggle } = usePasswordVisibility();
+  const { go } = props;
+
+  const backToCode = useCallback(() => {
+    go({ name: "code" });
+  }, [go]);
+
   useFocusOnMount(password);
 
   return (
@@ -119,7 +128,7 @@ export function PasswordStep(props: Readonly<PasswordStepProps>) {
         busy={busy}
         blocked={lock.locked}
       />
-      <button type="button" className="btn btn-plain btn-flush" onClick={props.back}>
+      <button type="button" className="btn btn-plain btn-flush" onClick={backToCode}>
         {SETUP.backToCode}
       </button>
     </form>

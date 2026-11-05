@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { PUBLIC_ROUTES } from "../src/http/access-rules.ts";
-import { cookieHeader, createToken, expectRefusal } from "./access-helpers.ts";
+import { cookieHeader, createToken, expectRefusal, revokeToken } from "./access-helpers.ts";
 import { agentToken, anonymous, bearer } from "./access.ts";
 import { newRunId } from "./links.ts";
 
@@ -57,16 +57,12 @@ test("a malformed Authorization header gets 400 and a revoked token gets 401, ne
     await expectRefusal(response, 400, `a valid cookie and "${header.split(" ")[0]}"`);
   }
 
-  const revoked = await request.delete(`/api/tokens/${created.token.id}`, { data: {} });
+  const revoked = await revokeToken(request, created.token.id);
   expect(revoked.status()).toBe(204);
 
   const afterwards = await request.get("/api/items", { headers: bearer(created.value) });
   await expectRefusal(afterwards, 401, "a revoked token with a valid cookie");
-  await expectRefusal(
-    await request.delete(`/api/tokens/${created.token.id}`, { data: {} }),
-    404,
-    "twice",
-  );
+  await expectRefusal(await revokeToken(request, created.token.id), 404, "twice");
 
   const stranger = await anonymous(baseURL ?? "");
   const unknown = await stranger.get("/api/items", { headers: cookieHeader("nonsense") });
@@ -87,12 +83,10 @@ test("a valid token gets 403 on the owner's routes whatever the body, and works 
     ["POST", "/api/logout"],
     ["GET", "/api/tokens/"],
   ] as const) {
-    const response = await request.fetch(path, { method, data: {}, headers });
+    const response = await request.fetch(path, { method, headers });
     await expectRefusal(response, 403, `a token on ${method} ${path}`);
   }
 
   expect((await request.get("/api/items", { headers })).status()).toBe(200);
-  expect((await request.delete(`/api/tokens/${created.token.id}`, { data: {} })).status()).toBe(
-    204,
-  );
+  expect((await revokeToken(request, created.token.id)).status()).toBe(204);
 });

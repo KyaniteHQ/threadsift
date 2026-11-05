@@ -10,8 +10,6 @@ import { ownerHasSession } from "./session-cookie.ts";
 
 export const BODY_LIMIT_BYTES = 64 * 1024;
 
-type Caller = "owner" | "token";
-
 function bearerCheck(ports: Ports): MiddlewareHandler {
   return bearerAuth({
     verifyToken: (value) => tokenIsValid(ports, value),
@@ -34,26 +32,24 @@ export function guard(ports: Ports): MiddlewareHandler {
 
   return async (c, next) => {
     const { method, path } = c.req;
-    let caller: Caller | undefined;
+    const protectedRoute = !isPublic(method, path);
+    const carriesToken = protectedRoute && c.req.header("authorization") !== undefined;
 
-    if (!isPublic(method, path)) {
-      if (c.req.header("authorization") === undefined) {
-        caller = (await ownerHasSession(c, ports)) ? "owner" : undefined;
-      } else {
+    if (protectedRoute) {
+      if (carriesToken) {
         await bearer(c, async () => {});
-        caller = "token";
-      }
 
-      if (caller === undefined) {
+        if (isOwnerOnly(path)) {
+          return c.json({ error: "Agent tokens cannot use this route" }, 403);
+        }
+      } else if (!(await ownerHasSession(c, ports))) {
         return c.json({ error: "Sign in or send an agent token" }, 401);
-      }
-
-      if (caller === "token" && isOwnerOnly(path)) {
-        return c.json({ error: "Agent tokens cannot use this route" }, 403);
       }
     }
 
-    await cross(c, async () => {});
+    if (!carriesToken) {
+      await cross(c, async () => {});
+    }
 
     return limit(c, next);
   };

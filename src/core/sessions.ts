@@ -1,13 +1,14 @@
 import { eq, lt } from "drizzle-orm";
 
-import { base64url, hex } from "./encoding.ts";
+import { digestOf, randomSecret } from "./encoding.ts";
 import type { Ports } from "./ports.ts";
 import { sessions } from "./schema.ts";
 
 const SESSION_BYTES = 32;
-const DAY_MS = 86_400_000;
+export const DAY_MS = 86_400_000;
 export const SESSION_DAYS = 30;
-export const SESSION_MAX_AGE_SECONDS = SESSION_DAYS * 86_400;
+const SESSION_MS = SESSION_DAYS * DAY_MS;
+export const SESSION_MAX_AGE_SECONDS = SESSION_MS / 1000;
 
 export interface StartedSession {
   readonly id: string;
@@ -20,19 +21,19 @@ export type SessionCheck =
 
 export async function startSession(ports: Ports): Promise<StartedSession> {
   const now = Date.now();
-  const id = base64url(ports.crypto.randomBytes(SESSION_BYTES));
+  const id = randomSecret(ports.crypto, SESSION_BYTES);
 
   await ports.db.delete(sessions).where(lt(sessions.expiresAt, now));
   await ports.db
     .insert(sessions)
-    .values({ digest: hex(ports.crypto.sha256(id)), expiresAt: now + SESSION_DAYS * DAY_MS });
+    .values({ digest: digestOf(ports.crypto, id), expiresAt: now + SESSION_MS });
 
   return { id, maxAge: SESSION_MAX_AGE_SECONDS };
 }
 
 export async function checkSession(ports: Ports, id: string): Promise<SessionCheck> {
   const now = Date.now();
-  const digest = hex(ports.crypto.sha256(id));
+  const digest = digestOf(ports.crypto, id);
   const [row] = await ports.db.select().from(sessions).where(eq(sessions.digest, digest));
 
   if (row === undefined) {
@@ -45,18 +46,18 @@ export async function checkSession(ports: Ports, id: string): Promise<SessionChe
     return { valid: false };
   }
 
-  if (row.expiresAt - now >= (SESSION_DAYS - 1) * DAY_MS) {
+  if (row.expiresAt - now >= SESSION_MS - DAY_MS) {
     return { valid: true, renewed: false };
   }
 
   await ports.db
     .update(sessions)
-    .set({ expiresAt: now + SESSION_DAYS * DAY_MS })
+    .set({ expiresAt: now + SESSION_MS })
     .where(eq(sessions.digest, digest));
 
   return { valid: true, renewed: true };
 }
 
 export async function endSession(ports: Ports, id: string): Promise<void> {
-  await ports.db.delete(sessions).where(eq(sessions.digest, hex(ports.crypto.sha256(id))));
+  await ports.db.delete(sessions).where(eq(sessions.digest, digestOf(ports.crypto, id)));
 }

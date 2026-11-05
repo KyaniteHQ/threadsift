@@ -36,20 +36,12 @@ async function centreOf(box: Promise<{ y: number; height: number } | null>): Pro
   return (found?.y ?? 0) + (found?.height ?? 0) / 2;
 }
 
-test("the token name stops at 80 characters, and a name the server refuses says why", async () => {
+test("the token name stops at 80 characters", async () => {
   const { page } = screen;
   await page.goto("/settings");
   await expect(nameField(page)).toHaveAttribute("maxlength", String(NAME_LIMIT));
   await nameField(page).pressSequentially("n".repeat(TOO_LONG));
   await expect(nameField(page)).toHaveValue("n".repeat(NAME_LIMIT));
-
-  await nameField(page).evaluate((input) => {
-    input.removeAttribute("maxlength");
-  });
-  await nameField(page).fill("n".repeat(TOO_LONG));
-  await nameField(page).press("Enter");
-  await expect(page.getByRole("alert")).toHaveText(SETTINGS.tokenNameTooLong);
-  await expect(nameField(page)).toBeFocused();
 });
 
 test("Create stays level with the name field while the field shows an error", async () => {

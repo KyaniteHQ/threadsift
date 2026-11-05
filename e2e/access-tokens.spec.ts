@@ -1,7 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { ListedTokens, createToken, expectRefusal, sha256Hex } from "./access-helpers.ts";
+import {
+  ListedTokens,
+  createToken,
+  expectRefusal,
+  revokeToken,
+  sha256Hex,
+} from "./access-helpers.ts";
 import { bearer, mainInstance } from "./access.ts";
 import { newRunId } from "./links.ts";
 
@@ -26,7 +32,7 @@ test("an agent token is shown once as tsa_ and 32 bytes, stored only as a digest
     stored.map((row) => row.digest),
     "no raw token is stored",
   ).not.toContain(value);
-  await request.delete(`/api/tokens/${token.id}`, { data: {} });
+  await revokeToken(request, token.id);
 });
 
 test("a token records its last use and is refused after it is revoked", async ({ request }) => {
@@ -36,7 +42,7 @@ test("a token records its last use and is refused after it is revoked", async ({
   const listed = ListedTokens.parse(await (await request.get("/api/tokens")).json());
   expect(listed.tokens.find((entry) => entry.id === token.id)?.lastUsedAt).not.toBeNull();
 
-  expect((await request.delete(`/api/tokens/${token.id}`, { data: {} })).status()).toBe(204);
+  expect((await revokeToken(request, token.id)).status()).toBe(204);
   const refused = await request.get("/api/items", { headers: bearer(value) });
   await expectRefusal(refused, 401, "the revoked token");
 });
@@ -50,5 +56,5 @@ test("a token name of 1 to 80 characters is accepted and anything else gets 400"
   }
 
   const { token } = await createToken(request, "n".repeat(80));
-  await request.delete(`/api/tokens/${token.id}`, { data: {} });
+  await revokeToken(request, token.id);
 });

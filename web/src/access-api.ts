@@ -1,73 +1,61 @@
 import { z } from "zod";
 
+import type { PasswordProblem } from "../../src/core/passwords.ts";
+import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
 import {
   CreatedTokenResponseSchema,
   ErrorResponseSchema,
   SessionStateSchema,
   TokenListResponseSchema,
+  type RefusalCode,
   type Token,
 } from "../../src/http/schemas.ts";
-import { ownerFetch, ownerGetOk } from "./session.ts";
+import { type JsonBody, call, callOk } from "./session.ts";
 
-export type SessionState = z.infer<typeof SessionStateSchema>["state"];
-
-export interface SessionSnapshot {
-  readonly state: SessionState;
-  readonly unavailable: "missing" | "short" | null;
-}
+export type Session = z.infer<typeof SessionStateSchema>;
 
 export type Refusal =
   | { readonly kind: "wrong" }
   | { readonly kind: "locked"; readonly retryAfter: number }
-  | { readonly kind: "unavailable"; readonly reason: "missing" | "short" }
+  | { readonly kind: "unavailable"; readonly reason: SetupCodeProblem }
   | { readonly kind: "owner-exists" }
-  | { readonly kind: "password"; readonly length: "short" | "long" }
+  | { readonly kind: "password"; readonly length: PasswordProblem }
   | { readonly kind: "failed" };
 
 export type Attempt = { readonly kind: "ok" } | Refusal;
 
 const DEFAULT_RETRY_SECONDS = 60;
 const NO_CONTENT = 204;
-const JSON_HEADERS = { "content-type": "application/json" } as const;
 
-function post(path: string, json: string): Promise<Response> {
-  return fetch(path, { method: "POST", headers: JSON_HEADERS, body: json });
-}
+const REFUSALS = {
+  wrong: { kind: "wrong" },
+  "owner-exists": { kind: "owner-exists" },
+  "setup-missing": { kind: "unavailable", reason: "missing" },
+  "setup-short": { kind: "unavailable", reason: "short" },
+  "password-short": { kind: "password", length: "short" },
+  "password-long": { kind: "password", length: "long" },
+} as const satisfies Record<Exclude<RefusalCode, "locked">, Refusal>;
 
 async function refusalOf(response: Response): Promise<Refusal> {
-  if (response.status === 401) {
-    return { kind: "wrong" };
+  const parsed = ErrorResponseSchema.safeParse(await response.json().catch(() => null));
+  const code = parsed.success ? parsed.data.code : undefined;
+
+  if (code === undefined) {
+    return { kind: "failed" };
   }
 
-  if (response.status === 409) {
-    return { kind: "owner-exists" };
-  }
-
-  if (response.status === 429) {
+  if (code === "locked") {
     const seconds = Number(response.headers.get("retry-after"));
 
     return { kind: "locked", retryAfter: seconds > 0 ? seconds : DEFAULT_RETRY_SECONDS };
   }
 
-  const parsed = ErrorResponseSchema.safeParse(await response.json().catch(() => null));
-  const setup = parsed.success ? parsed.data.setup : undefined;
-
-  if (response.status === 503 && setup !== undefined) {
-    return { kind: "unavailable", reason: setup };
-  }
-
-  const length = parsed.success ? parsed.data.password : undefined;
-
-  if (response.status === 400 && length !== undefined) {
-    return { kind: "password", length };
-  }
-
-  return { kind: "failed" };
+  return REFUSALS[code];
 }
 
-async function attempt(path: string, json: string): Promise<Attempt> {
+async function attempt(path: string, json: JsonBody): Promise<Attempt> {
   try {
-    const response = await post(path, json);
+    const response = await call("POST", path, { json, signsOut: false });
 
     return response.status === NO_CONTENT ? { kind: "ok" } : await refusalOf(response);
   } catch {
@@ -75,73 +63,42 @@ async function attempt(path: string, json: string): Promise<Attempt> {
   }
 }
 
-export async function fetchSessionState(): Promise<SessionSnapshot> {
-  const response = await fetch("/api/session");
+export async function fetchSession(): Promise<Session> {
+  const response = await callOk("GET", "/api/session", { signsOut: false });
 
-  if (!response.ok) {
-    throw new Error(`GET /api/session answered ${response.status}`);
-  }
-
-  const body = SessionStateSchema.parse(await response.json());
-
-  return {
-    state: body.state,
-    unavailable: body.state === "setup" && body.code !== "set" ? body.code : null,
-  };
+  return SessionStateSchema.parse(await response.json());
 }
 
 export function checkSetupCode(code: string): Promise<Attempt> {
-  return attempt("/api/setup/code", JSON.stringify({ code }));
+  return attempt("/api/setup/code", { code });
 }
 
 export function setUp(code: string, password: string): Promise<Attempt> {
-  return attempt("/api/setup", JSON.stringify({ code, password }));
+  return attempt("/api/setup", { code, password });
 }
 
 export function logIn(password: string): Promise<Attempt> {
-  return attempt("/api/login", JSON.stringify({ password }));
+  return attempt("/api/login", { password });
 }
 
 export async function logOut(): Promise<void> {
-  await fetch("/api/logout", { method: "POST", headers: JSON_HEADERS, body: "{}" });
+  await call("POST", "/api/logout", { signsOut: false });
 }
 
 export async function fetchTokens(): Promise<Token[]> {
-  const response = await ownerGetOk("/api/tokens");
+  const response = await callOk("GET", "/api/tokens");
 
   return TokenListResponseSchema.parse(await response.json()).tokens;
 }
 
-export type CreatedToken =
-  | ({ readonly kind: "created" } & z.infer<typeof CreatedTokenResponseSchema>)
-  | { readonly kind: "invalid" };
+export type CreatedToken = z.infer<typeof CreatedTokenResponseSchema>;
 
 export async function createToken(name: string): Promise<CreatedToken> {
-  const response = await ownerFetch("/api/tokens", {
-    method: "POST",
-    headers: JSON_HEADERS,
-    body: JSON.stringify({ name }),
-  });
+  const response = await callOk("POST", "/api/tokens", { json: { name } });
 
-  if (response.status === 400) {
-    return { kind: "invalid" };
-  }
-
-  if (response.status !== 201) {
-    throw new Error(`POST /api/tokens answered ${response.status}`);
-  }
-
-  return { kind: "created", ...CreatedTokenResponseSchema.parse(await response.json()) };
+  return CreatedTokenResponseSchema.parse(await response.json());
 }
 
 export async function revokeToken(id: number): Promise<void> {
-  const response = await ownerFetch(`/api/tokens/${id}`, {
-    method: "DELETE",
-    headers: JSON_HEADERS,
-    body: "{}",
-  });
-
-  if (response.status !== NO_CONTENT) {
-    throw new Error(`DELETE /api/tokens/${id} answered ${response.status}`);
-  }
+  await callOk("DELETE", `/api/tokens/${id}`);
 }

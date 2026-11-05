@@ -3,7 +3,7 @@ import { type RefObject, useId } from "react";
 import { DEFAULTS, type Settings } from "../../design/system/settings.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Icon } from "./Icon.tsx";
-import { useInternalLink } from "./session.ts";
+import { SETTINGS_PATH, useInternalLink } from "./session.ts";
 import { type Choose, SettingsRows } from "./SettingsRows.tsx";
 import {
   CLOSE_LABEL,
@@ -58,7 +58,7 @@ function InstanceLink({ open }: Readonly<{ open: () => void }>) {
 
   return (
     <div className="st-more">
-      <a className="fl-link" href="/settings" onClick={follow}>
+      <a className="fl-link" href={SETTINGS_PATH} onClick={follow}>
         {SETTINGS.instanceSettings}
       </a>
     </div>

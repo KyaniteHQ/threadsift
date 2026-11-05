@@ -8,7 +8,11 @@ const COST: ScryptCost = { N: 32_768, r: 8, p: 3 };
 const SALT_BYTES = 16;
 const HASH_PATTERN = /^scrypt\$N=(\d+)\$r=(\d+)\$p=(\d+)\$([\w-]+)\$([\w-]+)$/u;
 
-export type PasswordLength = "ok" | "short" | "long";
+export const PASSWORD_PROBLEMS = ["short", "long"] as const;
+
+export type PasswordProblem = (typeof PASSWORD_PROBLEMS)[number];
+
+export type PasswordLength = "ok" | PasswordProblem;
 
 function normalized(password: string): string {
   return password.normalize("NFKC");

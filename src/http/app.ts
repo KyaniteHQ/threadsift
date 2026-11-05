@@ -7,6 +7,7 @@ import { listItems, saveItem } from "../core/items.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
 import { guard } from "./guard.ts";
+import { jsonBody, jsonRequest } from "./openapi.ts";
 import {
   ErrorResponseSchema,
   ItemListResponseSchema,
@@ -14,20 +15,10 @@ import {
   SavedItemResponseSchema,
 } from "./schemas.ts";
 
-const jsonBody = <T extends typeof ErrorResponseSchema | typeof SavedItemResponseSchema>(
-  schema: T,
-  description: string,
-) => ({ description, content: { "application/json": { schema } } });
-
 const saveItemRoute = createRoute({
   method: "post",
   path: "/api/items",
-  request: {
-    body: {
-      required: true,
-      content: { "application/json": { schema: SaveItemRequestSchema } },
-    },
-  },
+  request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
     201: jsonBody(
       SavedItemResponseSchema,
@@ -48,10 +39,7 @@ const listItemsRoute = createRoute({
   method: "get",
   path: "/api/items",
   responses: {
-    200: {
-      description: "Every Item, newest saved first.",
-      content: { "application/json": { schema: ItemListResponseSchema } },
-    },
+    200: jsonBody(ItemListResponseSchema, "Every Item, newest saved first."),
   },
 });
 

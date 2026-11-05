@@ -77,39 +77,34 @@ const TICK_MS = 1000;
 
 export function useLock() {
   const [until, setUntil] = useState(0);
-  const [remaining, setRemaining] = useState(0);
-  const [over, setOver] = useState(false);
+  const [now, setNow] = useState(0);
+  const ticking = now < until;
 
   useEffect(() => {
-    const timer =
-      until === 0
-        ? 0
-        : window.setInterval(() => {
-            const left = Math.max(Math.ceil((until - Date.now()) / TICK_MS), 0);
-            setRemaining(left);
-
-            if (left === 0) {
-              setUntil(0);
-              setOver(true);
-            }
-          }, TICK_MS);
+    const timer = ticking
+      ? window.setInterval(() => {
+          setNow(Date.now());
+        }, TICK_MS)
+      : 0;
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [until]);
+  }, [ticking]);
 
   const start = useCallback((wait: number) => {
-    setUntil(Date.now() + wait * TICK_MS);
-    setRemaining(wait);
-    setOver(false);
+    const current = Date.now();
+    setNow(current);
+    setUntil(current + wait * TICK_MS);
   }, []);
 
   const dismiss = useCallback(() => {
-    setOver(false);
+    setUntil(0);
   }, []);
 
-  const waiting = remaining > 0 ? filled(WAIT.message, { wait: waitLabel(remaining) }) : null;
+  const remaining = ticking ? Math.ceil((until - now) / TICK_MS) : 0;
+  const over = until !== 0 && !ticking;
+  const waiting = ticking ? filled(WAIT.message, { wait: waitLabel(remaining) }) : null;
 
-  return { locked: remaining > 0, message: waiting ?? (over ? WAIT.over : null), start, dismiss };
+  return { locked: ticking, message: waiting ?? (over ? WAIT.over : null), start, dismiss };
 }

@@ -29,6 +29,19 @@ test("a cross-site form post with the owner's cookie gets 403, and a bearer JSON
   expect(agent.status()).toBe(201);
 });
 
+test("a bearer post with no content type reaches its route, and a cross-site bodyless delete with the owner's cookie still gets 403", async ({
+  request,
+}) => {
+  const bare = await request.post("/api/items", { headers: bearer(agentToken()) });
+  await expectRefusal(bare, 400, "a bearer post with no body");
+
+  const forged = await request.delete("/api/tokens/1", {
+    headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site" },
+  });
+
+  await expectRefusal(forged, 403, "a cross-site bodyless delete");
+});
+
 test("a body over 64 KiB gets 413 with a JSON error and a 1 KiB body gets through", async ({
   request,
   baseURL,

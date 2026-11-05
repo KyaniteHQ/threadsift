@@ -1,32 +1,35 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { type SessionSnapshot, type SessionState, fetchSessionState } from "./access-api.ts";
+import { type Session, fetchSession } from "./access-api.ts";
 import { useSignedOutListener } from "./session.ts";
 
-export type View = SessionState | "loading" | "unreachable";
+export type View = Session | { readonly state: "loading" } | { readonly state: "unreachable" };
+
+const LOADING: View = { state: "loading" };
+const UNREACHABLE: View = { state: "unreachable" };
+const SIGNED_IN: View = { state: "signed-in" };
+const SIGNED_OUT: View = { state: "signed-out" };
 
 export function useSessionView() {
-  const [view, setView] = useState<View>("loading");
-  const [unavailable, setUnavailable] = useState<SessionSnapshot["unavailable"]>(null);
-
-  const apply = useCallback((snapshot: SessionSnapshot) => {
-    setUnavailable(snapshot.unavailable);
-    setView(snapshot.state);
-  }, []);
+  const [view, setView] = useState<View>(LOADING);
 
   const refresh = useCallback(() => {
-    fetchSessionState().then(apply, () => {
-      setView("unreachable");
+    fetchSession().then(setView, () => {
+      setView(UNREACHABLE);
     });
-  }, [apply]);
+  }, []);
 
   useEffect(refresh, [refresh]);
 
+  const signedIn = useCallback(() => {
+    setView(SIGNED_IN);
+  }, []);
+
   const signedOut = useCallback(() => {
-    setView("signed-out");
+    setView(SIGNED_OUT);
   }, []);
 
   useSignedOutListener(signedOut);
 
-  return { view, unavailable, refresh };
+  return { view, refresh, signedIn, signedOut };
 }

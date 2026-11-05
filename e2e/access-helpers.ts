@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { type APIRequestContext, type APIResponse, expect } from "@playwright/test";
 import { z } from "zod";
 
-import { SESSION_COOKIE, anonymous, ownerPassword, sessionValueOf } from "./access.ts";
+import type { RefusalCode } from "../src/http/schemas.ts";
+import { SAME_ORIGIN, SESSION_COOKIE, anonymous, ownerPassword, sessionValueOf } from "./access.ts";
 
 export const MAX_AGE = 2_592_000;
 export const DAY_MS = 86_400_000;
@@ -31,11 +32,15 @@ export async function expectRefusal(
   response: APIResponse,
   status: number,
   what: string,
+  code?: RefusalCode,
 ): Promise<void> {
   expect(response.status(), what).toBe(status);
-  expect(ErrorBody.safeParse(await response.json()).success, `${what}: a JSON { error }`).toBe(
-    true,
-  );
+  const body = ErrorBody.extend({ code: z.string().optional() }).safeParse(await response.json());
+  expect(body.success, `${what}: a JSON { error }`).toBe(true);
+
+  if (code !== undefined) {
+    expect(body.data?.code, `${what}: code`).toBe(code);
+  }
 }
 
 export async function createToken(request: APIRequestContext, name: string) {
@@ -43,6 +48,10 @@ export async function createToken(request: APIRequestContext, name: string) {
   expect(response.status()).toBe(201);
 
   return CreatedToken.parse(await response.json());
+}
+
+export function revokeToken(request: APIRequestContext, id: number): Promise<APIResponse> {
+  return request.delete(`/api/tokens/${id}`, { headers: SAME_ORIGIN });
 }
 
 export async function signIn(baseURL: string) {

@@ -1,32 +1,34 @@
 import { useCallback } from "react";
 
-import type { Unavailable } from "./CodeStep.tsx";
 import { Library, type Look } from "./Library.tsx";
 import { LoginScreen } from "./LoginScreen.tsx";
+import type { ScreenState } from "./screens.ts";
+import { SETTINGS_PATH } from "./session.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import { SetupScreen } from "./SetupScreen.tsx";
 import { Unreachable } from "./Unreachable.tsx";
-import type { View } from "./use-session-view.ts";
 
-export const SETTINGS_PATH = "/settings";
+export interface SessionActions {
+  readonly refresh: () => void;
+  readonly signedIn: () => void;
+  readonly signedOut: () => void;
+}
 
 export function Screen({
-  view,
-  unavailable,
-  path,
+  screen,
   look,
   arrived,
-  refresh,
+  session,
   navigate,
 }: Readonly<{
-  view: View;
-  unavailable: Unavailable | null;
-  path: string;
+  screen: ScreenState;
   look: Look;
   arrived: boolean;
-  refresh: () => void;
+  session: SessionActions;
   navigate: (to: string) => void;
 }>) {
+  const { refresh, signedIn, signedOut } = session;
+
   const toLibrary = useCallback(() => {
     navigate("/");
   }, [navigate]);
@@ -35,27 +37,25 @@ export function Screen({
     navigate(SETTINGS_PATH);
   }, [navigate]);
 
-  const signedOut = useCallback(() => {
+  const leave = useCallback(() => {
     navigate("/");
-    refresh();
-  }, [navigate, refresh]);
+    signedOut();
+  }, [navigate, signedOut]);
 
-  switch (view) {
+  switch (screen.name) {
     case "setup":
-      return <SetupScreen refresh={refresh} unavailable={unavailable} />;
-    case "signed-out":
-      return <LoginScreen refresh={refresh} />;
+      return <SetupScreen problem={screen.problem} refresh={refresh} signedIn={signedIn} />;
+    case "login":
+      return <LoginScreen signedIn={signedIn} />;
     case "unreachable":
       return <Unreachable retry={refresh} />;
-    case "signed-in":
-      return path === SETTINGS_PATH ? (
-        <SettingsPage back={toLibrary} signedOut={signedOut} />
-      ) : (
-        <Library look={look} arrived={arrived} openSettings={toSettings} />
-      );
+    case "settings":
+      return <SettingsPage back={toLibrary} signedOut={leave} />;
+    case "library":
+      return <Library look={look} arrived={arrived} openSettings={toSettings} />;
     case "loading":
       return null;
     default:
-      return view satisfies never;
+      return screen satisfies never;
   }
 }

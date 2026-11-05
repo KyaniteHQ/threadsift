@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { createApp } from "../../http/app.ts";
 import { isApiPath, isDocumentPath } from "../../http/document-path.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
+import { configuredSetupCode } from "../shared/setup-code.ts";
 import { workerNetwork } from "./network.ts";
 
 interface Env {
@@ -18,7 +19,7 @@ function apiApp(env: Env): ReturnType<typeof createApp> {
     db: drizzle(env.DB),
     network: workerNetwork,
     crypto: nodeCrypto,
-    setupCode: env.SETUP_CODE,
+    setupCode: configuredSetupCode(env.SETUP_CODE),
   });
 
   return app;

@@ -6,8 +6,9 @@ import { Alert, AuthShell } from "./AuthShell.tsx";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
+import { useOutcome } from "./use-outcome.ts";
 
-function useLogin(refresh: () => void) {
+function useLogin(signedIn: () => void) {
   const password = useField();
   const lock = useLock();
   const visibility = usePasswordVisibility();
@@ -15,19 +16,27 @@ function useLogin(refresh: () => void) {
   const { fail, clear, value } = password;
   const { start, dismiss } = lock;
 
+  const failed = useCallback(() => {
+    clear();
+    hide();
+    fail(LOGIN.unreachable);
+  }, [clear, fail, hide]);
+
+  const refuse = useOutcome({ locked: start, failed });
+
   const settle = useCallback(
     (result: Attempt) => {
       if (result.kind === "ok") {
-        refresh();
-      } else if (result.kind === "locked") {
-        start(result.retryAfter);
-      } else {
+        signedIn();
+      } else if (result.kind === "wrong") {
         clear();
         hide();
-        fail(result.kind === "wrong" ? LOGIN.wrong : LOGIN.unreachable);
+        fail(LOGIN.wrong);
+      } else {
+        refuse(result);
       }
     },
-    [clear, fail, hide, refresh, start],
+    [clear, fail, hide, refuse, signedIn],
   );
 
   const run = useCallback(async () => {
@@ -39,8 +48,8 @@ function useLogin(refresh: () => void) {
   return { password, lock, visibility, ...useSubmit(run, lock.locked) };
 }
 
-export function LoginScreen({ refresh }: Readonly<{ refresh: () => void }>) {
-  const { password, lock, visibility, busy, onSubmit } = useLogin(refresh);
+export function LoginScreen({ signedIn }: Readonly<{ signedIn: () => void }>) {
+  const { password, lock, visibility, busy, onSubmit } = useLogin(signedIn);
   useFocusOnMount(password);
 
   return (

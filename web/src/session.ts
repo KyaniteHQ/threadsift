@@ -1,26 +1,54 @@
 import { type MouseEvent, useCallback, useEffect, useState } from "react";
 
+export const SETTINGS_PATH = "/settings";
+
 const SIGNED_OUT = "threadsift:signed-out";
 
-export function announceSignedOut(): void {
+function announceSignedOut(): void {
   window.dispatchEvent(new Event(SIGNED_OUT));
 }
 
-export async function ownerFetch(path: string, init?: RequestInit): Promise<Response> {
+type Method = "GET" | "POST" | "DELETE";
+
+export type JsonBody = Readonly<Record<string, string>>;
+
+interface Call {
+  readonly json?: JsonBody;
+  readonly signsOut?: boolean;
+}
+
+const JSON_HEADERS = { "content-type": "application/json" } as const;
+
+export async function call(
+  method: Method,
+  path: string,
+  { json, signsOut = true }: Readonly<Call> = {},
+): Promise<Response> {
+  const init: RequestInit =
+    json === undefined ? { method } : { method, headers: JSON_HEADERS, body: JSON.stringify(json) };
+
   const response = await fetch(path, init);
 
-  if (response.status === 401) {
+  if (signsOut && response.status === 401) {
     announceSignedOut();
   }
 
   return response;
 }
 
-export async function ownerGetOk(path: string): Promise<Response> {
-  const response = await ownerFetch(path);
+export function unexpected(method: Method, path: string, status: number): Error {
+  return new Error(`${method} ${path} answered ${status}`);
+}
+
+export async function callOk(
+  method: Method,
+  path: string,
+  options: Readonly<Call> = {},
+): Promise<Response> {
+  const response = await call(method, path, options);
 
   if (!response.ok) {
-    throw new Error(`GET ${path} answered ${response.status}`);
+    throw unexpected(method, path, response.status);
   }
 
   return response;

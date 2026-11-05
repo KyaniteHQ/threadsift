@@ -1,8 +1,14 @@
+import { groupedNumber } from "../../src/core/format.ts";
+import { PASSWORD_MAX, PASSWORD_MIN } from "../../src/core/passwords.ts";
+import { SETUP_CODE_MIN } from "../../src/core/setup-code.ts";
+
 export const TITLES = {
   setup: "Set up Threadsift",
   login: "Sign in to Threadsift",
   settings: "Settings, Threadsift",
   library: "Threadsift",
+  loading: "Threadsift",
+  unreachable: "Threadsift",
 } as const;
 
 export const SETUP = {
@@ -21,12 +27,11 @@ export const SETUP = {
     "This Instance has no setup code. Add one as a Worker secret with the command below, then reload this page.",
   missingCommand: "wrangler secret put SETUP_CODE",
   shortTitle: "Setup code is too short",
-  shortHelp:
-    "Threadsift doesn’t use a setup code shorter than 16 characters. Set a longer one and reload this page.",
+  shortHelp: `Threadsift doesn’t use a setup code shorter than ${SETUP_CODE_MIN} characters. Set a longer one and reload this page.`,
   passwordTitle: "Choose a password",
-  passwordHelp: "At least 15 characters, any characters allowed.",
-  passwordTooShort: "Passwords must be at least 15 characters.",
-  passwordTooLong: "Passwords must be at most 1,024 characters.",
+  passwordHelp: `At least ${PASSWORD_MIN} characters, any characters allowed.`,
+  passwordTooShort: `Passwords must be at least ${PASSWORD_MIN} characters.`,
+  passwordTooLong: `Passwords must be at most ${groupedNumber(PASSWORD_MAX)} characters.`,
   passwordMismatch: "The two passwords don’t match.",
   create: "Create password",
   creating: "Creating…",
@@ -68,7 +73,6 @@ export const SETTINGS = {
   tokenName: "Token name",
   tokenNamePlaceholder: "Extension",
   tokenNameRequired: "Enter a token name first.",
-  tokenNameTooLong: "Use 80 characters or fewer for the token name.",
   createToken: "Create token",
   tokenCreateFailed: "Couldn’t create the token, so try again.",
   tokensLoadFailed: "Couldn’t load agent tokens.",

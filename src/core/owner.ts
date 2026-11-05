@@ -1,22 +1,24 @@
-import { type PasswordLength, hashPassword, passwordLength, passwordMatches } from "./passwords.ts";
+import {
+  type PasswordProblem,
+  hashPassword,
+  passwordLength,
+  passwordMatches,
+} from "./passwords.ts";
 import type { Database, Ports } from "./ports.ts";
 import { owner } from "./schema.ts";
 import { type StartedSession, startSession } from "./sessions.ts";
-import { gateOf, recordFailure, recordSuccess } from "./throttle.ts";
-
-export const SETUP_CODE_MIN = 16;
-
-export type SetupCodeStatus = "missing" | "short" | "set";
+import { type SetupCodeProblem, checkConfiguredCode } from "./setup-code.ts";
+import { gateOf, settleAttempt } from "./throttle.ts";
 
 export type SetupBlock =
   | { readonly kind: "owner-exists" }
-  | { readonly kind: "unavailable"; readonly reason: Exclude<SetupCodeStatus, "set"> }
+  | { readonly kind: "unavailable"; readonly reason: SetupCodeProblem }
   | { readonly kind: "locked"; readonly retryAfter: number }
   | { readonly kind: "wrong" };
 
 export type SetupResult =
   | SetupBlock
-  | { readonly kind: "password"; readonly length: Exclude<PasswordLength, "ok"> }
+  | { readonly kind: "password"; readonly length: PasswordProblem }
   | { readonly kind: "created"; readonly session: StartedSession };
 
 export type LoginResult =
@@ -24,26 +26,14 @@ export type LoginResult =
   | { readonly kind: "locked"; readonly retryAfter: number }
   | { readonly kind: "wrong" };
 
-export async function hasOwner(db: Database): Promise<boolean> {
-  const rows = await db.select({ id: owner.id }).from(owner).limit(1);
-
-  return rows.length > 0;
-}
-
 async function passwordHashOf(db: Database): Promise<string | undefined> {
   const [row] = await db.select({ hash: owner.passwordHash }).from(owner).limit(1);
 
   return row?.hash;
 }
 
-export function setupCodeStatus({ setupCode }: Pick<Ports, "setupCode">): SetupCodeStatus {
-  const configured = setupCode ?? "";
-
-  if (configured === "") {
-    return "missing";
-  }
-
-  return configured.length < SETUP_CODE_MIN ? "short" : "set";
+export async function hasOwner(db: Database): Promise<boolean> {
+  return (await passwordHashOf(db)) !== undefined;
 }
 
 export async function checkSetupCode(ports: Ports, code: string): Promise<SetupBlock | null> {
@@ -51,31 +41,20 @@ export async function checkSetupCode(ports: Ports, code: string): Promise<SetupB
     return { kind: "owner-exists" };
   }
 
-  const status = setupCodeStatus(ports);
+  const configured = checkConfiguredCode(ports.setupCode);
 
-  if (status !== "set") {
-    return { kind: "unavailable", reason: status };
-  }
-
-  const configured = ports.setupCode ?? "";
-
-  const gate = await gateOf(ports.db, "setup", Date.now());
-
-  if (gate.locked) {
-    return { kind: "locked", retryAfter: gate.retryAfter };
+  if (configured.status !== "set") {
+    return { kind: "unavailable", reason: configured.status };
   }
 
   const { crypto } = ports;
+  const gate = await gateOf(ports.db, "setup", Date.now());
 
-  if (!crypto.equal(crypto.sha256(code), crypto.sha256(configured))) {
-    await recordFailure(ports.db, "setup", Date.now());
+  const outcome = await settleAttempt(ports.db, "setup", gate, () =>
+    Promise.resolve(crypto.equal(crypto.sha256(code), crypto.sha256(configured.code))),
+  );
 
-    return { kind: "wrong" };
-  }
-
-  await recordSuccess(ports.db, "setup");
-
-  return null;
+  return outcome.kind === "ok" ? null : outcome;
 }
 
 export async function setUpOwner(
@@ -111,21 +90,19 @@ export async function setUpOwner(
 }
 
 export async function login(ports: Ports, password: string): Promise<LoginResult> {
-  const gate = await gateOf(ports.db, "login", Date.now());
+  const [gate, stored] = await Promise.all([
+    gateOf(ports.db, "login", Date.now()),
+    passwordHashOf(ports.db),
+  ]);
 
-  if (gate.locked) {
-    return { kind: "locked", retryAfter: gate.retryAfter };
-  }
+  const outcome = await settleAttempt(
+    ports.db,
+    "login",
+    gate,
+    async () => stored !== undefined && (await passwordMatches(ports.crypto, password, stored)),
+  );
 
-  const stored = await passwordHashOf(ports.db);
-
-  if (stored === undefined || !(await passwordMatches(ports.crypto, password, stored))) {
-    await recordFailure(ports.db, "login", Date.now());
-
-    return { kind: "wrong" };
-  }
-
-  await recordSuccess(ports.db, "login");
-
-  return { kind: "signed-in", session: await startSession(ports) };
+  return outcome.kind === "ok"
+    ? { kind: "signed-in", session: await startSession(ports) }
+    : outcome;
 }

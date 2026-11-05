@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { DAY_MS, ErrorBody, MAX_AGE, expectRefusal, sha256Hex, signIn } from "./access-helpers.ts";
 import {
+  SAME_ORIGIN,
   SESSION_COOKIE,
   anonymous,
   mainInstance,
@@ -64,7 +65,7 @@ test("after logout the old cookie gets 401 and its row is gone", async ({ baseUR
   const { value, headers, api } = await signIn(baseURL ?? "");
 
   expect((await api.get("/api/items", { headers })).status()).toBe(200);
-  const loggedOut = await api.post("/api/logout", { data: {}, headers });
+  const loggedOut = await api.post("/api/logout", { headers: { ...headers, ...SAME_ORIGIN } });
   expect(loggedOut.status()).toBe(204);
   expect(loggedOut.headers()["set-cookie"] ?? "").toContain("Max-Age=0");
   await expectRefusal(await api.get("/api/items", { headers }), 401, "the old cookie");

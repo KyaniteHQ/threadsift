@@ -131,10 +131,7 @@ async function stepAgent(run: Run, value: string, link: string): Promise<void> {
     ["GET", "/api/tokens"],
     ["POST", "/api/logout"],
   ] as const) {
-    const refused = await call(run.ledger, "agent token", run.outside, method, path, {
-      data: {},
-      headers,
-    });
+    const refused = await call(run.ledger, "agent token", run.outside, method, path, { headers });
 
     expect(refused.status(), `${method} ${path}`).toBe(403);
   }

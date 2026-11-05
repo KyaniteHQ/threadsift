@@ -4,8 +4,10 @@ import { type Attempt, checkSetupCode } from "./access-api.ts";
 import { SETUP } from "./access-text.ts";
 import { Alert } from "./AuthShell.tsx";
 import { FormField } from "./FormField.tsx";
+import type { GoTo } from "./setup-step.ts";
 import { SwapButton } from "./SwapButton.tsx";
 import { useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
+import { useOutcome } from "./use-outcome.ts";
 
 const CODE_INPUT = {
   name: "setup-code",
@@ -15,38 +17,35 @@ const CODE_INPUT = {
   placeholder: undefined,
 } as const;
 
-export type Unavailable = "missing" | "short";
-
 export interface CodeStepProps {
-  readonly wrongAtStart: boolean;
-  readonly accepted: (code: string) => void;
-  readonly unavailable: (reason: Unavailable) => void;
+  readonly wrong: boolean;
+  readonly go: GoTo;
   readonly exists: () => void;
 }
 
-function useCodeStep({ wrongAtStart, accepted, unavailable, exists }: Readonly<CodeStepProps>) {
-  const code = useField(wrongAtStart ? SETUP.codeWrong : null);
+function useCodeStep({ wrong, go, exists }: Readonly<CodeStepProps>) {
+  const code = useField(wrong ? SETUP.codeWrong : null);
   const lock = useLock();
   const { fail, value } = code;
   const { start, dismiss } = lock;
 
+  const failed = useCallback(() => {
+    fail(SETUP.failed);
+  }, [fail]);
+
+  const refuse = useOutcome({ locked: start, failed, go, exists });
+
   const settle = useCallback(
     (result: Attempt) => {
       if (result.kind === "ok") {
-        accepted(value);
+        go({ name: "password", code: value });
       } else if (result.kind === "wrong") {
         fail(SETUP.codeWrong);
-      } else if (result.kind === "locked") {
-        start(result.retryAfter);
-      } else if (result.kind === "unavailable") {
-        unavailable(result.reason);
-      } else if (result.kind === "owner-exists") {
-        exists();
       } else {
-        fail(SETUP.failed);
+        refuse(result);
       }
     },
-    [accepted, exists, fail, start, unavailable, value],
+    [fail, go, refuse, value],
   );
 
   const run = useCallback(async () => {

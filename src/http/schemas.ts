@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { KINDS, SOURCES } from "../core/kinds.ts";
+import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
 
 const HttpUrlSchema = z.url({ protocol: /^https?$/u });
 
@@ -32,15 +33,26 @@ export const ItemListResponseSchema = z.object({
   items: z.array(ItemSchema),
 });
 
+export const REFUSAL_CODES = [
+  "wrong",
+  "owner-exists",
+  "locked",
+  "setup-missing",
+  "setup-short",
+  "password-short",
+  "password-long",
+] as const;
+
+export type RefusalCode = (typeof REFUSAL_CODES)[number];
+
 export const ErrorResponseSchema = z.object({
   error: z.string(),
   fetch: z.literal("refused").optional(),
-  setup: z.enum(["missing", "short"]).optional(),
-  password: z.enum(["short", "long"]).optional(),
+  code: z.enum(REFUSAL_CODES).optional(),
 });
 
 export const SessionStateSchema = z.discriminatedUnion("state", [
-  z.object({ state: z.literal("setup"), code: z.enum(["missing", "short", "set"]) }),
+  z.object({ state: z.literal("setup"), code: z.enum(SETUP_CODE_STATUSES) }),
   z.object({ state: z.enum(["signed-out", "signed-in"]) }),
 ]);
 
