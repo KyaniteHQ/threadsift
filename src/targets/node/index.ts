@@ -9,7 +9,7 @@ import { z } from "zod";
 import { createApp } from "../../http/app.ts";
 import { isDocumentPath } from "../../http/document-path.ts";
 import { openDatabase } from "./database.ts";
-import { nodePorts } from "./ports.ts";
+import { startNode } from "./ports.ts";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 
@@ -44,7 +44,9 @@ const app = new Hono();
 
 app.use("*", compress());
 
-app.route("/", createApp(await nodePorts(database.db, env.SETUP_CODE)));
+const node = await startNode(database.db, env.SETUP_CODE);
+
+app.route("/", createApp(node.ports));
 
 app.get("/index.html", (context) => context.redirect("/", 307));
 
@@ -59,6 +61,7 @@ app.get("*", (context, next) =>
 const server = serve({ fetch: app.fetch, port: env.PORT });
 
 function shutdown(): void {
+  node.stop();
   server.close(() => {
     database.close();
     process.exit(0);

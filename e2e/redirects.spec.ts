@@ -17,7 +17,7 @@ test("a short link and its target pasted separately are one Item under the targe
   const viaShortLink = await postLink(request, SHORT_LINK);
   const direct = await postLink(request, SHORT_LINK_TARGET);
 
-  expect(viaShortLink.body.fetch).toBe("ok");
+  expect(viaShortLink.body.item.fetch).toBe("ok");
   expect(viaShortLink.body.item).toMatchObject({
     normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
     originalUrl: SHORT_LINK,
@@ -40,7 +40,7 @@ test("a meta refresh on a host that is not a short link service is not followed"
     `https://httpbin.dev/response-headers?Content-Type=text/html&t=${encodeURIComponent(markup)}`,
   );
 
-  expect(saved.body.fetch).toBe("ok");
+  expect(saved.body.item.fetch).toBe("ok");
   expect(saved.body.item.title).toBe(`Stays here ${run}`);
 });
 
@@ -50,7 +50,7 @@ test("redirects are followed by hand, absolute and relative", async ({ request }
   const pasted = `https://httpbin.org/redirect-to?url=${encodeURIComponent("https://example.com/")}&run=${run}`;
   const absolute = await postLink(request, pasted);
 
-  expect(absolute.body.fetch).toBe("ok");
+  expect(absolute.body.item.fetch).toBe("ok");
   expect(absolute.body.item.title).toBe("Example Domain");
   expect(absolute.body.item.normalizedUrl).toBe(pasted);
 
@@ -61,7 +61,7 @@ test("redirects are followed by hand, absolute and relative", async ({ request }
     `https://httpbin.org/redirect-to?url=${encodeURIComponent(httpbinPagePath(page))}&run=${run}`,
   );
 
-  expect(relative.body.fetch).toBe("ok");
+  expect(relative.body.item.fetch).toBe("ok");
   expect(relative.body.item.title).toBe(`Relative hop ${run}`);
 });
 
@@ -81,7 +81,7 @@ test("a redirect to Reddit or X stops without a request, with or without a trail
     const saved = await postLink(request, `${throughRedirects(target, 1)}&run=${run}`);
 
     expect(saved.status, target).toBe(201);
-    expect(saved.body.fetch, target).toBe("redirect-stopped");
+    expect(saved.body.item.fetch, target).toBe("redirect-stopped");
     expect(saved.body.item.title, target).toBeNull();
   }
 });
@@ -94,11 +94,11 @@ test("the 21st redirect fails with the limit even when it points to X, and the 2
 
   const twentyFirst = await postLink(request, `${throughRedirects(X_POST, 21)}&run=${run}`);
   expect(twentyFirst.status).toBe(201);
-  expect(twentyFirst.body.fetch).toBe("redirect-limit");
+  expect(twentyFirst.body.item.fetch).toBe("redirect-limit");
   expect(twentyFirst.body.item.title).toBeNull();
 
   const twentieth = await postLink(request, `${throughRedirects(X_POST, 20)}&run=${run}`);
-  expect(twentieth.body.fetch).toBe("redirect-stopped");
+  expect(twentieth.body.item.fetch).toBe("redirect-stopped");
 });
 
 test("a short link whose host ends in a dot is followed like the short link", async ({
@@ -106,7 +106,7 @@ test("a short link whose host ends in a dot is followed like the short link", as
 }) => {
   const dotted = await postLink(request, "https://is.gd./hK2a1W");
 
-  expect(dotted.body.fetch).toBe("ok");
+  expect(dotted.body.item.fetch).toBe("ok");
   expect(dotted.body.item).toMatchObject({
     normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
     title: "Example Domains",

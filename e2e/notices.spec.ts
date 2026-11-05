@@ -4,6 +4,7 @@ import { listAll, listForRun } from "./api.ts";
 import {
   X_POST,
   newRunId,
+  pasteCard,
   pasteField,
   pasteLink,
   pasteStatus,
@@ -19,7 +20,6 @@ function failedLinks(run: string) {
     [`${throughRedirects(X_POST, 1)}&run=${run}`, "redirected to Reddit or X"],
     [`https://httpbin.org/redirect/21?run=${run}`, "redirected too many times"],
     [`https://example.com/missing-${run}`, "answered with an error"],
-    [`https://no-such-host-${run}.invalid/`, "Couldn’t reach the website"],
     [`https://httpbin.org/get?run=${run}`, "has no title"],
   ] as const;
 }
@@ -67,11 +67,13 @@ test("a notice about a saved link names that link and offers Try again only when
   await page.goto("/");
 
   await submitLink(page, `https://example.com/missing-${run}`);
-  await expect(page.locator(".ps .ps-url")).toHaveText(`example.com/missing-${run}`);
+  await expect(pasteCard(page)).toContainText("answered with an error", { timeout: 20_000 });
+  await expect(pasteCard(page).locator(".ps-url")).toHaveText(`example.com/missing-${run}`);
   await expect(retryButton(page)).toHaveCount(0);
 
   await submitLink(page, `https://www.no-such-host-${run}.invalid/a`);
-  await expect(page.locator(".ps .ps-url")).toHaveText(`no-such-host-${run}.invalid/a`);
+  await expect(pasteCard(page).locator(".ps-url")).toHaveText(`no-such-host-${run}.invalid/a`);
+  await expect(retryButton(page)).toBeVisible({ timeout: 20_000 });
 });
 
 test("Try again on an unreachable website saves the same link again", async ({ page, request }) => {
@@ -90,7 +92,8 @@ test("Try again on an unreachable website saves the same link again", async ({ p
 
   await tryAgain.click();
   expect((await again).postDataJSON()).toEqual({ url });
-  await expect(pasteStatus(page)).toContainText("Couldn’t reach the website");
+  await expect(pasteCard(page)).toContainText("Couldn’t reach the website", { timeout: 20_000 });
+  await expect(page.getByRole("alert")).toContainText("Couldn’t reach the website");
   await expect(field).toBeFocused();
   expect(await listForRun(request, run)).toHaveLength(1);
 });
@@ -102,8 +105,8 @@ test("after a save that worked the field is not marked invalid and still points 
   const field = pasteField(page);
   await submitLink(page, `https://example.com/missing-${newRunId()}`);
 
-  const notice = page.locator(".ps");
-  await expect(notice).toContainText("answered with an error");
+  const notice = pasteCard(page);
+  await expect(notice).toContainText("answered with an error", { timeout: 20_000 });
   await expect(field).toHaveValue("");
   await expect(field).not.toHaveAttribute("aria-invalid", /./u);
   const noticeId = await notice.getAttribute("id");
@@ -131,6 +134,8 @@ test("a known link whose title cannot be fetched again keeps its title and says 
   await expect(pasteStatus(page)).toContainText("the title saved earlier was kept", {
     timeout: 20_000,
   });
+
+  await expect(pasteCard(page).locator(".ps-title")).toHaveText("Already saved, refreshed");
 
   await expect(page.getByRole("alert")).toHaveCount(0);
 

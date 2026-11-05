@@ -31,6 +31,7 @@ const OpenApiDocument = z.looseObject({
       get: Operation,
       post: Operation.extend({ requestBody: Body }),
     }),
+    "/api/items/{id}": z.looseObject({ get: Operation }),
   }),
 });
 
@@ -74,7 +75,17 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   expect(propertyNames(schemas, jsonSchemaOf(items.post.requestBody))).toEqual(["url"]);
 
   const saved = jsonSchemaOf(items.post.responses["201"] ?? { content: {} });
-  expect(propertyNames(schemas, saved)).toEqual(expect.arrayContaining(["item", "url", "fetch"]));
+  expect(propertyNames(schemas, saved).toSorted()).toEqual(["item", "url"]);
+
+  const one = paths["/api/items/{id}"];
+
+  expect(Object.keys(one.get.responses).toSorted()).toEqual(["200", "404"]);
+
+  const single = propertyOf(
+    schemas,
+    jsonSchemaOf(one.get.responses["200"] ?? { content: {} }),
+    "item",
+  );
 
   const listed = propertyOf(
     schemas,
@@ -82,9 +93,17 @@ test("the served OpenAPI document describes the items routes", async ({ request 
     "items",
   );
 
-  for (const item of [propertyOf(schemas, saved, "item"), listed.items ?? {}]) {
+  for (const item of [propertyOf(schemas, saved, "item"), listed.items ?? {}, single]) {
     expect(propertyNames(schemas, item)).toEqual(
-      expect.arrayContaining(["title", "author", "community", "fetchedAt"]),
+      expect.arrayContaining([
+        "title",
+        "author",
+        "community",
+        "fetchedAt",
+        "status",
+        "reason",
+        "fetch",
+      ]),
     );
   }
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
-import { KINDS, SOURCES } from "../core/kinds.ts";
+import { FAILURE_REASONS, ITEM_STATUSES, KINDS, SOURCES } from "../core/kinds.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
 
 const HttpUrlSchema = z.url({ protocol: /^https?$/u });
@@ -17,6 +17,9 @@ const ItemSchema = z.object({
   author: z.string().nullable(),
   community: z.string().nullable(),
   fetchedAt: z.number().int().nullable(),
+  status: z.enum(ITEM_STATUSES),
+  reason: z.enum(FAILURE_REASONS).nullable(),
+  fetch: z.enum(FETCH_RESULTS).nullable(),
 });
 
 export const SaveItemRequestSchema = z.object({
@@ -26,8 +29,9 @@ export const SaveItemRequestSchema = z.object({
 export const SavedItemResponseSchema = z.object({
   item: ItemSchema,
   url: z.string(),
-  fetch: z.enum(FETCH_RESULTS),
 });
+
+export const ItemResponseSchema = z.object({ item: ItemSchema });
 
 export const ItemListResponseSchema = z.object({
   items: z.array(ItemSchema),
@@ -79,7 +83,7 @@ export const CreatedTokenResponseSchema = z.object({ token: TokenSchema, value: 
 
 export const TokenListResponseSchema = z.object({ tokens: z.array(TokenSchema) });
 
-export const TokenIdParamSchema = z.object({ id: z.coerce.number().int().positive() });
+export const IdParamSchema = z.object({ id: z.coerce.number().int().positive() });
 
 export type Token = z.infer<typeof TokenSchema>;
 

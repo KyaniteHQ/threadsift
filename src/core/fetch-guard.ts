@@ -60,7 +60,11 @@ function failureOf(deadlineHit: boolean, reason: NetworkFailureReason | null): G
   return deadlineHit ? "timeout" : (reason ?? "network");
 }
 
-async function requestHop(network: Network, url: string): Promise<Hop> {
+async function requestHop(network: Network, url: string, deadline: AbortSignal): Promise<Hop> {
+  if (deadline.aborted) {
+    return failed("timeout");
+  }
+
   const controller = new AbortController();
 
   const timer = setTimeout(() => {
@@ -68,7 +72,7 @@ async function requestHop(network: Network, url: string): Promise<Hop> {
   }, HOP_DEADLINE_MS);
 
   try {
-    const response = await network.get(url, controller.signal);
+    const response = await network.get(url, AbortSignal.any([controller.signal, deadline]));
 
     if (REDIRECT_STATUSES.has(response.status) && response.location !== null) {
       return { kind: "redirect", location: response.location };
@@ -84,7 +88,7 @@ async function requestHop(network: Network, url: string): Promise<Hop> {
       bytes: await readCapped(response.body),
     };
   } catch (error) {
-    const deadlineHit = controller.signal.reason === DEADLINE_REASON;
+    const deadlineHit = controller.signal.reason === DEADLINE_REASON || deadline.aborted;
 
     return failed(failureOf(deadlineHit, error instanceof NetworkFailure ? error.reason : null));
   } finally {
@@ -121,6 +125,7 @@ function hopTarget(address: string, base?: string): Target {
 function advance(
   network: Network,
   policy: Readonly<FetchPolicy>,
+  deadline: AbortSignal,
   from: URL,
   location: string,
   redirects: number,
@@ -137,23 +142,24 @@ function advance(
 
   return policy.stopAt(next.url.href)
     ? Promise.resolve({ kind: "stopped", url: next.url.href })
-    : follow(network, policy, next.url, redirects + 1);
+    : follow(network, policy, deadline, next.url, redirects + 1);
 }
 
 async function follow(
   network: Network,
   policy: Readonly<FetchPolicy>,
+  deadline: AbortSignal,
   url: URL,
   redirects: number,
 ): Promise<GuardOutcome> {
-  const hop = await requestHop(network, url.href);
+  const hop = await requestHop(network, url.href, deadline);
 
   if (hop.kind === "failed") {
     return hop;
   }
 
   if (hop.kind === "redirect") {
-    return advance(network, policy, url, hop.location, redirects);
+    return advance(network, policy, deadline, url, hop.location, redirects);
   }
 
   const text = decoderFor(hop.contentType).decode(hop.bytes);
@@ -165,15 +171,18 @@ async function follow(
 
   return refreshTo === null
     ? { kind: "page", url: url.href, text }
-    : advance(network, policy, url, refreshTo, redirects);
+    : advance(network, policy, deadline, url, refreshTo, redirects);
 }
 
 export function guardedFetch(
   network: Network,
   address: string,
   policy: Readonly<FetchPolicy>,
+  deadline: AbortSignal,
 ): Promise<GuardOutcome> {
   const first = hopTarget(address);
 
-  return first.kind === "failed" ? Promise.resolve(first) : follow(network, policy, first.url, 0);
+  return first.kind === "failed"
+    ? Promise.resolve(first)
+    : follow(network, policy, deadline, first.url, 0);
 }

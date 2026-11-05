@@ -235,7 +235,7 @@ The system is flat with tonal layering, plus soft ambient shadows on things that
 
 ### Shadow Vocabulary
 - **Low** (`--shadow`): two soft layers, a 1px contact shadow and a wide faint blur. Grid cards and the sheet's side buttons.
-- **High** (`--shadow-lg`): one deep blur. The settings panel, the reader sheet and the paste card when it floats over the grid.
+- **High** (`--shadow-lg`): one deep blur. The settings panel, the reader sheet and the paste card, which floats over the list at every width and over the grid. Grid's card under 760 px is slice 13's decision.
 
 ### Named Rules
 **The Lifted Only Rule.** A shadow means the element sits above the page: a card in the grid or a floating layer. Rows, panes and boxes inside the reader stay flat.

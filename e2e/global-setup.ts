@@ -31,9 +31,9 @@ export default async function globalSetup(): Promise<void> {
 
   const titled = await postLink(owner, "https://example.com/");
 
-  if (titled.body.fetch !== "ok" || titled.body.item.title !== "Example Domain") {
+  if (titled.body.item.fetch !== "ok" || titled.body.item.title !== "Example Domain") {
     throw new Error(
-      `the suite's titled Item came back as fetch "${titled.body.fetch}" with title ${JSON.stringify(titled.body.item.title)}; example.com did not answer`,
+      `the suite's titled Item came back as fetch "${titled.body.item.fetch}" with title ${JSON.stringify(titled.body.item.title)}; example.com did not answer`,
     );
   }
 

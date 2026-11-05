@@ -2,7 +2,15 @@ import { type APIRequestContext, type Page, expect, test } from "@playwright/tes
 
 import { SAVING_STATUS } from "../web/src/text.ts";
 import { listAll, postLink } from "./api.ts";
-import { addButton, newRunId, pasteField, rowOf, submitLink } from "./links.ts";
+import {
+  addButton,
+  newRunId,
+  openButton,
+  pasteCard,
+  pasteField,
+  rowOf,
+  submitLink,
+} from "./links.ts";
 
 function rowCount(page: Page): Promise<number> {
   return page.locator("article.it").count();
@@ -250,14 +258,20 @@ async function expectRowInPaneView(page: Page, key: number) {
   expect(box.bottom, "row bottom against the list pane").toBeLessThanOrEqual(box.paneBottom + 0.5);
 }
 
-test("pasting a known link brings its row into view and focuses it", async ({ page, request }) => {
+test("Open on the card of a known link brings its row into view and focuses it", async ({
+  page,
+  request,
+}) => {
   const id = await pasteKnownLinkBelowTheFold(page, request, "https://example.com/");
 
+  await expect(pasteField(page)).toBeFocused();
+  await openButton(page).click();
   await expect(rowOf(page, id).locator(".it-open")).toBeFocused();
+  await expect(pasteCard(page)).toHaveCount(0);
   await expectRowInPaneView(page, id);
 });
 
-test("pasting a known link that shows a notice keeps focus in the field and still shows its row", async ({
+test("pasting a known link that shows a note keeps focus in the field until Open", async ({
   page,
   request,
 }) => {
@@ -265,7 +279,9 @@ test("pasting a known link that shows a notice keeps focus in the field and stil
   const id = await pasteKnownLinkBelowTheFold(page, request, link);
 
   await expect(pasteField(page)).toBeFocused();
-  await expect(page.locator(".ps")).toContainText("answered with an error");
+  await expect(pasteCard(page)).toContainText("answered with an error", { timeout: 20_000 });
+  await expect(pasteField(page)).toBeFocused();
+  await openButton(page).click();
   await expectRowInPaneView(page, id);
 });
 

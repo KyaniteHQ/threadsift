@@ -34,16 +34,31 @@ function Loading() {
   );
 }
 
+function LoadFailed({ retry }: Readonly<{ retry: () => void }>) {
+  return (
+    <div className="noresults" role="alert">
+      <p>{LOAD_FAILED}</p>
+      <button type="button" className="btn" onClick={retry}>
+        {RETRY_LABEL}
+      </button>
+    </div>
+  );
+}
+
 function ItemList({
   items,
   loadedAt,
   openId,
   attention,
+  marked,
+  tryAgain,
 }: Readonly<{
   items: readonly Item[];
   loadedAt: number;
   openId: number | null;
   attention: Attention;
+  marked: number | null;
+  tryAgain: (item: Item) => void;
 }>) {
   return (
     <>
@@ -65,7 +80,9 @@ function ItemList({
               item={item}
               now={loadedAt}
               isOpen={item.id === openId}
+              isMarked={item.id === marked}
               attention={item.id === attention?.id ? attention : null}
+              tryAgain={tryAgain}
             />
           </li>
         ))}
@@ -78,21 +95,23 @@ export const ListBody = memo(function ListBody({
   list,
   openId,
   attention,
+  marked,
   retry,
-}: Readonly<{ list: ListState; openId: number | null; attention: Attention; retry: () => void }>) {
+  tryAgain,
+}: Readonly<{
+  list: ListState;
+  openId: number | null;
+  attention: Attention;
+  marked: number | null;
+  retry: () => void;
+  tryAgain: (item: Item) => void;
+}>) {
   if (list.status === "loading") {
     return <Loading />;
   }
 
   if (list.status === "failed") {
-    return (
-      <div className="noresults" role="alert">
-        <p>{LOAD_FAILED}</p>
-        <button type="button" className="btn" onClick={retry}>
-          {RETRY_LABEL}
-        </button>
-      </div>
-    );
+    return <LoadFailed retry={retry} />;
   }
 
   if (list.items.length === 0) {
@@ -106,6 +125,13 @@ export const ListBody = memo(function ListBody({
   }
 
   return (
-    <ItemList items={list.items} loadedAt={list.loadedAt} openId={openId} attention={attention} />
+    <ItemList
+      items={list.items}
+      loadedAt={list.loadedAt}
+      openId={openId}
+      attention={attention}
+      marked={marked}
+      tryAgain={tryAgain}
+    />
   );
 });

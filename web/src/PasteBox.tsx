@@ -1,37 +1,39 @@
 import {
   type ChangeEvent,
-  type SubmitEvent,
   type Dispatch,
+  type RefObject,
   type SetStateAction,
+  type SubmitEvent,
   useCallback,
+  useEffect,
   useId,
   useRef,
   useState,
 } from "react";
 
-import type { SaveOutcome } from "./api.ts";
+import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
+import { PasteCard, type Shown, announcementOf, faceOf } from "./PasteCard.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import {
   ADD_LABEL,
-  DISMISS_LABEL,
   NOTICES,
-  type Notice,
+  type NoticeKey,
   PASTE_LABEL,
   PASTE_PLACEHOLDER,
-  RETRY_LABEL,
   SAVING_LABEL,
   SAVING_STATUS,
 } from "./text.ts";
 import { useFocusOnMount, useGuard } from "./use-form.ts";
 
+export type SaveOutcome =
+  | { readonly saved: false; readonly notice: NoticeKey }
+  | { readonly saved: true; readonly itemId: number; readonly refreshed: boolean };
+
 type Save = (url: string) => Promise<SaveOutcome>;
 
-type Shown = Readonly<Notice & { url: string }>;
-
-const EMPTY: SaveOutcome = { saved: false, notice: "empty", focus: "field" };
-const FAILED: SaveOutcome = { saved: false, notice: "failed", focus: "field" };
-const SCHEME_AND_WWW = /^https?:\/\/(www\.)?/u;
+const FAILED: SaveOutcome = { saved: false, notice: "failed" };
+const EMPTY: SaveOutcome = { saved: false, notice: "empty" };
 
 async function attempt(save: Save, url: string): Promise<SaveOutcome> {
   try {
@@ -41,39 +43,45 @@ async function attempt(save: Save, url: string): Promise<SaveOutcome> {
   }
 }
 
+function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Shown {
+  return outcome.saved
+    ? { kind: "item", itemId: outcome.itemId, refreshed: outcome.refreshed, url, seq }
+    : { kind: "notice", key: outcome.notice, url, seq };
+}
+
 function useSaveValue({
   save,
   setValue,
-  setNotice,
+  setShown,
   focusField,
 }: Readonly<{
   save: Save;
   setValue: Dispatch<SetStateAction<string>>;
-  setNotice: Dispatch<SetStateAction<Shown | null>>;
+  setShown: Dispatch<SetStateAction<Shown | null>>;
   focusField: () => void;
 }>) {
+  const sequence = useRef(0);
+
   return useCallback(
     async (url: string) => {
-      setNotice(null);
+      setShown(null);
       const outcome = url === "" ? EMPTY : await attempt(save, url);
 
       if (outcome.saved) {
         setValue((current) => (current.trim() === url ? "" : current));
       }
 
-      setNotice(outcome.notice === null ? null : { ...NOTICES[outcome.notice], url });
-
-      if (outcome.focus === "field") {
-        focusField();
-      }
+      sequence.current += 1;
+      setShown(shownOf(outcome, url, sequence.current));
+      focusField();
     },
-    [focusField, save, setNotice, setValue],
+    [focusField, save, setShown, setValue],
   );
 }
 
 function usePaste(save: Save, focusOnMount: boolean) {
   const [value, setValue] = useState("");
-  const [notice, setNotice] = useState<Shown | null>(null);
+  const [shown, setShown] = useState<Shown | null>(null);
   const field = useRef<HTMLInputElement>(null);
 
   const focusField = useCallback(() => {
@@ -82,7 +90,7 @@ function usePaste(save: Save, focusOnMount: boolean) {
 
   useFocusOnMount(field, focusOnMount);
 
-  const saveValue = useSaveValue({ save, setValue, setNotice, focusField });
+  const saveValue = useSaveValue({ save, setValue, setShown, focusField });
 
   const { busy: saving, guard } = useGuard();
 
@@ -101,105 +109,140 @@ function usePaste(save: Save, focusOnMount: boolean) {
   );
 
   const dismiss = useCallback(() => {
-    setNotice(null);
+    setShown(null);
     focusField();
   }, [focusField]);
 
   const change = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setValue(event.target.value);
-    setNotice(null);
+    setShown(null);
   }, []);
 
   const retry = useCallback(() => {
-    if (notice !== null) {
-      focusField();
-      guard(() => saveValue(notice.url));
+    if (shown !== null) {
+      guard(() => saveValue(shown.url));
     }
-  }, [focusField, guard, notice, saveValue]);
+  }, [guard, saveValue, shown]);
 
-  return { field, value, notice, saving, change, dismiss, submit, retry };
+  return { field, value, shown, setShown, saving, change, dismiss, submit, retry };
 }
 
-function PasteNotice({
-  id,
-  notice,
-  dismiss,
-  retry,
-}: Readonly<{
-  id: string;
-  notice: Shown;
-  dismiss: () => void;
-  retry: () => void;
-}>) {
-  const isAlert = notice.kind !== "save-note";
+function useCard(
+  { shown, setShown }: Readonly<Pick<ReturnType<typeof usePaste>, "shown" | "setShown">>,
+  items: readonly Item[],
+  open: (id: number) => void,
+) {
+  const item = shown?.kind === "item" ? items.find((each) => each.id === shown.itemId) : undefined;
 
-  return (
-    <div id={id} className="ps" role={isAlert ? "alert" : undefined}>
-      <p className="ps-head">
-        <Icon name="warn" className="ic tone-warn" />
-        <span className="ps-title">{notice.text}</span>
-      </p>
-      {notice.url === "" ? null : (
-        <p className="ps-url">{notice.url.replace(SCHEME_AND_WWW, "")}</p>
-      )}
-      <div className="ps-acts">
-        {notice.retry ? (
-          <button type="button" className="btn btn-acc" onClick={retry}>
-            {RETRY_LABEL}
-          </button>
-        ) : null}
-        <button type="button" className="btn btn-plain" onClick={dismiss}>
-          {DISMISS_LABEL}
-        </button>
-      </div>
-    </div>
-  );
+  const openItem = useCallback(() => {
+    if (shown?.kind === "item") {
+      setShown(null);
+      open(shown.itemId);
+    }
+  }, [open, setShown, shown]);
+
+  return { item, face: shown === null ? null : faceOf(shown, item), openItem };
 }
 
-function announcement(saving: boolean, notice: Shown | null): string {
-  if (saving) {
-    return SAVING_STATUS;
+function useEscape(root: RefObject<HTMLElement | null>, active: boolean, dismiss: () => void) {
+  useEffect(() => {
+    const element = root.current;
+
+    const onKeyDown = ({ key }: Readonly<{ key: string }>): void => {
+      if (active && key === "Escape") {
+        dismiss();
+      }
+    };
+
+    element?.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      element?.removeEventListener("keydown", onKeyDown);
+    };
+  }, [active, dismiss, root]);
+}
+
+function PasteForm({
+  field,
+  value,
+  saving,
+  change,
+  submit,
+  describedBy,
+  invalid,
+}: Readonly<
+  Pick<ReturnType<typeof usePaste>, "field" | "value" | "saving" | "change" | "submit"> & {
+    describedBy: string | undefined;
+    invalid: boolean;
   }
-
-  return notice?.kind === "save-note" ? notice.text : "";
+>) {
+  return (
+    <form className="paste-row" noValidate onSubmit={submit}>
+      <label className="field">
+        <span className="vh">{PASTE_LABEL}</span>
+        <Icon name="link" className="ic" />
+        <input
+          ref={field}
+          type="text"
+          inputMode="url"
+          enterKeyHint="go"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder={PASTE_PLACEHOLDER}
+          value={value}
+          aria-invalid={invalid ? true : undefined}
+          aria-describedby={describedBy}
+          onChange={change}
+        />
+      </label>
+      <SwapButton label={ADD_LABEL} busyLabel={SAVING_LABEL} busy={saving} />
+    </form>
+  );
 }
 
-export function PasteBox({ save, focusOnMount }: Readonly<{ save: Save; focusOnMount: boolean }>) {
-  const { field, value, notice, saving, change, dismiss, submit, retry } = usePaste(
-    save,
-    focusOnMount,
-  );
-
-  const noticeId = useId();
-  const isInputError = notice?.kind === "input-error";
+export function PasteBox({
+  save,
+  focusOnMount,
+  items,
+  open,
+}: Readonly<{
+  save: Save;
+  focusOnMount: boolean;
+  items: readonly Item[];
+  open: (id: number) => void;
+}>) {
+  const paste = usePaste(save, focusOnMount);
+  const { shown, saving, dismiss, retry } = paste;
+  const { item, face, openItem } = useCard(paste, items, open);
+  const root = useRef<HTMLDivElement>(null);
+  const cardId = useId();
+  useEscape(root, shown !== null, dismiss);
 
   return (
-    <div className="paste">
-      <form className="paste-row" noValidate onSubmit={submit}>
-        <label className="field">
-          <span className="vh">{PASTE_LABEL}</span>
-          <Icon name="link" className="ic" />
-          <input
-            ref={field}
-            type="text"
-            inputMode="url"
-            enterKeyHint="go"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={PASTE_PLACEHOLDER}
-            value={value}
-            aria-invalid={isInputError ? true : undefined}
-            aria-describedby={notice === null ? undefined : noticeId}
-            onChange={change}
-          />
-        </label>
-        <SwapButton label={ADD_LABEL} busyLabel={SAVING_LABEL} busy={saving} />
-      </form>
+    <div ref={root} className="paste">
+      <PasteForm
+        field={paste.field}
+        value={paste.value}
+        saving={saving}
+        change={paste.change}
+        submit={paste.submit}
+        describedBy={face === null ? undefined : cardId}
+        invalid={shown?.kind === "notice" && NOTICES[shown.key].kind === "input-error"}
+      />
       <output className="vh" aria-live="polite" aria-atomic="true">
-        {announcement(saving, notice)}
+        {saving ? SAVING_STATUS : announcementOf(face)}
       </output>
-      {notice === null ? null : (
-        <PasteNotice id={noticeId} notice={notice} dismiss={dismiss} retry={retry} />
+      {shown === null || face === null ? null : (
+        <PasteCard
+          key={shown.seq}
+          id={cardId}
+          shown={shown}
+          face={face}
+          item={item}
+          dismiss={dismiss}
+          retry={retry}
+          open={openItem}
+        />
       )}
     </div>
   );

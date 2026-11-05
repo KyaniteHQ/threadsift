@@ -26,11 +26,16 @@ function fetchedOf(
   return { status: outcome.kind === "stopped" ? whenStopped : outcome.reason };
 }
 
-async function fetchedOfOembed(network: Network, normalizedUrl: string): Promise<Fetched> {
+async function fetchedOfOembed(
+  network: Network,
+  normalizedUrl: string,
+  deadline: AbortSignal,
+): Promise<Fetched> {
   const outcome = await guardedFetch(
     network,
     `https://www.reddit.com/oembed?url=${encodeURIComponent(normalizedUrl)}`,
     POLICY,
+    deadline,
   );
 
   return fetchedOf(outcome, detailsOfOembed, "unreadable");
@@ -40,29 +45,35 @@ async function fetchedFor(
   network: Network,
   link: Readonly<Link>,
   address: string,
+  deadline: AbortSignal,
 ): Promise<Fetched> {
   if (link.kind === "reddit-post" || link.kind === "reddit-comment") {
-    return fetchedOfOembed(network, link.normalizedUrl);
+    return fetchedOfOembed(network, link.normalizedUrl, deadline);
   }
 
   if (isRedditOrXLink(address)) {
     return NOT_REQUESTED;
   }
 
-  return fetchedOf(await guardedFetch(network, address, POLICY), detailsOfPage, "redirect-stopped");
+  return fetchedOf(
+    await guardedFetch(network, address, POLICY, deadline),
+    detailsOfPage,
+    "redirect-stopped",
+  );
 }
 
 async function followShortLink(
   network: Network,
   pasted: Readonly<Link>,
   address: string,
+  deadline: AbortSignal,
 ): Promise<FetchedLink> {
-  const outcome = await guardedFetch(network, address, POLICY);
+  const outcome = await guardedFetch(network, address, POLICY, deadline);
 
   if (outcome.kind === "stopped") {
     const link = parseLink(outcome.url);
 
-    return { link, fetched: await fetchedFor(network, link, outcome.url) };
+    return { link, fetched: await fetchedFor(network, link, outcome.url, deadline) };
   }
 
   const link = outcome.kind === "page" ? parseLink(outcome.url) : pasted;
@@ -70,12 +81,16 @@ async function followShortLink(
   return { link, fetched: fetchedOf(outcome, detailsOfPage, "redirect-stopped") };
 }
 
-export async function fetchLink(network: Network, address: string): Promise<FetchedLink> {
+export async function fetchLink(
+  network: Network,
+  address: string,
+  deadline: AbortSignal,
+): Promise<FetchedLink> {
   const pasted = parseLink(address);
 
   if (isShortLink(address)) {
-    return followShortLink(network, pasted, address);
+    return followShortLink(network, pasted, address, deadline);
   }
 
-  return { link: pasted, fetched: await fetchedFor(network, pasted, address) };
+  return { link: pasted, fetched: await fetchedFor(network, pasted, address, deadline) };
 }

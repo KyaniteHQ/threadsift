@@ -1,30 +1,48 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
-import type { z } from "zod";
 
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { SAVING_LABEL } from "../web/src/text.ts";
-import { postLink } from "./api.ts";
-import { addButton, newRunId, pasteField, pasteStatus, retryButton, rowOf } from "./links.ts";
+import { postLinkRaw, settled } from "./api.ts";
+import { addButton, newRunId, pasteField, pasteStatus } from "./links.ts";
 import { afterTwoFrames } from "./look.ts";
 
 const DEADLINE_MS = 8000;
 const OVERHEAD_MS = 5000;
+const ANSWER_MS = 3000;
 
 const UNREACHABLE = "http://example.com:81/";
 const DRIP = "https://httpbin.org/drip?duration=10&numbytes=10";
+const SLOW_SHORT_LINK = "https://is.gd/g8TLgI";
 
 function withRun(base: string, run: string): string {
   return `${base}${base.includes("?") ? "&" : "?"}run=${run}`;
 }
 
-type Saved = z.infer<typeof SavedItemResponseSchema>;
+for (const [what, base] of [
+  ["a host that never answers", UNREACHABLE],
+  ["a body that stalls", DRIP],
+] as const) {
+  test(`${what} is answered at once as processing and ends failed with timeout at the hop deadline`, async ({
+    request,
+  }) => {
+    test.setTimeout(60_000);
+    const url = withRun(base, newRunId());
+    const started = Date.now();
+    const { status, body } = await postLinkRaw(request, url);
+    const answered = Date.now() - started;
 
-function expectTimedOut(url: string, status: number, saved: Saved, elapsed: number): void {
-  expect(status, url).toBe(201);
-  expect(saved.fetch, url).toBe("timeout");
-  expect(saved.item.title, url).toBeNull();
-  expect(elapsed, url).toBeGreaterThanOrEqual(DEADLINE_MS - 500);
-  expect(elapsed, url).toBeLessThan(DEADLINE_MS + OVERHEAD_MS);
+    expect(status, url).toBe(201);
+    expect(body.item.status, url).toBe("processing");
+    expect(body.item.fetch, url).toBeNull();
+    expect(answered, `${url} answered in ${answered} ms`).toBeLessThan(ANSWER_MS);
+
+    const item = await settled(request, body.item.id);
+    const elapsed = Date.now() - started;
+
+    expect(item, url).toMatchObject({ status: "failed", reason: "timeout", fetch: "timeout" });
+    expect(item.title, url).toBeNull();
+    expect(elapsed, url).toBeGreaterThanOrEqual(DEADLINE_MS - 500);
+    expect(elapsed, url).toBeLessThan(DEADLINE_MS + OVERHEAD_MS);
+  });
 }
 
 async function expectSavingState(page: Page, saving: Locator, idleWidth: number) {
@@ -46,9 +64,13 @@ async function expectSavingState(page: Page, saving: Locator, idleWidth: number)
     .toHaveText("Saving link and fetching page title…", { timeout: 1_000 });
 }
 
-async function addWhileSaving(page: Page, url: string) {
+test("a short link whose target answers slowly keeps the paste box in its saving state for the whole wait", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
   const field = pasteField(page);
-  await field.fill(url);
+  await field.fill(SLOW_SHORT_LINK);
 
   const answered = page.waitForResponse(
     (response) => response.url().endsWith("/api/items") && response.request().method() === "POST",
@@ -61,46 +83,12 @@ async function addWhileSaving(page: Page, url: string) {
 
   const saving = page.getByRole("button", { name: SAVING_LABEL });
   await expect(saving).toBeDisabled();
-  await expect(field).toHaveValue(url);
+  await expect(field).toHaveValue(SLOW_SHORT_LINK);
   await expectSavingState(page, saving, idleWidth);
 
   const response = await answered;
-  const elapsed = Date.now() - started;
-
-  return {
-    status: response.status(),
-    saved: SavedItemResponseSchema.parse(await response.json()),
-    elapsed,
-  };
-}
-
-test("a host that never answers and a body that stalls each time out, while the paste box shows it is saving", async ({
-  page,
-  request,
-}) => {
-  test.setTimeout(60_000);
-  const run = newRunId();
-  const unreachable = withRun(UNREACHABLE, run);
-  const dripping = withRun(DRIP, run);
-  await page.goto("/");
-
-  const startedUnreachable = Date.now();
-
-  const viaApi = postLink(request, unreachable).then((answer) => ({
-    ...answer,
-    elapsed: Date.now() - startedUnreachable,
-  }));
-
-  const { status, saved, elapsed } = await addWhileSaving(page, dripping);
-  expectTimedOut(dripping, status, saved, elapsed);
-
-  await expect(pasteStatus(page)).toContainText("didn’t answer in time");
-  await expect(retryButton(page)).toBeVisible();
+  expect(Date.now() - started).toBeGreaterThanOrEqual(5_000);
+  expect([200, 201]).toContain(response.status());
+  await expect(page.locator(".paste .ps")).toContainText("Added", { timeout: 10_000 });
   await expect(addButton(page)).toBeEnabled();
-  await expect(rowOf(page, saved.item.id).locator(".it-open")).toContainText(
-    dripping.replace(/^https?:\/\//u, ""),
-  );
-
-  const stalled = await viaApi;
-  expectTimedOut(unreachable, stalled.status, stalled.body, stalled.elapsed);
 });
