@@ -7,7 +7,9 @@ import { isContainerTarget } from "./target.ts";
 
 export const STALLED = "http://example.com:81/";
 
-export const FETCH_DEADLINE_MS = 8000;
+export const HOP_DEADLINE_MS = 8000;
+
+export const ANSWER_MS = 3000;
 
 const JobRows = z.array(
   z.object({
@@ -70,8 +72,16 @@ export async function sweepNow(request: APIRequestContext): Promise<void> {
   expect(response.status(), "the local scheduled endpoint").toBe(200);
 }
 
-export function pause(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+export async function waitForRunning(id: number): Promise<void> {
+  await expect
+    .poll(() => jobsOf(id).map((job) => job.state), { timeout: 10_000 })
+    .toEqual(["running"]);
+}
+
+export function expireClaim(id: number): void {
+  mainInstance().sql(`UPDATE jobs SET claim_expires = 1 WHERE item_id = ${id}`);
+}
+
+export function makeDue(id: number): void {
+  mainInstance().sql(`UPDATE jobs SET next_attempt_at = 0 WHERE item_id = ${id}`);
 }

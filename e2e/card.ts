@@ -7,6 +7,7 @@ import { CARD_TITLES, FAILURE_TITLES } from "../web/src/text.ts";
 import { mainInstance } from "./access.ts";
 import { itemOf, postLink } from "./api.ts";
 import { pasteCard, pasteField } from "./links.ts";
+import { viewportAt } from "./look.ts";
 
 export const SLOW_PAGE = "https://httpbin.org/delay/3";
 export const CLOSE_MS = 6000;
@@ -15,6 +16,7 @@ export const READING = CARD_TITLES.reading;
 export const ADDED = CARD_TITLES.added;
 export const REFRESHED = CARD_TITLES.refreshed;
 export const TIMED_OUT = FAILURE_TITLES.timeout;
+export const UNREACHABLE = FAILURE_TITLES.network;
 
 export function cardTitle(page: Page): Locator {
   return pasteCard(page).locator(".ps-title");
@@ -70,7 +72,7 @@ export async function watchCard(page: Page): Promise<() => Promise<CardTrace>> {
     }));
 }
 
-export function countListReads(page: Page): () => number {
+export function countListReads(page: Page) {
   let reads = 0;
 
   page.on("request", (request) => {
@@ -79,7 +81,24 @@ export function countListReads(page: Page): () => number {
     }
   });
 
-  return () => reads;
+  const baseline = reads;
+
+  return {
+    expectNoNewReads: () => {
+      expect(reads, "the list was read again").toBe(baseline);
+    },
+  };
+}
+
+export async function expectClosesAfterSixSeconds(page: Page): Promise<void> {
+  await page.clock.fastForward(CLOSE_MS - 1500);
+  await expect(pasteCard(page)).toBeVisible();
+  await page.clock.fastForward(2500);
+  await expect(pasteCard(page)).toBeHidden();
+}
+
+export function unreachableUrl(run: string): string {
+  return `https://no-such-host-${run}.invalid/`;
 }
 
 export async function pasteForId(page: Page, url: string): Promise<number> {
@@ -91,10 +110,6 @@ export async function pasteForId(page: Page, url: string): Promise<number> {
   await pasteOnly(page, url);
 
   return SavedItemResponseSchema.parse(await (await answered).json()).item.id;
-}
-
-export function elapsedSince(started: number): number {
-  return Date.now() - started;
 }
 
 const Counts = z.array(z.object({ n: z.number() }));
@@ -146,7 +161,7 @@ export async function attachStatuses(
 }
 
 export async function openLibrary(page: Page, width = 1440): Promise<void> {
-  await page.setViewportSize({ width, height: width < 480 ? 640 : 900 });
+  await viewportAt(page, width);
   await page.goto("/");
   await expect(pasteField(page)).toBeVisible();
   await expect(page.locator("article.it").first()).toBeVisible();

@@ -18,7 +18,13 @@ import {
   pasteOnly,
   watchCard,
 } from "./card.ts";
-import { STALLED, jobsOf, storeProcessingItemWithDueJob, sweepNow } from "./ingest.ts";
+import {
+  STALLED,
+  jobsOf,
+  storeProcessingItemWithDueJob,
+  sweepNow,
+  waitForRunning,
+} from "./ingest.ts";
 import { newRunId, openButton, pasteCard, rowOf, titledPage } from "./links.ts";
 import { attachScreenshot } from "./look.ts";
 import { isContainerTarget } from "./target.ts";
@@ -107,7 +113,6 @@ test("the ingest scenario: first Paste, a stall beside a fast link, Try again, a
   await openLibrary(page, NARROW_WIDTH);
   const trace = await watchCard(page);
   const reads = countListReads(page);
-  const readsAfterLoad = reads();
   const shot = (name: string) => attachScreenshot(page, info, name);
   const context: Run = { page, request, info, run, trace, shot };
 
@@ -117,7 +122,7 @@ test("the ingest scenario: first Paste, a stall beside a fast link, Try again, a
   await dismissedCard(context);
   await attachStatuses(request, info, "6-lost-job", [await loseAJob(page, request, run)]);
 
-  expect(reads() - readsAfterLoad, "the list was read again").toBe(0);
+  reads.expectNoNewReads();
   expect((await trace()).tops, "the first row moved while a card showed").toHaveLength(1);
 });
 
@@ -131,9 +136,7 @@ async function loseAJob(page: Page, request: APIRequestContext, run: string) {
   }
 
   const id = await pasteForId(page, `${STALLED}?run=${run}&step=6`);
-  await expect
-    .poll(() => jobsOf(id).map((job) => job.state), { timeout: 10_000 })
-    .toEqual(["running"]);
+  await waitForRunning(id);
   mainInstance().restart();
   expect(await settled(request, id)).toMatchObject({ status: "failed", reason: "timeout" });
 

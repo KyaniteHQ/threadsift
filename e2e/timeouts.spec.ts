@@ -1,15 +1,14 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { SAVING_LABEL } from "../web/src/text.ts";
+import { SAVING_LABEL, SAVING_STATUS } from "../web/src/text.ts";
 import { postLinkRaw, settled } from "./api.ts";
-import { addButton, newRunId, pasteField, pasteStatus } from "./links.ts";
+import { ADDED } from "./card.ts";
+import { ANSWER_MS, HOP_DEADLINE_MS, STALLED } from "./ingest.ts";
+import { addButton, newRunId, pasteCard, pasteField, pasteStatus } from "./links.ts";
 import { afterTwoFrames } from "./look.ts";
 
-const DEADLINE_MS = 8000;
 const OVERHEAD_MS = 5000;
-const ANSWER_MS = 3000;
 
-const UNREACHABLE = "http://example.com:81/";
 const DRIP = "https://httpbin.org/drip?duration=10&numbytes=10";
 const SLOW_SHORT_LINK = "https://is.gd/g8TLgI";
 
@@ -18,7 +17,7 @@ function withRun(base: string, run: string): string {
 }
 
 for (const [what, base] of [
-  ["a host that never answers", UNREACHABLE],
+  ["a host that never answers", STALLED],
   ["a body that stalls", DRIP],
 ] as const) {
   test(`${what} is answered at once as processing and ends failed with timeout at the hop deadline`, async ({
@@ -40,8 +39,8 @@ for (const [what, base] of [
 
     expect(item, url).toMatchObject({ status: "failed", reason: "timeout", fetch: "timeout" });
     expect(item.title, url).toBeNull();
-    expect(elapsed, url).toBeGreaterThanOrEqual(DEADLINE_MS - 500);
-    expect(elapsed, url).toBeLessThan(DEADLINE_MS + OVERHEAD_MS);
+    expect(elapsed, url).toBeGreaterThanOrEqual(HOP_DEADLINE_MS - 500);
+    expect(elapsed, url).toBeLessThan(HOP_DEADLINE_MS + OVERHEAD_MS);
   });
 }
 
@@ -61,7 +60,7 @@ async function expectSavingState(page: Page, saving: Locator, idleWidth: number)
     .toBeCloseTo(idleWidth, 0);
   await expect
     .soft(pasteStatus(page), "saving announced")
-    .toHaveText("Saving link and fetching page title…", { timeout: 1_000 });
+    .toHaveText(SAVING_STATUS, { timeout: 1_000 });
 }
 
 test("a short link whose target answers slowly keeps the paste box in its saving state for the whole wait", async ({
@@ -89,6 +88,6 @@ test("a short link whose target answers slowly keeps the paste box in its saving
   const response = await answered;
   expect(Date.now() - started).toBeGreaterThanOrEqual(5_000);
   expect([200, 201]).toContain(response.status());
-  await expect(page.locator(".paste .ps")).toContainText("Added", { timeout: 10_000 });
+  await expect(pasteCard(page)).toContainText(ADDED, { timeout: 10_000 });
   await expect(addButton(page)).toBeEnabled();
 });
