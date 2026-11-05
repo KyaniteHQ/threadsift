@@ -1,20 +1,23 @@
+import { setTimeout as sleep } from "node:timers/promises";
+
 import { expect } from "@playwright/test";
 
 import { agentToken, bearer, mainInstance, test } from "./access.ts";
 import { getItem, itemOf, postLink, postLinkRaw, settled } from "./api.ts";
 import {
-  FETCH_DEADLINE_MS,
+  ANSWER_MS,
+  HOP_DEADLINE_MS,
   STALLED,
+  expireClaim,
   itemIdAt,
   jobsOf,
-  pause,
+  makeDue,
   storeProcessingItemWithDueJob,
   sweepNow,
+  waitForRunning,
 } from "./ingest.ts";
 import { newRunId } from "./links.ts";
 import { isContainerTarget } from "./target.ts";
-
-const ANSWER_MS = 3000;
 
 test("a Paste answers as processing at once and the Item becomes ready without another request", async ({
   request,
@@ -95,7 +98,7 @@ test("a done job is not run again by a later sweep", async ({ request }) => {
 
   expect(jobs.map((job) => job.state)).toEqual(["done"]);
   await sweepNow(request);
-  await pause(3000);
+  await sleep(3000);
 
   expect(await itemOf(request, body.item.id)).toEqual(before);
   expect(jobsOf(body.item.id)).toEqual(jobs);
@@ -113,9 +116,7 @@ test("a restart while a fetch job runs ends with the Item out of processing and 
   const { body } = await postLinkRaw(request, url);
   const { id } = body.item;
 
-  await expect
-    .poll(() => jobsOf(id).map((job) => job.state), { timeout: 10_000 })
-    .toEqual(["running"]);
+  await waitForRunning(id);
   mainInstance().restart();
 
   const item = await settled(request, id);
@@ -133,14 +134,12 @@ test("a second message for a job that finished while it waited does not run it a
   const { body } = await postLinkRaw(request, `${STALLED}?duplicate=${newRunId()}`);
   const { id } = body.item;
 
-  await expect
-    .poll(() => jobsOf(id).map((job) => job.state), { timeout: 10_000 })
-    .toEqual(["running"]);
-  mainInstance().sql(`UPDATE jobs SET claim_expires = 1 WHERE item_id = ${id}`);
+  await waitForRunning(id);
+  expireClaim(id);
   await sweepNow(request);
 
   expect(await settled(request, id)).toMatchObject({ status: "failed", reason: "timeout" });
-  await pause(3000);
+  await sleep(3000);
   expect(jobsOf(id)).toMatchObject([{ state: "done", attempts: 0, claim_expires: null }]);
 });
 
@@ -151,28 +150,36 @@ test("a runner whose claim was taken over writes nothing, and the Item ends with
   const { body } = await postLinkRaw(request, `${STALLED}?takeover=${newRunId()}`);
   const { id } = body.item;
 
-  await expect
-    .poll(() => jobsOf(id).map((job) => job.state), { timeout: 10_000 })
-    .toEqual(["running"]);
+  await waitForRunning(id);
   mainInstance().sql(`UPDATE jobs SET attempts = attempts + 1 WHERE item_id = ${id}`);
-  await pause(FETCH_DEADLINE_MS + 4000);
+  await sleep(HOP_DEADLINE_MS + 4000);
 
   expect((await itemOf(request, id)).status).toBe("processing");
   expect(jobsOf(id)).toMatchObject([{ state: "running", attempts: 1 }]);
 
-  mainInstance().sql(`UPDATE jobs SET claim_expires = 1 WHERE item_id = ${id}`);
+  expireClaim(id);
   await sweepNow(request);
 
   expect(await settled(request, id)).toMatchObject({ status: "failed", reason: "timeout" });
   expect(jobsOf(id)).toMatchObject([{ state: "done", attempts: 2 }]);
 });
 
-const RETRY_DELAYS_MS = [30_000, 120_000] as const;
+const FIRST_DELAY_MS = 30_000;
+const SECOND_DELAY_MS = 120_000;
+
+function expectNextAttemptIn(id: number, delay: number, label: string): void {
+  const [job] = jobsOf(id);
+  const wait = (job?.next_attempt_at ?? 0) - Date.now();
+
+  expect(job?.state, label).toBe("queued");
+  expect(wait, label).toBeGreaterThan(delay - 3000);
+  expect(wait, label).toBeLessThanOrEqual(delay);
+}
 
 test("an attempt that throws is retried after 30 s and then 2 minutes, and the job ends failed with gave-up", async ({
   request,
 }) => {
-  test.setTimeout(360_000);
+  test.setTimeout(120_000);
 
   const id = storeProcessingItemWithDueJob(
     `https://example.com/damaged-${newRunId()}`,
@@ -181,27 +188,20 @@ test("an attempt that throws is retried after 30 s and then 2 minutes, and the j
 
   await sweepNow(request);
 
-  for (const [index, delay] of RETRY_DELAYS_MS.entries()) {
-    const attempts = index + 1;
+  await expect.poll(() => jobsOf(id)[0]?.attempts, { timeout: 20_000, intervals: [250] }).toBe(1);
+  expectNextAttemptIn(id, FIRST_DELAY_MS, "after attempt 1");
+  expect((await itemOf(request, id)).status).toBe("processing");
 
-    await expect
-      .poll(() => jobsOf(id)[0]?.attempts, { timeout: 200_000, intervals: [500] })
-      .toBe(attempts);
+  await expect
+    .poll(() => jobsOf(id)[0]?.attempts, { timeout: FIRST_DELAY_MS + 30_000, intervals: [500] })
+    .toBe(2);
+  expectNextAttemptIn(id, SECOND_DELAY_MS, "after attempt 2");
+  expect((await itemOf(request, id)).status).toBe("processing");
 
-    const seen = Date.now();
-    const [job] = jobsOf(id);
-    expect(job?.state, `after attempt ${attempts}`).toBe("queued");
-    expect((job?.next_attempt_at ?? 0) - seen, `delay after attempt ${attempts}`).toBeGreaterThan(
-      delay - 3000,
-    );
-    expect(
-      (job?.next_attempt_at ?? 0) - seen,
-      `delay after attempt ${attempts}`,
-    ).toBeLessThanOrEqual(delay);
-    expect((await itemOf(request, id)).status).toBe("processing");
-  }
+  makeDue(id);
+  await sweepNow(request);
 
-  const item = await settled(request, id, 200_000);
+  const item = await settled(request, id);
 
   expect(item).toMatchObject({ status: "failed", reason: "gave-up", fetch: null });
   expect(jobsOf(id)).toMatchObject([{ state: "done", attempts: 3, claim_expires: null }]);

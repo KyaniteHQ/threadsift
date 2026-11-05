@@ -1,8 +1,17 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { postLink } from "./api.ts";
-import { ADDED, REFRESHED, SLOW_PAGE, TIMED_OUT, cardTitle, pasteOnly, READING } from "./card.ts";
-import { THEMES, expectNoViolations, resize } from "./design-screens.ts";
+import {
+  ADDED,
+  READING,
+  REFRESHED,
+  SLOW_PAGE,
+  UNREACHABLE,
+  cardTitle,
+  pasteOnly,
+  unreachableUrl,
+} from "./card.ts";
+import { THEMES, checkAtEveryWidth } from "./design-screens.ts";
 import { STALLED } from "./ingest.ts";
 import { newRunId, openButton, pasteCard } from "./links.ts";
 import { app, storeSettings } from "./look.ts";
@@ -14,11 +23,8 @@ const WIDTHS = [
   [1920, "full"],
 ] as const;
 
-async function checkAtFourWidths(page: Page, what: string): Promise<void> {
-  for (const [width, bands] of WIDTHS) {
-    await resize(page, width, bands);
-    await expectNoViolations(page, `${what} at ${width}px`);
-  }
+function checkAtFourWidths(page: Page, what: string): Promise<void> {
+  return checkAtEveryWidth(page, what, WIDTHS);
 }
 
 async function checkHeld(page: Page, url: string, title: string, what: string): Promise<void> {
@@ -33,7 +39,7 @@ for (const theme of THEMES) {
     page,
     request,
   }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(120_000);
     const run = newRunId();
     const { body } = await postLink(request, `https://example.com/${run}/known`);
     await storeSettings(page, { theme });
@@ -52,7 +58,9 @@ for (const theme of THEMES) {
     await pasteOnly(page, `${STALLED}?run=${run}`);
     await expect(cardTitle(page)).toHaveText(READING);
     await checkAtFourWidths(page, `Reading the link, ${theme}`);
-    await expect(page.getByRole("alert")).toContainText(TIMED_OUT, { timeout: 30_000 });
+
+    await pasteOnly(page, unreachableUrl(run));
+    await expect(page.getByRole("alert")).toContainText(UNREACHABLE, { timeout: 30_000 });
     await checkAtFourWidths(page, `failure with Try again, ${theme}`);
   });
 }

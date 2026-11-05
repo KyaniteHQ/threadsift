@@ -11,6 +11,7 @@ import {
   TIMED_OUT,
   cardTitle,
   countListReads,
+  expectClosesAfterSixSeconds,
   openLibrary,
   pasteForId,
   pasteOnly,
@@ -30,7 +31,6 @@ test("a slow page shows Reading the link, then Added with its note, and its row 
   const run = newRunId();
   await seed(page, request, run);
   const reads = countListReads(page);
-  const readsBefore = reads();
   const trace = await watchCard(page);
 
   const id = await pasteForId(page, `${SLOW_PAGE}?run=${run}`);
@@ -47,7 +47,7 @@ test("a slow page shows Reading the link, then Added with its note, and its row 
   await expect(rowOf(page, id).locator(".skel")).toHaveCount(0);
 
   expect((await trace()).titles).toEqual([READING, ADDED]);
-  expect(reads(), "the list was read again").toBe(readsBefore);
+  reads.expectNoNewReads();
 });
 
 test("a host that stalls shows a failure with Try again and Dismiss that does not close itself, and Try again runs a new fetch", async ({
@@ -56,9 +56,9 @@ test("a host that stalls shows a failure with Try again and Dismiss that does no
 }) => {
   test.setTimeout(90_000);
   const run = newRunId();
+  await page.clock.install();
   await seed(page, request, run);
   const reads = countListReads(page);
-  const readsBefore = reads();
 
   const id = await pasteForId(page, `${STALLED}?run=${run}`);
   await expect(cardTitle(page)).toHaveText(READING);
@@ -69,14 +69,14 @@ test("a host that stalls shows a failure with Try again and Dismiss that does no
   await expect(alert.getByRole("button", { name: DISMISS_LABEL })).toBeVisible();
   await expect(rowOf(page, id).locator(".it-fail")).toContainText(TIMED_OUT);
 
-  await page.waitForTimeout(CLOSE_MS + 1000);
+  await page.clock.fastForward(CLOSE_MS + 1000);
   await expect(alert).toBeVisible();
 
   await alert.getByRole("button", { name: RETRY_LABEL }).click();
   await expect(cardTitle(page)).toHaveText(READING);
   await expect(rowOf(page, id).locator(".skel")).toBeVisible();
   await expect(page.getByRole("alert")).toContainText(TIMED_OUT, { timeout: 30_000 });
-  expect(reads(), "the list was read again").toBe(readsBefore);
+  reads.expectNoNewReads();
 });
 
 test("Added closes itself after 6 s", async ({ page, request }) => {
@@ -95,34 +95,32 @@ test("Added stays while the pointer is over it and closes 6 s after the pointer 
   page,
   request,
 }) => {
-  test.setTimeout(60_000);
   const run = newRunId();
+  await page.clock.install();
   await seed(page, request, run);
 
   await pasteOnly(page, `https://example.com/${run}/hover`);
   await expect(cardTitle(page)).toHaveText(ADDED);
   await pasteCard(page).hover();
-  await page.waitForTimeout(CLOSE_MS + 1500);
+  await page.clock.fastForward(CLOSE_MS + 1500);
   await expect(pasteCard(page)).toBeVisible();
 
   await page.locator("h1").hover();
-  const left = Date.now();
-  await expect(pasteCard(page)).toBeHidden({ timeout: CLOSE_MS + 3000 });
-  expect(Date.now() - left).toBeGreaterThanOrEqual(CLOSE_MS - 700);
+  await expectClosesAfterSixSeconds(page);
 });
 
 test("Added stays while focus is inside it and closes 6 s after focus leaves", async ({
   page,
   request,
 }) => {
-  test.setTimeout(60_000);
   const run = newRunId();
+  await page.clock.install();
   await seed(page, request, run);
 
   await pasteOnly(page, `https://example.com/${run}/focus`);
   await expect(cardTitle(page)).toHaveText(ADDED);
   await openButton(page).focus();
-  await page.waitForTimeout(CLOSE_MS + 1500);
+  await page.clock.fastForward(CLOSE_MS + 1500);
   await expect(pasteCard(page)).toBeVisible();
 
   await page.locator("h1").focus();
@@ -131,9 +129,7 @@ test("Added stays while focus is inside it and closes 6 s after focus leaves", a
       document.activeElement.blur();
     }
   });
-  const left = Date.now();
-  await expect(pasteCard(page)).toBeHidden({ timeout: CLOSE_MS + 3000 });
-  expect(Date.now() - left).toBeGreaterThanOrEqual(CLOSE_MS - 700);
+  await expectClosesAfterSixSeconds(page);
 });
 
 test("Escape dismisses the card and focuses the paste field, from the card and from the field", async ({
