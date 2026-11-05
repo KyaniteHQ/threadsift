@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 
 import { TOKEN_NAME_MAX, type Token } from "../../src/http/schemas.ts";
 import { createToken } from "./access-api.ts";
-import { SETTINGS, SETUP } from "./access-text.ts";
+import { SETTINGS } from "./access-text.ts";
 import { FormField } from "./FormField.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { type FieldState, useSubmit } from "./use-form.ts";
@@ -43,7 +43,9 @@ export function TokenForm({
   const { busy, onSubmit } = useSubmit(run);
 
   const create = useMemo(
-    () => <SwapButton label={SETTINGS.createToken} busyLabel={SETUP.creating} busy={busy} />,
+    () => (
+      <SwapButton label={SETTINGS.createToken} busyLabel={SETTINGS.creatingToken} busy={busy} />
+    ),
     [busy],
   );
 

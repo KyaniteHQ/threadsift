@@ -5,7 +5,7 @@ import { Alert } from "./AuthShell.tsx";
 import { useFocusOnMount } from "./use-form.ts";
 
 const COPIED_MS = 2000;
-const TOKEN_ROWS = 1;
+const TOKEN_ROWS = 2;
 
 function useCopy(value: string) {
   const field = useRef<HTMLTextAreaElement>(null);
@@ -70,6 +70,7 @@ export function TokenReveal({
           className="reveal-value"
           readOnly
           rows={TOKEN_ROWS}
+          cols={value.length}
           spellCheck={false}
           value={value}
           aria-label={SETTINGS.tokenValue}

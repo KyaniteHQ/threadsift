@@ -73,6 +73,7 @@ export const SETTINGS = {
   tokenName: "Token name",
   tokenNameRequired: "Enter a token name first.",
   createToken: "Create token",
+  creatingToken: "Creating…",
   tokenCreateFailed: "Couldn’t create the token, so try again.",
   tokensLoadFailed: "Couldn’t load agent tokens.",
   revealTitleNamed: "New token for {name}",
