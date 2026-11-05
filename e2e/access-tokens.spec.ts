@@ -11,6 +11,7 @@ import {
 import { bearer, mainInstance } from "./access.ts";
 import { newRunId } from "./links.ts";
 
+const HOUR_MS = 3_600_000;
 const Stored = z.array(z.object({ digest: z.string() }));
 
 test("an agent token is shown once as tsa_ and 32 bytes, stored only as a digest and listed without its value", async ({
@@ -35,16 +36,32 @@ test("an agent token is shown once as tsa_ and 32 bytes, stored only as a digest
   await revokeToken(request, token.id);
 });
 
-test("a token records its last use and is refused after it is revoked", async ({ request }) => {
+test("a token's last use updates at most once an hour", async ({ request }) => {
   const { token, value } = await createToken(request, `Use ${newRunId()}`);
+
+  const lastUse = async (): Promise<number | null> => {
+    const listed = ListedTokens.parse(await (await request.get("/api/tokens")).json());
+
+    return listed.tokens.find((entry) => entry.id === token.id)?.lastUsedAt ?? null;
+  };
+
+  const useAndMoveBack = async (ago: number): Promise<number> => {
+    const stored = Date.now() - ago;
+    mainInstance().sql(`UPDATE agent_tokens SET last_used_at = ${stored} WHERE id = ${token.id}`);
+    expect((await request.get("/api/items", { headers: bearer(value) })).status()).toBe(200);
+
+    return stored;
+  };
+
   expect((await request.get("/api/items", { headers: bearer(value) })).status()).toBe(200);
+  expect(await lastUse(), "the first use is recorded").not.toBeNull();
 
-  const listed = ListedTokens.parse(await (await request.get("/api/tokens")).json());
-  expect(listed.tokens.find((entry) => entry.id === token.id)?.lastUsedAt).not.toBeNull();
+  const twoHoursAgo = await useAndMoveBack(2 * HOUR_MS);
+  expect(await lastUse(), "a use after two hours moves the time").toBeGreaterThan(twoHoursAgo);
 
-  expect((await revokeToken(request, token.id)).status()).toBe(204);
-  const refused = await request.get("/api/items", { headers: bearer(value) });
-  await expectRefusal(refused, 401, "the revoked token");
+  const halfHourAgo = await useAndMoveBack(HOUR_MS / 2);
+  expect(await lastUse(), "a use within the hour leaves it").toBe(halfHourAgo);
+  await revokeToken(request, token.id);
 });
 
 test("a token name of 1 to 80 characters is accepted and anything else gets 400", async ({

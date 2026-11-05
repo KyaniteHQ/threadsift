@@ -9,6 +9,8 @@ import { codeField } from "./setup-screens.ts";
 import { isContainerTarget } from "./target.ts";
 
 const SHORT_LENGTH = 15;
+const MIN_BITS = 100;
+const BITS_PER_BASE64URL_CHARACTER = 6;
 const LOG_LINE = /^Setup code: (\S+)$/gmu;
 const PASSWORD = "p".repeat(20);
 
@@ -110,7 +112,10 @@ test("the container makes one setup code per start when none is set, and the old
   const instance = start(null);
   const [first = "", ...others] = loggedCodes(instance);
   expect(others, "one log line on the first start").toEqual([]);
-  expect(first.length).toBeGreaterThan(SHORT_LENGTH);
+  expect(first, "base64url characters").toMatch(/^[\w-]+$/u);
+  expect(first.length * BITS_PER_BASE64URL_CHARACTER, "random bits").toBeGreaterThanOrEqual(
+    MIN_BITS,
+  );
 
   expect((await post(instance, "/api/setup/code", { code: first })).status()).toBe(204);
 

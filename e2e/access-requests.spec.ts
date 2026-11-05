@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 
-import { expectRefusal } from "./access-helpers.ts";
+import { ListedTokens, createToken, expectRefusal, revokeToken } from "./access-helpers.ts";
 import { agentToken, bearer, test } from "./access.ts";
 import { newRunId } from "./links.ts";
 
@@ -35,11 +35,19 @@ test("a bearer post with no content type reaches its route, and a cross-site bod
   const bare = await request.post("/api/items", { headers: bearer(agentToken()) });
   await expectRefusal(bare, 400, "a bearer post with no body");
 
-  const forged = await request.delete("/api/tokens/1", {
+  const created = await createToken(request, `csrf ${newRunId()}`);
+
+  const forged = await request.delete(`/api/tokens/${created.token.id}`, {
     headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site" },
   });
 
   await expectRefusal(forged, 403, "a cross-site bodyless delete");
+  const listed = ListedTokens.parse(await (await request.get("/api/tokens")).json());
+  expect(
+    listed.tokens.map((token) => token.id),
+    "the token is still there",
+  ).toContain(created.token.id);
+  expect((await revokeToken(request, created.token.id)).status()).toBe(204);
 });
 
 test("a body over 64 KiB gets 413 with a JSON error and a 1 KiB body gets through", async ({
