@@ -7,7 +7,6 @@ import {
   fillLocalStorage,
   openPanel,
   pickOption,
-  seedItems,
   storeRaw,
   storeSettings,
   storedSettings,
@@ -35,8 +34,6 @@ const STORED_CASES = [
 test("a stored setting that is not one of the table's option ids falls back alone", async ({
   page,
 }) => {
-  await seedItems(page);
-
   for (const { name, stored, resets } of STORED_CASES) {
     await storeSettings(page, stored);
 
@@ -57,8 +54,6 @@ test("a stored setting that is not one of the table's option ids falls back alon
 test("unparsable JSON, null and an array each load the defaults and the panel still works", async ({
   page,
 }) => {
-  await seedItems(page);
-
   for (const text of ["{not json", "null", "[]", '"dark"', "7"]) {
     await storeRaw(page, text);
 
@@ -78,7 +73,6 @@ test("with the real localStorage full, a change still applies and Reset look sti
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await seedItems(page);
   await page.goto("/");
   await expect(app(page)).toBeVisible();
   await fillLocalStorage(page);
@@ -115,7 +109,6 @@ test("a change made in a second tab reaches the first without a reload and is no
   page,
   context,
 }) => {
-  await seedItems(page);
   await page.goto("/");
   await expect(app(page)).toHaveAttribute("data-theme", "light");
 

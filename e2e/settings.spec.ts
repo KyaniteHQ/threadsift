@@ -17,7 +17,6 @@ import {
   pickFont,
   pickOption,
   px,
-  seedItems,
   storeSettings,
   storedSettings,
   tapDimmedPage,
@@ -145,7 +144,6 @@ async function openPhoneSheetAndTapAway(page: Page): Promise<void> {
 test("the owner sets six settings, resets the look, follows the device and opens the phone sheet", async ({
   page,
 }, testInfo) => {
-  await seedItems(page);
   await page.setViewportSize(DESKTOP);
   await storeSettings(page, { comments: "cards", tags: "chips", images: "off", openAs: "sheet" });
 
@@ -177,7 +175,6 @@ test("the owner sets six settings, resets the look, follows the device and opens
 });
 
 test("a click on the Font label focuses the Font select", async ({ page }) => {
-  await seedItems(page);
   await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);

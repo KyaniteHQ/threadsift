@@ -1,7 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
-import { DESKTOP, openPanel, px, seedItems } from "./look.ts";
+import { DESKTOP, openPanel, px } from "./look.ts";
 
 const PHONE = { width: 390, height: 844 } as const;
 const HALF_PIXEL = 0.5;
@@ -65,7 +65,6 @@ test("Sign out stretches to the column on a phone and keeps its width on a deskt
 test("the Instance settings link sits apart from the Look settings, under a hairline", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);

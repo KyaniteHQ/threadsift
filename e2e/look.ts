@@ -3,8 +3,6 @@ import { z } from "zod";
 
 import { STORAGE_KEY, type SettingKey } from "../design/system/settings.ts";
 import { SETTINGS_GEAR_LABEL, SETTINGS_TITLE } from "../web/src/text.ts";
-import { postLink } from "./api.ts";
-import { newRunId } from "./links.ts";
 
 const StoredSchema = z.record(z.string(), z.string());
 
@@ -29,17 +27,25 @@ export const DESKTOP = { width: 1440, height: 900 } as const;
 
 const TITLED = "Example Domain";
 
+export async function afterTwoFrames(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      }),
+  );
+}
+
 export async function attachScreenshot(
   page: Page,
   testInfo: TestInfo,
   name: string,
 ): Promise<void> {
   await testInfo.attach(name, { body: await page.screenshot(), contentType: "image/png" });
-}
-
-export async function seedItems(page: Page): Promise<void> {
-  await postLink(page.request, "https://example.com/");
-  await postLink(page.request, `https://example.com/${newRunId()}/link-only`);
 }
 
 export function titledRow(page: Page): Locator {
@@ -70,8 +76,17 @@ export async function storeSettings(page: Page, stored: Stored, url = "/"): Prom
   await storeRaw(page, JSON.stringify(stored), url);
 }
 
+function isOn(page: Page, path: string): boolean {
+  const { pathname, search } = new URL(page.url());
+
+  return `${pathname}${search}` === path;
+}
+
 export async function storeRaw(page: Page, text: string, url = "/"): Promise<void> {
-  await page.goto(url);
+  if (!isOn(page, url)) {
+    await page.goto(url);
+  }
+
   await page.evaluate(
     ({ key, value }) => {
       localStorage.setItem(key, value);

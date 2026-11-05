@@ -1,16 +1,7 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS, STORAGE_KEY } from "../design/system/settings.ts";
-import {
-  app,
-  openPanel,
-  pickOption,
-  px,
-  seedItems,
-  storeSettings,
-  computed,
-  titledRow,
-} from "./look.ts";
+import { app, openPanel, pickOption, px, storeSettings, computed, titledRow } from "./look.ts";
 
 const FONT_ROW = SETTINGS.find((row) => row.key === "font");
 const FAMILY_TOKENS = ["--f-display", "--f-ui", "--f-read", "--f-mono"] as const;
@@ -48,7 +39,6 @@ test("html takes the theme's background and colour scheme in each theme", async 
 test("raising the root font size raises the row title, so the type tokens follow rem", async ({
   page,
 }) => {
-  await seedItems(page);
   await storeSettings(page, {});
   const title = titledRow(page).locator(".it-title");
   const before = px(await computed(title, "font-size"));
@@ -95,7 +85,6 @@ function loadFamilies(page: Page) {
 }
 
 test("every Font pair's families load from the app's own origin", async ({ page, baseURL }) => {
-  await seedItems(page);
   const origin = new URL(baseURL ?? "").origin;
   const { origins, fontFiles } = watchRequests(page);
 
@@ -225,7 +214,6 @@ async function expectSegmentsTellable(page: Page, dialog: Locator): Promise<void
 test("under forced colours the chosen segment and each accent swatch can be told apart", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.goto("/");
   await page.emulateMedia({ forcedColors: "active" });
   const dialog = await openPanel(page);

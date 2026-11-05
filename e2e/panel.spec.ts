@@ -11,7 +11,6 @@ import {
   pickOption,
   px,
   radioOf,
-  seedItems,
   storeSettings,
   tapDimmedPage,
 } from "./look.ts";
@@ -19,7 +18,6 @@ import {
 const PHONE = { width: 390, height: 640 } as const;
 
 async function onPhone(page: Page) {
-  await seedItems(page);
   await page.setViewportSize(PHONE);
   await page.goto("/");
   await expect(app(page)).toHaveAttribute("data-bp", /phone/u);
@@ -117,7 +115,6 @@ test("Escape and Close shut the phone sheet and return focus to the gear", async
 test("on a wide screen Escape and a second gear press close the popover and a press on the list leaves focus there", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);
@@ -147,7 +144,6 @@ test("on a wide screen Escape and a second gear press close the popover and a pr
 test("an open panel turns into the sheet under 760px and back into the popover", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);
@@ -180,7 +176,6 @@ test("widening the sheet past 760px while Close has focus keeps focus in the pan
 test("the paste field's text is 16px or more at 390px for every Density and Text size", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.setViewportSize(PHONE);
 
   for (const density of ["compact", "comfortable", "roomy"]) {
@@ -219,7 +214,6 @@ async function expectOneTabStopPerGroup(page: Page, dialog: Locator): Promise<vo
 test("each single-choice group is a radio group with one Tab stop and arrow keys", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);

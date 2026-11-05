@@ -75,13 +75,15 @@ test("a public redirect to a private address saves the Item without a title and 
     targets.map((target) => `${throughRedirects(target, hops)}&run=${run}`),
   );
 
-  for (const url of links) {
-    const { status, body } = await postLink(request, url);
-    expect(status, url).toBe(201);
-    expect(body.fetch, url).toBe("refused");
-    expect(body.item.title, url).toBeNull();
-    expect(body.item.fetchedAt, url).toBeNull();
-  }
+  await Promise.all(
+    links.map(async (url) => {
+      const { status, body } = await postLink(request, url);
+      expect(status, url).toBe(201);
+      expect(body.fetch, url).toBe("refused");
+      expect(body.item.title, url).toBeNull();
+      expect(body.item.fetchedAt, url).toBeNull();
+    }),
+  );
 
   await listener.expectSilent();
 });

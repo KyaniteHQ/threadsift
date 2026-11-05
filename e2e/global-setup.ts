@@ -13,8 +13,10 @@ import {
   sessionValueOf,
   stateDir,
 } from "./access.ts";
+import { postLink } from "./api.ts";
 import { envValue } from "./env.ts";
 import { setUpByApi } from "./fresh-screen.ts";
+import { newRunId } from "./links.ts";
 
 function keep(name: string, content: string): void {
   writeFileSync(join(stateDir(), name), content, { mode: 0o600 });
@@ -27,6 +29,12 @@ export default async function globalSetup(): Promise<void> {
   const session = sessionValueOf(setCookie);
   const owner = await request.newContext({ baseURL, extraHTTPHeaders: cookieHeader(session) });
   const created = await createToken(owner, "Suite");
+
+  await Promise.all([
+    postLink(owner, "https://example.com/"),
+    postLink(owner, `https://example.com/${newRunId()}/link-only`),
+  ]);
+
   await owner.dispose();
 
   keep(OWNER_STATE_FILE, JSON.stringify(sessionStateOf(session, baseURL)));
