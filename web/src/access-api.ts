@@ -10,7 +10,7 @@ import {
   type RefusalCode,
   type Token,
 } from "../../src/http/schemas.ts";
-import { type JsonBody, call, callOk, unexpected } from "./session.ts";
+import { type JsonBody, call, callOk, parsedFrom, unexpected } from "./session.ts";
 
 export type Session = z.infer<typeof SessionStateSchema>;
 
@@ -64,10 +64,8 @@ async function attempt(path: string, json: JsonBody): Promise<Attempt> {
   }
 }
 
-export async function fetchSession(): Promise<Session> {
-  const response = await callOk("GET", "/api/session", { signsOut: false });
-
-  return SessionStateSchema.parse(await response.json());
+export function fetchSession(): Promise<Session> {
+  return parsedFrom("GET", "/api/session", SessionStateSchema, { signsOut: false });
 }
 
 export function checkSetupCode(code: string): Promise<Attempt> {
@@ -91,17 +89,13 @@ export async function logOut(): Promise<void> {
 }
 
 export async function fetchTokens(): Promise<Token[]> {
-  const response = await callOk("GET", "/api/tokens");
-
-  return TokenListResponseSchema.parse(await response.json()).tokens;
+  return (await parsedFrom("GET", "/api/tokens", TokenListResponseSchema)).tokens;
 }
 
 export type CreatedToken = z.infer<typeof CreatedTokenResponseSchema>;
 
-export async function createToken(name: string): Promise<CreatedToken> {
-  const response = await callOk("POST", "/api/tokens", { json: { name } });
-
-  return CreatedTokenResponseSchema.parse(await response.json());
+export function createToken(name: string): Promise<CreatedToken> {
+  return parsedFrom("POST", "/api/tokens", CreatedTokenResponseSchema, { json: { name } });
 }
 
 export async function revokeToken(id: number): Promise<void> {

@@ -6,8 +6,7 @@ interface InputKind {
   readonly name: string;
   readonly type: "text" | "password";
   readonly autoComplete: string;
-  readonly mono: boolean | undefined;
-  readonly placeholder: string | undefined;
+  readonly mono?: true;
   readonly maxLength?: number | undefined;
 }
 
@@ -40,7 +39,6 @@ function Input({
       spellCheck={false}
       autoCapitalize="off"
       className={kind.mono === true ? "mono" : undefined}
-      placeholder={kind.placeholder}
       maxLength={kind.maxLength}
       value={value}
       aria-invalid={error === null ? undefined : true}

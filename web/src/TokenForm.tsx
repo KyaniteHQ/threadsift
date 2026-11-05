@@ -11,8 +11,6 @@ const NAME_INPUT = {
   name: "token-name",
   type: "text",
   autoComplete: "off",
-  mono: undefined,
-  placeholder: undefined,
   maxLength: TOKEN_NAME_MAX,
 } as const;
 

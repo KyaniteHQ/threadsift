@@ -78,16 +78,10 @@ export default defineConfig({
           },
           {
             from: "package",
-            name: [
-              "RefObject",
-              "ChangeEvent",
-              "SubmitEvent",
-              "MouseEvent",
-              "FocusEvent",
-              "ReactNode",
-            ],
+            name: ["RefObject", "ChangeEvent", "SubmitEvent", "MouseEvent", "ReactNode"],
             package: "@types/react",
           },
+          { from: "package", name: ["ZodType"], package: "zod" },
         ],
       },
     ],

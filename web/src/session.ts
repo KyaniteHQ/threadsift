@@ -1,4 +1,5 @@
 import { type MouseEvent, useCallback, useEffect, useState } from "react";
+import type { ZodType } from "zod";
 
 export const SETTINGS_PATH = "/settings";
 
@@ -52,6 +53,17 @@ export async function callOk(
   }
 
   return response;
+}
+
+export async function parsedFrom<Parsed>(
+  method: Method,
+  path: string,
+  schema: ZodType<Parsed>,
+  options: Readonly<Call> = {},
+): Promise<Parsed> {
+  const response = await callOk(method, path, options);
+
+  return schema.parse(await response.json());
 }
 
 export function useSignedOutListener(onSignedOut: () => void): void {

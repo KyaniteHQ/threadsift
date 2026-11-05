@@ -15,7 +15,6 @@ const CODE_INPUT = {
   type: "text",
   autoComplete: "one-time-code",
   mono: true,
-  placeholder: undefined,
 } as const;
 
 export interface CodeStepProps {

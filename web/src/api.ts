@@ -5,7 +5,7 @@ import {
   SavedItemResponseSchema,
   type Item,
 } from "../../src/http/schemas.ts";
-import { call, callOk, unexpected } from "./session.ts";
+import { call, parsedFrom, unexpected } from "./session.ts";
 import type { NoticeKey } from "./text.ts";
 
 export interface SaveOutcome {
@@ -35,9 +35,7 @@ export function noticeOf({ known, item, fetch: fetched }: Readonly<Saved>): Noti
 }
 
 export async function fetchItems(): Promise<Item[]> {
-  const response = await callOk("GET", "/api/items");
-
-  return ItemListResponseSchema.parse(await response.json()).items;
+  return (await parsedFrom("GET", "/api/items", ItemListResponseSchema)).items;
 }
 
 export async function saveLink(url: string): Promise<SaveResult> {

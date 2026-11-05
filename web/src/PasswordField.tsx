@@ -39,8 +39,6 @@ function passwordInput(name: string, autoComplete: string, shown: boolean) {
     name,
     type: shown ? "text" : "password",
     autoComplete,
-    mono: undefined,
-    placeholder: undefined,
   } as const;
 }
 
