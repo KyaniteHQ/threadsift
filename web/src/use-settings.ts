@@ -3,15 +3,18 @@ import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore
 import {
   DARK_SCHEME,
   STORAGE_KEY,
+  THEME,
   type SettingKey,
   type Settings,
   choose,
+  followsDevice,
   readStored,
   resetLook,
   resolvedTheme,
   rootAttributes,
   serialize,
 } from "../../design/system/settings.ts";
+import { MATCH_SYSTEM_NOTES } from "./text.ts";
 
 function readStorage(): string | null {
   try {
@@ -24,9 +27,7 @@ function readStorage(): string | null {
 function writeStorage(text: string): void {
   try {
     localStorage.setItem(STORAGE_KEY, text);
-  } catch {
-    return undefined;
-  }
+  } catch {}
 }
 
 function subscribeToDeviceScheme(notify: () => void): () => void {
@@ -48,7 +49,7 @@ export function useSettings() {
   const theme = resolvedTheme(settings, isDark);
 
   useLayoutEffect(() => {
-    document.documentElement.dataset["theme"] = theme;
+    document.documentElement.setAttribute(THEME.attribute, theme);
   }, [theme]);
 
   useEffect(() => {
@@ -85,5 +86,9 @@ export function useSettings() {
     apply(resetLook(settings));
   }, [apply, settings]);
 
-  return { settings, isDark, attributes: rootAttributes(settings, isDark), pick, reset };
+  const themeNote = followsDevice(THEME, settings.theme)
+    ? MATCH_SYSTEM_NOTES[isDark ? "dark" : "light"]
+    : null;
+
+  return { settings, themeNote, attributes: rootAttributes(settings, isDark), pick, reset };
 }

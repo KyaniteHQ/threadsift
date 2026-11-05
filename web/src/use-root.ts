@@ -10,8 +10,8 @@ export function useRoot() {
 
   return {
     ref,
-    attributes: { ...Object.fromEntries(attributes), "data-bp": bands },
-    narrow: bands.split(" ").includes("narrow"),
+    attributes: { ...attributes, "data-bp": bands.join(" ") },
+    narrow: bands.includes("narrow"),
     ...look,
   };
 }

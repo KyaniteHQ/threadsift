@@ -80,14 +80,14 @@ function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void 
 
 export function SettingsPanel({
   settings,
-  isDark,
+  themeNote,
   modal,
   choose,
   reset,
   openInstanceSettings,
 }: Readonly<{
   settings: Settings;
-  isDark: boolean;
+  themeNote: string | null;
   modal: boolean;
   choose: Choose;
   reset: () => void;
@@ -112,7 +112,12 @@ export function SettingsPanel({
         >
           {modal ? <SheetHeader titleId={titleId} close={closeToGear} /> : null}
           <div className="st-body">
-            <SettingsRows settings={settings} isDark={isDark} idBase={idBase} choose={choose} />
+            <SettingsRows
+              settings={settings}
+              themeNote={themeNote}
+              idBase={idBase}
+              choose={choose}
+            />
           </div>
           <InstanceLink open={openInstanceSettings} />
           <Footer noteId={`${idBase}-reset-note`} reset={reset} />

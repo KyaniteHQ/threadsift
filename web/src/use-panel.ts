@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { type PanelRefs, watchPanel } from "./panel-dom.ts";
+import { type PanelRefs, watchPopover, watchSheet } from "./panel-dom.ts";
 
 const FIRST_CHOICE = '.st-body input[type="radio"]:checked';
 
@@ -55,7 +55,7 @@ function useDismissal(
     const listeners = new AbortController();
 
     if (open) {
-      watchPanel(refs, modal, close, listeners.signal);
+      (modal ? watchSheet : watchPopover)(refs, close, listeners.signal);
     }
 
     return () => {

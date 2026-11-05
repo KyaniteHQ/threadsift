@@ -6,9 +6,8 @@ import {
   type SettingKey,
   type SettingRow,
   type Settings,
-  followsDevice,
+  THEME,
 } from "../../design/system/settings.ts";
-import { MATCH_SYSTEM_NOTES } from "./text.ts";
 
 const SHOWN_GROUPS = GROUPS.map((group) => ({
   group,
@@ -26,12 +25,8 @@ type ControlProps = Readonly<{
   choose: Choose;
 }>;
 
-function noteOf(row: SettingRow, settings: Settings, isDark: boolean): string | null {
-  if (row.key !== "theme" || !followsDevice(settings)) {
-    return null;
-  }
-
-  return MATCH_SYSTEM_NOTES[isDark ? "dark" : "light"];
+function noteOf(row: SettingRow, themeNote: string | null): string | null {
+  return row === THEME ? themeNote : null;
 }
 
 function SelectControl({ row, value, controlId, noteId, choose }: ControlProps) {
@@ -59,46 +54,61 @@ function SelectControl({ row, value, controlId, noteId, choose }: ControlProps) 
   );
 }
 
-function Choice({
-  row,
-  option,
-  name,
-  checked,
-  choose,
-}: Readonly<{
+type ChoiceProps = Readonly<{
   row: SettingRow;
   option: Readonly<{ id: string; label: string }>;
   name: string;
   checked: boolean;
   choose: Choose;
-}>) {
-  const isSwatch = row.kind === "swatches";
+}>;
 
-  const pick = useCallback(() => {
+function usePick({ row, option, choose }: ChoiceProps) {
+  return useCallback(() => {
     choose(row.key, option.id);
   }, [choose, row.key, option.id]);
+}
+
+function Swatch(props: ChoiceProps) {
+  const { row, option, name, checked } = props;
+  const pick = usePick(props);
 
   return (
-    <label
-      className={isSwatch ? "st-sw" : "st-b"}
-      {...(isSwatch ? { [row.attribute]: option.id } : {})}
-    >
+    <label className="st-sw" {...{ [row.attribute]: option.id }}>
       <input
         type="radio"
         className="st-in"
         name={name}
         value={option.id}
         checked={checked}
-        aria-label={isSwatch ? option.label : undefined}
+        aria-label={option.label}
         onChange={pick}
       />
-      {isSwatch ? null : option.label}
+    </label>
+  );
+}
+
+function Segment(props: ChoiceProps) {
+  const { option, name, checked } = props;
+  const pick = usePick(props);
+
+  return (
+    <label className="st-b">
+      <input
+        type="radio"
+        className="st-in"
+        name={name}
+        value={option.id}
+        checked={checked}
+        onChange={pick}
+      />
+      {option.label}
     </label>
   );
 }
 
 function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
   const isSwatches = row.kind === "swatches";
+  const Choice = isSwatches ? Swatch : Segment;
 
   return (
     <div
@@ -124,20 +134,20 @@ function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
 function Row({
   row,
   settings,
-  isDark,
+  themeNote,
   idBase,
   choose,
 }: Readonly<{
   row: SettingRow;
   settings: Settings;
-  isDark: boolean;
+  themeNote: string | null;
   idBase: string;
   choose: Choose;
 }>) {
   const labelId = `${idBase}-${row.key}`;
   const controlId = `${labelId}-control`;
   const noteId = `${labelId}-note`;
-  const note = noteOf(row, settings, isDark);
+  const note = noteOf(row, themeNote);
   const isSelect = row.kind === "select";
   const Control = isSelect ? SelectControl : ButtonsControl;
 
@@ -171,10 +181,10 @@ function Row({
 
 export function SettingsRows({
   settings,
-  isDark,
+  themeNote,
   idBase,
   choose,
-}: Readonly<{ settings: Settings; isDark: boolean; idBase: string; choose: Choose }>) {
+}: Readonly<{ settings: Settings; themeNote: string | null; idBase: string; choose: Choose }>) {
   return SHOWN_GROUPS.map(({ group, rows }) => (
     <div key={group} className="st-group">
       <h3 className="st-gh">{group}</h3>
@@ -183,7 +193,7 @@ export function SettingsRows({
           key={row.key}
           row={row}
           settings={settings}
-          isDark={isDark}
+          themeNote={themeNote}
           idBase={idBase}
           choose={choose}
         />
