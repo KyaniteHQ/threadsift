@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 source tools/e2e/common.sh
 
-export CI=1 WRANGLER_SEND_METRICS=false
+export CI=1 WRANGLER_SEND_METRICS=false THREADSIFT_TARGET=worker
 
 self=$PWD/tools/e2e/worker.sh
 

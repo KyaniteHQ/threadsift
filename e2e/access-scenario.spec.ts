@@ -239,6 +239,7 @@ test("a Paste after the owner signed out in another tab shows the login screen, 
   await first.goto("/");
   await first.getByLabel(FIELDS.password, { exact: true }).fill(password);
   await first.getByRole("button", { name: LOGIN.signIn }).click();
+  await expect(first.getByRole("textbox", { name: "Paste a link to save" })).toBeVisible();
   await second.goto("/");
   await expect(second.getByRole("textbox", { name: "Paste a link to save" })).toBeVisible();
 

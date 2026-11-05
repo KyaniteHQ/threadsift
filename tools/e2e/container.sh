@@ -4,6 +4,8 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 source tools/e2e/common.sh
 
+export THREADSIFT_TARGET=container
+
 image=threadsift:e2e
 self=$PWD/tools/e2e/container.sh
 
