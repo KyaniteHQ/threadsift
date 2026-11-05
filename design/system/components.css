@@ -134,6 +134,7 @@ a.btn { text-decoration: none; }
   .st-sw { forced-color-adjust: none; }
   .st-sw:has(:checked) { outline: 2px solid CanvasText; outline-offset: 2px; }
   .field:has(input:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; }
+  .skel i { outline: 1px solid CanvasText; }
 }
 
 /* 3. Paste box and paste card -------------------------------------------- */
@@ -154,9 +155,8 @@ a.btn { text-decoration: none; }
 .tone-acc { color: var(--acc-ink); }
 .tone-ok { color: var(--ok); }
 .tone-warn { color: var(--warn); }
-.paste-card { position: absolute; top: calc(100% + var(--s2)); inset-inline: 0; z-index: var(--z-float); border-radius: var(--r2); box-shadow: var(--shadow-lg); }   /* floats over the list or the grid, which doesn't move */
-[data-layout="grid"] .paste-card { inset-inline: auto 0; width: min(var(--paste-w), 100%); }
-[data-layout="grid"][data-bp~="narrow"] .paste-card { position: static; width: auto; box-shadow: none; }   /* under 760px: a full-width row in the page */
+[data-layout="list"]:not([data-bp~="medium"]) .paste-card, [data-layout="grid"]:not([data-bp~="narrow"]) .paste-card { position: absolute; top: calc(100% + var(--s2)); inset-inline: 0; z-index: var(--z-float); box-shadow: var(--shadow-lg); }   /* in the sidebar (List from 1080px) and over the grid (from 760px) the card floats; it keeps to the room left in the window and scrolls */
+[data-layout="grid"]:not([data-bp~="narrow"]) .paste-card { inset-inline: auto 0; width: min(var(--paste-w), 100%); }
 
 /* 4. Filters -------------------------------------------------------------
    rail: segmented Source and Status rows with counts, then Topic and Tags as collapsible
@@ -221,11 +221,11 @@ a.btn { text-decoration: none; }
 .it-topic { color: var(--text); font-weight: 600; }
 .it-badge { padding: 0 var(--s2); border-radius: var(--r4); background: var(--acc); color: var(--on-acc); font-size: var(--t-label); font-weight: 700; }
 .it.is-back { outline: 2px solid var(--acc); outline-offset: 2px; }
-.it-proc .it-title { font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
+.it-proc .it-title { min-height: calc(var(--t-title) * var(--lh-title)); font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
 .proc-ic { color: var(--acc-ink); }
-.skel { grid-area: sum; display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s2); }
+.skel { grid-area: sum; position: relative; height: 0; }  
 .skel i, .it-ghost i { display: block; height: var(--s2); border-radius: var(--r1); background: var(--surface-2); animation: shimmer var(--loop-pulse) ease-in-out infinite; }
-.skel i + i { width: 60%; }
+.skel i { position: absolute; top: var(--s1); width: 60%; height: var(--s1); }
 
 /* rows (List): unread dot on the left, 40px thumbnail on the right, 2-line summary. The open
    row is tinted and carries a 3px bar on its left edge, so it is told apart from a hovered row
@@ -270,7 +270,7 @@ a.btn { text-decoration: none; }
 /* List: rail | list | reader. Medium: header over list | reader. Narrow: one column. */
 [data-layout="list"] .lib { display: grid; height: 100%; grid-template-columns: var(--rail-w) minmax(var(--list-min), var(--list-w)) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
 [data-layout="list"] .mast { grid-column: 1; grid-row: 1 / -1; overflow-y: auto; padding: var(--s5) var(--s4); border-right: 1px solid var(--line); background: var(--surface-2); }
-[data-layout="list"] .mast:has(.st-pop, .paste-card) { overflow: visible; }   /* the settings panel and the paste card reach past the sidebar while they are open */
+[data-layout="list"] .mast:has(.st-pop) { overflow: visible; }   /* the settings panel reaches past the sidebar while it is open */
 [data-layout="list"] .mast:has(.st-pop) { z-index: var(--z-popover); }   /* the panel also sits above the list */
 [data-layout="list"] .brand { padding: 0 var(--s2); }
 [data-layout="list"] .search { grid-column: 2; grid-row: 1; padding: var(--s4) var(--s4) var(--s2); background: var(--bg); }

@@ -182,7 +182,7 @@ The palette is near-white surfaces with a faint cool tint, ink-dark text, and a 
 - **Control line** (`ctl-line`): the edge of buttons, fields, selects and the side buttons, and the ring of an empty unread dot.
 - **Ink** (`text`): all primary text.
 - **Muted ink** (`muted`): metadata, counts, labels, hints and placeholders.
-- **Status** (`ok`, `warn`): the paste card's done and failed tones, used as text colour only.
+- **Status** (`ok`, `warn`): the paste card's done and failed tones, used as text colour only. A saved Item that carries a note, such as a missing title, uses the warn tone and icon instead of the done check.
 
 Dark and Sepia redefine every neutral and the accent's lightness and chroma in `design/system/tokens.css`. Grid tilts the greys toward violet (`--nh`, `--nc`), and Sepia ignores that tilt. Tags take one of eight hues at a fixed chroma (`--tag-c`), shown only as a dot before the name in the default Tag style.
 
@@ -235,7 +235,7 @@ The system is flat with tonal layering, plus soft ambient shadows on things that
 
 ### Shadow Vocabulary
 - **Low** (`--shadow`): two soft layers, a 1px contact shadow and a wide faint blur. Grid cards and the sheet's side buttons.
-- **High** (`--shadow-lg`): one deep blur. The settings panel, the reader sheet and the paste card, which floats over the list at every width and over the grid. Grid's card under 760 px is slice 13's decision.
+- **High** (`--shadow-lg`): one deep blur. The settings panel, the reader sheet and the paste card. The card floats under the paste box in List's sidebar from `--bp-medium` (1080px) up, and under the Grid header from 760px up. Below those widths it sits in the page flow between the paste box and the list, with no shadow, so the list moves down while it shows and no row is ever under it. In the sidebar it adds to the sidebar's scroll height, so a window shorter than the card scrolls the sidebar.
 
 ### Named Rules
 **The Lifted Only Rule.** A shadow means the element sits above the page: a card in the grid or a floating layer. Rows, panes and boxes inside the reader stay flat.
