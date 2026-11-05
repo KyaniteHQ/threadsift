@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { useInternalLink } from "./session.ts";
 import { TokensSection } from "./TokensSection.tsx";
+import { useFocusOnMount } from "./use-form.ts";
 
 export function SettingsPage({
   back,
@@ -11,9 +12,7 @@ export function SettingsPage({
 }: Readonly<{ back: () => void; signedOut: () => void }>) {
   const titleField = useRef<HTMLHeadingElement>(null);
 
-  useEffect(() => {
-    titleField.current?.focus();
-  }, []);
+  useFocusOnMount(titleField);
 
   const follow = useInternalLink(back);
 

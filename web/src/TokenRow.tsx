@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useRef } from "react";
 import type { Token } from "../../src/http/schemas.ts";
 import { SETTINGS, filled } from "./access-text.ts";
 import { ageLabel } from "./saved-label.ts";
+import { useFocusOnMount } from "./use-form.ts";
 
 export interface RowActions {
   readonly ask: (id: number) => void;
@@ -29,10 +30,7 @@ function Confirm({
 }: Readonly<{ token: Token; cancel: () => void; revoke: () => void }>) {
   const cancelButton = useRef<HTMLButtonElement>(null);
   const questionId = useId();
-
-  useEffect(() => {
-    cancelButton.current?.focus();
-  }, []);
+  useFocusOnMount(cancelButton);
 
   useEffect(() => {
     const onKeyDown = ({ key }: Readonly<{ key: string }>): void => {
@@ -65,9 +63,12 @@ function Confirm({
 export function TokenRow({
   token,
   asking,
+  focusRevoke,
   actions,
-}: Readonly<{ token: Token; asking: boolean; actions: RowActions }>) {
+}: Readonly<{ token: Token; asking: boolean; focusRevoke: boolean; actions: RowActions }>) {
   const { id } = token;
+  const revokeButton = useRef<HTMLButtonElement>(null);
+  useFocusOnMount(revokeButton, focusRevoke && !asking);
   const { ask, cancel, revoke } = actions;
 
   const askThis = useCallback(() => {
@@ -93,8 +94,8 @@ export function TokenRow({
       ) : (
         <button
           type="button"
+          ref={revokeButton}
           className="btn"
-          data-revoke={id}
           aria-label={filled(SETTINGS.revokeNamed, { name: token.name })}
           onClick={askThis}
         >

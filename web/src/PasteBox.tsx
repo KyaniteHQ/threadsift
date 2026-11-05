@@ -4,7 +4,6 @@ import {
   type SetStateAction,
   type SubmitEvent,
   useCallback,
-  useEffect,
   useId,
   useRef,
   useState,
@@ -26,6 +25,7 @@ import {
   SAVING_LABEL,
   SAVING_STATUS,
 } from "./text.ts";
+import { useFocusOnMount } from "./use-form.ts";
 
 type Save = (url: string) => Promise<SaveOutcome>;
 
@@ -113,11 +113,7 @@ function usePaste(save: Save, focusOnMount: boolean) {
     field.current?.focus();
   }, []);
 
-  useEffect(() => {
-    if (focusOnMount) {
-      focusField();
-    }
-  }, [focusField, focusOnMount]);
+  useFocusOnMount(field, focusOnMount);
 
   const { notice, setNotice, dismiss } = useNotice(focusField);
   const { saving, saveValue } = useSaveValue({ save, setValue, setNotice, focusField });

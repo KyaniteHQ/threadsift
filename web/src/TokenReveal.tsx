@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { SETTINGS, filled } from "./access-text.ts";
 import { Alert } from "./AuthShell.tsx";
+import { useFocusOnMount } from "./use-form.ts";
 
 const COPIED_MS = 2000;
 const TOKEN_ROWS = 3;
@@ -11,9 +12,7 @@ function useCopy(value: string) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    field.current?.focus();
-  }, []);
+  useFocusOnMount(field);
 
   useEffect(() => {
     const timer = copied

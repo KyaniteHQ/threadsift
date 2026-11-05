@@ -59,7 +59,7 @@ function useCodeStep({ wrong, go, exists }: Readonly<CodeStepProps>) {
 
 export function CodeStep(props: Readonly<CodeStepProps>) {
   const { code, lock, busy, onSubmit } = useCodeStep(props);
-  useFocusOnMount(code);
+  useFocusOnMount(code.ref);
 
   return (
     <form className="stack" method="post" onSubmit={onSubmit}>

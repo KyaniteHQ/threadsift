@@ -50,7 +50,7 @@ function useLogin(signedIn: () => void) {
 
 export function LoginScreen({ signedIn }: Readonly<{ signedIn: () => void }>) {
   const { password, lock, visibility, busy, onSubmit } = useLogin(signedIn);
-  useFocusOnMount(password);
+  useFocusOnMount(password.ref);
 
   return (
     <AuthShell>

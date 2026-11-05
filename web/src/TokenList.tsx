@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useRef, useState } from "react";
+import { type RefObject, useCallback, useState } from "react";
 
 import type { Token } from "../../src/http/schemas.ts";
 import { revokeToken } from "./access-api.ts";
@@ -6,36 +6,19 @@ import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./AuthShell.tsx";
 import { TokenRow } from "./TokenRow.tsx";
 
-function useFocusRevoke(
-  nameField: RefObject<HTMLInputElement | null>,
-  list: RefObject<HTMLUListElement | null>,
-) {
-  return useCallback(
-    (id: number | undefined) => {
-      window.setTimeout(() => {
-        const row = list.current?.querySelector<HTMLElement>(`[data-revoke="${id}"]`);
-        (id === undefined ? nameField.current : row)?.focus();
-      });
-    },
-    [list, nameField],
-  );
-}
-
 function useRevoke(
   tokens: readonly Token[],
   removed: (id: number) => void,
-  focusRevoke: (id: number | undefined) => void,
+  nameField: RefObject<HTMLInputElement | null>,
 ) {
   const [asking, setAsking] = useState<number | null>(null);
+  const [focusId, setFocusId] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
 
-  const cancel = useCallback(
-    (id: number) => {
-      setAsking(null);
-      focusRevoke(id);
-    },
-    [focusRevoke],
-  );
+  const cancel = useCallback((id: number) => {
+    setAsking(null);
+    setFocusId(id);
+  }, []);
 
   const revoke = useCallback(
     async (id: number) => {
@@ -53,12 +36,16 @@ function useRevoke(
       setFailed(false);
       setAsking(null);
       removed(id);
-      focusRevoke(neighbour?.id);
+      setFocusId(neighbour?.id ?? null);
+
+      if (neighbour === undefined) {
+        nameField.current?.focus();
+      }
     },
-    [focusRevoke, removed, tokens],
+    [nameField, removed, tokens],
   );
 
-  return { asking, failed, actions: { ask: setAsking, cancel, revoke } };
+  return { asking, focusId, failed, actions: { ask: setAsking, cancel, revoke } };
 }
 
 export function TokenList({
@@ -70,17 +57,21 @@ export function TokenList({
   removed: (id: number) => void;
   nameField: RefObject<HTMLInputElement | null>;
 }>) {
-  const list = useRef<HTMLUListElement>(null);
-  const focusRevoke = useFocusRevoke(nameField, list);
-  const { asking, failed, actions } = useRevoke(tokens, removed, focusRevoke);
+  const { asking, focusId, failed, actions } = useRevoke(tokens, removed, nameField);
 
   return (
     <>
       <Alert text={failed ? SETTINGS.revokeFailed : null} />
       {tokens.length === 0 ? null : (
-        <ul ref={list} className="toks">
+        <ul className="toks">
           {tokens.map((token) => (
-            <TokenRow key={token.id} token={token} asking={asking === token.id} actions={actions} />
+            <TokenRow
+              key={token.id}
+              token={token}
+              asking={asking === token.id}
+              focusRevoke={focusId === token.id}
+              actions={actions}
+            />
           ))}
         </ul>
       )}

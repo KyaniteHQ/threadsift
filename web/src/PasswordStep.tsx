@@ -98,7 +98,7 @@ export function PasswordStep(props: Readonly<PasswordStepProps>) {
     go({ name: "code" });
   }, [go]);
 
-  useFocusOnMount(password);
+  useFocusOnMount(password.ref);
 
   return (
     <form className="stack" method="post" onSubmit={onSubmit}>

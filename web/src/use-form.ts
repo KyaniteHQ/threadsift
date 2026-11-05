@@ -43,12 +43,12 @@ export function useField(initialError: string | null = null): FieldState {
   return { value, error, ref, change, fail, clear };
 }
 
-export function useFocusOnMount(field: FieldState): void {
-  const { ref } = field;
-
+export function useFocusOnMount(ref: RefObject<HTMLElement | null>, enabled = true): void {
   useEffect(() => {
-    ref.current?.focus();
-  }, [ref]);
+    if (enabled) {
+      ref.current?.focus();
+    }
+  }, [enabled, ref]);
 }
 
 export function useSubmit(run: () => Promise<void>, blocked = false) {
