@@ -19,18 +19,24 @@ export interface FreshScreen {
 
 export async function openFresh(browser: Browser, code: string | null): Promise<FreshScreen> {
   const fresh = launchFresh(code);
-  const context = await browser.newContext({ baseURL: fresh.url });
-  const page = await context.newPage();
 
-  return {
-    fresh,
-    context,
-    page,
-    close: async () => {
-      await context.close();
-      fresh.stop();
-    },
-  };
+  try {
+    const context = await browser.newContext({ baseURL: fresh.url });
+    const page = await context.newPage();
+
+    return {
+      fresh,
+      context,
+      page,
+      close: async () => {
+        await context.close();
+        fresh.stop();
+      },
+    };
+  } catch (error) {
+    fresh.stop();
+    throw error;
+  }
 }
 
 export async function setUpByApi(url: string, code: string, password: string): Promise<string> {
@@ -64,11 +70,17 @@ export async function openSignedIn(
   password: string,
 ): Promise<FreshScreen> {
   const screen = await openFresh(browser, code);
-  await setUpByApi(screen.fresh.url, code, password);
-  const login = await screen.context.request.post("/api/login", { data: { password } });
-  expect(login.status(), "login through the API").toBe(204);
 
-  return screen;
+  try {
+    await setUpByApi(screen.fresh.url, code, password);
+    const login = await screen.context.request.post("/api/login", { data: { password } });
+    expect(login.status(), "login through the API").toBe(204);
+
+    return screen;
+  } catch (error) {
+    await screen.close();
+    throw error;
+  }
 }
 
 export const LOCK_MS = 5000;

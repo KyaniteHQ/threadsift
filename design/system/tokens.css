@@ -57,8 +57,14 @@
      the settings label column (7.5em), the empty-state width (34em), the
      filter rail's column minimum (15em), the 14em flex basis of a text
      block that wraps under its neighbour (the settings footnote, a token
-     row's name, the revealed token), and the 1lh height of a ghost row's
-     line;
+     row's name, the revealed token), and the 0.5em that centres a list row's
+     unread dot on its first line;
+   - 1lh, the height of one line of text: a ghost row's line, the list
+     header's height and the padding that centres the revealed token in a
+     field-high box;
+   - 100vw in the settings popover's maximum width;
+   - the 2px underline offset of links and text buttons, and the 1px side
+     padding of a highlighted match;
    - percentage widths of loading placeholders: 60% for the second line of a
      skeleton, and 40% and 70% for a ghost row's lines;
    - the 1px box that visually hides text kept for screen readers, and the 2px
