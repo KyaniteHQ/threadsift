@@ -1,6 +1,6 @@
 import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 
-import { SAVING_LABEL, SAVING_STATUS } from "../web/src/text.ts";
+import { SAVING_STATUS } from "../web/src/text.ts";
 import { listAll, postLink } from "./api.ts";
 import { addButton, newRunId, pasteField, rowOf, submitLink } from "./links.ts";
 
@@ -34,12 +34,21 @@ test("Add with an empty box or text that is not a link shows a refusal and saves
 test("Add on an empty box never shows the saving state", async ({ page }) => {
   await page.goto("/");
 
-  const texts = await page.evaluateHandle(() => {
+  const states = await page.evaluateHandle(() => {
     const seen: string[] = [];
 
-    new MutationObserver(() => {
-      seen.push(document.querySelector(".paste")?.textContent ?? "");
-    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+    const record = (): void => {
+      const announced = document.querySelector(".paste output")?.textContent ?? "";
+      const busy = document.querySelector(".paste button[type=submit]")?.ariaDisabled ?? "";
+      seen.push(`${announced}|${busy}`);
+    };
+
+    new MutationObserver(record).observe(document.querySelector(".paste") ?? document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+    });
 
     return seen;
   });
@@ -47,13 +56,12 @@ test("Add on an empty box never shows the saving state", async ({ page }) => {
   await addButton(page).click();
   await expect(page.getByRole("alert")).toContainText("Paste a link first.");
 
-  const sawSaving = await texts.evaluate(
-    (seen, [status, label]) =>
-      seen.some((text) => text.includes(status ?? "") || text.includes(label ?? "")),
-    [SAVING_STATUS, SAVING_LABEL],
+  const sawSaving = await states.evaluate(
+    (seen, status) => seen.some((state) => state.includes(status) || state.endsWith("|true")),
+    SAVING_STATUS,
   );
 
-  expect(sawSaving, "the paste box showed Saving… for an empty Add").toBe(false);
+  expect(sawSaving, "the paste box showed the saving state for an empty Add").toBe(false);
 });
 
 test("an Item's own URL shows the list with that row in view and focused", async ({

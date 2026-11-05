@@ -80,9 +80,20 @@ test("the Instance settings link sits apart from the Look settings, under a hair
 
   expect(px(rule), "hairline above the link").toBeGreaterThan(0);
 
-  const linkBox = await link.boundingBox();
-  const bodyBox = await dialog.locator(".st-body").boundingBox();
-  const footBox = await dialog.locator(".st-foot").boundingBox();
-  expect(linkBox?.y).toBeGreaterThanOrEqual((bodyBox?.y ?? Infinity) + (bodyBox?.height ?? 0) - 1);
-  expect((linkBox?.y ?? Infinity) + (linkBox?.height ?? 0)).toBeLessThanOrEqual(footBox?.y ?? 0);
+  await page.evaluate(() => document.fonts.ready);
+
+  const { linkTop, linkBottom, bodyBottom, footTop } = await dialog.evaluate((root) => {
+    const edge = (selector: string): DOMRect | undefined =>
+      root.querySelector(selector)?.getBoundingClientRect();
+
+    return {
+      linkTop: edge(".st-more a")?.top ?? NaN,
+      linkBottom: edge(".st-more a")?.bottom ?? NaN,
+      bodyBottom: edge(".st-body")?.bottom ?? NaN,
+      footTop: edge(".st-foot")?.top ?? NaN,
+    };
+  });
+
+  expect(linkTop).toBeGreaterThanOrEqual(bodyBottom - 1);
+  expect(linkBottom).toBeLessThanOrEqual(footTop);
 });

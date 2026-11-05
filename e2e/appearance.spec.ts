@@ -40,7 +40,7 @@ test("loading rows and skeleton bars shimmer, and stand still under reduced moti
   page,
 }) => {
   await page.goto("/");
-  await expect(app(page)).toBeVisible();
+  await expect(page.locator("article.it").first()).toBeVisible();
   await page.evaluate(() => {
     const row = document.createElement("div");
     row.className = "it it-ghost";
