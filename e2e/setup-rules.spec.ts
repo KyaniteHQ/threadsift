@@ -1,11 +1,13 @@
 import { type APIRequestContext, type APIResponse, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { ErrorBody, cookieHeader, expectRefusal } from "./access-helpers.ts";
+import { LOGIN } from "../web/src/access-text.ts";
+import { cookieHeader, expectRefusal } from "./access-helpers.ts";
 import { type Instance, anonymous, launchFresh, newCode, sessionValueOf } from "./access.ts";
+import { passwordField } from "./setup-screens.ts";
 
-const LIGATURE_PASSWORD = `ﬁ${"x".repeat(12)}é`;
-const SAME_AFTER_NFKC = [`ﬁ${"x".repeat(12)}é`, `fi${"x".repeat(12)}é`];
+const LIGATURE_PASSWORD = `\uFB01${"x".repeat(12)}\u00E9`;
+const OTHER_FORMS = [LIGATURE_PASSWORD.normalize("NFD"), LIGATURE_PASSWORD.normalize("NFKC")];
 const WRONG_ATTEMPTS = 10;
 const MAX_FIRST_LOCK_SECONDS = 60;
 
@@ -118,7 +120,7 @@ test("after setup both setup calls answer 409, the stored hash names its cost an
   const [stored] = rules.query("SELECT password_hash FROM owner", Hash);
   expect(stored?.password_hash.startsWith("scrypt$N=32768$r=8$p=3$"), "N, r and p").toBe(true);
 
-  for (const form of [LIGATURE_PASSWORD, ...SAME_AFTER_NFKC]) {
+  for (const form of [LIGATURE_PASSWORD, ...OTHER_FORMS]) {
     expect((await login(form)).status(), "the same password in another form").toBe(204);
   }
 });
@@ -142,6 +144,23 @@ test("ten wrong passwords lock login for everyone but sessions already open, and
 
   rules.sql("UPDATE throttles SET locked_until = 0 WHERE kind = 'login'");
   expect((await login(LIGATURE_PASSWORD)).status(), "after the lock ends").toBe(204);
-  const message = ErrorBody.parse(await (await login("wrong")).json()).error;
-  expect(message.length).toBeGreaterThan(0);
+});
+
+test("the sign-in screen says when to try again while login is locked and sends nothing more", async ({
+  page,
+}) => {
+  for (let attempt = 0; attempt < WRONG_ATTEMPTS; attempt += 1) {
+    expect((await login(`wrong-again-${attempt}`)).status(), `wrong password ${attempt}`).toBe(401);
+  }
+
+  await page.goto(rules.url);
+  await passwordField(page).fill(LIGATURE_PASSWORD);
+  await page.getByRole("button", { name: LOGIN.signIn }).click();
+  await expect(page.getByRole("alert")).toHaveText(
+    /^Too many wrong tries, so wait .+ before trying again\.$/u,
+  );
+  await expect(page.getByRole("button", { name: LOGIN.signIn })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
 });
