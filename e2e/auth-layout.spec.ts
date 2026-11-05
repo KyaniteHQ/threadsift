@@ -62,23 +62,16 @@ test("Change setup code lines its text up with the form's left edge", async () =
   expect(Math.abs(textLeft - (heading?.x ?? -1))).toBeLessThan(HALF_PIXEL);
 });
 
-test("step 1 names each install target and gives it one sentence", async () => {
-  const { page } = screen;
-  await page.goto("/");
-
-  await expect(page.getByText(SETUP.codeWhereContainer, { exact: true })).toBeVisible();
-  await expect(page.getByText(SETUP.codeWhereWorker, { exact: true })).toBeVisible();
-});
-
-test("step 1 shows the names to look for in code style", async () => {
+test("step 1 gives each install target one sentence and shows the names to look for in code style", async () => {
   const { page } = screen;
   await page.goto("/");
 
   const container = page.getByText(SETUP.codeWhereContainer, { exact: true });
+  const worker = page.getByText(SETUP.codeWhereWorker, { exact: true });
+  await expect(container).toBeVisible();
+  await expect(worker).toBeVisible();
   await expect(container.locator("code")).toHaveText(["SETUP_CODE", "Setup code:"]);
-  await expect(page.getByText(SETUP.codeWhereWorker, { exact: true }).locator("code")).toHaveText(
-    "SETUP_CODE",
-  );
+  await expect(worker.locator("code")).toHaveText("SETUP_CODE");
 
   const [inCode, around] = await container.evaluate((paragraph) => [
     getComputedStyle(paragraph.querySelector("code") ?? paragraph).fontFamily,
@@ -93,8 +86,12 @@ test("the sign-in heading differs from the Sign in button", async ({ browser, ba
   const page = await context.newPage();
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { level: 1, name: LOGIN.heading })).toBeVisible();
-  await expect(page.getByRole("button", { name: LOGIN.signIn })).toBeVisible();
-  expect(LOGIN.heading).not.toBe(LOGIN.signIn);
+  const heading = page.getByRole("heading", { level: 1, name: LOGIN.heading });
+  const button = page.getByRole("button", { name: LOGIN.signIn });
+  await expect(heading).toBeVisible();
+  await expect(button).toBeVisible();
+  expect(await heading.textContent(), "the heading and the button read differently").not.toBe(
+    await button.textContent(),
+  );
   await context.close();
 });

@@ -63,6 +63,10 @@ test("sign-in: a wrong password is announced, and a lock counts down and says wh
   lockFor(fresh, "login", LOCK_MS);
   await passwordField(page).fill(password);
   await passwordField(page).press("Enter");
+  await expect(page.getByRole("button", { name: LOGIN.signIn })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
   await expectCountdown(alertOf(page));
   await expect(page.getByRole("button", { name: LOGIN.signIn })).not.toHaveAttribute(
     "aria-disabled",

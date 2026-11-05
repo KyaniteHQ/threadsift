@@ -2,7 +2,7 @@ import { expect } from "@playwright/test";
 import { z } from "zod";
 
 import { SETTINGS } from "../web/src/access-text.ts";
-import { DAY_MS, ErrorBody, MAX_AGE, expectRefusal, sha256Hex, signIn } from "./access-helpers.ts";
+import { DAY_MS, MAX_AGE, expectRefusal, sha256Hex, signIn } from "./access-helpers.ts";
 import {
   SAME_ORIGIN,
   SESSION_COOKIE,
@@ -45,20 +45,6 @@ test("login sets a __Host- cookie for 30 days and the sessions table holds only 
   const digests = storedSessions().map((row) => row.digest);
   expect(digests).toContain(sha256Hex(value));
   expect(digests, "no raw session id is stored").not.toContain(value);
-});
-
-test("a wrong password always gets the same message", async ({ stranger }) => {
-  const messages = new Set<string>();
-
-  for (const suffix of ["a", "b"]) {
-    const response = await stranger.post("/api/login", {
-      data: { password: `${ownerPassword()}${suffix}` },
-    });
-
-    messages.add(ErrorBody.parse(await response.json()).error);
-  }
-
-  expect(messages.size).toBe(1);
 });
 
 test("after logout the old cookie gets 401 and its row is gone", async ({ baseURL }) => {

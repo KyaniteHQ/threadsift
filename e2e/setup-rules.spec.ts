@@ -1,10 +1,8 @@
 import { type APIResponse, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { LOGIN } from "../web/src/access-text.ts";
 import { cookieHeader, expectRefusal } from "./access-helpers.ts";
 import { type Instance, launchFresh, newCode, sessionValueOf, strangerPool } from "./access.ts";
-import { passwordField } from "./setup-screens.ts";
 
 const LIGATURE_PASSWORD = `\uFB01${"x".repeat(12)}\u00E9`;
 const OTHER_FORMS = [LIGATURE_PASSWORD.normalize("NFD"), LIGATURE_PASSWORD.normalize("NFKC")];
@@ -200,23 +198,4 @@ test("a wrong password after a lock ends doubles the next lock", async () => {
   );
   expect(seconds, "the second lock doubles the first").toBeLessThanOrEqual(SECOND_LOCK_SECONDS);
   await endLockAndSignIn();
-});
-
-test("the sign-in screen says when to try again while login is locked and sends nothing more", async ({
-  page,
-}) => {
-  for (let attempt = 0; attempt < WRONG_ATTEMPTS; attempt += 1) {
-    expect((await login(`wrong-again-${attempt}`)).status(), `wrong password ${attempt}`).toBe(401);
-  }
-
-  await page.goto(rules.url);
-  await passwordField(page).fill(LIGATURE_PASSWORD);
-  await page.getByRole("button", { name: LOGIN.signIn }).click();
-  await expect(page.getByRole("alert")).toHaveText(
-    /^Too many wrong tries, so wait .+ before trying again\.$/u,
-  );
-  await expect(page.getByRole("button", { name: LOGIN.signIn })).toHaveAttribute(
-    "aria-disabled",
-    "true",
-  );
 });

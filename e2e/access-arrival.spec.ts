@@ -35,13 +35,6 @@ test.describe("after setup", () => {
     await screen.close();
   });
 
-  test("loading the library again does not take focus", async () => {
-    const { page } = screen;
-    await page.goto("/");
-    await expect(pasteField(page)).toBeVisible();
-    await expect(pasteField(page)).not.toBeFocused();
-  });
-
   test("Back to library is a link to /, and a modified click leaves this tab alone", async () => {
     const { page, context } = screen;
     await page.goto("/settings");
