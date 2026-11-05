@@ -1,10 +1,8 @@
-import { type Locator, type Page, expect } from "@playwright/test";
+import { type Locator, type Page, type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
-import { DEFAULTS, STORAGE_KEY, type SettingKey } from "../design/system/settings.ts";
+import { STORAGE_KEY, type SettingKey } from "../design/system/settings.ts";
 import { SETTINGS_GEAR_LABEL, SETTINGS_TITLE } from "../web/src/text.ts";
-import { postLink } from "./api.ts";
-import { newRunId } from "./links.ts";
 
 const StoredSchema = z.record(z.string(), z.string());
 
@@ -25,11 +23,29 @@ export const NON_DEFAULT = {
 
 export const HUES = { cobalt: "258", rust: "42", moss: "145", iris: "300", teal: "200" } as const;
 
-export const TITLED = "Example Domain";
+export const DESKTOP = { width: 1440, height: 900 } as const;
 
-export async function seedItems(page: Page): Promise<void> {
-  await postLink(page.request, "https://example.com/");
-  await postLink(page.request, `https://example.com/${newRunId()}/link-only`);
+const TITLED = "Example Domain";
+
+export async function afterTwoFrames(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      }),
+  );
+}
+
+export async function attachScreenshot(
+  page: Page,
+  testInfo: TestInfo,
+  name: string,
+): Promise<void> {
+  await testInfo.attach(name, { body: await page.screenshot(), contentType: "image/png" });
 }
 
 export function titledRow(page: Page): Locator {
@@ -60,8 +76,17 @@ export async function storeSettings(page: Page, stored: Stored, url = "/"): Prom
   await storeRaw(page, JSON.stringify(stored), url);
 }
 
+function isOn(page: Page, path: string): boolean {
+  const { pathname, search } = new URL(page.url());
+
+  return `${pathname}${search}` === path;
+}
+
 export async function storeRaw(page: Page, text: string, url = "/"): Promise<void> {
-  await page.goto(url);
+  if (!isOn(page, url)) {
+    await page.goto(url);
+  }
+
   await page.evaluate(
     ({ key, value }) => {
       localStorage.setItem(key, value);
@@ -85,11 +110,14 @@ export async function openPanel(page: Page): Promise<Locator> {
   return panel(page);
 }
 
-export async function pickOption(dialog: Locator, group: string, option: string): Promise<void> {
-  await dialog
+export function radioOf(dialog: Locator, group: string, option: string): Locator {
+  return dialog
     .getByRole("radiogroup", { name: group, exact: true })
-    .getByRole("radio", { name: option, exact: true })
-    .click();
+    .getByRole("radio", { name: option, exact: true });
+}
+
+export async function pickOption(dialog: Locator, group: string, option: string): Promise<void> {
+  await radioOf(dialog, group, option).click();
 }
 
 export async function pickFont(dialog: Locator, label: string): Promise<void> {
@@ -97,28 +125,18 @@ export async function pickFont(dialog: Locator, label: string): Promise<void> {
 }
 
 export async function expectChosen(dialog: Locator, group: string, option: string): Promise<void> {
-  await expect(
-    dialog
-      .getByRole("radiogroup", { name: group, exact: true })
-      .getByRole("radio", { name: option, exact: true }),
-  ).toBeChecked();
-}
-
-export function titleStyle(page: Page, property: string): Promise<string> {
-  return titledRow(page)
-    .locator(".it-title")
-    .evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);
+  await expect(radioOf(dialog, group, option)).toBeChecked();
 }
 
 export function px(value: string): number {
   return Number(value.replace(/px$/u, ""));
 }
 
-export function computed(page: Page, selector: string, property: string): Promise<string> {
-  return page
-    .locator(selector)
-    .first()
-    .evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);
+export function computed(locator: Locator, property: string): Promise<string> {
+  return locator.evaluate(
+    (element, name) => getComputedStyle(element).getPropertyValue(name),
+    property,
+  );
 }
 
 export async function fillLocalStorage(page: Page): Promise<void> {
@@ -138,5 +156,3 @@ export async function fillLocalStorage(page: Page): Promise<void> {
     }
   });
 }
-
-export const DEFAULT_FONT = DEFAULTS.font;

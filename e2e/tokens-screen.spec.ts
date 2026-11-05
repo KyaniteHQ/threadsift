@@ -3,6 +3,7 @@ import { type Locator, type Page, expect, test } from "@playwright/test";
 import { SETTINGS, filled } from "../web/src/access-text.ts";
 import { newCode, minimumPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
+import { DESKTOP } from "./look.ts";
 import { tokenNameField } from "./setup-screens.ts";
 
 const NAME_LIMIT = 80;
@@ -42,7 +43,7 @@ test("the token name stops at 80 characters", async () => {
 
 test("Create stays level with the name field while the field shows an error", async () => {
   const { page } = screen;
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize(DESKTOP);
   await page.goto("/settings");
   const quiet = await centreOf(createButton(page).boundingBox());
   const input = await centreOf(tokenNameField(page).boundingBox());
@@ -56,7 +57,6 @@ test("Create stays level with the name field while the field shows an error", as
 });
 
 const PHONE = { width: 390, height: 844 } as const;
-const DESKTOP = { width: 1440, height: 900 } as const;
 
 async function mint(page: Page, name: string): Promise<void> {
   await tokenNameField(page).fill(name);

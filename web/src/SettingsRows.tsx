@@ -6,9 +6,8 @@ import {
   type SettingKey,
   type SettingRow,
   type Settings,
-  followsDevice,
+  THEME,
 } from "../../design/system/settings.ts";
-import { MATCH_SYSTEM_NOTES } from "./text.ts";
 
 const SHOWN_GROUPS = GROUPS.map((group) => ({
   group,
@@ -26,12 +25,8 @@ type ControlProps = Readonly<{
   choose: Choose;
 }>;
 
-function noteOf(row: SettingRow, settings: Settings, isDark: boolean): string | null {
-  if (row.key !== "theme" || !followsDevice(settings)) {
-    return null;
-  }
-
-  return MATCH_SYSTEM_NOTES[isDark ? "dark" : "light"];
+function noteOf(row: SettingRow, themeNote: string | null): string | null {
+  return row === THEME ? themeNote : null;
 }
 
 function SelectControl({ row, value, controlId, noteId, choose }: ControlProps) {
@@ -59,46 +54,63 @@ function SelectControl({ row, value, controlId, noteId, choose }: ControlProps) 
   );
 }
 
-function Choice({
-  row,
-  option,
-  name,
-  checked,
-  choose,
-}: Readonly<{
+type ChoiceProps = Readonly<{
   row: SettingRow;
   option: Readonly<{ id: string; label: string }>;
   name: string;
   checked: boolean;
   choose: Choose;
-}>) {
-  const isSwatch = row.kind === "swatches";
+}>;
+
+function inputIdOf({ name, option }: ChoiceProps): string {
+  return `${name}-${option.id}`;
+}
+
+function ChoiceInput(props: ChoiceProps & Readonly<{ label: string | undefined }>) {
+  const { row, option, name, checked, choose, label } = props;
 
   const pick = useCallback(() => {
     choose(row.key, option.id);
   }, [choose, row.key, option.id]);
 
   return (
+    <input
+      id={inputIdOf(props)}
+      type="radio"
+      className="st-in"
+      name={name}
+      value={option.id}
+      checked={checked}
+      aria-label={label}
+      onChange={pick}
+    />
+  );
+}
+
+function Swatch(props: ChoiceProps) {
+  return (
     <label
-      className={isSwatch ? "st-sw" : "st-b"}
-      {...(isSwatch ? { [row.attribute]: option.id } : {})}
+      className="st-sw"
+      htmlFor={inputIdOf(props)}
+      {...{ [props.row.attribute]: props.option.id }}
     >
-      <input
-        type="radio"
-        className="st-in"
-        name={name}
-        value={option.id}
-        checked={checked}
-        aria-label={isSwatch ? option.label : undefined}
-        onChange={pick}
-      />
-      {isSwatch ? null : option.label}
+      <ChoiceInput {...props} label={props.option.label} />
+    </label>
+  );
+}
+
+function Segment(props: ChoiceProps) {
+  return (
+    <label className="st-b" htmlFor={inputIdOf(props)}>
+      <ChoiceInput {...props} label={undefined} />
+      {props.option.label}
     </label>
   );
 }
 
 function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
   const isSwatches = row.kind === "swatches";
+  const Choice = isSwatches ? Swatch : Segment;
 
   return (
     <div
@@ -124,20 +136,20 @@ function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
 function Row({
   row,
   settings,
-  isDark,
+  themeNote,
   idBase,
   choose,
 }: Readonly<{
   row: SettingRow;
   settings: Settings;
-  isDark: boolean;
+  themeNote: string | null;
   idBase: string;
   choose: Choose;
 }>) {
   const labelId = `${idBase}-${row.key}`;
   const controlId = `${labelId}-control`;
   const noteId = `${labelId}-note`;
-  const note = noteOf(row, settings, isDark);
+  const note = noteOf(row, themeNote);
   const isSelect = row.kind === "select";
   const Control = isSelect ? SelectControl : ButtonsControl;
 
@@ -171,10 +183,10 @@ function Row({
 
 export function SettingsRows({
   settings,
-  isDark,
+  themeNote,
   idBase,
   choose,
-}: Readonly<{ settings: Settings; isDark: boolean; idBase: string; choose: Choose }>) {
+}: Readonly<{ settings: Settings; themeNote: string | null; idBase: string; choose: Choose }>) {
   return SHOWN_GROUPS.map(({ group, rows }) => (
     <div key={group} className="st-group">
       <h3 className="st-gh">{group}</h3>
@@ -183,7 +195,7 @@ export function SettingsRows({
           key={row.key}
           row={row}
           settings={settings}
-          isDark={isDark}
+          themeNote={themeNote}
           idBase={idBase}
           choose={choose}
         />

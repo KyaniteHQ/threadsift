@@ -1,10 +1,11 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../design/system/settings.ts";
-import { app, gear, openPanel, seedItems, storeSettings } from "./look.ts";
+import { afterTwoFrames, app, gear, openPanel, storeSettings } from "./look.ts";
+
+const WIDTHS = [390, 600, 900, 1440, 1920] as const;
 
 async function openAtRootSize(page: Page, width: number, percent: number) {
-  await seedItems(page);
   await page.setViewportSize({ width, height: 900 });
   await page.goto("/");
   await page.evaluate((size) => {
@@ -76,16 +77,16 @@ test("a popover narrower than its rows can use, and a sheet under 480px, stack e
 test("the gear sits on the wordmark's centre line at the row's end whatever the Font", async ({
   page,
 }) => {
-  await seedItems(page);
+  const rightsAt = new Map(WIDTHS.map((width): [number, number[]] => [width, []]));
+  const fonts = SETTINGS.find((row) => row.key === "font")?.options ?? [];
 
-  for (const width of [390, 600, 900, 1440, 1920]) {
-    await page.setViewportSize({ width, height: 900 });
-    const rights: number[] = [];
-    const fonts = SETTINGS.find((row) => row.key === "font")?.options ?? [];
+  for (const { id } of fonts) {
+    await storeSettings(page, { font: id });
+    await expect(app(page)).toHaveAttribute("data-font", id);
 
-    for (const { id } of fonts) {
-      await storeSettings(page, { font: id });
-      await expect(app(page)).toHaveAttribute("data-font", id);
+    for (const [width, rights] of rightsAt) {
+      await page.setViewportSize({ width, height: 900 });
+      await afterTwoFrames(page);
 
       const [wordmark, gearBox, brand] = await Promise.all([
         page.locator(".brand h1").boundingBox(),
@@ -105,7 +106,9 @@ test("the gear sits on the wordmark's centre line at the row's end whatever the 
         (brand?.x ?? 0) + (brand?.width ?? 0) - 24,
       );
     }
+  }
 
+  for (const [width, rights] of rightsAt) {
     expect(
       Math.max(...rights) - Math.min(...rights),
       `${width}px: the Font does not move the gear`,

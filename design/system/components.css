@@ -28,7 +28,6 @@
 .spin { animation: spin var(--loop-spin) linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .spin, .skel i { animation: none; } .fl-group-h .ic { transition: none; } }
 :where(.app) button, :where(.app) input, :where(.app) select { font: inherit; color: inherit; }
 .app :focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
 .label { margin: 0; color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label); line-height: var(--lh-label); text-transform: uppercase; }
@@ -223,7 +222,7 @@ a.btn { text-decoration: none; }
 .it-proc .it-title { font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
 .proc-ic { color: var(--acc-ink); }
 .skel { grid-area: sum; display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s2); }
-.skel i { display: block; height: var(--s2); border-radius: var(--r1); background: var(--surface-2); animation: shimmer var(--loop-pulse) ease-in-out infinite; }
+.skel i, .it-ghost i { display: block; height: var(--s2); border-radius: var(--r1); background: var(--surface-2); animation: shimmer var(--loop-pulse) ease-in-out infinite; }
 .skel i + i { width: 60%; }
 
 /* rows (List): unread dot on the left, 40px thumbnail on the right, 2-line summary. The open
@@ -497,3 +496,4 @@ a.btn { text-decoration: none; }
 .noresults { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); padding: var(--s5) var(--s4); color: var(--muted); }
 .noresults p { margin: 0; }
 .loading { margin: 0; padding: var(--s6); color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .spin, .skel i, .it-ghost i { animation: none; } .fl-group-h .ic { transition: none; } }

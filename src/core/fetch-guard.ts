@@ -1,6 +1,5 @@
-import { isRefusedHost } from "./addresses.ts";
+import { isRefusedHost, resolveUrl } from "./addresses.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import { isRedditOrXLink, isShortLink } from "./links.ts";
 import { metaRefreshTarget } from "./meta-refresh.ts";
 import {
   HOP_DEADLINE_MS,
@@ -21,6 +20,11 @@ type GuardFailure = Exclude<FetchFailure, "no-title" | "unreadable" | "redirect-
 interface Failed {
   readonly kind: "failed";
   readonly reason: GuardFailure;
+}
+
+export interface FetchPolicy {
+  readonly stopAt: (url: string) => boolean;
+  readonly followMetaRefresh: (url: string) => boolean;
 }
 
 export type GuardOutcome =
@@ -102,7 +106,7 @@ function decoderFor(contentType: string | null): TextDecoder {
 type Target = { readonly kind: "target"; readonly url: URL } | Failed;
 
 function hopTarget(address: string, base?: string): Target {
-  const url = URL.canParse(address, base) ? new URL(address, base) : null;
+  const url = resolveUrl(address, base);
 
   if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
     return failed("unsupported");
@@ -116,6 +120,7 @@ function hopTarget(address: string, base?: string): Target {
 
 function advance(
   network: Network,
+  policy: Readonly<FetchPolicy>,
   from: URL,
   location: string,
   redirects: number,
@@ -130,12 +135,17 @@ function advance(
     return Promise.resolve(failed("redirect-limit"));
   }
 
-  return isRedditOrXLink(next.url.href)
+  return policy.stopAt(next.url.href)
     ? Promise.resolve({ kind: "stopped", url: next.url.href })
-    : follow(network, next.url, redirects + 1);
+    : follow(network, policy, next.url, redirects + 1);
 }
 
-async function follow(network: Network, url: URL, redirects: number): Promise<GuardOutcome> {
+async function follow(
+  network: Network,
+  policy: Readonly<FetchPolicy>,
+  url: URL,
+  redirects: number,
+): Promise<GuardOutcome> {
   const hop = await requestHop(network, url.href);
 
   if (hop.kind === "failed") {
@@ -143,23 +153,27 @@ async function follow(network: Network, url: URL, redirects: number): Promise<Gu
   }
 
   if (hop.kind === "redirect") {
-    return advance(network, url, hop.location, redirects);
+    return advance(network, policy, url, hop.location, redirects);
   }
 
   const text = decoderFor(hop.contentType).decode(hop.bytes);
 
   const refreshTo =
-    isShortLink(url.href) && HTML_TYPE.test(hop.contentType ?? "")
+    policy.followMetaRefresh(url.href) && HTML_TYPE.test(hop.contentType ?? "")
       ? metaRefreshTarget(text, url.href)
       : null;
 
   return refreshTo === null
     ? { kind: "page", url: url.href, text }
-    : advance(network, url, refreshTo, redirects);
+    : advance(network, policy, url, refreshTo, redirects);
 }
 
-export function guardedFetch(network: Network, address: string): Promise<GuardOutcome> {
+export function guardedFetch(
+  network: Network,
+  address: string,
+  policy: Readonly<FetchPolicy>,
+): Promise<GuardOutcome> {
   const first = hopTarget(address);
 
-  return first.kind === "failed" ? Promise.resolve(first) : follow(network, first.url, 0);
+  return first.kind === "failed" ? Promise.resolve(first) : follow(network, policy, first.url, 0);
 }

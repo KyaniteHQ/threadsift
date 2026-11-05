@@ -1,32 +1,39 @@
 import { type Fetched, NOT_REQUESTED, detailsOfOembed, detailsOfPage } from "./details.ts";
-import { type GuardOutcome, guardedFetch } from "./fetch-guard.ts";
+import { type FetchPolicy, type GuardOutcome, guardedFetch } from "./fetch-guard.ts";
+import type { FetchFailure } from "./fetch-results.ts";
 import { type Link, isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
 import type { Network } from "./ports.ts";
 
-export interface FetchedLink {
+interface FetchedLink {
   readonly link: Link;
   readonly fetched: Fetched;
 }
 
-function fetchedOfPage(outcome: Readonly<GuardOutcome>): Fetched {
+const POLICY: FetchPolicy = {
+  stopAt: isRedditOrXLink,
+  followMetaRefresh: isShortLink,
+};
+
+function fetchedOf(
+  outcome: Readonly<GuardOutcome>,
+  readPage: (text: string) => Fetched,
+  whenStopped: FetchFailure,
+): Fetched {
   if (outcome.kind === "page") {
-    return detailsOfPage(outcome.text);
+    return readPage(outcome.text);
   }
 
-  return { status: outcome.kind === "stopped" ? "redirect-stopped" : outcome.reason };
+  return { status: outcome.kind === "stopped" ? whenStopped : outcome.reason };
 }
 
 async function fetchedOfOembed(network: Network, normalizedUrl: string): Promise<Fetched> {
   const outcome = await guardedFetch(
     network,
     `https://www.reddit.com/oembed?url=${encodeURIComponent(normalizedUrl)}`,
+    POLICY,
   );
 
-  if (outcome.kind === "page") {
-    return detailsOfOembed(outcome.text);
-  }
-
-  return { status: outcome.kind === "stopped" ? "unreadable" : outcome.reason };
+  return fetchedOf(outcome, detailsOfOembed, "unreadable");
 }
 
 async function fetchedFor(
@@ -38,11 +45,11 @@ async function fetchedFor(
     return fetchedOfOembed(network, link.normalizedUrl);
   }
 
-  if (link.kind === "x-post" || isRedditOrXLink(address)) {
+  if (isRedditOrXLink(address)) {
     return NOT_REQUESTED;
   }
 
-  return fetchedOfPage(await guardedFetch(network, address));
+  return fetchedOf(await guardedFetch(network, address, POLICY), detailsOfPage, "redirect-stopped");
 }
 
 async function followShortLink(
@@ -50,21 +57,17 @@ async function followShortLink(
   pasted: Readonly<Link>,
   address: string,
 ): Promise<FetchedLink> {
-  const outcome = await guardedFetch(network, address);
+  const outcome = await guardedFetch(network, address, POLICY);
 
-  if (outcome.kind === "failed") {
-    return { link: pasted, fetched: { status: outcome.reason } };
+  if (outcome.kind === "stopped") {
+    const link = parseLink(outcome.url);
+
+    return { link, fetched: await fetchedFor(network, link, outcome.url) };
   }
 
-  const link = parseLink(outcome.url);
+  const link = outcome.kind === "page" ? parseLink(outcome.url) : pasted;
 
-  return {
-    link,
-    fetched:
-      outcome.kind === "page"
-        ? detailsOfPage(outcome.text)
-        : await fetchedFor(network, link, outcome.url),
-  };
+  return { link, fetched: fetchedOf(outcome, detailsOfPage, "redirect-stopped") };
 }
 
 export async function fetchLink(network: Network, address: string): Promise<FetchedLink> {

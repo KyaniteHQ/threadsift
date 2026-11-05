@@ -44,71 +44,68 @@ function isInside(
 
 type Close = (refocusGear: boolean) => void;
 
-function watchPointer(refs: PanelRefs, modal: boolean, close: Close, signal: AbortSignal): void {
+export function watchPopover(refs: PanelRefs, close: Close, signal: AbortSignal): void {
   document.addEventListener(
     "pointerdown",
     (event) => {
-      if (!modal && isOutside(refs, event.target)) {
+      if (isOutside(refs, event.target)) {
         close(false);
       }
     },
     { capture: true, signal },
-  );
-
-  document.addEventListener(
-    "click",
-    (event) => {
-      const panel = refs.panel.current;
-
-      if (modal && panel !== null && event.target === panel && !isInside(panel, event)) {
-        close(true);
-      }
-    },
-    { signal },
   );
 
   document.addEventListener(
     "focusout",
     (event) => {
-      if (!modal && isOutside(refs, event.relatedTarget)) {
+      if (isOutside(refs, event.relatedTarget)) {
         close(false);
       }
     },
     { signal },
   );
-}
 
-function watchKeys(refs: PanelRefs, modal: boolean, close: Close, signal: AbortSignal): void {
   document.addEventListener(
     "keydown",
     (event) => {
-      const panel = refs.panel.current;
-
-      if (event.key === "Escape" && !modal) {
+      if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
         close(true);
-      } else if (modal && event.key === "Tab" && panel !== null) {
-        const wrapTo = tabWrapTarget(panel, event.shiftKey);
-
-        if (wrapTo !== null) {
-          event.preventDefault();
-          wrapTo.focus();
-        }
       }
     },
     { capture: true, signal },
   );
 }
 
-export function watchPanel(
-  refs: PanelRefs,
-  modal: boolean,
-  close: Close,
-  signal: AbortSignal,
-): void {
-  watchPointer(refs, modal, close, signal);
-  watchKeys(refs, modal, close, signal);
+export function watchSheet(refs: PanelRefs, close: Close, signal: AbortSignal): void {
+  document.addEventListener(
+    "click",
+    (event) => {
+      const panel = refs.panel.current;
+
+      if (panel !== null && event.target === panel && !isInside(panel, event)) {
+        close(true);
+      }
+    },
+    { signal },
+  );
+
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      const panel = refs.panel.current;
+
+      const wrapTo =
+        event.key === "Tab" && panel !== null ? tabWrapTarget(panel, event.shiftKey) : null;
+
+      if (wrapTo !== null) {
+        event.preventDefault();
+        wrapTo.focus();
+      }
+    },
+    { capture: true, signal },
+  );
 
   refs.panel.current?.addEventListener(
     "cancel",

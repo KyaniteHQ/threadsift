@@ -1,7 +1,8 @@
 import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 
+import { SAVING_STATUS } from "../web/src/text.ts";
 import { listAll, postLink } from "./api.ts";
-import { newRunId } from "./links.ts";
+import { addButton, newRunId, pasteField, rowOf, submitLink } from "./links.ts";
 
 function rowCount(page: Page): Promise<number> {
   return page.locator("article.it").count();
@@ -17,19 +18,55 @@ test("Add with an empty box or text that is not a link shows a refusal and saves
   const rows = await rowCount(page);
   const stored = (await listAll(request)).length;
 
-  await page.getByRole("button", { name: "Add" }).click();
+  await addButton(page).click();
   await expect(page.getByRole("alert")).toContainText("Paste a link first.");
 
-  await page.getByRole("textbox", { name: "Paste a link to save" }).fill("not a url");
-  await page.getByRole("button", { name: "Add" }).click();
+  await submitLink(page, "not a url");
   await expect(page.getByRole("alert")).toContainText("That doesn’t look like a link.");
 
-  await page.getByRole("textbox", { name: "Paste a link to save" }).fill("example.com/bare-domain");
-  await page.getByRole("button", { name: "Add" }).click();
+  await submitLink(page, "example.com/bare-domain");
   await expect(page.getByRole("alert")).toContainText("Links must start with https:// or http://.");
 
   expect(await rowCount(page)).toBe(rows);
   expect(await listAll(request)).toHaveLength(stored);
+});
+
+test("Add on an empty box never shows the saving state", async ({ page }) => {
+  await page.goto("/");
+
+  const changes = await page.evaluateHandle(() => {
+    const seen: string[] = [];
+
+    new MutationObserver((records) => {
+      for (const record of records) {
+        const nodes = [...record.addedNodes, ...record.removedNodes];
+        seen.push(
+          `${record.attributeName ?? record.type}:${record.oldValue ?? ""}`,
+          ...nodes.map((node) => node.textContent ?? ""),
+        );
+      }
+    }).observe(document.querySelector(".paste") ?? document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      characterDataOldValue: true,
+      attributes: true,
+      attributeOldValue: true,
+    });
+
+    return seen;
+  });
+
+  await addButton(page).click();
+  await expect(page.getByRole("alert")).toContainText("Paste a link first.");
+
+  const sawSaving = await changes.evaluate(
+    (seen, status) =>
+      seen.some((change) => change.includes(status) || change === "aria-disabled:true"),
+    SAVING_STATUS,
+  );
+
+  expect(sawSaving, "the paste box showed the saving state for an empty Add").toBe(false);
 });
 
 test("an Item's own URL shows the list with that row in view and focused", async ({
@@ -48,7 +85,7 @@ test("an Item's own URL shows the list with that row in view and focused", async
   const { item, url } = oldest?.body ?? { item: { id: 0 }, url: "" };
 
   await page.goto(url);
-  const row = page.locator(`.it[data-key="${item.id}"]`);
+  const row = rowOf(page, item.id);
   await expect(row.locator(".it-open")).toBeFocused();
   await expect(row).toHaveClass(/\bopen\b/u);
   await expect
@@ -72,9 +109,9 @@ test("Add gives the field focus, ties a refusal to it, and Dismiss clears the re
   page,
 }) => {
   await page.goto("/");
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
+  const field = pasteField(page);
 
-  await page.getByRole("button", { name: "Add" }).click();
+  await addButton(page).click();
   const alert = page.getByRole("alert");
   await expect(alert).toContainText("Paste a link first.");
   await expect(field).toBeFocused();
@@ -86,8 +123,7 @@ test("Add gives the field focus, ties a refusal to it, and Dismiss clears the re
   await expect(field).toBeFocused();
   await expect(field).not.toHaveAttribute("aria-invalid", /./u);
 
-  await field.fill("not a url");
-  await page.getByRole("button", { name: "Add" }).click();
+  await submitLink(page, "not a url");
   await expect(alert).toBeVisible();
   await expect(field).toBeFocused();
 });
@@ -110,9 +146,8 @@ test("a saved link returns focus to the field and the list shows it at the top",
   });
   expect(await list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
-  await field.fill(`https://example.com/${run}/newest`);
-  await page.getByRole("button", { name: "Add" }).click();
+  const field = pasteField(page);
+  await submitLink(page, `https://example.com/${run}/newest`);
 
   await expect(field).toHaveValue("");
   await expect(field).toBeFocused();
@@ -162,7 +197,7 @@ for (const width of [390, 1280]) {
 test("a finished save leaves a different link typed while it ran", async ({ page }) => {
   const run = newRunId();
   await page.goto("/");
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
+  const field = pasteField(page);
   await field.fill(`https://example.com/${run}/first`);
 
   await page.evaluate((second) => {
@@ -193,9 +228,8 @@ async function pasteKnownLinkBelowTheFold(
 
   await page.goto("/");
   await expect(page.locator("article.it").nth(30)).toBeVisible();
-  await page.getByRole("textbox", { name: "Paste a link to save" }).fill(link);
-  await page.getByRole("button", { name: "Add" }).click();
-  await expect(page.getByRole("textbox", { name: "Paste a link to save" })).toHaveValue("");
+  await submitLink(page, link);
+  await expect(pasteField(page)).toHaveValue("");
 
   return known.body.item.id;
 }
@@ -219,7 +253,7 @@ async function expectRowInPaneView(page: Page, key: number) {
 test("pasting a known link brings its row into view and focuses it", async ({ page, request }) => {
   const id = await pasteKnownLinkBelowTheFold(page, request, "https://example.com/");
 
-  await expect(page.locator(`article.it[data-key="${id}"] .it-open`)).toBeFocused();
+  await expect(rowOf(page, id).locator(".it-open")).toBeFocused();
   await expectRowInPaneView(page, id);
 });
 
@@ -230,7 +264,7 @@ test("pasting a known link that shows a notice keeps focus in the field and stil
   const link = `https://example.com/missing-${newRunId()}`;
   const id = await pasteKnownLinkBelowTheFold(page, request, link);
 
-  await expect(page.getByRole("textbox", { name: "Paste a link to save" })).toBeFocused();
+  await expect(pasteField(page)).toBeFocused();
   await expect(page.locator(".ps")).toContainText("answered with an error");
   await expectRowInPaneView(page, id);
 });

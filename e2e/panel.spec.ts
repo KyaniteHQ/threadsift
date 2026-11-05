@@ -1,23 +1,23 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import {
+  DESKTOP,
   app,
+  computed,
   expectModal,
   gear,
   openPanel,
   panel,
   pickOption,
   px,
-  seedItems,
+  radioOf,
   storeSettings,
   tapDimmedPage,
 } from "./look.ts";
 
 const PHONE = { width: 390, height: 640 } as const;
-const DESKTOP = { width: 1440, height: 900 } as const;
 
 async function onPhone(page: Page) {
-  await seedItems(page);
   await page.setViewportSize(PHONE);
   await page.goto("/");
   await expect(app(page)).toHaveAttribute("data-bp", /phone/u);
@@ -115,7 +115,6 @@ test("Escape and Close shut the phone sheet and return focus to the gear", async
 test("on a wide screen Escape and a second gear press close the popover and a press on the list leaves focus there", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);
@@ -145,7 +144,6 @@ test("on a wide screen Escape and a second gear press close the popover and a pr
 test("an open panel turns into the sheet under 760px and back into the popover", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);
@@ -175,16 +173,9 @@ test("widening the sheet past 760px while Close has focus keeps focus in the pan
   await expect(dialog.getByRole("radio", { name: "Light", checked: true })).toBeFocused();
 });
 
-async function fieldTextSize(page: Page): Promise<number> {
-  return px(
-    await page.locator(".field input").evaluate((element) => getComputedStyle(element).fontSize),
-  );
-}
-
 test("the paste field's text is 16px or more at 390px for every Density and Text size", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.setViewportSize(PHONE);
 
   for (const density of ["compact", "comfortable", "roomy"]) {
@@ -193,7 +184,7 @@ test("the paste field's text is 16px or more at 390px for every Density and Text
       await expect(app(page)).toHaveAttribute("data-density", density);
       await expect(app(page)).toHaveAttribute("data-size", size);
       await expect(app(page)).toHaveAttribute("data-bp", /phone/u);
-      const fieldSize = await fieldTextSize(page);
+      const fieldSize = px(await computed(page.locator(".field input"), "font-size"));
 
       expect(
         fieldSize,
@@ -206,10 +197,10 @@ test("the paste field's text is 16px or more at 390px for every Density and Text
 async function expectOneTabStopPerGroup(page: Page, dialog: Locator): Promise<void> {
   const stops = [
     dialog.getByRole("combobox", { name: "Font" }),
-    dialog.getByRole("radiogroup", { name: "Text size" }).getByRole("radio", { name: "Medium" }),
-    dialog.getByRole("radiogroup", { name: "Text width" }).getByRole("radio", { name: "Medium" }),
-    dialog.getByRole("radiogroup", { name: "Density" }).getByRole("radio", { name: "Compact" }),
-    dialog.getByRole("radiogroup", { name: "Accent" }).getByRole("radio", { name: "Cobalt" }),
+    radioOf(dialog, "Text size", "Medium"),
+    radioOf(dialog, "Text width", "Medium"),
+    radioOf(dialog, "Density", "Compact"),
+    radioOf(dialog, "Accent", "Cobalt"),
     dialog.getByRole("link", { name: "Instance settings" }),
     dialog.getByRole("button", { name: "Reset look" }),
   ];
@@ -223,7 +214,6 @@ async function expectOneTabStopPerGroup(page: Page, dialog: Locator): Promise<vo
 test("each single-choice group is a radio group with one Tab stop and arrow keys", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.setViewportSize(DESKTOP);
   await page.goto("/");
   const dialog = await openPanel(page);

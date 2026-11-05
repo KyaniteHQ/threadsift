@@ -1,16 +1,7 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS, STORAGE_KEY } from "../design/system/settings.ts";
-import {
-  app,
-  openPanel,
-  pickOption,
-  px,
-  seedItems,
-  storeSettings,
-  titledRow,
-  titleStyle,
-} from "./look.ts";
+import { app, openPanel, pickOption, px, storeSettings, computed, titledRow } from "./look.ts";
 
 const FONT_ROW = SETTINGS.find((row) => row.key === "font");
 const FAMILY_TOKENS = ["--f-display", "--f-ui", "--f-read", "--f-mono"] as const;
@@ -45,19 +36,42 @@ test("html takes the theme's background and colour scheme in each theme", async 
   expect(new Set(seen.values()).size, "three themes, three backgrounds").toBe(3);
 });
 
+test("the loading rows shimmer, and stand still under reduced motion", async ({ page }) => {
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+
+  await page.route("**/api/items", async (route) => {
+    await held;
+    await route.continue();
+  });
+
+  await page.goto("/");
+  const bar = page.locator(".it-ghost i").first();
+  await expect(bar).toBeAttached();
+
+  for (const [motion, animation] of [
+    ["no-preference", "shimmer"],
+    ["reduce", "none"],
+  ] as const) {
+    await page.emulateMedia({ reducedMotion: motion });
+    expect(await computed(bar, "animation-name"), motion).toBe(animation);
+  }
+
+  release();
+  await expect(page.locator("article.it").first()).toBeVisible();
+});
+
 test("raising the root font size raises the row title, so the type tokens follow rem", async ({
   page,
 }) => {
-  await seedItems(page);
   await storeSettings(page, {});
   const title = titledRow(page).locator(".it-title");
-  const before = px(await titleStyle(page, "font-size"));
+  const before = px(await computed(title, "font-size"));
   await page.evaluate(() => {
     document.documentElement.style.fontSize = "20px";
   });
 
   await expect(title).toBeVisible();
-  const after = px(await titleStyle(page, "font-size"));
+  const after = px(await computed(title, "font-size"));
 
   expect(after).toBeCloseTo((before * 20) / 16, 1);
 });
@@ -95,7 +109,6 @@ function loadFamilies(page: Page) {
 }
 
 test("every Font pair's families load from the app's own origin", async ({ page, baseURL }) => {
-  await seedItems(page);
   const origin = new URL(baseURL ?? "").origin;
   const { origins, fontFiles } = watchRequests(page);
 
@@ -225,7 +238,6 @@ async function expectSegmentsTellable(page: Page, dialog: Locator): Promise<void
 test("under forced colours the chosen segment and each accent swatch can be told apart", async ({
   page,
 }) => {
-  await seedItems(page);
   await page.goto("/");
   await page.emulateMedia({ forcedColors: "active" });
   const dialog = await openPanel(page);

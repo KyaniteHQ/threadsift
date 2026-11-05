@@ -1,4 +1,4 @@
-import { Fragment, type RefObject, useEffect, useRef } from "react";
+import { Fragment, type RefObject, memo, useEffect, useRef } from "react";
 
 import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
@@ -62,7 +62,7 @@ function useAttention(
   }, [attention, link, row]);
 }
 
-export function ItemRow({
+export const ItemRow = memo(function ItemRow({
   item,
   now,
   isOpen,
@@ -106,4 +106,4 @@ export function ItemRow({
       </h2>
     </article>
   );
-}
+});

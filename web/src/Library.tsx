@@ -83,7 +83,7 @@ export function Library({
   openSettings,
 }: Readonly<{ look: Look; arrived: boolean; openSettings: () => void }>) {
   const listPane = useRef<HTMLElement>(null);
-  const { narrow, settings, isDark, pick, reset } = look;
+  const { narrow, settings, themeNote, pick, reset } = look;
   const { list, save, retry } = useLibrary();
   const { openId, attention, attend } = useOpenItem(list);
 
@@ -101,7 +101,7 @@ export function Library({
             <h1>Threadsift</h1>
             <SettingsPanel
               settings={settings}
-              isDark={isDark}
+              themeNote={themeNote}
               modal={narrow}
               choose={pick}
               reset={reset}

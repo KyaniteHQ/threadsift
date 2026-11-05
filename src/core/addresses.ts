@@ -170,3 +170,7 @@ export function isRefusedHost(hostname: string): boolean {
 
   return isLocalhostName(hostname);
 }
+
+export function resolveUrl(address: string, base?: string): URL | null {
+  return URL.canParse(address, base) ? new URL(address, base) : null;
+}

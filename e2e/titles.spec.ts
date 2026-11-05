@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
-import { newRunId, pasteLink, titledPage } from "./links.ts";
+import { newRunId, pasteLink, rowOf, titledPage } from "./links.ts";
+import { app, computed } from "./look.ts";
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
+const GZIP_PAGE = "https://www.wikipedia.org/";
 
 async function encodingOf(url: string): Promise<string | null> {
   const response = await fetch(url, { headers: { "accept-encoding": ACCEPT_ENCODING } });
@@ -23,19 +25,19 @@ test("a pasted page gets its title and its row shows it", async ({ page, request
   expect(saved?.title).toBe("Example Domain");
   expect(saved?.fetchedAt).not.toBeNull();
 
-  const row = page.locator(`.it[data-key="${saved?.id}"]`);
+  const row = rowOf(page, saved?.id ?? 0);
   await expect(row.locator(".it-open")).toContainText("Example Domain");
   await expect(row.locator(".it-open")).not.toContainText("example.com/");
   await expect(row.locator(".it-meta > span").nth(1)).toHaveText("example.com");
 });
 
 test("pages served with gzip and with Brotli get their titles", async ({ request }) => {
-  expect(await encodingOf("https://github.com/KyaniteHQ/threadsift")).toBe("gzip");
+  expect(await encodingOf(GZIP_PAGE)).toBe("gzip");
   expect(await encodingOf("https://example.com/")).toBe("br");
 
-  const gzip = await postLink(request, "https://github.com/KyaniteHQ/threadsift");
+  const gzip = await postLink(request, GZIP_PAGE);
   expect(gzip.body.fetch).toBe("ok");
-  expect(gzip.body.item.title).toContain("KyaniteHQ/threadsift");
+  expect(gzip.body.item.title).toBe("Wikipedia");
 
   const brotli = await postLink(request, "https://example.com/");
   expect(brotli.body.fetch).toBe("ok");
@@ -89,8 +91,8 @@ test("a title is read in its own direction, so an Arabic title and an English on
   await page.goto("/");
 
   const directionOf = (id: number, title: string) =>
-    page
-      .locator(`.it[data-key="${id}"] .it-open`)
+    rowOf(page, id)
+      .locator(".it-open")
       .getByText(title)
       .evaluate((element) => getComputedStyle(element).direction);
 
@@ -114,15 +116,15 @@ test("a link-only row shows its link in the mono face at meta size and muted ink
   await page.goto("/");
 
   const looksOf = (id: number, selector: string) =>
-    page.locator(`.it[data-key="${id}"] ${selector}`).evaluate((element) => {
-      const { fontFamily, fontSize, color } = getComputedStyle(element);
+    rowOf(page, id)
+      .locator(selector)
+      .evaluate((element) => {
+        const { fontFamily, fontSize, color } = getComputedStyle(element);
 
-      return { fontFamily, fontSize, color };
-    });
+        return { fontFamily, fontSize, color };
+      });
 
-  const mono = await page
-    .locator(".app")
-    .evaluate((element) => getComputedStyle(element).getPropertyValue("--f-mono"));
+  const mono = await computed(app(page), "--f-mono");
 
   const bare = await looksOf(linkOnly.body.item.id, ".it-open");
   const meta = await looksOf(linkOnly.body.item.id, ".it-meta");

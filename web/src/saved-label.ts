@@ -1,5 +1,8 @@
 const DAY_MS = 86_400_000;
 const WEEK_DAYS = 7;
+const MONTH_AND_DAY = { month: "short", day: "numeric" } as const;
+const DAY_WITH_YEAR = new Intl.DateTimeFormat("en-US", { ...MONTH_AND_DAY, year: "numeric" });
+const DAY_IN_YEAR = new Intl.DateTimeFormat("en-US", MONTH_AND_DAY);
 
 function daysBetween(savedAt: number, now: number): number {
   const savedDay = new Date(savedAt);
@@ -22,11 +25,7 @@ export function ageLabel(savedAt: number, now: number): string {
     return `${days}d ago`;
   }
 
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: sameYear ? undefined : "numeric",
-  }).format(savedAt);
+  return (sameYear ? DAY_IN_YEAR : DAY_WITH_YEAR).format(savedAt);
 }
 
 export function savedLabel(savedAt: number, now: number): string {

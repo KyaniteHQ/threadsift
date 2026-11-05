@@ -12,21 +12,22 @@ function readBreakpoints(): number[] | null {
   return widths.every((width) => width > 0) ? widths : null;
 }
 
-function bandsOf(width: number): string {
-  const limits = readBreakpoints();
+function bandsOf(width: number, limits: readonly number[] | null): string[] {
   const under = limits === null ? [] : BANDS.filter((_band, index) => width < (limits[index] ?? 0));
 
-  return [...under, "full"].join(" ");
+  return [...under, "full"];
 }
 
-export function useBands(root: RefObject<HTMLElement | null>): string {
-  const [bands, setBands] = useState("full");
+export function useBands(root: RefObject<HTMLElement | null>): string[] {
+  const [bands, setBands] = useState(["full"]);
   useLayoutEffect(() => {
     const element = root.current;
+    let limits = readBreakpoints();
 
     const measure = (): void => {
       if (element !== null) {
-        setBands(bandsOf(element.clientWidth));
+        const next = bandsOf(element.clientWidth, limits);
+        setBands((previous) => (previous.join(" ") === next.join(" ") ? previous : next));
       }
     };
 
@@ -37,11 +38,16 @@ export function useBands(root: RefObject<HTMLElement | null>): string {
       observer.observe(element);
     }
 
-    window.addEventListener("load", measure);
+    const remeasure = (): void => {
+      limits = readBreakpoints();
+      measure();
+    };
+
+    window.addEventListener("load", remeasure);
 
     return () => {
       observer.disconnect();
-      window.removeEventListener("load", measure);
+      window.removeEventListener("load", remeasure);
     };
   }, [root]);
 

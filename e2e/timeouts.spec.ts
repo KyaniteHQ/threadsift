@@ -1,27 +1,34 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
+import type { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
-import { newRunId, pasteStatus } from "./links.ts";
+import { SAVING_LABEL } from "../web/src/text.ts";
+import { postLink } from "./api.ts";
+import { addButton, newRunId, pasteField, pasteStatus, retryButton, rowOf } from "./links.ts";
+import { afterTwoFrames } from "./look.ts";
 
 const DEADLINE_MS = 8000;
 const OVERHEAD_MS = 5000;
 
-const STALLS = [
-  { url: "http://example.com:81/", showsSaving: false },
-  { url: "https://httpbin.org/drip?duration=10&numbytes=10", showsSaving: true },
-];
+const UNREACHABLE = "http://example.com:81/";
+const DRIP = "https://httpbin.org/drip?duration=10&numbytes=10";
+
+function withRun(base: string, run: string): string {
+  return `${base}${base.includes("?") ? "&" : "?"}run=${run}`;
+}
+
+type Saved = z.infer<typeof SavedItemResponseSchema>;
+
+function expectTimedOut(url: string, status: number, saved: Saved, elapsed: number): void {
+  expect(status, url).toBe(201);
+  expect(saved.fetch, url).toBe("timeout");
+  expect(saved.item.title, url).toBeNull();
+  expect(elapsed, url).toBeGreaterThanOrEqual(DEADLINE_MS - 500);
+  expect(elapsed, url).toBeLessThan(DEADLINE_MS + OVERHEAD_MS);
+}
 
 async function expectSavingState(page: Page, saving: Locator, idleWidth: number) {
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            resolve();
-          });
-        });
-      }),
-  );
+  await afterTwoFrames(page);
 
   await saving.hover();
   await expect
@@ -39,50 +46,61 @@ async function expectSavingState(page: Page, saving: Locator, idleWidth: number)
     .toHaveText("Saving link and fetching page title…", { timeout: 1_000 });
 }
 
+async function addWhileSaving(page: Page, url: string) {
+  const field = pasteField(page);
+  await field.fill(url);
+
+  const answered = page.waitForResponse(
+    (response) => response.url().endsWith("/api/items") && response.request().method() === "POST",
+  );
+
+  const add = addButton(page);
+  const idleWidth = (await add.boundingBox())?.width ?? 0;
+  const started = Date.now();
+  await add.click();
+
+  const saving = page.getByRole("button", { name: SAVING_LABEL });
+  await expect(saving).toBeDisabled();
+  await expect(field).toHaveValue(url);
+  await expectSavingState(page, saving, idleWidth);
+
+  const response = await answered;
+  const elapsed = Date.now() - started;
+
+  return {
+    status: response.status(),
+    saved: SavedItemResponseSchema.parse(await response.json()),
+    elapsed,
+  };
+}
+
 test("a host that never answers and a body that stalls each time out, while the paste box shows it is saving", async ({
   page,
+  request,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(60_000);
   const run = newRunId();
+  const unreachable = withRun(UNREACHABLE, run);
+  const dripping = withRun(DRIP, run);
   await page.goto("/");
-  const field = page.getByRole("textbox", { name: "Paste a link to save" });
 
-  for (const { url: base, showsSaving } of STALLS) {
-    const url = `${base}${base.includes("?") ? "&" : "?"}run=${run}`;
-    await field.fill(url);
+  const startedUnreachable = Date.now();
 
-    const answered = page.waitForResponse(
-      (response) => response.url().endsWith("/api/items") && response.request().method() === "POST",
-    );
+  const viaApi = postLink(request, unreachable).then((answer) => ({
+    ...answer,
+    elapsed: Date.now() - startedUnreachable,
+  }));
 
-    const add = page.getByRole("button", { name: "Add" });
-    const idleWidth = (await add.boundingBox())?.width ?? 0;
-    const started = Date.now();
-    await add.click();
+  const { status, saved, elapsed } = await addWhileSaving(page, dripping);
+  expectTimedOut(dripping, status, saved, elapsed);
 
-    const saving = page.getByRole("button", { name: "Saving…" });
-    await expect(saving).toBeDisabled();
-    await expect(field).toHaveValue(url);
+  await expect(pasteStatus(page)).toContainText("didn’t answer in time");
+  await expect(retryButton(page)).toBeVisible();
+  await expect(addButton(page)).toBeEnabled();
+  await expect(rowOf(page, saved.item.id).locator(".it-open")).toContainText(
+    dripping.replace(/^https?:\/\//u, ""),
+  );
 
-    if (showsSaving) {
-      await expectSavingState(page, saving, idleWidth);
-    }
-
-    const response = await answered;
-    const elapsed = Date.now() - started;
-    const { fetch: result, item } = SavedItemResponseSchema.parse(await response.json());
-
-    expect(response.status(), url).toBe(201);
-    expect(result, url).toBe("timeout");
-    expect(item.title, url).toBeNull();
-    expect(elapsed, url).toBeGreaterThanOrEqual(DEADLINE_MS - 500);
-    expect(elapsed, url).toBeLessThan(DEADLINE_MS + OVERHEAD_MS);
-
-    await expect(pasteStatus(page)).toContainText("didn’t answer in time");
-    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add" })).toBeEnabled();
-    await expect(page.locator(`.it[data-key="${item.id}"] .it-open`)).toContainText(
-      url.replace(/^https?:\/\//u, ""),
-    );
-  }
+  const stalled = await viaApi;
+  expectTimedOut(unreachable, stalled.status, stalled.body, stalled.elapsed);
 });

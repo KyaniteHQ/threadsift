@@ -1,12 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
-import { pasteLink } from "./links.ts";
-import { waitForRedditTurn } from "./reddit.ts";
+import { X_POST, pasteLink, rowOf } from "./links.ts";
+import { POST_ID, POST_TITLE, POST_URL, waitForRedditTurn } from "./reddit.ts";
 
-const POST_ID = "2a4qo6";
-const POST_URL = `https://reddit.com/r/all/comments/${POST_ID}/`;
-const POST_TITLE = "Wallabag - A 'read it later' app similar like Instapaper or Pocket";
 const COMMENT_URL = `${POST_URL}_/cisdfvv/`;
 
 const OTHER_POST_ID = "1abcde";
@@ -44,7 +41,7 @@ test("a pasted Reddit post saves oEmbed's title, author and subreddit, whatever 
     originalUrl: WRONG_SUBREDDIT_PATH,
   });
 
-  const row = page.locator(`.it[data-key="${saved?.id}"]`);
+  const row = rowOf(page, saved?.id ?? 0);
   await expect(row.locator(".it-open")).toContainText(OTHER_POST_TITLE);
   await expect(row.locator(".it-meta > span").nth(0)).toHaveText("Reddit");
   await expect(row.locator(".it-meta > span").nth(1)).toHaveText("r/evolutionReddit");
@@ -115,7 +112,7 @@ test("a short link to a Reddit post gives the post's Item, and one to an X post 
   expect(x.body.item).toMatchObject({
     source: "x",
     kind: "x-post",
-    normalizedUrl: "https://x.com/jack/status/20",
+    normalizedUrl: X_POST,
     title: null,
     fetchedAt: null,
   });
@@ -131,7 +128,7 @@ test("an X link whose host ends in a dot is the same Item as without it, and is 
   expect(dotted.body.item).toMatchObject({
     source: "x",
     kind: "x-post",
-    normalizedUrl: "https://x.com/jack/status/20",
+    normalizedUrl: X_POST,
     title: null,
     fetchedAt: null,
   });

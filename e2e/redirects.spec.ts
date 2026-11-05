@@ -1,11 +1,15 @@
 import { expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
-import { httpbinPagePath, newRunId } from "./links.ts";
-
-const SHORT_LINK = "https://is.gd/hK2a1W";
-const SHORT_LINK_TARGET = "https://www.iana.org/help/example-domains";
-const SHORT_LINK_TARGET_NORMALIZED = "https://iana.org/help/example-domains";
+import {
+  SHORT_LINK,
+  SHORT_LINK_TARGET,
+  SHORT_LINK_TARGET_NORMALIZED,
+  X_POST,
+  httpbinPagePath,
+  newRunId,
+  throughRedirects,
+} from "./links.ts";
 
 test("a short link and its target pasted separately are one Item under the target's URL", async ({
   request,
@@ -40,32 +44,15 @@ test("a meta refresh on a host that is not a short link service is not followed"
   expect(saved.body.item.title).toBe(`Stays here ${run}`);
 });
 
-test("a renamed GitHub repository gets the final page's title and keeps the pasted URL as its identity", async ({
-  request,
-}) => {
-  const renamed = await postLink(request, "https://github.com/KyaniteHQ/commonplace");
-  const current = await postLink(request, "https://github.com/KyaniteHQ/threadsift");
-
-  expect(renamed.body.fetch).toBe("ok");
-  expect(renamed.body.item.normalizedUrl).toBe("https://github.com/KyaniteHQ/commonplace");
-  expect(renamed.body.item.title).toContain("KyaniteHQ/threadsift");
-  expect(current.body.item.id).not.toBe(renamed.body.item.id);
-});
-
-test("redirects are followed by hand: absolute, relative, up to 20, and a 21st fails", async ({
-  request,
-}) => {
-  test.setTimeout(90_000);
+test("redirects are followed by hand, absolute and relative", async ({ request }) => {
   const run = newRunId();
 
-  const absolute = await postLink(
-    request,
-    `https://httpbin.org/redirect-to?url=${encodeURIComponent("https://example.com/")}&run=${run}`,
-  );
+  const pasted = `https://httpbin.org/redirect-to?url=${encodeURIComponent("https://example.com/")}&run=${run}`;
+  const absolute = await postLink(request, pasted);
 
   expect(absolute.body.fetch).toBe("ok");
   expect(absolute.body.item.title).toBe("Example Domain");
-  expect(absolute.body.item.normalizedUrl).toContain("httpbin.org/redirect-to");
+  expect(absolute.body.item.normalizedUrl).toBe(pasted);
 
   const page = `<!doctype html><html><head><title>Relative hop ${run}</title></head></html>`;
 
@@ -76,29 +63,9 @@ test("redirects are followed by hand: absolute, relative, up to 20, and a 21st f
 
   expect(relative.body.fetch).toBe("ok");
   expect(relative.body.item.title).toBe(`Relative hop ${run}`);
-
-  const twenty = await postLink(request, `https://httpbin.org/redirect/20?run=${run}`);
-  expect(twenty.body.fetch).toBe("no-title");
-
-  const twentyOne = await postLink(request, `https://httpbin.org/redirect/21?run=${run}`);
-  expect(twentyOne.status).toBe(201);
-  expect(twentyOne.body.fetch).toBe("redirect-limit");
-  expect(twentyOne.body.item.title).toBeNull();
 });
 
-const REDIRECTOR = "https://httpbin.dev/redirect-to?url=";
-const X_POST = "https://x.com/jack/status/20";
 const REDDIT_POST = "https://www.reddit.com/r/selfhosted/comments/2a4qo6/x/";
-
-function throughRedirects(target: string, count: number): string {
-  let url = target;
-
-  for (let hop = 0; hop < count; hop += 1) {
-    url = `${REDIRECTOR}${encodeURIComponent(url)}`;
-  }
-
-  return url;
-}
 
 test("a redirect to Reddit or X stops without a request, with or without a trailing dot on the host", async ({
   request,

@@ -1,12 +1,12 @@
 export const GROUPS = ["View", "Reading", "Cards and tags"] as const;
 
-export interface Option {
+interface Option {
   readonly id: string;
   readonly label: string;
   readonly followsDevice?: readonly [light: string, dark: string];
 }
 
-export interface Setting {
+interface Setting {
   readonly key: string;
   readonly label: string;
   readonly attribute: `data-${string}`;
@@ -210,18 +210,18 @@ export type SettingKey = SettingRow["key"];
 
 type RowOf<K extends SettingKey> = Extract<SettingRow, { readonly key: K }>;
 
-export type OptionId<K extends SettingKey> = RowOf<K>["options"][number]["id"];
+type OptionId<K extends SettingKey> = RowOf<K>["options"][number]["id"];
 
 export type Settings = Readonly<{ [K in SettingKey]: OptionId<K> }>;
 
 export const DARK_SCHEME = "(prefers-color-scheme: dark)";
 
-function optionsOf(row: Setting): readonly Option[] {
-  return row.options;
+function optionOf(row: Setting, id: string | undefined): Option | undefined {
+  return row.options.find((option) => option.id === id);
 }
 
 function isSettings(values: Readonly<Record<string, string>>): values is Settings {
-  return SETTINGS.every((row) => optionsOf(row).some((option) => option.id === values[row.key]));
+  return SETTINGS.every((row) => optionOf(row, values[row.key]) !== undefined);
 }
 
 function build(valueOf: (row: SettingRow) => string): Settings {
@@ -252,7 +252,7 @@ export function readStored(text: string | null): Settings {
   const stored = storedEntries(text);
 
   return build(
-    (row) => optionsOf(row).find((option) => option.id === stored.get(row.key))?.id ?? row.default,
+    (row) => row.options.find((option) => option.id === stored.get(row.key))?.id ?? row.default,
   );
 }
 
@@ -262,9 +262,7 @@ export function serialize(settings: Settings): string {
 
 export function choose(settings: Settings, key: SettingKey, id: string): Settings {
   return build((row) =>
-    row.key === key
-      ? (optionsOf(row).find((option) => option.id === id)?.id ?? settings[row.key])
-      : settings[row.key],
+    row.key === key ? (optionOf(row, id)?.id ?? settings[row.key]) : settings[row.key],
   );
 }
 
@@ -273,7 +271,7 @@ export function resetLook(settings: Settings): Settings {
 }
 
 function resolved(row: Setting, id: string, deviceIsDark: boolean): string {
-  const follows = optionsOf(row).find((option) => option.id === id)?.followsDevice;
+  const follows = optionOf(row, id)?.followsDevice;
 
   if (follows === undefined) {
     return id;
@@ -285,16 +283,16 @@ function resolved(row: Setting, id: string, deviceIsDark: boolean): string {
 export function rootAttributes(
   settings: Settings,
   deviceIsDark: boolean,
-): readonly (readonly [string, string])[] {
-  return SETTINGS.map((row) => [row.attribute, resolved(row, settings[row.key], deviceIsDark)]);
+): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    SETTINGS.map((row) => [row.attribute, resolved(row, settings[row.key], deviceIsDark)]),
+  );
 }
 
 export function resolvedTheme(settings: Settings, deviceIsDark: boolean): string {
   return resolved(THEME, settings.theme, deviceIsDark);
 }
 
-export function followsDevice(settings: Settings): boolean {
-  return optionsOf(THEME).some(
-    (option) => option.id === settings.theme && option.followsDevice !== undefined,
-  );
+export function followsDevice(row: Setting, id: string): boolean {
+  return optionOf(row, id)?.followsDevice !== undefined;
 }

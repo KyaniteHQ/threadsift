@@ -51,23 +51,35 @@ export function useFocusOnMount(ref: RefObject<HTMLElement | null>, enabled = tr
   }, [enabled, ref]);
 }
 
-export function useSubmit(run: () => Promise<void>, blocked = false) {
+export function useGuard(blocked = false) {
   const [busy, setBusy] = useState(false);
 
-  const onSubmit = useCallback(
-    (event: SubmitEvent<HTMLFormElement>) => {
-      event.preventDefault();
-
+  const guard = useCallback(
+    (task: () => Promise<void>) => {
       if (busy || blocked) {
         return;
       }
 
       setBusy(true);
-      void run().finally(() => {
+      void task().finally(() => {
         setBusy(false);
       });
     },
-    [blocked, busy, run],
+    [blocked, busy],
+  );
+
+  return { busy, guard };
+}
+
+export function useSubmit(run: () => Promise<void>, blocked = false) {
+  const { busy, guard } = useGuard(blocked);
+
+  const onSubmit = useCallback(
+    (event: SubmitEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      guard(run);
+    },
+    [guard, run],
   );
 
   return { busy, onSubmit };

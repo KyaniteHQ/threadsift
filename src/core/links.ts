@@ -167,10 +167,10 @@ function redditRef(host: string, segments: readonly string[]): RedditRef | null 
 
 function redditLink({ postId, commentId }: Readonly<RedditRef>): Link {
   const post = `https://reddit.com/r/all/comments/${postId}/`;
+  const kind = commentId === undefined ? "reddit-post" : "reddit-comment";
+  const normalizedUrl = commentId === undefined ? post : `${post}_/${commentId}/`;
 
-  return commentId === undefined
-    ? { normalizedUrl: post, kind: "reddit-post", source: "reddit" }
-    : { normalizedUrl: `${post}_/${commentId}/`, kind: "reddit-comment", source: "reddit" };
+  return { normalizedUrl, kind, source: SOURCE_OF_KIND[kind] };
 }
 
 function githubKind(segments: readonly string[]): Kind {
@@ -223,7 +223,7 @@ export function isRedditOrXLink(absoluteUrl: string): boolean {
   return host === "redd.it" || isRedditHost(host) || X_HOSTS.has(host);
 }
 
-export interface LinkPlace extends Link {
+interface LinkPlace extends Link {
   readonly originalUrl: string;
   readonly community: string | null;
 }

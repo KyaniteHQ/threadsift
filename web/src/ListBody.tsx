@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
@@ -72,7 +74,7 @@ function ItemList({
   );
 }
 
-export function ListBody({
+export const ListBody = memo(function ListBody({
   list,
   openId,
   attention,
@@ -106,4 +108,4 @@ export function ListBody({
   return (
     <ItemList items={list.items} loadedAt={list.loadedAt} openId={openId} attention={attention} />
   );
-}
+});
