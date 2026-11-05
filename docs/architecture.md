@@ -290,7 +290,7 @@ oxlint and oxfmt run directly, not through Vite+. Vite+ 1.5.0 bundles the same o
 
 - **No separate `tsc` step.** `options.typeCheck` makes `oxlint-tsgolint` report TypeScript errors with the lint, and it needs TypeScript 7.
 - **Rule plugins in `tools/oxlint/`.** `anti-slop/` is dmmulroy/anti-slop, vendored (its `UPSTREAM.md`). `threadsift/` holds `no-comments` (`docs/agents/changing-code.md`, No comments). Anti-slop's `require-safety-comment-for-type-assertion` and its two assertion rules are off, because `typescript/consistent-type-assertions` set to `never` bans the assertion itself, and the safety rule would ask for a comment.
-- **Only safe fixes run unattended.** The commit hook and the agent hook (`.claude/hooks/lint-fix.sh`, after each edit to a file in the project) apply safe fixes; suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
+- **Only safe fixes run unattended.** The commit hook and the agent hook (`.claude/hooks/lint-fix.sh`, after each edit to a file in the project or in one of its git worktrees, linted with that checkout's own `node_modules`) apply safe fixes; suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
 - **Markdown is not formatted.** oxfmt pads every table column to its widest cell, so a one-cell change in a doc would rewrite the whole table.
 - **`design/` is mostly outside the lint.** `design/prototype/` is reference code, and the CSS in `design/system/` keeps its one-line rule layout, so both stay out of oxlint and oxfmt. `design/system/settings.ts` is app code: oxlint, oxfmt and the TypeScript `include` cover it.
 

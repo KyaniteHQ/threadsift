@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR
 input=$(cat)
 project=$(realpath "${CLAUDE_PROJECT_DIR:?}")
 cd "$project" || exit 1
-[[ -x node_modules/.bin/oxlint ]] || exit 0
 
 if ! command -v node >/dev/null; then
   if ! command -v direnv >/dev/null; then
@@ -24,8 +24,12 @@ fi
 file=$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).tool_input?.file_path ?? "")' "$input") || exit 1
 [[ -n $file && -f $file ]] || exit 0
 real=$(realpath "$file")
-[[ $real == "$project"/* ]] || exit 0
-rel=${real#"$project"/}
+checkout=$(git -C "$(dirname "$real")" rev-parse --show-toplevel 2>/dev/null) || exit 0
+common_of() { realpath "$(git -C "$1" rev-parse --path-format=absolute --git-common-dir)"; }
+[[ $(common_of "$checkout") == "$(common_of "$project")" ]] || exit 0
+cd "$checkout" || exit 1
+[[ -x node_modules/.bin/oxlint ]] || exit 0
+rel=${real#"$checkout"/}
 
 lint=$(./node_modules/.bin/oxlint --fix --format=agent --no-error-on-unmatched-pattern "$rel" 2>&1)
 lint_status=$?
