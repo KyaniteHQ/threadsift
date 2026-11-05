@@ -62,8 +62,8 @@ export function FormField({
   children?: ReactNode;
 }>) {
   const id = useId();
-  const helpId = help === undefined ? null : `${id}-help`;
   const errorId = field.error === null ? null : `${id}-error`;
+  const helpId = help === undefined || errorId !== null ? null : `${id}-help`;
 
   return (
     <div className="fld">
@@ -80,7 +80,7 @@ export function FormField({
         </p>
       )}
       {errorId === null ? null : (
-        <p className="fld-err" id={errorId}>
+        <p className="fld-err" id={errorId} role="alert">
           {field.error}
         </p>
       )}

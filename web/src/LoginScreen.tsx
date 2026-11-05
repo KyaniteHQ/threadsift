@@ -11,7 +11,7 @@ function useLogin(refresh: () => void) {
   const password = useField();
   const lock = useLock();
   const { fail, clear, value } = password;
-  const { start } = lock;
+  const { start, dismiss } = lock;
 
   const settle = useCallback(
     (result: Attempt) => {
@@ -28,9 +28,10 @@ function useLogin(refresh: () => void) {
   );
 
   const run = useCallback(async () => {
+    dismiss();
     fail(null);
     settle(await logIn(value));
-  }, [fail, settle, value]);
+  }, [dismiss, fail, settle, value]);
 
   return { password, lock, ...useSubmit(run, lock.locked) };
 }

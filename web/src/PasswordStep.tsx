@@ -76,11 +76,12 @@ function usePasswordStep(props: Readonly<PasswordStepProps>) {
     password.fail(problem);
     confirm.fail(problem === null ? mismatch : null);
     setFailed(false);
+    lock.dismiss();
 
     if (problem === null && mismatch === null) {
       settle(await setUp(code, password.value));
     }
-  }, [code, confirm, password, setFailed, settle]);
+  }, [code, confirm, lock, password, setFailed, settle]);
 
   return { password, confirm, lock, failed, ...useSubmit(run, lock.locked) };
 }

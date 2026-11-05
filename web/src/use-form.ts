@@ -73,27 +73,43 @@ export function useSubmit(run: () => Promise<void>, blocked = false) {
   return { busy, onSubmit };
 }
 
+const TICK_MS = 1000;
+
 export function useLock() {
-  const [seconds, setSeconds] = useState(0);
+  const [until, setUntil] = useState(0);
+  const [remaining, setRemaining] = useState(0);
+  const [over, setOver] = useState(false);
 
   useEffect(() => {
     const timer =
-      seconds > 0
-        ? window.setTimeout(() => {
-            setSeconds(0);
-          }, seconds * 1000)
-        : 0;
+      until === 0
+        ? 0
+        : window.setInterval(() => {
+            const left = Math.max(Math.ceil((until - Date.now()) / TICK_MS), 0);
+            setRemaining(left);
+
+            if (left === 0) {
+              setUntil(0);
+              setOver(true);
+            }
+          }, TICK_MS);
 
     return () => {
-      window.clearTimeout(timer);
+      window.clearInterval(timer);
     };
-  }, [seconds]);
+  }, [until]);
 
   const start = useCallback((wait: number) => {
-    setSeconds(wait);
+    setUntil(Date.now() + wait * TICK_MS);
+    setRemaining(wait);
+    setOver(false);
   }, []);
 
-  const message = seconds > 0 ? filled(WAIT.message, { wait: waitLabel(seconds) }) : null;
+  const dismiss = useCallback(() => {
+    setOver(false);
+  }, []);
 
-  return { locked: seconds > 0, message, start };
+  const waiting = remaining > 0 ? filled(WAIT.message, { wait: waitLabel(remaining) }) : null;
+
+  return { locked: remaining > 0, message: waiting ?? (over ? WAIT.over : null), start, dismiss };
 }

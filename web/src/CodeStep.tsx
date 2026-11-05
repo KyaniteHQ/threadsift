@@ -28,7 +28,7 @@ function useCodeStep({ wrongAtStart, accepted, unavailable, exists }: Readonly<C
   const code = useField(wrongAtStart ? SETUP.codeWrong : null);
   const lock = useLock();
   const { fail, value } = code;
-  const { start } = lock;
+  const { start, dismiss } = lock;
 
   const settle = useCallback(
     (result: Attempt) => {
@@ -50,9 +50,10 @@ function useCodeStep({ wrongAtStart, accepted, unavailable, exists }: Readonly<C
   );
 
   const run = useCallback(async () => {
+    dismiss();
     fail(null);
     settle(await checkSetupCode(value));
-  }, [fail, settle, value]);
+  }, [dismiss, fail, settle, value]);
 
   return { code, lock, ...useSubmit(run, lock.locked) };
 }
