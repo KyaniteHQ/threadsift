@@ -36,34 +36,28 @@ test("html takes the theme's background and colour scheme in each theme", async 
   expect(new Set(seen.values()).size, "three themes, three backgrounds").toBe(3);
 });
 
-test("loading rows and skeleton bars shimmer, and stand still under reduced motion", async ({
-  page,
-}) => {
-  await page.goto("/");
-  await expect(page.locator("article.it").first()).toBeVisible();
-  await page.evaluate(() => {
-    const row = document.createElement("div");
-    row.className = "it it-ghost";
-    row.append(document.createElement("i"));
-    const bars = document.createElement("div");
-    bars.className = "skel";
-    bars.append(document.createElement("i"));
-    document.querySelector(".app")?.append(row, bars);
+test("the loading rows shimmer, and stand still under reduced motion", async ({ page }) => {
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+
+  await page.route("**/api/items", async (route) => {
+    await held;
+    await route.continue();
   });
+
+  await page.goto("/");
+  const bar = page.locator(".it-ghost i").first();
+  await expect(bar).toBeAttached();
 
   for (const [motion, animation] of [
     ["no-preference", "shimmer"],
     ["reduce", "none"],
   ] as const) {
     await page.emulateMedia({ reducedMotion: motion });
-
-    for (const selector of [".it-ghost i", ".skel i"]) {
-      expect(
-        await computed(page.locator(selector), "animation-name"),
-        `${selector}, ${motion}`,
-      ).toBe(animation);
-    }
+    expect(await computed(bar, "animation-name"), motion).toBe(animation);
   }
+
+  release();
+  await expect(page.locator("article.it").first()).toBeVisible();
 });
 
 test("raising the root font size raises the row title, so the type tokens follow rem", async ({

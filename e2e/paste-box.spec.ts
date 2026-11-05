@@ -34,20 +34,24 @@ test("Add with an empty box or text that is not a link shows a refusal and saves
 test("Add on an empty box never shows the saving state", async ({ page }) => {
   await page.goto("/");
 
-  const states = await page.evaluateHandle(() => {
+  const changes = await page.evaluateHandle(() => {
     const seen: string[] = [];
 
-    const record = (): void => {
-      const announced = document.querySelector(".paste output")?.textContent ?? "";
-      const busy = document.querySelector(".paste button[type=submit]")?.ariaDisabled ?? "";
-      seen.push(`${announced}|${busy}`);
-    };
-
-    new MutationObserver(record).observe(document.querySelector(".paste") ?? document.body, {
+    new MutationObserver((records) => {
+      for (const record of records) {
+        const nodes = [...record.addedNodes, ...record.removedNodes];
+        seen.push(
+          `${record.attributeName ?? record.type}:${record.oldValue ?? ""}`,
+          ...nodes.map((node) => node.textContent ?? ""),
+        );
+      }
+    }).observe(document.querySelector(".paste") ?? document.body, {
       subtree: true,
       childList: true,
       characterData: true,
+      characterDataOldValue: true,
       attributes: true,
+      attributeOldValue: true,
     });
 
     return seen;
@@ -56,8 +60,9 @@ test("Add on an empty box never shows the saving state", async ({ page }) => {
   await addButton(page).click();
   await expect(page.getByRole("alert")).toContainText("Paste a link first.");
 
-  const sawSaving = await states.evaluate(
-    (seen, status) => seen.some((state) => state.includes(status) || state.endsWith("|true")),
+  const sawSaving = await changes.evaluate(
+    (seen, status) =>
+      seen.some((change) => change.includes(status) || change === "aria-disabled:true"),
     SAVING_STATUS,
   );
 

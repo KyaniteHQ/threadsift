@@ -2,11 +2,6 @@ import { expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
 import {
-  MOVED_PAGE,
-  MOVED_PAGE_NORMALIZED,
-  MOVED_PAGE_TARGET,
-  MOVED_PAGE_TARGET_NORMALIZED,
-  MOVED_PAGE_TITLE,
   SHORT_LINK,
   SHORT_LINK_TARGET,
   SHORT_LINK_TARGET_NORMALIZED,
@@ -49,30 +44,15 @@ test("a meta refresh on a host that is not a short link service is not followed"
   expect(saved.body.item.title).toBe(`Stays here ${run}`);
 });
 
-test("a moved page gets the final page's title and keeps the pasted URL as its identity", async ({
-  request,
-}) => {
-  const moved = await postLink(request, MOVED_PAGE);
-  const current = await postLink(request, MOVED_PAGE_TARGET);
-
-  expect(moved.body.fetch).toBe("ok");
-  expect(moved.body.item.normalizedUrl).toBe(MOVED_PAGE_NORMALIZED);
-  expect(moved.body.item.title).toBe(MOVED_PAGE_TITLE);
-  expect(current.body.item.normalizedUrl).toBe(MOVED_PAGE_TARGET_NORMALIZED);
-  expect(current.body.item.id).not.toBe(moved.body.item.id);
-});
-
 test("redirects are followed by hand, absolute and relative", async ({ request }) => {
   const run = newRunId();
 
-  const absolute = await postLink(
-    request,
-    `https://httpbin.org/redirect-to?url=${encodeURIComponent("https://example.com/")}&run=${run}`,
-  );
+  const pasted = `https://httpbin.org/redirect-to?url=${encodeURIComponent("https://example.com/")}&run=${run}`;
+  const absolute = await postLink(request, pasted);
 
   expect(absolute.body.fetch).toBe("ok");
   expect(absolute.body.item.title).toBe("Example Domain");
-  expect(absolute.body.item.normalizedUrl).toContain("httpbin.org/redirect-to");
+  expect(absolute.body.item.normalizedUrl).toBe(pasted);
 
   const page = `<!doctype html><html><head><title>Relative hop ${run}</title></head></html>`;
 

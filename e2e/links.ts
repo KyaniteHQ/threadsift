@@ -19,8 +19,6 @@ export const SHORT_LINK_TARGET_NORMALIZED = "https://iana.org/help/example-domai
 export const X_POST = "https://x.com/jack/status/20";
 export const MOVED_PAGE = "https://www.rfc-editor.org/rfc/rfc9110";
 export const MOVED_PAGE_NORMALIZED = "https://rfc-editor.org/rfc/rfc9110";
-export const MOVED_PAGE_TARGET = "https://www.rfc-editor.org/info/rfc9110/";
-export const MOVED_PAGE_TARGET_NORMALIZED = "https://rfc-editor.org/info/rfc9110/";
 export const MOVED_PAGE_TITLE = "RFC 9110: HTTP Semantics | RFC Editor";
 
 export function throughRedirects(target: string, count: number): string {
