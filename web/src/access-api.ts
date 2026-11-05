@@ -10,7 +10,7 @@ import {
   type RefusalCode,
   type Token,
 } from "../../src/http/schemas.ts";
-import { type JsonBody, call, callOk } from "./session.ts";
+import { type JsonBody, call, callOk, unexpected } from "./session.ts";
 
 export type Session = z.infer<typeof SessionStateSchema>;
 
@@ -26,6 +26,7 @@ export type Attempt = { readonly kind: "ok" } | Refusal;
 
 const DEFAULT_RETRY_SECONDS = 60;
 const NO_CONTENT = 204;
+const UNAUTHORIZED = 401;
 
 const REFUSALS = {
   wrong: { kind: "wrong" },
@@ -82,7 +83,11 @@ export function logIn(password: string): Promise<Attempt> {
 }
 
 export async function logOut(): Promise<void> {
-  await call("POST", "/api/logout", { signsOut: false });
+  const response = await call("POST", "/api/logout");
+
+  if (!response.ok && response.status !== UNAUTHORIZED) {
+    throw unexpected("POST", "/api/logout", response.status);
+  }
 }
 
 export async function fetchTokens(): Promise<Token[]> {

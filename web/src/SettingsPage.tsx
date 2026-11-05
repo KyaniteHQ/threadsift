@@ -1,7 +1,8 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
+import { Alert } from "./AuthShell.tsx";
 import { useInternalLink } from "./session.ts";
 import { TokensSection } from "./TokensSection.tsx";
 import { useFocusOnMount } from "./use-form.ts";
@@ -16,8 +17,13 @@ export function SettingsPage({
 
   const follow = useInternalLink(back);
 
+  const [failed, setFailed] = useState(false);
+
   const signOut = useCallback(() => {
-    void logOut().then(signedOut);
+    setFailed(false);
+    logOut().then(signedOut, () => {
+      setFailed(true);
+    });
   }, [signedOut]);
 
   return (
@@ -42,6 +48,7 @@ export function SettingsPage({
           <button type="button" className="btn btn-block" onClick={signOut}>
             {SETTINGS.signOut}
           </button>
+          <Alert text={failed ? SETTINGS.signOutFailed : null} />
         </section>
       </main>
     </div>

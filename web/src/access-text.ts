@@ -95,6 +95,7 @@ export const SETTINGS = {
   signOutTitle: "Sign out",
   signOutNote: "Signing out ends only this browser’s session, and agent tokens keep working.",
   signOut: "Sign out",
+  signOutFailed: "Couldn’t sign out and you’re still signed in, so try again.",
 } as const;
 
 export function filled(template: string, values: Readonly<Record<string, string>>): string {
