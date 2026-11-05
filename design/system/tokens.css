@@ -55,7 +55,14 @@
    - text-relative sizes in em: the Markdown rhythm in post text (0.2em to
      1.8em), list indents (1.2em, 1.3em), the position text's width (4.6em),
      the settings label column (7.5em), the empty-state width (34em), the
-     filter rail's column minimum (15em);
+     filter rail's column minimum (15em), the 14em flex basis of a text
+     block that wraps under its neighbour (the settings footnote, a token
+     row's name, the revealed token), and the 1lh height of a ghost row's
+     line;
+   - percentage widths of loading placeholders: 60% for the second line of a
+     skeleton, and 40% and 70% for a ghost row's lines;
+   - the 1px box that visually hides text kept for screen readers, and the 2px
+     side padding of the reader bar's phone position text;
    - the 180px height of a media placeholder in X posts.
    ===================================================================== */
 
