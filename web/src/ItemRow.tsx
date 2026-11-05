@@ -44,7 +44,6 @@ function rowClasses(item: Readonly<Item>, isOpen: boolean, isMarked: boolean): s
     ...(isMarked ? ["is-back"] : []),
     ...(item.title === null ? ["it-link-only"] : []),
     ...(showsSkeleton(item) ? ["it-proc"] : []),
-    ...(item.status === "failed" ? ["it-failed"] : []),
   ].join(" ");
 }
 

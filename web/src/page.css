@@ -104,27 +104,8 @@ html {
   width: 70%;
 }
 
-.paste-card {
-  position: absolute;
-  top: calc(100% + var(--s2));
-  inset-inline: 0;
-  z-index: var(--z-float);
-  border-radius: var(--r2);
-  box-shadow: var(--shadow-lg);
-}
-
-[data-layout="list"] .mast:has(.paste-card) {
-  overflow: visible;
-}
-
 [data-layout="list"]:not([data-bp~="medium"]) .paste-row {
   flex-direction: column;
-}
-
-.it-failed .it-open {
-  color: var(--muted);
-  font-size: var(--t-meta);
-  font-family: var(--f-mono);
 }
 
 .it-fail {
@@ -136,11 +117,6 @@ html {
   padding-top: var(--s2);
   font-size: var(--t-meta);
   line-height: var(--lh-label);
-}
-
-.it-fail .btn {
-  position: relative;
-  z-index: var(--z-raise);
 }
 
 .it-fail p {

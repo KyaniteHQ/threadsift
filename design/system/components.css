@@ -154,7 +154,8 @@ a.btn { text-decoration: none; }
 .tone-acc { color: var(--acc-ink); }
 .tone-ok { color: var(--ok); }
 .tone-warn { color: var(--warn); }
-[data-layout="grid"] .paste-card { position: absolute; top: calc(100% + var(--s2)); right: 0; z-index: var(--z-float); width: min(var(--paste-w), 100%); border-radius: var(--r2); box-shadow: var(--shadow-lg); }   /* floats over the grid, which doesn't move */
+.paste-card { position: absolute; top: calc(100% + var(--s2)); inset-inline: 0; z-index: var(--z-float); border-radius: var(--r2); box-shadow: var(--shadow-lg); }   /* floats over the list or the grid, which doesn't move */
+[data-layout="grid"] .paste-card { inset-inline: auto 0; width: min(var(--paste-w), 100%); }
 [data-layout="grid"][data-bp~="narrow"] .paste-card { position: static; width: auto; box-shadow: none; }   /* under 760px: a full-width row in the page */
 
 /* 4. Filters -------------------------------------------------------------
@@ -201,7 +202,7 @@ a.btn { text-decoration: none; }
 .it { position: relative; display: grid; min-width: 0; }
 .it > * { min-width: 0; }
 .it-media { grid-area: media; display: var(--card-media); overflow: hidden; background: var(--surface-2); }   /* the Card images setting; with Off the app renders no picture at all */
-.it-dot { grid-area: dot; position: relative; z-index: calc(var(--z-raise) + 1); display: inline-grid; place-items: center; width: var(--dot-hit); height: var(--dot-hit); padding: 0; border: 0; border-radius: var(--r4); background: transparent; cursor: pointer; }
+.it-dot { grid-area: dot; display: inline-grid; place-items: center; width: var(--dot-hit); height: var(--dot-hit); padding: 0; border: 0; border-radius: var(--r4); background: transparent; cursor: pointer; }
 .it-dot:hover { background: var(--surface-2); }
 .it-dot i { display: block; width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r4); }
 .it.unread .it-dot i { border-color: var(--acc); background: var(--acc); }
@@ -210,6 +211,7 @@ a.btn { text-decoration: none; }
 .it-open { all: unset; cursor: pointer; color: var(--text); font-family: var(--f-display); font-weight: var(--dw-soft); letter-spacing: var(--dls); overflow-wrap: anywhere; }
 .it.unread .it-open { font-weight: var(--dw-strong); }
 .it-open::after { content: ''; position: absolute; inset: 0; z-index: var(--z-raise); }
+.it :is(.btn, button, a):not(.it-open) { position: relative; z-index: calc(var(--z-raise) + 1); }   /* every action in a row sits above the row's stretched link */
 .it:has(.it-open:focus-visible) { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
 .app .it-open:focus-visible { outline: none; }
 .it-sum { grid-area: sum; display: -webkit-box; margin: calc(var(--s1) * var(--k)) 0 0; overflow: hidden; color: var(--muted); font-size: var(--t-body); line-height: var(--lh-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: var(--sum-lines); text-wrap: pretty; }
@@ -268,7 +270,8 @@ a.btn { text-decoration: none; }
 /* List: rail | list | reader. Medium: header over list | reader. Narrow: one column. */
 [data-layout="list"] .lib { display: grid; height: 100%; grid-template-columns: var(--rail-w) minmax(var(--list-min), var(--list-w)) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
 [data-layout="list"] .mast { grid-column: 1; grid-row: 1 / -1; overflow-y: auto; padding: var(--s5) var(--s4); border-right: 1px solid var(--line); background: var(--surface-2); }
-[data-layout="list"] .mast:has(.st-pop) { z-index: var(--z-popover); overflow: visible; }   /* the settings panel reaches past the sidebar, above the list, while it is open */
+[data-layout="list"] .mast:has(.st-pop, .paste-card) { overflow: visible; }   /* the settings panel and the paste card reach past the sidebar while they are open */
+[data-layout="list"] .mast:has(.st-pop) { z-index: var(--z-popover); }   /* the panel also sits above the list */
 [data-layout="list"] .brand { padding: 0 var(--s2); }
 [data-layout="list"] .search { grid-column: 2; grid-row: 1; padding: var(--s4) var(--s4) var(--s2); background: var(--bg); }
 [data-layout="list"] .list-head { grid-column: 2; grid-row: 2; padding: var(--s1) var(--s4) var(--s2); border-bottom: 1px solid var(--line); }
