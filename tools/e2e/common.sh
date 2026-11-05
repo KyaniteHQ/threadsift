@@ -35,5 +35,10 @@ run_suite() {
   export THREADSIFT_INSTANCE_SCRIPT="bash $script"
   export THREADSIFT_E2E_DIR=$dir
   export THREADSIFT_SETUP_CODE=$code
+  if [[ -n ${THREADSIFT_ARTIFACTS:-} ]]; then
+    export THREADSIFT_RUN_DIR="$THREADSIFT_ARTIFACTS/$THREADSIFT_TARGET-$(date -u +%Y%m%dT%H%M%SZ)"
+    mkdir -p "$THREADSIFT_RUN_DIR"
+    echo "artifacts: $THREADSIFT_RUN_DIR"
+  fi
   pnpm exec playwright test "$@"
 }

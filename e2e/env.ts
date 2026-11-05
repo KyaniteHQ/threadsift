@@ -7,3 +7,7 @@ export function envValue(name: string): string {
 
   return value;
 }
+
+export function optionalEnv(name: string): string | undefined {
+  return process.env[name];
+}

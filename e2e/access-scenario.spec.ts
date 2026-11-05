@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+
 import {
   type APIRequestContext,
   type BrowserContext,
@@ -33,6 +35,15 @@ import {
 const TEST_TIMEOUT_MS = 120_000;
 const CLIPBOARD = ["clipboard-read", "clipboard-write"];
 
+const NOBODY_CALLS = [
+  ["GET", "/api/items"],
+  ["POST", "/api/items"],
+  ["GET", "/api/tokens"],
+  ["POST", "/api/tokens"],
+  ["DELETE", "/api/tokens/1"],
+  ["POST", "/api/logout"],
+] as const;
+
 interface Run {
   readonly page: Page;
   readonly context: BrowserContext;
@@ -56,7 +67,9 @@ test.afterAll(() => {
 });
 
 async function shot(run: Run, name: string): Promise<void> {
-  await run.info.attach(name, { body: await run.page.screenshot(), contentType: "image/png" });
+  const path = run.info.outputPath(`${name}.png`);
+  await run.page.screenshot({ path });
+  await run.info.attach(name, { path, contentType: "image/png" });
 }
 
 async function seeRows(page: Page, links: readonly string[]): Promise<void> {
@@ -109,7 +122,7 @@ async function stepToken(run: Run): Promise<string> {
   await page.getByRole("button", { name: SETTINGS.createToken }).click();
   const value = await page.getByLabel(SETTINGS.tokenValue).inputValue();
   expect(value).toMatch(/^tsa_/u);
-  await shot(run, "3-token-shown-once");
+  await shot(run, "4-token-shown-once");
 
   await page.getByRole("button", { name: SETTINGS.copy }).click();
   await expect(page.getByRole("button", { name: SETTINGS.copied })).toBeVisible();
@@ -119,6 +132,7 @@ async function stepToken(run: Run): Promise<string> {
   await page.reload();
   await expect(page.getByText("Extension", { exact: true })).toBeVisible();
   expect(await page.content(), "a reload never shows the value").not.toContain(value);
+  await shot(run, "5-token-list");
 
   return value;
 }
@@ -152,7 +166,7 @@ async function stepSignOut(run: Run, links: readonly string[]): Promise<void> {
 
   await expect(page).toHaveTitle("Sign in to Threadsift");
   await expect(passwordField(page)).toBeFocused();
-  await shot(run, "4-login");
+  await shot(run, "6-login");
 
   const ended = cookieHeader(cookie?.value ?? "");
 
@@ -161,8 +175,12 @@ async function stepSignOut(run: Run, links: readonly string[]): Promise<void> {
   });
 
   expect(afterwards.status(), "a signed-out session").toBe(401);
-  const nobody = await call(ledger, "nobody", outside, "GET", "/api/items");
-  expect(nobody.status()).toBe(401);
+
+  for (const [method, path] of NOBODY_CALLS) {
+    const refused = await call(ledger, "nobody", outside, method, path);
+
+    expect(refused.status(), `nobody: ${method} ${path}`).toBe(401);
+  }
 
   await passwordField(page).fill(`${password}x`);
   await page.getByRole("button", { name: LOGIN.signIn }).click();
@@ -182,7 +200,7 @@ async function stepRevoke(run: Run, value: string): Promise<void> {
     .getByRole("button", { name: filled(SETTINGS.revokeNamed, { name: "Extension" }), exact: true })
     .click();
   await expect(page.getByText("Revoke Extension?")).toBeVisible();
-  await shot(run, "5-revoke-asks-in-place");
+  await shot(run, "7-revoke-asks-in-place");
   await page.getByRole("button", { name: SETTINGS.revokeConfirm }).click();
   await expect(page.getByText("Extension", { exact: true })).toBeHidden();
 
@@ -219,6 +237,7 @@ test("a fresh Instance is set up, saved to, signed out of and its token revoked 
   await stepSetup(run);
   await pasteLink(run.page, first);
   await seeRows(run.page, [first]);
+  await shot(run, "3-library");
   const value = await stepToken(run);
   await stepAgent(run, value, second);
   await run.page.goto("/");
@@ -226,10 +245,9 @@ test("a fresh Instance is set up, saved to, signed out of and its token revoked 
   await stepSignOut(run, [second, first]);
   await stepRevoke(run, value);
 
-  await testInfo.attach("api-statuses.json", {
-    body: JSON.stringify(run.ledger, null, 2),
-    contentType: "application/json",
-  });
+  const statuses = testInfo.outputPath("api-statuses.json");
+  await writeFile(statuses, JSON.stringify(run.ledger, null, 2));
+  await testInfo.attach("api-statuses.json", { path: statuses, contentType: "application/json" });
   expect(violations(run.ledger)).toEqual([]);
   expect(run.ledger.filter((entry) => entry.caller === "owner").length).toBeGreaterThan(10);
   await run.outside.dispose();
