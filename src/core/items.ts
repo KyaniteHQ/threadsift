@@ -1,21 +1,36 @@
-import { and, desc, eq, getTableColumns, notExists } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, isNotNull, notExists, sql } from "drizzle-orm";
 
 import { isRefusedHost } from "./addresses.ts";
 import type { Fetched } from "./details.ts";
 import { resolveShortLink } from "./fetch-link.ts";
-import { enqueueQuietly, hasOpenJob, openingJob } from "./jobs.ts";
+import { hasOpenJob, openingJob } from "./job-rows.ts";
+import { enqueueQuietly } from "./jobs.ts";
 import { type Link, isShortLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
 import { type ItemRow, items } from "./schema.ts";
 import { settle } from "./settle.ts";
 
-export type ListedItemRow = Omit<ItemRow, "postText" | "postedAt">;
+export type ListedItemRow = Omit<ItemRow, "postText" | "postedAt"> & {
+  readonly digestTitle: string | null;
+  readonly digestTopic: string | null;
+};
 
 export type SaveResult =
   | { readonly kind: "saved"; readonly item: ListedItemRow; readonly created: boolean }
   | { readonly kind: "refused" };
 
-const { postText: _postText, postedAt: _postedAt, ...LISTED_COLUMNS } = getTableColumns(items);
+const { postText: _postText, postedAt: _postedAt, ...columns } = getTableColumns(items);
+
+const DIGEST_COLUMNS = {
+  digestTitle: sql<
+    string | null
+  >`(select json_extract(digest, '$.title') from digests where item_id = ${items.id})`,
+  digestTopic: sql<
+    string | null
+  >`(select json_extract(digest, '$.topic') from digests where item_id = ${items.id})`,
+};
+
+const LISTED_COLUMNS = { ...columns, ...DIGEST_COLUMNS };
 
 function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
   if (item === undefined) {
@@ -96,10 +111,10 @@ async function saveSettled(
       ...settle(fetched, null, now),
     })
     .onConflictDoNothing({ target: items.normalizedUrl })
-    .returning(LISTED_COLUMNS);
+    .returning(columns);
 
   if (inserted !== undefined) {
-    return { kind: "saved", item: inserted, created: true };
+    return { kind: "saved", item: await itemAt(db, normalizedUrl), created: true };
   }
 
   const known = await itemAt(db, normalizedUrl);
@@ -108,7 +123,13 @@ async function saveSettled(
     db
       .update(items)
       .set(settle(fetched, known.title, now))
-      .where(and(eq(items.id, known.id), notExists(hasOpenJob("fetch")))),
+      .where(
+        and(
+          eq(items.id, known.id),
+          notExists(hasOpenJob("fetch")),
+          notExists(hasOpenJob("digest")),
+        ),
+      ),
     db.select(LISTED_COLUMNS).from(items).where(eq(items.id, known.id)),
   ]);
 
@@ -137,8 +158,17 @@ export function saveItem(ports: Ports, absoluteUrl: string): Promise<SaveResult>
     : saveQueued(ports, { originalUrl: absoluteUrl, address: absoluteUrl }, parseLink(absoluteUrl));
 }
 
-export async function getItem(db: Database, id: number): Promise<ItemRow | undefined> {
-  const [item] = await db.select().from(items).where(eq(items.id, id));
+export async function getItem(
+  db: Database,
+  id: number,
+): Promise<
+  | (ItemRow & { readonly digestTitle: string | null; readonly digestTopic: string | null })
+  | undefined
+> {
+  const [item] = await db
+    .select({ ...getTableColumns(items), ...DIGEST_COLUMNS })
+    .from(items)
+    .where(eq(items.id, id));
 
   return item;
 }
@@ -151,4 +181,31 @@ export async function getListedItem(db: Database, id: number): Promise<ListedIte
 
 export function listItems(db: Database): Promise<ListedItemRow[]> {
   return db.select(LISTED_COLUMNS).from(items).orderBy(desc(items.savedAt), desc(items.id));
+}
+
+export async function retryDigest(ports: Ports, id: number): Promise<ListedItemRow | undefined> {
+  const item = await getItem(ports.db, id);
+
+  if (item === undefined || item.postText === null) return getListedItem(ports.db, id);
+
+  const [, queued] = await ports.db.batch([
+    ports.db
+      .update(items)
+      .set({ status: "processing", reason: null, digestOutcome: "pending" })
+      .where(and(eq(items.id, id), isNotNull(items.postText), notExists(hasOpenJob("digest")))),
+    openingJob(ports.db, {
+      kind: "digest",
+      address: item.originalUrl,
+      normalizedUrl: item.normalizedUrl,
+      now: Date.now(),
+    }),
+  ]);
+
+  await enqueueQuietly(
+    ports,
+    queued.map(({ id: jobId }) => jobId),
+    0,
+  );
+
+  return getListedItem(ports.db, id);
 }

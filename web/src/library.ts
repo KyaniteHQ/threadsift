@@ -8,7 +8,7 @@ import {
 } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { type SaveResult, fetchItem, fetchItems, saveLink } from "./api.ts";
+import { type SaveResult, fetchItem, fetchItems, regenerateDigest, saveLink } from "./api.ts";
 
 export type ListState =
   | { readonly status: "loading"; readonly saved: readonly Item[] }
@@ -134,11 +134,23 @@ function usePolling(
   }, [isFresh, key, setList]);
 }
 
-export function useLibrary() {
-  const [list, setList] = useState<ListState>({ status: "loading", saved: [] });
-  const savedAt = useRef(new Map<number, number>());
+function useRegenerate(setList: SetList, markSaved: (id: number) => void) {
+  return useCallback(
+    async (id: number): Promise<void> => {
+      try {
+        const item = await regenerateDigest(id);
+        markSaved(id);
+        setList((current) => withItem(current, item));
+      } catch {
+        setList((current) => ({ status: "failed", saved: knownItems(current) }));
+      }
+    },
+    [markSaved, setList],
+  );
+}
 
-  const load = useCallback(
+function useLoad(setList: SetList) {
+  return useCallback(
     () =>
       fetchItems()
         .then(
@@ -149,8 +161,15 @@ export function useLibrary() {
             (current: ListState): ListState => ({ status: "failed", saved: knownItems(current) }),
         )
         .then(setList),
-    [],
+    [setList],
   );
+}
+
+export function useLibrary() {
+  const [list, setList] = useState<ListState>({ status: "loading", saved: [] });
+  const savedAt = useRef(new Map<number, number>());
+
+  const load = useLoad(setList);
 
   const isFresh = useCallback(
     (id: number, startedAt: number) => startedAt > (savedAt.current.get(id) ?? 0),
@@ -179,5 +198,11 @@ export function useLibrary() {
     return result;
   }, []);
 
-  return { list, save, retry };
+  const markSaved = useCallback((id: number) => {
+    savedAt.current.set(id, performance.now());
+  }, []);
+
+  const regenerate = useRegenerate(setList, markSaved);
+
+  return { list, save, retry, regenerate };
 }

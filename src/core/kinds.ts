@@ -15,7 +15,7 @@ export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
 export const FAILURE_REASONS = ["timeout", "network", "gave-up"] as const;
 
-export const JOB_KINDS = ["fetch"] as const;
+export const JOB_KINDS = ["fetch", "digest"] as const;
 
 export const JOB_STATES = ["queued", "running", "done"] as const;
 

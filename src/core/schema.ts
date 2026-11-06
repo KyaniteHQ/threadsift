@@ -27,6 +27,10 @@ export const items = sqliteTable(
     postText: text("post_text"),
     postedAt: integer("posted_at"),
     fetchedAt: integer("fetched_at"),
+    generation: integer("generation").notNull().default(0),
+    digestOutcome: text("digest_outcome", { enum: ["none", "pending", "failed"] })
+      .notNull()
+      .default("none"),
     status: text("status", { enum: ITEM_STATUSES }).notNull().default("ready"),
     reason: text("reason", { enum: FAILURE_REASONS }),
     fetch: text("fetch_result", { enum: FETCH_RESULTS }),
@@ -128,4 +132,18 @@ export const aiTasks = sqliteTable("ai_tasks", {
   result: text("result"),
   refusal: text("refusal"),
   status: integer("status"),
+});
+
+export const digests = sqliteTable("digests", {
+  itemId: integer("item_id")
+    .primaryKey()
+    .references(() => items.id, { onDelete: "cascade" }),
+  digest: text("digest").notNull(),
+  taskId: integer("task_id")
+    .notNull()
+    .references(() => aiTasks.id),
+  provider: text("provider").notNull(),
+  model: text("model").notNull(),
+  generation: integer("generation").notNull(),
+  createdAt: integer("created_at").notNull(),
 });

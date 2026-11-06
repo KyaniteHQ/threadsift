@@ -117,6 +117,14 @@ The agent returns one JSON record, the Digest, stored apart from the fetched con
 - Key points
 - the ids of the Kept comments
 
+The list uses the stored Digest's clean title and Topic and keeps the fetched title separately. Summary, Key points and Tags wait for the Reader. The last stored Digest stays visible during refresh or regeneration. A failed run shows "No Digest" only when there is no stored Digest; both failure states offer Try again. That action queues a Digest over stored text without a new fetch, and does nothing while a Digest is already open. The owner session and agent tokens may call it.
+
+An Item stays `processing` while either its fetch or Digest is open. The batch that closes the last job makes it `ready`, with no failure reason, or preserves a first fetch's failure when no content exists. A fetch that stores post text increments the Item's content generation and opens its Digest in the same batch. A Paste alone does not increment it. Items with no post text or no usable Provider settle without a Digest job.
+
+A Digest waits for an open fetch before calling the Provider. It publishes only at the generation it read. A stale result is discarded, its AI task fails, and the lease-held job returns to the queue on fresh inputs with the same attempt count. Each job run makes at most one model call.
+
+Wrong keys, missing models, refused addresses, missing configuration or sealing secrets, and Provider HTTP 400 or 422 answers give up immediately. Network failures, timeouts, a busy Provider, and a successful HTTP answer whose output fails the Digest schema retry with the job runner's delays. A failed Digest leaves fetched content readable.
+
 A caller may send a Digest it already wrote, as the Threadsift bot does on the owner's Grok plan; Threadsift then checks it against the same rules and skips its own agent call.
 
 ## The library wiki
@@ -136,7 +144,7 @@ The rules above answer the known failures of LLM wikis, from the gist's comments
 
 The owner picks one Provider in the AI settings, and the screen shows only the fields that Provider needs. "Verify" runs one small real Digest, so a model that cannot return the Digest's JSON fails at setup, not on the 200th Item.
 
-The Settings page currently offers OpenAI-compatible URL and OpenRouter, reached through the gear panel’s Instance settings link. Save keeps the API key sealed on the Instance; the screen only reports whether a key is set. Verify uses the saved settings and shows a Digest or a refusal with a recovery action. It adds no Item, Topic or Tag. Automatic Digests and the Topic and Tag lists are not built yet. OpenRouter has no live proof until the owner supplies a key.
+The Settings page currently offers OpenAI-compatible URL and OpenRouter, reached through the gear panel’s Instance settings link. Save keeps the API key sealed on the Instance; the screen only reports whether a key is set. Verify uses the saved settings and shows a Digest or a refusal with a recovery action. It adds no Item, Topic or Tag. Fetched Items with post text now get automatic Digests when the saved Provider loads. The Topic and Tag lists, caller-sent Digests and Digests for older Items remain planned. OpenRouter has no live proof until the owner supplies a key.
 
 | Provider | Self-hosted container | Cloudflare deploy | Hosted product (later) |
 |---|---|---|---|

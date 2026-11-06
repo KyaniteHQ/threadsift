@@ -70,19 +70,31 @@ function useSaveAndShow(
 
 export function useListActions(
   list: ListState,
-  actions: Readonly<{ save: (url: string) => Promise<SaveResult>; retry: () => void }>,
+  actions: Readonly<{
+    save: (url: string) => Promise<SaveResult>;
+    retry: () => void;
+    regenerate: (id: number) => Promise<void>;
+  }>,
   pane: RefObject<HTMLElement | null>,
   route: Route,
 ) {
   const { attention, attend } = useOpenItem(list, route);
+  const { regenerate } = actions;
   const [request, setRequest] = useState<PasteRequest | null>(null);
 
   const tryAgain = useCallback(
     (item: Item) => {
       attend({ id: item.id, focus: true });
+
+      if (item.status !== "failed" && item.digestOutcome === "failed") {
+        void regenerate(item.id);
+
+        return;
+      }
+
       setRequest((current) => ({ url: item.originalUrl, seq: (current?.seq ?? 0) + 1 }));
     },
-    [attend],
+    [regenerate, attend],
   );
 
   return {

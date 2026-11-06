@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute, type z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 
 import { itemPath } from "../core/item-path.ts";
-import { getItem, getListedItem, listItems, saveItem } from "../core/items.ts";
+import { getItem, getListedItem, listItems, retryDigest, saveItem } from "../core/items.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
 import { registerAiRoutes } from "./ai-routes.ts";
@@ -26,7 +26,7 @@ const saveItemRoute = createRoute({
   responses: {
     201: jsonBody(
       SavedItemResponseSchema,
-      "The link was new and is now an Item. The Item is `processing` until its fetch job ends. Read `GET /api/items/{id}/status` until `status` leaves `processing`. A short link that cannot be resolved answers with its end state.",
+      "The link was new and is now an Item. The Item is `processing` until its fetch and Digest jobs end. Read `GET /api/items/{id}/status` until `status` leaves `processing`. A short link that cannot be resolved answers with its end state.",
     ),
     200: jsonBody(
       SavedItemResponseSchema,
@@ -76,6 +76,19 @@ const getItemStatusRoute = createRoute({
   },
 });
 
+const retryDigestRoute = createRoute({
+  method: "post",
+  path: "/api/items/{id}/digest",
+  request: { params: IdParamSchema },
+  responses: {
+    200: jsonBody(
+      ItemResponseSchema,
+      "Queue a Digest over stored text, or return the unchanged Item when a Digest is already open or no text exists.",
+    ),
+    404: jsonBody(ErrorResponseSchema, "No Item has this id."),
+  },
+});
+
 const NOT_FOUND = "Not found";
 const REFUSED_HOST = "url: the host is not globally reachable";
 
@@ -86,6 +99,13 @@ function reasonOf(error: z.ZodError): string {
 }
 
 function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
+  app.openapi(retryDigestRoute, async (c) => {
+    const item = await retryDigest(ports, c.req.valid("param").id);
+
+    return item === undefined
+      ? c.json({ error: NOT_FOUND }, 404)
+      : c.json({ item: itemView(item) }, 200);
+  });
   app.openapi(saveItemRoute, async (c) => {
     const { url } = c.req.valid("json");
     const saved = await saveItem(ports, url);

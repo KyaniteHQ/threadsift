@@ -16,8 +16,8 @@ export function Library({
 }: Readonly<{ look: Look; arrived: boolean; route: Route; openSettings: () => void }>) {
   const listPane = useRef<HTMLElement>(null);
   const { narrow, settings, themeNote, pick, reset } = look;
-  const { list, save, retry } = useLibrary();
-  const actions = useListActions(list, { save, retry }, listPane, route);
+  const { list, save, retry, regenerate } = useLibrary();
+  const actions = useListActions(list, { save, retry, regenerate }, listPane, route);
   const isEmpty = list.status === "ready" && list.items.length === 0;
 
   return (

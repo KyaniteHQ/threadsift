@@ -5,7 +5,14 @@ import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { revealInPane } from "./reveal.ts";
 import { savedLabel } from "./saved-label.ts";
-import { CARD_TITLES, FAILURE_TITLES, NEW_TAB_LABEL, RETRY_LABEL, SOURCE_LABELS } from "./text.ts";
+import {
+  CARD_TITLES,
+  FAILURE_TITLES,
+  NO_DIGEST,
+  NEW_TAB_LABEL,
+  RETRY_LABEL,
+  SOURCE_LABELS,
+} from "./text.ts";
 
 function withoutScheme(url: string): string {
   return url.replace(/^https?:\/\//u, "");
@@ -55,7 +62,7 @@ function Failed({
   describedBy,
   tryAgain,
 }: Readonly<{
-  item: Extract<Item, { status: "failed" }>;
+  item: Item;
   describedBy: string;
   tryAgain: (item: Item) => void;
 }>) {
@@ -65,10 +72,12 @@ function Failed({
 
   return (
     <div className="it-fail">
-      <p>
-        <Icon name="warn" className="ic ic-s tone-warn" />
-        {FAILURE_TITLES[item.reason]}
-      </p>
+      {item.status === "failed" || item.digestTitle === null ? (
+        <p>
+          <Icon name="warn" className="ic ic-s tone-warn" />
+          {item.status === "failed" ? FAILURE_TITLES[item.reason] : NO_DIGEST}
+        </p>
+      ) : null}
       <button type="button" className="btn" aria-describedby={describedBy} onClick={retry}>
         {RETRY_LABEL}
       </button>
@@ -96,7 +105,7 @@ function Status({
     return <Skeleton />;
   }
 
-  return item.status === "failed" ? (
+  return item.status === "failed" || item.digestOutcome === "failed" ? (
     <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
   ) : null;
 }
@@ -145,14 +154,21 @@ export const ItemRow = memo(function ItemRow({
           rel="noreferrer"
           aria-current={isOpen ? "true" : undefined}
         >
-          {item.title === null ? (
+          {(item.digestTitle ?? item.title) === null ? (
             withoutScheme(item.normalizedUrl)
           ) : (
-            <bdi dir="auto">{item.title}</bdi>
+            <bdi dir="auto">{item.digestTitle ?? item.title}</bdi>
           )}
           <span className="vh">{` ${NEW_TAB_LABEL}`}</span>
         </a>
       </h2>
+      {item.digestTopic === null ? null : (
+        <p className="it-foot">
+          <bdi className="it-topic" dir="auto">
+            {item.digestTopic}
+          </bdi>
+        </p>
+      )}
       <Status item={item} describedBy={titleId} tryAgain={tryAgain} />
     </article>
   );

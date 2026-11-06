@@ -15,7 +15,7 @@ import { loadAiConfig } from "./ai-settings.ts";
 import type { Ports } from "./ports.ts";
 import { aiTasks } from "./schema.ts";
 
-const TASKS = {
+export const TASKS = {
   digest: {
     kind: "digest",
     instructions: DIGEST_INSTRUCTIONS,
@@ -25,10 +25,14 @@ const TASKS = {
 } as const;
 
 type TaskResult<Result> =
-  | (AiExecution<Result> & { readonly taskId: number })
+  | (AiExecution<Result> & {
+      readonly taskId: number;
+      readonly provider: string;
+      readonly model: string;
+    })
   | (AiRefused & { readonly taskId: null });
 
-export async function verifyAi(ports: Ports, attempt: AbortSignal) {
+export async function verifyAi(ports: Pick<Ports, "db" | "ai">, attempt: AbortSignal) {
   const result = await runAiTask(
     ports,
     TASKS.digest,
@@ -36,13 +40,24 @@ export async function verifyAi(ports: Ports, attempt: AbortSignal) {
     attempt,
   );
 
+  if (result.kind === "done") {
+    try {
+      await ports.db
+        .update(aiTasks)
+        .set({ state: "done", result: JSON.stringify(result.result) })
+        .where(eq(aiTasks.id, result.taskId));
+    } catch {
+      return failTask(ports, result.taskId);
+    }
+  }
+
   return result.kind === "done"
     ? { kind: result.kind, digest: result.result, taskId: result.taskId }
     : { kind: result.kind, reason: result.reason, status: result.status };
 }
 
 export async function runAiTask<Result>(
-  ports: Ports,
+  ports: Pick<Ports, "db" | "ai">,
   definition: AiTaskDefinition<Result>,
   input: Readonly<{ text: string; inputRevision: number; attempts: number }>,
   attempt: AbortSignal,
@@ -69,22 +84,29 @@ export async function runAiTask<Result>(
       signal,
     );
 
-    await ports.db
-      .update(aiTasks)
-      .set(
-        result.kind === "done"
-          ? { state: "done", result: JSON.stringify(result.result) }
-          : { state: "failed", refusal: result.reason, status: result.status },
-      )
-      .where(eq(aiTasks.id, task.id));
+    if (result.kind !== "done") {
+      await ports.db
+        .update(aiTasks)
+        .set({ state: "failed", refusal: result.reason, status: result.status })
+        .where(eq(aiTasks.id, task.id));
+    }
 
-    return { ...result, taskId: task.id };
+    return {
+      ...result,
+      taskId: task.id,
+      provider: loaded.config.provider,
+      model: loaded.config.model,
+    };
   } catch {
-    return failTask(ports, task.id);
+    return {
+      ...(await failTask(ports, task.id)),
+      provider: loaded.config.provider,
+      model: loaded.config.model,
+    };
   }
 }
 
-async function failTask(ports: Ports, taskId: number) {
+async function failTask(ports: Pick<Ports, "db" | "ai">, taskId: number) {
   const failure = { ...refusedAi("unreachable"), taskId };
 
   try {
@@ -100,7 +122,7 @@ async function failTask(ports: Ports, taskId: number) {
 }
 
 async function startTask(
-  ports: Ports,
+  ports: Pick<Ports, "db" | "ai">,
   kind: string,
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
