@@ -29,7 +29,7 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 :where(.app) button, :where(.app) input, :where(.app) select { font: inherit; color: inherit; }
-.app :focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.app :focus-visible { outline: 3px solid var(--acc-ink); outline-offset: 4px; }
 .label { margin: 0; color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label); line-height: var(--lh-label); text-transform: uppercase; }
 .kbd { padding: 0 var(--s1); border: 1px solid var(--line-2); border-radius: var(--r1); color: var(--muted); font-family: var(--f-mono); font-size: var(--t-label); line-height: var(--lh-label); }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font-size: var(--t-meta); font-weight: 500; text-decoration: none; white-space: nowrap; }
