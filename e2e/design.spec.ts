@@ -1,10 +1,18 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { SETTINGS } from "../design/system/settings.ts";
+import { SETTINGS } from "../design/system/settings-table.ts";
+import { DEFAULTS } from "../design/system/settings.ts";
 import { postLink } from "./api.ts";
 import { UNTITLED_PAGE } from "./articles.ts";
 import { checkDefaults } from "./default-tokens.ts";
-import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
+import { collectDesign } from "./design-checks.ts";
+import {
+  BANDS_AT_WIDTH,
+  THEMES,
+  expectNoViolations,
+  expectTokenContrast,
+  resize,
+} from "./design-screens.ts";
 import { newRunId, pasteField } from "./links.ts";
 import {
   HUES,
@@ -83,6 +91,14 @@ test("the page keeps the design checks at four widths in every theme and accent,
   for (const theme of THEMES) {
     for (const [accent, hue] of Object.entries(HUES)) {
       await loadWith(page, first.body.url, { theme, accent });
+
+      if (accent === "cobalt") {
+        const measured = await page.evaluate(collectDesign, DEFAULTS.font);
+        expect(measured.violations, `Library ${theme}`).toEqual([]);
+
+        expectTokenContrast(measured.contrast, `Library ${theme}`);
+      }
+
       await showAlertAndFocusRow(page);
       await expect(page.locator("article.it .src", { hasText: "Article" }).first()).toBeVisible();
       await expect(app(page)).toHaveAttribute("data-theme", theme);

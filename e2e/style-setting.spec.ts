@@ -1,10 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 import {
   app,
   computed,
   attachScreenshot,
   pickStyle,
+  panel,
   radioOf,
   openPanel,
   pickFont,
@@ -13,7 +14,30 @@ import {
   storedSettings,
 } from "./look.ts";
 
-test("a Style preserves Font and Accent across reloads and Reset look leaves the view settings alone", async ({
+async function expectStyleControls(page: Page): Promise<void> {
+  const dialog = panel(page);
+  await expect(dialog.getByRole("combobox", { name: "Font" })).toBeDisabled();
+  await expect(dialog.getByRole("combobox", { name: "Font" })).toHaveAccessibleDescription(
+    "Set by the style",
+  );
+  await expect(dialog.getByRole("radiogroup", { name: "Accent" })).toHaveAccessibleDescription(
+    "Set by the style",
+  );
+
+  for (const swatch of await dialog.locator(".st-sw").all()) {
+    await expect(swatch).toHaveCSS("cursor", "default");
+    await expect(swatch).toHaveCSS("opacity", "0.45");
+  }
+
+  for (const radio of await dialog
+    .getByRole("radiogroup", { name: "Accent" })
+    .getByRole("radio")
+    .all()) {
+    await expect(radio).toBeDisabled();
+  }
+}
+
+test("a Style overrides and restores Font and Accent, and Reset look restores the Look defaults", async ({
   page,
 }, info) => {
   await storeSettings(page, {
@@ -28,7 +52,8 @@ test("a Style preserves Font and Accent across reloads and Reset look leaves the
   const dialog = await openPanel(page);
   await pickStyle(dialog, "slash");
   expect(await computed(app(page), "--acc")).not.toBe(before);
-  await expect(dialog.getByRole("combobox", { name: "Font" })).toBeDisabled();
+  expect(await computed(app(page), "--f-display")).toMatch(/^["']Playfair Display Variable["']/u);
+  await expectStyleControls(page);
   await page.reload();
   await expect(app(page)).toHaveAttribute("data-style", "slash");
   await expect(page.locator("html")).toHaveAttribute("data-style", "slash");
@@ -52,11 +77,6 @@ test("a Style preserves Font and Accent across reloads and Reset look leaves the
     style: "library",
     font: "plex",
     accent: "cobalt",
-    theme: "dark",
-    layout: "list",
-    openAs: "sheet",
-    width: "medium",
-    density: "compact",
   });
   await expect(reloaded.getByRole("combobox", { name: "Font" })).toBeEnabled();
   await expect(reloaded.getByText("Set by the style", { exact: true })).toHaveCount(0);

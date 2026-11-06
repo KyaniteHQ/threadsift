@@ -5,20 +5,24 @@
 
    1. Fixed tokens: type, line heights, spacing, radii, controls, icons,
       layers, motion.
-   2. The look: every option of every look setting (Font, Text size, Text
+   2. The look: every option of every look setting (Style, Font, Text size, Text
       width, Density, Accent, Comment style, Tag style, Card images), picked
       by an attribute on the app's root.
    3. Layouts: List and Grid (data-layout).
    4. Themes: Light, Dark and Sepia (data-theme).
    5. Widths: the breakpoints and grid columns, and the values that change at
       each width (data-bp).
+   6. Styles: the Style blocks come after the Theme and derived-token rules
+      so their fonts and palettes win by source order.
+      --acc is derived only on :root, .app, [data-theme] and [data-accent],
+      so the panel's font reset inherits the Style accent.
 
    Who owns a default. This file owns what each option looks like. Every
    setting's default option is its plain value, declared on :root and on any
    element carrying the setting's attribute, and its block names it in a
    comment (plain: <id>); every other option is a [data-*="<id>"] rule that
    lists only what differs. Which option is the default is owned by the
-   settings table (SETTINGS in design/system/settings.ts), and
+   settings table (SETTINGS in design/system/settings-table.ts), and
    checkDefaults() in e2e/default-tokens.ts confirms that the option the table
    names as default is the one drawn when no attribute is set.
 
@@ -28,8 +32,8 @@
    data-images; and two the app works out: data-reader (pane, page or sheet:
    from the layout, Open items as and the width) and data-bp (every width
    band the app is under: "narrow medium wide full" at 600px). The page's
-   html element carries the same data-theme, so the page background and
-   color-scheme follow the theme past the app's edges.
+   html element carries the same data-theme and data-style, so the page
+   background and color-scheme follow the look past the app's edges.
 
    Per-element variables, set by a component on one element, never on the
    root: --d (a comment's depth, inline style on .cm), --tag-h (a tag's hue,
@@ -233,7 +237,7 @@
 :root, .app, [data-theme], [data-accent] { --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); }
 
 /* Worked out from the inputs above, declared again on every element where an input can
-   change: the accent colour, the body, title, reading and display sizes, and the reading column. */
+   change: the body, title, reading and display sizes, and the reading column. */
 :root, .app, [data-layout], [data-theme], [data-font], [data-size], [data-width], [data-density], [data-accent] {
   --t-body: calc(var(--t-body-base) * var(--tz));
   --t-title: calc(var(--t-title-base) * var(--dz) * var(--tz));
@@ -321,6 +325,7 @@
 .app[data-bp~="narrow"] { --cols: var(--cols-narrow); --reader-pad: var(--s4); --display-x: 0.85; }
 .app[data-bp~="phone"] { --cols: var(--cols-phone); --ctl-h: var(--target); --field-h: var(--target); --seg-h: var(--target); --row-h: var(--target); --dot-hit: var(--target); --link-pad: 13px; --ind: 8px; --ind-max: 16px; --av: 22px; }
 
+/* 6. Styles -------------------------------------------------------------- */
 [data-style="anthropic"] {
   --f-display: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif; --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace; --dw: 400;
@@ -346,7 +351,6 @@
   }
 }
 
-
 [data-style="slash"] {
   --f-display: 'Playfair Display Variable', 'Playfair Display', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace; --dw: 400;
@@ -363,17 +367,14 @@
     --ctl-line: #777a88; --text: #e2e3e9; --muted: #9194a1; --acc: #ffffff; --acc-ink: #cc9166; --on-acc: #08080a;
     --acc-soft: #231c16; --ok: #93bf9b; --warn: #e3a07e; --shadow: 0 0 0 0 transparent;
     --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.2); --scrim: rgba(0, 0, 0, 0.72); --tag-l: 0.72;
-
   }
   &[data-theme="sepia"] {
     color-scheme: light; --bg: #f0e8da; --surface: #f8f2e7; --surface-2: #e6dccb; --line: #d8ccb6; --line-2: #bfb19a;
     --ctl-line: #7d7263; --text: #14110d; --muted: #574e42; --acc: #14110d; --acc-ink: #83502c; --on-acc: #f8f2e7;
     --acc-soft: #eadac4; --ok: #2f6339; --warn: #9c381c; --shadow: 0 0 0 0 transparent;
     --shadow-lg: 0 0 0 1px rgba(20, 17, 13, 0.18); --scrim: rgba(40, 30, 18, 0.42); --tag-l: 0.5;
-
   }
 }
-
 
 [data-style="modal"] {
   --f-display: 'Space Grotesk Variable', 'Space Grotesk', system-ui, sans-serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
@@ -400,7 +401,6 @@
   }
 }
 
-
 [data-style="mymind"] {
   --f-display: 'Playfair Display Variable', 'Playfair Display', Georgia, serif; --f-ui: 'Nunito Variable', 'Nunito', system-ui, sans-serif;
   --f-read: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif; --f-mono: 'DM Mono', ui-monospace, monospace; --dw: 400;
@@ -418,7 +418,6 @@
     --ctl-line: #748297; --text: #f9fafc; --muted: #afb5c1; --acc: #ff5924; --acc-ink: #6aa7ee; --on-acc: #15171b;
     --acc-soft: #3a241d; --ok: #8cc9a0; --warn: #ff9a73; --shadow: 0 0 0 0 transparent;
     --shadow-lg: 0 0 0 1px #2f343c, 0 18px 50px rgba(0, 0, 0, 0.5); --scrim: rgba(0, 0, 0, 0.66); --tag-l: 0.72;
-
   }
   &[data-theme="sepia"] {
     color-scheme: light; --bg: #f3eee2; --surface: #fbf8f1; --surface-2: #e8e1d1; --line: #ddd5c3; --line-2: #c4baa4;
@@ -428,7 +427,6 @@
     --scrim: rgba(50, 40, 30, 0.4); --tag-l: 0.6;
   }
 }
-
 
 [data-style="monocle"] {
   --f-display: 'Spectral', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
@@ -455,7 +453,6 @@
   }
 }
 
-
 [data-style="linear"] {
   --f-display: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace; --dw: 500;
@@ -473,7 +470,6 @@
     --ctl-line: #666a70; --text: #d0d6e0; --muted: #8a8f98; --acc: #e4f222; --acc-ink: #27a644; --on-acc: #08090a;
     --acc-soft: #1d2010; --ok: #4cc26a; --warn: #f08080; --shadow: rgba(0, 0, 0, 0.4) 0px 2px 4px 0px;
     --shadow-lg: rgba(8, 9, 10, 0.6) 0px 4px 32px 0px, 0 0 0 1px #23252a; --scrim: rgba(0, 0, 0, 0.7); --tag-l: 0.7;
-
   }
   &[data-theme="sepia"] {
     color-scheme: light; --bg: #ece6d8; --surface: #f4efe4; --surface-2: #e2dbcb; --line: #d4cbb7; --line-2: #b8ad96;
@@ -483,7 +479,6 @@
     --tag-l: 0.52;
   }
 }
-
 
 [data-style="switch-lit"] {
   --f-display: 'Fraunces Variable', 'Fraunces', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
@@ -509,7 +504,6 @@
     --shadow-lg: 0 0 0 1px #1d1a12; --scrim: rgba(40, 30, 15, 0.4); --tag-l: 0.7;
   }
 }
-
 
 [data-style="cursor"] {
   --f-display: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
@@ -539,7 +533,6 @@
   }
 }
 
-
 [data-style="steep"] {
   --f-display: 'Newsreader Variable', 'Newsreader', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'Roboto Mono Variable', 'Roboto Mono', ui-monospace, monospace; --dw: 400;
@@ -568,7 +561,6 @@
   }
 }
 
-
 [data-style="cal-com"] {
   --f-display: 'Cal Sans', system-ui, sans-serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace; --dw: 400;
@@ -586,7 +578,6 @@
     --ctl-line: #898989; --text: #f4f4f4; --muted: #a3a3a3; --acc: #f4f4f4; --acc-ink: #4db3ff; --on-acc: #101010;
     --acc-soft: #13263a; --ok: #6fd394; --warn: #f7958a; --shadow: rgba(0, 0, 0, 0.4) 0px 4px 8px 0px;
     --shadow-lg: rgba(0, 0, 0, 0.6) 0px 12px 32px 0px, 0 0 0 1px #2b2b2b; --scrim: rgba(0, 0, 0, 0.7); --tag-l: 0.72;
-
   }
   &[data-theme="sepia"] {
     color-scheme: light; --bg: #f2ece1; --surface: #fbf8f2; --surface-2: #e6dfd2; --line: #e3dccf; --line-2: #cbc2b1;

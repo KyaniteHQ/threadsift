@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { DEFAULTS, SETTINGS } from "../design/system/settings.ts";
+import { SETTINGS } from "../design/system/settings-table.ts";
+import { DEFAULTS } from "../design/system/settings.ts";
 import {
   app,
   NON_DEFAULT,

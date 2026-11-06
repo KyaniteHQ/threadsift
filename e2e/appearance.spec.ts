@@ -1,8 +1,18 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { SETTINGS, STORAGE_KEY } from "../design/system/settings.ts";
+import { SETTINGS } from "../design/system/settings-table.ts";
+import { STORAGE_KEY } from "../design/system/settings.ts";
 import { loadFamilies, watchRequests } from "./fonts.ts";
-import { app, openPanel, pickOption, px, storeSettings, computed, titledRow } from "./look.ts";
+import {
+  DESIGN_LIBRARY_LIGHT_BACKGROUND,
+  app,
+  openPanel,
+  pickOption,
+  px,
+  storeSettings,
+  computed,
+  titledRow,
+} from "./look.ts";
 
 const FONT_ROW = SETTINGS.find((row) => row.key === "font");
 
@@ -107,14 +117,34 @@ test("every Font pair's families load from the app's own origin", async ({ page,
 });
 
 const COLD_THEMES = [
-  { stored: { theme: "dark", style: "anthropic" }, scheme: "light", expected: "dark" },
-  { stored: { theme: "system", style: "modal" }, scheme: "dark", expected: "dark" },
-  { stored: { theme: "system", style: "cal-com" }, scheme: "light", expected: "light" },
+  {
+    stored: { theme: "dark", style: "anthropic" },
+    scheme: "light",
+    expected: "dark",
+    expectedStyle: "anthropic",
+  },
+  {
+    stored: { theme: "system", style: "modal" },
+    scheme: "dark",
+    expected: "dark",
+    expectedStyle: "modal",
+  },
+  {
+    stored: { theme: "system", style: "cal-com" },
+    scheme: "light",
+    expected: "light",
+    expectedStyle: "cal-com",
+  },
+  {
+    stored: { theme: "dark", style: "neon" },
+    scheme: "light",
+    expected: "dark",
+    expectedStyle: "library",
+  },
+  { stored: { style: "linear" }, scheme: "light", expected: "light", expectedStyle: "linear" },
 ] as const;
 
-test("stored Theme and Style are on html before the app script runs, and an unreadable store leaves Light", async ({
-  page,
-}) => {
+async function watchInitialPageAttributes(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const watch = new MutationObserver(() => {
       if (document.body !== null) {
@@ -128,11 +158,17 @@ test("stored Theme and Style are on html before the app script runs, and an unre
 
     watch.observe(document, { childList: true, subtree: true });
   });
+}
+
+test("stored Theme and Style are on html before the app script runs, and an unreadable store leaves Light", async ({
+  page,
+}) => {
+  await watchInitialPageAttributes(page);
   await page.goto("/");
   await page.route("**/assets/*.js", (route) => route.abort());
   const html = page.locator("html");
 
-  for (const { stored, scheme, expected } of COLD_THEMES) {
+  for (const { stored, scheme, expected, expectedStyle } of COLD_THEMES) {
     await page.emulateMedia({ colorScheme: scheme });
     await page.evaluate(
       ({ key, value }) => {
@@ -141,12 +177,13 @@ test("stored Theme and Style are on html before the app script runs, and an unre
       { key: STORAGE_KEY, value: JSON.stringify(stored) },
     );
     await page.goto("/");
-    await expect(html, `${stored.theme} on a ${scheme} device`).toHaveAttribute(
+    await expect(html, `${JSON.stringify(stored)} on a ${scheme} device`).toHaveAttribute(
       "data-theme-at-body",
       expected,
     );
     await expect(html).toHaveAttribute("data-theme", expected);
-    await expect(html).toHaveAttribute("data-style-at-body", stored.style);
+    await expect(html).toHaveAttribute("data-style-at-body", expectedStyle);
+    await expect(html).toHaveAttribute("data-style", expectedStyle);
     await expect(page.locator(".app")).toHaveCount(0);
   }
 
@@ -159,7 +196,7 @@ test("stored Theme and Style are on html before the app script runs, and an unre
     );
     await page.goto("/");
     await expect(html, `stored ${value}`).toHaveCSS("color-scheme", "light");
-    await expect(html).toHaveCSS("background-color", "oklch(0.976 0.008 255)");
+    await expect(html).toHaveCSS("background-color", DESIGN_LIBRARY_LIGHT_BACKGROUND);
   }
 });
 

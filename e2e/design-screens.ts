@@ -32,3 +32,12 @@ export async function checkAtEveryWidth(
     await expectNoViolations(page, `${what} at ${width}px`);
   }
 }
+
+export function expectTokenContrast(
+  contrast: readonly Readonly<ReturnType<typeof collectDesign>["contrast"][number]>[],
+  what: string,
+): void {
+  for (const pair of contrast) {
+    expect(pair.ratio, `${what}: ${pair.fg} on ${pair.bg}`).toBeGreaterThanOrEqual(pair.minimum);
+  }
+}

@@ -1,6 +1,6 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { SETTINGS } from "../design/system/settings.ts";
+import { SETTINGS } from "../design/system/settings-table.ts";
 import { afterTwoFrames, app, gear, openPanel, storeSettings } from "./look.ts";
 
 const WIDTHS = [390, 600, 900, 1440, 1920] as const;

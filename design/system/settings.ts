@@ -1,7 +1,6 @@
 import {
   SETTINGS,
   type Option,
-  THEME,
   type SettingKey,
   type SettingRow,
   type Settings,
@@ -88,19 +87,6 @@ export function rootAttributes(
   );
 }
 
-export function resolvedTheme(settings: Settings, deviceIsDark: boolean): string {
-  return resolved(THEME, settings.theme, deviceIsDark);
-}
-
 export function followsDevice(row: SettingRow, id: string): boolean {
   return optionOf(row, id)?.followsDevice !== undefined;
 }
-
-export {
-  GROUPS,
-  SETTINGS,
-  THEME,
-  type SettingKey,
-  type SettingRow,
-  type Settings,
-} from "./settings-table.ts";

@@ -1,6 +1,6 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { SETTINGS } from "../design/system/settings.ts";
+import { SETTINGS } from "../design/system/settings-table.ts";
 import { RESET_NOTE } from "../web/src/text.ts";
 import {
   DESKTOP,

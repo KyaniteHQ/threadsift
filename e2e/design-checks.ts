@@ -71,7 +71,15 @@ export function collectDesign(defaultFont: string) {
       return cached;
     }
 
-    const value = luminance(rgba(palette.getPropertyValue(token)));
+    const color = palette.getPropertyValue(token).trim();
+
+    if (color === "") {
+      found.push(`missing token ${token}`);
+
+      return 0;
+    }
+
+    const value = luminance(rgba(color));
     tokenValues.set(token, value);
 
     return value;

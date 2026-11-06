@@ -7,13 +7,11 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { THEME, type SettingKey, type Settings } from "../../design/system/settings-table.ts";
 import {
   DARK_SCHEME,
   STORAGE_KEY,
   PAGE_SETTINGS,
-  THEME,
-  type SettingKey,
-  type Settings,
   choose,
   followsDevice,
   readStored,
@@ -52,9 +50,11 @@ function deviceIsDark(): boolean {
 
 function usePageAttributes(attributes: Readonly<Record<string, string>>): void {
   useLayoutEffect(() => {
-    for (const [attribute, value] of Object.entries(attributes)) {
-      if (PAGE_SETTINGS.some((row) => row.attribute === attribute)) {
-        document.documentElement.setAttribute(attribute, value);
+    for (const row of PAGE_SETTINGS) {
+      const value = attributes[row.attribute];
+
+      if (value !== undefined) {
+        document.documentElement.setAttribute(row.attribute, value);
       }
     }
   }, [attributes]);

@@ -1,6 +1,6 @@
 import { useRef } from "react";
 
-import type { SettingKey, Settings } from "../../design/system/settings.ts";
+import type { SettingKey, Settings } from "../../design/system/settings-table.ts";
 import { useBands } from "./bands.ts";
 import { useSettings } from "./use-settings.ts";
 

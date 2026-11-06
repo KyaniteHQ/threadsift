@@ -2,13 +2,13 @@ import { type ChangeEvent, useCallback } from "react";
 
 import {
   GROUPS,
-  isSetByStyle,
   SETTINGS,
   type SettingKey,
   type SettingRow,
   type Settings,
   THEME,
-} from "../../design/system/settings.ts";
+} from "../../design/system/settings-table.ts";
+import { isSetByStyle } from "../../design/system/settings.ts";
 import { STYLE_NOTE } from "./text.ts";
 
 const SHOWN_GROUPS = GROUPS.map((group) => ({
@@ -64,7 +64,6 @@ type ChoiceProps = Readonly<{
   name: string;
   checked: boolean;
   disabled: boolean;
-  noteId: string | undefined;
   choose: Choose;
 }>;
 
@@ -73,7 +72,7 @@ function inputIdOf({ name, option }: ChoiceProps): string {
 }
 
 function ChoiceInput(props: ChoiceProps & Readonly<{ label: string | undefined }>) {
-  const { row, option, name, checked, disabled, noteId, choose, label } = props;
+  const { row, option, name, checked, disabled, choose, label } = props;
 
   const pick = useCallback(() => {
     choose(row.key, option.id);
@@ -88,7 +87,6 @@ function ChoiceInput(props: ChoiceProps & Readonly<{ label: string | undefined }
       value={option.id}
       checked={checked}
       disabled={disabled}
-      aria-describedby={noteId}
       aria-label={label}
       onChange={pick}
     />
@@ -136,7 +134,6 @@ function ButtonsControl({ row, value, labelId, noteId, disabled, choose }: Contr
           name={labelId}
           checked={value === option.id}
           disabled={disabled}
-          noteId={noteId}
           choose={choose}
         />
       ))}
