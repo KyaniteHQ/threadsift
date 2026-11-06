@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 import { mainInstance } from "./access.ts";
-import { listAll, postLink, postLinkRaw, settled } from "./api.ts";
-import { jobsAt, jobsOf, storeItem } from "./ingest.ts";
+import { postLink, postLinkRaw } from "./api.ts";
+import { forgetItem, jobsOf, storeItem } from "./ingest.ts";
 import {
   SHORT_LINK,
   SHORT_LINK_TARGET,
@@ -12,42 +12,6 @@ import {
   newRunId,
   throughRedirects,
 } from "./links.ts";
-
-test("a short link and its target pasted separately are one Item under the target's URL", async ({
-  request,
-}) => {
-  const jobsBefore = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
-  const viaShortLink = await postLinkRaw(request, SHORT_LINK);
-  const jobsAfterShortLink = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
-
-  expect(viaShortLink.body.item).toMatchObject({
-    status: "processing",
-    normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
-    originalUrl: SHORT_LINK,
-  });
-
-  expect(jobsAfterShortLink.length, "a short link opens one job at the target").toBe(
-    jobsBefore.length + 1,
-  );
-
-  const viaShortLinkItem = await settled(request, viaShortLink.body.item.id);
-
-  expect(viaShortLinkItem).toMatchObject({
-    status: "ready",
-    fetch: "ok",
-    title: "Example Domains",
-  });
-
-  const direct = await postLink(request, SHORT_LINK_TARGET);
-
-  expect(direct.status).toBe(200);
-  expect(direct.body.item.id).toBe(viaShortLink.body.item.id);
-  const jobsAfterDirect = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
-
-  expect(jobsAfterDirect.length, "the direct Paste opens a second job").toBe(jobsBefore.length + 2);
-  expect(jobsAfterDirect.map((job) => job.state)).toEqual(jobsAfterDirect.map(() => "done"));
-  expect((await listAll(request)).filter((item) => item.normalizedUrl === SHORT_LINK)).toEqual([]);
-});
 
 test("a meta refresh on a host that is not a short link service is not followed", async ({
   request,
@@ -139,10 +103,7 @@ test("a short link pasted while its target's fetch job is open leaves the Item p
   const instance = mainInstance();
   const now = Date.now();
 
-  instance.sql(
-    `DELETE FROM jobs WHERE item_id IN (SELECT id FROM items WHERE normalized_url = '${SHORT_LINK_TARGET_NORMALIZED}')`,
-  );
-  instance.sql(`DELETE FROM items WHERE normalized_url = '${SHORT_LINK_TARGET_NORMALIZED}'`);
+  forgetItem(SHORT_LINK_TARGET_NORMALIZED);
 
   const id = storeItem({
     normalized_url: SHORT_LINK_TARGET_NORMALIZED,

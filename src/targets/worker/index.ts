@@ -8,6 +8,7 @@ import { isApiPath, isDocumentPath } from "../../http/document-path.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 import { configuredSetupCode } from "../shared/setup-code.ts";
 import { workerNetwork } from "./network.ts";
+import { workerPageReader } from "./page-reader.ts";
 
 interface JobMessage {
   readonly body: unknown;
@@ -39,6 +40,7 @@ function portsOf(env: Env): Ports {
   ports ??= {
     db: drizzle(env.DB),
     network: workerNetwork,
+    pages: workerPageReader,
     jobs: {
       enqueue: (jobIds, delayMs) =>
         env.JOBS.sendBatch(

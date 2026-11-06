@@ -1,26 +1,37 @@
 import { Defuddle } from "defuddle/node";
+import { parseHTML } from "linkedom";
+import { z } from "zod";
 
 import { collapsed } from "./format.ts";
 
 const MAX_TEXT_BYTES = 1_000_000;
-const ISO_DATE_START = /^\d{4}-\d{2}-\d{2}/u;
 const ENCODER = new TextEncoder();
 
-export interface Extraction {
-  readonly title: string;
-  readonly author: string | null;
-  readonly words: number;
-  readonly postText: string | null;
-  readonly postedAt: number | null;
-}
+export const ArticleReadingSchema = z.object({
+  title: z.string(),
+  author: z.string().nullable(),
+  words: z.number(),
+  postText: z.string().nullable(),
+  postedAt: z.number().nullable(),
+});
+
+export type ArticleReading = z.infer<typeof ArticleReadingSchema>;
+
+const PublishedSchema = z.union([
+  z.iso.datetime({ offset: true }).transform((value) => Date.parse(value)),
+  z.iso.date().transform((value) => Date.parse(`${value}T00:00:00Z`)),
+]);
+
+const refuseRequests: typeof globalThis.fetch = () =>
+  Promise.reject(new Error("an extractor may not make requests"));
 
 function postedAtOf(published: string): number | null {
-  const time = ISO_DATE_START.test(published) ? Date.parse(published) : Number.NaN;
+  const parsed = PublishedSchema.safeParse(published);
 
-  return Number.isNaN(time) ? null : time;
+  return parsed.success ? parsed.data : null;
 }
 
-export function titleOf(document: Document): string {
+function titleIn(document: Document): string {
   const element = [...document.querySelectorAll("title")].find(
     (each) => each.closest("svg") === null,
   );
@@ -28,14 +39,24 @@ export function titleOf(document: Document): string {
   return collapsed(element?.textContent ?? "");
 }
 
-export async function extractArticle(document: Document, url: string): Promise<Extraction> {
-  const pageTitle = titleOf(document);
+export function readTitle(html: string): string {
+  return titleIn(parseHTML(html).document);
+}
+
+export async function readArticle(html: string, url: string): Promise<ArticleReading> {
+  const { document } = parseHTML(html);
+  const pageTitle = titleIn(document);
 
   for (const media of document.querySelectorAll("video, audio, iframe")) {
     media.remove();
   }
 
-  const result = await Defuddle(document, url, { markdown: true, useAsync: false });
+  const result = await Defuddle(document, url, {
+    markdown: true,
+    useAsync: false,
+    fetch: refuseRequests,
+  });
+
   const postText = result.content.trim();
   const author = result.author.trim();
 

@@ -143,6 +143,12 @@ export async function getItem(db: Database, id: number): Promise<ItemRow | undef
   return item;
 }
 
+export async function getListedItem(db: Database, id: number): Promise<ListedItemRow | undefined> {
+  const [item] = await db.select(LISTED_COLUMNS).from(items).where(eq(items.id, id));
+
+  return item;
+}
+
 export function listItems(db: Database): Promise<ListedItemRow[]> {
   return db.select(LISTED_COLUMNS).from(items).orderBy(desc(items.savedAt), desc(items.id));
 }

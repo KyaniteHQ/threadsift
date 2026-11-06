@@ -2,7 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../design/system/settings.ts";
 import { postLink } from "./api.ts";
-import { ESSAY } from "./articles.ts";
+import { UNTITLED_PAGE } from "./articles.ts";
 import { checkDefaults } from "./default-tokens.ts";
 import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
 import { newRunId, pasteField } from "./links.ts";
@@ -77,7 +77,7 @@ test("the page keeps the design checks at four widths in every theme and accent,
       postLink(page.request, seedUrl(path)),
     ),
     postLink(page.request, "https://example.com/"),
-    postLink(page.request, ESSAY),
+    postLink(page.request, `${UNTITLED_PAGE}?run=${run}`),
   ]);
 
   for (const theme of THEMES) {

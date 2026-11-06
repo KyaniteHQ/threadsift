@@ -16,6 +16,10 @@ const SOURCE_OF_KIND: Readonly<Record<Kind, Source>> = {
   link: "other",
 };
 
+export function sourceOf(kind: Kind): Source {
+  return SOURCE_OF_KIND[kind];
+}
+
 const TRACKING_PARAMS: ReadonlySet<string> = new Set([
   "fbclid",
   "gclid",

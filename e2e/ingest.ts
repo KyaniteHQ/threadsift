@@ -59,6 +59,15 @@ function literal(value: Column): string {
   return text.success ? `'${text.data.replaceAll("'", "''")}'` : String(value);
 }
 
+export function forgetItem(normalizedUrl: string): void {
+  const instance = mainInstance();
+
+  instance.sql(
+    `DELETE FROM jobs WHERE item_id IN (SELECT id FROM items WHERE normalized_url = '${normalizedUrl}')`,
+  );
+  instance.sql(`DELETE FROM items WHERE normalized_url = '${normalizedUrl}'`);
+}
+
 export function storeItem(
   fields: Readonly<Record<string, Column>> & { readonly normalized_url: string },
 ): number {

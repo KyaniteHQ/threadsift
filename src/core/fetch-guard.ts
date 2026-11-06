@@ -11,7 +11,7 @@ import {
 const MAX_REDIRECTS = 20;
 const DEADLINE_REASON = "deadline";
 const REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308]);
-const OTHER_TYPE_CAP_BYTES = 512 * 1024;
+export const SMALL_BODY_BYTES = 512 * 1024;
 const HTML_TYPES: ReadonlySet<string> = new Set(["text/html", "application/xhtml+xml"]);
 const CHARSET = /;\s*charset\s*=\s*"?(?<label>[^";\s]+)/iu;
 
@@ -25,7 +25,8 @@ interface Failed {
 export interface FetchPolicy {
   readonly stopAt: (url: string) => boolean;
   readonly followMetaRefresh: (url: string) => boolean;
-  readonly maxBytes: (url: string) => number;
+  readonly readsBody: (url: string) => boolean;
+  readonly htmlMaxBytes: number;
 }
 
 export interface Page {
@@ -42,6 +43,8 @@ interface Capped {
   readonly bytes: Uint8Array;
   readonly cut: boolean;
 }
+
+const NO_BODY: Capped = { bytes: new Uint8Array(0), cut: false };
 
 type Hop =
   | { readonly kind: "redirect"; readonly location: string }
@@ -114,14 +117,12 @@ async function requestHop(
     }
 
     const html = isHtmlType(response.contentType);
-    const cap = policy.maxBytes(url);
 
-    return {
-      kind: "page",
-      contentType: response.contentType,
-      html,
-      ...(await readCapped(response.body, html ? cap : Math.min(cap, OTHER_TYPE_CAP_BYTES))),
-    };
+    const body = policy.readsBody(url)
+      ? await readCapped(response.body, html ? policy.htmlMaxBytes : SMALL_BODY_BYTES)
+      : NO_BODY;
+
+    return { kind: "page", contentType: response.contentType, html, ...body };
   } catch (error) {
     const deadlineHit = controller.signal.reason === DEADLINE_REASON || deadline.aborted;
 

@@ -18,7 +18,7 @@ export type SaveResult =
     };
 
 export async function fetchItem(id: number): Promise<Item> {
-  return (await parsedFrom("GET", `/api/items/${id}`, ItemResponseSchema)).item;
+  return (await parsedFrom("GET", `/api/items/${id}/status`, ItemResponseSchema)).item;
 }
 
 export async function fetchItems(): Promise<Item[]> {

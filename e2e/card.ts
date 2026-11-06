@@ -163,6 +163,20 @@ export function countListReads(page: Page) {
   };
 }
 
+export function itemReadPaths(page: Page): () => readonly string[] {
+  const paths: string[] = [];
+
+  page.on("request", (request) => {
+    const { pathname } = new URL(request.url());
+
+    if (request.method() === "GET" && /^\/api\/items\/\d/u.test(pathname)) {
+      paths.push(pathname);
+    }
+  });
+
+  return () => paths;
+}
+
 export async function expectClosesAfterSixSeconds(page: Page): Promise<void> {
   await page.clock.fastForward(CLOSE_MS - 2500);
   await expect(pasteCard(page)).toBeVisible();

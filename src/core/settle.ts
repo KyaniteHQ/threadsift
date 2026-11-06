@@ -1,6 +1,7 @@
-import type { Fetched } from "./details.ts";
+import type { Content, Fetched } from "./details.ts";
 import type { FetchResult } from "./fetch-results.ts";
 import type { FailureReason } from "./kinds.ts";
+import { sourceOf } from "./links.ts";
 import type { ItemRow } from "./schema.ts";
 
 type Settled = Pick<ItemRow, "status" | "reason" | "fetch"> &
@@ -11,6 +12,15 @@ type Settled = Pick<ItemRow, "status" | "reason" | "fetch"> &
     >
   >;
 
+function contentFields(content: Readonly<Content>) {
+  return {
+    source: sourceOf(content.kind),
+    kind: content.kind,
+    postText: content.kind === "article" ? content.postText : null,
+    postedAt: content.kind === "article" ? content.postedAt : null,
+  };
+}
+
 export function isRetryable(result: FetchResult): result is Extract<FailureReason, FetchResult> {
   return result === "timeout" || result === "network";
 }
@@ -19,7 +29,15 @@ export function settle(fetched: Readonly<Fetched>, current: string | null, now: 
   if (fetched.status === "ok") {
     const { content, ...found } = fetched.found;
 
-    return { status: "ready", reason: null, fetch: "ok", ...found, ...content, fetchedAt: now };
+    const settled: Settled = {
+      status: "ready",
+      reason: null,
+      fetch: "ok",
+      ...found,
+      fetchedAt: now,
+    };
+
+    return content === null ? settled : { ...settled, ...contentFields(content) };
   }
 
   const result = fetched.status;

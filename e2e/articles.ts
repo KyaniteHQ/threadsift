@@ -1,7 +1,7 @@
 import type { APIRequestContext, TestInfo } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-import { itemOf } from "./api.ts";
+import { getItem, itemOf } from "./api.ts";
 import { attachJson, expectNoStuckItems } from "./card.ts";
 
 export const ESSAY = "https://stephango.com/saw";
@@ -9,9 +9,12 @@ export const ESSAY_NORMALIZED = "https://stephango.com/saw";
 export const ESSAY_SHORT_LINK = "https://is.gd/K2fU2k";
 export const ESSAY_SENTENCE = "the machine wants to cut fingers";
 export const ESSAY_AUTHOR = "Steph Ango";
+export const ESSAY_TITLE = "Use the saw, fear the saw";
+export const ESSAY_POSTED_AT = Date.parse("2025-10-20T00:00:00Z");
 
 export const BREAD = "https://en.wikipedia.org/wiki/Bread";
-export const BREAD_LAST_SECTION_SENTENCE = "sand was used as a filler";
+export const BREAD_LATE_SENTENCE = "sand was used as a filler";
+export const BREAD_POSTED_AT = Date.parse("2002-01-29T04:35:03Z");
 
 export const WAR_AND_PEACE = "https://www.gutenberg.org/files/2600/2600-h/2600-h.htm";
 export const COMPLETE_SHAKESPEARE = "https://www.gutenberg.org/files/100/100-h/100-h.htm";
@@ -21,7 +24,11 @@ export const C2_WIKI_PAGE = "https://wiki.c2.com/?WelcomeVisitors";
 
 export const BIG_PAGE_TIMEOUT_MS = 180_000;
 
-export const BIRD_VOCALIZATION = "https://en.wikipedia.org/wiki/Bird_vocalization";
+export const BIRD_VOCALIZATION =
+  "https://en.wikipedia.org/w/index.php?title=Bird_vocalization&oldid=1380253618";
+
+export const BIRD_VOCALIZATION_FOOTNOTE =
+  "Meet the Kid Who Wowed the Internet With His Incredibly Accurate Bird Calls";
 
 export const BIRD_VOCALIZATION_SENTENCE =
   "are the sounds produced by birds that are melodious to the human ear.";
@@ -31,6 +38,17 @@ export const MDN_VIDEO =
 
 export const MDN_CODE_SAMPLE = '<video controls width="250">';
 export const MDN_INLINE_CODE = "You can use `<video>` for audio content as well";
+
+export const STALLING_PAGE = "https://httpbin.org/drip?duration=10&numbytes=5&code=200";
+export const STALLING_SHORT_LINK = "https://is.gd/3a9eIm";
+
+export const DATE_ONLY_PAGE =
+  "https://matklad.github.io/2023/10/12/lsp-could-have-been-better.html";
+
+export const DATE_ONLY_POSTED_AT = Date.parse("2023-10-12T00:00:00Z");
+
+export const NO_OFFSET_PAGE =
+  "https://jvns.ca/blog/2024/01/05/do-we-think-of-git-commits-as-diffs--snapshots--or-histories/";
 
 export const UNTITLED_PAGE = "https://httpbin.org/html";
 
@@ -51,6 +69,32 @@ export function longPage(run: string): string {
 
 export function rawMediaOutsideCode(postText: string | null): string[] {
   return (postText ?? "").replaceAll(CODE_SPAN, "").match(RAW_MEDIA_TAG) ?? [];
+}
+
+export async function readsWhileProcessing(
+  request: APIRequestContext,
+  watched: number,
+  other: number,
+): Promise<{ readonly reads: number; readonly slowestMs: number }> {
+  let reads = 0;
+  let slowestMs = 0;
+
+  await expect
+    .poll(
+      async () => {
+        const started = performance.now();
+        const { status } = await getItem(request, other);
+        slowestMs = Math.max(slowestMs, performance.now() - started);
+        reads += 1;
+        expect(status, `GET /api/items/${other} while Item ${watched} is read`).toBe(200);
+
+        return (await itemOf(request, watched)).status;
+      },
+      { timeout: BIG_PAGE_TIMEOUT_MS, intervals: [50] },
+    )
+    .not.toBe("processing");
+
+  return { reads, slowestMs };
 }
 
 export async function attachItem(

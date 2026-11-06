@@ -1,8 +1,14 @@
 import { type Fetched, NOT_REQUESTED, detailsOfOembed, detailsOfPage } from "./details.ts";
-import { type FetchPolicy, type GuardOutcome, type Page, guardedFetch } from "./fetch-guard.ts";
+import {
+  type FetchPolicy,
+  type GuardOutcome,
+  type Page,
+  SMALL_BODY_BYTES,
+  guardedFetch,
+} from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
-import type { Network } from "./ports.ts";
+import type { Network, PageReader } from "./ports.ts";
 
 export type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
@@ -10,32 +16,31 @@ export type ShortLinkResolution =
 
 export const FETCH_DEADLINE_MS = 120_000;
 
-const PAGE_CAP_BYTES = 5 * 1024 * 1024;
-const SMALL_CAP_BYTES = 512 * 1024;
-
-const PAGE_POLICY: FetchPolicy = {
+const SMALL_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
   followMetaRefresh: isShortLink,
-  maxBytes: () => PAGE_CAP_BYTES,
+  readsBody: () => true,
+  htmlMaxBytes: SMALL_BODY_BYTES,
 };
 
-const SMALL_POLICY: FetchPolicy = { ...PAGE_POLICY, maxBytes: () => SMALL_CAP_BYTES };
+const RESOLVE_POLICY: FetchPolicy = { ...SMALL_POLICY, readsBody: isShortLink };
 
-const RESOLVE_POLICY: FetchPolicy = {
-  ...PAGE_POLICY,
-  maxBytes: (url) => (isShortLink(url) ? SMALL_CAP_BYTES : 0),
-};
+function pagePolicy({ maxHtmlBytes }: Readonly<PageReader>): FetchPolicy {
+  return { ...SMALL_POLICY, htmlMaxBytes: maxHtmlBytes };
+}
 
-function fetchedOf(
+async function fetchedOf(
   outcome: Readonly<GuardOutcome>,
   readPage: (page: Readonly<Page>) => Promise<Fetched> | Fetched,
   whenStopped: FetchFailure,
 ): Promise<Fetched> {
-  if (outcome.kind === "page") {
-    return Promise.resolve(readPage(outcome));
+  if (outcome.kind !== "page") {
+    return { status: outcome.kind === "stopped" ? whenStopped : outcome.reason };
   }
 
-  return Promise.resolve({ status: outcome.kind === "stopped" ? whenStopped : outcome.reason });
+  const fetched = await readPage(outcome);
+
+  return fetched;
 }
 
 async function fetchedOfOembed(
@@ -53,7 +58,11 @@ async function fetchedOfOembed(
   return fetchedOf(outcome, ({ text }) => detailsOfOembed(text), "unreadable");
 }
 
-export async function fetchLink(network: Network, address: string): Promise<Fetched> {
+export async function fetchLink(
+  network: Network,
+  pages: Readonly<PageReader>,
+  address: string,
+): Promise<Fetched> {
   const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
   const link = parseLink(address);
 
@@ -66,8 +75,8 @@ export async function fetchLink(network: Network, address: string): Promise<Fetc
   }
 
   return fetchedOf(
-    await guardedFetch(network, address, PAGE_POLICY, deadline),
-    (page) => detailsOfPage(page, link),
+    await guardedFetch(network, address, pagePolicy(pages), deadline),
+    (page) => detailsOfPage(pages, page, link),
     "redirect-stopped",
   );
 }

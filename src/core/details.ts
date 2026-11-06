@@ -1,19 +1,15 @@
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
-import { extractArticle, titleOf } from "./article.ts";
 import type { Page } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { collapsed } from "./format.ts";
-import type { Kind, Source } from "./kinds.ts";
 import { type Link, isGitHubLink, isVideoLink } from "./links.ts";
+import type { PageReader } from "./ports.ts";
 
-export interface Content {
-  readonly source: Source;
-  readonly kind: Kind;
-  readonly postText: string | null;
-  readonly postedAt: number | null;
-}
+export type Content =
+  | { readonly kind: "article"; readonly postText: string | null; readonly postedAt: number | null }
+  | { readonly kind: "link" };
 
 export interface Found {
   readonly title: string;
@@ -30,7 +26,7 @@ export const NOT_REQUESTED: Fetched = { status: "not-requested" };
 
 const MIN_ARTICLE_WORDS = 100;
 
-const NOT_AN_ARTICLE: Content = { source: "other", kind: "link", postText: null, postedAt: null };
+const NOT_AN_ARTICLE: Content = { kind: "link" };
 
 const SUBREDDIT_LINK = /^https:\/\/www\.reddit\.com\/r\/(?<name>[^/?#]+)\//u;
 
@@ -58,24 +54,26 @@ function titled(title: string, found: Readonly<Pick<Found, "author" | "content">
     : { status: "ok", found: { title, community: null, ...found } };
 }
 
-export async function detailsOfPage(page: Readonly<Page>, link: Readonly<Link>): Promise<Fetched> {
-  const { document } = parseHTML(page.text);
-
+export async function detailsOfPage(
+  pages: Readonly<PageReader>,
+  page: Readonly<Page>,
+  link: Readonly<Link>,
+): Promise<Fetched> {
   if (link.kind !== "link") {
-    return titled(titleOf(document), { author: null, content: null });
+    return titled(await pages.title(page.text), { author: null, content: null });
   }
 
   if (!isArticleCandidate(page)) {
-    return titled(titleOf(document), { author: null, content: NOT_AN_ARTICLE });
+    return titled(await pages.title(page.text), { author: null, content: NOT_AN_ARTICLE });
   }
 
-  const { title, author, words, postText, postedAt } = await extractArticle(document, page.url);
+  const { title, author, words, postText, postedAt } = await pages.article(page.text, page.url);
 
   return titled(
     title,
     words < MIN_ARTICLE_WORDS
       ? { author: null, content: NOT_AN_ARTICLE }
-      : { author, content: { source: "article", kind: "article", postText, postedAt } },
+      : { author, content: { kind: "article", postText, postedAt } },
   );
 }
 
