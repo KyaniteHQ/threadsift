@@ -1,6 +1,6 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { RETRY_LABEL } from "../web/src/text.ts";
+import { RETRY_LABEL, SAVING_LABEL } from "../web/src/text.ts";
 import { settled } from "./api.ts";
 import {
   ADDED,
@@ -18,7 +18,8 @@ import {
   unreachableUrl,
   watchAnnouncements,
 } from "./card.ts";
-import { newRunId, pasteField, rowOf, titledPage } from "./links.ts";
+import { newRunId, pasteCard, pasteField, rowOf, titledPage } from "./links.ts";
+import { afterTwoFrames } from "./look.ts";
 
 test("a processing row updates in place after a newer Paste replaced its card", async ({
   page,
@@ -73,6 +74,7 @@ test("a row's Try again is a Paste: the card shows, both live regions follow it,
 
   await expect(row.locator(".skel i")).toBeVisible();
   await expect(cardTitle(page)).toHaveText(READING);
+  await pasteCard(page).hover();
   await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
   await expect(alertRegion(page)).toHaveText(`${UNREACHABLE}: ${name}`);
   await expect(row.locator(".it-fail")).toContainText(UNREACHABLE);
@@ -96,18 +98,20 @@ test("a row's Try again pressed while another Paste is saving runs when that Pas
   const row = rowOf(page, id);
   await expect(row.locator(".it-fail")).toContainText(UNREACHABLE, { timeout: 30_000 });
 
+  const mayAnswer = Promise.withResolvers<void>();
+
   await page.route(/\/api\/items$/u, async (route) => {
     if (route.request().method() === "POST") {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 2000);
-      });
+      await mayAnswer.promise;
     }
 
     await route.continue();
   });
 
   await pasteOnly(page, titledPage(`Held ${run}`));
+  await expect(page.getByRole("button", { name: SAVING_LABEL })).toBeDisabled();
   await row.getByRole("button", { name: RETRY_LABEL }).click();
+  mayAnswer.resolve();
 
   await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
   await expect(row.locator(".it-fail")).toContainText(UNREACHABLE);
@@ -117,6 +121,7 @@ async function holdFirstItemRead(page: Page) {
   let taken = false;
   const mayFetch = Promise.withResolvers<void>();
   const wasFetched = Promise.withResolvers<void>();
+  const delivered = Promise.withResolvers<void>();
   const mayRelease = Promise.withResolvers<void>();
 
   await page.route(/\/api\/items\/\d+$/u, async (route) => {
@@ -132,6 +137,7 @@ async function holdFirstItemRead(page: Page) {
     wasFetched.resolve();
     await mayRelease.promise;
     await route.fulfill({ response });
+    delivered.resolve();
   });
 
   return {
@@ -139,6 +145,7 @@ async function holdFirstItemRead(page: Page) {
       mayFetch.resolve();
     },
     wasFetched: wasFetched.promise,
+    delivered: delivered.promise,
     release: () => {
       mayRelease.resolve();
     },
@@ -163,7 +170,8 @@ test("a read that left before a refresh does not overwrite the refresh", async (
   await pasteOnly(page, url);
   await expect(cardTitle(page)).toHaveText(READING);
   held.release();
-  await page.waitForTimeout(500);
+  await held.delivered;
+  await afterTwoFrames(page);
 
   await expect(rowOf(page, id).locator(".skel i")).toBeVisible();
   await expect(rowOf(page, id).locator(".skel")).toHaveCount(0, { timeout: 30_000 });

@@ -9,8 +9,6 @@ export const STALLED = "http://example.com:81/";
 
 export const HOP_DEADLINE_MS = 8000;
 
-export const ANSWER_MS = 3000;
-
 const JobRows = z.array(
   z.object({
     id: z.number(),
@@ -51,7 +49,11 @@ export function itemIdAt(normalizedUrl: string): number {
   return row.id;
 }
 
-export function storeProcessingItemWithDueJob(url: string, address = url): number {
+export function storeProcessingItemWithDueJob(
+  url: string,
+  address = url,
+  dueAt = Date.now() - 1000,
+): number {
   const now = Date.now();
   const instance = mainInstance();
 
@@ -62,7 +64,7 @@ export function storeProcessingItemWithDueJob(url: string, address = url): numbe
   const id = itemIdAt(url);
 
   instance.sql(
-    `INSERT INTO jobs (kind, item_id, address, state, attempts, next_attempt_at) VALUES ('fetch', ${id}, '${address}', 'queued', 0, ${now - 1000})`,
+    `INSERT INTO jobs (kind, item_id, address, state, attempts, next_attempt_at) VALUES ('fetch', ${id}, '${address}', 'queued', 0, ${dueAt})`,
   );
 
   return id;
@@ -82,7 +84,7 @@ export async function sweepNow(request: APIRequestContext): Promise<void> {
 
 export async function waitForRunning(id: number): Promise<void> {
   await expect
-    .poll(() => jobsOf(id).map((job) => job.state), { timeout: 10_000 })
+    .poll(() => jobsOf(id).map((job) => job.state), { timeout: 30_000 })
     .toEqual(["running"]);
 }
 

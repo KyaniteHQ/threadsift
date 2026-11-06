@@ -13,7 +13,7 @@ import {
 } from "./card.ts";
 import { THEMES, checkAtEveryWidth } from "./design-screens.ts";
 import { STALLED } from "./ingest.ts";
-import { dismissButton, newRunId, pasteCard } from "./links.ts";
+import { dismissButton, newRunId, pasteCard, retryButton } from "./links.ts";
 import { app, storeSettings } from "./look.ts";
 
 const WIDTHS = [
@@ -29,6 +29,7 @@ function checkAtFourWidths(page: Page, what: string): Promise<void> {
 
 async function checkHeld(page: Page, url: string, title: string, what: string): Promise<void> {
   await pasteOnly(page, url);
+  await pasteCard(page).hover();
   await expect(cardTitle(page)).toHaveText(title, { timeout: 30_000 });
   await dismissButton(page).focus();
   await checkAtFourWidths(page, what);
@@ -60,7 +61,9 @@ for (const theme of THEMES) {
     await checkAtFourWidths(page, `Reading the link, ${theme}`);
 
     await pasteOnly(page, unreachableUrl(run));
+    await pasteCard(page).hover();
     await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
+    await retryButton(page).focus();
     await checkAtFourWidths(page, `failure with Try again, ${theme}`);
   });
 }

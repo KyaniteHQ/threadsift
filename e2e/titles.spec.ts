@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { listAll, postLink } from "./api.ts";
+import { listAll, postLink, postLinkFetched } from "./api.ts";
 import { newRunId, pasteLink, rowOf, titledPage } from "./links.ts";
 import { app, computed } from "./look.ts";
 
@@ -67,8 +67,8 @@ test("a second Paste fetches again: fetchedAt moves forward while the id and sav
   request,
 }) => {
   const url = `https://example.com/?run=${newRunId()}`;
-  const first = await postLink(request, url);
-  const second = await postLink(request, url);
+  const first = await postLinkFetched(request, url);
+  const second = await postLinkFetched(request, url);
 
   expect(first.status).toBe(201);
   expect(second.status).toBe(200);

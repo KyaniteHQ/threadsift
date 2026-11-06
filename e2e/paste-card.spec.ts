@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { NOTICES, READING_NOTE, RETRY_LABEL } from "../web/src/text.ts";
+import { closeDelayOf, watchCardLife } from "./card-life.ts";
 import {
   ADDED,
   CLOSE_MS,
@@ -43,6 +44,7 @@ test("a slow page shows Reading the link, then Added with its note, and its row 
   const id = await pasteForId(page, `${SLOW_PAGE}?run=${run}`);
 
   await expect(cardTitle(page)).toHaveText(READING);
+  await pasteCard(page).hover();
   await expect(pasteCard(page)).toContainText(READING_NOTE);
   await expect(pasteCard(page).getByRole("button")).toHaveCount(0);
   await expect(rowOf(page, id).locator(".skel i")).toBeVisible();
@@ -69,11 +71,11 @@ test("a host that stalls shows a failure with Try again and Dismiss, and the car
   await seed(page, request, run);
 
   const announced = await watchAnnouncements(page);
+  const life = await watchCardLife(page);
   const id = await pasteForId(page, `${STALLED}?run=${run}`);
   await expect(cardTitle(page)).toHaveText(READING);
 
   await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
-  const shown = Date.now();
   const said = await announced();
   expect(
     said.polite.some((text) => text.startsWith(READING)),
@@ -88,8 +90,11 @@ test("a host that stalls shows a failure with Try again and Dismiss, and the car
   await expect(alertRegion(page)).toContainText(TIMED_OUT);
   await expect(rowOf(page, id).locator(".it-fail")).toContainText(TIMED_OUT);
 
-  await expect(pasteCard(page)).toBeHidden({ timeout: CLOSE_MS + 3000 });
-  expect(Date.now() - shown).toBeGreaterThanOrEqual(CLOSE_MS - 700);
+  await expect(pasteCard(page)).toBeHidden({ timeout: 30_000 });
+  expect(
+    await closeDelayOf(life, "titleAt"),
+    "ms from the failure card showing to its close",
+  ).toBeGreaterThanOrEqual(CLOSE_MS - 50);
   await expect(rowOf(page, id).locator(".it-fail")).toContainText(TIMED_OUT);
 });
 
@@ -100,19 +105,21 @@ test("the failure card holds while hovered, closes 6 s after the pointer leaves,
   test.setTimeout(60_000);
   const run = newRunId();
   const first = await seed(page, request, run);
+  const life = await watchCardLife(page);
 
   const id = await pasteForId(page, unreachableUrl(run));
-  await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
-
   await pasteCard(page).hover();
+  await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
   await page.waitForTimeout(CLOSE_MS + 1500);
   await expect(pasteCard(page)).toBeVisible();
 
   await rowOf(page, first.id).locator("a.it-open").focus();
   await page.locator("h1").hover();
-  const left = Date.now();
-  await expect(pasteCard(page)).toBeHidden({ timeout: CLOSE_MS + 3000 });
-  expect(Date.now() - left).toBeGreaterThanOrEqual(CLOSE_MS - 700);
+  await expect(pasteCard(page)).toBeHidden({ timeout: 30_000 });
+  expect(
+    await closeDelayOf(life, "leftAt"),
+    "ms from the pointer leaving to the close",
+  ).toBeGreaterThanOrEqual(CLOSE_MS - 50);
   await expect(rowOf(page, first.id).locator("a.it-open")).toBeFocused();
   await expect(rowOf(page, id).getByRole("button", { name: RETRY_LABEL })).toBeVisible();
 });
@@ -120,16 +127,19 @@ test("the failure card holds while hovered, closes 6 s after the pointer leaves,
 test("Added closes itself after 6 s and leaves focus where it was", async ({ page, request }) => {
   const run = newRunId();
   const first = await seed(page, request, run);
+  const life = await watchCardLife(page);
 
   await pasteOnly(page, titledPage(`Closes ${run}`));
   await expect(cardTitle(page)).toHaveText(ADDED);
   await expect(pasteCard(page).locator(".ic.tone-ok")).toBeVisible();
-  const shown = Date.now();
   const link = rowOf(page, first.id).locator("a.it-open");
   await link.focus();
 
-  await expect(pasteCard(page)).toBeHidden({ timeout: CLOSE_MS + 3000 });
-  expect(Date.now() - shown).toBeGreaterThanOrEqual(CLOSE_MS - 700);
+  await expect(pasteCard(page)).toBeHidden({ timeout: 30_000 });
+  expect(
+    await closeDelayOf(life, "titleAt"),
+    "ms from Added showing to its close",
+  ).toBeGreaterThanOrEqual(CLOSE_MS - 50);
   await expect(link).toBeFocused();
 });
 

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 import { mainInstance } from "./access.ts";
 import { listAll, listForRun } from "./api.ts";
@@ -14,6 +14,11 @@ import {
   submitLink,
   throughRedirects,
 } from "./links.ts";
+
+async function submitAndHold(page: Page, url: string): Promise<void> {
+  await submitLink(page, url);
+  await pasteCard(page).hover();
+}
 
 function failedLinks(run: string) {
   return [
@@ -36,7 +41,7 @@ test("each failed fetch shows its own notice and the list still shows the saved 
   const field = pasteField(page);
 
   for (const [index, [url, sentence]] of failedLinks(run).entries()) {
-    await submitLink(page, url);
+    await submitAndHold(page, url);
     await expect(pasteStatus(page)).toContainText(sentence, { timeout: 20_000 });
     await expect(alertRegion(page)).toHaveText("");
     await expect(field).toHaveValue("");
@@ -68,12 +73,12 @@ test("a notice about a saved link names that link and offers Try again only when
   const run = newRunId();
   await page.goto("/");
 
-  await submitLink(page, `https://example.com/missing-${run}`);
+  await submitAndHold(page, `https://example.com/missing-${run}`);
   await expect(pasteCard(page)).toContainText("answered with an error", { timeout: 20_000 });
   await expect(pasteCard(page).locator(".ps-url")).toHaveText(`example.com/missing-${run}`);
   await expect(retryButton(page)).toHaveCount(0);
 
-  await submitLink(page, `https://www.no-such-host-${run}.invalid/a`);
+  await submitAndHold(page, `https://www.no-such-host-${run}.invalid/a`);
   await expect(pasteCard(page).locator(".ps-url")).toHaveText(`no-such-host-${run}.invalid/a`);
   await expect(retryButton(page)).toBeVisible({ timeout: 20_000 });
 });
@@ -83,11 +88,10 @@ test("Try again on an unreachable website saves the same link again", async ({ p
   const url = `https://no-such-host-${run}.invalid/`;
   await page.goto("/");
   const field = pasteField(page);
-  await submitLink(page, url);
+  await submitAndHold(page, url);
 
   const tryAgain = retryButton(page);
   await expect(tryAgain).toBeVisible({ timeout: 20_000 });
-  await tryAgain.hover();
 
   const again = page.waitForRequest(
     (sent) => sent.url().endsWith("/api/items") && sent.method() === "POST",
@@ -95,6 +99,7 @@ test("Try again on an unreachable website saves the same link again", async ({ p
 
   await tryAgain.click();
   expect((await again).postDataJSON()).toEqual({ url });
+  await pasteCard(page).hover();
   await expect(pasteCard(page)).toContainText("Couldn’t reach the website", { timeout: 20_000 });
   await expect(alertRegion(page)).toContainText("Couldn’t reach the website");
   await expect(field).toBeFocused();
@@ -106,7 +111,7 @@ test("after a save that worked the field is not marked invalid and still points 
 }) => {
   await page.goto("/");
   const field = pasteField(page);
-  await submitLink(page, `https://example.com/missing-${newRunId()}`);
+  await submitAndHold(page, `https://example.com/missing-${newRunId()}`);
 
   const notice = pasteCard(page);
   await expect(notice).toContainText("answered with an error", { timeout: 20_000 });
@@ -132,7 +137,7 @@ test("a known link whose title cannot be fetched again keeps its title and says 
   await page.goto("/");
   await pasteLink(page, "https://news.ycombinator.com/");
 
-  await submitLink(page, "https://www.news.ycombinator.com/");
+  await submitAndHold(page, "https://www.news.ycombinator.com/");
 
   await expect(pasteStatus(page)).toContainText("the title saved earlier was kept", {
     timeout: 20_000,
@@ -161,7 +166,7 @@ test("a first fetch that fails on an Item saved before the fetch record keeps it
   );
 
   await page.goto("/");
-  await submitLink(page, url);
+  await submitAndHold(page, url);
 
   await expect(pasteCard(page).locator(".ps-title")).toHaveText("Added", { timeout: 30_000 });
   await expect(pasteCard(page)).toContainText("the title saved earlier was kept");

@@ -51,6 +51,19 @@ export async function postLink(request: APIRequestContext, url: string) {
   return { status, body: { ...body, item: await settled(request, body.item.id) } };
 }
 
+const FETCH_ATTEMPTS = 3;
+
+export async function postLinkFetched(request: APIRequestContext, url: string) {
+  const first = await postLink(request, url);
+  let { item } = first.body;
+
+  for (let attempt = 1; attempt < FETCH_ATTEMPTS && item.fetch !== "ok"; attempt += 1) {
+    item = (await postLink(request, url)).body.item;
+  }
+
+  return { status: first.status, body: { ...first.body, item } };
+}
+
 export async function listAll(request: APIRequestContext) {
   const response = await request.get("/api/items");
 

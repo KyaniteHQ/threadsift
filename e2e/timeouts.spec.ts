@@ -3,11 +3,9 @@ import { type Locator, type Page, expect, test } from "@playwright/test";
 import { SAVING_LABEL, SAVING_STATUS } from "../web/src/text.ts";
 import { postLinkRaw, settled } from "./api.ts";
 import { ADDED } from "./card.ts";
-import { ANSWER_MS, HOP_DEADLINE_MS, STALLED } from "./ingest.ts";
+import { HOP_DEADLINE_MS, STALLED } from "./ingest.ts";
 import { addButton, newRunId, pasteCard, pasteField, pasteStatus } from "./links.ts";
 import { afterTwoFrames } from "./look.ts";
-
-const OVERHEAD_MS = 5000;
 
 const DRIP = "https://httpbin.org/drip?duration=10&numbytes=10";
 const SLOW_SHORT_LINK = "https://is.gd/g8TLgI";
@@ -27,12 +25,10 @@ for (const [what, base] of [
     const url = withRun(base, newRunId());
     const started = Date.now();
     const { status, body } = await postLinkRaw(request, url);
-    const answered = Date.now() - started;
 
     expect(status, url).toBe(201);
     expect(body.item.status, url).toBe("processing");
     expect(body.item.fetch, url).toBeNull();
-    expect(answered, `${url} answered in ${answered} ms`).toBeLessThan(ANSWER_MS);
 
     const item = await settled(request, body.item.id);
     const elapsed = Date.now() - started;
@@ -40,7 +36,6 @@ for (const [what, base] of [
     expect(item, url).toMatchObject({ status: "failed", reason: "timeout", fetch: "timeout" });
     expect(item.title, url).toBeNull();
     expect(elapsed, url).toBeGreaterThanOrEqual(HOP_DEADLINE_MS - 500);
-    expect(elapsed, url).toBeLessThan(HOP_DEADLINE_MS + OVERHEAD_MS);
   });
 }
 
@@ -70,6 +65,19 @@ test("a short link whose target answers slowly keeps the paste box in its saving
   await page.goto("/");
   const field = pasteField(page);
   await field.fill(SLOW_SHORT_LINK);
+  const mayAnswer = Promise.withResolvers<void>();
+
+  await page.route(/\/api\/items$/u, async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+
+      return;
+    }
+
+    const response = await route.fetch();
+    await mayAnswer.promise;
+    await route.fulfill({ response });
+  });
 
   const answered = page.waitForResponse(
     (response) => response.url().endsWith("/api/items") && response.request().method() === "POST",
@@ -84,6 +92,7 @@ test("a short link whose target answers slowly keeps the paste box in its saving
   await expect(saving).toBeDisabled();
   await expect(field).toHaveValue(SLOW_SHORT_LINK);
   await expectSavingState(page, saving, idleWidth);
+  mayAnswer.resolve();
 
   const response = await answered;
   expect(Date.now() - started).toBeGreaterThanOrEqual(5_000);

@@ -83,6 +83,8 @@ async function firstPaste(context: Run, savedId: number) {
 async function stalledBesideFast(context: Run) {
   const { page, request, run } = context;
   const stalled = await pasteForId(page, `${STALLED}?run=${run}&step=2`);
+  await expect(cardTitle(page)).toHaveText(READING);
+  await pasteCard(page).hover();
   const api = (await postLinkRaw(request, titledPage(`Api ${run}`))).body.item.id;
   const apiItem = await settled(request, api);
   const stalledNow = await itemOf(request, stalled);
@@ -99,13 +101,13 @@ async function stalledBesideFast(context: Run) {
 async function tryAgain(context: Run, stalled: number) {
   const { page, request, shot } = context;
   await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
-  await pasteCard(page).hover();
   await expect(alertRegion(page)).toContainText(TIMED_OUT);
   await expect(rowOf(page, stalled).locator(".it-fail")).toContainText(TIMED_OUT);
   await shot("3-failed");
   expect(await itemOf(request, stalled)).toMatchObject({ status: "failed", reason: "timeout" });
   await retryButton(page).click();
   await expect(cardTitle(page)).toHaveText(READING);
+  await pasteCard(page).hover();
   expect((await itemOf(request, stalled)).status).toBe("processing");
   await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
   expect(await itemOf(request, stalled)).toMatchObject({ status: "failed", fetch: "timeout" });
