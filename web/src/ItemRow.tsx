@@ -9,6 +9,7 @@ import {
   CARD_TITLES,
   FAILURE_TITLES,
   NO_DIGEST,
+  DIGEST_NOT_UPDATED,
   NEW_TAB_LABEL,
   RETRY_LABEL,
   SOURCE_LABELS,
@@ -72,12 +73,14 @@ function Failed({
 
   return (
     <div className="it-fail">
-      {item.status === "failed" || item.digestTitle === null ? (
-        <p>
-          <Icon name="warn" className="ic ic-s tone-warn" />
-          {item.status === "failed" ? FAILURE_TITLES[item.reason] : NO_DIGEST}
-        </p>
-      ) : null}
+      <p>
+        <Icon name="warn" className="ic ic-s tone-warn" />
+        {item.status === "failed"
+          ? FAILURE_TITLES[item.reason]
+          : item.digestTitle === null
+            ? NO_DIGEST
+            : DIGEST_NOT_UPDATED}
+      </p>
       <button type="button" className="btn" aria-describedby={describedBy} onClick={retry}>
         {RETRY_LABEL}
       </button>
@@ -105,8 +108,19 @@ function Status({
     return <Skeleton />;
   }
 
-  return item.retry === null ? null : (
-    <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
+  return (
+    <div className="it-end">
+      {item.digestTopic === null ? null : (
+        <p className="it-foot">
+          <bdi className="it-topic" dir="auto">
+            {item.digestTopic}
+          </bdi>
+        </p>
+      )}
+      {item.retry === null ? null : (
+        <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
+      )}
+    </div>
   );
 }
 
@@ -162,13 +176,6 @@ export const ItemRow = memo(function ItemRow({
           <span className="vh">{` ${NEW_TAB_LABEL}`}</span>
         </a>
       </h2>
-      {item.digestTopic === null ? null : (
-        <p className="it-foot">
-          <bdi className="it-topic" dir="auto">
-            {item.digestTopic}
-          </bdi>
-        </p>
-      )}
       <Status item={item} describedBy={titleId} tryAgain={tryAgain} />
     </article>
   );

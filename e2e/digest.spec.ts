@@ -2,7 +2,7 @@ import { type TestInfo, expect, test } from "@playwright/test";
 
 import { AI_DEADLINE_MS } from "../src/core/ai-contract.ts";
 import { ItemResponseSchema } from "../src/http/schemas.ts";
-import { NO_DIGEST, NOTICES, RETRY_LABEL } from "../web/src/text.ts";
+import { NO_DIGEST, DIGEST_NOT_UPDATED, NOTICES, RETRY_LABEL } from "../web/src/text.ts";
 import {
   countRows,
   aiJson,
@@ -192,6 +192,7 @@ async function proveKeptDigest(
   });
   await rowShows(kept.id, kept.digestTitle ?? "", kept.digestTopic ?? "");
   await expect(screen.page.getByText(NO_DIGEST, { exact: true })).toHaveCount(0);
+  await expect(screen.page.getByText(DIGEST_NOT_UPDATED, { exact: true })).toBeVisible();
   await expect(screen.page.getByRole("button", { name: RETRY_LABEL, exact: true })).toBeVisible();
   await digestScreens(screen, info, "kept-digest");
   await refuseRetryPost(kept.id);

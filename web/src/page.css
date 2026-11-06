@@ -126,3 +126,7 @@ html {
   margin: 0;
   color: var(--text);
 }
+
+.it-end {
+  grid-area: foot;
+}

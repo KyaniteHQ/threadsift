@@ -126,3 +126,5 @@ export const SOURCE_LABELS: Readonly<Record<Source, string>> = {
 
 export const STYLE_NOTE = "Set by the style";
 export const NO_DIGEST = "No Digest";
+
+export const DIGEST_NOT_UPDATED = "Digest not updated";
