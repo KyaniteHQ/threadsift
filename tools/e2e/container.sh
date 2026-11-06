@@ -65,10 +65,10 @@ logs)
   podman logs "$(<"$2/name")" 2>&1
   ;;
 sql)
-  podman exec -i "$(<"$2/name")" node -e 'const { DatabaseSync } = require("node:sqlite"); new DatabaseSync("/data/threadsift.db").exec(process.argv[1])' "$3"
+  podman exec -i "$(<"$2/name")" node -e 'const { DatabaseSync } = require("node:sqlite"); new DatabaseSync("/data/threadsift.db", { timeout: 5000 }).exec(process.argv[1])' "$3"
   ;;
 query)
-  podman exec -i "$(<"$2/name")" node -e 'const { DatabaseSync } = require("node:sqlite"); console.log(JSON.stringify(new DatabaseSync("/data/threadsift.db").prepare(process.argv[1]).all()))' "$3"
+  podman exec -i "$(<"$2/name")" node -e 'const { DatabaseSync } = require("node:sqlite"); console.log(JSON.stringify(new DatabaseSync("/data/threadsift.db", { timeout: 5000 }).prepare(process.argv[1]).all()))' "$3"
   ;;
 stop)
   [[ -f $2/name ]] || exit 0
