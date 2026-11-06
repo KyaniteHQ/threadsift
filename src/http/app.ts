@@ -3,16 +3,19 @@ import { HTTPException } from "hono/http-exception";
 import type { ZodError } from "zod";
 
 import { itemPath } from "../core/item-path.ts";
-import { listItems, saveItem } from "../core/items.ts";
+import { getItem, listItems, saveItem } from "../core/items.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
 import { guard } from "./guard.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import {
   ErrorResponseSchema,
+  IdParamSchema,
   ItemListResponseSchema,
+  ItemResponseSchema,
   SaveItemRequestSchema,
   SavedItemResponseSchema,
+  itemView,
 } from "./schemas.ts";
 
 const saveItemRoute = createRoute({
@@ -22,11 +25,11 @@ const saveItemRoute = createRoute({
   responses: {
     201: jsonBody(
       SavedItemResponseSchema,
-      "The link was new and is now an Item. `fetch` says whether its title was fetched.",
+      "The link was new and is now an Item. The Item is `processing` until its fetch job ends, and a short link answers with its end state. Read `GET /api/items/{id}` until `status` leaves `processing`.",
     ),
     200: jsonBody(
       SavedItemResponseSchema,
-      "An Item with the same normalized URL already existed. It was looked up again, and fetched when its Source allows.",
+      "An Item with the same normalized URL already existed. It is `processing` again and has a new fetch job, unless a job was already queued or running.",
     ),
     400: jsonBody(
       ErrorResponseSchema,
@@ -43,6 +46,17 @@ const listItemsRoute = createRoute({
   },
 });
 
+const getItemRoute = createRoute({
+  method: "get",
+  path: "/api/items/{id}",
+  request: { params: IdParamSchema },
+  responses: {
+    200: jsonBody(ItemResponseSchema, "The Item, with its status, reason and last fetch result."),
+    404: jsonBody(ErrorResponseSchema, "No Item has this id."),
+  },
+});
+
+const NOT_FOUND = "Not found";
 const REFUSED_HOST = "url: the host is not globally reachable";
 
 function reasonOf(error: ZodError): string {
@@ -57,16 +71,26 @@ function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
     const saved = await saveItem(ports, url);
 
     if (saved.kind === "refused") {
-      return c.json({ error: REFUSED_HOST, fetch: "refused" }, 400);
+      return c.json({ error: REFUSED_HOST, fetch: "refused" as const }, 400);
     }
 
     return c.json(
-      { item: saved.item, url: itemPath(saved.item.id), fetch: saved.fetch },
+      { item: itemView(saved.item), url: itemPath(saved.item.id) },
       saved.created ? 201 : 200,
     );
   });
 
-  app.openapi(listItemsRoute, async (c) => c.json({ items: await listItems(ports.db) }, 200));
+  app.openapi(getItemRoute, async (c) => {
+    const item = await getItem(ports.db, c.req.valid("param").id);
+
+    return item === undefined
+      ? c.json({ error: NOT_FOUND }, 404)
+      : c.json({ item: itemView(item) }, 200);
+  });
+
+  app.openapi(listItemsRoute, async (c) =>
+    c.json({ items: (await listItems(ports.db)).map((row) => itemView(row)) }, 200),
+  );
 }
 
 export function createApp(ports: Ports): OpenAPIHono {
@@ -85,7 +109,7 @@ export function createApp(ports: Ports): OpenAPIHono {
     info: { title: "Threadsift", version: "1" },
   });
 
-  app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
+  app.all("/api/*", (c) => c.json({ error: NOT_FOUND }, 404));
 
   app.onError(async (error, c) => {
     if (error instanceof HTTPException) {

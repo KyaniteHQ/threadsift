@@ -3,6 +3,7 @@ import { hasOwner } from "../../core/owner.ts";
 import type { Database, Ports } from "../../core/ports.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 import { configuredSetupCode } from "../shared/setup-code.ts";
+import { JobLoop } from "./job-loop.ts";
 import { nodeNetwork } from "./network.ts";
 
 const GENERATED_CODE_BYTES = 32;
@@ -22,11 +23,28 @@ async function setupCodeOf(db: Database, configured: string | undefined) {
   return (await hasOwner(db)) ? undefined : printGeneratedCode();
 }
 
-export async function nodePorts(db: Database, setupCode: string | undefined): Promise<Ports> {
-  return {
+interface NodeRuntime {
+  readonly ports: Ports;
+  readonly stop: () => void;
+}
+
+export async function startNode(db: Database, setupCode: string | undefined): Promise<NodeRuntime> {
+  const loop = new JobLoop();
+
+  const ports: Ports = {
     db,
     network: nodeNetwork,
+    jobs: loop.queue,
     crypto: nodeCrypto,
     setupCode: await setupCodeOf(db, configuredSetupCode(setupCode)),
+  };
+
+  await loop.start(ports);
+
+  return {
+    ports,
+    stop: () => {
+      loop.stop();
+    },
   };
 }

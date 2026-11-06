@@ -10,7 +10,7 @@ import {
   SessionStateSchema,
   SetupCodeRequestSchema,
   SetupRequestSchema,
-  TokenIdParamSchema,
+  IdParamSchema,
   TokenListResponseSchema,
 } from "./schemas.ts";
 
@@ -94,7 +94,7 @@ export const listTokensRoute = createRoute({
 export const revokeTokenRoute = createRoute({
   method: "delete",
   path: "/api/tokens/{id}",
-  request: { params: TokenIdParamSchema },
+  request: { params: IdParamSchema },
   responses: {
     204: noContent("The token is revoked and its next use gets 401."),
     404: errorBody("No such token."),

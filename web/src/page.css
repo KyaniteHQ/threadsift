@@ -103,3 +103,26 @@ html {
 .it-ghost .it-title i {
   width: 70%;
 }
+
+[data-layout="list"]:not([data-bp~="medium"]) .paste-row {
+  flex-direction: column;
+}
+
+.it-fail {
+  grid-area: sum;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  padding-top: var(--s2);
+  font-size: var(--t-meta);
+  line-height: var(--lh-label);
+}
+
+.it-fail p {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0;
+  color: var(--text);
+}

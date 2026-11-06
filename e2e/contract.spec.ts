@@ -7,6 +7,7 @@ interface ApiSchema {
   $ref?: string | undefined;
   properties?: Record<string, ApiSchema> | undefined;
   items?: ApiSchema | undefined;
+  oneOf?: ApiSchema[] | undefined;
 }
 
 const SchemaNode: z.ZodType<ApiSchema> = z.lazy(() =>
@@ -14,6 +15,7 @@ const SchemaNode: z.ZodType<ApiSchema> = z.lazy(() =>
     $ref: z.string().optional(),
     properties: z.record(z.string(), SchemaNode).optional(),
     items: SchemaNode.optional(),
+    oneOf: z.array(SchemaNode).optional(),
   }),
 );
 
@@ -31,6 +33,7 @@ const OpenApiDocument = z.looseObject({
       get: Operation,
       post: Operation.extend({ requestBody: Body }),
     }),
+    "/api/items/{id}": z.looseObject({ get: Operation }),
   }),
 });
 
@@ -44,7 +47,14 @@ function resolved(schemas: Schemas, node: ApiSchema): ApiSchema {
 }
 
 function propertyNames(schemas: Schemas, node: ApiSchema): string[] {
-  return Object.keys(resolved(schemas, node).properties ?? {});
+  const { properties, oneOf } = resolved(schemas, node);
+
+  return [
+    ...new Set([
+      ...Object.keys(properties ?? {}),
+      ...(oneOf ?? []).flatMap((branch) => propertyNames(schemas, branch)),
+    ]),
+  ];
 }
 
 function propertyOf(schemas: Schemas, node: ApiSchema, name: string): ApiSchema {
@@ -74,7 +84,17 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   expect(propertyNames(schemas, jsonSchemaOf(items.post.requestBody))).toEqual(["url"]);
 
   const saved = jsonSchemaOf(items.post.responses["201"] ?? { content: {} });
-  expect(propertyNames(schemas, saved)).toEqual(expect.arrayContaining(["item", "url", "fetch"]));
+  expect(propertyNames(schemas, saved).toSorted()).toEqual(["item", "url"]);
+
+  const one = paths["/api/items/{id}"];
+
+  expect(Object.keys(one.get.responses).toSorted()).toEqual(["200", "404"]);
+
+  const single = propertyOf(
+    schemas,
+    jsonSchemaOf(one.get.responses["200"] ?? { content: {} }),
+    "item",
+  );
 
   const listed = propertyOf(
     schemas,
@@ -82,9 +102,17 @@ test("the served OpenAPI document describes the items routes", async ({ request 
     "items",
   );
 
-  for (const item of [propertyOf(schemas, saved, "item"), listed.items ?? {}]) {
+  for (const item of [propertyOf(schemas, saved, "item"), listed.items ?? {}, single]) {
     expect(propertyNames(schemas, item)).toEqual(
-      expect.arrayContaining(["title", "author", "community", "fetchedAt"]),
+      expect.arrayContaining([
+        "title",
+        "author",
+        "community",
+        "fetchedAt",
+        "status",
+        "reason",
+        "fetch",
+      ]),
     );
   }
 });

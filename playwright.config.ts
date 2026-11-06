@@ -12,6 +12,7 @@ const runDir = optionalEnv("THREADSIFT_RUN_DIR");
 export default defineConfig({
   testDir: "e2e",
   workers: 1,
+  expect: { timeout: 30_000 },
   outputDir: runDir === undefined ? "test-results" : join(runDir, "results"),
   preserveOutput: runDir === undefined ? "failures-only" : "always",
   reporter: [

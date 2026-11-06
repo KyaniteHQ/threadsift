@@ -1,6 +1,7 @@
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
-export type Database = BaseSQLiteDatabase<"async", unknown>;
+export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
 
 export const HOP_DEADLINE_MS = 8000;
 
@@ -9,6 +10,10 @@ export interface NetworkResponse {
   readonly location: string | null;
   readonly contentType: string | null;
   readonly body: AsyncIterable<Uint8Array>;
+}
+
+export interface JobQueue {
+  readonly enqueue: (jobIds: readonly number[], delayMs: number) => Promise<void>;
 }
 
 export interface Network {
@@ -42,6 +47,7 @@ export interface Crypto {
 export interface Ports {
   readonly db: Database;
   readonly network: Network;
+  readonly jobs: JobQueue;
   readonly crypto: Crypto;
   readonly setupCode: string | undefined;
 }

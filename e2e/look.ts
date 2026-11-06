@@ -25,6 +25,10 @@ export const HUES = { cobalt: "258", rust: "42", moss: "145", iris: "300", teal:
 
 export const DESKTOP = { width: 1440, height: 900 } as const;
 
+export function viewportAt(page: Page, width: number): Promise<void> {
+  return page.setViewportSize({ width, height: width < 480 ? 640 : 900 });
+}
+
 const TITLED = "Example Domain";
 
 export async function afterTwoFrames(page: Page): Promise<void> {

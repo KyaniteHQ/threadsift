@@ -10,4 +10,10 @@
     "run_worker_first": ["/api/*"],
   },
   "d1_databases": [{ "binding": "DB", "database_name": "threadsift" }],
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "threadsift-jobs" }],
+    "consumers": [{ "queue": "threadsift-jobs", "max_batch_size": 1 }],
+  },
+  "triggers": { "crons": ["* * * * *"] },
+  "limits": { "cpu_ms": 300000 },
 }

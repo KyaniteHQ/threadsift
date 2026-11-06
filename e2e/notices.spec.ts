@@ -1,9 +1,12 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
+import { mainInstance } from "./access.ts";
 import { listAll, listForRun } from "./api.ts";
+import { alertRegion } from "./card.ts";
 import {
   X_POST,
   newRunId,
+  pasteCard,
   pasteField,
   pasteLink,
   pasteStatus,
@@ -12,6 +15,11 @@ import {
   throughRedirects,
 } from "./links.ts";
 
+async function submitAndHold(page: Page, url: string): Promise<void> {
+  await submitLink(page, url);
+  await pasteCard(page).hover();
+}
+
 function failedLinks(run: string) {
   return [
     [`${throughRedirects("http://127.0.0.1:9/", 1)}&run=${run}`, "private network"],
@@ -19,7 +27,6 @@ function failedLinks(run: string) {
     [`${throughRedirects(X_POST, 1)}&run=${run}`, "redirected to Reddit or X"],
     [`https://httpbin.org/redirect/21?run=${run}`, "redirected too many times"],
     [`https://example.com/missing-${run}`, "answered with an error"],
-    [`https://no-such-host-${run}.invalid/`, "Couldn’t reach the website"],
     [`https://httpbin.org/get?run=${run}`, "has no title"],
   ] as const;
 }
@@ -34,9 +41,9 @@ test("each failed fetch shows its own notice and the list still shows the saved 
   const field = pasteField(page);
 
   for (const [index, [url, sentence]] of failedLinks(run).entries()) {
-    await submitLink(page, url);
+    await submitAndHold(page, url);
     await expect(pasteStatus(page)).toContainText(sentence, { timeout: 20_000 });
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(alertRegion(page)).toHaveText("");
     await expect(field).toHaveValue("");
     await expect(page.locator("article.it", { hasText: run })).toHaveCount(index + 1);
   }
@@ -55,7 +62,7 @@ test("a link to a private address shows a notice, keeps the text and saves nothi
   const field = pasteField(page);
   await submitLink(page, "http://127.0.0.1:9/");
 
-  await expect(page.getByRole("alert")).toContainText("can’t be saved");
+  await expect(alertRegion(page)).toContainText("can’t be saved");
   await expect(field).toHaveValue("http://127.0.0.1:9/");
   expect(await listAll(request)).toHaveLength(before);
 });
@@ -66,12 +73,14 @@ test("a notice about a saved link names that link and offers Try again only when
   const run = newRunId();
   await page.goto("/");
 
-  await submitLink(page, `https://example.com/missing-${run}`);
-  await expect(page.locator(".ps .ps-url")).toHaveText(`example.com/missing-${run}`);
+  await submitAndHold(page, `https://example.com/missing-${run}`);
+  await expect(pasteCard(page)).toContainText("answered with an error", { timeout: 20_000 });
+  await expect(pasteCard(page).locator(".ps-url")).toHaveText(`example.com/missing-${run}`);
   await expect(retryButton(page)).toHaveCount(0);
 
-  await submitLink(page, `https://www.no-such-host-${run}.invalid/a`);
-  await expect(page.locator(".ps .ps-url")).toHaveText(`no-such-host-${run}.invalid/a`);
+  await submitAndHold(page, `https://www.no-such-host-${run}.invalid/a`);
+  await expect(pasteCard(page).locator(".ps-url")).toHaveText(`no-such-host-${run}.invalid/a`);
+  await expect(retryButton(page)).toBeVisible({ timeout: 20_000 });
 });
 
 test("Try again on an unreachable website saves the same link again", async ({ page, request }) => {
@@ -79,7 +88,7 @@ test("Try again on an unreachable website saves the same link again", async ({ p
   const url = `https://no-such-host-${run}.invalid/`;
   await page.goto("/");
   const field = pasteField(page);
-  await submitLink(page, url);
+  await submitAndHold(page, url);
 
   const tryAgain = retryButton(page);
   await expect(tryAgain).toBeVisible({ timeout: 20_000 });
@@ -90,7 +99,9 @@ test("Try again on an unreachable website saves the same link again", async ({ p
 
   await tryAgain.click();
   expect((await again).postDataJSON()).toEqual({ url });
-  await expect(pasteStatus(page)).toContainText("Couldn’t reach the website");
+  await pasteCard(page).hover();
+  await expect(pasteCard(page)).toContainText("Couldn’t reach the website", { timeout: 20_000 });
+  await expect(alertRegion(page)).toContainText("Couldn’t reach the website");
   await expect(field).toBeFocused();
   expect(await listForRun(request, run)).toHaveLength(1);
 });
@@ -100,10 +111,10 @@ test("after a save that worked the field is not marked invalid and still points 
 }) => {
   await page.goto("/");
   const field = pasteField(page);
-  await submitLink(page, `https://example.com/missing-${newRunId()}`);
+  await submitAndHold(page, `https://example.com/missing-${newRunId()}`);
 
-  const notice = page.locator(".ps");
-  await expect(notice).toContainText("answered with an error");
+  const notice = pasteCard(page);
+  await expect(notice).toContainText("answered with an error", { timeout: 20_000 });
   await expect(field).toHaveValue("");
   await expect(field).not.toHaveAttribute("aria-invalid", /./u);
   const noticeId = await notice.getAttribute("id");
@@ -126,17 +137,38 @@ test("a known link whose title cannot be fetched again keeps its title and says 
   await page.goto("/");
   await pasteLink(page, "https://news.ycombinator.com/");
 
-  await submitLink(page, "https://www.news.ycombinator.com/");
+  await submitAndHold(page, "https://www.news.ycombinator.com/");
 
   await expect(pasteStatus(page)).toContainText("the title saved earlier was kept", {
     timeout: 20_000,
   });
 
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(pasteCard(page).locator(".ps-title")).toHaveText("Already saved, refreshed");
+  await expect(pasteCard(page)).toContainText("the title saved earlier was kept");
+
+  await expect(alertRegion(page)).toHaveText("");
 
   const kept = (await listAll(request)).filter(
     (item) => item.normalizedUrl === "https://news.ycombinator.com/",
   );
 
   expect(kept.map((item) => item.title)).toEqual(["Hacker News"]);
+});
+
+test("a first fetch that fails on an Item saved before the fetch record keeps its title and says so", async ({
+  page,
+}) => {
+  const run = newRunId();
+  const url = `https://no-such-host-${run}.invalid/migrated`;
+
+  mainInstance().sql(
+    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title, status) VALUES ('other', 'link', 'https://no-such-host-${run}.invalid/migrated', '${url}', ${Date.now()}, 'Saved long ago', 'ready')`,
+  );
+
+  await page.goto("/");
+  await submitAndHold(page, url);
+
+  await expect(pasteCard(page).locator(".ps-title")).toHaveText("Added", { timeout: 30_000 });
+  await expect(pasteCard(page)).toContainText("the title saved earlier was kept");
+  await expect(pasteCard(page).locator(".ic.tone-warn")).toBeVisible();
 });

@@ -182,7 +182,7 @@ The palette is near-white surfaces with a faint cool tint, ink-dark text, and a 
 - **Control line** (`ctl-line`): the edge of buttons, fields, selects and the side buttons, and the ring of an empty unread dot.
 - **Ink** (`text`): all primary text.
 - **Muted ink** (`muted`): metadata, counts, labels, hints and placeholders.
-- **Status** (`ok`, `warn`): the paste card's done and failed tones, used as text colour only.
+- **Status** (`ok`, `warn`): the paste card's done and failed tones, used as text colour only. A saved Item that carries a note, such as a missing title, uses the warn tone and icon instead of the done check.
 
 Dark and Sepia redefine every neutral and the accent's lightness and chroma in `design/system/tokens.css`. Grid tilts the greys toward violet (`--nh`, `--nc`), and Sepia ignores that tilt. Tags take one of eight hues at a fixed chroma (`--tag-c`), shown only as a dot before the name in the default Tag style.
 
@@ -202,7 +202,7 @@ Dark and Sepia redefine every neutral and the accent's lightness and chroma in `
 ### Hierarchy
 - **Display** (`--t-display`: 600, 24px in List and 30px in Grid, 1.15): the wordmark, the reader title and the empty-library heading. It scales to 0.85 under 760px.
 - **Headline** (`--t-h2`: 600, 20px, 1.25): reader section headings such as Original post, Comments and README.
-- **Title** (`--t-title`: 500, 15px at Compact, 1.25): item titles in rows and cards. An unread item's title is 700.
+- **Title** (`--t-title`: 500, 15px at Compact, 1.25): item titles in rows and cards. An unread item's title is 700. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped.
 - **Body** (`--t-read`: 400, 17px at Medium text size, 1.6): post and comment text in the reading column, up to 62 average characters a line at Medium text width (56 Narrow, 68 Wide). The reader's summary and key points use the same size at line height 1.5 (`--lh-text`).
 - **Body list** (400, 13.5px at Compact, 1.45): row and card summaries. Comfortable and Roomy raise it to 14.5px and 15.5px.
 - **Meta** (`--t-meta`: 400, 13px, 1.45): the app's default UI size, for metadata, buttons, filters and bylines.
@@ -235,7 +235,7 @@ The system is flat with tonal layering, plus soft ambient shadows on things that
 
 ### Shadow Vocabulary
 - **Low** (`--shadow`): two soft layers, a 1px contact shadow and a wide faint blur. Grid cards and the sheet's side buttons.
-- **High** (`--shadow-lg`): one deep blur. The settings panel, the reader sheet and the paste card when it floats over the grid.
+- **High** (`--shadow-lg`): one deep blur. The settings panel, the reader sheet and the paste card. The card floats under the paste box in List's sidebar from `--bp-medium` (1080px) up, and under the Grid header from 760px up. Below those widths it sits in the page flow between the paste box and the list, with no shadow, so the list moves down while it shows and no row is ever under it. In the sidebar it adds to the sidebar's scroll height, so a window shorter than the card scrolls the sidebar.
 
 ### Named Rules
 **The Lifted Only Rule.** A shadow means the element sits above the page: a card in the grid or a floating layer. Rows, panes and boxes inside the reader stay flat.

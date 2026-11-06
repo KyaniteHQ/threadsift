@@ -3,8 +3,24 @@ export const KINDS = ["reddit-post", "reddit-comment", "x-post", "github-repo", 
 
 export const THROTTLE_KINDS = ["setup", "login"] as const;
 
+export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
+
+export const FAILURE_REASONS = ["timeout", "network", "gave-up"] as const;
+
+export const JOB_KINDS = ["fetch"] as const;
+
+export const JOB_STATES = ["queued", "running", "done"] as const;
+
 export type Source = (typeof SOURCES)[number];
 
 export type Kind = (typeof KINDS)[number];
 
 export type ThrottleKind = (typeof THROTTLE_KINDS)[number];
+
+export type ItemStatus = (typeof ITEM_STATUSES)[number];
+
+export type FailureReason = (typeof FAILURE_REASONS)[number];
+
+export type JobKind = (typeof JOB_KINDS)[number];
+
+export type JobState = (typeof JOB_STATES)[number];

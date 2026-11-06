@@ -79,7 +79,7 @@ test("a public redirect to a private address saves the Item without a title and 
     links.map(async (url) => {
       const { status, body } = await postLink(request, url);
       expect(status, url).toBe(201);
-      expect(body.fetch, url).toBe("refused");
+      expect(body.item.fetch, url).toBe("refused");
       expect(body.item.title, url).toBeNull();
       expect(body.item.fetchedAt, url).toBeNull();
     }),
@@ -99,7 +99,7 @@ test("a redirect to ftp:// saves the Item without a title and names an unsupport
   );
 
   expect(status).toBe(201);
-  expect(body.fetch).toBe("unsupported");
+  expect(body.item.fetch).toBe("unsupported");
   expect(body.item.title).toBeNull();
 });
 
@@ -123,7 +123,7 @@ test.describe("a name that resolves to a private address", () => {
 
     for (const saved of [direct, redirected]) {
       expect(saved.status).toBe(201);
-      expect(saved.body.fetch).toBe("refused");
+      expect(saved.body.item.fetch).toBe("refused");
       expect(saved.body.item.title).toBeNull();
     }
 

@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import type { RemoteCallback } from "drizzle-orm/sqlite-proxy";
+import type { AsyncBatchRemoteCallback, RemoteCallback } from "drizzle-orm/sqlite-proxy";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
@@ -15,6 +15,20 @@ const SqlParamsSchema = z.array(
 interface OpenDatabase {
   readonly db: Database;
   close(): void;
+}
+
+function inTransaction<T>(sqlite: DatabaseSync, work: () => T): T {
+  sqlite.exec("BEGIN");
+
+  try {
+    const result = work();
+    sqlite.exec("COMMIT");
+
+    return result;
+  } catch (error) {
+    sqlite.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 function applyMigrations(sqlite: DatabaseSync, migrationsDir: string): void {
@@ -36,37 +50,50 @@ function applyMigrations(sqlite: DatabaseSync, migrationsDir: string): void {
     .toSorted();
 
   for (const name of pending) {
-    sqlite.exec("BEGIN");
-
-    try {
+    inTransaction(sqlite, () => {
       sqlite.exec(readFileSync(join(migrationsDir, name), "utf8"));
       sqlite.prepare("INSERT INTO d1_migrations (name) VALUES (?)").run(name);
-      sqlite.exec("COMMIT");
-    } catch (error) {
-      sqlite.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 }
 
+interface RemoteQuery {
+  readonly sql: string;
+  readonly params: readonly unknown[];
+  readonly method: "run" | "all" | "values" | "get";
+}
+
+function execute(sqlite: DatabaseSync, { sql, params, method }: Readonly<RemoteQuery>) {
+  const statement = sqlite.prepare(sql);
+  statement.setReturnArrays(true);
+  const bound = SqlParamsSchema.parse(params);
+
+  if (method === "run") {
+    statement.run(...bound);
+
+    return { rows: [] };
+  }
+
+  if (method === "get") {
+    throw new Error("The sqlite-proxy get method is not supported; use all");
+  }
+
+  return { rows: statement.all(...bound) };
+}
+
+function promised<T>(work: () => T): Promise<T> {
+  return new Promise((resolve) => {
+    resolve(work());
+  });
+}
+
 function proxyTo(sqlite: DatabaseSync): RemoteCallback {
-  return (sql, params, method) => {
-    const statement = sqlite.prepare(sql);
-    statement.setReturnArrays(true);
-    const bound = SqlParamsSchema.parse(params);
+  return (sql, params, method) => promised(() => execute(sqlite, { sql, params, method }));
+}
 
-    if (method === "run") {
-      statement.run(...bound);
-
-      return Promise.resolve({ rows: [] });
-    }
-
-    if (method === "get") {
-      return Promise.reject(new Error("The sqlite-proxy get method is not supported; use all"));
-    }
-
-    return Promise.resolve({ rows: statement.all(...bound) });
-  };
+function batchTo(sqlite: DatabaseSync): AsyncBatchRemoteCallback {
+  return (queries) =>
+    promised(() => inTransaction(sqlite, () => queries.map((query) => execute(sqlite, query))));
 }
 
 export function openDatabase(file: string, migrationsDir: string): OpenDatabase {
@@ -75,7 +102,7 @@ export function openDatabase(file: string, migrationsDir: string): OpenDatabase 
   applyMigrations(sqlite, migrationsDir);
 
   return {
-    db: drizzle(proxyTo(sqlite)),
+    db: drizzle(proxyTo(sqlite), batchTo(sqlite)),
     close: () => {
       sqlite.close();
     },

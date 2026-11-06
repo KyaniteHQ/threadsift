@@ -1,6 +1,6 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
-import { ADD_LABEL, PASTE_LABEL, RETRY_LABEL } from "../web/src/text.ts";
+import { ADD_LABEL, DISMISS_LABEL, PASTE_LABEL, RETRY_LABEL } from "../web/src/text.ts";
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
 const PASTE_TIMEOUT_MS = 20_000;
@@ -83,7 +83,11 @@ export function addButton(page: Page): Locator {
 }
 
 export function retryButton(page: Page): Locator {
-  return page.getByRole("button", { name: RETRY_LABEL });
+  return pasteCard(page).getByRole("button", { name: RETRY_LABEL });
+}
+
+export function dismissButton(page: Page): Locator {
+  return pasteCard(page).getByRole("button", { name: DISMISS_LABEL });
 }
 
 export function rowOf(page: Page, id: number): Locator {
@@ -95,10 +99,15 @@ export async function submitLink(page: Page, url: string): Promise<void> {
   await addButton(page).click();
 }
 
+export function pasteCard(page: Page): Locator {
+  return page.locator(".paste .ps");
+}
+
 export async function pasteLink(page: Page, url: string): Promise<void> {
   await waitForRedditTurnIfNeeded(url);
   await submitLink(page, url);
   await expect(pasteField(page)).toHaveValue("", { timeout: PASTE_TIMEOUT_MS });
+  await expect(pasteCard(page).locator(".ps-acts")).toBeVisible({ timeout: PASTE_TIMEOUT_MS });
 }
 
 export function pasteStatus(page: Page): Locator {

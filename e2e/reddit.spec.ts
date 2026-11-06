@@ -55,7 +55,7 @@ test("one Reddit post pasted 9 ways is one Item, and its comments are Items of t
 
   for (const url of POST_FORMS) {
     const { body } = await postLink(request, url);
-    expect(body.fetch, url).toBe("ok");
+    expect(body.item.fetch, url).toBe("ok");
     expect(body.item.normalizedUrl, url).toBe(POST_URL);
     expect(body.item.title, url).toBe(POST_TITLE);
     ids.add(body.item.id);
@@ -116,7 +116,7 @@ test("a short link to a Reddit post gives the post's Item, and one to an X post 
     title: null,
     fetchedAt: null,
   });
-  expect(x.body.fetch).toBe("not-requested");
+  expect(x.body.item.fetch).toBe("not-requested");
 });
 
 test("an X link whose host ends in a dot is the same Item as without it, and is not requested", async ({
@@ -124,7 +124,7 @@ test("an X link whose host ends in a dot is the same Item as without it, and is 
 }) => {
   const dotted = await postLink(request, "https://x.com./jack/status/20");
 
-  expect(dotted.body.fetch).toBe("not-requested");
+  expect(dotted.body.item.fetch).toBe("not-requested");
   expect(dotted.body.item).toMatchObject({
     source: "x",
     kind: "x-post",

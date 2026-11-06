@@ -134,6 +134,7 @@ a.btn { text-decoration: none; }
   .st-sw { forced-color-adjust: none; }
   .st-sw:has(:checked) { outline: 2px solid CanvasText; outline-offset: 2px; }
   .field:has(input:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; }
+  .skel i { outline: 1px solid CanvasText; }
 }
 
 /* 3. Paste box and paste card -------------------------------------------- */
@@ -154,8 +155,8 @@ a.btn { text-decoration: none; }
 .tone-acc { color: var(--acc-ink); }
 .tone-ok { color: var(--ok); }
 .tone-warn { color: var(--warn); }
-[data-layout="grid"] .paste-card { position: absolute; top: calc(100% + var(--s2)); right: 0; z-index: var(--z-float); width: min(var(--paste-w), 100%); border-radius: var(--r2); box-shadow: var(--shadow-lg); }   /* floats over the grid, which doesn't move */
-[data-layout="grid"][data-bp~="narrow"] .paste-card { position: static; width: auto; box-shadow: none; }   /* under 760px: a full-width row in the page */
+[data-layout="list"]:not([data-bp~="medium"]) .paste-card, [data-layout="grid"]:not([data-bp~="narrow"]) .paste-card { position: absolute; top: calc(100% + var(--s2)); inset-inline: 0; z-index: var(--z-float); box-shadow: var(--shadow-lg); }   /* in the sidebar (List from 1080px) and over the grid (from 760px) the card floats; it keeps to the room left in the window and scrolls */
+[data-layout="grid"]:not([data-bp~="narrow"]) .paste-card { inset-inline: auto 0; width: min(var(--paste-w), 100%); }
 
 /* 4. Filters -------------------------------------------------------------
    rail: segmented Source and Status rows with counts, then Topic and Tags as collapsible
@@ -201,7 +202,7 @@ a.btn { text-decoration: none; }
 .it { position: relative; display: grid; min-width: 0; }
 .it > * { min-width: 0; }
 .it-media { grid-area: media; display: var(--card-media); overflow: hidden; background: var(--surface-2); }   /* the Card images setting; with Off the app renders no picture at all */
-.it-dot { grid-area: dot; position: relative; z-index: calc(var(--z-raise) + 1); display: inline-grid; place-items: center; width: var(--dot-hit); height: var(--dot-hit); padding: 0; border: 0; border-radius: var(--r4); background: transparent; cursor: pointer; }
+.it-dot { grid-area: dot; display: inline-grid; place-items: center; width: var(--dot-hit); height: var(--dot-hit); padding: 0; border: 0; border-radius: var(--r4); background: transparent; cursor: pointer; }
 .it-dot:hover { background: var(--surface-2); }
 .it-dot i { display: block; width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r4); }
 .it.unread .it-dot i { border-color: var(--acc); background: var(--acc); }
@@ -210,6 +211,7 @@ a.btn { text-decoration: none; }
 .it-open { all: unset; cursor: pointer; color: var(--text); font-family: var(--f-display); font-weight: var(--dw-soft); letter-spacing: var(--dls); overflow-wrap: anywhere; }
 .it.unread .it-open { font-weight: var(--dw-strong); }
 .it-open::after { content: ''; position: absolute; inset: 0; z-index: var(--z-raise); }
+.it :is(.btn, button, a):not(.it-open) { position: relative; z-index: calc(var(--z-raise) + 1); }   /* every action in a row sits above the row's stretched link */
 .it:has(.it-open:focus-visible) { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
 .app .it-open:focus-visible { outline: none; }
 .it-sum { grid-area: sum; display: -webkit-box; margin: calc(var(--s1) * var(--k)) 0 0; overflow: hidden; color: var(--muted); font-size: var(--t-body); line-height: var(--lh-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: var(--sum-lines); text-wrap: pretty; }
@@ -219,11 +221,13 @@ a.btn { text-decoration: none; }
 .it-topic { color: var(--text); font-weight: 600; }
 .it-badge { padding: 0 var(--s2); border-radius: var(--r4); background: var(--acc); color: var(--on-acc); font-size: var(--t-label); font-weight: 700; }
 .it.is-back { outline: 2px solid var(--acc); outline-offset: 2px; }
-.it-proc .it-title { font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
+.it-proc .it-title { min-height: calc(var(--t-title) * var(--lh-title)); font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
+.it-link-only .it-title { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.it-link-only .it-open .vh { inset-inline-start: 0; }   /* the hidden text sits at the row's edge, not after the long link, so it adds no sideways scroll */
 .proc-ic { color: var(--acc-ink); }
-.skel { grid-area: sum; display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s2); }
+.skel { grid-area: sum; position: relative; height: 0; }
 .skel i, .it-ghost i { display: block; height: var(--s2); border-radius: var(--r1); background: var(--surface-2); animation: shimmer var(--loop-pulse) ease-in-out infinite; }
-.skel i + i { width: 60%; }
+.skel i { position: absolute; top: var(--s1); width: 60%; height: var(--s1); }
 
 /* rows (List): unread dot on the left, 40px thumbnail on the right, 2-line summary. The open
    row is tinted and carries a 3px bar on its left edge, so it is told apart from a hovered row
@@ -253,7 +257,7 @@ a.btn { text-decoration: none; }
    list pane. Grid, and List under 760px: .lib, the full-width page under the app's root.
    Keeping an item in view scrolls its own pane only (Library.revealInPane), never with
    scrollIntoView, which would also move every scrolling ancestor. */
-.lib { min-width: 0; }
+.lib, .list { min-width: 0; }
 .bg { display: contents; }
 .lib.covered .bg { visibility: hidden; }
 .mast { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }

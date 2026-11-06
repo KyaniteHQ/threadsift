@@ -2,7 +2,7 @@ import { type Page, expect } from "@playwright/test";
 
 import { DEFAULTS } from "../design/system/settings.ts";
 import { collectViolations } from "./design-checks.ts";
-import { app } from "./look.ts";
+import { app, viewportAt } from "./look.ts";
 
 export const BANDS_AT_WIDTH = [
   [390, "phone narrow medium wide full"],
@@ -14,7 +14,7 @@ export const BANDS_AT_WIDTH = [
 export const THEMES = ["light", "dark", "sepia"] as const;
 
 export async function resize(page: Page, width: number, bands: string): Promise<void> {
-  await page.setViewportSize({ width, height: width < 480 ? 640 : 900 });
+  await viewportAt(page, width);
   await expect(app(page)).toHaveAttribute("data-bp", bands);
 }
 
@@ -22,8 +22,12 @@ export async function expectNoViolations(page: Page, what: string): Promise<void
   expect(await page.evaluate(collectViolations, DEFAULTS.font), what).toEqual([]);
 }
 
-export async function checkAtEveryWidth(page: Page, what: string): Promise<void> {
-  for (const [width, bands] of BANDS_AT_WIDTH) {
+export async function checkAtEveryWidth(
+  page: Page,
+  what: string,
+  widths: readonly (readonly [number, string])[] = BANDS_AT_WIDTH,
+): Promise<void> {
+  for (const [width, bands] of widths) {
     await resize(page, width, bands);
     await expectNoViolations(page, `${what} at ${width}px`);
   }

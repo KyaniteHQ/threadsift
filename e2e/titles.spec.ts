@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { listAll, postLink } from "./api.ts";
+import { listAll, postLink, postLinkFetched } from "./api.ts";
 import { newRunId, pasteLink, rowOf, titledPage } from "./links.ts";
 import { app, computed } from "./look.ts";
 
@@ -36,11 +36,11 @@ test("pages served with gzip and with Brotli get their titles", async ({ request
   expect(await encodingOf("https://example.com/")).toBe("br");
 
   const gzip = await postLink(request, GZIP_PAGE);
-  expect(gzip.body.fetch).toBe("ok");
+  expect(gzip.body.item.fetch).toBe("ok");
   expect(gzip.body.item.title).toBe("Wikipedia");
 
   const brotli = await postLink(request, "https://example.com/");
-  expect(brotli.body.fetch).toBe("ok");
+  expect(brotli.body.item.fetch).toBe("ok");
   expect(brotli.body.item.title).toBe("Example Domain");
 });
 
@@ -59,7 +59,7 @@ test("a body is decoded as UTF-8, also when its charset label is unknown", async
   );
 
   expect(unknown.status).toBe(201);
-  expect(unknown.body.fetch).toBe("ok");
+  expect(unknown.body.item.fetch).toBe("ok");
   expect(unknown.body.item.title).toBe(`${UTF8_TITLE} ${run}`);
 });
 
@@ -67,8 +67,8 @@ test("a second Paste fetches again: fetchedAt moves forward while the id and sav
   request,
 }) => {
   const url = `https://example.com/?run=${newRunId()}`;
-  const first = await postLink(request, url);
-  const second = await postLink(request, url);
+  const first = await postLinkFetched(request, url);
+  const second = await postLinkFetched(request, url);
 
   expect(first.status).toBe(201);
   expect(second.status).toBe(200);
