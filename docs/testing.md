@@ -49,3 +49,5 @@ direnv exec . devenv tasks run e2e:container --show-output --input 'args=["--sha
 Omit `--input` to run the whole suite. Use the tasks rather than calling `tools/e2e/*.sh` directly; they build the target and install its dependencies first. Concurrent local runs share build outputs, the image tag, reports, and Reddit request spacing, so run them sequentially.
 
 The gate's shard matrix lives in `.github/workflows/gate.yml`. Each job gets a separate runner and Instance, with one Playwright worker. Playwright 1.64.1 keeps spec files whole and assigns them by active test count, so adding tests can move a file to another shard. The count is chosen by packing measured file durations under those rules, then comparing full job times, including setup, at two adjacent counts. Keep the smaller count that puts both targets' slowest job under 10 minutes. Reports and scenario attachments are uploaded for every shard, with the target and shard in the artifact name.
+
+A docs-only pull request skips the shard jobs and still runs the aggregate gate.
