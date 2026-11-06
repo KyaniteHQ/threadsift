@@ -19,7 +19,7 @@
 
 /* 1. Base ------------------------------------------------------------- */
 .app, .app *, .app *::before, .app *::after { box-sizing: border-box; }
-.vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.vh, .rd-back.bare span, .rd-pos.vh-pos, .rd-bar.icons .rd-act-l { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* The app's root never scrolls (overflow: clip): each pane scrolls itself (section 6). */
 .app { height: var(--vh); overflow: clip; background: var(--bg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); -webkit-font-smoothing: antialiased; }
 .ic { width: var(--ic); height: var(--ic); flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -58,7 +58,7 @@
 .fld-help code { color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); white-space: nowrap; }
 .fld-err { margin: 0; color: var(--warn); font-size: var(--t-meta); font-weight: 500; }
 .field input.mono { font-family: var(--f-mono); font-size: var(--t-code); }
-.cmd { margin: 0; padding: var(--code-pad-y) var(--code-pad-x); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); line-height: var(--lh-code); overflow-wrap: anywhere; white-space: pre-wrap; user-select: all; }
+.cmd { margin: 0; padding: var(--code-pad-y) var(--code-pad-x); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); line-height: var(--lh-code); overflow-wrap: anywhere; white-space: pre-wrap; }
 a.btn { text-decoration: none; }
 .btn-block { align-self: flex-start; }
 .app[data-bp~="phone"] .btn-block { align-self: stretch; }
@@ -118,7 +118,7 @@ a.btn { text-decoration: none; }
 .st-sw:has(:checked) { border-color: var(--text); }
 .st-reset { min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; font-weight: 500; }
 .st-reset:hover { background: var(--surface-2); }
-.st-gear:focus-visible, .st-pop .st-b:has(:focus-visible), .st-sel:focus-visible, .st-sw:has(:focus-visible), .st-reset:focus-visible, .st-close:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.st-pop .st-b:has(:focus-visible), .st-sw:has(:focus-visible) { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
 /* under 760px: a sheet from the bottom; under 480px each label sits above its control */
 .app[data-bp~="narrow"] .st-pop { position: fixed; top: auto; right: 0; bottom: 0; left: 0; width: auto; max-width: none; max-height: 85%; border-width: 1px 0 0; border-radius: var(--r3) var(--r3) 0 0; }
 .app[data-bp~="narrow"] .st-b, .app[data-bp~="narrow"] .st-sel, .app[data-bp~="narrow"] .st-reset { min-height: var(--target); }
@@ -344,7 +344,6 @@ a.btn { text-decoration: none; }
 .rd-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--acc); transform: scaleX(var(--progress)); transform-origin: 0 0; pointer-events: none; }
 .rd-back { padding-left: var(--s2); }
 .rd-back.bare { width: var(--ctl-h); padding: 0; }
-.rd-back.bare span, .rd-pos.vh-pos { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .rd-cm { font-variant-numeric: tabular-nums; }
 .rd-cm.full .rd-cm-ic { display: none; }   /* "Comments 2 of 14" in words; shorter forms get the icon */
 .rd-cm:not(.full) { gap: var(--s1); padding: 0 var(--s2); }
@@ -356,7 +355,6 @@ a.btn { text-decoration: none; }
 .rd-hint-edge { position: sticky; bottom: 0; z-index: var(--z-sticky); margin: 0; padding: var(--s2) var(--reader-pad); border-top: 1px solid var(--line); background: var(--reader-bg); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); line-height: var(--lh-label); text-align: center; }   /* the sheet's key hint, pinned to its bottom edge */
 .rd-bar .st-pop { left: auto; right: var(--reader-pad); }   /* the settings panel opens under the bar's right end */
 .rd-bar.icons .rd-act { width: var(--ctl-h); padding: 0; }
-.rd-bar.icons .rd-act-l { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .rd-bar:not(.icons) .rd-read-ic { display: none; }
 .rd-read-ic circle { fill: none; }
 .rd-read-ic.on circle { fill: currentColor; }
@@ -468,7 +466,6 @@ a.btn { text-decoration: none; }
 /* boxes that scroll sideways (code blocks and wide tables): a fade on the right edge while
    more is hidden (data-more="1" on the wrapper), and a focus ring, so the arrow keys scroll them */
 .md .sxw { position: relative; }
-.md .sx:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
 .md .sxw[data-more="1"]::after { content: ''; position: absolute; top: 1px; right: 1px; bottom: 1px; width: calc(var(--s6) + var(--s4)); border-radius: 0 var(--r2) var(--r2) 0; background: linear-gradient(to right, transparent, var(--fade-to)); pointer-events: none; }
 /* code blocks: one size, scroll sideways, and fold to --code-show lines behind "Show all N
    lines" when longer than 20 lines */
@@ -477,7 +474,6 @@ a.btn { text-decoration: none; }
 .md pre code { white-space: pre; overflow-wrap: normal; }
 .md .code.folded pre { max-height: calc(var(--t-code) * var(--lh-code) * var(--code-show) + var(--code-pad-y) * 2); overflow-y: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 75%, transparent); mask-image: linear-gradient(to bottom, #000 75%, transparent); }
 .md .code-more { min-height: var(--ctl-h); margin-top: var(--s1); padding: 0; border: 0; border-radius: var(--r2); background: transparent; color: var(--acc-ink); cursor: pointer; font-family: var(--f-ui); font-size: var(--t-meta); text-decoration: underline; text-underline-offset: 2px; }
-.md .code-more:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
 /* tables: cells wrap between words only; a table whose words can't fit scrolls sideways */
 .md .tblw { --fade-to: var(--reader-bg); }
 .md .tbl { overflow-x: auto; }
