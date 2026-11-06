@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-const CODE_NAMES = /SETUP_CODE|Setup code:/gu;
+const CODE_NAMES = /SETUP_CODE|PASSWORD_RESET_CODE|Setup code:/gu;
 
 export function CodeText({ text }: Readonly<{ text: string }>) {
   const parts: ReactNode[] = [];

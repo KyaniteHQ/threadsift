@@ -4,6 +4,7 @@ import { runJob, tick } from "../../core/jobs.ts";
 import type { Ports } from "../../core/ports.ts";
 import { createApp } from "../../http/app.ts";
 import { isApiPath, isDocumentPath } from "../../http/document-path.ts";
+import { configuredCode } from "../shared/configured-code.ts";
 import { createWorkerPorts, type Env } from "./ports.ts";
 
 interface JobMessage {
@@ -17,8 +18,13 @@ interface JobBatch {
 
 const JobBodySchema = z.object({ jobId: z.number().int() });
 
+interface ApiApp {
+  readonly resetCode: string | undefined;
+  readonly app: ReturnType<typeof createApp>;
+}
+
 let ports: Promise<Ports> | undefined;
-let app: Promise<ReturnType<typeof createApp>> | undefined;
+let api: ApiApp | undefined;
 
 function portsOf(env: Env): Promise<Ports> {
   ports ??= createWorkerPorts(env);
@@ -26,8 +32,16 @@ function portsOf(env: Env): Promise<Ports> {
   return ports;
 }
 
-function apiApp(env: Env): Promise<ReturnType<typeof createApp>> {
-  app ??= portsOf(env).then((configured) => createApp(configured));
+async function apiApp(env: Env): Promise<ReturnType<typeof createApp>> {
+  const resetCode = configuredCode(env.PASSWORD_RESET_CODE);
+  const built = api;
+
+  if (built !== undefined && built.resetCode === resetCode) {
+    return built.app;
+  }
+
+  const app = createApp({ ...(await portsOf(env)), resetCode });
+  api = { resetCode, app };
 
   return app;
 }

@@ -1,5 +1,3 @@
-import { randomBytes } from "node:crypto";
-
 import {
   LIVE,
   cloudflare,
@@ -10,6 +8,7 @@ import {
   workerSecretNames,
   type Inventory,
 } from "./cloudflare.ts";
+import { newAccessCodes } from "./codes.ts";
 import { type CopyRecord, type DeployedCopy, publish } from "./copy.ts";
 import { ensureDemo } from "./demo.ts";
 import { checkMigrations, migrateAndRecord } from "./live-migrations.ts";
@@ -59,15 +58,15 @@ export function deployLive(
 
     await migrateAndRecord(stage, id, hashes, saveRecord);
 
-    const setupCode = randomBytes(24).toString("base64url");
+    const codes = newAccessCodes();
 
     const url = await publish(
       stage,
-      setupCode,
+      codes,
       workerExists ? await workerSecretNames(stage, LIVE.name) : [],
     );
 
-    await ensureDemo(url, setupCode);
+    await ensureDemo(url, codes);
 
     return { url, record: { databaseId: id, migrations: hashes } };
   });

@@ -45,6 +45,33 @@ test("with no credentials every method and path of the OpenAPI document except t
   expect((await stranger.get("/api/session")).status(), "a public route").toBe(200);
 });
 
+test("the reset route is public and answers by the Instance's state, never 401", async ({
+  stranger,
+}) => {
+  const body = { data: { code: "x".repeat(40), password: "p".repeat(20) } };
+  const answer = await stranger.post("/api/password/reset", body);
+  expect(answer.status(), "no reset code on this Instance").toBe(503);
+  await expectRefusal(answer, 503, "the main Instance has no reset code", "reset-missing");
+
+  const withToken = await stranger.post("/api/password/reset", {
+    ...body,
+    headers: bearer(agentToken()),
+  });
+
+  await expectRefusal(withToken, 503, "a token changes nothing on a public route", "reset-missing");
+
+  const forged = await stranger.post("/api/password/reset", {
+    form: body.data,
+    headers: {
+      ...bearer(agentToken()),
+      origin: "https://evil.example",
+      "sec-fetch-site": "cross-site",
+    },
+  });
+
+  await expectRefusal(forged, 403, "a cross-site form post with an Authorization header");
+});
+
 test("a malformed Authorization header gets 400 and a revoked token gets 401, neither falling back to the cookie", async ({
   request,
   stranger,
@@ -97,6 +124,7 @@ test("a valid token gets 403 on the owner's routes whatever the body, and works 
     ["POST", "/api/tokens"],
     ["DELETE", `/api/tokens/${created.token.id}`],
     ["POST", "/api/logout"],
+    ["POST", "/api/password"],
     ["GET", "/api/tokens/"],
     ["GET", "/api/settings/ai"],
     ["PUT", "/api/settings/ai"],

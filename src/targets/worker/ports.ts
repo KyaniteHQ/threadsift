@@ -2,8 +2,8 @@ import { drizzle } from "drizzle-orm/d1";
 
 import type { Ports } from "../../core/ports.ts";
 import { aiRuntime } from "../shared/ai-runtime.ts";
+import { configuredCode } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
-import { configuredSetupCode } from "../shared/setup-code.ts";
 import { workerNetwork, workerFetch } from "./network.ts";
 import { workerPageReader } from "./page-reader.ts";
 
@@ -16,6 +16,7 @@ export interface Env {
     ) => Promise<void>;
   }>;
   readonly SETUP_CODE?: string;
+  readonly PASSWORD_RESET_CODE?: string;
   readonly THREADSIFT_SECRET_KEY?: string;
   readonly ASSETS: Readonly<{ fetch: (input: Request) => Promise<Response> }>;
 }
@@ -38,6 +39,7 @@ export async function createWorkerPorts(env: Env): Promise<Ports> {
         ),
     },
     crypto: nodeCrypto,
-    setupCode: configuredSetupCode(env.SETUP_CODE),
+    setupCode: configuredCode(env.SETUP_CODE),
+    resetCode: undefined,
   };
 }

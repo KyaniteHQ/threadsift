@@ -1,11 +1,11 @@
 import { useCallback } from "react";
 
 import { Library } from "./Library.tsx";
-import { LoginScreen } from "./LoginScreen.tsx";
 import { type Route, SETTINGS_PATH } from "./routing.ts";
 import type { ScreenState } from "./screens.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import { SetupScreen } from "./SetupScreen.tsx";
+import { SignedOutScreen } from "./SignedOutScreen.tsx";
 import { Unreachable } from "./Unreachable.tsx";
 import type { Look } from "./use-root.ts";
 
@@ -48,7 +48,8 @@ export function Screen({
     case "setup":
       return <SetupScreen problem={screen.problem} refresh={refresh} signedIn={signedIn} />;
     case "login":
-      return <LoginScreen signedIn={signedIn} />;
+    case "reset":
+      return <SignedOutScreen name={screen.name} signedIn={signedIn} navigate={navigate} />;
     case "unreachable":
       return <Unreachable retry={refresh} />;
     case "settings":

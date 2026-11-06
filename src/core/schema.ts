@@ -123,6 +123,11 @@ export const sessions = sqliteTable("sessions", {
   expiresAt: integer("expires_at").notNull(),
 });
 
+export const spentResetCodes = sqliteTable("spent_reset_codes", {
+  digest: text("digest").primaryKey(),
+  spentAt: integer("spent_at").notNull(),
+});
+
 export const agentTokens = sqliteTable("agent_tokens", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),

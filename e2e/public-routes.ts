@@ -3,6 +3,7 @@ const SPECIFIED_PUBLIC = new Set([
   "POST /api/setup/code",
   "POST /api/setup",
   "POST /api/login",
+  "POST /api/password/reset",
 ]);
 
 export function isSpecifiedPublic(method: string, path: string): boolean {

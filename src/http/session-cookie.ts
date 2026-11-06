@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 
 import type { Ports } from "../core/ports.ts";
-import { SESSION_MAX_AGE_SECONDS, checkSession } from "../core/sessions.ts";
+import { SESSION_MAX_AGE_SECONDS, type StartedSession, checkSession } from "../core/sessions.ts";
 
 const COOKIE_NAME = "threadsift_session";
 
@@ -20,6 +20,18 @@ export function sessionIdOf(c: Context): string | undefined {
 
 export function sendSession(c: Context, id: string, maxAge: number): void {
   setCookie(c, COOKIE_NAME, id, { ...ATTRIBUTES, maxAge });
+}
+
+export function startedSession(c: Context, session: StartedSession) {
+  sendSession(c, session.id, session.maxAge);
+
+  return c.body(null, 204);
+}
+
+export function replacedSession(c: Context, session: StartedSession) {
+  c.res.headers.delete("Set-Cookie");
+
+  return startedSession(c, session);
 }
 
 export function clearSession(c: Context): void {

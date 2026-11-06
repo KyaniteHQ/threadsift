@@ -9,8 +9,8 @@ const FIRST_LOCK_MS = 60_000;
 const LONGEST_LOCK_MS = 3_600_000;
 const LAST_DOUBLING = 6;
 
-export type Attempt =
-  | { readonly kind: "ok" }
+export type Attempt<Proof> =
+  | { readonly kind: "ok"; readonly proof: Proof }
   | { readonly kind: "wrong" }
   | { readonly kind: "locked"; readonly retryAfter: number };
 
@@ -46,18 +46,20 @@ async function admit(db: Database, kind: ThrottleKind, now: number): Promise<Adm
     : admit(db, kind, now);
 }
 
-export async function settleAttempt(
+export async function settleAttempt<Proof>(
   db: Database,
   kind: ThrottleKind,
-  verify: () => Promise<boolean>,
-): Promise<Attempt> {
+  verify: () => Promise<Proof | null>,
+): Promise<Attempt<Proof>> {
   const admission = await admit(db, kind, Date.now());
 
   if (!admission.admitted) {
     return { kind: "locked", retryAfter: admission.retryAfter };
   }
 
-  if (!(await verify())) {
+  const proof = await verify();
+
+  if (proof === null) {
     return { kind: "wrong" };
   }
 
@@ -65,5 +67,5 @@ export async function settleAttempt(
     .delete(throttles)
     .where(and(eq(throttles.kind, kind), eq(throttles.failures, admission.number)));
 
-  return { kind: "ok" };
+  return { kind: "ok", proof };
 }
