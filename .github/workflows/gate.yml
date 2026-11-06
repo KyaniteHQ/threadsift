@@ -109,14 +109,14 @@ jobs:
         run: |
           THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
           export THREADSIFT_WRONG_AI_KEY
-          if [[ -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
+          if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
             echo "::notice::The AI cases were skipped: this pull request has no Workers AI token"
             echo "The AI cases were skipped: this pull request has no Workers AI token" >> "$GITHUB_STEP_SUMMARY"
           fi
           mkdir -p "$THREADSIFT_ARTIFACTS"
           status=0
           devenv tasks run e2e:container --show-output --input 'args=["--shard=${{ matrix.shard }}/${{ strategy.job-total }}"]' 2>&1 | tee "$THREADSIFT_ARTIFACTS/runner.log" || status=$?
-          if node tools/check-ai-secrets.ts "$THREADSIFT_ARTIFACTS"; then
+          if node tools/check-ai-secrets.ts "$THREADSIFT_ARTIFACTS" 3; then
             echo "privacy_ok=true" >> "$GITHUB_OUTPUT"
           else
             echo "::error::AI credential artifact scan failed; artifacts withheld"
@@ -155,14 +155,14 @@ jobs:
         run: |
           THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
           export THREADSIFT_WRONG_AI_KEY
-          if [[ -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
+          if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
             echo "::notice::The AI cases were skipped: this pull request has no Workers AI token"
             echo "The AI cases were skipped: this pull request has no Workers AI token" >> "$GITHUB_STEP_SUMMARY"
           fi
           mkdir -p "$THREADSIFT_ARTIFACTS"
           status=0
           devenv tasks run e2e:worker --show-output --input 'args=["--shard=${{ matrix.shard }}/${{ strategy.job-total }}"]' 2>&1 | tee "$THREADSIFT_ARTIFACTS/runner.log" || status=$?
-          if node tools/check-ai-secrets.ts "$THREADSIFT_ARTIFACTS"; then
+          if node tools/check-ai-secrets.ts "$THREADSIFT_ARTIFACTS" 3; then
             echo "privacy_ok=true" >> "$GITHUB_OUTPUT"
           else
             echo "::error::AI credential artifact scan failed; artifacts withheld"

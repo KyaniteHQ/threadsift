@@ -61,19 +61,27 @@ export async function runHttp<Result>(
   } catch (error) {
     if (signal.aborted) return refusedAi("timeout");
 
-    if (
-      error instanceof AiAddressRefused ||
-      (APICallError.isInstance(error) && error.cause instanceof AiAddressRefused)
-    )
-      return refusedAi("refused");
-
-    if (
-      NoObjectGeneratedError.isInstance(error) ||
-      JSONParseError.isInstance(error) ||
-      TypeValidationError.isInstance(error)
-    )
-      return refusedAi("no-json");
-
-    return APICallError.isInstance(error) ? apiRefusal(error.statusCode) : refusedAi("unreachable");
+    return executionRefusal(error);
   }
+}
+
+function executionRefusal(cause: unknown) {
+  if (
+    cause instanceof AiAddressRefused ||
+    (APICallError.isInstance(cause) && cause.cause instanceof AiAddressRefused)
+  )
+    return refusedAi("refused");
+
+  if (APICallError.isInstance(cause) && cause.statusCode !== undefined && cause.statusCode >= 400)
+    return apiRefusal(cause.statusCode);
+  const parseError = APICallError.isInstance(cause) ? cause.cause : cause;
+
+  if (
+    NoObjectGeneratedError.isInstance(cause) ||
+    JSONParseError.isInstance(parseError) ||
+    TypeValidationError.isInstance(parseError)
+  )
+    return refusedAi("no-json", APICallError.isInstance(cause) ? (cause.statusCode ?? null) : null);
+
+  return APICallError.isInstance(cause) ? apiRefusal(cause.statusCode) : refusedAi("unreachable");
 }

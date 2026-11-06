@@ -3,6 +3,7 @@ import { createDecipheriv, randomBytes } from "node:crypto";
 import { type Browser, type Locator, expect } from "@playwright/test";
 import { z } from "zod";
 
+import { DigestSchema } from "../src/core/ai-contract.ts";
 import { PROOF_MODEL, workersAiUrl } from "../tools/workers-ai-proof.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
 import { newCode, newPassword } from "./access.ts";
@@ -174,4 +175,32 @@ export async function aiJson<Result>(
   body?: string,
 ): Promise<Result> {
   return schema.parse(JSON.parse(await aiCall(screen, method, path, body)));
+}
+
+export function readDigestTask(screen: FreshScreen) {
+  const task = screen.fresh.query(
+    "SELECT kind, executor, input_revision AS inputRevision, deadline, state, result, attempts FROM ai_tasks",
+    z.array(
+      z.object({
+        kind: z.string(),
+        executor: z.string(),
+        inputRevision: z.number(),
+        deadline: z.number(),
+        state: z.string(),
+        result: z.string(),
+        attempts: z.number(),
+      }),
+    ),
+  );
+
+  expect(task[0]).toMatchObject({
+    kind: "digest",
+    executor: "http",
+    inputRevision: 1,
+    state: "done",
+    attempts: 1,
+  });
+  expect(task[0]?.deadline ?? 0).toBeGreaterThan(Date.now());
+
+  return DigestSchema.parse(JSON.parse(task[0]?.result ?? "null"));
 }

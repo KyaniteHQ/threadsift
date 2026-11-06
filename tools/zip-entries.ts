@@ -26,8 +26,12 @@ function entryBytes(zip: ZipData, offset: number, directory: number): Buffer {
   const size = zip.readUInt32LE(offset + 24);
   const local = zip.readUInt32LE(offset + 42);
 
-  if ((zip.readUInt16LE(offset + 8) & 1) !== 0 || [compressed, size, local].includes(0xffffffff))
-    throw new Error("Encrypted and ZIP64 entries are unsupported");
+  if (
+    zip.readUInt16LE(offset + 34) !== 0 ||
+    (zip.readUInt16LE(offset + 8) & 1) !== 0 ||
+    [compressed, size, local].includes(0xffffffff)
+  )
+    throw new Error("Split, encrypted and ZIP64 entries are unsupported");
 
   if (zip.readUInt32LE(local) !== LOCAL_SIGNATURE || zip.readUInt16LE(local + 8) !== method)
     throw new Error("ZIP local header disagrees with directory");

@@ -2,7 +2,6 @@ import { type TestInfo, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import {
-  DigestSchema,
   AiSettingsViewSchema,
   AiSaveResponseSchema,
   VerifyResultSchema,
@@ -22,6 +21,7 @@ import {
   openSealed,
   expectDigest,
   pressKeepingFocus,
+  readDigestTask,
 } from "./ai.ts";
 import { type FreshScreen } from "./fresh-screen.ts";
 
@@ -128,14 +128,7 @@ async function verifyDigest(info: TestInfo): Promise<void> {
   });
   expect(countRows(screen, "items")).toBe(0);
 
-  const task = screen.fresh.query(
-    "SELECT state, result, attempts FROM ai_tasks",
-    z.array(z.object({ state: z.string(), result: z.string(), attempts: z.number() })),
-  );
-
-  expect(task[0]?.state).toBe("done");
-  expect(task[0]?.attempts).toBe(1);
-  const digest = DigestSchema.parse(JSON.parse(task[0]?.result ?? "null"));
+  const digest = readDigestTask(screen);
   expectDigest(digest);
   await info.attach("digest", { body: JSON.stringify(digest), contentType: "application/json" });
 }
