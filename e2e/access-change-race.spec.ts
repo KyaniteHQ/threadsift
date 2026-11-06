@@ -141,12 +141,16 @@ test("two changes started together leave one password and one session", async ()
   });
 });
 
+function ageSession(value: string): void {
+  fresh.sql(
+    `UPDATE sessions SET expires_at = ${Date.now() + 10 * DAY_MS} WHERE digest = '${sha256Hex(value)}'`,
+  );
+}
+
 test("a change from a session old enough to be renewed sets one cookie, and a failed batch leaves everything as it was", async () => {
   const owner = await signInWith(fresh.url, password);
   const stranger = await strangers.at(fresh.url);
-  fresh.sql(
-    `UPDATE sessions SET expires_at = ${Date.now() + 10 * DAY_MS} WHERE digest = '${sha256Hex(owner.value)}'`,
-  );
+  ageSession(owner.value);
   const hashBefore = ownerHashDigest(fresh);
   const sessionsBefore = storedSessions(fresh);
   const next = newPassword();
@@ -166,6 +170,7 @@ test("a change from a session old enough to be renewed sets one cookie, and a fa
     fresh.sql("DROP TRIGGER refuse_session_write");
   }
 
+  ageSession(owner.value);
   const retry = await changeCall(owner.api, owner.headers, password, next);
   expect(retry.status(), "the retry once the trigger is gone").toBe(204);
   password = next;
@@ -173,5 +178,28 @@ test("a change from a session old enough to be renewed sets one cookie, and a fa
   expect(cookies, "one session cookie, not the renewal and the new one").toHaveLength(1);
   expect(cookieValueOf(cookies)).not.toBe(owner.value);
   expect(storedSessions(fresh)).toEqual([sha256Hex(cookieValueOf(cookies))]);
+  await owner.api.dispose();
+});
+
+test("a session revoked after the guard let the call in gets 409 while the password is unchanged", async () => {
+  const owner = await signInWith(fresh.url, password);
+  const hashBefore = ownerHashDigest(fresh);
+  const next = newPassword();
+
+  fresh.sql(
+    "CREATE TRIGGER session_revoked AFTER DELETE ON throttles WHEN OLD.kind = 'login' BEGIN DELETE FROM sessions; END",
+  );
+
+  try {
+    const change = await changeCall(owner.api, owner.headers, password, next);
+    await expectRefusal(change, 409, "a change whose session ended mid-call", "password-changed");
+    expect(setCookieLines(change), "no cookie").toEqual([]);
+    expect(ownerHashDigest(fresh), "the password is the old one").toBe(hashBefore);
+    expect(storedSessions(fresh), "no session was started").toEqual([]);
+  } finally {
+    fresh.sql("DROP TRIGGER session_revoked");
+  }
+
+  expect((await signInWith(fresh.url, password)).value, "the old password works").not.toBe("");
   await owner.api.dispose();
 });
