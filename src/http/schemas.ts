@@ -1,7 +1,13 @@
 import { z } from "zod";
 
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
-import { FAILURE_REASONS, KINDS, type FailureReason, SOURCES } from "../core/kinds.ts";
+import {
+  DIGEST_OUTCOMES,
+  FAILURE_REASONS,
+  KINDS,
+  type FailureReason,
+  SOURCES,
+} from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
 
@@ -15,6 +21,9 @@ const ItemBaseSchema = z.object({
   originalUrl: HttpUrlSchema,
   savedAt: z.number().int(),
   title: z.string().nullable(),
+  digestTitle: z.string().nullable(),
+  digestTopic: z.string().nullable(),
+  digestOutcome: z.enum(DIGEST_OUTCOMES),
   author: z.string().nullable(),
   community: z.string().nullable(),
   fetchedAt: z.number().int().nullable(),
@@ -22,10 +31,25 @@ const ItemBaseSchema = z.object({
 });
 
 function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.ZodObject<Fields>) {
-  return z.discriminatedUnion("status", [
-    base.extend({ status: z.literal("failed"), reason: z.enum(FAILURE_REASONS) }),
-    base.extend({ status: z.literal("processing"), reason: z.null() }),
-    base.extend({ status: z.literal("ready"), reason: z.null() }),
+  return z.union([
+    base.extend({
+      status: z.literal("failed"),
+      reason: z.enum(FAILURE_REASONS),
+      retry: z.literal("paste"),
+    }),
+    base.extend({ status: z.literal("processing"), reason: z.null(), retry: z.null() }),
+    base.extend({
+      status: z.literal("ready"),
+      reason: z.null(),
+      retry: z.literal("digest"),
+      digestOutcome: z.literal("failed"),
+    }),
+    base.extend({
+      status: z.literal("ready"),
+      reason: z.null(),
+      retry: z.null(),
+      digestOutcome: z.literal("none"),
+    }),
   ]);
 }
 
@@ -105,25 +129,49 @@ export type Token = z.infer<typeof TokenSchema>;
 export type Item = z.infer<typeof ItemSchema>;
 
 type StatusFields =
-  | { readonly status: "failed"; readonly reason: FailureReason }
-  | { readonly status: "processing" | "ready"; readonly reason: null };
+  | { readonly status: "failed"; readonly reason: FailureReason; readonly retry: "paste" }
+  | { readonly status: "processing"; readonly reason: null; readonly retry: null }
+  | {
+      readonly status: "ready";
+      readonly reason: null;
+      readonly retry: "digest";
+      readonly digestOutcome: "failed";
+    }
+  | {
+      readonly status: "ready";
+      readonly reason: null;
+      readonly retry: null;
+      readonly digestOutcome: "none";
+    };
 
-type StatusRow = Pick<ItemRow, "id" | "status" | "reason">;
+type StatusRow = Pick<ItemRow, "id" | "status" | "reason"> & {
+  readonly digestOutcome: (typeof DIGEST_OUTCOMES)[number];
+};
 
-function statusOf({ id, status, reason }: Readonly<StatusRow>): StatusFields {
+function statusOf(item: Readonly<StatusRow>): StatusFields {
+  const { id, status, reason } = item;
+
   if (status === "failed") {
     if (reason === null) {
       throw new Error(`Item ${String(id)} is failed and has no reason`);
     }
 
-    return { status, reason };
+    return { status, reason, retry: "paste" };
   }
 
   if (reason !== null) {
     throw new Error(`Item ${String(id)} is ${status} and has the reason ${reason}`);
   }
 
-  return { status, reason };
+  if (status === "processing") return { status, reason, retry: null };
+
+  if (item.digestOutcome === "pending") {
+    throw new Error(`Item ${String(id)} is ready and its Digest is pending`);
+  }
+
+  return item.digestOutcome === "failed"
+    ? { status, reason, retry: "digest", digestOutcome: "failed" }
+    : { status, reason, retry: null, digestOutcome: "none" };
 }
 
 export function itemView<Row extends StatusRow>(

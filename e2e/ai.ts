@@ -204,3 +204,14 @@ export function readDigestTask(screen: FreshScreen) {
 
   return DigestSchema.parse(JSON.parse(task[0]?.result ?? "null"));
 }
+
+export function hasAiCredentials(): boolean {
+  return (
+    (process.env["CLOUDFLARE_WORKERS_AI_TOKEN"] ?? "") !== "" &&
+    (process.env["CLOUDFLARE_ACCOUNT_ID"] ?? "") !== ""
+  );
+}
+
+export function wrongAiKey(): string {
+  return process.env["THREADSIFT_WRONG_AI_KEY"] ?? newSealingKey();
+}

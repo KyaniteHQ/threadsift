@@ -8,7 +8,14 @@ import {
 } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { type SaveResult, fetchItem, fetchItems, saveLink } from "./api.ts";
+import {
+  type SaveTarget,
+  type SaveResult,
+  fetchItem,
+  fetchItems,
+  regenerateDigest,
+  saveLink,
+} from "./api.ts";
 
 export type ListState =
   | { readonly status: "loading"; readonly saved: readonly Item[] }
@@ -16,6 +23,8 @@ export type ListState =
   | { readonly status: "ready"; readonly items: readonly Item[]; readonly loadedAt: number };
 
 const POLL_MS = 1000;
+const SLOW_POLL_MS = 5000;
+const FAST_POLLS = 10;
 
 type SetList = Dispatch<SetStateAction<ListState>>;
 
@@ -62,6 +71,16 @@ function processingIds(list: Readonly<ListState>): string {
     .join(",");
 }
 
+function scheduleRead(reads: number, pause: () => void, read: () => Promise<void>): number {
+  return window.setTimeout(
+    () => {
+      if (document.hidden) pause();
+      else void read();
+    },
+    reads < FAST_POLLS ? POLL_MS : SLOW_POLL_MS,
+  );
+}
+
 function pollItem(
   id: number,
   onRead: (item: Readonly<Item>, startedAt: number) => void,
@@ -69,18 +88,20 @@ function pollItem(
   let timer = 0;
   let stopped = false;
   let paused = false;
+  let reads = 0;
 
   const schedule = (): void => {
-    timer = window.setTimeout(() => {
-      if (document.hidden) {
+    timer = scheduleRead(
+      reads,
+      () => {
         paused = true;
-      } else {
-        void read();
-      }
-    }, POLL_MS);
+      },
+      read,
+    );
   };
 
   const read = async (): Promise<void> => {
+    reads += 1;
     const startedAt = performance.now();
     const item = await fetchItem(id).catch(() => null);
 
@@ -134,23 +155,30 @@ function usePolling(
   }, [isFresh, key, setList]);
 }
 
-export function useLibrary() {
-  const [list, setList] = useState<ListState>({ status: "loading", saved: [] });
-  const savedAt = useRef(new Map<number, number>());
+function failedList(current: ListState): ListState {
+  return { status: "failed", saved: knownItems(current) };
+}
 
-  const load = useCallback(
+function useLoad(setList: SetList) {
+  return useCallback(
     () =>
       fetchItems()
         .then(
           (items) =>
             (current: ListState): ListState =>
               loaded(current, items),
-          () =>
-            (current: ListState): ListState => ({ status: "failed", saved: knownItems(current) }),
+          () => failedList,
         )
         .then(setList),
-    [],
+    [setList],
   );
+}
+
+export function useLibrary() {
+  const [list, setList] = useState<ListState>({ status: "loading", saved: [] });
+  const savedAt = useRef(new Map<number, number>());
+
+  const load = useLoad(setList);
 
   const isFresh = useCallback(
     (id: number, startedAt: number) => startedAt > (savedAt.current.get(id) ?? 0),
@@ -168,16 +196,31 @@ export function useLibrary() {
     void load();
   }, [load]);
 
-  const save = useCallback(async (url: string): Promise<SaveResult> => {
-    const result = await saveLink(url);
-
-    if (result.outcome === "saved") {
-      savedAt.current.set(result.item.id, performance.now());
-      setList((current) => withItem(current, result.item));
-    }
-
-    return result;
+  const markSaved = useCallback((id: number) => {
+    savedAt.current.set(id, performance.now());
   }, []);
+
+  const save = useCallback(
+    async (target: SaveTarget): Promise<SaveResult> => {
+      const result: SaveResult =
+        target.kind === "paste"
+          ? await saveLink(target.url)
+          : {
+              outcome: "saved",
+              known: true,
+              refreshed: false,
+              item: await regenerateDigest(target.id),
+            };
+
+      if (result.outcome === "saved") {
+        markSaved(result.item.id);
+        setList((current) => withItem(current, result.item));
+      }
+
+      return result;
+    },
+    [markSaved],
+  );
 
   return { list, save, retry };
 }

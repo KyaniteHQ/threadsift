@@ -5,7 +5,15 @@ import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { revealInPane } from "./reveal.ts";
 import { savedLabel } from "./saved-label.ts";
-import { CARD_TITLES, FAILURE_TITLES, NEW_TAB_LABEL, RETRY_LABEL, SOURCE_LABELS } from "./text.ts";
+import {
+  CARD_TITLES,
+  FAILURE_TITLES,
+  NO_DIGEST,
+  DIGEST_NOT_UPDATED,
+  NEW_TAB_LABEL,
+  RETRY_LABEL,
+  SOURCE_LABELS,
+} from "./text.ts";
 
 function withoutScheme(url: string): string {
   return url.replace(/^https?:\/\//u, "");
@@ -55,7 +63,7 @@ function Failed({
   describedBy,
   tryAgain,
 }: Readonly<{
-  item: Extract<Item, { status: "failed" }>;
+  item: Exclude<Item, { retry: null }>;
   describedBy: string;
   tryAgain: (item: Item) => void;
 }>) {
@@ -67,7 +75,11 @@ function Failed({
     <div className="it-fail">
       <p>
         <Icon name="warn" className="ic ic-s tone-warn" />
-        {FAILURE_TITLES[item.reason]}
+        {item.status === "failed"
+          ? FAILURE_TITLES[item.reason]
+          : item.digestTitle === null
+            ? NO_DIGEST
+            : DIGEST_NOT_UPDATED}
       </p>
       <button type="button" className="btn" aria-describedby={describedBy} onClick={retry}>
         {RETRY_LABEL}
@@ -96,9 +108,20 @@ function Status({
     return <Skeleton />;
   }
 
-  return item.status === "failed" ? (
-    <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
-  ) : null;
+  return (
+    <div className="it-end">
+      {item.digestTopic === null ? null : (
+        <p className="it-foot">
+          <bdi className="it-topic" dir="auto">
+            {item.digestTopic}
+          </bdi>
+        </p>
+      )}
+      {item.retry === null ? null : (
+        <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
+      )}
+    </div>
+  );
 }
 
 function Meta({ item, now }: Readonly<{ item: Item; now: number }>) {
@@ -145,10 +168,10 @@ export const ItemRow = memo(function ItemRow({
           rel="noreferrer"
           aria-current={isOpen ? "true" : undefined}
         >
-          {item.title === null ? (
+          {(item.digestTitle ?? item.title) === null ? (
             withoutScheme(item.normalizedUrl)
           ) : (
-            <bdi dir="auto">{item.title}</bdi>
+            <bdi dir="auto">{item.digestTitle ?? item.title}</bdi>
           )}
           <span className="vh">{` ${NEW_TAB_LABEL}`}</span>
         </a>

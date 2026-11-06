@@ -203,7 +203,7 @@ const Counts = z.array(z.object({ n: z.number() }));
 
 export function stuckProcessingItems(): number {
   const [row] = mainInstance().query(
-    "SELECT count(*) AS n FROM items i JOIN jobs j ON j.item_id = i.id WHERE i.status = 'processing' AND j.state = 'done' AND NOT EXISTS (SELECT 1 FROM jobs o WHERE o.item_id = i.id AND o.state <> 'done')",
+    "SELECT count(*) AS n FROM items i WHERE i.status = 'processing' AND NOT EXISTS (SELECT 1 FROM jobs o WHERE o.item_id = i.id AND o.state <> 'done')",
     Counts,
   );
 

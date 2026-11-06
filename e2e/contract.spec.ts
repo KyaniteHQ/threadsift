@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { type APIRequestContext, type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
 import { test } from "./access.ts";
@@ -8,6 +8,7 @@ interface ApiSchema {
   properties?: Record<string, ApiSchema> | undefined;
   items?: ApiSchema | undefined;
   oneOf?: ApiSchema[] | undefined;
+  anyOf?: ApiSchema[] | undefined;
 }
 
 const SchemaNode: z.ZodType<ApiSchema> = z.lazy(() =>
@@ -16,6 +17,7 @@ const SchemaNode: z.ZodType<ApiSchema> = z.lazy(() =>
     properties: z.record(z.string(), SchemaNode).optional(),
     items: SchemaNode.optional(),
     oneOf: z.array(SchemaNode).optional(),
+    anyOf: z.array(SchemaNode).optional(),
   }),
 );
 
@@ -48,12 +50,12 @@ function resolved(schemas: Schemas, node: ApiSchema): ApiSchema {
 }
 
 function propertyNames(schemas: Schemas, node: ApiSchema): string[] {
-  const { properties, oneOf } = resolved(schemas, node);
+  const { properties, oneOf = [], anyOf = [] } = resolved(schemas, node);
 
   return [
     ...new Set([
       ...Object.keys(properties ?? {}),
-      ...(oneOf ?? []).flatMap((branch) => propertyNames(schemas, branch)),
+      ...[...oneOf, ...anyOf].flatMap((branch) => propertyNames(schemas, branch)),
     ]),
   ];
 }
@@ -72,10 +74,39 @@ function jsonSchemaOf(body: z.infer<typeof Body>): ApiSchema {
   return schema ?? {};
 }
 
-test("the served OpenAPI document describes the items routes", async ({ request }) => {
+const ITEM_FIELDS = [
+  "id",
+  "source",
+  "kind",
+  "normalizedUrl",
+  "originalUrl",
+  "savedAt",
+  "title",
+  "digestTitle",
+  "digestTopic",
+  "digestOutcome",
+  "author",
+  "community",
+  "fetchedAt",
+  "fetch",
+  "status",
+  "reason",
+  "retry",
+];
+
+async function documentOf(request: APIRequestContext, info: TestInfo) {
   const response = await request.get("/api/openapi.json");
   expect(response.headers()["content-type"]).toContain("application/json");
-  const { paths, components } = OpenApiDocument.parse(await response.json());
+  await info.attach("openapi.json", {
+    body: await response.body(),
+    contentType: "application/json",
+  });
+
+  return OpenApiDocument.parse(await response.json());
+}
+
+test("the served OpenAPI document describes the items routes", async ({ request }, info) => {
+  const { paths, components } = await documentOf(request, info);
   const { schemas } = components;
   const items = paths["/api/items"];
 
@@ -103,27 +134,24 @@ test("the served OpenAPI document describes the items routes", async ({ request 
     "items",
   );
 
-  for (const item of [propertyOf(schemas, saved, "item"), listed.items ?? {}, single]) {
-    expect(propertyNames(schemas, item)).toEqual(
-      expect.arrayContaining([
-        "title",
-        "author",
-        "community",
-        "fetchedAt",
-        "status",
-        "reason",
-        "fetch",
-      ]),
-    );
+  const savedAgain = jsonSchemaOf(items.post.responses["200"] ?? { content: {} });
+
+  for (const item of [
+    propertyOf(schemas, saved, "item"),
+    propertyOf(schemas, savedAgain, "item"),
+    listed.items ?? {},
+    single,
+  ]) {
+    expect(propertyNames(schemas, item)).toEqual(expect.arrayContaining(ITEM_FIELDS));
   }
+
+  expect(propertyNames(schemas, single)).toEqual(expect.arrayContaining(["postText", "postedAt"]));
 });
 
 test("the served OpenAPI document describes the status route without the post text", async ({
   request,
-}) => {
-  const { paths, components } = OpenApiDocument.parse(
-    await (await request.get("/api/openapi.json")).json(),
-  );
+}, info) => {
+  const { paths, components } = await documentOf(request, info);
 
   const polled = paths["/api/items/{id}/status"];
 
@@ -138,7 +166,7 @@ test("the served OpenAPI document describes the status route without the post te
     ),
   );
 
-  expect(names).toEqual(expect.arrayContaining(["title", "status", "reason", "fetch"]));
+  expect(names).toEqual(expect.arrayContaining(ITEM_FIELDS));
   expect(names).not.toContain("postText");
   expect(names).not.toContain("postedAt");
 });

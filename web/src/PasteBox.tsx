@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
+import type { SaveTarget } from "./api.ts";
 import { Icon } from "./Icon.tsx";
 import { PasteCard, type Shown, announcementsOf, faceOf } from "./PasteCard.tsx";
 import { SwapButton } from "./SwapButton.tsx";
@@ -30,16 +31,16 @@ export type SaveOutcome =
   | { readonly saved: false; readonly notice: NoticeKey }
   | { readonly saved: true; readonly itemId: number; readonly refreshed: boolean };
 
-type Save = (url: string) => Promise<SaveOutcome>;
+type Save = (target: SaveTarget) => Promise<SaveOutcome>;
 
-export type PasteRequest = Readonly<{ url: string; seq: number }>;
+export type PasteRequest = SaveTarget & { readonly seq: number };
 
 const FAILED: SaveOutcome = { saved: false, notice: "failed" };
 const EMPTY: SaveOutcome = { saved: false, notice: "empty" };
 
-async function attempt(save: Save, url: string): Promise<SaveOutcome> {
+async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
   try {
-    return await save(url);
+    return await save(target);
   } catch {
     return FAILED;
   }
@@ -65,9 +66,10 @@ function useSaveValue({
   const sequence = useRef(0);
 
   return useCallback(
-    async (url: string, refocus = true) => {
+    async (target: SaveTarget, refocus = true) => {
+      const { url } = target;
       setShown(null);
-      const outcome = url === "" ? EMPTY : await attempt(save, url);
+      const outcome = url === "" ? EMPTY : await attempt(save, target);
 
       if (outcome.saved) {
         setValue((current) => (current.trim() === url ? "" : current));
@@ -118,9 +120,9 @@ function usePaste(save: Save, focusOnMount: boolean) {
       const url = value.trim();
 
       if (url !== "") {
-        guard(() => saveValue(url));
+        guard(() => saveValue({ kind: "paste", url }));
       } else if (!saving) {
-        void saveValue(url);
+        void saveValue({ kind: "paste", url });
       }
     },
     [guard, saveValue, saving, value],
@@ -135,7 +137,7 @@ function usePaste(save: Save, focusOnMount: boolean) {
 
   const retry = useCallback(() => {
     if (shown !== null) {
-      guard(() => saveValue(shown.url));
+      guard(() => saveValue({ kind: "paste", url: shown.url }));
     }
   }, [guard, saveValue, shown]);
 
@@ -152,14 +154,14 @@ function usePasteRequest(
 ) {
   const answered = useRef(0);
 
-  const run = useEffectEvent((url: string) => {
-    guard(() => saveValue(url, false));
+  const run = useEffectEvent((target: SaveTarget) => {
+    guard(() => saveValue(target, false));
   });
 
   useEffect(() => {
     if (request !== null && request.seq !== answered.current && !saving) {
       answered.current = request.seq;
-      run(request.url);
+      run(request);
     }
   }, [request, saving]);
 }
