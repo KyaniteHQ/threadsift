@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 
-import { passwordLength } from "../../src/core/passwords.ts";
 import { type Attempt, setUp } from "./access-api.ts";
 import { FIELDS, SETUP } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
+import { LENGTH_PROBLEM, lengthProblem } from "./password-length.ts";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import type { GoTo } from "./setup-step.ts";
 import { SwapButton } from "./SwapButton.tsx";
@@ -15,17 +15,6 @@ export interface PasswordStepProps {
   readonly go: GoTo;
   readonly exists: () => void;
   readonly done: () => void;
-}
-
-const LENGTH_PROBLEM = {
-  short: SETUP.passwordTooShort,
-  long: SETUP.passwordTooLong,
-} as const;
-
-function lengthProblem(password: string): string | null {
-  const length = passwordLength(password);
-
-  return length === "ok" ? null : LENGTH_PROBLEM[length];
 }
 
 function useServerOutcome(

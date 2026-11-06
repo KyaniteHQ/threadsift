@@ -127,10 +127,12 @@ export function sessionValueOf(setCookie: string): string {
   return match[1];
 }
 
+export type InstanceEnv = Readonly<Record<string, string>>;
+
 export interface Instance {
   readonly url: string;
   readonly appExec: string;
-  restart(secretKey?: string): void;
+  restart(env?: InstanceEnv): void;
   logs(): string;
   sql(statement: string): void;
   query<T>(statement: string, schema: z.ZodType<T>): T;
@@ -141,12 +143,16 @@ function instanceScript(): string[] {
   return envValue("THREADSIFT_INSTANCE_SCRIPT").split(" ");
 }
 
-function runInstance(args: readonly string[], code: string | null): string {
+function runInstance(
+  args: readonly string[],
+  code: string | null,
+  extra: InstanceEnv = {},
+): string {
   const [command = "", ...head] = instanceScript();
-  const { SETUP_CODE: _inherited, ...env } = process.env;
+  const { SETUP_CODE: _setup, PASSWORD_RESET_CODE: _reset, ...env } = process.env;
 
   return execFileSync(command, [...head, ...args], {
-    env: code === null ? env : { ...env, SETUP_CODE: code },
+    env: code === null ? { ...env, ...extra } : { ...env, ...extra, SETUP_CODE: code },
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
   });
@@ -156,11 +162,12 @@ export function instanceAt(dir: string): Instance {
   return {
     url: readFileSync(join(dir, "url"), "utf8").trim(),
     appExec: existsSync(join(dir, "exec")) ? readFileSync(join(dir, "exec"), "utf8").trim() : "",
-    restart: (secretKey) => {
-      if (secretKey === undefined) runInstance(["restart", dir], null);
+    restart: (restartEnv) => {
+      if (restartEnv === undefined) runInstance(["restart", dir], null);
       else {
         const file = join(dir, "restart.env");
-        writeFileSync(file, `THREADSIFT_SECRET_KEY=${secretKey}\n`, { mode: 0o600 });
+        const lines = Object.entries(restartEnv).map(([name, value]) => `${name}=${value}\n`);
+        writeFileSync(file, lines.join(""), { mode: 0o600 });
         runInstance(["restart", dir, file], null);
       }
     },
@@ -182,9 +189,9 @@ export function mainInstance(): Instance {
 
 let launched = 0;
 
-export function launchAt(dir: string, code: string | null): Instance {
+export function launchAt(dir: string, code: string | null, extra: InstanceEnv = {}): Instance {
   mkdirSync(dir, { recursive: true });
-  runInstance(["launch", dir], code);
+  runInstance(["launch", dir], code, extra);
 
   return instanceAt(dir);
 }
@@ -195,6 +202,6 @@ export function freshDir(): string {
   return join(stateDir(), `fresh-${launched}-${randomBytes(3).toString("hex")}`);
 }
 
-export function launchFresh(code: string | null): Instance {
-  return launchAt(freshDir(), code);
+export function launchFresh(code: string | null, extra: InstanceEnv = {}): Instance {
+  return launchAt(freshDir(), code, extra);
 }

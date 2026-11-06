@@ -1,10 +1,9 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import type { Context } from "hono";
 
 import { checkSetupCode, hasOwner, login, setUpOwner } from "../core/owner.ts";
 import type { Ports } from "../core/ports.ts";
-import { endSession, type StartedSession } from "../core/sessions.ts";
-import { checkConfiguredCode } from "../core/setup-code.ts";
+import { endSession } from "../core/sessions.ts";
+import { SETUP_CODE_MIN, checkConfiguredCode } from "../core/setup-code.ts";
 import { createToken, listTokens, revokeToken } from "../core/tokens.ts";
 import {
   createTokenRoute,
@@ -16,14 +15,9 @@ import {
   setupCodeRoute,
   setupRoute,
 } from "./access-contract.ts";
-import { badPassword, locked, refuse, wrongPassword } from "./refusals.ts";
-import { clearSession, ownerHasSession, sendSession, sessionIdOf } from "./session-cookie.ts";
-
-function startedSession(c: Context, session: StartedSession) {
-  sendSession(c, session.id, session.maxAge);
-
-  return c.body(null, 204);
-}
+import { registerPasswordRoutes } from "./password-routes.ts";
+import { badPassword, locked, refuse, superseded, wrongPassword } from "./refusals.ts";
+import { clearSession, ownerHasSession, sessionIdOf, startedSession } from "./session-cookie.ts";
 
 function registerSetupRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(sessionRoute, async (c) => {
@@ -36,7 +30,10 @@ function registerSetupRoutes(app: OpenAPIHono, ports: Ports): void {
     }
 
     return c.json(
-      { state: "setup", code: checkConfiguredCode(ports.setupCode).status } as const,
+      {
+        state: "setup",
+        code: checkConfiguredCode(ports.setupCode, SETUP_CODE_MIN).status,
+      } as const,
       200,
     );
   });
@@ -65,6 +62,10 @@ function registerSessionRoutes(app: OpenAPIHono, ports: Ports): void {
 
     if (result.kind === "signed-in") {
       return startedSession(c, result.session);
+    }
+
+    if (result.kind === "superseded") {
+      return superseded(c);
     }
 
     return result.kind === "locked" ? locked(c, result.retryAfter) : wrongPassword(c);
@@ -100,5 +101,6 @@ function registerTokenRoutes(app: OpenAPIHono, ports: Ports): void {
 export function registerAccessRoutes(app: OpenAPIHono, ports: Ports): void {
   registerSetupRoutes(app, ports);
   registerSessionRoutes(app, ports);
+  registerPasswordRoutes(app, ports);
   registerTokenRoutes(app, ports);
 }

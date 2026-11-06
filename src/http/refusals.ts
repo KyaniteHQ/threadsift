@@ -1,9 +1,10 @@
 import type { Context } from "hono";
 
 import { groupedNumber } from "../core/format.ts";
+import type { ResetResult } from "../core/owner-password.ts";
 import type { SetupBlock } from "../core/owner.ts";
 import { PASSWORD_MAX, PASSWORD_MIN, type PasswordProblem } from "../core/passwords.ts";
-import { SETUP_CODE_MIN } from "../core/setup-code.ts";
+import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../core/setup-code.ts";
 import type { RefusalCode } from "./schemas.ts";
 
 const MESSAGES = {
@@ -14,9 +15,16 @@ const MESSAGES = {
   "setup-short": `The setup code is shorter than ${SETUP_CODE_MIN} characters, so it is not used`,
   "password-short": `The password must have at least ${PASSWORD_MIN} characters`,
   "password-long": `The password must have at most ${groupedNumber(PASSWORD_MAX)} characters`,
+  "password-changed": "The password changed while this call ran, so nothing was done",
+  "reset-missing": "This Instance has no reset code",
+  "reset-short": `The reset code is shorter than ${RESET_CODE_MIN} characters, so it is not used`,
+  "reset-used": "The reset code was used already",
+  "no-owner": "This Instance has no owner yet",
 } as const satisfies Record<RefusalCode, string>;
 
 const WRONG_PASSWORD = "The password is wrong";
+
+const WRONG_RESET_CODE = "The reset code is wrong";
 
 export const PASSWORD_RULE = `The password is shorter than ${PASSWORD_MIN} or longer than ${groupedNumber(PASSWORD_MAX)} characters.`;
 
@@ -28,6 +36,14 @@ export function locked(c: Context, retryAfter: number) {
 
 export function wrongPassword(c: Context) {
   return c.json({ error: WRONG_PASSWORD, code: "wrong" } as const, 401);
+}
+
+export function wrongCurrentPassword(c: Context) {
+  return c.json({ error: WRONG_PASSWORD, code: "wrong" } as const, 403);
+}
+
+export function superseded(c: Context) {
+  return c.json({ error: MESSAGES["password-changed"], code: "password-changed" } as const, 409);
 }
 
 export function badPassword(c: Context, problem: PasswordProblem) {
@@ -50,6 +66,29 @@ export function refuse(c: Context, block: SetupBlock) {
       return locked(c, block.retryAfter);
     case "wrong":
       return c.json({ error: MESSAGES.wrong, code: "wrong" } as const, 401);
+    default:
+      return block satisfies never;
+  }
+}
+
+type ResetBlock = Exclude<ResetResult, { readonly kind: "reset" | "password" }>;
+
+export function refuseReset(c: Context, block: ResetBlock) {
+  switch (block.kind) {
+    case "no-owner":
+      return c.json({ error: MESSAGES["no-owner"], code: "no-owner" } as const, 409);
+    case "used":
+      return c.json({ error: MESSAGES["reset-used"], code: "reset-used" } as const, 409);
+    case "unavailable": {
+      const code = `reset-${block.reason}` as const;
+
+      return c.json({ error: MESSAGES[code], code }, 503);
+    }
+
+    case "locked":
+      return locked(c, block.retryAfter);
+    case "wrong":
+      return c.json({ error: WRONG_RESET_CODE, code: "wrong" } as const, 403);
     default:
       return block satisfies never;
   }

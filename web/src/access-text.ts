@@ -1,6 +1,6 @@
 import { groupedNumber } from "../../src/core/format.ts";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../../src/core/passwords.ts";
-import { SETUP_CODE_MIN } from "../../src/core/setup-code.ts";
+import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../../src/core/setup-code.ts";
 import { filled } from "./text.ts";
 
 export const SETUP = {
@@ -43,6 +43,43 @@ export const LOGIN = {
   signingIn: "Signing in…",
   wrong: "That password is wrong.",
   unreachable: "Couldn’t reach Threadsift, so try again.",
+  lost: "Lost your password?",
+  resetDone: "Your password is reset, and you can sign in with the new one.",
+} as const;
+
+export const PASSWORD = {
+  title: "Password",
+  note: "Changing your password ends every other browser’s session, and agent tokens keep working.",
+  current: "Current password",
+  new: "New password",
+  change: "Change password",
+  changing: "Changing…",
+  changed: "Your password is changed.",
+  currentWrong: "That current password is wrong.",
+  failed: "Couldn’t change your password, so try again.",
+} as const;
+
+export const RESET = {
+  title: "Reset password",
+  heading: "Lost your password?",
+  intro:
+    "Threadsift can reset your password with a one-time code that you put on the server yourself.",
+  container: `In a container install, set PASSWORD_RESET_CODE to a code of at least ${RESET_CODE_MIN} characters and restart the container.`,
+  worker: `On Cloudflare, run the command below and enter a code of at least ${RESET_CODE_MIN} characters.`,
+  generate: "To make a code, run the command below.",
+  remove: "After the reset, remove PASSWORD_RESET_CODE from the server.",
+  workerCommand: "wrangler secret put PASSWORD_RESET_CODE",
+  generateCommand: "openssl rand -base64 24",
+  codeLabel: "Reset code",
+  button: "Reset password",
+  resetting: "Resetting…",
+  back: "Back to sign in",
+  codeWrong: "That reset code is wrong.",
+  missing: "This server has no reset code, so set PASSWORD_RESET_CODE first.",
+  short: `The server’s reset code is shorter than ${RESET_CODE_MIN} characters, so Threadsift does not use it.`,
+  used: "This reset code was already used, so set a new one on the server.",
+  noOwner: "There is no owner on this Instance yet, so there is no password to reset.",
+  failed: "Couldn’t reset your password, so try again.",
 } as const;
 
 export const WAIT = {

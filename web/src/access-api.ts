@@ -20,6 +20,8 @@ export type Refusal =
   | { readonly kind: "unavailable"; readonly reason: SetupCodeProblem }
   | { readonly kind: "owner-exists" }
   | { readonly kind: "password"; readonly length: PasswordProblem }
+  | { readonly kind: "used" }
+  | { readonly kind: "no-owner" }
   | { readonly kind: "failed" };
 
 export type Attempt = { readonly kind: "ok" } | Refusal;
@@ -35,6 +37,11 @@ const REFUSALS = {
   "setup-short": { kind: "unavailable", reason: "short" },
   "password-short": { kind: "password", length: "short" },
   "password-long": { kind: "password", length: "long" },
+  "password-changed": { kind: "failed" },
+  "reset-missing": { kind: "unavailable", reason: "missing" },
+  "reset-short": { kind: "unavailable", reason: "short" },
+  "reset-used": { kind: "used" },
+  "no-owner": { kind: "no-owner" },
 } as const satisfies Record<Exclude<RefusalCode, "locked">, Refusal>;
 
 async function refusalOf(response: Response): Promise<Refusal> {
@@ -54,9 +61,9 @@ async function refusalOf(response: Response): Promise<Refusal> {
   return REFUSALS[code];
 }
 
-async function attempt(path: string, json: JsonBody): Promise<Attempt> {
+async function attempt(path: string, json: JsonBody, signsOut = false): Promise<Attempt> {
   try {
-    const response = await call("POST", path, { json, signsOut: false });
+    const response = await call("POST", path, { json, signsOut });
 
     return response.status === NO_CONTENT ? { kind: "ok" } : await refusalOf(response);
   } catch {
@@ -78,6 +85,14 @@ export function setUp(code: string, password: string): Promise<Attempt> {
 
 export function logIn(password: string): Promise<Attempt> {
   return attempt("/api/login", { password });
+}
+
+export function changePassword(current: string, password: string): Promise<Attempt> {
+  return attempt("/api/password", { current, password }, true);
+}
+
+export function resetPassword(code: string, password: string): Promise<Attempt> {
+  return attempt("/api/password/reset", { code, password });
 }
 
 export async function logOut(): Promise<void> {

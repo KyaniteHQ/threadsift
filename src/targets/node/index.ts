@@ -19,6 +19,7 @@ const env = z
     DATA_DIR: z.string().default(join(repositoryRoot, ".data")),
     SETUP_CODE: z.string().optional(),
     THREADSIFT_SECRET_KEY: z.string().optional(),
+    PASSWORD_RESET_CODE: z.string().optional(),
   })
   .parse(process.env);
 
@@ -45,7 +46,12 @@ const app = new Hono();
 
 app.use("*", compress());
 
-const node = await startNode(database.db, env.SETUP_CODE, env.THREADSIFT_SECRET_KEY);
+const node = await startNode(
+  database.db,
+  env.SETUP_CODE,
+  env.THREADSIFT_SECRET_KEY,
+  env.PASSWORD_RESET_CODE,
+);
 
 app.route("/", createApp(node.ports));
 

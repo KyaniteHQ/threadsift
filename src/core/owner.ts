@@ -1,3 +1,5 @@
+import { sql } from "drizzle-orm";
+
 import {
   type PasswordProblem,
   hashPassword,
@@ -5,10 +7,10 @@ import {
   passwordMatches,
 } from "./passwords.ts";
 import type { Database, Ports } from "./ports.ts";
-import { owner } from "./schema.ts";
-import { type StartedSession, startSession } from "./sessions.ts";
-import { type SetupCodeProblem, checkConfiguredCode } from "./setup-code.ts";
-import { settleAttempt } from "./throttle.ts";
+import { guardedBatch, owner } from "./schema.ts";
+import { type StartedSession, prepareSession, sessionWrites, startSession } from "./sessions.ts";
+import { SETUP_CODE_MIN, type SetupCodeProblem, checkConfiguredCode } from "./setup-code.ts";
+import { type Attempt, settleAttempt } from "./throttle.ts";
 
 export type SetupBlock =
   | { readonly kind: "owner-exists" }
@@ -24,12 +26,17 @@ export type SetupResult =
 export type LoginResult =
   | { readonly kind: "signed-in"; readonly session: StartedSession }
   | { readonly kind: "locked"; readonly retryAfter: number }
-  | { readonly kind: "wrong" };
+  | { readonly kind: "wrong" }
+  | { readonly kind: "superseded" };
 
 async function passwordHashOf(db: Database): Promise<string | undefined> {
   const [row] = await db.select({ hash: owner.passwordHash }).from(owner).limit(1);
 
   return row?.hash;
+}
+
+export function passwordHashIs(hash: string) {
+  return sql`exists (select 1 from ${owner} where ${owner.id} = 1 and ${owner.passwordHash} = ${hash})`;
 }
 
 export async function hasOwner(db: Database): Promise<boolean> {
@@ -41,7 +48,7 @@ export async function checkSetupCode(ports: Ports, code: string): Promise<SetupB
     return { kind: "owner-exists" };
   }
 
-  const configured = checkConfiguredCode(ports.setupCode);
+  const configured = checkConfiguredCode(ports.setupCode, SETUP_CODE_MIN);
 
   if (configured.status !== "set") {
     return { kind: "unavailable", reason: configured.status };
@@ -50,7 +57,9 @@ export async function checkSetupCode(ports: Ports, code: string): Promise<SetupB
   const { crypto } = ports;
 
   const outcome = await settleAttempt(ports.db, "setup", () =>
-    Promise.resolve(crypto.equal(crypto.sha256(code), crypto.sha256(configured.code))),
+    Promise.resolve(
+      crypto.equal(crypto.sha256(code), crypto.sha256(configured.code)) ? true : null,
+    ),
   );
 
   return outcome.kind === "ok" ? null : outcome;
@@ -88,14 +97,30 @@ export async function setUpOwner(
   return { kind: "created", session: await startSession(ports) };
 }
 
-export async function login(ports: Ports, password: string): Promise<LoginResult> {
-  const outcome = await settleAttempt(ports.db, "login", async () => {
+export function verifyOwnerPassword(ports: Ports, password: string): Promise<Attempt<string>> {
+  return settleAttempt(ports.db, "login", async () => {
     const stored = await passwordHashOf(ports.db);
 
-    return stored !== undefined && (await passwordMatches(ports.crypto, password, stored));
+    return stored !== undefined && (await passwordMatches(ports.crypto, password, stored))
+      ? stored
+      : null;
   });
+}
 
-  return outcome.kind === "ok"
-    ? { kind: "signed-in", session: await startSession(ports) }
-    : outcome;
+export async function login(ports: Ports, password: string): Promise<LoginResult> {
+  const verified = await verifyOwnerPassword(ports, password);
+
+  if (verified.kind !== "ok") {
+    return verified;
+  }
+
+  const session = prepareSession(ports.crypto);
+
+  const committed = await guardedBatch(
+    ports.db,
+    passwordHashIs(verified.proof),
+    sessionWrites(ports.db, session),
+  );
+
+  return committed ? { kind: "signed-in", session } : { kind: "superseded" };
 }

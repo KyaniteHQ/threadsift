@@ -4,6 +4,7 @@ import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { AiSection } from "./AiSection.tsx";
 import { Alert } from "./Alert.tsx";
+import { PasswordSection } from "./PasswordSection.tsx";
 import { useInternalLink } from "./routing.ts";
 import { TokensSection } from "./TokensSection.tsx";
 import { useFocusOnMount } from "./use-form.ts";
@@ -42,6 +43,7 @@ export function SettingsPage({
       <main className="pg-col">
         <AiSection />
         <TokensSection />
+        <PasswordSection />
         <section className="sec" aria-labelledby="sign-out-title">
           <h2 id="sign-out-title" className="rd-h">
             {SETTINGS.signOutTitle}

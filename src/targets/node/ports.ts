@@ -2,8 +2,8 @@ import { randomSecret } from "../../core/encoding.ts";
 import { hasOwner } from "../../core/owner.ts";
 import type { Database, Ports } from "../../core/ports.ts";
 import { aiRuntime } from "../shared/ai-runtime.ts";
+import { configuredCode } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
-import { configuredSetupCode } from "../shared/setup-code.ts";
 import { JobLoop } from "./job-loop.ts";
 import { nodeNetwork } from "./network.ts";
 import { WorkerPageReader } from "./page-reader.ts";
@@ -34,6 +34,7 @@ export async function startNode(
   db: Database,
   setupCode: string | undefined,
   secretKey: string | undefined,
+  resetCode: string | undefined,
 ): Promise<NodeRuntime> {
   const loop = new JobLoop();
   const pages = new WorkerPageReader();
@@ -45,7 +46,8 @@ export async function startNode(
     pages,
     jobs: loop.queue,
     crypto: nodeCrypto,
-    setupCode: await setupCodeOf(db, configuredSetupCode(setupCode)),
+    setupCode: await setupCodeOf(db, configuredCode(setupCode)),
+    resetCode: configuredCode(resetCode),
   };
 
   await loop.start(ports);

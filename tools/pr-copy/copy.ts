@@ -25,6 +25,7 @@ import {
   prOf,
   removeConsumer,
 } from "./cloudflare.ts";
+import { type AccessCodes, newAccessCodes } from "./codes.ts";
 import { seedDemo } from "./demo.ts";
 import {
   type MigrationHashes,
@@ -183,17 +184,18 @@ async function provision(
 
 interface CopySecrets {
   SETUP_CODE: string;
+  PASSWORD_RESET_CODE: string;
   THREADSIFT_SECRET_KEY?: string;
 }
 
 export async function publish(
   stage: Readonly<Stage>,
-  setupCode: string,
+  codes: Readonly<AccessCodes>,
   secretNames: readonly string[],
 ): Promise<string> {
   const secretsFile = join(stage.dir, "secrets.json");
   const outputFile = join(stage.dir, "output.jsonl");
-  const secrets: CopySecrets = { SETUP_CODE: setupCode };
+  const secrets: CopySecrets = { SETUP_CODE: codes.setup, PASSWORD_RESET_CODE: codes.reset };
 
   if (!secretNames.includes("THREADSIFT_SECRET_KEY")) {
     secrets.THREADSIFT_SECRET_KEY = randomBytes(32).toString("hex");
@@ -231,9 +233,9 @@ export function deployCopy(
     const next = await provision(stage, names, record);
     await cloudflare(stage, applyMigrations(names.name));
 
-    const setupCode = randomBytes(24).toString("base64url");
-    const url = await publish(stage, setupCode, next.secrets);
-    await seedDemo(url, setupCode);
+    const codes = newAccessCodes();
+    const url = await publish(stage, codes, next.secrets);
+    await seedDemo(url, codes);
 
     return { url, record: next.record };
   });

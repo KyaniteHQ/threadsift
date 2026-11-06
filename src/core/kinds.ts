@@ -9,7 +9,7 @@ export const KINDS = [
   "link",
 ] as const;
 
-export const THROTTLE_KINDS = ["setup", "login"] as const;
+export const THROTTLE_KINDS = ["setup", "login", "reset"] as const;
 
 export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
