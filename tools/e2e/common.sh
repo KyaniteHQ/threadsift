@@ -1,6 +1,4 @@
-free_port() {
-  node -e 'const s = require("node:net").createServer().listen(0, "127.0.0.1", () => { console.log(String(s.address().port)); s.close(); })'
-}
+# shellcheck shell=bash
 
 new_code() {
   node -e 'console.log(require("node:crypto").randomBytes(24).toString("base64url"))'
@@ -28,6 +26,7 @@ run_suite() {
   local code
   dir=$(mktemp -d)
   code=$(new_code)
+  # shellcheck disable=SC2154
   trap 'status=$?; stop_all "$dir"; rm -rf "$dir"; exit "$status"' EXIT
   SETUP_CODE=$code "$script" launch "$dir"
   export THREADSIFT_BASE_URL
@@ -36,7 +35,8 @@ run_suite() {
   export THREADSIFT_E2E_DIR=$dir
   export THREADSIFT_SETUP_CODE=$code
   if [[ -n ${THREADSIFT_ARTIFACTS:-} ]]; then
-    export THREADSIFT_RUN_DIR="$THREADSIFT_ARTIFACTS/$THREADSIFT_TARGET-$(date -u +%Y%m%dT%H%M%SZ)"
+    THREADSIFT_RUN_DIR="$THREADSIFT_ARTIFACTS/$THREADSIFT_TARGET-$(date -u +%Y%m%dT%H%M%SZ)"
+    export THREADSIFT_RUN_DIR
     mkdir -p "$THREADSIFT_RUN_DIR"
     echo "artifacts: $THREADSIFT_RUN_DIR"
   fi

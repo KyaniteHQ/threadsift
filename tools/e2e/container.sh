@@ -28,13 +28,14 @@ launch() {
   mkdir -p "$dir"
   name="threadsift-e2e-$$-$RANDOM"
   volume="$name-data"
-  port=$(free_port)
   local env_args=()
   [[ -v SETUP_CODE ]] && env_args=(--env SETUP_CODE)
   [[ -v THREADSIFT_SECRET_KEY ]] && env_args+=(--env THREADSIFT_SECRET_KEY)
-  podman run --detach --name "$name" --publish "127.0.0.1:$port:8080" --volume "$volume:/data" "${env_args[@]}" "$image" >/dev/null
+  podman run --detach --name "$name" --publish "127.0.0.1::8080" --volume "$volume:/data" "${env_args[@]}" "$image" >/dev/null
   echo "$name" >"$dir/name"
   echo "$volume" >"$dir/volume"
+  port=$(podman port "$name" 8080/tcp)
+  port=${port##*:}
   echo "http://127.0.0.1:$port" >"$dir/url"
   echo "podman exec -i $name" >"$dir/exec"
   wait_for_session_route "http://127.0.0.1:$port" 60 || {
