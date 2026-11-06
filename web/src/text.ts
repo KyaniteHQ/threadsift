@@ -120,5 +120,6 @@ export const SOURCE_LABELS: Readonly<Record<Source, string>> = {
   reddit: "Reddit",
   x: "X",
   github: "GitHub",
+  article: "Article",
   other: "Other",
 };

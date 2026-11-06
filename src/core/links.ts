@@ -12,8 +12,13 @@ const SOURCE_OF_KIND: Readonly<Record<Kind, Source>> = {
   "reddit-comment": "reddit",
   "x-post": "x",
   "github-repo": "github",
+  article: "article",
   link: "other",
 };
+
+export function sourceOf(kind: Kind): Source {
+  return SOURCE_OF_KIND[kind];
+}
 
 const TRACKING_PARAMS: ReadonlySet<string> = new Set([
   "fbclid",
@@ -25,6 +30,8 @@ const TRACKING_PARAMS: ReadonlySet<string> = new Set([
   "igshid",
   "ref_src",
 ]);
+
+const GITHUB_HOST = "github.com";
 
 const X_HOSTS: ReadonlySet<string> = new Set(["x.com", "twitter.com"]);
 
@@ -39,6 +46,15 @@ const SHORT_LINK_HOSTS: ReadonlySet<string> = new Set([
   "lnkd.in",
   "dlvr.it",
   "is.gd",
+]);
+
+const VIDEO_HOSTS: ReadonlySet<string> = new Set([
+  "youtube.com",
+  "m.youtube.com",
+  "music.youtube.com",
+  "youtu.be",
+  "youtube-nocookie.com",
+  "vimeo.com",
 ]);
 
 const GITHUB_NON_OWNER_PATHS: ReadonlySet<string> = new Set([
@@ -191,7 +207,7 @@ function kindOf(host: string, pathname: string): Kind {
     return X_POST_PATH.test(pathname) ? "x-post" : "link";
   }
 
-  return host === "github.com" ? githubKind(segments) : "link";
+  return host === GITHUB_HOST ? githubKind(segments) : "link";
 }
 
 export function parseLink(absoluteUrl: string): Link {
@@ -213,12 +229,24 @@ export function parseLink(absoluteUrl: string): Link {
   return { normalizedUrl: url.href, kind, source: SOURCE_OF_KIND[kind] };
 }
 
+function hostOf(absoluteUrl: string): string {
+  return canonicalHost(new URL(absoluteUrl).hostname);
+}
+
 export function isShortLink(absoluteUrl: string): boolean {
-  return SHORT_LINK_HOSTS.has(canonicalHost(new URL(absoluteUrl).hostname));
+  return SHORT_LINK_HOSTS.has(hostOf(absoluteUrl));
+}
+
+export function isGitHubLink(absoluteUrl: string): boolean {
+  return hostOf(absoluteUrl) === GITHUB_HOST;
+}
+
+export function isVideoLink(absoluteUrl: string): boolean {
+  return VIDEO_HOSTS.has(hostOf(absoluteUrl));
 }
 
 export function isRedditOrXLink(absoluteUrl: string): boolean {
-  const host = canonicalHost(new URL(absoluteUrl).hostname);
+  const host = hostOf(absoluteUrl);
 
   return host === "redd.it" || isRedditHost(host) || X_HOSTS.has(host);
 }

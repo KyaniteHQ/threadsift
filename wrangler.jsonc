@@ -16,4 +16,8 @@
   },
   "triggers": { "crons": ["* * * * *"] },
   "limits": { "cpu_ms": 300000 },
+  "alias": {
+    "turndown": "turndown/lib/turndown.cjs.js",
+    "@mixmark-io/domino": "@mixmark-io/domino/lib/index.js",
+  },
 }

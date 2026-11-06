@@ -1,6 +1,8 @@
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
+import type { ArticleReading } from "./article.ts";
+
 export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
 
 export const HOP_DEADLINE_MS = 8000;
@@ -18,6 +20,12 @@ export interface JobQueue {
 
 export interface Network {
   readonly get: (url: string, signal: AbortSignal) => Promise<NetworkResponse>;
+}
+
+export interface PageReader {
+  readonly maxHtmlBytes: number;
+  readonly title: (html: string, deadline: AbortSignal) => Promise<string>;
+  readonly article: (html: string, url: string, deadline: AbortSignal) => Promise<ArticleReading>;
 }
 
 export type NetworkFailureReason = "refused" | "timeout";
@@ -47,6 +55,7 @@ export interface Crypto {
 export interface Ports {
   readonly db: Database;
   readonly network: Network;
+  readonly pages: PageReader;
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
   readonly setupCode: string | undefined;

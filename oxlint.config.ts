@@ -54,8 +54,9 @@ export default defineConfig({
           { from: "package", name: ["Context", "ImportExpression"], package: "@oxlint/plugins" },
           { from: "package", name: "Context", package: "hono" },
           { from: "package", name: "OpenAPIHono", package: "@hono/zod-openapi" },
+          { from: "lib", name: "Document" },
           { from: "file", name: ["Database", "Look", "InputKind"] },
-          { from: "package", name: "ZodError", package: "zod" },
+          { from: "package", name: ["ZodError", "ZodObject"], package: "zod" },
           {
             from: "package",
             name: ["DatabaseSync", "IncomingMessage", "ErrnoException"],

@@ -1,10 +1,25 @@
-import type { Fetched } from "./details.ts";
+import type { Content, Fetched } from "./details.ts";
 import type { FetchResult } from "./fetch-results.ts";
 import type { FailureReason } from "./kinds.ts";
+import { sourceOf } from "./links.ts";
 import type { ItemRow } from "./schema.ts";
 
 type Settled = Pick<ItemRow, "status" | "reason" | "fetch"> &
-  Partial<Pick<ItemRow, "title" | "author" | "community" | "fetchedAt">>;
+  Partial<
+    Pick<
+      ItemRow,
+      "title" | "author" | "community" | "fetchedAt" | "source" | "kind" | "postText" | "postedAt"
+    >
+  >;
+
+function contentFields(content: Readonly<Content>) {
+  return {
+    source: sourceOf(content.kind),
+    kind: content.kind,
+    postText: content.kind === "article" ? content.postText : null,
+    postedAt: content.kind === "article" ? content.postedAt : null,
+  };
+}
 
 export function isRetryable(result: FetchResult): result is Extract<FailureReason, FetchResult> {
   return result === "timeout" || result === "network";
@@ -12,7 +27,17 @@ export function isRetryable(result: FetchResult): result is Extract<FailureReaso
 
 export function settle(fetched: Readonly<Fetched>, current: string | null, now: number): Settled {
   if (fetched.status === "ok") {
-    return { status: "ready", reason: null, fetch: "ok", ...fetched.found, fetchedAt: now };
+    const { content, ...found } = fetched.found;
+
+    const settled: Settled = {
+      status: "ready",
+      reason: null,
+      fetch: "ok",
+      ...found,
+      fetchedAt: now,
+    };
+
+    return content === null ? settled : { ...settled, ...contentFields(content) };
   }
 
   const result = fetched.status;

@@ -5,8 +5,16 @@ import { join } from "node:path";
 import { expect, request, test } from "@playwright/test";
 import { z } from "zod";
 
-import { ItemListResponseSchema } from "../src/http/schemas.ts";
-import { freshDir, launchAt, newCode, sessionStateOf, sessionValueOf } from "./access.ts";
+import { ItemDetailResponseSchema, ItemListResponseSchema } from "../src/http/schemas.ts";
+import {
+  type Instance,
+  freshDir,
+  launchAt,
+  newCode,
+  sessionStateOf,
+  sessionValueOf,
+} from "./access.ts";
+import { setUpByApi } from "./fresh-screen.ts";
 import { isContainerTarget } from "./target.ts";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -54,7 +62,13 @@ function storeBeforeIngest(dir: string): void {
   ]);
 }
 
-test("on the Worker, Items stored before the ingest migration are ready with a null fetch result, keep their titles and saved dates, and have no job", async () => {
+async function ownerOf({ url }: Instance, code: string, password: string) {
+  const session = sessionValueOf(await setUpByApi(url, code, password));
+
+  return request.newContext({ baseURL: url, storageState: sessionStateOf(session, url) });
+}
+
+test("on the Worker, Items stored before the ingest and article migrations are ready with a null fetch result, keep their Source, titles and saved dates, have no post text and have no job", async () => {
   test.skip(
     isContainerTarget(),
     "the container harness always starts on an empty volume, so the migration of existing rows is not proven there (docs/architecture.md, Open items)",
@@ -63,38 +77,27 @@ test("on the Worker, Items stored before the ingest migration are ready with a n
   const dir = freshDir();
   storeBeforeIngest(dir);
   const code = newCode();
-  const password = "m".repeat(20);
   const instance = launchAt(dir, code);
 
   try {
-    const anonymous = await request.newContext({ baseURL: instance.url });
-    const created = await anonymous.post("/api/setup", { data: { code, password } });
-    expect(created.status()).toBe(204);
-    const session = sessionValueOf(created.headers()["set-cookie"] ?? "");
-    await anonymous.dispose();
-
-    const owner = await request.newContext({
-      baseURL: instance.url,
-      storageState: sessionStateOf(session, instance.url),
-    });
-
+    const owner = await ownerOf(instance, code, "m".repeat(20));
     const { items } = ItemListResponseSchema.parse(await (await owner.get("/api/items")).json());
+
+    const details = await Promise.all(
+      items.map(async ({ id }) =>
+        ItemDetailResponseSchema.parse(await (await owner.get(`/api/items/${id}`)).json()),
+      ),
+    );
+
     await owner.dispose();
 
+    const kept = { status: "ready", reason: null, fetch: null, postText: null, postedAt: null };
+
     expect(
-      items
-        .map(({ id, title, savedAt, status, reason, fetch }) => ({
-          id,
-          title,
-          savedAt,
-          status,
-          reason,
-          fetch,
-        }))
-        .toSorted((left, right) => left.id - right.id),
-    ).toEqual([
-      { id: 1, title: "A saved title", savedAt: 1111, status: "ready", reason: null, fetch: null },
-      { id: 2, title: null, savedAt: 2222, status: "ready", reason: null, fetch: null },
+      details.map(({ item }) => item).toSorted((left, right) => left.id - right.id),
+    ).toMatchObject([
+      { id: 1, source: "other", title: "A saved title", savedAt: 1111, ...kept },
+      { id: 2, source: "reddit", title: null, savedAt: 2222, ...kept },
     ]);
 
     expect(

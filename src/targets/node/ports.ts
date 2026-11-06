@@ -5,6 +5,7 @@ import { nodeCrypto } from "../shared/crypto.ts";
 import { configuredSetupCode } from "../shared/setup-code.ts";
 import { JobLoop } from "./job-loop.ts";
 import { nodeNetwork } from "./network.ts";
+import { WorkerPageReader } from "./page-reader.ts";
 
 const GENERATED_CODE_BYTES = 32;
 
@@ -30,10 +31,12 @@ interface NodeRuntime {
 
 export async function startNode(db: Database, setupCode: string | undefined): Promise<NodeRuntime> {
   const loop = new JobLoop();
+  const pages = new WorkerPageReader();
 
   const ports: Ports = {
     db,
     network: nodeNetwork,
+    pages,
     jobs: loop.queue,
     crypto: nodeCrypto,
     setupCode: await setupCodeOf(db, configuredSetupCode(setupCode)),
@@ -45,6 +48,7 @@ export async function startNode(db: Database, setupCode: string | undefined): Pr
     ports,
     stop: () => {
       loop.stop();
+      pages.stop();
     },
   };
 }

@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 import { mainInstance } from "./access.ts";
-import { listAll, postLink, postLinkRaw } from "./api.ts";
-import { itemIdAt, jobsAt, jobsOf } from "./ingest.ts";
+import { postLink, postLinkRaw } from "./api.ts";
+import { forgetItem, jobsOf, storeItem } from "./ingest.ts";
 import {
   SHORT_LINK,
   SHORT_LINK_TARGET,
@@ -12,28 +12,6 @@ import {
   newRunId,
   throughRedirects,
 } from "./links.ts";
-
-test("a short link and its target pasted separately are one Item under the target's URL", async ({
-  request,
-}) => {
-  const jobsBefore = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
-  const viaShortLink = await postLinkRaw(request, SHORT_LINK);
-  const jobsAfterShortLink = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
-  const direct = await postLink(request, SHORT_LINK_TARGET);
-
-  expect(viaShortLink.body.item).toMatchObject({
-    status: "ready",
-    fetch: "ok",
-    normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
-    originalUrl: SHORT_LINK,
-    title: "Example Domains",
-  });
-
-  expect(jobsAfterShortLink, "a short link opens no job").toEqual(jobsBefore);
-  expect(direct.status).toBe(200);
-  expect(direct.body.item.id).toBe(viaShortLink.body.item.id);
-  expect((await listAll(request)).filter((item) => item.normalizedUrl === SHORT_LINK)).toEqual([]);
-});
 
 test("a meta refresh on a host that is not a short link service is not followed", async ({
   request,
@@ -125,15 +103,13 @@ test("a short link pasted while its target's fetch job is open leaves the Item p
   const instance = mainInstance();
   const now = Date.now();
 
-  instance.sql(
-    `DELETE FROM jobs WHERE item_id IN (SELECT id FROM items WHERE normalized_url = '${SHORT_LINK_TARGET_NORMALIZED}')`,
-  );
-  instance.sql(`DELETE FROM items WHERE normalized_url = '${SHORT_LINK_TARGET_NORMALIZED}'`);
-  instance.sql(
-    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, status) VALUES ('other', 'link', '${SHORT_LINK_TARGET_NORMALIZED}', '${SHORT_LINK_TARGET}', ${now}, 'processing')`,
-  );
+  forgetItem(SHORT_LINK_TARGET_NORMALIZED);
 
-  const id = itemIdAt(SHORT_LINK_TARGET_NORMALIZED);
+  const id = storeItem({
+    normalized_url: SHORT_LINK_TARGET_NORMALIZED,
+    original_url: SHORT_LINK_TARGET,
+    status: "processing",
+  });
 
   instance.sql(
     `INSERT INTO jobs (kind, item_id, address, state, attempts, next_attempt_at) VALUES ('fetch', ${id}, '${SHORT_LINK_TARGET}', 'queued', 0, ${now + 3_600_000})`,

@@ -3,7 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import type { ZodError } from "zod";
 
 import { itemPath } from "../core/item-path.ts";
-import { getItem, listItems, saveItem } from "../core/items.ts";
+import { getItem, getListedItem, listItems, saveItem } from "../core/items.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
 import { guard } from "./guard.ts";
@@ -11,6 +11,7 @@ import { jsonBody, jsonRequest } from "./openapi.ts";
 import {
   ErrorResponseSchema,
   IdParamSchema,
+  ItemDetailResponseSchema,
   ItemListResponseSchema,
   ItemResponseSchema,
   SaveItemRequestSchema,
@@ -25,7 +26,7 @@ const saveItemRoute = createRoute({
   responses: {
     201: jsonBody(
       SavedItemResponseSchema,
-      "The link was new and is now an Item. The Item is `processing` until its fetch job ends, and a short link answers with its end state. Read `GET /api/items/{id}` until `status` leaves `processing`.",
+      "The link was new and is now an Item. The Item is `processing` until its fetch job ends. Read `GET /api/items/{id}/status` until `status` leaves `processing`. A short link that cannot be resolved answers with its end state.",
     ),
     200: jsonBody(
       SavedItemResponseSchema,
@@ -42,7 +43,10 @@ const listItemsRoute = createRoute({
   method: "get",
   path: "/api/items",
   responses: {
-    200: jsonBody(ItemListResponseSchema, "Every Item, newest saved first."),
+    200: jsonBody(
+      ItemListResponseSchema,
+      "Every Item, newest saved first, without its post text. Read `GET /api/items/{id}` for the text.",
+    ),
   },
 });
 
@@ -51,7 +55,23 @@ const getItemRoute = createRoute({
   path: "/api/items/{id}",
   request: { params: IdParamSchema },
   responses: {
-    200: jsonBody(ItemResponseSchema, "The Item, with its status, reason and last fetch result."),
+    200: jsonBody(
+      ItemDetailResponseSchema,
+      "The Item, with its status, reason, last fetch result, post text and posted date.",
+    ),
+    404: jsonBody(ErrorResponseSchema, "No Item has this id."),
+  },
+});
+
+const getItemStatusRoute = createRoute({
+  method: "get",
+  path: "/api/items/{id}/status",
+  request: { params: IdParamSchema },
+  responses: {
+    200: jsonBody(
+      ItemResponseSchema,
+      "The Item as the list shows it, without its post text and posted date. Poll this until `status` leaves `processing`.",
+    ),
     404: jsonBody(ErrorResponseSchema, "No Item has this id."),
   },
 });
@@ -82,6 +102,14 @@ function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
 
   app.openapi(getItemRoute, async (c) => {
     const item = await getItem(ports.db, c.req.valid("param").id);
+
+    return item === undefined
+      ? c.json({ error: NOT_FOUND }, 404)
+      : c.json({ item: itemView(item) }, 200);
+  });
+
+  app.openapi(getItemStatusRoute, async (c) => {
+    const item = await getListedItem(ports.db, c.req.valid("param").id);
 
     return item === undefined
       ? c.json({ error: NOT_FOUND }, 404)

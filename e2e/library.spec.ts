@@ -50,8 +50,8 @@ function expectedItems(redirect: string) {
     [POST_URL, { ...REDDIT_FIELDS, community: "selfhosted" }],
     [`${POST_URL}_/cisdfvv/`, { ...REDDIT_FIELDS, community: "selfhosted" }],
     ["https://example.com/", { source: "other", title: "Example Domain" }],
-    [MOVED_PAGE_NORMALIZED, { source: "other", title: MOVED_PAGE_TITLE }],
-    [SHORT_LINK_TARGET_NORMALIZED, { source: "other", title: "Example Domains" }],
+    [MOVED_PAGE_NORMALIZED, { title: MOVED_PAGE_TITLE }],
+    [SHORT_LINK_TARGET_NORMALIZED, { source: "article", title: "Example Domains" }],
     [X_POST, { source: "x", title: null }],
     [redirect, { source: "other", title: null }],
   ]);

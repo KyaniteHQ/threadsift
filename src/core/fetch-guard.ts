@@ -9,10 +9,10 @@ import {
 } from "./ports.ts";
 
 const MAX_REDIRECTS = 20;
-const MAX_BODY_BYTES = 512 * 1024;
 const DEADLINE_REASON = "deadline";
 const REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308]);
-const HTML_TYPE = /^(?:text\/html|application\/xhtml\+xml)\b/iu;
+export const SMALL_BODY_BYTES = 512 * 1024;
+const HTML_TYPES: ReadonlySet<string> = new Set(["text/html", "application/xhtml+xml"]);
 const CHARSET = /;\s*charset\s*=\s*"?(?<label>[^";\s]+)/iu;
 
 type GuardFailure = Exclude<FetchFailure, "no-title" | "unreadable" | "redirect-stopped">;
@@ -25,42 +25,76 @@ interface Failed {
 export interface FetchPolicy {
   readonly stopAt: (url: string) => boolean;
   readonly followMetaRefresh: (url: string) => boolean;
+  readonly readsBody: (url: string) => boolean;
+  readonly htmlMaxBytes: number;
 }
 
-export type GuardOutcome =
-  | { readonly kind: "page"; readonly url: string; readonly text: string }
-  | { readonly kind: "stopped"; readonly url: string }
-  | Failed;
+export interface Page {
+  readonly kind: "page";
+  readonly url: string;
+  readonly text: string;
+  readonly html: boolean;
+  readonly cut: boolean;
+}
+
+export type GuardOutcome = Page | { readonly kind: "stopped"; readonly url: string } | Failed;
+
+interface Capped {
+  readonly bytes: Uint8Array;
+  readonly cut: boolean;
+}
+
+const NO_BODY: Capped = { bytes: new Uint8Array(0), cut: false };
 
 type Hop =
   | { readonly kind: "redirect"; readonly location: string }
-  | { readonly kind: "page"; readonly contentType: string | null; readonly bytes: Uint8Array }
+  | ({
+      readonly kind: "page";
+      readonly contentType: string | null;
+      readonly html: boolean;
+    } & Capped)
   | Failed;
 
 const failed = (reason: GuardFailure): Failed => ({ kind: "failed", reason });
 
-async function readCapped(body: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const bytes = new Uint8Array(MAX_BODY_BYTES);
+async function readCapped(body: AsyncIterable<Uint8Array>, maxBytes: number): Promise<Capped> {
+  const chunks: Uint8Array[] = [];
   let size = 0;
+  let cut = false;
 
   for await (const chunk of body) {
-    const taken = chunk.subarray(0, MAX_BODY_BYTES - size);
-    bytes.set(taken, size);
-    size += taken.length;
+    const room = maxBytes - size;
+    cut = chunk.length > room;
+    const kept = cut ? chunk.subarray(0, room) : chunk;
+    chunks.push(kept);
+    size += kept.length;
 
-    if (size === MAX_BODY_BYTES) {
+    if (cut) {
       break;
     }
   }
 
-  return bytes.subarray(0, size);
+  const bytes = new Uint8Array(size);
+  let at = 0;
+
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.length;
+  }
+
+  return { bytes, cut };
 }
 
 function failureOf(deadlineHit: boolean, reason: NetworkFailureReason | null): GuardFailure {
   return deadlineHit ? "timeout" : (reason ?? "network");
 }
 
-async function requestHop(network: Network, url: string, deadline: AbortSignal): Promise<Hop> {
+async function requestHop(
+  network: Network,
+  url: string,
+  deadline: AbortSignal,
+  policy: Readonly<FetchPolicy>,
+): Promise<Hop> {
   if (deadline.aborted) {
     return failed("timeout");
   }
@@ -82,11 +116,13 @@ async function requestHop(network: Network, url: string, deadline: AbortSignal):
       return failed("status");
     }
 
-    return {
-      kind: "page",
-      contentType: response.contentType,
-      bytes: await readCapped(response.body),
-    };
+    const html = isHtmlType(response.contentType);
+
+    const body = policy.readsBody(url)
+      ? await readCapped(response.body, html ? policy.htmlMaxBytes : SMALL_BODY_BYTES)
+      : NO_BODY;
+
+    return { kind: "page", contentType: response.contentType, html, ...body };
   } catch (error) {
     const deadlineHit = controller.signal.reason === DEADLINE_REASON || deadline.aborted;
 
@@ -95,6 +131,12 @@ async function requestHop(network: Network, url: string, deadline: AbortSignal):
     clearTimeout(timer);
     controller.abort();
   }
+}
+
+function isHtmlType(contentType: string | null): boolean {
+  const [mediaType = ""] = (contentType ?? "").split(";");
+
+  return HTML_TYPES.has(mediaType.trim().toLowerCase());
 }
 
 function decoderFor(contentType: string | null): TextDecoder {
@@ -152,7 +194,7 @@ async function follow(
   url: URL,
   redirects: number,
 ): Promise<GuardOutcome> {
-  const hop = await requestHop(network, url.href, deadline);
+  const hop = await requestHop(network, url.href, deadline, policy);
 
   if (hop.kind === "failed") {
     return hop;
@@ -165,12 +207,10 @@ async function follow(
   const text = decoderFor(hop.contentType).decode(hop.bytes);
 
   const refreshTo =
-    policy.followMetaRefresh(url.href) && HTML_TYPE.test(hop.contentType ?? "")
-      ? metaRefreshTarget(text, url.href)
-      : null;
+    policy.followMetaRefresh(url.href) && hop.html ? metaRefreshTarget(text, url.href) : null;
 
   return refreshTo === null
-    ? { kind: "page", url: url.href, text }
+    ? { kind: "page", url: url.href, text, html: hop.html, cut: hop.cut }
     : advance(network, policy, deadline, url, refreshTo, redirects);
 }
 

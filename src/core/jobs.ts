@@ -7,7 +7,7 @@ import type { Database, Ports } from "./ports.ts";
 import { type JobRow, guards, items, jobs, scheduledRuns } from "./schema.ts";
 import { isRetryable, settle } from "./settle.ts";
 
-export type JobPorts = Pick<Ports, "db" | "network" | "jobs">;
+export type JobPorts = Pick<Ports, "db" | "network" | "pages" | "jobs">;
 
 const CLAIM_MARGIN_MS = 120_000;
 const RETRY_DELAYS_MS = [30_000, 120_000] as const;
@@ -31,7 +31,7 @@ async function titleOf(db: Database, itemId: number): Promise<string | null> {
 }
 
 async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>) {
-  const { fetched } = await fetchLink(ports.network, job.address);
+  const fetched = await fetchLink(ports.network, ports.pages, job.address);
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
 
   return [

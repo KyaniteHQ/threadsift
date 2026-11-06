@@ -1,31 +1,53 @@
 import { type Fetched, NOT_REQUESTED, detailsOfOembed, detailsOfPage } from "./details.ts";
-import { type FetchPolicy, type GuardOutcome, guardedFetch } from "./fetch-guard.ts";
+import {
+  type FetchPolicy,
+  type GuardOutcome,
+  type Page,
+  SMALL_BODY_BYTES,
+  guardedFetch,
+} from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import { type Link, isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
-import type { Network } from "./ports.ts";
+import { isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
+import { PageReadTimeout } from "./page-read-timeout.ts";
+import type { Network, PageReader } from "./ports.ts";
 
-interface FetchedLink {
-  readonly link: Link;
-  readonly fetched: Fetched;
-}
+export type ShortLinkResolution =
+  | { readonly kind: "resolved"; readonly address: string }
+  | { readonly kind: "failed"; readonly fetched: Fetched };
 
 export const FETCH_DEADLINE_MS = 120_000;
 
-const POLICY: FetchPolicy = {
+const SMALL_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
   followMetaRefresh: isShortLink,
+  readsBody: () => true,
+  htmlMaxBytes: SMALL_BODY_BYTES,
 };
 
-function fetchedOf(
+const RESOLVE_POLICY: FetchPolicy = { ...SMALL_POLICY, readsBody: isShortLink };
+
+function pagePolicy({ maxHtmlBytes }: Readonly<PageReader>): FetchPolicy {
+  return { ...SMALL_POLICY, htmlMaxBytes: maxHtmlBytes };
+}
+
+async function fetchedOf(
   outcome: Readonly<GuardOutcome>,
-  readPage: (text: string) => Fetched,
+  readPage: (page: Readonly<Page>) => Promise<Fetched> | Fetched,
   whenStopped: FetchFailure,
-): Fetched {
-  if (outcome.kind === "page") {
-    return readPage(outcome.text);
+): Promise<Fetched> {
+  if (outcome.kind !== "page") {
+    return { status: outcome.kind === "stopped" ? whenStopped : outcome.reason };
   }
 
-  return { status: outcome.kind === "stopped" ? whenStopped : outcome.reason };
+  try {
+    return await readPage(outcome);
+  } catch (error) {
+    if (error instanceof PageReadTimeout) {
+      return { status: "timeout" };
+    }
+
+    throw error;
+  }
 }
 
 async function fetchedOfOembed(
@@ -36,19 +58,21 @@ async function fetchedOfOembed(
   const outcome = await guardedFetch(
     network,
     `https://www.reddit.com/oembed?url=${encodeURIComponent(normalizedUrl)}`,
-    POLICY,
+    SMALL_POLICY,
     deadline,
   );
 
-  return fetchedOf(outcome, detailsOfOembed, "unreadable");
+  return fetchedOf(outcome, ({ text }) => detailsOfOembed(text), "unreadable");
 }
 
-async function fetchedFor(
+export async function fetchLink(
   network: Network,
-  link: Readonly<Link>,
+  pages: Readonly<PageReader>,
   address: string,
-  deadline: AbortSignal,
 ): Promise<Fetched> {
+  const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
+  const link = parseLink(address);
+
   if (link.kind === "reddit-post" || link.kind === "reddit-comment") {
     return fetchedOfOembed(network, link.normalizedUrl, deadline);
   }
@@ -58,38 +82,24 @@ async function fetchedFor(
   }
 
   return fetchedOf(
-    await guardedFetch(network, address, POLICY, deadline),
-    detailsOfPage,
+    await guardedFetch(network, address, pagePolicy(pages), deadline),
+    (page) => detailsOfPage(pages, page, link, deadline),
     "redirect-stopped",
   );
 }
 
-async function followShortLink(
+export async function resolveShortLink(
   network: Network,
-  pasted: Readonly<Link>,
   address: string,
-  deadline: AbortSignal,
-): Promise<FetchedLink> {
-  const outcome = await guardedFetch(network, address, POLICY, deadline);
+): Promise<ShortLinkResolution> {
+  const outcome = await guardedFetch(
+    network,
+    address,
+    RESOLVE_POLICY,
+    AbortSignal.timeout(FETCH_DEADLINE_MS),
+  );
 
-  if (outcome.kind === "stopped") {
-    const link = parseLink(outcome.url);
-
-    return { link, fetched: await fetchedFor(network, link, outcome.url, deadline) };
-  }
-
-  const link = outcome.kind === "page" ? parseLink(outcome.url) : pasted;
-
-  return { link, fetched: fetchedOf(outcome, detailsOfPage, "redirect-stopped") };
-}
-
-export async function fetchLink(network: Network, address: string): Promise<FetchedLink> {
-  const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
-  const pasted = parseLink(address);
-
-  if (isShortLink(address)) {
-    return followShortLink(network, pasted, address, deadline);
-  }
-
-  return { link: pasted, fetched: await fetchedFor(network, pasted, address, deadline) };
+  return outcome.kind === "failed"
+    ? { kind: "failed", fetched: { status: outcome.reason } }
+    : { kind: "resolved", address: outcome.url };
 }

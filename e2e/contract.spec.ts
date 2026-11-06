@@ -34,6 +34,7 @@ const OpenApiDocument = z.looseObject({
       post: Operation.extend({ requestBody: Body }),
     }),
     "/api/items/{id}": z.looseObject({ get: Operation }),
+    "/api/items/{id}/status": z.looseObject({ get: Operation }),
   }),
 });
 
@@ -115,6 +116,31 @@ test("the served OpenAPI document describes the items routes", async ({ request 
       ]),
     );
   }
+});
+
+test("the served OpenAPI document describes the status route without the post text", async ({
+  request,
+}) => {
+  const { paths, components } = OpenApiDocument.parse(
+    await (await request.get("/api/openapi.json")).json(),
+  );
+
+  const polled = paths["/api/items/{id}/status"];
+
+  expect(Object.keys(polled.get.responses).toSorted()).toEqual(["200", "404"]);
+
+  const names = propertyNames(
+    components.schemas,
+    propertyOf(
+      components.schemas,
+      jsonSchemaOf(polled.get.responses["200"] ?? { content: {} }),
+      "item",
+    ),
+  );
+
+  expect(names).toEqual(expect.arrayContaining(["title", "status", "reason", "fetch"]));
+  expect(names).not.toContain("postText");
+  expect(names).not.toContain("postedAt");
 });
 
 test("a path with a file extension that matches no file is a 404 and a page path is the page", async ({
