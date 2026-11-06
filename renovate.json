@@ -45,6 +45,12 @@
       "matchPackageNames": ["oxlint", "@oxlint/plugins"],
       "groupName": "oxlint",
       "groupSlug": "oxlint"
+    },
+    {
+      "description": "@cloudflare/workers-utils types what wrangler's experimental_readRawConfig returns and must match the version in wrangler's own devDependencies, so they move together even across a major",
+      "matchPackageNames": ["wrangler", "@cloudflare/workers-utils"],
+      "groupName": "wrangler",
+      "groupSlug": "wrangler"
     }
   ]
 }
