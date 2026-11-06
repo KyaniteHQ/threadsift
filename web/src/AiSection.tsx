@@ -55,7 +55,7 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
       >
         <AiFields fields={fields} disabled={busy} publicOnly={view.publicOnly} />
         <p>{view.settings?.keySet === true ? AI_TEXT.keySet : AI_TEXT.keyMissing}</p>
-        <Alert text={view.secretReady ? null : AI_TEXT["secret-missing"]} />
+        {view.secretReady ? null : <p className="fld-help">{AI_TEXT["secret-missing"]}</p>}
         <div className="ai-actions">
           <button className="btn btn-acc" disabled={busy || !view.secretReady} type="submit">
             {AI_TEXT.save}

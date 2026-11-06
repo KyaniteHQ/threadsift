@@ -1,7 +1,9 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
-import { DESKTOP, openPanel, px } from "./look.ts";
+import { newCode, newPassword } from "./access.ts";
+import { openSignedIn } from "./fresh-screen.ts";
+import { DESKTOP, afterTwoFrames, openPanel, px } from "./look.ts";
 
 const PHONE = { width: 390, height: 844 } as const;
 const HALF_PIXEL = 0.5;
@@ -96,4 +98,28 @@ test("the Instance settings link sits apart from the Look settings, under a hair
 
   expect(linkTop).toBeGreaterThanOrEqual(bodyBottom - 1);
   expect(linkBottom).toBeLessThanOrEqual(footTop);
+});
+
+test("Settings keeps its heading focused after an empty agent-token list loads", async ({
+  browser,
+}) => {
+  test.setTimeout(90_000);
+  const screen = await openSignedIn(browser, newCode(), newPassword());
+
+  try {
+    await screen.page.setViewportSize(PHONE);
+
+    const loaded = screen.page.waitForResponse((response) =>
+      response.url().endsWith("/api/tokens"),
+    );
+
+    await screen.page.goto("/settings");
+    await loaded;
+    await afterTwoFrames(screen.page);
+    await expect(
+      screen.page.getByRole("heading", { level: 1, name: SETTINGS.title }),
+    ).toBeFocused();
+  } finally {
+    await screen.close();
+  }
 });

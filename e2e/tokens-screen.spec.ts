@@ -1,10 +1,11 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
+import { AI_TEXT } from "../web/src/ai-text.ts";
 import { filled } from "../web/src/text.ts";
 import { newCode, minimumPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { DESKTOP } from "./look.ts";
+import { DESKTOP, afterTwoFrames } from "./look.ts";
 import { tokenNameField } from "./setup-screens.ts";
 
 const NAME_LIMIT = 80;
@@ -46,6 +47,8 @@ test("Create stays level with the name field while the field shows an error", as
   const { page } = screen;
   await page.setViewportSize(DESKTOP);
   await page.goto("/settings");
+  await expect(page.getByRole("button", { name: AI_TEXT.save, exact: true })).toBeVisible();
+  await afterTwoFrames(page);
   const quiet = await centreOf(createButton(page).boundingBox());
   const input = await centreOf(tokenNameField(page).boundingBox());
   expect(Math.abs(quiet - input), "Create is level with the field").toBeLessThan(PIXEL);
