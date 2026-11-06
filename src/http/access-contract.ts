@@ -53,6 +53,9 @@ export const setupRoute = createRoute({
     204: noContent("The owner exists and the response sets the session cookie."),
     400: errorBody(PASSWORD_RULE),
     ...SETUP_ERRORS,
+    409: errorBody(
+      "An owner exists already, or the password changed while the call ran and no session started; `code` says which.",
+    ),
   },
 });
 
@@ -77,6 +80,7 @@ export const changePasswordRoute = createRoute({
       "The password is changed, every session ended and the response sets this caller a new session cookie. Agent tokens keep working.",
     ),
     400: errorBody(PASSWORD_RULE),
+    401: errorBody("The session is missing, expired or revoked."),
     403: errorBody("The current password is wrong, or an agent token was sent."),
     409: errorBody(
       "The password or this session changed while the call ran, so nothing was changed.",
@@ -95,7 +99,9 @@ export const resetPasswordRoute = createRoute({
     ),
     400: errorBody(PASSWORD_RULE),
     403: errorBody("The reset code is wrong."),
-    409: errorBody("The code was used already, or the Instance has no owner; `code` says which."),
+    409: errorBody(
+      "The code was used already, the Instance has no owner, or the password changed while the call ran; `code` says which.",
+    ),
     429: TOO_MANY,
     503: errorBody("The Instance has no usable reset code; `code` says why."),
   },

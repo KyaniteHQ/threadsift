@@ -8,7 +8,7 @@ import {
 } from "./passwords.ts";
 import type { Database, Ports } from "./ports.ts";
 import { guardedBatch, owner } from "./schema.ts";
-import { type StartedSession, prepareSession, sessionWrites, startSession } from "./sessions.ts";
+import { type StartedSession, prepareSession, sessionWrites } from "./sessions.ts";
 import {
   SETUP_CODE_MIN,
   type SetupCodeProblem,
@@ -26,7 +26,8 @@ export type SetupBlock =
 export type SetupResult =
   | SetupBlock
   | { readonly kind: "password"; readonly length: PasswordProblem }
-  | { readonly kind: "created"; readonly session: StartedSession };
+  | { readonly kind: "created"; readonly session: StartedSession }
+  | { readonly kind: "superseded" };
 
 export type LoginResult =
   | { readonly kind: "signed-in"; readonly session: StartedSession }
@@ -34,7 +35,7 @@ export type LoginResult =
   | { readonly kind: "wrong" }
   | { readonly kind: "superseded" };
 
-async function passwordHashOf(db: Database): Promise<string | undefined> {
+export async function passwordHashOf(db: Database): Promise<string | undefined> {
   const [row] = await db.select({ hash: owner.passwordHash }).from(owner).limit(1);
 
   return row?.hash;
@@ -95,7 +96,15 @@ export async function setUpOwner(
     return { kind: "owner-exists" };
   }
 
-  return { kind: "created", session: await startSession(ports) };
+  const session = prepareSession(ports.crypto);
+
+  const committed = await guardedBatch(
+    ports.db,
+    passwordHashIs(passwordHash),
+    sessionWrites(ports.db, session),
+  );
+
+  return committed ? { kind: "created", session } : { kind: "superseded" };
 }
 
 export function verifyOwnerPassword(ports: Ports, password: string): Promise<Attempt<string>> {

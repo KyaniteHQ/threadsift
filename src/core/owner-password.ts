@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { digestOf } from "./encoding.ts";
-import { hasOwner, passwordHashIs, verifyOwnerPassword } from "./owner.ts";
+import { passwordHashIs, passwordHashOf, verifyOwnerPassword } from "./owner.ts";
 import { type PasswordProblem, hashPassword, passwordLength } from "./passwords.ts";
 import type { Database, Ports } from "./ports.ts";
 import { guardedBatch, owner, spentResetCodes, throttles } from "./schema.ts";
@@ -34,7 +34,8 @@ export type ResetResult =
   | { readonly kind: "password"; readonly length: PasswordProblem }
   | { readonly kind: "locked"; readonly retryAfter: number }
   | { readonly kind: "wrong" }
-  | { readonly kind: "used" };
+  | { readonly kind: "used" }
+  | { readonly kind: "superseded" };
 
 function setHash(db: Database, passwordHash: string) {
   return db.update(owner).set({ passwordHash }).where(eq(owner.id, 1));
@@ -75,6 +76,43 @@ function codeIsSpent(digest: string) {
   return sql`exists (select 1 from ${spentResetCodes} where ${spentResetCodes.digest} = ${digest})`;
 }
 
+async function isSpent(db: Database, digest: string): Promise<boolean> {
+  const [row] = await db
+    .select({ digest: spentResetCodes.digest })
+    .from(spentResetCodes)
+    .where(eq(spentResetCodes.digest, digest));
+
+  return row !== undefined;
+}
+
+async function commitReset(
+  ports: Ports,
+  observed: string,
+  code: string,
+  password: string,
+): Promise<ResetResult> {
+  const { db, crypto } = ports;
+  const digest = digestOf(crypto, code);
+  const passwordHash = await hashPassword(crypto, password);
+
+  const committed = await guardedBatch(
+    db,
+    sql`${passwordHashIs(observed)} and not ${codeIsSpent(digest)}`,
+    [
+      db.insert(spentResetCodes).values({ digest, spentAt: Date.now() }),
+      setHash(db, passwordHash),
+      endAllSessions(db),
+      db.delete(throttles).where(eq(throttles.kind, "login")),
+    ],
+  );
+
+  if (committed) {
+    return { kind: "reset" };
+  }
+
+  return (await isSpent(db, digest)) ? { kind: "used" } : { kind: "superseded" };
+}
+
 export async function resetPassword(
   ports: Ports,
   code: string,
@@ -82,7 +120,9 @@ export async function resetPassword(
 ): Promise<ResetResult> {
   const { db, crypto } = ports;
 
-  if (!(await hasOwner(db))) {
+  const observed = await passwordHashOf(db);
+
+  if (observed === undefined) {
     return { kind: "no-owner" };
   }
 
@@ -104,16 +144,5 @@ export async function resetPassword(
     return attempt;
   }
 
-  const digest = digestOf(crypto, configured.code);
-
-  const passwordHash = await hashPassword(crypto, password);
-
-  const committed = await guardedBatch(db, sql`not ${codeIsSpent(digest)}`, [
-    db.insert(spentResetCodes).values({ digest, spentAt: Date.now() }),
-    setHash(db, passwordHash),
-    endAllSessions(db),
-    db.delete(throttles).where(eq(throttles.kind, "login")),
-  ]);
-
-  return committed ? { kind: "reset" } : { kind: "used" };
+  return commitReset(ports, observed, configured.code, password);
 }

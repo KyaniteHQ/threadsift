@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+import { ErrorResponseSchema } from "../src/http/schemas.ts";
 import { expectRefusal, sha256Hex } from "./access-helpers.ts";
 import { type Instance, launchFresh, newCode, newPassword, strangerPool } from "./access.ts";
 import { setUpByApi } from "./fresh-screen.ts";
 import {
+  addMovingTrigger,
   newResetCode,
   ownerHashDigest,
   resetCall,
@@ -96,21 +98,54 @@ test("a reset whose code was spent after its check gets 409 reset-used and chang
   }
 });
 
+test("a reset that read a password a change then replaced gets 409 password-changed and spends nothing", async () => {
+  useNewCode();
+  const owner = await signInWith(fresh.url, password);
+  const sessionsBefore = storedSessions(fresh);
+  const restore = addMovingTrigger(fresh, "", "reset");
+  const hashBefore = ownerHashDigest(fresh);
+
+  try {
+    await expectRefusal(await reset(), 409, "a reset that lost to a change", "password-changed");
+    expect(ownerHashDigest(fresh), "the change's hash was not overwritten").not.toBe(hashBefore);
+    expect(spentCodes(fresh), "the code is unspent").not.toContain(sha256Hex(current));
+    expect(storedSessions(fresh), "the sessions are as they were").toEqual(sessionsBefore);
+    const stillIn = await owner.api.get("/api/items", { headers: owner.headers });
+    expect(stillIn.status(), "the session works").toBe(200);
+  } finally {
+    restore();
+  }
+
+  const next = newPassword();
+  expect((await reset(next)).status(), "the same code once the password stopped moving").toBe(204);
+  password = next;
+  await owner.api.dispose();
+});
+
 test("two resets started together with the right code give one 204 and one reset-used", async () => {
   useNewCode();
-  const answers = await Promise.all([reset(newPassword()), reset(newPassword())]);
+  const passwords = [newPassword(), newPassword()] as const;
+  const answers = await Promise.all(passwords.map((next) => reset(next)));
   const statuses = answers.map((answer) => answer.status()).toSorted((a, b) => a - b);
-  expect(statuses).toEqual([204, 409]);
-  const refused = answers.find((answer) => answer.status() === 409);
-  await expectRefusal(refused ?? answers[0], 409, "the second reset", "reset-used");
+  expect(statuses[0], "one reset won").toBe(204);
+  expect(statuses[1], "the other was refused").toBe(409);
+  const won = answers.findIndex((answer) => answer.status() === 204);
+  const refused = answers[won === 0 ? 1 : 0];
+  const body = ErrorResponseSchema.parse(await refused?.json());
+  expect(["reset-used", "password-changed"], "why the second reset lost").toContain(body.code);
+  password = passwords[won] ?? password;
   expect(spentCodes(fresh)).toContain(sha256Hex(current));
   expect(storedSessions(fresh)).toEqual([]);
+  expect((await signInWith(fresh.url, password)).value, "the winner's password works").not.toBe("");
 });
 
 test("a login and a reset started together leave no session behind", async () => {
   useNewCode();
   const next = newPassword();
   const stranger = await strangers.at(fresh.url);
+  expect((await signInWith(fresh.url, password)).value, "the login works before the race").not.toBe(
+    "",
+  );
 
   const [login, done] = await Promise.all([
     stranger.post("/api/login", { data: { password } }),
@@ -118,7 +153,10 @@ test("a login and a reset started together leave no session behind", async () =>
   ]);
 
   expect(done.status(), "the reset").toBe(204);
-  expect([204, 401, 409], "the login lost to the reset or won before it").toContain(login.status());
+  password = next;
+  expect([204, 401, 409], "the login won before the reset, or lost to it").toContain(
+    login.status(),
+  );
   expect(storedSessions(fresh), "no session survives a reset").toEqual([]);
   const cookie = setCookieLines(login)[0]?.split(";")[0] ?? "";
   const probe = await stranger.get("/api/items", { headers: { cookie } });
@@ -129,6 +167,6 @@ test("a login and a reset started together leave no session behind", async () =>
     description:
       login.status() === 409
         ? "the login verified the old password and lost to the reset: 409 password-changed"
-        : `the login answered ${login.status()}, so the requests did not overlap in this run`,
+        : `the login answered ${login.status()}, so the requests did not overlap in this run: a concurrency smoke test`,
   });
 });

@@ -52,6 +52,10 @@ function registerSetupRoutes(app: OpenAPIHono, ports: Ports): void {
       return startedSession(c, result.session);
     }
 
+    if (result.kind === "superseded") {
+      return superseded(c);
+    }
+
     return result.kind === "password" ? badPassword(c, result.length) : refuse(c, result);
   });
 }

@@ -50,14 +50,6 @@ export function endAllSessions(db: Database) {
   return db.delete(sessions);
 }
 
-export async function startSession(ports: Ports): Promise<StartedSession> {
-  const session = prepareSession(ports.crypto);
-
-  await ports.db.batch(sessionWrites(ports.db, session));
-
-  return { id: session.id, maxAge: session.maxAge };
-}
-
 export async function checkSession(ports: Ports, id: string): Promise<SessionCheck> {
   const now = Date.now();
   const digest = digestOf(ports.crypto, id);

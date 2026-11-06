@@ -79,6 +79,8 @@ export function refuseReset(c: Context, block: ResetBlock) {
       return c.json({ error: MESSAGES["no-owner"], code: "no-owner" } as const, 409);
     case "used":
       return c.json({ error: MESSAGES["reset-used"], code: "reset-used" } as const, 409);
+    case "superseded":
+      return superseded(c);
     case "unavailable": {
       const code = `reset-${block.reason}` as const;
 

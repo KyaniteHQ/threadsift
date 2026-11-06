@@ -137,11 +137,15 @@ export async function fillChange(
   await section.getByRole("button", { name: PASSWORD.change }).click();
 }
 
-export function addMovingTrigger(instance: Instance, extra = ""): () => void {
+export function addMovingTrigger(
+  instance: Instance,
+  extra = "",
+  kind: "login" | "reset" = "login",
+): () => void {
   const original = ownerHash(instance);
 
   instance.sql(
-    `CREATE TRIGGER password_moves AFTER DELETE ON throttles WHEN OLD.kind = 'login' BEGIN UPDATE owner SET password_hash = password_hash || 'x' WHERE id = 1;${extra} END`,
+    `CREATE TRIGGER password_moves AFTER DELETE ON throttles WHEN OLD.kind = '${kind}' BEGIN UPDATE owner SET password_hash = password_hash || 'x' WHERE id = 1;${extra} END`,
   );
 
   return () => {
