@@ -1,13 +1,6 @@
-import { type MouseEvent, useCallback, useEffect, useState } from "react";
 import type { ZodType } from "zod";
 
-export const SETTINGS_PATH = "/settings";
-
-const SIGNED_OUT = "threadsift:signed-out";
-
-function announceSignedOut(): void {
-  window.dispatchEvent(new Event(SIGNED_OUT));
-}
+import { announceSignedOut } from "./signed-out.ts";
 
 type Method = "GET" | "POST" | "DELETE";
 
@@ -64,53 +57,4 @@ export async function parsedFrom<Parsed>(
   const response = await callOk(method, path, options);
 
   return schema.parse(await response.json());
-}
-
-export function useSignedOutListener(onSignedOut: () => void): void {
-  useEffect(() => {
-    window.addEventListener(SIGNED_OUT, onSignedOut);
-
-    return () => {
-      window.removeEventListener(SIGNED_OUT, onSignedOut);
-    };
-  }, [onSignedOut]);
-}
-
-export function usePath() {
-  const [path, setPath] = useState(window.location.pathname);
-
-  useEffect(() => {
-    const update = () => {
-      setPath(window.location.pathname);
-    };
-
-    window.addEventListener("popstate", update);
-
-    return () => {
-      window.removeEventListener("popstate", update);
-    };
-  }, []);
-
-  const navigate = useCallback((to: string) => {
-    window.history.pushState(null, "", to);
-    setPath(to);
-  }, []);
-
-  return { path, navigate };
-}
-
-export function useInternalLink(open: () => void) {
-  return useCallback(
-    (event: MouseEvent<HTMLAnchorElement>) => {
-      const modified = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
-
-      if (event.button !== 0 || modified) {
-        return;
-      }
-
-      event.preventDefault();
-      open();
-    },
-    [open],
-  );
 }

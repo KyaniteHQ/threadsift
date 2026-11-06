@@ -1,15 +1,7 @@
 import { groupedNumber } from "../../src/core/format.ts";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../../src/core/passwords.ts";
 import { SETUP_CODE_MIN } from "../../src/core/setup-code.ts";
-
-export const TITLES = {
-  setup: "Set up Threadsift",
-  login: "Sign in to Threadsift",
-  settings: "Settings, Threadsift",
-  library: "Threadsift",
-  loading: "Threadsift",
-  unreachable: "Threadsift",
-} as const;
+import { filled } from "./text.ts";
 
 export const SETUP = {
   stepOne: "Step 1 of 2",
@@ -98,13 +90,6 @@ export const SETTINGS = {
   signOut: "Sign out",
   signOutFailed: "Couldn’t sign out and you’re still signed in, so try again.",
 } as const;
-
-export function filled(template: string, values: Readonly<Record<string, string>>): string {
-  return Object.entries(values).reduce(
-    (text, [key, value]) => text.replaceAll(`{${key}}`, value),
-    template,
-  );
-}
 
 export function waitLabel(seconds: number): string {
   if (seconds < 60) {

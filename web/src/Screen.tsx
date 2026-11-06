@@ -1,12 +1,13 @@
 import { useCallback } from "react";
 
-import { Library, type Look } from "./Library.tsx";
+import { Library } from "./Library.tsx";
 import { LoginScreen } from "./LoginScreen.tsx";
+import { type Route, SETTINGS_PATH } from "./routing.ts";
 import type { ScreenState } from "./screens.ts";
-import { SETTINGS_PATH } from "./session.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import { SetupScreen } from "./SetupScreen.tsx";
 import { Unreachable } from "./Unreachable.tsx";
+import type { Look } from "./use-root.ts";
 
 export interface SessionActions {
   readonly refresh: () => void;
@@ -19,15 +20,16 @@ export function Screen({
   look,
   arrived,
   session,
-  navigate,
+  route,
 }: Readonly<{
   screen: ScreenState;
   look: Look;
   arrived: boolean;
   session: SessionActions;
-  navigate: (to: string) => void;
+  route: Route;
 }>) {
   const { refresh, signedIn, signedOut } = session;
+  const { navigate } = route;
 
   const toLibrary = useCallback(() => {
     navigate("/");
@@ -52,7 +54,7 @@ export function Screen({
     case "settings":
       return <SettingsPage back={toLibrary} signedOut={leave} />;
     case "library":
-      return <Library look={look} arrived={arrived} openSettings={toSettings} />;
+      return <Library look={look} arrived={arrived} route={route} openSettings={toSettings} />;
     case "loading":
       return null;
     default:

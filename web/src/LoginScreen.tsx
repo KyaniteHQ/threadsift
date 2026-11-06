@@ -2,7 +2,8 @@ import { useCallback } from "react";
 
 import { type Attempt, logIn } from "./access-api.ts";
 import { FIELDS, LOGIN } from "./access-text.ts";
-import { Alert, AuthShell } from "./AuthShell.tsx";
+import { Alert } from "./Alert.tsx";
+import { AuthShell } from "./AuthShell.tsx";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";

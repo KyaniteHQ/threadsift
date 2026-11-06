@@ -2,8 +2,8 @@ import { useCallback, useRef, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
-import { Alert } from "./AuthShell.tsx";
-import { useInternalLink } from "./session.ts";
+import { Alert } from "./Alert.tsx";
+import { useInternalLink } from "./routing.ts";
 import { TokensSection } from "./TokensSection.tsx";
 import { useFocusOnMount } from "./use-form.ts";
 

@@ -1,6 +1,12 @@
 import type { FetchFailure } from "../../src/core/fetch-results.ts";
 import type { FailureReason, Source } from "../../src/core/kinds.ts";
-import { filled } from "./access-text.ts";
+
+export function filled(template: string, values: Readonly<Record<string, string>>): string {
+  return Object.entries(values).reduce(
+    (text, [key, value]) => text.replaceAll(`{${key}}`, value),
+    template,
+  );
+}
 
 export const PASTE_LABEL = "Paste a link to save";
 export const PASTE_PLACEHOLDER = "Paste a link";

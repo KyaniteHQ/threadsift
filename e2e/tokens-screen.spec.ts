@@ -1,6 +1,7 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { SETTINGS, filled } from "../web/src/access-text.ts";
+import { SETTINGS } from "../web/src/access-text.ts";
+import { filled } from "../web/src/text.ts";
 import { newCode, minimumPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { DESKTOP } from "./look.ts";

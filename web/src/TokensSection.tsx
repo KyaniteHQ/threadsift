@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Token } from "../../src/http/schemas.ts";
 import { fetchTokens } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
-import { Alert } from "./AuthShell.tsx";
+import { Alert } from "./Alert.tsx";
 import { TokenForm } from "./TokenForm.tsx";
 import { TokenList } from "./TokenList.tsx";
 import { TokenReveal } from "./TokenReveal.tsx";
