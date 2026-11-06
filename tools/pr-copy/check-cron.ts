@@ -18,6 +18,7 @@ import { awaitInvocations } from "./telemetry.ts";
 const CRON_WAIT_MS = 20 * 60_000;
 const PURGE_DEADLINE_MS = 300_000;
 const PURGE_POLL_MS = 2000;
+const ATTEMPTS = 2;
 const LINK = "https://example.com/";
 
 async function awaitPurge(
@@ -69,12 +70,13 @@ async function holdAndPurge(
   run: Readonly<Run>,
   copy: Readonly<Copy>,
   findings: Readonly<Findings>,
+  attempt: number,
 ): Promise<Held> {
   const { stage } = run;
   await setDeliveryPaused(stage, stage.target.queue, true);
 
   const pastedAt = Date.now();
-  const id = await paste(copy, withTag(LINK, `${run.tag}-cron`));
+  const id = await paste(copy, withTag(LINK, `${run.tag}-cron-${String(attempt)}`));
   findings.item(id);
 
   const queued = await fetchJobs(run, id);
@@ -113,9 +115,10 @@ async function heldAndResumed(
   run: Readonly<Run>,
   copy: Readonly<Copy>,
   findings: Readonly<Findings>,
+  attempt: number,
 ): Promise<Held> {
   try {
-    return await holdAndPurge(run, copy, findings);
+    return await holdAndPurge(run, copy, findings, attempt);
   } catch (error) {
     try {
       await resumeDelivery(run.stage);
@@ -155,7 +158,7 @@ async function orderOfInvocations(
   run: Readonly<Run>,
   held: Readonly<Held>,
   findings: Readonly<Findings>,
-): Promise<void> {
+): Promise<boolean> {
   const found = await recoveryInvocations(run, held);
   findings.used(found);
 
@@ -165,37 +168,31 @@ async function orderOfInvocations(
 
   const consumer = found.find((entry) => entry.trigger === "queue" && entry.at > held.purgedAt);
 
-  if (tick === undefined || consumer === undefined) {
-    throw new Inconclusive("no scheduled invocation and consumer invocation followed the purge");
-  }
+  if (tick === undefined || consumer === undefined || consumer.at < tick.at) return false;
 
-  if (consumer.at < tick.at) {
-    throw new Inconclusive(
-      "a consumer invocation came before the next scheduled invocation, so the purge may not have removed the message",
-    );
-  }
-
-  findings.check(
-    "the scheduled invocation came before the first consumer invocation after the purge",
-    tick.at < consumer.at,
-    `${String(consumer.at - tick.at)} ms apart`,
+  findings.measure(
+    "ms from the scheduled invocation to the first consumer invocation",
+    consumer.at - tick.at,
   );
+
   findings.check(
     "the consumer invocation after it ended ok",
     consumer.outcome === "ok",
     consumer.outcome,
   );
+
+  return true;
 }
 
-export async function cronCheck(
+async function recovery(
   run: Readonly<Run>,
   copy: Readonly<Copy>,
   findings: Readonly<Findings>,
+  attempt = 1,
 ): Promise<void> {
-  await awaitScheduledTick(run, findings);
   await requireIdleCopy(run, copy);
 
-  const held = await heldAndResumed(run, copy, findings);
+  const held = await heldAndResumed(run, copy, findings, attempt);
   const item = await endState(copy, held.id);
 
   findings.check("the Item ends ready", item.status === "ready", item.status);
@@ -205,5 +202,22 @@ export async function cronCheck(
     "all jobs",
   );
 
-  await orderOfInvocations(run, held, findings);
+  if (await orderOfInvocations(run, held, findings)) return;
+
+  if (attempt >= ATTEMPTS) {
+    throw new Inconclusive(
+      `a scheduled invocation fell before the purge completed, or a consumer invocation came first, in ${String(ATTEMPTS)} attempts`,
+    );
+  }
+
+  await recovery(run, copy, findings, attempt + 1);
+}
+
+export async function cronCheck(
+  run: Readonly<Run>,
+  copy: Readonly<Copy>,
+  findings: Readonly<Findings>,
+): Promise<void> {
+  await awaitScheduledTick(run, findings);
+  await recovery(run, copy, findings);
 }
