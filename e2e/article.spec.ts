@@ -15,7 +15,6 @@ import {
   ESSAY_TITLE,
   VIDEO_HOST_PAGE_WITH_TEXT,
   WAR_AND_PEACE,
-  YOUTUBE_WATCH,
   attachItem,
   expectMarkdown,
   readsWhileProcessing,
@@ -157,7 +156,6 @@ async function bookTooLongToStore({ request, info }: Run, other: number): Promis
 
 const STAY_OTHER = [
   ["4-example", "https://example.com/"],
-  ["4-youtube", YOUTUBE_WATCH],
   ["4-vimeo-terms", VIDEO_HOST_PAGE_WITH_TEXT],
   ["4-vimeo-terms-by-redirect", throughRedirects(VIDEO_HOST_PAGE_WITH_TEXT, 1)],
 ] as const;

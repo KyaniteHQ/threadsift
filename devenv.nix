@@ -17,6 +17,11 @@ let
   podmanPolicy = pkgs.writeText "policy.json" (
     builtins.toJSON { default = [ { type = "insecureAcceptAnything"; } ]; }
   );
+  e2eCommand = target: ''
+    args_json=$(jq -ce '(.args // []) | if type == "array" and all(.[]; type == "string" and (contains("\u0000") | not)) then . else error("args must be an array of strings without NUL bytes") end' <<< "$DEVENV_TASK_INPUT")
+    mapfile -d "" -t args < <(jq -j '.[] + "\u0000"' <<< "$args_json")
+    exec tools/e2e/${target}.sh "''${args[@]}"
+  '';
   port = name: toString config.processes.${name}.ports.http.value;
 in
 {
@@ -104,14 +109,14 @@ in
         "ci:install"
         "image:build"
       ];
-      exec = "tools/e2e/container.sh";
+      exec = e2eCommand "container";
     };
     "e2e:worker" = {
       after = [
         "ci:install"
         "ci:build"
       ];
-      exec = "tools/e2e/worker.sh";
+      exec = e2eCommand "worker";
     };
   };
 
