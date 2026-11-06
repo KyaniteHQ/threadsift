@@ -6,7 +6,7 @@
 }:
 
 let
-  corepack = pkgs.corepack.override { nodejs-slim = pkgs.nodejs-slim_26; };
+  corepack = pkgs.corepack;
   withNode = pkgs.writeShellScript "with-node" ''PATH=${
     lib.makeBinPath [
       pkgs.nodejs_26
