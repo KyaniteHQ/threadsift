@@ -46,7 +46,7 @@ direnv exec . devenv tasks run e2e:worker --show-output --input 'args=["e2e/arti
 direnv exec . devenv tasks run e2e:container --show-output --input 'args=["--shard=1/3"]'
 ```
 
-Omit `--input` for the whole suite. With one Playwright worker and no `fullyParallel`, [Playwright sharding](https://playwright.dev/docs/test-sharding) assigns whole files in file order by test count, not by time.
+Omit `--input` for the whole suite. With one Playwright worker and no `fullyParallel`, [Playwright sharding](https://playwright.dev/docs/test-sharding) assigns whole files in file order by test count, not by time. A file in parallel mode is split per test.
 
 To choose the count, download the shard reports from the gate run and sum each file's test durations. Assign the files in order under the test-count rule for two adjacent counts, then compare full job times, including setup, and choose the smaller count that puts both targets below 10 minutes. The gate currently uses 3 shards per target.
 

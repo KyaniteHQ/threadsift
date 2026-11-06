@@ -1,7 +1,8 @@
 import { type Locator, type Page, type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
-import { STORAGE_KEY, type SettingKey } from "../design/system/settings.ts";
+import { type SettingKey } from "../design/system/settings-table.ts";
+import { STORAGE_KEY } from "../design/system/settings.ts";
 import { SETTINGS_GEAR_LABEL, SETTINGS_TITLE } from "../web/src/text.ts";
 
 const StoredSchema = z.record(z.string(), z.string());
@@ -20,6 +21,8 @@ export const NON_DEFAULT = {
   tags: "chips",
   images: "off",
 } as const;
+
+export const DESIGN_LIBRARY_LIGHT_BACKGROUND = "oklch(0.976 0.008 255)";
 
 export const HUES = { cobalt: "258", rust: "42", moss: "145", iris: "300", teal: "200" } as const;
 
@@ -126,6 +129,10 @@ export async function pickOption(dialog: Locator, group: string, option: string)
 
 export async function pickFont(dialog: Locator, label: string): Promise<void> {
   await dialog.getByRole("combobox", { name: "Font" }).selectOption({ label });
+}
+
+export async function pickStyle(dialog: Locator, id: string): Promise<void> {
+  await dialog.getByRole("combobox", { name: "Style", exact: true }).selectOption(id);
 }
 
 export async function expectChosen(dialog: Locator, group: string, option: string): Promise<void> {

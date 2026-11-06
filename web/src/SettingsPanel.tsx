@@ -1,6 +1,7 @@
 import { type RefObject, useId } from "react";
 
-import { DEFAULTS, type Settings } from "../../design/system/settings.ts";
+import { type Settings } from "../../design/system/settings-table.ts";
+import { DEFAULTS } from "../../design/system/settings.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Icon } from "./Icon.tsx";
 import { SETTINGS_PATH, useInternalLink } from "./routing.ts";

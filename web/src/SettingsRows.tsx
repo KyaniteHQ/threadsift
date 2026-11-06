@@ -7,7 +7,9 @@ import {
   type SettingRow,
   type Settings,
   THEME,
-} from "../../design/system/settings.ts";
+} from "../../design/system/settings-table.ts";
+import { isSetByStyle } from "../../design/system/settings.ts";
+import { STYLE_NOTE } from "./text.ts";
 
 const SHOWN_GROUPS = GROUPS.map((group) => ({
   group,
@@ -22,14 +24,15 @@ type ControlProps = Readonly<{
   labelId: string;
   controlId: string;
   noteId: string | undefined;
+  disabled: boolean;
   choose: Choose;
 }>;
 
-function noteOf(row: SettingRow, themeNote: string | null): string | null {
-  return row === THEME ? themeNote : null;
+function noteOf(row: SettingRow, themeNote: string | null, disabled: boolean): string | null {
+  return disabled ? STYLE_NOTE : row === THEME ? themeNote : null;
 }
 
-function SelectControl({ row, value, controlId, noteId, choose }: ControlProps) {
+function SelectControl({ row, value, controlId, noteId, disabled, choose }: ControlProps) {
   const change = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
       choose(row.key, event.target.value);
@@ -42,6 +45,7 @@ function SelectControl({ row, value, controlId, noteId, choose }: ControlProps) 
       id={controlId}
       className="st-sel"
       aria-describedby={noteId}
+      disabled={disabled}
       value={value}
       onChange={change}
     >
@@ -59,6 +63,7 @@ type ChoiceProps = Readonly<{
   option: Readonly<{ id: string; label: string }>;
   name: string;
   checked: boolean;
+  disabled: boolean;
   choose: Choose;
 }>;
 
@@ -67,7 +72,7 @@ function inputIdOf({ name, option }: ChoiceProps): string {
 }
 
 function ChoiceInput(props: ChoiceProps & Readonly<{ label: string | undefined }>) {
-  const { row, option, name, checked, choose, label } = props;
+  const { row, option, name, checked, disabled, choose, label } = props;
 
   const pick = useCallback(() => {
     choose(row.key, option.id);
@@ -81,6 +86,7 @@ function ChoiceInput(props: ChoiceProps & Readonly<{ label: string | undefined }
       name={name}
       value={option.id}
       checked={checked}
+      disabled={disabled}
       aria-label={label}
       onChange={pick}
     />
@@ -108,7 +114,7 @@ function Segment(props: ChoiceProps) {
   );
 }
 
-function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
+function ButtonsControl({ row, value, labelId, noteId, disabled, choose }: ControlProps) {
   const isSwatches = row.kind === "swatches";
   const Choice = isSwatches ? Swatch : Segment;
 
@@ -117,6 +123,7 @@ function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
       role="radiogroup"
       className={isSwatches ? "st-sws" : "st-seg"}
       aria-labelledby={labelId}
+      aria-disabled={disabled}
       aria-describedby={noteId}
     >
       {row.options.map((option) => (
@@ -126,6 +133,7 @@ function ButtonsControl({ row, value, labelId, noteId, choose }: ControlProps) {
           option={option}
           name={labelId}
           checked={value === option.id}
+          disabled={disabled}
           choose={choose}
         />
       ))}
@@ -149,12 +157,13 @@ function Row({
   const labelId = `${idBase}-${row.key}`;
   const controlId = `${labelId}-control`;
   const noteId = `${labelId}-note`;
-  const note = noteOf(row, themeNote);
+  const disabled = isSetByStyle(settings, row);
+  const note = noteOf(row, themeNote, disabled);
   const isSelect = row.kind === "select";
   const Control = isSelect ? SelectControl : ButtonsControl;
 
   return (
-    <div className="st-row">
+    <div className={disabled ? "st-row off" : "st-row"}>
       {isSelect ? (
         <label className="st-l" htmlFor={controlId}>
           {row.label}
@@ -170,6 +179,7 @@ function Row({
         labelId={labelId}
         controlId={controlId}
         noteId={note === null ? undefined : noteId}
+        disabled={disabled}
         choose={choose}
       />
       {note === null ? null : (

@@ -1,5 +1,5 @@
-/* oxlint-disable max-lines-per-function, unicorn/consistent-function-scoping -- page.evaluate serialises this one function, so its helpers must sit inside it */
-export function collectViolations(defaultFont: string): string[] {
+/* oxlint-disable max-lines, max-lines-per-function, unicorn/consistent-function-scoping -- page.evaluate serialises this one function, so its helpers must sit inside it */
+export function collectDesign(defaultFont: string) {
   const TEXT = 4.5;
   const MARK = 3;
   const FLOOR = 12;
@@ -12,7 +12,7 @@ export function collectViolations(defaultFont: string): string[] {
   const context = canvas.getContext("2d", { willReadFrequently: true });
 
   if (context === null) {
-    return ["no 2d canvas to resolve colours"];
+    return { violations: ["no 2d canvas to resolve colours"], contrast: [] };
   }
 
   const rgba = (css: string): number[] => {
@@ -53,17 +53,61 @@ export function collectViolations(defaultFont: string): string[] {
     const [r = 0, g = 0, b = 0] = color.slice(0, 3).map((channel) => {
       const value = channel / 255;
 
-      return value <= 0.039_28 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      return value <= 0.040_45 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
     });
 
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
 
-  const ratio = (a: number[], b: number[]): number => {
-    const [light = 0, dark = 0] = [luminance(a), luminance(b)].toSorted((x, y) => y - x);
+  const ratio = (a: number, b: number): number => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 
-    return (light + 0.05) / (dark + 0.05);
+  const palette = getComputedStyle(document.querySelector(".app") ?? document.documentElement);
+  const tokenValues = new Map<string, number>();
+
+  const tokenLuminance = (token: string): number => {
+    const cached = tokenValues.get(token);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const color = palette.getPropertyValue(token).trim();
+
+    if (color === "") {
+      found.push(`missing token ${token}`);
+
+      return 0;
+    }
+
+    const value = luminance(rgba(color));
+    tokenValues.set(token, value);
+
+    return value;
   };
+
+  const tokenPairs = [
+    ...["--text", "--muted", "--acc-ink", "--ok", "--warn"].flatMap((fg) =>
+      ["--bg", "--surface", "--surface-2", "--acc-soft"].map((bg) => ({ fg, bg, minimum: TEXT })),
+    ),
+    { fg: "--on-acc", bg: "--acc", minimum: TEXT },
+    ...["--acc-soft", "--bg", "--surface", "--surface-2"].map((bg) => ({
+      fg: "--acc",
+      bg,
+      minimum: MARK,
+    })),
+    ...["--bg", "--surface", "--surface-2", "--acc-soft"].map((bg) => ({
+      fg: "--ctl-line",
+      bg,
+      minimum: MARK,
+    })),
+  ];
+
+  const contrast = tokenPairs.map(({ fg, bg, minimum }) => ({
+    fg,
+    bg,
+    minimum,
+    ratio: ratio(tokenLuminance(fg), tokenLuminance(bg)),
+  }));
 
   const name = (element: Element): string =>
     `${element.tagName.toLowerCase()}.${element.className} "${(element.textContent ?? "").trim().slice(0, 30)}"`;
@@ -75,7 +119,7 @@ export function collectViolations(defaultFont: string): string[] {
   };
 
   const checkRatio = (what: string, fg: number[], bg: number[], least: number): void => {
-    const value = ratio(over(fg, bg), bg);
+    const value = ratio(luminance(over(fg, bg)), luminance(bg));
 
     if (value < least) {
       found.push(`${what}: ${value.toFixed(2)}:1, needs ${least}:1`);
@@ -294,5 +338,5 @@ export function collectViolations(defaultFont: string): string[] {
     found.push("the page itself scrolls vertically");
   }
 
-  return found;
+  return { violations: found, contrast };
 }
