@@ -60,7 +60,6 @@ export const PASSWORD = {
 } as const;
 
 export const RESET = {
-  title: "Reset password",
   heading: "Lost your password?",
   intro:
     "Threadsift can reset your password with a one-time code that you put on the server yourself.",

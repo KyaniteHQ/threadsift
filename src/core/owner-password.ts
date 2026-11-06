@@ -12,7 +12,12 @@ import {
   sessionIsLive,
   sessionWrites,
 } from "./sessions.ts";
-import { RESET_CODE_MIN, type SetupCodeProblem, checkConfiguredCode } from "./setup-code.ts";
+import {
+  RESET_CODE_MIN,
+  type SetupCodeProblem,
+  checkConfiguredCode,
+  codeProof,
+} from "./setup-code.ts";
 import { settleAttempt } from "./throttle.ts";
 
 export type ChangeResult =
@@ -93,11 +98,7 @@ export async function resetPassword(
     return { kind: "password", length };
   }
 
-  const attempt = await settleAttempt(db, "reset", () =>
-    Promise.resolve(
-      crypto.equal(crypto.sha256(code), crypto.sha256(configured.code)) ? true : null,
-    ),
-  );
+  const attempt = await settleAttempt(db, "reset", () => codeProof(crypto, code, configured.code));
 
   if (attempt.kind !== "ok") {
     return attempt;

@@ -9,7 +9,12 @@ import {
 import type { Database, Ports } from "./ports.ts";
 import { guardedBatch, owner } from "./schema.ts";
 import { type StartedSession, prepareSession, sessionWrites, startSession } from "./sessions.ts";
-import { SETUP_CODE_MIN, type SetupCodeProblem, checkConfiguredCode } from "./setup-code.ts";
+import {
+  SETUP_CODE_MIN,
+  type SetupCodeProblem,
+  checkConfiguredCode,
+  codeProof,
+} from "./setup-code.ts";
 import { type Attempt, settleAttempt } from "./throttle.ts";
 
 export type SetupBlock =
@@ -54,12 +59,8 @@ export async function checkSetupCode(ports: Ports, code: string): Promise<SetupB
     return { kind: "unavailable", reason: configured.status };
   }
 
-  const { crypto } = ports;
-
   const outcome = await settleAttempt(ports.db, "setup", () =>
-    Promise.resolve(
-      crypto.equal(crypto.sha256(code), crypto.sha256(configured.code)) ? true : null,
-    ),
+    codeProof(ports.crypto, code, configured.code),
   );
 
   return outcome.kind === "ok" ? null : outcome;

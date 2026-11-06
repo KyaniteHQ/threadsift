@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 
 import { type Attempt, type Refusal, resetPassword } from "./access-api.ts";
-import { RESET, SETUP } from "./access-text.ts";
-import { LENGTH_PROBLEM, lengthProblem } from "./password-length.ts";
+import { RESET } from "./access-text.ts";
+import { LENGTH_PROBLEM, checkNewPassword } from "./password-length.ts";
 import { usePasswordVisibility } from "./PasswordField.tsx";
 import { useField, useLock, useSubmit } from "./use-form.ts";
 
@@ -52,15 +52,12 @@ export function useReset(done: () => void) {
   );
 
   const run = useCallback(async () => {
-    const problem = lengthProblem(password.value);
-    const mismatch = password.value === confirm.value ? null : SETUP.passwordMismatch;
     code.fail(null);
-    password.fail(problem);
-    confirm.fail(problem === null ? mismatch : null);
+    const usable = checkNewPassword(password, confirm);
     setAlert(null);
     lock.dismiss();
 
-    if (problem === null && mismatch === null) {
+    if (usable) {
       settle(await resetPassword(code.value, password.value));
     }
   }, [code, confirm, lock, password, settle]);

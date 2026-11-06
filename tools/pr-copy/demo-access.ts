@@ -7,6 +7,12 @@ import { requiredEnv } from "./env.ts";
 
 const LOCK_WAIT_LIMIT_S = 300;
 
+function sessionCookie(response: Response): string | undefined {
+  const [setCookie] = response.headers.getSetCookie();
+
+  return setCookie?.split(";")[0];
+}
+
 async function postAccess(
   site: Readonly<Site>,
   call: Readonly<Call>,
@@ -14,8 +20,7 @@ async function postAccess(
 ): Promise<string | null> {
   const response = await callCopy(site, call);
 
-  const [setCookie] = response.headers.getSetCookie();
-  const cookie = setCookie?.split(";")[0];
+  const cookie = sessionCookie(response);
 
   if (response.status === 204 && cookie !== undefined) {
     return cookie;
@@ -45,8 +50,7 @@ async function postAccess(
 
 async function loginCookie(site: Readonly<Site>, password: string): Promise<string | null> {
   const response = await callCopy(site, { path: "/api/login", body: { password } });
-  const [setCookie] = response.headers.getSetCookie();
-  const cookie = setCookie?.split(";")[0];
+  const cookie = sessionCookie(response);
 
   if (response.status === 204 && cookie !== undefined) {
     return cookie;

@@ -3,7 +3,7 @@ import { useCallback, useState } from "react";
 import { type Attempt, changePassword } from "./access-api.ts";
 import { FIELDS, PASSWORD, SETUP } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
-import { LENGTH_PROBLEM, lengthProblem } from "./password-length.ts";
+import { LENGTH_PROBLEM, checkNewPassword } from "./password-length.ts";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { useField, useLock, useSubmit } from "./use-form.ts";
@@ -43,15 +43,12 @@ function usePasswordChange() {
   );
 
   const run = useCallback(async () => {
-    const problem = lengthProblem(next.value);
-    const mismatch = next.value === confirm.value ? null : SETUP.passwordMismatch;
     current.fail(null);
-    next.fail(problem);
-    confirm.fail(problem === null ? mismatch : null);
+    const usable = checkNewPassword(next, confirm);
     setOutcome(null);
     lock.dismiss();
 
-    if (problem === null && mismatch === null) {
+    if (usable) {
       settle(await changePassword(current.value, next.value));
     }
   }, [confirm, current, lock, next, settle]);
