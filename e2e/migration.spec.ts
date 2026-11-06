@@ -6,7 +6,15 @@ import { expect, request, test } from "@playwright/test";
 import { z } from "zod";
 
 import { ItemDetailResponseSchema, ItemListResponseSchema } from "../src/http/schemas.ts";
-import { freshDir, launchAt, newCode, sessionStateOf, sessionValueOf } from "./access.ts";
+import {
+  type Instance,
+  freshDir,
+  launchAt,
+  newCode,
+  sessionStateOf,
+  sessionValueOf,
+} from "./access.ts";
+import { setUpByApi } from "./fresh-screen.ts";
 import { isContainerTarget } from "./target.ts";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -54,17 +62,10 @@ function storeBeforeIngest(dir: string): void {
   ]);
 }
 
-async function ownerOf(instance: ReturnType<typeof launchAt>, code: string, password: string) {
-  const anonymous = await request.newContext({ baseURL: instance.url });
-  const created = await anonymous.post("/api/setup", { data: { code, password } });
-  expect(created.status()).toBe(204);
-  const session = sessionValueOf(created.headers()["set-cookie"] ?? "");
-  await anonymous.dispose();
+async function ownerOf({ url }: Instance, code: string, password: string) {
+  const session = sessionValueOf(await setUpByApi(url, code, password));
 
-  return request.newContext({
-    baseURL: instance.url,
-    storageState: sessionStateOf(session, instance.url),
-  });
+  return request.newContext({ baseURL: url, storageState: sessionStateOf(session, url) });
 }
 
 test("on the Worker, Items stored before the ingest and article migrations are ready with a null fetch result, keep their Source, titles and saved dates, have no post text and have no job", async () => {

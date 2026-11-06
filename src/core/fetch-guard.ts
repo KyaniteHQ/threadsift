@@ -11,6 +11,7 @@ import {
 const MAX_REDIRECTS = 20;
 const DEADLINE_REASON = "deadline";
 const REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308]);
+const OTHER_TYPE_CAP_BYTES = 512 * 1024;
 const HTML_TYPES: ReadonlySet<string> = new Set(["text/html", "application/xhtml+xml"]);
 const CHARSET = /;\s*charset\s*=\s*"?(?<label>[^";\s]+)/iu;
 
@@ -24,35 +25,34 @@ interface Failed {
 export interface FetchPolicy {
   readonly stopAt: (url: string) => boolean;
   readonly followMetaRefresh: (url: string) => boolean;
-  readonly maxBytes: number;
+  readonly maxBytes: (url: string) => number;
 }
 
 export interface Page {
   readonly kind: "page";
   readonly url: string;
   readonly text: string;
-  readonly mediaType: string | null;
+  readonly html: boolean;
   readonly cut: boolean;
 }
 
 export type GuardOutcome = Page | { readonly kind: "stopped"; readonly url: string } | Failed;
 
-type Hop =
-  | { readonly kind: "redirect"; readonly location: string }
-  | {
-      readonly kind: "page";
-      readonly contentType: string | null;
-      readonly bytes: Uint8Array;
-      readonly cut: boolean;
-    }
-  | Failed;
-
-const failed = (reason: GuardFailure): Failed => ({ kind: "failed", reason });
-
 interface Capped {
   readonly bytes: Uint8Array;
   readonly cut: boolean;
 }
+
+type Hop =
+  | { readonly kind: "redirect"; readonly location: string }
+  | ({
+      readonly kind: "page";
+      readonly contentType: string | null;
+      readonly html: boolean;
+    } & Capped)
+  | Failed;
+
+const failed = (reason: GuardFailure): Failed => ({ kind: "failed", reason });
 
 async function readCapped(body: AsyncIterable<Uint8Array>, maxBytes: number): Promise<Capped> {
   const chunks: Uint8Array[] = [];
@@ -62,8 +62,9 @@ async function readCapped(body: AsyncIterable<Uint8Array>, maxBytes: number): Pr
   for await (const chunk of body) {
     const room = maxBytes - size;
     cut = chunk.length > room;
-    chunks.push(cut ? chunk.subarray(0, room) : chunk);
-    size += chunks.at(-1)?.length ?? 0;
+    const kept = cut ? chunk.subarray(0, room) : chunk;
+    chunks.push(kept);
+    size += kept.length;
 
     if (cut) {
       break;
@@ -89,7 +90,7 @@ async function requestHop(
   network: Network,
   url: string,
   deadline: AbortSignal,
-  maxBytes: number,
+  policy: Readonly<FetchPolicy>,
 ): Promise<Hop> {
   if (deadline.aborted) {
     return failed("timeout");
@@ -112,10 +113,14 @@ async function requestHop(
       return failed("status");
     }
 
+    const html = isHtmlType(response.contentType);
+    const cap = policy.maxBytes(url);
+
     return {
       kind: "page",
       contentType: response.contentType,
-      ...(await readCapped(response.body, maxBytes)),
+      html,
+      ...(await readCapped(response.body, html ? cap : Math.min(cap, OTHER_TYPE_CAP_BYTES))),
     };
   } catch (error) {
     const deadlineHit = controller.signal.reason === DEADLINE_REASON || deadline.aborted;
@@ -127,15 +132,10 @@ async function requestHop(
   }
 }
 
-function mediaTypeOf(contentType: string | null): string | null {
+function isHtmlType(contentType: string | null): boolean {
   const [mediaType = ""] = (contentType ?? "").split(";");
-  const trimmed = mediaType.trim().toLowerCase();
 
-  return trimmed === "" ? null : trimmed;
-}
-
-export function isHtmlType(mediaType: string | null): boolean {
-  return mediaType !== null && HTML_TYPES.has(mediaType);
+  return HTML_TYPES.has(mediaType.trim().toLowerCase());
 }
 
 function decoderFor(contentType: string | null): TextDecoder {
@@ -193,7 +193,7 @@ async function follow(
   url: URL,
   redirects: number,
 ): Promise<GuardOutcome> {
-  const hop = await requestHop(network, url.href, deadline, policy.maxBytes);
+  const hop = await requestHop(network, url.href, deadline, policy);
 
   if (hop.kind === "failed") {
     return hop;
@@ -204,15 +204,12 @@ async function follow(
   }
 
   const text = decoderFor(hop.contentType).decode(hop.bytes);
-  const mediaType = mediaTypeOf(hop.contentType);
 
   const refreshTo =
-    policy.followMetaRefresh(url.href) && isHtmlType(mediaType)
-      ? metaRefreshTarget(text, url.href)
-      : null;
+    policy.followMetaRefresh(url.href) && hop.html ? metaRefreshTarget(text, url.href) : null;
 
   return refreshTo === null
-    ? { kind: "page", url: url.href, text, mediaType, cut: hop.cut }
+    ? { kind: "page", url: url.href, text, html: hop.html, cut: hop.cut }
     : advance(network, policy, deadline, url, refreshTo, redirects);
 }
 

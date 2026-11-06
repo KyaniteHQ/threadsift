@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { mainInstance } from "./access.ts";
 import { listAll, postLink, postLinkRaw, settled } from "./api.ts";
-import { itemIdAt, jobsAt, jobsOf } from "./ingest.ts";
+import { jobsAt, jobsOf, storeItem } from "./ingest.ts";
 import {
   SHORT_LINK,
   SHORT_LINK_TARGET,
@@ -143,11 +143,12 @@ test("a short link pasted while its target's fetch job is open leaves the Item p
     `DELETE FROM jobs WHERE item_id IN (SELECT id FROM items WHERE normalized_url = '${SHORT_LINK_TARGET_NORMALIZED}')`,
   );
   instance.sql(`DELETE FROM items WHERE normalized_url = '${SHORT_LINK_TARGET_NORMALIZED}'`);
-  instance.sql(
-    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, status) VALUES ('other', 'link', '${SHORT_LINK_TARGET_NORMALIZED}', '${SHORT_LINK_TARGET}', ${now}, 'processing')`,
-  );
 
-  const id = itemIdAt(SHORT_LINK_TARGET_NORMALIZED);
+  const id = storeItem({
+    normalized_url: SHORT_LINK_TARGET_NORMALIZED,
+    original_url: SHORT_LINK_TARGET,
+    status: "processing",
+  });
 
   instance.sql(
     `INSERT INTO jobs (kind, item_id, address, state, attempts, next_attempt_at) VALUES ('fetch', ${id}, '${SHORT_LINK_TARGET}', 'queued', 0, ${now + 3_600_000})`,

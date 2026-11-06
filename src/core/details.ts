@@ -1,8 +1,8 @@
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
-import { readPage } from "./article.ts";
-import { type Page, isHtmlType } from "./fetch-guard.ts";
+import { extractArticle, titleOf } from "./article.ts";
+import type { Page } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { collapsed } from "./format.ts";
 import type { Kind, Source } from "./kinds.ts";
@@ -48,14 +48,8 @@ function parseOembed(text: string): z.infer<typeof OembedSchema> | null {
   }
 }
 
-function isArticleCandidate(page: Readonly<Page>, link: Readonly<Link>): boolean {
-  return (
-    link.kind === "link" &&
-    isHtmlType(page.mediaType) &&
-    !page.cut &&
-    !isVideoLink(page.url) &&
-    !isGitHubLink(page.url)
-  );
+function isArticleCandidate(page: Readonly<Page>): boolean {
+  return page.html && !page.cut && !isVideoLink(page.url) && !isGitHubLink(page.url);
 }
 
 function titled(title: string, found: Readonly<Pick<Found, "author" | "content">>): Fetched {
@@ -65,21 +59,24 @@ function titled(title: string, found: Readonly<Pick<Found, "author" | "content">
 }
 
 export async function detailsOfPage(page: Readonly<Page>, link: Readonly<Link>): Promise<Fetched> {
-  const content = link.kind === "link" ? NOT_AN_ARTICLE : null;
-  const mode = isArticleCandidate(page, link) ? "article" : "title";
-  const { title, extraction } = await readPage(page.text, page.url, mode);
-  const named = title === "" ? (extraction?.title ?? "") : title;
+  const { document } = parseHTML(page.text);
 
-  if (extraction === null || extraction.words < MIN_ARTICLE_WORDS) {
-    return titled(named, { author: null, content });
+  if (link.kind !== "link") {
+    return titled(titleOf(document), { author: null, content: null });
   }
 
-  const { author, postText, postedAt } = extraction;
+  if (!isArticleCandidate(page)) {
+    return titled(titleOf(document), { author: null, content: NOT_AN_ARTICLE });
+  }
 
-  return titled(named, {
-    author,
-    content: { source: "article", kind: "article", postText, postedAt },
-  });
+  const { title, author, words, postText, postedAt } = await extractArticle(document, page.url);
+
+  return titled(
+    title,
+    words < MIN_ARTICLE_WORDS
+      ? { author: null, content: NOT_AN_ARTICLE }
+      : { author, content: { source: "article", kind: "article", postText, postedAt } },
+  );
 }
 
 function subredditOf(html: string): string | null {

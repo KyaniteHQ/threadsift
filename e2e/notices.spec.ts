@@ -1,8 +1,8 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { mainInstance } from "./access.ts";
 import { listAll, listForRun } from "./api.ts";
 import { alertRegion } from "./card.ts";
+import { storeItem } from "./ingest.ts";
 import {
   X_POST,
   newRunId,
@@ -156,9 +156,7 @@ test("a first fetch that fails on an Item saved before the fetch record keeps it
   const run = newRunId();
   const url = `https://no-such-host-${run}.invalid/migrated`;
 
-  mainInstance().sql(
-    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title, status) VALUES ('other', 'link', 'https://no-such-host-${run}.invalid/migrated', '${url}', ${Date.now()}, 'Saved long ago', 'ready')`,
-  );
+  storeItem({ normalized_url: url, title: "Saved long ago" });
 
   await page.goto("/");
   await submitAndHold(page, url);

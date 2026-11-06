@@ -1,6 +1,5 @@
 import { type APIRequestContext, type Page, type TestInfo, expect, test } from "@playwright/test";
 
-import { mainInstance } from "./access.ts";
 import { itemOf, listAll, postLink, postLinkRaw, settled } from "./api.ts";
 import {
   BIG_PAGE_TIMEOUT_MS,
@@ -20,11 +19,11 @@ import {
   expectMarkdown,
   pageWithMedia,
   pageWithoutTitle,
-  servedAs,
+  servedAsHtml,
 } from "./articles.ts";
 import { ADDED, READING, openLibrary, pasteForId, watchCard } from "./card.ts";
-import { itemIdAt, jobsOf } from "./ingest.ts";
-import { newRunId, rowOf } from "./links.ts";
+import { jobsOf, storeItem } from "./ingest.ts";
+import { htmlPage, newRunId, rowOf } from "./links.ts";
 
 const SOURCE_COLUMN = 0;
 
@@ -116,13 +115,19 @@ async function bookTooLongToStore({ request, info }: Run): Promise<void> {
   await attachItem(request, info, "3-war-and-peace", item.id);
 }
 
+const STAY_OTHER = [
+  ["4-example", "https://example.com/"],
+  ["4-youtube", YOUTUBE_WATCH],
+  ["4-vimeo-terms", VIDEO_HOST_PAGE_WITH_TEXT],
+] as const;
+
 async function pagesThatStayOther({ request, info }: Run): Promise<void> {
-  for (const [step, url] of [
-    ["4-example", "https://example.com/"],
-    ["4-youtube", YOUTUBE_WATCH],
-    ["4-vimeo-terms", VIDEO_HOST_PAGE_WITH_TEXT],
-  ] as const) {
-    const other = (await postLink(request, url)).body.item;
+  const posted = await Promise.all(
+    STAY_OTHER.map(async ([, url]) => (await postLink(request, url)).body.item),
+  );
+
+  for (const [index, other] of posted.entries()) {
+    const [step, url] = STAY_OTHER[index] ?? ["", ""];
 
     expect(other, url).toMatchObject({
       source: "other",
@@ -178,7 +183,7 @@ test("a page with media, a page with no title, and the same page served as plain
 }, info) => {
   const run = newRunId();
 
-  const withMedia = (await postLink(request, servedAs("text/html", pageWithMedia(run)))).body.item;
+  const withMedia = (await postLink(request, servedAsHtml(pageWithMedia(run)))).body.item;
   expect(withMedia).toMatchObject({ source: "article", title: `Media ${run}` });
   expectMarkdown(withMedia.postText);
   expect(withMedia.postText).toContain("Before the video.");
@@ -188,14 +193,12 @@ test("a page with media, a page with no title, and the same page served as plain
   expect(withMedia.postText, "a code sample was cut").toContain("<iframe></iframe>");
   await attachItem(request, info, "media-page", withMedia.id);
 
-  const untitled = (await postLink(request, servedAs("text/html", pageWithoutTitle(run)))).body
-    .item;
+  const untitled = (await postLink(request, servedAsHtml(pageWithoutTitle(run)))).body.item;
 
   expect(untitled).toMatchObject({ source: "article", fetch: "ok", title: `Heading ${run}` });
   await attachItem(request, info, "untitled-page", untitled.id);
 
-  const plain = (await postLink(request, servedAs("text/plain", pageWithMedia(`${run}-plain`))))
-    .body.item;
+  const plain = (await postLink(request, htmlPage(pageWithMedia(`${run}-plain`)))).body.item;
 
   expect(plain).toMatchObject({ source: "other", kind: "link", postText: null });
   await attachItem(request, info, "plain-text-page", plain.id);
@@ -213,15 +216,20 @@ test("a page over 5 MiB is cut and never read as an article", async ({ request }
 test("a refresh that finds a short page turns an Article back into Other", async ({
   request,
 }, info) => {
-  const instance = mainInstance();
   const url = `https://example.com/?article=${newRunId()}`;
-  const now = Date.now();
 
-  instance.sql(
-    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title, author, post_text, posted_at, fetched_at, status, fetch_result) VALUES ('article', 'article', '${url}', '${url}', ${now}, 'Old title', 'Old author', 'Old text', 1000, ${now}, 'ready', 'ok')`,
-  );
+  const id = storeItem({
+    normalized_url: url,
+    source: "article",
+    kind: "article",
+    title: "Old title",
+    author: "Old author",
+    post_text: "Old text",
+    posted_at: 1000,
+    fetched_at: Date.now(),
+    fetch_result: "ok",
+  });
 
-  const id = itemIdAt(url);
   const before = await itemOf(request, id);
   expect(before).toMatchObject({ source: "article", postText: "Old text" });
 

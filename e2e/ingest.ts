@@ -49,21 +49,45 @@ export function itemIdAt(normalizedUrl: string): number {
   return row.id;
 }
 
+type Column = string | number | null;
+
+const TextSchema = z.string();
+
+function literal(value: Column): string {
+  const text = TextSchema.safeParse(value);
+
+  return text.success ? `'${text.data.replaceAll("'", "''")}'` : String(value);
+}
+
+export function storeItem(
+  fields: Readonly<Record<string, Column>> & { readonly normalized_url: string },
+): number {
+  const row = {
+    source: "other",
+    kind: "link",
+    original_url: fields.normalized_url,
+    saved_at: Date.now(),
+    status: "ready",
+    ...fields,
+  };
+
+  mainInstance().sql(
+    `INSERT INTO items (${Object.keys(row).join(", ")}) VALUES (${Object.values(row)
+      .map((value) => literal(value))
+      .join(", ")})`,
+  );
+
+  return itemIdAt(fields.normalized_url);
+}
+
 export function storeProcessingItemWithDueJob(
   url: string,
   address = url,
   dueAt = Date.now() - 1000,
 ): number {
-  const now = Date.now();
-  const instance = mainInstance();
+  const id = storeItem({ normalized_url: url, status: "processing" });
 
-  instance.sql(
-    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, status) VALUES ('other', 'link', '${url}', '${url}', ${now}, 'processing')`,
-  );
-
-  const id = itemIdAt(url);
-
-  instance.sql(
+  mainInstance().sql(
     `INSERT INTO jobs (kind, item_id, address, state, attempts, next_attempt_at) VALUES ('fetch', ${id}, '${address}', 'queued', 0, ${dueAt})`,
   );
 

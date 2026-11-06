@@ -225,20 +225,24 @@ export function parseLink(absoluteUrl: string): Link {
   return { normalizedUrl: url.href, kind, source: SOURCE_OF_KIND[kind] };
 }
 
+function hostOf(absoluteUrl: string): string {
+  return canonicalHost(new URL(absoluteUrl).hostname);
+}
+
 export function isShortLink(absoluteUrl: string): boolean {
-  return SHORT_LINK_HOSTS.has(canonicalHost(new URL(absoluteUrl).hostname));
+  return SHORT_LINK_HOSTS.has(hostOf(absoluteUrl));
 }
 
 export function isGitHubLink(absoluteUrl: string): boolean {
-  return canonicalHost(new URL(absoluteUrl).hostname) === GITHUB_HOST;
+  return hostOf(absoluteUrl) === GITHUB_HOST;
 }
 
 export function isVideoLink(absoluteUrl: string): boolean {
-  return VIDEO_HOSTS.has(canonicalHost(new URL(absoluteUrl).hostname));
+  return VIDEO_HOSTS.has(hostOf(absoluteUrl));
 }
 
 export function isRedditOrXLink(absoluteUrl: string): boolean {
-  const host = canonicalHost(new URL(absoluteUrl).hostname);
+  const host = hostOf(absoluteUrl);
 
   return host === "redd.it" || isRedditHost(host) || X_HOSTS.has(host);
 }

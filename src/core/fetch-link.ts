@@ -16,21 +16,26 @@ const SMALL_CAP_BYTES = 512 * 1024;
 const PAGE_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
   followMetaRefresh: isShortLink,
-  maxBytes: PAGE_CAP_BYTES,
+  maxBytes: () => PAGE_CAP_BYTES,
 };
 
-const SMALL_POLICY: FetchPolicy = { ...PAGE_POLICY, maxBytes: SMALL_CAP_BYTES };
+const SMALL_POLICY: FetchPolicy = { ...PAGE_POLICY, maxBytes: () => SMALL_CAP_BYTES };
+
+const RESOLVE_POLICY: FetchPolicy = {
+  ...PAGE_POLICY,
+  maxBytes: (url) => (isShortLink(url) ? SMALL_CAP_BYTES : 0),
+};
 
 function fetchedOf(
   outcome: Readonly<GuardOutcome>,
   readPage: (page: Readonly<Page>) => Promise<Fetched> | Fetched,
   whenStopped: FetchFailure,
-): Promise<Fetched> | Fetched {
+): Promise<Fetched> {
   if (outcome.kind === "page") {
-    return readPage(outcome);
+    return Promise.resolve(readPage(outcome));
   }
 
-  return { status: outcome.kind === "stopped" ? whenStopped : outcome.reason };
+  return Promise.resolve({ status: outcome.kind === "stopped" ? whenStopped : outcome.reason });
 }
 
 async function fetchedOfOembed(
@@ -74,7 +79,7 @@ export async function resolveShortLink(
   const outcome = await guardedFetch(
     network,
     address,
-    SMALL_POLICY,
+    RESOLVE_POLICY,
     AbortSignal.timeout(FETCH_DEADLINE_MS),
   );
 

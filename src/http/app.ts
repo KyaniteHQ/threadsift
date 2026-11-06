@@ -15,7 +15,6 @@ import {
   ItemListResponseSchema,
   SaveItemRequestSchema,
   SavedItemResponseSchema,
-  itemDetailView,
   itemView,
 } from "./schemas.ts";
 
@@ -92,7 +91,7 @@ function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
 
     return item === undefined
       ? c.json({ error: NOT_FOUND }, 404)
-      : c.json({ item: itemDetailView(item) }, 200);
+      : c.json({ item: itemView(item) }, 200);
   });
 
   app.openapi(listItemsRoute, async (c) =>

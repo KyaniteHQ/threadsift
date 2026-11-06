@@ -196,6 +196,19 @@ export function stuckProcessingItems(): number {
   return row?.n ?? 0;
 }
 
+export async function attachJson(info: TestInfo, name: string, json: string): Promise<void> {
+  const file = info.outputPath(name);
+  await writeFile(file, json);
+  await info.attach(name, { path: file, contentType: "application/json" });
+}
+
+export function expectNoStuckItems(step: string): void {
+  expect(
+    stuckProcessingItems(),
+    `after ${step}, an Item stays processing after its job ended`,
+  ).toBe(0);
+}
+
 export async function attachStatuses(
   request: APIRequestContext,
   info: TestInfo,
@@ -216,14 +229,8 @@ export async function attachStatuses(
     }),
   );
 
-  const file = info.outputPath(`statuses-${step}.json`);
-  await writeFile(file, JSON.stringify({ step, items }, null, 2));
-  await info.attach(`statuses-${step}.json`, { path: file, contentType: "application/json" });
-
-  expect(
-    stuckProcessingItems(),
-    `after ${step}, an Item stays processing after its job ended`,
-  ).toBe(0);
+  await attachJson(info, `statuses-${step}.json`, JSON.stringify({ step, items }, null, 2));
+  expectNoStuckItems(step);
 }
 
 export async function openLibrary(page: Page, width = 1440): Promise<void> {

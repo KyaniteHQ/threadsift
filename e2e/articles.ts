@@ -1,10 +1,8 @@
-import { writeFile } from "node:fs/promises";
-
 import type { APIRequestContext, TestInfo } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 import { itemOf } from "./api.ts";
-import { stuckProcessingItems } from "./card.ts";
+import { attachJson, expectNoStuckItems } from "./card.ts";
 
 export const ESSAY = "https://stephango.com/saw";
 export const ESSAY_NORMALIZED = "https://stephango.com/saw";
@@ -33,8 +31,8 @@ export function pageWithoutTitle(run: string): string {
   return `<!doctype html><html><head></head><body><article><h1>Heading ${run}</h1><p>${FILLER_TEXT}.</p></article></body></html>`;
 }
 
-export function servedAs(contentType: string, html: string): string {
-  return `https://httpbin.dev/response-headers?Content-Type=${encodeURIComponent(contentType)}&t=${encodeURIComponent(html)}`;
+export function servedAsHtml(html: string): string {
+  return `https://httpbin.dev/response-headers?Content-Type=text%2Fhtml&t=${encodeURIComponent(html)}`;
 }
 
 export async function attachItem(
@@ -43,15 +41,8 @@ export async function attachItem(
   step: string,
   id: number,
 ): Promise<void> {
-  const item = await itemOf(request, id);
-  const file = info.outputPath(`item-${step}.json`);
-  await writeFile(file, JSON.stringify(item, null, 2));
-  await info.attach(`item-${step}.json`, { path: file, contentType: "application/json" });
-
-  expect(
-    stuckProcessingItems(),
-    `after ${step}, an Item stays processing after its job ended`,
-  ).toBe(0);
+  await attachJson(info, `item-${step}.json`, JSON.stringify(await itemOf(request, id), null, 2));
+  expectNoStuckItems(step);
 }
 
 export function expectMarkdown(postText: string | null): void {

@@ -37,8 +37,12 @@ export function httpbinPagePath(html: string): string {
   return `/base64/${encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")}`;
 }
 
+export function htmlPage(html: string): string {
+  return `${HTTPBIN}${httpbinPagePath(html)}`;
+}
+
 export function titledPage(title: string): string {
-  return `${HTTPBIN}${httpbinPagePath(`<!doctype html><html><head><title>${title}</title></head></html>`)}`;
+  return htmlPage(`<!doctype html><html><head><title>${title}</title></head></html>`);
 }
 
 export function scenarioLinks(run: string): string[] {

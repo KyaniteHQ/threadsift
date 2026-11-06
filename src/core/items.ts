@@ -1,4 +1,4 @@
-import { and, desc, eq, notExists } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, notExists } from "drizzle-orm";
 
 import { isRefusedHost } from "./addresses.ts";
 import type { Fetched } from "./details.ts";
@@ -15,21 +15,7 @@ export type SaveResult =
   | { readonly kind: "saved"; readonly item: ListedItemRow; readonly created: boolean }
   | { readonly kind: "refused" };
 
-const LISTED_COLUMNS = {
-  id: items.id,
-  source: items.source,
-  kind: items.kind,
-  normalizedUrl: items.normalizedUrl,
-  originalUrl: items.originalUrl,
-  savedAt: items.savedAt,
-  title: items.title,
-  author: items.author,
-  community: items.community,
-  fetchedAt: items.fetchedAt,
-  status: items.status,
-  reason: items.reason,
-  fetch: items.fetch,
-} as const;
+const { postText: _postText, postedAt: _postedAt, ...LISTED_COLUMNS } = getTableColumns(items);
 
 function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
   if (item === undefined) {

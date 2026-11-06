@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
-import type { ListedItemRow } from "../core/items.ts";
 import { FAILURE_REASONS, KINDS, type FailureReason, SOURCES } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
@@ -22,28 +21,19 @@ const ItemBaseSchema = z.object({
   fetch: z.enum(FETCH_RESULTS).nullable(),
 });
 
-const FAILED_FIELDS = { status: z.literal("failed"), reason: z.enum(FAILURE_REASONS) } as const;
+function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.ZodObject<Fields>) {
+  return z.discriminatedUnion("status", [
+    base.extend({ status: z.literal("failed"), reason: z.enum(FAILURE_REASONS) }),
+    base.extend({ status: z.literal("processing"), reason: z.null() }),
+    base.extend({ status: z.literal("ready"), reason: z.null() }),
+  ]);
+}
 
-const PROCESSING_FIELDS = { status: z.literal("processing"), reason: z.null() } as const;
+const ItemSchema = withStatus(ItemBaseSchema);
 
-const READY_FIELDS = { status: z.literal("ready"), reason: z.null() } as const;
-
-const ItemDetailBaseSchema = ItemBaseSchema.extend({
-  postedAt: z.number().int().nullable(),
-  postText: z.string().nullable(),
-});
-
-const ItemSchema = z.discriminatedUnion("status", [
-  ItemBaseSchema.extend(FAILED_FIELDS),
-  ItemBaseSchema.extend(PROCESSING_FIELDS),
-  ItemBaseSchema.extend(READY_FIELDS),
-]);
-
-const ItemDetailSchema = z.discriminatedUnion("status", [
-  ItemDetailBaseSchema.extend(FAILED_FIELDS),
-  ItemDetailBaseSchema.extend(PROCESSING_FIELDS),
-  ItemDetailBaseSchema.extend(READY_FIELDS),
-]);
+const ItemDetailSchema = withStatus(
+  ItemBaseSchema.extend({ postedAt: z.number().int().nullable(), postText: z.string().nullable() }),
+);
 
 export const SaveItemRequestSchema = z.object({
   url: z.string().trim().pipe(HttpUrlSchema),
@@ -118,26 +108,26 @@ type StatusFields =
   | { readonly status: "failed"; readonly reason: FailureReason }
   | { readonly status: "processing" | "ready"; readonly reason: null };
 
-function statusOf({ id, status, reason }: Readonly<Pick<ItemRow, "id" | "status" | "reason">>) {
+type StatusRow = Pick<ItemRow, "id" | "status" | "reason">;
+
+function statusOf({ id, status, reason }: Readonly<StatusRow>): StatusFields {
   if (status === "failed") {
     if (reason === null) {
       throw new Error(`Item ${String(id)} is failed and has no reason`);
     }
 
-    return { status, reason } satisfies StatusFields;
+    return { status, reason };
   }
 
   if (reason !== null) {
     throw new Error(`Item ${String(id)} is ${status} and has the reason ${reason}`);
   }
 
-  return { status, reason } satisfies StatusFields;
+  return { status, reason };
 }
 
-export function itemView(row: Readonly<ListedItemRow>): Item {
-  return { ...row, ...statusOf(row) };
-}
-
-export function itemDetailView(row: Readonly<ItemRow>): z.infer<typeof ItemDetailSchema> {
+export function itemView<Row extends StatusRow>(
+  row: Readonly<Row>,
+): Omit<Row, "status" | "reason"> & StatusFields {
   return { ...row, ...statusOf(row) };
 }
