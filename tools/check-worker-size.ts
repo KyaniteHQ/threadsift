@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { stripVTControlCharacters } from "node:util";
 
 import { z } from "zod";
 
@@ -30,7 +31,7 @@ function dryRunOutput(): string {
 }
 
 const output = dryRunOutput();
-const upload = UploadSchema.safeParse(TOTAL_UPLOAD.exec(output)?.groups);
+const upload = UploadSchema.safeParse(TOTAL_UPLOAD.exec(stripVTControlCharacters(output))?.groups);
 
 if (!upload.success) {
   process.stderr.write(`${output}\nwrangler printed no Total Upload line\n`);

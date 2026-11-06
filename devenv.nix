@@ -33,6 +33,8 @@ in
     PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
     PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
     THREADSIFT_PODMAN_POLICY = "${podmanPolicy}";
+    THREADSIFT_CHECKOUT = config.devenv.root;
+    THREADSIFT_E2E_IMAGE = "localhost/threadsift:e2e-${builtins.hashString "sha256" config.env.THREADSIFT_CHECKOUT}";
   };
 
   packages = [
@@ -101,7 +103,7 @@ in
       exec = "pnpm audit --prod --audit-level high";
     };
     "image:build" = {
-      exec = ''podman build --signature-policy "$THREADSIFT_PODMAN_POLICY" --label "threadsift.built-at=$(date +%s)" --tag threadsift:e2e --file Containerfile .'';
+      exec = "exec tools/e2e/build-image.sh";
     };
     "e2e:container" = {
       after = [
