@@ -96,9 +96,11 @@ function batchTo(sqlite: DatabaseSync): AsyncBatchRemoteCallback {
     promised(() => inTransaction(sqlite, () => queries.map((query) => execute(sqlite, query))));
 }
 
+const BUSY_TIMEOUT_MS = 5000;
+
 export function openDatabase(file: string, migrationsDir: string): OpenDatabase {
   mkdirSync(dirname(file), { recursive: true });
-  const sqlite = new DatabaseSync(file);
+  const sqlite = new DatabaseSync(file, { timeout: BUSY_TIMEOUT_MS });
   applyMigrations(sqlite, migrationsDir);
 
   return {
