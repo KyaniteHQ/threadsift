@@ -51,3 +51,4 @@ Omit `--input` for the whole suite. With one Playwright worker and no `fullyPara
 To choose the count, download the shard reports from the gate run and sum each file's test durations. Assign the files in order under the test-count rule for two adjacent counts, then compare full job times, including setup, and choose the smaller count that puts both targets below 10 minutes. The gate currently uses 3 shards per target.
 
 `e2e/reddit.ts` spaces Reddit requests within one shard. Shards run on separate runners, so their spacing is independent.
+
