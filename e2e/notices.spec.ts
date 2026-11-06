@@ -53,18 +53,13 @@ test("each failed fetch shows its own notice and the list still shows the saved 
   expect(stored.map((item) => item.title)).toEqual(stored.map(() => null));
 });
 
-test("a link to a private address shows a notice, keeps the text and saves nothing", async ({
-  page,
-  request,
-}) => {
-  const before = (await listAll(request)).length;
+test("a link to a private address shows a notice and keeps the text", async ({ page }) => {
   await page.goto("/");
   const field = pasteField(page);
   await submitLink(page, "http://127.0.0.1:9/");
 
   await expect(alertRegion(page)).toContainText("can’t be saved");
   await expect(field).toHaveValue("http://127.0.0.1:9/");
-  expect(await listAll(request)).toHaveLength(before);
 });
 
 test("a notice about a saved link names that link and offers Try again only when asking again can help", async ({

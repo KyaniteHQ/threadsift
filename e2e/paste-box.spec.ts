@@ -9,6 +9,14 @@ function rowCount(page: Page): Promise<number> {
   return page.locator("article.it").count();
 }
 
+function seedLinks(request: APIRequestContext, run: string, name: string, count: number) {
+  return Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      postLink(request, `https://example.com/${run}/${name}-${index}`),
+    ),
+  );
+}
+
 test("Add with an empty box or text that is not a link shows a refusal and saves nothing", async ({
   page,
   request,
@@ -76,16 +84,13 @@ test("an Item's own URL shows the list with that row in view and focused", async
   page,
   request,
 }) => {
-  const run = newRunId();
-  const saved = [];
+  const saved = await seedLinks(request, newRunId(), "entry", 40);
 
-  for (let index = 0; index < 40; index += 1) {
-    saved.push(await postLink(request, `https://example.com/${run}/entry-${index}`));
-  }
+  const oldest = saved.reduce((first, next) =>
+    next.body.item.id < first.body.item.id ? next : first,
+  );
 
-  const oldest = saved[0];
-  expect(oldest).toBeDefined();
-  const { item, url } = oldest?.body ?? { item: { id: 0 }, url: "" };
+  const { item, url } = oldest.body;
 
   await page.goto(url);
   const row = rowOf(page, item.id);
@@ -136,10 +141,7 @@ test("a saved link returns focus to the field and the list shows it at the top",
   request,
 }) => {
   const run = newRunId();
-
-  for (let index = 0; index < 30; index += 1) {
-    await postLink(request, `https://example.com/${run}/earlier-${index}`);
-  }
+  await seedLinks(request, run, "earlier", 30);
 
   await page.goto("/");
   const list = page.locator(".list");
@@ -165,11 +167,7 @@ for (const width of [390, 1280]) {
     page,
     request,
   }) => {
-    const run = newRunId();
-
-    for (let index = 0; index < 20; index += 1) {
-      await postLink(request, `https://example.com/${run}/walk-${index}`);
-    }
+    await seedLinks(request, newRunId(), "walk", 20);
 
     await page.setViewportSize({ width, height: 600 });
     await page.goto("/");
@@ -225,9 +223,7 @@ async function pasteKnownLinkBelowTheFold(
   const run = newRunId();
   const known = await postLink(request, link);
 
-  for (let index = 0; index < 30; index += 1) {
-    await postLink(request, `https://example.com/${run}/newer-${index}`);
-  }
+  await seedLinks(request, run, "newer", 30);
 
   await page.goto("/");
   await expect(page.locator("article.it").nth(30)).toBeVisible();
