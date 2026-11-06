@@ -2,12 +2,12 @@ import { type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
 import { AiSettingsViewSchema, DigestSchema } from "../src/core/ai-contract.ts";
-import { createToken } from "./access-helpers.ts";
-import { bearer } from "./access.ts";
 import { aiJson, AI_SETTINGS_ENDPOINT } from "./ai.ts";
+import { itemOf } from "./api.ts";
+import { attachJson } from "./card.ts";
 import { THEMES, BANDS_AT_WIDTH, resize, expectNoViolations } from "./design-screens.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
-import { jobsOf, sweepNow } from "./ingest.ts";
+import { sweepNow } from "./ingest.ts";
 import { attachScreenshot, storeSettings } from "./look.ts";
 
 export async function configureDigest(
@@ -56,19 +56,6 @@ export function digestRecord(screen: FreshScreen, id: number) {
   );
 }
 
-export async function unchangedOpenDigest(screen: FreshScreen, id: number): Promise<void> {
-  const before = jobsOf(id, screen.fresh);
-
-  const { value } = await createToken(screen.context.request, "Digest retry proof");
-
-  const response = await screen.context.request.post(`/api/items/${id}/digest`, {
-    headers: bearer(value),
-  });
-
-  expect(response.status()).toBe(200);
-  expect(jobsOf(id, screen.fresh)).toEqual(before);
-}
-
 export function lastDigestTask(screen: FreshScreen) {
   return screen.fresh.query(
     "SELECT deadline, state, refusal, status FROM ai_tasks ORDER BY id DESC LIMIT 1",
@@ -108,16 +95,13 @@ export async function proveCatalogLinks(
   screen.fresh.sql(
     `UPDATE items SET topic_id = NULL WHERE id = ${id}; DELETE FROM item_tags WHERE item_id = ${id}`,
   );
-  const before = await screen.context.request.get(`/api/items/${id}`);
-  const projection = z.object({ item: z.object({ digestTopic: z.string() }) });
-  expect(projection.parse(await before.json()).item.digestTopic).toBe(digest.topic);
-  screen.fresh.sql("DELETE FROM scheduled_runs");
+  expect((await itemOf(screen.context.request, id)).digestTopic).toBe(digest.topic);
   await sweepNow(screen.context.request, screen.fresh);
   await expect.poll(() => linked()?.topicId, { timeout: 90_000 }).not.toBeNull();
-  const after = await screen.context.request.get(`/api/items/${id}`);
-  expect(projection.parse(await after.json()).item.digestTopic).toBe(digest.topic);
-  await info.attach("model-catalog-and-older-linking.json", {
-    body: JSON.stringify({ linked: linked(), digest }),
-    contentType: "application/json",
-  });
+  expect((await itemOf(screen.context.request, id)).digestTopic).toBe(digest.topic);
+  await attachJson(
+    info,
+    "model-catalog-and-older-linking.json",
+    JSON.stringify({ linked: linked(), digest }),
+  );
 }

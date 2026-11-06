@@ -1,15 +1,16 @@
 import { expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { aiScreen, newSealingKey, countRows } from "./ai.ts";
 import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { ESSAY } from "./articles.ts";
 import { attachJson } from "./card.ts";
 import { configureDigest } from "./digest.ts";
-import { jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
+import { deferJobs, jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
 
 let screen: Awaited<ReturnType<typeof aiScreen>>;
+
+test.describe.configure({ timeout: 180_000 });
 
 test.use({ trace: "off", video: "off", screenshot: "off" });
 
@@ -35,12 +36,12 @@ function catalogCounts() {
 }
 
 async function sendDigest(url: string, tags: readonly string[]) {
-  const response = await screen.context.request.post("/api/items", {
-    data: { url, digest: { ...SENT_DIGEST, tags } },
+  const { status, body: saved } = await postLinkRaw(screen.context.request, url, {
+    ...SENT_DIGEST,
+    tags,
   });
 
-  expect(response.status()).toBeLessThan(300);
-  const saved = SavedItemResponseSchema.parse(await response.json());
+  expect(status).toBeLessThan(300);
   const item = await settled(screen.context.request, saved.item.id);
   expect(item).toMatchObject({
     digestTitle: SENT_DIGEST.title,
@@ -62,7 +63,7 @@ test("caller Digests publish without a Provider, preserve first spelling, and re
 
   expect(invalid.status()).toBe(400);
   expect(countRows(screen, "items")).toBe(0);
-  const first = await sendDigest(ESSAY, ["Machine learning"]);
+  const first = await sendDigest(ESSAY, ["Machine learning", "ｍａｃｈｉｎｅ  Learning"]);
   expect(catalogCounts()).toEqual({ topics: 1, tags: 1, version: 2, links: 1 });
   await sendDigest(ESSAY, ["ｍａｃｈｉｎｅ  Learning"]);
   expect(
@@ -116,9 +117,7 @@ test("saving a Provider opens older Item Digests once and sets processing atomic
   );
 
   expect(older.every((item) => (item.postText?.length ?? 0) > 100)).toBe(true);
-  screen.fresh.sql(
-    "CREATE TRIGGER defer_backfill AFTER INSERT ON jobs WHEN NEW.kind = 'digest' BEGIN UPDATE jobs SET next_attempt_at = 9007199254740991 WHERE id = NEW.id; END",
-  );
+  const restore = deferJobs(screen.fresh, "digest");
 
   const unreachable = {
     provider: "openai-compatible",
@@ -134,7 +133,7 @@ test("saving a Provider opens older Item Digests once and sets processing atomic
   for (const item of older) expect((await itemOf(request, item.id)).status).toBe("processing");
   await configureDigest(screen, unreachable);
   expect(older.flatMap((item) => jobsOf(item.id, screen.fresh, "digest"))).toEqual(backfill);
-  screen.fresh.sql("DROP TRIGGER defer_backfill");
+  restore();
 
   for (const job of backfill) makeJobDue(job.id, screen.fresh);
   await sweepNow(request, screen.fresh);
@@ -152,17 +151,12 @@ test("saving a Provider opens older Item Digests once and sets processing atomic
 
 async function proveLastPaste(id: number): Promise<void> {
   const request = screen.context.request;
-  screen.fresh.sql(
-    "CREATE TRIGGER defer_caller_refresh AFTER INSERT ON jobs WHEN NEW.kind = 'fetch' BEGIN UPDATE jobs SET next_attempt_at = 9007199254740991 WHERE id = NEW.id; END",
-  );
+  const restore = deferJobs(screen.fresh, "fetch");
 
-  const sent = await request.post("/api/items", {
-    data: { url: ESSAY, digest: { ...SENT_DIGEST, title: "Superseded title" } },
-  });
-
-  expect(sent.status()).toBe(200);
+  const sent = await postLinkRaw(request, ESSAY, { ...SENT_DIGEST, title: "Superseded title" });
+  expect(sent.status).toBe(200);
   await postLinkRaw(request, ESSAY);
-  screen.fresh.sql("DROP TRIGGER defer_caller_refresh");
+  restore();
   const fetch = jobsOf(id, screen.fresh, "fetch").at(-1);
 
   if (fetch === undefined) throw new Error("No refresh fetch");
@@ -171,11 +165,12 @@ async function proveLastPaste(id: number): Promise<void> {
   expect((await settled(request, id)).digestTitle).toBe(SENT_DIGEST.title);
   expect(countRows(screen, "ai_tasks")).toBe(5);
 
-  const textless = await request.post("/api/items", {
-    data: { url: "https://x.com/threadsift/status/12345", digest: SENT_DIGEST },
-  });
+  const { body: saved } = await postLinkRaw(
+    request,
+    "https://x.com/threadsift/status/12345",
+    SENT_DIGEST,
+  );
 
-  const saved = SavedItemResponseSchema.parse(await textless.json());
   expect((await settled(request, saved.item.id)).digestTitle).toBeNull();
 
   const pending = screen.fresh.query(
@@ -185,3 +180,45 @@ async function proveLastPaste(id: number): Promise<void> {
 
   expect(pending.every((row) => row.pending === null)).toBe(true);
 }
+
+test("a corrupt older Digest cannot stop a sweep, and an unusable saved key still opens a Digest", async ({
+  browser,
+}, info) => {
+  screen = await aiScreen(browser, newSealingKey());
+  const older = await sendDigest(ESSAY, ["Machine learning"]);
+  await configureDigest(screen, {
+    provider: "openai-compatible",
+    baseUrl: "https://threadsift-digest-unreachable.invalid/v1",
+    model: "unreachable",
+    key: "network-proof",
+  });
+  screen.fresh.sql(
+    `UPDATE digests SET digest = 'not-json' WHERE item_id = ${older.id}; UPDATE items SET topic_id = NULL WHERE id = ${older.id}; UPDATE settings SET sealed_key = 'not-a-sealed-key'`,
+  );
+  const restore = deferJobs(screen.fresh, "fetch");
+  const saved = await postLinkRaw(screen.context.request, "https://stephango.com/flexoki");
+  restore();
+  const job = jobsOf(saved.body.item.id, screen.fresh, "fetch")[0];
+
+  if (job === undefined) throw new Error("No due fetch");
+  makeJobDue(job.id, screen.fresh);
+  await sweepNow(screen.context.request, screen.fresh);
+  await expect
+    .poll(() => screen.fresh.logs().includes(`Older Digest ${older.id} linking failed`), {
+      timeout: 90_000,
+    })
+    .toBe(true);
+  const item = await settled(screen.context.request, saved.body.item.id);
+  expect(item.postText?.length).toBeGreaterThan(100);
+  expect(item).toMatchObject({ status: "ready", digestOutcome: "failed", digestTitle: null });
+  expect(jobsOf(item.id, screen.fresh, "digest")).toMatchObject([{ state: "done", attempts: 0 }]);
+
+  const evidence = {
+    olderId: older.id,
+    item,
+    jobs: jobsOf(item.id, screen.fresh),
+    log: `Older Digest ${older.id} linking failed`,
+  };
+
+  await attachJson(info, "corrupt-older-digest-and-unusable-key.json", JSON.stringify(evidence));
+});

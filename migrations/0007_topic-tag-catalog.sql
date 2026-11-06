@@ -12,6 +12,7 @@ CREATE TABLE `item_tags` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `item_tags_item_tag` ON `item_tags` (`item_id`,`tag_id`);--> statement-breakpoint
+CREATE INDEX `item_tags_tag` ON `item_tags` (`tag_id`);--> statement-breakpoint
 CREATE TABLE `tags` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`key` text NOT NULL,
@@ -47,4 +48,5 @@ ALTER TABLE `__new_digests` RENAME TO `digests`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;--> statement-breakpoint
 ALTER TABLE `items` ADD `pending_digest` text;--> statement-breakpoint
 ALTER TABLE `items` ADD `topic_id` integer REFERENCES topics(id);--> statement-breakpoint
-ALTER TABLE `jobs` ADD `catalog_retries` integer DEFAULT 0 NOT NULL;
+CREATE INDEX `items_topic` ON `items` (`topic_id`);--> statement-breakpoint
+ALTER TABLE `jobs` ADD `stale_requeues` integer DEFAULT 0 NOT NULL;

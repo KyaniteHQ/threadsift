@@ -7,9 +7,10 @@ import type { JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { enqueueQuietly, enqueueRows, hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, guards, items, jobs, scheduledRuns } from "./schema.ts";
+import { type JobRow, guardedBatch, items, jobs, scheduledRuns } from "./schema.ts";
 
 const CLAIM_MARGIN_MS = 120_000;
+const STALE_DELAYS_MS = [0, 0, 30_000] as const;
 const RETRY_DELAYS_MS = [30_000, 120_000] as const;
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 const SWEEP_LIMIT = 100;
@@ -73,31 +74,16 @@ export function claimNextDue(db: Database): Promise<JobRow | null> {
   return claim(db, () => inArray(jobs.id, dueIds(db, now, 1)), now);
 }
 
-function holding(db: Database, job: Readonly<JobRow>) {
-  return db
-    .select({ ok: sql<number>`count(*)`.as("ok") })
-    .from(jobs)
-    .where(and(eq(jobs.id, job.id), eq(jobs.state, "running"), eq(jobs.attempts, job.attempts)));
+function holding(job: Readonly<JobRow>) {
+  return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobs.state} = 'running' and ${jobs.attempts} = ${job.attempts})`;
 }
 
-async function writeWhileHolding(
+function writeWhileHolding(
   db: Database,
   job: Readonly<JobRow>,
   writes: readonly BatchItem<"sqlite">[],
-): Promise<boolean> {
-  try {
-    await db.batch([db.insert(guards).select(holding(db, job)), ...writes, db.delete(guards)]);
-
-    return true;
-  } catch (error) {
-    const [{ ok } = { ok: 0 }] = await holding(db, job);
-
-    if (ok === 1) {
-      throw error;
-    }
-
-    return false;
-  }
+) {
+  return guardedBatch(db, holding(job), writes);
 }
 
 async function finish(
@@ -112,7 +98,7 @@ async function finish(
     ...writes,
     db
       .update(jobs)
-      .set({ state: "done", attempts, claimExpires: null, catalogRetries: 0 })
+      .set({ state: "done", attempts, claimExpires: null, staleRequeues: 0 })
       .where(eq(jobs.id, job.id)),
     db
       .update(items)
@@ -134,8 +120,8 @@ async function queueLater(
   {
     delayMs,
     attempts,
-    catalogRetries = job.catalogRetries,
-  }: Readonly<{ delayMs: number; attempts: number; catalogRetries?: number }>,
+    staleRequeues,
+  }: Readonly<{ delayMs: number; attempts: number; staleRequeues: number }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
     ports.db
@@ -143,7 +129,7 @@ async function queueLater(
       .set({
         state: "queued",
         attempts,
-        catalogRetries,
+        staleRequeues,
         nextAttemptAt: Date.now() + delayMs,
         claimExpires: null,
       })
@@ -159,7 +145,7 @@ async function writeOutcome(
   ports: JobPorts,
   job: Readonly<JobRow>,
   outcome: JobOutcome,
-): Promise<"done" | "lost" | "generation" | "catalog"> {
+): Promise<"done" | "lost" | "stale"> {
   try {
     return (await finish(ports, job, { writes: outcome.writes, attempts: job.attempts }))
       ? "done"
@@ -167,9 +153,9 @@ async function writeOutcome(
   } catch (error) {
     const state = await outcome.currency?.current();
 
-    if (state === undefined || state === "current") throw error;
+    if (state !== false) throw error;
 
-    return state;
+    return "stale";
   }
 }
 
@@ -194,14 +180,13 @@ async function applyOutcome(
       if (outcome.currency !== undefined)
         await ports.db.batch([outcome.currency.discard("lease-lost")]);
       break;
-    case "generation":
-    case "catalog": {
+    case "stale": {
       if (outcome.currency !== undefined) await ports.db.batch([outcome.currency.discard("stale")]);
-      const catalogRetries = result === "catalog" ? job.catalogRetries + 1 : 0;
+      const staleRequeues = job.staleRequeues + 1;
       await queueLater(ports, job, {
-        delayMs: catalogRetries >= 2 ? 30_000 : 0,
+        delayMs: STALE_DELAYS_MS[job.staleRequeues] ?? STALE_DELAYS_MS[2],
         attempts: job.attempts,
-        catalogRetries,
+        staleRequeues,
       });
       break;
     }
@@ -245,7 +230,7 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<JobRow>): Pr
           writes: handler.exhausted(ports.db, job),
           attempts: job.attempts + 1,
         })
-      : queueLater(ports, job, { delayMs, attempts: job.attempts + 1 }));
+      : queueLater(ports, job, { delayMs, attempts: job.attempts + 1, staleRequeues: 0 }));
   }
 }
 

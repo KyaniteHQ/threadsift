@@ -1,7 +1,7 @@
 import { and, desc, eq, getTableColumns, exists, notExists } from "drizzle-orm";
 
-import { isRefusedHost } from "./addresses.ts";
 import type { Digest } from "./ai-contract.ts";
+import type { Fetched } from "./details.ts";
 import {
   openingDigest,
   setDigestFailure,
@@ -10,7 +10,7 @@ import {
 } from "./digest-job.ts";
 import { resolveShortLink } from "./fetch-link.ts";
 import { hasOpenJob, openingJob, enqueueRows } from "./job-rows.ts";
-import { type Link, isShortLink, parseLink } from "./links.ts";
+import { type Link, isRefusedLink, isShortLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
 import { digests, items } from "./schema.ts";
 import { settle } from "./settle.ts";
@@ -67,6 +67,7 @@ async function saveQueued(
 ): Promise<SaveResult> {
   const { db } = ports;
   const now = Date.now();
+  const pendingDigest = digest === undefined ? null : JSON.stringify(digest);
 
   const [inserted, , , queued, [item]] = await db.batch([
     db
@@ -77,7 +78,6 @@ async function saveQueued(
         normalizedUrl,
         originalUrl,
         savedAt: now,
-        pendingDigest: digest === undefined ? null : JSON.stringify(digest),
         status: "processing",
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
@@ -86,10 +86,7 @@ async function saveQueued(
       .update(items)
       .set({ status: "processing", reason: null })
       .where(and(eq(items.normalizedUrl, normalizedUrl), notExists(hasOpenJob("fetch")))),
-    db
-      .update(items)
-      .set({ pendingDigest: digest === undefined ? null : JSON.stringify(digest) })
-      .where(eq(items.normalizedUrl, normalizedUrl)),
+    db.update(items).set({ pendingDigest }).where(eq(items.normalizedUrl, normalizedUrl)),
     openingJob(db, { kind: "fetch", address, normalizedUrl, now }),
     selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
   ]);
@@ -103,7 +100,7 @@ async function saveSettled(
   db: Database,
   address: string,
   { normalizedUrl, kind, source }: Readonly<Link>,
-  fetched: Readonly<Parameters<typeof settle>[0]>,
+  fetched: Readonly<Fetched>,
 ): Promise<SaveResult> {
   const now = Date.now();
 
@@ -155,7 +152,7 @@ async function saveShortLink(ports: Ports, pasted: string, digest?: Digest): Pro
 }
 
 export function saveItem(ports: Ports, absoluteUrl: string, digest?: Digest): Promise<SaveResult> {
-  if (isRefusedHost(new URL(absoluteUrl).hostname)) {
+  if (isRefusedLink(absoluteUrl)) {
     return Promise.resolve({ kind: "refused" });
   }
 
@@ -203,7 +200,11 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
       .update(items)
       .set({ pendingDigest: null })
       .where(and(eq(items.id, id), notExists(hasOpenJob("digest")))),
-    openingDigest(ports.db, { itemId: id, address: known.originalUrl, now: Date.now() }),
+    openingDigest(ports.db, {
+      scope: eq(items.id, id),
+      address: known.originalUrl,
+      now: Date.now(),
+    }).job,
     setDigestFailure(ports.db, id, false),
     ports.db
       .update(items)

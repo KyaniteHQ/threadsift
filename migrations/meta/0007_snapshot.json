@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "967323cc-cba3-4844-af0b-ad695cf4e015",
+  "id": "c07fe873-1d13-43d0-8bb3-714aaf6a309c",
   "prevId": "fb210a2c-f30b-4bcc-9860-ffeeebb481a1",
   "tables": {
     "agent_tokens": {
@@ -309,6 +309,11 @@
           "name": "item_tags_item_tag",
           "columns": ["item_id", "tag_id"],
           "isUnique": true
+        },
+        "item_tags_tag": {
+          "name": "item_tags_tag",
+          "columns": ["tag_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -485,6 +490,11 @@
           "name": "items_saved_at_id",
           "columns": ["saved_at", "id"],
           "isUnique": false
+        },
+        "items_topic": {
+          "name": "items_topic",
+          "columns": ["topic_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -548,8 +558,8 @@
           "autoincrement": false,
           "default": 0
         },
-        "catalog_retries": {
-          "name": "catalog_retries",
+        "stale_requeues": {
+          "name": "stale_requeues",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

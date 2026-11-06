@@ -10,6 +10,7 @@ import {
   DIGEST_INPUT_BYTES,
   digestPrompt,
   DIGEST_CATALOG_BYTES,
+  utf8Bytes,
 } from "../src/core/ai-contract.ts";
 import { AI_CALL_OPTIONS } from "../src/targets/shared/ai-call-options.ts";
 import { PROOF_MODEL, workersAiUrl } from "./workers-ai-proof.ts";
@@ -28,9 +29,9 @@ const catalog = {
   tags: Array.from({ length: 500 }, (_, index) => `Tag ${index}: notes and sources`),
 };
 
-const instructions = DIGEST_INSTRUCTIONS;
-const bytes = (text: string): number => new TextEncoder().encode(text).length;
-const schemaBytes = bytes(JSON.stringify(z.toJSONSchema(DigestSchema, { unrepresentable: "any" })));
+const schemaBytes = utf8Bytes(
+  JSON.stringify(z.toJSONSchema(DigestSchema, { unrepresentable: "any" })),
+).length;
 
 const provider = createOpenAICompatible({
   name: "input-budget",
@@ -47,10 +48,11 @@ const cases = [
   ["Hex", randomBytes(10000).toString("hex")],
 ] as const;
 
-const selectedCase = z
-  .enum(["English", "Turkish", "CJK", "Emoji", "Hex"])
-  .optional()
-  .parse(process.argv[2]);
+const selectedCases = cases.filter(
+  ([name]) => process.argv[2] === undefined || process.argv[2] === name,
+);
+
+if (selectedCases.length === 0) throw new Error("No matching input case");
 
 async function measure(name: string, input: string): Promise<void> {
   const prompt = digestPrompt(input, catalog);
@@ -59,7 +61,7 @@ async function measure(name: string, input: string): Promise<void> {
     const result = await generateText({
       model: provider(PROOF_MODEL),
       output: Output.object({ schema: DigestSchema }),
-      instructions,
+      instructions: DIGEST_INSTRUCTIONS,
       prompt,
       ...AI_CALL_OPTIONS,
       abortSignal: AbortSignal.timeout(60_000),
@@ -68,11 +70,12 @@ async function measure(name: string, input: string): Promise<void> {
     console.log(
       JSON.stringify({
         name,
-        bytes: bytes(prompt),
+        bytes: utf8Bytes(prompt).length,
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
         totalWithReservedOutput: (result.usage.inputTokens ?? 0) + RESERVED_OUTPUT,
-        wholePromptBytes: bytes(prompt) + bytes(instructions) + schemaBytes,
+        wholePromptBytes:
+          utf8Bytes(prompt).length + utf8Bytes(DIGEST_INSTRUCTIONS).length + schemaBytes,
         valid: true,
       }),
     );
@@ -94,7 +97,7 @@ console.log(
     context: 24_000,
     limit: DIGEST_INPUT_BYTES,
     reservedOutput: RESERVED_OUTPUT,
-    instructionsBytes: bytes(instructions),
+    instructionsBytes: utf8Bytes(DIGEST_INSTRUCTIONS).length,
     schemaBytes,
     catalogBytes: DIGEST_CATALOG_BYTES,
     topics: catalog.topics.length,
@@ -102,8 +105,4 @@ console.log(
   }),
 );
 
-await Promise.all(
-  cases.flatMap(([name, input]) =>
-    selectedCase === undefined || selectedCase === name ? [measure(name, input)] : [],
-  ),
-);
+await Promise.all(selectedCases.map(([name, input]) => measure(name, input)));

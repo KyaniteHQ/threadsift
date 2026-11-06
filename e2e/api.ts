@@ -1,6 +1,7 @@
 import { type APIRequestContext, expect } from "@playwright/test";
 import { z } from "zod";
 
+import type { Digest } from "../src/core/ai-contract.ts";
 import {
   ItemListResponseSchema,
   ItemDetailResponseSchema,
@@ -11,9 +12,13 @@ import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 const SETTLE_TIMEOUT_MS = 60_000;
 const SETTLE_POLL_MS = 250;
 
-export async function postLinkRaw(request: APIRequestContext, url: string) {
+export async function postLinkRaw(
+  request: APIRequestContext,
+  url: string,
+  digest?: Readonly<Digest>,
+) {
   await waitForRedditTurnIfNeeded(url);
-  const response = await request.post("/api/items", { data: { url } });
+  const response = await request.post("/api/items", { data: { url, digest } });
 
   return { status: response.status(), body: SavedItemResponseSchema.parse(await response.json()) };
 }

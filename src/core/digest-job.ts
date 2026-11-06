@@ -10,18 +10,24 @@ import {
 } from "./ai-contract.ts";
 import {
   TASKS,
-  type DoneTask,
+  startCallerTask,
   completedAiTask,
   failedAiTask,
   runAiTask,
   expireAiTasks,
 } from "./ai-tasks.ts";
-import { catalogCurrent, linkingDigest, readCatalog, linkOlderDigests } from "./catalog.ts";
+import {
+  catalogEntries,
+  catalogCurrent,
+  linkingDigest,
+  readCatalog,
+  linkOlderDigests,
+} from "./catalog.ts";
 import type { JobCurrency, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { DIGEST_OUTCOMES } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, aiTasks, digests, guards, items, topics } from "./schema.ts";
+import { type JobRow, digests, insertGuard, items, topics } from "./schema.ts";
 
 function digestInput(db: Database, id: number) {
   return db
@@ -48,12 +54,12 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
   if (item.pendingDigest !== null) {
     const digest = DigestSchema.parse(JSON.parse(item.pendingDigest));
 
-    return publishing(
-      ports.db,
-      item,
-      { kind: "done", result: digest, taskId: null, provider: null, model: null },
-      null,
-    );
+    const taskId = await startCallerTask(ports, item.pendingDigest, {
+      inputRevision: item.generation,
+      attempts: job.attempts + 1,
+    });
+
+    return publishing(ports.db, item, digest, taskId, { executor: "caller" });
   }
 
   const catalog = await readCatalog(ports.db);
@@ -73,95 +79,72 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
     return { writes: [setDigestFailure(ports.db, job.itemId, true)] };
   }
 
-  return publishing(ports.db, item, result, catalog.version);
+  return publishing(ports.db, item, result.result, result.taskId, {
+    executor: "model",
+    provider: result.provider,
+    model: result.model,
+    version: catalog.version,
+  });
 }
 
-function currency(
-  db: Database,
-  {
-    id,
-    generation,
-    pendingDigest,
-  }: Readonly<Pick<DigestInput, "id" | "generation" | "pendingDigest">>,
-  taskId: number | null,
-  catalog: Readonly<{ version: number; digest: Digest }> | null,
-): JobCurrency {
+type DigestSource =
+  | { readonly executor: "caller" }
+  | {
+      readonly executor: "model";
+      readonly provider: string;
+      readonly model: string;
+      readonly version: number;
+    };
+
+function generationCurrent(
+  item: Readonly<Pick<DigestInput, "id" | "generation" | "pendingDigest">>,
+) {
+  return sql`exists (select 1 from ${items} where ${items.id} = ${item.id} and ${items.generation} = ${item.generation} and ${items.pendingDigest} is ${item.pendingDigest} and not exists ${hasOpenJob("fetch")})`;
+}
+
+function currency(db: Database, current: Readonly<SQLWrapper>, taskId: number): JobCurrency {
   return {
     current: async () => {
-      const [current] = await db
-        .select({
-          generation: items.generation,
-          pendingDigest: items.pendingDigest,
-          fetching: sql<boolean>`exists ${hasOpenJob("fetch")}`,
-          catalogMatches:
-            catalog === null
-              ? sql<boolean>`1`
-              : sql<boolean>`${catalogCurrent(catalog.version, catalog.digest)}`,
-        })
-        .from(items)
-        .where(eq(items.id, id));
+      const [row] = await db.select({ current: sql<number>`${current}` }).from(sql`(select 1)`);
 
-      if (
-        current?.generation !== generation ||
-        current.pendingDigest !== pendingDigest ||
-        current.fetching
-      )
-        return "generation";
-
-      return current.catalogMatches ? "current" : "catalog";
+      return row?.current === 1;
     },
     discard: (cause) =>
-      taskId === null
-        ? db.delete(guards).where(sql`0`)
-        : failedAiTask(db, taskId, {
-            reason: cause === "error" ? "unreachable" : cause,
-            status: null,
-          }),
+      failedAiTask(db, taskId, { reason: cause === "error" ? "unreachable" : cause, status: null }),
   };
 }
 
 function publishing(
   db: Database,
   item: Readonly<DigestInput>,
-  result: Omit<DoneTask<Digest>, "taskId"> & { readonly taskId: number | null },
-  version: number | null,
+  digest: Readonly<Digest>,
+  taskId: number,
+  source: DigestSource,
 ): JobOutcome {
-  const taskId = result.taskId ?? sql<number>`(select max(id) from ${aiTasks})`;
+  const entries = catalogEntries(digest);
+  const catalog = source.executor === "caller" ? sql`1` : catalogCurrent(source.version, entries);
+  const generation = generationCurrent(item);
 
   const stored = {
     itemId: item.id,
-    digest: JSON.stringify(result.result),
-    title: result.result.title,
-    topic: result.result.topic,
+    digest: JSON.stringify(digest),
+    title: digest.title,
+    topic: digest.topic,
     taskId,
-    provider: result.provider,
-    model: result.model,
+    provider: source.executor === "caller" ? null : source.provider,
+    model: source.executor === "caller" ? null : source.model,
     generation: item.generation,
     createdAt: Date.now(),
   };
 
   return {
-    currency: currency(
-      db,
-      item,
-      result.taskId,
-      version === null ? null : { version, digest: result.result },
-    ),
+    currency: currency(db, sql`${generation} and ${catalog}`, taskId),
     writes: [
-      generationGuard(db, item),
-      ...(version === null
-        ? []
-        : [
-            db.insert(guards).values({
-              ok: sql`case when ${catalogCurrent(version, result.result)} then 1 else 0 end`,
-            }),
-          ]),
-      ...callerTask(db, item, result),
-      ...linkingDigest(db, item.id, result.result),
+      insertGuard(db, generation),
+      insertGuard(db, catalog),
+      ...linkingDigest(db, item.id, entries),
       db.insert(digests).values(stored).onConflictDoUpdate({ target: digests.itemId, set: stored }),
-      ...(result.taskId === null
-        ? []
-        : [completedAiTask(db, { taskId: result.taskId, result: result.result })]),
+      completedAiTask(db, { taskId, result: digest }),
       db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
       setDigestFailure(db, item.id, false),
     ],
@@ -175,30 +158,30 @@ export const digestHandler: JobHandler = {
   exhausted: (db, job) => [setDigestFailure(db, job.itemId, true)],
 };
 
-export function setDigestFailure(db: Database, itemId: number, failed: boolean) {
+export function setDigestFailure(
+  db: Database,
+  itemId: number,
+  failed: boolean,
+  condition: Readonly<SQLWrapper> = exists(hasOpenJob("digest")),
+) {
   return db
     .update(items)
     .set({ digestFailed: failed })
-    .where(and(eq(items.id, itemId), exists(hasOpenJob("digest"))));
+    .where(and(eq(items.id, itemId), sql`${condition}`));
 }
 
 export function openingDigest(
   db: Database,
-  { itemId, address, now }: Readonly<{ itemId: number; address: string; now: number }>,
-  eligible: Readonly<SQLWrapper> = sql`1`,
-) {
-  return opening(db, {
-    kind: "digest",
+  {
+    scope,
     address,
     now,
-    where:
-      and(
-        eq(items.id, itemId),
-        isNotNull(items.postText),
-        notExists(hasOpenJob("digest")),
-        sql`${eligible}`,
-      ) ?? sql`0`,
-  });
+  }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
+) {
+  const eligible =
+    and(sql`${scope}`, isNotNull(items.postText), notExists(hasOpenJob("digest"))) ?? sql`0`;
+
+  return { eligible, job: opening(db, { kind: "digest", address, now, where: eligible }) };
 }
 
 export const EMPTY_DIGEST_VIEW = {
@@ -223,42 +206,10 @@ export const DIGEST_VIEW_COLUMNS = {
 
 export async function sweepDigests(db: Database, now: number): Promise<void> {
   await expireAiTasks(db, now);
-  await linkOlderDigests(db);
-}
 
-function callerTask(
-  db: Database,
-  item: Readonly<DigestInput>,
-  result: Readonly<Omit<DoneTask<Digest>, "taskId"> & { taskId: number | null }>,
-) {
-  return result.taskId === null
-    ? [
-        db.insert(aiTasks).values({
-          kind: "digest",
-          inputs: item.pendingDigest ?? "",
-          inputRevision: item.generation,
-          executor: "caller",
-          attempts: 1,
-          deadline: Date.now(),
-          state: "done",
-          result: JSON.stringify(result.result),
-        }),
-      ]
-    : [];
-}
-
-function generationGuard(db: Database, item: Readonly<DigestInput>) {
-  return db.insert(guards).select(
-    db
-      .select({ ok: sql<number>`count(*)`.as("ok") })
-      .from(items)
-      .where(
-        and(
-          eq(items.id, item.id),
-          eq(items.generation, item.generation),
-          sql`${items.pendingDigest} is ${item.pendingDigest}`,
-          notExists(hasOpenJob("fetch")),
-        ),
-      ),
-  );
+  try {
+    await linkOlderDigests(db);
+  } catch {
+    console.error("Older Digest linking could not read its next batch");
+  }
 }

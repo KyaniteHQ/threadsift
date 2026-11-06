@@ -1,18 +1,45 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { type SQLWrapper, and, desc, eq, isNull, sql } from "drizzle-orm";
 
-import { DIGEST_CATALOG_BYTES, DigestSchema, type Digest } from "./ai-contract.ts";
+import { CATALOG_NAME_LIMIT, DigestSchema, type Digest } from "./ai-contract.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { catalogVersion, digests, guards, items, itemTags, tags, topics } from "./schema.ts";
+import { catalogVersion, digests, guardedBatch, items, itemTags, tags, topics } from "./schema.ts";
+
+const OLDER_DIGEST_BATCH = 10;
 
 export function catalogKey(name: string): string {
   return name.normalize("NFKC").toLowerCase().trim().replaceAll(/\s+/gu, " ");
 }
 
-export function catalogCurrent(version: number, digest: Readonly<Digest>) {
-  const keys = JSON.stringify([...new Set(digest.tags.map(catalogKey))]);
+export function catalogEntries(digest: Readonly<Digest>) {
+  const names = new Map<string, { readonly key: string; readonly name: string }>();
 
-  return sql`(coalesce((select version from ${catalogVersion} where id = 1), 0) = ${version} or (exists (select 1 from ${topics} where key = ${catalogKey(digest.topic)}) and not exists (select 1 from json_each(${keys}) wanted where not exists (select 1 from ${tags} where key = wanted.value))))`;
+  for (const name of digest.tags) {
+    const key = catalogKey(name);
+
+    if (!names.has(key)) names.set(key, { key, name });
+  }
+
+  return {
+    topic: { key: catalogKey(digest.topic), name: digest.topic },
+    tags: [...names.values()],
+  } as const;
+}
+
+type CatalogEntries = Readonly<ReturnType<typeof catalogEntries>>;
+
+export function catalogCurrent(version: number, entries: CatalogEntries) {
+  const keys = JSON.stringify(entries.tags.map(({ key }) => key));
+
+  return sql`(coalesce((select version from ${catalogVersion} where id = 1), 0) = ${version} or (exists (select 1 from ${topics} where key = ${entries.topic.key}) and not exists (select 1 from json_each(${keys}) wanted where not exists (select 1 from ${tags} where key = wanted.value))))`;
+}
+
+function topNames(db: Database, table: Readonly<SQLWrapper>, usage: Readonly<SQLWrapper>) {
+  return db
+    .select({ name: sql<string>`${table}.name` })
+    .from(sql`${table}`)
+    .orderBy(desc(sql`${usage}`), sql`${table}.id`)
+    .limit(CATALOG_NAME_LIMIT);
 }
 
 export async function readCatalog(db: Database) {
@@ -21,22 +48,16 @@ export async function readCatalog(db: Database) {
       .select({ version: catalogVersion.version })
       .from(catalogVersion)
       .where(eq(catalogVersion.id, 1)),
-    db
-      .select({ name: topics.name })
-      .from(topics)
-      .orderBy(
-        desc(sql`(select count(*) from ${items} where ${items.topicId} = ${topics.id})`),
-        topics.id,
-      )
-      .limit(DIGEST_CATALOG_BYTES),
-    db
-      .select({ name: tags.name })
-      .from(tags)
-      .orderBy(
-        desc(sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${tags.id})`),
-        tags.id,
-      )
-      .limit(DIGEST_CATALOG_BYTES),
+    topNames(
+      db,
+      topics,
+      sql`(select count(*) from ${items} where ${items.topicId} = ${topics.id})`,
+    ),
+    topNames(
+      db,
+      tags,
+      sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${tags.id})`,
+    ),
   ]);
 
   return {
@@ -46,43 +67,70 @@ export async function readCatalog(db: Database) {
   };
 }
 
-function creatingName(db: Database, kind: "topic" | "tag", name: string): JobWrites {
-  const table = kind === "topic" ? topics : tags;
+function bumpVersion(db: Database) {
+  return db
+    .update(catalogVersion)
+    .set({ version: sql`${catalogVersion.version} + changes()` })
+    .where(and(eq(catalogVersion.id, 1), sql`changes() > 0`));
+}
+
+export function linkingDigest(db: Database, itemId: number, entries: CatalogEntries): JobWrites {
+  const keys = JSON.stringify(entries.tags.map(({ key }) => key));
 
   return [
+    db.insert(catalogVersion).values({ id: 1, version: 0 }).onConflictDoNothing(),
+    db.insert(topics).values(entries.topic).onConflictDoNothing({ target: topics.key }),
+    bumpVersion(db),
     db
-      .insert(table)
-      .values({ key: catalogKey(name), name })
-      .onConflictDoNothing({ target: table.key }),
+      .insert(tags)
+      .select(
+        db
+          .select({
+            id: sql<null>`null`.as("id"),
+            key: sql<string>`json_extract(value, '$.key')`.as("key"),
+            name: sql<string>`json_extract(value, '$.name')`.as("name"),
+          })
+          .from(sql`json_each(${JSON.stringify(entries.tags)})`)
+          .where(sql`1`),
+      )
+      .onConflictDoNothing({ target: tags.key }),
+    bumpVersion(db),
     db
-      .update(catalogVersion)
-      .set({ version: sql`${catalogVersion.version} + changes()` })
-      .where(eq(catalogVersion.id, 1)),
+      .update(items)
+      .set({ topicId: sql`(select id from ${topics} where key = ${entries.topic.key})` })
+      .where(eq(items.id, itemId)),
+    db
+      .delete(itemTags)
+      .where(
+        and(
+          eq(itemTags.itemId, itemId),
+          sql`${itemTags.tagId} not in (select id from ${tags} where key in (select value from json_each(${keys})))`,
+        ),
+      ),
+    db
+      .insert(itemTags)
+      .select(
+        db
+          .select({ itemId: sql<number>`${itemId}`.as("item_id"), tagId: tags.id })
+          .from(sql`json_each(${keys}) wanted`)
+          .innerJoin(tags, sql`${tags.key} = wanted.value`)
+          .where(sql`1`),
+      )
+      .onConflictDoNothing(),
   ];
 }
 
-export function linkingDigest(db: Database, itemId: number, digest: Readonly<Digest>): JobWrites {
-  return [
-    db.insert(catalogVersion).values({ id: 1, version: 0 }).onConflictDoNothing(),
-    ...creatingName(db, "topic", digest.topic),
-    ...digest.tags.flatMap((name) => creatingName(db, "tag", name)),
-    db
-      .update(items)
-      .set({ topicId: sql`(select id from ${topics} where key = ${catalogKey(digest.topic)})` })
-      .where(eq(items.id, itemId)),
-    db.delete(itemTags).where(eq(itemTags.itemId, itemId)),
-    ...digest.tags.map((name) =>
-      db
-        .insert(itemTags)
-        .select(
-          db
-            .select({ itemId: sql<number>`${itemId}`.as("item_id"), tagId: tags.id })
-            .from(tags)
-            .where(eq(tags.key, catalogKey(name))),
-        )
-        .onConflictDoNothing(),
-    ),
-  ];
+async function linkOlderDigest(
+  db: Database,
+  row: Readonly<{ id: number; digest: string }>,
+): Promise<void> {
+  try {
+    const entries = catalogEntries(DigestSchema.parse(JSON.parse(row.digest)));
+    const current = sql`exists (select 1 from ${items} join ${digests} on ${digests.itemId} = ${items.id} where ${items.id} = ${row.id} and ${items.topicId} is null and ${digests.digest} = ${row.digest})`;
+    await guardedBatch(db, current, linkingDigest(db, row.id, entries));
+  } catch {
+    console.error(`Older Digest ${row.id} linking failed`);
+  }
 }
 
 export async function linkOlderDigests(db: Database): Promise<void> {
@@ -91,34 +139,10 @@ export async function linkOlderDigests(db: Database): Promise<void> {
     .from(items)
     .innerJoin(digests, eq(digests.itemId, items.id))
     .where(isNull(items.topicId))
-    .limit(10);
+    .limit(OLDER_DIGEST_BATCH);
 
-  await Promise.all(
-    older.map(async (row) => {
-      try {
-        await db.batch([
-          db.insert(guards).select(
-            db
-              .select({ ok: sql<number>`count(*)`.as("ok") })
-              .from(items)
-              .innerJoin(digests, eq(digests.itemId, items.id))
-              .where(
-                and(eq(items.id, row.id), isNull(items.topicId), eq(digests.digest, row.digest)),
-              ),
-          ),
-          ...linkingDigest(db, row.id, DigestSchema.parse(JSON.parse(row.digest))),
-          db.delete(guards),
-        ]);
-      } catch {
-        const [current] = await db
-          .select({ digest: digests.digest, topicId: items.topicId })
-          .from(items)
-          .innerJoin(digests, eq(digests.itemId, items.id))
-          .where(eq(items.id, row.id));
-
-        if (current?.topicId === null && current.digest === row.digest)
-          throw new Error("Older Digest linking failed");
-      }
-    }),
-  );
+  for (const row of older) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Stored Digests are linked sequentially.
+    await linkOlderDigest(db, row);
+  }
 }

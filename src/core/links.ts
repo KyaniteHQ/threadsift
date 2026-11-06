@@ -1,4 +1,4 @@
-import { withoutTrailingDot } from "./addresses.ts";
+import { isRefusedHost, withoutTrailingDot } from "./addresses.ts";
 import type { Kind, Source } from "./kinds.ts";
 
 export interface Link {
@@ -231,6 +231,10 @@ export function parseLink(absoluteUrl: string): Link {
 
 function hostOf(absoluteUrl: string): string {
   return canonicalHost(new URL(absoluteUrl).hostname);
+}
+
+export function isRefusedLink(absoluteUrl: string): boolean {
+  return isRefusedHost(new URL(absoluteUrl).hostname);
 }
 
 export function isShortLink(absoluteUrl: string): boolean {

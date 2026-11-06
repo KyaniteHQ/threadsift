@@ -127,7 +127,7 @@ A Digest waits for an open fetch before calling the Provider. It publishes only 
 
 Wrong keys, missing models, refused addresses, missing configuration or sealing secrets, and Provider HTTP 400 or 422 answers give up immediately. Network failures, timeouts, a busy Provider, and a successful HTTP answer whose output fails the Digest schema retry with the job runner's delays. A failed Digest leaves fetched content readable.
 
-`POST /api/items` accepts a caller-sent Digest from the owner session or an agent token. Invalid Digests return 400 before storage. The last Paste sets or clears the pending Digest. A fetch with no text drops it and keeps any stored Digest; a fetch with text lets it publish by normalized key, without a catalog guard or a Provider call. Its AI task records executor `caller`, with no Provider or model. Try again always uses the configured Provider.
+`POST /api/items` accepts a caller-sent Digest from the owner session or an agent token. Invalid Digests return 400 before storage. The last Paste sets or clears the pending Digest. A fetch with no text drops it and keeps any stored Digest; a fetch with text lets it publish by normalized key, without a catalog guard or a Provider call. Its AI task starts before publication with executor `caller`, with no Provider or model; a failed publication leaves a failed task record. Try again always uses the configured Provider.
 
 ## The library wiki
 

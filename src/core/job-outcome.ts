@@ -9,7 +9,7 @@ export type JobPorts = Pick<Ports, "db" | "network" | "pages" | "jobs" | "ai">;
 export type JobWrites = readonly BatchItem<"sqlite">[];
 
 export interface JobCurrency {
-  readonly current: () => Promise<"current" | "generation" | "catalog">;
+  readonly current: () => Promise<boolean>;
   readonly discard: (cause: "stale" | "lease-lost" | "error") => BatchItem<"sqlite">;
 }
 

@@ -16,14 +16,13 @@ import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { ESSAY } from "./articles.ts";
 import { alertRegion, attachJson } from "./card.ts";
 import {
-  unchangedOpenDigest,
   configureDigest,
   digestRecord,
   digestScreens,
   lastDigestTask,
   proveCatalogLinks,
 } from "./digest.ts";
-import { jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
+import { deferJobs, jobsOf, makeJobDue, sweepNow, unchangedOpenDigest } from "./ingest.ts";
 
 const AI_WAIT = 660_000;
 
@@ -214,14 +213,12 @@ async function proveKeptDigest(
 async function refreshBehindFetch(id: number): Promise<void> {
   const before = countRows(screen, "ai_tasks");
   const request = screen.context.request;
-  screen.fresh.sql(
-    "CREATE TRIGGER defer_refresh AFTER INSERT ON jobs WHEN NEW.kind = 'fetch' BEGIN UPDATE jobs SET next_attempt_at = 9007199254740991 WHERE id = NEW.id; END",
-  );
+  const restore = deferJobs(screen.fresh, "fetch");
 
   try {
     await postLinkRaw(request, ESSAY);
   } finally {
-    screen.fresh.sql("DROP TRIGGER defer_refresh");
+    restore();
   }
 
   const queued = await screen.context.request.post(`/api/items/${id}/digest`, { data: {} });

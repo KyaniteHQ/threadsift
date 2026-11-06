@@ -171,38 +171,45 @@ export const DIGEST_INPUT_BYTES = 14_000;
 
 export const DIGEST_CATALOG_BYTES = 4500;
 
-interface CatalogNames {
-  topics: string[];
-  tags: string[];
+export interface CatalogNames {
+  readonly topics: readonly string[];
+  readonly tags: readonly string[];
 }
 
-export function digestPrompt(
-  input: string,
-  catalog: Readonly<{ topics: readonly string[]; tags: readonly string[] }>,
-): string {
-  const selected: CatalogNames = { topics: [], tags: [] };
+const encoder = new TextEncoder();
 
-  for (const kind of ["topics", "tags"] as const) {
-    for (const name of catalog[kind]) {
-      selected[kind].push(name);
+export function utf8Bytes(text: string): Uint8Array {
+  return encoder.encode(text);
+}
 
-      if (
-        new TextEncoder().encode(JSON.stringify(selected[kind])).length >
-        (DIGEST_CATALOG_BYTES - 21) / 2
-      ) {
-        selected[kind].pop();
-        break;
-      }
-    }
-  }
+const CATALOG_OVERHEAD_BYTES = utf8Bytes('{"topics":[],"tags":[]}').length;
+export const CATALOG_LIST_BYTES = Math.floor((DIGEST_CATALOG_BYTES - CATALOG_OVERHEAD_BYTES) / 2);
+export const CATALOG_NAME_LIMIT = Math.floor(CATALOG_LIST_BYTES / 4);
 
+export function digestPrompt(input: string, catalog: CatalogNames): string {
+  const selected: CatalogNames = { topics: fitNames(catalog.topics), tags: fitNames(catalog.tags) };
   const lists = JSON.stringify(selected);
 
-  return `${lists}\n${cutUtf8(input, DIGEST_INPUT_BYTES - new TextEncoder().encode(lists).length - 1)}`;
+  return `${lists}\n${cutUtf8(input, DIGEST_INPUT_BYTES - utf8Bytes(lists).length - 1)}`;
+}
+
+function fitNames(names: readonly string[]): string[] {
+  const selected: string[] = [];
+  let bytes = 0;
+
+  for (const name of names) {
+    const cost = utf8Bytes(JSON.stringify(name)).length + 1;
+
+    if (bytes + cost > CATALOG_LIST_BYTES) break;
+    selected.push(name);
+    bytes += cost;
+  }
+
+  return selected;
 }
 
 function cutUtf8(input: string, limit: number): string {
-  const bytes = new TextEncoder().encode(input.slice(0, limit));
+  const bytes = utf8Bytes(input.slice(0, limit));
 
   return new TextDecoder().decode(bytes.subarray(0, limit), { stream: true });
 }
