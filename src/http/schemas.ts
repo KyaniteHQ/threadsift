@@ -165,6 +165,10 @@ function statusOf(item: Readonly<StatusRow>): StatusFields {
 
   if (status === "processing") return { status, reason, retry: null };
 
+  if (item.digestOutcome === "pending") {
+    throw new Error(`Item ${String(id)} is ready and its Digest is pending`);
+  }
+
   return item.digestOutcome === "failed"
     ? { status, reason, retry: "digest", digestOutcome: "failed" }
     : { status, reason, retry: null, digestOutcome: "none" };

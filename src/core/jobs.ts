@@ -1,6 +1,7 @@
 import { type SQL, and, asc, eq, inArray, lt, lte, notExists, exists, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { expireAiTasks } from "./ai-tasks.ts";
 import { digestHandler } from "./digest-job.ts";
 import { fetchHandler } from "./fetch-job.ts";
 import type { JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
@@ -100,24 +101,29 @@ async function writeWhileHolding(
   }
 }
 
-function finish(
-  db: Database,
+async function finish(
+  ports: JobPorts,
   job: Readonly<JobRow>,
   { writes, attempts }: Readonly<{ writes: readonly BatchItem<"sqlite">[]; attempts: number }>,
 ): Promise<boolean> {
+  const { db } = ports;
   const open = exists(hasOpenJob());
 
-  return writeWhileHolding(db, job, [
+  const wrote = await writeWhileHolding(db, job, [
     ...writes,
     db.update(jobs).set({ state: "done", attempts, claimExpires: null }).where(eq(jobs.id, job.id)),
     db
       .update(items)
       .set({
-        status: sql`case when ${open} then 'processing' when ${items.status} = 'failed' then 'failed' else 'ready' end`,
-        reason: sql`case when ${open} then null else ${items.reason} end`,
+        status: sql`case when ${items.status} = 'failed' then 'failed' when ${open} then 'processing' else 'ready' end`,
+        reason: sql`case when ${items.status} = 'failed' then ${items.reason} when ${open} then null else ${items.reason} end`,
       })
       .where(eq(items.id, job.itemId)),
   ]);
+
+  await enqueueItemJobs(ports, job.itemId);
+
+  return wrote;
 }
 
 async function queueLater(
@@ -148,7 +154,7 @@ async function applyOutcome(
   outcome: JobOutcome,
 ): Promise<void> {
   try {
-    const wrote = await finish(ports.db, job, { writes: outcome.writes, attempts: job.attempts });
+    const wrote = await finish(ports, job, { writes: outcome.writes, attempts: job.attempts });
 
     if (!wrote && outcome.currency !== undefined)
       await ports.db.batch([outcome.currency.discard("lease-lost")]);
@@ -159,11 +165,7 @@ async function applyOutcome(
 
     if (current) throw error;
     await queueLater(ports, job, { delayMs: 0, attempts: job.attempts });
-
-    return;
   }
-
-  await enqueueItemJobs(ports, job.itemId);
 }
 
 async function enqueueItemJobs(ports: JobPorts, itemId: number): Promise<void> {
@@ -179,7 +181,7 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<JobRow>): Pr
   const handler = HANDLERS[job.kind];
 
   if (job.attempts >= MAX_ATTEMPTS) {
-    await finish(ports.db, job, {
+    await finish(ports, job, {
       writes: handler.exhausted(ports.db, job),
       attempts: job.attempts,
     });
@@ -194,7 +196,7 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<JobRow>): Pr
     const delayMs = RETRY_DELAYS_MS[job.attempts];
 
     await (delayMs === undefined
-      ? finish(ports.db, job, {
+      ? finish(ports, job, {
           writes: handler.exhausted(ports.db, job),
           attempts: job.attempts + 1,
         })
@@ -215,7 +217,9 @@ export async function abandonRunning(db: Database): Promise<void> {
 }
 
 async function sweep(ports: JobPorts): Promise<void> {
-  const due = await dueIds(ports.db, Date.now(), SWEEP_LIMIT);
+  const now = Date.now();
+  await expireAiTasks(ports.db, now);
+  const due = await dueIds(ports.db, now, SWEEP_LIMIT);
 
   await enqueueRows(ports, due);
 }

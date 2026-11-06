@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 
 import {
   type HttpAiConnection,
@@ -49,10 +49,19 @@ export function failedAiTask(
   taskId: number,
   failure: Readonly<{ reason: string; status: number | null }>,
 ) {
+  return failingAiTask(db, failure).where(eq(aiTasks.id, taskId));
+}
+
+function failingAiTask(db: Database, failure: Readonly<{ reason: string; status: number | null }>) {
   return db
     .update(aiTasks)
-    .set({ state: "failed", result: null, refusal: failure.reason, status: failure.status })
-    .where(eq(aiTasks.id, taskId));
+    .set({ state: "failed", result: null, refusal: failure.reason, status: failure.status });
+}
+
+export function expireAiTasks(db: Database, now: number) {
+  return failingAiTask(db, { reason: "timeout", status: null }).where(
+    and(eq(aiTasks.state, "running"), lt(aiTasks.deadline, now)),
+  );
 }
 
 export async function verifyAi(ports: AiPorts, attempt: AbortSignal) {

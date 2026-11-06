@@ -1,11 +1,11 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, exists, sql } from "drizzle-orm";
 
 import { loadAiConfig } from "./ai-settings.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
 import { openingDigest, setDigestFailure } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, items } from "./schema.ts";
+import { type JobRow, digests, items } from "./schema.ts";
 import { isRetryable, settle } from "./settle.ts";
 
 async function titleOf(db: Database, itemId: number): Promise<string | null> {
@@ -32,7 +32,24 @@ async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<Job
             openingDigest(ports.db, { itemId: job.itemId, address: job.address, now: Date.now() }),
             setDigestFailure(ports.db, job.itemId, false),
           ]
-        : []),
+        : storesText
+          ? [
+              ports.db
+                .update(items)
+                .set({ digestFailed: true })
+                .where(
+                  and(
+                    eq(items.id, job.itemId),
+                    exists(
+                      ports.db
+                        .select({ id: digests.itemId })
+                        .from(digests)
+                        .where(eq(digests.itemId, items.id)),
+                    ),
+                  ),
+                ),
+            ]
+          : []),
     ],
   };
 }

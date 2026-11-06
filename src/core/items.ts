@@ -184,11 +184,17 @@ export function listItems(db: Database) {
 
 export async function retryDigest(ports: Ports, id: number): Promise<ListedItemRow | undefined> {
   const [known] = await ports.db
-    .select({ originalUrl: items.originalUrl, normalizedUrl: items.normalizedUrl })
+    .select({
+      originalUrl: items.originalUrl,
+      normalizedUrl: items.normalizedUrl,
+      status: items.status,
+    })
     .from(items)
     .where(eq(items.id, id));
 
   if (known === undefined) return undefined;
+
+  if (known.status === "failed") return getListedItem(ports.db, id);
 
   const [queued, , , [item]] = await ports.db.batch([
     openingDigest(ports.db, { itemId: id, address: known.originalUrl, now: Date.now() }),
