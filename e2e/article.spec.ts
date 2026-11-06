@@ -3,6 +3,8 @@ import { type APIRequestContext, type Page, type TestInfo, expect, test } from "
 import { itemOf, listAll, postLink, postLinkRaw, settled } from "./api.ts";
 import {
   BIG_PAGE_TIMEOUT_MS,
+  BIRD_VOCALIZATION,
+  BIRD_VOCALIZATION_SENTENCE,
   BREAD,
   BREAD_LAST_SECTION_SENTENCE,
   C2_WIKI_PAGE,
@@ -12,14 +14,19 @@ import {
   ESSAY_NORMALIZED,
   ESSAY_SENTENCE,
   ESSAY_SHORT_LINK,
+  MDN_CODE_SAMPLE,
+  MDN_INLINE_CODE,
+  MDN_VIDEO,
+  UNTITLED_PAGE,
+  UNTITLED_PAGE_SENTENCE,
+  UNTITLED_PAGE_TITLE,
   VIDEO_HOST_PAGE_WITH_TEXT,
   WAR_AND_PEACE,
   YOUTUBE_WATCH,
   attachItem,
   expectMarkdown,
-  pageWithMedia,
-  pageWithoutTitle,
-  servedAsHtml,
+  longPage,
+  rawMediaOutsideCode,
 } from "./articles.ts";
 import { ADDED, READING, openLibrary, pasteForId, watchCard } from "./card.ts";
 import { jobsOf, storeItem } from "./ingest.ts";
@@ -178,30 +185,47 @@ test("a page whose extractor would fetch more is read from the page alone", asyn
   await attachItem(request, info, "c2-wiki", body.item.id);
 });
 
-test("a page with media, a page with no title, and the same page served as plain text", async ({
+test("real pages with video and audio, and with iframes, keep their text and lose the raw media", async ({
   request,
 }, info) => {
-  const run = newRunId();
+  const bird = (await postLink(request, BIRD_VOCALIZATION)).body.item;
 
-  const withMedia = (await postLink(request, servedAsHtml(pageWithMedia(run)))).body.item;
-  expect(withMedia).toMatchObject({ source: "article", title: `Media ${run}` });
-  expectMarkdown(withMedia.postText);
-  expect(withMedia.postText).toContain("Before the video.");
-  expect(withMedia.postText).toContain("The end of the page.");
-  expect(withMedia.postText, "raw media left in the text").not.toMatch(/<(?:video|audio)\b/u);
-  expect(withMedia.postText, "raw media left in the text").not.toContain("example.org/frame");
-  expect(withMedia.postText, "a code sample was cut").toContain("<iframe></iframe>");
-  await attachItem(request, info, "media-page", withMedia.id);
+  expect(bird).toMatchObject({ source: "article", kind: "article", fetch: "ok" });
+  expectMarkdown(bird.postText);
+  expect(bird.postText).toContain(BIRD_VOCALIZATION_SENTENCE);
+  expect(rawMediaOutsideCode(bird.postText), "raw video or audio left in the text").toEqual([]);
+  await attachItem(request, info, "media-wikipedia", bird.id);
 
-  const untitled = (await postLink(request, servedAsHtml(pageWithoutTitle(run)))).body.item;
+  const mdn = (await postLink(request, MDN_VIDEO)).body.item;
 
-  expect(untitled).toMatchObject({ source: "article", fetch: "ok", title: `Heading ${run}` });
-  await attachItem(request, info, "untitled-page", untitled.id);
+  expect(mdn).toMatchObject({ source: "article", kind: "article", fetch: "ok" });
+  expect(mdn.postText, "a code sample that mentions the tags was cut").toContain(MDN_CODE_SAMPLE);
+  expect(mdn.postText, "an inline code span was cut").toContain(MDN_INLINE_CODE);
+  expect(rawMediaOutsideCode(mdn.postText), "raw iframes left in the text").toEqual([]);
+  await attachItem(request, info, "media-mdn", mdn.id);
+});
 
-  const plain = (await postLink(request, htmlPage(pageWithMedia(`${run}-plain`)))).body.item;
+test("a real page with no title is an Article whose title comes from Defuddle", async ({
+  request,
+}, info) => {
+  const item = (await postLink(request, UNTITLED_PAGE)).body.item;
 
-  expect(plain).toMatchObject({ source: "other", kind: "link", postText: null });
-  await attachItem(request, info, "plain-text-page", plain.id);
+  expect(item).toMatchObject({
+    source: "article",
+    kind: "article",
+    fetch: "ok",
+    title: UNTITLED_PAGE_TITLE,
+  });
+  expectMarkdown(item.postText);
+  expect(item.postText).toContain(UNTITLED_PAGE_SENTENCE);
+  await attachItem(request, info, "untitled-page", item.id);
+});
+
+test("a long page served as plain text stays Other with no text", async ({ request }, info) => {
+  const item = (await postLink(request, htmlPage(longPage(newRunId())))).body.item;
+
+  expect(item).toMatchObject({ source: "other", kind: "link", postText: null });
+  await attachItem(request, info, "plain-text-page", item.id);
 });
 
 test("a page over 5 MiB is cut and never read as an article", async ({ request }, info) => {

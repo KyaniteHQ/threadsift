@@ -21,18 +21,36 @@ export const C2_WIKI_PAGE = "https://wiki.c2.com/?WelcomeVisitors";
 
 export const BIG_PAGE_TIMEOUT_MS = 180_000;
 
+export const BIRD_VOCALIZATION = "https://en.wikipedia.org/wiki/Bird_vocalization";
+
+export const BIRD_VOCALIZATION_SENTENCE =
+  "are the sounds produced by birds that are melodious to the human ear.";
+
+export const MDN_VIDEO =
+  "https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/video";
+
+export const MDN_CODE_SAMPLE = '<video controls width="250">';
+export const MDN_INLINE_CODE = "You can use `<video>` for audio content as well";
+
+export const UNTITLED_PAGE = "https://httpbin.org/html";
+
+export const UNTITLED_PAGE_TITLE = "Herman Melville";
+
+export const UNTITLED_PAGE_SENTENCE =
+  "Availing himself of the mild, summer-cool weather that now reigned in these latitudes";
+
 const FILLER_TEXT = Array.from({ length: 140 }, (_, index) => `word${index}`).join(" ");
 
-export function pageWithMedia(run: string): string {
-  return `<!doctype html><html><head><title>Media ${run}</title></head><body><article><h1>Heading</h1><p>${FILLER_TEXT}.</p><p>Before the video.</p><video src="https://example.org/clip.mp4" controls></video><p>Between.</p><audio src="https://example.org/a.mp3"></audio><iframe src="https://example.org/frame"></iframe><p>After the media.</p><pre><code>&lt;iframe&gt;&lt;/iframe&gt;</code></pre><p>The end of the page.</p></article></body></html>`;
+const CODE_SPAN = /```[\s\S]*?```|`[^`\n]*`/gu;
+
+const RAW_MEDIA_TAG = /<(?:video|audio|iframe)\b[^>]*>/giu;
+
+export function longPage(run: string): string {
+  return `<!doctype html><html><head><title>Long ${run}</title></head><body><article><h1>Heading</h1><p>${FILLER_TEXT}.</p></article></body></html>`;
 }
 
-export function pageWithoutTitle(run: string): string {
-  return `<!doctype html><html><head></head><body><article><h1>Heading ${run}</h1><p>${FILLER_TEXT}.</p></article></body></html>`;
-}
-
-export function servedAsHtml(html: string): string {
-  return `https://httpbin.dev/response-headers?Content-Type=text%2Fhtml&t=${encodeURIComponent(html)}`;
+export function rawMediaOutsideCode(postText: string | null): string[] {
+  return (postText ?? "").replaceAll(CODE_SPAN, "").match(RAW_MEDIA_TAG) ?? [];
 }
 
 export async function attachItem(
