@@ -25,5 +25,6 @@
     "web/**/*.tsx",
     "e2e/**/*.ts",
     "tools/**/*.ts"
-  ]
+  ],
+  "exclude": ["tools/oxlint/anti-slop/**"]
 }
