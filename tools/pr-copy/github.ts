@@ -17,18 +17,15 @@ const PullSchema = z.object({
   head: z.object({ sha: Sha, repo: z.object({ full_name: z.string() }).nullable() }),
 });
 
+type Pull = z.infer<typeof PullSchema>;
+
 const DeploymentSchema = z.object({ id: z.number().int(), payload: z.unknown() });
 
-const StatusSchema = z.object({
-  state: z.enum(["error", "failure", "inactive", "in_progress", "queued", "pending", "success"]),
-});
+type Deployment = Readonly<z.infer<typeof DeploymentSchema>>;
 
 const WorkflowRunEventSchema = z.object({
   workflow_run: z.object({
     head_sha: Sha,
-    event: z.string(),
-    conclusion: z.string().nullable(),
-    head_repository: z.object({ full_name: z.string() }),
     pull_requests: z.array(z.object({ number: PrNumber })),
   }),
 });
@@ -38,13 +35,10 @@ const ClosedEventSchema = z.object({
   pull_request: z.object({ number: PrNumber }),
 });
 
-export const ArtifactMetaSchema = z.object({ pr: PrNumber, headSha: Sha });
-
-export type ArtifactMeta = z.infer<typeof ArtifactMetaSchema>;
-
-type Outcome =
-  | { readonly kind: "success"; readonly copy: DeployedCopy }
-  | { readonly kind: "failure" };
+export interface PullHead {
+  readonly pr: number;
+  readonly headSha: string;
+}
 
 function repository(): string {
   return requiredEnv("GITHUB_REPOSITORY");
@@ -74,49 +68,48 @@ async function github<Body>(path: string, schema: z.ZodType<Body>, body?: string
   return schema.parse(await response.json());
 }
 
-const Created = z.object({ id: z.number().int() });
+function logUrl(): string {
+  return `${requiredEnv("GITHUB_SERVER_URL")}/${repository()}/actions/runs/${requiredEnv("GITHUB_RUN_ID")}`;
+}
 
-function postStatus(id: number, status: Readonly<{ state: string; environment_url?: string }>) {
+async function postStatus(
+  id: number,
+  status: Readonly<{ state: string; environment_url?: string }>,
+): Promise<void> {
   const body = JSON.stringify({ ...status, log_url: logUrl(), auto_inactive: false });
 
-  return github(`deployments/${String(id)}/statuses`, Created, body);
+  await github(`deployments/${String(id)}/statuses`, z.object({ id: z.number().int() }), body);
 }
 
 function task(pr: number): string {
   return `deploy:pr-${String(pr)}`;
 }
 
-export function eventReason(meta: Readonly<ArtifactMeta>): string | null {
+export function deployedHead(): PullHead {
   const { workflow_run: run } = event(WorkflowRunEventSchema);
+  const [pull] = run.pull_requests;
 
-  if (run.event !== "pull_request" || run.conclusion !== "success") {
-    return `the gate run is a ${run.event} run that ended ${String(run.conclusion)}`;
+  if (pull === undefined) {
+    throw new Error("The gate run names no pull request");
   }
 
-  if (run.head_repository.full_name !== repository()) {
-    return `the gate ran for ${run.head_repository.full_name}, a fork`;
-  }
-
-  if (run.head_sha !== meta.headSha || !run.pull_requests.some((pull) => pull.number === meta.pr)) {
-    return `the artifact names pull request ${String(meta.pr)} at ${meta.headSha}, which the gate run does not`;
-  }
-
-  return null;
+  return { pr: pull.number, headSha: run.head_sha };
 }
 
 export function closedPullRequest(): number {
   return event(ClosedEventSchema).pull_request.number;
 }
 
-export async function reopenedReason(pr: number): Promise<string | null> {
-  const pull = await github(`pulls/${String(pr)}`, PullSchema);
+export function pullRequest(pr: number): Promise<Pull> {
+  return github(`pulls/${String(pr)}`, PullSchema);
+}
 
+export function reopenedReason(pr: number, pull: Readonly<Pull>): string | null {
   return pull.state === "closed" ? null : `pull request ${String(pr)} is open again`;
 }
 
-export async function staleReason(meta: Readonly<ArtifactMeta>): Promise<string | null> {
-  const pull = await github(`pulls/${String(meta.pr)}`, PullSchema);
-  const name = `pull request ${String(meta.pr)}`;
+export function staleReason(head: Readonly<PullHead>, pull: Readonly<Pull>): string | null {
+  const name = `pull request ${String(head.pr)}`;
 
   if (pull.state !== "open") {
     return `${name} is closed`;
@@ -126,99 +119,95 @@ export async function staleReason(meta: Readonly<ArtifactMeta>): Promise<string 
     return `${name} targets ${pull.base.ref}, not main`;
   }
 
-  if (pull.head.sha !== meta.headSha || pull.head.repo?.full_name !== repository()) {
+  if (pull.head.sha !== head.headSha || pull.head.repo?.full_name !== repository()) {
     return `${name} is at ${pull.head.sha} now`;
   }
 
   return null;
 }
 
-type Deployment = Readonly<z.infer<typeof DeploymentSchema>>;
-
-async function deploymentsFrom(pr: number, page: number): Promise<Deployment[]> {
+function deploymentsPage(pr: number, page: number): Promise<Deployment[]> {
   const query = `environment=${ENVIRONMENT}&task=${encodeURIComponent(task(pr))}&per_page=${String(PER_PAGE)}&page=${String(page)}`;
-  const deployments = await github(`deployments?${query}`, z.array(DeploymentSchema));
 
-  return deployments.length < PER_PAGE
-    ? deployments
-    : [...deployments, ...(await deploymentsFrom(pr, page + 1))];
+  return github(`deployments?${query}`, z.array(DeploymentSchema));
 }
 
-async function deploymentsOf(pr: number): Promise<Deployment[]> {
-  const deployments = await deploymentsFrom(pr, 1);
-
-  return deployments.toSorted((left, right) => right.id - left.id);
-}
-
-async function latestState(id: number) {
+async function latestState(id: number): Promise<string | undefined> {
   const statuses = await github(
     `deployments/${String(id)}/statuses?per_page=1`,
-    z.array(StatusSchema),
+    z.array(z.object({ state: z.string() })),
   );
 
   return statuses[0]?.state;
 }
 
-async function recordFrom(deployments: readonly Deployment[]): Promise<CopyRecord | null> {
+async function recordIn(
+  deployments: readonly Deployment[],
+): Promise<CopyRecord | null | undefined> {
   const [newest, ...older] = deployments;
 
   if (newest === undefined) {
-    return null;
+    return undefined;
+  }
+
+  const record = CopyRecordSchema.safeParse(newest.payload);
+
+  if (!record.success) {
+    return recordIn(older);
   }
 
   const state = await latestState(newest.id);
 
   if (state === "success") {
-    return CopyRecordSchema.parse(newest.payload);
+    return record.data;
   }
 
-  return state === "inactive" ? null : recordFrom(older);
+  return state === "inactive" ? null : recordIn(older);
 }
 
-export async function lastRecord(pr: number): Promise<CopyRecord | null> {
-  return recordFrom(await deploymentsOf(pr));
-}
+export async function lastRecord(pr: number, page = 1): Promise<CopyRecord | null> {
+  const deployments = await deploymentsPage(pr, page);
+  const record = await recordIn(deployments);
 
-function logUrl(): string {
-  return `${requiredEnv("GITHUB_SERVER_URL")}/${repository()}/actions/runs/${requiredEnv("GITHUB_RUN_ID")}`;
+  if (record !== undefined) {
+    return record;
+  }
+
+  return deployments.length < PER_PAGE ? null : lastRecord(pr, page + 1);
 }
 
 export async function postDeployment(
-  meta: Readonly<ArtifactMeta>,
-  outcome: Outcome,
+  head: Readonly<PullHead>,
+  copy: Readonly<DeployedCopy> | null,
 ): Promise<void> {
   const deployment = await github(
     "deployments",
-    Created,
+    z.object({ id: z.number().int() }),
     JSON.stringify({
-      ref: meta.headSha,
-      task: task(meta.pr),
+      ref: head.headSha,
+      task: task(head.pr),
       environment: ENVIRONMENT,
       auto_merge: false,
       required_contexts: [],
       transient_environment: true,
       production_environment: false,
-      payload: outcome.kind === "success" ? outcome.copy.record : {},
-      description: `Copy of pull request ${String(meta.pr)}`,
+      payload: copy?.record ?? {},
+      description: `Copy of pull request ${String(head.pr)}`,
     }),
   );
 
   await postStatus(
     deployment.id,
-    outcome.kind === "success"
-      ? { state: "success", environment_url: outcome.copy.url }
-      : { state: "failure" },
+    copy === null ? { state: "failure" } : { state: "success", environment_url: copy.url },
   );
 }
 
-export async function markInactive(pr: number): Promise<void> {
-  const deployments = await deploymentsOf(pr);
+export async function markInactive(pr: number, page = 1): Promise<void> {
+  const deployments = await deploymentsPage(pr, page);
 
-  await Promise.all(
-    deployments.map(async ({ id }) => {
-      if ((await latestState(id)) !== "inactive") {
-        await postStatus(id, { state: "inactive" });
-      }
-    }),
-  );
+  await Promise.all(deployments.map(({ id }) => postStatus(id, { state: "inactive" })));
+
+  if (deployments.length === PER_PAGE) {
+    await markInactive(pr, page + 1);
+  }
 }

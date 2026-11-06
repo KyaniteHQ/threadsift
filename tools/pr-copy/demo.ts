@@ -8,13 +8,15 @@ import {
   SavedItemResponseSchema,
   SessionStateSchema,
 } from "../../src/http/schemas.ts";
+import { SESSION_COOKIE } from "../../src/http/session-cookie.ts";
 import { requiredEnv } from "./env.ts";
 
 const SERVE_DEADLINE_MS = 120_000;
+const RETRY_BUDGET_MS = 120_000;
+const SERVED_IN_A_ROW = 10;
 const LOCK_WAIT_LIMIT_S = 300;
 const ITEM_DEADLINE_MS = 300_000;
-const POLL_MS = 2000;
-const SESSION_COOKIE = /(?<cookie>__Host-threadsift_session=[^;]+)/u;
+const POLL_MS = 1000;
 const CHECKED_FIELDS = ["status", "source", "title", "fetch"] as const;
 
 type Item = z.infer<typeof ItemResponseSchema>["item"];
@@ -43,8 +45,12 @@ const DEMO_ITEMS: readonly DemoItem[] = [
   },
 ];
 
-interface Copy {
+interface Site {
   readonly url: string;
+  readonly retryUntil: number;
+}
+
+interface Copy extends Site {
   readonly cookie: string;
 }
 
@@ -54,18 +60,7 @@ interface Call {
   readonly body?: Readonly<Record<string, string>>;
 }
 
-function isAppAnswer(response: Response): boolean {
-  if (response.status >= 500) {
-    return false;
-  }
-
-  return (
-    response.status === 204 ||
-    (response.headers.get("content-type") ?? "").startsWith("application/json")
-  );
-}
-
-function requestInit(url: string, call: Readonly<Call>): RequestInit {
+function send(url: string, call: Readonly<Call>): Promise<Response> {
   const headers = new Headers({ origin: url });
 
   if (call.cookie !== undefined) {
@@ -73,31 +68,57 @@ function requestInit(url: string, call: Readonly<Call>): RequestInit {
   }
 
   if (call.body === undefined) {
-    return { headers };
+    return fetch(`${url}${call.path}`, { headers });
   }
 
   headers.set("content-type", "application/json");
 
-  return { method: "POST", headers, body: JSON.stringify(call.body) };
+  return fetch(`${url}${call.path}`, { method: "POST", headers, body: JSON.stringify(call.body) });
 }
 
-async function callCopy(url: string, call: Readonly<Call>, waitedMs = 0): Promise<Response> {
-  const response = await fetch(`${url}${call.path}`, requestInit(url, call)).catch(() => null);
+function isJson(response: Response): boolean {
+  return (response.headers.get("content-type") ?? "").startsWith("application/json");
+}
 
-  if (response !== null && isAppAnswer(response)) {
+function fromApp(response: Response): boolean {
+  return (response.status !== 404 && response.status < 500) || isJson(response);
+}
+
+async function callCopy(site: Readonly<Site>, call: Readonly<Call>): Promise<Response> {
+  const response = await send(site.url, call);
+
+  if (fromApp(response) || Date.now() >= site.retryUntil) {
     return response;
   }
 
-  if (waitedMs >= SERVE_DEADLINE_MS) {
-    throw new Error(
-      `${call.path} got no answer from the app within ${String(SERVE_DEADLINE_MS)} ms; the last was ${String(response?.status)}`,
-    );
-  }
-
-  process.stdout.write(`${call.path}: no answer from the app yet (${String(response?.status)})\n`);
+  await response.body?.cancel();
+  process.stdout.write(
+    `${call.path} got ${String(response.status)} from Cloudflare, not the app; retrying\n`,
+  );
   await sleep(POLL_MS);
 
-  return callCopy(url, call, waitedMs + POLL_MS);
+  return callCopy(site, call);
+}
+
+async function answersJson(url: string): Promise<boolean> {
+  const response = await fetch(`${url}/api/session`).catch(() => null);
+
+  return response?.status === 200 && isJson(response);
+}
+
+async function awaitServing(url: string, inARow = 0, waitedMs = 0): Promise<void> {
+  if (inARow >= SERVED_IN_A_ROW) {
+    return;
+  }
+
+  if (waitedMs >= SERVE_DEADLINE_MS) {
+    throw new Error(`${url} did not serve the app within ${String(SERVE_DEADLINE_MS)} ms`);
+  }
+
+  const served = await answersJson(url);
+  await sleep(POLL_MS);
+
+  return awaitServing(url, served ? inARow + 1 : 0, waitedMs + POLL_MS);
 }
 
 async function refusal(response: Response): Promise<string> {
@@ -106,20 +127,24 @@ async function refusal(response: Response): Promise<string> {
   return body.success ? body.data.error : "no error body";
 }
 
-type Access =
-  | { readonly kind: "signed-in"; readonly cookie: string }
-  | { readonly kind: "owner-exists" };
+async function postAccess(
+  site: Readonly<Site>,
+  call: Readonly<Call>,
+  waitedS = 0,
+): Promise<string | null> {
+  const response = await callCopy(site, call);
 
-async function postAccess(url: string, call: Readonly<Call>, waitedS = 0): Promise<Access> {
-  const response = await callCopy(url, call);
-  const cookie = SESSION_COOKIE.exec(response.headers.get("set-cookie") ?? "")?.groups?.["cookie"];
+  const cookie = response.headers
+    .getSetCookie()
+    .map((header) => header.split(";")[0] ?? "")
+    .find((pair) => pair.startsWith(`${SESSION_COOKIE}=`));
 
   if (response.status === 204 && cookie !== undefined) {
-    return { kind: "signed-in", cookie };
+    return cookie;
   }
 
   if (response.status === 409) {
-    return { kind: "owner-exists" };
+    return null;
   }
 
   if (response.status !== 429) {
@@ -137,43 +162,43 @@ async function postAccess(url: string, call: Readonly<Call>, waitedS = 0): Promi
   process.stdout.write(`${call.path} is locked; waiting ${String(retryAfter)} s\n`);
   await sleep(retryAfter * 1000);
 
-  return postAccess(url, call, waitedS + retryAfter);
+  return postAccess(site, call, waitedS + retryAfter);
 }
 
-async function logIn(url: string, password: string): Promise<Copy> {
-  const access = await postAccess(url, { path: "/api/login", body: { password } });
+async function logIn(site: Readonly<Site>, password: string): Promise<Copy> {
+  const cookie = await postAccess(site, { path: "/api/login", body: { password } });
 
-  if (access.kind !== "signed-in") {
+  if (cookie === null) {
     throw new Error("/api/login answered 409");
   }
 
-  return { url, cookie: access.cookie };
+  return { ...site, cookie };
 }
 
-async function signIn(url: string, setupCode: string): Promise<Copy> {
-  const response = await callCopy(url, { path: "/api/session" });
+async function signIn(site: Readonly<Site>, setupCode: string): Promise<Copy> {
+  const response = await callCopy(site, { path: "/api/session" });
   const state = SessionStateSchema.parse(await response.json());
   const password = requiredEnv("DEMO_OWNER_PASSWORD");
-  process.stdout.write(`${url}/api/session: ${JSON.stringify(state)}\n`);
+  process.stdout.write(`${site.url}/api/session: ${JSON.stringify(state)}\n`);
 
   if (state.state !== "setup") {
-    return logIn(url, password);
+    return logIn(site, password);
   }
 
   if (state.code !== "set") {
     throw new Error(`The copy has no usable setup code: ${state.code}`);
   }
 
-  const access = await postAccess(url, {
+  const cookie = await postAccess(site, {
     path: "/api/setup",
     body: { code: setupCode, password },
   });
 
-  return access.kind === "signed-in" ? { url, cookie: access.cookie } : logIn(url, password);
+  return cookie === null ? logIn(site, password) : { ...site, cookie };
 }
 
 async function paste(copy: Readonly<Copy>, link: string): Promise<number> {
-  const response = await callCopy(copy.url, {
+  const response = await callCopy(copy, {
     path: "/api/items",
     cookie: copy.cookie,
     body: { url: link },
@@ -190,7 +215,7 @@ async function paste(copy: Readonly<Copy>, link: string): Promise<number> {
 
 async function endState(copy: Readonly<Copy>, id: number, waitedMs = 0): Promise<Item> {
   const path = `/api/items/${String(id)}/status`;
-  const response = await callCopy(copy.url, { path, cookie: copy.cookie });
+  const response = await callCopy(copy, { path, cookie: copy.cookie });
 
   if (response.status !== 200) {
     throw new Error(`${path} answered ${String(response.status)}: ${await refusal(response)}`);
@@ -227,7 +252,9 @@ async function seedItem(copy: Readonly<Copy>, demo: Readonly<DemoItem>): Promise
 }
 
 export async function seedDemo(url: string, setupCode: string): Promise<void> {
-  const copy = await signIn(url, setupCode);
+  await awaitServing(url);
+
+  const copy = await signIn({ url, retryUntil: Date.now() + RETRY_BUDGET_MS }, setupCode);
   const outcomes = await Promise.all(DEMO_ITEMS.map((demo) => seedItem(copy, demo)));
   const failed = outcomes.filter((outcome) => outcome !== null);
 

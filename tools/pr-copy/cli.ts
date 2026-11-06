@@ -1,17 +1,16 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { parseArgs } from "node:util";
 
 import { z } from "zod";
 
 import { type CopyRecord, CopyRecordSchema, deleteCopy, deployCopy } from "./copy.ts";
 import {
-  ArtifactMetaSchema,
   closedPullRequest,
-  eventReason,
+  deployedHead,
   lastRecord,
   markInactive,
   postDeployment,
+  pullRequest,
   reopenedReason,
   staleReason,
 } from "./github.ts";
@@ -22,44 +21,35 @@ const USAGE = `Usage:
   node tools/pr-copy/cli.ts delete --github
   node tools/pr-copy/cli.ts delete --pr <n>`;
 
-const ArgsSchema = z.discriminatedUnion("mode", [
-  z.strictObject({ mode: z.literal("deploy-github"), artifact: z.string() }),
-  z.strictObject({
-    mode: z.literal("deploy-local"),
-    artifact: z.string(),
-    pr: z.coerce.number().int().positive(),
-    record: z.string(),
-  }),
-  z.strictObject({ mode: z.literal("delete-github") }),
-  z.strictObject({ mode: z.literal("delete-local"), pr: z.coerce.number().int().positive() }),
-]);
+const PrSchema = z.coerce.number().int().positive();
 
-type Args = z.infer<typeof ArgsSchema>;
+const { positionals, values: flags } = parseArgs({
+  args: process.argv.slice(2),
+  allowPositionals: true,
+  options: {
+    artifact: { type: "string" },
+    github: { type: "boolean", default: false },
+    pr: { type: "string" },
+    record: { type: "string" },
+  },
+});
 
-function parseCommand(argv: readonly string[]): Args {
-  const { positionals, values } = parseArgs({
-    args: [...argv],
-    allowPositionals: true,
-    options: {
-      artifact: { type: "string" },
-      github: { type: "boolean", default: false },
-      pr: { type: "string" },
-      record: { type: "string" },
-    },
-  });
-
-  const { github, ...flags } = values;
-
-  const parsed = ArgsSchema.safeParse({
-    ...flags,
-    mode: `${positionals.join(" ")}-${github ? "github" : "local"}`,
-  });
-
-  if (!parsed.success || positionals.length !== 1) {
+function required(value: string | undefined): string {
+  if (value === undefined || positionals.length !== 1) {
     throw new Error(USAGE);
   }
 
-  return parsed.data;
+  return value;
+}
+
+function localPr(): number {
+  const pr = PrSchema.safeParse(required(flags.pr));
+
+  if (!pr.success) {
+    throw new Error(USAGE);
+  }
+
+  return pr.data;
 }
 
 function readRecord(path: string): CopyRecord | null {
@@ -71,9 +61,8 @@ function stopWithoutChanges(reason: string): void {
 }
 
 async function deployFromGithub(artifact: string): Promise<void> {
-  const metaFile = join(artifact, "dist", "pr-copy.json");
-  const meta = ArtifactMetaSchema.parse(JSON.parse(readFileSync(metaFile, "utf8")));
-  const stale = eventReason(meta) ?? (await staleReason(meta));
+  const head = deployedHead();
+  const stale = staleReason(head, await pullRequest(head.pr));
 
   if (stale !== null) {
     stopWithoutChanges(stale);
@@ -82,22 +71,29 @@ async function deployFromGithub(artifact: string): Promise<void> {
   }
 
   try {
-    const copy = await deployCopy(meta.pr, artifact, await lastRecord(meta.pr));
-    await postDeployment(meta, { kind: "success", copy });
+    const copy = await deployCopy(head.pr, artifact, await lastRecord(head.pr));
+    await postDeployment(head, copy);
     process.stdout.write(`Deployed ${copy.url}\n`);
   } catch (error) {
-    await postDeployment(meta, { kind: "failure" });
+    await postDeployment(head, null);
     throw error;
   }
 }
 
-async function deployFromHere(args: Readonly<Extract<Args, { mode: "deploy-local" }>>) {
-  const copy = await deployCopy(args.pr, args.artifact, readRecord(args.record));
-  writeFileSync(args.record, `${JSON.stringify(copy.record, null, 2)}\n`);
-  process.stdout.write(`Deployed ${copy.url}; the record is in ${args.record}\n`);
+async function deployFromHere(artifact: string): Promise<void> {
+  const record = required(flags.record);
+  const copy = await deployCopy(localPr(), artifact, readRecord(record));
+  writeFileSync(record, `${JSON.stringify(copy.record, null, 2)}\n`);
+  process.stdout.write(`Deployed ${copy.url}; the record is in ${record}\n`);
 }
 
-function reportDeletions(pr: number, failures: readonly string[]): void {
+async function deleteAndReport(pr: number): Promise<void> {
+  const failures = await deleteCopy(pr);
+
+  if (flags.github) {
+    await markInactive(pr);
+  }
+
   if (failures.length > 0) {
     throw new Error(
       `These deletions failed for pull request ${String(pr)}: ${failures.join("; ")}`,
@@ -109,43 +105,33 @@ function reportDeletions(pr: number, failures: readonly string[]): void {
 
 async function deleteFromGithub(): Promise<void> {
   const pr = closedPullRequest();
-  const stale = await reopenedReason(pr);
+  const reopened = reopenedReason(pr, await pullRequest(pr));
 
-  if (stale !== null) {
-    stopWithoutChanges(stale);
+  if (reopened !== null) {
+    stopWithoutChanges(reopened);
 
     return;
   }
 
-  const failures = await deleteCopy(pr);
-  await markInactive(pr);
-  reportDeletions(pr, failures);
+  await deleteAndReport(pr);
 }
 
-async function run(args: Readonly<Args>): Promise<void> {
-  switch (args.mode) {
-    case "deploy-github":
-      return deployFromGithub(args.artifact);
-    case "deploy-local":
-      return deployFromHere(args);
-    case "delete-github":
-      return deleteFromGithub();
-    case "delete-local": {
-      reportDeletions(args.pr, await deleteCopy(args.pr));
+function run(command: string | undefined): Promise<void> {
+  if (command === "deploy") {
+    const artifact = required(flags.artifact);
 
-      return;
-    }
-
-    default: {
-      const exhaustive: never = args;
-
-      return exhaustive;
-    }
+    return flags.github ? deployFromGithub(artifact) : deployFromHere(artifact);
   }
+
+  if (command === "delete") {
+    return flags.github ? deleteFromGithub() : deleteAndReport(localPr());
+  }
+
+  throw new Error(USAGE);
 }
 
 try {
-  await run(parseCommand(process.argv.slice(2)));
+  await run(positionals[0]);
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;

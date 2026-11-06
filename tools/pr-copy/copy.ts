@@ -1,232 +1,234 @@
 import { randomBytes } from "node:crypto";
-import { rmSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { z } from "zod";
 
 import {
-  type CopyCommand,
+  type Command,
   type CopyNames,
   type Inventory,
   type Stage,
-  copyNames,
-  inventory,
+  applyMigrations,
   cloudflare,
-  workersSubdomain,
+  copyNames,
+  createDatabase,
+  createQueue,
+  databaseId,
+  deleteDatabase,
+  deleteQueue,
+  deleteWorker,
+  deployWorker,
+  inventory,
+  prOf,
+  removeConsumer,
 } from "./cloudflare.ts";
 import { seedDemo } from "./demo.ts";
 import {
   type MigrationHashes,
+  MigrationHashesSchema,
   copyConfig,
-  emptyStage,
+  deleteConfig,
   migrationHashes,
-  stageArtifact,
+  withStage,
 } from "./stage.ts";
 
 const MAX_COPIES = 20;
 
-export const CopyRecordSchema = z.object({
-  databaseId: z.string().min(1),
-  migrations: z.record(z.string(), z.string().regex(/^[0-9a-f]{64}$/u)),
-});
+export const CopyRecordSchema = z
+  .object({ databaseId: z.string().min(1), migrations: MigrationHashesSchema })
+  .readonly();
 
-export type CopyRecord = Readonly<{ databaseId: string; migrations: MigrationHashes }>;
+export type CopyRecord = z.infer<typeof CopyRecordSchema>;
 
 export interface DeployedCopy {
   readonly url: string;
   readonly record: CopyRecord;
 }
 
-interface Plan {
-  readonly pr: number;
-  readonly names: CopyNames;
-  readonly record: CopyRecord | null;
-  readonly hashes: MigrationHashes;
-}
+type Step = readonly Command[];
+
+const DeployOutputSchema = z.object({
+  type: z.literal("deploy"),
+  targets: z.array(z.string()).nonempty(),
+});
 
 function databaseIn(found: Readonly<Inventory>, names: Readonly<CopyNames>): string | undefined {
-  return found.databases.find((database) => database.name === names.database)?.uuid;
+  return found.databases.find((database) => database.name === names.name)?.uuid;
 }
 
 function queueIn(found: Readonly<Inventory>, names: Readonly<CopyNames>) {
   return found.queues.find((queue) => queue.name === names.queue);
 }
 
-function keepsRecordedMigrations(plan: Readonly<Plan>, databaseId: string): boolean {
-  if (plan.record === null || plan.record.databaseId !== databaseId) {
-    return false;
-  }
+function refuseOverCapacity(found: Readonly<Inventory>, names: Readonly<CopyNames>): void {
+  const resources = [
+    ...found.workers,
+    ...found.databases.map((database) => database.name),
+    ...found.queues.map((queue) => queue.name),
+  ];
 
-  return Object.entries(plan.record.migrations).every(([file, hash]) => plan.hashes[file] === hash);
+  const open = [...new Set(resources.map((name) => prOf(name)))].toSorted((a, b) => a - b);
+
+  if (!open.includes(prOf(names.name)) && open.length >= MAX_COPIES) {
+    const list = open.map((pr) => copyNames(pr).name).join(", ");
+
+    throw new Error(`${String(MAX_COPIES)} pull request copies exist already: ${list}`);
+  }
 }
 
-function refuseOverCapacity(found: Readonly<Inventory>, pr: number): void {
-  if (!found.prs.includes(pr) && found.prs.length >= MAX_COPIES) {
-    const open = found.prs.map((number) => `threadsift-pr-${String(number)}`).join(", ");
-
-    throw new Error(`${String(MAX_COPIES)} pull request copies exist already: ${open}`);
-  }
-}
-
-function presentCommands(found: Readonly<Inventory>, names: Readonly<CopyNames>): CopyCommand[] {
-  const hasWorker = found.workers.includes(names.worker);
+function teardown(found: Readonly<Inventory>, names: Readonly<CopyNames>): Step[] {
   const queue = queueIn(found, names);
 
-  return [
-    ...(queue?.consumers.includes(names.worker) === true
-      ? [{ kind: "remove-consumer", queue: names.queue, worker: names.worker } as const]
-      : []),
-    ...(hasWorker ? [{ kind: "delete-worker", worker: names.worker } as const] : []),
-    ...(queue === undefined ? [] : [{ kind: "delete-queue", queue: names.queue } as const]),
-    ...(databaseIn(found, names) === undefined
-      ? []
-      : [{ kind: "delete-database", database: names.database } as const]),
+  const steps: Step[] = [
+    queue?.consumers.includes(names.name) === true ? [removeConsumer(names.queue, names.name)] : [],
+    found.workers.includes(names.name) ? [deleteWorker(names.name)] : [],
+    [
+      ...(queue === undefined ? [] : [deleteQueue(names.queue)]),
+      ...(databaseIn(found, names) === undefined ? [] : [deleteDatabase(names.name)]),
+    ],
   ];
+
+  return steps.filter((step) => step.length > 0);
 }
 
-function resetReason(found: Readonly<Inventory>, plan: Readonly<Plan>): string | null {
-  const { names } = plan;
+function withoutCopy(found: Readonly<Inventory>, names: Readonly<CopyNames>): Inventory {
+  return {
+    workers: found.workers.filter((worker) => worker !== names.name),
+    databases: found.databases.filter((database) => database.name !== names.name),
+    queues: found.queues.filter((queue) => queue.name !== names.queue),
+  };
+}
+
+function messageOf(result: Readonly<PromiseSettledResult<void>>): string[] {
+  if (result.status === "fulfilled") {
+    return [];
+  }
+
+  return [result.reason instanceof Error ? result.reason.message : String(result.reason)];
+}
+
+async function runCommands(
+  stage: Readonly<Stage>,
+  steps: readonly Step[],
+  options: Readonly<{ keepGoing: boolean }>,
+): Promise<string[]> {
+  const [step, ...rest] = steps;
+
+  if (step === undefined) {
+    return [];
+  }
+
+  const results = await Promise.allSettled(step.map((command) => cloudflare(stage, command)));
+  const failures = results.flatMap((result) => messageOf(result));
+
+  if (failures.length > 0 && !options.keepGoing) {
+    throw new Error(failures.join("; "));
+  }
+
+  return [...failures, ...(await runCommands(stage, rest, options))];
+}
+
+function resetReason(
+  found: Readonly<Inventory>,
+  names: Readonly<CopyNames>,
+  record: CopyRecord | null,
+  hashes: MigrationHashes,
+): string | null {
   const database = databaseIn(found, names);
   const hasQueue = queueIn(found, names) !== undefined;
 
-  if (found.workers.includes(names.worker) && (database === undefined || !hasQueue)) {
+  if (found.workers.includes(names.name) && (database === undefined || !hasQueue)) {
     return "lost a resource";
   }
 
-  if (database !== undefined && !keepsRecordedMigrations(plan, database)) {
-    return "has a database whose migrations no record matches";
-  }
+  const recorded =
+    record !== null &&
+    record.databaseId === database &&
+    Object.entries(record.migrations).every(([file, hash]) => hashes[file] === hash);
 
-  return null;
+  return database === undefined || recorded
+    ? null
+    : "has a database whose migrations no record matches";
 }
 
-async function currentInventory(stage: Readonly<Stage>, plan: Readonly<Plan>): Promise<Inventory> {
-  const found = await inventory();
-  refuseOverCapacity(found, plan.pr);
+async function provision(
+  stage: Readonly<Stage>,
+  names: Readonly<CopyNames>,
+  record: CopyRecord | null,
+): Promise<CopyRecord> {
+  const hashes = migrationHashes(stage.dir);
+  let found = await inventory();
+  refuseOverCapacity(found, names);
 
-  const reason = resetReason(found, plan);
+  const reason = resetReason(found, names, record, hashes);
 
-  if (reason === null) {
-    return found;
-  }
-
-  process.stdout.write(`${plan.names.worker} ${reason}; deleting it to start again\n`);
-
-  await runInOrder(stage, presentCommands(found, plan.names));
-
-  return inventory();
-}
-
-async function provision(stage: Readonly<Stage>, plan: Readonly<Plan>): Promise<string> {
-  const found = await currentInventory(stage, plan);
-  const { names } = plan;
-
-  if (queueIn(found, names) === undefined) {
-    await cloudflare(stage, { kind: "create-queue", queue: names.queue });
+  if (reason !== null) {
+    process.stdout.write(`${names.name} ${reason}; deleting it to start again\n`);
+    await runCommands(stage, teardown(found, names), { keepGoing: false });
+    found = withoutCopy(found, names);
   }
 
   const existing = databaseIn(found, names);
 
-  if (existing !== undefined) {
-    return existing;
-  }
+  const creates = [
+    ...(queueIn(found, names) === undefined ? [createQueue(names.queue)] : []),
+    ...(existing === undefined ? [createDatabase(names.name)] : []),
+  ];
 
-  await cloudflare(stage, { kind: "create-database", database: names.database });
+  await runCommands(stage, [creates], { keepGoing: false });
 
-  const created = databaseIn(await inventory(), names);
-
-  if (created === undefined) {
-    throw new Error(`${names.database} is missing right after wrangler d1 create`);
-  }
-
-  return created;
+  return { databaseId: existing ?? (await databaseId(names.name)), migrations: hashes };
 }
 
-function writeSecrets(dir: string, setupCode: string): string {
-  const path = join(dir, "secrets.json");
-  writeFileSync(path, JSON.stringify({ SETUP_CODE: setupCode }), { mode: 0o600 });
+async function publish(stage: Readonly<Stage>, setupCode: string): Promise<string> {
+  const secretsFile = join(stage.dir, "secrets.json");
+  const outputFile = join(stage.dir, "output.jsonl");
+  writeFileSync(secretsFile, JSON.stringify({ SETUP_CODE: setupCode }), { mode: 0o600 });
 
-  return path;
-}
+  await cloudflare(stage, deployWorker(secretsFile, outputFile));
 
-async function publish(stage: Readonly<Stage>, setupCode: string): Promise<void> {
-  const secretsFile = writeSecrets(stage.dir, setupCode);
+  const deploys = readFileSync(outputFile, "utf8")
+    .split("\n")
+    .flatMap((line) => {
+      const entry = DeployOutputSchema.safeParse(line === "" ? null : JSON.parse(line));
 
-  try {
-    await cloudflare(stage, { kind: "deploy", secretsFile });
-  } finally {
-    rmSync(secretsFile, { force: true });
+      return entry.success ? [entry.data.targets[0]] : [];
+    });
+
+  const [url] = deploys;
+
+  if (url === undefined) {
+    throw new Error("wrangler deploy wrote no deploy target");
   }
+
+  return url;
 }
 
-export async function deployCopy(
+export function deployCopy(
   pr: number,
   artifact: string,
   record: CopyRecord | null,
 ): Promise<DeployedCopy> {
   const names = copyNames(pr);
-  const dir = stageArtifact(artifact);
 
-  try {
-    const plan = { pr, names, record, hashes: migrationHashes(dir) };
-    const databaseId = await provision({ dir, config: copyConfig(names) }, plan);
-    const stage = { dir, config: copyConfig(names, databaseId) };
-
-    await cloudflare(stage, { kind: "apply-migrations", database: names.database });
+  return withStage(copyConfig(names), artifact, async (stage) => {
+    const next = await provision(stage, names, record);
+    await cloudflare(stage, applyMigrations(names.name));
 
     const setupCode = randomBytes(24).toString("base64url");
-    await publish(stage, setupCode);
-
-    const url = `https://${names.worker}.${await workersSubdomain()}.workers.dev`;
+    const url = await publish(stage, setupCode);
     await seedDemo(url, setupCode);
 
-    return { url, record: { databaseId, migrations: plan.hashes } };
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
-async function runInOrder(
-  stage: Readonly<Stage>,
-  commands: readonly Readonly<CopyCommand>[],
-): Promise<void> {
-  const [first, ...rest] = commands;
-
-  if (first !== undefined) {
-    await cloudflare(stage, first);
-    await runInOrder(stage, rest);
-  }
-}
-
-async function attemptEach(
-  stage: Readonly<Stage>,
-  commands: readonly Readonly<CopyCommand>[],
-): Promise<string[]> {
-  const [first, ...rest] = commands;
-
-  if (first === undefined) {
-    return [];
-  }
-
-  const failures: string[] = [];
-
-  try {
-    await cloudflare(stage, first);
-  } catch (error) {
-    failures.push(error instanceof Error ? error.message : String(error));
-  }
-
-  return [...failures, ...(await attemptEach(stage, rest))];
+    return { url, record: next };
+  });
 }
 
 export async function deleteCopy(pr: number): Promise<string[]> {
   const names = copyNames(pr);
   const found = await inventory();
-  const dir = emptyStage();
 
-  try {
-    return await attemptEach({ dir, config: copyConfig(names) }, presentCommands(found, names));
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  return withStage(deleteConfig(names), null, (stage) =>
+    runCommands(stage, teardown(found, names), { keepGoing: true }),
+  );
 }
