@@ -1,8 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-import { z } from "zod";
-
 import {
   type CopyRecord,
   CopyRecordSchema,
@@ -20,15 +18,24 @@ import {
   pullRequest,
   reopenedReason,
   staleReason,
+  liveHead,
+  requireMainHead,
+  lastLiveRecord,
+  recordLive,
+  finishDeployment,
+  CoercedPrNumber,
 } from "./github.ts";
+import { deployLive } from "./live.ts";
+import { sweep } from "./sweep.ts";
 
 const USAGE = `Usage:
   node tools/pr-copy/cli.ts deploy --artifact <dir> --github
   node tools/pr-copy/cli.ts deploy --artifact <dir> --pr <n> --record <file>
   node tools/pr-copy/cli.ts delete --github
-  node tools/pr-copy/cli.ts delete --pr <n>`;
-
-const PrSchema = z.coerce.number().int().positive();
+  node tools/pr-copy/cli.ts delete --pr <n>
+  node tools/pr-copy/cli.ts live --artifact <dir> --github
+  node tools/pr-copy/cli.ts sweep [--dry-run]
+  sweep needs GITHUB_REPOSITORY and GITHUB_TOKEN; GITHUB_API_URL defaults to https://api.github.com`;
 
 const { positionals, values: flags } = parseArgs({
   args: process.argv.slice(2),
@@ -38,6 +45,7 @@ const { positionals, values: flags } = parseArgs({
     github: { type: "boolean", default: false },
     pr: { type: "string" },
     record: { type: "string" },
+    "dry-run": { type: "boolean", default: false },
   },
 });
 
@@ -50,7 +58,7 @@ function required(value: string | undefined): string {
 }
 
 function localPr(): number {
-  const pr = PrSchema.safeParse(required(flags.pr));
+  const pr = CoercedPrNumber.safeParse(required(flags.pr));
 
   if (!pr.success) {
     throw new Error(USAGE);
@@ -108,24 +116,23 @@ async function deployFromHere(artifact: string): Promise<void> {
 async function deleteAndReport(pr: number): Promise<void> {
   const failures = await deleteCopy(pr);
 
-  if (flags.github) {
-    await markInactive(pr);
-  }
-
   if (failures.length > 0) {
     throw new Error(
       `These deletions failed for pull request ${String(pr)}: ${failures.join("; ")}`,
     );
   }
 
+  if (flags.github) await markInactive(pr);
+
   process.stdout.write(`Pull request ${String(pr)} has no copy left\n`);
 }
 
 async function deleteFromGithub(): Promise<void> {
-  const pr = closedPullRequest();
+  const pr = flags.pr === undefined ? closedPullRequest() : localPr();
   const reopened = reopenedReason(pr, await pullRequest(pr));
 
   if (reopened !== null) {
+    if (flags.pr !== undefined) throw new Error(reopened);
     stopWithoutChanges(reopened);
 
     return;
@@ -134,7 +141,44 @@ async function deleteFromGithub(): Promise<void> {
   await deleteAndReport(pr);
 }
 
+async function liveFromGithub(artifact: string): Promise<void> {
+  const sha = liveHead();
+  let deployment: number | undefined;
+  let copy: DeployedCopy;
+
+  try {
+    copy = await deployLive(
+      artifact,
+      await lastLiveRecord(),
+      () => requireMainHead(sha),
+      async (record) => {
+        deployment = await recordLive(sha, record);
+      },
+    );
+  } catch (error) {
+    if (deployment !== undefined) {
+      try {
+        await finishDeployment(deployment, null);
+      } catch (statusError) {
+        process.stderr.write(
+          `Posting the failed live deployment failed too: ${String(statusError)}\n`,
+        );
+      }
+    }
+
+    throw error;
+  }
+
+  if (deployment === undefined) throw new Error("Live migration record was not saved");
+  await finishDeployment(deployment, copy.url);
+  process.stdout.write(`Deployed ${copy.url}\n`);
+}
+
 function run(command: string | undefined): Promise<void> {
+  if (command === "sweep" && positionals.length === 1) return sweep(flags["dry-run"]);
+
+  if (command === "live" && flags.github) return liveFromGithub(required(flags.artifact));
+
   if (command === "deploy") {
     const artifact = required(flags.artifact);
 

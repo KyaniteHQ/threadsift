@@ -5,6 +5,7 @@ import type { z } from "zod";
 import {
   ErrorResponseSchema,
   ItemResponseSchema,
+  ItemListResponseSchema,
   SavedItemResponseSchema,
   SessionStateSchema,
 } from "../../src/http/schemas.ts";
@@ -17,9 +18,10 @@ const SERVED_IN_A_ROW = 10;
 const LOCK_WAIT_LIMIT_S = 300;
 const ITEM_DEADLINE_MS = 300_000;
 const POLL_MS = 1000;
-const CHECKED_FIELDS = ["status", "source", "title", "fetch"] as const;
 
 type Item = z.infer<typeof ItemResponseSchema>["item"];
+
+const CHECKED_FIELDS = ["status", "source", "title", "fetch"] as const;
 
 interface DemoItem {
   readonly url: string;
@@ -50,9 +52,7 @@ interface Site {
   readonly retryUntil: number;
 }
 
-interface Copy extends Site {
-  readonly cookie: string;
-}
+type Copy = Readonly<Site & { cookie: string }>;
 
 interface Call {
   readonly path: string;
@@ -67,18 +67,14 @@ function send(url: string, call: Readonly<Call>): Promise<Response> {
     headers.set("cookie", call.cookie);
   }
 
-  if (call.body === undefined) {
-    return fetch(`${url}${call.path}`, { headers, signal: callTimeout() });
-  }
+  const request =
+    call.body === undefined
+      ? { method: "GET" }
+      : { method: "POST", body: JSON.stringify(call.body) };
 
-  headers.set("content-type", "application/json");
+  if (call.body !== undefined) headers.set("content-type", "application/json");
 
-  return fetch(`${url}${call.path}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(call.body),
-    signal: callTimeout(),
-  });
+  return fetch(`${url}${call.path}`, { ...request, headers, signal: callTimeout() });
 }
 
 function isJson(response: Response): boolean {
@@ -201,6 +197,8 @@ async function signIn(site: Readonly<Site>, setupCode: string): Promise<Copy> {
 }
 
 async function paste(copy: Readonly<Copy>, link: string): Promise<number> {
+  process.stdout.write(`Paste ${link}\n`);
+
   const response = await callCopy(copy, {
     path: "/api/items",
     cookie: copy.cookie,
@@ -220,15 +218,11 @@ async function endState(copy: Readonly<Copy>, id: number, waitedMs = 0): Promise
   const path = `/api/items/${String(id)}/status`;
   const response = await callCopy(copy, { path, cookie: copy.cookie });
 
-  if (response.status !== 200) {
-    throw new Error(`${path} answered ${String(response.status)}: ${await refusal(response)}`);
-  }
+  await expectOk(response, path);
 
   const { item } = ItemResponseSchema.parse(await response.json());
 
-  if (item.status !== "processing") {
-    return item;
-  }
+  if (item.status !== "processing") return item;
 
   if (waitedMs >= ITEM_DEADLINE_MS) {
     throw new Error(`Item ${String(id)} is still processing after ${String(ITEM_DEADLINE_MS)} ms`);
@@ -255,13 +249,51 @@ async function seedItem(copy: Readonly<Copy>, demo: Readonly<DemoItem>): Promise
 }
 
 export async function seedDemo(url: string, setupCode: string): Promise<void> {
-  await awaitServing(url);
+  const copy = await openDemo(url, setupCode);
 
-  const copy = await signIn({ url, retryUntil: Date.now() + RETRY_BUDGET_MS }, setupCode);
   const outcomes = await Promise.all(DEMO_ITEMS.map((demo) => seedItem(copy, demo)));
   const failed = outcomes.filter((outcome) => outcome !== null);
 
   if (failed.length > 0) {
     throw new Error(`Demo data did not reach its end state: ${failed.join("; ")}`);
   }
+}
+
+async function openDemo(url: string, setupCode: string): Promise<Copy> {
+  await awaitServing(url);
+
+  return signIn({ url, retryUntil: Date.now() + RETRY_BUDGET_MS }, setupCode);
+}
+
+export async function ensureDemo(url: string, setupCode: string): Promise<void> {
+  const copy = await openDemo(url, setupCode);
+  const response = await callCopy(copy, { path: "/api/items", cookie: copy.cookie });
+
+  await expectOk(response, "/api/items");
+  const { items } = ItemListResponseSchema.parse(await response.json());
+
+  await Promise.all(
+    DEMO_ITEMS.map(async (demo) => {
+      const existing = items.find((item) => item.originalUrl === demo.url);
+
+      if (existing === undefined) {
+        await endState(copy, await paste(copy, demo.url));
+      } else if (existing.status === "processing") {
+        await endState(copy, existing.id);
+      }
+    }),
+  );
+
+  const session = await callCopy(copy, { path: "/api/session", cookie: copy.cookie });
+
+  await expectOk(session, "/api/session");
+
+  if (SessionStateSchema.parse(await session.json()).state !== "signed-in")
+    throw new Error("Live signed-in session check failed");
+  process.stdout.write("Live signed-in GET /api/session passed\n");
+}
+
+async function expectOk(response: Response, path: string): Promise<void> {
+  if (response.status !== 200)
+    throw new Error(`${path} answered ${String(response.status)}: ${await refusal(response)}`);
 }

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import { requiredEnv } from "./env.ts";
+import { queueInventoryRow } from "./queue-inventory.ts";
 import { callTimeout } from "./timeout.ts";
 
 const COPY_NAME = /^threadsift-pr-(?<pr>[0-9]+)(?:-jobs|-files)?$/u;
@@ -22,7 +23,7 @@ export interface CopyNames {
 export interface Stage {
   readonly dir: string;
   readonly configPath: string;
-  readonly names: readonly string[];
+  readonly target: CopyNames;
 }
 
 export type Command =
@@ -41,6 +42,8 @@ export interface Inventory {
   readonly queues: readonly Readonly<{ name: string; consumers: readonly string[] }>[];
 }
 
+export const LIVE: CopyNames = { name: "threadsift-live", queue: "threadsift-live-jobs" };
+
 export function copyNames(pr: number): CopyNames {
   const name = `threadsift-pr-${String(pr)}`;
 
@@ -49,6 +52,18 @@ export function copyNames(pr: number): CopyNames {
 
 export function prOf(name: string): number {
   return Number(COPY_NAME.exec(name)?.groups?.["pr"]);
+}
+
+export function copyNumbers(found: Readonly<Inventory>): number[] {
+  return [
+    ...new Set(
+      [
+        ...found.workers,
+        ...found.databases.map((row) => row.name),
+        ...found.queues.map((row) => row.name),
+      ].map((name) => prOf(name)),
+    ),
+  ];
 }
 
 function wranglerCommand(
@@ -89,11 +104,11 @@ function redact(text: string): string {
   return text.replaceAll(requiredEnv("CLOUDFLARE_ACCOUNT_ID"), "<account>");
 }
 
-function refuseOutsideCopies(names: readonly string[]): void {
-  const outside = names.filter((name) => !COPY_NAME.test(name));
+function refuseOutsideTarget(target: Readonly<CopyNames>, names: readonly string[]): void {
+  const outside = names.filter((name) => name !== target.name && name !== target.queue);
 
   if (outside.length > 0) {
-    throw new Error(`Refused, not a pull request copy name: ${outside.join(", ")}`);
+    throw new Error(`Refused outside ${target.name}: ${outside.join(", ")}`);
   }
 }
 
@@ -140,10 +155,19 @@ function runWrangler(
   });
 }
 
-async function accountRequest(method: "GET" | "DELETE", path: string): Promise<Response> {
+async function accountRequest(
+  method: "GET" | "DELETE" | "POST",
+  path: string,
+  body?: string,
+): Promise<Response> {
+  const request = method === "POST" ? { method, body: body ?? null } : { method };
+
   const response = await fetch(`${API}/accounts/${requiredEnv("CLOUDFLARE_ACCOUNT_ID")}/${path}`, {
-    method,
-    headers: { authorization: `Bearer ${requiredEnv("CLOUDFLARE_API_TOKEN")}` },
+    ...request,
+    headers: {
+      authorization: `Bearer ${requiredEnv("CLOUDFLARE_API_TOKEN")}`,
+      "content-type": "application/json",
+    },
     signal: callTimeout(),
   });
 
@@ -158,7 +182,7 @@ export async function cloudflare(
   stage: Readonly<Stage>,
   command: Readonly<Command>,
 ): Promise<void> {
-  refuseOutsideCopies([...stage.names, ...command.names]);
+  refuseOutsideTarget(stage.target, command.names);
 
   if (command.kind === "wrangler") {
     await runWrangler(
@@ -204,27 +228,20 @@ const WorkerRow = z.object({ id: z.string() });
 
 const DatabaseRow = z.object({ uuid: z.string(), name: z.string() });
 
-const QueueRow = z.object({
-  queue_name: z.string(),
-  consumers: z.array(z.object({ script: z.string().nullable().optional() })),
-});
+export async function inventory(target?: Readonly<CopyNames>): Promise<Inventory> {
+  const matches = (name: string) =>
+    target === undefined ? COPY_NAME.test(name) : name === target.name || name === target.queue;
 
-export async function inventory(): Promise<Inventory> {
   const [scripts, databases, queues] = await Promise.all([
     cloudflareGet("workers/scripts", PageSchema.extend({ result: z.array(WorkerRow) })),
     listFrom("d1/database", DatabaseRow, 1),
-    listFrom("queues", QueueRow, 1),
+    listFrom("queues", queueInventoryRow(matches), 1),
   ]);
 
   return {
-    workers: scripts.result.map((row) => row.id).filter((name) => COPY_NAME.test(name)),
-    databases: databases.filter((row) => COPY_NAME.test(row.name)),
-    queues: queues
-      .filter((row) => COPY_NAME.test(row.queue_name))
-      .map((row) => ({
-        name: row.queue_name,
-        consumers: row.consumers.flatMap((consumer) => consumer.script ?? []),
-      })),
+    workers: scripts.result.map((row) => row.id).filter((name) => matches(name)),
+    databases: databases.filter((row) => matches(row.name)),
+    queues: queues.flatMap((queue) => (queue === null ? [] : [queue])),
   };
 }
 
@@ -240,8 +257,8 @@ export async function databaseId(name: string): Promise<string> {
   return database.uuid;
 }
 
-export async function workerSecretNames(worker: string): Promise<string[]> {
-  refuseOutsideCopies([worker]);
+export async function workerSecretNames(stage: Readonly<Stage>, worker: string): Promise<string[]> {
+  refuseOutsideTarget(stage.target, [worker]);
 
   const body = await cloudflareGet(
     `workers/scripts/${worker}/secrets`,
@@ -249,4 +266,25 @@ export async function workerSecretNames(worker: string): Promise<string[]> {
   );
 
   return body.result.map((entry) => entry.name);
+}
+
+export async function appliedMigrations(
+  stage: Readonly<Stage>,
+  database: Readonly<{ name: string; id: string }>,
+): Promise<string[]> {
+  refuseOutsideTarget(stage.target, [database.name]);
+
+  const response = await accountRequest(
+    "POST",
+    `d1/database/${encodeURIComponent(database.id)}/query`,
+    JSON.stringify({ sql: "SELECT name FROM d1_migrations ORDER BY id" }),
+  );
+
+  const body = PageSchema.extend({
+    result: z.array(
+      z.object({ success: z.literal(true), results: z.array(z.object({ name: z.string() })) }),
+    ),
+  }).parse(await response.json());
+
+  return body.result.flatMap((result) => result.results.map((row) => row.name));
 }

@@ -12,6 +12,7 @@ import {
   applyMigrations,
   cloudflare,
   copyNames,
+  copyNumbers,
   createDatabase,
   createQueue,
   databaseId,
@@ -28,8 +29,6 @@ import { seedDemo } from "./demo.ts";
 import {
   type MigrationHashes,
   MigrationHashesSchema,
-  copyConfig,
-  deleteConfig,
   migrationHashes,
   withStage,
 } from "./stage.ts";
@@ -66,13 +65,7 @@ function queueIn(found: Readonly<Inventory>, names: Readonly<CopyNames>) {
 }
 
 function refuseOverCapacity(found: Readonly<Inventory>, names: Readonly<CopyNames>): void {
-  const resources = [
-    ...found.workers,
-    ...found.databases.map((database) => database.name),
-    ...found.queues.map((queue) => queue.name),
-  ];
-
-  const open = [...new Set(resources.map((name) => prOf(name)))].toSorted((a, b) => a - b);
+  const open = copyNumbers(found);
 
   if (!open.includes(prOf(names.name)) && open.length >= MAX_COPIES) {
     const list = open.map((pr) => copyNames(pr).name).join(", ");
@@ -184,7 +177,7 @@ async function provision(
 
   return {
     record: { databaseId: existing ?? (await databaseId(names.name)), migrations: hashes },
-    secrets: found.workers.includes(names.name) ? await workerSecretNames(names.name) : [],
+    secrets: found.workers.includes(names.name) ? await workerSecretNames(stage, names.name) : [],
   };
 }
 
@@ -193,7 +186,7 @@ interface CopySecrets {
   THREADSIFT_SECRET_KEY?: string;
 }
 
-async function publish(
+export async function publish(
   stage: Readonly<Stage>,
   setupCode: string,
   secretNames: readonly string[],
@@ -234,7 +227,7 @@ export function deployCopy(
 ): Promise<DeployedCopy> {
   const names = copyNames(pr);
 
-  return withStage(copyConfig(names, artifact), artifact, async (stage) => {
+  return withStage(names, artifact, async (stage) => {
     const next = await provision(stage, names, record);
     await cloudflare(stage, applyMigrations(names.name));
 
@@ -250,7 +243,7 @@ export async function deleteCopy(pr: number): Promise<string[]> {
   const names = copyNames(pr);
   const found = await inventory();
 
-  return withStage(deleteConfig(names), null, (stage) =>
+  return withStage(names, null, (stage) =>
     runCommands(stage, teardown(found, names), { keepGoing: true }),
   );
 }
