@@ -5,6 +5,7 @@ import { test } from "./access.ts";
 
 interface ApiSchema {
   $ref?: string | undefined;
+  required?: string[] | undefined;
   properties?: Record<string, ApiSchema> | undefined;
   items?: ApiSchema | undefined;
   oneOf?: ApiSchema[] | undefined;
@@ -14,6 +15,7 @@ interface ApiSchema {
 const SchemaNode: z.ZodType<ApiSchema> = z.lazy(() =>
   z.looseObject({
     $ref: z.string().optional(),
+    required: z.array(z.string()).optional(),
     properties: z.record(z.string(), SchemaNode).optional(),
     items: SchemaNode.optional(),
     oneOf: z.array(SchemaNode).optional(),
@@ -113,7 +115,9 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   expect(Object.keys(items.post.requestBody.content)).toEqual(["application/json"]);
   expect(Object.keys(items.post.responses).toSorted()).toEqual(["200", "201", "400"]);
   expect(Object.keys(items.get.responses)).toEqual(["200"]);
-  expect(propertyNames(schemas, jsonSchemaOf(items.post.requestBody))).toEqual(["url"]);
+  const requestBody = resolved(schemas, jsonSchemaOf(items.post.requestBody));
+  expect(propertyNames(schemas, requestBody).toSorted()).toEqual(["digest", "url"]);
+  expect(requestBody.required).toEqual(["url"]);
 
   const saved = jsonSchemaOf(items.post.responses["201"] ?? { content: {} });
   expect(propertyNames(schemas, saved).toSorted()).toEqual(["item", "url"]);

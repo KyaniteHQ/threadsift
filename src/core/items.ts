@@ -128,7 +128,10 @@ async function saveSettled(
   const known = await itemAt(db, normalizedUrl);
 
   const [, , [item]] = await db.batch([
-    db.update(items).set({ pendingDigest: null }).where(eq(items.id, known.id)),
+    db
+      .update(items)
+      .set({ pendingDigest: null })
+      .where(and(eq(items.id, known.id), notExists(hasOpenJob("digest")))),
     db
       .update(items)
       .set(settle(fetched, known.title, now))

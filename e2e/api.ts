@@ -16,9 +16,10 @@ export async function postLinkRaw(
   request: APIRequestContext,
   url: string,
   digest?: Readonly<Digest>,
+  headers: Readonly<Record<string, string>> = {},
 ) {
   await waitForRedditTurnIfNeeded(url);
-  const response = await request.post("/api/items", { data: { url, digest } });
+  const response = await request.post("/api/items", { data: { url, digest }, headers });
 
   return { status: response.status(), body: SavedItemResponseSchema.parse(await response.json()) };
 }

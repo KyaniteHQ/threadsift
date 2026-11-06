@@ -8,6 +8,7 @@ import {
 } from "../core/ai-contract.ts";
 import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
 import { verifyAi } from "../core/ai-tasks.ts";
+import { olderDigests } from "../core/digest-job.ts";
 import type { Ports } from "../core/ports.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 
@@ -40,7 +41,7 @@ const verifyRoute = createRoute({
 export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(readRoute, async (c) => c.json(await readAiSettings(ports), 200));
   app.openapi(saveRoute, async (c) =>
-    c.json(await saveAiSettings(ports, c.req.valid("json")), 200),
+    c.json(await saveAiSettings(ports, c.req.valid("json"), () => olderDigests(ports.db)), 200),
   );
   app.openapi(verifyRoute, async (c) => c.json(await verifyAi(ports, c.req.raw.signal), 200));
 }

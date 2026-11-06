@@ -10,7 +10,7 @@ import {
   DIGEST_INPUT_BYTES,
   digestPrompt,
   DIGEST_CATALOG_BYTES,
-  utf8Bytes,
+  utf8Length,
 } from "../src/core/ai-contract.ts";
 import { AI_CALL_OPTIONS } from "../src/targets/shared/ai-call-options.ts";
 import { PROOF_MODEL, workersAiUrl } from "./workers-ai-proof.ts";
@@ -29,9 +29,9 @@ const catalog = {
   tags: Array.from({ length: 500 }, (_, index) => `Tag ${index}: notes and sources`),
 };
 
-const schemaBytes = utf8Bytes(
+const schemaBytes = utf8Length(
   JSON.stringify(z.toJSONSchema(DigestSchema, { unrepresentable: "any" })),
-).length;
+);
 
 const provider = createOpenAICompatible({
   name: "input-budget",
@@ -70,12 +70,11 @@ async function measure(name: string, input: string): Promise<void> {
     console.log(
       JSON.stringify({
         name,
-        bytes: utf8Bytes(prompt).length,
+        bytes: utf8Length(prompt),
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
         totalWithReservedOutput: (result.usage.inputTokens ?? 0) + RESERVED_OUTPUT,
-        wholePromptBytes:
-          utf8Bytes(prompt).length + utf8Bytes(DIGEST_INSTRUCTIONS).length + schemaBytes,
+        wholePromptBytes: utf8Length(prompt) + utf8Length(DIGEST_INSTRUCTIONS) + schemaBytes,
         valid: true,
       }),
     );
@@ -97,7 +96,7 @@ console.log(
     context: 24_000,
     limit: DIGEST_INPUT_BYTES,
     reservedOutput: RESERVED_OUTPUT,
-    instructionsBytes: utf8Bytes(DIGEST_INSTRUCTIONS).length,
+    instructionsBytes: utf8Length(DIGEST_INSTRUCTIONS),
     schemaBytes,
     catalogBytes: DIGEST_CATALOG_BYTES,
     topics: catalog.topics.length,

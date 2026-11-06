@@ -169,3 +169,26 @@ export async function unchangedOpenDigest(screen: FreshScreen, id: number): Prom
   expect(response.status()).toBe(200);
   expect(jobsOf(id, screen.fresh)).toEqual(before);
 }
+
+export async function pasteBehindDeferredFetch(
+  screen: FreshScreen,
+  paste: () => Promise<readonly number[]>,
+): Promise<readonly number[]> {
+  const restore = deferJobs(screen.fresh, "fetch");
+  let ids: readonly number[];
+
+  try {
+    ids = await paste();
+  } finally {
+    restore();
+  }
+
+  for (const id of new Set(ids)) {
+    for (const job of jobsOf(id, screen.fresh, "fetch").filter((row) => row.state !== "done"))
+      makeJobDue(job.id, screen.fresh);
+  }
+
+  await sweepNow(screen.context.request, screen.fresh);
+
+  return ids;
+}

@@ -178,11 +178,11 @@ export interface CatalogNames {
 
 const encoder = new TextEncoder();
 
-export function utf8Bytes(text: string): Uint8Array {
-  return encoder.encode(text);
+export function utf8Length(text: string): number {
+  return encoder.encode(text).length;
 }
 
-const CATALOG_OVERHEAD_BYTES = utf8Bytes('{"topics":[],"tags":[]}').length;
+const CATALOG_OVERHEAD_BYTES = utf8Length('{"topics":[],"tags":[]}');
 export const CATALOG_LIST_BYTES = Math.floor((DIGEST_CATALOG_BYTES - CATALOG_OVERHEAD_BYTES) / 2);
 export const CATALOG_NAME_LIMIT = Math.floor(CATALOG_LIST_BYTES / 4);
 
@@ -190,7 +190,7 @@ export function digestPrompt(input: string, catalog: CatalogNames): string {
   const selected: CatalogNames = { topics: fitNames(catalog.topics), tags: fitNames(catalog.tags) };
   const lists = JSON.stringify(selected);
 
-  return `${lists}\n${cutUtf8(input, DIGEST_INPUT_BYTES - utf8Bytes(lists).length - 1)}`;
+  return `${lists}\n${cutUtf8(input, DIGEST_INPUT_BYTES - utf8Length(lists) - 1)}`;
 }
 
 function fitNames(names: readonly string[]): string[] {
@@ -198,7 +198,7 @@ function fitNames(names: readonly string[]): string[] {
   let bytes = 0;
 
   for (const name of names) {
-    const cost = utf8Bytes(JSON.stringify(name)).length + 1;
+    const cost = utf8Length(JSON.stringify(name)) + 1;
 
     if (bytes + cost > CATALOG_LIST_BYTES) break;
     selected.push(name);
@@ -209,7 +209,7 @@ function fitNames(names: readonly string[]): string[] {
 }
 
 function cutUtf8(input: string, limit: number): string {
-  const bytes = utf8Bytes(input.slice(0, limit));
+  const bytes = encoder.encode(input.slice(0, limit));
 
   return new TextDecoder().decode(bytes.subarray(0, limit), { stream: true });
 }

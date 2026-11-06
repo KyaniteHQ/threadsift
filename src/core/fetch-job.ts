@@ -1,7 +1,6 @@
 import { and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
 
-import { providerSet } from "./ai-settings.ts";
-import { openingDigest, setDigestFailure } from "./digest-job.ts";
+import { openingDigest, providerSet, setDigestFailure } from "./digest-job.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
@@ -63,6 +62,9 @@ export const fetchHandler: JobHandler = {
   blockedBy: [],
   attempt: attemptFetch,
   exhausted: (db, job) => [
-    db.update(items).set({ status: "failed", reason: "gave-up" }).where(eq(items.id, job.itemId)),
+    db
+      .update(items)
+      .set({ status: "failed", reason: "gave-up", pendingDigest: null })
+      .where(eq(items.id, job.itemId)),
   ],
 };

@@ -1,6 +1,5 @@
 import { type TestInfo, expect, test } from "@playwright/test";
 
-import { AI_DEADLINE_MS } from "../src/core/ai-contract.ts";
 import { ItemResponseSchema } from "../src/http/schemas.ts";
 import { NO_DIGEST, DIGEST_NOT_UPDATED, NOTICES, RETRY_LABEL } from "../web/src/text.ts";
 import {
@@ -16,13 +15,21 @@ import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { ESSAY } from "./articles.ts";
 import { alertRegion, attachJson } from "./card.ts";
 import {
+  assertDelay,
   configureDigest,
   digestRecord,
   digestScreens,
   lastDigestTask,
   proveCatalogLinks,
 } from "./digest.ts";
-import { deferJobs, jobsOf, makeJobDue, sweepNow, unchangedOpenDigest } from "./ingest.ts";
+import {
+  jobsOf,
+  makeJobDue,
+  pasteBehindDeferredFetch,
+  sweepNow,
+  unchangedOpenDigest,
+} from "./ingest.ts";
+import { proveStaleCatalog } from "./stale-digest.ts";
 
 const AI_WAIT = 660_000;
 
@@ -61,14 +68,14 @@ test("Digests skip unconfigured and textless Items, retry network failures on st
   const first = jobsOf(item.id, screen.fresh, "digest")[0];
   expect(first?.state).toBe("queued");
   expect((await itemOf(request, item.id)).status).toBe("processing");
-  await assertDelay(1, 30_000, item.id, info);
+  await assertDelay(screen, 1, 30_000, item.id, info);
   await unchangedOpenDigest(screen, item.id);
 
   if (first === undefined) throw new Error("no Digest job");
   makeJobDue(first.id, screen.fresh);
   await sweepNow(request, screen.fresh);
   await expect.poll(() => jobsOf(item.id, screen.fresh, "digest")[0]?.attempts).toBe(2);
-  await assertDelay(2, 120_000, item.id, info);
+  await assertDelay(screen, 2, 120_000, item.id, info);
   makeJobDue(first.id, screen.fresh);
   await sweepNow(request, screen.fresh);
   const end = await settled(request, item.id);
@@ -81,21 +88,6 @@ test("Digests skip unconfigured and textless Items, retry network failures on st
   });
   expect(jobsOf(item.id, screen.fresh, "digest")).toMatchObject([{ state: "done", attempts: 3 }]);
 });
-
-async function assertDelay(
-  attempts: number,
-  delay: number,
-  id: number,
-  info: TestInfo,
-): Promise<void> {
-  const task = lastDigestTask(screen);
-
-  const job = jobsOf(id, screen.fresh, "digest")[0];
-  expect(
-    (job?.next_attempt_at ?? 0) - ((task?.deadline ?? 0) - AI_DEADLINE_MS),
-  ).toBeGreaterThanOrEqual(delay);
-  await attachJson(info, `retry-${attempts}.json`, JSON.stringify({ job, task }));
-}
 
 async function readStored(id: number, provider: Readonly<ReturnType<typeof proofProvider>>) {
   const item = await settled(screen.context.request, id, AI_WAIT);
@@ -165,7 +157,7 @@ test("wrong keys give up once, Digest-only retry keeps the fetch, refresh replac
   await digestScreens(screen, info, "no-digest");
   await proveModelGiveUp(failed.id, provider, info);
   await configureDigest(screen, provider);
-  await retryInBrowser(failed.id);
+  await proveStaleCatalog(screen, failed.id, () => retryInBrowser(failed.id), info);
   const stored = await readStored(failed.id, provider);
   await proveCatalogLinks(screen, stored.id, info);
   expect(stored.fetchedAt).toBe(failed.fetchedAt);
@@ -205,7 +197,7 @@ async function proveKeptDigest(
       records: digestRecord(screen, kept.id),
       item: kept,
       jobs: jobsOf(kept.id, screen.fresh),
-      stalePath: "unverified: no real run observed an ordered stale result",
+      stalePath: "proved by the ordered catalog trigger scenario",
     }),
   );
 }
@@ -213,28 +205,23 @@ async function proveKeptDigest(
 async function refreshBehindFetch(id: number): Promise<void> {
   const before = countRows(screen, "ai_tasks");
   const request = screen.context.request;
-  const restore = deferJobs(screen.fresh, "fetch");
-
-  try {
+  await pasteBehindDeferredFetch(screen, async () => {
     await postLinkRaw(request, ESSAY);
-  } finally {
-    restore();
-  }
+    const queued = await screen.context.request.post(`/api/items/${id}/digest`, { data: {} });
+    expect(queued.status()).toBe(200);
+    const rows = jobsOf(id, screen.fresh).filter((job) => job.state !== "done");
+    expect(rows).toMatchObject([
+      { kind: "fetch", state: "queued" },
+      { kind: "digest", state: "queued", attempts: 0 },
+    ]);
+    await sweepNow(request, screen.fresh);
+    expect(jobsOf(id, screen.fresh, "digest").at(-1)).toMatchObject({
+      state: "queued",
+      attempts: 0,
+    });
 
-  const queued = await screen.context.request.post(`/api/items/${id}/digest`, { data: {} });
-  expect(queued.status()).toBe(200);
-  const rows = jobsOf(id, screen.fresh).filter((job) => job.state !== "done");
-  expect(rows).toMatchObject([
-    { kind: "fetch", state: "queued" },
-    { kind: "digest", state: "queued", attempts: 0 },
-  ]);
-  await sweepNow(request, screen.fresh);
-  expect(jobsOf(id, screen.fresh, "digest").at(-1)).toMatchObject({ state: "queued", attempts: 0 });
-  const fetch = rows.find((job) => job.kind === "fetch");
-
-  if (fetch === undefined) throw new Error("no refresh fetch");
-  makeJobDue(fetch.id, screen.fresh);
-  await sweepNow(request, screen.fresh);
+    return [id];
+  });
   await settled(request, id, AI_WAIT);
   expect(countRows(screen, "ai_tasks")).toBe(before + 1);
 }

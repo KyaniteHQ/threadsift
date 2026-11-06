@@ -3,14 +3,19 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import { digestHandler, sweepDigests } from "./digest-job.ts";
 import { fetchHandler } from "./fetch-job.ts";
-import type { JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
+import {
+  MAX_STALE_REQUEUES,
+  STALE_DELAYS_MS,
+  type JobHandler,
+  type JobOutcome,
+  type JobPorts,
+} from "./job-outcome.ts";
 import { enqueueQuietly, enqueueRows, hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, guardedBatch, items, jobs, scheduledRuns } from "./schema.ts";
 
 const CLAIM_MARGIN_MS = 120_000;
-const STALE_DELAYS_MS = [0, 0, 30_000] as const;
 const RETRY_DELAYS_MS = [30_000, 120_000] as const;
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 const SWEEP_LIMIT = 100;
@@ -182,7 +187,7 @@ async function applyOutcome(
       break;
     case "stale": {
       if (outcome.currency !== undefined) await ports.db.batch([outcome.currency.discard("stale")]);
-      const staleRequeues = job.staleRequeues + 1;
+      const staleRequeues = Math.min(job.staleRequeues + 1, MAX_STALE_REQUEUES);
       await queueLater(ports, job, {
         delayMs: STALE_DELAYS_MS[job.staleRequeues] ?? STALE_DELAYS_MS[2],
         attempts: job.attempts,

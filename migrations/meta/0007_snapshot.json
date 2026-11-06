@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c07fe873-1d13-43d0-8bb3-714aaf6a309c",
+  "id": "bc4983f1-f31a-4a4d-8df6-46cc7dd6f108",
   "prevId": "fb210a2c-f30b-4bcc-9860-ffeeebb481a1",
   "tables": {
     "agent_tokens": {
@@ -141,6 +141,35 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
+    },
+    "catalog_linking": {
+      "name": "catalog_linking",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_item_id": {
+          "name": "last_item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "catalog_linking_is_one_row": {
+          "name": "catalog_linking_is_one_row",
+          "value": "\"catalog_linking\".\"id\" = 1"
+        }
+      }
     },
     "catalog_version": {
       "name": "catalog_version",

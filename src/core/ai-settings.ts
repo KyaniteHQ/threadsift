@@ -1,4 +1,4 @@
-import { and, eq, notExists, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { z } from "zod";
 
 import {
@@ -9,9 +9,9 @@ import {
   type HttpAiConnection,
   refusedAi,
 } from "./ai-contract.ts";
-import { openingDigest } from "./digest-job.ts";
+import type { JobWrites } from "./job-outcome.ts";
 import type { AiPorts } from "./ports.ts";
-import { digests, items, settings } from "./schema.ts";
+import { settings } from "./schema.ts";
 import type { Sealer } from "./sealed-secret.ts";
 
 type AiRow = typeof settings.$inferSelect;
@@ -78,6 +78,7 @@ export async function readAiSettings(ports: AiPorts): Promise<AiSettingsView> {
 export async function saveAiSettings(
   ports: AiPorts,
   input: Readonly<AiSettingsInput>,
+  extraWrites: () => JobWrites,
 ): Promise<z.infer<typeof AiSaveResponseSchema>> {
   const loaded = await loadAiConfig(ports);
 
@@ -106,30 +107,10 @@ export async function saveAiSettings(
     sealedKey: await loaded.sealer.seal(key),
   };
 
-  const olderItems = olderDigests(ports.db);
   await ports.db.batch([
     ports.db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row }),
-    ports.db.update(items).set({ status: "processing", reason: null }).where(olderItems.eligible),
-    olderItems.job,
+    ...extraWrites(),
   ]);
 
   return aiView(row, true, ports.ai.publicOnly);
-}
-
-export function providerSet() {
-  return sql`exists (select 1 from ${settings} where ${settings.id} = 1)`;
-}
-
-function olderDigests(db: AiPorts["db"]) {
-  return openingDigest(db, {
-    scope:
-      and(
-        eq(items.digestFailed, false),
-        notExists(
-          db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
-        ),
-      ) ?? sql`0`,
-    address: sql`${items.originalUrl}`,
-    now: Date.now(),
-  });
 }

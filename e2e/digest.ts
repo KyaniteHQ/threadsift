@@ -1,13 +1,13 @@
 import { type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
-import { AiSettingsViewSchema, DigestSchema } from "../src/core/ai-contract.ts";
+import { AI_DEADLINE_MS, AiSettingsViewSchema, DigestSchema } from "../src/core/ai-contract.ts";
 import { aiJson, AI_SETTINGS_ENDPOINT } from "./ai.ts";
 import { itemOf } from "./api.ts";
 import { attachJson } from "./card.ts";
 import { THEMES, BANDS_AT_WIDTH, resize, expectNoViolations } from "./design-screens.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
-import { sweepNow } from "./ingest.ts";
+import { jobsOf, sweepNow } from "./ingest.ts";
 import { attachScreenshot, storeSettings } from "./look.ts";
 
 export async function configureDigest(
@@ -77,21 +77,25 @@ export async function proveCatalogLinks(
 ): Promise<void> {
   const linked = () =>
     screen.fresh.query(
-      `SELECT topic_id AS topicId, (SELECT count(*) FROM item_tags WHERE item_id = ${id}) AS tags FROM items WHERE id = ${id}`,
-      z.array(z.object({ topicId: z.number().nullable(), tags: z.number() })),
+      `SELECT topic_id AS topicId FROM items WHERE id = ${id}`,
+      z.array(z.object({ topicId: z.number().nullable() })),
     )[0];
+
+  const names = () =>
+    screen.fresh.query(
+      `SELECT tags.name FROM item_tags JOIN tags ON tags.id = item_tags.tag_id WHERE item_tags.item_id = ${id}`,
+      z.array(z.object({ name: z.string() })),
+    );
 
   const digest = digestRecord(screen, id)[0]?.digest;
 
   if (digest === undefined) throw new Error("No model Digest");
   expect(linked()?.topicId).not.toBeNull();
-  expect(linked()?.tags).toBe(
-    new Set(
-      digest.tags.map((name) =>
-        name.normalize("NFKC").toLowerCase().trim().replaceAll(/\s+/gu, " "),
-      ),
-    ).size,
-  );
+  expect(
+    digest.tags.length,
+    "The real Provider must return Tags for the linking proof",
+  ).toBeGreaterThan(0);
+  assertLinkedNames(names(), digest.tags);
   screen.fresh.sql(
     `UPDATE items SET topic_id = NULL WHERE id = ${id}; DELETE FROM item_tags WHERE item_id = ${id}`,
   );
@@ -99,9 +103,36 @@ export async function proveCatalogLinks(
   await sweepNow(screen.context.request, screen.fresh);
   await expect.poll(() => linked()?.topicId, { timeout: 90_000 }).not.toBeNull();
   expect((await itemOf(screen.context.request, id)).digestTopic).toBe(digest.topic);
+  assertLinkedNames(names(), digest.tags);
   await attachJson(
     info,
     "model-catalog-and-older-linking.json",
     JSON.stringify({ linked: linked(), digest }),
   );
+}
+
+function assertLinkedNames(
+  rows: readonly Readonly<{ name: string }>[],
+  expected: readonly string[],
+): void {
+  expect(rows.length).toBeGreaterThanOrEqual(Math.min(1, expected.length));
+  expect(rows.length).toBeLessThanOrEqual(expected.length);
+
+  for (const { name } of rows) expect(expected).toContain(name);
+}
+
+export async function assertDelay(
+  screen: FreshScreen,
+  attempts: number,
+  delay: number,
+  id: number,
+  info: TestInfo,
+): Promise<void> {
+  const task = lastDigestTask(screen);
+
+  const job = jobsOf(id, screen.fresh, "digest")[0];
+  expect(
+    (job?.next_attempt_at ?? 0) - ((task?.deadline ?? 0) - AI_DEADLINE_MS),
+  ).toBeGreaterThanOrEqual(delay);
+  await attachJson(info, `retry-${attempts}.json`, JSON.stringify({ job, task }));
 }

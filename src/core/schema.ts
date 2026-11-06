@@ -221,3 +221,12 @@ export const catalogVersion = sqliteTable(
   },
   (table) => [check("catalog_is_one_row", sql`${table.id} = 1`)],
 );
+
+export const catalogLinking = sqliteTable(
+  "catalog_linking",
+  {
+    id: integer("id").primaryKey(),
+    lastItemId: integer("last_item_id").notNull(),
+  },
+  (table) => [check("catalog_linking_is_one_row", sql`${table.id} = 1`)],
+);

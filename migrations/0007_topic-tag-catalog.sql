@@ -1,3 +1,9 @@
+CREATE TABLE `catalog_linking` (
+	`id` integer PRIMARY KEY NOT NULL,
+	`last_item_id` integer NOT NULL,
+	CONSTRAINT "catalog_linking_is_one_row" CHECK("catalog_linking"."id" = 1)
+);
+--> statement-breakpoint
 CREATE TABLE `catalog_version` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`version` integer DEFAULT 0 NOT NULL,

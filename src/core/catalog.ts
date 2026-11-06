@@ -1,9 +1,18 @@
-import { type SQLWrapper, and, desc, eq, isNull, sql } from "drizzle-orm";
+import { type SQLWrapper, and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { CATALOG_NAME_LIMIT, DigestSchema, type Digest } from "./ai-contract.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { catalogVersion, digests, guardedBatch, items, itemTags, tags, topics } from "./schema.ts";
+import {
+  catalogLinking,
+  catalogVersion,
+  digests,
+  guardedBatch,
+  items,
+  itemTags,
+  tags,
+  topics,
+} from "./schema.ts";
 
 const OLDER_DIGEST_BATCH = 10;
 
@@ -23,13 +32,14 @@ export function catalogEntries(digest: Readonly<Digest>) {
   return {
     topic: { key: catalogKey(digest.topic), name: digest.topic },
     tags: [...names.values()],
+    tagKeys: JSON.stringify([...names.keys()]),
   } as const;
 }
 
 type CatalogEntries = Readonly<ReturnType<typeof catalogEntries>>;
 
 export function catalogCurrent(version: number, entries: CatalogEntries) {
-  const keys = JSON.stringify(entries.tags.map(({ key }) => key));
+  const keys = entries.tagKeys;
 
   return sql`(coalesce((select version from ${catalogVersion} where id = 1), 0) = ${version} or (exists (select 1 from ${topics} where key = ${entries.topic.key}) and not exists (select 1 from json_each(${keys}) wanted where not exists (select 1 from ${tags} where key = wanted.value))))`;
 }
@@ -75,7 +85,7 @@ function bumpVersion(db: Database) {
 }
 
 export function linkingDigest(db: Database, itemId: number, entries: CatalogEntries): JobWrites {
-  const keys = JSON.stringify(entries.tags.map(({ key }) => key));
+  const keys = entries.tagKeys;
 
   return [
     db.insert(catalogVersion).values({ id: 1, version: 0 }).onConflictDoNothing(),
@@ -128,18 +138,31 @@ async function linkOlderDigest(
     const entries = catalogEntries(DigestSchema.parse(JSON.parse(row.digest)));
     const current = sql`exists (select 1 from ${items} join ${digests} on ${digests.itemId} = ${items.id} where ${items.id} = ${row.id} and ${items.topicId} is null and ${digests.digest} = ${row.digest})`;
     await guardedBatch(db, current, linkingDigest(db, row.id, entries));
-  } catch {
-    console.error(`Older Digest ${row.id} linking failed`);
+  } catch (error) {
+    console.error(`Older Digest ${row.id} linking failed`, error);
   }
 }
 
-export async function linkOlderDigests(db: Database): Promise<void> {
-  const older = await db
+function olderDigestRows(db: Database, after: number) {
+  return db
     .select({ id: items.id, digest: digests.digest })
     .from(items)
     .innerJoin(digests, eq(digests.itemId, items.id))
-    .where(isNull(items.topicId))
+    .where(and(isNull(items.topicId), gt(items.id, after)))
+    .orderBy(asc(items.id))
     .limit(OLDER_DIGEST_BATCH);
+}
+
+export async function linkOlderDigests(db: Database): Promise<void> {
+  const [cursor] = await db.select().from(catalogLinking).where(eq(catalogLinking.id, 1));
+  const after = cursor?.lastItemId ?? 0;
+  const next = await olderDigestRows(db, after);
+  const older = next.length === 0 && after > 0 ? await olderDigestRows(db, 0) : next;
+  const lastItemId = older.at(-1)?.id ?? 0;
+  await db
+    .insert(catalogLinking)
+    .values({ id: 1, lastItemId })
+    .onConflictDoUpdate({ target: catalogLinking.id, set: { lastItemId } });
 
   for (const row of older) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Stored Digests are linked sequentially.

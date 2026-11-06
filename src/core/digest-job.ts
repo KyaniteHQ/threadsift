@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, exists, isNotNull, notExists, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, exists, isNotNull, ne, notExists, sql } from "drizzle-orm";
 
 import {
   AI_DEADLINE_MS,
@@ -23,11 +23,17 @@ import {
   readCatalog,
   linkOlderDigests,
 } from "./catalog.ts";
-import type { JobCurrency, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
+import {
+  MAX_STALE_REQUEUES,
+  type JobCurrency,
+  type JobHandler,
+  type JobOutcome,
+  type JobPorts,
+} from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { DIGEST_OUTCOMES } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, digests, insertGuard, items, topics } from "./schema.ts";
+import { type JobRow, digests, insertGuard, items, settings, topics } from "./schema.ts";
 
 function digestInput(db: Database, id: number) {
   return db
@@ -84,6 +90,7 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
     provider: result.provider,
     model: result.model,
     version: catalog.version,
+    staleRequeues: job.staleRequeues,
   });
 }
 
@@ -94,6 +101,7 @@ type DigestSource =
       readonly provider: string;
       readonly model: string;
       readonly version: number;
+      readonly staleRequeues: number;
     };
 
 function generationCurrent(
@@ -122,7 +130,7 @@ function publishing(
   source: DigestSource,
 ): JobOutcome {
   const entries = catalogEntries(digest);
-  const catalog = source.executor === "caller" ? sql`1` : catalogCurrent(source.version, entries);
+  const { catalog, provider, model } = digestOrigin(source, entries);
   const generation = generationCurrent(item);
 
   const stored = {
@@ -131,8 +139,8 @@ function publishing(
     title: digest.title,
     topic: digest.topic,
     taskId,
-    provider: source.executor === "caller" ? null : source.provider,
-    model: source.executor === "caller" ? null : source.model,
+    provider,
+    model,
     generation: item.generation,
     createdAt: Date.now(),
   };
@@ -206,10 +214,50 @@ export const DIGEST_VIEW_COLUMNS = {
 
 export async function sweepDigests(db: Database, now: number): Promise<void> {
   await expireAiTasks(db, now);
+  await linkOlderDigests(db);
+}
 
-  try {
-    await linkOlderDigests(db);
-  } catch {
-    console.error("Older Digest linking could not read its next batch");
+function digestOrigin(source: DigestSource, entries: Readonly<ReturnType<typeof catalogEntries>>) {
+  switch (source.executor) {
+    case "caller":
+      return { catalog: sql`1`, provider: null, model: null };
+    case "model":
+      return {
+        catalog:
+          source.staleRequeues >= MAX_STALE_REQUEUES
+            ? sql`1`
+            : catalogCurrent(source.version, entries),
+        provider: source.provider,
+        model: source.model,
+      };
+    default: {
+      const exhaustive: never = source;
+
+      return exhaustive;
+    }
   }
+}
+
+export function providerSet() {
+  return sql`exists (select 1 from ${settings} where ${settings.id} = 1)`;
+}
+
+export function olderDigests(db: Database) {
+  const older = openingDigest(db, {
+    scope:
+      and(
+        ne(items.status, "failed"),
+        eq(items.digestFailed, false),
+        notExists(
+          db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
+        ),
+      ) ?? sql`0`,
+    address: sql`${items.originalUrl}`,
+    now: Date.now(),
+  });
+
+  return [
+    db.update(items).set({ status: "processing", reason: null }).where(older.eligible),
+    older.job,
+  ];
 }
