@@ -55,15 +55,6 @@ export const MigrationHashesSchema = z
 
 export type MigrationHashes = z.infer<typeof MigrationHashesSchema>;
 
-interface StageConfig {
-  readonly name: string;
-  readonly d1_databases?: readonly Readonly<{ database_name: string }>[];
-  readonly queues?: Readonly<{
-    producers: readonly Readonly<{ queue: string }>[];
-    consumers: readonly Readonly<{ queue: string }>[];
-  }>;
-}
-
 export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
   const source = WorkerConfigSchema.parse(
     experimental_readRawConfig({ config: artifactFile(artifact, WORKER_CONFIG) }).rawConfig,
@@ -91,19 +82,6 @@ export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
     triggers: source.triggers,
     limits: source.limits,
   } as const;
-}
-
-export function deleteConfig(names: Readonly<CopyNames>): StageConfig {
-  return { name: names.name };
-}
-
-function configNames(config: StageConfig): string[] {
-  return [
-    config.name,
-    ...(config.d1_databases ?? []).map((database) => database.database_name),
-    ...(config.queues?.producers ?? []).map((producer) => producer.queue),
-    ...(config.queues?.consumers ?? []).map((consumer) => consumer.queue),
-  ];
 }
 
 function requireInside(root: string, path: string): void {
@@ -155,7 +133,6 @@ function copyArtifact(artifact: string, dir: string): void {
 
 export async function withStage<Result>(
   target: Readonly<CopyNames>,
-  config: StageConfig,
   artifact: string | null,
   work: (stage: Readonly<Stage>) => Promise<Result>,
 ): Promise<Result> {
@@ -166,10 +143,11 @@ export async function withStage<Result>(
       copyArtifact(artifact, dir);
     }
 
+    const config = artifact === null ? { name: target.name } : copyConfig(target, artifact);
     const configPath = join(dir, "wrangler.json");
     writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
 
-    return await work({ dir, configPath, names: configNames(config), target });
+    return await work({ dir, configPath, target });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

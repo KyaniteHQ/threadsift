@@ -1,8 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-import { z } from "zod";
-
 import {
   type CopyRecord,
   CopyRecordSchema,
@@ -24,7 +22,8 @@ import {
   requireMainHead,
   lastLiveRecord,
   recordLive,
-  finishLive,
+  finishDeployment,
+  CoercedPrNumber,
 } from "./github.ts";
 import { deployLive } from "./live.ts";
 import { sweep } from "./sweep.ts";
@@ -36,8 +35,6 @@ const USAGE = `Usage:
   node tools/pr-copy/cli.ts delete --pr <n>
   node tools/pr-copy/cli.ts live --artifact <dir> --github
   node tools/pr-copy/cli.ts sweep [--dry-run]`;
-
-const PrSchema = z.coerce.number().int().positive();
 
 const { positionals, values: flags } = parseArgs({
   args: process.argv.slice(2),
@@ -60,7 +57,7 @@ function required(value: string | undefined): string {
 }
 
 function localPr(): number {
-  const pr = PrSchema.safeParse(required(flags.pr));
+  const pr = CoercedPrNumber.safeParse(required(flags.pr));
 
   if (!pr.success) {
     throw new Error(USAGE);
@@ -130,11 +127,14 @@ async function deleteAndReport(pr: number): Promise<void> {
 }
 
 async function deleteFromGithub(): Promise<void> {
-  const pr = closedPullRequest();
+  const pr = flags.pr === undefined ? closedPullRequest() : localPr();
   const reopened = reopenedReason(pr, await pullRequest(pr));
 
   if (reopened !== null) {
-    throw new Error(reopened);
+    if (flags.pr !== undefined) throw new Error(reopened);
+    stopWithoutChanges(reopened);
+
+    return;
   }
 
   await deleteAndReport(pr);
@@ -142,7 +142,6 @@ async function deleteFromGithub(): Promise<void> {
 
 async function liveFromGithub(artifact: string): Promise<void> {
   const sha = liveHead();
-  await requireMainHead(sha);
   let deployment: number | undefined;
 
   try {
@@ -156,10 +155,10 @@ async function liveFromGithub(artifact: string): Promise<void> {
     );
 
     if (deployment === undefined) throw new Error("Live migration record was not saved");
-    await finishLive(deployment, copy.url);
+    await finishDeployment(deployment, copy.url);
     process.stdout.write(`Deployed ${copy.url}\n`);
   } catch (error) {
-    if (deployment !== undefined) await finishLive(deployment, null);
+    if (deployment !== undefined) await finishDeployment(deployment, null);
     throw error;
   }
 }

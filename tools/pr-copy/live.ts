@@ -1,8 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import {
-  appliedMigrations,
-  applyMigrations,
+  LIVE,
   cloudflare,
   createDatabase,
   createQueue,
@@ -10,22 +9,11 @@ import {
   inventory,
   workerSecretNames,
   type Inventory,
-  type Stage,
 } from "./cloudflare.ts";
 import { type CopyRecord, type DeployedCopy, publish } from "./copy.ts";
-import { seedDemo } from "./demo.ts";
-import { copyConfig, type MigrationHashes, migrationHashes, withStage } from "./stage.ts";
-
-export const LIVE = { name: "threadsift-live", queue: "threadsift-live-jobs" } as const;
-
-export function checkMigrations(record: CopyRecord | null, hashes: MigrationHashes): void {
-  for (const [file, hash] of Object.entries(record?.migrations ?? {})) {
-    if (hashes[file] !== hash)
-      throw new Error(
-        `Live migration mismatch: ${file}; restore its recorded SQL before deploying`,
-      );
-  }
-}
+import { ensureDemo } from "./demo.ts";
+import { checkMigrations, migrateAndRecord } from "./live-migrations.ts";
+import { migrationHashes, withStage } from "./stage.ts";
 
 function checkResources(found: Readonly<Inventory>, record: CopyRecord | null) {
   const database = found.databases.find((row) => row.name === LIVE.name);
@@ -34,41 +22,15 @@ function checkResources(found: Readonly<Inventory>, record: CopyRecord | null) {
 
   if (record !== null && database?.uuid !== record.databaseId)
     throw new Error(
-      "Live database id mismatch: threadsift-live; restore the recorded database before deploying",
+      `Live database id mismatch: ${LIVE.name}; restore the recorded database before deploying`,
     );
 
   if (workerExists && (database === undefined || queue === undefined))
     throw new Error(
-      `Live Worker lost ${database === undefined ? "D1 database threadsift-live" : "Queue threadsift-live-jobs"}; restore the missing resource before deploying`,
+      `Live Worker lost ${database === undefined ? `D1 database ${LIVE.name}` : `Queue ${LIVE.queue}`}; restore the missing resource before deploying`,
     );
 
   return { database, queue, workerExists };
-}
-
-async function migrateAndRecord(
-  stage: Readonly<Stage>,
-  id: string,
-  hashes: MigrationHashes,
-  saveRecord: (record: CopyRecord) => Promise<void>,
-): Promise<void> {
-  try {
-    await cloudflare(stage, applyMigrations(LIVE.name));
-  } finally {
-    const applied = await appliedMigrations(LIVE, id);
-
-    const migrations = Object.fromEntries(
-      applied.map((file) => {
-        const hash = hashes[file];
-
-        if (hash === undefined)
-          throw new Error(`Live applied migration is absent from this build: ${file}`);
-
-        return [file, hash];
-      }),
-    );
-
-    await saveRecord({ databaseId: id, migrations });
-  }
 }
 
 export function deployLive(
@@ -80,8 +42,8 @@ export function deployLive(
   const hashes = migrationHashes(artifact);
   checkMigrations(record, hashes);
 
-  return withStage(LIVE, copyConfig(LIVE, artifact), artifact, async (stage) => {
-    const found = await inventory("live");
+  return withStage(LIVE, artifact, async (stage) => {
+    const found = await inventory(LIVE);
     const { database, queue, workerExists } = checkResources(found, record);
     await beforeWrite();
     await Promise.all([
@@ -97,10 +59,10 @@ export function deployLive(
     const url = await publish(
       stage,
       setupCode,
-      workerExists ? await workerSecretNames(LIVE.name) : [],
+      workerExists ? await workerSecretNames(stage, LIVE.name) : [],
     );
 
-    await seedDemo(url, setupCode, "live");
+    await ensureDemo(url, setupCode);
 
     return { url, record: { databaseId: id, migrations: hashes } };
   });

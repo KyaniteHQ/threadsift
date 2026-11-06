@@ -9,7 +9,6 @@ import {
   SavedItemResponseSchema,
   SessionStateSchema,
 } from "../../src/http/schemas.ts";
-import { CHECKED_FIELDS, DEMO_ITEMS, type DemoItem } from "./demo-items.ts";
 import { requiredEnv } from "./env.ts";
 import { callTimeout } from "./timeout.ts";
 
@@ -22,15 +21,38 @@ const POLL_MS = 1000;
 
 type Item = z.infer<typeof ItemResponseSchema>["item"];
 
+const CHECKED_FIELDS = ["status", "source", "title", "fetch"] as const;
+
+interface DemoItem {
+  readonly url: string;
+  readonly expected: Readonly<Partial<Pick<Item, (typeof CHECKED_FIELDS)[number]>>>;
+}
+
+const DEMO_ITEMS: readonly DemoItem[] = [
+  {
+    url: "https://stephango.com/saw",
+    expected: { status: "ready", source: "article", fetch: "ok" },
+  },
+  {
+    url: "https://matklad.github.io/2023/10/12/lsp-could-have-been-better.html",
+    expected: { status: "ready", source: "article", fetch: "ok" },
+  },
+  {
+    url: "https://example.com/",
+    expected: { status: "ready", source: "other", title: "Example Domain", fetch: "ok" },
+  },
+  {
+    url: "https://threadsift-demo.invalid/",
+    expected: { status: "failed", title: null, fetch: "network" },
+  },
+];
+
 interface Site {
   readonly url: string;
   readonly retryUntil: number;
 }
 
-interface Copy extends Site {
-  readonly cookie: string;
-  readonly created: boolean;
-}
+type Copy = Readonly<Site & { cookie: string }>;
 
 interface Call {
   readonly path: string;
@@ -45,18 +67,14 @@ function send(url: string, call: Readonly<Call>): Promise<Response> {
     headers.set("cookie", call.cookie);
   }
 
-  if (call.body === undefined) {
-    return fetch(`${url}${call.path}`, { headers, signal: callTimeout() });
-  }
+  const request =
+    call.body === undefined
+      ? { method: "GET" }
+      : { method: "POST", body: JSON.stringify(call.body) };
 
-  headers.set("content-type", "application/json");
+  if (call.body !== undefined) headers.set("content-type", "application/json");
 
-  return fetch(`${url}${call.path}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(call.body),
-    signal: callTimeout(),
-  });
+  return fetch(`${url}${call.path}`, { ...request, headers, signal: callTimeout() });
 }
 
 function isJson(response: Response): boolean {
@@ -153,7 +171,7 @@ async function logIn(site: Readonly<Site>, password: string): Promise<Copy> {
     throw new Error("/api/login answered 409");
   }
 
-  return { ...site, cookie, created: false };
+  return { ...site, cookie };
 }
 
 async function signIn(site: Readonly<Site>, setupCode: string): Promise<Copy> {
@@ -175,7 +193,7 @@ async function signIn(site: Readonly<Site>, setupCode: string): Promise<Copy> {
     body: { code: setupCode, password },
   });
 
-  return cookie === null ? logIn(site, password) : { ...site, cookie, created: true };
+  return cookie === null ? logIn(site, password) : { ...site, cookie };
 }
 
 async function paste(copy: Readonly<Copy>, link: string): Promise<number> {
@@ -200,15 +218,11 @@ async function endState(copy: Readonly<Copy>, id: number, waitedMs = 0): Promise
   const path = `/api/items/${String(id)}/status`;
   const response = await callCopy(copy, { path, cookie: copy.cookie });
 
-  if (response.status !== 200) {
-    throw new Error(`${path} answered ${String(response.status)}: ${await refusal(response)}`);
-  }
+  await expectOk(response, path);
 
   const { item } = ItemResponseSchema.parse(await response.json());
 
-  if (item.status !== "processing") {
-    return item;
-  }
+  if (item.status !== "processing") return item;
 
   if (waitedMs >= ITEM_DEADLINE_MS) {
     throw new Error(`Item ${String(id)} is still processing after ${String(ITEM_DEADLINE_MS)} ms`);
@@ -234,45 +248,8 @@ async function seedItem(copy: Readonly<Copy>, demo: Readonly<DemoItem>): Promise
   return wrong.length === 0 ? null : `${demo.url} ended with a different ${wrong.join(", ")}`;
 }
 
-export async function seedDemo(
-  url: string,
-  setupCode: string,
-  mode: "copy" | "live" = "copy",
-): Promise<void> {
-  await awaitServing(url);
-
-  const copy = await signIn({ url, retryUntil: Date.now() + RETRY_BUDGET_MS }, setupCode);
-
-  if (mode === "live") {
-    const response = await callCopy(copy, { path: "/api/items", cookie: copy.cookie });
-
-    if (response.status !== 200)
-      throw new Error(`Listing demo Items answered ${String(response.status)}`);
-    const { items } = ItemListResponseSchema.parse(await response.json());
-
-    await Promise.all(
-      DEMO_ITEMS.map(async (demo) => {
-        const existing = items.find((item) => item.originalUrl === demo.url);
-
-        if (copy.created || existing === undefined) {
-          await endState(copy, await paste(copy, demo.url));
-        } else if (existing.status === "processing") {
-          await endState(copy, existing.id);
-        }
-      }),
-    );
-
-    const session = await callCopy(copy, { path: "/api/session", cookie: copy.cookie });
-
-    if (
-      session.status !== 200 ||
-      SessionStateSchema.parse(await session.json()).state !== "signed-in"
-    )
-      throw new Error("Live signed-in session check failed");
-    process.stdout.write("Live signed-in GET /api/session passed\n");
-
-    return;
-  }
+export async function seedDemo(url: string, setupCode: string): Promise<void> {
+  const copy = await openDemo(url, setupCode);
 
   const outcomes = await Promise.all(DEMO_ITEMS.map((demo) => seedItem(copy, demo)));
   const failed = outcomes.filter((outcome) => outcome !== null);
@@ -280,4 +257,43 @@ export async function seedDemo(
   if (failed.length > 0) {
     throw new Error(`Demo data did not reach its end state: ${failed.join("; ")}`);
   }
+}
+
+async function openDemo(url: string, setupCode: string): Promise<Copy> {
+  await awaitServing(url);
+
+  return signIn({ url, retryUntil: Date.now() + RETRY_BUDGET_MS }, setupCode);
+}
+
+export async function ensureDemo(url: string, setupCode: string): Promise<void> {
+  const copy = await openDemo(url, setupCode);
+  const response = await callCopy(copy, { path: "/api/items", cookie: copy.cookie });
+
+  await expectOk(response, "/api/items");
+  const { items } = ItemListResponseSchema.parse(await response.json());
+
+  await Promise.all(
+    DEMO_ITEMS.map(async (demo) => {
+      const existing = items.find((item) => item.originalUrl === demo.url);
+
+      if (existing === undefined) {
+        await endState(copy, await paste(copy, demo.url));
+      } else if (existing.status === "processing") {
+        await endState(copy, existing.id);
+      }
+    }),
+  );
+
+  const session = await callCopy(copy, { path: "/api/session", cookie: copy.cookie });
+
+  await expectOk(session, "/api/session");
+
+  if (SessionStateSchema.parse(await session.json()).state !== "signed-in")
+    throw new Error("Live signed-in session check failed");
+  process.stdout.write("Live signed-in GET /api/session passed\n");
+}
+
+async function expectOk(response: Response, path: string): Promise<void> {
+  if (response.status !== 200)
+    throw new Error(`${path} answered ${String(response.status)}: ${await refusal(response)}`);
 }

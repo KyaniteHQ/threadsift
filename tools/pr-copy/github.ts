@@ -7,10 +7,14 @@ import { requiredEnv } from "./env.ts";
 import { callTimeout } from "./timeout.ts";
 
 const ENVIRONMENT = "pr-copy";
+const LIVE_ENVIRONMENT = "live-copy";
+const LIVE_TASK = "deploy:live";
 const PER_PAGE = 100;
 
 const Sha = z.string().regex(/^[0-9a-f]{40}$/u);
-const PrNumber = z.number().int().positive();
+export const PrNumber = z.number().int().positive();
+
+export const CoercedPrNumber = z.coerce.number().pipe(PrNumber);
 
 const PullSchema = z.object({
   state: z.enum(["open", "closed"]),
@@ -103,10 +107,6 @@ export function deployedHead(): PullHead {
 }
 
 export function closedPullRequest(): number {
-  if (process.env["GITHUB_EVENT_NAME"] === "workflow_dispatch")
-    return event(z.object({ inputs: z.object({ pr: z.coerce.number().int().positive() }) })).inputs
-      .pr;
-
   return event(ClosedEventSchema).pull_request.number;
 }
 
@@ -136,11 +136,17 @@ export function staleReason(head: Readonly<PullHead>, pull: Readonly<Pull>): str
   return null;
 }
 
-async function deployments(pr: number, page = 1): Promise<Deployment[]> {
-  const query = `environment=${ENVIRONMENT}&task=${encodeURIComponent(task(pr))}&per_page=${String(PER_PAGE)}&page=${String(page)}`;
+async function deployments(
+  environment: string,
+  deploymentTask: string,
+  page = 1,
+): Promise<Deployment[]> {
+  const query = `environment=${environment}&task=${encodeURIComponent(deploymentTask)}&per_page=${String(PER_PAGE)}&page=${String(page)}`;
   const rows = await github(`deployments?${query}`, z.array(DeploymentSchema));
 
-  return rows.length < PER_PAGE ? rows : [...rows, ...(await deployments(pr, page + 1))];
+  return rows.length < PER_PAGE
+    ? rows
+    : [...rows, ...(await deployments(environment, deploymentTask, page + 1))];
 }
 
 async function latestState(id: number): Promise<string | undefined> {
@@ -175,7 +181,7 @@ async function recordIn(newestFirst: readonly Deployment[]): Promise<CopyRecord 
 }
 
 export async function lastRecord(pr: number): Promise<CopyRecord | null> {
-  const newestFirst = (await deployments(pr)).toSorted(
+  const newestFirst = (await deployments(ENVIRONMENT, task(pr))).toSorted(
     (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
   );
 
@@ -186,44 +192,55 @@ export async function postDeployment(
   head: Readonly<PullHead>,
   copy: Readonly<DeployedCopy> | null,
 ): Promise<void> {
-  const deployment = await github(
+  const deployment = await createDeployment({
+    ref: head.headSha,
+    task: task(head.pr),
+    environment: ENVIRONMENT,
+    transient: true,
+    payload: copy?.record ?? null,
+    description: `Copy of pull request ${String(head.pr)}`,
+  });
+
+  await finishDeployment(deployment.id, copy?.url ?? null);
+}
+
+function createDeployment(
+  options: Readonly<{
+    ref: string;
+    task: string;
+    environment: string;
+    transient: boolean;
+    payload: CopyRecord | null;
+    description: string;
+  }>,
+) {
+  return github(
     "deployments",
     z.object({ id: z.number().int() }),
     JSON.stringify({
-      ref: head.headSha,
-      task: task(head.pr),
-      environment: ENVIRONMENT,
+      ref: options.ref,
+      task: options.task,
+      environment: options.environment,
       auto_merge: false,
       required_contexts: [],
-      transient_environment: true,
+      transient_environment: options.transient,
       production_environment: false,
-      payload: copy?.record ?? {},
-      description: `Copy of pull request ${String(head.pr)}`,
+      payload: options.payload ?? {},
+      description: options.description,
     }),
-  );
-
-  await postStatus(
-    deployment.id,
-    copy === null ? { state: "failure" } : { state: "success", environment_url: copy.url },
   );
 }
 
 export async function markInactive(pr: number): Promise<void> {
-  const all = await deployments(pr);
+  const all = await deployments(ENVIRONMENT, task(pr));
 
   await Promise.all(all.map(({ id }) => postStatus(id, { state: "inactive" })));
 }
 
-export async function mainHead(): Promise<string> {
-  return (await github("git/ref/heads/main", z.object({ object: z.object({ sha: Sha }) }))).object
-    .sha;
-}
-
 export function liveHead(): string {
   const { workflow_run: run } = event(
-    z.object({
-      workflow_run: z.object({
-        head_sha: Sha,
+    WorkflowRunEventSchema.extend({
+      workflow_run: WorkflowRunEventSchema.shape.workflow_run.omit({ pull_requests: true }).extend({
         head_branch: z.literal("main"),
         event: z.literal("push"),
         conclusion: z.literal("success"),
@@ -240,43 +257,34 @@ export function liveHead(): string {
 }
 
 export async function requireMainHead(sha: string): Promise<void> {
-  if ((await mainHead()) !== sha)
+  const current = await github("git/ref/heads/main", z.object({ object: z.object({ sha: Sha }) }));
+
+  if (current.object.sha !== sha)
     throw new Error(`Live gate ${sha} is no longer main's head; no changes`);
 }
 
 export async function lastLiveRecord(): Promise<CopyRecord | null> {
-  const rows = await github(
-    "deployments?environment=live-copy&task=deploy:live&per_page=1",
-    z.array(DeploymentSchema),
-  );
-
-  const [latest] = rows;
+  const [latest] = await deployments(LIVE_ENVIRONMENT, LIVE_TASK);
 
   return latest === undefined ? null : CopyRecordSchema.parse(latest.payload);
 }
 
 export async function recordLive(sha: string, record: CopyRecord): Promise<number> {
-  const deployment = await github(
-    "deployments",
-    z.object({ id: z.number().int() }),
-    JSON.stringify({
-      ref: sha,
-      task: "deploy:live",
-      environment: "live-copy",
-      auto_merge: false,
-      required_contexts: [],
-      transient_environment: false,
-      production_environment: false,
-      payload: record,
-    }),
-  );
+  const deployment = await createDeployment({
+    ref: sha,
+    task: LIVE_TASK,
+    environment: LIVE_ENVIRONMENT,
+    transient: false,
+    payload: record,
+    description: "Live copy",
+  });
 
   await postStatus(deployment.id, { state: "in_progress" });
 
   return deployment.id;
 }
 
-export async function finishLive(id: number, url: string | null): Promise<void> {
+export async function finishDeployment(id: number, url: string | null): Promise<void> {
   await postStatus(
     id,
     url === null ? { state: "failure" } : { state: "success", environment_url: url },
