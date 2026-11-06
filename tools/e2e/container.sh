@@ -6,7 +6,7 @@ source tools/e2e/common.sh
 
 export THREADSIFT_TARGET=container
 
-image=${THREADSIFT_E2E_IMAGE:?run inside the checkout's devenv shell}
+image=${THREADSIFT_E2E_IMAGE:?run inside the devenv shell for this checkout}
 self=$PWD/tools/e2e/container.sh
 
 require_current_image() {
