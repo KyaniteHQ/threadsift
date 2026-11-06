@@ -15,6 +15,7 @@ wait_for() {
   shift
   for _ in $(seq 1 $((tries * 5))); do
     "$@" && return 0
+    [[ $? -ne 2 ]] || return 2
     sleep 0.2
   done
   return 1

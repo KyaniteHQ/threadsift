@@ -5,23 +5,24 @@ cd "$(dirname "$0")/../.."
 source tools/e2e/common.sh
 
 export CI=1 WRANGLER_SEND_METRICS=false THREADSIFT_TARGET=worker NO_COLOR=1
-unset FORCE_COLOR
 
 self=$PWD/tools/e2e/worker.sh
 
 ready_url() {
-  local log=$1 offset=$2 url
+  local log=$1 offset=$2 pid=$3 url
+  kill -0 -- "$pid" 2>/dev/null || kill -0 -- "-$pid" 2>/dev/null || return 2
   url=$(tail -c "+$((offset + 1))" "$log" | sed -nE 's/^\[wrangler:info\] Ready on (http:\/\/127\.0\.0\.1:[1-9][0-9]*)$/\1/p' | head -n 1)
   [[ -n $url ]] || return 1
   echo "$url"
 }
 
 start() {
-  local dir=$1 port=${2:-0} offset url
+  local dir=$1 port=${2:-0} offset url pid
   offset=$(wc -c <"$dir/wrangler.log")
   setsid pnpm exec wrangler dev --ip 127.0.0.1 --port "$port" --inspector-port 0 --persist-to "$dir/state" --env-file "$dir/env" >>"$dir/wrangler.log" 2>&1 &
-  echo $! >"$dir/pid"
-  url=$(wait_for 90 ready_url "$dir/wrangler.log" "$offset") || {
+  pid=$!
+  echo "$pid" >"$dir/pid"
+  url=$(wait_for 90 ready_url "$dir/wrangler.log" "$offset" "$pid") || {
     tail -n 60 "$dir/wrangler.log" >&2
     echo "wrangler dev did not report a bound address for http://127.0.0.1:$port" >&2
     return 1
