@@ -102,7 +102,7 @@ in
       exec = "pnpm audit --prod --audit-level high";
     };
     "image:build" = {
-      exec = ''podman build --signature-policy "$THREADSIFT_PODMAN_POLICY" --label "threadsift.built-at=$(date +%s)" --tag "$THREADSIFT_E2E_IMAGE" --file Containerfile .'';
+      exec = "exec tools/e2e/build-image.sh";
     };
     "e2e:container" = {
       after = [
