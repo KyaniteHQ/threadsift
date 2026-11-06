@@ -34,7 +34,8 @@ const USAGE = `Usage:
   node tools/pr-copy/cli.ts delete --github
   node tools/pr-copy/cli.ts delete --pr <n>
   node tools/pr-copy/cli.ts live --artifact <dir> --github
-  node tools/pr-copy/cli.ts sweep [--dry-run]`;
+  node tools/pr-copy/cli.ts sweep [--dry-run]
+  sweep needs GITHUB_REPOSITORY and GITHUB_TOKEN; GITHUB_API_URL defaults to https://api.github.com`;
 
 const { positionals, values: flags } = parseArgs({
   args: process.argv.slice(2),
@@ -143,9 +144,10 @@ async function deleteFromGithub(): Promise<void> {
 async function liveFromGithub(artifact: string): Promise<void> {
   const sha = liveHead();
   let deployment: number | undefined;
+  let copy: DeployedCopy;
 
   try {
-    const copy = await deployLive(
+    copy = await deployLive(
       artifact,
       await lastLiveRecord(),
       () => requireMainHead(sha),
@@ -153,14 +155,23 @@ async function liveFromGithub(artifact: string): Promise<void> {
         deployment = await recordLive(sha, record);
       },
     );
-
-    if (deployment === undefined) throw new Error("Live migration record was not saved");
-    await finishDeployment(deployment, copy.url);
-    process.stdout.write(`Deployed ${copy.url}\n`);
   } catch (error) {
-    if (deployment !== undefined) await finishDeployment(deployment, null);
+    if (deployment !== undefined) {
+      try {
+        await finishDeployment(deployment, null);
+      } catch (statusError) {
+        process.stderr.write(
+          `Posting the failed live deployment failed too: ${String(statusError)}\n`,
+        );
+      }
+    }
+
     throw error;
   }
+
+  if (deployment === undefined) throw new Error("Live migration record was not saved");
+  await finishDeployment(deployment, copy.url);
+  process.stdout.write(`Deployed ${copy.url}\n`);
 }
 
 function run(command: string | undefined): Promise<void> {

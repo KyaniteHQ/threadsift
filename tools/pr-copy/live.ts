@@ -20,6 +20,11 @@ function checkResources(found: Readonly<Inventory>, record: CopyRecord | null) {
   const queue = found.queues.find((row) => row.name === LIVE.queue);
   const workerExists = found.workers.includes(LIVE.name);
 
+  if (!workerExists && (record !== null || database !== undefined))
+    throw new Error(
+      `Live Worker missing: ${LIVE.name}; restore its original sealing key and Worker before deploying`,
+    );
+
   if (record !== null && database?.uuid !== record.databaseId)
     throw new Error(
       `Live database id mismatch: ${LIVE.name}; restore the recorded database before deploying`,

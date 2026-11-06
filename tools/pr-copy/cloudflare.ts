@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import { requiredEnv } from "./env.ts";
+import { queueInventoryRow } from "./queue-inventory.ts";
 import { callTimeout } from "./timeout.ts";
 
 const COPY_NAME = /^threadsift-pr-(?<pr>[0-9]+)(?:-jobs|-files)?$/u;
@@ -227,11 +228,6 @@ const WorkerRow = z.object({ id: z.string() });
 
 const DatabaseRow = z.object({ uuid: z.string(), name: z.string() });
 
-const QueueRow = z.object({
-  queue_name: z.string(),
-  consumers: z.array(z.object({ script: z.string().min(1) })),
-});
-
 export async function inventory(target?: Readonly<CopyNames>): Promise<Inventory> {
   const matches = (name: string) =>
     target === undefined ? COPY_NAME.test(name) : name === target.name || name === target.queue;
@@ -239,18 +235,13 @@ export async function inventory(target?: Readonly<CopyNames>): Promise<Inventory
   const [scripts, databases, queues] = await Promise.all([
     cloudflareGet("workers/scripts", PageSchema.extend({ result: z.array(WorkerRow) })),
     listFrom("d1/database", DatabaseRow, 1),
-    listFrom("queues", QueueRow, 1),
+    listFrom("queues", queueInventoryRow(matches), 1),
   ]);
 
   return {
     workers: scripts.result.map((row) => row.id).filter((name) => matches(name)),
     databases: databases.filter((row) => matches(row.name)),
-    queues: queues
-      .filter((row) => matches(row.queue_name))
-      .map((row) => ({
-        name: row.queue_name,
-        consumers: row.consumers.flatMap((consumer) => consumer.script),
-      })),
+    queues: queues.flatMap((queue) => (queue === null ? [] : [queue])),
   };
 }
 

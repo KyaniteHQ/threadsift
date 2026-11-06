@@ -17,9 +17,13 @@ export async function migrateAndRecord(
   hashes: MigrationHashes,
   saveRecord: (record: CopyRecord) => Promise<void>,
 ): Promise<void> {
-  const [migration] = await Promise.allSettled([
-    cloudflare(stage, applyMigrations(stage.target.name)),
-  ]);
+  let migrationError: Error | null = null;
+
+  try {
+    await cloudflare(stage, applyMigrations(stage.target.name));
+  } catch (error) {
+    migrationError = error instanceof Error ? error : new Error(String(error));
+  }
 
   try {
     const applied = await appliedMigrations(stage, { name: stage.target.name, id });
@@ -37,9 +41,9 @@ export async function migrateAndRecord(
 
     await saveRecord({ databaseId: id, migrations });
   } catch (error) {
-    if (migration.status === "fulfilled") throw error;
+    if (migrationError === null) throw error;
     process.stderr.write(`Recording applied migrations also failed: ${String(error)}\n`);
   }
 
-  if (migration.status === "rejected") throw migration.reason;
+  if (migrationError !== null) throw migrationError;
 }

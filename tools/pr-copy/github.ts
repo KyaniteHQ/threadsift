@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { type CopyRecord, CopyRecordSchema, type DeployedCopy } from "./copy.ts";
 import { requiredEnv } from "./env.ts";
-import { callTimeout } from "./timeout.ts";
+import { github } from "./github-request.ts";
 
 const ENVIRONMENT = "pr-copy";
 const LIVE_ENVIRONMENT = "live-copy";
@@ -57,27 +57,6 @@ function event<Body>(schema: z.ZodType<Body>): Body {
   return schema.parse(JSON.parse(readFileSync(requiredEnv("GITHUB_EVENT_PATH"), "utf8")));
 }
 
-async function github<Body>(path: string, schema: z.ZodType<Body>, body?: string): Promise<Body> {
-  const method = body === undefined ? "GET" : "POST";
-
-  const response = await fetch(`${requiredEnv("GITHUB_API_URL")}/repos/${repository()}/${path}`, {
-    method,
-    headers: {
-      accept: "application/vnd.github+json",
-      authorization: `Bearer ${requiredEnv("GITHUB_TOKEN")}`,
-      "x-github-api-version": "2022-11-28",
-    },
-    body: body ?? null,
-    signal: callTimeout(),
-  });
-
-  if (!response.ok) {
-    throw new Error(`GitHub ${method} ${path} answered ${String(response.status)}`);
-  }
-
-  return schema.parse(response.status === 204 ? null : await response.json());
-}
-
 function logUrl(): string {
   return `${requiredEnv("GITHUB_SERVER_URL")}/${repository()}/actions/runs/${requiredEnv("GITHUB_RUN_ID")}`;
 }
@@ -114,8 +93,12 @@ export function pullRequest(pr: number): Promise<Pull> {
   return github(`pulls/${String(pr)}`, PullSchema);
 }
 
+export function isClosed(pull: Readonly<Pull>): boolean {
+  return pull.state === "closed";
+}
+
 export function reopenedReason(pr: number, pull: Readonly<Pull>): string | null {
-  return pull.state === "closed" ? null : `pull request ${String(pr)} is open again`;
+  return isClosed(pull) ? null : `pull request ${String(pr)} is open again`;
 }
 
 export function staleReason(head: Readonly<PullHead>, pull: Readonly<Pull>): string | null {
@@ -140,11 +123,12 @@ async function deployments(
   environment: string,
   deploymentTask: string,
   page = 1,
+  firstPageOnly = false,
 ): Promise<Deployment[]> {
   const query = `environment=${environment}&task=${encodeURIComponent(deploymentTask)}&per_page=${String(PER_PAGE)}&page=${String(page)}`;
   const rows = await github(`deployments?${query}`, z.array(DeploymentSchema));
 
-  return rows.length < PER_PAGE
+  return firstPageOnly || rows.length < PER_PAGE
     ? rows
     : [...rows, ...(await deployments(environment, deploymentTask, page + 1))];
 }
@@ -182,7 +166,7 @@ async function recordIn(newestFirst: readonly Deployment[]): Promise<CopyRecord 
 
 export async function lastRecord(pr: number): Promise<CopyRecord | null> {
   const newestFirst = (await deployments(ENVIRONMENT, task(pr))).toSorted(
-    (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
+    (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id,
   );
 
   return recordIn(newestFirst);
@@ -264,7 +248,9 @@ export async function requireMainHead(sha: string): Promise<void> {
 }
 
 export async function lastLiveRecord(): Promise<CopyRecord | null> {
-  const [latest] = await deployments(LIVE_ENVIRONMENT, LIVE_TASK);
+  const [latest] = (await deployments(LIVE_ENVIRONMENT, LIVE_TASK, 1, true)).toSorted(
+    (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id,
+  );
 
   return latest === undefined ? null : CopyRecordSchema.parse(latest.payload);
 }

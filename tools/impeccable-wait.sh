@@ -6,12 +6,13 @@ usage() {
 Usage: tools/impeccable-wait.sh <pr>
 IMPECCABLE_WAIT_SECONDS sets the wait limit (default 1800).
 Exit 0: review completed.
-Exit 1: copy build or deployment failed.
+Exit 1: copy build or deployment failed, or its gate was cancelled.
 Exit 2: usage error or closed pull request.
 Exit 3: no review started or caller approval is needed.
 Exit 4: wait timed out.
 Exit 5: GitHub API failed.
 Exit 6: draft pull request.
+Exit 7: deploy job succeeded without a deployment after one more poll.
 USAGE
 	exit 2
 }
@@ -20,7 +21,7 @@ USAGE
 pr=$1
 wait_seconds=${IMPECCABLE_WAIT_SECONDS:-1800}
 [[ $wait_seconds =~ ^[0-9]+$ ]] || { echo "IMPECCABLE_WAIT_SECONDS must be a non-negative integer: $wait_seconds" >&2; exit 2; }
-repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner) || { echo "GitHub repository lookup failed; check gh authentication and the current repository" >&2; exit 5; }
 deadline=$(($(date +%s) + wait_seconds))
 
 api() {
@@ -52,6 +53,7 @@ check_deadline() {
 }
 
 copy_failed() {
+	check_head
 	echo "the copy $1 for $sha failed; read $2, fix the cause or rerun the failed job, then rerun this script" >&2
 	exit 1
 }
@@ -68,7 +70,9 @@ read -r pr_state sha draft <<< "$(pr_head)"
 [[ $draft != true ]] || { echo "Drafts aren’t reviewed. The review starts when this pull request is marked ready for review."; exit 6; }
 echo "waiting for Impeccable's review of PR $pr at $sha: copy deployment first, then a review run, up to $wait_seconds s"
 
+successful_run=
 while :; do
+	check_head
 	statuses=$(api "repos/$repo/deployments?environment=pr-copy&task=deploy:pr-$pr&sha=$sha&per_page=100" --paginate --jq '.[].statuses_url' |
 		while read -r url; do api "$url?per_page=1" --jq '.[0] // empty | "\(.created_at) \(.state) \(.log_url)"'; done | sort)
 	deployment_state=$(tail -n 1 <<< "$statuses")
@@ -88,10 +92,22 @@ while :; do
 					deploy_job=$(api "repos/$repo/actions/runs/$copy_run/jobs?per_page=100" --jq '.jobs[] | select(.name == "deploy") | "\(.status) \(.conclusion)"')
 					case $deploy_job in
 						"completed skipped") check_head ;;
-						"completed success") ;;
+						"completed success")
+							if [[ $successful_run == "$copy_run" ]]; then
+								check_head
+								echo "copy deploy run $copy_run succeeded but no deployment exists for PR $pr at $sha after one more poll; read https://github.com/$repo/actions/runs/$copy_run" >&2
+								exit 7
+							fi
+							successful_run=$copy_run
+							;;
 						"completed "*) copy_failed "deploy job" "https://github.com/$repo/actions/runs/$copy_run" ;;
 					esac
 				fi
+				;;
+			*" completed cancelled "*)
+				check_head
+				echo "gate for $sha was cancelled; read ${gate##* }; rerun the gate or wait on the new head" >&2
+				exit 1
 				;;
 			*" completed "*) copy_failed gate "${gate##* }" ;;
 		esac
@@ -103,6 +119,7 @@ done
 
 deployed_at=${deployment_state%% *}
 while :; do
+	check_head
 	run=$(api "repos/$repo/commits/$sha/check-runs?check_name=Impeccable&filter=all" --jq '[.check_runs[]] | sort_by(.started_at) | last // empty | "\(.id) \(.started_at) \(.status) \(.conclusion) \(.completed_at)"')
 	echo "$(date -u +%T) review run: ${run:-none}"
 	read -r run_id run_started run_status run_conclusion run_completed <<< "$run"

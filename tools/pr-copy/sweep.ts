@@ -1,5 +1,19 @@
 import { copyNumbers, inventory, prOf } from "./cloudflare.ts";
-import { dispatchDelete, pullRequest, reopenedReason } from "./github.ts";
+import { dispatchDelete, pullRequest, isClosed } from "./github.ts";
+
+function failure(pr: number, error: Readonly<Error>): string {
+  return `pull request ${String(pr)}: ${error.message}`;
+}
+
+async function lookupPull(pr: number) {
+  try {
+    return { pr, closed: isClosed(await pullRequest(pr)) };
+  } catch (error) {
+    throw new Error(failure(pr, error instanceof Error ? error : new Error(String(error))), {
+      cause: error,
+    });
+  }
+}
 
 export async function sweep(dryRun: boolean): Promise<void> {
   const found = await inventory();
@@ -12,15 +26,20 @@ export async function sweep(dryRun: boolean): Promise<void> {
 
   const groups = Map.groupBy(resources, (row) => prOf(row.name));
 
-  const closed = new Set(
-    await Promise.all(
-      copyNumbers(found).map(async (pr) =>
-        reopenedReason(pr, await pullRequest(pr)) === null ? pr : null,
-      ),
-    ),
-  );
+  const lookups = await Promise.allSettled(copyNumbers(found).map((pr) => lookupPull(pr)));
 
+  const failures: string[] = [];
+  const closed = new Set<number>();
   const deletes: number[] = [];
+
+  for (const result of lookups) {
+    if (result.status === "rejected") {
+      failures.push(String(result.reason));
+      continue;
+    }
+
+    if (result.value.closed) closed.add(result.value.pr);
+  }
 
   for (const [pr, rows] of groups) {
     if (!closed.has(pr)) continue;
@@ -31,8 +50,15 @@ export async function sweep(dryRun: boolean): Promise<void> {
   }
 
   if (!dryRun)
-    await deletes.reduce(
-      (pending, pr) => pending.then(() => dispatchDelete(pr)),
-      Promise.resolve(),
-    );
+    await deletes.reduce(async (pending, pr) => {
+      await pending;
+
+      try {
+        await dispatchDelete(pr);
+      } catch (error) {
+        failures.push(failure(pr, error instanceof Error ? error : new Error(String(error))));
+      }
+    }, Promise.resolve());
+
+  if (failures.length > 0) throw new Error(`Sweep failures: ${failures.join("; ")}`);
 }
