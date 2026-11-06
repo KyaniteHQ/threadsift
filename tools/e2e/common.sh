@@ -4,12 +4,26 @@ new_code() {
   node -e 'console.log(require("node:crypto").randomBytes(24).toString("base64url"))'
 }
 
-wait_for_session_route() {
-  local url=$1 tries=$2
+instance_port() {
+  local url
+  url=$(<"$1/url")
+  echo "${url##*:}"
+}
+
+wait_for() {
+  local tries=$1
+  shift
   for _ in $(seq 1 $((tries * 5))); do
-    curl --silent --fail "$url/api/session" >/dev/null && return 0
+    "$@" && return 0
     sleep 0.2
   done
+  return 1
+}
+
+wait_for_session_route() {
+  local url=$1
+  wait_for "$2" curl --silent --fail "$url/api/session" >/dev/null && return 0
+  echo "the session route did not answer on $url/api/session" >&2
   return 1
 }
 

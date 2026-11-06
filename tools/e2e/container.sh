@@ -24,7 +24,7 @@ require_current_image() {
 }
 
 launch() {
-  local dir=$1 name volume port
+  local dir=$1 name volume url
   mkdir -p "$dir"
   name="threadsift-e2e-$$-$RANDOM"
   volume="$name-data"
@@ -34,13 +34,11 @@ launch() {
   podman run --detach --name "$name" --publish "127.0.0.1::8080" --volume "$volume:/data" "${env_args[@]}" "$image" >/dev/null
   echo "$name" >"$dir/name"
   echo "$volume" >"$dir/volume"
-  port=$(podman port "$name" 8080/tcp)
-  port=${port##*:}
-  echo "http://127.0.0.1:$port" >"$dir/url"
+  url=http://$(podman port "$name" 8080/tcp)
+  echo "$url" >"$dir/url"
   echo "podman exec -i $name" >"$dir/exec"
-  wait_for_session_route "http://127.0.0.1:$port" 60 || {
+  wait_for_session_route "$url" 60 || {
     podman logs "$name" >&2
-    echo "the container did not answer on port $port" >&2
     return 1
   }
 }
@@ -55,8 +53,7 @@ restart)
   else
     name=$(<"$2/name")
     volume=$(<"$2/volume")
-    port=$(<"$2/url")
-    port=${port##*:}
+    port=$(instance_port "$2")
     podman logs "$name" >>"$2/server.log" 2>&1
     podman rm --force "$name" >/dev/null
     podman run --detach --name "$name" --publish "127.0.0.1:$port:8080" --volume "$volume:/data" --env-file "$3" "$image" >/dev/null

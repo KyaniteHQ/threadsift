@@ -4,30 +4,31 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 source tools/e2e/common.sh
 
-export CI=1 WRANGLER_SEND_METRICS=false THREADSIFT_TARGET=worker
+export CI=1 WRANGLER_SEND_METRICS=false THREADSIFT_TARGET=worker NO_COLOR=1
+unset FORCE_COLOR
 
 self=$PWD/tools/e2e/worker.sh
 
+ready_url() {
+  local log=$1 offset=$2 url
+  url=$(tail -c "+$((offset + 1))" "$log" | sed -nE 's/^\[wrangler:info\] Ready on (http:\/\/127\.0\.0\.1:[1-9][0-9]*)$/\1/p' | head -n 1)
+  [[ -n $url ]] || return 1
+  echo "$url"
+}
+
 start() {
-  local dir=$1 port=${2:-0} url=
-  [[ ! -f $dir/start.log ]] || cat "$dir/start.log" >>"$dir/wrangler.log"
-  setsid pnpm exec wrangler dev --ip 127.0.0.1 --port "$port" --inspector-port 0 --persist-to "$dir/state" --env-file "$dir/env" >"$dir/start.log" 2>&1 &
+  local dir=$1 port=${2:-0} offset url
+  offset=$(wc -c <"$dir/wrangler.log")
+  setsid pnpm exec wrangler dev --ip 127.0.0.1 --port "$port" --inspector-port 0 --persist-to "$dir/state" --env-file "$dir/env" >>"$dir/wrangler.log" 2>&1 &
   echo $! >"$dir/pid"
-  for _ in $(seq 1 450); do
-    url=$(sed -nE 's/.*Ready on (http:\/\/127\.0\.0\.1:[1-9][0-9]*).*/\1/p' "$dir/start.log" | head -n 1)
-    [[ -z $url ]] || break
-    sleep 0.2
-  done
-  if [[ -z $url ]]; then
-    tail -n 60 "$dir/start.log" >&2
-    echo "wrangler dev did not report its bound address" >&2
+  url=$(wait_for 90 ready_url "$dir/wrangler.log" "$offset") || {
+    tail -n 60 "$dir/wrangler.log" >&2
+    echo "wrangler dev did not report a bound address for http://127.0.0.1:$port" >&2
     return 1
-  fi
-  echo "${url##*:}" >"$dir/port"
+  }
   echo "$url" >"$dir/url"
   wait_for_session_route "$url" 90 || {
-    tail -n 60 "$dir/start.log" >&2
-    echo "wrangler dev did not answer on $url" >&2
+    tail -n 60 "$dir/wrangler.log" >&2
     return 1
   }
 }
@@ -72,11 +73,10 @@ launch)
 restart)
   [[ $# -lt 3 ]] || cp "$3" "$2/env"
   stop "$2"
-  start "$2" "$(<"$2/port")"
+  start "$2" "$(instance_port "$2")"
   ;;
 logs)
   cat "$2/wrangler.log"
-  cat "$2/start.log"
   ;;
 sql)
   pnpm exec wrangler d1 execute DB --local --persist-to "$2/state" --command "$3" >/dev/null
