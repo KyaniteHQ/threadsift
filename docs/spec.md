@@ -136,6 +136,8 @@ The rules above answer the known failures of LLM wikis, from the gist's comments
 
 The owner picks one Provider in the AI settings, and the screen shows only the fields that Provider needs. "Verify" runs one small real Digest, so a model that cannot return the Digest's JSON fails at setup, not on the 200th Item.
 
+The Settings page currently offers OpenAI-compatible URL and OpenRouter, reached through the gear panel’s Instance settings link. Save keeps the API key sealed on the Instance; the screen only reports whether a key is set. Verify uses the saved settings and shows a Digest or a refusal with a recovery action. It adds no Item, Topic or Tag. Automatic Digests and the Topic and Tag lists are not built yet. OpenRouter has no live proof until the owner supplies a key.
+
 | Provider | Self-hosted container | Cloudflare deploy | Hosted product (later) |
 |---|---|---|---|
 | OpenRouter, by key or the Connect button | yes | yes | yes |

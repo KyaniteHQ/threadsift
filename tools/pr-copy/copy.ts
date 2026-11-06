@@ -36,7 +36,11 @@ import {
 const MAX_COPIES = 20;
 
 export const CopyRecordSchema = z
-  .object({ databaseId: z.string().min(1), migrations: MigrationHashesSchema })
+  .object({
+    databaseId: z.string().min(1),
+    migrations: MigrationHashesSchema,
+    secretKeySet: z.boolean().default(false),
+  })
   .readonly();
 
 export type CopyRecord = z.infer<typeof CopyRecordSchema>;
@@ -178,13 +182,32 @@ async function provision(
 
   await runCommands(stage, [creates], { keepGoing: false });
 
-  return { databaseId: existing ?? (await databaseId(names.name)), migrations: hashes };
+  return {
+    databaseId: existing ?? (await databaseId(names.name)),
+    migrations: hashes,
+    secretKeySet: existing !== undefined && record?.secretKeySet === true,
+  };
 }
 
-async function publish(stage: Readonly<Stage>, setupCode: string): Promise<string> {
+interface CopySecrets {
+  SETUP_CODE: string;
+  THREADSIFT_SECRET_KEY?: string;
+}
+
+async function publish(
+  stage: Readonly<Stage>,
+  setupCode: string,
+  secretKeySet: boolean,
+): Promise<string> {
   const secretsFile = join(stage.dir, "secrets.json");
   const outputFile = join(stage.dir, "output.jsonl");
-  writeFileSync(secretsFile, JSON.stringify({ SETUP_CODE: setupCode }), { mode: 0o600 });
+  const secrets: CopySecrets = { SETUP_CODE: setupCode };
+
+  if (!secretKeySet) {
+    secrets.THREADSIFT_SECRET_KEY = randomBytes(32).toString("hex");
+  }
+
+  writeFileSync(secretsFile, JSON.stringify(secrets), { mode: 0o600 });
 
   await cloudflare(stage, deployWorker(secretsFile, outputFile));
 
@@ -217,10 +240,10 @@ export function deployCopy(
     await cloudflare(stage, applyMigrations(names.name));
 
     const setupCode = randomBytes(24).toString("base64url");
-    const url = await publish(stage, setupCode);
+    const url = await publish(stage, setupCode, next.secretKeySet);
     await seedDemo(url, setupCode);
 
-    return { url, record: next };
+    return { url, record: { ...next, secretKeySet: true } };
   });
 }
 

@@ -2,7 +2,7 @@ import type { ZodType } from "zod";
 
 import { announceSignedOut } from "./signed-out.ts";
 
-type Method = "GET" | "POST" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "DELETE";
 
 export type JsonBody = Readonly<Record<string, string>>;
 

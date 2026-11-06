@@ -103,3 +103,29 @@ export type ItemRow = typeof items.$inferSelect;
 export type JobRow = typeof jobs.$inferSelect;
 
 export type AgentTokenRow = typeof agentTokens.$inferSelect;
+
+export const settings = sqliteTable(
+  "settings",
+  {
+    id: integer("id").primaryKey(),
+    provider: text("provider", { enum: ["openai-compatible", "openrouter"] }).notNull(),
+    baseUrl: text("base_url").notNull(),
+    model: text("model").notNull(),
+    sealedKey: text("sealed_key").notNull(),
+  },
+  (table) => [check("settings_is_one_row", sql`${table.id} = 1`)],
+);
+
+export const aiTasks = sqliteTable("ai_tasks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  kind: text("kind", { enum: ["digest"] }).notNull(),
+  inputs: text("inputs").notNull(),
+  inputRevision: integer("input_revision").notNull(),
+  executor: text("executor", { enum: ["http"] }).notNull(),
+  attempts: integer("attempts").notNull(),
+  deadline: integer("deadline").notNull(),
+  state: text("state", { enum: ["running", "done", "failed"] }).notNull(),
+  result: text("result"),
+  refusal: text("refusal"),
+  status: integer("status"),
+});

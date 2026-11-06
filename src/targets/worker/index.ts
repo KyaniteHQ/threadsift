@@ -7,7 +7,7 @@ import { createApp } from "../../http/app.ts";
 import { isApiPath, isDocumentPath } from "../../http/document-path.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 import { configuredSetupCode } from "../shared/setup-code.ts";
-import { workerNetwork } from "./network.ts";
+import { workerAi, workerNetwork } from "./network.ts";
 import { workerPageReader } from "./page-reader.ts";
 
 interface JobMessage {
@@ -28,6 +28,7 @@ interface Env {
     ) => Promise<void>;
   }>;
   readonly SETUP_CODE?: string;
+  readonly THREADSIFT_SECRET_KEY?: string;
   readonly ASSETS: Readonly<{ fetch: (input: Request) => Promise<Response> }>;
 }
 
@@ -39,6 +40,8 @@ let app: ReturnType<typeof createApp> | undefined;
 function portsOf(env: Env): Ports {
   ports ??= {
     db: drizzle(env.DB),
+    secretKey: env.THREADSIFT_SECRET_KEY,
+    ai: workerAi,
     network: workerNetwork,
     pages: workerPageReader,
     jobs: {

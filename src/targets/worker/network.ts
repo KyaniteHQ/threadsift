@@ -1,4 +1,5 @@
 import { type Network, REQUEST_HEADERS } from "../../core/ports.ts";
+import { aiTransport } from "../shared/ai-transport.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
 const CLOUDFLARE_ERROR_PAGE = /^error code: 1[0-9]{3}\s*$/u;
@@ -47,3 +48,5 @@ export const workerNetwork: Network = {
     };
   },
 };
+
+export const workerAi = { publicOnly: true, fetch: aiTransport(true) } as const;

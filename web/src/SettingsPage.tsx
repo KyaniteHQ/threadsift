@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
+import { AiSection } from "./AiSection.tsx";
 import { Alert } from "./Alert.tsx";
 import { useInternalLink } from "./routing.ts";
 import { TokensSection } from "./TokensSection.tsx";
@@ -39,6 +40,7 @@ export function SettingsPage({
         </div>
       </header>
       <main className="pg-col">
+        <AiSection />
         <TokensSection />
         <section className="sec" aria-labelledby="sign-out-title">
           <h2 id="sign-out-title" className="rd-h">

@@ -1,3 +1,4 @@
+import type { OpenAICompatibleProviderSettings } from "@ai-sdk/openai-compatible";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
@@ -59,6 +60,11 @@ export interface Ports {
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
   readonly setupCode: string | undefined;
+  readonly secretKey: string | undefined;
+  readonly ai: {
+    readonly publicOnly: boolean;
+    readonly fetch: NonNullable<OpenAICompatibleProviderSettings["fetch"]>;
+  };
 }
 
 export const REQUEST_HEADERS = {

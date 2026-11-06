@@ -20,9 +20,9 @@ export interface FieldState {
   readonly clear: () => void;
 }
 
-export function useField(initialError: string | null = null): FieldState {
+export function useField(initialError: string | null = null, initialValue = ""): FieldState {
   const ref = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   const [error, setError] = useState<string | null>(initialError);
 
   const change = useCallback((event: ChangeEvent<HTMLInputElement>) => {
