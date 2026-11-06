@@ -3,8 +3,8 @@ import { expect, test } from "@playwright/test";
 import { newCode, newPassword } from "./access.ts";
 import { postLinkRaw, settled } from "./api.ts";
 import { ESSAY } from "./articles.ts";
-import { ADDED, READING, cardTitle, pasteForId } from "./card.ts";
-import { choice, expectRows, group } from "./filters.ts";
+import { ADDED, READING, cardTitle, countListReads, pasteForId } from "./card.ts";
+import { choice, expectRows, group, head } from "./filters.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { pasteBehindDeferredFetch } from "./ingest.ts";
 import { dismissButton, pasteCard } from "./links.ts";
@@ -83,4 +83,21 @@ test("a Paste that the Topic filter hides appears without a reload once its Dige
 
   await dismissButton(page).click();
   await expect(pasteCard(page)).toHaveCount(0);
+});
+
+test("an unfiltered Paste updates the head and the Source counts without reading the list again", async () => {
+  const { page, context } = screen;
+  const kept = await postLinkRaw(context.request, ESSAY, digestOf("Kept essay", "Craft", "Kept."));
+  await settled(context.request, kept.body.item.id, 180_000);
+  await page.goto("/");
+  await expect(head(page)).toHaveText("1 item, 1 unread");
+  const reads = countListReads(page);
+
+  const id = await pasteForId(page, `${ESSAY}?v=counted`);
+  await expectRows(page, [kept.body.item.id, id]);
+  await expect(head(page)).toHaveText("2 items, 2 unread");
+  await expect(cardTitle(page)).toHaveText(ADDED, { timeout: 150_000 });
+  await expect(choice(page, "Source", "Article")).toContainText("2");
+  await expect(choice(page, "Source", "Other")).toContainText("0");
+  reads.expectNoNewReads();
 });

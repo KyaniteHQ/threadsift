@@ -12,6 +12,7 @@ import type { Item } from "../../src/http/schemas.ts";
 import { type SaveTarget, type SaveResult, fetchItems, regenerateDigest, saveLink } from "./api.ts";
 import { type Choice, type Filters, NO_FILTERS, isFiltered, withChoice } from "./filters.ts";
 import { type Stamps, newStamps, useItemPolling } from "./item-polling.ts";
+import { countedWith } from "./list-counts.ts";
 
 export type ListState =
   | { readonly status: "loading"; readonly known: readonly Item[] }
@@ -44,18 +45,25 @@ function replaced(items: readonly Item[], item: Readonly<Item>): Item[] {
   return items.map((current) => (current.id === item.id ? item : current));
 }
 
-function withItem(list: Readonly<ListState>, item: Readonly<Item>, shows: boolean): ListState {
+function withItem(list: Readonly<ListState>, item: Readonly<Item>, unfiltered: boolean): ListState {
   const known = upserted(list.known, item);
 
-  return list.status === "ready"
-    ? { ...list, known, items: shows ? upserted(list.items, item) : replaced(list.items, item) }
-    : { ...list, known };
+  if (list.status !== "ready") return { ...list, known };
+
+  const before = list.known.find((current) => current.id === item.id);
+
+  return {
+    ...list,
+    known,
+    items: unfiltered ? upserted(list.items, item) : replaced(list.items, item),
+    counts: unfiltered ? countedWith(list.counts, before, item) : list.counts,
+  };
 }
 
-function withRead(list: Readonly<ListState>, read: Readonly<Item>): ListState {
+function withRead(list: Readonly<ListState>, read: Readonly<Item>, unfiltered: boolean): ListState {
   const current = list.known.find((item) => item.id === read.id);
 
-  return current === undefined || sameItem(current, read) ? list : withItem(list, read, false);
+  return current === undefined || sameItem(current, read) ? list : withItem(list, read, unfiltered);
 }
 
 function sameItem(left: Readonly<Item>, right: Readonly<Item>): boolean {
@@ -97,9 +105,10 @@ function useLatest<Value>(value: Value) {
 function usePolling(
   list: Readonly<ListState>,
   setList: SetList,
-  polled: Readonly<{ reload: () => void; stamps: Stamps }>,
+  polled: Readonly<{ reload: () => void; stamps: Stamps; filtered: boolean }>,
 ): void {
   const latest = useLatest(list);
+  const unfiltered = useLatest(!polled.filtered);
   const { reload, stamps } = polled;
 
   const onRead = useCallback(
@@ -108,10 +117,13 @@ function usePolling(
 
       const was = latest.current.known.find((item) => item.id === read.id);
 
-      if (was?.status === "processing" && read.status !== "processing") reload();
-      setList((current) => withRead(current, read));
+      if (!unfiltered.current && was?.status === "processing" && read.status !== "processing") {
+        reload();
+      }
+
+      setList((current) => withRead(current, read, unfiltered.current));
     },
-    [latest, reload, setList, stamps],
+    [latest, reload, setList, stamps, unfiltered],
   );
 
   useItemPolling(processingIds(list), onRead);
@@ -195,7 +207,8 @@ function useSave(
       if (result.outcome === "saved") {
         stamps.mark(result.item.id);
         setList((current) => withItem(current, result.item, unfiltered.current));
-        reload();
+
+        if (!unfiltered.current) reload();
       }
 
       return result;
@@ -210,7 +223,7 @@ export function useLibrary() {
   const { filters, reload, ...changes } = useFilters();
   useReads(setList, filters);
   const save = useSave(setList, { reload, stamps, filtered: isFiltered(filters) });
-  usePolling(list, setList, { reload, stamps });
+  usePolling(list, setList, { reload, stamps, filtered: isFiltered(filters) });
 
   const retry = useCallback(() => {
     setList((current) => ({ status: "loading", known: current.known }));
