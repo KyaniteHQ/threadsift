@@ -2,7 +2,7 @@ import { expect } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
 import { z } from "zod";
 
-import { mainInstance } from "./access.ts";
+import { type Instance, mainInstance } from "./access.ts";
 import { isContainerTarget } from "./target.ts";
 
 export const STALLED = "http://example.com:81/";
@@ -12,6 +12,7 @@ export const HOP_DEADLINE_MS = 8000;
 const JobRows = z.array(
   z.object({
     id: z.number(),
+    kind: z.enum(["fetch", "digest"]),
     state: z.enum(["queued", "running", "done"]),
     attempts: z.number(),
     next_attempt_at: z.number(),
@@ -21,15 +22,22 @@ const JobRows = z.array(
 
 const Ids = z.array(z.object({ id: z.number() }));
 
-function jobsWhere(condition: string) {
-  return mainInstance().query(
-    `SELECT j.id, j.state, j.attempts, j.next_attempt_at, j.claim_expires FROM jobs j JOIN items i ON i.id = j.item_id WHERE ${condition} ORDER BY j.id`,
+function jobsWhere(condition: string, instance: Instance = mainInstance()) {
+  return instance.query(
+    `SELECT j.id, j.kind, j.state, j.attempts, j.next_attempt_at, j.claim_expires FROM jobs j JOIN items i ON i.id = j.item_id WHERE ${condition} ORDER BY j.id`,
     JobRows,
   );
 }
 
-export function jobsOf(itemId: number) {
-  return jobsWhere(`i.id = ${itemId}`);
+export function jobsOf(
+  itemId: number,
+  instance: Instance = mainInstance(),
+  kind?: "fetch" | "digest",
+) {
+  return jobsWhere(
+    `i.id = ${itemId}${kind === undefined ? "" : ` AND j.kind = '${kind}'`}`,
+    instance,
+  );
 }
 
 export function jobsAt(normalizedUrl: string) {
@@ -103,14 +111,17 @@ export function storeProcessingItemWithDueJob(
   return id;
 }
 
-export async function sweepNow(request: APIRequestContext): Promise<void> {
+export async function sweepNow(
+  request: APIRequestContext,
+  instance: Instance = mainInstance(),
+): Promise<void> {
   if (isContainerTarget()) {
-    mainInstance().restart();
+    instance.restart();
 
     return;
   }
 
-  mainInstance().sql("DELETE FROM scheduled_runs");
+  instance.sql("DELETE FROM scheduled_runs");
   const response = await request.get("/cdn-cgi/local/scheduled");
   expect(response.status(), "the local scheduled endpoint").toBe(200);
 }
@@ -125,6 +136,6 @@ export function expireClaim(id: number): void {
   mainInstance().sql(`UPDATE jobs SET claim_expires = 1 WHERE item_id = ${id}`);
 }
 
-export function makeDue(id: number): void {
-  mainInstance().sql(`UPDATE jobs SET next_attempt_at = 0 WHERE item_id = ${id}`);
+export function makeDue(id: number, instance: Instance = mainInstance()): void {
+  instance.sql(`UPDATE jobs SET next_attempt_at = 0 WHERE id = ${id}`);
 }

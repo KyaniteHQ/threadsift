@@ -8,6 +8,8 @@ import {
 } from "../src/core/ai-contract.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
 import {
+  hasAiCredentials,
+  wrongAiKey,
   AI_SETTINGS_ENDPOINT,
   AI_VERIFY_ENDPOINT,
   aiJson,
@@ -24,10 +26,6 @@ import {
   readDigestTask,
 } from "./ai.ts";
 import { type FreshScreen } from "./fresh-screen.ts";
-
-const hasCredentials =
-  (process.env["CLOUDFLARE_WORKERS_AI_TOKEN"] ?? "") !== "" &&
-  (process.env["CLOUDFLARE_ACCOUNT_ID"] ?? "") !== "";
 
 test.use({ trace: "off", video: "off", screenshot: "off" });
 
@@ -190,14 +188,14 @@ test("saved keys are sealed, survive restart, and Verify returns a real Digest o
   browser,
 }, info) => {
   test.skip(
-    !hasCredentials && process.env["THREADSIFT_AI_REQUIRED"] !== "true",
+    !hasAiCredentials() && process.env["THREADSIFT_AI_REQUIRED"] !== "true",
     "Workers AI credentials are unavailable; fork pull requests skip the real AI proof.",
   );
-  expect(hasCredentials, "same-repository AI proof requires Workers AI credentials").toBe(true);
+  expect(hasAiCredentials(), "same-repository AI proof requires Workers AI credentials").toBe(true);
   const secret = newSealingKey();
   screen = await aiScreen(browser, secret);
   const provider = proofProvider();
-  const wrong = process.env["THREADSIFT_WRONG_AI_KEY"] ?? newSealingKey();
+  const wrong = wrongAiKey();
   await saveInBrowser(screen, provider.key, provider.baseUrl);
   await retainAndRestart(provider, secret);
   await verifyDigest(info);

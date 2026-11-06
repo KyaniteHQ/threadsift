@@ -1,6 +1,8 @@
 CREATE TABLE `digests` (
 	`item_id` integer PRIMARY KEY NOT NULL,
 	`digest` text NOT NULL,
+	`title` text NOT NULL,
+	`topic` text NOT NULL,
 	`task_id` integer NOT NULL,
 	`provider` text NOT NULL,
 	`model` text NOT NULL,
@@ -11,4 +13,4 @@ CREATE TABLE `digests` (
 );
 --> statement-breakpoint
 ALTER TABLE `items` ADD `generation` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE `items` ADD `digest_outcome` text DEFAULT 'none' NOT NULL;
+ALTER TABLE `items` ADD `digest_failed` integer DEFAULT false NOT NULL;

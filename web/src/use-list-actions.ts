@@ -1,7 +1,7 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import type { SaveResult } from "./api.ts";
+import type { SaveResult, SaveTarget } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./library.ts";
 import type { PasteRequest, SaveOutcome } from "./PasteBox.tsx";
@@ -44,13 +44,13 @@ function useOpenItem(list: ListState, { openId, replace }: Route) {
 }
 
 function useSaveAndShow(
-  save: (url: string) => Promise<SaveResult>,
+  save: (target: SaveTarget) => Promise<SaveResult>,
   attend: (attention: Attention) => void,
   pane: RefObject<HTMLElement | null>,
 ) {
   return useCallback(
-    async (url: string): Promise<SaveOutcome> => {
-      const result = await save(url);
+    async (target: SaveTarget): Promise<SaveOutcome> => {
+      const result = await save(target);
 
       if (result.outcome !== "saved") {
         return { saved: false, notice: result.outcome };
@@ -71,30 +71,29 @@ function useSaveAndShow(
 export function useListActions(
   list: ListState,
   actions: Readonly<{
-    save: (url: string) => Promise<SaveResult>;
+    save: (target: SaveTarget) => Promise<SaveResult>;
     retry: () => void;
-    regenerate: (id: number) => Promise<void>;
   }>,
   pane: RefObject<HTMLElement | null>,
   route: Route,
 ) {
   const { attention, attend } = useOpenItem(list, route);
-  const { regenerate } = actions;
   const [request, setRequest] = useState<PasteRequest | null>(null);
 
   const tryAgain = useCallback(
     (item: Item) => {
       attend({ id: item.id, focus: true });
 
-      if (item.status !== "failed" && item.digestOutcome === "failed") {
-        void regenerate(item.id);
+      if (item.retry === null) return;
+      setRequest((current) => {
+        const base = { url: item.originalUrl, seq: (current?.seq ?? 0) + 1 };
 
-        return;
-      }
-
-      setRequest((current) => ({ url: item.originalUrl, seq: (current?.seq ?? 0) + 1 }));
+        return item.retry === "digest"
+          ? { ...base, kind: "digest", id: item.id }
+          : { ...base, kind: "paste" };
+      });
     },
-    [regenerate, attend],
+    [attend],
   );
 
   return {

@@ -62,7 +62,7 @@ function Failed({
   describedBy,
   tryAgain,
 }: Readonly<{
-  item: Item;
+  item: Exclude<Item, { retry: null }>;
   describedBy: string;
   tryAgain: (item: Item) => void;
 }>) {
@@ -105,9 +105,9 @@ function Status({
     return <Skeleton />;
   }
 
-  return item.status === "failed" || item.digestOutcome === "failed" ? (
+  return item.retry === null ? null : (
     <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
-  ) : null;
+  );
 }
 
 function Meta({ item, now }: Readonly<{ item: Item; now: number }>) {

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "bf9dd3f8-5695-4186-8fb9-154f1645842e",
+  "id": "fb210a2c-f30b-4bcc-9860-ffeeebb481a1",
   "prevId": "2012cdc0-aca2-497e-9652-5ecbdf0db4f7",
   "tables": {
     "agent_tokens": {
@@ -154,6 +154,20 @@
         },
         "digest": {
           "name": "digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "topic": {
+          "name": "topic",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -337,13 +351,13 @@
           "autoincrement": false,
           "default": 0
         },
-        "digest_outcome": {
-          "name": "digest_outcome",
-          "type": "text",
+        "digest_failed": {
+          "name": "digest_failed",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'none'"
+          "default": false
         },
         "status": {
           "name": "status",

@@ -1,36 +1,51 @@
-import { and, desc, eq, getTableColumns, isNotNull, notExists, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, exists, notExists, sql } from "drizzle-orm";
 
 import { isRefusedHost } from "./addresses.ts";
 import type { Fetched } from "./details.ts";
 import { resolveShortLink } from "./fetch-link.ts";
-import { hasOpenJob, openingJob } from "./job-rows.ts";
-import { enqueueQuietly } from "./jobs.ts";
+import {
+  hasOpenJob,
+  openingJob,
+  openingDigest,
+  setDigestFailure,
+  enqueueRows,
+} from "./job-rows.ts";
+import { DIGEST_OUTCOMES } from "./kinds.ts";
 import { type Link, isShortLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
-import { type ItemRow, items } from "./schema.ts";
+import { digests, items } from "./schema.ts";
 import { settle } from "./settle.ts";
 
-export type ListedItemRow = Omit<ItemRow, "postText" | "postedAt"> & {
-  readonly digestTitle: string | null;
-  readonly digestTopic: string | null;
-};
+export type ListedItemRow = Awaited<ReturnType<typeof listItems>>[number];
 
 export type SaveResult =
   | { readonly kind: "saved"; readonly item: ListedItemRow; readonly created: boolean }
   | { readonly kind: "refused" };
 
-const { postText: _postText, postedAt: _postedAt, ...columns } = getTableColumns(items);
+const {
+  generation: _generation,
+  digestFailed: _digestFailed,
+  ...DETAIL_COLUMNS
+} = getTableColumns(items);
 
-const DIGEST_COLUMNS = {
-  digestTitle: sql<
-    string | null
-  >`(select json_extract(digest, '$.title') from digests where item_id = ${items.id})`,
-  digestTopic: sql<
-    string | null
-  >`(select json_extract(digest, '$.topic') from digests where item_id = ${items.id})`,
+const { postText: _postText, postedAt: _postedAt, ...LISTED_COLUMNS } = DETAIL_COLUMNS;
+
+const DIGEST_VIEW_COLUMNS = {
+  digestTitle: sql<string | null>`${digests.title}`.as("digest_title"),
+  digestTopic: sql<string | null>`${digests.topic}`.as("digest_topic"),
+  digestOutcome: sql<
+    (typeof DIGEST_OUTCOMES)[number]
+  >`case when exists ${hasOpenJob("digest")} then 'pending' when ${items.digestFailed} then 'failed' else 'none' end`.as(
+    "digest_outcome",
+  ),
 };
 
-const LISTED_COLUMNS = { ...columns, ...DIGEST_COLUMNS };
+function selectItems<Fields extends typeof LISTED_COLUMNS>(db: Database, fields: Fields) {
+  return db
+    .select({ ...fields, ...DIGEST_VIEW_COLUMNS })
+    .from(items)
+    .leftJoin(digests, eq(digests.itemId, items.id));
+}
 
 function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
   if (item === undefined) {
@@ -41,10 +56,9 @@ function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): List
 }
 
 async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
-  const [item] = await db
-    .select(LISTED_COLUMNS)
-    .from(items)
-    .where(eq(items.normalizedUrl, normalizedUrl));
+  const [item] = await selectItems(db, LISTED_COLUMNS).where(
+    eq(items.normalizedUrl, normalizedUrl),
+  );
 
   return foundItem(item, normalizedUrl);
 }
@@ -80,14 +94,10 @@ async function saveQueued(
       .set({ status: "processing", reason: null })
       .where(and(eq(items.normalizedUrl, normalizedUrl), notExists(hasOpenJob("fetch")))),
     openingJob(db, { kind: "fetch", address, normalizedUrl, now }),
-    db.select(LISTED_COLUMNS).from(items).where(eq(items.normalizedUrl, normalizedUrl)),
+    selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
   ]);
 
-  const [job] = queued;
-
-  if (job !== undefined) {
-    await enqueueQuietly(ports, [job.id], 0);
-  }
+  await enqueueRows(ports, queued);
 
   return { kind: "saved", item: foundItem(item, normalizedUrl), created: inserted.length > 0 };
 }
@@ -111,10 +121,14 @@ async function saveSettled(
       ...settle(fetched, null, now),
     })
     .onConflictDoNothing({ target: items.normalizedUrl })
-    .returning(columns);
+    .returning(LISTED_COLUMNS);
 
   if (inserted !== undefined) {
-    return { kind: "saved", item: await itemAt(db, normalizedUrl), created: true };
+    return {
+      kind: "saved",
+      item: { ...inserted, digestTitle: null, digestTopic: null, digestOutcome: "none" },
+      created: true,
+    };
   }
 
   const known = await itemAt(db, normalizedUrl);
@@ -123,14 +137,8 @@ async function saveSettled(
     db
       .update(items)
       .set(settle(fetched, known.title, now))
-      .where(
-        and(
-          eq(items.id, known.id),
-          notExists(hasOpenJob("fetch")),
-          notExists(hasOpenJob("digest")),
-        ),
-      ),
-    db.select(LISTED_COLUMNS).from(items).where(eq(items.id, known.id)),
+      .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
+    selectItems(db, LISTED_COLUMNS).where(eq(items.id, known.id)),
   ]);
 
   return { kind: "saved", item: foundItem(item, normalizedUrl), created: false };
@@ -158,54 +166,41 @@ export function saveItem(ports: Ports, absoluteUrl: string): Promise<SaveResult>
     : saveQueued(ports, { originalUrl: absoluteUrl, address: absoluteUrl }, parseLink(absoluteUrl));
 }
 
-export async function getItem(
-  db: Database,
-  id: number,
-): Promise<
-  | (ItemRow & { readonly digestTitle: string | null; readonly digestTopic: string | null })
-  | undefined
-> {
-  const [item] = await db
-    .select({ ...getTableColumns(items), ...DIGEST_COLUMNS })
-    .from(items)
-    .where(eq(items.id, id));
+export async function getItem(db: Database, id: number) {
+  const [item] = await selectItems(db, DETAIL_COLUMNS).where(eq(items.id, id));
 
   return item;
 }
 
 export async function getListedItem(db: Database, id: number): Promise<ListedItemRow | undefined> {
-  const [item] = await db.select(LISTED_COLUMNS).from(items).where(eq(items.id, id));
+  const [item] = await selectItems(db, LISTED_COLUMNS).where(eq(items.id, id));
 
   return item;
 }
 
-export function listItems(db: Database): Promise<ListedItemRow[]> {
-  return db.select(LISTED_COLUMNS).from(items).orderBy(desc(items.savedAt), desc(items.id));
+export function listItems(db: Database) {
+  return selectItems(db, LISTED_COLUMNS).orderBy(desc(items.savedAt), desc(items.id));
 }
 
 export async function retryDigest(ports: Ports, id: number): Promise<ListedItemRow | undefined> {
-  const item = await getItem(ports.db, id);
+  const [known] = await ports.db
+    .select({ originalUrl: items.originalUrl, normalizedUrl: items.normalizedUrl })
+    .from(items)
+    .where(eq(items.id, id));
 
-  if (item === undefined || item.postText === null) return getListedItem(ports.db, id);
+  if (known === undefined) return undefined;
 
-  const [, queued] = await ports.db.batch([
+  const [queued, , , [item]] = await ports.db.batch([
+    openingDigest(ports.db, { itemId: id, address: known.originalUrl, now: Date.now() }),
+    setDigestFailure(ports.db, id, false),
     ports.db
       .update(items)
-      .set({ status: "processing", reason: null, digestOutcome: "pending" })
-      .where(and(eq(items.id, id), isNotNull(items.postText), notExists(hasOpenJob("digest")))),
-    openingJob(ports.db, {
-      kind: "digest",
-      address: item.originalUrl,
-      normalizedUrl: item.normalizedUrl,
-      now: Date.now(),
-    }),
+      .set({ status: "processing", reason: null })
+      .where(and(eq(items.id, id), exists(hasOpenJob("digest")))),
+    selectItems(ports.db, LISTED_COLUMNS).where(eq(items.normalizedUrl, known.normalizedUrl)),
   ]);
 
-  await enqueueQuietly(
-    ports,
-    queued.map(({ id: jobId }) => jobId),
-    0,
-  );
+  await enqueueRows(ports, queued);
 
-  return getListedItem(ports.db, id);
+  return item;
 }

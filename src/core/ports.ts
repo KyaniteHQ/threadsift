@@ -79,3 +79,5 @@ export const REQUEST_HEADERS = {
   "user-agent": "Threadsift/1 (+https://github.com/KyaniteHQ/threadsift)",
   accept: "text/html,application/json;q=0.9,*/*;q=0.8",
 } as const;
+
+export type AiPorts = Pick<Ports, "db" | "ai">;

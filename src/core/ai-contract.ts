@@ -108,6 +108,29 @@ export function refusedAi<Reason extends AiRefusal>(
   return { kind: "refused", reason, status };
 }
 
+export function retriesAi({ reason, status }: Readonly<AiRefused>): boolean {
+  switch (reason) {
+    case "unreachable":
+    case "timeout":
+    case "provider-busy":
+      return true;
+    case "no-json":
+      return status === null || (status >= 200 && status < 300);
+    case "wrong-key":
+    case "model-not-found":
+    case "refused":
+    case "key-needed":
+    case "not-configured":
+    case "secret-missing":
+      return false;
+    default: {
+      const exhaustive: never = reason;
+
+      return exhaustive;
+    }
+  }
+}
+
 export type AiConnection = HttpAiConnection | { readonly kind: "none" };
 
 export interface HttpAiConnection {

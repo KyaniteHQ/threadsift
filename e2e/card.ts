@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { CARD_TITLES, FAILURE_TITLES } from "../web/src/text.ts";
-import { mainInstance } from "./access.ts";
+import { type Instance, mainInstance } from "./access.ts";
 import { itemOf, postLink } from "./api.ts";
 import { jobsOf } from "./ingest.ts";
 import { pasteCard, pasteField } from "./links.ts";
@@ -201,9 +201,9 @@ export async function pasteForId(page: Page, url: string): Promise<number> {
 
 const Counts = z.array(z.object({ n: z.number() }));
 
-export function stuckProcessingItems(): number {
-  const [row] = mainInstance().query(
-    "SELECT count(*) AS n FROM items i JOIN jobs j ON j.item_id = i.id WHERE i.status = 'processing' AND j.state = 'done' AND NOT EXISTS (SELECT 1 FROM jobs o WHERE o.item_id = i.id AND o.state <> 'done')",
+export function stuckProcessingItems(instance: Instance = mainInstance()): number {
+  const [row] = instance.query(
+    "SELECT count(*) AS n FROM items i WHERE i.status = 'processing' AND NOT EXISTS (SELECT 1 FROM jobs o WHERE o.item_id = i.id AND o.state <> 'done')",
     Counts,
   );
 

@@ -48,3 +48,7 @@ export async function saveLink(url: string): Promise<SaveResult> {
 export async function regenerateDigest(id: number): Promise<Item> {
   return (await parsedFrom("POST", `/api/items/${id}/digest`, ItemResponseSchema)).item;
 }
+
+export type SaveTarget =
+  | { readonly kind: "paste"; readonly url: string }
+  | { readonly kind: "digest"; readonly url: string; readonly id: number };

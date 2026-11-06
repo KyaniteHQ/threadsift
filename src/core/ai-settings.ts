@@ -9,7 +9,7 @@ import {
   type HttpAiConnection,
   refusedAi,
 } from "./ai-contract.ts";
-import type { Ports } from "./ports.ts";
+import type { AiPorts } from "./ports.ts";
 import { settings } from "./schema.ts";
 import type { Sealer } from "./sealed-secret.ts";
 
@@ -25,7 +25,7 @@ type LoadedAi =
       readonly sealer: Sealer;
     };
 
-export async function loadAiConfig(ports: Pick<Ports, "db" | "ai">): Promise<LoadedAi> {
+export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
   const [saved] = await ports.db.select().from(settings).where(eq(settings.id, 1));
 
   if (ports.ai.secrets === null) return { state: "secret-missing", saved };
@@ -64,7 +64,7 @@ function aiView(
   };
 }
 
-export async function readAiSettings(ports: Pick<Ports, "db" | "ai">): Promise<AiSettingsView> {
+export async function readAiSettings(ports: AiPorts): Promise<AiSettingsView> {
   const loaded = await loadAiConfig(ports);
 
   return aiView(
@@ -75,7 +75,7 @@ export async function readAiSettings(ports: Pick<Ports, "db" | "ai">): Promise<A
 }
 
 export async function saveAiSettings(
-  ports: Pick<Ports, "db" | "ai">,
+  ports: AiPorts,
   input: Readonly<AiSettingsInput>,
 ): Promise<z.infer<typeof AiSaveResponseSchema>> {
   const loaded = await loadAiConfig(ports);

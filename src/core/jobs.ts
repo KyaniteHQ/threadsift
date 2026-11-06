@@ -1,16 +1,13 @@
-import { type SQL, and, asc, eq, inArray, lt, lte, or, sql } from "drizzle-orm";
+import { type SQL, and, asc, eq, inArray, lt, lte, notExists, exists, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { AI_DEADLINE_MS } from "./ai-contract.ts";
-import { attemptDigest } from "./digest-job.ts";
-import { attemptFetch } from "./fetch-job.ts";
-import { FETCH_DEADLINE_MS } from "./fetch-link.ts";
-import type { JobOutcome } from "./job-outcome.ts";
+import { digestHandler } from "./digest-job.ts";
+import { fetchHandler } from "./fetch-job.ts";
+import type { JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { enqueueQuietly, enqueueRows, hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS, type JobKind } from "./kinds.ts";
-import type { Database, Ports } from "./ports.ts";
-import { type JobRow, aiTasks, guards, items, jobs, scheduledRuns } from "./schema.ts";
-
-export type JobPorts = Pick<Ports, "db" | "network" | "pages" | "jobs" | "ai">;
+import type { Database } from "./ports.ts";
+import { type JobRow, guards, items, jobs, scheduledRuns } from "./schema.ts";
 
 const CLAIM_MARGIN_MS = 120_000;
 const RETRY_DELAYS_MS = [30_000, 120_000] as const;
@@ -18,27 +15,9 @@ const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 const SWEEP_LIMIT = 100;
 const TICK_SPACING_MS = 30_000;
 
-interface JobHandler {
-  readonly deadlineMs: number;
-  readonly attempt: (ports: JobPorts, job: Readonly<JobRow>) => Promise<JobOutcome>;
-  readonly exhausted: (db: Database, job: Readonly<JobRow>) => readonly BatchItem<"sqlite">[];
-}
-
 const HANDLERS: Readonly<Record<JobKind, JobHandler>> = {
-  digest: {
-    deadlineMs: AI_DEADLINE_MS,
-    attempt: attemptDigest,
-    exhausted: (db, job) => [
-      db.update(items).set({ digestOutcome: "failed" }).where(eq(items.id, job.itemId)),
-    ],
-  },
-  fetch: {
-    deadlineMs: FETCH_DEADLINE_MS,
-    attempt: attemptFetch,
-    exhausted: (db, job) => [
-      db.update(items).set({ status: "failed", reason: "gave-up" }).where(eq(items.id, job.itemId)),
-    ],
-  },
+  digest: digestHandler,
+  fetch: fetchHandler,
 };
 
 const LEASE_MS = sql.join(
@@ -47,9 +26,21 @@ const LEASE_MS = sql.join(
 );
 
 function isDue(now: number) {
-  return or(
-    and(eq(jobs.state, "queued"), lte(jobs.nextAttemptAt, now)),
-    and(eq(jobs.state, "running"), lt(jobs.claimExpires, now)),
+  return and(
+    or(
+      and(eq(jobs.state, "queued"), lte(jobs.nextAttemptAt, now)),
+      and(eq(jobs.state, "running"), lt(jobs.claimExpires, now)),
+    ),
+    or(
+      ...JOB_KINDS.map((kind) =>
+        and(
+          eq(jobs.kind, kind),
+          ...HANDLERS[kind].blockedBy.map((blocker) =>
+            notExists(hasOpenJob(blocker, sql`${jobs.itemId}`)),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -109,31 +100,21 @@ async function writeWhileHolding(
   }
 }
 
-export async function enqueueQuietly(
-  ports: JobPorts,
-  jobIds: readonly number[],
-  delayMs: number,
-): Promise<void> {
-  try {
-    await ports.jobs.enqueue(jobIds, delayMs);
-  } catch (error) {
-    console.error(`Jobs ${jobIds.join(", ")} were not queued; the next sweep queues them`, error);
-  }
-}
-
 function finish(
   db: Database,
   job: Readonly<JobRow>,
   { writes, attempts }: Readonly<{ writes: readonly BatchItem<"sqlite">[]; attempts: number }>,
 ): Promise<boolean> {
+  const open = exists(hasOpenJob());
+
   return writeWhileHolding(db, job, [
     ...writes,
     db.update(jobs).set({ state: "done", attempts, claimExpires: null }).where(eq(jobs.id, job.id)),
     db
       .update(items)
       .set({
-        status: sql`case when exists (select 1 from ${jobs} where ${jobs.itemId} = ${items.id} and ${jobs.state} <> 'done') then 'processing' when ${items.status} = 'failed' then 'failed' else 'ready' end`,
-        reason: sql`case when exists (select 1 from ${jobs} where ${jobs.itemId} = ${items.id} and ${jobs.state} <> 'done') then null else ${items.reason} end`,
+        status: sql`case when ${open} then 'processing' when ${items.status} = 'failed' then 'failed' else 'ready' end`,
+        reason: sql`case when ${open} then null else ${items.reason} end`,
       })
       .where(eq(items.id, job.itemId)),
   ]);
@@ -166,41 +147,17 @@ async function applyOutcome(
   job: Readonly<JobRow>,
   outcome: JobOutcome,
 ): Promise<void> {
-  if (outcome.kind === "requeue") {
-    await queueLater(ports, job, { delayMs: 0, attempts: job.attempts });
-
-    return;
-  }
-
   try {
     const wrote = await finish(ports.db, job, { writes: outcome.writes, attempts: job.attempts });
 
-    if (!wrote && outcome.revision !== undefined) {
-      await ports.db
-        .update(aiTasks)
-        .set({ state: "failed", refusal: "lease-lost" })
-        .where(eq(aiTasks.id, outcome.revision.taskId));
-    }
+    if (!wrote && outcome.currency !== undefined)
+      await ports.db.batch([outcome.currency.discard("lease-lost")]);
   } catch (error) {
-    if (outcome.revision === undefined) throw error;
+    if (outcome.currency === undefined) throw error;
+    const current = await outcome.currency.current();
+    await ports.db.batch([outcome.currency.discard(current ? "error" : "stale")]);
 
-    const [item] = await ports.db
-      .select({ generation: items.generation })
-      .from(items)
-      .where(eq(items.id, job.itemId));
-
-    if (item?.generation === outcome.revision.generation) {
-      await ports.db
-        .update(aiTasks)
-        .set({ state: "failed", refusal: "unreachable" })
-        .where(eq(aiTasks.id, outcome.revision.taskId));
-      throw error;
-    }
-
-    await ports.db
-      .update(aiTasks)
-      .set({ state: "failed", refusal: "stale" })
-      .where(eq(aiTasks.id, outcome.revision.taskId));
+    if (current) throw error;
     await queueLater(ports, job, { delayMs: 0, attempts: job.attempts });
 
     return;
@@ -213,13 +170,9 @@ async function enqueueItemJobs(ports: JobPorts, itemId: number): Promise<void> {
   const queued = await ports.db
     .select({ id: jobs.id })
     .from(jobs)
-    .where(and(eq(jobs.itemId, itemId), eq(jobs.state, "queued")));
+    .where(and(eq(jobs.itemId, itemId), sql`${jobs.state} <> 'done'`));
 
-  await enqueueQuietly(
-    ports,
-    queued.map(({ id }) => id),
-    0,
-  );
+  await enqueueRows(ports, queued);
 }
 
 export async function executeClaimed(ports: JobPorts, job: Readonly<JobRow>): Promise<void> {
@@ -264,13 +217,7 @@ export async function abandonRunning(db: Database): Promise<void> {
 async function sweep(ports: JobPorts): Promise<void> {
   const due = await dueIds(ports.db, Date.now(), SWEEP_LIMIT);
 
-  if (due.length > 0) {
-    await enqueueQuietly(
-      ports,
-      due.map(({ id }) => id),
-      0,
-    );
-  }
+  await enqueueRows(ports, due);
 }
 
 async function claimSweep(db: Database, now: number): Promise<boolean> {

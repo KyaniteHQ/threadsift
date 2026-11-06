@@ -1,10 +1,5 @@
-import {
-  type JobPorts,
-  abandonRunning,
-  claimNextDue,
-  executeClaimed,
-  tick,
-} from "../../core/jobs.ts";
+import type { JobPorts } from "../../core/job-outcome.ts";
+import { abandonRunning, claimNextDue, executeClaimed, tick } from "../../core/jobs.ts";
 import type { JobQueue } from "../../core/ports.ts";
 
 const LOOP_WIDTH = 4;
