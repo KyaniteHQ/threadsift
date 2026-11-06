@@ -214,8 +214,4 @@ test("the article scenario: Bread through the paste box, an essay through a shor
   await bookTooLongToStore(run, bread);
   await pagesThatStayOther(run);
   await listAndStatusHoldNoPostText(request, bread);
-
-  if (isContainerTarget()) {
-    expect(0, "deliberate shard failure probe").toBe(1);
-  }
 });
