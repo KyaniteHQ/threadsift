@@ -1,12 +1,25 @@
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
+import { readPage } from "./article.ts";
+import { type Page, isHtmlType } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
+import { collapsed } from "./format.ts";
+import type { Kind, Source } from "./kinds.ts";
+import { type Link, isGitHubLink, isVideoLink } from "./links.ts";
+
+export interface Content {
+  readonly source: Source;
+  readonly kind: Kind;
+  readonly postText: string | null;
+  readonly postedAt: number | null;
+}
 
 export interface Found {
   readonly title: string;
   readonly author: string | null;
   readonly community: string | null;
+  readonly content: Content | null;
 }
 
 export type Fetched =
@@ -14,6 +27,10 @@ export type Fetched =
   | { readonly status: FetchFailure | "not-requested" };
 
 export const NOT_REQUESTED: Fetched = { status: "not-requested" };
+
+const MIN_ARTICLE_WORDS = 100;
+
+const NOT_AN_ARTICLE: Content = { source: "other", kind: "link", postText: null, postedAt: null };
 
 const SUBREDDIT_LINK = /^https:\/\/www\.reddit\.com\/r\/(?<name>[^/?#]+)\//u;
 
@@ -31,22 +48,38 @@ function parseOembed(text: string): z.infer<typeof OembedSchema> | null {
   }
 }
 
-function collapsed(text: string): string {
-  return text.replaceAll(/\s+/gu, " ").trim();
+function isArticleCandidate(page: Readonly<Page>, link: Readonly<Link>): boolean {
+  return (
+    link.kind === "link" &&
+    isHtmlType(page.mediaType) &&
+    !page.cut &&
+    !isVideoLink(page.url) &&
+    !isGitHubLink(page.url)
+  );
 }
 
-export function detailsOfPage(html: string): Fetched {
-  const { document } = parseHTML(html);
-
-  const title = [...document.querySelectorAll("title")].find(
-    (element) => element.closest("svg") === null,
-  );
-
-  const text = collapsed(title?.textContent ?? "");
-
-  return text === ""
+function titled(title: string, found: Readonly<Pick<Found, "author" | "content">>): Fetched {
+  return title === ""
     ? { status: "no-title" }
-    : { status: "ok", found: { title: text, author: null, community: null } };
+    : { status: "ok", found: { title, community: null, ...found } };
+}
+
+export async function detailsOfPage(page: Readonly<Page>, link: Readonly<Link>): Promise<Fetched> {
+  const content = link.kind === "link" ? NOT_AN_ARTICLE : null;
+  const mode = isArticleCandidate(page, link) ? "article" : "title";
+  const { title, extraction } = await readPage(page.text, page.url, mode);
+  const named = title === "" ? (extraction?.title ?? "") : title;
+
+  if (extraction === null || extraction.words < MIN_ARTICLE_WORDS) {
+    return titled(named, { author: null, content });
+  }
+
+  const { author, postText, postedAt } = extraction;
+
+  return titled(named, {
+    author,
+    content: { source: "article", kind: "article", postText, postedAt },
+  });
 }
 
 function subredditOf(html: string): string | null {
@@ -82,6 +115,7 @@ export function detailsOfOembed(text: string): Fetched {
       title,
       author: answer.author_name ?? null,
       community: subredditOf(answer.html ?? ""),
+      content: null,
     },
   };
 }

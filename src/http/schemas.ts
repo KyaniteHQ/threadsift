@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
-import { FAILURE_REASONS, KINDS, SOURCES } from "../core/kinds.ts";
+import type { ListedItemRow } from "../core/items.ts";
+import { FAILURE_REASONS, KINDS, type FailureReason, SOURCES } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
 
@@ -21,10 +22,27 @@ const ItemBaseSchema = z.object({
   fetch: z.enum(FETCH_RESULTS).nullable(),
 });
 
+const FAILED_FIELDS = { status: z.literal("failed"), reason: z.enum(FAILURE_REASONS) } as const;
+
+const PROCESSING_FIELDS = { status: z.literal("processing"), reason: z.null() } as const;
+
+const READY_FIELDS = { status: z.literal("ready"), reason: z.null() } as const;
+
+const ItemDetailBaseSchema = ItemBaseSchema.extend({
+  postedAt: z.number().int().nullable(),
+  postText: z.string().nullable(),
+});
+
 const ItemSchema = z.discriminatedUnion("status", [
-  ItemBaseSchema.extend({ status: z.literal("failed"), reason: z.enum(FAILURE_REASONS) }),
-  ItemBaseSchema.extend({ status: z.literal("processing"), reason: z.null() }),
-  ItemBaseSchema.extend({ status: z.literal("ready"), reason: z.null() }),
+  ItemBaseSchema.extend(FAILED_FIELDS),
+  ItemBaseSchema.extend(PROCESSING_FIELDS),
+  ItemBaseSchema.extend(READY_FIELDS),
+]);
+
+const ItemDetailSchema = z.discriminatedUnion("status", [
+  ItemDetailBaseSchema.extend(FAILED_FIELDS),
+  ItemDetailBaseSchema.extend(PROCESSING_FIELDS),
+  ItemDetailBaseSchema.extend(READY_FIELDS),
 ]);
 
 export const SaveItemRequestSchema = z.object({
@@ -37,6 +55,8 @@ export const SavedItemResponseSchema = z.object({
 });
 
 export const ItemResponseSchema = z.object({ item: ItemSchema });
+
+export const ItemDetailResponseSchema = z.object({ item: ItemDetailSchema });
 
 export const ItemListResponseSchema = z.object({
   items: z.array(ItemSchema),
@@ -94,20 +114,30 @@ export type Token = z.infer<typeof TokenSchema>;
 
 export type Item = z.infer<typeof ItemSchema>;
 
-export function itemView(row: Readonly<ItemRow>): Item {
-  const { status, reason, ...rest } = row;
+type StatusFields =
+  | { readonly status: "failed"; readonly reason: FailureReason }
+  | { readonly status: "processing" | "ready"; readonly reason: null };
 
+function statusOf({ id, status, reason }: Readonly<Pick<ItemRow, "id" | "status" | "reason">>) {
   if (status === "failed") {
     if (reason === null) {
-      throw new Error(`Item ${String(row.id)} is failed and has no reason`);
+      throw new Error(`Item ${String(id)} is failed and has no reason`);
     }
 
-    return { ...rest, status, reason };
+    return { status, reason } satisfies StatusFields;
   }
 
   if (reason !== null) {
-    throw new Error(`Item ${String(row.id)} is ${status} and has the reason ${reason}`);
+    throw new Error(`Item ${String(id)} is ${status} and has the reason ${reason}`);
   }
 
-  return { ...rest, status, reason };
+  return { status, reason } satisfies StatusFields;
+}
+
+export function itemView(row: Readonly<ListedItemRow>): Item {
+  return { ...row, ...statusOf(row) };
+}
+
+export function itemDetailView(row: Readonly<ItemRow>): z.infer<typeof ItemDetailSchema> {
+  return { ...row, ...statusOf(row) };
 }

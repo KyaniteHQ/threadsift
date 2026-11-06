@@ -4,7 +4,12 @@ import type { FailureReason } from "./kinds.ts";
 import type { ItemRow } from "./schema.ts";
 
 type Settled = Pick<ItemRow, "status" | "reason" | "fetch"> &
-  Partial<Pick<ItemRow, "title" | "author" | "community" | "fetchedAt">>;
+  Partial<
+    Pick<
+      ItemRow,
+      "title" | "author" | "community" | "fetchedAt" | "source" | "kind" | "postText" | "postedAt"
+    >
+  >;
 
 export function isRetryable(result: FetchResult): result is Extract<FailureReason, FetchResult> {
   return result === "timeout" || result === "network";
@@ -12,7 +17,9 @@ export function isRetryable(result: FetchResult): result is Extract<FailureReaso
 
 export function settle(fetched: Readonly<Fetched>, current: string | null, now: number): Settled {
   if (fetched.status === "ok") {
-    return { status: "ready", reason: null, fetch: "ok", ...fetched.found, fetchedAt: now };
+    const { content, ...found } = fetched.found;
+
+    return { status: "ready", reason: null, fetch: "ok", ...found, ...content, fetchedAt: now };
   }
 
   const result = fetched.status;

@@ -12,6 +12,7 @@ const SOURCE_OF_KIND: Readonly<Record<Kind, Source>> = {
   "reddit-comment": "reddit",
   "x-post": "x",
   "github-repo": "github",
+  article: "article",
   link: "other",
 };
 
@@ -26,6 +27,8 @@ const TRACKING_PARAMS: ReadonlySet<string> = new Set([
   "ref_src",
 ]);
 
+const GITHUB_HOST = "github.com";
+
 const X_HOSTS: ReadonlySet<string> = new Set(["x.com", "twitter.com"]);
 
 const X_ONLY_TRACKING_PARAMS: ReadonlySet<string> = new Set(["s", "t"]);
@@ -39,6 +42,15 @@ const SHORT_LINK_HOSTS: ReadonlySet<string> = new Set([
   "lnkd.in",
   "dlvr.it",
   "is.gd",
+]);
+
+const VIDEO_HOSTS: ReadonlySet<string> = new Set([
+  "youtube.com",
+  "m.youtube.com",
+  "music.youtube.com",
+  "youtu.be",
+  "youtube-nocookie.com",
+  "vimeo.com",
 ]);
 
 const GITHUB_NON_OWNER_PATHS: ReadonlySet<string> = new Set([
@@ -191,7 +203,7 @@ function kindOf(host: string, pathname: string): Kind {
     return X_POST_PATH.test(pathname) ? "x-post" : "link";
   }
 
-  return host === "github.com" ? githubKind(segments) : "link";
+  return host === GITHUB_HOST ? githubKind(segments) : "link";
 }
 
 export function parseLink(absoluteUrl: string): Link {
@@ -215,6 +227,14 @@ export function parseLink(absoluteUrl: string): Link {
 
 export function isShortLink(absoluteUrl: string): boolean {
   return SHORT_LINK_HOSTS.has(canonicalHost(new URL(absoluteUrl).hostname));
+}
+
+export function isGitHubLink(absoluteUrl: string): boolean {
+  return canonicalHost(new URL(absoluteUrl).hostname) === GITHUB_HOST;
+}
+
+export function isVideoLink(absoluteUrl: string): boolean {
+  return VIDEO_HOSTS.has(canonicalHost(new URL(absoluteUrl).hostname));
 }
 
 export function isRedditOrXLink(absoluteUrl: string): boolean {

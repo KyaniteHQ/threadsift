@@ -24,6 +24,8 @@ export const items = sqliteTable(
     title: text("title"),
     author: text("author"),
     community: text("community"),
+    postText: text("post_text"),
+    postedAt: integer("posted_at"),
     fetchedAt: integer("fetched_at"),
     status: text("status", { enum: ITEM_STATUSES }).notNull().default("ready"),
     reason: text("reason", { enum: FAILURE_REASONS }),

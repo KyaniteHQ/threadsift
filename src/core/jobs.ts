@@ -31,7 +31,7 @@ async function titleOf(db: Database, itemId: number): Promise<string | null> {
 }
 
 async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>) {
-  const { fetched } = await fetchLink(ports.network, job.address);
+  const fetched = await fetchLink(ports.network, job.address);
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
 
   return [

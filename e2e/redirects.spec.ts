@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { mainInstance } from "./access.ts";
-import { listAll, postLink, postLinkRaw } from "./api.ts";
+import { listAll, postLink, postLinkRaw, settled } from "./api.ts";
 import { itemIdAt, jobsAt, jobsOf } from "./ingest.ts";
 import {
   SHORT_LINK,
@@ -19,19 +19,33 @@ test("a short link and its target pasted separately are one Item under the targe
   const jobsBefore = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
   const viaShortLink = await postLinkRaw(request, SHORT_LINK);
   const jobsAfterShortLink = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
-  const direct = await postLink(request, SHORT_LINK_TARGET);
 
   expect(viaShortLink.body.item).toMatchObject({
-    status: "ready",
-    fetch: "ok",
+    status: "processing",
     normalizedUrl: SHORT_LINK_TARGET_NORMALIZED,
     originalUrl: SHORT_LINK,
+  });
+
+  expect(jobsAfterShortLink.length, "a short link opens one job at the target").toBe(
+    jobsBefore.length + 1,
+  );
+
+  const viaShortLinkItem = await settled(request, viaShortLink.body.item.id);
+
+  expect(viaShortLinkItem).toMatchObject({
+    status: "ready",
+    fetch: "ok",
     title: "Example Domains",
   });
 
-  expect(jobsAfterShortLink, "a short link opens no job").toEqual(jobsBefore);
+  const direct = await postLink(request, SHORT_LINK_TARGET);
+
   expect(direct.status).toBe(200);
   expect(direct.body.item.id).toBe(viaShortLink.body.item.id);
+  const jobsAfterDirect = jobsAt(SHORT_LINK_TARGET_NORMALIZED);
+
+  expect(jobsAfterDirect.length, "the direct Paste opens a second job").toBe(jobsBefore.length + 2);
+  expect(jobsAfterDirect.map((job) => job.state)).toEqual(jobsAfterDirect.map(() => "done"));
   expect((await listAll(request)).filter((item) => item.normalizedUrl === SHORT_LINK)).toEqual([]);
 });
 

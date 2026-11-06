@@ -3,13 +3,14 @@ import { z } from "zod";
 
 import {
   ItemListResponseSchema,
-  ItemResponseSchema,
+  ItemDetailResponseSchema,
   SavedItemResponseSchema,
 } from "../src/http/schemas.ts";
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
 const SETTLE_TIMEOUT_MS = 60_000;
 const SETTLE_POLL_MS = 250;
+const RESET_RETRIES = 3;
 
 export async function postLinkRaw(request: APIRequestContext, url: string) {
   await waitForRedditTurnIfNeeded(url);
@@ -19,7 +20,7 @@ export async function postLinkRaw(request: APIRequestContext, url: string) {
 }
 
 export async function getItem(request: APIRequestContext, id: number) {
-  const response = await request.get(`/api/items/${id}`);
+  const response = await request.get(`/api/items/${id}`, { maxRetries: RESET_RETRIES });
 
   return { status: response.status(), response };
 }
@@ -31,7 +32,7 @@ export async function itemOf(request: APIRequestContext, id: number) {
     throw new Error(`GET /api/items/${id} answered ${status}`);
   }
 
-  return ItemResponseSchema.parse(await response.json()).item;
+  return ItemDetailResponseSchema.parse(await response.json()).item;
 }
 
 export async function settled(request: APIRequestContext, id: number, timeout = SETTLE_TIMEOUT_MS) {

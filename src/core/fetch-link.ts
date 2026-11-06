@@ -1,28 +1,33 @@
 import { type Fetched, NOT_REQUESTED, detailsOfOembed, detailsOfPage } from "./details.ts";
-import { type FetchPolicy, type GuardOutcome, guardedFetch } from "./fetch-guard.ts";
+import { type FetchPolicy, type GuardOutcome, type Page, guardedFetch } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import { type Link, isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
+import { isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
 import type { Network } from "./ports.ts";
 
-interface FetchedLink {
-  readonly link: Link;
-  readonly fetched: Fetched;
-}
+export type ShortLinkResolution =
+  | { readonly kind: "resolved"; readonly address: string }
+  | { readonly kind: "failed"; readonly fetched: Fetched };
 
 export const FETCH_DEADLINE_MS = 120_000;
 
-const POLICY: FetchPolicy = {
+const PAGE_CAP_BYTES = 5 * 1024 * 1024;
+const SMALL_CAP_BYTES = 512 * 1024;
+
+const PAGE_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
   followMetaRefresh: isShortLink,
+  maxBytes: PAGE_CAP_BYTES,
 };
+
+const SMALL_POLICY: FetchPolicy = { ...PAGE_POLICY, maxBytes: SMALL_CAP_BYTES };
 
 function fetchedOf(
   outcome: Readonly<GuardOutcome>,
-  readPage: (text: string) => Fetched,
+  readPage: (page: Readonly<Page>) => Promise<Fetched> | Fetched,
   whenStopped: FetchFailure,
-): Fetched {
+): Promise<Fetched> | Fetched {
   if (outcome.kind === "page") {
-    return readPage(outcome.text);
+    return readPage(outcome);
   }
 
   return { status: outcome.kind === "stopped" ? whenStopped : outcome.reason };
@@ -36,19 +41,17 @@ async function fetchedOfOembed(
   const outcome = await guardedFetch(
     network,
     `https://www.reddit.com/oembed?url=${encodeURIComponent(normalizedUrl)}`,
-    POLICY,
+    SMALL_POLICY,
     deadline,
   );
 
-  return fetchedOf(outcome, detailsOfOembed, "unreadable");
+  return fetchedOf(outcome, ({ text }) => detailsOfOembed(text), "unreadable");
 }
 
-async function fetchedFor(
-  network: Network,
-  link: Readonly<Link>,
-  address: string,
-  deadline: AbortSignal,
-): Promise<Fetched> {
+export async function fetchLink(network: Network, address: string): Promise<Fetched> {
+  const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
+  const link = parseLink(address);
+
   if (link.kind === "reddit-post" || link.kind === "reddit-comment") {
     return fetchedOfOembed(network, link.normalizedUrl, deadline);
   }
@@ -58,38 +61,24 @@ async function fetchedFor(
   }
 
   return fetchedOf(
-    await guardedFetch(network, address, POLICY, deadline),
-    detailsOfPage,
+    await guardedFetch(network, address, PAGE_POLICY, deadline),
+    (page) => detailsOfPage(page, link),
     "redirect-stopped",
   );
 }
 
-async function followShortLink(
+export async function resolveShortLink(
   network: Network,
-  pasted: Readonly<Link>,
   address: string,
-  deadline: AbortSignal,
-): Promise<FetchedLink> {
-  const outcome = await guardedFetch(network, address, POLICY, deadline);
+): Promise<ShortLinkResolution> {
+  const outcome = await guardedFetch(
+    network,
+    address,
+    SMALL_POLICY,
+    AbortSignal.timeout(FETCH_DEADLINE_MS),
+  );
 
-  if (outcome.kind === "stopped") {
-    const link = parseLink(outcome.url);
-
-    return { link, fetched: await fetchedFor(network, link, outcome.url, deadline) };
-  }
-
-  const link = outcome.kind === "page" ? parseLink(outcome.url) : pasted;
-
-  return { link, fetched: fetchedOf(outcome, detailsOfPage, "redirect-stopped") };
-}
-
-export async function fetchLink(network: Network, address: string): Promise<FetchedLink> {
-  const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
-  const pasted = parseLink(address);
-
-  if (isShortLink(address)) {
-    return followShortLink(network, pasted, address, deadline);
-  }
-
-  return { link: pasted, fetched: await fetchedFor(network, pasted, address, deadline) };
+  return outcome.kind === "failed"
+    ? { kind: "failed", fetched: { status: outcome.reason } }
+    : { kind: "resolved", address: outcome.url };
 }
