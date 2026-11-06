@@ -5,21 +5,21 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { isAbsolute, join, relative, sep } from "node:path";
 
 import { experimental_readRawConfig } from "wrangler";
 import { z } from "zod";
 
 import type { CopyNames, Stage } from "./cloudflare.ts";
 
-const LIVE_CONFIG = fileURLToPath(new URL("../../wrangler.jsonc", import.meta.url));
+const WORKER_CONFIG = "wrangler.jsonc";
 
-const LiveConfigSchema = z
+const WorkerConfigSchema = z
   .object({
     $schema: z.string(),
     name: z.string(),
@@ -49,8 +49,6 @@ const LiveConfigSchema = z
   .strict()
   .readonly();
 
-type LiveConfig = z.infer<typeof LiveConfigSchema>;
-
 export const MigrationHashesSchema = z
   .record(z.string(), z.string().regex(/^[0-9a-f]{64}$/u))
   .readonly();
@@ -66,30 +64,23 @@ interface StageConfig {
   }>;
 }
 
-let parsedLive: LiveConfig | undefined;
-
-function liveConfig(): LiveConfig {
-  parsedLive ??= LiveConfigSchema.parse(
-    experimental_readRawConfig({ config: LIVE_CONFIG }).rawConfig,
+export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
+  const source = WorkerConfigSchema.parse(
+    experimental_readRawConfig({ config: artifactFile(artifact, WORKER_CONFIG) }).rawConfig,
   );
 
-  return parsedLive;
-}
-
-export function copyConfig(names: Readonly<CopyNames>) {
-  const live = liveConfig();
-  const [database] = live.d1_databases;
-  const [producer] = live.queues.producers;
-  const [consumer] = live.queues.consumers;
+  const [database] = source.d1_databases;
+  const [producer] = source.queues.producers;
+  const [consumer] = source.queues.consumers;
 
   return {
     name: names.name,
     main: "dist/worker/index.js",
     no_bundle: true,
     workers_dev: true,
-    compatibility_date: live.compatibility_date,
-    compatibility_flags: live.compatibility_flags,
-    assets: { ...live.assets, directory: "dist/web" },
+    compatibility_date: source.compatibility_date,
+    compatibility_flags: source.compatibility_flags,
+    assets: { ...source.assets, directory: "dist/web" },
     d1_databases: [
       { binding: database.binding, database_name: names.name, migrations_dir: "migrations" },
     ],
@@ -97,8 +88,8 @@ export function copyConfig(names: Readonly<CopyNames>) {
       producers: [{ binding: producer.binding, queue: names.queue }],
       consumers: [{ ...consumer, queue: names.queue }],
     },
-    triggers: live.triggers,
-    limits: live.limits,
+    triggers: source.triggers,
+    limits: source.limits,
   } as const;
 }
 
@@ -115,22 +106,36 @@ function configNames(config: StageConfig): string[] {
   ];
 }
 
-function refuseLinks(path: string): void {
+function requireInside(root: string, path: string): void {
+  const fromRoot = relative(root, realpathSync(path));
+
+  if (fromRoot === ".." || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
+    throw new Error(`${path} in the artifact points outside it`);
+  }
+}
+
+function requireArtifactFiles(root: string, path: string): void {
+  requireInside(root, path);
   const stat = lstatSync(path);
 
   if (stat.isDirectory()) {
     for (const entry of readdirSync(path)) {
-      refuseLinks(join(path, entry));
+      requireArtifactFiles(root, join(path, entry));
     }
   } else if (!stat.isFile()) {
-    throw new Error(`${path} in the artifact is neither a file nor a folder`);
+    throw new Error(`${path} in the artifact is not a regular file or folder`);
   }
 }
 
-function copyIn(artifact: string, dir: string, path: string): void {
+function artifactFile(artifact: string, path: string): string {
   const source = join(artifact, path);
-  refuseLinks(source);
-  cpSync(source, join(dir, path), { recursive: true });
+  requireArtifactFiles(realpathSync(artifact), source);
+
+  return source;
+}
+
+function copyIn(artifact: string, dir: string, path: string): void {
+  cpSync(artifactFile(artifact, path), join(dir, path), { recursive: true });
 }
 
 function migrationFiles(dir: string): string[] {

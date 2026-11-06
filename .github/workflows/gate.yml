@@ -66,6 +66,7 @@ jobs:
             dist/web
             dist/worker/index.js
             migrations/*.sql
+            wrangler.jsonc
           if-no-files-found: error
           retention-days: 1
 

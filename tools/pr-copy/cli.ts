@@ -3,12 +3,19 @@ import { parseArgs } from "node:util";
 
 import { z } from "zod";
 
-import { type CopyRecord, CopyRecordSchema, deleteCopy, deployCopy } from "./copy.ts";
+import {
+  type CopyRecord,
+  CopyRecordSchema,
+  type DeployedCopy,
+  deleteCopy,
+  deployCopy,
+} from "./copy.ts";
 import {
   closedPullRequest,
   deployedHead,
   lastRecord,
   markInactive,
+  type PullHead,
   postDeployment,
   pullRequest,
   reopenedReason,
@@ -60,6 +67,14 @@ function stopWithoutChanges(reason: string): void {
   process.stdout.write(`No changes: ${reason}\n`);
 }
 
+async function postFailure(head: Readonly<PullHead>): Promise<void> {
+  try {
+    await postDeployment(head, null);
+  } catch (error) {
+    process.stderr.write(`Posting the failed deployment failed too: ${String(error)}\n`);
+  }
+}
+
 async function deployFromGithub(artifact: string): Promise<void> {
   const head = deployedHead();
   const stale = staleReason(head, await pullRequest(head.pr));
@@ -70,14 +85,17 @@ async function deployFromGithub(artifact: string): Promise<void> {
     return;
   }
 
+  let copy: DeployedCopy;
+
   try {
-    const copy = await deployCopy(head.pr, artifact, await lastRecord(head.pr));
-    await postDeployment(head, copy);
-    process.stdout.write(`Deployed ${copy.url}\n`);
+    copy = await deployCopy(head.pr, artifact, await lastRecord(head.pr));
   } catch (error) {
-    await postDeployment(head, null);
+    await postFailure(head);
     throw error;
   }
+
+  await postDeployment(head, copy);
+  process.stdout.write(`Deployed ${copy.url}\n`);
 }
 
 async function deployFromHere(artifact: string): Promise<void> {

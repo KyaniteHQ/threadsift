@@ -8,8 +8,8 @@ import {
   SavedItemResponseSchema,
   SessionStateSchema,
 } from "../../src/http/schemas.ts";
-import { SESSION_COOKIE } from "../../src/http/session-cookie.ts";
 import { requiredEnv } from "./env.ts";
+import { callTimeout } from "./timeout.ts";
 
 const SERVE_DEADLINE_MS = 120_000;
 const RETRY_BUDGET_MS = 120_000;
@@ -41,7 +41,7 @@ const DEMO_ITEMS: readonly DemoItem[] = [
   },
   {
     url: "https://threadsift-demo.invalid/",
-    expected: { status: "ready", title: null, fetch: "status" },
+    expected: { status: "failed", title: null, fetch: "network" },
   },
 ];
 
@@ -68,12 +68,17 @@ function send(url: string, call: Readonly<Call>): Promise<Response> {
   }
 
   if (call.body === undefined) {
-    return fetch(`${url}${call.path}`, { headers });
+    return fetch(`${url}${call.path}`, { headers, signal: callTimeout() });
   }
 
   headers.set("content-type", "application/json");
 
-  return fetch(`${url}${call.path}`, { method: "POST", headers, body: JSON.stringify(call.body) });
+  return fetch(`${url}${call.path}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(call.body),
+    signal: callTimeout(),
+  });
 }
 
 function isJson(response: Response): boolean {
@@ -101,7 +106,7 @@ async function callCopy(site: Readonly<Site>, call: Readonly<Call>): Promise<Res
 }
 
 async function answersJson(url: string): Promise<boolean> {
-  const response = await fetch(`${url}/api/session`).catch(() => null);
+  const response = await fetch(`${url}/api/session`, { signal: callTimeout() }).catch(() => null);
 
   return response?.status === 200 && isJson(response);
 }
@@ -134,10 +139,8 @@ async function postAccess(
 ): Promise<string | null> {
   const response = await callCopy(site, call);
 
-  const cookie = response.headers
-    .getSetCookie()
-    .map((header) => header.split(";")[0] ?? "")
-    .find((pair) => pair.startsWith(`${SESSION_COOKIE}=`));
+  const [setCookie] = response.headers.getSetCookie();
+  const cookie = setCookie?.split(";")[0];
 
   if (response.status === 204 && cookie !== undefined) {
     return cookie;

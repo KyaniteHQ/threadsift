@@ -212,7 +212,7 @@ export function deployCopy(
 ): Promise<DeployedCopy> {
   const names = copyNames(pr);
 
-  return withStage(copyConfig(names), artifact, async (stage) => {
+  return withStage(copyConfig(names, artifact), artifact, async (stage) => {
     const next = await provision(stage, names, record);
     await cloudflare(stage, applyMigrations(names.name));
 

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import { requiredEnv } from "./env.ts";
+import { callTimeout } from "./timeout.ts";
 
 const COPY_NAME = /^threadsift-pr-(?<pr>[0-9]+)(?:-jobs|-files)?$/u;
 
@@ -27,9 +28,10 @@ export interface Stage {
 export type Command =
   | {
       readonly kind: "wrangler";
+      readonly subcommand: readonly string[];
       readonly names: readonly string[];
-      readonly args: readonly string[];
-      readonly env?: Readonly<Record<string, string>>;
+      readonly flags: readonly string[];
+      readonly env: Readonly<Record<string, string>>;
     }
   | { readonly kind: "delete-worker"; readonly names: readonly [string] };
 
@@ -49,31 +51,34 @@ export function prOf(name: string): number {
   return Number(COPY_NAME.exec(name)?.groups?.["pr"]);
 }
 
-function wranglerCommand(names: readonly string[], args: readonly string[]): Command {
-  return { kind: "wrangler", names, args };
+function wranglerCommand(
+  subcommand: readonly string[],
+  names: readonly string[],
+  flags: readonly string[] = [],
+  env: Readonly<Record<string, string>> = {},
+): Command {
+  return { kind: "wrangler", subcommand, names, flags, env };
 }
 
-export const createQueue = (queue: string) => wranglerCommand([queue], ["queues", "create", queue]);
+export const createQueue = (queue: string) => wranglerCommand(["queues", "create"], [queue]);
 
-export const deleteQueue = (queue: string) => wranglerCommand([queue], ["queues", "delete", queue]);
+export const deleteQueue = (queue: string) => wranglerCommand(["queues", "delete"], [queue]);
 
 export const removeConsumer = (queue: string, worker: string) =>
-  wranglerCommand([queue, worker], ["queues", "consumer", "remove", queue, worker]);
+  wranglerCommand(["queues", "consumer", "remove"], [queue, worker]);
 
-export const createDatabase = (name: string) => wranglerCommand([name], ["d1", "create", name]);
+export const createDatabase = (name: string) => wranglerCommand(["d1", "create"], [name]);
 
 export const deleteDatabase = (name: string) =>
-  wranglerCommand([name], ["d1", "delete", name, "--skip-confirmation"]);
+  wranglerCommand(["d1", "delete"], [name], ["--skip-confirmation"]);
 
 export const applyMigrations = (name: string) =>
-  wranglerCommand([name], ["d1", "migrations", "apply", name, "--remote"]);
+  wranglerCommand(["d1", "migrations", "apply"], [name], ["--remote"]);
 
-export const deployWorker = (secretsFile: string, outputFile: string): Command => ({
-  kind: "wrangler",
-  names: [],
-  args: ["deploy", "--secrets-file", secretsFile],
-  env: { WRANGLER_OUTPUT_FILE_PATH: outputFile },
-});
+export const deployWorker = (secretsFile: string, outputFile: string) =>
+  wranglerCommand(["deploy"], [], ["--secrets-file", secretsFile], {
+    WRANGLER_OUTPUT_FILE_PATH: outputFile,
+  });
 
 export const deleteWorker = (worker: string): Command => ({
   kind: "delete-worker",
@@ -95,7 +100,7 @@ function refuseOutsideCopies(names: readonly string[]): void {
 function runWrangler(
   stage: Readonly<Stage>,
   args: readonly string[],
-  env: Readonly<Record<string, string>> = {},
+  env: Readonly<Record<string, string>>,
 ): Promise<void> {
   const argv = [...args, "--config", stage.configPath];
 
@@ -139,6 +144,7 @@ async function accountRequest(method: "GET" | "DELETE", path: string): Promise<R
   const response = await fetch(`${API}/accounts/${requiredEnv("CLOUDFLARE_ACCOUNT_ID")}/${path}`, {
     method,
     headers: { authorization: `Bearer ${requiredEnv("CLOUDFLARE_API_TOKEN")}` },
+    signal: callTimeout(),
   });
 
   if (!response.ok) {
@@ -155,7 +161,11 @@ export async function cloudflare(
   refuseOutsideCopies([...stage.names, ...command.names]);
 
   if (command.kind === "wrangler") {
-    await runWrangler(stage, command.args, command.env);
+    await runWrangler(
+      stage,
+      [...command.subcommand, ...command.names, ...command.flags],
+      command.env,
+    );
 
     return;
   }

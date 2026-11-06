@@ -15,7 +15,7 @@ concurrency:
 permissions: {}
 
 jobs:
-  deploy:
+  check:
     if: >-
       github.repository == 'KyaniteHQ/threadsift' &&
       github.event_name == 'workflow_run' &&
@@ -23,13 +23,11 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment: preview
+    timeout-minutes: 5
     permissions:
-      actions: read
-      contents: read
-      deployments: write
       pull-requests: read
+    outputs:
+      current: ${{ steps.head.outputs.current }}
     steps:
       - name: Check that the gate ran on the pull request's current head
         id: head
@@ -44,23 +42,31 @@ jobs:
           else
             echo "No changes: pull request $PR is at $current now"
           fi
-      - if: steps.head.outputs.current == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+  deploy:
+    needs: check
+    if: needs.check.outputs.current == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: preview
+    permissions:
+      actions: read
+      contents: read
+      deployments: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - if: steps.head.outputs.current == 'true'
-        uses: ./.github/actions/setup-devenv
-      - if: steps.head.outputs.current == 'true'
-        run: devenv tasks run ci:install
-      - if: steps.head.outputs.current == 'true'
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: ./.github/actions/setup-devenv
+      - run: devenv tasks run ci:install
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: pr-copy
           path: ${{ runner.temp }}/pr-copy
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
       - name: Deploy the copy
-        if: steps.head.outputs.current == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

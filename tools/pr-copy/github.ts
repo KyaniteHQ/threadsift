@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { type CopyRecord, CopyRecordSchema, type DeployedCopy } from "./copy.ts";
 import { requiredEnv } from "./env.ts";
+import { callTimeout } from "./timeout.ts";
 
 const ENVIRONMENT = "pr-copy";
 const PER_PAGE = 100;
@@ -19,7 +20,11 @@ const PullSchema = z.object({
 
 type Pull = z.infer<typeof PullSchema>;
 
-const DeploymentSchema = z.object({ id: z.number().int(), payload: z.unknown() });
+const DeploymentSchema = z.object({
+  id: z.number().int(),
+  created_at: z.iso.datetime(),
+  payload: z.unknown(),
+});
 
 type Deployment = Readonly<z.infer<typeof DeploymentSchema>>;
 
@@ -59,6 +64,7 @@ async function github<Body>(path: string, schema: z.ZodType<Body>, body?: string
       "x-github-api-version": "2022-11-28",
     },
     body: body ?? null,
+    signal: callTimeout(),
   });
 
   if (!response.ok) {
@@ -126,10 +132,11 @@ export function staleReason(head: Readonly<PullHead>, pull: Readonly<Pull>): str
   return null;
 }
 
-function deploymentsPage(pr: number, page: number): Promise<Deployment[]> {
+async function deployments(pr: number, page = 1): Promise<Deployment[]> {
   const query = `environment=${ENVIRONMENT}&task=${encodeURIComponent(task(pr))}&per_page=${String(PER_PAGE)}&page=${String(page)}`;
+  const rows = await github(`deployments?${query}`, z.array(DeploymentSchema));
 
-  return github(`deployments?${query}`, z.array(DeploymentSchema));
+  return rows.length < PER_PAGE ? rows : [...rows, ...(await deployments(pr, page + 1))];
 }
 
 async function latestState(id: number): Promise<string | undefined> {
@@ -141,13 +148,11 @@ async function latestState(id: number): Promise<string | undefined> {
   return statuses[0]?.state;
 }
 
-async function recordIn(
-  deployments: readonly Deployment[],
-): Promise<CopyRecord | null | undefined> {
-  const [newest, ...older] = deployments;
+async function recordIn(newestFirst: readonly Deployment[]): Promise<CopyRecord | null> {
+  const [newest, ...older] = newestFirst;
 
   if (newest === undefined) {
-    return undefined;
+    return null;
   }
 
   const record = CopyRecordSchema.safeParse(newest.payload);
@@ -165,15 +170,12 @@ async function recordIn(
   return state === "inactive" ? null : recordIn(older);
 }
 
-export async function lastRecord(pr: number, page = 1): Promise<CopyRecord | null> {
-  const deployments = await deploymentsPage(pr, page);
-  const record = await recordIn(deployments);
+export async function lastRecord(pr: number): Promise<CopyRecord | null> {
+  const newestFirst = (await deployments(pr)).toSorted(
+    (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
+  );
 
-  if (record !== undefined) {
-    return record;
-  }
-
-  return deployments.length < PER_PAGE ? null : lastRecord(pr, page + 1);
+  return recordIn(newestFirst);
 }
 
 export async function postDeployment(
@@ -202,12 +204,8 @@ export async function postDeployment(
   );
 }
 
-export async function markInactive(pr: number, page = 1): Promise<void> {
-  const deployments = await deploymentsPage(pr, page);
+export async function markInactive(pr: number): Promise<void> {
+  const all = await deployments(pr);
 
-  await Promise.all(deployments.map(({ id }) => postStatus(id, { state: "inactive" })));
-
-  if (deployments.length === PER_PAGE) {
-    await markInactive(pr, page + 1);
-  }
+  await Promise.all(all.map(({ id }) => postStatus(id, { state: "inactive" })));
 }

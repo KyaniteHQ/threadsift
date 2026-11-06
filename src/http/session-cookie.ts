@@ -6,8 +6,6 @@ import { SESSION_MAX_AGE_SECONDS, checkSession } from "../core/sessions.ts";
 
 const COOKIE_NAME = "threadsift_session";
 
-export const SESSION_COOKIE = `__Host-${COOKIE_NAME}`;
-
 const ATTRIBUTES = {
   prefix: "host",
   httpOnly: true,
