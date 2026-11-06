@@ -20,6 +20,7 @@ import {
   deleteWorker,
   deployWorker,
   inventory,
+  workerSecretNames,
   prOf,
   removeConsumer,
 } from "./cloudflare.ts";
@@ -39,7 +40,6 @@ export const CopyRecordSchema = z
   .object({
     databaseId: z.string().min(1),
     migrations: MigrationHashesSchema,
-    secretKeySet: z.boolean().default(false),
   })
   .readonly();
 
@@ -160,7 +160,7 @@ async function provision(
   stage: Readonly<Stage>,
   names: Readonly<CopyNames>,
   record: CopyRecord | null,
-): Promise<CopyRecord> {
+) {
   const hashes = migrationHashes(stage.dir);
   let found = await inventory();
   refuseOverCapacity(found, names);
@@ -183,9 +183,8 @@ async function provision(
   await runCommands(stage, [creates], { keepGoing: false });
 
   return {
-    databaseId: existing ?? (await databaseId(names.name)),
-    migrations: hashes,
-    secretKeySet: existing !== undefined && record?.secretKeySet === true,
+    record: { databaseId: existing ?? (await databaseId(names.name)), migrations: hashes },
+    secrets: found.workers.includes(names.name) ? await workerSecretNames(names.name) : [],
   };
 }
 
@@ -197,13 +196,13 @@ interface CopySecrets {
 async function publish(
   stage: Readonly<Stage>,
   setupCode: string,
-  secretKeySet: boolean,
+  secretNames: readonly string[],
 ): Promise<string> {
   const secretsFile = join(stage.dir, "secrets.json");
   const outputFile = join(stage.dir, "output.jsonl");
   const secrets: CopySecrets = { SETUP_CODE: setupCode };
 
-  if (!secretKeySet) {
+  if (!secretNames.includes("THREADSIFT_SECRET_KEY")) {
     secrets.THREADSIFT_SECRET_KEY = randomBytes(32).toString("hex");
   }
 
@@ -240,10 +239,10 @@ export function deployCopy(
     await cloudflare(stage, applyMigrations(names.name));
 
     const setupCode = randomBytes(24).toString("base64url");
-    const url = await publish(stage, setupCode, next.secretKeySet);
+    const url = await publish(stage, setupCode, next.secrets);
     await seedDemo(url, setupCode);
 
-    return { url, record: { ...next, secretKeySet: true } };
+    return { url, record: next.record };
   });
 }
 

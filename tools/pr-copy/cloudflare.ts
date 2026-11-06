@@ -239,3 +239,14 @@ export async function databaseId(name: string): Promise<string> {
 
   return database.uuid;
 }
+
+export async function workerSecretNames(worker: string): Promise<string[]> {
+  refuseOutsideCopies([worker]);
+
+  const body = await cloudflareGet(
+    `workers/scripts/${worker}/secrets`,
+    PageSchema.extend({ result: z.array(z.object({ name: z.string() })) }),
+  );
+
+  return body.result.map((entry) => entry.name);
+}

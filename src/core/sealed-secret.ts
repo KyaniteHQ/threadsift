@@ -50,5 +50,7 @@ export async function sealedSecrets(configured: string | undefined) {
         return null;
       }
     },
-  };
+  } as const;
 }
+
+export type Sealer = NonNullable<Awaited<ReturnType<typeof sealedSecrets>>>;

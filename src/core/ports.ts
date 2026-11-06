@@ -1,8 +1,9 @@
-import type { OpenAICompatibleProviderSettings } from "@ai-sdk/openai-compatible";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
+import type { AiExecution, AiTaskRequest } from "./ai-contract.ts";
 import type { ArticleReading } from "./article.ts";
+import type { Sealer } from "./sealed-secret.ts";
 
 export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
 
@@ -53,6 +54,20 @@ export interface Crypto {
   readonly equal: (left: Uint8Array, right: Uint8Array) => boolean;
 }
 
+export interface AiNetwork {
+  readonly publicOnly: boolean;
+  readonly allows: (url: string) => boolean;
+  readonly fetch: typeof fetch;
+}
+
+export interface AiExecutor {
+  readonly name: "http";
+  readonly run: <Result>(
+    task: AiTaskRequest<Result>,
+    signal: AbortSignal,
+  ) => Promise<AiExecution<Result>>;
+}
+
 export interface Ports {
   readonly db: Database;
   readonly network: Network;
@@ -60,11 +75,9 @@ export interface Ports {
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
   readonly setupCode: string | undefined;
-  readonly secretKey: string | undefined;
-  readonly ai: {
-    readonly publicOnly: boolean;
-    readonly fetch: NonNullable<OpenAICompatibleProviderSettings["fetch"]>;
-  };
+  readonly secrets: Sealer | null;
+  readonly ai: AiNetwork;
+  readonly executor: AiExecutor;
 }
 
 export const REQUEST_HEADERS = {

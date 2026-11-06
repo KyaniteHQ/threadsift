@@ -5,6 +5,7 @@ import { createInterface } from "node:readline";
 import { z } from "zod";
 
 import type { Instance } from "./access.ts";
+import { nodeInAppNetwork } from "./target.ts";
 
 const SOURCE = `
 const http = require("node:http");
@@ -40,7 +41,7 @@ process.stdin.on("end", () => {source.close();target.close();});
 
 const Announcement = z.object({ port: z.number() });
 
-export const RedirectStats = z.object({
+const RedirectStats = z.object({
   sourceRequests: z.number(),
   sourceCredential: z.boolean(),
   targetRequests: z.number(),
@@ -48,8 +49,7 @@ export const RedirectStats = z.object({
 });
 
 export async function redirectListener(instance: Instance) {
-  const [command, ...args] =
-    instance.appExec === "" ? ["node"] : [...instance.appExec.split(" "), "node"];
+  const { command, args } = nodeInAppNetwork(instance);
 
   const child = spawn(command, [...args, "-e", SOURCE]);
   const lines = createInterface({ input: child.stdout });

@@ -1,4 +1,6 @@
 export const AI_TEXT = {
+  publicUrlHelp:
+    "Use a public HTTPS address. A private address such as Ollama on your home network works only in the container.",
   title: "AI",
   intro:
     "Choose a Provider and save, then run Verify for a small real Digest. It does not add an Item.",
@@ -20,7 +22,7 @@ export const AI_TEXT = {
   verified: "Digest received.",
   loadFailed: "Couldn’t load AI settings. Reload this page to try again.",
   failed: "Couldn’t save or verify. Try again.",
-  secretMissing:
+  "secret-missing":
     "This Instance has a missing, malformed or changed THREADSIFT_SECRET_KEY. Set it in the container environment or as a Worker secret to 32 random bytes encoded as 64 hex characters, or restore the original key if already saved. Then reload this page.",
   "wrong-key": "Wrong API key. Check the API key and save again.",
   "model-not-found": "Model not found. Check the model and save again.",

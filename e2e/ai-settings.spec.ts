@@ -1,14 +1,18 @@
 import { type TestInfo, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { AiSettingsViewSchema, VerifyResultSchema } from "../src/core/ai-contract.ts";
+import { DigestSchema, AiSettingsViewSchema, VerifyResultSchema } from "../src/core/ai-contract.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
 import { createToken } from "./access-helpers.ts";
 import { newCode, newPassword } from "./access.ts";
 import {
-  aiCall,
+  AI_SETTINGS_ENDPOINT,
+  AI_VERIFY_ENDPOINT,
+  aiJson,
   aiScreen,
   assertNoSecret,
+  countRows,
+  sealedKey,
   newSealingKey,
   proofProvider,
   saveInBrowser,
@@ -30,29 +34,22 @@ test.afterEach(async () => {
   await screen?.close();
 });
 
-const endpoint = "/api/settings/ai";
-const verifyEndpoint = `${endpoint}/verify`;
-const Counts = z.array(z.object({ count: z.number() }));
-
-function countRows(table: string): number {
-  return screen.fresh.query(`SELECT count(*) AS count FROM ${table}`, Counts)[0]?.count ?? -1;
-}
-
 test("AI settings refuse a missing or malformed sealing key without a write", async ({
   browser,
 }) => {
   for (const secret of [undefined, "malformed"] as const) {
     screen = await aiScreen(browser, secret);
     await screen.page.goto("/settings");
-    await expect(screen.page.getByText(AI_TEXT.secretMissing, { exact: true })).toBeVisible();
+    await expect(screen.page.getByText(AI_TEXT["secret-missing"], { exact: true })).toBeVisible();
     await expect(
       screen.page.getByRole("button", { name: AI_TEXT.save, exact: true }),
     ).toBeDisabled();
 
-    const raw = await aiCall(
+    const result = await aiJson(
       screen,
+      VerifyResultSchema,
       "PUT",
-      endpoint,
+      AI_SETTINGS_ENDPOINT,
       JSON.stringify({
         provider: "openai-compatible",
         baseUrl: "https://example.com",
@@ -61,12 +58,8 @@ test("AI settings refuse a missing or malformed sealing key without a write", as
       }),
     );
 
-    expect(VerifyResultSchema.parse(JSON.parse(raw))).toEqual({
-      kind: "refused",
-      reason: "secret-missing",
-      status: null,
-    });
-    expect(countRows("settings")).toBe(0);
+    expect(result).toEqual({ kind: "refused", reason: "secret-missing", status: null });
+    expect(countRows(screen, "settings")).toBe(0);
     await screen.close();
   }
 });
@@ -76,11 +69,11 @@ test("agent tokens cannot read, save or Verify AI settings", async ({ browser })
   const token = await createToken(screen.context.request, "AI access proof");
 
   for (const [method, path] of [
-    ["GET", endpoint],
-    ["PUT", endpoint],
-    ["POST", verifyEndpoint],
+    ["GET", AI_SETTINGS_ENDPOINT],
+    ["PUT", AI_SETTINGS_ENDPOINT],
+    ["POST", AI_VERIFY_ENDPOINT],
   ] as const) {
-    const response = await fetch(new URL(path ?? "", screen.fresh.url), {
+    const response = await fetch(new URL(path, screen.fresh.url), {
       method,
       headers: { authorization: `Bearer ${token.value}` },
     });
@@ -92,44 +85,30 @@ test("agent tokens cannot read, save or Verify AI settings", async ({ browser })
 type ProofProvider = Readonly<ReturnType<typeof proofProvider>>;
 
 async function retainAndRestart(provider: ProofProvider): Promise<void> {
-  const first =
-    screen.fresh.query(
-      "SELECT sealed_key AS value FROM settings",
-      z.array(z.object({ value: z.string() })),
-    )[0]?.value ?? "";
-
+  const first = sealedKey(screen);
   expect(first.startsWith("v1.")).toBe(true);
   expect(first.includes(provider.key), "database contains no plaintext key").toBe(false);
 
-  const resealed = AiSettingsViewSchema.parse(
-    JSON.parse(
-      await aiCall(
-        screen,
-        "PUT",
-        endpoint,
-        JSON.stringify({
-          provider: "openai-compatible",
-          baseUrl: provider.baseUrl,
-          model: provider.model,
-        }),
-      ),
-    ),
+  const resealed = await aiJson(
+    screen,
+    AiSettingsViewSchema,
+    "PUT",
+    AI_SETTINGS_ENDPOINT,
+    JSON.stringify({
+      provider: "openai-compatible",
+      baseUrl: provider.baseUrl,
+      model: provider.model,
+    }),
   );
 
   expect(resealed.settings?.keySet).toBe(true);
-
-  const second =
-    screen.fresh.query(
-      "SELECT sealed_key AS value FROM settings",
-      z.array(z.object({ value: z.string() })),
-    )[0]?.value ?? "";
-
-  expect(first === second, "a fresh IV changes the ciphertext when retaining the same key").toBe(
-    false,
-  );
+  expect(
+    first === sealedKey(screen),
+    "a fresh IV changes the ciphertext when retaining the same key",
+  ).toBe(false);
   screen.fresh.restart();
   await screen.page.reload();
-  const read = AiSettingsViewSchema.parse(JSON.parse(await aiCall(screen, "GET", endpoint)));
+  const read = await aiJson(screen, AiSettingsViewSchema, "GET", AI_SETTINGS_ENDPOINT);
   expect(read.settings?.keySet).toBe(true);
   expect(read.secretReady).toBe(true);
 }
@@ -139,7 +118,7 @@ async function verifyDigest(info: TestInfo): Promise<void> {
   await expect(screen.page.getByText(AI_TEXT.verified, { exact: true })).toBeVisible({
     timeout: 120_000,
   });
-  expect(countRows("items")).toBe(0);
+  expect(countRows(screen, "items")).toBe(0);
 
   const task = screen.fresh.query(
     "SELECT state, result, attempts FROM ai_tasks",
@@ -148,20 +127,8 @@ async function verifyDigest(info: TestInfo): Promise<void> {
 
   expect(task[0]?.state).toBe("done");
   expect(task[0]?.attempts).toBe(1);
-
-  const stored = z
-    .object({
-      title: z.string(),
-      topic: z.string(),
-      tags: z.array(z.string()).max(3),
-      summary: z.string(),
-      keyPoints: z.array(z.string()).min(1),
-    })
-    .parse(JSON.parse(task[0]?.result ?? "null"));
-
-  const result = VerifyResultSchema.parse({ kind: "done", taskId: 1, digest: stored });
-  expect(result.kind).toBe("done");
-  await info.attach("digest", { body: JSON.stringify(result), contentType: "application/json" });
+  const digest = DigestSchema.parse(JSON.parse(task[0]?.result ?? "null"));
+  await info.attach("digest", { body: JSON.stringify(digest), contentType: "application/json" });
 }
 
 async function refuseWrongKey(
@@ -172,12 +139,11 @@ async function refuseWrongKey(
   await saveInBrowser(screen, wrong, provider.baseUrl);
 
   const responsePromise = screen.page.waitForResponse((response) =>
-    response.url().endsWith(verifyEndpoint),
+    response.url().endsWith(AI_VERIFY_ENDPOINT),
   );
 
   await screen.page.getByRole("button", { name: AI_TEXT.verify, exact: true }).click();
-  const response = await responsePromise;
-  const raw = await response.text();
+  const raw = await (await responsePromise).text();
   expect(VerifyResultSchema.parse(JSON.parse(raw))).toEqual({
     kind: "refused",
     reason: "wrong-key",
@@ -229,14 +195,36 @@ test("saved keys are sealed, survive restart, and Verify returns a real Digest o
   const provider = proofProvider();
   const wrong = process.env["THREADSIFT_WRONG_AI_KEY"] ?? newSealingKey();
   await saveInBrowser(screen, provider.key, provider.baseUrl);
-
   await retainAndRestart(provider);
   await verifyDigest(info);
   await refuseWrongKey(wrong, provider, info);
   screen.fresh.sql("UPDATE settings SET sealed_key = 'v1.invalid.invalid'");
   await screen.page.reload();
-  await expect(screen.page.getByText(AI_TEXT.secretMissing, { exact: true })).toBeVisible();
-  expect(
-    VerifyResultSchema.parse(JSON.parse(await aiCall(screen, "POST", verifyEndpoint))).kind,
-  ).toBe("refused");
+  await expect(screen.page.getByText(AI_TEXT["secret-missing"], { exact: true })).toBeVisible();
+  expect((await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).kind).toBe(
+    "refused",
+  );
+});
+
+test("the OpenRouter row saves without a caller-supplied base URL", async ({ browser }) => {
+  screen = await aiScreen(browser, newSealingKey());
+  await screen.page.goto("/settings");
+
+  const saved = await aiJson(
+    screen,
+    AiSettingsViewSchema,
+    "PUT",
+    AI_SETTINGS_ENDPOINT,
+    JSON.stringify({ provider: "openrouter", model: "shape-proof", key: "openrouter-shape-proof" }),
+  );
+
+  expect(saved.settings).toEqual({
+    provider: "openrouter",
+    baseUrl: "https://openrouter.ai/api/v1",
+    model: "shape-proof",
+    keySet: true,
+  });
+  await screen.page.reload();
+  await expect(screen.page.getByLabel(AI_TEXT.provider, { exact: true })).toHaveValue("openrouter");
+  await expect(screen.page.getByLabel(AI_TEXT.baseUrl, { exact: true })).toHaveCount(0);
 });

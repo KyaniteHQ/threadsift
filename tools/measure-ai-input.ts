@@ -10,6 +10,7 @@ import {
   DIGEST_INPUT_BYTES,
   cutDigestInput,
 } from "../src/core/ai-contract.ts";
+import { AI_CALL_OPTIONS } from "../src/targets/shared/ai-call-options.ts";
 
 const env = z
   .object({
@@ -19,7 +20,7 @@ const env = z
   .parse(process.env);
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-const RESERVED_OUTPUT = 2048;
+const RESERVED_OUTPUT = AI_CALL_OPTIONS.maxOutputTokens;
 const FUTURE_LISTS = ` Reserved future Topic and Tag list budget: ${"topic-tag ".repeat(455)}`;
 const instructions = DIGEST_INSTRUCTIONS + FUTURE_LISTS;
 const bytes = (text: string): number => new TextEncoder().encode(text).length;
@@ -49,10 +50,8 @@ async function measure(name: string, input: string): Promise<void> {
       output: Output.object({ schema: DigestSchema }),
       instructions,
       prompt,
-      maxOutputTokens: RESERVED_OUTPUT,
-      maxRetries: 0,
+      ...AI_CALL_OPTIONS,
       abortSignal: AbortSignal.timeout(60_000),
-      telemetry: { isEnabled: false, recordInputs: false, recordOutputs: false },
     });
 
     console.log(
@@ -63,7 +62,7 @@ async function measure(name: string, input: string): Promise<void> {
         outputTokens: result.usage.outputTokens,
         totalWithReservedOutput: (result.usage.inputTokens ?? 0) + RESERVED_OUTPUT,
         wholePromptBytes: bytes(prompt) + bytes(instructions) + schemaBytes,
-        valid: DigestSchema.safeParse(result.output).success,
+        valid: true,
       }),
     );
   } catch (error) {

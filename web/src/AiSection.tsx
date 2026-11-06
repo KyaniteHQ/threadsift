@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type SubmitEvent } from "react";
 
 import { type Digest } from "../../src/core/ai-contract.ts";
 import { type AiView, fetchAiSettings } from "./ai-api.ts";
@@ -30,37 +30,51 @@ function DigestResult({ digest }: Readonly<{ digest: Readonly<Digest> }>) {
 }
 
 function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView) => void }>) {
-  const { fields, result, busy, verifying, onSubmit, onVerify } = useAiForm(view, saved);
+  const { fields, result, busy, guard, save, verify } = useAiForm(view, saved);
 
-  const { message, error, digest } = result;
+  const onSubmit = useCallback(
+    (event: SubmitEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      guard(save);
+    },
+    [guard, save],
+  );
+
+  const onVerify = useCallback(() => {
+    guard(verify);
+  }, [guard, verify]);
 
   return (
     <>
-      <form method="post" action="/api/settings/ai" className="stack ai-form" onSubmit={onSubmit}>
-        <AiFields fields={fields} disabled={busy || verifying} />
+      <form
+        method="post"
+        action="/api/settings/ai"
+        className="stack ai-form"
+        onSubmit={onSubmit}
+        aria-busy={busy}
+      >
+        <AiFields fields={fields} disabled={busy} publicOnly={view.publicOnly} />
         <p>{view.settings?.keySet === true ? AI_TEXT.keySet : AI_TEXT.keyMissing}</p>
-        <Alert text={view.secretReady ? null : AI_TEXT.secretMissing} />
+        <Alert text={view.secretReady ? null : AI_TEXT["secret-missing"]} />
         <div className="ai-actions">
-          <button
-            className="btn btn-acc"
-            disabled={busy || verifying || !view.secretReady}
-            type="submit"
-          >
-            {busy ? AI_TEXT.saving : AI_TEXT.save}
+          <button className="btn btn-acc" disabled={busy || !view.secretReady} type="submit">
+            {AI_TEXT.save}
           </button>
           <button
             className="btn"
-            disabled={busy || verifying || !view.secretReady || view.settings === null}
+            disabled={busy || !view.secretReady || view.settings === null}
             type="button"
             onClick={onVerify}
           >
-            {verifying ? AI_TEXT.verifying : AI_TEXT.verify}
+            {AI_TEXT.verify}
           </button>
         </div>
       </form>
-      <output>{message}</output>
-      <Alert text={error} />
-      {digest === null ? null : <DigestResult digest={digest} />}
+      <output>{result?.kind === "ok" ? result.text : null}</output>
+      <Alert text={result?.kind === "error" ? result.text : null} />
+      {result?.kind === "ok" && result.digest !== undefined ? (
+        <DigestResult digest={result.digest} />
+      ) : null}
     </>
   );
 }

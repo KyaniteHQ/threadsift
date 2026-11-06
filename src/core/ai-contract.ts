@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 const ShortText = z.string().trim().min(1).max(240);
+export const AI_URL_MAX = 2048;
+export const AI_MODEL_MAX = 240;
+export const AI_KEY_MAX = 4096;
 
 export const DigestSchema = z.object({
   title: ShortText,
@@ -15,16 +18,36 @@ export const DigestSchema = z.object({
   keyPoints: z.array(z.string().trim().min(1).max(1200)).min(1).max(12).readonly(),
 });
 
-export const ProviderSchema = z.enum(["openai-compatible", "openrouter"]);
+const Model = z.string().trim().min(1).max(AI_MODEL_MAX);
+const Key = z.string().min(1).max(AI_KEY_MAX).optional();
 
-export const AiSettingsInputSchema = z.object({
-  provider: ProviderSchema,
-  baseUrl: z.url().max(2048),
-  model: z.string().trim().min(1).max(240),
-  key: z.string().min(1).max(4096).optional(),
-});
+export const PROVIDERS = {
+  "openai-compatible": {
+    id: "openai-compatible",
+    label: "compatible",
+    url: null,
+    fields: { baseUrl: z.url().max(AI_URL_MAX), model: Model, key: Key },
+  },
+  openrouter: {
+    id: "openrouter",
+    label: "openrouter",
+    url: "https://openrouter.ai/api/v1",
+    fields: { model: Model, key: Key },
+  },
+} as const;
 
-export const AI_REFUSALS = [
+export const ProviderSchema = z.enum([PROVIDERS["openai-compatible"].id, PROVIDERS.openrouter.id]);
+export const AiFieldSchema = z.object(PROVIDERS["openai-compatible"].fields).keyof();
+
+export const AiSettingsInputSchema = z.discriminatedUnion("provider", [
+  z.object({
+    provider: z.literal(PROVIDERS["openai-compatible"].id),
+    ...PROVIDERS["openai-compatible"].fields,
+  }),
+  z.object({ provider: z.literal(PROVIDERS.openrouter.id), ...PROVIDERS.openrouter.fields }),
+]);
+
+export const AiRefusalSchema = z.enum([
   "wrong-key",
   "model-not-found",
   "no-json",
@@ -33,9 +56,7 @@ export const AI_REFUSALS = [
   "refused",
   "not-configured",
   "secret-missing",
-] as const;
-
-export const AiRefusalSchema = z.enum(AI_REFUSALS);
+]);
 
 export type AiRefusal = z.infer<typeof AiRefusalSchema>;
 
@@ -56,14 +77,42 @@ export const AiSettingsViewSchema = z.object({
   publicOnly: z.boolean(),
 });
 
+export type AiSettingsView = z.infer<typeof AiSettingsViewSchema>;
+
+const AiRefusedSchema = z.object({
+  kind: z.literal("refused"),
+  reason: AiRefusalSchema,
+  status: z.number().int().nullable(),
+});
+
 export const VerifyResultSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("done"), taskId: z.number().int(), digest: DigestSchema }),
-  z.object({
-    kind: z.literal("refused"),
-    reason: AiRefusalSchema,
-    status: z.number().int().nullable(),
-  }),
+  AiRefusedSchema,
 ]);
+
+export type AiRefused = Extract<z.infer<typeof VerifyResultSchema>, { readonly kind: "refused" }>;
+
+export const AiSaveResponseSchema = z.union([AiSettingsViewSchema, AiRefusedSchema]);
+
+export function refusedAi(reason: AiRefusal, status: number | null = null): AiRefused {
+  return { kind: "refused", reason, status };
+}
+
+export interface AiConnection {
+  readonly provider: z.infer<typeof ProviderSchema>;
+  readonly baseUrl: string;
+  readonly model: string;
+  readonly key: string;
+}
+
+export type AiExecution<Result> = { readonly kind: "done"; readonly result: Result } | AiRefused;
+
+export interface AiTaskRequest<Result> {
+  readonly config: AiConnection;
+  readonly instructions: string;
+  readonly schema: z.ZodType<Result>;
+  readonly input: string;
+}
 
 export const AI_DEADLINE_MS = 10 * 60 * 1000;
 
@@ -76,7 +125,7 @@ export const DIGEST_INSTRUCTIONS =
 export const DIGEST_INPUT_BYTES = 14_000;
 
 export function cutDigestInput(input: string): string {
-  const bytes = new TextEncoder().encode(input);
+  const bytes = new TextEncoder().encode(input.slice(0, DIGEST_INPUT_BYTES));
 
   return new TextDecoder().decode(bytes.subarray(0, DIGEST_INPUT_BYTES), { stream: true });
 }

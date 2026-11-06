@@ -6,6 +6,7 @@ interface InputKind {
   readonly name: string;
   readonly type: "text" | "password" | "url";
   readonly required?: boolean;
+  readonly pattern?: string | undefined;
   readonly autoComplete: string;
   readonly mono?: true;
   readonly maxLength?: number | undefined;
@@ -42,6 +43,7 @@ function Input({
       className={kind.mono === true ? "mono" : undefined}
       maxLength={kind.maxLength}
       required={kind.required}
+      pattern={kind.pattern}
       value={value}
       aria-invalid={error === null ? undefined : true}
       aria-describedby={described}

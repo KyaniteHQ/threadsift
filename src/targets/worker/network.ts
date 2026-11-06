@@ -1,5 +1,4 @@
 import { type Network, REQUEST_HEADERS } from "../../core/ports.ts";
-import { aiTransport } from "../shared/ai-transport.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
 const CLOUDFLARE_ERROR_PAGE = /^error code: 1[0-9]{3}\s*$/u;
@@ -37,8 +36,7 @@ async function refuseUnreachableOrigin(url: string, response: Response): Promise
 
 export const workerNetwork: Network = {
   get: async (url, signal) => {
-    const response = await fetch(url, { redirect: "manual", signal, headers: REQUEST_HEADERS });
-    await refuseUnreachableOrigin(url, response);
+    const response = await workerFetch(url, { signal, headers: REQUEST_HEADERS });
 
     return {
       status: response.status,
@@ -49,4 +47,10 @@ export const workerNetwork: Network = {
   },
 };
 
-export const workerAi = { publicOnly: true, fetch: aiTransport(true) } as const;
+export const workerFetch: typeof fetch = async (input, init) => {
+  const request = new Request(input, init);
+  const response = await fetch(request, { redirect: "manual" });
+  await refuseUnreachableOrigin(request.url, response);
+
+  return response;
+};

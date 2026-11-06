@@ -1,28 +1,24 @@
 import { expect, test } from "@playwright/test";
-import { z } from "zod";
 
 import { AiSettingsViewSchema, VerifyResultSchema } from "../src/core/ai-contract.ts";
 import { redirectListener } from "./ai-redirect.ts";
-import { aiCall, aiScreen, newSealingKey, saveInBrowser } from "./ai.ts";
+import {
+  AI_SETTINGS_ENDPOINT,
+  AI_VERIFY_ENDPOINT,
+  aiJson,
+  aiScreen,
+  countRows,
+  newSealingKey,
+  saveInBrowser,
+} from "./ai.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { isContainerTarget } from "./target.ts";
 
 let screen: FreshScreen;
-const endpoint = "/api/settings/ai";
-const verifyEndpoint = `${endpoint}/verify`;
 
 test.afterEach(async () => {
   await screen?.close();
 });
-
-function countRows(table: string): number {
-  return (
-    screen.fresh.query(
-      `SELECT count(*) AS count FROM ${table}`,
-      z.array(z.object({ count: z.number() })),
-    )[0]?.count ?? -1
-  );
-}
 
 test("Worker refuses private and HTTP AI addresses at save and at Verify", async ({ browser }) => {
   test.skip(isContainerTarget(), "The container permits the owner's private AI endpoint.");
@@ -37,9 +33,8 @@ test("Worker refuses private and HTTP AI addresses at save and at Verify", async
   };
 
   expect(
-    AiSettingsViewSchema.parse(
-      JSON.parse(await aiCall(screen, "PUT", endpoint, JSON.stringify(input))),
-    ).settings?.keySet,
+    (await aiJson(screen, AiSettingsViewSchema, "PUT", AI_SETTINGS_ENDPOINT, JSON.stringify(input)))
+      .settings?.keySet,
   ).toBe(true);
 
   for (const baseUrl of [
@@ -49,21 +44,23 @@ test("Worker refuses private and HTTP AI addresses at save and at Verify", async
     "https://localhost",
   ]) {
     expect(
-      VerifyResultSchema.parse(
-        JSON.parse(await aiCall(screen, "PUT", endpoint, JSON.stringify({ ...input, baseUrl }))),
+      await aiJson(
+        screen,
+        VerifyResultSchema,
+        "PUT",
+        AI_SETTINGS_ENDPOINT,
+        JSON.stringify({ ...input, baseUrl }),
       ),
     ).toEqual({ kind: "refused", reason: "refused", status: null });
     screen.fresh.sql(`UPDATE settings SET base_url = '${baseUrl}'`);
-    expect(
-      VerifyResultSchema.parse(JSON.parse(await aiCall(screen, "POST", verifyEndpoint))),
-    ).toEqual({
+    expect(await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).toEqual({
       kind: "refused",
       reason: "refused",
       status: null,
     });
   }
 
-  expect(countRows("ai_tasks")).toBe(0);
+  expect(countRows(screen, "ai_tasks")).toBe(0);
 });
 
 test("the container allows a private AI address and refuses its redirect before the key can reach the target", async ({
@@ -75,8 +72,7 @@ test("the container allows a private AI address and refuses its redirect before 
 
   try {
     await saveInBrowser(screen, "redirect-proof-not-a-provider-key", listener.baseUrl);
-    const raw = await aiCall(screen, "POST", verifyEndpoint);
-    expect(VerifyResultSchema.parse(JSON.parse(raw))).toEqual({
+    expect(await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).toEqual({
       kind: "refused",
       reason: "refused",
       status: null,
@@ -95,4 +91,28 @@ test("the container allows a private AI address and refuses its redirect before 
   } finally {
     await listener.close();
   }
+});
+
+test("an unreachable AI host returns a safe category without an upstream status", async ({
+  browser,
+}) => {
+  screen = await aiScreen(browser, newSealingKey());
+  await screen.page.goto("/settings");
+
+  const input = {
+    provider: "openai-compatible",
+    baseUrl: "https://threadsift-ai-proof.invalid",
+    model: "example",
+    key: "unreachable-proof-key",
+  };
+
+  expect(
+    (await aiJson(screen, AiSettingsViewSchema, "PUT", AI_SETTINGS_ENDPOINT, JSON.stringify(input)))
+      .settings?.keySet,
+  ).toBe(true);
+  expect(await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).toEqual({
+    kind: "refused",
+    reason: "unreachable",
+    status: null,
+  });
 });

@@ -1,7 +1,8 @@
-import { z } from "zod";
+import type { z } from "zod";
 
 import {
   AiSettingsViewSchema,
+  AiSaveResponseSchema,
   VerifyResultSchema,
   type AiSettingsInput,
 } from "../../src/core/ai-contract.ts";
@@ -16,14 +17,14 @@ export function fetchAiSettings(): Promise<AiView> {
 }
 
 export function saveAiSettings(input: Readonly<AiSettingsInput>) {
-  const json = { provider: input.provider, baseUrl: input.baseUrl, model: input.model };
+  const json =
+    "baseUrl" in input
+      ? { provider: input.provider, baseUrl: input.baseUrl, model: input.model }
+      : { provider: input.provider, model: input.model };
 
-  return parsedFrom(
-    "PUT",
-    "/api/settings/ai",
-    z.union([AiSettingsViewSchema, VerifyResultSchema]),
-    { json: input.key === undefined ? json : { ...json, key: input.key } },
-  );
+  return parsedFrom("PUT", "/api/settings/ai", AiSaveResponseSchema, {
+    json: input.key === undefined ? json : { ...json, key: input.key },
+  });
 }
 
 export function verifyAi(): Promise<VerifyResult> {

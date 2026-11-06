@@ -3,12 +3,13 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { type Browser, expect } from "@playwright/test";
+import { z } from "zod";
 
 import { AI_TEXT } from "../web/src/ai-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 
-export const PROOF_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+const PROOF_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
 export async function aiScreen(browser: Browser, secret: string | undefined): Promise<FreshScreen> {
   const previous = process.env["THREADSIFT_SECRET_KEY"];
@@ -86,12 +87,7 @@ export function searchArtifacts(dir: string, keys: readonly string[]): number {
   return count;
 }
 
-export function aiCall(
-  screen: FreshScreen,
-  method: string,
-  path: string,
-  body?: string,
-): Promise<string> {
+function aiCall(screen: FreshScreen, method: string, path: string, body?: string): Promise<string> {
   return screen.page.evaluate(
     async ({ method: verb, path: route, body: data }) => {
       const init: RequestInit = { method: verb, headers: { "content-type": "application/json" } };
@@ -103,4 +99,35 @@ export function aiCall(
     },
     { method, path, body },
   );
+}
+
+export const AI_SETTINGS_ENDPOINT = "/api/settings/ai";
+export const AI_VERIFY_ENDPOINT = `${AI_SETTINGS_ENDPOINT}/verify`;
+
+export function countRows(screen: FreshScreen, table: string): number {
+  return (
+    screen.fresh.query(
+      `SELECT count(*) AS count FROM ${table}`,
+      z.array(z.object({ count: z.number() })),
+    )[0]?.count ?? -1
+  );
+}
+
+export function sealedKey(screen: FreshScreen): string {
+  return (
+    screen.fresh.query(
+      "SELECT sealed_key AS value FROM settings",
+      z.array(z.object({ value: z.string() })),
+    )[0]?.value ?? ""
+  );
+}
+
+export async function aiJson<Result>(
+  screen: FreshScreen,
+  schema: z.ZodType<Result>,
+  method: string,
+  path: string,
+  body?: string,
+): Promise<Result> {
+  return schema.parse(JSON.parse(await aiCall(screen, method, path, body)));
 }

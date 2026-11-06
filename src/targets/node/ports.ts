@@ -1,7 +1,7 @@
 import { randomSecret } from "../../core/encoding.ts";
 import { hasOwner } from "../../core/owner.ts";
 import type { Database, Ports } from "../../core/ports.ts";
-import { aiTransport } from "../shared/ai-transport.ts";
+import { aiRuntime } from "../shared/ai-runtime.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 import { configuredSetupCode } from "../shared/setup-code.ts";
 import { JobLoop } from "./job-loop.ts";
@@ -40,8 +40,7 @@ export async function startNode(
 
   const ports: Ports = {
     db,
-    secretKey,
-    ai: { publicOnly: false, fetch: aiTransport(false) },
+    ...(await aiRuntime({ publicOnly: false, secretKey, request: fetch })),
     network: nodeNetwork,
     pages,
     jobs: loop.queue,
