@@ -111,9 +111,8 @@ export function collectViolations(defaultFont: string): string[] {
   for (const button of document.querySelectorAll(".app .btn:not(.btn-plain), .app .st-reset")) {
     const style = getComputedStyle(button);
 
-    const edge = rgba(
-      button.classList.contains("btn-acc") ? style.backgroundColor : style.borderTopColor,
-    );
+    const filled = button.classList.contains("btn-acc") && rgba(style.backgroundColor)[3] !== 0;
+    const edge = rgba(filled ? style.backgroundColor : style.borderTopColor);
 
     checkRatio(`button edge ${name(button)}`, edge, backdrop(button.parentElement), MARK);
   }

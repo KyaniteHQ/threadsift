@@ -1,0 +1,146 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { crc32, deflateRawSync } from "node:zlib";
+
+import { z } from "zod";
+
+import { zipEntries } from "./zip-entries.ts";
+
+interface Inspection {
+  readonly matches: number;
+  readonly entries: number;
+}
+
+interface ScanResult extends Inspection {
+  readonly files: number;
+}
+
+const EMBEDDED_ZIP = /data:application\/zip;base64,([A-Za-z0-9+/=]+)/gu;
+const ZIP_LOCAL = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+
+function credentialForms(key: string) {
+  const values = [key, `Bearer ${key}`];
+
+  return values.flatMap((value) => [
+    Buffer.from(value),
+    Buffer.from(encodeURIComponent(value)),
+    Buffer.from(Buffer.from(value).toString("base64")),
+    Buffer.from(Buffer.from(value).toString("base64url")),
+  ]);
+}
+
+function inspect(input: Uint8Array, needles: readonly Uint8Array[]): Inspection {
+  const data = Buffer.from(input.buffer, input.byteOffset, input.byteLength);
+  let matches = needles.some((needle) => data.includes(needle)) ? 1 : 0;
+  let entries = 0;
+
+  const embedded = [...data.toString("utf8").matchAll(EMBEDDED_ZIP)].map((match) =>
+    Buffer.from(match[1] ?? "", "base64"),
+  );
+
+  const archives = data.subarray(0, 4).equals(ZIP_LOCAL) ? [data, ...embedded] : embedded;
+
+  for (const archive of archives) {
+    for (const entry of zipEntries(archive)) {
+      const nested = inspect(entry, needles);
+      matches += nested.matches;
+      entries += 1 + nested.entries;
+    }
+  }
+
+  return { matches, entries };
+}
+
+function plantedZip(value: Uint8Array, method: 0 | 8): Buffer {
+  const payload = method === 8 ? deflateRawSync(value) : value;
+  const name = Buffer.from("control");
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50);
+  local.writeUInt16LE(20, 4);
+  local.writeUInt16LE(method, 8);
+  local.writeUInt32LE(crc32(value), 14);
+  local.writeUInt32LE(payload.length, 18);
+  local.writeUInt32LE(value.length, 22);
+  local.writeUInt16LE(name.length, 26);
+  const central = Buffer.alloc(46);
+  central.writeUInt32LE(0x02014b50);
+  central.writeUInt16LE(20, 6);
+  central.writeUInt16LE(method, 10);
+  central.writeUInt32LE(crc32(value), 16);
+  central.writeUInt32LE(payload.length, 20);
+  central.writeUInt32LE(value.length, 24);
+  central.writeUInt16LE(name.length, 28);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(central.length + name.length, 12);
+  end.writeUInt32LE(local.length + name.length + payload.length, 16);
+
+  return Buffer.concat([local, name, payload, central, name, end]);
+}
+
+function positiveControls(needles: readonly Uint8Array[]): number {
+  let count = 0;
+
+  for (const needle of needles) {
+    if (inspect(needle, needles).matches !== 1)
+      throw new Error("Credential positive control failed");
+    count += 1;
+
+    for (const method of [0, 8] as const) {
+      const html = Buffer.from(
+        `data:application/zip;base64,${plantedZip(needle, method).toString("base64")}`,
+      );
+
+      if (inspect(html, needles).matches < 1)
+        throw new Error("Embedded ZIP positive control failed");
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function scan(directory: string, needles: readonly Uint8Array[]): ScanResult {
+  const totals = { files: 0, entries: 0, matches: 0 };
+
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+
+    const found = entry.isDirectory()
+      ? scan(path, needles)
+      : { files: 1, ...inspect(readFileSync(path), needles) };
+
+    totals.files += found.files;
+    totals.entries += found.entries;
+    totals.matches += found.matches;
+  }
+
+  return totals;
+}
+
+const env = z
+  .object({
+    THREADSIFT_WRONG_AI_KEY: z.string().min(1),
+    CLOUDFLARE_WORKERS_AI_TOKEN: z.string().optional(),
+  })
+  .parse(process.env);
+
+const [directory, floor = "1", extra] = process.argv.slice(2);
+
+if (directory === undefined || extra !== undefined)
+  throw new Error("Usage: node tools/check-ai-secrets.ts <artifacts> [minimum-files]");
+
+const minimumFiles = z.coerce.number().int().positive().parse(floor);
+
+const needles = [env.THREADSIFT_WRONG_AI_KEY, env.CLOUDFLARE_WORKERS_AI_TOKEN ?? ""]
+  .filter((key) => key !== "")
+  .flatMap((key) => credentialForms(key));
+
+const controls = positiveControls(needles);
+const result = scan(directory, needles);
+
+console.log(JSON.stringify({ ...result, positiveControls: controls, minimumFiles }));
+
+process.exitCode = result.matches > 0 || result.files < minimumFiles ? 1 : 0;

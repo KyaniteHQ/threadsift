@@ -1,14 +1,19 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
-import { DESKTOP, openPanel, px } from "./look.ts";
+import { newCode, newPassword } from "./access.ts";
+import { openSignedIn } from "./fresh-screen.ts";
+import { DESKTOP, afterTwoFrames, openPanel, px } from "./look.ts";
 
 const PHONE = { width: 390, height: 844 } as const;
 const HALF_PIXEL = 0.5;
 
 async function openSettings(page: Page, size: { width: number; height: number }): Promise<void> {
   await page.setViewportSize(size);
+  const loaded = page.waitForResponse((response) => response.url().endsWith("/api/tokens"));
   await page.goto("/settings");
+  await loaded;
+  await afterTwoFrames(page);
   await expect(page.getByRole("heading", { level: 1, name: SETTINGS.title })).toBeFocused();
 }
 
@@ -24,16 +29,23 @@ for (const [label, size] of [
   ["desktop", DESKTOP],
   ["phone", PHONE],
 ] as const) {
-  test(`on ${label} the page title outranks its section headings`, async ({ page }) => {
-    await openSettings(page, size);
+  test(`on ${label} the page title outranks its section headings`, async ({ browser }) => {
+    const screen = await openSignedIn(browser, newCode(), newPassword());
+    const { page } = screen;
 
-    const title = await fontSize(page, SETTINGS.title);
-    expect(title, "page title against Agent tokens").toBeGreaterThan(
-      await fontSize(page, SETTINGS.tokensTitle),
-    );
-    expect(title, "page title against Sign out").toBeGreaterThan(
-      await fontSize(page, SETTINGS.signOutTitle),
-    );
+    try {
+      await openSettings(page, size);
+
+      const title = await fontSize(page, SETTINGS.title);
+      expect(title, "page title against Agent tokens").toBeGreaterThan(
+        await fontSize(page, SETTINGS.tokensTitle),
+      );
+      expect(title, "page title against Sign out").toBeGreaterThan(
+        await fontSize(page, SETTINGS.signOutTitle),
+      );
+    } finally {
+      await screen.close();
+    }
   });
 
   test(`on ${label} the bar starts where the column starts`, async ({ page }) => {

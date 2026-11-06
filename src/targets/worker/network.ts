@@ -36,8 +36,7 @@ async function refuseUnreachableOrigin(url: string, response: Response): Promise
 
 export const workerNetwork: Network = {
   get: async (url, signal) => {
-    const response = await fetch(url, { redirect: "manual", signal, headers: REQUEST_HEADERS });
-    await refuseUnreachableOrigin(url, response);
+    const response = await workerFetch(url, { signal, headers: REQUEST_HEADERS });
 
     return {
       status: response.status,
@@ -46,4 +45,12 @@ export const workerNetwork: Network = {
       body: chunksOf(response.bodyUsed ? null : response.body),
     };
   },
+};
+
+export const workerFetch: typeof fetch = async (input, init) => {
+  const request = new Request(input, init);
+  const response = await fetch(request, { redirect: "manual" });
+  await refuseUnreachableOrigin(request.url, response);
+
+  return response;
 };

@@ -95,14 +95,36 @@ jobs:
         shard: [1, 2, 3]
     env:
       THREADSIFT_ARTIFACTS: artifacts
+      THREADSIFT_AI_REQUIRED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
       - name: Allow unprivileged user namespaces for rootless Podman and Chromium
         run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
-      - run: devenv tasks run e2e:container --show-output --input 'args=["--shard=${{ matrix.shard }}/${{ strategy.job-total }}"]'
+      - id: e2e
+        shell: bash
+        env:
+          CLOUDFLARE_WORKERS_AI_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_AI_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
+          export THREADSIFT_WRONG_AI_KEY
+          if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
+            echo "::notice::The AI cases were skipped: this pull request has no Workers AI token"
+            echo "The AI cases were skipped: this pull request has no Workers AI token" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          mkdir -p "$THREADSIFT_ARTIFACTS"
+          status=0
+          devenv tasks run e2e:container --show-output --input 'args=["--shard=${{ matrix.shard }}/${{ strategy.job-total }}"]' 2>&1 | tee "$THREADSIFT_ARTIFACTS/runner.log" || status=$?
+          if node tools/check-ai-secrets.ts "$THREADSIFT_ARTIFACTS" 3; then
+            echo "privacy_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::AI credential artifact scan failed; artifacts withheld"
+            status=1
+          fi
+          exit "$status"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: always() && steps.e2e.outputs.privacy_ok == 'true'
         with:
           name: e2e-container-${{ matrix.shard }}
           path: artifacts
@@ -119,14 +141,36 @@ jobs:
         shard: [1, 2, 3]
     env:
       THREADSIFT_ARTIFACTS: artifacts
+      THREADSIFT_AI_REQUIRED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
       - name: Allow unprivileged user namespaces for Chromium
         run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
-      - run: devenv tasks run e2e:worker --show-output --input 'args=["--shard=${{ matrix.shard }}/${{ strategy.job-total }}"]'
+      - id: e2e
+        shell: bash
+        env:
+          CLOUDFLARE_WORKERS_AI_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_AI_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
+          export THREADSIFT_WRONG_AI_KEY
+          if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
+            echo "::notice::The AI cases were skipped: this pull request has no Workers AI token"
+            echo "The AI cases were skipped: this pull request has no Workers AI token" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          mkdir -p "$THREADSIFT_ARTIFACTS"
+          status=0
+          devenv tasks run e2e:worker --show-output --input 'args=["--shard=${{ matrix.shard }}/${{ strategy.job-total }}"]' 2>&1 | tee "$THREADSIFT_ARTIFACTS/runner.log" || status=$?
+          if node tools/check-ai-secrets.ts "$THREADSIFT_ARTIFACTS" 3; then
+            echo "privacy_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::AI credential artifact scan failed; artifacts withheld"
+            status=1
+          fi
+          exit "$status"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: always() && steps.e2e.outputs.privacy_ok == 'true'
         with:
           name: e2e-worker-${{ matrix.shard }}
           path: artifacts

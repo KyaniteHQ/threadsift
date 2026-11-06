@@ -31,6 +31,7 @@ launch() {
   port=$(free_port)
   local env_args=()
   [[ -v SETUP_CODE ]] && env_args=(--env SETUP_CODE)
+  [[ -v THREADSIFT_SECRET_KEY ]] && env_args+=(--env THREADSIFT_SECRET_KEY)
   podman run --detach --name "$name" --publish "127.0.0.1:$port:8080" --volume "$volume:/data" "${env_args[@]}" "$image" >/dev/null
   echo "$name" >"$dir/name"
   echo "$volume" >"$dir/volume"
@@ -48,10 +49,21 @@ launch)
   launch "$2"
   ;;
 restart)
-  podman restart "$(<"$2/name")" >/dev/null
+  if [[ $# -lt 3 ]]; then
+    podman restart "$(<"$2/name")" >/dev/null
+  else
+    name=$(<"$2/name")
+    volume=$(<"$2/volume")
+    port=$(<"$2/url")
+    port=${port##*:}
+    podman logs "$name" >>"$2/server.log" 2>&1
+    podman rm --force "$name" >/dev/null
+    podman run --detach --name "$name" --publish "127.0.0.1:$port:8080" --volume "$volume:/data" --env-file "$3" "$image" >/dev/null
+  fi
   wait_for_session_route "$(<"$2/url")" 60
   ;;
 logs)
+  [[ ! -f $2/server.log ]] || cat "$2/server.log"
   podman logs "$(<"$2/name")" 2>&1
   ;;
 sql)

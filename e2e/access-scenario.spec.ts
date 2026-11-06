@@ -117,7 +117,7 @@ async function openInstanceSettings(page: Page): Promise<void> {
 async function stepToken(run: Run): Promise<string> {
   const { page } = run;
   await openInstanceSettings(page);
-  await expect(tokenNameField(page)).toBeFocused();
+  await expect(page.getByRole("heading", { name: SETTINGS.title, exact: true })).toBeFocused();
 
   await tokenNameField(page).fill("Extension");
   await page.getByRole("button", { name: SETTINGS.createToken }).click();

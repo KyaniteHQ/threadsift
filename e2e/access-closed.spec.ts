@@ -98,6 +98,9 @@ test("a valid token gets 403 on the owner's routes whatever the body, and works 
     ["DELETE", `/api/tokens/${created.token.id}`],
     ["POST", "/api/logout"],
     ["GET", "/api/tokens/"],
+    ["GET", "/api/settings/ai"],
+    ["PUT", "/api/settings/ai"],
+    ["POST", "/api/settings/ai/verify"],
   ] as const) {
     const response = await request.fetch(path, { method, headers });
     await expectRefusal(response, 403, `a token on ${method} ${path}`);

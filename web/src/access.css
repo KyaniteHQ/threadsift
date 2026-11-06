@@ -121,6 +121,7 @@
 }
 
 .reveal {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--s3);
@@ -213,4 +214,45 @@
   flex: 1 0 100%;
   color: var(--muted);
   font-size: var(--t-meta);
+}
+
+.ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.ai-form .st-sel {
+  width: 100%;
+}
+.ai-digest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding-block: var(--s4);
+  border-block: 1px solid var(--line);
+  font-size: var(--t-read);
+  line-height: var(--lh-text);
+  overflow-wrap: anywhere;
+}
+.ai-digest h3 {
+  margin: 0;
+  font-size: var(--t-h2);
+}
+.ai-digest ul {
+  margin: 0;
+  padding-inline-start: 1.3em;
+}
+.ai-meta {
+  color: var(--muted);
+  font-size: var(--t-meta);
+}
+.app[data-bp~="phone"] .ai-actions {
+  flex-direction: column;
+}
+.app[data-bp~="phone"] .ai-form .field input {
+  font-size: var(--t-floor);
+}
+
+.ai-actions .btn[aria-disabled="true"] {
+  border-color: var(--ctl-line);
 }

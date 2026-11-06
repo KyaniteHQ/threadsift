@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { Token } from "../../src/http/schemas.ts";
 import { fetchTokens } from "./access-api.ts";
@@ -7,7 +7,7 @@ import { Alert } from "./Alert.tsx";
 import { TokenForm } from "./TokenForm.tsx";
 import { TokenList } from "./TokenList.tsx";
 import { TokenReveal } from "./TokenReveal.tsx";
-import { type FieldState, useField } from "./use-form.ts";
+import { useField } from "./use-form.ts";
 
 type Loaded =
   | { readonly status: "loading" }
@@ -54,28 +54,12 @@ function useTokens() {
   return { tokens, add, remove };
 }
 
-function useFirstFocus(tokens: Loaded, name: FieldState): void {
-  const { ref } = name;
-  const done = useRef(false);
-
-  useEffect(() => {
-    if (tokens.status === "ready" && !done.current) {
-      done.current = true;
-
-      if (tokens.tokens.length === 0) {
-        ref.current?.focus();
-      }
-    }
-  }, [tokens, ref]);
-}
-
 export function TokensSection() {
   const name = useField();
   const [revealed, setRevealed] = useState<Revealed | null>(null);
   const { ref: nameRef } = name;
 
   const { tokens, add, remove } = useTokens();
-  useFirstFocus(tokens, name);
 
   const created = useCallback(
     (token: Token, value: string) => {

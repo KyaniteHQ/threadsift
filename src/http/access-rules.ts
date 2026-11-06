@@ -10,7 +10,7 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { method: "POST", path: "/api/login" },
 ];
 
-const OWNER_ONLY_PATH = /^\/api\/(tokens|logout)(\/|$)/u;
+const OWNER_ONLY_PATH = /^\/api\/(tokens|logout|settings)(\/|$)/u;
 
 export function isPublic(method: string, path: string): boolean {
   return PUBLIC_ROUTES.some((route) => route.method === method && route.path === path);

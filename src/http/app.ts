@@ -1,11 +1,11 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, type z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
-import type { ZodError } from "zod";
 
 import { itemPath } from "../core/item-path.ts";
 import { getItem, getListedItem, listItems, saveItem } from "../core/items.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
+import { registerAiRoutes } from "./ai-routes.ts";
 import { guard } from "./guard.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import {
@@ -79,7 +79,7 @@ const getItemStatusRoute = createRoute({
 const NOT_FOUND = "Not found";
 const REFUSED_HOST = "url: the host is not globally reachable";
 
-function reasonOf(error: ZodError): string {
+function reasonOf(error: z.ZodError): string {
   return error.issues
     .map((issue) => `${issue.path.join(".") || "body"}: ${issue.message}`)
     .join("; ");
@@ -131,6 +131,7 @@ export function createApp(ports: Ports): OpenAPIHono {
 
   registerAccessRoutes(app, ports);
   registerItemRoutes(app, ports);
+  registerAiRoutes(app, ports);
 
   app.doc("/api/openapi.json", {
     openapi: "3.1.0",

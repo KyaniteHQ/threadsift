@@ -4,7 +4,9 @@ import type { FieldState } from "./use-form.ts";
 
 interface InputKind {
   readonly name: string;
-  readonly type: "text" | "password";
+  readonly type: "text" | "password" | "url";
+  readonly required?: boolean;
+  readonly pattern?: string | undefined;
   readonly autoComplete: string;
   readonly mono?: true;
   readonly maxLength?: number | undefined;
@@ -40,6 +42,8 @@ function Input({
       autoCapitalize="off"
       className={kind.mono === true ? "mono" : undefined}
       maxLength={kind.maxLength}
+      required={kind.required}
+      pattern={kind.pattern}
       value={value}
       aria-invalid={error === null ? undefined : true}
       aria-describedby={described}

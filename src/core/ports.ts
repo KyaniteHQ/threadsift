@@ -1,7 +1,9 @@
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
+import type { AiExecution, AiTaskRequest } from "./ai-contract.ts";
 import type { ArticleReading } from "./article.ts";
+import type { Sealer } from "./sealed-secret.ts";
 
 export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
 
@@ -52,6 +54,17 @@ export interface Crypto {
   readonly equal: (left: Uint8Array, right: Uint8Array) => boolean;
 }
 
+export interface AiRuntime {
+  readonly name: string;
+  readonly publicOnly: boolean;
+  readonly allowsUrl: (url: string) => boolean;
+  readonly secrets: Sealer | null;
+  readonly run: <Result>(
+    task: AiTaskRequest<Result>,
+    signal: AbortSignal,
+  ) => Promise<AiExecution<Result>>;
+}
+
 export interface Ports {
   readonly db: Database;
   readonly network: Network;
@@ -59,6 +72,7 @@ export interface Ports {
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
   readonly setupCode: string | undefined;
+  readonly ai: AiRuntime;
 }
 
 export const REQUEST_HEADERS = {
