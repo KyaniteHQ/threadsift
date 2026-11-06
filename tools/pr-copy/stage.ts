@@ -154,6 +154,7 @@ function copyArtifact(artifact: string, dir: string): void {
 }
 
 export async function withStage<Result>(
+  target: Readonly<CopyNames>,
   config: StageConfig,
   artifact: string | null,
   work: (stage: Readonly<Stage>) => Promise<Result>,
@@ -168,7 +169,7 @@ export async function withStage<Result>(
     const configPath = join(dir, "wrangler.json");
     writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
 
-    return await work({ dir, configPath, names: configNames(config) });
+    return await work({ dir, configPath, names: configNames(config), target });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

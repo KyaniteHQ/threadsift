@@ -193,7 +193,7 @@ interface CopySecrets {
   THREADSIFT_SECRET_KEY?: string;
 }
 
-async function publish(
+export async function publish(
   stage: Readonly<Stage>,
   setupCode: string,
   secretNames: readonly string[],
@@ -234,7 +234,7 @@ export function deployCopy(
 ): Promise<DeployedCopy> {
   const names = copyNames(pr);
 
-  return withStage(copyConfig(names, artifact), artifact, async (stage) => {
+  return withStage(names, copyConfig(names, artifact), artifact, async (stage) => {
     const next = await provision(stage, names, record);
     await cloudflare(stage, applyMigrations(names.name));
 
@@ -250,7 +250,7 @@ export async function deleteCopy(pr: number): Promise<string[]> {
   const names = copyNames(pr);
   const found = await inventory();
 
-  return withStage(deleteConfig(names), null, (stage) =>
+  return withStage(names, deleteConfig(names), null, (stage) =>
     runCommands(stage, teardown(found, names), { keepGoing: true }),
   );
 }

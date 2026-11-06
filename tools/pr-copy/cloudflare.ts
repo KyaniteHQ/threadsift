@@ -23,6 +23,7 @@ export interface Stage {
   readonly dir: string;
   readonly configPath: string;
   readonly names: readonly string[];
+  readonly target: CopyNames;
 }
 
 export type Command =
@@ -89,11 +90,11 @@ function redact(text: string): string {
   return text.replaceAll(requiredEnv("CLOUDFLARE_ACCOUNT_ID"), "<account>");
 }
 
-function refuseOutsideCopies(names: readonly string[]): void {
-  const outside = names.filter((name) => !COPY_NAME.test(name));
+function refuseOutsideTarget(target: Readonly<CopyNames>, names: readonly string[]): void {
+  const outside = names.filter((name) => name !== target.name && name !== target.queue);
 
   if (outside.length > 0) {
-    throw new Error(`Refused, not a pull request copy name: ${outside.join(", ")}`);
+    throw new Error(`Refused outside ${target.name}: ${outside.join(", ")}`);
   }
 }
 
@@ -158,7 +159,7 @@ export async function cloudflare(
   stage: Readonly<Stage>,
   command: Readonly<Command>,
 ): Promise<void> {
-  refuseOutsideCopies([...stage.names, ...command.names]);
+  refuseOutsideTarget(stage.target, [...stage.names, ...command.names]);
 
   if (command.kind === "wrangler") {
     await runWrangler(
@@ -206,10 +207,15 @@ const DatabaseRow = z.object({ uuid: z.string(), name: z.string() });
 
 const QueueRow = z.object({
   queue_name: z.string(),
-  consumers: z.array(z.object({ script: z.string().nullable().optional() })),
+  consumers: z.array(z.object({ script: z.string().min(1) })),
 });
 
-export async function inventory(): Promise<Inventory> {
+export async function inventory(scope: "copies" | "live" = "copies"): Promise<Inventory> {
+  const matches = (name: string) =>
+    scope === "copies"
+      ? COPY_NAME.test(name)
+      : name === "threadsift-live" || name === "threadsift-live-jobs";
+
   const [scripts, databases, queues] = await Promise.all([
     cloudflareGet("workers/scripts", PageSchema.extend({ result: z.array(WorkerRow) })),
     listFrom("d1/database", DatabaseRow, 1),
@@ -217,13 +223,13 @@ export async function inventory(): Promise<Inventory> {
   ]);
 
   return {
-    workers: scripts.result.map((row) => row.id).filter((name) => COPY_NAME.test(name)),
-    databases: databases.filter((row) => COPY_NAME.test(row.name)),
+    workers: scripts.result.map((row) => row.id).filter((name) => matches(name)),
+    databases: databases.filter((row) => matches(row.name)),
     queues: queues
-      .filter((row) => COPY_NAME.test(row.queue_name))
+      .filter((row) => matches(row.queue_name))
       .map((row) => ({
         name: row.queue_name,
-        consumers: row.consumers.flatMap((consumer) => consumer.script ?? []),
+        consumers: row.consumers.flatMap((consumer) => consumer.script),
       })),
   };
 }
@@ -241,12 +247,44 @@ export async function databaseId(name: string): Promise<string> {
 }
 
 export async function workerSecretNames(worker: string): Promise<string[]> {
-  refuseOutsideCopies([worker]);
-
   const body = await cloudflareGet(
     `workers/scripts/${worker}/secrets`,
     PageSchema.extend({ result: z.array(z.object({ name: z.string() })) }),
   );
 
   return body.result.map((entry) => entry.name);
+}
+
+export async function appliedMigrations(
+  target: Readonly<CopyNames>,
+  id: string,
+): Promise<string[]> {
+  refuseOutsideTarget(target, [target.name]);
+
+  const response = await fetch(
+    `${API}/accounts/${requiredEnv("CLOUDFLARE_ACCOUNT_ID")}/d1/database/${encodeURIComponent(id)}/query`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${requiredEnv("CLOUDFLARE_API_TOKEN")}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ sql: "SELECT name FROM d1_migrations ORDER BY id" }),
+      signal: callTimeout(),
+    },
+  );
+
+  if (!response.ok)
+    throw new Error(`Reading applied migrations answered ${String(response.status)}`);
+
+  const body = z
+    .object({
+      success: z.literal(true),
+      result: z.array(
+        z.object({ success: z.literal(true), results: z.array(z.object({ name: z.string() })) }),
+      ),
+    })
+    .parse(await response.json());
+
+  return body.result.flatMap((result) => result.results.map((row) => row.name));
 }

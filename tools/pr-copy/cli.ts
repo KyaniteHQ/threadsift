@@ -20,13 +20,22 @@ import {
   pullRequest,
   reopenedReason,
   staleReason,
+  liveHead,
+  requireMainHead,
+  lastLiveRecord,
+  recordLive,
+  finishLive,
 } from "./github.ts";
+import { deployLive } from "./live.ts";
+import { sweep } from "./sweep.ts";
 
 const USAGE = `Usage:
   node tools/pr-copy/cli.ts deploy --artifact <dir> --github
   node tools/pr-copy/cli.ts deploy --artifact <dir> --pr <n> --record <file>
   node tools/pr-copy/cli.ts delete --github
-  node tools/pr-copy/cli.ts delete --pr <n>`;
+  node tools/pr-copy/cli.ts delete --pr <n>
+  node tools/pr-copy/cli.ts live --artifact <dir> --github
+  node tools/pr-copy/cli.ts sweep [--dry-run]`;
 
 const PrSchema = z.coerce.number().int().positive();
 
@@ -38,6 +47,7 @@ const { positionals, values: flags } = parseArgs({
     github: { type: "boolean", default: false },
     pr: { type: "string" },
     record: { type: "string" },
+    "dry-run": { type: "boolean", default: false },
   },
 });
 
@@ -108,15 +118,13 @@ async function deployFromHere(artifact: string): Promise<void> {
 async function deleteAndReport(pr: number): Promise<void> {
   const failures = await deleteCopy(pr);
 
-  if (flags.github) {
-    await markInactive(pr);
-  }
-
   if (failures.length > 0) {
     throw new Error(
       `These deletions failed for pull request ${String(pr)}: ${failures.join("; ")}`,
     );
   }
+
+  if (flags.github) await markInactive(pr);
 
   process.stdout.write(`Pull request ${String(pr)} has no copy left\n`);
 }
@@ -126,15 +134,41 @@ async function deleteFromGithub(): Promise<void> {
   const reopened = reopenedReason(pr, await pullRequest(pr));
 
   if (reopened !== null) {
-    stopWithoutChanges(reopened);
-
-    return;
+    throw new Error(reopened);
   }
 
   await deleteAndReport(pr);
 }
 
+async function liveFromGithub(artifact: string): Promise<void> {
+  const sha = liveHead();
+  await requireMainHead(sha);
+  let deployment: number | undefined;
+
+  try {
+    const copy = await deployLive(
+      artifact,
+      await lastLiveRecord(),
+      () => requireMainHead(sha),
+      async (record) => {
+        deployment = await recordLive(sha, record);
+      },
+    );
+
+    if (deployment === undefined) throw new Error("Live migration record was not saved");
+    await finishLive(deployment, copy.url);
+    process.stdout.write(`Deployed ${copy.url}\n`);
+  } catch (error) {
+    if (deployment !== undefined) await finishLive(deployment, null);
+    throw error;
+  }
+}
+
 function run(command: string | undefined): Promise<void> {
+  if (command === "sweep" && positionals.length === 1) return sweep(flags["dry-run"]);
+
+  if (command === "live" && flags.github) return liveFromGithub(required(flags.artifact));
+
   if (command === "deploy") {
     const artifact = required(flags.artifact);
 

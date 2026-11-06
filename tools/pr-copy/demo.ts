@@ -5,9 +5,11 @@ import type { z } from "zod";
 import {
   ErrorResponseSchema,
   ItemResponseSchema,
+  ItemListResponseSchema,
   SavedItemResponseSchema,
   SessionStateSchema,
 } from "../../src/http/schemas.ts";
+import { CHECKED_FIELDS, DEMO_ITEMS, type DemoItem } from "./demo-items.ts";
 import { requiredEnv } from "./env.ts";
 import { callTimeout } from "./timeout.ts";
 
@@ -17,33 +19,8 @@ const SERVED_IN_A_ROW = 10;
 const LOCK_WAIT_LIMIT_S = 300;
 const ITEM_DEADLINE_MS = 300_000;
 const POLL_MS = 1000;
-const CHECKED_FIELDS = ["status", "source", "title", "fetch"] as const;
 
 type Item = z.infer<typeof ItemResponseSchema>["item"];
-
-interface DemoItem {
-  readonly url: string;
-  readonly expected: Readonly<Partial<Pick<Item, (typeof CHECKED_FIELDS)[number]>>>;
-}
-
-const DEMO_ITEMS: readonly DemoItem[] = [
-  {
-    url: "https://stephango.com/saw",
-    expected: { status: "ready", source: "article", fetch: "ok" },
-  },
-  {
-    url: "https://matklad.github.io/2023/10/12/lsp-could-have-been-better.html",
-    expected: { status: "ready", source: "article", fetch: "ok" },
-  },
-  {
-    url: "https://example.com/",
-    expected: { status: "ready", source: "other", title: "Example Domain", fetch: "ok" },
-  },
-  {
-    url: "https://threadsift-demo.invalid/",
-    expected: { status: "failed", title: null, fetch: "network" },
-  },
-];
 
 interface Site {
   readonly url: string;
@@ -52,6 +29,7 @@ interface Site {
 
 interface Copy extends Site {
   readonly cookie: string;
+  readonly created: boolean;
 }
 
 interface Call {
@@ -175,7 +153,7 @@ async function logIn(site: Readonly<Site>, password: string): Promise<Copy> {
     throw new Error("/api/login answered 409");
   }
 
-  return { ...site, cookie };
+  return { ...site, cookie, created: false };
 }
 
 async function signIn(site: Readonly<Site>, setupCode: string): Promise<Copy> {
@@ -197,10 +175,12 @@ async function signIn(site: Readonly<Site>, setupCode: string): Promise<Copy> {
     body: { code: setupCode, password },
   });
 
-  return cookie === null ? logIn(site, password) : { ...site, cookie };
+  return cookie === null ? logIn(site, password) : { ...site, cookie, created: true };
 }
 
 async function paste(copy: Readonly<Copy>, link: string): Promise<number> {
+  process.stdout.write(`Paste ${link}\n`);
+
   const response = await callCopy(copy, {
     path: "/api/items",
     cookie: copy.cookie,
@@ -254,10 +234,46 @@ async function seedItem(copy: Readonly<Copy>, demo: Readonly<DemoItem>): Promise
   return wrong.length === 0 ? null : `${demo.url} ended with a different ${wrong.join(", ")}`;
 }
 
-export async function seedDemo(url: string, setupCode: string): Promise<void> {
+export async function seedDemo(
+  url: string,
+  setupCode: string,
+  mode: "copy" | "live" = "copy",
+): Promise<void> {
   await awaitServing(url);
 
   const copy = await signIn({ url, retryUntil: Date.now() + RETRY_BUDGET_MS }, setupCode);
+
+  if (mode === "live") {
+    const response = await callCopy(copy, { path: "/api/items", cookie: copy.cookie });
+
+    if (response.status !== 200)
+      throw new Error(`Listing demo Items answered ${String(response.status)}`);
+    const { items } = ItemListResponseSchema.parse(await response.json());
+
+    await Promise.all(
+      DEMO_ITEMS.map(async (demo) => {
+        const existing = items.find((item) => item.originalUrl === demo.url);
+
+        if (copy.created || existing === undefined) {
+          await endState(copy, await paste(copy, demo.url));
+        } else if (existing.status === "processing") {
+          await endState(copy, existing.id);
+        }
+      }),
+    );
+
+    const session = await callCopy(copy, { path: "/api/session", cookie: copy.cookie });
+
+    if (
+      session.status !== 200 ||
+      SessionStateSchema.parse(await session.json()).state !== "signed-in"
+    )
+      throw new Error("Live signed-in session check failed");
+    process.stdout.write("Live signed-in GET /api/session passed\n");
+
+    return;
+  }
+
   const outcomes = await Promise.all(DEMO_ITEMS.map((demo) => seedItem(copy, demo)));
   const failed = outcomes.filter((outcome) => outcome !== null);
 

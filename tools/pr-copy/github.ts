@@ -71,7 +71,7 @@ async function github<Body>(path: string, schema: z.ZodType<Body>, body?: string
     throw new Error(`GitHub ${method} ${path} answered ${String(response.status)}`);
   }
 
-  return schema.parse(await response.json());
+  return schema.parse(response.status === 204 ? null : await response.json());
 }
 
 function logUrl(): string {
@@ -103,6 +103,10 @@ export function deployedHead(): PullHead {
 }
 
 export function closedPullRequest(): number {
+  if (process.env["GITHUB_EVENT_NAME"] === "workflow_dispatch")
+    return event(z.object({ inputs: z.object({ pr: z.coerce.number().int().positive() }) })).inputs
+      .pr;
+
   return event(ClosedEventSchema).pull_request.number;
 }
 
@@ -208,4 +212,81 @@ export async function markInactive(pr: number): Promise<void> {
   const all = await deployments(pr);
 
   await Promise.all(all.map(({ id }) => postStatus(id, { state: "inactive" })));
+}
+
+export async function mainHead(): Promise<string> {
+  return (await github("git/ref/heads/main", z.object({ object: z.object({ sha: Sha }) }))).object
+    .sha;
+}
+
+export function liveHead(): string {
+  const { workflow_run: run } = event(
+    z.object({
+      workflow_run: z.object({
+        head_sha: Sha,
+        head_branch: z.literal("main"),
+        event: z.literal("push"),
+        conclusion: z.literal("success"),
+        repository: z.object({ full_name: z.string() }),
+        head_repository: z.object({ full_name: z.string() }),
+      }),
+    }),
+  );
+
+  if (run.repository.full_name !== repository() || run.head_repository.full_name !== repository())
+    throw new Error("Live gate belongs to another repository");
+
+  return run.head_sha;
+}
+
+export async function requireMainHead(sha: string): Promise<void> {
+  if ((await mainHead()) !== sha)
+    throw new Error(`Live gate ${sha} is no longer main's head; no changes`);
+}
+
+export async function lastLiveRecord(): Promise<CopyRecord | null> {
+  const rows = await github(
+    "deployments?environment=live-copy&task=deploy:live&per_page=1",
+    z.array(DeploymentSchema),
+  );
+
+  const [latest] = rows;
+
+  return latest === undefined ? null : CopyRecordSchema.parse(latest.payload);
+}
+
+export async function recordLive(sha: string, record: CopyRecord): Promise<number> {
+  const deployment = await github(
+    "deployments",
+    z.object({ id: z.number().int() }),
+    JSON.stringify({
+      ref: sha,
+      task: "deploy:live",
+      environment: "live-copy",
+      auto_merge: false,
+      required_contexts: [],
+      transient_environment: false,
+      production_environment: false,
+      payload: record,
+    }),
+  );
+
+  await postStatus(deployment.id, { state: "in_progress" });
+
+  return deployment.id;
+}
+
+export async function finishLive(id: number, url: string | null): Promise<void> {
+  await postStatus(
+    id,
+    url === null ? { state: "failure" } : { state: "success", environment_url: url },
+  );
+}
+
+export async function dispatchDelete(pr: number): Promise<void> {
+  await github(
+    "actions/workflows/pr-copy.yml/dispatches",
+    z.null(),
+    JSON.stringify({ ref: "main", inputs: { pr: String(pr) } }),
+  );
 }
