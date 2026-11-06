@@ -8,7 +8,8 @@ import {
   DigestSchema,
   DIGEST_INSTRUCTIONS,
   DIGEST_INPUT_BYTES,
-  cutDigestInput,
+  digestPrompt,
+  DIGEST_CATALOG_BYTES,
 } from "../src/core/ai-contract.ts";
 import { AI_CALL_OPTIONS } from "../src/targets/shared/ai-call-options.ts";
 import { PROOF_MODEL, workersAiUrl } from "./workers-ai-proof.ts";
@@ -21,8 +22,13 @@ const env = z
   .parse(process.env);
 
 const RESERVED_OUTPUT = AI_CALL_OPTIONS.maxOutputTokens;
-const FUTURE_LISTS = ` Reserved future Topic and Tag list budget: ${"topic-tag ".repeat(455)}`;
-const instructions = DIGEST_INSTRUCTIONS + FUTURE_LISTS;
+
+const catalog = {
+  topics: Array.from({ length: 200 }, (_, index) => `Topic ${index}: reading and research`),
+  tags: Array.from({ length: 500 }, (_, index) => `Tag ${index}: notes and sources`),
+};
+
+const instructions = DIGEST_INSTRUCTIONS;
 const bytes = (text: string): number => new TextEncoder().encode(text).length;
 const schemaBytes = bytes(JSON.stringify(z.toJSONSchema(DigestSchema, { unrepresentable: "any" })));
 
@@ -41,8 +47,13 @@ const cases = [
   ["Hex", randomBytes(10000).toString("hex")],
 ] as const;
 
+const selectedCase = z
+  .enum(["English", "Turkish", "CJK", "Emoji", "Hex"])
+  .optional()
+  .parse(process.argv[2]);
+
 async function measure(name: string, input: string): Promise<void> {
-  const prompt = cutDigestInput(input);
+  const prompt = digestPrompt(input, catalog);
 
   try {
     const result = await generateText({
@@ -85,8 +96,14 @@ console.log(
     reservedOutput: RESERVED_OUTPUT,
     instructionsBytes: bytes(instructions),
     schemaBytes,
-    futureListBytes: bytes(FUTURE_LISTS),
+    catalogBytes: DIGEST_CATALOG_BYTES,
+    topics: catalog.topics.length,
+    tags: catalog.tags.length,
   }),
 );
 
-await Promise.all(cases.map(([name, input]) => measure(name, input)));
+await Promise.all(
+  cases.flatMap(([name, input]) =>
+    selectedCase === undefined || selectedCase === name ? [measure(name, input)] : [],
+  ),
+);

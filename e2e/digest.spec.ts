@@ -21,6 +21,7 @@ import {
   digestRecord,
   digestScreens,
   lastDigestTask,
+  proveCatalogLinks,
 } from "./digest.ts";
 import { jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
 
@@ -45,17 +46,18 @@ test("Digests skip unconfigured and textless Items, retry network failures on st
   const item = await settled(request, initial.body.item.id);
   expect(item.postText?.length).toBeGreaterThan(100);
   expect(jobsOf(item.id, screen.fresh, "digest")).toEqual([]);
+
   await configureDigest(screen, {
     provider: "openai-compatible",
     baseUrl: "https://threadsift-digest-unreachable.invalid/v1",
     model: "unreachable",
     key: "network-proof",
   });
+  await sweepNow(request, screen.fresh);
   const textless = await postLinkRaw(request, "https://x.com/threadsift/status/12345");
   await settled(request, textless.body.item.id);
   expect(jobsOf(textless.body.item.id, screen.fresh, "digest")).toEqual([]);
-  expect(jobsOf(item.id, screen.fresh, "digest")).toEqual([]);
-  await postLinkRaw(request, ESSAY);
+  expect(jobsOf(item.id, screen.fresh, "digest")).toHaveLength(1);
   await expect.poll(() => jobsOf(item.id, screen.fresh, "digest")[0]?.attempts).toBe(1);
   const first = jobsOf(item.id, screen.fresh, "digest")[0];
   expect(first?.state).toBe("queued");
@@ -166,6 +168,7 @@ test("wrong keys give up once, Digest-only retry keeps the fetch, refresh replac
   await configureDigest(screen, provider);
   await retryInBrowser(failed.id);
   const stored = await readStored(failed.id, provider);
+  await proveCatalogLinks(screen, stored.id, info);
   expect(stored.fetchedAt).toBe(failed.fetchedAt);
   await rowShows(stored.id, stored.digestTitle ?? "", stored.digestTopic ?? "");
   await digestScreens(screen, info, "stored-digest");

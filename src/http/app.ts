@@ -107,8 +107,8 @@ function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
       : c.json({ item: itemView(item) }, 200);
   });
   app.openapi(saveItemRoute, async (c) => {
-    const { url } = c.req.valid("json");
-    const saved = await saveItem(ports, url);
+    const { url, digest } = c.req.valid("json");
+    const saved = await saveItem(ports, url, digest);
 
     if (saved.kind === "refused") {
       return c.json({ error: REFUSED_HOST, fetch: "refused" as const }, 400);

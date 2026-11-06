@@ -1,7 +1,7 @@
 import { and, desc, eq, getTableColumns, exists, notExists } from "drizzle-orm";
 
 import { isRefusedHost } from "./addresses.ts";
-import type { Fetched } from "./details.ts";
+import type { Digest } from "./ai-contract.ts";
 import {
   openingDigest,
   setDigestFailure,
@@ -24,6 +24,8 @@ export type SaveResult =
 const {
   generation: _generation,
   digestFailed: _digestFailed,
+  pendingDigest: _pendingDigest,
+  topicId: _topicId,
   ...DETAIL_COLUMNS
 } = getTableColumns(items);
 
@@ -55,17 +57,18 @@ async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRo
 interface Paste {
   readonly originalUrl: string;
   readonly address: string;
+  readonly digest: Digest | undefined;
 }
 
 async function saveQueued(
   ports: Ports,
-  { originalUrl, address }: Readonly<Paste>,
+  { originalUrl, address, digest }: Readonly<Paste>,
   { normalizedUrl, kind, source }: Readonly<Link>,
 ): Promise<SaveResult> {
   const { db } = ports;
   const now = Date.now();
 
-  const [inserted, , queued, [item]] = await db.batch([
+  const [inserted, , , queued, [item]] = await db.batch([
     db
       .insert(items)
       .values({
@@ -74,6 +77,7 @@ async function saveQueued(
         normalizedUrl,
         originalUrl,
         savedAt: now,
+        pendingDigest: digest === undefined ? null : JSON.stringify(digest),
         status: "processing",
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
@@ -82,6 +86,10 @@ async function saveQueued(
       .update(items)
       .set({ status: "processing", reason: null })
       .where(and(eq(items.normalizedUrl, normalizedUrl), notExists(hasOpenJob("fetch")))),
+    db
+      .update(items)
+      .set({ pendingDigest: digest === undefined ? null : JSON.stringify(digest) })
+      .where(eq(items.normalizedUrl, normalizedUrl)),
     openingJob(db, { kind: "fetch", address, normalizedUrl, now }),
     selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
   ]);
@@ -95,7 +103,7 @@ async function saveSettled(
   db: Database,
   address: string,
   { normalizedUrl, kind, source }: Readonly<Link>,
-  fetched: Readonly<Fetched>,
+  fetched: Readonly<Parameters<typeof settle>[0]>,
 ): Promise<SaveResult> {
   const now = Date.now();
 
@@ -122,7 +130,8 @@ async function saveSettled(
 
   const known = await itemAt(db, normalizedUrl);
 
-  const [, [item]] = await db.batch([
+  const [, , [item]] = await db.batch([
+    db.update(items).set({ pendingDigest: null }).where(eq(items.id, known.id)),
     db
       .update(items)
       .set(settle(fetched, known.title, now))
@@ -133,7 +142,7 @@ async function saveSettled(
   return { kind: "saved", item: foundItem(item, normalizedUrl), created: false };
 }
 
-async function saveShortLink(ports: Ports, pasted: string): Promise<SaveResult> {
+async function saveShortLink(ports: Ports, pasted: string, digest?: Digest): Promise<SaveResult> {
   const resolution = await resolveShortLink(ports.network, pasted);
 
   if (resolution.kind === "failed") {
@@ -142,17 +151,21 @@ async function saveShortLink(ports: Ports, pasted: string): Promise<SaveResult> 
 
   const { address } = resolution;
 
-  return saveQueued(ports, { originalUrl: pasted, address }, parseLink(address));
+  return saveQueued(ports, { originalUrl: pasted, address, digest }, parseLink(address));
 }
 
-export function saveItem(ports: Ports, absoluteUrl: string): Promise<SaveResult> {
+export function saveItem(ports: Ports, absoluteUrl: string, digest?: Digest): Promise<SaveResult> {
   if (isRefusedHost(new URL(absoluteUrl).hostname)) {
     return Promise.resolve({ kind: "refused" });
   }
 
   return isShortLink(absoluteUrl)
-    ? saveShortLink(ports, absoluteUrl)
-    : saveQueued(ports, { originalUrl: absoluteUrl, address: absoluteUrl }, parseLink(absoluteUrl));
+    ? saveShortLink(ports, absoluteUrl, digest)
+    : saveQueued(
+        ports,
+        { originalUrl: absoluteUrl, address: absoluteUrl, digest },
+        parseLink(absoluteUrl),
+      );
 }
 
 export async function getItem(db: Database, id: number) {
@@ -185,7 +198,11 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
 
   if (known.status === "failed") return getListedItem(ports.db, id);
 
-  const [queued, , , [item]] = await ports.db.batch([
+  const [, queued, , , [item]] = await ports.db.batch([
+    ports.db
+      .update(items)
+      .set({ pendingDigest: null })
+      .where(and(eq(items.id, id), notExists(hasOpenJob("digest")))),
     openingDigest(ports.db, { itemId: id, address: known.originalUrl, now: Date.now() }),
     setDigestFailure(ports.db, id, false),
     ports.db

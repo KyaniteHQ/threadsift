@@ -1,11 +1,10 @@
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
 
-import { loadAiConfig } from "./ai-settings.ts";
 import { openingDigest, setDigestFailure } from "./digest-job.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, digests, items } from "./schema.ts";
+import { type JobRow, digests, items, settings } from "./schema.ts";
 import { isRetryable, settle } from "./settle.ts";
 
 async function titleOf(db: Database, itemId: number): Promise<string | null> {
@@ -20,35 +19,45 @@ async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<Job
 
   const fields = settle(fetched, title, Date.now());
   const storesText = fields.postText !== undefined && fields.postText !== null;
-  const configured = storesText && (await loadAiConfig(ports)).state === "ready";
-  const stored = storesText ? { ...fields, generation: sql`${items.generation} + 1` } : fields;
+
+  const configured =
+    or(
+      isNotNull(items.pendingDigest),
+      exists(ports.db.select({ id: settings.id }).from(settings)),
+    ) ?? sql`0`;
+
+  const stored = storesText
+    ? { ...fields, generation: sql`${items.generation} + 1` }
+    : { ...fields, pendingDigest: null };
 
   return {
     writes: [
       ports.db.update(items).set(stored).where(eq(items.id, job.itemId)),
-      ...(configured
+      ...(storesText
         ? [
-            openingDigest(ports.db, { itemId: job.itemId, address: job.address, now: Date.now() }),
+            openingDigest(
+              ports.db,
+              { itemId: job.itemId, address: job.address, now: Date.now() },
+              configured,
+            ),
             setDigestFailure(ports.db, job.itemId, false),
-          ]
-        : storesText
-          ? [
-              ports.db
-                .update(items)
-                .set({ digestFailed: true })
-                .where(
-                  and(
-                    eq(items.id, job.itemId),
-                    exists(
-                      ports.db
-                        .select({ id: digests.itemId })
-                        .from(digests)
-                        .where(eq(digests.itemId, items.id)),
-                    ),
+            ports.db
+              .update(items)
+              .set({ digestFailed: true })
+              .where(
+                and(
+                  eq(items.id, job.itemId),
+                  sql`not (${configured})`,
+                  exists(
+                    ports.db
+                      .select({ id: digests.itemId })
+                      .from(digests)
+                      .where(eq(digests.itemId, items.id)),
                   ),
                 ),
-            ]
-          : []),
+              ),
+          ]
+        : []),
     ],
   };
 }

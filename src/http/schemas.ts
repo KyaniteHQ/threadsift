@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { DigestSchema } from "../core/ai-contract.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import {
   DIGEST_OUTCOMES,
@@ -60,6 +61,7 @@ const ItemDetailSchema = withStatus(
 );
 
 export const SaveItemRequestSchema = z.object({
+  digest: DigestSchema.optional(),
   url: z.string().trim().pipe(HttpUrlSchema),
 });
 

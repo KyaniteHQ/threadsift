@@ -1,8 +1,7 @@
 import { type SQL, and, asc, eq, inArray, lt, lte, notExists, exists, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { expireAiTasks } from "./ai-tasks.ts";
-import { digestHandler } from "./digest-job.ts";
+import { digestHandler, sweepDigests } from "./digest-job.ts";
 import { fetchHandler } from "./fetch-job.ts";
 import type { JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { enqueueQuietly, enqueueRows, hasOpenJob } from "./job-rows.ts";
@@ -111,7 +110,10 @@ async function finish(
 
   const wrote = await writeWhileHolding(db, job, [
     ...writes,
-    db.update(jobs).set({ state: "done", attempts, claimExpires: null }).where(eq(jobs.id, job.id)),
+    db
+      .update(jobs)
+      .set({ state: "done", attempts, claimExpires: null, catalogRetries: 0 })
+      .where(eq(jobs.id, job.id)),
     db
       .update(items)
       .set({
@@ -129,7 +131,11 @@ async function finish(
 async function queueLater(
   ports: JobPorts,
   job: Readonly<JobRow>,
-  { delayMs, attempts }: Readonly<{ delayMs: number; attempts: number }>,
+  {
+    delayMs,
+    attempts,
+    catalogRetries = job.catalogRetries,
+  }: Readonly<{ delayMs: number; attempts: number; catalogRetries?: number }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
     ports.db
@@ -137,6 +143,7 @@ async function queueLater(
       .set({
         state: "queued",
         attempts,
+        catalogRetries,
         nextAttemptAt: Date.now() + delayMs,
         claimExpires: null,
       })
@@ -152,18 +159,18 @@ async function writeOutcome(
   ports: JobPorts,
   job: Readonly<JobRow>,
   outcome: JobOutcome,
-): Promise<"done" | "lost" | "stale"> {
+): Promise<"done" | "lost" | "generation" | "catalog"> {
   try {
     return (await finish(ports, job, { writes: outcome.writes, attempts: job.attempts }))
       ? "done"
       : "lost";
   } catch (error) {
-    if (outcome.currency === undefined || (await outcome.currency.current())) {
-      throw error;
-    }
-  }
+    const state = await outcome.currency?.current();
 
-  return "stale";
+    if (state === undefined || state === "current") throw error;
+
+    return state;
+  }
 }
 
 async function applyOutcome(
@@ -187,10 +194,18 @@ async function applyOutcome(
       if (outcome.currency !== undefined)
         await ports.db.batch([outcome.currency.discard("lease-lost")]);
       break;
-    case "stale":
+    case "generation":
+    case "catalog": {
       if (outcome.currency !== undefined) await ports.db.batch([outcome.currency.discard("stale")]);
-      await queueLater(ports, job, { delayMs: 0, attempts: job.attempts });
+      const catalogRetries = result === "catalog" ? job.catalogRetries + 1 : 0;
+      await queueLater(ports, job, {
+        delayMs: catalogRetries >= 2 ? 30_000 : 0,
+        attempts: job.attempts,
+        catalogRetries,
+      });
       break;
+    }
+
     default: {
       const exhaustive: never = result;
       throw new Error(exhaustive);
@@ -248,7 +263,7 @@ export async function abandonRunning(db: Database): Promise<void> {
 
 async function sweep(ports: JobPorts): Promise<void> {
   const now = Date.now();
-  await expireAiTasks(ports.db, now);
+  await sweepDigests(ports.db, now);
   const due = await dueIds(ports.db, now, SWEEP_LIMIT);
 
   await enqueueRows(ports, due);

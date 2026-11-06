@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, notExists, sql } from "drizzle-orm";
 import type { z } from "zod";
 
 import {
@@ -9,8 +9,9 @@ import {
   type HttpAiConnection,
   refusedAi,
 } from "./ai-contract.ts";
+import { hasOpenJob, opening } from "./job-rows.ts";
 import type { AiPorts } from "./ports.ts";
-import { settings } from "./schema.ts";
+import { digests, items, settings } from "./schema.ts";
 import type { Sealer } from "./sealed-secret.ts";
 
 type AiRow = typeof settings.$inferSelect;
@@ -105,7 +106,29 @@ export async function saveAiSettings(
     sealedKey: await loaded.sealer.seal(key),
   };
 
-  await ports.db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row });
+  await ports.db.batch([
+    ports.db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row }),
+    ports.db.update(items).set({ status: "processing", reason: null }).where(olderItems(ports.db)),
+    opening(ports.db, {
+      kind: "digest",
+      address: sql`${items.originalUrl}`,
+      now: Date.now(),
+      where: olderItems(ports.db),
+    }),
+  ]);
 
   return aiView(row, true, ports.ai.publicOnly);
+}
+
+function olderItems(db: AiPorts["db"]) {
+  return (
+    and(
+      isNotNull(items.postText),
+      eq(items.digestFailed, false),
+      notExists(
+        db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
+      ),
+      notExists(hasOpenJob("digest")),
+    ) ?? sql`0`
+  );
 }

@@ -29,8 +29,8 @@ export interface DoneTask<Result> {
   readonly kind: "done";
   readonly result: Result;
   readonly taskId: number;
-  readonly provider: HttpAiConnection["provider"];
-  readonly model: string;
+  readonly provider: HttpAiConnection["provider"] | null;
+  readonly model: string | null;
 }
 
 type TaskResult<Result> = DoneTask<Result> | (AiRefused & { readonly taskId: number | null });

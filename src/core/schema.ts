@@ -27,6 +27,8 @@ export const items = sqliteTable(
     postText: text("post_text"),
     postedAt: integer("posted_at"),
     fetchedAt: integer("fetched_at"),
+    pendingDigest: text("pending_digest"),
+    topicId: integer("topic_id").references(() => topics.id),
     generation: integer("generation").notNull().default(0),
     digestFailed: integer("digest_failed", { mode: "boolean" }).notNull().default(false),
     status: text("status", { enum: ITEM_STATUSES }).notNull().default("ready"),
@@ -47,6 +49,7 @@ export const jobs = sqliteTable(
     address: text("address").notNull(),
     state: text("state", { enum: JOB_STATES }).notNull(),
     attempts: integer("attempts").notNull().default(0),
+    catalogRetries: integer("catalog_retries").notNull().default(0),
     nextAttemptAt: integer("next_attempt_at").notNull(),
     claimExpires: integer("claim_expires"),
   },
@@ -142,8 +145,42 @@ export const digests = sqliteTable("digests", {
   taskId: integer("task_id")
     .notNull()
     .references(() => aiTasks.id),
-  provider: text("provider").notNull(),
-  model: text("model").notNull(),
+  provider: text("provider"),
+  model: text("model"),
   generation: integer("generation").notNull(),
   createdAt: integer("created_at").notNull(),
 });
+
+export const topics = sqliteTable("topics", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+});
+
+export const tags = sqliteTable("tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+});
+
+export const itemTags = sqliteTable(
+  "item_tags",
+  {
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    tagId: integer("tag_id")
+      .notNull()
+      .references(() => tags.id),
+  },
+  (table) => [uniqueIndex("item_tags_item_tag").on(table.itemId, table.tagId)],
+);
+
+export const catalogVersion = sqliteTable(
+  "catalog_version",
+  {
+    id: integer("id").primaryKey(),
+    version: integer("version").notNull().default(0),
+  },
+  (table) => [check("catalog_is_one_row", sql`${table.id} = 1`)],
+);
