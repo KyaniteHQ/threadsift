@@ -87,6 +87,7 @@ test("Try again on an unreachable website saves the same link again", async ({ p
 
   const tryAgain = retryButton(page);
   await expect(tryAgain).toBeVisible({ timeout: 20_000 });
+  await tryAgain.hover();
 
   const again = page.waitForRequest(
     (sent) => sent.url().endsWith("/api/items") && sent.method() === "POST",

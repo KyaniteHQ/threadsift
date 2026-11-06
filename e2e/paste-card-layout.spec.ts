@@ -49,6 +49,7 @@ for (const width of WIDTHS) {
     for (const [state, url, title] of states) {
       await pasteOnly(page, url);
       await expect(cardTitle(page)).toHaveText(title, { timeout: 30_000 });
+      await pasteCard(page).hover();
 
       expect(await rowsUnderCard(page), `${state}: rows under the card`).toBe(0);
 
@@ -76,13 +77,13 @@ test("in a window shorter than the card the sidebar scrolls and the card's butto
 
   await pasteOnly(page, unreachableUrl(newRunId()));
   await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
+  await dismissButton(page).hover();
 
   const scrolls = await page
     .locator(".mast")
     .evaluate((mast) => mast.scrollHeight > mast.clientHeight);
 
   expect(scrolls).toBe(true);
-  await dismissButton(page).scrollIntoViewIfNeeded();
   await expect(dismissButton(page)).toBeInViewport({ ratio: 1 });
   await expect(retryButton(page)).toBeVisible();
 });

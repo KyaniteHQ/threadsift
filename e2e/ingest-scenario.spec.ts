@@ -68,6 +68,7 @@ async function firstPaste(context: Run, savedId: number) {
   await expect(cardTitle(page)).toHaveText(READING);
   await shot("1-reading-the-link");
   await expect(cardTitle(page)).toHaveText(ADDED);
+  await pasteCard(page).hover();
   await shot("1-added");
   await expect(rowOf(page, first)).toContainText(`First ${run}`);
   expect((await trace()).skeletonKeys, "the first Paste's row showed its skeleton").toContain(
@@ -98,6 +99,7 @@ async function stalledBesideFast(context: Run) {
 async function tryAgain(context: Run, stalled: number) {
   const { page, request, shot } = context;
   await expect(cardTitle(page)).toHaveText(TIMED_OUT, { timeout: 30_000 });
+  await pasteCard(page).hover();
   await expect(alertRegion(page)).toContainText(TIMED_OUT);
   await expect(rowOf(page, stalled).locator(".it-fail")).toContainText(TIMED_OUT);
   await shot("3-failed");
