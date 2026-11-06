@@ -39,7 +39,7 @@ A large test against live Cloudflare (a bulk import, a restore rehearsal, a load
 
 ## Run selected specs or a shard
 
-Run one target at a time. Concurrent local runs share builds, the image tag, reports, and Reddit request spacing. Use the devenv tasks so dependencies and the target build are ready, and pass Playwright arguments through a JSON array:
+Run one target at a time. Concurrent runs in one checkout share builds, reports, and Reddit request spacing. Separate checkouts have separate container image tags. Use the devenv tasks so dependencies and the target build are ready, and pass Playwright arguments through a JSON array:
 
 ```sh
 direnv exec . devenv tasks run e2e:worker --show-output --input 'args=["e2e/article.spec.ts"]'

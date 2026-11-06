@@ -83,7 +83,17 @@ sql)
   pnpm exec wrangler d1 execute DB --local --persist-to "$2/state" --command "$3" >/dev/null
   ;;
 query)
-  pnpm exec wrangler d1 execute DB --local --persist-to "$2/state" --json --command "$3" | jq -c '.[0].results'
+  status=0
+  output=$(pnpm exec wrangler d1 execute DB --local --persist-to "$2/state" --json --command "$3") || status=$?
+  if [[ $status -ne 0 ]]; then
+    printf '%s\n' "$output" >&2
+    exit "$status"
+  fi
+  if ! results=$(jq -ce '.[0].results | select(type == "array")' <<<"$output" 2>/dev/null); then
+    printf '%s\n' "$output" >&2
+    exit 1
+  fi
+  printf '%s\n' "$results"
   ;;
 stop)
   stop "$2"
