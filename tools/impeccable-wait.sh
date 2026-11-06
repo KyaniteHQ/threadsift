@@ -125,8 +125,10 @@ while :; do
 	read -r run_id run_started run_status run_conclusion run_completed <<< "$run"
 	if [[ $run_status == completed ]]; then
 		[[ $run_conclusion != action_required ]] || request_review "Impeccable needs the caller to request a review; read its check."
-		if [[ $run_completed < $deployed_at ]]; then request_review "The review ended before this copy deployed; request a new review."; fi
-		break
+		[[ $run_completed < $deployed_at ]] || break
+		requested=$(api "repos/$repo/issues/$pr/comments?per_page=100" --paginate --jq '.[] | select((.body | test("^\\s*/impeccable\\s*$")) and .created_at > "'"$deployed_at"'") | .created_at' | tail -n 1)
+		[[ -n $requested ]] || request_review "The review ended before this copy deployed; request a new review."
+		echo "review requested at $requested; waiting for its run"
 	fi
 	if (($(date +%s) >= deadline)) && [[ -z $run ]]; then
 		request_review "No Impeccable review started on $sha within the wait."
