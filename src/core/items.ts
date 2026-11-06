@@ -1,16 +1,15 @@
-import { and, desc, eq, getTableColumns, exists, notExists, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, exists, notExists } from "drizzle-orm";
 
 import { isRefusedHost } from "./addresses.ts";
 import type { Fetched } from "./details.ts";
-import { resolveShortLink } from "./fetch-link.ts";
 import {
-  hasOpenJob,
-  openingJob,
   openingDigest,
   setDigestFailure,
-  enqueueRows,
-} from "./job-rows.ts";
-import { DIGEST_OUTCOMES } from "./kinds.ts";
+  EMPTY_DIGEST_VIEW,
+  DIGEST_VIEW_COLUMNS,
+} from "./digest-job.ts";
+import { resolveShortLink } from "./fetch-link.ts";
+import { hasOpenJob, openingJob, enqueueRows } from "./job-rows.ts";
 import { type Link, isShortLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
 import { digests, items } from "./schema.ts";
@@ -29,16 +28,6 @@ const {
 } = getTableColumns(items);
 
 const { postText: _postText, postedAt: _postedAt, ...LISTED_COLUMNS } = DETAIL_COLUMNS;
-
-const DIGEST_VIEW_COLUMNS = {
-  digestTitle: sql<string | null>`${digests.title}`.as("digest_title"),
-  digestTopic: sql<string | null>`${digests.topic}`.as("digest_topic"),
-  digestOutcome: sql<
-    (typeof DIGEST_OUTCOMES)[number]
-  >`case when exists ${hasOpenJob("digest")} then 'pending' when ${items.digestFailed} then 'failed' else 'none' end`.as(
-    "digest_outcome",
-  ),
-};
 
 function selectItems<Fields extends typeof LISTED_COLUMNS>(db: Database, fields: Fields) {
   return db
@@ -126,7 +115,7 @@ async function saveSettled(
   if (inserted !== undefined) {
     return {
       kind: "saved",
-      item: { ...inserted, digestTitle: null, digestTopic: null, digestOutcome: "none" },
+      item: { ...inserted, ...EMPTY_DIGEST_VIEW },
       created: true,
     };
   }

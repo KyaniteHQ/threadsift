@@ -148,23 +148,53 @@ async function queueLater(
   }
 }
 
+async function writeOutcome(
+  ports: JobPorts,
+  job: Readonly<JobRow>,
+  outcome: JobOutcome,
+): Promise<"done" | "lost" | "stale"> {
+  try {
+    return (await finish(ports, job, { writes: outcome.writes, attempts: job.attempts }))
+      ? "done"
+      : "lost";
+  } catch (error) {
+    if (outcome.currency === undefined || (await outcome.currency.current())) {
+      throw error;
+    }
+  }
+
+  return "stale";
+}
+
 async function applyOutcome(
   ports: JobPorts,
   job: Readonly<JobRow>,
   outcome: JobOutcome,
 ): Promise<void> {
+  let result: Awaited<ReturnType<typeof writeOutcome>>;
+
   try {
-    const wrote = await finish(ports, job, { writes: outcome.writes, attempts: job.attempts });
-
-    if (!wrote && outcome.currency !== undefined)
-      await ports.db.batch([outcome.currency.discard("lease-lost")]);
+    result = await writeOutcome(ports, job, outcome);
   } catch (error) {
-    if (outcome.currency === undefined) throw error;
-    const current = await outcome.currency.current();
-    await ports.db.batch([outcome.currency.discard(current ? "error" : "stale")]);
+    if (outcome.currency !== undefined) await ports.db.batch([outcome.currency.discard("error")]);
+    throw error;
+  }
 
-    if (current) throw error;
-    await queueLater(ports, job, { delayMs: 0, attempts: job.attempts });
+  switch (result) {
+    case "done":
+      break;
+    case "lost":
+      if (outcome.currency !== undefined)
+        await ports.db.batch([outcome.currency.discard("lease-lost")]);
+      break;
+    case "stale":
+      if (outcome.currency !== undefined) await ports.db.batch([outcome.currency.discard("stale")]);
+      await queueLater(ports, job, { delayMs: 0, attempts: job.attempts });
+      break;
+    default: {
+      const exhaustive: never = result;
+      throw new Error(exhaustive);
+    }
   }
 }
 

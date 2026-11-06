@@ -14,7 +14,6 @@ export interface JobCurrency {
 }
 
 export interface JobOutcome {
-  readonly kind: "finish";
   readonly writes: JobWrites;
   readonly currency?: JobCurrency;
 }

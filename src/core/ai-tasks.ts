@@ -3,6 +3,7 @@ import { and, eq, lt } from "drizzle-orm";
 import {
   type HttpAiConnection,
   type AiRefused,
+  type AiRefusal,
   type AiTaskDefinition,
   AI_DEADLINE_MS,
   VERIFY_INPUT,
@@ -47,12 +48,15 @@ export function completedAiTask<Result>(
 export function failedAiTask(
   db: Database,
   taskId: number,
-  failure: Readonly<{ reason: string; status: number | null }>,
+  failure: Readonly<{ reason: AiRefusal | "stale" | "lease-lost"; status: number | null }>,
 ) {
   return failingAiTask(db, failure).where(eq(aiTasks.id, taskId));
 }
 
-function failingAiTask(db: Database, failure: Readonly<{ reason: string; status: number | null }>) {
+function failingAiTask(
+  db: Database,
+  failure: Readonly<{ reason: AiRefusal | "stale" | "lease-lost"; status: number | null }>,
+) {
   return db
     .update(aiTasks)
     .set({ state: "failed", result: null, refusal: failure.reason, status: failure.status });

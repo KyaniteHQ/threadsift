@@ -1,9 +1,9 @@
 import { and, eq, exists, sql } from "drizzle-orm";
 
 import { loadAiConfig } from "./ai-settings.ts";
+import { openingDigest, setDigestFailure } from "./digest-job.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
-import { openingDigest, setDigestFailure } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, digests, items } from "./schema.ts";
 import { isRetryable, settle } from "./settle.ts";
@@ -24,7 +24,6 @@ async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<Job
   const stored = storesText ? { ...fields, generation: sql`${items.generation} + 1` } : fields;
 
   return {
-    kind: "finish",
     writes: [
       ports.db.update(items).set(stored).where(eq(items.id, job.itemId)),
       ...(configured

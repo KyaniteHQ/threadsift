@@ -1,9 +1,10 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, exists, isNotNull, notExists, sql } from "drizzle-orm";
 
 import { AI_DEADLINE_MS, DIGEST_INPUT_BYTES, type Digest, retriesAi } from "./ai-contract.ts";
 import { TASKS, type DoneTask, completedAiTask, failedAiTask, runAiTask } from "./ai-tasks.ts";
 import type { JobCurrency, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
-import { setDigestFailure } from "./job-rows.ts";
+import { hasOpenJob, opening } from "./job-rows.ts";
+import { DIGEST_OUTCOMES } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, digests, guards, items } from "./schema.ts";
 
@@ -26,7 +27,7 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
   const [item] = await digestInput(ports.db, job.itemId);
 
   if (item === undefined || item.postText === null)
-    return { kind: "finish", writes: [setDigestFailure(ports.db, job.itemId, false)] };
+    return { writes: [setDigestFailure(ports.db, job.itemId, false)] };
 
   const result = await runAiTask(ports, TASKS.digest, {
     text: JSON.stringify({ title: item.title, source: item.source, postText: item.postText }),
@@ -37,7 +38,7 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
   if (result.kind !== "done") {
     if (retriesAi(result)) throw new Error(`Digest ${result.reason}`);
 
-    return { kind: "finish", writes: [setDigestFailure(ports.db, job.itemId, true)] };
+    return { writes: [setDigestFailure(ports.db, job.itemId, true)] };
   }
 
   return publishing(ports.db, item, result);
@@ -80,7 +81,6 @@ function publishing(
   };
 
   return {
-    kind: "finish",
     currency: currency(db, item, result.taskId),
     writes: [
       db.insert(guards).select(
@@ -101,4 +101,41 @@ export const digestHandler: JobHandler = {
   blockedBy: ["fetch"],
   attempt: attemptDigest,
   exhausted: (db, job) => [setDigestFailure(db, job.itemId, true)],
+};
+
+export function setDigestFailure(db: Database, itemId: number, failed: boolean) {
+  return db
+    .update(items)
+    .set({ digestFailed: failed })
+    .where(and(eq(items.id, itemId), exists(hasOpenJob("digest"))));
+}
+
+export function openingDigest(
+  db: Database,
+  { itemId, address, now }: Readonly<{ itemId: number; address: string; now: number }>,
+) {
+  return opening(db, {
+    kind: "digest",
+    address,
+    now,
+    where:
+      and(eq(items.id, itemId), isNotNull(items.postText), notExists(hasOpenJob("digest"))) ??
+      sql`0`,
+  });
+}
+
+export const EMPTY_DIGEST_VIEW = {
+  digestTitle: null,
+  digestTopic: null,
+  digestOutcome: "none",
+} as const;
+
+export const DIGEST_VIEW_COLUMNS = {
+  digestTitle: sql<string | null>`${digests.title}`.as("digest_title"),
+  digestTopic: sql<string | null>`${digests.topic}`.as("digest_topic"),
+  digestOutcome: sql<
+    (typeof DIGEST_OUTCOMES)[number]
+  >`case when exists ${hasOpenJob("digest")} then 'pending' when ${items.digestFailed} then 'failed' else 'none' end`.as(
+    "digest_outcome",
+  ),
 };

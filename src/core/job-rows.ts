@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, exists, isNotNull, notExists, sql } from "drizzle-orm";
+import { type SQLWrapper, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { JobPorts } from "./job-outcome.ts";
@@ -10,27 +10,6 @@ const openJobs = alias(jobs, "open_jobs");
 
 export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${items.id}`) {
   return sql`(select 1 from ${jobs} as open_jobs where ${openJobs.itemId} = ${itemId} and ${openJobs.state} <> 'done' ${kind === undefined ? sql`` : sql`and ${openJobs.kind} = ${kind}`})`;
-}
-
-export function setDigestFailure(db: Database, itemId: number, failed: boolean) {
-  return db
-    .update(items)
-    .set({ digestFailed: failed })
-    .where(and(eq(items.id, itemId), exists(hasOpenJob("digest"))));
-}
-
-export function openingDigest(
-  db: Database,
-  { itemId, address, now }: Readonly<{ itemId: number; address: string; now: number }>,
-) {
-  return opening(db, {
-    kind: "digest",
-    address,
-    now,
-    where:
-      and(eq(items.id, itemId), isNotNull(items.postText), notExists(hasOpenJob("digest"))) ??
-      sql`0`,
-  });
 }
 
 export function openingJob(
@@ -50,7 +29,7 @@ export function openingJob(
   return opening(db, { kind, address, now, where: eq(items.normalizedUrl, normalizedUrl) });
 }
 
-function opening(
+export function opening(
   db: Database,
   {
     kind,
