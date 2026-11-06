@@ -6,18 +6,19 @@ import { type CopyRecord, CopyRecordSchema, type DeployedCopy } from "./copy.ts"
 import { requiredEnv } from "./env.ts";
 import { github } from "./github-request.ts";
 
-const ENVIRONMENT = "pr-copy";
+export const ENVIRONMENT = "pr-copy";
 const LIVE_ENVIRONMENT = "live-copy";
 const LIVE_TASK = "deploy:live";
 const PER_PAGE = 100;
 
-const Sha = z.string().regex(/^[0-9a-f]{40}$/u);
+export const Sha = z.string().regex(/^[0-9a-f]{40}$/u);
 export const PrNumber = z.number().int().positive();
 
 export const CoercedPrNumber = z.coerce.number().pipe(PrNumber);
 
 const PullSchema = z.object({
   state: z.enum(["open", "closed"]),
+  draft: z.boolean(),
   base: z.object({ ref: z.string() }),
   head: z.object({ sha: Sha, repo: z.object({ full_name: z.string() }).nullable() }),
 });
@@ -26,11 +27,16 @@ type Pull = z.infer<typeof PullSchema>;
 
 const DeploymentSchema = z.object({
   id: z.number().int(),
+  sha: Sha,
   created_at: z.iso.datetime(),
   payload: z.unknown(),
 });
 
 type Deployment = Readonly<z.infer<typeof DeploymentSchema>>;
+
+export function byNewest(a: Deployment, b: Deployment): number {
+  return Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id;
+}
 
 const WorkflowRunEventSchema = z.object({
   workflow_run: z.object({
@@ -70,7 +76,7 @@ async function postStatus(
   await github(`deployments/${String(id)}/statuses`, z.object({ id: z.number().int() }), body);
 }
 
-function task(pr: number): string {
+export function task(pr: number): string {
   return `deploy:pr-${String(pr)}`;
 }
 
@@ -119,7 +125,7 @@ export function staleReason(head: Readonly<PullHead>, pull: Readonly<Pull>): str
   return null;
 }
 
-async function deployments(
+export async function deployments(
   environment: string,
   deploymentTask: string,
   page = 1,
@@ -165,9 +171,7 @@ async function recordIn(newestFirst: readonly Deployment[]): Promise<CopyRecord 
 }
 
 export async function lastRecord(pr: number): Promise<CopyRecord | null> {
-  const newestFirst = (await deployments(ENVIRONMENT, task(pr))).toSorted(
-    (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id,
-  );
+  const newestFirst = (await deployments(ENVIRONMENT, task(pr))).toSorted(byNewest);
 
   return recordIn(newestFirst);
 }
@@ -248,9 +252,7 @@ export async function requireMainHead(sha: string): Promise<void> {
 }
 
 export async function lastLiveRecord(): Promise<CopyRecord | null> {
-  const [latest] = (await deployments(LIVE_ENVIRONMENT, LIVE_TASK, 1, true)).toSorted(
-    (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id,
-  );
+  const [latest] = (await deployments(LIVE_ENVIRONMENT, LIVE_TASK, 1, true)).toSorted(byNewest);
 
   return latest === undefined ? null : CopyRecordSchema.parse(latest.payload);
 }

@@ -1,5 +1,6 @@
-import { appliedMigrations, applyMigrations, cloudflare, type Stage } from "./cloudflare.ts";
+import { applyMigrations, cloudflare, type Stage } from "./cloudflare.ts";
 import type { CopyRecord } from "./copy.ts";
+import { appliedMigrations } from "./d1.ts";
 import type { MigrationHashes } from "./stage.ts";
 
 export function checkMigrations(record: CopyRecord | null, hashes: MigrationHashes): void {

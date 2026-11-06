@@ -104,7 +104,7 @@ function redact(text: string): string {
   return text.replaceAll(requiredEnv("CLOUDFLARE_ACCOUNT_ID"), "<account>");
 }
 
-function refuseOutsideTarget(target: Readonly<CopyNames>, names: readonly string[]): void {
+export function refuseOutsideTarget(target: Readonly<CopyNames>, names: readonly string[]): void {
   const outside = names.filter((name) => name !== target.name && name !== target.queue);
 
   if (outside.length > 0) {
@@ -155,12 +155,14 @@ function runWrangler(
   });
 }
 
+type RequestMethod = "GET" | "DELETE" | "POST" | "PATCH";
+
 async function accountRequest(
-  method: "GET" | "DELETE" | "POST",
+  method: RequestMethod,
   path: string,
   body?: string,
 ): Promise<Response> {
-  const request = method === "POST" ? { method, body: body ?? null } : { method };
+  const request = body === undefined ? { method } : { method, body };
 
   const response = await fetch(`${API}/accounts/${requiredEnv("CLOUDFLARE_ACCOUNT_ID")}/${path}`, {
     ...request,
@@ -199,15 +201,24 @@ export async function cloudflare(
   process.stdout.write(`$ DELETE workers/scripts/${worker}\nDeleted the Worker ${worker}\n`);
 }
 
-const PageSchema = z.object({
+export const PageSchema = z.object({
   success: z.literal(true),
   result_info: z.object({ total_count: z.number().int() }).optional(),
 });
 
-async function cloudflareGet<Body>(path: string, schema: z.ZodType<Body>): Promise<Body> {
-  const response = await accountRequest("GET", path);
+export async function cloudflareCall<Body>(
+  method: RequestMethod,
+  path: string,
+  schema: z.ZodType<Body>,
+  body?: string,
+): Promise<Body> {
+  const response = await accountRequest(method, path, body);
 
   return schema.parse(await response.json());
+}
+
+function cloudflareGet<Body>(path: string, schema: z.ZodType<Body>): Promise<Body> {
+  return cloudflareCall("GET", path, schema);
 }
 
 async function listFrom<Row>(path: string, rows: z.ZodType<Row>, page: number): Promise<Row[]> {
@@ -266,25 +277,4 @@ export async function workerSecretNames(stage: Readonly<Stage>, worker: string):
   );
 
   return body.result.map((entry) => entry.name);
-}
-
-export async function appliedMigrations(
-  stage: Readonly<Stage>,
-  database: Readonly<{ name: string; id: string }>,
-): Promise<string[]> {
-  refuseOutsideTarget(stage.target, [database.name]);
-
-  const response = await accountRequest(
-    "POST",
-    `d1/database/${encodeURIComponent(database.id)}/query`,
-    JSON.stringify({ sql: "SELECT name FROM d1_migrations ORDER BY id" }),
-  );
-
-  const body = PageSchema.extend({
-    result: z.array(
-      z.object({ success: z.literal(true), results: z.array(z.object({ name: z.string() })) }),
-    ),
-  }).parse(await response.json());
-
-  return body.result.flatMap((result) => result.results.map((row) => row.name));
 }

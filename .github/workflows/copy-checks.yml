@@ -1,0 +1,125 @@
+name: copy checks
+run-name: copy checks ${{ inputs.pr }} ${{ inputs.head }}${{ inputs.rebuild > 0 && ' rebuild' || '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number whose copy is checked
+        required: true
+        type: number
+      head:
+        description: Head commit of that pull request; the run stops when the pull request or its copy is at another commit
+        required: true
+        type: string
+      rebuild:
+        description: Only for a throwaway draft pull request; rebuild its copy this many times (up to 20) instead of running the checks
+        required: false
+        default: 0
+        type: number
+
+concurrency:
+  group: pr-copy-${{ inputs.pr }}
+  cancel-in-progress: false
+  queue: max
+
+permissions: {}
+
+jobs:
+  checks:
+    if: >-
+      github.repository == 'KyaniteHQ/threadsift' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.rebuild == 0
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    environment: preview
+    permissions:
+      actions: read
+      contents: read
+      deployments: read
+      pull-requests: read
+    env:
+      PR: ${{ inputs.pr }}
+      HEAD: ${{ inputs.head }}
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: ./.github/actions/setup-devenv
+      - run: devenv tasks run ci:install
+      - name: Download the build the copy was deployed from, as data
+        run: |
+          run_id=$(gh run list --workflow gate.yml --commit "$HEAD" --event pull_request --status success --json databaseId --jq '.[0].databaseId // empty')
+          if [[ -z $run_id ]]; then echo "No successful gate run for $HEAD, or its artifact expired"; exit 1; fi
+          gh run download "$run_id" --name pr-copy --dir "$RUNNER_TEMP/pr-copy"
+      - name: Run the checks
+        timeout-minutes: 300
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEMO_OWNER_PASSWORD: ${{ secrets.DEMO_OWNER_PASSWORD }}
+        run: devenv shell -- node tools/pr-copy/cli.ts check --pr "$PR" --head "$HEAD" --artifact "$RUNNER_TEMP/pr-copy" --out "$RUNNER_TEMP/copy-checks"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: copy-checks-${{ inputs.pr }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/copy-checks
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Resume delivery on the copy's Queue
+        if: always()
+        timeout-minutes: 10
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: devenv shell -- node tools/pr-copy/cli.ts check --pr "$PR" --resume
+
+  rebuild:
+    if: >-
+      github.repository == 'KyaniteHQ/threadsift' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.rebuild > 0
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    environment: preview
+    permissions:
+      actions: read
+      contents: read
+      deployments: read
+      pull-requests: read
+    env:
+      PR: ${{ inputs.pr }}
+      HEAD: ${{ inputs.head }}
+      TIMES: ${{ inputs.rebuild }}
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: ./.github/actions/setup-devenv
+      - run: devenv tasks run ci:install
+      - name: Download the build the copy was deployed from, as data
+        run: |
+          run_id=$(gh run list --workflow gate.yml --commit "$HEAD" --event pull_request --status success --json databaseId --jq '.[0].databaseId // empty')
+          if [[ -z $run_id ]]; then echo "No successful gate run for $HEAD, or its artifact expired"; exit 1; fi
+          gh run download "$run_id" --name pr-copy --dir "$RUNNER_TEMP/pr-copy"
+      - name: Rebuild the copy
+        timeout-minutes: 300
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEMO_OWNER_PASSWORD: ${{ secrets.DEMO_OWNER_PASSWORD }}
+        run: devenv shell -- node tools/pr-copy/cli.ts rebuild --pr "$PR" --head "$HEAD" --artifact "$RUNNER_TEMP/pr-copy" --out "$RUNNER_TEMP/copy-rebuild" --times "$TIMES"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: copy-rebuild-${{ inputs.pr }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/copy-rebuild
+          if-no-files-found: ignore
+          retention-days: 14

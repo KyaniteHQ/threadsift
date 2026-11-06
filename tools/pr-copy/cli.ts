@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
+import { SCENARIO_NAMES, checkCommand, rebuildCommand } from "./check-command.ts";
 import {
   type CopyRecord,
   CopyRecordSchema,
@@ -35,6 +36,11 @@ const USAGE = `Usage:
   node tools/pr-copy/cli.ts delete --pr <n>
   node tools/pr-copy/cli.ts live --artifact <dir> --github
   node tools/pr-copy/cli.ts sweep [--dry-run]
+  node tools/pr-copy/cli.ts check --pr <n> --head <sha> --artifact <dir> --out <dir> [--scenario <name>]...
+  node tools/pr-copy/cli.ts check --pr <n> --resume
+  node tools/pr-copy/cli.ts rebuild --pr <n> --head <sha> --artifact <dir> --out <dir> --times <k>
+  check runs against the copy's current deployment; to run it for a maintainer, dispatch .github/workflows/copy-checks.yml (gh workflow run copy-checks.yml -f pr=<n> -f head=<sha>)
+  scenarios: ${SCENARIO_NAMES.join(", ")}; the default is all of them
   sweep needs GITHUB_REPOSITORY and GITHUB_TOKEN; GITHUB_API_URL defaults to https://api.github.com`;
 
 const { positionals, values: flags } = parseArgs({
@@ -46,6 +52,11 @@ const { positionals, values: flags } = parseArgs({
     pr: { type: "string" },
     record: { type: "string" },
     "dry-run": { type: "boolean", default: false },
+    head: { type: "string" },
+    out: { type: "string" },
+    scenario: { type: "string", multiple: true },
+    times: { type: "string" },
+    resume: { type: "boolean", default: false },
   },
 });
 
@@ -176,6 +187,10 @@ async function liveFromGithub(artifact: string): Promise<void> {
 
 function run(command: string | undefined): Promise<void> {
   if (command === "sweep" && positionals.length === 1) return sweep(flags["dry-run"]);
+
+  if (command === "check") return checkCommand(localPr(), flags);
+
+  if (command === "rebuild") return rebuildCommand(localPr(), flags);
 
   if (command === "live" && flags.github) return liveFromGithub(required(flags.artifact));
 
