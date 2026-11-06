@@ -202,7 +202,7 @@ Dark and Sepia redefine every neutral and the accent's lightness and chroma in `
 ### Hierarchy
 - **Display** (`--t-display`: 600, 24px in List and 30px in Grid, 1.15): the wordmark, the reader title and the empty-library heading. It scales to 0.85 under 760px.
 - **Headline** (`--t-h2`: 600, 20px, 1.25): reader section headings such as Original post, Comments and README.
-- **Title** (`--t-title`: 500, 15px at Compact, 1.25): item titles in rows and cards. An unread item's title is 700.
+- **Title** (`--t-title`: 500, 15px at Compact, 1.25): item titles in rows and cards. An unread item's title is 700. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped.
 - **Body** (`--t-read`: 400, 17px at Medium text size, 1.6): post and comment text in the reading column, up to 62 average characters a line at Medium text width (56 Narrow, 68 Wide). The reader's summary and key points use the same size at line height 1.5 (`--lh-text`).
 - **Body list** (400, 13.5px at Compact, 1.45): row and card summaries. Comfortable and Roomy raise it to 14.5px and 15.5px.
 - **Meta** (`--t-meta`: 400, 13px, 1.45): the app's default UI size, for metadata, buttons, filters and bylines.

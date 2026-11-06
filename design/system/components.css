@@ -222,6 +222,7 @@ a.btn { text-decoration: none; }
 .it-badge { padding: 0 var(--s2); border-radius: var(--r4); background: var(--acc); color: var(--on-acc); font-size: var(--t-label); font-weight: 700; }
 .it.is-back { outline: 2px solid var(--acc); outline-offset: 2px; }
 .it-proc .it-title { min-height: calc(var(--t-title) * var(--lh-title)); font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
+.it-link-only .it-title { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proc-ic { color: var(--acc-ink); }
 .skel { grid-area: sum; position: relative; height: 0; }
 .skel i, .it-ghost i { display: block; height: var(--s2); border-radius: var(--r1); background: var(--surface-2); animation: shimmer var(--loop-pulse) ease-in-out infinite; }

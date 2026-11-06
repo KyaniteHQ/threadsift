@@ -1,4 +1,4 @@
-import { Fragment, type RefObject, memo, useCallback, useEffect, useId, useRef } from "react";
+import { type RefObject, memo, useCallback, useEffect, useId, useRef } from "react";
 
 import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
@@ -7,29 +7,8 @@ import { revealInPane } from "./reveal.ts";
 import { savedLabel } from "./saved-label.ts";
 import { CARD_TITLES, FAILURE_TITLES, NEW_TAB_LABEL, RETRY_LABEL, SOURCE_LABELS } from "./text.ts";
 
-const BREAK_BEFORE_OR_AFTER = /(?<=\/)|(?=[._\-?&=#])/u;
-
 function withoutScheme(url: string): string {
   return url.replace(/^https?:\/\//u, "");
-}
-
-function BreakableLink({ text }: Readonly<{ text: string }>) {
-  const hostEnd = text.search(/[/?#]/u);
-  const host = hostEnd === -1 ? text : text.slice(0, hostEnd);
-  const parts = text.slice(host.length).split(BREAK_BEFORE_OR_AFTER);
-  const offsets = parts.map((_, index) => parts.slice(0, index).join("").length);
-
-  return (
-    <>
-      {host}
-      {parts.map((part, index) => (
-        <Fragment key={offsets[index]}>
-          {index > 0 && <wbr />}
-          {part}
-        </Fragment>
-      ))}
-    </>
-  );
 }
 
 function showsSkeleton(item: Readonly<Item>): boolean {
@@ -167,7 +146,7 @@ export const ItemRow = memo(function ItemRow({
           aria-current={isOpen ? "true" : undefined}
         >
           {item.title === null ? (
-            <BreakableLink text={withoutScheme(item.normalizedUrl)} />
+            withoutScheme(item.normalizedUrl)
           ) : (
             <bdi dir="auto">{item.title}</bdi>
           )}
