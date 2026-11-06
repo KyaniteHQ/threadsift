@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import {
   DARK_SCHEME,
   STORAGE_KEY,
+  PAGE_SETTINGS,
   THEME,
   type SettingKey,
   type Settings,
@@ -10,7 +18,6 @@ import {
   followsDevice,
   readStored,
   resetLook,
-  resolvedTheme,
   rootAttributes,
   serialize,
 } from "../../design/system/settings.ts";
@@ -43,14 +50,22 @@ function deviceIsDark(): boolean {
   return matchMedia(DARK_SCHEME).matches;
 }
 
+function usePageAttributes(attributes: Readonly<Record<string, string>>): void {
+  useLayoutEffect(() => {
+    for (const [attribute, value] of Object.entries(attributes)) {
+      if (PAGE_SETTINGS.some((row) => row.attribute === attribute)) {
+        document.documentElement.setAttribute(attribute, value);
+      }
+    }
+  }, [attributes]);
+}
+
 export function useSettings() {
   const [settings, setSettings] = useState(() => readStored(readStorage()));
   const isDark = useSyncExternalStore(subscribeToDeviceScheme, deviceIsDark);
-  const theme = resolvedTheme(settings, isDark);
+  const attributes = useMemo(() => rootAttributes(settings, isDark), [settings, isDark]);
 
-  useLayoutEffect(() => {
-    document.documentElement.setAttribute(THEME.attribute, theme);
-  }, [theme]);
+  usePageAttributes(attributes);
 
   useEffect(() => {
     const listeners = new AbortController();
@@ -90,5 +105,5 @@ export function useSettings() {
     ? MATCH_SYSTEM_NOTES[isDark ? "dark" : "light"]
     : null;
 
-  return { settings, themeNote, attributes: rootAttributes(settings, isDark), pick, reset };
+  return { settings, themeNote, attributes, pick, reset };
 }

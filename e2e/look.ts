@@ -128,6 +128,10 @@ export async function pickFont(dialog: Locator, label: string): Promise<void> {
   await dialog.getByRole("combobox", { name: "Font" }).selectOption({ label });
 }
 
+export async function pickStyle(dialog: Locator, id: string): Promise<void> {
+  await dialog.getByRole("combobox", { name: "Style", exact: true }).selectOption(id);
+}
+
 export async function expectChosen(dialog: Locator, group: string, option: string): Promise<void> {
   await expect(radioOf(dialog, group, option)).toBeChecked();
 }

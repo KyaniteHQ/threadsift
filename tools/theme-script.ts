@@ -1,24 +1,22 @@
 import type { Plugin } from "vite";
 
-import { DARK_SCHEME, STORAGE_KEY, THEME } from "../design/system/settings.ts";
-
-const FOLLOWS = Object.fromEntries(
-  THEME.options.flatMap((option) =>
-    "followsDevice" in option ? [[option.id, option.followsDevice]] : [],
-  ),
-);
+import { DARK_SCHEME, PAGE_SETTINGS, STORAGE_KEY } from "../design/system/settings.ts";
 
 function themeScript(): string {
-  const [storageKey, key, attribute, scheme] = [
-    STORAGE_KEY,
-    THEME.key,
-    THEME.attribute,
-    DARK_SCHEME,
-  ].map((value) => JSON.stringify(value));
+  const rows = JSON.stringify(
+    PAGE_SETTINGS.map((row) => ({
+      key: row.key,
+      attribute: row.attribute,
+      default: row.default,
+      options: row.options.map((option) =>
+        "followsDevice" in option
+          ? { id: option.id, followsDevice: option.followsDevice }
+          : { id: option.id },
+      ),
+    })),
+  );
 
-  const ids = JSON.stringify(THEME.options.map((option) => option.id));
-
-  return `(function(){try{var t=JSON.parse(localStorage.getItem(${storageKey}))[${key}];if(${ids}.indexOf(t)<0)return;var f=${JSON.stringify(FOLLOWS)}[t];document.documentElement.setAttribute(${attribute},f?f[matchMedia(${scheme}).matches?1:0]:t)}catch(e){}})()`;
+  return `(function(){try{var s=JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)}))||{};for(var r of ${rows}){var o=r.options.find(function(o){return o.id===s[r.key]})||r.options.find(function(o){return o.id===r.default});document.documentElement.setAttribute(r.attribute,o.followsDevice?o.followsDevice[matchMedia(${JSON.stringify(DARK_SCHEME)}).matches?1:0]:o.id)}}catch(e){}})()`;
 }
 
 export function themeScriptPlugin(): Plugin {

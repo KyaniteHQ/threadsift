@@ -1,7 +1,7 @@
 import { type Page, expect } from "@playwright/test";
 
 import { DEFAULTS } from "../design/system/settings.ts";
-import { collectViolations } from "./design-checks.ts";
+import { collectDesign } from "./design-checks.ts";
 import { app, viewportAt } from "./look.ts";
 
 export const BANDS_AT_WIDTH = [
@@ -19,7 +19,7 @@ export async function resize(page: Page, width: number, bands: string): Promise<
 }
 
 export async function expectNoViolations(page: Page, what: string): Promise<void> {
-  expect(await page.evaluate(collectViolations, DEFAULTS.font), what).toEqual([]);
+  expect((await page.evaluate(collectDesign, DEFAULTS.font)).violations, what).toEqual([]);
 }
 
 export async function checkAtEveryWidth(

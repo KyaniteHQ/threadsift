@@ -22,7 +22,7 @@ Use these exact terms in code, docs and issues.
 | Before reviewing a change | `docs/agents/reviewing-code.md` |
 | Any colour, size, spacing, font or setting value | `design/system/tokens.css`, the one source for every value; `design/system/settings.ts` owns each setting's id, label, attribute and default |
 | How a screen behaves (reader bar fitting, comment folds, reading place, settings panel) | `design/prototype/`, served as the README shows |
-| Style blocks (the 10 Styles) | `design/prototype/tokens.css`; the design system predates them, so they still have to move into `design/system/tokens.css` |
+| Style blocks (the 10 Styles) | `design/system/tokens.css`; `docs/design/styles.md` names the faces and visual references |
 | Why a design choice was made | `docs/design/claude-design-prompts.md` and `docs/design/reviews/round-7/` |
 
 ## Issues

@@ -1,6 +1,6 @@
 # Styles
 
-The prototype's "Style" setting offers Library (the default) and these 10 styles. Each was picked on 2026-11-04 from [refero.design](https://styles.refero.design/) for a reading app with long text, comment threads and a list or grid of saves, and each is mapped onto the existing tokens as one `[data-style]` block in `design/prototype/tokens.css`, with Light, Dark and Sepia themes. The refero exports themselves are not copied here; each entry links to its page.
+The prototype's "Style" setting offers Library (the default) and these 10 styles. Each was picked on 2026-11-04 from [refero.design](https://styles.refero.design/) for a reading app with long text, comment threads and a list or grid of saves, and each is mapped onto the system tokens as one `[data-style]` block in `design/system/tokens.css`, with Light, Dark and Sepia themes. The refero exports themselves are not copied here; each entry links to its page.
 
 Commercial faces were swapped for Google Fonts:
 

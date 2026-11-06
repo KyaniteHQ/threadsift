@@ -1,10 +1,10 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS, STORAGE_KEY } from "../design/system/settings.ts";
+import { loadFamilies, watchRequests } from "./fonts.ts";
 import { app, openPanel, pickOption, px, storeSettings, computed, titledRow } from "./look.ts";
 
 const FONT_ROW = SETTINGS.find((row) => row.key === "font");
-const FAMILY_TOKENS = ["--f-display", "--f-ui", "--f-read", "--f-mono"] as const;
 
 test("html takes the theme's background and colour scheme in each theme", async ({ page }) => {
   const seen = new Map<string, string>();
@@ -76,38 +76,6 @@ test("raising the root font size raises the row title, so the type tokens follow
   expect(after).toBeCloseTo((before * 20) / 16, 1);
 });
 
-function watchRequests(page: Page) {
-  const origins = new Set<string>();
-  const fontFiles: { url: string; status: number }[] = [];
-  page.on("request", (request) => origins.add(new URL(request.url()).origin));
-  page.on("response", (response) => {
-    if (response.request().resourceType() === "font") {
-      fontFiles.push({ url: response.url(), status: response.status() });
-    }
-  });
-
-  return { origins, fontFiles };
-}
-
-function loadFamilies(page: Page) {
-  return page.evaluate((tokens) => {
-    const style = getComputedStyle(document.querySelector(".app") ?? document.body);
-
-    const families = new Set(
-      tokens.map((token) =>
-        (style.getPropertyValue(token).split(",")[0] ?? "").trim().replaceAll(/^["']|["']$/gu, ""),
-      ),
-    );
-
-    return Promise.all(
-      [...families].map(async (family) => ({
-        family,
-        faces: (await document.fonts.load(`1em "${family}"`)).length,
-      })),
-    );
-  }, FAMILY_TOKENS);
-}
-
 test("every Font pair's families load from the app's own origin", async ({ page, baseURL }) => {
   const origin = new URL(baseURL ?? "").origin;
   const { origins, fontFiles } = watchRequests(page);
@@ -139,12 +107,12 @@ test("every Font pair's families load from the app's own origin", async ({ page,
 });
 
 const COLD_THEMES = [
-  { stored: { theme: "dark" }, scheme: "light", expected: "dark" },
-  { stored: { theme: "system" }, scheme: "dark", expected: "dark" },
-  { stored: { theme: "system" }, scheme: "light", expected: "light" },
+  { stored: { theme: "dark", style: "anthropic" }, scheme: "light", expected: "dark" },
+  { stored: { theme: "system", style: "modal" }, scheme: "dark", expected: "dark" },
+  { stored: { theme: "system", style: "cal-com" }, scheme: "light", expected: "light" },
 ] as const;
 
-test("a stored theme is on html before the app script runs, and an unreadable store leaves Light", async ({
+test("stored Theme and Style are on html before the app script runs, and an unreadable store leaves Light", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -152,6 +120,8 @@ test("a stored theme is on html before the app script runs, and an unreadable st
       if (document.body !== null) {
         const theme = document.documentElement.dataset["theme"] ?? "none";
         document.documentElement.dataset["themeAtBody"] = theme;
+        document.documentElement.dataset["styleAtBody"] =
+          document.documentElement.dataset["style"] ?? "none";
         watch.disconnect();
       }
     });
@@ -176,6 +146,7 @@ test("a stored theme is on html before the app script runs, and an unreadable st
       expected,
     );
     await expect(html).toHaveAttribute("data-theme", expected);
+    await expect(html).toHaveAttribute("data-style-at-body", stored.style);
     await expect(page.locator(".app")).toHaveCount(0);
   }
 
@@ -187,7 +158,8 @@ test("a stored theme is on html before the app script runs, and an unreadable st
       { key: STORAGE_KEY, text: value },
     );
     await page.goto("/");
-    await expect(html, `stored ${value}`).toHaveAttribute("data-theme-at-body", "none");
+    await expect(html, `stored ${value}`).toHaveCSS("color-scheme", "light");
+    await expect(html).toHaveCSS("background-color", "oklch(0.976 0.008 255)");
   }
 });
 

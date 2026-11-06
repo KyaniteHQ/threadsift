@@ -123,3 +123,5 @@ export const SOURCE_LABELS: Readonly<Record<Source, string>> = {
   article: "Article",
   other: "Other",
 };
+
+export const STYLE_NOTE = "Set by the style";

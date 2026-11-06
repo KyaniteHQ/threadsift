@@ -104,7 +104,7 @@ a.btn { text-decoration: none; }
 .st-b { position: relative; display: flex; align-items: center; justify-content: center; flex: 1 1 auto; min-width: 0; min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); cursor: pointer; font: inherit; }
 .st-b:hover { background: var(--surface); }
 .st-b:has(:checked) { background: var(--acc); color: var(--on-acc); font-weight: 600; }
-/* a row that doesn't apply at this width: shown, muted, and its note says why */
+
 .st-row.off .st-l, .st-row.off .st-b { color: var(--muted); }
 .st-row.off .st-b { cursor: default; }
 .st-row.off .st-b:hover { background: transparent; }
