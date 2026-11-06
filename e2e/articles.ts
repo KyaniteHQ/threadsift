@@ -19,7 +19,6 @@ export const BREAD_POSTED_AT = Date.parse("2002-01-29T04:35:03Z");
 export const WAR_AND_PEACE = "https://www.gutenberg.org/files/2600/2600-h/2600-h.htm";
 export const COMPLETE_SHAKESPEARE = "https://www.gutenberg.org/files/100/100-h/100-h.htm";
 export const VIDEO_HOST_PAGE_WITH_TEXT = "https://vimeo.com/terms";
-export const YOUTUBE_WATCH = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 export const C2_WIKI_PAGE = "https://wiki.c2.com/?WelcomeVisitors";
 
 export const BIG_PAGE_TIMEOUT_MS = 180_000;

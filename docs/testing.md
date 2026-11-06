@@ -36,3 +36,18 @@ A large test against live Cloudflare (a bulk import, a restore rehearsal, a load
 - A test never reads an element that closes itself, such as the paste card that closes after 6 s, at an instant it picked. It reads the state the element shows before it can close, or the state the app stored.
 - An API answer is not proof that background work has finished. After a request returns, the test waits for the Item's status or the job's row.
 - CI runs slower than a development machine and varies from run to run, so a wait that fits on one run fails on the next.
+
+## Run selected specs or a shard
+
+Run one target at a time. Concurrent local runs share builds, the image tag, reports, and Reddit request spacing. Use the devenv tasks so dependencies and the target build are ready, and pass Playwright arguments through a JSON array:
+
+```sh
+direnv exec . devenv tasks run e2e:worker --show-output --input 'args=["e2e/article.spec.ts"]'
+direnv exec . devenv tasks run e2e:container --show-output --input 'args=["--shard=1/3"]'
+```
+
+Omit `--input` for the whole suite. With one Playwright worker and no `fullyParallel`, [Playwright sharding](https://playwright.dev/docs/test-sharding) assigns whole files in file order by test count, not by time.
+
+To choose the count, download the shard reports from the gate run and sum each file's test durations. Assign the files in order under the test-count rule for two adjacent counts, then compare full job times, including setup, and choose the smaller count that puts both targets below 10 minutes. The gate currently uses 3 shards per target.
+
+`e2e/reddit.ts` spaces Reddit requests within one shard. Shards run on separate runners, so their spacing is independent.

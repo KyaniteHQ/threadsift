@@ -17,6 +17,11 @@ let
   podmanPolicy = pkgs.writeText "policy.json" (
     builtins.toJSON { default = [ { type = "insecureAcceptAnything"; } ]; }
   );
+  e2eCommand = target: ''
+    jq --exit-status '(.args // []) | type == "array" and all(type == "string")' <<< "$DEVENV_TASK_INPUT" > /dev/null
+    mapfile -d "" -t args < <(jq --join-output '(.args // [])[] | ., "\u0000"' <<< "$DEVENV_TASK_INPUT")
+    exec tools/e2e/${target}.sh "''${args[@]}"
+  '';
   port = name: toString config.processes.${name}.ports.http.value;
 in
 {
@@ -104,14 +109,14 @@ in
         "ci:install"
         "image:build"
       ];
-      exec = "tools/e2e/container.sh";
+      exec = e2eCommand "container";
     };
     "e2e:worker" = {
       after = [
         "ci:install"
         "ci:build"
       ];
-      exec = "tools/e2e/worker.sh";
+      exec = e2eCommand "worker";
     };
   };
 
