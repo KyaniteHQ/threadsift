@@ -68,3 +68,17 @@ export async function unchangedOpenDigest(screen: FreshScreen, id: number): Prom
   expect(response.status()).toBe(200);
   expect(jobsOf(id, screen.fresh)).toEqual(before);
 }
+
+export function lastDigestTask(screen: FreshScreen) {
+  return screen.fresh.query(
+    "SELECT deadline, state, refusal, status FROM ai_tasks ORDER BY id DESC LIMIT 1",
+    z.array(
+      z.object({
+        deadline: z.number(),
+        state: z.string(),
+        refusal: z.string().nullable(),
+        status: z.number().nullable(),
+      }),
+    ),
+  )[0];
+}

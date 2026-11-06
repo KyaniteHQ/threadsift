@@ -136,6 +136,10 @@ export function expireClaim(id: number): void {
   mainInstance().sql(`UPDATE jobs SET claim_expires = 1 WHERE item_id = ${id}`);
 }
 
-export function makeDue(id: number, instance: Instance = mainInstance()): void {
+export function makeJobDue(id: number, instance: Instance): void {
   instance.sql(`UPDATE jobs SET next_attempt_at = 0 WHERE id = ${id}`);
+}
+
+export function makeDue(itemId: number): void {
+  mainInstance().sql(`UPDATE jobs SET next_attempt_at = 0 WHERE item_id = ${itemId}`);
 }

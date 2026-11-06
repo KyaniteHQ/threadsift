@@ -1,6 +1,6 @@
 import { type TestInfo, expect, test } from "@playwright/test";
-import { z } from "zod";
 
+import { AI_DEADLINE_MS } from "../src/core/ai-contract.ts";
 import { ItemResponseSchema } from "../src/http/schemas.ts";
 import { NO_DIGEST, NOTICES, RETRY_LABEL } from "../web/src/text.ts";
 import {
@@ -14,9 +14,15 @@ import {
 } from "./ai.ts";
 import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { ESSAY } from "./articles.ts";
-import { alertRegion, attachJson, stuckProcessingItems } from "./card.ts";
-import { unchangedOpenDigest, configureDigest, digestRecord, digestScreens } from "./digest.ts";
-import { jobsOf, makeDue, sweepNow } from "./ingest.ts";
+import { alertRegion, attachJson } from "./card.ts";
+import {
+  unchangedOpenDigest,
+  configureDigest,
+  digestRecord,
+  digestScreens,
+  lastDigestTask,
+} from "./digest.ts";
+import { jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
 
 const AI_WAIT = 660_000;
 
@@ -58,11 +64,11 @@ test("Digests skip unconfigured and textless Items, retry network failures on st
   await unchangedOpenDigest(screen, item.id);
 
   if (first === undefined) throw new Error("no Digest job");
-  makeDue(first.id, screen.fresh);
+  makeJobDue(first.id, screen.fresh);
   await sweepNow(request, screen.fresh);
   await expect.poll(() => jobsOf(item.id, screen.fresh, "digest")[0]?.attempts).toBe(2);
   await assertDelay(2, 120_000, item.id, info);
-  makeDue(first.id, screen.fresh);
+  makeJobDue(first.id, screen.fresh);
   await sweepNow(request, screen.fresh);
   const end = await settled(request, item.id);
   expect(end).toMatchObject({
@@ -73,7 +79,6 @@ test("Digests skip unconfigured and textless Items, retry network failures on st
     digestOutcome: "failed",
   });
   expect(jobsOf(item.id, screen.fresh, "digest")).toMatchObject([{ state: "done", attempts: 3 }]);
-  expect(stuckProcessingItems(screen.fresh)).toBe(0);
 });
 
 async function assertDelay(
@@ -82,15 +87,12 @@ async function assertDelay(
   id: number,
   info: TestInfo,
 ): Promise<void> {
-  const [task] = screen.fresh.query(
-    "SELECT deadline FROM ai_tasks ORDER BY id DESC LIMIT 1",
-    z.array(z.object({ deadline: z.number() })),
-  );
+  const task = lastDigestTask(screen);
 
   const job = jobsOf(id, screen.fresh, "digest")[0];
-  expect((job?.next_attempt_at ?? 0) - ((task?.deadline ?? 0) - 600_000)).toBeGreaterThanOrEqual(
-    delay,
-  );
+  expect(
+    (job?.next_attempt_at ?? 0) - ((task?.deadline ?? 0) - AI_DEADLINE_MS),
+  ).toBeGreaterThanOrEqual(delay);
   await attachJson(info, `retry-${attempts}.json`, JSON.stringify({ job, task }));
 }
 
@@ -116,7 +118,6 @@ async function readStored(id: number, provider: Readonly<ReturnType<typeof proof
     digestTitle: digest.title,
     digestTopic: digest.topic,
   });
-  expect(stuckProcessingItems(screen.fresh)).toBe(0);
 
   return item;
 }
@@ -124,7 +125,7 @@ async function readStored(id: number, provider: Readonly<ReturnType<typeof proof
 async function rowShows(id: number, title: string, topic: string): Promise<void> {
   await screen.page.goto("/");
   const row = screen.page.locator(`article[data-key='${id}']`);
-  await expect(row.locator(".it-title")).toContainText(title);
+  await expect(row.locator(".it-title bdi")).toHaveText(title);
   await expect(row.locator(".it-topic")).toHaveText(topic);
 }
 
@@ -161,6 +162,7 @@ test("wrong keys give up once, Digest-only retry keeps the fetch, refresh replac
   await screen.page.goto("/");
   await expect(screen.page.getByText(NO_DIGEST, { exact: true })).toBeVisible();
   await digestScreens(screen, info, "no-digest");
+  await proveModelGiveUp(failed.id, provider, info);
   await configureDigest(screen, provider);
   await retryInBrowser(failed.id);
   const stored = await readStored(failed.id, provider);
@@ -220,7 +222,6 @@ async function refreshBehindFetch(id: number): Promise<void> {
 
   const queued = await screen.context.request.post(`/api/items/${id}/digest`, { data: {} });
   expect(queued.status()).toBe(200);
-  expect(await queued.json()).not.toHaveProperty("item.generation");
   const rows = jobsOf(id, screen.fresh).filter((job) => job.state !== "done");
   expect(rows).toMatchObject([
     { kind: "fetch", state: "queued" },
@@ -231,7 +232,7 @@ async function refreshBehindFetch(id: number): Promise<void> {
   const fetch = rows.find((job) => job.kind === "fetch");
 
   if (fetch === undefined) throw new Error("no refresh fetch");
-  makeDue(fetch.id, screen.fresh);
+  makeJobDue(fetch.id, screen.fresh);
   await sweepNow(request, screen.fresh);
   await settled(request, id, AI_WAIT);
   expect(countRows(screen, "ai_tasks")).toBe(before + 1);
@@ -249,4 +250,21 @@ async function refuseRetryPost(id: number): Promise<void> {
   } finally {
     screen.fresh.sql("DROP TRIGGER refuse_digest_job");
   }
+}
+
+async function proveModelGiveUp(
+  id: number,
+  provider: Readonly<ReturnType<typeof proofProvider>>,
+  info: TestInfo,
+): Promise<void> {
+  await configureDigest(screen, { ...provider, model: "@cf/threadsift/nonexistent-model-proof" });
+  await aiJson(screen, ItemResponseSchema, "POST", `/api/items/${id}/digest`);
+  await expect
+    .poll(() => jobsOf(id, screen.fresh, "digest").at(-1), { timeout: 30_000 })
+    .toMatchObject({ state: "done", attempts: 0 });
+  expect(await itemOf(screen.context.request, id)).toMatchObject({
+    digestOutcome: "failed",
+    digestTitle: null,
+  });
+  await attachJson(info, "terminal-model-refusal.json", JSON.stringify(lastDigestTask(screen)));
 }

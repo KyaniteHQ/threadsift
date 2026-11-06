@@ -79,7 +79,7 @@ test("a due queued job row that has no message and no runner is run by the next 
   const id = storeProcessingItemWithDueJob(url, url, Date.now() + 3_600_000);
 
   expect(await itemOf(request, id)).toMatchObject({ status: "processing", fetch: null });
-  makeDue(jobsOf(id)[0]?.id ?? -1);
+  makeDue(id);
   await sweepNow(request);
 
   const item = await settled(request, id);
@@ -198,7 +198,7 @@ test("an attempt that throws is retried after 30 s and then 2 minutes, and the j
   expectRetryAfter(id, secondDueAt, SECOND_DELAY_MS, "after attempt 2");
   expect((await itemOf(request, id)).status).toBe("processing");
 
-  makeDue(jobsOf(id)[0]?.id ?? -1);
+  makeDue(id);
   await sweepNow(request);
 
   const item = await settled(request, id);
