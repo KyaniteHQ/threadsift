@@ -1,11 +1,9 @@
-import { AiAddressRefused, allowedAiUrl } from "../../core/ai-url.ts";
-import type { AiNetwork } from "../../core/ports.ts";
+import { AiAddressRefused } from "../../core/ai-url.ts";
 
-function aiTransport(allows: (url: string) => boolean, request: typeof fetch): typeof fetch {
+export function aiTransport(request: typeof fetch): typeof fetch {
   return async (input, init) => {
     const outgoing = new Request(input, init);
 
-    if (!allows(outgoing.url)) throw new AiAddressRefused();
     const response = await request(outgoing, { redirect: "manual" });
 
     if (response.status >= 300 && response.status < 400) {
@@ -15,10 +13,4 @@ function aiTransport(allows: (url: string) => boolean, request: typeof fetch): t
 
     return response;
   };
-}
-
-export function aiNetwork(publicOnly: boolean, request: typeof fetch): AiNetwork {
-  const allows = (url: string): boolean => allowedAiUrl(url, publicOnly);
-
-  return { publicOnly, allows, fetch: aiTransport(allows, request) };
 }

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
@@ -130,7 +130,7 @@ export function sessionValueOf(setCookie: string): string {
 export interface Instance {
   readonly url: string;
   readonly appExec: string;
-  restart(): void;
+  restart(secretKey?: string): void;
   logs(): string;
   sql(statement: string): void;
   query<T>(statement: string, schema: z.ZodType<T>): T;
@@ -156,8 +156,13 @@ export function instanceAt(dir: string): Instance {
   return {
     url: readFileSync(join(dir, "url"), "utf8").trim(),
     appExec: existsSync(join(dir, "exec")) ? readFileSync(join(dir, "exec"), "utf8").trim() : "",
-    restart: () => {
-      runInstance(["restart", dir], null);
+    restart: (secretKey) => {
+      if (secretKey === undefined) runInstance(["restart", dir], null);
+      else {
+        const file = join(dir, "restart.env");
+        writeFileSync(file, `THREADSIFT_SECRET_KEY=${secretKey}\n`, { mode: 0o600 });
+        runInstance(["restart", dir, file], null);
+      }
     },
     logs: () => runInstance(["logs", dir], null),
     sql: (statement) => {

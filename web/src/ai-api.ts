@@ -17,13 +17,10 @@ export function fetchAiSettings(): Promise<AiView> {
 }
 
 export function saveAiSettings(input: Readonly<AiSettingsInput>) {
-  const json =
-    "baseUrl" in input
-      ? { provider: input.provider, baseUrl: input.baseUrl, model: input.model }
-      : { provider: input.provider, model: input.model };
+  const { key, ...connection } = input;
 
   return parsedFrom("PUT", "/api/settings/ai", AiSaveResponseSchema, {
-    json: input.key === undefined ? json : { ...json, key: input.key },
+    json: key === undefined ? connection : { ...connection, key },
   });
 }
 

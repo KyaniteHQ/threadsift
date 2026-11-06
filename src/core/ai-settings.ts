@@ -6,33 +6,46 @@ import {
   type AiSettingsInput,
   type AiSettingsView,
   type AiSaveResponseSchema,
-  type AiConnection,
+  type HttpAiConnection,
   refusedAi,
 } from "./ai-contract.ts";
 import type { Ports } from "./ports.ts";
 import { settings } from "./schema.ts";
+import type { Sealer } from "./sealed-secret.ts";
 
 type AiRow = typeof settings.$inferSelect;
 
 type LoadedAi =
   | { readonly state: "secret-missing"; readonly saved: AiRow | undefined }
-  | { readonly state: "not-configured" }
-  | { readonly state: "ready"; readonly saved: AiRow; readonly config: AiConnection };
+  | { readonly state: "not-configured"; readonly sealer: Sealer }
+  | {
+      readonly state: "ready";
+      readonly saved: AiRow;
+      readonly config: HttpAiConnection;
+      readonly sealer: Sealer;
+    };
 
 export async function loadAiConfig(ports: Ports): Promise<LoadedAi> {
   const [saved] = await ports.db.select().from(settings).where(eq(settings.id, 1));
 
-  if (ports.secrets === null) return { state: "secret-missing", saved };
+  if (ports.ai.secrets === null) return { state: "secret-missing", saved };
 
-  if (saved === undefined) return { state: "not-configured" };
-  const key = await ports.secrets.open(saved.sealedKey);
+  if (saved === undefined) return { state: "not-configured", sealer: ports.ai.secrets };
+  const key = await ports.ai.secrets.open(saved.sealedKey);
 
   return key === null
     ? { state: "secret-missing", saved }
     : {
         state: "ready",
         saved,
-        config: { provider: saved.provider, baseUrl: saved.baseUrl, model: saved.model, key },
+        sealer: ports.ai.secrets,
+        config: {
+          kind: "http",
+          provider: saved.provider,
+          baseUrl: saved.baseUrl,
+          model: saved.model,
+          key,
+        },
       };
 }
 
@@ -67,13 +80,12 @@ export async function saveAiSettings(
 ): Promise<z.infer<typeof AiSaveResponseSchema>> {
   const loaded = await loadAiConfig(ports);
 
-  if (loaded.state === "secret-missing" || ports.secrets === null)
-    return refusedAi("secret-missing");
+  if (loaded.state === "secret-missing") return refusedAi("secret-missing");
 
   const baseUrl =
     "baseUrl" in input ? input.baseUrl.replace(/\/+$/u, "") : PROVIDERS[input.provider].url;
 
-  if (!ports.ai.allows(baseUrl)) return refusedAi("refused");
+  if (!ports.ai.allowsUrl(baseUrl)) return refusedAi("refused");
 
   const same =
     loaded.state === "ready" &&
@@ -83,14 +95,14 @@ export async function saveAiSettings(
 
   const key = input.key ?? (same ? loaded.config.key : null);
 
-  if (key === null) return refusedAi("not-configured");
+  if (key === null) return refusedAi("key-needed");
 
   const row = {
     id: 1,
     provider: input.provider,
     baseUrl,
     model: input.model,
-    sealedKey: await ports.secrets.seal(key),
+    sealedKey: await loaded.sealer.seal(key),
   };
 
   await ports.db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row });

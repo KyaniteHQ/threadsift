@@ -1,3 +1,5 @@
+import type { MouseEventHandler } from "react";
+
 import { Icon } from "./Icon.tsx";
 
 export function SwapButton({
@@ -5,11 +7,23 @@ export function SwapButton({
   busyLabel,
   busy,
   blocked = false,
-}: Readonly<{ label: string; busyLabel: string; busy: boolean; blocked?: boolean }>) {
+  type = "submit",
+  onClick,
+  secondary = false,
+}: Readonly<{
+  label: string;
+  busyLabel: string;
+  busy: boolean;
+  blocked?: boolean;
+  type?: "submit" | "button";
+  onClick?: MouseEventHandler<HTMLButtonElement>;
+  secondary?: boolean;
+}>) {
   return (
     <button
-      type="submit"
-      className="btn btn-acc swap"
+      type={type}
+      className={secondary ? "btn swap" : "btn btn-acc swap"}
+      onClick={onClick}
       aria-disabled={busy || blocked ? true : undefined}
     >
       <span className={busy ? "swap-off" : undefined}>{label}</span>

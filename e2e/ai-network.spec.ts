@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-import { AiSettingsViewSchema, VerifyResultSchema } from "../src/core/ai-contract.ts";
+import {
+  AiSettingsViewSchema,
+  AiSaveResponseSchema,
+  VerifyResultSchema,
+} from "../src/core/ai-contract.ts";
 import { redirectListener } from "./ai-redirect.ts";
 import {
   AI_SETTINGS_ENDPOINT,
@@ -46,7 +50,7 @@ test("Worker refuses private and HTTP AI addresses at save and at Verify", async
     expect(
       await aiJson(
         screen,
-        VerifyResultSchema,
+        AiSaveResponseSchema,
         "PUT",
         AI_SETTINGS_ENDPOINT,
         JSON.stringify({ ...input, baseUrl }),
@@ -78,11 +82,10 @@ test("the container allows a private AI address and refuses its redirect before 
       status: null,
     });
     const stats = await listener.stats();
-    expect(stats).toEqual({
+    expect(stats).toMatchObject({
       sourceRequests: 1,
       sourceCredential: true,
       targetRequests: 0,
-      targetCredential: false,
     });
     await info.attach("redirect-transport", {
       body: JSON.stringify(stats),

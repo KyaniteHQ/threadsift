@@ -1,4 +1,8 @@
 export const AI_TEXT = {
+  "key-needed":
+    "An API key is required on first save or after changing Provider, URL or model. Enter the API key and save again.",
+  "provider-busy": "The Provider is busy or failing. Try Verify later.",
+
   publicUrlHelp:
     "Use a public HTTPS address. A private address such as Ollama on your home network works only in the container.",
   title: "AI",

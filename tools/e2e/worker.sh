@@ -61,6 +61,7 @@ launch)
   launch "$2"
   ;;
 restart)
+  [[ $# -lt 3 ]] || cp "$3" "$2/env"
   stop "$2"
   start "$2"
   ;;

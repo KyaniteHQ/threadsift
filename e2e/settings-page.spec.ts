@@ -10,7 +10,10 @@ const HALF_PIXEL = 0.5;
 
 async function openSettings(page: Page, size: { width: number; height: number }): Promise<void> {
   await page.setViewportSize(size);
+  const loaded = page.waitForResponse((response) => response.url().endsWith("/api/tokens"));
   await page.goto("/settings");
+  await loaded;
+  await afterTwoFrames(page);
   await expect(page.getByRole("heading", { level: 1, name: SETTINGS.title })).toBeFocused();
 }
 
@@ -26,16 +29,23 @@ for (const [label, size] of [
   ["desktop", DESKTOP],
   ["phone", PHONE],
 ] as const) {
-  test(`on ${label} the page title outranks its section headings`, async ({ page }) => {
-    await openSettings(page, size);
+  test(`on ${label} the page title outranks its section headings`, async ({ browser }) => {
+    const screen = await openSignedIn(browser, newCode(), newPassword());
+    const { page } = screen;
 
-    const title = await fontSize(page, SETTINGS.title);
-    expect(title, "page title against Agent tokens").toBeGreaterThan(
-      await fontSize(page, SETTINGS.tokensTitle),
-    );
-    expect(title, "page title against Sign out").toBeGreaterThan(
-      await fontSize(page, SETTINGS.signOutTitle),
-    );
+    try {
+      await openSettings(page, size);
+
+      const title = await fontSize(page, SETTINGS.title);
+      expect(title, "page title against Agent tokens").toBeGreaterThan(
+        await fontSize(page, SETTINGS.tokensTitle),
+      );
+      expect(title, "page title against Sign out").toBeGreaterThan(
+        await fontSize(page, SETTINGS.signOutTitle),
+      );
+    } finally {
+      await screen.close();
+    }
   });
 
   test(`on ${label} the bar starts where the column starts`, async ({ page }) => {
@@ -98,28 +108,4 @@ test("the Instance settings link sits apart from the Look settings, under a hair
 
   expect(linkTop).toBeGreaterThanOrEqual(bodyBottom - 1);
   expect(linkBottom).toBeLessThanOrEqual(footTop);
-});
-
-test("Settings keeps its heading focused after an empty agent-token list loads", async ({
-  browser,
-}) => {
-  test.setTimeout(90_000);
-  const screen = await openSignedIn(browser, newCode(), newPassword());
-
-  try {
-    await screen.page.setViewportSize(PHONE);
-
-    const loaded = screen.page.waitForResponse((response) =>
-      response.url().endsWith("/api/tokens"),
-    );
-
-    await screen.page.goto("/settings");
-    await loaded;
-    await afterTwoFrames(screen.page);
-    await expect(
-      screen.page.getByRole("heading", { level: 1, name: SETTINGS.title }),
-    ).toBeFocused();
-  } finally {
-    await screen.close();
-  }
 });

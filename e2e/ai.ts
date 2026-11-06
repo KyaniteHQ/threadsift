@@ -1,17 +1,14 @@
-import { randomBytes } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { createDecipheriv, randomBytes } from "node:crypto";
 
-import { type Browser, expect } from "@playwright/test";
+import { type Browser, type Locator, expect } from "@playwright/test";
 import { z } from "zod";
 
+import { PROOF_MODEL, workersAiUrl } from "../tools/workers-ai-proof.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 
-const PROOF_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-
-export async function aiScreen(browser: Browser, secret: string | undefined): Promise<FreshScreen> {
+export async function aiScreen(browser: Browser, secret?: string): Promise<FreshScreen> {
   const previous = process.env["THREADSIFT_SECRET_KEY"];
 
   if (secret === undefined) delete process.env["THREADSIFT_SECRET_KEY"];
@@ -37,7 +34,7 @@ export function proofProvider() {
 
   return {
     key,
-    baseUrl: `https://api.cloudflare.com/client/v4/accounts/${account}/ai/v1`,
+    baseUrl: workersAiUrl(account),
     model: PROOF_MODEL,
     provider: "openai-compatible",
   };
@@ -58,7 +55,7 @@ export async function saveInBrowser(
     descriptor?.set?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   }, key);
-  await page.getByRole("button", { name: AI_TEXT.save, exact: true }).click();
+  await pressKeepingFocus(page.getByRole("button", { name: AI_TEXT.save, exact: true }));
   await expect(page.getByText(AI_TEXT.saved, { exact: true })).toBeVisible();
   await expect(page.getByLabel(AI_TEXT.key, { exact: true })).toHaveValue("");
 }
@@ -71,20 +68,67 @@ export function assertNoSecret(text: string, keys: readonly string[]): void {
   expect(/authorization/iu.test(text), "no credential header in the captured bytes").toBe(false);
 }
 
-export function searchArtifacts(dir: string, keys: readonly string[]): number {
-  let count = 0;
+export function openSealed(value: string, secret: string): string {
+  const [version, iv, ciphertext] = value.split(".");
+  expect(version).toBe("v1");
+  const encrypted = Buffer.from(ciphertext ?? "", "base64url");
+  expect(Buffer.from(iv ?? "", "base64url").length).toBe(12);
 
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    Buffer.from(secret, "hex"),
+    Buffer.from(iv ?? "", "base64url"),
+  );
 
-    if (entry.isDirectory()) count += searchArtifacts(path, keys);
-    else {
-      assertNoSecret(readFileSync(path).toString("utf8"), keys);
-      count += 1;
-    }
-  }
+  decipher.setAuthTag(encrypted.subarray(-16));
 
-  return count;
+  return Buffer.concat([decipher.update(encrypted.subarray(0, -16)), decipher.final()]).toString(
+    "utf8",
+  );
+}
+
+export function expectDigest(
+  digest: Readonly<{
+    title: string;
+    topic: string;
+    tags: readonly string[];
+    summary: string;
+    keyPoints: readonly string[];
+  }>,
+): void {
+  expect(digest.title.trim().length).toBeGreaterThan(0);
+  expect(digest.topic.trim().length).toBeGreaterThan(0);
+  expect(digest.tags.length).toBeLessThanOrEqual(3);
+  expect(digest.summary.split(/\r\n|\r|\n/u).length).toBeLessThanOrEqual(2);
+  expect(digest.keyPoints.length).toBeGreaterThanOrEqual(1);
+  expect(digest.title.toLowerCase()).not.toContain("notebook weekly");
+}
+
+export async function pressKeepingFocus(
+  button: Locator,
+  endpoint = AI_SETTINGS_ENDPOINT,
+): Promise<void> {
+  await button.focus();
+  await button.evaluate((element) => {
+    element.dataset["focusProof"] = "held";
+    element.addEventListener(
+      "blur",
+      () => {
+        element.dataset["focusProof"] = "lost";
+      },
+      { once: true },
+    );
+  });
+
+  const response = button
+    .page()
+    .waitForResponse((answer) => answer.url().endsWith(endpoint), { timeout: 120_000 });
+
+  await button.press("Enter");
+  await (await response).finished();
+  await expect(button.locator("xpath=ancestor::form")).toHaveAttribute("aria-busy", "false");
+  await expect(button).toBeFocused();
+  await expect(button).toHaveAttribute("data-focus-proof", "held");
 }
 
 function aiCall(screen: FreshScreen, method: string, path: string, body?: string): Promise<string> {

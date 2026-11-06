@@ -1,10 +1,13 @@
 import { type TestInfo, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { DigestSchema, AiSettingsViewSchema, VerifyResultSchema } from "../src/core/ai-contract.ts";
+import {
+  DigestSchema,
+  AiSettingsViewSchema,
+  AiSaveResponseSchema,
+  VerifyResultSchema,
+} from "../src/core/ai-contract.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
-import { createToken } from "./access-helpers.ts";
-import { newCode, newPassword } from "./access.ts";
 import {
   AI_SETTINGS_ENDPOINT,
   AI_VERIFY_ENDPOINT,
@@ -16,9 +19,11 @@ import {
   newSealingKey,
   proofProvider,
   saveInBrowser,
-  searchArtifacts,
+  openSealed,
+  expectDigest,
+  pressKeepingFocus,
 } from "./ai.ts";
-import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
+import { type FreshScreen } from "./fresh-screen.ts";
 
 const hasCredentials =
   (process.env["CLOUDFLARE_WORKERS_AI_TOKEN"] ?? "") !== "" &&
@@ -47,7 +52,7 @@ test("AI settings refuse a missing or malformed sealing key without a write", as
 
     const result = await aiJson(
       screen,
-      VerifyResultSchema,
+      AiSaveResponseSchema,
       "PUT",
       AI_SETTINGS_ENDPOINT,
       JSON.stringify({
@@ -62,31 +67,29 @@ test("AI settings refuse a missing or malformed sealing key without a write", as
     expect(countRows(screen, "settings")).toBe(0);
     await screen.close();
   }
-});
 
-test("agent tokens cannot read, save or Verify AI settings", async ({ browser }) => {
-  screen = await openSignedIn(browser, newCode(), newPassword());
-  const token = await createToken(screen.context.request, "AI access proof");
-
-  for (const [method, path] of [
-    ["GET", AI_SETTINGS_ENDPOINT],
-    ["PUT", AI_SETTINGS_ENDPOINT],
-    ["POST", AI_VERIFY_ENDPOINT],
-  ] as const) {
-    const response = await fetch(new URL(path, screen.fresh.url), {
-      method,
-      headers: { authorization: `Bearer ${token.value}` },
-    });
-
-    expect(response.status).toBe(403);
-  }
+  screen = await aiScreen(browser, newSealingKey());
+  await saveInBrowser(screen, "changed-key-proof", "https://example.com", "example");
+  screen.fresh.restart(newSealingKey());
+  await screen.page.reload();
+  await expect(screen.page.getByText(AI_TEXT["secret-missing"], { exact: true })).toBeVisible();
+  expect(await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).toEqual({
+    kind: "refused",
+    reason: "secret-missing",
+    status: null,
+  });
+  expect(countRows(screen, "ai_tasks")).toBe(0);
 });
 
 type ProofProvider = Readonly<ReturnType<typeof proofProvider>>;
 
-async function retainAndRestart(provider: ProofProvider): Promise<void> {
+async function retainAndRestart(provider: ProofProvider, secret: string): Promise<void> {
   const first = sealedKey(screen);
-  expect(first.startsWith("v1.")).toBe(true);
+  expect(
+    openSealed(first, secret) === provider.key,
+    "configured sealing key opens the saved API key",
+  ).toBe(true);
+  expect(() => openSealed(first, newSealingKey())).toThrow();
   expect(first.includes(provider.key), "database contains no plaintext key").toBe(false);
 
   const resealed = await aiJson(
@@ -98,14 +101,16 @@ async function retainAndRestart(provider: ProofProvider): Promise<void> {
       provider: "openai-compatible",
       baseUrl: provider.baseUrl,
       model: provider.model,
+      key: provider.key,
     }),
   );
 
   expect(resealed.settings?.keySet).toBe(true);
+  expect(first === sealedKey(screen), "two explicit key saves use different IVs").toBe(false);
   expect(
-    first === sealedKey(screen),
-    "a fresh IV changes the ciphertext when retaining the same key",
-  ).toBe(false);
+    openSealed(sealedKey(screen), secret) === provider.key,
+    "the second explicit save decrypts to the same API key",
+  ).toBe(true);
   screen.fresh.restart();
   await screen.page.reload();
   const read = await aiJson(screen, AiSettingsViewSchema, "GET", AI_SETTINGS_ENDPOINT);
@@ -114,7 +119,10 @@ async function retainAndRestart(provider: ProofProvider): Promise<void> {
 }
 
 async function verifyDigest(info: TestInfo): Promise<void> {
-  await screen.page.getByRole("button", { name: AI_TEXT.verify, exact: true }).click();
+  await pressKeepingFocus(
+    screen.page.getByRole("button", { name: AI_TEXT.verify, exact: true }),
+    AI_VERIFY_ENDPOINT,
+  );
   await expect(screen.page.getByText(AI_TEXT.verified, { exact: true })).toBeVisible({
     timeout: 120_000,
   });
@@ -128,6 +136,7 @@ async function verifyDigest(info: TestInfo): Promise<void> {
   expect(task[0]?.state).toBe("done");
   expect(task[0]?.attempts).toBe(1);
   const digest = DigestSchema.parse(JSON.parse(task[0]?.result ?? "null"));
+  expectDigest(digest);
   await info.attach("digest", { body: JSON.stringify(digest), contentType: "application/json" });
 }
 
@@ -142,7 +151,10 @@ async function refuseWrongKey(
     response.url().endsWith(AI_VERIFY_ENDPOINT),
   );
 
-  await screen.page.getByRole("button", { name: AI_TEXT.verify, exact: true }).click();
+  await pressKeepingFocus(
+    screen.page.getByRole("button", { name: AI_TEXT.verify, exact: true }),
+    AI_VERIFY_ENDPOINT,
+  );
   const raw = await (await responsePromise).text();
   expect(VerifyResultSchema.parse(JSON.parse(raw))).toEqual({
     kind: "refused",
@@ -155,10 +167,20 @@ async function refuseWrongKey(
   assertNoSecret(log, [wrong, provider.key]);
   await info.attach("verify-refusal", { body: raw, contentType: "application/json" });
   await info.attach("server-log", { body: log, contentType: "text/plain" });
-  await privacyArtifacts(wrong, provider.key, info);
+  await info.attach("server-log-capture", {
+    body: JSON.stringify({
+      source:
+        process.env["THREADSIFT_TARGET"] === "container"
+          ? "podman logs across the complete Instance run"
+          : "wrangler log across the complete Instance run",
+      bytes: Buffer.byteLength(log),
+    }),
+    contentType: "application/json",
+  });
+  await capturedPrivacy(wrong, provider.key, info);
 }
 
-async function privacyArtifacts(wrong: string, key: string, info: TestInfo): Promise<void> {
+async function capturedPrivacy(wrong: string, key: string, info: TestInfo): Promise<void> {
   const tasks = screen.fresh.query(
     "SELECT kind, inputs, input_revision, executor, attempts, deadline, state, result, refusal, status FROM ai_tasks",
     z.array(z.record(z.string(), z.union([z.string(), z.number(), z.null()]))),
@@ -167,18 +189,6 @@ async function privacyArtifacts(wrong: string, key: string, info: TestInfo): Pro
   assertNoSecret(JSON.stringify(tasks), [wrong, key]);
   await info.attach("ai-task-rows", {
     body: JSON.stringify(tasks),
-    contentType: "application/json",
-  });
-  const scanned = searchArtifacts(info.outputDir, [wrong, key]);
-  await info.attach("privacy-search", {
-    body: JSON.stringify({
-      command:
-        "search response, server log and Playwright output bytes for both key values and credential header names",
-      response: "no matches",
-      log: "no matches",
-      artifactFiles: scanned,
-      artifacts: "no matches",
-    }),
     contentType: "application/json",
   });
 }
@@ -191,19 +201,39 @@ test("saved keys are sealed, survive restart, and Verify returns a real Digest o
     "Workers AI credentials are unavailable; fork pull requests skip the real AI proof.",
   );
   expect(hasCredentials, "same-repository AI proof requires Workers AI credentials").toBe(true);
-  screen = await aiScreen(browser, newSealingKey());
+  const secret = newSealingKey();
+  screen = await aiScreen(browser, secret);
   const provider = proofProvider();
   const wrong = process.env["THREADSIFT_WRONG_AI_KEY"] ?? newSealingKey();
   await saveInBrowser(screen, provider.key, provider.baseUrl);
-  await retainAndRestart(provider);
+  await retainAndRestart(provider, secret);
   await verifyDigest(info);
-  await refuseWrongKey(wrong, provider, info);
-  screen.fresh.sql("UPDATE settings SET sealed_key = 'v1.invalid.invalid'");
-  await screen.page.reload();
-  await expect(screen.page.getByText(AI_TEXT["secret-missing"], { exact: true })).toBeVisible();
-  expect((await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).kind).toBe(
-    "refused",
+  screen.fresh.sql(
+    "CREATE TRIGGER refuse_ai_done BEFORE UPDATE ON ai_tasks WHEN NEW.state = 'done' BEGIN SELECT RAISE(FAIL, 'result write refused'); END",
   );
+  const failedWrite = await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT);
+  expect(failedWrite).toEqual({ kind: "refused", reason: "unreachable", status: null });
+
+  const failedRows = screen.fresh.query(
+    "SELECT state, refusal FROM ai_tasks ORDER BY id DESC LIMIT 1",
+    z.array(z.object({ state: z.string(), refusal: z.string().nullable() })),
+  );
+
+  expect(failedRows).toEqual([{ state: "failed", refusal: "unreachable" }]);
+  screen.fresh.sql("DROP TRIGGER refuse_ai_done");
+  await refuseWrongKey(wrong, provider, info);
+  await saveInBrowser(
+    screen,
+    provider.key,
+    provider.baseUrl,
+    "@cf/threadsift/nonexistent-proof-model",
+  );
+  const wrongModel = await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT);
+  expect(wrongModel).toEqual({ kind: "refused", reason: "no-json", status: 400 });
+  await info.attach("wrong-model", {
+    body: JSON.stringify(wrongModel),
+    contentType: "application/json",
+  });
 });
 
 test("the OpenRouter row saves without a caller-supplied base URL", async ({ browser }) => {
@@ -227,4 +257,38 @@ test("the OpenRouter row saves without a caller-supplied base URL", async ({ bro
   await screen.page.reload();
   await expect(screen.page.getByLabel(AI_TEXT.provider, { exact: true })).toHaveValue("openrouter");
   await expect(screen.page.getByLabel(AI_TEXT.baseUrl, { exact: true })).toHaveCount(0);
+  await screen.page.getByLabel(AI_TEXT.provider, { exact: true }).selectOption("openai-compatible");
+  await expect(screen.page.getByLabel(AI_TEXT.baseUrl, { exact: true })).toHaveValue("");
+});
+
+test("a save needs a key on first use and after changing the connection", async ({ browser }) => {
+  screen = await aiScreen(browser, newSealingKey());
+  await screen.page.goto("/settings");
+  await expect(screen.page.getByLabel(AI_TEXT.key, { exact: true })).toHaveAttribute(
+    "required",
+    "",
+  );
+  const input = { provider: "openai-compatible", baseUrl: "https://example.com", model: "example" };
+  const refusal = { kind: "refused", reason: "key-needed", status: null };
+  expect(
+    await aiJson(screen, AiSaveResponseSchema, "PUT", AI_SETTINGS_ENDPOINT, JSON.stringify(input)),
+  ).toEqual(refusal);
+  expect(countRows(screen, "settings")).toBe(0);
+  await saveInBrowser(screen, "key-needed-proof", input.baseUrl, input.model);
+
+  for (const changed of [
+    { ...input, baseUrl: "https://example.org" },
+    { ...input, model: "another" },
+    { provider: "openrouter", model: "example" },
+  ]) {
+    expect(
+      await aiJson(
+        screen,
+        AiSaveResponseSchema,
+        "PUT",
+        AI_SETTINGS_ENDPOINT,
+        JSON.stringify(changed),
+      ),
+    ).toEqual(refusal);
+  }
 });

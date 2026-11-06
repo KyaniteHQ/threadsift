@@ -118,10 +118,10 @@ export const settings = sqliteTable(
 
 export const aiTasks = sqliteTable("ai_tasks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  kind: text("kind", { enum: ["digest"] }).notNull(),
+  kind: text("kind").notNull(),
   inputs: text("inputs").notNull(),
   inputRevision: integer("input_revision").notNull(),
-  executor: text("executor", { enum: ["http"] }).notNull(),
+  executor: text("executor").notNull(),
   attempts: integer("attempts").notNull(),
   deadline: integer("deadline").notNull(),
   state: text("state", { enum: ["running", "done", "failed"] }).notNull(),

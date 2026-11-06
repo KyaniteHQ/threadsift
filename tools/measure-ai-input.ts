@@ -11,6 +11,7 @@ import {
   cutDigestInput,
 } from "../src/core/ai-contract.ts";
 import { AI_CALL_OPTIONS } from "../src/targets/shared/ai-call-options.ts";
+import { PROOF_MODEL, workersAiUrl } from "./workers-ai-proof.ts";
 
 const env = z
   .object({
@@ -19,7 +20,6 @@ const env = z
   })
   .parse(process.env);
 
-const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 const RESERVED_OUTPUT = AI_CALL_OPTIONS.maxOutputTokens;
 const FUTURE_LISTS = ` Reserved future Topic and Tag list budget: ${"topic-tag ".repeat(455)}`;
 const instructions = DIGEST_INSTRUCTIONS + FUTURE_LISTS;
@@ -28,7 +28,7 @@ const schemaBytes = bytes(JSON.stringify(z.toJSONSchema(DigestSchema, { unrepres
 
 const provider = createOpenAICompatible({
   name: "input-budget",
-  baseURL: `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/v1`,
+  baseURL: workersAiUrl(env.CLOUDFLARE_ACCOUNT_ID),
   apiKey: env.CLOUDFLARE_WORKERS_AI_TOKEN,
   supportsStructuredOutputs: true,
 });
@@ -46,7 +46,7 @@ async function measure(name: string, input: string): Promise<void> {
 
   try {
     const result = await generateText({
-      model: provider(MODEL),
+      model: provider(PROOF_MODEL),
       output: Output.object({ schema: DigestSchema }),
       instructions,
       prompt,
@@ -79,7 +79,7 @@ async function measure(name: string, input: string): Promise<void> {
 
 console.log(
   JSON.stringify({
-    model: MODEL,
+    model: PROOF_MODEL,
     context: 24_000,
     limit: DIGEST_INPUT_BYTES,
     reservedOutput: RESERVED_OUTPUT,

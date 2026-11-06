@@ -23,11 +23,11 @@ export interface Env {
 export async function createWorkerPorts(env: Env): Promise<Ports> {
   return {
     db: drizzle(env.DB),
-    ...(await aiRuntime({
+    ai: await aiRuntime({
       publicOnly: true,
       secretKey: env.THREADSIFT_SECRET_KEY,
       request: workerFetch,
-    })),
+    }),
     network: workerNetwork,
     pages: workerPageReader,
     jobs: {

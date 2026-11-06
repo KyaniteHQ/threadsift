@@ -40,7 +40,7 @@ export async function startNode(
 
   const ports: Ports = {
     db,
-    ...(await aiRuntime({ publicOnly: false, secretKey, request: fetch })),
+    ai: await aiRuntime({ publicOnly: false, secretKey, request: fetch }),
     network: nodeNetwork,
     pages,
     jobs: loop.queue,

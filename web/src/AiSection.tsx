@@ -5,6 +5,7 @@ import { type AiView, fetchAiSettings } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
 import { Alert } from "./Alert.tsx";
+import { SwapButton } from "./SwapButton.tsx";
 import { useAiForm } from "./use-ai-form.ts";
 
 type Loaded =
@@ -29,8 +30,40 @@ function DigestResult({ digest }: Readonly<{ digest: Readonly<Digest> }>) {
   );
 }
 
+function AiActions({
+  view,
+  busy,
+  action,
+  onVerify,
+}: Readonly<{
+  view: AiView;
+  busy: boolean;
+  action: "save" | "verify" | null;
+  onVerify: () => void;
+}>) {
+  return (
+    <div className="ai-actions">
+      <SwapButton
+        label={AI_TEXT.save}
+        busyLabel={AI_TEXT.saving}
+        busy={busy && action === "save"}
+        blocked={busy || !view.secretReady}
+      />
+      <SwapButton
+        label={AI_TEXT.verify}
+        busyLabel={AI_TEXT.verifying}
+        busy={busy && action === "verify"}
+        blocked={busy || !view.secretReady || view.settings === null}
+        type="button"
+        onClick={onVerify}
+        secondary
+      />
+    </div>
+  );
+}
+
 function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView) => void }>) {
-  const { fields, result, busy, guard, save, verify } = useAiForm(view, saved);
+  const { fields, result, busy, action, guard, save, verify } = useAiForm(view, saved);
 
   const onSubmit = useCallback(
     (event: SubmitEvent<HTMLFormElement>) => {
@@ -41,8 +74,8 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
   );
 
   const onVerify = useCallback(() => {
-    guard(verify);
-  }, [guard, verify]);
+    if (view.settings !== null) guard(verify);
+  }, [guard, verify, view.settings]);
 
   return (
     <>
@@ -53,22 +86,15 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
         onSubmit={onSubmit}
         aria-busy={busy}
       >
-        <AiFields fields={fields} disabled={busy} publicOnly={view.publicOnly} />
+        <AiFields
+          fields={fields}
+          disabled={busy}
+          publicOnly={view.publicOnly}
+          keyRequired={view.settings?.keySet !== true}
+        />
         <p>{view.settings?.keySet === true ? AI_TEXT.keySet : AI_TEXT.keyMissing}</p>
         {view.secretReady ? null : <p className="fld-help">{AI_TEXT["secret-missing"]}</p>}
-        <div className="ai-actions">
-          <button className="btn btn-acc" disabled={busy || !view.secretReady} type="submit">
-            {AI_TEXT.save}
-          </button>
-          <button
-            className="btn"
-            disabled={busy || !view.secretReady || view.settings === null}
-            type="button"
-            onClick={onVerify}
-          >
-            {AI_TEXT.verify}
-          </button>
-        </div>
+        <AiActions view={view} busy={busy} action={action} onVerify={onVerify} />
       </form>
       <output>{result?.kind === "ok" ? result.text : null}</output>
       <Alert text={result?.kind === "error" ? result.text : null} />

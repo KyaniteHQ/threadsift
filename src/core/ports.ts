@@ -54,14 +54,11 @@ export interface Crypto {
   readonly equal: (left: Uint8Array, right: Uint8Array) => boolean;
 }
 
-export interface AiNetwork {
+export interface AiRuntime {
+  readonly name: string;
   readonly publicOnly: boolean;
-  readonly allows: (url: string) => boolean;
-  readonly fetch: typeof fetch;
-}
-
-export interface AiExecutor {
-  readonly name: "http";
+  readonly allowsUrl: (url: string) => boolean;
+  readonly secrets: Sealer | null;
   readonly run: <Result>(
     task: AiTaskRequest<Result>,
     signal: AbortSignal,
@@ -75,9 +72,7 @@ export interface Ports {
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
   readonly setupCode: string | undefined;
-  readonly secrets: Sealer | null;
-  readonly ai: AiNetwork;
-  readonly executor: AiExecutor;
+  readonly ai: AiRuntime;
 }
 
 export const REQUEST_HEADERS = {

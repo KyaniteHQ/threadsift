@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
-import type { z } from "zod";
 
 import {
-  type VerifyResultSchema,
+  type AiExecution,
+  type AiRefused,
+  type AiTaskDefinition,
   AI_DEADLINE_MS,
   VERIFY_INPUT,
   DIGEST_INSTRUCTIONS,
@@ -14,57 +15,105 @@ import { loadAiConfig } from "./ai-settings.ts";
 import type { Ports } from "./ports.ts";
 import { aiTasks } from "./schema.ts";
 
-const TASKS = { digest: { instructions: DIGEST_INSTRUCTIONS, schema: DigestSchema } } as const;
+const TASKS = {
+  digest: {
+    kind: "digest",
+    instructions: DIGEST_INSTRUCTIONS,
+    schema: DigestSchema,
+    prepareInput: cutDigestInput,
+  },
+} as const;
 
-export function verifyAi(
-  ports: Ports,
-  attempt: AbortSignal,
-): Promise<z.infer<typeof VerifyResultSchema>> {
-  return runAiTask(ports, "digest", VERIFY_INPUT, attempt);
-}
+type TaskResult<Result> =
+  | (AiExecution<Result> & { readonly taskId: number })
+  | (AiRefused & { readonly taskId: null });
 
-export async function runAiTask(
-  ports: Ports,
-  kind: keyof typeof TASKS,
-  input: string,
-  attempt: AbortSignal,
-): Promise<z.infer<typeof VerifyResultSchema>> {
-  const loaded = await loadAiConfig(ports);
-
-  if (loaded.state !== "ready") return refusedAi(loaded.state);
-
-  if (!ports.ai.allows(loaded.config.baseUrl)) return refusedAi("refused");
-  const text = cutDigestInput(input);
-  const task = await startTask(ports, kind, text, Date.now() + AI_DEADLINE_MS);
-  const signal = AbortSignal.any([attempt, AbortSignal.timeout(AI_DEADLINE_MS)]);
-
-  const result = await ports.executor.run(
-    { config: loaded.config, input: text, ...TASKS[kind] },
-    signal,
+export async function verifyAi(ports: Ports, attempt: AbortSignal) {
+  const result = await runAiTask(
+    ports,
+    TASKS.digest,
+    { text: VERIFY_INPUT, inputRevision: 1, attempts: 1 },
+    attempt,
   );
 
-  await ports.db
-    .update(aiTasks)
-    .set(
-      result.kind === "done"
-        ? { state: "done", result: JSON.stringify(result.result) }
-        : { state: "failed", refusal: result.reason, status: result.status },
-    )
-    .where(eq(aiTasks.id, task.id));
-
-  return result.kind === "done" ? { kind: "done", digest: result.result, taskId: task.id } : result;
+  return result.kind === "done"
+    ? { kind: result.kind, digest: result.result, taskId: result.taskId }
+    : { kind: result.kind, reason: result.reason, status: result.status };
 }
 
-async function startTask(ports: Ports, kind: keyof typeof TASKS, input: string, deadline: number) {
+export async function runAiTask<Result>(
+  ports: Ports,
+  definition: AiTaskDefinition<Result>,
+  input: Readonly<{ text: string; inputRevision: number; attempts: number }>,
+  attempt: AbortSignal,
+): Promise<TaskResult<Result>> {
+  const loaded = await loadAiConfig(ports);
+
+  if (loaded.state !== "ready") return { ...refusedAi(loaded.state), taskId: null };
+
+  if (!ports.ai.allowsUrl(loaded.config.baseUrl)) return { ...refusedAi("refused"), taskId: null };
+  const text = definition.prepareInput(input.text);
+
+  const task = await startTask(ports, definition.kind, text, input);
+
+  const signal = AbortSignal.any([attempt, AbortSignal.timeout(AI_DEADLINE_MS)]);
+
+  try {
+    const result = await ports.ai.run(
+      {
+        config: loaded.config,
+        input: text,
+        instructions: definition.instructions,
+        schema: definition.schema,
+      },
+      signal,
+    );
+
+    await ports.db
+      .update(aiTasks)
+      .set(
+        result.kind === "done"
+          ? { state: "done", result: JSON.stringify(result.result) }
+          : { state: "failed", refusal: result.reason, status: result.status },
+      )
+      .where(eq(aiTasks.id, task.id));
+
+    return { ...result, taskId: task.id };
+  } catch {
+    return failTask(ports, task.id);
+  }
+}
+
+async function failTask(ports: Ports, taskId: number) {
+  const failure = { ...refusedAi("unreachable"), taskId };
+
+  try {
+    await ports.db
+      .update(aiTasks)
+      .set({ state: "failed", result: null, refusal: failure.reason, status: failure.status })
+      .where(eq(aiTasks.id, taskId));
+
+    return failure;
+  } catch {
+    return failure;
+  }
+}
+
+async function startTask(
+  ports: Ports,
+  kind: string,
+  text: string,
+  input: Readonly<{ inputRevision: number; attempts: number }>,
+) {
   const [task] = await ports.db
     .insert(aiTasks)
     .values({
       kind,
-      inputs: input,
-      inputRevision: 1,
-      executor: ports.executor.name,
-      attempts: 1,
-      deadline,
+      inputs: text,
+      inputRevision: input.inputRevision,
+      attempts: input.attempts,
+      executor: ports.ai.name,
+      deadline: Date.now() + AI_DEADLINE_MS,
       state: "running",
     })
     .returning({ id: aiTasks.id });

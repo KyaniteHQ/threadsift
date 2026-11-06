@@ -252,6 +252,6 @@
   font-size: var(--t-floor);
 }
 
-.ai-actions .btn:disabled {
+.ai-actions .btn[aria-disabled="true"] {
   border-color: var(--ctl-line);
 }
