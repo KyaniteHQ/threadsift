@@ -1,0 +1,16 @@
+name: env probe
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    environment: preview
+    steps:
+      - name: Say whether the deploy token reached this job
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: if [ -n "$TOKEN" ]; then echo "token present"; else echo "token absent"; fi
