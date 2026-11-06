@@ -90,7 +90,7 @@ query)
     exit "$status"
   fi
   if ! results=$(jq -ce '.[0].results | select(type == "array")' <<<"$output" 2>/dev/null); then
-    printf '%s\n' "$output" >&2
+    printf '%s\n' "${output:-wrangler returned no results array}" >&2
     exit 1
   fi
   printf '%s\n' "$results"

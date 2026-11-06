@@ -33,7 +33,8 @@ in
     PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
     PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
     THREADSIFT_PODMAN_POLICY = "${podmanPolicy}";
-    THREADSIFT_E2E_IMAGE = "localhost/threadsift:e2e-${builtins.hashString "sha256" config.devenv.root}";
+    THREADSIFT_CHECKOUT = config.devenv.root;
+    THREADSIFT_E2E_IMAGE = "localhost/threadsift:e2e-${builtins.hashString "sha256" config.env.THREADSIFT_CHECKOUT}";
   };
 
   packages = [
