@@ -32,7 +32,7 @@ function useOpenItem(list: ListState, { openId, replace }: Route) {
   );
 
   const missing =
-    list.status === "ready" && openId !== null && !list.items.some((item) => item.id === openId);
+    list.status === "ready" && openId !== null && !list.known.some((item) => item.id === openId);
 
   useEffect(() => {
     if (missing) {

@@ -23,11 +23,18 @@ require_current_image() {
   }
 }
 
+seed_volume() {
+  local volume=$1 seed=$2
+  podman volume create "$volume" >/dev/null
+  podman run --rm --entrypoint cp --volume "$volume:/data" --volume "$(dirname "$seed"):/seed:ro,z" "$image" "/seed/$(basename "$seed")" /data/threadsift.db
+}
+
 launch() {
   local dir=$1 name volume url
   mkdir -p "$dir"
   name="threadsift-e2e-$$-$RANDOM"
   volume="$name-data"
+  [[ -z ${THREADSIFT_SEED_DB:-} ]] || seed_volume "$volume" "$THREADSIFT_SEED_DB"
   local env_args=()
   [[ -v SETUP_CODE ]] && env_args=(--env SETUP_CODE)
   [[ -v THREADSIFT_SECRET_KEY ]] && env_args+=(--env THREADSIFT_SECRET_KEY)

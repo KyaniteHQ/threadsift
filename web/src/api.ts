@@ -4,8 +4,10 @@ import {
   ItemResponseSchema,
   SavedItemResponseSchema,
   type Item,
+  type ItemList,
 } from "../../src/http/schemas.ts";
 import { call, parsedFrom, unexpected } from "./calls.ts";
+import { type Filters, queryOf } from "./filters.ts";
 
 export type SaveResult =
   | { readonly outcome: "invalid" }
@@ -21,8 +23,8 @@ export async function fetchItem(id: number): Promise<Item> {
   return (await parsedFrom("GET", `/api/items/${id}/status`, ItemResponseSchema)).item;
 }
 
-export async function fetchItems(): Promise<Item[]> {
-  return (await parsedFrom("GET", "/api/items", ItemListResponseSchema)).items;
+export function fetchItems(filters: Readonly<Filters>): Promise<ItemList> {
+  return parsedFrom("GET", `/api/items${queryOf(filters)}`, ItemListResponseSchema);
 }
 
 export async function saveLink(url: string): Promise<SaveResult> {

@@ -1,0 +1,59 @@
+import type { ReadState, Source } from "../../src/core/kinds.ts";
+import { searchTerms } from "../../src/core/search-terms.ts";
+
+export interface Filters {
+  readonly q: string;
+  readonly source: Source | null;
+  readonly read: ReadState | null;
+  readonly topic: string | null;
+  readonly tag: string | null;
+}
+
+export type Choice =
+  | { readonly facet: "source"; readonly value: Source | null }
+  | { readonly facet: "read"; readonly value: ReadState | null }
+  | { readonly facet: "topic" | "tag"; readonly value: string | null };
+
+export const NO_FILTERS: Filters = { q: "", source: null, read: null, topic: null, tag: null };
+
+export function chosenCount({ source, read, topic, tag }: Readonly<Filters>): number {
+  return [source, read, topic, tag].filter((value) => value !== null).length;
+}
+
+export function isSearching({ q }: Readonly<Filters>): boolean {
+  return searchTerms(q).length > 0;
+}
+
+export function isFiltered(filters: Readonly<Filters>): boolean {
+  return chosenCount(filters) > 0 || isSearching(filters);
+}
+
+export function withChoice(filters: Readonly<Filters>, choice: Readonly<Choice>): Filters {
+  switch (choice.facet) {
+    case "source":
+      return { ...filters, source: choice.value };
+    case "read":
+      return { ...filters, read: choice.value };
+    case "topic":
+      return { ...filters, topic: choice.value };
+    case "tag":
+      return { ...filters, tag: choice.value };
+    default: {
+      const exhaustive: never = choice;
+
+      return exhaustive;
+    }
+  }
+}
+
+export function queryOf(filters: Readonly<Filters>): string {
+  const query = new URLSearchParams();
+
+  for (const [name, value] of Object.entries(filters)) {
+    if (value !== null && value !== "") query.set(name, value);
+  }
+
+  const text = query.toString();
+
+  return text === "" ? "" : `?${text}`;
+}

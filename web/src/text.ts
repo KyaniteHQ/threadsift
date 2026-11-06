@@ -1,5 +1,6 @@
 import type { FetchFailure } from "../../src/core/fetch-results.ts";
-import type { FailureReason, Source } from "../../src/core/kinds.ts";
+import type { FilterCounts } from "../../src/core/item-filters.ts";
+import type { FailureReason, ReadState, Source } from "../../src/core/kinds.ts";
 
 export function filled(template: string, values: Readonly<Record<string, string>>): string {
   return Object.entries(values).reduce(
@@ -104,11 +105,67 @@ export const MATCH_SYSTEM_NOTES = {
   light: "Match system · light now",
 } as const;
 
-const COUNT_ONE = "1 link saved";
-const COUNT_MANY = "{count} links saved";
+export const SEARCH_LABEL = "Search items";
+export const SEARCH_PLACEHOLDER = "Search title, post text, summary or tags";
 
-export function countLabel(count: number): string {
-  return count === 1 ? COUNT_ONE : filled(COUNT_MANY, { count: String(count) });
+export const FILTER_GROUPS = {
+  source: "Source",
+  read: "Read state",
+  topic: "Topic",
+  tag: "Tags",
+} as const;
+
+export const ALL_CHOICE = "All";
+
+export const READ_LABELS: Readonly<Record<ReadState, string>> = {
+  unread: "Unread",
+  read: "Read",
+};
+
+const COUNT_TIP_ONE = "{name}: {count} item";
+const COUNT_TIP_MANY = "{name}: {count} items";
+
+export function countTip(name: string, count: number): string {
+  return filled(count === 1 ? COUNT_TIP_ONE : COUNT_TIP_MANY, { name, count: String(count) });
+}
+
+export const ALL_ROWS = { topic: "All {count} topics", tag: "All {count} tags" } as const;
+export const SHOW_FEWER = "Show fewer";
+export const FILTERS_BUTTON = "Filters";
+export const FILTERS_BUTTON_ACTIVE = "Filters · {count}";
+export const CLEAR_FILTERS = "Clear filters";
+export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
+
+const HEAD_ONE = "1 item, {unread} unread";
+const HEAD_MANY = "{total} items, {unread} unread";
+const HEAD_MATCHING = "{shown} of {total} items";
+const HEAD_MATCHING_TEXT = '{shown} of {total} items matching "{text}"';
+
+export function headLabel(
+  counts: Readonly<Pick<FilterCounts, "total" | "unread">>,
+  shown: number | null,
+  text: string,
+): string {
+  const values = {
+    total: String(counts.total),
+    unread: String(counts.unread),
+    shown: String(shown ?? 0),
+    text,
+  };
+
+  if (shown === null) return filled(counts.total === 1 ? HEAD_ONE : HEAD_MANY, values);
+
+  return filled(text === "" ? HEAD_MATCHING : HEAD_MATCHING_TEXT, values);
+}
+
+export const NO_RESULTS = "No items match";
+export const CLEAR_ALL = "Clear search and filters";
+
+const TOTAL_NAME_ONE = "1 item in library";
+const TOTAL_NAME_MANY = "{count} items in library";
+
+export function totalName(count: number): string {
+  return count === 1 ? TOTAL_NAME_ONE : filled(TOTAL_NAME_MANY, { count: String(count) });
 }
 
 export const EMPTY_LIST = {

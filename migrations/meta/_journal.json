@@ -64,6 +64,20 @@
       "when": 1794002199955,
       "tag": "0008_spent-reset-codes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794009363580,
+      "tag": "0009_search-parts",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794009366940,
+      "tag": "0010_search-index",
+      "breakpoints": true
     }
   ]
 }

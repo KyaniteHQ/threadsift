@@ -204,7 +204,8 @@ Grok Bot's capabilities above come from asking the owner's Grok Bot on 2026-11-0
 
 ## Interfaces
 
-- The paste box, the Extension, the Share target and agents use the same HTTP API: `POST /api/items {url}` to add, `GET /api/items?q=&topic=&tag=&source=&url=` to query (`url` finds one Item by its normalized URL, which the Extension uses to fill a Link-only Reddit Item), `DELETE /api/items/:id` to delete, and a batch call for Imports and routines. Every call except the owner's login needs the owner's session or an agent token.
+- The paste box, the Extension, the Share target and agents use the same HTTP API: `POST /api/items {url}` to add, `GET /api/items?q=&topic=&tag=&source=&read=&url=` to query (`source` is one of reddit, x, github, article and other; `read` is read or unread; `topic` and `tag` match by name with case and spacing ignored; `url` finds one Item by its normalized URL, which the Extension uses to fill a Link-only Reddit Item), `DELETE /api/items/:id` to delete, and a batch call for Imports and routines. Every call except the owner's login needs the owner's session or an agent token.
+- `GET /api/items` answers the matching Items and the counts the filter pane shows: the library total and unread count, and a count for each Source, Read state, Topic and Tag. Each group's counts apply the search and the other groups' filters but not its own group, so a count equals what choosing that value leaves. Search splits `q` into runs of letters and digits, each run is a prefix match, and every run must match; a `q` over 200 characters, or an unknown `source` or `read`, answers 400.
 - The MCP endpoint offers the same search, read and add for agents that speak MCP (see Agent access above).
 - The Web Share Target hands a shared link to the same Paste.
 - The Export is one download of the whole library (see Export above).

@@ -4,7 +4,7 @@ import type { JobKind } from "./kinds.ts";
 import type { Database, Ports } from "./ports.ts";
 import type { JobRow } from "./schema.ts";
 
-export type JobPorts = Pick<Ports, "db" | "network" | "pages" | "jobs" | "ai">;
+export type JobPorts = Pick<Ports, "db" | "network" | "pages" | "jobs" | "ai" | "crypto">;
 
 export type JobWrites = readonly BatchItem<"sqlite">[];
 
