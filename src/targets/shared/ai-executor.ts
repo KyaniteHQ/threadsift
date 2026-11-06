@@ -7,18 +7,16 @@ import type { AiNetwork } from "../../core/ports.ts";
 import { AI_CALL_OPTIONS } from "./ai-call-options.ts";
 
 function apiRefusal(status: number | undefined) {
+  if (status === undefined) return refusedAi("unreachable");
+
   switch (status) {
     case 401:
     case 403:
       return refusedAi("wrong-key", status);
     case 404:
       return refusedAi("model-not-found", status);
-    case undefined: {
-      throw new Error("Not implemented yet: undefined case");
-    }
-
     default:
-      return refusedAi("unreachable", status ?? null);
+      return refusedAi("unreachable", status);
   }
 }
 
