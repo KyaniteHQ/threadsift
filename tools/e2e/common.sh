@@ -1,17 +1,30 @@
-free_port() {
-  node -e 'const s = require("node:net").createServer().listen(0, "127.0.0.1", () => { console.log(String(s.address().port)); s.close(); })'
-}
+# shellcheck shell=bash
 
 new_code() {
   node -e 'console.log(require("node:crypto").randomBytes(24).toString("base64url"))'
 }
 
-wait_for_session_route() {
-  local url=$1 tries=$2
+instance_port() {
+  local url
+  url=$(<"$1/url")
+  echo "${url##*:}"
+}
+
+wait_for() {
+  local tries=$1
+  shift
   for _ in $(seq 1 $((tries * 5))); do
-    curl --silent --fail "$url/api/session" >/dev/null && return 0
+    "$@" && return 0
+    [[ $? -ne 2 ]] || return 2
     sleep 0.2
   done
+  return 1
+}
+
+wait_for_session_route() {
+  local url=$1
+  wait_for "$2" curl --silent --fail "$url/api/session" >/dev/null && return 0
+  echo "the session route did not answer on $url/api/session" >&2
   return 1
 }
 
@@ -28,6 +41,7 @@ run_suite() {
   local code
   dir=$(mktemp -d)
   code=$(new_code)
+  # shellcheck disable=SC2154
   trap 'status=$?; stop_all "$dir"; rm -rf "$dir"; exit "$status"' EXIT
   SETUP_CODE=$code "$script" launch "$dir"
   export THREADSIFT_BASE_URL
@@ -36,7 +50,8 @@ run_suite() {
   export THREADSIFT_E2E_DIR=$dir
   export THREADSIFT_SETUP_CODE=$code
   if [[ -n ${THREADSIFT_ARTIFACTS:-} ]]; then
-    export THREADSIFT_RUN_DIR="$THREADSIFT_ARTIFACTS/$THREADSIFT_TARGET-$(date -u +%Y%m%dT%H%M%SZ)"
+    THREADSIFT_RUN_DIR="$THREADSIFT_ARTIFACTS/$THREADSIFT_TARGET-$(date -u +%Y%m%dT%H%M%SZ)"
+    export THREADSIFT_RUN_DIR
     mkdir -p "$THREADSIFT_RUN_DIR"
     echo "artifacts: $THREADSIFT_RUN_DIR"
   fi
