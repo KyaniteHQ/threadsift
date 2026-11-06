@@ -6,11 +6,10 @@
 }:
 
 let
-  corepack = pkgs.corepack;
   withNode = pkgs.writeShellScript "with-node" ''PATH=${
     lib.makeBinPath [
       pkgs.nodejs_26
-      corepack
+      pkgs.corepack
     ]
   }:$PATH exec "$@"'';
   bin = cmd: "${withNode} ./node_modules/.bin/${cmd}";
@@ -37,7 +36,7 @@ in
   };
 
   packages = [
-    corepack
+    pkgs.corepack
     pkgs.jq
     pkgs.podman
     pkgs.playwright-driver.browsers
