@@ -35,7 +35,7 @@ require_current_bundle() {
     echo "dist/web has no bundle; run pnpm run build first" >&2
     return 1
   }
-  newer=$(find web src design/system tools/theme-script.ts vite.config.ts -newer dist/web/index.html -print -quit)
+  newer=$(find web src design/system tools/theme-script.ts vite.config.ts package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json -newer dist/web/index.html -print -quit)
   [[ -z $newer ]] || {
     echo "dist/web is older than $newer; run pnpm run build first" >&2
     return 1

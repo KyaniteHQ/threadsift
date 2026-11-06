@@ -9,6 +9,20 @@ export THREADSIFT_TARGET=container
 image=threadsift:e2e
 self=$PWD/tools/e2e/container.sh
 
+require_current_image() {
+  local built newer
+  built=$(podman image inspect --format '{{index .Labels "threadsift.built-at"}}' "$image" 2>/dev/null) || built=
+  [[ $built =~ ^[0-9]+$ ]] || {
+    echo "$image is missing or was not built by image:build; run devenv tasks run image:build first" >&2
+    return 1
+  }
+  newer=$(find Containerfile package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json vite.config.ts tools/theme-script.ts design/system migrations src web -type f -newermt "@$built" -print -quit)
+  [[ -z $newer ]] || {
+    echo "$image is older than $newer; run devenv tasks run image:build first" >&2
+    return 1
+  }
+}
+
 launch() {
   local dir=$1 name volume port
   mkdir -p "$dir"
@@ -53,6 +67,7 @@ stop)
   rm -f "$2/name"
   ;;
 *)
+  require_current_image
   run_suite "$self" "$@"
   ;;
 esac
