@@ -58,16 +58,24 @@ export async function detailsOfPage(
   pages: Readonly<PageReader>,
   page: Readonly<Page>,
   link: Readonly<Link>,
+  deadline: AbortSignal,
 ): Promise<Fetched> {
   if (link.kind !== "link") {
-    return titled(await pages.title(page.text), { author: null, content: null });
+    return titled(await pages.title(page.text, deadline), { author: null, content: null });
   }
 
   if (!isArticleCandidate(page)) {
-    return titled(await pages.title(page.text), { author: null, content: NOT_AN_ARTICLE });
+    return titled(await pages.title(page.text, deadline), {
+      author: null,
+      content: NOT_AN_ARTICLE,
+    });
   }
 
-  const { title, author, words, postText, postedAt } = await pages.article(page.text, page.url);
+  const { title, author, words, postText, postedAt } = await pages.article(
+    page.text,
+    page.url,
+    deadline,
+  );
 
   return titled(
     title,

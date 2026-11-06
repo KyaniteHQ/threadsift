@@ -8,6 +8,7 @@ import {
 } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
+import { PageReadTimeout } from "./page-read-timeout.ts";
 import type { Network, PageReader } from "./ports.ts";
 
 export type ShortLinkResolution =
@@ -38,9 +39,15 @@ async function fetchedOf(
     return { status: outcome.kind === "stopped" ? whenStopped : outcome.reason };
   }
 
-  const fetched = await readPage(outcome);
+  try {
+    return await readPage(outcome);
+  } catch (error) {
+    if (error instanceof PageReadTimeout) {
+      return { status: "timeout" };
+    }
 
-  return fetched;
+    throw error;
+  }
 }
 
 async function fetchedOfOembed(
@@ -76,7 +83,7 @@ export async function fetchLink(
 
   return fetchedOf(
     await guardedFetch(network, address, pagePolicy(pages), deadline),
-    (page) => detailsOfPage(pages, page, link),
+    (page) => detailsOfPage(pages, page, link, deadline),
     "redirect-stopped",
   );
 }

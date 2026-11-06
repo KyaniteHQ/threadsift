@@ -3,6 +3,7 @@ import { Worker } from "node:worker_threads";
 import { z } from "zod";
 
 import { type ArticleReading, ArticleReadingSchema } from "../../core/article.ts";
+import { PageReadTimeout } from "../../core/page-read-timeout.ts";
 import type { PageReader } from "../../core/ports.ts";
 
 const WORKER_FILE = new URL("./page-reader-worker.ts", import.meta.url);
@@ -31,32 +32,63 @@ export class WorkerPageReader implements PageReader {
   private nextId = 0;
   private readonly pending = new Map<number, Pending>();
 
-  readonly title = (html: string): Promise<string> =>
-    this.ask({ kind: "title", html }, (value) => z.string().parse(value));
+  readonly title = (html: string, deadline: AbortSignal): Promise<string> =>
+    this.ask({ kind: "title", html }, deadline, (value) => z.string().parse(value));
 
-  readonly article = (html: string, url: string) =>
-    this.ask({ kind: "article", html, url }, (value) => ArticleReadingSchema.parse(value));
+  readonly article = (html: string, url: string, deadline: AbortSignal) =>
+    this.ask({ kind: "article", html, url }, deadline, (value) =>
+      ArticleReadingSchema.parse(value),
+    );
 
   stop(): void {
+    this.restart(new Error("the page reader stopped"));
+  }
+
+  private restart(error: Readonly<Error>): void {
     const { worker } = this;
 
     if (worker !== null) {
       this.worker = null;
-      this.failAll(new Error("the page reader stopped"));
+      this.failAll(error);
       void worker.terminate();
     }
   }
 
   private async ask<Answer>(
     request: Readonly<Record<string, string>>,
+    deadline: AbortSignal,
     parse: (value: Answered) => Answer,
   ): Promise<Answer> {
+    if (deadline.aborted) {
+      throw new PageReadTimeout();
+    }
+
     const id = this.nextId;
     this.nextId += 1;
     const worker = this.workerThread();
 
     const value = await new Promise<Answered>((succeed, fail) => {
-      this.pending.set(id, { succeed, fail });
+      const onDeadline = (): void => {
+        this.restart(new PageReadTimeout());
+      };
+
+      const done = (): void => {
+        deadline.removeEventListener("abort", onDeadline);
+      };
+
+      deadline.addEventListener("abort", onDeadline, { once: true });
+
+      this.pending.set(id, {
+        succeed: (answer) => {
+          done();
+          succeed(answer);
+        },
+        fail: (error) => {
+          done();
+          fail(error);
+        },
+      });
+
       // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
       worker.postMessage({ id, ...request });
     });

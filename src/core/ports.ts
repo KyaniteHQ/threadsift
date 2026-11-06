@@ -24,8 +24,8 @@ export interface Network {
 
 export interface PageReader {
   readonly maxHtmlBytes: number;
-  readonly title: (html: string) => Promise<string>;
-  readonly article: (html: string, url: string) => Promise<ArticleReading>;
+  readonly title: (html: string, deadline: AbortSignal) => Promise<string>;
+  readonly article: (html: string, url: string, deadline: AbortSignal) => Promise<ArticleReading>;
 }
 
 export type NetworkFailureReason = "refused" | "timeout";
