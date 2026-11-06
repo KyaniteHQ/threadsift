@@ -49,7 +49,7 @@ The public Grok Bot template that saves links from chat, syncs X bookmarks and a
 _Avoid_: Grok integration, assistant
 
 **Digest**:
-The agent's output for one Item, stored apart from the fetched content: clean title, Topic, Tags, Summary, Key points and the ids of Kept comments.
+The agent's output for one Item, stored apart from the fetched content: clean title, Topic, Tags, Summary, Key points and the ids of Kept comments. A caller may send one with a Paste; it waits for the fetched text and publishes without a Provider call.
 _Avoid_: Analysis, enrichment, AI output
 
 **AI task**:
@@ -59,11 +59,11 @@ _Avoid_: Job, prompt, request, AI call
 ### Sorting
 
 **Topic**:
-The one broad subject of an Item, from a list the agent keeps and grows.
+The one broad subject of an Item, from a list the agent keeps and grows. Topics keep their first spelling; `catalogKey` in `src/core/catalog.ts` defines their identity.
 _Avoid_: Category, folder
 
 **Tag**:
-One of up to 3 short labels the agent sets on an Item; the UI never edits Tags.
+One of up to 3 short labels the agent sets on an Item; the UI never edits Tags. Tags keep their first spelling and use the same key rule as Topics.
 _Avoid_: Label, keyword
 
 **Read state**:

@@ -24,3 +24,6 @@ export interface JobHandler {
   readonly attempt: (ports: JobPorts, job: Readonly<JobRow>) => Promise<JobOutcome>;
   readonly exhausted: (db: Database, job: Readonly<JobRow>) => JobWrites;
 }
+
+export const STALE_DELAYS_MS = [0, 0, 30_000] as const;
+export const MAX_STALE_REQUEUES = 3;

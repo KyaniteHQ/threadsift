@@ -2,7 +2,9 @@ import { expect } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
 import { z } from "zod";
 
-import { type Instance, mainInstance } from "./access.ts";
+import { createToken } from "./access-helpers.ts";
+import { type Instance, bearer, mainInstance } from "./access.ts";
+import type { FreshScreen } from "./fresh-screen.ts";
 import { isContainerTarget } from "./target.ts";
 
 export const STALLED = "http://example.com:81/";
@@ -136,10 +138,57 @@ export function expireClaim(id: number): void {
   mainInstance().sql(`UPDATE jobs SET claim_expires = 1 WHERE item_id = ${id}`);
 }
 
+export function deferJobs(instance: Instance, kind: "fetch" | "digest"): () => void {
+  const trigger = `defer_${kind}`;
+  instance.sql(
+    `CREATE TRIGGER ${trigger} AFTER INSERT ON jobs WHEN NEW.kind = '${kind}' BEGIN UPDATE jobs SET next_attempt_at = 9007199254740991 WHERE id = NEW.id; END`,
+  );
+
+  return () => {
+    instance.sql(`DROP TRIGGER ${trigger}`);
+  };
+}
+
 export function makeJobDue(id: number, instance: Instance): void {
   instance.sql(`UPDATE jobs SET next_attempt_at = 0 WHERE id = ${id}`);
 }
 
 export function makeDue(itemId: number): void {
   mainInstance().sql(`UPDATE jobs SET next_attempt_at = 0 WHERE item_id = ${itemId}`);
+}
+
+export async function unchangedOpenDigest(screen: FreshScreen, id: number): Promise<void> {
+  const before = jobsOf(id, screen.fresh);
+
+  const { value } = await createToken(screen.context.request, "Digest retry proof");
+
+  const response = await screen.context.request.post(`/api/items/${id}/digest`, {
+    headers: bearer(value),
+  });
+
+  expect(response.status()).toBe(200);
+  expect(jobsOf(id, screen.fresh)).toEqual(before);
+}
+
+export async function pasteBehindDeferredFetch(
+  screen: FreshScreen,
+  paste: () => Promise<readonly number[]>,
+): Promise<readonly number[]> {
+  const restore = deferJobs(screen.fresh, "fetch");
+  let ids: readonly number[];
+
+  try {
+    ids = await paste();
+  } finally {
+    restore();
+  }
+
+  for (const id of new Set(ids)) {
+    for (const job of jobsOf(id, screen.fresh, "fetch").filter((row) => row.state !== "done"))
+      makeJobDue(job.id, screen.fresh);
+  }
+
+  await sweepNow(screen.context.request, screen.fresh);
+
+  return ids;
 }

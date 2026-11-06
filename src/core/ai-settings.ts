@@ -9,6 +9,7 @@ import {
   type HttpAiConnection,
   refusedAi,
 } from "./ai-contract.ts";
+import type { JobWrites } from "./job-outcome.ts";
 import type { AiPorts } from "./ports.ts";
 import { settings } from "./schema.ts";
 import type { Sealer } from "./sealed-secret.ts";
@@ -77,6 +78,7 @@ export async function readAiSettings(ports: AiPorts): Promise<AiSettingsView> {
 export async function saveAiSettings(
   ports: AiPorts,
   input: Readonly<AiSettingsInput>,
+  extraWrites: () => JobWrites,
 ): Promise<z.infer<typeof AiSaveResponseSchema>> {
   const loaded = await loadAiConfig(ports);
 
@@ -105,7 +107,10 @@ export async function saveAiSettings(
     sealedKey: await loaded.sealer.seal(key),
   };
 
-  await ports.db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row });
+  await ports.db.batch([
+    ports.db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row }),
+    ...extraWrites(),
+  ]);
 
   return aiView(row, true, ports.ai.publicOnly);
 }

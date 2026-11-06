@@ -1,14 +1,19 @@
 import { type SQL, and, asc, eq, inArray, lt, lte, notExists, exists, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { expireAiTasks } from "./ai-tasks.ts";
-import { digestHandler } from "./digest-job.ts";
+import { digestHandler, sweepDigests } from "./digest-job.ts";
 import { fetchHandler } from "./fetch-job.ts";
-import type { JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
+import {
+  MAX_STALE_REQUEUES,
+  STALE_DELAYS_MS,
+  type JobHandler,
+  type JobOutcome,
+  type JobPorts,
+} from "./job-outcome.ts";
 import { enqueueQuietly, enqueueRows, hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, guards, items, jobs, scheduledRuns } from "./schema.ts";
+import { type JobRow, guardedBatch, items, jobs, scheduledRuns } from "./schema.ts";
 
 const CLAIM_MARGIN_MS = 120_000;
 const RETRY_DELAYS_MS = [30_000, 120_000] as const;
@@ -74,31 +79,16 @@ export function claimNextDue(db: Database): Promise<JobRow | null> {
   return claim(db, () => inArray(jobs.id, dueIds(db, now, 1)), now);
 }
 
-function holding(db: Database, job: Readonly<JobRow>) {
-  return db
-    .select({ ok: sql<number>`count(*)`.as("ok") })
-    .from(jobs)
-    .where(and(eq(jobs.id, job.id), eq(jobs.state, "running"), eq(jobs.attempts, job.attempts)));
+function holding(job: Readonly<JobRow>) {
+  return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobs.state} = 'running' and ${jobs.attempts} = ${job.attempts})`;
 }
 
-async function writeWhileHolding(
+function writeWhileHolding(
   db: Database,
   job: Readonly<JobRow>,
   writes: readonly BatchItem<"sqlite">[],
-): Promise<boolean> {
-  try {
-    await db.batch([db.insert(guards).select(holding(db, job)), ...writes, db.delete(guards)]);
-
-    return true;
-  } catch (error) {
-    const [{ ok } = { ok: 0 }] = await holding(db, job);
-
-    if (ok === 1) {
-      throw error;
-    }
-
-    return false;
-  }
+) {
+  return guardedBatch(db, holding(job), writes);
 }
 
 async function finish(
@@ -111,7 +101,10 @@ async function finish(
 
   const wrote = await writeWhileHolding(db, job, [
     ...writes,
-    db.update(jobs).set({ state: "done", attempts, claimExpires: null }).where(eq(jobs.id, job.id)),
+    db
+      .update(jobs)
+      .set({ state: "done", attempts, claimExpires: null, staleRequeues: 0 })
+      .where(eq(jobs.id, job.id)),
     db
       .update(items)
       .set({
@@ -129,7 +122,11 @@ async function finish(
 async function queueLater(
   ports: JobPorts,
   job: Readonly<JobRow>,
-  { delayMs, attempts }: Readonly<{ delayMs: number; attempts: number }>,
+  {
+    delayMs,
+    attempts,
+    staleRequeues,
+  }: Readonly<{ delayMs: number; attempts: number; staleRequeues: number }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
     ports.db
@@ -137,6 +134,7 @@ async function queueLater(
       .set({
         state: "queued",
         attempts,
+        staleRequeues,
         nextAttemptAt: Date.now() + delayMs,
         claimExpires: null,
       })
@@ -158,12 +156,12 @@ async function writeOutcome(
       ? "done"
       : "lost";
   } catch (error) {
-    if (outcome.currency === undefined || (await outcome.currency.current())) {
-      throw error;
-    }
-  }
+    const state = await outcome.currency?.current();
 
-  return "stale";
+    if (state !== false) throw error;
+
+    return "stale";
+  }
 }
 
 async function applyOutcome(
@@ -187,10 +185,17 @@ async function applyOutcome(
       if (outcome.currency !== undefined)
         await ports.db.batch([outcome.currency.discard("lease-lost")]);
       break;
-    case "stale":
+    case "stale": {
       if (outcome.currency !== undefined) await ports.db.batch([outcome.currency.discard("stale")]);
-      await queueLater(ports, job, { delayMs: 0, attempts: job.attempts });
+      const staleRequeues = Math.min(job.staleRequeues + 1, MAX_STALE_REQUEUES);
+      await queueLater(ports, job, {
+        delayMs: STALE_DELAYS_MS[job.staleRequeues] ?? STALE_DELAYS_MS[2],
+        attempts: job.attempts,
+        staleRequeues,
+      });
       break;
+    }
+
     default: {
       const exhaustive: never = result;
       throw new Error(exhaustive);
@@ -230,7 +235,7 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<JobRow>): Pr
           writes: handler.exhausted(ports.db, job),
           attempts: job.attempts + 1,
         })
-      : queueLater(ports, job, { delayMs, attempts: job.attempts + 1 }));
+      : queueLater(ports, job, { delayMs, attempts: job.attempts + 1, staleRequeues: 0 }));
   }
 }
 
@@ -248,7 +253,7 @@ export async function abandonRunning(db: Database): Promise<void> {
 
 async function sweep(ports: JobPorts): Promise<void> {
   const now = Date.now();
-  await expireAiTasks(ports.db, now);
+  await sweepDigests(ports.db, now);
   const due = await dueIds(ports.db, now, SWEEP_LIMIT);
 
   await enqueueRows(ports, due);

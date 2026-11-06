@@ -1,7 +1,6 @@
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
 
-import { loadAiConfig } from "./ai-settings.ts";
-import { openingDigest, setDigestFailure } from "./digest-job.ts";
+import { openingDigest, providerSet, setDigestFailure } from "./digest-job.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
@@ -20,35 +19,40 @@ async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<Job
 
   const fields = settle(fetched, title, Date.now());
   const storesText = fields.postText !== undefined && fields.postText !== null;
-  const configured = storesText && (await loadAiConfig(ports)).state === "ready";
-  const stored = storesText ? { ...fields, generation: sql`${items.generation} + 1` } : fields;
+
+  const configured = or(isNotNull(items.pendingDigest), providerSet()) ?? sql`0`;
+
+  const stored = storesText
+    ? { ...fields, generation: sql`${items.generation} + 1` }
+    : { ...fields, pendingDigest: null };
 
   return {
     writes: [
       ports.db.update(items).set(stored).where(eq(items.id, job.itemId)),
-      ...(configured
+      ...(storesText
         ? [
-            openingDigest(ports.db, { itemId: job.itemId, address: job.address, now: Date.now() }),
+            openingDigest(ports.db, {
+              scope: and(eq(items.id, job.itemId), configured) ?? sql`0`,
+              address: job.address,
+              now: Date.now(),
+            }).job,
             setDigestFailure(ports.db, job.itemId, false),
-          ]
-        : storesText
-          ? [
-              ports.db
-                .update(items)
-                .set({ digestFailed: true })
-                .where(
-                  and(
-                    eq(items.id, job.itemId),
-                    exists(
-                      ports.db
-                        .select({ id: digests.itemId })
-                        .from(digests)
-                        .where(eq(digests.itemId, items.id)),
-                    ),
-                  ),
+            setDigestFailure(
+              ports.db,
+              job.itemId,
+              true,
+              and(
+                sql`not (${configured})`,
+                exists(
+                  ports.db
+                    .select({ id: digests.itemId })
+                    .from(digests)
+                    .where(eq(digests.itemId, items.id)),
                 ),
-            ]
-          : []),
+              ) ?? sql`0`,
+            ),
+          ]
+        : []),
     ],
   };
 }
@@ -58,6 +62,9 @@ export const fetchHandler: JobHandler = {
   blockedBy: [],
   attempt: attemptFetch,
   exhausted: (db, job) => [
-    db.update(items).set({ status: "failed", reason: "gave-up" }).where(eq(items.id, job.itemId)),
+    db
+      .update(items)
+      .set({ status: "failed", reason: "gave-up", pendingDigest: null })
+      .where(eq(items.id, job.itemId)),
   ],
 };

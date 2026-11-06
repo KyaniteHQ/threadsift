@@ -152,6 +152,7 @@ async function startTask(
   kind: string,
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
+  executor = ports.ai.name,
 ) {
   const [task] = await ports.db
     .insert(aiTasks)
@@ -160,7 +161,7 @@ async function startTask(
       inputs: text,
       inputRevision: input.inputRevision,
       attempts: input.attempts,
-      executor: ports.ai.name,
+      executor,
       deadline: Date.now() + AI_DEADLINE_MS,
       state: "running",
     })
@@ -169,4 +170,12 @@ async function startTask(
   if (task === undefined) throw new Error("AI task was not created");
 
   return task;
+}
+
+export async function startCallerTask(
+  ports: AiPorts,
+  text: string,
+  input: Readonly<{ inputRevision: number; attempts: number }>,
+) {
+  return (await startTask(ports, "digest", text, input, "caller")).id;
 }

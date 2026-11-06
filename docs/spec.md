@@ -117,15 +117,17 @@ The agent returns one JSON record, the Digest, stored apart from the fetched con
 - Key points
 - the ids of the Kept comments
 
+Topic and Tag identity uses `catalogKey` in `src/core/catalog.ts`: NFKC normalization, lower case, trimming and collapsed whitespace. The first spelling stays visible. This normalized key is the app's only duplicate check; semantic near-duplicates such as "ML" and "Machine learning" are the model's job from the supplied lists, and later the Proposals' job.
+
 The list uses the stored Digest's clean title and Topic and keeps the fetched title separately. Summary, Key points and Tags wait for the Reader. The last stored Digest stays visible during refresh or regeneration. A failed run shows "No Digest" only when there is no stored Digest; a kept Digest shows "Digest not updated", and both failure states offer Try again. That action queues a Digest over stored text without a new fetch, and does nothing while a Digest is already open or the Item is failed. A failed Item keeps the paste retry action. The owner session and agent tokens may call it.
 
-A failed fetch keeps the Item `failed` while a remaining Digest closes under it. Otherwise an Item stays `processing` while either job is open, and the batch that closes the last job makes it `ready` with no failure reason. A fetch that stores post text increments the Item's content generation and opens its Digest in the same batch. A Paste alone does not increment it. Items with no post text or no usable Provider settle without a Digest job. When a refresh stores new text without opening a Digest job, a retained older Digest gets the failure marker and offers Try again.
+A failed fetch keeps the Item `failed` while a remaining Digest closes under it. Otherwise an Item stays `processing` while either job is open, and the batch that closes the last job makes it `ready` with no failure reason. A fetch that stores post text increments the Item's content generation and opens its Digest in the same batch. A Paste alone does not increment it. Items with no post text settle without a Digest job. With post text, the fetch opens a Digest when a Provider is saved or a caller-sent Digest is pending; it decides this in its publishing batch. When a refresh stores new text without opening a Digest job, a retained older Digest gets the failure marker and offers Try again.
 
 A Digest waits for an open fetch before calling the Provider. It publishes only at the generation it read. A stale result is discarded, its AI task fails, and the lease-held job returns to the queue on fresh inputs with the same attempt count. Each job run makes at most one model call.
 
 Wrong keys, missing models, refused addresses, missing configuration or sealing secrets, and Provider HTTP 400 or 422 answers give up immediately. Network failures, timeouts, a busy Provider, and a successful HTTP answer whose output fails the Digest schema retry with the job runner's delays. A failed Digest leaves fetched content readable.
 
-A caller may send a Digest it already wrote, as the Threadsift bot does on the owner's Grok plan; Threadsift then checks it against the same rules and skips its own agent call.
+`POST /api/items` accepts a caller-sent Digest from the owner session or an agent token. Invalid Digests return 400 before storage. The last Paste sets or clears the pending Digest. A fetch with no text drops it and keeps any stored Digest; a fetch with text lets it publish by normalized key, without a catalog guard or a Provider call. Its AI task starts before publication with executor `caller`, with no Provider or model; a failed publication leaves a failed task record. Try again always uses the configured Provider.
 
 ## The library wiki
 
@@ -144,7 +146,7 @@ The rules above answer the known failures of LLM wikis, from the gist's comments
 
 The owner picks one Provider in the AI settings, and the screen shows only the fields that Provider needs. "Verify" runs one small real Digest, so a model that cannot return the Digest's JSON fails at setup, not on the 200th Item.
 
-The Settings page currently offers OpenAI-compatible URL and OpenRouter, reached through the gear panel’s Instance settings link. Save keeps the API key sealed on the Instance; the screen only reports whether a key is set. Verify uses the saved settings and shows a Digest or a refusal with a recovery action. It adds no Item, Topic or Tag. Fetched Items with post text now get automatic Digests when the saved Provider loads. The Topic and Tag lists, caller-sent Digests and Digests for older Items remain planned. OpenRouter has no live proof until the owner supplies a key.
+The Settings page currently offers OpenAI-compatible URL and OpenRouter, reached through the gear panel’s Instance settings link. Save keeps the API key sealed on the Instance; the screen only reports whether a key is set. Verify uses the saved settings and shows a Digest or a refusal with a recovery action. It adds no Item, Topic or Tag. Fetched Items with post text now get automatic Digests when the saved Provider loads. The Topic and Tag lists and caller-sent Digests are built. Saving a Provider opens Digest jobs for older Items with post text, no stored Digest, no failure marker and no open Digest job. Saving again does not reopen failed Digests; Try again owns that retry. This spends one model call per eligible Item, with 4 jobs at a time in the container and up to 100 per minute on Cloudflare. OpenRouter has no live proof until the owner supplies a key.
 
 | Provider | Self-hosted container | Cloudflare deploy | Hosted product (later) |
 |---|---|---|---|

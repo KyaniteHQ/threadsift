@@ -1,4 +1,5 @@
-import { sql } from "drizzle-orm";
+import { type SQLWrapper, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { FETCH_RESULTS } from "./fetch-results.ts";
@@ -11,6 +12,7 @@ import {
   SOURCES,
   THROTTLE_KINDS,
 } from "./kinds.ts";
+import type { Database } from "./ports.ts";
 
 export const items = sqliteTable(
   "items",
@@ -27,13 +29,18 @@ export const items = sqliteTable(
     postText: text("post_text"),
     postedAt: integer("posted_at"),
     fetchedAt: integer("fetched_at"),
+    pendingDigest: text("pending_digest"),
+    topicId: integer("topic_id").references(() => topics.id),
     generation: integer("generation").notNull().default(0),
     digestFailed: integer("digest_failed", { mode: "boolean" }).notNull().default(false),
     status: text("status", { enum: ITEM_STATUSES }).notNull().default("ready"),
     reason: text("reason", { enum: FAILURE_REASONS }),
     fetch: text("fetch_result", { enum: FETCH_RESULTS }),
   },
-  (table) => [index("items_saved_at_id").on(table.savedAt, table.id)],
+  (table) => [
+    index("items_saved_at_id").on(table.savedAt, table.id),
+    index("items_topic").on(table.topicId),
+  ],
 );
 
 export const jobs = sqliteTable(
@@ -47,6 +54,7 @@ export const jobs = sqliteTable(
     address: text("address").notNull(),
     state: text("state", { enum: JOB_STATES }).notNull(),
     attempts: integer("attempts").notNull().default(0),
+    staleRequeues: integer("stale_requeues").notNull().default(0),
     nextAttemptAt: integer("next_attempt_at").notNull(),
     claimExpires: integer("claim_expires"),
   },
@@ -70,6 +78,35 @@ export const guards = sqliteTable(
   },
   (table) => [check("guards_hold", sql`${table.ok} = 1`)],
 );
+
+function guardRows(db: Database, condition: Readonly<SQLWrapper>) {
+  return db
+    .select({ ok: sql<number>`count(*)`.as("ok") })
+    .from(sql`(select 1)`)
+    .where(sql`${condition}`);
+}
+
+export function insertGuard(db: Database, condition: Readonly<SQLWrapper>) {
+  return db.insert(guards).select(guardRows(db, condition));
+}
+
+export async function guardedBatch(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  writes: readonly BatchItem<"sqlite">[],
+): Promise<boolean> {
+  try {
+    await db.batch([insertGuard(db, condition), ...writes, db.delete(guards)]);
+
+    return true;
+  } catch (error) {
+    const [current] = await guardRows(db, condition);
+
+    if (current?.ok === 1) throw error;
+
+    return false;
+  }
+}
 
 export const owner = sqliteTable(
   "owner",
@@ -142,8 +179,54 @@ export const digests = sqliteTable("digests", {
   taskId: integer("task_id")
     .notNull()
     .references(() => aiTasks.id),
-  provider: text("provider").notNull(),
-  model: text("model").notNull(),
+  provider: text("provider"),
+  model: text("model"),
   generation: integer("generation").notNull(),
   createdAt: integer("created_at").notNull(),
 });
+
+export const topics = sqliteTable("topics", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+});
+
+export const tags = sqliteTable("tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+});
+
+export const itemTags = sqliteTable(
+  "item_tags",
+  {
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    tagId: integer("tag_id")
+      .notNull()
+      .references(() => tags.id),
+  },
+  (table) => [
+    uniqueIndex("item_tags_item_tag").on(table.itemId, table.tagId),
+    index("item_tags_tag").on(table.tagId),
+  ],
+);
+
+export const catalogVersion = sqliteTable(
+  "catalog_version",
+  {
+    id: integer("id").primaryKey(),
+    version: integer("version").notNull().default(0),
+  },
+  (table) => [check("catalog_is_one_row", sql`${table.id} = 1`)],
+);
+
+export const catalogLinking = sqliteTable(
+  "catalog_linking",
+  {
+    id: integer("id").primaryKey(),
+    lastItemId: integer("last_item_id").notNull(),
+  },
+  (table) => [check("catalog_linking_is_one_row", sql`${table.id} = 1`)],
+);

@@ -36,7 +36,12 @@ export function opening(
     address,
     now,
     where,
-  }: Readonly<{ kind: JobKind; address: string; now: number; where: Readonly<SQLWrapper> }>,
+  }: Readonly<{
+    kind: JobKind;
+    address: string | Readonly<SQLWrapper>;
+    now: number;
+    where: Readonly<SQLWrapper>;
+  }>,
 ) {
   return db
     .insert(jobs)
@@ -49,6 +54,7 @@ export function opening(
           address: sql<string>`${address}`.as("address"),
           state: sql<"queued">`'queued'`.as("state"),
           attempts: sql<number>`0`.as("attempts"),
+          staleRequeues: sql<number>`0`.as("stale_requeues"),
           nextAttemptAt: sql<number>`${now}`.as("next_attempt_at"),
           claimExpires: sql<null>`null`.as("claim_expires"),
         })

@@ -1,12 +1,39 @@
-import { and, eq, exists, isNotNull, notExists, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, exists, isNotNull, ne, notExists, sql } from "drizzle-orm";
 
-import { AI_DEADLINE_MS, DIGEST_INPUT_BYTES, type Digest, retriesAi } from "./ai-contract.ts";
-import { TASKS, type DoneTask, completedAiTask, failedAiTask, runAiTask } from "./ai-tasks.ts";
-import type { JobCurrency, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
+import {
+  AI_DEADLINE_MS,
+  DIGEST_INPUT_BYTES,
+  DigestSchema,
+  digestPrompt,
+  type Digest,
+  retriesAi,
+} from "./ai-contract.ts";
+import {
+  TASKS,
+  startCallerTask,
+  completedAiTask,
+  failedAiTask,
+  runAiTask,
+  expireAiTasks,
+} from "./ai-tasks.ts";
+import {
+  catalogEntries,
+  catalogCurrent,
+  linkingDigest,
+  readCatalog,
+  linkOlderDigests,
+} from "./catalog.ts";
+import {
+  MAX_STALE_REQUEUES,
+  type JobCurrency,
+  type JobHandler,
+  type JobOutcome,
+  type JobPorts,
+} from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { DIGEST_OUTCOMES } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, digests, guards, items } from "./schema.ts";
+import { type JobRow, digests, insertGuard, items, settings, topics } from "./schema.ts";
 
 function digestInput(db: Database, id: number) {
   return db
@@ -15,6 +42,7 @@ function digestInput(db: Database, id: number) {
       title: items.title,
       source: items.source,
       generation: items.generation,
+      pendingDigest: items.pendingDigest,
       postText: sql<string | null>`substr(${items.postText}, 1, ${DIGEST_INPUT_BYTES})`,
     })
     .from(items)
@@ -29,8 +57,24 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
   if (item === undefined || item.postText === null)
     return { writes: [setDigestFailure(ports.db, job.itemId, false)] };
 
+  if (item.pendingDigest !== null) {
+    const digest = DigestSchema.parse(JSON.parse(item.pendingDigest));
+
+    const taskId = await startCallerTask(ports, item.pendingDigest, {
+      inputRevision: item.generation,
+      attempts: job.attempts + 1,
+    });
+
+    return publishing(ports.db, item, digest, taskId, { executor: "caller" });
+  }
+
+  const catalog = await readCatalog(ports.db);
+
   const result = await runAiTask(ports, TASKS.digest, {
-    text: JSON.stringify({ title: item.title, source: item.source, postText: item.postText }),
+    text: digestPrompt(
+      JSON.stringify({ title: item.title, source: item.source, postText: item.postText }),
+      catalog,
+    ),
     inputRevision: item.generation,
     attempts: job.attempts + 1,
   });
@@ -41,22 +85,37 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
     return { writes: [setDigestFailure(ports.db, job.itemId, true)] };
   }
 
-  return publishing(ports.db, item, result);
+  return publishing(ports.db, item, result.result, result.taskId, {
+    executor: "model",
+    provider: result.provider,
+    model: result.model,
+    version: catalog.version,
+    staleRequeues: job.staleRequeues,
+  });
 }
 
-function currency(
-  db: Database,
-  { id, generation }: Readonly<Pick<DigestInput, "id" | "generation">>,
-  taskId: number,
-): JobCurrency {
+type DigestSource =
+  | { readonly executor: "caller" }
+  | {
+      readonly executor: "model";
+      readonly provider: string;
+      readonly model: string;
+      readonly version: number;
+      readonly staleRequeues: number;
+    };
+
+function generationCurrent(
+  item: Readonly<Pick<DigestInput, "id" | "generation" | "pendingDigest">>,
+) {
+  return sql`exists (select 1 from ${items} where ${items.id} = ${item.id} and ${items.generation} = ${item.generation} and ${items.pendingDigest} is ${item.pendingDigest} and not exists ${hasOpenJob("fetch")})`;
+}
+
+function currency(db: Database, current: Readonly<SQLWrapper>, taskId: number): JobCurrency {
   return {
     current: async () => {
-      const [current] = await db
-        .select({ generation: items.generation })
-        .from(items)
-        .where(eq(items.id, id));
+      const [row] = await db.select({ current: sql<number>`${current}` }).from(sql`(select 1)`);
 
-      return current?.generation === generation;
+      return row?.current === 1;
     },
     discard: (cause) =>
       failedAiTask(db, taskId, { reason: cause === "error" ? "unreachable" : cause, status: null }),
@@ -66,31 +125,35 @@ function currency(
 function publishing(
   db: Database,
   item: Readonly<DigestInput>,
-  result: DoneTask<Digest>,
+  digest: Readonly<Digest>,
+  taskId: number,
+  source: DigestSource,
 ): JobOutcome {
+  const entries = catalogEntries(digest);
+  const { catalog, provider, model } = digestOrigin(source, entries);
+  const generation = generationCurrent(item);
+
   const stored = {
     itemId: item.id,
-    digest: JSON.stringify(result.result),
-    title: result.result.title,
-    topic: result.result.topic,
-    taskId: result.taskId,
-    provider: result.provider,
-    model: result.model,
+    digest: JSON.stringify(digest),
+    title: digest.title,
+    topic: digest.topic,
+    taskId,
+    provider,
+    model,
     generation: item.generation,
     createdAt: Date.now(),
   };
 
   return {
-    currency: currency(db, item, result.taskId),
+    currency: currency(db, sql`${generation} and ${catalog}`, taskId),
     writes: [
-      db.insert(guards).select(
-        db
-          .select({ ok: sql<number>`count(*)`.as("ok") })
-          .from(items)
-          .where(and(eq(items.id, item.id), eq(items.generation, item.generation))),
-      ),
+      insertGuard(db, generation),
+      insertGuard(db, catalog),
+      ...linkingDigest(db, item.id, entries),
       db.insert(digests).values(stored).onConflictDoUpdate({ target: digests.itemId, set: stored }),
-      completedAiTask(db, result),
+      completedAiTask(db, { taskId, result: digest }),
+      db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
       setDigestFailure(db, item.id, false),
     ],
   };
@@ -103,25 +166,30 @@ export const digestHandler: JobHandler = {
   exhausted: (db, job) => [setDigestFailure(db, job.itemId, true)],
 };
 
-export function setDigestFailure(db: Database, itemId: number, failed: boolean) {
+export function setDigestFailure(
+  db: Database,
+  itemId: number,
+  failed: boolean,
+  condition: Readonly<SQLWrapper> = exists(hasOpenJob("digest")),
+) {
   return db
     .update(items)
     .set({ digestFailed: failed })
-    .where(and(eq(items.id, itemId), exists(hasOpenJob("digest"))));
+    .where(and(eq(items.id, itemId), sql`${condition}`));
 }
 
 export function openingDigest(
   db: Database,
-  { itemId, address, now }: Readonly<{ itemId: number; address: string; now: number }>,
-) {
-  return opening(db, {
-    kind: "digest",
+  {
+    scope,
     address,
     now,
-    where:
-      and(eq(items.id, itemId), isNotNull(items.postText), notExists(hasOpenJob("digest"))) ??
-      sql`0`,
-  });
+  }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
+) {
+  const eligible =
+    and(sql`${scope}`, isNotNull(items.postText), notExists(hasOpenJob("digest"))) ?? sql`0`;
+
+  return { eligible, job: opening(db, { kind: "digest", address, now, where: eligible }) };
 }
 
 export const EMPTY_DIGEST_VIEW = {
@@ -132,10 +200,64 @@ export const EMPTY_DIGEST_VIEW = {
 
 export const DIGEST_VIEW_COLUMNS = {
   digestTitle: sql<string | null>`${digests.title}`.as("digest_title"),
-  digestTopic: sql<string | null>`${digests.topic}`.as("digest_topic"),
+  digestTopic: sql<
+    string | null
+  >`coalesce((select ${topics.name} from ${topics} where ${topics.id} = ${items.topicId}), ${digests.topic})`.as(
+    "digest_topic",
+  ),
   digestOutcome: sql<
     (typeof DIGEST_OUTCOMES)[number]
   >`case when exists ${hasOpenJob("digest")} then 'pending' when ${items.digestFailed} then 'failed' else 'none' end`.as(
     "digest_outcome",
   ),
 };
+
+export async function sweepDigests(db: Database, now: number): Promise<void> {
+  await expireAiTasks(db, now);
+  await linkOlderDigests(db);
+}
+
+function digestOrigin(source: DigestSource, entries: Readonly<ReturnType<typeof catalogEntries>>) {
+  switch (source.executor) {
+    case "caller":
+      return { catalog: sql`1`, provider: null, model: null };
+    case "model":
+      return {
+        catalog:
+          source.staleRequeues >= MAX_STALE_REQUEUES
+            ? sql`1`
+            : catalogCurrent(source.version, entries),
+        provider: source.provider,
+        model: source.model,
+      };
+    default: {
+      const exhaustive: never = source;
+
+      return exhaustive;
+    }
+  }
+}
+
+export function providerSet() {
+  return sql`exists (select 1 from ${settings} where ${settings.id} = 1)`;
+}
+
+export function olderDigests(db: Database) {
+  const older = openingDigest(db, {
+    scope:
+      and(
+        ne(items.status, "failed"),
+        eq(items.digestFailed, false),
+        notExists(
+          db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
+        ),
+      ) ?? sql`0`,
+    address: sql`${items.originalUrl}`,
+    now: Date.now(),
+  });
+
+  return [
+    db.update(items).set({ status: "processing", reason: null }).where(older.eligible),
+    older.job,
+  ];
+}
