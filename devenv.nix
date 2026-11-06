@@ -18,7 +18,8 @@ let
     builtins.toJSON { default = [ { type = "insecureAcceptAnything"; } ]; }
   );
   e2eCommand = target: ''
-    mapfile -t args < <(jq -r '(.args // [])[]' <<< "$DEVENV_TASK_INPUT")
+    jq --exit-status '(.args // []) | type == "array" and all(type == "string")' <<< "$DEVENV_TASK_INPUT" > /dev/null
+    mapfile -d "" -t args < <(jq --join-output '(.args // [])[] | ., "\u0000"' <<< "$DEVENV_TASK_INPUT")
     exec tools/e2e/${target}.sh "''${args[@]}"
   '';
   port = name: toString config.processes.${name}.ports.http.value;

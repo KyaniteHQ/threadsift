@@ -85,14 +85,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: .claude/skills/impeccable/scripts/impeccable detect --github web
 
-  e2e:
+  e2e-container:
     needs: changes
     if: github.repository == 'KyaniteHQ/threadsift' && needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        target: [container, worker]
         shard: [1, 2, 3]
     env:
       THREADSIFT_ARTIFACTS: artifacts
@@ -101,20 +100,41 @@ jobs:
       - uses: ./.github/actions/setup-devenv
       - name: Allow unprivileged user namespaces for rootless Podman and Chromium
         run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
-      - run: devenv tasks run e2e:${{ matrix.target }} --show-output --input 'args=["--shard=${{ matrix.shard }}/3"]'
+      - run: devenv tasks run e2e:container --show-output --input 'args=["--shard=${{ matrix.shard }}/${{ strategy.job-total }}"]'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: playwright-report-${{ matrix.target }}-${{ matrix.shard }}
-          path: |
-            playwright-report
-            test-results
-            artifacts
+          name: e2e-container-${{ matrix.shard }}
+          path: artifacts
+          if-no-files-found: ignore
+          retention-days: 14
+
+  e2e-worker:
+    needs: changes
+    if: github.repository == 'KyaniteHQ/threadsift' && needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      THREADSIFT_ARTIFACTS: artifacts
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-devenv
+      - name: Allow unprivileged user namespaces for Chromium
+        run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
+      - run: devenv tasks run e2e:worker --show-output --input 'args=["--shard=${{ matrix.shard }}/${{ strategy.job-total }}"]'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: e2e-worker-${{ matrix.shard }}
+          path: artifacts
           if-no-files-found: ignore
           retention-days: 14
 
   gate:
-    needs: [changes, check, build, audit, design, e2e]
+    needs: [changes, check, build, audit, design, e2e-container, e2e-worker]
     if: always() && github.repository == 'KyaniteHQ/threadsift'
     runs-on: ubuntu-latest
     steps:
