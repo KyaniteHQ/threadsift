@@ -28,3 +28,11 @@ The project's testing policy. Read it before writing, changing or deleting a tes
 ## Live Cloudflare runs
 
 A large test against live Cloudflare (a bulk import, a restore rehearsal, a load test) needs its cases, estimated rows written, cost and cleanup written in the pull request first; the building agent decides it (owner, 2026-11-04). Development and regression runs use `wrangler dev`.
+
+## Wait on state, not on time
+
+- An end-to-end assertion waits on a state it can read, such as an element's text, a stored row or a job's status, with Playwright's retrying `expect`. It never sleeps for a fixed time to let something happen, and it never relies on how much real time has passed. The one exception is a claim that something does not happen before a deadline, such as a card that holds while hovered: that test waits the deadline plus a margin once, then asserts the state.
+- An assertion about timing compares times the app stored, such as a job's attempt times or an Item's saved time, and never how long the run took.
+- A test never reads an element that closes itself, such as the paste card that closes after 6 s, at an instant it picked. It reads the state the element shows before it can close, or the state the app stored.
+- An API answer is not proof that background work has finished. After a request returns, the test waits for the Item's status or the job's row.
+- CI runs slower than a development machine and varies from run to run, so a wait that fits on one run fails on the next.
