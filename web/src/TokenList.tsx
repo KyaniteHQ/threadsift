@@ -3,7 +3,7 @@ import { type RefObject, useCallback, useState } from "react";
 import type { Token } from "../../src/http/schemas.ts";
 import { revokeToken } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
-import { Alert } from "./AuthShell.tsx";
+import { Alert } from "./Alert.tsx";
 import { TokenRow } from "./TokenRow.tsx";
 
 function useRevoke(

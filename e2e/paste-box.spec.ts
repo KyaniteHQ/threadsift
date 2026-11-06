@@ -1,12 +1,20 @@
 import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 
 import { SAVING_STATUS } from "../web/src/text.ts";
-import { listAll, postLink } from "./api.ts";
+import { listAll, listForRun, postLink } from "./api.ts";
 import { alertRegion } from "./card.ts";
 import { addButton, newRunId, pasteCard, pasteField, rowOf, submitLink } from "./links.ts";
 
 function rowCount(page: Page): Promise<number> {
   return page.locator("article.it").count();
+}
+
+function seedLinks(request: APIRequestContext, run: string, name: string, count: number) {
+  return Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      postLink(request, `https://example.com/${run}/${name}-${index}`),
+    ),
+  );
 }
 
 test("Add with an empty box or text that is not a link shows a refusal and saves nothing", async ({
@@ -77,18 +85,15 @@ test("an Item's own URL shows the list with that row in view and focused", async
   request,
 }) => {
   const run = newRunId();
-  const saved = [];
+  await seedLinks(request, run, "entry", 40);
+  const bottom = (await listForRun(request, run)).at(-1);
 
-  for (let index = 0; index < 40; index += 1) {
-    saved.push(await postLink(request, `https://example.com/${run}/entry-${index}`));
+  if (bottom === undefined) {
+    throw new Error(`no Item of run ${run} in the list`);
   }
 
-  const oldest = saved[0];
-  expect(oldest).toBeDefined();
-  const { item, url } = oldest?.body ?? { item: { id: 0 }, url: "" };
-
-  await page.goto(url);
-  const row = rowOf(page, item.id);
+  await page.goto(`/items/${bottom.id}`);
+  const row = rowOf(page, bottom.id);
   await expect(row.locator(".it-open")).toBeFocused();
   await expect(row).toHaveClass(/\bopen\b/u);
   await expect
@@ -136,10 +141,7 @@ test("a saved link returns focus to the field and the list shows it at the top",
   request,
 }) => {
   const run = newRunId();
-
-  for (let index = 0; index < 30; index += 1) {
-    await postLink(request, `https://example.com/${run}/earlier-${index}`);
-  }
+  await seedLinks(request, run, "earlier", 30);
 
   await page.goto("/");
   const list = page.locator(".list");
@@ -165,11 +167,7 @@ for (const width of [390, 1280]) {
     page,
     request,
   }) => {
-    const run = newRunId();
-
-    for (let index = 0; index < 20; index += 1) {
-      await postLink(request, `https://example.com/${run}/walk-${index}`);
-    }
+    await seedLinks(request, newRunId(), "walk", 20);
 
     await page.setViewportSize({ width, height: 600 });
     await page.goto("/");
@@ -225,32 +223,40 @@ async function pasteKnownLinkBelowTheFold(
   const run = newRunId();
   const known = await postLink(request, link);
 
-  for (let index = 0; index < 30; index += 1) {
-    await postLink(request, `https://example.com/${run}/newer-${index}`);
-  }
+  await seedLinks(request, run, "newer", 30);
 
   await page.goto("/");
   await expect(page.locator("article.it").nth(30)).toBeVisible();
   await submitLink(page, link);
+  await pasteCard(page).hover();
   await expect(pasteField(page)).toHaveValue("");
 
   return known.body.item.id;
 }
 
 async function expectRowInPaneView(page: Page, key: number) {
-  const box = await page.evaluate((id) => {
-    const row = document.querySelector(`article.it[data-key="${id}"]`)?.getBoundingClientRect();
+  await expect
+    .poll(
+      () =>
+        page.evaluate((id) => {
+          const row = document
+            .querySelector(`article.it[data-key="${id}"]`)
+            ?.getBoundingClientRect();
 
-    return {
-      top: row?.top ?? Number.NaN,
-      bottom: row?.bottom ?? Number.NaN,
-      headerBottom: document.querySelector(".list-head")?.getBoundingClientRect().bottom ?? 0,
-      paneBottom: document.querySelector(".list")?.getBoundingClientRect().bottom ?? 0,
-    };
-  }, key);
+          const headerBottom = document.querySelector(".list-head")?.getBoundingClientRect().bottom;
+          const paneBottom = document.querySelector(".list")?.getBoundingClientRect().bottom;
 
-  expect(box.top, "row top against the list header").toBeGreaterThanOrEqual(box.headerBottom - 0.5);
-  expect(box.bottom, "row bottom against the list pane").toBeLessThanOrEqual(box.paneBottom + 0.5);
+          return (
+            row !== undefined &&
+            headerBottom !== undefined &&
+            paneBottom !== undefined &&
+            row.top >= headerBottom - 0.5 &&
+            row.bottom <= paneBottom + 0.5
+          );
+        }, key),
+      { message: "the row sits between the list header and the bottom of the list pane" },
+    )
+    .toBe(true);
 }
 
 test("pasting a known link brings its row into view and keeps focus in the field", async ({

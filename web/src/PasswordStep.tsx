@@ -3,7 +3,7 @@ import { useCallback, useState } from "react";
 import { passwordLength } from "../../src/core/passwords.ts";
 import { type Attempt, setUp } from "./access-api.ts";
 import { FIELDS, SETUP } from "./access-text.ts";
-import { Alert } from "./AuthShell.tsx";
+import { Alert } from "./Alert.tsx";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import type { GoTo } from "./setup-step.ts";
 import { SwapButton } from "./SwapButton.tsx";

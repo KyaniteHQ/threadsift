@@ -97,7 +97,7 @@ in
       exec = "pnpm audit --prod --audit-level high";
     };
     "image:build" = {
-      exec = ''podman build --signature-policy "$THREADSIFT_PODMAN_POLICY" --tag threadsift:e2e --file Containerfile .'';
+      exec = ''podman build --signature-policy "$THREADSIFT_PODMAN_POLICY" --label "threadsift.built-at=$(date +%s)" --tag threadsift:e2e --file Containerfile .'';
     };
     "e2e:container" = {
       after = [

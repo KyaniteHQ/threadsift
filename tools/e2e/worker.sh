@@ -29,6 +29,19 @@ stop() {
   rm -f "$dir/pid"
 }
 
+require_current_bundle() {
+  local newer
+  [[ -f dist/web/index.html ]] || {
+    echo "dist/web has no bundle; run pnpm run build first" >&2
+    return 1
+  }
+  newer=$(find web src design/system tools/theme-script.ts vite.config.ts package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json -newer dist/web/index.html -print -quit)
+  [[ -z $newer ]] || {
+    echo "dist/web is older than $newer; run pnpm run build first" >&2
+    return 1
+  }
+}
+
 launch() {
   local dir=$1 port
   mkdir -p "$dir/state"
@@ -63,6 +76,7 @@ stop)
   stop "$2"
   ;;
 *)
+  require_current_bundle
   run_suite "$self" "$@"
   ;;
 esac

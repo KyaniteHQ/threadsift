@@ -2,7 +2,7 @@ import { useCallback } from "react";
 
 import { type Attempt, checkSetupCode } from "./access-api.ts";
 import { SETUP } from "./access-text.ts";
-import { Alert } from "./AuthShell.tsx";
+import { Alert } from "./Alert.tsx";
 import { CodeText } from "./CodeText.tsx";
 import { FormField } from "./FormField.tsx";
 import type { GoTo } from "./setup-step.ts";

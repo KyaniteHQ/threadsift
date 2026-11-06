@@ -9,7 +9,8 @@ import {
   test,
 } from "@playwright/test";
 
-import { LOGIN, SETTINGS, SETUP, filled } from "../web/src/access-text.ts";
+import { LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
+import { filled } from "../web/src/text.ts";
 import { cookieHeader } from "./access-helpers.ts";
 import {
   type Instance,

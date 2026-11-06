@@ -1,7 +1,16 @@
 import { useRef } from "react";
 
+import type { SettingKey, Settings } from "../../design/system/settings.ts";
 import { useBands } from "./bands.ts";
 import { useSettings } from "./use-settings.ts";
+
+export interface Look {
+  readonly narrow: boolean;
+  readonly settings: Settings;
+  readonly themeNote: string | null;
+  readonly pick: (key: SettingKey, id: string) => void;
+  readonly reset: () => void;
+}
 
 export function useRoot() {
   const ref = useRef<HTMLDivElement>(null);

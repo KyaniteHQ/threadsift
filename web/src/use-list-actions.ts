@@ -1,12 +1,12 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
-import { itemIdOf } from "../../src/core/item-path.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import type { SaveResult } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./library.ts";
 import type { PasteRequest, SaveOutcome } from "./PasteBox.tsx";
 import { focusListStart, scrollToTop } from "./reveal.ts";
+import type { Route } from "./routing.ts";
 
 function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
   const retried = useRef(false);
@@ -26,9 +26,7 @@ function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLEl
   return retryAndKeepPlace;
 }
 
-function useOpenItem(list: ListState) {
-  const [openId] = useState(() => itemIdOf(window.location.pathname));
-
+function useOpenItem(list: ListState, { openId, replace }: Route) {
   const [attention, setAttention] = useState<Attention>(
     openId === null ? null : { id: openId, focus: true },
   );
@@ -38,11 +36,11 @@ function useOpenItem(list: ListState) {
 
   useEffect(() => {
     if (missing) {
-      window.history.replaceState(null, "", "/");
+      replace("/");
     }
-  }, [missing]);
+  }, [missing, replace]);
 
-  return { openId, attention, attend: setAttention };
+  return { attention, attend: setAttention };
 }
 
 function useSaveAndShow(
@@ -74,8 +72,9 @@ export function useListActions(
   list: ListState,
   actions: Readonly<{ save: (url: string) => Promise<SaveResult>; retry: () => void }>,
   pane: RefObject<HTMLElement | null>,
+  route: Route,
 ) {
-  const { openId, attention, attend } = useOpenItem(list);
+  const { attention, attend } = useOpenItem(list, route);
   const [request, setRequest] = useState<PasteRequest | null>(null);
 
   const tryAgain = useCallback(
@@ -87,7 +86,6 @@ export function useListActions(
   );
 
   return {
-    openId,
     attention,
     request,
     tryAgain,

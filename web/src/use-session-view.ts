@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { type Session, fetchSession } from "./access-api.ts";
-import { useSignedOutListener } from "./session.ts";
+import { useSignedOutListener } from "./signed-out.ts";
 
 export type View = Session | { readonly state: "loading" } | { readonly state: "unreachable" };
 

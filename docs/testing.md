@@ -28,3 +28,11 @@ The project's testing policy. Read it before writing, changing or deleting a tes
 ## Live Cloudflare runs
 
 A large test against live Cloudflare (a bulk import, a restore rehearsal, a load test) needs its cases, estimated rows written, cost and cleanup written in the pull request first; the building agent decides it (owner, 2026-11-04). Development and regression runs use `wrangler dev`.
+
+## Wait on state, not on time
+
+- An end-to-end assertion waits on a state it can read, such as an element's text, a stored row or a job's status, with Playwright's retrying `expect`. It never sleeps for a fixed time to let something happen. A claim that something does not happen before a deadline, such as a card that holds while hovered, uses Playwright's `page.clock` first (`e2e/paste-card.spec.ts` fast-forwards the card's timer that way). Only when the mock clock cannot reach the timer, such as one in the server, does the test wait the deadline plus a margin once, then assert the state.
+- An assertion about timing compares times the app stored, such as a job's attempt times or an Item's saved time. It may set a lower bound on elapsed real time, such as a request that waited for a 5 s deadline, because a slower run only lengthens it. It never sets an upper bound or an exact duration.
+- A test never reads an element that closes itself, such as the paste card that closes after 6 s, at an instant it picked. It reads the state the element shows before it can close, or the state the app stored.
+- An API answer is not proof that background work has finished. After a request returns, the test waits for the Item's status or the job's row.
+- CI runs slower than a development machine and varies from run to run, so a wait that fits on one run fails on the next.

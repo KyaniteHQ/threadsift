@@ -1,8 +1,9 @@
 import { useCallback, useId, useRef } from "react";
 
 import type { Token } from "../../src/http/schemas.ts";
-import { SETTINGS, filled } from "./access-text.ts";
+import { SETTINGS } from "./access-text.ts";
 import { ageLabel } from "./saved-label.ts";
+import { filled } from "./text.ts";
 import { useEscape, useFocusOnMount } from "./use-form.ts";
 
 export interface RowActions {

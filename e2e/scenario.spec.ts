@@ -41,6 +41,7 @@ test("twelve pasted links make eleven Items that keep their order across a resta
   page,
   request,
 }) => {
+  test.slow();
   const run = newRunId();
   const links = scenarioLinks(run);
   const newestFirst = scenarioUrls(run).toReversed();

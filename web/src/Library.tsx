@@ -3,21 +3,21 @@ import { useRef } from "react";
 import { knownItems, useLibrary } from "./library.ts";
 import { ListBody } from "./ListBody.tsx";
 import { PasteBox } from "./PasteBox.tsx";
+import type { Route } from "./routing.ts";
 import { SettingsPanel } from "./SettingsPanel.tsx";
 import { useListActions } from "./use-list-actions.ts";
-import type { useRoot } from "./use-root.ts";
-
-export type Look = Omit<ReturnType<typeof useRoot>, "ref" | "attributes">;
+import type { Look } from "./use-root.ts";
 
 export function Library({
   look,
   arrived,
+  route,
   openSettings,
-}: Readonly<{ look: Look; arrived: boolean; openSettings: () => void }>) {
+}: Readonly<{ look: Look; arrived: boolean; route: Route; openSettings: () => void }>) {
   const listPane = useRef<HTMLElement>(null);
   const { narrow, settings, themeNote, pick, reset } = look;
   const { list, save, retry } = useLibrary();
-  const actions = useListActions(list, { save, retry }, listPane);
+  const actions = useListActions(list, { save, retry }, listPane, route);
   const isEmpty = list.status === "ready" && list.items.length === 0;
 
   return (
@@ -45,7 +45,7 @@ export function Library({
         <main ref={listPane} className="list" tabIndex={-1}>
           <ListBody
             list={list}
-            openId={actions.openId}
+            openId={route.openId}
             attention={actions.attention}
             retry={actions.retryAndKeepPlace}
             tryAgain={actions.tryAgain}

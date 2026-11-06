@@ -8,7 +8,8 @@ import {
   useState,
 } from "react";
 
-import { WAIT, filled, waitLabel } from "./access-text.ts";
+import { WAIT, waitLabel } from "./access-text.ts";
+import { filled } from "./text.ts";
 
 export interface FieldState {
   readonly value: string;

@@ -1,6 +1,6 @@
 # Threadsift: architecture
 
-Status: chosen on 2026-11-04 in a grill with the owner and revised after four model reviews the same day, before any app code exists. `docs/spec.md` says what v1 does; this file says what it is built with and where each part runs. Versions named here are the ones checked on 2026-11-04.
+Status: chosen on 2026-11-04 in a grill with the owner and revised after four model reviews the same day. The app is a walking skeleton: it saves a pasted link, fetches it through a job runner and lists it, on both install targets. The repository layout lists what exists at HEAD. The other sections are the v1 design and run ahead of the code; a section that names a file or binding that does not exist yet says "Not built". `docs/spec.md` says what v1 does; this file says what it is built with and where each part runs. Versions named here are the ones checked on 2026-11-04.
 
 - [The stack at a glance](#the-stack-at-a-glance)
 - [One codebase, two install targets](#one-codebase-two-install-targets)
@@ -80,31 +80,30 @@ Cloudflare: D1           R2         Queues     Cron       HTTP, Workers AI, Grok
 The deploy button builds from the repository root, because a monorepo subdirectory "becomes the new repo root" and must hold its own dependencies (Workers docs, Deploy buttons). So the root is the Worker project.
 
 ```
-wrangler.jsonc, package.json      Worker config; `build` and `deploy` scripts the button pre-fills
+wrangler.jsonc, package.json      Worker config and the scripts; the root is the Worker project
 .node-version                     26, so Workers Builds builds on Node 26 instead of its default 24
 devenv.nix, devenv.yaml           the development environment and the gate tasks
-secretspec.toml                   the secrets live tests need
 Containerfile                     the container image
 migrations/                       SQL files from drizzle-kit, applied on both targets
-src/core/                         pipeline, AI tasks, wiki, export, restore, access, ports
-src/http/                         Hono routes: /api, /mcp, login, setup, and the guard in front of them
+src/core/                         ingest pipeline, jobs, access, ports
+src/http/                         Hono routes and the guard in front of them
 src/targets/shared/               adapters both targets use: `node:crypto` behind the Crypto port
 src/targets/node/                 container entry and adapters
 src/targets/worker/               Worker entry (fetch, queue, scheduled) and adapters
 web/                              React SPA; imports design/system/
-extension/                        WXT extension (own package in the pnpm workspace)
-bot/                              Threadsift bot skill files
 e2e/                              Playwright suite run against both targets
+tools/e2e/                        the scripts that start each target and run the Playwright suite
 tools/oxlint/                     lint rule plugins: vendored anti-slop and Threadsift's own rules
 tools/copy/                       write-copy.sh, which writes every text a user reads
+design/                           design system and prototype
 .claude/                          the implementer agent, its skills and the lint hook (docs/agents/)
 .agents/skills/                   skills the Antigravity CLI loads: humanizer
-PRODUCT.md                        who the product is for, read by the impeccable skill
+.github/workflows/                the gate and the `devenv.lock` update
+PRODUCT.md, DESIGN.md             who the product is for, and the look every screen follows
 renovate.json                     the dependency update rules
-.github/workflows/                the gate, the `devenv.lock` update, the release and the update workflow for Cloudflare copies
-tools/e2e/                        the scripts that start each target and run the Playwright suite
-design/                           design system and prototype
 ```
+
+The tree lists what exists. The Extension, the Threadsift bot, the release and update workflows, the deploy button's files and the live-test secrets are planned and not built; the sections below that plan them say so. Other planned parts of the core (the AI tasks, the wiki, export, restore) have no files yet.
 
 ## Database and search
 
@@ -233,6 +232,8 @@ Every model call is an AI task with a kind, inputs, an input revision and a Zod 
 
 ## Extension and Threadsift bot
 
+Not built: neither `extension/` nor `bot/` exists yet.
+
 - The Extension is built with WXT for desktop Chrome and Firefox (Manifest V3) and posts to `POST /api/items` with an agent token. It saves one page per click and never crawls.
   - **Reddit.** On Save it requests `<thread>/.json?limit=500&raw_json=1` once from the owner's tab and posts the JSON as the content; the server's `.json` paste parser reads it. It then requests the replies behind each `more` stub by permalink, spaced and capped per thread, as `docs/spec.md` (Fetchers) describes, because `/api/morechildren` answered 403 to the signed-in session (owner's browser, 2026-11-04). When the `.json` request fails, the content script runs Defuddle's Reddit extractor on the rendered thread and posts `{url, content}`.
   - **Connect Reddit (self-hosted builds).** The button reads the `reddit_session` cookie through the `cookies` API, which needs the `cookies` permission and host permission for reddit.com (Chrome Extensions docs, chrome.cookies), and sends its value and `expirationDate` to the Instance with the agent token. Whether the API returns the `HttpOnly` cookie in Chrome and Firefox is checked when slice 40 is built.
@@ -258,14 +259,16 @@ Every model call is an AI task with a kind, inputs, an input revision and a Zod 
 
 ## Container image
 
-- A `Containerfile` on the official `node:26-slim` image, built for amd64 and arm64 and published to `ghcr.io/kyanitehq/threadsift` with a tag per release. It runs with Podman or Docker. The image is Debian-based, not built by Nix, because the owner's AI CLIs are installed with their vendors' installers, which expect an ordinary Linux root.
-- One volume at `/data`: `threadsift.db`, `files/`, and `home/` as the home folder of the app user, where each CLI keeps its login.
-- The image ships no AI CLI. Claude Code's licence is "SEE LICENSE IN README.md" (npm, 2.1.318), not an open licence, and the CLIs update faster than the image. The `Containerfile` sets `NPM_CONFIG_PREFIX=/data/home/.npm-global` and puts its `bin` on `PATH`, so the app user can install into the volume without root. The docs show the install command for each CLI (`npm install -g @anthropic-ai/claude-code`, `npm install -g @openai/codex`, the grok installer), run once inside the container, and how to build a derived image instead. CI installs the same packages at pinned versions.
+- A `Containerfile` on the official `node:26-slim` image. It runs with Podman or Docker. Not built: the release workflow that builds it for amd64 and arm64 and publishes it to `ghcr.io/kyanitehq/threadsift` with a tag per release. The image is Debian-based, not built by Nix, because the owner's AI CLIs are installed with their vendors' installers, which expect an ordinary Linux root.
+- One volume at `/data`: `threadsift.db` and `files/`, and `home/` as the home folder of the app user, where each CLI keeps its login (the folders for files and `home/` come with the features that use them).
+- The image ships no AI CLI. Claude Code's licence is "SEE LICENSE IN README.md" (npm, 2.1.318), not an open licence, and the CLIs update faster than the image. The `Containerfile` will set `NPM_CONFIG_PREFIX=/data/home/.npm-global` and put its `bin` on `PATH`, so the app user can install into the volume without root; it sets neither yet. The docs will show the install command for each CLI (`npm install -g @anthropic-ai/claude-code`, `npm install -g @openai/codex`, the grok installer), run once inside the container, and how to build a derived image instead, and CI will install the same packages at pinned versions; neither exists yet.
 - Public HTTPS comes from the owner's reverse proxy or tunnel; the app listens on plain HTTP inside the container.
 
 ## Cloudflare deploy button
 
-- The button is `https://deploy.workers.cloudflare.com/?url=https://github.com/KyaniteHQ/threadsift/tree/release`. It points at the `release` branch, which moves only when a release is cut, so a click never deploys work in progress. Cloudflare provisions the D1 database, R2 bucket, Queue and Workers AI binding named in `wrangler.jsonc` (Workers docs, Deploy buttons).
+Not built: `.dev.vars.example`, the `cloudflare` key and the `deploy` script in `package.json`, and `.github/workflows/update-from-upstream.yml` do not exist, and `wrangler.jsonc` binds D1, the `threadsift-jobs` Queue and a Cron Trigger but no R2 bucket or Workers AI. The text below is the plan.
+
+- The button is `https://deploy.workers.cloudflare.com/?url=https://github.com/KyaniteHQ/threadsift/tree/release`. It points at the `release` branch, which moves only when a release is cut, so a click never deploys work in progress. Cloudflare provisions the resources `wrangler.jsonc` names, which will be the D1 database, R2 bucket, Queue and Workers AI binding (Workers docs, Deploy buttons).
 - `.dev.vars.example` lists the secrets the button prompts for: `THREADSIFT_SECRET_KEY` and `SETUP_CODE`. `cloudflare.bindings` in `package.json` explains each binding on that page.
 - `package.json` `deploy` runs `wrangler d1 migrations apply DB --remote` and then `wrangler deploy`.
 - The Workers Paid plan ($5 a month) is needed: extracting one 362 KB article page with Defuddle took 236 ms on local workerd (spike, 2026-11-04), and the free plan allows 10 ms of CPU per request (Workers docs, Limits). This is the one place that states the reason; the README says so beside the button.
@@ -285,11 +288,12 @@ devenv owns everything a contributor or CI runs. A contributor needs Nix, devenv
 |---|---|
 | `languages.javascript` and `packages` | `nodejs_26`, and pnpm through corepack, so the shell, CI and Workers Builds run the pnpm version in `packageManager`. Corepack comes from `pkgs.corepack` built on `nodejs-slim_26`, because nixpkgs' `nodejs_26` (26.12.1) ships no `corepack` binary and devenv's `languages.javascript.corepack.enable` fails to build against it (devenv 2.4.0, 2026-11-04); the override goes once that option builds on `nodejs_26` |
 | `processes` with automatic ports | `devenv up` starts the Node server, the Vite web app (proxying `/api` to that server) and `wrangler dev`, each on its own allocated port, in any number of worktrees at once; `devenv processes list` prints the ports |
-| `tasks` | the gate: `ci:install`, `ci:check` (`pnpm check`: oxfmt, then oxlint with the type check), `ci:build` (the web build and the Worker size check), `ci:audit`, `image:build`, `e2e:container` and `e2e:worker`. GitHub Actions runs the same tasks |
+| `tasks` | the gate. GitHub Actions runs the same tasks. `e2e:worker` runs after `ci:build` and `e2e:container` after `image:build`. A direct run of `tools/e2e/worker.sh` or `tools/e2e/container.sh` refuses to start when the bundle or the image is older than its inputs (`require_current_bundle`, `require_current_image`), and `image:build` labels the image with its build time for that check |
 | `git-hooks` | before each commit, `oxlint --fix` and `oxfmt` on the staged files; before each push, `pnpm check` |
 | `enterTest` | `devenv test` installs the packages, runs the commit hooks on every file, then runs `ci:check` |
-| `packages` | Playwright browsers pinned from nixpkgs (the npm `@playwright/test` version must match `playwright-driver`), podman, jq, `gh`. The host has no `/etc/containers/policy.json`, so `podman pull` and `podman build` fail there; `image:build` passes `--signature-policy` with the file in `THREADSIFT_PODMAN_POLICY` (podman 5.8.9, 2026-11-04) |
-| `secretspec` | declares the live-test secrets (OpenRouter key, `CLAUDE_CODE_OAUTH_TOKEN`, a Cloudflare token for Workers AI): environment variables in CI, a local provider on the owner's machine |
+| `packages` | Playwright browsers pinned from nixpkgs, because the npm `@playwright/test` version must match `playwright-driver`. The host has no `/etc/containers/policy.json`, so `podman pull` and `podman build` fail there; `image:build` passes `--signature-policy` with the file in `THREADSIFT_PODMAN_POLICY` (podman 5.8.9, 2026-11-04) |
+
+`devenv.nix` holds the packages, processes and task commands. Not built: the `secretspec` block that declares the live-test secrets (OpenRouter key, `CLAUDE_CODE_OAUTH_TOKEN`, a Cloudflare token for Workers AI), read from environment variables in CI and from a local provider on the owner's machine, and its `secretspec.toml`.
 
 ## Lint and format
 
@@ -316,8 +320,8 @@ Renovate, the GitHub App, is the one update bot; `renovate.json` holds its rules
 - **Docs-only changes.** When every changed path matches `docs/**` or a root `*.md` file, the end-to-end jobs skip themselves with a job-level `if:`; `ci:check` and the build still run. A path outside that list runs every job, so a file missing from the list costs a longer run, never a skipped check.
 - **Merging.** `main` requires one aggregate `gate` job that needs every other job and passes when each passed or skipped itself; a workflow-level `paths` filter is not used, because a workflow it skips leaves its required checks pending. Renovate opens dependency updates after a 3-day wait.
 - **Secrets and forks.** A pull request from a fork gets no secrets, and a rerun does not change that (GitHub Actions docs). The AI jobs are skipped on fork pull requests; after reading the change, a maintainer pushes it to a branch in the repository, where the AI jobs run. `pull_request_target` is not used, because it would run the fork's code with the secrets.
-- **Releases.** A release tag builds and publishes the image with that tag and moves the `release` branch to it.
-- **Rollback.** The container rolls back by running the previous image tag. Cloudflare rolls back with `wrangler rollback` to the previous Worker version. Both work because a migration only adds and the previous release still runs on the new schema.
+- **Releases.** Not built: no release workflow exists. The plan is that a release tag builds and publishes the image with that tag and moves the `release` branch to it.
+- **Rollback.** Planned with the releases. The container rolls back by running the previous image tag. Cloudflare rolls back with `wrangler rollback` to the previous Worker version. Both work because a migration only adds and the previous release still runs on the new schema.
 
 ## Testing
 
@@ -337,7 +341,7 @@ Renovate, the GitHub App, is the one update bot; `renovate.json` holds its rules
   - **Reddit's rate limit.** `e2e/reddit.ts` spaces the pastes that send an oEmbed request by 2 s. One run of the suite makes 23 such requests (the `reddit-oembed` annotations of the Playwright report). The oEmbed endpoint sends no rate-limit header; 25 requests at one a second all answered 200 on 2026-11-04.
   - **The listener.** The refusal tests start an HTTP listener in the network the app runs in, through `THREADSIFT_APP_EXEC` (empty for the Worker, `podman exec -i <container>` for the container), and send it a control request from the same network first, so its later silence means a refusal and not a wrong address.
   - **The redirectors.** httpbin.org's `/redirect-to` answers 403 to a target on an internal address (`Forbidden redirect target: redirect target is an internal address`, 2026-11-04), so the refusal tests redirect through httpbin.dev, which redirects anywhere, and httpbin.org serves the redirect chains, the stalled body and the encodings.
-- **Real AI.** The owner chose real models with secrets the owner supplies (2026-11-04).
+- **Real AI.** Not built: no AI task exists yet, so no run uses a Provider. The owner chose real models with secrets the owner supplies (2026-11-04).
 
   | Executor or Provider | In GitHub Actions | Before each release |
   |---|---|---|
@@ -349,12 +353,12 @@ Renovate, the GitHub App, is the one update bot; `renovate.json` holds its rules
   | Grok CLI and the grok X fetcher | only if an `XAI_API_KEY` is added; xAI's docs pair CI with that key | on the owner's machine |
   | Grok Bot | not in CI | every AI task kind through the owner's bot |
 
-- **Live-only paths, run before each release:** the Extension on a Reddit thread in a signed-in browser, the owner's Reddit account fetch with a throwaway account's session, X through the grok CLI and through the owner's Grok Bot, and one deploy through the real button to a scratch Cloudflare account, followed by an update through `update-from-upstream.yml`. Until a release run covers them, these stay unproven, and the README's test notes say so.
+- **Live-only paths, run before each release.** Planned; none of these parts is built yet. They are the Extension on a Reddit thread in a signed-in browser, the owner's Reddit account fetch with a throwaway account's session, X through the grok CLI and through the owner's Grok Bot, and one deploy through the real button to a scratch Cloudflare account, followed by an update through `update-from-upstream.yml`. Until a release run covers them, these stay unproven, and the README's test notes say so.
 - **Design checks:** the round-7 review checks (contrast in every theme, accent and Style; no text under 12 px; 44 px targets under 480 px; no sideways scroll; no reader bar overlap at any font; Library's default tokens unchanged) run in Playwright against the built app at 390, 600, 1440 and 1920 px, with the settings panel open and closed. Each pass sets Theme and Accent through the stored settings and reads `--ah` on the app root; the panel's text must keep the default UI font while Font is Newsreader. The setup, sign-in and agent token screens (with their error, token-reveal and revoke-question states) run the same checks in the light, dark and sepia themes.
 
 ## Open items and unverified claims
 
-- Not verified by a real run in slice 1: two saves of one link at the same moment (neither local runtime interleaves two requests between the lookup and the insert, so 20 simultaneous saves pass even when `saveItem` looks the link up before inserting it without a conflict clause; deployed D1 can interleave them, and the conflict clause in `src/core/items.ts` covers that); the tie-break of `GET /api/items` on `id` when two Items share a saved date (a run cannot force two saves into one millisecond, and reversing the tie-break passes the whole suite); the focus that Try again leaves on the list (the real API cannot be made to fail on demand, so a scratch run with Vite proxying to a stopped server showed it); the loading skeleton and its height (on screen for milliseconds, shown by a scratch run that delayed the real response). No fake stands in for any of them.
+- Not verified by a real run in slice 1: two saves of one link at the same moment (neither local runtime interleaves two requests between the lookup and the insert, so 20 simultaneous saves pass even when `saveItem` looks the link up before inserting it without a conflict clause; deployed D1 can interleave them, and the conflict clause in `src/core/items.ts` covers that); the tie-break of `GET /api/items` on `id` when two Items share a saved date (a run cannot force two saves into one millisecond, and reversing the tie-break passes the whole suite); the focus that Try again leaves on the list (the real API cannot be made to fail on demand, so a scratch run with Vite proxying to a stopped server showed it); the loading skeleton's height (`e2e/appearance.spec.ts` holds a real response to prove the shimmer and its reduced-motion form, but no spec compares the skeleton rows' height with a loaded row's; a scratch run that delayed the real response showed it). No fake stands in for any of them.
 - Not verified by a real run for link titles and the fetch guard: a meta refresh that leads to the target's Item (tinyurl's preview page showed it on 2026-11-05 in both suites, then answered the same URL with a 301 to the target, and a CI run got a non-2xx answer, so no stable public page serves one); a meta refresh that leads to a private address, to Reddit or X, or past the 20th redirect, and one with a delay above 0 (no short link service serves one on demand, so these paths share the guard's redirect code and no run reaches them separately); a page whose `<title>` sits after the 512 KiB cap (no stable public page has one); a remote title that changes between two Pastes of one URL (no public page changes its title on demand, and a fixture the suite could edit needs a credential the gate does not have); the paste box's notice for `unreadable` (no real route makes Reddit's oEmbed answer something other than the expected JSON) and its notice for `failed` (the real API cannot be made to fail on demand); the `deflate` encoding on a page with a title (no stable public page serves it; a one-off run of the Node adapter on `https://httpbin.org/deflate` decoded its JSON).
 - Not verified by a real run for the look settings: a `localStorage` that refuses access with a `SecurityError` (a stock browser cannot produce one without a fake `Storage`; `use-settings.ts` guards every read and write, so the app would draw the defaults for the session); and `100dvh` on a real phone (Playwright's mobile emulation draws no browser toolbar, so it cannot tell `dvh` from `vh`, and no phone is reachable from the suite).
 - Open: the name check is missing on the local Worker under `wrangler dev`. A name that resolves to loopback, such as `localtest.me`, passes the core check there, because only literal addresses and `localhost` names are refused, and the Worker adapter calls the global `fetch`, which has no hook between the lookup and the connection. Whether workerd then connects was not run. `e2e/fetch-guard.spec.ts` skips its name test on the Worker for this reason.

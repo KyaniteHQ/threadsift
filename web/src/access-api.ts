@@ -10,7 +10,7 @@ import {
   type RefusalCode,
   type Token,
 } from "../../src/http/schemas.ts";
-import { type JsonBody, call, callOk, parsedFrom, unexpected } from "./session.ts";
+import { type JsonBody, call, callOk, parsedFrom, unexpected } from "./calls.ts";
 
 export type Session = z.infer<typeof SessionStateSchema>;
 
