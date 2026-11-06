@@ -124,7 +124,7 @@ async function holdFirstItemRead(page: Page) {
   const delivered = Promise.withResolvers<void>();
   const mayRelease = Promise.withResolvers<void>();
 
-  await page.route(/\/api\/items\/\d+$/u, async (route) => {
+  await page.route(/\/api\/items\/\d+\/status$/u, async (route) => {
     if (taken || route.request().method() !== "GET") {
       await route.continue();
 
