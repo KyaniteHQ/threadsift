@@ -27,7 +27,7 @@ The project's testing policy. Read it before writing, changing or deleting a tes
 
 ## Live Cloudflare runs
 
-A large test against live Cloudflare (a bulk import, a restore rehearsal, a load test) needs its cases, estimated rows written, cost and cleanup written in the pull request first; the building agent decides it (owner, 2026-11-04). Development and regression runs use `wrangler dev`.
+A large test against live Cloudflare (a bulk import, a restore rehearsal, a load test) needs its cases, estimated rows written, cost and cleanup written in the pull request first; the building agent decides it (owner, 2026-11-04). Development and regression runs use `wrangler dev`. The Cloudflare-only checks (scrypt, Queue, Cron, the CPU of a fetch job, the HTML cap) run on a pull request's copy through `.github/workflows/copy-checks.yml`; `docs/architecture.md`, Pull request copies, Copy checks, says how, and `docs/agents/reviewing-code.md` when.
 
 ## Wait on state, not on time
 

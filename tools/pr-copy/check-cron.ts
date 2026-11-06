@@ -12,23 +12,30 @@ import {
 import type { Run } from "./check-run.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
 import { type Copy, callCopy, endState, expectOk, paste, send } from "./copy-client.ts";
-import { purgeCompleted, resumeDelivery, setDeliveryPaused, startPurge } from "./copy-control.ts";
+import { purgeStatus, resumeDelivery, setDeliveryPaused, startPurge } from "./copy-control.ts";
 import { awaitInvocations } from "./telemetry.ts";
 
 const CRON_WAIT_MS = 20 * 60_000;
-const PURGE_DEADLINE_MS = 120_000;
+const PURGE_DEADLINE_MS = 300_000;
 const PURGE_POLL_MS = 2000;
 const LINK = "https://example.com/";
 
-async function awaitPurge(run: Readonly<Run>, deadline: number): Promise<number> {
-  if (await purgeCompleted(run.stage, run.stage.target.queue)) return Date.now();
+async function awaitPurge(
+  run: Readonly<Run>,
+  earlier: string | null,
+  deadline: number,
+): Promise<number> {
+  const status = await purgeStatus(run.stage, run.stage.target.queue);
 
-  if (Date.now() >= deadline)
+  if (status.complete && status.startedAt !== earlier) return Date.now();
+
+  if (Date.now() >= deadline) {
     throw new Inconclusive("the purge did not complete before its deadline");
+  }
 
   await sleep(PURGE_POLL_MS);
 
-  return awaitPurge(run, deadline);
+  return awaitPurge(run, earlier, deadline);
 }
 
 async function awaitScheduledTick(run: Readonly<Run>, findings: Readonly<Findings>): Promise<void> {
@@ -80,8 +87,9 @@ async function holdAndPurge(
     queued.map((job) => job.state).join(",") || "no job",
   );
 
+  const earlier = (await purgeStatus(stage, stage.target.queue)).startedAt;
   await startPurge(stage, stage.target.queue);
-  const purgedAt = await awaitPurge(run, Date.now() + PURGE_DEADLINE_MS);
+  const purgedAt = await awaitPurge(run, earlier, Date.now() + PURGE_DEADLINE_MS);
 
   const path = `/api/items/${String(id)}/status`;
   const response = await callCopy(copy, { path, cookie: copy.cookie });

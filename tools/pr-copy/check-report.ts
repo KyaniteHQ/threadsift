@@ -26,7 +26,17 @@ function summary(results: readonly Readonly<ScenarioResult>[]): string {
     ),
   );
 
+  const failed = results.flatMap((result) =>
+    result.assertions
+      .filter((entry) => !entry.ok)
+      .map((entry) => `| ${result.scenario} | ${entry.name} | ${entry.detail} |`),
+  );
+
   return [
+    "| Check | Failed assertion | Detail |",
+    "|---|---|---|",
+    ...failed,
+    "",
     "| Check | Verdict | Note |",
     "|---|---|---|",
     ...rows,

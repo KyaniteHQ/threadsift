@@ -3,7 +3,7 @@ import { fetchJobs, itemDetail, measuredPaste, withTag } from "./check-measure.t
 import {
   BREAD,
   CLOSED_REASONS,
-  SILENT_PORT,
+  SLOW_PAGE,
   TALE_OF_TWO_CITIES,
   UNRESOLVABLE,
 } from "./check-pages.ts";
@@ -66,7 +66,7 @@ export async function unreachableCheck(
   findings: Readonly<Findings>,
 ): Promise<void> {
   const gone = await paste(copy, withTag(UNRESOLVABLE, run.tag));
-  const silent = await paste(copy, withTag(SILENT_PORT, run.tag));
+  const silent = await paste(copy, withTag(SLOW_PAGE, run.tag));
   findings.item(gone);
   findings.item(silent);
 
@@ -78,7 +78,7 @@ export async function unreachableCheck(
     `${goneEnd.status} ${goneEnd.fetch ?? "no fetch"}`,
   );
   findings.check(
-    "a port that never answers ends failed with a reason from the closed list",
+    "a page that stops answering ends failed with a reason from the closed list",
     silentEnd.status === "failed" && CLOSED_REASONS.includes(silentEnd.reason),
     `${silentEnd.status} ${silentEnd.reason ?? "no reason"}`,
   );

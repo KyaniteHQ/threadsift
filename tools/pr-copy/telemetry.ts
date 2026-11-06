@@ -56,7 +56,6 @@ const WorkersFields = z
   .looseObject({
     eventType: z.string(),
     scriptName: z.string(),
-    requestId: RequestId,
     outcome: z.string().optional(),
     cpuTimeMs: z.number().optional(),
     wallTimeMs: z.number().optional(),
@@ -79,7 +78,9 @@ const WorkersFields = z
 const LogEventSchema = z
   .looseObject({
     timestamp: z.number(),
-    $metadata: z.looseObject({ id: z.string(), level: z.string().optional() }).readonly(),
+    $metadata: z
+      .looseObject({ id: z.string(), requestId: RequestId, level: z.string().optional() })
+      .readonly(),
     $workers: WorkersFields.optional(),
   })
   .readonly();
@@ -151,7 +152,7 @@ function invocationOf(
   const path = request?.path ?? (request?.url === undefined ? "" : new URL(request.url).pathname);
 
   return {
-    requestId: fields.requestId,
+    requestId: log.$metadata.requestId,
     at: log.timestamp,
     trigger,
     name: nameOf(stage.target.queue, trigger, {

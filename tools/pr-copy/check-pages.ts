@@ -48,6 +48,6 @@ export const TALE_OF_TWO_CITIES: Page = {
 
 export const UNRESOLVABLE = "https://threadsift-demo.invalid/";
 
-export const SILENT_PORT = "http://example.com:81/";
+export const SLOW_PAGE = "https://httpbin.org/drip?duration=10&numbytes=5&code=200";
 
 export const CLOSED_REASONS: readonly string[] = ["timeout", "network", "gave-up"];

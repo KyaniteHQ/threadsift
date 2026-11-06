@@ -60,18 +60,23 @@ export async function startPurge(stage: Readonly<Stage>, queue: string): Promise
   );
 }
 
-export async function purgeCompleted(stage: Readonly<Stage>, queue: string): Promise<boolean> {
+export interface PurgeStatus {
+  readonly startedAt: string | null;
+  readonly complete: boolean;
+}
+
+export async function purgeStatus(stage: Readonly<Stage>, queue: string): Promise<PurgeStatus> {
   const { id } = await queueRow(stage, queue);
 
-  const body = await cloudflareCall(
+  const { result } = await cloudflareCall(
     "GET",
     `queues/${id}/purge`,
     PageSchema.extend({
-      result: z.nullable(z.looseObject({ completed: z.union([z.boolean(), z.string()]) })),
+      result: z.nullable(z.object({ started_at: z.string(), complete: z.boolean() })),
     }),
   );
 
-  return body.result !== null && String(body.result.completed) === "true";
+  return { startedAt: result?.started_at ?? null, complete: result?.complete ?? false };
 }
 
 const WorkerSettings = z.looseObject({

@@ -46,25 +46,33 @@ function classify(error: Readonly<Error>): Pick<Attempt, "outcome" | "route" | "
   return { outcome: status >= 500 ? "edge-failure" : "other-answer", route, status };
 }
 
-function exceptionLog(
+async function exceptionLog(
   pr: number,
   from: number,
 ): Promise<Pick<Attempt, "requestId" | "exceptionLogged">> {
   const names = copyNames(pr);
 
-  return withStage(names, null, async (stage) => {
-    const version = await currentVersion(stage, names.name);
+  try {
+    return await withStage(names, null, async (stage) => {
+      const version = await currentVersion(stage, names.name);
 
-    const failed = (
-      await readInvocations(
-        stage,
-        { version, trigger: "fetch" },
-        { from: from - WINDOW_SKEW_MS, to: Date.now() + WINDOW_SKEW_MS },
-      )
-    ).find((entry) => entry.status === 500);
+      const failed = (
+        await readInvocations(
+          stage,
+          { version, trigger: "fetch" },
+          { from: from - WINDOW_SKEW_MS, to: Date.now() + WINDOW_SKEW_MS },
+        )
+      ).find((entry) => entry.status === 500);
 
-    return { requestId: failed?.requestId ?? null, exceptionLogged: failed?.errorLogged ?? null };
-  });
+      return { requestId: failed?.requestId ?? null, exceptionLogged: failed?.errorLogged ?? null };
+    });
+  } catch (error) {
+    process.stderr.write(
+      `The invocation log could not be read: ${error instanceof Error ? error.message.slice(0, 120) : "unknown error"}\n`,
+    );
+
+    return { requestId: null, exceptionLogged: null };
+  }
 }
 
 async function attemptOf(
