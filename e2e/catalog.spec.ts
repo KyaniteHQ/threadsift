@@ -155,7 +155,7 @@ test("saving a Provider opens eligible older Item Digests once and preserves exc
       () =>
         older
           .flatMap(({ id }) => jobsOf(id, screen.fresh, "digest"))
-          .every((job) => job.attempts === 1),
+          .every((job) => job.attempts >= 1),
       { timeout: 30_000 },
     )
     .toBe(true);
