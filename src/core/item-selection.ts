@@ -1,6 +1,6 @@
 import { asc, desc, eq, getTableColumns, sql } from "drizzle-orm";
 
-import { DigestSchema } from "./ai-contract.ts";
+import { type ReaderDigest, parseStoredDigest } from "./ai-contract.ts";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { DIGEST_OUTCOMES } from "./kinds.ts";
@@ -67,14 +67,6 @@ export async function listItems(db: Database, filters: Readonly<ItemFilters>) {
   return { items: rows, counts: filterCounts(counted) };
 }
 
-const ReaderDigestSchema = DigestSchema.pick({ summary: true, keyPoints: true });
-
-export interface ReaderDigest {
-  readonly summary: string;
-  readonly keyPoints: readonly string[];
-  readonly tags: readonly string[];
-}
-
 function readerDigest(
   id: number,
   stored: string | undefined,
@@ -83,7 +75,7 @@ function readerDigest(
   if (stored === undefined) return null;
 
   try {
-    const { summary, keyPoints } = ReaderDigestSchema.parse(JSON.parse(stored));
+    const { summary, keyPoints } = parseStoredDigest(stored);
 
     return { summary, keyPoints, tags: tagNames };
   } catch (error) {

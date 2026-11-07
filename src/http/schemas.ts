@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DigestSchema } from "../core/ai-contract.ts";
+import { DigestSchema, ReaderDigestSchema } from "../core/ai-contract.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import {
   DIGEST_OUTCOMES,
@@ -57,12 +57,6 @@ function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.
 }
 
 const ItemSchema = withStatus(ItemBaseSchema);
-
-const ReaderDigestSchema = z.object({
-  summary: z.string(),
-  keyPoints: z.array(z.string()).readonly(),
-  tags: z.array(z.string()).readonly(),
-});
 
 const ItemDetailSchema = withStatus(
   ItemBaseSchema.extend({

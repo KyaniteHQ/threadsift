@@ -1,7 +1,7 @@
 import { type RefObject, memo, useCallback, useEffect, useId, useRef } from "react";
 
 import { itemPath } from "../../src/core/item-path.ts";
-import { whereOf } from "../../src/core/links.ts";
+import { shownUrl, whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
@@ -16,10 +16,6 @@ import {
   RETRY_LABEL,
   SOURCE_LABELS,
 } from "./text.ts";
-
-function withoutScheme(url: string): string {
-  return url.replace(/^https?:\/\//u, "");
-}
 
 function showsSkeleton(item: Readonly<Item>): boolean {
   return item.status === "processing" && item.title === null;
@@ -192,7 +188,7 @@ function RowTitle({
         aria-current={isOpen ? "true" : undefined}
         onClick={choose}
       >
-        {title === null ? withoutScheme(item.normalizedUrl) : <bdi dir="auto">{title}</bdi>}
+        {title === null ? shownUrl(item.normalizedUrl) : <bdi dir="auto">{title}</bdi>}
       </a>
     </h2>
   );

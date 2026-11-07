@@ -1,6 +1,6 @@
 import { use, useEffect, useRef } from "react";
 
-import { whereOf } from "../../src/core/links.ts";
+import { shownUrl, whereOf } from "../../src/core/links.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { noteOf } from "./paste-card.ts";
 import { postTextModule } from "./post-text-module.ts";
@@ -26,10 +26,6 @@ import {
   SOURCE_LABELS,
 } from "./text.ts";
 import type { DetailState } from "./use-item-detail.ts";
-
-function withoutScheme(url: string): string {
-  return url.replace(/^https?:\/\//u, "");
-}
 
 function bylineOf(item: Readonly<Item>): string {
   if (item.author === null) return "";
@@ -80,7 +76,7 @@ function Head({
         <span>{savedLabel(item.savedAt, now)}</span>
       </p>
       <h2 ref={title} id={titleId} className="rd-title" tabIndex={-1}>
-        <bdi dir="auto">{name ?? withoutScheme(item.normalizedUrl)}</bdi>
+        <bdi dir="auto">{name ?? shownUrl(item.normalizedUrl)}</bdi>
       </h2>
       {note === null ? null : <p className="rd-note">{note}</p>}
     </header>

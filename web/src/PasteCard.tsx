@@ -1,6 +1,6 @@
 import { type FocusEvent, useState } from "react";
 
-import { whereOf } from "../../src/core/links.ts";
+import { shownUrl, whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { type CardView, viewOf } from "./paste-card.ts";
@@ -17,8 +17,6 @@ import {
 import { useAfter } from "./use-form.ts";
 
 const CLOSE_MS = 6000;
-
-const SCHEME_AND_WWW = /^https?:\/\/(www\.)?/u;
 
 export type Shown = Readonly<{ seq: number; url: string }> &
   (
@@ -233,7 +231,7 @@ export function PasteCard({
         <span className="ps-title">{face.title}</span>
       </p>
       {face.itemTitle === null ? null : <p className="ps-item">{face.itemTitle}</p>}
-      {url === "" ? null : <p className="ps-url">{url.replace(SCHEME_AND_WWW, "")}</p>}
+      {url === "" ? null : <p className="ps-url">{shownUrl(url)}</p>}
       {face.note === null ? null : <p className="ps-sub">{face.note}</p>}
       <Actions actions={face.actions} dismiss={dismiss} retry={retry} open={open} />
     </div>
