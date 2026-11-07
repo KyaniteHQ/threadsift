@@ -175,11 +175,13 @@ async function loseAJob({ page, request, run }: Run) {
 
   const id = await pasteForId(page, `${STALLED}?run=${run}&step=6`);
   await waitForRunning(id);
-  mainInstance().restart();
+  mainInstance().crash();
 
   const item = await settled(request, id);
   expect(item).toMatchObject({ status: "failed", reason: "timeout" });
-  expect(itemIdAt(item.normalizedUrl), "the restart ran the same Item, not a new Paste").toBe(id);
+  expect(itemIdAt(item.normalizedUrl), "the next start ran the same Item, not a new Paste").toBe(
+    id,
+  );
   expect(jobsOf(id)).toEqual([expect.objectContaining({ state: "done", attempts: 1 })]);
 
   return id;

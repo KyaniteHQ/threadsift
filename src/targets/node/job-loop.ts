@@ -3,13 +3,13 @@ import { setTimeout } from "node:timers/promises";
 import { logFailure } from "../../core/failure-log.ts";
 import type { JobPorts } from "../../core/job-outcome.ts";
 import { abandonRunning, claimNextDue, executeClaimed } from "../../core/jobs.ts";
-import type { JobQueue } from "../../core/ports.ts";
+import { HOP_DEADLINE_MS, type JobQueue } from "../../core/ports.ts";
 import { tick } from "../../core/tick.ts";
 
 const LOOP_WIDTH = 4;
 const LOOP_POLL_MS = 5000;
 const TICK_MS = 60_000;
-const STOP_WAIT_MS = 8000;
+const STOP_WAIT_MS = HOP_DEADLINE_MS + 1000;
 
 function report(what: string, error: Readonly<Error>): void {
   logFailure("job-loop-failed", { what }, error);

@@ -143,6 +143,7 @@ export interface Instance {
   readonly url: string;
   readonly appExec: string;
   restart(env?: InstanceEnv): void;
+  crash(): void;
   logs(): string;
   sql(statement: string): void;
   query<T>(statement: string, schema: z.ZodType<T>): T;
@@ -185,6 +186,9 @@ export function instanceAt(dir: string): Instance {
         writeFileSync(file, lines.join(""), { mode: 0o600 });
         runInstance(["restart", dir, file], null);
       }
+    },
+    crash: () => {
+      runInstance(["crash", dir], null);
     },
     logs: () => runInstance(["logs", dir], null).toString("utf8"),
     sql: (statement) => {

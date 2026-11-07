@@ -69,6 +69,12 @@ restart)
   fi
   wait_for_session_route "$(<"$2/url")" 60
   ;;
+crash)
+  name=$(<"$2/name")
+  podman kill --signal KILL "$name" >/dev/null
+  podman start "$name" >/dev/null
+  wait_for_session_route "$(<"$2/url")" 60
+  ;;
 logs)
   [[ ! -f $2/server.log ]] || cat "$2/server.log"
   [[ ! -f $2/name ]] || podman logs "$(<"$2/name")" 2>&1
