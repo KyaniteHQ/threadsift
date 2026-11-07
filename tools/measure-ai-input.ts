@@ -4,15 +4,15 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { APICallError, Output, generateText } from "ai";
 import { z } from "zod";
 
+import { ModelDigestSchema } from "../src/core/ai-contract.ts";
 import {
-  ModelDigestSchema,
   DIGEST_INSTRUCTIONS,
   DIGEST_INPUT_BYTES,
   digestPrompt,
   DIGEST_CATALOG_BYTES,
   utf8Length,
-} from "../src/core/ai-contract.ts";
-import { AI_CALL_OPTIONS } from "../src/targets/shared/ai-call-options.ts";
+} from "../src/core/digest-prompt.ts";
+import { AI_CALL_OPTIONS } from "../src/targets/shared/ai-call.ts";
 import { PROOF_MODEL, workersAiUrl } from "./workers-ai-proof.ts";
 
 const env = z

@@ -1,4 +1,5 @@
-import { utf8Length, type Digest } from "./ai-contract.ts";
+import { type Digest } from "./ai-contract.ts";
+import { utf8Length } from "./digest-prompt.ts";
 import { itemAt, saveItem, type SaveResult } from "./items.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
 import { parseLink, redditRefOf } from "./links.ts";

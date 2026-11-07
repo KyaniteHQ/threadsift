@@ -1,7 +1,12 @@
 import { type SQLWrapper, and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
 
-import { DIGEST_INPUT_BYTES, cutDigestInput } from "./ai-contract.ts";
 import { failedAiTask } from "./ai-tasks.ts";
+import {
+  type CatalogNames,
+  DIGEST_INPUT_BYTES,
+  cutDigestInput,
+  digestPrompt,
+} from "./digest-prompt.ts";
 import { logFailure } from "./failure-log.ts";
 import {
   type ClaimedJob,
@@ -97,6 +102,17 @@ async function unreadableText(
     failedAttempt: true,
     writes: [insertGuard(db, generation), setDigestFailure(db, item.id, true)],
   };
+}
+
+export function modelInput(
+  item: Readonly<Pick<DigestInput, "title" | "source">>,
+  postText: string | null,
+  catalog: Readonly<CatalogNames>,
+): string {
+  return digestPrompt(
+    JSON.stringify({ title: item.title, source: item.source, postText }),
+    catalog,
+  );
 }
 
 export type DigestText = { readonly text: string | null } | { readonly outcome: JobOutcome };

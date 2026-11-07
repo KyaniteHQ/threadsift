@@ -39,6 +39,7 @@ launch() {
   [[ -v SETUP_CODE ]] && env_args=(--env SETUP_CODE)
   [[ -v THREADSIFT_SECRET_KEY ]] && env_args+=(--env THREADSIFT_SECRET_KEY)
   [[ -v PASSWORD_RESET_CODE ]] && env_args+=(--env PASSWORD_RESET_CODE)
+  [[ -v CLAUDE_CODE_OAUTH_TOKEN ]] && env_args+=(--env CLAUDE_CODE_OAUTH_TOKEN)
   podman run --detach --name "$name" --publish "127.0.0.1::8080" --volume "$volume:/data" "${env_args[@]}" "$image" >/dev/null
   echo "$name" >"$dir/name"
   echo "$volume" >"$dir/volume"

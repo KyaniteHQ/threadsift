@@ -21,7 +21,7 @@ import {
   refusedAi,
 } from "../../core/ai-contract.ts";
 import { AiAddressRefused } from "../../core/ai-url.ts";
-import { AI_CALL_OPTIONS } from "./ai-call-options.ts";
+import { AI_CALL_OPTIONS, apiRefusal } from "./ai-call.ts";
 import { aiTransport } from "./ai-transport.ts";
 
 function languageModel(config: Readonly<HttpAiConnection>, request: typeof fetch) {
@@ -55,25 +55,6 @@ function rejectsKeyWith400(
   message: string,
 ) {
   return provider === "xai" && status === 400 && message.includes("Incorrect API key provided");
-}
-
-function apiRefusal(status: number | undefined) {
-  if (status === undefined) return refusedAi("unreachable");
-
-  switch (status) {
-    case 401:
-    case 403:
-      return refusedAi("wrong-key", status);
-    case 400:
-    case 422:
-      return refusedAi("no-json", status);
-    case 404:
-      return refusedAi("model-not-found", status);
-    default:
-      return status === 429 || status >= 500
-        ? refusedAi("provider-busy", status)
-        : refusedAi("unreachable", status);
-  }
 }
 
 export async function runHttp<Result>(

@@ -20,7 +20,7 @@ type DigestSource =
   | {
       readonly executor: "model";
       readonly provider: string;
-      readonly model: string;
+      readonly model: string | null;
       readonly version: number;
       readonly staleRequeues: number;
     };

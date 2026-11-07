@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { type AiExecution, type AiTaskRequest, refusedAi } from "../../core/ai-contract.ts";
-import { AI_CALL_OPTIONS } from "../shared/ai-call-options.ts";
+import { AI_CALL_OPTIONS } from "../shared/ai-call.ts";
 
 type Json = string | number | boolean | null | readonly Json[] | { readonly [key: string]: Json };
 
