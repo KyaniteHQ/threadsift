@@ -59,15 +59,26 @@ export async function postLink(request: APIRequestContext, url: string, timeout?
 
 const FETCH_ATTEMPTS = 3;
 
-export async function postLinkFetched(request: APIRequestContext, url: string, timeout?: number) {
+type Fetch = Awaited<ReturnType<typeof itemOf>>["fetch"];
+
+export async function postLinkFetched(
+  request: APIRequestContext,
+  url: string,
+  {
+    timeout,
+    retryOn = (fetch) => fetch !== "ok",
+  }: Readonly<{ timeout?: number; retryOn?: (fetch: Fetch) => boolean }> = {},
+) {
   const first = await postLink(request, url, timeout);
   let { item } = first.body;
+  const fetches = [item.fetch];
 
-  for (let attempt = 1; attempt < FETCH_ATTEMPTS && item.fetch !== "ok"; attempt += 1) {
+  for (let attempt = 1; attempt < FETCH_ATTEMPTS && retryOn(item.fetch); attempt += 1) {
     item = (await postLink(request, url, timeout)).body.item;
+    fetches.push(item.fetch);
   }
 
-  return { status: first.status, body: { ...first.body, item } };
+  return { status: first.status, body: { ...first.body, item }, fetches };
 }
 
 export async function listAll(request: APIRequestContext) {

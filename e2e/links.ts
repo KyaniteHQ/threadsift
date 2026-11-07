@@ -1,6 +1,7 @@
-import { type Locator, type Page, expect } from "@playwright/test";
+import { type APIRequestContext, type Locator, type Page, expect } from "@playwright/test";
 
 import { ADD_LABEL, DISMISS_LABEL, PASTE_LABEL, RETRY_LABEL } from "../web/src/text.ts";
+import { listAll, settled } from "./api.ts";
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
 const PASTE_TIMEOUT_MS = 20_000;
@@ -116,4 +117,10 @@ export async function pasteLink(page: Page, url: string): Promise<void> {
 
 export function pasteStatus(page: Page): Locator {
   return page.locator(".paste").getByRole("status");
+}
+
+export async function settleLibrary(request: APIRequestContext): Promise<void> {
+  for (const item of await listAll(request)) {
+    if (item.status === "processing") await settled(request, item.id);
+  }
 }

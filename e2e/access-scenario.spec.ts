@@ -23,7 +23,7 @@ import {
   minimumPassword,
 } from "./access.ts";
 import { type Entry, call, violations, watchPage } from "./ledger.ts";
-import { addButton, newRunId, pasteField, pasteLink } from "./links.ts";
+import { addButton, newRunId, pasteField, pasteLink, settleLibrary } from "./links.ts";
 import {
   choosePassword,
   codeField,
@@ -265,6 +265,9 @@ test("a Paste after the owner signed out in another tab shows the login screen, 
   await passwordField(first).fill(password);
   await first.getByRole("button", { name: LOGIN.signIn }).click();
   await expect(pasteField(first)).toBeVisible();
+
+  await settleLibrary(context.request);
+
   await second.goto("/");
   await expect(pasteField(second)).toBeVisible();
   await expect(second.locator(".reader")).toBeVisible();
