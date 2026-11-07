@@ -1,6 +1,7 @@
 import { type SQLWrapper, and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { CATALOG_NAME_LIMIT, type Digest, parseStoredDigest } from "./ai-contract.ts";
+import { logFailure } from "./failure-log.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import {
@@ -143,7 +144,7 @@ async function linkOlderDigest(
       ...digestPartWrites(db, eq(items.id, row.id)),
     ]);
   } catch (error) {
-    console.error(`Older Digest ${row.id} linking failed`, error);
+    logFailure("older-digest-not-linked", { digestId: row.id }, error);
   }
 }
 

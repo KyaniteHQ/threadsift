@@ -1,9 +1,9 @@
 import { and, eq, exists, or, sql } from "drizzle-orm";
 
+import { finalKeyOf } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { ATTEMPT_KEY } from "./post-text-files.ts";
-import { fileCleaning, items, jobs } from "./schema.ts";
+import { ATTEMPT_KEY, fileCleaning, items, jobs } from "./schema.ts";
 
 const CLEANUP_PAGE_KEYS = 100;
 
@@ -34,8 +34,8 @@ export async function cleanFiles({ db, files }: Readonly<Pick<JobPorts, "db" | "
   const [saved] = await db.select().from(fileCleaning).where(eq(fileCleaning.id, 1));
   const page = await files.list("items/", saved?.cursor ?? null, CLEANUP_PAGE_KEYS);
   const keys = page.files.map(({ key }) => key);
-  const kept = await protectedKeys(db, keys);
-  const stray = keys.filter((key) => !kept.has(key));
+  const kept = await protectedKeys(db, [...new Set(keys.map((key) => finalKeyOf(key)))]);
+  const stray = keys.filter((key) => !kept.has(finalKeyOf(key)));
 
   if (stray.length > 0) await files.delete(stray);
 

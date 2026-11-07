@@ -49,6 +49,7 @@ function fetchJobIds(id: number): number[] {
 const Fingerprints = z.array(z.object({ item_id: z.number() }));
 
 async function reconcilerVisited(id: number): Promise<void> {
+  instance.sql(`DELETE FROM search_fingerprints WHERE item_id = ${id}`);
   await expect
     .poll(
       () =>

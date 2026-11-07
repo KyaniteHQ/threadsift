@@ -1,6 +1,7 @@
 import { and, eq, exists, notExists } from "drizzle-orm";
 
-import { openingDigest, setDigestFailure } from "./digest-job.ts";
+import { openingDigest } from "./digest-job.ts";
+import { setDigestFailure } from "./digest-source.ts";
 import {
   LISTED_COLUMNS,
   type ListedItemRow,

@@ -1,9 +1,11 @@
 import { and, eq, exists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { logFailure } from "./failure-log.ts";
 import {
   MAX_STALE_REQUEUES,
   STALE_DELAYS_MS,
+  type JobCurrency,
   type JobFiles,
   type JobOutcome,
   type JobPorts,
@@ -32,7 +34,7 @@ async function deleteQuietly(ports: JobPorts, key: string | null): Promise<void>
   try {
     await ports.files.delete([key]);
   } catch (error) {
-    console.error(`File ${key} was not deleted; the next cleanup deletes it`, error);
+    logFailure("file-not-deleted", { key }, error);
   }
 }
 
@@ -119,7 +121,7 @@ async function writeOutcome(
   try {
     return (await finish(ports, job, {
       writes: outcome.writes,
-      attempts: job.attempts,
+      attempts: job.attempts + (outcome.failedAttempt === true ? 1 : 0),
       files: outcome.files,
     }))
       ? "done"
@@ -133,6 +135,16 @@ async function writeOutcome(
   }
 }
 
+async function discardTask(
+  { db }: Readonly<Pick<JobPorts, "db">>,
+  currency: JobCurrency | undefined,
+  cause: Parameters<JobCurrency["discard"]>[0],
+): Promise<void> {
+  const write = currency?.discard(cause);
+
+  if (write !== undefined) await db.batch([write]);
+}
+
 export async function applyOutcome(
   ports: JobPorts,
   job: Readonly<JobRow>,
@@ -143,7 +155,7 @@ export async function applyOutcome(
   try {
     result = await writeOutcome(ports, job, outcome);
   } catch (error) {
-    if (outcome.currency !== undefined) await ports.db.batch([outcome.currency.discard("error")]);
+    await discardTask(ports, outcome.currency, "error");
     throw error;
   }
 
@@ -151,11 +163,10 @@ export async function applyOutcome(
     case "done":
       break;
     case "lost":
-      if (outcome.currency !== undefined)
-        await ports.db.batch([outcome.currency.discard("lease-lost")]);
+      await discardTask(ports, outcome.currency, "lease-lost");
       break;
     case "stale": {
-      if (outcome.currency !== undefined) await ports.db.batch([outcome.currency.discard("stale")]);
+      await discardTask(ports, outcome.currency, "stale");
       const staleRequeues = Math.min(job.staleRequeues + 1, MAX_STALE_REQUEUES);
       await queueLater(ports, job, {
         delayMs: STALE_DELAYS_MS[job.staleRequeues] ?? STALE_DELAYS_MS[2],

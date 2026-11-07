@@ -71,6 +71,8 @@ export const jobs = sqliteTable(
   ],
 );
 
+export const ATTEMPT_KEY = sql<string>`'items/' || ${jobs.itemId} || '/post-' || ${jobs.id} || '-' || ${jobs.attempts} || '.md'`;
+
 export const scheduledRuns = sqliteTable("scheduled_runs", {
   task: text("task").primaryKey(),
   lastRunAt: integer("last_run_at").notNull(),

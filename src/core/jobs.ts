@@ -1,16 +1,28 @@
-import { type SQL, and, asc, eq, inArray, lt, lte, notExists, or, sql } from "drizzle-orm";
+import {
+  type SQL,
+  and,
+  asc,
+  eq,
+  getTableColumns,
+  inArray,
+  lt,
+  lte,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { digestHandler } from "./digest-job.ts";
+import { logFailure } from "./failure-log.ts";
 import { fetchHandler } from "./fetch-job.ts";
 import { applyOutcome, finish, queueLater } from "./job-finish.ts";
-import type { JobHandler, JobPorts } from "./job-outcome.ts";
+import { type ClaimedJob, type JobHandler, type JobPorts, RETRY_DELAYS_MS } from "./job-outcome.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, jobs } from "./schema.ts";
+import { ATTEMPT_KEY, jobs } from "./schema.ts";
 
 const CLAIM_MARGIN_MS = 120_000;
-const RETRY_DELAYS_MS = [30_000, 120_000] as const;
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 
 const HANDLERS: Readonly<Record<JobKind, JobHandler>> = {
@@ -51,7 +63,7 @@ export function dueIds(db: Database, now: number, limit: number) {
     .limit(limit);
 }
 
-async function claim(db: Database, which: () => SQL, now: number): Promise<JobRow | null> {
+async function claim(db: Database, which: () => SQL, now: number): Promise<ClaimedJob | null> {
   const [claimed] = await db
     .update(jobs)
     .set({
@@ -60,18 +72,18 @@ async function claim(db: Database, which: () => SQL, now: number): Promise<JobRo
       attempts: sql`${jobs.attempts} + (${jobs.state} = 'running')`,
     })
     .where(and(which(), isDue(now)))
-    .returning();
+    .returning({ ...getTableColumns(jobs), attemptKey: ATTEMPT_KEY });
 
   return claimed ?? null;
 }
 
-export function claimNextDue(db: Database): Promise<JobRow | null> {
+export function claimNextDue(db: Database): Promise<ClaimedJob | null> {
   const now = Date.now();
 
   return claim(db, () => inArray(jobs.id, dueIds(db, now, 1)), now);
 }
 
-export async function executeClaimed(ports: JobPorts, job: Readonly<JobRow>): Promise<void> {
+export async function executeClaimed(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<void> {
   const handler = HANDLERS[job.kind];
 
   if (job.attempts >= MAX_ATTEMPTS) {
@@ -86,7 +98,11 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<JobRow>): Pr
   try {
     await applyOutcome(ports, job, await handler.attempt(ports, job));
   } catch (error) {
-    console.error(`Job ${job.id} failed attempt ${job.attempts + 1}`, error);
+    logFailure(
+      "job-attempt-failed",
+      { jobId: job.id, kind: job.kind, attempt: job.attempts + 1 },
+      error,
+    );
     const delayMs = RETRY_DELAYS_MS[job.attempts];
 
     await (delayMs === undefined

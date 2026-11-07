@@ -1,11 +1,12 @@
 import { and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
 
-import { openingDigest, providerSet, setDigestFailure } from "./digest-job.ts";
+import { openingDigest, providerSet } from "./digest-job.ts";
+import { setDigestFailure } from "./digest-source.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
-import type { JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { placePostText } from "./post-text-files.ts";
-import { type JobRow, digests, items } from "./schema.ts";
+import { digests, items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import { isRetryable, settle } from "./settle.ts";
 
@@ -15,7 +16,7 @@ async function titleOf(db: Database, itemId: number): Promise<string | null> {
   return item?.title ?? null;
 }
 
-async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<JobOutcome> {
+async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const fetched = await fetchLink(ports.network, ports.pages, job.address);
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
 

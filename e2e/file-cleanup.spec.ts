@@ -96,13 +96,15 @@ async function waitForKeys(expected: readonly string[]): Promise<void> {
     .toEqual(expected.toSorted());
 }
 
-test("a tick deletes every file no Item names and no running attempt can publish, and keeps the file an Item names and the file of an attempt that holds its claim", async () => {
+test("a tick deletes every file no Item names and no running attempt can publish, and keeps the file an Item names and the files of an attempt that holds its claim, the one it is still writing included", async () => {
   test.setTimeout(TICK_WAIT_MS + 90_000);
   const named = namedFile("done");
   const refreshed = namedFile("done");
   const claimed = seededItem({ running: 2 });
   const unnamed = seededItem("done");
   const heldKey = `items/${claimed.id}/post-${claimed.job}-2.md`;
+
+  const heldTemporary = `items/${claimed.id}/.tmp-0123456789abcdef-post-${claimed.job}-2.md`;
 
   store(heldKey, "the file of the attempt that holds its claim");
 
@@ -111,13 +113,23 @@ test("a tick deletes every file no Item names and no running attempt can publish
     `items/${unnamed.id}/post-${unnamed.job}-1.md`,
     `items/${refreshed.id}/post-${refreshed.job - 1}-1.md`,
     ...(isContainerTarget()
-      ? [`items/${unnamed.id}/.tmp-0123456789abcdef-post-${unnamed.job}-1.md`]
+      ? [
+          `items/${unnamed.id}/.tmp-0123456789abcdef-post-${unnamed.job}-1.md`,
+          `items/${claimed.id}/.tmp-fedcba9876543210-post-${claimed.job}-1.md`,
+        ]
       : []),
   ];
 
   for (const key of gone) store(key, "a file that nothing can publish");
 
-  await waitForKeys([named.key, heldKey, refreshed.key]);
+  if (isContainerTarget()) store(heldTemporary, "the file its attempt is still writing");
+
+  await waitForKeys([
+    named.key,
+    heldKey,
+    refreshed.key,
+    ...(isContainerTarget() ? [heldTemporary] : []),
+  ]);
   expect(postTextOf(instance, named.id).key).toBe(named.key);
   expect(instance.readFile(heldKey)?.toString("utf8")).toBe(
     "the file of the attempt that holds its claim",
