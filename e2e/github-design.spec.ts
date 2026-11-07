@@ -2,8 +2,10 @@ import { type Locator, type Page, type TestInfo, expect, test } from "@playwrigh
 
 import { TOKEN_REFUSED } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
+import { itemOf } from "./api.ts";
 import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
+import { deferJobs } from "./ingest.ts";
 import { DESKTOP, storeSettings, viewportAt } from "./look.ts";
 import { paragraphs, reader, row, seedRows } from "./reader.ts";
 
@@ -19,6 +21,7 @@ const FULL = {
 
 const BARE = { url: "https://github.com/example/bare-block", stars: 0 };
 const SINGLE = { url: "https://github.com/example/one-star", stars: 1 };
+const TOKEN_REFUSED_PATTERN = /rejected the saved token/u;
 const REJECTED = { url: "https://github.com/example/rejected-token", stars: 7 };
 
 let screen: FreshScreen;
@@ -152,6 +155,39 @@ test("a repository whose saved token GitHub rejected says so in its row and in t
   ).toHaveAttribute("href", "/settings");
   await attachShot(page.locator(".rd-col"), test.info(), "reader-token-rejected-light");
   await attachShot(row(page, rejectedId), test.info(), "row-token-rejected-light");
+});
+
+async function tokenNotices(page: Page): Promise<{ notes: number; links: number }> {
+  const column = page.locator(".rd-col");
+
+  return {
+    notes: await column.getByText(TOKEN_REFUSED_PATTERN).count(),
+    links: await column.getByRole("link", { name: TOKEN_REFUSED.link, exact: true }).count(),
+  };
+}
+
+test("the Reader shows one rejected-token notice with one Settings link, and none while a new fetch of that Item is processing", async () => {
+  const { page } = screen;
+
+  await viewportAt(page, DESKTOP.width);
+  await openReader(page, rejectedId, "light");
+  expect(await tokenNotices(page), "settled Item").toEqual({ notes: 1, links: 1 });
+
+  const release = deferJobs(screen.fresh, "fetch");
+
+  try {
+    const saved = await screen.context.request.post("/api/items", { data: { url: REJECTED.url } });
+    expect(saved.status()).toBe(200);
+    await storeSettings(page, { theme: "light" }, `/items/${rejectedId}`);
+    await expect(page.locator(".rd-col .rd-title")).toBeVisible();
+    expect(await itemOf(screen.context.request, rejectedId)).toMatchObject({
+      status: "processing",
+      fetch: "github-token",
+    });
+    expect(await tokenNotices(page), "Item with a fetch in flight").toEqual({ notes: 0, links: 0 });
+  } finally {
+    release();
+  }
 });
 
 test("the repository block shows each value and its fallback, and the row shows the stars line", async () => {
