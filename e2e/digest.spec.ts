@@ -99,6 +99,7 @@ async function readStored(id: number, provider: Readonly<ReturnType<typeof proof
     model: provider.model,
     generation: record?.currentGeneration,
     revision: record?.currentGeneration,
+    taskItemId: id,
     state: "done",
   });
 

@@ -195,12 +195,13 @@ export function putSettings<Result>(
 
 export function readDigestTask(screen: FreshScreen) {
   const task = screen.fresh.query(
-    "SELECT kind, executor, input_revision AS inputRevision, deadline, state, result, attempts FROM ai_tasks",
+    "SELECT kind, executor, input_revision AS inputRevision, item_id AS itemId, deadline, state, result, attempts FROM ai_tasks",
     z.array(
       z.object({
         kind: z.string(),
         executor: z.string(),
         inputRevision: z.number(),
+        itemId: z.number().nullable(),
         deadline: z.number(),
         state: z.string(),
         result: z.string(),
@@ -213,6 +214,7 @@ export function readDigestTask(screen: FreshScreen) {
     kind: "digest",
     executor: "http",
     inputRevision: 1,
+    itemId: null,
     state: "done",
     attempts: 1,
   });

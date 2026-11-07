@@ -43,7 +43,7 @@ export async function digestScreens(
 
 export function digestRecord(screen: FreshScreen, id: number) {
   return screen.fresh.query(
-    `SELECT d.digest, d.provider, d.model, d.generation, i.generation AS currentGeneration, t.id AS taskId, t.state, t.input_revision AS revision FROM digests d JOIN items i ON i.id = d.item_id JOIN ai_tasks t ON t.id = d.task_id WHERE d.item_id = ${id}`,
+    `SELECT d.digest, d.provider, d.model, d.generation, i.generation AS currentGeneration, t.id AS taskId, t.item_id AS taskItemId, t.state, t.input_revision AS revision FROM digests d JOIN items i ON i.id = d.item_id JOIN ai_tasks t ON t.id = d.task_id WHERE d.item_id = ${id}`,
     z.array(
       z.object({
         digest: z.string().transform((text) => DigestSchema.parse(JSON.parse(text))),
@@ -52,6 +52,7 @@ export function digestRecord(screen: FreshScreen, id: number) {
         generation: z.number(),
         currentGeneration: z.number(),
         taskId: z.number(),
+        taskItemId: z.number().nullable(),
         state: z.string(),
         revision: z.number(),
       }),

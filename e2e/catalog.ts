@@ -19,6 +19,46 @@ export const SENT_DIGEST = {
 
 let sequence = 0;
 
+export function callerTasks(screen: FreshScreen) {
+  return screen.fresh.query(
+    "SELECT id, executor, state, item_id AS itemId FROM ai_tasks ORDER BY id",
+    z.array(
+      z.object({
+        id: z.number(),
+        executor: z.string(),
+        state: z.string(),
+        itemId: z.number().nullable(),
+      }),
+    ),
+  );
+}
+
+const published = new WeakMap<FreshScreen, Map<number, number>>();
+
+export function recordPublished(screen: FreshScreen, itemId: number): void {
+  const [row] = screen.fresh.query(
+    `SELECT task_id AS taskId FROM digests WHERE item_id = ${itemId}`,
+    z.array(z.object({ taskId: z.number() })),
+  );
+
+  if (row === undefined) throw new Error(`No stored Digest for Item ${itemId}`);
+  published.set(
+    screen,
+    (published.get(screen) ?? new Map<number, number>()).set(row.taskId, itemId),
+  );
+}
+
+export function expectPublishedOwners(screen: FreshScreen): void {
+  expect(
+    callerTasks(screen).map(({ id, itemId }) => [id, itemId]),
+    "each task names the Item whose Digest it published",
+  ).toEqual(
+    [...(published.get(screen) ?? new Map<number, number>())].toSorted(
+      (left, right) => left[0] - right[0],
+    ),
+  );
+}
+
 export function catalogCounts(screen: FreshScreen) {
   return screen.fresh.query(
     "SELECT (SELECT count(*) FROM topics) AS topics, (SELECT count(*) FROM tags) AS tags, coalesce((SELECT version FROM catalog_version WHERE id = 1), 0) AS version, (SELECT count(*) FROM item_tags) AS links",
@@ -69,6 +109,7 @@ export async function sendDigest(
   expect(status).toBeLessThan(300);
   const item = await settled(screen.context.request, saved.item.id);
   expect(item).toMatchObject({ digestTitle: digest.title, digestOutcome: "none" });
+  recordPublished(screen, item.id);
 
   return item;
 }
