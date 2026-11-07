@@ -40,26 +40,56 @@ export async function ownerOf(
   return request.newContext({ baseURL: url, storageState: sessionStateOf(session, url) });
 }
 
-const Ids = z.array(z.object({ id: z.number() }));
-
 export interface FileItem {
   readonly url: string;
   readonly title: string;
   readonly postText?: string | undefined;
+  readonly postTextKey?: string | undefined;
+}
+
+const StoredIds = z.array(z.object({ id: z.number(), url: z.string() }));
+
+function literal(value: string | undefined): string {
+  return value === undefined ? "NULL" : `'${value.replaceAll("'", "''")}'`;
+}
+
+export function storeFileItems<Item extends Readonly<FileItem>>(
+  instance: Instance,
+  items: readonly Item[],
+): (Item & { readonly id: number })[] {
+  const savedAt = Date.now();
+
+  const rows = items.map(
+    ({ url, title, postText, postTextKey }) =>
+      `('article', 'article', '${url}', '${url}', ${savedAt}, 'ready', '${title}', ${literal(postText)}, ${literal(postTextKey)})`,
+  );
+
+  const urls = items.map(({ url }) => `'${url}'`);
+
+  instance.sql(
+    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, status, title, post_text, post_text_key) VALUES ${rows.join(", ")}`,
+  );
+
+  const stored = instance.query(
+    `SELECT id, normalized_url AS url FROM items WHERE normalized_url IN (${urls.join(", ")})`,
+    StoredIds,
+  );
+
+  return items.map((item) => {
+    const row = stored.find(({ url }) => url === item.url);
+
+    if (row === undefined) throw new Error(`no Item at ${item.url}`);
+
+    return { ...item, id: row.id };
+  });
 }
 
 export function storeFileItem(instance: Instance, item: Readonly<FileItem>): number {
-  const text = item.postText === undefined ? "NULL" : `'${item.postText.replaceAll("'", "''")}'`;
+  const [stored] = storeFileItems(instance, [item]);
 
-  instance.sql(
-    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, status, title, post_text) VALUES ('article', 'article', '${item.url}', '${item.url}', ${Date.now()}, 'ready', '${item.title}', ${text})`,
-  );
+  if (stored === undefined) throw new Error(`no Item at ${item.url}`);
 
-  const [row] = instance.query(`SELECT id FROM items WHERE normalized_url = '${item.url}'`, Ids);
-
-  if (row === undefined) throw new Error(`no Item at ${item.url}`);
-
-  return row.id;
+  return stored.id;
 }
 
 const Keys = z.array(z.object({ key: z.string().nullable(), inline: z.string().nullable() }));
