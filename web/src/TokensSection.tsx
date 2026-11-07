@@ -21,35 +21,56 @@ interface Revealed {
   readonly value: string;
 }
 
+function withTokens(
+  current: Loaded,
+  incoming: readonly Token[],
+  isRevoked: (id: number) => boolean,
+): Loaded {
+  const fresh = incoming.filter((token) => !isRevoked(token.id));
+  const ids = new Set(fresh.map((token) => token.id));
+
+  const kept =
+    current.status === "ready" ? current.tokens.filter((token) => !ids.has(token.id)) : [];
+
+  return { status: "ready", tokens: [...kept, ...fresh].toSorted((a, b) => b.id - a.id) };
+}
+
 function useTokens() {
   const [tokens, setTokens] = useState<Loaded>({ status: "loading" });
+  const [revoked] = useState(() => new Set<number>());
+  const isRevoked = useCallback((id: number) => revoked.has(id), [revoked]);
 
   useEffect(() => {
     const load = async (): Promise<void> => {
       try {
-        setTokens({ status: "ready", tokens: await fetchTokens() });
+        const loaded = await fetchTokens();
+        setTokens((current) => withTokens(current, loaded, isRevoked));
       } catch {
         setTokens({ status: "failed" });
       }
     };
 
     void load();
-  }, []);
+  }, [isRevoked]);
 
-  const add = useCallback((token: Token) => {
-    setTokens((current) => ({
-      status: "ready",
-      tokens: current.status === "ready" ? [token, ...current.tokens] : [token],
-    }));
-  }, []);
+  const add = useCallback(
+    (token: Token) => {
+      setTokens((current) => withTokens(current, [token], isRevoked));
+    },
+    [isRevoked],
+  );
 
-  const remove = useCallback((id: number) => {
-    setTokens((current) =>
-      current.status === "ready"
-        ? { status: "ready", tokens: current.tokens.filter((token) => token.id !== id) }
-        : current,
-    );
-  }, []);
+  const remove = useCallback(
+    (id: number) => {
+      revoked.add(id);
+      setTokens((current) =>
+        current.status === "ready"
+          ? { status: "ready", tokens: current.tokens.filter((token) => token.id !== id) }
+          : current,
+      );
+    },
+    [revoked],
+  );
 
   return { tokens, add, remove };
 }
