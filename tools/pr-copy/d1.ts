@@ -8,6 +8,7 @@ export async function queryDatabase<Row>(
   database: Readonly<{ name: string; id: string }>,
   sql: string,
   row: z.ZodType<Row>,
+  deadline?: number,
 ): Promise<Row[]> {
   refuseOutsideTarget(stage.target, [database.name]);
 
@@ -18,9 +19,28 @@ export async function queryDatabase<Row>(
       result: z.array(z.object({ success: z.literal(true), results: z.array(row) })),
     }),
     JSON.stringify({ sql }),
+    deadline,
   );
 
   return body.result.flatMap((result) => result.results);
+}
+
+export async function clearProvider(
+  stage: Readonly<Stage>,
+  database: Readonly<{ name: string; id: string }>,
+  deadline: number,
+): Promise<void> {
+  await queryDatabase(stage, database, "DELETE FROM settings", z.object({}), deadline);
+
+  const [left] = await queryDatabase(
+    stage,
+    database,
+    "SELECT count(*) AS n FROM settings",
+    z.object({ n: z.number().int() }),
+    deadline,
+  );
+
+  if (left?.n !== 0) throw new Error("the copy still holds a Provider after the delete");
 }
 
 export async function appliedMigrations(

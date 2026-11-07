@@ -154,6 +154,33 @@ export async function currentVersion(stage: Readonly<Stage>, worker: string): Pr
   return version.version_id;
 }
 
+const VersionBindings = PageSchema.extend({
+  result: z.looseObject({
+    resources: z.looseObject({
+      bindings: z.array(z.looseObject({ name: z.string(), type: z.string() })),
+    }),
+  }),
+});
+
+export async function versionBindings(
+  stage: Readonly<Stage>,
+  worker: string,
+  version: string,
+  deadline?: number,
+): Promise<readonly Readonly<{ name: string; type: string }>[]> {
+  refuseOutsideTarget(stage.target, [worker]);
+
+  const { result } = await cloudflareCall(
+    "GET",
+    `workers/scripts/${worker}/versions/${version}`,
+    VersionBindings,
+    undefined,
+    deadline,
+  );
+
+  return result.resources.bindings;
+}
+
 export async function resumeDelivery(stage: Readonly<Stage>): Promise<boolean> {
   const { queue } = stage.target;
 

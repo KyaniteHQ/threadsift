@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { resumeOnly } from "./check-run.ts";
-import { SCENARIO_NAMES } from "./check-types.ts";
+import { resumeOnly } from "./check-resume.ts";
+import { DEFAULT_SCENARIOS, SCENARIO_NAMES } from "./check-types.ts";
 import { runChecks } from "./checks.ts";
 import { writeGateRun } from "./gate-run.ts";
 import { Sha } from "./github.ts";
@@ -14,15 +14,24 @@ interface Flags {
   readonly artifact?: string;
   readonly out?: string;
   readonly scenario?: readonly string[];
+  readonly "workers-ai"?: boolean;
   readonly times?: string;
   readonly resume: boolean;
 }
 
 const Text = z.string().min(1);
 
+function scenarioNames(flags: Readonly<Flags>): readonly string[] {
+  const named = flags.scenario ?? DEFAULT_SCENARIOS;
+
+  return flags["workers-ai"] === true && !named.includes("workers-ai")
+    ? [...named, "workers-ai"]
+    : named;
+}
+
 export async function checkCommand(pr: number, flags: Readonly<Flags>): Promise<void> {
   if (flags.resume) {
-    const resumed = await resumeOnly(pr);
+    const resumed = await resumeOnly(pr, scenarioNames(flags).includes("workers-ai"));
     process.stdout.write(
       `Delivery on the Queue of pull request ${String(pr)} ${resumed ? "was paused and is resumed" : "was not paused"}\n`,
     );
@@ -34,7 +43,7 @@ export async function checkCommand(pr: number, flags: Readonly<Flags>): Promise<
     pr,
     head: Sha.parse(flags.head),
     artifact: Text.parse(flags.artifact),
-    scenarios: z.array(z.enum(SCENARIO_NAMES)).parse(flags.scenario ?? SCENARIO_NAMES),
+    scenarios: z.array(z.enum(SCENARIO_NAMES)).parse(scenarioNames(flags)),
   };
 
   if (!(await runChecks(options, Text.parse(flags.out)))) process.exitCode = 1;

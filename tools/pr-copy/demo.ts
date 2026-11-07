@@ -1,6 +1,6 @@
 import { ItemListResponseSchema, SessionStateSchema } from "../../src/http/schemas.ts";
 import type { AccessCodes } from "./codes.ts";
-import { type Copy, callCopy } from "./copy-calls.ts";
+import { type Copy, callCopy, decodeAnswer } from "./copy-calls.ts";
 import { type Item, awaitServing, endState, expectOk, paste } from "./copy-client.ts";
 import { signIn } from "./demo-access.ts";
 
@@ -71,7 +71,7 @@ export async function ensureDemo(url: string, codes: Readonly<AccessCodes>): Pro
   const response = await callCopy(copy, { path: "/api/items", cookie: copy.cookie });
 
   await expectOk(response, "/api/items");
-  const { items } = ItemListResponseSchema.parse(await response.json());
+  const { items } = await decodeAnswer(response, "/api/items", ItemListResponseSchema);
 
   await Promise.all(
     DEMO_ITEMS.map(async (demo) => {
@@ -89,7 +89,7 @@ export async function ensureDemo(url: string, codes: Readonly<AccessCodes>): Pro
 
   await expectOk(session, "/api/session");
 
-  if (SessionStateSchema.parse(await session.json()).state !== "signed-in")
+  if ((await decodeAnswer(session, "/api/session", SessionStateSchema)).state !== "signed-in")
     throw new Error("Live signed-in session check failed");
   process.stdout.write("Live signed-in GET /api/session passed\n");
 }

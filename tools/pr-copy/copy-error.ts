@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 
+import { CopyDecodeError } from "./copy-decode-error.ts";
 import { routeTemplate } from "./routes.ts";
 
 const NOTE_LIMIT = 200;
@@ -21,7 +22,9 @@ export class CopyAnswerError extends Error {
 }
 
 export function publicMessage(error: Readonly<Error>): string {
-  if (error instanceof CopyAnswerError) return error.message;
+  if (error instanceof CopyAnswerError || error instanceof CopyDecodeError) return error.message;
+
+  if (error instanceof SyntaxError) return "an answer was not valid JSON";
 
   if (error instanceof ZodError) {
     return `an answer did not match its schema at ${error.issues[0]?.path.join(".") ?? ""}`;

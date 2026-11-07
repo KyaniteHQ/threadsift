@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
 import type { ScenarioName } from "./check-types.ts";
-import { type Stage, copyNames, databaseId, inventory } from "./cloudflare.ts";
+import { type Stage, copyNames, databaseId } from "./cloudflare.ts";
 import { currentVersion, resumeDelivery, workerSettings } from "./copy-control.ts";
 import { currentCopy } from "./copy-head.ts";
 import { pullRequest, staleReason } from "./github.ts";
@@ -28,6 +28,7 @@ export interface Run {
   readonly version: string;
   readonly database: Readonly<{ name: string; id: string }>;
   readonly tag: string;
+  readonly deadline: number;
   readonly cpuLimitMs: number;
   readonly crons: readonly string[];
   readonly pace: Pace;
@@ -102,6 +103,7 @@ async function prepare(stage: Readonly<Stage>, options: Readonly<CheckOptions>):
   }
 
   const config = copyConfig(stage.target, options.artifact);
+  const deadline = Date.now() + RUN_BUDGET_MS;
   const database = { name, id: await databaseId(name) };
 
   if ((await verifiedCopy(options)) !== url) throw new Stop("the copy moved during the preflight");
@@ -120,7 +122,8 @@ async function prepare(stage: Readonly<Stage>, options: Readonly<CheckOptions>):
     tag: randomBytes(4).toString("hex"),
     cpuLimitMs: config.limits.cpu_ms,
     crons: config.triggers.crons,
-    pace: pacer(Date.now() + RUN_BUDGET_MS),
+    deadline,
+    pace: pacer(deadline),
   };
 }
 
@@ -136,13 +139,5 @@ export function withRun<Result>(
     } finally {
       await resumeDelivery(stage);
     }
-  });
-}
-
-export function resumeOnly(pr: number): Promise<boolean> {
-  return withStage(copyNames(pr), null, async (stage) => {
-    const found = await inventory(stage.target);
-
-    return found.queues.length > 0 && (await resumeDelivery(stage));
   });
 }

@@ -3,6 +3,7 @@ import { cronCheck } from "./check-cron.ts";
 import { capCheck, queueCheck, unreachableCheck } from "./check-fetch.ts";
 import type { Run } from "./check-run.ts";
 import type { Findings, ScenarioName } from "./check-types.ts";
+import { workersAiCheck } from "./check-workers-ai.ts";
 import type { Copy } from "./copy-calls.ts";
 
 export type Body = (
@@ -11,7 +12,7 @@ export type Body = (
   findings: Readonly<Findings>,
 ) => Promise<void>;
 
-export const ORDER = ["queue", "cap", "cpu", "unreachable", "cron"] as const;
+export const ORDER = ["queue", "cap", "cpu", "unreachable", "cron", "workers-ai"] as const;
 
 export const BODIES: Readonly<Record<Exclude<ScenarioName, "login">, Body>> = {
   queue: queueCheck,
@@ -19,4 +20,5 @@ export const BODIES: Readonly<Record<Exclude<ScenarioName, "login">, Body>> = {
   cpu: cpuCheck,
   unreachable: unreachableCheck,
   cron: cronCheck,
+  "workers-ai": workersAiCheck,
 };

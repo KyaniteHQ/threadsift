@@ -8,7 +8,7 @@ import {
 } from "./check-measure.ts";
 import type { Run } from "./check-run.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
-import { type Copy, callCopy, send } from "./copy-calls.ts";
+import { type Copy, callCopy, decodeAnswer, send } from "./copy-calls.ts";
 import { endState, expectOk, paste } from "./copy-client.ts";
 import { purgeStatus, resumeDelivery, setDeliveryPaused, startPurge } from "./copy-control.ts";
 import { SKEW_MS } from "./pace.ts";
@@ -100,7 +100,7 @@ async function holdAndPurge(
   const path = `/api/items/${String(id)}/status`;
   const response = await callCopy(copy, { path, cookie: copy.cookie });
   await expectOk(response, path);
-  const item = ItemResponseSchema.parse(await response.json()).item;
+  const item = (await decodeAnswer(response, path, ItemResponseSchema)).item;
   const after = await fetchJobs(run, id);
 
   const removed =

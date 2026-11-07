@@ -5,6 +5,7 @@ import {
   type Copy,
   type Site,
   callCopy,
+  decodeAnswer,
   refusal,
   refusalCode,
   sessionCookie,
@@ -107,7 +108,7 @@ async function logIn(site: Readonly<Site>, password: string, resetCode: string):
 
 export async function signIn(site: Readonly<Site>, codes: Readonly<AccessCodes>): Promise<Copy> {
   const response = await callCopy(site, { path: "/api/session" });
-  const state = SessionStateSchema.parse(await response.json());
+  const state = await decodeAnswer(response, "/api/session", SessionStateSchema);
   const password = requiredEnv("DEMO_OWNER_PASSWORD");
   process.stdout.write(`${site.url}/api/session: ${JSON.stringify(state)}\n`);
 

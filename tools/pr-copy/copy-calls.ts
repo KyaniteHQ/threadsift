@@ -1,4 +1,7 @@
+import type { z } from "zod";
+
 import { ErrorResponseSchema } from "../../src/http/schemas.ts";
+import { CopyDecodeError } from "./copy-decode-error.ts";
 import { callTimeout, pause, remaining } from "./timeout.ts";
 
 export const POLL_MS = 1000;
@@ -12,6 +15,7 @@ export type Copy = Readonly<Site & { cookie: string }>;
 
 export interface Call {
   readonly path: string;
+  readonly method?: "POST" | "PUT";
   readonly cookie?: string;
   readonly body?: Readonly<Record<string, string>>;
   readonly deadline?: number;
@@ -24,10 +28,10 @@ function build(url: string, call: Readonly<Call>): Request {
     headers.set("cookie", call.cookie);
   }
 
+  const method = call.method ?? (call.body === undefined ? "GET" : "POST");
+
   const request =
-    call.body === undefined
-      ? { method: "GET" }
-      : { method: "POST", body: JSON.stringify(call.body) };
+    call.body === undefined ? { method } : { method, body: JSON.stringify(call.body) };
 
   if (call.body !== undefined) headers.set("content-type", "application/json");
 
@@ -123,6 +127,23 @@ async function attempt(
 
 export function callCopy(site: Readonly<Site>, call: Readonly<Call>): Promise<Response> {
   return attempt(site, call, false);
+}
+
+export async function decodeAnswer<Body>(
+  response: Response,
+  path: string,
+  schema: z.ZodType<Body>,
+): Promise<Body> {
+  const decoded = await response.json().then(
+    (body) => schema.safeParse(body),
+    () => null,
+  );
+
+  if (decoded === null) throw new CopyDecodeError(path, response.status);
+
+  if (!decoded.success) throw decoded.error;
+
+  return decoded.data;
 }
 
 async function refusalBody(response: Response) {
