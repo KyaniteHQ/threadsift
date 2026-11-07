@@ -1,0 +1,189 @@
+import {
+  type ChangeEvent,
+  type Dispatch,
+  type SetStateAction,
+  type SubmitEvent,
+  useCallback,
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
+
+import type { Item } from "../../src/http/schemas.ts";
+import type { SaveTarget } from "./api.ts";
+import { type Shown, faceOf } from "./PasteCard.tsx";
+import { ShareContext } from "./share-handoff.ts";
+import type { NoticeKey } from "./text.ts";
+import { useFocusOnMount, useGuard } from "./use-form.ts";
+import { useShownCard } from "./use-shown-card.ts";
+
+export type SaveOutcome =
+  | { readonly saved: false; readonly notice: NoticeKey }
+  | { readonly saved: true; readonly itemId: number; readonly refreshed: boolean };
+
+export type Save = (target: SaveTarget) => Promise<SaveOutcome>;
+
+export type PasteRequest = SaveTarget & { readonly seq: number };
+
+const FAILED: SaveOutcome = { saved: false, notice: "failed" };
+const EMPTY: SaveOutcome = { saved: false, notice: "empty" };
+
+async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
+  try {
+    return await save(target);
+  } catch {
+    return FAILED;
+  }
+}
+
+function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Shown {
+  return outcome.saved
+    ? { kind: "item", itemId: outcome.itemId, refreshed: outcome.refreshed, url, seq }
+    : { kind: "notice", key: outcome.notice, url, seq };
+}
+
+function useSaveValue({
+  save,
+  setValue,
+  setShown,
+  focusField,
+  release,
+}: Readonly<{
+  save: Save;
+  setValue: Dispatch<SetStateAction<string>>;
+  setShown: (shown: Shown | null) => void;
+  focusField: () => void;
+  release: () => void;
+}>) {
+  const sequence = useRef(0);
+
+  return useCallback(
+    async (target: SaveTarget, refocus = true) => {
+      const { url } = target;
+      setShown(null);
+      const outcome = url === "" ? EMPTY : await attempt(save, target);
+
+      if (outcome.saved) {
+        setValue((current) => (current.trim() === url ? "" : current));
+        release();
+      }
+
+      sequence.current += 1;
+      setShown(shownOf(outcome, url, sequence.current));
+
+      if (refocus) {
+        focusField();
+      }
+    },
+    [focusField, release, save, setShown, setValue],
+  );
+}
+
+function useCloseCard(setShown: (shown: Shown | null) => void, focusField: () => void) {
+  const close = useCallback(() => {
+    setShown(null);
+  }, [setShown]);
+
+  const dismiss = useCallback(() => {
+    close();
+    focusField();
+  }, [close, focusField]);
+
+  return { close, dismiss };
+}
+
+export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item[]) {
+  const handoff = useContext(ShareContext);
+  const { release } = handoff;
+  const { shown, show: setShown, prefill } = useShownCard(handoff, items);
+  const [value, setValue] = useState(prefill);
+  const field = useRef<HTMLInputElement>(null);
+
+  const focusField = useCallback(() => {
+    field.current?.focus();
+  }, []);
+
+  useFocusOnMount(field, focusOnMount);
+
+  const saveValue = useSaveValue({ save, setValue, setShown, focusField, release });
+
+  const { busy: saving, guard } = useGuard();
+
+  const submit = useCallback(
+    (event: SubmitEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const url = value.trim();
+
+      if (url !== "") {
+        guard(() => saveValue({ kind: "paste", url }));
+      } else if (!saving) {
+        void saveValue({ kind: "paste", url });
+      }
+    },
+    [guard, saveValue, saving, value],
+  );
+
+  const { close, dismiss } = useCloseCard(setShown, focusField);
+
+  const change = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setValue(event.target.value);
+      setShown(null);
+      release();
+    },
+    [release, setShown],
+  );
+
+  const retry = useCallback(() => {
+    if (shown !== null) {
+      guard(() => saveValue({ kind: "paste", url: shown.url }));
+    }
+  }, [guard, saveValue, shown]);
+
+  return { field, value, shown, saving, change, close, dismiss, submit, retry, guard, saveValue };
+}
+
+export function usePasteRequest(
+  request: PasteRequest | null,
+  {
+    guard,
+    saveValue,
+    saving,
+  }: Readonly<Pick<ReturnType<typeof usePaste>, "guard" | "saveValue" | "saving">>,
+) {
+  const answered = useRef(0);
+
+  const run = useEffectEvent((target: SaveTarget) => {
+    guard(() => saveValue(target, false));
+  });
+
+  useEffect(() => {
+    if (request !== null && request.seq !== answered.current && !saving) {
+      answered.current = request.seq;
+      run(request);
+    }
+  }, [request, saving]);
+}
+
+export function useCardFace(
+  { shown }: Readonly<Pick<ReturnType<typeof usePaste>, "shown">>,
+  items: readonly Item[],
+) {
+  const item = shown?.kind === "item" ? items.find((each) => each.id === shown.itemId) : undefined;
+
+  return shown === null ? null : faceOf(shown, item);
+}
+
+export function useOpenShown(
+  { shown, close }: Readonly<Pick<ReturnType<typeof usePaste>, "shown" | "close">>,
+  open: (id: number) => void,
+) {
+  return useCallback(() => {
+    if (shown?.kind === "item") {
+      close();
+      open(shown.itemId);
+    }
+  }, [close, open, shown]);
+}

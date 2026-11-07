@@ -3,9 +3,10 @@ import type { Item } from "../../src/http/schemas.ts";
 import type { SaveTarget } from "./api.ts";
 import type { Choice, Filters } from "./filters.ts";
 import { FilterPane } from "./Filters.tsx";
-import { PasteBox, type PasteRequest, type SaveOutcome } from "./PasteBox.tsx";
+import { PasteBox } from "./PasteBox.tsx";
 import { SettingsPanel } from "./SettingsPanel.tsx";
 import { totalName } from "./text.ts";
+import type { PasteRequest, SaveOutcome } from "./use-paste.ts";
 import type { Look } from "./use-root.ts";
 
 function Total({ count }: Readonly<{ count: number }>) {
