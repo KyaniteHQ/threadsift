@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
 import { mainInstance } from "./access.ts";
-import { postLinkRaw, settled } from "./api.ts";
+import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { attachJson } from "./card.ts";
 import { deferJobs, jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
 import {
@@ -21,7 +21,6 @@ import {
   AUTHORED_DIGEST,
   comment,
   commentRows,
-  detailOf,
   generationOf,
   savedThread,
   threadJson,
@@ -139,7 +138,7 @@ test("a refresh replaces the selection only when its Digest publishes, and a Pas
 
   expect((await sendBehindDeferredDigest(request)).status()).toBe(200);
 
-  const pending = await detailOf(request, before.id);
+  const pending = await itemOf(request, before.id);
   expect(pending).toMatchObject({ status: "processing", postText: "A replacement post body." });
   expect(pending.digestTitle).toBe(AUTHORED_DIGEST.title);
   expect(pending.comments, "the last published selection stays readable").toEqual(before.comments);

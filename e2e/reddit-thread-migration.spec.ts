@@ -2,10 +2,11 @@ import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { type Instance, freshDir, newCode } from "./access.ts";
+import { itemOf } from "./api.ts";
 import { ownerOf } from "./files.ts";
 import { type Seed, launchSeeded, migrationsBefore } from "./seeded.ts";
 import { post } from "./thread-fixtures.ts";
-import { AUTHORED_DIGEST, comment, detailOf, savedThread, threadJson } from "./threads.ts";
+import { AUTHORED_DIGEST, comment, savedThread, threadJson } from "./threads.ts";
 
 const OLD_DIGEST = JSON.stringify({
   title: "Older digest",
@@ -34,7 +35,7 @@ const BEFORE_REDDIT_THREADS: Seed = {
 const Count = z.array(z.object({ n: z.number() }));
 
 async function expectOlderRead(owner: APIRequestContext, instance: Instance) {
-  expect(await detailOf(owner, 1)).toMatchObject({
+  expect(await itemOf(owner, 1)).toMatchObject({
     digestTitle: "Older digest",
     digest: { summary: "An older summary.", keyPoints: ["An older point."], tags: [] },
     comments: { reported: null, received: 0, kept: 0, nodes: [] },

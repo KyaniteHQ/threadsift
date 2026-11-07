@@ -2,12 +2,12 @@ import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { mainInstance } from "./access.ts";
+import { itemOf } from "./api.ts";
 import { FIRST_DIGEST, firstTree, find, marker, post, postUrl, run } from "./thread-fixtures.ts";
 import {
   AUTHORED_DIGEST,
   comment,
   commentRows,
-  detailOf,
   postOnlyJson,
   savedThread,
   sendThread,
@@ -155,7 +155,7 @@ function counts(): number[] {
 
 async function stateOf(request: APIRequestContext, ids: readonly number[]) {
   return {
-    details: await Promise.all(ids.map((id) => detailOf(request, id))),
+    details: await Promise.all(ids.map((id) => itemOf(request, id))),
     rows: ids.map((id) => commentRows(mainInstance(), id)),
     counts: counts(),
   };
@@ -201,5 +201,5 @@ test("the 64 KiB guard still holds on the other routes", async ({ request }) => 
   });
 
   expect(refused.status()).toBe(413);
-  expect((await detailOf(request, item.id)).readState).toBe("unread");
+  expect((await itemOf(request, item.id)).readState).toBe("unread");
 });

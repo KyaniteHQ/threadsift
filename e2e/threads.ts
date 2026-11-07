@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect } from "@playwright/test";
 import { z } from "zod";
 
-import { ItemDetailResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import type { Instance } from "./access.ts";
 import { settled } from "./api.ts";
 
@@ -135,12 +135,6 @@ export async function savedThread(
   const { item } = SavedItemResponseSchema.parse(await response.json());
 
   return { status, item: await settled(request, item.id) };
-}
-
-export async function detailOf(request: APIRequestContext, id: number) {
-  const response = await request.get(`/api/items/${id}`);
-
-  return ItemDetailResponseSchema.parse(await response.json()).item;
 }
 
 const Rows = z.array(

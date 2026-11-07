@@ -2,18 +2,10 @@ import { expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { mainInstance } from "./access.ts";
-import { postLinkRaw } from "./api.ts";
+import { itemOf, postLinkRaw } from "./api.ts";
 import { deferJobs, jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
 import { SUBREDDIT, find, marker, normalized, post, postUrl, run } from "./thread-fixtures.ts";
-import {
-  AUTHORED_DIGEST,
-  MORE,
-  comment,
-  commentRows,
-  detailOf,
-  savedThread,
-  threadJson,
-} from "./threads.ts";
+import { AUTHORED_DIGEST, MORE, comment, commentRows, savedThread, threadJson } from "./threads.ts";
 
 test.describe.configure({ timeout: 300_000 });
 
@@ -140,7 +132,7 @@ test("supplied content closes the open fetch job of the Item, so an older fetch 
   for (const job of jobsOf(queued, instance, "fetch")) makeJobDue(job.id, instance);
   await sweepNow(request, instance);
 
-  expect(await detailOf(request, queued)).toMatchObject({
+  expect(await itemOf(request, queued)).toMatchObject({
     title: `Authored thread ${id}`,
     postText: "Supplied before the fetch ran.",
     author: "author_one",
