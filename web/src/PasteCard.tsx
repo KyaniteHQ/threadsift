@@ -4,6 +4,7 @@ import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { type CardView, viewOf } from "./paste-card.ts";
+import { PASTE_OPEN } from "./reader-text.ts";
 import {
   CARD_TITLES,
   DISMISS_LABEL,
@@ -36,7 +37,7 @@ interface Face {
   readonly itemTitle: string | null;
   readonly alert: boolean;
   readonly closes: boolean;
-  readonly actions: "retry" | "dismiss" | "none";
+  readonly actions: "open" | "retry" | "dismiss" | "none";
 }
 
 function savedLook(view: Readonly<Extract<CardView, { kind: "added" | "refreshed" }>>) {
@@ -65,7 +66,7 @@ function savedFace(
     itemTitle: item.title,
     alert: false,
     closes: true,
-    actions: "dismiss",
+    actions: "open",
   };
 }
 
@@ -172,10 +173,12 @@ function Actions({
   actions,
   dismiss,
   retry,
+  open,
 }: Readonly<{
   actions: Face["actions"];
   dismiss: () => void;
   retry: () => void;
+  open: () => void;
 }>) {
   if (actions === "none") {
     return null;
@@ -183,6 +186,11 @@ function Actions({
 
   return (
     <div className="ps-acts">
+      {actions === "open" ? (
+        <button type="button" className="btn btn-acc" onClick={open}>
+          {PASTE_OPEN}
+        </button>
+      ) : null}
       {actions === "retry" ? (
         <button type="button" className="btn btn-acc" onClick={retry}>
           {RETRY_LABEL}
@@ -202,6 +210,7 @@ export function PasteCard({
   close,
   dismiss,
   retry,
+  open,
 }: Readonly<{
   id: string;
   url: string;
@@ -209,6 +218,7 @@ export function PasteCard({
   close: () => void;
   dismiss: () => void;
   retry: () => void;
+  open: () => void;
 }>) {
   const { held, handlers } = useHeld();
   useAfter(face.closes && !held, CLOSE_MS, close);
@@ -225,7 +235,7 @@ export function PasteCard({
       {face.itemTitle === null ? null : <p className="ps-item">{face.itemTitle}</p>}
       {url === "" ? null : <p className="ps-url">{url.replace(SCHEME_AND_WWW, "")}</p>}
       {face.note === null ? null : <p className="ps-sub">{face.note}</p>}
-      <Actions actions={face.actions} dismiss={dismiss} retry={retry} />
+      <Actions actions={face.actions} dismiss={dismiss} retry={retry} open={open} />
     </div>
   );
 }

@@ -18,11 +18,12 @@ export function countedWith(
   after: Readonly<Item>,
 ): FilterCounts {
   const added = before === undefined;
+  const wasUnread = before?.readState === "unread";
 
   return {
     ...counts,
     total: counts.total + (added ? 1 : 0),
-    unread: counts.unread + (added && after.readState === "unread" ? 1 : 0),
+    unread: counts.unread + (after.readState === "unread" ? 1 : 0) - (wasUnread ? 1 : 0),
     sources: moved(counts.sources, before?.source ?? null, after.source),
     reads: moved(counts.reads, before?.readState ?? null, after.readState),
   };

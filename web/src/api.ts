@@ -1,9 +1,12 @@
+import type { ReadState } from "../../src/core/kinds.ts";
 import {
   ErrorResponseSchema,
+  ItemDetailResponseSchema,
   ItemListResponseSchema,
   ItemResponseSchema,
   SavedItemResponseSchema,
   type Item,
+  type ItemDetail,
   type ItemList,
 } from "../../src/http/schemas.ts";
 import { call, parsedFrom, unexpected } from "./calls.ts";
@@ -21,6 +24,18 @@ export type SaveResult =
 
 export async function fetchItem(id: number): Promise<Item> {
   return (await parsedFrom("GET", `/api/items/${id}/status`, ItemResponseSchema)).item;
+}
+
+export async function fetchItemDetail(id: number): Promise<ItemDetail> {
+  return (await parsedFrom("GET", `/api/items/${id}`, ItemDetailResponseSchema)).item;
+}
+
+export async function putReadState(id: number, readState: ReadState): Promise<Item> {
+  return (
+    await parsedFrom("PUT", `/api/items/${id}/read-state`, ItemResponseSchema, {
+      json: { readState },
+    })
+  ).item;
 }
 
 export function fetchItems(filters: Readonly<Filters>): Promise<ItemList> {

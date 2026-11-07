@@ -5,7 +5,7 @@ import type { Item } from "../../src/http/schemas.ts";
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
-import type { ListState } from "./library.ts";
+import type { ListState } from "./list-state.ts";
 import {
   CLEAR_ALL,
   EMPTY_LIST,
@@ -78,6 +78,8 @@ function ItemList({
   attention,
   attended,
   tryAgain,
+  open,
+  toggleRead,
 }: Readonly<{
   items: readonly Item[];
   loadedAt: number;
@@ -85,6 +87,8 @@ function ItemList({
   attention: Attention;
   attended: () => void;
   tryAgain: (item: Item) => void;
+  open: (id: number) => void;
+  toggleRead: (item: Item) => void;
 }>) {
   return (
     <ol
@@ -102,10 +106,22 @@ function ItemList({
             attention={item.id === attention?.id ? attention : null}
             attended={attended}
             tryAgain={tryAgain}
+            open={open}
+            toggleRead={toggleRead}
           />
         </li>
       ))}
     </ol>
+  );
+}
+
+function EmptyLibrary() {
+  return (
+    <div className="empty">
+      <Icon name="tray" className="ic ic-xl" />
+      <h2>{EMPTY_LIST.heading}</h2>
+      <p>{EMPTY_LIST.line}</p>
+    </div>
   );
 }
 
@@ -117,6 +133,8 @@ export const ListBody = memo(function ListBody({
   retry,
   tryAgain,
   clearAll,
+  open,
+  toggleRead,
 }: Readonly<{
   list: ListState;
   openId: number | null;
@@ -125,6 +143,8 @@ export const ListBody = memo(function ListBody({
   retry: () => void;
   tryAgain: (item: Item) => void;
   clearAll: () => void;
+  open: (id: number) => void;
+  toggleRead: (item: Item) => void;
 }>) {
   if (list.status === "loading") {
     return <Loading />;
@@ -139,13 +159,7 @@ export const ListBody = memo(function ListBody({
   }
 
   if (list.items.length === 0) {
-    return (
-      <div className="empty">
-        <Icon name="tray" className="ic ic-xl" />
-        <h2>{EMPTY_LIST.heading}</h2>
-        <p>{EMPTY_LIST.line}</p>
-      </div>
-    );
+    return <EmptyLibrary />;
   }
 
   return (
@@ -156,6 +170,8 @@ export const ListBody = memo(function ListBody({
       attention={attention}
       attended={attended}
       tryAgain={tryAgain}
+      open={open}
+      toggleRead={toggleRead}
     />
   );
 });

@@ -22,7 +22,7 @@ const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
   unreadable: "unreadable",
 };
 
-function noteOf(item: Readonly<Item>): NoticeKey | null {
+export function noteOf(item: Readonly<Item>): NoticeKey | null {
   if (item.fetch === null || item.fetch === "ok") {
     return null;
   }

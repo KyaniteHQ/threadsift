@@ -9,90 +9,32 @@ import {
   useState,
 } from "react";
 
-import type { FilterCounts } from "../../src/core/item-filters.ts";
+import type { ReadState } from "../../src/core/kinds.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import { type SaveTarget, type SaveResult, fetchItems, regenerateDigest, saveLink } from "./api.ts";
+import {
+  type SaveTarget,
+  type SaveResult,
+  fetchItems,
+  putReadState,
+  regenerateDigest,
+  saveLink,
+} from "./api.ts";
 import { type Choice, type Filters, NO_FILTERS, isFiltered, withChoice } from "./filters.ts";
 import { type Stamps, newStamps, useItemPolling } from "./item-polling.ts";
-import { countedWith } from "./list-counts.ts";
-
-export type ListState =
-  | { readonly status: "loading"; readonly known: readonly Item[] }
-  | {
-      readonly status: "failed";
-      readonly known: readonly Item[];
-      readonly counts: FilterCounts | null;
-    }
-  | {
-      readonly status: "ready";
-      readonly known: readonly Item[];
-      readonly items: readonly Item[];
-      readonly counts: FilterCounts;
-      readonly loadedAt: number;
-    };
+import {
+  type ListState,
+  digestMoved,
+  failedList,
+  leftProcessing,
+  type Answer,
+  loaded,
+  processingIds,
+  sameItem,
+  withItem,
+  withRead,
+} from "./list-state.ts";
 
 type SetList = Dispatch<SetStateAction<ListState>>;
-
-export function knownItems(list: Readonly<ListState>): readonly Item[] {
-  return list.known;
-}
-
-function upserted(items: readonly Item[], item: Readonly<Item>): Item[] {
-  return items.some((current) => current.id === item.id)
-    ? items.map((current) => (current.id === item.id ? item : current))
-    : [item, ...items];
-}
-
-function replaced(items: readonly Item[], item: Readonly<Item>): Item[] {
-  return items.map((current) => (current.id === item.id ? item : current));
-}
-
-function withItem(list: Readonly<ListState>, item: Readonly<Item>, unfiltered: boolean): ListState {
-  const known = upserted(list.known, item);
-
-  if (list.status !== "ready") return { ...list, known };
-
-  const before = list.known.find((current) => current.id === item.id);
-
-  return {
-    ...list,
-    known,
-    items: unfiltered ? upserted(list.items, item) : replaced(list.items, item),
-    counts: unfiltered ? countedWith(list.counts, before, item) : list.counts,
-  };
-}
-
-function withRead(list: Readonly<ListState>, read: Readonly<Item>, unfiltered: boolean): ListState {
-  const current = list.known.find((item) => item.id === read.id);
-
-  return current === undefined || sameItem(current, read) ? list : withItem(list, read, unfiltered);
-}
-
-function sameItem(left: Readonly<Item>, right: Readonly<Item>): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
-interface Answer {
-  readonly items: readonly Item[];
-  readonly counts: FilterCounts;
-}
-
-function loaded(current: Readonly<ListState>, answer: Readonly<Answer>): ListState {
-  return {
-    status: "ready",
-    known: answer.items.reduceRight((all, item) => upserted(all, item), [...current.known]),
-    items: answer.items,
-    counts: answer.counts,
-    loadedAt: Date.now(),
-  };
-}
-
-function processingIds(list: Readonly<ListState>): string {
-  return list.known
-    .filter((item) => item.status === "processing")
-    .map((item) => item.id)
-    .join(",");
-}
 
 function useLatest<Value>(value: Value) {
   const latest = useRef(value);
@@ -106,6 +48,7 @@ function useLatest<Value>(value: Value) {
 
 interface Reads {
   readonly reload: () => void;
+  readonly recount: (wanted: boolean) => void;
   readonly settle: (wanted: boolean) => void;
 }
 
@@ -114,20 +57,6 @@ interface Upkeep {
   readonly stamps: Stamps;
   readonly unfiltered: RefObject<boolean>;
   readonly latest: RefObject<ListState>;
-}
-
-function digestMoved(before: Readonly<Item> | undefined, after: Readonly<Item>): boolean {
-  return (
-    after.digestTopic !== (before?.digestTopic ?? null) ||
-    after.digestTitle !== (before?.digestTitle ?? null) ||
-    (before?.digestOutcome === "pending" &&
-      after.digestOutcome !== "pending" &&
-      after.digestTopic !== null)
-  );
-}
-
-function leftProcessing(before: Readonly<Item> | undefined, after: Readonly<Item>): boolean {
-  return before?.status === "processing" && after.status !== "processing";
 }
 
 function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonly<Upkeep>): void {
@@ -151,12 +80,25 @@ function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonl
   useItemPolling(processingIds(list), onRead);
 }
 
-export function countsOf(list: Readonly<ListState>): FilterCounts | null {
-  return list.status === "loading" ? null : list.counts;
+function applied(answer: Readonly<Answer>): (current: ListState) => ListState {
+  return (current) => loaded(current, answer);
 }
 
-function failedList(current: ListState): ListState {
-  return { status: "failed", known: current.known, counts: countsOf(current) };
+async function refreshCounts(
+  filters: Readonly<Filters>,
+  setList: SetList,
+  isCurrent: () => boolean,
+  reload: () => void,
+): Promise<void> {
+  const answer = await fetchItems(filters).catch(() => null);
+
+  if (answer === null) {
+    reload();
+  } else if (isCurrent()) {
+    setList((current) =>
+      current.status === "ready" ? { ...current, counts: answer.counts } : current,
+    );
+  }
 }
 
 function useReads(setList: SetList, filters: Readonly<Filters>): Reads {
@@ -171,12 +113,7 @@ function useReads(setList: SetList, filters: Readonly<Filters>): Reads {
     const sequence = newest.current;
 
     const read = async (): Promise<void> => {
-      const apply = await fetchItems(query.filters).then(
-        (answer) =>
-          (current: ListState): ListState =>
-            loaded(current, answer),
-        () => failedList,
-      );
+      const apply = await fetchItems(query.filters).then(applied, () => failedList);
 
       if (sequence === newest.current) {
         reading.current = false;
@@ -198,7 +135,18 @@ function useReads(setList: SetList, filters: Readonly<Filters>): Reads {
     [reload],
   );
 
-  return useMemo(() => ({ reload, settle }), [reload, settle]);
+  const recount = useCallback(
+    (wanted: boolean) => {
+      const sequence = newest.current;
+
+      if (wanted) {
+        void refreshCounts(filters, setList, () => sequence === newest.current, reload);
+      }
+    },
+    [filters, reload, setList],
+  );
+
+  return useMemo(() => ({ reload, recount, settle }), [reload, recount, settle]);
 }
 
 function useFilters() {
@@ -251,6 +199,21 @@ function useSave(setList: SetList, upkeep: Readonly<Upkeep>) {
   );
 }
 
+function useSetRead(setList: SetList, upkeep: Readonly<Upkeep>) {
+  const { reads, stamps, unfiltered } = upkeep;
+
+  return useCallback(
+    async (id: number, readState: ReadState): Promise<void> => {
+      const item = await putReadState(id, readState);
+      const whole = unfiltered;
+      stamps.mark(id);
+      setList((current) => withItem(current, item, whole.current));
+      reads.recount(!whole.current);
+    },
+    [reads, setList, stamps, unfiltered],
+  );
+}
+
 export function useLibrary() {
   const [list, setList] = useState<ListState>({ status: "loading", known: [] });
   const [stamps] = useState(newStamps);
@@ -260,6 +223,7 @@ export function useLibrary() {
   const latest = useLatest(list);
   const upkeep = { reads, stamps, unfiltered, latest };
   const save = useSave(setList, upkeep);
+  const setRead = useSetRead(setList, upkeep);
   usePolling(list, setList, upkeep);
 
   const retry = useCallback(() => {
@@ -267,5 +231,5 @@ export function useLibrary() {
     reads.reload();
   }, [reads]);
 
-  return { list, filters, save, retry, ...changes };
+  return { list, filters, save, setRead, retry, ...changes };
 }

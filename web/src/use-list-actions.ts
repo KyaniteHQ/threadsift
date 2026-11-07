@@ -3,7 +3,7 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from "react"
 import type { Item } from "../../src/http/schemas.ts";
 import type { SaveResult, SaveTarget } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
-import type { ListState } from "./library.ts";
+import type { ListState } from "./list-state.ts";
 import type { PasteRequest, SaveOutcome } from "./PasteBox.tsx";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
@@ -102,6 +102,7 @@ export function useListActions(
 
   return {
     attention,
+    attend,
     attended,
     request,
     tryAgain,

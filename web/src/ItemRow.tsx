@@ -1,16 +1,18 @@
 import { type RefObject, memo, useCallback, useEffect, useId, useRef } from "react";
 
+import { itemPath } from "../../src/core/item-path.ts";
 import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
+import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
 import { revealInPane } from "./reveal.ts";
+import { useInternalLink } from "./routing.ts";
 import { savedLabel } from "./saved-label.ts";
 import {
   CARD_TITLES,
   FAILURE_TITLES,
   NO_DIGEST,
   DIGEST_NOT_UPDATED,
-  NEW_TAB_LABEL,
   RETRY_LABEL,
   SOURCE_LABELS,
 } from "./text.ts";
@@ -26,6 +28,7 @@ function showsSkeleton(item: Readonly<Item>): boolean {
 function rowClasses(item: Readonly<Item>, isOpen: boolean): string {
   return [
     "it",
+    ...(item.readState === "unread" ? ["unread"] : []),
     ...(isOpen ? ["open"] : []),
     ...(item.title === null ? ["it-link-only"] : []),
     ...(showsSkeleton(item) ? ["it-proc"] : []),
@@ -135,8 +138,63 @@ function Meta({ item, now }: Readonly<{ item: Item; now: number }>) {
       <time className="it-date" dateTime={new Date(item.savedAt).toISOString()}>
         {savedLabel(item.savedAt, now)}
       </time>
-      <Icon name="external" className="ic ic-s" />
     </p>
+  );
+}
+
+function ReadDot({ item, toggleRead }: Readonly<{ item: Item; toggleRead: (item: Item) => void }>) {
+  const toggle = useCallback(() => {
+    toggleRead(item);
+  }, [item, toggleRead]);
+
+  const label = item.readState === "unread" ? ROW_MARK_READ : ROW_MARK_UNREAD;
+
+  return (
+    <button
+      type="button"
+      className="it-dot"
+      aria-label={label}
+      title={`${label} (m)`}
+      onClick={toggle}
+    >
+      <i />
+    </button>
+  );
+}
+
+function RowTitle({
+  item,
+  id,
+  link,
+  isOpen,
+  open,
+}: Readonly<{
+  item: Item;
+  id: string;
+  link: RefObject<HTMLAnchorElement | null>;
+  isOpen: boolean;
+  open: (id: number) => void;
+}>) {
+  const choose = useInternalLink(
+    useCallback(() => {
+      open(item.id);
+    }, [item.id, open]),
+  );
+
+  const title = item.digestTitle ?? item.title;
+
+  return (
+    <h2 id={id} className="it-title">
+      <a
+        ref={link}
+        className="it-open"
+        href={itemPath(item.id)}
+        aria-current={isOpen ? "true" : undefined}
+        onClick={choose}
+      >
+        {title === null ? withoutScheme(item.normalizedUrl) : <bdi dir="auto">{title}</bdi>}
+      </a>
+    </h2>
   );
 }
 
@@ -147,6 +205,8 @@ export const ItemRow = memo(function ItemRow({
   attention,
   attended,
   tryAgain,
+  open,
+  toggleRead,
 }: Readonly<{
   item: Item;
   now: number;
@@ -154,6 +214,8 @@ export const ItemRow = memo(function ItemRow({
   attention: Attention;
   attended: () => void;
   tryAgain: (item: Item) => void;
+  open: (id: number) => void;
+  toggleRead: (item: Item) => void;
 }>) {
   const row = useRef<HTMLElement>(null);
   const link = useRef<HTMLAnchorElement>(null);
@@ -162,24 +224,9 @@ export const ItemRow = memo(function ItemRow({
 
   return (
     <article ref={row} className={rowClasses(item, isOpen)} data-key={item.id}>
+      <ReadDot item={item} toggleRead={toggleRead} />
       <Meta item={item} now={now} />
-      <h2 id={titleId} className="it-title">
-        <a
-          ref={link}
-          className="it-open"
-          href={item.originalUrl}
-          target="_blank"
-          rel="noreferrer"
-          aria-current={isOpen ? "true" : undefined}
-        >
-          {(item.digestTitle ?? item.title) === null ? (
-            withoutScheme(item.normalizedUrl)
-          ) : (
-            <bdi dir="auto">{item.digestTitle ?? item.title}</bdi>
-          )}
-          <span className="vh">{` ${NEW_TAB_LABEL}`}</span>
-        </a>
-      </h2>
+      <RowTitle item={item} id={titleId} link={link} isOpen={isOpen} open={open} />
       <Status item={item} describedBy={titleId} tryAgain={tryAgain} />
     </article>
   );

@@ -7,15 +7,6 @@ html {
   background: var(--bg);
 }
 
-[data-layout="list"] :is(.search, .list-head, .list) {
-  grid-column: 2 / -1;
-  border-right: 0;
-}
-
-[data-layout="list"][data-bp~="medium"] :is(.search, .list-head, .list) {
-  grid-column: 1 / -1;
-}
-
 .list {
   --row-lead-h: calc(var(--s1) + var(--s2) + 1px + 1lh);
   scroll-padding-top: var(--row-lead-h);
@@ -80,14 +71,8 @@ fieldset.fl-rows {
   outline-offset: calc(var(--s1) * -1.5);
 }
 
-[data-layout="list"] .it {
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "meta media" "title media" "sum sum" "snip snip" "foot foot";
-  padding-left: var(--s4);
-}
-
-[data-layout="list"] .it-title {
-  max-inline-size: var(--measure);
+[data-layout="list"] .it-dot {
+  margin-bottom: calc(var(--dot-hit) * -1);
 }
 
 .it-link-only .it-open {
@@ -96,10 +81,6 @@ fieldset.fl-rows {
   font-family: var(--f-mono);
   font-weight: inherit;
   letter-spacing: inherit;
-}
-
-[data-layout="list"] .it-date {
-  margin-left: 0;
 }
 
 .list:focus-visible {

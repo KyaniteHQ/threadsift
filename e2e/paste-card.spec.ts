@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { NOTICES, READING_NOTE, RETRY_LABEL } from "../web/src/text.ts";
+import { PASTE_OPEN } from "../web/src/reader-text.ts";
+import { DISMISS_LABEL, NOTICES, READING_NOTE, RETRY_LABEL } from "../web/src/text.ts";
 import { closeDelayOf, watchCardLife } from "./card-life.ts";
 import {
   ADDED,
@@ -55,7 +56,7 @@ test("a slow page shows Reading the link, then Added with its note, and its row 
   await expect(pasteCard(page).locator(".ic.tone-warn")).toBeVisible();
   await expect(pasteCard(page).locator(".ic.tone-ok")).toHaveCount(0);
   await expect(dismissButton(page)).toBeVisible();
-  await expect(pasteCard(page).getByRole("button")).toHaveCount(1);
+  await expect(pasteCard(page).getByRole("button")).toHaveText([PASTE_OPEN, DISMISS_LABEL]);
   await expect(rowOf(page, id).locator(".skel")).toHaveCount(0);
 
   expect((await trace()).titles).toEqual([READING, ADDED]);
