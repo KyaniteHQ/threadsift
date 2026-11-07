@@ -12,6 +12,7 @@ export type Copy = Readonly<Site & { cookie: string }>;
 
 export interface Call {
   readonly path: string;
+  readonly method?: "POST" | "PUT";
   readonly cookie?: string;
   readonly body?: Readonly<Record<string, string>>;
   readonly deadline?: number;
@@ -24,10 +25,10 @@ function build(url: string, call: Readonly<Call>): Request {
     headers.set("cookie", call.cookie);
   }
 
+  const method = call.method ?? (call.body === undefined ? "GET" : "POST");
+
   const request =
-    call.body === undefined
-      ? { method: "GET" }
-      : { method: "POST", body: JSON.stringify(call.body) };
+    call.body === undefined ? { method } : { method, body: JSON.stringify(call.body) };
 
   if (call.body !== undefined) headers.set("content-type", "application/json");
 

@@ -1,7 +1,15 @@
 import { publicMessage } from "./copy-error.ts";
 import type { Invocation } from "./telemetry.ts";
 
-export const SCENARIO_NAMES = ["login", "queue", "cron", "cpu", "cap", "unreachable"] as const;
+export const SCENARIO_NAMES = [
+  "login",
+  "queue",
+  "cron",
+  "cpu",
+  "cap",
+  "unreachable",
+  "workers-ai",
+] as const;
 
 export type ScenarioName = (typeof SCENARIO_NAMES)[number];
 

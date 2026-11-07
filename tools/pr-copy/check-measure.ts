@@ -53,10 +53,13 @@ export async function requireIdleCopy(run: Readonly<Run>, copy: Readonly<Copy>):
   }
 }
 
+export function queryRun<Row>(run: Readonly<Run>, sql: string, row: z.ZodType<Row>) {
+  return queryDatabase(run.stage, run.database, sql, row);
+}
+
 export function fetchJobs(run: Readonly<Run>, itemId: number) {
-  return queryDatabase(
-    run.stage,
-    run.database,
+  return queryRun(
+    run,
     `SELECT id, state FROM jobs WHERE item_id = ${String(itemId)} AND kind = 'fetch' ORDER BY id`,
     JobRow,
   );
