@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { BACK_TO_GRID } from "../web/src/reader-text.ts";
-import { FILTER_GROUPS, OPEN_AS_NARROW_NOTE, SOURCE_LABELS } from "../web/src/text.ts";
+import { BACK_TO_GRID, ROW_MARK_READ } from "../web/src/reader-text.ts";
+import { FILTER_GROUPS, OPEN_AS_NARROW_NOTE, RETRY_LABEL, SOURCE_LABELS } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import {
@@ -136,6 +136,41 @@ test("in Page the arrow keys step through the shown Items in grid order, and j o
   await page.keyboard.press("Escape");
   await expect(reader(page)).toHaveCount(0);
   await expect(link(page, second)).toBeFocused();
+});
+
+test("j and k from a card's read-state button or Try again move to the next or previous card, with no Reader open", async () => {
+  const { page } = screen;
+  const [, , , , , sixth = 0, seventh = 0] = ids;
+  const fifth = ids[4] ?? 0;
+  await viewportAt(page, 1440);
+  screen.fresh.sql(`UPDATE items SET status = 'failed', reason = 'gave-up' WHERE id = ${sixth}`);
+
+  try {
+    await showGrid(page, "page");
+    await expect(page.locator("article.it")).toHaveCount(CARDS);
+
+    const dot = row(page, sixth).getByRole("button", { name: ROW_MARK_READ });
+    const tryAgain = row(page, sixth).getByRole("button", { name: RETRY_LABEL });
+
+    await dot.focus();
+    await page.keyboard.press("j");
+    await expect(link(page, seventh)).toBeFocused();
+
+    await dot.focus();
+    await page.keyboard.press("k");
+    await expect(link(page, fifth)).toBeFocused();
+
+    await tryAgain.focus();
+    await page.keyboard.press("j");
+    await expect(link(page, seventh)).toBeFocused();
+
+    await tryAgain.focus();
+    await page.keyboard.press("k");
+    await expect(link(page, fifth)).toBeFocused();
+    await expect(reader(page)).toHaveCount(0);
+  } finally {
+    screen.fresh.sql(`UPDATE items SET status = 'ready', reason = NULL WHERE id = ${sixth}`);
+  }
 });
 
 test("the filter bar narrows the grid with chips and selects, and a Sheet or Page steps only through what is shown", async () => {
