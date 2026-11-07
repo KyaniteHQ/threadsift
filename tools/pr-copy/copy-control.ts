@@ -2,6 +2,11 @@ import { z } from "zod";
 
 import { PageSchema, cloudflareCall } from "./cloudflare-api.ts";
 import { type Stage, refuseOutsideTarget } from "./cloudflare.ts";
+import { pause } from "./timeout.ts";
+
+const READ_BACK_POLL_MS = 2000;
+
+const READ_BACK_MS = 30_000;
 
 const QueueRow = z.looseObject({
   queue_id: z.string().min(1),
@@ -45,9 +50,26 @@ export async function setDeliveryPaused(
     JSON.stringify({ queue_name: queue, settings: { delivery_paused: paused } }),
   );
 
-  if ((await deliveryPaused(stage, queue)) !== paused) {
-    throw new Error(`${queue} did not read back delivery_paused: ${String(paused)}`);
+  await awaitDeliveryPaused(stage, queue, paused, Date.now() + READ_BACK_MS);
+}
+
+async function awaitDeliveryPaused(
+  stage: Readonly<Stage>,
+  queue: string,
+  paused: boolean,
+  deadline: number,
+): Promise<void> {
+  if ((await deliveryPaused(stage, queue)) === paused) return;
+
+  if (Date.now() >= deadline) {
+    throw new Error(
+      `${queue} did not read back delivery_paused: ${String(paused)} within ${String(READ_BACK_MS / 1000)} s`,
+    );
   }
+
+  await pause(READ_BACK_POLL_MS, deadline);
+
+  await awaitDeliveryPaused(stage, queue, paused, deadline);
 }
 
 export async function startPurge(stage: Readonly<Stage>, queue: string): Promise<void> {
