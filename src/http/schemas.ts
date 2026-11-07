@@ -31,6 +31,16 @@ const ItemBaseSchema = z.object({
   fetchedAt: z.number().int().nullable(),
   fetch: z.enum(FETCH_RESULTS).nullable(),
   readState: z.enum(READ_STATES),
+  stars: z.number().int().nonnegative().nullable(),
+});
+
+const RepositorySchema = z.object({
+  description: z.string().nullable(),
+  stars: z.number().int().nonnegative(),
+  language: z.string().nullable(),
+  license: z.string().nullable(),
+  topics: z.array(z.string()).readonly(),
+  pushedAt: z.number().int().nullable(),
 });
 
 function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.ZodObject<Fields>) {
@@ -63,6 +73,7 @@ const ItemDetailSchema = withStatus(
     postedAt: z.number().int().nullable(),
     postText: z.string().nullable(),
     digest: ReaderDigestSchema.nullable(),
+    repository: RepositorySchema.nullable(),
   }),
 );
 

@@ -1,0 +1,110 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+
+import { test } from "@playwright/test";
+import { z } from "zod";
+
+import { mainInstance } from "./access.ts";
+import { storeItem } from "./ingest.ts";
+import type { Seed } from "./seeded.ts";
+
+export const DEFUDDLE = "https://github.com/kepano/defuddle";
+export const NO_README_REPOSITORY = "https://github.com/KyaniteHQ/homebrew-linctl";
+export const RENAMED_REPOSITORY = "https://github.com/KyaniteHQ/commonplace";
+export const RENAMED_TO = "KyaniteHQ/threadsift";
+
+export const GITHUB_REQUESTS_PER_RUN = 10;
+
+const RateLimitSchema = z.object({
+  resources: z.object({
+    core: z.object({ remaining: z.number().int(), reset: z.number().int() }),
+  }),
+});
+
+export async function requireGithubBudget(requests: number): Promise<void> {
+  const response = await fetch("https://api.github.com/rate_limit", {
+    headers: { "user-agent": "Threadsift-e2e", accept: "application/vnd.github+json" },
+  });
+
+  const { remaining, reset } = RateLimitSchema.parse(await response.json()).resources.core;
+
+  test.skip(
+    remaining < requests,
+    `GitHub rate limit: ${remaining} unauthenticated requests remain for this address until ${new Date(reset * 1000).toISOString()}, and this test sends ${requests}`,
+  );
+}
+
+const StoredRepositories = z.array(
+  z.object({
+    description: z.string().nullable(),
+    stars: z.number(),
+    language: z.string().nullable(),
+    license: z.string().nullable(),
+    topics: z.string(),
+    pushed_at: z.number().nullable(),
+  }),
+);
+
+const StoredParts = z.array(z.object({ kind: z.string(), body: z.string() }));
+
+export function storedOf(itemId: number) {
+  const instance = mainInstance();
+
+  return {
+    repository: instance.query(
+      `SELECT description, stars, language, license, topics, pushed_at FROM github_repos WHERE item_id = ${itemId}`,
+      StoredRepositories,
+    ),
+    parts: instance.query(
+      `SELECT kind, body FROM search_parts WHERE item_id = ${itemId} AND kind = 'repository'`,
+      StoredParts,
+    ),
+  };
+}
+
+export const STALE = {
+  title: "stale title",
+  readme: "# Stale\n\nstale readme text",
+  description: "stale description",
+  topic: "stale-topic",
+  stars: 1,
+  language: "Stale",
+  license: "STALE",
+  pushedAt: 1000,
+  fetchedAt: 1000,
+} as const;
+
+export function storeStaleRepository(url: string, word: string): number {
+  const id = storeItem({
+    normalized_url: url,
+    source: "github",
+    kind: "github-repo",
+    title: STALE.title,
+    post_text: `${STALE.readme} ${word}`,
+    read_state: "read",
+    fetch_result: "ok",
+    fetched_at: STALE.fetchedAt,
+  });
+
+  const instance = mainInstance();
+
+  instance.sql(
+    `INSERT INTO github_repos (item_id, description, stars, language, license, topics, pushed_at) VALUES (${id}, '${STALE.description} ${word}', ${STALE.stars}, '${STALE.language}', '${STALE.license}', '["${STALE.topic}"]', ${STALE.pushedAt})`,
+  );
+
+  instance.sql(
+    `INSERT INTO search_parts (item_id, kind, body) VALUES (${id}, 'repository', '${STALE.description} ${word}' || char(10) || '${STALE.topic}')`,
+  );
+
+  return id;
+}
+
+export const BEFORE_GITHUB: Seed = {
+  files: readdirSync(join(import.meta.dirname, "..", "migrations"))
+    .filter((name) => name.endsWith(".sql") && name < "0014")
+    .toSorted(),
+  sql: `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title, author, post_text, read_state, status, fetch_result, fetched_at) VALUES
+    ('github', 'github-repo', 'https://github.com/someone/older', 'https://github.com/someone/older', 1111, 'someone/older', 'someone', 'An older README.', 'read', 'ready', 'ok', 1500),
+    ('github', 'github-repo', 'https://github.com/someone/linkonly', 'https://github.com/someone/linkonly', 2222, NULL, NULL, NULL, 'unread', 'ready', 'status', NULL),
+    ('article', 'article', 'https://example.com/older', 'https://example.com/older', 3333, 'An older article', NULL, 'Older text.', 'unread', 'ready', 'ok', 3500)`,
+};

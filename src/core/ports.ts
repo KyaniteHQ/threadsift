@@ -37,8 +37,14 @@ export interface FileStore {
   readonly list: (prefix: string, cursor: string | null, limit: number) => Promise<FilePage>;
 }
 
+export type RequestHeaders = Readonly<Record<string, string>>;
+
 export interface Network {
-  readonly get: (url: string, signal: AbortSignal) => Promise<NetworkResponse>;
+  readonly get: (
+    url: string,
+    signal: AbortSignal,
+    headers: RequestHeaders,
+  ) => Promise<NetworkResponse>;
 }
 
 export interface PageReader {

@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, isNotNull, ne, notExists, or, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, exists, isNotNull, ne, notExists, or, sql } from "drizzle-orm";
 
 import {
   AI_DEADLINE_MS,
@@ -215,6 +215,31 @@ function digestOrigin(source: DigestSource, entries: Readonly<ReturnType<typeof 
 
 export function providerSet() {
   return sql`exists (select 1 from ${settings} where ${settings.id} = 1)`;
+}
+
+export function digestAfterFetch(
+  db: Database,
+  job: Readonly<Pick<ClaimedJob, "itemId" | "address">>,
+) {
+  const configured = or(isNotNull(items.pendingDigest), providerSet()) ?? sql`0`;
+
+  return [
+    openingDigest(db, {
+      scope: and(eq(items.id, job.itemId), configured) ?? sql`0`,
+      address: job.address,
+      now: Date.now(),
+    }).job,
+    setDigestFailure(db, job.itemId, false),
+    setDigestFailure(
+      db,
+      job.itemId,
+      true,
+      and(
+        sql`not (${configured})`,
+        exists(db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id))),
+      ) ?? sql`0`,
+    ),
+  ];
 }
 
 export function olderDigests(db: Database) {

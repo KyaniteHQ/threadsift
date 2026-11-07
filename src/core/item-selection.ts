@@ -6,12 +6,14 @@ import { hasOpenJob } from "./job-rows.ts";
 import type { DIGEST_OUTCOMES } from "./kinds.ts";
 import type { Database, Ports } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
-import { digests, itemTags, items, tags, topics } from "./schema.ts";
+import { REPOSITORY_COLUMNS } from "./repositories.ts";
+import { digests, githubRepos, itemTags, items, tags, topics } from "./schema.ts";
 
-export const EMPTY_DIGEST_VIEW = {
+export const EMPTY_JOINED_VIEW = {
   digestTitle: null,
   digestTopic: null,
   digestOutcome: "none",
+  stars: null,
 } as const;
 
 export const DIGEST_VIEW_COLUMNS = {
@@ -47,9 +49,10 @@ export { DETAIL_COLUMNS, LISTED_COLUMNS };
 
 export function selectItems<Fields extends typeof LISTED_COLUMNS>(db: Database, fields: Fields) {
   return db
-    .select({ ...fields, ...DIGEST_VIEW_COLUMNS })
+    .select({ ...fields, ...DIGEST_VIEW_COLUMNS, stars: githubRepos.stars })
     .from(items)
-    .leftJoin(digests, eq(digests.itemId, items.id));
+    .leftJoin(digests, eq(digests.itemId, items.id))
+    .leftJoin(githubRepos, eq(githubRepos.itemId, items.id));
 }
 
 function listedItems(db: Database) {
@@ -86,7 +89,7 @@ function readerDigest(
 }
 
 export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
-  const [[row], [stored], tagRows] = await db.batch([
+  const [[row], [stored], tagRows, [repository]] = await db.batch([
     selectItems(db, DETAIL_COLUMNS).where(eq(items.id, id)),
     db.select({ digest: digests.digest }).from(digests).where(eq(digests.itemId, id)),
     db
@@ -95,6 +98,7 @@ export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files"
       .innerJoin(tags, eq(tags.id, itemTags.tagId))
       .where(eq(itemTags.itemId, id))
       .orderBy(asc(sql`${itemTags}.rowid`)),
+    db.select(REPOSITORY_COLUMNS).from(githubRepos).where(eq(githubRepos.itemId, id)),
   ]);
 
   if (row === undefined) {
@@ -111,6 +115,7 @@ export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files"
       stored?.digest,
       tagRows.map((tag) => tag.name),
     ),
+    repository: repository ?? null,
   };
 }
 

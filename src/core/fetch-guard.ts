@@ -6,6 +6,7 @@ import {
   type Network,
   NetworkFailure,
   type NetworkFailureReason,
+  type RequestHeaders,
 } from "./ports.ts";
 
 const MAX_REDIRECTS = 20;
@@ -15,17 +16,19 @@ export const SMALL_BODY_BYTES = 512 * 1024;
 const HTML_TYPES: ReadonlySet<string> = new Set(["text/html", "application/xhtml+xml"]);
 const CHARSET = /;\s*charset\s*=\s*"?(?<label>[^";\s]+)/iu;
 
+export const NO_HEADERS: RequestHeaders = {};
+
 type GuardFailure = Exclude<FetchFailure, "no-title" | "unreadable" | "redirect-stopped">;
 
-interface Failed {
-  readonly kind: "failed";
-  readonly reason: GuardFailure;
-}
+export type Failed =
+  | { readonly kind: "failed"; readonly reason: Exclude<GuardFailure, "status"> }
+  | { readonly kind: "failed"; readonly reason: "status"; readonly httpStatus: number };
 
 export interface FetchPolicy {
   readonly stopAt: (url: string) => boolean;
   readonly followMetaRefresh: (url: string) => boolean;
   readonly readsBody: (url: string) => boolean;
+  readonly headers: (url: string) => RequestHeaders;
   readonly htmlMaxBytes: number;
 }
 
@@ -55,7 +58,13 @@ type Hop =
     } & Capped)
   | Failed;
 
-const failed = (reason: GuardFailure): Failed => ({ kind: "failed", reason });
+const failed = (reason: Exclude<GuardFailure, "status">): Failed => ({ kind: "failed", reason });
+
+const failedStatus = (httpStatus: number): Failed => ({
+  kind: "failed",
+  reason: "status",
+  httpStatus,
+});
 
 async function readCapped(body: AsyncIterable<Uint8Array>, maxBytes: number): Promise<Capped> {
   const chunks: Uint8Array[] = [];
@@ -85,7 +94,10 @@ async function readCapped(body: AsyncIterable<Uint8Array>, maxBytes: number): Pr
   return { bytes, cut };
 }
 
-function failureOf(deadlineHit: boolean, reason: NetworkFailureReason | null): GuardFailure {
+function failureOf(
+  deadlineHit: boolean,
+  reason: NetworkFailureReason | null,
+): Exclude<GuardFailure, "status"> {
   return deadlineHit ? "timeout" : (reason ?? "network");
 }
 
@@ -106,14 +118,18 @@ async function requestHop(
   }, HOP_DEADLINE_MS);
 
   try {
-    const response = await network.get(url, AbortSignal.any([controller.signal, deadline]));
+    const response = await network.get(
+      url,
+      AbortSignal.any([controller.signal, deadline]),
+      policy.headers(url),
+    );
 
     if (REDIRECT_STATUSES.has(response.status) && response.location !== null) {
       return { kind: "redirect", location: response.location };
     }
 
     if (response.status < 200 || response.status > 299) {
-      return failed("status");
+      return failedStatus(response.status);
     }
 
     const html = isHtmlType(response.contentType);

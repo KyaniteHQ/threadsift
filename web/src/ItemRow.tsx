@@ -15,6 +15,7 @@ import {
   DIGEST_NOT_UPDATED,
   RETRY_LABEL,
   SOURCE_LABELS,
+  starsLabel,
 } from "./text.ts";
 
 function showsSkeleton(item: Readonly<Item>): boolean {
@@ -100,6 +101,23 @@ function Skeleton() {
   );
 }
 
+function Foot({ item }: Readonly<{ item: Item }>) {
+  if (item.digestTopic === null && item.stars === null) {
+    return null;
+  }
+
+  return (
+    <p className="it-foot">
+      {item.digestTopic === null ? null : (
+        <bdi className="it-topic" dir="auto">
+          {item.digestTopic}
+        </bdi>
+      )}
+      {item.stars === null ? null : <span>{starsLabel(item.stars)}</span>}
+    </p>
+  );
+}
+
 function Status({
   item,
   describedBy,
@@ -111,13 +129,7 @@ function Status({
 
   return (
     <div className="it-end">
-      {item.digestTopic === null ? null : (
-        <p className="it-foot">
-          <bdi className="it-topic" dir="auto">
-            {item.digestTopic}
-          </bdi>
-        </p>
-      )}
+      <Foot item={item} />
       {item.retry === null ? null : (
         <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
       )}
