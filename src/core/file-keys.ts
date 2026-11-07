@@ -2,7 +2,12 @@ export const FILE_LIST_LIMIT = 1000;
 
 export class FileRefused extends Error {}
 
-const KEY = /^items\/(?<itemId>[1-9][0-9]{0,18})\/(?!\.{1,2}$)(?<name>[A-Za-z0-9._-]{1,255})$/u;
+export const FILE_NAME_MAX = 255;
+
+const KEY = new RegExp(
+  `^items/(?<itemId>[1-9][0-9]{0,18})/(?!\\.{1,2}$)(?<name>[A-Za-z0-9._-]{1,${FILE_NAME_MAX}})$`,
+  "u",
+);
 
 const PREFIX = /^items\/(?:(?<itemId>[1-9][0-9]{0,18})\/)?$/u;
 

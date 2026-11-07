@@ -90,6 +90,11 @@ test("an Item whose row names a file of over 1,000,000 bytes returns the whole t
   nameFile(instance, id, `'${key}'`);
   expect(instance.listFiles(`items/${id}/`)).toMatchObject([{ key, size: bytes.length }]);
 
+  const read = instance.readFile(key);
+
+  expect(read?.length, "the harness read of the seeded key").toBe(bytes.length);
+  expect(digestOf(read ?? ""), "the harness read of the seeded key").toBe(digestOf(bytes));
+
   const expectWhole = async (phase: string): Promise<void> => {
     const { status, item } = await detailOf(id);
     const got = Buffer.from(item.postText ?? "");
@@ -213,6 +218,10 @@ test.describe("container folder", () => {
       .toContain(`items/${parent}/leaf.md`);
     expect((await detailOf(regular)).item.postText).toBe("inside the store");
   });
+});
+
+test.describe("container folder errors", () => {
+  test.skip(!isContainerTarget(), "permissions exist only in the container's folder");
 
   test("a key that names a folder gives no post text, and a file that cannot be read is an error, not missing content", async () => {
     const folder = seeded();
@@ -229,5 +238,28 @@ test.describe("container folder", () => {
     await expectNoPostText(folder, "a folder as the leaf", "never present");
     expect((await owner.get(`/api/items/${locked}`)).status()).toBe(500);
     expect(unavailableLines(locked)).toEqual([]);
+  });
+
+  test("the harness read tells an absent key from a folder, an unreadable file and an inaccessible parent", () => {
+    const id = seeded();
+
+    inFolder(
+      id,
+      `printf %s kept >/data/files/items/${id}/leaf.md && mkdir /data/files/items/${id}/dir`,
+    );
+
+    const key = (name: string): string => `items/${id}/${name}`;
+
+    expect(instance.readFile(key("leaf.md"))?.toString("utf8")).toBe("kept");
+    expect(instance.readFile(key("absent.md"))).toBeNull();
+    expect(instance.readFile(`items/${id}/leaf.md/below`), "a path below a file").toBeNull();
+    expect(() => instance.readFile(key("dir")), "a folder is not absence").toThrow();
+
+    inContainer(instance, `chmod 000 /data/files/items/${id}/leaf.md`);
+    expect(() => instance.readFile(key("leaf.md")), "no permission is not absence").toThrow();
+
+    inContainer(instance, `chmod 000 /data/files/items/${id}`);
+    expect(() => instance.readFile(key("leaf.md")), "an inaccessible parent").toThrow();
+    inContainer(instance, `chmod 755 /data/files/items/${id}`);
   });
 });

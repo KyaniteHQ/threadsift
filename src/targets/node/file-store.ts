@@ -1,9 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, mkdir, open, readdir, rename, rm } from "node:fs/promises";
+import { type FileHandle, lstat, mkdir, open, readdir, rename, rm } from "node:fs/promises";
 import { join, sep } from "node:path";
 
 import {
+  FILE_NAME_MAX,
   FileRefused,
   type FileKey,
   parseFileKey,
@@ -21,8 +22,12 @@ const CHUNK_BYTES = 65_536;
 
 type Kind = "directory" | "file";
 
+function isErrno(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
+}
+
 function isMissing(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error && MISSING.has(String(error.code));
+  return isErrno(error) && MISSING.has(String(error.code));
 }
 
 async function exists(path: string, wanted: Kind): Promise<boolean> {
@@ -37,6 +42,27 @@ async function exists(path: string, wanted: Kind): Promise<boolean> {
   }
 
   throw new FileRefused(`${path} is not a regular ${wanted}`);
+}
+
+async function allPresent(folders: readonly string[]): Promise<boolean> {
+  const [first, ...rest] = folders;
+
+  if (first === undefined) return true;
+
+  return (await exists(first, "directory")) && allPresent(rest);
+}
+
+async function ensureAll(folders: readonly string[]): Promise<void> {
+  const [first, ...rest] = folders;
+
+  if (first === undefined) return;
+
+  if (!(await exists(first, "directory"))) {
+    await mkdir(first, { recursive: true });
+    await exists(first, "directory");
+  }
+
+  await ensureAll(rest);
 }
 
 interface Located {
@@ -61,24 +87,31 @@ class FileFolder {
     return path;
   }
 
+  folders(itemId: string | null): string[] {
+    const items = this.path("items");
+
+    return itemId === null ? [this.root, items] : [this.root, items, this.path("items", itemId)];
+  }
+
+  hasFolders(itemId: string | null): Promise<boolean> {
+    return allPresent(this.folders(itemId));
+  }
+
+  ensureFolders(itemId: string): Promise<void> {
+    return ensureAll(this.folders(itemId));
+  }
+
   async locate({ itemId, name }: Readonly<FileKey>): Promise<Located> {
     const leaf = this.path("items", itemId, name);
+    const present = (await this.hasFolders(itemId)) && (await exists(leaf, "file"));
 
-    const found = await Promise.all([
-      exists(this.path("items"), "directory"),
-      exists(this.path("items", itemId), "directory"),
-      exists(leaf, "file"),
-    ]);
-
-    return { leaf, present: found.every(Boolean) };
+    return { leaf, present };
   }
 
   async keysIn(itemId: string): Promise<string[]> {
-    const folder = this.path("items", itemId);
+    if (!(await this.hasFolders(itemId))) return [];
 
-    if (!(await exists(folder, "directory"))) return [];
-
-    return (await readdir(folder, { withFileTypes: true }))
+    return (await readdir(this.path("items", itemId), { withFileTypes: true }))
       .filter((entry) => entry.isFile())
       .map((entry) => `items/${itemId}/${entry.name}`)
       .filter((key) => parseFileKey(key) !== null);
@@ -87,11 +120,9 @@ class FileFolder {
   async keysUnder(itemId: string | null): Promise<string[]> {
     if (itemId !== null) return (await this.keysIn(itemId)).toSorted();
 
-    const items = this.path("items");
+    if (!(await this.hasFolders(null))) return [];
 
-    if (!(await exists(items, "directory"))) return [];
-
-    const folders = (await readdir(items, { withFileTypes: true })).filter((entry) =>
+    const folders = (await readdir(this.path("items"), { withFileTypes: true })).filter((entry) =>
       entry.isDirectory(),
     );
 
@@ -111,8 +142,24 @@ class FileFolder {
   }
 }
 
-async function readable(path: string): Promise<ReadableStream<Uint8Array>> {
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+async function openLeaf(path: string): Promise<FileHandle | null> {
+  try {
+    return await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  } catch (error) {
+    if (isMissing(error)) return null;
+
+    if (isErrno(error) && error.code === "ELOOP") {
+      throw new FileRefused(`${path} is a symlink`);
+    }
+
+    throw error;
+  }
+}
+
+async function readable(path: string): Promise<ReadableStream<Uint8Array> | null> {
+  const handle = await openLeaf(path);
+
+  if (handle === null) return null;
 
   try {
     if (!(await handle.stat()).isFile()) {
@@ -148,6 +195,12 @@ async function readable(path: string): Promise<ReadableStream<Uint8Array>> {
   });
 }
 
+function temporaryName(name: string): string {
+  const prefix = `.tmp-${randomBytes(TEMPORARY_BYTES).toString("hex")}-`;
+
+  return prefix + name.slice(0, FILE_NAME_MAX - prefix.length);
+}
+
 async function writeAtomically(temporary: string, leaf: string, bytes: Uint8Array): Promise<void> {
   const handle = await open(temporary, "wx");
 
@@ -170,15 +223,12 @@ export function dataFileStore(dataDir: string): FileStore {
     put: async (key, bytes) => {
       const parsed = requireFileKey(key);
 
-      await mkdir(folder.path("items", parsed.itemId), { recursive: true });
+      await folder.ensureFolders(parsed.itemId);
 
-      const temporary = folder.path(
-        "items",
-        parsed.itemId,
-        `.tmp-${randomBytes(TEMPORARY_BYTES).toString("hex")}-${parsed.name}`,
-      );
+      const { leaf } = await folder.locate(parsed);
+      const temporary = folder.path("items", parsed.itemId, temporaryName(parsed.name));
 
-      await writeAtomically(temporary, (await folder.locate(parsed)).leaf, bytes);
+      await writeAtomically(temporary, leaf, bytes);
     },
     get: async (key) => {
       const { leaf, present } = await folder.locate(requireFileKey(key));

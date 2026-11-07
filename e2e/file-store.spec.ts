@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
 
-import { FileRefused } from "../src/core/file-keys.ts";
+import { FILE_NAME_MAX, FileRefused } from "../src/core/file-keys.ts";
 import type { FileStore } from "../src/core/ports.ts";
 import {
   type Backend,
@@ -83,6 +83,34 @@ async function expectPutGetOverwrite(store: FileStore): Promise<void> {
   await store.delete(["items/1/big.bin"]);
 }
 
+async function expectLongestName(store: FileStore): Promise<void> {
+  const key = `items/1/${"n".repeat(FILE_NAME_MAX)}`;
+
+  await store.put(key, Buffer.from("longest"));
+  await expect(textOf(store, key)).resolves.toBe("longest");
+  await expect(keysOf(store, "items/1/")).resolves.toContain(key);
+  await store.delete([key]);
+  await expect(textOf(store, key)).resolves.toBeNull();
+}
+
+async function expectReadsSurviveDeletes(store: FileStore): Promise<void> {
+  const keys = Array.from({ length: 40 }, (_, index) => `items/4/r-${index}.md`);
+
+  await Promise.all(keys.map((key) => store.put(key, Buffer.from(`body of ${key}`))));
+
+  const outcomes = await Promise.all(
+    keys.map(async (key) => {
+      const [text] = await Promise.all([textOf(store, key), store.delete([key])]);
+
+      return { key, text };
+    }),
+  );
+
+  for (const { key, text } of outcomes) expect([null, `body of ${key}`]).toContain(text);
+
+  await expect(keysOf(store, "items/4/")).resolves.toEqual([]);
+}
+
 async function expectConcurrentPuts(store: FileStore): Promise<void> {
   const payloads = Array.from({ length: 6 }, () => randomBytes(CONCURRENT_BYTES));
 
@@ -155,12 +183,30 @@ test("the production file store adapter of this target puts, reads, replaces, li
     await expectRefusals(backend.store);
     await expectPutGetOverwrite(backend.store);
     await expectConcurrentPuts(backend.store);
+    await expectLongestName(backend.store);
+    await expectReadsSurviveDeletes(backend.store);
     await expectPrefixesAndPages(backend);
     await expectDeletes(backend.store);
   } finally {
     await backend.close();
   }
 });
+
+async function expectNothingReachable(store: FileStore, keys: readonly string[]): Promise<void> {
+  for (const key of keys) {
+    await expect(store.get(key), `get ${key}`).rejects.toBeInstanceOf(FileRefused);
+    await expect(store.put(key, Buffer.from("x")), `put ${key}`).rejects.toBeInstanceOf(
+      FileRefused,
+    );
+    await expect(store.delete([key]), `delete ${key}`).rejects.toBeInstanceOf(FileRefused);
+  }
+}
+
+async function expectOutsideUntouched(outside: string): Promise<void> {
+  await expect(readFile(join(outside, "items", "1", "leaf.md"), "utf8")).resolves.toBe("SENTINEL");
+  await expect(readdir(join(outside, "items"))).resolves.toEqual(["1"]);
+  await expect(readdir(join(outside, "items", "1"))).resolves.toEqual(["leaf.md"]);
+}
 
 test.describe("container folder", () => {
   test.skip(!isContainerTarget(), "symlinks exist only in the container's folder");
@@ -177,13 +223,7 @@ test.describe("container folder", () => {
       await symlink(join(outside, "leaf.md"), join(dir, "files", "items", "1", "leaf.md"));
       await symlink(outside, join(dir, "files", "items", "2"));
 
-      for (const key of ["items/1/leaf.md", "items/2/leaf.md"]) {
-        await expect(store.get(key), `get ${key}`).rejects.toBeInstanceOf(FileRefused);
-        await expect(store.put(key, Buffer.from("x")), `put ${key}`).rejects.toBeInstanceOf(
-          FileRefused,
-        );
-        await expect(store.delete([key]), `delete ${key}`).rejects.toBeInstanceOf(FileRefused);
-      }
+      await expectNothingReachable(store, ["items/1/leaf.md", "items/2/leaf.md"]);
 
       await expect(keysOf(store, "items/")).resolves.toEqual([]);
       await expect(readFile(join(outside, "leaf.md"), "utf8")).resolves.toBe("SENTINEL");
@@ -191,4 +231,40 @@ test.describe("container folder", () => {
       await close();
     }
   });
+});
+
+test.describe("container folder ancestors", () => {
+  test.skip(!isContainerTarget(), "symlinks exist only in the container's folder");
+
+  for (const linked of ["files", "items"]) {
+    test(`the folder adapter refuses a symlinked ${linked} folder for every call and leaves the folder outside unread and unwritten`, async () => {
+      const { store, dir, close } = await folderBackend();
+
+      try {
+        const outside = join(dir, "outside");
+
+        await mkdir(join(outside, "items", "1"), { recursive: true });
+        await writeFile(join(outside, "items", "1", "leaf.md"), "SENTINEL");
+
+        if (linked === "files") {
+          await symlink(outside, join(dir, "files"));
+        } else {
+          await mkdir(join(dir, "files"));
+          await symlink(join(outside, "items"), join(dir, "files", "items"));
+        }
+
+        await expectNothingReachable(store, ["items/1/leaf.md", "items/5/new.md"]);
+
+        for (const prefix of ["items/", "items/1/", "items/5/"]) {
+          await expect(store.list(prefix, null, 10), `list ${prefix}`).rejects.toBeInstanceOf(
+            FileRefused,
+          );
+        }
+
+        await expectOutsideUntouched(outside);
+      } finally {
+        await close();
+      }
+    });
+  }
 });

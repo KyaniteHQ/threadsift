@@ -79,7 +79,7 @@ query)
   podman exec -i "$(<"$2/name")" node -e 'const { DatabaseSync } = require("node:sqlite"); console.log(JSON.stringify(new DatabaseSync("/data/threadsift.db", { timeout: 5000 }).prepare(process.argv[1]).all()))' "$3"
   ;;
 file-read)
-  podman exec "$(<"$2/name")" sh -c 'test -f "$1" || exit 3; exec cat -- "$1"' sh "/data/files/$3"
+  podman exec -i "$(<"$2/name")" node --input-type=module-typescript - "/data/files/$3" <tools/e2e/read-container-file.ts
   ;;
 file-write)
   podman exec -i "$(<"$2/name")" sh -c 'mkdir -p -- "$(dirname -- "$1")" && cat >"$1"' sh "/data/files/$3"
