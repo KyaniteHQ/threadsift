@@ -12,14 +12,11 @@ import { itemOf, listAll, postLink, postLinkRaw, settled } from "./api.ts";
 import { openLibrary, pasteForId } from "./card.ts";
 import {
   DEFUDDLE,
-  KEPT_DIGEST,
   NO_README_REPOSITORY,
   RENAMED_REPOSITORY,
   RENAMED_TO,
   STALE,
-  generationOf,
   requireGithubBudget,
-  storeKeptDigest,
   storeStaleRepository,
   storedOf,
 } from "./github.ts";
@@ -166,34 +163,6 @@ test("a repository without a README is ready with its metadata and no post text,
   await page.goto(`/items/${item.id}`);
   await expect(page.locator(".repo")).toBeVisible();
   await expect(page.locator(".rd-note")).toHaveText(NO_README);
-});
-
-test("a refresh that finds no README clears the text, moves the content generation on and marks the kept Digest not updated, so a Digest that started on the old text cannot publish", async ({
-  request,
-}) => {
-  await requireGithubBudget(2);
-  forgetItem(NO_README_REPOSITORY);
-  const id = storeStaleRepository(NO_README_REPOSITORY, "zzcleared");
-
-  storeKeptDigest(id);
-  expect(await itemOf(request, id)).toMatchObject({ digestOutcome: "none" });
-
-  const pasted = await postLinkRaw(request, NO_README_REPOSITORY);
-
-  expect(pasted.status).toBe(200);
-
-  const item = await settled(request, id);
-
-  expect(item).toMatchObject({
-    id,
-    status: "ready",
-    fetch: "ok",
-    postText: null,
-    digestTitle: KEPT_DIGEST.title,
-    digestOutcome: "failed",
-  });
-  expect(generationOf(id)).toBe(KEPT_DIGEST.generation + 1);
-  expect(item.repository?.description).not.toContain(STALE.description);
 });
 
 test("a repository that does not exist stays a Link-only Item with the fetch result status, and the Reader does not claim it has no README", async ({

@@ -119,6 +119,10 @@ export function storeKeptDigest(itemId: number): void {
   );
 }
 
+export function markDigestFailed(itemId: number): void {
+  mainInstance().sql(`UPDATE items SET digest_failed = 1 WHERE id = ${itemId}`);
+}
+
 export function generationOf(itemId: number): number | undefined {
   return mainInstance().query(
     `SELECT generation FROM items WHERE id = ${itemId}`,
