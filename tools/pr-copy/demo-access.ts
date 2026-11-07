@@ -1,6 +1,14 @@
 import { SessionStateSchema } from "../../src/http/schemas.ts";
 import type { AccessCodes } from "./codes.ts";
-import { type Call, type Copy, type Site, callCopy, refusal, sessionCookie } from "./copy-calls.ts";
+import {
+  type Call,
+  type Copy,
+  type Site,
+  callCopy,
+  refusal,
+  refusalCode,
+  sessionCookie,
+} from "./copy-calls.ts";
 import { CopyAnswerError } from "./copy-error.ts";
 import { requiredEnv } from "./env.ts";
 import { pause, remaining } from "./timeout.ts";
@@ -65,6 +73,14 @@ async function resetDemoPassword(
   const path = "/api/password/reset";
   const response = await callCopy(site, { path, body: { code: resetCode, password } });
 
+  if (response.status === 409 && (await refusalCode(response)) === "reset-used") {
+    process.stdout.write(
+      "The reset code was used already, so an earlier try of the reset reached the copy; checking the demo password\n",
+    );
+
+    return;
+  }
+
   if (response.status !== 204) {
     throw new CopyAnswerError(path, response.status, await refusal(response));
   }
@@ -83,7 +99,7 @@ async function logIn(site: Readonly<Site>, password: string, resetCode: string):
   const reset = await loginCookie(site, password);
 
   if (reset === null) {
-    throw new Error("/api/login refused the demo password right after a reset");
+    throw new Error("/api/login refused the demo password after a reset");
   }
 
   return { ...site, cookie: reset };
