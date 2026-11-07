@@ -19,9 +19,8 @@ type Rgb = readonly [number, number, number];
 
 interface Edge {
   readonly bar: readonly Rgb[];
-  readonly tint: Rgb;
+  readonly beside: Rgb;
   readonly accent: Rgb;
-  readonly softAccent: Rgb;
 }
 
 let screen: FreshScreen;
@@ -65,7 +64,7 @@ function decodePixels(page: Page, picture: Buffer): Promise<Rgb[]> {
   }, picture.toString("base64"));
 }
 
-function resolveColors(page: Page): Promise<{ accent: Rgb; softAccent: Rgb }> {
+function resolveAccent(page: Page): Promise<{ accent: Rgb; opaque: boolean }> {
   return page.evaluate(() => {
     const context = new OffscreenCanvas(1, 1).getContext("2d");
 
@@ -75,16 +74,11 @@ function resolveColors(page: Page): Promise<{ accent: Rgb; softAccent: Rgb }> {
 
     const style = getComputedStyle(document.querySelector(".app .it.open") ?? document.body);
 
-    const paint = (property: string): [number, number, number] => {
-      context.clearRect(0, 0, 1, 1);
-      context.fillStyle = style.getPropertyValue(property);
-      context.fillRect(0, 0, 1, 1);
-      const [red = 0, green = 0, blue = 0] = context.getImageData(0, 0, 1, 1).data;
+    context.fillStyle = style.getPropertyValue("--acc");
+    context.fillRect(0, 0, 1, 1);
+    const [red = 0, green = 0, blue = 0, alpha = 0] = context.getImageData(0, 0, 1, 1).data;
 
-      return [red, green, blue];
-    };
-
-    return { accent: paint("--acc"), softAccent: paint("--acc-soft") };
+    return { accent: [red, green, blue], opaque: alpha === 255 };
   });
 }
 
@@ -103,9 +97,22 @@ async function readEdge(page: Page, open: Locator): Promise<Edge> {
 
   return {
     bar: pixels.slice(0, BAR_WIDTH),
-    tint: pixels[BAR_WIDTH] ?? [-1, -1, -1],
-    ...(await resolveColors(page)),
+    beside: pixels[BAR_WIDTH] ?? [-1, -1, -1],
+    accent: await opaqueAccent(page),
   };
+}
+
+async function opaqueAccent(page: Page): Promise<Rgb> {
+  const { accent, opaque } = await resolveAccent(page);
+  expect(opaque, "--acc is opaque, so its screenshot pixels equal the token").toBe(true);
+
+  return accent;
+}
+
+function differs(actual: Rgb, other: Rgb): boolean {
+  return actual.some(
+    (channel, index) => Math.abs(channel - (other[index] ?? 0)) > CHANNEL_TOLERANCE,
+  );
 }
 
 function expectNear(actual: Rgb, expected: Rgb, what: string): void {
@@ -125,9 +132,11 @@ async function expectBar(page: Page, what: string): Promise<void> {
 
   for (const pixel of edge.bar) {
     expectNear(pixel, edge.accent, `${what}: bar pixel against the accent`);
+    expect(
+      differs(pixel, edge.beside),
+      `${what}: bar pixel rgb(${pixel.join(" ")}) stands out from the row beside it, rgb(${edge.beside.join(" ")})`,
+    ).toBe(true);
   }
-
-  expectNear(edge.tint, edge.softAccent, `${what}: the row beside the bar against its tint`);
 }
 
 async function expectBarInEveryState(page: Page, what: string): Promise<void> {
