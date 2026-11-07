@@ -1,4 +1,5 @@
 import { isRefusedHost, withoutTrailingDot } from "./addresses.ts";
+import { GITHUB_NON_OWNER_PATHS } from "./github-owners.ts";
 import type { Kind, Source } from "./kinds.ts";
 
 export interface Link {
@@ -57,62 +58,6 @@ const VIDEO_HOSTS: ReadonlySet<string> = new Set([
   "vimeo.com",
 ]);
 
-const GITHUB_NON_OWNER_PATHS: ReadonlySet<string> = new Set([
-  "about",
-  "account",
-  "apps",
-  "codespaces",
-  "collections",
-  "contact",
-  "copilot",
-  "customer-stories",
-  "dashboard",
-  "discussions",
-  "education",
-  "enterprise",
-  "events",
-  "explore",
-  "features",
-  "github-copilot",
-  "home",
-  "issues",
-  "join",
-  "login",
-  "logout",
-  "marketplace",
-  "mobile",
-  "new",
-  "nonprofit",
-  "notifications",
-  "open-source",
-  "organizations",
-  "orgs",
-  "partners",
-  "premium-support",
-  "pricing",
-  "pulls",
-  "readme",
-  "resources",
-  "search",
-  "security",
-  "sessions",
-  "settings",
-  "signup",
-  "site",
-  "solutions",
-  "sponsors",
-  "stars",
-  "support",
-  "team",
-  "teams",
-  "topics",
-  "trending",
-  "user-attachments",
-  "users",
-  "watching",
-  "why-github",
-]);
-
 const GITHUB_NAME = /^[\w.-]+$/u;
 const X_POST_PATH = /^\/(?:[^/]+|i\/web)\/status\/\d+(?:\/|$)/u;
 const REDDIT_PATH_PREFIXES: ReadonlySet<string> = new Set(["r", "user", "u"]);
@@ -151,7 +96,7 @@ export function segmentsOf(pathname: string): string[] {
   return pathname.split("/").filter((segment) => segment !== "");
 }
 
-interface RedditRef {
+export interface RedditRef {
   readonly postId: string;
   readonly commentId: string | undefined;
 }
@@ -227,6 +172,12 @@ export function parseLink(absoluteUrl: string): Link {
   const kind = kindOf(host, url.pathname);
 
   return { normalizedUrl: url.href, kind, source: SOURCE_OF_KIND[kind] };
+}
+
+export function redditRefOf(absoluteUrl: string): RedditRef | null {
+  const { hostname, pathname } = new URL(absoluteUrl);
+
+  return redditRef(canonicalHost(hostname), segmentsOf(pathname));
 }
 
 function hostOf(absoluteUrl: string): string {

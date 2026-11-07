@@ -140,13 +140,13 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   const items = paths["/api/items"];
 
   expect(Object.keys(items.post.requestBody.content)).toEqual(["application/json"]);
-  expect(Object.keys(items.post.responses).toSorted()).toEqual(["200", "201", "400"]);
+  expect(Object.keys(items.post.responses).toSorted()).toEqual(["200", "201", "400", "413"]);
   expect(Object.keys(items.get.responses).toSorted()).toEqual(["200", "400"]);
 
   expectListContract(schemas, items.get);
 
   const requestBody = resolved(schemas, jsonSchemaOf(items.post.requestBody));
-  expect(propertyNames(schemas, requestBody).toSorted()).toEqual(["digest", "url"]);
+  expect(propertyNames(schemas, requestBody).toSorted()).toEqual(["content", "digest", "url"]);
   expect(requestBody.required).toEqual(["url"]);
 
   const saved = jsonSchemaOf(items.post.responses["201"] ?? { content: {} });
@@ -179,7 +179,9 @@ test("the served OpenAPI document describes the items routes", async ({ request 
     expect(propertyNames(schemas, item)).toEqual(expect.arrayContaining(ITEM_FIELDS));
   }
 
-  expect(propertyNames(schemas, single)).toEqual(expect.arrayContaining(["postText", "postedAt"]));
+  expect(propertyNames(schemas, single)).toEqual(
+    expect.arrayContaining(["comments", "postText", "postedAt"]),
+  );
 });
 
 test("the served OpenAPI document describes the status route without the post text", async ({
@@ -201,6 +203,7 @@ test("the served OpenAPI document describes the status route without the post te
   );
 
   expect(names).toEqual(expect.arrayContaining(ITEM_FIELDS));
+  expect(names).not.toContain("comments");
   expect(names).not.toContain("postText");
   expect(names).not.toContain("postedAt");
 });

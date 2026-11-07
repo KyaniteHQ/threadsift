@@ -11,50 +11,47 @@ import {
   sql,
 } from "drizzle-orm";
 
-import {
-  AI_DEADLINE_MS,
-  parseStoredDigest,
-  digestPrompt,
-  type Digest,
-  retriesAi,
-} from "./ai-contract.ts";
-import { TASKS, startCallerTask, completedAiTask, runAiTask, expireAiTasks } from "./ai-tasks.ts";
-import {
-  catalogEntries,
-  catalogCurrent,
-  linkingDigest,
-  readCatalog,
-  linkOlderDigests,
-} from "./catalog.ts";
+import { AI_DEADLINE_MS, parseStoredDigest, digestPrompt, retriesAi } from "./ai-contract.ts";
+import { TASKS, startCallerTask, runAiTask, expireAiTasks } from "./ai-tasks.ts";
+import { readCatalog, linkOlderDigests } from "./catalog.ts";
+import { publishing } from "./digest-publish.ts";
 import {
   type DigestInput,
   currency,
   digestInput,
   generationCurrent,
+  hasDigestSource,
   readDigestText,
   setDigestFailure,
 } from "./digest-source.ts";
-import {
-  MAX_STALE_REQUEUES,
-  type ClaimedJob,
-  type JobHandler,
-  type JobOutcome,
-  type JobPorts,
-} from "./job-outcome.ts";
+import { type ClaimedJob, type JobHandler, type JobOutcome, type JobPorts } from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { digests, insertGuard, items, settings } from "./schema.ts";
-import { digestPartWrites } from "./search.ts";
 
 async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const [item] = await digestInput(ports.db, job.itemId);
 
-  if (item === undefined || (item.postText === null && item.postTextKey === null))
-    return { writes: markKeptDigest(ports.db, job.itemId) };
+  if (item === undefined) return { writes: markKeptDigest(ports.db, job.itemId) };
+
+  if (!hasContent(item)) return emptyInput(ports.db, item);
 
   return item.pendingDigest === null
     ? attemptModel(ports, job, item)
     : attemptCaller(ports, job, item, item.pendingDigest);
+}
+
+function emptyInput(db: Database, item: Readonly<DigestInput>): JobOutcome {
+  const generation = generationCurrent(item);
+
+  return {
+    currency: currency(db, generation, null),
+    writes: [insertGuard(db, generation), ...markKeptDigest(db, item.id)],
+  };
+}
+
+function hasContent(item: Readonly<DigestInput>): boolean {
+  return item.postText !== null || item.postTextKey !== null || item.hasComments;
 }
 
 async function attemptCaller(
@@ -125,54 +122,6 @@ function lostClaim(db: Database): JobOutcome {
   return { writes: [insertGuard(db, sql`0`)] };
 }
 
-type DigestSource =
-  | { readonly executor: "caller" }
-  | {
-      readonly executor: "model";
-      readonly provider: string;
-      readonly model: string;
-      readonly version: number;
-      readonly staleRequeues: number;
-    };
-
-function publishing(
-  db: Database,
-  item: Readonly<DigestInput>,
-  digest: Readonly<Digest>,
-  taskId: number,
-  source: DigestSource,
-): JobOutcome {
-  const entries = catalogEntries(digest);
-  const { catalog, provider, model } = digestOrigin(source, entries);
-  const generation = generationCurrent(item);
-
-  const stored = {
-    itemId: item.id,
-    digest: JSON.stringify(digest),
-    title: digest.title,
-    topic: digest.topic,
-    taskId,
-    provider,
-    model,
-    generation: item.generation,
-    createdAt: Date.now(),
-  };
-
-  return {
-    currency: currency(db, sql`${generation} and ${catalog}`, taskId),
-    writes: [
-      insertGuard(db, generation),
-      insertGuard(db, catalog),
-      ...linkingDigest(db, item.id, entries),
-      db.insert(digests).values(stored).onConflictDoUpdate({ target: digests.itemId, set: stored }),
-      ...digestPartWrites(db, eq(items.id, item.id)),
-      completedAiTask(db, { taskId, result: digest }),
-      db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
-      setDigestFailure(db, item.id, false),
-    ],
-  };
-}
-
 export const digestHandler: JobHandler = {
   deadlineMs: AI_DEADLINE_MS,
   blockedBy: ["fetch"],
@@ -188,7 +137,7 @@ export function openingDigest(
     now,
   }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
 ) {
-  const eligible = and(sql`${scope}`, hasText(), notExists(hasOpenJob("digest"))) ?? sql`0`;
+  const eligible = and(sql`${scope}`, hasDigestSource(), notExists(hasOpenJob("digest"))) ?? sql`0`;
 
   return { eligible, job: opening(db, { kind: "digest", address, now, where: eligible }) };
 }
@@ -198,33 +147,8 @@ export async function sweepDigests(db: Database, now: number): Promise<void> {
   await linkOlderDigests(db);
 }
 
-function digestOrigin(source: DigestSource, entries: Readonly<ReturnType<typeof catalogEntries>>) {
-  switch (source.executor) {
-    case "caller":
-      return { catalog: sql`1`, provider: null, model: null };
-    case "model":
-      return {
-        catalog:
-          source.staleRequeues >= MAX_STALE_REQUEUES
-            ? sql`1`
-            : catalogCurrent(source.version, entries),
-        provider: source.provider,
-        model: source.model,
-      };
-    default: {
-      const exhaustive: never = source;
-
-      return exhaustive;
-    }
-  }
-}
-
 export function providerSet() {
   return sql`exists (select 1 from ${settings} where ${settings.id} = 1)`;
-}
-
-function hasText() {
-  return or(isNotNull(items.postText), isNotNull(items.postTextKey)) ?? sql`0`;
 }
 
 function keptDigest(db: Database) {
@@ -233,7 +157,11 @@ function keptDigest(db: Database) {
   );
 }
 
-export function markKeptDigest(db: Database, itemId: number, when: Readonly<SQLWrapper> = sql`1`) {
+export function markKeptDigest(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+  when: Readonly<SQLWrapper> = sql`1`,
+) {
   return [
     setDigestFailure(db, itemId, false),
     setDigestFailure(db, itemId, true, and(keptDigest(db), sql`${when}`) ?? sql`0`),
@@ -242,7 +170,7 @@ export function markKeptDigest(db: Database, itemId: number, when: Readonly<SQLW
 
 export function digestAfterFetch(
   db: Database,
-  job: Readonly<Pick<ClaimedJob, "itemId" | "address">>,
+  job: Readonly<{ itemId: number | Readonly<SQLWrapper>; address: string }>,
 ) {
   const configured = or(isNotNull(items.pendingDigest), providerSet()) ?? sql`0`;
 
@@ -252,7 +180,11 @@ export function digestAfterFetch(
       address: job.address,
       now: Date.now(),
     }).job,
-    ...markKeptDigest(db, job.itemId, or(sql`not (${configured})`, not(hasText())) ?? sql`0`),
+    ...markKeptDigest(
+      db,
+      job.itemId,
+      or(sql`not (${configured})`, not(hasDigestSource())) ?? sql`0`,
+    ),
   ];
 }
 

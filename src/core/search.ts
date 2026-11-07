@@ -4,6 +4,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { SearchPartKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, githubRepos, itemTags, items, searchParts, tags } from "./schema.ts";
+import { jsonArrays } from "./thread-rows.ts";
 
 const CHUNK_UNITS = 125_000;
 const CHUNK_TRIGGER_BYTES = 500_000;
@@ -140,6 +141,29 @@ function tagsPart(db: Database, scope: Readonly<SQLWrapper>) {
       .where(sql`${scope}`)
       .groupBy(items.id),
   );
+}
+
+function commentPartInsert(db: Database, scope: Readonly<SQLWrapper>, json: string) {
+  return db.insert(searchParts).select(
+    db
+      .select(partOf("comment", sql`part.value`))
+      .from(items)
+      .innerJoin(sql`json_each(${json}) as part`, sql`1`)
+      .where(sql`${scope}`),
+  );
+}
+
+export function commentPartWrites(
+  db: Database,
+  scope: Readonly<SQLWrapper>,
+  bodies: readonly string[],
+): readonly BatchItem<"sqlite">[] {
+  const parts = bodies.flatMap((body) => chunkPostText(body)).map((part) => JSON.stringify(part));
+
+  return [
+    replacing(db, scope, ["comment"]),
+    ...jsonArrays(parts).map((json) => commentPartInsert(db, scope, json)),
+  ];
 }
 
 export function digestPartWrites(

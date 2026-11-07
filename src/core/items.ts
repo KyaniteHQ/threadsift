@@ -27,7 +27,7 @@ function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): List
   return item;
 }
 
-async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
+export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
   const [item] = await selectItems(db, LISTED_COLUMNS).where(
     eq(items.normalizedUrl, normalizedUrl),
   );

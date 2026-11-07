@@ -15,6 +15,17 @@ export const bodyCap = bodyLimit({
   onError: (c) => c.json({ error: "The request body is larger than 64 KiB" }, 413),
 });
 
+export const ITEM_REQUEST_BYTES = 8 * 1024 * 1024;
+
+const itemCap = bodyLimit({
+  maxSize: ITEM_REQUEST_BYTES,
+  onError: (c) => c.json({ error: "The request body is larger than 8 MiB" }, 413),
+});
+
+function capFor(method: string, path: string): MiddlewareHandler {
+  return method === "POST" && path === "/api/items" ? itemCap : bodyCap;
+}
+
 const NOT_BEARER = "Authorization header is not a bearer token";
 
 function notBearer(c: Context): Response {
@@ -55,6 +66,6 @@ export function guard(ports: Ports): MiddlewareHandler {
       await cross(c, async () => {});
     }
 
-    return bodyCap(c, next);
+    return capFor(method, path)(c, next);
   };
 }

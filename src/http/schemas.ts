@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { DigestSchema, ReaderDigestSchema } from "../core/ai-contract.ts";
+import { CommentsViewSchema } from "../core/comment-view.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import {
   DIGEST_OUTCOMES,
@@ -74,10 +75,12 @@ const ItemDetailSchema = withStatus(
     postText: z.string().nullable(),
     digest: ReaderDigestSchema.nullable(),
     repository: RepositorySchema.nullable(),
+    comments: CommentsViewSchema,
   }),
 );
 
 export const SaveItemRequestSchema = z.object({
+  content: z.string().optional(),
   digest: DigestSchema.optional(),
   url: z.string().trim().pipe(HttpUrlSchema),
 });

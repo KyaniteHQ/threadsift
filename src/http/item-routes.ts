@@ -4,7 +4,7 @@ import { retryDigest } from "../core/digest-retry.ts";
 import { itemFilters } from "../core/item-filters.ts";
 import { itemPath } from "../core/item-path.ts";
 import { getItem, getListedItem, listItems } from "../core/item-selection.ts";
-import { saveItem } from "../core/items.ts";
+import { paste } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
 import { setReadState } from "../core/read-state.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
@@ -23,6 +23,7 @@ import {
 
 export const NOT_FOUND = "Not found";
 const REFUSED_HOST = "url: the host is not globally reachable";
+const CONTENT_TOO_LARGE = "content: longer than 4 MiB";
 
 const saveItemRoute = createRoute({
   method: "post",
@@ -39,7 +40,11 @@ const saveItemRoute = createRoute({
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      "The body is not an absolute http or https URL, or its host is not globally reachable.",
+      "The body is not an absolute http or https URL, or its host is not globally reachable. With `content`: the link is not a Reddit post or comment link, or `content` is not the Reddit JSON of that thread (malformed JSON, not a post Listing and a comment Listing, a post id that is not the link's, a missing or deleted requested comment, a repeated comment id, a parent_id that does not match the tree, or a text over 1,000,000 bytes). The Item is unchanged.",
+    ),
+    413: jsonBody(
+      ErrorResponseSchema,
+      "`content` is longer than 4 MiB, or the request body is longer than 8 MiB. Other routes refuse a body over 64 KiB. The Item is unchanged.",
     ),
   },
 });
@@ -67,7 +72,7 @@ const getItemRoute = createRoute({
   responses: {
     200: jsonBody(
       ItemDetailResponseSchema,
-      "The Item, with its status, reason, last fetch result, post text and posted date.",
+      "The Item, with its status, reason, last fetch result, post text and posted date. `comments` holds the Kept comments of the stored Digest and the Context stubs they need, in thread order, with three separate counts: `reported` (the post's own count, null for a comment link or a thread sent without one), `received` (the comments in the stored thread) and `kept`.",
     ),
     404: jsonBody(ErrorResponseSchema, "No Item has this id."),
   },
@@ -127,21 +132,21 @@ function registerReadStateRoute(app: OpenAPIHono, ports: Ports): void {
   });
 }
 
-export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
-  registerReadStateRoute(app, ports);
-  app.openapi(retryDigestRoute, async (c) => {
-    const item = await retryDigest(ports, c.req.valid("param").id);
-
-    return item === undefined
-      ? c.json({ error: NOT_FOUND }, 404)
-      : c.json({ item: itemView(item) }, 200);
-  });
+function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(saveItemRoute, async (c) => {
-    const { url, digest } = c.req.valid("json");
-    const saved = await saveItem(ports, url, digest);
+    const { url, digest, content } = c.req.valid("json");
+    const saved = await paste(ports, url, { digest, content });
+
+    if (saved.kind === "too-large") {
+      return c.json({ error: CONTENT_TOO_LARGE }, 413);
+    }
 
     if (saved.kind === "refused") {
       return c.json({ error: REFUSED_HOST, fetch: "refused" as const }, 400);
+    }
+
+    if (saved.kind === "invalid") {
+      return c.json({ error: `content: ${saved.reason}` }, 400);
     }
 
     return c.json(
@@ -149,7 +154,18 @@ export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
       saved.created ? 201 : 200,
     );
   });
+}
 
+export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
+  registerReadStateRoute(app, ports);
+  registerSaveRoute(app, ports);
+  app.openapi(retryDigestRoute, async (c) => {
+    const item = await retryDigest(ports, c.req.valid("param").id);
+
+    return item === undefined
+      ? c.json({ error: NOT_FOUND }, 404)
+      : c.json({ item: itemView(item) }, 200);
+  });
   app.openapi(getItemRoute, async (c) => {
     const item = await getItem(ports, c.req.valid("param").id);
 

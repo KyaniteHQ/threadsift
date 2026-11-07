@@ -24,6 +24,8 @@ export {
   throttles,
 } from "./access-tables.ts";
 
+export { redditComments, redditThreads } from "./reddit-tables.ts";
+
 export const items = sqliteTable(
   "items",
   {

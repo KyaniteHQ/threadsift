@@ -18,6 +18,7 @@ export const SEARCH_PART_KINDS = [
   "summary",
   "tags",
   "repository",
+  "comment",
 ] as const;
 
 export const THROTTLE_KINDS = ["setup", "login", "reset"] as const;

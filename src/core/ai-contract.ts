@@ -5,7 +5,14 @@ export const AI_URL_MAX = 2048;
 export const AI_MODEL_MAX = 240;
 export const AI_KEY_MAX = 4096;
 
-export const DigestSchema = z.object({
+const KEPT_COMMENTS_MAX = 2000;
+
+const CommentId = z
+  .string()
+  .regex(/^t1_[a-z\d]+$/iu)
+  .max(32);
+
+export const ModelDigestSchema = z.object({
   title: ShortText,
   topic: ShortText,
   tags: z.array(ShortText).max(3).readonly(),
@@ -16,6 +23,10 @@ export const DigestSchema = z.object({
     .max(1200)
     .refine((text) => text.split(/\r\n|\r|\n/u).length <= 2),
   keyPoints: z.array(z.string().trim().min(1).max(1200)).min(1).max(12).readonly(),
+});
+
+export const DigestSchema = ModelDigestSchema.extend({
+  keptComments: z.array(CommentId).max(KEPT_COMMENTS_MAX).readonly().optional(),
 });
 
 const Model = z.string().trim().min(1).max(AI_MODEL_MAX);
