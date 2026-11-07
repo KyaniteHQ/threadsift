@@ -1,9 +1,17 @@
-import { type SQL, type SQLWrapper, and, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { SearchPartKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { digests, githubRepos, itemTags, items, searchParts, tags } from "./schema.ts";
+import {
+  digests,
+  githubRepos,
+  itemTags,
+  items,
+  redditComments,
+  searchParts,
+  tags,
+} from "./schema.ts";
 
 const CHUNK_UNITS = 125_000;
 const CHUNK_TRIGGER_BYTES = 500_000;
@@ -13,6 +21,7 @@ const DIGEST_KINDS = [
   "digest-title",
   "summary",
   "tags",
+  "comment",
 ] as const satisfies readonly SearchPartKind[];
 
 function lastSeparatorBefore(text: string, limit: number): number {
@@ -142,6 +151,21 @@ function tagsPart(db: Database, scope: Readonly<SQLWrapper>) {
   );
 }
 
+function commentParts(db: Database, scope: Readonly<SQLWrapper>) {
+  return db.insert(searchParts).select(
+    db
+      .select(partOf("comment", redditComments.body))
+      .from(items)
+      .innerJoin(digests, sql`${digests.itemId} = ${items.id}`)
+      .innerJoin(
+        redditComments,
+        sql`${redditComments.itemId} = ${items.id} and ${redditComments.generation} = ${digests.generation}`,
+      )
+      .where(and(sql`${scope}`, eq(redditComments.kept, true), isNotNull(redditComments.body)))
+      .orderBy(asc(redditComments.position)),
+  );
+}
+
 export function digestPartWrites(
   db: Database,
   scope: Readonly<SQLWrapper>,
@@ -151,6 +175,7 @@ export function digestPartWrites(
     digestFieldPart(db, scope, "digest-title"),
     digestFieldPart(db, scope, "summary"),
     tagsPart(db, scope),
+    commentParts(db, scope),
   ];
 }
 

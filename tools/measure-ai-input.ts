@@ -5,7 +5,7 @@ import { APICallError, Output, generateText } from "ai";
 import { z } from "zod";
 
 import {
-  DigestSchema,
+  ModelDigestSchema,
   DIGEST_INSTRUCTIONS,
   DIGEST_INPUT_BYTES,
   digestPrompt,
@@ -30,7 +30,7 @@ const catalog = {
 };
 
 const schemaBytes = utf8Length(
-  JSON.stringify(z.toJSONSchema(DigestSchema, { unrepresentable: "any" })),
+  JSON.stringify(z.toJSONSchema(ModelDigestSchema, { unrepresentable: "any" })),
 );
 
 const provider = createOpenAICompatible({
@@ -60,7 +60,7 @@ async function measure(name: string, input: string): Promise<void> {
   try {
     const result = await generateText({
       model: provider(PROOF_MODEL),
-      output: Output.object({ schema: DigestSchema }),
+      output: Output.object({ schema: ModelDigestSchema }),
       instructions: DIGEST_INSTRUCTIONS,
       prompt,
       ...AI_CALL_OPTIONS,

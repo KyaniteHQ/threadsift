@@ -1,4 +1,4 @@
-import { and, eq, exists, sql } from "drizzle-orm";
+import { eq, exists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { logFailure } from "./failure-log.ts";
@@ -10,7 +10,7 @@ import {
   type JobOutcome,
   type JobPorts,
 } from "./job-outcome.ts";
-import { enqueueQuietly, enqueueRows, hasOpenJob, holding } from "./job-rows.ts";
+import { enqueueItemJobs, enqueueQuietly, hasOpenJob, holding } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, guardedBatch, items, jobs } from "./schema.ts";
 
@@ -177,13 +177,4 @@ export async function applyOutcome(
       throw new Error(exhaustive);
     }
   }
-}
-
-async function enqueueItemJobs(ports: JobPorts, itemId: number): Promise<void> {
-  const queued = await ports.db
-    .select({ id: jobs.id })
-    .from(jobs)
-    .where(and(eq(jobs.itemId, itemId), sql`${jobs.state} <> 'done'`));
-
-  await enqueueRows(ports, queued);
 }

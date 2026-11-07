@@ -9,7 +9,7 @@ import {
   AI_DEADLINE_MS,
   VERIFY_INPUT,
   DIGEST_INSTRUCTIONS,
-  DigestSchema,
+  ModelDigestSchema,
   cutDigestInput,
   refusedAi,
 } from "./ai-contract.ts";
@@ -22,7 +22,7 @@ export const TASKS = {
   digest: {
     kind: "digest",
     instructions: DIGEST_INSTRUCTIONS,
-    schema: DigestSchema,
+    schema: ModelDigestSchema,
     prepareInput: cutDigestInput,
   },
 } as const;

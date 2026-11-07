@@ -1,4 +1,4 @@
-import { type SQLWrapper, eq, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import { logFailure } from "./failure-log.ts";
@@ -93,4 +93,13 @@ export function enqueueRows(
     rows.map(({ id }) => id),
     0,
   );
+}
+
+export async function enqueueItemJobs(ports: JobPorts, itemId: number): Promise<void> {
+  const queued = await ports.db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.itemId, itemId), sql`${jobs.state} <> 'done'`));
+
+  await enqueueRows(ports, queued);
 }

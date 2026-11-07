@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, exists, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
 
 import { DIGEST_INPUT_BYTES, cutDigestInput } from "./ai-contract.ts";
 import { failedAiTask } from "./ai-tasks.ts";
@@ -13,6 +13,7 @@ import {
 import { hasOpenJob } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
+import { eligibleComments } from "./reddit-thread.ts";
 import { insertGuard, items } from "./schema.ts";
 
 export function digestInput(db: Database, id: number) {
@@ -25,16 +26,21 @@ export function digestInput(db: Database, id: number) {
       pendingDigest: items.pendingDigest,
       postTextKey: items.postTextKey,
       postText: sql<string | null>`substr(${items.postText}, 1, ${DIGEST_INPUT_BYTES})`,
+      hasComments: sql<boolean>`${eligibleComments()}`.mapWith(Boolean),
     })
     .from(items)
     .where(eq(items.id, id));
+}
+
+export function hasDigestSource() {
+  return or(isNotNull(items.postText), isNotNull(items.postTextKey), eligibleComments()) ?? sql`0`;
 }
 
 export type DigestInput = Awaited<ReturnType<typeof digestInput>>[number];
 
 export function setDigestFailure(
   db: Database,
-  itemId: number,
+  itemId: number | Readonly<SQLWrapper>,
   failed: boolean,
   condition: Readonly<SQLWrapper> = exists(hasOpenJob("digest")),
 ) {
