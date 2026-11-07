@@ -177,9 +177,11 @@ test("closing an Item opened by its address replaces that entry, so Back does no
   await showGrid(page, "sheet", `/items/${target}`);
   await expect(sheet(page)).toBeVisible();
 
+  const entries = await page.evaluate(() => history.length);
   await bar(page).getByRole("button", { name: CLOSE_LABEL }).click();
   await expect(sheet(page)).toHaveCount(0);
   await expect(link(page, target)).toBeFocused();
+  expect(await page.evaluate(() => history.length), "closing added no history entry").toBe(entries);
 
   await page.goBack();
   expect(page.url(), "Back went to the page before, not the closed Item").not.toContain("/items/");

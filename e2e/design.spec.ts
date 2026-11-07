@@ -127,7 +127,7 @@ test("the page keeps the design checks at four widths in every theme and accent,
         await checkPanel(page, what);
 
         if (covered) {
-          await page.goBack();
+          await page.locator(`article.it[data-key="${first.body.item.id}"] .it-open`).click();
         }
 
         if (accent === "cobalt") {
