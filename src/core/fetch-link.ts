@@ -6,6 +6,7 @@ import {
   type Page,
   SMALL_BODY_BYTES,
   guardedFetch,
+  loggedFailureOf,
 } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { fetchedOfRepository } from "./github-fetch.ts";
@@ -41,7 +42,7 @@ async function fetchedOf(
   whenStopped: FetchFailure,
 ): Promise<Fetched> {
   if (outcome.kind !== "page") {
-    return { status: outcome.kind === "stopped" ? whenStopped : outcome.reason };
+    return { status: loggedFailureOf(outcome, whenStopped) };
   }
 
   try {
@@ -109,6 +110,6 @@ export async function resolveShortLink(
   );
 
   return outcome.kind === "failed"
-    ? { kind: "failed", fetched: { status: outcome.reason } }
+    ? { kind: "failed", fetched: { status: loggedFailureOf(outcome, "redirect-stopped") } }
     : { kind: "resolved", address: outcome.url };
 }
