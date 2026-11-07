@@ -118,7 +118,7 @@ export function expectMarkdown(postText: string | null): void {
   );
 }
 
-const LIVE_HOST_FAILURES: ReadonlySet<Fetch> = new Set(["timeout", "status", "network"]);
+const LIVE_HOST_FAILURES: ReadonlySet<Fetch> = new Set(["timeout", "status"]);
 
 export async function livePasted<Result>(
   name: string,
