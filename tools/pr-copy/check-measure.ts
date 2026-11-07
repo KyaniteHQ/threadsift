@@ -120,6 +120,7 @@ async function attemptPaste(
 
   const item = await endState(copy, id);
   const end = Date.now();
+  const swept = (await sweepAt(run)) !== sweptBefore;
   const jobs = await fetchJobs(run, id);
 
   for (const job of jobs) findings.job(job.id);
@@ -135,8 +136,6 @@ async function attemptPaste(
       enough: (seen) => seen.some(isSentinelAfter(end)) && seen.some(insideOwnInterval(start, end)),
     },
   );
-
-  const swept = (await sweepAt(run)) !== sweptBefore;
 
   return { id, item, url, start, end, jobs, found, complete, swept };
 }
