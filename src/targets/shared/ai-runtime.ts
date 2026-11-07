@@ -1,5 +1,6 @@
 import {
   PROVIDERS,
+  HttpProviderSchema,
   type AiExecution,
   type AiTaskRequest,
   refusedAi,
@@ -20,7 +21,7 @@ interface AiRuntimeOptions {
   readonly binding?: BindingRunner | undefined;
 }
 
-const HTTP_PROVIDERS = [PROVIDERS["openai-compatible"].id, PROVIDERS.openrouter.id] as const;
+const HTTP_PROVIDERS = HttpProviderSchema.options;
 
 export async function aiRuntime({
   publicOnly,

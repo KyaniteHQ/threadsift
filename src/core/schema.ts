@@ -169,7 +169,7 @@ export const settings = sqliteTable(
   {
     id: integer("id").primaryKey(),
     provider: text("provider", {
-      enum: ["openai-compatible", "openrouter", "workers-ai"],
+      enum: ["openai-compatible", "openrouter", "anthropic", "openai", "xai", "workers-ai"],
     }).notNull(),
     baseUrl: text("base_url"),
     model: text("model").notNull(),

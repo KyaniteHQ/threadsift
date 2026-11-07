@@ -11,6 +11,9 @@ export const AI_TEXT = {
   provider: "Provider",
   compatible: "OpenAI-compatible URL",
   openrouter: "OpenRouter",
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  xai: "xAI",
   workersAi: "Workers AI",
   workersAiHelp:
     "Workers AI runs on this Instance's Cloudflare account. No URL or API key is needed.",
@@ -36,6 +39,10 @@ export const AI_TEXT = {
   "model-not-found": "Model not found. Check the model and save again.",
   "no-json":
     "The Provider did not return a valid Digest. Choose a model that supports structured JSON.",
+  declined:
+    "The Provider refused to return a Digest. Choose another model or Provider and save again.",
+  "cut-off":
+    "The Provider cut off the Digest at the output limit. Choose a model that answers briefly in JSON or has a larger limit and save again.",
   unreachable: "Couldn’t reach the Provider. Check the URL and connection.",
   timeout: "The Provider timed out. Try Verify again.",
   refused:

@@ -21,6 +21,16 @@ export const DigestSchema = z.object({
 const Model = z.string().trim().min(1).max(AI_MODEL_MAX);
 const Key = z.string().min(1).max(AI_KEY_MAX).optional();
 
+function keyedProvider<const Id extends string, const Url extends string>(id: Id, url: Url) {
+  return {
+    id,
+    label: id,
+    url,
+    names: ["model", "key"],
+    fields: { model: Model, key: Key },
+  } as const;
+}
+
 export const PROVIDERS = {
   "openai-compatible": {
     id: "openai-compatible",
@@ -29,13 +39,10 @@ export const PROVIDERS = {
     names: ["baseUrl", "model", "key"],
     fields: { baseUrl: z.url().max(AI_URL_MAX), model: Model, key: Key },
   },
-  openrouter: {
-    id: "openrouter",
-    label: "openrouter",
-    url: "https://openrouter.ai/api/v1",
-    names: ["model", "key"],
-    fields: { model: Model, key: Key },
-  },
+  openrouter: keyedProvider("openrouter", "https://openrouter.ai/api/v1"),
+  anthropic: keyedProvider("anthropic", "https://api.anthropic.com/v1"),
+  openai: keyedProvider("openai", "https://api.openai.com/v1"),
+  xai: keyedProvider("xai", "https://api.x.ai/v1"),
   "workers-ai": {
     id: "workers-ai",
     label: "workersAi",
@@ -48,6 +55,9 @@ export const PROVIDERS = {
 export const HttpProviderSchema = z.enum([
   PROVIDERS["openai-compatible"].id,
   PROVIDERS.openrouter.id,
+  PROVIDERS.anthropic.id,
+  PROVIDERS.openai.id,
+  PROVIDERS.xai.id,
 ]);
 
 export const ProviderSchema = z.enum([...HttpProviderSchema.options, PROVIDERS["workers-ai"].id]);
@@ -60,6 +70,9 @@ export const AiSettingsInputSchema = z.discriminatedUnion("provider", [
     ...PROVIDERS["openai-compatible"].fields,
   }),
   z.object({ provider: z.literal(PROVIDERS.openrouter.id), ...PROVIDERS.openrouter.fields }),
+  z.object({ provider: z.literal(PROVIDERS.anthropic.id), ...PROVIDERS.anthropic.fields }),
+  z.object({ provider: z.literal(PROVIDERS.openai.id), ...PROVIDERS.openai.fields }),
+  z.object({ provider: z.literal(PROVIDERS.xai.id), ...PROVIDERS.xai.fields }),
   z.object({ provider: z.literal(PROVIDERS["workers-ai"].id), ...PROVIDERS["workers-ai"].fields }),
 ]);
 
@@ -67,6 +80,8 @@ const AiExecutionRefusalSchema = z.enum([
   "wrong-key",
   "model-not-found",
   "no-json",
+  "declined",
+  "cut-off",
   "unreachable",
   "timeout",
   "refused",
@@ -148,6 +163,8 @@ export function retriesAi({ reason, status }: Readonly<AiRefused>): boolean {
       return status === null || (status >= 200 && status < 300);
     case "wrong-key":
     case "model-not-found":
+    case "declined":
+    case "cut-off":
     case "refused":
     case "provider-unavailable":
     case "key-needed":

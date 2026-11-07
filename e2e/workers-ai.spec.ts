@@ -23,6 +23,8 @@ import { isContainerTarget } from "./target.ts";
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
+const HTTP_PROVIDER_IDS = ["openai-compatible", "openrouter", "anthropic", "openai", "xai"];
+
 const KEYLESS_ROW = {
   provider: "workers-ai",
   base_url: null,
@@ -79,6 +81,9 @@ async function saveWorkersAi(): Promise<void> {
   await expect(picker.locator("option")).toHaveText([
     AI_TEXT.compatible,
     AI_TEXT.openrouter,
+    AI_TEXT.anthropic,
+    AI_TEXT.openai,
+    AI_TEXT.xai,
     AI_TEXT.workersAi,
   ]);
   await picker.selectOption("workers-ai");
@@ -182,7 +187,7 @@ async function refuseStoredRow(): Promise<void> {
   await screen.page.reload();
   const stored = await aiJson(screen, AiSettingsViewSchema, "GET", AI_SETTINGS_ENDPOINT);
   expect(stored.settings).toEqual({ provider: "workers-ai", model: MODEL });
-  expect(stored.providers).toEqual(["openai-compatible", "openrouter"]);
+  expect(stored.providers).toEqual(HTTP_PROVIDER_IDS);
 
   expect(await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).toEqual({
     kind: "refused",
@@ -213,10 +218,13 @@ test("the container leaves Workers AI out, answers 400 to a save that names it, 
 
   await page.goto("/settings");
   const view = await aiJson(screen, AiSettingsViewSchema, "GET", AI_SETTINGS_ENDPOINT);
-  expect(view.providers).toEqual(["openai-compatible", "openrouter"]);
+  expect(view.providers).toEqual(HTTP_PROVIDER_IDS);
   await expect(page.getByLabel(AI_TEXT.provider, { exact: true }).locator("option")).toHaveText([
     AI_TEXT.compatible,
     AI_TEXT.openrouter,
+    AI_TEXT.anthropic,
+    AI_TEXT.openai,
+    AI_TEXT.xai,
   ]);
 
   const refused = await context.request.put(AI_SETTINGS_ENDPOINT, {
