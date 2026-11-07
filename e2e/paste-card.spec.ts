@@ -198,6 +198,7 @@ test("Escape dismisses the card and focuses the paste field, from the card and f
   await page.keyboard.press("Escape");
   await expect(pasteCard(page)).toBeHidden();
   await expect(pasteField(page)).toBeFocused();
+  await expect(page).toHaveURL(/\/items\/\d+$/u);
 
   await pasteOnly(page, `https://example.com/${run}/escape-field`);
   await expect(cardTitle(page)).toHaveText(ADDED);

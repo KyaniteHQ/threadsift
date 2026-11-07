@@ -3,10 +3,19 @@ import { type RefObject, useCallback, useEffect, useRef } from "react";
 import type { Item } from "../../src/http/schemas.ts";
 import type { BarStep } from "./bar-fit.ts";
 import { Icon } from "./Icon.tsx";
-import { BACK_LONG, HINT_PANE, MARK_READ, MARK_UNREAD, OPEN_LABELS } from "./reader-text.ts";
+import {
+  BACK_LONG,
+  BACK_SHORT,
+  HINT_PANE,
+  MARK_READ,
+  MARK_UNREAD,
+  OPEN_LABELS,
+} from "./reader-text.ts";
 import type { ReaderControls } from "./Reader.tsx";
 import { followProgress } from "./reading-progress.ts";
+import { SettingsPanel } from "./SettingsPanel.tsx";
 import { useBarFit } from "./use-bar-fit.ts";
+import type { Look } from "./use-root.ts";
 
 export type BarMode = "pane" | "page" | "phone";
 
@@ -14,15 +23,16 @@ type Steps = readonly [BarStep, ...BarStep[]];
 
 const STEPS: Readonly<Record<BarMode, Steps>> = {
   pane: [
-    { hint: true, labels: true },
-    { hint: false, labels: true },
-    { hint: false, labels: false },
+    { hint: true, labels: true, back: "label" },
+    { hint: false, labels: true, back: "label" },
+    { hint: false, labels: false, back: "label" },
   ],
   page: [
-    { hint: false, labels: true },
-    { hint: false, labels: false },
+    { hint: false, labels: true, back: "label" },
+    { hint: false, labels: false, back: "short" },
+    { hint: false, labels: false, back: "icon" },
   ],
-  phone: [{ hint: false, labels: false }],
+  phone: [{ hint: false, labels: false, back: "icon" }],
 };
 
 function useProgress(bar: RefObject<HTMLElement | null>): void {
@@ -47,7 +57,12 @@ function ReadIcon({ read }: Readonly<{ read: boolean }>) {
   );
 }
 
-export function ReaderBar({ item, controls }: Readonly<{ item: Item; controls: ReaderControls }>) {
+export function ReaderBar({
+  item,
+  controls,
+  look,
+  openSettings,
+}: Readonly<{ item: Item; controls: ReaderControls; look: Look; openSettings: () => void }>) {
   const { mode, settingsKey, toggleRead, close, hintPlaced } = controls;
   const bar = useRef<HTMLDivElement>(null);
   const read = item.readState === "read";
@@ -64,7 +79,10 @@ export function ReaderBar({ item, controls }: Readonly<{ item: Item; controls: R
       {mode === "pane" ? null : (
         <button type="button" className="btn btn-plain rd-back" onClick={close}>
           <Icon name="left" className="ic" />
-          <span>{BACK_LONG}</span>
+          <span className="rd-back-long">{BACK_LONG}</span>
+          <span className="rd-back-short" hidden>
+            {BACK_SHORT}
+          </span>
         </button>
       )}
       <div className="rd-actions">
@@ -73,6 +91,7 @@ export function ReaderBar({ item, controls }: Readonly<{ item: Item; controls: R
             {HINT_PANE}
           </p>
         ) : null}
+        {mode === "pane" ? null : <SettingsPanel look={look} openInstanceSettings={openSettings} />}
         <button type="button" className="btn rd-act" aria-keyshortcuts="M" onClick={toggle}>
           <ReadIcon read={read} />
           <span className="rd-act-l">{read ? MARK_UNREAD : MARK_READ}</span>

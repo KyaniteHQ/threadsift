@@ -1,9 +1,10 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { SETTINGS } from "../design/system/settings-table.ts";
+import { BACK_LONG, BACK_SHORT } from "../web/src/reader-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { storeSettings, viewportAt } from "./look.ts";
+import { gear, openPanel, panel, storeSettings, viewportAt } from "./look.ts";
 import { bar, reader, seedRows } from "./reader.ts";
 
 const WIDTHS = [390, 600, 1440, 1920] as const;
@@ -60,7 +61,7 @@ function crowdedControls(page: Page): Promise<string[]> {
     let previous: DOMRect | null = null;
 
     for (const part of document.querySelectorAll<HTMLElement>(
-      ".rd-bar .rd-back, .rd-bar .rd-hint, .rd-bar .rd-act",
+      ".rd-bar .rd-back, .rd-bar .rd-hint, .rd-bar .st-gear, .rd-bar .rd-act",
     )) {
       const box = part.getBoundingClientRect();
 
@@ -174,4 +175,88 @@ test("as the pane narrows the bar drops the key hint first and the button labels
     stages.toSorted((left, right) => left - right),
   );
   expect(samples.at(-1)?.stage, "the phone shows icons only").toBe(2);
+});
+
+type BackLook = "label" | "short" | "icon";
+
+const BACK_ORDER: readonly BackLook[] = ["label", "short", "icon"];
+
+async function backLook(page: Page): Promise<BackLook> {
+  const back = bar(page).locator(".rd-back");
+
+  if (await back.evaluate((element) => element.classList.contains("bare"))) return "icon";
+
+  const shown = (await back.locator("span:visible").innerText()).trim();
+
+  if (shown === BACK_LONG) return "label";
+
+  expect(shown).toBe(BACK_SHORT);
+
+  return "short";
+}
+
+const SQUEEZE_FROM = 600;
+const SQUEEZE_TO = 240;
+const SQUEEZE_STEP = 12;
+
+test("as the page bar is squeezed, Back goes from its label to the word Back to its icon, and nothing overflows on the way", async () => {
+  const { page } = screen;
+  const [, id = 0] = ids;
+  await viewportAt(page, SQUEEZE_FROM);
+  await storeSettings(page, {}, `/items/${id}`);
+  await expect(reader(page)).toBeVisible();
+  const seen: BackLook[] = [];
+
+  for (let width = SQUEEZE_FROM; width >= SQUEEZE_TO; width -= SQUEEZE_STEP) {
+    await bar(page).evaluate((element, wanted) => {
+      element.style.maxWidth = `${wanted}px`;
+    }, width);
+    await expect.poll(() => crowdedControls(page), { message: `${width}px` }).toEqual([]);
+    seen.push(await backLook(page));
+  }
+
+  const ranks = seen.map((look) => BACK_ORDER.indexOf(look));
+  expect(ranks, "Back never goes back to a longer form as the bar narrows").toEqual(
+    ranks.toSorted((left, right) => left - right),
+  );
+  expect(new Set(seen), "the bar starts with the label and ends with the icon").toEqual(
+    new Set(BACK_ORDER),
+  );
+
+  await viewportAt(page, 390);
+  await expect.poll(() => backLook(page)).toBe("icon");
+  await expect(bar(page).locator(".rd-back")).toHaveAccessibleName(BACK_LONG);
+});
+
+function carriesGear(width: number): void {
+  test(`at ${width}px the Reader that covers the list carries the settings gear, and it opens the settings panel`, async () => {
+    const { page } = screen;
+    const [, id = 0] = ids;
+    await viewportAt(page, width);
+    await storeSettings(page, {}, `/items/${id}`);
+    await expect(reader(page)).toBeVisible();
+
+    await expect(bar(page).locator(".st-gear")).toBeVisible();
+    const dialog = await openPanel(page);
+    await expect(dialog).toBeVisible();
+    await expect(gear(page)).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Escape");
+    await expect(panel(page)).toHaveCount(0);
+    await expect(gear(page)).toBeFocused();
+    await expect(reader(page)).toBeVisible();
+  });
+}
+
+for (const width of [390, 600]) {
+  carriesGear(width);
+}
+
+test("the wide pane's bar has no settings gear, because the masthead's is beside it", async () => {
+  const { page } = screen;
+  const [, id = 0] = ids;
+  await viewportAt(page, 1440);
+  await storeSettings(page, {}, `/items/${id}`);
+  await expect(reader(page)).toBeVisible();
+
+  await expect(bar(page).locator(".st-gear")).toHaveCount(0);
 });

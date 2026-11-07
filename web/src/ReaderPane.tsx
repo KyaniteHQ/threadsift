@@ -4,13 +4,21 @@ import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { READER_LOADING, READER_PLACEHOLDER } from "./reader-text.ts";
 import { Reader, type ReaderControls } from "./Reader.tsx";
+import type { Look } from "./use-root.ts";
 
 const LOADING = <output className="rd-note">{READER_LOADING}</output>;
 
 export function ReaderPane({
   item,
   controls,
-}: Readonly<{ item: Item | null; controls: ReaderControls }>) {
+  look,
+  openSettings,
+}: Readonly<{
+  item: Item | null;
+  controls: ReaderControls;
+  look: Look;
+  openSettings: () => void;
+}>) {
   const slot = useRef<HTMLDivElement>(null);
   const placeholderId = useId();
 
@@ -26,7 +34,14 @@ export function ReaderPane({
   return (
     <div ref={slot} className="reader-slot">
       <Suspense fallback={LOADING}>
-        <Reader key={item.id} item={item} slot={slot} controls={controls} />
+        <Reader
+          key={item.id}
+          item={item}
+          slot={slot}
+          controls={controls}
+          look={look}
+          openSettings={openSettings}
+        />
       </Suspense>
     </div>
   );

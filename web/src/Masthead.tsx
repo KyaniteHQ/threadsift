@@ -26,14 +26,7 @@ function Brand({
     <div className="brand">
       <h1>Threadsift</h1>
       {total === null ? null : <Total count={total} />}
-      <SettingsPanel
-        settings={look.settings}
-        themeNote={look.themeNote}
-        modal={look.narrow}
-        choose={look.pick}
-        reset={look.reset}
-        openInstanceSettings={openSettings}
-      />
+      <SettingsPanel look={look} openInstanceSettings={openSettings} />
     </div>
   );
 }

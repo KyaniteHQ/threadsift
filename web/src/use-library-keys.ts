@@ -18,6 +18,10 @@ function rowIdOf(target: Element | null): number | null {
   return key === undefined || Number.isNaN(id) ? null : id;
 }
 
+function inPasteBox(event: KeyboardEvent): boolean {
+  return event.composedPath().some((node) => node instanceof Element && node.matches(".paste"));
+}
+
 function press(event: KeyboardEvent, target: Element | null, actions: KeyActions): void {
   const { key } = event;
 
@@ -34,7 +38,7 @@ function press(event: KeyboardEvent, target: Element | null, actions: KeyActions
   } else if (key === "/" && !actions.covered) {
     event.preventDefault();
     actions.focusSearch();
-  } else if (key === "Escape" && actions.openId !== null && target?.closest(".paste") === null) {
+  } else if (key === "Escape" && actions.openId !== null && !inPasteBox(event)) {
     event.preventDefault();
     actions.close();
   }

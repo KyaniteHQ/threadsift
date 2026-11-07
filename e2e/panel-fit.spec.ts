@@ -68,6 +68,7 @@ test("a popover narrower than its rows can use, and a sheet under 480px, stack e
   await expectLabelsAboveControls(await openAtRootSize(page, 780, 200));
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 390, height: 700 });
+  await expect(app(page)).toHaveAttribute("data-bp", /\bphone\b/u);
   await page.evaluate(() => {
     document.documentElement.style.fontSize = "";
   });
@@ -81,6 +82,7 @@ test("the gear sits on the wordmark's centre line at the row's end whatever the 
   const fonts = SETTINGS.find((row) => row.key === "font")?.options ?? [];
 
   for (const { id } of fonts) {
+    await page.setViewportSize({ width: 390, height: 900 });
     await storeSettings(page, { font: id });
     await expect(app(page)).toHaveAttribute("data-font", id);
 

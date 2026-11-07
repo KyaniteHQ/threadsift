@@ -1,6 +1,6 @@
 import { pixelsOf } from "./css-length.ts";
 
-const PARTS = ".rd-back, .rd-hint, .rd-act";
+const PARTS = ".rd-back, .rd-hint, .st-gear, .rd-act";
 const TOLERANCE = 0.5;
 const ROUNDING = 1;
 
@@ -31,15 +31,21 @@ export function barOverflows(bar: HTMLElement): boolean {
 export interface BarStep {
   readonly hint: boolean;
   readonly labels: boolean;
+  readonly back: "label" | "short" | "icon";
+}
+
+function setHidden(bar: HTMLElement, selector: string, hidden: boolean): void {
+  const part = bar.querySelector<HTMLElement>(selector);
+
+  if (part !== null) part.hidden = hidden;
 }
 
 function applyStep(bar: HTMLElement, step: Readonly<BarStep>): void {
   bar.classList.toggle("icons", !step.labels);
-  bar.querySelector(".rd-back")?.classList.toggle("bare", !step.labels);
-
-  const hint = bar.querySelector<HTMLElement>(".rd-hint");
-
-  if (hint !== null) hint.hidden = !step.hint;
+  bar.querySelector(".rd-back")?.classList.toggle("bare", step.back === "icon");
+  setHidden(bar, ".rd-back-short", step.back !== "short");
+  setHidden(bar, ".rd-back-long", step.back === "short");
+  setHidden(bar, ".rd-hint", !step.hint);
 }
 
 export function fitBar(bar: HTMLElement, steps: readonly [BarStep, ...BarStep[]]): BarStep {

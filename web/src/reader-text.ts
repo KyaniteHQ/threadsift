@@ -11,6 +11,7 @@ export const MARKED_READ = "Marked as read";
 export const MARKED_UNREAD = "Marked as unread";
 export const READ_FAILED = "Couldn’t change this item’s read state.";
 export const BACK_LONG = "Back to list";
+export const BACK_SHORT = "Back";
 export const HINT_LIST = "j k move · Enter open · m read · / search";
 export const HINT_PANE = "j k move · Enter open · m read · / search · Esc close";
 export const READER_LOADING = "Loading item…";

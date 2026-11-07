@@ -42,7 +42,14 @@ export function Library({
         openId={route.openId}
         openSettings={openSettings}
       />
-      {hasReader ? <ReaderPane item={openItem} controls={side.reader.controls} /> : null}
+      {hasReader ? (
+        <ReaderPane
+          item={openItem}
+          controls={side.reader.controls}
+          look={look}
+          openSettings={openSettings}
+        />
+      ) : null}
       <Announcement text={side.reader.announcement.text} failed={side.reader.announcement.failed} />
     </div>
   );

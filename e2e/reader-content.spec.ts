@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { KEY_POINTS_LABEL, READER_PLACEHOLDER, SUMMARY_LABEL } from "../web/src/reader-text.ts";
+import { KEY_POINTS_LABEL, SUMMARY_LABEL } from "../web/src/reader-text.ts";
 import { SOURCE_LABELS } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { postLinkRaw, settled } from "./api.ts";
@@ -45,7 +45,6 @@ test("an Article sent with a caller Digest opens in the Reader with its header, 
 
   const book = await settled(context.request, saved.body.item.id, BOOK_TIMEOUT_MS);
   await openLibrary(page, DESKTOP_WIDTH, "/", 2);
-  await expect(page.locator(".reader-ph")).toContainText(READER_PLACEHOLDER);
 
   await openRow(page, essay.id);
   const head = reader(page).locator(".rd-head");

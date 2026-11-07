@@ -5,6 +5,7 @@ import type { Item } from "../../src/http/schemas.ts";
 import type { Attention } from "./ItemRow.tsx";
 import { type ListState, knownItems } from "./list-state.ts";
 import type { Route } from "./routing.ts";
+import { useAutoOpen } from "./use-auto-open.ts";
 import { useLibraryKeys } from "./use-library-keys.ts";
 import { type ReaderState, useReaderControls } from "./use-reader-controls.ts";
 import type { Look } from "./use-root.ts";
@@ -70,7 +71,9 @@ export function useReaderSide({
 
   const appOf = useCallback(() => root.current?.closest(".app") ?? null, [root]);
   const reader = useReaderControls({ list, route, look, attend, setRead, inReader, appOf });
-  const { openId } = route;
+  const { openId, replace } = route;
+
+  useAutoOpen({ list, openId, replace, wide: !look.narrow, attend });
 
   const leaveSearch = useCallback(() => {
     if (openId === null) root.current?.querySelector<HTMLElement>(".list")?.focus();

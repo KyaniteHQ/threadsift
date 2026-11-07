@@ -6,6 +6,7 @@ import { type BarMode, ReaderBar } from "./ReaderBar.tsx";
 import { ReaderColumn } from "./ReaderColumn.tsx";
 import { refreshKey, useItemDetail } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
+import type { Look } from "./use-root.ts";
 
 export interface ReaderControls {
   readonly mode: BarMode;
@@ -19,10 +20,14 @@ export function Reader({
   item,
   slot,
   controls,
+  look,
+  openSettings,
 }: Readonly<{
   item: Item;
   slot: RefObject<HTMLElement | null>;
   controls: ReaderControls;
+  look: Look;
+  openSettings: () => void;
 }>) {
   use(postTextModule);
 
@@ -33,7 +38,7 @@ export function Reader({
 
   return (
     <section className="reader" aria-labelledby={titleId}>
-      <ReaderBar item={item} controls={controls} />
+      <ReaderBar item={item} controls={controls} look={look} openSettings={openSettings} />
       <ReaderColumn
         item={item}
         state={state}
