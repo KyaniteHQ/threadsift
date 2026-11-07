@@ -13,6 +13,7 @@ import {
   recordedInstancePerFile,
   shareFromThisPage,
   foreignSitesPerFile,
+  libraryAddress,
 } from "./share.ts";
 
 const NEW_CARD_MS = 30_000;
@@ -42,7 +43,7 @@ test("a trusted share saves the link from the text, refreshes it on a second sha
   await shareFromThisPage(page, { text });
   await pasteCard(page).hover();
   await expect(cardTitle(page)).toHaveText(ADDED, { timeout: NEW_CARD_MS });
-  await expect(page).toHaveURL(`${recorded().url}/`);
+  await expect(page).toHaveURL(libraryAddress(recorded().url));
 
   const [item] = await listForRun(request, run);
   expect(item?.originalUrl).toBe(link);
@@ -93,7 +94,7 @@ test("a forged address at /?saved= or /?link= makes the server receive no save, 
   await expect(cardTitle(page)).toHaveText(REFRESHED, { timeout: NEW_CARD_MS });
   await page.goto(`/?link=${encodeURIComponent(link)}`);
   await expect(pasteField(page)).toHaveValue(link);
-  await expect(page).toHaveURL(`${recorded().url}/`);
+  await expect(page).toHaveURL(libraryAddress(recorded().url));
 
   expect(submissionsSince(start)).toEqual({ share: 0, items: 0 });
   expect(await listForRun(request, run)).toHaveLength(1);
@@ -118,7 +119,7 @@ test("a trusted share with no link in any field shows the invalid-link error and
 
   await expect(pasteCard(page)).toContainText(NOTICES.invalid.text);
   await expect(pasteField(page)).toHaveValue("just some words, no link");
-  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page).toHaveURL(libraryAddress(baseURL ?? ""));
   expect(await listAll(request)).toHaveLength(before);
 });
 
@@ -162,7 +163,7 @@ for (const [label, side, kind] of ARRIVALS) {
       kind === "sandboxed-form" ? page.frameLocator("iframe").locator("#go") : page.locator("#go")
     ).click();
 
-    await expect(page).toHaveURL(`${baseURL}/`);
+    await expect(page).toHaveURL(libraryAddress(baseURL ?? ""));
     await expect(pasteField(page)).toHaveValue(link);
     expect(await listAll(request)).toHaveLength(before);
     expect(await listForRun(request, run)).toHaveLength(0);
@@ -213,7 +214,7 @@ test("a link of 3,000 characters from another site is cut to 1,000 in the paste 
   await page.goto(foreign().pageFor(foreign().crossSite, "post-form", link));
   await page.locator("#go").click();
 
-  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page).toHaveURL(libraryAddress(baseURL ?? ""));
   await expect(pasteField(page)).toHaveValue(link.slice(0, PREFILL_LIMIT));
   await expect(pasteCard(page)).toContainText(NOTICES.invalid.text);
   expect(await listAll(request)).toHaveLength(before);
@@ -228,7 +229,7 @@ test("1,000 characters that each take nine bytes in the address still open the l
   await page.goto(foreign().pageFor(foreign().crossSite, "post-form", words));
   await page.locator("#go").click();
 
-  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page).toHaveURL(libraryAddress(baseURL ?? ""));
   await expect(pasteField(page)).toHaveValue(words);
   await expect(pasteCard(page)).toContainText(NOTICES.invalid.text);
 });

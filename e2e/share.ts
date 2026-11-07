@@ -19,6 +19,13 @@ interface FormPost {
   readonly entries: readonly (readonly [string, string])[];
 }
 
+export function libraryAddress(base: string): (url: URL) => boolean {
+  const origin = new URL(base).origin;
+
+  return (url) =>
+    url.origin === origin && url.search === "" && /^\/(?:items\/\d+)?$/u.test(url.pathname);
+}
+
 export async function shareFromThisPage(page: Page, fields: SharedFields): Promise<void> {
   const post: FormPost = { action: SHARE_ACTION, entries: Object.entries(fields) };
 
