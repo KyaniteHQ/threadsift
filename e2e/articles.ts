@@ -125,9 +125,18 @@ export async function gutenbergPasted<Result>(
   attempt: () => Promise<Result>,
   fetchOf: (result: Result) => Fetch,
 ) {
-  const pasted = await attempted(attempt, fetchOf, (fetch) => GUTENBERG_HOST_FAILURES.has(fetch));
+  const fetches: Fetch[] = [];
+  let pasted: Awaited<ReturnType<typeof attempted<Result>>>;
 
-  await attachJson(test.info(), `${name}-fetches.json`, JSON.stringify(pasted.fetches));
+  try {
+    pasted = await attempted(attempt, fetchOf, {
+      retryOn: (fetch) => GUTENBERG_HOST_FAILURES.has(fetch),
+      fetches,
+    });
+  } finally {
+    await attachJson(test.info(), `${name}-fetches.json`, JSON.stringify(fetches));
+  }
+
   expect(
     fetchOf(pasted.last),
     `the fetch result of ${name}, attempt by attempt: ${pasted.fetches.join(", ")}`,

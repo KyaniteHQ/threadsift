@@ -64,11 +64,14 @@ export type Fetch = Awaited<ReturnType<typeof itemOf>>["fetch"];
 export async function attempted<Result>(
   attempt: () => Promise<Result>,
   fetchOf: (result: Result) => Fetch,
-  retryOn: (fetch: Fetch) => boolean = (fetch) => fetch !== "ok",
+  {
+    retryOn = (fetch) => fetch !== "ok",
+    fetches = [],
+  }: Readonly<{ retryOn?: ((fetch: Fetch) => boolean) | undefined; fetches?: Fetch[] }> = {},
 ) {
   const first = await attempt();
   let last = first;
-  const fetches = [fetchOf(first)];
+  fetches.push(fetchOf(first));
 
   for (let tries = 1; tries < FETCH_ATTEMPTS && retryOn(fetchOf(last)); tries += 1) {
     last = await attempt();
@@ -86,7 +89,7 @@ export async function postLinkFetched(
   const { first, last, fetches } = await attempted(
     () => postLink(request, url, timeout),
     ({ body }) => body.item.fetch,
-    retryOn,
+    { retryOn },
   );
 
   return { status: first.status, body: last.body, fetches };
