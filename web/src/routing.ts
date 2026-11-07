@@ -1,4 +1,5 @@
 import { type MouseEvent, useCallback, useEffect, useState } from "react";
+import { z } from "zod";
 
 export const SETTINGS_PATH = "/settings";
 
@@ -8,6 +9,17 @@ export interface Route {
   readonly openId: number | null;
   readonly navigate: (to: string) => void;
   readonly replace: (to: string) => void;
+  readonly leave: () => void;
+}
+
+const LIBRARY_PATH = "/";
+
+const EntrySchema = z.object({ from: z.string() });
+
+function openedFromLibrary(): boolean {
+  const entry = EntrySchema.safeParse(window.history.state);
+
+  return entry.success && entry.data.from === LIBRARY_PATH;
 }
 
 export function usePath() {
@@ -26,16 +38,25 @@ export function usePath() {
   }, []);
 
   const navigate = useCallback((to: string) => {
-    window.history.pushState(null, "", to);
+    window.history.pushState({ from: window.location.pathname }, "", to);
     setPath(to);
   }, []);
 
   const replace = useCallback((to: string) => {
-    window.history.replaceState(null, "", to);
+    window.history.replaceState(window.history.state, "", to);
     setPath(to);
   }, []);
 
-  return { path, navigate, replace };
+  const leave = useCallback(() => {
+    if (openedFromLibrary()) {
+      window.history.back();
+      setPath(LIBRARY_PATH);
+    } else {
+      replace(LIBRARY_PATH);
+    }
+  }, [replace]);
+
+  return { path, navigate, replace, leave };
 }
 
 export function useInternalLink(open: () => void) {

@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import { ListColumn } from "./ListColumn.tsx";
 import { ReaderPane } from "./ReaderPane.tsx";
 import type { Route } from "./routing.ts";
-import { useLayoutLook } from "./use-layout-look.ts";
 import { useLibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
 
@@ -20,12 +19,11 @@ function Announcement({ text, failed }: Readonly<{ text: string; failed: boolean
 }
 
 export function Library({
-  look: chosen,
+  look,
   arrived,
   route,
   openSettings,
 }: Readonly<{ look: Look; arrived: boolean; route: Route; openSettings: () => void }>) {
-  const look = useLayoutLook(chosen, route);
   const view = useLibraryView(look, route);
   const { root, counts, openItem, covered, side } = view;
 

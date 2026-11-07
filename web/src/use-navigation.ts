@@ -5,6 +5,7 @@ import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
 import { focusNeighbourCard } from "./reveal.ts";
 import type { Route } from "./routing.ts";
+import { useCardReturn } from "./use-card-return.ts";
 import { changeView } from "./view-transition.ts";
 
 function neighbour(list: Readonly<ListState>, openId: number | null, direction: 1 | -1) {
@@ -67,7 +68,7 @@ export function useNavigation({
   covers: boolean;
   appOf: () => Element | null;
 }>) {
-  const { openId, navigate } = route;
+  const { openId, navigate, leave } = route;
   const [titleFocus, focusTitleOf] = useState<number | null>(null);
 
   const open = useCallback(
@@ -84,11 +85,10 @@ export function useNavigation({
   const close = useCallback(() => {
     if (openId === null) return;
 
-    changeView(appOf(), openId, covers, () => {
-      attend({ id: openId, focus: true });
-      navigate("/");
-    });
-  }, [appOf, attend, covers, navigate, openId]);
+    changeView(appOf(), openId, covers, leave);
+  }, [appOf, covers, leave, openId]);
+
+  useCardReturn({ list, openId, covers, attend, appOf });
 
   const step = useStep({ list, route, attend, inReader, focusTitleOf, covers, appOf });
 

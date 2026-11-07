@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import { itemIdOf } from "../../src/core/item-path.ts";
 import { usePath } from "./routing.ts";
@@ -11,13 +11,18 @@ import { useRoot } from "./use-root.ts";
 import { useSessionView } from "./use-session-view.ts";
 
 export function App() {
-  const { ref, attributes, ...look } = useRoot();
+  const { path, navigate, replace, leave } = usePath();
+
+  const closeItem = useCallback(() => {
+    if (itemIdOf(window.location.pathname) !== null) replace("/");
+  }, [replace]);
+
+  const { ref, attributes, ...look } = useRoot(closeItem);
   const { view, ...session } = useSessionView();
-  const { path, navigate, replace } = usePath();
 
   const route = useMemo(
-    () => ({ openId: itemIdOf(path), navigate, replace }),
-    [path, navigate, replace],
+    () => ({ openId: itemIdOf(path), navigate, replace, leave }),
+    [path, navigate, replace, leave],
   );
 
   const screen = screenOf(view, path);

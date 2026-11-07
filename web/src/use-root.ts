@@ -16,10 +16,10 @@ export interface Look {
   readonly reset: () => void;
 }
 
-export function useRoot() {
+export function useRoot(onLayoutChange: () => void) {
   const ref = useRef<HTMLDivElement>(null);
   const bands = useBands(ref);
-  const { attributes, ...look } = useSettings();
+  const { attributes, ...look } = useSettings(onLayoutChange);
   const narrow = bands.includes("narrow");
 
   return {

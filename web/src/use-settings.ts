@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useState,
@@ -60,12 +61,18 @@ function usePageAttributes(attributes: Readonly<Record<string, string>>): void {
   }, [attributes]);
 }
 
-export function useSettings() {
-  const [settings, setSettings] = useState(() => readStored(readStorage()));
-  const isDark = useSyncExternalStore(subscribeToDeviceScheme, deviceIsDark);
-  const attributes = useMemo(() => rootAttributes(settings, isDark), [settings, isDark]);
+function useStorageSync(
+  settings: Readonly<Settings>,
+  setSettings: (next: Settings) => void,
+  onLayoutChange: () => void,
+): void {
+  const receive = useEffectEvent((text: string | null) => {
+    const next = readStored(text);
 
-  usePageAttributes(attributes);
+    if (next.layout !== settings.layout) onLayoutChange();
+
+    setSettings(next);
+  });
 
   useEffect(() => {
     const listeners = new AbortController();
@@ -74,7 +81,7 @@ export function useSettings() {
       "storage",
       (event) => {
         if (event.key === STORAGE_KEY || event.key === null) {
-          setSettings(readStored(event.newValue));
+          receive(event.newValue);
         }
       },
       { signal: listeners.signal },
@@ -84,6 +91,16 @@ export function useSettings() {
       listeners.abort();
     };
   }, []);
+}
+
+export function useSettings(onLayoutChange: () => void) {
+  const [settings, setSettings] = useState(() => readStored(readStorage()));
+  const isDark = useSyncExternalStore(subscribeToDeviceScheme, deviceIsDark);
+  const attributes = useMemo(() => rootAttributes(settings, isDark), [settings, isDark]);
+
+  usePageAttributes(attributes);
+
+  useStorageSync(settings, setSettings, onLayoutChange);
 
   const apply = useCallback((next: Settings) => {
     setSettings(next);
@@ -92,9 +109,13 @@ export function useSettings() {
 
   const pick = useCallback(
     (key: SettingKey, id: string) => {
-      apply(choose(settings, key, id));
+      const next = choose(settings, key, id);
+
+      if (next.layout !== settings.layout) onLayoutChange();
+
+      apply(next);
     },
-    [apply, settings],
+    [apply, onLayoutChange, settings],
   );
 
   const reset = useCallback(() => {

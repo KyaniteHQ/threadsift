@@ -141,3 +141,47 @@ test("the sheet's settings panel opens inside it, Escape closes the panel first 
   await expect(sheet(page)).toHaveCount(0);
   await expect(link(page, target)).toBeFocused();
 });
+
+test("browser Back closes the Sheet with focus on the card last shown, Forward reopens it, and closing leaves no entry behind", async () => {
+  const { page } = screen;
+  const [first = 0, second = 0] = ids;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await showGrid(page, "sheet");
+  await link(page, first).click();
+  await expect(sheet(page)).toBeVisible();
+  await page.getByRole("button", { name: NEXT_ITEM }).click();
+  await expect(page).toHaveURL(new RegExp(`/items/${second}$`, "u"));
+
+  await page.goBack();
+  await expect(sheet(page)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/$/u);
+  await expect(link(page, second)).toBeFocused();
+
+  await page.goForward();
+  await expect(sheet(page)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/items/${second}$`, "u"));
+  await expect(reader(page).locator(".rd-title")).toHaveText("Card number 2");
+
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
+  await expect(link(page, second)).toBeFocused();
+  await page.goForward();
+  await expect(sheet(page)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/items/${second}$`, "u"));
+});
+
+test("closing an Item opened by its address replaces that entry, so Back does not reopen it", async () => {
+  const { page } = screen;
+  const target = ids[3] ?? 0;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await showGrid(page, "sheet", `/items/${target}`);
+  await expect(sheet(page)).toBeVisible();
+
+  await bar(page).getByRole("button", { name: CLOSE_LABEL }).click();
+  await expect(sheet(page)).toHaveCount(0);
+  await expect(link(page, target)).toBeFocused();
+
+  await page.goBack();
+  expect(page.url(), "Back went to the page before, not the closed Item").not.toContain("/items/");
+  await expect(sheet(page)).toHaveCount(0);
+});

@@ -4,13 +4,36 @@ import { SETTINGS } from "../design/system/settings-table.ts";
 import { BACK_LONG, BACK_SHORT } from "../web/src/reader-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { gear, openPanel, panel, storeSettings, viewportAt } from "./look.ts";
+import { app, gear, openPanel, panel, storeSettings, viewportAt } from "./look.ts";
 import { bar, reader, seedRows } from "./reader.ts";
 
 const VIEWS = [
-  { name: "List", stored: {}, widths: [390, 600, 1440, 1920] },
-  { name: "Grid as Page", stored: { layout: "grid", openAs: "page" }, widths: [600, 1440] },
-  { name: "Grid as Sheet", stored: { layout: "grid", openAs: "sheet" }, widths: [760, 1440] },
+  {
+    name: "List",
+    stored: {},
+    places: [
+      { width: 390, place: "page" },
+      { width: 600, place: "page" },
+      { width: 1440, place: "pane" },
+      { width: 1920, place: "pane" },
+    ],
+  },
+  {
+    name: "Grid as Page",
+    stored: { layout: "grid", openAs: "page" },
+    places: [
+      { width: 600, place: "page" },
+      { width: 1440, place: "page" },
+    ],
+  },
+  {
+    name: "Grid as Sheet",
+    stored: { layout: "grid", openAs: "sheet" },
+    places: [
+      { width: 760, place: "sheet" },
+      { width: 1440, place: "sheet" },
+    ],
+  },
 ] as const;
 
 function optionsOf(key: string): readonly string[] {
@@ -87,34 +110,35 @@ function crowdedControls(page: Page): Promise<string[]> {
   });
 }
 
-function fitsAtEveryFontAndSize(view: (typeof VIEWS)[number], width: number): void {
+function fitsAtEveryFontAndSize(
+  view: (typeof VIEWS)[number],
+  { width, place }: (typeof VIEWS)[number]["places"][number],
+): void {
   test(`${view.name} at ${width}px: no reader bar control overflows or overlaps another, at every Font and Text size`, async () => {
     const { page } = screen;
     await viewportAt(page, width);
-    let checked = 0;
 
     for (const font of FONTS) {
       for (const size of SIZES) {
         for (const id of ids) {
           await storeSettings(page, { ...view.stored, font, size }, `/items/${id}`);
           await expect(reader(page)).toBeVisible();
+          await expect(app(page)).toHaveAttribute("data-reader", place);
+          await expect(page.locator("dialog.sheet")).toHaveCount(place === "sheet" ? 1 : 0);
           await expect(bar(page).locator(".rd-act").first()).toBeVisible();
           await page.evaluate(() => document.fonts.ready);
           await expect
             .poll(() => crowdedControls(page), { message: `${font} ${size} Item ${id}` })
             .toEqual([]);
-          checked += 1;
         }
       }
     }
-
-    expect(checked).toBe(FONTS.length * SIZES.length * ids.length);
   });
 }
 
 for (const view of VIEWS) {
-  for (const width of view.widths) {
-    fitsAtEveryFontAndSize(view, width);
+  for (const entry of view.places) {
+    fitsAtEveryFontAndSize(view, entry);
   }
 }
 

@@ -4,6 +4,7 @@ import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { CARDS, seedCards } from "./grid.ts";
 import { DESKTOP, app, expectChosen, openPanel, pickOption, storedSettings } from "./look.ts";
+import { reader } from "./reader.ts";
 
 let screen: FreshScreen;
 
@@ -71,4 +72,29 @@ test("Layout and Open items as survive a reload, and Reset look leaves them alon
   await expect(app(page)).toHaveAttribute("data-open-as", "sheet");
   expect(await storedSettings(page)).toMatchObject({ layout: "grid", openAs: "sheet" });
   await expectChosen(await openPanel(page), "Open items as", "Sheet");
+});
+
+test("a Layout chosen in a second tab closes the Item open in the first, whichever Layout it was", async () => {
+  const { page } = screen;
+  await expect(page).toHaveURL(/\/items\/\d+$/u);
+  await expect(reader(page)).toBeVisible();
+
+  const other = await page.context().newPage();
+  await other.setViewportSize(DESKTOP);
+  await other.goto("/");
+  const dialog = await openPanel(other);
+  await pickOption(dialog, "Layout", "Grid");
+
+  await expect(app(page)).toHaveAttribute("data-layout", "grid");
+  await expect(page).toHaveURL(/\/$/u);
+  await expect(reader(page)).toHaveCount(0);
+
+  await page.locator("article.it a.it-open").first().click();
+  await expect(page).toHaveURL(/\/items\/\d+$/u);
+  await expect(reader(page)).toBeVisible();
+
+  await pickOption(dialog, "Layout", "List");
+  await expect(app(page)).toHaveAttribute("data-layout", "list");
+  await expect(page).toHaveURL(/\/$/u);
+  await other.close();
 });

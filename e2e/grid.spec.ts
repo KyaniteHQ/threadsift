@@ -84,6 +84,33 @@ test("a card opens the Reader as a full page, and Back returns to the same card 
   );
 });
 
+test("in Page, browser Back returns to the card last shown, Forward reopens it, and Back to grid leaves no entry behind", async () => {
+  const { page } = screen;
+  const [first = 0, second = 0] = ids;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await showGrid(page, "page");
+  await link(page, first).click();
+  await expect(reader(page)).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(page).toHaveURL(new RegExp(`/items/${second}$`, "u"));
+
+  await page.goBack();
+  await expect(reader(page)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/$/u);
+  await expect(link(page, second)).toBeFocused();
+
+  await page.goForward();
+  await expect(reader(page)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/items/${second}$`, "u"));
+
+  await bar(page).getByRole("button", { name: BACK_TO_GRID }).click();
+  await expect(reader(page)).toHaveCount(0);
+  await expect(link(page, second)).toBeFocused();
+  await page.goForward();
+  await expect(reader(page)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/items/${second}$`, "u"));
+});
+
 test("in Page the arrow keys step through the shown Items in grid order, and j or k with nothing open only move focus between cards", async () => {
   const { page } = screen;
   const [first = 0, second = 0, third = 0] = ids;
