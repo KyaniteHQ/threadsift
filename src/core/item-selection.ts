@@ -1,35 +1,21 @@
 import { asc, desc, eq, getTableColumns, sql } from "drizzle-orm";
 
 import { type ReaderDigest, parseStoredDigest } from "./ai-contract.ts";
+import { DIGEST_VIEW_COLUMNS } from "./digest-view.ts";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
-import { hasOpenJob } from "./job-rows.ts";
-import type { DIGEST_OUTCOMES } from "./kinds.ts";
 import type { Database, Ports } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
 import { commentsOf, threadReads } from "./reddit-thread.ts";
 import { REPOSITORY_COLUMNS } from "./repositories.ts";
-import { digests, githubRepos, itemTags, items, tags, topics } from "./schema.ts";
+import { digests, githubRepos, itemTags, items, tags } from "./schema.ts";
 
 export const EMPTY_JOINED_VIEW = {
   digestTitle: null,
   digestTopic: null,
   digestOutcome: "none",
+  digestSource: false,
   stars: null,
 } as const;
-
-export const DIGEST_VIEW_COLUMNS = {
-  digestTitle: sql<string | null>`${digests.title}`.as("digest_title"),
-  digestTopic: sql<
-    string | null
-  >`coalesce((select ${topics.name} from ${topics} where ${topics.id} = ${items.topicId}), ${digests.topic})`.as(
-    "digest_topic",
-  ),
-  digestOutcome: sql<
-    (typeof DIGEST_OUTCOMES)[number]
-  >`case when exists ${hasOpenJob("digest")} then 'pending' when ${items.digestFailed} then 'failed' else 'none' end`.as(
-    "digest_outcome",
-  ),
-};
 
 const {
   generation: _generation,

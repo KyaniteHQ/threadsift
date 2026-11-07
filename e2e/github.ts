@@ -105,6 +105,14 @@ export const KEPT_DIGEST = {
   generation: 7,
 } as const;
 
+const STORED_DIGEST = JSON.stringify({
+  title: KEPT_DIGEST.title,
+  topic: "Reading",
+  tags: [],
+  summary: "A kept summary.",
+  keyPoints: ["A kept point."],
+});
+
 const StoredGeneration = z.array(z.object({ generation: z.number() }));
 
 export function storeKeptDigest(itemId: number): void {
@@ -115,8 +123,12 @@ export function storeKeptDigest(itemId: number): void {
     `INSERT INTO ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state, result, item_id) VALUES ('digest', '{}', ${KEPT_DIGEST.generation}, 'seed', 1, 0, 'done', '{}', ${itemId})`,
   );
   instance.sql(
-    `INSERT INTO digests (item_id, digest, title, topic, task_id, provider, model, generation, created_at) VALUES (${itemId}, '{"title":"${KEPT_DIGEST.title}"}', '${KEPT_DIGEST.title}', 'Reading', (SELECT max(id) FROM ai_tasks), 'seed', 'seed', ${KEPT_DIGEST.generation}, 1)`,
+    `INSERT INTO digests (item_id, digest, title, topic, task_id, provider, model, generation, created_at) VALUES (${itemId}, '${STORED_DIGEST}', '${KEPT_DIGEST.title}', 'Reading', (SELECT max(id) FROM ai_tasks), 'seed', 'seed', ${KEPT_DIGEST.generation}, 1)`,
   );
+}
+
+export function markDigestFailed(itemId: number): void {
+  mainInstance().sql(`UPDATE items SET digest_failed = 1 WHERE id = ${itemId}`);
 }
 
 export function generationOf(itemId: number): number | undefined {

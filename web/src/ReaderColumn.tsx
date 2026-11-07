@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { shownUrl, whereOf } from "../../src/core/links.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
@@ -40,18 +40,42 @@ function noteTextOf(item: Readonly<Item>): string | null {
   return key === null ? null : NOTICES[key].text;
 }
 
+function Note({
+  item,
+  text,
+  withRetry,
+  tryAgain,
+}: Readonly<{ item: Item; text: string; withRetry: boolean; tryAgain: (item: Item) => void }>) {
+  const retry = useCallback(() => {
+    tryAgain(item);
+  }, [item, tryAgain]);
+
+  if (!withRetry) return <p className="rd-note">{text}</p>;
+
+  return (
+    <div className="rd-orig">
+      <p className="rd-note">{text}</p>
+      <button type="button" className="btn btn-block" onClick={retry}>
+        {RETRY_LABEL}
+      </button>
+    </div>
+  );
+}
+
 function Head({
   item,
   detail,
   now,
   titleId,
   focusTitle,
+  tryAgain,
 }: Readonly<{
   item: Item;
   detail: ItemDetail | null;
   now: number;
   titleId: string;
   focusTitle: boolean;
+  tryAgain: (item: Item) => void;
 }>) {
   const title = useRef<HTMLHeadingElement>(null);
   const note = noteTextOf(item);
@@ -75,7 +99,9 @@ function Head({
       <h2 ref={title} id={titleId} className="rd-title" tabIndex={-1}>
         <bdi dir="auto">{name ?? shownUrl(item.normalizedUrl)}</bdi>
       </h2>
-      {note === null ? null : <p className="rd-note">{note}</p>}
+      {note === null ? null : (
+        <Note item={item} text={note} withRetry={item.status === "failed"} tryAgain={tryAgain} />
+      )}
     </header>
   );
 }
@@ -127,13 +153,19 @@ function digestNote(item: Readonly<Item>, hasDigest: boolean): string | null {
   return null;
 }
 
-function Agent({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
+function Agent({
+  item,
+  detail,
+  tryAgain,
+}: Readonly<{ item: Item; detail: ItemDetail; tryAgain: (item: Item) => void }>) {
   const note = digestNote(item, detail.digest !== null);
 
   return (
     <>
       {detail.digest === null ? null : <Summary item={item} digest={detail.digest} />}
-      {note === null ? null : <p className="rd-note">{note}</p>}
+      {note === null ? null : (
+        <Note item={item} text={note} withRetry={item.retry !== null} tryAgain={tryAgain} />
+      )}
     </>
   );
 }
@@ -142,8 +174,15 @@ function Body({
   item,
   state,
   retry,
+  tryAgain,
   now,
-}: Readonly<{ item: Item; state: DetailState; retry: () => void; now: number }>) {
+}: Readonly<{
+  item: Item;
+  state: DetailState;
+  retry: () => void;
+  tryAgain: (item: Item) => void;
+  now: number;
+}>) {
   if (state.status === "loading") {
     return <output className="rd-note">{READER_LOADING}</output>;
   }
@@ -161,7 +200,7 @@ function Body({
 
   return (
     <>
-      <Agent item={item} detail={state.detail} />
+      <Agent item={item} detail={state.detail} tryAgain={tryAgain} />
       <Original item={item} detail={state.detail} now={now} />
     </>
   );
@@ -171,6 +210,7 @@ export function ReaderColumn({
   item,
   state,
   retry,
+  tryAgain,
   now,
   titleId,
   focusTitle,
@@ -178,6 +218,7 @@ export function ReaderColumn({
   item: Item;
   state: DetailState;
   retry: () => void;
+  tryAgain: (item: Item) => void;
   now: number;
   titleId: string;
   focusTitle: boolean;
@@ -190,8 +231,9 @@ export function ReaderColumn({
         now={now}
         titleId={titleId}
         focusTitle={focusTitle}
+        tryAgain={tryAgain}
       />
-      <Body item={item} state={state} retry={retry} now={now} />
+      <Body item={item} state={state} retry={retry} tryAgain={tryAgain} now={now} />
     </div>
   );
 }

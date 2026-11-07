@@ -55,6 +55,7 @@ export function Library({
           nav={nav}
           look={look}
           openSettings={openSettings}
+          tryAgain={view.actions.retryItem}
         />
       ) : null}
       <Announcement text={side.reader.announcement.text} failed={side.reader.announcement.failed} />

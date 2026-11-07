@@ -55,7 +55,7 @@ function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.
     base.extend({
       status: z.literal("ready"),
       reason: z.null(),
-      retry: z.literal("digest"),
+      retry: z.enum(["digest", "paste"]),
       digestOutcome: z.literal("failed"),
     }),
     base.extend({
@@ -204,7 +204,7 @@ type StatusFields =
   | {
       readonly status: "ready";
       readonly reason: null;
-      readonly retry: "digest";
+      readonly retry: "digest" | "paste";
       readonly digestOutcome: "failed";
     }
   | {
@@ -216,6 +216,7 @@ type StatusFields =
 
 type StatusRow = Pick<ItemRow, "id" | "status" | "reason"> & {
   readonly digestOutcome: (typeof DIGEST_OUTCOMES)[number];
+  readonly digestSource: boolean;
 };
 
 function statusOf(item: Readonly<StatusRow>): StatusFields {
@@ -239,13 +240,20 @@ function statusOf(item: Readonly<StatusRow>): StatusFields {
     throw new Error(`Item ${String(id)} is ready and its Digest is pending`);
   }
 
-  return item.digestOutcome === "failed"
-    ? { status, reason, retry: "digest", digestOutcome: "failed" }
-    : { status, reason, retry: null, digestOutcome: "none" };
+  if (item.digestOutcome === "none") return { status, reason, retry: null, digestOutcome: "none" };
+
+  return {
+    status,
+    reason,
+    retry: item.digestSource ? "digest" : "paste",
+    digestOutcome: "failed",
+  };
 }
 
 export function itemView<Row extends StatusRow>(
   row: Readonly<Row>,
-): Omit<Row, "status" | "reason"> & StatusFields {
-  return { ...row, ...statusOf(row) };
+): Omit<Row, "status" | "reason" | "digestSource"> & StatusFields {
+  const { digestSource: _digestSource, ...view } = row;
+
+  return { ...view, ...statusOf(row) };
 }

@@ -84,20 +84,23 @@ export function useListActions(
   const { attention, attend, attended } = useOpenItem(list, route);
   const [request, setRequest] = useState<PasteRequest | null>(null);
 
+  const retryItem = useCallback((item: Item) => {
+    if (item.retry === null) return;
+    setRequest((current) => {
+      const base = { url: item.originalUrl, seq: (current?.seq ?? 0) + 1 };
+
+      return item.retry === "digest"
+        ? { ...base, kind: "digest", id: item.id }
+        : { ...base, kind: "paste" };
+    });
+  }, []);
+
   const tryAgain = useCallback(
     (item: Item) => {
       attend({ id: item.id, focus: true });
-
-      if (item.retry === null) return;
-      setRequest((current) => {
-        const base = { url: item.originalUrl, seq: (current?.seq ?? 0) + 1 };
-
-        return item.retry === "digest"
-          ? { ...base, kind: "digest", id: item.id }
-          : { ...base, kind: "paste" };
-      });
+      retryItem(item);
     },
-    [attend],
+    [attend, retryItem],
   );
 
   return {
@@ -106,6 +109,7 @@ export function useListActions(
     attended,
     request,
     tryAgain,
+    retryItem,
     saveAndShow: useSaveAndShow(actions.save, attend, pane),
     retryAndKeepPlace: useKeptPlace(list, actions.retry, pane),
   };
