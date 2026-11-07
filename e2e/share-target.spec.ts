@@ -2,14 +2,15 @@ import { expect } from "@playwright/test";
 
 import { ItemListResponseSchema } from "../src/http/schemas.ts";
 import { NOTICES } from "../web/src/text.ts";
-import { SAME_ORIGIN, agentToken, bearer, test } from "./access.ts";
-import { listAll, listForRun, postLinkRaw, settled } from "./api.ts";
+import { SAME_ORIGIN, agentToken, bearer, ownerContext, test } from "./access.ts";
+import { listAll, listForRun, postLink, postLinkRaw, settled } from "./api.ts";
 import { ADDED, REFRESHED, cardTitle } from "./card.ts";
 import { addButton, newRunId, pasteCard, pasteField } from "./links.ts";
 import {
   type ForeignKind,
+  type Submissions,
   fetchJobCount,
-  shareCounter,
+  recordedInstancePerFile,
   shareFromThisPage,
   foreignSitesPerFile,
 } from "./share.ts";
@@ -17,23 +18,31 @@ import {
 const NEW_CARD_MS = 30_000;
 
 const foreign = foreignSitesPerFile();
+const recorded = recordedInstancePerFile();
+
+function submissionsSince(start: Submissions): Submissions {
+  const now = recorded().submissions();
+
+  return { share: now.share - start.share, items: now.items - start.items };
+}
 
 test("a trusted share saves the link from the text, refreshes it on a second share and never submits again", async ({
-  page,
+  browser,
   request,
-  baseURL,
 }) => {
   const run = newRunId();
   const link = `https://example.com/${run}/trusted?a=1#y`;
   const text = `Look at this ${link}.`;
-  const shares = shareCounter(page);
+  const start = recorded().submissions();
+  const context = await ownerContext(browser, { baseURL: recorded().url });
+  const page = await context.newPage();
 
   await page.goto("/");
   await expect(pasteField(page)).toBeVisible();
   await shareFromThisPage(page, { text });
   await pasteCard(page).hover();
   await expect(cardTitle(page)).toHaveText(ADDED, { timeout: NEW_CARD_MS });
-  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page).toHaveURL(`${recorded().url}/`);
 
   const [item] = await listForRun(request, run);
   expect(item?.originalUrl).toBe(link);
@@ -47,7 +56,10 @@ test("a trusted share saves the link from the text, refreshes it on a second sha
   expect(await listForRun(request, run)).toHaveLength(1);
   await settled(request, id);
   expect(fetchJobCount(id)).toBe(2);
-  expect(shares()).toBe(2);
+  expect(submissionsSince(start), "submissions the server received so far").toEqual({
+    share: 2,
+    items: 0,
+  });
 
   await page.reload();
   await expect(pasteField(page)).toBeVisible();
@@ -56,8 +68,42 @@ test("a trusted share saves the link from the text, refreshes it on a second sha
   await page.goForward();
   await expect(pasteField(page)).toBeVisible();
   await expect(pasteCard(page)).toHaveCount(0);
-  expect(shares(), "share submissions the browser sent").toBe(2);
+  expect(submissionsSince(start), "submissions the server received in all").toEqual({
+    share: 2,
+    items: 0,
+  });
   expect(fetchJobCount(id), "fetch jobs the server opened").toBe(2);
+  await context.close();
+});
+
+test("a forged address at /?saved= or /?link= makes the server receive no save, and Add makes one", async ({
+  browser,
+  request,
+}) => {
+  const run = newRunId();
+  const known = (await postLink(request, `https://example.com/${run}/known`)).body.item;
+  const link = `https://example.com/${run}/forged`;
+  const start = recorded().submissions();
+  const context = await ownerContext(browser, { baseURL: recorded().url });
+  const page = await context.newPage();
+
+  await page.goto(`/?saved=${known.id}`);
+  await expect(cardTitle(page)).toHaveText(ADDED, { timeout: NEW_CARD_MS });
+  await page.goto(`/?refreshed=${known.id}`);
+  await expect(cardTitle(page)).toHaveText(REFRESHED, { timeout: NEW_CARD_MS });
+  await page.goto(`/?link=${encodeURIComponent(link)}`);
+  await expect(pasteField(page)).toHaveValue(link);
+  await expect(page).toHaveURL(`${recorded().url}/`);
+
+  expect(submissionsSince(start)).toEqual({ share: 0, items: 0 });
+  expect(await listForRun(request, run)).toHaveLength(1);
+
+  await addButton(page).click();
+  await pasteCard(page).hover();
+  await expect(cardTitle(page)).toHaveText(ADDED, { timeout: NEW_CARD_MS });
+  expect(submissionsSince(start)).toEqual({ share: 0, items: 1 });
+  expect(await listForRun(request, run)).toHaveLength(2);
+  await context.close();
 });
 
 test("a trusted share with no link in any field shows the invalid-link error and stores nothing", async ({
@@ -127,6 +173,31 @@ for (const [label, side, kind] of ARRIVALS) {
     expect(await listForRun(request, run)).toHaveLength(1);
   });
 }
+
+test("a multipart share with no boundary hands off to the library with the invalid-link error and stores nothing", async ({
+  request,
+  baseURL,
+}) => {
+  const run = newRunId();
+  const before = (await listAll(request)).length;
+
+  const response = await request.post("/share", {
+    headers: {
+      ...SAME_ORIGIN,
+      origin: baseURL ?? "",
+      "content-type": "multipart/form-data",
+    },
+    data: `text=https://example.com/${run}/malformed`,
+    maxRedirects: 0,
+  });
+
+  expect(response.status()).toBe(303);
+  expect(response.headers()["cache-control"]).toBe("no-store");
+  const where = new URL(response.headers()["location"] ?? "", baseURL);
+  expect(where.pathname).toBe("/");
+  expect(where.searchParams.get("notice")).toBe("invalid");
+  expect(await listAll(request)).toHaveLength(before);
+});
 
 const PREFILL_LIMIT = 1000;
 

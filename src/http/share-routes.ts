@@ -1,5 +1,4 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import { z } from "zod";
 
 import { refreshedOf } from "../core/fetch-results.ts";
 import { saveItem } from "../core/items.ts";
@@ -8,11 +7,8 @@ import { SHARE_PATH, type ShareArrival, prefillOf, shareAddress } from "../core/
 import { type SharedContent, sharedContentOf } from "../core/shared-link.ts";
 import { bodyCap } from "./guard.ts";
 import { SaveItemRequestSchema } from "./schemas.ts";
+import { fieldsOf } from "./share-fields.ts";
 import { isTrustedShare } from "./share-trust.ts";
-
-const FieldSchema = z.union([z.string(), z.file().transform(() => "")]).default("");
-
-const SharedFieldsSchema = z.object({ title: FieldSchema, text: FieldSchema, url: FieldSchema });
 
 async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
   const request = SaveItemRequestSchema.safeParse({ url: link });
@@ -60,14 +56,12 @@ function arrivalFor(
 
 export function registerShareRoutes(app: OpenAPIHono, ports: Ports): void {
   app.on(["GET", "POST"], SHARE_PATH, bodyCap, async (c) => {
-    const posted = c.req.method === "POST";
-    const fields = SharedFieldsSchema.parse(posted ? await c.req.parseBody() : c.req.query());
+    const fields = await fieldsOf(c);
 
-    const arrival = await arrivalFor(
-      ports,
-      sharedContentOf(fields),
-      await isTrustedShare(c, ports),
-    );
+    const arrival =
+      fields === null
+        ? prefillOf("", "invalid")
+        : await arrivalFor(ports, sharedContentOf(fields), await isTrustedShare(c, ports));
 
     c.header("Cache-Control", "no-store");
 

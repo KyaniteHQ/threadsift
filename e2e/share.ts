@@ -1,4 +1,4 @@
-import { type Server, createServer } from "node:http";
+import { type Server, createServer, request as forward } from "node:http";
 
 import { type Page, test } from "@playwright/test";
 import { z } from "zod";
@@ -12,18 +12,6 @@ export interface SharedFields {
   readonly title?: string;
   readonly text?: string;
   readonly url?: string;
-}
-
-export function shareCounter(page: Page): () => number {
-  let seen = 0;
-
-  page.on("request", (request) => {
-    if (request.method() === "POST" && new URL(request.url()).pathname === SHARE_ACTION) {
-      seen += 1;
-    }
-  });
-
-  return () => seen;
 }
 
 interface FormPost {
@@ -180,5 +168,86 @@ export function foreignSitesPerFile(): () => ForeignSites {
     }
 
     return sites;
+  };
+}
+
+export interface Submissions {
+  readonly share: number;
+  readonly items: number;
+}
+
+export interface RecordedInstance {
+  readonly url: string;
+  submissions(): Submissions;
+  stop(): Promise<void>;
+}
+
+export async function recordInstance(instanceUrl: string): Promise<RecordedInstance> {
+  const target = new URL(instanceUrl);
+  const seen: string[] = [];
+
+  const server: Server = createServer((incoming, outgoing) => {
+    const { pathname } = new URL(incoming.url ?? "/", target);
+    seen.push(`${incoming.method ?? ""} ${pathname}`);
+
+    const upstream = forward(
+      {
+        hostname: target.hostname,
+        port: target.port,
+        path: incoming.url,
+        method: incoming.method,
+        headers: incoming.headers,
+      },
+      (answer) => {
+        outgoing.writeHead(answer.statusCode ?? 502, answer.headers);
+        answer.pipe(outgoing);
+      },
+    );
+
+    upstream.on("error", () => {
+      outgoing.writeHead(502).end();
+    });
+    incoming.pipe(upstream);
+  });
+
+  await new Promise<void>((done) => {
+    server.listen(0, "127.0.0.1", done);
+  });
+
+  const { port } = BoundSchema.parse(server.address());
+
+  return {
+    url: `${target.protocol}//${target.hostname}:${port}`,
+    submissions: () => ({
+      share: seen.filter((line) => line === `POST ${SHARE_ACTION}`).length,
+      items: seen.filter((line) => line === "POST /api/items").length,
+    }),
+    stop: () =>
+      new Promise<void>((done) => {
+        server.closeAllConnections();
+        server.close(() => {
+          done();
+        });
+      }),
+  };
+}
+
+export function recordedInstancePerFile(): () => RecordedInstance {
+  let recorded: RecordedInstance | undefined;
+
+  test.beforeAll(async ({ baseURL }) => {
+    recorded = await recordInstance(baseURL ?? "");
+  });
+
+  test.afterAll(async () => {
+    await recorded?.stop();
+  });
+
+  return () => {
+    if (recorded === undefined) {
+      throw new Error("The recording proxy is not started");
+    }
+
+    return recorded;
   };
 }
