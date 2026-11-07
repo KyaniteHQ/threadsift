@@ -315,7 +315,7 @@ Not built: neither `extension/` nor `bot/` exists yet.
 
 ## Cloudflare deploy button
 
-Not built: `.dev.vars.example`, the `cloudflare` key and the `deploy` script in `package.json`, and `.github/workflows/update-from-upstream.yml` do not exist, and `wrangler.jsonc` binds D1, the `threadsift-jobs` Queue, a Cron Trigger and the `FILES` R2 binding for the bucket name `threadsift-files`, but no Workers AI. The binding serves local runs and the file store; creating a bucket for each deployed copy is not built. The text below is the plan.
+Not built: `.dev.vars.example`, the `cloudflare` key and the `deploy` script in `package.json`, and `.github/workflows/update-from-upstream.yml` do not exist, and `wrangler.jsonc` binds D1, the `threadsift-jobs` Queue, a Cron Trigger and the `FILES` R2 binding for the bucket name `threadsift-files`, and the `AI` binding for Workers AI, which names no resource of its own and so needs no provisioning on the button. The `FILES` binding serves local runs and the file store; creating a bucket for each deployed copy is not built. The text below is the plan.
 
 - The button is `https://deploy.workers.cloudflare.com/?url=https://github.com/KyaniteHQ/threadsift/tree/release`. It points at the `release` branch, which moves only when a release is cut, so a click never deploys work in progress. Cloudflare provisions the resources `wrangler.jsonc` names, which will be the D1 database, R2 bucket, Queue and Workers AI binding (Workers docs, Deploy buttons).
 - `.dev.vars.example` lists the secrets the button prompts for: `THREADSIFT_SECRET_KEY` and `SETUP_CODE`. `cloudflare.bindings` in `package.json` explains each binding on that page.

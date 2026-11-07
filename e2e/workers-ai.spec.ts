@@ -201,7 +201,7 @@ async function refuseStoredRow(): Promise<void> {
   ]);
 }
 
-test("the container leaves Workers AI out, answers 400 to a save that names it, changes nothing, and refuses a stored Workers AI row", async ({
+test("the container leaves Workers AI out, answers 400 to a save that names it, and changes nothing", async ({
   browser,
 }) => {
   test.skip(!isContainerTarget(), "the Worker offers Workers AI");
@@ -230,8 +230,16 @@ test("the container leaves Workers AI out, answers 400 to a save that names it, 
 
   await saveInBrowser(screen, "container-proof-key", "https://example.com", "http-model");
   expect(jobsOf(older.id, screen.fresh, "digest")).toHaveLength(1);
+});
 
+test("the container refuses a stored Workers AI row, records a failed task for each Verify, and the form says so", async ({
+  browser,
+}) => {
+  test.skip(!isContainerTarget(), "the Worker offers Workers AI");
+  screen = await aiScreen(browser, newSealingKey());
+  await screen.page.goto("/settings");
   await refuseStoredRow();
-  await page.getByRole("button", { name: AI_TEXT.verify, exact: true }).click();
-  await expect(page.getByRole("alert")).toHaveText(AI_TEXT["provider-unavailable"]);
+  await screen.page.getByRole("button", { name: AI_TEXT.verify, exact: true }).click();
+  await expect(screen.page.getByRole("alert")).toHaveText(AI_TEXT["provider-unavailable"]);
+  expect(countRows(screen, "ai_tasks")).toBe(2);
 });

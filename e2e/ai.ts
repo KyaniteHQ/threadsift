@@ -177,6 +177,14 @@ export async function aiJson<Result>(
   return schema.parse(JSON.parse(await aiCall(screen, method, path, body)));
 }
 
+export function putSettings<Result>(
+  screen: FreshScreen,
+  schema: z.ZodType<Result>,
+  body: Readonly<Record<string, string>>,
+): Promise<Result> {
+  return aiJson(screen, schema, "PUT", AI_SETTINGS_ENDPOINT, JSON.stringify(body));
+}
+
 export function readDigestTask(screen: FreshScreen) {
   const task = screen.fresh.query(
     "SELECT kind, executor, input_revision AS inputRevision, deadline, state, result, attempts FROM ai_tasks",

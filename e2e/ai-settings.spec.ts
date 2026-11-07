@@ -23,6 +23,7 @@ import {
   openSealed,
   expectDigest,
   pressKeepingFocus,
+  putSettings,
   readDigestTask,
 } from "./ai.ts";
 import { type FreshScreen } from "./fresh-screen.ts";
@@ -252,8 +253,11 @@ test("the OpenRouter row saves without a caller-supplied base URL", async ({ bro
   await expect(screen.page.getByLabel(AI_TEXT.baseUrl, { exact: true })).toHaveValue("");
 });
 
-test("a save needs a key on first use and after changing the connection", async ({ browser }) => {
-  screen = await aiScreen(browser, newSealingKey());
+test("a save needs a key on first use and after changing the connection, and keeps the saved key when the connection is unchanged", async ({
+  browser,
+}) => {
+  const secret = newSealingKey();
+  screen = await aiScreen(browser, secret);
   await screen.page.goto("/settings");
   await expect(screen.page.getByLabel(AI_TEXT.key, { exact: true })).toHaveAttribute(
     "required",
@@ -261,25 +265,23 @@ test("a save needs a key on first use and after changing the connection", async 
   );
   const input = { provider: "openai-compatible", baseUrl: "https://example.com", model: "example" };
   const refusal = { kind: "refused", reason: "key-needed", status: null };
-  expect(
-    await aiJson(screen, AiSaveResponseSchema, "PUT", AI_SETTINGS_ENDPOINT, JSON.stringify(input)),
-  ).toEqual(refusal);
+  expect(await putSettings(screen, AiSaveResponseSchema, input)).toEqual(refusal);
   expect(countRows(screen, "settings")).toBe(0);
   await saveInBrowser(screen, "key-needed-proof", input.baseUrl, input.model);
+
+  const kept = await putSettings(screen, AiSettingsViewSchema, input);
+
+  expect(kept.settings).toMatchObject({ keySet: true });
+  expect(
+    openSealed(sealedKey(screen), secret) === "key-needed-proof",
+    "an unchanged connection saved without a key still opens to the original key",
+  ).toBe(true);
 
   for (const changed of [
     { ...input, baseUrl: "https://example.org" },
     { ...input, model: "another" },
     { provider: "openrouter", model: "example" },
   ]) {
-    expect(
-      await aiJson(
-        screen,
-        AiSaveResponseSchema,
-        "PUT",
-        AI_SETTINGS_ENDPOINT,
-        JSON.stringify(changed),
-      ),
-    ).toEqual(refusal);
+    expect(await putSettings(screen, AiSaveResponseSchema, changed)).toEqual(refusal);
   }
 });

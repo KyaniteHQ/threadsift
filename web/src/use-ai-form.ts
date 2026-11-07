@@ -42,7 +42,7 @@ type Result =
   | { readonly kind: "error"; readonly text: string };
 
 function refusalText(refusal: AiRefused): string {
-  return refusal.reason === "provider-busy"
+  return refusal.reason === "provider-busy" && refusal.status !== null
     ? `${AI_TEXT[refusal.reason]} (${String(refusal.status)})`
     : AI_TEXT[refusal.reason];
 }
