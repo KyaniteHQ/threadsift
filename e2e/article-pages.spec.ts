@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { itemOf, postLink, postLinkFetched, postLinkRaw, settled } from "./api.ts";
+import { itemOf, postLink, postLinkRaw, settled } from "./api.ts";
 import {
-  BIG_PAGE_TIMEOUT_MS,
   BIRD_VOCALIZATION,
   BIRD_VOCALIZATION_FOOTNOTE,
   BIRD_VOCALIZATION_SENTENCE,
@@ -22,9 +21,9 @@ import {
   attachItem,
   expectMarkdown,
   longPage,
+  pasteGutenberg,
   rawMediaOutsideCode,
 } from "./articles.ts";
-import { attachJson } from "./card.ts";
 import { forgetItem, storeItem } from "./ingest.ts";
 import { htmlPage, newRunId } from "./links.ts";
 
@@ -86,14 +85,9 @@ test("a long page served as plain text stays Other with no text", async ({ reque
 
 test("a page over 5 MiB is cut and never read as an article", async ({ request }, info) => {
   const {
-    body: { item },
-    fetches,
-  } = await postLinkFetched(request, COMPLETE_SHAKESPEARE, {
-    timeout: BIG_PAGE_TIMEOUT_MS,
-    retryOn: (fetch) => fetch === "status",
-  });
+    last: { item },
+  } = await pasteGutenberg(request, { name: "shakespeare", url: COMPLETE_SHAKESPEARE });
 
-  await attachJson(info, "shakespeare-fetches.json", JSON.stringify(fetches));
   expect(item).toMatchObject({ source: "other", kind: "link", fetch: "ok", postText: null });
   expect(item.title).toContain("Shakespeare");
   await attachItem(request, info, "shakespeare", item.id);

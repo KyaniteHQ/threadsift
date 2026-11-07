@@ -1,7 +1,8 @@
 import type { APIRequestContext, TestInfo } from "@playwright/test";
-import { expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { getItem, itemOf } from "./api.ts";
+import type { Digest } from "../src/core/ai-contract.ts";
+import { type Fetch, attempted, getItem, itemOf, postLinkRaw, settled } from "./api.ts";
 import { attachJson, expectNoStuckItems } from "./card.ts";
 
 export const ESSAY = "https://stephango.com/saw";
@@ -114,5 +115,43 @@ export async function attachItem(
 export function expectMarkdown(postText: string | null): void {
   expect(postText, "post text that Defuddle did not convert").not.toMatch(
     /<\/?(?:p|div|article|h[1-6])\b/u,
+  );
+}
+
+const GUTENBERG_HOST_FAILURES: ReadonlySet<Fetch> = new Set(["timeout", "status"]);
+
+export async function gutenbergPasted<Result>(
+  name: string,
+  attempt: () => Promise<Result>,
+  fetchOf: (result: Result) => Fetch,
+) {
+  const pasted = await attempted(attempt, fetchOf, (fetch) => GUTENBERG_HOST_FAILURES.has(fetch));
+
+  await attachJson(test.info(), `${name}-fetches.json`, JSON.stringify(pasted.fetches));
+  expect(
+    fetchOf(pasted.last),
+    `the fetch result of ${name}, attempt by attempt: ${pasted.fetches.join(", ")}`,
+  ).toBe("ok");
+
+  return pasted;
+}
+
+export function pasteGutenberg(
+  request: APIRequestContext,
+  {
+    name,
+    url,
+    digest,
+    timeout = BIG_PAGE_TIMEOUT_MS,
+  }: Readonly<{ name: string; url: string; digest?: Readonly<Digest>; timeout?: number }>,
+) {
+  return gutenbergPasted(
+    name,
+    async () => {
+      const { status, body } = await postLinkRaw(request, url, digest);
+
+      return { status, item: await settled(request, body.item.id, timeout) };
+    },
+    ({ item }) => item.fetch,
   );
 }

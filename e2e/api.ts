@@ -59,26 +59,37 @@ export async function postLink(request: APIRequestContext, url: string, timeout?
 
 const FETCH_ATTEMPTS = 3;
 
-type Fetch = Awaited<ReturnType<typeof itemOf>>["fetch"];
+export type Fetch = Awaited<ReturnType<typeof itemOf>>["fetch"];
+
+export async function attempted<Result>(
+  attempt: () => Promise<Result>,
+  fetchOf: (result: Result) => Fetch,
+  retryOn: (fetch: Fetch) => boolean = (fetch) => fetch !== "ok",
+) {
+  const first = await attempt();
+  let last = first;
+  const fetches = [fetchOf(first)];
+
+  for (let tries = 1; tries < FETCH_ATTEMPTS && retryOn(fetchOf(last)); tries += 1) {
+    last = await attempt();
+    fetches.push(fetchOf(last));
+  }
+
+  return { first, last, fetches };
+}
 
 export async function postLinkFetched(
   request: APIRequestContext,
   url: string,
-  {
-    timeout,
-    retryOn = (fetch) => fetch !== "ok",
-  }: Readonly<{ timeout?: number; retryOn?: (fetch: Fetch) => boolean }> = {},
+  { timeout, retryOn }: Readonly<{ timeout?: number; retryOn?: (fetch: Fetch) => boolean }> = {},
 ) {
-  const first = await postLink(request, url, timeout);
-  let { item } = first.body;
-  const fetches = [item.fetch];
+  const { first, last, fetches } = await attempted(
+    () => postLink(request, url, timeout),
+    ({ body }) => body.item.fetch,
+    retryOn,
+  );
 
-  for (let attempt = 1; attempt < FETCH_ATTEMPTS && retryOn(item.fetch); attempt += 1) {
-    item = (await postLink(request, url, timeout)).body.item;
-    fetches.push(item.fetch);
-  }
-
-  return { status: first.status, body: { ...first.body, item }, fetches };
+  return { status: first.status, body: last.body, fetches };
 }
 
 export async function listAll(request: APIRequestContext) {
