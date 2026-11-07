@@ -113,6 +113,24 @@ test("the key hint moves from the reader bar to the list when the bar has no roo
   await expect(page.locator(".search .list-hint")).toHaveCount(0);
 });
 
+const MID_RESIZE_ROUNDS = 30;
+
+test("a font event between narrowing and widening the pane inside one frame leaves the bar fitted to the width it ends at", async () => {
+  const { page } = screen;
+  const [first = 0] = ids;
+  await openLibrary(page, DESKTOP.width, `/items/${first}`, ROWS);
+  await expect(bar(page).locator(".rd-hint")).toBeVisible();
+
+  for (let round = 0; round < MID_RESIZE_ROUNDS; round += 1) {
+    await page.setViewportSize({ width: SIDE_BY_SIDE, height: DESKTOP.height });
+    await page.evaluate(() => {
+      document.fonts.dispatchEvent(new Event("loadingdone"));
+    });
+    await page.setViewportSize({ width: DESKTOP.width, height: DESKTOP.height });
+    await expect(bar(page).locator(".rd-hint"), `round ${round}`).toBeVisible();
+  }
+});
+
 test("j and k from a Reader button or a post-text link keep the focus in the Reader, on the new Item's title", async () => {
   const { page } = screen;
   const [first = 0, second = 0] = ids;
