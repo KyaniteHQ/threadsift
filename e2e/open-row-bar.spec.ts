@@ -3,24 +3,12 @@ import { type Locator, type Page, expect, test } from "@playwright/test";
 import { newCode, newPassword } from "./access.ts";
 import { THEMES } from "./design-screens.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { DESKTOP, afterTwoFrames, storeSettings, viewportAt } from "./look.ts";
+import { DESKTOP, afterTwoFrames, optionsOf, storeSettings, viewportAt } from "./look.ts";
 import { row, seedRows } from "./reader.ts";
 
-const STYLES = [
-  "library",
-  "anthropic",
-  "slash",
-  "modal",
-  "mymind",
-  "monocle",
-  "linear",
-  "switch-lit",
-  "cursor",
-  "steep",
-  "cal-com",
-] as const;
+const STYLES = optionsOf("style");
 
-const ACCENTS = ["cobalt", "rust", "moss", "iris", "teal"] as const;
+const ACCENTS = optionsOf("accent");
 
 const WIDTHS_BESIDE_THE_READER = [760, 1100, 1920] as const;
 
@@ -156,7 +144,7 @@ async function expectBarInEveryState(page: Page, what: string): Promise<void> {
   await expectBar(page, `${what}, focused`);
 }
 
-function drawsBarIn(style: (typeof STYLES)[number]): void {
+function drawsBarIn(style: string): void {
   test(`the open row draws its ${BAR_WIDTH}px accent bar on its start edge in the ${style} Style in every theme, at rest, hovered and focused`, async () => {
     const { page } = screen;
     await viewportAt(page, DESKTOP.width);

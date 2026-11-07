@@ -1,10 +1,9 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { SETTINGS } from "../design/system/settings-table.ts";
 import { BACK_LONG, BACK_SHORT } from "../web/src/reader-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { app, gear, openPanel, panel, storeSettings, viewportAt } from "./look.ts";
+import { app, gear, openPanel, optionsOf, panel, storeSettings, viewportAt } from "./look.ts";
 import { bar, reader, seedRows } from "./reader.ts";
 
 const VIEWS = [
@@ -35,12 +34,6 @@ const VIEWS = [
     ],
   },
 ] as const;
-
-function optionsOf(key: string): readonly string[] {
-  const row = SETTINGS.find((setting) => setting.key === key);
-
-  return row === undefined ? [] : row.options.map((option) => option.id);
-}
 
 const FONTS = optionsOf("font");
 const SIZES = optionsOf("size");

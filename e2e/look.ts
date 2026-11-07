@@ -1,7 +1,7 @@
 import { type Locator, type Page, type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
-import { type SettingKey } from "../design/system/settings-table.ts";
+import { SETTINGS, type SettingKey } from "../design/system/settings-table.ts";
 import { STORAGE_KEY } from "../design/system/settings.ts";
 import { SETTINGS_GEAR_LABEL, SETTINGS_TITLE } from "../web/src/text.ts";
 
@@ -82,6 +82,12 @@ export async function tapDimmedPage(page: Page): Promise<void> {
 
 export function app(page: Page): Locator {
   return page.locator(".app");
+}
+
+export function optionsOf(key: SettingKey): readonly string[] {
+  const row = SETTINGS.find((setting) => setting.key === key);
+
+  return row === undefined ? [] : row.options.map((option) => option.id);
 }
 
 export async function storeSettings(page: Page, stored: Stored, url = "/"): Promise<void> {
