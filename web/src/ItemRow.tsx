@@ -28,7 +28,7 @@ function rowClasses(item: Readonly<Item>, isOpen: boolean): string {
     ...(item.readState === "unread" ? ["unread"] : []),
     ...(isOpen ? ["open"] : []),
     ...(item.title === null ? ["it-link-only"] : []),
-    ...(showsSkeleton(item) ? ["it-proc"] : []),
+    ...(item.status === "processing" ? ["it-proc"] : []),
   ].join(" ");
 }
 
