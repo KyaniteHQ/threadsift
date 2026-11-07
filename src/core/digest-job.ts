@@ -1,8 +1,9 @@
-import { type SQLWrapper, and, eq, exists, isNotNull, ne, notExists, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, exists, isNotNull, ne, notExists, or, sql } from "drizzle-orm";
 
 import {
   AI_DEADLINE_MS,
   DIGEST_INPUT_BYTES,
+  cutDigestInput,
   parseStoredDigest,
   digestPrompt,
   type Digest,
@@ -32,6 +33,7 @@ import {
 } from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
+import { readPostText } from "./post-text.ts";
 import { type JobRow, digests, insertGuard, items, settings } from "./schema.ts";
 import { digestPartWrites } from "./search.ts";
 
@@ -43,6 +45,7 @@ function digestInput(db: Database, id: number) {
       source: items.source,
       generation: items.generation,
       pendingDigest: items.pendingDigest,
+      postTextKey: items.postTextKey,
       postText: sql<string | null>`substr(${items.postText}, 1, ${DIGEST_INPUT_BYTES})`,
     })
     .from(items)
@@ -51,10 +54,21 @@ function digestInput(db: Database, id: number) {
 
 type DigestInput = Awaited<ReturnType<typeof digestInput>>[number];
 
+async function startOfFiledText(
+  ports: JobPorts,
+  { id, postTextKey }: Readonly<{ id: number; postTextKey: string }>,
+): Promise<string> {
+  const text = await readPostText(ports.files, id, postTextKey);
+
+  if (text === null) throw new Error(`The post text file of Item ${id} cannot be read`);
+
+  return cutDigestInput(text);
+}
+
 async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<JobOutcome> {
   const [item] = await digestInput(ports.db, job.itemId);
 
-  if (item === undefined || item.postText === null)
+  if (item === undefined || (item.postText === null && item.postTextKey === null))
     return { writes: [setDigestFailure(ports.db, job.itemId, false)] };
 
   if (item.pendingDigest !== null) {
@@ -68,11 +82,16 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
     return publishing(ports.db, item, digest, taskId, { executor: "caller" });
   }
 
+  const postText =
+    item.postTextKey === null
+      ? item.postText
+      : await startOfFiledText(ports, { id: item.id, postTextKey: item.postTextKey });
+
   const catalog = await readCatalog(ports.db);
 
   const result = await runAiTask(ports, TASKS.digest, {
     text: digestPrompt(
-      JSON.stringify({ title: item.title, source: item.source, postText: item.postText }),
+      JSON.stringify({ title: item.title, source: item.source, postText }),
       catalog,
     ),
     inputRevision: item.generation,
@@ -188,7 +207,11 @@ export function openingDigest(
   }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
 ) {
   const eligible =
-    and(sql`${scope}`, isNotNull(items.postText), notExists(hasOpenJob("digest"))) ?? sql`0`;
+    and(
+      sql`${scope}`,
+      or(isNotNull(items.postText), isNotNull(items.postTextKey)),
+      notExists(hasOpenJob("digest")),
+    ) ?? sql`0`;
 
   return { eligible, job: opening(db, { kind: "digest", address, now, where: eligible }) };
 }

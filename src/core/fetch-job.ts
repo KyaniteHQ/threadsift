@@ -1,9 +1,8 @@
-import { and, eq, exists, isNotNull, notExists, or, sql } from "drizzle-orm";
+import { and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
 
 import { openingDigest, providerSet, setDigestFailure } from "./digest-job.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
-import { hasOpenJob } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { placePostText } from "./post-text-files.ts";
 import { type JobRow, digests, items } from "./schema.ts";
@@ -50,7 +49,7 @@ async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<Job
               job.itemId,
               true,
               and(
-                notExists(hasOpenJob("digest")),
+                sql`not (${configured})`,
                 exists(
                   ports.db
                     .select({ id: digests.itemId })
