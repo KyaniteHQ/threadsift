@@ -37,6 +37,10 @@ const WorkerConfigSchema = z
     r2_buckets: z
       .tuple([z.object({ binding: z.literal("FILES"), bucket_name: z.string() }).strict()])
       .optional(),
+    ai: z
+      .object({ binding: z.literal("AI") })
+      .strict()
+      .optional(),
     queues: z
       .object({
         producers: z.tuple([z.object({ binding: z.string(), queue: z.string() }).strict()]),
@@ -82,6 +86,7 @@ export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
       binding: files.binding,
       bucket_name: names.bucket,
     })),
+    ai: source.ai,
     queues: {
       producers: [{ binding: producer.binding, queue: names.queue }],
       consumers: [{ ...consumer, queue: names.queue }],
