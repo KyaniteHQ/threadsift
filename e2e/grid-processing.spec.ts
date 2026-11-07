@@ -1,11 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 import { newCode, newPassword } from "./access.ts";
 import { postLinkRaw } from "./api.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { showGrid } from "./grid.ts";
 import { deferJobs, jobsOf } from "./ingest.ts";
-import { viewportAt } from "./look.ts";
+import { storeSettings, viewportAt } from "./look.ts";
 import { row, seedRows } from "./reader.ts";
 
 let screen: FreshScreen;
@@ -49,8 +49,26 @@ test("in Grid a titled Item keeps its dashed card edge while a refresh holds it 
   await expect(row(page, refreshed).locator(".proc-ic")).toBeVisible();
   await expect(row(page, refreshed)).toHaveCSS("border-top-style", "dashed");
   await expect(row(page, idle)).toHaveCSS("border-top-style", "solid");
+  await expectTitleFaceOfIdle(page, refreshed, idle);
+
+  await storeSettings(page, { layout: "list" });
+  await expect(row(page, refreshed).locator(".proc-ic")).toBeVisible();
+  await expectTitleFaceOfIdle(page, refreshed, idle);
 
   screen.fresh.sql(`UPDATE items SET status = 'ready' WHERE id = ${refreshed}`);
-  await page.reload();
+  await showGrid(page, "page");
   await expect(row(page, refreshed)).toHaveCSS("border-top-style", "solid");
 });
+
+async function expectTitleFaceOfIdle(page: Page, processing: number, idle: number): Promise<void> {
+  const face = await row(page, idle)
+    .locator(".it-open")
+    .evaluate((link) => {
+      const style = getComputedStyle(link);
+
+      return { size: style.fontSize, family: style.fontFamily };
+    });
+
+  await expect(row(page, processing).locator(".it-open")).toHaveCSS("font-size", face.size);
+  await expect(row(page, processing).locator(".it-open")).toHaveCSS("font-family", face.family);
+}
