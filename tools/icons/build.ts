@@ -7,6 +7,8 @@ import { z } from "zod";
 
 const root = resolve(import.meta.dirname, "../..");
 const publicDir = resolve(root, "web/public");
+const manifestFile = resolve(publicDir, "manifest.webmanifest");
+const pageFile = resolve(root, "web/index.html");
 
 const FONT_FILE =
   "node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2";
@@ -27,6 +29,35 @@ const DrawnSchema = z.object({
   light: z.string(),
   dark: z.string(),
 });
+
+function replacedOnce(text: string, pattern: RegExp, replacement: string, file: string): string {
+  if (!pattern.test(text)) {
+    throw new Error(`${file} has no match for ${pattern.source}`);
+  }
+
+  return text.replace(pattern, replacement);
+}
+
+function writeThemeColours(light: string, dark: string): void {
+  const manifest = [/("theme_color": ")[^"]*(")/u, /("background_color": ")[^"]*(")/u].reduce(
+    (text, pattern) => replacedOnce(text, pattern, `$1${light}$2`, manifestFile),
+    readFileSync(manifestFile, "utf8"),
+  );
+
+  const page = [
+    [/(content=")[^"]*(" media="\(prefers-color-scheme: light\)")/u, light],
+    [/(content=")[^"]*(" media="\(prefers-color-scheme: dark\)")/u, dark],
+  ].reduce(
+    (text, [pattern, colour]) =>
+      pattern instanceof RegExp && colour !== undefined
+        ? replacedOnce(text, pattern, `$1${colour}$2`, pageFile)
+        : text,
+    readFileSync(pageFile, "utf8"),
+  );
+
+  writeFileSync(manifestFile, manifest);
+  writeFileSync(pageFile, page);
+}
 
 function pageHtml(): string {
   const tokens = readFileSync(resolve(root, "design/system/tokens.css"), "utf8");
@@ -158,7 +189,8 @@ try {
     console.log(`${file} written, glyph reaches ${farthest.toFixed(3)} of the width`);
   }
 
-  console.log(`theme colours: light ${drawn.light}, dark ${drawn.dark}`);
+  writeThemeColours(drawn.light, drawn.dark);
+  console.log(`theme colours written: light ${drawn.light}, dark ${drawn.dark}`);
 } finally {
   await browser.close();
 }
