@@ -246,7 +246,7 @@ export function guardedFetch(
 
 export function loggedFailureOf(
   outcome: Exclude<GuardOutcome, Page>,
-  whenStopped: FetchFailure,
+  whenStopped: FetchFailure = "redirect-stopped",
 ): FetchFailure {
   if (outcome.kind === "stopped") {
     return whenStopped;

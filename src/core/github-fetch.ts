@@ -155,7 +155,7 @@ async function readmeAfter(
     return WITHOUT_README;
   }
 
-  return { kind: "failed", status: loggedFailureOf(outcome, "redirect-stopped") };
+  return { kind: "failed", status: loggedFailureOf(outcome) };
 }
 
 export async function fetchedOfRepository(
@@ -170,7 +170,7 @@ export async function fetchedOfRepository(
     deadline,
   );
 
-  if (outcome.kind !== "page") return { status: loggedFailureOf(outcome, "redirect-stopped") };
+  if (outcome.kind !== "page") return { status: loggedFailureOf(outcome) };
 
   const answer = parsed(RepositoryAnswerSchema, outcome.text);
 

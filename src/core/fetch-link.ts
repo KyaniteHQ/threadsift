@@ -110,6 +110,6 @@ export async function resolveShortLink(
   );
 
   return outcome.kind === "failed"
-    ? { kind: "failed", fetched: { status: loggedFailureOf(outcome, "redirect-stopped") } }
+    ? { kind: "failed", fetched: { status: loggedFailureOf(outcome) } }
     : { kind: "resolved", address: outcome.url };
 }
