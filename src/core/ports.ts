@@ -20,6 +20,23 @@ export interface JobQueue {
   readonly enqueue: (jobIds: readonly number[], delayMs: number) => Promise<void>;
 }
 
+export interface StoredFile {
+  readonly key: string;
+  readonly uploadedAt: number;
+}
+
+export interface FilePage {
+  readonly files: readonly StoredFile[];
+  readonly cursor: string | null;
+}
+
+export interface FileStore {
+  readonly put: (key: string, bytes: Uint8Array) => Promise<void>;
+  readonly get: (key: string) => Promise<ReadableStream<Uint8Array> | null>;
+  readonly delete: (keys: readonly string[]) => Promise<void>;
+  readonly list: (prefix: string, cursor: string | null, limit: number) => Promise<FilePage>;
+}
+
 export interface Network {
   readonly get: (url: string, signal: AbortSignal) => Promise<NetworkResponse>;
 }
@@ -67,6 +84,7 @@ export interface AiRuntime {
 
 export interface Ports {
   readonly db: Database;
+  readonly files: FileStore;
   readonly network: Network;
   readonly pages: PageReader;
   readonly jobs: JobQueue;

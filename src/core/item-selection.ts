@@ -3,7 +3,8 @@ import { desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { DIGEST_OUTCOMES } from "./kinds.ts";
-import type { Database } from "./ports.ts";
+import type { Database, Ports } from "./ports.ts";
+import { readPostText } from "./post-text.ts";
 import { digests, items, topics } from "./schema.ts";
 
 export const EMPTY_DIGEST_VIEW = {
@@ -34,7 +35,12 @@ const {
   ...DETAIL_COLUMNS
 } = getTableColumns(items);
 
-const { postText: _postText, postedAt: _postedAt, ...LISTED_COLUMNS } = DETAIL_COLUMNS;
+const {
+  postText: _postText,
+  postTextKey: _postTextKey,
+  postedAt: _postedAt,
+  ...LISTED_COLUMNS
+} = DETAIL_COLUMNS;
 
 export { DETAIL_COLUMNS, LISTED_COLUMNS };
 
@@ -60,10 +66,19 @@ export async function listItems(db: Database, filters: Readonly<ItemFilters>) {
   return { items: rows, counts: filterCounts(counted) };
 }
 
-export async function getItem(db: Database, id: number) {
-  const [item] = await selectItems(db, DETAIL_COLUMNS).where(eq(items.id, id));
+export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
+  const [row] = await selectItems(db, DETAIL_COLUMNS).where(eq(items.id, id));
 
-  return item;
+  if (row === undefined) {
+    return row;
+  }
+
+  const { postTextKey, ...item } = row;
+
+  return {
+    ...item,
+    postText: postTextKey === null ? item.postText : await readPostText(files, id, postTextKey),
+  };
 }
 
 export async function getListedItem(db: Database, id: number): Promise<ListedItemRow | undefined> {

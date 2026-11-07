@@ -4,11 +4,13 @@ import type { Ports } from "../../core/ports.ts";
 import { aiRuntime } from "../shared/ai-runtime.ts";
 import { configuredCode } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
+import { type FilesBucket, r2FileStore } from "./file-store.ts";
 import { workerNetwork, workerFetch } from "./network.ts";
 import { workerPageReader } from "./page-reader.ts";
 
 export interface Env {
   readonly DB: Parameters<typeof drizzle>[0];
+  readonly FILES: FilesBucket;
   readonly JOBS: Readonly<{
     sendBatch: (
       messages: readonly Readonly<{ body: Readonly<{ jobId: number }> }>[],
@@ -24,6 +26,7 @@ export interface Env {
 export async function createWorkerPorts(env: Env): Promise<Ports> {
   return {
     db: drizzle(env.DB),
+    files: r2FileStore(env.FILES),
     ai: await aiRuntime({
       publicOnly: true,
       secretKey: env.THREADSIFT_SECRET_KEY,

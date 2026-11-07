@@ -1,0 +1,1 @@
+ALTER TABLE `items` ADD `post_text_key` text;

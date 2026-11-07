@@ -4,6 +4,7 @@ import type { Database, Ports } from "../../core/ports.ts";
 import { aiRuntime } from "../shared/ai-runtime.ts";
 import { configuredCode } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
+import { dataFileStore } from "./file-store.ts";
 import { JobLoop } from "./job-loop.ts";
 import { nodeNetwork } from "./network.ts";
 import { WorkerPageReader } from "./page-reader.ts";
@@ -32,6 +33,7 @@ interface NodeRuntime {
 
 export async function startNode(
   db: Database,
+  dataDir: string,
   setupCode: string | undefined,
   secretKey: string | undefined,
   resetCode: string | undefined,
@@ -41,6 +43,7 @@ export async function startNode(
 
   const ports: Ports = {
     db,
+    files: dataFileStore(dataDir),
     ai: await aiRuntime({ publicOnly: false, secretKey, request: fetch }),
     network: nodeNetwork,
     pages,
