@@ -48,17 +48,31 @@ function fromApp(response: Response): boolean {
   return (response.status !== 404 && response.status < 500) || isJson(response);
 }
 
-export async function callCopy(site: Readonly<Site>, call: Readonly<Call>): Promise<Response> {
-  const response = await send(site.url, call);
+async function reached(site: Readonly<Site>, call: Readonly<Call>): Promise<Response | null> {
+  try {
+    return await send(site.url, call);
+  } catch (error) {
+    if (error instanceof TypeError && Date.now() < site.retryUntil) {
+      return null;
+    }
 
-  if (fromApp(response) || Date.now() >= site.retryUntil) {
+    throw error;
+  }
+}
+
+export async function callCopy(site: Readonly<Site>, call: Readonly<Call>): Promise<Response> {
+  const response = await reached(site, call);
+
+  if (response !== null && (fromApp(response) || Date.now() >= site.retryUntil)) {
     return response;
   }
 
-  await response.body?.cancel();
-  process.stdout.write(
-    `${call.path} got ${String(response.status)} from Cloudflare, not the app; retrying\n`,
-  );
+  await response?.body?.cancel();
+
+  const answer =
+    response === null ? "no answer" : `${String(response.status)} from Cloudflare, not the app`;
+
+  process.stdout.write(`${call.path} got ${answer}; retrying\n`);
   await pause(POLL_MS, call.deadline);
 
   return callCopy(site, call);
