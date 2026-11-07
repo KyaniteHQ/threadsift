@@ -17,7 +17,7 @@ const IDLE_DEADLINE_MS = 600_000;
 const IDLE_POLL_MS = 5000;
 
 const SettingsView = z.looseObject({
-  providers: z.array(z.string()),
+  providers: z.array(z.string()).optional(),
   settings: z.looseObject({ provider: z.string(), model: z.string() }).nullable(),
 });
 
@@ -40,7 +40,48 @@ const TaskRow = z.object({
 
 const Count = z.object({ n: z.number().int() });
 
+const REFUSALS = [
+  "model-not-found",
+  "no-json",
+  "unreachable",
+  "timeout",
+  "refused",
+  "provider-busy",
+];
+
+const COUNT_LIMIT = 99;
+
 const JobRow = z.object({ state: z.string() });
+
+function oneOf(allowed: readonly string[], value: string | null): string {
+  if (value === null) return "none";
+
+  return allowed.includes(value) ? value : "other";
+}
+
+function modelLabel(model: string | null): string {
+  if (model === MODEL) return "proof";
+
+  if (model === MISSING_MODEL) return "missing";
+
+  return model === null ? "none" : "other";
+}
+
+function counted(rows: readonly unknown[]): number {
+  return Math.min(rows.length, COUNT_LIMIT);
+}
+
+function describeTask(task: Readonly<z.infer<typeof TaskRow>> | undefined): string {
+  if (task === undefined) return "no row";
+
+  return [
+    `executor ${oneOf(["binding", "http", "caller"], task.executor)}`,
+    `provider ${oneOf(["workers-ai"], task.provider)}`,
+    `model ${modelLabel(task.model)}`,
+    `state ${oneOf(["done", "failed"], task.state)}`,
+    `refusal ${oneOf(REFUSALS, task.refusal)}`,
+  ].join(", ");
+}
 
 async function owner<Body>(
   copy: Readonly<Copy>,
@@ -81,14 +122,14 @@ async function verifies(run: Readonly<Run>, copy: Readonly<Copy>, findings: Read
   findings.check(
     "the copy saves Workers AI with a model and no key",
     saved.settings?.provider === "workers-ai" && saved.settings.model === MODEL,
-    JSON.stringify(saved.settings),
+    `provider ${oneOf(["workers-ai"], saved.settings?.provider ?? null)}, model ${String(saved.settings?.model === MODEL)}`,
   );
 
   const verify = await owner(copy, { path: `${SETTINGS}/verify`, method: "POST" }, Verify);
   findings.check(
     "Verify returns a Digest through the binding",
     verify.kind === "done",
-    verify.kind === "done" ? verify.digest.title : verify.reason,
+    verify.kind === "done" ? "done" : `refused ${oneOf(REFUSALS, verify.reason)}`,
   );
 
   if (verify.kind !== "done") return;
@@ -100,7 +141,7 @@ async function verifies(run: Readonly<Run>, copy: Readonly<Copy>, findings: Read
       task.provider === "workers-ai" &&
       task.model === MODEL &&
       task.state === "done",
-    JSON.stringify(task),
+    describeTask(task),
   );
 }
 
@@ -116,7 +157,7 @@ async function digests(run: Readonly<Run>, copy: Readonly<Copy>, findings: Reado
       end.digestOutcome === "none" &&
       end.digestTitle !== null &&
       end.digestTopic !== null,
-    `${end.status} ${end.digestOutcome} ${end.digestTitle ?? "no title"}`,
+    `ready ${String(end.status === "ready")}, digest outcome ${oneOf(["none", "failed"], end.digestOutcome)}, title ${String(end.digestTitle !== null)}, topic ${String(end.digestTopic !== null)}`,
   );
 
   const [stored] = await queryRun(
@@ -131,7 +172,7 @@ async function digests(run: Readonly<Run>, copy: Readonly<Copy>, findings: Reado
       stored.provider === "workers-ai" &&
       stored.model === MODEL &&
       stored.state === "done",
-    JSON.stringify(stored),
+    describeTask(stored),
   );
 }
 
@@ -141,7 +182,7 @@ async function refuses(run: Readonly<Run>, copy: Readonly<Copy>, findings: Reado
   findings.check(
     "Verify for a model that does not exist is refused as model-not-found",
     verify.kind === "refused" && verify.reason === "model-not-found",
-    JSON.stringify(verify),
+    verify.kind === "done" ? "done" : `refused ${oneOf(REFUSALS, verify.reason)}`,
   );
 
   const pasted = await paste(copy, withTag(SHORT_ARTICLE, `${run.tag}-workers-ai-missing`));
@@ -150,7 +191,7 @@ async function refuses(run: Readonly<Run>, copy: Readonly<Copy>, findings: Reado
   findings.check(
     "the Item ends ready with a failed Digest that Try again can retry",
     end.status === "ready" && end.digestOutcome === "failed" && end.retry === "digest",
-    `${end.status} ${end.digestOutcome}`,
+    `ready ${String(end.status === "ready")}, digest outcome ${oneOf(["none", "failed"], end.digestOutcome)}, retry ${oneOf(["digest", "fetch"], end.retry ?? null)}`,
   );
 
   const jobs = await queryRun(
@@ -162,7 +203,7 @@ async function refuses(run: Readonly<Run>, copy: Readonly<Copy>, findings: Reado
   findings.check(
     "the Digest job closed once with no retry",
     jobs.length === 1 && jobs[0]?.state === "done",
-    JSON.stringify(jobs),
+    `${String(counted(jobs))} jobs, first ${oneOf(["done"], jobs[0]?.state ?? null)}`,
   );
 
   const tasks = await queryRun(
@@ -175,7 +216,7 @@ async function refuses(run: Readonly<Run>, copy: Readonly<Copy>, findings: Reado
     "only Verify and the one Digest attempt ran, both refused as model-not-found",
     tasks.length === 2 &&
       tasks.every((task) => task.state === "failed" && task.refusal === "model-not-found"),
-    JSON.stringify(tasks),
+    `${String(counted(tasks))} tasks, ${String(counted(tasks.filter((task) => task.refusal === "model-not-found")))} refused as model-not-found`,
   );
 }
 
@@ -186,7 +227,7 @@ export async function workersAiCheck(
 ): Promise<void> {
   const view = await owner(copy, { path: SETTINGS }, SettingsView);
 
-  if (!view.providers.includes("workers-ai")) {
+  if (!(view.providers ?? []).includes("workers-ai")) {
     throw new Inconclusive("the copy does not offer Workers AI");
   }
 
@@ -194,7 +235,7 @@ export async function workersAiCheck(
   findings.check(
     "the deployed version carries the AI binding",
     bindings.some((binding) => binding.name === "AI" && binding.type === "ai"),
-    bindings.map((binding) => `${binding.name}:${binding.type}`).join(","),
+    `AI binding ${String(bindings.some((binding) => binding.name === "AI" && binding.type === "ai"))}`,
   );
 
   try {

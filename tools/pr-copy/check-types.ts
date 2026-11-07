@@ -13,6 +13,10 @@ export const SCENARIO_NAMES = [
 
 export type ScenarioName = (typeof SCENARIO_NAMES)[number];
 
+export const DEFAULT_SCENARIOS: readonly ScenarioName[] = SCENARIO_NAMES.filter(
+  (name) => name !== "workers-ai",
+);
+
 export type Verdict = "pass" | "fail" | "inconclusive";
 
 export interface Assertion {
