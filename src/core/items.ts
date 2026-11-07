@@ -1,42 +1,23 @@
-import { and, desc, eq, getTableColumns, exists, notExists } from "drizzle-orm";
+import { and, eq, notExists } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
 import type { Fetched } from "./details.ts";
-import {
-  openingDigest,
-  setDigestFailure,
-  EMPTY_DIGEST_VIEW,
-  DIGEST_VIEW_COLUMNS,
-} from "./digest-job.ts";
 import { resolveShortLink } from "./fetch-link.ts";
+import {
+  EMPTY_DIGEST_VIEW,
+  LISTED_COLUMNS,
+  type ListedItemRow,
+  selectItems,
+} from "./item-selection.ts";
 import { hasOpenJob, openingJob, enqueueRows } from "./job-rows.ts";
 import { type Link, isRefusedLink, isShortLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
-import { digests, items } from "./schema.ts";
+import { items } from "./schema.ts";
 import { settle } from "./settle.ts";
-
-export type ListedItemRow = Awaited<ReturnType<typeof listItems>>[number];
 
 export type SaveResult =
   | { readonly kind: "saved"; readonly item: ListedItemRow; readonly created: boolean }
   | { readonly kind: "refused" };
-
-const {
-  generation: _generation,
-  digestFailed: _digestFailed,
-  pendingDigest: _pendingDigest,
-  topicId: _topicId,
-  ...DETAIL_COLUMNS
-} = getTableColumns(items);
-
-const { postText: _postText, postedAt: _postedAt, ...LISTED_COLUMNS } = DETAIL_COLUMNS;
-
-function selectItems<Fields extends typeof LISTED_COLUMNS>(db: Database, fields: Fields) {
-  return db
-    .select({ ...fields, ...DIGEST_VIEW_COLUMNS })
-    .from(items)
-    .leftJoin(digests, eq(digests.itemId, items.id));
-}
 
 function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
   if (item === undefined) {
@@ -166,57 +147,4 @@ export function saveItem(ports: Ports, absoluteUrl: string, digest?: Digest): Pr
         { originalUrl: absoluteUrl, address: absoluteUrl, digest },
         parseLink(absoluteUrl),
       );
-}
-
-export async function getItem(db: Database, id: number) {
-  const [item] = await selectItems(db, DETAIL_COLUMNS).where(eq(items.id, id));
-
-  return item;
-}
-
-export async function getListedItem(db: Database, id: number): Promise<ListedItemRow | undefined> {
-  const [item] = await selectItems(db, LISTED_COLUMNS).where(eq(items.id, id));
-
-  return item;
-}
-
-export function listItems(db: Database) {
-  return selectItems(db, LISTED_COLUMNS).orderBy(desc(items.savedAt), desc(items.id));
-}
-
-export async function retryDigest(ports: Ports, id: number): Promise<ListedItemRow | undefined> {
-  const [known] = await ports.db
-    .select({
-      originalUrl: items.originalUrl,
-      normalizedUrl: items.normalizedUrl,
-      status: items.status,
-    })
-    .from(items)
-    .where(eq(items.id, id));
-
-  if (known === undefined) return undefined;
-
-  if (known.status === "failed") return getListedItem(ports.db, id);
-
-  const [, queued, , , [item]] = await ports.db.batch([
-    ports.db
-      .update(items)
-      .set({ pendingDigest: null })
-      .where(and(eq(items.id, id), notExists(hasOpenJob("digest")))),
-    openingDigest(ports.db, {
-      scope: eq(items.id, id),
-      address: known.originalUrl,
-      now: Date.now(),
-    }).job,
-    setDigestFailure(ports.db, id, false),
-    ports.db
-      .update(items)
-      .set({ status: "processing", reason: null })
-      .where(and(eq(items.id, id), exists(hasOpenJob("digest")))),
-    selectItems(ports.db, LISTED_COLUMNS).where(eq(items.normalizedUrl, known.normalizedUrl)),
-  ]);
-
-  await enqueueRows(ports, queued);
-
-  return item;
 }

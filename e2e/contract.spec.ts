@@ -29,12 +29,14 @@ const Body = z.looseObject({
 
 const Operation = z.looseObject({ responses: z.record(z.string(), Body) });
 
+const Parameters = z.array(z.looseObject({ name: z.string(), in: z.string() }));
+
 const OpenApiDocument = z.looseObject({
   openapi: z.string(),
   components: z.looseObject({ schemas: z.record(z.string(), SchemaNode) }),
   paths: z.looseObject({
     "/api/items": z.looseObject({
-      get: Operation,
+      get: Operation.extend({ parameters: Parameters }),
       post: Operation.extend({ requestBody: Body }),
     }),
     "/api/items/{id}": z.looseObject({ get: Operation }),
@@ -87,6 +89,7 @@ const ITEM_FIELDS = [
   "digestTitle",
   "digestTopic",
   "digestOutcome",
+  "readState",
   "author",
   "community",
   "fetchedAt",
@@ -107,6 +110,30 @@ async function documentOf(request: APIRequestContext, info: TestInfo) {
   return OpenApiDocument.parse(await response.json());
 }
 
+type ListOperation = z.infer<typeof OpenApiDocument>["paths"]["/api/items"]["get"];
+
+function expectListContract(schemas: Schemas, list: ListOperation): void {
+  expect(list.parameters.map(({ name, in: place }) => `${place}:${name}`).toSorted()).toEqual([
+    "query:q",
+    "query:read",
+    "query:source",
+    "query:tag",
+    "query:topic",
+  ]);
+
+  const answer = jsonSchemaOf(list.responses["200"] ?? { content: {} });
+  expect(propertyNames(schemas, answer).toSorted()).toEqual(["counts", "items"]);
+
+  expect(propertyNames(schemas, propertyOf(schemas, answer, "counts")).toSorted()).toEqual([
+    "reads",
+    "sources",
+    "tags",
+    "topics",
+    "total",
+    "unread",
+  ]);
+}
+
 test("the served OpenAPI document describes the items routes", async ({ request }, info) => {
   const { paths, components } = await documentOf(request, info);
   const { schemas } = components;
@@ -114,7 +141,10 @@ test("the served OpenAPI document describes the items routes", async ({ request 
 
   expect(Object.keys(items.post.requestBody.content)).toEqual(["application/json"]);
   expect(Object.keys(items.post.responses).toSorted()).toEqual(["200", "201", "400"]);
-  expect(Object.keys(items.get.responses)).toEqual(["200"]);
+  expect(Object.keys(items.get.responses).toSorted()).toEqual(["200", "400"]);
+
+  expectListContract(schemas, items.get);
+
   const requestBody = resolved(schemas, jsonSchemaOf(items.post.requestBody));
   expect(propertyNames(schemas, requestBody).toSorted()).toEqual(["digest", "url"]);
   expect(requestBody.required).toEqual(["url"]);

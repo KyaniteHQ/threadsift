@@ -113,7 +113,7 @@ test("the saved Items are one list, named by its count, with one list item per I
 
   const list = page.getByRole("list");
   await expect(list).toHaveCount(1);
-  await expect(list).toHaveAccessibleName(`${total} links saved`);
+  await expect(list).toHaveAccessibleName(`${total} items, ${total} unread`);
   await expect(list.getByRole("listitem")).toHaveCount(total);
   await expect(list.getByRole("listitem").first().getByRole("article")).toBeVisible();
 });

@@ -9,6 +9,8 @@ import {
   JOB_KINDS,
   JOB_STATES,
   KINDS,
+  READ_STATES,
+  SEARCH_PART_KINDS,
   SOURCES,
   THROTTLE_KINDS,
 } from "./kinds.ts";
@@ -33,6 +35,7 @@ export const items = sqliteTable(
     topicId: integer("topic_id").references(() => topics.id),
     generation: integer("generation").notNull().default(0),
     digestFailed: integer("digest_failed", { mode: "boolean" }).notNull().default(false),
+    readState: text("read_state", { enum: READ_STATES }).notNull().default("unread"),
     status: text("status", { enum: ITEM_STATUSES }).notNull().default("ready"),
     reason: text("reason", { enum: FAILURE_REASONS }),
     fetch: text("fetch_result", { enum: FETCH_RESULTS }),
@@ -234,4 +237,33 @@ export const catalogLinking = sqliteTable(
     lastItemId: integer("last_item_id").notNull(),
   },
   (table) => [check("catalog_linking_is_one_row", sql`${table.id} = 1`)],
+);
+
+export const searchParts = sqliteTable(
+  "search_parts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: SEARCH_PART_KINDS }).notNull(),
+    body: text("body").notNull(),
+  },
+  (table) => [index("search_parts_item").on(table.itemId)],
+);
+
+export const searchFingerprints = sqliteTable("search_fingerprints", {
+  itemId: integer("item_id")
+    .primaryKey()
+    .references(() => items.id, { onDelete: "cascade" }),
+  fingerprint: text("fingerprint").notNull(),
+});
+
+export const searchReconciling = sqliteTable(
+  "search_reconciling",
+  {
+    id: integer("id").primaryKey(),
+    lastItemId: integer("last_item_id").notNull(),
+  },
+  (table) => [check("search_reconciling_is_one_row", sql`${table.id} = 1`)],
 );

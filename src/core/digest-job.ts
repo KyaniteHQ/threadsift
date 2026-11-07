@@ -31,9 +31,9 @@ import {
   type JobPorts,
 } from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
-import { DIGEST_OUTCOMES } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, digests, insertGuard, items, settings, topics } from "./schema.ts";
+import { type JobRow, digests, insertGuard, items, settings } from "./schema.ts";
+import { digestPartWrites } from "./search.ts";
 
 function digestInput(db: Database, id: number) {
   return db
@@ -152,6 +152,7 @@ function publishing(
       insertGuard(db, catalog),
       ...linkingDigest(db, item.id, entries),
       db.insert(digests).values(stored).onConflictDoUpdate({ target: digests.itemId, set: stored }),
+      ...digestPartWrites(db, eq(items.id, item.id)),
       completedAiTask(db, { taskId, result: digest }),
       db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
       setDigestFailure(db, item.id, false),
@@ -191,26 +192,6 @@ export function openingDigest(
 
   return { eligible, job: opening(db, { kind: "digest", address, now, where: eligible }) };
 }
-
-export const EMPTY_DIGEST_VIEW = {
-  digestTitle: null,
-  digestTopic: null,
-  digestOutcome: "none",
-} as const;
-
-export const DIGEST_VIEW_COLUMNS = {
-  digestTitle: sql<string | null>`${digests.title}`.as("digest_title"),
-  digestTopic: sql<
-    string | null
-  >`coalesce((select ${topics.name} from ${topics} where ${topics.id} = ${items.topicId}), ${digests.topic})`.as(
-    "digest_topic",
-  ),
-  digestOutcome: sql<
-    (typeof DIGEST_OUTCOMES)[number]
-  >`case when exists ${hasOpenJob("digest")} then 'pending' when ${items.digestFailed} then 'failed' else 'none' end`.as(
-    "digest_outcome",
-  ),
-};
 
 export async function sweepDigests(db: Database, now: number): Promise<void> {
   await expireAiTasks(db, now);

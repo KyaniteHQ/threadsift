@@ -38,6 +38,7 @@ function useAttention(
   row: RefObject<HTMLElement | null>,
   link: RefObject<HTMLAnchorElement | null>,
   attention: Attention,
+  attended: () => void,
 ) {
   useEffect(() => {
     const element = row.current;
@@ -54,8 +55,9 @@ function useAttention(
       }
 
       void document.fonts.ready.then(reveal);
+      attended();
     }
-  }, [attention, link, row]);
+  }, [attended, attention, link, row]);
 }
 
 function Failed({
@@ -143,18 +145,20 @@ export const ItemRow = memo(function ItemRow({
   now,
   isOpen,
   attention,
+  attended,
   tryAgain,
 }: Readonly<{
   item: Item;
   now: number;
   isOpen: boolean;
   attention: Attention;
+  attended: () => void;
   tryAgain: (item: Item) => void;
 }>) {
   const row = useRef<HTMLElement>(null);
   const link = useRef<HTMLAnchorElement>(null);
   const titleId = useId();
-  useAttention(row, link, attention);
+  useAttention(row, link, attention, attended);
 
   return (
     <article ref={row} className={rowClasses(item, isOpen)} data-key={item.id}>

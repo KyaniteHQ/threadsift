@@ -9,6 +9,10 @@ export const KINDS = [
   "link",
 ] as const;
 
+export const READ_STATES = ["unread", "read"] as const;
+
+export const SEARCH_PART_KINDS = ["title", "post-text", "digest-title", "summary", "tags"] as const;
+
 export const THROTTLE_KINDS = ["setup", "login", "reset"] as const;
 
 export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
@@ -22,6 +26,10 @@ export const JOB_STATES = ["queued", "running", "done"] as const;
 export type Source = (typeof SOURCES)[number];
 
 export type Kind = (typeof KINDS)[number];
+
+export type ReadState = (typeof READ_STATES)[number];
+
+export type SearchPartKind = (typeof SEARCH_PART_KINDS)[number];
 
 export type ThrottleKind = (typeof THROTTLE_KINDS)[number];
 

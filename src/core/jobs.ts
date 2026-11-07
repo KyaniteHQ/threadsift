@@ -14,6 +14,7 @@ import { enqueueQuietly, enqueueRows, hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, guardedBatch, items, jobs, scheduledRuns } from "./schema.ts";
+import { reconcileSearchParts } from "./search-reconciler.ts";
 
 const CLAIM_MARGIN_MS = 120_000;
 const RETRY_DELAYS_MS = [30_000, 120_000] as const;
@@ -254,6 +255,7 @@ export async function abandonRunning(db: Database): Promise<void> {
 async function sweep(ports: JobPorts): Promise<void> {
   const now = Date.now();
   await sweepDigests(ports.db, now);
+  await reconcileSearchParts(ports);
   const due = await dueIds(ports.db, now, SWEEP_LIMIT);
 
   await enqueueRows(ports, due);
