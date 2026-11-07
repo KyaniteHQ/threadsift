@@ -1,12 +1,12 @@
-import { and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
-import { openingDigest, providerSet } from "./digest-job.ts";
-import { setDigestFailure } from "./digest-source.ts";
+import { digestAfterFetch } from "./digest-job.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { ClaimedJob, JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { placePostText } from "./post-text-files.ts";
-import { digests, items } from "./schema.ts";
+import { fetchedRepository, repositoryWrites } from "./repositories.ts";
+import { items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import { isRetryable, settle } from "./settle.ts";
 
@@ -19,17 +19,19 @@ async function titleOf(db: Database, itemId: number): Promise<string | null> {
 async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const fetched = await fetchLink(ports.network, ports.pages, job.address);
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
+  const repository = fetchedRepository(fetched);
 
   const { postText, ...settled } = settle(fetched, title, Date.now());
   const placed = await placePostText(ports, job, postText);
   const fields = { ...settled, ...placed.columns };
+  const replacesContent = postText !== undefined;
   const storesText = postText !== undefined && postText !== null;
 
-  const configured = or(isNotNull(items.pendingDigest), providerSet()) ?? sql`0`;
-
-  const stored = storesText
-    ? { ...fields, generation: sql`${items.generation} + 1` }
-    : { ...fields, pendingDigest: null };
+  const stored = {
+    ...fields,
+    pendingDigest: storesText ? items.pendingDigest : null,
+    generation: replacesContent ? sql`${items.generation} + 1` : items.generation,
+  };
 
   return {
     writes: [
@@ -37,30 +39,8 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
       ...(fields.title === undefined
         ? []
         : fetchedPartWrites(ports.db, eq(items.id, job.itemId), postText)),
-      ...(storesText
-        ? [
-            openingDigest(ports.db, {
-              scope: and(eq(items.id, job.itemId), configured) ?? sql`0`,
-              address: job.address,
-              now: Date.now(),
-            }).job,
-            setDigestFailure(ports.db, job.itemId, false),
-            setDigestFailure(
-              ports.db,
-              job.itemId,
-              true,
-              and(
-                sql`not (${configured})`,
-                exists(
-                  ports.db
-                    .select({ id: digests.itemId })
-                    .from(digests)
-                    .where(eq(digests.itemId, items.id)),
-                ),
-              ) ?? sql`0`,
-            ),
-          ]
-        : []),
+      ...(repository === null ? [] : repositoryWrites(ports.db, job.itemId, repository)),
+      ...(replacesContent ? digestAfterFetch(ports.db, job) : []),
     ],
     files: placed.files,
   };

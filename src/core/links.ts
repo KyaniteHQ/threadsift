@@ -147,7 +147,7 @@ function canonicalHost(rawHost: string): string {
   return bare.includes(".") ? bare : desktop;
 }
 
-function segmentsOf(pathname: string): string[] {
+export function segmentsOf(pathname: string): string[] {
   return pathname.split("/").filter((segment) => segment !== "");
 }
 

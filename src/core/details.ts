@@ -7,8 +7,22 @@ import { collapsed } from "./format.ts";
 import { type Link, isGitHubLink, isVideoLink } from "./links.ts";
 import type { PageReader } from "./ports.ts";
 
+export interface Repository {
+  readonly description: string | null;
+  readonly stars: number;
+  readonly language: string | null;
+  readonly license: string | null;
+  readonly topics: readonly string[];
+  readonly pushedAt: number | null;
+}
+
 export type Content =
   | { readonly kind: "article"; readonly postText: string; readonly postedAt: number | null }
+  | {
+      readonly kind: "github-repo";
+      readonly repository: Repository;
+      readonly readme: string | null;
+    }
   | { readonly kind: "link" };
 
 export interface Found {

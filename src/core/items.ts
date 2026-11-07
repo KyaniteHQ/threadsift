@@ -4,7 +4,7 @@ import type { Digest } from "./ai-contract.ts";
 import type { Fetched } from "./details.ts";
 import { resolveShortLink } from "./fetch-link.ts";
 import {
-  EMPTY_DIGEST_VIEW,
+  EMPTY_JOINED_VIEW,
   LISTED_COLUMNS,
   type ListedItemRow,
   selectItems,
@@ -101,7 +101,7 @@ async function saveSettled(
   if (inserted !== undefined) {
     return {
       kind: "saved",
-      item: { ...inserted, ...EMPTY_DIGEST_VIEW },
+      item: { ...inserted, ...EMPTY_JOINED_VIEW },
       created: true,
     };
   }

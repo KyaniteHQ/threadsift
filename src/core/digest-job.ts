@@ -1,4 +1,15 @@
-import { type SQLWrapper, and, eq, isNotNull, ne, notExists, or, sql } from "drizzle-orm";
+import {
+  type SQLWrapper,
+  and,
+  eq,
+  exists,
+  isNotNull,
+  ne,
+  not,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import {
   AI_DEADLINE_MS,
@@ -39,7 +50,7 @@ async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promis
   const [item] = await digestInput(ports.db, job.itemId);
 
   if (item === undefined || (item.postText === null && item.postTextKey === null))
-    return { writes: [setDigestFailure(ports.db, job.itemId, false)] };
+    return { writes: markKeptDigest(ports.db, job.itemId) };
 
   return item.pendingDigest === null
     ? attemptModel(ports, job, item)
@@ -177,12 +188,7 @@ export function openingDigest(
     now,
   }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
 ) {
-  const eligible =
-    and(
-      sql`${scope}`,
-      or(isNotNull(items.postText), isNotNull(items.postTextKey)),
-      notExists(hasOpenJob("digest")),
-    ) ?? sql`0`;
+  const eligible = and(sql`${scope}`, hasText(), notExists(hasOpenJob("digest"))) ?? sql`0`;
 
   return { eligible, job: opening(db, { kind: "digest", address, now, where: eligible }) };
 }
@@ -215,6 +221,39 @@ function digestOrigin(source: DigestSource, entries: Readonly<ReturnType<typeof 
 
 export function providerSet() {
   return sql`exists (select 1 from ${settings} where ${settings.id} = 1)`;
+}
+
+function hasText() {
+  return or(isNotNull(items.postText), isNotNull(items.postTextKey)) ?? sql`0`;
+}
+
+function keptDigest(db: Database) {
+  return exists(
+    db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
+  );
+}
+
+export function markKeptDigest(db: Database, itemId: number, when: Readonly<SQLWrapper> = sql`1`) {
+  return [
+    setDigestFailure(db, itemId, false),
+    setDigestFailure(db, itemId, true, and(keptDigest(db), sql`${when}`) ?? sql`0`),
+  ];
+}
+
+export function digestAfterFetch(
+  db: Database,
+  job: Readonly<Pick<ClaimedJob, "itemId" | "address">>,
+) {
+  const configured = or(isNotNull(items.pendingDigest), providerSet()) ?? sql`0`;
+
+  return [
+    openingDigest(db, {
+      scope: and(eq(items.id, job.itemId), configured) ?? sql`0`,
+      address: job.address,
+      now: Date.now(),
+    }).job,
+    ...markKeptDigest(db, job.itemId, or(sql`not (${configured})`, not(hasText())) ?? sql`0`),
+  ];
 }
 
 export function olderDigests(db: Database) {

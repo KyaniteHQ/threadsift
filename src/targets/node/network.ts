@@ -59,7 +59,7 @@ function decodedBody(response: IncomingMessage, encoding: string): Readable {
 }
 
 export const nodeNetwork: Network = {
-  get: (url, signal) =>
+  get: (url, signal, headers) =>
     new Promise<NetworkResponse>((resolve, reject) => {
       const send = url.startsWith("https:") ? httpsRequest : httpRequest;
 
@@ -67,7 +67,7 @@ export const nodeNetwork: Network = {
         url,
         {
           method: "GET",
-          headers: { ...REQUEST_HEADERS, "accept-encoding": ACCEPT_ENCODING },
+          headers: { ...REQUEST_HEADERS, "accept-encoding": ACCEPT_ENCODING, ...headers },
           lookup: globalAddressesOnly,
           ...CONNECT_OPTIONS,
           signal,

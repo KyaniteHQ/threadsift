@@ -3,7 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { SearchPartKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { digests, itemTags, items, searchParts, tags } from "./schema.ts";
+import { digests, githubRepos, itemTags, items, searchParts, tags } from "./schema.ts";
 
 const CHUNK_UNITS = 125_000;
 const CHUNK_TRIGGER_BYTES = 500_000;
@@ -151,5 +151,25 @@ export function digestPartWrites(
     digestFieldPart(db, scope, "digest-title"),
     digestFieldPart(db, scope, "summary"),
     tagsPart(db, scope),
+  ];
+}
+
+export function repositoryText() {
+  return sql<string>`trim(coalesce(${githubRepos.description}, '') || char(10) || (select coalesce(group_concat(value, char(10)), '') from json_each(${githubRepos.topics})))`;
+}
+
+export function repositoryPartWrites(
+  db: Database,
+  scope: Readonly<SQLWrapper>,
+): readonly BatchItem<"sqlite">[] {
+  return [
+    replacing(db, scope, ["repository"]),
+    db.insert(searchParts).select(
+      db
+        .select(partOf("repository", repositoryText()))
+        .from(items)
+        .innerJoin(githubRepos, sql`${githubRepos.itemId} = ${items.id}`)
+        .where(and(sql`${scope}`, ne(repositoryText(), ""))),
+    ),
   ];
 }

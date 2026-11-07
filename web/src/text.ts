@@ -1,4 +1,5 @@
 import type { FetchFailure } from "../../src/core/fetch-results.ts";
+import { groupedNumber } from "../../src/core/format.ts";
 import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { FailureReason, ReadState, Source } from "../../src/core/kinds.ts";
 
@@ -56,7 +57,7 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
     kind: "save-note",
   },
   unreadable: {
-    text: "Couldn’t read Reddit’s answer, so this link was saved without a title.",
+    text: "Couldn’t read the website’s answer, so this link was saved without a title.",
     kind: "save-note",
   },
   "title-kept": {
@@ -187,6 +188,13 @@ export const SOURCE_LABELS: Readonly<Record<Source, string>> = {
   article: "Article",
   other: "Other",
 };
+
+const STARS_ONE = "{count} star";
+const STARS_MANY = "{count} stars";
+
+export function starsLabel(count: number): string {
+  return filled(count === 1 ? STARS_ONE : STARS_MANY, { count: groupedNumber(count) });
+}
 
 export const STYLE_NOTE = "Set by the style";
 export const OPEN_AS_NARROW_NOTE = "Items open as a full page at this width.";

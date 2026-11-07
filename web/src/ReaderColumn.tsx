@@ -1,23 +1,20 @@
-import { use, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { shownUrl, whereOf } from "../../src/core/links.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { noteOf } from "./paste-card.ts";
-import { postTextModule } from "./post-text-module.ts";
 import {
   DIGEST_PENDING,
   KEY_POINTS_LABEL,
-  NO_POST_TEXT,
   READER_FAILED,
   READER_LOADING,
-  SECTION_TITLES,
   SUMMARY_LABEL,
   postedLabel,
 } from "./reader-text.ts";
+import { Original } from "./ReaderOriginal.tsx";
 import { savedLabel } from "./saved-label.ts";
 import { tagHue } from "./tag-hue.ts";
 import {
-  CARD_TITLES,
   DIGEST_NOT_UPDATED,
   FAILURE_TITLES,
   NOTICES,
@@ -141,31 +138,12 @@ function Agent({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
   );
 }
 
-function Original({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
-  const { PostText } = use(postTextModule());
-  const text = detail.postText;
-
-  if (text === null || text.trim() === "") {
-    return item.status === "processing" ? (
-      <p className="rd-note">{CARD_TITLES.reading}</p>
-    ) : (
-      <p className="rd-note">{NO_POST_TEXT}</p>
-    );
-  }
-
-  return (
-    <section className="rd-orig">
-      <h3 className="rd-h">{SECTION_TITLES[item.kind]}</h3>
-      <PostText text={text} />
-    </section>
-  );
-}
-
 function Body({
   item,
   state,
   retry,
-}: Readonly<{ item: Item; state: DetailState; retry: () => void }>) {
+  now,
+}: Readonly<{ item: Item; state: DetailState; retry: () => void; now: number }>) {
   if (state.status === "loading") {
     return <output className="rd-note">{READER_LOADING}</output>;
   }
@@ -184,7 +162,7 @@ function Body({
   return (
     <>
       <Agent item={item} detail={state.detail} />
-      <Original item={item} detail={state.detail} />
+      <Original item={item} detail={state.detail} now={now} />
     </>
   );
 }
@@ -213,7 +191,7 @@ export function ReaderColumn({
         titleId={titleId}
         focusTitle={focusTitle}
       />
-      <Body item={item} state={state} retry={retry} />
+      <Body item={item} state={state} retry={retry} now={now} />
     </div>
   );
 }

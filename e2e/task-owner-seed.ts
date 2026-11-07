@@ -1,12 +1,7 @@
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
-
-import type { Seed } from "./seeded.ts";
+import { type Seed, migrationsBefore } from "./seeded.ts";
 
 export const BEFORE_TASK_OWNER: Seed = {
-  files: readdirSync(join(import.meta.dirname, "..", "migrations"))
-    .filter((name) => name.endsWith(".sql") && name < "0014")
-    .toSorted(),
+  files: migrationsBefore("0014"),
   sql: `
 INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title) VALUES
   ('article', 'article', 'https://example.com/a', 'https://example.com/a', 1111, 'First'),

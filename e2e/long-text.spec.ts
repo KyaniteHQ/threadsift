@@ -10,7 +10,7 @@ import {
   WAR_AND_PEACE_LAST_WORD,
 } from "./articles.ts";
 import { ROW_LIMIT_BYTES, ownerOf, postTextOf } from "./files.ts";
-import { afterFirstClaim, expireClaim, jobsOf } from "./ingest.ts";
+import { afterFirstClaim, claimLostLines, expireClaim, jobsOf } from "./ingest.ts";
 import { matches } from "./search.ts";
 import { isContainerTarget } from "./target.ts";
 
@@ -106,15 +106,6 @@ test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, sea
   ).toEqual([id]);
 });
 
-function claimLostLines(job: number): string[] {
-  return instance
-    .logs()
-    .split("\n")
-    .filter(
-      (line) => line.includes('"event":"job-claim-lost"') && line.includes(`"jobId":${job},`),
-    );
-}
-
 test("a runner whose claim was taken over publishes nothing and deletes its file, and the Item ends with the file of the claim's next holder", async () => {
   test.setTimeout(480_000);
   const run = Date.now().toString(36);
@@ -135,7 +126,10 @@ test("a runner whose claim was taken over publishes nothing and deletes its file
   const [job = 0] = fetchJobIds(id);
 
   await expect
-    .poll(() => claimLostLines(job).length, { timeout: BIG_PAGE_TIMEOUT_MS, intervals: [1000] })
+    .poll(() => claimLostLines(instance, job).length, {
+      timeout: BIG_PAGE_TIMEOUT_MS,
+      intervals: [1000],
+    })
     .toBe(1);
   expect(jobsOf(id, instance, "fetch")).toMatchObject([{ state: "running", attempts: 1 }]);
   expect(postTextOf(instance, id), "the row after the rejected finish").toEqual({
