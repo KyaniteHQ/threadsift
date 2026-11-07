@@ -1,1 +1,1 @@
-UPDATE `ai_tasks` SET `item_id` = (SELECT `digests`.`item_id` FROM `digests` WHERE `digests`.`task_id` = `ai_tasks`.`id`) WHERE `item_id` IS NULL AND EXISTS (SELECT 1 FROM `digests` WHERE `digests`.`task_id` = `ai_tasks`.`id`);
+UPDATE `ai_tasks` SET `item_id` = `d`.`item_id` FROM `digests` AS `d` WHERE `d`.`task_id` = `ai_tasks`.`id` AND `ai_tasks`.`item_id` IS NULL;

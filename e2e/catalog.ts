@@ -21,25 +21,42 @@ let sequence = 0;
 
 export function callerTasks(screen: FreshScreen) {
   return screen.fresh.query(
-    "SELECT t.executor, t.state, t.item_id AS itemId, d.item_id AS digestItemId FROM ai_tasks t LEFT JOIN digests d ON d.task_id = t.id",
+    "SELECT id, executor, state, item_id AS itemId FROM ai_tasks ORDER BY id",
     z.array(
       z.object({
+        id: z.number(),
         executor: z.string(),
         state: z.string(),
         itemId: z.number().nullable(),
-        digestItemId: z.number().nullable(),
       }),
     ),
   );
 }
 
-export function expectOwned(tasks: ReturnType<typeof callerTasks>): void {
+const published = new WeakMap<FreshScreen, Map<number, number>>();
+
+export function recordPublished(screen: FreshScreen, itemId: number): void {
+  const [row] = screen.fresh.query(
+    `SELECT task_id AS taskId FROM digests WHERE item_id = ${itemId}`,
+    z.array(z.object({ taskId: z.number() })),
+  );
+
+  if (row === undefined) throw new Error(`No stored Digest for Item ${itemId}`);
+  published.set(
+    screen,
+    (published.get(screen) ?? new Map<number, number>()).set(row.taskId, itemId),
+  );
+}
+
+export function expectPublishedOwners(screen: FreshScreen): void {
   expect(
-    tasks.every(
-      (task) => task.itemId !== null && (task.digestItemId ?? task.itemId) === task.itemId,
+    callerTasks(screen).map(({ id, itemId }) => [id, itemId]),
+    "each task names the Item whose Digest it published",
+  ).toEqual(
+    [...(published.get(screen) ?? new Map<number, number>())].toSorted(
+      (left, right) => left[0] - right[0],
     ),
-    "every task names its Item, and a stored Digest's task names the Digest's Item",
-  ).toBe(true);
+  );
 }
 
 export function catalogCounts(screen: FreshScreen) {
@@ -92,6 +109,7 @@ export async function sendDigest(
   expect(status).toBeLessThan(300);
   const item = await settled(screen.context.request, saved.item.id);
   expect(item).toMatchObject({ digestTitle: digest.title, digestOutcome: "none" });
+  recordPublished(screen, item.id);
 
   return item;
 }

@@ -6,7 +6,7 @@ import { aiScreen, countRows, newSealingKey } from "./ai.ts";
 import { SENT_DIGEST } from "./catalog.ts";
 import { configureDigest } from "./digest.ts";
 import { storeFileItem } from "./files.ts";
-import { jobsOf, onFirstClaim, sweepNow } from "./ingest.ts";
+import { deferJobs, jobsOf, makeJobDue, onFirstClaim, sweepNow } from "./ingest.ts";
 import { isContainerTarget } from "./target.ts";
 
 const WAIT = 120_000;
@@ -102,6 +102,27 @@ function expectOnlyKeptTask(path: Path, ids: { lost: number; kept: number }): vo
   ).toHaveLength(1);
 }
 
+function keptSettled(path: Path, kept: number): boolean {
+  const [task] = tasks();
+  const [job] = jobsOf(kept, screen.fresh, "digest");
+
+  const finished =
+    path === "caller"
+      ? task?.state === "done" && digestsOf(kept) === 1 && job?.state === "done"
+      : task?.state === "failed" && job !== undefined && job.state !== "running";
+
+  return finished && screen.fresh.logs().includes('"event":"job-claim-lost"');
+}
+
+async function startJobs(ids: { lost: number; kept: number }): Promise<void> {
+  for (const id of [ids.lost, ids.kept]) {
+    expect(jobsOf(id, screen.fresh, "digest")).toHaveLength(1);
+    makeJobDue(jobsOf(id, screen.fresh, "digest")[0]?.id ?? 0, screen.fresh);
+  }
+
+  if (!isContainerTarget()) await sweepNow(screen.context.request, screen.fresh);
+}
+
 async function proveLostClaim(browser: Browser, path: Path): Promise<void> {
   screen = await aiScreen(browser, newSealingKey());
   const ids = seedItems(path);
@@ -113,21 +134,19 @@ async function proveLostClaim(browser: Browser, path: Path): Promise<void> {
       `NEW.kind = 'digest' AND NEW.item_id = ${ids.lost}`,
       "DELETE FROM jobs WHERE id = NEW.id",
     );
+
+    const release = deferJobs(screen.fresh, "digest");
+
     await configureDigest(screen, {
       provider: "openai-compatible",
       baseUrl: provider.baseUrl,
       model: "unreachable",
       key: "task-owner-proof",
     });
-    expect(jobsOf(ids.lost, screen.fresh, "digest")).toHaveLength(1);
-    expect(jobsOf(ids.kept, screen.fresh, "digest")).toHaveLength(1);
+    release();
+    await startJobs(ids);
 
-    if (!isContainerTarget()) await sweepNow(screen.context.request, screen.fresh);
-
-    await expect
-      .poll(() => screen.fresh.logs().includes('"event":"job-claim-lost"'), { timeout: WAIT })
-      .toBe(true);
-    await expect.poll(() => tasks().length, { timeout: WAIT }).toBe(1);
+    await expect.poll(() => keptSettled(path, ids.kept), { timeout: WAIT }).toBe(true);
     expectOnlyKeptTask(path, ids);
 
     const calls = await provider.calls();
