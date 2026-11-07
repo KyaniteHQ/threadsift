@@ -1,9 +1,8 @@
 import { z } from "zod";
 
-import { AiSettingsViewSchema } from "../../src/core/ai-contract.ts";
-import { ItemDetailResponseSchema } from "../../src/http/schemas.ts";
 import { type Run, Stop } from "./check-run.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
+import { ItemDetailAnswerSchema, ProviderChoiceSchema } from "./copy-answers.ts";
 import { type Copy, callCopy, decodeAnswer, send } from "./copy-calls.ts";
 import { type Item, endState, expectOk, paste } from "./copy-client.ts";
 import { queryDatabase } from "./d1.ts";
@@ -44,7 +43,7 @@ export async function requireIdleCopy(run: Readonly<Run>, copy: Readonly<Copy>):
 
   const response = await callCopy(copy, { path: "/api/settings/ai", cookie: copy.cookie });
   await expectOk(response, "/api/settings/ai");
-  const { settings } = await decodeAnswer(response, "/api/settings/ai", AiSettingsViewSchema);
+  const { settings } = await decodeAnswer(response, "/api/settings/ai", ProviderChoiceSchema);
 
   if (unfinished !== 0 || pending !== 0 || settings !== null) {
     throw new Stop(
@@ -75,7 +74,7 @@ export async function itemDetail(copy: Readonly<Copy>, id: number) {
   const response = await callCopy(copy, { path, cookie: copy.cookie });
   await expectOk(response, path);
 
-  return (await decodeAnswer(response, path, ItemDetailResponseSchema)).item;
+  return (await decodeAnswer(response, path, ItemDetailAnswerSchema)).item;
 }
 
 export interface Pasted {

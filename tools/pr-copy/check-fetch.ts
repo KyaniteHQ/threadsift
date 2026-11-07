@@ -83,7 +83,9 @@ export async function unreachableCheck(
   );
   findings.check(
     "a page that stops answering ends failed with a reason from the closed list",
-    silentEnd.status === "failed" && CLOSED_REASONS.includes(silentEnd.reason),
+    silentEnd.status === "failed" &&
+      silentEnd.reason !== null &&
+      CLOSED_REASONS.includes(silentEnd.reason),
     `${silentEnd.status} ${silentEnd.reason ?? "no reason"}`,
   );
 }

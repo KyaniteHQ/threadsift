@@ -1,5 +1,6 @@
-import { ItemListResponseSchema, SessionStateSchema } from "../../src/http/schemas.ts";
+import { SessionStateSchema } from "../../src/http/schemas.ts";
 import type { AccessCodes } from "./codes.ts";
+import { ItemListAnswerSchema } from "./copy-answers.ts";
 import { type Copy, callCopy, decodeAnswer } from "./copy-calls.ts";
 import { type Item, awaitServing, endState, expectOk, paste } from "./copy-client.ts";
 import { signIn } from "./demo-access.ts";
@@ -71,7 +72,7 @@ export async function ensureDemo(url: string, codes: Readonly<AccessCodes>): Pro
   const response = await callCopy(copy, { path: "/api/items", cookie: copy.cookie });
 
   await expectOk(response, "/api/items");
-  const { items } = await decodeAnswer(response, "/api/items", ItemListResponseSchema);
+  const { items } = await decodeAnswer(response, "/api/items", ItemListAnswerSchema);
 
   await Promise.all(
     DEMO_ITEMS.map(async (demo) => {
