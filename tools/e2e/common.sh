@@ -30,16 +30,15 @@ wait_for_session_route() {
 
 save_logs() {
   [[ -n ${THREADSIFT_RUN_DIR:-} ]] || return 0
-  mkdir -p "$THREADSIFT_RUN_DIR/logs"
-  "$0" logs "$1" >"$THREADSIFT_RUN_DIR/logs/$2.log" 2>&1 || true
+  "$0" logs "$1" 2>&1 | sed -E 's/^(Setup code: ).+$/\1[redacted]/' >"$THREADSIFT_RUN_DIR/logs/$2.log" || true
 }
 
 stop_all() {
   local root=$1 dir
   for dir in "$root"/fresh-* "$root"; do
     [[ -d $dir ]] || continue
-    save_logs "$dir" "$([[ $dir == "$root" ]] && echo main || basename "$dir")"
     "$0" stop "$dir" || true
+    save_logs "$dir" "$([[ $dir == "$root" ]] && echo main || basename "$dir")"
   done
 }
 
@@ -51,17 +50,17 @@ run_suite() {
   code=$(new_code)
   # shellcheck disable=SC2154
   trap 'status=$?; stop_all "$dir"; rm -rf "$dir"; exit "$status"' EXIT
+  if [[ -n ${THREADSIFT_ARTIFACTS:-} ]]; then
+    THREADSIFT_RUN_DIR="$THREADSIFT_ARTIFACTS/$THREADSIFT_TARGET-$(date -u +%Y%m%dT%H%M%SZ)"
+    export THREADSIFT_RUN_DIR
+    mkdir -p "$THREADSIFT_RUN_DIR/logs"
+    echo "artifacts: $THREADSIFT_RUN_DIR"
+  fi
   SETUP_CODE=$code "$script" launch "$dir"
   export THREADSIFT_BASE_URL
   THREADSIFT_BASE_URL=$(<"$dir/url")
   export THREADSIFT_INSTANCE_SCRIPT="bash $script"
   export THREADSIFT_E2E_DIR=$dir
   export THREADSIFT_SETUP_CODE=$code
-  if [[ -n ${THREADSIFT_ARTIFACTS:-} ]]; then
-    THREADSIFT_RUN_DIR="$THREADSIFT_ARTIFACTS/$THREADSIFT_TARGET-$(date -u +%Y%m%dT%H%M%SZ)"
-    export THREADSIFT_RUN_DIR
-    mkdir -p "$THREADSIFT_RUN_DIR"
-    echo "artifacts: $THREADSIFT_RUN_DIR"
-  fi
   pnpm exec playwright test "$@"
 }
