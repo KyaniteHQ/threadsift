@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { type Stage, PageSchema, cloudflareCall, refuseOutsideTarget } from "./cloudflare.ts";
+import { PageSchema, cloudflareCall } from "./cloudflare-api.ts";
+import { type Stage, refuseOutsideTarget } from "./cloudflare.ts";
 
 export async function queryDatabase<Row>(
   stage: Readonly<Stage>,

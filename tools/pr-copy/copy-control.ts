@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { type Stage, PageSchema, cloudflareCall, refuseOutsideTarget } from "./cloudflare.ts";
+import { PageSchema, cloudflareCall } from "./cloudflare-api.ts";
+import { type Stage, refuseOutsideTarget } from "./cloudflare.ts";
 
 const QueueRow = z.looseObject({
   queue_id: z.string().min(1),

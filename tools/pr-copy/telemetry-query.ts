@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import { Inconclusive } from "./check-types.ts";
-import { type Stage, PageSchema, cloudflareCall } from "./cloudflare.ts";
+import { PageSchema, cloudflareCall } from "./cloudflare-api.ts";
+import type { Stage } from "./cloudflare.ts";
 import type { Trigger, Window } from "./telemetry.ts";
 
 const PAGE_SIZE = 100;
