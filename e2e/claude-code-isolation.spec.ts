@@ -23,6 +23,7 @@ import {
   clearMarkers,
   markersPresent,
   pasteHostileThread,
+  pasteWithoutWaiting,
   plainClaude,
   plantSentinels,
 } from "./claude-sentinels.ts";
@@ -185,6 +186,21 @@ test("stopping the Instance aborts a running task", async () => {
   expect(answer === null || answer.kind === "refused").toBe(true);
   expect(screen.fresh.logs()).toContain('"reason":"timeout","exit":null');
   expect(taskFolders(screen)).toEqual([]);
+});
+
+test("stopping the Instance during an automatic Digest, with no request waiting, cleans up before it exits", async () => {
+  const id = await pasteWithoutWaiting(screen.context.request);
+
+  await expect
+    .poll(() => claudeRuns(screen).length, { timeout: 120_000, intervals: [100] })
+    .toBeGreaterThan(0);
+  const [folder] = taskFolders(screen);
+
+  expect(folder).toBeDefined();
+  screen.fresh.restart();
+  expect(taskFolders(screen)).not.toContain(folder);
+  expect(screen.fresh.logs()).toContain('"reason":"timeout","exit":null');
+  await settled(screen.context.request, id, 420_000);
 });
 
 test("a CLI removed after start answers not-configured and reads as signed out", async () => {

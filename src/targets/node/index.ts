@@ -75,14 +75,14 @@ app.get("*", (context, next) =>
 
 const server = serve({ fetch: app.fetch, port: env.PORT });
 
-function shutdown(): void {
-  node.stop();
+async function shutdown(): Promise<void> {
+  await node.stop();
   server.close(() => {
     database.close();
     process.exit(0);
   });
 }
 
-process.once("SIGTERM", shutdown);
+process.once("SIGTERM", () => void shutdown());
 
-process.once("SIGINT", shutdown);
+process.once("SIGINT", () => void shutdown());

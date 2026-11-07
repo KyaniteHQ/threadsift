@@ -11,7 +11,7 @@ import { setupCodeOf } from "./setup-code.ts";
 
 interface NodeRuntime {
   readonly ports: Ports;
-  readonly stop: () => void;
+  readonly stop: () => Promise<void>;
 }
 
 export interface NodeOptions {
@@ -47,10 +47,12 @@ export async function startNode(
 
   return {
     ports,
-    stop: () => {
-      loop.stop();
+    stop: async () => {
+      const drained = loop.stop();
+
       pages.stop();
       cli?.stop();
+      await drained;
     },
   };
 }
