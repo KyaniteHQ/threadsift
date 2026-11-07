@@ -10,13 +10,9 @@ import {
   type JobOutcome,
   type JobPorts,
 } from "./job-outcome.ts";
-import { enqueueQuietly, enqueueRows, hasOpenJob } from "./job-rows.ts";
+import { enqueueQuietly, enqueueRows, hasOpenJob, holding } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, guardedBatch, items, jobs } from "./schema.ts";
-
-function holding(job: Readonly<JobRow>) {
-  return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobs.state} = 'running' and ${jobs.attempts} = ${job.attempts})`;
-}
 
 function writeWhileHolding(
   db: Database,

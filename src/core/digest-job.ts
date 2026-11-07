@@ -41,17 +41,36 @@ async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promis
   if (item === undefined || (item.postText === null && item.postTextKey === null))
     return { writes: [setDigestFailure(ports.db, job.itemId, false)] };
 
-  if (item.pendingDigest !== null) {
-    const digest = parseStoredDigest(item.pendingDigest);
+  return item.pendingDigest === null
+    ? attemptModel(ports, job, item)
+    : attemptCaller(ports, job, item, item.pendingDigest);
+}
 
-    const taskId = await startCallerTask(ports, item.pendingDigest, {
-      inputRevision: item.generation,
-      attempts: job.attempts + 1,
-    });
+async function attemptCaller(
+  ports: JobPorts,
+  job: Readonly<ClaimedJob>,
+  item: Readonly<DigestInput>,
+  pendingDigest: string,
+): Promise<JobOutcome> {
+  const digest = parseStoredDigest(pendingDigest);
 
-    return publishing(ports.db, item, digest, taskId, { executor: "caller" });
-  }
+  const taskId = await startCallerTask(
+    ports,
+    pendingDigest,
+    { inputRevision: item.generation, attempts: job.attempts + 1 },
+    job,
+  );
 
+  if (taskId === null) return lostClaim(ports.db);
+
+  return publishing(ports.db, item, digest, taskId, { executor: "caller" });
+}
+
+async function attemptModel(
+  ports: JobPorts,
+  job: Readonly<ClaimedJob>,
+  item: Readonly<DigestInput>,
+): Promise<JobOutcome> {
   const filed = await readDigestText(ports, job, item);
 
   if ("outcome" in filed) return filed.outcome;
@@ -60,14 +79,21 @@ async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promis
 
   const catalog = await readCatalog(ports.db);
 
-  const result = await runAiTask(ports, TASKS.digest, {
-    text: digestPrompt(
-      JSON.stringify({ title: item.title, source: item.source, postText }),
-      catalog,
-    ),
-    inputRevision: item.generation,
-    attempts: job.attempts + 1,
-  });
+  const result = await runAiTask(
+    ports,
+    TASKS.digest,
+    {
+      text: digestPrompt(
+        JSON.stringify({ title: item.title, source: item.source, postText }),
+        catalog,
+      ),
+      inputRevision: item.generation,
+      attempts: job.attempts + 1,
+    },
+    job,
+  );
+
+  if (result.kind === "claim-lost") return lostClaim(ports.db);
 
   if (result.kind !== "done") {
     if (retriesAi(result)) throw new Error(`Digest ${result.reason}`);
@@ -82,6 +108,10 @@ async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promis
     version: catalog.version,
     staleRequeues: job.staleRequeues,
   });
+}
+
+function lostClaim(db: Database): JobOutcome {
+  return { writes: [insertGuard(db, sql`0`)] };
 }
 
 type DigestSource =

@@ -161,19 +161,27 @@ export async function tickNow(
   await runSweep(request);
 }
 
-export function afterFirstClaim(
-  instance: Instance,
-  urlEnd: string,
-  assignments: string,
-): () => void {
+export function onFirstClaim(instance: Instance, condition: string, statement: string): () => void {
   const trigger = `after_claim_${randomBytes(4).toString("hex")}`;
   instance.sql(
-    `CREATE TRIGGER ${trigger} AFTER UPDATE ON jobs WHEN OLD.state = 'queued' AND NEW.state = 'running' AND (SELECT normalized_url FROM items WHERE id = NEW.item_id) LIKE '%${urlEnd}' BEGIN UPDATE jobs SET ${assignments} WHERE id = NEW.id; END`,
+    `CREATE TRIGGER ${trigger} AFTER UPDATE ON jobs WHEN OLD.state = 'queued' AND NEW.state = 'running' AND ${condition} BEGIN ${statement}; END`,
   );
 
   return () => {
     instance.sql(`DROP TRIGGER ${trigger}`);
   };
+}
+
+export function afterFirstClaim(
+  instance: Instance,
+  urlEnd: string,
+  assignments: string,
+): () => void {
+  return onFirstClaim(
+    instance,
+    `(SELECT normalized_url FROM items WHERE id = NEW.item_id) LIKE '%${urlEnd}'`,
+    `UPDATE jobs SET ${assignments} WHERE id = NEW.id`,
+  );
 }
 
 export async function waitForRunning(id: number): Promise<void> {

@@ -5,12 +5,16 @@ import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { items, jobs } from "./schema.ts";
+import { type JobRow, items, jobs } from "./schema.ts";
 
 const openJobs = alias(jobs, "open_jobs");
 
 export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${items.id}`) {
   return sql`(select 1 from ${jobs} as open_jobs where ${openJobs.itemId} = ${itemId} and ${openJobs.state} <> 'done' ${kind === undefined ? sql`` : sql`and ${openJobs.kind} = ${kind}`})`;
+}
+
+export function holding(job: Readonly<Pick<JobRow, "id" | "attempts">>) {
+  return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobs.state} = 'running' and ${jobs.attempts} = ${job.attempts})`;
 }
 
 export function openingJob(

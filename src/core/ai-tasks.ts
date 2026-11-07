@@ -1,4 +1,4 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 
 import {
   type AiConnection,
@@ -14,8 +14,9 @@ import {
   refusedAi,
 } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-settings.ts";
+import { holding } from "./job-rows.ts";
 import type { AiPorts, Database } from "./ports.ts";
-import { aiTasks } from "./schema.ts";
+import { type JobRow, aiTasks } from "./schema.ts";
 
 export const TASKS = {
   digest: {
@@ -35,6 +36,14 @@ export interface DoneTask<Result> {
 }
 
 type TaskResult<Result> = DoneTask<Result> | (AiRefused & { readonly taskId: number | null });
+
+export type TaskOwner = Readonly<Pick<JobRow, "id" | "attempts" | "itemId">>;
+
+export interface ClaimLost {
+  readonly kind: "claim-lost";
+}
+
+const CLAIM_LOST: ClaimLost = { kind: "claim-lost" };
 
 export function completedAiTask<Result>(
   db: Database,
@@ -74,6 +83,7 @@ export async function verifyAi(ports: AiPorts, attempt: AbortSignal) {
     ports,
     TASKS.digest,
     { text: VERIFY_INPUT, inputRevision: 1, attempts: 1 },
+    null,
     attempt,
   );
 
@@ -90,12 +100,27 @@ export async function verifyAi(ports: AiPorts, attempt: AbortSignal) {
     : { kind: result.kind, reason: result.reason, status: result.status };
 }
 
+export function runAiTask<Result>(
+  ports: AiPorts,
+  definition: AiTaskDefinition<Result>,
+  input: Readonly<{ text: string; inputRevision: number; attempts: number }>,
+  owner: null,
+  attempt?: AbortSignal,
+): Promise<TaskResult<Result>>;
+export function runAiTask<Result>(
+  ports: AiPorts,
+  definition: AiTaskDefinition<Result>,
+  input: Readonly<{ text: string; inputRevision: number; attempts: number }>,
+  owner: TaskOwner,
+  attempt?: AbortSignal,
+): Promise<TaskResult<Result> | ClaimLost>;
 export async function runAiTask<Result>(
   ports: AiPorts,
   definition: AiTaskDefinition<Result>,
   input: Readonly<{ text: string; inputRevision: number; attempts: number }>,
+  owner: TaskOwner | null,
   attempt?: AbortSignal,
-): Promise<TaskResult<Result>> {
+): Promise<TaskResult<Result> | ClaimLost> {
   const loaded = await loadAiConfig(ports);
 
   if (loaded.state !== "ready") return { ...refusedAi(loaded.state), taskId: null };
@@ -105,11 +130,22 @@ export async function runAiTask<Result>(
     return { ...refusedAi("refused"), taskId: null };
   const text = definition.prepareInput(input.text);
 
-  const task = await startTask(ports, definition.kind, text, input, originOf(config));
+  const task = await startTask(ports, definition.kind, text, input, originOf(config), owner);
+
+  if (task === null) return CLAIM_LOST;
 
   if (!ports.ai.providers.includes(config.provider))
     return failTask(ports, task.id, "provider-unavailable");
 
+  return execute(ports, definition, { config, text, taskId: task.id }, attempt);
+}
+
+async function execute<Result>(
+  ports: AiPorts,
+  definition: AiTaskDefinition<Result>,
+  { config, text, taskId }: Readonly<{ config: AiConnection; text: string; taskId: number }>,
+  attempt: AbortSignal | undefined,
+): Promise<TaskResult<Result>> {
   const deadline = AbortSignal.timeout(AI_DEADLINE_MS);
   const signal = attempt === undefined ? deadline : AbortSignal.any([attempt, deadline]);
 
@@ -125,19 +161,14 @@ export async function runAiTask<Result>(
     );
 
     if (result.kind !== "done") {
-      await failedAiTask(ports.db, task.id, result);
+      await failedAiTask(ports.db, taskId, result);
 
-      return { ...result, taskId: task.id };
+      return { ...result, taskId };
     }
 
-    return {
-      ...result,
-      taskId: task.id,
-      provider: config.provider,
-      model: config.model,
-    };
+    return { ...result, taskId, provider: config.provider, model: config.model };
   } catch {
-    return failTask(ports, task.id);
+    return failTask(ports, taskId);
   }
 }
 
@@ -175,29 +206,41 @@ async function startTask(
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
   origin: Readonly<TaskOrigin>,
+  owner: TaskOwner | null,
 ) {
   const [task] = await ports.db
     .insert(aiTasks)
-    .values({
-      kind,
-      inputs: text,
-      inputRevision: input.inputRevision,
-      attempts: input.attempts,
-      ...origin,
-      deadline: Date.now() + AI_DEADLINE_MS,
-      state: "running",
-    })
+    .select(
+      ports.db
+        .select({
+          id: sql<null>`null`.as("id"),
+          kind: sql<string>`${kind}`.as("kind"),
+          inputs: sql<string>`${text}`.as("inputs"),
+          inputRevision: sql<number>`${input.inputRevision}`.as("input_revision"),
+          executor: sql<string>`${origin.executor}`.as("executor"),
+          provider: sql<string | null>`${origin.provider}`.as("provider"),
+          model: sql<string | null>`${origin.model}`.as("model"),
+          attempts: sql<number>`${input.attempts}`.as("attempts"),
+          deadline: sql<number>`${Date.now() + AI_DEADLINE_MS}`.as("deadline"),
+          state: sql<"running">`'running'`.as("state"),
+          result: sql<null>`null`.as("result"),
+          refusal: sql<null>`null`.as("refusal"),
+          status: sql<null>`null`.as("status"),
+          itemId: sql<number | null>`${owner?.itemId ?? null}`.as("item_id"),
+        })
+        .from(sql`(select 1)`)
+        .where(owner === null ? sql`1` : holding(owner)),
+    )
     .returning({ id: aiTasks.id });
 
-  if (task === undefined) throw new Error("AI task was not created");
-
-  return task;
+  return task ?? null;
 }
 
 export async function startCallerTask(
   ports: AiPorts,
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
+  owner: TaskOwner,
 ) {
-  return (await startTask(ports, "digest", text, input, CALLER_ORIGIN)).id;
+  return (await startTask(ports, "digest", text, input, CALLER_ORIGIN, owner))?.id ?? null;
 }

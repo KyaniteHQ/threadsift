@@ -19,6 +19,29 @@ export const SENT_DIGEST = {
 
 let sequence = 0;
 
+export function callerTasks(screen: FreshScreen) {
+  return screen.fresh.query(
+    "SELECT t.executor, t.state, t.item_id AS itemId, d.item_id AS digestItemId FROM ai_tasks t LEFT JOIN digests d ON d.task_id = t.id",
+    z.array(
+      z.object({
+        executor: z.string(),
+        state: z.string(),
+        itemId: z.number().nullable(),
+        digestItemId: z.number().nullable(),
+      }),
+    ),
+  );
+}
+
+export function expectOwned(tasks: ReturnType<typeof callerTasks>): void {
+  expect(
+    tasks.every(
+      (task) => task.itemId !== null && (task.digestItemId ?? task.itemId) === task.itemId,
+    ),
+    "every task names its Item, and a stored Digest's task names the Digest's Item",
+  ).toBe(true);
+}
+
 export function catalogCounts(screen: FreshScreen) {
   return screen.fresh.query(
     "SELECT (SELECT count(*) FROM topics) AS topics, (SELECT count(*) FROM tags) AS tags, coalesce((SELECT version FROM catalog_version WHERE id = 1), 0) AS version, (SELECT count(*) FROM item_tags) AS links",
