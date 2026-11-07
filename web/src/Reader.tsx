@@ -31,11 +31,13 @@ function ReaderBody({
   slot,
   controls,
   titleId,
+  tryAgain,
 }: Readonly<{
   item: Item;
   slot: RefObject<HTMLElement | null>;
   controls: ReaderControls;
   titleId: string;
+  tryAgain: (item: Item) => void;
 }>) {
   use(postTextModule());
 
@@ -48,6 +50,7 @@ function ReaderBody({
       item={item}
       state={state}
       retry={retry}
+      tryAgain={tryAgain}
       now={now}
       titleId={titleId}
       focusTitle={controls.mode !== "pane" || controls.titleFocus === item.id}
@@ -62,6 +65,7 @@ export function Reader({
   look,
   titleId,
   openSettings,
+  tryAgain,
 }: Readonly<{
   item: Item;
   slot: RefObject<HTMLElement | null>;
@@ -69,6 +73,7 @@ export function Reader({
   look: Look;
   titleId: string;
   openSettings: () => void;
+  tryAgain: (item: Item) => void;
 }>) {
   const loading = useMemo(() => <Loading id={titleId} />, [titleId]);
 
@@ -76,7 +81,13 @@ export function Reader({
     <section className="reader" aria-labelledby={titleId}>
       <ReaderBar item={item} controls={controls} look={look} openSettings={openSettings} />
       <Suspense fallback={loading}>
-        <ReaderBody item={item} slot={slot} controls={controls} titleId={titleId} />
+        <ReaderBody
+          item={item}
+          slot={slot}
+          controls={controls}
+          titleId={titleId}
+          tryAgain={tryAgain}
+        />
       </Suspense>
     </section>
   );

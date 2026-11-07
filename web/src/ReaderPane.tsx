@@ -7,31 +7,36 @@ import { Reader, type ReaderControls } from "./Reader.tsx";
 import { Sheet, type SheetNav } from "./Sheet.tsx";
 import type { Look } from "./use-root.ts";
 
+function Placeholder() {
+  const placeholderId = useId();
+
+  return (
+    <section className="reader-ph" aria-labelledby={placeholderId}>
+      <Icon name="document" className="ic ic-xl" />
+      <span id={placeholderId}>{READER_PLACEHOLDER}</span>
+    </section>
+  );
+}
+
 export function ReaderPane({
   item,
   controls,
   nav,
   look,
   openSettings,
+  tryAgain,
 }: Readonly<{
   item: Item | null;
   controls: ReaderControls;
   nav: SheetNav;
   look: Look;
   openSettings: () => void;
+  tryAgain: (item: Item) => void;
 }>) {
   const slot = useRef<HTMLDivElement>(null);
-  const placeholderId = useId();
   const titleId = useId();
 
-  if (item === null) {
-    return (
-      <section className="reader-ph" aria-labelledby={placeholderId}>
-        <Icon name="document" className="ic ic-xl" />
-        <span id={placeholderId}>{READER_PLACEHOLDER}</span>
-      </section>
-    );
-  }
+  if (item === null) return <Placeholder />;
 
   const reader = (
     <div ref={slot} className="reader-slot">
@@ -43,6 +48,7 @@ export function ReaderPane({
         look={look}
         titleId={titleId}
         openSettings={openSettings}
+        tryAgain={tryAgain}
       />
     </div>
   );

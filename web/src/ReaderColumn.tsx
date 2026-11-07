@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { shownUrl, whereOf } from "../../src/core/links.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
@@ -127,13 +127,38 @@ function digestNote(item: Readonly<Item>, hasDigest: boolean): string | null {
   return null;
 }
 
-function Agent({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
+function DigestNote({
+  item,
+  note,
+  tryAgain,
+}: Readonly<{ item: Item; note: string; tryAgain: (item: Item) => void }>) {
+  const retry = useCallback(() => {
+    tryAgain(item);
+  }, [item, tryAgain]);
+
+  return (
+    <div className="rd-orig">
+      <p className="rd-note">{note}</p>
+      {item.retry === null ? null : (
+        <button type="button" className="btn btn-block" onClick={retry}>
+          {RETRY_LABEL}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Agent({
+  item,
+  detail,
+  tryAgain,
+}: Readonly<{ item: Item; detail: ItemDetail; tryAgain: (item: Item) => void }>) {
   const note = digestNote(item, detail.digest !== null);
 
   return (
     <>
       {detail.digest === null ? null : <Summary item={item} digest={detail.digest} />}
-      {note === null ? null : <p className="rd-note">{note}</p>}
+      {note === null ? null : <DigestNote item={item} note={note} tryAgain={tryAgain} />}
     </>
   );
 }
@@ -142,8 +167,15 @@ function Body({
   item,
   state,
   retry,
+  tryAgain,
   now,
-}: Readonly<{ item: Item; state: DetailState; retry: () => void; now: number }>) {
+}: Readonly<{
+  item: Item;
+  state: DetailState;
+  retry: () => void;
+  tryAgain: (item: Item) => void;
+  now: number;
+}>) {
   if (state.status === "loading") {
     return <output className="rd-note">{READER_LOADING}</output>;
   }
@@ -161,7 +193,7 @@ function Body({
 
   return (
     <>
-      <Agent item={item} detail={state.detail} />
+      <Agent item={item} detail={state.detail} tryAgain={tryAgain} />
       <Original item={item} detail={state.detail} now={now} />
     </>
   );
@@ -171,6 +203,7 @@ export function ReaderColumn({
   item,
   state,
   retry,
+  tryAgain,
   now,
   titleId,
   focusTitle,
@@ -178,6 +211,7 @@ export function ReaderColumn({
   item: Item;
   state: DetailState;
   retry: () => void;
+  tryAgain: (item: Item) => void;
   now: number;
   titleId: string;
   focusTitle: boolean;
@@ -191,7 +225,7 @@ export function ReaderColumn({
         titleId={titleId}
         focusTitle={focusTitle}
       />
-      <Body item={item} state={state} retry={retry} now={now} />
+      <Body item={item} state={state} retry={retry} tryAgain={tryAgain} now={now} />
     </div>
   );
 }
