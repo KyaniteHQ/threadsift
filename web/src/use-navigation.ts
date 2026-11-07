@@ -7,7 +7,7 @@ import { focusNeighbourCard } from "./reveal.ts";
 import type { Route } from "./routing.ts";
 import { changeView } from "./view-transition.ts";
 
-export function neighbour(list: Readonly<ListState>, openId: number | null, direction: 1 | -1) {
+function neighbour(list: Readonly<ListState>, openId: number | null, direction: 1 | -1) {
   if (list.status !== "ready") return null;
 
   const ids = list.items.map((item) => item.id);

@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffectEvent, useLayoutEffect, useRef } from "react";
 
 import { Icon } from "./Icon.tsx";
+import { watchDismissal } from "./panel-dom.ts";
 import { NEXT_ITEM, PREVIOUS_ITEM } from "./reader-text.ts";
 
 export interface SheetNav {
@@ -61,12 +62,7 @@ const NOTHING = (): void => undefined;
 function useModal(close: () => void) {
   const dialog = useRef<HTMLDialogElement>(null);
 
-  const onCancel = useEffectEvent((event: Readonly<Pick<Event, "preventDefault">>) => {
-    event.preventDefault();
-    close();
-  });
-
-  const onDismiss = useEffectEvent(() => {
+  const dismiss = useEffectEvent(() => {
     close();
   });
 
@@ -76,28 +72,8 @@ function useModal(close: () => void) {
     if (element === null) return NOTHING;
 
     const listeners = new AbortController();
-    let pressedOutside = false;
     element.showModal();
-
-    element.addEventListener("cancel", onCancel, { signal: listeners.signal });
-
-    element.addEventListener(
-      "pointerdown",
-      (event) => {
-        pressedOutside = event.target === element;
-      },
-      { signal: listeners.signal },
-    );
-
-    element.addEventListener(
-      "click",
-      (event) => {
-        if (pressedOutside && event.target === element) onDismiss();
-
-        pressedOutside = false;
-      },
-      { signal: listeners.signal },
-    );
+    watchDismissal(element, dismiss, listeners.signal);
 
     return () => {
       listeners.abort();
