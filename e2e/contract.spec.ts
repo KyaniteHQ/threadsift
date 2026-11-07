@@ -211,9 +211,9 @@ test("every path of the served OpenAPI document has a route template in the copy
 }, info) => {
   const { paths } = await documentOf(request, info);
 
-  const unlisted = Object.keys(paths).filter(
-    (path) => routeTemplate(path.replaceAll(/\{[^}]+\}/gu, "1")) === "other",
-  );
+  const unlisted = Object.keys(paths)
+    .map((path) => path.replaceAll(/\{([^}]+)\}/gu, ":$1"))
+    .filter((template) => routeTemplate(template) !== template);
 
   expect(unlisted).toEqual([]);
 });

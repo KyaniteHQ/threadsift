@@ -146,9 +146,17 @@ function copyIn(artifact: string, dir: string, path: string): void {
 }
 
 function migrationFiles(dir: string): string[] {
-  return readdirSync(join(dir, "migrations"))
+  const files = readdirSync(join(dir, "migrations"))
     .filter((name) => name.endsWith(".sql"))
     .toSorted();
+
+  for (const file of files) {
+    if (!lstatSync(join(dir, "migrations", file)).isFile()) {
+      throw new Error(`migrations/${file} is not a regular file`);
+    }
+  }
+
+  return files;
 }
 
 function deployedPaths(artifact: string): string[] {
