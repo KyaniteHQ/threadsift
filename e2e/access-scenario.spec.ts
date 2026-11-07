@@ -10,6 +10,7 @@ import {
 } from "@playwright/test";
 
 import { LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
+import { READER_LOADING } from "../web/src/reader-text.ts";
 import { filled } from "../web/src/text.ts";
 import { cookieHeader } from "./access-helpers.ts";
 import {
@@ -266,6 +267,8 @@ test("a Paste after the owner signed out in another tab shows the login screen, 
   await expect(pasteField(first)).toBeVisible();
   await second.goto("/");
   await expect(pasteField(second)).toBeVisible();
+  await expect(second.locator(".reader")).toBeVisible();
+  await expect(second.getByText(READER_LOADING)).toBeHidden();
 
   await openInstanceSettings(first);
   await first.getByRole("button", { name: SETTINGS.signOut }).click();
