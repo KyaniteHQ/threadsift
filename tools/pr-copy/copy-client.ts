@@ -1,6 +1,4 @@
-import type { z } from "zod";
-
-import { ItemResponseSchema, SavedItemResponseSchema } from "../../src/http/schemas.ts";
+import { type Item, ItemAnswerSchema, PastedAnswerSchema } from "./copy-answers.ts";
 import {
   type Copy,
   POLL_MS,
@@ -18,7 +16,7 @@ const SERVE_DEADLINE_MS = 120_000;
 const SERVED_IN_A_ROW = 10;
 const ITEM_DEADLINE_MS = 300_000;
 
-export type Item = z.infer<typeof ItemResponseSchema>["item"];
+export type { Item };
 
 async function answersJson(url: string, deadline: number): Promise<boolean> {
   const response = await fetch(`${url}/api/session`, { signal: callTimeout(deadline) }).catch(
@@ -87,7 +85,7 @@ export async function paste(
     throw new CopyAnswerError("/api/items", response.status, await refusal(response));
   }
 
-  const { item } = await decodeAnswer(response, "/api/items", SavedItemResponseSchema);
+  const { item } = await decodeAnswer(response, "/api/items", PastedAnswerSchema);
 
   return { id: item.id, created: response.status === 201 };
 }
@@ -102,7 +100,7 @@ export async function endState(
 
   await expectOk(response, path);
 
-  const { item } = await decodeAnswer(response, path, ItemResponseSchema);
+  const { item } = await decodeAnswer(response, path, ItemAnswerSchema);
 
   if (item.status !== "processing") return item;
 
