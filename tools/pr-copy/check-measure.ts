@@ -10,7 +10,6 @@ import { queryDatabase } from "./d1.ts";
 import { type Invocation, type Trigger, awaitInvocations, readInvocations } from "./telemetry.ts";
 
 export const SKEW_MS = 10_000;
-export const CAP_BYTES = 900 * 1024;
 
 export const INGEST_DEADLINE_MS = 180_000;
 export const SENTINEL_ROUTE = "/api/session";
@@ -147,6 +146,20 @@ export async function measuredPaste(
     end: pasted.end,
     consumers: pasted.found.filter((entry) => entry.trigger === "queue"),
   };
+}
+
+export function consumersOk(consumers: readonly Readonly<Invocation>[]) {
+  return {
+    ok: consumers.length > 0 && consumers.every((entry) => entry.outcome === "ok"),
+    outcomes: consumers.map((entry) => entry.outcome).join(",") || "none",
+  };
+}
+
+export function sumOf(
+  consumers: readonly Readonly<Invocation>[],
+  field: "cpuMs" | "wallMs",
+): number {
+  return consumers.reduce((sum, entry) => sum + entry[field], 0);
 }
 
 export async function idleMinutes(

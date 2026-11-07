@@ -3,7 +3,15 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { z } from "zod";
 
 import { ItemResponseSchema, SavedItemResponseSchema } from "../../src/http/schemas.ts";
-import { type Copy, POLL_MS, type Site, callCopy, isJson, refusal } from "./copy-calls.ts";
+import {
+  type Copy,
+  POLL_MS,
+  type Site,
+  callCopy,
+  isJson,
+  refusal,
+  sessionCookie,
+} from "./copy-calls.ts";
 import { callTimeout } from "./timeout.ts";
 
 const SERVE_DEADLINE_MS = 120_000;
@@ -55,8 +63,7 @@ export async function expectOk(response: Response, path: string): Promise<void> 
 export async function logIn(site: Readonly<Site>, password: string): Promise<Copy> {
   const path = "/api/login";
   const response = await callCopy(site, { path, body: { password } });
-  const [setCookie] = response.headers.getSetCookie();
-  const cookie = setCookie?.split(";")[0];
+  const cookie = sessionCookie(response);
 
   if (response.status !== 204 || cookie === undefined) {
     throw new CopyAnswerError(path, response.status, await refusal(response));

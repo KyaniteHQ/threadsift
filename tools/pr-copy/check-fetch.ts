@@ -1,5 +1,12 @@
 import { expectArticle, expectOther, requireFixture } from "./check-content.ts";
-import { fetchJobs, itemDetail, measuredPaste, withTag } from "./check-measure.ts";
+import {
+  consumersOk,
+  fetchJobs,
+  itemDetail,
+  measuredPaste,
+  sumOf,
+  withTag,
+} from "./check-measure.ts";
 import {
   BREAD,
   CLOSED_REASONS,
@@ -31,11 +38,8 @@ export async function queueCheck(
     jobs.map((job) => job.state).join(",") || "no job",
   );
   findings.measure("consumer invocations for the Item", pasted.consumers.length);
-  findings.check(
-    "at least one consumer invocation, every one ok",
-    pasted.consumers.length > 0 && pasted.consumers.every((entry) => entry.outcome === "ok"),
-    pasted.consumers.map((entry) => entry.outcome).join(",") || "none",
-  );
+  const { ok, outcomes } = consumersOk(pasted.consumers);
+  findings.check("at least one consumer invocation, every one ok", ok, outcomes);
 }
 
 export async function capCheck(
@@ -46,19 +50,10 @@ export async function capCheck(
   await requireFixture(findings, TALE_OF_TWO_CITIES);
   const pasted = await measuredPaste(run, copy, TALE_OF_TWO_CITIES.url, findings);
   expectOther(findings, TALE_OF_TWO_CITIES, await itemDetail(copy, pasted.id));
-  findings.check(
-    "every consumer invocation ended ok",
-    pasted.consumers.length > 0 && pasted.consumers.every((entry) => entry.outcome === "ok"),
-    pasted.consumers.map((entry) => entry.outcome).join(",") || "none",
-  );
-  findings.measure(
-    "total fetch-consumer cpu ms",
-    pasted.consumers.reduce((sum, entry) => sum + entry.cpuMs, 0),
-  );
-  findings.measure(
-    "total fetch-consumer wall ms",
-    pasted.consumers.reduce((sum, entry) => sum + entry.wallMs, 0),
-  );
+  const { ok, outcomes } = consumersOk(pasted.consumers);
+  findings.check("every consumer invocation ended ok", ok, outcomes);
+  findings.measure("total fetch-consumer cpu ms", sumOf(pasted.consumers, "cpuMs"));
+  findings.measure("total fetch-consumer wall ms", sumOf(pasted.consumers, "wallMs"));
 }
 
 export async function unreachableCheck(

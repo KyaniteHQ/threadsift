@@ -35,6 +35,12 @@ export function send(url: string, call: Readonly<Call>): Promise<Response> {
   return fetch(`${url}${call.path}`, { ...request, headers, signal: callTimeout() });
 }
 
+export function sessionCookie(response: Response): string | undefined {
+  const [setCookie] = response.headers.getSetCookie();
+
+  return setCookie?.split(";")[0];
+}
+
 export function isJson(response: Response): boolean {
   return (response.headers.get("content-type") ?? "").startsWith("application/json");
 }

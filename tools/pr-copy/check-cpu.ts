@@ -1,5 +1,12 @@
-import { expectArticle, expectOther, requireFixture, stats } from "./check-content.ts";
-import { idleMinutes, inOrder, itemDetail, measuredPaste } from "./check-measure.ts";
+import { expectArticle, expectOther, requireFixture } from "./check-content.ts";
+import {
+  consumersOk,
+  idleMinutes,
+  inOrder,
+  itemDetail,
+  measuredPaste,
+  sumOf,
+} from "./check-measure.ts";
 import { BEER, BIRD, BREAD, EXAMPLE, type Page } from "./check-pages.ts";
 import type { Run } from "./check-run.ts";
 import type { Findings } from "./check-types.ts";
@@ -9,6 +16,17 @@ import { workerSettings } from "./copy-control.ts";
 const RUNS_PER_PAGE = 3;
 
 const PAGES = [EXAMPLE, BREAD, BIRD, BEER] as const;
+
+export function stats(values: readonly number[]) {
+  const sorted = values.toSorted((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+
+  return {
+    min: sorted[0] ?? Number.NaN,
+    median: sorted[middle] ?? Number.NaN,
+    max: sorted.at(-1) ?? Number.NaN,
+  };
+}
 
 async function totalCpu(
   run: Readonly<Run>,
@@ -26,13 +44,14 @@ async function totalCpu(
     expectArticle(findings, page, detail);
   }
 
+  const { ok, outcomes } = consumersOk(pasted.consumers);
   findings.check(
     `${page.name} run ${String(index + 1)}: every consumer invocation ended ok`,
-    pasted.consumers.length > 0 && pasted.consumers.every((entry) => entry.outcome === "ok"),
-    pasted.consumers.map((entry) => entry.outcome).join(",") || "none",
+    ok,
+    outcomes,
   );
 
-  const total = pasted.consumers.reduce((sum, entry) => sum + entry.cpuMs, 0);
+  const total = sumOf(pasted.consumers, "cpuMs");
   findings.measure(`${page.name} run ${String(index + 1)}: total fetch-consumer cpu ms`, total);
 
   return total;

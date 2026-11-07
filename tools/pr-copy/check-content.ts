@@ -1,5 +1,5 @@
 import { REQUEST_HEADERS } from "../../src/core/ports.ts";
-import { CAP_BYTES } from "./check-measure.ts";
+import { MAX_HTML_BYTES } from "../../src/targets/worker/page-reader.ts";
 import type { Page } from "./check-pages.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
 import { callTimeout } from "./timeout.ts";
@@ -25,17 +25,6 @@ export interface Content {
   readonly postText: string | null;
 }
 
-export function stats(values: readonly number[]) {
-  const sorted = values.toSorted((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-
-  return {
-    min: sorted[0] ?? Number.NaN,
-    median: sorted[middle] ?? Number.NaN,
-    max: sorted.at(-1) ?? Number.NaN,
-  };
-}
-
 export async function requireFixture(
   findings: Readonly<Findings>,
   page: Readonly<Page>,
@@ -43,9 +32,9 @@ export async function requireFixture(
   const { bytes, html } = await decodedPage(page.url);
   findings.measure(`${page.name}: decoded bytes`, bytes);
 
-  if (!html || bytes < CAP_BYTES !== page.under) {
+  if (!html || bytes < MAX_HTML_BYTES !== page.under) {
     throw new Inconclusive(
-      `${page.name} no longer matches its fixture (${String(bytes)} bytes, ${html ? "HTML" : "not HTML"}, measured ${String(page.measuredBytes)}, cap ${String(CAP_BYTES)})`,
+      `${page.name} no longer matches its fixture (${String(bytes)} bytes, ${html ? "HTML" : "not HTML"}, measured ${String(page.measuredBytes)}, cap ${String(MAX_HTML_BYTES)})`,
     );
   }
 }

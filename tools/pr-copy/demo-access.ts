@@ -2,16 +2,10 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { SessionStateSchema } from "../../src/http/schemas.ts";
 import type { AccessCodes } from "./codes.ts";
-import { type Call, type Copy, type Site, callCopy, refusal } from "./copy-calls.ts";
+import { type Call, type Copy, type Site, callCopy, refusal, sessionCookie } from "./copy-calls.ts";
 import { requiredEnv } from "./env.ts";
 
 const LOCK_WAIT_LIMIT_S = 300;
-
-function sessionCookie(response: Response): string | undefined {
-  const [setCookie] = response.headers.getSetCookie();
-
-  return setCookie?.split(";")[0];
-}
 
 async function postAccess(
   site: Readonly<Site>,

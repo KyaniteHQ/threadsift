@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { INGEST_DEADLINE_MS, SENTINEL_ROUTE, SKEW_MS, idleMinutes } from "./check-measure.ts";
 import type { Run } from "./check-run.ts";
 import type { Findings } from "./check-types.ts";
-import { type Copy, send } from "./copy-calls.ts";
+import { type Copy, send, sessionCookie } from "./copy-calls.ts";
 import { logIn } from "./copy-client.ts";
 import { requiredEnv } from "./env.ts";
 import { type Invocation, awaitInvocations } from "./telemetry.ts";
@@ -22,10 +22,10 @@ async function signInWith(url: string, password: string): Promise<SignIn> {
   const started = performance.now();
   const response = await send(url, { path: LOGIN_ROUTE, body: { password } });
   const clientMs = performance.now() - started;
-  const [setCookie] = response.headers.getSetCookie();
+  const cookie = sessionCookie(response);
   await response.body?.cancel();
 
-  return { status: response.status, clientMs, cookie: setCookie?.split(";")[0] };
+  return { status: response.status, clientMs, cookie };
 }
 
 async function loginRecords(run: Readonly<Run>, start: number) {

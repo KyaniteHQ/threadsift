@@ -1,19 +1,19 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { SKEW_MS } from "./check-measure.ts";
 import { cloudflare, copyNames, deleteDatabase } from "./cloudflare.ts";
 import { CopyAnswerError } from "./copy-client.ts";
 import { currentVersion } from "./copy-control.ts";
 import { type CopyRecord, deployCopy } from "./copy.ts";
 import { lastRecord, pullRequest, staleReason } from "./github.ts";
 import { withStage } from "./stage.ts";
-import { readInvocations } from "./telemetry.ts";
+import { readInvocations, routeTemplate } from "./telemetry.ts";
 
 export const MAX_REBUILDS = 20;
 
 const DEADLINE_MS = 270 * 60_000;
 const APP_ERROR = "Internal error";
-const WINDOW_SKEW_MS = 10_000;
 
 export interface RebuildOptions {
   readonly pr: number;
@@ -39,7 +39,7 @@ function classify(error: Readonly<Error>): Pick<Attempt, "outcome" | "route" | "
   }
 
   const { status } = error;
-  const route = error.path.replaceAll(/\/\d+(?=\/|$)/gu, "/:id");
+  const route = routeTemplate(error.path);
 
   if (status === 500 && error.answer === APP_ERROR) return { outcome: "app-500", route, status };
 
@@ -60,7 +60,7 @@ async function exceptionLog(
         await readInvocations(
           stage,
           { version, trigger: "fetch" },
-          { from: from - WINDOW_SKEW_MS, to: Date.now() + WINDOW_SKEW_MS },
+          { from: from - SKEW_MS, to: Date.now() + SKEW_MS },
         )
       ).find((entry) => entry.status === 500);
 
