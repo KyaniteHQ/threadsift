@@ -37,6 +37,10 @@ const WorkerConfigSchema = z
     r2_buckets: z
       .tuple([z.object({ binding: z.literal("FILES"), bucket_name: z.string() }).strict()])
       .optional(),
+    ai: z
+      .object({ binding: z.literal("AI") })
+      .strict()
+      .optional(),
     queues: z
       .object({
         producers: z.tuple([z.object({ binding: z.string(), queue: z.string() }).strict()]),
@@ -58,10 +62,22 @@ export const MigrationHashesSchema = z
 
 export type MigrationHashes = z.infer<typeof MigrationHashesSchema>;
 
+const HIDDEN_KEY = /__proto__|\\u/u;
+
+function readWorkerConfig(artifact: string) {
+  const config = artifactFile(artifact, WORKER_CONFIG);
+
+  if (HIDDEN_KEY.test(readFileSync(config, "utf8"))) {
+    throw new Error(
+      `${WORKER_CONFIG} holds __proto__ or a \\u escape, which its parser would hide`,
+    );
+  }
+
+  return WorkerConfigSchema.parse(experimental_readRawConfig({ config }).rawConfig);
+}
+
 export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
-  const source = WorkerConfigSchema.parse(
-    experimental_readRawConfig({ config: artifactFile(artifact, WORKER_CONFIG) }).rawConfig,
-  );
+  const source = readWorkerConfig(artifact);
 
   const [database] = source.d1_databases;
   const [producer] = source.queues.producers;
@@ -82,6 +98,7 @@ export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
       binding: files.binding,
       bucket_name: names.bucket,
     })),
+    ai: source.ai,
     queues: {
       producers: [{ binding: producer.binding, queue: names.queue }],
       consumers: [{ ...consumer, queue: names.queue }],
