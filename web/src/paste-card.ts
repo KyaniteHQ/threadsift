@@ -20,11 +20,16 @@ const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
   status: "status",
   "no-title": "no-title",
   unreadable: "unreadable",
+  "github-token": "github-token",
 };
 
 export function noteOf(item: Readonly<Item>): NoticeKey | null {
   if (item.fetch === null || item.fetch === "ok") {
     return null;
+  }
+
+  if (item.fetch === "github-token") {
+    return "github-token";
   }
 
   return item.title === null ? NOTE_OF_RESULT[item.fetch] : "title-kept";

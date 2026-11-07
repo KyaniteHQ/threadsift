@@ -8,6 +8,7 @@ const FETCH_FAILURES = [
   "network",
   "no-title",
   "unreadable",
+  "github-token",
 ] as const;
 
 export const FETCH_RESULTS = ["ok", "not-requested", ...FETCH_FAILURES] as const;

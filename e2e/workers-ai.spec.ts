@@ -12,6 +12,7 @@ import {
   AI_VERIFY_ENDPOINT,
   aiJson,
   aiScreen,
+  aiSecretMissing,
   countRows,
   newSealingKey,
   saveInBrowser,
@@ -91,7 +92,7 @@ async function saveWorkersAi(): Promise<void> {
   await expect(page.getByLabel(AI_TEXT.key, { exact: true })).toHaveCount(0);
   await expect(page.getByText(AI_TEXT.workersAiHelp, { exact: true })).toBeVisible();
   await expect(page.getByText(AI_TEXT.keyNotNeeded, { exact: true })).toBeVisible();
-  await expect(page.getByText(AI_TEXT["secret-missing"], { exact: true })).toHaveCount(0);
+  await expect(aiSecretMissing(page)).toHaveCount(0);
   await page.getByLabel(AI_TEXT.model, { exact: true }).fill(MODEL);
 
   const sent = page.waitForRequest(

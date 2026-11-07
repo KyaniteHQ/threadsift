@@ -16,9 +16,11 @@ import {
   RENAMED_REPOSITORY,
   RENAMED_TO,
   STALE,
+  removeGithubToken,
   requireGithubBudget,
   storeStaleRepository,
   storedOf,
+  useSuiteGithubToken,
 } from "./github.ts";
 import { claimLostLines, afterFirstClaim, forgetItem, jobsOf } from "./ingest.ts";
 import { newRunId, rowOf } from "./links.ts";
@@ -81,6 +83,7 @@ test("a pasted repository is read through the GitHub API: Source, metadata and R
   page,
   request,
 }) => {
+  await useSuiteGithubToken(request);
   await requireGithubBudget(2);
   forgetItem(DEFUDDLE);
   await openLibrary(page);
@@ -104,6 +107,7 @@ test("a pasted repository is read through the GitHub API: Source, metadata and R
 test("a repository pasted again under its old name is refreshed in place: stale metadata, README and search part are replaced, and the Item id, URL and Read state stay", async ({
   request,
 }) => {
+  await useSuiteGithubToken(request);
   await requireGithubBudget(3);
   const word = `zzstale${newRunId()}`;
   forgetItem(RENAMED_REPOSITORY);
@@ -138,11 +142,12 @@ test("a repository pasted again under its old name is refreshed in place: stale 
   expect(await matches(request, "reading library")).toContain(id);
 });
 
-test("a repository without a README is ready with its metadata and no post text, and the Reader says so", async ({
+test("with no token saved, a repository without a README is read anonymously and is ready with its metadata and no post text, and the Reader says so", async ({
   page,
   request,
 }) => {
-  await requireGithubBudget(2);
+  await removeGithubToken(request);
+  await requireGithubBudget(2, true);
   forgetItem(NO_README_REPOSITORY);
   const { status, body } = await postLink(request, NO_README_REPOSITORY);
   const item = body.item;
@@ -169,6 +174,7 @@ test("a repository that does not exist stays a Link-only Item with the fetch res
   page,
   request,
 }) => {
+  await useSuiteGithubToken(request);
   await requireGithubBudget(1);
   const { body } = await postLink(request, `https://github.com/KyaniteHQ/missing-${newRunId()}`);
 
@@ -195,6 +201,7 @@ test("a fetch whose claim was taken over publishes no metadata, README or search
   request,
 }) => {
   test.setTimeout(150_000);
+  await useSuiteGithubToken(request);
   await requireGithubBudget(2);
   const run = newRunId();
   const url = `${DEFUDDLE}?takeover=${run}`;

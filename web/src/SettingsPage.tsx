@@ -4,6 +4,7 @@ import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { AiSection } from "./AiSection.tsx";
 import { Alert } from "./Alert.tsx";
+import { GithubSection } from "./GithubSection.tsx";
 import { PasswordSection } from "./PasswordSection.tsx";
 import { useInternalLink } from "./routing.ts";
 import { TokensSection } from "./TokensSection.tsx";
@@ -42,6 +43,7 @@ export function SettingsPage({
       </header>
       <main className="pg-col">
         <AiSection />
+        <GithubSection />
         <TokensSection />
         <PasswordSection />
         <section className="sec" aria-labelledby="sign-out-title">

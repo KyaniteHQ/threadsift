@@ -10,9 +10,10 @@ import {
 } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { fetchedOfRepository } from "./github-fetch.ts";
+import { loadGithubAuth } from "./github-token.ts";
 import { isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
 import { PageReadTimeout } from "./page-read-timeout.ts";
-import type { Network, PageReader } from "./ports.ts";
+import type { Network, PageReader, Ports } from "./ports.ts";
 import { repositoryRef } from "./repository-ref.ts";
 
 export type ShortLinkResolution =
@@ -72,10 +73,10 @@ async function fetchedOfOembed(
 }
 
 export async function fetchLink(
-  network: Network,
-  pages: Readonly<PageReader>,
+  ports: Readonly<Pick<Ports, "db" | "ai" | "network" | "pages">>,
   address: string,
 ): Promise<Fetched> {
+  const { network, pages } = ports;
   const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
   const link = parseLink(address);
 
@@ -88,7 +89,12 @@ export async function fetchLink(
   }
 
   if (link.kind === "github-repo") {
-    return fetchedOfRepository(network, repositoryRef(link.normalizedUrl), deadline);
+    return fetchedOfRepository(
+      network,
+      repositoryRef(link.normalizedUrl),
+      await loadGithubAuth(ports),
+      deadline,
+    );
   }
 
   return fetchedOf(

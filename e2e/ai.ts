@@ -31,6 +31,12 @@ export function aiScreen(browser: Browser, secret?: string): Promise<FreshScreen
   return screenWithEnv(browser, "THREADSIFT_SECRET_KEY", secret);
 }
 
+export function aiSecretMissing(page: Page): Locator {
+  return page
+    .getByRole("region", { name: AI_TEXT.title, exact: true })
+    .getByText(AI_TEXT["secret-missing"], { exact: true });
+}
+
 export function newSealingKey(): string {
   return randomBytes(32).toString("hex");
 }

@@ -18,7 +18,10 @@ const CHARSET = /;\s*charset\s*=\s*"?(?<label>[^";\s]+)/iu;
 
 export const NO_HEADERS: RequestHeaders = {};
 
-type GuardFailure = Exclude<FetchFailure, "no-title" | "unreadable" | "redirect-stopped">;
+type GuardFailure = Exclude<
+  FetchFailure,
+  "no-title" | "unreadable" | "redirect-stopped" | "github-token"
+>;
 
 export type Failed =
   | { readonly kind: "failed"; readonly reason: Exclude<GuardFailure, "status"> }

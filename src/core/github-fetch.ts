@@ -2,48 +2,17 @@ import { z } from "zod";
 
 import type { Fetched } from "./details.ts";
 import { fromBase64 } from "./encoding.ts";
-import {
-  type FetchPolicy,
-  type GuardOutcome,
-  type Page,
-  NO_HEADERS,
-  SMALL_BODY_BYTES,
-  guardedFetch,
-  loggedFailureOf,
-} from "./fetch-guard.ts";
+import { type FetchPolicy, type GuardOutcome, type Page, loggedFailureOf } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import { isRedditOrXLink } from "./links.ts";
-import type { Network, RequestHeaders } from "./ports.ts";
+import { UNAUTHORIZED, apiPolicy, getApi, parsedJson } from "./github-api.ts";
+import type { GithubAuth } from "./github-token.ts";
+import type { Network } from "./ports.ts";
 import type { RepositoryRef } from "./repository-ref.ts";
 
-const API_ORIGIN = "https://api.github.com";
-const API_HOST = "api.github.com";
 const NOT_FOUND = 404;
 const MARKDOWN_NAME = /\.(?:md|markdown)$/iu;
 const NO_LICENSE = "NOASSERTION";
 const README_ANSWER_BYTES = 768 * 1024;
-
-const API_HEADERS: RequestHeaders = {
-  accept: "application/vnd.github+json",
-  "x-github-api-version": "2022-11-28",
-};
-
-function headersFor(url: string): RequestHeaders {
-  const { protocol, hostname } = new URL(url);
-
-  return protocol === "https:" && hostname === API_HOST ? API_HEADERS : NO_HEADERS;
-}
-
-const API_POLICY: FetchPolicy = {
-  stopAt: isRedditOrXLink,
-  followMetaRefresh: () => false,
-  readsBody: () => true,
-  headers: headersFor,
-  htmlMaxBytes: SMALL_BODY_BYTES,
-  dataMaxBytes: SMALL_BODY_BYTES,
-};
-
-const README_POLICY: FetchPolicy = { ...API_POLICY, dataMaxBytes: README_ANSWER_BYTES };
 
 const RepositoryAnswerSchema = z
   .object({
@@ -56,6 +25,7 @@ const RepositoryAnswerSchema = z
     license: z.object({ spdx_id: z.string().nullable() }).nullable(),
     topics: z.array(z.string()).default([]),
     pushed_at: z.iso.datetime().nullable(),
+    private: z.boolean().default(false),
   })
   .transform((answer) => {
     const spdx = answer.license?.spdx_id ?? null;
@@ -64,6 +34,7 @@ const RepositoryAnswerSchema = z
       owner: answer.owner.login,
       name: answer.name,
       title: answer.full_name,
+      private: answer.private,
       repository: {
         description: answer.description,
         stars: answer.stargazers_count,
@@ -85,28 +56,11 @@ type Readme =
   | { readonly kind: "text"; readonly text: string | null }
   | { readonly kind: "failed"; readonly status: FetchFailure };
 
+const TOKEN_REJECTED = "github-token";
+
 const WITHOUT_README: Readme = { kind: "text", text: null };
 
 const UNREADABLE_README: Readme = { kind: "failed", status: "unreadable" };
-
-function getApi(
-  network: Network,
-  path: string,
-  policy: Readonly<FetchPolicy>,
-  deadline: AbortSignal,
-): Promise<GuardOutcome> {
-  return guardedFetch(network, `${API_ORIGIN}${path}`, policy, deadline);
-}
-
-function parsed<Schema extends z.ZodType>(schema: Schema, text: string): z.output<Schema> | null {
-  try {
-    const result = schema.safeParse(JSON.parse(text));
-
-    return result.success ? result.data : null;
-  } catch {
-    return null;
-  }
-}
 
 function decodedBase64(content: string): string | null {
   try {
@@ -119,7 +73,7 @@ function decodedBase64(content: string): string | null {
 function readmeOf(page: Readonly<Page>): Readme {
   if (page.cut) return UNREADABLE_README;
 
-  const answer = parsed(ReadmeAnswerSchema, page.text);
+  const answer = parsedJson(ReadmeAnswerSchema, page.text);
 
   if (answer === null) return UNREADABLE_README;
 
@@ -132,16 +86,28 @@ function readmeOf(page: Readonly<Page>): Readme {
   return text.trim() === "" ? WITHOUT_README : { kind: "text", text };
 }
 
+function failureOf(outcome: Exclude<GuardOutcome, Page>, tokenSent: boolean): FetchFailure {
+  const rejected =
+    tokenSent &&
+    outcome.kind === "failed" &&
+    outcome.reason === "status" &&
+    outcome.httpStatus === UNAUTHORIZED;
+
+  return rejected ? TOKEN_REJECTED : loggedFailureOf(outcome);
+}
+
 async function readmeAfter(
   network: Network,
   owner: string,
   name: string,
+  policy: Readonly<FetchPolicy>,
+  tokenSent: boolean,
   deadline: AbortSignal,
 ): Promise<Readme> {
   const outcome = await getApi(
     network,
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`,
-    README_POLICY,
+    { ...policy, dataMaxBytes: README_ANSWER_BYTES },
     deadline,
   );
 
@@ -155,28 +121,36 @@ async function readmeAfter(
     return WITHOUT_README;
   }
 
-  return { kind: "failed", status: loggedFailureOf(outcome) };
+  return { kind: "failed", status: failureOf(outcome, tokenSent) };
 }
 
 export async function fetchedOfRepository(
   network: Network,
   { owner, name }: Readonly<RepositoryRef>,
+  auth: Readonly<GithubAuth>,
   deadline: AbortSignal,
 ): Promise<Fetched> {
+  if (auth.kind === "unreadable") return { status: TOKEN_REJECTED };
+
+  const tokenSent = auth.kind === "token";
+  const policy = apiPolicy(tokenSent ? auth.token : null);
+
   const outcome = await getApi(
     network,
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
-    API_POLICY,
+    policy,
     deadline,
   );
 
-  if (outcome.kind !== "page") return { status: loggedFailureOf(outcome) };
+  if (outcome.kind !== "page") return { status: failureOf(outcome, tokenSent) };
 
-  const answer = parsed(RepositoryAnswerSchema, outcome.text);
+  const answer = parsedJson(RepositoryAnswerSchema, outcome.text);
 
   if (answer === null) return { status: "unreadable" };
 
-  const readme = await readmeAfter(network, answer.owner, answer.name, deadline);
+  if (answer.private) return { status: "status" };
+
+  const readme = await readmeAfter(network, answer.owner, answer.name, policy, tokenSent, deadline);
 
   if (readme.kind === "failed") return { status: readme.status };
 

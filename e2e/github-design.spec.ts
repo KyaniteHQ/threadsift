@@ -1,5 +1,6 @@
 import { type Locator, type Page, type TestInfo, expect, test } from "@playwright/test";
 
+import { TOKEN_REFUSED } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
@@ -18,11 +19,13 @@ const FULL = {
 
 const BARE = { url: "https://github.com/example/bare-block", stars: 0 };
 const SINGLE = { url: "https://github.com/example/one-star", stars: 1 };
+const REJECTED = { url: "https://github.com/example/rejected-token", stars: 7 };
 
 let screen: FreshScreen;
 let fullId: number;
 let bareId: number;
 let singleId: number;
+let rejectedId: number;
 
 test.describe.configure({ timeout: 360_000 });
 
@@ -32,11 +35,24 @@ function repositoryRow(id: number, values: string): string {
   return `INSERT INTO github_repos (item_id, description, stars, language, license, topics, pushed_at) VALUES (${id}, ${values})`;
 }
 
-test.beforeAll(async ({ browser }) => {
-  screen = await openSignedIn(browser, newCode(), newPassword());
+function storeRepositories([full, bare, single, rejected]: readonly number[]): void {
+  const rows = [
+    [
+      full,
+      `'${FULL.description}', ${FULL.stars}, 'TypeScript', 'MIT', '${JSON.stringify(FULL.topics)}', ${Date.now() - 3 * DAY_MS}`,
+    ],
+    [rejected, `'Kept from the last good fetch', ${REJECTED.stars}, 'Go', 'MIT', '[]', NULL`],
+    [bare, `NULL, ${BARE.stars}, NULL, NULL, '[]', NULL`],
+    [single, `NULL, ${SINGLE.stars}, 'Go', 'Apache-2.0', '[]', ${Date.now() - 200 * DAY_MS}`],
+  ] as const;
+
+  for (const [id = 0, values] of rows) screen.fresh.sql(repositoryRow(id, values));
+}
+
+function seedsOf() {
   const seed = { source: "github", kind: "github-repo", fetchResult: "ok" } as const;
 
-  const [full = 0, bare = 0, single = 0] = seedRows(screen, [
+  return [
     {
       ...seed,
       url: FULL.url,
@@ -59,24 +75,25 @@ test.beforeAll(async ({ browser }) => {
       author: "example",
       savedAt: Date.now() + 1000,
     },
-  ]);
+    {
+      ...seed,
+      url: REJECTED.url,
+      title: "example/rejected-token",
+      author: "example",
+      postText: `# Rejected token\n\n${paragraphs(3, "README")}`,
+      fetchResult: "github-token",
+      savedAt: Date.now() + 500,
+    },
+  ];
+}
 
-  fullId = full;
-  bareId = bare;
-  singleId = single;
-  screen.fresh.sql(
-    repositoryRow(
-      full,
-      `'${FULL.description}', ${FULL.stars}, 'TypeScript', 'MIT', '${JSON.stringify(FULL.topics)}', ${Date.now() - 3 * DAY_MS}`,
-    ),
-  );
-  screen.fresh.sql(repositoryRow(bare, `NULL, ${BARE.stars}, NULL, NULL, '[]', NULL`));
-  screen.fresh.sql(
-    repositoryRow(
-      single,
-      `NULL, ${SINGLE.stars}, 'Go', 'Apache-2.0', '[]', ${Date.now() - 200 * DAY_MS}`,
-    ),
-  );
+test.beforeAll(async ({ browser }) => {
+  screen = await openSignedIn(browser, newCode(), newPassword());
+
+  const ids = seedRows(screen, seedsOf());
+
+  [fullId = 0, bareId = 0, singleId = 0, rejectedId = 0] = ids;
+  storeRepositories(ids);
 });
 
 test.afterAll(async () => {
@@ -117,6 +134,25 @@ breaksNoRule(
   "a repository with no description, language, license, topics or last push",
   () => bareId,
 );
+
+breaksNoRule("a repository whose saved token GitHub rejected", () => rejectedId);
+
+test("a repository whose saved token GitHub rejected says so in its row and in the Reader, each with a link to Settings", async () => {
+  const { page } = screen;
+
+  await viewportAt(page, DESKTOP.width);
+  await openReader(page, rejectedId, "light");
+  await expect(row(page, rejectedId).locator(".it-fail")).toContainText(TOKEN_REFUSED.row);
+  await expect(
+    row(page, rejectedId).getByRole("link", { name: TOKEN_REFUSED.link, exact: true }),
+  ).toHaveAttribute("href", "/settings");
+  await expect(page.locator(".rd-note", { hasText: TOKEN_REFUSED.reader })).toBeVisible();
+  await expect(
+    page.locator(".rd-col").getByRole("link", { name: TOKEN_REFUSED.link, exact: true }),
+  ).toHaveAttribute("href", "/settings");
+  await attachShot(page.locator(".rd-col"), test.info(), "reader-token-rejected-light");
+  await attachShot(row(page, rejectedId), test.info(), "row-token-rejected-light");
+});
 
 test("the repository block shows each value and its fallback, and the row shows the stars line", async () => {
   const { page } = screen;

@@ -10,6 +10,7 @@ interface InputKind {
   readonly autoComplete: string;
   readonly mono?: true;
   readonly maxLength?: number | undefined;
+  readonly placeholder?: string | undefined;
 }
 
 function describedBy(help: string | null, error: string | null): string | undefined {
@@ -42,6 +43,7 @@ function Input({
       autoCapitalize="off"
       className={kind.mono === true ? "mono" : undefined}
       maxLength={kind.maxLength}
+      placeholder={kind.placeholder}
       required={kind.required}
       pattern={kind.pattern}
       value={value}

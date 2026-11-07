@@ -6,6 +6,7 @@ import type { Ports } from "../core/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
 import { registerAiRoutes } from "./ai-routes.ts";
 import { registerDeleteItemRoute } from "./delete-item-route.ts";
+import { registerGithubRoutes } from "./github-routes.ts";
 import { guard } from "./guard.ts";
 import { NOT_FOUND, registerItemRoutes } from "./item-routes.ts";
 import { registerShareRoutes } from "./share-routes.ts";
@@ -28,6 +29,7 @@ export function createApp(ports: Ports): OpenAPIHono {
   registerItemRoutes(app, ports);
   registerDeleteItemRoute(app, ports);
   registerAiRoutes(app, ports);
+  registerGithubRoutes(app, ports);
   registerShareRoutes(app, ports);
 
   app.doc("/api/openapi.json", {

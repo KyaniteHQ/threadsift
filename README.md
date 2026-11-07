@@ -8,6 +8,7 @@ The build has started: the paste box saves and lists pasted links on both instal
 
 - `docs/spec.md`: what v1 does.
 - `docs/architecture.md`: what it is built with and where each part runs.
+- `docs/guides/github-token.md`: how to add an optional GitHub token for a higher request limit.
 - `CONTEXT.md`: the words the project uses.
 - `design/prototype/`: the clickable prototype from Claude Design.
 - `design/system/`: the design system's tokens, component styles and settings table.

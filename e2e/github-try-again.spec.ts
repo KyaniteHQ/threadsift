@@ -13,6 +13,7 @@ import {
   requireGithubBudget,
   storeKeptDigest,
   storeStaleRepository,
+  useSuiteGithubToken,
 } from "./github.ts";
 import { forgetItem, jobsOf, storeItem } from "./ingest.ts";
 import { newRunId } from "./links.ts";
@@ -82,6 +83,7 @@ test("a refresh that finds no README clears the text, moves the content generati
   page,
   request,
 }) => {
+  await useSuiteGithubToken(request);
   await requireGithubBudget(4);
   forgetItem(NO_README_REPOSITORY);
   const id = storeStaleRepository(NO_README_REPOSITORY, "zzcleared");

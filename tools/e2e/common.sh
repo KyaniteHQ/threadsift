@@ -4,6 +4,10 @@ new_code() {
   node -e 'console.log(require("node:crypto").randomBytes(24).toString("base64url"))'
 }
 
+new_secret_key() {
+  node -e 'console.log(require("node:crypto").randomBytes(32).toString("hex"))'
+}
+
 instance_port() {
   local url
   url=$(<"$1/url")
@@ -56,7 +60,7 @@ run_suite() {
     mkdir -p "$THREADSIFT_RUN_DIR/logs"
     echo "artifacts: $THREADSIFT_RUN_DIR"
   fi
-  SETUP_CODE=$code "$script" launch "$dir"
+  SETUP_CODE=$code THREADSIFT_SECRET_KEY=$(new_secret_key) "$script" launch "$dir"
   export THREADSIFT_BASE_URL
   THREADSIFT_BASE_URL=$(<"$dir/url")
   export THREADSIFT_INSTANCE_SCRIPT="bash $script"
