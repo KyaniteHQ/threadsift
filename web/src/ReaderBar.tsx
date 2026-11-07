@@ -3,21 +3,14 @@ import { type RefObject, useCallback, useEffect, useRef } from "react";
 import type { Item } from "../../src/http/schemas.ts";
 import type { BarStep } from "./bar-fit.ts";
 import { Icon } from "./Icon.tsx";
-import {
-  BACK_LONG,
-  BACK_SHORT,
-  HINT_PANE,
-  MARK_READ,
-  MARK_UNREAD,
-  OPEN_LABELS,
-} from "./reader-text.ts";
+import { HINT_PANE, MARK_READ, MARK_UNREAD, OPEN_LABELS, leaveOf } from "./reader-text.ts";
 import type { ReaderControls } from "./Reader.tsx";
 import { followProgress } from "./reading-progress.ts";
 import { SettingsPanel } from "./SettingsPanel.tsx";
 import { useBarFit } from "./use-bar-fit.ts";
 import type { Look } from "./use-root.ts";
 
-export type BarMode = "pane" | "page" | "phone";
+export type BarMode = "pane" | "page" | "sheet" | "phone";
 
 type Steps = readonly [BarStep, ...BarStep[]];
 
@@ -30,6 +23,11 @@ const STEPS: Readonly<Record<BarMode, Steps>> = {
   page: [
     { hint: false, labels: true, back: "label" },
     { hint: false, labels: false, back: "short" },
+    { hint: false, labels: false, back: "icon" },
+  ],
+  sheet: [
+    { hint: false, labels: true, back: "label" },
+    { hint: false, labels: false, back: "label" },
     { hint: false, labels: false, back: "icon" },
   ],
   phone: [{ hint: false, labels: false, back: "icon" }],
@@ -66,6 +64,7 @@ export function ReaderBar({
   const { mode, settingsKey, toggleRead, close, hintPlaced } = controls;
   const bar = useRef<HTMLDivElement>(null);
   const read = item.readState === "read";
+  const leave = leaveOf(mode === "sheet", look.settings.layout === "grid");
 
   const toggle = useCallback(() => {
     toggleRead(item);
@@ -78,10 +77,10 @@ export function ReaderBar({
     <div ref={bar} className="rd-bar">
       {mode === "pane" ? null : (
         <button type="button" className="btn btn-plain rd-back" onClick={close}>
-          <Icon name="left" className="ic" />
-          <span className="rd-back-long">{BACK_LONG}</span>
+          <Icon name={leave.icon} className="ic" />
+          <span className="rd-back-long">{leave.long}</span>
           <span className="rd-back-short" hidden>
-            {BACK_SHORT}
+            {leave.short}
           </span>
         </button>
       )}

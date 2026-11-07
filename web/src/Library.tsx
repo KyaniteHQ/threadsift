@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { ListColumn } from "./ListColumn.tsx";
 import { ReaderPane } from "./ReaderPane.tsx";
 import type { Route } from "./routing.ts";
@@ -28,10 +30,14 @@ export function Library({
   const classes = [
     "lib",
     ...(counts?.total === 0 ? ["is-empty"] : []),
-    ...(covered ? ["covered"] : []),
+    ...(covered && look.reader === "page" ? ["covered"] : []),
   ];
 
-  const hasReader = counts !== null && counts.total > 0 && (!look.narrow || openItem !== null);
+  const hasReader =
+    counts !== null && counts.total > 0 && (look.reader === "pane" || openItem !== null);
+
+  const { steps, step, close } = side.reader;
+  const nav = useMemo(() => ({ steps, step, close }), [steps, step, close]);
 
   return (
     <div ref={root} className={classes.join(" ")}>
@@ -46,6 +52,7 @@ export function Library({
         <ReaderPane
           item={openItem}
           controls={side.reader.controls}
+          nav={nav}
           look={look}
           openSettings={openSettings}
         />

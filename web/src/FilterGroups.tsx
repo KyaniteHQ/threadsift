@@ -1,15 +1,17 @@
-import { useCallback, useId, useState } from "react";
+import { type ChangeEvent, useCallback, useId, useState } from "react";
 
 import type { CountedName } from "../../src/core/item-filters.ts";
 import { Icon } from "./Icon.tsx";
 import {
   ALL_CHOICE,
   ALL_ROWS,
+  ANY_CHOICE,
   FILTER_GROUPS,
   NO_ROWS,
   SHOW_FEWER,
   countTip,
   filled,
+  namedOption,
 } from "./text.ts";
 
 const SHOWN_ROWS = 5;
@@ -23,10 +25,12 @@ export interface Segment<Key extends string> {
 function SegmentButton<Key extends string>({
   segment,
   pressed,
+  bar,
   pick,
 }: Readonly<{
   segment: Segment<Key>;
   pressed: boolean;
+  bar: boolean;
   pick: (key: Key | null) => void;
 }>) {
   const press = useCallback(() => {
@@ -36,7 +40,7 @@ function SegmentButton<Key extends string>({
   return (
     <button
       type="button"
-      className="fl-seg-b"
+      className={bar ? "fl-chip" : "fl-seg-b"}
       aria-pressed={pressed}
       title={countTip(segment.label, segment.count)}
       onClick={press}
@@ -52,21 +56,29 @@ export function Segments<Key extends string>({
   segments,
   chosen,
   wrap,
+  bar,
   pick,
 }: Readonly<{
   name: string;
   segments: readonly Segment<Key>[];
   chosen: Key | null;
   wrap: boolean;
+  bar: boolean;
   pick: (key: Key | null) => void;
 }>) {
   return (
-    <fieldset className={wrap ? "fl-seg fl-wrap" : "fl-seg"} aria-label={name}>
+    <fieldset className={bar ? "fl-g" : wrap ? "fl-seg fl-wrap" : "fl-seg"} aria-label={name}>
+      {bar ? (
+        <span className="label" aria-hidden="true">
+          {name}
+        </span>
+      ) : null}
       {segments.map((segment) => (
         <SegmentButton
           key={segment.key ?? ALL_CHOICE}
           segment={segment}
           pressed={segment.key === chosen}
+          bar={bar}
           pick={pick}
         />
       ))}
@@ -99,7 +111,7 @@ function Row({
   );
 }
 
-function visibleRows(
+export function visibleRows(
   rows: readonly CountedName[],
   chosen: string | null,
   searching: boolean,
@@ -206,5 +218,40 @@ export function RowGroup({
         />
       ) : null}
     </div>
+  );
+}
+
+export function NamedSelect({
+  facet,
+  rows,
+  chosen,
+  searching,
+  pick,
+}: Readonly<{
+  facet: "topic" | "tag";
+  rows: readonly CountedName[];
+  chosen: string | null;
+  searching: boolean;
+  pick: (key: string | null) => void;
+}>) {
+  const change = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      pick(event.target.value === "" ? null : event.target.value);
+    },
+    [pick],
+  );
+
+  return (
+    <label className="fl-g">
+      <span className="label">{FILTER_GROUPS[facet]}</span>
+      <select className="fl-sel" value={chosen ?? ""} onChange={change}>
+        <option value="">{ANY_CHOICE[facet]}</option>
+        {visibleRows(rows, chosen, searching).map((row) => (
+          <option key={row.key} value={row.key}>
+            {namedOption(row.name, row.count)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

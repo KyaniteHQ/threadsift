@@ -1,10 +1,12 @@
 import { useEffect, useEffectEvent } from "react";
 
-const TYPING = "input, textarea, select, dialog, [contenteditable]";
+const TYPING = "input, textarea, select, dialog.st-pop, [contenteditable]";
+const SIDEWAYS = "pre, .tbl";
 
 export interface KeyActions {
   readonly openId: number | null;
   readonly covered: boolean;
+  readonly arrows: boolean;
   readonly step: (direction: 1 | -1) => void;
   readonly toggle: (id: number) => void;
   readonly close: () => void;
@@ -24,8 +26,17 @@ function inPasteBox(event: KeyboardEvent): boolean {
 
 function press(event: KeyboardEvent, target: Element | null, actions: KeyActions): void {
   const { key } = event;
+  const scrollsSideways = (target?.closest(SIDEWAYS) ?? null) !== null;
 
-  if (key === "j" || key === "k") {
+  if (
+    (key === "ArrowLeft" || key === "ArrowRight") &&
+    actions.arrows &&
+    actions.openId !== null &&
+    !scrollsSideways
+  ) {
+    event.preventDefault();
+    actions.step(key === "ArrowRight" ? 1 : -1);
+  } else if (key === "j" || key === "k") {
     event.preventDefault();
     actions.step(key === "j" ? 1 : -1);
   } else if (key === "m" || key === "M") {

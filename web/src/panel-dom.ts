@@ -78,24 +78,61 @@ export function watchPopover(refs: PanelRefs, close: Close, signal: AbortSignal)
   );
 }
 
-export function watchSheet(refs: PanelRefs, close: Close, signal: AbortSignal): void {
-  document.addEventListener(
-    "click",
-    (event) => {
-      const panel = refs.panel.current;
+type Press = Readonly<Pick<MouseEvent, "target" | "clientX" | "clientY">>;
 
-      if (panel !== null && event.target === panel && !isInside(panel, event)) {
-        close(true);
-      }
+export function watchDismissal(
+  dialog: HTMLElement,
+  dismiss: () => void,
+  signal: AbortSignal,
+  outside: (press: Press) => boolean = (press) => press.target === dialog,
+): void {
+  let pressedOutside = false;
+
+  dialog.addEventListener(
+    "pointerdown",
+    (event) => {
+      pressedOutside = outside(event);
     },
     { signal },
   );
 
+  dialog.addEventListener(
+    "click",
+    (event) => {
+      if (pressedOutside && outside(event)) dismiss();
+
+      pressedOutside = false;
+    },
+    { signal },
+  );
+
+  dialog.addEventListener(
+    "cancel",
+    (event) => {
+      event.preventDefault();
+      dismiss();
+    },
+    { signal },
+  );
+}
+
+export function watchSheet(refs: PanelRefs, close: Close, signal: AbortSignal): void {
+  const panel = refs.panel.current;
+
+  if (panel !== null) {
+    watchDismissal(
+      panel,
+      () => {
+        close(true);
+      },
+      signal,
+      (press) => press.target === panel && !isInside(panel, press),
+    );
+  }
+
   document.addEventListener(
     "keydown",
     (event) => {
-      const panel = refs.panel.current;
-
       const wrapTo =
         event.key === "Tab" && panel !== null ? tabWrapTarget(panel, event.shiftKey) : null;
 
@@ -105,14 +142,5 @@ export function watchSheet(refs: PanelRefs, close: Close, signal: AbortSignal): 
       }
     },
     { capture: true, signal },
-  );
-
-  refs.panel.current?.addEventListener(
-    "cancel",
-    (event) => {
-      event.preventDefault();
-      close(true);
-    },
-    { signal },
   );
 }

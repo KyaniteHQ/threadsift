@@ -2,7 +2,7 @@ import { useCallback, useId, useState } from "react";
 
 import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { ReadState, Source } from "../../src/core/kinds.ts";
-import { RowGroup, Segments, withAll } from "./FilterGroups.tsx";
+import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
 import { type Choice, type Filters, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import {
@@ -17,25 +17,40 @@ import {
 
 type Choose = (choice: Choice) => void;
 
+const sourceChoice = (value: Source | null): Choice => ({ facet: "source", value });
+const readChoice = (value: ReadState | null): Choice => ({ facet: "read", value });
+
 function FacetSegments<Key extends string>({
   name,
   wrap,
+  bar,
   counts,
   labels,
   chosen,
-  pick,
+  choice,
+  choose,
 }: Readonly<{
   name: string;
   wrap: boolean;
+  bar: boolean;
   counts: readonly { readonly key: Key; readonly count: number }[];
   labels: Readonly<Record<Key, string>>;
   chosen: Key | null;
-  pick: (value: Key | null) => void;
+  choice: (value: Key | null) => Choice;
+  choose: Choose;
 }>) {
+  const pick = useCallback(
+    (value: Key | null) => {
+      choose(choice(value));
+    },
+    [choice, choose],
+  );
+
   return (
     <Segments
       name={name}
       wrap={wrap}
+      bar={bar}
       chosen={chosen}
       segments={withAll(counts.map(({ key, count }) => ({ key, label: labels[key], count })))}
       pick={pick}
@@ -43,61 +58,15 @@ function FacetSegments<Key extends string>({
   );
 }
 
-function SourceSegments({
-  counts,
-  chosen,
-  choose,
-}: Readonly<{ counts: FilterCounts; chosen: Source | null; choose: Choose }>) {
-  const pick = useCallback(
-    (value: Source | null) => {
-      choose({ facet: "source", value });
-    },
-    [choose],
-  );
-
-  return (
-    <FacetSegments
-      name={FILTER_GROUPS.source}
-      wrap
-      counts={counts.sources}
-      labels={SOURCE_LABELS}
-      chosen={chosen}
-      pick={pick}
-    />
-  );
-}
-
-function ReadSegments({
-  counts,
-  chosen,
-  choose,
-}: Readonly<{ counts: FilterCounts; chosen: ReadState | null; choose: Choose }>) {
-  const pick = useCallback(
-    (value: ReadState | null) => {
-      choose({ facet: "read", value });
-    },
-    [choose],
-  );
-
-  return (
-    <FacetSegments
-      name={FILTER_GROUPS.read}
-      wrap={false}
-      counts={counts.reads}
-      labels={READ_LABELS}
-      chosen={chosen}
-      pick={pick}
-    />
-  );
-}
-
 function NamedRows({
   facet,
+  bar,
   counts,
   filters,
   choose,
 }: Readonly<{
   facet: "topic" | "tag";
+  bar: boolean;
   counts: FilterCounts;
   filters: Filters;
   choose: Choose;
@@ -109,10 +78,20 @@ function NamedRows({
     [choose, facet],
   );
 
-  return (
+  const rows = facet === "topic" ? counts.topics : counts.tags;
+
+  return bar ? (
+    <NamedSelect
+      facet={facet}
+      rows={rows}
+      chosen={filters[facet]}
+      searching={isSearching(filters)}
+      pick={pick}
+    />
+  ) : (
     <RowGroup
       facet={facet}
-      rows={facet === "topic" ? counts.topics : counts.tags}
+      rows={rows}
       chosen={filters[facet]}
       searching={isSearching(filters)}
       startsOpen={facet === "topic"}
@@ -126,20 +105,40 @@ function Panel({
   filters,
   choose,
   clearChosen,
+  bar,
   id,
 }: Readonly<{
   counts: FilterCounts;
   filters: Filters;
   choose: Choose;
   clearChosen: () => void;
+  bar: boolean;
   id: string;
 }>) {
   return (
     <div id={id} className="fl-panel">
-      <SourceSegments counts={counts} chosen={filters.source} choose={choose} />
-      <ReadSegments counts={counts} chosen={filters.read} choose={choose} />
-      <NamedRows facet="topic" counts={counts} filters={filters} choose={choose} />
-      <NamedRows facet="tag" counts={counts} filters={filters} choose={choose} />
+      <FacetSegments
+        name={FILTER_GROUPS.source}
+        wrap
+        bar={bar}
+        counts={counts.sources}
+        labels={SOURCE_LABELS}
+        chosen={filters.source}
+        choice={sourceChoice}
+        choose={choose}
+      />
+      <FacetSegments
+        name={FILTER_GROUPS.read}
+        wrap={false}
+        bar={bar}
+        counts={counts.reads}
+        labels={READ_LABELS}
+        chosen={filters.read}
+        choice={readChoice}
+        choose={choose}
+      />
+      <NamedRows facet="topic" bar={bar} counts={counts} filters={filters} choose={choose} />
+      <NamedRows facet="tag" bar={bar} counts={counts} filters={filters} choose={choose} />
       {chosenCount(filters) > 0 ? (
         <button type="button" className="fl-link" onClick={clearChosen}>
           {CLEAR_FILTERS}
@@ -153,12 +152,14 @@ export function FilterPane({
   counts,
   filters,
   collapsible,
+  bar,
   choose,
   clearChosen,
 }: Readonly<{
   counts: FilterCounts;
   filters: Filters;
   collapsible: boolean;
+  bar: boolean;
   choose: Choose;
   clearChosen: () => void;
 }>) {
@@ -171,7 +172,7 @@ export function FilterPane({
   }, []);
 
   return (
-    <div className="fl fl-rail">
+    <div className={bar ? "fl fl-bar" : "fl fl-rail"}>
       {collapsible ? (
         <button
           type="button"
@@ -190,6 +191,7 @@ export function FilterPane({
           filters={filters}
           choose={choose}
           clearChosen={clearChosen}
+          bar={bar}
           id={panelId}
         />
       )}

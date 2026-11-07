@@ -26,8 +26,8 @@ const STORED_CASES = [
   { name: "one missing key", stored: withoutWidth(), resets: ["width"] },
   { name: "images stored as true", stored: { ...VALID, images: true }, resets: ["images"] },
   {
-    name: "layout stored as grid, which is not offered yet",
-    stored: { ...VALID, layout: "grid" },
+    name: "layout stored as masonry, which is not an option",
+    stored: { ...VALID, layout: "masonry" },
     resets: ["layout"],
   },
 ] as const;
