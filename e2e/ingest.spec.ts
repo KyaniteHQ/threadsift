@@ -7,12 +7,14 @@ import { getItem, itemOf, postLink, postLinkRaw, settled } from "./api.ts";
 import {
   HOP_DEADLINE_MS,
   STALLED,
+  afterFirstClaim,
   expireClaim,
   jobsOf,
   makeDue,
+  releaseSweepThrottle,
+  runSweep,
   storeProcessingItemWithDueJob,
   sweepNow,
-  waitForRunning,
 } from "./ingest.ts";
 import { newRunId } from "./links.ts";
 import { isContainerTarget } from "./target.ts";
@@ -105,15 +107,22 @@ test("a second message for a job that finished while it waited does not run it a
   request,
 }) => {
   test.skip(isContainerTarget(), "only a queue delivers a message for a job the loop already ran");
-  test.setTimeout(60_000);
-  const { body } = await postLinkRaw(request, `${STALLED}?duplicate=${newRunId()}`);
-  const { id } = body.item;
+  test.setTimeout(120_000);
+  const run = newRunId();
+  const stopTrap = afterFirstClaim(mainInstance(), `duplicate=${run}`, "claim_expires = 1");
+  let id = 0;
 
-  await waitForRunning(id);
-  expireClaim(id);
-  await sweepNow(request);
+  try {
+    releaseSweepThrottle();
+    const { body } = await postLinkRaw(request, `${STALLED}?duplicate=${run}`);
+    id = body.item.id;
+    await runSweep(request);
 
-  expect(await settled(request, id)).toMatchObject({ status: "failed", reason: "timeout" });
+    expect(await settled(request, id)).toMatchObject({ status: "failed", reason: "timeout" });
+  } finally {
+    stopTrap();
+  }
+
   await sleep(3000);
   expect(jobsOf(id)).toMatchObject([{ state: "done", attempts: 0, claim_expires: null }]);
 });
@@ -121,12 +130,19 @@ test("a second message for a job that finished while it waited does not run it a
 test("a runner whose claim was taken over writes nothing, and the Item ends with the claim's next holder", async ({
   request,
 }) => {
-  test.setTimeout(90_000);
-  const { body } = await postLinkRaw(request, `${STALLED}?takeover=${newRunId()}`);
-  const { id } = body.item;
+  test.setTimeout(150_000);
+  const run = newRunId();
+  const stopTrap = afterFirstClaim(mainInstance(), `takeover=${run}`, "attempts = attempts + 1");
+  let id = 0;
 
-  await waitForRunning(id);
-  mainInstance().sql(`UPDATE jobs SET attempts = attempts + 1 WHERE item_id = ${id}`);
+  try {
+    const { body } = await postLinkRaw(request, `${STALLED}?takeover=${run}`);
+    id = body.item.id;
+    await expect.poll(() => jobsOf(id)[0]?.attempts, { timeout: 30_000 }).toBe(1);
+  } finally {
+    stopTrap();
+  }
+
   await sleep(HOP_DEADLINE_MS + 4000);
 
   expect((await itemOf(request, id)).status).toBe("processing");

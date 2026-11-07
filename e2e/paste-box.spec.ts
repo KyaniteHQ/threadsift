@@ -3,6 +3,7 @@ import { type APIRequestContext, type Page, expect, test } from "@playwright/tes
 import { SAVING_STATUS } from "../web/src/text.ts";
 import { listAll, listForRun, postLink } from "./api.ts";
 import { alertRegion } from "./card.ts";
+import { storeReadyLinks } from "./ingest.ts";
 import { addButton, newRunId, pasteCard, pasteField, rowOf, submitLink } from "./links.ts";
 
 function rowCount(page: Page): Promise<number> {
@@ -165,14 +166,17 @@ test("a saved link returns focus to the field and the list shows it at the top",
 for (const width of [390, 1280]) {
   test(`Shift+Tab up the list never leaves a focused row under the list header at ${width}px`, async ({
     page,
-    request,
   }) => {
-    await seedLinks(request, newRunId(), "walk", 20);
+    const run = newRunId();
+    storeReadyLinks(
+      Array.from({ length: 20 }, (_, index) => `https://example.com/${run}/walk-${index}`),
+    );
 
     await page.setViewportSize({ width, height: 600 });
     await page.goto("/");
     const links = page.locator("article.it .it-open");
     await expect(links.nth(14)).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
     await links.nth(14).focus();
     await page.keyboard.press("Tab");
 

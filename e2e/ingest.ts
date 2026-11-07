@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { expect } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
 import { z } from "zod";
@@ -99,6 +101,19 @@ export function storeItem(
   return itemIdAt(fields.normalized_url);
 }
 
+export function storeReadyLinks(urls: readonly string[]): void {
+  const savedAt = Date.now();
+
+  const rows = urls.map(
+    (url, index) =>
+      `(${literal(url)}, 'other', 'link', ${literal(url)}, ${savedAt + index}, 'ready')`,
+  );
+
+  mainInstance().sql(
+    `INSERT INTO items (normalized_url, source, kind, original_url, saved_at, status) VALUES ${rows.join(", ")}`,
+  );
+}
+
 export function storeProcessingItemWithDueJob(
   url: string,
   address = url,
@@ -113,6 +128,15 @@ export function storeProcessingItemWithDueJob(
   return id;
 }
 
+export function releaseSweepThrottle(instance: Instance = mainInstance()): void {
+  instance.sql("DELETE FROM scheduled_runs");
+}
+
+export async function runSweep(request: APIRequestContext): Promise<void> {
+  const response = await request.get("/cdn-cgi/local/scheduled");
+  expect(response.status(), "the local scheduled endpoint").toBe(200);
+}
+
 export async function sweepNow(
   request: APIRequestContext,
   instance: Instance = mainInstance(),
@@ -123,9 +147,23 @@ export async function sweepNow(
     return;
   }
 
-  instance.sql("DELETE FROM scheduled_runs");
-  const response = await request.get("/cdn-cgi/local/scheduled");
-  expect(response.status(), "the local scheduled endpoint").toBe(200);
+  releaseSweepThrottle(instance);
+  await runSweep(request);
+}
+
+export function afterFirstClaim(
+  instance: Instance,
+  urlEnd: string,
+  assignments: string,
+): () => void {
+  const trigger = `after_claim_${randomBytes(4).toString("hex")}`;
+  instance.sql(
+    `CREATE TRIGGER ${trigger} AFTER UPDATE ON jobs WHEN OLD.state = 'queued' AND NEW.state = 'running' AND (SELECT normalized_url FROM items WHERE id = NEW.item_id) LIKE '%${urlEnd}' BEGIN UPDATE jobs SET ${assignments} WHERE id = NEW.id; END`,
+  );
+
+  return () => {
+    instance.sql(`DROP TRIGGER ${trigger}`);
+  };
 }
 
 export async function waitForRunning(id: number): Promise<void> {
