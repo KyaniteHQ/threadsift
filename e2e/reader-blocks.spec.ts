@@ -1,6 +1,13 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { FOLD_HIDE, foldShowLabel } from "../web/src/reader-text.ts";
+import {
+  FOLD_HIDE,
+  FOOTNOTES_LABEL,
+  FOOTNOTE_BACK,
+  FOOTNOTE_BACK_AGAIN,
+  foldShowLabel,
+} from "../web/src/reader-text.ts";
+import { filled } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { choice } from "./filters.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
@@ -204,16 +211,17 @@ test("a footnote reference and its back link stay in the Reader, keep their gene
       url: "https://example.com/noted",
       title: "Noted",
       postText:
-        "A claim that needs a source.[^1] See [the site](https://example.com/outside).\n\nMore text between.\n\n[^1]: The source of the claim.",
+        "A claim that needs a source.[^1] See [the site](https://example.com/outside). It is cited again.[^1]\n\nMore text between.\n\n[^1]: The source of the claim.",
       savedAt: Date.now(),
     },
   ]);
 
   await openLibrary(page, 1440, `/items/${noted}`, 2);
-  const reference = page.locator(".md a[data-footnote-ref]");
+  const reference = page.locator(".md a[data-footnote-ref]").first();
   await expect(reference).toHaveAttribute("id", "user-content-fnref-1");
   await expect(reference).not.toHaveAttribute("target", /./u);
   await expect(page.locator(".md #footnote-label")).toHaveClass(/\bvh\b/u);
+  await expect(page.locator(".md #footnote-label")).toHaveText(FOOTNOTES_LABEL);
   await expect(page.locator(".md a", { hasText: "the site" })).toHaveAttribute("target", "_blank");
 
   const opened: string[] = [];
@@ -227,7 +235,12 @@ test("a footnote reference and its back link stay in the Reader, keep their gene
   await expect(page.locator("#user-content-fn-1")).toContainText("The source of the claim.");
   await expect(page.locator("#user-content-fn-1")).toBeInViewport();
 
-  await page.getByRole("link", { name: /Back to reference 1/u }).click();
+  const first = filled(FOOTNOTE_BACK, { reference: "1" });
+  const again = filled(FOOTNOTE_BACK_AGAIN, { reference: "1", again: "2" });
+
+  await expect(page.locator("#user-content-fn-1 a[data-footnote-backref]")).toHaveCount(2);
+  await expect(page.getByRole("link", { name: again })).toBeVisible();
+  await page.getByRole("link", { name: first }).click();
   await expect(page).toHaveURL(new RegExp(`/items/${noted}#user-content-fnref-1$`, "u"));
   await expect(reference).toBeInViewport();
   await expect(reader(page)).toBeVisible();

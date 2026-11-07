@@ -4,8 +4,9 @@ import remarkGfm from "remark-gfm";
 import { z } from "zod";
 
 import { CodeBlock } from "./CodeBlock.tsx";
-import { tableName } from "./reader-text.ts";
+import { FOOTNOTES_LABEL, FOOTNOTE_BACK, FOOTNOTE_BACK_AGAIN, tableName } from "./reader-text.ts";
 import { watchFades } from "./scroll-fades.ts";
+import { filled } from "./text.ts";
 
 interface Node {
   readonly type: string;
@@ -172,7 +173,18 @@ const COMPONENTS: Components = {
 
 const PLUGINS = [remarkGfm];
 
+function footnoteBackLabel(referenceIndex: number, rereferenceIndex: number): string {
+  const values = {
+    reference: String(referenceIndex + 1),
+    again: String(rereferenceIndex),
+  };
+
+  return filled(rereferenceIndex > 1 ? FOOTNOTE_BACK_AGAIN : FOOTNOTE_BACK, values);
+}
+
 const FOOTNOTES: NonNullable<ComponentProps<typeof Markdown>["remarkRehypeOptions"]> = {
+  footnoteLabel: FOOTNOTES_LABEL,
+  footnoteBackLabel,
   footnoteLabelProperties: { className: ["vh"] },
 };
 

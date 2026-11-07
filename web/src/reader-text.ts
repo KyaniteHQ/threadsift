@@ -22,6 +22,9 @@ export const DIGEST_PENDING = "The summary and key points are not ready yet.";
 export const NO_POST_TEXT = "This item has no post text.";
 export const PASTE_OPEN = "Open";
 export const FOLD_HIDE = "Show fewer lines";
+export const FOOTNOTES_LABEL = "Footnotes";
+export const FOOTNOTE_BACK = "Back to reference {reference}";
+export const FOOTNOTE_BACK_AGAIN = "Back to footnote {reference}, reference {again}";
 
 export const OPEN_LABELS: Readonly<Record<Source, string>> = {
   reddit: "Open on Reddit",
