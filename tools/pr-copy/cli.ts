@@ -38,7 +38,7 @@ const USAGE = `Usage:
   node tools/pr-copy/cli.ts live --artifact <dir> --github
   node tools/pr-copy/cli.ts sweep [--dry-run]
   node tools/pr-copy/cli.ts check --pr <n> --head <sha> --artifact <dir> --out <dir> [--scenario <name>]... [--workers-ai]
-  node tools/pr-copy/cli.ts check --pr <n> --resume
+  node tools/pr-copy/cli.ts check --pr <n> --resume [--workers-ai]
   node tools/pr-copy/cli.ts rebuild --pr <n> --head <sha> --artifact <dir> --out <dir> --times <k>
   node tools/pr-copy/cli.ts gate-run --pr <n> --head <sha> --out <file>
   check runs against the copy's current deployment; to run it for a maintainer, dispatch .github/workflows/copy-checks.yml (gh workflow run copy-checks.yml -f pr=<n> -f head=<sha>)

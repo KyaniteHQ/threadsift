@@ -87,10 +87,14 @@ jobs:
           path: ${{ runner.temp }}/copy-out
           if-no-files-found: ignore
           retention-days: 14
-      - name: Resume delivery on the copy's Queue
+      - name: Resume delivery on the copy's Queue and clear the Provider the checks set
         if: always()
         timeout-minutes: 10
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: devenv shell -- node tools/pr-copy/cli.ts check --pr "$PR" --resume
+          WORKERS_AI: ${{ inputs.workers_ai }}
+        run: |
+          flags=()
+          if [ "$WORKERS_AI" = "true" ]; then flags+=(--workers-ai); fi
+          devenv shell -- node tools/pr-copy/cli.ts check --pr "$PR" --resume "${flags[@]}"

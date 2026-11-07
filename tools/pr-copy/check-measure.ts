@@ -4,7 +4,7 @@ import { AiSettingsViewSchema } from "../../src/core/ai-contract.ts";
 import { ItemDetailResponseSchema } from "../../src/http/schemas.ts";
 import { type Run, Stop } from "./check-run.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
-import { type Copy, callCopy, send } from "./copy-calls.ts";
+import { type Copy, callCopy, decodeAnswer, send } from "./copy-calls.ts";
 import { type Item, endState, expectOk, paste } from "./copy-client.ts";
 import { queryDatabase } from "./d1.ts";
 import { SKEW_MS } from "./pace.ts";
@@ -44,7 +44,7 @@ export async function requireIdleCopy(run: Readonly<Run>, copy: Readonly<Copy>):
 
   const response = await callCopy(copy, { path: "/api/settings/ai", cookie: copy.cookie });
   await expectOk(response, "/api/settings/ai");
-  const { settings } = AiSettingsViewSchema.parse(await response.json());
+  const { settings } = await decodeAnswer(response, "/api/settings/ai", AiSettingsViewSchema);
 
   if (unfinished !== 0 || pending !== 0 || settings !== null) {
     throw new Stop(
@@ -53,8 +53,13 @@ export async function requireIdleCopy(run: Readonly<Run>, copy: Readonly<Copy>):
   }
 }
 
-export function queryRun<Row>(run: Readonly<Run>, sql: string, row: z.ZodType<Row>) {
-  return queryDatabase(run.stage, run.database, sql, row);
+export function queryRun<Row>(
+  run: Readonly<Run>,
+  sql: string,
+  row: z.ZodType<Row>,
+  deadline?: number,
+) {
+  return queryDatabase(run.stage, run.database, sql, row, deadline);
 }
 
 export function fetchJobs(run: Readonly<Run>, itemId: number) {
@@ -70,7 +75,7 @@ export async function itemDetail(copy: Readonly<Copy>, id: number) {
   const response = await callCopy(copy, { path, cookie: copy.cookie });
   await expectOk(response, path);
 
-  return ItemDetailResponseSchema.parse(await response.json()).item;
+  return (await decodeAnswer(response, path, ItemDetailResponseSchema)).item;
 }
 
 export interface Pasted {

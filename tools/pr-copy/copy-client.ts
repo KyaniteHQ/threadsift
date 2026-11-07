@@ -6,6 +6,7 @@ import {
   POLL_MS,
   type Site,
   callCopy,
+  decodeAnswer,
   isJson,
   refusal,
   sessionCookie,
@@ -71,6 +72,7 @@ export async function logIn(site: Readonly<Site>, password: string): Promise<Cop
 export async function paste(
   copy: Readonly<Copy>,
   link: string,
+  deadline = Number.POSITIVE_INFINITY,
 ): Promise<{ id: number; created: boolean }> {
   process.stdout.write(`Paste ${link}\n`);
 
@@ -78,13 +80,14 @@ export async function paste(
     path: "/api/items",
     cookie: copy.cookie,
     body: { url: link },
+    deadline,
   });
 
   if (response.status !== 200 && response.status !== 201) {
     throw new CopyAnswerError("/api/items", response.status, await refusal(response));
   }
 
-  const { item } = SavedItemResponseSchema.parse(await response.json());
+  const { item } = await decodeAnswer(response, "/api/items", SavedItemResponseSchema);
 
   return { id: item.id, created: response.status === 201 };
 }
@@ -99,7 +102,7 @@ export async function endState(
 
   await expectOk(response, path);
 
-  const { item } = ItemResponseSchema.parse(await response.json());
+  const { item } = await decodeAnswer(response, path, ItemResponseSchema);
 
   if (item.status !== "processing") return item;
 

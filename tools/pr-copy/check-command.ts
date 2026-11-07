@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { resumeOnly } from "./check-run.ts";
+import { resumeOnly } from "./check-resume.ts";
 import { DEFAULT_SCENARIOS, SCENARIO_NAMES } from "./check-types.ts";
 import { runChecks } from "./checks.ts";
 import { writeGateRun } from "./gate-run.ts";
@@ -31,7 +31,7 @@ function scenarioNames(flags: Readonly<Flags>): readonly string[] {
 
 export async function checkCommand(pr: number, flags: Readonly<Flags>): Promise<void> {
   if (flags.resume) {
-    const resumed = await resumeOnly(pr);
+    const resumed = await resumeOnly(pr, scenarioNames(flags).includes("workers-ai"));
     process.stdout.write(
       `Delivery on the Queue of pull request ${String(pr)} ${resumed ? "was paused and is resumed" : "was not paused"}\n`,
     );

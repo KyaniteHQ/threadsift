@@ -1,4 +1,7 @@
+import type { z } from "zod";
+
 import { ErrorResponseSchema } from "../../src/http/schemas.ts";
+import { CopyDecodeError } from "./copy-decode-error.ts";
 import { callTimeout, pause, remaining } from "./timeout.ts";
 
 export const POLL_MS = 1000;
@@ -124,6 +127,23 @@ async function attempt(
 
 export function callCopy(site: Readonly<Site>, call: Readonly<Call>): Promise<Response> {
   return attempt(site, call, false);
+}
+
+export async function decodeAnswer<Body>(
+  response: Response,
+  path: string,
+  schema: z.ZodType<Body>,
+): Promise<Body> {
+  const decoded = await response.json().then(
+    (body) => schema.safeParse(body),
+    () => null,
+  );
+
+  if (decoded === null) throw new CopyDecodeError(path, response.status);
+
+  if (!decoded.success) throw decoded.error;
+
+  return decoded.data;
 }
 
 async function refusalBody(response: Response) {

@@ -56,7 +56,7 @@ export function writeReport(
   mkdirSync(out, { recursive: true });
 
   const manifest = {
-    rerun: `gh workflow run copy-checks.yml -f pr=${String(run.pr)} -f head=${run.head}`,
+    rerun: `gh workflow run copy-checks.yml -f pr=${String(run.pr)} -f head=${run.head}${results.some((result) => result.scenario === "workers-ai") ? " -f workers_ai=true" : ""}`,
     checkerCommit: checkerCommit(),
     pullRequest: run.pr,
     head: run.head,

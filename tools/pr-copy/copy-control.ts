@@ -166,6 +166,7 @@ export async function versionBindings(
   stage: Readonly<Stage>,
   worker: string,
   version: string,
+  deadline?: number,
 ): Promise<readonly Readonly<{ name: string; type: string }>[]> {
   refuseOutsideTarget(stage.target, [worker]);
 
@@ -173,6 +174,8 @@ export async function versionBindings(
     "GET",
     `workers/scripts/${worker}/versions/${version}`,
     VersionBindings,
+    undefined,
+    deadline,
   );
 
   return result.resources.bindings;
