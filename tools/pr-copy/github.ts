@@ -183,14 +183,15 @@ export async function lastRecord(pr: number): Promise<CopyRecord | null> {
 
 export async function postDeployment(
   head: Readonly<DeployedHead>,
-  copy: Readonly<DeployedCopy> | null,
+  copy: Readonly<DeployedCopy & { artifact: string }> | null,
 ): Promise<void> {
   const deployment = await createDeployment({
     ref: head.headSha,
     task: task(head.pr),
     environment: ENVIRONMENT,
     transient: true,
-    payload: copy === null ? null : { ...copy.record, gateRun: head.gateRun },
+    payload:
+      copy === null ? null : { ...copy.record, gateRun: head.gateRun, artifact: copy.artifact },
     description: `Copy of pull request ${String(head.pr)}`,
   });
 
@@ -203,7 +204,7 @@ function createDeployment(
     task: string;
     environment: string;
     transient: boolean;
-    payload: Readonly<CopyRecord & { gateRun?: number }> | null;
+    payload: Readonly<CopyRecord & { gateRun?: number; artifact?: string }> | null;
     description: string;
   }>,
 ) {

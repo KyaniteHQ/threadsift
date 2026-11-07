@@ -1,6 +1,7 @@
 import { type APIRequestContext, type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
+import { routeTemplate } from "../tools/pr-copy/routes.ts";
 import { test } from "./access.ts";
 
 interface ApiSchema {
@@ -206,6 +207,18 @@ test("the served OpenAPI document describes the status route without the post te
   expect(names).not.toContain("comments");
   expect(names).not.toContain("postText");
   expect(names).not.toContain("postedAt");
+});
+
+test("every path of the served OpenAPI document has a route template in the copy checks", async ({
+  request,
+}, info) => {
+  const { paths } = await documentOf(request, info);
+
+  const unlisted = Object.keys(paths)
+    .map((path) => path.replaceAll(/\{([^}]+)\}/gu, ":$1"))
+    .filter((template) => routeTemplate(template) !== template);
+
+  expect(unlisted).toEqual([]);
 });
 
 test("a path with a file extension that matches no file is a 404 and a page path is the page", async ({

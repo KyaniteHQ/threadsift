@@ -14,6 +14,7 @@ const ROUTES = [
   "/api/items/:id",
   "/api/items/:id/status",
   "/api/items/:id/digest",
+  "/api/items/:id/read-state",
 ] as const;
 
 export function routeTemplate(path: string): string {
