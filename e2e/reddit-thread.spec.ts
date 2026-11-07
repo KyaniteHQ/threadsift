@@ -1,5 +1,6 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
+import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { mainInstance } from "./access.ts";
 import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { attachJson } from "./card.ts";
@@ -23,6 +24,7 @@ import {
   commentRows,
   generationOf,
   savedThread,
+  sendThread,
   threadJson,
 } from "./threads.ts";
 
@@ -172,4 +174,42 @@ test("a refresh replaces the selection only when its Digest publishes, and a Pas
     "refresh.json",
     JSON.stringify({ before, pending, replaced, kept }, null, 2),
   );
+});
+
+test("a stored thread whose Digest has not published reads its counts and its top-level more stub, and no comment body", async ({
+  request,
+}) => {
+  const instance = mainInstance();
+  const id = `n${run}`;
+  const tag = "unpublished";
+  const restore = deferJobs(instance, "digest");
+  let sent: Awaited<ReturnType<typeof sendThread>>;
+
+  try {
+    sent = await sendThread(request, {
+      url: postUrl(id),
+      content: threadJson(post(id, "A body."), firstTree(tag)),
+      digest: FIRST_DIGEST,
+    });
+  } finally {
+    restore();
+  }
+
+  const { item } = SavedItemResponseSchema.parse(await sent.response.json());
+  const waiting = await itemOf(request, item.id);
+
+  expect(waiting.status).toBe("processing");
+  expect(waiting.digestTitle).toBeNull();
+  expect(waiting.comments).toEqual({
+    reported: 142,
+    received: 7,
+    kept: 0,
+    nodes: [{ kind: "more", id: "more_10", parentId: null, depth: 0 }],
+  });
+  expect(await find(request, marker("kept", tag))).toEqual([]);
+
+  for (const job of jobsOf(item.id, instance, "digest")) makeJobDue(job.id, instance);
+  await sweepNow(request, instance);
+
+  expect((await settled(request, item.id)).comments).toMatchObject({ received: 7, kept: 3 });
 });

@@ -6,7 +6,7 @@ import { hasOpenJob } from "./job-rows.ts";
 import type { DIGEST_OUTCOMES } from "./kinds.ts";
 import type { Database, Ports } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
-import { publishedCommentsOf, publishedThreadReads } from "./reddit-thread.ts";
+import { commentsOf, threadReads } from "./reddit-thread.ts";
 import { REPOSITORY_COLUMNS } from "./repositories.ts";
 import { digests, githubRepos, itemTags, items, tags, topics } from "./schema.ts";
 
@@ -100,7 +100,7 @@ export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files"
       .where(eq(itemTags.itemId, id))
       .orderBy(asc(sql`${itemTags}.rowid`)),
     db.select(REPOSITORY_COLUMNS).from(githubRepos).where(eq(githubRepos.itemId, id)),
-    ...publishedThreadReads(db, id),
+    ...threadReads(db, id),
   ]);
 
   if (row === undefined) {
@@ -118,7 +118,7 @@ export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files"
       tagRows.map((tag) => tag.name),
     ),
     repository: repository ?? null,
-    comments: publishedCommentsOf(threadRows, threadReport),
+    comments: commentsOf(threadRows, threadReport),
   };
 }
 

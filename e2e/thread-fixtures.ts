@@ -55,6 +55,7 @@ export function firstTree(tag: string) {
         "reader_f",
         `${marker("stubbed", tag)} I ran it for three weeks without a crash.`,
       ),
+      MORE,
     ]),
     MORE,
   ];
@@ -72,7 +73,8 @@ export const FIRST_NODES: object[] = [
   { kind: "more", id: "more_6", parentId: "t1_c1", depth: 1 },
   { kind: "stub", id: "t1_c6", parentId: null, depth: 0, reason: "dropped" },
   { kind: "comment", id: "t1_c7", parentId: "t1_c6", depth: 1, author: "reader_f" },
-  { kind: "more", id: "more_9", parentId: null, depth: 0 },
+  { kind: "more", id: "more_9", parentId: "t1_c6", depth: 1 },
+  { kind: "more", id: "more_10", parentId: null, depth: 0 },
 ];
 
 export const FIRST_ROWS = [
@@ -86,4 +88,5 @@ export const FIRST_ROWS = [
   ["t1_c6", 0, 0, 0],
   ["t1_c7", 1, 1, 1],
   ["more_9", 0, 0, 0],
+  ["more_10", 0, 0, 0],
 ];

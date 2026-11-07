@@ -11,9 +11,9 @@ import {
 } from "./digest-source.ts";
 import { MAX_STALE_REQUEUES, type JobOutcome } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { selectionWrites } from "./reddit-thread.ts";
+import { selectedBodies, selectionWrites } from "./reddit-thread.ts";
 import { digests, insertGuard, items } from "./schema.ts";
-import { digestPartWrites } from "./search.ts";
+import { commentPartWrites, digestPartWrites } from "./search.ts";
 
 type DigestSource =
   | { readonly executor: "caller" }
@@ -25,17 +25,19 @@ type DigestSource =
       readonly staleRequeues: number;
     };
 
-export function publishing(
+export async function publishing(
   db: Database,
   item: Readonly<DigestInput>,
   digest: Readonly<Digest>,
   taskId: number,
   source: DigestSource,
-): JobOutcome {
+): Promise<JobOutcome> {
   const entries = catalogEntries(digest);
   const { catalog, provider, model } = digestOrigin(source, entries);
   const generation = generationCurrent(item);
   const kept = source.executor === "caller" ? (digest.keptComments ?? []) : [];
+  const snapshot = { itemId: item.id, generation: item.generation };
+  const bodies = kept.length === 0 ? [] : await selectedBodies(db, snapshot, kept);
 
   const stored = {
     itemId: item.id,
@@ -56,8 +58,9 @@ export function publishing(
       insertGuard(db, catalog),
       ...linkingDigest(db, item.id, entries),
       db.insert(digests).values(stored).onConflictDoUpdate({ target: digests.itemId, set: stored }),
-      ...selectionWrites(db, { itemId: item.id, generation: item.generation }, kept),
+      ...selectionWrites(db, snapshot, kept),
       ...digestPartWrites(db, eq(items.id, item.id)),
+      ...commentPartWrites(db, eq(items.id, item.id), bodies),
       completedAiTask(db, { taskId, result: digest }),
       db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
       setDigestFailure(db, item.id, false),

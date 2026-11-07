@@ -1,5 +1,6 @@
 import { type SQL, type SQLWrapper, and, asc, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
+import { z } from "zod";
 
 import { type CommentRow, type CommentsView, NO_COMMENTS, commentsViewOf } from "./comment-view.ts";
 import type { Database } from "./ports.ts";
@@ -11,8 +12,38 @@ export function eligibleComments(): SQL {
   return sql`exists (select 1 from ${redditComments} where ${redditComments.itemId} = ${items.id} and ${redditComments.generation} = ${items.generation} and ${redditComments.eligible} = 1)`;
 }
 
-export function keptCommentIds(): SQL<string> {
-  return sql<string>`(select coalesce(json_group_array(id), '[]') from (select ${redditComments.id} as id from ${redditComments} join ${digests} on ${digests.itemId} = ${redditComments.itemId} and ${digests.generation} = ${redditComments.generation} where ${redditComments.itemId} = ${items.id} and ${redditComments.kept} = 1 order by ${redditComments.position}))`;
+export function keptComments(): SQL<string> {
+  return sql<string>`(select coalesce(json_group_array(json_array(id, body)), '[]') from (select ${redditComments.id} as id, ${redditComments.body} as body from ${redditComments} join ${digests} on ${digests.itemId} = ${redditComments.itemId} and ${digests.generation} = ${redditComments.generation} where ${redditComments.itemId} = ${items.id} and ${redditComments.kept} = 1 order by ${redditComments.position}))`;
+}
+
+const KeptComments = z.array(z.tuple([z.string(), z.string()]));
+
+export function keptBodiesOf(stored: string): readonly string[] {
+  return KeptComments.parse(JSON.parse(stored)).map(([, body]) => body);
+}
+
+function selected(kept: readonly string[]): SQL {
+  return sql`${redditComments.eligible} = 1 and ${redditComments.id} in (select value from json_each(${JSON.stringify(kept)}))`;
+}
+
+export async function selectedBodies(
+  db: Database,
+  snapshot: Readonly<{ itemId: number; generation: number }>,
+  kept: readonly string[],
+): Promise<readonly string[]> {
+  const rows = await db
+    .select({ body: redditComments.body })
+    .from(redditComments)
+    .where(
+      and(
+        eq(redditComments.itemId, snapshot.itemId),
+        eq(redditComments.generation, snapshot.generation),
+        selected(kept),
+      ),
+    )
+    .orderBy(asc(redditComments.position));
+
+  return rows.flatMap(({ body }) => (body === null ? [] : [body]));
 }
 
 interface Owner {
@@ -114,9 +145,7 @@ export function selectionWrites(
   return [
     db
       .update(redditComments)
-      .set({
-        kept: sql`${redditComments.eligible} = 1 and ${redditComments.id} in (select value from json_each(${JSON.stringify(kept)}))`,
-      })
+      .set({ kept: selected(kept) })
       .where(and(eq(redditComments.itemId, itemId), eq(redditComments.generation, generation))),
     db
       .delete(redditComments)
@@ -131,7 +160,14 @@ export function selectionWrites(
   ];
 }
 
-function publishedRows(db: Database, itemId: number) {
+function readGeneration(itemId: number) {
+  const published = sql`select ${redditThreads.generation} from ${redditThreads} join ${digests} on ${digests.itemId} = ${redditThreads.itemId} and ${digests.generation} = ${redditThreads.generation} where ${redditThreads.itemId} = ${itemId}`;
+  const stored = sql`select max(${redditThreads.generation}) from ${redditThreads} where ${redditThreads.itemId} = ${itemId}`;
+
+  return sql`coalesce((${published}), (${stored}))`;
+}
+
+function threadRows(db: Database, itemId: number) {
   return db
     .select({
       id: redditComments.id,
@@ -150,36 +186,32 @@ function publishedRows(db: Database, itemId: number) {
       >`case when ${redditComments.kept} then ${redditComments.postedAt} end`,
     })
     .from(redditComments)
-    .innerJoin(
-      digests,
+    .where(
       and(
-        eq(digests.itemId, redditComments.itemId),
-        eq(digests.generation, redditComments.generation),
+        eq(redditComments.itemId, itemId),
+        sql`${redditComments.generation} = ${readGeneration(itemId)}`,
       ),
     )
-    .where(eq(redditComments.itemId, itemId))
     .orderBy(asc(redditComments.position));
 }
 
-function publishedReport(db: Database, itemId: number) {
+function threadReport(db: Database, itemId: number) {
   return db
     .select({ reported: redditThreads.reported })
     .from(redditThreads)
-    .innerJoin(
-      digests,
+    .where(
       and(
-        eq(digests.itemId, redditThreads.itemId),
-        eq(digests.generation, redditThreads.generation),
+        eq(redditThreads.itemId, itemId),
+        sql`${redditThreads.generation} = ${readGeneration(itemId)}`,
       ),
-    )
-    .where(eq(redditThreads.itemId, itemId));
+    );
 }
 
-export function publishedThreadReads(db: Database, itemId: number) {
-  return [publishedRows(db, itemId), publishedReport(db, itemId)] as const;
+export function threadReads(db: Database, itemId: number) {
+  return [threadRows(db, itemId), threadReport(db, itemId)] as const;
 }
 
-export function publishedCommentsOf(
+export function commentsOf(
   rows: readonly CommentRow[],
   report: readonly Readonly<{ reported: number | null }>[],
 ): CommentsView {

@@ -83,7 +83,7 @@ test("Digests stored before the Kept comments still read, a refresh with a threa
       status: "ready",
       postText: null,
     });
-    expect(emptied.item.comments).toMatchObject({ received: 0, kept: 0, nodes: [] });
+    expect(emptied.item.comments).toMatchObject({ received: 1, kept: 0, nodes: [] });
     await owner.dispose();
   } finally {
     instance.stop();

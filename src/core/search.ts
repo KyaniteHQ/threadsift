@@ -1,17 +1,10 @@
-import { type SQL, type SQLWrapper, and, asc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { SearchPartKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import {
-  digests,
-  githubRepos,
-  itemTags,
-  items,
-  redditComments,
-  searchParts,
-  tags,
-} from "./schema.ts";
+import { digests, githubRepos, itemTags, items, searchParts, tags } from "./schema.ts";
+import { jsonArrays } from "./thread-rows.ts";
 
 const CHUNK_UNITS = 125_000;
 const CHUNK_TRIGGER_BYTES = 500_000;
@@ -21,7 +14,6 @@ const DIGEST_KINDS = [
   "digest-title",
   "summary",
   "tags",
-  "comment",
 ] as const satisfies readonly SearchPartKind[];
 
 function lastSeparatorBefore(text: string, limit: number): number {
@@ -151,19 +143,27 @@ function tagsPart(db: Database, scope: Readonly<SQLWrapper>) {
   );
 }
 
-function commentParts(db: Database, scope: Readonly<SQLWrapper>) {
+function commentPartInsert(db: Database, scope: Readonly<SQLWrapper>, json: string) {
   return db.insert(searchParts).select(
     db
-      .select(partOf("comment", redditComments.body))
+      .select(partOf("comment", sql`part.value`))
       .from(items)
-      .innerJoin(digests, sql`${digests.itemId} = ${items.id}`)
-      .innerJoin(
-        redditComments,
-        sql`${redditComments.itemId} = ${items.id} and ${redditComments.generation} = ${digests.generation}`,
-      )
-      .where(and(sql`${scope}`, eq(redditComments.kept, true), isNotNull(redditComments.body)))
-      .orderBy(asc(redditComments.position)),
+      .innerJoin(sql`json_each(${json}) as part`, sql`1`)
+      .where(sql`${scope}`),
   );
+}
+
+export function commentPartWrites(
+  db: Database,
+  scope: Readonly<SQLWrapper>,
+  bodies: readonly string[],
+): readonly BatchItem<"sqlite">[] {
+  const parts = bodies.flatMap((body) => chunkPostText(body)).map((part) => JSON.stringify(part));
+
+  return [
+    replacing(db, scope, ["comment"]),
+    ...jsonArrays(parts).map((json) => commentPartInsert(db, scope, json)),
+  ];
 }
 
 export function digestPartWrites(
@@ -175,7 +175,6 @@ export function digestPartWrites(
     digestFieldPart(db, scope, "digest-title"),
     digestFieldPart(db, scope, "summary"),
     tagsPart(db, scope),
-    commentParts(db, scope),
   ];
 }
 

@@ -47,23 +47,28 @@ export interface CommentRow {
 
 export const NO_COMMENTS: CommentsView = { reported: null, received: 0, kept: 0, nodes: [] };
 
-function shownIds(rows: readonly CommentRow[]): ReadonlySet<string> {
+function keptWithAncestors(rows: readonly CommentRow[]): Set<string> {
   const byId = new Map(rows.map((row) => [row.id, row]));
   const shown = new Set<string>();
 
-  for (const row of rows) {
-    if (row.kept) {
-      for (
-        let at: CommentRow | undefined = row;
-        at !== undefined && !shown.has(at.id);
-        at = at.parentId === null ? undefined : byId.get(at.parentId)
-      ) {
-        shown.add(at.id);
-      }
-    } else if (
-      row.kind === "more" &&
-      (row.parentId === null || byId.get(row.parentId)?.kept === true)
+  for (const row of rows.filter((candidate) => candidate.kept)) {
+    for (
+      let at: CommentRow | undefined = row;
+      at !== undefined && !shown.has(at.id);
+      at = at.parentId === null ? undefined : byId.get(at.parentId)
     ) {
+      shown.add(at.id);
+    }
+  }
+
+  return shown;
+}
+
+function shownIds(rows: readonly CommentRow[]): ReadonlySet<string> {
+  const shown = keptWithAncestors(rows);
+
+  for (const row of rows) {
+    if (row.kind === "more" && (row.parentId === null || shown.has(row.parentId))) {
       shown.add(row.id);
     }
   }

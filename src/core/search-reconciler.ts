@@ -4,7 +4,7 @@ import { digestOf } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { Crypto, Database } from "./ports.ts";
-import { keptCommentIds } from "./reddit-thread.ts";
+import { keptBodiesOf, keptComments } from "./reddit-thread.ts";
 import {
   digests,
   guardedBatch,
@@ -16,6 +16,7 @@ import {
   tags,
 } from "./schema.ts";
 import {
+  commentPartWrites,
   digestPartWrites,
   fetchedPartWrites,
   repositoryPartWrites,
@@ -46,7 +47,7 @@ function itemsAfter(db: Database, after: number) {
       digest: digests.digest,
       tagNames: tagNamesOfItem(),
       repository: repositoryOfItem(),
-      comments: keptCommentIds(),
+      comments: keptComments(),
       fingerprint: searchFingerprints.fingerprint,
     })
     .from(items)
@@ -74,7 +75,7 @@ function fingerprintOf(crypto: Crypto, row: Readonly<Reconciled>): string {
 }
 
 function snapshotHolds(row: Readonly<Reconciled>) {
-  return sql`exists (select 1 from ${items} where ${items.id} = ${row.id} and ${items.title} is ${row.title} and ${items.postText} is ${row.postText} and ${items.postTextKey} is ${row.postTextKey} and (select ${digests.digest} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digest} and ${tagNamesOfItem()} = ${row.tagNames} and ${repositoryOfItem()} is ${row.repository} and ${keptCommentIds()} = ${row.comments})`;
+  return sql`exists (select 1 from ${items} where ${items.id} = ${row.id} and ${items.title} is ${row.title} and ${items.postText} is ${row.postText} and ${items.postTextKey} is ${row.postTextKey} and (select ${digests.digest} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digest} and ${tagNamesOfItem()} = ${row.tagNames} and ${repositoryOfItem()} is ${row.repository} and ${keptComments()} = ${row.comments})`;
 }
 
 async function reconcileItem(db: Database, row: Readonly<Reconciled>, fingerprint: string) {
@@ -84,6 +85,7 @@ async function reconcileItem(db: Database, row: Readonly<Reconciled>, fingerprin
   await guardedBatch(db, unchanged, [
     ...fetchedPartWrites(db, scope, row.postTextKey === null ? row.postText : undefined),
     ...digestPartWrites(db, scope),
+    ...commentPartWrites(db, scope, keptBodiesOf(row.comments)),
     ...repositoryPartWrites(db, scope),
     db
       .insert(searchFingerprints)

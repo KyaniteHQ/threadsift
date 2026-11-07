@@ -122,7 +122,7 @@ test("a post with no text still opens a Digest when it has eligible comments, an
     digestTitle: null,
     digestOutcome: "none",
   });
-  expect(closed.item.comments).toMatchObject({ received: 0, kept: 0, nodes: [] });
+  expect(closed.item.comments).toMatchObject({ received: 1, kept: 0, nodes: [] });
   expect(jobsOf(closed.item.id).map((job) => job.kind)).toEqual([]);
   expect(
     mainInstance().query(
