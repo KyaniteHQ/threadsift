@@ -28,10 +28,18 @@ wait_for_session_route() {
   return 1
 }
 
+save_logs() {
+  [[ -n ${THREADSIFT_RUN_DIR:-} ]] || return 0
+  mkdir -p "$THREADSIFT_RUN_DIR/logs"
+  "$0" logs "$1" >"$THREADSIFT_RUN_DIR/logs/$2.log" 2>&1 || true
+}
+
 stop_all() {
   local root=$1 dir
   for dir in "$root"/fresh-* "$root"; do
-    [[ -d $dir ]] && "$0" stop "$dir" || true
+    [[ -d $dir ]] || continue
+    save_logs "$dir" "$([[ $dir == "$root" ]] && echo main || basename "$dir")"
+    "$0" stop "$dir" || true
   done
 }
 
