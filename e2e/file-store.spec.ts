@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { setImmediate } from "node:timers/promises";
 
 import { expect, test } from "@playwright/test";
 
@@ -94,13 +95,17 @@ async function expectLongestName(store: FileStore): Promise<void> {
 }
 
 async function expectReadsSurviveDeletes(store: FileStore): Promise<void> {
-  const keys = Array.from({ length: 40 }, (_, index) => `items/4/r-${index}.md`);
+  const keys = Array.from({ length: 400 }, (_, index) => `items/4/r-${index}.md`);
 
   await Promise.all(keys.map((key) => store.put(key, Buffer.from(`body of ${key}`))));
 
   const outcomes = await Promise.all(
-    keys.map(async (key) => {
-      const [text] = await Promise.all([textOf(store, key), store.delete([key])]);
+    keys.map(async (key, index) => {
+      const removed = store.delete([key]);
+
+      for (let turns = 0; turns < index % 8; turns += 1) await setImmediate();
+
+      const [text] = await Promise.all([textOf(store, key), removed]);
 
       return { key, text };
     }),
