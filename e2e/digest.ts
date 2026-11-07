@@ -8,7 +8,9 @@ import { attachJson } from "./card.ts";
 import { THEMES, BANDS_AT_WIDTH, resize, expectNoViolations } from "./design-screens.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { jobsOf, sweepNow } from "./ingest.ts";
-import { attachScreenshot, storeSettings } from "./look.ts";
+import { attachScreenshot, storeSettings, viewportAt } from "./look.ts";
+
+const NARROWEST = 390;
 
 export async function configureDigest(
   screen: FreshScreen,
@@ -26,6 +28,7 @@ export async function digestScreens(
   const { page } = screen;
 
   for (const theme of THEMES) {
+    await viewportAt(page, NARROWEST);
     await storeSettings(page, { theme });
 
     for (const [width, bands] of BANDS_AT_WIDTH) {

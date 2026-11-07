@@ -1,12 +1,10 @@
-import { Suspense, useId, useRef } from "react";
+import { useId, useRef } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
-import { READER_LOADING, READER_PLACEHOLDER } from "./reader-text.ts";
+import { READER_PLACEHOLDER } from "./reader-text.ts";
 import { Reader, type ReaderControls } from "./Reader.tsx";
 import type { Look } from "./use-root.ts";
-
-const LOADING = <output className="rd-note">{READER_LOADING}</output>;
 
 export function ReaderPane({
   item,
@@ -33,16 +31,14 @@ export function ReaderPane({
 
   return (
     <div ref={slot} className="reader-slot">
-      <Suspense fallback={LOADING}>
-        <Reader
-          key={item.id}
-          item={item}
-          slot={slot}
-          controls={controls}
-          look={look}
-          openSettings={openSettings}
-        />
-      </Suspense>
+      <Reader
+        key={item.id}
+        item={item}
+        slot={slot}
+        controls={controls}
+        look={look}
+        openSettings={openSettings}
+      />
     </div>
   );
 }

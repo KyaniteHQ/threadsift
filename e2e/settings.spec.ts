@@ -134,8 +134,8 @@ async function followDevice(page: Page): Promise<void> {
 
 async function openPhoneSheetAndTapAway(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
-  await page.goto("/");
   await page.setViewportSize({ width: 390, height: 640 });
+  await page.goto("/");
   await gear(page).click();
   await expectModal(panel(page), true);
   await tapDimmedPage(page);
