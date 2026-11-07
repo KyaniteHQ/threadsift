@@ -21,7 +21,7 @@
         "value": "*",
         "files": ["design/system/components.css"],
         "createdAt": "2026-11-04T13:28:56.233Z",
-        "reason": "The only hit is the .md blockquote rule, the usual quote mark in rendered Markdown, not a coloured card stripe"
+        "reason": "The two hits are the .md blockquote rule, the usual quote mark in rendered Markdown, and the forced-colours open-row bar, which keeps the 3px bar that DESIGN.md and the spec require once forced colours drop box shadows; neither is a coloured card stripe"
       }
     ]
   }
