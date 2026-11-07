@@ -5,7 +5,7 @@ import { AI_TEXT } from "../web/src/ai-text.ts";
 import { filled } from "../web/src/text.ts";
 import { newCode, minimumPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { DESKTOP, afterTwoFrames } from "./look.ts";
+import { DESKTOP, afterTwoFrames, fontsLoaded } from "./look.ts";
 import { tokenNameField } from "./setup-screens.ts";
 import { addToken, createButton, mint, revokeOf, valueField } from "./tokens.ts";
 
@@ -179,6 +179,7 @@ test("the whole token value is on screen and selected when the field has focus",
   const { page } = screen;
   await page.setViewportSize(PHONE);
   await create(page, "Whole");
+  await fontsLoaded(page);
   const field = valueField(page);
 
   const value = await field.inputValue();
@@ -199,6 +200,7 @@ test("the reveal sentence does not end on a lone word at 390px", async () => {
   const { page } = screen;
   await page.setViewportSize(PHONE);
   await create(page, "Sentence");
+  await fontsLoaded(page);
   const sentence = page.locator(".reveal p").first();
   expect(await lastLineWords(sentence)).toBeGreaterThan(1);
 });

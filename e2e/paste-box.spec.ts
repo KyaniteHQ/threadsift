@@ -5,6 +5,7 @@ import { listAll, listForRun, postLink } from "./api.ts";
 import { alertRegion } from "./card.ts";
 import { storeReadyLinks } from "./ingest.ts";
 import { addButton, newRunId, pasteCard, pasteField, rowOf, submitLink } from "./links.ts";
+import { fontsLoaded } from "./look.ts";
 
 function rowCount(page: Page): Promise<number> {
   return page.locator("article.it").count();
@@ -176,7 +177,7 @@ for (const width of [390, 1280]) {
     await page.goto("/");
     const links = page.locator("article.it .it-open");
     await expect(links.nth(14)).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
+    await fontsLoaded(page);
     await links.nth(14).focus();
     await page.keyboard.press("Tab");
 

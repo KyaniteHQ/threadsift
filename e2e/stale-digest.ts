@@ -7,16 +7,23 @@ import { jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
 import { isContainerTarget } from "./target.ts";
 
 const AI_WAIT = 660_000;
+const STALE_CAP = 3;
+const MAX_RETRYABLE_FAILURES = 2;
+const MAX_STALE_REQUEUES_SEEN = STALE_CAP * (MAX_RETRYABLE_FAILURES + 1);
+const RETRYABLE_REFUSALS = new Set(["unreachable", "timeout", "provider-busy"]);
 
 const Tasks = z.array(
   z.object({
     id: z.number(),
     state: z.string(),
     refusal: z.string().nullable(),
+    status: z.number().nullable(),
     attempts: z.number(),
     inputs: z.string(),
   }),
 );
+
+type Task = z.infer<typeof Tasks>[number];
 
 const Observations = z.array(
   z.object({
@@ -30,16 +37,24 @@ const Observations = z.array(
 
 function observations(screen: FreshScreen) {
   return screen.fresh.query(
-    "SELECT requeues, attempts, claimed, next_at AS nextAt, started_at AS startedAt FROM stale_observations ORDER BY requeues",
+    "SELECT requeues, attempts, claimed, next_at AS nextAt, started_at AS startedAt FROM stale_observations ORDER BY rowid",
     Observations,
   );
 }
 
 function tasksSince(screen: FreshScreen, previous: number) {
   return screen.fresh.query(
-    `SELECT id, state, refusal, attempts, inputs FROM ai_tasks WHERE id > ${previous} ORDER BY id`,
+    `SELECT id, state, refusal, status, attempts, inputs FROM ai_tasks WHERE id > ${previous} ORDER BY id`,
     Tasks,
   );
+}
+
+function retriesProvider({ state, refusal, status }: Readonly<Task>): boolean {
+  if (state !== "failed") return false;
+
+  if (refusal === "no-json") return status === null || (status >= 200 && status < 300);
+
+  return refusal !== null && RETRYABLE_REFUSALS.has(refusal);
 }
 
 function installChurn(screen: FreshScreen, id: number): void {
@@ -56,6 +71,40 @@ function installChurn(screen: FreshScreen, id: number): void {
     END`);
 }
 
+function expectedObservations(tasks: readonly Task[]) {
+  const expected: { requeues: number; attempts: number; claimed: number }[] = [];
+  let claimed = 0;
+  let stale = 0;
+  let failures = 0;
+
+  for (const task of tasks) {
+    expect(task.attempts, `task ${task.id} claims the attempt after ${claimed}`).toBe(claimed + 1);
+
+    if (task.state === "done") {
+      expect(task, "the done task closes the sequence").toBe(tasks.at(-1));
+      expect(stale, "publication follows the cap of consecutive stale requeues").toBe(STALE_CAP);
+    } else if (task.state === "failed" && task.refusal === "stale") {
+      stale += 1;
+      expected.push({ requeues: stale, attempts: claimed, claimed });
+    } else {
+      expect(
+        retriesProvider(task),
+        `task ${task.id} ended ${task.state} with ${task.refusal ?? "no refusal"}`,
+      ).toBe(true);
+      failures += 1;
+      claimed += 1;
+      stale = 0;
+    }
+  }
+
+  expect(tasks.at(-1)?.state, "the last task is the published one").toBe("done");
+  expect(failures, "retryable Provider failures stay below the attempt cap").toBeLessThanOrEqual(
+    MAX_RETRYABLE_FAILURES,
+  );
+
+  return expected;
+}
+
 async function assertPublished(
   screen: FreshScreen,
   id: number,
@@ -63,19 +112,16 @@ async function assertPublished(
   info: TestInfo,
 ): Promise<void> {
   const rows = observations(screen);
-  const delayed = rows[2];
+  const tasks = tasksSince(screen, previous);
+
+  expect(rows.map(({ requeues, attempts, claimed }) => ({ requeues, attempts, claimed }))).toEqual(
+    expectedObservations(tasks),
+  );
+
+  const delayed = rows.at(-1);
+  expect(delayed?.requeues).toBe(STALE_CAP);
   expect((delayed?.nextAt ?? 0) - (delayed?.startedAt ?? 0)).toBeGreaterThanOrEqual(30_000);
 
-  const everyTask = tasksSince(screen, previous);
-
-  const tasks = everyTask.filter(({ state, refusal }) => state === "done" || refusal === "stale");
-
-  expect(tasks.map(({ state, refusal }) => ({ state, refusal }))).toEqual([
-    { state: "failed", refusal: "stale" },
-    { state: "failed", refusal: "stale" },
-    { state: "failed", refusal: "stale" },
-    { state: "done", refusal: null },
-  ]);
   const lists = z.object({ topics: z.array(z.string()), tags: z.array(z.string()) });
   const second = lists.parse(JSON.parse(tasks[1]?.inputs.split("\n")[0] ?? "null"));
   expect(second.tags).toContain(`Race ${tasks[0]?.id ?? 0}`);
@@ -90,15 +136,24 @@ async function assertPublished(
     "ordered-stale-catalog.json",
     JSON.stringify({
       rows,
-      tasks: everyTask.map(({ id: taskId, state, refusal, attempts }) => ({
+      tasks: tasks.map(({ id: taskId, state, refusal, status, attempts }) => ({
         taskId,
         state,
         refusal,
+        status,
         attempts,
       })),
       second,
     }),
   );
+}
+
+type Outcome = "observed" | "done" | "waiting";
+
+function outcomeOf(screen: FreshScreen, id: number, handled: number): Outcome {
+  if (observations(screen).length > handled) return "observed";
+
+  return jobsOf(id, screen.fresh, "digest").at(-1)?.state === "done" ? "done" : "waiting";
 }
 
 export async function proveStaleCatalog(
@@ -118,13 +173,16 @@ export async function proveStaleCatalog(
   try {
     await start();
 
-    for (const expected of [1, 2, 3]) {
-      await expect.poll(() => observations(screen).length, { timeout: AI_WAIT }).toBe(expected);
-      const rows = observations(screen);
-      const observed = rows.at(-1);
-      expect(observed).toMatchObject({ requeues: expected });
-      expect(observed?.attempts, "a stale requeue leaves the attempts the run claimed").toBe(
-        observed?.claimed,
+    for (let handled = 0; handled < MAX_STALE_REQUEUES_SEEN; handled += 1) {
+      await expect
+        .poll(() => outcomeOf(screen, id, handled), { timeout: AI_WAIT })
+        .not.toBe("waiting");
+
+      const observed = observations(screen)[handled];
+
+      if (observed === undefined) break;
+      expect(observed.attempts, "a stale requeue leaves the attempts the run claimed").toBe(
+        observed.claimed,
       );
 
       expect(tasksSince(screen, previous).at(-1)).toMatchObject({
@@ -134,7 +192,7 @@ export async function proveStaleCatalog(
       const job = jobsOf(id, screen.fresh, "digest").at(-1);
 
       if (job === undefined) throw new Error("No stale Digest job");
-      expect(job).toMatchObject({ state: "queued", attempts: observed?.claimed });
+      expect(job).toMatchObject({ state: "queued", attempts: observed.claimed });
       makeJobDue(job.id, screen.fresh);
 
       if (!isContainerTarget()) await sweepNow(screen.context.request, screen.fresh);
