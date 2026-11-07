@@ -15,7 +15,7 @@ import { isAbsolute, join, relative, sep } from "node:path";
 import { experimental_readRawConfig } from "wrangler";
 import { z } from "zod";
 
-import type { CopyNames, Stage } from "./cloudflare.ts";
+import { type CopyNames, type Stage, workersDevOrigin } from "./cloudflare.ts";
 
 const WORKER_CONFIG = "wrangler.jsonc";
 
@@ -51,6 +51,10 @@ const WorkerConfigSchema = z
       .strict(),
     triggers: z.object({ crons: z.array(z.string()) }).strict(),
     limits: z.object({ cpu_ms: z.number().int() }).strict(),
+    observability: z
+      .object({ enabled: z.literal(true), redact_query_string: z.literal(true) })
+      .strict()
+      .optional(),
     alias: z.record(z.string(), z.string()),
   })
   .strict()
@@ -64,7 +68,7 @@ export type MigrationHashes = z.infer<typeof MigrationHashesSchema>;
 
 const HIDDEN_KEY = /__proto__|\\u/u;
 
-function readWorkerConfig(artifact: string) {
+export function readWorkerConfig(artifact: string) {
   const config = artifactFile(artifact, WORKER_CONFIG);
 
   if (HIDDEN_KEY.test(readFileSync(config, "utf8"))) {
@@ -76,7 +80,7 @@ function readWorkerConfig(artifact: string) {
   return WorkerConfigSchema.parse(experimental_readRawConfig({ config }).rawConfig);
 }
 
-export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
+export function copyConfig(names: Readonly<CopyNames>, artifact: string, origin: string) {
   const source = readWorkerConfig(artifact);
 
   const [database] = source.d1_databases;
@@ -105,10 +109,12 @@ export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
     },
     triggers: source.triggers,
     limits: source.limits,
+    vars: { THREADSIFT_PUBLIC_ORIGIN: origin },
     observability: {
       enabled: true,
       head_sampling_rate: 1,
       logs: { enabled: true, head_sampling_rate: 1, invocation_logs: true },
+      redact_query_string: true,
     },
   } as const;
 }
@@ -196,6 +202,16 @@ export function artifactDigest(artifact: string): string {
   return createHash("sha256").update(listing.join("")).digest("hex");
 }
 
+async function stageConfig(target: Readonly<CopyNames>, artifact: string | null) {
+  if (artifact === null) {
+    return { config: { name: target.name }, origin: null };
+  }
+
+  const origin = await workersDevOrigin(target.name);
+
+  return { config: copyConfig(target, artifact, origin), origin };
+}
+
 export async function withStage<Result>(
   target: Readonly<CopyNames>,
   artifact: string | null,
@@ -208,11 +224,11 @@ export async function withStage<Result>(
       copyArtifact(artifact, dir);
     }
 
-    const config = artifact === null ? { name: target.name } : copyConfig(target, artifact);
+    const { config, origin } = await stageConfig(target, artifact);
     const configPath = join(dir, "wrangler.json");
     writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
 
-    return await work({ dir, configPath, target });
+    return await work({ dir, configPath, target, origin });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

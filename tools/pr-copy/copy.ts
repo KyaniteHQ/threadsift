@@ -260,6 +260,10 @@ export async function publish(
     throw new Error("wrangler deploy wrote no deploy target");
   }
 
+  if (stage.origin !== null && new URL(url).origin !== stage.origin) {
+    throw new Error("wrangler deployed to an address other than THREADSIFT_PUBLIC_ORIGIN");
+  }
+
   return url;
 }
 
