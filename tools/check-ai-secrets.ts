@@ -138,6 +138,7 @@ const env = z
   .object({
     THREADSIFT_WRONG_AI_KEY: z.string().min(1),
     CLOUDFLARE_WORKERS_AI_TOKEN: z.string().optional(),
+    CLAUDE_CODE_OAUTH_TOKEN: z.string().optional(),
   })
   .parse(process.env);
 
@@ -148,7 +149,11 @@ if (directory === undefined || extra !== undefined)
 
 const minimumFiles = z.coerce.number().int().positive().parse(floor);
 
-const needles = [env.THREADSIFT_WRONG_AI_KEY, env.CLOUDFLARE_WORKERS_AI_TOKEN ?? ""]
+const needles = [
+  env.THREADSIFT_WRONG_AI_KEY,
+  env.CLOUDFLARE_WORKERS_AI_TOKEN ?? "",
+  env.CLAUDE_CODE_OAUTH_TOKEN ?? "",
+]
   .filter((key) => key !== "")
   .flatMap((key) => credentialForms(key));
 
