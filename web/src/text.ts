@@ -57,7 +57,7 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
     kind: "save-note",
   },
   unreadable: {
-    text: "Couldn’t read Reddit’s answer, so this link was saved without a title.",
+    text: "Couldn’t read the website’s answer, so this link was saved without a title.",
     kind: "save-note",
   },
   "title-kept": {
