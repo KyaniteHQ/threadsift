@@ -51,20 +51,20 @@ export async function settled(request: APIRequestContext, id: number, timeout = 
   return itemOf(request, id);
 }
 
-export async function postLink(request: APIRequestContext, url: string) {
+export async function postLink(request: APIRequestContext, url: string, timeout?: number) {
   const { status, body } = await postLinkRaw(request, url);
 
-  return { status, body: { ...body, item: await settled(request, body.item.id) } };
+  return { status, body: { ...body, item: await settled(request, body.item.id, timeout) } };
 }
 
 const FETCH_ATTEMPTS = 3;
 
-export async function postLinkFetched(request: APIRequestContext, url: string) {
-  const first = await postLink(request, url);
+export async function postLinkFetched(request: APIRequestContext, url: string, timeout?: number) {
+  const first = await postLink(request, url, timeout);
   let { item } = first.body;
 
   for (let attempt = 1; attempt < FETCH_ATTEMPTS && item.fetch !== "ok"; attempt += 1) {
-    item = (await postLink(request, url)).body.item;
+    item = (await postLink(request, url, timeout)).body.item;
   }
 
   return { status: first.status, body: { ...first.body, item } };

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { itemOf, postLink, postLinkRaw, settled } from "./api.ts";
+import { itemOf, postLink, postLinkFetched, postLinkRaw, settled } from "./api.ts";
 import {
   BIG_PAGE_TIMEOUT_MS,
   BIRD_VOCALIZATION,
@@ -84,8 +84,9 @@ test("a long page served as plain text stays Other with no text", async ({ reque
 });
 
 test("a page over 5 MiB is cut and never read as an article", async ({ request }, info) => {
-  const { body } = await postLinkRaw(request, COMPLETE_SHAKESPEARE);
-  const item = await settled(request, body.item.id, BIG_PAGE_TIMEOUT_MS);
+  const {
+    body: { item },
+  } = await postLinkFetched(request, COMPLETE_SHAKESPEARE, BIG_PAGE_TIMEOUT_MS);
 
   expect(item).toMatchObject({ source: "other", kind: "link", fetch: "ok", postText: null });
   expect(item.title).toContain("Shakespeare");
