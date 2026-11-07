@@ -9,12 +9,16 @@ const PER_PAGE = 100;
 
 type RequestMethod = "GET" | "DELETE" | "POST" | "PATCH";
 
+const ErrorBody = z.object({ errors: z.array(z.object({ code: z.number().int() })) });
+
 export class CloudflareAnswerError extends Error {
   readonly status: number;
+  readonly codes: readonly number[];
 
-  constructor(method: RequestMethod, path: string, status: number) {
+  constructor(method: RequestMethod, path: string, status: number, codes: readonly number[] = []) {
     super(`Cloudflare ${method} ${path} answered ${String(status)}`);
     this.status = status;
+    this.codes = codes;
   }
 }
 
@@ -36,7 +40,10 @@ export async function accountRequest(
   });
 
   if (!response.ok) {
-    throw new CloudflareAnswerError(method, path, response.status);
+    const answer = ErrorBody.safeParse(await response.json().catch(() => null));
+    const codes = answer.success ? answer.data.errors.map((entry) => entry.code) : [];
+
+    throw new CloudflareAnswerError(method, path, response.status, codes);
   }
 
   return response;

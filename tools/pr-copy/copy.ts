@@ -76,20 +76,28 @@ function refuseOverCapacity(found: Readonly<Inventory>, names: Readonly<CopyName
   }
 }
 
-function teardown(found: Readonly<Inventory>, names: Readonly<CopyNames>): Step[] {
+interface Teardown {
+  readonly consumer: Step;
+  readonly worker: Step;
+  readonly others: Step;
+  readonly bucket: Step;
+}
+
+function teardown(found: Readonly<Inventory>, names: Readonly<CopyNames>): Teardown {
   const queue = queueIn(found, names);
 
-  const steps: Step[] = [
-    queue?.consumers.includes(names.name) === true ? [removeConsumer(names.queue, names.name)] : [],
-    found.workers.includes(names.name) ? [deleteWorker(names.name)] : [],
-    [
+  return {
+    consumer:
+      queue?.consumers.includes(names.name) === true
+        ? [removeConsumer(names.queue, names.name)]
+        : [],
+    worker: found.workers.includes(names.name) ? [deleteWorker(names.name)] : [],
+    others: [
       ...(queue === undefined ? [] : [deleteQueue(names.queue)]),
       ...(databaseIn(found, names) === undefined ? [] : [deleteDatabase(names.name)]),
-      ...(found.buckets.includes(names.bucket) ? [deleteBucket(names.bucket)] : []),
     ],
-  ];
-
-  return steps.filter((step) => step.length > 0);
+    bucket: found.buckets.includes(names.bucket) ? [deleteBucket(names.bucket)] : [],
+  };
 }
 
 function withoutCopy(found: Readonly<Inventory>, names: Readonly<CopyNames>): Inventory {
@@ -130,6 +138,30 @@ async function runCommands(
   return [...failures, ...(await runCommands(stage, rest, options))];
 }
 
+async function runTeardown(
+  stage: Readonly<Stage>,
+  found: Readonly<Inventory>,
+  names: Readonly<CopyNames>,
+  options: Readonly<{ keepGoing: boolean }>,
+): Promise<string[]> {
+  const plan = teardown(found, names);
+  const consumer = await runCommands(stage, [plan.consumer], options);
+  const worker = await runCommands(stage, [plan.worker], options);
+  const workerGone = worker.length === 0;
+
+  if (!workerGone && plan.bucket.length > 0) {
+    process.stdout.write(`Kept the bucket ${names.bucket}: its Worker is not confirmed gone\n`);
+  }
+
+  const rest = await runCommands(
+    stage,
+    [[...plan.others, ...(workerGone ? plan.bucket : [])]],
+    options,
+  );
+
+  return [...consumer, ...worker, ...rest];
+}
+
 function resetReason(
   found: Readonly<Inventory>,
   names: Readonly<CopyNames>,
@@ -138,8 +170,14 @@ function resetReason(
 ): string | null {
   const database = databaseIn(found, names);
   const hasQueue = queueIn(found, names) !== undefined;
+  const hasBucket = found.buckets.includes(names.bucket);
+  const hasWorker = found.workers.includes(names.name);
 
-  if (found.workers.includes(names.name) && (database === undefined || !hasQueue)) {
+  if (!hasWorker && (database !== undefined || hasQueue || hasBucket)) {
+    return "has resources but no Worker";
+  }
+
+  if (hasWorker && (database === undefined || !hasQueue)) {
     return "lost a resource";
   }
 
@@ -166,7 +204,7 @@ async function provision(
 
   if (reason !== null) {
     process.stdout.write(`${names.name} ${reason}; deleting it to start again\n`);
-    await runCommands(stage, teardown(found, names), { keepGoing: false });
+    await runTeardown(stage, found, names, { keepGoing: false });
     found = withoutCopy(found, names);
   }
 
@@ -248,7 +286,5 @@ export async function deleteCopy(pr: number): Promise<string[]> {
   const names = copyNames(pr);
   const found = await inventory();
 
-  return withStage(names, null, (stage) =>
-    runCommands(stage, teardown(found, names), { keepGoing: true }),
-  );
+  return withStage(names, null, (stage) => runTeardown(stage, found, names, { keepGoing: true }));
 }

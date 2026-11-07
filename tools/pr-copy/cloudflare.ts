@@ -4,9 +4,17 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import { listBuckets, removeBucket } from "./bucket.ts";
-import { PageSchema, accountRequest, cloudflareGet, listFrom } from "./cloudflare-api.ts";
+import {
+  CloudflareAnswerError,
+  PageSchema,
+  accountRequest,
+  cloudflareGet,
+  listFrom,
+} from "./cloudflare-api.ts";
 import { requiredEnv } from "./env.ts";
 import { queueInventoryRow } from "./queue-inventory.ts";
+
+const WORKER_NOT_FOUND = 10007;
 
 const COPY_NAME = /^threadsift-pr-(?<pr>[0-9]+)(?:-jobs|-files)?$/u;
 
@@ -174,6 +182,28 @@ function runWrangler(
   });
 }
 
+async function removeWorker(worker: string): Promise<void> {
+  try {
+    await accountRequest("DELETE", `workers/scripts/${worker}`);
+  } catch (error) {
+    if (
+      !(
+        error instanceof CloudflareAnswerError &&
+        error.status === 404 &&
+        error.codes.includes(WORKER_NOT_FOUND)
+      )
+    ) {
+      throw error;
+    }
+
+    process.stdout.write(`The Worker ${worker} is gone already\n`);
+
+    return;
+  }
+
+  process.stdout.write(`$ DELETE workers/scripts/${worker}\nDeleted the Worker ${worker}\n`);
+}
+
 export async function cloudflare(
   stage: Readonly<Stage>,
   command: Readonly<Command>,
@@ -196,9 +226,7 @@ export async function cloudflare(
     return;
   }
 
-  const [worker] = command.names;
-  await accountRequest("DELETE", `workers/scripts/${worker}`);
-  process.stdout.write(`$ DELETE workers/scripts/${worker}\nDeleted the Worker ${worker}\n`);
+  await removeWorker(command.names[0]);
 }
 
 const WorkerRow = z.object({ id: z.string() });

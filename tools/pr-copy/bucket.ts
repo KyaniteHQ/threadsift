@@ -7,6 +7,7 @@ import {
   cloudflareCall,
   cloudflareGet,
 } from "./cloudflare-api.ts";
+import { abortIncompleteUploads } from "./r2-uploads.ts";
 import { pause, remaining } from "./timeout.ts";
 
 const BUCKET_PAGE = 1000;
@@ -31,7 +32,7 @@ export async function listBuckets(cursor?: string): Promise<string[]> {
   const names = body.result.buckets.map((bucket) => bucket.name);
   const next = body.result_info?.cursor;
 
-  return next === undefined ? names : [...names, ...(await listBuckets(next))];
+  return next === undefined || next === "" ? names : [...names, ...(await listBuckets(next))];
 }
 
 const BucketJob = PageSchema.extend({
@@ -64,8 +65,7 @@ async function finished(
   return finished(jobs, next.result, deadline, bucket);
 }
 
-async function emptyBucket(bucket: string): Promise<number> {
-  const deadline = Date.now() + EMPTY_BUCKET_MS;
+async function emptyBucket(bucket: string, deadline: number): Promise<number> {
   const jobs = `r2/buckets/${encodeURIComponent(bucket)}/jobs`;
 
   const started = await cloudflareCall(
@@ -85,15 +85,37 @@ async function emptyBucket(bucket: string): Promise<number> {
   return job.prefixDelete?.deletedObjects ?? 0;
 }
 
-export async function removeBucket(bucket: string): Promise<void> {
+async function bucketExists(bucket: string): Promise<boolean> {
   try {
-    const deleted = await emptyBucket(bucket);
+    await accountRequest("GET", `r2/buckets/${encodeURIComponent(bucket)}`);
+
+    return true;
+  } catch (error) {
+    if (error instanceof CloudflareAnswerError && error.status === 404) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+export async function removeBucket(bucket: string): Promise<void> {
+  const deadline = Date.now() + EMPTY_BUCKET_MS;
+
+  try {
+    const aborted = await abortIncompleteUploads(bucket, deadline);
+    const deleted = await emptyBucket(bucket, deadline);
+
     process.stdout.write(
-      `$ POST r2/buckets/${bucket}/jobs\nEmptied ${bucket}; objects deleted: ${String(deleted)}\n`,
+      `$ POST r2/buckets/${bucket}/jobs\nAborted uploads: ${String(aborted)}\nEmptied ${bucket}; objects deleted: ${String(deleted)}\n`,
     );
+
     await accountRequest("DELETE", `r2/buckets/${encodeURIComponent(bucket)}`);
   } catch (error) {
-    if (!(error instanceof CloudflareAnswerError && error.status === 404)) {
+    if (
+      !(error instanceof CloudflareAnswerError && error.status === 404) ||
+      (await bucketExists(bucket))
+    ) {
       throw error;
     }
 
