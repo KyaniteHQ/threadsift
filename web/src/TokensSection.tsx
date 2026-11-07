@@ -21,13 +21,25 @@ interface Revealed {
   readonly value: string;
 }
 
+function withLoaded(current: Loaded, loaded: readonly Token[]): Loaded {
+  if (current.status !== "ready") return { status: "ready", tokens: loaded };
+
+  const listed = new Set(loaded.map((token) => token.id));
+
+  return {
+    status: "ready",
+    tokens: [...current.tokens.filter((token) => !listed.has(token.id)), ...loaded],
+  };
+}
+
 function useTokens() {
   const [tokens, setTokens] = useState<Loaded>({ status: "loading" });
 
   useEffect(() => {
     const load = async (): Promise<void> => {
       try {
-        setTokens({ status: "ready", tokens: await fetchTokens() });
+        const loaded = await fetchTokens();
+        setTokens((current) => withLoaded(current, loaded));
       } catch {
         setTokens({ status: "failed" });
       }

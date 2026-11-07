@@ -7,6 +7,7 @@ import { newCode, minimumPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { DESKTOP, afterTwoFrames } from "./look.ts";
 import { tokenNameField } from "./setup-screens.ts";
+import { addToken, createButton, mint, revokeOf, valueField } from "./tokens.ts";
 
 const NAME_LIMIT = 80;
 const TOO_LONG = NAME_LIMIT + 27;
@@ -23,10 +24,6 @@ test.beforeAll(async ({ browser }) => {
 test.afterAll(async () => {
   await screen.close();
 });
-
-function createButton(page: Page) {
-  return page.getByRole("button", { name: SETTINGS.createToken });
-}
 
 async function centreOf(box: Promise<{ y: number; height: number } | null>): Promise<number> {
   const found = await box;
@@ -62,12 +59,6 @@ test("Create stays level with the name field while the field shows an error", as
 
 const PHONE = { width: 390, height: 844 } as const;
 
-async function mint(page: Page, name: string): Promise<void> {
-  await tokenNameField(page).fill(name);
-  await createButton(page).click();
-  await expect(valueField(page)).toBeVisible();
-}
-
 async function create(page: Page, name: string): Promise<void> {
   await page.goto("/settings");
   await mint(page, name);
@@ -89,10 +80,6 @@ function frameOf(button: Locator): Promise<string> {
 
     return `${style.borderTopWidth} ${style.borderTopStyle} ${style.borderTopColor}`;
   });
-}
-
-function valueField(page: Page) {
-  return page.getByRole("textbox", { name: SETTINGS.tokenValue });
 }
 
 function lastLineWords(sentence: Locator): Promise<number> {
@@ -234,18 +221,6 @@ test("a refused copy is announced and leaves the value selected in a focused fie
   const selected = await selectedText(page);
   expect(selected).toBe(await valueField(page).inputValue());
 });
-
-async function addToken(page: Page, name: string): Promise<void> {
-  await mint(page, name);
-  await page.getByRole("button", { name: SETTINGS.done }).click();
-}
-
-function revokeOf(page: Page, name: string) {
-  return page.getByRole("button", {
-    name: filled(SETTINGS.revokeNamed, { name }),
-    exact: true,
-  });
-}
 
 test("each Revoke button is named for its token", async () => {
   const { page } = screen;
