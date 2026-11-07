@@ -24,11 +24,14 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
   const { postText, ...settled } = settle(fetched, title, Date.now());
   const placed = await placePostText(ports, job, postText);
   const fields = { ...settled, ...placed.columns };
+  const replacesContent = postText !== undefined;
   const storesText = postText !== undefined && postText !== null;
 
-  const stored = storesText
-    ? { ...fields, generation: sql`${items.generation} + 1` }
-    : { ...fields, pendingDigest: null };
+  const stored = {
+    ...fields,
+    pendingDigest: storesText ? items.pendingDigest : null,
+    generation: replacesContent ? sql`${items.generation} + 1` : items.generation,
+  };
 
   return {
     writes: [
@@ -37,7 +40,7 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
         ? []
         : fetchedPartWrites(ports.db, eq(items.id, job.itemId), postText)),
       ...(repository === null ? [] : repositoryWrites(ports.db, job.itemId, repository)),
-      ...(storesText ? digestAfterFetch(ports.db, job) : []),
+      ...(replacesContent ? digestAfterFetch(ports.db, job) : []),
     ],
     files: placed.files,
   };

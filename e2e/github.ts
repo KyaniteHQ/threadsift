@@ -96,6 +96,32 @@ export function storeStaleRepository(url: string, word: string): number {
   return id;
 }
 
+export const KEPT_DIGEST = {
+  title: "Kept digest title",
+  generation: 7,
+} as const;
+
+const StoredGeneration = z.array(z.object({ generation: z.number() }));
+
+export function storeKeptDigest(itemId: number): void {
+  const instance = mainInstance();
+
+  instance.sql(`UPDATE items SET generation = ${KEPT_DIGEST.generation} WHERE id = ${itemId}`);
+  instance.sql(
+    `INSERT INTO ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state, result, item_id) VALUES ('digest', '{}', ${KEPT_DIGEST.generation}, 'seed', 1, 0, 'done', '{}', ${itemId})`,
+  );
+  instance.sql(
+    `INSERT INTO digests (item_id, digest, title, topic, task_id, provider, model, generation, created_at) VALUES (${itemId}, '{"title":"${KEPT_DIGEST.title}"}', '${KEPT_DIGEST.title}', 'Reading', (SELECT max(id) FROM ai_tasks), 'seed', 'seed', ${KEPT_DIGEST.generation}, 1)`,
+  );
+}
+
+export function generationOf(itemId: number): number | undefined {
+  return mainInstance().query(
+    `SELECT generation FROM items WHERE id = ${itemId}`,
+    StoredGeneration,
+  )[0]?.generation;
+}
+
 export const BEFORE_GITHUB: Seed = {
   files: migrationsBefore("0016"),
   sql: `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title, author, post_text, read_state, status, fetch_result, fetched_at) VALUES
