@@ -89,7 +89,7 @@ export async function removeBucket(bucket: string): Promise<void> {
   try {
     const deleted = await emptyBucket(bucket);
     process.stdout.write(
-      `$ POST r2/buckets/${bucket}/jobs\nEmptied ${bucket}: ${String(deleted)} objects deleted\n`,
+      `$ POST r2/buckets/${bucket}/jobs\nEmptied ${bucket}; objects deleted: ${String(deleted)}\n`,
     );
     await accountRequest("DELETE", `r2/buckets/${encodeURIComponent(bucket)}`);
   } catch (error) {
