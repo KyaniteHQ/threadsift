@@ -12,6 +12,7 @@ import { sweepNow } from "./ingest.ts";
 import { SEARCH_SEED, SEEDED_LATE_WORD, SEEDED_WORD_COUNT } from "./search-seed.ts";
 import { SWEEP_TIMEOUT_MS, expectFinds } from "./search.ts";
 import { launchSeeded } from "./seeded.ts";
+import { BEFORE_WORKERS_AI, expectHttpRowsKept } from "./workers-ai-seed.ts";
 
 const SAVED_BEFORE_INGEST = {
   files: ["0000_init.sql", "0001_link_details.sql", "0002_access.sql"],
@@ -119,6 +120,20 @@ test("Items stored before the search migrations stay unread and whole, become se
     instance.restart();
     await expectFinds(owner, FINDS);
     expect(stored(instance)).toEqual(before);
+    await owner.dispose();
+  } finally {
+    instance.stop();
+  }
+});
+
+test("an HTTP settings row and an AI task stored before Workers AI keep every column, take no Provider or model, and the Provider and key columns stay in step", async () => {
+  test.setTimeout(180_000);
+  const code = newCode();
+  const instance = launchSeeded(freshDir(), code, BEFORE_WORKERS_AI);
+
+  try {
+    const owner = await ownerOf(instance, code, "m".repeat(20));
+    await expectHttpRowsKept(instance, owner);
     await owner.dispose();
   } finally {
     instance.stop();

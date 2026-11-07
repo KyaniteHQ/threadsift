@@ -1,7 +1,8 @@
 import { and, eq, lt } from "drizzle-orm";
 
 import {
-  type HttpAiConnection,
+  type AiConnection,
+  type Provider,
   type AiRefused,
   type AiRefusal,
   type AiTaskDefinition,
@@ -29,7 +30,7 @@ export interface DoneTask<Result> {
   readonly kind: "done";
   readonly result: Result;
   readonly taskId: number;
-  readonly provider: HttpAiConnection["provider"];
+  readonly provider: Provider;
   readonly model: string;
 }
 
@@ -98,11 +99,16 @@ export async function runAiTask<Result>(
   const loaded = await loadAiConfig(ports);
 
   if (loaded.state !== "ready") return { ...refusedAi(loaded.state), taskId: null };
+  const { config } = loaded;
 
-  if (!ports.ai.allowsUrl(loaded.config.baseUrl)) return { ...refusedAi("refused"), taskId: null };
+  if (config.kind === "http" && !ports.ai.allowsUrl(config.baseUrl))
+    return { ...refusedAi("refused"), taskId: null };
   const text = definition.prepareInput(input.text);
 
-  const task = await startTask(ports, definition.kind, text, input);
+  const task = await startTask(ports, definition.kind, text, input, originOf(config));
+
+  if (!ports.ai.providers.includes(config.provider))
+    return failTask(ports, task.id, "provider-unavailable");
 
   const deadline = AbortSignal.timeout(AI_DEADLINE_MS);
   const signal = attempt === undefined ? deadline : AbortSignal.any([attempt, deadline]);
@@ -110,7 +116,7 @@ export async function runAiTask<Result>(
   try {
     const result = await ports.ai.run(
       {
-        config: loaded.config,
+        config,
         input: text,
         instructions: definition.instructions,
         schema: definition.schema,
@@ -127,16 +133,20 @@ export async function runAiTask<Result>(
     return {
       ...result,
       taskId: task.id,
-      provider: loaded.config.provider,
-      model: loaded.config.model,
+      provider: config.provider,
+      model: config.model,
     };
   } catch {
     return failTask(ports, task.id);
   }
 }
 
-async function failTask(ports: AiPorts, taskId: number) {
-  const failure = { ...refusedAi("unreachable"), taskId };
+async function failTask(
+  ports: AiPorts,
+  taskId: number,
+  reason: "unreachable" | "provider-unavailable" = "unreachable",
+) {
+  const failure = { ...refusedAi(reason), taskId };
 
   try {
     await failedAiTask(ports.db, taskId, failure);
@@ -147,12 +157,24 @@ async function failTask(ports: AiPorts, taskId: number) {
   }
 }
 
+interface TaskOrigin {
+  readonly executor: string;
+  readonly provider: Provider | null;
+  readonly model: string | null;
+}
+
+const CALLER_ORIGIN: TaskOrigin = { executor: "caller", provider: null, model: null };
+
+function originOf({ kind, provider, model }: Readonly<AiConnection>): TaskOrigin {
+  return { executor: kind, provider, model };
+}
+
 async function startTask(
   ports: AiPorts,
   kind: string,
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
-  executor = ports.ai.name,
+  origin: Readonly<TaskOrigin>,
 ) {
   const [task] = await ports.db
     .insert(aiTasks)
@@ -161,7 +183,7 @@ async function startTask(
       inputs: text,
       inputRevision: input.inputRevision,
       attempts: input.attempts,
-      executor,
+      ...origin,
       deadline: Date.now() + AI_DEADLINE_MS,
       state: "running",
     })
@@ -177,5 +199,5 @@ export async function startCallerTask(
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
 ) {
-  return (await startTask(ports, "digest", text, input, "caller")).id;
+  return (await startTask(ports, "digest", text, input, CALLER_ORIGIN)).id;
 }

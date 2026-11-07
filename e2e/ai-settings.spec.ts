@@ -103,7 +103,7 @@ async function retainAndRestart(provider: ProofProvider, secret: string): Promis
     }),
   );
 
-  expect(resealed.settings?.keySet).toBe(true);
+  expect(resealed.settings).toMatchObject({ keySet: true });
   expect(first === sealedKey(screen), "two explicit key saves use different IVs").toBe(false);
   expect(
     openSealed(sealedKey(screen), secret) === provider.key,
@@ -112,7 +112,7 @@ async function retainAndRestart(provider: ProofProvider, secret: string): Promis
   screen.fresh.restart();
   await screen.page.reload();
   const read = await aiJson(screen, AiSettingsViewSchema, "GET", AI_SETTINGS_ENDPOINT);
-  expect(read.settings?.keySet).toBe(true);
+  expect(read.settings).toMatchObject({ keySet: true });
   expect(read.secretReady).toBe(true);
 }
 

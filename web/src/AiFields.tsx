@@ -1,6 +1,12 @@
 import { useId } from "react";
 
-import { AI_URL_MAX, AI_MODEL_MAX, AI_KEY_MAX, PROVIDERS } from "../../src/core/ai-contract.ts";
+import {
+  AI_URL_MAX,
+  AI_MODEL_MAX,
+  AI_KEY_MAX,
+  PROVIDERS,
+  type Provider,
+} from "../../src/core/ai-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { FormField } from "./FormField.tsx";
 import type { useAiForm } from "./use-ai-form.ts";
@@ -31,7 +37,11 @@ const FIELD_KINDS = {
 
 const REQUIRED_KEY_KIND = { ...FIELD_KINDS.key, required: true } as const;
 
-function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disabled: boolean }>) {
+function AiProviderPicker({
+  fields,
+  providers,
+  disabled,
+}: Readonly<{ fields: Fields; providers: readonly Provider[]; disabled: boolean }>) {
   const id = useId();
 
   return (
@@ -47,9 +57,9 @@ function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disab
         aria-disabled={disabled || undefined}
         onChange={disabled ? undefined : fields.changeProvider}
       >
-        {Object.values(PROVIDERS).map((provider) => (
-          <option key={provider.id} value={provider.id}>
-            {AI_TEXT[provider.label]}
+        {providers.map((provider) => (
+          <option key={provider} value={provider}>
+            {AI_TEXT[PROVIDERS[provider].label]}
           </option>
         ))}
       </select>
@@ -57,17 +67,32 @@ function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disab
   );
 }
 
+function helpFor(name: "baseUrl" | "model" | "key", provider: Provider, publicOnly: boolean) {
+  if (name === "key") return AI_TEXT.keyHelp;
+
+  if (name === "baseUrl" && publicOnly) return AI_TEXT.publicUrlHelp;
+
+  return name === "model" && provider === "workers-ai" ? AI_TEXT.workersAiHelp : undefined;
+}
+
 export function AiFields({
   fields,
+  providers,
   disabled,
   publicOnly,
   keyRequired,
-}: Readonly<{ fields: Fields; disabled: boolean; publicOnly: boolean; keyRequired: boolean }>) {
+}: Readonly<{
+  fields: Fields;
+  providers: readonly Provider[];
+  disabled: boolean;
+  publicOnly: boolean;
+  keyRequired: boolean;
+}>) {
   const names = PROVIDERS[fields.provider].names;
 
   return (
     <>
-      <AiProviderPicker fields={fields} disabled={disabled} />
+      <AiProviderPicker fields={fields} providers={providers} disabled={disabled} />
       {names.map((name) => (
         <FormField
           key={name}
@@ -82,13 +107,7 @@ export function AiFields({
                 ? PUBLIC_URL_KIND
                 : FIELD_KINDS[name]
           }
-          help={
-            name === "key"
-              ? AI_TEXT.keyHelp
-              : name === "baseUrl" && publicOnly
-                ? AI_TEXT.publicUrlHelp
-                : undefined
-          }
+          help={helpFor(name, fields.provider, publicOnly)}
         />
       ))}
     </>

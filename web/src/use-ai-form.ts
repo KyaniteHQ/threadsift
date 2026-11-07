@@ -1,29 +1,37 @@
 import { useCallback, useState, type ChangeEvent } from "react";
 
 import {
+  PROVIDERS,
   ProviderSchema,
   AiSettingsInputSchema,
   type Digest,
   type AiRefused,
+  type Provider,
 } from "../../src/core/ai-contract.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { useField, useGuard } from "./use-form.ts";
 
 function useAiFields(view: AiView) {
-  const [provider, setProvider] = useState(view.settings?.provider ?? "openai-compatible");
+  const { settings, providers } = view;
+  const offered = settings !== null && providers.includes(settings.provider) ? settings : null;
 
-  const baseUrl = useField(
-    null,
-    view.settings?.provider === "openai-compatible" ? view.settings.baseUrl : "",
+  const [provider, setProvider] = useState<Provider>(
+    offered?.provider ?? providers[0] ?? PROVIDERS["openai-compatible"].id,
   );
 
-  const model = useField(null, view.settings?.model ?? "");
+  const baseUrl = useField(null, offered?.provider === "openai-compatible" ? offered.baseUrl : "");
+  const model = useField(null, offered?.model ?? "");
   const key = useField();
+  const { clear: clearKey } = key;
 
-  const changeProvider = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    setProvider(ProviderSchema.parse(event.target.value));
-  }, []);
+  const changeProvider = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      setProvider(ProviderSchema.parse(event.target.value));
+      clearKey();
+    },
+    [clearKey],
+  );
 
   return { provider, baseUrl, model, key, changeProvider } as const;
 }
@@ -57,12 +65,44 @@ function useAiResult() {
   return { action, result, run };
 }
 
+function needsSecret(provider: Provider): boolean {
+  return provider !== "workers-ai";
+}
+
+function useVerify(
+  view: AiView,
+  run: ReturnType<typeof useAiResult>["run"],
+  guard: ReturnType<typeof useGuard>["guard"],
+) {
+  const verifyBlocked =
+    view.settings === null || (needsSecret(view.settings.provider) && !view.secretReady);
+
+  const verifyNow = useCallback(() => {
+    if (verifyBlocked) return;
+
+    guard(() =>
+      run("verify", async () => {
+        const response = await verifyAi();
+
+        return response.kind === "done"
+          ? { kind: "ok", text: AI_TEXT.verified, digest: response.digest }
+          : { kind: "error", text: refusalText(response) };
+      }),
+    );
+  }, [verifyBlocked, guard, run]);
+
+  return { verifyNow, verifyBlocked };
+}
+
 export function useAiForm(view: AiView, saved: (value: AiView) => void) {
   const fields = useAiFields(view);
   const { provider, baseUrl, model, key } = fields;
   const { value: keyValue, clear: clearKey } = key;
   const { action, result, run } = useAiResult();
-  const { busy, guard } = useGuard(!view.secretReady);
+  const { busy, guard } = useGuard();
+  const saveBlocked = needsSecret(provider) && !view.secretReady;
+
+  const { verifyNow, verifyBlocked } = useVerify(view, run, guard);
 
   const save = useCallback(
     () =>
@@ -85,17 +125,9 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
     [provider, baseUrl.value, model.value, keyValue, clearKey, saved, run],
   );
 
-  const verify = useCallback(
-    () =>
-      run("verify", async () => {
-        const response = await verifyAi();
+  const submit = useCallback(() => {
+    if (!saveBlocked) guard(save);
+  }, [guard, save, saveBlocked]);
 
-        return response.kind === "done"
-          ? { kind: "ok", text: AI_TEXT.verified, digest: response.digest }
-          : { kind: "error", text: refusalText(response) };
-      }),
-    [run],
-  );
-
-  return { fields, result, busy, action, guard, save, verify };
+  return { fields, result, busy, action, submit, verifyNow, saveBlocked, verifyBlocked };
 }

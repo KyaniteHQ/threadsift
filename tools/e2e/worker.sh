@@ -20,7 +20,7 @@ ready_url() {
 start() {
   local dir=$1 port=${2:-0} offset url pid
   offset=$(wc -c <"$dir/wrangler.log")
-  setsid pnpm exec wrangler dev --ip 127.0.0.1 --port "$port" --inspector-port 0 --persist-to "$dir/state" --env-file "$dir/env" >>"$dir/wrangler.log" 2>&1 &
+  setsid pnpm exec wrangler dev --local --ip 127.0.0.1 --port "$port" --inspector-port 0 --persist-to "$dir/state" --env-file "$dir/env" >>"$dir/wrangler.log" 2>&1 &
   pid=$!
   echo "$pid" >"$dir/pid"
   url=$(wait_for 90 ready_url "$dir/wrangler.log" "$offset" "$pid") || {
