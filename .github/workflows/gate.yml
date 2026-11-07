@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: gate-${{ github.ref }}
+  group: gate-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -89,13 +89,14 @@ jobs:
     needs: changes
     if: github.repository == 'KyaniteHQ/threadsift' && needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'push' && 'ai-proof' || '' }}
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2, 3]
     env:
       THREADSIFT_ARTIFACTS: artifacts
-      THREADSIFT_AI_REQUIRED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+      THREADSIFT_AI_REQUIRED: ${{ github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
@@ -110,8 +111,8 @@ jobs:
           THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
           export THREADSIFT_WRONG_AI_KEY
           if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
-            echo "::notice::The AI cases were skipped: this pull request has no Workers AI token"
-            echo "The AI cases were skipped: this pull request has no Workers AI token" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them"
+            echo "The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them" >> "$GITHUB_STEP_SUMMARY"
           fi
           mkdir -p "$THREADSIFT_ARTIFACTS"
           status=0
@@ -135,13 +136,14 @@ jobs:
     needs: changes
     if: github.repository == 'KyaniteHQ/threadsift' && needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'push' && 'ai-proof' || '' }}
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2, 3]
     env:
       THREADSIFT_ARTIFACTS: artifacts
-      THREADSIFT_AI_REQUIRED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+      THREADSIFT_AI_REQUIRED: ${{ github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
@@ -156,8 +158,8 @@ jobs:
           THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
           export THREADSIFT_WRONG_AI_KEY
           if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
-            echo "::notice::The AI cases were skipped: this pull request has no Workers AI token"
-            echo "The AI cases were skipped: this pull request has no Workers AI token" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them"
+            echo "The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them" >> "$GITHUB_STEP_SUMMARY"
           fi
           mkdir -p "$THREADSIFT_ARTIFACTS"
           status=0

@@ -190,7 +190,7 @@ test("saved keys are sealed, survive restart, and Verify returns a real Digest o
 }, info) => {
   test.skip(
     !hasAiCredentials() && process.env["THREADSIFT_AI_REQUIRED"] !== "true",
-    "Workers AI credentials are unavailable; fork pull requests skip the real AI proof.",
+    "Workers AI credentials are unavailable; pull request runs skip the real AI proof, and the run on main after merge runs it.",
   );
   expect(hasAiCredentials(), "same-repository AI proof requires Workers AI credentials").toBe(true);
   const secret = newSealingKey();

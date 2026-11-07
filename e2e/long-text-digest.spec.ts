@@ -72,7 +72,7 @@ test("War and Peace, pasted with the real Provider saved, gets a Digest from the
   test.skip(!isContainerTarget(), "the Worker never reads a text over 1,000,000 bytes");
   test.skip(
     !hasAiCredentials() && process.env["THREADSIFT_AI_REQUIRED"] !== "true",
-    "Workers AI credentials unavailable; the real Digest proof is skipped on fork pull requests.",
+    "Workers AI credentials unavailable; pull request runs skip the real Digest proof, and the run on main after merge runs it.",
   );
   test.setTimeout(AI_WAIT + 240_000);
   expect(hasAiCredentials()).toBe(true);
@@ -165,7 +165,7 @@ test("a seeded long text in the store gets a Digest from its first 14,000 bytes 
 }) => {
   test.skip(
     !hasAiCredentials() && process.env["THREADSIFT_AI_REQUIRED"] !== "true",
-    "Workers AI credentials unavailable; the real Digest proof is skipped on fork pull requests.",
+    "Workers AI credentials unavailable; pull request runs skip the real Digest proof, and the run on main after merge runs it.",
   );
   test.setTimeout(AI_WAIT + 240_000);
   expect(hasAiCredentials()).toBe(true);

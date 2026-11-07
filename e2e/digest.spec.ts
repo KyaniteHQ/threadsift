@@ -136,7 +136,7 @@ test("wrong keys give up once, Digest-only retry keeps the fetch, refresh replac
 }, info) => {
   test.skip(
     !hasAiCredentials() && process.env["THREADSIFT_AI_REQUIRED"] !== "true",
-    "Workers AI credentials unavailable; the real Digest proof is skipped on fork pull requests.",
+    "Workers AI credentials unavailable; pull request runs skip the real Digest proof, and the run on main after merge runs it.",
   );
   expect(hasAiCredentials()).toBe(true);
   screen = await aiScreen(browser, newSealingKey());
