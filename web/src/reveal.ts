@@ -48,7 +48,8 @@ export function focusListStart(pane: HTMLElement): void {
 
 export function focusNeighbourCard(scope: Element | null, direction: 1 | -1): void {
   const links = [...(scope?.querySelectorAll<HTMLElement>(".list .it-open") ?? [])];
-  const at = links.findIndex((link) => link === document.activeElement);
+  const focused = document.activeElement?.closest("article.it")?.querySelector(".it-open");
+  const at = links.findIndex((link) => link === focused);
   const next = at < 0 ? (direction > 0 ? links.at(0) : links.at(-1)) : links[at + direction];
 
   next?.focus();
