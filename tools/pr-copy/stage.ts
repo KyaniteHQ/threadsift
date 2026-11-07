@@ -81,6 +81,11 @@ export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
     },
     triggers: source.triggers,
     limits: source.limits,
+    observability: {
+      enabled: true,
+      head_sampling_rate: 1,
+      logs: { enabled: true, head_sampling_rate: 1, invocation_logs: true },
+    },
   } as const;
 }
 

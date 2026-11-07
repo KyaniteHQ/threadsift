@@ -1,7 +1,5 @@
-import { setTimeout as sleep } from "node:timers/promises";
-
 import { ErrorResponseSchema } from "../../src/http/schemas.ts";
-import { callTimeout } from "./timeout.ts";
+import { callTimeout, pause } from "./timeout.ts";
 
 export const POLL_MS = 1000;
 
@@ -16,9 +14,10 @@ export interface Call {
   readonly path: string;
   readonly cookie?: string;
   readonly body?: Readonly<Record<string, string>>;
+  readonly deadline?: number;
 }
 
-function send(url: string, call: Readonly<Call>): Promise<Response> {
+export function send(url: string, call: Readonly<Call>): Promise<Response> {
   const headers = new Headers({ origin: url });
 
   if (call.cookie !== undefined) {
@@ -32,7 +31,13 @@ function send(url: string, call: Readonly<Call>): Promise<Response> {
 
   if (call.body !== undefined) headers.set("content-type", "application/json");
 
-  return fetch(`${url}${call.path}`, { ...request, headers, signal: callTimeout() });
+  return fetch(`${url}${call.path}`, { ...request, headers, signal: callTimeout(call.deadline) });
+}
+
+export function sessionCookie(response: Response): string | undefined {
+  const [setCookie] = response.headers.getSetCookie();
+
+  return setCookie?.split(";")[0];
 }
 
 export function isJson(response: Response): boolean {
@@ -54,7 +59,7 @@ export async function callCopy(site: Readonly<Site>, call: Readonly<Call>): Prom
   process.stdout.write(
     `${call.path} got ${String(response.status)} from Cloudflare, not the app; retrying\n`,
   );
-  await sleep(POLL_MS);
+  await pause(POLL_MS, call.deadline);
 
   return callCopy(site, call);
 }
