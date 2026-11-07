@@ -1,11 +1,6 @@
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { type Seed, migrationsBefore } from "./seeded.ts";
 
-import type { Seed } from "./seeded.ts";
-
-export const BEFORE_SEARCH = readdirSync(join(import.meta.dirname, "..", "migrations"))
-  .filter((name) => name.endsWith(".sql") && name < "0009")
-  .toSorted();
+export const BEFORE_SEARCH = migrationsBefore("0009");
 
 export const SEEDED_LATE_WORD = "untinctured";
 export const SEEDED_WORD_COUNT = 90_000;

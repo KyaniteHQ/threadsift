@@ -1,7 +1,12 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
 import { ItemResponseSchema, type ItemDetail } from "../src/http/schemas.ts";
-import { REPOSITORY_LABELS, GITHUB_TOPICS_LABEL, NO_README } from "../web/src/reader-text.ts";
+import {
+  REPOSITORY_LABELS,
+  GITHUB_TOPICS_LABEL,
+  NO_POST_TEXT,
+  NO_README,
+} from "../web/src/reader-text.ts";
 import { mainInstance } from "./access.ts";
 import { itemOf, listAll, postLink, postLinkRaw, settled } from "./api.ts";
 import { openLibrary, pasteForId } from "./card.ts";
@@ -160,7 +165,8 @@ test("a repository without a README is ready with its metadata and no post text,
   await expect(page.locator(".rd-note")).toHaveText(NO_README);
 });
 
-test("a repository that does not exist stays a Link-only Item with the fetch result status", async ({
+test("a repository that does not exist stays a Link-only Item with the fetch result status, and the Reader does not claim it has no README", async ({
+  page,
   request,
 }) => {
   await requireGithubBudget(1);
@@ -178,6 +184,10 @@ test("a repository that does not exist stays a Link-only Item with the fetch res
     repository: null,
   });
   expect(jobsOf(body.item.id).map((job) => job.state)).toEqual(["done"]);
+
+  await openLibrary(page);
+  await page.goto(`/items/${body.item.id}`);
+  await expect(page.locator(".rd-note")).toHaveText(NO_POST_TEXT);
 });
 
 test("a fetch whose claim was taken over publishes no metadata, README or search part, even though it read both from GitHub", async ({

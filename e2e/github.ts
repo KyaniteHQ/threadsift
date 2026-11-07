@@ -1,12 +1,9 @@
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
-
 import { test } from "@playwright/test";
 import { z } from "zod";
 
 import { mainInstance } from "./access.ts";
 import { storeItem } from "./ingest.ts";
-import type { Seed } from "./seeded.ts";
+import { type Seed, migrationsBefore } from "./seeded.ts";
 
 export const DEFUDDLE = "https://github.com/kepano/defuddle";
 export const NO_README_REPOSITORY = "https://github.com/KyaniteHQ/homebrew-linctl";
@@ -100,9 +97,7 @@ export function storeStaleRepository(url: string, word: string): number {
 }
 
 export const BEFORE_GITHUB: Seed = {
-  files: readdirSync(join(import.meta.dirname, "..", "migrations"))
-    .filter((name) => name.endsWith(".sql") && name < "0014")
-    .toSorted(),
+  files: migrationsBefore("0016"),
   sql: `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title, author, post_text, read_state, status, fetch_result, fetched_at) VALUES
     ('github', 'github-repo', 'https://github.com/someone/older', 'https://github.com/someone/older', 1111, 'someone/older', 'someone', 'An older README.', 'read', 'ready', 'ok', 1500),
     ('github', 'github-repo', 'https://github.com/someone/linkonly', 'https://github.com/someone/linkonly', 2222, NULL, NULL, NULL, 'unread', 'ready', 'status', NULL),

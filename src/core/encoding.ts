@@ -17,7 +17,11 @@ export function fromBase64url(text: string): Uint8Array {
     .replaceAll("_", "/")
     .padEnd(Math.ceil(text.length / 4) * 4, "=");
 
-  return Uint8Array.from(atob(padded), (character) => character.codePointAt(0) ?? 0);
+  return fromBase64(padded);
+}
+
+export function fromBase64(text: string): Uint8Array {
+  return Uint8Array.from(atob(text), (character) => character.codePointAt(0) ?? 0);
 }
 
 export function digestOf(crypto: Crypto, value: string): string {

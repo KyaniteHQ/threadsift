@@ -9,7 +9,7 @@ import { CARD_TITLES } from "./text.ts";
 function missingTextNote(item: Readonly<Item>): string {
   if (item.status === "processing") return CARD_TITLES.reading;
 
-  return item.kind === "github-repo" ? NO_README : NO_POST_TEXT;
+  return item.kind === "github-repo" && item.fetch === "ok" ? NO_README : NO_POST_TEXT;
 }
 
 export function Original({

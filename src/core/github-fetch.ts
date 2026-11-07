@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { Fetched } from "./details.ts";
+import { fromBase64 } from "./encoding.ts";
 import {
   type FetchPolicy,
   type GuardOutcome,
@@ -103,9 +104,7 @@ function parsed<Schema extends z.ZodType>(schema: Schema, text: string): z.outpu
 
 function decodedBase64(content: string): string | null {
   try {
-    const binary = atob(content);
-
-    return new TextDecoder().decode(Uint8Array.from(binary, (char) => char.codePointAt(0) ?? 0));
+    return new TextDecoder().decode(fromBase64(content));
   } catch {
     return null;
   }

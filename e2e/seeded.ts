@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -11,6 +11,12 @@ const ROOT = join(import.meta.dirname, "..");
 export interface Seed {
   readonly files: readonly string[];
   readonly sql: string;
+}
+
+export function migrationsBefore(prefix: string): readonly string[] {
+  return readdirSync(join(ROOT, "migrations"))
+    .filter((name) => name.endsWith(".sql") && name < prefix)
+    .toSorted();
 }
 
 function wrangler(args: readonly string[]): void {
