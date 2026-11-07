@@ -16,6 +16,7 @@ import {
   createDatabase,
   createQueue,
   databaseId,
+  deleteBucket,
   deleteDatabase,
   deleteQueue,
   deleteWorker,
@@ -84,6 +85,7 @@ function teardown(found: Readonly<Inventory>, names: Readonly<CopyNames>): Step[
     [
       ...(queue === undefined ? [] : [deleteQueue(names.queue)]),
       ...(databaseIn(found, names) === undefined ? [] : [deleteDatabase(names.name)]),
+      ...(found.buckets.includes(names.bucket) ? [deleteBucket(names.bucket)] : []),
     ],
   ];
 
@@ -95,6 +97,7 @@ function withoutCopy(found: Readonly<Inventory>, names: Readonly<CopyNames>): In
     workers: found.workers.filter((worker) => worker !== names.name),
     databases: found.databases.filter((database) => database.name !== names.name),
     queues: found.queues.filter((queue) => queue.name !== names.queue),
+    buckets: found.buckets.filter((bucket) => bucket !== names.bucket),
   };
 }
 

@@ -3,21 +3,19 @@ import { fileURLToPath } from "node:url";
 
 import { z } from "zod";
 
+import { listBuckets, removeBucket } from "./bucket.ts";
+import { PageSchema, accountRequest, cloudflareGet, listFrom } from "./cloudflare-api.ts";
 import { requiredEnv } from "./env.ts";
 import { queueInventoryRow } from "./queue-inventory.ts";
-import { callTimeout } from "./timeout.ts";
 
 const COPY_NAME = /^threadsift-pr-(?<pr>[0-9]+)(?:-jobs|-files)?$/u;
 
-const API = "https://api.cloudflare.com/client/v4";
-
 const WRANGLER = fileURLToPath(new URL("../../node_modules/.bin/wrangler", import.meta.url));
-
-const PER_PAGE = 100;
 
 export interface CopyNames {
   readonly name: string;
   readonly queue: string;
+  readonly bucket: string;
 }
 
 export interface Stage {
@@ -34,20 +32,28 @@ export type Command =
       readonly flags: readonly string[];
       readonly env: Readonly<Record<string, string>>;
     }
-  | { readonly kind: "delete-worker"; readonly names: readonly [string] };
+  | { readonly kind: "delete-worker"; readonly names: readonly [string] }
+  | { readonly kind: "delete-bucket"; readonly names: readonly [string] };
 
 export interface Inventory {
   readonly workers: readonly string[];
   readonly databases: readonly Readonly<{ name: string; uuid: string }>[];
   readonly queues: readonly Readonly<{ name: string; consumers: readonly string[] }>[];
+  readonly buckets: readonly string[];
 }
 
-export const LIVE: CopyNames = { name: "threadsift-live", queue: "threadsift-live-jobs" };
+export const LIVE: CopyNames = {
+  name: "threadsift-live",
+  queue: "threadsift-live-jobs",
+  bucket: "threadsift-live-files",
+};
+
+const PROTECTED_BUCKETS: ReadonlySet<string> = new Set(["threadsift-files", LIVE.bucket]);
 
 export function copyNames(pr: number): CopyNames {
   const name = `threadsift-pr-${String(pr)}`;
 
-  return { name, queue: `${name}-jobs` };
+  return { name, queue: `${name}-jobs`, bucket: `${name}-files` };
 }
 
 export function prOf(name: string): number {
@@ -61,6 +67,7 @@ export function copyNumbers(found: Readonly<Inventory>): number[] {
         ...found.workers,
         ...found.databases.map((row) => row.name),
         ...found.queues.map((row) => row.name),
+        ...found.buckets,
       ].map((name) => prOf(name)),
     ),
   ];
@@ -95,17 +102,29 @@ export const deployWorker = (secretsFile: string, outputFile: string) =>
     WRANGLER_OUTPUT_FILE_PATH: outputFile,
   });
 
-export const deleteWorker = (worker: string): Command => ({
-  kind: "delete-worker",
-  names: [worker],
+const deleteNamed = (kind: "delete-worker" | "delete-bucket", name: string): Command => ({
+  kind,
+  names: [name],
 });
+
+export const deleteWorker = (worker: string) => deleteNamed("delete-worker", worker);
+
+export const deleteBucket = (bucket: string) => deleteNamed("delete-bucket", bucket);
 
 function redact(text: string): string {
   return text.replaceAll(requiredEnv("CLOUDFLARE_ACCOUNT_ID"), "<account>");
 }
 
 export function refuseOutsideTarget(target: Readonly<CopyNames>, names: readonly string[]): void {
-  const outside = names.filter((name) => name !== target.name && name !== target.queue);
+  const kept = names.filter((name) => PROTECTED_BUCKETS.has(name));
+
+  if (kept.length > 0) {
+    throw new Error(`Refused protected bucket: ${kept.join(", ")}`);
+  }
+
+  const outside = names.filter(
+    (name) => name !== target.name && name !== target.queue && name !== target.bucket,
+  );
 
   if (outside.length > 0) {
     throw new Error(`Refused outside ${target.name}: ${outside.join(", ")}`);
@@ -155,32 +174,6 @@ function runWrangler(
   });
 }
 
-type RequestMethod = "GET" | "DELETE" | "POST" | "PATCH";
-
-async function accountRequest(
-  method: RequestMethod,
-  path: string,
-  body?: string,
-  deadline?: number,
-): Promise<Response> {
-  const request = body === undefined ? { method } : { method, body };
-
-  const response = await fetch(`${API}/accounts/${requiredEnv("CLOUDFLARE_ACCOUNT_ID")}/${path}`, {
-    ...request,
-    headers: {
-      authorization: `Bearer ${requiredEnv("CLOUDFLARE_API_TOKEN")}`,
-      "content-type": "application/json",
-    },
-    signal: callTimeout(deadline),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Cloudflare ${method} ${path} answered ${String(response.status)}`);
-  }
-
-  return response;
-}
-
 export async function cloudflare(
   stage: Readonly<Stage>,
   command: Readonly<Command>,
@@ -197,44 +190,15 @@ export async function cloudflare(
     return;
   }
 
+  if (command.kind === "delete-bucket") {
+    await removeBucket(command.names[0]);
+
+    return;
+  }
+
   const [worker] = command.names;
   await accountRequest("DELETE", `workers/scripts/${worker}`);
   process.stdout.write(`$ DELETE workers/scripts/${worker}\nDeleted the Worker ${worker}\n`);
-}
-
-export const PageSchema = z.object({
-  success: z.literal(true),
-  result_info: z.object({ total_count: z.number().int() }).optional(),
-});
-
-export async function cloudflareCall<Body>(
-  method: RequestMethod,
-  path: string,
-  schema: z.ZodType<Body>,
-  body?: string,
-  deadline?: number,
-): Promise<Body> {
-  const response = await accountRequest(method, path, body, deadline);
-
-  return schema.parse(await response.json());
-}
-
-function cloudflareGet<Body>(path: string, schema: z.ZodType<Body>): Promise<Body> {
-  return cloudflareCall("GET", path, schema);
-}
-
-async function listFrom<Row>(path: string, rows: z.ZodType<Row>, page: number): Promise<Row[]> {
-  const separator = path.includes("?") ? "&" : "?";
-
-  const body = await cloudflareGet(
-    `${path}${separator}per_page=${String(PER_PAGE)}&page=${String(page)}`,
-    PageSchema.extend({ result: z.array(rows) }),
-  );
-
-  const seen = (page - 1) * PER_PAGE + body.result.length;
-  const more = body.result.length === PER_PAGE && seen < (body.result_info?.total_count ?? 0);
-
-  return more ? [...body.result, ...(await listFrom(path, rows, page + 1))] : body.result;
 }
 
 const WorkerRow = z.object({ id: z.string() });
@@ -243,18 +207,22 @@ const DatabaseRow = z.object({ uuid: z.string(), name: z.string() });
 
 export async function inventory(target?: Readonly<CopyNames>): Promise<Inventory> {
   const matches = (name: string) =>
-    target === undefined ? COPY_NAME.test(name) : name === target.name || name === target.queue;
+    target === undefined
+      ? COPY_NAME.test(name)
+      : name === target.name || name === target.queue || name === target.bucket;
 
-  const [scripts, databases, queues] = await Promise.all([
+  const [scripts, databases, queues, buckets] = await Promise.all([
     cloudflareGet("workers/scripts", PageSchema.extend({ result: z.array(WorkerRow) })),
     listFrom("d1/database", DatabaseRow, 1),
     listFrom("queues", queueInventoryRow(matches), 1),
+    listBuckets(),
   ]);
 
   return {
     workers: scripts.result.map((row) => row.id).filter((name) => matches(name)),
     databases: databases.filter((row) => matches(row.name)),
     queues: queues.flatMap((queue) => (queue === null ? [] : [queue])),
+    buckets: buckets.filter((name) => matches(name)),
   };
 }
 

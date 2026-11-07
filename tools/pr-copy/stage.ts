@@ -34,6 +34,9 @@ const WorkerConfigSchema = z
       })
       .strict(),
     d1_databases: z.tuple([z.object({ binding: z.string(), database_name: z.string() }).strict()]),
+    r2_buckets: z
+      .tuple([z.object({ binding: z.literal("FILES"), bucket_name: z.string() }).strict()])
+      .optional(),
     queues: z
       .object({
         producers: z.tuple([z.object({ binding: z.string(), queue: z.string() }).strict()]),
@@ -75,6 +78,10 @@ export function copyConfig(names: Readonly<CopyNames>, artifact: string) {
     d1_databases: [
       { binding: database.binding, database_name: names.name, migrations_dir: "migrations" },
     ],
+    r2_buckets: (source.r2_buckets ?? []).map((files) => ({
+      binding: files.binding,
+      bucket_name: names.bucket,
+    })),
     queues: {
       producers: [{ binding: producer.binding, queue: names.queue }],
       consumers: [{ ...consumer, queue: names.queue }],

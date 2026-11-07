@@ -22,6 +22,7 @@ export async function sweep(dryRun: boolean): Promise<void> {
     ...found.workers.map((name) => ({ kind: "Worker", name })),
     ...found.databases.map((row) => ({ kind: "D1", name: row.name })),
     ...found.queues.map((row) => ({ kind: "Queue", name: row.name })),
+    ...found.buckets.map((name) => ({ kind: "R2 bucket", name })),
   ];
 
   const groups = Map.groupBy(resources, (row) => prOf(row.name));
