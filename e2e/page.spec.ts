@@ -108,12 +108,14 @@ test("the saved Items are one list, named by its count, with one list item per I
     await postLink(request, `https://example.com/${run}/${name}`);
   }
 
-  const total = (await listAll(request)).length;
+  const items = await listAll(request);
+  const total = items.length;
+  const unread = items.filter((item) => item.readState === "unread").length;
   await page.goto("/");
 
   const list = page.getByRole("list");
   await expect(list).toHaveCount(1);
-  await expect(list).toHaveAccessibleName(`${total} items, ${total} unread`);
+  await expect(list).toHaveAccessibleName(`${total} items, ${unread} unread`);
   await expect(list.getByRole("listitem")).toHaveCount(total);
   await expect(list.getByRole("listitem").first().getByRole("article")).toBeVisible();
 });

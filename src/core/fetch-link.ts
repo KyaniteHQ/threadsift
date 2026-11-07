@@ -2,14 +2,17 @@ import { type Fetched, NOT_REQUESTED, detailsOfOembed, detailsOfPage } from "./d
 import {
   type FetchPolicy,
   type GuardOutcome,
+  NO_HEADERS,
   type Page,
   SMALL_BODY_BYTES,
   guardedFetch,
 } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
+import { fetchedOfRepository } from "./github-fetch.ts";
 import { isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
 import { PageReadTimeout } from "./page-read-timeout.ts";
 import type { Network, PageReader } from "./ports.ts";
+import { repositoryRef } from "./repository-ref.ts";
 
 export type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
@@ -21,7 +24,9 @@ const SMALL_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
   followMetaRefresh: isShortLink,
   readsBody: () => true,
+  headers: () => NO_HEADERS,
   htmlMaxBytes: SMALL_BODY_BYTES,
+  dataMaxBytes: SMALL_BODY_BYTES,
 };
 
 const RESOLVE_POLICY: FetchPolicy = { ...SMALL_POLICY, readsBody: isShortLink };
@@ -79,6 +84,10 @@ export async function fetchLink(
 
   if (isRedditOrXLink(address)) {
     return NOT_REQUESTED;
+  }
+
+  if (link.kind === "github-repo") {
+    return fetchedOfRepository(network, repositoryRef(link.normalizedUrl), deadline);
   }
 
   return fetchedOf(

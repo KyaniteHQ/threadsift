@@ -12,13 +12,26 @@ type Settled = Pick<ItemRow, "status" | "reason" | "fetch"> &
     >
   >;
 
+const NO_TEXT = { postText: null, postedAt: null } as const;
+
+function textFields(content: Readonly<Content>) {
+  switch (content.kind) {
+    case "article":
+      return { postText: content.postText, postedAt: content.postedAt };
+    case "github-repo":
+      return { postText: content.readme, postedAt: null };
+    case "link":
+      return NO_TEXT;
+    default: {
+      const exhaustive: never = content;
+
+      throw new Error(exhaustive);
+    }
+  }
+}
+
 function contentFields(content: Readonly<Content>) {
-  return {
-    source: sourceOf(content.kind),
-    kind: content.kind,
-    postText: content.kind === "article" ? content.postText : null,
-    postedAt: content.kind === "article" ? content.postedAt : null,
-  };
+  return { source: sourceOf(content.kind), kind: content.kind, ...textFields(content) };
 }
 
 export function isRetryable(result: FetchResult): result is Extract<FailureReason, FetchResult> {

@@ -12,9 +12,17 @@ import {
   READ_STATES,
   SEARCH_PART_KINDS,
   SOURCES,
-  THROTTLE_KINDS,
 } from "./kinds.ts";
 import type { Database } from "./ports.ts";
+
+export {
+  type AgentTokenRow,
+  agentTokens,
+  owner,
+  sessions,
+  spentResetCodes,
+  throttles,
+} from "./access-tables.ts";
 
 export const items = sqliteTable(
   "items",
@@ -47,6 +55,18 @@ export const items = sqliteTable(
     index("items_post_text_key").on(table.postTextKey),
   ],
 );
+
+export const githubRepos = sqliteTable("github_repos", {
+  itemId: integer("item_id")
+    .primaryKey()
+    .references(() => items.id, { onDelete: "cascade" }),
+  description: text("description"),
+  stars: integer("stars").notNull(),
+  language: text("language"),
+  license: text("license"),
+  topics: text("topics", { mode: "json" }).$type<readonly string[]>().notNull(),
+  pushedAt: integer("pushed_at"),
+});
 
 export const jobs = sqliteTable(
   "jobs",
@@ -124,45 +144,9 @@ export async function guardedBatch(
   }
 }
 
-export const owner = sqliteTable(
-  "owner",
-  {
-    id: integer("id").primaryKey(),
-    passwordHash: text("password_hash").notNull(),
-    createdAt: integer("created_at").notNull(),
-  },
-  (table) => [check("owner_is_one_row", sql`${table.id} = 1`)],
-);
-
-export const sessions = sqliteTable("sessions", {
-  digest: text("digest").primaryKey(),
-  expiresAt: integer("expires_at").notNull(),
-});
-
-export const spentResetCodes = sqliteTable("spent_reset_codes", {
-  digest: text("digest").primaryKey(),
-  spentAt: integer("spent_at").notNull(),
-});
-
-export const agentTokens = sqliteTable("agent_tokens", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  digest: text("digest").notNull().unique(),
-  createdAt: integer("created_at").notNull(),
-  lastUsedAt: integer("last_used_at"),
-});
-
-export const throttles = sqliteTable("throttles", {
-  kind: text("kind", { enum: THROTTLE_KINDS }).primaryKey(),
-  failures: integer("failures").notNull(),
-  lockedUntil: integer("locked_until").notNull(),
-});
-
 export type ItemRow = typeof items.$inferSelect;
 
 export type JobRow = typeof jobs.$inferSelect;
-
-export type AgentTokenRow = typeof agentTokens.$inferSelect;
 
 export const settings = sqliteTable(
   "settings",

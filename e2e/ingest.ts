@@ -128,6 +128,15 @@ export function storeProcessingItemWithDueJob(
   return id;
 }
 
+export function claimLostLines(instance: Instance, jobId: number): string[] {
+  return instance
+    .logs()
+    .split("\n")
+    .filter(
+      (line) => line.includes('"event":"job-claim-lost"') && line.includes(`"jobId":${jobId},`),
+    );
+}
+
 export function releaseSweepThrottle(instance: Instance = mainInstance()): void {
   instance.sql("DELETE FROM scheduled_runs");
 }

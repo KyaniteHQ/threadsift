@@ -1,19 +1,14 @@
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
-
 import { type APIRequestContext, expect } from "@playwright/test";
 import { z } from "zod";
 
 import { AiSettingsViewSchema } from "../src/core/ai-contract.ts";
 import type { Instance } from "./access.ts";
-import type { Seed } from "./seeded.ts";
+import { type Seed, migrationsBefore } from "./seeded.ts";
 
 const SEALED_HTTP_KEY = "v1.AAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 export const BEFORE_WORKERS_AI: Seed = {
-  files: readdirSync(join(import.meta.dirname, "..", "migrations"))
-    .filter((name) => name.endsWith(".sql") && name < "0012")
-    .toSorted(),
+  files: migrationsBefore("0012"),
   sql: `INSERT INTO settings (id, provider, base_url, model, sealed_key) VALUES (1, 'openrouter', 'https://openrouter.ai/api/v1', 'kept-model', '${SEALED_HTTP_KEY}');
 INSERT INTO ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state, result) VALUES ('digest', 'older input', 1, 'http', 1, 5, 'done', '{}')`,
 };

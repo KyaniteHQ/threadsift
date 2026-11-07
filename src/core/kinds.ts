@@ -11,7 +11,14 @@ export const KINDS = [
 
 export const READ_STATES = ["unread", "read"] as const;
 
-export const SEARCH_PART_KINDS = ["title", "post-text", "digest-title", "summary", "tags"] as const;
+export const SEARCH_PART_KINDS = [
+  "title",
+  "post-text",
+  "digest-title",
+  "summary",
+  "tags",
+  "repository",
+] as const;
 
 export const THROTTLE_KINDS = ["setup", "login", "reset"] as const;
 
