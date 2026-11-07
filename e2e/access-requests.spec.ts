@@ -1,10 +1,13 @@
 import { expect } from "@playwright/test";
+import { z } from "zod";
 
 import { ListedTokens, createToken, expectRefusal, revokeToken } from "./access-helpers.ts";
 import { agentToken, bearer, test } from "./access.ts";
 import { newRunId } from "./links.ts";
 
 const KIB = 1024;
+
+const Saved = z.object({ item: z.object({ id: z.number() }) });
 
 test("a cross-site form post with the owner's cookie gets 403, and a bearer JSON post with no Origin succeeds", async ({
   request,
@@ -50,15 +53,24 @@ test("a bearer post with no content type reaches its route, and a cross-site bod
   expect((await revokeToken(request, created.token.id)).status()).toBe(204);
 });
 
+function padded(size: number) {
+  return { readState: "read", padding: "a".repeat(size) };
+}
+
 test("a body over 64 KiB gets 413 with a JSON error and a 1 KiB body gets through", async ({
   request,
   stranger,
 }) => {
-  const run = newRunId();
-  const padded = (size: number) => ({ url: `https://example.com/${run}/${"a".repeat(size)}` });
+  const created = await request.post("/api/items", {
+    data: { url: `https://example.com/${newRunId()}/limits` },
+  });
 
-  await expectRefusal(await request.post("/api/items", { data: padded(65 * KIB) }), 413, "65 KiB");
-  expect((await request.post("/api/items", { data: padded(KIB) })).status(), "1 KiB").toBe(201);
+  expect(created.status(), "the Item for the read-state route").toBe(201);
+  const { item } = Saved.parse(await created.json());
+  const readState = `/api/items/${item.id}/read-state`;
+
+  await expectRefusal(await request.put(readState, { data: padded(65 * KIB) }), 413, "65 KiB");
+  expect((await request.put(readState, { data: padded(KIB) })).status(), "1 KiB").toBe(200);
 
   const login = await stranger.post("/api/login", { data: { password: "x".repeat(65 * KIB) } });
   await expectRefusal(login, 413, "65 KiB to the public login route");

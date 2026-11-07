@@ -3,39 +3,13 @@ import { z } from "zod";
 
 import { mainInstance } from "./access.ts";
 import { attachJson } from "./card.ts";
-import { sweepNow } from "./ingest.ts";
 import { find, marker, post, postUrl, run } from "./thread-fixtures.ts";
+import { FOUR_MIB, bigBody, fourBigComments } from "./thread-large.ts";
 import { AUTHORED_DIGEST, type Node, comment, savedThread, threadJson } from "./threads.ts";
 
 test.describe.configure({ timeout: 300_000 });
 
-const FOUR_MIB = 4 * 1024 * 1024;
-const BIG_BODY_UNITS = 82_500;
-
-function bigBody(end: string): string {
-  return `${"lorem ipsum ".repeat(BIG_BODY_UNITS)}${end}`;
-}
-
-function paddedToFourMib(json: string): string {
-  const bytes = Buffer.byteLength(json);
-
-  if (bytes > FOUR_MIB) throw new Error(`the thread is ${bytes} bytes`);
-
-  return json + " ".repeat(FOUR_MIB - bytes);
-}
-
 const Lengths = z.array(z.object({ id: z.string(), length: z.number() }));
-
-function fourBigComments(id: string, tag = ""): string {
-  return paddedToFourMib(
-    threadJson(post(id, "A thread of long comments."), [
-      comment("l1", "reader_a", bigBody(marker("endone", tag))),
-      comment("l2", "reader_b", bigBody(marker("endtwo", tag))),
-      comment("l3", "reader_c", bigBody(marker("endthree", tag))),
-      comment("l4", "reader_d", bigBody(marker("endfour", tag))),
-    ]),
-  );
-}
 
 function storedLengths(itemId: number) {
   return mainInstance().query(
@@ -190,34 +164,4 @@ test("a Kept comment of 800,000 bytes whose escaped JSON is over 1,000,000 bytes
   expect(parts.reduce((total, part) => total + part.length, 0)).toBe(body.length);
   expect(await find(request, marker("openword"))).toEqual([item.id]);
   expect(await find(request, marker("closeword"))).toEqual([item.id]);
-});
-
-test("the search reconciler writes the parts of Kept comments that total over 2,000,000 bytes, and the last Kept comment is found", async ({
-  request,
-}) => {
-  const id = `p${run}`;
-  const tag = "recon";
-
-  const { item } = await savedThread(request, {
-    url: postUrl(id),
-    content: fourBigComments(id, tag),
-    digest: { ...AUTHORED_DIGEST, keptComments: ["t1_l1", "t1_l2", "t1_l4"] },
-  });
-
-  const kept = storedLengths(item.id).filter((row) => row.id !== "t1_l3");
-  expect(kept.reduce((total, row) => total + row.length, 0)).toBeGreaterThan(2_000_000);
-
-  const instance = mainInstance();
-  instance.sql(
-    `DELETE FROM search_parts WHERE item_id = ${item.id} AND kind = 'comment'; DELETE FROM search_fingerprints WHERE item_id = ${item.id}`,
-  );
-  expect(await find(request, marker("endfour", tag))).toEqual([]);
-
-  await sweepNow(request, instance);
-  await expect
-    .poll(() => find(request, marker("endfour", tag)), { timeout: 150_000 })
-    .toEqual([item.id]);
-  expect(await find(request, marker("endone", tag))).toEqual([item.id]);
-  expect(await find(request, marker("endtwo", tag))).toEqual([item.id]);
-  expect(await find(request, marker("endthree", tag))).toEqual([]);
 });

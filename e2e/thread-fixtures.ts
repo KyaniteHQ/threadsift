@@ -1,4 +1,4 @@
-import type { APIRequestContext } from "@playwright/test";
+import { type APIRequestContext, expect } from "@playwright/test";
 
 import { newRunId } from "./links.ts";
 import { matches } from "./search.ts";
@@ -90,3 +90,12 @@ export const FIRST_ROWS = [
   ["more_9", 0, 0, 0],
   ["more_10", 0, 0, 0],
 ];
+
+export async function expectKeptOnly(request: APIRequestContext, id: number, tag: string) {
+  expect(await find(request, marker("kept", tag))).toEqual([id]);
+  expect(await find(request, marker("deep", tag))).toEqual([id]);
+  expect(await find(request, marker("stubbed", tag))).toEqual([id]);
+  expect(await find(request, marker("post"))).toEqual([id]);
+  expect(await find(request, marker("dropped", tag))).toEqual([]);
+  expect(await find(request, marker("unkept", tag))).toEqual([]);
+}

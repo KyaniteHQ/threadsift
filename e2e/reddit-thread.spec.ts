@@ -11,6 +11,7 @@ import {
   FIRST_ROWS,
   firstTree,
   SUBREDDIT,
+  expectKeptOnly,
   find,
   marker,
   normalized,
@@ -42,15 +43,6 @@ function sendFirst(request: APIRequestContext) {
   });
 }
 
-async function expectKeptOnly(request: APIRequestContext, id: number) {
-  expect(await find(request, marker("kept", TAG))).toEqual([id]);
-  expect(await find(request, marker("deep", TAG))).toEqual([id]);
-  expect(await find(request, marker("stubbed", TAG))).toEqual([id]);
-  expect(await find(request, marker("post"))).toEqual([id]);
-  expect(await find(request, marker("dropped", TAG))).toEqual([]);
-  expect(await find(request, marker("unkept", TAG))).toEqual([]);
-}
-
 test("a Reddit thread sent with a caller Digest stores the post and comments, drops the plain-code junk, publishes only the named Kept comments with the stubs they need, and searches only what was kept", async ({
   request,
 }, info) => {
@@ -80,26 +72,9 @@ test("a Reddit thread sent with a caller Digest stores the post and comments, dr
 
   const rows = commentRows(mainInstance(), item.id);
   expect(rows.map((row) => [row.id, row.kept, row.eligible, row.hasBody])).toEqual(FIRST_ROWS);
-  await expectKeptOnly(request, item.id);
+  await expectKeptOnly(request, item.id, TAG);
   await attachJson(info, "thread-detail.json", JSON.stringify(item, null, 2));
   await attachJson(info, "thread-rows.json", JSON.stringify(rows, null, 2));
-});
-
-test("the search reconciler writes the Kept comment parts again when they are missing", async ({
-  request,
-}) => {
-  const { item } = await sendFirst(request);
-
-  mainInstance().sql(
-    `DELETE FROM search_parts WHERE item_id = ${item.id} AND kind = 'comment'; DELETE FROM search_fingerprints WHERE item_id = ${item.id}`,
-  );
-  expect(await find(request, marker("deep", TAG))).toEqual([]);
-
-  await sweepNow(request);
-  await expect
-    .poll(() => find(request, marker("deep", TAG)), { timeout: 150_000 })
-    .toEqual([item.id]);
-  await expectKeptOnly(request, item.id);
 });
 
 const REPLACEMENT_DIGEST = {
