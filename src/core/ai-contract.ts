@@ -87,6 +87,14 @@ export type AiSettingsInput = z.infer<typeof AiSettingsInputSchema>;
 
 export type Digest = z.infer<typeof DigestSchema>;
 
+export function parseStoredDigest(stored: string): Digest {
+  return DigestSchema.parse(JSON.parse(stored));
+}
+
+export const ReaderDigestSchema = DigestSchema.pick({ summary: true, keyPoints: true, tags: true });
+
+export type ReaderDigest = z.infer<typeof ReaderDigestSchema>;
+
 const HttpSettingsViewSchema = z.object({
   provider: HttpProviderSchema,
   baseUrl: z.string(),

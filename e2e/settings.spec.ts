@@ -75,12 +75,13 @@ async function expectSixSettingsDrawn(page: Page): Promise<void> {
   expect(await computed(app(page), "--ah")).toBe(HUES.moss);
   expect(await computed(app(page), "--chars")).toBe("68");
 
-  const wide = px(await computed(title, "max-width"));
+  const column = page.locator(".rd-col");
+  const wide = px(await computed(column, "max-width"));
   await pickOption(panel(page), "Text width", "Medium");
-  const medium = px(await computed(title, "max-width"));
+  const medium = px(await computed(column, "max-width"));
   await pickOption(panel(page), "Text width", "Wide");
 
-  expect(wide, "the titled row's measure at Wide is wider than at Medium").toBeGreaterThan(medium);
+  expect(wide, "the Reader's measure at Wide is wider than at Medium").toBeGreaterThan(medium);
   await expect(title).toHaveCSS("margin-top", "5px");
 }
 
@@ -134,6 +135,7 @@ async function followDevice(page: Page): Promise<void> {
 async function openPhoneSheetAndTapAway(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 390, height: 640 });
+  await page.goto("/");
   await gear(page).click();
   await expectModal(panel(page), true);
   await tapDimmedPage(page);
@@ -146,6 +148,9 @@ test("the owner sets six settings, resets the look, follows the device and opens
 }, testInfo) => {
   await page.setViewportSize(DESKTOP);
   await storeSettings(page, { comments: "cards", tags: "chips", images: "off", openAs: "sheet" });
+  await expect(titledRow(page)).toBeVisible();
+  await page.goto(`/items/${await titledRow(page).getAttribute("data-key")}`);
+  await expect(page.locator(".rd-col")).toBeVisible();
 
   await test.step("six settings are kept across a reload", async () => {
     await setSixSettings(page);

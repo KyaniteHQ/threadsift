@@ -67,6 +67,8 @@ export default defineConfig({
             name: [
               "Request",
               "HTMLElement",
+              "Element",
+              "KeyboardEvent",
               "EventTarget",
               "AbortSignal",
               "URL",
@@ -79,7 +81,14 @@ export default defineConfig({
           },
           {
             from: "package",
-            name: ["RefObject", "ChangeEvent", "SubmitEvent", "MouseEvent", "ReactNode"],
+            name: [
+              "RefObject",
+              "ChangeEvent",
+              "SubmitEvent",
+              "MouseEvent",
+              "KeyboardEvent",
+              "ReactNode",
+            ],
             package: "@types/react",
           },
           { from: "package", name: ["ZodType"], package: "zod" },

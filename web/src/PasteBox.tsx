@@ -213,11 +213,16 @@ function PasteForm({
   );
 }
 
-function Announcements({ polite, alert }: Readonly<{ polite: string; alert: string }>) {
+function Announcements({
+  face,
+  saving,
+}: Readonly<{ face: ReturnType<typeof faceOf>; saving: boolean }>) {
+  const { polite, alert } = announcementsOf(face);
+
   return (
     <>
       <output className="vh" aria-live="polite" aria-atomic="true">
-        {polite}
+        {saving ? SAVING_STATUS : polite}
       </output>
       <div className="vh" role="alert">
         {alert}
@@ -226,21 +231,36 @@ function Announcements({ polite, alert }: Readonly<{ polite: string; alert: stri
   );
 }
 
+function useOpenShown(
+  { shown, close }: Readonly<Pick<ReturnType<typeof usePaste>, "shown" | "close">>,
+  open: (id: number) => void,
+) {
+  return useCallback(() => {
+    if (shown?.kind === "item") {
+      close();
+      open(shown.itemId);
+    }
+  }, [close, open, shown]);
+}
+
 export function PasteBox({
   save,
   focusOnMount,
   items,
   request,
+  open,
 }: Readonly<{
   save: Save;
   focusOnMount: boolean;
   items: readonly Item[];
   request: PasteRequest | null;
+  open: (id: number) => void;
 }>) {
   const paste = usePaste(save, focusOnMount);
   const { shown, saving, close, dismiss, retry } = paste;
+
+  const openShown = useOpenShown(paste, open);
   const face = useCardFace(paste, items);
-  const { polite, alert } = announcementsOf(face);
   const root = useRef<HTMLDivElement>(null);
   const cardId = useId();
   useEscape(dismiss, root, shown !== null);
@@ -257,7 +277,7 @@ export function PasteBox({
         describedBy={face === null ? undefined : cardId}
         invalid={shown?.kind === "notice" && NOTICES[shown.key].kind === "input-error"}
       />
-      <Announcements polite={saving ? SAVING_STATUS : polite} alert={alert} />
+      <Announcements face={face} saving={saving} />
       {shown === null || face === null ? null : (
         <PasteCard
           key={shown.seq}
@@ -267,6 +287,7 @@ export function PasteBox({
           close={close}
           dismiss={dismiss}
           retry={retry}
+          open={openShown}
         />
       )}
     </div>

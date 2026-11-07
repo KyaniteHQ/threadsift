@@ -26,13 +26,34 @@ function Brand({
     <div className="brand">
       <h1>Threadsift</h1>
       {total === null ? null : <Total count={total} />}
-      <SettingsPanel
-        settings={look.settings}
-        themeNote={look.themeNote}
-        modal={look.narrow}
-        choose={look.pick}
-        reset={look.reset}
-        openInstanceSettings={openSettings}
+      <SettingsPanel look={look} openInstanceSettings={openSettings} />
+    </div>
+  );
+}
+
+function FilterSlot({
+  counts,
+  filters,
+  medium,
+  choose,
+  clearChosen,
+}: Readonly<{
+  counts: FilterCounts | null;
+  filters: Filters;
+  medium: boolean;
+  choose: (choice: Choice) => void;
+  clearChosen: () => void;
+}>) {
+  if (counts === null || counts.total === 0) return null;
+
+  return (
+    <div className="filters-slot">
+      <FilterPane
+        counts={counts}
+        filters={filters}
+        collapsible={medium}
+        choose={choose}
+        clearChosen={clearChosen}
       />
     </div>
   );
@@ -49,6 +70,7 @@ export function Masthead({
   focusOnMount,
   items,
   request,
+  open,
 }: Readonly<{
   look: Look;
   openSettings: () => void;
@@ -60,24 +82,27 @@ export function Masthead({
   focusOnMount: boolean;
   items: readonly Item[];
   request: PasteRequest | null;
+  open: (id: number) => void;
 }>) {
-  const shown = counts !== null && counts.total > 0 ? counts : null;
+  const total = counts !== null && counts.total > 0 ? counts.total : null;
 
   return (
     <header className="mast">
-      <Brand look={look} openSettings={openSettings} total={shown?.total ?? null} />
-      <PasteBox save={save} focusOnMount={focusOnMount} items={items} request={request} />
-      {shown === null ? null : (
-        <div className="filters-slot">
-          <FilterPane
-            counts={shown}
-            filters={filters}
-            collapsible={look.medium}
-            choose={choose}
-            clearChosen={clearChosen}
-          />
-        </div>
-      )}
+      <Brand look={look} openSettings={openSettings} total={total} />
+      <PasteBox
+        save={save}
+        focusOnMount={focusOnMount}
+        items={items}
+        request={request}
+        open={open}
+      />
+      <FilterSlot
+        counts={counts}
+        filters={filters}
+        medium={look.medium}
+        choose={choose}
+        clearChosen={clearChosen}
+      />
     </header>
   );
 }

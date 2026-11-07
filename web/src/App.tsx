@@ -24,7 +24,7 @@ export function App() {
   const arrived = useArrival(screen.name);
 
   return (
-    <div ref={ref} className="app" {...attributes} data-reader="pane">
+    <div ref={ref} className="app" {...attributes} data-reader={look.narrow ? "page" : "pane"}>
       <Screen screen={screen} look={look} arrived={arrived} session={session} route={route} />
     </div>
   );

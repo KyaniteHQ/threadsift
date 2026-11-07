@@ -1,11 +1,10 @@
 import { type RefObject, useId } from "react";
 
-import { type Settings } from "../../design/system/settings-table.ts";
 import { DEFAULTS } from "../../design/system/settings.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Icon } from "./Icon.tsx";
 import { SETTINGS_PATH, useInternalLink } from "./routing.ts";
-import { type Choose, SettingsRows } from "./SettingsRows.tsx";
+import { SettingsRows } from "./SettingsRows.tsx";
 import {
   CLOSE_LABEL,
   RESET_LABEL,
@@ -14,6 +13,7 @@ import {
   SETTINGS_TITLE,
 } from "./text.ts";
 import { usePanel } from "./use-panel.ts";
+import type { Look } from "./use-root.ts";
 
 function Gear({
   gear,
@@ -80,20 +80,10 @@ function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void 
 }
 
 export function SettingsPanel({
-  settings,
-  themeNote,
-  modal,
-  choose,
-  reset,
+  look,
   openInstanceSettings,
-}: Readonly<{
-  settings: Settings;
-  themeNote: string | null;
-  modal: boolean;
-  choose: Choose;
-  reset: () => void;
-  openInstanceSettings: () => void;
-}>) {
+}: Readonly<{ look: Look; openInstanceSettings: () => void }>) {
+  const { settings, themeNote, narrow: modal, pick: choose, reset } = look;
   const idBase = useId();
   const panelId = `${idBase}-panel`;
   const titleId = `${idBase}-title`;

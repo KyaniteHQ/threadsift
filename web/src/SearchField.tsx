@@ -1,25 +1,46 @@
-import type { ChangeEvent, RefObject } from "react";
+import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 import { useCallback } from "react";
 
 import { SEARCH_MAX } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { SEARCH_LABEL, SEARCH_PLACEHOLDER } from "./text.ts";
 
-export function SearchField({
-  value,
-  field,
-  search,
-}: Readonly<{
-  value: string;
-  field: RefObject<HTMLInputElement | null>;
-  search: (text: string) => void;
-}>) {
+function useHandlers(search: (text: string) => void, leave: () => void) {
   const type = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       search(event.target.value);
     },
     [search],
   );
+
+  const escape = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        leave();
+      }
+    },
+    [leave],
+  );
+
+  return { type, escape };
+}
+
+export function SearchField({
+  value,
+  field,
+  search,
+  hint,
+  leave,
+}: Readonly<{
+  value: string;
+  field: RefObject<HTMLInputElement | null>;
+  search: (text: string) => void;
+  hint: string | null;
+  leave: () => void;
+}>) {
+  const { type, escape } = useHandlers(search, leave);
 
   return (
     <search className="search">
@@ -33,9 +54,16 @@ export function SearchField({
           autoComplete="off"
           maxLength={SEARCH_MAX}
           value={value}
+          aria-keyshortcuts="/"
           onChange={type}
+          onKeyDown={escape}
         />
       </label>
+      {hint === null ? null : (
+        <p className="list-hint" aria-hidden="true">
+          {hint}
+        </p>
+      )}
     </search>
   );
 }

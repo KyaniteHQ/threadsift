@@ -1,11 +1,12 @@
-import { desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { asc, desc, eq, getTableColumns, sql } from "drizzle-orm";
 
+import { type ReaderDigest, parseStoredDigest } from "./ai-contract.ts";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { DIGEST_OUTCOMES } from "./kinds.ts";
 import type { Database, Ports } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
-import { digests, items, topics } from "./schema.ts";
+import { digests, itemTags, items, tags, topics } from "./schema.ts";
 
 export const EMPTY_DIGEST_VIEW = {
   digestTitle: null,
@@ -66,8 +67,35 @@ export async function listItems(db: Database, filters: Readonly<ItemFilters>) {
   return { items: rows, counts: filterCounts(counted) };
 }
 
+function readerDigest(
+  id: number,
+  stored: string | undefined,
+  tagNames: readonly string[],
+): ReaderDigest | null {
+  if (stored === undefined) return null;
+
+  try {
+    const { summary, keyPoints } = parseStoredDigest(stored);
+
+    return { summary, keyPoints, tags: tagNames };
+  } catch (error) {
+    console.error(`Digest of Item ${id} is not readable`, error);
+
+    return null;
+  }
+}
+
 export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
-  const [row] = await selectItems(db, DETAIL_COLUMNS).where(eq(items.id, id));
+  const [[row], [stored], tagRows] = await db.batch([
+    selectItems(db, DETAIL_COLUMNS).where(eq(items.id, id)),
+    db.select({ digest: digests.digest }).from(digests).where(eq(digests.itemId, id)),
+    db
+      .select({ name: tags.name })
+      .from(itemTags)
+      .innerJoin(tags, eq(tags.id, itemTags.tagId))
+      .where(eq(itemTags.itemId, id))
+      .orderBy(asc(sql`${itemTags}.rowid`)),
+  ]);
 
   if (row === undefined) {
     return row;
@@ -78,6 +106,11 @@ export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files"
   return {
     ...item,
     postText: postTextKey === null ? item.postText : await readPostText(files, id, postTextKey),
+    digest: readerDigest(
+      id,
+      stored?.digest,
+      tagRows.map((tag) => tag.name),
+    ),
   };
 }
 

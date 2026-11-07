@@ -27,6 +27,8 @@ import {
   storedSettings,
 } from "./look.ts";
 
+test.describe.configure({ timeout: 90_000 });
+
 const FONT_ROW = SETTINGS.find((row) => row.key === "font");
 
 async function loadWith(page: Page, url: string, stored: Stored): Promise<void> {
@@ -40,8 +42,20 @@ async function showAlertAndFocusRow(page: Page): Promise<void> {
   await page.locator(".it.open .it-open").focus();
 }
 
-async function checkRows(page: Page, what: string): Promise<void> {
-  for (const row of [".it.open", "article.it:not(.open)"]) {
+async function leaveCoveringReader(page: Page): Promise<boolean> {
+  const covered = (await page.locator(".lib.covered").count()) > 0;
+
+  if (covered) {
+    await page.locator(".rd-back").click();
+    await expect(page.locator(".lib.covered")).toHaveCount(0);
+  }
+
+  return covered;
+}
+
+async function checkRows(page: Page, what: string, covered: boolean): Promise<void> {
+  for (const row of covered ? ["article.it"] : [".it.open", "article.it:not(.open)"]) {
+    await page.keyboard.press("Shift");
     await page.locator(`${row} .it-open`).first().focus();
     await expect(page.locator(".it:has(.it-open:focus-visible)")).toHaveCount(1);
     await expectNoViolations(page, `${row} focused, ${what}`);
@@ -108,8 +122,13 @@ test("the page keeps the design checks at four widths in every theme and accent,
         const what = `${theme}, ${accent} at ${width}px`;
         await resize(page, width, bands);
         expect(await computed(app(page), "--ah"), `--ah for ${accent} at ${width}px`).toBe(hue);
-        await checkRows(page, what);
+        const covered = await leaveCoveringReader(page);
+        await checkRows(page, what, covered);
         await checkPanel(page, what);
+
+        if (covered) {
+          await page.goBack();
+        }
 
         if (accent === "cobalt") {
           await attachScreenshot(page, testInfo, `${theme}-${width}`);

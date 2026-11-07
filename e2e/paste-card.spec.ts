@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { NOTICES, READING_NOTE, RETRY_LABEL } from "../web/src/text.ts";
+import { PASTE_OPEN } from "../web/src/reader-text.ts";
+import { DISMISS_LABEL, NOTICES, READING_NOTE, RETRY_LABEL } from "../web/src/text.ts";
 import { closeDelayOf, watchCardLife } from "./card-life.ts";
 import {
   ADDED,
@@ -55,7 +56,7 @@ test("a slow page shows Reading the link, then Added with its note, and its row 
   await expect(pasteCard(page).locator(".ic.tone-warn")).toBeVisible();
   await expect(pasteCard(page).locator(".ic.tone-ok")).toHaveCount(0);
   await expect(dismissButton(page)).toBeVisible();
-  await expect(pasteCard(page).getByRole("button")).toHaveCount(1);
+  await expect(pasteCard(page).getByRole("button")).toHaveText([PASTE_OPEN, DISMISS_LABEL]);
   await expect(rowOf(page, id).locator(".skel")).toHaveCount(0);
 
   expect((await trace()).titles).toEqual([READING, ADDED]);
@@ -104,18 +105,19 @@ test("the failure card holds while hovered, closes 6 s after the pointer leaves,
 }) => {
   test.setTimeout(60_000);
   const run = newRunId();
+  await page.clock.install();
   const first = await seed(page, request, run);
   const life = await watchCardLife(page);
 
   const id = await pasteForId(page, unreachableUrl(run));
   await pasteCard(page).hover();
   await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
-  await page.waitForTimeout(CLOSE_MS + 1500);
+  await page.clock.fastForward(CLOSE_MS + 1500);
   await expect(pasteCard(page)).toBeVisible();
 
   await rowOf(page, first.id).locator("a.it-open").focus();
   await page.locator("h1").hover();
-  await expect(pasteCard(page)).toBeHidden({ timeout: 30_000 });
+  await expectClosesAfterSixSeconds(page);
   expect(
     await closeDelayOf(life, "leftAt"),
     "ms from the pointer leaving to the close",
@@ -197,6 +199,7 @@ test("Escape dismisses the card and focuses the paste field, from the card and f
   await page.keyboard.press("Escape");
   await expect(pasteCard(page)).toBeHidden();
   await expect(pasteField(page)).toBeFocused();
+  await expect(page).toHaveURL(/\/items\/\d+$/u);
 
   await pasteOnly(page, `https://example.com/${run}/escape-field`);
   await expect(cardTitle(page)).toHaveText(ADDED);

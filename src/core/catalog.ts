@@ -1,6 +1,6 @@
 import { type SQLWrapper, and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
-import { CATALOG_NAME_LIMIT, DigestSchema, type Digest } from "./ai-contract.ts";
+import { CATALOG_NAME_LIMIT, type Digest, parseStoredDigest } from "./ai-contract.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import {
@@ -136,7 +136,7 @@ async function linkOlderDigest(
   row: Readonly<{ id: number; digest: string }>,
 ): Promise<void> {
   try {
-    const entries = catalogEntries(DigestSchema.parse(JSON.parse(row.digest)));
+    const entries = catalogEntries(parseStoredDigest(row.digest));
     const current = sql`exists (select 1 from ${items} join ${digests} on ${digests.itemId} = ${items.id} where ${items.id} = ${row.id} and ${items.topicId} is null and ${digests.digest} = ${row.digest})`;
     await guardedBatch(db, current, [
       ...linkingDigest(db, row.id, entries),

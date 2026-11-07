@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DigestSchema } from "../core/ai-contract.ts";
+import { DigestSchema, ReaderDigestSchema } from "../core/ai-contract.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import {
   DIGEST_OUTCOMES,
@@ -59,7 +59,11 @@ function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.
 const ItemSchema = withStatus(ItemBaseSchema);
 
 const ItemDetailSchema = withStatus(
-  ItemBaseSchema.extend({ postedAt: z.number().int().nullable(), postText: z.string().nullable() }),
+  ItemBaseSchema.extend({
+    postedAt: z.number().int().nullable(),
+    postText: z.string().nullable(),
+    digest: ReaderDigestSchema.nullable(),
+  }),
 );
 
 export const SaveItemRequestSchema = z.object({
@@ -75,6 +79,8 @@ export const SavedItemResponseSchema = z.object({
 export const ItemResponseSchema = z.object({ item: ItemSchema });
 
 export const ItemDetailResponseSchema = z.object({ item: ItemDetailSchema });
+
+export const ReadStateRequestSchema = z.object({ readState: z.enum(READ_STATES) });
 
 export const SEARCH_MAX = 200;
 
@@ -175,6 +181,8 @@ export type Token = z.infer<typeof TokenSchema>;
 export type Item = z.infer<typeof ItemSchema>;
 
 export type ItemList = z.infer<typeof ItemListResponseSchema>;
+
+export type ItemDetail = z.infer<typeof ItemDetailSchema>;
 
 type StatusFields =
   | { readonly status: "failed"; readonly reason: FailureReason; readonly retry: "paste" }

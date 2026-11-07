@@ -5,6 +5,7 @@ import { useBands } from "./bands.ts";
 import { useSettings } from "./use-settings.ts";
 
 export interface Look {
+  readonly phone: boolean;
   readonly narrow: boolean;
   readonly medium: boolean;
   readonly settings: Settings;
@@ -21,6 +22,7 @@ export function useRoot() {
   return {
     ref,
     attributes: { ...attributes, "data-bp": bands.join(" ") },
+    phone: bands.includes("phone"),
     narrow: bands.includes("narrow"),
     medium: bands.includes("medium"),
     ...look,

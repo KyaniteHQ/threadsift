@@ -3,7 +3,7 @@ import { type SQLWrapper, and, eq, exists, isNotNull, ne, notExists, sql } from 
 import {
   AI_DEADLINE_MS,
   DIGEST_INPUT_BYTES,
-  DigestSchema,
+  parseStoredDigest,
   digestPrompt,
   type Digest,
   retriesAi,
@@ -58,7 +58,7 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
     return { writes: [setDigestFailure(ports.db, job.itemId, false)] };
 
   if (item.pendingDigest !== null) {
-    const digest = DigestSchema.parse(JSON.parse(item.pendingDigest));
+    const digest = parseStoredDigest(item.pendingDigest);
 
     const taskId = await startCallerTask(ports, item.pendingDigest, {
       inputRevision: item.generation,

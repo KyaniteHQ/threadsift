@@ -183,10 +183,10 @@ for (const width of [390, 1280]) {
 
     for (let step = 0; step < 14; step += 1) {
       await page.keyboard.press("Shift+Tab");
-      const focused = page.locator("article.it:has(.it-open:focus)");
+      const focused = page.locator("article.it:has(:focus)");
 
       const covered = await page.evaluate(() => {
-        const row = document.querySelector("article.it:has(.it-open:focus)");
+        const row = document.querySelector("article.it:has(:focus)");
         const header = document.querySelector(".list-head");
 
         return row === null || header === null

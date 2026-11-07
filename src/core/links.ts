@@ -292,3 +292,9 @@ export function whereOf({
 
   return host;
 }
+
+const SCHEME_AND_WWW = /^https?:\/\/(?:www\.)?/u;
+
+export function shownUrl(url: string): string {
+  return url.replace(SCHEME_AND_WWW, "");
+}

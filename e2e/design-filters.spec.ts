@@ -5,7 +5,9 @@ import { newCode, newPassword } from "./access.ts";
 import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
 import { type Library, buildLibrary, choice, expectRows } from "./filters.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { attachScreenshot, storeSettings } from "./look.ts";
+import { attachScreenshot, storeSettings, viewportAt } from "./look.ts";
+
+const NARROWEST = 390;
 
 let screen: FreshScreen;
 let library: Library;
@@ -54,6 +56,7 @@ test("the filters pane, a filter, a search and the no-results block keep the des
   const field = page.getByRole("searchbox", { name: SEARCH_LABEL });
 
   for (const theme of THEMES) {
+    await viewportAt(page, NARROWEST);
     await storeSettings(page, { theme });
     await expectRows(page, library.everyone);
 
