@@ -1,6 +1,6 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { DIGEST_NOT_UPDATED, RETRY_LABEL } from "../web/src/text.ts";
+import { DIGEST_NOT_UPDATED, FAILURE_TITLES, RETRY_LABEL } from "../web/src/text.ts";
 import { mainInstance } from "./access.ts";
 import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { openLibrary, unreachableUrl } from "./card.ts";
@@ -42,12 +42,17 @@ const SURFACES: readonly Surface[] = [
   { name: "the Reader over the list on a phone", width: 390, control: reader, open: READER_OPEN },
 ];
 
-async function tryAgainOn(page: Page, id: number, surface: Surface = ROW) {
+async function tryAgainOn(
+  page: Page,
+  id: number,
+  surface: Surface = ROW,
+  note: string = DIGEST_NOT_UPDATED,
+) {
   await openLibrary(page, surface.width);
   await surface.open(page, id);
   const control = surface.control(page, id);
 
-  await expect(control.getByText(DIGEST_NOT_UPDATED, { exact: true })).toBeVisible();
+  await expect(control.getByText(note, { exact: true })).toBeVisible();
 
   const answered = page.waitForResponse(
     (response) => response.request().method() === "POST" && response.url().includes("/api/items"),
@@ -148,5 +153,23 @@ for (const surface of SURFACES) {
     expect(await tryAgainOn(page, id, surface)).toBe(`/api/items/${id}/digest`);
     await expect.poll(() => jobsOf(id, mainInstance(), "digest").length).toBe(1);
     expect(jobsOf(id, mainInstance(), "fetch")).toEqual([]);
+  });
+}
+
+for (const surface of SURFACES) {
+  test(`Try again in ${surface.name} on a failed Item fetches the link again`, async ({
+    page,
+    request,
+  }) => {
+    const id = storeItem({
+      normalized_url: unreachableUrl(newRunId()),
+      title: "Failed item",
+      status: "failed",
+      reason: "network",
+    });
+
+    expect(await itemOf(request, id)).toMatchObject({ status: "failed", retry: "paste" });
+    expect(await tryAgainOn(page, id, surface, FAILURE_TITLES.network)).toBe("/api/items");
+    await expect.poll(() => jobsOf(id, mainInstance(), "fetch").length).toBe(1);
   });
 }

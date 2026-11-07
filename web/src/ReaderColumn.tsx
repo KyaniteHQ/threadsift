@@ -40,18 +40,42 @@ function noteTextOf(item: Readonly<Item>): string | null {
   return key === null ? null : NOTICES[key].text;
 }
 
+function Note({
+  item,
+  text,
+  withRetry,
+  tryAgain,
+}: Readonly<{ item: Item; text: string; withRetry: boolean; tryAgain: (item: Item) => void }>) {
+  const retry = useCallback(() => {
+    tryAgain(item);
+  }, [item, tryAgain]);
+
+  if (!withRetry) return <p className="rd-note">{text}</p>;
+
+  return (
+    <div className="rd-orig">
+      <p className="rd-note">{text}</p>
+      <button type="button" className="btn btn-block" onClick={retry}>
+        {RETRY_LABEL}
+      </button>
+    </div>
+  );
+}
+
 function Head({
   item,
   detail,
   now,
   titleId,
   focusTitle,
+  tryAgain,
 }: Readonly<{
   item: Item;
   detail: ItemDetail | null;
   now: number;
   titleId: string;
   focusTitle: boolean;
+  tryAgain: (item: Item) => void;
 }>) {
   const title = useRef<HTMLHeadingElement>(null);
   const note = noteTextOf(item);
@@ -75,7 +99,9 @@ function Head({
       <h2 ref={title} id={titleId} className="rd-title" tabIndex={-1}>
         <bdi dir="auto">{name ?? shownUrl(item.normalizedUrl)}</bdi>
       </h2>
-      {note === null ? null : <p className="rd-note">{note}</p>}
+      {note === null ? null : (
+        <Note item={item} text={note} withRetry={item.status === "failed"} tryAgain={tryAgain} />
+      )}
     </header>
   );
 }
@@ -127,27 +153,6 @@ function digestNote(item: Readonly<Item>, hasDigest: boolean): string | null {
   return null;
 }
 
-function DigestNote({
-  item,
-  note,
-  tryAgain,
-}: Readonly<{ item: Item; note: string; tryAgain: (item: Item) => void }>) {
-  const retry = useCallback(() => {
-    tryAgain(item);
-  }, [item, tryAgain]);
-
-  return (
-    <div className="rd-orig">
-      <p className="rd-note">{note}</p>
-      {item.retry === null ? null : (
-        <button type="button" className="btn btn-block" onClick={retry}>
-          {RETRY_LABEL}
-        </button>
-      )}
-    </div>
-  );
-}
-
 function Agent({
   item,
   detail,
@@ -158,7 +163,9 @@ function Agent({
   return (
     <>
       {detail.digest === null ? null : <Summary item={item} digest={detail.digest} />}
-      {note === null ? null : <DigestNote item={item} note={note} tryAgain={tryAgain} />}
+      {note === null ? null : (
+        <Note item={item} text={note} withRetry={item.retry !== null} tryAgain={tryAgain} />
+      )}
     </>
   );
 }
@@ -224,6 +231,7 @@ export function ReaderColumn({
         now={now}
         titleId={titleId}
         focusTitle={focusTitle}
+        tryAgain={tryAgain}
       />
       <Body item={item} state={state} retry={retry} tryAgain={tryAgain} now={now} />
     </div>
