@@ -4,6 +4,7 @@ import {
   type SetStateAction,
   type SubmitEvent,
   useCallback,
+  useContext,
   useEffect,
   useEffectEvent,
   useId,
@@ -15,6 +16,7 @@ import type { Item } from "../../src/http/schemas.ts";
 import type { SaveTarget } from "./api.ts";
 import { Icon } from "./Icon.tsx";
 import { PasteCard, type Shown, announcementsOf, faceOf } from "./PasteCard.tsx";
+import { ShareContext } from "./share-handoff.ts";
 import { SwapButton } from "./SwapButton.tsx";
 import {
   ADD_LABEL,
@@ -26,6 +28,7 @@ import {
   SAVING_STATUS,
 } from "./text.ts";
 import { useEscape, useFocusOnMount, useGuard } from "./use-form.ts";
+import { useShownCard } from "./use-shown-card.ts";
 
 export type SaveOutcome =
   | { readonly saved: false; readonly notice: NoticeKey }
@@ -57,11 +60,13 @@ function useSaveValue({
   setValue,
   setShown,
   focusField,
+  release,
 }: Readonly<{
   save: Save;
   setValue: Dispatch<SetStateAction<string>>;
-  setShown: Dispatch<SetStateAction<Shown | null>>;
+  setShown: (shown: Shown | null) => void;
   focusField: () => void;
+  release: () => void;
 }>) {
   const sequence = useRef(0);
 
@@ -73,6 +78,7 @@ function useSaveValue({
 
       if (outcome.saved) {
         setValue((current) => (current.trim() === url ? "" : current));
+        release();
       }
 
       sequence.current += 1;
@@ -82,11 +88,11 @@ function useSaveValue({
         focusField();
       }
     },
-    [focusField, save, setShown, setValue],
+    [focusField, release, save, setShown, setValue],
   );
 }
 
-function useCloseCard(setShown: Dispatch<SetStateAction<Shown | null>>, focusField: () => void) {
+function useCloseCard(setShown: (shown: Shown | null) => void, focusField: () => void) {
   const close = useCallback(() => {
     setShown(null);
   }, [setShown]);
@@ -99,9 +105,11 @@ function useCloseCard(setShown: Dispatch<SetStateAction<Shown | null>>, focusFie
   return { close, dismiss };
 }
 
-function usePaste(save: Save, focusOnMount: boolean) {
-  const [value, setValue] = useState("");
-  const [shown, setShown] = useState<Shown | null>(null);
+function usePaste(save: Save, focusOnMount: boolean, items: readonly Item[]) {
+  const handoff = useContext(ShareContext);
+  const { release } = handoff;
+  const { shown, show: setShown, prefill } = useShownCard(handoff, items);
+  const [value, setValue] = useState(prefill);
   const field = useRef<HTMLInputElement>(null);
 
   const focusField = useCallback(() => {
@@ -110,7 +118,7 @@ function usePaste(save: Save, focusOnMount: boolean) {
 
   useFocusOnMount(field, focusOnMount);
 
-  const saveValue = useSaveValue({ save, setValue, setShown, focusField });
+  const saveValue = useSaveValue({ save, setValue, setShown, focusField, release });
 
   const { busy: saving, guard } = useGuard();
 
@@ -130,10 +138,14 @@ function usePaste(save: Save, focusOnMount: boolean) {
 
   const { close, dismiss } = useCloseCard(setShown, focusField);
 
-  const change = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setValue(event.target.value);
-    setShown(null);
-  }, []);
+  const change = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setValue(event.target.value);
+      setShown(null);
+      release();
+    },
+    [release, setShown],
+  );
 
   const retry = useCallback(() => {
     if (shown !== null) {
@@ -256,7 +268,7 @@ export function PasteBox({
   request: PasteRequest | null;
   open: (id: number) => void;
 }>) {
-  const paste = usePaste(save, focusOnMount);
+  const paste = usePaste(save, focusOnMount, items);
   const { shown, saving, close, dismiss, retry } = paste;
 
   const openShown = useOpenShown(paste, open);

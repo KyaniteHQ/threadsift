@@ -1,3 +1,4 @@
+import { refreshedOf } from "../../src/core/fetch-results.ts";
 import type { ReadState } from "../../src/core/kinds.ts";
 import {
   ErrorResponseSchema,
@@ -59,7 +60,7 @@ export async function saveLink(url: string): Promise<SaveResult> {
 
   const known = response.status !== 201;
 
-  return { outcome: "saved", known, refreshed: known && item.fetch !== null, item };
+  return { outcome: "saved", known, refreshed: refreshedOf(known, item.fetch), item };
 }
 
 export async function regenerateDigest(id: number): Promise<Item> {

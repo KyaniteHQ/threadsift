@@ -10,6 +10,11 @@ import { ownerHasSession } from "./session-cookie.ts";
 
 export const BODY_LIMIT_BYTES = 64 * 1024;
 
+export const bodyCap = bodyLimit({
+  maxSize: BODY_LIMIT_BYTES,
+  onError: (c) => c.json({ error: "The request body is larger than 64 KiB" }, 413),
+});
+
 const NOT_BEARER = "Authorization header is not a bearer token";
 
 function notBearer(c: Context): Response {
@@ -28,11 +33,6 @@ function bearerCheck(ports: Ports): MiddlewareHandler {
 export function guard(ports: Ports): MiddlewareHandler {
   const bearer = bearerCheck(ports);
   const cross = csrf();
-
-  const limit = bodyLimit({
-    maxSize: BODY_LIMIT_BYTES,
-    onError: (c) => c.json({ error: "The request body is larger than 64 KiB" }, 413),
-  });
 
   return async (c, next) => {
     const { method, path } = c.req;
@@ -55,6 +55,6 @@ export function guard(ports: Ports): MiddlewareHandler {
       await cross(c, async () => {});
     }
 
-    return limit(c, next);
+    return bodyCap(c, next);
   };
 }
