@@ -104,15 +104,34 @@ function useLatest<Value>(value: Value) {
   return latest;
 }
 
-interface Upkeep {
+interface Reads {
   readonly reload: () => void;
+  readonly settle: (wanted: boolean) => void;
+}
+
+interface Upkeep {
+  readonly reads: Reads;
   readonly stamps: Stamps;
   readonly unfiltered: RefObject<boolean>;
+  readonly latest: RefObject<ListState>;
+}
+
+function digestMoved(before: Readonly<Item> | undefined, after: Readonly<Item>): boolean {
+  return (
+    after.digestTopic !== (before?.digestTopic ?? null) ||
+    after.digestTitle !== (before?.digestTitle ?? null) ||
+    (before?.digestOutcome === "pending" &&
+      after.digestOutcome !== "pending" &&
+      after.digestTopic !== null)
+  );
+}
+
+function leftProcessing(before: Readonly<Item> | undefined, after: Readonly<Item>): boolean {
+  return before?.status === "processing" && after.status !== "processing";
 }
 
 function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonly<Upkeep>): void {
-  const latest = useLatest(list);
-  const { reload, stamps, unfiltered } = upkeep;
+  const { reads, stamps, unfiltered, latest } = upkeep;
 
   const onRead = useCallback(
     (read: Readonly<Item>, startedAt: number) => {
@@ -120,13 +139,13 @@ function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonl
 
       const was = latest.current.known.find((item) => item.id === read.id);
 
-      if (!unfiltered.current && was?.status === "processing" && read.status !== "processing") {
-        reload();
+      if (was === undefined || !sameItem(was, read)) {
+        reads.settle(unfiltered.current ? digestMoved(was, read) : leftProcessing(was, read));
       }
 
       setList((current) => withRead(current, read, unfiltered.current));
     },
-    [latest, reload, setList, stamps, unfiltered],
+    [latest, reads, setList, stamps, unfiltered],
   );
 
   useItemPolling(processingIds(list), onRead);
@@ -140,13 +159,15 @@ function failedList(current: ListState): ListState {
   return { status: "failed", known: current.known, counts: countsOf(current) };
 }
 
-function useReads(setList: SetList, filters: Readonly<Filters>) {
+function useReads(setList: SetList, filters: Readonly<Filters>): Reads {
   const newest = useRef(0);
+  const reading = useRef(false);
   const [generation, setGeneration] = useState(0);
   const query = useMemo(() => ({ filters, generation }), [filters, generation]);
 
   useEffect(() => {
     newest.current += 1;
+    reading.current = true;
     const sequence = newest.current;
 
     const read = async (): Promise<void> => {
@@ -157,15 +178,27 @@ function useReads(setList: SetList, filters: Readonly<Filters>) {
         () => failedList,
       );
 
-      if (sequence === newest.current) setList(apply);
+      if (sequence === newest.current) {
+        reading.current = false;
+        setList(apply);
+      }
     };
 
     void read();
   }, [query, setList]);
 
-  return useCallback(() => {
+  const reload = useCallback(() => {
     setGeneration((now) => now + 1);
   }, []);
+
+  const settle = useCallback(
+    (wanted: boolean) => {
+      if (wanted || reading.current) reload();
+    },
+    [reload],
+  );
+
+  return useMemo(() => ({ reload, settle }), [reload, settle]);
 }
 
 function useFilters() {
@@ -191,7 +224,7 @@ function useFilters() {
 }
 
 function useSave(setList: SetList, upkeep: Readonly<Upkeep>) {
-  const { reload, stamps, unfiltered } = upkeep;
+  const { reads, stamps, unfiltered, latest } = upkeep;
 
   return useCallback(
     async (target: SaveTarget): Promise<SaveResult> => {
@@ -206,15 +239,15 @@ function useSave(setList: SetList, upkeep: Readonly<Upkeep>) {
             };
 
       if (result.outcome === "saved") {
+        const was = latest.current.known.find((item) => item.id === result.item.id);
         stamps.mark(result.item.id);
         setList((current) => withItem(current, result.item, unfiltered.current));
-
-        if (!unfiltered.current) reload();
+        reads.settle(!unfiltered.current || digestMoved(was, result.item));
       }
 
       return result;
     },
-    [reload, setList, stamps, unfiltered],
+    [latest, reads, setList, stamps, unfiltered],
   );
 }
 
@@ -222,16 +255,17 @@ export function useLibrary() {
   const [list, setList] = useState<ListState>({ status: "loading", known: [] });
   const [stamps] = useState(newStamps);
   const { filters, ...changes } = useFilters();
-  const reload = useReads(setList, filters);
+  const reads = useReads(setList, filters);
   const unfiltered = useLatest(!isFiltered(filters));
-  const upkeep = { reload, stamps, unfiltered };
+  const latest = useLatest(list);
+  const upkeep = { reads, stamps, unfiltered, latest };
   const save = useSave(setList, upkeep);
   usePolling(list, setList, upkeep);
 
   const retry = useCallback(() => {
     setList((current) => ({ status: "loading", known: current.known }));
-    reload();
-  }, [reload]);
+    reads.reload();
+  }, [reads]);
 
   return { list, filters, save, retry, ...changes };
 }

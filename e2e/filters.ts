@@ -149,7 +149,7 @@ export async function holdRead(page: Page, wanted: (url: URL) => boolean): Promi
   const delivered = Promise.withResolvers<void>();
 
   await page.route(/\/api\/items(\?|$)/u, async (route) => {
-    if (!wanted(new URL(route.request().url()))) {
+    if (route.request().method() !== "GET" || !wanted(new URL(route.request().url()))) {
       await route.continue();
 
       return;
