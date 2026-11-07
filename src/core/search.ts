@@ -7,7 +7,7 @@ import { digests, itemTags, items, searchParts, tags } from "./schema.ts";
 
 const CHUNK_UNITS = 125_000;
 const CHUNK_TRIGGER_BYTES = 500_000;
-const HIGH_SURROGATES = { first: 0xd8_00, last: 0xdb_ff } as const;
+const LAST_BMP_CODE_POINT = 0xff_ff;
 
 const DIGEST_KINDS = [
   "digest-title",
@@ -24,11 +24,9 @@ function lastSeparatorBefore(text: string, limit: number): number {
 }
 
 function hardCut(text: string): number {
-  const last = text.codePointAt(CHUNK_UNITS - 1) ?? 0;
+  const straddling = (text.codePointAt(CHUNK_UNITS - 1) ?? 0) > LAST_BMP_CODE_POINT;
 
-  return last >= HIGH_SURROGATES.first && last <= HIGH_SURROGATES.last
-    ? CHUNK_UNITS - 1
-    : CHUNK_UNITS;
+  return straddling ? CHUNK_UNITS - 1 : CHUNK_UNITS;
 }
 
 export function chunkPostText(text: string): readonly string[] {

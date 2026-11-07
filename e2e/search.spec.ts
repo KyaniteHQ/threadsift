@@ -4,15 +4,12 @@ import { SEARCH_LABEL, SEARCH_PLACEHOLDER } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { ESSAY, ESSAY_NORMALIZED } from "./articles.ts";
-import { unlinkDigests } from "./catalog.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { sweepNow } from "./ingest.ts";
 import {
   BOOK,
   BOOK_CUT_BYTES,
   BOOK_LATE_WORD,
   CHUNK_UNITS,
-  SWEEP_TIMEOUT_MS,
   checkIndex,
   digestOf,
   expectFinds,
@@ -21,6 +18,7 @@ import {
   matchesInOrder,
   partsOf,
   seedItem,
+  sweptTo,
 } from "./search.ts";
 
 let screen: FreshScreen;
@@ -46,10 +44,7 @@ async function paste(url: string, digest: ReturnType<typeof digestOf>) {
 }
 
 async function afterSweep(q: string, expected: readonly number[]): Promise<void> {
-  await sweepNow(screen.context.request, screen.fresh);
-  await expect
-    .poll(() => matches(screen.context.request, q), { timeout: SWEEP_TIMEOUT_MS })
-    .toEqual(expected);
+  await sweptTo(screen, q, expected);
 }
 
 async function pasteTrio() {
@@ -151,7 +146,7 @@ function seedStores() {
 
   seedItem(screen, {
     url: boundaryUrl,
-    title: "Boundary title",
+    title: "Edge title",
     postText: `replace(hex(zeroblob(24998)), '00', 'word ') || 'ab pivotalboundary ' || replace(hex(zeroblob(80000)), '00', 'word ')`,
   });
 
@@ -164,7 +159,7 @@ async function expectWordKeptWhole(boundary: number): Promise<void> {
   await expectFinds(request, [
     ["pivotalboundary", [boundary]],
     ["pivotal", [boundary]],
-    ["boundary", [boundary]],
+    ["boundary", []],
     ["oundary", []],
   ]);
 
@@ -205,7 +200,6 @@ test("the index follows a refresh, a replaced Digest and an older Digest, and a 
     `DELETE FROM search_parts WHERE item_id = ${seeded} AND kind = 'tags'; UPDATE items SET title = 'Repairedterm title', post_text = post_text || ' repairedbody' WHERE id = ${seeded}`,
   );
 
-  unlinkDigests(screen, [seeded]);
   await afterSweep("repairedterm repairedbody newtag", [seeded]);
   expect((await itemOf(request, seeded)).title).toBe("Repairedterm title");
 

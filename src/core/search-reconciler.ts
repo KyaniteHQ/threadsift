@@ -16,15 +16,18 @@ import { digestPartWrites, fetchedPartWrites } from "./search.ts";
 
 const RECONCILE_BATCH = 10;
 
+function tagNamesOfItem() {
+  return sql<string>`(select coalesce(json_group_array(name), '[]') from (select ${tags.name} as name from ${itemTags} join ${tags} on ${tags.id} = ${itemTags.tagId} where ${itemTags.itemId} = ${items.id} order by ${tags.key}))`;
+}
+
 function itemsAfter(db: Database, after: number) {
   return db
     .select({
       id: items.id,
       title: items.title,
       postText: items.postText,
-      postLength: sql<number>`coalesce(length(${items.postText}), -1)`,
       digest: digests.digest,
-      tagNames: sql<string>`(select coalesce(json_group_array(name), '[]') from (select ${tags.name} as name from ${itemTags} join ${tags} on ${tags.id} = ${itemTags.tagId} where ${itemTags.itemId} = ${items.id} order by ${tags.key}))`,
+      tagNames: tagNamesOfItem(),
       fingerprint: searchFingerprints.fingerprint,
     })
     .from(items)
@@ -43,10 +46,13 @@ function fingerprintOf(crypto: Crypto, row: Readonly<Reconciled>): string {
   return digestOf(crypto, sources);
 }
 
+function snapshotHolds(row: Readonly<Reconciled>) {
+  return sql`exists (select 1 from ${items} where ${items.id} = ${row.id} and ${items.title} is ${row.title} and ${items.postText} is ${row.postText} and (select ${digests.digest} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digest} and ${tagNamesOfItem()} = ${row.tagNames})`;
+}
+
 async function reconcileItem(db: Database, row: Readonly<Reconciled>, fingerprint: string) {
   const scope = eq(items.id, row.id);
-
-  const unchanged = sql`(select coalesce(length(${items.postText}), -1) from ${items} where ${items.id} = ${row.id}) = ${row.postLength}`;
+  const unchanged = snapshotHolds(row);
 
   await guardedBatch(db, unchanged, [
     ...fetchedPartWrites(db, scope, row.postText),

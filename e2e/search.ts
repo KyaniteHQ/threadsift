@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { ItemListResponseSchema } from "../src/http/schemas.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
+import { sweepNow } from "./ingest.ts";
 
 export const BOOK = "https://www.gutenberg.org/files/1342/1342-h/1342-h.htm";
 export const BOOK_LATE_WORD = "untinctured";
@@ -83,3 +84,14 @@ export function digestOf(title: string, tag: string, summary: string) {
 }
 
 export const SWEEP_TIMEOUT_MS = 150_000;
+
+export async function sweptTo(
+  screen: FreshScreen,
+  q: string,
+  expected: readonly number[],
+): Promise<void> {
+  await sweepNow(screen.context.request, screen.fresh);
+  await expect
+    .poll(() => matches(screen.context.request, q), { timeout: SWEEP_TIMEOUT_MS })
+    .toEqual(expected);
+}
