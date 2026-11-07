@@ -1,35 +1,40 @@
 import {
   type Dispatch,
+  type RefObject,
   type SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 
+import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import {
-  type SaveTarget,
-  type SaveResult,
-  fetchItem,
-  fetchItems,
-  regenerateDigest,
-  saveLink,
-} from "./api.ts";
+import { type SaveTarget, type SaveResult, fetchItems, regenerateDigest, saveLink } from "./api.ts";
+import { type Choice, type Filters, NO_FILTERS, isFiltered, withChoice } from "./filters.ts";
+import { type Stamps, newStamps, useItemPolling } from "./item-polling.ts";
+import { countedWith } from "./list-counts.ts";
 
 export type ListState =
-  | { readonly status: "loading"; readonly saved: readonly Item[] }
-  | { readonly status: "failed"; readonly saved: readonly Item[] }
-  | { readonly status: "ready"; readonly items: readonly Item[]; readonly loadedAt: number };
-
-const POLL_MS = 1000;
-const SLOW_POLL_MS = 5000;
-const FAST_POLLS = 10;
+  | { readonly status: "loading"; readonly known: readonly Item[] }
+  | {
+      readonly status: "failed";
+      readonly known: readonly Item[];
+      readonly counts: FilterCounts | null;
+    }
+  | {
+      readonly status: "ready";
+      readonly known: readonly Item[];
+      readonly items: readonly Item[];
+      readonly counts: FilterCounts;
+      readonly loadedAt: number;
+    };
 
 type SetList = Dispatch<SetStateAction<ListState>>;
 
 export function knownItems(list: Readonly<ListState>): readonly Item[] {
-  return list.status === "ready" ? list.items : list.saved;
+  return list.known;
 }
 
 function upserted(items: readonly Item[], item: Readonly<Item>): Item[] {
@@ -38,169 +43,190 @@ function upserted(items: readonly Item[], item: Readonly<Item>): Item[] {
     : [item, ...items];
 }
 
-function withItem(list: Readonly<ListState>, item: Readonly<Item>): ListState {
-  return list.status === "ready"
-    ? { ...list, items: upserted(list.items, item) }
-    : { ...list, saved: upserted(list.saved, item) };
+function replaced(items: readonly Item[], item: Readonly<Item>): Item[] {
+  return items.map((current) => (current.id === item.id ? item : current));
 }
 
-function withRead(list: Readonly<ListState>, read: Readonly<Item>): ListState {
-  const current = knownItems(list).find((item) => item.id === read.id);
+function withItem(list: Readonly<ListState>, item: Readonly<Item>, unfiltered: boolean): ListState {
+  const known = upserted(list.known, item);
 
-  return current === undefined || sameItem(current, read) ? list : withItem(list, read);
+  if (list.status !== "ready") return { ...list, known };
+
+  const before = list.known.find((current) => current.id === item.id);
+
+  return {
+    ...list,
+    known,
+    items: unfiltered ? upserted(list.items, item) : replaced(list.items, item),
+    counts: unfiltered ? countedWith(list.counts, before, item) : list.counts,
+  };
+}
+
+function withRead(list: Readonly<ListState>, read: Readonly<Item>, unfiltered: boolean): ListState {
+  const current = list.known.find((item) => item.id === read.id);
+
+  return current === undefined || sameItem(current, read) ? list : withItem(list, read, unfiltered);
 }
 
 function sameItem(left: Readonly<Item>, right: Readonly<Item>): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function loaded(current: Readonly<ListState>, items: readonly Item[]): ListState {
-  const saved = knownItems(current);
+interface Answer {
+  readonly items: readonly Item[];
+  readonly counts: FilterCounts;
+}
 
+function loaded(current: Readonly<ListState>, answer: Readonly<Answer>): ListState {
   return {
     status: "ready",
-    items: saved.reduceRight((all, item) => upserted(all, item), [...items]),
+    known: answer.items.reduceRight((all, item) => upserted(all, item), [...current.known]),
+    items: answer.items,
+    counts: answer.counts,
     loadedAt: Date.now(),
   };
 }
 
 function processingIds(list: Readonly<ListState>): string {
-  return knownItems(list)
+  return list.known
     .filter((item) => item.status === "processing")
     .map((item) => item.id)
     .join(",");
 }
 
-function scheduleRead(reads: number, pause: () => void, read: () => Promise<void>): number {
-  return window.setTimeout(
-    () => {
-      if (document.hidden) pause();
-      else void read();
-    },
-    reads < FAST_POLLS ? POLL_MS : SLOW_POLL_MS,
+function useLatest<Value>(value: Value) {
+  const latest = useRef(value);
+
+  useEffect(() => {
+    latest.current = value;
+  }, [value]);
+
+  return latest;
+}
+
+interface Reads {
+  readonly reload: () => void;
+  readonly settle: (wanted: boolean) => void;
+}
+
+interface Upkeep {
+  readonly reads: Reads;
+  readonly stamps: Stamps;
+  readonly unfiltered: RefObject<boolean>;
+  readonly latest: RefObject<ListState>;
+}
+
+function digestMoved(before: Readonly<Item> | undefined, after: Readonly<Item>): boolean {
+  return (
+    after.digestTopic !== (before?.digestTopic ?? null) ||
+    after.digestTitle !== (before?.digestTitle ?? null) ||
+    (before?.digestOutcome === "pending" &&
+      after.digestOutcome !== "pending" &&
+      after.digestTopic !== null)
   );
 }
 
-function pollItem(
-  id: number,
-  onRead: (item: Readonly<Item>, startedAt: number) => void,
-): () => void {
-  let timer = 0;
-  let stopped = false;
-  let paused = false;
-  let reads = 0;
-
-  const schedule = (): void => {
-    timer = scheduleRead(
-      reads,
-      () => {
-        paused = true;
-      },
-      read,
-    );
-  };
-
-  const read = async (): Promise<void> => {
-    reads += 1;
-    const startedAt = performance.now();
-    const item = await fetchItem(id).catch(() => null);
-
-    if (!stopped) {
-      if (item !== null) {
-        onRead(item, startedAt);
-      }
-
-      schedule();
-    }
-  };
-
-  const resume = (): void => {
-    if (paused && !document.hidden) {
-      paused = false;
-      void read();
-    }
-  };
-
-  document.addEventListener("visibilitychange", resume);
-  schedule();
-
-  return () => {
-    stopped = true;
-    window.clearTimeout(timer);
-    document.removeEventListener("visibilitychange", resume);
-  };
+function leftProcessing(before: Readonly<Item> | undefined, after: Readonly<Item>): boolean {
+  return before?.status === "processing" && after.status !== "processing";
 }
 
-function usePolling(
-  list: Readonly<ListState>,
-  setList: SetList,
-  isFresh: (id: number, startedAt: number) => boolean,
-): void {
-  const key = processingIds(list);
+function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonly<Upkeep>): void {
+  const { reads, stamps, unfiltered, latest } = upkeep;
 
-  useEffect(() => {
-    const stops = (key === "" ? [] : key.split(",")).map((id) =>
-      pollItem(Number(id), (read, startedAt) => {
-        if (isFresh(read.id, startedAt)) {
-          setList((current) => withRead(current, read));
-        }
-      }),
-    );
+  const onRead = useCallback(
+    (read: Readonly<Item>, startedAt: number) => {
+      if (!stamps.isFresh(read.id, startedAt)) return;
 
-    return () => {
-      for (const stop of stops) {
-        stop();
+      const was = latest.current.known.find((item) => item.id === read.id);
+
+      if (was === undefined || !sameItem(was, read)) {
+        reads.settle(unfiltered.current ? digestMoved(was, read) : leftProcessing(was, read));
       }
-    };
-  }, [isFresh, key, setList]);
+
+      setList((current) => withRead(current, read, unfiltered.current));
+    },
+    [latest, reads, setList, stamps, unfiltered],
+  );
+
+  useItemPolling(processingIds(list), onRead);
+}
+
+export function countsOf(list: Readonly<ListState>): FilterCounts | null {
+  return list.status === "loading" ? null : list.counts;
 }
 
 function failedList(current: ListState): ListState {
-  return { status: "failed", saved: knownItems(current) };
+  return { status: "failed", known: current.known, counts: countsOf(current) };
 }
 
-function useLoad(setList: SetList) {
-  return useCallback(
-    () =>
-      fetchItems()
-        .then(
-          (items) =>
-            (current: ListState): ListState =>
-              loaded(current, items),
-          () => failedList,
-        )
-        .then(setList),
-    [setList],
-  );
-}
-
-export function useLibrary() {
-  const [list, setList] = useState<ListState>({ status: "loading", saved: [] });
-  const savedAt = useRef(new Map<number, number>());
-
-  const load = useLoad(setList);
-
-  const isFresh = useCallback(
-    (id: number, startedAt: number) => startedAt > (savedAt.current.get(id) ?? 0),
-    [],
-  );
+function useReads(setList: SetList, filters: Readonly<Filters>): Reads {
+  const newest = useRef(0);
+  const reading = useRef(false);
+  const [generation, setGeneration] = useState(0);
+  const query = useMemo(() => ({ filters, generation }), [filters, generation]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    newest.current += 1;
+    reading.current = true;
+    const sequence = newest.current;
 
-  usePolling(list, setList, isFresh);
+    const read = async (): Promise<void> => {
+      const apply = await fetchItems(query.filters).then(
+        (answer) =>
+          (current: ListState): ListState =>
+            loaded(current, answer),
+        () => failedList,
+      );
 
-  const retry = useCallback(() => {
-    setList((current) => ({ status: "loading", saved: knownItems(current) }));
-    void load();
-  }, [load]);
+      if (sequence === newest.current) {
+        reading.current = false;
+        setList(apply);
+      }
+    };
 
-  const markSaved = useCallback((id: number) => {
-    savedAt.current.set(id, performance.now());
+    void read();
+  }, [query, setList]);
+
+  const reload = useCallback(() => {
+    setGeneration((now) => now + 1);
   }, []);
 
-  const save = useCallback(
+  const settle = useCallback(
+    (wanted: boolean) => {
+      if (wanted || reading.current) reload();
+    },
+    [reload],
+  );
+
+  return useMemo(() => ({ reload, settle }), [reload, settle]);
+}
+
+function useFilters() {
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+
+  const choose = useCallback((choice: Readonly<Choice>) => {
+    setFilters((now) => withChoice(now, choice));
+  }, []);
+
+  const search = useCallback((q: string) => {
+    setFilters((now) => ({ ...now, q }));
+  }, []);
+
+  const clear = useCallback(() => {
+    setFilters(NO_FILTERS);
+  }, []);
+
+  const clearChosen = useCallback(() => {
+    setFilters((now) => ({ ...NO_FILTERS, q: now.q }));
+  }, []);
+
+  return { filters, choose, search, clear, clearChosen };
+}
+
+function useSave(setList: SetList, upkeep: Readonly<Upkeep>) {
+  const { reads, stamps, unfiltered, latest } = upkeep;
+
+  return useCallback(
     async (target: SaveTarget): Promise<SaveResult> => {
       const result: SaveResult =
         target.kind === "paste"
@@ -213,14 +239,33 @@ export function useLibrary() {
             };
 
       if (result.outcome === "saved") {
-        markSaved(result.item.id);
-        setList((current) => withItem(current, result.item));
+        const was = latest.current.known.find((item) => item.id === result.item.id);
+        stamps.mark(result.item.id);
+        setList((current) => withItem(current, result.item, unfiltered.current));
+        reads.settle(!unfiltered.current || digestMoved(was, result.item));
       }
 
       return result;
     },
-    [markSaved],
+    [latest, reads, setList, stamps, unfiltered],
   );
+}
 
-  return { list, save, retry };
+export function useLibrary() {
+  const [list, setList] = useState<ListState>({ status: "loading", known: [] });
+  const [stamps] = useState(newStamps);
+  const { filters, ...changes } = useFilters();
+  const reads = useReads(setList, filters);
+  const unfiltered = useLatest(!isFiltered(filters));
+  const latest = useLatest(list);
+  const upkeep = { reads, stamps, unfiltered, latest };
+  const save = useSave(setList, upkeep);
+  usePolling(list, setList, upkeep);
+
+  const retry = useCallback(() => {
+    setList((current) => ({ status: "loading", known: current.known }));
+    reads.reload();
+  }, [reads]);
+
+  return { list, filters, save, retry, ...changes };
 }

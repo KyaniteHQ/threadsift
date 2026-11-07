@@ -7,6 +7,7 @@ import {
   FAILURE_REASONS,
   KINDS,
   type FailureReason,
+  READ_STATES,
   SOURCES,
 } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
@@ -29,6 +30,7 @@ const ItemBaseSchema = z.object({
   community: z.string().nullable(),
   fetchedAt: z.number().int().nullable(),
   fetch: z.enum(FETCH_RESULTS).nullable(),
+  readState: z.enum(READ_STATES),
 });
 
 function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.ZodObject<Fields>) {
@@ -74,8 +76,38 @@ export const ItemResponseSchema = z.object({ item: ItemSchema });
 
 export const ItemDetailResponseSchema = z.object({ item: ItemDetailSchema });
 
+export const SEARCH_MAX = 200;
+
+export const ItemQuerySchema = z.object({
+  q: z.string().max(SEARCH_MAX).optional(),
+  topic: z.string().optional(),
+  tag: z.string().optional(),
+  source: z.enum(SOURCES).optional(),
+  read: z.enum(READ_STATES).optional(),
+});
+
+const CountedNameSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  count: z.number().int(),
+});
+
+function counted<Key extends z.ZodType<string>>(key: Key) {
+  return z.array(z.object({ key, count: z.number().int() })).readonly();
+}
+
+export const FilterCountsSchema = z.object({
+  total: z.number().int(),
+  unread: z.number().int(),
+  sources: counted(z.enum(SOURCES)),
+  reads: counted(z.enum(READ_STATES)),
+  topics: z.array(CountedNameSchema).readonly(),
+  tags: z.array(CountedNameSchema).readonly(),
+});
+
 export const ItemListResponseSchema = z.object({
   items: z.array(ItemSchema),
+  counts: FilterCountsSchema,
 });
 
 export const REFUSAL_CODES = [
@@ -141,6 +173,8 @@ export const IdParamSchema = z.object({ id: z.coerce.number().int().positive() }
 export type Token = z.infer<typeof TokenSchema>;
 
 export type Item = z.infer<typeof ItemSchema>;
+
+export type ItemList = z.infer<typeof ItemListResponseSchema>;
 
 type StatusFields =
   | { readonly status: "failed"; readonly reason: FailureReason; readonly retry: "paste" }

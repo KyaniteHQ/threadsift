@@ -7,27 +7,38 @@ html {
   background: var(--bg);
 }
 
-[data-layout="list"] .list {
+[data-layout="list"] :is(.search, .list-head, .list) {
   grid-column: 2 / -1;
   border-right: 0;
 }
 
-[data-layout="list"][data-bp~="medium"] .list {
+[data-layout="list"][data-bp~="medium"] :is(.search, .list-head, .list) {
   grid-column: 1 / -1;
 }
 
-.list,
-.lib {
-  --list-head-h: calc(var(--s1) + var(--s2) + 1px + 1lh);
-  scroll-padding-top: var(--list-head-h);
+.list {
+  --row-lead-h: calc(var(--s1) + var(--s2) + 1px + 1lh);
+  scroll-padding-top: var(--row-lead-h);
 }
 
-.list-head {
-  min-height: var(--list-head-h);
-  position: sticky;
-  top: 0;
-  z-index: calc(var(--z-raise) + 2);
-  background: var(--bg);
+.search {
+  position: relative;
+}
+
+fieldset.fl-seg,
+fieldset.fl-rows {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+fieldset.fl-rows {
+  padding: 0;
+  border: 0;
+}
+
+.fl-rows .list-hint {
+  margin: 0;
+  padding-inline: var(--s3);
 }
 
 .swap {

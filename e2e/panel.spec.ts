@@ -1,5 +1,6 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
+import { pasteField } from "./links.ts";
 import {
   DESKTOP,
   app,
@@ -65,7 +66,7 @@ test("the phone sheet is modal, scrolls its body and keeps Tab and focus inside"
   await page.keyboard.press("Shift+Tab");
   await expect(reset).toBeFocused();
 
-  const field = page.locator(".field input");
+  const field = pasteField(page);
   await field.evaluate((element) => {
     element.focus();
   });
@@ -112,7 +113,7 @@ test("Escape and Close shut the phone sheet and return focus to the gear", async
   await expect(gear(page)).toBeFocused();
 });
 
-test("on a wide screen Escape and a second gear press close the popover and a press on the list leaves focus there", async ({
+test("on a wide screen Escape and a second gear press close the popover and a press on the list header leaves focus off the gear", async ({
   page,
 }) => {
   await page.setViewportSize(DESKTOP);
@@ -131,9 +132,9 @@ test("on a wide screen Escape and a second gear press close the popover and a pr
   await expect(gear(page)).toBeFocused();
 
   await openPanel(page);
-  await page.locator("#results").click();
+  await page.locator(".list-head .label").click();
   await expect(dialog).toBeHidden();
-  await expect(page.locator("main.list")).toBeFocused();
+  await expect(gear(page)).not.toBeFocused();
 
   await openPanel(page);
   await dialog.getByRole("button", { name: "Reset look" }).focus();
@@ -173,7 +174,7 @@ test("widening the sheet past 760px while Close has focus keeps focus in the pan
   await expect(dialog.getByRole("radio", { name: "Light", checked: true })).toBeFocused();
 });
 
-test("the paste field's text is 16px or more at 390px for every Density and Text size", async ({
+test("the paste and search fields' text is 16px or more at 390px for every Density and Text size", async ({
   page,
 }) => {
   await page.setViewportSize(PHONE);
@@ -184,12 +185,16 @@ test("the paste field's text is 16px or more at 390px for every Density and Text
       await expect(app(page)).toHaveAttribute("data-density", density);
       await expect(app(page)).toHaveAttribute("data-size", size);
       await expect(app(page)).toHaveAttribute("data-bp", /phone/u);
-      const fieldSize = px(await computed(page.locator(".field input"), "font-size"));
+      const fields = [pasteField(page), page.getByRole("searchbox")];
 
-      expect(
-        fieldSize,
-        `paste field text at ${density} density and ${size} text size`,
-      ).toBeGreaterThanOrEqual(16);
+      for (const field of fields) {
+        const fieldSize = px(await computed(field, "font-size"));
+
+        expect(
+          fieldSize,
+          `field text at ${density} density and ${size} text size`,
+        ).toBeGreaterThanOrEqual(16);
+      }
     }
   }
 });

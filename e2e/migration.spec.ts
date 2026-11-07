@@ -1,66 +1,26 @@
-import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-
-import { expect, request, test } from "@playwright/test";
+import { type APIRequestContext, expect, request, test } from "@playwright/test";
 import { z } from "zod";
 
-import { ItemDetailResponseSchema, ItemListResponseSchema } from "../src/http/schemas.ts";
 import {
-  type Instance,
-  freshDir,
-  launchAt,
-  newCode,
-  sessionStateOf,
-  sessionValueOf,
-} from "./access.ts";
+  ItemDetailResponseSchema,
+  ItemListResponseSchema,
+  type Item,
+} from "../src/http/schemas.ts";
+import { type Instance, freshDir, newCode, sessionStateOf, sessionValueOf } from "./access.ts";
 import { setUpByApi } from "./fresh-screen.ts";
-import { isContainerTarget } from "./target.ts";
+import { sweepNow } from "./ingest.ts";
+import { SEARCH_SEED, SEEDED_LATE_WORD, SEEDED_WORD_COUNT } from "./search-seed.ts";
+import { SWEEP_TIMEOUT_MS, expectFinds } from "./search.ts";
+import { launchSeeded } from "./seeded.ts";
 
-const ROOT = join(import.meta.dirname, "..");
-const BEFORE_INGEST = ["0000_init.sql", "0001_link_details.sql", "0002_access.sql"];
+const SAVED_BEFORE_INGEST = {
+  files: ["0000_init.sql", "0001_link_details.sql", "0002_access.sql"],
+  sql: `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title) VALUES
+    ('other', 'link', 'https://example.com/a', 'https://example.com/a', 1111, 'A saved title'),
+    ('reddit', 'link', 'https://reddit.com/r/x/comments/1', 'https://reddit.com/r/x/comments/1', 2222, NULL)`,
+};
 
-function wrangler(args: readonly string[]): void {
-  execFileSync("pnpm", ["exec", "wrangler", ...args], {
-    cwd: ROOT,
-    env: { ...process.env, CI: "1", WRANGLER_SEND_METRICS: "false" },
-    stdio: ["ignore", "ignore", "inherit"],
-  });
-}
-
-function storeBeforeIngest(dir: string): void {
-  const migrations = join(dir, "old-migrations");
-  const config = join(dir, "old.jsonc");
-  const state = join(dir, "state");
-  mkdirSync(migrations, { recursive: true });
-  mkdirSync(state, { recursive: true });
-
-  for (const file of BEFORE_INGEST) {
-    copyFileSync(join(ROOT, "migrations", file), join(migrations, file));
-  }
-
-  writeFileSync(
-    config,
-    JSON.stringify({
-      name: "threadsift",
-      compatibility_date: "2026-10-23",
-      d1_databases: [{ binding: "DB", database_name: "threadsift", migrations_dir: migrations }],
-    }),
-  );
-
-  const options = ["DB", "--local", "--persist-to", state, "--config", config];
-  wrangler(["d1", "migrations", "apply", ...options]);
-
-  wrangler([
-    "d1",
-    "execute",
-    ...options,
-    "--command",
-    `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, title) VALUES
-      ('other', 'link', 'https://example.com/a', 'https://example.com/a', 1111, 'A saved title'),
-      ('reddit', 'link', 'https://reddit.com/r/x/comments/1', 'https://reddit.com/r/x/comments/1', 2222, NULL)`,
-  ]);
-}
+const Count = z.array(z.object({ n: z.number() }));
 
 async function ownerOf({ url }: Instance, code: string, password: string) {
   const session = sessionValueOf(await setUpByApi(url, code, password));
@@ -68,23 +28,26 @@ async function ownerOf({ url }: Instance, code: string, password: string) {
   return request.newContext({ baseURL: url, storageState: sessionStateOf(session, url) });
 }
 
-test("on the Worker, Items stored before the ingest and article migrations are ready with a null fetch result, keep their Source, titles and saved dates, have no post text and have no job", async () => {
-  test.skip(
-    isContainerTarget(),
-    "the container harness always starts on an empty volume, so the migration of existing rows is not proven there (docs/architecture.md, Open items)",
-  );
+async function itemsOf(owner: APIRequestContext): Promise<Item[]> {
+  const { items } = ItemListResponseSchema.parse(await (await owner.get("/api/items")).json());
+
+  return items.toSorted((left, right) => left.id - right.id);
+}
+
+function countOf(instance: Instance, statement: string): number {
+  return instance.query(statement, Count)[0]?.n ?? -1;
+}
+
+test("Items stored before the ingest and article migrations are ready with a null fetch result, keep their Source, titles and saved dates, have no post text and have no job", async () => {
   test.setTimeout(180_000);
-  const dir = freshDir();
-  storeBeforeIngest(dir);
   const code = newCode();
-  const instance = launchAt(dir, code);
+  const instance = launchSeeded(freshDir(), code, SAVED_BEFORE_INGEST);
 
   try {
     const owner = await ownerOf(instance, code, "m".repeat(20));
-    const { items } = ItemListResponseSchema.parse(await (await owner.get("/api/items")).json());
 
     const details = await Promise.all(
-      items.map(async ({ id }) =>
+      (await itemsOf(owner)).map(async ({ id }) =>
         ItemDetailResponseSchema.parse(await (await owner.get(`/api/items/${id}`)).json()),
       ),
     );
@@ -93,16 +56,70 @@ test("on the Worker, Items stored before the ingest and article migrations are r
 
     const kept = { status: "ready", reason: null, fetch: null, postText: null, postedAt: null };
 
-    expect(
-      details.map(({ item }) => item).toSorted((left, right) => left.id - right.id),
-    ).toMatchObject([
+    expect(details.map(({ item }) => item)).toMatchObject([
       { id: 1, source: "other", title: "A saved title", savedAt: 1111, ...kept },
       { id: 2, source: "reddit", title: null, savedAt: 2222, ...kept },
     ]);
 
-    expect(
-      instance.query("SELECT count(*) AS n FROM jobs", z.array(z.object({ n: z.number() }))),
-    ).toEqual([{ n: 0 }]);
+    expect(countOf(instance, "SELECT count(*) AS n FROM jobs")).toBe(0);
+  } finally {
+    instance.stop();
+  }
+});
+
+const FINDS = [
+  [SEEDED_LATE_WORD, [1]],
+  ["abcdefghi", [1]],
+  ["marmalade", [1, 3]],
+  ["regency", [1]],
+  ["notes", [3]],
+  ["ledger", [1]],
+  ["damaged", []],
+] as const;
+
+function stored(instance: Instance) {
+  return {
+    items: countOf(instance, "SELECT count(*) AS n FROM items"),
+    digests: countOf(instance, "SELECT count(*) AS n FROM digests"),
+    links: countOf(instance, "SELECT count(*) AS n FROM item_tags"),
+    parts: countOf(instance, "SELECT count(*) AS n FROM search_parts"),
+    fingerprints: countOf(instance, "SELECT count(*) AS n FROM search_fingerprints"),
+    postText: countOf(instance, "SELECT length(post_text) AS n FROM items WHERE id = 1"),
+  };
+}
+
+test("Items stored before the search migrations stay unread and whole, become searchable once the sweep reaches them, and survive a second start", async () => {
+  test.setTimeout(480_000);
+  const code = newCode();
+  const instance = launchSeeded(freshDir(), code, SEARCH_SEED);
+
+  try {
+    const owner = await ownerOf(instance, code, "m".repeat(20));
+
+    expect((await itemsOf(owner)).map(({ id, readState }) => [id, readState])).toEqual([
+      [1, "unread"],
+      [2, "unread"],
+      [3, "unread"],
+    ]);
+
+    await sweepNow(owner, instance);
+    await expect.poll(() => stored(instance).fingerprints, { timeout: SWEEP_TIMEOUT_MS }).toBe(3);
+    await expectFinds(owner, FINDS);
+
+    const before = stored(instance);
+
+    expect(before).toMatchObject({
+      items: 3,
+      digests: 2,
+      links: 2,
+      postText: SEEDED_WORD_COUNT * 10 + SEEDED_LATE_WORD.length,
+    });
+
+    instance.sql("INSERT INTO search_index(search_index, rank) VALUES ('integrity-check', 1)");
+    instance.restart();
+    await expectFinds(owner, FINDS);
+    expect(stored(instance)).toEqual(before);
+    await owner.dispose();
   } finally {
     instance.stop();
   }

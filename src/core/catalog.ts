@@ -13,6 +13,7 @@ import {
   tags,
   topics,
 } from "./schema.ts";
+import { digestPartWrites } from "./search.ts";
 
 const OLDER_DIGEST_BATCH = 10;
 
@@ -137,7 +138,10 @@ async function linkOlderDigest(
   try {
     const entries = catalogEntries(DigestSchema.parse(JSON.parse(row.digest)));
     const current = sql`exists (select 1 from ${items} join ${digests} on ${digests.itemId} = ${items.id} where ${items.id} = ${row.id} and ${items.topicId} is null and ${digests.digest} = ${row.digest})`;
-    await guardedBatch(db, current, linkingDigest(db, row.id, entries));
+    await guardedBatch(db, current, [
+      ...linkingDigest(db, row.id, entries),
+      ...digestPartWrites(db, eq(items.id, row.id)),
+    ]);
   } catch (error) {
     console.error(`Older Digest ${row.id} linking failed`, error);
   }

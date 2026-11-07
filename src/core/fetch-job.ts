@@ -5,6 +5,7 @@ import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, digests, items } from "./schema.ts";
+import { fetchedPartWrites } from "./search.ts";
 import { isRetryable, settle } from "./settle.ts";
 
 async function titleOf(db: Database, itemId: number): Promise<string | null> {
@@ -29,6 +30,9 @@ async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<Job
   return {
     writes: [
       ports.db.update(items).set(stored).where(eq(items.id, job.itemId)),
+      ...(fields.title === undefined
+        ? []
+        : fetchedPartWrites(ports.db, eq(items.id, job.itemId), fields.postText)),
       ...(storesText
         ? [
             openingDigest(ports.db, {

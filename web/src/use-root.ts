@@ -6,6 +6,7 @@ import { useSettings } from "./use-settings.ts";
 
 export interface Look {
   readonly narrow: boolean;
+  readonly medium: boolean;
   readonly settings: Settings;
   readonly themeNote: string | null;
   readonly pick: (key: SettingKey, id: string) => void;
@@ -21,6 +22,7 @@ export function useRoot() {
     ref,
     attributes: { ...attributes, "data-bp": bands.join(" ") },
     narrow: bands.includes("narrow"),
+    medium: bands.includes("medium"),
     ...look,
   };
 }
