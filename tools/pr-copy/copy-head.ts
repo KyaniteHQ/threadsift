@@ -2,14 +2,16 @@ import { z } from "zod";
 
 import { github } from "./github-request.ts";
 import { ENVIRONMENT, byNewest, deployments, task } from "./github.ts";
+import { Sha256 } from "./stage.ts";
 
 export interface CopyHead {
   readonly url: string;
   readonly head: string;
   readonly gateRun: number | null;
+  readonly artifact: string | null;
 }
 
-const GateRun = z.object({ gateRun: z.number().int() });
+const Build = z.object({ gateRun: z.number().int(), artifact: Sha256.optional() });
 
 const Statuses = z.array(z.object({ state: z.string(), environment_url: z.url().optional() }));
 
@@ -28,9 +30,12 @@ export async function currentCopy(pr: number): Promise<CopyHead | null> {
     );
   }
 
+  const build = Build.safeParse(newest.payload).data;
+
   return {
     url: status.environment_url,
     head: newest.sha,
-    gateRun: GateRun.safeParse(newest.payload).data?.gateRun ?? null,
+    gateRun: build?.gateRun ?? null,
+    artifact: build?.artifact ?? null,
   };
 }

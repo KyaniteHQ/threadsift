@@ -56,9 +56,9 @@ const WorkerConfigSchema = z
   .strict()
   .readonly();
 
-export const MigrationHashesSchema = z
-  .record(z.string(), z.string().regex(/^[0-9a-f]{64}$/u))
-  .readonly();
+export const Sha256 = z.string().regex(/^[0-9a-f]{64}$/u);
+
+export const MigrationHashesSchema = z.record(z.string(), Sha256).readonly();
 
 export type MigrationHashes = z.infer<typeof MigrationHashesSchema>;
 
@@ -151,13 +151,41 @@ function migrationFiles(dir: string): string[] {
     .toSorted();
 }
 
-function copyArtifact(artifact: string, dir: string): void {
-  copyIn(artifact, dir, "dist/web");
-  copyIn(artifact, dir, "dist/worker/index.js");
+function deployedPaths(artifact: string): string[] {
+  return [
+    "dist/web",
+    "dist/worker/index.js",
+    ...migrationFiles(artifact).map((file) => join("migrations", file)),
+  ];
+}
 
-  for (const file of migrationFiles(artifact)) {
-    copyIn(artifact, dir, join("migrations", file));
+function copyArtifact(artifact: string, dir: string): void {
+  for (const path of deployedPaths(artifact)) {
+    copyIn(artifact, dir, path);
   }
+}
+
+function filesUnder(artifact: string, path: string): string[] {
+  const source = artifactFile(artifact, path);
+
+  if (!lstatSync(source).isDirectory()) return [path];
+
+  return readdirSync(source, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(artifact, join(entry.parentPath, entry.name)));
+}
+
+function fileHash(path: string): string {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+export function artifactDigest(artifact: string): string {
+  const listing = [...deployedPaths(artifact), WORKER_CONFIG]
+    .flatMap((path) => filesUnder(artifact, path))
+    .toSorted()
+    .map((file) => `${file}\0${fileHash(join(artifact, file))}\n`);
+
+  return createHash("sha256").update(listing.join("")).digest("hex");
 }
 
 export async function withStage<Result>(
@@ -184,11 +212,6 @@ export async function withStage<Result>(
 
 export function migrationHashes(dir: string): MigrationHashes {
   return Object.fromEntries(
-    migrationFiles(dir).map((file) => [
-      file,
-      createHash("sha256")
-        .update(readFileSync(join(dir, "migrations", file)))
-        .digest("hex"),
-    ]),
+    migrationFiles(dir).map((file) => [file, fileHash(join(dir, "migrations", file))]),
   );
 }

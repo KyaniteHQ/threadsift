@@ -3,7 +3,7 @@ import { z } from "zod";
 import { resumeOnly } from "./check-resume.ts";
 import { DEFAULT_SCENARIOS, SCENARIO_NAMES } from "./check-types.ts";
 import { runChecks } from "./checks.ts";
-import { writeGateRun } from "./gate-run.ts";
+import { requireGateBuild, writeGateRun } from "./gate-run.ts";
 import { Sha } from "./github.ts";
 import { MAX_REBUILDS, rebuildCopy } from "./rebuild.ts";
 
@@ -46,6 +46,8 @@ export async function checkCommand(pr: number, flags: Readonly<Flags>): Promise<
     scenarios: z.array(z.enum(SCENARIO_NAMES)).parse(scenarioNames(flags)),
   };
 
+  await requireGateBuild(options);
+
   if (!(await runChecks(options, Text.parse(flags.out)))) process.exitCode = 1;
 }
 
@@ -60,6 +62,8 @@ export async function rebuildCommand(pr: number, flags: Readonly<Flags>): Promis
     artifact: Text.parse(flags.artifact),
     times: z.coerce.number().int().min(1).max(MAX_REBUILDS).parse(flags.times),
   };
+
+  await requireGateBuild(options);
 
   if (!(await rebuildCopy(options, Text.parse(flags.out)))) process.exitCode = 1;
 }

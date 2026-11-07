@@ -28,6 +28,7 @@ import {
   CoercedPrNumber,
 } from "./github.ts";
 import { deployLive } from "./live.ts";
+import { artifactDigest } from "./stage.ts";
 import { sweep } from "./sweep.ts";
 
 const USAGE = `Usage:
@@ -116,7 +117,7 @@ async function deployFromGithub(artifact: string): Promise<void> {
     throw error;
   }
 
-  await postDeployment(head, copy);
+  await postDeployment(head, { ...copy, artifact: artifactDigest(artifact) });
   process.stdout.write(`Deployed ${copy.url}\n`);
 }
 

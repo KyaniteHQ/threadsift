@@ -7,6 +7,7 @@ import { currentCopy } from "./copy-head.ts";
 import { requiredEnv } from "./env.ts";
 import { github } from "./github-request.ts";
 import { Sha } from "./github.ts";
+import { artifactDigest } from "./stage.ts";
 
 const GATE_PATH = ".github/workflows/gate.yml";
 
@@ -20,7 +21,12 @@ const GateRun = z.object({
   head_repository: z.object({ full_name: z.string() }).nullable(),
 });
 
-export async function gateRunOf(pr: number, head: string): Promise<number> {
+interface GateBuild {
+  readonly run: number;
+  readonly artifact: string | null;
+}
+
+async function gateBuildOf(pr: number, head: string): Promise<GateBuild> {
   const copy = await currentCopy(pr);
   const name = `pull request ${String(pr)}`;
 
@@ -45,9 +51,27 @@ export async function gateRunOf(pr: number, head: string): Promise<number> {
     throw new Stop(`gate run ${String(run.id)} is not a successful gate of ${name} at ${head}`);
   }
 
-  return run.id;
+  return { run: run.id, artifact: copy.artifact };
 }
 
 export async function writeGateRun(pr: number, head: string, out: string): Promise<void> {
-  writeFileSync(out, `${String(await gateRunOf(pr, head))}\n`);
+  writeFileSync(out, `${String((await gateBuildOf(pr, head)).run)}\n`);
+}
+
+export async function requireGateBuild(
+  options: Readonly<{ pr: number; head: string; artifact: string }>,
+): Promise<void> {
+  const { pr, head, artifact } = options;
+  const name = `pull request ${String(pr)}`;
+  const built = (await gateBuildOf(pr, head)).artifact;
+
+  if (built === null) {
+    throw new Stop(`the record of the copy of ${name} holds no build digest; deploy it again`);
+  }
+
+  if (artifactDigest(artifact) !== built) {
+    throw new Stop(
+      `${artifact} is not the gate build of ${name} at ${head}: its files differ from the build the copy was deployed from`,
+    );
+  }
 }
