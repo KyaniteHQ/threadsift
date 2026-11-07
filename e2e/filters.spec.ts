@@ -48,6 +48,12 @@ test("the list API counts each group by the other filters and not its own, and r
 
   const topics = (await answer(request, {})).counts.topics.map(({ key }) => key);
   expect(topics).toEqual(["reading", "writing", "tools", "notes", "archive", "misc"]);
+
+  for (const params of [{}, { tag: "craft", read: "read" }]) {
+    const tags = (await answer(request, params)).counts.tags.map(({ key }) => key);
+    expect(tags, JSON.stringify(params)).toEqual(["essays", "craft"]);
+  }
+
   expect((await listed(request, { source: "bogus" })).status).toBe(400);
   expect((await listed(request, { read: "bogus" })).status).toBe(400);
   expect((await listed(request, { q: "a".repeat(201) })).status).toBe(400);
@@ -66,7 +72,10 @@ test("every count in the pane equals the rows its click leaves, and a choice rep
     ["Source", ["Reddit", "X", "GitHub", "Article", "Other"]],
     ["Read state", ["Unread", "Read"]],
     ["Topic", ["Reading", "Writing", "Tools", "Notes", "Archive"]],
+    ["Tags", ["Essays", "Craft"]],
   ] as const;
+
+  await page.getByRole("button", { name: "Tags", exact: true }).click();
 
   for (const [name, names] of labels) {
     for (const label of names) {

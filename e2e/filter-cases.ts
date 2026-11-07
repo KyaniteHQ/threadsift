@@ -73,6 +73,41 @@ function combinedCases({ articles, linkOnly }: Readonly<Library>): readonly Filt
   ];
 }
 
+function normalizedCases({ articles }: Readonly<Library>): readonly FilterCase[] {
+  const [a0 = 0, a1 = 0, a2 = 0, , , a5 = 0] = articles;
+
+  return [
+    {
+      params: { tag: "  CrAfT " },
+      ids: [a0, a2, a5],
+      counts: {
+        sources: { ...NO_SOURCES, article: 3 },
+        reads: { unread: 1, read: 2 },
+        topics: { ...NO_TOPICS, reading: 1, writing: 1, archive: 1 },
+        tags: { essays: 4, craft: 3 },
+      },
+    },
+    {
+      params: {
+        q: "essay",
+        source: "article",
+        read: "unread",
+        topic: " READING ",
+        tag: "  Essays",
+      },
+      ids: [a1],
+      counts: {
+        total: 11,
+        unread: 8,
+        sources: { ...NO_SOURCES, article: 1 },
+        reads: { unread: 1, read: 1 },
+        topics: { ...NO_TOPICS, reading: 1, tools: 1, misc: 1 },
+        tags: { essays: 1, craft: 0 },
+      },
+    },
+  ];
+}
+
 export function filterCases(library: Readonly<Library>): readonly FilterCase[] {
-  return [...unfilteredCases(library), ...combinedCases(library)];
+  return [...unfilteredCases(library), ...combinedCases(library), ...normalizedCases(library)];
 }

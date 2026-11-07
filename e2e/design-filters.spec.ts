@@ -33,6 +33,17 @@ async function openPane(page: Page): Promise<void> {
   await expect(page.getByRole("group", { name: "Source", exact: true })).toBeVisible();
 }
 
+async function closePane(page: Page): Promise<void> {
+  const toggle = page.getByRole("button", { name: /^Filters/u });
+
+  if ((await toggle.count()) === 0) return;
+
+  if ((await toggle.getAttribute("aria-expanded")) === "true") await toggle.click();
+
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("group", { name: "Source", exact: true })).toHaveCount(0);
+}
+
 async function checkState(page: Page, what: string): Promise<void> {
   await expectNoViolations(page, what);
 }
@@ -49,6 +60,7 @@ test("the filters pane, a filter, a search and the no-results block keep the des
     for (const [width, bands] of BANDS_AT_WIDTH) {
       const what = `${theme} at ${width}px`;
       await resize(page, width, bands);
+      await closePane(page);
       await checkState(page, `closed pane, ${what}`);
       await openPane(page);
       await checkState(page, `open pane, ${what}`);
