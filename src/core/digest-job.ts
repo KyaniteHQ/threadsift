@@ -17,7 +17,9 @@ import { readCatalog, linkOlderDigests } from "./catalog.ts";
 import { publishing } from "./digest-publish.ts";
 import {
   type DigestInput,
+  currency,
   digestInput,
+  generationCurrent,
   hasDigestSource,
   readDigestText,
   setDigestFailure,
@@ -30,12 +32,22 @@ import { digests, insertGuard, items, settings } from "./schema.ts";
 async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const [item] = await digestInput(ports.db, job.itemId);
 
-  if (item === undefined || !hasContent(item))
-    return { writes: markKeptDigest(ports.db, job.itemId) };
+  if (item === undefined) return { writes: markKeptDigest(ports.db, job.itemId) };
+
+  if (!hasContent(item)) return emptyInput(ports.db, item);
 
   return item.pendingDigest === null
     ? attemptModel(ports, job, item)
     : attemptCaller(ports, job, item, item.pendingDigest);
+}
+
+function emptyInput(db: Database, item: Readonly<DigestInput>): JobOutcome {
+  const generation = generationCurrent(item);
+
+  return {
+    currency: currency(db, generation, null),
+    writes: [insertGuard(db, generation), ...markKeptDigest(db, item.id)],
+  };
 }
 
 function hasContent(item: Readonly<DigestInput>): boolean {
