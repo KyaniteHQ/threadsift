@@ -7,7 +7,6 @@ import {
   cloudflareCall,
   cloudflareGet,
 } from "./cloudflare-api.ts";
-import { abortIncompleteUploads } from "./r2-uploads.ts";
 import { pause, remaining } from "./timeout.ts";
 
 const BUCKET_PAGE = 1000;
@@ -103,11 +102,10 @@ export async function removeBucket(bucket: string): Promise<void> {
   const deadline = Date.now() + EMPTY_BUCKET_MS;
 
   try {
-    const aborted = await abortIncompleteUploads(bucket, deadline);
     const deleted = await emptyBucket(bucket, deadline);
 
     process.stdout.write(
-      `$ POST r2/buckets/${bucket}/jobs\nAborted uploads: ${String(aborted)}\nEmptied ${bucket}; objects deleted: ${String(deleted)}\n`,
+      `$ POST r2/buckets/${bucket}/jobs\nEmptied ${bucket}; objects deleted: ${String(deleted)}\n`,
     );
 
     await accountRequest("DELETE", `r2/buckets/${encodeURIComponent(bucket)}`);
