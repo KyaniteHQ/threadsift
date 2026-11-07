@@ -19,6 +19,7 @@ import {
   WAR_AND_PEACE_LAST_SENTENCE,
   attachItem,
   expectMarkdown,
+  gutenbergPasted,
   readsWhileProcessing,
 } from "./articles.ts";
 import {
@@ -120,10 +121,21 @@ async function essayByShortLinkThenDirectly({ request, info }: Run): Promise<voi
   await attachItem(request, info, "2-essay-refreshed", id);
 }
 
-async function bookOverTheRowLimit({ request, info }: Run, other: number): Promise<void> {
+async function bookRead(request: APIRequestContext, other: number) {
   const { body } = await postLinkRaw(request, WAR_AND_PEACE);
   const reads = await readsWhileProcessing(request, body.item.id, other);
-  const item = await settled(request, body.item.id, BIG_PAGE_TIMEOUT_MS);
+
+  return { reads, item: await settled(request, body.item.id, BIG_PAGE_TIMEOUT_MS) };
+}
+
+async function bookOverTheRowLimit({ request, info }: Run, other: number): Promise<void> {
+  const {
+    last: { reads, item },
+  } = await gutenbergPasted(
+    "war-and-peace",
+    () => bookRead(request, other),
+    (read) => read.item.fetch,
+  );
 
   await attachJson(info, "3-war-and-peace-reads.json", JSON.stringify(reads, null, 2));
 

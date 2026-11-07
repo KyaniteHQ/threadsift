@@ -8,9 +8,12 @@ import {
   WAR_AND_PEACE,
   WAR_AND_PEACE_LAST_SENTENCE,
   WAR_AND_PEACE_LAST_WORD,
+  gutenbergPasted,
+  pasteGutenberg,
 } from "./articles.ts";
 import { ROW_LIMIT_BYTES, ownerOf, postTextOf } from "./files.ts";
 import { afterFirstClaim, claimLostLines, expireClaim, jobsOf } from "./ingest.ts";
+import { newRunId } from "./links.ts";
 import { matches } from "./search.ts";
 import { isContainerTarget } from "./target.ts";
 
@@ -64,12 +67,12 @@ async function reconcilerVisited(id: number): Promise<void> {
 
 test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, searchable, and a second Paste replaces the file", async () => {
   test.setTimeout(480_000);
-  const { body } = await postLinkRaw(owner, WAR_AND_PEACE);
-  const id = body.item.id;
+  const pasted = await pasteGutenberg(owner, { name: "war-and-peace", url: WAR_AND_PEACE });
+  const id = pasted.last.item.id;
 
-  await fetchJobsDone(id, 1);
+  await fetchJobsDone(id, pasted.fetches.length);
 
-  const [first = 0] = fetchJobIds(id);
+  const first = fetchJobIds(id).at(-1) ?? 0;
   const firstKey = `items/${id}/post-${first}-0.md`;
   const item = await itemOf(owner, id);
 
@@ -85,12 +88,12 @@ test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, sea
     "search finds a word of the last chapter",
   ).toEqual([id]);
 
-  const again = await postLinkRaw(owner, WAR_AND_PEACE);
+  const again = await pasteGutenberg(owner, { name: "war-and-peace-again", url: WAR_AND_PEACE });
 
-  expect(again.status).toBe(200);
-  await fetchJobsDone(id, 2);
+  expect(again.first.status).toBe(200);
+  await fetchJobsDone(id, pasted.fetches.length + again.fetches.length);
 
-  const [, second = 0] = fetchJobIds(id);
+  const second = fetchJobIds(id).at(-1) ?? 0;
   const secondKey = `items/${id}/post-${second}-0.md`;
 
   expect(secondKey).not.toBe(firstKey);
@@ -106,9 +109,8 @@ test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, sea
   ).toEqual([id]);
 });
 
-test("a runner whose claim was taken over publishes nothing and deletes its file, and the Item ends with the file of the claim's next holder", async () => {
-  test.setTimeout(480_000);
-  const run = Date.now().toString(36);
+async function takeoverOfTheBook() {
+  const run = newRunId();
   const stopTrap = afterFirstClaim(instance, `takeover=${run}`, "attempts = attempts + 1");
   let id = 0;
 
@@ -146,9 +148,23 @@ test("a runner whose claim was taken over publishes nothing and deletes its file
     })
     .toMatchObject({ state: "done", attempts: 2 });
 
+  return { id, job, item: await itemOf(owner, id) };
+}
+
+test("a runner whose claim was taken over publishes nothing and deletes its file, and the Item ends with the file of the claim's next holder", async () => {
+  test.setTimeout(480_000);
+
+  const {
+    last: { id, job, item },
+  } = await gutenbergPasted(
+    "war-and-peace-takeover",
+    takeoverOfTheBook,
+    ({ item: read }) => read.fetch,
+  );
+
   const key = `items/${id}/post-${job}-2.md`;
 
   expect(postTextOf(instance, id)).toEqual({ key, inline: null });
   expect(instance.listFiles(`items/${id}/`).map((file) => file.key)).toEqual([key]);
-  expect((await itemOf(owner, id)).postText).toContain(WAR_AND_PEACE_LAST_SENTENCE);
+  expect(item.postText).toContain(WAR_AND_PEACE_LAST_SENTENCE);
 });

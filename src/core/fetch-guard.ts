@@ -243,3 +243,18 @@ export function guardedFetch(
     ? Promise.resolve(first)
     : follow(network, policy, deadline, first.url, 0);
 }
+
+export function loggedFailureOf(
+  outcome: Exclude<GuardOutcome, Page>,
+  whenStopped: FetchFailure = "redirect-stopped",
+): FetchFailure {
+  if (outcome.kind === "stopped") {
+    return whenStopped;
+  }
+
+  if (outcome.reason === "status") {
+    console.warn(JSON.stringify({ event: "fetch-status", httpStatus: outcome.httpStatus }));
+  }
+
+  return outcome.reason;
+}

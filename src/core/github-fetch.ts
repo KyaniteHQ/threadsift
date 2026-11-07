@@ -9,6 +9,7 @@ import {
   NO_HEADERS,
   SMALL_BODY_BYTES,
   guardedFetch,
+  loggedFailureOf,
 } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { isRedditOrXLink } from "./links.ts";
@@ -88,10 +89,6 @@ const WITHOUT_README: Readme = { kind: "text", text: null };
 
 const UNREADABLE_README: Readme = { kind: "failed", status: "unreadable" };
 
-function failureOf(outcome: Exclude<GuardOutcome, Page>): FetchFailure {
-  return outcome.kind === "stopped" ? "redirect-stopped" : outcome.reason;
-}
-
 function getApi(
   network: Network,
   path: string,
@@ -158,7 +155,7 @@ async function readmeAfter(
     return WITHOUT_README;
   }
 
-  return { kind: "failed", status: failureOf(outcome) };
+  return { kind: "failed", status: loggedFailureOf(outcome) };
 }
 
 export async function fetchedOfRepository(
@@ -173,7 +170,7 @@ export async function fetchedOfRepository(
     deadline,
   );
 
-  if (outcome.kind !== "page") return { status: failureOf(outcome) };
+  if (outcome.kind !== "page") return { status: loggedFailureOf(outcome) };
 
   const answer = parsed(RepositoryAnswerSchema, outcome.text);
 

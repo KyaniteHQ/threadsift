@@ -2,8 +2,8 @@ import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { hasAiCredentials, aiScreen, countRows, newSealingKey, proofProvider } from "./ai.ts";
-import { itemOf, postLinkRaw, settled } from "./api.ts";
-import { WAR_AND_PEACE } from "./articles.ts";
+import { itemOf, settled } from "./api.ts";
+import { WAR_AND_PEACE, pasteGutenberg } from "./articles.ts";
 import { configureDigest, digestRecord } from "./digest.ts";
 import { nameFile, storeFileItem } from "./files.ts";
 import { jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
@@ -79,8 +79,15 @@ test("War and Peace, pasted with the real Provider saved, gets a Digest from the
   screen = await aiScreen(browser, newSealingKey());
   await configureDigest(screen, proofProvider());
 
-  const { body } = await postLinkRaw(screen.context.request, WAR_AND_PEACE);
-  const id = body.item.id;
+  const {
+    last: { item: pasted },
+  } = await pasteGutenberg(screen.context.request, {
+    name: "war-and-peace",
+    url: WAR_AND_PEACE,
+    timeout: AI_WAIT,
+  });
+
+  const id = pasted.id;
 
   await expect
     .poll(() => digestRecord(screen, id).length, { timeout: AI_WAIT, intervals: [2000] })

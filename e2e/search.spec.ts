@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { SEARCH_LABEL, SEARCH_PLACEHOLDER } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { itemOf, postLinkRaw, settled } from "./api.ts";
-import { ESSAY, ESSAY_NORMALIZED } from "./articles.ts";
+import { ESSAY, ESSAY_NORMALIZED, pasteGutenberg } from "./articles.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import {
   BOOK,
@@ -48,10 +48,13 @@ async function afterSweep(q: string, expected: readonly number[]): Promise<void>
 }
 
 async function pasteTrio() {
-  const book = await paste(
-    BOOK,
-    digestOf("Quillfeather ledger", "Regency", "A marmalade summary."),
-  );
+  const {
+    last: { item: book },
+  } = await pasteGutenberg(screen.context.request, {
+    name: "pride-and-prejudice",
+    url: BOOK,
+    digest: digestOf("Quillfeather ledger", "Regency", "A marmalade summary."),
+  });
 
   const essay = await paste(
     ESSAY,

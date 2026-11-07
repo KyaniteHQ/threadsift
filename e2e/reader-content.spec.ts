@@ -3,15 +3,13 @@ import { expect, test } from "@playwright/test";
 import { KEY_POINTS_LABEL, OPEN_LABELS, SUMMARY_LABEL } from "../web/src/reader-text.ts";
 import { SOURCE_LABELS } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
-import { postLinkRaw, settled } from "./api.ts";
-import { ESSAY, ESSAY_AUTHOR, ESSAY_SENTENCE } from "./articles.ts";
+import { ESSAY, ESSAY_AUTHOR, ESSAY_SENTENCE, pasteGutenberg } from "./articles.ts";
 import { SENT_DIGEST, agentHeaders, sendDigest } from "./catalog.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { openLibrary, openRow, reader } from "./reader.ts";
 import { BOOK, digestOf } from "./search.ts";
 
 const BOOK_LAST_WORDS = "the persons who, by bringing her into Derbyshire";
-const BOOK_TIMEOUT_MS = 180_000;
 const DESKTOP_WIDTH = 1440;
 const BOOK_TITLE = "Quillfeather ledger";
 
@@ -37,13 +35,14 @@ test("an Article sent with a caller Digest opens in the Reader with its header, 
     headers: await agentHeaders(screen),
   });
 
-  const saved = await postLinkRaw(
-    context.request,
-    BOOK,
-    digestOf(BOOK_TITLE, "Regency", "A marmalade summary."),
-  );
+  const {
+    last: { item: book },
+  } = await pasteGutenberg(context.request, {
+    name: "pride-and-prejudice",
+    url: BOOK,
+    digest: digestOf(BOOK_TITLE, "Regency", "A marmalade summary."),
+  });
 
-  const book = await settled(context.request, saved.body.item.id, BOOK_TIMEOUT_MS);
   await openLibrary(page, DESKTOP_WIDTH, "/", 2);
 
   await openRow(page, essay.id);

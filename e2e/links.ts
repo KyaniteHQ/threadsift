@@ -6,8 +6,13 @@ import { waitForRedditTurnIfNeeded } from "./reddit.ts";
 
 const PASTE_TIMEOUT_MS = 20_000;
 
+const PID_DIGITS = 7;
+let lastRunTime = 0;
+
 export function newRunId(): string {
-  return String(Date.now());
+  lastRunTime = Math.max(Date.now(), lastRunTime + 1);
+
+  return `${lastRunTime}${String(process.pid).padStart(PID_DIGITS, "0")}`;
 }
 
 const HTTPBIN = "https://httpbin.org";
