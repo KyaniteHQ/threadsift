@@ -48,6 +48,7 @@ app.use("*", compress());
 
 const node = await startNode(
   database.db,
+  env.DATA_DIR,
   env.SETUP_CODE,
   env.THREADSIFT_SECRET_KEY,
   env.PASSWORD_RESET_CODE,

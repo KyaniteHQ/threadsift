@@ -11,7 +11,7 @@ import {
   test as base,
   request,
 } from "@playwright/test";
-import type { z } from "zod";
+import { z } from "zod";
 
 import { envValue } from "./env.ts";
 
@@ -129,6 +129,16 @@ export function sessionValueOf(setCookie: string): string {
 
 export type InstanceEnv = Readonly<Record<string, string>>;
 
+const MISSING_FILE_STATUS = 3;
+
+const MAX_FILE_BYTES = 64 * 1024 * 1024;
+
+const StoredFiles = z.array(
+  z.object({ key: z.string(), size: z.number(), uploadedAt: z.number() }),
+);
+
+export type StoredFileInfo = z.infer<typeof StoredFiles>[number];
+
 export interface Instance {
   readonly url: string;
   readonly appExec: string;
@@ -136,6 +146,9 @@ export interface Instance {
   logs(): string;
   sql(statement: string): void;
   query<T>(statement: string, schema: z.ZodType<T>): T;
+  readFile(key: string): Buffer | null;
+  writeFile(key: string, bytes: Uint8Array): void;
+  listFiles(prefix: string): StoredFileInfo[];
   stop(): void;
 }
 
@@ -147,14 +160,16 @@ function runInstance(
   args: readonly string[],
   code: string | null,
   extra: InstanceEnv = {},
-): string {
+  input?: Uint8Array,
+): Buffer {
   const [command = "", ...head] = instanceScript();
   const { SETUP_CODE: _setup, PASSWORD_RESET_CODE: _reset, ...env } = process.env;
 
   return execFileSync(command, [...head, ...args], {
     env: code === null ? { ...env, ...extra } : { ...env, ...extra, SETUP_CODE: code },
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "inherit"],
+    maxBuffer: MAX_FILE_BYTES,
+    stdio: [input === undefined ? "ignore" : "pipe", "pipe", "inherit"],
+    input,
   });
 }
 
@@ -171,12 +186,28 @@ export function instanceAt(dir: string): Instance {
         runInstance(["restart", dir, file], null);
       }
     },
-    logs: () => runInstance(["logs", dir], null),
+    logs: () => runInstance(["logs", dir], null).toString("utf8"),
     sql: (statement) => {
       runInstance(["sql", dir, statement], null);
     },
     query: (statement, schema) =>
-      schema.parse(JSON.parse(runInstance(["query", dir, statement], null))),
+      schema.parse(JSON.parse(runInstance(["query", dir, statement], null).toString("utf8"))),
+    readFile: (key) => {
+      try {
+        return runInstance(["file-read", dir, key], null);
+      } catch (error) {
+        if (error instanceof Error && "status" in error && error.status === MISSING_FILE_STATUS) {
+          return null;
+        }
+
+        throw error;
+      }
+    },
+    writeFile: (key, bytes) => {
+      runInstance(["file-write", dir, key], null, {}, bytes);
+    },
+    listFiles: (prefix) =>
+      StoredFiles.parse(JSON.parse(runInstance(["file-list", dir, prefix], null).toString("utf8"))),
     stop: () => {
       runInstance(["stop", dir], null);
     },

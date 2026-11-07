@@ -78,6 +78,15 @@ sql)
 query)
   podman exec -i "$(<"$2/name")" node -e 'const { DatabaseSync } = require("node:sqlite"); console.log(JSON.stringify(new DatabaseSync("/data/threadsift.db", { timeout: 5000 }).prepare(process.argv[1]).all()))' "$3"
   ;;
+file-read)
+  podman exec "$(<"$2/name")" sh -c 'test -f "$1" || exit 3; exec cat -- "$1"' sh "/data/files/$3"
+  ;;
+file-write)
+  podman exec -i "$(<"$2/name")" sh -c 'mkdir -p -- "$(dirname -- "$1")" && cat >"$1"' sh "/data/files/$3"
+  ;;
+file-list)
+  podman exec "$(<"$2/name")" node -e 'const { existsSync, lstatSync, readdirSync } = require("node:fs"); const { join, relative } = require("node:path"); const root = "/data/files"; const listed = []; if (existsSync(root)) for (const entry of readdirSync(root, { recursive: true, withFileTypes: true })) { if (!entry.isFile()) continue; const key = relative(root, join(entry.parentPath, entry.name)); if (!key.startsWith(process.argv[1])) continue; const stats = lstatSync(join(root, key)); listed.push({ key, size: stats.size, uploadedAt: Math.floor(stats.mtimeMs) }); } console.log(JSON.stringify(listed.sort((left, right) => (left.key < right.key ? -1 : 1))))' "$3"
+  ;;
 stop)
   [[ -f $2/name ]] || exit 0
   podman rm --force "$(<"$2/name")" >/dev/null 2>&1 || true

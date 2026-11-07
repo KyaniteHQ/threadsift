@@ -7,6 +7,7 @@ source tools/e2e/common.sh
 export CI=1 WRANGLER_SEND_METRICS=false THREADSIFT_TARGET=worker NO_COLOR=1
 
 self=$PWD/tools/e2e/worker.sh
+bucket=threadsift-files
 
 ready_url() {
   local log=$1 offset=$2 pid=$3 url
@@ -95,6 +96,26 @@ query)
     exit 1
   fi
   printf '%s\n' "$results"
+  ;;
+file-read)
+  errors=$(mktemp)
+  status=0
+  pnpm exec wrangler r2 object get "$bucket/$3" --local --persist-to "$2/state" --pipe 2>"$errors" || status=$?
+  if [[ $status -ne 0 ]]; then
+    if grep -q 'The specified key does not exist' "$errors"; then
+      status=3
+    else
+      cat "$errors" >&2
+    fi
+  fi
+  rm -f "$errors"
+  exit "$status"
+  ;;
+file-write)
+  pnpm exec wrangler r2 object put "$bucket/$3" --local --persist-to "$2/state" --pipe >/dev/null
+  ;;
+file-list)
+  node tools/e2e/list-worker-files.ts "$2/state" "$3"
   ;;
 stop)
   stop "$2"

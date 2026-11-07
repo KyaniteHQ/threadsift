@@ -120,7 +120,7 @@ export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
   });
 
   app.openapi(getItemRoute, async (c) => {
-    const item = await getItem(ports.db, c.req.valid("param").id);
+    const item = await getItem(ports, c.req.valid("param").id);
 
     return item === undefined
       ? c.json({ error: NOT_FOUND }, 404)

@@ -29,6 +29,7 @@ export const items = sqliteTable(
     author: text("author"),
     community: text("community"),
     postText: text("post_text"),
+    postTextKey: text("post_text_key"),
     postedAt: integer("posted_at"),
     fetchedAt: integer("fetched_at"),
     pendingDigest: text("pending_digest"),
