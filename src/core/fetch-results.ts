@@ -15,3 +15,7 @@ export const FETCH_RESULTS = ["ok", "not-requested", ...FETCH_FAILURES] as const
 export type FetchFailure = (typeof FETCH_FAILURES)[number];
 
 export type FetchResult = (typeof FETCH_RESULTS)[number];
+
+export function refreshedOf(known: boolean, result: FetchResult | null): boolean {
+  return known && result !== null;
+}

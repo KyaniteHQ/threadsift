@@ -3,7 +3,7 @@ import { z } from "zod";
 import { runJob, tick } from "../../core/jobs.ts";
 import type { Ports } from "../../core/ports.ts";
 import { createApp } from "../../http/app.ts";
-import { isApiPath, isDocumentPath } from "../../http/document-path.ts";
+import { isDocumentPath, isServerPath } from "../../http/document-path.ts";
 import { configuredCode } from "../shared/configured-code.ts";
 import { createWorkerPorts, type Env } from "./ports.ts";
 
@@ -71,7 +71,7 @@ async function runMessage(env: Env, message: Readonly<JobMessage>): Promise<void
 
 export default {
   fetch: async (request: Request, env: Env): Promise<Response> =>
-    isApiPath(new URL(request.url).pathname)
+    isServerPath(new URL(request.url).pathname)
       ? (await apiApp(env)).fetch(request)
       : serveDocument(request, env),
   queue: async (batch: Readonly<JobBatch>, env: Env): Promise<void> => {

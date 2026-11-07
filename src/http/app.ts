@@ -6,6 +6,7 @@ import { registerAccessRoutes } from "./access-routes.ts";
 import { registerAiRoutes } from "./ai-routes.ts";
 import { guard } from "./guard.ts";
 import { NOT_FOUND, registerItemRoutes } from "./item-routes.ts";
+import { registerShareRoutes } from "./share-routes.ts";
 
 function reasonOf(error: z.ZodError): string {
   return error.issues
@@ -24,6 +25,7 @@ export function createApp(ports: Ports): OpenAPIHono {
   registerAccessRoutes(app, ports);
   registerItemRoutes(app, ports);
   registerAiRoutes(app, ports);
+  registerShareRoutes(app, ports);
 
   app.doc("/api/openapi.json", {
     openapi: "3.1.0",
