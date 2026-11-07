@@ -70,7 +70,7 @@ restart)
   ;;
 logs)
   [[ ! -f $2/server.log ]] || cat "$2/server.log"
-  podman logs "$(<"$2/name")" 2>&1
+  [[ ! -f $2/name ]] || podman logs "$(<"$2/name")" 2>&1
   ;;
 sql)
   podman exec -i "$(<"$2/name")" node -e 'const { DatabaseSync } = require("node:sqlite"); new DatabaseSync("/data/threadsift.db", { timeout: 5000 }).exec(process.argv[1])' "$3"
@@ -89,6 +89,7 @@ file-list)
   ;;
 stop)
   [[ -f $2/name ]] || exit 0
+  podman logs "$(<"$2/name")" >>"$2/server.log" 2>&1 || true
   podman rm --force "$(<"$2/name")" >/dev/null 2>&1 || true
   podman volume rm --force "$(<"$2/volume")" >/dev/null 2>&1 || true
   rm -f "$2/name"

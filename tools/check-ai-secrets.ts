@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { crc32, deflateRawSync } from "node:zlib";
 
 import { z } from "zod";
@@ -17,6 +17,7 @@ interface ScanResult extends Inspection {
 
 const EMBEDDED_ZIP = /data:application\/zip;base64,([A-Za-z0-9+/=]+)/gu;
 const ZIP_LOCAL = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+const SETUP_CODE_LINE = /^Setup code: (?!\[redacted\]$)\S+$/mu;
 
 function credentialForms(key: string) {
   const values = [key, `Bearer ${key}`];
@@ -83,6 +84,13 @@ function plantedZip(value: Uint8Array, method: 0 | 8): Buffer {
 function positiveControls(needles: readonly Uint8Array[]): number {
   let count = 0;
 
+  if (
+    !SETUP_CODE_LINE.test("x\nSetup code: abc\ny") ||
+    SETUP_CODE_LINE.test("Setup code: [redacted]")
+  )
+    throw new Error("Setup code positive control failed");
+  count += 1;
+
   for (const needle of needles) {
     if (inspect(needle, needles).matches !== 1)
       throw new Error("Credential positive control failed");
@@ -102,15 +110,21 @@ function positiveControls(needles: readonly Uint8Array[]): number {
   return count;
 }
 
+function inspectFile(path: string, needles: readonly Uint8Array[], logged: boolean): ScanResult {
+  const data = readFileSync(path);
+  const found = inspect(data, needles);
+  const unredacted = logged && SETUP_CODE_LINE.test(data.toString("utf8")) ? 1 : 0;
+
+  return { files: 1, ...found, matches: found.matches + unredacted };
+}
+
 function scan(directory: string, needles: readonly Uint8Array[]): ScanResult {
   const totals = { files: 0, entries: 0, matches: 0 };
+  const logged = basename(directory) === "logs";
 
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
-
-    const found = entry.isDirectory()
-      ? scan(path, needles)
-      : { files: 1, ...inspect(readFileSync(path), needles) };
+    const found = entry.isDirectory() ? scan(path, needles) : inspectFile(path, needles, logged);
 
     totals.files += found.files;
     totals.entries += found.entries;

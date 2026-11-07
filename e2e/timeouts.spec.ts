@@ -5,7 +5,7 @@ import { postLinkRaw, settled } from "./api.ts";
 import { ADDED } from "./card.ts";
 import { HOP_DEADLINE_MS, STALLED } from "./ingest.ts";
 import { addButton, newRunId, pasteCard, pasteField, pasteStatus } from "./links.ts";
-import { afterTwoFrames } from "./look.ts";
+import { afterTwoFrames, fontsLoaded } from "./look.ts";
 
 const DRIP = "https://httpbin.org/drip?duration=10&numbytes=10";
 const SLOW_SHORT_LINK = "https://is.gd/g8TLgI";
@@ -84,6 +84,7 @@ test("a short link whose target answers slowly keeps the paste box in its saving
   );
 
   const add = addButton(page);
+  await fontsLoaded(page);
   const idleWidth = (await add.boundingBox())?.width ?? 0;
   const started = Date.now();
   await add.click();

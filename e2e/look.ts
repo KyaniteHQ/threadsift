@@ -34,7 +34,12 @@ export function viewportAt(page: Page, width: number): Promise<void> {
 
 const TITLED = "Example Domain";
 
+export async function fontsLoaded(page: Page): Promise<void> {
+  await page.evaluate(() => document.fonts.ready);
+}
+
 export async function afterTwoFrames(page: Page): Promise<void> {
+  await fontsLoaded(page);
   await page.evaluate(
     () =>
       new Promise<void>((resolve) => {

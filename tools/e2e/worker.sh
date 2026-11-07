@@ -58,6 +58,29 @@ require_current_bundle() {
   }
 }
 
+D1_TRIES=10
+
+d1_execute() {
+  local dir=$1 attempt status output errors
+  shift
+  errors=$(mktemp)
+  for attempt in $(seq 1 "$D1_TRIES"); do
+    status=0
+    output=$(pnpm exec wrangler d1 execute DB --local --persist-to "$dir/state" "$@" 2>"$errors") || status=$?
+    [[ $status -ne 0 ]] || break
+    grep -q SQLITE_BUSY "$errors" || grep -q SQLITE_BUSY <<<"$output" || break
+    sleep 0.5
+  done
+  cat "$errors" >&2
+  rm -f "$errors"
+  if [[ $status -eq 0 ]]; then
+    printf '%s\n' "$output"
+  else
+    printf '%s\n' "$output" >&2
+  fi
+  return "$status"
+}
+
 launch() {
   local dir=$1
   mkdir -p "$dir/state"
@@ -82,15 +105,10 @@ logs)
   cat "$2/wrangler.log"
   ;;
 sql)
-  pnpm exec wrangler d1 execute DB --local --persist-to "$2/state" --command "$3" >/dev/null
+  d1_execute "$2" --command "$3" >/dev/null
   ;;
 query)
-  status=0
-  output=$(pnpm exec wrangler d1 execute DB --local --persist-to "$2/state" --json --command "$3") || status=$?
-  if [[ $status -ne 0 ]]; then
-    printf '%s\n' "$output" >&2
-    exit "$status"
-  fi
+  output=$(d1_execute "$2" --json --command "$3")
   if ! results=$(jq -ce '.[0].results | select(type == "array")' <<<"$output" 2>/dev/null); then
     printf '%s\n' "${output:-wrangler returned no results array}" >&2
     exit 1
