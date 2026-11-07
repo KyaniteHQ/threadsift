@@ -1,14 +1,13 @@
 import { z } from "zod";
 
 import { AiSettingsViewSchema } from "../../src/core/ai-contract.ts";
-import { REQUEST_HEADERS } from "../../src/core/ports.ts";
 import { ItemDetailResponseSchema } from "../../src/http/schemas.ts";
 import { type Run, Stop } from "./check-run.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
-import { type Copy, type Item, callCopy, endState, expectOk, paste, send } from "./copy-client.ts";
+import { type Copy, callCopy, send } from "./copy-calls.ts";
+import { type Item, endState, expectOk, paste } from "./copy-client.ts";
 import { queryDatabase } from "./d1.ts";
 import { type Invocation, type Trigger, awaitInvocations, readInvocations } from "./telemetry.ts";
-import { callTimeout } from "./timeout.ts";
 
 export const SKEW_MS = 10_000;
 export const CAP_BYTES = 900 * 1024;
@@ -71,16 +70,6 @@ export async function itemDetail(copy: Readonly<Copy>, id: number) {
   await expectOk(response, path);
 
   return ItemDetailResponseSchema.parse(await response.json()).item;
-}
-
-export async function decodedPage(url: string): Promise<{ bytes: number; html: boolean }> {
-  const response = await fetch(url, { headers: REQUEST_HEADERS, signal: callTimeout() });
-  const { byteLength } = await response.arrayBuffer();
-
-  return {
-    bytes: byteLength,
-    html: (response.headers.get("content-type") ?? "").startsWith("text/html"),
-  };
 }
 
 export interface Pasted {

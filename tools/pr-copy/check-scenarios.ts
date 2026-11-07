@@ -3,7 +3,7 @@ import { cronCheck } from "./check-cron.ts";
 import { capCheck, queueCheck, unreachableCheck } from "./check-fetch.ts";
 import type { Run } from "./check-run.ts";
 import type { Findings, ScenarioName } from "./check-types.ts";
-import type { Copy } from "./copy-client.ts";
+import type { Copy } from "./copy-calls.ts";
 
 export type Body = (
   run: Readonly<Run>,

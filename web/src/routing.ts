@@ -2,6 +2,8 @@ import { type MouseEvent, useCallback, useEffect, useState } from "react";
 
 export const SETTINGS_PATH = "/settings";
 
+export const RESET_PATH = "/reset";
+
 export interface Route {
   readonly openId: number | null;
   readonly navigate: (to: string) => void;

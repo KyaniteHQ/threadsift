@@ -72,6 +72,7 @@ export interface Ports {
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
   readonly setupCode: string | undefined;
+  readonly resetCode: string | undefined;
   readonly ai: AiRuntime;
 }
 

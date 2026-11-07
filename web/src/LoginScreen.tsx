@@ -5,6 +5,7 @@ import { FIELDS, LOGIN } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
 import { AuthShell } from "./AuthShell.tsx";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
+import { RESET_PATH, useInternalLink } from "./routing.ts";
 import { SwapButton } from "./SwapButton.tsx";
 import { useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
 import { useOutcome } from "./use-outcome.ts";
@@ -49,14 +50,20 @@ function useLogin(signedIn: () => void) {
   return { password, lock, visibility, ...useSubmit(run, lock.locked) };
 }
 
-export function LoginScreen({ signedIn }: Readonly<{ signedIn: () => void }>) {
+export function LoginScreen({
+  signedIn,
+  reset,
+  openReset,
+}: Readonly<{ signedIn: () => void; reset: boolean; openReset: () => void }>) {
   const { password, lock, visibility, busy, onSubmit } = useLogin(signedIn);
+  const follow = useInternalLink(openReset);
   useFocusOnMount(password.ref);
 
   return (
     <AuthShell>
       <form className="stack" method="post" onSubmit={onSubmit}>
         <h1 className="auth-title">{LOGIN.heading}</h1>
+        {reset ? <output>{LOGIN.resetDone}</output> : null}
         <UsernameHint />
         <PasswordField
           field={password}
@@ -73,6 +80,9 @@ export function LoginScreen({ signedIn }: Readonly<{ signedIn: () => void }>) {
           busy={busy}
           blocked={lock.locked}
         />
+        <a className="btn btn-plain btn-flush" href={RESET_PATH} onClick={follow}>
+          {LOGIN.lost}
+        </a>
       </form>
     </AuthShell>
   );

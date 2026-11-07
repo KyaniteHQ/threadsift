@@ -1,8 +1,20 @@
-import { CAP_BYTES, decodedPage } from "./check-measure.ts";
+import { REQUEST_HEADERS } from "../../src/core/ports.ts";
+import { CAP_BYTES } from "./check-measure.ts";
 import type { Page } from "./check-pages.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
+import { callTimeout } from "./timeout.ts";
 
 const HTML_TAG = /<\/?(?:p|div|article|h[1-6])\b/u;
+
+export async function decodedPage(url: string): Promise<{ bytes: number; html: boolean }> {
+  const response = await fetch(url, { headers: REQUEST_HEADERS, signal: callTimeout() });
+  const { byteLength } = await response.arrayBuffer();
+
+  return {
+    bytes: byteLength,
+    html: (response.headers.get("content-type") ?? "").startsWith("text/html"),
+  };
+}
 
 export interface Content {
   readonly source: string;

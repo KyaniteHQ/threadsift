@@ -7,7 +7,7 @@ export function codeField(page: Page) {
 }
 
 export function passwordField(page: Page) {
-  return page.getByLabel(FIELDS.password, { exact: true });
+  return page.getByLabel(FIELDS.password, { exact: true }).and(page.locator("input"));
 }
 
 export function confirmField(page: Page) {

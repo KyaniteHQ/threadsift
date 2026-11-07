@@ -57,6 +57,13 @@
       "when": 1793997374423,
       "tag": "0007_topic-tag-catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794002199955,
+      "tag": "0008_spent-reset-codes",
+      "breakpoints": true
     }
   ]
 }

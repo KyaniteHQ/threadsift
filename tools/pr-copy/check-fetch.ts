@@ -9,7 +9,8 @@ import {
 } from "./check-pages.ts";
 import type { Run } from "./check-run.ts";
 import type { Findings } from "./check-types.ts";
-import { type Copy, endState, paste } from "./copy-client.ts";
+import type { Copy } from "./copy-calls.ts";
+import { endState, paste } from "./copy-client.ts";
 
 export async function queueCheck(
   run: Readonly<Run>,

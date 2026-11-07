@@ -86,6 +86,11 @@ export const REFUSAL_CODES = [
   "setup-short",
   "password-short",
   "password-long",
+  "password-changed",
+  "reset-missing",
+  "reset-short",
+  "reset-used",
+  "no-owner",
 ] as const;
 
 export type RefusalCode = (typeof REFUSAL_CODES)[number];
@@ -106,6 +111,13 @@ export const SetupCodeRequestSchema = z.object({ code: z.string() });
 export const SetupRequestSchema = z.object({ code: z.string(), password: z.string() });
 
 export const LoginRequestSchema = z.object({ password: z.string() });
+
+export const ChangePasswordRequestSchema = z.object({
+  current: z.string(),
+  password: z.string(),
+});
+
+export const ResetPasswordRequestSchema = z.object({ code: z.string(), password: z.string() });
 
 export const TOKEN_NAME_MAX = 80;
 

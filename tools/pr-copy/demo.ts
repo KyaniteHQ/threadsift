@@ -1,14 +1,8 @@
 import { ItemListResponseSchema, SessionStateSchema } from "../../src/http/schemas.ts";
-import {
-  type Copy,
-  type Item,
-  awaitServing,
-  callCopy,
-  endState,
-  expectOk,
-  paste,
-  signIn,
-} from "./copy-client.ts";
+import type { AccessCodes } from "./codes.ts";
+import { type Copy, callCopy } from "./copy-calls.ts";
+import { type Item, awaitServing, endState, expectOk, paste } from "./copy-client.ts";
+import { signIn } from "./demo-access.ts";
 
 const RETRY_BUDGET_MS = 120_000;
 
@@ -53,8 +47,8 @@ async function seedItem(copy: Readonly<Copy>, demo: Readonly<DemoItem>): Promise
   return wrong.length === 0 ? null : `${demo.url} ended with a different ${wrong.join(", ")}`;
 }
 
-export async function seedDemo(url: string, setupCode: string): Promise<void> {
-  const copy = await openDemo(url, setupCode);
+export async function seedDemo(url: string, codes: Readonly<AccessCodes>): Promise<void> {
+  const copy = await openDemo(url, codes);
 
   const outcomes = await Promise.all(DEMO_ITEMS.map((demo) => seedItem(copy, demo)));
   const failed = outcomes.filter((outcome) => outcome !== null);
@@ -64,14 +58,14 @@ export async function seedDemo(url: string, setupCode: string): Promise<void> {
   }
 }
 
-async function openDemo(url: string, setupCode: string): Promise<Copy> {
+async function openDemo(url: string, codes: Readonly<AccessCodes>): Promise<Copy> {
   await awaitServing(url);
 
-  return signIn({ url, retryUntil: Date.now() + RETRY_BUDGET_MS }, setupCode);
+  return signIn({ url, retryUntil: Date.now() + RETRY_BUDGET_MS }, codes);
 }
 
-export async function ensureDemo(url: string, setupCode: string): Promise<void> {
-  const copy = await openDemo(url, setupCode);
+export async function ensureDemo(url: string, codes: Readonly<AccessCodes>): Promise<void> {
+  const copy = await openDemo(url, codes);
   const response = await callCopy(copy, { path: "/api/items", cookie: copy.cookie });
 
   await expectOk(response, "/api/items");

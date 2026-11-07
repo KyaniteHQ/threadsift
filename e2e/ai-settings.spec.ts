@@ -68,7 +68,7 @@ test("AI settings refuse a missing or malformed sealing key without a write", as
 
   screen = await aiScreen(browser, newSealingKey());
   await saveInBrowser(screen, "changed-key-proof", "https://example.com", "example");
-  screen.fresh.restart(newSealingKey());
+  screen.fresh.restart({ THREADSIFT_SECRET_KEY: newSealingKey() });
   await screen.page.reload();
   await expect(screen.page.getByText(AI_TEXT["secret-missing"], { exact: true })).toBeVisible();
   expect(await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).toEqual({

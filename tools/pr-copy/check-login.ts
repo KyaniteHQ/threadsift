@@ -3,7 +3,8 @@ import { randomBytes } from "node:crypto";
 import { INGEST_DEADLINE_MS, SENTINEL_ROUTE, SKEW_MS, idleMinutes } from "./check-measure.ts";
 import type { Run } from "./check-run.ts";
 import type { Findings } from "./check-types.ts";
-import { type Copy, logIn, send } from "./copy-client.ts";
+import { type Copy, send } from "./copy-calls.ts";
+import { logIn } from "./copy-client.ts";
 import { requiredEnv } from "./env.ts";
 import { type Invocation, awaitInvocations } from "./telemetry.ts";
 

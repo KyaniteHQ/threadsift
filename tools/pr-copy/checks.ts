@@ -4,7 +4,8 @@ import { writeReport } from "./check-report.ts";
 import { type CheckOptions, type Run, withRun } from "./check-run.ts";
 import { BODIES, ORDER } from "./check-scenarios.ts";
 import { type ScenarioResult, conclude } from "./check-types.ts";
-import { type Copy, logIn } from "./copy-client.ts";
+import type { Copy } from "./copy-calls.ts";
+import { logIn } from "./copy-client.ts";
 import { requiredEnv } from "./env.ts";
 
 async function runScenarios(

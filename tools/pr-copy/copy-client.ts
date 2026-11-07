@@ -2,20 +2,13 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import type { z } from "zod";
 
-import {
-  ErrorResponseSchema,
-  ItemResponseSchema,
-  SavedItemResponseSchema,
-  SessionStateSchema,
-} from "../../src/http/schemas.ts";
-import { requiredEnv } from "./env.ts";
+import { ItemResponseSchema, SavedItemResponseSchema } from "../../src/http/schemas.ts";
+import { type Copy, POLL_MS, type Site, callCopy, isJson, refusal } from "./copy-calls.ts";
 import { callTimeout } from "./timeout.ts";
 
 const SERVE_DEADLINE_MS = 120_000;
 const SERVED_IN_A_ROW = 10;
-const LOCK_WAIT_LIMIT_S = 300;
 const ITEM_DEADLINE_MS = 300_000;
-const POLL_MS = 1000;
 
 export type Item = z.infer<typeof ItemResponseSchema>["item"];
 
@@ -30,60 +23,6 @@ export class CopyAnswerError extends Error {
     this.status = status;
     this.answer = answer;
   }
-}
-
-export interface Site {
-  readonly url: string;
-  readonly retryUntil: number;
-}
-
-export type Copy = Readonly<Site & { cookie: string }>;
-
-export interface Call {
-  readonly path: string;
-  readonly cookie?: string;
-  readonly body?: Readonly<Record<string, string>>;
-}
-
-export function send(url: string, call: Readonly<Call>): Promise<Response> {
-  const headers = new Headers({ origin: url });
-
-  if (call.cookie !== undefined) {
-    headers.set("cookie", call.cookie);
-  }
-
-  const request =
-    call.body === undefined
-      ? { method: "GET" }
-      : { method: "POST", body: JSON.stringify(call.body) };
-
-  if (call.body !== undefined) headers.set("content-type", "application/json");
-
-  return fetch(`${url}${call.path}`, { ...request, headers, signal: callTimeout() });
-}
-
-function isJson(response: Response): boolean {
-  return (response.headers.get("content-type") ?? "").startsWith("application/json");
-}
-
-function fromApp(response: Response): boolean {
-  return (response.status !== 404 && response.status < 500) || isJson(response);
-}
-
-export async function callCopy(site: Readonly<Site>, call: Readonly<Call>): Promise<Response> {
-  const response = await send(site.url, call);
-
-  if (fromApp(response) || Date.now() >= site.retryUntil) {
-    return response;
-  }
-
-  await response.body?.cancel();
-  process.stdout.write(
-    `${call.path} got ${String(response.status)} from Cloudflare, not the app; retrying\n`,
-  );
-  await sleep(POLL_MS);
-
-  return callCopy(site, call);
 }
 
 async function answersJson(url: string): Promise<boolean> {
@@ -107,84 +46,23 @@ export async function awaitServing(url: string, inARow = 0, waitedMs = 0): Promi
   return awaitServing(url, served ? inARow + 1 : 0, waitedMs + POLL_MS);
 }
 
-async function refusal(response: Response): Promise<string> {
-  const body = ErrorResponseSchema.safeParse(await response.json().catch(() => null));
-
-  return body.success ? body.data.error : "no error body";
-}
-
 export async function expectOk(response: Response, path: string): Promise<void> {
   if (response.status !== 200) {
     throw new CopyAnswerError(path, response.status, await refusal(response));
   }
 }
 
-async function postAccess(
-  site: Readonly<Site>,
-  call: Readonly<Call>,
-  waitedS = 0,
-): Promise<string | null> {
-  const response = await callCopy(site, call);
-
+export async function logIn(site: Readonly<Site>, password: string): Promise<Copy> {
+  const path = "/api/login";
+  const response = await callCopy(site, { path, body: { password } });
   const [setCookie] = response.headers.getSetCookie();
   const cookie = setCookie?.split(";")[0];
 
-  if (response.status === 204 && cookie !== undefined) {
-    return cookie;
-  }
-
-  if (response.status === 409) {
-    return null;
-  }
-
-  if (response.status !== 429) {
-    throw new CopyAnswerError(call.path, response.status, await refusal(response));
-  }
-
-  const retryAfter = Number(response.headers.get("retry-after"));
-
-  if (waitedS + retryAfter > LOCK_WAIT_LIMIT_S) {
-    throw new Error(
-      `${call.path} is locked for ${String(retryAfter)} s after ${String(waitedS)} s of waiting; the limit is ${String(LOCK_WAIT_LIMIT_S)} s`,
-    );
-  }
-
-  process.stdout.write(`${call.path} is locked; waiting ${String(retryAfter)} s\n`);
-  await sleep(retryAfter * 1000);
-
-  return postAccess(site, call, waitedS + retryAfter);
-}
-
-export async function logIn(site: Readonly<Site>, password: string): Promise<Copy> {
-  const cookie = await postAccess(site, { path: "/api/login", body: { password } });
-
-  if (cookie === null) {
-    throw new Error("/api/login answered 409");
+  if (response.status !== 204 || cookie === undefined) {
+    throw new CopyAnswerError(path, response.status, await refusal(response));
   }
 
   return { ...site, cookie };
-}
-
-export async function signIn(site: Readonly<Site>, setupCode: string): Promise<Copy> {
-  const response = await callCopy(site, { path: "/api/session" });
-  const state = SessionStateSchema.parse(await response.json());
-  const password = requiredEnv("DEMO_OWNER_PASSWORD");
-  process.stdout.write(`${site.url}/api/session: ${JSON.stringify(state)}\n`);
-
-  if (state.state !== "setup") {
-    return logIn(site, password);
-  }
-
-  if (state.code !== "set") {
-    throw new Error(`The copy has no usable setup code: ${state.code}`);
-  }
-
-  const cookie = await postAccess(site, {
-    path: "/api/setup",
-    body: { code: setupCode, password },
-  });
-
-  return cookie === null ? logIn(site, password) : { ...site, cookie };
 }
 
 export async function paste(copy: Readonly<Copy>, link: string): Promise<number> {

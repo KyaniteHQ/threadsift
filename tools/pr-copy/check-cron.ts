@@ -11,7 +11,8 @@ import {
 } from "./check-measure.ts";
 import type { Run } from "./check-run.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
-import { type Copy, callCopy, endState, expectOk, paste, send } from "./copy-client.ts";
+import { type Copy, callCopy, send } from "./copy-calls.ts";
+import { endState, expectOk, paste } from "./copy-client.ts";
 import { purgeStatus, resumeDelivery, setDeliveryPaused, startPurge } from "./copy-control.ts";
 import { awaitInvocations } from "./telemetry.ts";
 
