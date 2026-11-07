@@ -49,7 +49,7 @@ A spec that pastes a link to a live host and asserts what the fetch stored, such
 
 Gate runs that failed on a live host: `article-pages.spec.ts:86` on gutenberg.org got `status` (run 42376461414), `long-text.spec.ts:65` got `timeout` (run 42389020132), `search.spec.ts:81` stored empty post text (run 42375495369, first attempt; the job log and the artifact hold only `Received: 0`, because the spec did not read the Item's `fetch`), and `library.spec.ts:88` got `title: null` for `https://www.rfc-editor.org/rfc/rfc9110` (run 42407551583, `e2e-worker (1)`). The `search.spec.ts` case fits the rule when the cause was `timeout` or `status`, which the next report will show. If it ever shows `ok`, the Worker stored an empty text for a page that answered, which is an app defect and fails at once.
 
-The `library.spec.ts` case is not an app fault. The three `job-attempt-failed` lines with `TypeError` in that shard's Worker log (job 62) belong to `ingest.spec.ts:196`, which stores the address `not a url` on purpose and expects three failed attempts; the container shard logs the same three lines for job 63 and its `library.spec.ts` passed. The job of the RFC Item is the one whose queue run took 8136 ms, the 8 s hop deadline (`HOP_DEADLINE_MS`), with no `job-attempt-failed` and no `fetch-status` line, so its fetch ended `timeout`. `guardedFetch` turns every throw from `network.get` and from the body read into a fetch result (`network` or `timeout`), and `e2e/unreachable.spec.ts` covers a host that does not resolve on both targets.
+The `library.spec.ts` case most likely ended `timeout`: its fetch job ran 8,136 ms against the 8 s hop deadline (`HOP_DEADLINE_MS`) and logged no failure line; the artifacts do not record `Item.fetch`.
 
 ## Instance helpers
 
