@@ -53,6 +53,8 @@ const VENDORS = [
 
 type Vendor = (typeof VENDORS)[number];
 
+const VERIFY_SAMPLE = "describes how a reading group keeps a shared notebook";
+
 let screen: FreshScreen;
 
 test.afterEach(async () => {
@@ -155,6 +157,7 @@ async function attachRefusal(vendor: Readonly<Vendor>, info: TestInfo, key: stri
 
   assertNoSecret(raw, [key]);
   assertNoSecret(log, [key]);
+  expect(log.includes(VERIFY_SAMPLE), "the server log holds no Verify request text").toBe(false);
   assertNoSecret(JSON.stringify(tasks), [key]);
   expect(tasks).toMatchObject([
     {
@@ -199,11 +202,10 @@ async function proveWrongKey(
 
   const raw = await (await responded).text();
 
-  expect(VerifyResultSchema.parse(JSON.parse(raw))).toEqual({
-    kind: "refused",
-    reason: "wrong-key",
-    status: vendor.wrongKeyStatus,
-  });
+  const refusal = { kind: "refused", reason: "wrong-key", status: vendor.wrongKeyStatus };
+
+  expect(JSON.parse(raw)).toEqual(refusal);
+  expect(VerifyResultSchema.parse(JSON.parse(raw))).toEqual(refusal);
   await expect(screen.page.getByText(AI_TEXT["wrong-key"], { exact: true })).toBeVisible();
   expect(countRows(screen, "items")).toBe(0);
   await attachRefusal(vendor, info, key, raw);
