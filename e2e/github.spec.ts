@@ -187,7 +187,8 @@ test("a repository that does not exist stays a Link-only Item with the fetch res
 
   await openLibrary(page);
   await page.goto(`/items/${body.item.id}`);
-  await expect(page.locator(".rd-note")).toHaveText(NO_POST_TEXT);
+  await expect(page.locator(".rd-note", { hasText: NO_POST_TEXT })).toBeVisible();
+  await expect(page.locator(".rd-note", { hasText: NO_README })).toHaveCount(0);
 });
 
 test("a fetch whose claim was taken over publishes no metadata, README or search part, even though it read both from GitHub", async ({
