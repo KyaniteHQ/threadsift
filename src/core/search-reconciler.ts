@@ -26,6 +26,7 @@ function itemsAfter(db: Database, after: number) {
       id: items.id,
       title: items.title,
       postText: items.postText,
+      postTextKey: items.postTextKey,
       digest: digests.digest,
       tagNames: tagNamesOfItem(),
       fingerprint: searchFingerprints.fingerprint,
@@ -55,7 +56,7 @@ async function reconcileItem(db: Database, row: Readonly<Reconciled>, fingerprin
   const unchanged = snapshotHolds(row);
 
   await guardedBatch(db, unchanged, [
-    ...fetchedPartWrites(db, scope, row.postText),
+    ...fetchedPartWrites(db, scope, row.postTextKey === null ? row.postText : undefined),
     ...digestPartWrites(db, scope),
     db
       .insert(searchFingerprints)

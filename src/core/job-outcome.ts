@@ -4,7 +4,7 @@ import type { JobKind } from "./kinds.ts";
 import type { Database, Ports } from "./ports.ts";
 import type { JobRow } from "./schema.ts";
 
-export type JobPorts = Pick<Ports, "db" | "network" | "pages" | "jobs" | "ai" | "crypto">;
+export type JobPorts = Pick<Ports, "db" | "files" | "network" | "pages" | "jobs" | "ai" | "crypto">;
 
 export type JobWrites = readonly BatchItem<"sqlite">[];
 
@@ -13,9 +13,15 @@ export interface JobCurrency {
   readonly discard: (cause: "stale" | "lease-lost" | "error") => BatchItem<"sqlite">;
 }
 
+export interface JobFiles {
+  readonly written: string | null;
+  readonly superseded: string | null;
+}
+
 export interface JobOutcome {
   readonly writes: JobWrites;
   readonly currency?: JobCurrency;
+  readonly files?: JobFiles;
 }
 
 export interface JobHandler {

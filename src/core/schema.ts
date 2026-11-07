@@ -44,6 +44,7 @@ export const items = sqliteTable(
   (table) => [
     index("items_saved_at_id").on(table.savedAt, table.id),
     index("items_topic").on(table.topicId),
+    index("items_post_text_key").on(table.postTextKey),
   ],
 );
 
@@ -74,6 +75,15 @@ export const scheduledRuns = sqliteTable("scheduled_runs", {
   task: text("task").primaryKey(),
   lastRunAt: integer("last_run_at").notNull(),
 });
+
+export const fileCleaning = sqliteTable(
+  "file_cleaning",
+  {
+    id: integer("id").primaryKey(),
+    cursor: text("cursor"),
+  },
+  (table) => [check("file_cleaning_is_one_row", sql`${table.id} = 1`)],
+);
 
 export const guards = sqliteTable(
   "guards",

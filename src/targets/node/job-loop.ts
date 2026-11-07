@@ -1,6 +1,7 @@
 import type { JobPorts } from "../../core/job-outcome.ts";
-import { abandonRunning, claimNextDue, executeClaimed, tick } from "../../core/jobs.ts";
+import { abandonRunning, claimNextDue, executeClaimed } from "../../core/jobs.ts";
 import type { JobQueue } from "../../core/ports.ts";
+import { tick } from "../../core/tick.ts";
 
 const LOOP_WIDTH = 4;
 const LOOP_POLL_MS = 5000;

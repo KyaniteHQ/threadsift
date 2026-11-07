@@ -8,7 +8,7 @@ import { type Link, isGitHubLink, isVideoLink } from "./links.ts";
 import type { PageReader } from "./ports.ts";
 
 export type Content =
-  | { readonly kind: "article"; readonly postText: string | null; readonly postedAt: number | null }
+  | { readonly kind: "article"; readonly postText: string; readonly postedAt: number | null }
   | { readonly kind: "link" };
 
 export interface Found {

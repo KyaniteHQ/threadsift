@@ -17,6 +17,11 @@ export const BREAD_LATE_SENTENCE = "sand was used as a filler";
 export const BREAD_POSTED_AT = Date.parse("2002-01-29T04:35:03Z");
 
 export const WAR_AND_PEACE = "https://www.gutenberg.org/files/2600/2600-h/2600-h.htm";
+
+export const WAR_AND_PEACE_LAST_SENTENCE =
+  "to renounce a freedom that does not exist, and to recognize a dependence of which we are not conscious";
+
+export const WAR_AND_PEACE_LAST_WORD = "Copernicus";
 export const COMPLETE_SHAKESPEARE = "https://www.gutenberg.org/files/100/100-h/100-h.htm";
 export const VIDEO_HOST_PAGE_WITH_TEXT = "https://vimeo.com/terms";
 export const C2_WIKI_PAGE = "https://wiki.c2.com/?WelcomeVisitors";

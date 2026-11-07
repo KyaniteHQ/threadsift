@@ -243,6 +243,7 @@ test.describe("container folder errors", () => {
   test("the harness read tells an absent key from a folder, an unreadable file and an inaccessible parent", () => {
     const id = seeded();
 
+    nameFile(instance, id, `'items/${id}/leaf.md'`);
     inFolder(
       id,
       `printf %s kept >/data/files/items/${id}/leaf.md && mkdir /data/files/items/${id}/dir`,

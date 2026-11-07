@@ -1,5 +1,6 @@
 import { type APIRequestContext, type Page, type TestInfo, expect, test } from "@playwright/test";
 
+import { mainInstance } from "./access.ts";
 import { listAll, postLink, postLinkRaw, settled } from "./api.ts";
 import {
   BIG_PAGE_TIMEOUT_MS,
@@ -15,6 +16,7 @@ import {
   ESSAY_TITLE,
   VIDEO_HOST_PAGE_WITH_TEXT,
   WAR_AND_PEACE,
+  WAR_AND_PEACE_LAST_SENTENCE,
   attachItem,
   expectMarkdown,
   readsWhileProcessing,
@@ -28,6 +30,7 @@ import {
   pasteForId,
   watchCard,
 } from "./card.ts";
+import { postTextOf } from "./files.ts";
 import { forgetItem, jobsOf } from "./ingest.ts";
 import { rowOf, throughRedirects } from "./links.ts";
 import { isContainerTarget } from "./target.ts";
@@ -117,7 +120,7 @@ async function essayByShortLinkThenDirectly({ request, info }: Run): Promise<voi
   await attachItem(request, info, "2-essay-refreshed", id);
 }
 
-async function bookTooLongToStore({ request, info }: Run, other: number): Promise<void> {
+async function bookOverTheRowLimit({ request, info }: Run, other: number): Promise<void> {
   const { body } = await postLinkRaw(request, WAR_AND_PEACE);
   const reads = await readsWhileProcessing(request, body.item.id, other);
   const item = await settled(request, body.item.id, BIG_PAGE_TIMEOUT_MS);
@@ -137,7 +140,14 @@ async function bookTooLongToStore({ request, info }: Run, other: number): Promis
       kind: "article",
       status: "ready",
       fetch: "ok",
-      postText: null,
+    });
+    expect(item.postText, "the last chapter of the book").toContain(WAR_AND_PEACE_LAST_SENTENCE);
+    expect(
+      postTextOf(mainInstance(), item.id),
+      "the row of a text over the row limit",
+    ).toMatchObject({
+      key: expect.stringMatching(new RegExp(`^items/${item.id}/post-\\d+-\\d+\\.md$`, "u")),
+      inline: null,
     });
     expect(item.author).toContain("Tolstoy");
   } else {
@@ -202,7 +212,7 @@ async function listAndStatusHoldNoPostText(
   ).toMatchObject({ source: "article", kind: "article" });
 }
 
-test("the article scenario: Bread through the paste box, an essay through a short link and a direct Paste, a book too long to store or to read, and pages that stay Other", async ({
+test("the article scenario: Bread through the paste box, an essay through a short link and a direct Paste, a book over the row limit, and pages that stay Other", async ({
   page,
   request,
 }, info) => {
@@ -211,7 +221,7 @@ test("the article scenario: Bread through the paste box, an essay through a shor
   const bread = await breadThroughThePasteBox(run);
 
   await essayByShortLinkThenDirectly(run);
-  await bookTooLongToStore(run, bread);
+  await bookOverTheRowLimit(run, bread);
   await pagesThatStayOther(run);
   await listAndStatusHoldNoPostText(request, bread);
 });
