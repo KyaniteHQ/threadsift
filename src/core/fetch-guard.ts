@@ -30,6 +30,7 @@ export interface FetchPolicy {
   readonly readsBody: (url: string) => boolean;
   readonly headers: (url: string) => RequestHeaders;
   readonly htmlMaxBytes: number;
+  readonly dataMaxBytes: number;
 }
 
 export interface Page {
@@ -135,7 +136,7 @@ async function requestHop(
     const html = isHtmlType(response.contentType);
 
     const body = policy.readsBody(url)
-      ? await readCapped(response.body, html ? policy.htmlMaxBytes : SMALL_BODY_BYTES)
+      ? await readCapped(response.body, html ? policy.htmlMaxBytes : policy.dataMaxBytes)
       : NO_BODY;
 
     return { kind: "page", contentType: response.contentType, html, ...body };

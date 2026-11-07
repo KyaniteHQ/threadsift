@@ -26,6 +26,7 @@ const SMALL_POLICY: FetchPolicy = {
   readsBody: () => true,
   headers: () => NO_HEADERS,
   htmlMaxBytes: SMALL_BODY_BYTES,
+  dataMaxBytes: SMALL_BODY_BYTES,
 };
 
 const RESOLVE_POLICY: FetchPolicy = { ...SMALL_POLICY, readsBody: isShortLink };

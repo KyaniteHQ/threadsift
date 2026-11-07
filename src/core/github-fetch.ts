@@ -20,6 +20,7 @@ const API_HOST = "api.github.com";
 const NOT_FOUND = 404;
 const MARKDOWN_NAME = /\.(?:md|markdown)$/iu;
 const NO_LICENSE = "NOASSERTION";
+const README_ANSWER_BYTES = 768 * 1024;
 
 const API_HEADERS: RequestHeaders = {
   accept: "application/vnd.github+json",
@@ -38,7 +39,10 @@ const API_POLICY: FetchPolicy = {
   readsBody: () => true,
   headers: headersFor,
   htmlMaxBytes: SMALL_BODY_BYTES,
+  dataMaxBytes: SMALL_BODY_BYTES,
 };
+
+const README_POLICY: FetchPolicy = { ...API_POLICY, dataMaxBytes: README_ANSWER_BYTES };
 
 const RepositoryAnswerSchema = z
   .object({
@@ -88,8 +92,13 @@ function failureOf(outcome: Exclude<GuardOutcome, Page>): FetchFailure {
   return outcome.kind === "stopped" ? "redirect-stopped" : outcome.reason;
 }
 
-function getApi(network: Network, path: string, deadline: AbortSignal): Promise<GuardOutcome> {
-  return guardedFetch(network, `${API_ORIGIN}${path}`, API_POLICY, deadline);
+function getApi(
+  network: Network,
+  path: string,
+  policy: Readonly<FetchPolicy>,
+  deadline: AbortSignal,
+): Promise<GuardOutcome> {
+  return guardedFetch(network, `${API_ORIGIN}${path}`, policy, deadline);
 }
 
 function parsed<Schema extends z.ZodType>(schema: Schema, text: string): z.output<Schema> | null {
@@ -111,7 +120,7 @@ function decodedBase64(content: string): string | null {
 }
 
 function readmeOf(page: Readonly<Page>): Readme {
-  if (page.cut) return WITHOUT_README;
+  if (page.cut) return UNREADABLE_README;
 
   const answer = parsed(ReadmeAnswerSchema, page.text);
 
@@ -135,6 +144,7 @@ async function readmeAfter(
   const outcome = await getApi(
     network,
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`,
+    README_POLICY,
     deadline,
   );
 
@@ -159,6 +169,7 @@ export async function fetchedOfRepository(
   const outcome = await getApi(
     network,
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
+    API_POLICY,
     deadline,
   );
 
