@@ -139,7 +139,7 @@ export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
 const HEAD_ONE = "1 item, {unread} unread";
 const HEAD_MANY = "{total} items, {unread} unread";
 const HEAD_MATCHING = "{shown} of {total} items";
-const HEAD_MATCHING_TEXT = '{shown} of {total} items matching "{text}"';
+const HEAD_MATCHING_TEXT = "{shown} of {total} items matching “{text}”";
 
 export function headLabel(
   counts: Readonly<Pick<FilterCounts, "total" | "unread">>,

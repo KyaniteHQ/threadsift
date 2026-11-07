@@ -136,7 +136,7 @@ test("Topic and Tags combine with each other and with the search, and the search
   await page.getByRole("button", { name: "Clear filters" }).click();
   await page.getByRole("searchbox", { name: SEARCH_LABEL }).fill("craft");
   await expectRows(page, [a0, a2, a5]);
-  await expect(head(page)).toHaveText('3 of 11 items matching "craft"');
+  await expect(head(page)).toHaveText("3 of 11 items matching “craft”");
   await expect(group(page, "Topic").locator(".fl-row bdi")).toHaveText([
     "Reading",
     "Writing",

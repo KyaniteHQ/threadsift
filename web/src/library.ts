@@ -1,8 +1,10 @@
 import {
   type Dispatch,
+  type RefObject,
   type SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -102,14 +104,15 @@ function useLatest<Value>(value: Value) {
   return latest;
 }
 
-function usePolling(
-  list: Readonly<ListState>,
-  setList: SetList,
-  polled: Readonly<{ reload: () => void; stamps: Stamps; filtered: boolean }>,
-): void {
+interface Upkeep {
+  readonly reload: () => void;
+  readonly stamps: Stamps;
+  readonly unfiltered: RefObject<boolean>;
+}
+
+function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonly<Upkeep>): void {
   const latest = useLatest(list);
-  const unfiltered = useLatest(!polled.filtered);
-  const { reload, stamps } = polled;
+  const { reload, stamps, unfiltered } = upkeep;
 
   const onRead = useCallback(
     (read: Readonly<Item>, startedAt: number) => {
@@ -139,13 +142,15 @@ function failedList(current: ListState): ListState {
 
 function useReads(setList: SetList, filters: Readonly<Filters>) {
   const newest = useRef(0);
+  const [generation, setGeneration] = useState(0);
+  const query = useMemo(() => ({ filters, generation }), [filters, generation]);
 
   useEffect(() => {
     newest.current += 1;
     const sequence = newest.current;
 
     const read = async (): Promise<void> => {
-      const apply = await fetchItems(filters).then(
+      const apply = await fetchItems(query.filters).then(
         (answer) =>
           (current: ListState): ListState =>
             loaded(current, answer),
@@ -156,7 +161,11 @@ function useReads(setList: SetList, filters: Readonly<Filters>) {
     };
 
     void read();
-  }, [filters, setList]);
+  }, [query, setList]);
+
+  return useCallback(() => {
+    setGeneration((now) => now + 1);
+  }, []);
 }
 
 function useFilters() {
@@ -178,19 +187,11 @@ function useFilters() {
     setFilters((now) => ({ ...NO_FILTERS, q: now.q }));
   }, []);
 
-  const reload = useCallback(() => {
-    setFilters((now) => ({ ...now }));
-  }, []);
-
-  return { filters, choose, search, clear, clearChosen, reload };
+  return { filters, choose, search, clear, clearChosen };
 }
 
-function useSave(
-  setList: SetList,
-  saving: Readonly<{ reload: () => void; stamps: Stamps; filtered: boolean }>,
-) {
-  const { reload, stamps, filtered } = saving;
-  const unfiltered = useLatest(!filtered);
+function useSave(setList: SetList, upkeep: Readonly<Upkeep>) {
+  const { reload, stamps, unfiltered } = upkeep;
 
   return useCallback(
     async (target: SaveTarget): Promise<SaveResult> => {
@@ -220,10 +221,12 @@ function useSave(
 export function useLibrary() {
   const [list, setList] = useState<ListState>({ status: "loading", known: [] });
   const [stamps] = useState(newStamps);
-  const { filters, reload, ...changes } = useFilters();
-  useReads(setList, filters);
-  const save = useSave(setList, { reload, stamps, filtered: isFiltered(filters) });
-  usePolling(list, setList, { reload, stamps, filtered: isFiltered(filters) });
+  const { filters, ...changes } = useFilters();
+  const reload = useReads(setList, filters);
+  const unfiltered = useLatest(!isFiltered(filters));
+  const upkeep = { reload, stamps, unfiltered };
+  const save = useSave(setList, upkeep);
+  usePolling(list, setList, upkeep);
 
   const retry = useCallback(() => {
     setList((current) => ({ status: "loading", known: current.known }));

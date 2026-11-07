@@ -1,5 +1,6 @@
 import { asc, eq, gt, sql } from "drizzle-orm";
 
+import { digestOf } from "./encoding.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { Crypto, Database } from "./ports.ts";
 import {
@@ -39,7 +40,7 @@ type Reconciled = Awaited<ReturnType<typeof itemsAfter>>[number];
 function fingerprintOf(crypto: Crypto, row: Readonly<Reconciled>): string {
   const sources = JSON.stringify([row.title, row.postText, row.digest, row.tagNames]);
 
-  return Array.from(crypto.sha256(sources), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return digestOf(crypto, sources);
 }
 
 async function reconcileItem(db: Database, row: Readonly<Reconciled>, fingerprint: string) {

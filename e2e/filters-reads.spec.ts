@@ -53,14 +53,14 @@ test("an older answer that arrives after a newer search never replaces it", asyn
   await field.fill("linkonly");
   const linkOnly = Object.values(library.linkOnly);
   await expectRows(page, linkOnly);
-  await expect(head(page)).toHaveText('4 of 11 items matching "linkonly"');
+  await expect(head(page)).toHaveText("4 of 11 items matching “linkonly”");
 
   older.release();
   await older.delivered;
   await afterTwoFrames(page);
 
   await expectRows(page, linkOnly);
-  await expect(head(page)).toHaveText('4 of 11 items matching "linkonly"');
+  await expect(head(page)).toHaveText("4 of 11 items matching “linkonly”");
   expect(seen().filter(({ rows }) => rows === library.articles.length)).toEqual([]);
 });
 
@@ -98,7 +98,7 @@ test("a search with no match says so and one button clears the search and every 
   await choice(page, "Source", "Article").click();
   await field.fill("qzxjwv");
   await expect(page.getByText("No items match")).toBeVisible();
-  await expect(head(page)).toHaveText('0 of 11 items matching "qzxjwv"');
+  await expect(head(page)).toHaveText("0 of 11 items matching “qzxjwv”");
   await expectRows(page, []);
 
   await page.getByRole("button", { name: CLEAR_ALL }).click();
