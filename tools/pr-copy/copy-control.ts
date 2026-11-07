@@ -14,13 +14,15 @@ const QueueRow = z.looseObject({
   settings: z.looseObject({ delivery_paused: z.boolean().optional() }).optional(),
 });
 
-async function queueRow(stage: Readonly<Stage>, queue: string) {
+async function queueRow(stage: Readonly<Stage>, queue: string, deadline?: number) {
   refuseOutsideTarget(stage.target, [queue]);
 
   const body = await cloudflareCall(
     "GET",
     `queues?name=${encodeURIComponent(queue)}`,
     PageSchema.extend({ result: z.array(QueueRow) }),
+    undefined,
+    deadline,
   );
 
   const row = body.result.find((candidate) => candidate.queue_name === queue);
@@ -32,8 +34,12 @@ async function queueRow(stage: Readonly<Stage>, queue: string) {
   return { id: row.queue_id, paused: row.settings?.delivery_paused === true };
 }
 
-export async function deliveryPaused(stage: Readonly<Stage>, queue: string): Promise<boolean> {
-  return (await queueRow(stage, queue)).paused;
+export async function deliveryPaused(
+  stage: Readonly<Stage>,
+  queue: string,
+  deadline?: number,
+): Promise<boolean> {
+  return (await queueRow(stage, queue, deadline)).paused;
 }
 
 export async function setDeliveryPaused(
@@ -59,13 +65,15 @@ async function awaitDeliveryPaused(
   paused: boolean,
   deadline: number,
 ): Promise<void> {
-  if ((await deliveryPaused(stage, queue)) === paused) return;
-
   if (Date.now() >= deadline) {
     throw new Error(
       `${queue} did not read back delivery_paused: ${String(paused)} within ${String(READ_BACK_MS / 1000)} s`,
     );
   }
+
+  const read = await deliveryPaused(stage, queue, deadline);
+
+  if (read === paused && Date.now() < deadline) return;
 
   await pause(READ_BACK_POLL_MS, deadline);
 
