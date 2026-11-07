@@ -1,6 +1,6 @@
 import type { Kind, Source } from "../../src/core/kinds.ts";
 import { ageLabel } from "./saved-label.ts";
-import { filled } from "./text.ts";
+import { CLOSE_LABEL, filled } from "./text.ts";
 
 export const READER_PLACEHOLDER = "Select an item";
 export const MARK_READ = "Mark read";
@@ -11,7 +11,10 @@ export const MARKED_READ = "Marked as read";
 export const MARKED_UNREAD = "Marked as unread";
 export const READ_FAILED = "Couldn’t change this item’s read state.";
 export const BACK_LONG = "Back to list";
+export const BACK_TO_GRID = "Back to grid";
 export const BACK_SHORT = "Back";
+export const PREVIOUS_ITEM = "Previous item";
+export const NEXT_ITEM = "Next item";
 export const HINT_LIST = "j k move · Enter open · m read · / search";
 export const HINT_PANE = "j k move · Enter open · m read · / search · Esc close";
 export const READER_LOADING = "Loading item…";
@@ -63,4 +66,16 @@ export function tableName(columns: number): string {
 
 export function foldShowLabel(lines: number): string {
   return filled(FOLD_SHOW, { count: String(lines) });
+}
+
+export interface Leave {
+  readonly long: string;
+  readonly short: string;
+  readonly icon: "left" | "close";
+}
+
+export function leaveOf(sheet: boolean, grid: boolean): Leave {
+  if (sheet) return { long: CLOSE_LABEL, short: CLOSE_LABEL, icon: "close" };
+
+  return { long: grid ? BACK_TO_GRID : BACK_LONG, short: BACK_SHORT, icon: "left" };
 }

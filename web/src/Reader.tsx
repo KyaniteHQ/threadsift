@@ -1,4 +1,4 @@
-import { type RefObject, Suspense, use, useId, useMemo, useState } from "react";
+import { type RefObject, Suspense, use, useMemo, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { postTextModule } from "./post-text-module.ts";
@@ -60,15 +60,16 @@ export function Reader({
   slot,
   controls,
   look,
+  titleId,
   openSettings,
 }: Readonly<{
   item: Item;
   slot: RefObject<HTMLElement | null>;
   controls: ReaderControls;
   look: Look;
+  titleId: string;
   openSettings: () => void;
 }>) {
-  const titleId = useId();
   const loading = useMemo(() => <Loading id={titleId} />, [titleId]);
 
   return (

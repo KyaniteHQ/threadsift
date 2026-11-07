@@ -120,7 +120,7 @@ test("on a wide screen Escape and a second gear press close the popover and a pr
   await page.goto("/");
   const dialog = await openPanel(page);
   await expectModal(dialog, false);
-  await expect(dialog.getByRole("radio", { name: "Light", checked: true })).toBeFocused();
+  await expect(dialog.getByRole("radio", { name: "List", checked: true })).toBeFocused();
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
@@ -171,7 +171,7 @@ test("widening the sheet past 760px while Close has focus keeps focus in the pan
 
   await page.setViewportSize(DESKTOP);
   await expectModal(dialog, false);
-  await expect(dialog.getByRole("radio", { name: "Light", checked: true })).toBeFocused();
+  await expect(dialog.getByRole("radio", { name: "List", checked: true })).toBeFocused();
 });
 
 test("the paste and search fields' text is 16px or more at 390px for every Density and Text size", async ({
@@ -224,14 +224,15 @@ test("each single-choice group is a radio group with one Tab stop and arrow keys
   const dialog = await openPanel(page);
   const theme = dialog.getByRole("radiogroup", { name: "Theme", exact: true });
 
-  await expect(dialog.getByRole("radiogroup")).toHaveCount(5);
+  await expect(dialog.getByRole("radiogroup")).toHaveCount(6);
 
   const names = await dialog
     .locator('input[type="radio"]')
     .evaluateAll((inputs) => new Set(inputs.map((input) => input.getAttribute("name"))).size);
 
-  expect(names, "one native radio name for each of the five settings").toBe(5);
-  await expect(theme.getByRole("radio", { name: "Light" })).toBeFocused();
+  expect(names, "one native radio name for each of the six settings").toBe(6);
+  await expect(radioOf(dialog, "Layout", "List")).toBeFocused();
+  await theme.getByRole("radio", { name: "Light" }).focus();
 
   const order = ["Dark", "Sepia", "Match system", "Light"] as const;
 
@@ -264,13 +265,17 @@ test("Shift+Tab after a click on the sheet's title stays inside the sheet", asyn
   expect(inside, "focus is still in the sheet").toBe(true);
 });
 
-test("the sheet's outline is a title, two group headings and no landmark, and no name repeats as a title", async ({
+test("the sheet's outline is a title, three group headings and no landmark, and no name repeats as a title", async ({
   page,
 }) => {
   const dialog = await onPhone(page);
 
   await expect(dialog.getByRole("heading", { level: 2 })).toHaveText(["Settings"]);
-  await expect(dialog.getByRole("heading", { level: 3 })).toHaveText(["Reading", "Cards and tags"]);
+  await expect(dialog.getByRole("heading", { level: 3 })).toHaveText([
+    "View",
+    "Reading",
+    "Cards and tags",
+  ]);
   await expect(dialog.getByRole("region")).toHaveCount(0);
 
   const titled = await page

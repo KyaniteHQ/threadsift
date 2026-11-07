@@ -26,7 +26,7 @@ export function App() {
   const handoff = useShareHandoff();
 
   return (
-    <div ref={ref} className="app" {...attributes} data-reader={look.narrow ? "page" : "pane"}>
+    <div ref={ref} className="app" {...attributes} data-reader={look.reader}>
       <ShareContext value={handoff}>
         <Screen screen={screen} look={look} arrived={arrived} session={session} route={route} />
       </ShareContext>

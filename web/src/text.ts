@@ -134,6 +134,13 @@ export const SHOW_FEWER = "Show fewer";
 export const FILTERS_BUTTON = "Filters";
 export const FILTERS_BUTTON_ACTIVE = "Filters · {count}";
 export const CLEAR_FILTERS = "Clear filters";
+export const ANY_CHOICE = { topic: "Any topic", tag: "Any tag" } as const;
+const NAMED_OPTION = "{name} ({count})";
+
+export function namedOption(name: string, count: number): string {
+  return filled(NAMED_OPTION, { name, count: String(count) });
+}
+
 export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
 
 const HEAD_ONE = "1 item, {unread} unread";
@@ -182,6 +189,7 @@ export const SOURCE_LABELS: Readonly<Record<Source, string>> = {
 };
 
 export const STYLE_NOTE = "Set by the style";
+export const OPEN_AS_NARROW_NOTE = "Items open as a full page at this width.";
 export const NO_DIGEST = "No Digest";
 
 export const DIGEST_NOT_UPDATED = "Digest not updated";

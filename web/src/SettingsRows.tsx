@@ -9,12 +9,18 @@ import {
   THEME,
 } from "../../design/system/settings-table.ts";
 import { isSetByStyle } from "../../design/system/settings.ts";
-import { STYLE_NOTE } from "./text.ts";
+import { OPEN_AS_NARROW_NOTE, STYLE_NOTE } from "./text.ts";
 
-const SHOWN_GROUPS = GROUPS.map((group) => ({
-  group,
-  rows: SETTINGS.filter((row) => row.group === group && row.shown),
-})).filter(({ rows }) => rows.length > 0);
+function appliesTo(row: SettingRow, settings: Readonly<Settings>): boolean {
+  return row.shown && (row.key !== "openAs" || settings.layout === "grid");
+}
+
+function shownGroups(settings: Readonly<Settings>) {
+  return GROUPS.map((group) => ({
+    group,
+    rows: SETTINGS.filter((row) => row.group === group && appliesTo(row, settings)),
+  })).filter(({ rows }) => rows.length > 0);
+}
 
 export type Choose = (key: SettingKey, id: string) => void;
 
@@ -28,8 +34,20 @@ type ControlProps = Readonly<{
   choose: Choose;
 }>;
 
-function noteOf(row: SettingRow, themeNote: string | null, disabled: boolean): string | null {
-  return disabled ? STYLE_NOTE : row === THEME ? themeNote : null;
+type Why = "style" | "narrow" | null;
+
+function whyOff(row: SettingRow, settings: Readonly<Settings>, narrow: boolean): Why {
+  if (isSetByStyle(settings, row)) return "style";
+
+  return row.key === "openAs" && narrow ? "narrow" : null;
+}
+
+function noteOf(row: SettingRow, themeNote: string | null, why: Why): string | null {
+  if (why === "style") return STYLE_NOTE;
+
+  if (why === "narrow") return OPEN_AS_NARROW_NOTE;
+
+  return row === THEME ? themeNote : null;
 }
 
 function SelectControl({ row, value, controlId, noteId, disabled, choose }: ControlProps) {
@@ -141,38 +159,48 @@ function ButtonsControl({ row, value, labelId, noteId, disabled, choose }: Contr
   );
 }
 
+function RowLabel({
+  row,
+  labelId,
+  controlId,
+}: Readonly<{ row: SettingRow; labelId: string; controlId: string }>) {
+  return row.kind === "select" ? (
+    <label className="st-l" htmlFor={controlId}>
+      {row.label}
+    </label>
+  ) : (
+    <span className="st-l" id={labelId}>
+      {row.label}
+    </span>
+  );
+}
+
 function Row({
   row,
   settings,
   themeNote,
+  narrow,
   idBase,
   choose,
 }: Readonly<{
   row: SettingRow;
   settings: Settings;
   themeNote: string | null;
+  narrow: boolean;
   idBase: string;
   choose: Choose;
 }>) {
   const labelId = `${idBase}-${row.key}`;
   const controlId = `${labelId}-control`;
   const noteId = `${labelId}-note`;
-  const disabled = isSetByStyle(settings, row);
-  const note = noteOf(row, themeNote, disabled);
-  const isSelect = row.kind === "select";
-  const Control = isSelect ? SelectControl : ButtonsControl;
+  const why = whyOff(row, settings, narrow);
+  const disabled = why !== null;
+  const note = noteOf(row, themeNote, why);
+  const Control = row.kind === "select" ? SelectControl : ButtonsControl;
 
   return (
     <div className={disabled ? "st-row off" : "st-row"}>
-      {isSelect ? (
-        <label className="st-l" htmlFor={controlId}>
-          {row.label}
-        </label>
-      ) : (
-        <span className="st-l" id={labelId}>
-          {row.label}
-        </span>
-      )}
+      <RowLabel row={row} labelId={labelId} controlId={controlId} />
       <Control
         row={row}
         value={settings[row.key]}
@@ -194,10 +222,17 @@ function Row({
 export function SettingsRows({
   settings,
   themeNote,
+  narrow,
   idBase,
   choose,
-}: Readonly<{ settings: Settings; themeNote: string | null; idBase: string; choose: Choose }>) {
-  return SHOWN_GROUPS.map(({ group, rows }) => (
+}: Readonly<{
+  settings: Settings;
+  themeNote: string | null;
+  narrow: boolean;
+  idBase: string;
+  choose: Choose;
+}>) {
+  return shownGroups(settings).map(({ group, rows }) => (
     <div key={group} className="st-group">
       <h3 className="st-gh">{group}</h3>
       {rows.map((row) => (
@@ -206,6 +241,7 @@ export function SettingsRows({
           row={row}
           settings={settings}
           themeNote={themeNote}
+          narrow={narrow}
           idBase={idBase}
           choose={choose}
         />

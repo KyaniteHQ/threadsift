@@ -19,7 +19,9 @@ export function ListColumn({
   openSettings: () => void;
 }>) {
   const { library, actions, side, covered, openItem, listPane, searchField } = view;
-  const hint = look.narrow || (openItem !== null && side.reader.hintInBar) ? null : HINT_LIST;
+
+  const hint =
+    look.reader !== "pane" || (openItem !== null && side.reader.hintInBar) ? null : HINT_LIST;
 
   return (
     <div className="bg" inert={covered}>

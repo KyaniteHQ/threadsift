@@ -14,18 +14,21 @@ function useKeyActions({
   list,
   openId,
   covered,
+  arrows,
   reader,
   searchField,
 }: Readonly<{
   list: ListState;
   openId: number | null;
   covered: boolean;
+  arrows: boolean;
   reader: ReaderState;
   searchField: RefObject<HTMLInputElement | null>;
 }>) {
   useLibraryKeys({
     openId,
     covered,
+    arrows,
     step: reader.step,
     toggle: (id: number) => {
       const item = knownItems(list).find((each: Readonly<Item>) => each.id === id);
@@ -37,6 +40,20 @@ function useKeyActions({
       searchField.current?.focus();
     },
   });
+}
+
+function useLibraryDom(root: RefObject<HTMLDivElement | null>) {
+  const inReader = useCallback(
+    () =>
+      [...(root.current?.querySelectorAll(".reader-slot, .side-nav") ?? [])].some((part) =>
+        part.contains(document.activeElement),
+      ),
+    [root],
+  );
+
+  const appOf = useCallback(() => root.current?.closest(".app") ?? null, [root]);
+
+  return { inReader, appOf };
 }
 
 export interface ReaderSide {
@@ -64,16 +81,11 @@ export function useReaderSide({
   searchField: RefObject<HTMLInputElement | null>;
   covered: boolean;
 }>): ReaderSide {
-  const inReader = useCallback(
-    () => root.current?.querySelector(".reader-slot")?.contains(document.activeElement) === true,
-    [root],
-  );
-
-  const appOf = useCallback(() => root.current?.closest(".app") ?? null, [root]);
+  const { inReader, appOf } = useLibraryDom(root);
   const reader = useReaderControls({ list, route, look, attend, setRead, inReader, appOf });
   const { openId, replace } = route;
 
-  useAutoOpen({ list, openId, replace, wide: !look.narrow, attend });
+  useAutoOpen({ list, openId, replace, wide: look.reader === "pane", attend });
 
   const leaveSearch = useCallback(() => {
     if (openId === null) root.current?.querySelector<HTMLElement>(".list")?.focus();
@@ -82,13 +94,20 @@ export function useReaderSide({
 
   const openFromCard = useCallback(
     (id: number) => {
-      attend({ id, focus: !look.narrow });
+      attend({ id, focus: look.reader === "pane" });
       reader.open(id);
     },
-    [attend, look.narrow, reader],
+    [attend, look.reader, reader],
   );
 
-  useKeyActions({ list, openId, covered, reader, searchField });
+  useKeyActions({
+    list,
+    openId,
+    covered,
+    arrows: look.settings.layout === "grid",
+    reader,
+    searchField,
+  });
 
   return { reader, leaveSearch, openFromCard };
 }

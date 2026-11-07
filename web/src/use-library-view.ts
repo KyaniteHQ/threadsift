@@ -30,7 +30,7 @@ export function useLibraryView(look: Look, route: Route): LibraryView {
   const { list, clear, setRead } = library;
   const actions = useListActions(list, library, listPane, route);
   const openItem = knownItems(list).find((item) => item.id === route.openId) ?? null;
-  const covered = look.narrow && openItem !== null;
+  const covered = look.reader !== "pane" && openItem !== null;
   const attend = actions.attend;
 
   const side = useReaderSide({

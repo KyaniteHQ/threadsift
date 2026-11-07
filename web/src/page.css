@@ -16,13 +16,19 @@ html {
   position: relative;
 }
 
+.st-body {
+  scroll-padding-block: var(--s2);
+}
+
 fieldset.fl-seg,
-fieldset.fl-rows {
+fieldset.fl-rows,
+fieldset.fl-g {
   margin: 0;
   min-inline-size: 0;
 }
 
-fieldset.fl-rows {
+fieldset.fl-rows,
+fieldset.fl-g {
   padding: 0;
   border: 0;
 }
@@ -53,6 +59,36 @@ fieldset.fl-rows {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+[data-layout="grid"] .items {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  align-items: start;
+  gap: inherit;
+}
+
+dialog.sheet {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: transparent;
+  color: inherit;
+}
+
+dialog.sheet::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: var(--scrim);
 }
 
 .it-title {

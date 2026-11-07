@@ -35,24 +35,27 @@ function Brand({
 function FilterSlot({
   counts,
   filters,
-  medium,
+  look,
   choose,
   clearChosen,
 }: Readonly<{
   counts: FilterCounts | null;
   filters: Filters;
-  medium: boolean;
+  look: Look;
   choose: (choice: Choice) => void;
   clearChosen: () => void;
 }>) {
   if (counts === null || counts.total === 0) return null;
+
+  const bar = look.settings.layout === "grid";
 
   return (
     <div className="filters-slot">
       <FilterPane
         counts={counts}
         filters={filters}
-        collapsible={medium}
+        collapsible={bar ? look.narrow : look.medium}
+        bar={bar}
         choose={choose}
         clearChosen={clearChosen}
       />
@@ -100,7 +103,7 @@ export function Masthead({
       <FilterSlot
         counts={counts}
         filters={filters}
-        medium={look.medium}
+        look={look}
         choose={choose}
         clearChosen={clearChosen}
       />

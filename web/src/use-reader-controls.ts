@@ -13,9 +13,7 @@ import type { Look } from "./use-root.ts";
 const OTHER: Readonly<Record<ReadState, ReadState>> = { read: "unread", unread: "read" };
 
 function modeOf(look: Readonly<Look>): ReaderControls["mode"] {
-  if (look.phone) return "phone";
-
-  return look.narrow ? "page" : "pane";
+  return look.phone ? "phone" : look.reader;
 }
 
 const MARKED: Readonly<Record<ReadState, string>> = { read: MARKED_READ, unread: MARKED_UNREAD };
@@ -53,6 +51,7 @@ export interface ReaderState {
   readonly step: (direction: 1 | -1) => void;
   readonly toggleRead: (item: Item) => void;
   readonly controls: ReaderControls;
+  readonly steps: Readonly<{ previous: boolean; next: boolean }>;
   readonly hintInBar: boolean;
   readonly announcement: Readonly<{ text: string; failed: boolean }>;
 }
@@ -83,10 +82,11 @@ export function useReaderControls({
     attend,
     inReader,
     appOf,
-    covers: look.narrow,
+    covers: look.reader !== "pane",
   });
 
   const { close, titleFocus } = navigation;
+
   const mode = modeOf(look);
   const settingsKey = JSON.stringify(look.settings);
 
@@ -101,6 +101,7 @@ export function useReaderControls({
     step: navigation.step,
     toggleRead,
     controls,
+    steps: navigation.steps,
     hintInBar,
     announcement,
   };

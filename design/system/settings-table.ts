@@ -52,9 +52,12 @@ export const SETTINGS = [
     kind: "segments",
     group: "View",
     look: false,
-    shown: false,
+    shown: true,
     default: "list",
-    options: [{ id: "list", label: "List" }],
+    options: [
+      { id: "list", label: "List" },
+      { id: "grid", label: "Grid" },
+    ],
   }),
   setting({
     key: "openAs",
@@ -63,7 +66,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "View",
     look: false,
-    shown: false,
+    shown: true,
     default: "page",
     options: [
       { id: "page", label: "Page" },

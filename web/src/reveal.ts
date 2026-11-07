@@ -45,3 +45,11 @@ export function focusListStart(pane: HTMLElement): void {
 
   (start ?? pane).focus();
 }
+
+export function focusNeighbourCard(scope: Element | null, direction: 1 | -1): void {
+  const links = [...(scope?.querySelectorAll<HTMLElement>(".list .it-open") ?? [])];
+  const at = links.findIndex((link) => link === document.activeElement);
+  const next = at < 0 ? (direction > 0 ? links.at(0) : links.at(-1)) : links[at + direction];
+
+  next?.focus();
+}

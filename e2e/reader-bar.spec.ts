@@ -7,7 +7,11 @@ import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { gear, openPanel, panel, storeSettings, viewportAt } from "./look.ts";
 import { bar, reader, seedRows } from "./reader.ts";
 
-const WIDTHS = [390, 600, 1440, 1920] as const;
+const VIEWS = [
+  { name: "List", stored: {}, widths: [390, 600, 1440, 1920] },
+  { name: "Grid as Page", stored: { layout: "grid", openAs: "page" }, widths: [600, 1440] },
+  { name: "Grid as Sheet", stored: { layout: "grid", openAs: "sheet" }, widths: [760, 1440] },
+] as const;
 
 function optionsOf(key: string): readonly string[] {
   const row = SETTINGS.find((setting) => setting.key === key);
@@ -83,8 +87,8 @@ function crowdedControls(page: Page): Promise<string[]> {
   });
 }
 
-function fitsAtEveryFontAndSize(width: number): void {
-  test(`at ${width}px no reader bar control overflows or overlaps another, at every Font and Text size`, async () => {
+function fitsAtEveryFontAndSize(view: (typeof VIEWS)[number], width: number): void {
+  test(`${view.name} at ${width}px: no reader bar control overflows or overlaps another, at every Font and Text size`, async () => {
     const { page } = screen;
     await viewportAt(page, width);
     let checked = 0;
@@ -92,7 +96,7 @@ function fitsAtEveryFontAndSize(width: number): void {
     for (const font of FONTS) {
       for (const size of SIZES) {
         for (const id of ids) {
-          await storeSettings(page, { font, size }, `/items/${id}`);
+          await storeSettings(page, { ...view.stored, font, size }, `/items/${id}`);
           await expect(reader(page)).toBeVisible();
           await expect(bar(page).locator(".rd-act").first()).toBeVisible();
           await page.evaluate(() => document.fonts.ready);
@@ -108,8 +112,10 @@ function fitsAtEveryFontAndSize(width: number): void {
   });
 }
 
-for (const width of WIDTHS) {
-  fitsAtEveryFontAndSize(width);
+for (const view of VIEWS) {
+  for (const width of view.widths) {
+    fitsAtEveryFontAndSize(view, width);
+  }
 }
 
 const SWEEP_FROM = 1440;

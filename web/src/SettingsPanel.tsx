@@ -106,6 +106,7 @@ export function SettingsPanel({
             <SettingsRows
               settings={settings}
               themeNote={themeNote}
+              narrow={modal}
               idBase={idBase}
               choose={choose}
             />
