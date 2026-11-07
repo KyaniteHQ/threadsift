@@ -7,6 +7,7 @@ import { type Stage, copyNames, databaseId, inventory } from "./cloudflare.ts";
 import { currentVersion, resumeDelivery, workerSettings } from "./copy-control.ts";
 import { currentCopy } from "./copy-head.ts";
 import { pullRequest, staleReason } from "./github.ts";
+import { type Pace, RUN_BUDGET_MS, pacer } from "./pace.ts";
 import { copyConfig, withStage } from "./stage.ts";
 import { readInvocations } from "./telemetry.ts";
 
@@ -29,11 +30,14 @@ export interface Run {
   readonly tag: string;
   readonly cpuLimitMs: number;
   readonly crons: readonly string[];
+  readonly pace: Pace;
 }
 
 const PROBE_WINDOW_MS = 300_000;
 
-async function currentUrl(options: Readonly<CheckOptions>): Promise<string> {
+export async function verifiedCopy(
+  options: Readonly<Pick<CheckOptions, "pr" | "head">>,
+): Promise<string> {
   const { pr, head } = options;
   const stale = staleReason({ pr, headSha: head }, await pullRequest(pr));
 
@@ -60,7 +64,7 @@ async function currentUrl(options: Readonly<CheckOptions>): Promise<string> {
   return copy.url;
 }
 
-async function probeTelemetry(stage: Readonly<Stage>, version: string): Promise<void> {
+export async function probeTelemetry(stage: Readonly<Stage>, version: string): Promise<void> {
   const now = Date.now();
 
   try {
@@ -81,7 +85,7 @@ async function probeTelemetry(stage: Readonly<Stage>, version: string): Promise<
 }
 
 async function prepare(stage: Readonly<Stage>, options: Readonly<CheckOptions>): Promise<Run> {
-  const url = await currentUrl(options);
+  const url = await verifiedCopy(options);
   const { name, queue } = stage.target;
   const settings = await workerSettings(stage, name);
 
@@ -100,7 +104,7 @@ async function prepare(stage: Readonly<Stage>, options: Readonly<CheckOptions>):
   const config = copyConfig(stage.target, options.artifact);
   const database = { name, id: await databaseId(name) };
 
-  if ((await currentUrl(options)) !== url) throw new Stop("the copy moved during the preflight");
+  if ((await verifiedCopy(options)) !== url) throw new Stop("the copy moved during the preflight");
 
   if (await resumeDelivery(stage)) {
     process.stdout.write(`${queue} was left paused by an earlier run; resumed it\n`);
@@ -116,6 +120,7 @@ async function prepare(stage: Readonly<Stage>, options: Readonly<CheckOptions>):
     tag: randomBytes(4).toString("hex"),
     cpuLimitMs: config.limits.cpu_ms,
     crons: config.triggers.crons,
+    pace: pacer(Date.now() + RUN_BUDGET_MS),
   };
 }
 

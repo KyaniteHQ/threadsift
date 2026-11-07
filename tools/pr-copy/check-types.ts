@@ -1,6 +1,4 @@
-import { z } from "zod";
-
-import { CopyAnswerError } from "./copy-client.ts";
+import { publicMessage } from "./copy-error.ts";
 import type { Invocation } from "./telemetry.ts";
 
 export const SCENARIO_NAMES = ["login", "queue", "cron", "cpu", "cap", "unreachable"] as const;
@@ -84,18 +82,6 @@ export function collector(): Collected {
   };
 }
 
-const NOTE_LIMIT = 200;
-
-function noteOf(error: Readonly<Error>): string {
-  if (error instanceof CopyAnswerError) return `${error.path} answered ${String(error.status)}`;
-
-  if (error instanceof z.ZodError) {
-    return `an answer did not match its schema at ${error.issues[0]?.path.join(".") ?? ""}`;
-  }
-
-  return error.message.slice(0, NOTE_LIMIT);
-}
-
 export async function conclude(
   scenario: ScenarioName,
   work: (findings: Readonly<Findings>) => Promise<void>,
@@ -107,7 +93,11 @@ export async function conclude(
   } catch (error) {
     if (error instanceof Inconclusive) return result(scenario, "inconclusive", error.message);
 
-    return result(scenario, "fail", error instanceof Error ? noteOf(error) : "unexpected failure");
+    return result(
+      scenario,
+      "fail",
+      error instanceof Error ? publicMessage(error) : "unexpected failure",
+    );
   }
 
   return result(scenario, "pass", "");

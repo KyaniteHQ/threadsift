@@ -7,9 +7,8 @@ import { type Findings, Inconclusive } from "./check-types.ts";
 import { type Copy, callCopy, send } from "./copy-calls.ts";
 import { type Item, endState, expectOk, paste } from "./copy-client.ts";
 import { queryDatabase } from "./d1.ts";
+import { SKEW_MS } from "./pace.ts";
 import { type Invocation, type Trigger, awaitInvocations, readInvocations } from "./telemetry.ts";
-
-export const SKEW_MS = 10_000;
 
 export const INGEST_DEADLINE_MS = 180_000;
 export const SENTINEL_ROUTE = "/api/session";
@@ -78,6 +77,7 @@ export interface Pasted {
   readonly start: number;
   readonly end: number;
   readonly consumers: readonly Invocation[];
+  readonly jobs: readonly Readonly<{ id: number; state: JobState }>[];
 }
 
 function isSentinelAfter(since: number) {
@@ -85,11 +85,44 @@ function isSentinelAfter(since: number) {
     seen.trigger === "fetch" && seen.name === SENTINEL_ROUTE && seen.at >= since - SKEW_MS;
 }
 
-async function attemptPaste(run: Readonly<Run>, copy: Readonly<Copy>, url: string) {
+function insideOwnInterval(start: number, end: number) {
+  return (seen: Invocation) =>
+    seen.trigger === "queue" && seen.at >= start - SKEW_MS && seen.at <= end + SKEW_MS;
+}
+
+async function sweepAt(run: Readonly<Run>): Promise<number> {
+  const rows = await queryDatabase(
+    run.stage,
+    run.database,
+    "SELECT last_run_at AS n FROM scheduled_runs WHERE task = 'sweep'",
+    Count,
+  );
+
+  return rows[0]?.n ?? 0;
+}
+
+async function attemptPaste(
+  run: Readonly<Run>,
+  copy: Readonly<Copy>,
+  url: string,
+  findings: Readonly<Findings>,
+) {
+  await run.pace.settle();
+  await requireIdleCopy(run, copy);
+
+  const sweptBefore = await sweepAt(run);
   const start = Date.now();
-  const id = await paste(copy, url);
+  const { id, created } = await paste(copy, url);
+  findings.item(id);
+
+  if (!created)
+    throw new Inconclusive("the link was already known to the copy, so it was a refresh");
+
   const item = await endState(copy, id);
   const end = Date.now();
+  const jobs = await fetchJobs(run, id);
+
+  for (const job of jobs) findings.job(job.id);
 
   await send(run.url, { path: SENTINEL_ROUTE });
 
@@ -99,28 +132,47 @@ async function attemptPaste(run: Readonly<Run>, copy: Readonly<Copy>, url: strin
     { from: start - SKEW_MS, to: Date.now() + INGEST_DEADLINE_MS },
     {
       deadlineMs: INGEST_DEADLINE_MS,
-      enough: (seen) =>
-        seen.some(isSentinelAfter(end)) && seen.some((entry) => entry.trigger === "queue"),
+      enough: (seen) => seen.some(isSentinelAfter(end)) && seen.some(insideOwnInterval(start, end)),
     },
   );
 
-  const tick = found.some(
-    (entry) =>
-      entry.trigger === "scheduled" && entry.at >= start - SKEW_MS && entry.at <= end + SKEW_MS,
-  );
+  const swept = (await sweepAt(run)) !== sweptBefore;
 
-  return { id, item, url, start, end, found, complete, tick };
+  return { id, item, url, start, end, jobs, found, complete, swept };
+}
+
+function ownConsumers(
+  jobs: readonly Readonly<{ id: number; state: JobState }>[],
+  found: readonly Readonly<Invocation>[],
+  interval: Readonly<{ start: number; end: number }>,
+): Invocation[] {
+  const [job, ...others] = jobs;
+
+  if (job === undefined || others.length > 0 || job.state !== "done") {
+    throw new Inconclusive(
+      "the Paste has no single finished fetch job, so its consumers are ambiguous",
+    );
+  }
+
+  return found.filter(insideOwnInterval(interval.start, interval.end));
 }
 
 export async function measuredPaste(
   run: Readonly<Run>,
   copy: Readonly<Copy>,
+  label: string,
   base: string,
   findings: Readonly<Findings>,
   attempt = 1,
 ): Promise<Pasted> {
-  const pasted = await attemptPaste(run, copy, withTag(base, `${run.tag}-${String(attempt)}`));
-  findings.item(pasted.id);
+  const pasted = await attemptPaste(
+    run,
+    copy,
+    withTag(base, `${run.tag}-${label}-${String(attempt)}`),
+    findings,
+  );
+
+  run.pace.done();
 
   if (!pasted.complete) {
     throw new Inconclusive(
@@ -130,13 +182,17 @@ export async function measuredPaste(
 
   findings.used(pasted.found);
 
-  if (pasted.tick) {
+  if (pasted.swept) {
     if (attempt >= ATTEMPTS) {
-      throw new Inconclusive(`a Cron tick fell inside the window of ${String(ATTEMPTS)} attempts`);
+      throw new Inconclusive(`a Cron sweep fell inside the window of ${String(ATTEMPTS)} attempts`);
     }
 
-    return measuredPaste(run, copy, base, findings, attempt + 1);
+    return measuredPaste(run, copy, label, base, findings, attempt + 1);
   }
+
+  const consumers = ownConsumers(pasted.jobs, pasted.found, pasted);
+  findings.measure(`Paste ${label}: Item id`, pasted.id);
+  findings.measure(`Paste ${label}: fetch job id`, pasted.jobs[0]?.id ?? Number.NaN);
 
   return {
     id: pasted.id,
@@ -144,7 +200,8 @@ export async function measuredPaste(
     url: pasted.url,
     start: pasted.start,
     end: pasted.end,
-    consumers: pasted.found.filter((entry) => entry.trigger === "queue"),
+    jobs: pasted.jobs,
+    consumers,
   };
 }
 

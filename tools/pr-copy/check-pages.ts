@@ -19,7 +19,7 @@ export const BREAD: Page = {
   url: "https://en.wikipedia.org/wiki/Bread",
   under: true,
   sentence: "food product made from water",
-  measuredBytes: 619_675,
+  measuredBytes: 619_663,
 };
 
 export const BIRD: Page = {
@@ -35,7 +35,7 @@ export const BEER: Page = {
   url: "https://en.wikipedia.org/w/index.php?title=Beer&oldid=1382690225",
   under: true,
   sentence: "Beer is one of the oldest and most widely consumed alcoholic drinks in the world",
-  measuredBytes: 903_338,
+  measuredBytes: 903_288,
 };
 
 export const TALE_OF_TWO_CITIES: Page = {

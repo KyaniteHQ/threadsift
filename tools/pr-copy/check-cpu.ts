@@ -35,7 +35,8 @@ async function totalCpu(
   page: Readonly<Page>,
   index: number,
 ): Promise<number> {
-  const pasted = await measuredPaste(run, copy, page.url, findings);
+  const label = `cpu-${String(PAGES.indexOf(page))}-${String(index)}`;
+  const pasted = await measuredPaste(run, copy, label, page.url, findings);
   const detail = await itemDetail(copy, pasted.id);
 
   if (page === EXAMPLE) {

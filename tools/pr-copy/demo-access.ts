@@ -1,18 +1,18 @@
-import { setTimeout as sleep } from "node:timers/promises";
-
 import { SessionStateSchema } from "../../src/http/schemas.ts";
 import type { AccessCodes } from "./codes.ts";
 import { type Call, type Copy, type Site, callCopy, refusal, sessionCookie } from "./copy-calls.ts";
+import { CopyAnswerError } from "./copy-error.ts";
 import { requiredEnv } from "./env.ts";
+import { pause, remaining } from "./timeout.ts";
 
 const LOCK_WAIT_LIMIT_S = 300;
 
 async function postAccess(
   site: Readonly<Site>,
   call: Readonly<Call>,
-  waitedS = 0,
+  deadline = Date.now() + LOCK_WAIT_LIMIT_S * 1000,
 ): Promise<string | null> {
-  const response = await callCopy(site, call);
+  const response = await callCopy(site, { ...call, deadline });
 
   const cookie = sessionCookie(response);
 
@@ -25,21 +25,21 @@ async function postAccess(
   }
 
   if (response.status !== 429) {
-    throw new Error(`${call.path} answered ${String(response.status)}: ${await refusal(response)}`);
+    throw new CopyAnswerError(call.path, response.status, await refusal(response));
   }
 
   const retryAfter = Number(response.headers.get("retry-after"));
 
-  if (waitedS + retryAfter > LOCK_WAIT_LIMIT_S) {
+  if (!(retryAfter * 1000 <= remaining(deadline))) {
     throw new Error(
-      `${call.path} is locked for ${String(retryAfter)} s after ${String(waitedS)} s of waiting; the limit is ${String(LOCK_WAIT_LIMIT_S)} s`,
+      `${call.path} is locked for ${String(retryAfter)} s; ${String(Math.round(remaining(deadline) / 1000))} s of the ${String(LOCK_WAIT_LIMIT_S)} s limit remain`,
     );
   }
 
   process.stdout.write(`${call.path} is locked; waiting ${String(retryAfter)} s\n`);
-  await sleep(retryAfter * 1000);
+  await pause(retryAfter * 1000, deadline);
 
-  return postAccess(site, call, waitedS + retryAfter);
+  return postAccess(site, call, deadline);
 }
 
 async function loginCookie(site: Readonly<Site>, password: string): Promise<string | null> {
@@ -54,7 +54,7 @@ async function loginCookie(site: Readonly<Site>, password: string): Promise<stri
     return null;
   }
 
-  throw new Error(`/api/login answered ${String(response.status)}: ${await refusal(response)}`);
+  throw new CopyAnswerError("/api/login", response.status, await refusal(response));
 }
 
 async function resetDemoPassword(
@@ -66,7 +66,7 @@ async function resetDemoPassword(
   const response = await callCopy(site, { path, body: { code: resetCode, password } });
 
   if (response.status !== 204) {
-    throw new Error(`${path} answered ${String(response.status)}: ${await refusal(response)}`);
+    throw new CopyAnswerError(path, response.status, await refusal(response));
   }
 
   process.stdout.write("The demo password was wrong or locked; reset it to the demo password\n");

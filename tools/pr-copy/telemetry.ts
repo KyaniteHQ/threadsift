@@ -1,10 +1,8 @@
-import { setTimeout as sleep } from "node:timers/promises";
+import type { Stage } from "./cloudflare.ts";
+import { routeTemplate } from "./routes.ts";
+import { type LogEvent, type Scope, allPages, requireUnsampled } from "./telemetry-query.ts";
+import { pause } from "./timeout.ts";
 
-import { z } from "zod";
-
-import { type Stage, PageSchema, cloudflareCall } from "./cloudflare.ts";
-
-const PAGE_SIZE = 100;
 const POLL_MS = 5000;
 
 export const TRIGGERS = ["fetch", "queue", "scheduled"] as const;
@@ -41,57 +39,7 @@ export interface Window {
   readonly to: number;
 }
 
-interface Scope {
-  readonly version: string;
-  readonly trigger?: Trigger;
-}
-
-const RequestId = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/u);
-
 const CRON = /^[0-9*/, -]{1,40}$/u;
-
-const ROUTE = /^\/api(?:\/[a-z:-]+)*$/u;
-
-const WorkersFields = z
-  .looseObject({
-    eventType: z.string(),
-    scriptName: z.string(),
-    outcome: z.string().optional(),
-    cpuTimeMs: z.number().optional(),
-    wallTimeMs: z.number().optional(),
-    scriptVersion: z.looseObject({ id: z.string().optional() }).readonly().optional(),
-    event: z
-      .looseObject({
-        queue: z.string().optional(),
-        cron: z.string().optional(),
-        request: z
-          .looseObject({ path: z.string().optional(), url: z.string().optional() })
-          .readonly()
-          .optional(),
-        response: z.looseObject({ status: z.number().optional() }).readonly().optional(),
-      })
-      .readonly()
-      .optional(),
-  })
-  .readonly();
-
-const LogEventSchema = z
-  .looseObject({
-    timestamp: z.number(),
-    $metadata: z
-      .looseObject({ id: z.string(), requestId: RequestId, level: z.string().optional() })
-      .readonly(),
-    $workers: WorkersFields.optional(),
-  })
-  .readonly();
-
-type LogEvent = z.infer<typeof LogEventSchema>;
-
-const QueryResult = PageSchema.extend({
-  result: z.looseObject({
-    invocations: z.record(z.string(), z.array(LogEventSchema).readonly()).optional(),
-  }),
-});
 
 function triggerOf(eventType: string): Trigger | null {
   if (eventType === "fetch" || eventType === "queue") return eventType;
@@ -101,12 +49,6 @@ function triggerOf(eventType: string): Trigger | null {
 
 function outcomeOf(outcome: string | undefined): Outcome {
   return OUTCOMES.find((known) => known === outcome) ?? "other";
-}
-
-export function routeTemplate(path: string): string {
-  const template = path.replaceAll(/\/\d+(?=\/|$)/gu, "/:id");
-
-  return ROUTE.test(template) ? template : "other";
 }
 
 function statusOf(status: number | undefined): number | null {
@@ -169,67 +111,13 @@ function invocationOf(
   };
 }
 
-function equals(key: string, value: string) {
-  return { key, operation: "eq", type: "string", value };
-}
-
-function filtersFor(stage: Readonly<Stage>, scope: Readonly<Scope>) {
-  const filters = [
-    equals("$metadata.service", stage.target.name),
-    equals("$workers.scriptVersion.id", scope.version),
-  ];
-
-  if (scope.trigger !== undefined) filters.push(equals("$workers.eventType", scope.trigger));
-
-  return filters;
-}
-
-async function queryPage(
-  stage: Readonly<Stage>,
-  scope: Readonly<Scope>,
-  window: Readonly<Window>,
-  cursor: string | null,
-) {
-  const body = {
-    queryId: "threadsift-copy-checks",
-    dry: true,
-    view: "invocations",
-    limit: PAGE_SIZE,
-    timeframe: { from: window.from, to: window.to },
-    offset: cursor ?? undefined,
-    parameters: { datasets: [], filters: filtersFor(stage, scope), limit: PAGE_SIZE },
-  };
-
-  const { result } = await cloudflareCall(
-    "POST",
-    "workers/observability/telemetry/query",
-    QueryResult,
-    JSON.stringify(body),
-  );
-
-  return Object.values(result.invocations ?? {});
-}
-
-async function allPages(
-  stage: Readonly<Stage>,
-  scope: Readonly<Scope>,
-  window: Readonly<Window>,
-  cursor: string | null,
-): Promise<(readonly LogEvent[])[]> {
-  const page = await queryPage(stage, scope, window, cursor);
-  const last = page.at(-1)?.at(-1)?.$metadata.id;
-
-  if (page.length < PAGE_SIZE || last === undefined) return page;
-
-  return [...page, ...(await allPages(stage, scope, window, last))];
-}
-
 export async function readInvocations(
   stage: Readonly<Stage>,
   scope: Readonly<Scope>,
   window: Readonly<Window>,
+  deadline = Number.POSITIVE_INFINITY,
 ): Promise<Invocation[]> {
-  const found = (await allPages(stage, scope, window, null)).flatMap((events) => {
+  const found = (await allPages(stage, scope, window, deadline)).flatMap((events) => {
     const invocation = invocationOf(stage, scope, events);
 
     return invocation === null || invocation.at < window.from || invocation.at > window.to
@@ -247,15 +135,19 @@ export async function awaitInvocations(
   scope: Readonly<Scope>,
   window: Readonly<Window>,
   until: Readonly<{ deadlineMs: number; enough: (found: readonly Invocation[]) => boolean }>,
+  give = Date.now() + until.deadlineMs,
 ): Promise<{ found: Invocation[]; complete: boolean }> {
-  const give = Date.now() + until.deadlineMs;
-  const found = await readInvocations(stage, scope, window);
+  const found = await readInvocations(stage, scope, window, give);
 
-  if (until.enough(found)) return { found, complete: true };
+  if (until.enough(found)) {
+    await requireUnsampled(stage, scope, window, Number.POSITIVE_INFINITY);
+
+    return { found, complete: true };
+  }
 
   if (Date.now() >= give) return { found, complete: false };
 
-  await sleep(POLL_MS);
+  await pause(POLL_MS, give);
 
-  return awaitInvocations(stage, scope, window, { ...until, deadlineMs: give - Date.now() });
+  return awaitInvocations(stage, scope, window, until, give);
 }

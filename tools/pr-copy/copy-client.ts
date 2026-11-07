@@ -1,5 +1,3 @@
-import { setTimeout as sleep } from "node:timers/promises";
-
 import type { z } from "zod";
 
 import { ItemResponseSchema, SavedItemResponseSchema } from "../../src/http/schemas.ts";
@@ -12,7 +10,8 @@ import {
   refusal,
   sessionCookie,
 } from "./copy-calls.ts";
-import { callTimeout } from "./timeout.ts";
+import { CopyAnswerError } from "./copy-error.ts";
+import { callTimeout, pause } from "./timeout.ts";
 
 const SERVE_DEADLINE_MS = 120_000;
 const SERVED_IN_A_ROW = 10;
@@ -20,38 +19,35 @@ const ITEM_DEADLINE_MS = 300_000;
 
 export type Item = z.infer<typeof ItemResponseSchema>["item"];
 
-export class CopyAnswerError extends Error {
-  readonly path: string;
-  readonly status: number;
-  readonly answer: string;
+async function answersJson(url: string, deadline: number): Promise<boolean> {
+  const response = await fetch(`${url}/api/session`, { signal: callTimeout(deadline) }).catch(
+    () => null,
+  );
 
-  constructor(path: string, status: number, answer: string) {
-    super(`${path} answered ${String(status)}: ${answer}`);
-    this.path = path;
-    this.status = status;
-    this.answer = answer;
+  if (response !== null && response.status >= 500 && isJson(response)) {
+    throw new CopyAnswerError("/api/session", response.status, await refusal(response));
   }
-}
-
-async function answersJson(url: string): Promise<boolean> {
-  const response = await fetch(`${url}/api/session`, { signal: callTimeout() }).catch(() => null);
 
   return response?.status === 200 && isJson(response);
 }
 
-export async function awaitServing(url: string, inARow = 0, waitedMs = 0): Promise<void> {
+export async function awaitServing(
+  url: string,
+  deadline = Date.now() + SERVE_DEADLINE_MS,
+  inARow = 0,
+): Promise<void> {
   if (inARow >= SERVED_IN_A_ROW) {
     return;
   }
 
-  if (waitedMs >= SERVE_DEADLINE_MS) {
-    throw new Error(`${url} did not serve the app within ${String(SERVE_DEADLINE_MS)} ms`);
+  if (Date.now() >= deadline) {
+    throw new Error(`${url} did not serve the app before its deadline`);
   }
 
-  const served = await answersJson(url);
-  await sleep(POLL_MS);
+  const served = await answersJson(url, deadline);
+  await pause(POLL_MS, deadline);
 
-  return awaitServing(url, served ? inARow + 1 : 0, waitedMs + POLL_MS);
+  return awaitServing(url, deadline, served ? inARow + 1 : 0);
 }
 
 export async function expectOk(response: Response, path: string): Promise<void> {
@@ -72,7 +68,10 @@ export async function logIn(site: Readonly<Site>, password: string): Promise<Cop
   return { ...site, cookie };
 }
 
-export async function paste(copy: Readonly<Copy>, link: string): Promise<number> {
+export async function paste(
+  copy: Readonly<Copy>,
+  link: string,
+): Promise<{ id: number; created: boolean }> {
   process.stdout.write(`Paste ${link}\n`);
 
   const response = await callCopy(copy, {
@@ -85,12 +84,18 @@ export async function paste(copy: Readonly<Copy>, link: string): Promise<number>
     throw new CopyAnswerError("/api/items", response.status, await refusal(response));
   }
 
-  return SavedItemResponseSchema.parse(await response.json()).item.id;
+  const { item } = SavedItemResponseSchema.parse(await response.json());
+
+  return { id: item.id, created: response.status === 201 };
 }
 
-export async function endState(copy: Readonly<Copy>, id: number, waitedMs = 0): Promise<Item> {
+export async function endState(
+  copy: Readonly<Copy>,
+  id: number,
+  deadline = Date.now() + ITEM_DEADLINE_MS,
+): Promise<Item> {
   const path = `/api/items/${String(id)}/status`;
-  const response = await callCopy(copy, { path, cookie: copy.cookie });
+  const response = await callCopy(copy, { path, cookie: copy.cookie, deadline });
 
   await expectOk(response, path);
 
@@ -98,11 +103,11 @@ export async function endState(copy: Readonly<Copy>, id: number, waitedMs = 0): 
 
   if (item.status !== "processing") return item;
 
-  if (waitedMs >= ITEM_DEADLINE_MS) {
-    throw new Error(`Item ${String(id)} is still processing after ${String(ITEM_DEADLINE_MS)} ms`);
+  if (Date.now() >= deadline) {
+    throw new Error(`Item ${String(id)} is still processing at its deadline`);
   }
 
-  await sleep(POLL_MS);
+  await pause(POLL_MS, deadline);
 
-  return endState(copy, id, waitedMs + POLL_MS);
+  return endState(copy, id, deadline);
 }

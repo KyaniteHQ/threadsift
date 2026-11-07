@@ -39,10 +39,12 @@ function misses(item: Readonly<Item>, expected: DemoItem["expected"]): string[] 
 }
 
 async function seedItem(copy: Readonly<Copy>, demo: Readonly<DemoItem>): Promise<string | null> {
-  const id = await paste(copy, demo.url);
+  const { id } = await paste(copy, demo.url);
   const item = await endState(copy, id);
   const wrong = misses(item, demo.expected);
-  process.stdout.write(`Item ${String(id)} ${demo.url}: ${JSON.stringify(item)}\n`);
+  process.stdout.write(
+    `Item ${String(id)} ${demo.url}: ${item.status} ${item.source} ${item.fetch ?? "no fetch"}\n`,
+  );
 
   return wrong.length === 0 ? null : `${demo.url} ended with a different ${wrong.join(", ")}`;
 }
@@ -76,7 +78,7 @@ export async function ensureDemo(url: string, codes: Readonly<AccessCodes>): Pro
       const existing = items.find((item) => item.originalUrl === demo.url);
 
       if (existing === undefined) {
-        await endState(copy, await paste(copy, demo.url));
+        await endState(copy, (await paste(copy, demo.url)).id);
       } else if (existing.status === "processing") {
         await endState(copy, existing.id);
       }

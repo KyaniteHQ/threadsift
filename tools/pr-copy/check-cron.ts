@@ -1,10 +1,7 @@
-import { setTimeout as sleep } from "node:timers/promises";
-
 import { ItemResponseSchema } from "../../src/http/schemas.ts";
 import {
   INGEST_DEADLINE_MS,
   SENTINEL_ROUTE,
-  SKEW_MS,
   fetchJobs,
   requireIdleCopy,
   withTag,
@@ -14,7 +11,9 @@ import { type Findings, Inconclusive } from "./check-types.ts";
 import { type Copy, callCopy, send } from "./copy-calls.ts";
 import { endState, expectOk, paste } from "./copy-client.ts";
 import { purgeStatus, resumeDelivery, setDeliveryPaused, startPurge } from "./copy-control.ts";
+import { SKEW_MS } from "./pace.ts";
 import { awaitInvocations } from "./telemetry.ts";
+import { pause } from "./timeout.ts";
 
 const CRON_WAIT_MS = 20 * 60_000;
 const PURGE_DEADLINE_MS = 300_000;
@@ -35,7 +34,7 @@ async function awaitPurge(
     throw new Inconclusive("the purge did not complete before its deadline");
   }
 
-  await sleep(PURGE_POLL_MS);
+  await pause(PURGE_POLL_MS, deadline);
 
   return awaitPurge(run, earlier, deadline);
 }
@@ -78,8 +77,11 @@ async function holdAndPurge(
   await setDeliveryPaused(stage, stage.target.queue, true);
 
   const pastedAt = Date.now();
-  const id = await paste(copy, withTag(LINK, `${run.tag}-cron-${String(attempt)}`));
+  const { id, created } = await paste(copy, withTag(LINK, `${run.tag}-cron-${String(attempt)}`));
   findings.item(id);
+
+  if (!created)
+    throw new Inconclusive("the link was already known to the copy, so it was a refresh");
 
   const queued = await fetchJobs(run, id);
   queued.forEach((job) => {
@@ -189,10 +191,12 @@ async function recovery(
   findings: Readonly<Findings>,
   attempt = 1,
 ): Promise<void> {
+  await run.pace.settle();
   await requireIdleCopy(run, copy);
 
   const held = await heldAndResumed(run, copy, findings, attempt);
   const item = await endState(copy, held.id);
+  run.pace.done();
 
   if (held.removed) {
     findings.check(

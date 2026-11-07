@@ -4,6 +4,8 @@ import type { Page } from "./check-pages.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
 import { callTimeout } from "./timeout.ts";
 
+const SIZE_TOLERANCE = 0.01;
+
 const HTML_TAG = /<\/?(?:p|div|article|h[1-6])\b/u;
 
 export async function decodedPage(url: string): Promise<{ bytes: number; html: boolean }> {
@@ -32,7 +34,9 @@ export async function requireFixture(
   const { bytes, html } = await decodedPage(page.url);
   findings.measure(`${page.name}: decoded bytes`, bytes);
 
-  if (!html || bytes < MAX_HTML_BYTES !== page.under) {
+  const drifted = Math.abs(bytes - page.measuredBytes) > page.measuredBytes * SIZE_TOLERANCE;
+
+  if (!html || drifted || bytes < MAX_HTML_BYTES !== page.under) {
     throw new Inconclusive(
       `${page.name} no longer matches its fixture (${String(bytes)} bytes, ${html ? "HTML" : "not HTML"}, measured ${String(page.measuredBytes)}, cap ${String(MAX_HTML_BYTES)})`,
     );

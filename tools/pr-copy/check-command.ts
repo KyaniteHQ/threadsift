@@ -3,6 +3,7 @@ import { z } from "zod";
 import { resumeOnly } from "./check-run.ts";
 import { SCENARIO_NAMES } from "./check-types.ts";
 import { runChecks } from "./checks.ts";
+import { writeGateRun } from "./gate-run.ts";
 import { Sha } from "./github.ts";
 import { MAX_REBUILDS, rebuildCopy } from "./rebuild.ts";
 
@@ -37,6 +38,10 @@ export async function checkCommand(pr: number, flags: Readonly<Flags>): Promise<
   };
 
   if (!(await runChecks(options, Text.parse(flags.out)))) process.exitCode = 1;
+}
+
+export async function gateRunCommand(pr: number, flags: Readonly<Flags>): Promise<void> {
+  await writeGateRun(pr, Sha.parse(flags.head), Text.parse(flags.out));
 }
 
 export async function rebuildCommand(pr: number, flags: Readonly<Flags>): Promise<void> {

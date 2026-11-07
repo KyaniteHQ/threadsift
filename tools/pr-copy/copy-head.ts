@@ -6,7 +6,10 @@ import { ENVIRONMENT, byNewest, deployments, task } from "./github.ts";
 export interface CopyHead {
   readonly url: string;
   readonly head: string;
+  readonly gateRun: number | null;
 }
+
+const GateRun = z.object({ gateRun: z.number().int() });
 
 const Statuses = z.array(z.object({ state: z.string(), environment_url: z.url().optional() }));
 
@@ -25,5 +28,9 @@ export async function currentCopy(pr: number): Promise<CopyHead | null> {
     );
   }
 
-  return { url: status.environment_url, head: newest.sha };
+  return {
+    url: status.environment_url,
+    head: newest.sha,
+    gateRun: GateRun.safeParse(newest.payload).data?.gateRun ?? null,
+  };
 }

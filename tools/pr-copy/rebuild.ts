@@ -1,19 +1,24 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { SKEW_MS } from "./check-measure.ts";
+import { probeTelemetry, verifiedCopy } from "./check-run.ts";
 import { cloudflare, copyNames, deleteDatabase } from "./cloudflare.ts";
-import { CopyAnswerError } from "./copy-client.ts";
 import { currentVersion } from "./copy-control.ts";
 import { type CopyRecord, deployCopy } from "./copy.ts";
-import { lastRecord, pullRequest, staleReason } from "./github.ts";
-import { withStage } from "./stage.ts";
-import { readInvocations, routeTemplate } from "./telemetry.ts";
+import { lastRecord, pullRequest } from "./github.ts";
+import { RUN_BUDGET_MS } from "./pace.ts";
+import {
+  type Evidence,
+  type Failure,
+  NO_EVIDENCE,
+  type Outcome,
+  classify,
+  exceptionLog,
+  needsLog,
+} from "./rebuild-log.ts";
+import { copyConfig, withStage } from "./stage.ts";
 
 export const MAX_REBUILDS = 20;
-
-const DEADLINE_MS = 270 * 60_000;
-const APP_ERROR = "Internal error";
 
 export interface RebuildOptions {
   readonly pr: number;
@@ -22,57 +27,49 @@ export interface RebuildOptions {
   readonly times: number;
 }
 
-type Outcome = "clean" | "app-500" | "edge-failure" | "other-answer" | "other";
+type Attempt = Evidence &
+  Readonly<{
+    n: number;
+    outcome: Outcome;
+    route: string | null;
+    status: number | null;
+    stop: string | null;
+  }>;
 
-interface Attempt {
-  readonly n: number;
-  readonly outcome: Outcome;
-  readonly route: string | null;
-  readonly status: number | null;
-  readonly requestId: string | null;
-  readonly exceptionLogged: boolean | null;
-}
+async function draftReason(options: Readonly<RebuildOptions>): Promise<string | null> {
+  const name = `pull request ${String(options.pr)}`;
+  const pull = await pullRequest(options.pr);
 
-function classify(error: Readonly<Error>): Pick<Attempt, "outcome" | "route" | "status"> {
-  if (!(error instanceof CopyAnswerError)) {
-    return { outcome: "other", route: null, status: null };
-  }
+  if (pull.state !== "open") return `${name} is closed`;
 
-  const { status } = error;
-  const route = routeTemplate(error.path);
+  if (!pull.draft) return `${name} is not a draft; only a throwaway draft is rebuilt`;
 
-  if (status === 500 && error.answer === APP_ERROR) return { outcome: "app-500", route, status };
-
-  return { outcome: status >= 500 ? "edge-failure" : "other-answer", route, status };
-}
-
-async function exceptionLog(
-  pr: number,
-  from: number,
-): Promise<Pick<Attempt, "requestId" | "exceptionLogged">> {
-  const names = copyNames(pr);
+  if (pull.head.sha !== options.head) return `${name} is at ${pull.head.sha} now`;
 
   try {
-    return await withStage(names, null, async (stage) => {
-      const version = await currentVersion(stage, names.name);
-
-      const failed = (
-        await readInvocations(
-          stage,
-          { version, trigger: "fetch" },
-          { from: from - SKEW_MS, to: Date.now() + SKEW_MS },
-        )
-      ).find((entry) => entry.status === 500);
-
-      return { requestId: failed?.requestId ?? null, exceptionLogged: failed?.errorLogged ?? null };
-    });
+    await verifiedCopy(options);
   } catch (error) {
-    process.stderr.write(
-      `The invocation log could not be read: ${error instanceof Error ? error.message.slice(0, 120) : "unknown error"}\n`,
-    );
-
-    return { requestId: null, exceptionLogged: null };
+    return error instanceof Error ? error.message : "the copy could not be verified";
   }
+
+  return null;
+}
+
+async function preflight(options: Readonly<RebuildOptions>): Promise<void> {
+  const reason = await draftReason(options);
+
+  if (reason !== null) throw new Error(reason);
+
+  const names = copyNames(options.pr);
+
+  await withStage(names, null, async (stage) => {
+    copyConfig(stage.target, options.artifact);
+    await probeTelemetry(stage, await currentVersion(stage, names.name));
+  });
+}
+
+function failed(n: number, failure: Readonly<Failure>, log: Readonly<Evidence>): Attempt {
+  return { n, ...failure, ...log, stop: null };
 }
 
 async function attemptOf(
@@ -81,36 +78,26 @@ async function attemptOf(
   record: CopyRecord | null,
 ): Promise<{ attempt: Attempt; record: CopyRecord | null }> {
   const names = copyNames(options.pr);
-  const started = Date.now();
+  const stop = await draftReason(options);
+
+  if (stop !== null) {
+    const stopped = { outcome: "stopped", route: null, status: null, at: Date.now() } as const;
+
+    return { attempt: { ...failed(n, stopped, NO_EVIDENCE), stop }, record };
+  }
 
   await withStage(names, null, (stage) => cloudflare(stage, deleteDatabase(names.name)));
 
   try {
     const copy = await deployCopy(options.pr, options.artifact, record);
+    const clean = { outcome: "clean", route: null, status: null, at: Date.now() } as const;
 
-    return {
-      attempt: {
-        n,
-        outcome: "clean",
-        route: null,
-        status: null,
-        requestId: null,
-        exceptionLogged: null,
-      },
-      record: copy.record,
-    };
+    return { attempt: failed(n, clean, NO_EVIDENCE), record: copy.record };
   } catch (error) {
-    const found =
-      error instanceof Error
-        ? classify(error)
-        : { outcome: "other" as const, route: null, status: null };
+    const found = classify(error instanceof Error ? error : new Error("unexpected failure"));
+    const log = needsLog(found) ? await exceptionLog(options.pr, found) : NO_EVIDENCE;
 
-    const log =
-      found.outcome === "app-500" || found.outcome === "edge-failure"
-        ? await exceptionLog(options.pr, started)
-        : { requestId: null, exceptionLogged: null };
-
-    return { attempt: { n, ...found, ...log }, record };
+    return { attempt: failed(n, found, log), record };
   }
 }
 
@@ -135,23 +122,14 @@ export async function rebuildCopy(
   options: Readonly<RebuildOptions>,
   out: string,
 ): Promise<boolean> {
-  const pull = await pullRequest(options.pr);
-  const stale = staleReason({ pr: options.pr, headSha: options.head }, pull);
-
-  if (stale !== null) throw new Error(stale);
-
-  if (!pull.draft) {
-    throw new Error(
-      `pull request ${String(options.pr)} is not a draft; only a throwaway draft is rebuilt`,
-    );
-  }
+  await preflight(options);
 
   const attempts = await rebuildFrom(
     options,
     1,
     await lastRecord(options.pr),
     [],
-    Date.now() + DEADLINE_MS,
+    Date.now() + RUN_BUDGET_MS,
   );
 
   mkdirSync(out, { recursive: true });

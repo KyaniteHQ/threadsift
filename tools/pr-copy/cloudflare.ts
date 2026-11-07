@@ -161,6 +161,7 @@ async function accountRequest(
   method: RequestMethod,
   path: string,
   body?: string,
+  deadline?: number,
 ): Promise<Response> {
   const request = body === undefined ? { method } : { method, body };
 
@@ -170,7 +171,7 @@ async function accountRequest(
       authorization: `Bearer ${requiredEnv("CLOUDFLARE_API_TOKEN")}`,
       "content-type": "application/json",
     },
-    signal: callTimeout(),
+    signal: callTimeout(deadline),
   });
 
   if (!response.ok) {
@@ -211,8 +212,9 @@ export async function cloudflareCall<Body>(
   path: string,
   schema: z.ZodType<Body>,
   body?: string,
+  deadline?: number,
 ): Promise<Body> {
-  const response = await accountRequest(method, path, body);
+  const response = await accountRequest(method, path, body, deadline);
 
   return schema.parse(await response.json());
 }

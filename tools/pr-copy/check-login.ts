@@ -1,11 +1,12 @@
 import { randomBytes } from "node:crypto";
 
-import { INGEST_DEADLINE_MS, SENTINEL_ROUTE, SKEW_MS, idleMinutes } from "./check-measure.ts";
+import { INGEST_DEADLINE_MS, SENTINEL_ROUTE, idleMinutes } from "./check-measure.ts";
 import type { Run } from "./check-run.ts";
 import type { Findings } from "./check-types.ts";
 import { type Copy, send, sessionCookie } from "./copy-calls.ts";
 import { logIn } from "./copy-client.ts";
 import { requiredEnv } from "./env.ts";
+import { SKEW_MS } from "./pace.ts";
 import { type Invocation, awaitInvocations } from "./telemetry.ts";
 
 const LOGIN_ROUTE = "/api/login";

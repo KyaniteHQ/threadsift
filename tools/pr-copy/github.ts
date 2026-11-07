@@ -40,6 +40,7 @@ export function byNewest(a: Deployment, b: Deployment): number {
 
 const WorkflowRunEventSchema = z.object({
   workflow_run: z.object({
+    id: z.number().int(),
     head_sha: Sha,
     pull_requests: z.array(z.object({ number: PrNumber })),
   }),
@@ -80,7 +81,11 @@ export function task(pr: number): string {
   return `deploy:pr-${String(pr)}`;
 }
 
-export function deployedHead(): PullHead {
+export interface DeployedHead extends PullHead {
+  readonly gateRun: number;
+}
+
+export function deployedHead(): DeployedHead {
   const { workflow_run: run } = event(WorkflowRunEventSchema);
   const [pull] = run.pull_requests;
 
@@ -88,7 +93,7 @@ export function deployedHead(): PullHead {
     throw new Error("The gate run names no pull request");
   }
 
-  return { pr: pull.number, headSha: run.head_sha };
+  return { pr: pull.number, headSha: run.head_sha, gateRun: run.id };
 }
 
 export function closedPullRequest(): number {
@@ -177,7 +182,7 @@ export async function lastRecord(pr: number): Promise<CopyRecord | null> {
 }
 
 export async function postDeployment(
-  head: Readonly<PullHead>,
+  head: Readonly<DeployedHead>,
   copy: Readonly<DeployedCopy> | null,
 ): Promise<void> {
   const deployment = await createDeployment({
@@ -185,7 +190,7 @@ export async function postDeployment(
     task: task(head.pr),
     environment: ENVIRONMENT,
     transient: true,
-    payload: copy?.record ?? null,
+    payload: copy === null ? null : { ...copy.record, gateRun: head.gateRun },
     description: `Copy of pull request ${String(head.pr)}`,
   });
 
@@ -198,7 +203,7 @@ function createDeployment(
     task: string;
     environment: string;
     transient: boolean;
-    payload: CopyRecord | null;
+    payload: Readonly<CopyRecord & { gateRun?: number }> | null;
     description: string;
   }>,
 ) {
