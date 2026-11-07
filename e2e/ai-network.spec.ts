@@ -38,8 +38,8 @@ test("Worker refuses private and HTTP AI addresses at save and at Verify", async
 
   expect(
     (await aiJson(screen, AiSettingsViewSchema, "PUT", AI_SETTINGS_ENDPOINT, JSON.stringify(input)))
-      .settings?.keySet,
-  ).toBe(true);
+      .settings,
+  ).toMatchObject({ keySet: true });
 
   for (const baseUrl of [
     "http://example.com",
@@ -111,8 +111,8 @@ test("an unreachable AI host returns a safe category without an upstream status"
 
   expect(
     (await aiJson(screen, AiSettingsViewSchema, "PUT", AI_SETTINGS_ENDPOINT, JSON.stringify(input)))
-      .settings?.keySet,
-  ).toBe(true);
+      .settings,
+  ).toMatchObject({ keySet: true });
   expect(await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).toEqual({
     kind: "refused",
     reason: "unreachable",

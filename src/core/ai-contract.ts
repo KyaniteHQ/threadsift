@@ -36,9 +36,23 @@ export const PROVIDERS = {
     names: ["model", "key"],
     fields: { model: Model, key: Key },
   },
+  "workers-ai": {
+    id: "workers-ai",
+    label: "workersAi",
+    url: null,
+    names: ["model"],
+    fields: { model: Model },
+  },
 } as const;
 
-export const ProviderSchema = z.enum([PROVIDERS["openai-compatible"].id, PROVIDERS.openrouter.id]);
+export const HttpProviderSchema = z.enum([
+  PROVIDERS["openai-compatible"].id,
+  PROVIDERS.openrouter.id,
+]);
+
+export const ProviderSchema = z.enum([...HttpProviderSchema.options, PROVIDERS["workers-ai"].id]);
+
+export type Provider = z.infer<typeof ProviderSchema>;
 
 export const AiSettingsInputSchema = z.discriminatedUnion("provider", [
   z.object({
@@ -46,6 +60,7 @@ export const AiSettingsInputSchema = z.discriminatedUnion("provider", [
     ...PROVIDERS["openai-compatible"].fields,
   }),
   z.object({ provider: z.literal(PROVIDERS.openrouter.id), ...PROVIDERS.openrouter.fields }),
+  z.object({ provider: z.literal(PROVIDERS["workers-ai"].id), ...PROVIDERS["workers-ai"].fields }),
 ]);
 
 const AiExecutionRefusalSchema = z.enum([
@@ -60,6 +75,7 @@ const AiExecutionRefusalSchema = z.enum([
 
 export const AiRefusalSchema = z.enum([
   ...AiExecutionRefusalSchema.options,
+  "provider-unavailable",
   "key-needed",
   "not-configured",
   "secret-missing",
@@ -71,15 +87,21 @@ export type AiSettingsInput = z.infer<typeof AiSettingsInputSchema>;
 
 export type Digest = z.infer<typeof DigestSchema>;
 
+const HttpSettingsViewSchema = z.object({
+  provider: HttpProviderSchema,
+  baseUrl: z.string(),
+  model: z.string(),
+  keySet: z.boolean(),
+});
+
+const BindingSettingsViewSchema = z.object({
+  provider: z.literal(PROVIDERS["workers-ai"].id),
+  model: z.string(),
+});
+
 export const AiSettingsViewSchema = z.object({
-  settings: z
-    .object({
-      provider: ProviderSchema,
-      baseUrl: z.string(),
-      model: z.string(),
-      keySet: z.boolean(),
-    })
-    .nullable(),
+  settings: z.union([HttpSettingsViewSchema, BindingSettingsViewSchema]).nullable(),
+  providers: z.array(ProviderSchema).readonly(),
   secretReady: z.boolean(),
   publicOnly: z.boolean(),
 });
@@ -119,6 +141,7 @@ export function retriesAi({ reason, status }: Readonly<AiRefused>): boolean {
     case "wrong-key":
     case "model-not-found":
     case "refused":
+    case "provider-unavailable":
     case "key-needed":
     case "not-configured":
     case "secret-missing":
@@ -131,14 +154,20 @@ export function retriesAi({ reason, status }: Readonly<AiRefused>): boolean {
   }
 }
 
-export type AiConnection = HttpAiConnection | { readonly kind: "none" };
+export type AiConnection = HttpAiConnection | BindingAiConnection;
 
 export interface HttpAiConnection {
   readonly kind: "http";
-  readonly provider: z.infer<typeof ProviderSchema>;
+  readonly provider: z.infer<typeof HttpProviderSchema>;
   readonly baseUrl: string;
   readonly model: string;
   readonly key: string;
+}
+
+export interface BindingAiConnection {
+  readonly kind: "binding";
+  readonly provider: "workers-ai";
+  readonly model: string;
 }
 
 export type AiExecution<Result> =

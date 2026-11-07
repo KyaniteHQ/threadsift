@@ -11,6 +11,10 @@ export const AI_TEXT = {
   provider: "Provider",
   compatible: "OpenAI-compatible URL",
   openrouter: "OpenRouter",
+  workersAi: "Workers AI",
+  workersAiHelp:
+    "Workers AI runs on this Instance's Cloudflare account. No URL or API key is needed.",
+  keyNotNeeded: "No API key needed for Workers AI.",
   baseUrl: "Base URL",
   model: "Model",
   key: "API key",
@@ -37,4 +41,6 @@ export const AI_TEXT = {
   refused:
     "Base URL refused. On Cloudflare use a public HTTPS URL; redirects are refused on both targets.",
   "not-configured": "Save Provider settings first.",
+  "provider-unavailable":
+    "Workers AI works only on a Cloudflare Instance. Choose another Provider.",
 } as const;

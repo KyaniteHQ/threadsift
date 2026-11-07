@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type SubmitEvent } from "react";
 
-import { type Digest } from "../../src/core/ai-contract.ts";
+import { type Digest, type Provider } from "../../src/core/ai-contract.ts";
 import { type AiView, fetchAiSettings } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
@@ -31,12 +31,14 @@ function DigestResult({ digest }: Readonly<{ digest: Readonly<Digest> }>) {
 }
 
 function AiActions({
-  view,
+  saveBlocked,
+  verifyBlocked,
   busy,
   action,
   onVerify,
 }: Readonly<{
-  view: AiView;
+  saveBlocked: boolean;
+  verifyBlocked: boolean;
   busy: boolean;
   action: "save" | "verify" | null;
   onVerify: () => void;
@@ -47,13 +49,13 @@ function AiActions({
         label={AI_TEXT.save}
         busyLabel={AI_TEXT.saving}
         busy={busy && action === "save"}
-        blocked={busy || !view.secretReady}
+        blocked={busy || saveBlocked}
       />
       <SwapButton
         label={AI_TEXT.verify}
         busyLabel={AI_TEXT.verifying}
         busy={busy && action === "verify"}
-        blocked={busy || !view.secretReady || view.settings === null}
+        blocked={busy || verifyBlocked}
         type="button"
         onClick={onVerify}
         secondary
@@ -62,20 +64,27 @@ function AiActions({
   );
 }
 
+function keyStatus(provider: Provider, keySaved: boolean): string {
+  if (provider === "workers-ai") return AI_TEXT.keyNotNeeded;
+
+  return keySaved ? AI_TEXT.keySet : AI_TEXT.keyMissing;
+}
+
 function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView) => void }>) {
-  const { fields, result, busy, action, guard, save, verify } = useAiForm(view, saved);
+  const keySaved = view.settings !== null && "keySet" in view.settings && view.settings.keySet;
+
+  const { fields, result, busy, action, submit, verifyNow, saveBlocked, verifyBlocked } = useAiForm(
+    view,
+    saved,
+  );
 
   const onSubmit = useCallback(
     (event: SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
-      guard(save);
+      submit();
     },
-    [guard, save],
+    [submit],
   );
-
-  const onVerify = useCallback(() => {
-    if (view.settings !== null) guard(verify);
-  }, [guard, verify, view.settings]);
 
   return (
     <>
@@ -88,13 +97,20 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
       >
         <AiFields
           fields={fields}
+          providers={view.providers}
           disabled={busy}
           publicOnly={view.publicOnly}
-          keyRequired={view.settings?.keySet !== true}
+          keyRequired={!keySaved}
         />
-        <p>{view.settings?.keySet === true ? AI_TEXT.keySet : AI_TEXT.keyMissing}</p>
-        {view.secretReady ? null : <p className="fld-help">{AI_TEXT["secret-missing"]}</p>}
-        <AiActions view={view} busy={busy} action={action} onVerify={onVerify} />
+        <p>{keyStatus(fields.provider, keySaved)}</p>
+        {saveBlocked ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
+        <AiActions
+          saveBlocked={saveBlocked}
+          verifyBlocked={verifyBlocked}
+          busy={busy}
+          action={action}
+          onVerify={verifyNow}
+        />
       </form>
       <output>{result?.kind === "ok" ? result.text : null}</output>
       <Alert text={result?.kind === "error" ? result.text : null} />

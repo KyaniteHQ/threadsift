@@ -17,11 +17,7 @@ export function fetchAiSettings(): Promise<AiView> {
 }
 
 export function saveAiSettings(input: Readonly<AiSettingsInput>) {
-  const { key, ...connection } = input;
-
-  return parsedFrom("PUT", "/api/settings/ai", AiSaveResponseSchema, {
-    json: key === undefined ? connection : { ...connection, key },
-  });
+  return parsedFrom("PUT", "/api/settings/ai", AiSaveResponseSchema, { json: input });
 }
 
 export function verifyAi(): Promise<VerifyResult> {

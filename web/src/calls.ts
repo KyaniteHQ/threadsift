@@ -4,7 +4,7 @@ import { announceSignedOut } from "./signed-out.ts";
 
 type Method = "GET" | "POST" | "PUT" | "DELETE";
 
-export type JsonBody = Readonly<Record<string, string>>;
+export type JsonBody = Readonly<Record<string, string | undefined>>;
 
 interface Call {
   readonly json?: JsonBody;

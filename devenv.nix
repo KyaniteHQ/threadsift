@@ -59,7 +59,7 @@ in
       exec = ''
         [ -d dist/web ] || ./node_modules/.bin/vite build
         ./node_modules/.bin/wrangler d1 migrations apply DB --local --persist-to .wrangler/state
-        exec ./node_modules/.bin/wrangler dev --port ${port "worker"} --inspector-port ${toString config.processes.worker.ports.inspector.value} --persist-to .wrangler/state
+        exec ./node_modules/.bin/wrangler dev --local --port ${port "worker"} --inspector-port ${toString config.processes.worker.ports.inspector.value} --persist-to .wrangler/state
       '';
     };
   };

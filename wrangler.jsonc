@@ -11,6 +11,7 @@
   },
   "d1_databases": [{ "binding": "DB", "database_name": "threadsift" }],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "threadsift-files" }],
+  "ai": { "binding": "AI" },
   "queues": {
     "producers": [{ "binding": "JOBS", "queue": "threadsift-jobs" }],
     "consumers": [{ "queue": "threadsift-jobs", "max_batch_size": 1 }],
