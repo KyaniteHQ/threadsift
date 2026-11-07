@@ -1,6 +1,6 @@
 import { createDecipheriv, randomBytes } from "node:crypto";
 
-import { type Browser, type Locator, expect } from "@playwright/test";
+import { type Browser, type Locator, type Page, expect } from "@playwright/test";
 import { z } from "zod";
 
 import { DigestSchema } from "../src/core/ai-contract.ts";
@@ -51,11 +51,19 @@ export async function saveInBrowser(
   await page.goto("/settings");
   await page.getByLabel(AI_TEXT.baseUrl, { exact: true }).fill(baseUrl);
   await page.getByLabel(AI_TEXT.model, { exact: true }).fill(model);
+  await fillKey(page, key);
+  await saveAndExpectKeyCleared(page);
+}
+
+export async function fillKey(page: Page, key: string): Promise<void> {
   await page.getByLabel(AI_TEXT.key, { exact: true }).evaluate((input, value) => {
     const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
     descriptor?.set?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   }, key);
+}
+
+export async function saveAndExpectKeyCleared(page: Page): Promise<void> {
   await pressKeepingFocus(page.getByRole("button", { name: AI_TEXT.save, exact: true }));
   await expect(page.getByText(AI_TEXT.saved, { exact: true })).toBeVisible();
   await expect(page.getByLabel(AI_TEXT.key, { exact: true })).toHaveValue("");
