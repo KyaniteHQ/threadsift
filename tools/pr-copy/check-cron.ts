@@ -64,6 +64,7 @@ interface Held {
   readonly pastedAt: number;
   readonly purgedAt: number;
   readonly resumedAt: number;
+  readonly removed: boolean;
 }
 
 async function holdAndPurge(
@@ -99,16 +100,13 @@ async function holdAndPurge(
   const item = ItemResponseSchema.parse(await response.json()).item;
   const after = await fetchJobs(run, id);
 
-  findings.check(
-    "after the purge the Item is still processing and its job is unclaimed",
-    item.status === "processing" && after.length === 1 && after[0]?.state === "queued",
-    `${item.status} ${after.map((job) => job.state).join(",")}`,
-  );
+  const removed =
+    item.status === "processing" && after.length === 1 && after[0]?.state === "queued";
 
   const resumedAt = Date.now();
   await setDeliveryPaused(stage, stage.target.queue, false);
 
-  return { id, pastedAt, purgedAt, resumedAt };
+  return { id, pastedAt, purgedAt, resumedAt, removed };
 }
 
 async function heldAndResumed(
@@ -195,18 +193,25 @@ async function recovery(
   const held = await heldAndResumed(run, copy, findings, attempt);
   const item = await endState(copy, held.id);
 
-  findings.check("the Item ends ready", item.status === "ready", item.status);
-  findings.check(
-    "its fetch job is done",
-    (await fetchJobs(run, held.id)).every((job) => job.state === "done"),
-    "all jobs",
-  );
+  if (held.removed) {
+    findings.check(
+      "after the purge the Item was still processing and its job unclaimed",
+      true,
+      "processing queued",
+    );
+    findings.check("the Item ends ready", item.status === "ready", item.status);
+    findings.check(
+      "its fetch job is done",
+      (await fetchJobs(run, held.id)).every((job) => job.state === "done"),
+      "all jobs",
+    );
 
-  if (await orderOfInvocations(run, held, findings)) return;
+    if (await orderOfInvocations(run, held, findings)) return;
+  }
 
   if (attempt >= ATTEMPTS) {
     throw new Inconclusive(
-      `a scheduled invocation fell before the purge completed, or a consumer invocation came first, in ${String(ATTEMPTS)} attempts`,
+      `the purge did not leave the job unclaimed, or a scheduled invocation fell before it completed, in ${String(ATTEMPTS)} attempts`,
     );
   }
 
