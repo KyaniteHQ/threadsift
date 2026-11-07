@@ -51,10 +51,6 @@ const WorkerConfigSchema = z
       .strict(),
     triggers: z.object({ crons: z.array(z.string()) }).strict(),
     limits: z.object({ cpu_ms: z.number().int() }).strict(),
-    observability: z
-      .object({ enabled: z.literal(true), redact_query_string: z.literal(true) })
-      .strict()
-      .optional(),
     alias: z.record(z.string(), z.string()),
   })
   .strict()
