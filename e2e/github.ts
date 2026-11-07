@@ -25,10 +25,14 @@ export async function requireGithubBudget(requests: number): Promise<void> {
 
   const { remaining, reset } = RateLimitSchema.parse(await response.json()).resources.core;
 
-  test.skip(
-    remaining < requests,
-    `GitHub rate limit: ${remaining} unauthenticated requests remain for this address until ${new Date(reset * 1000).toISOString()}, and this test sends ${requests}`,
-  );
+  if (remaining >= requests) return;
+
+  const message = `GitHub rate limit: ${remaining} unauthenticated requests remain for this address until ${new Date(reset * 1000).toISOString()}, and this test sends ${requests}`;
+
+  if (process.env["GITHUB_ACTIONS"] === "true")
+    throw new Error(`${message}; rerun after the reset`);
+
+  test.skip(true, message);
 }
 
 const StoredRepositories = z.array(
