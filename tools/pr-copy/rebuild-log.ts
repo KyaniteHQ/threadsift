@@ -15,6 +15,7 @@ export interface Failure {
   readonly route: string | null;
   readonly status: number | null;
   readonly at: number;
+  readonly note: string | null;
 }
 
 export interface Evidence {
@@ -27,15 +28,27 @@ export const NO_EVIDENCE: Evidence = { requestId: null, exceptionLogged: null, e
 
 export function classify(error: Readonly<Error>): Failure {
   if (!(error instanceof CopyAnswerError)) {
-    return { outcome: "other", route: null, status: null, at: Date.now() };
+    return {
+      outcome: "other",
+      route: null,
+      status: null,
+      at: Date.now(),
+      note: publicMessage(error),
+    };
   }
 
   const { status, path: route, at } = error;
 
   if (status === 500 && error.answer === APP_ERROR)
-    return { outcome: "app-500", route, status, at };
+    return { outcome: "app-500", route, status, at, note: null };
 
-  return { outcome: status >= 500 ? "edge-failure" : "other-answer", route, status, at };
+  return {
+    outcome: status >= 500 ? "edge-failure" : "other-answer",
+    route,
+    status,
+    at,
+    note: null,
+  };
 }
 
 export function needsLog(failure: Readonly<Failure>): boolean {

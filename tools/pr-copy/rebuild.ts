@@ -81,7 +81,13 @@ async function attemptOf(
   const stop = await draftReason(options);
 
   if (stop !== null) {
-    const stopped = { outcome: "stopped", route: null, status: null, at: Date.now() } as const;
+    const stopped = {
+      outcome: "stopped",
+      route: null,
+      status: null,
+      at: Date.now(),
+      note: null,
+    } as const;
 
     return { attempt: { ...failed(n, stopped, NO_EVIDENCE), stop }, record };
   }
@@ -90,7 +96,14 @@ async function attemptOf(
 
   try {
     const copy = await deployCopy(options.pr, options.artifact, record);
-    const clean = { outcome: "clean", route: null, status: null, at: Date.now() } as const;
+
+    const clean = {
+      outcome: "clean",
+      route: null,
+      status: null,
+      at: Date.now(),
+      note: null,
+    } as const;
 
     return { attempt: failed(n, clean, NO_EVIDENCE), record: copy.record };
   } catch (error) {
