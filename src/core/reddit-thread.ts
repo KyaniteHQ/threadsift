@@ -3,12 +3,9 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import { type CommentRow, type CommentsView, NO_COMMENTS, commentsViewOf } from "./comment-view.ts";
 import type { Database } from "./ports.ts";
-import type { ParsedThread, ThreadNode } from "./reddit-json.ts";
+import type { ParsedThread } from "./reddit-json.ts";
 import { digests, items, redditComments, redditThreads } from "./schema.ts";
-
-const STATEMENT_JSON_BYTES = 1_500_000;
-
-const encoder = new TextEncoder();
+import { jsonArrays, rowJson } from "./thread-rows.ts";
 
 export function eligibleComments(): SQL {
   return sql`exists (select 1 from ${redditComments} where ${redditComments.itemId} = ${items.id} and ${redditComments.generation} = ${items.generation} and ${redditComments.eligible} = 1)`;
@@ -16,30 +13,6 @@ export function eligibleComments(): SQL {
 
 export function keptCommentIds(): SQL<string> {
   return sql<string>`(select coalesce(json_group_array(id), '[]') from (select ${redditComments.id} as id from ${redditComments} join ${digests} on ${digests.itemId} = ${redditComments.itemId} and ${digests.generation} = ${redditComments.generation} where ${redditComments.itemId} = ${items.id} and ${redditComments.kept} = 1 order by ${redditComments.position}))`;
-}
-
-function rowJson(node: Readonly<ThreadNode>): string {
-  return JSON.stringify({ ...node, eligible: node.eligible ? 1 : 0 });
-}
-
-function rowChunks(nodes: readonly ThreadNode[]): readonly string[] {
-  const chunks: string[][] = [];
-  let bytes = 0;
-
-  for (const row of nodes.map((node) => rowJson(node))) {
-    const size = encoder.encode(row).length;
-    const open = chunks.at(-1);
-
-    if (open === undefined || bytes + size > STATEMENT_JSON_BYTES) {
-      chunks.push([row]);
-      bytes = size;
-    } else {
-      open.push(row);
-      bytes += size;
-    }
-  }
-
-  return chunks.map((rows) => `[${rows.join(",")}]`);
 }
 
 interface Owner {
@@ -125,7 +98,9 @@ export function threadWrites(
   return [
     ...supersededDeletes(db, owner),
     headerInsert(db, owner, thread.reported),
-    ...rowChunks(thread.nodes).map((json) => commentInsert(db, owner, json)),
+    ...jsonArrays(thread.nodes.map((node) => rowJson(node))).map((json) =>
+      commentInsert(db, owner, json),
+    ),
   ];
 }
 

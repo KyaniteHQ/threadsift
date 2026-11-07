@@ -99,12 +99,16 @@ export function postOnlyJson(post: Readonly<Post>): string {
   return JSON.stringify([postListing(post)]);
 }
 
-export function threadJson(post: Readonly<Post>, tree: readonly Node[]): string {
+export function threadJson(
+  post: Readonly<Post>,
+  tree: readonly Node[],
+  topParent = `t3_${post.id}`,
+): string {
   return JSON.stringify([
     postListing(post),
     {
       kind: "Listing",
-      data: { children: wireChildren(tree, `t3_${post.id}`, { next: 0 }) },
+      data: { children: wireChildren(tree, topParent, { next: 0 }) },
     },
   ]);
 }

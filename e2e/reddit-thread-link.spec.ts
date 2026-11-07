@@ -59,6 +59,39 @@ test("a comment link keeps the requested comment as the Item text and only its d
   expect(await find(request, marker("sibling"))).toEqual([]);
 });
 
+test("a comment link whose response starts at the requested comment is stored although its parent is not in the response", async ({
+  request,
+}) => {
+  const id = `m${run}`;
+
+  const { item } = await savedThread(request, {
+    url: `${postUrl(id)}${REQUESTED}/`,
+    content: threadJson(
+      post(id, "The containing post."),
+      [
+        comment("rc1", "reader_h", `${marker("focused")} The saved comment itself.`, [
+          comment("d1", "reader_i", `${marker("focusedreply")} A reply worth keeping.`),
+          MORE,
+        ]),
+      ],
+      "t1_unsavedparent",
+    ),
+    digest: { ...AUTHORED_DIGEST, keptComments: ["t1_d1"] },
+  });
+
+  expect(item).toMatchObject({
+    kind: "reddit-comment",
+    author: "reader_h",
+    postText: `${marker("focused")} The saved comment itself.`,
+  });
+  expect(item.comments).toMatchObject({ reported: null, received: 1, kept: 1 });
+  expect(item.comments.nodes).toMatchObject([
+    { kind: "comment", id: "t1_d1", parentId: null, depth: 0 },
+    { kind: "more", id: "more_1", parentId: null, depth: 0 },
+  ]);
+  expect(await find(request, marker("focusedreply"))).toEqual([item.id]);
+});
+
 test("a post with no text still opens a Digest when it has eligible comments, and none when every comment is dropped", async ({
   request,
 }) => {

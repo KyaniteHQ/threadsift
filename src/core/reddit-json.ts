@@ -1,89 +1,13 @@
-import { z } from "zod";
-
 import { utf8Length } from "./ai-contract.ts";
 import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
 import type { RedditRef } from "./links.ts";
 import { INLINE_TEXT_BYTES } from "./post-text-files.ts";
+import { type WireChild, type WireComment, type WirePost, ThreadJson } from "./reddit-wire.ts";
+import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
 
 export const THREAD_CONTENT_BYTES = 4 * 1024 * 1024;
 
-interface WireComment {
-  readonly id: string;
-  readonly author: string;
-  readonly body: string;
-  readonly parent_id: string;
-  readonly score?: number | null | undefined;
-  readonly created_utc: number;
-  readonly replies?: "" | WireListing | undefined;
-}
-
-interface WireListing {
-  readonly data: { readonly children: readonly WireChild[] };
-}
-
-type WireChild =
-  | { readonly kind: "t1"; readonly data: WireComment }
-  | { readonly kind: "more"; readonly data: { readonly parent_id: string } };
-
-const Child: z.ZodType<WireChild> = z.lazy(() =>
-  z.union([
-    z.object({ kind: z.literal("t1"), data: CommentData }),
-    z.object({ kind: z.literal("more"), data: z.object({ parent_id: z.string() }) }),
-  ]),
-);
-
-const Listing = z.object({ data: z.object({ children: z.array(Child) }) });
-
-const CommentData = z.object({
-  id: z.string().min(1),
-  author: z.string(),
-  body: z.string(),
-  parent_id: z.string(),
-  score: z.number().int().nullish(),
-  created_utc: z.number().nonnegative(),
-  replies: z.union([z.literal(""), Listing]).optional(),
-});
-
-const PostData = z
-  .object({
-    id: z.string().min(1),
-    title: z.string().trim().min(1),
-    author: z.string(),
-    subreddit: z.string().min(1),
-    selftext: z.string(),
-    created_utc: z.number().nonnegative(),
-    num_comments: z.number().int().nonnegative().nullish(),
-  })
-  .readonly();
-
-const PostListing = z
-  .object({
-    data: z
-      .object({
-        children: z
-          .tuple([z.object({ kind: z.literal("t3"), data: PostData }).readonly()])
-          .readonly(),
-      })
-      .readonly(),
-  })
-  .readonly();
-
-const ThreadJson = z.tuple([PostListing, Listing]);
-
-type Post = z.infer<typeof PostData>;
-
-export interface ThreadNode {
-  readonly id: string;
-  readonly parentId: string | null;
-  readonly position: number;
-  readonly depth: number;
-  readonly kind: "comment" | "more";
-  readonly author: string | null;
-  readonly body: string | null;
-  readonly score: number | null;
-  readonly postedAt: number | null;
-  readonly eligible: boolean;
-}
+export const METADATA_BYTES = 4096;
 
 export interface ParsedThread {
   readonly title: string;
@@ -121,14 +45,18 @@ function milliseconds(seconds: number): number {
   return Math.round(seconds * 1000);
 }
 
-const QUOTES = 2;
-
-function checkedText(text: string, what: string): string {
-  if (utf8Length(JSON.stringify(text)) - QUOTES > INLINE_TEXT_BYTES) {
+function checkedText(text: string, what: string): void {
+  if (utf8Length(text) > INLINE_TEXT_BYTES) {
     refuse(`${what} is longer than ${String(INLINE_TEXT_BYTES)} bytes`);
   }
+}
 
-  return text;
+function checkedMetadata(fields: Readonly<Record<string, string>>): void {
+  for (const [what, text] of Object.entries(fields)) {
+    if (utf8Length(text) > METADATA_BYTES) {
+      refuse(`${what} is longer than ${String(METADATA_BYTES)} bytes`);
+    }
+  }
 }
 
 function repliesOf({ replies }: Readonly<WireComment>): readonly WireChild[] {
@@ -163,6 +91,11 @@ function walk(children: readonly WireChild[], root: string): readonly Walked[] {
     }
 
     ids.add(data.id);
+    checkedMetadata({
+      [`the id of comment ${data.id}`]: data.id,
+      [`the author of comment ${data.id}`]: data.author,
+      [`the parent_id of comment ${data.id}`]: data.parent_id,
+    });
     checkedText(data.body, `the body of comment ${data.id}`);
     walked.push({ comment: data, parent, depth });
 
@@ -215,10 +148,20 @@ function nodeOf(
 }
 
 function nodesOf(entries: readonly Walked[], base: number, root: string): readonly ThreadNode[] {
-  return entries.map((entry, position) => nodeOf(entry, position, { base, root }));
+  return entries.map((entry, position) => {
+    const node = nodeOf(entry, position, { base, root });
+
+    if (!rowFits(node)) {
+      refuse(
+        `the stored row of ${node.id} is longer than ${String(MAX_ROW_BYTES)} bytes once escaped`,
+      );
+    }
+
+    return node;
+  });
 }
 
-function ofPost(post: Readonly<Post>, walked: readonly Walked[]): ParsedThread {
+function ofPost(post: Readonly<WirePost>, walked: readonly Walked[]): ParsedThread {
   return {
     title: post.title,
     author: post.author,
@@ -231,7 +174,7 @@ function ofPost(post: Readonly<Post>, walked: readonly Walked[]): ParsedThread {
 }
 
 function ofComment(
-  post: Readonly<Post>,
+  post: Readonly<WirePost>,
   walked: readonly Walked[],
   requested: string,
 ): ParsedThread {
@@ -262,6 +205,14 @@ function ofComment(
   };
 }
 
+function boundaryOf(
+  children: readonly WireChild[],
+  post: Readonly<WirePost>,
+  ref: Readonly<RedditRef>,
+): string {
+  return ref.commentId === undefined ? `t3_${post.id}` : (children[0]?.data.parent_id ?? "");
+}
+
 function parseThread(content: string, ref: Readonly<RedditRef>): ParsedThread {
   const parsed = ThreadJson.safeParse(JSON.parse(content));
 
@@ -276,8 +227,14 @@ function parseThread(content: string, ref: Readonly<RedditRef>): ParsedThread {
     return refuse(`the post id ${post.id} is not the id in the link`);
   }
 
+  checkedMetadata({
+    "the post title": post.title,
+    "the post author": post.author,
+    "the subreddit": post.subreddit,
+  });
   checkedText(post.selftext, "the post text");
-  const walked = walk(comments.data.children, `t3_${post.id}`);
+
+  const walked = walk(comments.data.children, boundaryOf(comments.data.children, post, ref));
 
   return ref.commentId === undefined
     ? ofPost(post, walked)
