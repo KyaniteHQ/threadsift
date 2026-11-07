@@ -167,7 +167,7 @@ dialog.dlg {
   display: flex;
   flex-direction: column;
   gap: var(--s3);
-  width: min(26rem, calc(100vw - var(--s4) * 2));
+  width: min(var(--dlg-w), calc(100vw - var(--s4) * 2));
   max-width: none;
   padding: var(--s4);
   border: 1px solid var(--line-2);

@@ -97,6 +97,7 @@
   --dot: 10px; --av: 26px; --av-l: 40px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
   --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the gear, the read mark on phones, empty states */
   --pop-w: 25rem;                     /* the settings panel under the gear */
+  --dlg-w: 26rem;                     /* a confirmation dialog, such as Delete */
   --tag-c: 0.13;                      /* tag colour chroma; lightness per theme (--tag-l), hue per tag (data-tag) */
   --reader-pad: var(--s6); --code-pad-y: 10px; --code-pad-x: 12px;
   --bar-h: 56px;                      /* the reader bar, and the phone settings sheet's header: one row, its bottom line included */
