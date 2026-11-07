@@ -148,13 +148,7 @@ async function readable(path: string): Promise<ReadableStream<Uint8Array>> {
   });
 }
 
-async function writeAtomically(leaf: string, bytes: Uint8Array): Promise<void> {
-  const temporary = join(
-    leaf,
-    "..",
-    `.tmp-${randomBytes(TEMPORARY_BYTES).toString("hex")}-${leaf.slice(leaf.lastIndexOf(sep) + 1)}`,
-  );
-
+async function writeAtomically(temporary: string, leaf: string, bytes: Uint8Array): Promise<void> {
   const handle = await open(temporary, "wx");
 
   try {
@@ -177,7 +171,14 @@ export function dataFileStore(dataDir: string): FileStore {
       const parsed = requireFileKey(key);
 
       await mkdir(folder.path("items", parsed.itemId), { recursive: true });
-      await writeAtomically((await folder.locate(parsed)).leaf, bytes);
+
+      const temporary = folder.path(
+        "items",
+        parsed.itemId,
+        `.tmp-${randomBytes(TEMPORARY_BYTES).toString("hex")}-${parsed.name}`,
+      );
+
+      await writeAtomically(temporary, (await folder.locate(parsed)).leaf, bytes);
     },
     get: async (key) => {
       const { leaf, present } = await folder.locate(requireFileKey(key));

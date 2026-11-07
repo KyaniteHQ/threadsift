@@ -1,5 +1,4 @@
 import {
-  FILE_LIST_LIMIT,
   parseFileKey,
   requireFileKey,
   requireFilePrefix,
@@ -31,9 +30,11 @@ export interface FilesBucket {
   readonly list: (options: Readonly<ListOptions>) => Promise<BucketListing>;
 }
 
+const R2_DELETE_BATCH_KEYS = 1000;
+
 function batchesOf(keys: readonly string[]): string[][] {
-  return Array.from({ length: Math.ceil(keys.length / FILE_LIST_LIMIT) }, (_, index) =>
-    keys.slice(index * FILE_LIST_LIMIT, (index + 1) * FILE_LIST_LIMIT),
+  return Array.from({ length: Math.ceil(keys.length / R2_DELETE_BATCH_KEYS) }, (_, index) =>
+    keys.slice(index * R2_DELETE_BATCH_KEYS, (index + 1) * R2_DELETE_BATCH_KEYS),
   );
 }
 
