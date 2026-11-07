@@ -1,6 +1,5 @@
 import { type SQL, type SQLWrapper, and, asc, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-import { z } from "zod";
 
 import { type CommentRow, type CommentsView, NO_COMMENTS, commentsViewOf } from "./comment-view.ts";
 import type { Database } from "./ports.ts";
@@ -12,24 +11,18 @@ export function eligibleComments(): SQL {
   return sql`exists (select 1 from ${redditComments} where ${redditComments.itemId} = ${items.id} and ${redditComments.generation} = ${items.generation} and ${redditComments.eligible} = 1)`;
 }
 
-export function keptComments(): SQL<string> {
-  return sql<string>`(select coalesce(json_group_array(json_array(id, body)), '[]') from (select ${redditComments.id} as id, ${redditComments.body} as body from ${redditComments} join ${digests} on ${digests.itemId} = ${redditComments.itemId} and ${digests.generation} = ${redditComments.generation} where ${redditComments.itemId} = ${items.id} and ${redditComments.kept} = 1 order by ${redditComments.position}))`;
-}
-
-const KeptComments = z.array(z.tuple([z.string(), z.string()]));
-
-export function keptBodiesOf(stored: string): readonly string[] {
-  return KeptComments.parse(JSON.parse(stored)).map(([, body]) => body);
+export function keptCommentIds(): SQL<string> {
+  return sql<string>`(select coalesce(json_group_array(id), '[]') from (select ${redditComments.id} as id from ${redditComments} join ${digests} on ${digests.itemId} = ${redditComments.itemId} and ${digests.generation} = ${redditComments.generation} where ${redditComments.itemId} = ${items.id} and ${redditComments.kept} = 1 order by ${redditComments.position}))`;
 }
 
 function selected(kept: readonly string[]): SQL {
   return sql`${redditComments.eligible} = 1 and ${redditComments.id} in (select value from json_each(${JSON.stringify(kept)}))`;
 }
 
-export async function selectedBodies(
+async function bodiesWhere(
   db: Database,
   snapshot: Readonly<{ itemId: number; generation: number }>,
-  kept: readonly string[],
+  condition: Readonly<SQLWrapper>,
 ): Promise<readonly string[]> {
   const rows = await db
     .select({ body: redditComments.body })
@@ -38,12 +31,27 @@ export async function selectedBodies(
       and(
         eq(redditComments.itemId, snapshot.itemId),
         eq(redditComments.generation, snapshot.generation),
-        selected(kept),
+        sql`${condition}`,
       ),
     )
     .orderBy(asc(redditComments.position));
 
   return rows.flatMap(({ body }) => (body === null ? [] : [body]));
+}
+
+export function selectedBodies(
+  db: Database,
+  snapshot: Readonly<{ itemId: number; generation: number }>,
+  kept: readonly string[],
+): Promise<readonly string[]> {
+  return bodiesWhere(db, snapshot, selected(kept));
+}
+
+export function keptBodies(
+  db: Database,
+  snapshot: Readonly<{ itemId: number; generation: number }>,
+): Promise<readonly string[]> {
+  return bodiesWhere(db, snapshot, eq(redditComments.kept, true));
 }
 
 interface Owner {

@@ -4,7 +4,7 @@ import { digestOf } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { Crypto, Database } from "./ports.ts";
-import { keptBodiesOf, keptComments } from "./reddit-thread.ts";
+import { keptBodies, keptCommentIds } from "./reddit-thread.ts";
 import {
   digests,
   guardedBatch,
@@ -47,7 +47,8 @@ function itemsAfter(db: Database, after: number) {
       digest: digests.digest,
       tagNames: tagNamesOfItem(),
       repository: repositoryOfItem(),
-      comments: keptComments(),
+      digestGeneration: digests.generation,
+      comments: keptCommentIds(),
       fingerprint: searchFingerprints.fingerprint,
     })
     .from(items)
@@ -75,17 +76,22 @@ function fingerprintOf(crypto: Crypto, row: Readonly<Reconciled>): string {
 }
 
 function snapshotHolds(row: Readonly<Reconciled>) {
-  return sql`exists (select 1 from ${items} where ${items.id} = ${row.id} and ${items.title} is ${row.title} and ${items.postText} is ${row.postText} and ${items.postTextKey} is ${row.postTextKey} and (select ${digests.digest} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digest} and ${tagNamesOfItem()} = ${row.tagNames} and ${repositoryOfItem()} is ${row.repository} and ${keptComments()} = ${row.comments})`;
+  return sql`exists (select 1 from ${items} where ${items.id} = ${row.id} and ${items.title} is ${row.title} and ${items.postText} is ${row.postText} and ${items.postTextKey} is ${row.postTextKey} and (select ${digests.digest} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digest} and (select ${digests.generation} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digestGeneration} and ${tagNamesOfItem()} = ${row.tagNames} and ${repositoryOfItem()} is ${row.repository} and ${keptCommentIds()} = ${row.comments})`;
 }
 
 async function reconcileItem(db: Database, row: Readonly<Reconciled>, fingerprint: string) {
   const scope = eq(items.id, row.id);
   const unchanged = snapshotHolds(row);
 
+  const comments =
+    row.digestGeneration === null
+      ? []
+      : await keptBodies(db, { itemId: row.id, generation: row.digestGeneration });
+
   await guardedBatch(db, unchanged, [
     ...fetchedPartWrites(db, scope, row.postTextKey === null ? row.postText : undefined),
     ...digestPartWrites(db, scope),
-    ...commentPartWrites(db, scope, keptBodiesOf(row.comments)),
+    ...commentPartWrites(db, scope, comments),
     ...repositoryPartWrites(db, scope),
     db
       .insert(searchFingerprints)
