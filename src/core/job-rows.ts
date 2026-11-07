@@ -1,6 +1,7 @@
 import { type SQLWrapper, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
@@ -75,7 +76,7 @@ export async function enqueueQuietly(
   try {
     await ports.jobs.enqueue(jobIds, delayMs);
   } catch (error) {
-    console.error(`Jobs ${jobIds.join(", ")} were not queued; the next sweep queues them`, error);
+    logFailure("jobs-not-queued", { jobIds: jobIds.join(",") }, error);
   }
 }
 

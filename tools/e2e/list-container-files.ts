@@ -10,9 +10,11 @@ if (existsSync(ROOT)) {
     const key = relative(ROOT, join(entry.parentPath, entry.name));
 
     if (entry.isFile() && key.startsWith(prefix)) {
-      const stats = lstatSync(join(ROOT, key));
+      const stats = lstatSync(join(ROOT, key), { throwIfNoEntry: false });
 
-      listed.push({ key, size: stats.size, uploadedAt: Math.floor(stats.mtimeMs) });
+      if (stats !== undefined) {
+        listed.push({ key, size: stats.size, uploadedAt: Math.floor(stats.mtimeMs) });
+      }
     }
   }
 }

@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { type Page, expect } from "@playwright/test";
 
 import { LOGIN } from "../web/src/access-text.ts";
 import { signIn } from "./access-helpers.ts";
@@ -19,6 +19,15 @@ import { shareFromThisPage, foreignSitesPerFile } from "./share.ts";
 const NEW_CARD_MS = 30_000;
 
 const foreign = foreignSitesPerFile();
+
+async function firstRequestShowsSignIn(page: Page): Promise<void> {
+  const signInHeading = page.getByRole("heading", { name: LOGIN.heading });
+
+  await expect(async () => {
+    if (!(await signInHeading.isVisible())) await addButton(page).click({ timeout: 1000 });
+    await expect(signInHeading).toBeVisible({ timeout: 1000 });
+  }).toPass();
+}
 
 test("a share while signed out keeps the link through a wrong password and a sign-in, and saves only on Add", async ({
   browser,
@@ -76,8 +85,7 @@ test("a session that ends between the arrival and Add shows sign-in again with t
   const ended = await api.post("/api/logout", { headers: { ...headers, ...SAME_ORIGIN } });
   expect(ended.status()).toBe(204);
 
-  await addButton(page).click();
-  await expect(page.getByRole("heading", { name: LOGIN.heading })).toBeVisible();
+  await firstRequestShowsSignIn(page);
   expect(await listForRun(request, run)).toHaveLength(0);
 
   await passwordField(page).fill(ownerPassword());

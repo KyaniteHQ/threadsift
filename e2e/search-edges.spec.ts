@@ -6,7 +6,7 @@ import { postLinkRaw, settled } from "./api.ts";
 import { ESSAY } from "./articles.ts";
 import { unlinkDigests } from "./catalog.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { sweepNow } from "./ingest.ts";
+import { sweepNow, tickNow } from "./ingest.ts";
 import {
   CHUNK_UNITS,
   SWEEP_TIMEOUT_MS,
@@ -69,6 +69,44 @@ test("a fetch that commits after the sweep read an Item leaves that fetch's sear
     ["bravoword", [racing]],
     ["plainword", [plain]],
   ]);
+});
+
+const LONG_URL = "https://example.com/long-race";
+
+const FileCleaningRows = z.array(z.object({ n: z.number() }));
+
+function longTextPublishedMidSweep(): void {
+  const item = `(SELECT id FROM items WHERE normalized_url = '${LONG_URL}')`;
+  const body = `WHEN (SELECT post_text_key FROM items WHERE normalized_url = '${LONG_URL}') IS NULL BEGIN INSERT INTO search_parts (item_id, kind, body) VALUES (${item}, 'post-text', 'longword'); UPDATE items SET post_text_key = 'items/' || ${item} || '/post-1-0.md' WHERE normalized_url = '${LONG_URL}'; END`;
+
+  screen.fresh.sql(
+    `CREATE TRIGGER long_after_insert AFTER INSERT ON search_reconciling ${body}; CREATE TRIGGER long_after_update AFTER UPDATE ON search_reconciling ${body}`,
+  );
+}
+
+function sweepsFinished(): number {
+  const [row] = screen.fresh.query("SELECT count(*) AS n FROM file_cleaning", FileCleaningRows);
+
+  return row?.n ?? 0;
+}
+
+test("a long text published after the sweep read an Item keeps its search parts, and a later sweep indexes the Item again", async () => {
+  const { request } = screen.context;
+  longTextPublishedMidSweep();
+  seedItem(screen, { url: LONG_URL, title: "Long race title" });
+  const id = idAt(screen, LONG_URL);
+
+  screen.fresh.writeFile(`items/${id}/post-1-0.md`, Buffer.from("longword"));
+  await tickNow(request, screen.fresh);
+  await expect.poll(sweepsFinished, { timeout: SWEEP_TIMEOUT_MS }).toBe(1);
+  expect(await matches(request, "longword"), "after the sweep that read the Item early").toEqual([
+    id,
+  ]);
+  expect(fingerprintCount(id), "the rejected sweep stored no fingerprint").toBe(0);
+
+  await tickNow(request, screen.fresh);
+  await expect.poll(() => fingerprintCount(id), { timeout: SWEEP_TIMEOUT_MS }).toBe(1);
+  expect(await matches(request, "longword"), "after the sweep that read the key").toEqual([id]);
 });
 
 test("query words split where the index tokenizer splits, and keep accents that it folds", async () => {

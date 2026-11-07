@@ -1,10 +1,12 @@
 import { and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
 
-import { openingDigest, providerSet, setDigestFailure } from "./digest-job.ts";
+import { openingDigest, providerSet } from "./digest-job.ts";
+import { setDigestFailure } from "./digest-source.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
-import type { JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, digests, items } from "./schema.ts";
+import { placePostText } from "./post-text-files.ts";
+import { digests, items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import { isRetryable, settle } from "./settle.ts";
 
@@ -14,12 +16,14 @@ async function titleOf(db: Database, itemId: number): Promise<string | null> {
   return item?.title ?? null;
 }
 
-async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<JobOutcome> {
+async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const fetched = await fetchLink(ports.network, ports.pages, job.address);
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
 
-  const fields = settle(fetched, title, Date.now());
-  const storesText = fields.postText !== undefined && fields.postText !== null;
+  const { postText, ...settled } = settle(fetched, title, Date.now());
+  const placed = await placePostText(ports, job, postText);
+  const fields = { ...settled, ...placed.columns };
+  const storesText = postText !== undefined && postText !== null;
 
   const configured = or(isNotNull(items.pendingDigest), providerSet()) ?? sql`0`;
 
@@ -32,7 +36,7 @@ async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<Job
       ports.db.update(items).set(stored).where(eq(items.id, job.itemId)),
       ...(fields.title === undefined
         ? []
-        : fetchedPartWrites(ports.db, eq(items.id, job.itemId), fields.postText)),
+        : fetchedPartWrites(ports.db, eq(items.id, job.itemId), postText)),
       ...(storesText
         ? [
             openingDigest(ports.db, {
@@ -58,6 +62,7 @@ async function attemptFetch(ports: JobPorts, job: Readonly<JobRow>): Promise<Job
           ]
         : []),
     ],
+    files: placed.files,
   };
 }
 

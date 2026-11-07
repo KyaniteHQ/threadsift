@@ -11,6 +11,7 @@ import {
   requireFileKey,
   requireFilePrefix,
   requireListLimit,
+  temporaryPrefix,
 } from "../../core/file-keys.ts";
 import type { FilePage, FileStore, StoredFile } from "../../core/ports.ts";
 
@@ -196,7 +197,7 @@ async function readable(path: string): Promise<ReadableStream<Uint8Array> | null
 }
 
 function temporaryName(name: string): string {
-  const prefix = `.tmp-${randomBytes(TEMPORARY_BYTES).toString("hex")}-`;
+  const prefix = temporaryPrefix(randomBytes(TEMPORARY_BYTES).toString("hex"));
 
   return prefix + name.slice(0, FILE_NAME_MAX - prefix.length);
 }

@@ -4,14 +4,11 @@ import { z } from "zod";
 
 import { collapsed } from "./format.ts";
 
-const MAX_TEXT_BYTES = 1_000_000;
-const ENCODER = new TextEncoder();
-
 export const ArticleReadingSchema = z.object({
   title: z.string(),
   author: z.string().nullable(),
   words: z.number(),
-  postText: z.string().nullable(),
+  postText: z.string(),
   postedAt: z.number().nullable(),
 });
 
@@ -64,7 +61,7 @@ export async function readArticle(html: string, url: string): Promise<ArticleRea
     title: pageTitle === "" ? collapsed(result.title) : pageTitle,
     author: author === "" ? null : author,
     words: result.wordCount,
-    postText: ENCODER.encode(postText).length > MAX_TEXT_BYTES ? null : postText,
+    postText,
     postedAt: postedAtOf(result.published),
   };
 }

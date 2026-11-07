@@ -1,6 +1,7 @@
 import { OpenAPIHono, type z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 
+import { logFailure } from "../core/failure-log.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
 import { registerAiRoutes } from "./ai-routes.ts";
@@ -45,7 +46,7 @@ export function createApp(ports: Ports): OpenAPIHono {
       return c.json({ error: (await refusal.text()) || "Request refused" }, error.status);
     }
 
-    console.error(error);
+    logFailure("request-failed", { path: c.req.path }, error);
 
     return c.json({ error: "Internal error" }, 500);
   });

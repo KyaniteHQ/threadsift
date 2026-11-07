@@ -1,21 +1,13 @@
-import { type SQLWrapper, and, eq, exists, isNotNull, ne, notExists, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, isNotNull, ne, notExists, or, sql } from "drizzle-orm";
 
 import {
   AI_DEADLINE_MS,
-  DIGEST_INPUT_BYTES,
   parseStoredDigest,
   digestPrompt,
   type Digest,
   retriesAi,
 } from "./ai-contract.ts";
-import {
-  TASKS,
-  startCallerTask,
-  completedAiTask,
-  failedAiTask,
-  runAiTask,
-  expireAiTasks,
-} from "./ai-tasks.ts";
+import { TASKS, startCallerTask, completedAiTask, runAiTask, expireAiTasks } from "./ai-tasks.ts";
 import {
   catalogEntries,
   catalogCurrent,
@@ -24,37 +16,29 @@ import {
   linkOlderDigests,
 } from "./catalog.ts";
 import {
+  type DigestInput,
+  currency,
+  digestInput,
+  generationCurrent,
+  readDigestText,
+  setDigestFailure,
+} from "./digest-source.ts";
+import {
   MAX_STALE_REQUEUES,
-  type JobCurrency,
+  type ClaimedJob,
   type JobHandler,
   type JobOutcome,
   type JobPorts,
 } from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, digests, insertGuard, items, settings } from "./schema.ts";
+import { digests, insertGuard, items, settings } from "./schema.ts";
 import { digestPartWrites } from "./search.ts";
 
-function digestInput(db: Database, id: number) {
-  return db
-    .select({
-      id: items.id,
-      title: items.title,
-      source: items.source,
-      generation: items.generation,
-      pendingDigest: items.pendingDigest,
-      postText: sql<string | null>`substr(${items.postText}, 1, ${DIGEST_INPUT_BYTES})`,
-    })
-    .from(items)
-    .where(eq(items.id, id));
-}
-
-type DigestInput = Awaited<ReturnType<typeof digestInput>>[number];
-
-async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<JobOutcome> {
+async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const [item] = await digestInput(ports.db, job.itemId);
 
-  if (item === undefined || item.postText === null)
+  if (item === undefined || (item.postText === null && item.postTextKey === null))
     return { writes: [setDigestFailure(ports.db, job.itemId, false)] };
 
   if (item.pendingDigest !== null) {
@@ -68,11 +52,17 @@ async function attemptDigest(ports: JobPorts, job: Readonly<JobRow>): Promise<Jo
     return publishing(ports.db, item, digest, taskId, { executor: "caller" });
   }
 
+  const filed = await readDigestText(ports, job, item);
+
+  if ("outcome" in filed) return filed.outcome;
+
+  const postText = filed.text;
+
   const catalog = await readCatalog(ports.db);
 
   const result = await runAiTask(ports, TASKS.digest, {
     text: digestPrompt(
-      JSON.stringify({ title: item.title, source: item.source, postText: item.postText }),
+      JSON.stringify({ title: item.title, source: item.source, postText }),
       catalog,
     ),
     inputRevision: item.generation,
@@ -103,24 +93,6 @@ type DigestSource =
       readonly version: number;
       readonly staleRequeues: number;
     };
-
-function generationCurrent(
-  item: Readonly<Pick<DigestInput, "id" | "generation" | "pendingDigest">>,
-) {
-  return sql`exists (select 1 from ${items} where ${items.id} = ${item.id} and ${items.generation} = ${item.generation} and ${items.pendingDigest} is ${item.pendingDigest} and not exists ${hasOpenJob("fetch")})`;
-}
-
-function currency(db: Database, current: Readonly<SQLWrapper>, taskId: number): JobCurrency {
-  return {
-    current: async () => {
-      const [row] = await db.select({ current: sql<number>`${current}` }).from(sql`(select 1)`);
-
-      return row?.current === 1;
-    },
-    discard: (cause) =>
-      failedAiTask(db, taskId, { reason: cause === "error" ? "unreachable" : cause, status: null }),
-  };
-}
 
 function publishing(
   db: Database,
@@ -167,18 +139,6 @@ export const digestHandler: JobHandler = {
   exhausted: (db, job) => [setDigestFailure(db, job.itemId, true)],
 };
 
-export function setDigestFailure(
-  db: Database,
-  itemId: number,
-  failed: boolean,
-  condition: Readonly<SQLWrapper> = exists(hasOpenJob("digest")),
-) {
-  return db
-    .update(items)
-    .set({ digestFailed: failed })
-    .where(and(eq(items.id, itemId), sql`${condition}`));
-}
-
 export function openingDigest(
   db: Database,
   {
@@ -188,7 +148,11 @@ export function openingDigest(
   }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
 ) {
   const eligible =
-    and(sql`${scope}`, isNotNull(items.postText), notExists(hasOpenJob("digest"))) ?? sql`0`;
+    and(
+      sql`${scope}`,
+      or(isNotNull(items.postText), isNotNull(items.postTextKey)),
+      notExists(hasOpenJob("digest")),
+    ) ?? sql`0`;
 
   return { eligible, job: opening(db, { kind: "digest", address, now, where: eligible }) };
 }

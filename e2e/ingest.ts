@@ -151,6 +151,16 @@ export async function sweepNow(
   await runSweep(request);
 }
 
+export async function tickNow(
+  request: APIRequestContext,
+  instance: Instance = mainInstance(),
+): Promise<void> {
+  if (isContainerTarget()) return;
+
+  releaseSweepThrottle(instance);
+  await runSweep(request);
+}
+
 export function afterFirstClaim(
   instance: Instance,
   urlEnd: string,
@@ -172,8 +182,8 @@ export async function waitForRunning(id: number): Promise<void> {
     .toEqual(["running"]);
 }
 
-export function expireClaim(id: number): void {
-  mainInstance().sql(`UPDATE jobs SET claim_expires = 1 WHERE item_id = ${id}`);
+export function expireClaim(id: number, instance: Instance = mainInstance()): void {
+  instance.sql(`UPDATE jobs SET claim_expires = 1 WHERE item_id = ${id}`);
 }
 
 export function deferJobs(instance: Instance, kind: "fetch" | "digest"): () => void {

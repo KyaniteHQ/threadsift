@@ -1,6 +1,7 @@
 import { asc, eq, gt, sql } from "drizzle-orm";
 
 import { digestOf } from "./encoding.ts";
+import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { Crypto, Database } from "./ports.ts";
 import {
@@ -26,6 +27,7 @@ function itemsAfter(db: Database, after: number) {
       id: items.id,
       title: items.title,
       postText: items.postText,
+      postTextKey: items.postTextKey,
       digest: digests.digest,
       tagNames: tagNamesOfItem(),
       fingerprint: searchFingerprints.fingerprint,
@@ -41,13 +43,19 @@ function itemsAfter(db: Database, after: number) {
 type Reconciled = Awaited<ReturnType<typeof itemsAfter>>[number];
 
 function fingerprintOf(crypto: Crypto, row: Readonly<Reconciled>): string {
-  const sources = JSON.stringify([row.title, row.postText, row.digest, row.tagNames]);
+  const sources = JSON.stringify([
+    row.title,
+    row.postText,
+    row.digest,
+    row.tagNames,
+    ...(row.postTextKey === null ? [] : [row.postTextKey]),
+  ]);
 
   return digestOf(crypto, sources);
 }
 
 function snapshotHolds(row: Readonly<Reconciled>) {
-  return sql`exists (select 1 from ${items} where ${items.id} = ${row.id} and ${items.title} is ${row.title} and ${items.postText} is ${row.postText} and (select ${digests.digest} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digest} and ${tagNamesOfItem()} = ${row.tagNames})`;
+  return sql`exists (select 1 from ${items} where ${items.id} = ${row.id} and ${items.title} is ${row.title} and ${items.postText} is ${row.postText} and ${items.postTextKey} is ${row.postTextKey} and (select ${digests.digest} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digest} and ${tagNamesOfItem()} = ${row.tagNames})`;
 }
 
 async function reconcileItem(db: Database, row: Readonly<Reconciled>, fingerprint: string) {
@@ -55,7 +63,7 @@ async function reconcileItem(db: Database, row: Readonly<Reconciled>, fingerprin
   const unchanged = snapshotHolds(row);
 
   await guardedBatch(db, unchanged, [
-    ...fetchedPartWrites(db, scope, row.postText),
+    ...fetchedPartWrites(db, scope, row.postTextKey === null ? row.postText : undefined),
     ...digestPartWrites(db, scope),
     db
       .insert(searchFingerprints)
@@ -77,7 +85,7 @@ async function reconcileRow(ports: JobPorts, row: Readonly<Reconciled>): Promise
   try {
     await reconcileItem(ports.db, row, fingerprint);
   } catch (error) {
-    console.error(`Search parts of Item ${row.id} were not rewritten`, error);
+    logFailure("search-parts-not-rewritten", { itemId: row.id }, error);
   }
 }
 

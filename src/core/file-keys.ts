@@ -9,7 +9,19 @@ const KEY = new RegExp(
   "u",
 );
 
+const TEMPORARY = /^(?<folder>items\/[1-9][0-9]{0,18}\/)\.tmp-[0-9a-f]+-(?<name>.+)$/u;
+
 const PREFIX = /^items\/(?:(?<itemId>[1-9][0-9]{0,18})\/)?$/u;
+
+export function temporaryPrefix(random: string): string {
+  return `.tmp-${random}-`;
+}
+
+export function finalKeyOf(key: string): string {
+  const { folder, name } = TEMPORARY.exec(key)?.groups ?? {};
+
+  return folder === undefined || name === undefined ? key : folder + name;
+}
 
 export interface FileKey {
   readonly itemId: string;
