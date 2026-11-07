@@ -141,6 +141,16 @@ test("a long text whose file is missing ends the Digest as failed after three at
     `"event":"post-text-unavailable","itemId":${id},"reason":"missing"`,
   );
   expect((await itemOf(request, id)).postText).toBeNull();
+
+  const jobId = jobsOf(id, screen.fresh, "digest")[0]?.id ?? 0;
+  const logs = screen.fresh.logs();
+
+  expect(logs).toContain(
+    `"event":"job-attempt-failed","jobId":${jobId},"kind":"digest","attempt":1,"error":"PostTextUnreadable"`,
+  );
+  expect(logs, "a failed attempt logs the error class and no error text").not.toContain(
+    "cannot be read",
+  );
 });
 
 test("a seeded long text in the store gets a Digest from its first 14,000 bytes of input, cut before a character the cut splits", async ({
