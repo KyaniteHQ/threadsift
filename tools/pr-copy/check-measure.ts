@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { AiSettingsViewSchema } from "../../src/core/ai-contract.ts";
 import { ItemDetailResponseSchema } from "../../src/http/schemas.ts";
 import { type Run, Stop } from "./check-run.ts";
 import { type Findings, Inconclusive } from "./check-types.ts";
@@ -44,7 +43,7 @@ export async function requireIdleCopy(run: Readonly<Run>, copy: Readonly<Copy>):
 
   const response = await callCopy(copy, { path: "/api/settings/ai", cookie: copy.cookie });
   await expectOk(response, "/api/settings/ai");
-  const { settings } = await decodeAnswer(response, "/api/settings/ai", AiSettingsViewSchema);
+  const { settings } = await decodeAnswer(response, "/api/settings/ai", ProviderChoice);
 
   if (unfinished !== 0 || pending !== 0 || settings !== null) {
     throw new Stop(
@@ -52,6 +51,8 @@ export async function requireIdleCopy(run: Readonly<Run>, copy: Readonly<Copy>):
     );
   }
 }
+
+const ProviderChoice = z.object({ settings: z.json() });
 
 export function queryRun<Row>(
   run: Readonly<Run>,
