@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { hasAiCredentials, aiScreen, countRows, newSealingKey, proofProvider } from "./ai.ts";
 import { itemOf, settled } from "./api.ts";
-import { WAR_AND_PEACE, pasteGutenberg } from "./articles.ts";
+import { WAR_AND_PEACE, pasteLive } from "./articles.ts";
 import { configureDigest, digestRecord } from "./digest.ts";
 import { nameFile, storeFileItem } from "./files.ts";
 import { jobsOf, makeJobDue, sweepNow } from "./ingest.ts";
@@ -81,7 +81,7 @@ test("War and Peace, pasted with the real Provider saved, gets a Digest from the
 
   const {
     last: { item: pasted },
-  } = await pasteGutenberg(screen.context.request, {
+  } = await pasteLive(screen.context.request, {
     name: "war-and-peace",
     url: WAR_AND_PEACE,
     timeout: AI_WAIT,

@@ -19,7 +19,7 @@ import {
   WAR_AND_PEACE_LAST_SENTENCE,
   attachItem,
   expectMarkdown,
-  gutenbergPasted,
+  livePasted,
   readsWhileProcessing,
 } from "./articles.ts";
 import {
@@ -131,7 +131,7 @@ async function bookRead(request: APIRequestContext, other: number) {
 async function bookOverTheRowLimit({ request, info }: Run, other: number): Promise<void> {
   const {
     last: { reads, item },
-  } = await gutenbergPasted(
+  } = await livePasted(
     "war-and-peace",
     () => bookRead(request, other),
     (read) => read.item.fetch,

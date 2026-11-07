@@ -2,7 +2,8 @@ import { type Page, expect, test } from "@playwright/test";
 
 import type { Item } from "../src/http/schemas.ts";
 import { mainInstance } from "./access.ts";
-import { listAll } from "./api.ts";
+import { listAll, settled } from "./api.ts";
+import { livePasted } from "./articles.ts";
 import {
   MOVED_PAGE,
   MOVED_PAGE_NORMALIZED,
@@ -31,12 +32,29 @@ test.afterAll(async () => {
   await listener.stop();
 });
 
+const REDDIT_POST =
+  "https://www.reddit.com/r/typescript/comments/2a4qo6/wallabag_a_read_it_later_app_similar_like/";
+
+const REDDIT_COMMENT = "https://www.reddit.com/r/selfhosted/comments/2a4qo6/wallabag/cisdfvv/";
+const EXAMPLE = "https://example.com/";
+
+const FETCHED_TITLES: ReadonlyMap<
+  string,
+  Readonly<{ name: string; normalizedUrl: string }>
+> = new Map([
+  [REDDIT_POST, { name: "reddit-post", normalizedUrl: POST_URL }],
+  [REDDIT_COMMENT, { name: "reddit-comment", normalizedUrl: `${POST_URL}_/cisdfvv/` }],
+  [EXAMPLE, { name: "example", normalizedUrl: EXAMPLE }],
+  [MOVED_PAGE, { name: "moved-page", normalizedUrl: MOVED_PAGE_NORMALIZED }],
+  [SHORT_LINK_TARGET, { name: "short-link-target", normalizedUrl: SHORT_LINK_TARGET_NORMALIZED }],
+]);
+
 function pastedLinks(redirect: string): string[] {
   return [
-    "https://www.reddit.com/r/typescript/comments/2a4qo6/wallabag_a_read_it_later_app_similar_like/",
+    REDDIT_POST,
     "https://old.reddit.com/r/selfhosted/comments/2a4qo6/other_slug/",
-    "https://www.reddit.com/r/selfhosted/comments/2a4qo6/wallabag/cisdfvv/",
-    "https://example.com/",
+    REDDIT_COMMENT,
+    EXAMPLE,
     MOVED_PAGE,
     SHORT_LINK,
     SHORT_LINK_TARGET,
@@ -49,7 +67,7 @@ function expectedItems(redirect: string) {
   return new Map<string, Partial<Item>>([
     [POST_URL, { ...REDDIT_FIELDS, community: "selfhosted" }],
     [`${POST_URL}_/cisdfvv/`, { ...REDDIT_FIELDS, community: "selfhosted" }],
-    ["https://example.com/", { source: "other", title: "Example Domain" }],
+    [EXAMPLE, { source: "other", title: "Example Domain" }],
     [MOVED_PAGE_NORMALIZED, { title: MOVED_PAGE_TITLE }],
     [SHORT_LINK_TARGET_NORMALIZED, { source: "article", title: "Example Domains" }],
     [X_POST, { source: "x", title: null }],
@@ -85,6 +103,30 @@ async function expectRowsShowTitles(page: Page, redirect: string) {
   }
 }
 
+function pasteLinkUntilFetched(
+  page: Page,
+  url: string,
+  { name, normalizedUrl }: Readonly<{ name: string; normalizedUrl: string }>,
+) {
+  return livePasted(
+    `library-${name}`,
+    async () => {
+      await pasteLink(page, url);
+
+      const stored = (await listAll(page.request)).find(
+        (item) => item.normalizedUrl === normalizedUrl,
+      );
+
+      if (stored === undefined) {
+        throw new Error(`no Item at ${normalizedUrl} after pasting ${url}`);
+      }
+
+      return settled(page.request, stored.id);
+    },
+    (item) => item.fetch,
+  );
+}
+
 test("nine pasted links make seven Items with their titles, and the library keeps them across a restart", async ({
   page,
 }) => {
@@ -93,7 +135,13 @@ test("nine pasted links make seven Items with their titles, and the library keep
   await page.goto("/");
 
   for (const url of pastedLinks(redirect)) {
-    await pasteLink(page, url);
+    const fetchedTitle = FETCHED_TITLES.get(url);
+
+    if (fetchedTitle === undefined) {
+      await pasteLink(page, url);
+    } else {
+      await pasteLinkUntilFetched(page, url, fetchedTitle);
+    }
   }
 
   await expectRowsShowTitles(page, redirect);

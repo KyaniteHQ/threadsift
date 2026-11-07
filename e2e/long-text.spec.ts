@@ -8,8 +8,8 @@ import {
   WAR_AND_PEACE,
   WAR_AND_PEACE_LAST_SENTENCE,
   WAR_AND_PEACE_LAST_WORD,
-  gutenbergPasted,
-  pasteGutenberg,
+  livePasted,
+  pasteLive,
 } from "./articles.ts";
 import { ROW_LIMIT_BYTES, ownerOf, postTextOf } from "./files.ts";
 import { afterFirstClaim, claimLostLines, expireClaim, jobsOf } from "./ingest.ts";
@@ -67,7 +67,7 @@ async function reconcilerVisited(id: number): Promise<void> {
 
 test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, searchable, and a second Paste replaces the file", async () => {
   test.setTimeout(480_000);
-  const pasted = await pasteGutenberg(owner, { name: "war-and-peace", url: WAR_AND_PEACE });
+  const pasted = await pasteLive(owner, { name: "war-and-peace", url: WAR_AND_PEACE });
   const id = pasted.last.item.id;
 
   await fetchJobsDone(id, pasted.fetches.length);
@@ -88,7 +88,7 @@ test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, sea
     "search finds a word of the last chapter",
   ).toEqual([id]);
 
-  const again = await pasteGutenberg(owner, { name: "war-and-peace-again", url: WAR_AND_PEACE });
+  const again = await pasteLive(owner, { name: "war-and-peace-again", url: WAR_AND_PEACE });
 
   expect(again.first.status).toBe(200);
   await fetchJobsDone(id, pasted.fetches.length + again.fetches.length);
@@ -156,11 +156,7 @@ test("a runner whose claim was taken over publishes nothing and deletes its file
 
   const {
     last: { id, job, item },
-  } = await gutenbergPasted(
-    "war-and-peace-takeover",
-    takeoverOfTheBook,
-    ({ item: read }) => read.fetch,
-  );
+  } = await livePasted("war-and-peace-takeover", takeoverOfTheBook, ({ item: read }) => read.fetch);
 
   const key = `items/${id}/post-${job}-2.md`;
 

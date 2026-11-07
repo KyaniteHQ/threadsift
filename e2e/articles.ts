@@ -118,9 +118,9 @@ export function expectMarkdown(postText: string | null): void {
   );
 }
 
-const GUTENBERG_HOST_FAILURES: ReadonlySet<Fetch> = new Set(["timeout", "status"]);
+const LIVE_HOST_FAILURES: ReadonlySet<Fetch> = new Set(["timeout", "status", "network"]);
 
-export async function gutenbergPasted<Result>(
+export async function livePasted<Result>(
   name: string,
   attempt: () => Promise<Result>,
   fetchOf: (result: Result) => Fetch,
@@ -130,7 +130,7 @@ export async function gutenbergPasted<Result>(
 
   try {
     pasted = await attempted(attempt, fetchOf, {
-      retryOn: (fetch) => GUTENBERG_HOST_FAILURES.has(fetch),
+      retryOn: (fetch) => LIVE_HOST_FAILURES.has(fetch),
       fetches,
     });
   } finally {
@@ -145,7 +145,7 @@ export async function gutenbergPasted<Result>(
   return pasted;
 }
 
-export function pasteGutenberg(
+export function pasteLive(
   request: APIRequestContext,
   {
     name,
@@ -154,7 +154,7 @@ export function pasteGutenberg(
     timeout = BIG_PAGE_TIMEOUT_MS,
   }: Readonly<{ name: string; url: string; digest?: Readonly<Digest>; timeout?: number }>,
 ) {
-  return gutenbergPasted(
+  return livePasted(
     name,
     async () => {
       const { status, body } = await postLinkRaw(request, url, digest);
