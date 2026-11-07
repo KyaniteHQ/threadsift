@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { SAME_ORIGIN, newCode, newPassword } from "./access.ts";
 import { getItem } from "./api.ts";
 import { agentHeaders } from "./catalog.ts";
-import { expectNoOwnedRows, holdSweeps, ownedRows } from "./deletion.ts";
+import { MANIFEST, expectNoOwnedRows, holdSweeps, itemKeyedTables, ownedRows } from "./deletion.ts";
 import { longText, storeFileItem, storeLongArticle } from "./files.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { releaseSweepThrottle, tickNow } from "./ingest.ts";
@@ -53,6 +53,18 @@ test("a malformed id is refused with valid credentials and deletes nothing, a cr
   expect((await request.delete(`/api/items/${id}`, { headers: token })).status()).toBe(404);
   expect((await getItem(request, id)).status).toBe(404);
   expectNoOwnedRows(screen.fresh, id);
+});
+
+test("the table list finds an Item-owned table whatever quoting its SQL uses", () => {
+  screen.fresh.sql("CREATE TABLE later_plain (item_id INTEGER REFERENCES items(id))");
+  screen.fresh.sql('CREATE TABLE later_double ("item_id" INTEGER REFERENCES items(id))');
+  screen.fresh.sql("CREATE TABLE later_bracket ([item_id] INTEGER REFERENCES items(id))");
+
+  expect(itemKeyedTables(screen.fresh)).toEqual(
+    [...MANIFEST, "later_bracket", "later_double", "later_plain"].toSorted((a, b) =>
+      a < b ? -1 : 1,
+    ),
+  );
 });
 
 function keysOf(id: number): string[] {

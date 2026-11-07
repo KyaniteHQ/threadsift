@@ -1,8 +1,9 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import type { SaveResult, SaveTarget } from "./api.ts";
+import type { SaveTarget } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
+import type { SaveAnswer } from "./library.ts";
 import type { ListState } from "./list-state.ts";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
@@ -48,7 +49,7 @@ function useOpenItem(list: ListState, { openId, replace }: Route) {
 }
 
 function useSaveAndShow(
-  save: (target: SaveTarget) => Promise<SaveResult>,
+  save: (target: SaveTarget) => Promise<SaveAnswer>,
   attend: (attention: Attention) => void,
   pane: RefObject<HTMLElement | null>,
 ) {
@@ -56,9 +57,9 @@ function useSaveAndShow(
     async (target: SaveTarget): Promise<SaveOutcome> => {
       const result = await save(target);
 
-      if (result.outcome !== "saved") {
-        return { saved: false, notice: result.outcome };
-      }
+      if (result.outcome === "discarded") return { kind: "discarded" };
+
+      if (result.outcome !== "saved") return { kind: "notice", notice: result.outcome };
 
       if (result.known) {
         attend({ id: result.item.id, focus: false });
@@ -66,7 +67,7 @@ function useSaveAndShow(
         scrollToTop(pane.current);
       }
 
-      return { saved: true, itemId: result.item.id, refreshed: result.refreshed };
+      return { kind: "item", itemId: result.item.id, refreshed: result.refreshed };
     },
     [attend, pane, save],
   );
@@ -75,7 +76,7 @@ function useSaveAndShow(
 export function useListActions(
   list: ListState,
   actions: Readonly<{
-    save: (target: SaveTarget) => Promise<SaveResult>;
+    save: (target: SaveTarget) => Promise<SaveAnswer>;
     retry: () => void;
   }>,
   pane: RefObject<HTMLElement | null>,

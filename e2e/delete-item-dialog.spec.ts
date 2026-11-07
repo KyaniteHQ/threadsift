@@ -15,12 +15,13 @@ import {
   dialog,
   holdDelete,
   openItemAt,
+  seedWeather,
   titleLink,
 } from "./deletion-ui.ts";
 import { ownedRows } from "./deletion.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { pasteField } from "./links.ts";
-import { openLibrary, openRow, reader, row, seedRows } from "./reader.ts";
+import { openLibrary, openRow, reader, row } from "./reader.ts";
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -32,12 +33,7 @@ let ids: readonly number[];
 test.beforeEach(async ({ browser }) => {
   screen = await openSignedIn(browser, newCode(), newPassword());
 
-  ids = seedRows(screen, [
-    { url: "https://example.com/one", title: "Rain on the roof" },
-    { url: "https://example.com/two", title: "Wind in the chimney" },
-    { url: "https://example.com/three", title: "Snow on the sill", read: true },
-    { url: "https://example.com/four", title: "Fog over the fields" },
-  ]);
+  ids = seedWeather(screen);
 });
 
 test.afterEach(async () => {

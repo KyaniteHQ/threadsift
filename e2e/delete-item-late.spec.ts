@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+import { DELETED, MARKED_READ, MARKED_UNREAD } from "../web/src/reader-text.ts";
 import { newCode, newPassword } from "./access.ts";
-import { WIDE, askAndConfirm, openItemAt } from "./deletion-ui.ts";
+import { WIDE, askAndConfirm, openItemAt, seedWeather, titleLink } from "./deletion-ui.ts";
 import { ownedRows } from "./deletion.ts";
 import { choice, expectRows, holdRead } from "./filters.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { afterTwoFrames } from "./look.ts";
-import { row, seedRows } from "./reader.ts";
+import { row } from "./reader.ts";
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -18,12 +19,7 @@ let ids: readonly number[];
 test.beforeEach(async ({ browser }) => {
   screen = await openSignedIn(browser, newCode(), newPassword());
 
-  ids = seedRows(screen, [
-    { url: "https://example.com/one", title: "Rain on the roof" },
-    { url: "https://example.com/two", title: "Wind in the chimney" },
-    { url: "https://example.com/three", title: "Snow on the sill", read: true },
-    { url: "https://example.com/four", title: "Fog over the fields" },
-  ]);
+  ids = seedWeather(screen);
 });
 
 test.afterEach(async () => {
@@ -87,10 +83,15 @@ test("a Read state answer that arrives after the delete does not bring the row b
   await reached.promise;
   await askAndConfirm(page);
   await expect(row(page, first)).toHaveCount(0);
+  await expect(titleLink(page, second)).toBeFocused();
 
   gate.resolve();
   await afterTwoFrames(page);
 
   await expectRows(page, [second, third, fourth]);
+  await expect(titleLink(page, second)).toBeFocused();
+  await expect(page.getByRole("status").filter({ hasText: DELETED })).toBeAttached();
+  await expect(page.getByRole("status").filter({ hasText: MARKED_READ })).toHaveCount(0);
+  await expect(page.getByRole("status").filter({ hasText: MARKED_UNREAD })).toHaveCount(0);
   expect(ownedRows(screen.fresh, first)["items"]).toBe(0);
 });

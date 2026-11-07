@@ -8,13 +8,23 @@ import {
   DELETE_PENDING,
   DELETE_TITLE,
 } from "../web/src/reader-text.ts";
+import type { FreshScreen } from "./fresh-screen.ts";
 import { pasteField } from "./links.ts";
 import { DESKTOP } from "./look.ts";
-import { bar, openLibrary, openRow, reader, row } from "./reader.ts";
+import { bar, openLibrary, openRow, reader, row, seedRows } from "./reader.ts";
 
 export const WIDE = DESKTOP.width;
 
 export const PHONE = 390;
+
+export function seedWeather(screen: FreshScreen): readonly number[] {
+  return seedRows(screen, [
+    { url: "https://example.com/one", title: "Rain on the roof" },
+    { url: "https://example.com/two", title: "Wind in the chimney" },
+    { url: "https://example.com/three", title: "Snow on the sill", read: true },
+    { url: "https://example.com/four", title: "Fog over the fields" },
+  ]);
+}
 
 export async function openItemAt(page: Page, width: number, id: number, rows = 1): Promise<void> {
   await openLibrary(page, width, "/", rows);

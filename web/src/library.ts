@@ -20,15 +20,23 @@ import {
   leftProcessing,
   processingIds,
   sameItem,
+  survivorOf,
   withItem,
   withRead,
   withoutItem,
 } from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
 
+export type Applied = "applied" | "discarded";
+
+export type SaveAnswer = SaveResult | { readonly outcome: "discarded" };
+
 export interface Writes {
-  readonly setRead: (id: number, state: ReadState) => Promise<void>;
-  readonly remove: (id: number, whenGone: () => void) => Promise<void>;
+  readonly setRead: (id: number, state: ReadState) => Promise<Applied>;
+  readonly remove: (
+    id: number,
+    whenGone: (survivor: number | null) => void,
+  ) => Promise<number | null>;
 }
 
 type SetList = Dispatch<SetStateAction<ListState>>;
@@ -87,7 +95,7 @@ function useSave(setList: SetList, upkeep: Readonly<Upkeep>) {
   const { reads, stamps, unfiltered, latest } = upkeep;
 
   return useCallback(
-    async (target: SaveTarget): Promise<SaveResult> => {
+    async (target: SaveTarget): Promise<SaveAnswer> => {
       const result: SaveResult =
         target.kind === "paste"
           ? await saveLink(target.url)
@@ -98,12 +106,14 @@ function useSave(setList: SetList, upkeep: Readonly<Upkeep>) {
               item: await regenerateDigest(target.id),
             };
 
-      if (result.outcome === "saved" && !stamps.isGone(result.item.id)) {
-        const was = latest.current.known.find((item) => item.id === result.item.id);
-        stamps.mark(result.item.id);
-        setList((current) => withItem(current, result.item, unfiltered.current));
-        reads.settle(!unfiltered.current || digestMoved(was, result.item));
-      }
+      if (result.outcome !== "saved") return result;
+
+      if (stamps.isGone(result.item.id)) return { outcome: "discarded" };
+
+      const was = latest.current.known.find((item) => item.id === result.item.id);
+      stamps.mark(result.item.id);
+      setList((current) => withItem(current, result.item, unfiltered.current));
+      reads.settle(!unfiltered.current || digestMoved(was, result.item));
 
       return result;
     },
@@ -115,36 +125,46 @@ function useSetRead(setList: SetList, upkeep: Readonly<Upkeep>) {
   const { reads, stamps, unfiltered } = upkeep;
 
   return useCallback(
-    async (id: number, readState: ReadState): Promise<void> => {
+    async (id: number, readState: ReadState): Promise<Applied> => {
       const item = await putReadState(id, readState);
 
-      if (stamps.isGone(id)) return;
+      if (stamps.isGone(id)) return "discarded";
 
       const whole = unfiltered;
       stamps.mark(id);
       setList((current) => withItem(current, item, whole.current));
       reads.recount(!whole.current);
+
+      return "applied";
     },
     [reads, setList, stamps, unfiltered],
   );
 }
 
+function survivorIn(latest: Readonly<RefObject<ListState>>, id: number): number | null {
+  return survivorOf(latest.current, id);
+}
+
 function useRemove(setList: SetList, upkeep: Readonly<Upkeep>) {
-  const { reads, stamps } = upkeep;
+  const { reads, stamps, latest } = upkeep;
 
   return useCallback(
-    async (id: number, whenGone: () => void): Promise<void> => {
+    async (id: number, whenGone: (survivor: number | null) => void): Promise<number | null> => {
       await removeItem(id);
+
+      const survivor = survivorIn(latest, id);
 
       flushSync(() => {
         stamps.remove(id);
         setList((current) => withoutItem(current, id));
-        whenGone();
+        whenGone(survivor);
       });
 
       reads.recount(true);
+
+      return survivor;
     },
-    [reads, setList, stamps],
+    [latest, reads, setList, stamps],
   );
 }
 

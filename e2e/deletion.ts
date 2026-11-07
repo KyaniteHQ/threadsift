@@ -15,16 +15,16 @@ export const MANIFEST = [
   "search_parts",
 ] as const;
 
-const TableNames = z.array(z.object({ name: z.string() }));
+const Tables = z.array(z.object({ name: z.string(), sql: z.string().nullable() }));
+
+const ITEM_ID_COLUMN = /(?<![\w])["`[]?item_id["`\]]?(?![\w])/iu;
 
 const RowCounts = z.array(z.record(z.string(), z.number()));
 
 export function itemKeyedTables(instance: Instance): string[] {
   return instance
-    .query(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE '%`item_id`%' ORDER BY name",
-      TableNames,
-    )
+    .query("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name", Tables)
+    .filter(({ sql }) => sql !== null && ITEM_ID_COLUMN.test(sql))
     .map(({ name }) => name);
 }
 

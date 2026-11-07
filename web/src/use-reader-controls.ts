@@ -44,7 +44,7 @@ export function useReaderControls({
 }>): ReaderState {
   const [hintInBar, setHintInBar] = useState(false);
   const { announcement, announce, toggleRead } = useAnnouncement(writes.setRead);
-  const remove = useDeletion({ list, route, attend, announce, appOf, remove: writes.remove });
+  const remove = useDeletion({ route, attend, announce, appOf, remove: writes.remove });
 
   const navigation = useNavigation({
     list,
