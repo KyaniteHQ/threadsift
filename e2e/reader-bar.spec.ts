@@ -137,15 +137,17 @@ async function settledSample(page: Page): Promise<Sample> {
   let reads: Sample[] = [];
 
   await expect
-    .poll(async () => {
-      reads = [...reads, await sampleOf(page)].slice(-STABLE_READS);
-      await page.waitForTimeout(READ_GAP_MS);
+    .poll(
+      async () => {
+        reads = [...reads, await sampleOf(page)].slice(-STABLE_READS);
 
-      return (
-        reads.length === STABLE_READS &&
-        reads.every((read) => JSON.stringify(read) === JSON.stringify(reads[0]))
-      );
-    })
+        return (
+          reads.length === STABLE_READS &&
+          reads.every((read) => JSON.stringify(read) === JSON.stringify(reads[0]))
+        );
+      },
+      { intervals: [READ_GAP_MS] },
+    )
     .toBe(true);
 
   return reads[0] ?? (await sampleOf(page));

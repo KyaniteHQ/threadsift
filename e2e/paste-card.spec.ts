@@ -105,18 +105,19 @@ test("the failure card holds while hovered, closes 6 s after the pointer leaves,
 }) => {
   test.setTimeout(60_000);
   const run = newRunId();
+  await page.clock.install();
   const first = await seed(page, request, run);
   const life = await watchCardLife(page);
 
   const id = await pasteForId(page, unreachableUrl(run));
   await pasteCard(page).hover();
   await expect(cardTitle(page)).toHaveText(UNREACHABLE, { timeout: 30_000 });
-  await page.waitForTimeout(CLOSE_MS + 1500);
+  await page.clock.fastForward(CLOSE_MS + 1500);
   await expect(pasteCard(page)).toBeVisible();
 
   await rowOf(page, first.id).locator("a.it-open").focus();
   await page.locator("h1").hover();
-  await expect(pasteCard(page)).toBeHidden({ timeout: 30_000 });
+  await expectClosesAfterSixSeconds(page);
   expect(
     await closeDelayOf(life, "leftAt"),
     "ms from the pointer leaving to the close",

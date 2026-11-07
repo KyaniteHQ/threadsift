@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { KEY_POINTS_LABEL, SUMMARY_LABEL } from "../web/src/reader-text.ts";
+import { KEY_POINTS_LABEL, OPEN_LABELS, SUMMARY_LABEL } from "../web/src/reader-text.ts";
 import { SOURCE_LABELS } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { postLinkRaw, settled } from "./api.ts";
@@ -61,6 +61,12 @@ test("an Article sent with a caller Digest opens in the Reader with its header, 
   await expect(agent.getByRole("heading", { name: KEY_POINTS_LABEL })).toBeVisible();
   await expect(agent.locator(".rd-points li")).toHaveText(SENT_DIGEST.keyPoints);
   await expect(page.locator(".md")).toContainText(ESSAY_SENTENCE);
+
+  const sourceTab = context.waitForEvent("page");
+  await reader(page).getByRole("link", { name: OPEN_LABELS.article }).click();
+  const source = await sourceTab;
+  await expect(source).toHaveURL(new RegExp(`^${ESSAY.replaceAll(".", "\\.")}/?$`, "u"));
+  await source.close();
 
   await openRow(page, book.id);
   await expect(reader(page).locator(".rd-title")).toHaveText(BOOK_TITLE);

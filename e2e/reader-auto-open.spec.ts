@@ -5,7 +5,7 @@ import { READER_PLACEHOLDER } from "../web/src/reader-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { pasteField } from "./links.ts";
-import { DESKTOP, viewportAt } from "./look.ts";
+import { DESKTOP, afterTwoFrames, viewportAt } from "./look.ts";
 import { openLibrary, reader, readStateOf, row, seedRows } from "./reader.ts";
 
 let screen: FreshScreen;
@@ -41,7 +41,7 @@ test("the wide List opens the first unread Item by itself, leaves it unread, and
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/\/$/u);
   await expect(reader(page)).toHaveCount(0);
-  await page.waitForTimeout(500);
+  await afterTwoFrames(page);
   await expect(page).toHaveURL(/\/$/u);
 });
 
@@ -71,7 +71,7 @@ function opensNothingAt(width: number): void {
   test(`at ${width}px the List shows the list first and opens nothing by itself`, async () => {
     const { page } = screen;
     await openLibrary(page, width, "/", 3);
-    await page.waitForTimeout(500);
+    await afterTwoFrames(page);
 
     await expect(page).toHaveURL(/\/$/u);
     await expect(reader(page)).toHaveCount(0);
@@ -86,7 +86,7 @@ test("a library with nothing unread opens nothing", async () => {
   const { page } = screen;
   screen.fresh.sql("UPDATE items SET read_state = 'read'");
   await openLibrary(page, DESKTOP.width, "/", 3);
-  await page.waitForTimeout(500);
+  await afterTwoFrames(page);
 
   await expect(page).toHaveURL(/\/$/u);
   await expect(reader(page)).toHaveCount(0);

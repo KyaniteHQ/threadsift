@@ -1,4 +1,4 @@
-import { type ReactNode, memo, useEffect, useRef } from "react";
+import { type ComponentProps, type ReactNode, memo, useEffect, useRef } from "react";
 import Markdown, { type Components, defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { z } from "zod";
@@ -48,23 +48,76 @@ function safeUrl(url: string): string {
   return /^(?:https?:|mailto:|#)/iu.test(url) ? defaultUrlTransform(url) : "";
 }
 
-function H2({ children }: Readonly<{ children?: ReactNode }>) {
-  return <h4 className="h h-2">{children}</h4>;
+interface Generated {
+  readonly id?: string | undefined;
+  readonly className?: string | undefined;
+  readonly children?: ReactNode;
 }
 
-function H3({ children }: Readonly<{ children?: ReactNode }>) {
-  return <h5 className="h h-3">{children}</h5>;
+function classed(base: string, extra: string | undefined): string {
+  return extra === undefined ? base : `${base} ${extra}`;
 }
 
-function H4({ children }: Readonly<{ children?: ReactNode }>) {
-  return <h6 className="h h-3">{children}</h6>;
+function Heading({
+  tag: Tag,
+  base,
+  id,
+  className,
+  children,
+}: Readonly<Generated & { tag: "h4" | "h5" | "h6"; base: string }>) {
+  return (
+    <Tag id={id} className={classed(base, className)}>
+      {children}
+    </Tag>
+  );
 }
 
-function Link({ href, children }: Readonly<{ href?: string | undefined; children?: ReactNode }>) {
-  return href === undefined || href === "" ? (
-    <span>{children}</span>
-  ) : (
-    <a className="il-a" href={href} target="_blank" rel="noopener noreferrer">
+function H2(props: Readonly<Generated>) {
+  return <Heading tag="h4" base="h h-2" {...props} />;
+}
+
+function H3(props: Readonly<Generated>) {
+  return <Heading tag="h5" base="h h-3" {...props} />;
+}
+
+function H4(props: Readonly<Generated>) {
+  return <Heading tag="h6" base="h h-3" {...props} />;
+}
+
+interface LinkAttributes extends Generated {
+  readonly href?: string | undefined;
+  readonly "aria-label"?: string | undefined;
+  readonly "aria-describedby"?: string | undefined;
+  readonly "data-footnote-ref"?: string | undefined;
+  readonly "data-footnote-backref"?: string | undefined;
+}
+
+function Link({
+  href,
+  id,
+  className,
+  children,
+  "aria-label": label,
+  "aria-describedby": describedBy,
+  "data-footnote-ref": footnoteRef,
+  "data-footnote-backref": footnoteBackref,
+}: Readonly<LinkAttributes>) {
+  if (href === undefined || href === "") return <span>{children}</span>;
+
+  const inside = href.startsWith("#");
+
+  return (
+    <a
+      id={id}
+      className={classed("il-a", className)}
+      href={href}
+      target={inside ? undefined : "_blank"}
+      rel={inside ? undefined : "noopener noreferrer"}
+      aria-label={label}
+      aria-describedby={describedBy}
+      data-footnote-ref={footnoteRef}
+      data-footnote-backref={footnoteBackref}
+    >
       {children}
     </a>
   );
@@ -79,7 +132,9 @@ function Picture({ src, alt }: Readonly<{ src?: string | undefined; alt?: string
 function Block({ node }: Readonly<WithNode>) {
   const text = node === undefined ? "" : textOf(node);
 
-  return <CodeBlock text={text.replace(/\n$/u, "")} />;
+  const code = text.replace(/\n$/u, "");
+
+  return <CodeBlock key={code} text={code} />;
 }
 
 function Inline({ children }: Readonly<{ children?: ReactNode }>) {
@@ -117,6 +172,10 @@ const COMPONENTS: Components = {
 
 const PLUGINS = [remarkGfm];
 
+const FOOTNOTES: NonNullable<ComponentProps<typeof Markdown>["remarkRehypeOptions"]> = {
+  footnoteLabelProperties: { className: ["vh"] },
+};
+
 export const PostText = memo(function PostText({ text }: Readonly<{ text: string }>) {
   const root = useRef<HTMLDivElement>(null);
 
@@ -124,7 +183,12 @@ export const PostText = memo(function PostText({ text }: Readonly<{ text: string
 
   return (
     <div ref={root} className="md">
-      <Markdown remarkPlugins={PLUGINS} components={COMPONENTS} urlTransform={safeUrl}>
+      <Markdown
+        remarkPlugins={PLUGINS}
+        remarkRehypeOptions={FOOTNOTES}
+        components={COMPONENTS}
+        urlTransform={safeUrl}
+      >
         {text}
       </Markdown>
     </div>

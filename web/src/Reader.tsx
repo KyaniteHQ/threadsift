@@ -11,6 +11,7 @@ import type { Look } from "./use-root.ts";
 export interface ReaderControls {
   readonly mode: BarMode;
   readonly settingsKey: string;
+  readonly titleFocus: number | null;
   readonly toggleRead: (item: Item) => void;
   readonly close: () => void;
   readonly hintPlaced: (inBar: boolean) => void;
@@ -29,12 +30,12 @@ export function Reader({
   look: Look;
   openSettings: () => void;
 }>) {
-  use(postTextModule);
+  use(postTextModule());
 
   const titleId = useId();
   const [now] = useState(Date.now);
   const { state, retry } = useItemDetail(item.id, refreshKey(item));
-  useReadingPlace(slot, item.id, state.status === "ready");
+  useReadingPlace(slot, item.id, state.status === "ready", controls.settingsKey);
 
   return (
     <section className="reader" aria-labelledby={titleId}>
@@ -45,7 +46,7 @@ export function Reader({
         retry={retry}
         now={now}
         titleId={titleId}
-        focusTitle={controls.mode !== "pane"}
+        focusTitle={controls.mode !== "pane" || controls.titleFocus === item.id}
       />
     </section>
   );

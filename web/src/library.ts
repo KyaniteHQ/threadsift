@@ -1,56 +1,29 @@
-import {
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type Dispatch, type RefObject, type SetStateAction, useCallback, useState } from "react";
 
 import type { ReadState } from "../../src/core/kinds.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import {
   type SaveTarget,
   type SaveResult,
-  fetchItems,
   putReadState,
   regenerateDigest,
   saveLink,
 } from "./api.ts";
 import { type Choice, type Filters, NO_FILTERS, isFiltered, withChoice } from "./filters.ts";
 import { type Stamps, newStamps, useItemPolling } from "./item-polling.ts";
+import { type Reads, useReads } from "./list-reads.ts";
 import {
   type ListState,
   digestMoved,
-  failedList,
   leftProcessing,
-  type Answer,
-  loaded,
   processingIds,
   sameItem,
   withItem,
   withRead,
 } from "./list-state.ts";
+import { useLatest } from "./use-latest.ts";
 
 type SetList = Dispatch<SetStateAction<ListState>>;
-
-function useLatest<Value>(value: Value) {
-  const latest = useRef(value);
-
-  useEffect(() => {
-    latest.current = value;
-  }, [value]);
-
-  return latest;
-}
-
-interface Reads {
-  readonly reload: () => void;
-  readonly recount: (wanted: boolean) => void;
-  readonly settle: (wanted: boolean) => void;
-}
 
 interface Upkeep {
   readonly reads: Reads;
@@ -78,75 +51,6 @@ function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonl
   );
 
   useItemPolling(processingIds(list), onRead);
-}
-
-function applied(answer: Readonly<Answer>): (current: ListState) => ListState {
-  return (current) => loaded(current, answer);
-}
-
-async function refreshCounts(
-  filters: Readonly<Filters>,
-  setList: SetList,
-  isCurrent: () => boolean,
-  reload: () => void,
-): Promise<void> {
-  const answer = await fetchItems(filters).catch(() => null);
-
-  if (answer === null) {
-    reload();
-  } else if (isCurrent()) {
-    setList((current) =>
-      current.status === "ready" ? { ...current, counts: answer.counts } : current,
-    );
-  }
-}
-
-function useReads(setList: SetList, filters: Readonly<Filters>): Reads {
-  const newest = useRef(0);
-  const reading = useRef(false);
-  const [generation, setGeneration] = useState(0);
-  const query = useMemo(() => ({ filters, generation }), [filters, generation]);
-
-  useEffect(() => {
-    newest.current += 1;
-    reading.current = true;
-    const sequence = newest.current;
-
-    const read = async (): Promise<void> => {
-      const apply = await fetchItems(query.filters).then(applied, () => failedList);
-
-      if (sequence === newest.current) {
-        reading.current = false;
-        setList(apply);
-      }
-    };
-
-    void read();
-  }, [query, setList]);
-
-  const reload = useCallback(() => {
-    setGeneration((now) => now + 1);
-  }, []);
-
-  const settle = useCallback(
-    (wanted: boolean) => {
-      if (wanted || reading.current) reload();
-    },
-    [reload],
-  );
-
-  const recount = useCallback(
-    (wanted: boolean) => {
-      const sequence = newest.current;
-
-      if (wanted) {
-        void refreshCounts(filters, setList, () => sequence === newest.current, reload);
-      }
-    },
-    [filters, reload, setList],
-  );
-
-  return useMemo(() => ({ reload, recount, settle }), [reload, recount, settle]);
 }
 
 function useFilters() {
@@ -216,9 +120,9 @@ function useSetRead(setList: SetList, upkeep: Readonly<Upkeep>) {
 
 export function useLibrary() {
   const [list, setList] = useState<ListState>({ status: "loading", known: [] });
-  const [stamps] = useState(newStamps);
   const { filters, ...changes } = useFilters();
-  const reads = useReads(setList, filters);
+  const [stamps] = useState(newStamps);
+  const reads = useReads(setList, filters, stamps);
   const unfiltered = useLatest(!isFiltered(filters));
   const latest = useLatest(list);
   const upkeep = { reads, stamps, unfiltered, latest };

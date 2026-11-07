@@ -86,14 +86,22 @@ export function useReaderControls({
     covers: look.narrow,
   });
 
-  const { close } = navigation;
+  const { close, titleFocus } = navigation;
   const mode = modeOf(look);
   const settingsKey = JSON.stringify(look.settings);
 
   const controls = useMemo<ReaderControls>(
-    () => ({ mode, settingsKey, toggleRead, close, hintPlaced: setHintInBar }),
-    [close, mode, settingsKey, toggleRead],
+    () => ({ mode, settingsKey, titleFocus, toggleRead, close, hintPlaced: setHintInBar }),
+    [close, mode, settingsKey, titleFocus, toggleRead],
   );
 
-  return { ...navigation, toggleRead, controls, hintInBar, announcement };
+  return {
+    open: navigation.open,
+    close,
+    step: navigation.step,
+    toggleRead,
+    controls,
+    hintInBar,
+    announcement,
+  };
 }

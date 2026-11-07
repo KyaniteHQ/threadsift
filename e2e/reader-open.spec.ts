@@ -6,7 +6,7 @@ import { newCode, newPassword } from "./access.ts";
 import { ADDED, REFRESHED, cardTitle, pasteOnly } from "./card.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { newRunId, pasteCard, titledPage } from "./links.ts";
-import { DESKTOP, viewportAt } from "./look.ts";
+import { DESKTOP, afterTwoFrames, viewportAt } from "./look.ts";
 import { openLibrary, openRow, reader, row, seedRows } from "./reader.ts";
 
 let screen: FreshScreen;
@@ -64,4 +64,25 @@ test("the paste card's Added and Already saved, refreshed states have an Open bu
   await pasteCard(page).getByRole("button", { name: PASTE_OPEN }).click();
   await expect(reader(page)).toBeVisible();
   expect(new URL(page.url()).pathname).toBe(opened);
+});
+
+test("the Markdown renderer is fetched when the first Reader renders, not when the list loads", async () => {
+  const { page } = screen;
+  const chunks: string[] = [];
+
+  page.on("request", (request) => {
+    if (/PostText/u.test(request.url())) chunks.push(request.url());
+  });
+
+  const [titled = 0] = seedRows(screen, [
+    { url: "https://example.com/chunk", title: "Chunk", postText: "Some post text." },
+  ]);
+
+  await openLibrary(page, 390, "/", 1);
+  await afterTwoFrames(page);
+  expect(chunks, "requests for the renderer before any Reader").toEqual([]);
+
+  await openRow(page, titled);
+  await expect(page.locator(".md")).toContainText("Some post text.");
+  expect(chunks, "requests for the renderer after the first Reader").toHaveLength(1);
 });

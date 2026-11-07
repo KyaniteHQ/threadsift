@@ -34,6 +34,12 @@ function insertOf(seed: Readonly<SeedRow>, index: number): string {
   return `INSERT INTO items (source, kind, normalized_url, original_url, saved_at, status, title, author, post_text, read_state, fetch_result) VALUES (${quoted(seed.source ?? "article")}, ${quoted(seed.kind ?? "article")}, ${quoted(seed.url)}, ${quoted(seed.url)}, ${savedAt}, 'ready', ${seed.title === null ? "NULL" : quoted(seed.title)}, ${quoted(seed.author)}, ${text}, ${quoted(seed.read === true ? "read" : "unread")}, ${quoted(seed.fetchResult)})`;
 }
 
+export function rewritePostText(screen: FreshScreen, id: number, text: string): void {
+  screen.fresh.sql(
+    `UPDATE items SET post_text = ${textLiteral(text)}, fetched_at = ${Date.now()} WHERE id = ${id}`,
+  );
+}
+
 const IdsSchema = z.array(z.object({ id: z.number() }));
 
 const MAX_STATEMENT_CHARS = 60_000;

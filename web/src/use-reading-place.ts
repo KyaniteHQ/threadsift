@@ -1,70 +1,147 @@
-import { type RefObject, useEffect, useLayoutEffect } from "react";
+import { type RefObject, useLayoutEffect, useRef } from "react";
 
-import { anchorAt, keepPlace, placeOf, scrollToAnchor } from "./reading-place.ts";
+import { type Anchor, anchorAt, keepPlace, placeOf, scrollToAnchor } from "./reading-place.ts";
 
 const SAVE_DELAY_MS = 400;
 const SETTLE_DELAY_MS = 450;
 
-function restore(slot: HTMLElement, itemId: number): void {
-  const anchor = placeOf(itemId);
+interface PlaceWatch {
+  readonly reflowed: () => void;
+  readonly stop: () => void;
+}
 
-  slot.scrollTop = 0;
+function newSettler(slot: HTMLElement) {
+  let cancel: (() => void) | null = null;
 
-  if (anchor !== null && scrollToAnchor(slot, anchor)) {
-    const at = slot.scrollTop;
+  const stop = (): void => {
+    cancel?.();
+    cancel = null;
+  };
+
+  const returnTo = (anchor: Readonly<Anchor> | null): void => {
+    stop();
+
+    if (anchor === null || !scrollToAnchor(slot, anchor)) return;
+
+    let live = true;
+    let at = slot.scrollTop;
 
     const resettle = (): void => {
-      if (slot.isConnected && slot.scrollTop === at) scrollToAnchor(slot, anchor);
+      if (live && slot.isConnected && slot.scrollTop === at) {
+        scrollToAnchor(slot, anchor);
+        at = slot.scrollTop;
+      }
     };
 
-    window.setTimeout(resettle, SETTLE_DELAY_MS);
+    const timer = window.setTimeout(() => {
+      resettle();
+      cancel = null;
+    }, SETTLE_DELAY_MS);
+
     void document.fonts.ready.then(resettle);
-  }
+
+    cancel = () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  };
+
+  return { returnTo, stop, isSettling: () => cancel !== null };
 }
 
-function keepWhileOpen(slot: HTMLElement, itemId: number): () => void {
-  restore(slot, itemId);
+function onWidthChange(slot: HTMLElement, changed: () => void): () => void {
+  let width = slot.clientWidth;
+
+  const observer = new ResizeObserver(() => {
+    if (slot.clientWidth !== width) {
+      width = slot.clientWidth;
+      changed();
+    }
+  });
+
+  observer.observe(slot);
 
   return () => {
-    keepPlace(itemId, anchorAt(slot));
+    observer.disconnect();
   };
 }
 
-function saveOnScroll(slot: HTMLElement, itemId: number): () => void {
-  let timer = 0;
+function watchPlace(slot: HTMLElement, itemId: number): PlaceWatch {
+  const settler = newSettler(slot);
+  let seen = placeOf(itemId);
+  let saveTimer = 0;
+  let frame = 0;
 
   const save = (): void => {
-    window.clearTimeout(timer);
+    window.clearTimeout(saveTimer);
     keepPlace(itemId, anchorAt(slot));
   };
 
-  const later = (): void => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(save, SAVE_DELAY_MS);
+  const onScroll = (): void => {
+    if (!settler.isSettling() && frame === 0) {
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        seen = anchorAt(slot);
+      });
+    }
+
+    window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(save, SAVE_DELAY_MS);
   };
 
-  slot.addEventListener("scroll", later, { passive: true });
-  window.addEventListener("pagehide", save);
+  const reflowed = (): void => {
+    settler.returnTo(seen);
+  };
 
-  return () => {
-    window.clearTimeout(timer);
-    window.removeEventListener("pagehide", save);
-    slot.removeEventListener("scroll", later);
+  slot.scrollTop = 0;
+  settler.returnTo(seen);
+  slot.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("pagehide", save);
+  const unwatchWidth = onWidthChange(slot, reflowed);
+
+  return {
+    reflowed,
+    stop: () => {
+      settler.stop();
+      window.clearTimeout(saveTimer);
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("pagehide", save);
+      slot.removeEventListener("scroll", onScroll);
+      unwatchWidth();
+      keepPlace(itemId, anchorAt(slot));
+    },
   };
 }
+
+function noWatch(): void {}
 
 export function useReadingPlace(
   slot: RefObject<HTMLElement | null>,
   itemId: number,
   ready: boolean,
+  lookKey: string,
 ): void {
-  useLayoutEffect(
-    () => (ready && slot.current !== null ? keepWhileOpen(slot.current, itemId) : undefined),
-    [slot, itemId, ready],
-  );
+  const watch = useRef<PlaceWatch | null>(null);
+  const lastLook = useRef(lookKey);
 
-  useEffect(
-    () => (ready && slot.current !== null ? saveOnScroll(slot.current, itemId) : undefined),
-    [slot, itemId, ready],
-  );
+  useLayoutEffect(() => {
+    const element = slot.current;
+
+    if (!ready || element === null) return noWatch;
+
+    const opened = watchPlace(element, itemId);
+    watch.current = opened;
+
+    return () => {
+      opened.stop();
+      watch.current = null;
+    };
+  }, [slot, itemId, ready]);
+
+  useLayoutEffect(() => {
+    if (lastLook.current !== lookKey) {
+      lastLook.current = lookKey;
+      watch.current?.reflowed();
+    }
+  }, [lookKey]);
 }

@@ -1,6 +1,6 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { BACK_LONG } from "../web/src/reader-text.ts";
+import { BACK_LONG, MARK_READ } from "../web/src/reader-text.ts";
 import { SEARCH_LABEL } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
@@ -15,7 +15,6 @@ import {
   reader,
   row,
   seedRows,
-  slot,
 } from "./reader.ts";
 
 const ROWS = 12;
@@ -36,7 +35,7 @@ test.beforeEach(async ({ browser }) => {
     Array.from({ length: ROWS }, (_, index) => ({
       url: `https://example.com/item-${index + 1}`,
       title: `Item number ${index + 1}`,
-      postText: paragraphs(40, `Item ${index + 1}`),
+      postText: `${paragraphs(40, `Item ${index + 1}`)}\n\n[Inside link ${index + 1}](https://example.com/inside-${index + 1})`,
     })),
   );
 });
@@ -114,56 +113,30 @@ test("the key hint moves from the reader bar to the list when the bar has no roo
   await expect(page.locator(".search .list-hint")).toHaveCount(0);
 });
 
-function topBlock(page: Page): Promise<string> {
-  return slot(page).evaluate((element) => {
-    const barBottom = element.querySelector(".rd-bar")?.getBoundingClientRect().bottom ?? 0;
-    const blocks = [...element.querySelectorAll(".md > *")];
-
-    return (
-      blocks.find((block) => block.getBoundingClientRect().bottom > barBottom)?.textContent ?? ""
-    );
-  });
-}
-
-async function scrollAndSettle(page: Page, share: number): Promise<string> {
-  await slot(page).evaluate((element, fraction) => {
-    element.scrollTop = (element.scrollHeight - element.clientHeight) * fraction;
-  }, share);
-
-  const block = await topBlock(page);
-  expect(block, "the block at the top after scrolling").not.toBe("");
-  await page.waitForTimeout(600);
-
-  return block;
-}
-
-test("the open Item and its scroll place come back after a reload, and a second tab keeps its own place", async () => {
-  const { page, context } = screen;
-  const [first = 0] = ids;
+test("j and k from a Reader button or a post-text link keep the focus in the Reader, on the new Item's title", async () => {
+  const { page } = screen;
+  const [first = 0, second = 0] = ids;
   await openLibrary(page, DESKTOP.width, "/", ROWS);
   await openRow(page, first);
   await expect(page.locator(".md")).toContainText("Item 1 paragraph 40");
-  const half = await scrollAndSettle(page, 0.5);
 
-  const other = await context.newPage();
-  await openLibrary(other, DESKTOP.width, `/items/${first}`, ROWS);
-  await expect(other.locator(".md")).toContainText("Item 1 paragraph 40");
-  expect(
-    await slot(other).evaluate((element) => element.scrollTop),
-    "a new tab starts at the top",
-  ).toBe(0);
-  const fifth = await scrollAndSettle(other, 0.2);
-  expect(fifth).not.toBe(half);
+  await bar(page).getByRole("button", { name: MARK_READ }).focus();
+  await page.keyboard.press("j");
+  await expect(page).toHaveURL(new RegExp(`/items/${second}$`, "u"));
+  await expect(reader(page).locator(".rd-title")).toHaveText("Item number 2");
+  await expect(reader(page).locator(".rd-title")).toBeFocused();
 
-  await page.reload();
+  await expect(page.locator(".md")).toContainText("Item 2 paragraph 40");
+  await page.locator(".md a.il-a").focus();
+  await page.keyboard.press("k");
   await expect(page).toHaveURL(new RegExp(`/items/${first}$`, "u"));
-  await expect(page.locator(".md")).toContainText("Item 1 paragraph 40");
-  await expect.poll(() => topBlock(page)).toBe(half);
+  await expect(reader(page).locator(".rd-title")).toHaveText("Item number 1");
+  await expect(reader(page).locator(".rd-title")).toBeFocused();
 
-  await other.reload();
-  await expect(other.locator(".md")).toContainText("Item 1 paragraph 40");
-  await expect.poll(() => topBlock(other)).toBe(fifth);
-  await other.close();
+  await row(page, second).locator("a.it-open").focus();
+  await page.keyboard.press("j");
+  await expect(page).toHaveURL(new RegExp(`/items/${second}$`, "u"));
+  await expect(row(page, second).locator("a.it-open")).toBeFocused();
 });
 
 function coversTheScreen(width: number, backs: string): void {

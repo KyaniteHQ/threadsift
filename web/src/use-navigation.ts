@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import { itemPath } from "../../src/core/item-path.ts";
 import type { Attention } from "./ItemRow.tsx";
@@ -17,6 +17,32 @@ function neighbour(list: Readonly<ListState>, openId: number | null, direction: 
   return ids[at + direction] ?? null;
 }
 
+type Stepping = Readonly<{
+  list: ListState;
+  route: Route;
+  attend: (attention: Attention) => void;
+  inReader: () => boolean;
+  focusTitleOf: (id: number | null) => void;
+}>;
+
+function useStep({ list, route, attend, inReader, focusTitleOf }: Stepping) {
+  const { openId, replace } = route;
+
+  return useCallback(
+    (direction: 1 | -1) => {
+      const next = neighbour(list, openId, direction);
+
+      if (next !== null) {
+        const fromReader = inReader();
+        focusTitleOf(fromReader ? next : null);
+        attend({ id: next, focus: !fromReader });
+        replace(itemPath(next));
+      }
+    },
+    [attend, focusTitleOf, inReader, list, openId, replace],
+  );
+}
+
 export function useNavigation({
   list,
   route,
@@ -32,10 +58,13 @@ export function useNavigation({
   covers: boolean;
   appOf: () => Element | null;
 }>) {
-  const { openId, navigate, replace } = route;
+  const { openId, navigate } = route;
+  const [titleFocus, focusTitleOf] = useState<number | null>(null);
 
   const open = useCallback(
     (id: number) => {
+      focusTitleOf(null);
+
       changeView(appOf(), id, covers, () => {
         navigate(itemPath(id));
       });
@@ -52,17 +81,7 @@ export function useNavigation({
     });
   }, [appOf, attend, covers, navigate, openId]);
 
-  const step = useCallback(
-    (direction: 1 | -1) => {
-      const next = neighbour(list, openId, direction);
+  const step = useStep({ list, route, attend, inReader, focusTitleOf });
 
-      if (next !== null) {
-        attend({ id: next, focus: !inReader() });
-        replace(itemPath(next));
-      }
-    },
-    [attend, inReader, list, openId, replace],
-  );
-
-  return { open, close, step };
+  return { open, close, step, titleFocus };
 }

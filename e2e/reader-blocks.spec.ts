@@ -2,8 +2,9 @@ import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { FOLD_HIDE, foldShowLabel } from "../web/src/reader-text.ts";
 import { newCode, newPassword } from "./access.ts";
+import { choice } from "./filters.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { openLibrary, openRow, reader, seedRows } from "./reader.ts";
+import { openLibrary, openRow, reader, rewritePostText, seedRows } from "./reader.ts";
 
 const LONG_LINE = 400;
 const FOLD_LINES = 40;
@@ -162,4 +163,73 @@ test("raw HTML in a post text shows as text and creates no script or image eleme
   await expect(post.locator('a[href^="javascript:"]')).toHaveCount(0);
   expect(await page.evaluate(() => "hacked" in window)).toBe(false);
   expect(dialogs).toEqual([]);
+});
+
+test("a refresh that lengthens or shortens a code block on an open Item adds or drops its fold", async () => {
+  const { page } = screen;
+
+  const [refreshed = 0] = seedRows(screen, [
+    {
+      url: "https://example.com/refreshed",
+      title: "Refreshed",
+      postText: `Before.\n\n${codeBlock(SHORT_LINES)}\n\nAfter.`,
+      savedAt: Date.now(),
+    },
+  ]);
+
+  await openLibrary(page, 1440, `/items/${refreshed}`, 2);
+  const block = page.locator(".md .code");
+  await expect(block).toHaveCount(1);
+  await expect(block).toContainText(`line ${SHORT_LINES}:`);
+  await expect(block.getByRole("button")).toHaveCount(0);
+
+  rewritePostText(screen, refreshed, `Before.\n\n${codeBlock(FOLD_LINES)}\n\nAfter.`);
+  await choice(page, "Read state", "Unread").click();
+  await expect(block).toContainText(`line ${FOLD_LINES}:`);
+  await expect(block).toHaveClass(/\bfolded\b/u);
+  await expect(block.getByRole("button")).toHaveText(foldShowLabel(FOLD_LINES));
+
+  rewritePostText(screen, refreshed, `Before.\n\n${codeBlock(SHORT_LINES)}\n\nAfter.`);
+  await choice(page, "Read state", "All").click();
+  await expect(block).not.toContainText(`line ${FOLD_LINES}:`);
+  await expect(block).not.toHaveClass(/\bfolded\b/u);
+  await expect(block.getByRole("button")).toHaveCount(0);
+});
+
+test("a footnote reference and its back link stay in the Reader, keep their generated ids, and an outside link opens a new tab", async () => {
+  const { page, context } = screen;
+
+  const [noted = 0] = seedRows(screen, [
+    {
+      url: "https://example.com/noted",
+      title: "Noted",
+      postText:
+        "A claim that needs a source.[^1] See [the site](https://example.com/outside).\n\nMore text between.\n\n[^1]: The source of the claim.",
+      savedAt: Date.now(),
+    },
+  ]);
+
+  await openLibrary(page, 1440, `/items/${noted}`, 2);
+  const reference = page.locator(".md a[data-footnote-ref]");
+  await expect(reference).toHaveAttribute("id", "user-content-fnref-1");
+  await expect(reference).not.toHaveAttribute("target", /./u);
+  await expect(page.locator(".md #footnote-label")).toHaveClass(/\bvh\b/u);
+  await expect(page.locator(".md a", { hasText: "the site" })).toHaveAttribute("target", "_blank");
+
+  const opened: string[] = [];
+
+  context.on("page", (tab) => {
+    opened.push(tab.url());
+  });
+
+  await reference.click();
+  await expect(page).toHaveURL(new RegExp(`/items/${noted}#user-content-fn-1$`, "u"));
+  await expect(page.locator("#user-content-fn-1")).toContainText("The source of the claim.");
+  await expect(page.locator("#user-content-fn-1")).toBeInViewport();
+
+  await page.getByRole("link", { name: /Back to reference 1/u }).click();
+  await expect(page).toHaveURL(new RegExp(`/items/${noted}#user-content-fnref-1$`, "u"));
+  await expect(reference).toBeInViewport();
+  await expect(reader(page)).toBeVisible();
+  expect(opened, "tabs opened by the footnote links").toEqual([]);
 });

@@ -90,6 +90,8 @@ export function newStamps() {
       times.set(id, performance.now());
     },
     isFresh: (id: number, startedAt: number): boolean => startedAt > (times.get(id) ?? 0),
+    changedSince: (startedAt: number): number[] =>
+      [...times].flatMap(([id, markedAt]) => (markedAt > startedAt ? [id] : [])),
   } as const;
 }
 

@@ -69,12 +69,28 @@ export interface Answer {
   readonly counts: FilterCounts;
 }
 
-export function loaded(current: Readonly<ListState>, answer: Readonly<Answer>): ListState {
+export interface Settled {
+  readonly changed: readonly number[];
+  readonly counts: boolean;
+}
+
+export function loaded(
+  current: Readonly<ListState>,
+  answer: Readonly<Answer>,
+  settled: Readonly<Settled>,
+): ListState {
+  const items = answer.items.map(
+    (item) =>
+      (settled.changed.includes(item.id)
+        ? current.known.find((known) => known.id === item.id)
+        : undefined) ?? item,
+  );
+
   return {
     status: "ready",
-    known: answer.items.reduceRight((all, item) => upserted(all, item), [...current.known]),
-    items: answer.items,
-    counts: answer.counts,
+    known: items.reduceRight((all, item) => upserted(all, item), [...current.known]),
+    items,
+    counts: settled.counts || current.status !== "ready" ? answer.counts : current.counts,
     loadedAt: Date.now(),
   };
 }

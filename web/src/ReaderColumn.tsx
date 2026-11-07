@@ -142,7 +142,7 @@ function Agent({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
 }
 
 function Original({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
-  const { PostText } = use(postTextModule);
+  const { PostText } = use(postTextModule());
   const text = detail.postText;
 
   if (text === null || text.trim() === "") {
