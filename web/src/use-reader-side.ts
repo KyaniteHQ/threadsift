@@ -1,8 +1,8 @@
 import { type RefObject, useCallback } from "react";
 
-import type { ReadState } from "../../src/core/kinds.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import type { Attention } from "./ItemRow.tsx";
+import type { Writes } from "./library.ts";
 import { type ListState, knownItems } from "./list-state.ts";
 import type { Route } from "./routing.ts";
 import { useAutoOpen } from "./use-auto-open.ts";
@@ -66,7 +66,7 @@ export function useReaderSide({
   list,
   look,
   route,
-  setRead,
+  writes,
   attend,
   root,
   searchField,
@@ -75,14 +75,14 @@ export function useReaderSide({
   list: ListState;
   look: Look;
   route: Route;
-  setRead: (id: number, state: ReadState) => Promise<void>;
+  writes: Writes;
   attend: (attention: Attention) => void;
   root: RefObject<HTMLDivElement | null>;
   searchField: RefObject<HTMLInputElement | null>;
   covered: boolean;
 }>): ReaderSide {
   const { inReader, appOf } = useLibraryDom(root);
-  const reader = useReaderControls({ list, route, look, attend, setRead, inReader, appOf });
+  const reader = useReaderControls({ list, route, look, attend, writes, inReader, appOf });
   const { openId, replace } = route;
 
   useAutoOpen({ list, openId, replace, wide: look.reader === "pane", attend });

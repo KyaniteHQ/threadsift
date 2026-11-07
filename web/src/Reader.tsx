@@ -14,6 +14,7 @@ export interface ReaderControls {
   readonly settingsKey: string;
   readonly titleFocus: number | null;
   readonly toggleRead: (item: Item) => void;
+  readonly remove: (item: Item) => Promise<void>;
   readonly close: () => void;
   readonly hintPlaced: (inBar: boolean) => void;
 }

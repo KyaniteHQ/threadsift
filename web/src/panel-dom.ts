@@ -5,7 +5,7 @@ export type PanelRefs = Readonly<{
   panel: RefObject<HTMLDialogElement | null>;
 }>;
 
-function tabWrapTarget(panel: HTMLElement, backwards: boolean): HTMLElement | null {
+export function tabWrapTarget(panel: HTMLElement, backwards: boolean): HTMLElement | null {
   const stops = [...panel.querySelectorAll<HTMLElement>("button, select")];
   const [first, last] = [stops.at(0), stops.at(-1)];
 

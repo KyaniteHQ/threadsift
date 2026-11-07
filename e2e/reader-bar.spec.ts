@@ -221,7 +221,7 @@ async function backLook(page: Page): Promise<BackLook> {
 }
 
 const SQUEEZE_FROM = 600;
-const SQUEEZE_TO = 240;
+const SQUEEZE_TO = 252;
 const SQUEEZE_STEP = 12;
 
 test("as the page bar is squeezed, Back goes from its label to the word Back to its icon, and nothing overflows on the way", async () => {

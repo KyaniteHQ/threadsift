@@ -27,7 +27,7 @@ export function useLibraryView(look: Look, route: Route): LibraryView {
   const searchField = useRef<HTMLInputElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const library = useLibrary();
-  const { list, clear, setRead } = library;
+  const { list, clear } = library;
   const actions = useListActions(list, library, listPane, route);
   const openItem = knownItems(list).find((item) => item.id === route.openId) ?? null;
   const covered = look.reader !== "pane" && openItem !== null;
@@ -37,7 +37,7 @@ export function useLibraryView(look: Look, route: Route): LibraryView {
     list,
     look,
     route,
-    setRead,
+    writes: library,
     attend,
     root,
     searchField,

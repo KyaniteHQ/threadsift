@@ -10,6 +10,17 @@ export const ROW_MARK_UNREAD = "Mark as unread";
 export const MARKED_READ = "Marked as read";
 export const MARKED_UNREAD = "Marked as unread";
 export const READ_FAILED = "Couldn’t change this item’s read state.";
+export const DELETE_LABEL = "Delete";
+export const DELETE_TITLE = "Delete this item?";
+
+export const DELETE_DESCRIPTION =
+  "Deleting removes this item, its summary and key points, its saved text and its kept comments from the library. This can’t be undone.";
+
+export const CANCEL_LABEL = "Cancel";
+export const DELETE_CONFIRM = "Delete item";
+export const DELETE_PENDING = "Deleting item…";
+export const DELETE_FAILED = "Couldn’t delete this item. Try again.";
+export const DELETED = "Item deleted.";
 export const BACK_LONG = "Back to list";
 export const BACK_TO_GRID = "Back to grid";
 export const BACK_SHORT = "Back";

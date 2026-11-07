@@ -84,11 +84,17 @@ export function useItemPolling(
 
 export function newStamps() {
   const times = new Map<number, number>();
+  const gone = new Set<number>();
 
   return {
     mark: (id: number): void => {
       times.set(id, performance.now());
     },
+    remove: (id: number): void => {
+      gone.add(id);
+      times.set(id, performance.now());
+    },
+    isGone: (id: number): boolean => gone.has(id),
     isFresh: (id: number, startedAt: number): boolean => startedAt > (times.get(id) ?? 0),
     changedSince: (startedAt: number): number[] =>
       [...times].flatMap(([id, markedAt]) => (markedAt > startedAt ? [id] : [])),

@@ -30,6 +30,10 @@ const Body = z.looseObject({
 
 const Operation = z.looseObject({ responses: z.record(z.string(), Body) });
 
+const Removal = z.looseObject({
+  responses: z.record(z.string(), z.looseObject({ description: z.string() })),
+});
+
 const Parameters = z.array(z.looseObject({ name: z.string(), in: z.string() }));
 
 const OpenApiDocument = z.looseObject({
@@ -40,7 +44,7 @@ const OpenApiDocument = z.looseObject({
       get: Operation.extend({ parameters: Parameters }),
       post: Operation.extend({ requestBody: Body }),
     }),
-    "/api/items/{id}": z.looseObject({ get: Operation }),
+    "/api/items/{id}": z.looseObject({ get: Operation, delete: Removal }),
     "/api/items/{id}/status": z.looseObject({ get: Operation }),
   }),
 });
@@ -156,6 +160,7 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   const one = paths["/api/items/{id}"];
 
   expect(Object.keys(one.get.responses).toSorted()).toEqual(["200", "404"]);
+  expect(Object.keys(one.delete.responses).toSorted()).toEqual(["204", "400", "404"]);
 
   const single = propertyOf(
     schemas,

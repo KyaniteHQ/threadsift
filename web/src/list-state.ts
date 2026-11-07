@@ -50,6 +50,14 @@ export function withItem(
   };
 }
 
+export function withoutItem(list: Readonly<ListState>, id: number): ListState {
+  const known = list.known.filter((item) => item.id !== id);
+
+  return list.status === "ready"
+    ? { ...list, known, items: list.items.filter((item) => item.id !== id) }
+    : { ...list, known };
+}
+
 export function withRead(
   list: Readonly<ListState>,
   read: Readonly<Item>,

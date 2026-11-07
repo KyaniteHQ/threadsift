@@ -34,7 +34,7 @@ export function useCardReturn({
 
     if (list.status === "ready" && list.items.some((item) => item.id === left)) {
       attend({ id: left, focus: true });
-    } else {
+    } else if (document.activeElement === document.body) {
       appOf()?.querySelector<HTMLElement>(".list")?.focus();
     }
   }, [appOf, attend, covers, list, openId]);

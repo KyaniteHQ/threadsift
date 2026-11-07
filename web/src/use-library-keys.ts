@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent } from "react";
 
-const TYPING = "input, textarea, select, dialog.st-pop, [contenteditable]";
+const TYPING = "input, textarea, select, dialog.st-pop, dialog.dlg, [contenteditable]";
 const SIDEWAYS = "pre, .tbl";
 
 export interface KeyActions {
