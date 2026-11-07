@@ -1,6 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { CLEAR_ALL, SEARCH_LABEL } from "../web/src/text.ts";
+import { SEARCH_MAX } from "../src/http/schemas.ts";
+import { CLEAR_ALL, LOAD_FAILED, SEARCH_LABEL } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import {
   type Library,
@@ -123,4 +124,45 @@ test("an open Item that the filters hide stays open in the address and returns w
   await expectRows(page, library.everyone);
   await expect(page.locator(`.it[data-key="${open}"]`)).toHaveClass(/\bopen\b/u);
   await expect(group(page, "Topic")).toBeVisible();
+});
+
+test("an open Item that returns to the list does not take focus from the search field", async () => {
+  const open = library.articles[4] ?? 0;
+  const field = page.getByRole("searchbox", { name: SEARCH_LABEL });
+
+  await page.goto(`/items/${open}`);
+  await expect(page.locator(`.it[data-key="${open}"] .it-open`)).toBeFocused();
+
+  await field.fill("qzxjwv");
+  await expectRows(page, []);
+  await field.fill("");
+  await expectRows(page, library.everyone);
+  await afterTwoFrames(page);
+  await expect(field).toBeFocused();
+});
+
+test("the search field stops at the length the API accepts and the list keeps loading", async () => {
+  const field = page.getByRole("searchbox", { name: SEARCH_LABEL });
+  await expect(field).toHaveAttribute("maxlength", String(SEARCH_MAX));
+
+  await field.pressSequentially("a".repeat(SEARCH_MAX + 1));
+  await expect(field).toHaveValue("a".repeat(SEARCH_MAX));
+  await expect(page.getByText(LOAD_FAILED)).toHaveCount(0);
+  await expect(page.getByText("No items match")).toBeVisible();
+});
+
+test("a reload drops the search text and every filter", async () => {
+  const field = page.getByRole("searchbox", { name: SEARCH_LABEL });
+
+  await choice(page, "Source", "Article").click();
+  await field.fill("essay");
+  await expectRows(page, library.articles);
+  await expect(head(page)).toHaveText("7 of 11 items matching “essay”");
+
+  await page.reload();
+  await expectRows(page, library.everyone);
+  await expect(field).toHaveValue("");
+  await expect(choice(page, "Source", "Article")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "Clear filters" })).toHaveCount(0);
+  await expect(head(page)).toHaveText("11 items, 8 unread");
 });

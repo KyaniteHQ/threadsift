@@ -72,6 +72,7 @@ export function Library({
             list={list}
             openId={route.openId}
             attention={actions.attention}
+            attended={actions.attended}
             retry={actions.retryAndKeepPlace}
             tryAgain={actions.tryAgain}
             clearAll={clearAll}

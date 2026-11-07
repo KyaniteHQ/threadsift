@@ -76,12 +76,14 @@ function ItemList({
   loadedAt,
   openId,
   attention,
+  attended,
   tryAgain,
 }: Readonly<{
   items: readonly Item[];
   loadedAt: number;
   openId: number | null;
   attention: Attention;
+  attended: () => void;
   tryAgain: (item: Item) => void;
 }>) {
   return (
@@ -98,6 +100,7 @@ function ItemList({
             now={loadedAt}
             isOpen={item.id === openId}
             attention={item.id === attention?.id ? attention : null}
+            attended={attended}
             tryAgain={tryAgain}
           />
         </li>
@@ -110,6 +113,7 @@ export const ListBody = memo(function ListBody({
   list,
   openId,
   attention,
+  attended,
   retry,
   tryAgain,
   clearAll,
@@ -117,6 +121,7 @@ export const ListBody = memo(function ListBody({
   list: ListState;
   openId: number | null;
   attention: Attention;
+  attended: () => void;
   retry: () => void;
   tryAgain: (item: Item) => void;
   clearAll: () => void;
@@ -149,6 +154,7 @@ export const ListBody = memo(function ListBody({
       loadedAt={list.loadedAt}
       openId={openId}
       attention={attention}
+      attended={attended}
       tryAgain={tryAgain}
     />
   );

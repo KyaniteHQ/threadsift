@@ -40,7 +40,11 @@ function useOpenItem(list: ListState, { openId, replace }: Route) {
     }
   }, [missing, replace]);
 
-  return { attention, attend: setAttention };
+  const attended = useCallback(() => {
+    setAttention(null);
+  }, []);
+
+  return { attention, attend: setAttention, attended };
 }
 
 function useSaveAndShow(
@@ -77,7 +81,7 @@ export function useListActions(
   pane: RefObject<HTMLElement | null>,
   route: Route,
 ) {
-  const { attention, attend } = useOpenItem(list, route);
+  const { attention, attend, attended } = useOpenItem(list, route);
   const [request, setRequest] = useState<PasteRequest | null>(null);
 
   const tryAgain = useCallback(
@@ -98,6 +102,7 @@ export function useListActions(
 
   return {
     attention,
+    attended,
     request,
     tryAgain,
     saveAndShow: useSaveAndShow(actions.save, attend, pane),

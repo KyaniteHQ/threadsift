@@ -1,6 +1,7 @@
 import type { ChangeEvent, RefObject } from "react";
 import { useCallback } from "react";
 
+import { SEARCH_MAX } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { SEARCH_LABEL, SEARCH_PLACEHOLDER } from "./text.ts";
 
@@ -30,6 +31,7 @@ export function SearchField({
           type="search"
           placeholder={SEARCH_PLACEHOLDER}
           autoComplete="off"
+          maxLength={SEARCH_MAX}
           value={value}
           onChange={type}
         />
