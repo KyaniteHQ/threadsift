@@ -148,6 +148,7 @@ test("a saved link returns focus to the field and the list shows it at the top",
   await page.goto("/");
   const list = page.locator(".list");
   await expect(page.locator("article.it").nth(29)).toBeVisible();
+  await fontsLoaded(page);
   await list.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });

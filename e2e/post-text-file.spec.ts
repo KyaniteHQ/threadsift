@@ -10,6 +10,7 @@ import {
   nameFile,
   ownerOf,
   storeFileItem,
+  storeFileItems,
 } from "./files.ts";
 import { isContainerTarget } from "./target.ts";
 
@@ -125,16 +126,24 @@ test("a row that names a missing key answers 200 without post text, and the log 
 const REFUSED_KEYS = ["../outside", "/etc/passwd", "items/1/..", "items/01/a", "items/1/a\\b"];
 
 test("a row whose key is ../outside, /etc/passwd, items/1/.., items/01/a or holds a backslash answers 200 without post text and reads nothing outside the store", async () => {
-  const cases = REFUSED_KEYS.map((key) => ({
-    key,
-    id: seeded(ROW_TEXT),
-    secret: `outside: ${key}`,
-  }));
+  const first = sequence + 1;
 
-  for (const { key, id, secret } of cases) {
+  const cases = storeFileItems(
+    instance,
+    REFUSED_KEYS.map((key, index) => ({
+      key,
+      secret: `outside: ${key}`,
+      url: `https://example.com/file-text-${first + index}`,
+      title: "Seeded",
+      postText: ROW_TEXT,
+      postTextKey: key,
+    })),
+  );
+
+  sequence += REFUSED_KEYS.length;
+
+  for (const { key, secret } of cases) {
     if (!(isContainerTarget() && key.endsWith("/.."))) instance.writeFile(key, Buffer.from(secret));
-
-    nameFile(instance, id, `'${key.replaceAll("'", "''")}'`);
   }
 
   await Promise.all(

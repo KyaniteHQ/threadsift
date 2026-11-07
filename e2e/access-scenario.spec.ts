@@ -10,6 +10,7 @@ import {
 } from "@playwright/test";
 
 import { LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
+import { READER_LOADING } from "../web/src/reader-text.ts";
 import { filled } from "../web/src/text.ts";
 import { cookieHeader } from "./access-helpers.ts";
 import {
@@ -22,7 +23,7 @@ import {
   minimumPassword,
 } from "./access.ts";
 import { type Entry, call, violations, watchPage } from "./ledger.ts";
-import { addButton, newRunId, pasteField, pasteLink } from "./links.ts";
+import { addButton, newRunId, pasteField, pasteLink, settleLibrary } from "./links.ts";
 import {
   choosePassword,
   codeField,
@@ -264,8 +265,13 @@ test("a Paste after the owner signed out in another tab shows the login screen, 
   await passwordField(first).fill(password);
   await first.getByRole("button", { name: LOGIN.signIn }).click();
   await expect(pasteField(first)).toBeVisible();
+
+  await settleLibrary(context.request);
+
   await second.goto("/");
   await expect(pasteField(second)).toBeVisible();
+  await expect(second.locator(".reader")).toBeVisible();
+  await expect(second.getByText(READER_LOADING)).toBeHidden();
 
   await openInstanceSettings(first);
   await first.getByRole("button", { name: SETTINGS.signOut }).click();
