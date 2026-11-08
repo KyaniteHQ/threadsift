@@ -22,7 +22,7 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
     [
       "connect",
       async () => {
-        await sweepConnectTransactions(ports.db, now);
+        await sweepConnectTransactions(ports.db);
       },
     ],
     [

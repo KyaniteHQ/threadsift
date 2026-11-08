@@ -68,9 +68,11 @@ export async function saveConnectedKey(
   { sessionId, claimed, key }: Readonly<{ sessionId: string; claimed: Claimed; key: string }>,
   extraWrites: () => JobWrites,
 ): Promise<ConnectNotice> {
-  const row = await prepareOrNull(ports, { claimed, key });
+  const prepared = await prepareOrNull(ports, { claimed, key });
 
-  if (row === null || "kind" in row) return "possible-orphan";
+  if (prepared === null || "kind" in prepared) return "possible-orphan";
+
+  const { row } = prepared;
 
   if (await committed(ports, { sessionId, claimed, row }, extraWrites)) return "connected";
 

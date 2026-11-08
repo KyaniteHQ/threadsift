@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -14,7 +14,9 @@ import {
   type HttpAiConnection,
   refusedAi,
 } from "./ai-contract.ts";
+import { guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
+import { CURRENT_REVISION } from "./openrouter-tables.ts";
 import type { AiPorts, Database, SettingsPorts } from "./ports.ts";
 import { aiSettingsRevision, settings } from "./schema.ts";
 import type { Sealer } from "./sealed-secret.ts";
@@ -135,27 +137,40 @@ export async function prepareAiSettings(ports: SettingsPorts, input: Readonly<Ai
   const loaded = await loadAiConfig(ports);
   const next = await nextSettings(ports, loaded, input);
 
-  return "kind" in next ? next : ({ id: 1, ...next } as const);
+  return "kind" in next ? next : ({ row: { id: 1, ...next }, revision: loaded.revision } as const);
 }
 
-export type PreparedSettings = Exclude<Awaited<ReturnType<typeof prepareAiSettings>>, AiRefused>;
+export type PreparedSettings = Exclude<
+  Awaited<ReturnType<typeof prepareAiSettings>>,
+  AiRefused
+>["row"];
 
 export function upsertSettings(db: Database, row: Readonly<PreparedSettings>) {
   return db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row });
 }
 
+const SAVE_ATTEMPTS = 5;
+
 export async function saveAiSettings(
   ports: SettingsPorts,
   input: Readonly<AiSettingsInput>,
   extraWrites: () => JobWrites,
+  attemptsLeft = SAVE_ATTEMPTS,
 ): Promise<z.infer<typeof AiSaveResponseSchema>> {
-  const row = await prepareAiSettings(ports, input);
+  const prepared = await prepareAiSettings(ports, input);
 
-  if ("kind" in row) return row;
+  if ("kind" in prepared) return prepared;
 
-  await ports.db.batch([upsertSettings(ports.db, row), ...extraWrites()]);
+  const written = await guardedBatch(ports.db, sql`${CURRENT_REVISION} = ${prepared.revision}`, [
+    upsertSettings(ports.db, prepared.row),
+    ...extraWrites(),
+  ]);
 
-  return readAiSettings(ports);
+  if (written) return readAiSettings(ports);
+
+  if (attemptsLeft <= 1) throw new Error("The AI settings changed during every attempt to save.");
+
+  return saveAiSettings(ports, input, extraWrites, attemptsLeft - 1);
 }
 
 function keylessRow(provider: Keyless["provider"], model: string) {

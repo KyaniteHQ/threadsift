@@ -7,7 +7,7 @@ import {
   CONNECT_LIFETIME_MS,
   type ConnectStartInput,
 } from "./openrouter-contract.ts";
-import { CURRENT_REVISION } from "./openrouter-tables.ts";
+import { CURRENT_REVISION, DATABASE_NOW } from "./openrouter-tables.ts";
 import type { Database, Ports } from "./ports.ts";
 import { guardedBatch, openrouterConnectTransactions, sessions } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
@@ -46,8 +46,6 @@ export async function startOpenRouterConnect(
 
   const state = randomSecret(crypto, RANDOM_BYTES);
   const verifier = randomSecret(crypto, RANDOM_BYTES);
-  const createdAt = Date.now();
-  const expiresAt = createdAt + CONNECT_LIFETIME_MS;
 
   const row = {
     stateDigest: digestOf(crypto, state),
@@ -56,8 +54,8 @@ export async function startOpenRouterConnect(
     model,
     expectedRevision: revision,
     publicOrigin: origin,
-    createdAt,
-    expiresAt,
+    createdAt: DATABASE_NOW,
+    expiresAt: sql<number>`${DATABASE_NOW} + ${CONNECT_LIFETIME_MS}`,
   };
 
   const inserted = await guardedBatch(
@@ -66,27 +64,34 @@ export async function startOpenRouterConnect(
     [ports.db.insert(openrouterConnectTransactions).values(row)],
   );
 
-  return inserted
-    ? {
+  if (!inserted) return { kind: "stale" };
+
+  const [stored] = await ports.db
+    .select({ expiresAt: openrouterConnectTransactions.expiresAt })
+    .from(openrouterConnectTransactions)
+    .where(eq(openrouterConnectTransactions.stateDigest, row.stateDigest));
+
+  return stored === undefined
+    ? { kind: "stale" }
+    : {
         kind: "started",
         authorizationUrl: authorizationUrl(origin, state, base64url(crypto.sha256(verifier))),
-        expiresAt,
-      }
-    : { kind: "stale" };
+        expiresAt: stored.expiresAt,
+      };
 }
 
-export function sweepConnectTransactions(db: Database, now: number) {
+export function sweepConnectTransactions(db: Database) {
   const live = db
     .select({ one: sql`1` })
     .from(sessions)
     .where(
       and(
         eq(sessions.digest, openrouterConnectTransactions.sessionDigest),
-        gt(sessions.expiresAt, now),
+        gt(sessions.expiresAt, DATABASE_NOW),
       ),
     );
 
   return db
     .delete(openrouterConnectTransactions)
-    .where(or(lte(openrouterConnectTransactions.expiresAt, now), notExists(live)));
+    .where(or(lte(openrouterConnectTransactions.expiresAt, DATABASE_NOW), notExists(live)));
 }
