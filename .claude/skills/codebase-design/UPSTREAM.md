@@ -10,6 +10,5 @@ Local changes:
 
 - `SKILL.md`: a shorter description; the examples of a shallow adapter and of internal parts name no fakes or mocks; no internal seams for tests; "Accept dependencies" becomes "take a dependency in only where two production adapters vary", because `docs/testing.md` forbids test-only seams; the surface-area point counts callers and end-to-end runs instead of unit tests.
 - `DEEPENING.md`: every dependency category is tested against the real dependency, as `docs/testing.md` asks; a port needs two production adapters, because a test adapter does not count; no internal seams for tests; a deepened module is proven end to end, with unit tests only when the owner asks.
-- `DESIGN-IT-TWICE.md`: the brief names `CONTEXT.md`, this repository's glossary, instead of `GLOSSARY.md`.
 
 Update by diffing the upstream folder between the commit above and a newer one, applying what fits on top of the local changes, and moving the commit forward.

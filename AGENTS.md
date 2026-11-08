@@ -4,7 +4,7 @@ This repo holds Threadsift, a reading library: paste a link, an agent keeps the 
 
 ## Domain language: read before naming anything
 
-@CONTEXT.md
+@GLOSSARY.md
 
 Use these exact terms in code, docs and issues.
 

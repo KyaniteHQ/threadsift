@@ -25,7 +25,7 @@ The owner is also a user: they have many saved bookmarks to bring in and read.
 
 | Topic | Decision | Date |
 |---|---|---|
-| Name | The product is Threadsift; the repo is renamed to match. It was picked from 26 checked names for free `.app` and `.dev` domains and no app or real repo of the same name. The masthead wordmark, which the design draws as "Library", reads Threadsift. Words inside the app (Item, Reader, Highlights page and the rest), and the Style named Library, stay as `CONTEXT.md` and the design define them. | 2026-11-04 |
+| Name | The product is Threadsift; the repo is renamed to match. It was picked from 26 checked names for free `.app` and `.dev` domains and no app or real repo of the same name. The masthead wordmark, which the design draws as "Library", reads Threadsift. Words inside the app (Item, Reader, Highlights page and the rest), and the Style named Library, stay as `GLOSSARY.md` and the design define them. | 2026-11-04 |
 | Licence | AGPL-3.0-only, so a rival hosted copy must publish its changes. A contributor licence agreement (CLA) is in place before the first outside pull request, so the owner stays the only copyright holder. | 2026-11-04 |
 | Build or adopt | Own app. Karakeep, Linkwarden, Shiori and Raindrop were rejected as the base (`docs/research/prior-art.md`). | 2026-11-03 |
 | App type | A public web app with an owner login. Each connected agent gets its own token. The app needs a public HTTPS address so that Grok Bot can reach it, because Grok Bot's MCP connections run on Cursor's servers (Grok Bot's own answer on 2026-11-04). | 2026-11-04 |

@@ -31,7 +31,7 @@ Karakeep, the closest open-source tool, has no comment-thread model, so a saved 
 
 ## Capabilities and Constraints
 
-- `docs/spec.md` and `CONTEXT.md` hold the features and the words; `docs/architecture.md` holds the stack.
+- `docs/spec.md` and `GLOSSARY.md` hold the features and the words; `docs/architecture.md` holds the stack.
 - Tags are set only by the agent; the interface has no tag editing.
 - Reddit content comes only from the owner's own signed-in tab.
 
