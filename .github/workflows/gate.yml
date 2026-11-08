@@ -102,6 +102,8 @@ jobs:
       - uses: ./.github/actions/setup-devenv
       - name: Allow unprivileged user namespaces for rootless Podman and Chromium
         run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Make the wrong keys the artifact scan looks for
+        run: node tools/wrong-keys.ts >> "$GITHUB_ENV"
       - id: e2e
         shell: bash
         env:
@@ -109,9 +111,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           THREADSIFT_E2E_GITHUB_TOKEN: ${{ github.token }}
         run: |
-          THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
-          THREADSIFT_WRONG_GITHUB_TOKEN=github_pat_$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')
-          export THREADSIFT_WRONG_AI_KEY THREADSIFT_WRONG_GITHUB_TOKEN
           if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
             echo "::notice::The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them"
             echo "The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them" >> "$GITHUB_STEP_SUMMARY"
@@ -140,12 +139,12 @@ jobs:
 
   claude-code-proof:
     needs: changes
-    if: github.repository == 'KyaniteHQ/threadsift' && github.event_name == 'push' && needs.changes.outputs.docs_only != 'true'
+    if: github.repository == 'KyaniteHQ/threadsift' && needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
-    environment: ai-proof
+    environment: ${{ github.event_name == 'push' && 'ai-proof' || '' }}
     env:
       THREADSIFT_ARTIFACTS: artifacts
-      THREADSIFT_CLAUDE_REQUIRED: "true"
+      THREADSIFT_CLAUDE_REQUIRED: ${{ github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
@@ -153,13 +152,13 @@ jobs:
         run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
       - run: devenv tasks run ci:install
       - run: devenv tasks run image:build
+      - name: Make the wrong keys the artifact scan looks for
+        run: node tools/wrong-keys.ts >> "$GITHUB_ENV"
       - id: proof
         shell: bash
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
-          export THREADSIFT_WRONG_AI_KEY
           mkdir -p "$THREADSIFT_ARTIFACTS"
           status=0
           devenv tasks run e2e:container --show-output --input 'args=["e2e/claude-code.spec.ts","e2e/claude-code-isolation.spec.ts"]' 2>&1 | tee "$THREADSIFT_ARTIFACTS/runner.log" || status=$?
@@ -195,6 +194,8 @@ jobs:
       - uses: ./.github/actions/setup-devenv
       - name: Allow unprivileged user namespaces for Chromium
         run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Make the wrong keys the artifact scan looks for
+        run: node tools/wrong-keys.ts >> "$GITHUB_ENV"
       - id: e2e
         shell: bash
         env:
@@ -202,9 +203,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           THREADSIFT_E2E_GITHUB_TOKEN: ${{ github.token }}
         run: |
-          THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
-          THREADSIFT_WRONG_GITHUB_TOKEN=github_pat_$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')
-          export THREADSIFT_WRONG_AI_KEY THREADSIFT_WRONG_GITHUB_TOKEN
           if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
             echo "::notice::The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them"
             echo "The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them" >> "$GITHUB_STEP_SUMMARY"
