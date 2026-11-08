@@ -7,6 +7,7 @@ import type { Advance, DataStep } from "./data-step-contract.ts";
 import { dropStaged, report, stageRenames } from "./data-step-support.ts";
 import { dataStepRenames } from "./data-step-tables.ts";
 import type { Database } from "./ports.ts";
+import { guards, insertGuard } from "./schema.ts";
 
 const STAGE_ROWS = 100;
 const RENAME_ROWS = 500;
@@ -142,25 +143,33 @@ async function rename(db: Database, kind: CatalogKind, from: number): Promise<Ad
     : { writes: [renameStaged(db, kind, from, last.subject)], cursor: `rename:${last.subject}` };
 }
 
-async function finish(db: Database, kind: CatalogKind): Promise<Advance> {
+function unfinished(db: Database, kind: CatalogKind) {
   const { table } = kind;
 
-  const unfinished = await db
+  return db
     .select({ id: table.id })
     .from(table)
     .innerJoin(staged, and(eq(staged.step, kind.step), eq(staged.subject, table.id)))
-    .where(or(ne(table.key, staged.newKey), gt(table.id, leaderOf(db, kind.step, staged.newKey))))
-    .orderBy(asc(table.id))
-    .limit(UNFINISHED_IDS);
+    .where(or(ne(table.key, staged.newKey), gt(table.id, leaderOf(db, kind.step, staged.newKey))));
+}
 
-  if (unfinished.length > 0) {
-    report("catalog-keys-unfinished", {
-      step: kind.step,
-      ids: unfinished.map(({ id }) => id),
-    });
+async function finish(db: Database, kind: CatalogKind): Promise<Advance> {
+  const open = await unfinished(db, kind).orderBy(asc(kind.table.id)).limit(UNFINISHED_IDS);
+
+  if (open.length > 0) {
+    report("catalog-keys-restaged", { step: kind.step, ids: open.map(({ id }) => id) });
+
+    return { writes: [dropStaged(db, kind.step)], cursor: "stage:0" };
   }
 
-  return { writes: [dropStaged(db, kind.step)], cursor: null };
+  return {
+    writes: [
+      insertGuard(db, notExists(unfinished(db, kind))),
+      dropStaged(db, kind.step),
+      db.delete(guards),
+    ],
+    cursor: null,
+  };
 }
 
 function advance(db: Database, kind: CatalogKind, cursor: string | null) {

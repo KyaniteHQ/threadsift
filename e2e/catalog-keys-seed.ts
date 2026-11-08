@@ -99,14 +99,31 @@ INSERT INTO digests (item_id, digest, title, topic, task_id, provider, model, ge
 `,
 };
 
-export const HELD_BEFORE_RENAME: Seed = {
-  files: PREVIOUS_RELEASE.files,
-  sql: `${PREVIOUS_RELEASE.sql}
-CREATE TRIGGER hold_rename BEFORE UPDATE OF key ON topics BEGIN SELECT RAISE(ABORT, 'stopped for the test'); END;
-`,
-};
+const OLDER_DIGEST = {
+  topics: { topic: "Istanbul", tags: [] },
+  tags: { topic: "Reading", tags: ["Istanbul"] },
+} as const;
 
-export const RIVAL_TOPIC = { id: 10, key: "istanbul", name: "Istanbul", takenBy: 3 } as const;
+export function heldBeforeRename(table: "topics" | "tags"): Seed {
+  return {
+    files: PREVIOUS_RELEASE.files,
+    sql: `${PREVIOUS_RELEASE.sql}
+CREATE TRIGGER hold_rename BEFORE UPDATE OF key ON ${table} BEGIN SELECT RAISE(ABORT, 'stopped for the test'); END;
+`,
+  };
+}
+
+export function olderDigestRows(table: "topics" | "tags"): string {
+  const digest = JSON.stringify({
+    title: "Ten",
+    ...OLDER_DIGEST[table],
+    summary: "Kept.",
+    keyPoints: ["Kept."],
+  });
+
+  return `INSERT INTO items (id, source, kind, normalized_url, original_url, saved_at) VALUES (10, 'article', 'article', 'https://example.com/older-digest', 'https://example.com/older-digest', 1010);
+INSERT INTO digests (item_id, digest, title, topic, task_id, provider, model, generation, created_at) VALUES (10, '${digest}', 'Ten', '${OLDER_DIGEST[table].topic}', 1, 'seed', 'seed', 0, 1);`;
+}
 
 export const PAGED_ITEMS = 1200;
 

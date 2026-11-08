@@ -8,16 +8,14 @@ import {
   runCatalogSteps,
 } from "./catalog-keys-run.ts";
 import {
-  HELD_BEFORE_RENAME,
   PAGED_ITEMS,
   PAGED_PAIRS,
   PAGED_PREVIOUS_RELEASE,
   PREVIOUS_RELEASE,
-  RIVAL_TOPIC,
   STOPPED_AT_TAG,
 } from "./catalog-keys-seed.ts";
 import { answer } from "./filters.ts";
-import { attemptStep, count, dataSteps, lines, started } from "./identity-run.ts";
+import { attemptStep, count, dataSteps, started } from "./identity-run.ts";
 import { matches } from "./search.ts";
 
 test.describe.configure({ timeout: 480_000 });
@@ -222,47 +220,6 @@ test("a unit that fails moves nothing, the next run resumes at the same loser, a
       count(instance, "SELECT 1 FROM search_parts WHERE kind = 'tags' AND body LIKE '%STRASSE%'"),
     ).toBe(0);
     expect(count(instance, "SELECT 1 FROM data_step_renames")).toBe(0);
-    expectIntegrity(instance);
-  } finally {
-    await owner.dispose();
-    instance.stop();
-  }
-});
-
-test("a row that takes a survivor's new key after the merge is left alone and reported, and clearing the records merges it", async () => {
-  const { instance, owner } = await started(HELD_BEFORE_RENAME);
-
-  try {
-    await attemptStep(owner, instance);
-
-    await expect
-      .poll(() => dataSteps(instance).find(({ name }) => name === "topic-keys")?.cursor, {
-        timeout: 120_000,
-      })
-      .toBe("1|rename:0");
-
-    instance.sql(
-      `INSERT INTO topics (id, key, name) VALUES (${RIVAL_TOPIC.id}, '${RIVAL_TOPIC.key}', '${RIVAL_TOPIC.name}')`,
-    );
-
-    instance.sql("DROP TRIGGER hold_rename");
-    await runCatalogSteps(owner, instance);
-
-    const unfinished = lines(instance, "catalog-keys-unfinished");
-
-    expect(unfinished).toHaveLength(1);
-    expect(unfinished[0]).toContain(`"step":"topic-keys","ids":[${RIVAL_TOPIC.takenBy}]`);
-
-    const { topics } = catalogState(instance);
-
-    expect(topics.find(({ id }) => id === RIVAL_TOPIC.id)?.key).toBe(RIVAL_TOPIC.key);
-    expect(topics.find(({ id }) => id === RIVAL_TOPIC.takenBy)?.key).not.toBe(RIVAL_TOPIC.key);
-
-    instance.sql("DELETE FROM data_steps WHERE name IN ('topic-keys', 'tag-keys')");
-    await runCatalogSteps(owner, instance);
-
-    expect(catalogState(instance).topics).toEqual(MERGED_TOPICS);
-    expect(lines(instance, "catalog-keys-unfinished")).toHaveLength(1);
     expectIntegrity(instance);
   } finally {
     await owner.dispose();
