@@ -171,6 +171,8 @@ export const AiSettingsViewSchema = z.object({
   signedIn: z.array(CliProviderSchema).readonly(),
   secretReady: z.boolean(),
   publicOnly: z.boolean(),
+  revision: z.number().int().min(0),
+  connect: z.boolean(),
 });
 
 export type AiSettingsView = z.infer<typeof AiSettingsViewSchema>;

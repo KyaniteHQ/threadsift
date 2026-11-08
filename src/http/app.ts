@@ -4,8 +4,8 @@ import { HTTPException } from "hono/http-exception";
 import { logFailure } from "../core/failure-log.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
+import { installApiMiddleware } from "./api-middleware.ts";
 import { registerDeleteItemRoute } from "./delete-item-route.ts";
-import { guard } from "./guard.ts";
 import { NOT_FOUND, registerItemRoutes } from "./item-routes.ts";
 import { registerSettingsRoutes } from "./settings-routes.ts";
 import { registerShareRoutes } from "./share-routes.ts";
@@ -22,7 +22,7 @@ export function createApp(ports: Ports): OpenAPIHono {
       result.success ? undefined : c.json({ error: reasonOf(result.error) }, 400),
   });
 
-  app.use("/api/*", guard(ports));
+  installApiMiddleware(app, ports);
 
   registerAccessRoutes(app, ports);
   registerItemRoutes(app, ports);

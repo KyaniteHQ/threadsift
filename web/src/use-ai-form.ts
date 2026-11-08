@@ -26,12 +26,18 @@ function useAiFields(view: AiView) {
   const key = useField();
   const { clear: clearKey } = key;
 
+  const { set: setModel } = model;
+  const savedProvider = offered?.provider;
+  const savedModel = offered?.model ?? "";
+
   const changeProvider = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
-      setProvider(ProviderSchema.parse(event.target.value));
+      const next = ProviderSchema.parse(event.target.value);
+      setProvider(next);
+      setModel(next === savedProvider ? savedModel : "");
       clearKey();
     },
-    [clearKey],
+    [clearKey, setModel, savedProvider, savedModel],
   );
 
   return { provider, baseUrl, model, key, changeProvider } as const;

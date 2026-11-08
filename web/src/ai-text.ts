@@ -41,6 +41,22 @@ export const AI_TEXT = {
   keyMissing: "No API key saved yet.",
   keyHelp:
     "Leave blank to keep the saved key for the same Provider, URL and model; enter a key when changing them.",
+  connect: "Connect",
+  connecting: "Connecting…",
+  connectHelp:
+    "Connect opens OpenRouter to make a key for this Instance and saves it like a typed key. Saving a Provider starts Digests for older Items, which spend model calls.",
+  connectUnavailable:
+    "Connect is unavailable until THREADSIFT_PUBLIC_ORIGIN sets this Instance's public web address; a typed key still works.",
+  connectStale:
+    "Settings changed since this page loaded, so Connect did not start. Reload the page and try again.",
+  connectFailed: "Connect could not start. Try again.",
+  connected: "OpenRouter key saved. Press Verify to check the model.",
+  connectIncomplete: "Connect did not finish, so nothing was saved. Press Connect again.",
+  connectSettingsChanged:
+    "AI settings changed while you were away, so nothing was saved. Press Connect again.",
+  connectPossibleOrphan:
+    "OpenRouter may have made a key that Threadsift did not save. You can delete unused keys in your OpenRouter account, then press Connect again.",
+  connectModelNeeded: "Fill in the Model field before pressing Connect.",
   save: "Save",
   saving: "Saving…",
   saved: "Settings saved.",

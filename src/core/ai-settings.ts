@@ -9,13 +9,14 @@ import {
   type AiSettingsView,
   type AiSaveResponseSchema,
   type BindingAiConnection,
+  type AiRefused,
   type CliAiConnection,
   type HttpAiConnection,
   refusedAi,
 } from "./ai-contract.ts";
 import type { JobWrites } from "./job-outcome.ts";
-import type { AiPorts } from "./ports.ts";
-import { settings } from "./schema.ts";
+import type { AiPorts, Database, SettingsPorts } from "./ports.ts";
+import { aiSettingsRevision, settings } from "./schema.ts";
 import type { Sealer } from "./sealed-secret.ts";
 
 const StoredSettingsSchema = z.union([
@@ -37,34 +38,50 @@ type Stored = z.infer<typeof StoredSettingsSchema>;
 
 type Keyless = Extract<Stored, { readonly sealedKey: null }>;
 
+interface Snapshot {
+  readonly sealer: Sealer | null;
+  readonly revision: number;
+}
+
 type LoadedAi =
-  | { readonly state: "not-configured"; readonly sealer: Sealer | null }
-  | { readonly state: "secret-missing"; readonly saved: Stored; readonly sealer: Sealer | null }
-  | {
+  | (Snapshot & { readonly state: "not-configured" })
+  | (Snapshot & { readonly state: "secret-missing"; readonly saved: Stored })
+  | (Snapshot & {
       readonly state: "ready";
       readonly saved: Stored;
       readonly config: HttpAiConnection | BindingAiConnection | CliAiConnection;
-      readonly sealer: Sealer | null;
-    };
+    });
+
+export function readRevision(db: Database) {
+  return db
+    .select({ revision: aiSettingsRevision.revision })
+    .from(aiSettingsRevision)
+    .where(eq(aiSettingsRevision.id, 1));
+}
 
 export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
-  const [row] = await ports.db.select().from(settings).where(eq(settings.id, 1));
-  const sealer = ports.ai.secrets;
+  const [[row], [counter]] = await ports.db.batch([
+    ports.db.select().from(settings).where(eq(settings.id, 1)),
+    readRevision(ports.db),
+  ]);
 
-  if (row === undefined) return { state: "not-configured", sealer };
+  const snapshot = { sealer: ports.ai.secrets, revision: counter?.revision ?? 0 };
+  const { sealer } = snapshot;
+
+  if (row === undefined) return { ...snapshot, state: "not-configured" };
   const saved = StoredSettingsSchema.parse(row);
 
   if (saved.sealedKey === null)
-    return { state: "ready", saved, sealer, config: keylessConnection(saved) };
+    return { ...snapshot, state: "ready", saved, config: keylessConnection(saved) };
 
   const key = sealer === null ? null : await sealer.open(saved.sealedKey);
 
   return key === null
-    ? { state: "secret-missing", saved, sealer }
+    ? { ...snapshot, state: "secret-missing", saved }
     : {
+        ...snapshot,
         state: "ready",
         saved,
-        sealer,
         config: {
           kind: "http",
           provider: saved.provider,
@@ -83,15 +100,17 @@ function keylessConnection(saved: Readonly<Keyless>): BindingAiConnection | CliA
 
 async function aiView(
   saved: Stored | undefined,
-  ports: AiPorts,
-  secretReady: boolean,
+  ports: SettingsPorts,
+  state: Readonly<{ secretReady: boolean; revision: number }>,
 ): Promise<AiSettingsView> {
   return {
     settings: viewOf(saved),
     providers: ports.ai.providers,
     signedIn: await ports.ai.signedIn(),
-    secretReady,
+    secretReady: state.secretReady,
     publicOnly: ports.ai.publicOnly,
+    revision: state.revision,
+    connect: ports.publicOrigin !== null,
   };
 }
 
@@ -103,34 +122,40 @@ function viewOf(saved: Stored | undefined): AiSettingsView["settings"] {
     : { provider: saved.provider, baseUrl: saved.baseUrl, model: saved.model, keySet: true };
 }
 
-export async function readAiSettings(ports: AiPorts): Promise<AiSettingsView> {
+export async function readAiSettings(ports: SettingsPorts): Promise<AiSettingsView> {
   const loaded = await loadAiConfig(ports);
 
-  return aiView(
-    loaded.state === "not-configured" ? undefined : loaded.saved,
-    ports,
-    loaded.sealer !== null && loaded.state !== "secret-missing",
-  );
+  return aiView(loaded.state === "not-configured" ? undefined : loaded.saved, ports, {
+    secretReady: loaded.sealer !== null && loaded.state !== "secret-missing",
+    revision: loaded.revision,
+  });
 }
 
-export async function saveAiSettings(
-  ports: AiPorts,
-  input: Readonly<AiSettingsInput>,
-  extraWrites: () => JobWrites,
-): Promise<z.infer<typeof AiSaveResponseSchema>> {
+export async function prepareAiSettings(ports: SettingsPorts, input: Readonly<AiSettingsInput>) {
   const loaded = await loadAiConfig(ports);
   const next = await nextSettings(ports, loaded, input);
 
-  if ("kind" in next) return next;
+  return "kind" in next ? next : ({ id: 1, ...next } as const);
+}
 
-  const row = { id: 1, ...next };
+export type PreparedSettings = Exclude<Awaited<ReturnType<typeof prepareAiSettings>>, AiRefused>;
 
-  await ports.db.batch([
-    ports.db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row }),
-    ...extraWrites(),
-  ]);
+export function upsertSettings(db: Database, row: Readonly<PreparedSettings>) {
+  return db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row });
+}
 
-  return aiView(next, ports, loaded.sealer !== null);
+export async function saveAiSettings(
+  ports: SettingsPorts,
+  input: Readonly<AiSettingsInput>,
+  extraWrites: () => JobWrites,
+): Promise<z.infer<typeof AiSaveResponseSchema>> {
+  const row = await prepareAiSettings(ports, input);
+
+  if ("kind" in row) return row;
+
+  await ports.db.batch([upsertSettings(ports.db, row), ...extraWrites()]);
+
+  return readAiSettings(ports);
 }
 
 function keylessRow(provider: Keyless["provider"], model: string) {

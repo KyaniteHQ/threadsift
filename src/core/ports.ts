@@ -3,6 +3,7 @@ import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
 import type { AiExecution, AiTaskRequest, CliProvider, Provider } from "./ai-contract.ts";
 import type { ArticleReading } from "./article.ts";
+import type { OpenRouterExchange } from "./openrouter-contract.ts";
 import type { Sealer } from "./sealed-secret.ts";
 
 export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
@@ -94,6 +95,10 @@ export interface AiRuntime {
     task: AiTaskRequest<Result>,
     signal: AbortSignal,
   ) => Promise<AiExecution<Result>>;
+  readonly exchangeOpenRouterCode: (
+    input: Readonly<{ code: string; verifier: string }>,
+    signal: AbortSignal,
+  ) => Promise<OpenRouterExchange>;
 }
 
 export interface Ports {
@@ -105,6 +110,7 @@ export interface Ports {
   readonly crypto: Crypto;
   readonly setupCode: string | undefined;
   readonly resetCode: string | undefined;
+  readonly publicOrigin: string | null;
   readonly ai: AiRuntime;
 }
 
@@ -114,3 +120,5 @@ export const REQUEST_HEADERS = {
 } as const;
 
 export type AiPorts = Pick<Ports, "db" | "ai">;
+
+export type SettingsPorts = Pick<Ports, "db" | "ai" | "publicOrigin">;
