@@ -109,3 +109,12 @@ export const digestJobsSql = (itemId: number) =>
 
 export const tasksAfterSql = (baseline: number) =>
   `SELECT ${TASK_COLUMNS} FROM ai_tasks WHERE id > ${String(baseline)} ORDER BY id`;
+
+export const keptCommentsSql = (itemId: number) =>
+  `SELECT count(*) AS n FROM reddit_comments WHERE item_id = ${String(itemId)} AND kept = 1`;
+
+export const unsubmittedKeptSql = (itemId: number) =>
+  `SELECT count(*) AS n FROM reddit_comments c JOIN digests d ON d.item_id = c.item_id JOIN ai_tasks t ON t.id = d.task_id WHERE c.item_id = ${String(itemId)} AND c.kept = 1 AND instr(t.inputs, '"id":"' || c.id || '"') = 0`;
+
+export const commentsInInputSql = (itemId: number) =>
+  `SELECT count(*) AS n FROM digests d JOIN ai_tasks t ON t.id = d.task_id WHERE d.item_id = ${String(itemId)} AND instr(t.inputs, '"comments":[{') > 0`;

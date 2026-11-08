@@ -67,17 +67,15 @@ export async function logIn(site: Readonly<Site>, password: string): Promise<Cop
   return { ...site, cookie };
 }
 
-export async function paste(
+async function postItem(
   copy: Readonly<Copy>,
-  link: string,
-  deadline = Number.POSITIVE_INFINITY,
+  body: Readonly<{ url: string; content?: string }>,
+  deadline: number,
 ): Promise<{ id: number; created: boolean }> {
-  process.stdout.write(`Paste ${link}\n`);
-
   const response = await callCopy(copy, {
     path: "/api/items",
     cookie: copy.cookie,
-    body: { url: link },
+    body,
     deadline,
   });
 
@@ -88,6 +86,26 @@ export async function paste(
   const { item } = await decodeAnswer(response, "/api/items", PastedAnswerSchema);
 
   return { id: item.id, created: response.status === 201 };
+}
+
+export function paste(
+  copy: Readonly<Copy>,
+  link: string,
+  deadline = Number.POSITIVE_INFINITY,
+): Promise<{ id: number; created: boolean }> {
+  process.stdout.write(`Paste ${link}\n`);
+
+  return postItem(copy, { url: link }, deadline);
+}
+
+export function pasteThread(
+  copy: Readonly<Copy>,
+  thread: Readonly<{ url: string; content: string }>,
+  deadline: number,
+): Promise<{ id: number; created: boolean }> {
+  process.stdout.write(`Paste thread ${thread.url}\n`);
+
+  return postItem(copy, thread, deadline);
 }
 
 export async function endState(
