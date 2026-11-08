@@ -145,7 +145,7 @@ dialog.sheet::backdrop {
   width: 70%;
 }
 
-[data-layout="list"]:not([data-bp~="medium"]) .paste-row {
+.app[data-layout="list"]:not([data-bp~="medium"]) .paste-row {
   flex-direction: column;
 }
 
