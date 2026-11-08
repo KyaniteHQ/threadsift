@@ -52,7 +52,10 @@ test("A database with saved settings keeps them, starts the revision at 0, and c
 
     expect(
       instance
-        .query("SELECT name FROM sqlite_master WHERE type = 'trigger' ORDER BY name", Tables)
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'settings' ORDER BY name",
+          Tables,
+        )
         .map((row) => row.name),
       "the triggers sit on the settings table the Codex migration rebuilt",
     ).toEqual(["settings_revision_delete", "settings_revision_insert", "settings_revision_update"]);
