@@ -1,8 +1,9 @@
 import { type Page, expect, test } from "@playwright/test";
 
+import { NO_POST_TEXT } from "../web/src/reader-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { viewportAt } from "./look.ts";
+import { afterTwoFrames, gear, openPanel, panel, storeSettings, viewportAt } from "./look.ts";
 import { bar, reader, seedRows } from "./reader.ts";
 
 const PAGE_WIDTH = 600;
@@ -12,6 +13,7 @@ const SQUEEZE_STEP = 4;
 const STABLE_READS = 3;
 const READ_GAP_MS = 40;
 const FONT_FILES = /\.woff2?$/u;
+const POST_TEXT_CODE = /\/assets\/PostText-[^/]+\.js$/u;
 
 let screen: FreshScreen;
 let itemPath: string;
@@ -125,4 +127,22 @@ test("a web font that arrives after the first fit refits the bar at a width wher
   lateRelease();
   await page.evaluate(() => document.fonts.ready);
   await expect.poll(() => fitOf(page), { message: `${width}px` }).toBe(loaded.get(width));
+});
+
+test("the settings gear keeps its focus when the post text code arrives after Settings has closed", async () => {
+  const { page } = screen;
+  const release = await holdResponses(page, POST_TEXT_CODE);
+  await viewportAt(page, PAGE_WIDTH);
+  await storeSettings(page, {}, itemPath);
+  await expect(reader(page)).toBeVisible();
+
+  await openPanel(page);
+  await page.keyboard.press("Escape");
+  await expect(panel(page)).toHaveCount(0);
+  await expect(gear(page)).toBeFocused();
+
+  release();
+  await expect(reader(page).getByText(NO_POST_TEXT)).toBeVisible();
+  await afterTwoFrames(page);
+  await expect(gear(page)).toBeFocused();
 });

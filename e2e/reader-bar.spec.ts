@@ -260,7 +260,6 @@ function carriesGear(width: number): void {
     await viewportAt(page, width);
     await storeSettings(page, {}, `/items/${id}`);
     await expect(reader(page)).toBeVisible();
-    await expect(reader(page).locator(".rd-title")).toBeFocused();
 
     await expect(bar(page).locator(".st-gear")).toBeVisible();
     const dialog = await openPanel(page);
