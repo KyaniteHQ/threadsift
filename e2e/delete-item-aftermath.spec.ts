@@ -103,6 +103,7 @@ test("a Paste answer that arrives after the Item was deleted leaves focus where 
 
   const gate = Promise.withResolvers<void>();
   const reached = Promise.withResolvers<void>();
+  const delivered = Promise.withResolvers<void>();
 
   await page.route(/\/api\/items$/u, async (route) => {
     if (route.request().method() !== "POST") {
@@ -115,6 +116,7 @@ test("a Paste answer that arrives after the Item was deleted leaves focus where 
     reached.resolve();
     await gate.promise;
     await route.fulfill({ response });
+    delivered.resolve();
   });
 
   await pasteField(page).fill("https://example.com/one");
@@ -125,6 +127,7 @@ test("a Paste answer that arrives after the Item was deleted leaves focus where 
   await expect(titleLink(page, second)).toBeFocused();
 
   gate.resolve();
+  await delivered.promise;
   await afterTwoFrames(page);
 
   await expectRows(page, [second, third, fourth]);
