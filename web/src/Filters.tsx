@@ -171,7 +171,7 @@ export function FilterGhost({
   return (
     <div className={bar ? "fl fl-bar fl-ghost" : "fl fl-rail fl-ghost"} aria-hidden="true" inert>
       {collapsible ? (
-        <button type="button" className="btn fl-toggle" disabled>
+        <button type="button" className="btn fl-toggle">
           <Icon name="filters" className="ic ic-s" />
           {BLANK}
         </button>

@@ -55,8 +55,7 @@ fieldset.fl-g {
   visibility: hidden;
 }
 
-.app[data-faces="loading"]
-  :is(.brand h1, .paste-row .swap, .brand .st-gear, .search, .fl-ghost .fl-panel) {
+.app[data-faces="loading"] :is(.brand h1, .paste-row .swap, .brand .st-gear, .search) {
   visibility: hidden;
 }
 
@@ -65,8 +64,8 @@ fieldset.fl-g {
   opacity: 0;
 }
 
-.fl-ghost :is(.label, .fl-chip, .fl-n, .fl-sel) {
-  color: transparent;
+.fl-ghost .fl-panel {
+  visibility: hidden;
 }
 
 .items {
