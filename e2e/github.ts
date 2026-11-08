@@ -1,3 +1,5 @@
+import { setTimeout as sleep } from "node:timers/promises";
+
 import { type APIRequestContext, type APIResponse, expect, test } from "@playwright/test";
 import { z } from "zod";
 
@@ -15,6 +17,9 @@ export const RENAMED_IDENTITY = "https://github.com/kyanitehq/commonplace";
 export const RENAMED_TO = "KyaniteHQ/threadsift";
 
 export const GITHUB_REQUESTS_PER_RUN = 10;
+
+const RESET_WAIT_MS = 15 * 60_000;
+const RESET_MARGIN_MS = 2000;
 
 const RateLimitSchema = z.object({
   resources: z.object({
@@ -66,15 +71,19 @@ export async function removeGithubToken(request: APIRequestContext): Promise<voi
   await expectSettings(await deleteGithubToken(request), "none");
 }
 
+async function coreBudget(headers: Readonly<Record<string, string>>) {
+  const response = await fetch("https://api.github.com/rate_limit", { headers });
+
+  return RateLimitSchema.parse(await response.json()).resources.core;
+}
+
 export async function requireGithubBudget(requests: number, anonymous = false): Promise<void> {
   const token = anonymous ? undefined : suiteGithubToken();
 
   const headers =
     token === undefined ? BUDGET_HEADERS : { ...BUDGET_HEADERS, authorization: `Bearer ${token}` };
 
-  const response = await fetch("https://api.github.com/rate_limit", { headers });
-
-  const { remaining, reset } = RateLimitSchema.parse(await response.json()).resources.core;
+  const { remaining, reset } = await coreBudget(headers);
 
   if (remaining >= requests) return;
 
@@ -85,10 +94,19 @@ export async function requireGithubBudget(requests: number, anonymous = false): 
 
   const message = `GitHub rate limit: ${remaining} ${holder} until ${new Date(reset * 1000).toISOString()}, and this test sends ${requests}`;
 
-  if (process.env["GITHUB_ACTIONS"] === "true")
-    throw new Error(`${message}; rerun after the reset`);
+  if (process.env["GITHUB_ACTIONS"] !== "true") test.skip(true, message);
 
-  test.skip(true, message);
+  const wait = reset * 1000 + RESET_MARGIN_MS - Date.now();
+
+  if (wait > RESET_WAIT_MS) throw new Error(`${message}; rerun after the reset`);
+
+  test.setTimeout(test.info().timeout + wait);
+  await sleep(Math.max(wait, 0));
+
+  const after = await coreBudget(headers);
+
+  if (after.remaining < requests)
+    throw new Error(`${message}; ${after.remaining} remain after the reset`);
 }
 
 const StoredRepositories = z.array(
