@@ -72,12 +72,15 @@ test.afterAll(async () => {
 
 function crowdedControls(page: Page): Promise<string[]> {
   return page.evaluate(() => {
-    const crowded: string[] = [];
     const strip = document.querySelector(".rd-bar");
-    const edge = strip?.getBoundingClientRect();
-    const style = strip === null || strip === undefined ? null : getComputedStyle(strip);
-    const left = (edge?.left ?? 0) + Number((style?.paddingLeft ?? "0").replace("px", ""));
-    const right = (edge?.right ?? 0) - Number((style?.paddingRight ?? "0").replace("px", ""));
+
+    if (strip === null) return ["the reader bar is missing"];
+
+    const crowded: string[] = [];
+    const edge = strip.getBoundingClientRect();
+    const style = getComputedStyle(strip);
+    const left = edge.left + Number(style.paddingLeft.replace("px", ""));
+    const right = edge.right - Number(style.paddingRight.replace("px", ""));
     let previous: DOMRect | null = null;
 
     for (const part of document.querySelectorAll<HTMLElement>(
@@ -108,23 +111,28 @@ function fitsAtEveryFontAndSize(
   { width, place }: (typeof VIEWS)[number]["places"][number],
 ): void {
   test(`${view.name} at ${width}px: no reader bar control overflows or overlaps another, at every Font and Text size`, async () => {
-    const { page } = screen;
-    await viewportAt(page, width);
+    const page = await screen.context.newPage();
 
-    for (const font of FONTS) {
-      for (const size of SIZES) {
-        for (const id of ids) {
-          await storeSettings(page, { ...view.stored, font, size }, `/items/${id}`);
-          await expect(reader(page)).toBeVisible();
-          await expect(app(page)).toHaveAttribute("data-reader", place);
-          await expect(page.locator("dialog.sheet")).toHaveCount(place === "sheet" ? 1 : 0);
-          await expect(bar(page).locator(".rd-act").first()).toBeVisible();
-          await page.evaluate(() => document.fonts.ready);
-          await expect
-            .poll(() => crowdedControls(page), { message: `${font} ${size} Item ${id}` })
-            .toEqual([]);
+    try {
+      await viewportAt(page, width);
+
+      for (const font of FONTS) {
+        for (const size of SIZES) {
+          for (const id of ids) {
+            await storeSettings(page, { ...view.stored, font, size }, `/items/${id}`);
+            await expect(reader(page)).toBeVisible();
+            await expect(app(page)).toHaveAttribute("data-reader", place);
+            await expect(page.locator("dialog.sheet")).toHaveCount(place === "sheet" ? 1 : 0);
+            await expect(bar(page).locator(".rd-act").first()).toBeVisible();
+            await page.evaluate(() => document.fonts.ready);
+            await expect
+              .poll(() => crowdedControls(page), { message: `${font} ${size} Item ${id}` })
+              .toEqual([]);
+          }
         }
       }
+    } finally {
+      await page.close();
     }
   });
 }
