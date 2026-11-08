@@ -55,7 +55,8 @@ fieldset.fl-g {
   visibility: hidden;
 }
 
-.app[data-faces="loading"] :is(.paste-row .swap, .brand .st-gear, .search, .fl-ghost .fl-panel) {
+.app[data-faces="loading"]
+  :is(.brand h1, .paste-row .swap, .brand .st-gear, .search, .fl-ghost .fl-panel) {
   visibility: hidden;
 }
 

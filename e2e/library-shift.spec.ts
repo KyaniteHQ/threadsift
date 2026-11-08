@@ -27,6 +27,13 @@ const LOOKS = [
   ["a stored Style", { style: "mymind" }],
 ] as const;
 
+const WORDMARK_LOOKS = [
+  ["the Anthropic Style", { style: "anthropic" }],
+  ["the Slash Style", { style: "slash" }],
+  ["the Monocle Style", { style: "monocle" }],
+  ["the JetBrains Mono and Source Serif Font", { font: "mono" }],
+] as const;
+
 const SIZES = [
   ["a phone", PHONE],
   ["a desktop", DESKTOP],
@@ -96,7 +103,7 @@ test.describe("with an empty library", () => {
   startInstance();
 
   for (const [place, size] of SIZES)
-    for (const [look, stored] of LOOKS)
+    for (const [look, stored] of [...LOOKS, ...WORDMARK_LOOKS])
       test(`on ${place} with ${look} a second cold load moves nothing`, async () => {
         await shiftNow({ size, stored, path: "/", settled: emptyLibrary });
 
