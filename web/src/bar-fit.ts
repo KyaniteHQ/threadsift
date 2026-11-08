@@ -33,6 +33,7 @@ export interface BarStep {
   readonly labels: boolean;
   readonly back: "label" | "short" | "icon";
   readonly comments: "full" | "short" | "count";
+  readonly gaps: "normal" | "tight";
 }
 
 function setHidden(bar: HTMLElement, selector: string, hidden: boolean): void {
@@ -47,6 +48,7 @@ function applyStep(bar: HTMLElement, step: Readonly<BarStep>): void {
   setHidden(bar, ".rd-back-short", step.back !== "short");
   setHidden(bar, ".rd-back-long", step.back === "short");
   setHidden(bar, ".rd-hint", !step.hint);
+  bar.classList.toggle("tight", step.gaps === "tight");
   bar.querySelector(".rd-cm")?.classList.toggle("full", step.comments === "full");
   setHidden(bar, ".rd-cm-full", step.comments !== "full");
   setHidden(bar, ".rd-cm-short", step.comments !== "short");

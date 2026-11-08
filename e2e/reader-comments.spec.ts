@@ -43,7 +43,7 @@ test.describe.configure({ timeout: 300_000 });
 test.use({ trace: "off", video: "off", screenshot: "off", actionTimeout: 15_000 });
 
 const SWEEP_FROM = 750;
-const SWEEP_TO = 360;
+const SWEEP_TO = 320;
 const SWEEP_STEP = 10;
 
 const LABELS = commentsButtonLabels({ kept: THREAD.kept, total: REPORTED });

@@ -361,6 +361,7 @@ a.btn { text-decoration: none; }
 .rd-read-ic.on circle { fill: currentColor; }
 .rd-read-ic.on path { stroke: var(--bg); }
 [data-bp~="phone"] .rd-bar { gap: var(--s1); }   /* 44px controls; the padding leaves room for one, so the gear fits at every width */
+.rd-bar.tight .rd-actions { gap: var(--s1); }   /* the last step on a phone: with the Comments button the 44px controls need the smaller gap to fit at 320px */
 [data-bp~="phone"] .rd-read-ic { width: var(--ic-l); height: var(--ic-l); }
 [data-bp~="phone"] .rd-pos { min-width: 0; padding: 0 2px; }
 

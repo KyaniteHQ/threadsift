@@ -16,26 +16,27 @@ type Steps = readonly [BarStep, ...BarStep[]];
 
 const STEPS: Readonly<Record<BarMode, Steps>> = {
   pane: [
-    { hint: true, labels: true, back: "label", comments: "full" },
-    { hint: false, labels: true, back: "label", comments: "full" },
-    { hint: false, labels: false, back: "label", comments: "short" },
-    { hint: false, labels: false, back: "label", comments: "count" },
+    { hint: true, labels: true, back: "label", comments: "full", gaps: "normal" },
+    { hint: false, labels: true, back: "label", comments: "full", gaps: "normal" },
+    { hint: false, labels: false, back: "label", comments: "short", gaps: "normal" },
+    { hint: false, labels: false, back: "label", comments: "count", gaps: "normal" },
   ],
   page: [
-    { hint: false, labels: true, back: "label", comments: "full" },
-    { hint: false, labels: false, back: "short", comments: "short" },
-    { hint: false, labels: false, back: "short", comments: "count" },
-    { hint: false, labels: false, back: "icon", comments: "count" },
+    { hint: false, labels: true, back: "label", comments: "full", gaps: "normal" },
+    { hint: false, labels: false, back: "short", comments: "short", gaps: "normal" },
+    { hint: false, labels: false, back: "short", comments: "count", gaps: "normal" },
+    { hint: false, labels: false, back: "icon", comments: "count", gaps: "normal" },
   ],
   sheet: [
-    { hint: false, labels: true, back: "label", comments: "full" },
-    { hint: false, labels: false, back: "label", comments: "short" },
-    { hint: false, labels: false, back: "label", comments: "count" },
-    { hint: false, labels: false, back: "icon", comments: "count" },
+    { hint: false, labels: true, back: "label", comments: "full", gaps: "normal" },
+    { hint: false, labels: false, back: "label", comments: "short", gaps: "normal" },
+    { hint: false, labels: false, back: "label", comments: "count", gaps: "normal" },
+    { hint: false, labels: false, back: "icon", comments: "count", gaps: "normal" },
   ],
   phone: [
-    { hint: false, labels: false, back: "icon", comments: "short" },
-    { hint: false, labels: false, back: "icon", comments: "count" },
+    { hint: false, labels: false, back: "icon", comments: "short", gaps: "normal" },
+    { hint: false, labels: false, back: "icon", comments: "count", gaps: "normal" },
+    { hint: false, labels: false, back: "icon", comments: "count", gaps: "tight" },
   ],
 };
 
