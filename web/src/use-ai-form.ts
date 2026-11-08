@@ -11,6 +11,7 @@ import {
 } from "../../src/core/ai-contract.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
+import { useConnect } from "./use-connect.ts";
 import { useField, useGuard } from "./use-form.ts";
 
 function useAiFields(view: AiView) {
@@ -120,6 +121,7 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
   const saveBlocked = (needsSecret(provider) && !view.secretReady) || isSignedOut(view, provider);
 
   const { verifyNow, verifyBlocked } = useVerify(view, run, guard);
+  const connection = useConnect(view, fields, busy, saved);
 
   const save = useCallback(
     () =>
@@ -146,5 +148,15 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
     if (!saveBlocked) guard(save);
   }, [guard, save, saveBlocked]);
 
-  return { fields, result, busy, action, submit, verifyNow, saveBlocked, verifyBlocked };
+  return {
+    fields,
+    result,
+    busy,
+    action,
+    submit,
+    verifyNow,
+    saveBlocked,
+    verifyBlocked,
+    connection,
+  };
 }

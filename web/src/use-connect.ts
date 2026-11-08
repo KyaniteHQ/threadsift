@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { type AiView, fetchAiSettings, startConnect } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import type { FieldState } from "./use-form.ts";
+import { SETTINGS_READ_MS } from "./use-settings-load.ts";
 
 export interface Connection {
   readonly connect: () => void;
@@ -26,7 +27,7 @@ function usePageRestore(
       setLeaving(false);
 
       try {
-        restored(await fetchAiSettings());
+        restored(await fetchAiSettings(AbortSignal.timeout(SETTINGS_READ_MS)));
       } catch {
         setFailure(FAILURE_TEXT.failed);
       }

@@ -8,8 +8,9 @@ import { Alert } from "./Alert.tsx";
 import { ConnectButton, ConnectNotes, ConnectNotice } from "./ConnectControls.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { isSignedOut, useAiForm } from "./use-ai-form.ts";
-import { type Connection, useConnect } from "./use-connect.ts";
 import { type Loaded, useLoaded } from "./use-settings-load.ts";
+
+type Connection = ReturnType<typeof useAiForm>["connection"];
 
 function DigestResult({ digest }: Readonly<{ digest: Readonly<Digest> }>) {
   return (
@@ -149,12 +150,8 @@ function AiControls({
 }
 
 function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView) => void }>) {
-  const { fields, result, busy, action, submit, verifyNow, saveBlocked, verifyBlocked } = useAiForm(
-    view,
-    saved,
-  );
-
-  const connection = useConnect(view, fields, busy, saved);
+  const form = useAiForm(view, saved);
+  const { fields, busy, saveBlocked, connection, submit } = form;
 
   const onSubmit = useCallback(
     (event: SubmitEvent<HTMLFormElement>) => {
@@ -182,10 +179,10 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
         />
         <AiActions
           saveBlocked={saveBlocked}
-          verifyBlocked={verifyBlocked}
+          verifyBlocked={form.verifyBlocked}
           busy={busy}
-          action={action}
-          onVerify={verifyNow}
+          action={form.action}
+          onVerify={form.verifyNow}
         >
           {fields.provider === "openrouter" ? (
             <ConnectButton view={view} connection={connection} blocked={busy} />
@@ -193,7 +190,7 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
         </AiActions>
       </form>
       <ConnectNotice view={view} />
-      <AiOutcome result={result} />
+      <AiOutcome result={form.result} />
     </>
   );
 }
