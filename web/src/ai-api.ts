@@ -6,7 +6,12 @@ import {
   VerifyResultSchema,
   type AiSettingsInput,
 } from "../../src/core/ai-contract.ts";
-import { parsedFrom } from "./calls.ts";
+import {
+  CONNECT_START_PATH,
+  ConnectStartResponseSchema,
+  type ConnectStartInput,
+} from "../../src/core/openrouter-contract.ts";
+import { call, parsedFrom } from "./calls.ts";
 
 export type AiView = z.infer<typeof AiSettingsViewSchema>;
 
@@ -22,4 +27,22 @@ export function saveAiSettings(input: Readonly<AiSettingsInput>) {
 
 export function verifyAi(): Promise<VerifyResult> {
   return parsedFrom("POST", "/api/settings/ai/verify", VerifyResultSchema);
+}
+
+export type ConnectStart =
+  | { readonly kind: "started"; readonly authorizationUrl: string }
+  | { readonly kind: "stale" | "unavailable" | "failed" };
+
+export async function startConnect(input: Readonly<ConnectStartInput>): Promise<ConnectStart> {
+  const response = await call("POST", CONNECT_START_PATH, { json: input });
+
+  if (response.status === 201)
+    return {
+      kind: "started",
+      authorizationUrl: ConnectStartResponseSchema.parse(await response.json()).authorizationUrl,
+    };
+
+  if (response.status === 409) return { kind: "stale" };
+
+  return { kind: response.status === 503 ? "unavailable" : "failed" };
 }

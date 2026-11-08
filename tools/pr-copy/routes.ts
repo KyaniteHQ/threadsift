@@ -10,6 +10,8 @@ const ROUTES = [
   "/api/tokens/:id",
   "/api/settings/ai",
   "/api/settings/ai/verify",
+  "/api/settings/ai/openrouter/start",
+  "/api/settings/ai/openrouter/callback",
   "/api/settings/github",
   "/api/settings/github/verify",
   "/api/items",

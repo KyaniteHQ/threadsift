@@ -157,6 +157,7 @@ const env = z
     CODEX_AUTH_JSON_B64: z.string().optional(),
     THREADSIFT_CODEX_REFRESHED_B64: z.string().optional(),
     THREADSIFT_E2E_GITHUB_TOKEN: z.string().optional(),
+    THREADSIFT_PROOF_SECRETS_FILE: z.string().optional(),
   })
   .parse(process.env);
 
@@ -167,7 +168,13 @@ if (directory === undefined || extra !== undefined)
 
 const minimumFiles = z.coerce.number().int().positive().parse(floor);
 
+const proofSecrets =
+  env.THREADSIFT_PROOF_SECRETS_FILE === undefined
+    ? []
+    : readFileSync(env.THREADSIFT_PROOF_SECRETS_FILE, "utf8").split("\n");
+
 const needles = [
+  ...proofSecrets,
   env.THREADSIFT_WRONG_AI_KEY,
   env.THREADSIFT_WRONG_GITHUB_TOKEN,
   env.CLOUDFLARE_WORKERS_AI_TOKEN ?? "",

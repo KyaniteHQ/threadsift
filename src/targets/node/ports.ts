@@ -1,6 +1,6 @@
 import type { Database, Ports } from "../../core/ports.ts";
 import { aiRuntime } from "../shared/ai-runtime.ts";
-import { configuredCode } from "../shared/configured-code.ts";
+import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 import { type CliEnvironments, startCliRunners } from "./cli-runners.ts";
 import { dataFileStore } from "./file-store.ts";
@@ -19,13 +19,14 @@ export interface NodeOptions extends CliEnvironments {
   readonly setupCode: string | undefined;
   readonly secretKey: string | undefined;
   readonly resetCode: string | undefined;
+  readonly publicOrigin: string | undefined;
 }
 
 export async function startNode(
   db: Database,
   options: Readonly<NodeOptions>,
 ): Promise<NodeRuntime> {
-  const { dataDir, setupCode, secretKey, resetCode, claude, codex } = options;
+  const { dataDir, setupCode, secretKey, resetCode, publicOrigin, claude, codex } = options;
   const loop = new JobLoop();
   const pages = new WorkerPageReader();
   const cli = await startCliRunners({ claude, codex });
@@ -40,6 +41,7 @@ export async function startNode(
     crypto: nodeCrypto,
     setupCode: await setupCodeOf(db, configuredCode(setupCode)),
     resetCode: configuredCode(resetCode),
+    publicOrigin: configuredOrigin(publicOrigin),
   };
 
   await loop.start(ports);

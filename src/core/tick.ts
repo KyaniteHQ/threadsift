@@ -5,6 +5,7 @@ import { cleanFiles } from "./file-cleanup.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { dueIds } from "./jobs.ts";
+import { sweepConnectTransactions } from "./openrouter-connect.ts";
 import type { Database } from "./ports.ts";
 import { scheduledRuns } from "./schema.ts";
 import { reconcileSearchParts } from "./search-reconciler.ts";
@@ -14,6 +15,7 @@ const TICK_SPACING_MS = 30_000;
 
 async function sweep(ports: JobPorts): Promise<void> {
   const now = Date.now();
+  await sweepConnectTransactions(ports.db, now);
   await sweepDigests(ports.db, now);
   await reconcileSearchParts(ports);
   const due = await dueIds(ports.db, now, SWEEP_LIMIT);

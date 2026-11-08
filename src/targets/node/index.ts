@@ -20,6 +20,7 @@ const env = z
     SETUP_CODE: z.string().optional(),
     THREADSIFT_SECRET_KEY: z.string().optional(),
     PASSWORD_RESET_CODE: z.string().optional(),
+    THREADSIFT_PUBLIC_ORIGIN: z.string().optional(),
     PATH: z.string().default(""),
     CLAUDE_CONFIG_DIR: z.string().optional(),
     CLAUDE_CODE_OAUTH_TOKEN: z.string().optional(),
@@ -43,6 +44,7 @@ const node = await startNode(database.db, {
   setupCode: env.SETUP_CODE,
   secretKey: env.THREADSIFT_SECRET_KEY,
   resetCode: env.PASSWORD_RESET_CODE,
+  publicOrigin: env.THREADSIFT_PUBLIC_ORIGIN,
   claude: {
     path: env.PATH,
     configDir: env.CLAUDE_CONFIG_DIR,

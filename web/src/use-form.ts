@@ -18,6 +18,7 @@ export interface FieldState {
   readonly change: (event: ChangeEvent<HTMLInputElement>) => void;
   readonly fail: (message: string | null) => void;
   readonly clear: () => void;
+  readonly set: (value: string) => void;
 }
 
 export function useField(initialError: string | null = null, initialValue = ""): FieldState {
@@ -41,7 +42,7 @@ export function useField(initialError: string | null = null, initialValue = ""):
     setValue("");
   }, []);
 
-  return { value, error, ref, change, fail, clear };
+  return { value, error, ref, change, fail, clear, set: setValue };
 }
 
 export function useFocusOnMount(ref: RefObject<HTMLElement | null>, enabled = true): void {
