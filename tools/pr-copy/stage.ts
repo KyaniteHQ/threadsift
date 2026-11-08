@@ -76,14 +76,14 @@ export function readWorkerConfig(artifact: string) {
   return WorkerConfigSchema.parse(experimental_readRawConfig({ config }).rawConfig);
 }
 
-export function copyConfig(names: Readonly<CopyNames>, artifact: string, origin: string) {
+async function copyConfig(names: Readonly<CopyNames>, artifact: string) {
   const source = readWorkerConfig(artifact);
-
+  const origin = await workersDevOrigin(names.name);
   const [database] = source.d1_databases;
   const [producer] = source.queues.producers;
   const [consumer] = source.queues.consumers;
 
-  return {
+  const config = {
     name: names.name,
     main: "dist/worker/index.js",
     no_bundle: true,
@@ -113,6 +113,8 @@ export function copyConfig(names: Readonly<CopyNames>, artifact: string, origin:
       redact_query_string: true,
     },
   } as const;
+
+  return { config, origin };
 }
 
 function requireInside(root: string, path: string): void {
@@ -198,16 +200,6 @@ export function artifactDigest(artifact: string): string {
   return createHash("sha256").update(listing.join("")).digest("hex");
 }
 
-async function stageConfig(target: Readonly<CopyNames>, artifact: string | null) {
-  if (artifact === null) {
-    return { config: { name: target.name }, origin: null };
-  }
-
-  const origin = await workersDevOrigin(target.name);
-
-  return { config: copyConfig(target, artifact, origin), origin };
-}
-
 export async function withStage<Result>(
   target: Readonly<CopyNames>,
   artifact: string | null,
@@ -220,7 +212,11 @@ export async function withStage<Result>(
       copyArtifact(artifact, dir);
     }
 
-    const { config, origin } = await stageConfig(target, artifact);
+    const { config, origin } =
+      artifact === null
+        ? { config: { name: target.name }, origin: null }
+        : await copyConfig(target, artifact);
+
     const configPath = join(dir, "wrangler.json");
     writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
 
