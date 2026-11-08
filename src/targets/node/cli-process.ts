@@ -12,6 +12,7 @@ export interface ProcessSpec {
   readonly stdin: string;
   readonly stdoutCap: number;
   readonly stderrCap: number;
+  readonly keepStdout: boolean;
 }
 
 export type ProcessEnd =
@@ -51,7 +52,7 @@ class Execution {
   constructor(spec: Readonly<ProcessSpec>, signal: AbortSignal, finish: (end: ProcessEnd) => void) {
     this.signal = signal;
     this.finish = finish;
-    this.out = new Capture(spec.stdoutCap, true);
+    this.out = new Capture(spec.stdoutCap, spec.keepStdout);
     this.err = new Capture(spec.stderrCap, false);
 
     this.child = spawn(spec.file, [...spec.args], {

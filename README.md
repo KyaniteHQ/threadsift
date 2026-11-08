@@ -62,6 +62,32 @@ The container image ships no AI command-line tool and keeps everything you insta
 
 The install and login stay in the volume when you remove and recreate the container on the same volume. Installing or removing Claude Code needs a restart. npm 12 skips the install script unless allowed, so run `npm config set "allow-scripts=@anthropic-ai/claude-code" --location=user` first (the image's npm is 11.20.0 and needs no change). A token Claude Code rejects shows up when Verify runs.
 
+## Use Codex on the container
+
+1. Install Codex into the volume:
+
+   ```sh
+   podman exec -it <container> npm install --global @openai/codex
+   ```
+
+2. Restart the Instance so it finds the tool:
+
+   ```sh
+   podman restart <container>
+   ```
+
+3. Sign in on the server:
+
+   ```sh
+   podman exec -it <container> codex login --device-auth
+   ```
+
+   Codex prints a link and a code; open the link on any device, enter the code and approve. There is no token variable for Codex. The login is saved in `/data/codex/auth.json` in the volume.
+
+4. Open Settings, choose "Codex on this server" as the Provider, press Save, then press Verify. The model field may stay blank for Codex's default model; a model you type must be listed by `codex debug models --bundled`.
+
+The install and login stay in the volume when you remove and recreate the container on the same volume. Installing or removing Codex needs a restart. At most 2 AI tasks run at once across Claude Code and Codex together. The app never reads or stores the login. If Verify says the sign-in was rejected, run the login command again. The instruction files Codex would normally read (`AGENTS.md`, `skills`) are blocked in `/data/codex`: if the app finds a real `AGENTS.md`, `AGENTS.override.md` or a `skills` folder with content there, it does not offer Codex, and a log line names the path.
+
 ## License
 
 Copyright (C) 2026 Kyanite Labs.

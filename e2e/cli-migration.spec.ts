@@ -28,16 +28,20 @@ test("a keyed Provider row survives the CLI migration, and the settings constrai
       keySet: true,
     });
 
-    instance.sql("DELETE FROM settings");
-    instance.sql(
-      "INSERT INTO settings (id, provider, base_url, model, sealed_key) VALUES (1, 'claude-code', NULL, '', NULL)",
-    );
-    expect((await read()).settings).toEqual({ provider: "claude-code", model: "" });
+    for (const provider of ["claude-code", "codex"]) {
+      instance.sql("DELETE FROM settings");
+      instance.sql(
+        `INSERT INTO settings (id, provider, base_url, model, sealed_key) VALUES (1, '${provider}', NULL, '', NULL)`,
+      );
+      expect((await read()).settings).toEqual({ provider, model: "" });
+    }
 
     instance.sql("DELETE FROM settings");
 
     for (const row of [
       "'claude-code', 'https://example.com', '', NULL",
+      "'codex', 'https://example.com', '', NULL",
+      "'codex', NULL, '', 'v1.sealed.value'",
       "'openrouter', NULL, 'm', NULL",
     ]) {
       expect(() => {

@@ -19,6 +19,7 @@ export interface CliRunner {
   readonly provider: CliProvider;
   readonly run: TaskRunner;
   readonly signedIn: () => Promise<boolean>;
+  readonly stop: () => void;
 }
 
 interface AiRuntimeOptions {
@@ -26,7 +27,7 @@ interface AiRuntimeOptions {
   readonly secretKey: string | undefined;
   readonly request: typeof fetch;
   readonly binding?: TaskRunner | undefined;
-  readonly cli?: CliRunner | undefined;
+  readonly cli?: readonly CliRunner[] | undefined;
 }
 
 const HTTP_PROVIDERS = HttpProviderSchema.options;
@@ -36,24 +37,34 @@ export async function aiRuntime({
   secretKey,
   request,
   binding,
-  cli,
+  cli = [],
 }: AiRuntimeOptions): Promise<AiRuntime> {
   return {
     providers: [
       ...HTTP_PROVIDERS,
       ...(binding === undefined ? [] : [PROVIDERS["workers-ai"].id]),
-      ...(cli === undefined ? [] : [cli.provider]),
+      ...cli.map(({ provider }) => provider),
     ],
     publicOnly,
     allowsUrl: (url) => allowedAiUrl(url, publicOnly),
     secrets: await sealedSecrets(secretKey),
-    signedIn: async () => (cli !== undefined && (await cli.signedIn()) ? [cli.provider] : []),
+    signedIn: async () => {
+      const states = await Promise.all(
+        cli.map(async (runner) => [runner, await runner.signedIn()] as const),
+      );
+
+      return states.flatMap(([runner, signedIn]) => (signedIn ? [runner.provider] : []));
+    },
     run: async (task, signal) => {
       if (task.config.kind === "binding")
         return binding === undefined ? refusedAi("unreachable") : binding(task, signal);
 
-      if (task.config.kind === "cli")
-        return cli === undefined ? refusedAi("not-configured") : cli.run(task, signal);
+      if (task.config.kind === "cli") {
+        const { provider } = task.config;
+        const runner = cli.find((candidate) => candidate.provider === provider);
+
+        return runner === undefined ? refusedAi("not-configured") : runner.run(task, signal);
+      }
 
       const { runHttp } = await import("./ai-executor.ts");
 

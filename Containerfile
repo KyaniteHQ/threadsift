@@ -18,15 +18,16 @@ COPY web web
 RUN pnpm exec vite build
 
 FROM node
-ENV NODE_ENV=production DATA_DIR=/data PORT=8080 NPM_CONFIG_PREFIX=/data/cli CLAUDE_CONFIG_DIR=/data/claude
+ENV NODE_ENV=production DATA_DIR=/data PORT=8080 NPM_CONFIG_PREFIX=/data/cli CLAUDE_CONFIG_DIR=/data/claude CODEX_HOME=/data/codex
 ENV PATH=/data/cli/bin:$PATH
+RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=prod-deps /app/node_modules node_modules
 COPY package.json ./
 COPY src src
 COPY migrations migrations
 COPY --from=web-build /app/dist/web dist/web
-RUN mkdir -p /data/cli /data/claude && chown -R node:node /data
+RUN mkdir -p /data/cli /data/claude /data/codex && chmod 700 /data/codex && chown -R node:node /data
 VOLUME /data
 USER node
 EXPOSE 8080

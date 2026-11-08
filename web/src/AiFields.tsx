@@ -5,9 +5,10 @@ import {
   AI_MODEL_MAX,
   AI_KEY_MAX,
   PROVIDERS,
+  isCliProvider,
   type Provider,
 } from "../../src/core/ai-contract.ts";
-import { AI_TEXT } from "./ai-text.ts";
+import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { FormField } from "./FormField.tsx";
 import type { useAiForm } from "./use-ai-form.ts";
 
@@ -70,7 +71,7 @@ function AiProviderPicker({
 }
 
 function modelHelp(provider: Provider) {
-  if (provider === "claude-code") return AI_TEXT.claudeCodeModelHelp;
+  if (isCliProvider(provider)) return CLI_TEXT[provider].modelHelp;
 
   return provider === "workers-ai" ? AI_TEXT.workersAiHelp : undefined;
 }
@@ -91,7 +92,7 @@ function kindFor(
 ) {
   if (name === "key") return keyRequired ? REQUIRED_KEY_KIND : FIELD_KINDS.key;
 
-  if (name === "model") return provider === "claude-code" ? OPTIONAL_MODEL_KIND : FIELD_KINDS.model;
+  if (name === "model") return isCliProvider(provider) ? OPTIONAL_MODEL_KIND : FIELD_KINDS.model;
 
   return publicOnly ? PUBLIC_URL_KIND : FIELD_KINDS.baseUrl;
 }

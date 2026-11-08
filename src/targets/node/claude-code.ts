@@ -1,6 +1,4 @@
-import { access, constants, mkdtemp, rm, stat } from "node:fs/promises";
-import { homedir, tmpdir } from "node:os";
-import { delimiter, dirname, isAbsolute, join } from "node:path";
+import { homedir } from "node:os";
 
 import { z } from "zod";
 
@@ -14,7 +12,20 @@ import { apiRefusal } from "../shared/ai-call.ts";
 import type { CliRunner } from "../shared/ai-runtime.ts";
 import { configuredCode } from "../shared/configured-code.ts";
 import { type ProcessEnd, runProcess } from "./cli-process.ts";
-import { Slots } from "./cli-slots.ts";
+import type { Slots } from "./cli-slots.ts";
+import {
+  PROBE_MS,
+  STDERR_CAP,
+  STDOUT_CAP,
+  childPath,
+  endRefusal,
+  exitCode,
+  findBinary,
+  inEmptyFolder,
+  parsedJson,
+  present,
+  report,
+} from "./cli-support.ts";
 
 export interface ClaudeEnvironment {
   readonly path: string;
@@ -22,12 +33,7 @@ export interface ClaudeEnvironment {
   readonly token: string | undefined;
 }
 
-const TASK_LIMIT = 2;
-const STDOUT_CAP = 1024 * 1024;
-const STDERR_CAP = 64 * 1024;
-const PROBE_MS = 15_000;
 const BINARY = "claude";
-const FIXED_PATH = ["/usr/local/bin", "/usr/bin", "/bin"];
 
 const EnvelopeSchema = z.object({
   is_error: z.boolean(),
@@ -36,45 +42,6 @@ const EnvelopeSchema = z.object({
 });
 
 const StatusSchema = z.object({ loggedIn: z.boolean() });
-
-function parsedJson<Parsed>(schema: z.ZodType<Parsed>, text: string): Parsed | null {
-  try {
-    return schema.safeParse(JSON.parse(text)).data ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function isExecutable(path: string): Promise<boolean> {
-  try {
-    await access(path, constants.X_OK);
-
-    return (await stat(path)).isFile();
-  } catch {
-    return false;
-  }
-}
-
-async function findBinary(path: string): Promise<string | null> {
-  const candidates = path
-    .split(delimiter)
-    .filter((dir) => isAbsolute(dir))
-    .map((dir) => join(dir, BINARY));
-
-  const found = await Promise.all(candidates.map((candidate) => isExecutable(candidate)));
-
-  return candidates.find((_candidate, index) => found[index] === true) ?? null;
-}
-
-async function inEmptyFolder<Result>(work: (folder: string) => Promise<Result>): Promise<Result> {
-  const folder = await mkdtemp(join(tmpdir(), "threadsift-cli-"));
-
-  try {
-    return await work(folder);
-  } finally {
-    await rm(folder, { recursive: true, force: true });
-  }
-}
 
 function taskArguments(schema: string, model: string): string[] {
   return [
@@ -99,24 +66,17 @@ function taskArguments(schema: string, model: string): string[] {
   ];
 }
 
-function present(name: string, value: string | undefined): [string, string][] {
-  return value === undefined ? [] : [[name, value]];
-}
-
-function exitCode(end: Readonly<ProcessEnd>): number | null {
-  return end.kind === "exited" ? end.code : null;
-}
-
 export class ClaudeCode implements CliRunner {
   readonly provider = PROVIDERS["claude-code"].id;
-  private readonly slots = new Slots(TASK_LIMIT);
   private readonly shutdown = new AbortController();
   private readonly binary: string;
   private readonly environment: Readonly<ClaudeEnvironment>;
+  private readonly slots: Slots;
 
-  constructor(binary: string, environment: Readonly<ClaudeEnvironment>) {
+  constructor(binary: string, environment: Readonly<ClaudeEnvironment>, slots: Slots) {
     this.binary = binary;
     this.environment = environment;
+    this.slots = slots;
   }
 
   stop(): void {
@@ -151,7 +111,7 @@ export class ClaudeCode implements CliRunner {
       const end = await this.spawn(taskArguments(schema, task.config.model), prompt, stop);
       const result = await this.outcome(task.schema, end);
 
-      if (result.kind === "refused") report(result.reason, exitCode(end));
+      if (result.kind === "refused") report(this.provider, result.reason, exitCode(end));
 
       return result;
     } finally {
@@ -170,6 +130,7 @@ export class ClaudeCode implements CliRunner {
           stdin,
           stdoutCap: STDOUT_CAP,
           stderrCap: STDERR_CAP,
+          keepStdout: true,
         },
         signal,
       ),
@@ -180,7 +141,7 @@ export class ClaudeCode implements CliRunner {
     const { configDir, token } = this.environment;
 
     return Object.fromEntries([
-      ["PATH", [dirname(this.binary), ...FIXED_PATH].join(delimiter)],
+      ["PATH", childPath(this.binary)],
       ["HOME", homedir()],
       ["CLAUDE_CODE_DISABLE_ATTACHMENTS", "1"],
       ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"],
@@ -193,57 +154,36 @@ export class ClaudeCode implements CliRunner {
     schema: z.ZodType<Result>,
     end: Readonly<ProcessEnd>,
   ): Promise<AiExecution<Result>> {
-    switch (end.kind) {
-      case "aborted":
-        return refusedAi("timeout");
-      case "over-cap":
-        return refusedAi("no-json");
-      case "spawn-failed":
-        return refusedAi("not-configured");
-      case "exited": {
-        const envelope = parsedJson(EnvelopeSchema, end.stdout);
+    if (end.kind !== "exited") return endRefusal(end);
 
-        if (envelope === null) return refusedAi(end.code === 0 ? "no-json" : "unreachable");
+    const envelope = parsedJson(EnvelopeSchema, end.stdout);
 
-        if (!envelope.is_error) {
-          const parsed = schema.safeParse(envelope.structured_output);
+    if (envelope === null) return refusedAi(end.code === 0 ? "no-json" : "unreachable");
 
-          return parsed.success ? { kind: "done", result: parsed.data } : refusedAi("no-json");
-        }
+    if (!envelope.is_error) {
+      const parsed = schema.safeParse(envelope.structured_output);
 
-        if (envelope.api_error_status !== null) return apiRefusal(envelope.api_error_status);
-
-        return refusedAi((await this.signedIn()) ? "unreachable" : "not-configured");
-      }
-
-      default: {
-        const exhaustive: never = end;
-
-        return exhaustive;
-      }
+      return parsed.success ? { kind: "done", result: parsed.data } : refusedAi("no-json");
     }
+
+    if (envelope.api_error_status !== null) return apiRefusal(envelope.api_error_status);
+
+    return refusedAi((await this.signedIn()) ? "unreachable" : "not-configured");
   }
 }
 
-function report(reason: string, code: number | null): void {
-  console.error(
-    JSON.stringify({
-      event: "cli-refused",
-      provider: PROVIDERS["claude-code"].id,
-      reason,
-      exit: code,
-    }),
-  );
-}
-
-export async function claudeCode(environment: Readonly<ClaudeEnvironment>) {
-  const binary = await findBinary(environment.path);
+export async function claudeCode(environment: Readonly<ClaudeEnvironment>, slots: Slots) {
+  const binary = await findBinary(environment.path, BINARY);
 
   return binary === null
     ? null
-    : new ClaudeCode(binary, {
-        ...environment,
-        configDir: configuredCode(environment.configDir),
-        token: configuredCode(environment.token),
-      });
+    : new ClaudeCode(
+        binary,
+        {
+          ...environment,
+          configDir: configuredCode(environment.configDir),
+          token: configuredCode(environment.token),
+        },
+        slots,
+      );
 }

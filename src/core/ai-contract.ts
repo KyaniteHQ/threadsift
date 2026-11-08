@@ -69,6 +69,13 @@ export const PROVIDERS = {
     names: ["model"],
     fields: { model: CliModel },
   },
+  codex: {
+    id: "codex",
+    label: "codex",
+    url: null,
+    names: ["model"],
+    fields: { model: CliModel },
+  },
 } as const;
 
 export const HttpProviderSchema = z.enum([
@@ -79,9 +86,13 @@ export const HttpProviderSchema = z.enum([
   PROVIDERS.xai.id,
 ]);
 
-export const CliProviderSchema = z.enum([PROVIDERS["claude-code"].id]);
+export const CliProviderSchema = z.enum([PROVIDERS["claude-code"].id, PROVIDERS.codex.id]);
 
 export type CliProvider = z.infer<typeof CliProviderSchema>;
+
+export function isCliProvider(provider: string): provider is CliProvider {
+  return CliProviderSchema.safeParse(provider).success;
+}
 
 export const ProviderSchema = z.enum([
   ...HttpProviderSchema.options,
@@ -105,6 +116,7 @@ export const AiSettingsInputSchema = z.discriminatedUnion("provider", [
     provider: z.literal(PROVIDERS["claude-code"].id),
     ...PROVIDERS["claude-code"].fields,
   }),
+  z.object({ provider: z.literal(PROVIDERS.codex.id), ...PROVIDERS.codex.fields }),
 ]);
 
 const AiExecutionRefusalSchema = z.enum([

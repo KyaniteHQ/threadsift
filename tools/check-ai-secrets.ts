@@ -19,6 +19,20 @@ const EMBEDDED_ZIP = /data:application\/zip;base64,([A-Za-z0-9+/=]+)/gu;
 const ZIP_LOCAL = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 const SETUP_CODE_LINE = /^Setup code: (?!\[redacted\]$)\S+$/mu;
 
+const CodexAuthSchema = z.object({
+  tokens: z.object({ access_token: z.string(), refresh_token: z.string(), id_token: z.string() }),
+});
+
+function codexCredentials(encoded: string | undefined): string[] {
+  if (encoded === undefined || encoded === "") return [];
+
+  const { tokens } = CodexAuthSchema.parse(
+    JSON.parse(Buffer.from(encoded, "base64").toString("utf8")),
+  );
+
+  return [encoded, tokens.access_token, tokens.refresh_token, tokens.id_token];
+}
+
 function credentialForms(key: string) {
   const values = [key, `Bearer ${key}`];
 
@@ -140,6 +154,8 @@ const env = z
     THREADSIFT_WRONG_GITHUB_TOKEN: z.string().min(1),
     CLOUDFLARE_WORKERS_AI_TOKEN: z.string().optional(),
     CLAUDE_CODE_OAUTH_TOKEN: z.string().optional(),
+    CODEX_AUTH_JSON_B64: z.string().optional(),
+    THREADSIFT_CODEX_REFRESHED_B64: z.string().optional(),
     THREADSIFT_E2E_GITHUB_TOKEN: z.string().optional(),
   })
   .parse(process.env);
@@ -156,6 +172,8 @@ const needles = [
   env.THREADSIFT_WRONG_GITHUB_TOKEN,
   env.CLOUDFLARE_WORKERS_AI_TOKEN ?? "",
   env.CLAUDE_CODE_OAUTH_TOKEN ?? "",
+  ...codexCredentials(env.CODEX_AUTH_JSON_B64),
+  ...codexCredentials(env.THREADSIFT_CODEX_REFRESHED_B64),
   env.THREADSIFT_E2E_GITHUB_TOKEN ?? "",
 ]
   .filter((key) => key !== "")
