@@ -58,7 +58,16 @@ export const answerAfterBody: MiddlewareHandler<{ Bindings: HttpBindings }> = as
     return;
   }
 
-  if (!(await discardBody(incoming))) {
+  const discarded = await discardBody(incoming);
+
+  if (context.env.outgoing.destroyed) {
+    await context.res.body?.cancel();
+    context.res = new Response(null, { status: context.res.status });
+
+    return;
+  }
+
+  if (!discarded) {
     context.header("Connection", "close");
   }
 };
