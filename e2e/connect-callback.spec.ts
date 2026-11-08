@@ -269,3 +269,27 @@ test("A typed Save advances the revision and supersedes an older attempt, which 
     await screen.close();
   }
 });
+
+test("A callback after the configured public origin changed is refused, exchanges nothing, and keeps the attempt", async ({
+  browser,
+}) => {
+  const screen = await connectScreen(browser);
+  const owner = await signedIn(screen);
+
+  try {
+    const { state } = await started(await startAs(owner, screen));
+    const moved = `http://localhost:${new URL(screen.origin).port}`;
+    screen.fresh.restart({
+      THREADSIFT_SECRET_KEY: screen.sealingKey,
+      THREADSIFT_PUBLIC_ORIGIN: moved,
+    });
+
+    expectNotice(await callback(owner, callbackFor(state)), "incomplete");
+    expect(attemptCount(screen), "the attempt stays for its own origin").toBe(1);
+    expect(settingsRows(screen)).toBe(0);
+    expect(screen.fresh.logs()).not.toContain(FAKE_CODE);
+  } finally {
+    await owner.api.dispose();
+    await screen.close();
+  }
+});
