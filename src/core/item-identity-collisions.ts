@@ -1,6 +1,7 @@
 import { and, asc, count, eq, gt, inArray, min } from "drizzle-orm";
 
 import type { Advance } from "./data-step-contract.ts";
+import { dropStaged, report } from "./data-step-support.ts";
 import { dataStepRenames } from "./data-step-tables.ts";
 import { STEP } from "./item-identity-staging.ts";
 import type { Database } from "./ports.ts";
@@ -8,13 +9,6 @@ import { items } from "./schema.ts";
 
 const REPORT_GROUPS = 20;
 const IDENTITY_LOG_CHARS = 1000;
-
-export function report(
-  event: string,
-  fields: Readonly<Record<string, number | string | readonly number[]>>,
-) {
-  console.warn(JSON.stringify({ event, ...fields }));
-}
 
 function groupsAfter(db: Database, from: number) {
   const leader = min(dataStepRenames.subject);
@@ -82,7 +76,7 @@ export async function finish(db: Database): Promise<Advance> {
   report("item-identity-finished", { collided: left?.n ?? 0 });
 
   return {
-    writes: [db.delete(dataStepRenames).where(eq(dataStepRenames.step, STEP))],
+    writes: [dropStaged(db, STEP)],
     cursor: null,
   };
 }

@@ -55,7 +55,7 @@ export default defineConfig({
           { from: "package", name: "Context", package: "hono" },
           { from: "package", name: "OpenAPIHono", package: "@hono/zod-openapi" },
           { from: "lib", name: "Document" },
-          { from: "file", name: ["Database", "Look", "InputKind", "Slots"] },
+          { from: "file", name: ["Database", "CatalogKind", "Look", "InputKind", "Slots"] },
           { from: "package", name: ["ZodError", "ZodObject"], package: "zod" },
           {
             from: "package",

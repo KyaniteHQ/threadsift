@@ -1,5 +1,7 @@
 import { eq, lt } from "drizzle-orm";
 
+import { TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
+import { catalogKeyStep } from "./catalog-key-step.ts";
 import type { DataStep } from "./data-step-contract.ts";
 import { dataSteps } from "./data-step-tables.ts";
 import { logFailure } from "./failure-log.ts";
@@ -10,6 +12,8 @@ const UNITS_PER_RUN = 100;
 
 const STEPS: readonly DataStep[] = [
   { name: "item-identity", version: ITEM_IDENTITY_VERSION, advance: advanceItemIdentity },
+  catalogKeyStep(TOPIC_KIND),
+  catalogKeyStep(TAG_KIND),
 ];
 
 function cursorKey(version: number): string {
@@ -35,11 +39,11 @@ function progress(db: Database, { name, version }: Readonly<DataStep>, cursor: s
     });
 }
 
-async function runUnits(db: Database, step: Readonly<DataStep>, units: number): Promise<void> {
+async function runUnits(db: Database, step: Readonly<DataStep>, units: number): Promise<number> {
   const row = await recordedRow(db, step.name);
 
   if (units === 0 || row.version >= step.version) {
-    return;
+    return units;
   }
 
   const prefix = cursorKey(step.version);
@@ -50,15 +54,13 @@ async function runUnits(db: Database, step: Readonly<DataStep>, units: number): 
 
   await db.batch([first, ...rest]);
 
-  if (cursor !== null) {
-    await runUnits(db, step, units - 1);
-  }
+  return cursor === null ? units - 1 : runUnits(db, step, units - 1);
 }
 
 export async function migrateData(db: Database): Promise<void> {
   await STEPS.reduce(
-    (done, step) => done.then(() => runUnits(db, step, UNITS_PER_RUN)),
-    Promise.resolve(),
+    async (left, step) => runUnits(db, step, await left),
+    Promise.resolve(UNITS_PER_RUN),
   );
 }
 

@@ -19,7 +19,7 @@ export function migrationsBefore(prefix: string): readonly string[] {
     .toSorted();
 }
 
-function wrangler(args: readonly string[]): void {
+export function wrangler(args: readonly string[]): void {
   execFileSync("pnpm", ["exec", "wrangler", ...args], {
     cwd: ROOT,
     env: { ...process.env, CI: "1", WRANGLER_SEND_METRICS: "false" },

@@ -31,9 +31,15 @@ test(`${LONG_RENAMES} identities of ${LONG_QUERY_CHARS} characters each are rena
     await sweepNow(owner, instance);
 
     await expect
-      .poll(() => instance.query("SELECT version FROM data_steps", Marker).at(0)?.version, {
-        timeout: 120_000,
-      })
+      .poll(
+        () =>
+          instance
+            .query("SELECT version FROM data_steps WHERE name = 'item-identity'", Marker)
+            .at(0)?.version,
+        {
+          timeout: 120_000,
+        },
+      )
       .toBe(1);
 
     expect(renamed(instance)).toBe(LONG_RENAMES);
