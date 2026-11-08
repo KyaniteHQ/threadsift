@@ -147,7 +147,7 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   const items = paths["/api/items"];
 
   expect(Object.keys(items.post.requestBody.content)).toEqual(["application/json"]);
-  expect(Object.keys(items.post.responses).toSorted()).toEqual(["200", "201", "400", "413"]);
+  expect(Object.keys(items.post.responses).toSorted()).toEqual(["200", "201", "400", "413", "503"]);
   expect(Object.keys(items.get.responses).toSorted()).toEqual(["200", "400"]);
 
   expectListContract(schemas, items.get);
