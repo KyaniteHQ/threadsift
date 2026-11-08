@@ -26,9 +26,9 @@ export function revealInPane(element: HTMLElement): void {
   const top = paneBox.top + (Number.isNaN(inset) ? 0 : inset);
 
   if (box.top < top) {
-    pane.scrollTop -= top - box.top;
+    pane.scrollTop -= Math.ceil(top - box.top);
   } else if (box.bottom > paneBox.bottom) {
-    pane.scrollTop += box.bottom - paneBox.bottom;
+    pane.scrollTop += Math.ceil(box.bottom - paneBox.bottom);
   }
 }
 
