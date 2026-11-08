@@ -17,7 +17,13 @@ import {
 import type { FetchFailure } from "./fetch-results.ts";
 import { fetchedOfRepository } from "./github-fetch.ts";
 import { loadGithubAuth } from "./github-token.ts";
-import { isRedditOrXLink, isShortLink, parseLink } from "./links.ts";
+import {
+  isRedditOrXLink,
+  isRedditShareLink,
+  isShortLink,
+  parseLink,
+  redditRefOf,
+} from "./links.ts";
 import { PageReadTimeout } from "./page-read-timeout.ts";
 import type { Network, PageReader, Ports } from "./ports.ts";
 import { repositoryRef } from "./repository-ref.ts";
@@ -39,6 +45,11 @@ const SMALL_POLICY: FetchPolicy = {
 };
 
 const RESOLVE_POLICY: FetchPolicy = { ...SMALL_POLICY, readsBody: isShortLink };
+
+const NOT_A_POST_OR_COMMENT: ShortLinkResolution = {
+  kind: "failed",
+  fetched: { status: "redirect-stopped" },
+};
 
 function pagePolicy({ maxHtmlBytes }: Readonly<PageReader>): FetchPolicy {
   return { ...SMALL_POLICY, htmlMaxBytes: maxHtmlBytes };
@@ -123,7 +134,11 @@ export async function resolveShortLink(
     AbortSignal.timeout(FETCH_DEADLINE_MS),
   );
 
-  return outcome.kind === "failed"
-    ? { kind: "failed", fetched: { status: loggedFailureOf(outcome) } }
+  if (outcome.kind === "failed") {
+    return { kind: "failed", fetched: { status: loggedFailureOf(outcome) } };
+  }
+
+  return isRedditShareLink(address) && redditRefOf(outcome.url) === null
+    ? NOT_A_POST_OR_COMMENT
     : { kind: "resolved", address: outcome.url };
 }
