@@ -50,7 +50,7 @@ Status: chosen on 2026-11-04 in a grill with the owner and revised after four mo
 
 Every library above is MIT, ISC or Apache-2.0, except `@axe-core/playwright` (MPL-2.0, a file-level copyleft licence; it runs only in tests and ships in no image or bundle). All of them may be used by AGPL-3.0-only code. The owner chose pnpm with Node 26 over Bun on 2026-11-04: Bun 1.4.3 ran the database spike with the same results, but Vite, oxlint, Playwright and wrangler run on Node anyway, so Bun would be a third runtime to test.
 
-Two words this file uses beyond `CONTEXT.md`: a **port** is an interface the core calls (Database, FileStore, JobQueue, Scheduler, AiExecutor, Fetcher, Network), and an **executor** is the adapter that runs an AI task for one kind of Provider.
+Two words this file uses beyond `GLOSSARY.md`: a **port** is an interface the core calls (Database, FileStore, JobQueue, Scheduler, AiExecutor, Fetcher, Network), and an **executor** is the adapter that runs an AI task for one kind of Provider.
 
 ## One codebase, two install targets
 
@@ -124,7 +124,7 @@ Evidence, a spike on 2026-11-04 (scratch folder, not in the repo): one schema an
 
 ## Data model outline
 
-Names follow `CONTEXT.md`. Columns are settled during the build.
+Names follow `GLOSSARY.md`. Columns are settled during the build.
 
 | Table | Holds |
 |---|---|

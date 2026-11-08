@@ -33,7 +33,7 @@ Run every command in the foreground. End your turn only once the report file exi
 
 ## Stop and report instead
 
-- The task needs a product decision that `docs/spec.md`, `CONTEXT.md` or the issue does not settle.
+- The task needs a product decision that `docs/spec.md`, `GLOSSARY.md` or the issue does not settle.
 - A secret, an account or a live service the worktree cannot reach.
 - The same check fails twice for the same cause after two different fixes.
 - The task would edit `design/system/` values or `docs/spec.md` decisions.

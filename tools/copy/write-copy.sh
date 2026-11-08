@@ -23,7 +23,7 @@ for model in "${models[@]}"; do
   }
 done
 
-prompt="Use the humanizer skill: read .agents/skills/humanizer/SKILL.md in this workspace and follow it. Read PRODUCT.md and CONTEXT.md, then write the text the brief below asks for, in the order it asks. Return only that text, with no preamble and no notes.
+prompt="Use the humanizer skill: read .agents/skills/humanizer/SKILL.md in this workspace and follow it. Read PRODUCT.md and GLOSSARY.md, then write the text the brief below asks for, in the order it asks. Return only that text, with no preamble and no notes.
 
 $(cat "$brief")"
 
