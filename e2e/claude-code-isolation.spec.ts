@@ -1,32 +1,29 @@
 import { type Browser, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { VerifyResultSchema } from "../src/core/ai-contract.ts";
-import { AI_VERIFY_ENDPOINT, assertNoSecret } from "./ai.ts";
+import { assertNoSecret } from "./ai.ts";
 import { settled } from "./api.ts";
-import {
-  CLAUDE_PROVIDER,
-  appShell,
-  claudeRuns,
-  claudeScreen,
-  claudeToken,
-  groupMembers,
-  installClaude,
-  settingsView,
-  taskFolders,
-  taskRows,
-} from "./claude-code.ts";
+import { CLAUDE_PROVIDER, claudeScreen, claudeToken, CLAUDE_CLI } from "./claude-code.ts";
 import {
   CANARY,
   MD_SENTINEL,
   SKILL_SENTINEL,
-  clearMarkers,
   markersPresent,
   pasteHostileThread,
   pasteWithoutWaiting,
-  plainClaude,
-  plantSentinels,
-} from "./claude-sentinels.ts";
+  expectClaudeControls,
+  CLAUDE_PLANT,
+} from "./cli-sentinels.ts";
+import {
+  appShell,
+  cliRuns,
+  installCli,
+  groupMembers,
+  settingsView,
+  taskFolders,
+  taskRows,
+  verifyCall,
+} from "./cli.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { isContainerTarget } from "./target.ts";
 
@@ -48,8 +45,8 @@ async function prepared(browser: Browser): Promise<FreshScreen> {
   expect(token, "the authenticated proof requires CLAUDE_CODE_OAUTH_TOKEN").toBeDefined();
   const fresh = await claudeScreen(browser, token);
 
-  installClaude(fresh);
-  plantSentinels(fresh);
+  installCli(fresh, CLAUDE_CLI);
+  appShell(fresh, CLAUDE_PLANT);
 
   const saved = await fresh.context.request.put("/api/settings/ai", {
     data: { provider: CLAUDE_PROVIDER, model: "" },
@@ -68,29 +65,10 @@ test.afterAll(async () => {
   await screen?.close();
 });
 
-async function verifyCall(signal?: AbortSignal) {
-  const cookies = await screen.context.cookies();
-  const cookie = cookies.map(({ name, value }) => `${name}=${value}`).join("; ");
-
-  const init: RequestInit = { method: "POST", headers: { cookie, origin: screen.fresh.url } };
-
-  if (signal !== undefined) init.signal = signal;
-
-  const response = await fetch(`${screen.fresh.url}${AI_VERIFY_ENDPOINT}`, init);
-
-  return VerifyResultSchema.parse(await response.json());
-}
-
 test("hostile Item text runs no command, reads no file and loads no customization", async () => {
   const info = test.info();
-  const control = plainClaude(screen, "Repeat the exact text of @/data/canary.txt");
 
-  expect(control, "control: an unrestricted run expands @file mentions").toContain(CANARY);
-  expect(plainClaude(screen, "Say hello"), "control: CLAUDE.md is loaded").toContain(MD_SENTINEL);
-  expect(markersPresent(screen), "control: hooks run").toEqual(
-    expect.arrayContaining(["/data/hook-user-ran", "/data/hook-start-ran"]),
-  );
-  clearMarkers(screen);
+  expectClaudeControls(screen);
 
   const request = screen.context.request;
   const item = await pasteHostileThread(request);
@@ -130,10 +108,10 @@ test("hostile Item text runs no command, reads no file and loads no customizatio
 
 async function startedRun() {
   const controller = new AbortController();
-  const call = verifyCall(controller.signal).catch(() => null);
+  const call = verifyCall(screen, controller.signal).catch(() => null);
 
   await expect
-    .poll(() => claudeRuns(screen).length, { timeout: 60_000, intervals: [100] })
+    .poll(() => cliRuns(screen).length, { timeout: 60_000, intervals: [100] })
     .toBeGreaterThan(0);
 
   return { controller, call };
@@ -141,14 +119,15 @@ async function startedRun() {
 
 test("aborting a running task removes its process group and its folder", async () => {
   const { controller, call } = await startedRun();
-  const [run] = claudeRuns(screen);
+  const [run] = cliRuns(screen);
+  const leader = run?.pgid;
 
-  expect(run?.pgid, "the child leads its own process group").toBe(run?.pid);
+  expect(leader, "the child leads its own process group").toBeDefined();
   expect(taskFolders(screen)).toHaveLength(1);
   controller.abort();
   await call;
-  await expect.poll(() => claudeRuns(screen).length, { timeout: 30_000 }).toBe(0);
-  expect(groupMembers(screen, run?.pgid ?? -1)).toEqual([]);
+  await expect.poll(() => cliRuns(screen).length, { timeout: 30_000 }).toBe(0);
+  expect(groupMembers(screen, leader ?? -1)).toEqual([]);
   await expect.poll(() => taskFolders(screen), { timeout: 30_000 }).toEqual([]);
   expect(taskRows(screen).at(-1)).toMatchObject({ state: "failed", refusal: "timeout" });
 });
@@ -157,16 +136,18 @@ test("at most 2 tasks run at once and the third waits", async () => {
   let peak = 0;
   let finished = false;
 
-  const calls = Promise.all([verifyCall(), verifyCall(), verifyCall()]).then((results) => {
-    finished = true;
+  const calls = Promise.all([verifyCall(screen), verifyCall(screen), verifyCall(screen)]).then(
+    (results) => {
+      finished = true;
 
-    return results;
-  });
+      return results;
+    },
+  );
 
   await expect
     .poll(
       () => {
-        peak = Math.max(peak, claudeRuns(screen).length);
+        peak = Math.max(peak, cliRuns(screen).length);
 
         return finished;
       },
@@ -192,7 +173,7 @@ test("stopping the Instance during an automatic Digest, with no request waiting,
   const id = await pasteWithoutWaiting(screen.context.request);
 
   await expect
-    .poll(() => claudeRuns(screen).length, { timeout: 120_000, intervals: [100] })
+    .poll(() => cliRuns(screen).length, { timeout: 120_000, intervals: [100] })
     .toBeGreaterThan(0);
   const [folder] = taskFolders(screen);
 
@@ -206,7 +187,11 @@ test("stopping the Instance during an automatic Digest, with no request waiting,
 test("a CLI removed after start answers not-configured and reads as signed out", async () => {
   appShell(screen, "rm -f /data/cli/bin/claude");
 
-  expect(await verifyCall()).toEqual({ kind: "refused", reason: "not-configured", status: null });
+  expect(await verifyCall(screen)).toEqual({
+    kind: "refused",
+    reason: "not-configured",
+    status: null,
+  });
   expect((await settingsView(screen)).signedIn).toEqual([]);
   expect(taskRows(screen).at(-1)).toMatchObject({ state: "failed", refusal: "not-configured" });
   expect(taskFolders(screen)).toEqual([]);

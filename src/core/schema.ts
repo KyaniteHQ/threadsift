@@ -167,6 +167,7 @@ export const settings = sqliteTable(
         "xai",
         "workers-ai",
         "claude-code",
+        "codex",
       ],
     }).notNull(),
     baseUrl: text("base_url"),
@@ -177,7 +178,7 @@ export const settings = sqliteTable(
     check("settings_is_one_row", sql`${table.id} = 1`),
     check(
       "settings_connection_columns",
-      sql`(${table.provider} in ('workers-ai', 'claude-code') and ${table.baseUrl} is null and ${table.sealedKey} is null) or (${table.provider} not in ('workers-ai', 'claude-code') and ${table.baseUrl} is not null and ${table.sealedKey} is not null)`,
+      sql`(${table.provider} in ('workers-ai', 'claude-code', 'codex') and ${table.baseUrl} is null and ${table.sealedKey} is null) or (${table.provider} not in ('workers-ai', 'claude-code', 'codex') and ${table.baseUrl} is not null and ${table.sealedKey} is not null)`,
     ),
   ],
 );

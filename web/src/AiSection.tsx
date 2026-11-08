@@ -1,8 +1,8 @@
 import { useCallback, type SubmitEvent } from "react";
 
-import { type Digest, type Provider } from "../../src/core/ai-contract.ts";
+import { type Digest, type Provider, isCliProvider } from "../../src/core/ai-contract.ts";
 import type { AiView } from "./ai-api.ts";
-import { AI_TEXT } from "./ai-text.ts";
+import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { SwapButton } from "./SwapButton.tsx";
@@ -61,7 +61,7 @@ function AiActions({
 function keyStatus(provider: Provider, keySaved: boolean): string {
   if (provider === "workers-ai") return AI_TEXT.keyNotNeeded;
 
-  if (provider === "claude-code") return AI_TEXT.claudeCodeKeyNotNeeded;
+  if (isCliProvider(provider)) return CLI_TEXT[provider].keyNotNeeded;
 
   return keySaved ? AI_TEXT.keySet : AI_TEXT.keyMissing;
 }
@@ -85,13 +85,14 @@ function ProviderNotes({
   saveBlocked,
 }: Readonly<{ view: AiView; provider: Provider; keySaved: boolean; saveBlocked: boolean }>) {
   const signedOut = isSignedOut(view, provider);
+  const cli = isCliProvider(provider) ? CLI_TEXT[provider] : null;
 
   return (
     <>
       <p>{keyStatus(provider, keySaved)}</p>
-      {signedOut ? (
+      {signedOut && cli !== null ? (
         <p className="fld-help">
-          {AI_TEXT.claudeCodeSignedOut} <code>{AI_TEXT.claudeCodeSignInCommand}</code>.
+          {cli.signedOut} <code>{cli.signInCommand}</code>.
         </p>
       ) : null}
       {saveBlocked && !signedOut ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}

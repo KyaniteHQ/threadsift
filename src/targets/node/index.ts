@@ -23,6 +23,7 @@ const env = z
     PATH: z.string().default(""),
     CLAUDE_CONFIG_DIR: z.string().optional(),
     CLAUDE_CODE_OAUTH_TOKEN: z.string().optional(),
+    CODEX_HOME: z.string().optional(),
   })
   .parse(process.env);
 
@@ -46,6 +47,11 @@ const node = await startNode(database.db, {
     path: env.PATH,
     configDir: env.CLAUDE_CONFIG_DIR,
     token: env.CLAUDE_CODE_OAUTH_TOKEN,
+  },
+  codex: {
+    path: env.PATH,
+    home: env.CODEX_HOME,
+    dataDir: env.DATA_DIR,
   },
 });
 

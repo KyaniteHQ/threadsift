@@ -7,9 +7,10 @@ import {
   type Digest,
   type AiRefused,
   type Provider,
+  isCliProvider,
 } from "../../src/core/ai-contract.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
-import { AI_TEXT } from "./ai-text.ts";
+import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { useField, useGuard } from "./use-form.ts";
 
 function useAiFields(view: AiView) {
@@ -42,8 +43,7 @@ type Result =
   | { readonly kind: "error"; readonly text: string };
 
 function refusalText(refusal: AiRefused, provider: Provider): string {
-  if (provider === "claude-code" && refusal.reason === "wrong-key")
-    return AI_TEXT.claudeCodeRejected;
+  if (isCliProvider(provider) && refusal.reason === "wrong-key") return CLI_TEXT[provider].rejected;
 
   return refusal.reason === "provider-busy" && refusal.status !== null
     ? `${AI_TEXT[refusal.reason]} (${String(refusal.status)})`
@@ -69,11 +69,11 @@ function useAiResult() {
 }
 
 function needsSecret(provider: Provider): boolean {
-  return provider !== "workers-ai" && provider !== "claude-code";
+  return provider !== "workers-ai" && !isCliProvider(provider);
 }
 
 export function isSignedOut(view: AiView, provider: Provider): boolean {
-  return provider === "claude-code" && !view.signedIn.includes(provider);
+  return isCliProvider(provider) && !view.signedIn.includes(provider);
 }
 
 function useVerify(

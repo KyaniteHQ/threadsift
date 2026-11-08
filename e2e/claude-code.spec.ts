@@ -1,5 +1,4 @@
-import { type TestInfo, expect, test } from "@playwright/test";
-import { z } from "zod";
+import { expect, test } from "@playwright/test";
 
 import { AiSaveResponseSchema, VerifyResultSchema } from "../src/core/ai-contract.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
@@ -11,18 +10,15 @@ import {
   countRows,
   putSettings,
 } from "./ai.ts";
-import { postLinkRaw, settled } from "./api.ts";
-import { ESSAY } from "./articles.ts";
 import {
   CLAUDE_PROVIDER,
   claudeScreen,
   claudeToken,
-  installClaude,
+  CLAUDE_CLI,
   invalidClaudeToken,
   pickClaude,
-  settingsView,
-  taskRows,
 } from "./claude-code.ts";
+import { installCli, proveStoredDigest, saveAndVerify, settingsView, taskRows } from "./cli.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { isContainerTarget } from "./target.ts";
 
@@ -35,14 +31,6 @@ let screen: FreshScreen;
 test.afterEach(async () => {
   await screen?.close();
 });
-
-async function saveAndVerify(): Promise<void> {
-  const { page } = screen;
-  await pickClaude(page);
-  await page.getByRole("button", { name: AI_TEXT.save, exact: true }).click();
-  await expect(page.getByText(AI_TEXT.saved, { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: AI_TEXT.verify, exact: true }).click();
-}
 
 test("without the CLI the Claude Code row is absent and the API refuses it", async ({
   browser,
@@ -70,7 +58,7 @@ test("an installed Claude Code with no login shows the sign-in command and keeps
 }) => {
   test.skip(!isContainerTarget(), "Claude Code runs only on the container");
   screen = await claudeScreen(browser);
-  installClaude(screen);
+  installCli(screen, CLAUDE_CLI);
 
   const view = await settingsView(screen);
 
@@ -101,8 +89,8 @@ test("a rejected token shows wrong-key on Verify and leaks nothing", async ({ br
   test.skip(!isContainerTarget(), "Claude Code runs only on the container");
   const rejected = invalidClaudeToken();
   screen = await claudeScreen(browser, rejected);
-  installClaude(screen);
-  await saveAndVerify();
+  installCli(screen, CLAUDE_CLI);
+  await saveAndVerify(screen, CLAUDE_PROVIDER);
   await expect(screen.page.getByText(AI_TEXT.claudeCodeRejected, { exact: true })).toBeVisible({
     timeout: 120_000,
   });
@@ -124,35 +112,6 @@ test("a rejected token shows wrong-key on Verify and leaks nothing", async ({ br
   });
 });
 
-async function proveStoredDigest(info: TestInfo, token: string): Promise<void> {
-  const request = screen.context.request;
-  const saved = await postLinkRaw(request, ESSAY);
-  const item = await settled(request, saved.body.item.id, 420_000);
-
-  expect(item).toMatchObject({ status: "ready", digestOutcome: "none" });
-
-  const stored = screen.fresh.query(
-    "SELECT d.provider, d.model, t.executor, t.state FROM digests d JOIN ai_tasks t ON t.id = d.task_id",
-    z.array(
-      z.object({
-        provider: z.string(),
-        model: z.string().nullable(),
-        executor: z.string(),
-        state: z.string(),
-      }),
-    ),
-  );
-
-  expect(stored).toEqual([
-    { provider: CLAUDE_PROVIDER, model: null, executor: "cli", state: "done" },
-  ]);
-  await info.attach("automatic-digest", {
-    body: JSON.stringify(item),
-    contentType: "application/json",
-  });
-  assertNoSecret(JSON.stringify(item), [token]);
-}
-
 test("Claude Code in the volume verifies, digests a pasted article and survives a recreated container", async ({
   browser,
 }, info) => {
@@ -167,13 +126,13 @@ test("Claude Code in the volume verifies, digests a pasted article and survives 
 
   if (token === undefined) return;
   screen = await claudeScreen(browser, token);
-  installClaude(screen);
-  await saveAndVerify();
+  installCli(screen, CLAUDE_CLI);
+  await saveAndVerify(screen, CLAUDE_PROVIDER);
   await expect(screen.page.getByText(AI_TEXT.verified, { exact: true })).toBeVisible({
     timeout: 120_000,
   });
   await expect(screen.page.locator(".ai-digest h3")).not.toBeEmpty();
-  await proveStoredDigest(info, token);
+  await proveStoredDigest(screen, info, CLAUDE_PROVIDER, [token]);
 
   screen.fresh.restart({ CLAUDE_CODE_OAUTH_TOKEN: token });
   const view = await settingsView(screen);

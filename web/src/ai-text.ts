@@ -16,6 +16,7 @@ export const AI_TEXT = {
   xai: "xAI",
   workersAi: "Workers AI",
   claudeCode: "Claude Code on this server",
+  codex: "Codex on this server",
   workersAiHelp:
     "Workers AI runs on this Instance's Cloudflare account. No URL or API key is needed.",
   keyNotNeeded: "No API key needed for Workers AI.",
@@ -26,6 +27,13 @@ export const AI_TEXT = {
   claudeCodeSignInCommand: "claude auth login",
   claudeCodeRejected:
     "Claude Code's sign-in was rejected. Run claude auth login on the server, or replace the token it started with, then press Verify again.",
+  codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in on this server.",
+  codexModelHelp:
+    "Leave blank to use Codex's default model. Any model you enter must be listed by codex debug models --bundled.",
+  codexSignedOut: "Codex is not signed in on this server. Reload this page after signing in with",
+  codexSignInCommand: "codex login --device-auth",
+  codexRejected:
+    "Codex's sign-in was rejected. Run codex login --device-auth on the server, then press Verify again.",
   baseUrl: "Base URL",
   model: "Model",
   key: "API key",
@@ -55,7 +63,25 @@ export const AI_TEXT = {
   timeout: "The Provider timed out. Try Verify again.",
   refused:
     "Base URL refused. On Cloudflare use a public HTTPS URL; redirects are refused on both targets.",
-  "not-configured": "Save Provider settings first, or sign in to Claude Code on this server.",
+  "not-configured":
+    "Save Provider settings first, or sign in to Claude Code or Codex on this server.",
   "provider-unavailable":
     "This Provider is not available on this Instance. Choose another Provider.",
+} as const;
+
+export const CLI_TEXT = {
+  "claude-code": {
+    keyNotNeeded: AI_TEXT.claudeCodeKeyNotNeeded,
+    modelHelp: AI_TEXT.claudeCodeModelHelp,
+    signedOut: AI_TEXT.claudeCodeSignedOut,
+    signInCommand: AI_TEXT.claudeCodeSignInCommand,
+    rejected: AI_TEXT.claudeCodeRejected,
+  },
+  codex: {
+    keyNotNeeded: AI_TEXT.codexKeyNotNeeded,
+    modelHelp: AI_TEXT.codexModelHelp,
+    signedOut: AI_TEXT.codexSignedOut,
+    signInCommand: AI_TEXT.codexSignInCommand,
+    rejected: AI_TEXT.codexRejected,
+  },
 } as const;

@@ -140,7 +140,7 @@ function keylessRow(provider: Keyless["provider"], model: string) {
 async function nextSettings(ports: AiPorts, loaded: LoadedAi, input: Readonly<AiSettingsInput>) {
   if (input.provider === "workers-ai") return keylessRow(input.provider, input.model);
 
-  if (input.provider === "claude-code")
+  if (input.provider === "claude-code" || input.provider === "codex")
     return (await ports.ai.signedIn()).includes(input.provider)
       ? keylessRow(input.provider, input.model)
       : refusedAi("not-configured");
