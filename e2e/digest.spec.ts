@@ -187,8 +187,9 @@ async function proveKeptDigest(
   });
   await rowShows(kept.id, kept.digestTitle ?? "", kept.digestTopic ?? "");
   await expect(screen.page.getByText(NO_DIGEST, { exact: true })).toHaveCount(0);
-  await expect(screen.page.getByText(DIGEST_NOT_UPDATED, { exact: true })).toBeVisible();
-  await expect(screen.page.getByRole("button", { name: RETRY_LABEL, exact: true })).toBeVisible();
+  const row = screen.page.locator(`article[data-key='${kept.id}']`);
+  await expect(row.getByText(DIGEST_NOT_UPDATED, { exact: true })).toBeVisible();
+  await expect(row.getByRole("button", { name: RETRY_LABEL, exact: true })).toBeVisible();
   await digestScreens(screen, info, "kept-digest");
   await refuseRetryPost(kept.id);
   await attachJson(
