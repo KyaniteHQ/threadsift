@@ -7,6 +7,7 @@ export const MANIFEST = [
   "ai_tasks",
   "digests",
   "github_repos",
+  "item_aliases",
   "item_tags",
   "jobs",
   "reddit_comments",

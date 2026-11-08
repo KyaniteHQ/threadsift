@@ -1,5 +1,4 @@
-import { type SQLWrapper, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
+import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { FETCH_RESULTS } from "./fetch-results.ts";
@@ -14,7 +13,6 @@ import {
   SOURCES,
   WAIT_REASONS,
 } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 
 export {
   type AgentTokenRow,
@@ -25,7 +23,11 @@ export {
   throttles,
 } from "./access-tables.ts";
 
+export { itemAliases } from "./alias-tables.ts";
+
 export { dataStepRenames, dataSteps } from "./data-step-tables.ts";
+
+export { guardHolds, guardedBatch, guards, insertGuard } from "./guards.ts";
 
 export { githubCooldown, githubSettings } from "./github-tables.ts";
 
@@ -116,43 +118,6 @@ export const fileCleaning = sqliteTable(
   },
   (table) => [check("file_cleaning_is_one_row", sql`${table.id} = 1`)],
 );
-
-export const guards = sqliteTable(
-  "guards",
-  {
-    ok: integer("ok").notNull(),
-  },
-  (table) => [check("guards_hold", sql`${table.ok} = 1`)],
-);
-
-function guardRows(db: Database, condition: Readonly<SQLWrapper>) {
-  return db
-    .select({ ok: sql<number>`count(*)`.as("ok") })
-    .from(sql`(select 1)`)
-    .where(sql`${condition}`);
-}
-
-export function insertGuard(db: Database, condition: Readonly<SQLWrapper>) {
-  return db.insert(guards).select(guardRows(db, condition));
-}
-
-export async function guardedBatch(
-  db: Database,
-  condition: Readonly<SQLWrapper>,
-  writes: readonly BatchItem<"sqlite">[],
-): Promise<boolean> {
-  try {
-    await db.batch([insertGuard(db, condition), ...writes, db.delete(guards)]);
-
-    return true;
-  } catch (error) {
-    const [current] = await guardRows(db, condition);
-
-    if (current?.ok === 1) throw error;
-
-    return false;
-  }
-}
 
 export type ItemRow = typeof items.$inferSelect;
 

@@ -6,6 +6,7 @@ import { nameFile } from "./files.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { tickNow } from "./ingest.ts";
 import { matches } from "./search.ts";
+import { rememberAlias } from "./short-links.ts";
 import { FIRST_DIGEST, firstTree, marker, post, postUrl, run } from "./thread-fixtures.ts";
 import { AUTHORED_DIGEST, savedThread, threadJson } from "./threads.ts";
 
@@ -37,6 +38,12 @@ export async function seedHardCase(screen: FreshScreen) {
   screen.fresh.writeFile(keys[0], Buffer.from(`The file the Item names, of ${id}.`));
   nameFile(screen.fresh, item.id, `'${keys[0]}'`);
   addGithubRepository(screen.fresh, item.id);
+  rememberAlias(
+    screen.fresh,
+    `https://is.gd/deletion-${item.id}`,
+    `https://example.com/deletion-${item.id}`,
+    item.id,
+  );
 
   await expect
     .poll(

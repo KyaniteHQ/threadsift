@@ -7,6 +7,7 @@ import {
   aiTasks,
   digests,
   githubRepos,
+  itemAliases,
   itemTags,
   items,
   jobs,
@@ -44,13 +45,14 @@ export async function deleteItem(
   { db, files }: Readonly<Pick<Ports, "db" | "files">>,
   id: number,
 ): Promise<boolean> {
-  const [, , , , , , , , , removed] = await db.batch([
+  const [, , , , , , , , , , removed] = await db.batch([
     db.delete(redditComments).where(eq(redditComments.itemId, id)),
     db.delete(redditThreads).where(eq(redditThreads.itemId, id)),
     db.delete(githubRepos).where(eq(githubRepos.itemId, id)),
     db.delete(searchParts).where(eq(searchParts.itemId, id)),
     db.delete(searchFingerprints).where(eq(searchFingerprints.itemId, id)),
     db.delete(itemTags).where(eq(itemTags.itemId, id)),
+    db.delete(itemAliases).where(eq(itemAliases.itemId, id)),
     db.delete(digests).where(eq(digests.itemId, id)),
     db.delete(aiTasks).where(eq(aiTasks.itemId, id)),
     db.delete(jobs).where(eq(jobs.itemId, id)),

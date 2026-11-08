@@ -22,6 +22,15 @@ const LONG_SEGMENT = `${"segment-".repeat(30)}end`;
 export const SHORT_LINK = "https://is.gd/hK2a1W";
 export const SHORT_LINK_TARGET = "https://www.iana.org/help/example-domains";
 export const SHORT_LINK_TARGET_NORMALIZED = "https://iana.org/help/example-domains";
+export const TWIN_SHORT_LINK = "https://is.gd/l4OHN8";
+
+export const TWIN_SHORT_LINK_TARGET =
+  "https://www.iana.org/help/example-domains?utm_source=threadsift";
+
+export const DEAD_SHORT_LINK = "https://is.gd/VqYEAa";
+export const SLOW_SHORT_LINK = "https://is.gd/eiHtG6";
+export const SLOW_SHORT_LINK_TARGET = "https://httpbin.org/delay/4";
+export const TIMEOUT_SHORT_LINK = "https://is.gd/tcja72";
 export const X_POST = "https://x.com/jack/status/20";
 export const X_POST_IDENTITY = "https://x.com/i/status/20";
 export const MOVED_PAGE = "https://www.rfc-editor.org/rfc/rfc9110";
