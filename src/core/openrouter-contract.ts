@@ -23,6 +23,7 @@ export const ConnectNoticeSchema = z.enum([
   "incomplete",
   "settings-changed",
   "possible-orphan",
+  "activation-pending",
 ]);
 
 export type ConnectNotice = z.infer<typeof ConnectNoticeSchema>;
@@ -36,6 +37,6 @@ export function returnAddress(notice: ConnectNotice | null): string {
 }
 
 export type OpenRouterExchange =
-  | { readonly kind: "key"; readonly key: string }
+  | { readonly kind: "key"; readonly key: string; readonly active: boolean }
   | { readonly kind: "refused" }
   | { readonly kind: "uncertain" };

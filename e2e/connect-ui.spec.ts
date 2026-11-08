@@ -33,6 +33,10 @@ test("Settings shows a closed notice once, takes it out of the address, and says
       await expect(page.getByText(text, { exact: true })).toHaveCount(0);
     }
 
+    await page.goto("/settings?openrouter=activation-pending");
+    await expect(page.getByText(AI_TEXT.connectIncomplete, { exact: true })).toBeVisible();
+    await expect(page.getByText(AI_TEXT.connectActivationPending, { exact: true })).toHaveCount(0);
+
     await page.goto("/settings?openrouter=something-else");
     await expect(page.getByRole("region", { name: AI_TEXT.title, exact: true })).toBeVisible();
 
@@ -47,6 +51,9 @@ test("Settings shows a closed notice once, takes it out of the address, and says
 
     await page.goto("/settings?openrouter=connected");
     await expect(page.getByText(AI_TEXT.connected, { exact: true })).toBeVisible();
+
+    await page.goto("/settings?openrouter=activation-pending");
+    await expect(page.getByText(AI_TEXT.connectActivationPending, { exact: true })).toBeVisible();
   } finally {
     await screen.close();
   }

@@ -2,10 +2,13 @@ import { z } from "zod";
 
 import { AI_KEY_MAX } from "../../core/ai-contract.ts";
 import type { OpenRouterExchange } from "../../core/openrouter-contract.ts";
-import type { AiRuntime } from "../../core/ports.ts";
+import { HOP_DEADLINE_MS, type AiRuntime } from "../../core/ports.ts";
 import { aiTransport } from "./ai-transport.ts";
 
 const EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";
+const KEY_URL = "https://openrouter.ai/api/v1/key";
+const ACTIVATION_WAIT_MS = 45_000;
+const ACTIVATION_POLL_MS = 1_000;
 const ANSWER_CAP_BYTES = 16 * 1024;
 const REFUSING_STATUSES: ReadonlySet<number> = new Set([400, 403]);
 
@@ -26,12 +29,48 @@ async function cappedText(body: AsyncIterable<Uint8Array>): Promise<string> {
   return text + decoder.decode();
 }
 
-async function keyOf(body: AsyncIterable<Uint8Array> | null): Promise<OpenRouterExchange> {
+function pause(ms: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function activated(send: typeof fetch, key: string, deadline: number): Promise<boolean> {
+  try {
+    const response = await send(KEY_URL, {
+      headers: { authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(HOP_DEADLINE_MS),
+    });
+
+    await response.body?.cancel();
+
+    if (response.status === 200) return true;
+
+    if (response.status !== 401 || Date.now() + ACTIVATION_POLL_MS >= deadline) return false;
+  } catch {
+    return false;
+  }
+
+  await pause(ACTIVATION_POLL_MS);
+
+  return activated(send, key, deadline);
+}
+
+async function keyOf(
+  send: typeof fetch,
+  body: AsyncIterable<Uint8Array> | null,
+): Promise<OpenRouterExchange> {
   const answer = KeyAnswerSchema.safeParse(
     body === null ? null : JSON.parse(await cappedText(body)),
   );
 
-  return answer.success ? { kind: "key", key: answer.data.key } : { kind: "uncertain" };
+  return answer.success
+    ? {
+        kind: "key",
+        key: answer.data.key,
+        active: await activated(send, answer.data.key, Date.now() + ACTIVATION_WAIT_MS),
+      }
+    : { kind: "uncertain" };
 }
 
 export function openRouterExchange(request: typeof fetch): AiRuntime["exchangeOpenRouterCode"] {
@@ -46,7 +85,7 @@ export function openRouterExchange(request: typeof fetch): AiRuntime["exchangeOp
         signal,
       });
 
-      if (response.status === 200) return await keyOf(response.body);
+      if (response.status === 200) return await keyOf(send, response.body);
 
       await response.body?.cancel();
 

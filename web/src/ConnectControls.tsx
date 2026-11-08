@@ -76,5 +76,16 @@ export function ConnectNotice({ view }: Readonly<{ view: AiView }>) {
   if (notice === "connected" && holdsOpenRouterKey(view))
     return <output>{AI_TEXT.connected}</output>;
 
-  return <Alert text={FAILURE_TEXT[notice === "connected" ? "incomplete" : notice]} />;
+  if (notice === "activation-pending" && holdsOpenRouterKey(view))
+    return <output>{AI_TEXT.connectActivationPending}</output>;
+
+  return (
+    <Alert
+      text={
+        FAILURE_TEXT[
+          notice === "connected" || notice === "activation-pending" ? "incomplete" : notice
+        ]
+      }
+    />
+  );
 }

@@ -51,6 +51,8 @@ export const AI_TEXT = {
     "Settings changed since this page loaded, so Connect did not start. Reload the page and try again.",
   connectFailed: "Connect could not start. Try again.",
   connected: "OpenRouter key saved. Press Verify to check the model.",
+  connectActivationPending:
+    "The key is saved. OpenRouter has not activated the new key yet, so Digests for older Items did not start. Wait a minute, press Verify to check the key, and then press Save to start those Digests.",
   connectIncomplete:
     "Threadsift could not confirm this Connect. Press Verify to check the key, or press Connect again if no key is saved.",
   connectSettingsChanged:
