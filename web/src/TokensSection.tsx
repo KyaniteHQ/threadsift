@@ -1,18 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { Token } from "../../src/http/schemas.ts";
-import { fetchTokens } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
 import { TokenForm } from "./TokenForm.tsx";
 import { TokenList } from "./TokenList.tsx";
 import { TokenReveal } from "./TokenReveal.tsx";
 import { useField } from "./use-form.ts";
-
-type Loaded =
-  | { readonly status: "loading" }
-  | { readonly status: "failed" }
-  | { readonly status: "ready"; readonly tokens: readonly Token[] };
+import type { Loaded } from "./use-settings-load.ts";
 
 const NO_TOKENS: readonly Token[] = [];
 
@@ -21,66 +16,40 @@ interface Revealed {
   readonly value: string;
 }
 
-function withTokens(
-  current: Loaded,
-  incoming: readonly Token[],
-  isRevoked: (id: number) => boolean,
-): Loaded {
-  const fresh = incoming.filter((token) => !isRevoked(token.id));
-  const ids = new Set(fresh.map((token) => token.id));
+function useTokens(initial: Loaded<readonly Token[]>) {
+  const [loaded, setLoaded] = useState(initial);
 
-  const kept =
-    current.status === "ready" ? current.tokens.filter((token) => !ids.has(token.id)) : [];
+  const add = useCallback((token: Token) => {
+    setLoaded((current) => ({
+      kind: "ready",
+      view: [token, ...(current.kind === "ready" ? current.view : NO_TOKENS)].toSorted(
+        (a, b) => b.id - a.id,
+      ),
+    }));
+  }, []);
 
-  return { status: "ready", tokens: [...kept, ...fresh].toSorted((a, b) => b.id - a.id) };
+  const remove = useCallback((id: number) => {
+    setLoaded((current) =>
+      current.kind === "ready"
+        ? { kind: "ready", view: current.view.filter((token) => token.id !== id) }
+        : current,
+    );
+  }, []);
+
+  return {
+    failed: loaded.kind === "failed",
+    tokens: loaded.kind === "ready" ? loaded.view : NO_TOKENS,
+    add,
+    remove,
+  };
 }
 
-function useTokens() {
-  const [tokens, setTokens] = useState<Loaded>({ status: "loading" });
-  const [revoked] = useState(() => new Set<number>());
-  const isRevoked = useCallback((id: number) => revoked.has(id), [revoked]);
-
-  useEffect(() => {
-    const load = async (): Promise<void> => {
-      try {
-        const loaded = await fetchTokens();
-        setTokens((current) => withTokens(current, loaded, isRevoked));
-      } catch {
-        setTokens({ status: "failed" });
-      }
-    };
-
-    void load();
-  }, [isRevoked]);
-
-  const add = useCallback(
-    (token: Token) => {
-      setTokens((current) => withTokens(current, [token], isRevoked));
-    },
-    [isRevoked],
-  );
-
-  const remove = useCallback(
-    (id: number) => {
-      revoked.add(id);
-      setTokens((current) =>
-        current.status === "ready"
-          ? { status: "ready", tokens: current.tokens.filter((token) => token.id !== id) }
-          : current,
-      );
-    },
-    [revoked],
-  );
-
-  return { tokens, add, remove };
-}
-
-export function TokensSection() {
+export function TokensSection({ initial }: Readonly<{ initial: Loaded<readonly Token[]> }>) {
   const name = useField();
   const [revealed, setRevealed] = useState<Revealed | null>(null);
   const { ref: nameRef } = name;
 
-  const { tokens, add, remove } = useTokens();
+  const { failed, tokens, add, remove } = useTokens(initial);
 
   const created = useCallback(
     (token: Token, value: string) => {
@@ -105,12 +74,8 @@ export function TokensSection() {
       {revealed === null ? null : (
         <TokenReveal name={revealed.name} value={revealed.value} done={dismiss} />
       )}
-      <Alert text={tokens.status === "failed" ? SETTINGS.tokensLoadFailed : null} />
-      <TokenList
-        tokens={tokens.status === "ready" ? tokens.tokens : NO_TOKENS}
-        removed={remove}
-        nameField={nameRef}
-      />
+      <Alert text={failed ? SETTINGS.tokensLoadFailed : null} />
+      <TokenList tokens={tokens} removed={remove} nameField={nameRef} />
     </section>
   );
 }

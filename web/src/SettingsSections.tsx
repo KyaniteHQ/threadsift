@@ -15,7 +15,7 @@ export function SettingsSections({
     <>
       <AiSection initial={loaded.ai} />
       <GithubSection initial={loaded.github} />
-      <TokensSection />
+      <TokensSection initial={loaded.tokens} />
       <PasswordSection />
       <section className="sec" aria-labelledby="sign-out-title">
         <h2 id="sign-out-title" className="rd-h">
