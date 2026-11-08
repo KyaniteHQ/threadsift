@@ -51,11 +51,10 @@ export async function startNode(
     stop: async () => {
       const drained = loop.stop();
 
-      pages.stop();
-
       for (const runner of cli) runner.stop();
 
       await drained;
+      pages.stop();
     },
   };
 }
