@@ -19,10 +19,17 @@ const ROUTES = [
   "/api/items/:id/status",
   "/api/items/:id/digest",
   "/api/items/:id/read-state",
+  "/api/items/:id/highlights",
+  "/api/items/:id/highlights/:highlightId",
 ] as const;
 
-export function routeTemplate(path: string): string {
-  const template = path.replaceAll(/\/\d+(?=\/|$)/gu, "/:id");
+const PARAMETER = /:[A-Za-z]+/gu;
 
-  return ROUTES.find((route) => route === template) ?? "other";
+const PATTERNS = ROUTES.map((route) => ({
+  route,
+  pattern: new RegExp(`^${route.replaceAll(PARAMETER, String.raw`(?:\d+|:[A-Za-z]+)`)}$`, "u"),
+}));
+
+export function routeTemplate(path: string): string {
+  return PATTERNS.find(({ pattern }) => pattern.test(path))?.route ?? "other";
 }
