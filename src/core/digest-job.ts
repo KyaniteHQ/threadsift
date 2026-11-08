@@ -14,11 +14,10 @@ import {
 import { AI_DEADLINE_MS, parseStoredDigest, retriesAi } from "./ai-contract.ts";
 import { TASKS, startCallerTask, runAiTask, expireAiTasks } from "./ai-tasks.ts";
 import { readCatalog, linkOlderDigests } from "./catalog.ts";
-import { publishing } from "./digest-publish.ts";
+import { publishing, readForPublishing } from "./digest-publish.ts";
 import {
   type DigestInput,
   currency,
-  digestInput,
   generationCurrent,
   hasDigestSource,
   logSubmission,
@@ -33,7 +32,7 @@ import type { Database } from "./ports.ts";
 import { digests, insertGuard, items, settings } from "./schema.ts";
 
 async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
-  const [item] = await digestInput(ports.db, job.itemId);
+  const { item, anchors } = await readForPublishing(ports.db, job.itemId);
 
   if (item === undefined) return { writes: markKeptDigest(ports.db, job.itemId) };
 
@@ -41,7 +40,7 @@ async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promis
 
   return item.pendingDigest === null
     ? attemptModel(ports, job, item)
-    : attemptCaller(ports, job, item, item.pendingDigest);
+    : attemptCaller(ports, job, item, item.pendingDigest, anchors);
 }
 
 function emptyInput(db: Database, item: Readonly<DigestInput>): JobOutcome {
@@ -62,6 +61,7 @@ async function attemptCaller(
   job: Readonly<ClaimedJob>,
   item: Readonly<DigestInput>,
   pendingDigest: string,
+  anchors: Awaited<ReturnType<typeof readForPublishing>>["anchors"],
 ): Promise<JobOutcome> {
   const digest = parseStoredDigest(pendingDigest);
 
@@ -74,7 +74,7 @@ async function attemptCaller(
 
   if (taskId === null) return lostClaim(ports.db);
 
-  return publishing(ports.db, item, digest, taskId, { executor: "caller" });
+  return publishing(ports.db, item, digest, taskId, { executor: "caller" }, anchors);
 }
 
 async function attemptModel(

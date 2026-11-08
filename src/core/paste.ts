@@ -7,7 +7,7 @@ import { parseLink, redditRefOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { THREAD_CONTENT_BYTES, parseRedditThread } from "./reddit-json.ts";
 import { saveItem } from "./save-link.ts";
-import { threadItemInsert, threadPublication } from "./thread-publish.ts";
+import { publishThread } from "./thread-save.ts";
 
 export interface Supplied {
   readonly digest?: Digest | undefined;
@@ -38,20 +38,17 @@ async function saveThread(
   const { db } = ports;
   const place = { ...parseLink(absoluteUrl), address: absoluteUrl };
 
-  const [inserted] = await db.batch([
-    threadItemInsert(db, place),
-    ...threadPublication(
-      db,
-      place,
-      parsed.thread,
-      digest === undefined ? null : JSON.stringify(digest),
-    ),
-  ]);
+  const created = await publishThread(
+    db,
+    place,
+    parsed.thread,
+    digest === undefined ? null : JSON.stringify(digest),
+  );
 
   const item = await itemAt(db, place.normalizedUrl);
   await enqueueItemJobs(ports, item.id);
 
-  return { kind: "saved", item, created: inserted.length > 0 };
+  return { kind: "saved", item, created };
 }
 
 export async function paste(

@@ -6,12 +6,25 @@ import { catalogCurrent, catalogEntries, linkingDigest } from "./catalog.ts";
 import {
   type DigestInput,
   currency,
+  digestInput,
   generationCurrent,
   setDigestFailure,
 } from "./digest-source.ts";
-import { MAX_STALE_REQUEUES, type JobOutcome } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
-import { selectedBodies, selectionWrites, submittedAmong } from "./reddit-thread.ts";
+import {
+  type AnchorSnapshot,
+  anchorReads,
+  anchoredOutcome,
+  type Publication,
+  commentIdsOf,
+  snapshotOf,
+} from "./highlight-publish.ts";
+import { MAX_STALE_REQUEUES, type JobOutcome, type JobPorts } from "./job-outcome.ts";
+import {
+  highlightedComments,
+  selectedBodies,
+  selectionWrites,
+  submittedAmong,
+} from "./reddit-thread.ts";
 import { digests, insertGuard, items } from "./schema.ts";
 import { commentPartWrites, digestPartWrites } from "./search.ts";
 
@@ -26,21 +39,30 @@ type DigestSource =
       readonly submitted: readonly string[];
     };
 
-export async function publishing(
-  db: Database,
+export async function readForPublishing(db: JobPorts["db"], itemId: number) {
+  const [[item], ...reads] = await db.batch([
+    digestInput(db, itemId),
+    ...anchorReads(db, eq(items.id, itemId)),
+  ]);
+
+  return { item, anchors: snapshotOf(reads) };
+}
+
+function storedDigest(
   item: Readonly<DigestInput>,
   digest: Readonly<Digest>,
   taskId: number,
-  source: DigestSource,
-): Promise<JobOutcome> {
-  const entries = catalogEntries(digest);
-  const { catalog, provider, model, published } = digestOrigin(source, digest, entries);
-  const generation = generationCurrent(item);
-  const kept = published.keptComments ?? [];
-  const snapshot = { itemId: item.id, generation: item.generation };
-  const bodies = kept.length === 0 ? [] : await selectedBodies(db, snapshot, kept);
-
-  const stored = {
+  {
+    provider,
+    model,
+    published,
+  }: Readonly<{
+    provider: string | null;
+    model: string | null;
+    published: Readonly<Digest>;
+  }>,
+) {
+  return {
     itemId: item.id,
     digest: JSON.stringify(published),
     title: digest.title,
@@ -51,22 +73,61 @@ export async function publishing(
     generation: item.generation,
     createdAt: Date.now(),
   };
+}
 
+function keptCommentsPublication(
+  db: JobPorts["db"],
+  snapshot: Readonly<{ itemId: number; generation: number }>,
+): Publication {
   return {
-    currency: currency(db, sql`${generation} and ${catalog}`, taskId),
-    writes: [
-      insertGuard(db, generation),
-      insertGuard(db, catalog),
-      ...linkingDigest(db, item.id, entries),
-      db.insert(digests).values(stored).onConflictDoUpdate({ target: digests.itemId, set: stored }),
-      ...selectionWrites(db, snapshot, kept),
-      ...digestPartWrites(db, eq(items.id, item.id)),
-      ...commentPartWrites(db, eq(items.id, item.id), bodies),
-      completedAiTask(db, { taskId, result: published }),
-      db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
-      setDigestFailure(db, item.id, false),
-    ],
+    owner: eq(items.id, snapshot.itemId),
+    displayed: async (current) => ({
+      comments: await highlightedComments(db, snapshot, commentIdsOf(current)),
+    }),
   };
+}
+
+export async function publishing(
+  db: JobPorts["db"],
+  item: Readonly<DigestInput>,
+  digest: Readonly<Digest>,
+  taskId: number,
+  source: DigestSource,
+  anchors?: Readonly<AnchorSnapshot>,
+): Promise<JobOutcome> {
+  const entries = catalogEntries(digest);
+  const origin = digestOrigin(source, digest, entries);
+  const { catalog, published } = origin;
+  const generation = generationCurrent(item);
+  const kept = published.keptComments ?? [];
+  const snapshot = { itemId: item.id, generation: item.generation };
+  const bodies = kept.length === 0 ? [] : await selectedBodies(db, snapshot, kept);
+
+  const stored = storedDigest(item, digest, taskId, origin);
+
+  return anchoredOutcome(
+    db,
+    {
+      currency: currency(db, sql`${generation} and ${catalog}`, taskId),
+      writes: [
+        insertGuard(db, generation),
+        insertGuard(db, catalog),
+        ...linkingDigest(db, item.id, entries),
+        db
+          .insert(digests)
+          .values(stored)
+          .onConflictDoUpdate({ target: digests.itemId, set: stored }),
+        ...selectionWrites(db, snapshot, kept),
+        ...digestPartWrites(db, eq(items.id, item.id)),
+        ...commentPartWrites(db, eq(items.id, item.id), bodies),
+        completedAiTask(db, { taskId, result: published }),
+        db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
+        setDigestFailure(db, item.id, false),
+      ],
+    },
+    keptCommentsPublication(db, snapshot),
+    anchors,
+  );
 }
 
 function digestOrigin(

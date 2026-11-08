@@ -3,6 +3,7 @@ import { z } from "zod";
 import { DigestSchema, ReaderDigestSchema } from "../core/ai-contract.ts";
 import { CommentsViewSchema } from "../core/comment-view.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
+import { HighlightsViewSchema } from "../core/highlight-contract.ts";
 import {
   DIGEST_OUTCOMES,
   FAILURE_REASONS,
@@ -83,6 +84,7 @@ const ItemDetailSchema = withStatus(
     digest: ReaderDigestSchema.nullable(),
     repository: RepositorySchema.nullable(),
     comments: CommentsViewSchema,
+    highlights: HighlightsViewSchema,
   }),
 );
 
@@ -196,6 +198,10 @@ export const CreatedTokenResponseSchema = z.object({ token: TokenSchema, value: 
 export const TokenListResponseSchema = z.object({ tokens: z.array(TokenSchema) });
 
 export const IdParamSchema = z.object({ id: z.coerce.number().int().positive() });
+
+export const HighlightParamsSchema = IdParamSchema.extend({
+  highlightId: z.coerce.number().int().positive(),
+});
 
 export type Token = z.infer<typeof TokenSchema>;
 

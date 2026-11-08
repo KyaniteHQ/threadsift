@@ -44,3 +44,25 @@ export async function guardedBatch(
     return false;
   }
 }
+
+export async function guardedWrite<Write extends BatchItem<"sqlite">>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  write: Write,
+  rest: readonly BatchItem<"sqlite">[],
+): Promise<Write["_"]["result"] | null> {
+  try {
+    const [, result] = await db.batch([
+      insertGuard(db, condition),
+      write,
+      ...rest,
+      db.delete(guards),
+    ]);
+
+    return result;
+  } catch (error) {
+    if (await guardHolds(db, condition)) throw error;
+
+    return null;
+  }
+}

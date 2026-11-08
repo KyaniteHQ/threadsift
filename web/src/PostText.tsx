@@ -9,10 +9,11 @@ import {
   useMemo,
   useRef,
 } from "react";
-import Markdown, { type Components, defaultUrlTransform } from "react-markdown";
+import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { z } from "zod";
 
+import { FOOTNOTE_LABEL_ID, readerUrl } from "../../src/core/reader-url.ts";
 import { CodeBlock } from "./CodeBlock.tsx";
 import { FOOTNOTES_LABEL, FOOTNOTE_BACK, FOOTNOTE_BACK_AGAIN, tableName } from "./reader-text.ts";
 import { watchFades } from "./scroll-fades.ts";
@@ -54,12 +55,6 @@ function columnsOf(node: Node | undefined): number {
 
   return (row?.children ?? []).filter((cell) => cell.type === "element").length;
 }
-
-function safeUrl(url: string): string {
-  return /^(?:https?:|mailto:|#)/iu.test(url) ? defaultUrlTransform(url) : "";
-}
-
-const FOOTNOTE_LABEL_ID = "footnote-label";
 
 const FootnoteScope = createContext("");
 
@@ -224,7 +219,7 @@ export const PostText = memo(function PostText({ text }: Readonly<{ text: string
           remarkPlugins={PLUGINS}
           remarkRehypeOptions={options}
           components={COMPONENTS}
-          urlTransform={safeUrl}
+          urlTransform={readerUrl}
         >
           {text}
         </Markdown>

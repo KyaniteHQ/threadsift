@@ -8,10 +8,12 @@ import { keptBodies, keptCommentIds } from "./reddit-thread.ts";
 import {
   digests,
   guardedBatch,
+  highlights,
   itemTags,
   items,
   githubRepos,
   searchFingerprints,
+  searchParts,
   searchReconciling,
   tags,
 } from "./schema.ts";
@@ -19,16 +21,23 @@ import {
   commentPartWrites,
   digestPartWrites,
   fetchedPartWrites,
+  highlightPartWrites,
   repositoryPartWrites,
   repositoryText,
 } from "./search.ts";
 
 const RECONCILE_BATCH = 10;
 
-const NO_KEPT_COMMENTS = "[]";
+const NONE = "[]";
 
 function tagNamesOfItem() {
   return sql<string>`(select coalesce(json_group_array(name), '[]') from (select ${tags.name} as name from ${itemTags} join ${tags} on ${tags.id} = ${itemTags.tagId} where ${itemTags.itemId} = ${items.id} order by ${tags.key}))`;
+}
+
+function highlightPartsHold() {
+  return sql<boolean>`(not exists (select 1 from ${highlights} where ${highlights.itemId} = ${items.id} and not exists (select 1 from ${searchParts} where ${searchParts.highlightId} = ${highlights.id} and ${searchParts.body} = ${highlights.exact})) and not exists (select 1 from ${searchParts} where ${searchParts.itemId} = ${items.id} and ${searchParts.kind} = 'highlight' and not exists (select 1 from ${highlights} where ${highlights.id} = ${searchParts.highlightId} and ${highlights.exact} = ${searchParts.body})))`.mapWith(
+    Boolean,
+  );
 }
 
 function repositoryOfItem() {
@@ -49,6 +58,7 @@ function itemsAfter(db: Database, after: number) {
       repository: repositoryOfItem(),
       digestGeneration: digests.generation,
       comments: keptCommentIds(),
+      highlightsHold: highlightPartsHold(),
       fingerprint: searchFingerprints.fingerprint,
     })
     .from(items)
@@ -69,7 +79,7 @@ function fingerprintOf(crypto: Crypto, row: Readonly<Reconciled>): string {
     row.tagNames,
     ...(row.postTextKey === null ? [] : [row.postTextKey]),
     ...(row.repository === null ? [] : [row.repository]),
-    ...(row.comments === NO_KEPT_COMMENTS ? [] : [row.comments]),
+    ...(row.comments === NONE ? [] : [row.comments]),
   ]);
 
   return digestOf(crypto, sources);
@@ -108,10 +118,14 @@ async function reconcileItem(db: Database, row: Readonly<Reconciled>, fingerprin
 async function reconcileRow(ports: JobPorts, row: Readonly<Reconciled>): Promise<void> {
   const fingerprint = fingerprintOf(ports.crypto, row);
 
-  if (fingerprint === row.fingerprint) return;
-
   try {
-    await reconcileItem(ports.db, row, fingerprint);
+    if (fingerprint !== row.fingerprint) {
+      await reconcileItem(ports.db, row, fingerprint);
+    }
+
+    if (!row.highlightsHold) {
+      await ports.db.batch(highlightPartWrites(ports.db, eq(items.id, row.id)));
+    }
   } catch (error) {
     logFailure("search-parts-not-rewritten", { itemId: row.id }, error);
   }

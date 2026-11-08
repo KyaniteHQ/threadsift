@@ -1,9 +1,19 @@
-import { type SQL, type SQLWrapper, and, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import {
+  type SQL,
+  type SQLWrapper,
+  and,
+  eq,
+  inArray,
+  isNotNull,
+  ne,
+  notExists,
+  sql,
+} from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { SearchPartKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { digests, githubRepos, itemTags, items, searchParts, tags } from "./schema.ts";
+import { digests, githubRepos, highlights, itemTags, items, searchParts, tags } from "./schema.ts";
 import { jsonArrays } from "./thread-rows.ts";
 
 const CHUNK_UNITS = 125_000;
@@ -66,12 +76,17 @@ function replacing(db: Database, scope: Readonly<SQLWrapper>, kinds: readonly Se
     .where(and(inArray(searchParts.itemId, owners), inArray(searchParts.kind, kinds)));
 }
 
-function partOf(kind: SearchPartKind, body: Readonly<SQLWrapper>) {
+function partOf(
+  kind: SearchPartKind,
+  body: Readonly<SQLWrapper>,
+  highlightId: Readonly<SQLWrapper> | null = null,
+) {
   return {
     id: sql<null>`null`.as("id"),
     itemId: items.id,
     kind: sql<SearchPartKind>`${kind}`.as("kind"),
     body: sql<string>`${body}`.as("body"),
+    highlightId: sql<number | null>`${highlightId ?? sql`null`}`.as("highlight_id"),
   };
 }
 
@@ -183,6 +198,43 @@ export function digestPartWrites(
     digestFieldPart(db, scope, "summary"),
     tagsPart(db, scope),
   ];
+}
+
+export function highlightPartWrites(db: Database, scope: Readonly<SQLWrapper>) {
+  const owners = db
+    .select({ id: items.id })
+    .from(items)
+    .where(sql`${scope}`);
+
+  const current = db
+    .select({ one: sql`1` })
+    .from(highlights)
+    .where(and(eq(highlights.id, searchParts.highlightId), eq(highlights.exact, searchParts.body)));
+
+  const indexed = db
+    .select({ one: sql`1` })
+    .from(searchParts)
+    .where(eq(searchParts.highlightId, highlights.id));
+
+  return [
+    db
+      .delete(searchParts)
+      .where(
+        and(
+          inArray(searchParts.itemId, owners),
+          eq(searchParts.kind, "highlight"),
+          notExists(current),
+        ),
+      ),
+    db.insert(searchParts).select(
+      db
+        .select(partOf("highlight", highlights.exact, highlights.id))
+        .from(highlights)
+        .innerJoin(items, sql`${items.id} = ${highlights.itemId}`)
+        .where(and(sql`${scope}`, notExists(indexed)))
+        .orderBy(highlights.id),
+    ),
+  ] as const;
 }
 
 export function repositoryText() {

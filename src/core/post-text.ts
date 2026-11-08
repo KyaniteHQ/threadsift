@@ -49,3 +49,13 @@ export async function readPostText(
 
   return stream === null ? unavailable(itemId, key, "missing") : textOf(stream);
 }
+
+export function postTextOf(
+  files: FileStore,
+  itemId: number,
+  { postText, postTextKey }: Readonly<{ postText: string | null; postTextKey: string | null }>,
+): Promise<string | null> {
+  return postTextKey === null
+    ? Promise.resolve(postText)
+    : readPostText(files, itemId, postTextKey);
+}

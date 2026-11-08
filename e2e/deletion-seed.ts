@@ -1,7 +1,7 @@
 import { expect } from "@playwright/test";
 import { z } from "zod";
 
-import { addGithubRepository, expectEveryTableOwns, holdSweeps } from "./deletion.ts";
+import { addGithubRepository, addHighlight, expectEveryTableOwns, holdSweeps } from "./deletion.ts";
 import { nameFile } from "./files.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { tickNow } from "./ingest.ts";
@@ -18,6 +18,10 @@ export const TOPIC = "Archive of deletions";
 
 export const HARD_WORD = marker("kept", "gone");
 
+export const QUOTED_WORD = marker("quoted", "gone");
+
+const POST_TEXT = `A body with ${QUOTED_WORD} in it.`;
+
 const Counted = z.array(z.object({ n: z.number() }));
 
 export function countOf(screen: FreshScreen, statement: string): number {
@@ -29,9 +33,11 @@ export async function seedHardCase(screen: FreshScreen) {
 
   const { item } = await savedThread(screen.context.request, {
     url: postUrl(id),
-    content: threadJson(post(id, "A body."), firstTree("gone")),
+    content: threadJson(post(id, POST_TEXT), firstTree("gone")),
     digest: { ...AUTHORED_DIGEST, ...FIRST_DIGEST, topic: TOPIC, tags: TAGS },
   });
+
+  await addHighlight(screen.context.request, item.id, POST_TEXT, QUOTED_WORD);
 
   const keys = [`items/${item.id}/post-1-1.md`, `items/${item.id}/post-1-2.md`] as const;
 
@@ -73,4 +79,10 @@ export async function expectSeeded(
   expect(countOf(screen, `SELECT count(*) AS n FROM item_tags WHERE item_id = ${id}`)).toBe(3);
   expect(screen.fresh.listFiles(`items/${id}/`).map((file) => file.key)).toEqual([...keys]);
   expect(await matches(screen.context.request, HARD_WORD)).toEqual([id]);
+  expect(
+    countOf(
+      screen,
+      `SELECT count(*) AS n FROM search_parts WHERE item_id = ${id} AND kind = 'highlight'`,
+    ),
+  ).toBe(1);
 }

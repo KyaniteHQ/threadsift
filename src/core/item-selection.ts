@@ -1,13 +1,14 @@
 import { asc, desc, eq, getTableColumns, sql } from "drizzle-orm";
 
 import { type ReaderDigest, parseStoredDigest } from "./ai-contract.ts";
+import { highlightRows, highlightsViewOf } from "./highlights.ts";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
 import { JOINED_VIEW_COLUMNS } from "./joined-view.ts";
 import type { Database, Ports } from "./ports.ts";
-import { readPostText } from "./post-text.ts";
-import { commentsOf, threadReads } from "./reddit-thread.ts";
+import { postTextOf } from "./post-text.ts";
 import { REPOSITORY_COLUMNS } from "./repositories.ts";
 import { digests, githubRepos, itemTags, items, tags } from "./schema.ts";
+import { commentsOf, threadReads } from "./thread-read.ts";
 
 export const EMPTY_JOINED_VIEW = {
   digestTitle: null,
@@ -80,8 +81,11 @@ function readerDigest(
 }
 
 export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
-  const [[row], [stored], tagRows, [repository], threadRows, threadReport] = await db.batch([
-    selectItems(db, DETAIL_COLUMNS).where(eq(items.id, id)),
+  const [[row], [stored], tagRows, [repository], threadRows, threadReport, held] = await db.batch([
+    selectItems(db, {
+      ...DETAIL_COLUMNS,
+      revision: sql<number>`${items.generation}`.as("post_revision"),
+    }).where(eq(items.id, id)),
     db.select({ digest: digests.digest }).from(digests).where(eq(digests.itemId, id)),
     db
       .select({ name: tags.name })
@@ -91,17 +95,18 @@ export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files"
       .orderBy(asc(sql`${itemTags}.rowid`)),
     db.select(REPOSITORY_COLUMNS).from(githubRepos).where(eq(githubRepos.itemId, id)),
     ...threadReads(db, id),
+    highlightRows(db, id),
   ]);
 
   if (row === undefined) {
     return row;
   }
 
-  const { postTextKey, ...item } = row;
+  const { revision, postTextKey, ...item } = row;
 
   return {
     ...item,
-    postText: postTextKey === null ? item.postText : await readPostText(files, id, postTextKey),
+    postText: await postTextOf(files, id, { postText: item.postText, postTextKey }),
     digest: readerDigest(
       id,
       stored?.digest,
@@ -109,6 +114,10 @@ export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files"
     ),
     repository: repository ?? null,
     comments: commentsOf(threadRows, threadReport),
+    highlights: highlightsViewOf(held, {
+      post: revision,
+      comments: threadReport[0]?.generation ?? null,
+    }),
   };
 }
 

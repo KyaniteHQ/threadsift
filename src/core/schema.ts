@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { FETCH_RESULTS } from "./fetch-results.ts";
+import { highlights } from "./highlight-tables.ts";
 import {
   FAILURE_REASONS,
   ITEM_STATUSES,
@@ -27,9 +28,11 @@ export { itemAliases } from "./alias-tables.ts";
 
 export { dataStepRenames, dataSteps } from "./data-step-tables.ts";
 
-export { guardHolds, guardedBatch, guards, insertGuard } from "./guards.ts";
+export { guardHolds, guardedBatch, guardedWrite, guards, insertGuard } from "./guards.ts";
 
 export { githubCooldown, githubSettings } from "./github-tables.ts";
+
+export { type HighlightRow, highlights } from "./highlight-tables.ts";
 
 export { aiSettingsRevision, openrouterConnectTransactions } from "./openrouter-tables.ts";
 
@@ -244,8 +247,12 @@ export const searchParts = sqliteTable(
       .references(() => items.id, { onDelete: "cascade" }),
     kind: text("kind", { enum: SEARCH_PART_KINDS }).notNull(),
     body: text("body").notNull(),
+    highlightId: integer("highlight_id").references(() => highlights.id),
   },
-  (table) => [index("search_parts_item").on(table.itemId)],
+  (table) => [
+    index("search_parts_item").on(table.itemId),
+    uniqueIndex("search_parts_highlight").on(table.highlightId),
+  ],
 );
 
 export const searchFingerprints = sqliteTable("search_fingerprints", {

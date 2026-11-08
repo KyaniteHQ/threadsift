@@ -7,6 +7,7 @@ import {
   aiTasks,
   digests,
   githubRepos,
+  highlights,
   itemAliases,
   itemTags,
   items,
@@ -45,11 +46,12 @@ export async function deleteItem(
   { db, files }: Readonly<Pick<Ports, "db" | "files">>,
   id: number,
 ): Promise<boolean> {
-  const [, , , , , , , , , , removed] = await db.batch([
+  const results = await db.batch([
     db.delete(redditComments).where(eq(redditComments.itemId, id)),
     db.delete(redditThreads).where(eq(redditThreads.itemId, id)),
     db.delete(githubRepos).where(eq(githubRepos.itemId, id)),
     db.delete(searchParts).where(eq(searchParts.itemId, id)),
+    db.delete(highlights).where(eq(highlights.itemId, id)),
     db.delete(searchFingerprints).where(eq(searchFingerprints.itemId, id)),
     db.delete(itemTags).where(eq(itemTags.itemId, id)),
     db.delete(itemAliases).where(eq(itemAliases.itemId, id)),
@@ -59,7 +61,9 @@ export async function deleteItem(
     db.delete(items).where(eq(items.id, id)).returning({ id: items.id }),
   ]);
 
-  if (removed.length === 0) return false;
+  const removed = results.at(-1);
+
+  if (!Array.isArray(removed) || removed.length === 0) return false;
 
   await deleteFilesQuietly(files, id);
 
