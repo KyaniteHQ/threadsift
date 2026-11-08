@@ -4,10 +4,10 @@ import { HTTPException } from "hono/http-exception";
 import { logFailure } from "../core/failure-log.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
-import { registerAiRoutes } from "./ai-routes.ts";
 import { registerDeleteItemRoute } from "./delete-item-route.ts";
 import { guard } from "./guard.ts";
 import { NOT_FOUND, registerItemRoutes } from "./item-routes.ts";
+import { registerSettingsRoutes } from "./settings-routes.ts";
 import { registerShareRoutes } from "./share-routes.ts";
 
 function reasonOf(error: z.ZodError): string {
@@ -27,7 +27,7 @@ export function createApp(ports: Ports): OpenAPIHono {
   registerAccessRoutes(app, ports);
   registerItemRoutes(app, ports);
   registerDeleteItemRoute(app, ports);
-  registerAiRoutes(app, ports);
+  registerSettingsRoutes(app, ports);
   registerShareRoutes(app, ports);
 
   app.doc("/api/openapi.json", {

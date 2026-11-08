@@ -1,8 +1,10 @@
-import { test } from "@playwright/test";
+import { type APIRequestContext, type APIResponse, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { mainInstance } from "./access.ts";
+import { SAME_ORIGIN, mainInstance } from "./access.ts";
+import { optionalEnv } from "./env.ts";
 import { storeItem } from "./ingest.ts";
+import { newRunId } from "./links.ts";
 import { type Seed, migrationsBefore } from "./seeded.ts";
 
 export const DEFUDDLE = "https://github.com/kepano/defuddle";
@@ -18,16 +20,68 @@ const RateLimitSchema = z.object({
   }),
 });
 
-export async function requireGithubBudget(requests: number): Promise<void> {
-  const response = await fetch("https://api.github.com/rate_limit", {
-    headers: { "user-agent": "Threadsift-e2e", accept: "application/vnd.github+json" },
-  });
+const BUDGET_HEADERS = {
+  "user-agent": "Threadsift-e2e",
+  accept: "application/vnd.github+json",
+} as const;
+
+export const GITHUB_SETTINGS_ENDPOINT = "/api/settings/github";
+
+export function suiteGithubToken(): string | undefined {
+  const token = optionalEnv("THREADSIFT_E2E_GITHUB_TOKEN");
+
+  return token === undefined || token === "" ? undefined : token;
+}
+
+export function madeUpGithubToken(label: string): string {
+  const base = optionalEnv("THREADSIFT_WRONG_GITHUB_TOKEN") ?? `github_pat_${newRunId()}`;
+
+  return `${base}_${label}`;
+}
+
+async function expectSettings(response: APIResponse, token: "saved" | "none"): Promise<void> {
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toEqual({ token, secretReady: true });
+}
+
+export async function useSuiteGithubToken(request: APIRequestContext): Promise<void> {
+  const token = suiteGithubToken();
+
+  if (token === undefined) await removeGithubToken(request);
+  else
+    await expectSettings(await request.put(GITHUB_SETTINGS_ENDPOINT, { data: { token } }), "saved");
+}
+
+export function deleteGithubToken(request: APIRequestContext): Promise<APIResponse> {
+  return request.delete(GITHUB_SETTINGS_ENDPOINT, { headers: SAME_ORIGIN });
+}
+
+export function verifyGithubCall(request: APIRequestContext): Promise<APIResponse> {
+  return request.post(`${GITHUB_SETTINGS_ENDPOINT}/verify`, { headers: SAME_ORIGIN });
+}
+
+export async function removeGithubToken(request: APIRequestContext): Promise<void> {
+  await expectSettings(await deleteGithubToken(request), "none");
+}
+
+export async function requireGithubBudget(requests: number, anonymous = false): Promise<void> {
+  const token = anonymous ? undefined : suiteGithubToken();
+
+  const headers =
+    token === undefined ? BUDGET_HEADERS : { ...BUDGET_HEADERS, authorization: `Bearer ${token}` };
+
+  const response = await fetch("https://api.github.com/rate_limit", { headers });
 
   const { remaining, reset } = RateLimitSchema.parse(await response.json()).resources.core;
 
   if (remaining >= requests) return;
 
-  const message = `GitHub rate limit: ${remaining} unauthenticated requests remain for this address until ${new Date(reset * 1000).toISOString()}, and this test sends ${requests}`;
+  const holder =
+    token === undefined
+      ? "unauthenticated requests remain for this address"
+      : "requests remain for the saved token";
+
+  const message = `GitHub rate limit: ${remaining} ${holder} until ${new Date(reset * 1000).toISOString()}, and this test sends ${requests}`;
 
   if (process.env["GITHUB_ACTIONS"] === "true")
     throw new Error(`${message}; rerun after the reset`);

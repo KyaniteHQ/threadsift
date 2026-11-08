@@ -60,6 +60,10 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
     text: "Couldn’t read the website’s answer, so this link was saved without a title.",
     kind: "save-note",
   },
+  "github-token": {
+    text: "GitHub rejected the saved token, so this Item wasn’t updated. Replace or remove the token in Settings, then paste the link again.",
+    kind: "save-note",
+  },
   "title-kept": {
     text: "Couldn’t update the title for this link, so the title saved earlier was kept.",
     kind: "save-note",
@@ -69,6 +73,12 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
     kind: "input-error",
   },
 };
+
+export const TOKEN_REFUSED = {
+  row: "Couldn’t update this Item because GitHub rejected the saved token.",
+  reader: "Threadsift couldn’t update this Item because GitHub rejected the saved token.",
+  link: "Open Settings",
+} as const;
 
 export const DISMISS_LABEL = "Dismiss";
 export const RETRY_LABEL = "Try again";

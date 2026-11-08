@@ -35,6 +35,8 @@ function bylineOf(item: Readonly<Item>): string {
 function noteTextOf(item: Readonly<Item>): string | null {
   if (item.status === "failed") return FAILURE_TITLES[item.reason];
 
+  if (item.fetch === "github-token") return null;
+
   const key = noteOf(item);
 
   return key === null ? null : NOTICES[key].text;

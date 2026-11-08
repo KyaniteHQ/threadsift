@@ -257,3 +257,17 @@
 .ai-actions .btn[aria-disabled="true"] {
   border-color: var(--ctl-line);
 }
+
+.gh-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin: 0;
+  padding-inline-start: 1.3em;
+}
+.gh-link {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 0;
+  text-align: start;
+}

@@ -2,7 +2,14 @@ import { type Locator, type Page, type TestInfo, expect, test } from "@playwrigh
 
 import { AiSettingsViewSchema } from "../src/core/ai-contract.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
-import { AI_SETTINGS_ENDPOINT, aiJson, aiScreen, newSealingKey, saveInBrowser } from "./ai.ts";
+import {
+  AI_SETTINGS_ENDPOINT,
+  aiJson,
+  aiScreen,
+  aiSecretMissing,
+  newSealingKey,
+  saveInBrowser,
+} from "./ai.ts";
 import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { storeSettings } from "./look.ts";
@@ -124,7 +131,7 @@ async function checkKeyless(
     "workers-ai",
   );
   await expect(keyless.page.getByText(AI_TEXT.keyNotNeeded, { exact: true })).toBeVisible();
-  await expect(keyless.page.getByText(AI_TEXT["secret-missing"], { exact: true })).toHaveCount(0);
+  await expect(aiSecretMissing(keyless.page)).toHaveCount(0);
   await expectNoViolations(keyless.page, `Keyless Workers AI, ${theme}, ${width}px`);
   await capture(keyless.page, info, `keyless-${theme}-${width}.png`);
 }
@@ -146,7 +153,7 @@ async function checkStates(
   await expectNoViolations(saved.page, `AI refusal, ${theme}, ${width}px`);
   await capture(saved.page, info, `refusal-${theme}-${width}.png`);
   await resize(missing.page, width, bands);
-  await expect(missing.page.getByText(AI_TEXT["secret-missing"], { exact: true })).toBeVisible();
+  await expect(aiSecretMissing(missing.page)).toBeVisible();
   await expectNoViolations(missing.page, `Missing sealing key, ${theme}, ${width}px`);
   await capture(missing.page, info, `missing-${theme}-${width}.png`);
 }

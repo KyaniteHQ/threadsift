@@ -6,7 +6,7 @@ import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
 import { revealInPane } from "./reveal.ts";
-import { useInternalLink } from "./routing.ts";
+import { SETTINGS_PATH, useInternalLink } from "./routing.ts";
 import { savedLabel } from "./saved-label.ts";
 import {
   CARD_TITLES,
@@ -15,8 +15,13 @@ import {
   DIGEST_NOT_UPDATED,
   RETRY_LABEL,
   SOURCE_LABELS,
+  TOKEN_REFUSED,
   starsLabel,
 } from "./text.ts";
+
+function rejectsToken(item: Readonly<Item>): boolean {
+  return item.status !== "processing" && item.fetch === "github-token";
+}
 
 function showsSkeleton(item: Readonly<Item>): boolean {
   return item.status === "processing" && item.title === null;
@@ -90,6 +95,20 @@ function Failed({
   );
 }
 
+function TokenRefused() {
+  return (
+    <div className="it-fail">
+      <p>
+        <Icon name="warn" className="ic ic-s tone-warn" />
+        {TOKEN_REFUSED.row}
+      </p>
+      <a className="btn" href={SETTINGS_PATH}>
+        {TOKEN_REFUSED.link}
+      </a>
+    </div>
+  );
+}
+
 function Skeleton() {
   return (
     <>
@@ -130,6 +149,7 @@ function Status({
   return (
     <div className="it-end">
       <Foot item={item} />
+      {rejectsToken(item) ? <TokenRefused /> : null}
       {item.retry === null ? null : (
         <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
       )}

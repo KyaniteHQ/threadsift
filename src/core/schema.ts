@@ -178,6 +178,15 @@ export const settings = sqliteTable(
   ],
 );
 
+export const githubSettings = sqliteTable(
+  "github_settings",
+  {
+    id: integer("id").primaryKey(),
+    sealedToken: text("sealed_token").notNull(),
+  },
+  (table) => [check("github_settings_is_one_row", sql`${table.id} = 1`)],
+);
+
 export const aiTasks = sqliteTable(
   "ai_tasks",
   {

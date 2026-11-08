@@ -137,8 +137,10 @@ function scan(directory: string, needles: readonly Uint8Array[]): ScanResult {
 const env = z
   .object({
     THREADSIFT_WRONG_AI_KEY: z.string().min(1),
+    THREADSIFT_WRONG_GITHUB_TOKEN: z.string().min(1),
     CLOUDFLARE_WORKERS_AI_TOKEN: z.string().optional(),
     CLAUDE_CODE_OAUTH_TOKEN: z.string().optional(),
+    THREADSIFT_E2E_GITHUB_TOKEN: z.string().optional(),
   })
   .parse(process.env);
 
@@ -151,8 +153,10 @@ const minimumFiles = z.coerce.number().int().positive().parse(floor);
 
 const needles = [
   env.THREADSIFT_WRONG_AI_KEY,
+  env.THREADSIFT_WRONG_GITHUB_TOKEN,
   env.CLOUDFLARE_WORKERS_AI_TOKEN ?? "",
   env.CLAUDE_CODE_OAUTH_TOKEN ?? "",
+  env.THREADSIFT_E2E_GITHUB_TOKEN ?? "",
 ]
   .filter((key) => key !== "")
   .flatMap((key) => credentialForms(key));

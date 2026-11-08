@@ -107,9 +107,11 @@ jobs:
         env:
           CLOUDFLARE_WORKERS_AI_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_AI_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          THREADSIFT_E2E_GITHUB_TOKEN: ${{ github.token }}
         run: |
           THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
-          export THREADSIFT_WRONG_AI_KEY
+          THREADSIFT_WRONG_GITHUB_TOKEN=github_pat_$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')
+          export THREADSIFT_WRONG_AI_KEY THREADSIFT_WRONG_GITHUB_TOKEN
           if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
             echo "::notice::The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them"
             echo "The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them" >> "$GITHUB_STEP_SUMMARY"
@@ -198,9 +200,11 @@ jobs:
         env:
           CLOUDFLARE_WORKERS_AI_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_AI_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          THREADSIFT_E2E_GITHUB_TOKEN: ${{ github.token }}
         run: |
           THREADSIFT_WRONG_AI_KEY=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
-          export THREADSIFT_WRONG_AI_KEY
+          THREADSIFT_WRONG_GITHUB_TOKEN=github_pat_$(node -e 'process.stdout.write(require("node:crypto").randomBytes(24).toString("hex"))')
+          export THREADSIFT_WRONG_AI_KEY THREADSIFT_WRONG_GITHUB_TOKEN
           if [[ $THREADSIFT_AI_REQUIRED != true && -z $CLOUDFLARE_WORKERS_AI_TOKEN ]]; then
             echo "::notice::The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them"
             echo "The AI cases were skipped: pull request runs get no AI credentials; the run on main after merge runs them" >> "$GITHUB_STEP_SUMMARY"

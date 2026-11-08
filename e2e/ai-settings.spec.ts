@@ -14,6 +14,7 @@ import {
   AI_VERIFY_ENDPOINT,
   aiJson,
   aiScreen,
+  aiSecretMissing,
   assertNoSecret,
   countRows,
   sealedKey,
@@ -44,7 +45,7 @@ test("AI settings refuse a missing or malformed sealing key without a write", as
   for (const secret of [undefined, "malformed"] as const) {
     screen = await aiScreen(browser, secret);
     await screen.page.goto("/settings");
-    await expect(screen.page.getByText(AI_TEXT["secret-missing"], { exact: true })).toBeVisible();
+    await expect(aiSecretMissing(screen.page)).toBeVisible();
     await expect(
       screen.page.getByRole("button", { name: AI_TEXT.save, exact: true }),
     ).toBeDisabled();
@@ -71,7 +72,7 @@ test("AI settings refuse a missing or malformed sealing key without a write", as
   await saveInBrowser(screen, "changed-key-proof", "https://example.com", "example");
   screen.fresh.restart({ THREADSIFT_SECRET_KEY: newSealingKey() });
   await screen.page.reload();
-  await expect(screen.page.getByText(AI_TEXT["secret-missing"], { exact: true })).toBeVisible();
+  await expect(aiSecretMissing(screen.page)).toBeVisible();
   expect(await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT)).toEqual({
     kind: "refused",
     reason: "secret-missing",
