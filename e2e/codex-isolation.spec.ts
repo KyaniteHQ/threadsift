@@ -1,12 +1,11 @@
 import { type Browser, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { AI_SETTINGS_ENDPOINT, assertNoSecret } from "./ai.ts";
+import { assertNoSecret } from "./ai.ts";
 import { settled } from "./api.ts";
 import {
   AGENTS_SENTINEL,
   CANARY,
-  CONFIG_SENTINEL,
   SKILL_SENTINEL,
   expectCodexControls,
   markersPresent,
@@ -18,8 +17,8 @@ import {
   appShell,
   cliRuns,
   installCli,
+  saveProvider,
   groupMembers,
-  settingsView,
   taskFolders,
   taskRows,
   verifyCall,
@@ -53,14 +52,6 @@ function secrets(): string[] {
   return tokensOf(login ?? "");
 }
 
-async function saveProvider(target: FreshScreen, provider: string, model = ""): Promise<void> {
-  const saved = await target.context.request.put(AI_SETTINGS_ENDPOINT, {
-    data: { provider, model },
-  });
-
-  expect(saved.status()).toBe(200);
-}
-
 async function prepared(browser: Browser): Promise<FreshScreen> {
   expect(login, "the isolation proof requires CODEX_AUTH_JSON_B64").toBeDefined();
   const fresh = await codexScreen(browser);
@@ -82,7 +73,7 @@ test.afterAll(async () => {
   await screen?.close();
 });
 
-test("hostile Item text runs no command, calls no tool and loads no customization", async () => {
+test("a model that follows hostile Item text finds no command, file or customization to use in the Digest", async () => {
   const info = test.info();
 
   expectCodexControls(screen);
@@ -113,7 +104,7 @@ test("hostile Item text runs no command, calls no tool and loads no customizatio
     JSON.stringify(stored),
     JSON.stringify(end),
   ]) {
-    for (const needle of [CANARY, CONFIG_SENTINEL, AGENTS_SENTINEL, SKILL_SENTINEL])
+    for (const needle of [CANARY, AGENTS_SENTINEL, SKILL_SENTINEL])
       expect(text.includes(needle), `${needle} stays out of the Digest and the task row`).toBe(
         false,
       );
@@ -127,20 +118,6 @@ test("hostile Item text runs no command, calls no tool and loads no customizatio
     body: JSON.stringify(rows),
     contentType: "application/json",
   });
-});
-
-test("a model that Codex does not list is refused before any process starts", async () => {
-  await saveProvider(screen, CODEX_PROVIDER, "gpt-reserve");
-
-  expect(await verifyCall(screen)).toEqual({
-    kind: "refused",
-    reason: "model-not-found",
-    status: 404,
-  });
-  expect(cliRuns(screen)).toEqual([]);
-  expect(markersPresent(screen)).toEqual([]);
-  expect(taskRows(screen).at(-1)).toMatchObject({ model: "gpt-reserve", state: "failed" });
-  await saveProvider(screen, CODEX_PROVIDER);
 });
 
 async function startedRun() {
@@ -217,17 +194,4 @@ test("stopping the Instance during an automatic Digest, with no request waiting,
   screen.fresh.restart();
   expect(taskFolders(screen)).not.toContain(folder);
   await settled(screen.context.request, id, 420_000);
-});
-
-test("a CLI removed after start answers not-configured and reads as signed out", async () => {
-  appShell(screen, "rm -f /data/cli/bin/codex");
-
-  expect(await verifyCall(screen)).toEqual({
-    kind: "refused",
-    reason: "not-configured",
-    status: null,
-  });
-  expect((await settingsView(screen)).signedIn).toEqual([]);
-  expect(taskRows(screen).at(-1)).toMatchObject({ state: "failed", refusal: "not-configured" });
-  expect(taskFolders(screen)).toEqual([]);
 });

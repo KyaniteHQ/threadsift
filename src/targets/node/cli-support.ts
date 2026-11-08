@@ -58,6 +58,22 @@ export async function inEmptyFolder<Result>(
   }
 }
 
+export function answerWithin(
+  shutdown: AbortSignal,
+  probe: (signal: AbortSignal) => Promise<boolean>,
+): Promise<boolean> {
+  const deadline = AbortSignal.any([AbortSignal.timeout(PROBE_MS), shutdown]);
+  const answer = probe(deadline).catch(() => false);
+
+  const expired = new Promise<false>((resolve) => {
+    deadline.addEventListener("abort", () => {
+      resolve(false);
+    });
+  });
+
+  return Promise.race([answer, expired]);
+}
+
 export function present(name: string, value: string | undefined): [string, string][] {
   return value === undefined ? [] : [[name, value]];
 }

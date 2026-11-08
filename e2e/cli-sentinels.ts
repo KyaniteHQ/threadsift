@@ -182,4 +182,5 @@ export function expectCodexControls(screen: FreshScreen): void {
     ]),
   );
   clearMarkers(screen);
+  appShell(screen, "rm -f /data/codex/config.toml");
 }

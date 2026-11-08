@@ -130,11 +130,11 @@ const AiExecutionRefusalSchema = z.enum([
   "refused",
   "provider-busy",
   "not-configured",
+  "provider-unavailable",
 ]);
 
 export const AiRefusalSchema = z.enum([
   ...AiExecutionRefusalSchema.options,
-  "provider-unavailable",
   "key-needed",
   "secret-missing",
 ]);

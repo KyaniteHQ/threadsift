@@ -12,11 +12,15 @@ import {
 } from "./ai.ts";
 import {
   appShell,
+  cliRuns,
   installCli,
   proveStoredDigest,
+  saveProvider,
   saveAndVerify,
   settingsView,
+  taskFolders,
   taskRows,
+  verifyCall,
 } from "./cli.ts";
 import {
   CODEX_HOME,
@@ -24,6 +28,7 @@ import {
   CODEX_AUTH,
   codexScreen,
   CODEX_CLI,
+  homeIsReserved,
   inventedCodexAuth,
   pickCodex,
   readCodexAuth,
@@ -74,6 +79,7 @@ test("an installed Codex with no login shows the sign-in command and keeps Save 
 
   expect(view.providers).toContain(CODEX_PROVIDER);
   expect(view.signedIn).toEqual([]);
+  expect(homeIsReserved(screen), "the sign-in probe leaves the reservations alone").toBe(true);
   await pickCodex(screen.page);
   await expect(screen.page.getByText(AI_TEXT.codexSignedOut)).toBeVisible();
   await expect(screen.page.getByText(AI_TEXT.codexSignInCommand, { exact: true })).toBeVisible();
@@ -93,7 +99,7 @@ test("an installed Codex with no login shows the sign-in command and keeps Save 
   expect(countRows(screen, "settings")).toBe(0);
 });
 
-test("a Codex home that holds an AGENTS.md or a skill leaves the row out until they are removed", async ({
+test("a Codex home that holds an AGENTS.md or a skill leaves the row out, keeps every file and returns when the owner removes them", async ({
   browser,
 }) => {
   test.skip(!isContainerTarget(), "Codex runs only on the container");
@@ -105,22 +111,31 @@ test("a Codex home that holds an AGENTS.md or a skill leaves the row out until t
     `${CODEX_HOME}/AGENTS.md/\n${CODEX_HOME}/skills\n`,
   );
 
-  for (const [planted, removed, reserved] of [
+  for (const [planted, kept, removed, reserved] of [
     [
-      `echo owner > ${CODEX_HOME}/AGENTS.md`,
+      `rmdir ${CODEX_HOME}/AGENTS.md && echo owner > ${CODEX_HOME}/AGENTS.md`,
+      `${CODEX_HOME}/AGENTS.md`,
       `rm ${CODEX_HOME}/AGENTS.md`,
       `${CODEX_HOME}/AGENTS.md`,
     ],
     [
-      `rm ${CODEX_HOME}/skills && mkdir -p ${CODEX_HOME}/skills/mine`,
+      `rm ${CODEX_HOME}/skills && mkdir -p ${CODEX_HOME}/skills/mine && echo owner > ${CODEX_HOME}/skills/mine/SKILL.md`,
+      `${CODEX_HOME}/skills/mine/SKILL.md`,
+      `rm -r ${CODEX_HOME}/skills`,
+      `${CODEX_HOME}/skills`,
+    ],
+    [
+      `rm ${CODEX_HOME}/skills && mkdir -p ${CODEX_HOME}/skills/.system && echo bundled > ${CODEX_HOME}/skills/.system/keep`,
+      `${CODEX_HOME}/skills/.system/keep`,
       `rm -r ${CODEX_HOME}/skills`,
       `${CODEX_HOME}/skills`,
     ],
   ] as const) {
-    appShell(screen, `rmdir ${CODEX_HOME}/AGENTS.md 2>/dev/null; ${planted}`);
+    appShell(screen, planted);
     screen.fresh.restart();
     expect((await settingsView(screen)).providers).not.toContain(CODEX_PROVIDER);
     expect(screen.fresh.logs()).toContain(`"event":"codex-home-refused","path":"${reserved}"`);
+    expect(appShell(screen, `cat ${kept}`).trim(), `${kept} survives the start-up`).not.toBe("");
 
     appShell(screen, removed);
     screen.fresh.restart();
@@ -158,6 +173,47 @@ test("an invented login shows the rejection on Verify and leaks nothing", async 
   });
 });
 
+test("a model that Codex does not list is refused before any process starts and leaves a failed task", async ({
+  browser,
+}) => {
+  test.skip(!isContainerTarget(), "Codex runs only on the container");
+  screen = await codexScreen(browser);
+  installCli(screen, CODEX_CLI);
+  writeCodexAuth(screen, inventedCodexAuth());
+  await saveProvider(screen, CODEX_PROVIDER, "gpt-reserve");
+
+  expect(await verifyCall(screen)).toEqual({
+    kind: "refused",
+    reason: "model-not-found",
+    status: 404,
+  });
+  expect(cliRuns(screen)).toEqual([]);
+  expect(taskRows(screen)).toMatchObject([
+    { model: "gpt-reserve", state: "failed", refusal: "model-not-found", status: 404 },
+  ]);
+  expect(taskFolders(screen)).toEqual([]);
+});
+
+test("a Codex removed after start answers not-configured, reads as signed out and leaves a failed task", async ({
+  browser,
+}) => {
+  test.skip(!isContainerTarget(), "Codex runs only on the container");
+  screen = await codexScreen(browser);
+  installCli(screen, CODEX_CLI);
+  writeCodexAuth(screen, inventedCodexAuth());
+  await saveProvider(screen, CODEX_PROVIDER);
+  appShell(screen, "rm -f /data/cli/bin/codex");
+
+  expect(await verifyCall(screen)).toEqual({
+    kind: "refused",
+    reason: "not-configured",
+    status: null,
+  });
+  expect((await settingsView(screen)).signedIn).toEqual([]);
+  expect(taskRows(screen)).toMatchObject([{ state: "failed", refusal: "not-configured" }]);
+  expect(taskFolders(screen)).toEqual([]);
+});
+
 test("Codex in the volume verifies, digests a pasted article and keeps its login in a recreated container", async ({
   browser,
 }, info) => {
@@ -185,6 +241,7 @@ test("Codex in the volume verifies, digests a pasted article and keeps its login
 
   expect(view.settings).toEqual({ provider: CODEX_PROVIDER, model: "" });
   expect(view.signedIn).toEqual([CODEX_PROVIDER]);
+  expect(homeIsReserved(screen), "Verify and a Digest leave the reservations alone").toBe(true);
   expect(countRows(screen, "digests")).toBe(1);
 
   const again = await aiJson(screen, VerifyResultSchema, "POST", AI_VERIFY_ENDPOINT);

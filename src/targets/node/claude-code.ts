@@ -14,9 +14,9 @@ import { configuredCode } from "../shared/configured-code.ts";
 import { type ProcessEnd, runProcess } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
-  PROBE_MS,
   STDERR_CAP,
   STDOUT_CAP,
+  answerWithin,
   childPath,
   endRefusal,
   exitCode,
@@ -83,17 +83,14 @@ export class ClaudeCode implements CliRunner {
     this.shutdown.abort();
   }
 
-  readonly signedIn = async (): Promise<boolean> => {
-    const signal = AbortSignal.any([AbortSignal.timeout(PROBE_MS), this.shutdown.signal]);
+  readonly signedIn = (): Promise<boolean> =>
+    answerWithin(this.shutdown.signal, (signal) => this.probe(signal));
 
-    try {
-      const end = await this.spawn(["auth", "status", "--json"], "", signal);
+  private async probe(signal: AbortSignal): Promise<boolean> {
+    const end = await this.spawn(["auth", "status", "--json"], "", signal);
 
-      return end.kind === "exited" && parsedJson(StatusSchema, end.stdout)?.loggedIn === true;
-    } catch {
-      return false;
-    }
-  };
+    return end.kind === "exited" && parsedJson(StatusSchema, end.stdout)?.loggedIn === true;
+  }
 
   readonly run = async <Result>(
     task: AiTaskRequest<Result>,

@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { AI_SETTINGS_ENDPOINT } from "./ai.ts";
 import { CLAUDE_PROVIDER, claudeScreen, claudeToken, CLAUDE_CLI } from "./claude-code.ts";
-import { cliRuns, installCli, taskRows, verifyCall } from "./cli.ts";
+import { cliRuns, installCli, saveProvider, taskRows, verifyCall } from "./cli.ts";
 import {
   CODEX_PROVIDER,
   CODEX_AUTH,
@@ -24,14 +23,6 @@ test.skip(
   !isContainerTarget() || claude === undefined || login === undefined,
   "The shared limit needs the container, CLAUDE_CODE_OAUTH_TOKEN and CODEX_AUTH_JSON_B64; CI holds no Codex login.",
 );
-
-async function saveProvider(target: FreshScreen, provider: string): Promise<void> {
-  const saved = await target.context.request.put(AI_SETTINGS_ENDPOINT, {
-    data: { provider, model: "" },
-  });
-
-  expect(saved.status()).toBe(200);
-}
 
 function running(target: FreshScreen): string[] {
   return cliRuns(target)

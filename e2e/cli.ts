@@ -18,14 +18,24 @@ export function lines(output: string): string[] {
   return output.split("\n").filter((line) => line !== "");
 }
 
-export function appShell(screen: FreshScreen, script: string): string {
-  const [command = "", ...args] = screen.fresh.appExec.split(" ").filter((word) => word !== "");
+function shellIn(screen: FreshScreen, script: string, user: readonly string[]): string {
+  const [command = "", exec = "", ...args] = screen.fresh.appExec
+    .split(" ")
+    .filter((word) => word !== "");
 
-  return execFileSync(command, [...args, "sh", "-s"], {
+  return execFileSync(command, [exec, ...user, ...args, "sh", "-s"], {
     encoding: "utf8",
     input: script,
     stdio: ["pipe", "pipe", "inherit"],
   });
+}
+
+export function appShell(screen: FreshScreen, script: string): string {
+  return shellIn(screen, script, []);
+}
+
+export function rootShell(screen: FreshScreen, script: string): string {
+  return shellIn(screen, script, ["--user", "root"]);
 }
 
 export async function settingsView(screen: FreshScreen) {
@@ -77,6 +87,18 @@ const TASK_ROWS_SQL =
   "SELECT kind, executor, provider, model, state, refusal, status, inputs, result FROM ai_tasks ORDER BY id";
 
 export const taskRows = (screen: FreshScreen) => screen.fresh.query(TASK_ROWS_SQL, AiTaskRows);
+
+export async function saveProvider(
+  target: FreshScreen,
+  provider: string,
+  model = "",
+): Promise<void> {
+  const saved = await target.context.request.put(AI_SETTINGS_ENDPOINT, {
+    data: { provider, model },
+  });
+
+  expect(saved.status()).toBe(200);
+}
 
 export async function saveAndVerify(screen: FreshScreen, provider: Provider): Promise<void> {
   const { page } = screen;

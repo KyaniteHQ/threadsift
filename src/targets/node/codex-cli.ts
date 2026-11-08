@@ -1,5 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { writeFile } from "node:fs/promises";
 
 import {
   type AiExecution,
@@ -8,28 +7,41 @@ import {
   refusedAi,
 } from "../../core/ai-contract.ts";
 import type { CliRunner } from "../shared/ai-runtime.ts";
-import { type ProcessEnd, runProcess } from "./cli-process.ts";
+import type { ProcessEnd } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
-  PROBE_MS,
-  STDERR_CAP,
   STDOUT_CAP,
-  childPath,
+  answerWithin,
   endRefusal,
   exitCode,
   findBinary,
-  inEmptyFolder,
   report,
 } from "./cli-support.ts";
 import { codexHomeOf, reserveCodexHome } from "./codex-home.ts";
 import {
+  type Capture,
+  type Installation,
+  type RunFolders,
+  bundledCatalog,
+  inRunFolders,
+  spawnCodex,
+  surfaceArguments,
+  taskArguments,
+} from "./codex-process.ts";
+import {
+  type ToollessCatalog,
   UNKNOWN_MODEL_REFUSAL,
-  listsModel,
   outputSchema,
-  readCatalog,
   readOutcome,
-  toolless,
+  surfaceOf,
 } from "./codex-protocol.ts";
+
+const BINARY = "codex";
+const SURFACE_MS = 60_000;
+
+function reportSurface(extraTools: readonly string[], foreignTexts: number): void {
+  console.error(JSON.stringify({ event: "codex-surface-refused", extraTools, foreignTexts }));
+}
 
 export interface CodexEnvironment {
   readonly path: string;
@@ -37,71 +49,20 @@ export interface CodexEnvironment {
   readonly dataDir: string;
 }
 
-interface RunFolders {
-  readonly cwd: string;
-  readonly home: string;
-  readonly schemaFile: string;
-  readonly catalogFile: string;
-}
-
-const BINARY = "codex";
-const CATALOG_CAP = 8 * 1024 * 1024;
-
-const DISABLED_FEATURES = ["apps", "plugins", "hooks", "view_image", "goals", "image_generation"];
-
-function taskArguments(folders: Readonly<RunFolders>, model: string): string[] {
-  return [
-    "exec",
-    "--json",
-    "--ephemeral",
-    "--skip-git-repo-check",
-    "--ignore-user-config",
-    "--ignore-rules",
-    "--sandbox",
-    "read-only",
-    ...DISABLED_FEATURES.flatMap((feature) => ["--disable", feature]),
-    "-c",
-    "web_search=disabled",
-    "-c",
-    "agents.enabled=false",
-    "-c",
-    "skills.bundled.enabled=false",
-    "-c",
-    `model_catalog_json=${JSON.stringify(folders.catalogFile)}`,
-    "--output-schema",
-    folders.schemaFile,
-    "-C",
-    folders.cwd,
-    ...(model === "" ? [] : [`--model=${model}`]),
-    "-",
-  ];
-}
-
-function inRunFolders<Result>(work: (folders: Readonly<RunFolders>) => Promise<Result>) {
-  return inEmptyFolder(async (folder) => {
-    const folders = {
-      cwd: join(folder, "cwd"),
-      home: join(folder, "home"),
-      schemaFile: join(folder, "schema.json"),
-      catalogFile: join(folder, "models.json"),
-    };
-
-    await Promise.all([mkdir(folders.cwd), mkdir(folders.home)]);
-
-    return work(folders);
-  });
-}
-
 export class CodexCli implements CliRunner {
   readonly provider = PROVIDERS.codex.id;
   private readonly shutdown = new AbortController();
-  private readonly binary: string;
-  private readonly home: string;
+  private readonly installation: Readonly<Installation>;
+  private readonly catalog: Readonly<ToollessCatalog>;
   private readonly slots: Slots;
 
-  constructor(binary: string, home: string, slots: Slots) {
-    this.binary = binary;
-    this.home = home;
+  constructor(
+    installation: Readonly<Installation>,
+    catalog: Readonly<ToollessCatalog>,
+    slots: Slots,
+  ) {
+    this.installation = installation;
+    this.catalog = catalog;
     this.slots = slots;
   }
 
@@ -109,19 +70,16 @@ export class CodexCli implements CliRunner {
     this.shutdown.abort();
   }
 
-  readonly signedIn = async (): Promise<boolean> => {
-    const signal = AbortSignal.any([AbortSignal.timeout(PROBE_MS), this.shutdown.signal]);
+  readonly signedIn = (): Promise<boolean> =>
+    answerWithin(this.shutdown.signal, (signal) => this.probe(signal));
 
-    try {
-      const end = await inRunFolders((folders) =>
-        this.spawn(folders, ["login", "status"], "", signal, { cap: STDOUT_CAP, keep: false }),
-      );
+  private async probe(signal: AbortSignal): Promise<boolean> {
+    const end = await inRunFolders((folders) =>
+      this.spawn(folders, ["login", "status"], "", signal, { cap: STDOUT_CAP, keep: false }),
+    );
 
-      return end.kind === "exited" && end.code === 0;
-    } catch {
-      return false;
-    }
-  };
+    return end.kind === "exited" && end.code === 0;
+  }
 
   readonly run = async <Result>(
     task: AiTaskRequest<Result>,
@@ -129,6 +87,8 @@ export class CodexCli implements CliRunner {
   ): Promise<AiExecution<Result>> => {
     if (task.config.kind !== "cli") return refusedAi("unreachable");
     const { model } = task.config;
+
+    if (model !== "" && !this.catalog.slugs.includes(model)) return UNKNOWN_MODEL_REFUSAL;
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
     const release = await this.slots.acquire(stop);
 
@@ -153,25 +113,14 @@ export class CodexCli implements CliRunner {
     folders: Readonly<RunFolders>,
     signal: AbortSignal,
   ) {
-    const listed = await this.spawn(folders, ["debug", "models", "--bundled"], "", signal, {
-      cap: CATALOG_CAP,
-      keep: true,
-    });
-
-    if (listed.kind !== "exited") return { result: endRefusal(listed), code: null };
-
-    const catalog = readCatalog(listed.stdout);
-
-    if (listed.code !== 0 || catalog === null)
-      return { result: refusedAi("unreachable"), code: exitCode(listed) };
-
-    if (model !== "" && !listsModel(catalog, model))
-      return { result: UNKNOWN_MODEL_REFUSAL, code: null };
-
     await Promise.all([
-      writeFile(folders.catalogFile, toolless(catalog)),
+      writeFile(folders.catalogFile, this.catalog.bytes),
       writeFile(folders.schemaFile, outputSchema(task.schema)),
     ]);
+
+    const unsafe = await this.unsafeSurface(folders, model, signal);
+
+    if (unsafe !== null) return { result: unsafe, code: null };
 
     const end = await this.spawn(
       folders,
@@ -184,30 +133,35 @@ export class CodexCli implements CliRunner {
     return { result: await this.outcome(task.schema, end), code: exitCode(end) };
   }
 
+  private async unsafeSurface(folders: Readonly<RunFolders>, model: string, signal: AbortSignal) {
+    const end = await this.spawn(
+      folders,
+      surfaceArguments(folders, model),
+      "",
+      AbortSignal.any([signal, AbortSignal.timeout(SURFACE_MS)]),
+      { cap: STDOUT_CAP, keep: true },
+    );
+
+    if (end.kind !== "exited") return endRefusal(end);
+
+    const surface = end.code === 0 ? surfaceOf(end.stdout) : null;
+
+    if (surface === null) return refusedAi("unreachable");
+
+    if (surface.extraTools.length === 0 && surface.foreignTexts === 0) return null;
+    reportSurface(surface.extraTools, surface.foreignTexts);
+
+    return refusedAi("provider-unavailable");
+  }
+
   private spawn(
     folders: Readonly<RunFolders>,
     args: readonly string[],
     stdin: string,
     signal: AbortSignal,
-    stdout: Readonly<{ cap: number; keep: boolean }>,
+    stdout: Readonly<Capture>,
   ) {
-    return runProcess(
-      {
-        file: this.binary,
-        args,
-        env: {
-          PATH: childPath(this.binary),
-          HOME: folders.home,
-          CODEX_HOME: this.home,
-        },
-        cwd: folders.cwd,
-        stdin,
-        stdoutCap: stdout.cap,
-        stderrCap: STDERR_CAP,
-        keepStdout: stdout.keep,
-      },
-      signal,
-    );
+    return spawnCodex(this.installation, folders, args, stdin, signal, stdout);
   }
 
   private async outcome<Result>(
@@ -237,5 +191,14 @@ export async function codexCli(environment: Readonly<CodexEnvironment>, slots: S
     return null;
   }
 
-  return new CodexCli(binary, home, slots);
+  const installation = { binary, home };
+  const catalog = await bundledCatalog(installation);
+
+  if (catalog === null) {
+    console.error(JSON.stringify({ event: "codex-catalog-refused" }));
+
+    return null;
+  }
+
+  return new CodexCli(installation, catalog, slots);
 }

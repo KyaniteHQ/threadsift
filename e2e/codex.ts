@@ -86,3 +86,9 @@ export function tokensOf(encoded: string): string[] {
 
   return [encoded, tokens.access_token, tokens.refresh_token, tokens.id_token];
 }
+
+const RESERVED_HOME = `cd ${CODEX_HOME} && [ -f skills ] && [ ! -s skills ] && [ -d AGENTS.md ] && [ -z "$(ls -A AGENTS.md)" ] && [ -d AGENTS.override.md ] && [ -z "$(ls -A AGENTS.override.md)" ] && echo reserved`;
+
+export function homeIsReserved(screen: FreshScreen): boolean {
+  return appShell(screen, `${RESERVED_HOME}; true`).trim() === "reserved";
+}

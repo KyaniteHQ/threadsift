@@ -22,6 +22,30 @@ const CatalogSchema = z
   })
   .readonly();
 
+const ToolSchema = z
+  .looseObject({
+    type: z.string(),
+    name: z.string().optional(),
+    tools: z
+      .array(z.looseObject({ type: z.string(), name: z.string().optional() }).readonly())
+      .readonly()
+      .optional(),
+  })
+  .readonly();
+
+const PromptItemSchema = z
+  .looseObject({
+    type: z.string(),
+    tools: z.array(ToolSchema).readonly().optional(),
+    content: z
+      .array(z.looseObject({ text: z.string().optional() }).readonly())
+      .readonly()
+      .optional(),
+  })
+  .readonly();
+
+const PromptInputSchema = z.array(PromptItemSchema).readonly();
+
 const EventSchema = z
   .looseObject({
     type: z.string(),
@@ -30,29 +54,32 @@ const EventSchema = z
   })
   .readonly();
 
-export type Catalog = z.infer<typeof CatalogSchema>;
-
 type Events = readonly z.infer<typeof EventSchema>[];
 
-export function readCatalog(stdout: string): Catalog | null {
-  return parsedJson(CatalogSchema, stdout);
+const TOOLLESS = {
+  tool_mode: null,
+  apply_patch_tool_type: null,
+  shell_type: "disabled",
+  experimental_supported_tools: [],
+};
+
+export interface ToollessCatalog {
+  readonly bytes: string;
+  readonly slugs: readonly string[];
 }
 
-export function listsModel(catalog: Catalog, model: string): boolean {
-  return catalog.models.some(({ slug }) => slug === model);
-}
+export function toollessCatalog(stdout: string): ToollessCatalog | null {
+  const catalog = parsedJson(CatalogSchema, stdout);
 
-export function toolless(catalog: Catalog): string {
-  return JSON.stringify({
-    ...catalog,
-    models: catalog.models.map((model) => ({
-      ...model,
-      tool_mode: null,
-      apply_patch_tool_type: null,
-      shell_type: "disabled",
-      experimental_supported_tools: [],
-    })),
-  });
+  if (catalog === null) return null;
+
+  return {
+    slugs: catalog.models.map(({ slug }) => slug),
+    bytes: JSON.stringify({
+      ...catalog,
+      models: catalog.models.map((model) => Object.assign({}, model, TOOLLESS)),
+    }),
+  };
 }
 
 function eventsOf(stdout: string): Events {
@@ -123,4 +150,51 @@ export function readOutcome<Result>(
   }
 
   return failure === null ? null : failureRefusal(failure);
+}
+
+export const SURFACE_PROMPT = "Reply with one word.";
+
+const ALLOWED_TOOLS = new Set(["functions.request_user_input"]);
+
+const BASE_TEXT = [
+  "You are Codex, an agent based on ",
+  "<permissions instructions>",
+  "<collaboration_mode>",
+  "<environment_context>",
+];
+
+export interface Surface {
+  readonly extraTools: readonly string[];
+  readonly foreignTexts: number;
+}
+
+function toolNames({ tools }: Readonly<z.infer<typeof PromptItemSchema>>): string[] {
+  return (tools ?? []).flatMap((entry) =>
+    entry.tools === undefined
+      ? [`${entry.type}.${entry.name ?? ""}`]
+      : entry.tools.map((tool) => `${entry.name ?? entry.type}.${tool.name ?? tool.type}`),
+  );
+}
+
+function isBaseText(text: string): boolean {
+  return text === SURFACE_PROMPT || BASE_TEXT.some((prefix) => text.startsWith(prefix));
+}
+
+function foreignCount(items: z.infer<typeof PromptInputSchema>): number {
+  return items.reduce((count, { type, content }) => {
+    if (type !== "message" && type !== "additional_tools") return count + 1;
+
+    return count + (content ?? []).filter(({ text }) => !isBaseText(text ?? "")).length;
+  }, 0);
+}
+
+export function surfaceOf(stdout: string): Surface | null {
+  const items = parsedJson(PromptInputSchema, stdout);
+
+  if (items === null) return null;
+
+  return {
+    extraTools: items.flatMap((item) => toolNames(item)).filter((name) => !ALLOWED_TOOLS.has(name)),
+    foreignTexts: foreignCount(items),
+  };
 }
