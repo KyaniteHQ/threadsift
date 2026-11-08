@@ -59,9 +59,11 @@ const VIDEO_HOSTS: ReadonlySet<string> = new Set([
 ]);
 
 const GITHUB_NAME = /^[\w.-]+$/u;
-const X_POST_PATH = /^\/(?:[^/]+|i\/web)\/status\/\d+(?:\/|$)/u;
+export const GIT_SUFFIX = /(?<=.)\.git$/iu;
+const X_STATUS_PATH = /^\/(?:[^/]+|i\/web)\/status\/(\d+)(?:\/|$)/u;
+const LEADING_ZEROS = /^0+(?=\d)/u;
 const REDDIT_PATH_PREFIXES: ReadonlySet<string> = new Set(["r", "user", "u"]);
-const REDDIT_ID = /^[a-z\d]+$/iu;
+const REDDIT_ID = /^[a-zA-Z\d]+$/u;
 
 function isTrackingParam(pair: string, host: string): boolean {
   const key = (new URLSearchParams(pair).keys().next().value ?? "").toLowerCase();
@@ -105,12 +107,16 @@ function isRedditHost(host: string): boolean {
   return host === "reddit.com" || host.endsWith(".reddit.com");
 }
 
+function isRedditId(id: string | undefined): id is string {
+  return id !== undefined && REDDIT_ID.test(id);
+}
+
 function redditRef(host: string, segments: readonly string[]): RedditRef | null {
   if (host === "redd.it") {
     const [postId] = segments;
 
-    return segments.length === 1 && postId !== undefined && REDDIT_ID.test(postId)
-      ? { postId, commentId: undefined }
+    return segments.length === 1 && isRedditId(postId)
+      ? { postId: postId.toLowerCase(), commentId: undefined }
       : null;
   }
 
@@ -118,12 +124,18 @@ function redditRef(host: string, segments: readonly string[]): RedditRef | null 
   const prefix = segments[0] ?? "";
   const hasPrefix = at === 2 && REDDIT_PATH_PREFIXES.has(prefix);
   const postId = segments[at + 1];
+  const commentId = segments[at + 3];
 
-  if (!isRedditHost(host) || !(at === 0 || hasPrefix) || postId === undefined) {
+  if (
+    !isRedditHost(host) ||
+    !(at === 0 || hasPrefix) ||
+    !isRedditId(postId) ||
+    (commentId !== undefined && !isRedditId(commentId))
+  ) {
     return null;
   }
 
-  return { postId, commentId: segments[at + 3] };
+  return { postId: postId.toLowerCase(), commentId: commentId?.toLowerCase() };
 }
 
 function redditLink({ postId, commentId }: Readonly<RedditRef>): Link {
@@ -145,14 +157,16 @@ function githubKind(segments: readonly string[]): Kind {
   return isRepository ? "github-repo" : "link";
 }
 
-function kindOf(host: string, pathname: string): Kind {
-  const segments = segmentsOf(pathname);
+function xLink(statusId: string): Link {
+  return {
+    normalizedUrl: `https://x.com/i/status/${statusId.replace(LEADING_ZEROS, "")}`,
+    kind: "x-post",
+    source: "x",
+  };
+}
 
-  if (X_HOSTS.has(host)) {
-    return X_POST_PATH.test(pathname) ? "x-post" : "link";
-  }
-
-  return host === GITHUB_HOST ? githubKind(segments) : "link";
+function repositoryRootPath([owner = "", repo = ""]: readonly string[]): string {
+  return `/${owner}/${repo.replace(GIT_SUFFIX, "")}`.toLowerCase();
 }
 
 export function parseLink(absoluteUrl: string): Link {
@@ -163,13 +177,24 @@ export function parseLink(absoluteUrl: string): Link {
   url.password = "";
   url.hash = "";
   url.search = keptQuery(url.search, host);
-  const reddit = redditRef(host, segmentsOf(url.pathname));
+  const segments = segmentsOf(url.pathname);
+  const reddit = redditRef(host, segments);
 
   if (reddit !== null) {
     return redditLink(reddit);
   }
 
-  const kind = kindOf(host, url.pathname);
+  const statusId = X_HOSTS.has(host) ? X_STATUS_PATH.exec(url.pathname)?.[1] : undefined;
+
+  if (statusId !== undefined) {
+    return xLink(statusId);
+  }
+
+  const kind = host === GITHUB_HOST ? githubKind(segments) : "link";
+
+  if (kind === "github-repo" && segments.length === 2) {
+    url.pathname = repositoryRootPath(segments);
+  }
 
   return { normalizedUrl: url.href, kind, source: SOURCE_OF_KIND[kind] };
 }
@@ -211,6 +236,15 @@ interface LinkPlace extends Link {
   readonly community: string | null;
 }
 
+export function spellingOf({
+  normalizedUrl,
+  originalUrl,
+}: Readonly<Pick<LinkPlace, "normalizedUrl" | "originalUrl">>): string {
+  return URL.canParse(originalUrl) && parseLink(originalUrl).normalizedUrl === normalizedUrl
+    ? originalUrl
+    : normalizedUrl;
+}
+
 export function whereOf({
   source,
   kind,
@@ -218,8 +252,11 @@ export function whereOf({
   originalUrl,
   community,
 }: Readonly<LinkPlace>): string {
-  const { host, pathname } = new URL(normalizedUrl);
-  const [first = "", second = ""] = segmentsOf(pathname);
+  const { host } = new URL(normalizedUrl);
+
+  const [first = "", second = ""] = segmentsOf(
+    new URL(spellingOf({ normalizedUrl, originalUrl })).pathname,
+  );
 
   if (community !== null) {
     return `r/${community}`;
@@ -238,7 +275,7 @@ export function whereOf({
   }
 
   if (kind === "github-repo") {
-    return `${first}/${second}`;
+    return `${first}/${second.replace(GIT_SUFFIX, "")}`;
   }
 
   return host;

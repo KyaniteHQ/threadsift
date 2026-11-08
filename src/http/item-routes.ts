@@ -24,6 +24,7 @@ import {
 export const NOT_FOUND = "Not found";
 const REFUSED_HOST = "url: the host is not globally reachable";
 const CONTENT_TOO_LARGE = "content: longer than 4 MiB";
+const UPDATING = "The library is being updated and takes no new link yet. Try again in a minute.";
 
 const saveItemRoute = createRoute({
   method: "post",
@@ -45,6 +46,10 @@ const saveItemRoute = createRoute({
     413: jsonBody(
       ErrorResponseSchema,
       "`content` is longer than 4 MiB, or the request body is longer than 8 MiB. Other routes refuse a body over 64 KiB. The Item is unchanged.",
+    ),
+    503: jsonBody(
+      ErrorResponseSchema,
+      "A new release is rewriting the stored Items and has not finished, so the link is not saved. Reads and deletes work meanwhile. Send the link again after a minute.",
     ),
   },
 });
@@ -143,6 +148,10 @@ function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
 
     if (saved.kind === "refused") {
       return c.json({ error: REFUSED_HOST, fetch: "refused" as const }, 400);
+    }
+
+    if (saved.kind === "updating") {
+      return c.json({ error: UPDATING }, 503);
     }
 
     if (saved.kind === "invalid") {

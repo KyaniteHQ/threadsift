@@ -12,7 +12,9 @@ import { itemOf, listAll, postLink, postLinkRaw, settled } from "./api.ts";
 import { openLibrary, pasteForId } from "./card.ts";
 import {
   DEFUDDLE,
+  NO_README_IDENTITY,
   NO_README_REPOSITORY,
+  RENAMED_IDENTITY,
   RENAMED_REPOSITORY,
   RENAMED_TO,
   STALE,
@@ -110,8 +112,8 @@ test("a repository pasted again under its old name is refreshed in place: stale 
   await useSuiteGithubToken(request);
   await requireGithubBudget(3);
   const word = `zzstale${newRunId()}`;
-  forgetItem(RENAMED_REPOSITORY);
-  const id = storeStaleRepository(RENAMED_REPOSITORY, word);
+  forgetItem(RENAMED_IDENTITY);
+  const id = storeStaleRepository(RENAMED_IDENTITY, word);
 
   expect(await matches(request, word)).toEqual([id]);
 
@@ -128,7 +130,7 @@ test("a repository pasted again under its old name is refreshed in place: stale 
     status: "ready",
     fetch: "ok",
     title: RENAMED_TO,
-    normalizedUrl: RENAMED_REPOSITORY,
+    normalizedUrl: RENAMED_IDENTITY,
   });
   expect(item.postText).toContain("Threadsift");
   expect(item.postText).not.toContain("stale");
@@ -148,7 +150,7 @@ test("with no token saved, a repository without a README is read anonymously and
 }) => {
   await removeGithubToken(request);
   await requireGithubBudget(2, true);
-  forgetItem(NO_README_REPOSITORY);
+  forgetItem(NO_README_IDENTITY);
   const { status, body } = await postLink(request, NO_README_REPOSITORY);
   const item = body.item;
 

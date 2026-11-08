@@ -9,7 +9,9 @@ import { type Seed, migrationsBefore } from "./seeded.ts";
 
 export const DEFUDDLE = "https://github.com/kepano/defuddle";
 export const NO_README_REPOSITORY = "https://github.com/KyaniteHQ/homebrew-linctl";
+export const NO_README_IDENTITY = "https://github.com/kyanitehq/homebrew-linctl";
 export const RENAMED_REPOSITORY = "https://github.com/KyaniteHQ/commonplace";
+export const RENAMED_IDENTITY = "https://github.com/kyanitehq/commonplace";
 export const RENAMED_TO = "KyaniteHQ/threadsift";
 
 export const GITHUB_REQUESTS_PER_RUN = 10;

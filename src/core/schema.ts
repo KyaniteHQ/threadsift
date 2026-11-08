@@ -25,6 +25,8 @@ export {
   throttles,
 } from "./access-tables.ts";
 
+export { dataStepRenames, dataSteps } from "./data-step-tables.ts";
+
 export { githubCooldown, githubSettings } from "./github-tables.ts";
 
 export { aiSettingsRevision, openrouterConnectTransactions } from "./openrouter-tables.ts";

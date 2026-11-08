@@ -30,7 +30,7 @@ test("one link pasted a second way is one Item with the same id and saved date",
   expect(withCredentials.body.item.normalizedUrl).not.toContain("secret");
 });
 
-test("links that differ in a kept query parameter or in path case stay separate", async ({
+test("generic links that differ in a kept query parameter, in path case or in scheme stay separate", async ({
   request,
 }) => {
   const run = newRunId();
@@ -38,8 +38,9 @@ test("links that differ in a kept query parameter or in path case stay separate"
   const links = [
     `https://example.com/${run}/page?id=alpha`,
     `https://example.com/${run}/page?id=beta`,
-    `https://github.com/Owner/Repo-${run}`,
-    `https://github.com/owner/repo-${run}`,
+    `https://example.com/${run}/Page`,
+    `https://example.com/${run}/page`,
+    `http://example.com/${run}/page`,
   ];
 
   const posted = await Promise.all(links.map((url) => postLink(request, url)));
@@ -48,13 +49,13 @@ test("links that differ in a kept query parameter or in path case stay separate"
   expect(new Set(posted.map(({ body }) => body.item.id)).size).toBe(links.length);
 });
 
-test("x.com and twitter.com drop their share parameters but keep other hosts' s and t", async ({
+test("an X post link drops its whole query, and other hosts keep their s and t", async ({
   request,
 }) => {
   const run = newRunId();
   const x = await postLink(request, `https://x.com/someone/status/${run}1?s=20&t=abc&lang=en`);
   const other = await postLink(request, `https://example.com/${run}?s=1&t=2`);
-  expect(x.body.item.normalizedUrl).toBe(`https://x.com/someone/status/${run}1?lang=en`);
+  expect(x.body.item.normalizedUrl).toBe(`https://x.com/i/status/${run}1`);
   expect(other.body.item.normalizedUrl).toBe(`https://example.com/${run}?s=1&t=2`);
 
   const mobile = await postLink(

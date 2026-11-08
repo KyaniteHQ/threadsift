@@ -1,7 +1,7 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
 import { refreshedOf } from "../core/fetch-results.ts";
-import { saveItem } from "../core/items.ts";
+import { paste } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
 import { SHARE_PATH, type ShareArrival, prefillOf, shareAddress } from "../core/share-address.ts";
 import { type SharedContent, sharedContentOf } from "../core/shared-link.ts";
@@ -17,15 +17,37 @@ async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
     return prefillOf(link, "invalid");
   }
 
-  const saved = await saveItem(ports, request.data.url, request.data.digest);
+  const saved = await paste(ports, request.data.url, { digest: request.data.digest });
 
-  return saved.kind === "refused"
-    ? prefillOf(link, "private")
-    : {
+  switch (saved.kind) {
+    case "refused": {
+      return prefillOf(link, "private");
+    }
+
+    case "updating": {
+      return prefillOf(link, "updating");
+    }
+
+    case "saved": {
+      return {
         kind: "saved",
         id: saved.item.id,
         refreshed: refreshedOf(!saved.created, saved.item.fetch),
       };
+    }
+
+    case "invalid": {
+      throw new Error('Not implemented yet: "invalid" case');
+    }
+
+    case "too-large": {
+      throw new Error('Not implemented yet: "too-large" case');
+    }
+
+    default: {
+      return prefillOf(link, "invalid");
+    }
+  }
 }
 
 function arrivalFor(

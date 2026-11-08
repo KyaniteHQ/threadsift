@@ -1,4 +1,5 @@
 import { type Digest } from "./ai-contract.ts";
+import { dataStepsFinished } from "./data-steps.ts";
 import { utf8Length } from "./digest-prompt.ts";
 import { itemAt, saveItem, type SaveResult } from "./items.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
@@ -15,7 +16,8 @@ export interface Supplied {
 export type PasteResult =
   | SaveResult
   | { readonly kind: "invalid"; readonly reason: string }
-  | { readonly kind: "too-large" };
+  | { readonly kind: "too-large" }
+  | { readonly kind: "updating" };
 
 const NOT_A_THREAD_LINK = "only a Reddit post or comment link takes content";
 
@@ -51,14 +53,16 @@ async function saveThread(
   return { kind: "saved", item, created: inserted.length > 0 };
 }
 
-export function paste(
+export async function paste(
   ports: Ports,
   absoluteUrl: string,
   { digest, content }: Readonly<Supplied> = {},
 ): Promise<PasteResult> {
+  if (!(await dataStepsFinished(ports.db))) return { kind: "updating" };
+
   if (content === undefined) return saveItem(ports, absoluteUrl, digest);
 
-  if (utf8Length(content) > THREAD_CONTENT_BYTES) return Promise.resolve({ kind: "too-large" });
+  if (utf8Length(content) > THREAD_CONTENT_BYTES) return { kind: "too-large" };
 
   return saveThread(ports, absoluteUrl, { digest, content });
 }

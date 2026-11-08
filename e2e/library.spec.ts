@@ -12,6 +12,7 @@ import {
   SHORT_LINK_TARGET,
   SHORT_LINK_TARGET_NORMALIZED,
   X_POST,
+  X_POST_IDENTITY,
   newRunId,
   pasteLink,
   rowOf,
@@ -70,7 +71,7 @@ function expectedItems(redirect: string) {
     [EXAMPLE, { source: "other", title: "Example Domain" }],
     [MOVED_PAGE_NORMALIZED, { title: MOVED_PAGE_TITLE }],
     [SHORT_LINK_TARGET_NORMALIZED, { source: "article", title: "Example Domains" }],
-    [X_POST, { source: "x", title: null }],
+    [X_POST_IDENTITY, { source: "x", title: null }],
     [redirect, { source: "other", title: null }],
   ]);
 }
