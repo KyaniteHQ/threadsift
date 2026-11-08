@@ -8,6 +8,7 @@ import { readPostText } from "./post-text.ts";
 import { commentsOf, threadReads } from "./reddit-thread.ts";
 import { REPOSITORY_COLUMNS } from "./repositories.ts";
 import { digests, githubRepos, itemTags, items, tags } from "./schema.ts";
+import { WAIT_VIEW_COLUMNS } from "./wait-view.ts";
 
 export const EMPTY_JOINED_VIEW = {
   digestTitle: null,
@@ -15,6 +16,8 @@ export const EMPTY_JOINED_VIEW = {
   digestOutcome: "none",
   digestSource: false,
   stars: null,
+  waitReason: null,
+  retryAt: null,
 } as const;
 
 const {
@@ -36,7 +39,7 @@ export { DETAIL_COLUMNS, LISTED_COLUMNS };
 
 export function selectItems<Fields extends typeof LISTED_COLUMNS>(db: Database, fields: Fields) {
   return db
-    .select({ ...fields, ...DIGEST_VIEW_COLUMNS, stars: githubRepos.stars })
+    .select({ ...fields, ...DIGEST_VIEW_COLUMNS, ...WAIT_VIEW_COLUMNS, stars: githubRepos.stars })
     .from(items)
     .leftJoin(digests, eq(digests.itemId, items.id))
     .leftJoin(githubRepos, eq(githubRepos.itemId, items.id));

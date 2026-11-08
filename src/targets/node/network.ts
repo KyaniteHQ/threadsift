@@ -48,6 +48,10 @@ const globalAddressesOnly: LookupFunction = (hostname, options, callback) => {
   });
 };
 
+function firstHeader(value: string | readonly string[] | undefined): string | null {
+  return [value].flat()[0] ?? null;
+}
+
 function encodingOf(response: IncomingMessage): string {
   return (response.headers["content-encoding"] ?? IDENTITY).trim().toLowerCase();
 }
@@ -87,6 +91,11 @@ export const nodeNetwork: Network = {
             status: response.statusCode ?? 0,
             location: response.headers.location ?? null,
             contentType: response.headers["content-type"] ?? null,
+            rateLimit: {
+              retryAfter: firstHeader(response.headers["retry-after"]),
+              remaining: firstHeader(response.headers["x-ratelimit-remaining"]),
+              reset: firstHeader(response.headers["x-ratelimit-reset"]),
+            },
             body: decodedBody(response, encoding),
           });
         },

@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { shownUrl, whereOf } from "../../src/core/links.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
-import { noteOf } from "./paste-card.ts";
 import {
   DIGEST_PENDING,
   KEY_POINTS_LABEL,
@@ -11,17 +10,11 @@ import {
   SUMMARY_LABEL,
   postedLabel,
 } from "./reader-text.ts";
+import { HeadNote, Note } from "./ReaderNote.tsx";
 import { Original } from "./ReaderOriginal.tsx";
 import { savedLabel } from "./saved-label.ts";
 import { tagHue } from "./tag-hue.ts";
-import {
-  DIGEST_NOT_UPDATED,
-  FAILURE_TITLES,
-  NOTICES,
-  NO_DIGEST,
-  RETRY_LABEL,
-  SOURCE_LABELS,
-} from "./text.ts";
+import { DIGEST_NOT_UPDATED, NO_DIGEST, RETRY_LABEL, SOURCE_LABELS } from "./text.ts";
 import type { DetailState } from "./use-item-detail.ts";
 
 function bylineOf(item: Readonly<Item>): string {
@@ -30,38 +23,6 @@ function bylineOf(item: Readonly<Item>): string {
   if (item.source === "reddit") return `u/${item.author}`;
 
   return item.source === "x" ? `@${item.author}` : item.author;
-}
-
-function noteTextOf(item: Readonly<Item>): string | null {
-  if (item.status === "failed") return FAILURE_TITLES[item.reason];
-
-  if (item.fetch === "github-token") return null;
-
-  const key = noteOf(item);
-
-  return key === null ? null : NOTICES[key].text;
-}
-
-function Note({
-  item,
-  text,
-  withRetry,
-  tryAgain,
-}: Readonly<{ item: Item; text: string; withRetry: boolean; tryAgain: (item: Item) => void }>) {
-  const retry = useCallback(() => {
-    tryAgain(item);
-  }, [item, tryAgain]);
-
-  if (!withRetry) return <p className="rd-note">{text}</p>;
-
-  return (
-    <div className="rd-orig">
-      <p className="rd-note">{text}</p>
-      <button type="button" className="btn btn-block" onClick={retry}>
-        {RETRY_LABEL}
-      </button>
-    </div>
-  );
 }
 
 export function ReaderHead({
@@ -80,7 +41,6 @@ export function ReaderHead({
   tryAgain: (item: Item) => void;
 }>) {
   const title = useRef<HTMLHeadingElement>(null);
-  const note = noteTextOf(item);
   const name = item.digestTitle ?? item.title;
 
   useEffect(() => {
@@ -101,9 +61,7 @@ export function ReaderHead({
       <h2 ref={title} id={titleId} className="rd-title" tabIndex={-1}>
         <bdi dir="auto">{name ?? shownUrl(item.normalizedUrl)}</bdi>
       </h2>
-      {note === null ? null : (
-        <Note item={item} text={note} withRetry={item.status === "failed"} tryAgain={tryAgain} />
-      )}
+      <HeadNote item={item} tryAgain={tryAgain} />
     </header>
   );
 }

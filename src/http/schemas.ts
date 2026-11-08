@@ -10,11 +10,15 @@ import {
   type FailureReason,
   READ_STATES,
   SOURCES,
+  WAIT_REASONS,
+  type WaitReason,
 } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
 
 const HttpUrlSchema = z.url({ protocol: /^https?$/u });
+
+const WaitSchema = z.object({ reason: z.enum(WAIT_REASONS), retryAt: z.number().int() });
 
 const ItemBaseSchema = z.object({
   id: z.number().int(),
@@ -33,6 +37,7 @@ const ItemBaseSchema = z.object({
   fetch: z.enum(FETCH_RESULTS).nullable(),
   readState: z.enum(READ_STATES),
   stars: z.number().int().nonnegative().nullable(),
+  wait: WaitSchema.nullable(),
 });
 
 const RepositorySchema = z.object({
@@ -217,7 +222,17 @@ type StatusFields =
 type StatusRow = Pick<ItemRow, "id" | "status" | "reason"> & {
   readonly digestOutcome: (typeof DIGEST_OUTCOMES)[number];
   readonly digestSource: boolean;
+  readonly waitReason: WaitReason | null;
+  readonly retryAt: number | null;
 };
+
+type Wait = z.infer<typeof WaitSchema>;
+
+function waitOf({ status, waitReason, retryAt }: Readonly<StatusRow>): Wait | null {
+  return status === "processing" && waitReason !== null && retryAt !== null
+    ? { reason: waitReason, retryAt }
+    : null;
+}
 
 function statusOf(item: Readonly<StatusRow>): StatusFields {
   const { id, status, reason } = item;
@@ -252,8 +267,9 @@ function statusOf(item: Readonly<StatusRow>): StatusFields {
 
 export function itemView<Row extends StatusRow>(
   row: Readonly<Row>,
-): Omit<Row, "status" | "reason" | "digestSource"> & StatusFields {
-  const { digestSource: _digestSource, ...view } = row;
+): Omit<Row, "status" | "reason" | "digestSource" | "waitReason" | "retryAt"> &
+  StatusFields & { readonly wait: Wait | null } {
+  const { digestSource: _digestSource, waitReason: _waitReason, retryAt: _retryAt, ...view } = row;
 
-  return { ...view, ...statusOf(row) };
+  return { ...view, ...statusOf(row), wait: waitOf(row) };
 }

@@ -1,6 +1,6 @@
 import type { BatchItem } from "drizzle-orm/batch";
 
-import type { JobKind } from "./kinds.ts";
+import type { JobKind, WaitReason } from "./kinds.ts";
 import type { Database, Ports } from "./ports.ts";
 import type { JobRow } from "./schema.ts";
 
@@ -20,12 +20,20 @@ export interface JobFiles {
   readonly superseded: string | null;
 }
 
-export interface JobOutcome {
+export interface SettledOutcome {
   readonly writes: JobWrites;
   readonly currency?: JobCurrency;
   readonly files?: JobFiles;
   readonly failedAttempt?: boolean;
 }
+
+export interface DeferredOutcome {
+  readonly deferredUntil: number;
+  readonly wait: WaitReason;
+  readonly countsAttempt: boolean;
+}
+
+export type JobOutcome = SettledOutcome | DeferredOutcome;
 
 export interface JobHandler {
   readonly deadlineMs: number;

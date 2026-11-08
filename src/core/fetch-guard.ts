@@ -1,10 +1,18 @@
 import { isRefusedHost, resolveUrl } from "./addresses.ts";
+import { type Capped, readCapped } from "./capped.ts";
 import type { FetchFailure } from "./fetch-results.ts";
+import {
+  ERROR_BODY_BYTES,
+  type RateLimit,
+  isLimitStatus,
+  rateLimitOf,
+} from "./github-rate-limit.ts";
 import { metaRefreshTarget } from "./meta-refresh.ts";
 import {
   HOP_DEADLINE_MS,
   type Network,
   NetworkFailure,
+  type NetworkResponse,
   type NetworkFailureReason,
   type RequestHeaders,
 } from "./ports.ts";
@@ -23,15 +31,24 @@ type GuardFailure = Exclude<
   "no-title" | "unreadable" | "redirect-stopped" | "github-token"
 >;
 
+export interface RateLimited {
+  readonly kind: "failed";
+  readonly reason: "rate-limited";
+  readonly httpStatus: number;
+  readonly limit: RateLimit;
+}
+
 export type Failed =
   | { readonly kind: "failed"; readonly reason: Exclude<GuardFailure, "status"> }
-  | { readonly kind: "failed"; readonly reason: "status"; readonly httpStatus: number };
+  | { readonly kind: "failed"; readonly reason: "status"; readonly httpStatus: number }
+  | RateLimited;
 
 export interface FetchPolicy {
   readonly stopAt: (url: string) => boolean;
   readonly followMetaRefresh: (url: string) => boolean;
   readonly readsBody: (url: string) => boolean;
   readonly headers: (url: string) => RequestHeaders;
+  readonly readsLimits: (url: string) => boolean;
   readonly htmlMaxBytes: number;
   readonly dataMaxBytes: number;
 }
@@ -45,11 +62,6 @@ export interface Page {
 }
 
 export type GuardOutcome = Page | { readonly kind: "stopped"; readonly url: string } | Failed;
-
-interface Capped {
-  readonly bytes: Uint8Array;
-  readonly cut: boolean;
-}
 
 const NO_BODY: Capped = { bytes: new Uint8Array(0), cut: false };
 
@@ -70,39 +82,38 @@ const failedStatus = (httpStatus: number): Failed => ({
   httpStatus,
 });
 
-async function readCapped(body: AsyncIterable<Uint8Array>, maxBytes: number): Promise<Capped> {
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  let cut = false;
-
-  for await (const chunk of body) {
-    const room = maxBytes - size;
-    cut = chunk.length > room;
-    const kept = cut ? chunk.subarray(0, room) : chunk;
-    chunks.push(kept);
-    size += kept.length;
-
-    if (cut) {
-      break;
-    }
-  }
-
-  const bytes = new Uint8Array(size);
-  let at = 0;
-
-  for (const chunk of chunks) {
-    bytes.set(chunk, at);
-    at += chunk.length;
-  }
-
-  return { bytes, cut };
-}
-
 function failureOf(
   deadlineHit: boolean,
   reason: NetworkFailureReason | null,
 ): Exclude<GuardFailure, "status"> {
   return deadlineHit ? "timeout" : (reason ?? "network");
+}
+
+function rateLimited(status: number, limit: Readonly<RateLimit>): RateLimited {
+  return { kind: "failed", reason: "rate-limited", httpStatus: status, limit };
+}
+
+async function failedAnswer(
+  response: Readonly<NetworkResponse>,
+  url: string,
+  policy: Readonly<FetchPolicy>,
+): Promise<Failed> {
+  const { status, rateLimit } = response;
+
+  if (!isLimitStatus(status) || !policy.readsLimits(url)) return failedStatus(status);
+
+  const byHeaders = rateLimitOf({ status, headers: rateLimit, body: "" }, Date.now());
+
+  if (byHeaders !== null) return rateLimited(status, byHeaders);
+
+  const { bytes } = await readCapped(response.body, ERROR_BODY_BYTES);
+
+  const limit = rateLimitOf(
+    { status, headers: rateLimit, body: new TextDecoder().decode(bytes) },
+    Date.now(),
+  );
+
+  return limit === null ? failedStatus(status) : rateLimited(status, limit);
 }
 
 async function requestHop(
@@ -133,7 +144,7 @@ async function requestHop(
     }
 
     if (response.status < 200 || response.status > 299) {
-      return failedStatus(response.status);
+      return await failedAnswer(response, url, policy);
     }
 
     const html = isHtmlType(response.contentType);
@@ -255,9 +266,9 @@ export function loggedFailureOf(
     return whenStopped;
   }
 
-  if (outcome.reason === "status") {
+  if (outcome.reason === "status" || outcome.reason === "rate-limited") {
     console.warn(JSON.stringify({ event: "fetch-status", httpStatus: outcome.httpStatus }));
   }
 
-  return outcome.reason;
+  return outcome.reason === "rate-limited" ? "status" : outcome.reason;
 }

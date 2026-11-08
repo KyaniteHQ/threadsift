@@ -34,6 +34,7 @@ export const GITHUB_TEXT = {
   timeout: "GitHub timed out. Try Verify again.",
   githubErrorStatus: "GitHub returned error {status}. Try Verify again.",
   githubError: "GitHub returned a response Threadsift couldn’t use. Try Verify again.",
+  rateLimited: "GitHub is limiting requests, so try Verify again later.",
   loadFailed: "Couldn’t load the GitHub token settings. Reload the page.",
   failed: "Couldn’t save, remove or verify the token. Try again.",
 } as const;
@@ -75,6 +76,8 @@ export function refusalText({ reason, status }: Readonly<GithubRefused>): string
       return status === null
         ? GITHUB_TEXT.githubError
         : filled(GITHUB_TEXT.githubErrorStatus, { status: String(status) });
+    case "rate-limited":
+      return GITHUB_TEXT.rateLimited;
     default: {
       const exhaustive: never = reason;
 

@@ -4,9 +4,15 @@ import type { Fetched } from "./details.ts";
 import { fromBase64 } from "./encoding.ts";
 import { type FetchPolicy, type GuardOutcome, type Page, loggedFailureOf } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import { UNAUTHORIZED, apiPolicy, getApi, parsedJson } from "./github-api.ts";
+import {
+  type GithubRun,
+  UNAUTHORIZED,
+  type Waiting,
+  apiPolicy,
+  parsedJson,
+  requestApi,
+} from "./github-api.ts";
 import type { GithubAuth } from "./github-token.ts";
-import type { Network } from "./ports.ts";
 import type { RepositoryRef } from "./repository-ref.ts";
 
 const NOT_FOUND = 404;
@@ -54,7 +60,8 @@ const ReadmeAnswerSchema = z.object({
 
 type Readme =
   | { readonly kind: "text"; readonly text: string | null }
-  | { readonly kind: "failed"; readonly status: FetchFailure };
+  | { readonly kind: "failed"; readonly status: FetchFailure }
+  | Waiting;
 
 const TOKEN_REJECTED = "github-token";
 
@@ -96,22 +103,28 @@ function failureOf(outcome: Exclude<GuardOutcome, Page>, tokenSent: boolean): Fe
   return rejected ? TOKEN_REJECTED : loggedFailureOf(outcome);
 }
 
+function waitingFetched({ until, limited }: Readonly<Waiting>): Fetched {
+  return { status: "waiting", until, limited };
+}
+
 async function readmeAfter(
-  network: Network,
+  run: Readonly<GithubRun>,
   owner: string,
   name: string,
   policy: Readonly<FetchPolicy>,
   tokenSent: boolean,
   deadline: AbortSignal,
 ): Promise<Readme> {
-  const outcome = await getApi(
-    network,
+  const outcome = await requestApi(
+    run,
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`,
     { ...policy, dataMaxBytes: README_ANSWER_BYTES },
     deadline,
   );
 
   if (outcome.kind === "page") return readmeOf(outcome);
+
+  if (outcome.kind === "waiting") return outcome;
 
   if (
     outcome.kind === "failed" &&
@@ -125,7 +138,7 @@ async function readmeAfter(
 }
 
 export async function fetchedOfRepository(
-  network: Network,
+  run: Readonly<GithubRun>,
   { owner, name }: Readonly<RepositoryRef>,
   auth: Readonly<GithubAuth>,
   deadline: AbortSignal,
@@ -135,12 +148,14 @@ export async function fetchedOfRepository(
   const tokenSent = auth.kind === "token";
   const policy = apiPolicy(tokenSent ? auth.token : null);
 
-  const outcome = await getApi(
-    network,
+  const outcome = await requestApi(
+    run,
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
     policy,
     deadline,
   );
+
+  if (outcome.kind === "waiting") return waitingFetched(outcome);
 
   if (outcome.kind !== "page") return { status: failureOf(outcome, tokenSent) };
 
@@ -150,7 +165,9 @@ export async function fetchedOfRepository(
 
   if (answer.private) return { status: "status" };
 
-  const readme = await readmeAfter(network, answer.owner, answer.name, policy, tokenSent, deadline);
+  const readme = await readmeAfter(run, answer.owner, answer.name, policy, tokenSent, deadline);
+
+  if (readme.kind === "waiting") return waitingFetched(readme);
 
   if (readme.kind === "failed") return { status: readme.status };
 

@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import type { GuardOutcome, Page } from "./fetch-guard.ts";
-import { UNAUTHORIZED, apiPolicy, getApi, parsedJson } from "./github-api.ts";
+import type { GuardOutcome, Page, RateLimited } from "./fetch-guard.ts";
+import { UNAUTHORIZED, apiPolicy, parsedJson, requestApi } from "./github-api.ts";
 import {
   type GithubRefused,
   type GithubSettingsView,
@@ -10,8 +10,8 @@ import {
   type GithubVerifyResult,
   refusedGithub,
 } from "./github-contract.ts";
+import { githubSettings } from "./github-tables.ts";
 import { HOP_DEADLINE_MS, type Ports } from "./ports.ts";
-import { githubSettings } from "./schema.ts";
 
 export type GithubAuth =
   | { readonly kind: "anonymous" }
@@ -89,7 +89,7 @@ export async function removeGithubToken(ports: Readonly<TokenPorts>): Promise<Gi
   return viewOf(ANONYMOUS, ports);
 }
 
-function refusalOf(outcome: Exclude<GuardOutcome, Page>): GithubRefused {
+function refusalOf(outcome: Exclude<GuardOutcome, Page | RateLimited>): GithubRefused {
   if (outcome.kind === "stopped") return refusedGithub("github-error");
 
   if (outcome.reason === "status") {
@@ -113,12 +113,14 @@ export async function verifyGithubToken(
 
   if (auth.kind === "unreadable") return refusedGithub("secret-missing");
 
-  const outcome = await getApi(
-    ports.network,
+  const outcome = await requestApi(
+    { ports, attempts: 0 },
     "/rate_limit",
     apiPolicy(auth.token),
     AbortSignal.any([signal, AbortSignal.timeout(HOP_DEADLINE_MS)]),
   );
+
+  if (outcome.kind === "waiting") return refusedGithub("rate-limited");
 
   if (outcome.kind !== "page") return refusalOf(outcome);
 

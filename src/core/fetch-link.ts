@@ -1,4 +1,10 @@
-import { type Fetched, NOT_REQUESTED, detailsOfOembed, detailsOfPage } from "./details.ts";
+import {
+  type Concluded,
+  type Fetched,
+  NOT_REQUESTED,
+  detailsOfOembed,
+  detailsOfPage,
+} from "./details.ts";
 import {
   type FetchPolicy,
   type GuardOutcome,
@@ -18,7 +24,7 @@ import { repositoryRef } from "./repository-ref.ts";
 
 export type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
-  | { readonly kind: "failed"; readonly fetched: Fetched };
+  | { readonly kind: "failed"; readonly fetched: Concluded };
 
 export const FETCH_DEADLINE_MS = 120_000;
 
@@ -27,6 +33,7 @@ const SMALL_POLICY: FetchPolicy = {
   followMetaRefresh: isShortLink,
   readsBody: () => true,
   headers: () => NO_HEADERS,
+  readsLimits: () => false,
   htmlMaxBytes: SMALL_BODY_BYTES,
   dataMaxBytes: SMALL_BODY_BYTES,
 };
@@ -39,9 +46,9 @@ function pagePolicy({ maxHtmlBytes }: Readonly<PageReader>): FetchPolicy {
 
 async function fetchedOf(
   outcome: Readonly<GuardOutcome>,
-  readPage: (page: Readonly<Page>) => Promise<Fetched> | Fetched,
+  readPage: (page: Readonly<Page>) => Promise<Concluded> | Concluded,
   whenStopped: FetchFailure,
-): Promise<Fetched> {
+): Promise<Concluded> {
   if (outcome.kind !== "page") {
     return { status: loggedFailureOf(outcome, whenStopped) };
   }
@@ -61,7 +68,7 @@ async function fetchedOfOembed(
   network: Network,
   normalizedUrl: string,
   deadline: AbortSignal,
-): Promise<Fetched> {
+): Promise<Concluded> {
   const outcome = await guardedFetch(
     network,
     `https://www.reddit.com/oembed?url=${encodeURIComponent(normalizedUrl)}`,
@@ -75,6 +82,7 @@ async function fetchedOfOembed(
 export async function fetchLink(
   ports: Readonly<Pick<Ports, "db" | "ai" | "network" | "pages">>,
   address: string,
+  attempts: number,
 ): Promise<Fetched> {
   const { network, pages } = ports;
   const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
@@ -90,7 +98,7 @@ export async function fetchLink(
 
   if (link.kind === "github-repo") {
     return fetchedOfRepository(
-      network,
+      { ports, attempts },
       repositoryRef(link.normalizedUrl),
       await loadGithubAuth(ports),
       deadline,

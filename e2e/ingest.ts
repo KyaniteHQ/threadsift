@@ -128,13 +128,15 @@ export function storeProcessingItemWithDueJob(
   return id;
 }
 
-export function claimLostLines(instance: Instance, jobId: number): string[] {
+export function eventLines(instance: Instance, event: string, fragment: string): string[] {
   return instance
     .logs()
     .split("\n")
-    .filter(
-      (line) => line.includes('"event":"job-claim-lost"') && line.includes(`"jobId":${jobId},`),
-    );
+    .filter((line) => line.includes(`"event":"${event}"`) && line.includes(fragment));
+}
+
+export function claimLostLines(instance: Instance, jobId: number): string[] {
+  return eventLines(instance, "job-claim-lost", `"jobId":${jobId},`);
 }
 
 export function releaseSweepThrottle(instance: Instance = mainInstance()): void {
@@ -203,10 +205,14 @@ export function expireClaim(id: number, instance: Instance = mainInstance()): vo
   instance.sql(`UPDATE jobs SET claim_expires = 1 WHERE item_id = ${id}`);
 }
 
-export function deferJobs(instance: Instance, kind: "fetch" | "digest"): () => void {
+export function deferJobs(
+  instance: Instance,
+  kind: "fetch" | "digest",
+  until = 9_007_199_254_740_991,
+): () => void {
   const trigger = `defer_${kind}`;
   instance.sql(
-    `CREATE TRIGGER ${trigger} AFTER INSERT ON jobs WHEN NEW.kind = '${kind}' BEGIN UPDATE jobs SET next_attempt_at = 9007199254740991 WHERE id = NEW.id; END`,
+    `CREATE TRIGGER ${trigger} AFTER INSERT ON jobs WHEN NEW.kind = '${kind}' BEGIN UPDATE jobs SET next_attempt_at = ${until} WHERE id = NEW.id; END`,
   );
 
   return () => {

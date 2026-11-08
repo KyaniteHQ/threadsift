@@ -25,7 +25,9 @@ export const THROTTLE_KINDS = ["setup", "login", "reset"] as const;
 
 export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
-export const FAILURE_REASONS = ["timeout", "network", "gave-up"] as const;
+export const FAILURE_REASONS = ["timeout", "network", "gave-up", "rate-limited"] as const;
+
+export const WAIT_REASONS = ["github-rate-limit"] as const;
 
 export const JOB_KINDS = ["fetch", "digest"] as const;
 
@@ -44,6 +46,8 @@ export type ThrottleKind = (typeof THROTTLE_KINDS)[number];
 export type ItemStatus = (typeof ITEM_STATUSES)[number];
 
 export type FailureReason = (typeof FAILURE_REASONS)[number];
+
+export type WaitReason = (typeof WAIT_REASONS)[number];
 
 export type JobKind = (typeof JOB_KINDS)[number];
 

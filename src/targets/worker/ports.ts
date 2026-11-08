@@ -9,6 +9,8 @@ import { type FilesBucket, r2FileStore } from "./file-store.ts";
 import { workerNetwork, workerFetch } from "./network.ts";
 import { workerPageReader } from "./page-reader.ts";
 
+const MAX_QUEUE_DELAY_SECONDS = 86_400;
+
 export interface Env {
   readonly DB: Parameters<typeof drizzle>[0];
   readonly FILES: FilesBucket;
@@ -41,7 +43,7 @@ export async function createWorkerPorts(env: Env): Promise<Ports> {
       enqueue: (jobIds, delayMs) =>
         env.JOBS.sendBatch(
           jobIds.map((jobId) => ({ body: { jobId } })),
-          { delaySeconds: Math.ceil(delayMs / 1000) },
+          { delaySeconds: Math.min(Math.ceil(delayMs / 1000), MAX_QUEUE_DELAY_SECONDS) },
         ),
     },
     crypto: nodeCrypto,

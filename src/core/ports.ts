@@ -9,10 +9,17 @@ export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteD
 
 export const HOP_DEADLINE_MS = 8000;
 
+export interface RateLimitHeaders {
+  readonly retryAfter: string | null;
+  readonly remaining: string | null;
+  readonly reset: string | null;
+}
+
 export interface NetworkResponse {
   readonly status: number;
   readonly location: string | null;
   readonly contentType: string | null;
+  readonly rateLimit: RateLimitHeaders;
   readonly body: AsyncIterable<Uint8Array>;
 }
 
