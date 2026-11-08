@@ -4,6 +4,7 @@ import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { useInternalLink } from "./routing.ts";
 import { SettingsSections } from "./SettingsSections.tsx";
+import { useBarFaces } from "./use-bar-faces.ts";
 import { useFocusOnMount } from "./use-form.ts";
 import { useSettingsLoad } from "./use-settings-load.ts";
 
@@ -22,6 +23,8 @@ export function SettingsPage({
   signedOut,
 }: Readonly<{ back: () => void; signedOut: () => void }>) {
   const titleField = useRef<HTMLHeadingElement>(null);
+  const bar = useRef<HTMLElement>(null);
+  const barFaces = useBarFaces(bar);
 
   useFocusOnMount(titleField);
 
@@ -41,7 +44,7 @@ export function SettingsPage({
 
   return (
     <div className="pg">
-      <header className="pg-bar">
+      <header ref={bar} className="pg-bar" data-faces={barFaces ? "loaded" : "loading"}>
         <div className="pg-bar-in">
           <a className="btn" href="/" onClick={follow}>
             {SETTINGS.back}

@@ -5,7 +5,7 @@ import type { Token } from "../../src/http/schemas.ts";
 import { fetchTokens } from "./access-api.ts";
 import { type AiView, fetchAiSettings } from "./ai-api.ts";
 import { fetchGithubSettings } from "./github-api.ts";
-import { loadSectionFonts } from "./section-fonts.ts";
+import { SECTION_FONTS, loadFonts } from "./load-fonts.ts";
 
 export const SETTINGS_READ_MS = 20_000;
 
@@ -58,7 +58,7 @@ export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLo
         settled(fetchAiSettings, signal),
         settled(fetchGithubSettings, signal),
         settled(fetchTokens, signal),
-        page.current === null ? undefined : loadSectionFonts(page.current, signal),
+        page.current === null ? undefined : loadFonts(page.current, SECTION_FONTS, signal),
       ]);
 
       window.clearTimeout(deadline);
