@@ -25,7 +25,7 @@ export function SettingsPage({
 }: Readonly<{ back: () => void; signedOut: () => void }>) {
   const titleField = useRef<HTMLHeadingElement>(null);
   const bar = useRef<HTMLElement>(null);
-  const barFaces = useFaces(bar, BAR_FONTS, SETTINGS_READ_MS);
+  const [barFaces] = useFaces(bar, BAR_FONTS, SETTINGS_READ_MS);
 
   useFocusOnMount(titleField);
 

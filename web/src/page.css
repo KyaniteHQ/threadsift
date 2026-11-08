@@ -55,14 +55,17 @@ fieldset.fl-g {
   visibility: hidden;
 }
 
-.app[data-faces="loading"] :is(.paste-row .swap, .brand .st-gear, .search) {
+.app[data-faces="loading"] :is(.paste-row .swap, .brand .st-gear, .search, .fl-ghost .fl-panel) {
+  visibility: hidden;
+}
+
+.rd-head[inert] {
+  position: absolute;
   opacity: 0;
 }
 
-.rd-col:has(> .rd-loading) > :not(.rd-loading) {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+.fl-ghost :is(.label, .fl-chip, .fl-n, .fl-sel) {
+  color: transparent;
 }
 
 .items {

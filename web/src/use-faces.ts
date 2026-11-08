@@ -1,13 +1,15 @@
-import { type RefObject, useEffect, useState } from "react";
+import { type RefObject, useCallback, useEffect, useState } from "react";
 
-import { loadFonts } from "./load-fonts.ts";
+import { BASE_SAMPLE, loadFonts } from "./load-fonts.ts";
 
 export function useFaces(
   root: RefObject<HTMLElement | null>,
   variables: readonly string[],
   waitMs: number,
-): boolean {
+  sample: string | null = BASE_SAMPLE,
+): readonly [boolean, () => void] {
   const [loaded, setLoaded] = useState(false);
+  const [deadline] = useState(() => AbortSignal.timeout(waitMs));
 
   useEffect(() => {
     const element = root.current;
@@ -18,11 +20,12 @@ export function useFaces(
         await loadFonts(
           element,
           variables,
-          AbortSignal.any([unmounted.signal, AbortSignal.timeout(waitMs)]),
+          AbortSignal.any([unmounted.signal, deadline]),
+          sample ?? BASE_SAMPLE,
         );
       }
 
-      if (!unmounted.signal.aborted) setLoaded(true);
+      if (sample !== null && !unmounted.signal.aborted) setLoaded(true);
     };
 
     void load();
@@ -30,7 +33,11 @@ export function useFaces(
     return () => {
       unmounted.abort();
     };
-  }, [root, variables, waitMs]);
+  }, [root, variables, sample, deadline]);
 
-  return loaded;
+  const release = useCallback(() => {
+    setLoaded(true);
+  }, []);
+
+  return [loaded, release];
 }

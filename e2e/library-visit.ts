@@ -15,8 +15,9 @@ export interface Visit {
   readonly size: Readonly<{ width: number; height: number }>;
   readonly stored: Readonly<Record<string, string>>;
   readonly path: string;
-  readonly settled: (page: Page) => Promise<void>;
+  readonly settled: (page: Page, release: () => void) => Promise<void>;
   readonly forgetLastList?: boolean;
+  readonly hold?: RegExp;
 }
 
 export async function storeLook(page: Page, stored: Visit["stored"]): Promise<void> {
@@ -30,9 +31,10 @@ export async function storeLook(page: Page, stored: Visit["stored"]): Promise<vo
 
 export async function shiftOf(
   context: BrowserContext,
-  { size, stored, path, settled, forgetLastList = false }: Readonly<Visit>,
+  { size, stored, path, settled, forgetLastList = false, hold }: Readonly<Visit>,
 ): Promise<number> {
   const page = await context.newPage();
+  const release = Promise.withResolvers<void>();
 
   try {
     await page.setViewportSize(size);
@@ -43,15 +45,23 @@ export async function shiftOf(
         localStorage.removeItem(key);
       }, LAST_LIST_KEY);
 
+    if (hold !== undefined)
+      await page.route(hold, async (route) => {
+        const response = await route.fetch();
+        await release.promise;
+        await route.fulfill({ response });
+      });
+
     const watch = await watchLayout(page);
     await delayFonts(page, FONT_DELAY_MS);
     await page.goto(path);
-    await settled(page);
+    await settled(page, release.resolve);
     await afterTwoFrames(page);
     await afterTwoFrames(page);
 
     return (await watch.snapshot()).shift;
   } finally {
+    release.resolve();
     await page.unrouteAll({ behavior: "ignoreErrors" });
     await page.close();
   }
@@ -69,4 +79,62 @@ export async function openedItem(page: Page) {
   await expect(reader(page)).toBeVisible();
   await expect(page.locator(".rd-comments li.cm").first()).toBeVisible();
   await expect(page.locator(".rd-loading")).toHaveCount(0);
+}
+
+export async function autoOpened(page: Page) {
+  await listedItems(page);
+  await expect(reader(page)).toBeVisible();
+  await expect(page.locator(".rd-loading")).toHaveCount(0);
+  await expect(page.locator(".rd-head:not([inert])")).toBeVisible();
+}
+
+export async function itemReadHeld(page: Page, release: () => void) {
+  await listedItems(page);
+  await expect(page.locator(".rd-loading")).toBeVisible();
+  release();
+  await autoOpened(page);
+}
+
+export const ITEMS_READ = /\/api\/items(\?[^/]*)?$/u;
+export const ITEM_READ = /\/api\/items\/\d+$/u;
+
+export async function rowsGap(
+  context: BrowserContext,
+  { size, stored }: Readonly<Pick<Visit, "size" | "stored">>,
+) {
+  const page = await context.newPage();
+  const release = Promise.withResolvers<void>();
+
+  try {
+    await page.setViewportSize(size);
+
+    await storeLook(page, stored);
+
+    await page.route(ITEMS_READ, async (route) => {
+      const response = await route.fetch();
+      await release.promise;
+      await route.fulfill({ response });
+    });
+
+    await page.goto("/");
+
+    const ghost = page.locator(".it-ghost").first();
+    await expect(ghost).toBeVisible();
+    const ghostTop = await ghost.evaluate((element) => element.getBoundingClientRect().top);
+
+    release.resolve();
+    await listedItems(page);
+    await afterTwoFrames(page);
+
+    const rowTop = await page
+      .locator("article.it")
+      .first()
+      .evaluate((element) => element.getBoundingClientRect().top);
+
+    return rowTop - ghostTop;
+  } finally {
+    release.resolve();
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await page.close();
+  }
 }

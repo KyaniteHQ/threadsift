@@ -1,11 +1,11 @@
-import { type RefObject, Suspense, use, useMemo, useState } from "react";
+import { type RefObject, Suspense, useMemo, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { postTextModule } from "./post-text-module.ts";
 import { type BarMode, ReaderBar } from "./ReaderBar.tsx";
-import { ReaderContent, ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
-import { type DetailState, refreshKey, useItemDetail } from "./use-item-detail.ts";
-import { useReadingPlace } from "./use-reading-place.ts";
+import { ReaderBody } from "./ReaderBody.tsx";
+import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
+import { useFocusMoved } from "./use-focus-moved.ts";
+import { refreshKey, useItemDetail } from "./use-item-detail.ts";
 import type { Look } from "./use-root.ts";
 
 export interface ReaderControls {
@@ -18,27 +18,83 @@ export interface ReaderControls {
   readonly hintPlaced: (inBar: boolean) => void;
 }
 
-function ReaderBody({
+function ReaderPending({
+  item,
+  now,
+  titleId,
+  focusTitle,
+  tryAgain,
+}: Readonly<{
+  item: Item;
+  now: number;
+  titleId: string;
+  focusTitle: boolean;
+  tryAgain: (item: Item) => void;
+}>) {
+  return (
+    <>
+      <ReaderHead
+        item={item}
+        detail={null}
+        now={now}
+        titleId={titleId}
+        focusTitle={focusTitle}
+        loading
+        tryAgain={tryAgain}
+      />
+      <ReaderLoading />
+    </>
+  );
+}
+
+function ReaderCol({
   item,
   slot,
-  state,
-  retry,
-  now,
-  settingsKey,
+  controls,
+  titleId,
   tryAgain,
 }: Readonly<{
   item: Item;
   slot: RefObject<HTMLElement | null>;
-  state: DetailState;
-  retry: () => void;
-  now: number;
-  settingsKey: string;
+  controls: ReaderControls;
+  titleId: string;
   tryAgain: (item: Item) => void;
 }>) {
-  use(postTextModule());
-  useReadingPlace(slot, item.id, state.status === "ready", settingsKey);
+  const [now] = useState(Date.now);
+  const { state, retry } = useItemDetail(item.id, refreshKey(item));
+  const moved = useFocusMoved();
+  const focusTitle = !moved && (controls.mode !== "pane" || controls.titleFocus === item.id);
 
-  return <ReaderContent item={item} state={state} retry={retry} tryAgain={tryAgain} now={now} />;
+  const pending = useMemo(
+    () => (
+      <ReaderPending
+        item={item}
+        now={now}
+        titleId={titleId}
+        focusTitle={focusTitle}
+        tryAgain={tryAgain}
+      />
+    ),
+    [focusTitle, item, now, titleId, tryAgain],
+  );
+
+  return (
+    <div className="rd-col">
+      <Suspense fallback={pending}>
+        <ReaderBody
+          item={item}
+          slot={slot}
+          state={state}
+          retry={retry}
+          now={now}
+          settingsKey={controls.settingsKey}
+          titleId={titleId}
+          focusTitle={focusTitle}
+          tryAgain={tryAgain}
+        />
+      </Suspense>
+    </div>
+  );
 }
 
 export function Reader({
@@ -58,34 +114,16 @@ export function Reader({
   openSettings: () => void;
   tryAgain: (item: Item) => void;
 }>) {
-  const loading = useMemo(() => <ReaderLoading />, []);
-  const [now] = useState(Date.now);
-  const { state, retry } = useItemDetail(item.id, refreshKey(item));
-
   return (
     <section className="reader" aria-labelledby={titleId}>
       <ReaderBar item={item} controls={controls} look={look} openSettings={openSettings} />
-      <div className="rd-col">
-        <ReaderHead
-          item={item}
-          detail={state.status === "ready" ? state.detail : null}
-          now={now}
-          titleId={titleId}
-          focusTitle={controls.mode !== "pane" || controls.titleFocus === item.id}
-          tryAgain={tryAgain}
-        />
-        <Suspense fallback={loading}>
-          <ReaderBody
-            item={item}
-            slot={slot}
-            state={state}
-            retry={retry}
-            now={now}
-            settingsKey={controls.settingsKey}
-            tryAgain={tryAgain}
-          />
-        </Suspense>
-      </div>
+      <ReaderCol
+        item={item}
+        slot={slot}
+        controls={controls}
+        titleId={titleId}
+        tryAgain={tryAgain}
+      />
     </section>
   );
 }

@@ -4,7 +4,7 @@ import { LAST_LIST_KEY } from "../web/src/last-list.ts";
 import { newCode, newPassword } from "./access.ts";
 import { askAndConfirm, expectLibraryEmptied, openItemAt } from "./deletion-ui.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { emptyLibrary, listedItems, shiftOf } from "./library-visit.ts";
+import { autoOpened, emptyLibrary, shiftOf } from "./library-visit.ts";
 import { DESKTOP } from "./look.ts";
 import { seedRows } from "./reader.ts";
 
@@ -36,7 +36,7 @@ test.describe("with one Item that has no Comments", () => {
 
   test("on a desktop the key hint line leaving the list moves it by a known amount", async () => {
     expect(
-      await shiftOf(screen.context, { size: DESKTOP, stored: {}, path: "/", settled: listedItems }),
+      await shiftOf(screen.context, { size: DESKTOP, stored: {}, path: "/", settled: autoOpened }),
       "layout shift from navigation",
     ).toBeCloseTo(HINT_LEAVES_LIST_SHIFT, SHIFT_PRECISION);
   });

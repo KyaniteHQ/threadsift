@@ -4,20 +4,22 @@ import { newCode, newPassword } from "./access.ts";
 import { seedThreads } from "./comment-thread.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import {
+  ITEM_READ,
   PHONE,
   type Visit,
+  autoOpened,
   emptyLibrary,
+  itemReadHeld,
   listedItems,
   openedItem,
+  rowsGap,
   shiftOf,
-  storeLook,
 } from "./library-visit.ts";
-import { DESKTOP, afterTwoFrames } from "./look.ts";
+import { DESKTOP } from "./look.ts";
 import { seedRows } from "./reader.ts";
 
 const FIRST_EMPTY_LOAD_SHIFT = { phone: 0.0733, desktop: 0.0684 } as const;
 const SHIFT_PRECISION = 3;
-const ITEMS_READ = /\/api\/items(\?[^/]*)?$/u;
 
 const LOOKS = [
   ["the default look", {}],
@@ -46,48 +48,38 @@ function shiftNow(visit: Readonly<Visit>) {
   return shiftOf(screen.context, visit);
 }
 
+function listSettled(size: Visit["size"], stored: Visit["stored"]): Visit["settled"] {
+  return size === DESKTOP && stored["layout"] !== "grid" ? autoOpened : listedItems;
+}
+
 function expectNoShift(visit: Readonly<Visit>) {
   return async () => {
     expect(await shiftNow(visit), "layout shift from navigation").toBe(0);
   };
 }
 
-async function firstRowTops({ size, stored }: Readonly<Pick<Visit, "size" | "stored">>) {
-  const page = await screen.context.newPage();
-  const release = Promise.withResolvers<void>();
+function expectRowsMeet(visit: Readonly<Pick<Visit, "size" | "stored">>) {
+  return async () => {
+    expect(
+      await rowsGap(screen.context, visit),
+      "first loaded row below the first skeleton row",
+    ).toBeCloseTo(0, 1);
+  };
+}
 
-  try {
-    await page.setViewportSize(size);
+async function seedLibrary() {
+  seeded.thread = (await seedThreads(screen)).thread;
 
-    await storeLook(page, stored);
-
-    await page.route(ITEMS_READ, async (route) => {
-      const response = await route.fetch();
-      await release.promise;
-      await route.fulfill({ response });
-    });
-
-    await page.goto("/");
-
-    const ghost = page.locator(".it-ghost").first();
-    await expect(ghost).toBeVisible();
-    const ghostTop = await ghost.evaluate((element) => element.getBoundingClientRect().top);
-
-    release.resolve();
-    await listedItems(page);
-    await afterTwoFrames(page);
-
-    const rowTop = await page
-      .locator("article.it")
-      .first()
-      .evaluate((element) => element.getBoundingClientRect().top);
-
-    return { ghostTop, rowTop };
-  } finally {
-    release.resolve();
-    await page.unrouteAll({ behavior: "ignoreErrors" });
-    await page.close();
-  }
+  seedRows(screen, [
+    { url: "https://example.org/caching", title: "An article about caching", author: "someone" },
+    {
+      url: "https://github.com/someone/project",
+      title: "A GitHub repo",
+      source: "github",
+      kind: "github-repo",
+    },
+    { url: "https://example.org/queues", title: "An article about queues", read: true },
+  ]);
 }
 
 function startInstance() {
@@ -135,26 +127,13 @@ test.describe("with an empty library", () => {
 test.describe("with Items", () => {
   startInstance();
 
-  test.beforeAll(async () => {
-    seeded.thread = (await seedThreads(screen)).thread;
-
-    seedRows(screen, [
-      { url: "https://example.org/caching", title: "An article about caching", author: "someone" },
-      {
-        url: "https://github.com/someone/project",
-        title: "A GitHub repo",
-        source: "github",
-        kind: "github-repo",
-      },
-      { url: "https://example.org/queues", title: "An article about queues", read: true },
-    ]);
-  });
+  test.beforeAll(seedLibrary);
 
   for (const [place, size] of SIZES)
     for (const [look, stored] of [...LOOKS, ...GRIDS]) {
       test(
         `on ${place} with ${look} a cold load of the list moves nothing`,
-        expectNoShift({ size, stored, path: "/", settled: listedItems }),
+        expectNoShift({ size, stored, path: "/", settled: listSettled(size, stored) }),
       );
 
       test(`on ${place} with ${look} a cold load of an open Item moves nothing`, async () => {
@@ -167,14 +146,21 @@ test.describe("with Items", () => {
       });
     }
 
+  test(
+    "on a desktop a cold load whose Item read arrives after the rows moves nothing",
+    expectNoShift({
+      size: DESKTOP,
+      stored: {},
+      path: "/",
+      settled: itemReadHeld,
+      hold: ITEM_READ,
+    }),
+  );
+
   for (const [place, size] of SIZES)
     for (const [look, stored] of [...LOOKS.slice(0, 1), ...GRIDS.slice(0, 1)])
-      test(`on ${place} with ${look} the first skeleton row sits where the first loaded row lands`, async () => {
-        const { ghostTop, rowTop } = await firstRowTops({ size, stored });
-
-        expect(rowTop, "top of the first loaded row against the first skeleton row").toBeCloseTo(
-          ghostTop,
-          1,
-        );
-      });
+      test(
+        `on ${place} with ${look} the first skeleton row sits where the first loaded row lands`,
+        expectRowsMeet({ size, stored }),
+      );
 });
