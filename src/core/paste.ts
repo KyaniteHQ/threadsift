@@ -1,11 +1,12 @@
 import { type Digest } from "./ai-contract.ts";
 import { dataStepsFinished } from "./data-steps.ts";
 import { utf8Length } from "./digest-prompt.ts";
-import { itemAt, saveItem, type SaveResult } from "./items.ts";
+import { itemAt, type SaveResult } from "./items.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
 import { parseLink, redditRefOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { THREAD_CONTENT_BYTES, parseRedditThread } from "./reddit-json.ts";
+import { saveItem } from "./save-link.ts";
 import { threadItemInsert, threadPublication } from "./thread-publish.ts";
 
 export interface Supplied {

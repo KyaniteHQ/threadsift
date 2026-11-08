@@ -40,6 +40,10 @@ _Avoid_: Bulk paste, sync, backfill
 The browser extension that saves the page in the owner's own tab, including a Reddit post with its visible comments.
 _Avoid_: Clipper, add-on, plugin
 
+**Short-link alias**:
+A short link's own address, kept with the Item it made so that pasting it again, or Try again, reaches that Item.
+_Avoid_: Redirect, mapping
+
 **Link-only Item**:
 An Item stored with its link, title and author only, such as a Reddit link saved without the Extension.
 _Avoid_: Stub, placeholder, bookmark
