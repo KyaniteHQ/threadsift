@@ -96,12 +96,14 @@ export async function requireGithubBudget(requests: number, anonymous = false): 
 
   if (process.env["GITHUB_ACTIONS"] !== "true") test.skip(true, message);
 
-  const wait = reset * 1000 + RESET_MARGIN_MS - Date.now();
+  const untilReset = reset * 1000 - Date.now();
 
-  if (wait > RESET_WAIT_MS) throw new Error(`${message}; rerun after the reset`);
+  if (untilReset > RESET_WAIT_MS) throw new Error(`${message}; rerun after the reset`);
+
+  const wait = Math.max(untilReset, 0) + RESET_MARGIN_MS;
 
   test.setTimeout(test.info().timeout + wait);
-  await sleep(Math.max(wait, 0));
+  await sleep(wait);
 
   const after = await coreBudget(headers);
 
