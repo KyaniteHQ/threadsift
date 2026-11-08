@@ -28,9 +28,17 @@ let ports: Promise<Ports> | undefined;
 let api: ApiApp | undefined;
 
 function portsOf(env: Env): Promise<Ports> {
-  ports ??= createWorkerPorts(env);
+  if (ports !== undefined) return ports;
 
-  return ports;
+  const building = createWorkerPorts(env);
+
+  ports = building;
+
+  building.catch(() => {
+    if (ports === building) ports = undefined;
+  });
+
+  return building;
 }
 
 async function apiApp(env: Env): Promise<ReturnType<typeof createApp>> {
