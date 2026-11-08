@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { WireCommentId } from "./comment-id.ts";
+
 export interface WireComment {
   readonly id: string;
   readonly author: string;
@@ -32,7 +34,7 @@ const Listing = z.object({
 });
 
 const CommentData = z.object({
-  id: z.string().min(1),
+  id: WireCommentId,
   author: z.string(),
   body: z.string(),
   parent_id: z.string(),

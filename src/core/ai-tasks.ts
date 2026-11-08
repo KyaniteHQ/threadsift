@@ -7,6 +7,7 @@ import {
   type AiRefusal,
   type AiTaskDefinition,
   AI_DEADLINE_MS,
+  BASE_OUTPUT_TOKENS,
   VERIFY_INPUT,
   ModelDigestSchema,
   modelOf,
@@ -82,42 +83,58 @@ export async function verifyAi(ports: AiPorts, attempt: AbortSignal) {
   const result = await runAiTask(
     ports,
     TASKS.digest,
-    { text: VERIFY_INPUT, inputRevision: 1, attempts: 1 },
+    { text: VERIFY_INPUT, inputRevision: 1, attempts: 1, maxOutputTokens: BASE_OUTPUT_TOKENS },
     null,
     attempt,
   );
 
-  if (result.kind === "done") {
-    try {
-      await completedAiTask(ports.db, result);
-    } catch {
-      return failTask(ports, result.taskId);
-    }
+  if (result.kind !== "done")
+    return { kind: result.kind, reason: result.reason, status: result.status };
+
+  const digest = { ...result.result, keptComments: [] };
+
+  try {
+    await completedAiTask(ports.db, { taskId: result.taskId, result: digest });
+  } catch {
+    return failTask(ports, result.taskId);
   }
 
-  return result.kind === "done"
-    ? { kind: result.kind, digest: result.result, taskId: result.taskId }
-    : { kind: result.kind, reason: result.reason, status: result.status };
+  return { kind: result.kind, digest, taskId: result.taskId };
 }
 
 export function runAiTask<Result>(
   ports: AiPorts,
   definition: AiTaskDefinition<Result>,
-  input: Readonly<{ text: string; inputRevision: number; attempts: number }>,
+  input: Readonly<{
+    text: string;
+    inputRevision: number;
+    attempts: number;
+    maxOutputTokens: number;
+  }>,
   owner: null,
   attempt?: AbortSignal,
 ): Promise<TaskResult<Result>>;
 export function runAiTask<Result>(
   ports: AiPorts,
   definition: AiTaskDefinition<Result>,
-  input: Readonly<{ text: string; inputRevision: number; attempts: number }>,
+  input: Readonly<{
+    text: string;
+    inputRevision: number;
+    attempts: number;
+    maxOutputTokens: number;
+  }>,
   owner: TaskOwner,
   attempt?: AbortSignal,
 ): Promise<TaskResult<Result> | ClaimLost>;
 export async function runAiTask<Result>(
   ports: AiPorts,
   definition: AiTaskDefinition<Result>,
-  input: Readonly<{ text: string; inputRevision: number; attempts: number }>,
+  input: Readonly<{
+    text: string;
+    inputRevision: number;
+    attempts: number;
+    maxOutputTokens: number;
+  }>,
   owner: TaskOwner | null,
   attempt?: AbortSignal,
 ): Promise<TaskResult<Result> | ClaimLost> {
@@ -137,13 +154,23 @@ export async function runAiTask<Result>(
   if (!ports.ai.providers.includes(config.provider))
     return failTask(ports, task.id, "provider-unavailable");
 
-  return execute(ports, definition, { config, text, taskId: task.id }, attempt);
+  return execute(
+    ports,
+    definition,
+    { config, text, taskId: task.id, maxOutputTokens: input.maxOutputTokens },
+    attempt,
+  );
 }
 
 async function execute<Result>(
   ports: AiPorts,
   definition: AiTaskDefinition<Result>,
-  { config, text, taskId }: Readonly<{ config: AiConnection; text: string; taskId: number }>,
+  {
+    config,
+    text,
+    taskId,
+    maxOutputTokens,
+  }: Readonly<{ config: AiConnection; text: string; taskId: number; maxOutputTokens: number }>,
   attempt: AbortSignal | undefined,
 ): Promise<TaskResult<Result>> {
   const deadline = AbortSignal.timeout(AI_DEADLINE_MS);
@@ -156,6 +183,7 @@ async function execute<Result>(
         input: text,
         instructions: definition.instructions,
         schema: definition.schema,
+        maxOutputTokens,
       },
       signal,
     );

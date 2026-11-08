@@ -91,6 +91,20 @@ const REFUSALS: readonly Refusal[] = [
     reason: "appears twice",
   },
   {
+    name: "a comment id that is not letters and digits",
+    url: postUrl(POST_ID),
+    content: threadJson(post(POST_ID, "Body."), [comment("bad-id", "a", "A substantive remark.")]),
+    status: 400,
+    reason: "comment ids are 1 to 29 letters or digits",
+  },
+  {
+    name: "a comment id of 30 characters",
+    url: postUrl(POST_ID),
+    content: threadJson(post(POST_ID, "Body."), [comment("a".repeat(30), "a", "A remark.")]),
+    status: 400,
+    reason: "comment ids are 1 to 29 letters or digits",
+  },
+  {
     name: "broken parent chain",
     url: postUrl(POST_ID),
     content: GOOD.replace(`"parent_id":"t3_${POST_ID}"`, '"parent_id":"t1_nowhere"'),

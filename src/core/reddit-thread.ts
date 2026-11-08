@@ -1,7 +1,9 @@
-import { type SQL, type SQLWrapper, and, asc, eq, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { StoredCommentId } from "./comment-id.ts";
 import { type CommentRow, type CommentsView, NO_COMMENTS, commentsViewOf } from "./comment-view.ts";
+import type { CommentCandidate } from "./digest-prompt.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
 import { digests, items, redditComments, redditThreads } from "./schema.ts";
@@ -52,6 +54,35 @@ export function keptBodies(
   snapshot: Readonly<{ itemId: number; generation: number }>,
 ): Promise<readonly string[]> {
   return bodiesWhere(db, snapshot, eq(redditComments.kept, true));
+}
+
+export function submittedAmong(
+  ids: readonly string[],
+  submitted: readonly string[],
+): readonly string[] {
+  const allowed = new Set(submitted);
+
+  return [...new Set(ids)].filter((id) => allowed.has(id) && StoredCommentId.safeParse(id).success);
+}
+
+export async function commentCandidates(
+  db: Database,
+  snapshot: Readonly<{ itemId: number; generation: number }>,
+): Promise<readonly CommentCandidate[]> {
+  const rows = await db
+    .select({ id: redditComments.id, parentId: redditComments.parentId, body: redditComments.body })
+    .from(redditComments)
+    .where(
+      and(
+        eq(redditComments.itemId, snapshot.itemId),
+        eq(redditComments.generation, snapshot.generation),
+        eq(redditComments.eligible, true),
+        isNotNull(redditComments.body),
+      ),
+    )
+    .orderBy(asc(redditComments.position));
+
+  return rows.flatMap(({ id, parentId, body }) => (body === null ? [] : [{ id, parentId, body }]));
 }
 
 interface Owner {

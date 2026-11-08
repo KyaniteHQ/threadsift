@@ -57,9 +57,14 @@ function filler(bytes: number): string {
 }
 
 function textStraddlingTheCut(): string {
-  const open = JSON.stringify({ title: SEEDED_TITLE, source: "article", postText: "" });
-  const prefix = Buffer.byteLength(open) - 2;
-  const budget = DIGEST_CAP_BYTES - EMPTY_LISTS_BYTES - 1 - prefix;
+  const empty = JSON.stringify({
+    title: SEEDED_TITLE,
+    source: "article",
+    postText: "",
+    comments: [],
+  });
+
+  const budget = DIGEST_CAP_BYTES - EMPTY_LISTS_BYTES - 1 - Buffer.byteLength(empty);
   const kept = budget - 2;
   const head = `${EARLY_MARKER} ${filler(budget / 2)} ${MIDDLE_MARKER} `;
 

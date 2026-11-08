@@ -3,6 +3,8 @@ import { type SQLWrapper, and, eq, exists, isNotNull, or, sql } from "drizzle-or
 import { failedAiTask } from "./ai-tasks.ts";
 import {
   type CatalogNames,
+  type CommentCounts,
+  type DigestPrompt,
   DIGEST_INPUT_BYTES,
   cutDigestInput,
   digestPrompt,
@@ -18,7 +20,7 @@ import {
 import { hasOpenJob } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
-import { eligibleComments } from "./reddit-thread.ts";
+import { commentCandidates, eligibleComments } from "./reddit-thread.ts";
 import { insertGuard, items } from "./schema.ts";
 
 export function digestInput(db: Database, id: number) {
@@ -104,15 +106,56 @@ async function unreadableText(
   };
 }
 
-export function modelInput(
-  item: Readonly<Pick<DigestInput, "title" | "source">>,
+export async function modelInput(
+  db: Database,
+  item: Readonly<DigestInput>,
   postText: string | null,
   catalog: Readonly<CatalogNames>,
-): string {
-  return digestPrompt(
-    JSON.stringify({ title: item.title, source: item.source, postText }),
-    catalog,
+): Promise<DigestPrompt> {
+  const comments =
+    item.source === "reddit"
+      ? await commentCandidates(db, { itemId: item.id, generation: item.generation })
+      : [];
+
+  return digestPrompt({ title: item.title, source: item.source, postText }, comments, catalog);
+}
+
+export function logSubmission(
+  taskId: number,
+  item: Readonly<DigestInput>,
+  counts: Readonly<CommentCounts>,
+): void {
+  console.warn(
+    JSON.stringify({
+      event: "digest-comments-submitted",
+      taskId,
+      itemId: item.id,
+      generation: item.generation,
+      ...counts,
+    }),
   );
+}
+
+export function refusedInput(
+  db: Database,
+  item: Readonly<DigestInput>,
+  fixedBytes: number,
+): JobOutcome {
+  const generation = generationCurrent(item);
+
+  console.warn(
+    JSON.stringify({
+      event: "digest-input-refused",
+      itemId: item.id,
+      reason: "fixed-metadata-over-cap",
+      fixedBytes,
+    }),
+  );
+
+  return {
+    currency: currency(db, generation, null),
+    writes: [insertGuard(db, generation), setDigestFailure(db, item.id, true)],
+  };
 }
 
 export type DigestText = { readonly text: string | null } | { readonly outcome: JobOutcome };

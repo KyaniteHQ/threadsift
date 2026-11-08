@@ -234,7 +234,11 @@ export function readDigestTask(screen: FreshScreen) {
   });
   expect(task[0]?.deadline ?? 0).toBeGreaterThan(Date.now());
 
-  return DigestSchema.parse(JSON.parse(task[0]?.result ?? "null"));
+  const digest = DigestSchema.parse(JSON.parse(task[0]?.result ?? "null"));
+
+  expect(digest.keptComments, "Verify sends no comments, so it keeps none").toEqual([]);
+
+  return digest;
 }
 
 export function hasAiCredentials(): boolean {

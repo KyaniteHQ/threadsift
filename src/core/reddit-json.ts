@@ -1,4 +1,5 @@
 import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
+import { storedCommentId } from "./comment-id.ts";
 import { utf8Length } from "./digest-prompt.ts";
 import type { RedditRef } from "./links.ts";
 import { INLINE_TEXT_BYTES } from "./post-text-files.ts";
@@ -99,7 +100,7 @@ function walk(children: readonly WireChild[], root: string): readonly Walked[] {
     checkedText(data.body, `the body of comment ${data.id}`);
     walked.push({ comment: data, parent, depth });
 
-    for (const reply of pendingOf(repliesOf(data), `t1_${data.id}`, depth + 1)) {
+    for (const reply of pendingOf(repliesOf(data), storedCommentId(data.id), depth + 1)) {
       stack.push(reply);
     }
   }
@@ -134,7 +135,7 @@ function nodeOf(
   const eligible = !isPlainCodeDrop(comment.author, comment.body);
 
   return {
-    id: `t1_${comment.id}`,
+    id: storedCommentId(comment.id),
     parentId,
     position,
     depth,
@@ -201,7 +202,11 @@ function ofComment(
     postText: comment.body,
     postedAt: milliseconds(comment.created_utc),
     reported: null,
-    nodes: nodesOf(end === -1 ? rest : rest.slice(0, end), root.depth + 1, `t1_${comment.id}`),
+    nodes: nodesOf(
+      end === -1 ? rest : rest.slice(0, end),
+      root.depth + 1,
+      storedCommentId(comment.id),
+    ),
   };
 }
 
@@ -217,7 +222,9 @@ function parseThread(content: string, ref: Readonly<RedditRef>): ParsedThread {
   const parsed = ThreadJson.safeParse(JSON.parse(content));
 
   if (!parsed.success) {
-    return refuse("the JSON is not a Reddit thread: a post Listing, then a comment Listing");
+    return refuse(
+      "the JSON is not a Reddit thread: a post Listing, then a comment Listing whose comment ids are 1 to 29 letters or digits",
+    );
   }
 
   const [posts, comments] = parsed.data;
