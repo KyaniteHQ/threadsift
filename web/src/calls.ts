@@ -9,6 +9,7 @@ export type JsonBody = Readonly<Record<string, string | undefined>>;
 interface Call {
   readonly json?: JsonBody;
   readonly signsOut?: boolean;
+  readonly signal?: AbortSignal;
 }
 
 const JSON_HEADERS = { "content-type": "application/json" } as const;
@@ -16,12 +17,12 @@ const JSON_HEADERS = { "content-type": "application/json" } as const;
 export async function call(
   method: Method,
   path: string,
-  { json, signsOut = true }: Readonly<Call> = {},
+  { json, signsOut = true, signal }: Readonly<Call> = {},
 ): Promise<Response> {
   const init: RequestInit =
     json === undefined ? { method } : { method, headers: JSON_HEADERS, body: JSON.stringify(json) };
 
-  const response = await fetch(path, init);
+  const response = await fetch(path, signal === undefined ? init : { ...init, signal });
 
   if (signsOut && response.status === 401) {
     announceSignedOut();

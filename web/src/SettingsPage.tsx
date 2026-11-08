@@ -2,13 +2,20 @@ import { useCallback, useRef, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
-import { AiSection } from "./AiSection.tsx";
-import { Alert } from "./Alert.tsx";
-import { GithubSection } from "./GithubSection.tsx";
-import { PasswordSection } from "./PasswordSection.tsx";
 import { useInternalLink } from "./routing.ts";
-import { TokensSection } from "./TokensSection.tsx";
+import { SettingsSections } from "./SettingsSections.tsx";
 import { useFocusOnMount } from "./use-form.ts";
+import { useSettingsLoad } from "./use-settings-load.ts";
+
+function Loading() {
+  return (
+    <div className="pg-ghost it-ghost" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </div>
+  );
+}
 
 export function SettingsPage({
   back,
@@ -19,6 +26,9 @@ export function SettingsPage({
   useFocusOnMount(titleField);
 
   const follow = useInternalLink(back);
+
+  const column = useRef<HTMLElement>(null);
+  const loaded = useSettingsLoad(column);
 
   const [failed, setFailed] = useState(false);
 
@@ -41,21 +51,12 @@ export function SettingsPage({
           </h1>
         </div>
       </header>
-      <main className="pg-col">
-        <AiSection />
-        <GithubSection />
-        <TokensSection />
-        <PasswordSection />
-        <section className="sec" aria-labelledby="sign-out-title">
-          <h2 id="sign-out-title" className="rd-h">
-            {SETTINGS.signOutTitle}
-          </h2>
-          <p>{SETTINGS.signOutNote}</p>
-          <button type="button" className="btn btn-block" onClick={signOut}>
-            {SETTINGS.signOut}
-          </button>
-          <Alert text={failed ? SETTINGS.signOutFailed : null} />
-        </section>
+      <main ref={column} className="pg-col" aria-busy={loaded === null}>
+        {loaded === null ? (
+          <Loading />
+        ) : (
+          <SettingsSections loaded={loaded} signOut={signOut} signOutFailed={failed} />
+        )}
       </main>
     </div>
   );

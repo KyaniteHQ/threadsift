@@ -8,8 +8,8 @@ import { parsedFrom } from "./calls.ts";
 
 const ENDPOINT = "/api/settings/github";
 
-export function fetchGithubSettings() {
-  return parsedFrom("GET", ENDPOINT, GithubSettingsViewSchema);
+export function fetchGithubSettings(signal: AbortSignal) {
+  return parsedFrom("GET", ENDPOINT, GithubSettingsViewSchema, { signal });
 }
 
 export function saveGithubToken(input: Readonly<GithubTokenInput>) {

@@ -103,8 +103,8 @@ export async function logOut(): Promise<void> {
   }
 }
 
-export async function fetchTokens(): Promise<Token[]> {
-  return (await parsedFrom("GET", "/api/tokens", TokenListResponseSchema)).tokens;
+export async function fetchTokens(signal: AbortSignal): Promise<Token[]> {
+  return (await parsedFrom("GET", "/api/tokens", TokenListResponseSchema, { signal })).tokens;
 }
 
 export type CreatedToken = z.infer<typeof CreatedTokenResponseSchema>;
