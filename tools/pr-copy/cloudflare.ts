@@ -30,6 +30,7 @@ export interface Stage {
   readonly dir: string;
   readonly configPath: string;
   readonly target: CopyNames;
+  readonly origin: string | null;
 }
 
 export type Command =
@@ -252,6 +253,14 @@ export async function inventory(target?: Readonly<CopyNames>): Promise<Inventory
     queues: queues.flatMap((queue) => (queue === null ? [] : [queue])),
     buckets: buckets.filter((name) => matches(name)),
   };
+}
+
+const SubdomainAnswer = PageSchema.extend({ result: z.object({ subdomain: z.string().min(1) }) });
+
+export async function workersDevOrigin(worker: string): Promise<string> {
+  const { result } = await cloudflareGet("workers/subdomain", SubdomainAnswer);
+
+  return `https://${worker}.${result.subdomain}.workers.dev`;
 }
 
 export async function databaseId(name: string): Promise<string> {

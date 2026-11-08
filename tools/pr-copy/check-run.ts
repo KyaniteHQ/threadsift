@@ -8,7 +8,7 @@ import { currentVersion, resumeDelivery, workerSettings } from "./copy-control.t
 import { currentCopy } from "./copy-head.ts";
 import { pullRequest, staleReason } from "./github.ts";
 import { type Pace, RUN_BUDGET_MS, pacer } from "./pace.ts";
-import { copyConfig, withStage } from "./stage.ts";
+import { readWorkerConfig, withStage } from "./stage.ts";
 import { readInvocations } from "./telemetry.ts";
 
 export class Stop extends Error {}
@@ -102,7 +102,7 @@ async function prepare(stage: Readonly<Stage>, options: Readonly<CheckOptions>):
     await probeTelemetry(stage, version);
   }
 
-  const config = copyConfig(stage.target, options.artifact);
+  const config = readWorkerConfig(options.artifact);
   const deadline = Date.now() + RUN_BUDGET_MS;
   const database = { name, id: await databaseId(name) };
 

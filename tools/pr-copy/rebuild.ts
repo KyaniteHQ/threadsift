@@ -16,7 +16,7 @@ import {
   exceptionLog,
   needsLog,
 } from "./rebuild-log.ts";
-import { copyConfig, withStage } from "./stage.ts";
+import { readWorkerConfig, withStage } from "./stage.ts";
 
 export const MAX_REBUILDS = 20;
 
@@ -63,7 +63,7 @@ async function preflight(options: Readonly<RebuildOptions>): Promise<void> {
   const names = copyNames(options.pr);
 
   await withStage(names, null, async (stage) => {
-    copyConfig(stage.target, options.artifact);
+    readWorkerConfig(options.artifact);
     await probeTelemetry(stage, await currentVersion(stage, names.name));
   });
 }
