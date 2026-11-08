@@ -23,7 +23,8 @@ test.describe.configure({ timeout: 240_000 });
 
 test.use({ trace: "off", video: "off", screenshot: "off" });
 
-const RESOLUTION_HEAD_START_MS = 1500;
+const ALIAS_WRITE_DELAY_MS = 1500;
+const SLOW_SHORT_LINK_ANSWER_MS = 4000;
 
 let screen: FreshScreen;
 
@@ -193,13 +194,26 @@ test("a short link that gets an alias while its first resolution is under way re
   const { request } = screen.context;
   const id = await pagedItem();
 
-  const inFlight = postLinkRaw(request, SLOW_SHORT_LINK);
-  await new Promise<void>((resolve) => {
-    setTimeout(resolve, RESOLUTION_HEAD_START_MS);
+  const sentAt = Date.now();
+  let ended = false;
+
+  const inFlight = postLinkRaw(request, SLOW_SHORT_LINK).finally(() => {
+    ended = true;
   });
+
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ALIAS_WRITE_DELAY_MS);
+  });
+
+  expect(ended, "the first Paste was still resolving when the alias was written").toBe(false);
   rememberAlias(screen.fresh, SLOW_SHORT_LINK, id);
 
   const pasted = await inFlight;
+
+  expect(
+    Date.now() - sentAt,
+    "the first Paste waited for the slow answer, so its alias lookup ran before the alias existed",
+  ).toBeGreaterThanOrEqual(SLOW_SHORT_LINK_ANSWER_MS);
 
   expect([pasted.status, pasted.body.item.id]).toEqual([200, id]);
   expect(itemsAt(SLOW_SHORT_LINK_TARGET)).toBe(0);
