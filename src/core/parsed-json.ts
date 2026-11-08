@@ -7,7 +7,7 @@ export function parsedJson<Schema extends z.ZodType>(
   try {
     const result = schema.safeParse(JSON.parse(text));
 
-    return result.success ? result.data : null;
+    return result.success ? (result.data ?? null) : null;
   } catch {
     return null;
   }
