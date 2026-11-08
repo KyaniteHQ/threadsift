@@ -62,6 +62,7 @@ export function opening(
           staleRequeues: sql<number>`0`.as("stale_requeues"),
           nextAttemptAt: sql<number>`${now}`.as("next_attempt_at"),
           claimExpires: sql<null>`null`.as("claim_expires"),
+          waitReason: sql<null>`null`.as("wait_reason"),
         })
         .from(items)
         .where(sql`${where}`),

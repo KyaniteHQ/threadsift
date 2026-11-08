@@ -2,7 +2,13 @@ import { eq, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
-import type { ClaimedJob, JobOutcome, JobHandler, JobPorts } from "./job-outcome.ts";
+import {
+  type ClaimedJob,
+  type JobHandler,
+  type JobOutcome,
+  type JobPorts,
+  isLastAttempt,
+} from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { placePostText } from "./post-text-files.ts";
 import { fetchedRepository, repositoryWrites } from "./repositories.ts";
@@ -16,8 +22,33 @@ async function titleOf(db: Database, itemId: number): Promise<string | null> {
   return item?.title ?? null;
 }
 
+function rateLimitGaveUp(db: Database, job: Readonly<ClaimedJob>): JobOutcome {
+  return {
+    writes: [
+      db
+        .update(items)
+        .set({ status: "failed", reason: "rate-limited", pendingDigest: null })
+        .where(eq(items.id, job.itemId)),
+    ],
+    failedAttempt: true,
+  };
+}
+
+function waitingOutcome(
+  db: Database,
+  job: Readonly<ClaimedJob>,
+  { until, limited }: Readonly<{ until: number; limited: boolean }>,
+): JobOutcome {
+  if (limited && isLastAttempt(job.attempts)) return rateLimitGaveUp(db, job);
+
+  return { deferredUntil: until, wait: "github-rate-limit", countsAttempt: limited };
+}
+
 async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
-  const fetched = await fetchLink(ports, job.address);
+  const fetched = await fetchLink(ports, job.address, job.attempts);
+
+  if (fetched.status === "waiting") return waitingOutcome(ports.db, job, fetched);
+
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
   const repository = fetchedRepository(fetched);
 

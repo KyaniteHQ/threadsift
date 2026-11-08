@@ -5,10 +5,10 @@ import { postTextModule } from "./post-text-module.ts";
 import { NO_POST_TEXT, NO_README, SECTION_TITLES } from "./reader-text.ts";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
-import { CARD_TITLES, TOKEN_REFUSED } from "./text.ts";
+import { CARD_TITLES, TOKEN_REFUSED, WAITING } from "./text.ts";
 
 function missingTextNote(item: Readonly<Item>): string {
-  if (item.status === "processing") return CARD_TITLES.reading;
+  if (item.status === "processing") return item.wait === null ? CARD_TITLES.reading : WAITING.title;
 
   return item.kind === "github-repo" && item.fetch === "ok" ? NO_README : NO_POST_TEXT;
 }

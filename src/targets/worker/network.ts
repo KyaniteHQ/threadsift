@@ -45,6 +45,11 @@ export const workerNetwork: Network = {
       status: response.status,
       location: response.headers.get("location"),
       contentType: response.headers.get("content-type"),
+      rateLimit: {
+        retryAfter: response.headers.get("retry-after"),
+        remaining: response.headers.get("x-ratelimit-remaining"),
+        reset: response.headers.get("x-ratelimit-reset"),
+      },
       body: chunksOf(response.bodyUsed ? null : response.body),
     };
   },

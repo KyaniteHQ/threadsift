@@ -32,11 +32,15 @@ export interface Found {
   readonly content: Content | null;
 }
 
-export type Fetched =
+export type Concluded =
   | { readonly status: "ok"; readonly found: Found }
   | { readonly status: FetchFailure | "not-requested" };
 
-export const NOT_REQUESTED: Fetched = { status: "not-requested" };
+export type Fetched =
+  | Concluded
+  | { readonly status: "waiting"; readonly until: number; readonly limited: boolean };
+
+export const NOT_REQUESTED: Concluded = { status: "not-requested" };
 
 const MIN_ARTICLE_WORDS = 100;
 
@@ -62,7 +66,7 @@ function isArticleCandidate(page: Readonly<Page>): boolean {
   return page.html && !page.cut && !isVideoLink(page.url) && !isGitHubLink(page.url);
 }
 
-function titled(title: string, found: Readonly<Pick<Found, "author" | "content">>): Fetched {
+function titled(title: string, found: Readonly<Pick<Found, "author" | "content">>): Concluded {
   return title === ""
     ? { status: "no-title" }
     : { status: "ok", found: { title, community: null, ...found } };
@@ -73,7 +77,7 @@ export async function detailsOfPage(
   page: Readonly<Page>,
   link: Readonly<Link>,
   deadline: AbortSignal,
-): Promise<Fetched> {
+): Promise<Concluded> {
   if (link.kind !== "link") {
     return titled(await pages.title(page.text, deadline), { author: null, content: null });
   }
@@ -113,7 +117,7 @@ function subredditOf(html: string): string | null {
   return null;
 }
 
-export function detailsOfOembed(text: string): Fetched {
+export function detailsOfOembed(text: string): Concluded {
   const answer = parseOembed(text);
 
   if (answer === null) {

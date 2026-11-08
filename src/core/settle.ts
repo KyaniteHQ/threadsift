@@ -1,6 +1,5 @@
-import type { Content, Fetched } from "./details.ts";
+import type { Concluded, Content } from "./details.ts";
 import type { FetchResult } from "./fetch-results.ts";
-import type { FailureReason } from "./kinds.ts";
 import { sourceOf } from "./links.ts";
 import type { ItemRow } from "./schema.ts";
 
@@ -34,11 +33,11 @@ function contentFields(content: Readonly<Content>) {
   return { source: sourceOf(content.kind), kind: content.kind, ...textFields(content) };
 }
 
-export function isRetryable(result: FetchResult): result is Extract<FailureReason, FetchResult> {
+export function isRetryable(result: FetchResult): result is "timeout" | "network" {
   return result === "timeout" || result === "network";
 }
 
-export function settle(fetched: Readonly<Fetched>, current: string | null, now: number): Settled {
+export function settle(fetched: Readonly<Concluded>, current: string | null, now: number): Settled {
   if (fetched.status === "ok") {
     const { content, ...found } = fetched.found;
 

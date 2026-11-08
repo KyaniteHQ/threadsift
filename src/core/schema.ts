@@ -12,6 +12,7 @@ import {
   READ_STATES,
   SEARCH_PART_KINDS,
   SOURCES,
+  WAIT_REASONS,
 } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 
@@ -23,6 +24,8 @@ export {
   spentResetCodes,
   throttles,
 } from "./access-tables.ts";
+
+export { githubCooldown, githubSettings } from "./github-tables.ts";
 
 export { redditComments, redditThreads } from "./reddit-tables.ts";
 
@@ -84,6 +87,7 @@ export const jobs = sqliteTable(
     staleRequeues: integer("stale_requeues").notNull().default(0),
     nextAttemptAt: integer("next_attempt_at").notNull(),
     claimExpires: integer("claim_expires"),
+    waitReason: text("wait_reason", { enum: WAIT_REASONS }),
   },
   (table) => [
     uniqueIndex("jobs_one_open_per_item_kind")
@@ -176,15 +180,6 @@ export const settings = sqliteTable(
       sql`(${table.provider} in ('workers-ai', 'claude-code') and ${table.baseUrl} is null and ${table.sealedKey} is null) or (${table.provider} not in ('workers-ai', 'claude-code') and ${table.baseUrl} is not null and ${table.sealedKey} is not null)`,
     ),
   ],
-);
-
-export const githubSettings = sqliteTable(
-  "github_settings",
-  {
-    id: integer("id").primaryKey(),
-    sealedToken: text("sealed_token").notNull(),
-  },
-  (table) => [check("github_settings_is_one_row", sql`${table.id} = 1`)],
 );
 
 export const aiTasks = sqliteTable(

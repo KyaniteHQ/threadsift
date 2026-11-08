@@ -70,6 +70,7 @@ async function claim(db: Database, which: () => SQL, now: number): Promise<Claim
       state: "running",
       claimExpires: sql`${now} + case ${jobs.kind} ${LEASE_MS} end`,
       attempts: sql`${jobs.attempts} + (${jobs.state} = 'running')`,
+      waitReason: null,
     })
     .where(and(which(), isDue(now)))
     .returning({ ...getTableColumns(jobs), attemptKey: ATTEMPT_KEY });
@@ -110,7 +111,12 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<ClaimedJob>)
           writes: handler.exhausted(ports.db, job),
           attempts: job.attempts + 1,
         })
-      : queueLater(ports, job, { delayMs, attempts: job.attempts + 1, staleRequeues: 0 }));
+      : queueLater(ports, job, {
+          until: Date.now() + delayMs,
+          attempts: job.attempts + 1,
+          staleRequeues: 0,
+          wait: null,
+        }));
   }
 }
 

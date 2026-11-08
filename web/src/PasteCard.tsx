@@ -12,9 +12,12 @@ import {
   NOTICES,
   READING_NOTE,
   RETRY_LABEL,
+  WAITING,
   type NoticeKey,
 } from "./text.ts";
 import { useAfter } from "./use-form.ts";
+import { waitText } from "./wait-text.ts";
+import { WaitText } from "./WaitText.tsx";
 
 const CLOSE_MS = 6000;
 
@@ -32,6 +35,7 @@ interface Face {
   readonly title: string;
   readonly name: string | null;
   readonly note: string | null;
+  readonly wait: Item["wait"];
   readonly itemTitle: string | null;
   readonly alert: boolean;
   readonly closes: boolean;
@@ -61,6 +65,7 @@ function savedFace(
     title: CARD_TITLES[view.kind],
     name: item.title ?? whereOf(item),
     note: noteOf(view),
+    wait: null,
     itemTitle: item.title,
     alert: false,
     closes: true,
@@ -76,9 +81,10 @@ function faceOfView(view: Readonly<CardView>, item: Readonly<Item>): Face {
       return {
         icon: "spin",
         tone: "tone-acc",
-        title: CARD_TITLES.reading,
+        title: view.wait === null ? CARD_TITLES.reading : WAITING.title,
         name,
-        note: READING_NOTE,
+        note: view.wait === null ? READING_NOTE : waitText(view.wait.retryAt, Date.now()),
+        wait: view.wait,
         itemTitle: null,
         alert: false,
         closes: false,
@@ -93,6 +99,7 @@ function faceOfView(view: Readonly<CardView>, item: Readonly<Item>): Face {
         title: FAILURE_TITLES[view.reason],
         name,
         note: null,
+        wait: null,
         itemTitle: null,
         alert: true,
         closes: true,
@@ -121,6 +128,7 @@ export function faceOf(shown: Readonly<Shown>, item: Readonly<Item> | undefined)
       title: NOTICES[shown.key].text,
       name: null,
       note: null,
+      wait: null,
       itemTitle: null,
       alert: true,
       closes: false,
@@ -232,7 +240,12 @@ export function PasteCard({
       </p>
       {face.itemTitle === null ? null : <p className="ps-item">{face.itemTitle}</p>}
       {url === "" ? null : <p className="ps-url">{shownUrl(url)}</p>}
-      {face.note === null ? null : <p className="ps-sub">{face.note}</p>}
+      {face.wait === null ? null : (
+        <p className="ps-sub">
+          <WaitText retryAt={face.wait.retryAt} />
+        </p>
+      )}
+      {face.wait !== null || face.note === null ? null : <p className="ps-sub">{face.note}</p>}
       <Actions actions={face.actions} dismiss={dismiss} retry={retry} open={open} />
     </div>
   );

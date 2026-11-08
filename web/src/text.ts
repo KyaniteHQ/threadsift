@@ -95,7 +95,14 @@ export const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
   timeout: "The website didn’t answer in time",
   network: "Couldn’t reach the website",
   "gave-up": "Something went wrong while reading the link",
+  "rate-limited": "The link wasn’t updated because GitHub kept limiting requests",
 };
+
+export const WAITING = {
+  title: "Waiting for GitHub",
+  until: "GitHub is limiting requests, so Threadsift will try again {when}.",
+  due: "GitHub is limiting requests, so Threadsift is waiting to retry.",
+} as const;
 
 export const SORT_LABEL = "Newest saved first";
 export const NEW_TAB_LABEL = "opens in a new tab";

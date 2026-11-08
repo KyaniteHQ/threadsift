@@ -9,8 +9,10 @@ import {
   type JobFiles,
   type JobOutcome,
   type JobPorts,
+  type SettledOutcome,
 } from "./job-outcome.ts";
 import { enqueueItemJobs, enqueueQuietly, hasOpenJob, holding } from "./job-rows.ts";
+import type { WaitReason } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, guardedBatch, items, jobs } from "./schema.ts";
 
@@ -20,6 +22,10 @@ function writeWhileHolding(
   writes: readonly BatchItem<"sqlite">[],
 ) {
   return guardedBatch(db, holding(job), writes);
+}
+
+function logClaimLost(job: Readonly<Pick<JobRow, "id" | "attempts">>): void {
+  console.warn(JSON.stringify({ event: "job-claim-lost", jobId: job.id, attempt: job.attempts }));
 }
 
 const NO_FILES: JobFiles = { written: null, superseded: null };
@@ -75,9 +81,7 @@ export async function finish(
   await enqueueItemJobs(ports, job.itemId);
   await deleteQuietly(ports, wrote ? files.superseded : files.written);
 
-  if (!wrote) {
-    console.warn(JSON.stringify({ event: "job-claim-lost", jobId: job.id, attempt: job.attempts }));
-  }
+  if (!wrote) logClaimLost(job);
 
   return wrote;
 }
@@ -86,10 +90,11 @@ export async function queueLater(
   ports: JobPorts,
   job: Readonly<JobRow>,
   {
-    delayMs,
+    until,
     attempts,
     staleRequeues,
-  }: Readonly<{ delayMs: number; attempts: number; staleRequeues: number }>,
+    wait,
+  }: Readonly<{ until: number; attempts: number; staleRequeues: number; wait: WaitReason | null }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
     ports.db
@@ -98,21 +103,24 @@ export async function queueLater(
         state: "queued",
         attempts,
         staleRequeues,
-        nextAttemptAt: Date.now() + delayMs,
+        nextAttemptAt: until,
         claimExpires: null,
+        waitReason: wait,
       })
       .where(eq(jobs.id, job.id)),
   ]);
 
   if (wrote) {
-    await enqueueQuietly(ports, [job.id], delayMs);
+    await enqueueQuietly(ports, [job.id], Math.max(0, until - Date.now()));
+  } else {
+    logClaimLost(job);
   }
 }
 
 async function writeOutcome(
   ports: JobPorts,
   job: Readonly<JobRow>,
-  outcome: JobOutcome,
+  outcome: SettledOutcome,
 ): Promise<"done" | "lost" | "stale"> {
   try {
     return (await finish(ports, job, {
@@ -141,10 +149,10 @@ async function discardTask(
   if (write !== undefined) await db.batch([write]);
 }
 
-export async function applyOutcome(
+async function applySettled(
   ports: JobPorts,
   job: Readonly<JobRow>,
-  outcome: JobOutcome,
+  outcome: SettledOutcome,
 ): Promise<void> {
   let result: Awaited<ReturnType<typeof writeOutcome>>;
 
@@ -165,9 +173,10 @@ export async function applyOutcome(
       await discardTask(ports, outcome.currency, "stale");
       const staleRequeues = Math.min(job.staleRequeues + 1, MAX_STALE_REQUEUES);
       await queueLater(ports, job, {
-        delayMs: STALE_DELAYS_MS[job.staleRequeues] ?? STALE_DELAYS_MS[2],
+        until: Date.now() + (STALE_DELAYS_MS[job.staleRequeues] ?? STALE_DELAYS_MS[2]),
         attempts: job.attempts,
         staleRequeues,
+        wait: null,
       });
       break;
     }
@@ -177,4 +186,23 @@ export async function applyOutcome(
       throw new Error(exhaustive);
     }
   }
+}
+
+export async function applyOutcome(
+  ports: JobPorts,
+  job: Readonly<JobRow>,
+  outcome: JobOutcome,
+): Promise<void> {
+  if ("deferredUntil" in outcome) {
+    await queueLater(ports, job, {
+      until: outcome.deferredUntil,
+      attempts: job.attempts + (outcome.countsAttempt ? 1 : 0),
+      staleRequeues: job.staleRequeues,
+      wait: outcome.wait,
+    });
+
+    return;
+  }
+
+  await applySettled(ports, job, outcome);
 }

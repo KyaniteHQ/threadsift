@@ -1,7 +1,7 @@
 import { and, eq, notExists } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
-import type { Fetched } from "./details.ts";
+import type { Concluded } from "./details.ts";
 import { resolveShortLink } from "./fetch-link.ts";
 import {
   EMPTY_JOINED_VIEW,
@@ -81,7 +81,7 @@ async function saveSettled(
   db: Database,
   address: string,
   { normalizedUrl, kind, source }: Readonly<Link>,
-  fetched: Readonly<Fetched>,
+  fetched: Readonly<Concluded>,
 ): Promise<SaveResult> {
   const now = Date.now();
 

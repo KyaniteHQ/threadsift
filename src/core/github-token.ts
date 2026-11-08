@@ -10,8 +10,8 @@ import {
   type GithubVerifyResult,
   refusedGithub,
 } from "./github-contract.ts";
+import { githubSettings } from "./github-tables.ts";
 import { HOP_DEADLINE_MS, type Ports } from "./ports.ts";
-import { githubSettings } from "./schema.ts";
 
 export type GithubAuth =
   | { readonly kind: "anonymous" }
@@ -91,6 +91,10 @@ export async function removeGithubToken(ports: Readonly<TokenPorts>): Promise<Gi
 
 function refusalOf(outcome: Exclude<GuardOutcome, Page>): GithubRefused {
   if (outcome.kind === "stopped") return refusedGithub("github-error");
+
+  if (outcome.reason === "rate-limited") {
+    return refusedGithub("github-error", outcome.httpStatus);
+  }
 
   if (outcome.reason === "status") {
     return outcome.httpStatus === UNAUTHORIZED

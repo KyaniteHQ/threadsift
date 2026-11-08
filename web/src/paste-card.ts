@@ -4,7 +4,7 @@ import type { Item } from "../../src/http/schemas.ts";
 import type { NoteKey, NoticeKey } from "./text.ts";
 
 export type CardView =
-  | { readonly kind: "reading" }
+  | { readonly kind: "reading"; readonly wait: Item["wait"] }
   | { readonly kind: "added" | "refreshed"; readonly note: NoticeKey | null }
   | { readonly kind: "failed"; readonly reason: FailureReason };
 
@@ -37,7 +37,7 @@ export function noteOf(item: Readonly<Item>): NoticeKey | null {
 
 export function viewOf(item: Readonly<Item>, refreshed: boolean): CardView {
   if (item.status === "processing") {
-    return { kind: "reading" };
+    return { kind: "reading", wait: item.wait };
   }
 
   if (item.status === "failed") {
