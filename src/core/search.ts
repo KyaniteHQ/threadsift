@@ -166,6 +166,13 @@ export function commentPartWrites(
   ];
 }
 
+export function tagPartWrites(
+  db: Database,
+  scope: Readonly<SQLWrapper>,
+): readonly BatchItem<"sqlite">[] {
+  return [replacing(db, scope, ["tags"]), tagsPart(db, scope)];
+}
+
 export function digestPartWrites(
   db: Database,
   scope: Readonly<SQLWrapper>,

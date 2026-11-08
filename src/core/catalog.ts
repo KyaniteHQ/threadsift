@@ -1,6 +1,7 @@
 import { type SQLWrapper, and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { type Digest, parseStoredDigest } from "./ai-contract.ts";
+import { caseFold } from "./case-folding.ts";
 import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
 import { logFailure } from "./failure-log.ts";
 import type { JobWrites } from "./job-outcome.ts";
@@ -19,8 +20,16 @@ import { digestPartWrites } from "./search.ts";
 
 const OLDER_DIGEST_BATCH = 10;
 
+export const CATALOG_KEY_VERSION = 1;
+
+const DOT_AFTER_I = /i\u0307+/gu;
+
 export function catalogKey(name: string): string {
-  return name.normalize("NFKC").toLowerCase().trim().replaceAll(/\s+/gu, " ");
+  return caseFold(name.normalize("NFKC"))
+    .replaceAll(DOT_AFTER_I, "i")
+    .normalize("NFC")
+    .trim()
+    .replaceAll(/\s+/gu, " ");
 }
 
 export function catalogEntries(digest: Readonly<Digest>) {

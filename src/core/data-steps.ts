@@ -1,5 +1,7 @@
 import { eq, lt } from "drizzle-orm";
 
+import { TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
+import { catalogKeyStep } from "./catalog-key-step.ts";
 import type { DataStep } from "./data-step-contract.ts";
 import { dataSteps } from "./data-step-tables.ts";
 import { logFailure } from "./failure-log.ts";
@@ -10,6 +12,8 @@ const UNITS_PER_RUN = 100;
 
 const STEPS: readonly DataStep[] = [
   { name: "item-identity", version: ITEM_IDENTITY_VERSION, advance: advanceItemIdentity },
+  catalogKeyStep(TOPIC_KIND),
+  catalogKeyStep(TAG_KIND),
 ];
 
 function cursorKey(version: number): string {

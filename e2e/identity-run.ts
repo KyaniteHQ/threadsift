@@ -23,8 +23,12 @@ export function count(instance: Instance, statement: string): number {
   return instance.query(`SELECT count(*) AS n FROM (${statement})`, Counts)[0]?.n ?? -1;
 }
 
+export function dataSteps(instance: Instance) {
+  return instance.query("SELECT name, version, cursor FROM data_steps ORDER BY name", Marker);
+}
+
 export function marker(instance: Instance) {
-  return instance.query("SELECT name, version, cursor FROM data_steps", Marker);
+  return dataSteps(instance).filter(({ name }) => name === "item-identity");
 }
 
 export function lines(instance: Instance, event: string): string[] {

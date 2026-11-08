@@ -1,7 +1,7 @@
 import { and, asc, eq, gt, lte, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Advance } from "./data-step-contract.ts";
+import { dropStaged, stageRenames } from "./data-step-support.ts";
 import { dataStepRenames } from "./data-step-tables.ts";
 import { finish, reportCollisions } from "./item-identity-collisions.ts";
 import { STEP, dropResolved, renameStaged } from "./item-identity-staging.ts";
@@ -13,7 +13,6 @@ export const ITEM_IDENTITY_VERSION = 1;
 
 const STAGE_ROWS = 500;
 const STAGE_BYTES = 4_000_000;
-const INSERT_ROWS = 24;
 const APPLY_ROWS = 500;
 
 const CLEAR_CURSOR = "stage:0";
@@ -75,19 +74,9 @@ async function nextItems(db: Database, from: number): Promise<readonly StoredIde
 
 function clearStaged(db: Database): Advance {
   return {
-    writes: [db.delete(dataStepRenames).where(eq(dataStepRenames.step, STEP))],
+    writes: [dropStaged(db, STEP)],
     cursor: CLEAR_CURSOR,
   };
-}
-
-function insertRenames(db: Database, rows: readonly (typeof dataStepRenames.$inferInsert)[]) {
-  return db
-    .insert(dataStepRenames)
-    .values([...rows])
-    .onConflictDoUpdate({
-      target: [dataStepRenames.step, dataStepRenames.subject],
-      set: { oldKey: sql`excluded.old_key`, newKey: sql`excluded.new_key` },
-    });
 }
 
 async function stage(db: Database, from: number): Promise<Advance> {
@@ -106,13 +95,7 @@ async function stage(db: Database, from: number): Promise<Advance> {
       : [{ step: STEP, subject: item.id, oldKey: item.normalizedUrl, newKey }];
   });
 
-  const writes: BatchItem<"sqlite">[] = [];
-
-  for (let start = 0; start < renames.length; start += INSERT_ROWS) {
-    writes.push(insertRenames(db, renames.slice(start, start + INSERT_ROWS)));
-  }
-
-  return { writes, cursor: `stage:${last.id}` };
+  return { writes: stageRenames(db, renames), cursor: `stage:${last.id}` };
 }
 
 async function apply(db: Database, from: number): Promise<Advance> {
