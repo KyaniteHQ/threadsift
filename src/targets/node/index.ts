@@ -1,15 +1,15 @@
-import { join, relative, resolve, sep } from "node:path";
+import { join, resolve } from "node:path";
 
-import { serve } from "@hono/node-server";
-import { serveStatic } from "@hono/node-server/serve-static";
-import { type Context, Hono } from "hono";
+import { type HttpBindings, serve } from "@hono/node-server";
+import { Hono } from "hono";
 import { compress } from "hono/compress";
 import { z } from "zod";
 
 import { createApp } from "../../http/app.ts";
-import { isDocumentPath } from "../../http/document-path.ts";
 import { openDatabase } from "./database.ts";
 import { startNode } from "./ports.ts";
+import { answerAfterBody } from "./unread-body.ts";
+import { webRoutes } from "./web-routes.ts";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 
@@ -31,23 +31,11 @@ const database = openDatabase(
   join(repositoryRoot, "migrations"),
 );
 
-const webRoot = relative(process.cwd(), join(repositoryRoot, "dist", "web"));
-
-const IMMUTABLE = "public, max-age=31536000, immutable";
-const REVALIDATE = "no-cache";
-const hashedAssetsDir = join(webRoot, "assets") + sep;
-
-function onFound(path: string, context: Context): void {
-  context.header("Cache-Control", path.startsWith(hashedAssetsDir) ? IMMUTABLE : REVALIDATE);
-}
-
-const files = serveStatic({ root: webRoot, onFound });
-
-const document = serveStatic({ root: webRoot, path: "index.html", onFound });
-
-const app = new Hono();
+const app = new Hono<{ Bindings: HttpBindings }>();
 
 app.use("*", compress());
+
+app.use("*", answerAfterBody);
 
 const node = await startNode(database.db, {
   dataDir: env.DATA_DIR,
@@ -63,15 +51,7 @@ const node = await startNode(database.db, {
 
 app.route("/", createApp(node.ports));
 
-app.get("/index.html", (context) => context.redirect("/", 307));
-
-app.get("/_headers", (context, next) => document(context, next));
-
-app.use("*", files);
-
-app.get("*", (context, next) =>
-  isDocumentPath(context.req.path) ? document(context, next) : next(),
-);
+app.route("/", webRoutes(join(repositoryRoot, "dist", "web")));
 
 const server = serve({ fetch: app.fetch, port: env.PORT });
 
