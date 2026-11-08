@@ -1,8 +1,8 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
-import { z } from "zod";
 
 import { type Instance, launchFresh, newCode } from "./access.ts";
 import { postLink } from "./api.ts";
+import { fetchStatusCodes } from "./fetch-status-log.ts";
 import { ownerOf } from "./files.ts";
 import { newRunId } from "./links.ts";
 
@@ -23,12 +23,8 @@ test.afterAll(async () => {
   instance.stop();
 });
 
-const StatusLine = z.object({ event: z.literal("fetch-status"), httpStatus: z.number() }).strict();
-
 function statusCodes(): number[] {
-  return [...instance.logs().matchAll(/\{"event":"fetch-status"[^}]*\}/gu)].map(
-    ([line = ""]) => StatusLine.parse(JSON.parse(line)).httpStatus,
-  );
+  return fetchStatusCodes(instance.logs());
 }
 
 test("a page that answers a non-2xx logs its HTTP status and nothing else about the link, and a page that answers 200 logs none", async () => {

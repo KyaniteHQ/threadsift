@@ -2,10 +2,11 @@ import { expect, test } from "@playwright/test";
 
 import { NOTICES } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
-import { listAll, postLinkRaw, settled } from "./api.ts";
-import { pasteLive } from "./articles.ts";
+import { itemOf, listAll, postLinkRaw, settled } from "./api.ts";
+import { livePasted } from "./articles.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { pasteCard, pasteLink } from "./links.ts";
+import { skipWhenRunnerBlocked } from "./share-link-block.ts";
 import { aliasesOf, fetchAddressesOf } from "./short-links.ts";
 
 test.describe.configure({ timeout: 240_000 });
@@ -50,6 +51,16 @@ const SHARED = [
 const COMMENT_PARENT = "https://www.reddit.com/r/gifs/comments/1xn17o9/";
 const COMMENT_PARENT_IDENTITY = "https://reddit.com/r/all/comments/1xn17o9/";
 
+const NOT_SHARE_LINKS = [
+  { what: "a share link on old.reddit.com", url: "https://old.reddit.com/r/factorio/s/h8fWoCEcMx" },
+  { what: "a /s/ link without a community", url: "https://www.reddit.com/s/h8fWoCEcMx" },
+  { what: "a /s/ link under /user/", url: "https://www.reddit.com/user/spez/s/h8fWoCEcMx" },
+  {
+    what: "a share link with a path after its code",
+    url: "https://reddit.com/r/gifs/s/9W7csSs7LA/x",
+  },
+] as const;
+
 const UNKNOWN_CODE = "https://reddit.com/r/gifs/s/ZZZZZZZZZZ";
 
 let screen: FreshScreen;
@@ -67,10 +78,19 @@ type Shared = (typeof SHARED)[number];
 async function pastedThreeWays(shared: Shared) {
   const { request } = screen.context;
 
-  const { first, last, fetches } = await pasteLive(request, {
-    name: `share-${shared.name}`,
-    url: shared.share,
-  });
+  const name = `share-${shared.name}`;
+
+  const { first, last, fetches } = await livePasted(
+    name,
+    async () => {
+      const { status, body } = await postLinkRaw(request, shared.share);
+      const item = await settled(request, body.item.id);
+      await skipWhenRunnerBlocked(screen, name);
+
+      return { status, item };
+    },
+    ({ item }) => item.fetch,
+  );
 
   const { id } = last.item;
 
@@ -116,6 +136,7 @@ test("a share link to a comment never joins its post, and the post stays its own
   const [, comment] = SHARED;
   const shared = await postLinkRaw(request, comment.share);
   await settled(request, shared.body.item.id);
+  await skipWhenRunnerBlocked(screen, "share-comment-and-post");
   const parent = await postLinkRaw(request, COMMENT_PARENT);
   await settled(request, parent.body.item.id);
 
@@ -144,8 +165,10 @@ test("a share link whose redirect does not end on a post or comment stays a link
   const { id } = first.body.item;
 
   expect(first.status).toBe(201);
+  await settled(request, id);
+  await skipWhenRunnerBlocked(screen, "share-unknown-code");
 
-  expect(await settled(request, id)).toMatchObject({
+  expect(await itemOf(request, id)).toMatchObject({
     kind: "link",
     source: "other",
     normalizedUrl: UNKNOWN_CODE,
@@ -166,6 +189,29 @@ test("the paste card says Threadsift could not find the post or comment when a s
   const { page } = screen;
   await page.goto("/");
   await pasteLink(page, UNKNOWN_CODE);
+  await skipWhenRunnerBlocked(screen, "share-paste-card");
 
   await expect(pasteCard(page)).toContainText(NOTICES.unresolved.text);
 });
+
+async function savedAsPlainLink(url: string) {
+  const { request } = screen.context;
+  const { status, body } = await postLinkRaw(request, url);
+
+  expect(status).toBe(201);
+
+  expect(await settled(request, body.item.id)).toMatchObject({
+    kind: "link",
+    source: "other",
+    fetch: "not-requested",
+    title: null,
+  });
+
+  expect(aliasesOf(screen)).toEqual([]);
+  expect(fetchAddressesOf(screen, body.item.id)).toEqual([url]);
+}
+
+for (const form of NOT_SHARE_LINKS) {
+  test(`${form.what} is saved as a plain link, with no request and no alias`, () =>
+    savedAsPlainLink(form.url));
+}
