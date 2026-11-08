@@ -139,6 +139,14 @@ export function claimLostLines(instance: Instance, jobId: number): string[] {
   return eventLines(instance, "job-claim-lost", `"jobId":${jobId},`);
 }
 
+export function failedAttemptLines(instance: Instance, jobId: number, attempt: number): string[] {
+  return eventLines(
+    instance,
+    "job-attempt-failed",
+    `"jobId":${jobId},"kind":"fetch","attempt":${attempt},`,
+  );
+}
+
 export function releaseSweepThrottle(instance: Instance = mainInstance()): void {
   instance.sql("DELETE FROM scheduled_runs");
 }
