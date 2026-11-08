@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { AiSaveResponseSchema } from "../src/core/ai-contract.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
 import { putSettings } from "./ai.ts";
-import { MODEL, connectScreen } from "./connect.ts";
+import { MODEL, attemptCount, connectScreen, settingsRows } from "./connect.ts";
 import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
 import { storeSettings } from "./look.ts";
 
@@ -115,6 +115,38 @@ test("The Connect button and its notes keep the design rules in every theme and 
         await expectNoViolations(page, `Connect, ${theme}, ${width}px`);
       }
     }
+  } finally {
+    await screen.close();
+  }
+});
+
+test("Connect works again when the browser restores Settings after the owner left for OpenRouter and came back", async ({
+  browser,
+}) => {
+  const screen = await connectScreen(browser);
+
+  try {
+    const { page } = screen;
+    await page.route("https://openrouter.ai/auth?**", (route) => route.abort("aborted"));
+    await page.goto("/settings");
+    const section = page.getByRole("region", { name: AI_TEXT.title, exact: true });
+    await section.getByLabel(AI_TEXT.provider, { exact: true }).selectOption("openrouter");
+    await section.getByLabel(AI_TEXT.model, { exact: true }).fill(MODEL);
+    await section.getByRole("button", { name: AI_TEXT.connect, exact: true }).click();
+    await expect(
+      section.getByRole("button", { name: AI_TEXT.connecting, exact: true }),
+    ).toBeVisible();
+    expect(attemptCount(screen), "the first press made an attempt").toBe(1);
+
+    await page.evaluate(() =>
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })),
+    );
+
+    const again = section.getByRole("button", { name: AI_TEXT.connect, exact: true });
+    await expect(again).toBeVisible();
+    await again.click();
+    await expect.poll(() => attemptCount(screen), "the second press made an attempt").toBe(2);
+    expect(settingsRows(screen), "nothing was saved").toBe(0);
   } finally {
     await screen.close();
   }

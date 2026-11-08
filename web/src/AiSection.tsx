@@ -154,7 +154,7 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
     saved,
   );
 
-  const connection = useConnect(view, fields, busy);
+  const connection = useConnect(view, fields, busy, saved);
 
   const onSubmit = useCallback(
     (event: SubmitEvent<HTMLFormElement>) => {

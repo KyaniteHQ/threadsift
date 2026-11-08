@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { type APIResponse, expect, test } from "@playwright/test";
 
 import { AiSaveResponseSchema, AiSettingsViewSchema } from "../src/core/ai-contract.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
@@ -18,6 +18,7 @@ import {
   attemptCount,
   attempts,
   connectScreen,
+  expectPrivate,
   ownPage,
   signedIn,
   startAs,
@@ -105,7 +106,7 @@ test("Connect leaves for OpenRouter with a sealed attempt bound to the model, re
 type Sender = (
   headers: Readonly<Record<string, string>>,
   data: string | StartBody,
-) => Promise<number>;
+) => Promise<APIResponse>;
 
 function refusals(screen: Readonly<ConnectScreen>, token: string) {
   const own = ownPage(screen.origin);
@@ -147,9 +148,9 @@ function refusals(screen: Readonly<ConnectScreen>, token: string) {
 
 function senders(owner: Readonly<Signed>, stranger: Awaited<ReturnType<typeof anonymous>>) {
   return {
-    owner: async (headers, data) =>
-      (await owner.api.post(START, { data, headers: { ...owner.headers, ...headers } })).status(),
-    stranger: async (headers, data) => (await stranger.post(START, { data, headers })).status(),
+    owner: (headers, data) =>
+      owner.api.post(START, { data, headers: { ...owner.headers, ...headers } }),
+    stranger: (headers, data) => stranger.post(START, { data, headers }),
   } satisfies Record<"owner" | "stranger", Sender>;
 }
 
@@ -170,11 +171,15 @@ test("Start refuses a signed-out caller, an agent token and a request that is no
     const send = senders(owner, stranger);
 
     for (const [what, headers, data, status, caller] of refusals(screen, token.value)) {
-      expect(await send[caller](headers, data), what).toBe(status);
+      const answer = await send[caller](headers, data);
+      expect(answer.status(), what).toBe(status);
+      expectPrivate(answer);
       expect(attemptCount(screen), `${what} records nothing`).toBe(0);
     }
 
-    expect((await startAs(owner, screen)).status(), "the owner's own page").toBe(201);
+    const started = await startAs(owner, screen);
+    expect(started.status(), "the owner's own page").toBe(201);
+    expectPrivate(started);
     expect(attemptCount(screen)).toBe(1);
   } finally {
     await stranger.dispose();

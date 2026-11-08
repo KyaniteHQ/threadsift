@@ -1,4 +1,4 @@
-import { eq, lt, sql } from "drizzle-orm";
+import { eq, lt, sql, type SQLWrapper } from "drizzle-orm";
 
 import { digestOf, randomSecret } from "./encoding.ts";
 import type { Crypto, Database, Ports } from "./ports.ts";
@@ -42,8 +42,12 @@ export function sessionWrites(db: Database, session: Readonly<PreparedSession>) 
   ] as const;
 }
 
-export function sessionIsLive(crypto: Crypto, id: string) {
-  return sql`exists (select 1 from ${sessions} where ${sessions.digest} = ${digestOf(crypto, id)} and ${sessions.expiresAt} > ${Date.now()})`;
+export function sessionIsLive(
+  crypto: Crypto,
+  id: string,
+  now: number | Readonly<SQLWrapper> = Date.now(),
+) {
+  return sql`exists (select 1 from ${sessions} where ${sessions.digest} = ${digestOf(crypto, id)} and ${sessions.expiresAt} > ${now})`;
 }
 
 export function endAllSessions(db: Database) {

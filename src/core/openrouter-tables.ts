@@ -38,3 +38,5 @@ export const openrouterConnectTransactions = sqliteTable(
 );
 
 export const CURRENT_REVISION = sql<number>`(select ${aiSettingsRevision.revision} from ${aiSettingsRevision} where ${aiSettingsRevision.id} = 1)`;
+
+export const DATABASE_NOW = sql<number>`cast((julianday('now') - 2440587.5) * 86400000 as integer)`;

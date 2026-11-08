@@ -1,5 +1,5 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { Context, MiddlewareHandler } from "hono";
+import type { Context } from "hono";
 
 import { olderDigests } from "../core/digest-job.ts";
 import { completeOpenRouterConnect } from "../core/openrouter-callback.ts";
@@ -46,23 +46,6 @@ const callbackRoute = createRoute({
     405: { description: "Only GET may complete an attempt." },
   },
 });
-
-export const callbackResponse: MiddlewareHandler = async (c, next) => {
-  await next();
-
-  const signedOutBrowser =
-    c.req.method === "GET" &&
-    c.res.status === 401 &&
-    c.req.header("authorization") === undefined &&
-    c.req.header("sec-fetch-mode") === "navigate";
-
-  if (signedOutBrowser) {
-    c.res = new Response(null, { status: 303, headers: { location: returnAddress(null) } });
-  }
-
-  c.res.headers.set("Cache-Control", "no-store");
-  c.res.headers.set("Referrer-Policy", "no-referrer");
-};
 
 function fromOwnPage(c: Context, origin: string): boolean {
   return (

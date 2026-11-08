@@ -1,19 +1,16 @@
 import { sql } from "drizzle-orm";
 
-import { prepareAiSettings, upsertSettings } from "./ai-settings.ts";
+import { type PreparedSettings, prepareAiSettings, upsertSettings } from "./ai-settings.ts";
 import { logFailure } from "./failure-log.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Claimed } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
-import { CURRENT_REVISION } from "./openrouter-tables.ts";
+import { CURRENT_REVISION, DATABASE_NOW } from "./openrouter-tables.ts";
 import type { Database, Ports } from "./ports.ts";
 import { guardedBatch, settings } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
 
-async function holdsRow(
-  db: Database,
-  row: Readonly<Awaited<ReturnType<typeof prepareAiSettings>>>,
-): Promise<boolean> {
+async function holdsRow(db: Database, row: Readonly<PreparedSettings>): Promise<boolean> {
   try {
     const [stored] = await db.select().from(settings);
 
@@ -29,30 +26,53 @@ async function holdsRow(
   }
 }
 
+type Prepared = Awaited<ReturnType<typeof prepareAiSettings>>;
+
+async function prepareOrNull(
+  ports: Ports,
+  { claimed, key }: Readonly<{ claimed: Claimed; key: string }>,
+): Promise<Prepared | null> {
+  try {
+    return await prepareAiSettings(ports, { provider: "openrouter", model: claimed.model, key });
+  } catch (error) {
+    logFailure("openrouter-connect-prepare-failed", {}, error);
+
+    return null;
+  }
+}
+
+async function committed(
+  ports: Ports,
+  {
+    sessionId,
+    claimed,
+    row,
+  }: Readonly<{ sessionId: string; claimed: Claimed; row: Readonly<PreparedSettings> }>,
+  extraWrites: () => JobWrites,
+): Promise<boolean> {
+  try {
+    return await guardedBatch(
+      ports.db,
+      sql`${sessionIsLive(ports.crypto, sessionId, DATABASE_NOW)} and ${CURRENT_REVISION} = ${claimed.expectedRevision} and ${DATABASE_NOW} < ${claimed.expiresAt}`,
+      [upsertSettings(ports.db, row), ...extraWrites()],
+    );
+  } catch (error) {
+    logFailure("openrouter-connect-commit-failed", {}, error);
+
+    return false;
+  }
+}
+
 export async function saveConnectedKey(
   ports: Ports,
   { sessionId, claimed, key }: Readonly<{ sessionId: string; claimed: Claimed; key: string }>,
   extraWrites: () => JobWrites,
 ): Promise<ConnectNotice> {
-  const prepared = await prepareAiSettings(ports, {
-    provider: "openrouter",
-    model: claimed.model,
-    key,
-  });
+  const row = await prepareOrNull(ports, { claimed, key });
 
-  if ("kind" in prepared) return "possible-orphan";
+  if (row === null || "kind" in row) return "possible-orphan";
 
-  try {
-    const committed = await guardedBatch(
-      ports.db,
-      sql`${sessionIsLive(ports.crypto, sessionId)} and ${CURRENT_REVISION} = ${claimed.expectedRevision} and ${Date.now()} < ${claimed.expiresAt}`,
-      [upsertSettings(ports.db, prepared), ...extraWrites()],
-    );
+  if (await committed(ports, { sessionId, claimed, row }, extraWrites)) return "connected";
 
-    return committed ? "connected" : "possible-orphan";
-  } catch (error) {
-    logFailure("openrouter-connect-commit-failed", {}, error);
-
-    return (await holdsRow(ports.db, prepared)) ? "connected" : "possible-orphan";
-  }
+  return (await holdsRow(ports.db, row)) ? "connected" : "possible-orphan";
 }

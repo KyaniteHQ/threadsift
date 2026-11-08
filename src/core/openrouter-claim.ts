@@ -3,7 +3,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { readRevision } from "./ai-settings.ts";
 import { digestOf } from "./encoding.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
-import { CURRENT_REVISION } from "./openrouter-tables.ts";
+import { CURRENT_REVISION, DATABASE_NOW } from "./openrouter-tables.ts";
 import type { Ports } from "./ports.ts";
 import { openrouterConnectTransactions as transactions } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
@@ -28,10 +28,10 @@ export async function claim(
       and(
         eq(transactions.stateDigest, digestOf(crypto, state)),
         eq(transactions.sessionDigest, digestOf(crypto, sessionId)),
-        gt(transactions.expiresAt, Date.now()),
+        gt(transactions.expiresAt, DATABASE_NOW),
         eq(transactions.publicOrigin, origin),
         eq(transactions.expectedRevision, CURRENT_REVISION),
-        sessionIsLive(crypto, sessionId),
+        sessionIsLive(crypto, sessionId, DATABASE_NOW),
       ),
     )
     .returning();

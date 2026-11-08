@@ -51,7 +51,8 @@ export const AI_TEXT = {
     "Settings changed since this page loaded, so Connect did not start. Reload the page and try again.",
   connectFailed: "Connect could not start. Try again.",
   connected: "OpenRouter key saved. Press Verify to check the model.",
-  connectIncomplete: "Connect did not finish, so nothing was saved. Press Connect again.",
+  connectIncomplete:
+    "Threadsift could not confirm this Connect. Press Verify to check the key, or press Connect again if no key is saved.",
   connectSettingsChanged:
     "AI settings changed while you were away, so nothing was saved. Press Connect again.",
   connectPossibleOrphan:

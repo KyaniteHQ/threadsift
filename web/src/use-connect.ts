@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { type AiView, startConnect } from "./ai-api.ts";
+import { type AiView, fetchAiSettings, startConnect } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import type { FieldState } from "./use-form.ts";
 
@@ -16,16 +16,60 @@ const FAILURE_TEXT = {
   failed: AI_TEXT.connectFailed,
 } as const;
 
+function usePageRestore(
+  restored: (view: AiView) => void,
+  setLeaving: (leaving: boolean) => void,
+  setFailure: (failure: string | null) => void,
+): void {
+  useEffect(() => {
+    const restore = async (): Promise<void> => {
+      setLeaving(false);
+
+      try {
+        restored(await fetchAiSettings());
+      } catch {
+        setFailure(FAILURE_TEXT.failed);
+      }
+    };
+
+    const onPageShow = (event: Readonly<PageTransitionEvent>): void => {
+      if (event.persisted) void restore();
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [restored, setLeaving, setFailure]);
+}
+
+async function start(
+  input: Readonly<{ model: string; revision: number }>,
+): Promise<{ readonly url: string } | { readonly failure: string }> {
+  try {
+    const started = await startConnect(input);
+
+    return started.kind === "started"
+      ? { url: started.authorizationUrl }
+      : { failure: FAILURE_TEXT[started.kind] };
+  } catch {
+    return { failure: FAILURE_TEXT.failed };
+  }
+}
+
 export function useConnect(
   view: AiView,
   fields: Readonly<{ model: FieldState; key: FieldState }>,
   blocked: boolean,
+  restored: (view: AiView) => void,
 ): Connection {
   const [leaving, setLeaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const { model, key } = fields;
   const { value: modelValue, fail: failModel } = model;
   const { clear: clearKey } = key;
+  usePageRestore(restored, setLeaving, setFailure);
 
   const run = useCallback(async () => {
     if (blocked || leaving) return;
@@ -40,22 +84,16 @@ export function useConnect(
     }
 
     setLeaving(true);
+    const started = await start({ model: modelValue, revision: view.revision });
 
-    try {
-      const started = await startConnect({ model: modelValue, revision: view.revision });
+    if ("url" in started) {
+      clearKey();
+      window.location.assign(started.url);
 
-      if (started.kind === "started") {
-        clearKey();
-        window.location.assign(started.authorizationUrl);
-
-        return;
-      }
-
-      setFailure(FAILURE_TEXT[started.kind]);
-    } catch {
-      setFailure(FAILURE_TEXT.failed);
+      return;
     }
 
+    setFailure(started.failure);
     setLeaving(false);
   }, [blocked, leaving, modelValue, view.revision, failModel, clearKey]);
 
