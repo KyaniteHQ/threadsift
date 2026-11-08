@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { KEY_POINTS_LABEL, OPEN_LABELS, SUMMARY_LABEL } from "../web/src/reader-text.ts";
 import { SOURCE_LABELS } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
-import { ESSAY, ESSAY_AUTHOR, ESSAY_SENTENCE, pasteGutenberg } from "./articles.ts";
+import { ESSAY, ESSAY_AUTHOR, ESSAY_SENTENCE, pasteLive } from "./articles.ts";
 import { SENT_DIGEST, agentHeaders, sendDigest } from "./catalog.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { openLibrary, openRow, reader } from "./reader.ts";
@@ -37,7 +37,7 @@ test("an Article sent with a caller Digest opens in the Reader with its header, 
 
   const {
     last: { item: book },
-  } = await pasteGutenberg(context.request, {
+  } = await pasteLive(context.request, {
     name: "pride-and-prejudice",
     url: BOOK,
     digest: digestOf(BOOK_TITLE, "Regency", "A marmalade summary."),

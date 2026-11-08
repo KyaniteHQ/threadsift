@@ -21,7 +21,7 @@ import {
   attachItem,
   expectMarkdown,
   longPage,
-  pasteGutenberg,
+  pasteLive,
   rawMediaOutsideCode,
 } from "./articles.ts";
 import { forgetItem, storeItem } from "./ingest.ts";
@@ -86,7 +86,7 @@ test("a long page served as plain text stays Other with no text", async ({ reque
 test("a page over 5 MiB is cut and never read as an article", async ({ request }, info) => {
   const {
     last: { item },
-  } = await pasteGutenberg(request, { name: "shakespeare", url: COMPLETE_SHAKESPEARE });
+  } = await pasteLive(request, { name: "shakespeare", url: COMPLETE_SHAKESPEARE });
 
   expect(item).toMatchObject({ source: "other", kind: "link", fetch: "ok", postText: null });
   expect(item.title).toContain("Shakespeare");
