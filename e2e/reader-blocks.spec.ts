@@ -218,10 +218,14 @@ test("a footnote reference and its back link stay in the Reader, keep their gene
 
   await openLibrary(page, 1440, `/items/${noted}`, 2);
   const reference = page.locator(".md a[data-footnote-ref]").first();
-  await expect(reference).toHaveAttribute("id", "user-content-fnref-1");
+  await expect(reference).toHaveAttribute("id", /^.+-fnref-1$/u);
+  const scope = ((await reference.getAttribute("id")) ?? "").replace(/-fnref-1$/u, "");
+  expect(scope, "the body's own footnote scope").not.toBe("");
   await expect(reference).not.toHaveAttribute("target", /./u);
-  await expect(page.locator(".md #footnote-label")).toHaveClass(/\bvh\b/u);
-  await expect(page.locator(".md #footnote-label")).toHaveText(FOOTNOTES_LABEL);
+  const label = page.locator(`.md [id="${scope}-footnote-label"]`);
+  await expect(label).toHaveClass(/\bvh\b/u);
+  await expect(label).toHaveText(FOOTNOTES_LABEL);
+  await expect(reference).toHaveAttribute("aria-describedby", `${scope}-footnote-label`);
   await expect(page.locator(".md a", { hasText: "the site" })).toHaveAttribute("target", "_blank");
 
   const opened: string[] = [];
@@ -231,17 +235,17 @@ test("a footnote reference and its back link stay in the Reader, keep their gene
   });
 
   await reference.click();
-  await expect(page).toHaveURL(new RegExp(`/items/${noted}#user-content-fn-1$`, "u"));
-  await expect(page.locator("#user-content-fn-1")).toContainText("The source of the claim.");
-  await expect(page.locator("#user-content-fn-1")).toBeInViewport();
+  await expect(page).toHaveURL(new RegExp(`/items/${noted}#${scope}-fn-1$`, "u"));
+  await expect(page.locator(`[id="${scope}-fn-1"]`)).toContainText("The source of the claim.");
+  await expect(page.locator(`[id="${scope}-fn-1"]`)).toBeInViewport();
 
   const first = filled(FOOTNOTE_BACK, { reference: "1" });
   const again = filled(FOOTNOTE_BACK_AGAIN, { reference: "1", again: "2" });
 
-  await expect(page.locator("#user-content-fn-1 a[data-footnote-backref]")).toHaveCount(2);
+  await expect(page.locator(`[id="${scope}-fn-1"] a[data-footnote-backref]`)).toHaveCount(2);
   await expect(page.getByRole("link", { name: again })).toBeVisible();
   await page.getByRole("link", { name: first }).click();
-  await expect(page).toHaveURL(new RegExp(`/items/${noted}#user-content-fnref-1$`, "u"));
+  await expect(page).toHaveURL(new RegExp(`/items/${noted}#${scope}-fnref-1$`, "u"));
   await expect(reference).toBeInViewport();
   await expect(reader(page)).toBeVisible();
   expect(opened, "tabs opened by the footnote links").toEqual([]);
