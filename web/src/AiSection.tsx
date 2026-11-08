@@ -1,19 +1,13 @@
-import { useCallback, useEffect, useState, type SubmitEvent } from "react";
+import { useCallback, type SubmitEvent } from "react";
 
 import { type Digest, type Provider } from "../../src/core/ai-contract.ts";
-import { type AiView, fetchAiSettings } from "./ai-api.ts";
+import type { AiView } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { isSignedOut, useAiForm } from "./use-ai-form.ts";
-
-type Loaded =
-  | { readonly kind: "loading" }
-  | { readonly kind: "failed" }
-  | { readonly kind: "ready"; readonly view: AiView };
-
-const INITIAL: Loaded = { kind: "loading" };
+import { type Loaded, useLoaded } from "./use-settings-load.ts";
 
 function DigestResult({ digest }: Readonly<{ digest: Readonly<Digest> }>) {
   return (
@@ -156,23 +150,8 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
   );
 }
 
-export function AiSection() {
-  const [loaded, setLoaded] = useState<Loaded>(INITIAL);
-  useEffect(() => {
-    const load = async (): Promise<void> => {
-      try {
-        setLoaded({ kind: "ready", view: await fetchAiSettings() });
-      } catch {
-        setLoaded({ kind: "failed" });
-      }
-    };
-
-    void load();
-  }, []);
-
-  const saved = useCallback((view: AiView) => {
-    setLoaded({ kind: "ready", view });
-  }, []);
+export function AiSection({ initial }: Readonly<{ initial: Loaded<AiView> }>) {
+  const { loaded, ready } = useLoaded(initial);
 
   return (
     <section className="sec" aria-labelledby="ai-title">
@@ -181,9 +160,9 @@ export function AiSection() {
       </h2>
       <p>{AI_TEXT.intro}</p>
       {loaded.kind === "ready" ? (
-        <AiForm view={loaded.view} saved={saved} />
+        <AiForm view={loaded.view} saved={ready} />
       ) : (
-        <Alert text={loaded.kind === "failed" ? AI_TEXT.loadFailed : null} />
+        <Alert text={AI_TEXT.loadFailed} />
       )}
     </section>
   );

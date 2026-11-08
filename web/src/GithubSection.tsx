@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState, type SubmitEvent } from "react";
+import { useCallback, type SubmitEvent } from "react";
 
 import { GITHUB_TOKEN_MAX, type GithubSettingsView } from "../../src/core/github-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { Alert } from "./Alert.tsx";
 import { FormField } from "./FormField.tsx";
-import { fetchGithubSettings } from "./github-api.ts";
 import {
   GITHUB_TEXT,
   GUIDE_URL,
@@ -14,13 +13,7 @@ import {
 } from "./github-text.ts";
 import { SwapButton } from "./SwapButton.tsx";
 import { useGithubForm } from "./use-github-form.ts";
-
-type Loaded =
-  | { readonly kind: "loading" }
-  | { readonly kind: "failed" }
-  | { readonly kind: "ready"; readonly view: GithubSettingsView };
-
-const INITIAL: Loaded = { kind: "loading" };
+import { type Loaded, useLoaded } from "./use-settings-load.ts";
 
 const TOKEN_KIND = {
   name: "token",
@@ -142,24 +135,8 @@ function GithubForm({
   );
 }
 
-export function GithubSection() {
-  const [loaded, setLoaded] = useState<Loaded>(INITIAL);
-
-  useEffect(() => {
-    const load = async (): Promise<void> => {
-      try {
-        setLoaded({ kind: "ready", view: await fetchGithubSettings() });
-      } catch {
-        setLoaded({ kind: "failed" });
-      }
-    };
-
-    void load();
-  }, []);
-
-  const changed = useCallback((view: GithubSettingsView) => {
-    setLoaded({ kind: "ready", view });
-  }, []);
+export function GithubSection({ initial }: Readonly<{ initial: Loaded<GithubSettingsView> }>) {
+  const { loaded, ready } = useLoaded(initial);
 
   return (
     <section className="sec" aria-labelledby="github-title">
@@ -169,9 +146,9 @@ export function GithubSection() {
       <p>{GITHUB_TEXT.intro}</p>
       <Steps />
       {loaded.kind === "ready" ? (
-        <GithubForm view={loaded.view} changed={changed} />
+        <GithubForm view={loaded.view} changed={ready} />
       ) : (
-        <Alert text={loaded.kind === "failed" ? GITHUB_TEXT.loadFailed : null} />
+        <Alert text={GITHUB_TEXT.loadFailed} />
       )}
       <a className="fl-link gh-link" href={GUIDE_URL} target="_blank" rel="noopener noreferrer">
         {GITHUB_TEXT.guideLink}
