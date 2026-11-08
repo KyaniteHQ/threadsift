@@ -1,8 +1,7 @@
-import { use } from "react";
-
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { Comments } from "./Comments.tsx";
-import { postTextModule } from "./post-text-module.ts";
+import { PostTextView } from "./post-text-module.ts";
+import { PostTextBoundary } from "./PostTextBoundary.tsx";
 import { NO_POST_TEXT, NO_README, SECTION_TITLES } from "./reader-text.ts";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
@@ -30,7 +29,6 @@ export function Original({
   detail,
   now,
 }: Readonly<{ item: Item; detail: ItemDetail; now: number }>) {
-  const { PostText } = use(postTextModule());
   const text = detail.postText;
 
   return (
@@ -41,19 +39,21 @@ export function Original({
       {detail.repository === null ? null : (
         <RepositoryBlock item={item} repository={detail.repository} now={now} />
       )}
-      {text === null || text.trim() === "" ? (
-        <p className="rd-note">{missingTextNote(item)}</p>
-      ) : (
-        <section className="rd-orig">
-          <h3 className="rd-h">{SECTION_TITLES[item.kind]}</h3>
-          <PostText
-            text={text}
-            itemId={item.kind === "article" ? item.id : null}
-            images={detail.images}
-          />
-        </section>
-      )}
-      <Comments item={item} detail={detail} />
+      <PostTextBoundary>
+        {text === null || text.trim() === "" ? (
+          <p className="rd-note">{missingTextNote(item)}</p>
+        ) : (
+          <section className="rd-orig">
+            <h3 className="rd-h">{SECTION_TITLES[item.kind]}</h3>
+            <PostTextView
+              text={text}
+              itemId={item.kind === "article" ? item.id : null}
+              images={detail.images}
+            />
+          </section>
+        )}
+        <Comments item={item} detail={detail} />
+      </PostTextBoundary>
     </>
   );
 }
