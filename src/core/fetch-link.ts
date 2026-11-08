@@ -46,9 +46,15 @@ const SMALL_POLICY: FetchPolicy = {
 
 const RESOLVE_POLICY: FetchPolicy = { ...SMALL_POLICY, readsBody: isShortLink };
 
+const SHARE_LINK_POLICY: FetchPolicy = {
+  ...RESOLVE_POLICY,
+  stopAt: () => true,
+  followMetaRefresh: () => false,
+};
+
 const NOT_A_POST_OR_COMMENT: ShortLinkResolution = {
   kind: "failed",
-  fetched: { status: "redirect-stopped" },
+  fetched: { status: "unresolved" },
 };
 
 function pagePolicy({ maxHtmlBytes }: Readonly<PageReader>): FetchPolicy {
@@ -127,10 +133,12 @@ export async function resolveShortLink(
   network: Network,
   address: string,
 ): Promise<ShortLinkResolution> {
+  const shareLink = isRedditShareLink(address);
+
   const outcome = await guardedFetch(
     network,
     address,
-    RESOLVE_POLICY,
+    shareLink ? SHARE_LINK_POLICY : RESOLVE_POLICY,
     AbortSignal.timeout(FETCH_DEADLINE_MS),
   );
 
@@ -138,7 +146,7 @@ export async function resolveShortLink(
     return { kind: "failed", fetched: { status: loggedFailureOf(outcome) } };
   }
 
-  return isRedditShareLink(address) && redditRefOf(outcome.url) === null
+  return shareLink && redditRefOf(outcome.url) === null
     ? NOT_A_POST_OR_COMMENT
     : { kind: "resolved", address: outcome.url };
 }

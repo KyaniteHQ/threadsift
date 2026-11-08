@@ -4,6 +4,7 @@ const FETCH_FAILURES = [
   "unsupported",
   "redirect-limit",
   "redirect-stopped",
+  "unresolved",
   "status",
   "network",
   "no-title",

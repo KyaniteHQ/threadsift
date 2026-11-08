@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+import { NOTICES } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { listAll, postLinkRaw, settled } from "./api.ts";
+import { pasteLive } from "./articles.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
+import { pasteCard, pasteLink } from "./links.ts";
 import { aliasesOf, fetchAddressesOf } from "./short-links.ts";
 
 test.describe.configure({ timeout: 240_000 });
@@ -12,6 +15,7 @@ test.use({ trace: "off", video: "off", screenshot: "off" });
 const SHARED = [
   {
     what: "post",
+    name: "post",
     share: "https://reddit.com/r/fossdroid/s/Wptky3Ma2I",
     shareKey: "https://reddit.com/r/fossdroid/s/Wptky3Ma2I",
     canonical:
@@ -22,6 +26,7 @@ const SHARED = [
   },
   {
     what: "comment (the /comment/<id>/ address)",
+    name: "comment-new",
     share: "https://www.reddit.com/r/gifs/s/9W7csSs7LA",
     shareKey: "https://reddit.com/r/gifs/s/9W7csSs7LA",
     canonical: "https://www.reddit.com/r/gifs/comments/1xn17o9/comment/19s3al7u4qqbn/",
@@ -31,6 +36,7 @@ const SHARED = [
   },
   {
     what: "comment (the /<title>/<id>/ address)",
+    name: "comment-old",
     share: "https://reddit.com/r/Common_Lisp/s/1WrzgrAl3O",
     shareKey: "https://reddit.com/r/Common_Lisp/s/1WrzgrAl3O",
     canonical:
@@ -60,12 +66,17 @@ type Shared = (typeof SHARED)[number];
 
 async function pastedThreeWays(shared: Shared) {
   const { request } = screen.context;
-  const first = await postLinkRaw(request, shared.share);
-  const { id } = first.body.item;
+
+  const { first, last, fetches } = await pasteLive(request, {
+    name: `share-${shared.name}`,
+    url: shared.share,
+  });
+
+  const { id } = last.item;
 
   expect(first.status).toBe(201);
 
-  expect(await settled(request, id)).toMatchObject({
+  expect(last.item).toMatchObject({
     kind: shared.kind,
     source: "reddit",
     normalizedUrl: shared.identity,
@@ -91,7 +102,7 @@ async function pastedThreeWays(shared: Shared) {
 
   const addresses = fetchAddressesOf(screen, id);
 
-  expect(addresses).toHaveLength(3);
+  expect(addresses).toHaveLength(fetches.length + 2);
   expect(addresses.filter((address) => address.includes("/s/"))).toEqual([]);
 }
 
@@ -139,14 +150,22 @@ test("a share link whose redirect does not end on a post or comment stays a link
     source: "other",
     normalizedUrl: UNKNOWN_CODE,
     title: null,
-    fetch: "redirect-stopped",
+    fetch: "unresolved",
   });
 
   const again = await postLinkRaw(request, UNKNOWN_CODE);
 
   expect([again.status, again.body.item.id]).toEqual([200, id]);
-  expect(await settled(request, id)).toMatchObject({ fetch: "redirect-stopped" });
+  expect(await settled(request, id)).toMatchObject({ fetch: "unresolved" });
   expect(aliasesOf(screen)).toEqual([]);
   expect(await listAll(request)).toHaveLength(1);
   expect(fetchAddressesOf(screen, id)).toEqual([]);
+});
+
+test("the paste card says Threadsift could not find the post or comment when a share link does not lead to one", async () => {
+  const { page } = screen;
+  await page.goto("/");
+  await pasteLink(page, UNKNOWN_CODE);
+
+  await expect(pasteCard(page)).toContainText(NOTICES.unresolved.text);
 });
