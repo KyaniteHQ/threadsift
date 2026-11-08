@@ -6,6 +6,7 @@ import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
 import { type Choice, type Filters, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import {
+  BLANK,
   CLEAR_FILTERS,
   FILTERS_BUTTON,
   FILTERS_BUTTON_ACTIVE,
@@ -144,6 +145,30 @@ function Panel({
           {CLEAR_FILTERS}
         </button>
       ) : null}
+    </div>
+  );
+}
+
+export function FilterGhost({
+  collapsible,
+  bar,
+}: Readonly<{ collapsible: boolean; bar: boolean }>) {
+  if (!collapsible && !bar) return null;
+
+  return (
+    <div className={bar ? "fl fl-bar" : "fl fl-rail"} aria-hidden="true" inert>
+      {collapsible ? (
+        <button type="button" className="btn fl-toggle" disabled>
+          <Icon name="filters" className="ic ic-s" />
+          {BLANK}
+        </button>
+      ) : (
+        <div className="fl-panel">
+          <div className="fl-g">
+            <span className="fl-chip">{BLANK}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

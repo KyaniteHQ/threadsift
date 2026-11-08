@@ -2,7 +2,7 @@ import type { RefObject } from "react";
 
 import type { Filters } from "./filters.ts";
 import { type ListState, countsOf } from "./list-state.ts";
-import { ListHead } from "./ListBody.tsx";
+import { ListHead, ListHeadGhost } from "./ListBody.tsx";
 import { SearchField } from "./SearchField.tsx";
 
 export function ListTools({
@@ -21,13 +21,22 @@ export function ListTools({
   leave: () => void;
 }>) {
   const counts = countsOf(list);
+  const ghost = list.status === "loading";
 
-  if (counts === null || counts.total === 0) return null;
+  if (!ghost && (counts === null || counts.total === 0)) return null;
 
   return (
     <>
-      <SearchField value={filters.q} field={field} search={search} hint={hint} leave={leave} />
-      {list.status === "ready" ? (
+      <SearchField
+        value={filters.q}
+        field={field}
+        search={search}
+        hint={hint}
+        leave={leave}
+        ghost={ghost}
+      />
+      {ghost ? <ListHeadGhost /> : null}
+      {list.status === "ready" && counts !== null ? (
         <ListHead counts={counts} shown={list.items.length} filters={filters} />
       ) : null}
     </>

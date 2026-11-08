@@ -34,12 +34,7 @@ export function ListColumn({
         hint={hint}
         leave={side.leaveSearch}
       />
-      <main
-        key={shown.status === "loading" ? "loading" : "loaded"}
-        ref={listPane}
-        className="list"
-        tabIndex={-1}
-      >
+      <main ref={listPane} className="list" tabIndex={-1}>
         <ListBody
           list={shown}
           openId={openId}

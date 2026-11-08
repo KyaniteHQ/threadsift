@@ -7,6 +7,7 @@ import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
 import {
+  BLANK,
   CLEAR_ALL,
   EMPTY_LIST,
   LOADING_LABEL,
@@ -67,6 +68,15 @@ export function ListHead({
         {headLabel(counts, isFiltered(filters) ? shown : null, text)}
       </p>
       <p className="label">{SORT_LABEL}</p>
+    </section>
+  );
+}
+
+export function ListHeadGhost() {
+  return (
+    <section className="list-head" aria-hidden="true">
+      <p className="results">{BLANK}</p>
+      <p className="label">{BLANK}</p>
     </section>
   );
 }

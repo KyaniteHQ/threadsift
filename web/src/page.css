@@ -55,7 +55,7 @@ fieldset.fl-g {
   visibility: hidden;
 }
 
-.app[data-faces="loading"] :is(.paste-row .swap, .brand .st-gear) {
+.app[data-faces="loading"] :is(.paste-row .swap, .brand .st-gear, .search) {
   opacity: 0;
 }
 

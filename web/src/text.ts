@@ -115,6 +115,7 @@ export const WAITING = {
   due: "GitHub is limiting requests, so Threadsift is waiting to retry.",
 } as const;
 
+export const BLANK = "\u00A0";
 export const SORT_LABEL = "Newest saved first";
 export const NEW_TAB_LABEL = "opens in a new tab";
 export const LOADING_LABEL = "Loading saved links…";

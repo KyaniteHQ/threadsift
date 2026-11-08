@@ -11,6 +11,8 @@ import { reader, seedRows } from "./reader.ts";
 
 const PHONE = { width: 390, height: 844 } as const;
 const FONT_DELAY_MS = 500;
+const EMPTY_LIBRARY_SKELETON_SHIFT = 0.1;
+const ITEMS_READ = /\/api\/items(\?[^/]*)?$/u;
 
 const LOOKS = [
   ["the default look", {}],
@@ -89,6 +91,49 @@ function expectNoShift(visit: Readonly<Visit>) {
   };
 }
 
+async function firstRowTops({ size, stored }: Readonly<Pick<Visit, "size" | "stored">>) {
+  const page = await screen.context.newPage();
+  const release = Promise.withResolvers<void>();
+
+  try {
+    await page.setViewportSize(size);
+
+    await page.addInitScript(
+      ({ key, value }) => {
+        localStorage.setItem(key, value);
+      },
+      { key: STORAGE_KEY, value: JSON.stringify(stored) },
+    );
+
+    await page.route(ITEMS_READ, async (route) => {
+      const response = await route.fetch();
+      await release.promise;
+      await route.fulfill({ response });
+    });
+
+    await page.goto("/");
+
+    const ghost = page.locator(".it-ghost").first();
+    await expect(ghost).toBeVisible();
+    const ghostTop = await ghost.evaluate((element) => element.getBoundingClientRect().top);
+
+    release.resolve();
+    await listedItems(page);
+    await afterTwoFrames(page);
+
+    const rowTop = await page
+      .locator("article.it")
+      .first()
+      .evaluate((element) => element.getBoundingClientRect().top);
+
+    return { ghostTop, rowTop };
+  } finally {
+    release.resolve();
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await page.close();
+  }
+}
+
 function startInstance() {
   test.beforeAll(async ({ browser }) => {
     screen = await openSignedIn(browser, newCode(), newPassword());
@@ -104,10 +149,12 @@ test.describe("with an empty library", () => {
 
   for (const [place, size] of SIZES)
     for (const [look, stored] of LOOKS)
-      test(
-        `on ${place} with ${look} a cold load moves nothing`,
-        expectNoShift({ size, stored, path: "/", settled: emptyLibrary }),
-      );
+      test(`on ${place} with ${look} only the skeleton list moves`, async () => {
+        expect(
+          await shiftOf({ size, stored, path: "/", settled: emptyLibrary }),
+          "layout shift from navigation",
+        ).toBeLessThan(EMPTY_LIBRARY_SKELETON_SHIFT);
+      });
 });
 
 test.describe("with Items", () => {
@@ -144,4 +191,15 @@ test.describe("with Items", () => {
         })();
       });
     }
+
+  for (const [place, size] of SIZES)
+    for (const [look, stored] of [...LOOKS.slice(0, 1), ...GRIDS.slice(0, 1)])
+      test(`on ${place} with ${look} the first skeleton row sits where the first loaded row lands`, async () => {
+        const { ghostTop, rowTop } = await firstRowTops({ size, stored });
+
+        expect(rowTop, "top of the first loaded row against the first skeleton row").toBeCloseTo(
+          ghostTop,
+          1,
+        );
+      });
 });
