@@ -5,22 +5,24 @@ import { type BarStep, fitBar } from "./bar-fit.ts";
 type Steps = readonly [BarStep, ...BarStep[]];
 
 function watchBar(bar: HTMLElement, refit: () => void): () => void {
-  let width = bar.clientWidth;
+  const observer = new ResizeObserver(refit);
+  let watching = true;
 
-  const observer = new ResizeObserver(() => {
-    if (bar.clientWidth !== width) {
-      width = bar.clientWidth;
-      refit();
+  const observeAgain = (): void => {
+    if (watching) {
+      observer.unobserve(bar);
+      observer.observe(bar);
     }
-  });
+  };
 
   observer.observe(bar);
-  document.fonts.addEventListener("loadingdone", refit);
-  void document.fonts.ready.then(refit);
+  document.fonts.addEventListener("loadingdone", observeAgain);
+  void document.fonts.ready.then(observeAgain);
 
   return () => {
+    watching = false;
     observer.disconnect();
-    document.fonts.removeEventListener("loadingdone", refit);
+    document.fonts.removeEventListener("loadingdone", observeAgain);
   };
 }
 
@@ -29,13 +31,9 @@ function fitWatch(
   steps: Steps,
   placed: (hintShown: boolean) => void,
 ): () => void {
-  const refit = (): void => {
+  return watchBar(bar, () => {
     placed(fitBar(bar, steps).hint && bar.querySelector(".rd-hint") !== null);
-  };
-
-  refit();
-
-  return watchBar(bar, refit);
+  });
 }
 
 export function useBarFit(

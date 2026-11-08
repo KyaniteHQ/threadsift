@@ -62,7 +62,7 @@ function Note({
   );
 }
 
-function Head({
+export function ReaderHead({
   item,
   detail,
   now,
@@ -170,7 +170,7 @@ function Agent({
   );
 }
 
-function Body({
+export function ReaderContent({
   item,
   state,
   retry,
@@ -203,37 +203,5 @@ function Body({
       <Agent item={item} detail={state.detail} tryAgain={tryAgain} />
       <Original item={item} detail={state.detail} now={now} />
     </>
-  );
-}
-
-export function ReaderColumn({
-  item,
-  state,
-  retry,
-  tryAgain,
-  now,
-  titleId,
-  focusTitle,
-}: Readonly<{
-  item: Item;
-  state: DetailState;
-  retry: () => void;
-  tryAgain: (item: Item) => void;
-  now: number;
-  titleId: string;
-  focusTitle: boolean;
-}>) {
-  return (
-    <div className="rd-col">
-      <Head
-        item={item}
-        detail={state.status === "ready" ? state.detail : null}
-        now={now}
-        titleId={titleId}
-        focusTitle={focusTitle}
-        tryAgain={tryAgain}
-      />
-      <Body item={item} state={state} retry={retry} tryAgain={tryAgain} now={now} />
-    </div>
   );
 }
