@@ -39,6 +39,7 @@ export const AI_TEXT = {
   key: "API key",
   keySet: "API key saved on this Instance.",
   keyMissing: "No API key saved yet.",
+  keyChanged: "Enter an API key to save this Provider, URL and model.",
   keyHelp:
     "Leave blank to keep the saved key for the same Provider, URL and model; enter a key when changing them.",
   connect: "Connect",

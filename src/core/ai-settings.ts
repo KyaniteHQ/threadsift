@@ -13,6 +13,7 @@ import {
   type CliAiConnection,
   type HttpAiConnection,
   refusedAi,
+  withoutTrailingSlashes,
 } from "./ai-contract.ts";
 import { guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
@@ -190,7 +191,7 @@ async function nextSettings(ports: AiPorts, loaded: LoadedAi, input: Readonly<Ai
   if (sealer === null || loaded.state === "secret-missing") return refusedAi("secret-missing");
 
   const baseUrl =
-    "baseUrl" in input ? input.baseUrl.replace(/\/+$/u, "") : PROVIDERS[input.provider].url;
+    "baseUrl" in input ? withoutTrailingSlashes(input.baseUrl) : PROVIDERS[input.provider].url;
 
   if (!ports.ai.allowsUrl(baseUrl)) return refusedAi("refused");
 

@@ -86,6 +86,10 @@ export const HttpProviderSchema = z.enum([
   PROVIDERS.xai.id,
 ]);
 
+export function withoutTrailingSlashes(url: string): string {
+  return url.replace(/\/+$/u, "");
+}
+
 export const CliProviderSchema = z.enum([PROVIDERS["claude-code"].id, PROVIDERS.codex.id]);
 
 export type CliProvider = z.infer<typeof CliProviderSchema>;
