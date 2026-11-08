@@ -47,6 +47,7 @@ export const THEME = setting({
 export const SETTINGS = [
   setting({
     key: "layout",
+    onPage: true,
     label: "Layout",
     attribute: "data-layout",
     kind: "segments",

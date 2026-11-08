@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { DEFAULTS } from "../design/system/settings.ts";
 import { newCode, newPassword } from "./access.ts";
-import { collectDesign } from "./design-checks.ts";
+import { expectNoViolations } from "./design-screens.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { storeLook } from "./library-visit.ts";
 import { delayFonts } from "./look.ts";
@@ -11,12 +10,10 @@ import { seedRows } from "./reader.ts";
 const FONT_HOLD_MS = 1500;
 const WIDTHS = [390, 800, 1100, 1440] as const;
 
-const GRID_CANVAS_MISMATCH = /^page canvas /u;
-
 const LOOKS = [
-  ["List", {}, []],
-  ["List in the dark theme", { theme: "dark" }, []],
-  ["Grid", { layout: "grid" }, [GRID_CANVAS_MISMATCH]],
+  ["List", {}],
+  ["List in the dark theme", { theme: "dark" }],
+  ["Grid", { layout: "grid" }],
 ] as const;
 
 let screen: FreshScreen;
@@ -34,11 +31,7 @@ test.afterAll(async () => {
   await screen.close();
 });
 
-async function checkSkeleton(
-  width: number,
-  stored: Readonly<Record<string, string>>,
-  known: readonly RegExp[],
-) {
+async function checkSkeleton(width: number, stored: Readonly<Record<string, string>>) {
   const page = await screen.context.newPage();
 
   try {
@@ -47,20 +40,15 @@ async function checkSkeleton(
     await delayFonts(page, FONT_HOLD_MS);
     await page.goto("/", { waitUntil: "commit" });
     await expect(page.locator(".it-ghost").first()).toBeVisible();
-    const { violations } = await page.evaluate(collectDesign, DEFAULTS.font);
-
-    expect(
-      violations.filter((violation) => !known.some((pattern) => pattern.test(violation))),
-      `skeleton at ${width}px`,
-    ).toEqual([]);
+    await expectNoViolations(page, `skeleton at ${width}px`);
   } finally {
     await page.unrouteAll({ behavior: "ignoreErrors" });
     await page.close();
   }
 }
 
-for (const [look, stored, known] of LOOKS)
+for (const [look, stored] of LOOKS)
   for (const width of WIDTHS)
     test(`the skeleton drawn while the faces load passes the design checks for ${look} at ${width} px`, async () => {
-      await checkSkeleton(width, stored, known);
+      await checkSkeleton(width, stored);
     });
