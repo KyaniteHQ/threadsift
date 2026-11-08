@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { listAll, postLink } from "./api.ts";
-import { X_POST, pasteLink, rowOf } from "./links.ts";
+import { X_POST_IDENTITY, pasteLink, rowOf } from "./links.ts";
 import { POST_ID, POST_TITLE, POST_URL, waitForRedditTurn } from "./reddit.ts";
 
 const COMMENT_URL = `${POST_URL}_/cisdfvv/`;
@@ -112,7 +112,7 @@ test("a short link to a Reddit post gives the post's Item, and one to an X post 
   expect(x.body.item).toMatchObject({
     source: "x",
     kind: "x-post",
-    normalizedUrl: X_POST,
+    normalizedUrl: X_POST_IDENTITY,
     title: null,
     fetchedAt: null,
   });
@@ -128,7 +128,7 @@ test("an X link whose host ends in a dot is the same Item as without it, and is 
   expect(dotted.body.item).toMatchObject({
     source: "x",
     kind: "x-post",
-    normalizedUrl: X_POST,
+    normalizedUrl: X_POST_IDENTITY,
     title: null,
     fetchedAt: null,
   });

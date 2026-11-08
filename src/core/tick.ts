@@ -1,12 +1,12 @@
 import { lte } from "drizzle-orm";
 
+import { migrateData } from "./data-steps.ts";
 import { sweepDigests } from "./digest-job.ts";
 import { cleanFiles } from "./file-cleanup.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { dueIds } from "./jobs.ts";
 import { sweepConnectTransactions } from "./openrouter-connect.ts";
-import type { Database } from "./ports.ts";
 import { scheduledRuns } from "./schema.ts";
 import { reconcileSearchParts } from "./search-reconciler.ts";
 
@@ -24,7 +24,7 @@ async function sweep(ports: JobPorts): Promise<void> {
   await cleanFiles(ports);
 }
 
-async function claimSweep(db: Database, now: number): Promise<boolean> {
+async function claimSweep({ db }: Readonly<JobPorts>, now: number): Promise<boolean> {
   const claimed = await db
     .insert(scheduledRuns)
     .values({ task: "sweep", lastRunAt: now })
@@ -39,7 +39,9 @@ async function claimSweep(db: Database, now: number): Promise<boolean> {
 }
 
 export async function tick(ports: JobPorts): Promise<void> {
-  if (await claimSweep(ports.db, Date.now())) {
+  if (await claimSweep(ports, Date.now())) {
     await sweep(ports);
   }
+
+  await migrateData(ports.db);
 }

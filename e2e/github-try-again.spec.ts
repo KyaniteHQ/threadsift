@@ -6,6 +6,7 @@ import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { openLibrary, unreachableUrl } from "./card.ts";
 import {
   KEPT_DIGEST,
+  NO_README_IDENTITY,
   NO_README_REPOSITORY,
   STALE,
   generationOf,
@@ -85,8 +86,8 @@ test("a refresh that finds no README clears the text, moves the content generati
 }) => {
   await useSuiteGithubToken(request);
   await requireGithubBudget(4);
-  forgetItem(NO_README_REPOSITORY);
-  const id = storeStaleRepository(NO_README_REPOSITORY, "zzcleared");
+  forgetItem(NO_README_IDENTITY);
+  const id = storeStaleRepository(NO_README_IDENTITY, "zzcleared");
 
   storeKeptDigest(id);
   expect(await itemOf(request, id)).toMatchObject({ digestOutcome: "none" });

@@ -1,6 +1,4 @@
-import { segmentsOf } from "./links.ts";
-
-const GIT_SUFFIX = /\.git$/iu;
+import { GIT_SUFFIX, segmentsOf } from "./links.ts";
 
 export interface RepositoryRef {
   readonly owner: string;

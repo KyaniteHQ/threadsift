@@ -1,4 +1,5 @@
 import { groupedNumber } from "../../src/core/format.ts";
+import { spellingOf } from "../../src/core/links.ts";
 import { repositoryRef } from "../../src/core/repository-ref.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { GITHUB_TOPICS_LABEL, NONE_STATED, REPOSITORY_LABELS } from "./reader-text.ts";
@@ -22,7 +23,7 @@ export function RepositoryBlock({
   repository: NonNullable<ItemDetail["repository"]>;
   now: number;
 }>) {
-  const { owner, name } = repositoryRef(item.normalizedUrl);
+  const { owner, name } = repositoryRef(spellingOf(item));
 
   return (
     <div className="repo">

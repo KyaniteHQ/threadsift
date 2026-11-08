@@ -23,6 +23,7 @@ export const SHORT_LINK = "https://is.gd/hK2a1W";
 export const SHORT_LINK_TARGET = "https://www.iana.org/help/example-domains";
 export const SHORT_LINK_TARGET_NORMALIZED = "https://iana.org/help/example-domains";
 export const X_POST = "https://x.com/jack/status/20";
+export const X_POST_IDENTITY = "https://x.com/i/status/20";
 export const MOVED_PAGE = "https://www.rfc-editor.org/rfc/rfc9110";
 export const MOVED_PAGE_NORMALIZED = "https://rfc-editor.org/rfc/rfc9110";
 export const MOVED_PAGE_TITLE = "RFC 9110: HTTP Semantics | RFC Editor";
@@ -72,9 +73,9 @@ export function scenarioUrls(run: string): string[] {
   return [
     `https://reddit.com/r/all/comments/r${run}/`,
     `https://reddit.com/r/all/comments/r${run}/_/k9xyz12/`,
-    `https://x.com/someone/status/${run}1`,
-    `https://twitter.com/someone/status/${run}2`,
-    `https://github.com/KyaniteHQ/repo-${run}`,
+    `https://x.com/i/status/${run}1`,
+    `https://x.com/i/status/${run}2`,
+    `https://github.com/kyanitehq/repo-${run}`,
     `https://github.com/KyaniteHQ/repo-${run}/issues/6?tab=readme`,
     `https://blog.example.com/${run}/posts/2026/11/${LONG_SEGMENT}?id=alpha&page=2&ref=newsletter`,
     `https://blog.example.com/${run}/posts/2026/11/${LONG_SEGMENT}?id=beta&page=2&ref=newsletter`,
