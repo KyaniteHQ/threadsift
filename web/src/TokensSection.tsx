@@ -17,31 +17,18 @@ interface Revealed {
 }
 
 function useTokens(initial: Loaded<readonly Token[]>) {
-  const [loaded, setLoaded] = useState(initial);
+  const [tokens, setTokens] = useState(initial.kind === "ready" ? initial.view : NO_TOKENS);
+  const failed = initial.kind === "failed";
 
   const add = useCallback((token: Token) => {
-    setLoaded((current) => ({
-      kind: "ready",
-      view: [token, ...(current.kind === "ready" ? current.view : NO_TOKENS)].toSorted(
-        (a, b) => b.id - a.id,
-      ),
-    }));
+    setTokens((current) => [token, ...current].toSorted((a, b) => b.id - a.id));
   }, []);
 
   const remove = useCallback((id: number) => {
-    setLoaded((current) =>
-      current.kind === "ready"
-        ? { kind: "ready", view: current.view.filter((token) => token.id !== id) }
-        : current,
-    );
+    setTokens((current) => current.filter((token) => token.id !== id));
   }, []);
 
-  return {
-    failed: loaded.kind === "failed",
-    tokens: loaded.kind === "ready" ? loaded.view : NO_TOKENS,
-    add,
-    remove,
-  };
+  return { failed, tokens, add, remove };
 }
 
 export function TokensSection({ initial }: Readonly<{ initial: Loaded<readonly Token[]> }>) {

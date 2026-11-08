@@ -26,9 +26,10 @@ function metaOf(token: Token): string {
 
 function Confirm({
   token,
+  revoking,
   cancel,
   revoke,
-}: Readonly<{ token: Token; cancel: () => void; revoke: () => void }>) {
+}: Readonly<{ token: Token; revoking: boolean; cancel: () => void; revoke: () => void }>) {
   const cancelButton = useRef<HTMLButtonElement>(null);
   const questionId = useId();
   useFocusOnMount(cancelButton);
@@ -39,7 +40,12 @@ function Confirm({
     <fieldset className="tok-ask" aria-labelledby={questionId}>
       <p id={questionId}>{filled(SETTINGS.revokeAsk, { name: token.name })}</p>
       <p className="tok-effect">{SETTINGS.revokeEffect}</p>
-      <button type="button" className="btn btn-danger" onClick={revoke}>
+      <button
+        type="button"
+        className="btn btn-danger"
+        aria-disabled={revoking ? true : undefined}
+        onClick={revoke}
+      >
         {SETTINGS.revokeConfirm}
       </button>
       <button ref={cancelButton} type="button" className="btn" onClick={cancel}>
@@ -49,17 +55,7 @@ function Confirm({
   );
 }
 
-export function TokenRow({
-  token,
-  asking,
-  focusRevoke,
-  actions,
-}: Readonly<{ token: Token; asking: boolean; focusRevoke: boolean; actions: RowActions }>) {
-  const { id } = token;
-  const revokeButton = useRef<HTMLButtonElement>(null);
-  useFocusOnMount(revokeButton, focusRevoke && !asking);
-  const { ask, cancel, revoke } = actions;
-
+function useRowActions(id: number, { ask, cancel, revoke }: Readonly<RowActions>) {
   const askThis = useCallback(() => {
     ask(id);
   }, [ask, id]);
@@ -72,6 +68,27 @@ export function TokenRow({
     void revoke(id);
   }, [revoke, id]);
 
+  return { askThis, cancelThis, revokeThis };
+}
+
+export function TokenRow({
+  token,
+  asking,
+  revoking,
+  focusRevoke,
+  actions,
+}: Readonly<{
+  token: Token;
+  asking: boolean;
+  revoking: boolean;
+  focusRevoke: boolean;
+  actions: RowActions;
+}>) {
+  const { id } = token;
+  const revokeButton = useRef<HTMLButtonElement>(null);
+  useFocusOnMount(revokeButton, focusRevoke && !asking);
+  const { askThis, cancelThis, revokeThis } = useRowActions(id, actions);
+
   return (
     <li className="tok">
       <div className="tok-main">
@@ -79,7 +96,7 @@ export function TokenRow({
         <p className="tok-meta">{metaOf(token)}</p>
       </div>
       {asking ? (
-        <Confirm token={token} cancel={cancelThis} revoke={revokeThis} />
+        <Confirm token={token} revoking={revoking} cancel={cancelThis} revoke={revokeThis} />
       ) : (
         <button
           type="button"

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type Session, fetchSession } from "./access-api.ts";
 import { useSignedOutListener } from "./signed-out.ts";
@@ -10,12 +10,38 @@ const UNREACHABLE: View = { state: "unreachable" };
 const SIGNED_IN: View = { state: "signed-in" };
 const SIGNED_OUT: View = { state: "signed-out" };
 
+const CHECK_DEADLINE_MS = 10_000;
+
+async function readSession(
+  check: Readonly<AbortController>,
+  deadline: number,
+  accept: (view: View) => void,
+): Promise<void> {
+  try {
+    accept(await fetchSession(check.signal));
+  } catch {
+    accept(UNREACHABLE);
+  } finally {
+    window.clearTimeout(deadline);
+  }
+}
+
 export function useSessionView() {
   const [view, setView] = useState<View>(LOADING);
+  const latest = useRef<AbortController | null>(null);
 
   const refresh = useCallback(() => {
-    fetchSession().then(setView, () => {
-      setView(UNREACHABLE);
+    latest.current?.abort();
+
+    const check = new AbortController();
+    latest.current = check;
+
+    const deadline = window.setTimeout(() => {
+      check.abort();
+    }, CHECK_DEADLINE_MS);
+
+    void readSession(check, deadline, (next) => {
+      if (latest.current === check) setView(next);
     });
   }, []);
 

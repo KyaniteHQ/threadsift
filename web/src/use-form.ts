@@ -87,19 +87,22 @@ export function useEscape(
 
 export function useGuard(blocked = false) {
   const [busy, setBusy] = useState(false);
+  const running = useRef(false);
 
   const guard = useCallback(
     (task: () => Promise<void>) => {
-      if (busy || blocked) {
+      if (running.current || blocked) {
         return;
       }
 
+      running.current = true;
       setBusy(true);
       void task().finally(() => {
+        running.current = false;
         setBusy(false);
       });
     },
-    [blocked, busy],
+    [blocked],
   );
 
   return { busy, guard };

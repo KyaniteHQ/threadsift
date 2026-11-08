@@ -71,8 +71,8 @@ async function attempt(path: string, json: JsonBody, signsOut = false): Promise<
   }
 }
 
-export function fetchSession(): Promise<Session> {
-  return parsedFrom("GET", "/api/session", SessionStateSchema, { signsOut: false });
+export function fetchSession(signal: AbortSignal): Promise<Session> {
+  return parsedFrom("GET", "/api/session", SessionStateSchema, { signsOut: false, signal });
 }
 
 export function checkSetupCode(code: string): Promise<Attempt> {
