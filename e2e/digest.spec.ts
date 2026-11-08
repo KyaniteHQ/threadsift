@@ -1,7 +1,6 @@
 import { type TestInfo, expect, test } from "@playwright/test";
 
 import { ItemResponseSchema } from "../src/http/schemas.ts";
-import { NO_DIGEST, DIGEST_NOT_UPDATED, NOTICES, RETRY_LABEL } from "../web/src/text.ts";
 import {
   countRows,
   aiJson,
@@ -13,7 +12,14 @@ import {
 } from "./ai.ts";
 import { itemOf, postLinkRaw, settled } from "./api.ts";
 import { ESSAY } from "./articles.ts";
-import { alertRegion, attachJson } from "./card.ts";
+import { attachJson } from "./card.ts";
+import {
+  keptDigestNoteShows,
+  noDigestShows,
+  retryInBrowser,
+  retryRefused,
+  rowShows,
+} from "./digest-library.ts";
 import {
   assertDelay,
   configureDigest,
@@ -116,21 +122,6 @@ async function readStored(id: number, provider: Readonly<ReturnType<typeof proof
   return item;
 }
 
-async function rowShows(id: number, title: string, topic: string): Promise<void> {
-  await screen.page.goto("/");
-  const row = screen.page.locator(`article[data-key='${id}']`);
-  await expect(row.locator(".it-title bdi")).toHaveText(title);
-  await expect(row.locator(".it-topic")).toHaveText(topic);
-}
-
-async function retryInBrowser(id: number): Promise<void> {
-  await screen.page.goto("/");
-  await screen.page
-    .locator(`article[data-key='${id}']`)
-    .getByRole("button", { name: RETRY_LABEL, exact: true })
-    .click();
-}
-
 test("wrong keys give up once, Digest-only retry keeps the fetch, refresh replaces the Digest, and failed regeneration keeps it", async ({
   browser,
 }, info) => {
@@ -153,16 +144,15 @@ test("wrong keys give up once, Digest-only retry keeps the fetch, refresh replac
   });
   expect(failed.postText?.length).toBeGreaterThan(100);
   expect(jobsOf(failed.id, screen.fresh, "digest")).toMatchObject([{ state: "done", attempts: 0 }]);
-  await screen.page.goto("/");
-  await expect(screen.page.getByText(NO_DIGEST, { exact: true })).toBeVisible();
+  await noDigestShows(screen.page, failed.id);
   await digestScreens(screen, info, "no-digest");
   await proveModelGiveUp(failed.id, provider, info);
   await configureDigest(screen, provider);
-  await proveStaleCatalog(screen, failed.id, () => retryInBrowser(failed.id), info);
+  await proveStaleCatalog(screen, failed.id, () => retryInBrowser(screen.page, failed.id), info);
   const stored = await readStored(failed.id, provider);
   await proveCatalogLinks(screen, stored.id, info);
   expect(stored.fetchedAt).toBe(failed.fetchedAt);
-  await rowShows(stored.id, stored.digestTitle ?? "", stored.digestTopic ?? "");
+  await rowShows(screen.page, stored.id, stored.digestTitle ?? "", stored.digestTopic ?? "");
   await digestScreens(screen, info, "stored-digest");
   const generation = digestRecord(screen, stored.id)[0]?.generation ?? 0;
   await refreshBehindFetch(stored.id);
@@ -185,11 +175,10 @@ async function proveKeptDigest(
     digestOutcome: "failed",
     fetchedAt: refreshed.fetchedAt,
   });
-  await rowShows(kept.id, kept.digestTitle ?? "", kept.digestTopic ?? "");
-  await expect(screen.page.getByText(NO_DIGEST, { exact: true })).toHaveCount(0);
-  const row = screen.page.locator(`article[data-key='${kept.id}']`);
-  await expect(row.getByText(DIGEST_NOT_UPDATED, { exact: true })).toBeVisible();
-  await expect(row.getByRole("button", { name: RETRY_LABEL, exact: true })).toBeVisible();
+  expect(refreshed.digest).not.toBeNull();
+  expect(kept.digest).toEqual(refreshed.digest);
+  await rowShows(screen.page, kept.id, kept.digestTitle ?? "", kept.digestTopic ?? "");
+  await keptDigestNoteShows(screen.page, kept.id);
   await digestScreens(screen, info, "kept-digest");
   await refuseRetryPost(kept.id);
   await attachJson(
@@ -234,9 +223,7 @@ async function refuseRetryPost(id: number): Promise<void> {
   );
 
   try {
-    await retryInBrowser(id);
-    await expect(alertRegion(screen.page)).toContainText(NOTICES.failed.text);
-    await expect(screen.page.locator(`article[data-key='${id}']`)).toBeVisible();
+    await retryRefused(screen.page, id);
   } finally {
     screen.fresh.sql("DROP TRIGGER refuse_digest_job");
   }
