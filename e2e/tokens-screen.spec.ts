@@ -25,11 +25,15 @@ test.afterAll(async () => {
   await screen.close();
 });
 
-async function centreOf(box: Promise<{ y: number; height: number } | null>): Promise<number> {
-  const found = await box;
-  expect(found).not.toBeNull();
+async function createOffset(page: Page): Promise<number> {
+  const field = await tokenNameField(page).elementHandle();
 
-  return (found?.y ?? 0) + (found?.height ?? 0) / 2;
+  return createButton(page).evaluate((button, input) => {
+    const ours = button.getBoundingClientRect();
+    const theirs = input.getBoundingClientRect();
+
+    return Math.abs(ours.top + ours.height / 2 - (theirs.top + theirs.height / 2));
+  }, field);
 }
 
 test("the token name stops at 80 characters", async () => {
@@ -46,15 +50,11 @@ test("Create stays level with the name field while the field shows an error", as
   await page.goto("/settings");
   await expect(page.getByRole("button", { name: AI_TEXT.save, exact: true })).toBeVisible();
   await afterTwoFrames(page);
-  const quiet = await centreOf(createButton(page).boundingBox());
-  const input = await centreOf(tokenNameField(page).boundingBox());
-  expect(Math.abs(quiet - input), "Create is level with the field").toBeLessThan(PIXEL);
+  expect(await createOffset(page), "Create is level with the field").toBeLessThan(PIXEL);
 
   await tokenNameField(page).press("Enter");
   await expect(page.getByRole("alert")).toHaveText(SETTINGS.tokenNameRequired);
-  const withError = await centreOf(createButton(page).boundingBox());
-  const inputWithError = await centreOf(tokenNameField(page).boundingBox());
-  expect(Math.abs(withError - inputWithError), "Create stays level").toBeLessThan(PIXEL);
+  expect(await createOffset(page), "Create stays level").toBeLessThan(PIXEL);
 });
 
 const PHONE = { width: 390, height: 844 } as const;
