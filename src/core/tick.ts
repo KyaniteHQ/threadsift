@@ -1,28 +1,11 @@
 import { lte } from "drizzle-orm";
 
 import { migrateData } from "./data-steps.ts";
-import { sweepDigests } from "./digest-job.ts";
-import { cleanFiles } from "./file-cleanup.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { enqueueRows } from "./job-rows.ts";
-import { dueIds } from "./jobs.ts";
-import { sweepConnectTransactions } from "./openrouter-connect.ts";
 import { scheduledRuns } from "./schema.ts";
-import { reconcileSearchParts } from "./search-reconciler.ts";
+import { sweep } from "./sweep.ts";
 
-const SWEEP_LIMIT = 100;
 const TICK_SPACING_MS = 30_000;
-
-async function sweep(ports: JobPorts): Promise<void> {
-  const now = Date.now();
-  await sweepConnectTransactions(ports.db, now);
-  await sweepDigests(ports.db, now);
-  await reconcileSearchParts(ports);
-  const due = await dueIds(ports.db, now, SWEEP_LIMIT);
-
-  await enqueueRows(ports, due);
-  await cleanFiles(ports);
-}
 
 async function claimSweep({ db }: Readonly<JobPorts>, now: number): Promise<boolean> {
   const claimed = await db
