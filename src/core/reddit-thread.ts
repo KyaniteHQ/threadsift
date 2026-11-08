@@ -199,8 +199,12 @@ export function selectionWrites(
   ];
 }
 
+export function publishedGeneration(itemId: number | Readonly<SQLWrapper>) {
+  return sql`select ${redditThreads.generation} from ${redditThreads} join ${digests} on ${digests.itemId} = ${redditThreads.itemId} and ${digests.generation} = ${redditThreads.generation} where ${redditThreads.itemId} = ${itemId}`;
+}
+
 function readGeneration(itemId: number) {
-  const published = sql`select ${redditThreads.generation} from ${redditThreads} join ${digests} on ${digests.itemId} = ${redditThreads.itemId} and ${digests.generation} = ${redditThreads.generation} where ${redditThreads.itemId} = ${itemId}`;
+  const published = publishedGeneration(itemId);
   const stored = sql`select max(${redditThreads.generation}) from ${redditThreads} where ${redditThreads.itemId} = ${itemId}`;
 
   return sql`coalesce((${published}), (${stored}))`;

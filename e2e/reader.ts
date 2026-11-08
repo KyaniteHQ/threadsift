@@ -119,3 +119,39 @@ export function paragraphs(count: number, label: string): string {
       `${label} paragraph ${index + 1} holds a few ordinary sentences, so the Reader has something to scroll through and the reading place has something to land on.`,
   ).join("\n\n");
 }
+
+export function crowdedControls(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const strip = document.querySelector(".rd-bar");
+
+    if (strip === null) return ["the reader bar is missing"];
+
+    const crowded: string[] = [];
+    const edge = strip.getBoundingClientRect();
+    const style = getComputedStyle(strip);
+    const left = edge.left + Number(style.paddingLeft.replace("px", ""));
+    const right = edge.right - Number(style.paddingRight.replace("px", ""));
+    let previous: DOMRect | null = null;
+
+    for (const part of document.querySelectorAll<HTMLElement>(
+      ".rd-bar .rd-back, .rd-bar .rd-hint, .rd-bar .rd-cm, .rd-bar .st-gear, .rd-bar .rd-act",
+    )) {
+      const box = part.getBoundingClientRect();
+
+      if (box.width > 0) {
+        const name = `${part.className} "${part.textContent}"`;
+
+        if (box.left < left - 0.5 || box.right > right + 0.5)
+          crowded.push(`${name} leaves the bar`);
+
+        if (part.scrollWidth > part.clientWidth + 1) crowded.push(`${name} is cut`);
+
+        if (previous !== null && box.left < previous.right - 0.5) crowded.push(`${name} overlaps`);
+
+        previous = box;
+      }
+    }
+
+    return crowded;
+  });
+}

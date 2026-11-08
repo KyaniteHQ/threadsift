@@ -51,6 +51,7 @@ test("a Style overrides and restores Font and Accent, and Reset look restores th
   const before = await computed(app(page), "--acc");
   const dialog = await openPanel(page);
   await pickStyle(dialog, "slash");
+  await expect(app(page)).toHaveAttribute("data-style", "slash");
   expect(await computed(app(page), "--acc")).not.toBe(before);
   expect(await computed(app(page), "--f-display")).toMatch(/^["']Playfair Display Variable["']/u);
   await expectStyleControls(page);
@@ -59,6 +60,7 @@ test("a Style overrides and restores Font and Accent, and Reset look restores th
   await expect(page.locator("html")).toHaveAttribute("data-style", "slash");
   const reloaded = await openPanel(page);
   await pickStyle(reloaded, "library");
+  await expect(app(page)).toHaveAttribute("data-style", "library");
   await expect(reloaded.getByRole("combobox", { name: "Font" })).toHaveValue("news");
   await expect(reloaded.getByRole("combobox", { name: "Font" })).toBeEnabled();
   await expect(radioOf(reloaded, "Accent", "Moss")).toBeEnabled();

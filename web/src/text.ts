@@ -213,6 +213,13 @@ export function starsLabel(count: number): string {
   return filled(count === 1 ? STARS_ONE : STARS_MANY, { count: groupedNumber(count) });
 }
 
+const ROW_KEPT = "Kept {kept} of {total}";
+export const SAVED_COMMENT = "Saved comment";
+
+export function rowKeptLabel(kept: number, total: number): string {
+  return filled(ROW_KEPT, { kept: groupedNumber(kept), total: groupedNumber(total) });
+}
+
 export const STYLE_NOTE = "Set by the style";
 export const OPEN_AS_NARROW_NOTE = "Items open as a full page at this width.";
 export const NO_DIGEST = "No Digest";

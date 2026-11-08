@@ -1,6 +1,8 @@
 import { useCallback } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
+import { commentCountsOf } from "./comment-counts.ts";
+import { CommentsButton } from "./CommentsButton.tsx";
 import { DeleteItem } from "./DeleteItem.tsx";
 import { Icon } from "./Icon.tsx";
 import { HINT_PANE, MARK_READ, MARK_UNREAD, OPEN_LABELS } from "./reader-text.ts";
@@ -29,6 +31,7 @@ export function ReaderActions({
 }: Readonly<{ item: Item; controls: ReaderControls; look: Look; openSettings: () => void }>) {
   const { mode, toggleRead, remove } = controls;
   const read = item.readState === "read";
+  const comments = commentCountsOf(item);
 
   const toggle = useCallback(() => {
     toggleRead(item);
@@ -41,6 +44,7 @@ export function ReaderActions({
           {HINT_PANE}
         </p>
       ) : null}
+      {comments === null || comments.kept === 0 ? null : <CommentsButton counts={comments} />}
       {mode === "pane" ? null : <SettingsPanel look={look} openInstanceSettings={openSettings} />}
       <button type="button" className="btn rd-act" aria-keyshortcuts="M" onClick={toggle}>
         <ReadIcon read={read} />

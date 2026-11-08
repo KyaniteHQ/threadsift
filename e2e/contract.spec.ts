@@ -99,6 +99,8 @@ const ITEM_FIELDS = [
   "community",
   "fetchedAt",
   "fetch",
+  "commentsKept",
+  "commentsTotal",
   "status",
   "reason",
   "retry",

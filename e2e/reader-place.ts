@@ -9,7 +9,13 @@ export function topBlock(page: Page): Promise<string> {
     const blocks = [...element.querySelectorAll(".md > *")];
 
     return (
-      blocks.find((block) => block.getBoundingClientRect().bottom > barBottom)?.textContent ?? ""
+      blocks.find((block) => {
+        const fold = block.closest(".cm-fold.folded");
+        const box = block.getBoundingClientRect();
+        const foldBottom = fold?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY;
+
+        return box.top < foldBottom && Math.min(box.bottom, foldBottom) > barBottom;
+      })?.textContent ?? ""
     );
   });
 }

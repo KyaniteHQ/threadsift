@@ -26,6 +26,7 @@ const PATHS = {
     "M10 11v6",
     "M14 11v6",
   ],
+  comment: ["M5 5h14v10H10l-4 4v-4H5z"],
   left: ["M15 5l-7 7 7 7"],
   right: ["M9 5l7 7-7 7"],
   document: ["M5 4h10l4 4v12H5z", "M9 12h6", "M9 16h4"],

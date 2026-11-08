@@ -348,6 +348,8 @@ a.btn { text-decoration: none; }
 .rd-cm { font-variant-numeric: tabular-nums; }
 .rd-cm.full .rd-cm-ic { display: none; }   /* "Comments 2 of 14" in words; shorter forms get the icon */
 .rd-cm:not(.full) { gap: var(--s1); padding: 0 var(--s2); }
+.rd-cm.digits { padding: 0; }
+.rd-cm.digits .rd-cm-ic { display: none; }
 .rd-nav { display: flex; align-items: center; gap: var(--s1); }
 .rd-pos { min-width: 4.6em; color: var(--muted); font-size: var(--t-meta); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
 .rd-actions { display: flex; align-items: center; gap: var(--s2); min-width: 0; margin-left: auto; }
@@ -361,6 +363,7 @@ a.btn { text-decoration: none; }
 .rd-read-ic.on circle { fill: currentColor; }
 .rd-read-ic.on path { stroke: var(--bg); }
 [data-bp~="phone"] .rd-bar { gap: var(--s1); }   /* 44px controls; the padding leaves room for one, so the gear fits at every width */
+.rd-bar.tight .rd-actions { gap: var(--s1); }
 [data-bp~="phone"] .rd-read-ic { width: var(--ic-l); height: var(--ic-l); }
 [data-bp~="phone"] .rd-pos { min-width: 0; padding: 0 2px; }
 
@@ -423,7 +426,8 @@ a.btn { text-decoration: none; }
 /* comments: one tree; the Comment style setting picks the --cm-* values. Indent per level is
    --ind, capped at --ind-max; on phones the cap is 16px and deeper levels get a thin rail. */
 .tree { display: flex; flex-direction: column; gap: var(--cm-gap); margin: 0; padding: 0; list-style: none; }
-.cm { position: relative; padding-left: min(calc(var(--d) * var(--ind)), var(--ind-max)); background-image: var(--cm-guide); background-repeat: no-repeat; background-size: min(calc(var(--d) * var(--ind)), var(--ind-max)) 100%; background-position: var(--cm-guide-x) 0; }
+.cm { position: relative; display: flex; flex-direction: column; gap: var(--cm-gap); }
+.cm-row { position: relative; padding-left: min(calc(var(--d) * var(--ind)), var(--ind-max)); background-image: var(--cm-guide); background-repeat: no-repeat; background-size: min(calc(var(--d) * var(--ind)), var(--ind-max)) 100%; background-position: var(--cm-guide-x) 0; }
 .cm.top { margin-top: var(--cm-split-gap); border-top: var(--cm-split); }
 .cm-card { position: relative; padding: var(--cm-pad); border: var(--cm-box); border-radius: var(--cm-radius); background: var(--cm-bg); }
 .rd-col .cm-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); margin-bottom: var(--s1); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
@@ -438,7 +442,7 @@ a.btn { text-decoration: none; }
 .cm-ctx { flex: none; padding: 0 var(--s2); border: 1px dashed var(--ctl-line); border-radius: var(--r1); font-size: var(--t-label); cursor: help; }
 .cm-stub .cm-author { flex: none; color: var(--muted); white-space: nowrap; }   /* a name never breaks: u/James-w07 stays whole */
 .cm-prev { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
-[data-bp~="phone"] .cm.deep > .cm-card, [data-bp~="phone"] .cm.deep > .cm-stub { box-shadow: inset 1px 0 0 var(--line-2); }
+[data-bp~="phone"] .cm.deep > .cm-row > .cm-card, [data-bp~="phone"] .cm.deep > .cm-row > .cm-stub { box-shadow: inset 1px 0 0 var(--line-2); }
 
 /* 9. Post text, inline text, pictures ----------------------------------------
    Paragraphs, headings, rules, quotes, both list types, code and tables. Prose is set at the

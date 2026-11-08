@@ -37,6 +37,8 @@ const ItemBaseSchema = z.object({
   fetch: z.enum(FETCH_RESULTS).nullable(),
   readState: z.enum(READ_STATES),
   stars: z.number().int().nonnegative().nullable(),
+  commentsKept: z.number().int().nonnegative().nullable(),
+  commentsTotal: z.number().int().nonnegative().nullable(),
   wait: WaitSchema.nullable(),
 });
 

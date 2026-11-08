@@ -47,6 +47,15 @@ function topOf(slot: HTMLElement): number {
   return slot.getBoundingClientRect().top + (bar?.offsetHeight ?? BAR_FALLBACK_HEIGHT);
 }
 
+function shownBottom(block: Element): number | null {
+  const box = block.getBoundingClientRect();
+  const foldBottom = block.closest(".cm-fold.folded")?.getBoundingClientRect().bottom;
+
+  if (foldBottom === undefined) return box.bottom;
+
+  return box.top < foldBottom ? Math.min(box.bottom, foldBottom) : null;
+}
+
 export function anchorAt(slot: HTMLElement): Anchor | null {
   if (slot.scrollTop === 0) return null;
 
@@ -54,8 +63,9 @@ export function anchorAt(slot: HTMLElement): Anchor | null {
 
   for (const [index, block] of slot.querySelectorAll(ANCHORS).entries()) {
     const box = block.getBoundingClientRect();
+    const bottom = shownBottom(block);
 
-    if (box.bottom > top) {
+    if (bottom !== null && bottom > top) {
       const above = box.top < top;
 
       return {
@@ -75,7 +85,10 @@ export function scrollToAnchor(slot: HTMLElement, anchor: Readonly<Anchor>): boo
   if (block === undefined) return false;
 
   const box = block.getBoundingClientRect();
-  slot.scrollTop += box.top + anchor.fraction * box.height - anchor.offset - topOf(slot);
+  const point = box.top + anchor.fraction * box.height;
+  const fold = block.closest(".cm-fold.folded")?.getBoundingClientRect();
+  const target = fold !== undefined && point >= fold.bottom ? fold.top : point;
+  slot.scrollTop += target - anchor.offset - topOf(slot);
 
   return true;
 }
