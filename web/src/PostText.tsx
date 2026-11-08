@@ -1,4 +1,14 @@
-import { type ComponentProps, type ReactNode, memo, useEffect, useRef } from "react";
+import {
+  type ComponentProps,
+  type ReactNode,
+  createContext,
+  memo,
+  use,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+} from "react";
 import Markdown, { type Components, defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { z } from "zod";
@@ -49,6 +59,14 @@ function safeUrl(url: string): string {
   return /^(?:https?:|mailto:|#)/iu.test(url) ? defaultUrlTransform(url) : "";
 }
 
+const FOOTNOTE_LABEL_ID = "footnote-label";
+
+const FootnoteScope = createContext("");
+
+function scoped(scope: string, id: string | undefined): string | undefined {
+  return id === FOOTNOTE_LABEL_ID ? `${scope}-${id}` : id;
+}
+
 interface Generated {
   readonly id?: string | undefined;
   readonly className?: string | undefined;
@@ -66,8 +84,10 @@ function Heading({
   className,
   children,
 }: Readonly<Generated & { tag: "h4" | "h5" | "h6"; base: string }>) {
+  const scope = use(FootnoteScope);
+
   return (
-    <Tag id={id} className={classed(base, className)}>
+    <Tag id={scoped(scope, id)} className={classed(base, className)}>
       {children}
     </Tag>
   );
@@ -103,6 +123,8 @@ function Link({
   "data-footnote-ref": footnoteRef,
   "data-footnote-backref": footnoteBackref,
 }: Readonly<LinkAttributes>) {
+  const scope = use(FootnoteScope);
+
   if (href === undefined || href === "") return <span>{children}</span>;
 
   const inside = href.startsWith("#");
@@ -115,7 +137,7 @@ function Link({
       target={inside ? undefined : "_blank"}
       rel={inside ? undefined : "noopener noreferrer"}
       aria-label={label}
-      aria-describedby={describedBy}
+      aria-describedby={scoped(scope, describedBy)}
       data-footnote-ref={footnoteRef}
       data-footnote-backref={footnoteBackref}
     >
@@ -190,19 +212,23 @@ const FOOTNOTES: NonNullable<ComponentProps<typeof Markdown>["remarkRehypeOption
 
 export const PostText = memo(function PostText({ text }: Readonly<{ text: string }>) {
   const root = useRef<HTMLDivElement>(null);
+  const scope = useId();
+  const options = useMemo(() => ({ ...FOOTNOTES, clobberPrefix: `${scope}-` }), [scope]);
 
   useEffect(() => (root.current === null ? undefined : watchFades(root.current)), []);
 
   return (
     <div ref={root} className="md">
-      <Markdown
-        remarkPlugins={PLUGINS}
-        remarkRehypeOptions={FOOTNOTES}
-        components={COMPONENTS}
-        urlTransform={safeUrl}
-      >
-        {text}
-      </Markdown>
+      <FootnoteScope value={scope}>
+        <Markdown
+          remarkPlugins={PLUGINS}
+          remarkRehypeOptions={options}
+          components={COMPONENTS}
+          urlTransform={safeUrl}
+        >
+          {text}
+        </Markdown>
+      </FootnoteScope>
     </div>
   );
 });

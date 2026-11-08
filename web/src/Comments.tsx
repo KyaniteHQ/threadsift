@@ -1,9 +1,19 @@
-import { type CSSProperties, use, useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type FocusEvent,
+  use,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
 import type { CommentNode } from "../../src/core/comment-view.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { type CommentCounts, commentCountsOf } from "./comment-counts.ts";
 import { useCommentFold } from "./comment-fold.ts";
+import { type Branch, nest } from "./comment-nesting.ts";
 import { postTextModule } from "./post-text-module.ts";
 import {
   COMMENTS_TITLE,
@@ -59,14 +69,19 @@ function useOpenFold() {
     }
   }, [open]);
 
-  return { more, open, toggle, lessFromTop };
+  const reveal = useCallback((event: Readonly<Pick<FocusEvent<HTMLElement>, "target">>) => {
+    if (event.target.matches(":focus-visible")) setOpen(true);
+  }, []);
+
+  return { more, open, toggle, lessFromTop, reveal };
 }
 
 function CommentText({ comment }: Readonly<{ comment: Comment }>) {
   const { PostText } = use(postTextModule());
   const box = useRef<HTMLDivElement>(null);
-  const { more, open, toggle, lessFromTop } = useOpenFold();
+  const { more, open, toggle, lessFromTop, reveal } = useOpenFold();
   const fold = useCommentFold(box);
+  const bodyId = useId();
 
   return (
     <>
@@ -75,12 +90,18 @@ function CommentText({ comment }: Readonly<{ comment: Comment }>) {
           type="button"
           className="btn btn-plain cm-more cm-more-top"
           aria-expanded="true"
+          aria-controls={bodyId}
           onClick={lessFromTop}
         >
           {SHOW_LESS}
         </button>
       ) : null}
-      <div ref={box} className={fold !== "none" && !open ? "cm-fold folded" : "cm-fold"}>
+      <div
+        ref={box}
+        id={bodyId}
+        className={fold !== "none" && !open ? "cm-fold folded" : "cm-fold"}
+        onFocus={fold === "none" ? undefined : reveal}
+      >
         <PostText text={comment.body} />
       </div>
       {fold === "none" ? null : (
@@ -89,6 +110,7 @@ function CommentText({ comment }: Readonly<{ comment: Comment }>) {
           type="button"
           className="btn btn-plain cm-more"
           aria-expanded={open}
+          aria-controls={bodyId}
           onClick={toggle}
         >
           {open ? SHOW_LESS : SHOW_FULL_COMMENT}
@@ -158,12 +180,41 @@ function classesOf(node: Readonly<CommentNode>, first: boolean): string {
   ].join(" ");
 }
 
+function Branches({
+  branches,
+  author,
+  first,
+}: Readonly<{ branches: readonly Branch[]; author: string | null; first: boolean }>) {
+  return (
+    <ol className="tree">
+      {branches.map(({ node, replies }, index) => (
+        <li
+          key={node.id}
+          className={classesOf(node, first && index === 0)}
+          style={depthStyle(node.depth)}
+        >
+          <div className="cm-row">
+            <Node
+              node={node}
+              op={node.kind === "comment" && node.author !== null && node.author === author}
+            />
+          </div>
+          {replies.length === 0 ? null : (
+            <Branches branches={replies} author={author} first={false} />
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function CommentTree({
   item,
   counts,
   nodes,
 }: Readonly<{ item: Item; counts: CommentCounts; nodes: readonly CommentNode[] }>) {
   const heading = useId();
+  const branches = nest(nodes);
 
   return (
     <section className="rd-comments" aria-labelledby={heading}>
@@ -174,22 +225,7 @@ function CommentTree({
         <p className="rd-kept">{keptLabel(counts)}</p>
       </div>
       {counts.kept === 0 ? <p className="rd-note">{NONE_KEPT}</p> : null}
-      {nodes.length === 0 ? null : (
-        <ol className="tree">
-          {nodes.map((node, index) => (
-            <li
-              key={node.id}
-              className={classesOf(node, index === 0)}
-              style={depthStyle(node.depth)}
-            >
-              <Node
-                node={node}
-                op={node.kind === "comment" && node.author !== null && node.author === item.author}
-              />
-            </li>
-          ))}
-        </ol>
-      )}
+      {branches.length === 0 ? null : <Branches branches={branches} author={item.author} first />}
     </section>
   );
 }

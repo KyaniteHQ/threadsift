@@ -37,6 +37,7 @@ const STEPS: Readonly<Record<BarMode, Steps>> = {
     { hint: false, labels: false, back: "icon", comments: "short", gaps: "normal" },
     { hint: false, labels: false, back: "icon", comments: "count", gaps: "normal" },
     { hint: false, labels: false, back: "icon", comments: "count", gaps: "tight" },
+    { hint: false, labels: false, back: "icon", comments: "digits", gaps: "tight" },
   ],
 };
 

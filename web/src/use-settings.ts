@@ -20,6 +20,7 @@ import {
   rootAttributes,
   serialize,
 } from "../../design/system/settings.ts";
+import { useSettledAttributes } from "./look-faces.ts";
 import { MATCH_SYSTEM_NOTES } from "./text.ts";
 
 function readStorage(): string | null {
@@ -96,7 +97,8 @@ function useStorageSync(
 export function useSettings(onLayoutChange: () => void) {
   const [settings, setSettings] = useState(() => readStored(readStorage()));
   const isDark = useSyncExternalStore(subscribeToDeviceScheme, deviceIsDark);
-  const attributes = useMemo(() => rootAttributes(settings, isDark), [settings, isDark]);
+  const wanted = useMemo(() => rootAttributes(settings, isDark), [settings, isDark]);
+  const attributes = useSettledAttributes(wanted);
 
   usePageAttributes(attributes);
 

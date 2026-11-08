@@ -32,7 +32,7 @@ export interface BarStep {
   readonly hint: boolean;
   readonly labels: boolean;
   readonly back: "label" | "short" | "icon";
-  readonly comments: "full" | "short" | "count";
+  readonly comments: "full" | "short" | "count" | "digits";
   readonly gaps: "normal" | "tight";
 }
 
@@ -52,7 +52,8 @@ function applyStep(bar: HTMLElement, step: Readonly<BarStep>): void {
   bar.querySelector(".rd-cm")?.classList.toggle("full", step.comments === "full");
   setHidden(bar, ".rd-cm-full", step.comments !== "full");
   setHidden(bar, ".rd-cm-short", step.comments !== "short");
-  setHidden(bar, ".rd-cm-count", step.comments !== "count");
+  bar.querySelector(".rd-cm")?.classList.toggle("digits", step.comments === "digits");
+  setHidden(bar, ".rd-cm-count", step.comments !== "count" && step.comments !== "digits");
 }
 
 export function fitBar(bar: HTMLElement, steps: readonly [BarStep, ...BarStep[]]): BarStep {

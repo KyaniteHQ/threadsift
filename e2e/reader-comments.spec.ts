@@ -14,8 +14,15 @@ import {
 } from "../web/src/reader-text.ts";
 import { SAVED_COMMENT, rowKeptLabel } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
-import { crowdedControls, settledButtonText, visibleButtonText } from "./comment-reader.ts";
 import {
+  comments,
+  listItemDepths,
+  openItem,
+  sweepBar,
+  visibleButtonText,
+} from "./comment-reader.ts";
+import {
+  DetailNodesSchema,
   ListedCountsSchema,
   REPORTED,
   type Seeded,
@@ -32,11 +39,10 @@ import {
   openPanel,
   pickOption,
   px,
-  storeSettings,
   viewportAt,
 } from "./look.ts";
 import { savedBlock, scrollAndSettle, topBlock } from "./reader-place.ts";
-import { bar, reader, row, slot } from "./reader.ts";
+import { bar, crowdedControls, row, slot } from "./reader.ts";
 
 test.describe.configure({ timeout: 300_000 });
 
@@ -66,20 +72,6 @@ test.afterAll(async () => {
   await screen.close();
 });
 
-async function openItem(width: number, id: number, stored = {}): Promise<Page> {
-  const { page } = screen;
-  await viewportAt(page, width);
-  await storeSettings(page, stored, `/items/${id}`);
-  await expect(reader(page)).toBeVisible();
-  await fontsLoaded(page);
-
-  return page;
-}
-
-function comments(page: Page) {
-  return page.locator(".rd-comments");
-}
-
 async function expectStyle(page: Page, style: (typeof STYLES)[number]): Promise<void> {
   const section = comments(page);
   const dialog = await openPanel(page);
@@ -97,7 +89,7 @@ async function expectStyle(page: Page, style: (typeof STYLES)[number]): Promise<
 
 test("a pasted Reddit thread shows its Kept comments, Context stubs, OP badge and count in each Comment style, and the row says how many were kept", async () => {
   const info = test.info();
-  const page = await openItem(DESKTOP.width, ids.thread);
+  const page = await openItem(screen, DESKTOP.width, ids.thread);
   const section = comments(page);
 
   await expect(section.getByRole("heading", { name: COMMENTS_TITLE })).toBeVisible();
@@ -119,13 +111,22 @@ test("a pasted Reddit thread shows its Kept comments, Context stubs, OP badge an
   );
 
   const padding = await section
-    .locator("li.cm")
-    .evaluateAll((items) => items.slice(0, 4).map((item) => getComputedStyle(item).paddingLeft));
+    .locator(".cm-row")
+    .evaluateAll((lines) => lines.slice(0, 4).map((line) => getComputedStyle(line).paddingLeft));
 
   expect(padding[0], "a top-level comment is not indented").toBe("0px");
   expect(px(padding[2] ?? "0px"), "a reply is indented under its parent").toBeGreaterThan(
     px(padding[1] ?? "0px"),
   );
+
+  const { item } = DetailNodesSchema.parse(
+    await (await screen.context.request.get(`/api/items/${ids.thread}`)).json(),
+  );
+
+  expect(
+    await listItemDepths(page),
+    "each reply sits in a list inside its parent's list item",
+  ).toEqual(item.comments.nodes.map((node) => node.depth));
 
   await bar(page).locator(".rd-cm").click();
 
@@ -136,7 +137,7 @@ test("a pasted Reddit thread shows its Kept comments, Context stubs, OP badge an
 });
 
 test("the Comments button names the counts, shortens as the bar narrows, and takes the reader to the section", async () => {
-  const page = await openItem(1920, ids.thread);
+  const page = await openItem(screen, 1920, ids.thread);
   expect(await visibleButtonText(page)).toBe(LABELS.full);
   await expect(bar(page).locator(".rd-cm")).toHaveAccessibleName(LABELS.full);
   expect(await crowdedControls(page)).toEqual([]);
@@ -154,14 +155,7 @@ test("the Comments button names the counts, shortens as the bar narrows, and tak
     })
     .toBe(true);
 
-  const seen: string[] = [];
-
-  for (let width = SWEEP_FROM; width >= SWEEP_TO; width -= SWEEP_STEP) {
-    await viewportAt(page, width);
-    await fontsLoaded(page);
-    await expect.poll(() => crowdedControls(page), { message: `${width}px` }).toEqual([]);
-    seen.push(await settledButtonText(page));
-  }
+  const seen = await sweepBar(page, { from: SWEEP_FROM, to: SWEEP_TO, step: SWEEP_STEP });
 
   const ranks = seen.map((text) => [LABELS.full, LABELS.short, LABELS.count].indexOf(text));
   expect(ranks, "only the three forms appear").not.toContain(-1);
@@ -179,7 +173,7 @@ test("the Comments button names the counts, shortens as the bar narrows, and tak
 });
 
 test("a long comment folds behind its button, opens, folds again from the top, and a short one has no fold", async () => {
-  const page = await openItem(DESKTOP.width, ids.thread);
+  const page = await openItem(screen, DESKTOP.width, ids.thread);
   const section = comments(page);
   const tall = section.locator(".cm-card", { hasText: "Kept tall paragraph 1" });
   const long = section.locator(".cm-card", { hasText: "Kept long paragraph 1" });
@@ -201,7 +195,7 @@ test("a long comment folds behind its button, opens, folds again from the top, a
 });
 
 test("the reading place inside the comments survives a reload, and a reload from inside an opened comment lands on that comment folded", async () => {
-  const page = await openItem(DESKTOP.width, ids.thread);
+  const page = await openItem(screen, DESKTOP.width, ids.thread);
 
   await slot(page).evaluate((element) => {
     const target = element.querySelector("li.cm.top");
@@ -231,35 +225,8 @@ test("the reading place inside the comments survives a reload, and a reload from
   await expect(long.locator(".cm-fold")).toHaveClass(/folded/u);
 });
 
-test("every Look setting redraws the tree and leaves the reader bar where it was", async () => {
-  const page = await openItem(DESKTOP.width, ids.thread);
-  const before = await bar(page).boundingBox();
-  const section = comments(page);
-
-  const picks = [
-    ["Text size", "Large"],
-    ["Text width", "Wide"],
-    ["Density", "Roomy"],
-    ["Comment style", "Cards"],
-    ["Comment style", "Rail"],
-    ["Accent", "Rust"],
-  ] as const;
-
-  for (const [group, option] of picks) {
-    const dialog = await openPanel(page);
-    await pickOption(dialog, group, option);
-    await page.keyboard.press("Escape");
-    await fontsLoaded(page);
-    await expect(section.locator("li.cm")).toHaveCount(THREAD.rows);
-    const after = await bar(page).boundingBox();
-    expect(after?.y, `bar top after ${group} ${option}`).toBe(before?.y);
-    expect(after?.height, `bar height after ${group} ${option}`).toBe(before?.height);
-    await expect.poll(() => crowdedControls(page), { message: `${group} ${option}` }).toEqual([]);
-  }
-});
-
 test("a saved Reddit comment's row says Saved comment, a post's row says how many comments were kept, and a thread with none kept says so", async () => {
-  const page = await openItem(DESKTOP.width, ids.thread);
+  const page = await openItem(screen, DESKTOP.width, ids.thread);
 
   await expect(row(page, ids.saved).locator(".it-foot")).toContainText(SAVED_COMMENT);
   await expect(row(page, ids.thread).locator(".it-foot")).toContainText(

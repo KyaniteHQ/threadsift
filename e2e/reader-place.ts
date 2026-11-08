@@ -12,9 +12,9 @@ export function topBlock(page: Page): Promise<string> {
       blocks.find((block) => {
         const fold = block.closest(".cm-fold.folded");
         const box = block.getBoundingClientRect();
-        const clipped = fold !== null && box.top >= fold.getBoundingClientRect().bottom;
+        const foldBottom = fold?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY;
 
-        return box.bottom > barBottom && !clipped;
+        return box.top < foldBottom && Math.min(box.bottom, foldBottom) > barBottom;
       })?.textContent ?? ""
     );
   });
