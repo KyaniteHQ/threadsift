@@ -102,39 +102,31 @@ export async function verifyAi(ports: AiPorts, attempt: AbortSignal) {
   return { kind: result.kind, digest, taskId: result.taskId };
 }
 
+interface TaskInput {
+  readonly text: string;
+  readonly inputRevision: number;
+  readonly attempts: number;
+  readonly maxOutputTokens: number;
+}
+
 export function runAiTask<Result>(
   ports: AiPorts,
   definition: AiTaskDefinition<Result>,
-  input: Readonly<{
-    text: string;
-    inputRevision: number;
-    attempts: number;
-    maxOutputTokens: number;
-  }>,
+  input: Readonly<TaskInput>,
   owner: null,
   attempt?: AbortSignal,
 ): Promise<TaskResult<Result>>;
 export function runAiTask<Result>(
   ports: AiPorts,
   definition: AiTaskDefinition<Result>,
-  input: Readonly<{
-    text: string;
-    inputRevision: number;
-    attempts: number;
-    maxOutputTokens: number;
-  }>,
+  input: Readonly<TaskInput>,
   owner: TaskOwner,
   attempt?: AbortSignal,
 ): Promise<TaskResult<Result> | ClaimLost>;
 export async function runAiTask<Result>(
   ports: AiPorts,
   definition: AiTaskDefinition<Result>,
-  input: Readonly<{
-    text: string;
-    inputRevision: number;
-    attempts: number;
-    maxOutputTokens: number;
-  }>,
+  input: Readonly<TaskInput>,
   owner: TaskOwner | null,
   attempt?: AbortSignal,
 ): Promise<TaskResult<Result> | ClaimLost> {
