@@ -41,7 +41,7 @@ The browser extension that saves the page in the owner's own tab, including a Re
 _Avoid_: Clipper, add-on, plugin
 
 **Short-link alias**:
-A short link's own address, kept with the Item it made so that pasting it again, or Try again, reaches that Item.
+A short link's normalized address, kept with the Item it made or reached, and the address it resolved to, so that pasting it again, or Try again, reaches that Item and fetches it from a working address.
 _Avoid_: Redirect, mapping
 
 **Link-only Item**:

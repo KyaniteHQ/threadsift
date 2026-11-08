@@ -38,7 +38,12 @@ export async function seedHardCase(screen: FreshScreen) {
   screen.fresh.writeFile(keys[0], Buffer.from(`The file the Item names, of ${id}.`));
   nameFile(screen.fresh, item.id, `'${keys[0]}'`);
   addGithubRepository(screen.fresh, item.id);
-  rememberAlias(screen.fresh, `https://is.gd/deletion-${item.id}`, item.id);
+  rememberAlias(
+    screen.fresh,
+    `https://is.gd/deletion-${item.id}`,
+    `https://example.com/deletion-${item.id}`,
+    item.id,
+  );
 
   await expect
     .poll(

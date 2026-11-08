@@ -6,6 +6,7 @@ export const itemAliases = sqliteTable(
   "item_aliases",
   {
     normalizedUrl: text("normalized_url").primaryKey().notNull(),
+    address: text("address").notNull(),
     itemId: integer("item_id")
       .notNull()
       .references(() => items.id, { onDelete: "cascade" }),

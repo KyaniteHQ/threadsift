@@ -1,21 +1,42 @@
-import { and, eq, notExists, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
-import { itemAliases, items } from "./schema.ts";
+import { guardHolds, itemAliases, items } from "./schema.ts";
 
 const holder = alias(items, "holder");
 const rival = alias(itemAliases, "rival");
 
-export async function aliasedLink(db: Database, shortLink: string): Promise<Link | undefined> {
+export interface AliasedItem extends Link {
+  readonly address: string;
+}
+
+export async function aliasedItem(
+  db: Database,
+  shortLink: string,
+): Promise<AliasedItem | undefined> {
   const [found] = await db
-    .select({ normalizedUrl: items.normalizedUrl, kind: items.kind, source: items.source })
+    .select({
+      normalizedUrl: items.normalizedUrl,
+      kind: items.kind,
+      source: items.source,
+      address: itemAliases.address,
+    })
     .from(itemAliases)
     .innerJoin(items, eq(items.id, itemAliases.itemId))
     .where(eq(itemAliases.normalizedUrl, shortLink));
 
   return found;
+}
+
+export function holdsNoAlias(db: Database, shortLink: string) {
+  return notExists(
+    db
+      .select({ one: sql`1` })
+      .from(itemAliases)
+      .where(eq(itemAliases.normalizedUrl, shortLink)),
+  );
 }
 
 export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }: Readonly<Link>) {
@@ -30,6 +51,20 @@ export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }:
       .from(rival)
       .where(and(eq(rival.normalizedUrl, shortLink), notExists(holds))),
   );
+}
+
+export async function unlessAliased<Written>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  write: () => Promise<Written>,
+): Promise<Written | null> {
+  try {
+    return await write();
+  } catch (error) {
+    if (await guardHolds(db, condition)) throw error;
+
+    return null;
+  }
 }
 
 export function promoteFailedItem(
@@ -48,13 +83,19 @@ export function promoteFailedItem(
     .where(and(eq(items.normalizedUrl, shortLink), notExists(taken)));
 }
 
-export function recordAlias(db: Database, shortLink: string, { normalizedUrl }: Readonly<Link>) {
+export function recordAlias(
+  db: Database,
+  shortLink: string,
+  address: string,
+  { normalizedUrl }: Readonly<Link>,
+) {
   return db
     .insert(itemAliases)
     .select(
       db
         .select({
           normalizedUrl: sql<string>`${shortLink}`.as("normalized_url"),
+          address: sql<string>`${address}`.as("address"),
           itemId: items.id,
         })
         .from(items)

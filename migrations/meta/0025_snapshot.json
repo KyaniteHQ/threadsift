@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "91b774c5-4d06-48ab-9887-97c6fd72e3f8",
+  "id": "f72a2922-d0a0-4d19-9581-6460df14f369",
   "prevId": "db96e05e-3734-4d0e-85eb-ef0ca5c175cb",
   "tables": {
     "agent_tokens": {
@@ -629,6 +629,13 @@
           "name": "normalized_url",
           "type": "text",
           "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },

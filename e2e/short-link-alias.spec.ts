@@ -14,7 +14,9 @@ import {
   SHORT_LINK_TARGET_NORMALIZED,
   SLOW_SHORT_LINK,
   SLOW_SHORT_LINK_TARGET,
+  TIMEOUT_SHORT_LINK,
   TWIN_SHORT_LINK,
+  TWIN_SHORT_LINK_TARGET,
 } from "./links.ts";
 import { openLibrary, row } from "./reader.ts";
 import { aliasesOf, fetchAddressesOf, rememberAlias } from "./short-links.ts";
@@ -24,7 +26,6 @@ test.describe.configure({ timeout: 240_000 });
 test.use({ trace: "off", video: "off", screenshot: "off" });
 
 const ALIAS_WRITE_DELAY_MS = 1500;
-const SLOW_SHORT_LINK_ANSWER_MS = 4000;
 
 let screen: FreshScreen;
 
@@ -67,7 +68,7 @@ async function pagedItem() {
 
 function madeThrough(id: number, shortLink: string): void {
   screen.fresh.sql(`UPDATE items SET original_url = '${shortLink}' WHERE id = ${id}`);
-  rememberAlias(screen.fresh, shortLink, id);
+  rememberAlias(screen.fresh, shortLink, MOVED_PAGE, id);
 }
 
 test("two short links to one target are one Item with two aliases, and pasting either again refreshes that Item from its own address", async () => {
@@ -93,7 +94,11 @@ test("two short links to one target are one Item with two aliases, and pasting e
 
   expect([again.status, again.body.item.id]).toEqual([200, id]);
   await settled(request, id);
-  expect(fetchAddressesOf(screen, id).at(-1)).toBe(SHORT_LINK_TARGET_NORMALIZED);
+  expect(fetchAddressesOf(screen, id)).toEqual([
+    SHORT_LINK_TARGET,
+    TWIN_SHORT_LINK_TARGET,
+    SHORT_LINK_TARGET,
+  ]);
   expect(await listAll(request)).toHaveLength(1);
 });
 
@@ -114,7 +119,7 @@ test("Try again on an Item whose short link has died reaches the same Item and m
 
   expect((await answered).status()).toBe(200);
   expect(await settled(request, id)).toMatchObject({ status: "ready", fetch: "ok" });
-  expect(fetchAddressesOf(screen, id)).toEqual([MOVED_PAGE, MOVED_PAGE_NORMALIZED]);
+  expect(fetchAddressesOf(screen, id)).toEqual([MOVED_PAGE, MOVED_PAGE]);
   expect(itemsAt(DEAD_SHORT_LINK)).toBe(0);
   expect(await listAll(request)).toHaveLength(1);
 });
@@ -190,34 +195,34 @@ test("three first saves of two short links to one target at once end with one It
   expect(fetchAddressesOf(screen, id).length).toBeGreaterThan(0);
 });
 
-test("a short link that gets an alias while its first resolution is under way reaches that Item and makes no second one", async () => {
-  const { request } = screen.context;
-  const id = await pagedItem();
-
-  const sentAt = Date.now();
-  let ended = false;
-
-  const inFlight = postLinkRaw(request, SLOW_SHORT_LINK).finally(() => {
-    ended = true;
-  });
+async function pasteWhileAliasAppears(shortLink: string, id: number) {
+  const inFlight = postLinkRaw(screen.context.request, shortLink);
 
   await new Promise<void>((resolve) => {
     setTimeout(resolve, ALIAS_WRITE_DELAY_MS);
   });
 
-  expect(ended, "the first Paste was still resolving when the alias was written").toBe(false);
-  rememberAlias(screen.fresh, SLOW_SHORT_LINK, id);
+  rememberAlias(screen.fresh, shortLink, MOVED_PAGE, id);
 
-  const pasted = await inFlight;
+  return inFlight;
+}
 
-  expect(
-    Date.now() - sentAt,
-    "the first Paste waited for the slow answer, so its alias lookup ran before the alias existed",
-  ).toBeGreaterThanOrEqual(SLOW_SHORT_LINK_ANSWER_MS);
+test("a slow short link whose alias is written while it resolves returns the aliased Item and makes no second one", async () => {
+  const id = await pagedItem();
+  const pasted = await pasteWhileAliasAppears(SLOW_SHORT_LINK, id);
 
   expect([pasted.status, pasted.body.item.id]).toEqual([200, id]);
   expect(itemsAt(SLOW_SHORT_LINK_TARGET)).toBe(0);
-  expect(await listAll(request)).toHaveLength(1);
+  expect(await listAll(screen.context.request)).toHaveLength(1);
+});
+
+test("a short link whose resolution times out after its alias was written returns the aliased Item and makes no failed Item", async () => {
+  const id = await pagedItem();
+  const pasted = await pasteWhileAliasAppears(TIMEOUT_SHORT_LINK, id);
+
+  expect([pasted.status, pasted.body.item.id]).toEqual([200, id]);
+  expect(itemsAt(TIMEOUT_SHORT_LINK)).toBe(0);
+  expect(await listAll(screen.context.request)).toHaveLength(1);
 });
 
 test("deleting an Item deletes its aliases, and the short link then makes a new Item", async () => {

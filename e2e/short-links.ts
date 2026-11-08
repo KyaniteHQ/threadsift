@@ -14,9 +14,14 @@ export function aliasesOf(screen: FreshScreen) {
   );
 }
 
-export function rememberAlias(instance: Instance, shortLink: string, itemId: number): void {
+export function rememberAlias(
+  instance: Instance,
+  shortLink: string,
+  address: string,
+  itemId: number,
+): void {
   instance.sql(
-    `INSERT INTO item_aliases (normalized_url, item_id) VALUES ('${shortLink}', ${itemId})`,
+    `INSERT INTO item_aliases (normalized_url, address, item_id) VALUES ('${shortLink}', '${address}', ${itemId})`,
   );
 }
 

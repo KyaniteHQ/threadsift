@@ -1,20 +1,20 @@
 import type { Digest } from "./ai-contract.ts";
+import { saveFailedResolution } from "./failed-resolution.ts";
 import { resolveShortLink } from "./fetch-link.ts";
-import {
-  type Paste,
-  type SaveResult,
-  foundItem,
-  queuedWrites,
-  saveQueued,
-  saveSettled,
-} from "./items.ts";
+import { type Paste, type SaveResult, foundItem, queuedWrites, saveQueued } from "./items.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { type Link, isRefusedLink, isShortLink, parseLink } from "./links.ts";
 import type { Ports } from "./ports.ts";
-import { guardHolds, guards, insertGuard } from "./schema.ts";
-import { aliasedLink, holdsNoRival, promoteFailedItem, recordAlias } from "./short-link-aliases.ts";
+import { guards, insertGuard } from "./schema.ts";
+import {
+  aliasedItem,
+  holdsNoRival,
+  promoteFailedItem,
+  recordAlias,
+  unlessAliased,
+} from "./short-link-aliases.ts";
 
-async function saveResolved(
+function saveResolved(
   ports: Ports,
   shortLink: string,
   paste: Readonly<Paste>,
@@ -23,12 +23,12 @@ async function saveResolved(
   const { db } = ports;
   const noRival = holdsNoRival(db, shortLink, link);
 
-  try {
+  return unlessAliased(db, noRival, async () => {
     const [, , inserted, , , queued, [item]] = await db.batch([
       insertGuard(db, noRival),
       promoteFailedItem(db, shortLink, link),
       ...queuedWrites(db, paste, link),
-      recordAlias(db, shortLink, link),
+      recordAlias(db, shortLink, paste.address, link),
       db.delete(guards),
     ]);
 
@@ -38,36 +38,29 @@ async function saveResolved(
       kind: "saved",
       item: foundItem(item, link.normalizedUrl),
       created: inserted.length > 0,
-    };
-  } catch (error) {
-    if (await guardHolds(db, noRival)) throw error;
-
-    return null;
-  }
+    } as const;
+  });
 }
 
 async function saveShortLink(ports: Ports, pasted: string, digest?: Digest): Promise<SaveResult> {
   const { normalizedUrl: shortLink } = parseLink(pasted);
-  const known = await aliasedLink(ports.db, shortLink);
+  const known = await aliasedItem(ports.db, shortLink);
 
   if (known !== undefined) {
-    return saveQueued(ports, { originalUrl: pasted, address: known.normalizedUrl, digest }, known);
+    return saveQueued(ports, { originalUrl: pasted, address: known.address, digest }, known);
   }
 
   const resolution = await resolveShortLink(ports.network, pasted);
 
-  if (resolution.kind === "failed") {
-    return saveSettled(ports.db, pasted, parseLink(pasted), resolution.fetched);
-  }
-
-  const { address } = resolution;
-
-  const saved = await saveResolved(
-    ports,
-    shortLink,
-    { originalUrl: pasted, address, digest },
-    parseLink(address),
-  );
+  const saved =
+    resolution.kind === "failed"
+      ? await saveFailedResolution(ports.db, pasted, parseLink(pasted), resolution.fetched)
+      : await saveResolved(
+          ports,
+          shortLink,
+          { originalUrl: pasted, address: resolution.address, digest },
+          parseLink(resolution.address),
+        );
 
   return saved ?? saveShortLink(ports, pasted, digest);
 }
