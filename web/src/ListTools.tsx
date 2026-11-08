@@ -7,6 +7,7 @@ import { SearchField } from "./SearchField.tsx";
 
 export function ListTools({
   list,
+  reserves,
   filters,
   field,
   search,
@@ -14,6 +15,7 @@ export function ListTools({
   leave,
 }: Readonly<{
   list: ListState;
+  reserves: boolean;
   filters: Filters;
   field: RefObject<HTMLInputElement | null>;
   search: (text: string) => void;
@@ -21,9 +23,8 @@ export function ListTools({
   leave: () => void;
 }>) {
   const counts = countsOf(list);
-  const ghost = list.status === "loading";
 
-  if (!ghost && (counts === null || counts.total === 0)) return null;
+  if (!reserves && (counts === null || counts.total === 0)) return null;
 
   return (
     <>
@@ -33,9 +34,9 @@ export function ListTools({
         search={search}
         hint={hint}
         leave={leave}
-        ghost={ghost}
+        ghost={reserves}
       />
-      {ghost ? <ListHeadGhost /> : null}
+      {reserves ? <ListHeadGhost /> : null}
       {list.status === "ready" && counts !== null ? (
         <ListHead counts={counts} shown={list.items.length} filters={filters} />
       ) : null}

@@ -18,7 +18,8 @@ export function ListColumn({
   openId: number | null;
   openSettings: () => void;
 }>) {
-  const { library, shown, actions, side, covered, openItem, listPane, searchField } = view;
+  const { library, shown, reserves, actions, side, covered, openItem, listPane, searchField } =
+    view;
 
   const hint =
     look.reader !== "pane" || (openItem !== null && side.reader.hintInBar) ? null : HINT_LIST;
@@ -28,6 +29,7 @@ export function ListColumn({
       <LibraryMasthead view={view} look={look} arrived={arrived} openSettings={openSettings} />
       <ListTools
         list={shown}
+        reserves={reserves}
         filters={library.filters}
         field={searchField}
         search={library.search}

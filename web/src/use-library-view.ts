@@ -2,6 +2,7 @@ import { type RefObject, useCallback, useRef } from "react";
 
 import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { Item } from "../../src/http/schemas.ts";
+import { useLastListEmpty } from "./last-list.ts";
 import { useLibrary } from "./library.ts";
 import { type ListState, countsOf, knownItems } from "./list-state.ts";
 import type { Route } from "./routing.ts";
@@ -15,6 +16,8 @@ export interface LibraryView {
   readonly searchField: RefObject<HTMLInputElement | null>;
   readonly library: Readonly<ReturnType<typeof useLibrary>>;
   readonly shown: ListState;
+  readonly reserves: boolean;
+  readonly expectsEmpty: boolean;
   readonly actions: Readonly<ReturnType<typeof useListActions>>;
   readonly side: ReaderSide;
   readonly clearAll: () => void;
@@ -52,6 +55,7 @@ export function useLibraryView(look: Look, route: Route): LibraryView {
 
   const shown: ListState = look.faces ? list : { status: "loading", known: list.known };
   const counts = countsOf(shown);
+  const expectsEmpty = useLastListEmpty(list);
 
   return {
     root,
@@ -59,6 +63,8 @@ export function useLibraryView(look: Look, route: Route): LibraryView {
     searchField,
     library,
     shown,
+    reserves: shown.status === "loading" && !expectsEmpty,
+    expectsEmpty,
     actions,
     side,
     clearAll,
