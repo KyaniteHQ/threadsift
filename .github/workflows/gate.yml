@@ -139,12 +139,12 @@ jobs:
 
   claude-code-proof:
     needs: changes
-    if: github.repository == 'KyaniteHQ/threadsift' && github.event_name == 'push' && needs.changes.outputs.docs_only != 'true'
+    if: github.repository == 'KyaniteHQ/threadsift' && needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
-    environment: ai-proof
+    environment: ${{ github.event_name == 'push' && 'ai-proof' || '' }}
     env:
       THREADSIFT_ARTIFACTS: artifacts
-      THREADSIFT_CLAUDE_REQUIRED: "true"
+      THREADSIFT_CLAUDE_REQUIRED: ${{ github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
