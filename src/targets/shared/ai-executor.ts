@@ -73,6 +73,7 @@ export async function runHttp<Result>(
       instructions: task.instructions,
       prompt: task.input,
       abortSignal: signal,
+      maxOutputTokens: task.maxOutputTokens,
       ...AI_CALL_OPTIONS,
     });
 

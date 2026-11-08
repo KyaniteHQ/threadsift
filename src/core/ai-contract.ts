@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { StoredCommentId } from "./comment-id.ts";
+
 const ShortText = z.string().trim().min(1).max(240);
 export const AI_URL_MAX = 2048;
 export const AI_MODEL_MAX = 240;
@@ -7,10 +9,7 @@ export const AI_KEY_MAX = 4096;
 
 const KEPT_COMMENTS_MAX = 2000;
 
-const CommentId = z
-  .string()
-  .regex(/^t1_[a-z\d]+$/iu)
-  .max(32);
+const ModelCommentId = z.string().max(32);
 
 export const ModelDigestSchema = z.object({
   title: ShortText,
@@ -23,10 +22,11 @@ export const ModelDigestSchema = z.object({
     .max(1200)
     .refine((text) => text.split(/\r\n|\r|\n/u).length <= 2),
   keyPoints: z.array(z.string().trim().min(1).max(1200)).min(1).max(12).readonly(),
+  keptComments: z.array(ModelCommentId).max(KEPT_COMMENTS_MAX).readonly(),
 });
 
 export const DigestSchema = ModelDigestSchema.extend({
-  keptComments: z.array(CommentId).max(KEPT_COMMENTS_MAX).readonly().optional(),
+  keptComments: z.array(StoredCommentId).max(KEPT_COMMENTS_MAX).readonly().optional(),
 });
 
 const Model = z.string().trim().min(1).max(AI_MODEL_MAX);
@@ -253,7 +253,12 @@ export interface AiTaskRequest<Result> {
   readonly instructions: string;
   readonly schema: z.ZodType<Result>;
   readonly input: string;
+  readonly maxOutputTokens: number;
 }
+
+export const BASE_OUTPUT_TOKENS = 2048;
+
+export const MAX_OUTPUT_TOKENS = 8192;
 
 export const AI_DEADLINE_MS = 10 * 60 * 1000;
 

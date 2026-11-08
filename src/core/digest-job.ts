@@ -21,8 +21,10 @@ import {
   digestInput,
   generationCurrent,
   hasDigestSource,
+  logSubmission,
   modelInput,
   readDigestText,
+  refusedInput,
   setDigestFailure,
 } from "./digest-source.ts";
 import { type ClaimedJob, type JobHandler, type JobOutcome, type JobPorts } from "./job-outcome.ts";
@@ -84,22 +86,26 @@ async function attemptModel(
 
   if ("outcome" in filed) return filed.outcome;
 
-  const postText = filed.text;
-
   const catalog = await readCatalog(ports.db);
+  const prompt = await modelInput(ports.db, item, filed.text, catalog);
+
+  if (prompt.kind === "too-large") return refusedInput(ports.db, item, prompt.fixedBytes);
 
   const result = await runAiTask(
     ports,
     TASKS.digest,
     {
-      text: modelInput(item, postText, catalog),
+      text: prompt.input,
       inputRevision: item.generation,
       attempts: job.attempts + 1,
+      maxOutputTokens: prompt.maxOutputTokens,
     },
     job,
   );
 
   if (result.kind === "claim-lost") return lostClaim(ports.db);
+
+  if (result.taskId !== null) logSubmission(result.taskId, item, prompt.counts);
 
   if (result.kind !== "done") {
     if (retriesAi(result)) throw new Error(`Digest ${result.reason}`);
@@ -113,6 +119,7 @@ async function attemptModel(
     model: result.model,
     version: catalog.version,
     staleRequeues: job.staleRequeues,
+    submitted: prompt.submitted,
   });
 }
 

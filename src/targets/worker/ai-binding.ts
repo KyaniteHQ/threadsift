@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import { type AiExecution, type AiTaskRequest, refusedAi } from "../../core/ai-contract.ts";
-import { AI_CALL_OPTIONS } from "../shared/ai-call.ts";
 
 type Json = string | number | boolean | null | readonly Json[] | { readonly [key: string]: Json };
 
@@ -66,7 +65,7 @@ async function runBinding<Result>(
             { role: "user", content: task.input },
           ],
           stream: false,
-          max_tokens: AI_CALL_OPTIONS.maxOutputTokens,
+          max_tokens: task.maxOutputTokens,
           response_format: {
             type: "json_schema",
             json_schema: z.json().parse(z.toJSONSchema(task.schema)),

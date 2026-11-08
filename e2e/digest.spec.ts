@@ -111,6 +111,7 @@ async function readStored(id: number, provider: Readonly<ReturnType<typeof proof
 
   if (record === undefined) throw new Error("no stored Digest");
   const digest = record.digest;
+  expect(digest.keptComments, "an article has no comments to keep").toEqual([]);
   expect(item).toMatchObject({
     status: "ready",
     reason: null,
