@@ -1,8 +1,8 @@
 import { join, relative, resolve, sep } from "node:path";
 
-import { serve } from "@hono/node-server";
+import { type HttpBindings, serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { type Context, Hono } from "hono";
+import { type Context, Hono, type MiddlewareHandler } from "hono";
 import { compress } from "hono/compress";
 import { z } from "zod";
 
@@ -45,9 +45,22 @@ const files = serveStatic({ root: webRoot, onFound });
 
 const document = serveStatic({ root: webRoot, path: "index.html", onFound });
 
-const app = new Hono();
+const closeWhenBodyIsUnread: MiddlewareHandler<{ Bindings: HttpBindings }> = async (
+  context,
+  next,
+) => {
+  await next();
+
+  if (!context.env.incoming.complete) {
+    context.header("Connection", "close");
+  }
+};
+
+const app = new Hono<{ Bindings: HttpBindings }>();
 
 app.use("*", compress());
+
+app.use("*", closeWhenBodyIsUnread);
 
 const node = await startNode(database.db, {
   dataDir: env.DATA_DIR,
