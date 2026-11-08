@@ -11,6 +11,11 @@ runs:
     - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
       with:
         name: devenv
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/nix
+        key: nix-fetch-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devenv.lock', '.github/actions/setup-devenv/action.yml') }}
+        restore-keys: nix-fetch-${{ runner.os }}-${{ runner.arch }}-
     - name: Install devenv v2.4.0
       shell: bash
       run: nix profile add github:cachix/devenv/b904dcb51fe48c30db250038241507f60752f222#devenv
