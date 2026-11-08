@@ -34,7 +34,7 @@ export function Original({
 
   return (
     <>
-      {item.status !== "processing" && item.fetch === "github-token" ? (
+      {item.status === "ready" && item.fetch === "github-token" ? (
         <TokenRefused text={TOKEN_REFUSED.reader} />
       ) : null}
       {detail.repository === null ? null : (

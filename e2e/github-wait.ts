@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { z } from "zod";
 
 import type { Instance } from "./access.ts";
+import { eventLines } from "./ingest.ts";
 
 export const WAIT_REASON = "github-rate-limit";
 
@@ -23,6 +24,12 @@ export function startCooldown(instance: Instance, until: number): void {
   instance.sql(
     `INSERT INTO github_cooldown (id, until) VALUES (1, ${until}) ON CONFLICT (id) DO UPDATE SET until = ${until}`,
   );
+}
+
+const Cooldowns = z.array(z.object({ until: z.number() }));
+
+export function cooldownRows(instance: Instance): readonly number[] {
+  return instance.query("SELECT until FROM github_cooldown", Cooldowns).map(({ until }) => until);
 }
 
 export function endCooldown(instance: Instance): void {
@@ -50,10 +57,5 @@ export function whenAt(page: Page, until: number): Promise<string> {
 }
 
 export function queueRefusals(instance: Instance, jobId: number): string[] {
-  return instance
-    .logs()
-    .split("\n")
-    .filter(
-      (line) => line.includes('"event":"jobs-not-queued"') && line.includes(`"jobIds":"${jobId}"`),
-    );
+  return eventLines(instance, "jobs-not-queued", `"jobIds":"${jobId}"`);
 }

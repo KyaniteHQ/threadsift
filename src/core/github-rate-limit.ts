@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { parseHttpDate } from "./http-date.ts";
 import type { RateLimitHeaders } from "./ports.ts";
 
 export type RateLimitKind = "primary" | "secondary";
@@ -23,7 +24,6 @@ const FALLBACK_DOUBLINGS = 1;
 const LIMIT_STATUSES: ReadonlySet<number> = new Set([403, 429]);
 const SECONDARY_MESSAGE = /secondary rate limit/iu;
 const WHOLE_NUMBER = /^\d+$/u;
-const HTTP_DATE = /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/u;
 const MS_PER_SECOND = 1000;
 
 const ErrorBodySchema = z.object({ message: z.string() });
@@ -47,7 +47,9 @@ function retryAfterAt(value: string | null, now: number): number | null {
 
   if (WHOLE_NUMBER.test(text)) return laterThan(now + Number(text) * MS_PER_SECOND, now);
 
-  return HTTP_DATE.test(text) ? laterThan(Date.parse(text), now) : null;
+  const date = parseHttpDate(text, now);
+
+  return date === null ? null : laterThan(date, now);
 }
 
 function messageOf(body: string): string {

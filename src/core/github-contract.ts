@@ -24,6 +24,7 @@ export const GithubRefusalSchema = z.enum([
   "unreachable",
   "timeout",
   "github-error",
+  "rate-limited",
 ]);
 
 export type GithubRefusal = z.infer<typeof GithubRefusalSchema>;

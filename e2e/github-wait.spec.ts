@@ -1,6 +1,13 @@
 import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 
-import { CARD_TITLES, WAITING, filled } from "../web/src/text.ts";
+import {
+  CARD_TITLES,
+  FAILURE_TITLES,
+  RETRY_LABEL,
+  TOKEN_REFUSED,
+  WAITING,
+  filled,
+} from "../web/src/text.ts";
 import { mainInstance } from "./access.ts";
 import { itemOf, postLink, settled } from "./api.ts";
 import { cardTitle, openLibrary, pasteForId } from "./card.ts";
@@ -21,9 +28,9 @@ import {
   storeStaleRepository,
   useSuiteGithubToken,
 } from "./github.ts";
-import { forgetItem, makeDue, sweepNow } from "./ingest.ts";
+import { forgetItem, makeDue, storeItem, sweepNow } from "./ingest.ts";
 import { newRunId, pasteCard, rowOf } from "./links.ts";
-import { reader } from "./reader.ts";
+import { openRow, reader, row } from "./reader.ts";
 
 test.use({ trace: "off", video: "off", screenshot: "off" });
 
@@ -128,6 +135,75 @@ test("the Reader says the Item waits for GitHub and when it will try again, then
   await page.clock.fastForward(TWENTY_SEVEN_HOURS_MS);
   await expect(note).toHaveText(WAITING.due);
   await expect(rowOf(page, itemId).locator(".it-fail")).toHaveText(WAITING.due);
+});
+
+const TOKEN_REFUSED_PATTERN = /rejected the saved token/u;
+
+async function expectOnlyTheRateLimitFailure(page: Page, id: number): Promise<void> {
+  await expect(row(page, id)).not.toContainText(TOKEN_REFUSED.row);
+  await expect(row(page, id).getByRole("link", { name: TOKEN_REFUSED.link })).toHaveCount(0);
+  await expect(row(page, id).locator(".it-fail")).toContainText(FAILURE_TITLES["rate-limited"]);
+  await openRow(page, id);
+  await expect(
+    reader(page).getByText(FAILURE_TITLES["rate-limited"], { exact: true }),
+  ).toBeVisible();
+  await expect(reader(page).getByText(TOKEN_REFUSED_PATTERN)).toHaveCount(0);
+  await expect(reader(page).getByRole("link", { name: TOKEN_REFUSED.link })).toHaveCount(0);
+}
+
+async function pressTryAgainInReader(page: Page): Promise<void> {
+  const answered = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/api/items"),
+  );
+
+  await reader(page).getByRole("button", { name: RETRY_LABEL, exact: true }).click();
+  expect((await answered).status()).toBeLessThan(300);
+}
+
+async function expectWaitingForTheCooldown(request: APIRequestContext, id: number): Promise<void> {
+  await expect.poll(() => fetchJobOf(mainInstance(), id)?.wait_reason).toBe(WAIT_REASON);
+  expect(fetchJobOf(mainInstance(), id)).toMatchObject({
+    state: "queued",
+    attempts: 0,
+    next_attempt_at: until,
+  });
+  expect(await itemOf(request, id)).toMatchObject({
+    status: "processing",
+    wait: { reason: WAIT_REASON, retryAt: until },
+  });
+}
+
+test("an Item whose rejected token was followed by a rate-limit failure shows only the rate-limit failure, and Try again during the cooldown sends no request and waits", async ({
+  page,
+  request,
+}) => {
+  const url = `https://github.com/kepano/zzterminal-${newRunId()}`;
+
+  const id = storeItem({
+    normalized_url: url,
+    source: "github",
+    kind: "github-repo",
+    title: "kepano/terminal",
+    status: "failed",
+    reason: "rate-limited",
+    fetch_result: "github-token",
+  });
+
+  try {
+    expect(await itemOf(request, id)).toMatchObject({
+      status: "failed",
+      reason: "rate-limited",
+      fetch: "github-token",
+      retry: "paste",
+    });
+
+    await openLibrary(page);
+    await expectOnlyTheRateLimitFailure(page, id);
+    await pressTryAgainInReader(page);
+    await expectWaitingForTheCooldown(request, id);
+  } finally {
+    forgetItem(url);
+  }
 });
 
 test("the wait ends when the cooldown does: the job runs at once, the Item is fetched, and the wait is gone from the row and the API", async ({

@@ -89,29 +89,31 @@ function failureOf(
   return deadlineHit ? "timeout" : (reason ?? "network");
 }
 
+function rateLimited(status: number, limit: Readonly<RateLimit>): RateLimited {
+  return { kind: "failed", reason: "rate-limited", httpStatus: status, limit };
+}
+
 async function failedAnswer(
   response: Readonly<NetworkResponse>,
   url: string,
   policy: Readonly<FetchPolicy>,
 ): Promise<Failed> {
-  if (!isLimitStatus(response.status) || !policy.readsLimits(url)) {
-    return failedStatus(response.status);
-  }
+  const { status, rateLimit } = response;
+
+  if (!isLimitStatus(status) || !policy.readsLimits(url)) return failedStatus(status);
+
+  const byHeaders = rateLimitOf({ status, headers: rateLimit, body: "" }, Date.now());
+
+  if (byHeaders !== null) return rateLimited(status, byHeaders);
 
   const { bytes } = await readCapped(response.body, ERROR_BODY_BYTES);
 
   const limit = rateLimitOf(
-    {
-      status: response.status,
-      headers: response.rateLimit,
-      body: new TextDecoder().decode(bytes),
-    },
+    { status, headers: rateLimit, body: new TextDecoder().decode(bytes) },
     Date.now(),
   );
 
-  return limit === null
-    ? failedStatus(response.status)
-    : { kind: "failed", reason: "rate-limited", httpStatus: response.status, limit };
+  return limit === null ? failedStatus(status) : rateLimited(status, limit);
 }
 
 async function requestHop(

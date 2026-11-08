@@ -18,7 +18,7 @@ import {
 import { WaitText } from "./WaitText.tsx";
 
 function rejectsToken(item: Readonly<Item>): boolean {
-  return item.status !== "processing" && item.fetch === "github-token";
+  return item.status === "ready" && item.fetch === "github-token";
 }
 
 function showsSkeleton(item: Readonly<Item>): boolean {

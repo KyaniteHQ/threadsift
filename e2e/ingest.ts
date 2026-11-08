@@ -128,13 +128,15 @@ export function storeProcessingItemWithDueJob(
   return id;
 }
 
-export function claimLostLines(instance: Instance, jobId: number): string[] {
+export function eventLines(instance: Instance, event: string, fragment: string): string[] {
   return instance
     .logs()
     .split("\n")
-    .filter(
-      (line) => line.includes('"event":"job-claim-lost"') && line.includes(`"jobId":${jobId},`),
-    );
+    .filter((line) => line.includes(`"event":"${event}"`) && line.includes(fragment));
+}
+
+export function claimLostLines(instance: Instance, jobId: number): string[] {
+  return eventLines(instance, "job-claim-lost", `"jobId":${jobId},`);
 }
 
 export function releaseSweepThrottle(instance: Instance = mainInstance()): void {
