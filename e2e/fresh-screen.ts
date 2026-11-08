@@ -29,6 +29,7 @@ export async function openFresh(browser: Browser, code: string | null): Promise<
       context,
       page,
       close: async () => {
+        await page.unrouteAll({ behavior: "ignoreErrors" });
         await context.close();
         fresh.stop();
       },
