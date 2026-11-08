@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { GuardOutcome, Page, RateLimited } from "./fetch-guard.ts";
-import { UNAUTHORIZED, apiPolicy, parsedJson, requestApi } from "./github-api.ts";
+import { UNAUTHORIZED, apiPolicy, requestApi } from "./github-api.ts";
 import {
   type GithubRefused,
   type GithubSettingsView,
@@ -11,6 +11,7 @@ import {
   refusedGithub,
 } from "./github-contract.ts";
 import { githubSettings } from "./github-tables.ts";
+import { parsedJson } from "./parsed-json.ts";
 import { HOP_DEADLINE_MS, type Ports } from "./ports.ts";
 
 export type GithubAuth =

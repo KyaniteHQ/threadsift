@@ -8,6 +8,7 @@ import {
   PROVIDERS,
   refusedAi,
 } from "../../core/ai-contract.ts";
+import { parsedJson } from "../../core/parsed-json.ts";
 import { apiRefusal } from "../shared/ai-call.ts";
 import type { CliRunner } from "../shared/ai-runtime.ts";
 import { configuredCode } from "../shared/configured-code.ts";
@@ -22,7 +23,6 @@ import {
   exitCode,
   findBinary,
   inEmptyFolder,
-  parsedJson,
   present,
   report,
 } from "./cli-support.ts";
