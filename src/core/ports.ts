@@ -1,7 +1,7 @@
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
-import type { AiExecution, AiTaskRequest, Provider } from "./ai-contract.ts";
+import type { AiExecution, AiTaskRequest, CliProvider, Provider } from "./ai-contract.ts";
 import type { ArticleReading } from "./article.ts";
 import type { Sealer } from "./sealed-secret.ts";
 
@@ -82,6 +82,7 @@ export interface AiRuntime {
   readonly publicOnly: boolean;
   readonly allowsUrl: (url: string) => boolean;
   readonly secrets: Sealer | null;
+  readonly signedIn: () => Promise<readonly CliProvider[]>;
   readonly run: <Result>(
     task: AiTaskRequest<Result>,
     signal: AbortSignal,

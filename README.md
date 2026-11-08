@@ -27,6 +27,40 @@ Then open http://127.0.0.1:8000/Main.dc.html. Press T for the Tweaks panel, whic
 
 The prototype's sample data is not in the repo, because it is the owner's real saves: other people's posts, comments and images. Without it the app shows "Couldn’t load the library data." To fill it, put a `data.json` in the shape `library.js` reads, and its images in `img/`, inside `design/prototype/`; both paths are gitignored.
 
+## Use Claude Code on the container
+
+The container image ships no AI command-line tool and keeps everything you install or sign in to in its `/data` volume.
+
+1. Install Claude Code into the volume:
+
+   ```sh
+   podman exec -it <container> npm install --global @anthropic-ai/claude-code
+   ```
+
+2. Restart the Instance so it finds the tool:
+
+   ```sh
+   podman restart <container>
+   ```
+
+3. Sign in, in one of two ways. Log in and follow the prompts:
+
+   ```sh
+   podman exec -it <container> claude auth login
+   ```
+
+   Or get a token on any machine where Claude Code is signed in:
+
+   ```sh
+   claude setup-token
+   ```
+
+   Start the container with the token it prints in the `CLAUDE_CODE_OAUTH_TOKEN` environment variable (for example `--env CLAUDE_CODE_OAUTH_TOKEN`). Set it at container start; an export in a later `podman exec` shell does not reach the running app.
+
+4. Open Settings, choose "Claude Code on this server" as the Provider, press Save, then press Verify.
+
+The install and login stay in the volume when you remove and recreate the container on the same volume. Installing or removing Claude Code needs a restart. npm 12 skips the install script unless allowed, so run `npm config set "allow-scripts=@anthropic-ai/claude-code" --location=user` first (the image's npm is 11.20.0 and needs no change). A token Claude Code rejects shows up when Verify runs.
+
 ## License
 
 Copyright (C) 2026 Kyanite Labs.

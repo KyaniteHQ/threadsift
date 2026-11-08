@@ -15,9 +15,17 @@ export const AI_TEXT = {
   openai: "OpenAI",
   xai: "xAI",
   workersAi: "Workers AI",
+  claudeCode: "Claude Code on this server",
   workersAiHelp:
     "Workers AI runs on this Instance's Cloudflare account. No URL or API key is needed.",
   keyNotNeeded: "No API key needed for Workers AI.",
+  claudeCodeKeyNotNeeded: "No API key is needed. Claude Code uses its own sign-in on this server.",
+  claudeCodeModelHelp: "Leave blank to use Claude Code's default model.",
+  claudeCodeSignedOut:
+    "Claude Code is not signed in on this server. Reload this page after signing in with",
+  claudeCodeSignInCommand: "claude auth login",
+  claudeCodeRejected:
+    "Claude Code's sign-in was rejected. Run claude auth login on the server, or replace the token it started with, then press Verify again.",
   baseUrl: "Base URL",
   model: "Model",
   key: "API key",
@@ -47,7 +55,7 @@ export const AI_TEXT = {
   timeout: "The Provider timed out. Try Verify again.",
   refused:
     "Base URL refused. On Cloudflare use a public HTTPS URL; redirects are refused on both targets.",
-  "not-configured": "Save Provider settings first.",
+  "not-configured": "Save Provider settings first, or sign in to Claude Code on this server.",
   "provider-unavailable":
-    "Workers AI works only on a Cloudflare Instance. Choose another Provider.",
+    "This Provider is not available on this Instance. Choose another Provider.",
 } as const;

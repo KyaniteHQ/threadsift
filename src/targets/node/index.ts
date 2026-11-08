@@ -20,6 +20,9 @@ const env = z
     SETUP_CODE: z.string().optional(),
     THREADSIFT_SECRET_KEY: z.string().optional(),
     PASSWORD_RESET_CODE: z.string().optional(),
+    PATH: z.string().default(""),
+    CLAUDE_CONFIG_DIR: z.string().optional(),
+    CLAUDE_CODE_OAUTH_TOKEN: z.string().optional(),
   })
   .parse(process.env);
 
@@ -46,13 +49,17 @@ const app = new Hono();
 
 app.use("*", compress());
 
-const node = await startNode(
-  database.db,
-  env.DATA_DIR,
-  env.SETUP_CODE,
-  env.THREADSIFT_SECRET_KEY,
-  env.PASSWORD_RESET_CODE,
-);
+const node = await startNode(database.db, {
+  dataDir: env.DATA_DIR,
+  setupCode: env.SETUP_CODE,
+  secretKey: env.THREADSIFT_SECRET_KEY,
+  resetCode: env.PASSWORD_RESET_CODE,
+  claude: {
+    path: env.PATH,
+    configDir: env.CLAUDE_CONFIG_DIR,
+    token: env.CLAUDE_CODE_OAUTH_TOKEN,
+  },
+});
 
 app.route("/", createApp(node.ports));
 
@@ -68,14 +75,14 @@ app.get("*", (context, next) =>
 
 const server = serve({ fetch: app.fetch, port: env.PORT });
 
-function shutdown(): void {
-  node.stop();
+async function shutdown(): Promise<void> {
+  await node.stop();
   server.close(() => {
     database.close();
     process.exit(0);
   });
 }
 
-process.once("SIGTERM", shutdown);
+process.once("SIGTERM", () => void shutdown());
 
-process.once("SIGINT", shutdown);
+process.once("SIGINT", () => void shutdown());

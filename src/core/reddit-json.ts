@@ -1,5 +1,5 @@
-import { utf8Length } from "./ai-contract.ts";
 import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
+import { utf8Length } from "./digest-prompt.ts";
 import type { RedditRef } from "./links.ts";
 import { INLINE_TEXT_BYTES } from "./post-text-files.ts";
 import { type WireChild, type WireComment, type WirePost, ThreadJson } from "./reddit-wire.ts";

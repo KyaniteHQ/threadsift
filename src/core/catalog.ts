@@ -1,6 +1,7 @@
 import { type SQLWrapper, and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
-import { CATALOG_NAME_LIMIT, type Digest, parseStoredDigest } from "./ai-contract.ts";
+import { type Digest, parseStoredDigest } from "./ai-contract.ts";
+import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
 import { logFailure } from "./failure-log.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";

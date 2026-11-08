@@ -9,18 +9,26 @@ import { AI_TEXT } from "../web/src/ai-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 
-export async function aiScreen(browser: Browser, secret?: string): Promise<FreshScreen> {
-  const previous = process.env["THREADSIFT_SECRET_KEY"];
+export async function screenWithEnv(
+  browser: Browser,
+  name: string,
+  value: string | undefined,
+): Promise<FreshScreen> {
+  const previous = process.env[name];
 
-  if (secret === undefined) delete process.env["THREADSIFT_SECRET_KEY"];
-  else process.env["THREADSIFT_SECRET_KEY"] = secret;
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
 
   try {
     return await openSignedIn(browser, newCode(), newPassword());
   } finally {
-    if (previous === undefined) delete process.env["THREADSIFT_SECRET_KEY"];
-    else process.env["THREADSIFT_SECRET_KEY"] = previous;
+    if (previous === undefined) delete process.env[name];
+    else process.env[name] = previous;
   }
+}
+
+export function aiScreen(browser: Browser, secret?: string): Promise<FreshScreen> {
+  return screenWithEnv(browser, "THREADSIFT_SECRET_KEY", secret);
 }
 
 export function newSealingKey(): string {

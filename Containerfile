@@ -18,14 +18,15 @@ COPY web web
 RUN pnpm exec vite build
 
 FROM node
-ENV NODE_ENV=production DATA_DIR=/data PORT=8080
+ENV NODE_ENV=production DATA_DIR=/data PORT=8080 NPM_CONFIG_PREFIX=/data/cli CLAUDE_CONFIG_DIR=/data/claude
+ENV PATH=/data/cli/bin:$PATH
 WORKDIR /app
 COPY --from=prod-deps /app/node_modules node_modules
 COPY package.json ./
 COPY src src
 COPY migrations migrations
 COPY --from=web-build /app/dist/web dist/web
-RUN mkdir /data && chown node:node /data
+RUN mkdir -p /data/cli /data/claude && chown -R node:node /data
 VOLUME /data
 USER node
 EXPOSE 8080

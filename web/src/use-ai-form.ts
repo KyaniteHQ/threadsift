@@ -41,7 +41,10 @@ type Result =
   | { readonly kind: "ok"; readonly text: string; readonly digest?: Digest }
   | { readonly kind: "error"; readonly text: string };
 
-function refusalText(refusal: AiRefused): string {
+function refusalText(refusal: AiRefused, provider: Provider): string {
+  if (provider === "claude-code" && refusal.reason === "wrong-key")
+    return AI_TEXT.claudeCodeRejected;
+
   return refusal.reason === "provider-busy" && refusal.status !== null
     ? `${AI_TEXT[refusal.reason]} (${String(refusal.status)})`
     : AI_TEXT[refusal.reason];
@@ -66,7 +69,11 @@ function useAiResult() {
 }
 
 function needsSecret(provider: Provider): boolean {
-  return provider !== "workers-ai";
+  return provider !== "workers-ai" && provider !== "claude-code";
+}
+
+export function isSignedOut(view: AiView, provider: Provider): boolean {
+  return provider === "claude-code" && !view.signedIn.includes(provider);
 }
 
 function useVerify(
@@ -75,10 +82,14 @@ function useVerify(
   guard: ReturnType<typeof useGuard>["guard"],
 ) {
   const verifyBlocked =
-    view.settings === null || (needsSecret(view.settings.provider) && !view.secretReady);
+    view.settings === null ||
+    (needsSecret(view.settings.provider) && !view.secretReady) ||
+    isSignedOut(view, view.settings.provider);
+
+  const provider = view.settings?.provider;
 
   const verifyNow = useCallback(() => {
-    if (verifyBlocked) return;
+    if (verifyBlocked || provider === undefined) return;
 
     guard(() =>
       run("verify", async () => {
@@ -86,10 +97,10 @@ function useVerify(
 
         return response.kind === "done"
           ? { kind: "ok", text: AI_TEXT.verified, digest: response.digest }
-          : { kind: "error", text: refusalText(response) };
+          : { kind: "error", text: refusalText(response, provider) };
       }),
     );
-  }, [verifyBlocked, guard, run]);
+  }, [verifyBlocked, provider, guard, run]);
 
   return { verifyNow, verifyBlocked };
 }
@@ -100,7 +111,7 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
   const { value: keyValue, clear: clearKey } = key;
   const { action, result, run } = useAiResult();
   const { busy, guard } = useGuard();
-  const saveBlocked = needsSecret(provider) && !view.secretReady;
+  const saveBlocked = (needsSecret(provider) && !view.secretReady) || isSignedOut(view, provider);
 
   const { verifyNow, verifyBlocked } = useVerify(view, run, guard);
 
@@ -116,7 +127,7 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
 
         const response = await saveAiSettings(input);
 
-        if ("kind" in response) return { kind: "error", text: refusalText(response) };
+        if ("kind" in response) return { kind: "error", text: refusalText(response, provider) };
         saved(response);
         clearKey();
 

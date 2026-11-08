@@ -11,7 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { AI_DEADLINE_MS, parseStoredDigest, digestPrompt, retriesAi } from "./ai-contract.ts";
+import { AI_DEADLINE_MS, parseStoredDigest, retriesAi } from "./ai-contract.ts";
 import { TASKS, startCallerTask, runAiTask, expireAiTasks } from "./ai-tasks.ts";
 import { readCatalog, linkOlderDigests } from "./catalog.ts";
 import { publishing } from "./digest-publish.ts";
@@ -21,6 +21,7 @@ import {
   digestInput,
   generationCurrent,
   hasDigestSource,
+  modelInput,
   readDigestText,
   setDigestFailure,
 } from "./digest-source.ts";
@@ -91,10 +92,7 @@ async function attemptModel(
     ports,
     TASKS.digest,
     {
-      text: digestPrompt(
-        JSON.stringify({ title: item.title, source: item.source, postText }),
-        catalog,
-      ),
+      text: modelInput(item, postText, catalog),
       inputRevision: item.generation,
       attempts: job.attempts + 1,
     },

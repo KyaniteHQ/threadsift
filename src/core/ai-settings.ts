@@ -3,11 +3,13 @@ import { z } from "zod";
 
 import {
   PROVIDERS,
+  CliProviderSchema,
   HttpProviderSchema,
   type AiSettingsInput,
   type AiSettingsView,
   type AiSaveResponseSchema,
   type BindingAiConnection,
+  type CliAiConnection,
   type HttpAiConnection,
   refusedAi,
 } from "./ai-contract.ts";
@@ -18,7 +20,7 @@ import type { Sealer } from "./sealed-secret.ts";
 
 const StoredSettingsSchema = z.union([
   z.object({
-    provider: z.literal(PROVIDERS["workers-ai"].id),
+    provider: z.enum([PROVIDERS["workers-ai"].id, ...CliProviderSchema.options]),
     model: z.string(),
     baseUrl: z.null(),
     sealedKey: z.null(),
@@ -33,13 +35,15 @@ const StoredSettingsSchema = z.union([
 
 type Stored = z.infer<typeof StoredSettingsSchema>;
 
+type Keyless = Extract<Stored, { readonly sealedKey: null }>;
+
 type LoadedAi =
   | { readonly state: "not-configured"; readonly sealer: Sealer | null }
   | { readonly state: "secret-missing"; readonly saved: Stored; readonly sealer: Sealer | null }
   | {
       readonly state: "ready";
       readonly saved: Stored;
-      readonly config: HttpAiConnection | BindingAiConnection;
+      readonly config: HttpAiConnection | BindingAiConnection | CliAiConnection;
       readonly sealer: Sealer | null;
     };
 
@@ -50,14 +54,8 @@ export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
   if (row === undefined) return { state: "not-configured", sealer };
   const saved = StoredSettingsSchema.parse(row);
 
-  if (saved.provider === "workers-ai") {
-    return {
-      state: "ready",
-      saved,
-      sealer,
-      config: { kind: "binding", provider: saved.provider, model: saved.model },
-    };
-  }
+  if (saved.sealedKey === null)
+    return { state: "ready", saved, sealer, config: keylessConnection(saved) };
 
   const key = sealer === null ? null : await sealer.open(saved.sealedKey);
 
@@ -77,10 +75,21 @@ export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
       };
 }
 
-function aiView(saved: Stored | undefined, ports: AiPorts, secretReady: boolean): AiSettingsView {
+function keylessConnection(saved: Readonly<Keyless>): BindingAiConnection | CliAiConnection {
+  return saved.provider === "workers-ai"
+    ? { kind: "binding", provider: saved.provider, model: saved.model }
+    : { kind: "cli", provider: saved.provider, model: saved.model };
+}
+
+async function aiView(
+  saved: Stored | undefined,
+  ports: AiPorts,
+  secretReady: boolean,
+): Promise<AiSettingsView> {
   return {
     settings: viewOf(saved),
     providers: ports.ai.providers,
+    signedIn: await ports.ai.signedIn(),
     secretReady,
     publicOnly: ports.ai.publicOnly,
   };
@@ -89,7 +98,7 @@ function aiView(saved: Stored | undefined, ports: AiPorts, secretReady: boolean)
 function viewOf(saved: Stored | undefined): AiSettingsView["settings"] {
   if (saved === undefined) return null;
 
-  return saved.provider === "workers-ai"
+  return saved.sealedKey === null
     ? { provider: saved.provider, model: saved.model }
     : { provider: saved.provider, baseUrl: saved.baseUrl, model: saved.model, keySet: true };
 }
@@ -124,15 +133,17 @@ export async function saveAiSettings(
   return aiView(next, ports, loaded.sealer !== null);
 }
 
+function keylessRow(provider: Keyless["provider"], model: string) {
+  return { provider, model, baseUrl: null, sealedKey: null } as const;
+}
+
 async function nextSettings(ports: AiPorts, loaded: LoadedAi, input: Readonly<AiSettingsInput>) {
-  if (input.provider === "workers-ai") {
-    return {
-      provider: input.provider,
-      model: input.model,
-      baseUrl: null,
-      sealedKey: null,
-    } as const;
-  }
+  if (input.provider === "workers-ai") return keylessRow(input.provider, input.model);
+
+  if (input.provider === "claude-code")
+    return (await ports.ai.signedIn()).includes(input.provider)
+      ? keylessRow(input.provider, input.model)
+      : refusedAi("not-configured");
 
   const { sealer } = loaded;
 

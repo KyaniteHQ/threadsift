@@ -101,6 +101,10 @@ restart)
   stop "$2"
   start "$2" "$(instance_port "$2")"
   ;;
+crash)
+  echo "a crash is a container case: the Worker has no process that a stop leaves running work in" >&2
+  exit 2
+  ;;
 logs)
   cat "$2/wrangler.log"
   ;;

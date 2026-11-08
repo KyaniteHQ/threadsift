@@ -8,12 +8,12 @@ import {
   type AiTaskDefinition,
   AI_DEADLINE_MS,
   VERIFY_INPUT,
-  DIGEST_INSTRUCTIONS,
   ModelDigestSchema,
-  cutDigestInput,
+  modelOf,
   refusedAi,
 } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-settings.ts";
+import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
 import { holding } from "./job-rows.ts";
 import type { AiPorts, Database } from "./ports.ts";
 import { type JobRow, aiTasks } from "./schema.ts";
@@ -32,7 +32,7 @@ export interface DoneTask<Result> {
   readonly result: Result;
   readonly taskId: number;
   readonly provider: Provider;
-  readonly model: string;
+  readonly model: string | null;
 }
 
 type TaskResult<Result> = DoneTask<Result> | (AiRefused & { readonly taskId: number | null });
@@ -166,7 +166,7 @@ async function execute<Result>(
       return { ...result, taskId };
     }
 
-    return { ...result, taskId, provider: config.provider, model: config.model };
+    return { ...result, taskId, provider: config.provider, model: modelOf(config) };
   } catch {
     return failTask(ports, taskId);
   }
@@ -196,8 +196,8 @@ interface TaskOrigin {
 
 const CALLER_ORIGIN: TaskOrigin = { executor: "caller", provider: null, model: null };
 
-function originOf({ kind, provider, model }: Readonly<AiConnection>): TaskOrigin {
-  return { executor: kind, provider, model };
+function originOf(config: Readonly<AiConnection>): TaskOrigin {
+  return { executor: config.kind, provider: config.provider, model: modelOf(config) };
 }
 
 async function startTask(

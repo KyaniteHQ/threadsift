@@ -1,4 +1,4 @@
-import { utf8Length } from "./ai-contract.ts";
+import { utf8Length } from "./digest-prompt.ts";
 
 export interface ThreadNode {
   readonly id: string;

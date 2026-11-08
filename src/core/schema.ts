@@ -155,7 +155,15 @@ export const settings = sqliteTable(
   {
     id: integer("id").primaryKey(),
     provider: text("provider", {
-      enum: ["openai-compatible", "openrouter", "anthropic", "openai", "xai", "workers-ai"],
+      enum: [
+        "openai-compatible",
+        "openrouter",
+        "anthropic",
+        "openai",
+        "xai",
+        "workers-ai",
+        "claude-code",
+      ],
     }).notNull(),
     baseUrl: text("base_url"),
     model: text("model").notNull(),
@@ -165,7 +173,7 @@ export const settings = sqliteTable(
     check("settings_is_one_row", sql`${table.id} = 1`),
     check(
       "settings_connection_columns",
-      sql`(${table.provider} = 'workers-ai' and ${table.baseUrl} is null and ${table.sealedKey} is null) or (${table.provider} <> 'workers-ai' and ${table.baseUrl} is not null and ${table.sealedKey} is not null)`,
+      sql`(${table.provider} in ('workers-ai', 'claude-code') and ${table.baseUrl} is null and ${table.sealedKey} is null) or (${table.provider} not in ('workers-ai', 'claude-code') and ${table.baseUrl} is not null and ${table.sealedKey} is not null)`,
     ),
   ],
 );

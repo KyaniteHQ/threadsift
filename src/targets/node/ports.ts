@@ -1,50 +1,40 @@
-import { randomSecret } from "../../core/encoding.ts";
-import { hasOwner } from "../../core/owner.ts";
 import type { Database, Ports } from "../../core/ports.ts";
 import { aiRuntime } from "../shared/ai-runtime.ts";
 import { configuredCode } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
+import { type ClaudeEnvironment, claudeCode } from "./claude-code.ts";
 import { dataFileStore } from "./file-store.ts";
 import { JobLoop } from "./job-loop.ts";
 import { nodeNetwork } from "./network.ts";
 import { WorkerPageReader } from "./page-reader.ts";
-
-const GENERATED_CODE_BYTES = 32;
-
-function printGeneratedCode(): string {
-  const generated = randomSecret(nodeCrypto, GENERATED_CODE_BYTES);
-  console.log(`Setup code: ${generated}`);
-
-  return generated;
-}
-
-async function setupCodeOf(db: Database, configured: string | undefined) {
-  if (configured !== undefined) {
-    return configured;
-  }
-
-  return (await hasOwner(db)) ? undefined : printGeneratedCode();
-}
+import { setupCodeOf } from "./setup-code.ts";
 
 interface NodeRuntime {
   readonly ports: Ports;
-  readonly stop: () => void;
+  readonly stop: () => Promise<void>;
+}
+
+export interface NodeOptions {
+  readonly dataDir: string;
+  readonly setupCode: string | undefined;
+  readonly secretKey: string | undefined;
+  readonly resetCode: string | undefined;
+  readonly claude: Readonly<ClaudeEnvironment>;
 }
 
 export async function startNode(
   db: Database,
-  dataDir: string,
-  setupCode: string | undefined,
-  secretKey: string | undefined,
-  resetCode: string | undefined,
+  options: Readonly<NodeOptions>,
 ): Promise<NodeRuntime> {
+  const { dataDir, setupCode, secretKey, resetCode, claude } = options;
   const loop = new JobLoop();
   const pages = new WorkerPageReader();
+  const cli = await claudeCode(claude);
 
   const ports: Ports = {
     db,
     files: dataFileStore(dataDir),
-    ai: await aiRuntime({ publicOnly: false, secretKey, request: fetch }),
+    ai: await aiRuntime({ publicOnly: false, secretKey, request: fetch, cli: cli ?? undefined }),
     network: nodeNetwork,
     pages,
     jobs: loop.queue,
@@ -57,9 +47,12 @@ export async function startNode(
 
   return {
     ports,
-    stop: () => {
-      loop.stop();
+    stop: async () => {
+      const drained = loop.stop();
+
       pages.stop();
+      cli?.stop();
+      await drained;
     },
   };
 }

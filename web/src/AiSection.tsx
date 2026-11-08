@@ -6,7 +6,7 @@ import { AI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { SwapButton } from "./SwapButton.tsx";
-import { useAiForm } from "./use-ai-form.ts";
+import { isSignedOut, useAiForm } from "./use-ai-form.ts";
 
 type Loaded =
   | { readonly kind: "loading" }
@@ -67,7 +67,42 @@ function AiActions({
 function keyStatus(provider: Provider, keySaved: boolean): string {
   if (provider === "workers-ai") return AI_TEXT.keyNotNeeded;
 
+  if (provider === "claude-code") return AI_TEXT.claudeCodeKeyNotNeeded;
+
   return keySaved ? AI_TEXT.keySet : AI_TEXT.keyMissing;
+}
+
+function AiOutcome({ result }: Readonly<{ result: ReturnType<typeof useAiForm>["result"] }>) {
+  return (
+    <>
+      <output>{result?.kind === "ok" ? result.text : null}</output>
+      <Alert text={result?.kind === "error" ? result.text : null} />
+      {result?.kind === "ok" && result.digest !== undefined ? (
+        <DigestResult digest={result.digest} />
+      ) : null}
+    </>
+  );
+}
+
+function ProviderNotes({
+  view,
+  provider,
+  keySaved,
+  saveBlocked,
+}: Readonly<{ view: AiView; provider: Provider; keySaved: boolean; saveBlocked: boolean }>) {
+  const signedOut = isSignedOut(view, provider);
+
+  return (
+    <>
+      <p>{keyStatus(provider, keySaved)}</p>
+      {signedOut ? (
+        <p className="fld-help">
+          {AI_TEXT.claudeCodeSignedOut} <code>{AI_TEXT.claudeCodeSignInCommand}</code>.
+        </p>
+      ) : null}
+      {saveBlocked && !signedOut ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
+    </>
+  );
 }
 
 function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView) => void }>) {
@@ -102,8 +137,12 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
           publicOnly={view.publicOnly}
           keyRequired={!keySaved}
         />
-        <p>{keyStatus(fields.provider, keySaved)}</p>
-        {saveBlocked ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
+        <ProviderNotes
+          view={view}
+          provider={fields.provider}
+          keySaved={keySaved}
+          saveBlocked={saveBlocked}
+        />
         <AiActions
           saveBlocked={saveBlocked}
           verifyBlocked={verifyBlocked}
@@ -112,11 +151,7 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
           onVerify={verifyNow}
         />
       </form>
-      <output>{result?.kind === "ok" ? result.text : null}</output>
-      <Alert text={result?.kind === "error" ? result.text : null} />
-      {result?.kind === "ok" && result.digest !== undefined ? (
-        <DigestResult digest={result.digest} />
-      ) : null}
+      <AiOutcome result={result} />
     </>
   );
 }

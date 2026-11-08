@@ -35,6 +35,8 @@ const FIELD_KINDS = {
   key: { name: "key", type: "password", autoComplete: "new-password", maxLength: AI_KEY_MAX },
 } as const;
 
+const OPTIONAL_MODEL_KIND = { ...FIELD_KINDS.model, required: false } as const;
+
 const REQUIRED_KEY_KIND = { ...FIELD_KINDS.key, required: true } as const;
 
 function AiProviderPicker({
@@ -67,12 +69,31 @@ function AiProviderPicker({
   );
 }
 
+function modelHelp(provider: Provider) {
+  if (provider === "claude-code") return AI_TEXT.claudeCodeModelHelp;
+
+  return provider === "workers-ai" ? AI_TEXT.workersAiHelp : undefined;
+}
+
 function helpFor(name: "baseUrl" | "model" | "key", provider: Provider, publicOnly: boolean) {
   if (name === "key") return AI_TEXT.keyHelp;
 
-  if (name === "baseUrl" && publicOnly) return AI_TEXT.publicUrlHelp;
+  if (name === "model") return modelHelp(provider);
 
-  return name === "model" && provider === "workers-ai" ? AI_TEXT.workersAiHelp : undefined;
+  return publicOnly ? AI_TEXT.publicUrlHelp : undefined;
+}
+
+function kindFor(
+  name: "baseUrl" | "model" | "key",
+  provider: Provider,
+  publicOnly: boolean,
+  keyRequired: boolean,
+) {
+  if (name === "key") return keyRequired ? REQUIRED_KEY_KIND : FIELD_KINDS.key;
+
+  if (name === "model") return provider === "claude-code" ? OPTIONAL_MODEL_KIND : FIELD_KINDS.model;
+
+  return publicOnly ? PUBLIC_URL_KIND : FIELD_KINDS.baseUrl;
 }
 
 export function AiFields({
@@ -98,15 +119,7 @@ export function AiFields({
           key={name}
           field={fields[name]}
           label={AI_TEXT[name]}
-          kind={
-            name === "key"
-              ? keyRequired
-                ? REQUIRED_KEY_KIND
-                : FIELD_KINDS.key
-              : name === "baseUrl" && publicOnly
-                ? PUBLIC_URL_KIND
-                : FIELD_KINDS[name]
-          }
+          kind={kindFor(name, fields.provider, publicOnly, keyRequired)}
           help={helpFor(name, fields.provider, publicOnly)}
         />
       ))}

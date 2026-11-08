@@ -39,6 +39,7 @@ launch() {
   [[ -v SETUP_CODE ]] && env_args=(--env SETUP_CODE)
   [[ -v THREADSIFT_SECRET_KEY ]] && env_args+=(--env THREADSIFT_SECRET_KEY)
   [[ -v PASSWORD_RESET_CODE ]] && env_args+=(--env PASSWORD_RESET_CODE)
+  [[ -v CLAUDE_CODE_OAUTH_TOKEN ]] && env_args+=(--env CLAUDE_CODE_OAUTH_TOKEN)
   podman run --detach --name "$name" --publish "127.0.0.1::8080" --volume "$volume:/data" "${env_args[@]}" "$image" >/dev/null
   echo "$name" >"$dir/name"
   echo "$volume" >"$dir/volume"
@@ -66,6 +67,12 @@ restart)
     podman rm --force "$name" >/dev/null
     podman run --detach --name "$name" --publish "127.0.0.1:$port:8080" --volume "$volume:/data" --env-file "$3" "$image" >/dev/null
   fi
+  wait_for_session_route "$(<"$2/url")" 60
+  ;;
+crash)
+  name=$(<"$2/name")
+  podman kill --signal KILL "$name" >/dev/null
+  podman start "$name" >/dev/null
   wait_for_session_route "$(<"$2/url")" 60
   ;;
 logs)
