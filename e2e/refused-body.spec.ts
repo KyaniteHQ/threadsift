@@ -1,35 +1,39 @@
-import { type APIRequestContext, expect, request, test } from "@playwright/test";
+import { expect, request, test } from "@playwright/test";
 
 import { agentToken, bearer } from "./access.ts";
-import { slowLink } from "./slow-link.ts";
+import { type Upload, slowLink } from "./slow-link.ts";
 
 const MIB = 1024 * 1024;
 const ROUNDS = 3;
 
-let owner: APIRequestContext;
-let stopLink: () => Promise<void>;
+const UPLOADS: readonly Upload[] = ["buffered", "paced"];
 
-test.beforeAll(async ({ baseURL }) => {
-  const link = await slowLink(baseURL ?? "");
-  stopLink = link.stop;
-  owner = await request.newContext({ baseURL: link.url, extraHTTPHeaders: bearer(agentToken()) });
-});
+for (const upload of UPLOADS) {
+  test(`a refused 9 MiB body is answered with 413 and the next request on the same request context is answered, over a slow link that takes the upload ${upload}`, async ({
+    baseURL,
+  }) => {
+    const link = await slowLink(baseURL ?? "", upload);
 
-test.afterAll(async () => {
-  await owner.dispose();
-  await stopLink();
-});
-
-test("a request on the same request context after a refused 9 MiB body sent over a slow link is answered", async () => {
-  for (let round = 1; round <= ROUNDS; round += 1) {
-    const refused = await owner.post("/api/items", {
-      data: { url: "https://example.com/", content: "x".repeat(9 * MIB) },
+    const owner = await request.newContext({
+      baseURL: link.url,
+      extraHTTPHeaders: bearer(agentToken()),
     });
 
-    expect(refused.status(), `refused body ${round}`).toBe(413);
+    try {
+      for (let round = 1; round <= ROUNDS; round += 1) {
+        const refused = await owner.post("/api/items", {
+          data: { url: "https://example.com/", content: "x".repeat(9 * MIB) },
+        });
 
-    const next = await owner.get("/api/items");
+        expect(refused.status(), `refused body ${round}`).toBe(413);
 
-    expect(next.status(), `request after refused body ${round}`).toBe(200);
-  }
-});
+        const next = await owner.get("/api/items");
+
+        expect(next.status(), `request after refused body ${round}`).toBe(200);
+      }
+    } finally {
+      await owner.dispose();
+      await link.stop();
+    }
+  });
+}
