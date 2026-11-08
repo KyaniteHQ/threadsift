@@ -17,7 +17,7 @@ export function App() {
     if (itemIdOf(window.location.pathname) !== null) replace("/");
   }, [replace]);
 
-  const { ref, attributes, barFonts, ...look } = useRoot(closeItem);
+  const { ref, attributes, ...look } = useRoot(closeItem);
   const { view, ...session } = useSessionView();
 
   const route = useMemo(
@@ -33,9 +33,7 @@ export function App() {
   return (
     <div ref={ref} className="app" {...attributes} data-reader={look.reader}>
       <ShareContext value={handoff}>
-        {barFonts ? (
-          <Screen screen={screen} look={look} arrived={arrived} session={session} route={route} />
-        ) : null}
+        <Screen screen={screen} look={look} arrived={arrived} session={session} route={route} />
       </ShareContext>
     </div>
   );

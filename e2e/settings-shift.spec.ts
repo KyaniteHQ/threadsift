@@ -15,6 +15,7 @@ const SECTIONS = 5;
 const SEEDED = ["Seeded token 1", "Seeded token 2", "Seeded token 3"] as const;
 const DEADLINE_MARGIN_MS = 30_000;
 const FONT_DELAY_MS = 500;
+const LATE_FONT_DELAY_MS = 6_000;
 
 const ANSWERS = ["ai", "github", "tokens"] as const;
 
@@ -59,7 +60,7 @@ test.afterAll(async () => {
   await screen.close();
 });
 
-async function holdReads(page: Page) {
+async function holdReads(page: Page, fontDelayMs: number) {
   const releases = new Map(ANSWERS.map((answer) => [answer, Promise.withResolvers<void>()]));
   const reached = new Map(ANSWERS.map((answer) => [answer, Promise.withResolvers<void>()]));
 
@@ -77,7 +78,7 @@ async function holdReads(page: Page) {
       await route.fulfill({ response });
     });
 
-  await delayFonts(page, FONT_DELAY_MS);
+  await delayFonts(page, fontDelayMs);
 
   return {
     arrived: Promise.all([...reached.values()].map((entry) => entry.promise)),
@@ -123,16 +124,22 @@ interface Visit {
   readonly size: Readonly<{ width: number; height: number }>;
   readonly answers: readonly Answer[];
   readonly broken?: readonly Answer[];
+  readonly fontDelayMs?: number;
 }
 
-async function visitSettings({ size, answers, broken = [] }: Readonly<Visit>) {
+async function visitSettings({
+  size,
+  answers,
+  broken = [],
+  fontDelayMs = FONT_DELAY_MS,
+}: Readonly<Visit>) {
   const page = await screen.context.newPage();
 
   try {
     await page.setViewportSize(size);
 
     const watch = await watchLayout(page);
-    const held = await holdReads(page);
+    const held = await holdReads(page, fontDelayMs);
 
     const failed = new Set<Answer>([
       ...broken,
@@ -195,3 +202,15 @@ for (const [size, label] of [
 test("on a desktop a read that never answers is given up on and moves no section", async () => {
   await expectNothingMoved({ size: DESKTOP, answers: ["ai", "github"] });
 });
+
+for (const [size, label] of [
+  [PHONE, "a phone"],
+  [DESKTOP, "a desktop"],
+] as const)
+  test(`on ${label} a font that arrives after the page is on screen moves nothing`, async () => {
+    await expectNothingMoved({
+      size,
+      answers: ["ai", "github", "tokens"],
+      fontDelayMs: LATE_FONT_DELAY_MS,
+    });
+  });
