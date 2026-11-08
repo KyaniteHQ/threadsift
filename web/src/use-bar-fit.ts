@@ -9,7 +9,10 @@ function watchBar(bar: HTMLElement, refit: () => void): () => void {
   let watching = true;
 
   const observeAgain = (): void => {
-    if (watching) observer.observe(bar);
+    if (watching) {
+      observer.unobserve(bar);
+      observer.observe(bar);
+    }
   };
 
   observer.observe(bar);
