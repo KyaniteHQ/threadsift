@@ -1,7 +1,9 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
-import { listForRun, postLink, postLinkRaw } from "./api.ts";
+import { mainInstance } from "./access.ts";
+import { itemOf, listForRun, postLink, postLinkRaw, settled } from "./api.ts";
 import { requireGithubBudget } from "./github.ts";
+import { jobsOf } from "./ingest.ts";
 import { newRunId } from "./links.ts";
 import { post } from "./thread-fixtures.ts";
 import { sendThread } from "./threads.ts";
@@ -17,6 +19,25 @@ async function sameItem(request: APIRequestContext, first: number, forms: readon
     expect(pasted.status, form).toBe(200);
     expect(pasted.body.item.id, form).toBe(first);
   }
+}
+
+async function refreshedBy(request: APIRequestContext, id: number, spelling: string) {
+  const settledFirst = await settled(request, id);
+  const read = await request.put(`/api/items/${id}/read-state`, { data: { readState: "read" } });
+  const fetchesBefore = jobsOf(id, mainInstance(), "fetch").length;
+
+  expect(read.status()).toBe(200);
+
+  const pasted = await postLinkRaw(request, spelling);
+
+  expect([pasted.status, pasted.body.item.id], spelling).toEqual([200, id]);
+
+  const refreshed = await settled(request, id);
+
+  expect(jobsOf(id, mainInstance(), "fetch")).toHaveLength(fetchesBefore + 1);
+  expect(jobsOf(id, mainInstance(), "fetch").at(-1)?.state).toBe("done");
+  expect(refreshed.savedAt).toBe(settledFirst.savedAt);
+  expect(refreshed.readState).toBe("read");
 }
 
 test("every spelling of one X post is one Item, and a reply, a quote post and a profile stay separate", async ({
@@ -45,6 +66,7 @@ test("every spelling of one X post is one Item, and a reply, a quote post and a 
   expect(first.status).toBe(201);
   expect(first.body.item).toMatchObject({ normalizedUrl: identity, originalUrl: pastedFirst });
   await sameItem(request, first.body.item.id, others);
+  await refreshedBy(request, first.body.item.id, `https://twitter.com/Zed/status/${status}?s=1`);
 
   const reply = await postLink(request, `https://x.com/bob/status/2${run}`);
   const quote = await postLink(request, `https://x.com/carol/status/3${run}`);
@@ -75,10 +97,35 @@ test("two first pastes of two spellings of one X post at the same time make one 
   expect(await listForRun(request, run)).toHaveLength(1);
 });
 
+async function keepsOwnItems(request: APIRequestContext, name: string, repositoryId: number) {
+  const issue = await postLink(request, `https://github.com/KyaniteHQ/${name}/issues/6`);
+  const file = await postLink(request, `https://github.com/KyaniteHQ/${name}/blob/Main/README.md`);
+
+  const otherCase = await postLink(
+    request,
+    `https://github.com/KyaniteHQ/${name}/blob/main/README.md`,
+  );
+
+  const another = await postLink(request, `https://github.com/KyaniteHQ/${name}-fork`);
+
+  const ids = [repositoryId, ...[issue, file, otherCase, another].map(({ body }) => body.item.id)];
+  expect(new Set(ids).size).toBe(ids.length);
+
+  expect(
+    [issue, file, otherCase].map(({ body }) =>
+      body.item.normalizedUrl.replace(/^.*\/\/[^/]+/u, ""),
+    ),
+  ).toEqual([
+    `/KyaniteHQ/${name}/issues/6`,
+    `/KyaniteHQ/${name}/blob/Main/README.md`,
+    `/KyaniteHQ/${name}/blob/main/README.md`,
+  ]);
+}
+
 test("every spelling of a GitHub repository root is one Item, and a rename, a deep link and a file path keep their own", async ({
   request,
 }) => {
-  await requireGithubBudget(16);
+  await requireGithubBudget(20);
   const run = newRunId();
   const name = `ident-${run}`;
   const identity = `https://github.com/kyanitehq/${name}`;
@@ -99,28 +146,13 @@ test("every spelling of a GitHub repository root is one Item, and a rename, a de
   expect(first.body.item).toMatchObject({ normalizedUrl: identity, originalUrl: pastedFirst });
   await sameItem(request, first.body.item.id, others);
 
-  const issue = await postLink(request, `https://github.com/KyaniteHQ/${name}/issues/6`);
-  const file = await postLink(request, `https://github.com/KyaniteHQ/${name}/blob/Main/README.md`);
-
-  const otherCase = await postLink(
+  await refreshedBy(
     request,
-    `https://github.com/KyaniteHQ/${name}/blob/main/README.md`,
+    first.body.item.id,
+    `https://github.com/KYANITEHQ/${name.toUpperCase()}/`,
   );
 
-  const another = await postLink(request, `https://github.com/KyaniteHQ/${name}-fork`);
-
-  const ids = [first, issue, file, otherCase, another].map(({ body }) => body.item.id);
-  expect(new Set(ids).size).toBe(ids.length);
-
-  expect(
-    [issue, file, otherCase].map(({ body }) =>
-      body.item.normalizedUrl.replace(/^.*\/\/[^/]+/u, ""),
-    ),
-  ).toEqual([
-    `/KyaniteHQ/${name}/issues/6`,
-    `/KyaniteHQ/${name}/blob/Main/README.md`,
-    `/KyaniteHQ/${name}/blob/main/README.md`,
-  ]);
+  await keepsOwnItems(request, name, first.body.item.id);
 });
 
 test("two first pastes of two spellings of one GitHub repository at the same time make one Item", async ({
@@ -179,6 +211,17 @@ test("every spelling of a Reddit post id is one Item", async ({ request }) => {
     expect(again.item.id, url).toBe(first.item.id);
   }
 
+  const stored = await itemOf(request, first.item.id);
+  expect(stored.comments.received).toBe(0);
+
+  const changed = await savedThread(request, {
+    url: `https://old.reddit.com/r/${SUBREDDIT}/comments/${upper}/title/`,
+    content: threadOf(id, ["k9xyz12"]),
+  });
+
+  expect([changed.status, changed.item.id]).toEqual([200, first.item.id]);
+  expect(changed.item.comments.received).toBe(1);
+  expect(changed.item.savedAt).toBe(stored.savedAt);
   expect(await listForRun(request, run)).toHaveLength(1);
 });
 

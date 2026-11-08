@@ -1,51 +1,82 @@
-import type { BatchItem } from "drizzle-orm/batch";
+import { eq, lt } from "drizzle-orm";
 
+import type { DataStep } from "./data-step-contract.ts";
 import { dataSteps } from "./data-step-tables.ts";
-import { ITEM_IDENTITY_VERSION, planItemIdentity } from "./item-identity.ts";
+import { logFailure } from "./failure-log.ts";
+import { ITEM_IDENTITY_VERSION, advanceItemIdentity } from "./item-identity.ts";
 import type { Database } from "./ports.ts";
 
-interface DataStep {
-  readonly name: string;
-  readonly version: number;
-  readonly plan: (db: Database) => Promise<readonly (readonly BatchItem<"sqlite">[])[]>;
-}
+const UNITS_PER_RUN = 100;
 
 const STEPS: readonly DataStep[] = [
-  { name: "item-identity", version: ITEM_IDENTITY_VERSION, plan: planItemIdentity },
+  { name: "item-identity", version: ITEM_IDENTITY_VERSION, advance: advanceItemIdentity },
 ];
 
-async function recordedVersions(db: Database): Promise<ReadonlyMap<string, number>> {
-  const rows = await db.select().from(dataSteps);
-
-  return new Map(rows.map(({ name, version }) => [name, version]));
+function cursorKey(version: number): string {
+  return `${version}|`;
 }
 
-async function commit(db: Database, [first, ...rest]: readonly BatchItem<"sqlite">[]) {
-  if (first !== undefined) {
-    await db.batch([first, ...rest]);
+async function recordedRow(db: Database, name: string) {
+  const [row] = await db.select().from(dataSteps).where(eq(dataSteps.name, name));
+
+  return row ?? { name, version: 0, cursor: null };
+}
+
+function progress(db: Database, { name, version }: Readonly<DataStep>, cursor: string | null) {
+  const stored = cursor === null ? null : `${cursorKey(version)}${cursor}`;
+
+  return db
+    .insert(dataSteps)
+    .values({ name, version: cursor === null ? version : 0, cursor: stored })
+    .onConflictDoUpdate({
+      target: dataSteps.name,
+      set: cursor === null ? { version, cursor: null } : { cursor: stored },
+      setWhere: lt(dataSteps.version, version),
+    });
+}
+
+async function runUnits(db: Database, step: Readonly<DataStep>, units: number): Promise<void> {
+  const row = await recordedRow(db, step.name);
+
+  if (units === 0 || row.version >= step.version) {
+    return;
+  }
+
+  const prefix = cursorKey(step.version);
+  const resume = row.cursor?.startsWith(prefix) === true ? row.cursor.slice(prefix.length) : null;
+  const { writes, cursor } = await step.advance(db, resume);
+
+  const [first, ...rest] = [...writes, progress(db, step, cursor)];
+
+  await db.batch([first, ...rest]);
+
+  if (cursor !== null) {
+    await runUnits(db, step, units - 1);
   }
 }
 
-async function runStep(db: Database, { name, version, plan }: Readonly<DataStep>): Promise<void> {
-  const batches = await plan(db);
-
-  const recorded = db
-    .insert(dataSteps)
-    .values({ name, version })
-    .onConflictDoUpdate({ target: dataSteps.name, set: { version } });
-
-  await batches
-    .slice(0, -1)
-    .reduce((done, writes) => done.then(() => commit(db, writes)), Promise.resolve());
-
-  await db.batch([recorded, ...(batches.at(-1) ?? [])]);
-}
-
 export async function migrateData(db: Database): Promise<void> {
-  const recorded = await recordedVersions(db);
-
-  await STEPS.filter(({ name, version }) => (recorded.get(name) ?? 0) < version).reduce(
-    (done, step) => done.then(() => runStep(db, step)),
+  await STEPS.reduce(
+    (done, step) => done.then(() => runUnits(db, step, UNITS_PER_RUN)),
     Promise.resolve(),
   );
+}
+
+async function pending(db: Database): Promise<boolean> {
+  const rows = await db.select().from(dataSteps);
+  const versions = new Map(rows.map(({ name, version }) => [name, version]));
+
+  return STEPS.some(({ name, version }) => (versions.get(name) ?? 0) < version);
+}
+
+export async function dataStepsFinished(db: Database): Promise<boolean> {
+  if (!(await pending(db))) {
+    return true;
+  }
+
+  await migrateData(db).catch((error: Readonly<Error>) => {
+    logFailure("data-steps-failed", {}, error);
+  });
+
+  return !(await pending(db));
 }

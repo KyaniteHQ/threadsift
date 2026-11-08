@@ -25,7 +25,7 @@ export {
   throttles,
 } from "./access-tables.ts";
 
-export { dataSteps } from "./data-step-tables.ts";
+export { dataStepRenames, dataSteps } from "./data-step-tables.ts";
 
 export { githubCooldown, githubSettings } from "./github-tables.ts";
 

@@ -1,11 +1,12 @@
-import { type APIRequestContext, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { type Instance, freshDir, newCode } from "./access.ts";
+import type { Instance } from "./access.ts";
 import { postLinkRaw } from "./api.ts";
-import { ownerOf } from "./files.ts";
+import { attemptStep, count, lines, marker, runStep, started, stored } from "./identity-run.ts";
 import {
   ALICE_POSTED,
+  APPLIED_BEFORE_STOP,
   BEFORE_IDENTITY,
   CAROL_POSTED,
   COLLISIONS,
@@ -14,18 +15,11 @@ import {
   MANY_BEFORE,
   MANY_RENAMES,
   RENAMED,
+  SEEDED_COLUMNS,
 } from "./identity-seed.ts";
-import { eventLines, releaseSweepThrottle, sweepNow } from "./ingest.ts";
-import { type Seed, launchSeeded } from "./seeded.ts";
-import { isContainerTarget } from "./target.ts";
+import { sweepNow } from "./ingest.ts";
 
 test.describe.configure({ timeout: 480_000 });
-
-const Stored = z.array(z.object({ id: z.number(), normalized_url: z.string() }));
-
-const Counts = z.array(z.object({ n: z.number() }));
-
-const Marker = z.array(z.object({ name: z.string(), version: z.number() }));
 
 const OtherColumns = z.array(
   z.object({
@@ -41,50 +35,11 @@ const OtherColumns = z.array(
 
 const RENAMED_IDS: ReadonlySet<number> = new Set(RENAMED.map(([id]) => id));
 
-function stored(instance: Instance) {
-  return instance.query("SELECT id, normalized_url FROM items ORDER BY id", Stored);
-}
-
 function otherColumns(instance: Instance) {
   return instance.query(
     "SELECT id, original_url, kind, saved_at, read_state, generation, title FROM items ORDER BY id",
     OtherColumns,
   );
-}
-
-function count(instance: Instance, statement: string): number {
-  return instance.query(`SELECT count(*) AS n FROM (${statement})`, Counts)[0]?.n ?? -1;
-}
-
-function marker(instance: Instance) {
-  return instance.query("SELECT name, version FROM data_steps", Marker);
-}
-
-function lines(instance: Instance, event: string): string[] {
-  return eventLines(instance, event, "");
-}
-
-async function started(seed: Seed) {
-  const code = newCode();
-  const instance = launchSeeded(freshDir(), code, seed);
-
-  return { instance, owner: await ownerOf(instance, code, "m".repeat(20)) };
-}
-
-async function attemptStep(owner: APIRequestContext, instance: Instance) {
-  if (isContainerTarget()) {
-    instance.restart();
-
-    return;
-  }
-
-  releaseSweepThrottle(instance);
-  await owner.get("/cdn-cgi/local/scheduled");
-}
-
-async function runStep(owner: APIRequestContext, instance: Instance) {
-  await sweepNow(owner, instance);
-  await expect.poll(() => marker(instance).length, { timeout: 90_000 }).toBeGreaterThan(0);
 }
 
 function expectRenamesAndCollisions(instance: Instance): void {
@@ -108,6 +63,14 @@ function expectRenamesAndCollisions(instance: Instance): void {
     expect(reported).toHaveLength(1);
     expect(reported[0]).toContain(`"itemIds":[${ids.join(",")}]`);
   }
+}
+
+function expectIntegrity(instance: Instance): void {
+  expect(instance.query("PRAGMA foreign_key_check", z.array(z.unknown()))).toEqual([]);
+
+  expect(() => {
+    instance.sql("INSERT INTO search_index(search_index) VALUES ('integrity-check')");
+  }).not.toThrow();
 }
 
 function expectRecordsKept(instance: Instance): void {
@@ -134,14 +97,14 @@ test("the step renames the Items whose new identity is theirs alone with their i
   const { instance, owner } = await started(BEFORE_IDENTITY);
 
   try {
-    const before = otherColumns(instance);
-
     await runStep(owner, instance);
 
-    expect(marker(instance)).toEqual([{ name: "item-identity", version: 1 }]);
+    expect(marker(instance)).toEqual([{ name: "item-identity", version: 1, cursor: null }]);
+    expect(count(instance, "SELECT 1 FROM data_step_renames")).toBe(0);
     expectRenamesAndCollisions(instance);
-    expect(otherColumns(instance)).toEqual(before);
+    expect(otherColumns(instance)).toEqual(SEEDED_COLUMNS);
     expectRecordsKept(instance);
+    expectIntegrity(instance);
   } finally {
     await owner.dispose();
     instance.stop();
@@ -172,49 +135,51 @@ test("a repeated step does nothing while its version is recorded, and the same r
   try {
     await runStep(owner, instance);
     const done = stored(instance);
-    const planned = lines(instance, "item-identity-planned").length;
+    const finished = lines(instance, "item-identity-finished").length;
 
     await sweepNow(owner, instance);
 
     expect(stored(instance)).toEqual(done);
-    expect(lines(instance, "item-identity-planned")).toHaveLength(planned);
+    expect(lines(instance, "item-identity-finished")).toHaveLength(finished);
 
     instance.sql("DELETE FROM data_steps");
     await runStep(owner, instance);
 
     expect(stored(instance)).toEqual(done);
-    expect(lines(instance, "item-identity-planned")).toHaveLength(planned + 1);
+    expect(lines(instance, "item-identity-finished")).toHaveLength(finished + 1);
   } finally {
     await owner.dispose();
     instance.stop();
   }
 });
 
-test("a step interrupted after two batches keeps those batches whole, records nothing, and finishes to the same result on the next run", async () => {
+test("a step stopped in its rename phase keeps the finished pages and its place, and the next run finishes without redoing them", async () => {
   const { instance, owner } = await started(MANY_BEFORE);
 
   try {
     await attemptStep(owner, instance);
+
     await expect
       .poll(
         () =>
           count(
             instance,
-            "SELECT 1 FROM items WHERE id <= 200 AND normalized_url = lower(normalized_url)",
+            "SELECT 1 FROM items WHERE normalized_url = lower(normalized_url) AND id <= 1130",
           ),
-        {
-          timeout: 90_000,
-        },
+        { timeout: 90_000 },
       )
-      .toBe(200);
+      .toBe(APPLIED_BEFORE_STOP);
 
     const half = stored(instance);
 
-    expect(marker(instance)).toEqual([]);
-    expect(
-      half.filter(({ normalized_url }) => normalized_url !== normalized_url.toLowerCase()),
-    ).toHaveLength(MANY_RENAMES - 200);
-    expect(half.slice(200).map(({ id }) => id)).toContain(INTERRUPTED_AT);
+    expect(marker(instance)).toEqual([
+      { name: "item-identity", version: 0, cursor: `1|apply:${APPLIED_BEFORE_STOP}` },
+    ]);
+
+    expect(count(instance, "SELECT 1 FROM data_step_renames")).toBe(
+      MANY_RENAMES - APPLIED_BEFORE_STOP,
+    );
+    expect(half.slice(APPLIED_BEFORE_STOP).map(({ id }) => id)).toContain(INTERRUPTED_AT);
 
     instance.sql("DROP TRIGGER stop_batch");
     await runStep(owner, instance);
@@ -222,6 +187,9 @@ test("a step interrupted after two batches keeps those batches whole, records no
     expect(stored(instance)).toEqual(
       half.map(({ id }) => ({ id, normalized_url: `https://github.com/org/repo-${id}` })),
     );
+
+    expect(marker(instance)).toEqual([{ name: "item-identity", version: 1, cursor: null }]);
+    expect(count(instance, "SELECT 1 FROM data_step_renames")).toBe(0);
   } finally {
     await owner.dispose();
     instance.stop();

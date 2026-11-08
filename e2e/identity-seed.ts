@@ -64,9 +64,9 @@ INSERT INTO jobs (kind, item_id, address, state, attempts, next_attempt_at) VALU
 `,
 };
 
-export const MANY_RENAMES = 250;
+export const MANY_RENAMES = 1200;
 
-export const INTERRUPTED_AT = 230;
+export const INTERRUPTED_AT = 1130;
 
 export const MANY_BEFORE: Seed = {
   files: BEFORE_IDENTITY_STEP,
@@ -77,3 +77,46 @@ SELECT i, 'github', 'github-repo', 'https://github.com/Org/Repo-' || i, 'https:/
 CREATE TRIGGER stop_batch BEFORE UPDATE OF normalized_url ON items WHEN OLD.id = ${INTERRUPTED_AT} BEGIN SELECT RAISE(ABORT, 'stopped for the test'); END;
 `,
 };
+
+export const LONG_RENAMES = 100;
+
+export const LONG_QUERY_CHARS = 12_000;
+
+export const LONG_BEFORE: Seed = {
+  files: BEFORE_IDENTITY_STEP,
+  sql: `
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ${LONG_RENAMES})
+INSERT INTO items (id, source, kind, normalized_url, original_url, saved_at)
+SELECT i, 'github', 'github-repo',
+  'https://github.com/Org/Repo-' || i || '?q=' || substr(hex(zeroblob(${LONG_QUERY_CHARS / 2})), 1, ${LONG_QUERY_CHARS}),
+  'https://github.com/Org/Repo-' || i, 5000 + i FROM n;
+`,
+};
+
+export const FAILING_BEFORE: Seed = {
+  files: BEFORE_IDENTITY_STEP,
+  sql: `${BEFORE_IDENTITY.sql}
+CREATE TRIGGER stop_batch BEFORE UPDATE OF normalized_url ON items WHEN OLD.id = 1 BEGIN SELECT RAISE(ABORT, 'stopped for the test'); END;
+`,
+};
+
+export const APPLIED_BEFORE_STOP = 1000;
+
+export const RIVAL = {
+  id: 18,
+  of: 2,
+  taken: `https://x.com/i/status/${xId(2)}`,
+  stays: `https://twitter.com/bob/status/${xId(2)}/photo/1`,
+} as const;
+
+export const NEWER_RELEASE_VERSION = 2;
+
+export const SEEDED_COLUMNS = ITEMS.map(([id, , kind, url]) => ({
+  id,
+  original_url: url,
+  kind,
+  saved_at: 1000 + id,
+  read_state: id === 3 ? "read" : "unread",
+  generation: id === 3 ? 2 : 0,
+  title: id === 3 ? "KyaniteHQ/threadsift" : null,
+}));

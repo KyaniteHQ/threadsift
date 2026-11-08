@@ -38,10 +38,18 @@ async function claimSweep({ db }: Readonly<JobPorts>, now: number): Promise<bool
   return claimed.length > 0;
 }
 
-export async function tick(ports: JobPorts): Promise<void> {
+async function sweepWhenDue(ports: JobPorts): Promise<void> {
   if (await claimSweep(ports, Date.now())) {
     await sweep(ports);
   }
+}
 
-  await migrateData(ports.db);
+export async function tick(ports: JobPorts): Promise<void> {
+  const results = await Promise.allSettled([migrateData(ports.db), sweepWhenDue(ports)]);
+
+  for (const result of results) {
+    if (result.status === "rejected") {
+      throw result.reason;
+    }
+  }
 }

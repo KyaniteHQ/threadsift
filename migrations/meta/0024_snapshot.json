@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6bd02756-c0eb-4aab-990e-c992c27d45c8",
+  "id": "db96e05e-3734-4d0e-85eb-ef0ca5c175cb",
   "prevId": "ce3af505-382a-47bd-9bda-f65eda4602a8",
   "tables": {
     "agent_tokens": {
@@ -272,6 +272,55 @@
         }
       }
     },
+    "data_step_renames": {
+      "name": "data_step_renames",
+      "columns": {
+        "step": {
+          "name": "step",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "old_key": {
+          "name": "old_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "new_key": {
+          "name": "new_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "data_step_renames_new_key": {
+          "name": "data_step_renames_new_key",
+          "columns": ["step", "new_key"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "data_step_renames_step_subject_pk": {
+          "columns": ["step", "subject"],
+          "name": "data_step_renames_step_subject_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "data_steps": {
       "name": "data_steps",
       "columns": {
@@ -287,6 +336,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "cursor": {
+          "name": "cursor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         }
       },
