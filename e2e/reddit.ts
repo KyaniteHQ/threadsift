@@ -2,7 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { test } from "@playwright/test";
 
-import { parseLink } from "../src/core/links.ts";
+import { isRedditShareLink, parseLink } from "../src/core/links.ts";
 
 const OEMBED_SPACING_MS = 2000;
 
@@ -24,7 +24,7 @@ export async function waitForRedditTurn(url: string): Promise<void> {
 }
 
 export async function waitForRedditTurnIfNeeded(url: string): Promise<void> {
-  if (parseLink(url).source === "reddit") {
+  if (parseLink(url).source === "reddit" || isRedditShareLink(url)) {
     await waitForRedditTurn(url);
   }
 }

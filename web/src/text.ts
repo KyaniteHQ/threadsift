@@ -59,6 +59,10 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
     text: "This link redirected to Reddit or X, so it was saved without a title.",
     kind: "save-note",
   },
+  unresolved: {
+    text: "Couldn’t find the post or comment this link points to, so it was saved as it is, without a title.",
+    kind: "save-note",
+  },
   status: {
     text: "The website answered with an error, so this link was saved without a title.",
     kind: "save-note",

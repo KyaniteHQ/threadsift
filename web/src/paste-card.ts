@@ -17,6 +17,7 @@ const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
   unsupported: "unsupported",
   "redirect-limit": "redirect-limit",
   "redirect-stopped": "redirect-stopped",
+  unresolved: "unresolved",
   status: "status",
   "no-title": "no-title",
   unreadable: "unreadable",

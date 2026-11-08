@@ -3,7 +3,7 @@ import { saveFailedResolution } from "./failed-resolution.ts";
 import { resolveShortLink } from "./fetch-link.ts";
 import { type Paste, type SaveResult, foundItem, queuedWrites, saveQueued } from "./items.ts";
 import { enqueueRows } from "./job-rows.ts";
-import { type Link, isRefusedLink, isShortLink, parseLink } from "./links.ts";
+import { type Link, isRedditShareLink, isRefusedLink, isShortLink, parseLink } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { guards, insertGuard } from "./schema.ts";
 import {
@@ -70,7 +70,7 @@ export function saveItem(ports: Ports, absoluteUrl: string, digest?: Digest): Pr
     return Promise.resolve({ kind: "refused" });
   }
 
-  return isShortLink(absoluteUrl)
+  return isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)
     ? saveShortLink(ports, absoluteUrl, digest)
     : saveQueued(
         ports,

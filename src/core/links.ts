@@ -64,6 +64,7 @@ const X_STATUS_PATH = /^\/(?:[^/]+|i\/web)\/status\/(\d+)(?:\/|$)/u;
 const LEADING_ZEROS = /^0+(?=\d)/u;
 const REDDIT_PATH_PREFIXES: ReadonlySet<string> = new Set(["r", "user", "u"]);
 const REDDIT_ID = /^[a-zA-Z\d]+$/u;
+const REDDIT_SHARE_PATH = /^\/r\/[^/]+\/s\/[a-zA-Z\d]+\/?$/u;
 
 function isTrackingParam(pair: string, host: string): boolean {
   const key = (new URLSearchParams(pair).keys().next().value ?? "").toLowerCase();
@@ -215,6 +216,12 @@ export function isRefusedLink(absoluteUrl: string): boolean {
 
 export function isShortLink(absoluteUrl: string): boolean {
   return SHORT_LINK_HOSTS.has(hostOf(absoluteUrl));
+}
+
+export function isRedditShareLink(absoluteUrl: string): boolean {
+  return (
+    hostOf(absoluteUrl) === "reddit.com" && REDDIT_SHARE_PATH.test(new URL(absoluteUrl).pathname)
+  );
 }
 
 export function isGitHubLink(absoluteUrl: string): boolean {
