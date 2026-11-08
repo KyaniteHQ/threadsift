@@ -58,27 +58,14 @@ require_current_bundle() {
   }
 }
 
-D1_TRIES=10
-
-d1_execute() {
-  local dir=$1 attempt status output errors
-  shift
-  errors=$(mktemp)
-  for attempt in $(seq 1 "$D1_TRIES"); do
-    status=0
-    output=$(pnpm exec wrangler d1 execute DB --local --persist-to "$dir/state" "$@" 2>"$errors") || status=$?
-    [[ $status -ne 0 ]] || break
-    grep -q SQLITE_BUSY "$errors" || grep -q SQLITE_BUSY <<<"$output" || break
-    sleep 0.5
-  done
-  cat "$errors" >&2
-  rm -f "$errors"
-  if [[ $status -eq 0 ]]; then
-    printf '%s\n' "$output"
-  else
-    printf '%s\n' "$output" >&2
+d1_query() {
+  local dir=$1 statement=$2 response
+  response=$(jq -cn --arg sql "$statement" '{sql: $sql}' | curl --silent --show-error --max-time 120 --request POST --header 'content-type: application/json' --data-binary @- "$(<"$dir/url")/cdn-cgi/local/explorer/api/d1/database/DB/raw") || return $?
+  if ! jq -e '.success == true' <<<"$response" >/dev/null 2>&1; then
+    printf '%s\n' "$response" >&2
+    return 1
   fi
-  return "$status"
+  printf '%s\n' "$response"
 }
 
 launch() {
@@ -109,15 +96,11 @@ logs)
   cat "$2/wrangler.log"
   ;;
 sql)
-  d1_execute "$2" --command "$3" >/dev/null
+  d1_query "$2" "$3" >/dev/null
   ;;
 query)
-  output=$(d1_execute "$2" --json --command "$3")
-  if ! results=$(jq -ce '.[0].results | select(type == "array")' <<<"$output" 2>/dev/null); then
-    printf '%s\n' "${output:-wrangler returned no results array}" >&2
-    exit 1
-  fi
-  printf '%s\n' "$results"
+  response=$(d1_query "$2" "$3")
+  jq -ce '.result[0].results | . as $r | [$r.rows[] | . as $row | reduce range(0; $r.columns | length) as $i ({}; .[$r.columns[$i]] = $row[$i])]' <<<"$response"
   ;;
 file-read)
   errors=$(mktemp)

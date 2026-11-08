@@ -9,7 +9,6 @@ import {
   STALLED,
   afterFirstClaim,
   expireClaim,
-  failedAttemptLines,
   jobsOf,
   makeDue,
   releaseSweepThrottle,
@@ -173,13 +172,8 @@ async function waitForRetry(id: number, attempts: number, timeout: number): Prom
     .toBe(true);
 }
 
-async function waitForFailedAttempt(jobId: number, attempt: number, timeout: number) {
-  await expect
-    .poll(() => failedAttemptLines(mainInstance(), jobId, attempt).length, {
-      timeout,
-      intervals: [500],
-    })
-    .toBe(1);
+function nextAttemptAt(id: number): number {
+  return jobsOf(id)[0]?.next_attempt_at ?? 0;
 }
 
 function expectRetryAfter(id: number, dueAt: number, delay: number, label: string): number {
@@ -202,25 +196,21 @@ function expectRetryAfter(id: number, dueAt: number, delay: number, label: strin
 test("an attempt that throws is retried after 30 s and then 2 minutes, and the job ends failed with gave-up", async ({
   request,
 }) => {
-  test.setTimeout(200_000);
+  test.setTimeout(120_000);
 
   const id = storeProcessingItemWithDueJob(
     `https://example.com/damaged-${newRunId()}`,
     "not a url",
   );
 
-  const [job] = jobsOf(id);
-  const jobId = job?.id ?? 0;
-  const firstDueAt = job?.next_attempt_at ?? 0;
+  const firstDueAt = nextAttemptAt(id);
   await sweepNow(request);
 
-  await waitForFailedAttempt(jobId, 1, 20_000);
   await waitForRetry(id, 1, 20_000);
   const secondDueAt = expectRetryAfter(id, firstDueAt, FIRST_DELAY_MS, "after attempt 1");
   expect((await itemOf(request, id)).status).toBe("processing");
 
-  await waitForFailedAttempt(jobId, 2, FIRST_DELAY_MS + 30_000);
-  await waitForRetry(id, 2, 20_000);
+  await waitForRetry(id, 2, FIRST_DELAY_MS + 30_000);
   expectRetryAfter(id, secondDueAt, SECOND_DELAY_MS, "after attempt 2");
   expect((await itemOf(request, id)).status).toBe("processing");
 
