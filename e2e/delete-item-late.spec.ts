@@ -71,12 +71,14 @@ test("a Read state answer that arrives after the delete does not bring the row b
 
   const gate = Promise.withResolvers<void>();
   const reached = Promise.withResolvers<void>();
+  const delivered = Promise.withResolvers<void>();
 
   await page.route(/\/api\/items\/\d+\/read-state$/u, async (route) => {
     const response = await route.fetch();
     reached.resolve();
     await gate.promise;
     await route.fulfill({ response });
+    delivered.resolve();
   });
 
   await page.keyboard.press("m");
@@ -86,6 +88,7 @@ test("a Read state answer that arrives after the delete does not bring the row b
   await expect(titleLink(page, second)).toBeFocused();
 
   gate.resolve();
+  await delivered.promise;
   await afterTwoFrames(page);
 
   await expectRows(page, [second, third, fourth]);

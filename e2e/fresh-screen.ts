@@ -29,8 +29,15 @@ export async function openFresh(browser: Browser, code: string | null): Promise<
       context,
       page,
       close: async () => {
-        await context.close();
-        fresh.stop();
+        try {
+          if (!page.isClosed()) await page.unrouteAll({ behavior: "ignoreErrors" });
+        } finally {
+          try {
+            await context.close();
+          } finally {
+            fresh.stop();
+          }
+        }
       },
     };
   } catch (error) {

@@ -8,6 +8,7 @@ export CI=1 WRANGLER_SEND_METRICS=false THREADSIFT_TARGET=worker NO_COLOR=1
 
 self=$PWD/tools/e2e/worker.sh
 bucket=threadsift-files
+d1_id=DB
 
 ready_url() {
   local log=$1 offset=$2 pid=$3 url
@@ -20,6 +21,7 @@ ready_url() {
 start() {
   local dir=$1 port=${2:-0} offset url pid
   offset=$(wc -c <"$dir/wrangler.log")
+  rm -f "$dir/explorer-checked"
   setsid pnpm exec wrangler dev --local --ip 127.0.0.1 --port "$port" --inspector-port 0 --persist-to "$dir/state" --env-file "$dir/env" >>"$dir/wrangler.log" 2>&1 &
   pid=$!
   echo "$pid" >"$dir/pid"
@@ -58,27 +60,73 @@ require_current_bundle() {
   }
 }
 
-D1_TRIES=10
+explorer_api() {
+  printf '%s/cdn-cgi/local/explorer/api' "$(<"$1/url")"
+}
 
-d1_execute() {
-  local dir=$1 attempt status output errors
-  shift
-  errors=$(mktemp)
-  for attempt in $(seq 1 "$D1_TRIES"); do
-    status=0
-    output=$(pnpm exec wrangler d1 execute DB --local --persist-to "$dir/state" "$@" 2>"$errors") || status=$?
-    [[ $status -ne 0 ]] || break
-    grep -q SQLITE_BUSY "$errors" || grep -q SQLITE_BUSY <<<"$output" || break
-    sleep 0.5
-  done
-  cat "$errors" >&2
-  rm -f "$errors"
-  if [[ $status -eq 0 ]]; then
-    printf '%s\n' "$output"
-  else
-    printf '%s\n' "$output" >&2
+explorer_lists() {
+  local api=$1 path=$2 filter=$3 name=$4 listing
+  listing=$(curl --silent --show-error --fail --max-time 30 "$api/$path") || {
+    echo "the Local Explorer did not answer at $api/$path" >&2
+    return 1
+  }
+  jq -e --arg name "$name" "$filter" <<<"$listing" >/dev/null || {
+    echo "the Local Explorer lists no $path entry named $name, and it answers an unknown name with an empty result" >&2
+    return 1
+  }
+}
+
+require_explorer_resources() {
+  local dir=$1 api
+  [[ ! -f $dir/explorer-checked ]] || return 0
+  api=$(explorer_api "$dir")
+  explorer_lists "$api" d1/database '.result | any(.uuid == $name)' "$d1_id" || return 1
+  explorer_lists "$api" r2/buckets '.result.buckets | any(.name == $name)' "$bucket" || return 1
+  : >"$dir/explorer-checked"
+}
+
+d1_query() {
+  local dir=$1 statement=$2 response
+  require_explorer_resources "$dir" || return 1
+  response=$(jq -cn --arg sql "$statement" '{sql: $sql}' | curl --silent --show-error --max-time 120 --request POST --header 'content-type: application/json' --data-binary @- "$(explorer_api "$dir")/d1/database/$d1_id/raw") || return $?
+  if ! jq -e '.success == true' <<<"$response" >/dev/null 2>&1; then
+    printf '%s\n' "$response" >&2
+    return 1
   fi
+  printf '%s\n' "$response"
+}
+
+r2_object_url() {
+  printf '%s/r2/buckets/%s/objects/%s' "$(explorer_api "$1")" "$bucket" "$(jq -rn --arg key "$2" '$key | @uri')"
+}
+
+r2_read() {
+  local dir=$1 key=$2 body code status=0
+  require_explorer_resources "$dir" || return 1
+  body=$(mktemp)
+  code=$(curl --silent --show-error --max-time 120 --output "$body" --write-out '%{http_code}' "$(r2_object_url "$dir" "$key")") || status=1
+  if [[ $status -eq 0 ]]; then
+    if [[ $code == 200 ]]; then
+      cat "$body"
+    elif jq -e '.errors[0].message == "The specified key does not exist."' "$body" >/dev/null 2>&1; then
+      status=3
+    else
+      cat "$body" >&2
+      status=1
+    fi
+  fi
+  rm -f "$body"
   return "$status"
+}
+
+r2_write() {
+  local dir=$1 key=$2 response
+  require_explorer_resources "$dir" || return 1
+  response=$(curl --silent --show-error --max-time 120 --request PUT --header 'content-type: application/octet-stream' --data-binary @- "$(r2_object_url "$dir" "$key")") || return $?
+  if ! jq -e '.success == true' <<<"$response" >/dev/null 2>&1; then
+    printf '%s\n' "$response" >&2
+    return 1
+  fi
 }
 
 launch() {
@@ -109,35 +157,21 @@ logs)
   cat "$2/wrangler.log"
   ;;
 sql)
-  d1_execute "$2" --command "$3" >/dev/null
+  d1_query "$2" "$3" >/dev/null
   ;;
 query)
-  output=$(d1_execute "$2" --json --command "$3")
-  if ! results=$(jq -ce '.[0].results | select(type == "array")' <<<"$output" 2>/dev/null); then
-    printf '%s\n' "${output:-wrangler returned no results array}" >&2
-    exit 1
-  fi
-  printf '%s\n' "$results"
+  response=$(d1_query "$2" "$3")
+  jq -ce '.result[0].results | . as $r | [$r.rows[] | . as $row | reduce range(0; $r.columns | length) as $i ({}; .[$r.columns[$i]] = $row[$i])]' <<<"$response"
   ;;
 file-read)
-  errors=$(mktemp)
-  status=0
-  pnpm exec wrangler r2 object get "$bucket/$3" --local --persist-to "$2/state" --pipe 2>"$errors" || status=$?
-  if [[ $status -ne 0 ]]; then
-    if grep -q 'The specified key does not exist' "$errors"; then
-      status=3
-    else
-      cat "$errors" >&2
-    fi
-  fi
-  rm -f "$errors"
-  exit "$status"
+  r2_read "$2" "$3"
   ;;
 file-write)
-  pnpm exec wrangler r2 object put "$bucket/$3" --local --persist-to "$2/state" --pipe >/dev/null
+  r2_write "$2" "$3"
   ;;
 file-list)
-  node tools/e2e/list-worker-files.ts "$2/state" "$3"
+  require_explorer_resources "$2"
+  node tools/e2e/list-worker-files.ts "$(explorer_api "$2")" "$bucket" "$3"
   ;;
 stop)
   stop "$2"

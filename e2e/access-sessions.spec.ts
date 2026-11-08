@@ -102,8 +102,11 @@ test("a sign-out the server cannot finish leaves the owner signed in and says so
     const title = page.getByRole("heading", { level: 1, name: SETTINGS.title });
     await expect(title).toBeVisible();
 
+    const signOut = page.getByRole("button", { name: SETTINGS.signOut });
+    await expect(signOut).toBeVisible();
+
     fresh.sql("ALTER TABLE sessions RENAME TO sessions_away");
-    await page.getByRole("button", { name: SETTINGS.signOut }).click();
+    await signOut.click();
     await expect(page.getByRole("alert")).toHaveText(SETTINGS.signOutFailed);
     await expect(title).toBeVisible();
 

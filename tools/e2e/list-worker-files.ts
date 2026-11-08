@@ -1,30 +1,11 @@
-import { join } from "node:path";
-
-import { getPlatformProxy } from "wrangler";
+import { z } from "zod";
 
 const PAGE = 100;
 
-interface ListedObject {
-  readonly key: string;
-  readonly size: number;
-  readonly uploaded: Date;
-}
-
-interface ListedPage {
-  readonly objects: readonly ListedObject[];
-  readonly truncated: boolean;
-  readonly cursor?: string;
-}
-
-interface ListOptions {
-  readonly prefix: string;
-  readonly limit: number;
-  cursor?: string;
-}
-
-interface Bucket {
-  readonly list: (options: Readonly<ListOptions>) => Promise<ListedPage>;
-}
+const Listing = z.object({
+  result: z.array(z.object({ key: z.string(), size: z.number(), last_modified: z.string() })),
+  result_info: z.object({ is_truncated: z.string(), cursor: z.string().optional() }),
+});
 
 interface ListedFile {
   readonly key: string;
@@ -32,38 +13,34 @@ interface ListedFile {
   readonly uploadedAt: number;
 }
 
-const [state = "", prefix = ""] = process.argv.slice(2);
+const [api = "", bucket = "", prefix = ""] = process.argv.slice(2);
 
-if (state === "") {
-  throw new Error("usage: list-worker-files.ts <wrangler state folder> [prefix]");
+if (api === "" || bucket === "") {
+  throw new Error("usage: list-worker-files.ts <Local Explorer API url> <bucket> [prefix]");
 }
 
-async function listFrom(bucket: Bucket, cursor: string | null): Promise<ListedFile[]> {
-  const options: ListOptions = { prefix, limit: PAGE };
+async function listFrom(cursor: string | null): Promise<ListedFile[]> {
+  const query = new URLSearchParams({ prefix, per_page: String(PAGE) });
 
-  if (cursor !== null) options.cursor = cursor;
+  if (cursor !== null) query.set("cursor", cursor);
 
-  const page = await bucket.list(options);
+  const response = await fetch(`${api}/r2/buckets/${bucket}/objects?${query}`);
 
-  const files = page.objects.map(({ key, size, uploaded }) => ({
+  if (!response.ok) {
+    throw new Error(`listing ${bucket} answered ${response.status}: ${await response.text()}`);
+  }
+
+  const { result, result_info: info } = Listing.parse(await response.json());
+
+  const files = result.map(({ key, size, last_modified: modified }) => ({
     key,
     size,
-    uploadedAt: uploaded.getTime(),
+    uploadedAt: Date.parse(modified),
   }));
 
-  return page.truncated && page.cursor !== undefined
-    ? [...files, ...(await listFrom(bucket, page.cursor))]
+  return info.is_truncated === "true" && info.cursor !== undefined
+    ? [...files, ...(await listFrom(info.cursor))]
     : files;
 }
 
-const proxy = await getPlatformProxy<{ FILES: Bucket }>({
-  configPath: join(import.meta.dirname, "../../wrangler.jsonc"),
-  persist: { path: join(state, "v3") },
-  remoteBindings: false,
-});
-
-try {
-  console.log(JSON.stringify(await listFrom(proxy.env.FILES, null)));
-} finally {
-  await proxy.dispose();
-}
+console.log(JSON.stringify(await listFrom(null)));
