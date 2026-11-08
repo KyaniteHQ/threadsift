@@ -2,7 +2,9 @@ export const BAR_FONTS = ["--f-display", "--f-ui"] as const;
 export const SECTION_FONTS = [...BAR_FONTS, "--f-mono"] as const;
 export const LOOK_FONTS = [...SECTION_FONTS, "--f-read"] as const;
 
-const WEIGHTS = [400, 500, 600] as const;
+export const FACE_WAIT_MS = 3_000;
+
+const WEIGHTS = [400, 500, 600, 700] as const;
 const SAMPLE = "Aa";
 
 export function stacksOf(root: HTMLElement, variables: readonly string[]): string[] {

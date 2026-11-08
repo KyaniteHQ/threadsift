@@ -55,6 +55,16 @@ fieldset.fl-g {
   visibility: hidden;
 }
 
+.app[data-faces="loading"] :is(.paste-row .swap, .brand .st-gear) {
+  opacity: 0;
+}
+
+.rd-col:has(> .rd-loading) > :not(.rd-loading) {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .items {
   margin: 0;
   padding: 0;

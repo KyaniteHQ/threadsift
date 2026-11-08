@@ -2,9 +2,8 @@ import { type RefObject, Suspense, use, useMemo, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { postTextModule } from "./post-text-module.ts";
-import { READER_LOADING } from "./reader-text.ts";
 import { type BarMode, ReaderBar } from "./ReaderBar.tsx";
-import { ReaderContent, ReaderHead } from "./ReaderColumn.tsx";
+import { ReaderContent, ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import { type DetailState, refreshKey, useItemDetail } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
 import type { Look } from "./use-root.ts";
@@ -17,10 +16,6 @@ export interface ReaderControls {
   readonly remove: (item: Item) => Promise<void>;
   readonly close: () => void;
   readonly hintPlaced: (inBar: boolean) => void;
-}
-
-function Loading() {
-  return <output className="rd-note">{READER_LOADING}</output>;
 }
 
 function ReaderBody({
@@ -63,7 +58,7 @@ export function Reader({
   openSettings: () => void;
   tryAgain: (item: Item) => void;
 }>) {
-  const loading = useMemo(() => <Loading />, []);
+  const loading = useMemo(() => <ReaderLoading />, []);
   const [now] = useState(Date.now);
   const { state, retry } = useItemDetail(item.id, refreshKey(item));
 

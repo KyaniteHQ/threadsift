@@ -3,7 +3,7 @@ import { type RefObject, useCallback, useRef } from "react";
 import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { useLibrary } from "./library.ts";
-import { countsOf, knownItems } from "./list-state.ts";
+import { type ListState, countsOf, knownItems } from "./list-state.ts";
 import type { Route } from "./routing.ts";
 import { useListActions } from "./use-list-actions.ts";
 import { type ReaderSide, useReaderSide } from "./use-reader-side.ts";
@@ -14,6 +14,7 @@ export interface LibraryView {
   readonly listPane: RefObject<HTMLElement | null>;
   readonly searchField: RefObject<HTMLInputElement | null>;
   readonly library: Readonly<ReturnType<typeof useLibrary>>;
+  readonly shown: ListState;
   readonly actions: Readonly<ReturnType<typeof useListActions>>;
   readonly side: ReaderSide;
   readonly clearAll: () => void;
@@ -49,13 +50,15 @@ export function useLibraryView(look: Look, route: Route): LibraryView {
     searchField.current?.focus();
   }, [clear]);
 
-  const counts = countsOf(list);
+  const shown: ListState = look.faces ? list : { status: "loading", known: list.known };
+  const counts = countsOf(shown);
 
   return {
     root,
     listPane,
     searchField,
     library,
+    shown,
     actions,
     side,
     clearAll,

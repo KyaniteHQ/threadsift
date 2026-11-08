@@ -130,6 +130,10 @@ function Agent({
   );
 }
 
+export function ReaderLoading() {
+  return <output className="rd-note rd-loading">{READER_LOADING}</output>;
+}
+
 export function ReaderContent({
   item,
   state,
@@ -144,7 +148,7 @@ export function ReaderContent({
   now: number;
 }>) {
   if (state.status === "loading") {
-    return <output className="rd-note">{READER_LOADING}</output>;
+    return <ReaderLoading />;
   }
 
   if (state.status === "failed") {

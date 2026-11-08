@@ -16,6 +16,7 @@ function watchBar(bar: HTMLElement, refit: () => void): () => void {
   };
 
   observer.observe(bar);
+  refit();
   document.fonts.addEventListener("loadingdone", observeAgain);
   void document.fonts.ready.then(observeAgain);
 
