@@ -2,8 +2,6 @@ import { access, constants, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join } from "node:path";
 
-import type { z } from "zod";
-
 import { type CliProvider, refusedAi } from "../../core/ai-contract.ts";
 import type { ProcessEnd } from "./cli-process.ts";
 
@@ -12,14 +10,6 @@ export const STDERR_CAP = 64 * 1024;
 export const PROBE_MS = 15_000;
 
 const FIXED_PATH = ["/usr/local/bin", "/usr/bin", "/bin"];
-
-export function parsedJson<Parsed>(schema: z.ZodType<Parsed>, text: string): Parsed | null {
-  try {
-    return schema.safeParse(JSON.parse(text)).data ?? null;
-  } catch {
-    return null;
-  }
-}
 
 async function isExecutable(path: string): Promise<boolean> {
   try {

@@ -4,15 +4,9 @@ import type { Fetched } from "./details.ts";
 import { fromBase64 } from "./encoding.ts";
 import { type FetchPolicy, type GuardOutcome, type Page, loggedFailureOf } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import {
-  type GithubRun,
-  UNAUTHORIZED,
-  type Waiting,
-  apiPolicy,
-  parsedJson,
-  requestApi,
-} from "./github-api.ts";
+import { type GithubRun, UNAUTHORIZED, type Waiting, apiPolicy, requestApi } from "./github-api.ts";
 import type { GithubAuth } from "./github-token.ts";
+import { parsedJson } from "./parsed-json.ts";
 import type { RepositoryRef } from "./repository-ref.ts";
 
 const NOT_FOUND = 404;

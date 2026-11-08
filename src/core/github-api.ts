@@ -1,5 +1,3 @@
-import type { z } from "zod";
-
 import {
   type FetchPolicy,
   type GuardOutcome,
@@ -82,17 +80,4 @@ export async function requestApi(
   console.warn(JSON.stringify({ event: "github-rate-limited", limit: outcome.limit.kind, until }));
 
   return { kind: "waiting", until, limited: true };
-}
-
-export function parsedJson<Schema extends z.ZodType>(
-  schema: Schema,
-  text: string,
-): z.output<Schema> | null {
-  try {
-    const result = schema.safeParse(JSON.parse(text));
-
-    return result.success ? result.data : null;
-  } catch {
-    return null;
-  }
 }
