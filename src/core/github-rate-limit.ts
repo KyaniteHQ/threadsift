@@ -18,6 +18,8 @@ export interface LimitedAnswer {
 
 export const ERROR_BODY_BYTES = 8 * 1024;
 
+export const MAX_COOLDOWN_MS = 3_600_000;
+
 const FALLBACK_BASE_MS = 60_000;
 const FALLBACK_DOUBLINGS = 1;
 
@@ -82,5 +84,7 @@ export function rateLimitOf(answer: Readonly<LimitedAnswer>, now: number): RateL
 }
 
 export function limitedUntil(limit: Readonly<RateLimit>, now: number, attempts: number): number {
-  return limit.until ?? now + FALLBACK_BASE_MS * 2 ** Math.min(attempts, FALLBACK_DOUBLINGS);
+  const until = limit.until ?? now + FALLBACK_BASE_MS * 2 ** Math.min(attempts, FALLBACK_DOUBLINGS);
+
+  return Math.min(until, now + MAX_COOLDOWN_MS);
 }

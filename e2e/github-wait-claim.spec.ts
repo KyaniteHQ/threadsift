@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { mainInstance } from "./access.ts";
 import { postLinkRaw } from "./api.ts";
-import { LONG_WAIT_MS, endCooldown, fetchJobOf, startCooldown } from "./github-wait.ts";
+import { WAIT_MS, endCooldown, fetchJobOf, startCooldown } from "./github-wait.ts";
 import { afterFirstClaim, claimLostLines, forgetItem } from "./ingest.ts";
 import { newRunId } from "./links.ts";
 
@@ -14,7 +14,7 @@ test("a runner that lost its claim while the Item waited for GitHub writes no wa
   const instance = mainInstance();
   const name = `lost-claim-${newRunId()}`;
   const url = `https://github.com/threadsift-e2e/${name}`;
-  const until = Date.now() + LONG_WAIT_MS;
+  const until = Date.now() + WAIT_MS;
 
   forgetItem(url);
   startCooldown(instance, until);

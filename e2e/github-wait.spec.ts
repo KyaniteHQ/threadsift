@@ -12,7 +12,7 @@ import { mainInstance } from "./access.ts";
 import { itemOf, postLink, settled } from "./api.ts";
 import { cardTitle, openLibrary, pasteForId } from "./card.ts";
 import {
-  LONG_WAIT_MS,
+  WAIT_MS,
   WAIT_REASON,
   endCooldown,
   fetchJobOf,
@@ -36,8 +36,7 @@ test.use({ trace: "off", video: "off", screenshot: "off" });
 
 test.describe.configure({ mode: "serial", timeout: 240_000 });
 
-const DAY_PREFIX = "on ";
-const TWENTY_SEVEN_HOURS_MS = 27 * 3_600_000;
+const TWO_HOURS_MS = 2 * 3_600_000;
 
 let itemId = 0;
 let until = 0;
@@ -50,7 +49,7 @@ test.beforeAll(async ({ request }) => {
   word = `zzwaiting${newRunId()}`;
   itemId = storeStaleRepository(DEFUDDLE, word);
   storeKeptDigest(itemId);
-  until = Date.now() + LONG_WAIT_MS;
+  until = Date.now() + WAIT_MS;
   startCooldown(mainInstance(), until);
 });
 
@@ -63,7 +62,6 @@ async function expectWaitShown(page: Page): Promise<void> {
   const when = await whenAt(page, until);
   const sentence = filled(WAITING.until, { when });
 
-  expect(when.startsWith(DAY_PREFIX), "a time 26 hours away is on another day").toBe(true);
   await expect(cardTitle(page)).toHaveText(WAITING.title);
   await expect(cardTitle(page)).not.toHaveText(CARD_TITLES.reading);
   await expect(pasteCard(page)).toContainText(sentence);
@@ -78,7 +76,7 @@ async function expectJobWaitsForTheCooldown(): Promise<void> {
   expect(waiting).toMatchObject({ state: "queued", attempts: 0, next_attempt_at: until });
   expect(
     queueRefusals(mainInstance(), waiting?.id ?? 0),
-    "the queue accepted the wake-up of a wait 26 hours away",
+    "the queue accepted the wake-up of a wait 50 minutes away",
   ).toEqual([]);
 }
 
@@ -132,7 +130,7 @@ test("the Reader says the Item waits for GitHub and when it will try again, then
   await expect(note).toHaveText(filled(WAITING.until, { when }));
   await expect(reader(page)).toContainText(word);
 
-  await page.clock.fastForward(TWENTY_SEVEN_HOURS_MS);
+  await page.clock.fastForward(TWO_HOURS_MS);
   await expect(note).toHaveText(WAITING.due);
   await expect(rowOf(page, itemId).locator(".it-fail")).toHaveText(WAITING.due);
 });

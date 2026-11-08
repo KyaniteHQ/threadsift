@@ -6,7 +6,7 @@ import { newCode, newPassword } from "./access.ts";
 import { cardTitle, pasteOnly } from "./card.ts";
 import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import { LONG_WAIT_MS, startCooldown, whenAt } from "./github-wait.ts";
+import { WAIT_MS, startCooldown, whenAt } from "./github-wait.ts";
 import { viewportAt, storeSettings } from "./look.ts";
 import { paragraphs, reader, row, seedRows } from "./reader.ts";
 
@@ -39,7 +39,7 @@ test.beforeAll(async ({ browser }) => {
   screen.fresh.sql(
     `INSERT INTO github_repos (item_id, description, stars, language, license, topics, pushed_at) VALUES (${keptId}, 'Kept from the last good fetch', 42, 'Go', 'MIT', '[]', NULL)`,
   );
-  until = Date.now() + LONG_WAIT_MS;
+  until = Date.now() + WAIT_MS;
   startCooldown(screen.fresh, until);
 
   for (const url of [KEPT, NEW]) {

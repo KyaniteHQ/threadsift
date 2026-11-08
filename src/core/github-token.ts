@@ -10,6 +10,7 @@ import {
   type GithubVerifyResult,
   refusedGithub,
 } from "./github-contract.ts";
+import { endCooldown } from "./github-cooldown.ts";
 import { githubSettings } from "./github-tables.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { HOP_DEADLINE_MS, type Ports } from "./ports.ts";
@@ -76,16 +77,22 @@ export async function saveGithubToken(
 
   const row = { id: 1, sealedToken: await secrets.seal(token) };
 
-  await ports.db
-    .insert(githubSettings)
-    .values(row)
-    .onConflictDoUpdate({ target: githubSettings.id, set: row });
+  await ports.db.batch([
+    ports.db
+      .insert(githubSettings)
+      .values(row)
+      .onConflictDoUpdate({ target: githubSettings.id, set: row }),
+    endCooldown(ports.db),
+  ]);
 
   return viewOf({ kind: "token", token }, ports);
 }
 
 export async function removeGithubToken(ports: Readonly<TokenPorts>): Promise<GithubSettingsView> {
-  await ports.db.delete(githubSettings).where(eq(githubSettings.id, 1));
+  await ports.db.batch([
+    ports.db.delete(githubSettings).where(eq(githubSettings.id, 1)),
+    endCooldown(ports.db),
+  ]);
 
   return viewOf(ANONYMOUS, ports);
 }
