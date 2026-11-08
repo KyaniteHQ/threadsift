@@ -7,13 +7,14 @@ import { aiScreen, newSealingKey } from "./ai.ts";
 import { type FreshScreen } from "./fresh-screen.ts";
 import { GITHUB_SETTINGS_ENDPOINT, githubSection } from "./github-token.ts";
 import { watchLayout } from "./layout-shift.ts";
-import { DESKTOP, afterTwoFrames } from "./look.ts";
+import { DESKTOP, afterTwoFrames, delayFonts } from "./look.ts";
 import { revokeOf } from "./tokens.ts";
 
 const PHONE = { width: 390, height: 844 } as const;
 const SECTIONS = 5;
 const SEEDED = ["Seeded token 1", "Seeded token 2", "Seeded token 3"] as const;
 const DEADLINE_MARGIN_MS = 30_000;
+const FONT_DELAY_MS = 500;
 
 const ANSWERS = ["ai", "github", "tokens"] as const;
 
@@ -75,6 +76,8 @@ async function holdReads(page: Page) {
       await releases.get(answer)?.promise;
       await route.fulfill({ response });
     });
+
+  await delayFonts(page, FONT_DELAY_MS);
 
   return {
     arrived: Promise.all([...reached.values()].map((entry) => entry.promise)),

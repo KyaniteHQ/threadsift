@@ -1,3 +1,5 @@
+import { setTimeout as sleep } from "node:timers/promises";
+
 import { type Locator, type Page, type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
@@ -36,6 +38,15 @@ const TITLED = "Example Domain";
 
 export async function fontsLoaded(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
+}
+
+const FONT_FILES = /\.woff2$/u;
+
+export async function delayFonts(page: Page, milliseconds: number): Promise<void> {
+  await page.route(FONT_FILES, async (route) => {
+    await sleep(milliseconds);
+    await route.continue();
+  });
 }
 
 export async function afterTwoFrames(page: Page): Promise<void> {

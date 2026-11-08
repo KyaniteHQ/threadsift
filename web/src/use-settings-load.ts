@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { type RefObject, useCallback, useEffect, useState } from "react";
 
 import type { GithubSettingsView } from "../../src/core/github-contract.ts";
 import type { Token } from "../../src/http/schemas.ts";
 import { fetchTokens } from "./access-api.ts";
 import { type AiView, fetchAiSettings } from "./ai-api.ts";
 import { fetchGithubSettings } from "./github-api.ts";
+import { loadSectionFonts } from "./section-fonts.ts";
 
 export const SETTINGS_READ_MS = 20_000;
 
@@ -39,7 +40,7 @@ export function useLoaded<View>(initial: Loaded<View>) {
   return { loaded, ready };
 }
 
-export function useSettingsLoad(): SettingsLoad | null {
+export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLoad | null {
   const [loaded, setLoaded] = useState<SettingsLoad | null>(null);
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export function useSettingsLoad(): SettingsLoad | null {
         settled(fetchAiSettings, signal),
         settled(fetchGithubSettings, signal),
         settled(fetchTokens, signal),
+        page.current === null ? undefined : loadSectionFonts(page.current, signal),
       ]);
 
       window.clearTimeout(deadline);
@@ -71,7 +73,7 @@ export function useSettingsLoad(): SettingsLoad | null {
       window.clearTimeout(deadline);
       controller.abort();
     };
-  }, []);
+  }, [page]);
 
   return loaded;
 }

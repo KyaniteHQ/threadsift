@@ -27,7 +27,8 @@ export function SettingsPage({
 
   const follow = useInternalLink(back);
 
-  const loaded = useSettingsLoad();
+  const column = useRef<HTMLElement>(null);
+  const loaded = useSettingsLoad(column);
 
   const [failed, setFailed] = useState(false);
 
@@ -50,7 +51,7 @@ export function SettingsPage({
           </h1>
         </div>
       </header>
-      <main className="pg-col" aria-busy={loaded === null}>
+      <main ref={column} className="pg-col" aria-busy={loaded === null}>
         {loaded === null ? (
           <Loading />
         ) : (

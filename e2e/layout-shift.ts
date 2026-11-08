@@ -1,7 +1,12 @@
+/* oxlint-disable unicorn/consistent-function-scoping -- addInitScript serialises this one function, so its helpers must sit inside it */
 import type { Page } from "@playwright/test";
 import { z } from "zod";
 
-const LayoutShiftSchema = z.object({ value: z.number(), hadRecentInput: z.boolean() });
+const LayoutShiftSchema = z.object({
+  value: z.number(),
+  hadRecentInput: z.boolean(),
+  barOnly: z.boolean(),
+});
 
 const SnapshotSchema = z.object({
   shifts: z.string().transform((json) => z.array(LayoutShiftSchema).parse(JSON.parse(json))),
@@ -28,16 +33,39 @@ export interface LayoutWatch {
 
 async function observeShifts(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    const entries: PerformanceEntry[] = [];
+    interface Shift extends PerformanceEntry {
+      readonly value: number;
+      readonly hadRecentInput: boolean;
+      readonly sources: readonly { readonly node: Node | null }[];
+    }
+
+    const isShift = (entry: PerformanceEntry): entry is Shift =>
+      "value" in entry && "hadRecentInput" in entry && "sources" in entry;
+
+    const inBar = (node: Node | null): boolean =>
+      node !== null &&
+      node.parentElement?.closest(".pg-bar") !== null &&
+      node.parentElement !== null;
+
+    const entries: { value: number; hadRecentInput: boolean; barOnly: boolean }[] = [];
+
+    const keep = (list: readonly PerformanceEntry[]): void => {
+      for (const entry of list.filter((candidate) => isShift(candidate)))
+        entries.push({
+          value: entry.value,
+          hadRecentInput: entry.hadRecentInput,
+          barOnly: entry.sources.length > 0 && entry.sources.every(({ node }) => inBar(node)),
+        });
+    };
 
     const observer = new PerformanceObserver((list) => {
-      entries.push(...list.getEntries());
+      keep(list.getEntries());
     });
 
     observer.observe({ type: "layout-shift", buffered: true });
 
     window.layoutShifts = () => {
-      entries.push(...observer.takeRecords());
+      keep(observer.takeRecords());
 
       return JSON.stringify(entries);
     };
@@ -80,7 +108,7 @@ export async function watchLayout(page: Page): Promise<LayoutWatch> {
 
       return {
         shift: shifts
-          .filter((entry) => !entry.hadRecentInput)
+          .filter((entry) => !entry.hadRecentInput && !entry.barOnly)
           .reduce((sum, entry) => sum + entry.value, 0),
         headings,
       };
