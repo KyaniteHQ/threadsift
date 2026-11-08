@@ -16,22 +16,34 @@ type Steps = readonly [BarStep, ...BarStep[]];
 
 const STEPS: Readonly<Record<BarMode, Steps>> = {
   pane: [
-    { hint: true, labels: true, back: "label" },
-    { hint: false, labels: true, back: "label" },
-    { hint: false, labels: false, back: "label" },
+    { hint: true, labels: true, back: "label", comments: "full" },
+    { hint: false, labels: true, back: "label", comments: "full" },
+    { hint: false, labels: false, back: "label", comments: "short" },
+    { hint: false, labels: false, back: "label", comments: "count" },
   ],
   page: [
-    { hint: false, labels: true, back: "label" },
-    { hint: false, labels: false, back: "short" },
-    { hint: false, labels: false, back: "icon" },
+    { hint: false, labels: true, back: "label", comments: "full" },
+    { hint: false, labels: false, back: "short", comments: "short" },
+    { hint: false, labels: false, back: "short", comments: "count" },
+    { hint: false, labels: false, back: "icon", comments: "count" },
   ],
   sheet: [
-    { hint: false, labels: true, back: "label" },
-    { hint: false, labels: false, back: "label" },
-    { hint: false, labels: false, back: "icon" },
+    { hint: false, labels: true, back: "label", comments: "full" },
+    { hint: false, labels: false, back: "label", comments: "short" },
+    { hint: false, labels: false, back: "label", comments: "count" },
+    { hint: false, labels: false, back: "icon", comments: "count" },
   ],
-  phone: [{ hint: false, labels: false, back: "icon" }],
+  phone: [
+    { hint: false, labels: false, back: "icon", comments: "short" },
+    { hint: false, labels: false, back: "icon", comments: "count" },
+  ],
 };
+
+function fitSignature(item: Readonly<Item>, mode: BarMode, settingsKey: string): string {
+  const { id, readState, commentsKept, commentsTotal } = item;
+
+  return [id, readState, commentsKept, commentsTotal, mode, settingsKey].join("|");
+}
 
 function useProgress(bar: RefObject<HTMLElement | null>): void {
   useEffect(() => {
@@ -52,7 +64,7 @@ export function ReaderBar({
   const bar = useRef<HTMLDivElement>(null);
   const leave = leaveOf(mode === "sheet", look.settings.layout === "grid");
 
-  useBarFit(bar, STEPS[mode], `${item.id}|${item.readState}|${mode}|${settingsKey}`, hintPlaced);
+  useBarFit(bar, STEPS[mode], fitSignature(item, mode, settingsKey), hintPlaced);
   useProgress(bar);
 
   return (

@@ -1,6 +1,6 @@
 import { pixelsOf } from "./css-length.ts";
 
-const PARTS = ".rd-back, .rd-hint, .st-gear, .rd-act";
+const PARTS = ".rd-back, .rd-hint, .rd-cm, .st-gear, .rd-act";
 const TOLERANCE = 0.5;
 const ROUNDING = 1;
 
@@ -32,6 +32,7 @@ export interface BarStep {
   readonly hint: boolean;
   readonly labels: boolean;
   readonly back: "label" | "short" | "icon";
+  readonly comments: "full" | "short" | "count";
 }
 
 function setHidden(bar: HTMLElement, selector: string, hidden: boolean): void {
@@ -46,6 +47,10 @@ function applyStep(bar: HTMLElement, step: Readonly<BarStep>): void {
   setHidden(bar, ".rd-back-short", step.back !== "short");
   setHidden(bar, ".rd-back-long", step.back === "short");
   setHidden(bar, ".rd-hint", !step.hint);
+  bar.querySelector(".rd-cm")?.classList.toggle("full", step.comments === "full");
+  setHidden(bar, ".rd-cm-full", step.comments !== "full");
+  setHidden(bar, ".rd-cm-short", step.comments !== "short");
+  setHidden(bar, ".rd-cm-count", step.comments !== "count");
 }
 
 export function fitBar(bar: HTMLElement, steps: readonly [BarStep, ...BarStep[]]): BarStep {

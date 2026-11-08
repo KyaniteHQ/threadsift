@@ -1,6 +1,7 @@
 import { use } from "react";
 
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
+import { Comments } from "./Comments.tsx";
 import { postTextModule } from "./post-text-module.ts";
 import { NO_POST_TEXT, NO_README, SECTION_TITLES } from "./reader-text.ts";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
@@ -48,6 +49,7 @@ export function Original({
           <PostText text={text} />
         </section>
       )}
+      <Comments item={item} detail={detail} />
     </>
   );
 }

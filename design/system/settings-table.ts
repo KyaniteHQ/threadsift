@@ -168,7 +168,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "Reading",
     look: true,
-    shown: false,
+    shown: true,
     default: "lines",
     options: [
       { id: "lines", label: "Indented lines" },

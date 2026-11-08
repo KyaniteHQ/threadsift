@@ -1,4 +1,6 @@
+import { groupedNumber } from "../../src/core/format.ts";
 import type { Kind, Source } from "../../src/core/kinds.ts";
+import type { CommentCounts } from "./comment-counts.ts";
 import { ageLabel } from "./saved-label.ts";
 import { CLOSE_LABEL, filled } from "./text.ts";
 
@@ -39,6 +41,15 @@ export const GITHUB_TOPICS_LABEL = "Topics on GitHub";
 export const NONE_STATED = "None stated";
 export const PASTE_OPEN = "Open";
 export const FOLD_HIDE = "Show fewer lines";
+export const COMMENTS_TITLE = "Comments";
+export const NONE_KEPT = "None of the comments added anything the post doesn't already say.";
+export const CONTEXT_LABEL = "Context";
+export const STUB_DROPPED = "Removed comment shown so the replies below make sense.";
+export const STUB_NOT_KEPT = "Comment not kept, shown so the replies below make sense.";
+export const STUB_MORE = "Further replies were not saved.";
+export const OP_LABEL = "OP";
+export const SHOW_FULL_COMMENT = "Show full comment";
+export const SHOW_LESS = "Show less";
 export const FOOTNOTES_LABEL = "Footnotes";
 export const FOOTNOTE_BACK = "Back to reference {reference}";
 export const FOOTNOTE_BACK_AGAIN = "Back to footnote {reference}, reference {again}";
@@ -72,6 +83,11 @@ const CODE_ONE = "Code block, 1 line";
 const CODE_MANY = "Code block, {count} lines";
 const TABLE_NAME = "Table, {count} columns";
 const FOLD_SHOW = "Show all {count} lines";
+const COMMENTS_KEPT = "Kept {kept} of {total} comments";
+const COMMENTS_BUTTON = "Comments {kept} of {total}";
+const COMMENTS_BUTTON_SHORT = "{kept} of {total}";
+const COMMENTS_BUTTON_COUNT = "{kept}";
+const SCORE = "{score} pts";
 
 export function postedLabel(postedAt: number, now: number): string {
   return filled(POSTED, { when: ageLabel(postedAt, now) });
@@ -99,4 +115,26 @@ export function leaveOf(sheet: boolean, grid: boolean): Leave {
   if (sheet) return { long: CLOSE_LABEL, short: CLOSE_LABEL, icon: "close" };
 
   return { long: grid ? BACK_TO_GRID : BACK_LONG, short: BACK_SHORT, icon: "left" };
+}
+
+function numbers({ kept, total }: Readonly<CommentCounts>) {
+  return { kept: groupedNumber(kept), total: groupedNumber(total) };
+}
+
+export function keptLabel(counts: Readonly<CommentCounts>): string {
+  return filled(COMMENTS_KEPT, numbers(counts));
+}
+
+export function commentsButtonLabels(counts: Readonly<CommentCounts>) {
+  const values = numbers(counts);
+
+  return {
+    full: filled(COMMENTS_BUTTON, values),
+    short: filled(COMMENTS_BUTTON_SHORT, values),
+    count: filled(COMMENTS_BUTTON_COUNT, values),
+  };
+}
+
+export function scoreLabel(score: number): string {
+  return filled(SCORE, { score: groupedNumber(score) });
 }

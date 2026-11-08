@@ -2,6 +2,7 @@ import { useCallback } from "react";
 
 import { whereOf } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
+import { commentCountsOf } from "./comment-counts.ts";
 import { Icon } from "./Icon.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
 import { savedLabel } from "./saved-label.ts";
@@ -11,8 +12,10 @@ import {
   FAILURE_TITLES,
   NO_DIGEST,
   RETRY_LABEL,
+  SAVED_COMMENT,
   SOURCE_LABELS,
   TOKEN_REFUSED,
+  rowKeptLabel,
   starsLabel,
 } from "./text.ts";
 import { WaitText } from "./WaitText.tsx";
@@ -91,8 +94,18 @@ function Skeleton() {
   );
 }
 
+function commentNote(item: Readonly<Item>): string | null {
+  if (item.kind === "reddit-comment") return SAVED_COMMENT;
+
+  const counts = commentCountsOf(item);
+
+  return counts === null ? null : rowKeptLabel(counts.kept, counts.total);
+}
+
 function Foot({ item }: Readonly<{ item: Item }>) {
-  if (item.digestTopic === null && item.stars === null) {
+  const note = commentNote(item);
+
+  if (item.digestTopic === null && item.stars === null && note === null) {
     return null;
   }
 
@@ -104,6 +117,7 @@ function Foot({ item }: Readonly<{ item: Item }>) {
         </bdi>
       )}
       {item.stars === null ? null : <span>{starsLabel(item.stars)}</span>}
+      {note === null ? null : <span>{note}</span>}
     </p>
   );
 }
