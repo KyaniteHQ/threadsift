@@ -1,9 +1,19 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
+import { NOTICES } from "../web/src/text.ts";
 import { SAME_ORIGIN } from "./access.ts";
-import { attemptStep, count, marker, runStep, started } from "./identity-run.ts";
+import {
+  attemptStep,
+  count,
+  marker,
+  runStep,
+  started,
+  stoppedBeforeRenames,
+} from "./identity-run.ts";
 import { ALICE_POSTED, BEFORE_IDENTITY, FAILING_BEFORE } from "./identity-seed.ts";
+import { addButton, pasteCard, pasteField } from "./links.ts";
+import { shareFromThisPage } from "./share.ts";
 
 test.describe.configure({ timeout: 480_000 });
 
@@ -50,7 +60,7 @@ test("while the step cannot finish, reads work and every paste entry refuses, an
     expect(list.status()).toBe(200);
     expect(refused.status).toBe(503);
     expect(shared.status()).toBe(303);
-    expect(shared.headers()["location"]).toContain("notice=failed");
+    expect(shared.headers()["location"]).toContain("notice=updating");
     expect(count(instance, "SELECT 1 FROM items")).toBe(17);
 
     instance.sql("DROP TRIGGER stop_batch");
@@ -61,6 +71,39 @@ test("while the step cannot finish, reads work and every paste entry refuses, an
     expect([found.status, found.id]).toEqual([200, 1]);
     expect(count(instance, "SELECT 1 FROM items")).toBe(17);
   } finally {
+    await owner.dispose();
+    instance.stop();
+  }
+});
+
+test("a paste and a share during a step that cannot finish show why the link was not saved and keep the link in the field", async ({
+  browser,
+}) => {
+  const { instance, owner } = await stoppedBeforeRenames(FAILING_BEFORE);
+
+  const context = await browser.newContext({
+    baseURL: instance.url,
+    storageState: await owner.storageState(),
+  });
+
+  try {
+    const page = await context.newPage();
+    await page.goto("/");
+
+    await pasteField(page).fill(ALICE_POSTED);
+    await addButton(page).click();
+
+    await expect(pasteCard(page)).toContainText(NOTICES.updating.text);
+    await expect(pasteField(page)).toHaveValue(ALICE_POSTED);
+
+    await page.goto("/");
+    await shareFromThisPage(page, { url: ALICE_POSTED });
+
+    await expect(pasteCard(page)).toContainText(NOTICES.updating.text);
+    await expect(pasteField(page)).toHaveValue(ALICE_POSTED);
+    expect(count(instance, "SELECT 1 FROM items")).toBe(17);
+  } finally {
+    await context.close();
     await owner.dispose();
     instance.stop();
   }

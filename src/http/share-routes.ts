@@ -25,7 +25,7 @@ async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
     }
 
     case "updating": {
-      return prefillOf(link, "failed");
+      return prefillOf(link, "updating");
     }
 
     case "saved": {

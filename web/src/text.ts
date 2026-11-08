@@ -18,7 +18,14 @@ export const SAVING_STATUS = "Saving link and fetching page title…";
 
 export type NoteKey = Exclude<FetchFailure, "timeout" | "network">;
 
-export type NoticeKey = NoteKey | "empty" | "invalid" | "failed" | "title-kept" | "private";
+export type NoticeKey =
+  | NoteKey
+  | "empty"
+  | "invalid"
+  | "failed"
+  | "updating"
+  | "title-kept"
+  | "private";
 
 export interface Notice {
   readonly text: string;
@@ -32,6 +39,10 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
     kind: "input-error",
   },
   failed: { text: "Couldn’t save this link.", kind: "save-error" },
+  updating: {
+    text: "The library is finishing an update, so this link wasn’t saved. Paste the link again in a minute.",
+    kind: "save-error",
+  },
   refused: {
     text: "This link leads to a private network or your computer, so it was saved without a title.",
     kind: "save-note",

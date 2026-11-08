@@ -16,6 +16,7 @@ import { type Filters, queryOf } from "./filters.ts";
 export type SaveResult =
   | { readonly outcome: "invalid" }
   | { readonly outcome: "private" }
+  | { readonly outcome: "updating" }
   | {
       readonly outcome: "saved";
       readonly known: boolean;
@@ -50,6 +51,10 @@ export async function saveLink(url: string): Promise<SaveResult> {
     const { fetch: refusal } = ErrorResponseSchema.parse(await response.json());
 
     return { outcome: refusal === "refused" ? "private" : "invalid" };
+  }
+
+  if (response.status === 503) {
+    return { outcome: "updating" };
   }
 
   if (!response.ok) {
