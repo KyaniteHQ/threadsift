@@ -20,15 +20,16 @@ import { useFocusOnMount, useGuard } from "./use-form.ts";
 import { useShownCard } from "./use-shown-card.ts";
 
 export type SaveOutcome =
-  | { readonly saved: false; readonly notice: NoticeKey }
-  | { readonly saved: true; readonly itemId: number; readonly refreshed: boolean };
+  | { readonly kind: "item"; readonly itemId: number; readonly refreshed: boolean }
+  | { readonly kind: "notice"; readonly notice: NoticeKey }
+  | { readonly kind: "discarded" };
 
 export type Save = (target: SaveTarget) => Promise<SaveOutcome>;
 
 export type PasteRequest = SaveTarget & { readonly seq: number };
 
-const FAILED: SaveOutcome = { saved: false, notice: "failed" };
-const EMPTY: SaveOutcome = { saved: false, notice: "empty" };
+const FAILED: SaveOutcome = { kind: "notice", notice: "failed" };
+const EMPTY: SaveOutcome = { kind: "notice", notice: "empty" };
 
 async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
   try {
@@ -38,8 +39,12 @@ async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
   }
 }
 
-function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Shown {
-  return outcome.saved
+function shownOf(
+  outcome: Readonly<Exclude<SaveOutcome, { kind: "discarded" }>>,
+  url: string,
+  seq: number,
+): Shown {
+  return outcome.kind === "item"
     ? { kind: "item", itemId: outcome.itemId, refreshed: outcome.refreshed, url, seq }
     : { kind: "notice", key: outcome.notice, url, seq };
 }
@@ -65,7 +70,9 @@ function useSaveValue({
       setShown(null);
       const outcome = url === "" ? EMPTY : await attempt(save, target);
 
-      if (outcome.saved) {
+      if (outcome.kind === "discarded") return;
+
+      if (outcome.kind === "item") {
         setValue((current) => (current.trim() === url ? "" : current));
         release();
       }

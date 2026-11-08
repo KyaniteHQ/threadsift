@@ -63,6 +63,14 @@ export async function saveLink(url: string): Promise<SaveResult> {
   return { outcome: "saved", known, refreshed: refreshedOf(known, item.fetch), item };
 }
 
+export async function removeItem(id: number): Promise<void> {
+  const response = await call("DELETE", `/api/items/${id}`);
+
+  if (!response.ok && response.status !== 404) {
+    throw unexpected("DELETE", `/api/items/${id}`, response.status);
+  }
+}
+
 export async function regenerateDigest(id: number): Promise<Item> {
   return (await parsedFrom("POST", `/api/items/${id}/digest`, ItemResponseSchema)).item;
 }

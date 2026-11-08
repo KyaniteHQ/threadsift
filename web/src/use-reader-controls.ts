@@ -1,59 +1,28 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import type { ReadState } from "../../src/core/kinds.ts";
-import type { Item } from "../../src/http/schemas.ts";
 import type { Attention } from "./ItemRow.tsx";
+import type { Writes } from "./library.ts";
 import type { ListState } from "./list-state.ts";
-import { MARKED_READ, MARKED_UNREAD, READ_FAILED } from "./reader-text.ts";
 import type { ReaderControls } from "./Reader.tsx";
 import type { Route } from "./routing.ts";
+import { type Announcement, useAnnouncement } from "./use-announcement.ts";
+import { useDeletion } from "./use-deletion.ts";
 import { useNavigation } from "./use-navigation.ts";
 import type { Look } from "./use-root.ts";
 
-const OTHER: Readonly<Record<ReadState, ReadState>> = { read: "unread", unread: "read" };
-
 function modeOf(look: Readonly<Look>): ReaderControls["mode"] {
   return look.phone ? "phone" : look.reader;
-}
-
-const MARKED: Readonly<Record<ReadState, string>> = { read: MARKED_READ, unread: MARKED_UNREAD };
-
-function useAnnouncement(setRead: (id: number, state: ReadState) => Promise<void>) {
-  const [announcement, setAnnouncement] = useState<Readonly<{ text: string; failed: boolean }>>({
-    text: "",
-    failed: false,
-  });
-
-  const toggleRead = useCallback(
-    (item: Readonly<Item>): void => {
-      const wanted = OTHER[item.readState];
-
-      const settle = async (): Promise<void> => {
-        const failed = await setRead(item.id, wanted).then(
-          () => false,
-          () => true,
-        );
-
-        setAnnouncement({ text: failed ? READ_FAILED : MARKED[wanted], failed });
-      };
-
-      void settle();
-    },
-    [setRead],
-  );
-
-  return { announcement, toggleRead };
 }
 
 export interface ReaderState {
   readonly open: (id: number) => void;
   readonly close: () => void;
   readonly step: (direction: 1 | -1) => void;
-  readonly toggleRead: (item: Item) => void;
+  readonly toggleRead: ReaderControls["toggleRead"];
   readonly controls: ReaderControls;
   readonly steps: Readonly<{ previous: boolean; next: boolean }>;
   readonly hintInBar: boolean;
-  readonly announcement: Readonly<{ text: string; failed: boolean }>;
+  readonly announcement: Announcement;
 }
 
 export function useReaderControls({
@@ -61,7 +30,7 @@ export function useReaderControls({
   route,
   look,
   attend,
-  setRead,
+  writes,
   inReader,
   appOf,
 }: Readonly<{
@@ -69,12 +38,13 @@ export function useReaderControls({
   route: Route;
   look: Look;
   attend: (attention: Attention) => void;
-  setRead: (id: number, state: ReadState) => Promise<void>;
+  writes: Writes;
   inReader: () => boolean;
   appOf: () => Element | null;
 }>): ReaderState {
   const [hintInBar, setHintInBar] = useState(false);
-  const { announcement, toggleRead } = useAnnouncement(setRead);
+  const { announcement, announce, toggleRead } = useAnnouncement(writes.setRead);
+  const remove = useDeletion({ route, attend, announce, appOf, remove: writes.remove });
 
   const navigation = useNavigation({
     list,
@@ -86,13 +56,12 @@ export function useReaderControls({
   });
 
   const { close, titleFocus } = navigation;
-
   const mode = modeOf(look);
   const settingsKey = JSON.stringify(look.settings);
 
   const controls = useMemo<ReaderControls>(
-    () => ({ mode, settingsKey, titleFocus, toggleRead, close, hintPlaced: setHintInBar }),
-    [close, mode, settingsKey, titleFocus, toggleRead],
+    () => ({ mode, settingsKey, titleFocus, toggleRead, remove, close, hintPlaced: setHintInBar }),
+    [close, mode, remove, settingsKey, titleFocus, toggleRead],
   );
 
   return {

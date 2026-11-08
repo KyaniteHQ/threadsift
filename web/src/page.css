@@ -158,3 +158,58 @@ dialog.sheet::backdrop {
 .it-end {
   grid-area: foot;
 }
+
+.rd-bar:not(.icons) .rd-del-ic {
+  display: none;
+}
+
+dialog.dlg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  width: min(var(--dlg-w), calc(100vw - var(--s4) * 2));
+  max-width: none;
+  padding: var(--s4);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r3);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  font-family: var(--f-ui);
+  font-size: var(--t-body);
+}
+
+dialog.dlg:not([open]) {
+  display: none;
+}
+
+dialog.dlg::backdrop {
+  background: var(--scrim);
+}
+
+.dlg-title,
+.dlg-text,
+.dlg .fld-err {
+  margin: 0;
+}
+
+.dlg-title {
+  font-size: var(--t-h2);
+  font-weight: 600;
+  line-height: var(--lh-title);
+}
+
+.dlg-text {
+  line-height: var(--lh-text);
+}
+
+.dlg-acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--s2);
+}
+
+[data-bp~="phone"] .dlg-acts .btn {
+  flex: 1;
+}

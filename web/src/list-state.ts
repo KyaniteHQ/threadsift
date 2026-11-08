@@ -50,6 +50,23 @@ export function withItem(
   };
 }
 
+export function survivorOf(list: Readonly<ListState>, id: number): number | null {
+  if (list.status !== "ready") return null;
+
+  const ids = list.items.map((item) => item.id);
+  const at = ids.indexOf(id);
+
+  return (at < 0 ? ids[0] : (ids[at + 1] ?? ids[at - 1])) ?? null;
+}
+
+export function withoutItem(list: Readonly<ListState>, id: number): ListState {
+  const known = list.known.filter((item) => item.id !== id);
+
+  return list.status === "ready"
+    ? { ...list, known, items: list.items.filter((item) => item.id !== id) }
+    : { ...list, known };
+}
+
 export function withRead(
   list: Readonly<ListState>,
   read: Readonly<Item>,

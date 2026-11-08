@@ -118,7 +118,8 @@ function useListRead(
     const land = (answer: Readonly<Answer>): void => {
       const changed = stamps.changedSince(request.startedAt);
       const counts = requests.claimCounts(request, changed.length === 0);
-      setList((current) => loaded(current, answer, { changed, counts }));
+      const present = { ...answer, items: answer.items.filter((item) => !stamps.isGone(item.id)) };
+      setList((current) => loaded(current, present, { changed, counts }));
 
       if (changed.length > 0) recount(true);
     };
