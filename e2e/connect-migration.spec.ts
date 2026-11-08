@@ -50,6 +50,13 @@ test("A database with saved settings keeps them, starts the revision at 0, and c
     expect(instance.query("SELECT * FROM settings", Settings)).toEqual(kept);
     expect(revisionOf(instance), "the existing settings are not a change").toBe(0);
 
+    expect(
+      instance
+        .query("SELECT name FROM sqlite_master WHERE type = 'trigger' ORDER BY name", Tables)
+        .map((row) => row.name),
+      "the triggers sit on the settings table the Codex migration rebuilt",
+    ).toEqual(["settings_revision_delete", "settings_revision_insert", "settings_revision_update"]);
+
     instance.sql(upsertLikeThePreviousRelease("kept-model"));
     expect(revisionOf(instance), "an upsert that changes nothing is still a write").toBe(1);
 

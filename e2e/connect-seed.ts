@@ -6,8 +6,8 @@ INSERT INTO settings (id, provider, base_url, model, sealed_key) VALUES
 `;
 
 export const BEFORE_REVISION_WITH_SETTINGS: Seed = {
-  files: migrationsBefore("0021"),
+  files: migrationsBefore("0022"),
   sql: SAVED,
 };
 
-export const BEFORE_REVISION_EMPTY: Seed = { files: migrationsBefore("0021"), sql: "SELECT 1;" };
+export const BEFORE_REVISION_EMPTY: Seed = { files: migrationsBefore("0022"), sql: "SELECT 1;" };

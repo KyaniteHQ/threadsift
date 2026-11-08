@@ -46,9 +46,7 @@
       "indexes": {
         "agent_tokens_digest_unique": {
           "name": "agent_tokens_digest_unique",
-          "columns": [
-            "digest"
-          ],
+          "columns": ["digest"],
           "isUnique": true
         }
       },
@@ -196,9 +194,7 @@
       "indexes": {
         "ai_tasks_item": {
           "name": "ai_tasks_item",
-          "columns": [
-            "item_id"
-          ],
+          "columns": ["item_id"],
           "isUnique": false
         }
       },
@@ -206,13 +202,9 @@
         "ai_tasks_item_id_items_id_fk": {
           "name": "ai_tasks_item_id_items_id_fk",
           "tableFrom": "ai_tasks",
-          "columnsFrom": [
-            "item_id"
-          ],
+          "columnsFrom": ["item_id"],
           "tableTo": "items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -352,26 +344,18 @@
         "digests_item_id_items_id_fk": {
           "name": "digests_item_id_items_id_fk",
           "tableFrom": "digests",
-          "columnsFrom": [
-            "item_id"
-          ],
+          "columnsFrom": ["item_id"],
           "tableTo": "items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "digests_task_id_ai_tasks_id_fk": {
           "name": "digests_task_id_ai_tasks_id_fk",
           "tableFrom": "digests",
-          "columnsFrom": [
-            "task_id"
-          ],
+          "columnsFrom": ["task_id"],
           "tableTo": "ai_tasks",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -496,13 +480,9 @@
         "github_repos_item_id_items_id_fk": {
           "name": "github_repos_item_id_items_id_fk",
           "tableFrom": "github_repos",
-          "columnsFrom": [
-            "item_id"
-          ],
+          "columnsFrom": ["item_id"],
           "tableTo": "items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -583,17 +563,12 @@
       "indexes": {
         "item_tags_item_tag": {
           "name": "item_tags_item_tag",
-          "columns": [
-            "item_id",
-            "tag_id"
-          ],
+          "columns": ["item_id", "tag_id"],
           "isUnique": true
         },
         "item_tags_tag": {
           "name": "item_tags_tag",
-          "columns": [
-            "tag_id"
-          ],
+          "columns": ["tag_id"],
           "isUnique": false
         }
       },
@@ -601,26 +576,18 @@
         "item_tags_item_id_items_id_fk": {
           "name": "item_tags_item_id_items_id_fk",
           "tableFrom": "item_tags",
-          "columnsFrom": [
-            "item_id"
-          ],
+          "columnsFrom": ["item_id"],
           "tableTo": "items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "item_tags_tag_id_tags_id_fk": {
           "name": "item_tags_tag_id_tags_id_fk",
           "tableFrom": "item_tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
+          "columnsFrom": ["tag_id"],
           "tableTo": "tags",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -787,31 +754,22 @@
       "indexes": {
         "items_normalized_url_unique": {
           "name": "items_normalized_url_unique",
-          "columns": [
-            "normalized_url"
-          ],
+          "columns": ["normalized_url"],
           "isUnique": true
         },
         "items_saved_at_id": {
           "name": "items_saved_at_id",
-          "columns": [
-            "saved_at",
-            "id"
-          ],
+          "columns": ["saved_at", "id"],
           "isUnique": false
         },
         "items_topic": {
           "name": "items_topic",
-          "columns": [
-            "topic_id"
-          ],
+          "columns": ["topic_id"],
           "isUnique": false
         },
         "items_post_text_key": {
           "name": "items_post_text_key",
-          "columns": [
-            "post_text_key"
-          ],
+          "columns": ["post_text_key"],
           "isUnique": false
         }
       },
@@ -819,13 +777,9 @@
         "items_topic_id_topics_id_fk": {
           "name": "items_topic_id_topics_id_fk",
           "tableFrom": "items",
-          "columnsFrom": [
-            "topic_id"
-          ],
+          "columnsFrom": ["topic_id"],
           "tableTo": "topics",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -913,19 +867,13 @@
       "indexes": {
         "jobs_one_open_per_item_kind": {
           "name": "jobs_one_open_per_item_kind",
-          "columns": [
-            "item_id",
-            "kind"
-          ],
+          "columns": ["item_id", "kind"],
           "where": "\"jobs\".\"state\" <> 'done'",
           "isUnique": true
         },
         "jobs_state_next_attempt": {
           "name": "jobs_state_next_attempt",
-          "columns": [
-            "state",
-            "next_attempt_at"
-          ],
+          "columns": ["state", "next_attempt_at"],
           "isUnique": false
         }
       },
@@ -933,13 +881,9 @@
         "jobs_item_id_items_id_fk": {
           "name": "jobs_item_id_items_id_fk",
           "tableFrom": "jobs",
-          "columnsFrom": [
-            "item_id"
-          ],
+          "columnsFrom": ["item_id"],
           "tableTo": "items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1011,16 +955,12 @@
       "indexes": {
         "openrouter_connect_expires_at": {
           "name": "openrouter_connect_expires_at",
-          "columns": [
-            "expires_at"
-          ],
+          "columns": ["expires_at"],
           "isUnique": false
         },
         "openrouter_connect_session": {
           "name": "openrouter_connect_session",
-          "columns": [
-            "session_digest"
-          ],
+          "columns": ["session_digest"],
           "isUnique": false
         }
       },
@@ -1028,13 +968,9 @@
         "openrouter_connect_transactions_session_digest_sessions_digest_fk": {
           "name": "openrouter_connect_transactions_session_digest_sessions_digest_fk",
           "tableFrom": "openrouter_connect_transactions",
-          "columnsFrom": [
-            "session_digest"
-          ],
+          "columnsFrom": ["session_digest"],
           "tableTo": "sessions",
-          "columnsTo": [
-            "digest"
-          ],
+          "columnsTo": ["digest"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1187,11 +1123,7 @@
       "indexes": {
         "reddit_comments_id": {
           "name": "reddit_comments_id",
-          "columns": [
-            "item_id",
-            "generation",
-            "id"
-          ],
+          "columns": ["item_id", "generation", "id"],
           "isUnique": true
         }
       },
@@ -1199,24 +1131,16 @@
         "reddit_comments_item_id_items_id_fk": {
           "name": "reddit_comments_item_id_items_id_fk",
           "tableFrom": "reddit_comments",
-          "columnsFrom": [
-            "item_id"
-          ],
+          "columnsFrom": ["item_id"],
           "tableTo": "items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
         "reddit_comments_item_id_generation_position_pk": {
-          "columns": [
-            "item_id",
-            "generation",
-            "position"
-          ],
+          "columns": ["item_id", "generation", "position"],
           "name": "reddit_comments_item_id_generation_position_pk"
         }
       },
@@ -1253,23 +1177,16 @@
         "reddit_threads_item_id_items_id_fk": {
           "name": "reddit_threads_item_id_items_id_fk",
           "tableFrom": "reddit_threads",
-          "columnsFrom": [
-            "item_id"
-          ],
+          "columnsFrom": ["item_id"],
           "tableTo": "items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
         "reddit_threads_item_id_generation_pk": {
-          "columns": [
-            "item_id",
-            "generation"
-          ],
+          "columns": ["item_id", "generation"],
           "name": "reddit_threads_item_id_generation_pk"
         }
       },
@@ -1323,13 +1240,9 @@
         "search_fingerprints_item_id_items_id_fk": {
           "name": "search_fingerprints_item_id_items_id_fk",
           "tableFrom": "search_fingerprints",
-          "columnsFrom": [
-            "item_id"
-          ],
+          "columnsFrom": ["item_id"],
           "tableTo": "items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1373,9 +1286,7 @@
       "indexes": {
         "search_parts_item": {
           "name": "search_parts_item",
-          "columns": [
-            "item_id"
-          ],
+          "columns": ["item_id"],
           "isUnique": false
         }
       },
@@ -1383,13 +1294,9 @@
         "search_parts_item_id_items_id_fk": {
           "name": "search_parts_item_id_items_id_fk",
           "tableFrom": "search_parts",
-          "columnsFrom": [
-            "item_id"
-          ],
+          "columnsFrom": ["item_id"],
           "tableTo": "items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1557,9 +1464,7 @@
       "indexes": {
         "tags_key_unique": {
           "name": "tags_key_unique",
-          "columns": [
-            "key"
-          ],
+          "columns": ["key"],
           "isUnique": true
         }
       },
@@ -1627,9 +1532,7 @@
       "indexes": {
         "topics_key_unique": {
           "name": "topics_key_unique",
-          "columns": [
-            "key"
-          ],
+          "columns": ["key"],
           "isUnique": true
         }
       },
