@@ -1,7 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { STORAGE_KEY } from "../design/system/settings.ts";
-import { ADD_LABEL, SEARCH_LABEL, SETTINGS_GEAR_LABEL } from "../web/src/text.ts";
+import { ADD_LABEL, PASTE_LABEL, SEARCH_LABEL, SETTINGS_GEAR_LABEL } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { ITEMS_READ } from "./library-visit.ts";
@@ -176,6 +176,25 @@ test("pressing / while the faces load focuses the search field and keeps what is
     await expect(search).toHaveValue("caching");
     await expect(page.locator("article.it")).toHaveCount(1);
     await expect(page.locator("article.it")).toContainText("An article about caching");
+  } finally {
+    await close();
+  }
+});
+
+test("Enter in the paste field still saves while the Add button is hidden", async () => {
+  const { page, close } = await visit("/");
+
+  try {
+    await loading(page);
+
+    const saved = page.waitForRequest(
+      (request) => request.method() === "POST" && ITEMS_READ.test(request.url()),
+    );
+
+    await page.getByRole("textbox", { name: PASTE_LABEL }).fill("https://example.org/pasted");
+    await page.keyboard.press("Enter");
+    await held(page.locator(".app")).toHaveAttribute("data-faces", "loading");
+    await saved;
   } finally {
     await close();
   }
