@@ -49,6 +49,7 @@ The `error` text of the HTTP API is read by agents and `curl` and never shown by
 - Load the `ub-mode` skill before writing code. Where it differs from this page or from `docs/testing.md`, they win: its TDD, Crapper and Mutator sections give way to `docs/testing.md`, and its Commit and Push section gives way to the caller's branch and review flow.
 - For TypeScript, follow the `typescript-best-practices` skill (`.claude/skills/typescript-best-practices/`): discriminated unions, branded types, schemas before hand-written guards, exhaustive switches.
 - Outside data is parsed with Zod where it enters. `as` assertions fail lint (`typescript/consistent-type-assertions`); `as const` is allowed.
+- A change to `tools/pr-copy/` that a feature's copy check needs lands in its own pull request before the feature, because `copy-checks.yml` runs `main`'s `tools/pr-copy` against the pull request's copy (`docs/architecture.md`, Copy checks).
 
 ## Docs, commit messages and PR bodies
 

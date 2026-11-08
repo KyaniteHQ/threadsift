@@ -4,7 +4,7 @@ Threadsift is a reading library. You paste a link to something you saved (a Redd
 
 ## Status
 
-The build has started: the paste box saves and lists pasted links on both install targets (container image and local Cloudflare Worker). A pasted link gets its title (Reddit through oEmbed, other pages from their `<title>`), but there is no agent, reader, login or release, so do not deploy it; issue #1 tracks progress.
+The build is under way, and v1 is not released, so do not deploy it for real use; issue #1 tracks each slice. Both install targets (the container image and a Cloudflare Worker) run the same app. Built so far: owner setup, login, password change and agent tokens; Paste and the ingest pipeline, with article text, GitHub repositories and Reddit threads sent with a Paste; AI settings with OpenRouter, Anthropic, OpenAI and xAI keys, an OpenAI-compatible URL, Workers AI on Cloudflare, and Claude Code and Codex on the container, a Digest per Item with its Topic, Tags, Summary, Key points and Kept comments; search and filters; the Reader, the List and Grid Layouts, Delete, the 10 Styles and the installable app with its Share target. Not built yet: the Reader's comment tree, Highlights and the Note, Topic pages and the rest of the library wiki, OpenRouter Connect, Grok Bot, the MCP endpoint, the Extension, Import, Export and the release.
 
 - `docs/spec.md`: what v1 does.
 - `docs/architecture.md`: what it is built with and where each part runs.
