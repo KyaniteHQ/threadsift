@@ -3,6 +3,7 @@ import { type Dispatch, type SetStateAction, createContext, use, useState } from
 import type { Highlight } from "../../src/core/highlight-contract.ts";
 import type { MarkSpan } from "./highlight-marks.ts";
 import { NO_INDEX, NO_SPANS, type SpanIndex, indexSpans } from "./highlight-target.ts";
+import { provided } from "./provided.ts";
 import type { KeepDraft } from "./use-selection-draft.ts";
 
 export type Panel =
@@ -35,11 +36,7 @@ export const HighlightsContext = createContext<HighlightsApi | null>(null);
 export const PanelContext = createContext<Panel | null>(null);
 
 export function useHighlights(): HighlightsApi {
-  const api = use(HighlightsContext);
-
-  if (api === null) throw new Error("useHighlights needs a HighlightsProvider");
-
-  return api;
+  return provided(use(HighlightsContext), "useHighlights");
 }
 
 export function useSpanIndex(items: readonly Highlight[]): SpanIndex {

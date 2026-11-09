@@ -3,6 +3,7 @@ import { type RefObject, createContext, use, useEffect, useEffectEvent, useState
 import type { Highlight } from "../../src/core/highlight-contract.ts";
 import { scrollAndFocus } from "./jump-to-comments.ts";
 import { type Place, arrivalPlace } from "./place.ts";
+import { provided } from "./provided.ts";
 
 export interface Arrivals {
   readonly take: (kind: Place["kind"]) => Place | null;
@@ -41,11 +42,7 @@ export function useNewArrivals(): Arrivals {
 }
 
 export function useArrivals(): Arrivals {
-  const arrivals = use(ArrivalsContext);
-
-  if (arrivals === null) throw new Error("useArrivals needs the ArrivalsContext of a ReaderPane");
-
-  return arrivals;
+  return provided(use(ArrivalsContext), "useArrivals");
 }
 
 export function useHighlightArrival(
