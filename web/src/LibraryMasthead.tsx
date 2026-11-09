@@ -23,7 +23,7 @@ export function LibraryMasthead({
       save={actions.saveAndShow}
       focusOnMount={arrived}
       items={knownItems(library.list)}
-      request={actions.request}
+      queue={actions.queue}
       open={side.openFromCard}
     />
   );

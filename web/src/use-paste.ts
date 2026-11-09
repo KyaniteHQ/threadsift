@@ -28,6 +28,11 @@ export type Save = (target: SaveTarget) => Promise<SaveOutcome>;
 
 export type PasteRequest = SaveTarget & { readonly seq: number };
 
+export interface PasteQueue {
+  readonly next: PasteRequest | null;
+  readonly taken: (seq: number) => void;
+}
+
 const FAILED: SaveOutcome = { kind: "notice", notice: "failed" };
 const EMPTY: SaveOutcome = { kind: "notice", notice: "empty" };
 
@@ -180,25 +185,23 @@ export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item
 }
 
 export function usePasteRequest(
-  request: PasteRequest | null,
+  { next, taken }: Readonly<PasteQueue>,
   {
     guard,
     saveValue,
     saving,
   }: Readonly<Pick<ReturnType<typeof usePaste>, "guard" | "saveValue" | "saving">>,
 ) {
-  const answered = useRef(0);
-
   const run = useEffectEvent((target: SaveTarget) => {
     guard(() => saveValue(target, false));
   });
 
   useEffect(() => {
-    if (request !== null && request.seq !== answered.current && !saving) {
-      answered.current = request.seq;
-      run(request);
+    if (next !== null && !saving) {
+      taken(next.seq);
+      run(next);
     }
-  }, [request, saving]);
+  }, [next, saving, taken]);
 }
 
 export function useCardFace(

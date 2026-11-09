@@ -7,7 +7,7 @@ import type { SaveAnswer } from "./library.ts";
 import type { ListState } from "./list-state.ts";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
-import type { PasteRequest, SaveOutcome } from "./use-paste.ts";
+import type { PasteQueue, PasteRequest, SaveOutcome } from "./use-paste.ts";
 
 function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
   const retried = useRef(false);
@@ -80,6 +80,33 @@ function useSaveAndShow(
   );
 }
 
+function usePasteQueue() {
+  const [requests, setRequests] = useState<readonly PasteRequest[]>([]);
+  const sequence = useRef(0);
+
+  const retryItem = useCallback((item: Item) => {
+    if (item.retry === null) return;
+
+    sequence.current += 1;
+    const base = { url: item.originalUrl, seq: sequence.current };
+
+    const queued: PasteRequest =
+      item.retry === "digest"
+        ? { ...base, kind: "digest", id: item.id }
+        : { ...base, kind: "paste" };
+
+    setRequests((current) => [...current, queued]);
+  }, []);
+
+  const taken = useCallback((seq: number) => {
+    setRequests((current) => current.filter((each) => each.seq !== seq));
+  }, []);
+
+  const queue: PasteQueue = { next: requests[0] ?? null, taken };
+
+  return { queue, retryItem };
+}
+
 export function useListActions(
   list: ListState,
   actions: Readonly<{
@@ -90,18 +117,7 @@ export function useListActions(
   route: Route,
 ) {
   const { attention, attend, attended } = useOpenItem(list, route);
-  const [request, setRequest] = useState<PasteRequest | null>(null);
-
-  const retryItem = useCallback((item: Item) => {
-    if (item.retry === null) return;
-    setRequest((current) => {
-      const base = { url: item.originalUrl, seq: (current?.seq ?? 0) + 1 };
-
-      return item.retry === "digest"
-        ? { ...base, kind: "digest", id: item.id }
-        : { ...base, kind: "paste" };
-    });
-  }, []);
+  const { queue, retryItem } = usePasteQueue();
 
   const tryAgain = useCallback(
     (item: Item) => {
@@ -115,7 +131,7 @@ export function useListActions(
     attention,
     attend,
     attended,
-    request,
+    queue,
     tryAgain,
     retryItem,
     saveAndShow: useSaveAndShow(actions.save, attend, pane),
