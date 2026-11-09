@@ -1,10 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import {
-  FILES,
-  expectLoaded,
-  expectNoViolationsBesidesInlineLinks,
-} from "./article-image-screen.ts";
+import { FILES, expectLoaded } from "./article-image-screen.ts";
 import { type ArticleScreen, openArticleScreen } from "./article-screen.ts";
 import { BANDS_AT_WIDTH, THEMES, expectNoViolations, resize } from "./design-screens.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
@@ -42,7 +38,7 @@ test("the Reader's pictures break no design rule in Light, Dark and Sepia at 390
       await expect(reader(page)).toBeVisible();
       await expectLoaded(page, ".rd-orig .md img.pic", library.routes.length);
       await page.evaluate(() => document.fonts.ready);
-      await expectNoViolationsBesidesInlineLinks(page, `the Reader, ${theme} at ${width}px`);
+      await expectNoViolations(page, `the Reader, ${theme} at ${width}px`);
       await page.locator(".rd-orig .md img.pic").first().scrollIntoViewIfNeeded();
       await attachScreenshot(page, info, `reader-${theme}-${width}`);
     }

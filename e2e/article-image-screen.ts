@@ -2,8 +2,6 @@ import { type Browser, type BrowserContext, type Page, expect } from "@playwrigh
 import { z } from "zod";
 
 import { STORAGE_KEY } from "../design/system/settings.ts";
-import { DEFAULTS } from "../design/system/settings.ts";
-import { collectDesign } from "./design-checks.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { DESKTOP, type Stored, viewportAt } from "./look.ts";
 
@@ -79,18 +77,4 @@ export async function expectLoaded(page: Page, selector: string, count: number):
       )
       .toBe(true);
   }
-}
-
-const INLINE_LINK_TARGET = /^target a\.il-a /u;
-
-export async function expectNoViolationsBesidesInlineLinks(
-  page: Page,
-  what: string,
-): Promise<void> {
-  const { violations } = await page.evaluate(collectDesign, DEFAULTS.font);
-
-  expect(
-    violations.filter((violation) => !INLINE_LINK_TARGET.test(violation)),
-    what,
-  ).toEqual([]);
 }

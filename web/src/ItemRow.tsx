@@ -1,6 +1,5 @@
 import { type RefObject, memo, useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { isImageRouteOf } from "../../src/core/file-keys.ts";
 import { itemPath } from "../../src/core/item-path.ts";
 import { shownUrl } from "../../src/core/links.ts";
 import type { Item } from "../../src/http/schemas.ts";
@@ -23,9 +22,7 @@ function rowClasses(item: Readonly<Item>, isOpen: boolean, hasImage: boolean): s
 function shownImage(item: Readonly<Item>, wanted: boolean, broken: string | null): Item["image"] {
   const { image } = item;
 
-  return wanted && image !== null && image.url !== broken && isImageRouteOf(image.url, item.id)
-    ? image
-    : null;
+  return wanted && image !== null && image.url !== broken ? image : null;
 }
 
 function CardImage({
