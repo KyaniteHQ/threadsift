@@ -107,39 +107,96 @@ function webpSize(view: DataView): ImageSize | null {
   return null;
 }
 
-function childBox(view: DataView, within: Span, type: string): Span | null {
+interface Box extends Span {
+  readonly type: string;
+}
+
+function boxesOf(view: DataView, within: Span): readonly Box[] {
+  const found: Box[] = [];
   let at = within.start;
 
   while (at + 8 <= within.end) {
     const size = view.getUint32(at);
 
-    if (size < 8) return null;
+    if (size < 8) break;
 
-    if (ASCII.decode(new Uint8Array(view.buffer, view.byteOffset + at + 4, 4)) === type) {
-      return { start: at + 8, end: Math.min(at + size, within.end) };
-    }
-
+    found.push({
+      type: ASCII.decode(new Uint8Array(view.buffer, view.byteOffset + at + 4, 4)),
+      start: at + 8,
+      end: Math.min(at + size, within.end),
+    });
     at += size;
   }
 
-  return null;
+  return found;
 }
 
 function inside(view: DataView, span: Span | null, type: string, skip = 0): Span | null {
-  return span === null ? null : childBox(view, { start: span.start + skip, end: span.end }, type);
+  return span === null
+    ? null
+    : (boxesOf(view, { start: span.start + skip, end: span.end }).find(
+        (box) => box.type === type,
+      ) ?? null);
+}
+
+function primaryItemId(view: DataView, pitm: Span): number {
+  return view.getUint8(pitm.start) === 0
+    ? view.getUint16(pitm.start + FULL_BOX_HEADER)
+    : view.getUint32(pitm.start + FULL_BOX_HEADER);
+}
+
+function propertyIndices(view: DataView, ipma: Span, item: number): readonly number[] {
+  const version = view.getUint8(ipma.start);
+  const wide = (view.getUint8(ipma.start + 3) & 1) === 1;
+  const idBytes = version === 0 ? 2 : 4;
+  let at = ipma.start + FULL_BOX_HEADER + 4;
+
+  for (let entry = view.getUint32(ipma.start + FULL_BOX_HEADER); entry > 0; entry -= 1) {
+    const id = idBytes === 2 ? view.getUint16(at) : view.getUint32(at);
+    const count = view.getUint8(at + idBytes);
+    const indices: number[] = [];
+
+    at += idBytes + 1;
+
+    for (let association = 0; association < count; association += 1) {
+      indices.push(wide ? view.getUint16(at) & 0x7f_ff : view.getUint8(at) & 0x7f);
+      at += wide ? 2 : 1;
+    }
+
+    if (id === item) return indices;
+  }
+
+  return [];
 }
 
 function avifSize(view: DataView): ImageSize | null {
-  const whole = { start: 0, end: view.byteLength };
-  const meta = inside(view, whole, "meta");
-  const properties = inside(view, inside(view, meta, "iprp", FULL_BOX_HEADER), "ipco");
-  const extent = inside(view, properties, "ispe");
+  const meta = inside(view, { start: 0, end: view.byteLength }, "meta");
+  const pitm = inside(view, meta, "pitm", FULL_BOX_HEADER);
+  const iprp = inside(view, meta, "iprp", FULL_BOX_HEADER);
+  const ipco = inside(view, iprp, "ipco");
+  const ipma = inside(view, iprp, "ipma");
 
-  return extent === null
+  if (pitm === null || ipco === null || ipma === null) return null;
+
+  const properties = boxesOf(view, ipco);
+
+  const own = propertyIndices(view, ipma, primaryItemId(view, pitm)).flatMap((index) => {
+    const property = properties[index - 1];
+
+    return property === undefined ? [] : [property];
+  });
+
+  const extent = own.find(({ type }) => type === "ispe");
+  const rotation = own.find(({ type }) => type === "irot");
+
+  return extent === undefined
     ? null
-    : sized(
-        view.getUint32(extent.start + FULL_BOX_HEADER),
-        view.getUint32(extent.start + FULL_BOX_HEADER + 4),
+    : turned(
+        sized(
+          view.getUint32(extent.start + FULL_BOX_HEADER),
+          view.getUint32(extent.start + FULL_BOX_HEADER + 4),
+        ),
+        rotation !== undefined && (view.getUint8(rotation.start) & 1) === 1,
       );
 }
 
