@@ -21,6 +21,7 @@ const ROUTES = [
   "/api/items/:id/read-state",
   "/api/items/:id/highlights",
   "/api/items/:id/highlights/:highlightId",
+  "/api/items/:id/note",
   "/api/files/items/:id/:name",
 ] as const;
 
