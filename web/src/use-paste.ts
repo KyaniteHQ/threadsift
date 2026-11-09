@@ -88,11 +88,31 @@ function useSaveValue({
   );
 }
 
-function useCloseCard(
-  setShown: (shown: Shown | null) => void,
-  focusField: () => void,
-  release: () => void,
-) {
+function useCloseWhenGone(
+  shown: Readonly<Shown> | null,
+  items: readonly Item[],
+  close: () => void,
+): void {
+  const gone = shown?.kind === "item" && !items.some((each) => each.id === shown.itemId);
+
+  useEffect(() => {
+    if (gone) close();
+  }, [close, gone]);
+}
+
+function useCloseCard({
+  shown,
+  items,
+  setShown,
+  focusField,
+  release,
+}: Readonly<{
+  shown: Readonly<Shown> | null;
+  items: readonly Item[];
+  setShown: (shown: Shown | null) => void;
+  focusField: () => void;
+  release: () => void;
+}>) {
   const close = useCallback(() => {
     setShown(null);
     release();
@@ -102,6 +122,8 @@ function useCloseCard(
     close();
     focusField();
   }, [close, focusField]);
+
+  useCloseWhenGone(shown, items, close);
 
   return { close, dismiss };
 }
@@ -137,7 +159,7 @@ export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item
     [guard, saveValue, saving, value],
   );
 
-  const { close, dismiss } = useCloseCard(setShown, focusField, release);
+  const { close, dismiss } = useCloseCard({ shown, items, setShown, focusField, release });
 
   const change = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
