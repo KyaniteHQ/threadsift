@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { type Digest, DigestSchema } from "./ai-contract.ts";
-import { completedAiTask } from "./ai-tasks.ts";
+import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
 import { catalogCurrent, catalogEntries, linkingDigest } from "./catalog.ts";
 import {
   type DigestInput,
@@ -98,7 +98,7 @@ export async function publishing(
   const entries = catalogEntries(digest);
   const origin = digestOrigin(source, digest, entries);
   const { catalog, published } = origin;
-  const generation = generationCurrent(item);
+  const generation = sql`${generationCurrent(item)} and ${aiTaskRunning(taskId)}`;
   const kept = published.keptComments ?? [];
   const snapshot = { itemId: item.id, generation: item.generation };
   const bodies = kept.length === 0 ? [] : await selectedBodies(db, snapshot, kept);

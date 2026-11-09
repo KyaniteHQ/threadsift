@@ -53,7 +53,11 @@ export function completedAiTask<Result>(
   return db
     .update(aiTasks)
     .set({ state: "done", result: JSON.stringify(task.result), refusal: null, status: null })
-    .where(eq(aiTasks.id, task.taskId));
+    .where(and(eq(aiTasks.id, task.taskId), eq(aiTasks.state, "running")));
+}
+
+export function aiTaskRunning(taskId: number) {
+  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${taskId} and ${aiTasks.state} = 'running')`;
 }
 
 export function failedAiTask(
@@ -61,7 +65,9 @@ export function failedAiTask(
   taskId: number,
   failure: Readonly<{ reason: AiRefusal | "stale" | "lease-lost"; status: number | null }>,
 ) {
-  return failingAiTask(db, failure).where(eq(aiTasks.id, taskId));
+  return failingAiTask(db, failure).where(
+    and(eq(aiTasks.id, taskId), eq(aiTasks.state, "running")),
+  );
 }
 
 function failingAiTask(

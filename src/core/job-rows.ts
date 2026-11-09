@@ -109,10 +109,15 @@ export function enqueueRows(
 }
 
 export async function enqueueItemJobs(ports: JobPorts, itemId: number): Promise<void> {
-  const queued = await ports.db
-    .select({ id: jobs.id })
-    .from(jobs)
-    .where(and(eq(jobs.itemId, itemId), sql`${jobs.state} <> 'done'`));
-
-  await enqueueRows(ports, queued);
+  try {
+    await enqueueRows(
+      ports,
+      await ports.db
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(and(eq(jobs.itemId, itemId), sql`${jobs.state} <> 'done'`)),
+    );
+  } catch (error) {
+    logFailure("jobs-not-queued", { itemId }, error);
+  }
 }
