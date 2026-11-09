@@ -2,7 +2,14 @@ import { SessionStateSchema } from "../../src/http/schemas.ts";
 import type { AccessCodes } from "./codes.ts";
 import { ItemListAnswerSchema } from "./copy-answers.ts";
 import { type Copy, callCopy, decodeAnswer } from "./copy-calls.ts";
-import { type Item, awaitServing, endState, expectOk, paste } from "./copy-client.ts";
+import {
+  type Item,
+  type ServeOptions,
+  awaitServing,
+  endState,
+  expectOk,
+  paste,
+} from "./copy-client.ts";
 import { signIn } from "./demo-access.ts";
 
 const RETRY_BUDGET_MS = 120_000;
@@ -50,8 +57,12 @@ async function seedItem(copy: Readonly<Copy>, demo: Readonly<DemoItem>): Promise
   return wrong.length === 0 ? null : `${demo.url} ended with a different ${wrong.join(", ")}`;
 }
 
-export async function seedDemo(url: string, codes: Readonly<AccessCodes>): Promise<void> {
-  const copy = await openDemo(url, codes);
+export async function seedDemo(
+  url: string,
+  codes: Readonly<AccessCodes>,
+  options: Readonly<ServeOptions>,
+): Promise<void> {
+  const copy = await openDemo(url, codes, options);
 
   const outcomes = await Promise.all(DEMO_ITEMS.map((demo) => seedItem(copy, demo)));
   const failed = outcomes.filter((outcome) => outcome !== null);
@@ -61,14 +72,22 @@ export async function seedDemo(url: string, codes: Readonly<AccessCodes>): Promi
   }
 }
 
-async function openDemo(url: string, codes: Readonly<AccessCodes>): Promise<Copy> {
-  await awaitServing(url);
+async function openDemo(
+  url: string,
+  codes: Readonly<AccessCodes>,
+  options: Readonly<ServeOptions>,
+): Promise<Copy> {
+  await awaitServing(url, options);
 
   return signIn({ url, retryUntil: Date.now() + RETRY_BUDGET_MS }, codes);
 }
 
-export async function ensureDemo(url: string, codes: Readonly<AccessCodes>): Promise<void> {
-  const copy = await openDemo(url, codes);
+export async function ensureDemo(
+  url: string,
+  codes: Readonly<AccessCodes>,
+  options: Readonly<ServeOptions>,
+): Promise<void> {
+  const copy = await openDemo(url, codes, options);
   const response = await callCopy(copy, { path: "/api/items", cookie: copy.cookie });
 
   await expectOk(response, "/api/items");

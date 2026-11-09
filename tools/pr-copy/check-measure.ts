@@ -8,11 +8,14 @@ import { type Item, endState, expectOk, paste } from "./copy-client.ts";
 import { queryDatabase } from "./d1.ts";
 import { SKEW_MS } from "./pace.ts";
 import { type Invocation, type Trigger, awaitInvocations, readInvocations } from "./telemetry.ts";
+import { cutShortBy, pause, timedOut } from "./timeout.ts";
 
 export const INGEST_DEADLINE_MS = 180_000;
 export const SENTINEL_ROUTE = "/api/session";
 
 const ATTEMPTS = 2;
+const SWEEP_WAIT_MS = 150_000;
+const SWEEP_POLL_MS = 2000;
 const IDLE_LOOKBACK_MS = 3 * 3_600_000;
 const MS_PER_MINUTE = 60_000;
 
@@ -97,15 +100,50 @@ function insideOwnInterval(start: number, end: number) {
     seen.trigger === "queue" && seen.at >= start - SKEW_MS && seen.at <= end + SKEW_MS;
 }
 
-async function sweepAt(run: Readonly<Run>): Promise<number> {
+async function sweepAt(run: Readonly<Run>, deadline?: number): Promise<number> {
   const rows = await queryDatabase(
     run.stage,
     run.database,
     "SELECT last_run_at AS n FROM scheduled_runs WHERE task = 'sweep'",
     Count,
+    deadline,
   );
 
   return rows[0]?.n ?? 0;
+}
+
+async function sweepBefore(run: Readonly<Run>, deadline: number): Promise<number | null> {
+  const cut = cutShortBy(deadline);
+
+  try {
+    return await sweepAt(run, deadline);
+  } catch (error) {
+    if (cut && error instanceof Error && timedOut(error)) return null;
+
+    throw error;
+  }
+}
+
+async function waitForSweep(
+  run: Readonly<Run>,
+  baseline: number,
+  deadline: number,
+): Promise<number> {
+  await pause(SWEEP_POLL_MS, deadline);
+
+  if (Date.now() >= deadline) return baseline;
+
+  const at = await sweepBefore(run, deadline);
+
+  if (at === null) return baseline;
+
+  return at === baseline ? waitForSweep(run, baseline, deadline) : at;
+}
+
+async function justAfterSweep(run: Readonly<Run>): Promise<number> {
+  const deadline = Date.now() + SWEEP_WAIT_MS;
+
+  return waitForSweep(run, await sweepAt(run), deadline);
 }
 
 async function attemptPaste(
@@ -117,7 +155,7 @@ async function attemptPaste(
   await run.pace.settle();
   await requireIdleCopy(run, copy);
 
-  const sweptBefore = await sweepAt(run);
+  const sweptBefore = await justAfterSweep(run);
   const start = Date.now();
   const { id, created } = await paste(copy, url);
   findings.item(id);

@@ -113,14 +113,18 @@ function requestBody(
   });
 }
 
+export class SampledQuery extends Inconclusive {
+  constructor() {
+    super("the telemetry query read sampled data (abr_level above 1)");
+  }
+}
+
 function requireComplete(status: string | undefined, abrLevel: number | undefined): void {
   if (status !== "COMPLETED") {
     throw new Inconclusive("the telemetry query did not complete");
   }
 
-  if ((abrLevel ?? 1) !== 1) {
-    throw new Inconclusive("the telemetry query read sampled data (abr_level above 1)");
-  }
+  if ((abrLevel ?? 1) !== 1) throw new SampledQuery();
 }
 
 async function queryPage(
