@@ -10,25 +10,33 @@ function useQuestion() {
   const [asking, setAsking] = useState<number | null>(null);
   const [focusId, setFocusId] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
+  const generation = useRef(0);
 
   const ask = useCallback((id: number) => {
+    generation.current += 1;
     setFailed(false);
     setAsking(id);
   }, []);
 
   const cancel = useCallback((id: number) => {
+    generation.current += 1;
     setFailed(false);
     setAsking(null);
     setFocusId(id);
   }, []);
 
   const answered = useCallback((id: number, next: number | null) => {
+    generation.current += 1;
     setFailed(false);
     setAsking((current) => (current === id ? null : current));
     setFocusId(next);
   }, []);
 
-  return { asking, focusId, failed, setFailed, ask, cancel, answered };
+  const refused = useCallback((question: number) => {
+    if (generation.current === question) setFailed(true);
+  }, []);
+
+  return { asking, focusId, failed, generation, refused, ask, cancel, answered };
 }
 
 function useRevoke(
@@ -36,7 +44,7 @@ function useRevoke(
   removed: (id: number) => void,
   nameField: RefObject<HTMLInputElement | null>,
 ) {
-  const { asking, focusId, failed, setFailed, ask, cancel, answered } = useQuestion();
+  const { asking, focusId, failed, generation, refused, ask, cancel, answered } = useQuestion();
   const [revoking, setRevoking] = useState(false);
   const inFlight = useRef(false);
 
@@ -47,13 +55,15 @@ function useRevoke(
       inFlight.current = true;
       setRevoking(true);
 
+      const question = generation.current;
+
       const index = tokens.findIndex((token) => token.id === id);
       const neighbour = tokens[index + 1] ?? tokens[index - 1];
 
       try {
         await revokeToken(id);
       } catch {
-        setFailed(true);
+        refused(question);
 
         return;
       } finally {
@@ -68,7 +78,7 @@ function useRevoke(
         nameField.current?.focus();
       }
     },
-    [answered, nameField, removed, setFailed, tokens],
+    [answered, generation, nameField, refused, removed, tokens],
   );
 
   return { asking, focusId, failed, revoking, actions: { ask, cancel, revoke } };

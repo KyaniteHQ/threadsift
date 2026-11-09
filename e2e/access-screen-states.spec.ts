@@ -3,6 +3,7 @@ import { type Browser, type Page, type Route, expect, test } from "@playwright/t
 import { FIELDS, LOGIN, RESET, SETTINGS, SETUP } from "../web/src/access-text.ts";
 import { launchFresh, minimumPassword, newCode, newPassword } from "./access.ts";
 import { type FreshScreen, openFresh, openSignedIn, setUpByApi } from "./fresh-screen.ts";
+import { afterTwoFrames } from "./look.ts";
 import { newResetCode, resetEnv } from "./password.ts";
 import { confirmField, enterCode, libraryHeading, passwordField } from "./setup-screens.ts";
 import { addToken, mint, revokeOf } from "./tokens.ts";
@@ -115,6 +116,34 @@ test("a finished Revoke leaves the question the owner opened on another token", 
 
     await expect(revokeOf(page, "Going")).toHaveCount(0);
     await expect(confirmRevoke(page)).toBeVisible();
+  });
+});
+
+test("a Revoke refused after the owner cancelled, or asked about another token, shows no failure", async ({
+  browser,
+}) => {
+  await onSettings(browser, async ({ page }) => {
+    await addToken(page, "Late one");
+    await addToken(page, "Late two");
+
+    const { held, count } = await holdDeletes(page);
+
+    await revokeOf(page, "Late one").click();
+    await confirmRevoke(page).click();
+    await expect.poll(count).toBe(1);
+    await page.getByRole("button", { name: SETTINGS.cancel }).click();
+    await held[0]?.fulfill({ status: 500 });
+    await afterTwoFrames(page);
+    await expect(page.getByText(SETTINGS.revokeFailed)).toHaveCount(0);
+
+    await revokeOf(page, "Late one").click();
+    await confirmRevoke(page).click();
+    await expect.poll(count).toBe(2);
+    await revokeOf(page, "Late two").click();
+    await held[1]?.fulfill({ status: 500 });
+    await afterTwoFrames(page);
+    await expect(confirmRevoke(page)).toBeVisible();
+    await expect(page.getByText(SETTINGS.revokeFailed)).toHaveCount(0);
   });
 });
 
