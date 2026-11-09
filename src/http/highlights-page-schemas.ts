@@ -11,7 +11,7 @@ export const HighlightsQuerySchema = z.object({
   source: z.enum(SOURCES).optional(),
   cursor: z
     .string()
-    .refine((text) => parseCursor(text) !== null, "not a cursor that an answer gave")
+    .refine((text) => parseCursor(text) !== null, "not a well-formed cursor")
     .optional(),
 });
 
