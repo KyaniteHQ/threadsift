@@ -26,7 +26,7 @@ export {
 
 export { itemAliases } from "./alias-tables.ts";
 
-export { dataStepRenames, dataSteps } from "./data-step-tables.ts";
+export { dataStepLease, dataStepRenames, dataSteps } from "./data-step-tables.ts";
 
 export { guardHolds, guardedBatch, guardedWrite, guards, insertGuard } from "./guards.ts";
 

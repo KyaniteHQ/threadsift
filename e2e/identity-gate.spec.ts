@@ -9,9 +9,10 @@ import {
   marker,
   runStep,
   started,
+  stored,
   stoppedBeforeRenames,
 } from "./identity-run.ts";
-import { ALICE_POSTED, BEFORE_IDENTITY, FAILING_BEFORE } from "./identity-seed.ts";
+import { ALICE_POSTED, BEFORE_IDENTITY, FAILING_BEFORE, ITEMS, RENAMED } from "./identity-seed.ts";
 import { addButton, pasteCard, pasteField } from "./links.ts";
 import { shareFromThisPage } from "./share.ts";
 
@@ -70,6 +71,38 @@ test("while the step cannot finish, reads work and every paste entry refuses, an
 
     expect([found.status, found.id]).toEqual([200, 1]);
     expect(count(instance, "SELECT 1 FROM items")).toBe(17);
+  } finally {
+    await owner.dispose();
+    instance.stop();
+  }
+});
+
+test("while another run holds the step lease, a paste is refused and no Item is renamed, and the step finishes once the lease is gone", async () => {
+  const { instance, owner } = await started(FAILING_BEFORE);
+
+  try {
+    await attemptStep(owner, instance);
+    instance.sql("DROP TRIGGER stop_batch");
+    instance.sql(
+      "INSERT INTO data_step_lease (id, holder, expires_at) VALUES (1, 'another-run', 9007199254740991)",
+    );
+
+    await attemptStep(owner, instance);
+
+    const refused = await pasteAlice(owner);
+
+    expect(refused.status).toBe(503);
+    expect(marker(instance).at(0)?.version).not.toBe(1);
+    expect(stored(instance).at(0)?.normalized_url).toBe(ITEMS[0][3]);
+
+    instance.sql("DELETE FROM data_step_lease");
+    await runStep(owner, instance);
+
+    const found = await pasteAlice(owner);
+
+    expect([found.status, found.id]).toEqual([200, 1]);
+    expect(stored(instance).at(0)?.normalized_url).toBe(RENAMED[0][1]);
+    expect(count(instance, "SELECT 1 FROM data_step_lease")).toBe(0);
   } finally {
     await owner.dispose();
     instance.stop();
