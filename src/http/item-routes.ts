@@ -19,6 +19,7 @@ import {
   SaveItemRequestSchema,
   SavedItemResponseSchema,
   itemView,
+  shownItems,
 } from "./schemas.ts";
 
 export const NOT_FOUND = "Not found";
@@ -201,6 +202,6 @@ export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(listItemsRoute, async (c) => {
     const { items, counts } = await listItems(ports.db, itemFilters(c.req.valid("query")));
 
-    return c.json({ items: items.map((row) => itemView(row)), counts }, 200);
+    return c.json({ items: shownItems(items), counts }, 200);
   });
 }

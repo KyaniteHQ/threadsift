@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { DigestSchema, ReaderDigestSchema } from "../core/ai-contract.ts";
 import { CommentsViewSchema } from "../core/comment-view.ts";
+import { logFailure } from "../core/failure-log.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { HighlightsViewSchema } from "../core/highlight-contract.ts";
 import {
@@ -295,4 +296,16 @@ export function itemView<Row extends StatusRow>(
   } = row;
 
   return { ...view, ...statusOf(row), wait: waitOf(row), image: imageOf(row) };
+}
+
+export function shownItems<Row extends StatusRow>(rows: readonly Readonly<Row>[]) {
+  return rows.flatMap((row) => {
+    try {
+      return [itemView(row)];
+    } catch (error) {
+      logFailure("item-not-shown", { itemId: row.id }, error);
+
+      return [];
+    }
+  });
 }
