@@ -14,6 +14,10 @@ const HIGHLIGHTS = 120;
 
 const STEP = 10;
 
+const SAME_DATE = 60;
+
+const TIED_AT = FIRST_DATE - 1000;
+
 interface Held {
   readonly kind: "highlight" | "note";
   readonly id: number;
@@ -47,6 +51,11 @@ test.beforeAll(async () => {
     model.push({ kind: "highlight", id, date });
   });
 
+  await keepWords(screen, "ps", SAME_DATE, (id) => {
+    dateHighlight(screen, id, TIED_AT);
+    model.push({ kind: "highlight", id, date: TIED_AT });
+  });
+
   const noteDates = [70 * STEP, 30 * STEP, 10 * STEP + 5, 5 * STEP + 5];
 
   for (const [index, offset] of noteDates.entries()) {
@@ -65,9 +74,9 @@ test("every page holds 50 entries, newest first, and the pages together hold eac
   const pages = await allPages(screenOf().context.request);
   const expected = newestFirst();
 
-  expect(pages.map(({ entries }) => entries.length)).toEqual([PAGE_SIZE, PAGE_SIZE, 24]);
-  expect(pages.map(({ next }) => next === null)).toEqual([false, false, true]);
-  expect(pages.map(({ counts }) => counts.total)).toEqual([124, 124, 124]);
+  expect(pages.map(({ entries }) => entries.length)).toEqual([PAGE_SIZE, PAGE_SIZE, PAGE_SIZE, 34]);
+  expect(pages.map(({ next }) => next === null)).toEqual([false, false, false, true]);
+  expect(pages.map(({ counts }) => counts.total)).toEqual([184, 184, 184, 184]);
 
   expect(keysOf(pages.flatMap(({ entries }) => entries))).toEqual(keysOf(expected));
 });
@@ -83,6 +92,19 @@ test("a Highlight and a Note with the same date are split across the page edge w
   expect(edge[PAGE_SIZE - 1]?.date).toBe(edge[PAGE_SIZE]?.date);
   expect(keysOf(first.entries.slice(-1))).toEqual(keysOf(edge.slice(PAGE_SIZE - 1, PAGE_SIZE)));
   expect(keysOf(second.entries.slice(0, 1))).toEqual(keysOf(edge.slice(PAGE_SIZE, PAGE_SIZE + 1)));
+});
+
+test("more Highlights than a page share one date and are listed by descending id across the page edge, none repeated and none missing", async () => {
+  const pages = await allPages(screenOf().context.request);
+  const tied = model.flatMap(({ date, id }) => (date === TIED_AT ? [id] : []));
+  const listed = pages.flatMap(({ entries }) => entries.filter(({ date }) => date === TIED_AT));
+  const edge = pages[2]?.entries ?? [];
+
+  expect(tied).toHaveLength(SAME_DATE);
+  expect(listed.map(({ id }) => id)).toEqual(tied.toSorted((left, right) => right - left));
+  expect(edge.at(-1)?.date, "the last entry of page 3").toBe(TIED_AT);
+  expect(pages[3]?.entries[0]?.date, "the first entry of page 4").toBe(TIED_AT);
+  expect(edge.filter(({ date }) => date === TIED_AT).length).toBeGreaterThan(0);
 });
 
 test("a cursor older than every entry answers an empty last page, and one that is made up answers 400", async () => {
