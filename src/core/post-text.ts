@@ -1,5 +1,8 @@
-import { FileRefused, parseFileKey } from "./file-keys.ts";
-import type { FileStore } from "./ports.ts";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
+
+import { FileRefused, fileRouteOf, parseFileKey } from "./file-keys.ts";
+import type { Database, FileStore } from "./ports.ts";
+import { media } from "./schema.ts";
 
 const UNESCAPED_BY_JSON = /[\u007F-\u009F\u2028\u2029]/gu;
 
@@ -58,4 +61,29 @@ export function postTextOf(
   return postTextKey === null
     ? Promise.resolve(postText)
     : readPostText(files, itemId, postTextKey);
+}
+
+export function sizedImageRows(db: Database, itemId: number) {
+  return db
+    .select({ key: media.fileKey, width: media.width, height: media.height })
+    .from(media)
+    .where(
+      and(
+        eq(media.itemId, itemId),
+        eq(media.outcome, "stored"),
+        isNotNull(media.width),
+        isNotNull(media.height),
+      ),
+    )
+    .orderBy(asc(media.position));
+}
+
+type SizedRow = Readonly<{ key: string | null; width: number | null; height: number | null }>;
+
+export function sizedImagesOf(rows: readonly SizedRow[]) {
+  return rows.flatMap(({ key, width, height }) =>
+    key === null || width === null || height === null
+      ? []
+      : [{ url: fileRouteOf(key), width, height }],
+  );
 }

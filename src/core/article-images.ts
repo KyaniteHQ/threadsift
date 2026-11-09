@@ -2,6 +2,7 @@ import { type EmbedLink, embedLinkOf } from "./embed-links.ts";
 import { digestOf } from "./encoding.ts";
 import { fileRouteOf } from "./file-keys.ts";
 import { type Fetched, decoded, downloaded, fits } from "./image-download.ts";
+import { imageSize } from "./image-size.ts";
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
 import {
   type Edit,
@@ -22,6 +23,8 @@ export type MediaRowValue = Readonly<Omit<MediaRow, "id" | "itemId">>;
 
 const NO_DETAILS = {
   alt: "",
+  width: null,
+  height: null,
   finalUrl: null,
   reason: null,
   fileKey: null,
@@ -113,12 +116,16 @@ function rowOf(
   const sourceUrl =
     source.kind === "remote" ? source.url : `inline:sha256:${digestOf(crypto, source.dataUrl)}`;
 
+  const size = fetched.ok ? imageSize(fetched.bytes, fetched.type) : null;
+
   return fetched.ok
     ? {
         ...NO_DETAILS,
         kind: "image",
         sourceUrl,
         alt: plainAlt(alt),
+        width: size?.width ?? null,
+        height: size?.height ?? null,
         finalUrl: fetched.finalUrl,
         position,
         outcome: "stored",

@@ -1,9 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 import {
   FILES,
   ItemAnswer,
   ListAnswer,
+  RawItem,
+  RawItems,
   expectLoaded,
   fileRequests,
   watchedPage,
@@ -31,6 +33,25 @@ test.beforeAll(async ({ browser }) => {
 test.afterAll(async () => {
   await screen.close();
 });
+
+async function expectNoPostText(request: APIRequestContext, ids: readonly number[]): Promise<void> {
+  const list = RawItems.parse(await (await request.get("/api/items")).json());
+
+  expect(list.items.length, "Items in the list").toBeGreaterThanOrEqual(ids.length);
+
+  for (const item of list.items) {
+    expect(
+      JSON.stringify(item),
+      `list Item ${String(item["id"])} holds no post text`,
+    ).not.toContain("postText");
+  }
+
+  for (const id of ids) {
+    const { item } = RawItem.parse(await (await request.get(`/api/items/${id}/status`)).json());
+
+    expect(JSON.stringify(item), `status Item ${id} holds no post text`).not.toContain("postText");
+  }
+}
 
 test("the list, status and detail answers carry the first stored image and its alt text, and nothing for an Item without one", async () => {
   const { request } = screen.context;
@@ -67,7 +88,8 @@ test("the list, status and detail answers carry the first stored image and its a
   const detail = ItemAnswer.parse(await (await request.get(`/api/items/${articleId}`)).json());
 
   expect(detail.item.postText, "the detail answer holds the post text").toContain(routes[0]);
-  expect(JSON.stringify(list), "the list answer holds no post text").not.toContain("postText");
+
+  await expectNoPostText(request, [articleId, plainId]);
 });
 
 test("the Reader shows every stored image from its file route, keeps the failed image a link, and requests only stored files", async ({

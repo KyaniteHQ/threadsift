@@ -300,7 +300,7 @@ export function collectDesign(defaultFont: string) {
       const box = (target.closest(".it") ?? target).getBoundingClientRect();
       const drawsNoBox = box.width === 0 && box.height === 0;
       const isHint = target.closest(".vh") !== null;
-      const isInProse = target.closest(".md") !== null;
+      const isInProse = target.matches("a[href]") && target.closest(".md") !== null;
 
       if (!drawsNoBox && !isHint && !isInProse && Math.min(box.width, box.height) < TARGET - 0.5) {
         found.push(`target ${name(target)}: ${box.width}x${box.height} is under ${TARGET}px`);

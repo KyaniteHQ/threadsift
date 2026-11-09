@@ -21,6 +21,10 @@ export const ListAnswer = z.object({
   ),
 });
 
+export const RawItems = z.object({ items: z.array(z.record(z.string(), z.unknown())) });
+
+export const RawItem = z.object({ item: z.record(z.string(), z.unknown()) });
+
 export interface Watched {
   readonly context: BrowserContext;
   readonly page: Page;

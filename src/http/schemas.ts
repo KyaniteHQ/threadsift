@@ -16,7 +16,7 @@ import {
 } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
-import { type ImageColumns, ItemImageSchema, imageOf } from "./item-image.ts";
+import { type ImageColumns, ItemImageSchema, SizedImageSchema, imageOf } from "./item-image.ts";
 
 const HttpUrlSchema = z.url({ protocol: /^https?$/u });
 
@@ -85,6 +85,7 @@ const ItemDetailSchema = withStatus(
     postText: z.string().nullable(),
     digest: ReaderDigestSchema.nullable(),
     repository: RepositorySchema.nullable(),
+    images: z.array(SizedImageSchema).readonly(),
     comments: CommentsViewSchema,
     highlights: HighlightsViewSchema,
   }),

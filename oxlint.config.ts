@@ -74,6 +74,7 @@ export default defineConfig({
               "URL",
               "ReadableStream",
               "Uint8Array",
+              "DataView",
               "Response",
               "RequestInit",
               "AsyncIterable",

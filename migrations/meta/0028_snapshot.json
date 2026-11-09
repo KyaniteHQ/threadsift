@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3ed4e481-6ef5-4f18-b531-df321c96b593",
+  "id": "98a23b52-0ea2-4723-bf61-49eff3f5f988",
   "prevId": "584be0de-76dc-4b63-99a0-b49b045a21ed",
   "tables": {
     "agent_tokens": {
@@ -1179,6 +1179,20 @@
           "notNull": true,
           "autoincrement": false,
           "default": "''"
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "outcome": {
           "name": "outcome",
