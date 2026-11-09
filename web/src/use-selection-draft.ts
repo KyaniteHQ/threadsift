@@ -72,16 +72,22 @@ function inBody(selection: Selection): boolean {
   return element?.closest(BODY_SELECTOR) instanceof Element;
 }
 
+async function draftFrom(selection: Selection | null): Promise<SelectionDraft | null> {
+  if (selection === null || !inBody(selection)) return null;
+
+  return (await import("./highlight-draft.ts")).draftOf(selection);
+}
+
 export function useSelectionDraft(revisions: HighlightsView["revisions"]) {
   const [draft, setDraft] = useState<KeepDraft | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
 
   const read = useEffectEvent(async (): Promise<void> => {
-    const selection = document.getSelection();
+    const found = await draftFrom(document.getSelection()).catch(() => {
+      setUnavailable(true);
 
-    const found =
-      selection !== null && inBody(selection)
-        ? (await import("./highlight-draft.ts")).draftOf(selection)
-        : null;
+      return null;
+    });
 
     const revision = found === null ? null : revisionOf(found, revisions);
     const next = found === null || revision === null ? null : { ...found, revision };
@@ -97,5 +103,5 @@ export function useSelectionDraft(revisions: HighlightsView["revisions"]) {
     [],
   );
 
-  return [draft, setDraft] as const;
+  return [draft, setDraft, unavailable] as const;
 }

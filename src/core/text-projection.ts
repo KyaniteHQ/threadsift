@@ -11,6 +11,7 @@ export const PROJECTION_VERSION = 1;
 interface HastProperties {
   readonly alt?: unknown;
   readonly src?: unknown;
+  readonly href?: unknown;
   readonly id?: unknown;
   readonly dataHighlights?: unknown;
   readonly dataFootnoteRef?: unknown;
@@ -169,7 +170,7 @@ function isGenerated({ tagName, properties }: Readonly<HastNode>): boolean {
   return tagName === "h2" && properties?.id === FOOTNOTE_LABEL_ID;
 }
 
-function imageText({ properties }: Readonly<HastNode>): string {
+export function imageText({ properties }: Readonly<HastNode>): string {
   const alt = TEXT.parse(properties?.alt);
 
   return alt === "" ? readerUrl(TEXT.parse(properties?.src)) : alt;

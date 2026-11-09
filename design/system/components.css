@@ -502,6 +502,7 @@ button.hl-quote:hover { background: var(--surface-2); }
 .md th .il-a, .md td .il-a, .md th .il-code, .md td .il-code { overflow-wrap: normal; }
 .md .nw { white-space: nowrap; }
 .md mark[data-highlights] { text-decoration: underline; text-decoration-color: var(--acc-ink); text-underline-offset: 2px; cursor: pointer; }
+.app[data-bp~="phone"] .md mark[data-highlights] { padding-block: var(--link-pad); padding-inline: calc(var(--target) / 2); margin-inline: calc(var(--target) / -2); background-clip: content-box; }
 @media (forced-colors: active) {
   .md mark[data-highlights] { background: Mark; color: MarkText; forced-color-adjust: none; text-decoration-color: MarkText; }
 }

@@ -101,6 +101,7 @@ const DESIGN_TEXT = [
 export const SAVED = [
   "cache path before the first run",
   "fallback folder is cleared on reboot",
+  "A",
 ] as const;
 
 export const SELECTED = ["wraps over several", "can start on one line"] as const;

@@ -1,7 +1,12 @@
 import type { PluggableList } from "unified";
 
 import { unitIndexAt } from "../../src/core/highlight-anchor.ts";
-import { type HastNode, type Piece, projectTree } from "../../src/core/text-projection.ts";
+import {
+  type HastNode,
+  imageText,
+  type Piece,
+  projectTree,
+} from "../../src/core/text-projection.ts";
 import { idsAttribute } from "./highlight-ids.ts";
 
 export interface MarkSpan {
@@ -20,10 +25,14 @@ type CutsOf = (node: Readonly<HastNode>) => readonly Cut[] | undefined;
 
 const NO_PLUGINS: PluggableList = [];
 
+function textOf(node: Readonly<HastNode>): string {
+  return node.tagName === "img" ? imageText(node) : (node.value ?? "");
+}
+
 function cutOf(piece: Readonly<Piece>, span: Readonly<MarkSpan>): Cut | null {
   const start = Math.max(piece.at, span.start);
   const end = Math.min(piece.at + piece.length, span.start + span.length);
-  const value = piece.node.value ?? "";
+  const value = textOf(piece.node);
 
   return start < end
     ? {
@@ -64,20 +73,34 @@ function marked(ids: readonly number[], children: readonly HastNode[]): HastNode
   };
 }
 
-function slicesOf(node: Readonly<HastNode>, cuts: readonly Cut[]): HastNode[] {
-  if (node.type === "element") return [marked([...new Set(cuts.map(({ id }) => id))], [node])];
-
-  const value = node.value ?? "";
+function textSlices(node: Readonly<HastNode>, cuts: readonly Cut[]): HastNode[] {
+  const type = node.type === "element" ? "text" : node.type;
+  const value = textOf(node);
   const bounds = [0, value.length, ...cuts.flatMap(({ from, to }) => [from, to])];
   const edges = [...new Set(bounds)].toSorted((a, b) => a - b);
 
   return edges.slice(1).map((to, at) => {
     const from = edges[at] ?? 0;
     const covering = cuts.flatMap((cut) => (cut.from <= from && to <= cut.to ? [cut.id] : []));
-    const text: HastNode = { type: node.type, value: value.slice(from, to) };
+    const text: HastNode = { type, value: value.slice(from, to) };
 
     return covering.length === 0 ? text : marked(covering, [text]);
   });
+}
+
+function slicesOf(node: Readonly<HastNode>, cuts: readonly Cut[]): HastNode[] {
+  if (node.type === "element") {
+    return [
+      {
+        type: "element",
+        tagName: "a",
+        properties: { href: node.properties?.src },
+        children: textSlices(node, cuts),
+      },
+    ];
+  }
+
+  return textSlices(node, cuts);
 }
 
 function rewrite(node: Readonly<HastNode>, cutsOf: CutsOf): HastNode[] {

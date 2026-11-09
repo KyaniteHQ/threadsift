@@ -33,6 +33,7 @@ function press(event: KeyboardEvent, target: Element | null, actions: KeyActions
     (key === "ArrowLeft" || key === "ArrowRight") &&
     actions.arrows &&
     actions.openId !== null &&
+    !event.shiftKey &&
     !scrollsSideways
   ) {
     event.preventDefault();

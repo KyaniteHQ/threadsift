@@ -50,7 +50,7 @@ function Popover({ panel }: Readonly<{ panel: Panel }>) {
 
   const act = useCallback((): void => {
     if (panel.kind === "keep") keep(panel.draft);
-    else remove(panel.id);
+    else void remove(panel.id);
   }, [panel, keep, remove]);
 
   return (

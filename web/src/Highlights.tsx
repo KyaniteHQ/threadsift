@@ -1,10 +1,11 @@
-import { type ReactNode, useCallback, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 
 import type { Highlight, HighlightsView } from "../../src/core/highlight-contract.ts";
 import { dropHighlight, keepHighlight } from "./api.ts";
 import { HighlightList } from "./HighlightList.tsx";
 import {
   type HighlightsApi,
+  type Failure,
   HighlightsContext,
   PanelContext,
   useSpanIndex,
@@ -15,6 +16,7 @@ import {
   KEPT_ANNOUNCEMENT,
   REMOVED_ANNOUNCEMENT,
   REMOVE_FAILED,
+  SELECT_FAILED,
 } from "./reader-text.ts";
 import { useHighlightPanel } from "./use-highlight-panel.ts";
 import type { DetailActions } from "./use-item-detail.ts";
@@ -37,18 +39,32 @@ function without(view: HighlightsView, id: number): HighlightsView {
   return { ...view, items: view.items.filter((item) => item.id !== id) };
 }
 
-function useHighlightWrites(
-  itemId: number,
-  { reload, editHighlights }: DetailActions,
-  { announce, fail, dismiss }: Outcome,
-) {
-  const keep = useCallback(
+function useSerial() {
+  const tail = useRef<Promise<unknown>>(Promise.resolve());
+
+  return useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
+    const run = tail.current.then(task);
+    tail.current = run.catch(() => {});
+
+    return run;
+  }, []);
+}
+
+type Serial = ReturnType<typeof useSerial>;
+
+function useKeep(itemId: number, serial: Serial, actions: DetailActions, outcome: Outcome) {
+  const { reload, editHighlights } = actions;
+  const { announce, fail, dismiss } = outcome;
+
+  return useCallback(
     async ({ target, revision, selector }: Readonly<KeepDraft>): Promise<void> => {
       dismiss();
       document.getSelection()?.removeAllRanges();
       announce("");
 
-      const answer = await keepHighlight(itemId, { target, revision, selector }).catch(() => null);
+      const answer = await serial(() =>
+        keepHighlight(itemId, { target, revision, selector }).catch(() => null),
+      );
 
       if (answer === null) fail(KEEP_FAILED);
       else if (answer.outcome === "changed") {
@@ -60,17 +76,24 @@ function useHighlightWrites(
         announce(KEPT_ANNOUNCEMENT);
       }
     },
-    [itemId, reload, editHighlights, announce, fail, dismiss],
+    [itemId, serial, reload, editHighlights, announce, fail, dismiss],
   );
+}
 
-  const remove = useCallback(
-    async (id: number): Promise<void> => {
+function useRemove(itemId: number, serial: Serial, actions: DetailActions, outcome: Outcome) {
+  const { editHighlights } = actions;
+  const { announce, fail, dismiss } = outcome;
+
+  return useCallback(
+    async (id: number): Promise<boolean> => {
       dismiss();
       announce("");
 
-      const done = await dropHighlight(itemId, id).then(
-        () => true,
-        () => false,
+      const done = await serial(() =>
+        dropHighlight(itemId, id).then(
+          () => true,
+          () => false,
+        ),
       );
 
       if (done) {
@@ -78,11 +101,20 @@ function useHighlightWrites(
         fail(null);
         announce(REMOVED_ANNOUNCEMENT);
       } else fail(REMOVE_FAILED);
-    },
-    [itemId, editHighlights, announce, fail, dismiss],
-  );
 
-  return { keep, remove };
+      return done;
+    },
+    [itemId, serial, editHighlights, announce, fail, dismiss],
+  );
+}
+
+function useHighlightWrites(itemId: number, actions: DetailActions, outcome: Outcome) {
+  const serial = useSerial();
+
+  return {
+    keep: useKeep(itemId, serial, actions, outcome),
+    remove: useRemove(itemId, serial, actions, outcome),
+  };
 }
 
 export function HighlightsProvider({
@@ -98,11 +130,17 @@ export function HighlightsProvider({
   announce: (text: string) => void;
   children: ReactNode;
 }>) {
-  const { panel, dismiss } = useHighlightPanel(view.revisions);
-  const [failure, fail] = useState<string | null>(null);
+  const { panel, dismiss, unavailable } = useHighlightPanel(view.revisions);
+  const [failed, fail] = useState<string | null>(null);
   const { reveal, show } = useReveal();
   const spans = useSpanIndex(view.items);
   const { keep, remove } = useHighlightWrites(itemId, actions, { announce, fail, dismiss });
+
+  const failure = useMemo<Failure | null>(() => {
+    if (failed !== null) return { text: failed, reloads: false };
+
+    return unavailable ? { text: SELECT_FAILED, reloads: true } : null;
+  }, [failed, unavailable]);
 
   const api = useMemo<HighlightsApi>(
     () => ({
@@ -111,7 +149,7 @@ export function HighlightsProvider({
       failure,
       reveal,
       keep: (draft) => void keep(draft),
-      remove: (id) => void remove(id),
+      remove,
       dismiss,
       show,
     }),

@@ -12,8 +12,15 @@ function markOf(event: MouseEvent): HTMLElement | null {
   return target?.closest<HTMLElement>(`${BODY_SELECTOR} mark[data-highlights]`) ?? null;
 }
 
+function followsLink(event: MouseEvent, mark: Element): boolean {
+  const modified =
+    event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+
+  return modified && mark.closest("a") !== null;
+}
+
 export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
-  const [draft, setDraft] = useSelectionDraft(revisions);
+  const [draft, setDraft, unavailable] = useSelectionDraft(revisions);
   const [clicked, setClicked] = useState<Panel | null>(null);
 
   useEffect(() => {
@@ -24,7 +31,10 @@ export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
 
       if (mark === null || key === undefined || id === undefined || !Number.isInteger(id)) {
         setClicked(null);
+      } else if (followsLink(event, mark)) {
+        setClicked(null);
       } else if (document.getSelection()?.isCollapsed ?? true) {
+        event.preventDefault();
         setClicked({ kind: "remove", key, id, mark });
       }
     };
@@ -46,5 +56,5 @@ export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
     setClicked(null);
   }, [setDraft]);
 
-  return { panel, dismiss };
+  return { panel, dismiss, unavailable };
 }

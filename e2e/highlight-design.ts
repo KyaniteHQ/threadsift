@@ -77,7 +77,11 @@ async function expectKeepRules(page: Page, name: string, forced: boolean): Promi
 }
 
 async function expectTargets(page: Page, name: string): Promise<void> {
-  const targets = [keepButton(page), ...(await listEntries(page).getByRole("button").all())];
+  const targets = [
+    keepButton(page),
+    ...(await listEntries(page).getByRole("button").all()),
+    ...(await marks(reader(page)).all()),
+  ];
 
   for (const target of targets) {
     const box = await target.boundingBox();

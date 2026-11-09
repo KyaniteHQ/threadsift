@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -39,6 +40,7 @@ function ready(detail: ItemDetail): Answer["state"] {
 function useActions(
   setAnswer: Dispatch<SetStateAction<Answer | null>>,
   setAttempt: Dispatch<SetStateAction<number>>,
+  noteEdit: () => void,
 ): DetailActions {
   const retry = useCallback(() => {
     setAnswer(null);
@@ -51,6 +53,7 @@ function useActions(
 
   const editHighlights = useCallback(
     (edit: (view: HighlightsView) => HighlightsView) => {
+      noteEdit();
       setAnswer((was) => {
         if (was === null || was.state.status !== "ready") return was;
 
@@ -62,7 +65,7 @@ function useActions(
         };
       });
     },
-    [setAnswer],
+    [setAnswer, noteEdit],
   );
 
   return useMemo(() => ({ retry, reload, editHighlights }), [retry, reload, editHighlights]);
@@ -71,20 +74,31 @@ function useActions(
 export function useItemDetail(id: number, refresh: string) {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const edits = useRef(0);
+
+  const noteEdit = useCallback(() => {
+    edits.current += 1;
+  }, []);
+
   const request = useMemo(() => ({ id, refresh, attempt }), [id, refresh, attempt]);
 
   useEffect(() => {
     let current = true;
+    const edited = edits.current;
 
     const read = async (): Promise<void> => {
       const state = await fetchItemDetail(request.id).then(ready, () => FAILED);
 
-      if (current) {
+      if (!current) return;
+
+      if (edits.current === edited) {
         setAnswer((was) =>
           state.status === "failed" && was?.id === request.id && was.state.status === "ready"
             ? { id: request.id, state: { ...was.state, stale: true } }
             : { id: request.id, state },
         );
+      } else {
+        setAttempt((now) => now + 1);
       }
     };
 
@@ -95,7 +109,7 @@ export function useItemDetail(id: number, refresh: string) {
     };
   }, [request]);
 
-  const actions = useActions(setAnswer, setAttempt);
+  const actions = useActions(setAnswer, setAttempt, noteEdit);
   const state: DetailState = answer?.id === id ? answer.state : LOADING;
 
   return { state, actions };

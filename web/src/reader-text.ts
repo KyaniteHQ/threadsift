@@ -62,6 +62,7 @@ export const NOT_FOUND = "Passage no longer found because the item’s text chan
 export const KEPT_ANNOUNCEMENT = "Highlight kept.";
 export const REMOVED_ANNOUNCEMENT = "Highlight removed.";
 export const KEEP_FAILED = "Couldn’t keep this highlight. Select the passage again.";
+export const SELECT_FAILED = "Can’t select a passage to keep right now. Try again below.";
 export const REMOVE_FAILED = "Couldn’t remove this highlight. Try again.";
 
 export const KEEP_STALE =

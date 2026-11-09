@@ -7,6 +7,8 @@ export interface DomProjection {
   readonly spanOf: (range: Range) => { readonly start: number; readonly end: number } | null;
 }
 
+const CODE_END: HastNode = { type: "text", value: "\n" };
+
 function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
   const label = node.id.endsWith(FOOTNOTE_LABEL_ID);
   const task = node.getAttribute("aria-hidden") === "true";
@@ -36,14 +38,13 @@ function adaptor() {
 
     if (!(node instanceof HTMLElement) || node.localName === "button") return null;
 
-    return elementOf(
-      node,
-      Array.from(node.childNodes).flatMap((child) => {
-        const adapted = adapt(child);
+    const children = Array.from(node.childNodes).flatMap((child) => {
+      const adapted = adapt(child);
 
-        return adapted === null ? [] : [adapted];
-      }),
-    );
+      return adapted === null ? [] : [adapted];
+    });
+
+    return elementOf(node, node.localName === "pre" ? [...children, CODE_END] : children);
   };
 
   return { adapt, texts };

@@ -14,13 +14,18 @@ export interface Reveal {
   readonly key: string;
 }
 
+export interface Failure {
+  readonly text: string;
+  readonly reloads: boolean;
+}
+
 export interface HighlightsApi {
   readonly items: readonly Highlight[];
   readonly spans: SpanIndex;
-  readonly failure: string | null;
+  readonly failure: Failure | null;
   readonly reveal: Reveal | null;
   readonly keep: (draft: Readonly<KeepDraft>) => void;
-  readonly remove: (id: number) => void;
+  readonly remove: (id: number) => Promise<boolean>;
   readonly dismiss: () => void;
   readonly show: (highlight: Readonly<Highlight>) => void;
 }
