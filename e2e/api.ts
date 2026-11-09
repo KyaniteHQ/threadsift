@@ -67,13 +67,21 @@ export async function attempted<Result>(
   {
     retryOn = (fetch) => fetch !== "ok",
     fetches = [],
-  }: Readonly<{ retryOn?: ((fetch: Fetch) => boolean) | undefined; fetches?: Fetch[] }> = {},
+    pauseMs = 0,
+  }: Readonly<{
+    retryOn?: ((fetch: Fetch) => boolean) | undefined;
+    fetches?: Fetch[];
+    pauseMs?: number;
+  }> = {},
 ) {
   const first = await attempt();
   let last = first;
   fetches.push(fetchOf(first));
 
   for (let tries = 1; tries < FETCH_ATTEMPTS && retryOn(fetchOf(last)); tries += 1) {
+    await new Promise((resolve) => {
+      setTimeout(resolve, pauseMs * tries);
+    });
     last = await attempt();
     fetches.push(fetchOf(last));
   }
