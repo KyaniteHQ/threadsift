@@ -65,6 +65,10 @@ async function reconcilerVisited(id: number): Promise<void> {
     .toBe(1);
 }
 
+function withoutImagePaths(text: string | null): string | undefined {
+  return text?.replaceAll(/\/api\/files\/items\/\d+\/img-[\w.-]+/gu, "(image)");
+}
+
 test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, searchable, and a second Paste replaces the file", async () => {
   test.setTimeout(480_000);
   const pasted = await pasteLive(owner, { name: "war-and-peace", url: WAR_AND_PEACE });
@@ -80,7 +84,7 @@ test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, sea
   expect(Buffer.byteLength(item.postText ?? "")).toBeGreaterThan(ROW_LIMIT_BYTES);
   expect(item.postText).toContain(WAR_AND_PEACE_LAST_SENTENCE);
   expect(postTextOf(instance, id)).toEqual({ key: firstKey, inline: null });
-  expect(instance.listFiles(`items/${id}/`)).toMatchObject([
+  expect(instance.listFiles(`items/${id}/post-`)).toMatchObject([
     { key: firstKey, size: Buffer.byteLength(item.postText ?? "") },
   ]);
   expect(
@@ -99,8 +103,10 @@ test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, sea
   expect(secondKey).not.toBe(firstKey);
   expect(postTextOf(instance, id)).toEqual({ key: secondKey, inline: null });
   expect(instance.readFile(firstKey), "the replaced file").toBeNull();
-  expect(instance.listFiles(`items/${id}/`).map(({ key }) => key)).toEqual([secondKey]);
-  expect((await itemOf(owner, id)).postText).toBe(item.postText);
+  expect(instance.listFiles(`items/${id}/post-`).map(({ key }) => key)).toEqual([secondKey]);
+  expect(withoutImagePaths((await itemOf(owner, id)).postText)).toBe(
+    withoutImagePaths(item.postText),
+  );
 
   await reconcilerVisited(id);
   expect(
@@ -161,6 +167,6 @@ test("a runner whose claim was taken over publishes nothing and deletes its file
   const key = `items/${id}/post-${job}-2.md`;
 
   expect(postTextOf(instance, id)).toEqual({ key, inline: null });
-  expect(instance.listFiles(`items/${id}/`).map((file) => file.key)).toEqual([key]);
+  expect(instance.listFiles(`items/${id}/post-`).map((file) => file.key)).toEqual([key]);
   expect(item.postText).toContain(WAR_AND_PEACE_LAST_SENTENCE);
 });

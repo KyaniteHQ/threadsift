@@ -1,4 +1,5 @@
 import { isRefusedHost, resolveUrl } from "./addresses.ts";
+import { decoderFor, isHtmlType } from "./body-text.ts";
 import { type Capped, readCapped } from "./capped.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import {
@@ -21,8 +22,6 @@ const MAX_REDIRECTS = 20;
 const DEADLINE_REASON = "deadline";
 const REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308]);
 export const SMALL_BODY_BYTES = 512 * 1024;
-const HTML_TYPES: ReadonlySet<string> = new Set(["text/html", "application/xhtml+xml"]);
-const CHARSET = /;\s*charset\s*=\s*"?(?<label>[^";\s]+)/iu;
 
 export const NO_HEADERS: RequestHeaders = {};
 
@@ -61,7 +60,23 @@ export interface Page {
   readonly cut: boolean;
 }
 
-export type GuardOutcome = Page | { readonly kind: "stopped"; readonly url: string } | Failed;
+export interface Bytes {
+  readonly kind: "bytes";
+  readonly url: string;
+  readonly contentType: string | null;
+  readonly html: boolean;
+  readonly bytes: Uint8Array;
+  readonly cut: boolean;
+}
+
+interface Stopped {
+  readonly kind: "stopped";
+  readonly url: string;
+}
+
+export type GuardOutcome = Page | Stopped | Failed;
+
+export type BytesOutcome = Bytes | Stopped | Failed;
 
 const NO_BODY: Capped = { bytes: new Uint8Array(0), cut: false };
 
@@ -164,22 +179,6 @@ async function requestHop(
   }
 }
 
-function isHtmlType(contentType: string | null): boolean {
-  const [mediaType = ""] = (contentType ?? "").split(";");
-
-  return HTML_TYPES.has(mediaType.trim().toLowerCase());
-}
-
-function decoderFor(contentType: string | null): TextDecoder {
-  const label = CHARSET.exec(contentType ?? "")?.groups?.["label"] ?? "utf-8";
-
-  try {
-    return new TextDecoder(label);
-  } catch {
-    return new TextDecoder("utf-8");
-  }
-}
-
 type Target = { readonly kind: "target"; readonly url: URL } | Failed;
 
 function hopTarget(address: string, base?: string): Target {
@@ -202,7 +201,7 @@ function advance(
   from: URL,
   location: string,
   redirects: number,
-): Promise<GuardOutcome> {
+): Promise<BytesOutcome> {
   const next = hopTarget(location, from.href);
 
   if (next.kind === "failed") {
@@ -224,7 +223,7 @@ async function follow(
   deadline: AbortSignal,
   url: URL,
   redirects: number,
-): Promise<GuardOutcome> {
+): Promise<BytesOutcome> {
   const hop = await requestHop(network, url.href, deadline, policy);
 
   if (hop.kind === "failed") {
@@ -235,22 +234,29 @@ async function follow(
     return advance(network, policy, deadline, url, hop.location, redirects);
   }
 
-  const text = decoderFor(hop.contentType).decode(hop.bytes);
-
   const refreshTo =
-    policy.followMetaRefresh(url.href) && hop.html ? metaRefreshTarget(text, url.href) : null;
+    policy.followMetaRefresh(url.href) && hop.html
+      ? metaRefreshTarget(decoderFor(hop.contentType).decode(hop.bytes), url.href)
+      : null;
 
   return refreshTo === null
-    ? { kind: "page", url: url.href, text, html: hop.html, cut: hop.cut }
+    ? {
+        kind: "bytes",
+        url: url.href,
+        contentType: hop.contentType,
+        html: hop.html,
+        bytes: hop.bytes,
+        cut: hop.cut,
+      }
     : advance(network, policy, deadline, url, refreshTo, redirects);
 }
 
-export function guardedFetch(
+export function guardedFetchBytes(
   network: Network,
   address: string,
   policy: Readonly<FetchPolicy>,
   deadline: AbortSignal,
-): Promise<GuardOutcome> {
+): Promise<BytesOutcome> {
   const first = hopTarget(address);
 
   return first.kind === "failed"
@@ -258,8 +264,27 @@ export function guardedFetch(
     : follow(network, policy, deadline, first.url, 0);
 }
 
+export async function guardedFetch(
+  network: Network,
+  address: string,
+  policy: Readonly<FetchPolicy>,
+  deadline: AbortSignal,
+): Promise<GuardOutcome> {
+  const outcome = await guardedFetchBytes(network, address, policy, deadline);
+
+  return outcome.kind === "bytes"
+    ? {
+        kind: "page",
+        url: outcome.url,
+        text: decoderFor(outcome.contentType).decode(outcome.bytes),
+        html: outcome.html,
+        cut: outcome.cut,
+      }
+    : outcome;
+}
+
 export function loggedFailureOf(
-  outcome: Exclude<GuardOutcome, Page>,
+  outcome: Exclude<BytesOutcome, Bytes>,
   whenStopped: FetchFailure = "redirect-stopped",
 ): FetchFailure {
   if (outcome.kind === "stopped") {

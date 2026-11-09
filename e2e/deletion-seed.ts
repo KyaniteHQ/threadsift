@@ -1,7 +1,13 @@
 import { expect } from "@playwright/test";
 import { z } from "zod";
 
-import { addGithubRepository, addHighlight, expectEveryTableOwns, holdSweeps } from "./deletion.ts";
+import {
+  addGithubRepository,
+  addHighlight,
+  addMediaRow,
+  expectEveryTableOwns,
+  holdSweeps,
+} from "./deletion.ts";
 import { nameFile } from "./files.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { tickNow } from "./ingest.ts";
@@ -39,10 +45,16 @@ export async function seedHardCase(screen: FreshScreen) {
 
   await addHighlight(screen.context.request, item.id, POST_TEXT, QUOTED_WORD);
 
-  const keys = [`items/${item.id}/post-1-1.md`, `items/${item.id}/post-1-2.md`] as const;
+  const keys = [
+    `items/${item.id}/img-1-1-0.png`,
+    `items/${item.id}/post-1-1.md`,
+    `items/${item.id}/post-1-2.md`,
+  ] as const;
 
-  screen.fresh.writeFile(keys[0], Buffer.from(`The file the Item names, of ${id}.`));
-  nameFile(screen.fresh, item.id, `'${keys[0]}'`);
+  screen.fresh.writeFile(keys[0], Buffer.from(`The image the Item names, of ${id}.`));
+  addMediaRow(screen.fresh, item.id, keys[0]);
+  screen.fresh.writeFile(keys[1], Buffer.from(`The file the Item names, of ${id}.`));
+  nameFile(screen.fresh, item.id, `'${keys[1]}'`);
   addGithubRepository(screen.fresh, item.id);
   rememberAlias(
     screen.fresh,
@@ -66,7 +78,7 @@ export async function seedHardCase(screen: FreshScreen) {
     .toBe(1);
 
   holdSweeps(screen.fresh);
-  screen.fresh.writeFile(keys[1], Buffer.from(`The file of an attempt, of ${id}.`));
+  screen.fresh.writeFile(keys[2], Buffer.from(`The file of an attempt, of ${id}.`));
 
   return { id: item.id, keys };
 }

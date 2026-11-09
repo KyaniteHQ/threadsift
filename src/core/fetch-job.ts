@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
+import { settledContent } from "./fetch-content.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import { anchoredOutcome } from "./highlight-publish.ts";
 import {
@@ -11,11 +12,10 @@ import {
   type SettledOutcome,
   isLastAttempt,
 } from "./job-outcome.ts";
-import { placePostText } from "./post-text-files.ts";
 import { fetchedRepository, repositoryWrites } from "./repositories.ts";
 import { items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
-import { isRetryable, settle } from "./settle.ts";
+import { isRetryable } from "./settle.ts";
 
 async function titleOf(db: JobPorts["db"], itemId: number): Promise<string | null> {
   const [item] = await db.select({ title: items.title }).from(items).where(eq(items.id, itemId));
@@ -46,20 +46,26 @@ function waitingOutcome(
 }
 
 async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
-  const fetched = await fetchLink(ports, job.address, job.attempts);
+  const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
+  const fetched = await fetchLink(ports, job.address, job.attempts, deadline);
 
   if (fetched.status === "waiting") return waitingOutcome(ports.db, job, fetched);
 
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
   const repository = fetchedRepository(fetched);
 
-  const { postText, ...settled } = settle(fetched, title, Date.now());
-  const placed = await placePostText(ports, job, postText);
-  const fields = { ...settled, ...placed.columns };
+  const { postText, fields, mediaPublication, files } = await settledContent(
+    ports,
+    job,
+    fetched,
+    title,
+    deadline,
+  );
+
   const replacesContent = postText !== undefined;
   const storesText = postText !== undefined && postText !== null;
 
-  const stored = {
+  const columns = {
     ...fields,
     pendingDigest: storesText ? items.pendingDigest : null,
     generation: replacesContent ? sql`${items.generation} + 1` : items.generation,
@@ -67,14 +73,15 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
 
   const outcome: SettledOutcome = {
     writes: [
-      ports.db.update(items).set(stored).where(eq(items.id, job.itemId)),
+      ports.db.update(items).set(columns).where(eq(items.id, job.itemId)),
       ...(fields.title === undefined
         ? []
         : fetchedPartWrites(ports.db, eq(items.id, job.itemId), postText)),
       ...(repository === null ? [] : repositoryWrites(ports.db, job.itemId, repository)),
+      ...mediaPublication,
       ...(replacesContent ? digestAfterFetch(ports.db, job) : []),
     ],
-    files: placed.files,
+    files,
   };
 
   return replacesContent

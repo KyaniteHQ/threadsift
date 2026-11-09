@@ -9,7 +9,10 @@ export type JobPorts = Pick<Ports, "db" | "files" | "network" | "pages" | "jobs"
 
 export type JobWrites = readonly BatchItem<"sqlite">[];
 
-export type ClaimedJob = JobRow & { readonly attemptKey: string };
+export type ClaimedJob = JobRow & {
+  readonly attemptKey: string;
+  readonly imagePrefix: string;
+};
 
 export interface JobCurrency {
   readonly current: () => Promise<boolean>;
@@ -17,9 +20,11 @@ export interface JobCurrency {
 }
 
 export interface JobFiles {
-  readonly written: string | null;
-  readonly superseded: string | null;
+  readonly written: readonly string[];
+  readonly superseded: readonly string[];
 }
+
+export const NO_FILES: JobFiles = { written: [], superseded: [] };
 
 export interface Precondition<Rebuilt extends SettledOutcome = SettledOutcome> {
   readonly holds: Readonly<SQLWrapper>;

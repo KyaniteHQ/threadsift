@@ -34,6 +34,8 @@ export { githubCooldown, githubSettings } from "./github-tables.ts";
 
 export { type HighlightRow, highlights } from "./highlight-tables.ts";
 
+export { type MediaRow, media } from "./media-tables.ts";
+
 export { aiSettingsRevision, openrouterConnectTransactions } from "./openrouter-tables.ts";
 
 export { redditComments, redditThreads } from "./reddit-tables.ts";
@@ -107,6 +109,8 @@ export const jobs = sqliteTable(
 );
 
 export const ATTEMPT_KEY = sql<string>`'items/' || ${jobs.itemId} || '/post-' || ${jobs.id} || '-' || ${jobs.attempts} || '.md'`;
+
+export const ATTEMPT_IMAGES = sql<string>`'items/' || ${jobs.itemId} || '/img-' || ${jobs.id} || '-' || ${jobs.attempts} || '-'`;
 
 export const scheduledRuns = sqliteTable("scheduled_runs", {
   task: text("task").primaryKey(),

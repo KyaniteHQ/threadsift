@@ -141,14 +141,14 @@ test("a tick deletes every file no Item names and no running attempt can publish
   );
 });
 
-test("a tick leaves a file of a kind it does not own, an image-style name included, and still deletes an orphaned post text file", async () => {
+test("a tick leaves a file of a kind it does not own, an image-style name outside the image grammar included, and still deletes an orphaned post text file", async () => {
   test.setTimeout(TICK_WAIT_MS + 90_000);
 
   const { id, job } = seededItem("done");
 
   const kept = [
-    `items/${id}/img-${job}-1-0.png`,
-    `items/${id}/img-9${job}-1-0.webp`,
+    `items/${id}/img-${job}-1.png`,
+    `items/${id}/img-${job}-1-0.svg`,
     `items/${id}/notes.txt`,
   ];
 

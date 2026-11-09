@@ -16,6 +16,22 @@ const privateResponse: MiddlewareHandler = async (c, next) => {
   c.res.headers.set("Referrer-Policy", "no-referrer");
 };
 
+const FILE_HEADERS = {
+  "Cache-Control": "no-store",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Content-Security-Policy": "default-src 'none'; sandbox; frame-ancestors 'none'",
+} as const;
+
+const privateFile: MiddlewareHandler = async (c, next) => {
+  await next();
+
+  for (const [name, value] of Object.entries(FILE_HEADERS)) {
+    c.res.headers.set(name, value);
+  }
+};
+
 const signedOutNavigation: MiddlewareHandler = async (c, next) => {
   await next();
 
@@ -33,5 +49,6 @@ const signedOutNavigation: MiddlewareHandler = async (c, next) => {
 export function installApiMiddleware(app: OpenAPIHono, ports: Ports): void {
   app.use(CONNECT_START_PATH, privateResponse);
   app.use(CONNECT_CALLBACK_PATH, privateResponse, signedOutNavigation);
+  app.use("/api/files/*", privateFile);
   app.use("/api/*", guard(ports));
 }

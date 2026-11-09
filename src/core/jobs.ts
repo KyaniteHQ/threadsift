@@ -20,7 +20,7 @@ import { type ClaimedJob, type JobHandler, type JobPorts, RETRY_DELAYS_MS } from
 import { hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { ATTEMPT_KEY, jobs } from "./schema.ts";
+import { ATTEMPT_IMAGES, ATTEMPT_KEY, jobs } from "./schema.ts";
 
 const CLAIM_MARGIN_MS = 120_000;
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
@@ -73,7 +73,11 @@ async function claim(db: Database, which: () => SQL, now: number): Promise<Claim
       waitReason: null,
     })
     .where(and(which(), isDue(now)))
-    .returning({ ...getTableColumns(jobs), attemptKey: ATTEMPT_KEY });
+    .returning({
+      ...getTableColumns(jobs),
+      attemptKey: ATTEMPT_KEY,
+      imagePrefix: ATTEMPT_IMAGES,
+    });
 
   return claimed ?? null;
 }

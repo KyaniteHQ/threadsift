@@ -1,3 +1,5 @@
+import { IMAGE_EXTENSIONS } from "./image-type.ts";
+
 export const FILE_LIST_LIMIT = 1000;
 
 export class FileRefused extends Error {}
@@ -13,7 +15,14 @@ const TEMPORARY = /^(?<folder>items\/[1-9][0-9]{0,18}\/)\.tmp-[0-9a-f]+-(?<name>
 
 const POST_TEXT = /^items\/[1-9][0-9]{0,18}\/post-[0-9]+-[0-9]+\.md$/u;
 
+const IMAGE = new RegExp(
+  `^items/[1-9][0-9]{0,18}/img-[0-9]+-[0-9]+-[0-9]+\\.(?:${Object.values(IMAGE_EXTENSIONS).join("|")})$`,
+  "u",
+);
+
 const PREFIX = /^items\/(?:(?<itemId>[1-9][0-9]{0,18})\/)?$/u;
+
+const FILE_ROUTE = "/api/files/";
 
 export function temporaryPrefix(random: string): string {
   return `.tmp-${random}-`;
@@ -25,8 +34,8 @@ export function finalKeyOf(key: string): string {
   return folder === undefined || name === undefined ? key : folder + name;
 }
 
-export function isPostTextKey(key: string): boolean {
-  return POST_TEXT.test(key);
+export function isSweptKey(key: string): boolean {
+  return POST_TEXT.test(key) || IMAGE.test(key);
 }
 
 export interface FileKey {
@@ -52,6 +61,18 @@ export function requireFileKey(key: string): FileKey {
   }
 
   return parsed;
+}
+
+export function fileRouteOf(key: string): string {
+  requireFileKey(key);
+
+  return FILE_ROUTE + key;
+}
+
+export function keyOfFileRoute(path: string): string | null {
+  const key = path.startsWith(FILE_ROUTE) ? path.slice(FILE_ROUTE.length) : "";
+
+  return parseFileKey(key) === null ? null : key;
 }
 
 export function requireFilePrefix(prefix: string): FilePrefix {

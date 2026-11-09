@@ -100,9 +100,9 @@ export async function fetchLink(
   ports: Readonly<Pick<Ports, "db" | "ai" | "network" | "pages">>,
   address: string,
   attempts: number,
+  deadline: AbortSignal,
 ): Promise<Fetched> {
   const { network, pages } = ports;
-  const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
   const link = parseLink(address);
 
   if (link.kind === "reddit-post" || link.kind === "reddit-comment") {
