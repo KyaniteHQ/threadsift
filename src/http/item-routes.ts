@@ -61,7 +61,7 @@ const listItemsRoute = createRoute({
   responses: {
     200: jsonBody(
       ItemListResponseSchema,
-      "The Items that match every filter given, newest saved first, without their post text. Read `GET /api/items/{id}` for the text. `q` matches Items that hold every word it contains, as the start of a word, in the title, post text, Summary or Tags; `topic` and `tag` match a Topic or Tag name with case and spacing ignored. `counts` holds the library totals, and for each Source, Read state, Topic and Tag the number of Items a choice leaves given the other filters.",
+      "The Items that match every filter given, newest saved first, without their post text. Read `GET /api/items/{id}` for the text. `image` is the Item's first stored image, as its file-route path and alt text, or null. `q` matches Items that hold every word it contains, as the start of a word, in the title, post text, Summary or Tags; `topic` and `tag` match a Topic or Tag name with case and spacing ignored. `counts` holds the library totals, and for each Source, Read state, Topic and Tag the number of Items a choice leaves given the other filters.",
     ),
     400: jsonBody(
       ErrorResponseSchema,

@@ -15,6 +15,7 @@ export const media = sqliteTable(
     sourceUrl: text("source_url").notNull(),
     finalUrl: text("final_url"),
     position: integer("position").notNull(),
+    alt: text("alt").notNull().default(""),
     outcome: text("outcome", { enum: MEDIA_OUTCOMES }).notNull(),
     reason: text("reason", { enum: MEDIA_FAILURES }),
     fileKey: text("file_key"),

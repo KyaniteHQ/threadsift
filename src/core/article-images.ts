@@ -16,10 +16,12 @@ import type { MediaRow } from "./schema.ts";
 const MAX_IMAGES = 20;
 const MAX_VIDEOS = 20;
 const IMAGE_WIDTH = 2;
+const ALT_MAX = 300;
 
 export type MediaRowValue = Readonly<Omit<MediaRow, "id" | "itemId">>;
 
 const NO_DETAILS = {
+  alt: "",
   finalUrl: null,
   reason: null,
   fileKey: null,
@@ -54,14 +56,19 @@ type Classified =
   | { readonly kind: "embed"; readonly link: EmbedLink }
   | { readonly kind: "alt" }
   | { readonly kind: "leave" }
-  | { readonly kind: "source"; readonly source: Source };
+  | { readonly kind: "source"; readonly source: Source; readonly alt: string };
 
 interface Candidate {
   readonly source: Source;
   readonly position: number;
+  readonly alt: string;
 }
 
-function remoteOf(address: string, base: string): Classified {
+function plainAlt(alt: string): string {
+  return Array.from(alt.replaceAll(/\s+/gu, " ").trim()).slice(0, ALT_MAX).join("");
+}
+
+function remoteOf(address: string, base: string, alt: string): Classified {
   const url = URL.parse(address, base);
 
   if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
@@ -73,11 +80,11 @@ function remoteOf(address: string, base: string): Classified {
   url.password = "";
 
   return fits(url.href)
-    ? { kind: "source", source: { id: url.href, kind: "remote", url: url.href } }
+    ? { kind: "source", source: { id: url.href, kind: "remote", url: url.href }, alt }
     : { kind: "leave" };
 }
 
-function classify({ destination }: Readonly<MarkdownImage>, base: string): Classified {
+function classify({ destination, alt }: Readonly<MarkdownImage>, base: string): Classified {
   const address = destination.trim();
 
   if (address === "" || address.startsWith("#")) return { kind: "alt" };
@@ -86,17 +93,18 @@ function classify({ destination }: Readonly<MarkdownImage>, base: string): Class
     return {
       kind: "source",
       source: { id: address, kind: "inline", dataUrl: address },
+      alt,
     };
   }
 
   const embed = embedLinkOf(URL.parse(address, base)?.href ?? "");
 
-  return embed === null ? remoteOf(address, base) : { kind: "embed", link: embed };
+  return embed === null ? remoteOf(address, base, alt) : { kind: "embed", link: embed };
 }
 
 function rowOf(
   crypto: Crypto,
-  { source, position }: Readonly<Candidate>,
+  { source, position, alt }: Readonly<Candidate>,
   fetched: Readonly<Fetched>,
   fileKey: string | null,
 ): MediaRowValue | null {
@@ -110,6 +118,7 @@ function rowOf(
         ...NO_DETAILS,
         kind: "image",
         sourceUrl,
+        alt: plainAlt(alt),
         finalUrl: fetched.finalUrl,
         position,
         outcome: "stored",
@@ -178,7 +187,7 @@ function candidatesOf(classified: readonly Classified[]): readonly Candidate[] {
   for (const entry of classified) {
     if (entry.kind === "source" && !seen.has(entry.source.id) && candidates.length < MAX_IMAGES) {
       seen.add(entry.source.id);
-      candidates.push({ source: entry.source, position: candidates.length });
+      candidates.push({ source: entry.source, position: candidates.length, alt: entry.alt });
     }
   }
 

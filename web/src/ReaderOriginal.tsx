@@ -46,7 +46,7 @@ export function Original({
       ) : (
         <section className="rd-orig">
           <h3 className="rd-h">{SECTION_TITLES[item.kind]}</h3>
-          <PostText text={text} />
+          <PostText text={text} itemId={item.kind === "article" ? item.id : null} />
         </section>
       )}
       <Comments item={item} detail={detail} />

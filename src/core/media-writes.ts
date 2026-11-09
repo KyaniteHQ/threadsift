@@ -39,6 +39,7 @@ export function mediaWrites(
             sourceUrl: sql<string>`${FIELD("sourceUrl")}`.as("source_url"),
             finalUrl: sql<string | null>`${FIELD("finalUrl")}`.as("final_url"),
             position: sql<number>`${FIELD("position")}`.as("position"),
+            alt: sql<string>`${FIELD("alt")}`.as("alt"),
             outcome: sql<MediaOutcome>`${FIELD("outcome")}`.as("outcome"),
             reason: sql<string | null>`${FIELD("reason")}`.as("reason"),
             fileKey: sql<string | null>`${FIELD("fileKey")}`.as("file_key"),
@@ -51,6 +52,7 @@ export function mediaWrites(
       .onConflictDoUpdate({
         target: [media.itemId, media.kind, media.sourceUrl],
         set: {
+          alt: sql`excluded.alt`,
           finalUrl: sql`excluded.final_url`,
           position: sql`excluded.position`,
           outcome: sql`excluded.outcome`,

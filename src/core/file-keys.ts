@@ -75,6 +75,12 @@ export function keyOfFileRoute(path: string): string | null {
   return parseFileKey(key) === null ? null : key;
 }
 
+export function isImageRouteOf(path: string, itemId: number): boolean {
+  const key = keyOfFileRoute(path);
+
+  return key !== null && IMAGE.test(key) && parseFileKey(key)?.itemId === String(itemId);
+}
+
 export function requireFilePrefix(prefix: string): FilePrefix {
   const match = PREFIX.exec(prefix);
 

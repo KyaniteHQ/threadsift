@@ -20,6 +20,8 @@ export const EMPTY_JOINED_VIEW = {
   commentsTotal: null,
   waitReason: null,
   retryAt: null,
+  imageKey: null,
+  imageAlt: null,
 } as const;
 
 const {

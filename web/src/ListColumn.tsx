@@ -39,6 +39,7 @@ export function ListColumn({
       <main ref={listPane} className="list" tabIndex={-1}>
         <ListBody
           list={shown}
+          cardImages={look.settings.images === "on"}
           openId={openId}
           attention={actions.attention}
           attended={actions.attended}

@@ -1,0 +1,1 @@
+ALTER TABLE `media` ADD `alt` text DEFAULT '' NOT NULL;

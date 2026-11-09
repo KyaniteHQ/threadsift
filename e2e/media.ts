@@ -10,6 +10,7 @@ const MediaRows = z.array(
     id: z.number(),
     kind: z.enum(["image", "video"]),
     source_url: z.string(),
+    alt: z.string(),
     final_url: z.string().nullable(),
     position: z.number(),
     outcome: z.enum(["stored", "failed", "linked"]),
@@ -64,7 +65,7 @@ const SIGNATURES: readonly (readonly [string, (bytes: Buffer) => boolean])[] = [
 
 export function mediaOf(instance: Instance, id: number): MediaRow[] {
   return instance.query(
-    `SELECT id, kind, source_url, final_url, position, outcome, reason, file_key, content_type, size FROM media WHERE item_id = ${id} ORDER BY kind, position`,
+    `SELECT id, kind, source_url, alt, final_url, position, outcome, reason, file_key, content_type, size FROM media WHERE item_id = ${id} ORDER BY kind, position`,
     MediaRows,
   );
 }

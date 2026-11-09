@@ -5,14 +5,17 @@ import {
   memo,
   use,
   useEffect,
+  useCallback,
   useId,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { z } from "zod";
 
+import { isImageRouteOf } from "../../src/core/file-keys.ts";
 import { FOOTNOTE_LABEL_ID, readerUrl } from "../../src/core/reader-url.ts";
 import { CodeBlock } from "./CodeBlock.tsx";
 import { FOOTNOTES_LABEL, FOOTNOTE_BACK, FOOTNOTE_BACK_AGAIN, tableName } from "./reader-text.ts";
@@ -141,10 +144,51 @@ function Link({
   );
 }
 
-function Picture({ src, alt }: Readonly<{ src?: string | undefined; alt?: string | undefined }>) {
+const PictureScope = createContext<number | null>(null);
+
+interface PictureAttributes {
+  readonly src?: string | undefined;
+  readonly alt?: string | undefined;
+  readonly title?: string | undefined;
+}
+
+function pictureLabel(href: string, alt: string | undefined): string {
+  return alt === undefined || alt === "" ? href : alt;
+}
+
+function StoredPicture({ href, alt, title }: Readonly<PictureAttributes & { href: string }>) {
+  const [failed, setFailed] = useState(false);
+
+  const fail = useCallback(() => {
+    setFailed(true);
+  }, []);
+
+  if (failed) return <Link href={href}>{pictureLabel(href, alt)}</Link>;
+
+  return (
+    <span className="rd-media">
+      <img
+        className="pic"
+        src={href}
+        alt={alt ?? ""}
+        title={title}
+        loading="lazy"
+        decoding="async"
+        onError={fail}
+      />
+    </span>
+  );
+}
+
+function Picture({ src, alt, title }: Readonly<PictureAttributes>) {
+  const itemId = use(PictureScope);
   const href = z.string().catch("").parse(src);
 
-  return <Link href={href}>{alt === undefined || alt === "" ? href : alt}</Link>;
+  return itemId !== null && isImageRouteOf(href, itemId) ? (
+    <StoredPicture key={href} href={href} alt={alt} title={title} />
+  ) : (
+    <Link href={href}>{pictureLabel(href, alt)}</Link>
+  );
 }
 
 function Block({ node }: Readonly<WithNode>) {
@@ -205,7 +249,10 @@ const FOOTNOTES: NonNullable<ComponentProps<typeof Markdown>["remarkRehypeOption
   footnoteLabelProperties: { className: ["vh"] },
 };
 
-export const PostText = memo(function PostText({ text }: Readonly<{ text: string }>) {
+export const PostText = memo(function PostText({
+  text,
+  itemId = null,
+}: Readonly<{ text: string; itemId?: number | null }>) {
   const root = useRef<HTMLDivElement>(null);
   const scope = useId();
   const options = useMemo(() => ({ ...FOOTNOTES, clobberPrefix: `${scope}-` }), [scope]);
@@ -215,14 +262,16 @@ export const PostText = memo(function PostText({ text }: Readonly<{ text: string
   return (
     <div ref={root} className="md">
       <FootnoteScope value={scope}>
-        <Markdown
-          remarkPlugins={PLUGINS}
-          remarkRehypeOptions={options}
-          components={COMPONENTS}
-          urlTransform={readerUrl}
-        >
-          {text}
-        </Markdown>
+        <PictureScope value={itemId}>
+          <Markdown
+            remarkPlugins={PLUGINS}
+            remarkRehypeOptions={options}
+            components={COMPONENTS}
+            urlTransform={readerUrl}
+          >
+            {text}
+          </Markdown>
+        </PictureScope>
       </FootnoteScope>
     </div>
   );
