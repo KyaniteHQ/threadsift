@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import { logFailure } from "./failure-log.ts";
@@ -17,9 +17,7 @@ export function closeFetchJobs(db: Database, itemId: Readonly<SQLWrapper>) {
   return db
     .update(jobs)
     .set({ state: "done", claimExpires: null, page: null })
-    .where(
-      and(eq(jobs.itemId, sql`${itemId}`), eq(jobs.kind, "fetch"), sql`${jobs.state} <> 'done'`),
-    );
+    .where(and(eq(jobs.itemId, sql`${itemId}`), eq(jobs.kind, "fetch"), ne(jobs.state, "done")));
 }
 
 export function holding(job: Readonly<Pick<JobRow, "id" | "attempts">>) {

@@ -15,14 +15,8 @@ export const REQUEST_DEADLINE_MS = 25_000;
 
 const WEB_PAGE = /^https?:/u;
 
-async function activeTab() {
-  const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
-
-  return tab;
-}
-
 async function capture(): Promise<z.infer<typeof CapturedSchema> | "page-blocked"> {
-  const tab = await activeTab();
+  const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
 
   if (tab?.id === undefined || !WEB_PAGE.test(tab.url ?? "")) return "page-blocked";
 

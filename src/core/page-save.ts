@@ -6,8 +6,6 @@ import type { Ports } from "./ports.ts";
 import { ownerOf } from "./reddit-thread.ts";
 import { PAGE_BYTES, type SuppliedPage, pageBytes } from "./supplied-page.ts";
 
-export type { SuppliedPage } from "./supplied-page.ts";
-
 export type PageSaveResult =
   | SaveResult
   | { readonly kind: "invalid"; readonly field: "page"; readonly reason: string }
