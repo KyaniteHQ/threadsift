@@ -9,6 +9,7 @@ import {
   STALE_DELAYS_MS,
   type JobCurrency,
   type JobFiles,
+  type JobHandler,
   NO_FILES,
   type JobOutcome,
   type JobPorts,
@@ -112,6 +113,17 @@ export async function finish(
     return precondition;
   }
 
+  await afterClose(ports, job, wrote, files);
+
+  return wrote ? "done" : "lost";
+}
+
+async function afterClose(
+  ports: JobPorts,
+  job: Readonly<JobRow>,
+  wrote: boolean,
+  files: JobFiles,
+): Promise<void> {
   await enqueueItemJobs(ports, job.itemId);
 
   await (wrote
@@ -119,8 +131,34 @@ export async function finish(
     : deleteQuietly(ports, files.written, (keys) => unnamed(ports, keys)));
 
   if (!wrote) logClaimLost(job);
+}
 
-  return wrote ? "done" : "lost";
+export async function exhaust(
+  ports: JobPorts,
+  job: Readonly<JobRow>,
+  handler: Pick<JobHandler, "exhausted" | "inputCurrent">,
+  attempts: number,
+): Promise<void> {
+  const { db } = ports;
+  const sameInput = handler.inputCurrent?.(job);
+
+  const wrote = await guardedBatch(db, and(holding(job), sameInput) ?? holding(job), [
+    ...handler.exhausted(db, job),
+    ...closingWrites(db, job, attempts),
+  ]);
+
+  if (!wrote && sameInput !== undefined && (await guardHolds(db, holding(job)))) {
+    await queueLater(ports, job, {
+      until: Date.now(),
+      attempts: job.attempts,
+      staleRequeues: 0,
+      wait: null,
+    });
+
+    return;
+  }
+
+  await afterClose(ports, job, wrote, NO_FILES);
 }
 
 export async function queueLater(

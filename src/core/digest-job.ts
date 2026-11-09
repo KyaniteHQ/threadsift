@@ -153,6 +153,8 @@ export const digestHandler: JobHandler = {
   blockedBy: ["fetch"],
   attempt: attemptDigest,
   exhausted: (db, job) => [setDigestFailure(db, job.itemId, true)],
+  inputCurrent: (job) =>
+    sql`exists (select 1 from ${items} where ${items.id} = ${job.itemId} and ${items.generation} is ${job.attemptGeneration})`,
 };
 
 export function openingDigest(

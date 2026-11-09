@@ -1,0 +1,1 @@
+ALTER TABLE `jobs` ADD `attempt_generation` integer;

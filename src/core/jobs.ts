@@ -15,12 +15,12 @@ import {
 import { digestHandler } from "./digest-job.ts";
 import { logFailure } from "./failure-log.ts";
 import { fetchHandler } from "./fetch-job.ts";
-import { applyOutcome, finish, queueLater } from "./job-finish.ts";
+import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";
 import { type ClaimedJob, type JobHandler, type JobPorts, RETRY_DELAYS_MS } from "./job-outcome.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { ATTEMPT_IMAGES, ATTEMPT_KEY, jobs } from "./schema.ts";
+import { ATTEMPT_IMAGES, ATTEMPT_KEY, items, jobs } from "./schema.ts";
 
 const CLAIM_MARGIN_MS = 120_000;
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
@@ -63,13 +63,16 @@ export function dueIds(db: Database, now: number, limit: number) {
     .limit(limit);
 }
 
+const ITEM_GENERATION = sql`(select ${items.generation} from ${items} where ${items.id} = ${jobs.itemId})`;
+
 async function claim(db: Database, which: () => SQL, now: number): Promise<ClaimedJob | null> {
   const [claimed] = await db
     .update(jobs)
     .set({
       state: "running",
       claimExpires: sql`${now} + case ${jobs.kind} ${LEASE_MS} end`,
-      attempts: sql`${jobs.attempts} + (${jobs.state} = 'running')`,
+      attempts: sql`case when ${jobs.kind} = 'digest' and ${jobs.attemptGeneration} <> ${ITEM_GENERATION} then 0 else ${jobs.attempts} + (${jobs.state} = 'running') end`,
+      attemptGeneration: sql`case when ${jobs.kind} = 'digest' then ${ITEM_GENERATION} else ${jobs.attemptGeneration} end`,
       waitReason: null,
     })
     .where(and(which(), isDue(now)))
@@ -92,10 +95,7 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<ClaimedJob>)
   const handler = HANDLERS[job.kind];
 
   if (job.attempts >= MAX_ATTEMPTS) {
-    await finish(ports, job, {
-      writes: handler.exhausted(ports.db, job),
-      attempts: job.attempts,
-    });
+    await exhaust(ports, job, handler, job.attempts);
 
     return;
   }
@@ -111,10 +111,7 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<ClaimedJob>)
     const delayMs = RETRY_DELAYS_MS[job.attempts];
 
     await (delayMs === undefined
-      ? finish(ports, job, {
-          writes: handler.exhausted(ports.db, job),
-          attempts: job.attempts + 1,
-        })
+      ? exhaust(ports, job, handler, job.attempts + 1)
       : queueLater(ports, job, {
           until: Date.now() + delayMs,
           attempts: job.attempts + 1,

@@ -78,6 +78,7 @@ export function opening(
           state: sql<"queued">`'queued'`.as("state"),
           attempts: sql<number>`0`.as("attempts"),
           staleRequeues: sql<number>`0`.as("stale_requeues"),
+          attemptGeneration: sql<null>`null`.as("attempt_generation"),
           nextAttemptAt: sql<number>`${now}`.as("next_attempt_at"),
           claimExpires: sql<null>`null`.as("claim_expires"),
           waitReason: sql<null>`null`.as("wait_reason"),

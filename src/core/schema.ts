@@ -96,6 +96,7 @@ export const jobs = sqliteTable(
     state: text("state", { enum: JOB_STATES }).notNull(),
     attempts: integer("attempts").notNull().default(0),
     staleRequeues: integer("stale_requeues").notNull().default(0),
+    attemptGeneration: integer("attempt_generation"),
     nextAttemptAt: integer("next_attempt_at").notNull(),
     claimExpires: integer("claim_expires"),
     waitReason: text("wait_reason", { enum: WAIT_REASONS }),

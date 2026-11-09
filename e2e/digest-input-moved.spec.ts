@@ -79,7 +79,7 @@ test("a caller-sent Digest still owed when its job gives up is published by a ne
   expect(jobsOf(id, screen.fresh, "digest").map((job) => job.state)).toEqual(["done", "done"]);
 });
 
-test("a last attempt that ends after the Item's content moved is run again on the new content", async ({
+test("a last attempt that ends after the Item's content moved starts a full set of attempts on the new content", async ({
   browser,
 }) => {
   test.setTimeout(WAIT * 3);
@@ -100,8 +100,96 @@ test("a last attempt that ends after the Item's content moved is run again on th
 
   await settleDigestJob(id);
 
-  expect(count("SELECT count(*) AS n FROM ai_tasks"), "one task more for the moved content").toBe(
-    4,
+  expect(
+    count("SELECT count(*) AS n FROM ai_tasks"),
+    "three tasks more for the moved content",
+  ).toBe(6);
+  expect(count(`SELECT count(*) AS n FROM items WHERE id = ${id} AND digest_failed = 1`)).toBe(1);
+});
+
+test("a takeover of a crashed attempt on content that moved gets a full set of attempts, and the failure stays final for that content", async ({
+  browser,
+}) => {
+  test.setTimeout(WAIT * 3);
+  screen = await aiScreen(browser, newSealingKey());
+
+  const id = savedText("https://example.com/moved-after-crash");
+
+  await configureDigest(screen, {
+    provider: "openai-compatible",
+    baseUrl: "https://threadsift-digest-unreachable.invalid/v1",
+    model: "unreachable",
+    key: "moved-after-crash-proof",
+  });
+
+  await expect
+    .poll(
+      async () => {
+        for (const job of jobsOf(id, screen.fresh, "digest")) {
+          if (job.state === "queued" && job.attempts < 2) makeJobDue(job.id, screen.fresh);
+        }
+
+        if (!isContainerTarget()) await sweepNow(screen.context.request, screen.fresh);
+
+        return jobsOf(id, screen.fresh, "digest").map((job) => `${job.state} ${job.attempts}`);
+      },
+      { timeout: WAIT },
+    )
+    .toEqual(["queued 2"]);
+
+  expect(count("SELECT count(*) AS n FROM ai_tasks"), "two attempts on the first content").toBe(2);
+
+  screen.fresh.sql(`UPDATE items SET generation = generation + 1 WHERE id = ${id}`);
+  screen.fresh.sql("UPDATE jobs SET state = 'running', claim_expires = 1 WHERE kind = 'digest'");
+
+  await settleDigestJob(id);
+
+  expect(count("SELECT count(*) AS n FROM ai_tasks"), "three attempts on the moved content").toBe(
+    5,
+  );
+  expect(count(`SELECT count(*) AS n FROM items WHERE id = ${id} AND digest_failed = 1`)).toBe(1);
+  expect(jobsOf(id, screen.fresh, "digest").map((job) => job.state)).toEqual(["done"]);
+});
+
+test("a job whose attempts ran out is not closed when the content moves inside its claim, and the new content gets its own attempts", async ({
+  browser,
+}) => {
+  test.setTimeout(WAIT * 3);
+  screen = await aiScreen(browser, newSealingKey());
+
+  const id = savedText("https://example.com/moved-inside-claim");
+
+  await configureDigest(screen, {
+    provider: "openai-compatible",
+    baseUrl: "https://threadsift-digest-unreachable.invalid/v1",
+    model: "unreachable",
+    key: "moved-inside-claim-proof",
+  });
+
+  await expect
+    .poll(
+      async () => {
+        for (const job of jobsOf(id, screen.fresh, "digest")) {
+          if (job.state === "queued" && job.attempts < 2) makeJobDue(job.id, screen.fresh);
+        }
+
+        if (!isContainerTarget()) await sweepNow(screen.context.request, screen.fresh);
+
+        return jobsOf(id, screen.fresh, "digest").map((job) => `${job.state} ${job.attempts}`);
+      },
+      { timeout: WAIT },
+    )
+    .toEqual(["queued 2"]);
+
+  screen.fresh.sql(
+    "CREATE TRIGGER move_in_claim AFTER UPDATE OF state ON jobs WHEN NEW.kind = 'digest' AND NEW.state = 'running' AND NEW.attempts = 3 BEGIN UPDATE items SET generation = generation + 1 WHERE id = NEW.item_id; END",
+  );
+  screen.fresh.sql("UPDATE jobs SET state = 'running', claim_expires = 1 WHERE kind = 'digest'");
+
+  await settleDigestJob(id);
+
+  expect(count("SELECT count(*) AS n FROM ai_tasks"), "three attempts on the moved content").toBe(
+    5,
   );
   expect(count(`SELECT count(*) AS n FROM items WHERE id = ${id} AND digest_failed = 1`)).toBe(1);
 });
