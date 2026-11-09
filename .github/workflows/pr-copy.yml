@@ -3,7 +3,7 @@ run-name: pr copy ${{ inputs.pr || github.event.pull_request.number || github.ev
 
 on:
   workflow_run:
-    workflows: [gate]
+    workflows: [bundle]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -36,7 +36,7 @@ jobs:
     outputs:
       current: ${{ steps.head.outputs.current }}
     steps:
-      - name: Check that the gate ran on the pull request's current head
+      - name: Check that the bundle was built from the pull request's current head
         id: head
         env:
           GH_TOKEN: ${{ github.token }}

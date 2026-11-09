@@ -58,17 +58,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
       - run: devenv tasks run ci:build
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: github.event_name == 'pull_request'
-        with:
-          name: pr-copy
-          path: |
-            dist/web
-            dist/worker/index.js
-            migrations/*.sql
-            wrangler.jsonc
-          if-no-files-found: error
-          retention-days: 1
 
   audit:
     if: github.repository == 'KyaniteHQ/threadsift'
