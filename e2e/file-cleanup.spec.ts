@@ -18,6 +18,8 @@ const TICK_WAIT_MS = 150_000;
 
 const PAGE_KEYS = 100;
 
+const STRAY_JOB = 9000;
+
 let instance: Instance;
 let owner: APIRequestContext;
 let sequence = 0;
@@ -62,7 +64,10 @@ function cursors() {
 }
 
 function strayNames(count: number): string[] {
-  return Array.from({ length: count }, (_, index) => `stray-${index + 1}.md`).toSorted();
+  return Array.from(
+    { length: count },
+    (_, index) => `post-${STRAY_JOB + index + 1}-1.md`,
+  ).toSorted();
 }
 
 function plantStrays(id: number, names: readonly string[]): void {
@@ -136,6 +141,24 @@ test("a tick deletes every file no Item names and no running attempt can publish
   );
 });
 
+test("a tick leaves a file of a kind it does not own, an image-style name included, and still deletes an orphaned post text file", async () => {
+  test.setTimeout(TICK_WAIT_MS + 90_000);
+
+  const { id, job } = seededItem("done");
+
+  const kept = [
+    `items/${id}/img-${job}-1-0.png`,
+    `items/${id}/img-9${job}-1-0.webp`,
+    `items/${id}/notes.txt`,
+  ];
+
+  for (const key of kept) store(key, "a file of another kind");
+
+  store(`items/${id}/post-${job}-1.md`, "an orphaned post text file");
+
+  await waitForKeys(kept);
+});
+
 test.describe("a store with more keys than one page", () => {
   test.skip(
     !isContainerTarget(),
@@ -161,15 +184,16 @@ test.describe("a store with more keys than one page", () => {
   test("a page whose delete fails is listed again by the next tick", async () => {
     test.setTimeout(2 * TICK_WAIT_MS);
     const locked = seededItem("done");
+    const lockedName = `post-${STRAY_JOB}-1.md`;
     const filled = namedFile("done");
     const names = strayNames(PAGE_KEYS + 1);
 
-    plantStrays(locked.id, ["stray-0.md"]);
+    plantStrays(locked.id, [lockedName]);
     plantStrays(filled.id, names);
     inContainer(instance, `chmod 555 /data/files/items/${locked.id}`);
 
     await waitForKeys([
-      ...keysOf(locked.id, ["stray-0.md"]),
+      ...keysOf(locked.id, [lockedName]),
       filled.key,
       ...keysOf(filled.id, names.slice(PAGE_KEYS - 2)),
     ]);
