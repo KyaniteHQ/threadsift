@@ -1,8 +1,10 @@
 import type { PluggableList } from "unified";
 
+import { isImageRouteOf } from "../../src/core/file-keys.ts";
 import { unitIndexAt } from "../../src/core/highlight-anchor.ts";
 import {
   type HastNode,
+  TEXT,
   imageText,
   type Piece,
   projectTree,
@@ -88,8 +90,20 @@ function textSlices(node: Readonly<HastNode>, cuts: readonly Cut[]): HastNode[] 
   });
 }
 
-function slicesOf(node: Readonly<HastNode>, cuts: readonly Cut[]): HastNode[] {
+function isStoredPicture(node: Readonly<HastNode>, itemId: number | null): boolean {
+  return itemId !== null && isImageRouteOf(TEXT.parse(node.properties?.src), itemId);
+}
+
+function slicesOf(
+  node: Readonly<HastNode>,
+  cuts: readonly Cut[],
+  itemId: number | null,
+): HastNode[] {
   if (node.type === "element") {
+    if (isStoredPicture(node, itemId)) {
+      return [marked([...new Set(cuts.map(({ id }) => id))], [node])];
+    }
+
     return [
       {
         type: "element",
@@ -103,24 +117,29 @@ function slicesOf(node: Readonly<HastNode>, cuts: readonly Cut[]): HastNode[] {
   return textSlices(node, cuts);
 }
 
-function rewrite(node: Readonly<HastNode>, cutsOf: CutsOf): HastNode[] {
+function rewrite(node: Readonly<HastNode>, cutsOf: CutsOf, itemId: number | null): HastNode[] {
   const found = cutsOf(node);
 
-  if (found !== undefined) return slicesOf(node, found);
+  if (found !== undefined) return slicesOf(node, found, itemId);
 
   if (node.children === undefined) return [node];
 
-  return [{ ...node, children: node.children.flatMap((child) => rewrite(child, cutsOf)) }];
+  return [{ ...node, children: node.children.flatMap((child) => rewrite(child, cutsOf, itemId)) }];
 }
 
-function rehypeMarks(spans: readonly MarkSpan[]) {
+interface MarkOptions {
+  readonly spans: readonly MarkSpan[];
+  readonly itemId: number | null;
+}
+
+function rehypeMarks({ spans, itemId }: Readonly<MarkOptions>) {
   return (tree: Readonly<HastNode>): HastNode => {
     const cuts = cutsByNode(projectTree(tree).pieces, spans);
 
-    return rewrite(tree, (node) => cuts.get(node))[0] ?? tree;
+    return rewrite(tree, (node) => cuts.get(node), itemId)[0] ?? tree;
   };
 }
 
-export function markPlugins(spans: readonly MarkSpan[]): PluggableList {
-  return spans.length === 0 ? NO_PLUGINS : [[rehypeMarks, spans]];
+export function markPlugins(spans: readonly MarkSpan[], itemId: number | null): PluggableList {
+  return spans.length === 0 ? NO_PLUGINS : [[rehypeMarks, { spans, itemId }]];
 }

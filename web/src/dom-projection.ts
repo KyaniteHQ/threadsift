@@ -20,6 +20,8 @@ function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
       id: label ? FOOTNOTE_LABEL_ID : node.id,
       dataFootnoteRef: node.dataset["footnoteRef"],
       dataFootnoteBackref: node.dataset["footnoteBackref"],
+      alt: node.getAttribute("alt") ?? undefined,
+      src: node.getAttribute("src") ?? undefined,
     },
     children,
   };
