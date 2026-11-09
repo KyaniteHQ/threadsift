@@ -73,7 +73,7 @@ pause)
   podman pause "$(<"$2/name")" >/dev/null
   ;;
 resume)
-  podman unpause "$(<"$2/name")" >/dev/null 2>&1 || true
+  podman unpause "$(<"$2/name")" >/dev/null
   ;;
 crash)
   name=$(<"$2/name")

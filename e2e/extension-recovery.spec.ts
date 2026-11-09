@@ -37,17 +37,13 @@ test("when the Instance does not answer the popup says so, and Try again saves t
 
   instance.pause();
 
-  try {
-    const popup = await extension.press(tab);
+  const popup = await extension.press(tab);
 
-    await expect
-      .poll(() => popup.status(), { timeout: UNREACHABLE_WAIT_MS })
-      .toBe(ACTION_TEXT.unreachable);
-    instance.resume();
-    await popup.click(ACTION_TEXT.tryAgain);
+  await expect
+    .poll(() => popup.status(), { timeout: UNREACHABLE_WAIT_MS })
+    .toBe(ACTION_TEXT.unreachable);
+  instance.resume();
+  await popup.click(ACTION_TEXT.tryAgain);
 
-    expect(await savedItemId(popup, instance.url)).toBe((await listAll(owner))[0]?.id);
-  } finally {
-    instance.resume();
-  }
+  expect(await savedItemId(popup, instance.url)).toBe((await listAll(owner))[0]?.id);
 });
