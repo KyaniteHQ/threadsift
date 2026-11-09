@@ -56,10 +56,10 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-devenv
       - run: devenv tasks run ci:install
-      - name: Download the build the copy was deployed from, as data
+      - name: Download the bundle the copy was deployed from, as data
         run: |
-          devenv shell -- node tools/pr-copy/cli.ts gate-run --pr "$PR" --head "$HEAD" --out "$RUNNER_TEMP/gate-run"
-          gh run download "$(cat "$RUNNER_TEMP/gate-run")" --name pr-copy --dir "$RUNNER_TEMP/pr-copy"
+          devenv shell -- node tools/pr-copy/cli.ts bundle-run --pr "$PR" --head "$HEAD" --out "$RUNNER_TEMP/bundle-run"
+          gh run download "$(cat "$RUNNER_TEMP/bundle-run")" --name pr-copy --dir "$RUNNER_TEMP/pr-copy"
       - name: Run the checks
         if: inputs.rebuild == 0
         timeout-minutes: 300

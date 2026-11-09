@@ -7,11 +7,11 @@ import { Sha256 } from "./stage.ts";
 export interface CopyHead {
   readonly url: string;
   readonly head: string;
-  readonly gateRun: number | null;
+  readonly bundleRun: number | null;
   readonly artifact: string | null;
 }
 
-const Build = z.object({ gateRun: z.number().int(), artifact: Sha256.optional() });
+const Build = z.object({ bundleRun: z.number().int(), artifact: Sha256.optional() });
 
 const Statuses = z.array(z.object({ state: z.string(), environment_url: z.url().optional() }));
 
@@ -35,7 +35,7 @@ export async function currentCopy(pr: number): Promise<CopyHead | null> {
   return {
     url: status.environment_url,
     head: newest.sha,
-    gateRun: build?.gateRun ?? null,
+    bundleRun: build?.bundleRun ?? null,
     artifact: build?.artifact ?? null,
   };
 }

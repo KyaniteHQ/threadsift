@@ -6,7 +6,7 @@ usage() {
 Usage: tools/impeccable-wait.sh <pr>
 IMPECCABLE_WAIT_SECONDS sets the wait limit (default 1800).
 Exit 0: review completed.
-Exit 1: copy build or deployment failed, or its gate was cancelled.
+Exit 1: copy build or deployment failed, or its bundle build was cancelled.
 Exit 2: usage error or closed pull request.
 Exit 3: no review started or caller approval is needed.
 Exit 4: wait timed out.
@@ -83,11 +83,11 @@ while :; do
 			*" failure "* | *" error "*) copy_failed deployment "${deployment_state##* }" ;;
 		esac
 	else
-		gate=$(api "repos/$repo/actions/workflows/gate.yml/runs?head_sha=$sha&event=pull_request&per_page=100" --jq '.workflow_runs[0] // empty | "\(.created_at) \(.status) \(.conclusion) \(.html_url)"')
-		echo "$(date -u +%T) no copy deployment for $sha yet; gate: ${gate:-none}"
-		case $gate in
+		bundle=$(api "repos/$repo/actions/workflows/bundle.yml/runs?head_sha=$sha&event=pull_request&per_page=100" --jq '.workflow_runs[0] // empty | "\(.created_at) \(.status) \(.conclusion) \(.html_url)"')
+		echo "$(date -u +%T) no copy deployment for $sha yet; bundle: ${bundle:-none}"
+		case $bundle in
 			*" completed success "*)
-				copy_run=$(api "repos/$repo/actions/workflows/pr-copy.yml/runs?event=workflow_run&created=>=${gate%% *}&per_page=100" --jq "[.workflow_runs[] | select(.display_title == \"pr copy $pr $sha\")] | .[0].id // empty")
+				copy_run=$(api "repos/$repo/actions/workflows/pr-copy.yml/runs?event=workflow_run&created=>=${bundle%% *}&per_page=100" --jq "[.workflow_runs[] | select(.display_title == \"pr copy $pr $sha\")] | .[0].id // empty")
 				if [[ -n $copy_run ]]; then
 					deploy_job=$(api "repos/$repo/actions/runs/$copy_run/jobs?per_page=100" --jq '.jobs[] | select(.name == "deploy") | "\(.status) \(.conclusion)"')
 					case $deploy_job in
@@ -106,10 +106,10 @@ while :; do
 				;;
 			*" completed cancelled "*)
 				check_head
-				echo "gate for $sha was cancelled; read ${gate##* }; rerun the gate or wait on the new head" >&2
+				echo "bundle for $sha was cancelled; read ${bundle##* }; rerun the bundle or wait on the new head" >&2
 				exit 1
 				;;
-			*" completed "*) copy_failed gate "${gate##* }" ;;
+			*" completed "*) copy_failed bundle "${bundle##* }" ;;
 		esac
 	fi
 	check_deadline "no successful copy deployment for $sha"

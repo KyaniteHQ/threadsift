@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-import { SCENARIO_NAMES, checkCommand, gateRunCommand, rebuildCommand } from "./check-command.ts";
+import { SCENARIO_NAMES, checkCommand, bundleRunCommand, rebuildCommand } from "./check-command.ts";
 import { publicMessage } from "./copy-error.ts";
 import {
   type CopyRecord,
@@ -41,7 +41,7 @@ const USAGE = `Usage:
   node tools/pr-copy/cli.ts check --pr <n> --head <sha> --artifact <dir> --out <dir> [--scenario <name>]... [--workers-ai]
   node tools/pr-copy/cli.ts check --pr <n> --resume [--workers-ai]
   node tools/pr-copy/cli.ts rebuild --pr <n> --head <sha> --artifact <dir> --out <dir> --times <k>
-  node tools/pr-copy/cli.ts gate-run --pr <n> --head <sha> --out <file>
+  node tools/pr-copy/cli.ts bundle-run --pr <n> --head <sha> --out <file>
   check runs against the copy's current deployment; to run it for a maintainer, dispatch .github/workflows/copy-checks.yml (gh workflow run copy-checks.yml -f pr=<n> -f head=<sha>)
   scenarios: ${SCENARIO_NAMES.join(", ")}; the default is all but workers-ai, which --workers-ai adds because it spends Workers AI allocation
   sweep needs GITHUB_REPOSITORY and GITHUB_TOKEN; GITHUB_API_URL defaults to https://api.github.com`;
@@ -196,7 +196,7 @@ function run(command: string | undefined): Promise<void> {
 
   if (command === "rebuild") return rebuildCommand(localPr(), flags);
 
-  if (command === "gate-run") return gateRunCommand(localPr(), flags);
+  if (command === "bundle-run") return bundleRunCommand(localPr(), flags);
 
   if (command === "live" && flags.github) return liveFromGithub(required(flags.artifact));
 

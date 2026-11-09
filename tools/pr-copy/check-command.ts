@@ -1,9 +1,9 @@
 import { z } from "zod";
 
+import { requireBundleBuild, writeBundleRun } from "./bundle-run.ts";
 import { resumeOnly } from "./check-resume.ts";
 import { DEFAULT_SCENARIOS, SCENARIO_NAMES } from "./check-types.ts";
 import { runChecks } from "./checks.ts";
-import { requireGateBuild, writeGateRun } from "./gate-run.ts";
 import { Sha } from "./github.ts";
 import { MAX_REBUILDS, rebuildCopy } from "./rebuild.ts";
 
@@ -46,13 +46,13 @@ export async function checkCommand(pr: number, flags: Readonly<Flags>): Promise<
     scenarios: z.array(z.enum(SCENARIO_NAMES)).parse(scenarioNames(flags)),
   };
 
-  await requireGateBuild(options);
+  await requireBundleBuild(options);
 
   if (!(await runChecks(options, Text.parse(flags.out)))) process.exitCode = 1;
 }
 
-export async function gateRunCommand(pr: number, flags: Readonly<Flags>): Promise<void> {
-  await writeGateRun(pr, Sha.parse(flags.head), Text.parse(flags.out));
+export async function bundleRunCommand(pr: number, flags: Readonly<Flags>): Promise<void> {
+  await writeBundleRun(pr, Sha.parse(flags.head), Text.parse(flags.out));
 }
 
 export async function rebuildCommand(pr: number, flags: Readonly<Flags>): Promise<void> {
@@ -63,7 +63,7 @@ export async function rebuildCommand(pr: number, flags: Readonly<Flags>): Promis
     times: z.coerce.number().int().min(1).max(MAX_REBUILDS).parse(flags.times),
   };
 
-  await requireGateBuild(options);
+  await requireBundleBuild(options);
 
   if (!(await rebuildCopy(options, Text.parse(flags.out)))) process.exitCode = 1;
 }

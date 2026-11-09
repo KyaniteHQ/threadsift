@@ -82,7 +82,7 @@ export function task(pr: number): string {
 }
 
 export interface DeployedHead extends PullHead {
-  readonly gateRun: number;
+  readonly bundleRun: number;
 }
 
 export function deployedHead(): DeployedHead {
@@ -90,10 +90,10 @@ export function deployedHead(): DeployedHead {
   const [pull] = run.pull_requests;
 
   if (pull === undefined) {
-    throw new Error("The gate run names no pull request");
+    throw new Error("The bundle run names no pull request");
   }
 
-  return { pr: pull.number, headSha: run.head_sha, gateRun: run.id };
+  return { pr: pull.number, headSha: run.head_sha, bundleRun: run.id };
 }
 
 export function closedPullRequest(): number {
@@ -191,7 +191,7 @@ export async function postDeployment(
     environment: ENVIRONMENT,
     transient: true,
     payload:
-      copy === null ? null : { ...copy.record, gateRun: head.gateRun, artifact: copy.artifact },
+      copy === null ? null : { ...copy.record, bundleRun: head.bundleRun, artifact: copy.artifact },
     description: `Copy of pull request ${String(head.pr)}`,
   });
 
@@ -204,7 +204,7 @@ function createDeployment(
     task: string;
     environment: string;
     transient: boolean;
-    payload: Readonly<CopyRecord & { gateRun?: number; artifact?: string }> | null;
+    payload: Readonly<CopyRecord & { bundleRun?: number; artifact?: string }> | null;
     description: string;
   }>,
 ) {
