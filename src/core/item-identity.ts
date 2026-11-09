@@ -34,7 +34,9 @@ function proposedIdentity({ kind, normalizedUrl }: Readonly<StoredIdentity>): st
 
   const link = parseLink(normalizedUrl);
 
-  return link.kind === kind ? link.normalizedUrl : normalizedUrl;
+  return link.kind === kind || (link.kind === "link" && kind === "article")
+    ? link.normalizedUrl
+    : normalizedUrl;
 }
 
 function lastIdWithinBudget(heads: readonly { readonly id: number; readonly bytes: number }[]) {
