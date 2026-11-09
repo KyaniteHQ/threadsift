@@ -17,7 +17,7 @@ import {
 } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { fetchedOfRepository } from "./github-fetch.ts";
-import { loadGithubAuth } from "./github-token.ts";
+import { withCurrentCredential } from "./github-token.ts";
 import {
   isRedditOrXLink,
   isRedditShareLink,
@@ -120,11 +120,8 @@ export async function fetchLink(
   }
 
   if (link.kind === "github-repo") {
-    return fetchedOfRepository(
-      { ports, attempts },
-      repositoryRef(link.normalizedUrl),
-      await loadGithubAuth(ports),
-      deadline,
+    return withCurrentCredential(ports, (auth) =>
+      fetchedOfRepository({ ports, attempts, auth }, repositoryRef(link.normalizedUrl), deadline),
     );
   }
 

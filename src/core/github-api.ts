@@ -7,6 +7,7 @@ import {
   guardedFetch,
 } from "./fetch-guard.ts";
 import { cooldownUntil, startCooldown } from "./github-cooldown.ts";
+import type { GithubAuth } from "./github-credential.ts";
 import { limitedUntil } from "./github-rate-limit.ts";
 import { isRedditOrXLink } from "./links.ts";
 import type { Network, Ports, RequestHeaders } from "./ports.ts";
@@ -18,6 +19,7 @@ export const UNAUTHORIZED = 401;
 export interface GithubRun {
   readonly ports: Readonly<Pick<Ports, "db" | "network">>;
   readonly attempts: number;
+  readonly auth: Readonly<GithubAuth>;
 }
 
 export interface Waiting {
@@ -61,7 +63,7 @@ export function getApi(
 }
 
 export async function requestApi(
-  { ports: { db, network }, attempts }: Readonly<GithubRun>,
+  { ports: { db, network }, attempts, auth }: Readonly<GithubRun>,
   path: string,
   policy: Readonly<FetchPolicy>,
   deadline: AbortSignal,
@@ -76,7 +78,7 @@ export async function requestApi(
 
   const until = limitedUntil(outcome.limit, Date.now(), attempts);
 
-  await startCooldown(db, until);
+  await startCooldown(db, until, auth);
   console.warn(JSON.stringify({ event: "github-rate-limited", limit: outcome.limit.kind, until }));
 
   return { kind: "waiting", until, limited: true };
