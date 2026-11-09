@@ -3,32 +3,22 @@ import { z } from "zod";
 
 import { routeTemplate } from "../tools/pr-copy/routes.ts";
 import { test } from "./access.ts";
-
-interface ApiSchema {
-  $ref?: string | undefined;
-  required?: string[] | undefined;
-  properties?: Record<string, ApiSchema> | undefined;
-  items?: ApiSchema | undefined;
-  oneOf?: ApiSchema[] | undefined;
-  anyOf?: ApiSchema[] | undefined;
-}
-
-const SchemaNode: z.ZodType<ApiSchema> = z.lazy(() =>
-  z.looseObject({
-    $ref: z.string().optional(),
-    required: z.array(z.string()).optional(),
-    properties: z.record(z.string(), SchemaNode).optional(),
-    items: SchemaNode.optional(),
-    oneOf: z.array(SchemaNode).optional(),
-    anyOf: z.array(SchemaNode).optional(),
-  }),
-);
-
-const Body = z.looseObject({
-  content: z.record(z.string(), z.looseObject({ schema: SchemaNode })),
-});
+import {
+  Body,
+  SchemaNode,
+  type Schemas,
+  expectPageSchema,
+  jsonSchemaOf,
+  propertyNames,
+  propertyOf,
+  resolved,
+} from "./openapi-schema.ts";
 
 const Operation = z.looseObject({ responses: z.record(z.string(), Body) });
+
+const DescribedOperation = z.looseObject({
+  responses: z.record(z.string(), Body.extend({ description: z.string() })),
+});
 
 const Removal = z.looseObject({
   responses: z.record(z.string(), z.looseObject({ description: z.string() })),
@@ -42,7 +32,7 @@ const OpenApiDocument = z.looseObject({
   paths: z.looseObject({
     "/api/items": z.looseObject({
       get: Operation.extend({ parameters: Parameters }),
-      post: Operation.extend({ requestBody: Body }),
+      post: DescribedOperation.extend({ requestBody: Body }),
     }),
     "/api/items/{id}": z.looseObject({ get: Operation, delete: Removal }),
     "/api/items/{id}/status": z.looseObject({ get: Operation }),
@@ -50,40 +40,6 @@ const OpenApiDocument = z.looseObject({
     "/api/items/{id}/highlights/{highlightId}": z.looseObject({ delete: Removal }),
   }),
 });
-
-type Schemas = z.infer<typeof OpenApiDocument>["components"]["schemas"];
-
-function resolved(schemas: Schemas, node: ApiSchema): ApiSchema {
-  const name = node.$ref?.replace("#/components/schemas/", "");
-  const target = name === undefined ? undefined : schemas[name];
-
-  return target === undefined ? node : resolved(schemas, target);
-}
-
-function propertyNames(schemas: Schemas, node: ApiSchema): string[] {
-  const { properties, oneOf = [], anyOf = [] } = resolved(schemas, node);
-
-  return [
-    ...new Set([
-      ...Object.keys(properties ?? {}),
-      ...[...oneOf, ...anyOf].flatMap((branch) => propertyNames(schemas, branch)),
-    ]),
-  ];
-}
-
-function propertyOf(schemas: Schemas, node: ApiSchema, name: string): ApiSchema {
-  const property = resolved(schemas, node).properties?.[name];
-  expect(property, `the schema describes ${name}`).toBeDefined();
-
-  return property ?? {};
-}
-
-function jsonSchemaOf(body: z.infer<typeof Body>): ApiSchema {
-  const schema = body.content["application/json"]?.["schema"];
-  expect(schema, "an application/json body").toBeDefined();
-
-  return schema ?? {};
-}
 
 const ITEM_FIELDS = [
   "id",
@@ -143,11 +99,19 @@ function expectListContract(schemas: Schemas, list: ListOperation): void {
   ]);
 }
 
-function expectSaveRequest(schemas: Schemas, requestBody: z.infer<typeof Body>): void {
-  const body = resolved(schemas, jsonSchemaOf(requestBody));
+type SaveOperation = z.infer<typeof OpenApiDocument>["paths"]["/api/items"]["post"];
 
+function expectSaveContract(schemas: Schemas, save: SaveOperation): void {
+  const body = resolved(schemas, jsonSchemaOf(save.requestBody));
+
+  expect(Object.keys(save.requestBody.content)).toEqual(["application/json"]);
+  expect(Object.keys(save.responses).toSorted()).toEqual(["200", "201", "400", "413", "503"]);
   expect(propertyNames(schemas, body).toSorted()).toEqual(["content", "digest", "page", "url"]);
   expect(body.required).toEqual(["url"]);
+  expectPageSchema(schemas, body);
+  expect(save.responses["413"]?.description).toContain(
+    "`page` is longer than 1,000,000 bytes once serialized as JSON",
+  );
 }
 
 test("the served OpenAPI document describes the items routes", async ({ request }, info) => {
@@ -155,13 +119,11 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   const { schemas } = components;
   const items = paths["/api/items"];
 
-  expect(Object.keys(items.post.requestBody.content)).toEqual(["application/json"]);
-  expect(Object.keys(items.post.responses).toSorted()).toEqual(["200", "201", "400", "413", "503"]);
   expect(Object.keys(items.get.responses).toSorted()).toEqual(["200", "400"]);
 
   expectListContract(schemas, items.get);
 
-  expectSaveRequest(schemas, items.post.requestBody);
+  expectSaveContract(schemas, items.post);
 
   const saved = jsonSchemaOf(items.post.responses["201"] ?? { content: {} });
   expect(propertyNames(schemas, saved).toSorted()).toEqual(["item", "url"]);
