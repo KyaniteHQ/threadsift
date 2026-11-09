@@ -1,6 +1,5 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { SEARCH_MAX } from "../src/http/schemas.ts";
 import { CLEAR_ALL, LOAD_FAILED, SEARCH_LABEL } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import {
@@ -15,6 +14,8 @@ import {
 } from "./filters.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { DESKTOP, afterTwoFrames } from "./look.ts";
+
+const SEARCH_MAX = 200;
 
 let screen: FreshScreen;
 let page: Page;

@@ -1,7 +1,7 @@
 import { type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
-import { AI_DEADLINE_MS, AiSettingsViewSchema, DigestSchema } from "../src/core/ai-contract.ts";
+import { AiSettingsViewSchema, DigestSchema } from "../src/core/ai-contract.ts";
 import { aiJson, AI_SETTINGS_ENDPOINT } from "./ai.ts";
 import { itemOf } from "./api.ts";
 import { attachJson } from "./card.ts";
@@ -11,6 +11,8 @@ import { jobsOf, sweepNow } from "./ingest.ts";
 import { attachScreenshot, storeSettings, viewportAt } from "./look.ts";
 
 const NARROWEST = 390;
+
+const AI_DEADLINE_MS = 10 * 60 * 1000;
 
 export async function configureDigest(
   screen: FreshScreen,
@@ -127,16 +129,16 @@ function assertLinkedNames(
 
 export async function assertDelay(
   screen: FreshScreen,
-  attempts: number,
+  attempt: Readonly<{ count: number; startedAfter: number }>,
   delay: number,
   id: number,
   info: TestInfo,
 ): Promise<void> {
+  const startedBefore = Date.now();
   const task = lastDigestTask(screen);
-
   const job = jobsOf(id, screen.fresh, "digest")[0];
-  expect(
-    (job?.next_attempt_at ?? 0) - ((task?.deadline ?? 0) - AI_DEADLINE_MS),
-  ).toBeGreaterThanOrEqual(delay);
-  await attachJson(info, `retry-${attempts}.json`, JSON.stringify({ job, task }));
+  expect(task?.deadline).toBeGreaterThanOrEqual(attempt.startedAfter + AI_DEADLINE_MS);
+  expect(task?.deadline).toBeLessThanOrEqual(startedBefore + AI_DEADLINE_MS);
+  expect((job?.next_attempt_at ?? 0) - attempt.startedAfter).toBeGreaterThanOrEqual(delay);
+  await attachJson(info, `retry-${attempt.count}.json`, JSON.stringify({ job, task }));
 }

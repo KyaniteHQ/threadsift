@@ -97,7 +97,7 @@ tools/oxlint/                     lint rule plugins: vendored anti-slop and Thre
 tools/copy/                       write-copy.sh, which writes every text a user reads
 tools/icons/                      build.ts, which draws the installable app's icons from the design tokens
 tools/case-folding/               build.ts, which generates src/core/case-folding-table.ts from the Unicode data file, and check.ts, which checks the key function
-tools/measure-data-steps.ts        counts the D1 queries one call of migrateData makes on local D1
+tools/measure-data-steps.ts       counts the D1 queries one call of migrateData makes on local D1
 tools/pr-copy/                    deploys and deletes the Cloudflare copy of a pull request
 design/                           design system and prototype
 .claude/                          the implementer agent, its skills and the lint hook (docs/agents/)

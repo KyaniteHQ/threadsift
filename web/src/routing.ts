@@ -1,6 +1,8 @@
 import { type MouseEvent, useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 
+import { itemIdOf } from "../../src/core/item-path.ts";
+
 export const SETTINGS_PATH = "/settings";
 
 export const RESET_PATH = "/reset";
@@ -47,6 +49,10 @@ export function usePath() {
     setPath(to);
   }, []);
 
+  const closeItem = useCallback(() => {
+    if (itemIdOf(window.location.pathname) !== null) replace(LIBRARY_PATH);
+  }, [replace]);
+
   const leave = useCallback(() => {
     if (openedFromLibrary()) {
       window.history.back();
@@ -56,7 +62,7 @@ export function usePath() {
     }
   }, [replace]);
 
-  return { path, navigate, replace, leave };
+  return { path, navigate, replace, leave, closeItem };
 }
 
 export function useInternalLink(open: () => void) {
