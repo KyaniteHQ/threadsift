@@ -20,7 +20,7 @@ test.beforeAll(async () => {
 });
 
 for (const forced of [false, true]) {
-  test(`the Highlights page breaks no design rule in its list, failed Load more, no results and failed states in Light, Dark and Sepia at 1440 and 390 px${forced ? " in forced colours" : ""}`, async () => {
+  test(`the Highlights page breaks no design rule in its loading, list, failed Load more, no results and failed states in Light, Dark and Sepia at 1440 and 390 px${forced ? " in forced colours" : ""}`, async () => {
     const { page } = screenOf();
     const info = test.info();
     await page.emulateMedia({ forcedColors: forced ? "active" : "none" });
