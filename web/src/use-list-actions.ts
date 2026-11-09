@@ -45,6 +45,13 @@ function useOpenItem(list: ListState, { openId, replace }: Route) {
     setAttention(null);
   }, []);
 
+  const unshown =
+    attention !== null &&
+    list.status === "ready" &&
+    !list.items.some((item) => item.id === attention.id);
+
+  if (unshown) setAttention(null);
+
   return { attention, attend: setAttention, attended };
 }
 
