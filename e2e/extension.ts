@@ -35,6 +35,7 @@ export const ACTION_TEXT = TEXT;
 export interface Popup {
   status(): Promise<string>;
   itemLink(): Promise<string | null>;
+  click(label: string): Promise<void>;
 }
 
 export interface Extension {
@@ -77,11 +78,14 @@ async function evaluateIn(socketUrl: string, expression: string): Promise<string
     });
   });
 
-  const answered = new Promise<string | null>((resolve) => {
+  const answered = new Promise<string | null>((resolve, reject) => {
     socket.addEventListener("message", (event) => {
       const answer = Evaluated.safeParse(JSON.parse(String(event.data)));
 
       if (answer.success) resolve(answer.data.result.result.value);
+    });
+    socket.addEventListener("close", () => {
+      reject(new Error(`${socketUrl} closed before it answered`));
     });
   });
 
@@ -138,6 +142,15 @@ function popupOf(socketUrl: string): Popup {
     status: async () =>
       (await read("document.querySelector('.ext-status')?.textContent ?? ''")) ?? "",
     itemLink: () => read("document.querySelector('a.btn')?.href ?? null"),
+    async click(label) {
+      const finder = `[...document.querySelectorAll('button, a.btn')].find((control) => control.textContent === ${JSON.stringify(label)})`;
+
+      const outcome = await read(
+        `(() => { const control = ${finder}; setTimeout(() => control?.click(), 0); return control === undefined ? 'missing' : 'clicked'; })()`,
+      );
+
+      expect(outcome, `the popup control ${label}`).toBe("clicked");
+    },
   };
 }
 

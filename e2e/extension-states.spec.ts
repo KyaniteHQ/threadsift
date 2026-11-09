@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { createToken, revokeToken } from "./access-helpers.ts";
 import { itemOf, listAll, postLink } from "./api.ts";
 import { BIG_PAGE_TIMEOUT_MS, ESSAY, WAR_AND_PEACE } from "./articles.ts";
+import { settingsOpenedBy } from "./extension-session.ts";
 import { ACTION_TEXT, type Extension, loadExtension } from "./extension.ts";
 import { jobsOf } from "./ingest.ts";
 import { type Library, closeLibrary, openLibrary } from "./media-pages.ts";
@@ -55,6 +56,7 @@ test("a revoked token shows its refusal, a new link stores nothing and an existi
 
   const again = await loaded.press(essay);
   await expect.poll(() => again.status()).toBe(ACTION_TEXT.tokenRefused);
+  await (await settingsOpenedBy(loaded, again)).close();
 
   const another = await loaded.tab("https://example.com/");
   const refused = await loaded.press(another);
@@ -89,6 +91,7 @@ test("without an address and a token the popup says so, and nothing is saved", a
   const popup = await loaded.press(await loaded.tab(ESSAY));
 
   await expect.poll(() => popup.status()).toBe(ACTION_TEXT.notConfigured);
+  await (await settingsOpenedBy(loaded, popup)).close();
   expect(await listAll(owner)).toEqual([]);
 });
 

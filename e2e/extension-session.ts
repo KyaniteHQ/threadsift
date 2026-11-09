@@ -1,5 +1,6 @@
 import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 
+import { TEXT } from "../extension/lib/text.ts";
 import { createToken } from "./access-helpers.ts";
 import { itemOf } from "./api.ts";
 import { ACTION_TEXT, type Extension, type Popup, loadExtension } from "./extension.ts";
@@ -66,4 +67,16 @@ export async function expectTabImages(tab: Page, rows: readonly MediaRow[]): Pro
   for (const { source_url } of rows) {
     expect(shown, `the tab shows ${source_url}`).toContain(source_url);
   }
+}
+
+export async function settingsOpenedBy(extension: Extension, popup: Popup): Promise<Page> {
+  const opened = extension.context.waitForEvent("page");
+  await popup.click(ACTION_TEXT.openSettings);
+
+  const settings = await opened;
+
+  await expect(settings.getByRole("heading", { name: TEXT.settingsTitle })).toBeVisible();
+  expect(settings.url()).toBe(`chrome-extension://${extension.id}/options.html`);
+
+  return settings;
 }
