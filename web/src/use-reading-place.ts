@@ -1,6 +1,6 @@
 import { type RefObject, useLayoutEffect, useRef } from "react";
 
-import { arrivalPlace } from "./place.ts";
+import { useArrivals } from "./place-arrival.ts";
 import { type Anchor, anchorAt, keepPlace, placeOf, scrollToAnchor } from "./reading-place.ts";
 
 const SAVE_DELAY_MS = 400;
@@ -115,9 +115,9 @@ function onImageSettled(slot: HTMLElement, reflowed: () => void): () => void {
   };
 }
 
-function watchPlace(slot: HTMLElement, itemId: number): PlaceWatch {
+function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): PlaceWatch {
   const settler = newSettler(slot);
-  let seen = arrivalPlace() === null ? placeOf(itemId) : null;
+  let seen = arriving ? null : placeOf(itemId);
   let saveTimer = 0;
   let frame = 0;
 
@@ -175,20 +175,21 @@ export function useReadingPlace(
 ): void {
   const watch = useRef<PlaceWatch | null>(null);
   const lastLook = useRef(lookKey);
+  const { pending } = useArrivals();
 
   useLayoutEffect(() => {
     const element = slot.current;
 
     if (!ready || element === null) return noWatch;
 
-    const opened = watchPlace(element, itemId);
+    const opened = watchPlace(element, itemId, pending());
     watch.current = opened;
 
     return () => {
       opened.stop();
       watch.current = null;
     };
-  }, [slot, itemId, ready]);
+  }, [slot, itemId, ready, pending]);
 
   useLayoutEffect(() => {
     if (lastLook.current !== lookKey) {

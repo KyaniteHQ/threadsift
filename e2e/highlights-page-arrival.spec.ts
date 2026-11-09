@@ -11,7 +11,7 @@ import {
 } from "./highlight-screen.ts";
 import { entries, openPage } from "./highlights-page-ui.ts";
 import { highlightsOf } from "./highlights.ts";
-import { DESKTOP, type Stored } from "./look.ts";
+import { DESKTOP, type Stored, viewportAt } from "./look.ts";
 import { noteField } from "./note-reader.ts";
 import { saved } from "./notes.ts";
 import { reader } from "./reader.ts";
@@ -112,3 +112,47 @@ test("an entry whose passage a refresh removed says so, and opens the Reader at 
   await expect(listEntries(page).filter({ hasText: NOT_FOUND })).toBeFocused();
   await expect(listEntries(page).filter({ hasText: NOT_FOUND })).toBeInViewport();
 });
+
+const CROSSINGS = [
+  ["a Highlight", "highlight"],
+  ["the Note box", "note"],
+] as const;
+
+for (const [what, kind] of CROSSINGS) {
+  test(`after arriving at ${what} and reading on, the Reader keeps its place and focus when the width turns a Grid sheet into a page`, async () => {
+    const { page, context } = screenOf();
+    const tag = `arx${kind}`;
+    const id = await seedThread(screenOf(), thread(tag));
+
+    await keepThroughApi(screenOf(), id, [
+      ["t1_c3", CODE_QUOTE],
+      ["post", POST_PHRASE],
+    ]);
+
+    await saved(context.request, id, NOTE_TEXT, 0);
+
+    await openPage(page, DESKTOP.width, { layout: "grid", openAs: "sheet" });
+    await entryFor(page, tag, kind === "note" ? NOTE_TEXT : CODE_QUOTE).click();
+    await expect(page.locator(".sheet")).toBeVisible();
+
+    const code = marks(reader(page).locator(".code"));
+    const phrase = marks(reader(page).locator(".md").first()).first();
+
+    if (kind === "note") await expect(noteField(page)).toBeFocused();
+    else await expect(code).toBeFocused();
+
+    await phrase.evaluate((element) => {
+      element.scrollIntoView({ block: "start" });
+    });
+
+    await expect(phrase).toBeInViewport();
+    await viewportAt(page, 390);
+    await expect(page.locator(".sheet")).toHaveCount(0);
+    await expect(phrase).toBeInViewport();
+    await expect(phrase).not.toBeFocused();
+    await expect(noteField(page)).not.toBeFocused();
+    await expect(code).not.toBeFocused();
+    await expect(noteField(page)).not.toBeInViewport();
+    await expect(code).not.toBeInViewport();
+  });
+}
