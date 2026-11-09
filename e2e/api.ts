@@ -1,4 +1,6 @@
-import { type APIRequestContext, expect } from "@playwright/test";
+import { setTimeout as sleep } from "node:timers/promises";
+
+import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import type { Digest } from "../src/core/ai-contract.ts";
@@ -74,14 +76,19 @@ export async function attempted<Result>(
     pauseMs?: number;
   }> = {},
 ) {
+  let started = Date.now();
   const first = await attempt();
   let last = first;
   fetches.push(fetchOf(first));
 
   for (let tries = 1; tries < FETCH_ATTEMPTS && retryOn(fetchOf(last)); tries += 1) {
-    await new Promise((resolve) => {
-      setTimeout(resolve, pauseMs * tries);
-    });
+    if (pauseMs > 0) {
+      const pause = pauseMs * tries;
+      test.setTimeout(test.info().timeout + pause + (Date.now() - started));
+      await sleep(pause);
+    }
+
+    started = Date.now();
     last = await attempt();
     fetches.push(fetchOf(last));
   }
