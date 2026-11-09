@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, notExists, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, isNotNull, ne, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Link } from "./links.ts";
@@ -80,7 +80,14 @@ export function promoteFailedItem(
   return db
     .update(items)
     .set({ normalizedUrl, kind, source })
-    .where(and(eq(items.normalizedUrl, shortLink), notExists(taken)));
+    .where(
+      and(
+        eq(items.normalizedUrl, shortLink),
+        isNotNull(items.fetch),
+        ne(items.fetch, "ok"),
+        notExists(taken),
+      ),
+    );
 }
 
 export function recordAlias(
