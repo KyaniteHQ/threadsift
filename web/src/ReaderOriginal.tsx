@@ -1,14 +1,12 @@
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { Comments } from "./Comments.tsx";
-import { useSpans } from "./highlights-context.ts";
+import { POST_KEY } from "./highlight-target.ts";
 import { PostTextView } from "./post-text-module.ts";
 import { PostTextBoundary } from "./PostTextBoundary.tsx";
 import { NO_POST_TEXT, NO_README, SECTION_TITLES } from "./reader-text.ts";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
 import { CARD_TITLES, TOKEN_REFUSED, WAITING } from "./text.ts";
-
-const POST = { kind: "post" } as const;
 
 function missingTextNote(item: Readonly<Item>): string {
   if (item.status === "processing") return item.wait === null ? CARD_TITLES.reading : WAITING.title;
@@ -33,7 +31,6 @@ export function Original({
   now,
 }: Readonly<{ item: Item; detail: ItemDetail; now: number }>) {
   const text = detail.postText;
-  const spans = useSpans(POST);
 
   return (
     <>
@@ -51,8 +48,7 @@ export function Original({
             <h3 className="rd-h">{SECTION_TITLES[item.kind]}</h3>
             <PostTextView
               text={text}
-              target={POST}
-              spans={spans}
+              targetKey={POST_KEY}
               itemId={item.kind === "article" ? item.id : null}
               images={detail.images}
             />

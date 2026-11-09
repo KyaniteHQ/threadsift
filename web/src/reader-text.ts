@@ -1,5 +1,6 @@
 import { groupedNumber } from "../../src/core/format.ts";
 import type { Kind, Source } from "../../src/core/kinds.ts";
+import { collapsedText } from "./collapsed-text.ts";
 import type { CommentCounts } from "./comment-counts.ts";
 import { ageLabel } from "./saved-label.ts";
 import { CLOSE_LABEL, filled } from "./text.ts";
@@ -117,7 +118,7 @@ export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: numb
 }
 
 export function removeNamed(exact: string): string {
-  const words = exact.replaceAll(/\s+/gu, " ").trim();
+  const words = collapsedText(exact);
   const points = Array.from(words);
 
   const quote =

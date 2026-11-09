@@ -21,7 +21,7 @@ function pairAt(text: string, at: number): boolean {
   return (text.codePointAt(at) ?? 0) > BASIC_PLANE_END;
 }
 
-function codePointCount(text: string, end: number): number {
+export function codePointCount(text: string, end = text.length): number {
   let count = 0;
 
   for (let at = 0; at < end; at += pairAt(text, at) ? 2 : 1) count += 1;
@@ -29,8 +29,8 @@ function codePointCount(text: string, end: number): number {
   return count;
 }
 
-function unitIndexAt(text: string, codePoints: number): number | null {
-  let at = 0;
+export function unitIndexAt(text: string, codePoints: number, from = 0): number | null {
+  let at = from;
 
   for (let seen = 0; seen < codePoints; seen += 1) {
     if (at >= text.length) return null;

@@ -12,7 +12,7 @@ interface HastProperties {
   readonly alt?: unknown;
   readonly src?: unknown;
   readonly id?: unknown;
-  readonly ariaHidden?: unknown;
+  readonly dataHighlights?: unknown;
   readonly dataFootnoteRef?: unknown;
   readonly dataFootnoteBackref?: unknown;
 }
@@ -44,6 +44,14 @@ export interface Piece {
   readonly length: number;
 }
 
+interface Run {
+  readonly node: HastNode;
+  readonly from: number;
+  to: number;
+  readonly at: number;
+  length: number;
+}
+
 export interface Projection {
   readonly text: string;
   readonly pieces: readonly Piece[];
@@ -70,6 +78,11 @@ const FLOW = new Set([
   "div",
   "hr",
 ]);
+
+export const TEXT = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? "");
 
 const COLLAPSIBLE = new Set([" ", "\t", "\n", "\f", "\r"]);
 
@@ -129,7 +142,15 @@ function collapse(run: readonly (Chunk | null)[]): Cell[] {
 }
 
 function joined(parts: readonly (readonly Cell[])[], separator: Cell): Cell[] {
-  return parts.flatMap((part, at) => (at === 0 ? part : [separator, ...part]));
+  const cells: Cell[] = [];
+
+  parts.forEach((part, at) => {
+    if (at > 0) cells.push(separator);
+
+    for (const cell of part) cells.push(cell);
+  });
+
+  return cells;
 }
 
 function codeCells(node: Readonly<HastNode>): Cell[] {
@@ -138,19 +159,20 @@ function codeCells(node: Readonly<HastNode>): Cell[] {
     : (node.children ?? []).flatMap((child) => codeCells(child));
 }
 
-function isGenerated({ properties }: Readonly<HastNode>): boolean {
-  return (
-    properties?.ariaHidden === "true" ||
-    properties?.dataFootnoteRef !== undefined ||
-    properties?.dataFootnoteBackref !== undefined ||
-    z.string().catch("").parse(properties?.id).endsWith(FOOTNOTE_LABEL_ID)
-  );
+function isGenerated({ tagName, properties }: Readonly<HastNode>): boolean {
+  if (tagName === "a") {
+    return (
+      properties?.dataFootnoteRef !== undefined || properties?.dataFootnoteBackref !== undefined
+    );
+  }
+
+  return tagName === "h2" && properties?.id === FOOTNOTE_LABEL_ID;
 }
 
 function imageText({ properties }: Readonly<HastNode>): string {
-  const alt = z.string().catch("").parse(properties?.alt);
+  const alt = TEXT.parse(properties?.alt);
 
-  return alt === "" ? readerUrl(z.string().catch("").parse(properties?.src)) : alt;
+  return alt === "" ? readerUrl(TEXT.parse(properties?.src)) : alt;
 }
 
 function rowsOf(node: Readonly<HastNode>): HastNode[] {
@@ -221,7 +243,7 @@ class Projector {
   private element(node: Readonly<HastNode>): void {
     const { tagName = "" } = node;
 
-    if (tagName === "input" || tagName === "button" || isGenerated(node)) return;
+    if (tagName === "input" || isGenerated(node)) return;
 
     if (tagName === "br") this.run.push(null);
     else if (tagName === "img") this.run.push({ node, value: imageText(node) });
@@ -236,31 +258,42 @@ class Projector {
 }
 
 function piecesOf(cells: readonly Cell[]): Piece[] {
-  const pieces: Piece[] = [];
+  const pieces: Run[] = [];
+  let last: Run | undefined;
 
   cells.forEach(({ char, node, index }, at) => {
-    const last = pieces.at(-1);
-
     if (node === null) return;
 
     if (last?.node === node && last.to === index && last.at + last.length === at) {
-      pieces[pieces.length - 1] = { ...last, to: index + char.length, length: last.length + 1 };
-    } else pieces.push({ node, from: index, to: index + char.length, at, length: 1 });
+      last.to = index + char.length;
+      last.length += 1;
+    } else {
+      last = { node, from: index, to: index + char.length, at, length: 1 };
+      pieces.push(last);
+    }
   });
 
   return pieces;
 }
 
-export function projectTree(root: Readonly<HastNode>): Projection {
+function textOf(cells: readonly Cell[]): string {
+  return cells.map(({ char }) => char).join("");
+}
+
+function cellsIn(root: Readonly<HastNode>): Cell[] {
   const projector = new Projector();
 
   projector.visit(root);
 
-  const cells = projector.cells();
+  return projector.cells();
+}
 
-  return { text: cells.map(({ char }) => char).join(""), pieces: piecesOf(cells) };
+export function projectTree(root: Readonly<HastNode>): Projection {
+  const cells = cellsIn(root);
+
+  return { text: textOf(cells), pieces: piecesOf(cells) };
 }
 
 export function projectText(markdown: string): string {
-  return projectTree(PROCESSOR.runSync(PROCESSOR.parse(markdown))).text;
+  return textOf(cellsIn(PROCESSOR.runSync(PROCESSOR.parse(markdown))));
 }

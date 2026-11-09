@@ -1,8 +1,8 @@
-import { createContext, use, useMemo, useState } from "react";
+import { type Dispatch, type SetStateAction, createContext, use, useState } from "react";
 
-import type { Highlight, HighlightTarget } from "../../src/core/highlight-contract.ts";
+import type { Highlight } from "../../src/core/highlight-contract.ts";
 import type { MarkSpan } from "./highlight-marks.ts";
-import { spansFor } from "./highlight-target.ts";
+import { NO_INDEX, NO_SPANS, type SpanIndex, indexSpans } from "./highlight-target.ts";
 import type { KeepDraft } from "./use-selection-draft.ts";
 
 export type Panel =
@@ -16,16 +16,18 @@ export interface Reveal {
 
 export interface HighlightsApi {
   readonly items: readonly Highlight[];
-  readonly panel: Panel | null;
+  readonly spans: SpanIndex;
   readonly failure: string | null;
   readonly reveal: Reveal | null;
-  readonly keep: () => void;
+  readonly keep: (draft: Readonly<KeepDraft>) => void;
   readonly remove: (id: number) => void;
   readonly dismiss: () => void;
   readonly show: (highlight: Readonly<Highlight>) => void;
 }
 
 export const HighlightsContext = createContext<HighlightsApi | null>(null);
+
+export const PanelContext = createContext<Panel | null>(null);
 
 export function useHighlights(): HighlightsApi {
   const api = use(HighlightsContext);
@@ -35,17 +37,30 @@ export function useHighlights(): HighlightsApi {
   return api;
 }
 
-export function useSpans(target: Readonly<HighlightTarget>): readonly MarkSpan[] {
-  const { items } = useHighlights();
+export function useSpanIndex(items: readonly Highlight[]): SpanIndex {
+  const [state, setState] = useState({ items, index: indexSpans(items, NO_INDEX) });
 
-  return useMemo(() => spansFor(items, target), [items, target]);
+  if (state.items !== items) setState({ items, index: indexSpans(items, state.index) });
+
+  return state.index;
 }
 
-export function useRevealed(matches: (reveal: Readonly<Reveal>) => boolean): boolean {
+export function useSpans(key: string): readonly MarkSpan[] {
+  return useHighlights().spans[key] ?? NO_SPANS;
+}
+
+export function useOpenOnReveal(
+  matches: (reveal: Readonly<Reveal>) => boolean,
+): readonly [boolean, Dispatch<SetStateAction<boolean>>] {
   const { reveal } = useHighlights();
+  const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(reveal);
 
-  if (reveal !== seen) setSeen(reveal);
+  if (reveal !== seen) {
+    setSeen(reveal);
 
-  return reveal !== seen && reveal !== null && matches(reveal);
+    if (reveal !== null && matches(reveal) && !open) setOpen(true);
+  }
+
+  return [open, setOpen];
 }

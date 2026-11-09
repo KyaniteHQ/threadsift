@@ -4,7 +4,7 @@ import { THEMES, resize } from "./design-screens.ts";
 import { expectDesign } from "./highlight-design.ts";
 import { openReader } from "./highlight-reader.ts";
 import { screenForFile, seededItem } from "./highlight-screen.ts";
-import { attachScreenshot, viewportAt } from "./look.ts";
+import { attachScreenshot } from "./look.ts";
 
 const screenOf = screenForFile(600_000);
 
@@ -23,7 +23,6 @@ for (const forced of [false, true]) {
     for (const theme of THEMES) {
       for (const [width, bands] of WIDTHS) {
         const name = `${theme} at ${width}px${forced ? " forced" : ""}`;
-        await viewportAt(page, width);
         await openReader(page, id, width, { theme });
         await resize(page, width, bands);
         await expectDesign(page, name, { forced, narrow: width < 480 });

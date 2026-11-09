@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent } from "react";
 
-const TYPING = "input, textarea, select, dialog.st-pop, dialog.dlg, .hl-pop, [contenteditable]";
-const HIGHLIGHT_PANEL_OPEN = ".hl-pop:popover-open";
+const TYPING = "input, textarea, select, dialog.st-pop, dialog.dlg, [popover], [contenteditable]";
+const POPOVER_OPEN = ":popover-open";
 const SIDEWAYS = "pre, .tbl";
 
 export interface KeyActions {
@@ -54,7 +54,7 @@ function press(event: KeyboardEvent, target: Element | null, actions: KeyActions
     key === "Escape" &&
     actions.openId !== null &&
     !inPasteBox(event) &&
-    document.querySelector(HIGHLIGHT_PANEL_OPEN) === null
+    document.querySelector(POPOVER_OPEN) === null
   ) {
     event.preventDefault();
     actions.close();

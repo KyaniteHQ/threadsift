@@ -1,20 +1,11 @@
-import {
-  type CSSProperties,
-  type FocusEvent,
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type CSSProperties, type FocusEvent, useCallback, useEffect, useId, useRef } from "react";
 
 import type { CommentNode } from "../../src/core/comment-view.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { type CommentCounts, commentCountsOf } from "./comment-counts.ts";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
-import { useRevealed, useSpans } from "./highlights-context.ts";
+import { useOpenOnReveal } from "./highlights-context.ts";
 import { PostTextView } from "./post-text-module.ts";
 import {
   COMMENTS_TITLE,
@@ -49,21 +40,19 @@ function initialOf(author: string | null): string {
 
 type Comment = Extract<CommentNode, { kind: "comment" }>;
 
-function useOpenFold(revealed: boolean) {
+function useOpenFold(commentId: string) {
   const more = useRef<HTMLButtonElement>(null);
   const fromTop = useRef(false);
-  const [open, setOpen] = useState(false);
-
-  if (revealed && !open) setOpen(true);
+  const [open, setOpen] = useOpenOnReveal(({ key }) => key === commentId);
 
   const toggle = useCallback(() => {
     setOpen((now) => !now);
-  }, []);
+  }, [setOpen]);
 
   const lessFromTop = useCallback(() => {
     fromTop.current = true;
     setOpen(false);
-  }, []);
+  }, [setOpen]);
 
   useEffect(() => {
     if (!open && fromTop.current) {
@@ -72,21 +61,21 @@ function useOpenFold(revealed: boolean) {
     }
   }, [open]);
 
-  const reveal = useCallback((event: Readonly<Pick<FocusEvent<HTMLElement>, "target">>) => {
-    if (event.target.matches(":focus-visible")) setOpen(true);
-  }, []);
+  const reveal = useCallback(
+    (event: Readonly<Pick<FocusEvent<HTMLElement>, "target">>) => {
+      if (event.target.matches(":focus-visible")) setOpen(true);
+    },
+    [setOpen],
+  );
 
   return { more, open, toggle, lessFromTop, reveal };
 }
 
 function CommentText({ comment }: Readonly<{ comment: Comment }>) {
   const box = useRef<HTMLDivElement>(null);
-  const revealed = useRevealed(({ key }) => key === comment.id);
-  const { more, open, toggle, lessFromTop, reveal } = useOpenFold(revealed);
+  const { more, open, toggle, lessFromTop, reveal } = useOpenFold(comment.id);
   const fold = useCommentFold(box);
   const bodyId = useId();
-  const target = useMemo(() => ({ kind: "comment", commentId: comment.id }) as const, [comment.id]);
-  const spans = useSpans(target);
 
   return (
     <>
@@ -107,7 +96,7 @@ function CommentText({ comment }: Readonly<{ comment: Comment }>) {
         className={fold !== "none" && !open ? "cm-fold folded" : "cm-fold"}
         onFocus={fold === "none" ? undefined : reveal}
       >
-        <PostTextView text={comment.body} target={target} spans={spans} />
+        <PostTextView text={comment.body} targetKey={comment.id} />
       </div>
       {fold === "none" ? null : (
         <button

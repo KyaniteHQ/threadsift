@@ -1,24 +1,13 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
+import type { Edges } from "../web/src/place-popover.ts";
 import { KEEP_LABEL, REMOVE_LABEL } from "../web/src/reader-text.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { fontsLoaded, storeSettings, viewportAt } from "./look.ts";
 import { reader } from "./reader.ts";
 import { post, postUrl } from "./thread-fixtures.ts";
 import { type Node, sendThread, threadJson } from "./threads.ts";
-
-export interface Edge {
-  readonly left: number;
-  readonly right: number;
-  readonly top: number;
-  readonly bottom: number;
-}
-
-export interface PhraseEdges {
-  readonly first: Edge;
-  readonly last: Edge;
-}
 
 export interface Thread {
   readonly id: string;
@@ -77,52 +66,9 @@ export async function openReader(page: Page, id: number, width: number, stored =
   await fontsLoaded(page);
 }
 
-export function phraseEdges(scope: Locator, phrase: string): Promise<PhraseEdges> {
-  return scope.evaluate((root, wanted) => {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    const nodes: Text[] = [];
-
-    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-      if (node instanceof Text) nodes.push(node);
-    }
-
-    const whole = nodes.map((node) => node.data).join("");
-    const start = whole.indexOf(wanted);
-
-    if (start === -1) throw new Error(`${wanted} is not in the text`);
-
-    const place = (offset: number) => {
-      let rest = offset;
-
-      for (const node of nodes) {
-        if (rest <= node.length) return { node, offset: rest };
-
-        rest -= node.length;
-      }
-
-      throw new Error("offset past the text");
-    };
-
-    const range = document.createRange();
-    const from = place(start);
-    const to = place(start + wanted.length);
-    range.setStart(from.node, from.offset);
-    range.setEnd(to.node, to.offset);
-
-    const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0);
-    const first = rects[0] ?? range.getBoundingClientRect();
-    const last = rects.at(-1) ?? first;
-
-    return {
-      first: { left: first.left, right: first.right, top: first.top, bottom: first.bottom },
-      last: { left: last.left, right: last.right, top: last.top, bottom: last.bottom },
-    };
-  }, phrase);
-}
-
-export async function selectBetween(scope: Locator, from: string, to: string): Promise<void> {
-  await scope.evaluate(
-    (root, [first, last]) => {
+function rangeIn(scope: Locator, from: string, to: string, select: boolean): Promise<Edges> {
+  return scope.evaluate(
+    (root, [first, last, selecting]) => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       const nodes: Text[] = [];
 
@@ -131,6 +77,10 @@ export async function selectBetween(scope: Locator, from: string, to: string): P
       }
 
       const whole = nodes.map((node) => node.data).join("");
+      const start = whole.indexOf(first ?? "");
+      const end = whole.indexOf(last ?? "", start) + (last ?? "").length;
+
+      if (start === -1 || end < start) throw new Error(`${first} to ${last} is not in the text`);
 
       const place = (offset: number) => {
         let rest = offset;
@@ -144,55 +94,35 @@ export async function selectBetween(scope: Locator, from: string, to: string): P
         throw new Error("offset past the text");
       };
 
-      const start = whole.indexOf(first ?? "");
-      const end = whole.indexOf(last ?? "", start) + (last ?? "").length;
-
-      if (start === -1 || end < start) throw new Error(`${first} to ${last} is not in the text`);
-
       const a = place(start);
       const b = place(end);
-      document.getSelection()?.setBaseAndExtent(a.node, a.offset, b.node, b.offset);
+      const range = document.createRange();
+      range.setStart(a.node, a.offset);
+      range.setEnd(b.node, b.offset);
+
+      if (selecting) {
+        document.getSelection()?.setBaseAndExtent(a.node, a.offset, b.node, b.offset);
+      }
+
+      const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0);
+      const head = rects[0] ?? range.getBoundingClientRect();
+      const tail = rects.at(-1) ?? head;
+
+      return {
+        first: { left: head.left, right: head.right, top: head.top, bottom: head.bottom },
+        last: { left: tail.left, right: tail.right, top: tail.top, bottom: tail.bottom },
+      };
     },
-    [from, to],
+    [from, to, select] as const,
   );
 }
 
-export async function selectAcross(page: Page, first: Locator, last: Locator): Promise<void> {
-  const from = await first.elementHandle();
-  const to = await last.elementHandle();
+export function phraseEdges(scope: Locator, phrase: string): Promise<Edges> {
+  return rangeIn(scope, phrase, phrase, false);
+}
 
-  await page.evaluate(
-    ([start, end]) => {
-      const [a, b] = [
-        [start, false],
-        [end, true],
-      ].map(([element, atEnd]) => {
-        const walker = document.createTreeWalker(
-          element instanceof Element ? element : document.body,
-          NodeFilter.SHOW_TEXT,
-        );
-
-        let found: Text | null = null;
-
-        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-          if (node instanceof Text && node.data.trim() !== "") {
-            found = node;
-
-            if (atEnd !== true) break;
-          }
-        }
-
-        if (found === null) throw new Error("no text to select");
-
-        return found;
-      });
-
-      if (a === undefined || b === undefined) return;
-
-      document.getSelection()?.setBaseAndExtent(a, 0, b, b.length);
-    },
-    [from, to],
-  );
+export async function selectBetween(scope: Locator, from: string, to: string): Promise<void> {
+  await rangeIn(scope, from, to, true);
 }
 
 export async function dragOver(page: Page, scope: Locator, phrase: string): Promise<void> {

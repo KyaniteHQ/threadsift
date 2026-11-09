@@ -44,12 +44,13 @@ test("a refresh that removes one quote lists it as no longer found, keeps the ot
 
   await expect(listEntries(page)).toHaveCount(2);
 
-  await seedThread(screenOf(), {
-    ...thread(
+  await seedThread(
+    screenOf(),
+    thread(
       tag,
       POST_TEXT.replace("fallback folder is cleared on reboot", "temp folder empties itself"),
     ),
-  });
+  );
   await page.reload();
   await expect(reader(page).locator(".md").first()).toBeVisible();
 

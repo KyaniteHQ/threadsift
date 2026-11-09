@@ -1,3 +1,5 @@
+import { codePointCount } from "../../src/core/highlight-anchor.ts";
+import { FOOTNOTE_LABEL_ID } from "../../src/core/reader-url.ts";
 import { type HastNode, projectTree } from "../../src/core/text-projection.ts";
 
 export interface DomProjection {
@@ -5,49 +7,51 @@ export interface DomProjection {
   readonly spanOf: (range: Range) => { readonly start: number; readonly end: number } | null;
 }
 
-type TextOf = readonly (readonly [HastNode, Text])[];
+function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
+  const label = node.id.endsWith(FOOTNOTE_LABEL_ID);
+  const task = node.getAttribute("aria-hidden") === "true";
 
-interface Adapted {
-  readonly nodes: readonly HastNode[];
-  readonly texts: TextOf;
-}
-
-const NOTHING: Adapted = { nodes: [], texts: [] };
-
-function adapt(node: Node): Adapted {
-  if (node instanceof Text) {
-    const text: HastNode = { type: "text", value: node.data };
-
-    return { nodes: [text], texts: [[text, node]] };
-  }
-
-  if (!(node instanceof HTMLElement)) return NOTHING;
-
-  const inner = Array.from(node.childNodes, (child) => adapt(child));
-
-  const element: HastNode = {
+  return {
     type: "element",
-    tagName: node.localName,
+    tagName: label ? "h2" : task ? "input" : node.localName,
     properties: {
-      id: node.id,
-      ariaHidden: node.getAttribute("aria-hidden") ?? undefined,
+      id: label ? FOOTNOTE_LABEL_ID : node.id,
       dataFootnoteRef: node.dataset["footnoteRef"],
       dataFootnoteBackref: node.dataset["footnoteBackref"],
     },
-    children: inner.flatMap(({ nodes }) => nodes),
+    children,
   };
-
-  return { nodes: [element], texts: inner.flatMap(({ texts }) => texts) };
 }
 
-function codePoints(text: string): number {
-  return Array.from(text).length;
+function adaptor() {
+  const texts = new Map<HastNode, Text>();
+
+  const adapt = (node: Node): HastNode | null => {
+    if (node instanceof Text) {
+      const text: HastNode = { type: "text", value: node.data };
+      texts.set(text, node);
+
+      return text;
+    }
+
+    if (!(node instanceof HTMLElement) || node.localName === "button") return null;
+
+    return elementOf(
+      node,
+      Array.from(node.childNodes).flatMap((child) => {
+        const adapted = adapt(child);
+
+        return adapted === null ? [] : [adapted];
+      }),
+    );
+  };
+
+  return { adapt, texts };
 }
 
 export function projectDom(root: Element): DomProjection {
-  const { nodes, texts: pairs } = adapt(root);
-  const texts = new Map(pairs);
-  const { text, pieces } = projectTree(nodes[0] ?? { type: "root" });
+  const { adapt, texts } = adaptor();
+  const { text, pieces } = projectTree(adapt(root) ?? { type: "root" });
 
   return {
     text,
@@ -64,8 +68,8 @@ export function projectDom(root: Element): DomProjection {
         const to = Math.min(piece.to, dom === range.endContainer ? range.endOffset : dom.length);
 
         if (from < to) {
-          start = Math.min(start, piece.at + codePoints(dom.data.slice(piece.from, from)));
-          end = Math.max(end, piece.at + codePoints(dom.data.slice(piece.from, to)));
+          start = Math.min(start, piece.at + codePointCount(dom.data.slice(piece.from, from)));
+          end = Math.max(end, piece.at + codePointCount(dom.data.slice(piece.from, to)));
         }
       }
 

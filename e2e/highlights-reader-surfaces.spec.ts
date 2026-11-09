@@ -15,8 +15,9 @@ test("in a Grid sheet the Keep panel stays inside the sheet and Escape closes it
   await viewportAt(page, DESKTOP.width);
   await showGrid(page, "sheet", `/items/${id}`);
   await expect(sheet(page)).toBeVisible();
-  await expect(sheet(page).locator(".md").first()).toBeVisible();
   const body = sheet(page).locator(".md").first();
+
+  await expect(body).toBeVisible();
 
   await selectBetween(body, ...SELECTED);
   await expect(keepButton(page)).toBeVisible();

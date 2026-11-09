@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 
 import type { HighlightsView } from "../../src/core/highlight-contract.ts";
 import type { SelectionDraft } from "./highlight-draft.ts";
-import { keyOf } from "./highlight-target.ts";
+import { BODY_SELECTOR, keyOf } from "./highlight-target.ts";
 
 const SETTLE_MS = 150;
 
@@ -59,13 +59,30 @@ function watchSelection(read: () => void): () => void {
   };
 }
 
+function inBody(selection: Selection): boolean {
+  if (selection.rangeCount !== 1 || selection.isCollapsed) return false;
+
+  const { commonAncestorContainer } = selection.getRangeAt(0);
+
+  const element =
+    commonAncestorContainer instanceof Element
+      ? commonAncestorContainer
+      : commonAncestorContainer.parentElement;
+
+  return element?.closest(BODY_SELECTOR) instanceof Element;
+}
+
 export function useSelectionDraft(revisions: HighlightsView["revisions"]) {
   const [draft, setDraft] = useState<KeepDraft | null>(null);
 
   const read = useEffectEvent(async (): Promise<void> => {
-    const { draftOf } = await import("./highlight-draft.ts");
     const selection = document.getSelection();
-    const found = selection === null ? null : draftOf(selection);
+
+    const found =
+      selection !== null && inBody(selection)
+        ? (await import("./highlight-draft.ts")).draftOf(selection)
+        : null;
+
     const revision = found === null ? null : revisionOf(found, revisions);
     const next = found === null || revision === null ? null : { ...found, revision };
 

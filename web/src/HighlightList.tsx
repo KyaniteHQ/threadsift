@@ -1,4 +1,4 @@
-import { type MouseEvent, useCallback, useId } from "react";
+import { type MouseEvent, memo, useCallback, useId } from "react";
 
 import type { Highlight } from "../../src/core/highlight-contract.ts";
 import { useHighlights } from "./highlights-context.ts";
@@ -45,7 +45,7 @@ function Entry({ highlight }: Readonly<{ highlight: Highlight }>) {
   );
 }
 
-export function HighlightList() {
+export const HighlightList = memo(function HighlightList() {
   const { items, failure } = useHighlights();
   const heading = useId();
 
@@ -68,4 +68,4 @@ export function HighlightList() {
       )}
     </section>
   );
-}
+});

@@ -1,21 +1,13 @@
 import type { PluggableList } from "unified";
 
+import { unitIndexAt } from "../../src/core/highlight-anchor.ts";
 import { type HastNode, type Piece, projectTree } from "../../src/core/text-projection.ts";
+import { idsAttribute } from "./highlight-ids.ts";
 
 export interface MarkSpan {
   readonly id: number;
   readonly start: number;
   readonly length: number;
-}
-
-type Property = string | number | boolean | readonly (string | number)[] | null | undefined;
-
-interface TreeNode {
-  readonly type: string;
-  readonly value?: string;
-  readonly tagName?: string;
-  readonly properties?: Readonly<Record<string, Property>>;
-  readonly children?: readonly TreeNode[];
 }
 
 interface Cut {
@@ -24,16 +16,9 @@ interface Cut {
   readonly id: number;
 }
 
-const ASTRAL = 0xff_ff;
+type CutsOf = (node: Readonly<HastNode>) => readonly Cut[] | undefined;
 
-function unitsAfter(value: string, from: number, codePoints: number): number {
-  let at = from;
-
-  for (let seen = 0; seen < codePoints; seen += 1)
-    at += (value.codePointAt(at) ?? 0) > ASTRAL ? 2 : 1;
-
-  return at;
-}
+const NO_PLUGINS: PluggableList = [];
 
 function cutOf(piece: Readonly<Piece>, span: Readonly<MarkSpan>): Cut | null {
   const start = Math.max(piece.at, span.start);
@@ -43,8 +28,8 @@ function cutOf(piece: Readonly<Piece>, span: Readonly<MarkSpan>): Cut | null {
   return start < end
     ? {
         id: span.id,
-        from: unitsAfter(value, piece.from, start - piece.at),
-        to: unitsAfter(value, piece.from, end - piece.at),
+        from: unitIndexAt(value, start - piece.at, piece.from) ?? value.length,
+        to: unitIndexAt(value, end - piece.at, piece.from) ?? value.length,
       }
     : null;
 }
@@ -58,24 +43,28 @@ function cutsByNode(
   for (const piece of pieces) {
     for (const span of spans) {
       const cut = cutOf(piece, span);
+      const list = cuts.get(piece.node);
 
-      if (cut !== null) cuts.set(piece.node, [...(cuts.get(piece.node) ?? []), cut]);
+      if (cut === null) continue;
+
+      if (list === undefined) cuts.set(piece.node, [cut]);
+      else list.push(cut);
     }
   }
 
   return cuts;
 }
 
-function marked(ids: readonly number[], children: readonly TreeNode[]): TreeNode {
+function marked(ids: readonly number[], children: readonly HastNode[]): HastNode {
   return {
     type: "element",
     tagName: "mark",
-    properties: { dataHighlights: ids.join(" ") },
+    properties: { dataHighlights: idsAttribute(ids) },
     children,
   };
 }
 
-function slicesOf(node: Readonly<TreeNode>, cuts: readonly Cut[]): TreeNode[] {
+function slicesOf(node: Readonly<HastNode>, cuts: readonly Cut[]): HastNode[] {
   if (node.type === "element") return [marked([...new Set(cuts.map(({ id }) => id))], [node])];
 
   const value = node.value ?? "";
@@ -85,15 +74,13 @@ function slicesOf(node: Readonly<TreeNode>, cuts: readonly Cut[]): TreeNode[] {
   return edges.slice(1).map((to, at) => {
     const from = edges[at] ?? 0;
     const covering = cuts.flatMap((cut) => (cut.from <= from && to <= cut.to ? [cut.id] : []));
-    const text: TreeNode = { type: node.type, value: value.slice(from, to) };
+    const text: HastNode = { type: node.type, value: value.slice(from, to) };
 
     return covering.length === 0 ? text : marked(covering, [text]);
   });
 }
 
-type CutsOf = (node: Readonly<TreeNode>) => readonly Cut[] | undefined;
-
-function rewrite(node: Readonly<TreeNode>, cutsOf: CutsOf): TreeNode[] {
+function rewrite(node: Readonly<HastNode>, cutsOf: CutsOf): HastNode[] {
   const found = cutsOf(node);
 
   if (found !== undefined) return slicesOf(node, found);
@@ -104,7 +91,7 @@ function rewrite(node: Readonly<TreeNode>, cutsOf: CutsOf): TreeNode[] {
 }
 
 function rehypeMarks(spans: readonly MarkSpan[]) {
-  return (tree: Readonly<TreeNode>): TreeNode => {
+  return (tree: Readonly<HastNode>): HastNode => {
     const cuts = cutsByNode(projectTree(tree).pieces, spans);
 
     return rewrite(tree, (node) => cuts.get(node))[0] ?? tree;
@@ -112,5 +99,5 @@ function rehypeMarks(spans: readonly MarkSpan[]) {
 }
 
 export function markPlugins(spans: readonly MarkSpan[]): PluggableList {
-  return spans.length === 0 ? [] : [[rehypeMarks, spans]];
+  return spans.length === 0 ? NO_PLUGINS : [[rehypeMarks, spans]];
 }

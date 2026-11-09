@@ -1,34 +1,17 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { newCode, newPassword } from "./access.ts";
-import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
-import {
-  keepButton,
-  openReader,
-  popover,
-  seedThread,
-  selectAcross,
-  selectBetween,
-} from "./highlight-reader.ts";
+import { STUB_NOT_KEPT } from "../web/src/reader-text.ts";
+import { keepButton, openReader, popover, seedThread, selectBetween } from "./highlight-reader.ts";
+import { screenForFile } from "./highlight-screen.ts";
 import { highlightsOf } from "./highlights.ts";
 import { DESKTOP } from "./look.ts";
 import { reader } from "./reader.ts";
 import { run } from "./thread-fixtures.ts";
 import { comment } from "./threads.ts";
 
-test.describe.configure({ timeout: 300_000 });
+const screenOf = screenForFile();
 
-test.use({ trace: "off", video: "off", screenshot: "off", actionTimeout: 15_000 });
-
-let screen: FreshScreen;
-
-test.beforeAll(async ({ browser }) => {
-  screen = await openSignedIn(browser, newCode(), newPassword());
-});
-
-test.afterAll(async () => {
-  await screen.close();
-});
+const KEY_POINT = "The cache path matters.";
 
 const CONSTRUCTS = [
   "Intro paragraph with 😀 and 🐙 emoji, plus a hard  \nbreak line here.",
@@ -55,8 +38,8 @@ const CASES = [
 ] as const;
 
 test("a passage across emoji, a hard break, a table, code, an image, task items, a quote, raw HTML, a footnote and nested lists is accepted by the server and marked over the same text", async () => {
-  const { page, context } = screen;
-  const id = await seedThread(screen, { id: `t${run}`, text: CONSTRUCTS });
+  const { page, context } = screenOf();
+  const id = await seedThread(screenOf(), { id: `t${run}`, text: CONSTRUCTS });
   await openReader(page, id, DESKTOP.width);
   const body = reader(page).locator(".md").first();
 
@@ -102,9 +85,9 @@ async function offered(page: Page, scope: Locator): Promise<void> {
 }
 
 test("a selection that spans two targets, a Context stub, a control, the summary or the list offers no Keep panel", async () => {
-  const { page, context } = screen;
+  const { page, context } = screenOf();
 
-  const id = await seedThread(screen, {
+  const id = await seedThread(screenOf(), {
     id: `u${run}`,
     text: `${LONG_CODE}\n\nA closing paragraph of the post.`,
     comments: [
@@ -117,18 +100,16 @@ test("a selection that spans two targets, a Context stub, a control, the summary
   });
 
   await openReader(page, id, DESKTOP.width);
-  const bodies = reader(page).locator(".md");
-  const body = bodies.first();
+  const body = reader(page).locator(".md").first();
   const stub = reader(page).locator(".cm-stub").first();
 
   const refused: readonly (readonly [string, () => Promise<void>])[] = [
-    ["the post and a comment", () => selectAcross(page, body, bodies.nth(1))],
-    ["two comments", () => selectAcross(page, bodies.nth(1), bodies.nth(2))],
-    ["a Context stub", () => selectAcross(page, stub, stub)],
+    ["the post and a comment", () => selectBetween(reader(page), "A closing", "A kept reply")],
+    ["two comments", () => selectBetween(reader(page), "A kept reply", "A second kept remark")],
+    ["a Context stub", () => selectBetween(stub, STUB_NOT_KEPT, STUB_NOT_KEPT)],
     [
       "the key points",
-      () =>
-        selectAcross(page, reader(page).locator(".rd-points"), reader(page).locator(".rd-points")),
+      () => selectBetween(reader(page).locator(".rd-points"), KEY_POINT, KEY_POINT),
     ],
     [
       "a code block and its fold button",

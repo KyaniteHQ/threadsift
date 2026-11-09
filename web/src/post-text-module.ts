@@ -1,8 +1,7 @@
 import { type ComponentProps, Fragment, type ReactElement, createElement, use } from "react";
 
-import type { HighlightTarget } from "../../src/core/highlight-contract.ts";
-import { keyOf } from "./highlight-target.ts";
 import { HighlightAction } from "./HighlightAction.tsx";
+import { useSpans } from "./highlights-context.ts";
 
 type PostTextExports = typeof import("./PostText.tsx");
 
@@ -24,21 +23,20 @@ export function postTextModule(): Promise<PostTextLoad> {
 }
 
 export function PostTextView({
-  target,
+  targetKey,
   ...props
 }: Readonly<
-  Omit<ComponentProps<PostTextExports["PostText"]>, "targetKey"> & { target: HighlightTarget }
+  Omit<ComponentProps<PostTextExports["PostText"]>, "spans"> & { targetKey: string }
 >): ReactElement {
   const loaded = use(postTextModule());
+  const spans = useSpans(targetKey);
 
   if (loaded.kind === "failed") throw new PostTextUnavailable();
-
-  const targetKey = keyOf(target);
 
   return createElement(
     Fragment,
     null,
-    createElement(loaded.PostText, { ...props, targetKey }),
+    createElement(loaded.PostText, { ...props, targetKey, spans }),
     createElement(HighlightAction, { targetKey }),
   );
 }

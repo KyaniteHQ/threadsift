@@ -94,9 +94,7 @@ export async function keepThroughApi(
 }
 
 const DESIGN_TEXT = [
-  "The notebook cache decides how fast a reader finds the saved page.",
-  "Set the cache path **before** the first run, because a [wrong path](https://example.com/paths) silently falls back to the temp folder.",
-  "A second paragraph says the fallback folder is cleared on reboot. Another sentence follows it.",
+  POST_TEXT,
   "A third paragraph keeps a long line of ordinary words that wraps over several lines on a narrow screen, so a selection can start on one line and end on another.",
 ].join("\n\n");
 
@@ -115,15 +113,11 @@ export async function seededItem(screen: Readonly<FreshScreen>, tag: string): Pr
     kept: ["t1_c1"],
   });
 
-  const detail = await itemOf(screen.context.request, id);
-
-  for (const quote of SAVED) {
-    await created(screen.context.request, id, {
-      target: { kind: "post" },
-      revision: detail.highlights.revisions.post,
-      selector: selectorOf(projectText(DESIGN_TEXT), quote),
-    });
-  }
+  await keepThroughApi(
+    screen,
+    id,
+    SAVED.map((quote) => ["post", quote] as const),
+  );
 
   return id;
 }

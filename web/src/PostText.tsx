@@ -9,10 +9,10 @@ import {
   useRef,
 } from "react";
 import Markdown, { type Components } from "react-markdown";
-import { z } from "zod";
 import remarkGfm from "remark-gfm";
 
 import { readerUrl } from "../../src/core/reader-url.ts";
+import { type HastNode, TEXT } from "../../src/core/text-projection.ts";
 import { type CodePart, CodeBlock } from "./CodeBlock.tsx";
 import { type MarkSpan, markPlugins } from "./highlight-marks.ts";
 import { Mark } from "./Mark.tsx";
@@ -27,27 +27,17 @@ import {
   usePictures,
 } from "./StoredPicture.tsx";
 
-interface Node {
-  readonly type: string;
-  readonly value?: string;
-  readonly tagName?: string;
-  readonly properties?: Readonly<
-    Record<string, string | number | boolean | readonly (string | number)[] | null | undefined>
-  >;
-  readonly children?: readonly Node[];
-}
-
 interface WithNode {
-  readonly node?: Node | undefined;
+  readonly node?: HastNode | undefined;
 }
 
-function textOf(node: Node): string {
+function textOf(node: Readonly<HastNode>): string {
   if (node.type === "text") return node.value ?? "";
 
   return (node.children ?? []).map((inner) => textOf(inner)).join("");
 }
 
-function firstRow(node: Node): Node | null {
+function firstRow(node: Readonly<HastNode>): HastNode | null {
   for (const child of node.children ?? []) {
     if (child.type === "element") {
       if (child.tagName === "tr") return child;
@@ -61,7 +51,7 @@ function firstRow(node: Node): Node | null {
   return null;
 }
 
-function columnsOf(node: Node | undefined): number {
+function columnsOf(node: Readonly<HastNode> | undefined): number {
   const row = node === undefined ? null : firstRow(node);
 
   return (row?.children ?? []).filter((cell) => cell.type === "element").length;
@@ -95,11 +85,11 @@ function H4(props: Readonly<Generated>) {
   return <Heading tag="h6" base="h h-3" {...props} />;
 }
 
-function highlightsOf(node: Readonly<Node>): string {
-  return z.string().catch("").parse(node.properties?.["dataHighlights"]);
+function highlightsOf(node: Readonly<HastNode>): string {
+  return TEXT.parse(node.properties?.dataHighlights);
 }
 
-function codePartsOf(node: Readonly<Node> | undefined): readonly CodePart[] {
+function codePartsOf(node: Readonly<HastNode> | undefined): readonly CodePart[] {
   const children = node?.children?.find((child) => child.tagName === "code")?.children ?? [];
   let offset = 0;
 
@@ -120,11 +110,9 @@ function codePartsOf(node: Readonly<Node> | undefined): readonly CodePart[] {
 }
 
 function Block({ node }: Readonly<WithNode>) {
-  const text = node === undefined ? "" : textOf(node);
+  const parts = codePartsOf(node);
 
-  const code = text.replace(/\n$/u, "");
-
-  return <CodeBlock key={code} text={code} parts={codePartsOf(node)} />;
+  return <CodeBlock key={parts.map(({ text }) => text).join("")} parts={parts} />;
 }
 
 function Inline({ children }: Readonly<{ children?: ReactNode }>) {

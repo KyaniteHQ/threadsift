@@ -14,6 +14,7 @@ export interface ReaderControls {
   readonly titleFocus: number | null;
   readonly toggleRead: (item: Item) => void;
   readonly remove: (item: Item) => Promise<void>;
+  readonly announce: (text: string) => void;
   readonly close: () => void;
   readonly hintPlaced: (inBar: boolean) => void;
 }
@@ -86,6 +87,7 @@ function ReaderCol({
           slot={slot}
           state={state}
           actions={actions}
+          announce={controls.announce}
           now={now}
           settingsKey={controls.settingsKey}
           titleId={titleId}

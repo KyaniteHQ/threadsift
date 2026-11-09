@@ -10,12 +10,14 @@ export function ReaderContent({
   item,
   state,
   actions,
+  announce,
   tryAgain,
   now,
 }: Readonly<{
   item: Item;
   state: Exclude<DetailState, { status: "loading" }>;
   actions: DetailActions;
+  announce: (text: string) => void;
   tryAgain: (item: Item) => void;
   now: number;
 }>) {
@@ -40,7 +42,12 @@ export function ReaderContent({
           </button>
         </div>
       ) : null}
-      <HighlightsProvider itemId={item.id} view={state.detail.highlights} actions={actions}>
+      <HighlightsProvider
+        itemId={item.id}
+        view={state.detail.highlights}
+        actions={actions}
+        announce={announce}
+      >
         <Agent item={item} detail={state.detail} tryAgain={tryAgain} />
         <Original item={item} detail={state.detail} now={now} />
       </HighlightsProvider>

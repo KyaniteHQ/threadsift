@@ -1,4 +1,4 @@
-import { type PlacedSelector, selectorAt } from "../../src/core/highlight-anchor.ts";
+import { type PlacedSelector, selectorAt, unitIndexAt } from "../../src/core/highlight-anchor.ts";
 import type { HighlightTarget } from "../../src/core/highlight-contract.ts";
 import { projectDom } from "./dom-projection.ts";
 import { BODY_SELECTOR, targetOfKey } from "./highlight-target.ts";
@@ -20,15 +20,15 @@ function insideControl(body: Element, range: Range): boolean {
 }
 
 function trimmed(text: string, start: number, end: number) {
-  const chars = Array.from(text);
-  let from = start;
-  let to = end;
+  const chosen = text.slice(
+    unitIndexAt(text, start) ?? text.length,
+    unitIndexAt(text, end) ?? text.length,
+  );
 
-  while (from < to && /\s/u.test(chars[from] ?? "")) from += 1;
+  const lead = chosen.length - chosen.trimStart().length;
+  const trail = chosen.length - chosen.trimEnd().length;
 
-  while (to > from && /\s/u.test(chars[to - 1] ?? "")) to -= 1;
-
-  return { from, to };
+  return { from: start + lead, to: end - trail };
 }
 
 export function draftOf(selection: Selection): SelectionDraft | null {

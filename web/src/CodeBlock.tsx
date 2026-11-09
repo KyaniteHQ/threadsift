@@ -1,7 +1,8 @@
 import { type RefObject, useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { exceedsFold } from "./fold.ts";
-import { useRevealed } from "./highlights-context.ts";
+import { highlightIds } from "./highlight-ids.ts";
+import { useOpenOnReveal } from "./highlights-context.ts";
 import { Mark } from "./Mark.tsx";
 import { FOLD_HIDE, codeName, foldShowLabel } from "./reader-text.ts";
 
@@ -31,24 +32,22 @@ export interface CodePart {
 }
 
 function idsOf(parts: readonly CodePart[]): readonly number[] {
-  return parts.flatMap(({ highlights }) =>
-    highlights === null ? [] : highlights.split(" ").map(Number),
-  );
+  return parts.flatMap(({ highlights }) => (highlights === null ? [] : highlightIds(highlights)));
 }
 
-export function CodeBlock({ text, parts }: Readonly<{ text: string; parts: readonly CodePart[] }>) {
+export function CodeBlock({ parts }: Readonly<{ parts: readonly CodePart[] }>) {
   const box = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const revealed = useRevealed(({ id }) => idsOf(parts).includes(id));
-
-  if (revealed && !open) setOpen(true);
-
+  const [open, setOpen] = useOpenOnReveal(({ id }) => idsOf(parts).includes(id));
   const foldable = useFoldable(box);
-  const lines = text.split("\n").length;
+
+  const lines = parts
+    .map(({ text }) => text)
+    .join("")
+    .split("\n").length;
 
   const toggle = useCallback(() => {
     setOpen((now) => !now);
-  }, []);
+  }, [setOpen]);
 
   return (
     <div ref={box} className={foldable && !open ? "code folded" : "code"}>
