@@ -1,6 +1,6 @@
 import { type SQL, eq, sql } from "drizzle-orm";
 
-import type { NoteView, SaveNoteRequest } from "./note-contract.ts";
+import { type NoteView, type SaveNoteRequest, storedNoteBody } from "./note-contract.ts";
 import type { Database } from "./ports.ts";
 import { guardedWrite, items, notes } from "./schema.ts";
 import { notePartWrites } from "./search.ts";
@@ -46,7 +46,7 @@ export async function saveNote(
     (await guardedWrite(
       db,
       revisionHolds(itemId, revision),
-      noteUpsert(db, itemId, body.trim() === "" ? null : body, revision),
+      noteUpsert(db, itemId, storedNoteBody(body), revision),
       notePartWrites(db, eq(items.id, itemId)),
     )) ?? [];
 

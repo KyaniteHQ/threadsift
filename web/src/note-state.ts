@@ -1,5 +1,10 @@
-import { NOTE_MAX_CODE_POINTS, type NoteView } from "../../src/core/note-contract.ts";
+import {
+  NOTE_MAX_CODE_POINTS,
+  type NoteView,
+  storedNoteBody,
+} from "../../src/core/note-contract.ts";
 import type { NoteSaveResult } from "./api.ts";
+import type { NoteDraft } from "./note-draft.ts";
 
 export interface NoteState {
   readonly saved: NoteView;
@@ -19,16 +24,18 @@ export type NoteAction =
     }
   | { readonly kind: "take-newer" };
 
-export function noteStart(saved: Readonly<NoteView>): NoteState {
-  return { saved, draft: saved.body ?? "", newer: null, outcome: "idle", pending: false };
-}
+export function noteStart(saved: Readonly<NoteView>, kept: Readonly<NoteDraft> | null): NoteState {
+  const idle = { newer: null, outcome: "idle", pending: false } as const;
 
-function stored(draft: string): string | null {
-  return draft.trim() === "" ? null : draft;
+  if (kept === null || storedNoteBody(kept.body) === saved.body) {
+    return { ...idle, saved, draft: saved.body ?? "" };
+  }
+
+  return { ...idle, saved: { body: saved.body, revision: kept.revision }, draft: kept.body };
 }
 
 export function noteFlags({ saved, draft, newer, pending }: Readonly<NoteState>) {
-  const dirty = stored(draft) !== saved.body;
+  const dirty = storedNoteBody(draft) !== saved.body;
   const tooLong = Array.from(draft).length > NOTE_MAX_CODE_POINTS;
 
   return { dirty, tooLong, canSave: dirty && !tooLong && !pending && newer === null };

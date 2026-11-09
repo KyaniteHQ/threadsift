@@ -20,6 +20,10 @@ export const NoteResponseSchema = z.object({ note: NoteViewSchema });
 
 export const NoteConflictSchema = z.object({ error: z.string(), note: NoteViewSchema });
 
+export function storedNoteBody(body: string): string | null {
+  return body.trim() === "" ? null : body;
+}
+
 export type NoteView = z.infer<typeof NoteViewSchema>;
 
 export type SaveNoteRequest = z.infer<typeof SaveNoteRequestSchema>;

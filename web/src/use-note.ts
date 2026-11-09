@@ -1,7 +1,8 @@
-import { type Dispatch, type RefObject, useCallback, useReducer, useRef } from "react";
+import { type Dispatch, type RefObject, useCallback, useEffect, useReducer, useRef } from "react";
 
 import type { NoteView } from "../../src/core/note-contract.ts";
 import { putNote } from "./api.ts";
+import { draftOf, keepDraft } from "./note-draft.ts";
 import {
   type NoteAction,
   type NoteState,
@@ -47,7 +48,16 @@ function view(state: Readonly<NoteState>) {
     justSaved: state.outcome === "saved" && !dirty,
     tooLong,
     canSave,
+    dirty,
   };
+}
+
+function useKeptDraft(itemId: number, { saved, draft }: Readonly<NoteState>, dirty: boolean) {
+  const { revision } = saved;
+
+  useEffect(() => {
+    keepDraft(itemId, dirty ? { body: draft, revision } : null);
+  }, [itemId, dirty, draft, revision]);
 }
 
 export function useNote(
@@ -55,10 +65,14 @@ export function useNote(
   initial: Readonly<NoteView>,
   field: RefObject<HTMLTextAreaElement | null>,
 ) {
-  const [state, dispatch] = useReducer(noteReducer, initial, noteStart);
+  const [state, dispatch] = useReducer(noteReducer, initial, (saved) =>
+    noteStart(saved, draftOf(itemId)),
+  );
+
   const send = useSend(itemId, state.draft, dispatch, field);
   const shown = view(state);
   const { saved, newer } = state;
+  useKeptDraft(itemId, state, shown.dirty);
 
   const save = useCallback(() => {
     if (shown.canSave) void send(saved.revision, false);
