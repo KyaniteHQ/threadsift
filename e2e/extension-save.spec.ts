@@ -7,7 +7,7 @@ import {
   ready,
   savedItemId,
 } from "./extension-session.ts";
-import { RESPONSIVE_PAGE, SMALL_PAGE } from "./media-pages.ts";
+import { RESPONSIVE_PAGE, SHARED_WIDTHS_PAGE, SMALL_PAGE } from "./media-pages.ts";
 import { imageRows, routesIn } from "./media.ts";
 
 test.describe.configure({ timeout: 300_000 });
@@ -55,27 +55,43 @@ test("the action saves the article in the current tab with the title, author, da
   );
 });
 
-test("the image of a responsive page that the saved Item keeps is the one the tab selected", async () => {
+const RESPONSIVE_PAGES = [
+  { name: "a page whose srcset lists widths without spaces", url: RESPONSIVE_PAGE },
+  { name: "a page whose images share srcset widths", url: SHARED_WIDTHS_PAGE },
+];
+
+async function expectOwnSelectedImages(url: string): Promise<void> {
   const { library, extension } = session();
   const { owner, instance } = library;
-  const tab = await extension.tab(RESPONSIVE_PAGE);
+  const tab = await extension.tab(url);
 
   await expect(tab.getByRole("heading", { level: 1 })).toBeVisible();
 
-  const withWidths = await tab.evaluate(
-    () => [...document.images].filter(({ srcset }) => /\d+w/u.test(srcset)).length,
-  );
+  const selected = await tab.evaluate(() => [
+    ...new Set(
+      [...(document.querySelector("article") ?? document.body).querySelectorAll("img")].flatMap(
+        ({ srcset, currentSrc }) => (/\d+w/u.test(srcset) && currentSrc !== "" ? [currentSrc] : []),
+      ),
+    ),
+  ]);
 
-  expect(withWidths, "images with a width srcset in the tab").toBeGreaterThanOrEqual(5);
+  expect(selected.length, "images with a width srcset in the article").toBeGreaterThanOrEqual(2);
 
   const id = await savedItemId(await extension.press(tab), instance.url);
   await ready(owner, id);
 
   const rows = imageRows(instance, id);
 
-  expect(rows.filter(({ outcome }) => outcome === "stored").length).toBeGreaterThanOrEqual(5);
-  await expectTabImages(tab, rows);
-});
+  expect(
+    rows.map(({ source_url }) => source_url).filter((address) => selected.includes(address)),
+    "each image keeps its own selected address, in the tab's order",
+  ).toEqual(selected);
+}
+
+for (const { name, url } of RESPONSIVE_PAGES) {
+  test(`the images of ${name} that the saved Item keeps are the ones the tab selected`, () =>
+    expectOwnSelectedImages(url));
+}
 
 test("text a script adds to the page is saved, and a Paste of the same link that finished without it lacks it", async () => {
   const { library, extension } = session();

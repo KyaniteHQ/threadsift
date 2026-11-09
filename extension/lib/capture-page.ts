@@ -27,8 +27,8 @@ function urlsOf(value: string | null): readonly string[] {
   return (value ?? "")
     .trim()
     .split(/\s+/u)
-    .filter((token) => token !== "" && !DESCRIPTOR.test(token))
-    .map((token) => token.replaceAll(/^,|,$/gu, ""));
+    .map((token) => token.replaceAll(/^,|,$/gu, ""))
+    .filter((token) => token !== "" && !DESCRIPTOR.test(token));
 }
 
 function candidatesOf(image: Element, base: string): readonly string[] {
