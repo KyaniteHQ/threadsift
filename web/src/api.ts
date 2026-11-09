@@ -24,8 +24,15 @@ export type SaveResult =
       readonly item: Item;
     };
 
-export async function fetchItem(id: number): Promise<Item> {
-  return (await parsedFrom("GET", `/api/items/${id}/status`, ItemResponseSchema)).item;
+export async function fetchItem(id: number): Promise<Item | "gone"> {
+  const path = `/api/items/${id}/status`;
+  const response = await call("GET", path);
+
+  if (response.status === 404) return "gone";
+
+  if (!response.ok) throw unexpected("GET", path, response.status);
+
+  return ItemResponseSchema.parse(await response.json()).item;
 }
 
 export async function fetchItemDetail(id: number): Promise<ItemDetail> {
