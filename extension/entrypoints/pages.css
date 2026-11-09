@@ -1,0 +1,57 @@
+.ext {
+  display: grid;
+  gap: var(--s4);
+  align-content: start;
+  height: auto;
+  min-height: 0;
+  padding: var(--s5);
+  overflow: visible;
+}
+
+.ext-popup {
+  width: var(--pop-w);
+}
+
+.ext-options {
+  max-width: var(--pop-w);
+  margin-inline: auto;
+}
+
+.ext h1 {
+  margin: 0;
+  font-size: var(--t-h2);
+  font-weight: 600;
+  line-height: var(--lh-ui);
+}
+
+.ext p {
+  margin: 0;
+}
+
+.ext-status[data-tone="warn"] {
+  color: var(--warn);
+}
+
+.ext-status[data-tone="ok"] {
+  color: var(--ok);
+}
+
+.ext-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.ext-form {
+  display: grid;
+  gap: var(--s4);
+}
+
+.ext-field {
+  display: grid;
+  gap: var(--s2);
+}
+
+.ext-hint {
+  color: var(--muted);
+}

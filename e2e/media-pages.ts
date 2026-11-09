@@ -10,6 +10,10 @@ const DEFUDDLE_FIXTURES =
   "https://rawcdn.githack.com/kepano/defuddle/3e8bde9f5f855bc968e95837a750c5968a9fe639/tests/fixtures";
 
 export const RESPONSIVE_PAGE = "https://web.dev/articles/responsive-images";
+
+export const SHARED_WIDTHS_PAGE =
+  "https://css-tricks.com/a-guide-to-the-responsive-images-syntax-in-html/";
+
 export const RESPONSIVE_SVG = "html5-logo-svg-format-550784ff36e4b.svg";
 
 export const LAZY_VIDEO_PAGE = "https://tonsky.me/blog/unicode/";

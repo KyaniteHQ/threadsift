@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import { logFailure } from "./failure-log.ts";
@@ -13,6 +13,13 @@ export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${
   return sql`(select 1 from ${jobs} as open_jobs where ${openJobs.itemId} = ${itemId} and ${openJobs.state} <> 'done' ${kind === undefined ? sql`` : sql`and ${openJobs.kind} = ${kind}`})`;
 }
 
+export function closeFetchJobs(db: Database, itemId: Readonly<SQLWrapper>) {
+  return db
+    .update(jobs)
+    .set({ state: "done", claimExpires: null, page: null })
+    .where(and(eq(jobs.itemId, sql`${itemId}`), eq(jobs.kind, "fetch"), ne(jobs.state, "done")));
+}
+
 export function holding(job: Readonly<Pick<JobRow, "id" | "attempts">>) {
   return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobs.state} = 'running' and ${jobs.attempts} = ${job.attempts})`;
 }
@@ -24,14 +31,16 @@ export function openingJob(
     address,
     normalizedUrl,
     now,
+    page,
   }: Readonly<{
     kind: JobKind;
     address: string;
     normalizedUrl: string;
     now: number;
+    page?: string | null | undefined;
   }>,
 ) {
-  return opening(db, { kind, address, now, where: eq(items.normalizedUrl, normalizedUrl) });
+  return opening(db, { kind, address, now, page, where: eq(items.normalizedUrl, normalizedUrl) });
 }
 
 export function opening(
@@ -41,11 +50,13 @@ export function opening(
     address,
     now,
     where,
+    page = null,
   }: Readonly<{
     kind: JobKind;
     address: string | Readonly<SQLWrapper>;
     now: number;
     where: Readonly<SQLWrapper>;
+    page?: string | null | undefined;
   }>,
 ) {
   return db
@@ -63,6 +74,7 @@ export function opening(
           nextAttemptAt: sql<number>`${now}`.as("next_attempt_at"),
           claimExpires: sql<null>`null`.as("claim_expires"),
           waitReason: sql<null>`null`.as("wait_reason"),
+          page: sql<string | null>`${page}`.as("page"),
         })
         .from(items)
         .where(sql`${where}`),

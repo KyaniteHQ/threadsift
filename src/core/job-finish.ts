@@ -62,7 +62,7 @@ function closingWrites(
   return [
     db
       .update(jobs)
-      .set({ state: "done", attempts, claimExpires: null, staleRequeues: 0 })
+      .set({ state: "done", attempts, claimExpires: null, staleRequeues: 0, page: null })
       .where(eq(jobs.id, job.id)),
     db
       .update(items)

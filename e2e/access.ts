@@ -144,6 +144,8 @@ export interface Instance {
   readonly appExec: string;
   restart(env?: InstanceEnv): void;
   crash(): void;
+  pause(): void;
+  resume(): void;
   logs(): string;
   sql(statement: string): void;
   query<T>(statement: string, schema: z.ZodType<T>): T;
@@ -189,6 +191,12 @@ export function instanceAt(dir: string): Instance {
     },
     crash: () => {
       runInstance(["crash", dir], null);
+    },
+    pause: () => {
+      runInstance(["pause", dir], null);
+    },
+    resume: () => {
+      runInstance(["resume", dir], null);
     },
     logs: () => runInstance(["logs", dir], null).toString("utf8"),
     sql: (statement) => {

@@ -23,12 +23,19 @@ import {
 
 export const NOT_FOUND = "Not found";
 const REFUSED_HOST = "url: the host is not globally reachable";
-const CONTENT_TOO_LARGE = "content: longer than 4 MiB";
+
+const TOO_LARGE = {
+  content: "content: longer than 4 MiB",
+  page: "page: longer than 1,000,000 bytes",
+} as const;
+
 const UPDATING = "The library is being updated and takes no new link yet. Try again in a minute.";
 
 const saveItemRoute = createRoute({
   method: "post",
   path: "/api/items",
+  description:
+    "Save a link as an Item. `content` supplies the Reddit JSON of a thread. `page` supplies the text of a web page that the caller read in its own browser tab: `markdown` (the page text), `title`, and optionally `author`, `published` (an ISO 8601 date) and `videos` (the video addresses the Markdown links to). The server publishes a `page` like a fetched article, with the same 100-word minimum, image storage and Highlight anchoring, and never fetches the page itself. A link takes `content` or `page`, not both, and `page` takes no Reddit, X or GitHub link.",
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
     201: jsonBody(
@@ -37,15 +44,15 @@ const saveItemRoute = createRoute({
     ),
     200: jsonBody(
       SavedItemResponseSchema,
-      "An Item with the same normalized URL already existed. It is `processing` again and has a new fetch job, unless a job was already queued or running.",
+      "An Item with the same normalized URL already existed. It is `processing` again and has a new fetch job, unless a job was already queued or running. With `page`, the open fetch job ends first, so the new job always publishes the page.",
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      "The body is not an absolute http or https URL, or its host is not globally reachable. With `content`: the link is not a Reddit post or comment link, or `content` is not the Reddit JSON of that thread (malformed JSON, not a post Listing and a comment Listing, a post id that is not the link's, a missing or deleted requested comment, a repeated comment id, a parent_id that does not match the tree, or a text over 1,000,000 bytes). The Item is unchanged.",
+      "The body is not an absolute http or https URL, or its host is not globally reachable. With `content`: the link is not a Reddit post or comment link, or `content` is not the Reddit JSON of that thread (malformed JSON, not a post Listing and a comment Listing, a post id that is not the link's, a missing or deleted requested comment, a repeated comment id, a parent_id that does not match the tree, or a text over 1,000,000 bytes). With `page`: the link is a Reddit, X or GitHub link, or `content` came too. The Item is unchanged.",
     ),
     413: jsonBody(
       ErrorResponseSchema,
-      "`content` is longer than 4 MiB, or the request body is longer than 8 MiB. Other routes refuse a body over 64 KiB. The Item is unchanged.",
+      "`content` is longer than 4 MiB, `page` is longer than 1,000,000 bytes once serialized as JSON, or the request body is longer than 8 MiB. Other routes refuse a body over 64 KiB. The Item is unchanged.",
     ),
     503: jsonBody(
       ErrorResponseSchema,
@@ -139,11 +146,11 @@ function registerReadStateRoute(app: OpenAPIHono, ports: Ports): void {
 
 function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(saveItemRoute, async (c) => {
-    const { url, digest, content } = c.req.valid("json");
-    const saved = await paste(ports, url, { digest, content });
+    const { url, digest, content, page } = c.req.valid("json");
+    const saved = await paste(ports, url, { digest, content, page });
 
     if (saved.kind === "too-large") {
-      return c.json({ error: CONTENT_TOO_LARGE }, 413);
+      return c.json({ error: TOO_LARGE[saved.field] }, 413);
     }
 
     if (saved.kind === "refused") {
@@ -155,7 +162,7 @@ function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
     }
 
     if (saved.kind === "invalid") {
-      return c.json({ error: `content: ${saved.reason}` }, 400);
+      return c.json({ error: `${saved.field}: ${saved.reason}` }, 400);
     }
 
     return c.json(

@@ -37,11 +37,23 @@ start() {
   }
 }
 
+family() {
+  local child
+  echo "$1"
+  for child in $(pgrep -P "$1" || true); do family "$child"; done
+}
+
+signal_family() {
+  local signal=$1 dir=$2 member
+  for member in $(family "$(<"$dir/pid")"); do kill "-$signal" -- "$member" 2>/dev/null || true; done
+}
+
 stop() {
   local dir=$1
   [[ -f $dir/pid ]] || return 0
   local pid
   pid=$(<"$dir/pid")
+  signal_family CONT "$dir"
   kill -TERM -- "-$pid" 2>/dev/null || true
   while kill -0 -- "-$pid" 2>/dev/null; do sleep 0.2; done
   rm -f "$dir/pid"
@@ -148,6 +160,12 @@ restart)
   [[ $# -lt 3 ]] || cp "$3" "$2/env"
   stop "$2"
   start "$2" "$(instance_port "$2")"
+  ;;
+pause)
+  signal_family STOP "$2"
+  ;;
+resume)
+  signal_family CONT "$2"
   ;;
 crash)
   echo "a crash is a container case: the Worker has no process that a stop leaves running work in" >&2

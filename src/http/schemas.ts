@@ -16,6 +16,7 @@ import {
 } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
+import { SuppliedPageSchema } from "../core/supplied-page.ts";
 import { type ImageColumns, ItemImageSchema, SizedImageSchema, imageOf } from "./item-image.ts";
 
 const HttpUrlSchema = z.url({ protocol: /^https?$/u });
@@ -94,6 +95,7 @@ const ItemDetailSchema = withStatus(
 export const SaveItemRequestSchema = z.object({
   content: z.string().optional(),
   digest: DigestSchema.optional(),
+  page: SuppliedPageSchema.optional(),
   url: z.string().trim().pipe(HttpUrlSchema),
 });
 

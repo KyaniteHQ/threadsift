@@ -74,7 +74,7 @@ The design is done for every screen in the first spec; the app takes its look fr
 
 ```
 paste box, Share target, Extension, Import, HTTP API, MCP, Grok Bot
-   -> POST /api/items {url} (or {url, content} from the Extension and the .json paste)
+   -> POST /api/items {url} (or {url, content} for a Reddit thread from the Extension and the .json paste, or {url, page} for any other page from the Extension)
    -> classify URL (reddit post | reddit comment | x post | github repo | article | other)
    -> fetch (no LLM), or take the content the caller sent
    -> deterministic clean

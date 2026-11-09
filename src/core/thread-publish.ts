@@ -1,13 +1,13 @@
-import { and, eq, exists, ne, not, notExists, sql } from "drizzle-orm";
+import { and, eq, exists, not, notExists, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
 import { hasDigestSource, setDigestFailure } from "./digest-source.ts";
-import { hasOpenJob } from "./job-rows.ts";
+import { closeFetchJobs, hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
 import { ownerOf, threadWrites } from "./reddit-thread.ts";
-import { digests, items, jobs } from "./schema.ts";
+import { digests, items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 
 export interface ThreadPlace extends Link {
@@ -38,10 +38,7 @@ function contentWrites(
   const owner = ownerOf(normalizedUrl);
 
   return [
-    db
-      .update(jobs)
-      .set({ state: "done", claimExpires: null })
-      .where(and(eq(jobs.itemId, owner.id), eq(jobs.kind, "fetch"), ne(jobs.state, "done"))),
+    closeFetchJobs(db, owner.id),
     db
       .update(items)
       .set({

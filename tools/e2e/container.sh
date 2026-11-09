@@ -69,6 +69,12 @@ restart)
   fi
   wait_for_session_route "$(<"$2/url")" 60
   ;;
+pause)
+  podman pause "$(<"$2/name")" >/dev/null
+  ;;
+resume)
+  podman unpause "$(<"$2/name")" >/dev/null
+  ;;
 crash)
   name=$(<"$2/name")
   podman kill --signal KILL "$name" >/dev/null

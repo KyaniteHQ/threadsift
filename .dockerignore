@@ -6,6 +6,9 @@ design/prototype
 dist
 docs
 e2e
+extension/node_modules
+extension/.output
+extension/.wxt
 .git
 .github
 .impeccable

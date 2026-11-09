@@ -6,10 +6,13 @@
   "scripts": {
     "build": "vite build",
     "build:worker": "node tools/check-worker-size.ts",
-    "check": "pnpm run fmt:check && pnpm run lint",
+    "build:extension": "pnpm --filter threadsift-extension run build && pnpm --filter threadsift-extension run build:firefox",
+    "check": "pnpm run fmt:check && pnpm run check:extension && pnpm run lint",
+    "check:extension": "pnpm --filter threadsift-extension run check",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "lint": "oxlint --format=agent",
+    "lint:extension": "pnpm --filter threadsift-extension run lint:firefox",
     "lint:fix": "oxlint --fix --fix-suggestions"
   },
   "dependencies": {
@@ -45,7 +48,7 @@
     "@hono/zod-openapi": "1.6.3",
     "@mixmark-io/domino": "2.2.0",
     "ai": "7.0.161",
-    "defuddle": "0.19.6",
+    "defuddle": "catalog:",
     "drizzle-orm": "0.45.4",
     "hono": "4.13.16",
     "linkedom": "0.18.15",
@@ -57,7 +60,7 @@
     "remark-rehype": "11.1.2",
     "turndown": "7.2.4",
     "unified": "11.0.5",
-    "zod": "4.6.7"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
