@@ -9,6 +9,8 @@ import type { MediaRow } from "./media.ts";
 export interface Session {
   readonly library: Library;
   readonly extension: Extension;
+  readonly tokenId: number;
+  readonly tokenValue: string;
 }
 
 export function configuredExtensionSession(): () => Session {
@@ -17,9 +19,9 @@ export function configuredExtensionSession(): () => Session {
   test.beforeEach(async () => {
     const library = await openLibrary();
     const extension = await loadExtension({ instanceUrl: library.instance.url });
-    const { value } = await createToken(library.owner, "Extension");
+    const { token, value } = await createToken(library.owner, "Extension");
     await extension.configure(library.instance.url, value);
-    current = { library, extension };
+    current = { library, extension, tokenId: token.id, tokenValue: value };
   });
 
   test.afterEach(async () => {

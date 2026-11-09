@@ -2,7 +2,8 @@ import { browser } from "wxt/browser";
 import { z } from "zod";
 
 import { SuppliedPageSchema } from "../../src/core/supplied-page.ts";
-import { type Config, hostPattern, loadConfig } from "./config.ts";
+import { type Config, hostPattern } from "./config.ts";
+import { loadConfig } from "./credentials.ts";
 import type { SaveState } from "./state.ts";
 
 const CapturedSchema = SuppliedPageSchema.extend({ url: z.string() });

@@ -42,6 +42,7 @@ export interface Extension {
   readonly context: BrowserContext;
   tab(url: string): Promise<Page>;
   press(tab: Page): Promise<Popup>;
+  settings(): Promise<Page>;
   configure(address: string, token: string): Promise<void>;
   storeWithoutAsking(address: string, token: string): Promise<void>;
   close(): Promise<void>;
@@ -193,13 +194,19 @@ async function popupPresser({
   };
 }
 
+async function openSettings({ context, id }: Readonly<Launched>): Promise<Page> {
+  const settings = await context.newPage();
+  await settings.goto(`chrome-extension://${id}/options.html`);
+
+  return settings;
+}
+
 async function configureIn(
-  { context, id }: Readonly<Launched>,
+  launched: Readonly<Launched>,
   address: string,
   token: string,
 ): Promise<void> {
-  const settings = await context.newPage();
-  await settings.goto(`chrome-extension://${id}/options.html`);
+  const settings = await openSettings(launched);
   await settings.getByLabel(TEXT.addressLabel).fill(address);
   await settings.getByLabel(TEXT.tokenLabel).fill(token);
   await settings.getByRole("button", { name: TEXT.saveSettings }).click();
@@ -223,6 +230,7 @@ export async function loadExtension({ instanceUrl }: Readonly<Grant>): Promise<E
       return page;
     },
     press,
+    settings: () => openSettings(launched),
     configure: (address, token) => configureIn(launched, address, token),
     async storeWithoutAsking(address, token) {
       await worker.evaluate(

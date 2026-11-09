@@ -18,3 +18,9 @@ export const SaveStateSchema = z.discriminatedUnion("kind", [
 export type SaveState = z.infer<typeof SaveStateSchema>;
 
 export const SAVE_PORT = "save";
+
+export const CONFIG_PORT = "config";
+
+export const ConfigViewSchema = z.object({ origin: z.string().nullable(), hasToken: z.boolean() });
+
+export type ConfigView = z.infer<typeof ConfigViewSchema>;

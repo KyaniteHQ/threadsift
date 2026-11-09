@@ -1,9 +1,6 @@
 import { browser } from "wxt/browser";
-import { z } from "zod";
 
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
-
-const StoredSchema = z.object({ instance: z.string(), token: z.string().min(1) });
 
 export interface Config {
   readonly origin: string;
@@ -26,11 +23,8 @@ export function hostPattern(origin: string): string {
   return `${protocol}//${hostname}/*`;
 }
 
-export async function loadConfig(): Promise<Config | null> {
-  const stored = StoredSchema.safeParse(await browser.storage.local.get(["instance", "token"]));
-  const origin = stored.success ? instanceOrigin(stored.data.instance) : null;
-
-  return stored.success && origin !== null ? { origin, token: stored.data.token } : null;
+export function storeOrigin(origin: string): Promise<void> {
+  return browser.storage.local.set({ instance: origin });
 }
 
 export function storeConfig({ origin, token }: Readonly<Config>): Promise<void> {

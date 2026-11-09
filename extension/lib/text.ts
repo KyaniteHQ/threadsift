@@ -20,6 +20,8 @@ export const TEXT = {
     "A remote address must start with https://; http:// works only for localhost and 127.0.0.1.",
   addressInvalid: "Enter an https:// address, or http:// for localhost or 127.0.0.1.",
   tokenLabel: "Agent token",
+  tokenKept:
+    "An agent token is saved. Leave the field empty to keep it, or enter a new token to replace it.",
   tokenHint: "Create an agent token in Threadsift settings under Agent tokens.",
   tokenMissing: "Enter an agent token.",
   saveSettings: "Save settings",
