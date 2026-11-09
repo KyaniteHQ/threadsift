@@ -60,7 +60,7 @@ const ITEM_COLUMNS = {
   savedAt: sql<number>`${items.savedAt}`.as("saved_at"),
 };
 
-function highlightArm(db: Database, filters: Readonly<ItemFilters>) {
+function highlightArm(db: Database, filters: Readonly<ItemFilters>, facets: Readonly<ItemFilters>) {
   return db
     .select({
       kind: sql<EntryKind>`'highlight'`.as("kind"),
@@ -73,10 +73,10 @@ function highlightArm(db: Database, filters: Readonly<ItemFilters>) {
     .from(highlights)
     .innerJoin(items, eq(items.id, highlights.itemId))
     .leftJoin(digests, eq(digests.itemId, items.id))
-    .where(and(itemConditions({ ...filters, terms: [] }), highlightText(filters.terms)));
+    .where(and(itemConditions(facets), highlightText(filters.terms)));
 }
 
-function noteArm(db: Database, filters: Readonly<ItemFilters>) {
+function noteArm(db: Database, filters: Readonly<ItemFilters>, facets: Readonly<ItemFilters>) {
   return db
     .select({
       kind: sql<EntryKind>`'note'`.as("kind"),
@@ -89,17 +89,15 @@ function noteArm(db: Database, filters: Readonly<ItemFilters>) {
     .from(notes)
     .innerJoin(items, eq(items.id, notes.itemId))
     .leftJoin(digests, eq(digests.itemId, items.id))
-    .where(
-      and(
-        isNotNull(notes.body),
-        itemConditions({ ...filters, terms: [] }),
-        noteText(filters.terms),
-      ),
-    );
+    .where(and(isNotNull(notes.body), itemConditions(facets), noteText(filters.terms)));
 }
 
 function pageQuery(db: Database, filters: Readonly<ItemFilters>, cursor: PageCursor | null) {
-  const entries = unionAll(highlightArm(db, filters), noteArm(db, filters)).as("entries");
+  const facets = { ...filters, terms: [] };
+
+  const entries = unionAll(highlightArm(db, filters, facets), noteArm(db, filters, facets)).as(
+    "entries",
+  );
 
   const before =
     cursor === null
