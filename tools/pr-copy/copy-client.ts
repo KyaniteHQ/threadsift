@@ -13,40 +13,99 @@ import { CopyAnswerError } from "./copy-error.ts";
 import { callTimeout, pause } from "./timeout.ts";
 
 const SERVE_DEADLINE_MS = 120_000;
+const NOT_READY_DEADLINE_MS = 600_000;
 const SERVED_IN_A_ROW = 10;
 const ITEM_DEADLINE_MS = 300_000;
+const MS_PER_SECOND = 1000;
 
 export type { Item };
 
-async function answersJson(url: string, deadline: number): Promise<boolean> {
-  const response = await fetch(`${url}/api/session`, { signal: callTimeout(deadline) }).catch(
-    () => null,
-  );
+export interface ServeOptions {
+  readonly databaseCreated: boolean;
+}
 
-  if (response !== null && response.status >= 500 && isJson(response)) {
-    throw new CopyAnswerError("/api/session", response.status, await refusal(response));
+type Answer =
+  | { readonly kind: "served" }
+  | { readonly kind: "edge" }
+  | { readonly kind: "app-error"; readonly status: number; readonly answer: string }
+  | { readonly kind: "silent" };
+
+async function answerOf(url: string): Promise<Answer> {
+  const response = await fetch(`${url}/api/session`, { signal: callTimeout() }).catch(() => null);
+
+  if (response === null) return { kind: "silent" };
+
+  if (response.status >= 500 && isJson(response)) {
+    return { kind: "app-error", status: response.status, answer: await refusal(response) };
   }
 
-  return response?.status === 200 && isJson(response);
+  if (response.status === 200 && isJson(response)) return { kind: "served" };
+
+  return response.status === 404 && !isJson(response) ? { kind: "edge" } : { kind: "silent" };
+}
+
+function patience(answer: Readonly<Answer>, options: Readonly<ServeOptions>): number {
+  const notReady =
+    answer.kind === "edge" || (answer.kind === "app-error" && options.databaseCreated);
+
+  return notReady ? NOT_READY_DEADLINE_MS : SERVE_DEADLINE_MS;
+}
+
+function failure(url: string, answer: Readonly<Answer>, waitedMs: number): Error {
+  if (answer.kind === "app-error") {
+    return new CopyAnswerError("/api/session", answer.status, answer.answer);
+  }
+
+  const seconds = String(Math.round(waitedMs / MS_PER_SECOND));
+
+  return new Error(
+    answer.kind === "edge"
+      ? `${url} answered Cloudflare's 404, not the app, for ${seconds} s`
+      : `${url} did not serve the app within ${seconds} s`,
+  );
 }
 
 export async function awaitServing(
   url: string,
-  deadline = Date.now() + SERVE_DEADLINE_MS,
+  options: Readonly<ServeOptions>,
+  started = Date.now(),
   inARow = 0,
+  last: Answer["kind"] = "served",
 ): Promise<void> {
   if (inARow >= SERVED_IN_A_ROW) {
+    process.stdout.write(
+      `The copy served the app after ${String(Math.round((Date.now() - started) / MS_PER_SECOND))} s\n`,
+    );
+
     return;
   }
 
-  if (Date.now() >= deadline) {
-    throw new Error(`${url} did not serve the app before its deadline`);
+  const answer = await answerOf(url);
+  const waited = Date.now() - started;
+
+  if (answer.kind === "app-error" && !options.databaseCreated) throw failure(url, answer, waited);
+
+  if (answer.kind !== "served" && waited >= patience(answer, options)) {
+    throw failure(url, answer, waited);
   }
 
-  const served = await answersJson(url, deadline);
-  await pause(POLL_MS, deadline);
+  if (answer.kind !== last && (answer.kind === "edge" || answer.kind === "app-error")) {
+    process.stdout.write(
+      answer.kind === "edge"
+        ? "/api/session got Cloudflare's 404, not the app; waiting\n"
+        : "/api/session got the app's 5xx on a database created in this deploy; waiting\n",
+    );
+  }
 
-  return awaitServing(url, deadline, served ? inARow + 1 : 0);
+  await pause(POLL_MS, started + NOT_READY_DEADLINE_MS);
+
+  return awaitServing(
+    url,
+    options,
+    started,
+    answer.kind === "served" ? inARow + 1 : 0,
+    answer.kind,
+  );
 }
 
 export async function expectOk(response: Response, path: string): Promise<void> {

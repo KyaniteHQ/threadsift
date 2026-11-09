@@ -66,7 +66,7 @@ export function deployLive(
       workerExists ? await workerSecretNames(stage, LIVE.name) : [],
     );
 
-    await ensureDemo(url, codes);
+    await ensureDemo(url, codes, { databaseCreated: database === undefined });
 
     return { url, record: { databaseId: id, migrations: hashes } };
   });

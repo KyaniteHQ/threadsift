@@ -218,6 +218,7 @@ async function provision(
   await runCommands(stage, [creates], { keepGoing: false });
 
   return {
+    databaseCreated: existing === undefined,
     record: { databaseId: existing ?? (await databaseId(names.name)), migrations: hashes },
     secrets: found.workers.includes(names.name) ? await workerSecretNames(stage, names.name) : [],
   };
@@ -280,7 +281,7 @@ export function deployCopy(
 
     const codes = newAccessCodes();
     const url = await publish(stage, codes, next.secrets);
-    await seedDemo(url, codes);
+    await seedDemo(url, codes, { databaseCreated: next.databaseCreated });
 
     return { url, record: next.record };
   });

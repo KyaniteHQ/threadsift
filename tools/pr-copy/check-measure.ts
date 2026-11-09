@@ -8,11 +8,14 @@ import { type Item, endState, expectOk, paste } from "./copy-client.ts";
 import { queryDatabase } from "./d1.ts";
 import { SKEW_MS } from "./pace.ts";
 import { type Invocation, type Trigger, awaitInvocations, readInvocations } from "./telemetry.ts";
+import { pause } from "./timeout.ts";
 
 export const INGEST_DEADLINE_MS = 180_000;
 export const SENTINEL_ROUTE = "/api/session";
 
 const ATTEMPTS = 2;
+const SWEEP_WAIT_MS = 150_000;
+const SWEEP_POLL_MS = 2000;
 const IDLE_LOOKBACK_MS = 3 * 3_600_000;
 const MS_PER_MINUTE = 60_000;
 
@@ -108,6 +111,20 @@ async function sweepAt(run: Readonly<Run>): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
+async function justAfterSweep(
+  run: Readonly<Run>,
+  deadline = Date.now() + SWEEP_WAIT_MS,
+  seen?: number,
+): Promise<number> {
+  const at = await sweepAt(run);
+
+  if ((seen !== undefined && at !== seen) || Date.now() >= deadline) return at;
+
+  await pause(SWEEP_POLL_MS, deadline);
+
+  return justAfterSweep(run, deadline, seen ?? at);
+}
+
 async function attemptPaste(
   run: Readonly<Run>,
   copy: Readonly<Copy>,
@@ -117,7 +134,7 @@ async function attemptPaste(
   await run.pace.settle();
   await requireIdleCopy(run, copy);
 
-  const sweptBefore = await sweepAt(run);
+  const sweptBefore = await justAfterSweep(run);
   const start = Date.now();
   const { id, created } = await paste(copy, url);
   findings.item(id);

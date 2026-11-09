@@ -1,9 +1,19 @@
+import { Inconclusive } from "./check-types.ts";
 import type { Stage } from "./cloudflare.ts";
+import { SKEW_MS } from "./pace.ts";
 import { routeTemplate } from "./routes.ts";
-import { type LogEvent, type Scope, allPages, requireUnsampled } from "./telemetry-query.ts";
+import {
+  type LogEvent,
+  SampledQuery,
+  type Scope,
+  allPages,
+  requireUnsampled,
+} from "./telemetry-query.ts";
 import { pause } from "./timeout.ts";
 
 const POLL_MS = 5000;
+const SAMPLED_READ_MS = 120_000;
+const MS_PER_SECOND = 1000;
 
 export const TRIGGERS = ["fetch", "queue", "scheduled"] as const;
 
@@ -111,13 +121,43 @@ function invocationOf(
   };
 }
 
+function untilNow(window: Readonly<Window>): Window {
+  return { from: window.from, to: Math.min(window.to, Date.now() + SKEW_MS) };
+}
+
+async function unsampledPages(
+  stage: Readonly<Stage>,
+  scope: Readonly<Scope>,
+  window: Readonly<Window>,
+  deadline: number,
+  since = Date.now(),
+) {
+  try {
+    return await allPages(stage, scope, untilNow(window), deadline);
+  } catch (error) {
+    if (!(error instanceof SampledQuery)) throw error;
+
+    const giveUp = Math.min(since + SAMPLED_READ_MS, deadline);
+
+    if (Date.now() >= giveUp) {
+      throw new Inconclusive(
+        `${error.message} on every read for ${String(Math.round((Date.now() - since) / MS_PER_SECOND))} s`,
+      );
+    }
+
+    await pause(POLL_MS, giveUp);
+
+    return unsampledPages(stage, scope, window, deadline, since);
+  }
+}
+
 export async function readInvocations(
   stage: Readonly<Stage>,
   scope: Readonly<Scope>,
   window: Readonly<Window>,
   deadline = Number.POSITIVE_INFINITY,
 ): Promise<Invocation[]> {
-  const found = (await allPages(stage, scope, window, deadline)).flatMap((events) => {
+  const found = (await unsampledPages(stage, scope, window, deadline)).flatMap((events) => {
     const invocation = invocationOf(stage, scope, events);
 
     return invocation === null || invocation.at < window.from || invocation.at > window.to
@@ -140,7 +180,7 @@ export async function awaitInvocations(
   const found = await readInvocations(stage, scope, window, give);
 
   if (until.enough(found)) {
-    await requireUnsampled(stage, scope, window, Number.POSITIVE_INFINITY);
+    await requireUnsampled(stage, scope, untilNow(window), Number.POSITIVE_INFINITY);
 
     return { found, complete: true };
   }
