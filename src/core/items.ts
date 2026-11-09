@@ -37,6 +37,7 @@ export function queuedWrites(
   db: Database,
   { originalUrl, address, digest }: Readonly<Paste>,
   { normalizedUrl, kind, source }: Readonly<Link>,
+  page?: string,
 ) {
   const now = Date.now();
   const pendingDigest = digest === undefined ? null : JSON.stringify(digest);
@@ -59,7 +60,7 @@ export function queuedWrites(
       .set({ status: "processing", reason: null })
       .where(and(eq(items.normalizedUrl, normalizedUrl), notExists(hasOpenJob("fetch")))),
     db.update(items).set({ pendingDigest }).where(eq(items.normalizedUrl, normalizedUrl)),
-    openingJob(db, { kind: "fetch", address, normalizedUrl, now }),
+    openingJob(db, { kind: "fetch", address, normalizedUrl, now, page }),
     selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
   ] as const;
 }

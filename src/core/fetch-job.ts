@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
 import { settledContent } from "./fetch-content.ts";
-import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
+import { FETCH_DEADLINE_MS, fetchedForJob } from "./fetch-link.ts";
 import { anchoredOutcome } from "./highlight-publish.ts";
 import {
   type ClaimedJob,
@@ -47,7 +47,7 @@ function waitingOutcome(
 
 async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
-  const fetched = await fetchLink(ports, job.address, job.attempts, deadline);
+  const fetched = await fetchedForJob(ports, job, deadline);
 
   if (fetched.status === "waiting") return waitingOutcome(ports.db, job, fetched);
 

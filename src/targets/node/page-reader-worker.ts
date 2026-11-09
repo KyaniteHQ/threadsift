@@ -2,19 +2,31 @@ import { parentPort } from "node:worker_threads";
 
 import { z } from "zod";
 
-import { readArticle, readTitle } from "../../core/article.ts";
+import { readArticle, readSuppliedPage, readTitle } from "../../core/article.ts";
+import { SuppliedPageSchema } from "../../core/supplied-page.ts";
 
 const RequestSchema = z.discriminatedUnion("kind", [
   z.object({ id: z.number(), kind: z.literal("title"), html: z.string() }),
   z.object({ id: z.number(), kind: z.literal("article"), html: z.string(), url: z.string() }),
+  z.object({ id: z.number(), kind: z.literal("page"), page: SuppliedPageSchema }),
 ]);
 
 type Request = z.infer<typeof RequestSchema>;
 
 function answerOf(request: Readonly<Request>) {
-  return request.kind === "title"
-    ? Promise.resolve(readTitle(request.html))
-    : readArticle(request.html, request.url);
+  switch (request.kind) {
+    case "title":
+      return Promise.resolve(readTitle(request.html));
+    case "article":
+      return readArticle(request.html, request.url);
+    case "page":
+      return Promise.resolve(readSuppliedPage(request.page));
+    default: {
+      const exhaustive: never = request;
+
+      throw new Error(JSON.stringify(exhaustive));
+    }
+  }
 }
 
 if (parentPort === null) {

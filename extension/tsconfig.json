@@ -1,0 +1,18 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["*.ts", "lib/**/*.ts", "entrypoints/**/*.ts", ".wxt/wxt.d.ts"]
+}

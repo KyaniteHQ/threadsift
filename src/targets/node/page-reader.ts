@@ -5,6 +5,7 @@ import { z } from "zod";
 import { type ArticleReading, ArticleReadingSchema } from "../../core/article.ts";
 import { PageReadTimeout } from "../../core/page-read-timeout.ts";
 import type { PageReader } from "../../core/ports.ts";
+import type { SuppliedPage } from "../../core/supplied-page.ts";
 
 const WORKER_FILE = new URL("./page-reader-worker.ts", import.meta.url);
 
@@ -18,6 +19,11 @@ const ReplySchema = z.discriminatedUnion("ok", [
 ]);
 
 type Answered = string | Readonly<ArticleReading>;
+
+type Request =
+  | { readonly kind: "title"; readonly html: string }
+  | { readonly kind: "article"; readonly html: string; readonly url: string }
+  | { readonly kind: "page"; readonly page: SuppliedPage };
 
 interface Pending {
   readonly succeed: (value: Answered) => void;
@@ -40,6 +46,9 @@ export class WorkerPageReader implements PageReader {
       ArticleReadingSchema.parse(value),
     );
 
+  readonly page = (page: SuppliedPage, deadline: AbortSignal) =>
+    this.ask({ kind: "page", page }, deadline, (value) => ArticleReadingSchema.parse(value));
+
   stop(): void {
     this.restart(new Error("the page reader stopped"));
   }
@@ -55,7 +64,7 @@ export class WorkerPageReader implements PageReader {
   }
 
   private async ask<Answer>(
-    request: Readonly<Record<string, string>>,
+    request: Readonly<Request>,
     deadline: AbortSignal,
     parse: (value: Answered) => Answer,
   ): Promise<Answer> {

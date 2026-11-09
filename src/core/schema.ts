@@ -99,6 +99,7 @@ export const jobs = sqliteTable(
     nextAttemptAt: integer("next_attempt_at").notNull(),
     claimExpires: integer("claim_expires"),
     waitReason: text("wait_reason", { enum: WAIT_REASONS }),
+    page: text("page"),
   },
   (table) => [
     uniqueIndex("jobs_one_open_per_item_kind")

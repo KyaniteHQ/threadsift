@@ -5,6 +5,7 @@ import type { AiExecution, AiTaskRequest, CliProvider, Provider } from "./ai-con
 import type { ArticleReading } from "./article.ts";
 import type { OpenRouterExchange } from "./openrouter-contract.ts";
 import type { Sealer } from "./sealed-secret.ts";
+import type { SuppliedPage } from "./supplied-page.ts";
 
 export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
 
@@ -59,6 +60,7 @@ export interface PageReader {
   readonly maxHtmlBytes: number;
   readonly title: (html: string, deadline: AbortSignal) => Promise<string>;
   readonly article: (html: string, url: string, deadline: AbortSignal) => Promise<ArticleReading>;
+  readonly page: (page: SuppliedPage, deadline: AbortSignal) => Promise<ArticleReading>;
 }
 
 export type NetworkFailureReason = "refused" | "timeout";

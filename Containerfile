@@ -3,13 +3,14 @@ FROM docker.io/library/node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89ba
 FROM node AS base
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY extension/package.json extension/package.json
 RUN npm install --global "$(node -p 'require("./package.json").packageManager')"
 
 FROM base AS prod-deps
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --filter threadsift
 
 FROM base AS web-build
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter threadsift
 COPY tsconfig.json vite.config.ts ./
 COPY design design
 COPY tools/theme-script.ts tools/theme-script.ts

@@ -4,6 +4,7 @@ import {
   NOT_REQUESTED,
   detailsOfOembed,
   detailsOfPage,
+  detailsOfSuppliedPage,
 } from "./details.ts";
 import {
   type FetchPolicy,
@@ -27,6 +28,7 @@ import {
 import { PageReadTimeout } from "./page-read-timeout.ts";
 import type { Network, PageReader, Ports } from "./ports.ts";
 import { repositoryRef } from "./repository-ref.ts";
+import { SuppliedPageSchema } from "./supplied-page.ts";
 
 export type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
@@ -61,17 +63,9 @@ function pagePolicy({ maxHtmlBytes }: Readonly<PageReader>): FetchPolicy {
   return { ...SMALL_POLICY, htmlMaxBytes: maxHtmlBytes };
 }
 
-async function fetchedOf(
-  outcome: Readonly<GuardOutcome>,
-  readPage: (page: Readonly<Page>) => Promise<Concluded> | Concluded,
-  whenStopped: FetchFailure,
-): Promise<Concluded> {
-  if (outcome.kind !== "page") {
-    return { status: loggedFailureOf(outcome, whenStopped) };
-  }
-
+async function readOrTimeOut(read: () => Promise<Concluded> | Concluded): Promise<Concluded> {
   try {
-    return await readPage(outcome);
+    return await read();
   } catch (error) {
     if (error instanceof PageReadTimeout) {
       return { status: "timeout" };
@@ -79,6 +73,18 @@ async function fetchedOf(
 
     throw error;
   }
+}
+
+function fetchedOf(
+  outcome: Readonly<GuardOutcome>,
+  readPage: (page: Readonly<Page>) => Promise<Concluded> | Concluded,
+  whenStopped: FetchFailure,
+): Promise<Concluded> {
+  if (outcome.kind !== "page") {
+    return Promise.resolve({ status: loggedFailureOf(outcome, whenStopped) });
+  }
+
+  return readOrTimeOut(() => readPage(outcome));
 }
 
 async function fetchedOfOembed(
@@ -149,4 +155,21 @@ export async function resolveShortLink(
   return shareLink && redditRefOf(outcome.url) === null
     ? NOT_A_POST_OR_COMMENT
     : { kind: "resolved", address: outcome.url };
+}
+
+export function fetchedForJob(
+  ports: Readonly<Pick<Ports, "db" | "ai" | "network" | "pages">>,
+  { address, attempts, page }: Readonly<{ address: string; attempts: number; page: string | null }>,
+  deadline: AbortSignal,
+): Promise<Fetched> {
+  return page === null
+    ? fetchLink(ports, address, attempts, deadline)
+    : readOrTimeOut(() =>
+        detailsOfSuppliedPage(
+          ports.pages,
+          SuppliedPageSchema.parse(JSON.parse(page)),
+          address,
+          deadline,
+        ),
+      );
 }

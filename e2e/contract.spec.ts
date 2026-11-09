@@ -143,6 +143,13 @@ function expectListContract(schemas: Schemas, list: ListOperation): void {
   ]);
 }
 
+function expectSaveRequest(schemas: Schemas, requestBody: z.infer<typeof Body>): void {
+  const body = resolved(schemas, jsonSchemaOf(requestBody));
+
+  expect(propertyNames(schemas, body).toSorted()).toEqual(["content", "digest", "page", "url"]);
+  expect(body.required).toEqual(["url"]);
+}
+
 test("the served OpenAPI document describes the items routes", async ({ request }, info) => {
   const { paths, components } = await documentOf(request, info);
   const { schemas } = components;
@@ -154,9 +161,7 @@ test("the served OpenAPI document describes the items routes", async ({ request 
 
   expectListContract(schemas, items.get);
 
-  const requestBody = resolved(schemas, jsonSchemaOf(items.post.requestBody));
-  expect(propertyNames(schemas, requestBody).toSorted()).toEqual(["content", "digest", "url"]);
-  expect(requestBody.required).toEqual(["url"]);
+  expectSaveRequest(schemas, items.post.requestBody);
 
   const saved = jsonSchemaOf(items.post.responses["201"] ?? { content: {} });
   expect(propertyNames(schemas, saved).toSorted()).toEqual(["item", "url"]);

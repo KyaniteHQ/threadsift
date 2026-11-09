@@ -94,9 +94,16 @@ in
       after = [ "ci:install" ];
       exec = "pnpm run check";
     };
-    "ci:build" = {
+    "extension:build" = {
       after = [ "ci:install" ];
-      exec = "pnpm run build && pnpm run build:worker";
+      exec = "pnpm run build:extension";
+    };
+    "ci:build" = {
+      after = [
+        "ci:install"
+        "extension:build"
+      ];
+      exec = "pnpm run build && pnpm run build:worker && pnpm run lint:extension";
     };
     "ci:audit" = {
       after = [ "ci:install" ];
@@ -109,6 +116,7 @@ in
       after = [
         "ci:install"
         "image:build"
+        "extension:build"
       ];
       exec = e2eCommand "container";
     };

@@ -1,12 +1,14 @@
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
+import type { ArticleReading } from "./article.ts";
 import type { Page } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { collapsed } from "./format.ts";
 import { type Link, isGitHubLink, isVideoLink } from "./links.ts";
 import type { MarkdownImage } from "./markdown-images.ts";
 import type { PageReader } from "./ports.ts";
+import type { SuppliedPage } from "./supplied-page.ts";
 
 export interface Repository {
   readonly description: string | null;
@@ -70,14 +72,43 @@ function parseOembed(text: string): z.infer<typeof OembedSchema> | null {
   }
 }
 
+function isArticleAddress(url: string): boolean {
+  return !isVideoLink(url) && !isGitHubLink(url);
+}
+
 function isArticleCandidate(page: Readonly<Page>): boolean {
-  return page.html && !page.cut && !isVideoLink(page.url) && !isGitHubLink(page.url);
+  return page.html && !page.cut && isArticleAddress(page.url);
 }
 
 function titled(title: string, found: Readonly<Pick<Found, "author" | "content">>): Concluded {
   return title === ""
     ? { status: "no-title" }
     : { status: "ok", found: { title, community: null, ...found } };
+}
+
+function articleDetails(
+  { title, author, words, postText, postedAt, videos, images }: Readonly<ArticleReading>,
+  url: string,
+): Concluded {
+  return titled(
+    title,
+    words < MIN_ARTICLE_WORDS
+      ? { author: null, content: NOT_AN_ARTICLE }
+      : { author, content: { kind: "article", postText, postedAt, videos, images, url } },
+  );
+}
+
+export async function detailsOfSuppliedPage(
+  pages: Readonly<PageReader>,
+  page: SuppliedPage,
+  url: string,
+  deadline: AbortSignal,
+): Promise<Concluded> {
+  if (!isArticleAddress(url)) {
+    return titled(collapsed(page.title), { author: null, content: NOT_AN_ARTICLE });
+  }
+
+  return articleDetails(await pages.page(page, deadline), url);
 }
 
 export async function detailsOfPage(
@@ -97,18 +128,7 @@ export async function detailsOfPage(
     });
   }
 
-  const { title, author, words, postText, postedAt, videos, images } = await pages.article(
-    page.text,
-    page.url,
-    deadline,
-  );
-
-  return titled(
-    title,
-    words < MIN_ARTICLE_WORDS
-      ? { author: null, content: NOT_AN_ARTICLE }
-      : { author, content: { kind: "article", postText, postedAt, videos, images, url: page.url } },
-  );
+  return articleDetails(await pages.article(page.text, page.url, deadline), page.url);
 }
 
 function subredditOf(html: string): string | null {

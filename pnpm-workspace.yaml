@@ -1,3 +1,8 @@
+packages:
+  - extension
+catalog:
+  defuddle: 0.19.6
+  zod: 4.6.7
 allowBuilds:
   esbuild: true
   workerd: true
