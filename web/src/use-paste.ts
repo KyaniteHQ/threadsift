@@ -88,10 +88,15 @@ function useSaveValue({
   );
 }
 
-function useCloseCard(setShown: (shown: Shown | null) => void, focusField: () => void) {
+function useCloseCard(
+  setShown: (shown: Shown | null) => void,
+  focusField: () => void,
+  release: () => void,
+) {
   const close = useCallback(() => {
     setShown(null);
-  }, [setShown]);
+    release();
+  }, [release, setShown]);
 
   const dismiss = useCallback(() => {
     close();
@@ -132,7 +137,7 @@ export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item
     [guard, saveValue, saving, value],
   );
 
-  const { close, dismiss } = useCloseCard(setShown, focusField);
+  const { close, dismiss } = useCloseCard(setShown, focusField, release);
 
   const change = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
