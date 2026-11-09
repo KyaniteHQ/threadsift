@@ -82,7 +82,13 @@ function readerDigest(
   }
 }
 
-export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
+export async function getItem(ports: Readonly<Pick<Ports, "db" | "files">>, id: number) {
+  const first = await readItem(ports, id);
+
+  return first?.textLost === true ? (await readItem(ports, id))?.item : first?.item;
+}
+
+async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
   const [[row], [stored], tagRows, [repository], threadRows, threadReport, held, sizes] =
     await db.batch([
       selectItems(db, {
@@ -107,22 +113,26 @@ export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files"
   }
 
   const { revision, postTextKey, ...item } = row;
+  const postText = await postTextOf(files, id, { postText: item.postText, postTextKey });
 
   return {
-    ...item,
-    postText: await postTextOf(files, id, { postText: item.postText, postTextKey }),
-    digest: readerDigest(
-      id,
-      stored?.digest,
-      tagRows.map((tag) => tag.name),
-    ),
-    repository: repository ?? null,
-    images: sizedImagesOf(sizes),
-    comments: commentsOf(threadRows, threadReport),
-    highlights: highlightsViewOf(held, {
-      post: revision,
-      comments: threadReport[0]?.generation ?? null,
-    }),
+    textLost: postText === null && postTextKey !== null,
+    item: {
+      ...item,
+      postText,
+      digest: readerDigest(
+        id,
+        stored?.digest,
+        tagRows.map((tag) => tag.name),
+      ),
+      repository: repository ?? null,
+      images: sizedImagesOf(sizes),
+      comments: commentsOf(threadRows, threadReport),
+      highlights: highlightsViewOf(held, {
+        post: revision,
+        comments: threadReport[0]?.generation ?? null,
+      }),
+    },
   };
 }
 

@@ -123,6 +123,18 @@ test("a row that names a missing key answers 200 without post text, and the log 
   await expect.poll(() => unavailableLines(id).join("\n")).toContain(key);
 });
 
+test("a row whose key names another Item's file answers 200 without post text and does not read that file", async () => {
+  const owned = seeded(ROW_TEXT);
+  const other = seeded();
+  const key = `items/${other}/post-text.md`;
+  const secret = "text of another Item";
+
+  instance.writeFile(key, Buffer.from(secret));
+  nameFile(instance, owned, `'${key}'`);
+  await expectNoPostText(owned, key, secret);
+  await expect.poll(() => unavailableLines(owned).join("\n")).toContain(key);
+});
+
 const REFUSED_KEYS = ["../outside", "/etc/passwd", "items/1/..", "items/01/a", "items/1/a\\b"];
 
 test("a row whose key is ../outside, /etc/passwd, items/1/.., items/01/a or holds a backslash answers 200 without post text and reads nothing outside the store", async () => {
