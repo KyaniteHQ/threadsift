@@ -28,6 +28,11 @@ export type Save = (target: SaveTarget) => Promise<SaveOutcome>;
 
 export type PasteRequest = SaveTarget & { readonly seq: number };
 
+export interface PasteQueue {
+  readonly next: PasteRequest | null;
+  readonly taken: (seq: number) => void;
+}
+
 const FAILED: SaveOutcome = { kind: "notice", notice: "failed" };
 const EMPTY: SaveOutcome = { kind: "notice", notice: "empty" };
 
@@ -88,15 +93,42 @@ function useSaveValue({
   );
 }
 
-function useCloseCard(setShown: (shown: Shown | null) => void, focusField: () => void) {
+function useCloseWhenGone(
+  shown: Readonly<Shown> | null,
+  items: readonly Item[],
+  close: () => void,
+): void {
+  const gone = shown?.kind === "item" && !items.some((each) => each.id === shown.itemId);
+
+  useEffect(() => {
+    if (gone) close();
+  }, [close, gone]);
+}
+
+function useCloseCard({
+  shown,
+  items,
+  setShown,
+  focusField,
+  release,
+}: Readonly<{
+  shown: Readonly<Shown> | null;
+  items: readonly Item[];
+  setShown: (shown: Shown | null) => void;
+  focusField: () => void;
+  release: () => void;
+}>) {
   const close = useCallback(() => {
     setShown(null);
-  }, [setShown]);
+    release();
+  }, [release, setShown]);
 
   const dismiss = useCallback(() => {
     close();
     focusField();
   }, [close, focusField]);
+
+  useCloseWhenGone(shown, items, close);
 
   return { close, dismiss };
 }
@@ -132,7 +164,7 @@ export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item
     [guard, saveValue, saving, value],
   );
 
-  const { close, dismiss } = useCloseCard(setShown, focusField);
+  const { close, dismiss } = useCloseCard({ shown, items, setShown, focusField, release });
 
   const change = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -153,25 +185,23 @@ export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item
 }
 
 export function usePasteRequest(
-  request: PasteRequest | null,
+  { next, taken }: Readonly<PasteQueue>,
   {
     guard,
     saveValue,
     saving,
   }: Readonly<Pick<ReturnType<typeof usePaste>, "guard" | "saveValue" | "saving">>,
 ) {
-  const answered = useRef(0);
-
   const run = useEffectEvent((target: SaveTarget) => {
     guard(() => saveValue(target, false));
   });
 
   useEffect(() => {
-    if (request !== null && request.seq !== answered.current && !saving) {
-      answered.current = request.seq;
-      run(request);
+    if (next !== null && !saving) {
+      taken(next.seq);
+      run(next);
     }
-  }, [request, saving]);
+  }, [next, saving, taken]);
 }
 
 export function useCardFace(

@@ -14,7 +14,7 @@ import {
 } from "./text.ts";
 import { useEscape } from "./use-form.ts";
 import {
-  type PasteRequest,
+  type PasteQueue,
   type Save,
   useCardFace,
   useOpenShown,
@@ -82,13 +82,13 @@ export function PasteBox({
   save,
   focusOnMount,
   items,
-  request,
+  queue,
   open,
 }: Readonly<{
   save: Save;
   focusOnMount: boolean;
   items: readonly Item[];
-  request: PasteRequest | null;
+  queue: PasteQueue;
   open: (id: number) => void;
 }>) {
   const paste = usePaste(save, focusOnMount, items);
@@ -99,7 +99,7 @@ export function PasteBox({
   const root = useRef<HTMLDivElement>(null);
   const cardId = useId();
   useEscape(dismiss, root, shown !== null);
-  usePasteRequest(request, paste);
+  usePasteRequest(queue, paste);
 
   return (
     <div ref={root} className="paste">

@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 
 import { type AiView, fetchAiSettings, startConnect } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
+import { type AiPhase, LEAVING, type Outcome } from "./use-ai-phase.ts";
 import type { FieldState } from "./use-form.ts";
 import { SETTINGS_READ_MS } from "./use-settings-load.ts";
 
 export interface Connection {
   readonly connect: () => void;
-  readonly leaving: boolean;
-  readonly failure: string | null;
+  readonly connecting: boolean;
 }
 
 const FAILURE_TEXT = {
@@ -17,24 +17,27 @@ const FAILURE_TEXT = {
   failed: AI_TEXT.connectFailed,
 } as const;
 
+function failure(text: string): Outcome {
+  return { kind: "error", text };
+}
+
 function usePageRestore(
+  { restore, report }: Readonly<Pick<AiPhase, "restore" | "report">>,
   restored: (view: AiView) => void,
-  setLeaving: (leaving: boolean) => void,
-  setFailure: (failure: string | null) => void,
 ): void {
   useEffect(() => {
-    const restore = async (): Promise<void> => {
-      setLeaving(false);
+    const reload = async (): Promise<void> => {
+      restore();
 
       try {
         restored(await fetchAiSettings(AbortSignal.timeout(SETTINGS_READ_MS)));
       } catch {
-        setFailure(FAILURE_TEXT.failed);
+        report(failure(FAILURE_TEXT.failed));
       }
     };
 
     const onPageShow = (event: Readonly<PageTransitionEvent>): void => {
-      if (event.persisted) void restore();
+      if (event.persisted) void reload();
     };
 
     window.addEventListener("pageshow", onPageShow);
@@ -42,7 +45,7 @@ function usePageRestore(
     return () => {
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [restored, setLeaving, setFailure]);
+  }, [restore, report, restored]);
 }
 
 async function start(
@@ -62,20 +65,19 @@ async function start(
 export function useConnect(
   view: AiView,
   fields: Readonly<{ model: FieldState; key: FieldState }>,
-  blocked: boolean,
+  flow: Readonly<AiPhase>,
   restored: (view: AiView) => void,
 ): Connection {
-  const [leaving, setLeaving] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
+  const { phase, run } = flow;
   const { model, key } = fields;
   const { value: modelValue, fail: failModel } = model;
   const { clear: clearKey } = key;
-  usePageRestore(restored, setLeaving, setFailure);
+  const { secretReady, revision } = view;
+  usePageRestore(flow, restored);
 
-  const run = useCallback(async () => {
-    if (blocked || leaving) return;
+  const connect = useCallback(() => {
+    if (!secretReady) return;
 
-    setFailure(null);
     failModel(null);
 
     if (modelValue.trim() === "") {
@@ -84,23 +86,17 @@ export function useConnect(
       return;
     }
 
-    setLeaving(true);
-    const started = await start({ model: modelValue, revision: view.revision });
+    run("connecting", async () => {
+      const started = await start({ model: modelValue, revision });
 
-    if ("url" in started) {
+      if ("failure" in started) return failure(started.failure);
+
       clearKey();
       window.location.assign(started.url);
 
-      return;
-    }
+      return LEAVING;
+    });
+  }, [secretReady, modelValue, revision, failModel, clearKey, run]);
 
-    setFailure(started.failure);
-    setLeaving(false);
-  }, [blocked, leaving, modelValue, view.revision, failModel, clearKey]);
-
-  const connect = useCallback(() => {
-    void run();
-  }, [run]);
-
-  return { connect, leaving, failure };
+  return { connect, connecting: phase === "connecting" || phase === LEAVING };
 }

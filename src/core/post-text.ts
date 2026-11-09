@@ -34,8 +34,14 @@ export async function readPostText(
   itemId: number,
   key: string,
 ): Promise<string | null> {
-  if (parseFileKey(key) === null) {
+  const parsed = parseFileKey(key);
+
+  if (parsed === null) {
     return unavailable(itemId, key, "refused-key");
+  }
+
+  if (parsed.itemId !== String(itemId)) {
+    return unavailable(itemId, key, "foreign-key");
   }
 
   let stream: ReadableStream<Uint8Array> | null;

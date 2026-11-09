@@ -150,7 +150,7 @@ export function storeLongArticle(
 }
 
 export function nameFile(instance: Instance, id: number, expression: string): void {
-  instance.sql(`UPDATE items SET post_text_key = ${expression} WHERE id = ${id}`);
+  instance.sql(`UPDATE items SET post_text = NULL, post_text_key = ${expression} WHERE id = ${id}`);
 }
 
 export function inContainer(instance: Instance, script: string): string {

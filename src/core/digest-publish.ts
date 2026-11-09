@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { type Digest, DigestSchema } from "./ai-contract.ts";
-import { completedAiTask } from "./ai-tasks.ts";
+import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
 import { catalogCurrent, catalogEntries, linkingDigest } from "./catalog.ts";
 import {
   type DigestInput,
@@ -20,6 +20,7 @@ import {
 } from "./highlight-publish.ts";
 import { MAX_STALE_REQUEUES, type JobOutcome, type JobPorts } from "./job-outcome.ts";
 import {
+  eligibleAmong,
   highlightedComments,
   selectedBodies,
   selectionWrites,
@@ -96,11 +97,17 @@ export async function publishing(
   anchors?: Readonly<AnchorSnapshot>,
 ): Promise<JobOutcome> {
   const entries = catalogEntries(digest);
-  const origin = digestOrigin(source, digest, entries);
-  const { catalog, published } = origin;
-  const generation = generationCurrent(item);
-  const kept = published.keptComments ?? [];
   const snapshot = { itemId: item.id, generation: item.generation };
+
+  const submitted =
+    source.executor === "model"
+      ? source.submitted
+      : await eligibleAmong(db, snapshot, digest.keptComments ?? []);
+
+  const origin = digestOrigin(source, digest, entries, submitted);
+  const { catalog, published } = origin;
+  const generation = sql`${generationCurrent(item)} and ${aiTaskRunning(taskId)}`;
+  const kept = published.keptComments ?? [];
   const bodies = kept.length === 0 ? [] : await selectedBodies(db, snapshot, kept);
 
   const stored = storedDigest(item, digest, taskId, origin);
@@ -134,16 +141,19 @@ function digestOrigin(
   source: DigestSource,
   digest: Readonly<Digest>,
   entries: Readonly<ReturnType<typeof catalogEntries>>,
+  submitted: readonly string[],
 ) {
+  const published = DigestSchema.parse({
+    ...digest,
+    keptComments: submittedAmong(digest.keptComments ?? [], submitted),
+  });
+
   switch (source.executor) {
     case "caller":
-      return { catalog: sql`1`, provider: null, model: null, published: digest };
+      return { catalog: sql`1`, provider: null, model: null, published };
     case "model":
       return {
-        published: DigestSchema.parse({
-          ...digest,
-          keptComments: submittedAmong(digest.keptComments ?? [], source.submitted),
-        }),
+        published,
         catalog:
           source.staleRequeues >= MAX_STALE_REQUEUES
             ? sql`1`

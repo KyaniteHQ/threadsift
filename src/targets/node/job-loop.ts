@@ -16,6 +16,23 @@ function report(what: string, error: Readonly<Error>): void {
   logFailure("job-loop-failed", { what }, error);
 }
 
+type State =
+  | { readonly kind: "idle" }
+  | { readonly kind: "starting" }
+  | {
+      readonly kind: "running";
+      readonly ports: JobPorts;
+      readonly timers: readonly NodeJS.Timeout[];
+    }
+  | { readonly kind: "stopping" }
+  | { readonly kind: "stopped" };
+
+interface Run {
+  readonly jobId: number;
+  readonly claimExpires: number;
+  abandoned: boolean;
+}
+
 export class JobLoop {
   readonly queue: JobQueue = {
     enqueue: () => {
@@ -25,46 +42,82 @@ export class JobLoop {
     },
   };
 
-  private ports: JobPorts | null = null;
-  private running = 0;
+  private state: State = { kind: "idle" };
+  private ticking = false;
   private draining = false;
   private wokenWhileDraining = false;
-  private readonly timers: NodeJS.Timeout[] = [];
+  private readonly runs = new Set<Run>();
   private readonly inFlight = new Set<Promise<void>>();
 
   async start(ports: JobPorts): Promise<void> {
-    await abandonRunning(ports.db);
+    if (this.state.kind !== "idle") return;
 
-    await migrateData(ports.db).catch((error: Readonly<Error>) => {
-      report("The data steps failed", error);
-    });
+    this.state = { kind: "starting" };
 
-    this.ports = ports;
+    try {
+      await abandonRunning(ports.db);
 
-    this.timers.push(
-      setInterval(() => {
-        this.wake();
-      }, LOOP_POLL_MS),
-      setInterval(() => {
-        this.track(() =>
-          tick(ports).catch((error: Readonly<Error>) => {
-            report("The minute tick failed", error);
-          }),
-        );
-      }, TICK_MS),
-    );
+      await migrateData(ports.db).catch((error: Readonly<Error>) => {
+        report("The data steps failed", error);
+      });
+    } catch (error) {
+      this.state = { kind: "idle" };
+
+      throw error;
+    }
+
+    if (this.kind() !== "starting") return;
+
+    this.state = {
+      kind: "running",
+      ports,
+      timers: [
+        setInterval(() => {
+          this.wake();
+        }, LOOP_POLL_MS),
+        setInterval(() => {
+          this.tick(ports);
+        }, TICK_MS),
+      ],
+    };
 
     this.wake();
   }
 
   async stop(): Promise<void> {
-    this.ports = null;
+    const { state } = this;
 
-    for (const timer of this.timers) {
+    if (state.kind === "idle" || state.kind === "starting") {
+      this.state = { kind: "stopped" };
+
+      return;
+    }
+
+    if (state.kind !== "running") return;
+
+    this.state = { kind: "stopping" };
+
+    for (const timer of state.timers) {
       clearInterval(timer);
     }
 
-    await Promise.race([this.settle(), setTimeout(STOP_WAIT_MS)]);
+    await this.settleWithin(STOP_WAIT_MS);
+    this.state = { kind: "stopped" };
+  }
+
+  private kind(): State["kind"] {
+    return this.state.kind;
+  }
+
+  private async settleWithin(waitMs: number): Promise<void> {
+    const waiting = new AbortController();
+
+    await Promise.race([
+      this.settle().finally(() => {
+        waiting.abort();
+      }),
+      setTimeout(waitMs, undefined, { signal: waiting.signal }).catch(() => {}),
+    ]);
   }
 
   private async settle(): Promise<void> {
@@ -84,12 +137,24 @@ export class JobLoop {
     this.inFlight.add(tracked);
   }
 
-  private wake(): void {
+  private tick(ports: JobPorts): void {
+    if (this.ticking) return;
+
+    this.ticking = true;
+
     this.track(() =>
-      this.drain().catch((error: Readonly<Error>) => {
-        report("The job loop could not read the next job", error);
-      }),
+      tick(ports)
+        .catch((error: Readonly<Error>) => {
+          report("The minute tick failed", error);
+        })
+        .finally(() => {
+          this.ticking = false;
+        }),
     );
+  }
+
+  private wake(): void {
+    this.track(() => this.drain());
   }
 
   private async drain(): Promise<void> {
@@ -100,41 +165,59 @@ export class JobLoop {
     }
 
     this.draining = true;
-    this.wokenWhileDraining = false;
 
     try {
-      await this.startJobs();
+      do {
+        this.wokenWhileDraining = false;
+
+        // oxlint-disable-next-line eslint/no-await-in-loop -- a wake that arrives during a pass starts one more pass.
+        await this.startJobs().catch((error: Readonly<Error>) => {
+          report("The job loop could not read the next job", error);
+        });
+      } while (this.wokenWhileDraining);
     } finally {
       this.draining = false;
     }
+  }
 
-    if (this.wokenWhileDraining) {
-      await this.drain();
+  private liveRuns(now: number): number {
+    let live = 0;
+
+    for (const run of this.runs) {
+      if (run.claimExpires > now) {
+        live += 1;
+      } else if (!run.abandoned) {
+        run.abandoned = true;
+        console.warn(JSON.stringify({ event: "job-run-abandoned", jobId: run.jobId }));
+      }
     }
+
+    return live;
   }
 
   private async startJobs(): Promise<void> {
-    const { ports } = this;
+    const { state } = this;
 
-    if (ports === null || this.running >= LOOP_WIDTH) {
+    if (state.kind !== "running" || this.liveRuns(Date.now()) >= LOOP_WIDTH) {
       return;
     }
 
-    const job = await claimNextDue(ports.db);
+    const job = await claimNextDue(state.ports.db);
 
     if (job === null) {
       return;
     }
 
-    this.running += 1;
+    const run: Run = { jobId: job.id, claimExpires: job.claimExpires ?? 0, abandoned: false };
+    this.runs.add(run);
 
     this.track(() =>
-      executeClaimed(ports, job)
+      executeClaimed(state.ports, job)
         .catch((error: Readonly<Error>) => {
           report(`Job ${job.id} could not be finished`, error);
         })
         .finally(() => {
-          this.running -= 1;
+          this.runs.delete(run);
           this.wake();
         }),
     );

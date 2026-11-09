@@ -1,10 +1,4 @@
-import { useEffect, useState } from "react";
-
-import {
-  ConnectNoticeSchema,
-  NOTICE_PARAMETER,
-  type ConnectNotice as Notice,
-} from "../../src/core/openrouter-contract.ts";
+import type { ConnectNotice as Notice } from "../../src/core/openrouter-contract.ts";
 import type { AiView } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { Alert } from "./Alert.tsx";
@@ -20,7 +14,7 @@ export function ConnectButton({
     <SwapButton
       label={AI_TEXT.connect}
       busyLabel={AI_TEXT.connecting}
-      busy={connection.leaving}
+      busy={connection.connecting}
       blocked={blocked || !view.secretReady}
       type="button"
       onClick={connection.connect}
@@ -29,15 +23,9 @@ export function ConnectButton({
   ) : null;
 }
 
-export function ConnectNotes({
-  view,
-  connection,
-}: Readonly<{ view: AiView; connection: Connection }>) {
+export function ConnectNotes({ view }: Readonly<{ view: AiView }>) {
   return (
-    <>
-      <p className="fld-help">{view.connect ? AI_TEXT.connectHelp : AI_TEXT.connectUnavailable}</p>
-      <Alert text={connection.failure} />
-    </>
+    <p className="fld-help">{view.connect ? AI_TEXT.connectHelp : AI_TEXT.connectUnavailable}</p>
   );
 }
 
@@ -46,12 +34,6 @@ const FAILURE_TEXT = {
   "settings-changed": AI_TEXT.connectSettingsChanged,
   "possible-orphan": AI_TEXT.connectPossibleOrphan,
 } as const;
-
-function noticeOf(search: string): Notice | null {
-  const parsed = ConnectNoticeSchema.safeParse(new URLSearchParams(search).get(NOTICE_PARAMETER));
-
-  return parsed.success ? parsed.data : null;
-}
 
 function holdsOpenRouterKey({ settings }: Readonly<AiView>): boolean {
   return (
@@ -62,15 +44,7 @@ function holdsOpenRouterKey({ settings }: Readonly<AiView>): boolean {
   );
 }
 
-export function ConnectNotice({ view }: Readonly<{ view: AiView }>) {
-  const [notice] = useState(() => noticeOf(window.location.search));
-
-  useEffect(() => {
-    if (notice !== null) {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-  }, [notice]);
-
+export function ConnectNotice({ view, notice }: Readonly<{ view: AiView; notice: Notice | null }>) {
   if (notice === null) return null;
 
   if (notice === "connected" && holdsOpenRouterKey(view))

@@ -70,13 +70,21 @@ export function titleLink(page: Page, id: number): Locator {
   return row(page, id).locator("a.it-open");
 }
 
-export async function holdDelete(page: Page) {
+export async function holdDelete(page: Page, outcome: "answer" | "refuse" = "answer") {
   const gate = Promise.withResolvers<void>();
   const reached = Promise.withResolvers<void>();
 
   await page.route(/\/api\/items\/\d+$/u, async (route) => {
     if (route.request().method() !== "DELETE") {
       await route.continue();
+
+      return;
+    }
+
+    if (outcome === "refuse") {
+      reached.resolve();
+      await gate.promise;
+      await route.fulfill({ status: 500 });
 
       return;
     }

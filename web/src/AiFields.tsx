@@ -40,11 +40,7 @@ const OPTIONAL_MODEL_KIND = { ...FIELD_KINDS.model, required: false } as const;
 
 const REQUIRED_KEY_KIND = { ...FIELD_KINDS.key, required: true } as const;
 
-function AiProviderPicker({
-  fields,
-  providers,
-  disabled,
-}: Readonly<{ fields: Fields; providers: readonly Provider[]; disabled: boolean }>) {
+function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disabled: boolean }>) {
   const id = useId();
 
   return (
@@ -60,7 +56,7 @@ function AiProviderPicker({
         aria-disabled={disabled || undefined}
         onChange={disabled ? undefined : fields.changeProvider}
       >
-        {providers.map((provider) => (
+        {fields.providers.map((provider) => (
           <option key={provider} value={provider}>
             {AI_TEXT[PROVIDERS[provider].label]}
           </option>
@@ -99,13 +95,11 @@ function kindFor(
 
 export function AiFields({
   fields,
-  providers,
   disabled,
   publicOnly,
   keyRequired,
 }: Readonly<{
   fields: Fields;
-  providers: readonly Provider[];
   disabled: boolean;
   publicOnly: boolean;
   keyRequired: boolean;
@@ -114,7 +108,7 @@ export function AiFields({
 
   return (
     <>
-      <AiProviderPicker fields={fields} providers={providers} disabled={disabled} />
+      <AiProviderPicker fields={fields} disabled={disabled} />
       {names.map((name) => (
         <FormField
           key={name}

@@ -13,10 +13,17 @@ export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${
   return sql`(select 1 from ${jobs} as open_jobs where ${openJobs.itemId} = ${itemId} and ${openJobs.state} <> 'done' ${kind === undefined ? sql`` : sql`and ${openJobs.kind} = ${kind}`})`;
 }
 
+export const CLOSED_JOB = {
+  state: "done",
+  claimExpires: null,
+  staleRequeues: 0,
+  page: null,
+} as const;
+
 export function closeFetchJobs(db: Database, itemId: Readonly<SQLWrapper>) {
   return db
     .update(jobs)
-    .set({ state: "done", claimExpires: null, page: null })
+    .set(CLOSED_JOB)
     .where(and(eq(jobs.itemId, sql`${itemId}`), eq(jobs.kind, "fetch"), ne(jobs.state, "done")));
 }
 
@@ -71,6 +78,7 @@ export function opening(
           state: sql<"queued">`'queued'`.as("state"),
           attempts: sql<number>`0`.as("attempts"),
           staleRequeues: sql<number>`0`.as("stale_requeues"),
+          attemptGeneration: sql<null>`null`.as("attempt_generation"),
           nextAttemptAt: sql<number>`${now}`.as("next_attempt_at"),
           claimExpires: sql<null>`null`.as("claim_expires"),
           waitReason: sql<null>`null`.as("wait_reason"),
@@ -109,10 +117,15 @@ export function enqueueRows(
 }
 
 export async function enqueueItemJobs(ports: JobPorts, itemId: number): Promise<void> {
-  const queued = await ports.db
-    .select({ id: jobs.id })
-    .from(jobs)
-    .where(and(eq(jobs.itemId, itemId), sql`${jobs.state} <> 'done'`));
-
-  await enqueueRows(ports, queued);
+  try {
+    await enqueueRows(
+      ports,
+      await ports.db
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(and(eq(jobs.itemId, itemId), sql`${jobs.state} <> 'done'`)),
+    );
+  } catch (error) {
+    logFailure("jobs-not-queued", { itemId }, error);
+  }
 }

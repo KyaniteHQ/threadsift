@@ -29,6 +29,26 @@ export async function guardHolds(db: Database, condition: Readonly<SQLWrapper>):
   return current?.ok === 1;
 }
 
+const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)/u;
+
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction, and this function reduces it to whether a guard check failed.
+function refusedByGuard(error: unknown): boolean {
+  for (let cause = error; cause instanceof Error; cause = cause.cause) {
+    if (GUARD_REFUSED.test(cause.message)) return true;
+  }
+
+  return false;
+}
+
+async function rethrowUnlessRefused(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction.
+  error: unknown,
+): Promise<void> {
+  if (!refusedByGuard(error) || (await guardHolds(db, condition))) throw error;
+}
+
 export async function guardedBatch(
   db: Database,
   condition: Readonly<SQLWrapper>,
@@ -39,7 +59,7 @@ export async function guardedBatch(
 
     return true;
   } catch (error) {
-    if (await guardHolds(db, condition)) throw error;
+    await rethrowUnlessRefused(db, condition, error);
 
     return false;
   }
@@ -61,7 +81,7 @@ export async function guardedWrite<Write extends BatchItem<"sqlite">>(
 
     return result;
   } catch (error) {
-    if (await guardHolds(db, condition)) throw error;
+    await rethrowUnlessRefused(db, condition, error);
 
     return null;
   }

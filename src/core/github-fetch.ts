@@ -5,7 +5,6 @@ import { fromBase64 } from "./encoding.ts";
 import { type FetchPolicy, type GuardOutcome, type Page, loggedFailureOf } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { type GithubRun, UNAUTHORIZED, type Waiting, apiPolicy, requestApi } from "./github-api.ts";
-import type { GithubAuth } from "./github-token.ts";
 import { parsedJson } from "./parsed-json.ts";
 import type { RepositoryRef } from "./repository-ref.ts";
 
@@ -134,9 +133,10 @@ async function readmeAfter(
 export async function fetchedOfRepository(
   run: Readonly<GithubRun>,
   { owner, name }: Readonly<RepositoryRef>,
-  auth: Readonly<GithubAuth>,
   deadline: AbortSignal,
 ): Promise<Fetched> {
+  const { auth } = run;
+
   if (auth.kind === "unreadable") return { status: TOKEN_REJECTED };
 
   const tokenSent = auth.kind === "token";

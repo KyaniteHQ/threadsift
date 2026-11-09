@@ -10,22 +10,17 @@ import {
   type GithubVerifyResult,
   refusedGithub,
 } from "./github-contract.ts";
+import { endCooldown } from "./github-cooldown.ts";
+import { CredentialChanged, type GithubAuth } from "./github-credential.ts";
 import { githubSettings } from "./github-tables.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { HOP_DEADLINE_MS, type Ports } from "./ports.ts";
-
-export type GithubAuth =
-  | { readonly kind: "anonymous" }
-  | { readonly kind: "token"; readonly token: string }
-  | { readonly kind: "unreadable" };
 
 type TokenPorts = Pick<Ports, "db" | "ai">;
 
 type VerifyPorts = TokenPorts & Pick<Ports, "network">;
 
 const ANONYMOUS: GithubAuth = { kind: "anonymous" };
-
-const UNREADABLE: GithubAuth = { kind: "unreadable" };
 
 const RateLimitSchema = z.object({
   rate: z.object({
@@ -39,15 +34,29 @@ export async function loadGithubAuth({ db, ai }: Readonly<TokenPorts>): Promise<
 
   if (row === undefined) return ANONYMOUS;
 
-  const token = ai.secrets === null ? null : await ai.secrets.open(row.sealedToken);
+  const { sealedToken: sealed } = row;
+  const token = ai.secrets === null ? null : await ai.secrets.open(sealed);
 
-  return token === null ? UNREADABLE : { kind: "token", token };
+  return token === null ? { kind: "unreadable", sealed } : { kind: "token", token, sealed };
 }
 
-function viewOf(auth: Readonly<GithubAuth>, ports: Readonly<TokenPorts>): GithubSettingsView {
+export async function withCurrentCredential<Result>(
+  ports: Readonly<TokenPorts>,
+  work: (auth: Readonly<GithubAuth>) => Promise<Result>,
+): Promise<Result> {
+  try {
+    return await work(await loadGithubAuth(ports));
+  } catch (error) {
+    if (error instanceof CredentialChanged) return withCurrentCredential(ports, work);
+
+    throw error;
+  }
+}
+
+function viewOf(kind: GithubAuth["kind"], ports: Readonly<TokenPorts>): GithubSettingsView {
   const secretReady = ports.ai.secrets !== null;
 
-  switch (auth.kind) {
+  switch (kind) {
     case "anonymous":
       return { token: "none", secretReady };
     case "token":
@@ -55,7 +64,7 @@ function viewOf(auth: Readonly<GithubAuth>, ports: Readonly<TokenPorts>): Github
     case "unreadable":
       return { token: "unreadable", secretReady };
     default: {
-      const exhaustive: never = auth;
+      const exhaustive: never = kind;
 
       return exhaustive;
     }
@@ -63,7 +72,7 @@ function viewOf(auth: Readonly<GithubAuth>, ports: Readonly<TokenPorts>): Github
 }
 
 export async function readGithubSettings(ports: Readonly<TokenPorts>): Promise<GithubSettingsView> {
-  return viewOf(await loadGithubAuth(ports), ports);
+  return viewOf((await loadGithubAuth(ports)).kind, ports);
 }
 
 export async function saveGithubToken(
@@ -76,18 +85,24 @@ export async function saveGithubToken(
 
   const row = { id: 1, sealedToken: await secrets.seal(token) };
 
-  await ports.db
-    .insert(githubSettings)
-    .values(row)
-    .onConflictDoUpdate({ target: githubSettings.id, set: row });
+  await ports.db.batch([
+    ports.db
+      .insert(githubSettings)
+      .values(row)
+      .onConflictDoUpdate({ target: githubSettings.id, set: row }),
+    endCooldown(ports.db),
+  ]);
 
-  return viewOf({ kind: "token", token }, ports);
+  return viewOf("token", ports);
 }
 
 export async function removeGithubToken(ports: Readonly<TokenPorts>): Promise<GithubSettingsView> {
-  await ports.db.delete(githubSettings).where(eq(githubSettings.id, 1));
+  await ports.db.batch([
+    ports.db.delete(githubSettings).where(eq(githubSettings.id, 1)),
+    endCooldown(ports.db),
+  ]);
 
-  return viewOf(ANONYMOUS, ports);
+  return viewOf("anonymous", ports);
 }
 
 function refusalOf(outcome: Exclude<GuardOutcome, Page | RateLimited>): GithubRefused {
@@ -102,20 +117,17 @@ function refusalOf(outcome: Exclude<GuardOutcome, Page | RateLimited>): GithubRe
   return refusedGithub(outcome.reason === "timeout" ? "timeout" : "unreachable");
 }
 
-export async function verifyGithubToken(
+async function verifiedWith(
   ports: Readonly<VerifyPorts>,
+  auth: Readonly<GithubAuth>,
   signal: AbortSignal,
 ): Promise<GithubVerifyResult> {
-  if (ports.ai.secrets === null) return refusedGithub("secret-missing");
-
-  const auth = await loadGithubAuth(ports);
-
   if (auth.kind === "anonymous") return refusedGithub("not-configured");
 
   if (auth.kind === "unreadable") return refusedGithub("secret-missing");
 
   const outcome = await requestApi(
-    { ports, attempts: 0 },
+    { ports, attempts: 0, auth },
     "/rate_limit",
     apiPolicy(auth.token),
     AbortSignal.any([signal, AbortSignal.timeout(HOP_DEADLINE_MS)]),
@@ -130,4 +142,13 @@ export async function verifyGithubToken(
   return outcome.cut || limits === null
     ? refusedGithub("github-error")
     : { kind: "verified", ...limits.rate };
+}
+
+export function verifyGithubToken(
+  ports: Readonly<VerifyPorts>,
+  signal: AbortSignal,
+): Promise<GithubVerifyResult> {
+  if (ports.ai.secrets === null) return Promise.resolve(refusedGithub("secret-missing"));
+
+  return withCurrentCredential(ports, (auth) => verifiedWith(ports, auth, signal));
 }

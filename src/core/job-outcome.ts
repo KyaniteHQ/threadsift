@@ -56,6 +56,7 @@ export interface JobHandler {
   readonly blockedBy: readonly JobKind[];
   readonly attempt: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<JobOutcome>;
   readonly exhausted: (db: Database, job: Readonly<JobRow>) => JobWrites;
+  readonly inputCurrent?: (job: Readonly<JobRow>) => SQLWrapper;
 }
 
 export const RETRY_DELAYS_MS = [30_000, 120_000] as const;

@@ -7,6 +7,7 @@ import {
   KEY_POINTS_LABEL,
   READER_FAILED,
   READER_LOADING,
+  READER_STALE,
   SUMMARY_LABEL,
   postedLabel,
 } from "./reader-text.ts";
@@ -162,6 +163,14 @@ export function ReaderContent({
 
   return (
     <>
+      {state.stale ? (
+        <div className="rd-orig">
+          <output className="rd-note">{READER_STALE}</output>
+          <button type="button" className="btn btn-block" onClick={retry}>
+            {RETRY_LABEL}
+          </button>
+        </div>
+      ) : null}
       <Agent item={item} detail={state.detail} tryAgain={tryAgain} />
       <Original item={item} detail={state.detail} now={now} />
     </>

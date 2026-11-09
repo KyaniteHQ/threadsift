@@ -26,7 +26,7 @@ export {
 
 export { itemAliases } from "./alias-tables.ts";
 
-export { dataStepRenames, dataSteps } from "./data-step-tables.ts";
+export { dataStepLease, dataStepRenames, dataSteps } from "./data-step-tables.ts";
 
 export { guardHolds, guardedBatch, guardedWrite, guards, insertGuard } from "./guards.ts";
 
@@ -96,6 +96,7 @@ export const jobs = sqliteTable(
     state: text("state", { enum: JOB_STATES }).notNull(),
     attempts: integer("attempts").notNull().default(0),
     staleRequeues: integer("stale_requeues").notNull().default(0),
+    attemptGeneration: integer("attempt_generation"),
     nextAttemptAt: integer("next_attempt_at").notNull(),
     claimExpires: integer("claim_expires"),
     waitReason: text("wait_reason", { enum: WAIT_REASONS }),

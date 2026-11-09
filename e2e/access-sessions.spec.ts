@@ -91,6 +91,34 @@ test("a session extends at most once a day and sends its cookie again, and an ex
   await api.dispose();
 });
 
+test("a session whose row disappears while it is being renewed is refused and gets no new cookie", async ({
+  baseURL,
+}) => {
+  const { value, headers, api } = await signIn(baseURL ?? "");
+  const digest = sha256Hex(value);
+  const instance = mainInstance();
+
+  instance.sql(
+    `UPDATE sessions SET expires_at = ${Date.now() + 10 * DAY_MS} WHERE digest = '${digest}'`,
+  );
+  instance.sql(
+    `CREATE TRIGGER renewal_loses_row BEFORE UPDATE ON sessions WHEN OLD.digest = '${digest}' BEGIN DELETE FROM sessions WHERE digest = OLD.digest; END`,
+  );
+
+  try {
+    const lost = await api.get("/api/items", { headers });
+
+    await expectRefusal(lost, 401, "a session removed during its renewal");
+    expect(lost.headers()["set-cookie"] ?? "", "no cookie for a removed session").not.toContain(
+      `${SESSION_COOKIE}=${value}`,
+    );
+    expect(expiryOf(digest), "the removed row stays removed").toBeUndefined();
+  } finally {
+    instance.sql("DROP TRIGGER renewal_loses_row");
+    await api.dispose();
+  }
+});
+
 test("a sign-out the server cannot finish leaves the owner signed in and says so", async ({
   browser,
 }) => {

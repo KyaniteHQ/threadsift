@@ -81,8 +81,8 @@ export function PasswordStep(props: Readonly<PasswordStepProps>) {
   const { go } = props;
 
   const backToCode = useCallback(() => {
-    go({ name: "code" });
-  }, [go]);
+    if (!busy) go({ name: "code" });
+  }, [busy, go]);
 
   useFocusOnMount(password.ref);
 
@@ -114,7 +114,12 @@ export function PasswordStep(props: Readonly<PasswordStepProps>) {
         busy={busy}
         blocked={lock.locked}
       />
-      <button type="button" className="btn btn-plain btn-flush" onClick={backToCode}>
+      <button
+        type="button"
+        className="btn btn-plain btn-flush"
+        aria-disabled={busy ? true : undefined}
+        onClick={backToCode}
+      >
         {SETUP.backToCode}
       </button>
     </form>

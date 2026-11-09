@@ -56,6 +56,18 @@ export function selectedBodies(
   return bodiesWhere(db, snapshot, selected(kept));
 }
 
+export async function eligibleAmong(
+  db: Database,
+  snapshot: Readonly<{ itemId: number; generation: number }>,
+  ids: readonly string[],
+): Promise<readonly string[]> {
+  if (ids.length === 0) return [];
+
+  const rows = await commentsWhere(db, snapshot, selected(ids));
+
+  return rows.map(({ id }) => id);
+}
+
 export function keptBodies(
   db: Database,
   snapshot: Readonly<{ itemId: number; generation: number }>,

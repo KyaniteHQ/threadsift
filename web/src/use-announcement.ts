@@ -11,14 +11,36 @@ const MARKED: Readonly<Record<ReadState, string>> = { read: MARKED_READ, unread:
 
 export type Announcement = Readonly<{ text: string; failed: boolean }>;
 
+function newReadWrites() {
+  const wanted = new Map<number, ReadState>();
+  const tails = new Map<number, Promise<void>>();
+
+  return {
+    latest: (id: number): ReadState | undefined => wanted.get(id),
+    queue: (id: number, state: ReadState, write: () => Promise<void>): void => {
+      wanted.set(id, state);
+
+      const run: Promise<void> = (tails.get(id) ?? Promise.resolve()).then(write).finally(() => {
+        if (tails.get(id) === run) {
+          tails.delete(id);
+          wanted.delete(id);
+        }
+      });
+
+      tails.set(id, run);
+    },
+  } as const;
+}
+
 export function useAnnouncement(setRead: Writes["setRead"]) {
   const [announcement, setAnnouncement] = useState<Announcement>({ text: "", failed: false });
+  const [writes] = useState(newReadWrites);
 
   const toggleRead = useCallback(
     (item: Readonly<Item>): void => {
-      const wanted = OTHER[item.readState];
+      const wanted = OTHER[writes.latest(item.id) ?? item.readState];
 
-      const settle = async (): Promise<void> => {
+      writes.queue(item.id, wanted, async () => {
         const answer: Applied | "failed" = await setRead(item.id, wanted).then(
           (applied) => applied,
           (): "failed" => "failed",
@@ -28,11 +50,9 @@ export function useAnnouncement(setRead: Writes["setRead"]) {
 
         const failed = answer === "failed";
         setAnnouncement({ text: failed ? READ_FAILED : MARKED[wanted], failed });
-      };
-
-      void settle();
+      });
     },
-    [setRead],
+    [setRead, writes],
   );
 
   const announce = useCallback((text: string): void => {

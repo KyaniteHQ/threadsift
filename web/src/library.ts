@@ -66,7 +66,16 @@ function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonl
     [latest, reads, setList, stamps, unfiltered],
   );
 
-  useItemPolling(processingIds(list), onRead);
+  const onGone = useCallback(
+    (id: number) => {
+      stamps.remove(id);
+      setList((current) => withoutItem(current, id));
+      reads.recount(true);
+    },
+    [reads, setList, stamps],
+  );
+
+  useItemPolling(processingIds(list), onRead, onGone);
 }
 
 function useFilters() {

@@ -6,9 +6,7 @@ import { eventLines } from "./ingest.ts";
 
 export const WAIT_REASON = "github-rate-limit";
 
-const HOUR_MS = 3_600_000;
-
-export const LONG_WAIT_MS = 26 * HOUR_MS;
+export const WAIT_MS = 50 * 60_000;
 
 const FetchJobs = z.array(
   z.object({

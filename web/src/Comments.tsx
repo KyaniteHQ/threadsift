@@ -1,7 +1,6 @@
 import {
   type CSSProperties,
   type FocusEvent,
-  use,
   useCallback,
   useEffect,
   useId,
@@ -14,7 +13,7 @@ import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { type CommentCounts, commentCountsOf } from "./comment-counts.ts";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
-import { postTextModule } from "./post-text-module.ts";
+import { PostTextView } from "./post-text-module.ts";
 import {
   COMMENTS_TITLE,
   CONTEXT_LABEL,
@@ -77,7 +76,6 @@ function useOpenFold() {
 }
 
 function CommentText({ comment }: Readonly<{ comment: Comment }>) {
-  const { PostText } = use(postTextModule());
   const box = useRef<HTMLDivElement>(null);
   const { more, open, toggle, lessFromTop, reveal } = useOpenFold();
   const fold = useCommentFold(box);
@@ -102,7 +100,7 @@ function CommentText({ comment }: Readonly<{ comment: Comment }>) {
         className={fold !== "none" && !open ? "cm-fold folded" : "cm-fold"}
         onFocus={fold === "none" ? undefined : reveal}
       >
-        <PostText text={comment.body} />
+        <PostTextView text={comment.body} />
       </div>
       {fold === "none" ? null : (
         <button

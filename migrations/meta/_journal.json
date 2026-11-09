@@ -211,6 +211,20 @@
       "when": 1794228889967,
       "tag": "0029_job-page",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1794249352549,
+      "tag": "0030_attempt-generation-and-data-step-lease",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1794249353208,
+      "tag": "0031_consistency-triggers",
+      "breakpoints": true
     }
   ]
 }

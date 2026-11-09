@@ -28,6 +28,7 @@ function useCopy(value: string) {
         setFailed(false);
         setCopied(true);
       } catch {
+        setCopied(false);
         setFailed(true);
         field.current?.focus();
         field.current?.select();

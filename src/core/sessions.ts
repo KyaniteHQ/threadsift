@@ -1,4 +1,4 @@
-import { eq, lt, sql, type SQLWrapper } from "drizzle-orm";
+import { and, eq, gt, lt, sql, type SQLWrapper } from "drizzle-orm";
 
 import { digestOf, randomSecret } from "./encoding.ts";
 import type { Crypto, Database, Ports } from "./ports.ts";
@@ -73,12 +73,13 @@ export async function checkSession(ports: Ports, id: string): Promise<SessionChe
     return { valid: true, renewed: false };
   }
 
-  await ports.db
+  const renewed = await ports.db
     .update(sessions)
     .set({ expiresAt: now + SESSION_MS })
-    .where(eq(sessions.digest, digest));
+    .where(and(eq(sessions.digest, digest), gt(sessions.expiresAt, now)))
+    .returning({ digest: sessions.digest });
 
-  return { valid: true, renewed: true };
+  return renewed.length === 0 ? { valid: false } : { valid: true, renewed: true };
 }
 
 export async function endSession(ports: Ports, id: string): Promise<void> {

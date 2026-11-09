@@ -21,10 +21,13 @@ import {
   DELETE_PENDING,
   DELETE_TITLE,
 } from "./reader-text.ts";
+import { useAfter } from "./use-form.ts";
 
 type Step = "closed" | "asking" | "pending" | "failed";
 
 const NOTHING = (): void => undefined;
+
+const DELETE_WAIT_MS = 20_000;
 
 function containTab(dialog: HTMLElement, signal: AbortSignal): void {
   dialog.addEventListener(
@@ -176,20 +179,32 @@ export function DeleteItem({
   const trigger = useRef<HTMLButtonElement>(null);
   useReturnFocus(step !== "closed", trigger);
 
+  const attempt = useRef(0);
+
   const ask = useCallback(() => {
     setStep("asking");
   }, []);
 
   const cancel = useCallback(() => {
+    attempt.current += 1;
     setStep("closed");
   }, []);
 
   const confirm = useCallback(() => {
+    attempt.current += 1;
+
+    const mine = attempt.current;
     setStep("pending");
     remove(item).catch(() => {
-      setStep("failed");
+      if (attempt.current === mine) setStep("failed");
     });
   }, [item, remove]);
+
+  const timedOut = useCallback(() => {
+    setStep("failed");
+  }, []);
+
+  useAfter(step === "pending", DELETE_WAIT_MS, timedOut);
 
   return (
     <>

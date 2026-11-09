@@ -7,10 +7,10 @@ import { AiFields } from "./AiFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { ConnectButton, ConnectNotes, ConnectNotice } from "./ConnectControls.tsx";
 import { SwapButton } from "./SwapButton.tsx";
-import { isSignedOut, useAiForm } from "./use-ai-form.ts";
+import { type SavedKey, isSignedOut, useAiForm } from "./use-ai-form.ts";
 import { type Loaded, useLoaded } from "./use-settings-load.ts";
 
-type Connection = ReturnType<typeof useAiForm>["connection"];
+type Form = Readonly<ReturnType<typeof useAiForm>>;
 
 function DigestResult({ digest }: Readonly<{ digest: Readonly<Digest> }>) {
   return (
@@ -30,30 +30,30 @@ function DigestResult({ digest }: Readonly<{ digest: Readonly<Digest> }>) {
 function AiActions({
   saveBlocked,
   verifyBlocked,
-  busy,
-  action,
+  phase,
   onVerify,
   children,
 }: Readonly<{
   saveBlocked: boolean;
   verifyBlocked: boolean;
-  busy: boolean;
-  action: "save" | "verify" | null;
+  phase: Form["phase"];
   onVerify: () => void;
   children: ReactNode;
 }>) {
+  const busy = phase !== "idle";
+
   return (
     <div className="ai-actions">
       <SwapButton
         label={AI_TEXT.save}
         busyLabel={AI_TEXT.saving}
-        busy={busy && action === "save"}
+        busy={phase === "saving"}
         blocked={busy || saveBlocked}
       />
       <SwapButton
         label={AI_TEXT.verify}
         busyLabel={AI_TEXT.verifying}
-        busy={busy && action === "verify"}
+        busy={phase === "verifying"}
         blocked={busy || verifyBlocked}
         type="button"
         onClick={onVerify}
@@ -64,21 +64,27 @@ function AiActions({
   );
 }
 
-function keyStatus(provider: Provider, keySaved: boolean): string {
+const KEY_STATUS = {
+  applies: AI_TEXT.keySet,
+  changed: AI_TEXT.keyChanged,
+  none: AI_TEXT.keyMissing,
+} as const;
+
+function keyStatus(provider: Provider, savedKey: SavedKey): string {
   if (provider === "workers-ai") return AI_TEXT.keyNotNeeded;
 
   if (isCliProvider(provider)) return CLI_TEXT[provider].keyNotNeeded;
 
-  return keySaved ? AI_TEXT.keySet : AI_TEXT.keyMissing;
+  return KEY_STATUS[savedKey];
 }
 
-function AiOutcome({ result }: Readonly<{ result: ReturnType<typeof useAiForm>["result"] }>) {
+function AiOutcome({ outcome }: Readonly<{ outcome: Form["outcome"] }>) {
   return (
     <>
-      <output>{result?.kind === "ok" ? result.text : null}</output>
-      <Alert text={result?.kind === "error" ? result.text : null} />
-      {result?.kind === "ok" && result.digest !== undefined ? (
-        <DigestResult digest={result.digest} />
+      <output>{outcome?.kind === "ok" ? outcome.text : null}</output>
+      <Alert text={outcome?.kind === "error" ? outcome.text : null} />
+      {outcome?.kind === "ok" && outcome.digest !== undefined ? (
+        <DigestResult digest={outcome.digest} />
       ) : null}
     </>
   );
@@ -87,63 +93,47 @@ function AiOutcome({ result }: Readonly<{ result: ReturnType<typeof useAiForm>["
 function ProviderNotes({
   view,
   provider,
-  keySaved,
+  savedKey,
   saveBlocked,
-  connection,
 }: Readonly<{
   view: AiView;
   provider: Provider;
-  keySaved: boolean;
+  savedKey: SavedKey;
   saveBlocked: boolean;
-  connection: Connection;
 }>) {
   const signedOut = isSignedOut(view, provider);
   const cli = isCliProvider(provider) ? CLI_TEXT[provider] : null;
 
   return (
     <>
-      <p>{keyStatus(provider, keySaved)}</p>
+      <p>{keyStatus(provider, savedKey)}</p>
       {signedOut && cli !== null ? (
         <p className="fld-help">
           {cli.signedOut} <code>{cli.signInCommand}</code>.
         </p>
       ) : null}
       {saveBlocked && !signedOut ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
-      {provider === "openrouter" ? <ConnectNotes view={view} connection={connection} /> : null}
+      {provider === "openrouter" ? <ConnectNotes view={view} /> : null}
     </>
   );
 }
 
-function AiControls({
-  view,
-  fields,
-  busy,
-  saveBlocked,
-  connection,
-}: Readonly<{
-  view: AiView;
-  fields: ReturnType<typeof useAiForm>["fields"];
-  busy: boolean;
-  saveBlocked: boolean;
-  connection: Connection;
-}>) {
-  const keySaved = view.settings !== null && "keySet" in view.settings && view.settings.keySet;
+function AiControls({ view, form }: Readonly<{ view: AiView; form: Form }>) {
+  const { fields, phase, savedKey, saveBlocked } = form;
 
   return (
     <>
       <AiFields
         fields={fields}
-        providers={view.providers}
-        disabled={busy}
+        disabled={phase !== "idle"}
         publicOnly={view.publicOnly}
-        keyRequired={!keySaved}
+        keyRequired={savedKey !== "applies"}
       />
       <ProviderNotes
         view={view}
         provider={fields.provider}
-        keySaved={keySaved}
+        savedKey={savedKey}
         saveBlocked={saveBlocked}
-        connection={connection}
       />
     </>
   );
@@ -151,7 +141,7 @@ function AiControls({
 
 function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView) => void }>) {
   const form = useAiForm(view, saved);
-  const { fields, busy, saveBlocked, connection, submit } = form;
+  const { fields, phase, saveBlocked, connection, submit } = form;
 
   const onSubmit = useCallback(
     (event: SubmitEvent<HTMLFormElement>) => {
@@ -168,29 +158,22 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
         action="/api/settings/ai"
         className="stack ai-form"
         onSubmit={onSubmit}
-        aria-busy={busy}
+        aria-busy={phase !== "idle"}
       >
-        <AiControls
-          view={view}
-          fields={fields}
-          busy={busy}
-          saveBlocked={saveBlocked}
-          connection={connection}
-        />
+        <AiControls view={view} form={form} />
         <AiActions
           saveBlocked={saveBlocked}
           verifyBlocked={form.verifyBlocked}
-          busy={busy}
-          action={form.action}
+          phase={phase}
           onVerify={form.verifyNow}
         >
           {fields.provider === "openrouter" ? (
-            <ConnectButton view={view} connection={connection} blocked={busy} />
+            <ConnectButton view={view} connection={connection} blocked={phase !== "idle"} />
           ) : null}
         </AiActions>
       </form>
-      <ConnectNotice view={view} />
-      <AiOutcome result={form.result} />
+      <ConnectNotice view={view} notice={form.notice} />
+      <AiOutcome outcome={form.outcome} />
     </>
   );
 }

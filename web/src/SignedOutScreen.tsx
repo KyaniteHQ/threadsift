@@ -16,6 +16,7 @@ export function SignedOutScreen({
   const [justReset, setJustReset] = useState(false);
 
   const openReset = useCallback(() => {
+    setJustReset(false);
     navigate(RESET_PATH);
   }, [navigate]);
 

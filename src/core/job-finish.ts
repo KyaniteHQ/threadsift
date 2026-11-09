@@ -1,6 +1,7 @@
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, isNotNull, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { openingDigest } from "./digest-job.ts";
 import { logFailure } from "./failure-log.ts";
 import { namedKeys } from "./file-cleanup.ts";
 import {
@@ -8,13 +9,14 @@ import {
   STALE_DELAYS_MS,
   type JobCurrency,
   type JobFiles,
+  type JobHandler,
   NO_FILES,
   type JobOutcome,
   type JobPorts,
   type Precondition,
   type SettledOutcome,
 } from "./job-outcome.ts";
-import { enqueueItemJobs, enqueueQuietly, hasOpenJob, holding } from "./job-rows.ts";
+import { CLOSED_JOB, enqueueItemJobs, enqueueQuietly, hasOpenJob, holding } from "./job-rows.ts";
 import type { WaitReason } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, guardHolds, guardedBatch, items, jobs } from "./schema.ts";
@@ -52,6 +54,14 @@ async function unnamed(ports: JobPorts, keys: readonly string[]): Promise<readon
   return keys.filter((key) => !named.has(key));
 }
 
+function owedDigest(db: Database, itemId: number) {
+  return openingDigest(db, {
+    scope: and(eq(items.id, itemId), isNotNull(items.pendingDigest)) ?? sql`0`,
+    address: items.originalUrl,
+    now: Date.now(),
+  }).job;
+}
+
 function closingWrites(
   db: Database,
   job: Readonly<JobRow>,
@@ -62,8 +72,9 @@ function closingWrites(
   return [
     db
       .update(jobs)
-      .set({ state: "done", attempts, claimExpires: null, staleRequeues: 0, page: null })
+      .set({ ...CLOSED_JOB, attempts })
       .where(eq(jobs.id, job.id)),
+    ...(job.kind === "digest" ? [owedDigest(db, job.itemId)] : []),
     db
       .update(items)
       .set({
@@ -102,6 +113,17 @@ export async function finish(
     return precondition;
   }
 
+  await afterClose(ports, job, wrote, files);
+
+  return wrote ? "done" : "lost";
+}
+
+async function afterClose(
+  ports: JobPorts,
+  job: Readonly<JobRow>,
+  wrote: boolean,
+  files: JobFiles,
+): Promise<void> {
   await enqueueItemJobs(ports, job.itemId);
 
   await (wrote
@@ -109,8 +131,34 @@ export async function finish(
     : deleteQuietly(ports, files.written, (keys) => unnamed(ports, keys)));
 
   if (!wrote) logClaimLost(job);
+}
 
-  return wrote ? "done" : "lost";
+export async function exhaust(
+  ports: JobPorts,
+  job: Readonly<JobRow>,
+  handler: Pick<JobHandler, "exhausted" | "inputCurrent">,
+  attempts: number,
+): Promise<void> {
+  const { db } = ports;
+  const sameInput = handler.inputCurrent?.(job);
+
+  const wrote = await guardedBatch(db, and(holding(job), sameInput) ?? holding(job), [
+    ...handler.exhausted(db, job),
+    ...closingWrites(db, job, attempts),
+  ]);
+
+  if (!wrote && sameInput !== undefined && (await guardHolds(db, holding(job)))) {
+    await queueLater(ports, job, {
+      until: Date.now(),
+      attempts: job.attempts,
+      staleRequeues: 0,
+      wait: null,
+    });
+
+    return;
+  }
+
+  await afterClose(ports, job, wrote, NO_FILES);
 }
 
 export async function queueLater(

@@ -25,17 +25,17 @@ export type ProcessEnd =
   | { readonly kind: "over-cap" }
   | { readonly kind: "spawn-failed" };
 
-function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL" | 0): boolean {
+function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
   try {
     process.kill(-pid, signal);
-
-    return true;
   } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ESRCH") return false;
+    if (error instanceof Error && "code" in error && error.code === "ESRCH") return;
 
     throw error;
   }
 }
+
+type Phase = "running" | "stopping" | "exited" | "done";
 
 class Execution {
   private readonly child;
@@ -43,8 +43,10 @@ class Execution {
   private readonly err: Capture;
   private readonly signal: AbortSignal;
   private readonly finish: (end: ProcessEnd) => void;
+  private phase: Phase = "running";
   private overCap = false;
-  private killTimer: NodeJS.Timeout | null = null;
+  private exitCode: number | null = null;
+  private timer: NodeJS.Timeout | null = null;
   private readonly onAbort = (): void => {
     this.stop();
   };
@@ -63,6 +65,12 @@ class Execution {
       stdio: ["pipe", "pipe", "pipe"],
     });
 
+    this.child.on("error", () => {
+      this.failedToStart();
+    });
+
+    if (this.child.pid === undefined) return;
+
     this.child.stdout.on("data", (chunk: Uint8Array) => {
       if (!this.out.add(chunk)) this.overflowed();
     });
@@ -75,14 +83,11 @@ class Execution {
       this.stop();
     });
     this.child.stdin.end(spec.stdin);
-    this.child.on("error", () => {
-      this.failedToStart();
-    });
-    this.child.on("exit", () => {
-      this.reapGroup();
+    this.child.on("exit", (code) => {
+      this.exited(code);
     });
     this.child.on("close", (code) => {
-      this.closed(code);
+      this.settle(code);
     });
     signal.addEventListener("abort", this.onAbort, { once: true });
   }
@@ -92,35 +97,66 @@ class Execution {
     this.stop();
   }
 
-  private stop(): void {
-    const { pid } = this.child;
-
-    if (this.killTimer !== null || pid === undefined || !signalGroup(pid, "SIGTERM")) return;
-
-    this.killTimer = setTimeout(() => {
-      if (signalGroup(pid, 0)) signalGroup(pid, "SIGKILL");
-    }, KILL_GRACE_MS);
+  private arm(afterMs: number, run: () => void): void {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = setTimeout(run, afterMs);
   }
 
-  private reapGroup(): void {
+  private stop(): void {
+    if (this.phase !== "running") return;
+
+    this.phase = "stopping";
+    this.signalChildGroup("SIGTERM");
+    this.arm(KILL_GRACE_MS, () => {
+      this.signalChildGroup("SIGKILL");
+      this.arm(KILL_GRACE_MS, () => {
+        this.abandonPipes();
+      });
+    });
+  }
+
+  private exited(code: number | null): void {
+    if (this.phase === "done") return;
+
+    this.phase = "exited";
+    this.exitCode = code;
+    this.signalChildGroup("SIGKILL");
+    this.arm(KILL_GRACE_MS, () => {
+      this.abandonPipes();
+    });
+  }
+
+  private signalChildGroup(signal: "SIGTERM" | "SIGKILL"): void {
     const { pid } = this.child;
 
-    if (pid !== undefined) signalGroup(pid, "SIGKILL");
+    if (pid !== undefined) signalGroup(pid, signal);
+  }
+
+  private abandonPipes(): void {
+    this.child.stdout.destroy();
+    this.child.stderr.destroy();
+    this.settle(this.exitCode);
   }
 
   private failedToStart(): void {
     if (this.child.pid !== undefined) return;
-    this.signal.removeEventListener("abort", this.onAbort);
-    this.finish({ kind: "spawn-failed" });
+    this.settleWith({ kind: "spawn-failed" });
   }
 
-  private closed(code: number | null): void {
-    if (this.killTimer !== null) clearTimeout(this.killTimer);
-    this.signal.removeEventListener("abort", this.onAbort);
+  private settle(code: number | null): void {
+    if (this.signal.aborted) this.settleWith({ kind: "aborted" });
+    else if (this.overCap) this.settleWith({ kind: "over-cap" });
+    else this.settleWith({ kind: "exited", code, stdout: this.out.text() });
+  }
 
-    if (this.signal.aborted) this.finish({ kind: "aborted" });
-    else if (this.overCap) this.finish({ kind: "over-cap" });
-    else this.finish({ kind: "exited", code, stdout: this.out.text() });
+  private settleWith(end: ProcessEnd): void {
+    if (this.phase === "done") return;
+
+    this.phase = "done";
+
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.signal.removeEventListener("abort", this.onAbort);
+    this.finish(end);
   }
 }
 

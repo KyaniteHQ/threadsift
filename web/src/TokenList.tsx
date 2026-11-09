@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useState } from "react";
+import { type RefObject, useCallback, useRef, useState } from "react";
 
 import type { Token } from "../../src/http/schemas.ts";
 import { revokeToken } from "./access-api.ts";
@@ -6,46 +6,82 @@ import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
 import { TokenRow } from "./TokenRow.tsx";
 
+function useQuestion() {
+  const [asking, setAsking] = useState<number | null>(null);
+  const [focusId, setFocusId] = useState<number | null>(null);
+  const [failed, setFailed] = useState(false);
+  const generation = useRef(0);
+
+  const ask = useCallback((id: number) => {
+    generation.current += 1;
+    setFailed(false);
+    setAsking(id);
+  }, []);
+
+  const cancel = useCallback((id: number) => {
+    generation.current += 1;
+    setFailed(false);
+    setAsking(null);
+    setFocusId(id);
+  }, []);
+
+  const answered = useCallback((id: number, next: number | null) => {
+    generation.current += 1;
+    setFailed(false);
+    setAsking((current) => (current === id ? null : current));
+    setFocusId(next);
+  }, []);
+
+  const refused = useCallback((question: number) => {
+    if (generation.current === question) setFailed(true);
+  }, []);
+
+  return { asking, focusId, failed, generation, refused, ask, cancel, answered };
+}
+
 function useRevoke(
   tokens: readonly Token[],
   removed: (id: number) => void,
   nameField: RefObject<HTMLInputElement | null>,
 ) {
-  const [asking, setAsking] = useState<number | null>(null);
-  const [focusId, setFocusId] = useState<number | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  const cancel = useCallback((id: number) => {
-    setAsking(null);
-    setFocusId(id);
-  }, []);
+  const { asking, focusId, failed, generation, refused, ask, cancel, answered } = useQuestion();
+  const [revoking, setRevoking] = useState(false);
+  const inFlight = useRef(false);
 
   const revoke = useCallback(
     async (id: number) => {
+      if (inFlight.current) return;
+
+      inFlight.current = true;
+      setRevoking(true);
+
+      const question = generation.current;
+
       const index = tokens.findIndex((token) => token.id === id);
       const neighbour = tokens[index + 1] ?? tokens[index - 1];
 
       try {
         await revokeToken(id);
       } catch {
-        setFailed(true);
+        refused(question);
 
         return;
+      } finally {
+        inFlight.current = false;
+        setRevoking(false);
       }
 
-      setFailed(false);
-      setAsking(null);
       removed(id);
-      setFocusId(neighbour?.id ?? null);
+      answered(id, neighbour?.id ?? null);
 
       if (neighbour === undefined) {
         nameField.current?.focus();
       }
     },
-    [nameField, removed, tokens],
+    [answered, generation, nameField, refused, removed, tokens],
   );
 
-  return { asking, focusId, failed, actions: { ask: setAsking, cancel, revoke } };
+  return { asking, focusId, failed, revoking, actions: { ask, cancel, revoke } };
 }
 
 export function TokenList({
@@ -57,7 +93,7 @@ export function TokenList({
   removed: (id: number) => void;
   nameField: RefObject<HTMLInputElement | null>;
 }>) {
-  const { asking, focusId, failed, actions } = useRevoke(tokens, removed, nameField);
+  const { asking, focusId, failed, revoking, actions } = useRevoke(tokens, removed, nameField);
 
   return (
     <>
@@ -69,6 +105,7 @@ export function TokenList({
               key={token.id}
               token={token}
               asking={asking === token.id}
+              revoking={revoking}
               focusRevoke={focusId === token.id}
               actions={actions}
             />

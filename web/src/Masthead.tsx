@@ -6,7 +6,7 @@ import { FilterGhost, FilterPane } from "./Filters.tsx";
 import { PasteBox } from "./PasteBox.tsx";
 import { SettingsPanel } from "./SettingsPanel.tsx";
 import { totalName } from "./text.ts";
-import type { PasteRequest, SaveOutcome } from "./use-paste.ts";
+import type { PasteQueue, SaveOutcome } from "./use-paste.ts";
 import type { Look } from "./use-root.ts";
 
 function Total({ count }: Readonly<{ count: number }>) {
@@ -84,7 +84,7 @@ export function Masthead({
   save,
   focusOnMount,
   items,
-  request,
+  queue,
   open,
 }: Readonly<{
   look: Look;
@@ -97,7 +97,7 @@ export function Masthead({
   save: (target: SaveTarget) => Promise<SaveOutcome>;
   focusOnMount: boolean;
   items: readonly Item[];
-  request: PasteRequest | null;
+  queue: PasteQueue;
   open: (id: number) => void;
 }>) {
   const total = counts !== null && counts.total > 0 ? counts.total : null;
@@ -105,13 +105,7 @@ export function Masthead({
   return (
     <header className="mast">
       <Brand look={look} openSettings={openSettings} total={total} />
-      <PasteBox
-        save={save}
-        focusOnMount={focusOnMount}
-        items={items}
-        request={request}
-        open={open}
-      />
+      <PasteBox save={save} focusOnMount={focusOnMount} items={items} queue={queue} open={open} />
       <FilterSlot
         counts={counts}
         loading={loading}

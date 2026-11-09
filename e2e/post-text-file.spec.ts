@@ -29,8 +29,6 @@ const Status = z.object({ item: z.looseObject({ id: z.number() }) });
 
 const NOT_LISTED_FIELDS = ["postText", "postedAt", "postTextKey", "post_text_key"] as const;
 
-const ROW_TEXT = "the row text that a file or a refusal replaces";
-
 const RAW_CONTROL = /[\p{Cc}\u2028\u2029]/u;
 
 let instance: Instance;
@@ -83,7 +81,7 @@ async function expectNoPostText(id: number, label: string, secret: string): Prom
 test("an Item whose row names a file of over 1,000,000 bytes returns the whole text byte for byte, before and after a restart", async () => {
   test.setTimeout(180_000);
   const bytes = Buffer.from(longText());
-  const id = seeded(ROW_TEXT);
+  const id = seeded();
   const key = `items/${id}/post-text.md`;
 
   expect(bytes.length).toBeGreaterThan(ROW_LIMIT_BYTES);
@@ -113,14 +111,26 @@ test("an Item whose row names a file of over 1,000,000 bytes returns the whole t
 });
 
 test("a row that names a missing key answers 200 without post text, and the log names the key", async () => {
-  const id = seeded(ROW_TEXT);
+  const id = seeded();
   const key = `items/${id}/gone.md`;
 
   nameFile(instance, id, `'${key}'`);
   expect(instance.listFiles(`items/${id}/`)).toEqual([]);
   expect(instance.readFile(key)).toBeNull();
-  await expectNoPostText(id, key, ROW_TEXT);
+  await expectNoPostText(id, key, key);
   await expect.poll(() => unavailableLines(id).join("\n")).toContain(key);
+});
+
+test("a row whose key names another Item's file answers 200 without post text and does not read that file", async () => {
+  const owned = seeded();
+  const other = seeded();
+  const key = `items/${other}/post-text.md`;
+  const secret = "text of another Item";
+
+  instance.writeFile(key, Buffer.from(secret));
+  nameFile(instance, owned, `'${key}'`);
+  await expectNoPostText(owned, key, secret);
+  await expect.poll(() => unavailableLines(owned).join("\n")).toContain(key);
 });
 
 const REFUSED_KEYS = ["../outside", "/etc/passwd", "items/1/..", "items/01/a", "items/1/a\\b"];
@@ -135,7 +145,6 @@ test("a row whose key is ../outside, /etc/passwd, items/1/.., items/01/a or hold
       secret: `outside: ${key}`,
       url: `https://example.com/file-text-${first + index}`,
       title: "Seeded",
-      postText: ROW_TEXT,
       postTextKey: key,
     })),
   );
@@ -155,10 +164,10 @@ test("a row whose key is ../outside, /etc/passwd, items/1/.., items/01/a or hold
 });
 
 test("a key with control characters is logged escaped, never raw", async () => {
-  const id = seeded(ROW_TEXT);
+  const id = seeded();
 
   nameFile(instance, id, "'items/1/' || char(7) || char(27) || char(127) || char(8232) || 'x'");
-  await expectNoPostText(id, "control characters", ROW_TEXT);
+  await expectNoPostText(id, "control characters", "items/1/");
   await expect.poll(() => unavailableLines(id).length).toBeGreaterThan(0);
 
   const [line = ""] = unavailableLines(id);
@@ -207,8 +216,8 @@ test.describe("container folder", () => {
 
   test("a valid key whose leaf, and another whose parent folder, is a symlink to a file outside the store answers without post text, and the sentinel stays unread", async () => {
     const sentinel = "SENTINEL outside the store";
-    const leaf = seeded(ROW_TEXT);
-    const parent = seeded(ROW_TEXT);
+    const leaf = seeded();
+    const parent = seeded();
     const regular = seeded();
 
     inContainer(
