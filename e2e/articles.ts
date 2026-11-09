@@ -120,6 +120,8 @@ export function expectMarkdown(postText: string | null): void {
 
 const LIVE_HOST_FAILURES: ReadonlySet<Fetch> = new Set(["timeout", "status"]);
 
+const LIVE_HOST_PAUSE_MS = 30_000;
+
 export async function livePasted<Result>(
   name: string,
   attempt: () => Promise<Result>,
@@ -132,6 +134,7 @@ export async function livePasted<Result>(
     pasted = await attempted(attempt, fetchOf, {
       retryOn: (fetch) => LIVE_HOST_FAILURES.has(fetch),
       fetches,
+      pauseMs: LIVE_HOST_PAUSE_MS,
     });
   } finally {
     await attachJson(test.info(), `${name}-fetches.json`, JSON.stringify(fetches));
