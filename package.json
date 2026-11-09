@@ -7,7 +7,7 @@
     "build": "vite build",
     "build:worker": "node tools/check-worker-size.ts",
     "build:extension": "pnpm --filter threadsift-extension run build && pnpm --filter threadsift-extension run build:firefox",
-    "check": "pnpm run fmt:check && pnpm run lint && pnpm run check:extension",
+    "check": "pnpm run fmt:check && pnpm run check:extension && pnpm run lint",
     "check:extension": "pnpm --filter threadsift-extension run check",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
