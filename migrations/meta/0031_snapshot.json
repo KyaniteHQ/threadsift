@@ -1,8 +1,8 @@
 {
+  "id": "fc835be0-a0e3-4fc3-8a1c-4d246fe87f90",
+  "prevId": "3b5fdee8-7e74-4176-ac55-2a63fe0fa9c5",
   "version": "6",
   "dialect": "sqlite",
-  "id": "df3c0e84-20eb-47f8-999c-15a51a5c782a",
-  "prevId": "e9a7f90d-9484-437b-9849-625b54ef3544",
   "tables": {
     "agent_tokens": {
       "name": "agent_tokens",
@@ -202,11 +202,11 @@
         "ai_tasks_item_id_items_id_fk": {
           "name": "ai_tasks_item_id_items_id_fk",
           "tableFrom": "ai_tasks",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -460,20 +460,20 @@
         "digests_item_id_items_id_fk": {
           "name": "digests_item_id_items_id_fk",
           "tableFrom": "digests",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "digests_task_id_ai_tasks_id_fk": {
           "name": "digests_task_id_ai_tasks_id_fk",
           "tableFrom": "digests",
-          "tableTo": "ai_tasks",
           "columnsFrom": ["task_id"],
+          "tableTo": "ai_tasks",
           "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -596,11 +596,11 @@
         "github_repos_item_id_items_id_fk": {
           "name": "github_repos_item_id_items_id_fk",
           "tableFrom": "github_repos",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -750,11 +750,11 @@
         "highlights_item_id_items_id_fk": {
           "name": "highlights_item_id_items_id_fk",
           "tableFrom": "highlights",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -802,11 +802,11 @@
         "item_aliases_item_id_items_id_fk": {
           "name": "item_aliases_item_id_items_id_fk",
           "tableFrom": "item_aliases",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -847,20 +847,20 @@
         "item_tags_item_id_items_id_fk": {
           "name": "item_tags_item_id_items_id_fk",
           "tableFrom": "item_tags",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "item_tags_tag_id_tags_id_fk": {
           "name": "item_tags_tag_id_tags_id_fk",
           "tableFrom": "item_tags",
-          "tableTo": "tags",
           "columnsFrom": ["tag_id"],
+          "tableTo": "tags",
           "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1048,11 +1048,11 @@
         "items_topic_id_topics_id_fk": {
           "name": "items_topic_id_topics_id_fk",
           "tableFrom": "items",
-          "tableTo": "topics",
           "columnsFrom": ["topic_id"],
+          "tableTo": "topics",
           "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1140,14 +1140,21 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "page": {
+          "name": "page",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
         "jobs_one_open_per_item_kind": {
           "name": "jobs_one_open_per_item_kind",
           "columns": ["item_id", "kind"],
-          "isUnique": true,
-          "where": "\"jobs\".\"state\" <> 'done'"
+          "where": "\"jobs\".\"state\" <> 'done'",
+          "isUnique": true
         },
         "jobs_state_next_attempt": {
           "name": "jobs_state_next_attempt",
@@ -1159,11 +1166,11 @@
         "jobs_item_id_items_id_fk": {
           "name": "jobs_item_id_items_id_fk",
           "tableFrom": "jobs",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1289,11 +1296,11 @@
         "media_item_id_items_id_fk": {
           "name": "media_item_id_items_id_fk",
           "tableFrom": "media",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1389,11 +1396,11 @@
         "openrouter_connect_transactions_session_digest_sessions_digest_fk": {
           "name": "openrouter_connect_transactions_session_digest_sessions_digest_fk",
           "tableFrom": "openrouter_connect_transactions",
-          "tableTo": "sessions",
           "columnsFrom": ["session_digest"],
+          "tableTo": "sessions",
           "columnsTo": ["digest"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1552,11 +1559,11 @@
         "reddit_comments_item_id_items_id_fk": {
           "name": "reddit_comments_item_id_items_id_fk",
           "tableFrom": "reddit_comments",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1598,11 +1605,11 @@
         "reddit_threads_item_id_items_id_fk": {
           "name": "reddit_threads_item_id_items_id_fk",
           "tableFrom": "reddit_threads",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1661,11 +1668,11 @@
         "search_fingerprints_item_id_items_id_fk": {
           "name": "search_fingerprints_item_id_items_id_fk",
           "tableFrom": "search_fingerprints",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1727,20 +1734,20 @@
         "search_parts_item_id_items_id_fk": {
           "name": "search_parts_item_id_items_id_fk",
           "tableFrom": "search_parts",
-          "tableTo": "items",
           "columnsFrom": ["item_id"],
+          "tableTo": "items",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "search_parts_highlight_id_highlights_id_fk": {
           "name": "search_parts_highlight_id_highlights_id_fk",
           "tableFrom": "search_parts",
-          "tableTo": "highlights",
           "columnsFrom": ["highlight_id"],
+          "tableTo": "highlights",
           "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1987,9 +1994,9 @@
   "views": {},
   "enums": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
+    "tables": {}
   },
   "internal": {
     "indexes": {}

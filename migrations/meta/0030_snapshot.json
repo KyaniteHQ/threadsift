@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e9a7f90d-9484-437b-9849-625b54ef3544",
-  "prevId": "27053289-cca3-4e93-84b9-25531522c72e",
+  "id": "3b5fdee8-7e74-4176-ac55-2a63fe0fa9c5",
+  "prevId": "8b0cf0aa-88c0-4e2f-985c-c251692893fd",
   "tables": {
     "agent_tokens": {
       "name": "agent_tokens",
@@ -269,6 +269,42 @@
         "catalog_is_one_row": {
           "name": "catalog_is_one_row",
           "value": "\"catalog_version\".\"id\" = 1"
+        }
+      }
+    },
+    "data_step_lease": {
+      "name": "data_step_lease",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "holder": {
+          "name": "holder",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "data_step_lease_is_one_row": {
+          "name": "data_step_lease_is_one_row",
+          "value": "\"data_step_lease\".\"id\" = 1"
         }
       }
     },
@@ -1100,6 +1136,13 @@
         },
         "wait_reason": {
           "name": "wait_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "page": {
+          "name": "page",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
