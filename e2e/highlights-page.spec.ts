@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { HIGHLIGHTS_PAGE } from "../web/src/highlights-page-text.ts";
 import { CLEAR_ALL, CLEAR_FILTERS, FILTER_GROUPS } from "../web/src/text.ts";
 import { screenForFile } from "./highlight-screen.ts";
-import { type Library, WORDS, buildLibrary } from "./highlights-page-seed.ts";
+import { type Library, WORDS, buildLibrary, keepNote } from "./highlights-page-seed.ts";
 import {
   HIGHLIGHTS_URL,
   entries,
@@ -13,7 +13,9 @@ import {
   searchBox,
   textsOnPage,
 } from "./highlights-page-ui.ts";
+import { putPost } from "./highlights.ts";
 import { DESKTOP, app, openPanel } from "./look.ts";
+import { marker, run } from "./thread-fixtures.ts";
 
 const screenOf = screenForFile();
 
@@ -126,4 +128,34 @@ test("j and k move between the entries, the slash key focuses the search box, an
   await expect(searchBox(page)).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(links(page).nth(0)).toBeFocused();
+});
+
+test("a Note is listed as the plain text it was saved as, with its Markdown, HTML-like text and line breaks left alone", async () => {
+  const { page } = screenOf();
+  const word = marker("plainnote");
+
+  const body = [
+    `${word} **not bold** and [not a link](https://example.com/x) with _no_ emphasis`,
+    "<b>not bold</b> & <img src=x onerror=alert(1)> &amp; `no code`",
+    "",
+    "# not a heading",
+    "- not a list",
+  ].join("\n");
+
+  const itemId = await putPost(screenOf().context.request, `pl${run}`, "A post for a plain Note.");
+  await keepNote(screenOf(), itemId, body, 1_700_000_100_000);
+
+  await openPage(page, DESKTOP.width);
+  await searchBox(page).fill(word);
+  await expect(entries(page)).toHaveCount(1);
+
+  const text = entries(page).locator(".hp-text");
+
+  await expect(text).toHaveText(body);
+  expect(
+    await text.evaluate((element) => (element instanceof HTMLElement ? element.innerText : "")),
+  ).toBe(body);
+  await expect(text.locator("*")).toHaveCount(0);
+  await expect(entries(page).locator("a:not(.hp-open)")).toHaveCount(0);
+  await expect(entries(page).locator("img")).toHaveCount(0);
 });
