@@ -129,16 +129,16 @@ function assertLinkedNames(
 
 export async function assertDelay(
   screen: FreshScreen,
-  attempts: number,
+  attempt: Readonly<{ count: number; startedAfter: number }>,
   delay: number,
   id: number,
   info: TestInfo,
 ): Promise<void> {
+  const startedBefore = Date.now();
   const task = lastDigestTask(screen);
-
   const job = jobsOf(id, screen.fresh, "digest")[0];
-  expect(
-    (job?.next_attempt_at ?? 0) - ((task?.deadline ?? 0) - AI_DEADLINE_MS),
-  ).toBeGreaterThanOrEqual(delay);
-  await attachJson(info, `retry-${attempts}.json`, JSON.stringify({ job, task }));
+  expect(task?.deadline).toBeGreaterThanOrEqual(attempt.startedAfter + AI_DEADLINE_MS);
+  expect(task?.deadline).toBeLessThanOrEqual(startedBefore + AI_DEADLINE_MS);
+  expect((job?.next_attempt_at ?? 0) - attempt.startedAfter).toBeGreaterThanOrEqual(delay);
+  await attachJson(info, `retry-${attempt.count}.json`, JSON.stringify({ job, task }));
 }

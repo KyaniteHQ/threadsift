@@ -59,6 +59,7 @@ test("Digests skip unconfigured and textless Items, retry network failures on st
   expect(item.postText?.length).toBeGreaterThan(100);
   expect(jobsOf(item.id, screen.fresh, "digest")).toEqual([]);
 
+  const firstStartedAfter = Date.now();
   await configureDigest(screen, {
     provider: "openai-compatible",
     baseUrl: "https://threadsift-digest-unreachable.invalid/v1",
@@ -74,14 +75,15 @@ test("Digests skip unconfigured and textless Items, retry network failures on st
   const first = jobsOf(item.id, screen.fresh, "digest")[0];
   expect(first?.state).toBe("queued");
   expect((await itemOf(request, item.id)).status).toBe("processing");
-  await assertDelay(screen, 1, 30_000, item.id, info);
+  await assertDelay(screen, { count: 1, startedAfter: firstStartedAfter }, 30_000, item.id, info);
   await unchangedOpenDigest(screen, item.id);
 
   if (first === undefined) throw new Error("no Digest job");
+  const secondStartedAfter = Date.now();
   makeJobDue(first.id, screen.fresh);
   await sweepNow(request, screen.fresh);
   await expect.poll(() => jobsOf(item.id, screen.fresh, "digest")[0]?.attempts).toBe(2);
-  await assertDelay(screen, 2, 120_000, item.id, info);
+  await assertDelay(screen, { count: 2, startedAfter: secondStartedAfter }, 120_000, item.id, info);
   makeJobDue(first.id, screen.fresh);
   await sweepNow(request, screen.fresh);
   const end = await settled(request, item.id);
