@@ -1,8 +1,10 @@
 import { type Page, expect, test } from "@playwright/test";
 
+import { SEARCH_LABEL } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { cardTitle, pasteOnly } from "./card.ts";
-import { choice, expectRows } from "./filters.ts";
+import { WIDE, openItemAt, seedWeather, titleLink } from "./deletion-ui.ts";
+import { choice, expectRows, holdRead } from "./filters.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { deferJobs } from "./ingest.ts";
 import { DESKTOP } from "./look.ts";
@@ -71,4 +73,29 @@ test("a Paste of an Item that the filters hide does not scroll to its row when t
   await expect(row(page, last)).toBeVisible();
   await expectRows(page, ids);
   expect(await paneScroll(page, newest)).toBe(0);
+});
+
+test("Escape in the search field while the cleared search is still loading hands the focus to the open Item's row", async () => {
+  const { page } = screen;
+  const all = seedWeather(screen);
+  const second = all[1] ?? 0;
+
+  await openItemAt(page, WIDE, second, 4);
+
+  const search = page.getByRole("searchbox", { name: SEARCH_LABEL });
+
+  await search.fill("no such words");
+  await expectRows(page, []);
+
+  const cleared = await holdRead(page, (url) => !url.searchParams.has("q"));
+
+  await search.fill("");
+  await cleared.reached;
+  await search.focus();
+  await page.keyboard.press("Escape");
+
+  cleared.release();
+  await cleared.delivered;
+  await expectRows(page, all);
+  await expect(titleLink(page, second)).toBeFocused();
 });
