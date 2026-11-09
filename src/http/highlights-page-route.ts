@@ -19,7 +19,7 @@ const listHighlightsRoute = createRoute({
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      "`source` is not one of the listed values, `q` is longer than 200 characters, or `cursor` is not one that an answer gave.",
+      "`source` is not one of the listed values, `q` is longer than 200 characters, or `cursor` is malformed: not `<date>.<highlight or note>.<id>`, or a number in it above 9007199254740991 (the largest safe integer). A well-formed cursor that no page gave is accepted and answers the entries below that position.",
     ),
   },
 });
