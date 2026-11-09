@@ -15,6 +15,7 @@ const ROUTES = [
   "/api/settings/github",
   "/api/settings/github/verify",
   "/api/items",
+  "/api/highlights",
   "/api/items/:id",
   "/api/items/:id/status",
   "/api/items/:id/digest",
