@@ -131,23 +131,57 @@ test("a page that a link cannot take is refused with its field named, and nothin
   expect(await listAll(owner)).toEqual([]);
 });
 
-test("a page over 1,000,000 bytes answers 413 and leaves a saved Item as it was", async () => {
-  const { owner } = library;
-  const url = "https://large-page.invalid/a";
-  const first = await savePage(url, { markdown: WORDS, title: "Kept" });
-  const { item } = SavedItemResponseSchema.parse(await first.json());
+const FILLERS = [
+  { name: "one-byte characters", text: "x" },
+  { name: "two-byte characters", text: "é" },
+  { name: "three-byte characters", text: "€" },
+  { name: "four-byte characters", text: "😀" },
+  { name: "quotes, which JSON escapes to two bytes", text: '"' },
+  { name: "newlines, which JSON escapes to two bytes", text: "\n" },
+  { name: "control characters, which JSON escapes to six bytes", text: "\u0001" },
+];
+
+function pageOfBytes(filler: string, bytes: number): PageBody {
+  const title = "Boundary";
+  const overhead = Buffer.byteLength(JSON.stringify({ markdown: "", title }));
+  const unit = Buffer.byteLength(JSON.stringify(filler)) - 2;
+  const room = bytes - overhead;
+
+  const page = {
+    markdown: filler.repeat(Math.floor(room / unit)) + "x".repeat(room % unit),
+    title,
+  };
+
+  expect(Buffer.byteLength(JSON.stringify(page)), "the page the spec built").toBe(bytes);
+
+  return page;
+}
+
+async function expectBoundary(text: string): Promise<void> {
+  const { owner, instance } = library;
+  const url = `https://boundary-${Date.now()}.invalid/a`;
+
+  const exact = await savePage(url, pageOfBytes(text, PAGE_LIMIT_BYTES));
+
+  expect(exact.status()).toBe(201);
+
+  const { item } = SavedItemResponseSchema.parse(await exact.json());
   const before = await settled(owner, item.id);
+  const jobs = jobsOf(item.id, instance);
 
-  const response = await savePage(url, {
-    markdown: "x".repeat(PAGE_LIMIT_BYTES),
-    title: "Replaced",
-  });
+  const over = await savePage(url, pageOfBytes(text, PAGE_LIMIT_BYTES + 1));
 
-  expect(response.status()).toBe(413);
-  expect(await errorOf(response)).toBe("page: longer than 1,000,000 bytes");
+  expect(over.status()).toBe(413);
+  expect(await errorOf(over)).toBe("page: longer than 1,000,000 bytes");
   expect(await itemOf(owner, item.id)).toEqual(before);
+  expect(jobsOf(item.id, instance)).toEqual(jobs);
   expect(await listAll(owner)).toHaveLength(1);
-});
+}
+
+for (const { name, text } of FILLERS) {
+  test(`a page of ${name} is saved at exactly 1,000,000 bytes and refused one byte over, leaving the Item as it was`, () =>
+    expectBoundary(text));
+}
 
 test("a fetch that is still running when a page arrives cannot overwrite the page", async () => {
   const { owner, instance } = library;
