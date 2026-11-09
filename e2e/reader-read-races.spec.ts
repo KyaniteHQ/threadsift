@@ -1,11 +1,15 @@
 import { type Page, expect, test } from "@playwright/test";
+import { z } from "zod";
 
+import { MARKED_UNREAD } from "../web/src/reader-text.ts";
 import { SEARCH_LABEL } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import { choice, expectRows, holdRead } from "./filters.ts";
 import { type FreshScreen, openSignedIn } from "./fresh-screen.ts";
 import { DESKTOP, afterTwoFrames } from "./look.ts";
 import { openLibrary, openRow, readStateOf, row, seedRows } from "./reader.ts";
+
+const Body = z.object({ readState: z.string() });
 
 let screen: FreshScreen;
 let ids: readonly number[];
@@ -117,4 +121,34 @@ test("a Read state write that finishes after the filters changed counts for the 
   await expect(choice(page, "Read state", "Read")).toContainText("1");
   await expect(choice(page, "Read state", "Unread")).toContainText("0");
   expect(await readStateOf(page, first)).toBe("read");
+});
+
+test("two presses of m before the first answer reach the server one after another and end on the second press", async () => {
+  const { page } = screen;
+  const [first = 0] = ids;
+  await openLibrary(page, DESKTOP.width, "/", 4);
+  await openRow(page, first);
+
+  const sent: string[] = [];
+  const gate = Promise.withResolvers<void>();
+
+  await page.route(/\/api\/items\/\d+\/read-state$/u, async (route) => {
+    sent.push(Body.parse(route.request().postDataJSON()).readState);
+
+    if (sent.length === 1) await gate.promise;
+
+    await route.continue();
+  });
+
+  await page.keyboard.press("m");
+  await expect.poll(() => sent.length).toBe(1);
+  await page.keyboard.press("m");
+  await afterTwoFrames(page);
+  expect(sent, "the second write waits for the first answer").toEqual(["read"]);
+
+  gate.resolve();
+  await expect.poll(() => sent).toEqual(["read", "unread"]);
+  await expect(page.getByRole("status").filter({ hasText: MARKED_UNREAD })).toBeAttached();
+  await expect(row(page, first)).toHaveClass(/\bunread\b/u);
+  expect(await readStateOf(page, first)).toBe("unread");
 });
