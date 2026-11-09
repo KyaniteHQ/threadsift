@@ -2,7 +2,6 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { AiSaveResponseSchema } from "../src/core/ai-contract.ts";
 import { AI_TEXT } from "../web/src/ai-text.ts";
-import { LEAVE_WAIT_MS } from "../web/src/connect-timing.ts";
 import { putSettings } from "./ai.ts";
 import {
   START,
@@ -147,11 +146,11 @@ test("Save and Verify wait while Connect leaves the page, and a navigation that 
     await expect(button(page, AI_TEXT.verify)).toHaveAttribute("aria-disabled", "true");
 
     await button(page, AI_TEXT.save).click({ force: true });
-    await page.clock.fastForward(LEAVE_WAIT_MS / 2);
+    await page.clock.fastForward(5_000);
     await expect(button(page, AI_TEXT.saving)).toBeHidden();
     expect(settingsRows(screen), "Save wrote while Connect was leaving").toBe(0);
 
-    await page.clock.fastForward(LEAVE_WAIT_MS);
+    await page.clock.fastForward(10_000);
     await expect(button(page, AI_TEXT.connect)).toBeVisible();
     await expect(button(page, AI_TEXT.connect)).not.toHaveAttribute("aria-disabled", "true");
     await expect(button(page, AI_TEXT.save)).not.toHaveAttribute("aria-disabled", "true");

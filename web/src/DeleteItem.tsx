@@ -10,7 +10,6 @@ import {
 } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { DELETE_WAIT_MS } from "./delete-timing.ts";
 import { Icon } from "./Icon.tsx";
 import { tabWrapTarget } from "./panel-dom.ts";
 import {
@@ -27,6 +26,8 @@ import { useAfter } from "./use-form.ts";
 type Step = "closed" | "asking" | "pending" | "failed";
 
 const NOTHING = (): void => undefined;
+
+const DELETE_WAIT_MS = 20_000;
 
 function containTab(dialog: HTMLElement, signal: AbortSignal): void {
   dialog.addEventListener(

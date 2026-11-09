@@ -14,15 +14,14 @@ const CHECK_DEADLINE_MS = 10_000;
 
 async function readSession(
   check: Readonly<AbortController>,
-  deadline: number,
   accept: (view: View) => void,
 ): Promise<void> {
   try {
-    accept(await fetchSession(check.signal));
+    accept(
+      await fetchSession(AbortSignal.any([check.signal, AbortSignal.timeout(CHECK_DEADLINE_MS)])),
+    );
   } catch {
     accept(UNREACHABLE);
-  } finally {
-    window.clearTimeout(deadline);
   }
 }
 
@@ -36,11 +35,7 @@ export function useSessionView() {
     const check = new AbortController();
     latest.current = check;
 
-    const deadline = window.setTimeout(() => {
-      check.abort();
-    }, CHECK_DEADLINE_MS);
-
-    void readSession(check, deadline, (next) => {
+    void readSession(check, (next) => {
       if (latest.current === check) setView(next);
     });
   }, []);

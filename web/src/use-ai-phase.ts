@@ -7,8 +7,9 @@ import {
   type ConnectNotice,
 } from "../../src/core/openrouter-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
-import { LEAVE_WAIT_MS } from "./connect-timing.ts";
 import { useAfter, useGuard } from "./use-form.ts";
+
+const LEAVE_WAIT_MS = 10_000;
 
 export type Outcome =
   | { readonly kind: "ok"; readonly text: string; readonly digest?: Digest }

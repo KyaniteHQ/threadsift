@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import type { SaveTarget } from "./api.ts";
@@ -103,7 +103,8 @@ function usePasteQueue() {
     setRequests((current) => current.filter((each) => each.seq !== seq));
   }, []);
 
-  const queue: PasteQueue = { next: requests[0] ?? null, taken };
+  const next = requests[0] ?? null;
+  const queue = useMemo<PasteQueue>(() => ({ next, taken }), [next, taken]);
 
   return { queue, retryItem };
 }

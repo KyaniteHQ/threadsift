@@ -37,7 +37,7 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
 }
 
 export async function sweep(ports: JobPorts): Promise<void> {
-  const failures: unknown[] = [];
+  let first: { readonly error: unknown } | undefined;
 
   for (const [stage, run] of stagesOf(ports, Date.now())) {
     try {
@@ -45,11 +45,10 @@ export async function sweep(ports: JobPorts): Promise<void> {
       await run();
     } catch (error) {
       logFailure("sweep-stage-failed", { stage }, error);
-      failures.push(error);
+
+      first ??= { error };
     }
   }
 
-  const [first] = failures;
-
-  if (failures.length > 0) throw first;
+  if (first !== undefined) throw first.error;
 }

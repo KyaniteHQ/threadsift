@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-import { DELETE_WAIT_MS } from "../web/src/delete-timing.ts";
 import { DELETE_FAILED, DELETE_PENDING } from "../web/src/reader-text.ts";
 import { newCode, newPassword } from "./access.ts";
 import {
@@ -51,7 +50,7 @@ test("a delete that never answers ends in the failed state after the wait, and t
   await askAndConfirm(page);
   await expect(confirmButton(page)).toHaveText(DELETE_PENDING);
 
-  await page.clock.fastForward(DELETE_WAIT_MS - 1000);
+  await page.clock.fastForward(19_000);
   await expect(confirmButton(page)).toHaveText(DELETE_PENDING);
 
   await page.clock.fastForward(2000);
