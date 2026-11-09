@@ -11,8 +11,7 @@ const DEFUDDLE_FIXTURES =
 
 export const RESPONSIVE_PAGE = "https://web.dev/articles/responsive-images";
 
-export const SHARED_WIDTHS_PAGE =
-  "https://css-tricks.com/a-guide-to-the-responsive-images-syntax-in-html/";
+export const SHARED_WIDTHS_PAGE = "https://wordpress.org/news/2024/04/regina/";
 
 export const RESPONSIVE_SVG = "html5-logo-svg-format-550784ff36e4b.svg";
 
