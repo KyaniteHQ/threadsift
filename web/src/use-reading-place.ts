@@ -66,6 +66,48 @@ function onWidthChange(slot: HTMLElement, changed: () => void): () => void {
   };
 }
 
+function loadMovesText(target: EventTarget | null): boolean {
+  return target instanceof HTMLImageElement && !target.hasAttribute("width");
+}
+
+function onImageSettled(slot: HTMLElement, reflowed: () => void): () => void {
+  const controller = new AbortController();
+
+  const afterFrames = (): void => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (!controller.signal.aborted) reflowed();
+      });
+    });
+  };
+
+  const swaps = new MutationObserver((records) => {
+    const lostImage = records.some(({ removedNodes }) =>
+      Array.from(removedNodes).some(
+        (node) =>
+          node instanceof HTMLElement &&
+          (node.matches("img") || node.querySelector("img") !== null),
+      ),
+    );
+
+    if (lostImage) afterFrames();
+  });
+
+  swaps.observe(slot, { childList: true, subtree: true });
+  slot.addEventListener(
+    "load",
+    (event) => {
+      if (loadMovesText(event.target)) afterFrames();
+    },
+    { capture: true, signal: controller.signal },
+  );
+
+  return () => {
+    swaps.disconnect();
+    controller.abort();
+  };
+}
+
 function watchPlace(slot: HTMLElement, itemId: number): PlaceWatch {
   const settler = newSettler(slot);
   let seen = placeOf(itemId);
@@ -99,6 +141,8 @@ function watchPlace(slot: HTMLElement, itemId: number): PlaceWatch {
   window.addEventListener("pagehide", save);
   const unwatchWidth = onWidthChange(slot, reflowed);
 
+  const unwatchImages = onImageSettled(slot, reflowed);
+
   return {
     reflowed,
     stop: () => {
@@ -107,6 +151,7 @@ function watchPlace(slot: HTMLElement, itemId: number): PlaceWatch {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("pagehide", save);
       slot.removeEventListener("scroll", onScroll);
+      unwatchImages();
       unwatchWidth();
       keepPlace(itemId, anchorAt(slot));
     },

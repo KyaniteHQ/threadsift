@@ -317,7 +317,7 @@ a.btn { text-decoration: none; }
    ------------------------------------------------------------------------- */
 .reader-slot { min-width: 0; background: var(--reader-bg); overflow-anchor: none; }   /* the app keeps the reading place itself, so the browser's scroll anchoring is off */
 .reader-ph { display: grid; place-items: center; align-content: center; gap: var(--s3); color: var(--muted); text-align: center; }
-[data-reader="pane"] .reader-slot, [data-reader="pane"] .reader-ph { grid-column: 3; grid-row: 1 / -1; min-height: 0; overflow-y: auto; }
+[data-reader="pane"] .reader-slot, [data-reader="pane"] .reader-ph { position: relative; grid-column: 3; grid-row: 1 / -1; min-height: 0; overflow-y: auto; }
 [data-reader="pane"][data-bp~="medium"] .reader-slot, [data-reader="pane"][data-bp~="medium"] .reader-ph { grid-column: 2; grid-row: 2 / -1; }
 [data-reader="page"] .reader-slot { position: fixed; inset: 0; z-index: var(--z-reader); overflow-y: auto; }
 [data-reader="sheet"] .reader-slot { position: fixed; z-index: var(--z-sheet); top: var(--s5); bottom: var(--s5); left: 50%; width: var(--sheet-now); overflow-y: auto; transform: translateX(-50%); border-radius: var(--r3); box-shadow: var(--shadow-lg); }
@@ -397,6 +397,9 @@ a.btn { text-decoration: none; }
 
 .rd-media { overflow: hidden; border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface-2); }
 .rd-media .pic { height: auto; max-height: var(--media-max); object-fit: contain; object-position: center top; }
+.md .rd-media { display: block; width: fit-content; max-width: 100%; }
+.md .rd-media .pic { width: auto; max-width: 100%; }
+.md .rd-media + .rd-media { margin-top: var(--s3); }
 [data-theme="dark"] .rd-media { border-color: transparent; }
 .rd-byline { display: flex; align-items: center; gap: var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
 .rd-byline strong { color: var(--text); }

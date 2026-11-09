@@ -217,7 +217,7 @@ export const SETTINGS = [
     kind: "segments",
     group: "Cards and tags",
     look: true,
-    shown: false,
+    shown: true,
     default: "on",
     options: [
       { id: "on", label: "On" },

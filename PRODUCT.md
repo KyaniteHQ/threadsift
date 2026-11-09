@@ -60,6 +60,6 @@ Karakeep, the closest open-source tool, has no comment-thread model, so a saved 
 - Every text and background pair is at least 4.5:1 in every theme with every accent and Style.
 - Every mark, icon and border a person needs to see a control or its state is at least 3:1 in the same combinations (W3C, WCAG 2.2 Non-text Contrast). Dividers, and the edge of a control that shows visible text, may be fainter.
 - Text is never under 12px.
-- Under 480px every target is at least 44px.
+- Under 480px every target is at least 44px, except a link inside post or comment text, which keeps the size of its sentence (WCAG 2.2 SC 2.5.8, Inline exception).
 - The open row is marked by a bar as well as by colour.
 - Motion has a reduced-motion form.

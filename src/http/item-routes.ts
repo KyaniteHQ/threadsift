@@ -61,7 +61,7 @@ const listItemsRoute = createRoute({
   responses: {
     200: jsonBody(
       ItemListResponseSchema,
-      "The Items that match every filter given, newest saved first, without their post text. Read `GET /api/items/{id}` for the text. `q` matches Items that hold every word it contains, as the start of a word, in the title, post text, Summary or Tags; `topic` and `tag` match a Topic or Tag name with case and spacing ignored. `counts` holds the library totals, and for each Source, Read state, Topic and Tag the number of Items a choice leaves given the other filters.",
+      "The Items that match every filter given, newest saved first, without their post text. Read `GET /api/items/{id}` for the text. `image` is the Item's first stored image, as its file-route path and alt text, or null. `q` matches Items that hold every word it contains, as the start of a word, in the title, post text, Summary or Tags; `topic` and `tag` match a Topic or Tag name with case and spacing ignored. `counts` holds the library totals, and for each Source, Read state, Topic and Tag the number of Items a choice leaves given the other filters.",
     ),
     400: jsonBody(
       ErrorResponseSchema,
@@ -77,7 +77,7 @@ const getItemRoute = createRoute({
   responses: {
     200: jsonBody(
       ItemDetailResponseSchema,
-      "The Item, with its status, reason, last fetch result, post text and posted date. `comments` holds the Kept comments of the stored Digest and the Context stubs they need, in thread order, with three separate counts: `reported` (the post's own count, null for a comment link or a thread sent without one), `received` (the comments in the stored thread) and `kept`. `highlights` holds the owner's Highlights, attached and unattached, with the text revisions a new Highlight must name (`POST /api/items/{id}/highlights`).",
+      "The Item, with its status, reason, last fetch result, post text and posted date. `comments` holds the Kept comments of the stored Digest and the Context stubs they need, in thread order, with three separate counts: `reported` (the post's own count, null for a comment link or a thread sent without one), `received` (the comments in the stored thread) and `kept`. `images` holds the file-route path, width and height of each stored image whose size was read, for the Reader to reserve its space. `highlights` holds the owner's Highlights, attached and unattached, with the text revisions a new Highlight must name (`POST /api/items/{id}/highlights`).",
     ),
     404: jsonBody(ErrorResponseSchema, "No Item has this id."),
   },

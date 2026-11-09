@@ -5,7 +5,7 @@ import { highlightRows, highlightsViewOf } from "./highlights.ts";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
 import { JOINED_VIEW_COLUMNS } from "./joined-view.ts";
 import type { Database, Ports } from "./ports.ts";
-import { postTextOf } from "./post-text.ts";
+import { postTextOf, sizedImageRows, sizedImagesOf } from "./post-text.ts";
 import { REPOSITORY_COLUMNS } from "./repositories.ts";
 import { digests, githubRepos, itemTags, items, tags } from "./schema.ts";
 import { commentsOf, threadReads } from "./thread-read.ts";
@@ -20,6 +20,8 @@ export const EMPTY_JOINED_VIEW = {
   commentsTotal: null,
   waitReason: null,
   retryAt: null,
+  imageKey: null,
+  imageAlt: null,
 } as const;
 
 const {
@@ -81,22 +83,24 @@ function readerDigest(
 }
 
 export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
-  const [[row], [stored], tagRows, [repository], threadRows, threadReport, held] = await db.batch([
-    selectItems(db, {
-      ...DETAIL_COLUMNS,
-      revision: sql<number>`${items.generation}`.as("post_revision"),
-    }).where(eq(items.id, id)),
-    db.select({ digest: digests.digest }).from(digests).where(eq(digests.itemId, id)),
-    db
-      .select({ name: tags.name })
-      .from(itemTags)
-      .innerJoin(tags, eq(tags.id, itemTags.tagId))
-      .where(eq(itemTags.itemId, id))
-      .orderBy(asc(sql`${itemTags}.rowid`)),
-    db.select(REPOSITORY_COLUMNS).from(githubRepos).where(eq(githubRepos.itemId, id)),
-    ...threadReads(db, id),
-    highlightRows(db, id),
-  ]);
+  const [[row], [stored], tagRows, [repository], threadRows, threadReport, held, sizes] =
+    await db.batch([
+      selectItems(db, {
+        ...DETAIL_COLUMNS,
+        revision: sql<number>`${items.generation}`.as("post_revision"),
+      }).where(eq(items.id, id)),
+      db.select({ digest: digests.digest }).from(digests).where(eq(digests.itemId, id)),
+      db
+        .select({ name: tags.name })
+        .from(itemTags)
+        .innerJoin(tags, eq(tags.id, itemTags.tagId))
+        .where(eq(itemTags.itemId, id))
+        .orderBy(asc(sql`${itemTags}.rowid`)),
+      db.select(REPOSITORY_COLUMNS).from(githubRepos).where(eq(githubRepos.itemId, id)),
+      ...threadReads(db, id),
+      highlightRows(db, id),
+      sizedImageRows(db, id),
+    ]);
 
   if (row === undefined) {
     return row;
@@ -113,6 +117,7 @@ export async function getItem({ db, files }: Readonly<Pick<Ports, "db" | "files"
       tagRows.map((tag) => tag.name),
     ),
     repository: repository ?? null,
+    images: sizedImagesOf(sizes),
     comments: commentsOf(threadRows, threadReport),
     highlights: highlightsViewOf(held, {
       post: revision,

@@ -17,6 +17,25 @@ export async function mediaKeysOf(db: Database, itemId: number): Promise<readonl
   return rows.flatMap(({ key }) => (key === null ? [] : [key]));
 }
 
+function incomingColumns(itemId: number) {
+  return {
+    id: sql<null>`null`.as("id"),
+    itemId: sql<number>`${itemId}`.as("item_id"),
+    kind: sql<MediaKind>`${FIELD("kind")}`.as("kind"),
+    sourceUrl: sql<string>`${FIELD("sourceUrl")}`.as("source_url"),
+    finalUrl: sql<string | null>`${FIELD("finalUrl")}`.as("final_url"),
+    position: sql<number>`${FIELD("position")}`.as("position"),
+    alt: sql<string>`${FIELD("alt")}`.as("alt"),
+    width: sql<number | null>`${FIELD("width")}`.as("width"),
+    height: sql<number | null>`${FIELD("height")}`.as("height"),
+    outcome: sql<MediaOutcome>`${FIELD("outcome")}`.as("outcome"),
+    reason: sql<string | null>`${FIELD("reason")}`.as("reason"),
+    fileKey: sql<string | null>`${FIELD("fileKey")}`.as("file_key"),
+    contentType: sql<string | null>`${FIELD("contentType")}`.as("content_type"),
+    size: sql<number | null>`${FIELD("size")}`.as("size"),
+  };
+}
+
 export function mediaWrites(
   db: Database,
   itemId: number,
@@ -32,25 +51,16 @@ export function mediaWrites(
       .insert(media)
       .select(
         db
-          .select({
-            id: sql<null>`null`.as("id"),
-            itemId: sql<number>`${itemId}`.as("item_id"),
-            kind: sql<MediaKind>`${FIELD("kind")}`.as("kind"),
-            sourceUrl: sql<string>`${FIELD("sourceUrl")}`.as("source_url"),
-            finalUrl: sql<string | null>`${FIELD("finalUrl")}`.as("final_url"),
-            position: sql<number>`${FIELD("position")}`.as("position"),
-            outcome: sql<MediaOutcome>`${FIELD("outcome")}`.as("outcome"),
-            reason: sql<string | null>`${FIELD("reason")}`.as("reason"),
-            fileKey: sql<string | null>`${FIELD("fileKey")}`.as("file_key"),
-            contentType: sql<string | null>`${FIELD("contentType")}`.as("content_type"),
-            size: sql<number | null>`${FIELD("size")}`.as("size"),
-          })
+          .select(incomingColumns(itemId))
           .from(sql`json_each(${json})`)
           .where(sql`1`),
       )
       .onConflictDoUpdate({
         target: [media.itemId, media.kind, media.sourceUrl],
         set: {
+          alt: sql`excluded.alt`,
+          width: sql`excluded.width`,
+          height: sql`excluded.height`,
           finalUrl: sql`excluded.final_url`,
           position: sql`excluded.position`,
           outcome: sql`excluded.outcome`,

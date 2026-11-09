@@ -16,6 +16,7 @@ import {
 } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
+import { type ImageColumns, ItemImageSchema, SizedImageSchema, imageOf } from "./item-image.ts";
 
 const HttpUrlSchema = z.url({ protocol: /^https?$/u });
 
@@ -41,6 +42,7 @@ const ItemBaseSchema = z.object({
   commentsKept: z.number().int().nonnegative().nullable(),
   commentsTotal: z.number().int().nonnegative().nullable(),
   wait: WaitSchema.nullable(),
+  image: ItemImageSchema.nullable(),
 });
 
 const RepositorySchema = z.object({
@@ -83,6 +85,7 @@ const ItemDetailSchema = withStatus(
     postText: z.string().nullable(),
     digest: ReaderDigestSchema.nullable(),
     repository: RepositorySchema.nullable(),
+    images: z.array(SizedImageSchema).readonly(),
     comments: CommentsViewSchema,
     highlights: HighlightsViewSchema,
   }),
@@ -232,7 +235,7 @@ type StatusRow = Pick<ItemRow, "id" | "status" | "reason"> & {
   readonly digestSource: boolean;
   readonly waitReason: WaitReason | null;
   readonly retryAt: number | null;
-};
+} & ImageColumns;
 
 type Wait = z.infer<typeof WaitSchema>;
 
@@ -275,9 +278,19 @@ function statusOf(item: Readonly<StatusRow>): StatusFields {
 
 export function itemView<Row extends StatusRow>(
   row: Readonly<Row>,
-): Omit<Row, "status" | "reason" | "digestSource" | "waitReason" | "retryAt"> &
-  StatusFields & { readonly wait: Wait | null } {
-  const { digestSource: _digestSource, waitReason: _waitReason, retryAt: _retryAt, ...view } = row;
+): Omit<Row, keyof ImageColumns | "status" | "reason" | "digestSource" | "waitReason" | "retryAt"> &
+  StatusFields & {
+    readonly wait: Wait | null;
+    readonly image: z.infer<typeof ItemImageSchema> | null;
+  } {
+  const {
+    digestSource: _digestSource,
+    waitReason: _waitReason,
+    retryAt: _retryAt,
+    imageKey: _imageKey,
+    imageAlt: _imageAlt,
+    ...view
+  } = row;
 
-  return { ...view, ...statusOf(row), wait: waitOf(row) };
+  return { ...view, ...statusOf(row), wait: waitOf(row), image: imageOf(row) };
 }

@@ -1,7 +1,6 @@
 import {
   type ComponentProps,
   type ReactNode,
-  createContext,
   memo,
   use,
   useEffect,
@@ -11,12 +10,19 @@ import {
 } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { z } from "zod";
 
-import { FOOTNOTE_LABEL_ID, readerUrl } from "../../src/core/reader-url.ts";
+import { readerUrl } from "../../src/core/reader-url.ts";
 import { CodeBlock } from "./CodeBlock.tsx";
 import { FOOTNOTES_LABEL, FOOTNOTE_BACK, FOOTNOTE_BACK_AGAIN, tableName } from "./reader-text.ts";
+import { FootnoteScope, type Generated, Link, classed, scoped } from "./ReaderLink.tsx";
 import { watchFades } from "./scroll-fades.ts";
+import {
+  NO_IMAGES,
+  Picture,
+  PictureScope,
+  type SizedImages,
+  usePictures,
+} from "./StoredPicture.tsx";
 import { filled } from "./text.ts";
 
 interface Node {
@@ -56,22 +62,6 @@ function columnsOf(node: Node | undefined): number {
   return (row?.children ?? []).filter((cell) => cell.type === "element").length;
 }
 
-const FootnoteScope = createContext("");
-
-function scoped(scope: string, id: string | undefined): string | undefined {
-  return id === FOOTNOTE_LABEL_ID ? `${scope}-${id}` : id;
-}
-
-interface Generated {
-  readonly id?: string | undefined;
-  readonly className?: string | undefined;
-  readonly children?: ReactNode;
-}
-
-function classed(base: string, extra: string | undefined): string {
-  return extra === undefined ? base : `${base} ${extra}`;
-}
-
 function Heading({
   tag: Tag,
   base,
@@ -98,53 +88,6 @@ function H3(props: Readonly<Generated>) {
 
 function H4(props: Readonly<Generated>) {
   return <Heading tag="h6" base="h h-3" {...props} />;
-}
-
-interface LinkAttributes extends Generated {
-  readonly href?: string | undefined;
-  readonly "aria-label"?: string | undefined;
-  readonly "aria-describedby"?: string | undefined;
-  readonly "data-footnote-ref"?: string | undefined;
-  readonly "data-footnote-backref"?: string | undefined;
-}
-
-function Link({
-  href,
-  id,
-  className,
-  children,
-  "aria-label": label,
-  "aria-describedby": describedBy,
-  "data-footnote-ref": footnoteRef,
-  "data-footnote-backref": footnoteBackref,
-}: Readonly<LinkAttributes>) {
-  const scope = use(FootnoteScope);
-
-  if (href === undefined || href === "") return <span>{children}</span>;
-
-  const inside = href.startsWith("#");
-
-  return (
-    <a
-      id={id}
-      className={classed("il-a", className)}
-      href={href}
-      target={inside ? undefined : "_blank"}
-      rel={inside ? undefined : "noopener noreferrer"}
-      aria-label={label}
-      aria-describedby={scoped(scope, describedBy)}
-      data-footnote-ref={footnoteRef}
-      data-footnote-backref={footnoteBackref}
-    >
-      {children}
-    </a>
-  );
-}
-
-function Picture({ src, alt }: Readonly<{ src?: string | undefined; alt?: string | undefined }>) {
-  const href = z.string().catch("").parse(src);
-
-  return <Link href={href}>{alt === undefined || alt === "" ? href : alt}</Link>;
 }
 
 function Block({ node }: Readonly<WithNode>) {
@@ -205,9 +148,16 @@ const FOOTNOTES: NonNullable<ComponentProps<typeof Markdown>["remarkRehypeOption
   footnoteLabelProperties: { className: ["vh"] },
 };
 
-export const PostText = memo(function PostText({ text }: Readonly<{ text: string }>) {
+export const PostText = memo(function PostText({
+  text,
+  itemId = null,
+  images = NO_IMAGES,
+}: Readonly<{ text: string; itemId?: number | null; images?: SizedImages }>) {
   const root = useRef<HTMLDivElement>(null);
   const scope = useId();
+
+  const pictures = usePictures(itemId, images);
+
   const options = useMemo(() => ({ ...FOOTNOTES, clobberPrefix: `${scope}-` }), [scope]);
 
   useEffect(() => (root.current === null ? undefined : watchFades(root.current)), []);
@@ -215,14 +165,16 @@ export const PostText = memo(function PostText({ text }: Readonly<{ text: string
   return (
     <div ref={root} className="md">
       <FootnoteScope value={scope}>
-        <Markdown
-          remarkPlugins={PLUGINS}
-          remarkRehypeOptions={options}
-          components={COMPONENTS}
-          urlTransform={readerUrl}
-        >
-          {text}
-        </Markdown>
+        <PictureScope value={pictures}>
+          <Markdown
+            remarkPlugins={PLUGINS}
+            remarkRehypeOptions={options}
+            components={COMPONENTS}
+            urlTransform={readerUrl}
+          >
+            {text}
+          </Markdown>
+        </PictureScope>
       </FootnoteScope>
     </div>
   );

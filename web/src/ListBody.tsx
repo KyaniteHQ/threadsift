@@ -84,6 +84,7 @@ export function ListHeadGhost() {
 function ItemList({
   items,
   loadedAt,
+  cardImages,
   openId,
   attention,
   attended,
@@ -93,6 +94,7 @@ function ItemList({
 }: Readonly<{
   items: readonly Item[];
   loadedAt: number;
+  cardImages: boolean;
   openId: number | null;
   attention: Attention;
   attended: () => void;
@@ -112,6 +114,7 @@ function ItemList({
           <ItemRow
             item={item}
             now={loadedAt}
+            cardImages={cardImages}
             isOpen={item.id === openId}
             attention={item.id === attention?.id ? attention : null}
             attended={attended}
@@ -135,8 +138,22 @@ function EmptyLibrary() {
   );
 }
 
+interface ListBodyProps {
+  readonly list: ListState;
+  readonly cardImages: boolean;
+  readonly openId: number | null;
+  readonly attention: Attention;
+  readonly attended: () => void;
+  readonly retry: () => void;
+  readonly tryAgain: (item: Item) => void;
+  readonly clearAll: () => void;
+  readonly open: (id: number) => void;
+  readonly toggleRead: (item: Item) => void;
+}
+
 export const ListBody = memo(function ListBody({
   list,
+  cardImages,
   openId,
   attention,
   attended,
@@ -145,17 +162,7 @@ export const ListBody = memo(function ListBody({
   clearAll,
   open,
   toggleRead,
-}: Readonly<{
-  list: ListState;
-  openId: number | null;
-  attention: Attention;
-  attended: () => void;
-  retry: () => void;
-  tryAgain: (item: Item) => void;
-  clearAll: () => void;
-  open: (id: number) => void;
-  toggleRead: (item: Item) => void;
-}>) {
+}: Readonly<ListBodyProps>) {
   if (list.status === "loading") {
     return <Loading />;
   }
@@ -176,6 +183,7 @@ export const ListBody = memo(function ListBody({
     <ItemList
       items={list.items}
       loadedAt={list.loadedAt}
+      cardImages={cardImages}
       openId={openId}
       attention={attention}
       attended={attended}

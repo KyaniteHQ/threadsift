@@ -291,7 +291,7 @@ Opening an item grows its card or row into the reader over `--dur-move` (280ms) 
 - **Do** add a new Look option as a `data-*` rule on the app root that lists only the tokens it changes, and add the option to the settings table in `design/system/settings-table.ts`.
 - **Do** keep every text and background pair at 4.5:1 or more, and every mark, icon and border a person needs to see a control or its state at 3:1 or more, in every theme with every accent and Style.
 - **Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or an empty unread dot. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.
-- **Do** make every target at least 44px under 480px.
+- **Do** make every target at least 44px under 480px, except a link inside rendered post or comment text (`.md`), which keeps the size of the sentence around it (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).
 - **Do** mark the open row with its 3px bar as well as its tint.
 - **Do** give every animation a reduced-motion form.
 - **Do** keep the reading column at the Text width setting's measure, and keep the unread dot on the first metadata line, never on a picture.
