@@ -6,12 +6,14 @@ import { registerDeleteItemRoute } from "./delete-item-route.ts";
 import { registerFileRoutes } from "./file-routes.ts";
 import { registerHighlightRoutes } from "./highlight-routes.ts";
 import { registerItemRoutes } from "./item-routes.ts";
+import { registerReadStateRoute } from "./read-state-route.ts";
 import { registerSettingsRoutes } from "./settings-routes.ts";
 import { registerShareRoutes } from "./share-routes.ts";
 
 export function registerRoutes(app: OpenAPIHono, ports: Ports): void {
   registerAccessRoutes(app, ports);
   registerItemRoutes(app, ports);
+  registerReadStateRoute(app, ports);
   registerDeleteItemRoute(app, ports);
   registerFileRoutes(app, ports);
   registerHighlightRoutes(app, ports);

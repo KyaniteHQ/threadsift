@@ -6,7 +6,7 @@ import { itemPath } from "../core/item-path.ts";
 import { getItem, getListedItem, listItems } from "../core/item-selection.ts";
 import { paste } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
-import { setReadState } from "../core/read-state.ts";
+import { itemView, shownItems } from "./item-view.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import {
   ErrorResponseSchema,
@@ -15,11 +15,8 @@ import {
   ItemListResponseSchema,
   ItemQuerySchema,
   ItemResponseSchema,
-  ReadStateRequestSchema,
   SaveItemRequestSchema,
   SavedItemResponseSchema,
-  itemView,
-  shownItems,
 } from "./schemas.ts";
 
 export const NOT_FOUND = "Not found";
@@ -117,34 +114,6 @@ const retryDigestRoute = createRoute({
   },
 });
 
-const setReadStateRoute = createRoute({
-  method: "put",
-  path: "/api/items/{id}/read-state",
-  request: { params: IdParamSchema, body: jsonRequest(ReadStateRequestSchema) },
-  responses: {
-    200: jsonBody(
-      ItemResponseSchema,
-      "The Item as the list shows it, with the Read state the owner set. Setting the state an Item already has changes nothing. Only the owner's session may call this; an agent token gets 403.",
-    ),
-    400: jsonBody(ErrorResponseSchema, "`readState` is not `read` or `unread`."),
-    404: jsonBody(ErrorResponseSchema, "No Item has this id."),
-  },
-});
-
-function registerReadStateRoute(app: OpenAPIHono, ports: Ports): void {
-  app.openapi(setReadStateRoute, async (c) => {
-    const item = await setReadState(
-      ports.db,
-      c.req.valid("param").id,
-      c.req.valid("json").readState,
-    );
-
-    return item === undefined
-      ? c.json({ error: NOT_FOUND }, 404)
-      : c.json({ item: itemView(item) }, 200);
-  });
-}
-
 function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(saveItemRoute, async (c) => {
     const { url, digest, content, page } = c.req.valid("json");
@@ -174,7 +143,6 @@ function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
 }
 
 export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
-  registerReadStateRoute(app, ports);
   registerSaveRoute(app, ports);
   app.openapi(retryDigestRoute, async (c) => {
     const item = await retryDigest(ports, c.req.valid("param").id);
