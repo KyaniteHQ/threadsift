@@ -22,6 +22,7 @@ export function topBlock(page: Page): Promise<string> {
 
 export const PlaceSchema = z.object({
   index: z.number(),
+  text: z.string(),
   fraction: z.number(),
   offset: z.number(),
 });
@@ -30,6 +31,7 @@ export const PlacesSchema = z.record(z.string(), PlaceSchema);
 
 export const PLACES_KEY = "threadsift:reading-places";
 const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";
+const PASSAGE_LENGTH = 80;
 
 export async function savedPlaces(page: Page): Promise<z.infer<typeof PlacesSchema>> {
   const stored = await page.evaluate((key) => sessionStorage.getItem(key), PLACES_KEY);
@@ -56,6 +58,17 @@ export async function storePlace(page: Page, id: number, place: z.infer<typeof P
       sessionStorage.setItem(args.key, args.value);
     },
     { key: PLACES_KEY, value },
+  );
+}
+
+export function blockText(page: Page, index: number): Promise<string> {
+  return slot(page).evaluate(
+    (element, args) =>
+      (element.querySelectorAll(args.anchors)[args.at]?.textContent ?? "")
+        .replaceAll(/\s+/gu, " ")
+        .trim()
+        .slice(0, args.length),
+    { anchors: ANCHORS, at: index, length: PASSAGE_LENGTH },
   );
 }
 
@@ -98,12 +111,14 @@ export async function sharePlace(page: Page, first: number, tall: number): Promi
   await openRow(page, tall);
   await expect(page.locator(".md")).toContainText("Tall paragraph 40");
   const tallTop = await blockTop(page, index);
+  const tallText = await blockText(page, index);
 
   await openRow(page, first);
   await expect(page.locator(".md")).toContainText("Item 1 paragraph 40");
 
   await storePlace(page, tall, {
     index,
+    text: tallText,
     fraction: place?.fraction ?? 0,
     offset: (place?.offset ?? 0) + tallTop - firstTop,
   });

@@ -10,7 +10,7 @@ import {
   sharePlace,
   topBlock,
 } from "./reader-place.ts";
-import { openLibrary, openRow, paragraphs, seedRows, slot } from "./reader.ts";
+import { openLibrary, openRow, paragraphs, rewritePostText, seedRows, slot } from "./reader.ts";
 
 const ROWS = 3;
 const SIDE_BY_SIDE = 800;
@@ -113,4 +113,23 @@ test("an Item left before its place settled is not moved by the old Item's pendi
   await afterTwoFrames(page);
   expect(await scrollOf(page)).toBe(atFirst);
   expect(await topBlock(page)).toBe(settled);
+});
+
+test("a saved place follows its passage when blocks are added before it, and gives way to the top when the passage is gone", async () => {
+  const { page } = screen;
+  const [first = 0] = ids;
+  await openLibrary(page, DESKTOP.width, "/", ROWS);
+  await openRow(page, first);
+  await expect(page.locator(".md")).toContainText("Item 1 paragraph 40");
+  const half = await scrollAndSettle(page, first, 0.5);
+
+  rewritePostText(screen, first, `${paragraphs(6, "Added")}\n\n${paragraphs(40, "Item 1")}`);
+  await page.reload();
+  await expect(page.locator(".md")).toContainText("Added paragraph 6");
+  await expect.poll(() => topBlock(page), { message: "after blocks were added" }).toBe(half);
+
+  rewritePostText(screen, first, paragraphs(40, "Changed"));
+  await page.reload();
+  await expect(page.locator(".md")).toContainText("Changed paragraph 40");
+  await expect.poll(() => scrollOf(page), { message: "after the passage was removed" }).toBe(0);
 });
