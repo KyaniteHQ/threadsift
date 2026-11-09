@@ -1,4 +1,4 @@
-import { and, eq, lt, lte, sql } from "drizzle-orm";
+import { and, eq, gt, lt, lte, sql } from "drizzle-orm";
 
 import { TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
 import { catalogKeyStep } from "./catalog-key-step.ts";
@@ -14,6 +14,10 @@ const UNITS_PER_RUN = 100;
 const LEASE_ROW = 1;
 
 const LEASE_MS = 30_000;
+
+const LEASE_WAIT_MS = 5_000;
+
+const LEASE_POLL_MS = 100;
 
 const STEPS: readonly DataStep[] = [
   { name: "item-identity", version: ITEM_IDENTITY_VERSION, advance: advanceItemIdentity },
@@ -125,14 +129,35 @@ async function pending(db: Database): Promise<boolean> {
   return STEPS.some(({ name, version }) => (versions.get(name) ?? 0) < version);
 }
 
-export async function dataStepsFinished(db: Database): Promise<boolean> {
-  if (!(await pending(db))) {
-    return true;
-  }
+async function otherRunHolds(db: Database): Promise<boolean> {
+  const [held] = await db
+    .select({ id: dataStepLease.id })
+    .from(dataStepLease)
+    .where(and(eq(dataStepLease.id, LEASE_ROW), gt(dataStepLease.expiresAt, Date.now())));
 
+  return held !== undefined;
+}
+
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function settled(db: Database, deadline: number): Promise<boolean> {
   await migrateData(db).catch((error: Readonly<Error>) => {
     logFailure("data-steps-failed", {}, error);
   });
 
-  return !(await pending(db));
+  if (!(await pending(db))) return true;
+
+  if (Date.now() >= deadline || !(await otherRunHolds(db))) return false;
+
+  await pause(LEASE_POLL_MS);
+
+  return settled(db, deadline);
+}
+
+export async function dataStepsFinished(db: Database): Promise<boolean> {
+  return !(await pending(db)) || settled(db, Date.now() + LEASE_WAIT_MS);
 }

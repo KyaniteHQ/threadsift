@@ -43,6 +43,34 @@ test("a paste before any run of the step finishes the step first and then finds 
   }
 });
 
+test("a paste while another run holds the step lease waits for that run to end, then finishes the step and saves", async () => {
+  const { instance, owner } = await started(FAILING_BEFORE);
+
+  try {
+    await attemptStep(owner, instance);
+    instance.sql("DROP TRIGGER stop_batch");
+    instance.sql(
+      "INSERT INTO data_step_lease (id, holder, expires_at) VALUES (1, 'another-run', 9007199254740991)",
+    );
+    await attemptStep(owner, instance);
+
+    const paste = pasteAlice(owner);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 1000);
+    });
+    instance.sql("DELETE FROM data_step_lease");
+
+    const found = await paste;
+
+    expect([found.status, found.id]).toEqual([200, 1]);
+    expect(stored(instance).at(0)?.normalized_url).toBe(RENAMED[0][1]);
+    expect(count(instance, "SELECT 1 FROM data_step_lease")).toBe(0);
+  } finally {
+    await owner.dispose();
+    instance.stop();
+  }
+});
+
 test("while the step cannot finish, reads work and every paste entry refuses, and the paste works once the step has finished", async () => {
   const { instance, owner } = await started(FAILING_BEFORE);
 
