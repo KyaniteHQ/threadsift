@@ -1,9 +1,10 @@
-import { type APIRequestContext, expect, test } from "@playwright/test";
+import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 
 import { createToken } from "./access-helpers.ts";
 import { itemOf } from "./api.ts";
 import { ACTION_TEXT, type Extension, type Popup, loadExtension } from "./extension.ts";
 import { type Library, closeLibrary, openLibrary } from "./media-pages.ts";
+import type { MediaRow } from "./media.ts";
 
 export interface Session {
   readonly library: Library;
@@ -51,4 +52,16 @@ export async function ready(owner: APIRequestContext, id: number) {
   await expect.poll(async () => (await itemOf(owner, id)).status).toBe("ready");
 
   return itemOf(owner, id);
+}
+
+export async function expectTabImages(tab: Page, rows: readonly MediaRow[]): Promise<void> {
+  const shown = await tab.evaluate(() =>
+    [...document.images].flatMap(({ currentSrc }) => (currentSrc === "" ? [] : [currentSrc])),
+  );
+
+  expect(rows.length, "image rows of the saved Item").toBeGreaterThan(0);
+
+  for (const { source_url } of rows) {
+    expect(shown, `the tab shows ${source_url}`).toContain(source_url);
+  }
 }

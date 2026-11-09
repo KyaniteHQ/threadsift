@@ -7,31 +7,80 @@ export interface CapturedPage extends SuppliedPage {
   readonly url: string;
 }
 
-function loadedImages(live: Document): ReadonlyMap<string, string> {
-  return new Map(
-    [...live.images].flatMap(({ src, currentSrc }) =>
-      /^https?:/u.test(currentSrc) && src !== currentSrc ? [[src, currentSrc] as const] : [],
+const DESCRIPTOR = /^\d+(?:\.\d+)?[wx]$/u;
+
+const SELECTION_ATTRIBUTES = [
+  "srcset",
+  "sizes",
+  "data-src",
+  "data-srcset",
+  "data-lazy-src",
+  "loading",
+] as const;
+
+interface ShownImage {
+  readonly selected: string;
+  readonly candidates: readonly string[];
+}
+
+function urlsOf(value: string | null): readonly string[] {
+  return (value ?? "")
+    .trim()
+    .split(/\s+/u)
+    .filter((token) => token !== "" && !DESCRIPTOR.test(token))
+    .map((token) => token.replaceAll(/^,|,$/gu, ""));
+}
+
+function candidatesOf(image: Element, base: string): readonly string[] {
+  const sources = [...(image.closest("picture")?.querySelectorAll("source") ?? [])];
+
+  const raw = [image, ...sources].flatMap((element) =>
+    ["src", "data-src", "srcset", "data-srcset"].flatMap((name) =>
+      urlsOf(element.getAttribute(name)),
     ),
+  );
+
+  return raw.flatMap((value) => URL.parse(value, base)?.href ?? []);
+}
+
+function shownImages(live: Document): readonly ShownImage[] {
+  return [...live.images].flatMap((image) =>
+    /^https?:/u.test(image.currentSrc)
+      ? [{ selected: image.currentSrc, candidates: candidatesOf(image, live.baseURI) }]
+      : [],
   );
 }
 
-function swapInLoadedImages(content: Document, live: Document): void {
-  const loaded = loadedImages(live);
+function showSelected(image: Element, selected: string): void {
+  image.setAttribute("src", selected);
 
-  for (const image of content.querySelectorAll("img[src]")) {
-    const current = loaded.get(image.getAttribute("src") ?? "");
+  for (const name of SELECTION_ATTRIBUTES) image.removeAttribute(name);
 
-    if (current !== undefined) image.setAttribute("src", current);
+  for (const source of image.closest("picture")?.querySelectorAll("source") ?? []) {
+    source.remove();
+  }
+}
+
+function showSelectedImages(content: Document, shown: readonly ShownImage[], base: string): void {
+  for (const image of content.querySelectorAll("img")) {
+    const own = candidatesOf(image, base);
+
+    const match = shown.find(({ candidates }) =>
+      own.some((address) => candidates.includes(address)),
+    );
+
+    if (match !== undefined) showSelected(image, match.selected);
   }
 }
 
 export function capturePage(live: Document): CapturedPage {
   const url = live.location.href;
+  const shown = shownImages(live);
   const extracted = new Defuddle(live, { url }).parse();
   const content = new DOMParser().parseFromString(extracted.content, "text/html");
   const linked = replaceMedia(content, live.baseURI);
 
-  swapInLoadedImages(content, live);
+  showSelectedImages(content, shown, live.baseURI);
 
   return {
     url,
