@@ -174,6 +174,21 @@ test("an Item that was fetched at its short link keeps that identity when the sh
   ]);
 });
 
+test("an Article fetched at its short link keeps that identity when its latest refresh failed and the short link later resolves elsewhere", async () => {
+  const { request } = screen.context;
+  const held = await failedShortLinkItem(TWIN_SHORT_LINK);
+
+  screen.fresh.sql(
+    `UPDATE items SET status = 'ready', reason = NULL, fetch_result = 'network', fetched_at = 1, kind = 'article', source = 'article', post_text = 'Saved text' WHERE id = ${held}`,
+  );
+
+  const pasted = await postLinkRaw(request, TWIN_SHORT_LINK);
+
+  expect([pasted.status, pasted.body.item.id === held]).toEqual([201, false]);
+  expect(itemsAt(TWIN_SHORT_LINK)).toBe(1);
+  expect(itemsAt(pasted.body.item.normalizedUrl)).toBe(1);
+});
+
 test("a short link that failed once and now resolves to an Item that exists reaches that Item and leaves the failed one", async () => {
   const { request } = screen.context;
   const resolved = await postLink(request, SHORT_LINK_TARGET);

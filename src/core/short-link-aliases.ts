@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, isNotNull, ne, notExists, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, isNotNull, isNull, ne, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Link } from "./links.ts";
@@ -85,6 +85,7 @@ export function promoteFailedItem(
         eq(items.normalizedUrl, shortLink),
         isNotNull(items.fetch),
         ne(items.fetch, "ok"),
+        isNull(items.fetchedAt),
         notExists(taken),
       ),
     );
