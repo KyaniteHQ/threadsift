@@ -9,7 +9,7 @@ import {
   allPages,
   requireUnsampled,
 } from "./telemetry-query.ts";
-import { pause } from "./timeout.ts";
+import { cutShortBy, pause, timedOut } from "./timeout.ts";
 
 const POLL_MS = 5000;
 const SAMPLED_READ_MS = 120_000;
@@ -125,29 +125,36 @@ function untilNow(window: Readonly<Window>): Window {
   return { from: window.from, to: Math.min(window.to, Date.now() + SKEW_MS) };
 }
 
+function neverUnsampled(since: number): Inconclusive {
+  return new Inconclusive(
+    `${new SampledQuery().message} on every read for ${String(Math.round((Date.now() - since) / MS_PER_SECOND))} s`,
+  );
+}
+
 async function unsampledPages(
   stage: Readonly<Stage>,
   scope: Readonly<Scope>,
   window: Readonly<Window>,
   deadline: number,
   since = Date.now(),
+  again = false,
 ) {
+  const giveUp = Math.min(since + SAMPLED_READ_MS, deadline);
+  const cut = again && cutShortBy(giveUp);
+
   try {
-    return await allPages(stage, scope, untilNow(window), deadline);
+    return await allPages(stage, scope, untilNow(window), giveUp);
   } catch (error) {
-    if (!(error instanceof SampledQuery)) throw error;
+    if (!(error instanceof SampledQuery || (cut && error instanceof Error && timedOut(error))))
+      throw error;
 
-    const giveUp = Math.min(since + SAMPLED_READ_MS, deadline);
-
-    if (Date.now() >= giveUp) {
-      throw new Inconclusive(
-        `${error.message} on every read for ${String(Math.round((Date.now() - since) / MS_PER_SECOND))} s`,
-      );
-    }
+    if (Date.now() >= giveUp) throw neverUnsampled(since);
 
     await pause(POLL_MS, giveUp);
 
-    return unsampledPages(stage, scope, window, deadline, since);
+    if (Date.now() >= giveUp) throw neverUnsampled(since);
+
+    return unsampledPages(stage, scope, window, deadline, since, true);
   }
 }
 
