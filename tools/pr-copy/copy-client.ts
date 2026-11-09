@@ -30,8 +30,10 @@ type Answer =
   | { readonly kind: "app-error"; readonly status: number; readonly answer: string }
   | { readonly kind: "silent" };
 
-async function answerOf(url: string): Promise<Answer> {
-  const response = await fetch(`${url}/api/session`, { signal: callTimeout() }).catch(() => null);
+async function answerOf(url: string, deadline: number): Promise<Answer> {
+  const response = await fetch(`${url}/api/session`, { signal: callTimeout(deadline) }).catch(
+    () => null,
+  );
 
   if (response === null) return { kind: "silent" };
 
@@ -44,68 +46,99 @@ async function answerOf(url: string): Promise<Answer> {
   return response.status === 404 && !isJson(response) ? { kind: "edge" } : { kind: "silent" };
 }
 
-function patience(answer: Readonly<Answer>, options: Readonly<ServeOptions>): number {
-  const notReady =
-    answer.kind === "edge" || (answer.kind === "app-error" && options.databaseCreated);
-
-  return notReady ? NOT_READY_DEADLINE_MS : SERVE_DEADLINE_MS;
+function qualifiesForLongWait(answer: Readonly<Answer>, options: Readonly<ServeOptions>): boolean {
+  return answer.kind === "edge" || (answer.kind === "app-error" && options.databaseCreated);
 }
 
-function failure(url: string, answer: Readonly<Answer>, waitedMs: number): Error {
-  if (answer.kind === "app-error") {
+function failure(url: string, answer: Readonly<Answer> | undefined, waitedMs: number): Error {
+  if (answer?.kind === "app-error") {
     return new CopyAnswerError("/api/session", answer.status, answer.answer);
   }
 
   const seconds = String(Math.round(waitedMs / MS_PER_SECOND));
 
   return new Error(
-    answer.kind === "edge"
+    answer?.kind === "edge"
       ? `${url} answered Cloudflare's 404, not the app, for ${seconds} s`
       : `${url} did not serve the app within ${seconds} s`,
   );
 }
 
-export async function awaitServing(
+function worst(earlier: Answer | undefined, answer: Readonly<Answer>): Answer | undefined {
+  return answer.kind === "served" || (answer.kind === "silent" && earlier !== undefined)
+    ? earlier
+    : answer;
+}
+
+function announce(answer: Readonly<Answer>, last: Answer["kind"]): void {
+  if (answer.kind === last) return;
+
+  if (answer.kind === "edge") {
+    process.stdout.write("/api/session got Cloudflare's 404, not the app; waiting\n");
+  } else if (answer.kind === "app-error") {
+    process.stdout.write(
+      "/api/session got the app's 5xx on a database created in this deploy; waiting\n",
+    );
+  }
+}
+
+interface Progress {
+  readonly started: number;
+  readonly bound: number;
+  readonly inARow: number;
+  readonly last: Answer["kind"];
+  readonly worstAnswer: Answer | undefined;
+}
+
+export function awaitServing(url: string, options: Readonly<ServeOptions>): Promise<void> {
+  return serveFrom(url, options, {
+    started: Date.now(),
+    bound: SERVE_DEADLINE_MS,
+    inARow: 0,
+    last: "served",
+    worstAnswer: undefined,
+  });
+}
+
+async function serveFrom(
   url: string,
   options: Readonly<ServeOptions>,
-  started = Date.now(),
-  inARow = 0,
-  last: Answer["kind"] = "served",
+  progress: Readonly<Progress>,
 ): Promise<void> {
-  if (inARow >= SERVED_IN_A_ROW) {
+  const deadline = progress.started + progress.bound;
+
+  if (Date.now() >= deadline) {
+    throw failure(url, progress.worstAnswer, Date.now() - progress.started);
+  }
+
+  const answer = await answerOf(url, deadline);
+  const waited = Date.now() - progress.started;
+
+  if (answer.kind === "app-error" && !options.databaseCreated) throw failure(url, answer, waited);
+
+  const inARow = answer.kind === "served" ? progress.inARow + 1 : 0;
+
+  if (inARow >= SERVED_IN_A_ROW && Date.now() < deadline) {
     process.stdout.write(
-      `The copy served the app after ${String(Math.round((Date.now() - started) / MS_PER_SECOND))} s\n`,
+      `The copy served the app after ${String(Math.round(waited / MS_PER_SECOND))} s\n`,
     );
 
     return;
   }
 
-  const answer = await answerOf(url);
-  const waited = Date.now() - started;
+  announce(answer, progress.last);
 
-  if (answer.kind === "app-error" && !options.databaseCreated) throw failure(url, answer, waited);
+  const bound = qualifiesForLongWait(answer, options) ? NOT_READY_DEADLINE_MS : progress.bound;
 
-  if (answer.kind !== "served" && waited >= patience(answer, options)) {
-    throw failure(url, answer, waited);
-  }
+  await pause(POLL_MS, progress.started + bound);
 
-  if (answer.kind !== last && (answer.kind === "edge" || answer.kind === "app-error")) {
-    process.stdout.write(
-      answer.kind === "edge"
-        ? "/api/session got Cloudflare's 404, not the app; waiting\n"
-        : "/api/session got the app's 5xx on a database created in this deploy; waiting\n",
-    );
-  }
-
-  await pause(POLL_MS, started + NOT_READY_DEADLINE_MS);
-
-  return awaitServing(
-    url,
-    options,
-    started,
-    answer.kind === "served" ? inARow + 1 : 0,
-    answer.kind,
-  );
+  return serveFrom(url, options, {
+    started: progress.started,
+    bound,
+    inARow,
+    last: answer.kind,
+    worstAnswer: worst(progress.worstAnswer, answer),
+  });
 }
 
 export async function expectOk(response: Response, path: string): Promise<void> {
