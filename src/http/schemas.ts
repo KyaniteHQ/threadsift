@@ -301,7 +301,10 @@ export function itemView<Row extends StatusRow>(
 export function shownItems<Row extends StatusRow>(rows: readonly Readonly<Row>[]) {
   return rows.flatMap((row) => {
     try {
-      return [itemView(row)];
+      const view = itemView(row);
+      ItemSchema.parse(view);
+
+      return [view];
     } catch (error) {
       logFailure("item-not-shown", { itemId: row.id }, error);
 

@@ -175,18 +175,29 @@ test("a job row with an unknown kind or state is refused", () => {
   instance.sql(`DELETE FROM jobs WHERE item_id = ${id}`);
 });
 
-test("one stored row that contradicts itself is skipped and logged, and the list still answers with the others", async () => {
+test("stored rows that contradict themselves are skipped and logged, and the list still answers with the others", async () => {
   const good = expectAccepted({});
 
   instance.sql("DROP TRIGGER items_status_reason_insert");
+  instance.sql("DROP TRIGGER items_source_kind_insert");
 
-  const { url, statement } = insertItem({ status: "failed" });
+  const legacy = [
+    { status: "failed" },
+    { status: "failed", reason: "invented" },
+    { status: "done" },
+    { source: "blog" },
+    { kind: "podcast" },
+  ].map((fields) => {
+    const { url, statement } = insertItem(fields);
 
-  instance.sql(statement);
+    instance.sql(statement);
 
-  const [bad] = instance.query(`SELECT id FROM items WHERE normalized_url = '${url}'`, Ids);
+    const [row] = instance.query(`SELECT id FROM items WHERE normalized_url = '${url}'`, Ids);
 
-  expect(bad).toBeDefined();
+    expect(row, JSON.stringify(fields)).toBeDefined();
+
+    return row?.id ?? 0;
+  });
 
   const response = await owner.get("/api/items");
 
@@ -195,6 +206,9 @@ test("one stored row that contradicts itself is skipped and logged, and the list
   const shown = (await listAll(owner)).map(({ id }) => id);
 
   expect(shown).toContain(good);
-  expect(shown).not.toContain(bad?.id);
-  expect(instance.logs()).toContain(`"event":"item-not-shown","itemId":${bad?.id ?? 0}`);
+
+  for (const id of legacy) {
+    expect(shown).not.toContain(id);
+    expect(instance.logs()).toContain(`"event":"item-not-shown","itemId":${id}`);
+  }
 });
