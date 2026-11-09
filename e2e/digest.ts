@@ -1,7 +1,7 @@
 import { type TestInfo, expect } from "@playwright/test";
 import { z } from "zod";
 
-import { AI_DEADLINE_MS, AiSettingsViewSchema, DigestSchema } from "../src/core/ai-contract.ts";
+import { AiSettingsViewSchema, DigestSchema } from "../src/core/ai-contract.ts";
 import { aiJson, AI_SETTINGS_ENDPOINT } from "./ai.ts";
 import { itemOf } from "./api.ts";
 import { attachJson } from "./card.ts";
@@ -11,6 +11,8 @@ import { jobsOf, sweepNow } from "./ingest.ts";
 import { attachScreenshot, storeSettings, viewportAt } from "./look.ts";
 
 const NARROWEST = 390;
+
+const AI_DEADLINE_MS = 10 * 60 * 1000;
 
 export async function configureDigest(
   screen: FreshScreen,

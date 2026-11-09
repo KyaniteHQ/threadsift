@@ -5,7 +5,7 @@ import { setImmediate } from "node:timers/promises";
 
 import { expect, test } from "@playwright/test";
 
-import { FILE_NAME_MAX, FileRefused } from "../src/core/file-keys.ts";
+import { FileRefused } from "../src/core/file-keys.ts";
 import type { FileStore } from "../src/core/ports.ts";
 import {
   type Backend,
@@ -20,6 +20,8 @@ import { digestOf } from "./files.ts";
 import { isContainerTarget } from "./target.ts";
 
 const BIG_BYTES = 3 * 1024 * 1024;
+
+const FILE_NAME_MAX = 255;
 
 const CONCURRENT_BYTES = 512 * 1024;
 
