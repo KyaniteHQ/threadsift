@@ -179,18 +179,24 @@ export function DeleteItem({
   const trigger = useRef<HTMLButtonElement>(null);
   useReturnFocus(step !== "closed", trigger);
 
+  const attempt = useRef(0);
+
   const ask = useCallback(() => {
     setStep("asking");
   }, []);
 
   const cancel = useCallback(() => {
+    attempt.current += 1;
     setStep("closed");
   }, []);
 
   const confirm = useCallback(() => {
+    attempt.current += 1;
+
+    const mine = attempt.current;
     setStep("pending");
     remove(item).catch(() => {
-      setStep("failed");
+      if (attempt.current === mine) setStep("failed");
     });
   }, [item, remove]);
 
