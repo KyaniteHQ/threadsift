@@ -14,7 +14,7 @@ import {
   type Precondition,
   type SettledOutcome,
 } from "./job-outcome.ts";
-import { enqueueItemJobs, enqueueQuietly, hasOpenJob, holding } from "./job-rows.ts";
+import { CLOSED_JOB, enqueueItemJobs, enqueueQuietly, hasOpenJob, holding } from "./job-rows.ts";
 import type { WaitReason } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, guardHolds, guardedBatch, items, jobs } from "./schema.ts";
@@ -62,7 +62,7 @@ function closingWrites(
   return [
     db
       .update(jobs)
-      .set({ state: "done", attempts, claimExpires: null, staleRequeues: 0, page: null })
+      .set({ ...CLOSED_JOB, attempts })
       .where(eq(jobs.id, job.id)),
     db
       .update(items)

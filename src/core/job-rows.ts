@@ -13,10 +13,17 @@ export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${
   return sql`(select 1 from ${jobs} as open_jobs where ${openJobs.itemId} = ${itemId} and ${openJobs.state} <> 'done' ${kind === undefined ? sql`` : sql`and ${openJobs.kind} = ${kind}`})`;
 }
 
+export const CLOSED_JOB = {
+  state: "done",
+  claimExpires: null,
+  staleRequeues: 0,
+  page: null,
+} as const;
+
 export function closeFetchJobs(db: Database, itemId: Readonly<SQLWrapper>) {
   return db
     .update(jobs)
-    .set({ state: "done", claimExpires: null, page: null })
+    .set(CLOSED_JOB)
     .where(and(eq(jobs.itemId, sql`${itemId}`), eq(jobs.kind, "fetch"), ne(jobs.state, "done")));
 }
 

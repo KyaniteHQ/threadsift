@@ -1,4 +1,4 @@
-import { and, eq, exists, notExists } from "drizzle-orm";
+import { and, eq, exists, ne, notExists, sql } from "drizzle-orm";
 
 import { openingDigest } from "./digest-job.ts";
 import { setDigestFailure } from "./digest-source.ts";
@@ -26,13 +26,15 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
 
   if (known.status === "failed") return getListedItem(ports.db, id);
 
+  const live = and(eq(items.id, id), ne(items.status, "failed")) ?? sql`0`;
+
   const [, queued, , , [item]] = await ports.db.batch([
     ports.db
       .update(items)
       .set({ pendingDigest: null })
-      .where(and(eq(items.id, id), notExists(hasOpenJob("digest")))),
+      .where(and(live, notExists(hasOpenJob("digest")))),
     openingDigest(ports.db, {
-      scope: eq(items.id, id),
+      scope: live,
       address: known.originalUrl,
       now: Date.now(),
     }).job,
@@ -40,7 +42,7 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
     ports.db
       .update(items)
       .set({ status: "processing", reason: null })
-      .where(and(eq(items.id, id), exists(hasOpenJob("digest")))),
+      .where(and(live, exists(hasOpenJob("digest")))),
     selectItems(ports.db, LISTED_COLUMNS).where(eq(items.normalizedUrl, known.normalizedUrl)),
   ]);
 
