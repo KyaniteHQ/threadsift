@@ -11,6 +11,8 @@ const KEY = new RegExp(
 
 const TEMPORARY = /^(?<folder>items\/[1-9][0-9]{0,18}\/)\.tmp-[0-9a-f]+-(?<name>.+)$/u;
 
+const POST_TEXT = /^items\/[1-9][0-9]{0,18}\/post-[0-9]+-[0-9]+\.md$/u;
+
 const PREFIX = /^items\/(?:(?<itemId>[1-9][0-9]{0,18})\/)?$/u;
 
 export function temporaryPrefix(random: string): string {
@@ -21,6 +23,10 @@ export function finalKeyOf(key: string): string {
   const { folder, name } = TEMPORARY.exec(key)?.groups ?? {};
 
   return folder === undefined || name === undefined ? key : folder + name;
+}
+
+export function isPostTextKey(key: string): boolean {
+  return POST_TEXT.test(key);
 }
 
 export interface FileKey {
