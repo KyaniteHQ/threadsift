@@ -9,7 +9,7 @@ import {
 } from "react";
 
 import { fetchItems } from "./api.ts";
-import type { Filters } from "./filters.ts";
+import { type Filters, queryOf } from "./filters.ts";
 import type { Stamps } from "./item-polling.ts";
 import { type Answer, type ListState, failedList, loaded } from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
@@ -111,9 +111,11 @@ function useListRead(
   recount: (wanted: boolean) => void,
 ) {
   const { setList, requests, stamps } = wiring;
+  const shown = useRef<string | null>(null);
 
   useEffect(() => {
     const request = requests.list();
+    const asked = queryOf(query.filters);
 
     const land = (answer: Readonly<Answer>): void => {
       const changed = stamps.changedSince(request.startedAt);
@@ -130,8 +132,14 @@ function useListRead(
       if (requests.isCurrent(request)) {
         requests.finish();
 
-        if (answer === null) setList(failedList);
-        else land(answer);
+        if (answer === null) {
+          setList((current) =>
+            current.status === "ready" && shown.current === asked ? current : failedList(current),
+          );
+        } else {
+          shown.current = asked;
+          land(answer);
+        }
       }
     };
 
