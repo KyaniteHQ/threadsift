@@ -11,7 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { AI_DEADLINE_MS, parseStoredDigest, retriesAi } from "./ai-contract.ts";
+import { AI_DEADLINE_MS, type AiRefused, parseStoredDigest, retriesAi } from "./ai-contract.ts";
 import { TASKS, startCallerTask, runAiTask, expireAiTasks } from "./ai-tasks.ts";
 import { readCatalog, linkOlderDigests } from "./catalog.ts";
 import { publishing, readForPublishing } from "./digest-publish.ts";
@@ -26,7 +26,13 @@ import {
   refusedInput,
   setDigestFailure,
 } from "./digest-source.ts";
-import { type ClaimedJob, type JobHandler, type JobOutcome, type JobPorts } from "./job-outcome.ts";
+import {
+  type ClaimedJob,
+  type JobHandler,
+  type JobOutcome,
+  type JobPorts,
+  isLastAttempt,
+} from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { digests, insertGuard, items, settings } from "./schema.ts";
@@ -107,11 +113,7 @@ async function attemptModel(
 
   if (result.taskId !== null) logSubmission(result.taskId, item, prompt.counts);
 
-  if (result.kind !== "done") {
-    if (retriesAi(result)) throw new Error(`Digest ${result.reason}`);
-
-    return { writes: [setDigestFailure(ports.db, job.itemId, true)] };
-  }
+  if (result.kind !== "done") return refusedAi(ports.db, job, item, result);
 
   return publishing(ports.db, item, result.result, result.taskId, {
     executor: "model",
@@ -121,6 +123,25 @@ async function attemptModel(
     staleRequeues: job.staleRequeues,
     submitted: prompt.submitted,
   });
+}
+
+function refusedAi(
+  db: Database,
+  job: Readonly<ClaimedJob>,
+  item: Readonly<DigestInput>,
+  result: Readonly<AiRefused & { readonly taskId: number | null }>,
+): JobOutcome {
+  const retriable = retriesAi(result);
+
+  if (retriable && !isLastAttempt(job.attempts)) throw new Error(`Digest ${result.reason}`);
+
+  const generation = generationCurrent(item);
+
+  return {
+    currency: currency(db, generation, result.taskId),
+    failedAttempt: retriable,
+    writes: [insertGuard(db, generation), setDigestFailure(db, item.id, true)],
+  };
 }
 
 function lostClaim(db: Database): JobOutcome {

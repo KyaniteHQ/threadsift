@@ -1,6 +1,7 @@
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, isNotNull, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { openingDigest } from "./digest-job.ts";
 import { logFailure } from "./failure-log.ts";
 import { namedKeys } from "./file-cleanup.ts";
 import {
@@ -52,6 +53,14 @@ async function unnamed(ports: JobPorts, keys: readonly string[]): Promise<readon
   return keys.filter((key) => !named.has(key));
 }
 
+function owedDigest(db: Database, itemId: number) {
+  return openingDigest(db, {
+    scope: and(eq(items.id, itemId), isNotNull(items.pendingDigest)) ?? sql`0`,
+    address: items.originalUrl,
+    now: Date.now(),
+  }).job;
+}
+
 function closingWrites(
   db: Database,
   job: Readonly<JobRow>,
@@ -64,6 +73,7 @@ function closingWrites(
       .update(jobs)
       .set({ ...CLOSED_JOB, attempts })
       .where(eq(jobs.id, job.id)),
+    ...(job.kind === "digest" ? [owedDigest(db, job.itemId)] : []),
     db
       .update(items)
       .set({
