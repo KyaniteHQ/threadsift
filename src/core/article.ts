@@ -3,8 +3,9 @@ import { parseHTML } from "linkedom";
 import { z } from "zod";
 
 import { baseOf, replaceMedia, retainedVideos } from "./article-media.ts";
+import { MIN_ARTICLE_WORDS } from "./details.ts";
 import { collapsed } from "./format.ts";
-import { MarkdownImageSchema, imagesOf } from "./markdown-images.ts";
+import { MarkdownImageSchema, NOTHING_SCANNED, scanMarkdown } from "./markdown-images.ts";
 
 export const ArticleReadingSchema = z.object({
   title: z.string(),
@@ -57,6 +58,9 @@ export async function readArticle(html: string, url: string): Promise<ArticleRea
 
   const author = result.author.trim();
   const postText = (result.contentMarkdown ?? "").trim();
+  const isArticle = result.wordCount >= MIN_ARTICLE_WORDS;
+  const wantsLinks = linked.some(({ video }) => video);
+  const scan = isArticle ? scanMarkdown(postText, wantsLinks) : NOTHING_SCANNED;
 
   return {
     title: pageTitle === "" ? collapsed(result.title) : pageTitle,
@@ -64,7 +68,7 @@ export async function readArticle(html: string, url: string): Promise<ArticleRea
     words: result.wordCount,
     postText,
     postedAt: postedAtOf(result.published),
-    videos: retainedVideos(linked, result.content),
-    images: imagesOf(postText),
+    videos: retainedVideos(linked, scan.links),
+    images: scan.images,
   };
 }

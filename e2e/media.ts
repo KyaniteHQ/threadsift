@@ -26,7 +26,7 @@ export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 export const FILE_ROUTE = "/api/files/";
 
-export const FILE_HEADERS = {
+const FILE_HEADERS = {
   "cache-control": "no-store",
   "referrer-policy": "no-referrer",
   "x-content-type-options": "nosniff",
@@ -106,6 +106,12 @@ export function expectOwnBytes(row: Readonly<MediaRow>, bytes: Buffer | null): v
   expect(row.file_key?.endsWith(`.${EXTENSIONS.get(row.content_type ?? "") ?? "?"}`)).toBe(true);
 }
 
+export function expectPrivate(response: { headers(): Record<string, string> }): void {
+  for (const [name, value] of Object.entries(FILE_HEADERS)) {
+    expect(response.headers()[name], name).toBe(value);
+  }
+}
+
 export async function expectServed(
   request: APIRequestContext,
   instance: Instance,
@@ -122,9 +128,7 @@ export async function expectServed(
     `inline; filename="image-${row.id}.${EXTENSIONS.get(row.content_type ?? "") ?? "?"}"`,
   );
 
-  for (const [name, value] of Object.entries(FILE_HEADERS)) {
-    expect(response.headers()[name], name).toBe(value);
-  }
+  expectPrivate(response);
 
   expect((await response.body()).equals(instance.readFile(key) ?? Buffer.alloc(0))).toBe(true);
 }

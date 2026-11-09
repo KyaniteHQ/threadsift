@@ -1,6 +1,7 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 
+import { FILE_ROUTE } from "../core/file-keys.ts";
 import {
   CONNECT_CALLBACK_PATH,
   CONNECT_START_PATH,
@@ -9,28 +10,31 @@ import {
 import type { Ports } from "../core/ports.ts";
 import { guard } from "./guard.ts";
 
-const privateResponse: MiddlewareHandler = async (c, next) => {
-  await next();
-
-  c.res.headers.set("Cache-Control", "no-store");
-  c.res.headers.set("Referrer-Policy", "no-referrer");
-};
-
-const FILE_HEADERS = {
+const PRIVATE_HEADERS = {
   "Cache-Control": "no-store",
   "Referrer-Policy": "no-referrer",
+} as const;
+
+const FILE_HEADERS = {
+  ...PRIVATE_HEADERS,
   "X-Content-Type-Options": "nosniff",
   "Cross-Origin-Resource-Policy": "same-origin",
   "Content-Security-Policy": "default-src 'none'; sandbox; frame-ancestors 'none'",
 } as const;
 
-const privateFile: MiddlewareHandler = async (c, next) => {
-  await next();
+function privateWith(headers: Readonly<Record<string, string>>): MiddlewareHandler {
+  return async (c, next) => {
+    await next();
 
-  for (const [name, value] of Object.entries(FILE_HEADERS)) {
-    c.res.headers.set(name, value);
-  }
-};
+    for (const [name, value] of Object.entries(headers)) {
+      c.res.headers.set(name, value);
+    }
+  };
+}
+
+const privateResponse = privateWith(PRIVATE_HEADERS);
+
+const privateFile = privateWith(FILE_HEADERS);
 
 const signedOutNavigation: MiddlewareHandler = async (c, next) => {
   await next();
@@ -49,6 +53,6 @@ const signedOutNavigation: MiddlewareHandler = async (c, next) => {
 export function installApiMiddleware(app: OpenAPIHono, ports: Ports): void {
   app.use(CONNECT_START_PATH, privateResponse);
   app.use(CONNECT_CALLBACK_PATH, privateResponse, signedOutNavigation);
-  app.use("/api/files/*", privateFile);
+  app.use(`${FILE_ROUTE}*`, privateFile);
   app.use("/api/*", guard(ports));
 }

@@ -1,3 +1,5 @@
+import { mediaTypeOf } from "./body-text.ts";
+
 export const IMAGE_TYPES = [
   "image/jpeg",
   "image/png",
@@ -28,13 +30,19 @@ const BRAND_SCAN_BYTES = 64;
 const ASCII = new TextDecoder("latin1");
 
 export function declaredImageType(contentType: string | null): ImageType | null {
-  const [mediaType = ""] = (contentType ?? "").split(";");
-
-  return DECLARED.get(mediaType.trim().toLowerCase()) ?? null;
+  return DECLARED.get(mediaTypeOf(contentType)) ?? null;
 }
 
 function startsWith(bytes: Uint8Array, pattern: readonly number[], from = 0): boolean {
   return pattern.every((byte, at) => bytes[from + at] === byte);
+}
+
+function isGif(bytes: Uint8Array): boolean {
+  return (
+    startsWith(bytes, [0x47, 0x49, 0x46, 0x38]) &&
+    (bytes[4] === 0x37 || bytes[4] === 0x39) &&
+    bytes[5] === 0x61
+  );
 }
 
 function isAvif(bytes: Uint8Array): boolean {
@@ -56,9 +64,7 @@ export function sniffImageType(bytes: Uint8Array): ImageType | null {
 
   if (startsWith(bytes, [0xff, 0xd8, 0xff])) return "image/jpeg";
 
-  if (startsWith(bytes, [0x47, 0x49, 0x46, 0x38, 0x37, 0x61])) return "image/gif";
-
-  if (startsWith(bytes, [0x47, 0x49, 0x46, 0x38, 0x39, 0x61])) return "image/gif";
+  if (isGif(bytes)) return "image/gif";
 
   const riff =
     startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) &&

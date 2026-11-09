@@ -22,7 +22,7 @@ const IMAGE = new RegExp(
 
 const PREFIX = /^items\/(?:(?<itemId>[1-9][0-9]{0,18})\/)?$/u;
 
-const FILE_ROUTE = "/api/files/";
+export const FILE_ROUTE = "/api/files/";
 
 export function temporaryPrefix(random: string): string {
   return `.tmp-${random}-`;

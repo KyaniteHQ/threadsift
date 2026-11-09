@@ -3,7 +3,6 @@ import { digestOf } from "./encoding.ts";
 import { fileRouteOf } from "./file-keys.ts";
 import { type Fetched, decoded, downloaded, fits } from "./image-download.ts";
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
-import type { MediaFailure } from "./kinds.ts";
 import {
   type Edit,
   type MarkdownImage,
@@ -12,22 +11,21 @@ import {
   rewriteImages,
 } from "./markdown-images.ts";
 import type { Crypto, FileStore, Network } from "./ports.ts";
+import type { MediaRow } from "./schema.ts";
 
-export const MAX_IMAGES = 20;
-export const MAX_VIDEOS = 20;
-export const IMAGE_WIDTH = 2;
+const MAX_IMAGES = 20;
+const MAX_VIDEOS = 20;
+const IMAGE_WIDTH = 2;
 
-export interface MediaRowValue {
-  readonly kind: "image" | "video";
-  readonly sourceUrl: string;
-  readonly finalUrl: string | null;
-  readonly position: number;
-  readonly outcome: "stored" | "failed" | "linked";
-  readonly reason: MediaFailure | null;
-  readonly fileKey: string | null;
-  readonly contentType: string | null;
-  readonly size: number | null;
-}
+export type MediaRowValue = Readonly<Omit<MediaRow, "id" | "itemId">>;
+
+const NO_DETAILS = {
+  finalUrl: null,
+  reason: null,
+  fileKey: null,
+  contentType: null,
+  size: null,
+} as const;
 
 export interface MediaPlan {
   readonly postText: string;
@@ -63,11 +61,6 @@ interface Candidate {
   readonly position: number;
 }
 
-interface Outcome {
-  readonly row: MediaRowValue | null;
-  readonly key: string | null;
-}
-
 function remoteOf(address: string, base: string): Classified {
   const url = URL.parse(address, base);
 
@@ -84,11 +77,7 @@ function remoteOf(address: string, base: string): Classified {
     : { kind: "leave" };
 }
 
-function classify(
-  crypto: Crypto,
-  { destination }: Readonly<MarkdownImage>,
-  base: string,
-): Classified {
+function classify({ destination }: Readonly<MarkdownImage>, base: string): Classified {
   const address = destination.trim();
 
   if (address === "" || address.startsWith("#")) return { kind: "alt" };
@@ -96,11 +85,7 @@ function classify(
   if (/^data:/iu.test(address)) {
     return {
       kind: "source",
-      source: {
-        id: `inline:sha256:${digestOf(crypto, address)}`,
-        kind: "inline",
-        dataUrl: address,
-      },
+      source: { id: address, kind: "inline", dataUrl: address },
     };
   }
 
@@ -110,36 +95,35 @@ function classify(
 }
 
 function rowOf(
+  crypto: Crypto,
   { source, position }: Readonly<Candidate>,
   fetched: Readonly<Fetched>,
-  key: string | null,
+  fileKey: string | null,
 ): MediaRowValue | null {
   if (source.kind === "inline" && !fetched.ok) return null;
 
-  const sourceUrl = source.kind === "remote" ? source.url : source.id;
+  const sourceUrl =
+    source.kind === "remote" ? source.url : `inline:sha256:${digestOf(crypto, source.dataUrl)}`;
 
   return fetched.ok
     ? {
+        ...NO_DETAILS,
         kind: "image",
         sourceUrl,
         finalUrl: fetched.finalUrl,
         position,
         outcome: "stored",
-        reason: null,
-        fileKey: key,
+        fileKey,
         contentType: fetched.type,
         size: fetched.bytes.length,
       }
     : {
+        ...NO_DETAILS,
         kind: "image",
         sourceUrl,
-        finalUrl: null,
         position,
         outcome: "failed",
         reason: fetched.reason,
-        fileKey: null,
-        contentType: null,
-        size: null,
       };
 }
 
@@ -148,7 +132,7 @@ async function stored(
   prefix: string,
   candidate: Readonly<Candidate>,
   deadline: AbortSignal,
-): Promise<Outcome> {
+): Promise<MediaRowValue | null> {
   const { source } = candidate;
 
   const fetched =
@@ -162,14 +146,14 @@ async function stored(
 
   if (fetched.ok && key !== null) await sink.files.put(key, fetched.bytes);
 
-  return { row: rowOf(candidate, fetched, key), key };
+  return rowOf(sink.crypto, candidate, fetched, key);
 }
 
 async function storeAll(
   candidates: readonly Candidate[],
-  store: (candidate: Readonly<Candidate>) => Promise<Outcome>,
-): Promise<ReadonlyMap<string, Outcome>> {
-  const outcomes = new Map<string, Outcome>();
+  store: (candidate: Readonly<Candidate>) => Promise<MediaRowValue | null>,
+): Promise<ReadonlyMap<string, MediaRowValue | null>> {
+  const outcomes = new Map<string, MediaRowValue | null>();
   let next = 0;
 
   async function work(): Promise<void> {
@@ -223,21 +207,15 @@ function replacementOf(
   return entry.source.kind === "inline" ? altText(image.alt) : undefined;
 }
 
+function linkedRow(sourceUrl: string, position: number): MediaRowValue {
+  return { ...NO_DETAILS, kind: "video", sourceUrl, position, outcome: "linked" };
+}
+
 function videoRows(urls: readonly string[]): readonly MediaRowValue[] {
   return [...new Set(urls)]
     .filter((url) => fits(url))
     .slice(0, MAX_VIDEOS)
-    .map((sourceUrl, position) => ({
-      kind: "video",
-      sourceUrl,
-      finalUrl: null,
-      position,
-      outcome: "linked",
-      reason: null,
-      fileKey: null,
-      contentType: null,
-      size: null,
-    }));
+    .map((sourceUrl, position) => linkedRow(sourceUrl, position));
 }
 
 export async function prepareMedia(
@@ -247,14 +225,14 @@ export async function prepareMedia(
   deadline: AbortSignal,
 ): Promise<MediaPlan> {
   const { images } = article;
-  const classified = images.map((image) => classify(sink.crypto, image, article.url));
+  const classified = images.map((image) => classify(image, article.url));
 
   const outcomes = await storeAll(candidatesOf(classified), (candidate) =>
     stored(sink, prefix, candidate, deadline),
   );
 
   const pathOf = (id: string): string | null => {
-    const key = outcomes.get(id)?.key ?? null;
+    const key = outcomes.get(id)?.fileKey ?? null;
 
     return key === null ? null : fileRouteOf(key);
   };
@@ -271,14 +249,11 @@ export async function prepareMedia(
     if (entry?.kind === "embed" && entry.link.video) embedded.push(entry.link.url);
   });
 
-  const results = [...outcomes.values()];
+  const results = [...outcomes.values()].flatMap((row) => (row === null ? [] : [row]));
 
   return {
     postText: rewriteImages(article.postText, edits),
-    rows: [
-      ...results.flatMap(({ row }) => (row === null ? [] : [row])),
-      ...videoRows([...article.videos, ...embedded]),
-    ],
-    written: results.flatMap(({ key }) => (key === null ? [] : [key])),
+    rows: [...results, ...videoRows([...article.videos, ...embedded])],
+    written: results.flatMap(({ fileKey }) => (fileKey === null ? [] : [fileKey])),
   };
 }

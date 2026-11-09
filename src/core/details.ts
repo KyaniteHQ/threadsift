@@ -50,7 +50,7 @@ export type Fetched =
 
 export const NOT_REQUESTED: Concluded = { status: "not-requested" };
 
-const MIN_ARTICLE_WORDS = 100;
+export const MIN_ARTICLE_WORDS = 100;
 
 const NOT_AN_ARTICLE: Content = { kind: "link" };
 

@@ -2,8 +2,14 @@ import { expect, test } from "@playwright/test";
 
 import { SAME_ORIGIN } from "./access.ts";
 import { addMediaRow } from "./deletion.ts";
-import { type SeededJob, inContainer, storeFileItem, storeJob } from "./files.ts";
-import { tickNow } from "./ingest.ts";
+import {
+  type SeededJob,
+  TICK_WAIT_MS,
+  inContainer,
+  storeFileItem,
+  storeJob,
+  waitForKeys,
+} from "./files.ts";
 import {
   NO_IMAGE_PAGE,
   SMALL_PAGE,
@@ -16,8 +22,6 @@ import {
 } from "./media-pages.ts";
 import { imageFiles, mediaOf, routeOf } from "./media.ts";
 import { isContainerTarget } from "./target.ts";
-
-const TICK_WAIT_MS = 150_000;
 
 let library: Library;
 let sequence = 0;
@@ -39,19 +43,7 @@ function seededItem(job: SeededJob) {
 }
 
 async function waitForFiles(expected: readonly string[]): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        await tickNow(library.owner, library.instance);
-
-        return library.instance
-          .listFiles("items/")
-          .map(({ key }) => key)
-          .toSorted();
-      },
-      { timeout: TICK_WAIT_MS, intervals: [2000] },
-    )
-    .toEqual(expected.toSorted());
+  await waitForKeys(library.owner, library.instance, expected);
 }
 
 test("a tick keeps the images a row names and the images of an attempt that holds its claim, and deletes abandoned and superseded images", async () => {

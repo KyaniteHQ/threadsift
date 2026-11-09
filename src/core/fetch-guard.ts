@@ -1,4 +1,4 @@
-import { isRefusedHost, resolveUrl } from "./addresses.ts";
+import { isRefusedHost, webUrlOf } from "./addresses.ts";
 import { decoderFor, isHtmlType } from "./body-text.ts";
 import { type Capped, readCapped } from "./capped.ts";
 import type { FetchFailure } from "./fetch-results.ts";
@@ -64,7 +64,7 @@ export interface Bytes {
   readonly kind: "bytes";
   readonly url: string;
   readonly contentType: string | null;
-  readonly html: boolean;
+  readonly text: string | null;
   readonly bytes: Uint8Array;
   readonly cut: boolean;
 }
@@ -182,14 +182,11 @@ async function requestHop(
 type Target = { readonly kind: "target"; readonly url: URL } | Failed;
 
 function hopTarget(address: string, base?: string): Target {
-  const url = resolveUrl(address, base);
+  const url = webUrlOf(address, base);
 
-  if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
+  if (url === null) {
     return failed("unsupported");
   }
-
-  url.username = "";
-  url.password = "";
 
   return isRefusedHost(url.hostname) ? failed("refused") : { kind: "target", url };
 }
@@ -234,17 +231,19 @@ async function follow(
     return advance(network, policy, deadline, url, hop.location, redirects);
   }
 
-  const refreshTo =
+  const text =
     policy.followMetaRefresh(url.href) && hop.html
-      ? metaRefreshTarget(decoderFor(hop.contentType).decode(hop.bytes), url.href)
+      ? decoderFor(hop.contentType).decode(hop.bytes)
       : null;
+
+  const refreshTo = text === null ? null : metaRefreshTarget(text, url.href);
 
   return refreshTo === null
     ? {
         kind: "bytes",
         url: url.href,
         contentType: hop.contentType,
-        html: hop.html,
+        text,
         bytes: hop.bytes,
         cut: hop.cut,
       }
@@ -276,8 +275,8 @@ export async function guardedFetch(
     ? {
         kind: "page",
         url: outcome.url,
-        text: decoderFor(outcome.contentType).decode(outcome.bytes),
-        html: outcome.html,
+        text: outcome.text ?? decoderFor(outcome.contentType).decode(outcome.bytes),
+        html: isHtmlType(outcome.contentType),
         cut: outcome.cut,
       }
     : outcome;

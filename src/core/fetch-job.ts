@@ -54,7 +54,7 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
   const repository = fetchedRepository(fetched);
 
-  const { postText, fields, mediaPublication, files } = await settledContent(
+  const { postText, replaces, fields, mediaPublication, files } = await settledContent(
     ports,
     job,
     fetched,
@@ -62,13 +62,12 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
     deadline,
   );
 
-  const replacesContent = postText !== undefined;
   const storesText = postText !== undefined && postText !== null;
 
   const columns = {
     ...fields,
     pendingDigest: storesText ? items.pendingDigest : null,
-    generation: replacesContent ? sql`${items.generation} + 1` : items.generation,
+    generation: replaces ? sql`${items.generation} + 1` : items.generation,
   };
 
   const outcome: SettledOutcome = {
@@ -79,12 +78,12 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
         : fetchedPartWrites(ports.db, eq(items.id, job.itemId), postText)),
       ...(repository === null ? [] : repositoryWrites(ports.db, job.itemId, repository)),
       ...mediaPublication,
-      ...(replacesContent ? digestAfterFetch(ports.db, job) : []),
+      ...(replaces ? digestAfterFetch(ports.db, job) : []),
     ],
     files,
   };
 
-  return replacesContent
+  return replaces
     ? anchoredOutcome(ports.db, outcome, {
         owner: eq(items.id, job.itemId),
         displayed: () => ({ post: postText }),

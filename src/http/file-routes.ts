@@ -1,5 +1,6 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { FILE_ROUTE } from "../core/file-keys.ts";
 import { servedImage } from "../core/image-serving.ts";
 import { IMAGE_TYPES } from "../core/image-type.ts";
 import type { Ports } from "../core/ports.ts";
@@ -13,7 +14,7 @@ const ImageBytesSchema = z.string().openapi({ format: "binary" });
 
 const imageRoute = createRoute({
   method: "get",
-  path: "/api/files/items/{id}/{name}",
+  path: `${FILE_ROUTE}items/{id}/{name}`,
   request: { params: FileParamsSchema },
   responses: {
     200: {

@@ -64,6 +64,8 @@ export type SearchPartKind = (typeof SEARCH_PART_KINDS)[number];
 
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
+export type MediaOutcome = (typeof MEDIA_OUTCOMES)[number];
+
 export type MediaFailure = (typeof MEDIA_FAILURES)[number];
 
 export type ThrottleKind = (typeof THROTTLE_KINDS)[number];

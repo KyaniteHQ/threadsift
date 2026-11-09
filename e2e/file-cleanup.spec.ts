@@ -10,11 +10,10 @@ import {
   storeFileItem,
   storeJob,
   type SeededJob,
+  TICK_WAIT_MS,
+  waitForKeys,
 } from "./files.ts";
-import { tickNow } from "./ingest.ts";
 import { isContainerTarget } from "./target.ts";
-
-const TICK_WAIT_MS = 150_000;
 
 const PAGE_KEYS = 100;
 
@@ -81,24 +80,8 @@ function keysOf(id: number, names: readonly string[]): string[] {
   return names.map((name) => `items/${id}/${name}`);
 }
 
-function storedKeys(): string[] {
-  return instance
-    .listFiles("items/")
-    .map(({ key }) => key)
-    .toSorted();
-}
-
-async function waitForKeys(expected: readonly string[]): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        await tickNow(owner, instance);
-
-        return storedKeys();
-      },
-      { timeout: TICK_WAIT_MS, intervals: [2000] },
-    )
-    .toEqual(expected.toSorted());
+async function waitForFiles(expected: readonly string[]): Promise<void> {
+  await waitForKeys(owner, instance, expected);
 }
 
 test("a tick deletes every file no Item names and no running attempt can publish, and keeps the file an Item names and the files of an attempt that holds its claim, the one it is still writing included", async () => {
@@ -129,7 +112,7 @@ test("a tick deletes every file no Item names and no running attempt can publish
 
   if (isContainerTarget()) store(heldTemporary, "the file its attempt is still writing");
 
-  await waitForKeys([
+  await waitForFiles([
     named.key,
     heldKey,
     refreshed.key,
@@ -156,7 +139,7 @@ test("a tick leaves a file of a kind it does not own, an image-style name outsid
 
   store(`items/${id}/post-${job}-1.md`, "an orphaned post text file");
 
-  await waitForKeys(kept);
+  await waitForFiles(kept);
 });
 
 test.describe("a store with more keys than one page", () => {
@@ -172,12 +155,12 @@ test.describe("a store with more keys than one page", () => {
 
     plantStrays(id, names);
 
-    await waitForKeys([key, ...keysOf(id, names.slice(PAGE_KEYS - 1))]);
+    await waitForFiles([key, ...keysOf(id, names.slice(PAGE_KEYS - 1))]);
     expect(cursors(), "the cursor after the first page").toEqual([
       { cursor: `items/${id}/${names[PAGE_KEYS - 2]}` },
     ]);
 
-    await waitForKeys([key]);
+    await waitForFiles([key]);
     expect(cursors(), "the cursor after the last page").toEqual([{ cursor: null }]);
   });
 
@@ -192,7 +175,7 @@ test.describe("a store with more keys than one page", () => {
     plantStrays(filled.id, names);
     inContainer(instance, `chmod 555 /data/files/items/${locked.id}`);
 
-    await waitForKeys([
+    await waitForFiles([
       ...keysOf(locked.id, [lockedName]),
       filled.key,
       ...keysOf(filled.id, names.slice(PAGE_KEYS - 2)),
@@ -203,6 +186,6 @@ test.describe("a store with more keys than one page", () => {
     ).toEqual([]);
 
     inContainer(instance, `chmod 755 /data/files/items/${locked.id}`);
-    await waitForKeys([filled.key]);
+    await waitForFiles([filled.key]);
   });
 });

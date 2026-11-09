@@ -23,14 +23,7 @@ export async function servedImage(
   const [row] = await db
     .select({ id: media.id, contentType: media.contentType, size: media.size })
     .from(media)
-    .where(
-      and(
-        eq(media.itemId, Number(parsed.itemId)),
-        eq(media.fileKey, key),
-        eq(media.kind, "image"),
-        eq(media.outcome, "stored"),
-      ),
-    );
+    .where(and(eq(media.itemId, Number(parsed.itemId)), eq(media.fileKey, key)));
 
   const contentType = declaredImageType(row?.contentType ?? null);
 

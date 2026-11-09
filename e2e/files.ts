@@ -1,13 +1,16 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
-import { type APIRequestContext, request } from "@playwright/test";
+import { type APIRequestContext, expect, request } from "@playwright/test";
 import { z } from "zod";
 
 import { type Instance, sessionStateOf, sessionValueOf } from "./access.ts";
 import { setUpByApi } from "./fresh-screen.ts";
+import { tickNow } from "./ingest.ts";
 
 export const ROW_LIMIT_BYTES = 1_000_000;
+
+export const TICK_WAIT_MS = 150_000;
 
 const READ_CHUNK_BYTES = 65_536;
 
@@ -155,4 +158,24 @@ export function inContainer(instance: Instance, script: string): string {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
   });
+}
+
+export async function waitForKeys(
+  owner: APIRequestContext,
+  instance: Instance,
+  expected: readonly string[],
+): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        await tickNow(owner, instance);
+
+        return instance
+          .listFiles("items/")
+          .map(({ key }) => key)
+          .toSorted();
+      },
+      { timeout: TICK_WAIT_MS, intervals: [2000] },
+    )
+    .toEqual(expected.toSorted());
 }

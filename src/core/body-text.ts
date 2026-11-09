@@ -1,10 +1,14 @@
 const HTML_TYPES: ReadonlySet<string> = new Set(["text/html", "application/xhtml+xml"]);
 const CHARSET = /;\s*charset\s*=\s*"?(?<label>[^";\s]+)/iu;
 
-export function isHtmlType(contentType: string | null): boolean {
+export function mediaTypeOf(contentType: string | null): string {
   const [mediaType = ""] = (contentType ?? "").split(";");
 
-  return HTML_TYPES.has(mediaType.trim().toLowerCase());
+  return mediaType.trim().toLowerCase();
+}
+
+export function isHtmlType(contentType: string | null): boolean {
+  return HTML_TYPES.has(mediaTypeOf(contentType));
 }
 
 export function decoderFor(contentType: string | null): TextDecoder {

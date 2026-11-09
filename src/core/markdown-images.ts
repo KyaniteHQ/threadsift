@@ -59,29 +59,51 @@ function definitionsOf(nodes: readonly MarkdownNode[]): (identifier: string) => 
   return (identifier) => definitions.get(identifier);
 }
 
+function destinationOf(
+  node: Readonly<MarkdownNode>,
+  definition: (identifier: string) => string | undefined,
+  direct: string,
+): string | undefined {
+  return node.type === direct ? node.url : definition(node.identifier ?? "");
+}
+
 function imageOf(
   node: Readonly<MarkdownNode>,
   definition: (identifier: string) => string | undefined,
 ): MarkdownImage | null {
   const start = node.position?.start.offset;
   const end = node.position?.end.offset;
-  const destination = node.type === "image" ? node.url : definition(node.identifier ?? "");
+  const destination = destinationOf(node, definition, "image");
 
   if (start === undefined || end === undefined || destination === undefined) return null;
 
   return { start, end, destination, alt: node.alt ?? "", title: node.title ?? null };
 }
 
-export function imagesOf(markdown: string): readonly MarkdownImage[] {
-  if (!markdown.includes("![")) return [];
+export interface MarkdownScan {
+  readonly images: readonly MarkdownImage[];
+  readonly links: readonly string[];
+}
+
+export const NOTHING_SCANNED: MarkdownScan = { images: [], links: [] };
+
+export function scanMarkdown(markdown: string, wantsLinks: boolean): MarkdownScan {
+  if (!wantsLinks && !markdown.includes("![")) return NOTHING_SCANNED;
 
   const nodes = walk(PROCESSOR.parse(markdown));
   const definition = definitionsOf(nodes);
 
-  return nodes
-    .filter(({ type }) => type === "image" || type === "imageReference")
-    .map((node) => imageOf(node, definition))
-    .filter((image) => image !== null);
+  return {
+    images: nodes
+      .filter(({ type }) => type === "image" || type === "imageReference")
+      .map((node) => imageOf(node, definition))
+      .filter((image) => image !== null),
+    links: wantsLinks
+      ? nodes
+          .filter(({ type }) => type === "link" || type === "linkReference")
+          .flatMap((node) => destinationOf(node, definition, "link") ?? [])
+      : [],
+  };
 }
 
 export function altText(alt: string): string {

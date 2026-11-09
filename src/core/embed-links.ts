@@ -1,3 +1,6 @@
+import { webUrlOf } from "./addresses.ts";
+import { X_HOSTS, hostOf } from "./links.ts";
+
 export interface EmbedLink {
   readonly url: string;
   readonly video: boolean;
@@ -5,28 +8,21 @@ export interface EmbedLink {
 
 const YOUTUBE_HOSTS: ReadonlySet<string> = new Set([
   "youtube.com",
-  "www.youtube.com",
   "m.youtube.com",
   "youtube-nocookie.com",
-  "www.youtube-nocookie.com",
+  "youtu.be",
 ]);
 
-const X_HOSTS: ReadonlySet<string> = new Set([
-  "x.com",
-  "www.x.com",
-  "twitter.com",
-  "www.twitter.com",
-  "mobile.twitter.com",
-]);
+const VIMEO_HOSTS: ReadonlySet<string> = new Set(["vimeo.com", "player.vimeo.com"]);
 
 const YOUTUBE_ID = /^[\w-]{11}$/u;
 const YOUTUBE_PATH = /^\/(?:embed|v|watch)\/(?<id>[\w-]{11})\/?$/u;
 const VIMEO_PATH = /^\/(?:video\/)?(?<id>\d+)\/?$/u;
 const X_STATUS = /^\/(?<user>\w+)\/status\/(?<id>\d+)\/?$/u;
 
-function youtube(hostname: string, path: string, query: (name: string) => string | null) {
+function youtube(host: string, path: string, query: (name: string) => string | null) {
   const id =
-    hostname === "youtu.be"
+    host === "youtu.be"
       ? path.slice(1)
       : (YOUTUBE_PATH.exec(path)?.groups?.["id"] ?? (path === "/watch" ? query("v") : null));
 
@@ -55,20 +51,17 @@ function xPost(path: string, query: (name: string) => string | null): EmbedLink 
 }
 
 export function embedLinkOf(address: string): EmbedLink | null {
-  const url = URL.parse(address);
+  const url = webUrlOf(address);
 
-  if (url === null || (url.protocol !== "https:" && url.protocol !== "http:")) return null;
+  if (url === null) return null;
 
-  const { hostname, pathname, searchParams } = url;
+  const host = hostOf(url.href);
+  const { pathname, searchParams } = url;
   const query = (name: string): string | null => searchParams.get(name);
 
-  if (YOUTUBE_HOSTS.has(hostname) || hostname === "youtu.be") {
-    return youtube(hostname, pathname, query);
-  }
+  if (YOUTUBE_HOSTS.has(host)) return youtube(host, pathname, query);
 
-  if (hostname === "player.vimeo.com" || hostname === "vimeo.com") return vimeo(pathname);
+  if (VIMEO_HOSTS.has(host)) return vimeo(pathname);
 
-  return X_HOSTS.has(hostname) || hostname === "platform.twitter.com"
-    ? xPost(pathname, query)
-    : null;
+  return X_HOSTS.has(host) || host === "platform.twitter.com" ? xPost(pathname, query) : null;
 }

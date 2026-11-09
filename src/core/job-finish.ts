@@ -32,29 +32,24 @@ function logClaimLost(job: Readonly<Pick<JobRow, "id" | "attempts">>): void {
   console.warn(JSON.stringify({ event: "job-claim-lost", jobId: job.id, attempt: job.attempts }));
 }
 
-async function deleteQuietly(ports: JobPorts, keys: readonly string[]): Promise<void> {
+async function deleteQuietly(
+  ports: JobPorts,
+  keys: readonly string[],
+  doomed: (keys: readonly string[]) => Promise<readonly string[]> = (all) => Promise.resolve(all),
+): Promise<void> {
   if (keys.length === 0) return;
 
   try {
-    await ports.files.delete(keys);
+    await ports.files.delete(await doomed(keys));
   } catch (error) {
     logFailure("file-not-deleted", { keys: keys.length }, error);
   }
 }
 
-async function deleteRejected(ports: JobPorts, keys: readonly string[]): Promise<void> {
-  if (keys.length === 0) return;
+async function unnamed(ports: JobPorts, keys: readonly string[]): Promise<readonly string[]> {
+  const named = await namedKeys(ports.db, keys);
 
-  try {
-    const named = await namedKeys(ports.db, keys);
-
-    await deleteQuietly(
-      ports,
-      keys.filter((key) => !named.has(key)),
-    );
-  } catch (error) {
-    logFailure("file-not-deleted", { keys: keys.length }, error);
-  }
+  return keys.filter((key) => !named.has(key));
 }
 
 function closingWrites(
@@ -109,7 +104,9 @@ export async function finish(
 
   await enqueueItemJobs(ports, job.itemId);
 
-  await (wrote ? deleteQuietly(ports, files.superseded) : deleteRejected(ports, files.written));
+  await (wrote
+    ? deleteQuietly(ports, files.superseded)
+    : deleteQuietly(ports, files.written, (keys) => unnamed(ports, keys)));
 
   if (!wrote) logClaimLost(job);
 

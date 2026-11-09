@@ -10,7 +10,7 @@ import {
   openLibrary,
   pasteArticle,
 } from "./media-pages.ts";
-import { FILE_HEADERS, expectServed, imageRows, routeOf } from "./media.ts";
+import { expectPrivate, expectServed, imageRows, routeOf } from "./media.ts";
 import { isContainerTarget } from "./target.ts";
 
 test.describe.configure({ timeout: 300_000 });
@@ -24,12 +24,6 @@ test.beforeEach(async () => {
 test.afterEach(async () => {
   await closeLibrary(library);
 });
-
-function expectPrivate(response: { headers(): Record<string, string> }): void {
-  for (const [name, value] of Object.entries(FILE_HEADERS)) {
-    expect(response.headers()[name], name).toBe(value);
-  }
-}
 
 test("the file route serves a published image to the owner and to an agent token, and refuses no credential and a revoked token", async () => {
   const { instance, owner } = library;

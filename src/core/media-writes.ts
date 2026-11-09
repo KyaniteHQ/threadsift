@@ -2,6 +2,7 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { MediaRowValue } from "./article-images.ts";
+import type { MediaKind, MediaOutcome } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { media } from "./schema.ts";
 
@@ -34,11 +35,11 @@ export function mediaWrites(
           .select({
             id: sql<null>`null`.as("id"),
             itemId: sql<number>`${itemId}`.as("item_id"),
-            kind: sql<"image" | "video">`${FIELD("kind")}`.as("kind"),
+            kind: sql<MediaKind>`${FIELD("kind")}`.as("kind"),
             sourceUrl: sql<string>`${FIELD("sourceUrl")}`.as("source_url"),
             finalUrl: sql<string | null>`${FIELD("finalUrl")}`.as("final_url"),
             position: sql<number>`${FIELD("position")}`.as("position"),
-            outcome: sql<"stored" | "failed" | "linked">`${FIELD("outcome")}`.as("outcome"),
+            outcome: sql<MediaOutcome>`${FIELD("outcome")}`.as("outcome"),
             reason: sql<string | null>`${FIELD("reason")}`.as("reason"),
             fileKey: sql<string | null>`${FIELD("fileKey")}`.as("file_key"),
             contentType: sql<string | null>`${FIELD("contentType")}`.as("content_type"),

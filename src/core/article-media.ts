@@ -1,5 +1,4 @@
-import { parseHTML } from "linkedom";
-
+import { webUrlOf } from "./addresses.ts";
 import { type EmbedLink, embedLinkOf } from "./embed-links.ts";
 
 export function baseOf(document: Document, url: string): string {
@@ -10,9 +9,7 @@ export function baseOf(document: Document, url: string): string {
 }
 
 function webUrl(source: string | null, base: string): string | null {
-  const url = source === null || source === "" ? null : URL.parse(source, base);
-
-  return url?.protocol === "https:" || url?.protocol === "http:" ? url.href : null;
+  return source === null || source === "" ? null : (webUrlOf(source, base)?.href ?? null);
 }
 
 function urlsOf(element: Element, base: string): readonly string[] {
@@ -60,22 +57,12 @@ export function replaceMedia(document: Document, base: string): readonly EmbedLi
   return linked;
 }
 
-function retainedHrefs(content: string): ReadonlySet<string> {
-  const { document } = parseHTML(`<body>${content}</body>`);
-
-  return new Set(
-    [...document.querySelectorAll("a[href]")].map(
-      (anchor) => URL.parse(anchor.getAttribute("href") ?? "")?.href ?? "",
-    ),
-  );
-}
-
-export function retainedVideos(linked: readonly EmbedLink[], content: string): readonly string[] {
+export function retainedVideos(
+  linked: readonly EmbedLink[],
+  linkedAddresses: readonly string[],
+): readonly string[] {
   const videos = new Set(linked.flatMap(({ url, video }) => (video ? [url] : [])));
-
-  if (videos.size === 0) return [];
-
-  const retained = retainedHrefs(content);
+  const retained = new Set(linkedAddresses.map((address) => URL.parse(address)?.href ?? ""));
 
   return [...videos].filter((url) => retained.has(url));
 }
