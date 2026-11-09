@@ -36,18 +36,13 @@ async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
       };
     }
 
-    case "invalid": {
-      throw new Error('Not implemented yet: "invalid" case');
-    }
-
+    case "invalid":
     case "too-large": {
-      throw new Error('Not implemented yet: "too-large" case');
-    }
-
-    default: {
-      return prefillOf(link, "invalid");
+      break;
     }
   }
+
+  return prefillOf(link, "invalid");
 }
 
 function arrivalFor(
