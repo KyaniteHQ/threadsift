@@ -6,7 +6,7 @@ import { fetchItemDetail } from "./api.ts";
 export type DetailState =
   | { readonly status: "loading" }
   | { readonly status: "failed" }
-  | { readonly status: "ready"; readonly detail: ItemDetail };
+  | { readonly status: "ready"; readonly detail: ItemDetail; readonly stale: boolean };
 
 type Answer = Readonly<{ id: number; state: Exclude<DetailState, { status: "loading" }> }>;
 
@@ -19,7 +19,7 @@ export function refreshKey(item: Readonly<Item>): string {
 const FAILED: Answer["state"] = { status: "failed" };
 
 function ready(detail: ItemDetail): Answer["state"] {
-  return { status: "ready", detail };
+  return { status: "ready", detail, stale: false };
 }
 
 export function useItemDetail(id: number, refresh: string) {
@@ -36,7 +36,7 @@ export function useItemDetail(id: number, refresh: string) {
       if (current) {
         setAnswer((was) =>
           state.status === "failed" && was?.id === request.id && was.state.status === "ready"
-            ? was
+            ? { id: request.id, state: { ...was.state, stale: true } }
             : { id: request.id, state },
         );
       }

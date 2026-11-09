@@ -32,6 +32,7 @@ export const HINT_LIST = "j k move · Enter open · m read · / search";
 export const HINT_PANE = "j k move · Enter open · m read · / search · Esc close";
 export const READER_LOADING = "Loading item…";
 export const READER_FAILED = "Couldn’t load this item.";
+export const READER_STALE = "This text is from earlier and may be outdated.";
 export const POST_TEXT_FAILED = "Couldn’t show this item’s post text and comments.";
 export const SUMMARY_LABEL = "Summary";
 export const KEY_POINTS_LABEL = "Key points";
