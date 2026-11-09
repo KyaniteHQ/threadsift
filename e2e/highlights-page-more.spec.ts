@@ -11,6 +11,7 @@ import {
   moreButton,
   openPage,
   results,
+  searchBox,
   textsOnPage,
 } from "./highlights-page-ui.ts";
 import { POST, created, postRevision, putPost, selectorOf } from "./highlights.ts";
@@ -115,4 +116,41 @@ test("the page shows a loading state while the first answer is awaited and a fai
   await page.unroute(isPage);
   await page.getByRole("button", { name: RETRY_LABEL }).click();
   await expect(entries(page)).toHaveCount(FIRST_PAGE);
+});
+
+test("pressing Load more while a new search is awaited sends nothing and leaves the new answer without a repeat", async () => {
+  const { page } = screenOf();
+  const { promise: firstHeld, resolve: releaseFirst } = Promise.withResolvers<void>();
+  const { promise: moreHeld, resolve: releaseMore } = Promise.withResolvers<void>();
+  const cursors: string[] = [];
+
+  await openPage(page, DESKTOP.width);
+  await expect(entries(page)).toHaveCount(FIRST_PAGE);
+
+  await page.route(isPage, async (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+
+    if (cursor === null) {
+      await firstHeld;
+    } else {
+      cursors.push(cursor);
+      await moreHeld;
+    }
+
+    await route.continue();
+  });
+
+  await searchBox(page).fill("quote00");
+  await moreButton(page).click({ force: true });
+  await expect(moreButton(page)).toHaveAttribute("aria-disabled", "true");
+
+  const answer = Array.from({ length: 10 }, (_, index) => wordAt(9 - index));
+
+  releaseFirst();
+  await expect.poll(() => textsOnPage(page)).toEqual(answer);
+  expect(cursors, "no request for a page after the old answer").toEqual([]);
+
+  releaseMore();
+  await page.unroute(isPage);
+  expect(await textsOnPage(page)).toEqual(answer);
 });

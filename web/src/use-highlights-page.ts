@@ -9,6 +9,7 @@ type More = "idle" | "loading" | "failed";
 
 export interface Ready {
   readonly status: "ready";
+  readonly query: Filters;
   readonly entries: HighlightsPage["entries"];
   readonly next: string | null;
   readonly counts: HighlightsPage["counts"];
@@ -20,8 +21,8 @@ export type PageState = { readonly status: "loading" } | { readonly status: "fai
 const LOADING: PageState = { status: "loading" };
 const FAILED: PageState = { status: "failed" };
 
-function readyFrom(page: Readonly<HighlightsPage>): Ready {
-  return { status: "ready", ...page, more: "idle" };
+function readyFrom(query: Filters, page: Readonly<HighlightsPage>): Ready {
+  return { status: "ready", query, ...page, more: "idle" };
 }
 
 export function matchedCount(
@@ -49,7 +50,11 @@ function appended(now: PageState, page: Readonly<HighlightsPage> | null): PageSt
 
   return page === null
     ? { ...now, more: "failed" }
-    : { ...readyFrom(page), entries: [...now.entries, ...page.entries] };
+    : { ...readyFrom(now.query, page), entries: [...now.entries, ...page.entries] };
+}
+
+export function canLoadMore(state: Readonly<Ready>, query: Readonly<Filters>): boolean {
+  return state.query === query && state.next !== null && state.more !== "loading";
 }
 
 export function useHighlightsPage(filters: Readonly<Filters>) {
@@ -62,7 +67,7 @@ export function useHighlightsPage(filters: Readonly<Filters>) {
     const mine = ticket.current;
     const page = await attempt(filters, null);
 
-    if (ticket.current === mine) setState(page === null ? FAILED : readyFrom(page));
+    if (ticket.current === mine) setState(page === null ? FAILED : readyFrom(filters, page));
   }, [filters]);
 
   useEffect(() => {
@@ -74,10 +79,10 @@ export function useHighlightsPage(filters: Readonly<Filters>) {
     void first();
   }, [first]);
 
-  const loadMore = useCallback(() => {
+  const loadMore = useCallback((): boolean => {
     const current = latest.current;
 
-    if (current.status !== "ready" || current.next === null || current.more === "loading") return;
+    if (current.status !== "ready" || !canLoadMore(current, filters)) return false;
 
     const mine = ticket.current;
     setState({ ...current, more: "loading" });
@@ -87,6 +92,8 @@ export function useHighlightsPage(filters: Readonly<Filters>) {
 
       return page;
     });
+
+    return true;
   }, [filters, latest]);
 
   return { state, retry, loadMore };

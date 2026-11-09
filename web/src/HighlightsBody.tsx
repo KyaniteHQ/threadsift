@@ -7,7 +7,7 @@ import { HIGHLIGHTS_PAGE, pageHeadLabel } from "./highlights-page-text.ts";
 import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
 import { CLEAR_ALL, RETRY_LABEL } from "./text.ts";
 import { useEntryKeys, useFocusNewEntries } from "./use-highlights-focus.ts";
-import { type PageState, type Ready, matchedCount } from "./use-highlights-page.ts";
+import { type PageState, type Ready, canLoadMore, matchedCount } from "./use-highlights-page.ts";
 
 function Loading() {
   return <Skeleton label={HIGHLIGHTS_PAGE.loading} row="hp-it" title="hp-title" />;
@@ -33,7 +33,11 @@ function moreLabel(more: Ready["more"]): string {
   return more === "failed" ? RETRY_LABEL : HIGHLIGHTS_PAGE.loadMore;
 }
 
-function More({ state, loadMore }: Readonly<{ state: Ready; loadMore: () => void }>) {
+function More({
+  state,
+  filters,
+  loadMore,
+}: Readonly<{ state: Ready; filters: Filters; loadMore: () => void }>) {
   if (state.next === null) return null;
 
   return (
@@ -46,7 +50,7 @@ function More({ state, loadMore }: Readonly<{ state: Ready; loadMore: () => void
       <button
         type="button"
         className="btn"
-        aria-disabled={state.more === "loading"}
+        aria-disabled={!canLoadMore(state, filters)}
         onClick={loadMore}
       >
         {moreLabel(state.more)}
@@ -98,7 +102,7 @@ function Listed({
   filters: Filters;
   now: number;
   navigate: (to: string) => void;
-  loadMore: () => void;
+  loadMore: () => boolean;
   clearAll: () => void;
 }>) {
   const list = useRef<HTMLOListElement>(null);
@@ -107,8 +111,7 @@ function Listed({
   useEntryKeys(list);
 
   const more = useCallback(() => {
-    expectFocus(length);
-    loadMore();
+    if (loadMore()) expectFocus(length);
   }, [expectFocus, length, loadMore]);
 
   return (
@@ -124,7 +127,7 @@ function Listed({
       ) : (
         <EntryList entries={state.entries} now={now} navigate={navigate} list={list} />
       )}
-      <More state={state} loadMore={more} />
+      <More state={state} filters={filters} loadMore={more} />
     </>
   );
 }
@@ -139,7 +142,7 @@ export function HighlightsBody({
   now: number;
   navigate: (to: string) => void;
   retry: () => void;
-  loadMore: () => void;
+  loadMore: () => boolean;
   clearAll: () => void;
 }>) {
   if (state.status === "loading") return <Loading />;
