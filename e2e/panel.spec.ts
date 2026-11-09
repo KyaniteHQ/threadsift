@@ -207,6 +207,7 @@ async function expectOneTabStopPerGroup(page: Page, dialog: Locator): Promise<vo
     radioOf(dialog, "Density", "Compact"),
     radioOf(dialog, "Comment style", "Indented lines"),
     radioOf(dialog, "Accent", "Cobalt"),
+    radioOf(dialog, "Card images", "On"),
     dialog.getByRole("link", { name: "Instance settings" }),
     dialog.getByRole("button", { name: "Reset look" }),
   ];
@@ -225,13 +226,13 @@ test("each single-choice group is a radio group with one Tab stop and arrow keys
   const dialog = await openPanel(page);
   const theme = dialog.getByRole("radiogroup", { name: "Theme", exact: true });
 
-  await expect(dialog.getByRole("radiogroup")).toHaveCount(7);
+  await expect(dialog.getByRole("radiogroup")).toHaveCount(8);
 
   const names = await dialog
     .locator('input[type="radio"]')
     .evaluateAll((inputs) => new Set(inputs.map((input) => input.getAttribute("name"))).size);
 
-  expect(names, "one native radio name for each of the seven settings").toBe(7);
+  expect(names, "one native radio name for each of the eight settings").toBe(8);
   await expect(radioOf(dialog, "Layout", "List")).toBeFocused();
   await theme.getByRole("radio", { name: "Light" }).focus();
 
