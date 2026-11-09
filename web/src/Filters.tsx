@@ -1,11 +1,12 @@
 import { useCallback, useId, useState } from "react";
 
 import type { FilterCounts } from "../../src/core/item-filters.ts";
-import type { ReadState, Source } from "../../src/core/kinds.ts";
+import { READ_STATES, SOURCES, type ReadState, type Source } from "../../src/core/kinds.ts";
 import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
-import { type Choice, type Filters, chosenCount, isSearching } from "./filters.ts";
+import { type Choice, type Filters, NO_FILTERS, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import {
+  BLANK,
   CLEAR_FILTERS,
   FILTERS_BUTTON,
   FILTERS_BUTTON_ACTIVE,
@@ -144,6 +145,46 @@ function Panel({
           {CLEAR_FILTERS}
         </button>
       ) : null}
+    </div>
+  );
+}
+
+const UNLOADED_COUNTS: FilterCounts = {
+  total: 0,
+  unread: 0,
+  sources: SOURCES.map((key) => ({ key, count: 0 })),
+  reads: READ_STATES.map((key) => ({ key, count: 0 })),
+  topics: [],
+  tags: [],
+};
+
+const NOTHING = (): void => undefined;
+
+export function FilterGhost({
+  collapsible,
+  bar,
+}: Readonly<{ collapsible: boolean; bar: boolean }>) {
+  const panelId = useId();
+
+  if (!collapsible && !bar) return null;
+
+  return (
+    <div className={bar ? "fl fl-bar fl-ghost" : "fl fl-rail fl-ghost"} aria-hidden="true" inert>
+      {collapsible ? (
+        <button type="button" className="btn fl-toggle">
+          <Icon name="filters" className="ic ic-s" />
+          {BLANK}
+        </button>
+      ) : (
+        <Panel
+          counts={UNLOADED_COUNTS}
+          filters={NO_FILTERS}
+          choose={NOTHING}
+          clearChosen={NOTHING}
+          bar
+          id={panelId}
+        />
+      )}
     </div>
   );
 }

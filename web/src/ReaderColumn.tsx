@@ -31,6 +31,7 @@ export function ReaderHead({
   now,
   titleId,
   focusTitle,
+  loading,
   tryAgain,
 }: Readonly<{
   item: Item;
@@ -38,17 +39,18 @@ export function ReaderHead({
   now: number;
   titleId: string;
   focusTitle: boolean;
+  loading: boolean;
   tryAgain: (item: Item) => void;
 }>) {
   const title = useRef<HTMLHeadingElement>(null);
   const name = item.digestTitle ?? item.title;
 
   useEffect(() => {
-    if (focusTitle) title.current?.focus({ preventScroll: true });
-  }, [focusTitle]);
+    if (focusTitle && !loading) title.current?.focus({ preventScroll: true });
+  }, [focusTitle, loading]);
 
   return (
-    <header className="rd-head">
+    <header className="rd-head" inert={loading}>
       <p className="rd-src">
         <span className="src">{SOURCE_LABELS[item.source]}</span>
         <span>{whereOf(item)}</span>
@@ -130,6 +132,10 @@ function Agent({
   );
 }
 
+export function ReaderLoading() {
+  return <output className="rd-note rd-loading">{READER_LOADING}</output>;
+}
+
 export function ReaderContent({
   item,
   state,
@@ -138,15 +144,11 @@ export function ReaderContent({
   now,
 }: Readonly<{
   item: Item;
-  state: DetailState;
+  state: Exclude<DetailState, { status: "loading" }>;
   retry: () => void;
   tryAgain: (item: Item) => void;
   now: number;
 }>) {
-  if (state.status === "loading") {
-    return <output className="rd-note">{READER_LOADING}</output>;
-  }
-
   if (state.status === "failed") {
     return (
       <div className="rd-orig" role="alert">

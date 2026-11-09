@@ -55,6 +55,19 @@ fieldset.fl-g {
   visibility: hidden;
 }
 
+.app[data-faces="loading"] :is(.brand h1, .paste-row .swap, .brand .st-gear, .search) {
+  visibility: hidden;
+}
+
+.rd-head[inert] {
+  position: absolute;
+  opacity: 0;
+}
+
+.fl-ghost .fl-panel {
+  visibility: hidden;
+}
+
 .items {
   margin: 0;
   padding: 0;
@@ -132,7 +145,7 @@ dialog.sheet::backdrop {
   width: 70%;
 }
 
-[data-layout="list"]:not([data-bp~="medium"]) .paste-row {
+.app[data-layout="list"]:not([data-bp~="medium"]) .paste-row {
   flex-direction: column;
 }
 

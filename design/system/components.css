@@ -156,8 +156,8 @@ a.btn { text-decoration: none; }
 .tone-acc { color: var(--acc-ink); }
 .tone-ok { color: var(--ok); }
 .tone-warn { color: var(--warn); }
-[data-layout="list"]:not([data-bp~="medium"]) .paste-card, [data-layout="grid"]:not([data-bp~="narrow"]) .paste-card { position: absolute; top: calc(100% + var(--s2)); inset-inline: 0; z-index: var(--z-float); box-shadow: var(--shadow-lg); }   /* in the sidebar (List from 1080px) and over the grid (from 760px) the card floats; it keeps to the room left in the window and scrolls */
-[data-layout="grid"]:not([data-bp~="narrow"]) .paste-card { inset-inline: auto 0; width: min(var(--paste-w), 100%); }
+.app[data-layout="list"]:not([data-bp~="medium"]) .paste-card, .app[data-layout="grid"]:not([data-bp~="narrow"]) .paste-card { position: absolute; top: calc(100% + var(--s2)); inset-inline: 0; z-index: var(--z-float); box-shadow: var(--shadow-lg); }   /* in the sidebar (List from 1080px) and over the grid (from 760px) the card floats; it keeps to the room left in the window and scrolls */
+.app[data-layout="grid"]:not([data-bp~="narrow"]) .paste-card { inset-inline: auto 0; width: min(var(--paste-w), 100%); }
 
 /* 4. Filters -------------------------------------------------------------
    rail: segmented Source and Status rows with counts, then Topic and Tags as collapsible

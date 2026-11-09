@@ -2,7 +2,7 @@ import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import type { SaveTarget } from "./api.ts";
 import type { Choice, Filters } from "./filters.ts";
-import { FilterPane } from "./Filters.tsx";
+import { FilterGhost, FilterPane } from "./Filters.tsx";
 import { PasteBox } from "./PasteBox.tsx";
 import { SettingsPanel } from "./SettingsPanel.tsx";
 import { totalName } from "./text.ts";
@@ -34,27 +34,37 @@ function Brand({
 
 function FilterSlot({
   counts,
+  loading,
   filters,
   look,
   choose,
   clearChosen,
 }: Readonly<{
   counts: FilterCounts | null;
+  loading: boolean;
   filters: Filters;
   look: Look;
   choose: (choice: Choice) => void;
   clearChosen: () => void;
 }>) {
-  if (counts === null || counts.total === 0) return null;
-
   const bar = look.settings.layout === "grid";
+  const collapsible = bar ? look.narrow : look.medium;
+
+  if (loading)
+    return collapsible || bar ? (
+      <div className="filters-slot">
+        <FilterGhost collapsible={collapsible} bar={bar} />
+      </div>
+    ) : null;
+
+  if (counts === null || counts.total === 0) return null;
 
   return (
     <div className="filters-slot">
       <FilterPane
         counts={counts}
         filters={filters}
-        collapsible={bar ? look.narrow : look.medium}
+        collapsible={collapsible}
         bar={bar}
         choose={choose}
         clearChosen={clearChosen}
@@ -67,6 +77,7 @@ export function Masthead({
   look,
   openSettings,
   counts,
+  loading,
   filters,
   choose,
   clearChosen,
@@ -79,6 +90,7 @@ export function Masthead({
   look: Look;
   openSettings: () => void;
   counts: FilterCounts | null;
+  loading: boolean;
   filters: Filters;
   choose: (choice: Choice) => void;
   clearChosen: () => void;
@@ -102,6 +114,7 @@ export function Masthead({
       />
       <FilterSlot
         counts={counts}
+        loading={loading}
         filters={filters}
         look={look}
         choose={choose}

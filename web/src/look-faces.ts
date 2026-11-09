@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { LOOK_FONTS, loadStacks, stacksOf } from "./load-fonts.ts";
-
-const FACE_WAIT_MS = 3_000;
+import { FACE_WAIT_MS, LOOK_FONTS, loadStacks, stacksOf } from "./load-fonts.ts";
 
 type Attributes = Readonly<Record<string, string>>;
 

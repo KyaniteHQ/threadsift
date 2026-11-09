@@ -16,6 +16,7 @@ export function LibraryMasthead({
       look={look}
       openSettings={openSettings}
       counts={counts}
+      loading={view.reserves}
       filters={library.filters}
       choose={library.choose}
       clearChosen={library.clearChosen}

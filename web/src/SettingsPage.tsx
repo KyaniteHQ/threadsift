@@ -2,11 +2,12 @@ import { useCallback, useRef, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
+import { BAR_FONTS } from "./load-fonts.ts";
 import { useInternalLink } from "./routing.ts";
 import { SettingsSections } from "./SettingsSections.tsx";
-import { useBarFaces } from "./use-bar-faces.ts";
+import { useFaces } from "./use-faces.ts";
 import { useFocusOnMount } from "./use-form.ts";
-import { useSettingsLoad } from "./use-settings-load.ts";
+import { SETTINGS_READ_MS, useSettingsLoad } from "./use-settings-load.ts";
 
 function Loading() {
   return (
@@ -24,7 +25,7 @@ export function SettingsPage({
 }: Readonly<{ back: () => void; signedOut: () => void }>) {
   const titleField = useRef<HTMLHeadingElement>(null);
   const bar = useRef<HTMLElement>(null);
-  const barFaces = useBarFaces(bar);
+  const [barFaces] = useFaces(bar, BAR_FONTS, SETTINGS_READ_MS);
 
   useFocusOnMount(titleField);
 

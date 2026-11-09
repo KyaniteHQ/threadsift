@@ -16,14 +16,14 @@ function useKeyActions({
   covered,
   arrows,
   reader,
-  searchField,
+  focusSearch,
 }: Readonly<{
   list: ListState;
   openId: number | null;
   covered: boolean;
   arrows: boolean;
   reader: ReaderState;
-  searchField: RefObject<HTMLInputElement | null>;
+  focusSearch: () => void;
 }>) {
   useLibraryKeys({
     openId,
@@ -36,9 +36,7 @@ function useKeyActions({
       if (item !== undefined) reader.toggleRead(item);
     },
     close: reader.close,
-    focusSearch: () => {
-      searchField.current?.focus();
-    },
+    focusSearch,
   });
 }
 
@@ -69,7 +67,7 @@ export function useReaderSide({
   writes,
   attend,
   root,
-  searchField,
+  focusSearch,
   covered,
 }: Readonly<{
   list: ListState;
@@ -78,7 +76,7 @@ export function useReaderSide({
   writes: Writes;
   attend: (attention: Attention) => void;
   root: RefObject<HTMLDivElement | null>;
-  searchField: RefObject<HTMLInputElement | null>;
+  focusSearch: () => void;
   covered: boolean;
 }>): ReaderSide {
   const { inReader, appOf } = useLibraryDom(root);
@@ -106,7 +104,7 @@ export function useReaderSide({
     covered,
     arrows: look.settings.layout === "grid",
     reader,
-    searchField,
+    focusSearch,
   });
 
   return { reader, leaveSearch, openFromCard };
