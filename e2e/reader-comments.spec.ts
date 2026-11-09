@@ -51,6 +51,7 @@ test.use({ trace: "off", video: "off", screenshot: "off", actionTimeout: 15_000 
 const SWEEP_FROM = 750;
 const SWEEP_TO = 320;
 const SWEEP_STEP = 10;
+const SHORT_WINDOW = 500;
 
 const LABELS = commentsButtonLabels({ kept: THREAD.kept, total: REPORTED });
 
@@ -196,6 +197,7 @@ test("a long comment folds behind its button, opens, folds again from the top, a
 
 test("the reading place inside the comments survives a reload, and a reload from inside an opened comment lands on that comment folded", async () => {
   const page = await openItem(screen, DESKTOP.width, ids.thread);
+  await page.setViewportSize({ width: DESKTOP.width, height: SHORT_WINDOW });
 
   await slot(page).evaluate((element) => {
     const target = element.querySelector("li.cm.top");

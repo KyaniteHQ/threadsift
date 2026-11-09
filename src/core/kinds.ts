@@ -20,6 +20,7 @@ export const SEARCH_PART_KINDS = [
   "repository",
   "comment",
   "highlight",
+  "note",
 ] as const;
 
 export const MEDIA_KINDS = ["image", "video"] as const;

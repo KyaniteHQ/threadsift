@@ -134,6 +134,7 @@ a.btn { text-decoration: none; }
   .st-sw { forced-color-adjust: none; }
   .st-sw:has(:checked) { outline: 2px solid CanvasText; outline-offset: 2px; }
   .field:has(input:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; }
+  .nt-field:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
   .skel i { outline: 1px solid CanvasText; }
   [data-layout="list"] .it.open { border-inline-start: 3px solid Highlight; }
 }
@@ -406,6 +407,16 @@ button.hl-quote:hover { background: var(--surface-2); }
 .hl-entry > .btn { grid-column: 2; grid-row: 1 / span 2; }
 .hl-pop { position: fixed; inset: auto; margin: var(--s2) 0; padding: var(--s1); overflow: visible; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); }
 @media (pointer: coarse) { .hl-pop { margin-top: var(--target); } }
+
+.rd-nt { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.nt-field { box-sizing: border-box; display: block; width: 100%; min-height: calc(var(--field-h) * 3); padding: var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font-family: var(--f-ui); font-size: var(--t-body); line-height: var(--lh-text); resize: vertical; }
+.nt-field:focus-visible { border-color: var(--acc-ink); outline: none; box-shadow: 0 0 0 1px var(--acc-ink); }
+.app[data-bp~="phone"] .nt-field { font-size: max(var(--t-floor), var(--t-body)); }
+.nt-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
+.nt-acts .rd-note { font-style: normal; }
+.app[data-bp~="phone"] .nt-keys { display: none; }
+.nt-newer { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); }
+.nt-text { margin: 0; padding: 0; border: 0; color: var(--text); font-family: var(--f-read); font-size: var(--t-body); line-height: var(--lh-text); overflow-wrap: anywhere; white-space: pre-wrap; }
 
 .rd-media { overflow: hidden; border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface-2); }
 .rd-media .pic { height: auto; max-height: var(--media-max); object-fit: contain; object-position: center top; }

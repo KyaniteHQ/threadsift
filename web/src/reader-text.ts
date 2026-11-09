@@ -68,6 +68,18 @@ export const REMOVE_FAILED = "Couldn’t remove this highlight. Try again.";
 export const KEEP_STALE =
   "Couldn’t keep this highlight because the item’s text changed. Select the passage again once the new text is shown.";
 
+export const NOTE_TITLE = "Note";
+export const NOTE_SAVE = "Save";
+export const NOTE_SAVED = "Saved";
+export const NOTE_FAILED = "Couldn’t save this note. Your text is still here. Try again.";
+export const NOTE_TOO_LONG = "This note is over the limit of 10,000 characters.";
+export const NOTE_CHANGED = "This note changed somewhere else. The newer version follows.";
+export const NOTE_NEWER_EMPTY = "The newer version is empty.";
+export const NOTE_KEEP_MINE = "Keep mine";
+export const NOTE_USE_NEWER = "Use newer version";
+export const NOTE_KEYS = "Ctrl+Enter or Cmd+Enter saves";
+export const NOTE_NEWER_LABEL = "Newer version";
+
 export const FOOTNOTES_LABEL = "Footnotes";
 export const FOOTNOTE_BACK = "Back to reference {reference}";
 export const FOOTNOTE_BACK_AGAIN = "Back to footnote {reference}, reference {again}";

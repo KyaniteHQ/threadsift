@@ -146,13 +146,15 @@ export function collectDesign(defaultFont: string) {
     checkRatio("placeholder", rgba(placeholder.color), backdrop(input), TEXT);
   }
 
-  for (const field of document.querySelectorAll(".app .field")) {
+  for (const field of document.querySelectorAll(".app .field, .app .nt-field")) {
     const border = rgba(getComputedStyle(field).borderTopColor);
     checkRatio("field border against the page", border, backdrop(field.parentElement), MARK);
     checkRatio("field border against the field", border, backdrop(field), MARK);
   }
 
-  for (const button of document.querySelectorAll(".app .btn:not(.btn-plain), .app .st-reset")) {
+  for (const button of document.querySelectorAll(
+    '.app .btn:not(.btn-plain, :disabled, [aria-disabled="true"]), .app .st-reset',
+  )) {
     const style = getComputedStyle(button);
 
     const filled = button.classList.contains("btn-acc") && rgba(style.backgroundColor)[3] !== 0;
@@ -295,7 +297,7 @@ export function collectDesign(defaultFont: string) {
 
   if (innerWidth < 480) {
     for (const target of document.querySelectorAll(
-      ".app button, .app input, .app select, .app a[href]",
+      ".app button, .app input, .app select, .app textarea, .app a[href]",
     )) {
       const box = (target.closest(".it") ?? target).getBoundingClientRect();
       const drawsNoBox = box.width === 0 && box.height === 0;

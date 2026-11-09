@@ -12,6 +12,7 @@ import {
   itemTags,
   items,
   githubRepos,
+  notes,
   searchFingerprints,
   searchParts,
   searchReconciling,
@@ -22,6 +23,7 @@ import {
   digestPartWrites,
   fetchedPartWrites,
   highlightPartWrites,
+  notePartWrites,
   repositoryPartWrites,
   repositoryText,
 } from "./search.ts";
@@ -36,6 +38,14 @@ function tagNamesOfItem() {
 
 function highlightPartsHold() {
   return sql<boolean>`(not exists (select 1 from ${highlights} where ${highlights.itemId} = ${items.id} and not exists (select 1 from ${searchParts} where ${searchParts.highlightId} = ${highlights.id} and ${searchParts.body} = ${highlights.exact})) and not exists (select 1 from ${searchParts} where ${searchParts.itemId} = ${items.id} and ${searchParts.kind} = 'highlight' and not exists (select 1 from ${highlights} where ${highlights.id} = ${searchParts.highlightId} and ${highlights.exact} = ${searchParts.body})))`.mapWith(
+    Boolean,
+  );
+}
+
+function notePartHolds() {
+  const stored = sql`(select ${notes.body} from ${notes} where ${notes.itemId} = ${items.id})`;
+
+  return sql<boolean>`((select count(*) from ${searchParts} where ${searchParts.itemId} = ${items.id} and ${searchParts.kind} = 'note') = (case when ${stored} is null then 0 else 1 end) and not exists (select 1 from ${searchParts} where ${searchParts.itemId} = ${items.id} and ${searchParts.kind} = 'note' and ${searchParts.body} is not ${stored}))`.mapWith(
     Boolean,
   );
 }
@@ -59,6 +69,7 @@ function itemsAfter(db: Database, after: number) {
       digestGeneration: digests.generation,
       comments: keptCommentIds(),
       highlightsHold: highlightPartsHold(),
+      noteHolds: notePartHolds(),
       fingerprint: searchFingerprints.fingerprint,
     })
     .from(items)
@@ -123,9 +134,11 @@ async function reconcileRow(ports: JobPorts, row: Readonly<Reconciled>): Promise
       await reconcileItem(ports.db, row, fingerprint);
     }
 
-    if (!row.highlightsHold) {
-      await ports.db.batch(highlightPartWrites(ports.db, eq(items.id, row.id)));
-    }
+    const scope = eq(items.id, row.id);
+
+    if (!row.highlightsHold) await ports.db.batch(highlightPartWrites(ports.db, scope));
+
+    if (!row.noteHolds) await ports.db.batch(notePartWrites(ports.db, scope));
   } catch (error) {
     logFailure("search-parts-not-rewritten", { itemId: row.id }, error);
   }

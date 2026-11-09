@@ -3,7 +3,7 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { retryDigest } from "../core/digest-retry.ts";
 import { itemFilters } from "../core/item-filters.ts";
 import { itemPath } from "../core/item-path.ts";
-import { getItem, getListedItem, listItems } from "../core/item-selection.ts";
+import { getListedItem, listItems } from "../core/item-selection.ts";
 import { paste } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
 import { itemView, shownItems } from "./item-view.ts";
@@ -11,7 +11,6 @@ import { jsonBody, jsonRequest } from "./openapi.ts";
 import {
   ErrorResponseSchema,
   IdParamSchema,
-  ItemDetailResponseSchema,
   ItemListResponseSchema,
   ItemQuerySchema,
   ItemResponseSchema,
@@ -75,19 +74,6 @@ const listItemsRoute = createRoute({
   },
 });
 
-const getItemRoute = createRoute({
-  method: "get",
-  path: "/api/items/{id}",
-  request: { params: IdParamSchema },
-  responses: {
-    200: jsonBody(
-      ItemDetailResponseSchema,
-      "The Item, with its status, reason, last fetch result, post text and posted date. `comments` holds the Kept comments of the stored Digest and the Context stubs they need, in thread order, with three separate counts: `reported` (the post's own count, null for a comment link or a thread sent without one), `received` (the comments in the stored thread) and `kept`. `images` holds the file-route path, width and height of each stored image whose size was read, for the Reader to reserve its space. `highlights` holds the owner's Highlights, attached and unattached, with the text revisions a new Highlight must name (`POST /api/items/{id}/highlights`).",
-    ),
-    404: jsonBody(ErrorResponseSchema, "No Item has this id."),
-  },
-});
-
 const getItemStatusRoute = createRoute({
   method: "get",
   path: "/api/items/{id}/status",
@@ -146,13 +132,6 @@ export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
   registerSaveRoute(app, ports);
   app.openapi(retryDigestRoute, async (c) => {
     const item = await retryDigest(ports, c.req.valid("param").id);
-
-    return item === undefined
-      ? c.json({ error: NOT_FOUND }, 404)
-      : c.json({ item: itemView(item) }, 200);
-  });
-  app.openapi(getItemRoute, async (c) => {
-    const item = await getItem(ports, c.req.valid("param").id);
 
     return item === undefined
       ? c.json({ error: NOT_FOUND }, 404)

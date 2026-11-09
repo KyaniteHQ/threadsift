@@ -1,5 +1,6 @@
 import type { Item } from "../../src/http/schemas.ts";
 import { HighlightsProvider } from "./Highlights.tsx";
+import { NoteBox } from "./NoteBox.tsx";
 import { READER_FAILED, READER_STALE } from "./reader-text.ts";
 import { Agent } from "./ReaderColumn.tsx";
 import { Original } from "./ReaderOriginal.tsx";
@@ -51,6 +52,7 @@ export function ReaderContent({
         <Agent item={item} detail={state.detail} tryAgain={tryAgain} />
         <Original item={item} detail={state.detail} now={now} />
       </HighlightsProvider>
+      <NoteBox key={item.id} itemId={item.id} initial={state.detail.note} />
     </>
   );
 }

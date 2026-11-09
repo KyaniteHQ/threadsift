@@ -38,6 +38,7 @@ const OpenApiDocument = z.looseObject({
     "/api/items/{id}/status": z.looseObject({ get: Operation }),
     "/api/items/{id}/highlights": z.looseObject({ post: Removal }),
     "/api/items/{id}/highlights/{highlightId}": z.looseObject({ delete: Removal }),
+    "/api/items/{id}/note": z.looseObject({ put: Removal }),
   }),
 });
 
@@ -157,19 +158,21 @@ test("the served OpenAPI document describes the items routes", async ({ request 
   }
 
   expect(propertyNames(schemas, single)).toEqual(
-    expect.arrayContaining(["comments", "postText", "postedAt", "highlights"]),
+    expect.arrayContaining(["comments", "postText", "postedAt", "highlights", "note"]),
   );
 });
 
-test("the served OpenAPI document lists every answer of the Highlight routes", async ({
+test("the served OpenAPI document lists every answer of the Highlight and Note routes", async ({
   request,
 }, info) => {
   const { paths } = await documentOf(request, info);
   const create = paths["/api/items/{id}/highlights"].post.responses;
   const remove = paths["/api/items/{id}/highlights/{highlightId}"].delete.responses;
+  const note = paths["/api/items/{id}/note"].put.responses;
 
   expect(Object.keys(create).toSorted()).toEqual(["200", "201", "400", "403", "404", "409", "413"]);
   expect(Object.keys(remove).toSorted()).toEqual(["204", "400", "403", "404"]);
+  expect(Object.keys(note).toSorted()).toEqual(["200", "400", "403", "404", "409", "413"]);
 });
 
 test("the served OpenAPI document describes the status route without the post text", async ({
