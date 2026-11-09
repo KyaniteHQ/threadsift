@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
+import { DELETE_WAIT_MS } from "./delete-timing.ts";
 import { Icon } from "./Icon.tsx";
 import { tabWrapTarget } from "./panel-dom.ts";
 import {
@@ -21,6 +22,7 @@ import {
   DELETE_PENDING,
   DELETE_TITLE,
 } from "./reader-text.ts";
+import { useAfter } from "./use-form.ts";
 
 type Step = "closed" | "asking" | "pending" | "failed";
 
@@ -190,6 +192,12 @@ export function DeleteItem({
       setStep("failed");
     });
   }, [item, remove]);
+
+  const timedOut = useCallback(() => {
+    setStep("failed");
+  }, []);
+
+  useAfter(step === "pending", DELETE_WAIT_MS, timedOut);
 
   return (
     <>
