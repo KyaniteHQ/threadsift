@@ -174,3 +174,16 @@ export function isRefusedHost(hostname: string): boolean {
 export function resolveUrl(address: string, base?: string): URL | null {
   return URL.canParse(address, base) ? new URL(address, base) : null;
 }
+
+export function webUrlOf(address: string, base?: string): URL | null {
+  const url = resolveUrl(address, base);
+
+  if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
+    return null;
+  }
+
+  url.username = "";
+  url.password = "";
+
+  return url;
+}

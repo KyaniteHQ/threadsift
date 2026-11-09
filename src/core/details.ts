@@ -5,6 +5,7 @@ import type { Page } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { collapsed } from "./format.ts";
 import { type Link, isGitHubLink, isVideoLink } from "./links.ts";
+import type { MarkdownImage } from "./markdown-images.ts";
 import type { PageReader } from "./ports.ts";
 
 export interface Repository {
@@ -17,7 +18,14 @@ export interface Repository {
 }
 
 export type Content =
-  | { readonly kind: "article"; readonly postText: string; readonly postedAt: number | null }
+  | {
+      readonly kind: "article";
+      readonly postText: string;
+      readonly postedAt: number | null;
+      readonly videos: readonly string[];
+      readonly images: readonly MarkdownImage[];
+      readonly url: string;
+    }
   | {
       readonly kind: "github-repo";
       readonly repository: Repository;
@@ -42,7 +50,7 @@ export type Fetched =
 
 export const NOT_REQUESTED: Concluded = { status: "not-requested" };
 
-const MIN_ARTICLE_WORDS = 100;
+export const MIN_ARTICLE_WORDS = 100;
 
 const NOT_AN_ARTICLE: Content = { kind: "link" };
 
@@ -89,7 +97,7 @@ export async function detailsOfPage(
     });
   }
 
-  const { title, author, words, postText, postedAt } = await pages.article(
+  const { title, author, words, postText, postedAt, videos, images } = await pages.article(
     page.text,
     page.url,
     deadline,
@@ -99,7 +107,7 @@ export async function detailsOfPage(
     title,
     words < MIN_ARTICLE_WORDS
       ? { author: null, content: NOT_AN_ARTICLE }
-      : { author, content: { kind: "article", postText, postedAt } },
+      : { author, content: { kind: "article", postText, postedAt, videos, images, url: page.url } },
   );
 }
 

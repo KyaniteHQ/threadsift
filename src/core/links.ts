@@ -34,7 +34,7 @@ const TRACKING_PARAMS: ReadonlySet<string> = new Set([
 
 const GITHUB_HOST = "github.com";
 
-const X_HOSTS: ReadonlySet<string> = new Set(["x.com", "twitter.com"]);
+export const X_HOSTS: ReadonlySet<string> = new Set(["x.com", "twitter.com"]);
 
 const X_ONLY_TRACKING_PARAMS: ReadonlySet<string> = new Set(["s", "t"]);
 
@@ -206,7 +206,7 @@ export function redditRefOf(absoluteUrl: string): RedditRef | null {
   return redditRef(canonicalHost(hostname), segmentsOf(pathname));
 }
 
-function hostOf(absoluteUrl: string): string {
+export function hostOf(absoluteUrl: string): string {
   return canonicalHost(new URL(absoluteUrl).hostname);
 }
 

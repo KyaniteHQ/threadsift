@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import type { ClaimedJob, JobFiles, JobPorts } from "./job-outcome.ts";
+import { type ClaimedJob, type JobFiles, type JobPorts, NO_FILES } from "./job-outcome.ts";
 import { items } from "./schema.ts";
 
 export const INLINE_TEXT_BYTES = 1_000_000;
@@ -12,7 +12,7 @@ export interface PlacedText {
   readonly files: JobFiles;
 }
 
-const UNCHANGED: PlacedText = { columns: null, files: { written: null, superseded: null } };
+const UNCHANGED: PlacedText = { columns: null, files: NO_FILES };
 
 async function keyOf(ports: Pick<JobPorts, "db">, itemId: number): Promise<string | null> {
   const [row] = await ports.db
@@ -30,15 +30,19 @@ export async function placePostText(
 ): Promise<PlacedText> {
   if (text === undefined) return UNCHANGED;
 
-  const superseded = await keyOf(ports, job.itemId);
+  const previous = await keyOf(ports, job.itemId);
+  const superseded = previous === null ? [] : [previous];
   const bytes = text === null ? null : ENCODER.encode(text);
 
   if (bytes === null || bytes.length <= INLINE_TEXT_BYTES) {
-    return { columns: { postText: text, postTextKey: null }, files: { written: null, superseded } };
+    return { columns: { postText: text, postTextKey: null }, files: { written: [], superseded } };
   }
 
   const written = job.attemptKey;
   await ports.files.put(written, bytes);
 
-  return { columns: { postText: null, postTextKey: written }, files: { written, superseded } };
+  return {
+    columns: { postText: null, postTextKey: written },
+    files: { written: [written], superseded },
+  };
 }

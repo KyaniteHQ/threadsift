@@ -2,7 +2,10 @@ import { Defuddle } from "defuddle/node";
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
+import { baseOf, replaceMedia, retainedVideos } from "./article-media.ts";
+import { MIN_ARTICLE_WORDS } from "./details.ts";
 import { collapsed } from "./format.ts";
+import { MarkdownImageSchema, NOTHING_SCANNED, scanMarkdown } from "./markdown-images.ts";
 
 export const ArticleReadingSchema = z.object({
   title: z.string(),
@@ -10,6 +13,8 @@ export const ArticleReadingSchema = z.object({
   words: z.number(),
   postText: z.string(),
   postedAt: z.number().nullable(),
+  videos: z.array(z.string()).readonly(),
+  images: z.array(MarkdownImageSchema).readonly(),
 });
 
 export type ArticleReading = z.infer<typeof ArticleReadingSchema>;
@@ -43,19 +48,19 @@ export function readTitle(html: string): string {
 export async function readArticle(html: string, url: string): Promise<ArticleReading> {
   const { document } = parseHTML(html);
   const pageTitle = titleIn(document);
-
-  for (const media of document.querySelectorAll("video, audio, iframe")) {
-    media.remove();
-  }
+  const linked = replaceMedia(document, baseOf(document, url));
 
   const result = await Defuddle(document, url, {
-    markdown: true,
+    separateMarkdown: true,
     useAsync: false,
     fetch: refuseRequests,
   });
 
-  const postText = result.content.trim();
   const author = result.author.trim();
+  const postText = (result.contentMarkdown ?? "").trim();
+  const isArticle = result.wordCount >= MIN_ARTICLE_WORDS;
+  const wantsLinks = linked.some(({ video }) => video);
+  const scan = isArticle ? scanMarkdown(postText, wantsLinks) : NOTHING_SCANNED;
 
   return {
     title: pageTitle === "" ? collapsed(result.title) : pageTitle,
@@ -63,5 +68,7 @@ export async function readArticle(html: string, url: string): Promise<ArticleRea
     words: result.wordCount,
     postText,
     postedAt: postedAtOf(result.published),
+    videos: retainedVideos(linked, scan.links),
+    images: scan.images,
   };
 }

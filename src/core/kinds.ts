@@ -22,6 +22,22 @@ export const SEARCH_PART_KINDS = [
   "highlight",
 ] as const;
 
+export const MEDIA_KINDS = ["image", "video"] as const;
+
+export const MEDIA_OUTCOMES = ["stored", "failed", "linked"] as const;
+
+export const MEDIA_FAILURES = [
+  "timeout",
+  "network",
+  "refused",
+  "unsupported",
+  "redirect-limit",
+  "status",
+  "too-large",
+  "not-an-image",
+  "type-mismatch",
+] as const;
+
 export const HIGHLIGHT_REASONS = ["gone", "ambiguous"] as const;
 
 export const HIGHLIGHT_STATUSES = ["attached", ...HIGHLIGHT_REASONS] as const;
@@ -45,6 +61,12 @@ export type Kind = (typeof KINDS)[number];
 export type ReadState = (typeof READ_STATES)[number];
 
 export type SearchPartKind = (typeof SEARCH_PART_KINDS)[number];
+
+export type MediaKind = (typeof MEDIA_KINDS)[number];
+
+export type MediaOutcome = (typeof MEDIA_OUTCOMES)[number];
+
+export type MediaFailure = (typeof MEDIA_FAILURES)[number];
 
 export type ThrottleKind = (typeof THROTTLE_KINDS)[number];
 

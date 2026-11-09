@@ -12,6 +12,7 @@ export const MANIFEST = [
   "item_aliases",
   "item_tags",
   "jobs",
+  "media",
   "reddit_comments",
   "reddit_threads",
   "search_fingerprints",
@@ -67,6 +68,12 @@ export function holdSweeps(instance: Instance): void {
 export function addGithubRepository(instance: Instance, id: number): void {
   instance.sql(
     `INSERT INTO github_repos (item_id, description, stars, language, license, topics, pushed_at) VALUES (${id}, NULL, 7, NULL, NULL, '[]', NULL)`,
+  );
+}
+
+export function addMediaRow(instance: Instance, id: number, key: string): void {
+  instance.sql(
+    `INSERT INTO media (item_id, kind, source_url, position, outcome, file_key, content_type, size) VALUES (${id}, 'image', 'https://example.com/media-${id}.png', 0, 'stored', '${key}', 'image/png', 12)`,
   );
 }
 

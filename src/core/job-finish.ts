@@ -2,11 +2,13 @@ import { and, eq, exists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { logFailure } from "./failure-log.ts";
+import { namedKeys } from "./file-cleanup.ts";
 import {
   MAX_STALE_REQUEUES,
   STALE_DELAYS_MS,
   type JobCurrency,
   type JobFiles,
+  NO_FILES,
   type JobOutcome,
   type JobPorts,
   type Precondition,
@@ -30,16 +32,24 @@ function logClaimLost(job: Readonly<Pick<JobRow, "id" | "attempts">>): void {
   console.warn(JSON.stringify({ event: "job-claim-lost", jobId: job.id, attempt: job.attempts }));
 }
 
-const NO_FILES: JobFiles = { written: null, superseded: null };
-
-async function deleteQuietly(ports: JobPorts, key: string | null): Promise<void> {
-  if (key === null) return;
+async function deleteQuietly(
+  ports: JobPorts,
+  keys: readonly string[],
+  doomed: (keys: readonly string[]) => Promise<readonly string[]> = (all) => Promise.resolve(all),
+): Promise<void> {
+  if (keys.length === 0) return;
 
   try {
-    await ports.files.delete([key]);
+    await ports.files.delete(await doomed(keys));
   } catch (error) {
-    logFailure("file-not-deleted", { key }, error);
+    logFailure("file-not-deleted", { keys: keys.length }, error);
   }
+}
+
+async function unnamed(ports: JobPorts, keys: readonly string[]): Promise<readonly string[]> {
+  const named = await namedKeys(ports.db, keys);
+
+  return keys.filter((key) => !named.has(key));
 }
 
 function closingWrites(
@@ -80,27 +90,23 @@ export async function finish(
   }>,
 ): Promise<"done" | "lost" | Readonly<Precondition>> {
   const { db } = ports;
-  let wrote: boolean;
 
-  try {
-    wrote = await writeWhileHolding(
-      db,
-      job,
-      [...writes, ...closingWrites(db, job, attempts)],
-      precondition,
-    );
-  } catch (error) {
-    await deleteQuietly(ports, files.written);
-
-    throw error;
-  }
+  const wrote = await writeWhileHolding(
+    db,
+    job,
+    [...writes, ...closingWrites(db, job, attempts)],
+    precondition,
+  );
 
   if (!wrote && precondition !== undefined && (await guardHolds(db, holding(job)))) {
     return precondition;
   }
 
   await enqueueItemJobs(ports, job.itemId);
-  await deleteQuietly(ports, wrote ? files.superseded : files.written);
+
+  await (wrote
+    ? deleteQuietly(ports, files.superseded)
+    : deleteQuietly(ports, files.written, (keys) => unnamed(ports, keys)));
 
   if (!wrote) logClaimLost(job);
 
