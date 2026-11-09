@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import type { Item } from "../../src/http/schemas.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { Writes } from "./library.ts";
+import { keepDraft } from "./note-draft.ts";
 import { DELETED } from "./reader-text.ts";
 import type { Route } from "./routing.ts";
 import { useLatest } from "./use-latest.ts";
@@ -32,6 +33,8 @@ export function useDeletion({
       let left = false;
 
       const survivor = await remove(item.id, (next) => {
+        keepDraft(item.id, null);
+
         if (opened.current !== item.id) return;
 
         left = true;

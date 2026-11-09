@@ -74,7 +74,7 @@ export function noteReducer(state: Readonly<NoteState>, action: Readonly<NoteAct
     case "answer":
       return answered(state, action.sent, action.answer);
     case "take-newer":
-      return state.newer === null
+      return state.newer === null || state.pending
         ? state
         : {
             ...state,

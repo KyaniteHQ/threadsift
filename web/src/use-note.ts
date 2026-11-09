@@ -72,7 +72,7 @@ export function useNote(
   const send = useSend(itemId, state.draft, dispatch, field);
   const shown = view(state);
   const { saved, newer } = state;
-  useKeptDraft(itemId, state, shown.dirty);
+  useKeptDraft(itemId, state, shown.dirty || shown.pending);
 
   const save = useCallback(() => {
     if (shown.canSave) void send(saved.revision, false);
@@ -83,9 +83,11 @@ export function useNote(
   }, [newer, shown.tooLong, send]);
 
   const takeNewer = useCallback(() => {
+    if (state.pending) return;
+
     dispatch({ kind: "take-newer" });
     field.current?.focus();
-  }, [field]);
+  }, [state.pending, field]);
 
   const edit = useCallback((text: string) => {
     dispatch({ kind: "type", text });

@@ -58,6 +58,21 @@ async function expectFieldEdge(page: Page, name: string): Promise<void> {
   expect(edge.borderTopWidth).toBeGreaterThan(0);
 }
 
+async function expectFocusRing(page: Page, name: string): Promise<void> {
+  await noteField(page).focus();
+
+  const ring = await noteField(page).evaluate((element) => {
+    const { outlineStyle, outlineWidth } = getComputedStyle(element);
+
+    return { outlineStyle, outlineWidth: Number(outlineWidth.replace(/px$/u, "")) };
+  });
+
+  await noteField(page).blur();
+
+  expect(ring.outlineStyle, `${name}: the focused field has an outline`).not.toBe("none");
+  expect(ring.outlineWidth, `${name}: the focus outline is visible`).toBeGreaterThan(0);
+}
+
 async function check(
   page: Page,
   name: string,
@@ -65,8 +80,10 @@ async function check(
 ): Promise<void> {
   await noteBox(page).scrollIntoViewIfNeeded();
 
-  if (forced) await expectFieldEdge(page, name);
-  else {
+  if (forced) {
+    await expectFieldEdge(page, name);
+    await expectFocusRing(page, name);
+  } else {
     await expectNoViolations(page, name);
     await expectAccessible(page, name);
   }
