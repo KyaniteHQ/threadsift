@@ -11,6 +11,12 @@ export const MAX_URL_BYTES = 4096;
 
 const BASE64_CHARACTERS = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 4;
 
+const PERCENT_ESCAPE_CHARACTERS = 3;
+
+const PAYLOAD_CHARACTERS = BASE64_CHARACTERS * PERCENT_ESCAPE_CHARACTERS;
+
+const BASE64_WHITESPACE = /[\t\n\f\r ]+/gu;
+
 const IMAGE_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
   followMetaRefresh: () => false,
@@ -74,10 +80,14 @@ export function decoded(dataUrl: string): Fetched {
 
   const payload = dataUrl.slice(comma + 1);
 
-  if (payload.length > BASE64_CHARACTERS) return { ok: false, reason: "too-large" };
+  if (payload.length > PAYLOAD_CHARACTERS) return { ok: false, reason: "too-large" };
 
   try {
-    const bytes = fromBase64(payload.replaceAll(/\s+/gu, ""));
+    const base64 = decodeURIComponent(payload).replaceAll(BASE64_WHITESPACE, "");
+
+    if (base64.length > BASE64_CHARACTERS) return { ok: false, reason: "too-large" };
+
+    const bytes = fromBase64(base64);
     const verdict = checked(type, bytes, bytes.length > MAX_IMAGE_BYTES);
 
     return verdict.ok ? { ...verdict, bytes, finalUrl: null } : verdict;
@@ -91,6 +101,8 @@ export async function downloaded(
   url: string,
   deadline: AbortSignal,
 ): Promise<Fetched> {
+  if (IMAGE_POLICY.stopAt(url)) return { ok: false, reason: "refused" };
+
   const outcome = await guardedFetchBytes(network, url, IMAGE_POLICY, deadline);
 
   if (outcome.kind === "stopped") return { ok: false, reason: "refused" };

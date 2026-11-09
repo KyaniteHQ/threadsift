@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createToken, expectRefusal, revokeToken } from "./access-helpers.ts";
+import { createToken, revokeToken } from "./access-helpers.ts";
 import { anonymous, bearer } from "./access.ts";
 import { nameFile, storeFileItem, storeJob } from "./files.ts";
 import {
@@ -10,7 +10,7 @@ import {
   openLibrary,
   pasteArticle,
 } from "./media-pages.ts";
-import { expectPrivate, expectServed, imageRows, routeOf } from "./media.ts";
+import { expectRefused, expectServed, imageRows, routeOf } from "./media.ts";
 import { isContainerTarget } from "./target.ts";
 
 test.describe.configure({ timeout: 300_000 });
@@ -38,8 +38,7 @@ test("the file route serves a published image to the owner and to an agent token
   const stranger = await anonymous(instance.url);
   const signedOut = await stranger.get(path);
 
-  await expectRefusal(signedOut, 401, "no credential");
-  expectPrivate(signedOut);
+  await expectRefused(signedOut, 401, "no credential");
   await stranger.dispose();
 
   const { token, value } = await createToken(owner, "Image reader");
@@ -50,8 +49,7 @@ test("the file route serves a published image to the owner and to an agent token
 
   const revoked = await agent.get(path, { headers: bearer(value) });
 
-  await expectRefusal(revoked, 401, "a revoked token");
-  expectPrivate(revoked);
+  await expectRefused(revoked, 401, "a revoked token");
   await agent.dispose();
 });
 
@@ -86,8 +84,7 @@ test("the file route answers 404, with the same headers, for a key that no publi
   for (const [what, key] of refused) {
     const response = await owner.get(routeOf(key));
 
-    await expectRefusal(response, 404, what);
-    expectPrivate(response);
+    await expectRefused(response, 404, what);
   }
 
   for (const [what, path] of [
@@ -95,7 +92,7 @@ test("the file route answers 404, with the same headers, for a key that no publi
     ["a name outside the grammar", `/api/files/items/${item.id}/a%20b.png`],
     ["an id that is not a number", `/api/files/items/x/${name}`],
   ] as const) {
-    await expectRefusal(await owner.get(path), 404, what);
+    await expectRefused(await owner.get(path), 404, what);
   }
 
   await expectServed(owner, instance, row);

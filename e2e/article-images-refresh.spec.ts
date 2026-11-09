@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { postLink } from "./api.ts";
-import { postTextOf } from "./files.ts";
+import { expectKeys, postTextOf } from "./files.ts";
 import {
   FAILING_FETCH_PAGE,
   LAZY_VIDEO_PAGE,
@@ -54,8 +54,11 @@ test("a refresh replaces the image set, a failed refresh keeps it, and a refresh
   expect(changed.id, "a refresh of the same Item").toBe(first.id);
   expect(changedRows).toHaveLength(SMALL_PAGE_IMAGES);
   expect(mediaOf(instance, first.id).filter(({ kind }) => kind === "video")).toEqual([]);
-  expect(imageFiles(instance, first.id), "the first set is gone and the second is stored").toEqual(
+  await expectKeys(
+    instance,
+    `items/${first.id}/img-`,
     storedKeys(changedRows),
+    "the first set is gone and the second is stored",
   );
   expect(routesIn(changed.postText).toSorted()).toEqual(
     storedKeys(changedRows).map((key) => routeOf(key)),
@@ -67,7 +70,7 @@ test("a refresh replaces the image set, a failed refresh keeps it, and a refresh
 
   expect(failed).toMatchObject({ id: first.id, fetch: "status" });
   expect(imageRows(instance, first.id), "a failed refresh keeps the rows").toEqual(changedRows);
-  expect(imageFiles(instance, first.id), "and the files").toEqual(storedKeys(changedRows));
+  await expectKeys(instance, `items/${first.id}/img-`, storedKeys(changedRows), "and the files");
   expect(failed.postText, "and the text").toBe(changed.postText);
 
   repoint(instance, first.id, NO_IMAGE_PAGE);
@@ -76,7 +79,7 @@ test("a refresh replaces the image set, a failed refresh keeps it, and a refresh
 
   expect(bare.id).toBe(first.id);
   expect(mediaOf(instance, first.id), "a success with no images clears the rows").toEqual([]);
-  expect(imageFiles(instance, first.id), "and the files").toEqual([]);
+  await expectKeys(instance, `items/${first.id}/img-`, [], "and the files");
   expect(routesIn(bare.postText)).toEqual([]);
 });
 
@@ -92,8 +95,11 @@ test("a refresh that keeps an image keeps its row and moves it to a new file, an
     before.map(({ id, source_url }) => [id, source_url]),
   );
   expect(storedKeys(after).filter((key) => storedKeys(before).includes(key))).toEqual([]);
-  expect(imageFiles(instance, first.id), "only the new attempt's files remain").toEqual(
+  await expectKeys(
+    instance,
+    `items/${first.id}/img-`,
     storedKeys(after),
+    "only the new attempt's files remain",
   );
 
   const [old] = before;
@@ -114,7 +120,7 @@ test("an article that becomes Other loses its text, rows and files", async () =>
 
   expect(other).toMatchObject({ id: first.id, source: "other", fetch: "ok", postText: null });
   expect(mediaOf(instance, first.id)).toEqual([]);
-  expect(imageFiles(instance, first.id)).toEqual([]);
+  await expectKeys(instance, `items/${first.id}/`, []);
 });
 
 test("a file-backed post text links the stored images and a refresh to an inline text removes the old file and images", async () => {
@@ -145,7 +151,5 @@ test("a file-backed post text links the stored images and a refresh to an inline
 
   expect(small.id).toBe(book.id);
   expect(postTextOf(instance, book.id)).toMatchObject({ key: null });
-  expect(instance.listFiles(`items/${book.id}/`).map(({ key }) => key)).toEqual(
-    storedKeys(imageRows(instance, book.id)),
-  );
+  await expectKeys(instance, `items/${book.id}/`, storedKeys(imageRows(instance, book.id)));
 });

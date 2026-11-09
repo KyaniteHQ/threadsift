@@ -4,6 +4,7 @@ import { expect } from "@playwright/test";
 import { type Instance, launchFresh, newCode } from "./access.ts";
 import { pasteLive } from "./articles.ts";
 import { ownerOf } from "./files.ts";
+import { attachSnapshot } from "./media-evidence.ts";
 
 const DEFUDDLE_FIXTURES =
   "https://rawcdn.githack.com/kepano/defuddle/3e8bde9f5f855bc968e95837a750c5968a9fe639/tests/fixtures";
@@ -62,8 +63,12 @@ export async function openLibrary(): Promise<Library> {
 }
 
 export async function closeLibrary({ instance, owner }: Readonly<Library>): Promise<void> {
-  await owner.dispose();
-  instance.stop();
+  try {
+    await attachSnapshot(instance);
+  } finally {
+    await owner.dispose();
+    instance.stop();
+  }
 }
 
 export async function pasteArticle(owner: APIRequestContext, name: string, url: string) {

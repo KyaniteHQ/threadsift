@@ -11,7 +11,7 @@ import {
   livePasted,
   pasteLive,
 } from "./articles.ts";
-import { ROW_LIMIT_BYTES, ownerOf, postTextOf } from "./files.ts";
+import { ROW_LIMIT_BYTES, expectKeys, ownerOf, postTextOf } from "./files.ts";
 import { afterFirstClaim, claimLostLines, expireClaim, jobsOf } from "./ingest.ts";
 import { newRunId } from "./links.ts";
 import { matches } from "./search.ts";
@@ -102,8 +102,7 @@ test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, sea
 
   expect(secondKey).not.toBe(firstKey);
   expect(postTextOf(instance, id)).toEqual({ key: secondKey, inline: null });
-  expect(instance.readFile(firstKey), "the replaced file").toBeNull();
-  expect(instance.listFiles(`items/${id}/post-`).map(({ key }) => key)).toEqual([secondKey]);
+  await expectKeys(instance, `items/${id}/post-`, [secondKey], "the replaced file is gone");
   expect(withoutImagePaths((await itemOf(owner, id)).postText)).toBe(
     withoutImagePaths(item.postText),
   );
@@ -144,7 +143,7 @@ async function takeoverOfTheBook() {
     key: null,
     inline: null,
   });
-  expect(instance.listFiles(`items/${id}/`), "the file of the overtaken attempt").toEqual([]);
+  await expectKeys(instance, `items/${id}/`, [], "the file of the overtaken attempt");
 
   expireClaim(id, instance);
   await expect

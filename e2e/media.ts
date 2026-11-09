@@ -1,7 +1,9 @@
-import { type APIRequestContext, expect } from "@playwright/test";
+import { type APIRequestContext, type APIResponse, expect } from "@playwright/test";
 import { z } from "zod";
 
+import { expectRefusal } from "./access-helpers.ts";
 import type { Instance } from "./access.ts";
+import { attachExchange } from "./media-evidence.ts";
 
 const MediaRows = z.array(
   z.object({
@@ -112,6 +114,16 @@ export function expectPrivate(response: { headers(): Record<string, string> }): 
   }
 }
 
+export async function expectRefused(
+  response: APIResponse,
+  status: number,
+  what: string,
+): Promise<void> {
+  await attachExchange(what, response);
+  await expectRefusal(response, status, what);
+  expectPrivate(response);
+}
+
 export async function expectServed(
   request: APIRequestContext,
   instance: Instance,
@@ -121,6 +133,7 @@ export async function expectServed(
   const key = row.file_key ?? "";
   const response = await request.get(routeOf(key), headers === undefined ? {} : { headers });
 
+  await attachExchange(`GET ${routeOf(key)}`, response);
   expect(response.status(), `GET ${routeOf(key)}`).toBe(200);
   expect(response.headers()["content-type"]).toBe(row.content_type);
   expect(response.headers()["content-length"]).toBe(String(row.size));

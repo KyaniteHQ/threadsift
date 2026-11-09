@@ -12,6 +12,8 @@ export const ROW_LIMIT_BYTES = 1_000_000;
 
 export const TICK_WAIT_MS = 150_000;
 
+const FILE_SETTLE_MS = 30_000;
+
 const READ_CHUNK_BYTES = 65_536;
 
 const PARAGRAPH = "Zażółć gęślą jaźń, 日本語のテキスト, 😀🎉, café naïve, naïve café.\n";
@@ -176,6 +178,24 @@ export async function waitForKeys(
           .toSorted();
       },
       { timeout: TICK_WAIT_MS, intervals: [2000] },
+    )
+    .toEqual(expected.toSorted());
+}
+
+export async function expectKeys(
+  instance: Instance,
+  prefix: string,
+  expected: readonly string[],
+  message = "the files",
+): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        instance
+          .listFiles(prefix)
+          .map(({ key }) => key)
+          .toSorted(),
+      { message, timeout: FILE_SETTLE_MS, intervals: [250, 500, 1000] },
     )
     .toEqual(expected.toSorted());
 }
