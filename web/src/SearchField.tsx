@@ -3,7 +3,6 @@ import { useCallback } from "react";
 
 import { SEARCH_MAX } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
-import { SEARCH_LABEL, SEARCH_PLACEHOLDER } from "./text.ts";
 
 function useHandlers(search: (text: string) => void, leave: () => void) {
   const type = useCallback(
@@ -29,6 +28,8 @@ function useHandlers(search: (text: string) => void, leave: () => void) {
 
 export function SearchField({
   value,
+  label,
+  placeholder,
   field,
   search,
   hint,
@@ -36,6 +37,8 @@ export function SearchField({
   ghost,
 }: Readonly<{
   value: string;
+  label: string;
+  placeholder: string;
   field: RefObject<HTMLInputElement | null>;
   search: (text: string) => void;
   hint: string | null;
@@ -47,12 +50,12 @@ export function SearchField({
   return (
     <search className="search" aria-hidden={ghost ? true : undefined} inert={ghost}>
       <label className="field">
-        <span className="vh">{SEARCH_LABEL}</span>
+        <span className="vh">{label}</span>
         <Icon name="search" className="ic" />
         <input
           ref={field}
           type="search"
-          placeholder={SEARCH_PLACEHOLDER}
+          placeholder={placeholder}
           autoComplete="off"
           maxLength={SEARCH_MAX}
           value={value}

@@ -47,7 +47,7 @@ function Entry({ highlight }: Readonly<{ highlight: Highlight }>) {
   );
 
   return (
-    <li className="hl-entry">
+    <li className="hl-entry" data-highlight={highlight.id} tabIndex={-1}>
       {highlight.status === "attached" ? (
         <button type="button" className="hl-quote" onClick={showIt}>
           {exact}

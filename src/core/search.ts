@@ -68,10 +68,20 @@ export function chunkPostText(text: string): readonly string[] {
   return chunks.filter((chunk) => chunk.trim() !== "");
 }
 
+function prefixQueries(terms: readonly string[]): readonly string[] {
+  return terms.map((term) => `"${term}"*`);
+}
+
 export function matching(terms: readonly string[]): SQL {
-  const wanted = JSON.stringify(terms.map((term) => `"${term}"*`));
+  const wanted = JSON.stringify(prefixQueries(terms));
 
   return sql`${items.id} in (select ${searchParts.itemId} from json_each(${wanted}) as wanted join search_index on search_index match wanted.value join ${searchParts} on ${searchParts.id} = search_index.rowid group by ${searchParts.itemId} having count(distinct wanted.key) = json_array_length(${wanted}))`;
+}
+
+export function partMatching(terms: readonly string[]): SQL {
+  const query = prefixQueries(terms).join(" ");
+
+  return sql`${searchParts.id} in (select rowid from search_index where search_index match ${query})`;
 }
 
 function replacing(db: Database, scope: Readonly<SQLWrapper>, kinds: readonly SearchPartKind[]) {

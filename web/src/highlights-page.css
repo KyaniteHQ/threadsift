@@ -1,0 +1,114 @@
+.st-more {
+  gap: var(--s4);
+}
+
+.hp-col {
+  gap: var(--s4);
+}
+.pg .hp-col .search {
+  position: static;
+  padding: 0;
+  border-right: 0;
+}
+.pg .hp-col .list-head {
+  padding: 0 0 var(--s2);
+  font-size: var(--t-meta);
+  border-right: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.hp-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hp-it {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 0;
+  padding: var(--s3) var(--s3);
+  border-bottom: 1px solid var(--line);
+}
+.hp-it:hover {
+  background: var(--surface-2);
+}
+.hp-it .it-meta {
+  gap: var(--s1) var(--s2);
+  font-size: var(--t-meta);
+}
+.hp-it .it-date {
+  margin-left: auto;
+}
+.hp-title {
+  margin: 0;
+  font-size: var(--t-title);
+  font-weight: inherit;
+  line-height: var(--lh-title);
+}
+.hp-open {
+  color: var(--text);
+  font-family: var(--f-display);
+  font-weight: var(--dw-soft);
+  letter-spacing: var(--dls);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+  cursor: pointer;
+}
+.hp-open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-raise);
+}
+.hp-it:has(.hp-open:focus-visible) {
+  outline: 2px solid var(--acc-ink);
+  outline-offset: calc(var(--s1) / -2);
+}
+.app .hp-open:focus-visible {
+  outline: none;
+}
+.hp-kind {
+  display: flex;
+  font-size: var(--t-meta);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s1) var(--s2);
+  margin: var(--s1) 0 0;
+  color: var(--muted);
+}
+.hp-text {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--f-read);
+  font-size: var(--t-body);
+  line-height: var(--lh-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+blockquote.hp-text {
+  padding-inline-start: var(--s3);
+  border-inline-start: 2px solid var(--line-2);
+}
+.hp-gone {
+  margin: 0;
+}
+
+.hp-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  padding-block: var(--s3);
+}
+.hp-more p {
+  margin: 0;
+}
+.app[data-bp~="phone"] .hp-more .btn {
+  flex: 1 1 auto;
+}
+
+.hp-it.it-ghost {
+  min-height: calc(var(--s6) * 2);
+}

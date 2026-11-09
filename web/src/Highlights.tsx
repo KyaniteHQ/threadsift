@@ -132,7 +132,7 @@ export function HighlightsProvider({
 }>) {
   const { panel, dismiss, unavailable } = useHighlightPanel(view.revisions);
   const [failed, fail] = useState<string | null>(null);
-  const { reveal, show } = useReveal();
+  const { reveal, show } = useReveal(view.items);
   const spans = useSpanIndex(view.items);
   const { keep, remove } = useHighlightWrites(itemId, actions, { announce, fail, dismiss });
 

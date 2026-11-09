@@ -1,6 +1,7 @@
 import { type ChangeEvent, type KeyboardEvent, useCallback, useId, useRef } from "react";
 
 import type { NoteView } from "../../src/core/note-contract.ts";
+import { useNoteArrival } from "./place-arrival.ts";
 import {
   NOTE_CHANGED,
   NOTE_FAILED,
@@ -120,6 +121,8 @@ export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial:
   const note = useNote(itemId, initial, field);
   const { edit } = note;
   const press = useKeys(note.save);
+
+  useNoteArrival(field);
 
   const change = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement>): void => {

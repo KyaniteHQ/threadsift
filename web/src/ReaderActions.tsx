@@ -7,7 +7,7 @@ import { DeleteItem } from "./DeleteItem.tsx";
 import { Icon } from "./Icon.tsx";
 import { HINT_PANE, MARK_READ, MARK_UNREAD, OPEN_LABELS } from "./reader-text.ts";
 import type { ReaderControls } from "./Reader.tsx";
-import { SettingsPanel } from "./SettingsPanel.tsx";
+import { type PanelPages, SettingsPanel } from "./SettingsPanel.tsx";
 import type { Look } from "./use-root.ts";
 
 function ReadIcon({ read }: Readonly<{ read: boolean }>) {
@@ -27,8 +27,8 @@ export function ReaderActions({
   item,
   controls,
   look,
-  openSettings,
-}: Readonly<{ item: Item; controls: ReaderControls; look: Look; openSettings: () => void }>) {
+  pages,
+}: Readonly<{ item: Item; controls: ReaderControls; look: Look; pages: PanelPages }>) {
   const { mode, toggleRead, remove } = controls;
   const read = item.readState === "read";
   const comments = commentCountsOf(item);
@@ -45,7 +45,7 @@ export function ReaderActions({
         </p>
       ) : null}
       {comments === null || comments.kept === 0 ? null : <CommentsButton counts={comments} />}
-      {mode === "pane" ? null : <SettingsPanel look={look} openInstanceSettings={openSettings} />}
+      {mode === "pane" ? null : <SettingsPanel look={look} pages={pages} />}
       <button type="button" className="btn rd-act" aria-keyshortcuts="M" onClick={toggle}>
         <ReadIcon read={read} />
         <span className="rd-act-l">{read ? MARK_UNREAD : MARK_READ}</span>

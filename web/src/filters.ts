@@ -1,3 +1,5 @@
+import { useCallback, useState } from "react";
+
 import type { ReadState, Source } from "../../src/core/kinds.ts";
 import { searchTerms } from "../../src/core/search-terms.ts";
 
@@ -46,14 +48,38 @@ export function withChoice(filters: Readonly<Filters>, choice: Readonly<Choice>)
   }
 }
 
-export function queryOf(filters: Readonly<Filters>): string {
+export function queryOf(filters: Readonly<Filters>, cursor: string | null = null): string {
   const query = new URLSearchParams();
 
   for (const [name, value] of Object.entries(filters)) {
     if (value !== null && value !== "") query.set(name, value);
   }
 
+  if (cursor !== null) query.set("cursor", cursor);
+
   const text = query.toString();
 
   return text === "" ? "" : `?${text}`;
+}
+
+export function useFilters() {
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+
+  const choose = useCallback((choice: Readonly<Choice>) => {
+    setFilters((now) => withChoice(now, choice));
+  }, []);
+
+  const search = useCallback((q: string) => {
+    setFilters((now) => ({ ...now, q }));
+  }, []);
+
+  const clear = useCallback(() => {
+    setFilters(NO_FILTERS);
+  }, []);
+
+  const clearChosen = useCallback(() => {
+    setFilters((now) => ({ ...NO_FILTERS, q: now.q }));
+  }, []);
+
+  return { filters, choose, search, clear, clearChosen };
 }

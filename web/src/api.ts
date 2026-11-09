@@ -12,6 +12,10 @@ import {
   type SaveNoteRequest,
 } from "../../src/core/note-contract.ts";
 import {
+  HighlightsPageResponseSchema,
+  type HighlightsPage,
+} from "../../src/http/highlights-page-schemas.ts";
+import {
   ErrorResponseSchema,
   ItemDetailResponseSchema,
   ItemListResponseSchema,
@@ -108,6 +112,17 @@ export async function putNote(
 
 export function fetchItems(filters: Readonly<Filters>): Promise<ItemList> {
   return parsedFrom("GET", `/api/items${queryOf(filters)}`, ItemListResponseSchema);
+}
+
+export function fetchHighlightsPage(
+  filters: Readonly<Filters>,
+  cursor: string | null,
+): Promise<HighlightsPage> {
+  return parsedFrom(
+    "GET",
+    `/api/highlights${queryOf(filters, cursor)}`,
+    HighlightsPageResponseSchema,
+  );
 }
 
 export async function saveLink(url: string): Promise<SaveResult> {

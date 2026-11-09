@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type ComponentProps, type RefObject, useEffect, useRef } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import type { BarStep } from "./bar-fit.ts";
@@ -60,8 +60,13 @@ export function ReaderBar({
   item,
   controls,
   look,
-  openSettings,
-}: Readonly<{ item: Item; controls: ReaderControls; look: Look; openSettings: () => void }>) {
+  pages,
+}: Readonly<{
+  item: Item;
+  controls: ReaderControls;
+  look: Look;
+  pages: ComponentProps<typeof ReaderActions>["pages"];
+}>) {
   const { mode, settingsKey, close, hintPlaced } = controls;
   const bar = useRef<HTMLDivElement>(null);
   const leave = leaveOf(mode === "sheet", look.settings.layout === "grid");
@@ -80,7 +85,7 @@ export function ReaderBar({
           </span>
         </button>
       )}
-      <ReaderActions item={item} controls={controls} look={look} openSettings={openSettings} />
+      <ReaderActions item={item} controls={controls} look={look} pages={pages} />
       <i className="rd-progress" aria-hidden="true" />
     </div>
   );

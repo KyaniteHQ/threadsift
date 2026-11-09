@@ -1,5 +1,6 @@
 import { type RefObject, useLayoutEffect, useRef } from "react";
 
+import { arrivalPlace } from "./place.ts";
 import { type Anchor, anchorAt, keepPlace, placeOf, scrollToAnchor } from "./reading-place.ts";
 
 const SAVE_DELAY_MS = 400;
@@ -116,7 +117,7 @@ function onImageSettled(slot: HTMLElement, reflowed: () => void): () => void {
 
 function watchPlace(slot: HTMLElement, itemId: number): PlaceWatch {
   const settler = newSettler(slot);
-  let seen = placeOf(itemId);
+  let seen = arrivalPlace() === null ? placeOf(itemId) : null;
   let saveTimer = 0;
   let frame = 0;
 

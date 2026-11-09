@@ -5,6 +5,7 @@ import { Announcement } from "./Announcement.tsx";
 import { Icon } from "./Icon.tsx";
 import { READER_PLACEHOLDER } from "./reader-text.ts";
 import { Reader, type ReaderControls } from "./Reader.tsx";
+import type { Pages } from "./routing.ts";
 import { Sheet, type SheetNav } from "./Sheet.tsx";
 import type { Announcement as AnnouncementState } from "./use-announcement.ts";
 import type { Look } from "./use-root.ts";
@@ -25,7 +26,7 @@ export function ReaderPane({
   controls,
   nav,
   look,
-  openSettings,
+  pages,
   tryAgain,
   announcement,
 }: Readonly<{
@@ -33,7 +34,7 @@ export function ReaderPane({
   controls: ReaderControls;
   nav: SheetNav;
   look: Look;
-  openSettings: () => void;
+  pages: Pages;
   tryAgain: (item: Item) => void;
   announcement: AnnouncementState;
 }>) {
@@ -51,7 +52,7 @@ export function ReaderPane({
         controls={controls}
         look={look}
         titleId={titleId}
-        openSettings={openSettings}
+        pages={pages}
         tryAgain={tryAgain}
       />
     </div>

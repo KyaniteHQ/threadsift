@@ -21,16 +21,20 @@ import {
 const SKELETON_ROWS = [0, 1, 2] as const;
 export const RESULTS_ID = "results";
 
-function Loading() {
+export function Skeleton({
+  label,
+  row,
+  title,
+}: Readonly<{ label: string; row: string; title: string }>) {
   return (
     <>
-      <output className="vh">{LOADING_LABEL}</output>
-      {SKELETON_ROWS.map((row) => (
-        <div key={row} className="it it-ghost" aria-hidden="true">
+      <output className="vh">{label}</output>
+      {SKELETON_ROWS.map((at) => (
+        <div key={at} className={`${row} it-ghost`} aria-hidden="true">
           <p className="it-meta">
             <i />
           </p>
-          <p className="it-title">
+          <p className={title}>
             <i />
           </p>
         </div>
@@ -39,7 +43,11 @@ function Loading() {
   );
 }
 
-function Notice({
+function Loading() {
+  return <Skeleton label={LOADING_LABEL} row="it" title="it-title" />;
+}
+
+export function Notice({
   text,
   action,
   label,
@@ -128,12 +136,12 @@ function ItemList({
   );
 }
 
-function EmptyLibrary() {
+export function EmptyState({ heading, line }: Readonly<{ heading: string; line: string }>) {
   return (
     <div className="empty">
       <Icon name="tray" className="ic ic-xl" />
-      <h2>{EMPTY_LIST.heading}</h2>
-      <p>{EMPTY_LIST.line}</p>
+      <h2>{heading}</h2>
+      <p>{line}</p>
     </div>
   );
 }
@@ -176,7 +184,7 @@ export const ListBody = memo(function ListBody({
   }
 
   if (list.items.length === 0) {
-    return <EmptyLibrary />;
+    return <EmptyState heading={EMPTY_LIST.heading} line={EMPTY_LIST.line} />;
   }
 
   return (

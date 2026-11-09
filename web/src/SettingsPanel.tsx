@@ -2,8 +2,9 @@ import { type RefObject, useId } from "react";
 
 import { DEFAULTS } from "../../design/system/settings.ts";
 import { SETTINGS } from "./access-text.ts";
+import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { Icon } from "./Icon.tsx";
-import { SETTINGS_PATH, useInternalLink } from "./routing.ts";
+import { HIGHLIGHTS_PATH, type Pages, SETTINGS_PATH, useInternalLink } from "./routing.ts";
 import { SettingsRows } from "./SettingsRows.tsx";
 import {
   CLOSE_LABEL,
@@ -54,14 +55,27 @@ function SheetHeader({ titleId, close }: Readonly<{ titleId: string; close: () =
   );
 }
 
-function InstanceLink({ open }: Readonly<{ open: () => void }>) {
+export type PanelPages = Pages;
+
+function PageLink({
+  path,
+  label,
+  open,
+}: Readonly<{ path: string; label: string; open: () => void }>) {
   const follow = useInternalLink(open);
 
   return (
+    <a className="fl-link" href={path} onClick={follow}>
+      {label}
+    </a>
+  );
+}
+
+function PageLinks({ pages }: Readonly<{ pages: Pages }>) {
+  return (
     <div className="st-more">
-      <a className="fl-link" href={SETTINGS_PATH} onClick={follow}>
-        {SETTINGS.instanceSettings}
-      </a>
+      <PageLink path={HIGHLIGHTS_PATH} label={HIGHLIGHTS_PAGE.masthead} open={pages.highlights} />
+      <PageLink path={SETTINGS_PATH} label={SETTINGS.instanceSettings} open={pages.settings} />
     </div>
   );
 }
@@ -79,10 +93,7 @@ function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void 
   );
 }
 
-export function SettingsPanel({
-  look,
-  openInstanceSettings,
-}: Readonly<{ look: Look; openInstanceSettings: () => void }>) {
+export function SettingsPanel({ look, pages }: Readonly<{ look: Look; pages: Pages }>) {
   const { settings, themeNote, narrow: modal, pick: choose, reset } = look;
   const idBase = useId();
   const panelId = `${idBase}-panel`;
@@ -111,7 +122,7 @@ export function SettingsPanel({
               choose={choose}
             />
           </div>
-          <InstanceLink open={openInstanceSettings} />
+          <PageLinks pages={pages} />
           <Footer noteId={`${idBase}-reset-note`} reset={reset} />
         </dialog>
       ) : null}

@@ -2,6 +2,7 @@ import { LibraryMasthead } from "./LibraryMasthead.tsx";
 import { ListBody } from "./ListBody.tsx";
 import { ListTools } from "./ListTools.tsx";
 import { HINT_LIST } from "./reader-text.ts";
+import type { Pages } from "./routing.ts";
 import type { LibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
 
@@ -10,13 +11,13 @@ export function ListColumn({
   look,
   arrived,
   openId,
-  openSettings,
+  pages,
 }: Readonly<{
   view: LibraryView;
   look: Look;
   arrived: boolean;
   openId: number | null;
-  openSettings: () => void;
+  pages: Pages;
 }>) {
   const { library, shown, reserves, actions, side, covered, openItem, listPane, searchField } =
     view;
@@ -26,7 +27,7 @@ export function ListColumn({
 
   return (
     <div className="bg" inert={covered}>
-      <LibraryMasthead view={view} look={look} arrived={arrived} openSettings={openSettings} />
+      <LibraryMasthead view={view} look={look} arrived={arrived} pages={pages} />
       <ListTools
         list={shown}
         reserves={reserves}

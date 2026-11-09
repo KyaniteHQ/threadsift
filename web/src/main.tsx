@@ -36,6 +36,7 @@ import "../../design/system/tokens.css";
 import "../../design/system/components.css";
 import "./page.css";
 import "./access.css";
+import "./highlights-page.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
