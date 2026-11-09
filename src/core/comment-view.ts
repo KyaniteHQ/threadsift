@@ -39,6 +39,7 @@ export interface CommentRow {
   readonly kind: (typeof COMMENT_KINDS)[number];
   readonly eligible: boolean;
   readonly kept: boolean;
+  readonly readable: boolean;
   readonly author: string | null;
   readonly body: string | null;
   readonly score: number | null;
@@ -47,11 +48,11 @@ export interface CommentRow {
 
 export const NO_COMMENTS: CommentsView = { reported: null, received: 0, kept: 0, nodes: [] };
 
-function keptWithAncestors(rows: readonly CommentRow[]): Set<string> {
+function readableWithAncestors(rows: readonly CommentRow[]): Set<string> {
   const byId = new Map(rows.map((row) => [row.id, row]));
   const shown = new Set<string>();
 
-  for (const row of rows.filter((candidate) => candidate.kept)) {
+  for (const row of rows.filter((candidate) => candidate.readable)) {
     for (
       let at: CommentRow | undefined = row;
       at !== undefined && !shown.has(at.id);
@@ -65,7 +66,7 @@ function keptWithAncestors(rows: readonly CommentRow[]): Set<string> {
 }
 
 function shownIds(rows: readonly CommentRow[]): ReadonlySet<string> {
-  const shown = keptWithAncestors(rows);
+  const shown = readableWithAncestors(rows);
 
   for (const row of rows) {
     if (row.kind === "more" && (row.parentId === null || shown.has(row.parentId))) {
@@ -81,7 +82,7 @@ function nodeOf(row: Readonly<CommentRow>): CommentNode {
 
   if (row.kind === "more") return { kind: "more", id, parentId, depth };
 
-  if (!row.kept) {
+  if (!row.readable) {
     return { kind: "stub", id, parentId, depth, reason: row.eligible ? "not-kept" : "dropped" };
   }
 

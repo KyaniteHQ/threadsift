@@ -12,7 +12,7 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
 ];
 
 const OWNER_ONLY_PATH =
-  /^\/api\/(?:(?:tokens|logout|settings|password)(?:\/|$)|items\/[^/]+\/read-state$)/u;
+  /^\/api\/(?:(?:tokens|logout|settings|password)(?:\/|$)|items\/[^/]+\/(?:read-state$|highlights(?:\/|$)))/u;
 
 export function isPublic(method: string, path: string): boolean {
   return PUBLIC_ROUTES.some((route) => route.method === method && route.path === path);

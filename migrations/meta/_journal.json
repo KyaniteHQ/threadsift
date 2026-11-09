@@ -183,6 +183,13 @@
       "when": 1794159979335,
       "tag": "0025_short-link-aliases",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1794177074700,
+      "tag": "0026_highlights",
+      "breakpoints": true
     }
   ]
 }

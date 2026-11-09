@@ -2,27 +2,28 @@ import { eq, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
+import { anchoredOutcome } from "./highlight-publish.ts";
 import {
   type ClaimedJob,
   type JobHandler,
   type JobOutcome,
   type JobPorts,
+  type SettledOutcome,
   isLastAttempt,
 } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import { placePostText } from "./post-text-files.ts";
 import { fetchedRepository, repositoryWrites } from "./repositories.ts";
 import { items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import { isRetryable, settle } from "./settle.ts";
 
-async function titleOf(db: Database, itemId: number): Promise<string | null> {
+async function titleOf(db: JobPorts["db"], itemId: number): Promise<string | null> {
   const [item] = await db.select({ title: items.title }).from(items).where(eq(items.id, itemId));
 
   return item?.title ?? null;
 }
 
-function rateLimitGaveUp(db: Database, job: Readonly<ClaimedJob>): JobOutcome {
+function rateLimitGaveUp(db: JobPorts["db"], job: Readonly<ClaimedJob>): JobOutcome {
   return {
     writes: [
       db
@@ -35,7 +36,7 @@ function rateLimitGaveUp(db: Database, job: Readonly<ClaimedJob>): JobOutcome {
 }
 
 function waitingOutcome(
-  db: Database,
+  db: JobPorts["db"],
   job: Readonly<ClaimedJob>,
   { until, limited }: Readonly<{ until: number; limited: boolean }>,
 ): JobOutcome {
@@ -64,7 +65,7 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
     generation: replacesContent ? sql`${items.generation} + 1` : items.generation,
   };
 
-  return {
+  const outcome: SettledOutcome = {
     writes: [
       ports.db.update(items).set(stored).where(eq(items.id, job.itemId)),
       ...(fields.title === undefined
@@ -75,6 +76,13 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
     ],
     files: placed.files,
   };
+
+  return replacesContent
+    ? anchoredOutcome(ports.db, outcome, {
+        owner: eq(items.id, job.itemId),
+        displayed: () => ({ post: postText }),
+      })
+    : outcome;
 }
 
 export const fetchHandler: JobHandler = {

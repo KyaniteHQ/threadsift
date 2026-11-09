@@ -1,7 +1,7 @@
 import { expect } from "@playwright/test";
 
 import { getItem } from "./api.ts";
-import { TAGS, TOPIC, countOf } from "./deletion-seed.ts";
+import { QUOTED_WORD, TAGS, TOPIC, countOf } from "./deletion-seed.ts";
 import { expectNoOwnedRows } from "./deletion.ts";
 import { answer } from "./filters.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
@@ -20,6 +20,7 @@ export async function expectDeletedEverywhere(
   );
   expect((await getItem(request, id)).status).toBe(404);
   expect(await matches(request, word)).toEqual([]);
+  expect(await matches(request, QUOTED_WORD)).toEqual([]);
   checkIndex(screen);
 
   const { counts } = await answer(request, {});

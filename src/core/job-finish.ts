@@ -1,4 +1,4 @@
-import { eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { logFailure } from "./failure-log.ts";
@@ -9,19 +9,21 @@ import {
   type JobFiles,
   type JobOutcome,
   type JobPorts,
+  type Precondition,
   type SettledOutcome,
 } from "./job-outcome.ts";
 import { enqueueItemJobs, enqueueQuietly, hasOpenJob, holding } from "./job-rows.ts";
 import type { WaitReason } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, guardedBatch, items, jobs } from "./schema.ts";
+import { type JobRow, guardHolds, guardedBatch, items, jobs } from "./schema.ts";
 
 function writeWhileHolding(
   db: Database,
   job: Readonly<JobRow>,
   writes: readonly BatchItem<"sqlite">[],
+  precondition?: Readonly<Precondition>,
 ) {
-  return guardedBatch(db, holding(job), writes);
+  return guardedBatch(db, and(holding(job), precondition?.holds) ?? holding(job), writes);
 }
 
 function logClaimLost(job: Readonly<Pick<JobRow, "id" | "attempts">>): void {
@@ -40,6 +42,28 @@ async function deleteQuietly(ports: JobPorts, key: string | null): Promise<void>
   }
 }
 
+function closingWrites(
+  db: Database,
+  job: Readonly<JobRow>,
+  attempts: number,
+): readonly BatchItem<"sqlite">[] {
+  const open = exists(hasOpenJob());
+
+  return [
+    db
+      .update(jobs)
+      .set({ state: "done", attempts, claimExpires: null, staleRequeues: 0 })
+      .where(eq(jobs.id, job.id)),
+    db
+      .update(items)
+      .set({
+        status: sql`case when ${items.status} = 'failed' then 'failed' when ${open} then 'processing' else 'ready' end`,
+        reason: sql`case when ${items.status} = 'failed' then ${items.reason} when ${open} then null else ${items.reason} end`,
+      })
+      .where(eq(items.id, job.itemId)),
+  ];
+}
+
 export async function finish(
   ports: JobPorts,
   job: Readonly<JobRow>,
@@ -47,35 +71,32 @@ export async function finish(
     writes,
     attempts,
     files = NO_FILES,
+    precondition,
   }: Readonly<{
     writes: readonly BatchItem<"sqlite">[];
     attempts: number;
     files?: JobFiles | undefined;
+    precondition?: Readonly<Precondition> | undefined;
   }>,
-): Promise<boolean> {
+): Promise<"done" | "lost" | Readonly<Precondition>> {
   const { db } = ports;
-  const open = exists(hasOpenJob());
   let wrote: boolean;
 
   try {
-    wrote = await writeWhileHolding(db, job, [
-      ...writes,
-      db
-        .update(jobs)
-        .set({ state: "done", attempts, claimExpires: null, staleRequeues: 0 })
-        .where(eq(jobs.id, job.id)),
-      db
-        .update(items)
-        .set({
-          status: sql`case when ${items.status} = 'failed' then 'failed' when ${open} then 'processing' else 'ready' end`,
-          reason: sql`case when ${items.status} = 'failed' then ${items.reason} when ${open} then null else ${items.reason} end`,
-        })
-        .where(eq(items.id, job.itemId)),
-    ]);
+    wrote = await writeWhileHolding(
+      db,
+      job,
+      [...writes, ...closingWrites(db, job, attempts)],
+      precondition,
+    );
   } catch (error) {
     await deleteQuietly(ports, files.written);
 
     throw error;
+  }
+
+  if (!wrote && precondition !== undefined && (await guardHolds(db, holding(job)))) {
+    return precondition;
   }
 
   await enqueueItemJobs(ports, job.itemId);
@@ -83,7 +104,7 @@ export async function finish(
 
   if (!wrote) logClaimLost(job);
 
-  return wrote;
+  return wrote ? "done" : "lost";
 }
 
 export async function queueLater(
@@ -122,14 +143,15 @@ async function writeOutcome(
   job: Readonly<JobRow>,
   outcome: SettledOutcome,
 ): Promise<"done" | "lost" | "stale"> {
+  let result: Awaited<ReturnType<typeof finish>>;
+
   try {
-    return (await finish(ports, job, {
+    result = await finish(ports, job, {
       writes: outcome.writes,
       attempts: job.attempts + (outcome.failedAttempt === true ? 1 : 0),
       files: outcome.files,
-    }))
-      ? "done"
-      : "lost";
+      precondition: outcome.precondition,
+    });
   } catch (error) {
     const state = await outcome.currency?.current();
 
@@ -137,6 +159,10 @@ async function writeOutcome(
 
     return "stale";
   }
+
+  if (result === "done" || result === "lost") return result;
+
+  return writeOutcome(ports, job, await result.rebuild());
 }
 
 async function discardTask(

@@ -3,12 +3,9 @@ import { HTTPException } from "hono/http-exception";
 
 import { logFailure } from "../core/failure-log.ts";
 import type { Ports } from "../core/ports.ts";
-import { registerAccessRoutes } from "./access-routes.ts";
 import { installApiMiddleware } from "./api-middleware.ts";
-import { registerDeleteItemRoute } from "./delete-item-route.ts";
-import { NOT_FOUND, registerItemRoutes } from "./item-routes.ts";
-import { registerSettingsRoutes } from "./settings-routes.ts";
-import { registerShareRoutes } from "./share-routes.ts";
+import { NOT_FOUND } from "./item-routes.ts";
+import { registerRoutes } from "./routes.ts";
 
 function reasonOf(error: z.ZodError): string {
   return error.issues
@@ -24,11 +21,7 @@ export function createApp(ports: Ports): OpenAPIHono {
 
   installApiMiddleware(app, ports);
 
-  registerAccessRoutes(app, ports);
-  registerItemRoutes(app, ports);
-  registerDeleteItemRoute(app, ports);
-  registerSettingsRoutes(app, ports);
-  registerShareRoutes(app, ports);
+  registerRoutes(app, ports);
 
   app.doc("/api/openapi.json", {
     openapi: "3.1.0",

@@ -1,12 +1,14 @@
-import { expect } from "@playwright/test";
+import { type APIRequestContext, expect } from "@playwright/test";
 import { z } from "zod";
 
 import type { Instance } from "./access.ts";
+import { POST, created, postRevision, selectorOf } from "./highlights.ts";
 
 export const MANIFEST = [
   "ai_tasks",
   "digests",
   "github_repos",
+  "highlights",
   "item_aliases",
   "item_tags",
   "jobs",
@@ -66,6 +68,19 @@ export function addGithubRepository(instance: Instance, id: number): void {
   instance.sql(
     `INSERT INTO github_repos (item_id, description, stars, language, license, topics, pushed_at) VALUES (${id}, NULL, 7, NULL, NULL, '[]', NULL)`,
   );
+}
+
+export async function addHighlight(
+  request: APIRequestContext,
+  id: number,
+  text: string,
+  quote: string,
+): Promise<void> {
+  await created(request, id, {
+    target: POST,
+    revision: await postRevision(request, id),
+    selector: selectorOf(text, quote),
+  });
 }
 
 export function removeBehindTheApp(id: number): string {

@@ -1,3 +1,4 @@
+import type { SQLWrapper } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { JobKind, WaitReason } from "./kinds.ts";
@@ -20,11 +21,21 @@ export interface JobFiles {
   readonly superseded: string | null;
 }
 
+export interface Precondition<Rebuilt extends SettledOutcome = SettledOutcome> {
+  readonly holds: Readonly<SQLWrapper>;
+  readonly rebuild: () => Promise<Rebuilt>;
+}
+
 export interface SettledOutcome {
   readonly writes: JobWrites;
+  readonly precondition?: Precondition;
   readonly currency?: JobCurrency;
   readonly files?: JobFiles;
   readonly failedAttempt?: boolean;
+}
+
+export interface AnchoredOutcome extends SettledOutcome {
+  readonly precondition: Precondition<AnchoredOutcome>;
 }
 
 export interface DeferredOutcome {

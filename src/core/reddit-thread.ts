@@ -2,7 +2,6 @@ import { type SQL, type SQLWrapper, and, asc, eq, isNotNull, sql } from "drizzle
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { StoredCommentId } from "./comment-id.ts";
-import { type CommentRow, type CommentsView, NO_COMMENTS, commentsViewOf } from "./comment-view.ts";
 import type { CommentCandidate } from "./digest-prompt.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
@@ -21,13 +20,13 @@ function selected(kept: readonly string[]): SQL {
   return sql`${redditComments.eligible} = 1 and ${redditComments.id} in (select value from json_each(${JSON.stringify(kept)}))`;
 }
 
-async function bodiesWhere(
+function commentsWhere(
   db: Database,
   snapshot: Readonly<{ itemId: number; generation: number }>,
   condition: Readonly<SQLWrapper>,
-): Promise<readonly string[]> {
-  const rows = await db
-    .select({ body: redditComments.body })
+) {
+  return db
+    .select({ id: redditComments.id, body: redditComments.body })
     .from(redditComments)
     .where(
       and(
@@ -37,6 +36,14 @@ async function bodiesWhere(
       ),
     )
     .orderBy(asc(redditComments.position));
+}
+
+async function bodiesWhere(
+  db: Database,
+  snapshot: Readonly<{ itemId: number; generation: number }>,
+  condition: Readonly<SQLWrapper>,
+): Promise<readonly string[]> {
+  const rows = await commentsWhere(db, snapshot, condition);
 
   return rows.flatMap(({ body }) => (body === null ? [] : [body]));
 }
@@ -54,6 +61,14 @@ export function keptBodies(
   snapshot: Readonly<{ itemId: number; generation: number }>,
 ): Promise<readonly string[]> {
   return bodiesWhere(db, snapshot, eq(redditComments.kept, true));
+}
+
+export function highlightedComments(
+  db: Database,
+  snapshot: Readonly<{ itemId: number; generation: number }>,
+  ids: readonly string[],
+) {
+  return ids.length === 0 ? Promise.resolve([]) : commentsWhere(db, snapshot, selected(ids));
 }
 
 export function submittedAmong(
@@ -203,62 +218,9 @@ export function publishedGeneration(itemId: number | Readonly<SQLWrapper>) {
   return sql`select ${redditThreads.generation} from ${redditThreads} join ${digests} on ${digests.itemId} = ${redditThreads.itemId} and ${digests.generation} = ${redditThreads.generation} where ${redditThreads.itemId} = ${itemId}`;
 }
 
-function readGeneration(itemId: number) {
+export function readGeneration(itemId: number | Readonly<SQLWrapper>) {
   const published = publishedGeneration(itemId);
   const stored = sql`select max(${redditThreads.generation}) from ${redditThreads} where ${redditThreads.itemId} = ${itemId}`;
 
-  return sql`coalesce((${published}), (${stored}))`;
-}
-
-function threadRows(db: Database, itemId: number) {
-  return db
-    .select({
-      id: redditComments.id,
-      parentId: redditComments.parentId,
-      depth: redditComments.depth,
-      kind: redditComments.kind,
-      eligible: redditComments.eligible,
-      kept: redditComments.kept,
-      author: sql<
-        string | null
-      >`case when ${redditComments.kept} then ${redditComments.author} end`,
-      body: sql<string | null>`case when ${redditComments.kept} then ${redditComments.body} end`,
-      score: sql<number | null>`case when ${redditComments.kept} then ${redditComments.score} end`,
-      postedAt: sql<
-        number | null
-      >`case when ${redditComments.kept} then ${redditComments.postedAt} end`,
-    })
-    .from(redditComments)
-    .where(
-      and(
-        eq(redditComments.itemId, itemId),
-        sql`${redditComments.generation} = ${readGeneration(itemId)}`,
-      ),
-    )
-    .orderBy(asc(redditComments.position));
-}
-
-function threadReport(db: Database, itemId: number) {
-  return db
-    .select({ reported: redditThreads.reported })
-    .from(redditThreads)
-    .where(
-      and(
-        eq(redditThreads.itemId, itemId),
-        sql`${redditThreads.generation} = ${readGeneration(itemId)}`,
-      ),
-    );
-}
-
-export function threadReads(db: Database, itemId: number) {
-  return [threadRows(db, itemId), threadReport(db, itemId)] as const;
-}
-
-export function commentsOf(
-  rows: readonly CommentRow[],
-  report: readonly Readonly<{ reported: number | null }>[],
-): CommentsView {
-  const [thread] = report;
-
-  return thread === undefined ? NO_COMMENTS : commentsViewOf(rows, thread.reported);
+  return sql<number | null>`coalesce((${published}), (${stored}))`;
 }

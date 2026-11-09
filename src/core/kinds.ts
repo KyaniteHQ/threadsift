@@ -19,7 +19,12 @@ export const SEARCH_PART_KINDS = [
   "tags",
   "repository",
   "comment",
+  "highlight",
 ] as const;
+
+export const HIGHLIGHT_REASONS = ["gone", "ambiguous"] as const;
+
+export const HIGHLIGHT_STATUSES = ["attached", ...HIGHLIGHT_REASONS] as const;
 
 export const THROTTLE_KINDS = ["setup", "login", "reset"] as const;
 
