@@ -67,13 +67,24 @@ async function expectOwnSelectedImages(url: string): Promise<void> {
 
   await expect(tab.getByRole("heading", { level: 1 })).toBeVisible();
 
-  const selected = await tab.evaluate(() => [
-    ...new Set(
-      [...(document.querySelector("article") ?? document.body).querySelectorAll("img")].flatMap(
-        ({ srcset, currentSrc }) => (/\d+w/u.test(srcset) && currentSrc !== "" ? [currentSrc] : []),
+  const selected = await tab.evaluate(async () => {
+    const images = [
+      ...(document.querySelector("article") ?? document.body).querySelectorAll("img"),
+    ];
+
+    for (const image of images) {
+      image.scrollIntoView();
+      await image.decode().catch(() => {});
+    }
+
+    return [
+      ...new Set(
+        images.flatMap(({ srcset, currentSrc }) =>
+          /\d+w/u.test(srcset) && currentSrc !== "" ? [currentSrc] : [],
+        ),
       ),
-    ),
-  ]);
+    ];
+  });
 
   expect(selected.length, "images with a width srcset in the article").toBeGreaterThanOrEqual(2);
 
