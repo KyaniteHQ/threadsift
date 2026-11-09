@@ -56,6 +56,8 @@ export const HighlightsViewSchema = z.object({
   items: z.array(HighlightSchema).readonly(),
 });
 
+export const HighlightResponseSchema = z.object({ highlight: HighlightSchema });
+
 export type CreateHighlightRequest = z.infer<typeof CreateHighlightRequestSchema>;
 
 export type HighlightSelector = z.infer<typeof SelectorSchema>;

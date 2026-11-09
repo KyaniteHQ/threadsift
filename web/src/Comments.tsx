@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -13,6 +14,7 @@ import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { type CommentCounts, commentCountsOf } from "./comment-counts.ts";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
+import { useRevealed, useSpans } from "./highlights-context.ts";
 import { PostTextView } from "./post-text-module.ts";
 import {
   COMMENTS_TITLE,
@@ -47,10 +49,12 @@ function initialOf(author: string | null): string {
 
 type Comment = Extract<CommentNode, { kind: "comment" }>;
 
-function useOpenFold() {
+function useOpenFold(revealed: boolean) {
   const more = useRef<HTMLButtonElement>(null);
   const fromTop = useRef(false);
   const [open, setOpen] = useState(false);
+
+  if (revealed && !open) setOpen(true);
 
   const toggle = useCallback(() => {
     setOpen((now) => !now);
@@ -77,9 +81,12 @@ function useOpenFold() {
 
 function CommentText({ comment }: Readonly<{ comment: Comment }>) {
   const box = useRef<HTMLDivElement>(null);
-  const { more, open, toggle, lessFromTop, reveal } = useOpenFold();
+  const revealed = useRevealed(({ key }) => key === comment.id);
+  const { more, open, toggle, lessFromTop, reveal } = useOpenFold(revealed);
   const fold = useCommentFold(box);
   const bodyId = useId();
+  const target = useMemo(() => ({ kind: "comment", commentId: comment.id }) as const, [comment.id]);
+  const spans = useSpans(target);
 
   return (
     <>
@@ -100,7 +107,7 @@ function CommentText({ comment }: Readonly<{ comment: Comment }>) {
         className={fold !== "none" && !open ? "cm-fold folded" : "cm-fold"}
         onFocus={fold === "none" ? undefined : reveal}
       >
-        <PostTextView text={comment.body} />
+        <PostTextView text={comment.body} target={target} spans={spans} />
       </div>
       {fold === "none" ? null : (
         <button

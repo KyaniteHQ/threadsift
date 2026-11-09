@@ -6,6 +6,10 @@ export interface Selector {
   readonly suffix: string;
 }
 
+export interface PlacedSelector extends Selector {
+  readonly hint: number;
+}
+
 export type Anchor =
   | { readonly status: "attached"; readonly start: number }
   | { readonly status: "gone" }
@@ -111,4 +115,18 @@ export function selectorHolds(text: string, selector: Readonly<Selector>, start:
   return (
     contextBefore(text, from) === selector.prefix && contextAfter(text, end) === selector.suffix
   );
+}
+
+export function selectorAt(text: string, start: number, length: number): PlacedSelector | null {
+  const from = unitIndexAt(text, start);
+  const end = unitIndexAt(text, start + length);
+
+  if (from === null || end === null) return null;
+
+  return {
+    exact: text.slice(from, end),
+    prefix: contextBefore(text, from),
+    suffix: contextAfter(text, end),
+    hint: start,
+  };
 }

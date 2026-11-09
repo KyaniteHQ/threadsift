@@ -9,11 +9,14 @@ import {
   useRef,
 } from "react";
 import Markdown, { type Components } from "react-markdown";
+import { z } from "zod";
 import remarkGfm from "remark-gfm";
 
 import { readerUrl } from "../../src/core/reader-url.ts";
-import { CodeBlock } from "./CodeBlock.tsx";
-import { FOOTNOTES_LABEL, FOOTNOTE_BACK, FOOTNOTE_BACK_AGAIN, tableName } from "./reader-text.ts";
+import { type CodePart, CodeBlock } from "./CodeBlock.tsx";
+import { type MarkSpan, markPlugins } from "./highlight-marks.ts";
+import { Mark } from "./Mark.tsx";
+import { FOOTNOTES_LABEL, footnoteBackLabel, tableName } from "./reader-text.ts";
 import { FootnoteScope, type Generated, Link, classed, scoped } from "./ReaderLink.tsx";
 import { watchFades } from "./scroll-fades.ts";
 import {
@@ -23,12 +26,14 @@ import {
   type SizedImages,
   usePictures,
 } from "./StoredPicture.tsx";
-import { filled } from "./text.ts";
 
 interface Node {
   readonly type: string;
   readonly value?: string;
   readonly tagName?: string;
+  readonly properties?: Readonly<
+    Record<string, string | number | boolean | readonly (string | number)[] | null | undefined>
+  >;
   readonly children?: readonly Node[];
 }
 
@@ -90,12 +95,36 @@ function H4(props: Readonly<Generated>) {
   return <Heading tag="h6" base="h h-3" {...props} />;
 }
 
+function highlightsOf(node: Readonly<Node>): string {
+  return z.string().catch("").parse(node.properties?.["dataHighlights"]);
+}
+
+function codePartsOf(node: Readonly<Node> | undefined): readonly CodePart[] {
+  const children = node?.children?.find((child) => child.tagName === "code")?.children ?? [];
+  let offset = 0;
+
+  return children.map((child, at) => {
+    const shown = textOf(child);
+    const text = at === children.length - 1 ? shown.replace(/\n$/u, "") : shown;
+
+    const part = {
+      key: offset,
+      text,
+      highlights: child.tagName === "mark" ? highlightsOf(child) : null,
+    };
+
+    offset += shown.length;
+
+    return part;
+  });
+}
+
 function Block({ node }: Readonly<WithNode>) {
   const text = node === undefined ? "" : textOf(node);
 
   const code = text.replace(/\n$/u, "");
 
-  return <CodeBlock key={code} text={code} />;
+  return <CodeBlock key={code} text={code} parts={codePartsOf(node)} />;
 }
 
 function Inline({ children }: Readonly<{ children?: ReactNode }>) {
@@ -129,18 +158,10 @@ const COMPONENTS: Components = {
   code: Inline,
   table: Table,
   input: Task,
+  mark: Mark,
 };
 
 const PLUGINS = [remarkGfm];
-
-function footnoteBackLabel(referenceIndex: number, rereferenceIndex: number): string {
-  const values = {
-    reference: String(referenceIndex + 1),
-    again: String(rereferenceIndex),
-  };
-
-  return filled(rereferenceIndex > 1 ? FOOTNOTE_BACK_AGAIN : FOOTNOTE_BACK, values);
-}
 
 const FOOTNOTES: NonNullable<ComponentProps<typeof Markdown>["remarkRehypeOptions"]> = {
   footnoteLabel: FOOTNOTES_LABEL,
@@ -150,24 +171,34 @@ const FOOTNOTES: NonNullable<ComponentProps<typeof Markdown>["remarkRehypeOption
 
 export const PostText = memo(function PostText({
   text,
+  targetKey,
+  spans,
   itemId = null,
   images = NO_IMAGES,
-}: Readonly<{ text: string; itemId?: number | null; images?: SizedImages }>) {
+}: Readonly<{
+  text: string;
+  targetKey: string;
+  spans: readonly MarkSpan[];
+  itemId?: number | null;
+  images?: SizedImages;
+}>) {
   const root = useRef<HTMLDivElement>(null);
   const scope = useId();
 
   const pictures = usePictures(itemId, images);
 
   const options = useMemo(() => ({ ...FOOTNOTES, clobberPrefix: `${scope}-` }), [scope]);
+  const rehype = useMemo(() => markPlugins(spans), [spans]);
 
   useEffect(() => (root.current === null ? undefined : watchFades(root.current)), []);
 
   return (
-    <div ref={root} className="md">
+    <div ref={root} className="md" data-target={targetKey}>
       <FootnoteScope value={scope}>
         <PictureScope value={pictures}>
           <Markdown
             remarkPlugins={PLUGINS}
+            rehypePlugins={rehype}
             remarkRehypeOptions={options}
             components={COMPONENTS}
             urlTransform={readerUrl}

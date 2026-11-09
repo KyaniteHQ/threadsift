@@ -1,4 +1,9 @@
 import { refreshedOf } from "../../src/core/fetch-results.ts";
+import {
+  type CreateHighlightRequest,
+  type Highlight,
+  HighlightResponseSchema,
+} from "../../src/core/highlight-contract.ts";
 import type { ReadState } from "../../src/core/kinds.ts";
 import {
   ErrorResponseSchema,
@@ -45,6 +50,34 @@ export async function putReadState(id: number, readState: ReadState): Promise<It
       json: { readState },
     })
   ).item;
+}
+
+export type KeepResult =
+  | { readonly outcome: "kept"; readonly highlight: Highlight }
+  | { readonly outcome: "changed" };
+
+export async function keepHighlight(
+  id: number,
+  request: Readonly<CreateHighlightRequest>,
+): Promise<KeepResult> {
+  const path = `/api/items/${id}/highlights`;
+  const response = await call("POST", path, { json: request });
+
+  if (response.status === 404 || response.status === 409) return { outcome: "changed" };
+
+  if (!response.ok) throw unexpected("POST", path, response.status);
+
+  return {
+    outcome: "kept",
+    highlight: HighlightResponseSchema.parse(await response.json()).highlight,
+  };
+}
+
+export async function dropHighlight(id: number, highlightId: number): Promise<void> {
+  const path = `/api/items/${id}/highlights/${highlightId}`;
+  const response = await call("DELETE", path);
+
+  if (!response.ok && response.status !== 404) throw unexpected("DELETE", path, response.status);
 }
 
 export function fetchItems(filters: Readonly<Filters>): Promise<ItemList> {

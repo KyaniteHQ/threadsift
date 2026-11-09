@@ -12,16 +12,41 @@ interface HastProperties {
   readonly alt?: unknown;
   readonly src?: unknown;
   readonly id?: unknown;
+  readonly ariaHidden?: unknown;
   readonly dataFootnoteRef?: unknown;
   readonly dataFootnoteBackref?: unknown;
 }
 
-interface HastNode {
+export interface HastNode {
   readonly type: string;
   readonly value?: string;
   readonly tagName?: string;
   readonly properties?: HastProperties;
   readonly children?: readonly HastNode[];
+}
+
+interface Cell {
+  readonly char: string;
+  readonly node: HastNode | null;
+  readonly index: number;
+}
+
+interface Chunk {
+  readonly node: HastNode | null;
+  readonly value: string;
+}
+
+export interface Piece {
+  readonly node: HastNode;
+  readonly from: number;
+  readonly to: number;
+  readonly at: number;
+  readonly length: number;
+}
+
+export interface Projection {
+  readonly text: string;
+  readonly pieces: readonly Piece[];
 }
 
 const PROCESSOR = unified()
@@ -48,46 +73,78 @@ const FLOW = new Set([
 
 const COLLAPSIBLE = new Set([" ", "\t", "\n", "\f", "\r"]);
 
-function collapse(run: readonly (string | null)[]): string {
-  const pieces: string[] = [];
-  let atLineStart = true;
-  let pending = false;
+const BREAK: Cell = { char: "\n", node: null, index: 0 };
 
-  for (const piece of run) {
-    if (piece === null) {
-      pieces.push("\n");
+const TAB: Cell = { char: "\t", node: null, index: 0 };
+
+function cellsOf(node: HastNode, value: string): Cell[] {
+  const cells: Cell[] = [];
+  let index = 0;
+
+  for (const char of value) {
+    cells.push({ char, node, index });
+    index += char.length;
+  }
+
+  return cells;
+}
+
+function collapse(run: readonly (Chunk | null)[]): Cell[] {
+  const cells: Cell[] = [];
+  let atLineStart = true;
+  let gap: Cell | null = null;
+
+  const put = (char: string, node: HastNode | null, index: number): void => {
+    if (COLLAPSIBLE.has(char)) {
+      if (!atLineStart) gap ??= { char: " ", node, index };
+
+      return;
+    }
+
+    if (gap !== null) cells.push(gap);
+
+    cells.push({ char, node, index });
+    atLineStart = false;
+    gap = null;
+  };
+
+  for (const chunk of run) {
+    if (chunk === null) {
+      cells.push(BREAK);
       atLineStart = true;
-      pending = false;
+      gap = null;
     } else {
-      for (const char of piece) {
-        if (COLLAPSIBLE.has(char)) {
-          pending = !atLineStart;
-        } else {
-          pieces.push(pending ? ` ${char}` : char);
-          atLineStart = false;
-          pending = false;
-        }
+      let index = 0;
+
+      for (const char of chunk.value) {
+        put(char, chunk.node, index);
+        index += char.length;
       }
     }
   }
 
-  return pieces.join("").replaceAll(/^\n+|\n+$/gu, "");
+  const first = cells.findIndex((cell) => cell !== BREAK);
+
+  return first === -1 ? [] : cells.slice(first, cells.findLastIndex((cell) => cell !== BREAK) + 1);
 }
 
-function textContent(node: Readonly<HastNode>): string {
-  if (node.type === "text" || node.type === "raw") return node.value ?? "";
-
-  return (node.children ?? []).map((child) => textContent(child)).join("");
+function joined(parts: readonly (readonly Cell[])[], separator: Cell): Cell[] {
+  return parts.flatMap((part, at) => (at === 0 ? part : [separator, ...part]));
 }
 
-function isGenerated({ tagName, properties }: Readonly<HastNode>): boolean {
-  if (tagName === "a") {
-    return (
-      properties?.dataFootnoteRef !== undefined || properties?.dataFootnoteBackref !== undefined
-    );
-  }
+function codeCells(node: Readonly<HastNode>): Cell[] {
+  return node.type === "text" || node.type === "raw"
+    ? cellsOf(node, node.value ?? "")
+    : (node.children ?? []).flatMap((child) => codeCells(child));
+}
 
-  return tagName === "h2" && properties?.id === FOOTNOTE_LABEL_ID;
+function isGenerated({ properties }: Readonly<HastNode>): boolean {
+  return (
+    properties?.ariaHidden === "true" ||
+    properties?.dataFootnoteRef !== undefined ||
+    properties?.dataFootnoteBackref !== undefined ||
+    z.string().catch("").parse(properties?.id).endsWith(FOOTNOTE_LABEL_ID)
+  );
 }
 
 function imageText({ properties }: Readonly<HastNode>): string {
@@ -105,18 +162,19 @@ function rowsOf(node: Readonly<HastNode>): HastNode[] {
 }
 
 class Projector {
-  private readonly blocks: string[] = [];
-  private readonly run: (string | null)[] = [];
+  private readonly blocks: Cell[][] = [];
+  private readonly run: (Chunk | null)[] = [];
 
-  public text(): string {
+  public cells(): Cell[] {
     this.flush();
 
-    return this.blocks.join("\n");
+    return joined(this.blocks, BREAK);
   }
 
   public visit(node: Readonly<HastNode>): void {
-    if (node.type === "text" || node.type === "raw") this.run.push(node.value ?? "");
-    else if (node.type === "element") this.element(node);
+    if (node.type === "text" || node.type === "raw") {
+      this.run.push({ node, value: node.value ?? "" });
+    } else if (node.type === "element") this.element(node);
     else this.children(node);
   }
 
@@ -125,17 +183,17 @@ class Projector {
   }
 
   private flush(): void {
-    const text = collapse(this.run);
+    const cells = collapse(this.run);
     this.run.length = 0;
 
-    if (text !== "") this.blocks.push(text);
+    if (cells.length > 0) this.blocks.push(cells);
   }
 
-  private cell(cell: Readonly<HastNode>): string {
+  private cell(cell: Readonly<HastNode>): Cell[] {
     const inner = new Projector();
     inner.children(cell);
 
-    return inner.text();
+    return inner.cells();
   }
 
   private table(table: Readonly<HastNode>): void {
@@ -146,25 +204,27 @@ class Projector {
         .filter(({ tagName }) => tagName === "td" || tagName === "th")
         .map((cell) => this.cell(cell));
 
-      if (cells.some((cell) => cell !== "")) this.blocks.push(cells.join("\t"));
+      if (cells.some((cell) => cell.length > 0)) this.blocks.push(joined(cells, TAB));
     }
   }
 
   private code(node: Readonly<HastNode>): void {
     this.flush();
 
-    const code = textContent(node).replace(/\n$/u, "");
+    const cells = codeCells(node);
 
-    if (code !== "") this.blocks.push(code);
+    if (cells.at(-1)?.char === "\n") cells.pop();
+
+    if (cells.length > 0) this.blocks.push(cells);
   }
 
   private element(node: Readonly<HastNode>): void {
     const { tagName = "" } = node;
 
-    if (tagName === "input" || isGenerated(node)) return;
+    if (tagName === "input" || tagName === "button" || isGenerated(node)) return;
 
     if (tagName === "br") this.run.push(null);
-    else if (tagName === "img") this.run.push(imageText(node));
+    else if (tagName === "img") this.run.push({ node, value: imageText(node) });
     else if (tagName === "pre") this.code(node);
     else if (tagName === "table") this.table(node);
     else if (FLOW.has(tagName)) {
@@ -175,10 +235,32 @@ class Projector {
   }
 }
 
-export function projectText(markdown: string): string {
+function piecesOf(cells: readonly Cell[]): Piece[] {
+  const pieces: Piece[] = [];
+
+  cells.forEach(({ char, node, index }, at) => {
+    const last = pieces.at(-1);
+
+    if (node === null) return;
+
+    if (last?.node === node && last.to === index && last.at + last.length === at) {
+      pieces[pieces.length - 1] = { ...last, to: index + char.length, length: last.length + 1 };
+    } else pieces.push({ node, from: index, to: index + char.length, at, length: 1 });
+  });
+
+  return pieces;
+}
+
+export function projectTree(root: Readonly<HastNode>): Projection {
   const projector = new Projector();
 
-  projector.visit(PROCESSOR.runSync(PROCESSOR.parse(markdown)));
+  projector.visit(root);
 
-  return projector.text();
+  const cells = projector.cells();
+
+  return { text: cells.map(({ char }) => char).join(""), pieces: piecesOf(cells) };
+}
+
+export function projectText(markdown: string): string {
+  return projectTree(PROCESSOR.runSync(PROCESSOR.parse(markdown))).text;
 }

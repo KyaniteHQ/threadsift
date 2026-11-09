@@ -1,7 +1,9 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import { z } from "zod";
 
-import { CreateHighlightRequestSchema, HighlightSchema } from "../core/highlight-contract.ts";
+import {
+  CreateHighlightRequestSchema,
+  HighlightResponseSchema,
+} from "../core/highlight-contract.ts";
 import { createHighlight, removeHighlight } from "../core/highlights.ts";
 import type { Ports } from "../core/ports.ts";
 import { NOT_FOUND } from "./item-routes.ts";
@@ -14,8 +16,6 @@ const STALE =
   "The text changed after it was read. Read GET /api/items/{id} again and select the passage again";
 
 const MISMATCH = "selector: it does not match the text of that revision";
-
-const HighlightResponseSchema = z.object({ highlight: HighlightSchema });
 
 const OWNER_ONLY = "Only the owner's session may call this; an agent token gets 403.";
 

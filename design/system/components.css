@@ -395,6 +395,18 @@ a.btn { text-decoration: none; }
 .rd-orig, .rd-readme, .rd-comments { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
 .rd-note { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); font-style: italic; }
 
+.rd-hl { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.hl-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.hl-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--s1) var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); }
+.hl-entry:last-child { border-bottom: 1px solid var(--line); }
+.hl-quote { display: -webkit-box; grid-column: 1; min-width: 0; margin: 0; padding: 0; overflow: hidden; border: 0; background: transparent; color: var(--text); font-family: var(--f-read); font-size: var(--t-body); line-height: var(--lh-text); overflow-wrap: anywhere; text-align: start; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+button.hl-quote { min-height: var(--ctl-h); cursor: pointer; }
+button.hl-quote:hover { background: var(--surface-2); }
+.hl-gone { grid-column: 1; }
+.hl-entry > .btn { grid-column: 2; grid-row: 1 / span 2; }
+.hl-pop { position: fixed; inset: auto; margin: var(--s2) 0; padding: var(--s1); overflow: visible; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); }
+@media (pointer: coarse) { .hl-pop { margin-top: var(--target); } }
+
 .rd-media { overflow: hidden; border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface-2); }
 .rd-media .pic { height: auto; max-height: var(--media-max); object-fit: contain; object-position: center top; }
 .md .rd-media { display: block; width: fit-content; max-width: 100%; }
@@ -489,6 +501,10 @@ a.btn { text-decoration: none; }
 .md th, .md td { padding: var(--s1) var(--s3); border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: normal; word-break: normal; }
 .md th .il-a, .md td .il-a, .md th .il-code, .md td .il-code { overflow-wrap: normal; }
 .md .nw { white-space: nowrap; }
+.md mark[data-highlights] { text-decoration: underline; text-decoration-color: var(--acc-ink); text-underline-offset: 2px; cursor: pointer; }
+@media (forced-colors: active) {
+  .md mark[data-highlights] { background: Mark; color: MarkText; forced-color-adjust: none; text-decoration-color: MarkText; }
+}
 /* inline: plain, bold, italic, link and code spans */
 .il-a { color: var(--acc-ink); text-underline-offset: 2px; overflow-wrap: anywhere; padding-block: var(--link-pad); }
 .il-code { padding: 0 var(--s1); border-radius: var(--r1); background: var(--surface-2); font-family: var(--f-mono); font-size: inherit; }

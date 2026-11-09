@@ -3,9 +3,10 @@ import { type RefObject, use, useMemo } from "react";
 import type { Item } from "../../src/http/schemas.ts";
 import { BASE_SAMPLE, FACE_WAIT_MS, LOOK_FONTS, sampleOf } from "./load-fonts.ts";
 import { postTextModule } from "./post-text-module.ts";
-import { ReaderContent, ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
+import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
+import { ReaderContent } from "./ReaderContent.tsx";
 import { useFaces } from "./use-faces.ts";
-import type { DetailState } from "./use-item-detail.ts";
+import type { DetailActions, DetailState } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
 
 function sampleOfDetail(state: DetailState): string | null {
@@ -28,7 +29,7 @@ export function ReaderBody({
   item,
   slot,
   state,
-  retry,
+  actions,
   now,
   settingsKey,
   titleId,
@@ -38,7 +39,7 @@ export function ReaderBody({
   item: Item;
   slot: RefObject<HTMLElement | null>;
   state: DetailState;
-  retry: () => void;
+  actions: DetailActions;
   now: number;
   settingsKey: string;
   titleId: string;
@@ -65,7 +66,7 @@ export function ReaderBody({
       {ready === null ? (
         <ReaderLoading />
       ) : (
-        <ReaderContent item={item} state={ready} retry={retry} tryAgain={tryAgain} now={now} />
+        <ReaderContent item={item} state={ready} actions={actions} tryAgain={tryAgain} now={now} />
       )}
     </>
   );

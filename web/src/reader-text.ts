@@ -52,6 +52,20 @@ export const STUB_MORE = "Further replies were not saved.";
 export const OP_LABEL = "OP";
 export const SHOW_FULL_COMMENT = "Show full comment";
 export const SHOW_LESS = "Show less";
+export const KEEP_LABEL = "Keep";
+export const KEEP_GROUP = "Keep highlight";
+export const REMOVE_LABEL = "Remove";
+export const REMOVE_GROUP = "Remove highlight";
+export const HIGHLIGHTS_TITLE = "Highlights";
+export const NOT_FOUND = "Passage no longer found because the item’s text changed.";
+export const KEPT_ANNOUNCEMENT = "Highlight kept.";
+export const REMOVED_ANNOUNCEMENT = "Highlight removed.";
+export const KEEP_FAILED = "Couldn’t keep this highlight. Select the passage again.";
+export const REMOVE_FAILED = "Couldn’t remove this highlight. Try again.";
+
+export const KEEP_STALE =
+  "Couldn’t keep this highlight because the item’s text changed. Select the passage again once the new text is shown.";
+
 export const FOOTNOTES_LABEL = "Footnotes";
 export const FOOTNOTE_BACK = "Back to reference {reference}";
 export const FOOTNOTE_BACK_AGAIN = "Back to footnote {reference}, reference {again}";
@@ -80,6 +94,8 @@ export const SECTION_TITLES: Readonly<Record<Kind, string>> = {
   link: "Original post",
 };
 
+const REMOVE_NAMED = "Remove highlight: {quote}";
+const QUOTE_SHORT_CODE_POINTS = 40;
 const POSTED = "posted {when}";
 const CODE_ONE = "Code block, 1 line";
 const CODE_MANY = "Code block, {count} lines";
@@ -90,6 +106,27 @@ const COMMENTS_BUTTON = "Comments {kept} of {total}";
 const COMMENTS_BUTTON_SHORT = "{kept} of {total}";
 const COMMENTS_BUTTON_COUNT = "{kept}";
 const SCORE = "{score} pts";
+
+export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: number): string {
+  const values = {
+    reference: String(referenceIndex + 1),
+    again: String(rereferenceIndex),
+  };
+
+  return filled(rereferenceIndex > 1 ? FOOTNOTE_BACK_AGAIN : FOOTNOTE_BACK, values);
+}
+
+export function removeNamed(exact: string): string {
+  const words = exact.replaceAll(/\s+/gu, " ").trim();
+  const points = Array.from(words);
+
+  const quote =
+    points.length > QUOTE_SHORT_CODE_POINTS
+      ? `${points.slice(0, QUOTE_SHORT_CODE_POINTS).join("")}…`
+      : words;
+
+  return filled(REMOVE_NAMED, { quote });
+}
 
 export function postedLabel(postedAt: number, now: number): string {
   return filled(POSTED, { when: ageLabel(postedAt, now) });
