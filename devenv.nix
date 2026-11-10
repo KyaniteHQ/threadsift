@@ -37,6 +37,18 @@ in
     pkgs.playwright-driver.browsers
   ];
 
+  scripts.worker-local = {
+    description = "Apply the D1 migrations and start wrangler dev --local: worker-local <state dir> <port> [wrangler dev flags]";
+    exec = ''
+      set -e
+      state=$1
+      port=$2
+      shift 2
+      pnpm exec wrangler d1 migrations apply DB --local --persist-to "$state"
+      exec pnpm exec wrangler dev --local --port "$port" --persist-to "$state" "$@"
+    '';
+  };
+
   processes = {
     server = {
       ports.http.allocate = 8080;
@@ -51,8 +63,7 @@ in
       ports.inspector.allocate = 9229;
       exec = ''
         [ -d dist/web ] || ./node_modules/.bin/vite build
-        ./node_modules/.bin/wrangler d1 migrations apply DB --local --persist-to .wrangler/state
-        exec ./node_modules/.bin/wrangler dev --local --port ${port "worker"} --inspector-port ${toString config.processes.worker.ports.inspector.value} --persist-to .wrangler/state
+        exec worker-local .wrangler/state ${port "worker"} --inspector-port ${toString config.processes.worker.ports.inspector.value}
       '';
     };
   };

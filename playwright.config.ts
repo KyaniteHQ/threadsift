@@ -22,8 +22,7 @@ const WORKER = [
   "umask 077",
   `mkdir -p ${STATE}`,
   `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > ${STATE}/env`,
-  `pnpm exec wrangler d1 migrations apply DB --local --persist-to ${STATE}/state`,
-  `exec pnpm exec wrangler dev --local --test-scheduled --ip 127.0.0.1 --port ${PORT} --inspector-port 0 --persist-to ${STATE}/state --env-file ${STATE}/env`,
+  `exec worker-local ${STATE}/state ${PORT} --test-scheduled --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
 ].join(" && ");
 
 const CONTAINER = [
