@@ -46,11 +46,27 @@ export function focusListStart(pane: HTMLElement): void {
   (start ?? pane).focus();
 }
 
-export function focusNeighbourCard(scope: Element | null, direction: 1 | -1): void {
-  const links = [...(scope?.querySelectorAll<HTMLElement>(".list .it-open") ?? [])];
-  const focused = document.activeElement?.closest("article.it")?.querySelector(".it-open");
-  const at = links.findIndex((link) => link === focused);
-  const next = at < 0 ? (direction > 0 ? links.at(0) : links.at(-1)) : links[at + direction];
+export interface Cards {
+  readonly links: string;
+  readonly row: string;
+  readonly link: string;
+}
+
+const LIBRARY_CARDS: Cards = { links: ".list .it-open", row: "article.it", link: ".it-open" };
+
+export function focusNeighbour(
+  scope: Element | null,
+  direction: 1 | -1,
+  { links, row, link }: Readonly<Cards>,
+): void {
+  const all = [...(scope?.querySelectorAll<HTMLElement>(links) ?? [])];
+  const focused = document.activeElement?.closest(row)?.querySelector(link);
+  const at = all.findIndex((each) => each === focused);
+  const next = at < 0 ? (direction > 0 ? all.at(0) : all.at(-1)) : all[at + direction];
 
   next?.focus();
+}
+
+export function focusNeighbourCard(scope: Element | null, direction: 1 | -1): void {
+  focusNeighbour(scope, direction, LIBRARY_CARDS);
 }

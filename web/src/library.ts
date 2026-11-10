@@ -11,7 +11,7 @@ import {
   removeItem,
   saveLink,
 } from "./api.ts";
-import { type Choice, type Filters, NO_FILTERS, isFiltered, withChoice } from "./filters.ts";
+import { isFiltered, useFilters } from "./filters.ts";
 import { type Stamps, newStamps, useItemPolling } from "./item-polling.ts";
 import { type Reads, useReads } from "./list-reads.ts";
 import {
@@ -76,28 +76,6 @@ function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonl
   );
 
   useItemPolling(processingIds(list), onRead, onGone);
-}
-
-function useFilters() {
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
-
-  const choose = useCallback((choice: Readonly<Choice>) => {
-    setFilters((now) => withChoice(now, choice));
-  }, []);
-
-  const search = useCallback((q: string) => {
-    setFilters((now) => ({ ...now, q }));
-  }, []);
-
-  const clear = useCallback(() => {
-    setFilters(NO_FILTERS);
-  }, []);
-
-  const clearChosen = useCallback(() => {
-    setFilters((now) => ({ ...NO_FILTERS, q: now.q }));
-  }, []);
-
-  return { filters, choose, search, clear, clearChosen };
 }
 
 function useSave(setList: SetList, upkeep: Readonly<Upkeep>) {

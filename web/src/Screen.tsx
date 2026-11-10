@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 
+import { HighlightsPage } from "./HighlightsPage.tsx";
 import { Library } from "./Library.tsx";
-import { type Route, SETTINGS_PATH } from "./routing.ts";
+import { type Route, usePages } from "./routing.ts";
 import type { ScreenState } from "./screens.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import { SetupScreen } from "./SetupScreen.tsx";
@@ -35,9 +36,7 @@ export function Screen({
     navigate("/");
   }, [navigate]);
 
-  const toSettings = useCallback(() => {
-    navigate(SETTINGS_PATH);
-  }, [navigate]);
+  const pages = usePages(navigate);
 
   const leave = useCallback(() => {
     navigate("/");
@@ -54,8 +53,10 @@ export function Screen({
       return <Unreachable retry={refresh} />;
     case "settings":
       return <SettingsPage back={toLibrary} signedOut={leave} />;
+    case "highlights":
+      return <HighlightsPage look={look} route={route} back={toLibrary} />;
     case "library":
-      return <Library look={look} arrived={arrived} route={route} openSettings={toSettings} />;
+      return <Library look={look} arrived={arrived} route={route} pages={pages} />;
     case "loading":
       return null;
     default:

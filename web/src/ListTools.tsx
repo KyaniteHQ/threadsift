@@ -4,6 +4,7 @@ import type { Filters } from "./filters.ts";
 import { type ListState, countsOf } from "./list-state.ts";
 import { ListHead, ListHeadGhost } from "./ListBody.tsx";
 import { SearchField } from "./SearchField.tsx";
+import { SEARCH_LABEL, SEARCH_PLACEHOLDER } from "./text.ts";
 
 export function ListTools({
   list,
@@ -30,6 +31,8 @@ export function ListTools({
     <>
       <SearchField
         value={filters.q}
+        label={SEARCH_LABEL}
+        placeholder={SEARCH_PLACEHOLDER}
         field={field}
         search={search}
         hint={hint}

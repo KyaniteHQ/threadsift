@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Announcement } from "./Announcement.tsx";
 import { ListColumn } from "./ListColumn.tsx";
 import { ReaderPane } from "./ReaderPane.tsx";
-import type { Route } from "./routing.ts";
+import type { Pages, Route } from "./routing.ts";
 import { useLibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
 
@@ -11,8 +11,8 @@ export function Library({
   look,
   arrived,
   route,
-  openSettings,
-}: Readonly<{ look: Look; arrived: boolean; route: Route; openSettings: () => void }>) {
+  pages,
+}: Readonly<{ look: Look; arrived: boolean; route: Route; pages: Pages }>) {
   const view = useLibraryView(look, route);
   const { root, counts, openItem, covered, side, shown, expectsEmpty } = view;
 
@@ -31,20 +31,14 @@ export function Library({
 
   return (
     <div ref={root} className={classes.join(" ")}>
-      <ListColumn
-        view={view}
-        look={look}
-        arrived={arrived}
-        openId={route.openId}
-        openSettings={openSettings}
-      />
+      <ListColumn view={view} look={look} arrived={arrived} openId={route.openId} pages={pages} />
       {hasReader ? (
         <ReaderPane
           item={openItem}
           controls={side.reader.controls}
           nav={nav}
           look={look}
-          openSettings={openSettings}
+          pages={pages}
           tryAgain={view.actions.retryItem}
           announcement={side.reader.announcement}
         />

@@ -82,30 +82,33 @@ export function itemConditions(filters: Readonly<ItemFilters>, skipping?: Facet)
   return and(filters.terms.length === 0 ? undefined : matching(filters.terms), ...chosen);
 }
 
+export type Unit = () => SQL<number>;
+
 function keyCounts<Column extends typeof items.source | typeof items.readState>(
   db: Database,
   filters: Readonly<ItemFilters>,
   facet: "source" | "read",
   column: Column,
+  unit: Unit,
 ) {
   return db
-    .select({ key: column, count: count() })
+    .select({ key: column, count: unit() })
     .from(items)
     .where(itemConditions(filters, facet))
     .groupBy(column);
 }
 
-function topicCounts(db: Database, filters: Readonly<ItemFilters>) {
+function topicCounts(db: Database, filters: Readonly<ItemFilters>, unit: Unit) {
   return db
-    .select({ id: items.topicId, count: count() })
+    .select({ id: items.topicId, count: unit() })
     .from(items)
     .where(and(isNotNull(items.topicId), itemConditions(filters, "topic")))
     .groupBy(items.topicId);
 }
 
-function tagCounts(db: Database, filters: Readonly<ItemFilters>) {
+function tagCounts(db: Database, filters: Readonly<ItemFilters>, unit: Unit) {
   return db
-    .select({ id: itemTags.tagId, count: count() })
+    .select({ id: itemTags.tagId, count: unit() })
     .from(itemTags)
     .innerJoin(items, eq(items.id, itemTags.itemId))
     .where(itemConditions(filters, "tag"))
@@ -135,15 +138,27 @@ function totals(db: Database) {
     .from(items);
 }
 
+export function facetQueries(db: Database, filters: Readonly<ItemFilters>, unit: Unit) {
+  return [
+    keyCounts(db, filters, "source", items.source, unit),
+    catalogRows(db, "topic"),
+    topicCounts(db, filters, unit),
+    catalogRows(db, "tag"),
+    tagCounts(db, filters, unit),
+  ] as const;
+}
+
 export function countQueries(db: Database, filters: Readonly<ItemFilters>) {
+  const [sources, topicList, topicCounted, tagList, tagCounted] = facetQueries(db, filters, count);
+
   return [
     totals(db),
-    keyCounts(db, filters, "source", items.source),
-    keyCounts(db, filters, "read", items.readState),
-    catalogRows(db, "topic"),
-    topicCounts(db, filters),
-    catalogRows(db, "tag"),
-    tagCounts(db, filters),
+    sources,
+    keyCounts(db, filters, "read", items.readState, count),
+    topicList,
+    topicCounted,
+    tagList,
+    tagCounted,
   ] as const;
 }
 
@@ -193,6 +208,22 @@ function tally<Key extends string>(
   return keys.map((key) => ({ key, count: byKey.get(key) ?? 0 }));
 }
 
+export type FacetResults = readonly [
+  readonly KeyCount<Source>[],
+  readonly IdName[],
+  readonly IdCount[],
+  readonly IdName[],
+  readonly IdCount[],
+];
+
+export function facetCounts([sources, topicList, topicCounted, tagList, tagCounted]: FacetResults) {
+  return {
+    sources: tally(SOURCES, sources),
+    topics: named(topicList, topicCounted),
+    tags: named(tagList, tagCounted),
+  };
+}
+
 export function filterCounts([
   [library],
   sources,
@@ -205,9 +236,7 @@ export function filterCounts([
   return {
     total: library?.total ?? 0,
     unread: library?.unread ?? 0,
-    sources: tally(SOURCES, sources),
     reads: tally(READ_STATES, reads),
-    topics: named(topicList, topicCounted),
-    tags: named(tagList, tagCounted),
+    ...facetCounts([sources, topicList, topicCounted, tagList, tagCounted]),
   };
 }

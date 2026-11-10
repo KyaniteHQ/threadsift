@@ -208,6 +208,7 @@ async function expectOneTabStopPerGroup(page: Page, dialog: Locator): Promise<vo
     radioOf(dialog, "Comment style", "Indented lines"),
     radioOf(dialog, "Accent", "Cobalt"),
     radioOf(dialog, "Card images", "On"),
+    dialog.getByRole("link", { name: "Highlights" }),
     dialog.getByRole("link", { name: "Instance settings" }),
     dialog.getByRole("button", { name: "Reset look" }),
   ];

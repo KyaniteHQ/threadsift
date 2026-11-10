@@ -1,5 +1,5 @@
 import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
-import { RESET_PATH, SETTINGS_PATH } from "./routing.ts";
+import { HIGHLIGHTS_PATH, RESET_PATH, SETTINGS_PATH } from "./routing.ts";
 import type { View } from "./use-session-view.ts";
 
 const TITLES = {
@@ -7,16 +7,32 @@ const TITLES = {
   login: "Sign in to Threadsift",
   reset: "Reset password, Threadsift",
   settings: "Settings, Threadsift",
+  highlights: "Highlights, Threadsift",
   library: "Threadsift",
   loading: "Threadsift",
   unreachable: "Threadsift",
 } as const;
 
 export type ScreenState =
-  | { readonly name: "loading" | "unreachable" | "login" | "reset" | "settings" | "library" }
+  | {
+      readonly name:
+        | "loading"
+        | "unreachable"
+        | "login"
+        | "reset"
+        | "settings"
+        | "highlights"
+        | "library";
+    }
   | { readonly name: "setup"; readonly problem: SetupCodeProblem | null };
 
 export type ScreenName = ScreenState["name"];
+
+function signedInScreen(path: string): "settings" | "highlights" | "library" {
+  if (path === SETTINGS_PATH) return "settings";
+
+  return path === HIGHLIGHTS_PATH ? "highlights" : "library";
+}
 
 export function screenOf(view: View, path: string): ScreenState {
   switch (view.state) {
@@ -25,7 +41,7 @@ export function screenOf(view: View, path: string): ScreenState {
     case "signed-out":
       return { name: path === RESET_PATH ? "reset" : "login" };
     case "signed-in":
-      return { name: path === SETTINGS_PATH ? "settings" : "library" };
+      return { name: signedInScreen(path) };
     case "loading":
     case "unreachable":
       return { name: view.state };

@@ -2,6 +2,7 @@ import { type MouseEvent, memo, useCallback, useId } from "react";
 
 import type { Highlight } from "../../src/core/highlight-contract.ts";
 import { useHighlights } from "./highlights-context.ts";
+import { QuoteText } from "./QuoteText.tsx";
 import { HIGHLIGHTS_TITLE, NOT_FOUND, REMOVE_LABEL, removeNamed } from "./reader-text.ts";
 import { RETRY_LABEL } from "./text.ts";
 
@@ -47,14 +48,16 @@ function Entry({ highlight }: Readonly<{ highlight: Highlight }>) {
   );
 
   return (
-    <li className="hl-entry">
+    <li className="hl-entry" data-highlight={highlight.id} tabIndex={-1}>
       {highlight.status === "attached" ? (
         <button type="button" className="hl-quote" onClick={showIt}>
-          {exact}
+          <QuoteText text={exact} />
         </button>
       ) : (
         <>
-          <p className="hl-quote">{exact}</p>
+          <p className="hl-quote">
+            <QuoteText text={exact} />
+          </p>
           <p className="rd-note hl-gone">{NOT_FOUND}</p>
         </>
       )}

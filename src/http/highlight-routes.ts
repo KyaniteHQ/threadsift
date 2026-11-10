@@ -6,6 +6,7 @@ import {
 } from "../core/highlight-contract.ts";
 import { createHighlight, removeHighlight } from "../core/highlights.ts";
 import type { Ports } from "../core/ports.ts";
+import { registerHighlightsPageRoute } from "./highlights-page-route.ts";
 import { NOT_FOUND } from "./item-routes.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { ErrorResponseSchema, HighlightParamsSchema, IdParamSchema } from "./schemas.ts";
@@ -98,4 +99,6 @@ export function registerHighlightRoutes(app: OpenAPIHono, ports: Ports): void {
       ? c.body(null, 204)
       : c.json({ error: NOT_FOUND }, 404);
   });
+
+  registerHighlightsPageRoute(app, ports);
 }

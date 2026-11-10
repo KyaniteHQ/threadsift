@@ -1,16 +1,21 @@
-import { type Locator, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { type ArticleScreen, openArticleScreen, refreshArticle } from "./article-screen.ts";
-import { keepBetween, markedText, marks, openReader } from "./highlight-reader.ts";
+import {
+  STORED_PICTURE,
+  around,
+  collapsed,
+  emptyAltPicture,
+  keepAround,
+  openArticleBody,
+} from "./highlight-pictures.ts";
+import { keepBetween, markedText, marks } from "./highlight-reader.ts";
 import { highlightsOf } from "./highlights.ts";
-import { DESKTOP } from "./look.ts";
 import { reader } from "./reader.ts";
 
 test.describe.configure({ timeout: 600_000 });
 
 test.use({ trace: "off", video: "off", screenshot: "off", actionTimeout: 15_000 });
-
-const STORED_PICTURE = ".rd-media";
 
 const FAILED_PICTURE = "a[data-failed-picture]";
 
@@ -24,82 +29,9 @@ test.afterAll(async () => {
   await library.screen.close();
 });
 
-function collapsed(text: string): string {
-  return text.replaceAll(/\s+/gu, " ");
-}
-
-interface Around {
-  readonly before: string;
-  readonly after: string;
-  readonly shown: string;
-}
-
-function around(body: Locator, selector: string, index: number): Promise<Around> {
-  return body.evaluate(
-    (root, [picturesSelector, at]) => {
-      const picture = root.querySelectorAll(picturesSelector ?? "")[at];
-
-      if (picture === undefined) throw new Error(`no ${picturesSelector} at ${at}`);
-
-      const image = picture.querySelector("img");
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      let before = "";
-      let after = "";
-
-      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-        const text = node.nodeValue?.trim() ?? "";
-        const outside = !picture.contains(node) && node.parentElement?.closest("a, pre") === null;
-
-        if (text.length < 20 || !outside) continue;
-
-        if (picture.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING) {
-          before = text.slice(-20).trim();
-        } else if (after === "") {
-          after = text.slice(0, 20).trim();
-        }
-      }
-
-      return {
-        before,
-        after,
-        shown:
-          image === null ? "" : image.alt === "" ? (image.getAttribute("src") ?? "") : image.alt,
-      };
-    },
-    [selector, index] as const,
-  );
-}
-
-async function openArticleBody(): Promise<Locator> {
-  const { page } = library.screen;
-
-  await openReader(page, library.articleId, DESKTOP.width);
-
-  return reader(page).locator(".md").first();
-}
-
-async function keepAround(index: number) {
-  const body = await openArticleBody();
-  const found = await around(body, STORED_PICTURE, index);
-  const { screen, articleId } = library;
-
-  return {
-    ...(await keepBetween(screen, articleId, body, found.before, found.after)),
-    around: found,
-  };
-}
-
-function emptyAltPicture(body: Locator): Promise<number> {
-  return body.evaluate((root) =>
-    Array.from(root.querySelectorAll(".rd-media")).findIndex(
-      (picture) => picture.querySelector("img")?.alt === "",
-    ),
-  );
-}
-
 test("a passage that runs across a stored picture is kept with the picture's alt text and the picture stays drawn", async () => {
   const { page } = library.screen;
-  const kept = await keepAround(0);
+  const kept = await keepAround(library, 0);
   const body = reader(page).locator(".md").first();
   const pictures = await body.locator(".rd-media img").count();
 
@@ -121,7 +53,7 @@ test("a passage that runs across a stored picture is kept with the picture's alt
 
 test("a passage that starts and ends after a stored picture is kept as selected and only that passage is marked", async () => {
   const { screen, articleId } = library;
-  const body = await openArticleBody();
+  const body = await openArticleBody(library);
   const found = await around(body, STORED_PICTURE, 1);
   const kept = await keepBetween(screen, articleId, body, found.after, found.after);
   const mine = body.locator(`mark[data-highlights~="${kept.id}"]`);
@@ -136,13 +68,13 @@ test("a passage that starts and ends after a stored picture is kept as selected 
 test("a passage after a stored picture that failed to load is kept at the right place", async () => {
   const { page } = library.screen;
   const { screen, articleId } = library;
-  const loaded = await openArticleBody();
+  const loaded = await openArticleBody(library);
   const route = await loaded.locator("img[alt='']").first().getAttribute("src");
 
   expect(route, "a stored picture with empty alt text").not.toBeNull();
   await page.route(`**${route ?? ""}`, (request) => request.abort());
 
-  const body = await openArticleBody();
+  const body = await openArticleBody(library);
 
   await body.locator("img[alt='']").scrollIntoViewIfNeeded();
   await expect(body.locator(FAILED_PICTURE)).toHaveCount(1);
@@ -157,12 +89,12 @@ test("a passage after a stored picture that failed to load is kept at the right 
 
 test("a passage across a stored picture with empty alt text stays found and marked after the unchanged Article is refreshed", async () => {
   const { screen, articleId } = library;
-  const body = await openArticleBody();
+  const body = await openArticleBody(library);
   const index = await emptyAltPicture(body);
 
   expect(index, "the Article has a stored picture with empty alt text").toBeGreaterThanOrEqual(0);
 
-  const kept = await keepAround(index);
+  const kept = await keepAround(library, index);
   const { before, after } = await refreshArticle(library);
 
   expect(after.toSorted(), "every picture is stored under a new key").not.toEqual(
@@ -177,7 +109,7 @@ test("a passage across a stored picture with empty alt text stays found and mark
   expect(found?.selector.exact).toBe(kept.exact);
   expect(kept.exact).not.toContain("/api/files/");
 
-  await openArticleBody();
+  await openArticleBody(library);
   await expect(body.locator(`.rd-media mark[data-highlights~="${kept.id}"] img`)).not.toHaveCount(
     0,
   );

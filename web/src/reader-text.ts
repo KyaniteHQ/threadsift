@@ -1,5 +1,6 @@
 import { groupedNumber } from "../../src/core/format.ts";
 import type { Kind, Source } from "../../src/core/kinds.ts";
+import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
 import { collapsedText } from "./collapsed-text.ts";
 import type { CommentCounts } from "./comment-counts.ts";
 import { ageLabel } from "./saved-label.ts";
@@ -108,6 +109,8 @@ export const SECTION_TITLES: Readonly<Record<Kind, string>> = {
   link: "Original post",
 };
 
+export const PICTURE_LABEL = "Image";
+
 const REMOVE_NAMED = "Remove highlight: {quote}";
 const QUOTE_SHORT_CODE_POINTS = 40;
 const POSTED = "posted {when}";
@@ -131,7 +134,7 @@ export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: numb
 }
 
 export function removeNamed(exact: string): string {
-  const words = collapsedText(exact);
+  const words = collapsedText(exact.replaceAll(STORED_PICTURE_TEXT, PICTURE_LABEL));
   const points = Array.from(words);
 
   const quote =

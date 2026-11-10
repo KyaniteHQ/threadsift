@@ -299,7 +299,7 @@ export function collectDesign(defaultFont: string) {
     for (const target of document.querySelectorAll(
       ".app button, .app input, .app select, .app textarea, .app a[href]",
     )) {
-      const box = (target.closest(".it") ?? target).getBoundingClientRect();
+      const box = (target.closest(".it, .hp-it") ?? target).getBoundingClientRect();
       const drawsNoBox = box.width === 0 && box.height === 0;
       const isHint = target.closest(".vh") !== null;
       const isInProse = target.matches("a[href]") && target.closest(".md") !== null;

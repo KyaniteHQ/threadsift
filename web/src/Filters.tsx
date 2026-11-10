@@ -18,6 +18,9 @@ import {
 
 type Choose = (choice: Choice) => void;
 
+export type PanelCounts = Pick<FilterCounts, "sources" | "topics" | "tags"> &
+  Partial<Pick<FilterCounts, "reads">>;
+
 const sourceChoice = (value: Source | null): Choice => ({ facet: "source", value });
 const readChoice = (value: ReadState | null): Choice => ({ facet: "read", value });
 
@@ -68,7 +71,7 @@ function NamedRows({
 }: Readonly<{
   facet: "topic" | "tag";
   bar: boolean;
-  counts: FilterCounts;
+  counts: PanelCounts;
   filters: Filters;
   choose: Choose;
 }>) {
@@ -109,7 +112,7 @@ function Panel({
   bar,
   id,
 }: Readonly<{
-  counts: FilterCounts;
+  counts: PanelCounts;
   filters: Filters;
   choose: Choose;
   clearChosen: () => void;
@@ -128,16 +131,18 @@ function Panel({
         choice={sourceChoice}
         choose={choose}
       />
-      <FacetSegments
-        name={FILTER_GROUPS.read}
-        wrap={false}
-        bar={bar}
-        counts={counts.reads}
-        labels={READ_LABELS}
-        chosen={filters.read}
-        choice={readChoice}
-        choose={choose}
-      />
+      {counts.reads === undefined ? null : (
+        <FacetSegments
+          name={FILTER_GROUPS.read}
+          wrap={false}
+          bar={bar}
+          counts={counts.reads}
+          labels={READ_LABELS}
+          chosen={filters.read}
+          choice={readChoice}
+          choose={choose}
+        />
+      )}
       <NamedRows facet="topic" bar={bar} counts={counts} filters={filters} choose={choose} />
       <NamedRows facet="tag" bar={bar} counts={counts} filters={filters} choose={choose} />
       {chosenCount(filters) > 0 ? (
@@ -197,7 +202,7 @@ export function FilterPane({
   choose,
   clearChosen,
 }: Readonly<{
-  counts: FilterCounts;
+  counts: PanelCounts;
   filters: Filters;
   collapsible: boolean;
   bar: boolean;

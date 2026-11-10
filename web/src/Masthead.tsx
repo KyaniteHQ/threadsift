@@ -1,36 +1,13 @@
 import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import type { SaveTarget } from "./api.ts";
+import { Brand } from "./Brand.tsx";
 import type { Choice, Filters } from "./filters.ts";
 import { FilterGhost, FilterPane } from "./Filters.tsx";
 import { PasteBox } from "./PasteBox.tsx";
-import { SettingsPanel } from "./SettingsPanel.tsx";
-import { totalName } from "./text.ts";
+import type { Pages } from "./routing.ts";
 import type { PasteQueue, SaveOutcome } from "./use-paste.ts";
 import type { Look } from "./use-root.ts";
-
-function Total({ count }: Readonly<{ count: number }>) {
-  return (
-    <span className="brand-n">
-      <span aria-hidden="true">{count}</span>
-      <span className="vh">{totalName(count)}</span>
-    </span>
-  );
-}
-
-function Brand({
-  look,
-  openSettings,
-  total,
-}: Readonly<{ look: Look; openSettings: () => void; total: number | null }>) {
-  return (
-    <div className="brand">
-      <h1>Threadsift</h1>
-      {total === null ? null : <Total count={total} />}
-      <SettingsPanel look={look} openInstanceSettings={openSettings} />
-    </div>
-  );
-}
 
 function FilterSlot({
   counts,
@@ -75,7 +52,7 @@ function FilterSlot({
 
 export function Masthead({
   look,
-  openSettings,
+  pages,
   counts,
   loading,
   filters,
@@ -88,7 +65,7 @@ export function Masthead({
   open,
 }: Readonly<{
   look: Look;
-  openSettings: () => void;
+  pages: Pages;
   counts: FilterCounts | null;
   loading: boolean;
   filters: Filters;
@@ -104,7 +81,7 @@ export function Masthead({
 
   return (
     <header className="mast">
-      <Brand look={look} openSettings={openSettings} total={total} />
+      <Brand look={look} pages={pages} total={total} />
       <PasteBox save={save} focusOnMount={focusOnMount} items={items} queue={queue} open={open} />
       <FilterSlot
         counts={counts}
