@@ -13,6 +13,7 @@ import {
 import { z } from "zod";
 
 import { TEXT } from "../extension/lib/text.ts";
+import { type SiteAccess, setSiteAccess } from "./extension-access.ts";
 
 const BUILD = join(import.meta.dirname, "..", "extension", ".output", "chrome-mv3");
 
@@ -44,6 +45,7 @@ export interface Extension {
   tab(url: string): Promise<Page>;
   press(tab: Page): Promise<Popup>;
   settings(): Promise<Page>;
+  setSiteAccess(mode: SiteAccess): Promise<void>;
   registeredScripts(): Promise<readonly string[]>;
   configure(address: string, token: string): Promise<void>;
   storeWithoutAsking(address: string, token: string): Promise<void>;
@@ -53,12 +55,14 @@ export interface Extension {
 export interface Grant {
   readonly instanceUrl: string | null;
   readonly redditAccess?: boolean;
+  readonly withholdable?: boolean;
 }
 
 const REDDIT_HOSTS = ["https://*.reddit.com/*"];
+const ALL_HTTPS_HOSTS = ["https://*/*"];
 
 function manifestWithGrant(directory: string, grant: Readonly<Grant>): void {
-  const { instanceUrl, redditAccess = false } = grant;
+  const { instanceUrl, redditAccess = false, withholdable = false } = grant;
   const hosts: string[] = [];
 
   if (instanceUrl !== null) {
@@ -67,6 +71,8 @@ function manifestWithGrant(directory: string, grant: Readonly<Grant>): void {
   }
 
   if (redditAccess) hosts.push(...REDDIT_HOSTS);
+
+  if (withholdable) hosts.push(...ALL_HTTPS_HOSTS);
 
   if (hosts.length === 0) return;
 
@@ -269,6 +275,7 @@ export async function loadExtension(grant: Readonly<Grant>): Promise<Extension> 
     press,
     settings: () => openSettings(launched),
     registeredScripts: () => registeredScriptsIn(launched),
+    setSiteAccess: (mode) => setSiteAccess(launched.context, launched.id, mode),
     configure: (address, token) => configureIn(launched, address, token),
     async storeWithoutAsking(address, token) {
       await worker.evaluate(

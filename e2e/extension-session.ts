@@ -14,9 +14,7 @@ export interface Session {
   readonly tokenValue: string;
 }
 
-export function configuredExtensionSession(
-  access: Pick<Grant, "redditAccess"> = {},
-): () => Session {
+export function configuredExtensionSession(access: Omit<Grant, "instanceUrl"> = {}): () => Session {
   let current: Session | null = null;
 
   test.beforeEach(async () => {

@@ -9,7 +9,11 @@ import { REQUEST_DEADLINE_MS, send } from "./save.ts";
 
 const ListedSchema = z.object({ items: z.array(z.object({ fillable: z.boolean() })) });
 
-const filling = new Set<string>();
+const filling = new Map<string, AbortController>();
+
+export function cancelFills(): void {
+  for (const running of filling.values()) running.abort();
+}
 
 async function isWaiting({ origin, token }: Readonly<Config>, url: string): Promise<boolean> {
   const address = new URL("/api/items", origin);
@@ -30,12 +34,16 @@ async function isWaiting({ origin, token }: Readonly<Config>, url: string): Prom
   }
 }
 
-async function fillOnce(config: Readonly<Config>, tab: Readonly<ThreadTab>): Promise<void> {
-  if (!(await isWaiting(config, tab.url))) return;
+async function fillOnce(
+  config: Readonly<Config>,
+  tab: Readonly<ThreadTab>,
+  signal: AbortSignal,
+): Promise<void> {
+  if (!(await isWaiting(config, tab.url)) || signal.aborted) return;
 
-  const answers = await fetchThread(tab);
+  const body = await fetchThread(tab, { fill: true, signal });
 
-  if (answers !== null) await send(config, { url: tab.url, content: answers, fill: true });
+  if (body !== null && !signal.aborted) await send(config, body);
 }
 
 export async function fillOpenedThread(tab: Readonly<ThreadTab>): Promise<void> {
@@ -51,10 +59,11 @@ export async function fillOpenedThread(tab: Readonly<ThreadTab>): Promise<void> 
 
   if (filling.has(key)) return;
 
-  filling.add(key);
+  const running = new AbortController();
+  filling.set(key, running);
 
   try {
-    await fillOnce(config, tab);
+    await fillOnce(config, tab, running.signal);
   } finally {
     filling.delete(key);
   }

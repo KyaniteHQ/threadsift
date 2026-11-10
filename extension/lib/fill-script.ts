@@ -1,6 +1,6 @@
 import { browser } from "wxt/browser";
 
-import { FILL_SCRIPT_ID, REDDIT_HOSTS, THREAD_PAGES } from "./config.ts";
+import { FILL_SCRIPT_ID, REDDIT_HOSTS } from "./config.ts";
 
 export function hasRedditAccess(): Promise<boolean> {
   return browser.permissions.contains({ origins: REDDIT_HOSTS });
@@ -17,7 +17,7 @@ async function syncOnce(): Promise<void> {
       {
         id: FILL_SCRIPT_ID,
         js: ["fill.js"],
-        matches: THREAD_PAGES,
+        matches: REDDIT_HOSTS,
         runAt: "document_idle",
         persistAcrossSessions: true,
       },

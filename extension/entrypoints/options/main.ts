@@ -122,6 +122,15 @@ async function turnFill(): Promise<void> {
   showFill();
 }
 
+async function followGrant(): Promise<void> {
+  fillOn = await hasRedditAccess();
+  showFill();
+}
+
+browser.permissions.onAdded.addListener(() => void followGrant());
+
+browser.permissions.onRemoved.addListener(() => void followGrant());
+
 fillButton.addEventListener("click", () => {
   void turnFill();
 });

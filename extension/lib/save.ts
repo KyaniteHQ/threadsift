@@ -2,12 +2,12 @@ import { browser } from "wxt/browser";
 import { z } from "zod";
 
 import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../../src/core/supplied-page.ts";
-import type { ThreadAnswers } from "../../src/core/thread-answers.ts";
 import { type Config, hostPattern } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
 import { type ThreadTab, fetchThread } from "./reddit-thread.ts";
 import type { SaveState } from "./state.ts";
 import { resultInTab } from "./tab-result.ts";
+import type { ThreadBody } from "./thread-body.ts";
 
 const CapturedSchema = SuppliedPageSchema.extend({ url: z.string() });
 
@@ -25,9 +25,7 @@ const WEB_PAGE = /^https?:/u;
 
 type Captured = z.infer<typeof CapturedSchema>;
 
-type Body =
-  | { readonly url: string; readonly content: ThreadAnswers; readonly fill?: true }
-  | { readonly url: string; readonly page: Omit<Captured, "url"> };
+type Body = ThreadBody | { readonly url: string; readonly page: Omit<Captured, "url"> };
 
 async function activeTab(): Promise<ThreadTab | null> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
@@ -44,9 +42,9 @@ function capturedPage(tabId: number): Promise<Captured | null> {
 }
 
 async function bodyOf(tab: Readonly<ThreadTab>): Promise<Body | null> {
-  const answers = await fetchThread(tab);
+  const thread = await fetchThread(tab);
 
-  if (answers !== null) return { url: tab.url, content: answers };
+  if (thread !== null) return thread;
 
   const captured = await capturedPage(tab.id);
 

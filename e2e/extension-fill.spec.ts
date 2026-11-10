@@ -19,6 +19,7 @@ import {
 test.describe.configure({ timeout: 300_000 });
 
 const THREAD = `https://www.reddit.com/r/all/comments/${POST_ID}/`;
+const REDDIT_HOME = "https://www.reddit.com/";
 const THREAD_JSON = `${THREAD}.json?limit=500&raw_json=1`;
 
 function thread(text: string) {
@@ -169,5 +170,51 @@ test.describe("after the owner opts in", () => {
     expect(await itemOf(owner, item.id)).toEqual(before);
     expect(commentRows(instance, item.id)).toEqual(rows);
     expect(generationOf(instance, item.id)).toBe(1);
+  });
+});
+
+test.describe("when the thread is reached without loading a page", () => {
+  const session = configuredExtensionSession({ redditAccess: true });
+
+  test("a History API navigation from a Reddit page that is not a thread fills the Item once the address is a thread", async () => {
+    const { extension } = session();
+    await linkOnlyItem(session);
+
+    const tab = await extension.tab(REDDIT_HOME);
+
+    const asked = extension.context.waitForEvent("request", {
+      predicate: (request) => request.url() === THREAD_JSON,
+      timeout: 60_000,
+    });
+
+    await tab.evaluate((path) => {
+      history.pushState(null, "", path);
+    }, `/r/all/comments/${POST_ID}/`);
+
+    expect((await asked).url()).toBe(THREAD_JSON);
+  });
+});
+
+test.describe("when the Reddit grant changes outside the settings page", () => {
+  const session = configuredExtensionSession({ redditAccess: true, withholdable: true });
+
+  test("an open settings page follows the grant, and the content script follows it too", async () => {
+    const { extension } = session();
+    const settings = await extension.settings();
+
+    await expect(settings.getByText(TEXT.fillIsOn)).toBeVisible();
+    expect(await extension.registeredScripts()).toEqual(["fill"]);
+
+    await extension.setSiteAccess("On click");
+
+    await expect(settings.getByText(TEXT.fillIsOff)).toBeVisible();
+    await expect(settings.getByRole("button", { name: TEXT.fillTurnOn })).toBeVisible();
+    expect(await extension.registeredScripts()).toEqual([]);
+
+    await extension.setSiteAccess("On all sites");
+
+    await expect(settings.getByText(TEXT.fillIsOn)).toBeVisible();
+    await expect(settings.getByRole("button", { name: TEXT.fillTurnOff })).toBeVisible();
+    expect(await extension.registeredScripts()).toEqual(["fill"]);
   });
 });

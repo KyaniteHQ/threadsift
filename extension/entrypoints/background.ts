@@ -4,7 +4,7 @@ import { defineBackground } from "wxt/utils/define-background";
 import { restrictStorage } from "../lib/config.ts";
 import { loadConfigView } from "../lib/credentials.ts";
 import { syncFillScript } from "../lib/fill-script.ts";
-import { fillOpenedThread } from "../lib/fill.ts";
+import { cancelFills, fillOpenedThread } from "../lib/fill.ts";
 import { savePage } from "../lib/save.ts";
 import {
   CONFIG_PORT,
@@ -45,7 +45,10 @@ export default defineBackground({
     void restrictStorage();
     void syncFillScript();
     browser.permissions.onAdded.addListener(() => void syncFillScript());
-    browser.permissions.onRemoved.addListener(() => void syncFillScript());
+    browser.permissions.onRemoved.addListener(() => {
+      cancelFills();
+      void syncFillScript();
+    });
 
     browser.runtime.onConnect.addListener((port) => {
       const { sender } = port;
@@ -53,7 +56,7 @@ export default defineBackground({
       if (sender?.id !== browser.runtime.id) return;
 
       if (port.name === FILL_PORT) {
-        fillFrom(sender.tab?.id, sender.frameId, sender.url);
+        fillFrom(sender.tab?.id, sender.frameId, sender.tab?.url);
         port.disconnect();
 
         return;
