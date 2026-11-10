@@ -65,8 +65,36 @@ async function reconcilerVisited(id: number): Promise<void> {
     .toBe(1);
 }
 
-function withoutImagePaths(text: string | null): string | undefined {
-  return text?.replaceAll(/\/api\/files\/items\/\d+\/img-[\w.-]+/gu, "(image)");
+const IMAGE = /!\[([^\]]*)\]\(([^)\s]*)\)/gu;
+
+function sameImage(
+  id: number,
+  [left, right]: readonly [RegExpMatchArray, RegExpMatchArray],
+): boolean {
+  const [, leftAlt = "", leftAt = ""] = left;
+  const [, rightAlt = "", rightAt = ""] = right;
+  const stored = new RegExp(`^/api/files/items/${id}/img-[\\w.-]+$`, "u");
+  const remote = /^https:\/\/www\.gutenberg\.org\//u;
+  const bothStored = stored.test(leftAt) && stored.test(rightAt);
+
+  const oneStored =
+    (stored.test(leftAt) && remote.test(rightAt)) || (remote.test(leftAt) && stored.test(rightAt));
+
+  return leftAlt.trim() === rightAlt.trim() && (leftAt === rightAt || bothStored || oneStored);
+}
+
+function expectSameTextUpToStoredImages(id: number, left: string | null, right: string | null) {
+  const leftImages = [...(left ?? "").matchAll(IMAGE)];
+  const rightImages = [...(right ?? "").matchAll(IMAGE)];
+
+  expect((left ?? "").split(IMAGE).filter((_, at) => at % 3 === 0)).toEqual(
+    (right ?? "").split(IMAGE).filter((_, at) => at % 3 === 0),
+  );
+  expect(leftImages).toHaveLength(rightImages.length);
+  expect(
+    leftImages.map((image, at) => sameImage(id, [image, rightImages[at] ?? image])),
+    "each image keeps its description and is stored or kept at its remote address",
+  ).not.toContain(false);
 }
 
 test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, searchable, and a second Paste replaces the file", async () => {
@@ -103,9 +131,7 @@ test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, sea
   expect(secondKey).not.toBe(firstKey);
   expect(postTextOf(instance, id)).toEqual({ key: secondKey, inline: null });
   await expectKeys(instance, `items/${id}/post-`, [secondKey], "the replaced file is gone");
-  expect(withoutImagePaths((await itemOf(owner, id)).postText)).toBe(
-    withoutImagePaths(item.postText),
-  );
+  expectSameTextUpToStoredImages(id, (await itemOf(owner, id)).postText, item.postText);
 
   await reconcilerVisited(id);
   expect(

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer } from "react";
+import { flushSync } from "react-dom";
 
 import type { Digest } from "../../src/core/ai-contract.ts";
 import {
@@ -83,8 +84,11 @@ export function useAiPhase() {
         try {
           const done = await task();
 
-          if (done === LEAVING) dispatch({ kind: "leave" });
-          else dispatch({ kind: "settle", outcome: done });
+          if (done === LEAVING) {
+            flushSync(() => {
+              dispatch({ kind: "leave" });
+            });
+          } else dispatch({ kind: "settle", outcome: done });
         } catch {
           dispatch({ kind: "settle", outcome: { kind: "error", text: AI_TEXT.failed } });
         }
