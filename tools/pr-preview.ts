@@ -97,7 +97,26 @@ function databaseExists(): boolean {
   return databases.some((database) => database.name === `${name}-db`);
 }
 
+async function detachConsumer(): Promise<void> {
+  if (!(await previewResourceExists("queue", `${name}-jobs`))) return;
+
+  const consumers = z
+    .array(z.union([z.object({ script: z.string() }), z.object({ service: z.string() })]))
+    .parse(
+      JSON.parse(wrangler(["queues", "consumer", "worker", "list", `${name}-jobs`, "--json"])),
+    );
+
+  if (
+    consumers.some(
+      (consumer) => ("script" in consumer ? consumer.script : consumer.service) === name,
+    )
+  )
+    wrangler(["queues", "consumer", "remove", `${name}-jobs`, name]);
+}
+
 async function close(): Promise<void> {
+  await detachConsumer();
+
   if (await previewResourceExists("worker", name)) wrangler(["delete", "--name", name]);
 
   if (await previewResourceExists("queue", `${name}-jobs`))
