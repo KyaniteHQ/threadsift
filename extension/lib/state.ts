@@ -10,6 +10,7 @@ export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("too-large") }),
   z.object({ kind: z.literal("private-link") }),
   z.object({ kind: z.literal("unsupported-link") }),
+  z.object({ kind: z.literal("thread-kept") }),
   z.object({ kind: z.literal("updating") }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("failed") }),

@@ -37,7 +37,8 @@ async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
     }
 
     case "invalid":
-    case "too-large": {
+    case "too-large":
+    case "thread-kept": {
       break;
     }
   }

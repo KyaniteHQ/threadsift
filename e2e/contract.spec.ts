@@ -106,7 +106,14 @@ function expectSaveContract(schemas: Schemas, save: SaveOperation): void {
   const body = resolved(schemas, jsonSchemaOf(save.requestBody));
 
   expect(Object.keys(save.requestBody.content)).toEqual(["application/json"]);
-  expect(Object.keys(save.responses).toSorted()).toEqual(["200", "201", "400", "413", "503"]);
+  expect(Object.keys(save.responses).toSorted()).toEqual([
+    "200",
+    "201",
+    "400",
+    "409",
+    "413",
+    "503",
+  ]);
   expect(propertyNames(schemas, body).toSorted()).toEqual(["content", "digest", "page", "url"]);
   expect(body.required).toEqual(["url"]);
   expectPageSchema(schemas, body);

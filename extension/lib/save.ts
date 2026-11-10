@@ -88,6 +88,8 @@ async function stateOf(response: Response, origin: string): Promise<SaveState> {
       return refusedState(response);
     case 401:
       return { kind: "token-refused" };
+    case 409:
+      return { kind: "thread-kept" };
     case 413:
       return { kind: "too-large" };
     case 503:

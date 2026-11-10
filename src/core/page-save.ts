@@ -5,12 +5,13 @@ import { isGitHubLink, isRedditOrXLink, isRefusedLink, parseLink, redditRefOf } 
 import type { Ports } from "./ports.ts";
 import { ownerOf } from "./reddit-thread.ts";
 import { PAGE_BYTES, type SuppliedPage, pageBytes } from "./supplied-page.ts";
-import { saveThreadPage } from "./thread-paste.ts";
+import { saveThreadPage } from "./thread-page.ts";
 
 export type PageSaveResult =
   | SaveResult
   | { readonly kind: "invalid"; readonly field: "page"; readonly reason: string }
-  | { readonly kind: "too-large"; readonly field: "page" };
+  | { readonly kind: "too-large"; readonly field: "page" }
+  | { readonly kind: "thread-kept" };
 
 const NOT_A_PAGE_LINK =
   "only a link to an article, another web page, or a Reddit post or comment takes a page";

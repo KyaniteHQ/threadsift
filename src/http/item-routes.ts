@@ -26,6 +26,8 @@ const TOO_LARGE = {
   page: "page: longer than 1,000,000 bytes",
 } as const;
 
+const THREAD_KEPT = "page: the saved thread stays";
+
 const UPDATING = "The library is being updated and takes no new link yet. Try again in a minute.";
 
 const saveItemRoute = createRoute({
@@ -50,6 +52,10 @@ const saveItemRoute = createRoute({
     413: jsonBody(
       ErrorResponseSchema,
       "A text of `content` is longer than 4 MiB, `page` is longer than 1,000,000 bytes once serialized as JSON, or the request body is longer than 8 MiB. Other routes refuse a body over 64 KiB. The Item is unchanged.",
+    ),
+    409: jsonBody(
+      ErrorResponseSchema,
+      "`page` for a Reddit post or comment whose Item already holds comment rows from `content`. The saved thread stays, with its Kept comments, and nothing changes.",
     ),
     503: jsonBody(
       ErrorResponseSchema,
@@ -115,6 +121,10 @@ function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
 
     if (saved.kind === "updating") {
       return c.json({ error: UPDATING }, 503);
+    }
+
+    if (saved.kind === "thread-kept") {
+      return c.json({ error: THREAD_KEPT }, 409);
     }
 
     if (saved.kind === "invalid") {
