@@ -13,8 +13,6 @@ process.env["SETUP_CODE"] ??= randomBytes(24).toString("base64url");
 
 process.env["THREADSIFT_SECRET_KEY"] ??= randomBytes(32).toString("hex");
 
-const IMAGE = "localhost/threadsift:smoke";
-
 const STATE = ".wrangler/smoke";
 
 const WORKER = [
@@ -25,14 +23,11 @@ const WORKER = [
   `exec worker-local ${STATE}/state ${PORT} --test-scheduled --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
 ].join(" && ");
 
-const CONTAINER = [
-  `podman build --jobs 0 --signature-policy "\${THREADSIFT_PODMAN_POLICY:?run inside the devenv shell}" --tag ${IMAGE} --file Containerfile .`,
-  `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY ${IMAGE}`,
-].join(" && ");
+const CONTAINER = `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY "\${THREADSIFT_IMAGE:?run inside the devenv shell}"`;
 
 const SERVERS = {
   worker: { command: WORKER, timeout: 180_000 },
-  container: { command: CONTAINER, timeout: 600_000 },
+  container: { command: CONTAINER, timeout: 60_000 },
 };
 
 export default defineConfig({
