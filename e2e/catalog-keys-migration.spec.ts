@@ -95,6 +95,7 @@ function expectMerged(instance: Instance): void {
   });
 
   expect(dataSteps(instance)).toEqual([
+    { name: "ai-task-owners", version: 1, cursor: null },
     { name: "item-identity", version: 2, cursor: null },
     { name: "tag-keys", version: 1, cursor: null },
     { name: "topic-keys", version: 1, cursor: null },

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ItemListResponseSchema } from "../src/http/schemas.ts";
 import { type Instance, freshDir, newCode } from "./access.ts";
 import { ownerOf } from "./files.ts";
+import { sweepNow } from "./ingest.ts";
 import { launchSeeded } from "./seeded.ts";
 import { BEFORE_TASK_OWNER } from "./task-owner-seed.ts";
 
@@ -47,19 +48,8 @@ const HTTP = {
 
 const DONE = { state: "done", refusal: null, status: null };
 
-const FAILED = { state: "failed", result: null, refusal: null, status: null };
-
 const EXPECTED_TASKS = [
   { ...HTTP, ...DONE, id: 1, inputs: "input one", deadline: 11, result: '{"one":1}', item_id: 1 },
-  {
-    ...HTTP,
-    ...FAILED,
-    id: 2,
-    inputs: "input two",
-    deadline: 22,
-    refusal: "unreachable",
-    item_id: null,
-  },
   {
     ...HTTP,
     ...DONE,
@@ -77,25 +67,16 @@ const EXPECTED_TASKS = [
   {
     ...HTTP,
     ...DONE,
-    id: 4,
-    inputs: "input four",
-    deadline: 44,
-    result: '{"four":4}',
-    item_id: null,
-  },
-  {
-    ...HTTP,
-    ...FAILED,
-    id: 5,
-    inputs: "input five",
-    deadline: 55,
-    refusal: "wrong-key",
-    status: 401,
+    id: 6,
+    inputs:
+      "A post on Notebook Weekly describes how a reading group keeps a shared notebook. Each reader records a useful passage and its source, then compares notes at the next meeting. The group keeps corrections beside the original passages so readers can see what changed.",
+    deadline: 66,
+    result: '{"six":6}',
     item_id: null,
   },
 ];
 
-test("AI tasks stored before task owners take the owner of the Digest that names them, and the other tasks and every other row stay as they were", async () => {
+test("AI tasks stored before task owners take the owner of the Digest that names them, the step removes the older tasks no Digest names except the Verify task, and every other row stays as it was", async () => {
   test.setTimeout(180_000);
   const code = newCode();
   const instance = launchSeeded(freshDir(), code, BEFORE_TASK_OWNER);
@@ -105,6 +86,8 @@ test("AI tasks stored before task owners take the owner of the Digest that names
 
     const { items } = ItemListResponseSchema.parse(await (await owner.get("/api/items")).json());
 
+    await sweepNow(owner, instance);
+    await expect.poll(() => storedTasks(instance).length, { timeout: 90_000 }).toBe(3);
     await owner.dispose();
 
     expect(items.map(({ id }) => id).toSorted((left, right) => left - right)).toEqual([1, 2, 3]);
