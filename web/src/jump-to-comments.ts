@@ -8,7 +8,7 @@ export function scrollAndFocus(element: HTMLElement, block: ScrollLogicalPositio
   element.focus({ preventScroll: true });
 }
 
-const awaiting = new WeakSet<Element>();
+const pending = new WeakMap<Element, () => void>();
 
 function headingIn(reader: Element): HTMLElement | null {
   return reader.querySelector<HTMLElement>(".rd-comments h3");
@@ -19,23 +19,26 @@ function isLoading(reader: Element): boolean {
 }
 
 function jumpWhenRendered(reader: Element): void {
-  if (awaiting.has(reader)) return;
-
-  const focused = document.activeElement;
-
-  awaiting.add(reader);
+  pending.get(reader)?.();
 
   const observer = new MutationObserver(() => {
     const heading = headingIn(reader);
 
     if (heading === null && isLoading(reader)) return;
 
-    observer.disconnect();
-    awaiting.delete(reader);
+    cancel();
 
-    if (heading !== null && document.activeElement === focused) scrollAndFocus(heading, "start");
+    if (heading !== null) scrollAndFocus(heading, "start");
   });
 
+  function cancel(): void {
+    observer.disconnect();
+    document.removeEventListener("focusin", cancel, true);
+    pending.delete(reader);
+  }
+
+  pending.set(reader, cancel);
+  document.addEventListener("focusin", cancel, true);
   observer.observe(reader, { childList: true, subtree: true });
 }
 

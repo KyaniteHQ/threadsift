@@ -83,6 +83,108 @@ test("a pending jump to Comments is dropped when the owner moved focus to the se
   }
 });
 
+test("a pending jump stays dropped when focus leaves the Comments button and comes back before the section renders", async () => {
+  const { page } = screen;
+  const button = bar(page).locator(".rd-cm");
+
+  await viewportAt(page, DESKTOP.width);
+  const gate = await holdPostText(page);
+
+  try {
+    await page.goto(`/items/${ids.thread}`);
+    await expect(reader(page).locator(".rd-loading")).toBeVisible();
+
+    await button.focus();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+    await expect(button).not.toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(button).toBeFocused();
+    gate.release();
+
+    const heading = comments(page).getByRole("heading", { name: COMMENTS_TITLE });
+    await expect(heading).toBeVisible();
+    await expect(button).toBeFocused();
+    await expect(heading).not.toBeFocused();
+  } finally {
+    gate.release();
+    await page.unroute(POST_TEXT_CHUNK);
+  }
+});
+
+test("a second press of Comments that leaves focus elsewhere still jumps once the section renders", async () => {
+  const { page } = screen;
+  const button = bar(page).locator(".rd-cm");
+  const search = page.getByRole("searchbox", { name: SEARCH_LABEL });
+
+  await viewportAt(page, DESKTOP.width);
+  const gate = await holdPostText(page);
+
+  try {
+    await page.goto(`/items/${ids.thread}`);
+    await expect(reader(page).locator(".rd-loading")).toBeVisible();
+
+    await button.focus();
+    await page.keyboard.press("Enter");
+    await search.focus();
+    await button.dispatchEvent("click");
+    await expect(search).toBeFocused();
+    gate.release();
+
+    await expect(comments(page)).toBeVisible();
+    await expectJumpedToComments(page);
+  } finally {
+    gate.release();
+    await page.unroute(POST_TEXT_CHUNK);
+  }
+});
+
+test("a press of Comments while loading is dropped when the load fails, and a Try again that keeps focus on Comments does not jump", async () => {
+  const { page } = screen;
+  const button = bar(page).locator(".rd-cm");
+  const detail = `**/api/items/${ids.thread}`;
+  const first = Promise.withResolvers<void>();
+  const retry = Promise.withResolvers<void>();
+  let requests = 0;
+
+  await viewportAt(page, DESKTOP.width);
+  await page.route(detail, async (route) => {
+    requests += 1;
+
+    if (requests === 1) {
+      await first.promise;
+      await route.abort("failed");
+    } else {
+      await retry.promise;
+      await route.fallback();
+    }
+  });
+
+  try {
+    await page.goto(`/items/${ids.thread}`);
+    await expect(reader(page).locator(".rd-loading")).toBeVisible();
+
+    await button.focus();
+    await page.keyboard.press("Enter");
+    first.resolve();
+    await expect(page.getByText(READER_FAILED)).toBeVisible();
+
+    await page.getByRole("button", { name: RETRY_LABEL, exact: true }).dispatchEvent("click");
+    await expect.poll(() => requests).toBe(2);
+    await expect(button).toBeFocused();
+    retry.resolve();
+
+    const heading = comments(page).getByRole("heading", { name: COMMENTS_TITLE });
+    await expect(heading).toBeVisible();
+    await expect(button).toBeFocused();
+    await expect(heading).not.toBeFocused();
+  } finally {
+    first.resolve();
+    retry.resolve();
+    await page.unroute(detail);
+  }
+});
+
 test("a press of Comments while the Reader failed to load does nothing, and Try again later does not jump", async () => {
   const { page } = screen;
   const detail = `**/api/items/${ids.thread}`;
