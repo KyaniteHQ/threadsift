@@ -5,6 +5,7 @@ import { HighlightsBar } from "./HighlightsBar.tsx";
 import { HighlightsBody } from "./HighlightsBody.tsx";
 import { HighlightsTools } from "./HighlightsTools.tsx";
 import type { Route } from "./routing.ts";
+import { useEntryKeys } from "./use-highlights-focus.ts";
 import { useHighlightsPage } from "./use-highlights-page.ts";
 import type { Look } from "./use-root.ts";
 
@@ -18,10 +19,12 @@ export function HighlightsPage({
   back,
 }: Readonly<{ look: Look; route: Route; back: () => void }>) {
   const field = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLOListElement>(null);
   const [now] = useState(Date.now);
   const filtering = useFilters();
   const { filters, clear } = filtering;
   const { state, retry, loadMore } = useHighlightsPage(filters);
+  useEntryKeys(list);
 
   const clearAll = useCallback(() => {
     clear();
@@ -48,6 +51,7 @@ export function HighlightsPage({
           retry={retry}
           loadMore={loadMore}
           clearAll={clearAll}
+          list={list}
         />
       </main>
     </div>

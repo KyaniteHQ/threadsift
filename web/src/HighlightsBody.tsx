@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useRef } from "react";
+import { type RefObject, useCallback } from "react";
 
 import type { Entry } from "../../src/core/highlights-page-contract.ts";
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
@@ -6,7 +6,7 @@ import { HighlightEntry } from "./HighlightEntry.tsx";
 import { HIGHLIGHTS_PAGE, pageHeadLabel } from "./highlights-page-text.ts";
 import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
 import { CLEAR_ALL, RETRY_LABEL } from "./text.ts";
-import { useEntryKeys, useFocusNewEntries } from "./use-highlights-focus.ts";
+import { useFocusNewEntries } from "./use-highlights-focus.ts";
 import { type PageState, type Ready, canLoadMore, matchedCount } from "./use-highlights-page.ts";
 
 function Loading() {
@@ -97,6 +97,7 @@ function Listed({
   navigate,
   loadMore,
   clearAll,
+  list,
 }: Readonly<{
   state: Ready;
   filters: Filters;
@@ -104,11 +105,10 @@ function Listed({
   navigate: (to: string) => void;
   loadMore: () => boolean;
   clearAll: () => void;
+  list: RefObject<HTMLOListElement | null>;
 }>) {
-  const list = useRef<HTMLOListElement>(null);
   const expectFocus = useFocusNewEntries(list, state.entries.length);
   const { length } = state.entries;
-  useEntryKeys(list);
 
   const more = useCallback(() => {
     if (loadMore()) expectFocus(length);
@@ -144,6 +144,7 @@ export function HighlightsBody({
   retry: () => void;
   loadMore: () => boolean;
   clearAll: () => void;
+  list: RefObject<HTMLOListElement | null>;
 }>) {
   if (state.status === "loading") return <Loading />;
 
