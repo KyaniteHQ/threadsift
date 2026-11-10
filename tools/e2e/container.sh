@@ -52,21 +52,47 @@ launch() {
   }
 }
 
+bound() {
+  local dir=$1
+  shift
+  "$@" >/dev/null 2>"$dir/start.err" && return 0
+  grep -qi 'address already in use' "$dir/start.err" || {
+    cat "$dir/start.err" >&2
+    return 2
+  }
+  return 1
+}
+
+start_bound() {
+  local dir=$1 name=$2 end=$((SECONDS + 5)) status
+  while :; do
+    bound "$dir" timeout 5 podman start "$name" && return 0
+    status=$?
+    [[ $status -ne 2 ]] || return 1
+    ((SECONDS < end)) || {
+      cat "$dir/start.err" >&2
+      return 1
+    }
+    sleep 0.2
+  done
+}
+
 case ${1:-} in
 launch)
   launch "$2"
   ;;
 restart)
+  name=$(<"$2/name")
   if [[ $# -lt 3 ]]; then
-    podman restart "$(<"$2/name")" >/dev/null
+    podman stop "$name" >/dev/null
   else
-    name=$(<"$2/name")
     volume=$(<"$2/volume")
     port=$(instance_port "$2")
     podman logs "$name" >>"$2/server.log" 2>&1
     podman rm --force "$name" >/dev/null
-    podman run --detach --name "$name" --publish "127.0.0.1:$port:8080" --volume "$volume:/data" --env-file "$3" "$image" >/dev/null
+    podman create --name "$name" --publish "127.0.0.1:$port:8080" --volume "$volume:/data" --env-file "$3" "$image" >/dev/null
   fi
+  start_bound "$2" "$name"
   wait_for_session_route "$(<"$2/url")" 60
   ;;
 pause)
@@ -78,7 +104,7 @@ resume)
 crash)
   name=$(<"$2/name")
   podman kill --signal KILL "$name" >/dev/null
-  podman start "$name" >/dev/null
+  start_bound "$2" "$name"
   wait_for_session_route "$(<"$2/url")" 60
   ;;
 logs)
