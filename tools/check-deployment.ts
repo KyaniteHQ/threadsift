@@ -1,4 +1,3 @@
-import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
 
@@ -12,19 +11,18 @@ import {
   SavedItemResponseSchema,
   SessionStateSchema,
 } from "../src/http/schemas.ts";
-import { CommandFailure, type Failure } from "./command-failure.ts";
+import { CommandFailure } from "./command-failure.ts";
 import { DEPLOYMENT_INPUT, suppliedDigestMatches } from "./deployment-input.ts";
 import { deploymentPassword } from "./deployment-password.ts";
+import { type DeploymentResult, deploymentReport } from "./deployment-report.ts";
 
 const [address, directory, digestMode = "provider"] = process.argv.slice(2);
 const mode = z.enum(["provider", "supplied"]).parse(digestMode);
 const origin = new URL(z.url().parse(address));
 const artifact = resolve(z.string().min(1).parse(directory));
 
-const results: (
-  | { stage: string; result: "passed"; detail: string }
-  | { stage: string; result: "failed"; failure: Failure }
-)[] = [];
+const results: DeploymentResult[] = [];
+const saveReport = deploymentReport(artifact, mode);
 
 let owned: number | undefined;
 let signedIn = false;
@@ -32,9 +30,13 @@ let stage = "configuration";
 
 function record(result: string): void {
   results.push({ stage, result: "passed", detail: result });
-  writeFileSync(`${artifact}/result.json`, JSON.stringify({ mode, results }, null, 2), {
-    mode: 0o600,
-  });
+
+  if (!saveReport(results))
+    throw new CommandFailure({
+      kind: "check",
+      reason: "Result file could not be written",
+      recovery: "Use the stderr report and rerun with a new private output directory.",
+    });
 }
 
 function validateOrigin(): void {
@@ -112,9 +114,9 @@ async function run(): Promise<void> {
       recovery: "Save a working Provider in Instance settings, or select supplied mode.",
     });
   record(mode === "provider" ? "existing configuration retained" : "not exercised");
-  owned = await paste();
+  const created = await paste();
   stage = "Queue and Digest";
-  await waitForDigest(owned, Date.now() + 600_000);
+  await waitForDigest(created, Date.now() + 600_000);
   record(
     mode === "provider"
       ? "real fetch and configured Provider Digest passed"
@@ -146,6 +148,7 @@ async function paste(): Promise<number> {
       recovery: "Inspect the check URL in the library; no existing Item is owned by this run.",
     });
   const id = SavedItemResponseSchema.parse(await saved.json()).item.id;
+  owned = id;
   record(`created Item ${String(id)}`);
 
   return id;
@@ -188,7 +191,7 @@ async function waitForDigest(id: number, deadline: number): Promise<void> {
   await waitForDigest(id, deadline);
 }
 
-async function cleanup(): Promise<void> {
+async function cleanupItem(): Promise<void> {
   stage = "cleanup";
 
   if (owned !== undefined) {
@@ -216,7 +219,9 @@ async function cleanup(): Promise<void> {
       );
     }
   }
+}
 
+async function cleanupSession(): Promise<void> {
   stage = "sign-out";
 
   if (signedIn) {
@@ -238,10 +243,10 @@ async function cleanup(): Promise<void> {
 
 function reportFailure(error: Readonly<CommandFailure>): void {
   results.push({ stage, result: "failed", failure: error.failure });
-  writeFileSync(`${artifact}/result.json`, JSON.stringify({ mode, results }, null, 2), {
-    mode: 0o600,
-  });
-  console.error(JSON.stringify({ stage, ...error.failure }));
+  const artifactSaved = saveReport(results);
+  console.error(
+    JSON.stringify({ stage, ...error.failure, ownedItem: owned ?? null, artifactSaved }),
+  );
   process.exitCode = 1;
 }
 
@@ -257,8 +262,6 @@ async function signOut(): Promise<void> {
     });
 }
 
-mkdirSync(artifact, { recursive: true, mode: 0o700 });
-
 try {
   await run();
 } catch (error) {
@@ -273,8 +276,15 @@ try {
         }),
   );
 } finally {
-  await cleanup();
-  await api.dispose();
+  try {
+    await cleanupItem();
+  } finally {
+    try {
+      await cleanupSession();
+    } finally {
+      await api.dispose();
+    }
+  }
 }
 
 if (process.exitCode !== 1) console.log("Deployment check passed; see result.json");
