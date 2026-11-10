@@ -1,6 +1,6 @@
 import { type FocusEvent, useState } from "react";
 
-import { shownUrl, whereOf } from "../../src/core/links.ts";
+import { shownUrl, whereOf } from "../../src/core/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { type CardView, viewOf } from "./paste-card.ts";

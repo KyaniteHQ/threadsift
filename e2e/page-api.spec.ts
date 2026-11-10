@@ -118,6 +118,16 @@ test("a page that a link cannot take is refused with its field named, and nothin
       code: "unsupported-link",
     },
     { url: "https://github.com/kepano/defuddle", error: /^page: only/u, code: "unsupported-link" },
+    {
+      url: "https://www.mobile.x.com/someone/status/1234567890",
+      error: /^page: only/u,
+      code: "unsupported-link",
+    },
+    {
+      url: "https://www.www.github.com/kepano/defuddle",
+      error: /^page: only/u,
+      code: "unsupported-link",
+    },
     { url: "http://127.0.0.1:9/page", error: /^url: /u, code: undefined },
   ];
 

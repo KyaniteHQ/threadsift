@@ -99,7 +99,7 @@ test("the step renames the Items whose new identity is theirs alone with their i
   try {
     await runStep(owner, instance);
 
-    expect(marker(instance)).toEqual([{ name: "item-identity", version: 1, cursor: null }]);
+    expect(marker(instance)).toEqual([{ name: "item-identity", version: 2, cursor: null }]);
     expect(count(instance, "SELECT 1 FROM data_step_renames")).toBe(0);
     expectRenamesAndCollisions(instance);
     expect(otherColumns(instance)).toEqual(SEEDED_COLUMNS);
@@ -173,7 +173,7 @@ test("a step stopped in its rename phase keeps the finished pages and its place,
     const half = stored(instance);
 
     expect(marker(instance)).toEqual([
-      { name: "item-identity", version: 0, cursor: `1|apply:${APPLIED_BEFORE_STOP}` },
+      { name: "item-identity", version: 0, cursor: `2|apply:${APPLIED_BEFORE_STOP}` },
     ]);
 
     expect(count(instance, "SELECT 1 FROM data_step_renames")).toBe(
@@ -188,7 +188,7 @@ test("a step stopped in its rename phase keeps the finished pages and its place,
       half.map(({ id }) => ({ id, normalized_url: `https://github.com/org/repo-${id}` })),
     );
 
-    expect(marker(instance)).toEqual([{ name: "item-identity", version: 1, cursor: null }]);
+    expect(marker(instance)).toEqual([{ name: "item-identity", version: 2, cursor: null }]);
     expect(count(instance, "SELECT 1 FROM data_step_renames")).toBe(0);
   } finally {
     await owner.dispose();

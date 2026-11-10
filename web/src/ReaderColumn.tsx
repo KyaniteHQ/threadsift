@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { shownUrl, whereOf } from "../../src/core/links.ts";
+import { shownUrl, whereOf } from "../../src/core/link-place.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import {
   DIGEST_PENDING,

@@ -66,7 +66,7 @@ export async function stoppedBeforeRenames(seed: Seed) {
   await attemptStep(run.owner, run.instance);
   await expect
     .poll(() => marker(run.instance).at(0)?.cursor, { timeout: 90_000 })
-    .toBe("1|apply:0");
+    .toBe("2|apply:0");
 
   return run;
 }

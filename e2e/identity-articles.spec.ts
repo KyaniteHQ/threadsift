@@ -30,7 +30,7 @@ test("the step gives a stored Article the identity a Paste of its link would get
   try {
     await runStep(owner, instance);
 
-    expect(marker(instance)).toEqual([{ name: "item-identity", version: 1, cursor: null }]);
+    expect(marker(instance)).toEqual([{ name: "item-identity", version: 2, cursor: null }]);
 
     const after = new Map(stored(instance).map(({ id, normalized_url: url }) => [id, url]));
 

@@ -133,3 +133,18 @@ test("an X link whose host ends in a dot is the same Item as without it, and is 
     fetchedAt: null,
   });
 });
+
+test("an X link with a repeated host prefix is the same Item as without it, and is not requested", async ({
+  request,
+}) => {
+  const prefixed = await postLink(request, "https://www.mobile.x.com/jack/status/20");
+
+  expect(prefixed.body.item.fetch).toBe("not-requested");
+  expect(prefixed.body.item).toMatchObject({
+    source: "x",
+    kind: "x-post",
+    normalizedUrl: X_POST_IDENTITY,
+    title: null,
+    fetchedAt: null,
+  });
+});

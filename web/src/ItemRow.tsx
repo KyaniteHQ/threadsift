@@ -1,7 +1,7 @@
 import { type RefObject, memo, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { itemPath } from "../../src/core/item-path.ts";
-import { shownUrl } from "../../src/core/links.ts";
+import { shownUrl } from "../../src/core/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Meta, Status } from "./ItemRowParts.tsx";
 import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
