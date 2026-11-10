@@ -68,10 +68,28 @@ async function runSeconds(page: Page, seconds: number, settled: () => Promise<vo
   }
 }
 
-async function openPaused(page: Page): Promise<void> {
+type Reads = ReturnType<typeof statusReads>;
+
+async function openPaused(page: Page, reads: Reads, ids: readonly number[]): Promise<void> {
   await page.clock.install({ time: Date.now() });
   await page.goto("/");
+
+  for (const id of ids) {
+    await expect(row(page, id)).toBeVisible();
+    await expect.poll(() => reads.of(id)).toBeGreaterThanOrEqual(1);
+  }
+
+  await reads.settled();
   await page.clock.pauseAt(Date.now() + 1000);
+}
+
+async function runUntilRead(page: Page, reads: Reads, id: number): Promise<void> {
+  for (let second = 0; second < 5 && reads.of(id) === 0; second += 1) {
+    await page.clock.runFor(1000);
+    await reads.settled();
+  }
+
+  expect(reads.of(id)).toBeGreaterThanOrEqual(1);
 }
 
 test("an Item deleted elsewhere is read once more, leaves the list and is never read again", async () => {
@@ -84,8 +102,7 @@ test("an Item deleted elsewhere is read once more, leaves the list and is never 
 
   const reads = statusReads(page);
 
-  await openPaused(page);
-  await expect(row(page, deleted)).toBeVisible();
+  await openPaused(page, reads, [kept, deleted]);
 
   const removal = await screen.context.request.delete(`/api/items/${deleted}`, {
     headers: await agentHeaders(screen),
@@ -111,17 +128,24 @@ test("a new processing Item does not start the others' reads over at once a seco
   const [old = 0] = processing(["https://example.com/old"]);
   const reads = statusReads(page);
 
-  await openPaused(page);
+  await openPaused(page, reads, [old]);
   await runSeconds(page, 30, reads.settled);
 
-  const before = reads.of(old);
+  expect(reads.of(old)).toBeGreaterThan(10);
+
   const restore = deferJobs(screen.fresh, "fetch");
+  let added = 0;
 
   try {
-    await pasteForId(page, "https://example.com/new");
+    added = await pasteForId(page, "https://example.com/new");
   } finally {
     restore();
   }
+
+  await expect(row(page, added)).toBeVisible();
+  await runUntilRead(page, reads, added);
+
+  const before = reads.of(old);
 
   await runSeconds(page, 10, reads.settled);
 
@@ -139,8 +163,9 @@ test("an Item that waits for a time is read about once a minute until that time"
 
   const reads = statusReads(page);
 
-  await openPaused(page);
+  await openPaused(page, reads, [waiting]);
   await runSeconds(page, 120, reads.settled);
 
+  expect(reads.of(waiting)).toBeGreaterThanOrEqual(2);
   expect(reads.of(waiting)).toBeLessThanOrEqual(3);
 });
