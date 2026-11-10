@@ -16,6 +16,10 @@ const REPOSITORY_LINK = "https://github.com/KyaniteHQ/threadsift";
 
 const DIGEST_WAIT_MS = 300_000;
 
+const SCHEDULED_ROUTE = "/cdn-cgi/local/scheduled";
+
+const TARGET = z.enum(["worker", "container"]).parse(process.env["THREADSIFT_TARGET"]);
+
 const SETUP_CODE = z.string().min(16).parse(process.env["SETUP_CODE"]);
 
 const GITHUB_TOKEN = z.string().optional().parse(process.env["GITHUB_TOKEN"]);
@@ -63,6 +67,14 @@ function digestStates(request: APIRequestContext, ids: readonly number[]) {
       return item.digest === null ? item.digestOutcome : "digest";
     }),
   );
+}
+
+async function fireScheduledHandler(request: APIRequestContext): Promise<void> {
+  if (TARGET !== "worker") return;
+
+  const fired = await request.get(SCHEDULED_ROUTE);
+
+  expect(fired.status(), "the scheduled handler runs").toBe(200);
 }
 
 test("real Pastes of an article and a GitHub repo are read, and the OpenRouter Provider writes a Digest", async ({
@@ -114,11 +126,18 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
 
   await test.step("wait for one real Digest", async () => {
     await expect
-      .poll(() => digestStates(request, ids), {
-        message: "one of the two Items holds a Digest",
-        timeout: DIGEST_WAIT_MS,
-        intervals: [2000, 5000],
-      })
+      .poll(
+        async () => {
+          await fireScheduledHandler(request);
+
+          return digestStates(request, ids);
+        },
+        {
+          message: "one of the two Items holds a Digest",
+          timeout: DIGEST_WAIT_MS,
+          intervals: [2000, 5000],
+        },
+      )
       .toContain("digest");
   });
 });
