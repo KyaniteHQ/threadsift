@@ -73,13 +73,13 @@ async function readInTab(
   }
 }
 
-async function answerFor(tabId: number, address: string): Promise<TabAnswer> {
+async function answerFor(tabId: number, address: string, deadlineMs: number): Promise<TabAnswer> {
   const answer = await resultInTab(
     () =>
       browser.scripting.executeScript({
         target: { tabId },
         func: readInTab,
-        args: [address, REQUEST_DEADLINE_MS, THREAD_CONTENT_BYTES],
+        args: [address, deadlineMs, THREAD_CONTENT_BYTES],
       }),
     TabAnswerSchema,
   );
@@ -95,6 +95,18 @@ function threadAddress({ url }: Readonly<ThreadTab>): string {
 
 function permalinkAddress({ url }: Readonly<ThreadTab>, postId: string, commentId: string): string {
   return `${new URL(url).origin}/comments/${postId}/_/${commentId}.json?${QUERY}`;
+}
+
+async function answerAfter(
+  tab: Readonly<ThreadTab>,
+  address: string,
+  { wait, giveUpAt }: Readonly<{ wait: number; giveUpAt: number }>,
+): Promise<TabAnswer | null> {
+  await pause(wait);
+
+  const left = giveUpAt - Date.now();
+
+  return left <= 0 ? null : answerFor(tab.id, address, Math.min(REQUEST_DEADLINE_MS, left));
 }
 
 async function fillAnswers(
@@ -124,14 +136,13 @@ async function fillAnswers(
 
     asked.add(id);
 
-    // oxlint-disable-next-line eslint/no-await-in-loop -- the requests are sequential and spaced.
-    await pause(Math.max(0, REQUEST_SPACING_MS - (Date.now() - startedAt)));
-    startedAt = Date.now();
+    const wait = Math.max(0, REQUEST_SPACING_MS - (Date.now() - startedAt));
+    startedAt = Date.now() + wait;
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- the requests are sequential and spaced.
-    const answer = await answerFor(tab.id, permalinkAddress(tab, postId, id));
+    const answer = await answerAfter(tab, permalinkAddress(tab, postId, id), { wait, giveUpAt });
 
-    if (answer.status === RATE_LIMITED) break;
+    if (answer === null || answer.status === RATE_LIMITED) break;
 
     const found = answer.status === 200 ? hiddenRepliesOf(answer.text, postId) : null;
 
@@ -169,7 +180,7 @@ export async function fetchThread(tab: Readonly<ThreadTab>): Promise<ThreadAnswe
 
   if (ref === null) return null;
 
-  const first = await answerFor(tab.id, threadAddress(tab));
+  const first = await answerFor(tab.id, threadAddress(tab), REQUEST_DEADLINE_MS);
   const hidden = first.status === 200 ? hiddenRepliesOf(first.text, ref.postId) : null;
 
   return hidden === null
