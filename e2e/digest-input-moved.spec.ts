@@ -47,6 +47,25 @@ async function settleDigestJob(itemId: number): Promise<void> {
     .toEqual(["done"]);
 }
 
+function dueAtOnceBeforeSecondRetry(): void {
+  screen.fresh.sql(
+    "CREATE TRIGGER retry_at_once AFTER UPDATE OF state ON jobs WHEN NEW.kind = 'digest' AND NEW.state = 'queued' AND NEW.attempts < 2 BEGIN UPDATE jobs SET next_attempt_at = 0 WHERE id = NEW.id; END",
+  );
+}
+
+async function waitForSecondRetry(itemId: number): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        if (!isContainerTarget()) await sweepNow(screen.context.request, screen.fresh);
+
+        return jobsOf(itemId, screen.fresh, "digest").map((job) => `${job.state} ${job.attempts}`);
+      },
+      { timeout: WAIT },
+    )
+    .toEqual(["queued 2"]);
+}
+
 test("a caller-sent Digest still owed when its job gives up is published by a new job", async ({
   browser,
 }) => {
@@ -115,6 +134,8 @@ test("a takeover of a crashed attempt on content that moved gets a full set of a
 
   const id = savedText("https://example.com/moved-after-crash");
 
+  dueAtOnceBeforeSecondRetry();
+
   await configureDigest(screen, {
     provider: "openai-compatible",
     baseUrl: "https://threadsift-digest-unreachable.invalid/v1",
@@ -122,20 +143,7 @@ test("a takeover of a crashed attempt on content that moved gets a full set of a
     key: "moved-after-crash-proof",
   });
 
-  await expect
-    .poll(
-      async () => {
-        for (const job of jobsOf(id, screen.fresh, "digest")) {
-          if (job.state === "queued" && job.attempts < 2) makeJobDue(job.id, screen.fresh);
-        }
-
-        if (!isContainerTarget()) await sweepNow(screen.context.request, screen.fresh);
-
-        return jobsOf(id, screen.fresh, "digest").map((job) => `${job.state} ${job.attempts}`);
-      },
-      { timeout: WAIT },
-    )
-    .toEqual(["queued 2"]);
+  await waitForSecondRetry(id);
 
   expect(count("SELECT count(*) AS n FROM ai_tasks"), "two attempts on the first content").toBe(2);
 
@@ -159,6 +167,8 @@ test("a job whose attempts ran out is not closed when the content moves inside i
 
   const id = savedText("https://example.com/moved-inside-claim");
 
+  dueAtOnceBeforeSecondRetry();
+
   await configureDigest(screen, {
     provider: "openai-compatible",
     baseUrl: "https://threadsift-digest-unreachable.invalid/v1",
@@ -166,20 +176,7 @@ test("a job whose attempts ran out is not closed when the content moves inside i
     key: "moved-inside-claim-proof",
   });
 
-  await expect
-    .poll(
-      async () => {
-        for (const job of jobsOf(id, screen.fresh, "digest")) {
-          if (job.state === "queued" && job.attempts < 2) makeJobDue(job.id, screen.fresh);
-        }
-
-        if (!isContainerTarget()) await sweepNow(screen.context.request, screen.fresh);
-
-        return jobsOf(id, screen.fresh, "digest").map((job) => `${job.state} ${job.attempts}`);
-      },
-      { timeout: WAIT },
-    )
-    .toEqual(["queued 2"]);
+  await waitForSecondRetry(id);
 
   screen.fresh.sql(
     "CREATE TRIGGER move_in_claim AFTER UPDATE OF state ON jobs WHEN NEW.kind = 'digest' AND NEW.state = 'running' AND NEW.attempts = 3 BEGIN UPDATE items SET generation = generation + 1 WHERE id = NEW.item_id; END",
