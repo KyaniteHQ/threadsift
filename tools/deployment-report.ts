@@ -1,6 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 
-import type { Failure } from "./command-failure.ts";
+import { CommandFailure, type Failure } from "./command-failure.ts";
 
 export type DeploymentResult = Readonly<
   | { stage: string; result: "passed"; detail: string }
@@ -11,13 +11,24 @@ export function deploymentReport(
   directory: string,
   mode: string,
 ): (results: readonly DeploymentResult[]) => boolean {
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  try {
+    mkdirSync(directory, { mode: 0o700 });
+  } catch {
+    throw new CommandFailure({
+      kind: "check",
+      reason: "Output directory must be new",
+      recovery:
+        "Choose a fresh output directory beneath an existing parent; existing files are retained.",
+    });
+  }
 
   return (results) => {
     try {
-      writeFileSync(`${directory}/result.json`, JSON.stringify({ mode, results }, null, 2), {
+      writeFileSync(`${directory}/result.tmp`, JSON.stringify({ mode, results }, null, 2), {
         mode: 0o600,
+        flag: "wx",
       });
+      renameSync(`${directory}/result.tmp`, `${directory}/result.json`);
 
       return true;
     } catch {
