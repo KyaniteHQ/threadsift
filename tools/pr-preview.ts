@@ -1,0 +1,186 @@
+import { spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { unstable_readConfig } from "wrangler";
+import { z } from "zod";
+
+import { previewResourceExists, removePreviewBucket } from "./preview-cloudflare.ts";
+import { provisionPreviewOwner } from "./preview-owner.ts";
+
+const [action, number, mode] = process.argv.slice(2);
+const operation = z.enum(["deploy", "close"]).parse(action);
+
+const pr = z
+  .string()
+  .regex(/^[1-9]\d{0,7}$/u)
+  .parse(number);
+
+const selectedMode = z.enum(["--plan", "--dry-run", "--apply"]).parse(mode);
+const plan = selectedMode === "--plan";
+const name = `threadsift-pr-${pr}`;
+const configPath = resolve(`.wrangler/${name}.json`);
+
+const outputPath =
+  process.env["WRANGLER_OUTPUT_FILE_PATH"] ?? resolve(`.wrangler/${name}-output.jsonl`);
+
+const source = z
+  .object({
+    main: z.string(),
+    compatibility_date: z.string(),
+    compatibility_flags: z.array(z.string()),
+    assets: z.object({
+      directory: z.string(),
+      binding: z.string(),
+      run_worker_first: z.array(z.string()),
+    }),
+    alias: z.record(z.string(), z.string()),
+    limits: z.object({ cpu_ms: z.number() }),
+    triggers: z.object({ crons: z.array(z.string()) }),
+  })
+  .parse(unstable_readConfig({ config: "wrangler.jsonc" }));
+
+const config = {
+  ...source,
+  main: resolve(source.main),
+  assets: { ...source.assets, directory: resolve(source.assets.directory) },
+  name,
+  workers_dev: true,
+  preview_urls: false,
+  d1_databases: [
+    { binding: "DB", database_name: `${name}-db`, migrations_dir: resolve("migrations") },
+  ],
+  r2_buckets: [{ binding: "FILES", bucket_name: `${name}-files` }],
+  ai: { binding: "AI" },
+  queues: {
+    producers: [{ binding: "JOBS", queue: `${name}-jobs` }],
+    consumers: [{ queue: `${name}-jobs`, max_batch_size: 1 }],
+  },
+};
+
+function wrangler(args: readonly string[], input?: string): string {
+  const result = spawnSync("pnpm", ["exec", "wrangler", ...args, "--config", configPath], {
+    encoding: "utf8",
+    input,
+    timeout: args[0] === "deploy" ? 600_000 : 120_000,
+    env: {
+      ...process.env,
+      CI: "true",
+      WRANGLER_SEND_METRICS: "false",
+      WRANGLER_OUTPUT_FILE_PATH: outputPath,
+    },
+    maxBuffer: 16 * 1024 * 1024,
+  });
+
+  if (result.status !== 0)
+    throw new Error(
+      `Wrangler ${args.slice(0, 2).join(" ")} failed; no provider output was recorded`,
+    );
+
+  return result.stdout;
+}
+
+function databaseExists(): boolean {
+  const databases = z
+    .array(z.object({ name: z.string() }))
+    .parse(JSON.parse(wrangler(["d1", "list", "--json"])));
+
+  return databases.some((database) => database.name === `${name}-db`);
+}
+
+async function close(): Promise<void> {
+  if (await previewResourceExists("worker", name)) wrangler(["delete", "--name", name]);
+
+  if (await previewResourceExists("queue", `${name}-jobs`))
+    wrangler(["queues", "delete", `${name}-jobs`]);
+
+  if (await previewResourceExists("bucket", `${name}-files`)) {
+    await removePreviewBucket(`${name}-files`);
+    wrangler(["r2", "bucket", "delete", `${name}-files`]);
+  }
+
+  if (databaseExists()) wrangler(["d1", "delete", `${name}-db`, "--skip-confirmation"]);
+
+  const remaining = await Promise.all([
+    previewResourceExists("worker", name),
+    previewResourceExists("queue", `${name}-jobs`),
+    previewResourceExists("bucket", `${name}-files`),
+  ]);
+
+  if (databaseExists() || remaining.some(Boolean))
+    throw new Error("Preview cleanup incomplete; rerun close");
+}
+
+async function deploy(): Promise<void> {
+  z.string().min(16).parse(process.env["PREVIEW_SETUP_CODE"]);
+  z.string().min(15).parse(process.env["DEMO_OWNER_PASSWORD"]);
+  wrangler(["deploy", "--keep-vars"]);
+
+  const secrets = z
+    .array(z.object({ name: z.string() }))
+    .parse(JSON.parse(wrangler(["secret", "list"])));
+
+  const missing: Record<string, string> = {};
+
+  if (!secrets.some((secret) => secret.name === "THREADSIFT_SECRET_KEY"))
+    missing["THREADSIFT_SECRET_KEY"] = randomBytes(32).toString("hex");
+
+  if (!secrets.some((secret) => secret.name === "SETUP_CODE"))
+    missing["SETUP_CODE"] = z.string().min(16).parse(process.env["PREVIEW_SETUP_CODE"]);
+
+  if (Object.keys(missing).length > 0) wrangler(["secret", "bulk"], JSON.stringify(missing));
+
+  wrangler(["d1", "migrations", "apply", "DB", "--remote"]);
+
+  const entries = readFileSync(outputPath, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) =>
+      z
+        .object({ type: z.string(), targets: z.array(z.string()).optional() })
+        .parse(JSON.parse(line)),
+    );
+
+  const target = entries
+    .findLast((entry) => entry.type === "deploy")
+    ?.targets?.find((url) => url.startsWith("https://"));
+
+  const url = new URL(z.url().parse(target));
+
+  if (
+    url.protocol !== "https:" ||
+    !url.hostname.startsWith(`${name}.`) ||
+    !url.hostname.endsWith(".workers.dev")
+  )
+    throw new Error("Unexpected preview origin");
+  await provisionPreviewOwner(url.origin);
+}
+
+console.log(
+  JSON.stringify({
+    operation,
+    worker: name,
+    database: `${name}-db`,
+    bucket: `${name}-files`,
+    queue: `${name}-jobs`,
+    plan,
+  }),
+);
+
+try {
+  if (!plan) {
+    mkdirSync(resolve(".wrangler"), { recursive: true });
+    writeFileSync(configPath, JSON.stringify(config), { mode: 0o600 });
+
+    if (selectedMode === "--dry-run") {
+      if (operation !== "deploy") throw new Error("Use --plan for close");
+      wrangler(["deploy", "--dry-run"]);
+      console.log("Wrangler compiled the preview without remote mutations");
+    } else if (operation === "deploy") await deploy();
+    else await close();
+  }
+} catch {
+  console.error(`Preview ${operation} failed; rerun the same command to resume`);
+  process.exitCode = 1;
+}
