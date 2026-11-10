@@ -36,7 +36,7 @@ test("a paste before any run of the step finishes the step first and then finds 
 
     expect([found.status, found.id]).toEqual([200, 1]);
     expect(count(instance, "SELECT 1 FROM items")).toBe(17);
-    expect(marker(instance)).toEqual([{ name: "item-identity", version: 1, cursor: null }]);
+    expect(marker(instance)).toEqual([{ name: "item-identity", version: 2, cursor: null }]);
   } finally {
     await owner.dispose();
     instance.stop();
@@ -120,7 +120,7 @@ test("while another run holds the step lease, a paste is refused and no Item is 
     const refused = await pasteAlice(owner);
 
     expect(refused.status).toBe(503);
-    expect(marker(instance).at(0)?.version).not.toBe(1);
+    expect(marker(instance).at(0)?.version).not.toBe(2);
     expect(stored(instance).at(0)?.normalized_url).toBe(ITEMS[0][3]);
 
     instance.sql("DELETE FROM data_step_lease");

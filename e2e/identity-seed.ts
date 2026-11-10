@@ -82,6 +82,10 @@ export const LONG_RENAMES = 100;
 
 export const LONG_QUERY_CHARS = 12_000;
 
+export const REPEATED_SUFFIXES = 12_000;
+
+export const REPEATED_SUFFIX_ITEM = LONG_RENAMES + 1;
+
 export const LONG_BEFORE: Seed = {
   files: BEFORE_IDENTITY_STEP,
   sql: `
@@ -90,6 +94,8 @@ INSERT INTO items (id, source, kind, normalized_url, original_url, saved_at)
 SELECT i, 'github', 'github-repo',
   'https://github.com/Org/Repo-' || i || '?q=' || substr(hex(zeroblob(${LONG_QUERY_CHARS / 2})), 1, ${LONG_QUERY_CHARS}),
   'https://github.com/Org/Repo-' || i, 5000 + i FROM n;
+INSERT INTO items (id, source, kind, normalized_url, original_url, saved_at)
+VALUES (${LONG_RENAMES + 1}, 'github', 'github-repo', 'https://github.com/o/r' || replace(hex(zeroblob(${REPEATED_SUFFIXES})), '00', '.git'), 'https://github.com/o/r', 6000);
 `,
 };
 
@@ -109,7 +115,7 @@ export const RIVAL = {
   stays: `https://twitter.com/bob/status/${xId(2)}/photo/1`,
 } as const;
 
-export const NEWER_RELEASE_VERSION = 2;
+export const NEWER_RELEASE_VERSION = 3;
 
 export const SEEDED_COLUMNS = ITEMS.map(([id, , kind, url]) => ({
   id,

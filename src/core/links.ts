@@ -59,10 +59,10 @@ const VIDEO_HOSTS: ReadonlySet<string> = new Set([
 ]);
 
 const GITHUB_NAME = /^[\w.-]+$/u;
-export const GIT_SUFFIX = /(?<=.)\.git$/iu;
+const GIT_SUFFIX = ".git";
 const X_STATUS_PATH = /^\/(?:[^/]+|i\/web)\/status\/(\d+)(?:\/|$)/u;
 const LEADING_ZEROS = /^0+(?=\d)/u;
-const REDDIT_PATH_PREFIXES: ReadonlySet<string> = new Set(["r", "user", "u"]);
+export const REDDIT_PATH_PREFIXES: ReadonlySet<string> = new Set(["r", "user", "u"]);
 const REDDIT_ID = /^[a-zA-Z\d]+$/u;
 const REDDIT_SHARE_PATH = /^\/r\/[^/]+\/s\/[a-zA-Z\d]+\/?$/u;
 
@@ -85,14 +85,43 @@ function keptQuery(search: string, host: string): string {
   return kept.length > 0 ? `?${kept.join("&")}` : "";
 }
 
-const MOBILE_X_HOST = /^mobile\.(?:x|twitter)\.com$/u;
+const MOBILE_X_REST: ReadonlySet<string> = new Set(["x.com", "twitter.com"]);
+
+const WWW_MIN_REST_LABELS = 2;
+
+function startsAfterArtifact(labels: readonly string[], first: number): number {
+  const rest = labels.slice(first + 1);
+
+  const isWww = labels[first] === "www" && rest.length >= WWW_MIN_REST_LABELS;
+  const isMobile = labels[first] === "mobile" && MOBILE_X_REST.has(rest.join("."));
+
+  return isWww || isMobile ? first + 1 : first;
+}
 
 function canonicalHost(rawHost: string): string {
-  const host = withoutTrailingDot(rawHost);
-  const desktop = MOBILE_X_HOST.test(host) ? host.slice("mobile.".length) : host;
-  const bare = desktop.startsWith("www.") ? desktop.slice("www.".length) : desktop;
+  const labels = withoutTrailingDot(rawHost).split(".");
+  let first = 0;
+  let next = startsAfterArtifact(labels, first);
 
-  return bare.includes(".") ? bare : desktop;
+  while (next !== first) {
+    first = next;
+    next = startsAfterArtifact(labels, first);
+  }
+
+  return labels.slice(first).join(".");
+}
+
+export function withoutGitSuffix(name: string): string {
+  let end = name.length;
+
+  while (
+    end > GIT_SUFFIX.length &&
+    name.slice(end - GIT_SUFFIX.length, end).toLowerCase() === GIT_SUFFIX
+  ) {
+    end -= GIT_SUFFIX.length;
+  }
+
+  return name.slice(0, end);
 }
 
 export function segmentsOf(pathname: string): string[] {
@@ -172,7 +201,7 @@ function xLink(statusId: string): Link {
 }
 
 function repositoryRootPath([owner = "", repo = ""]: readonly string[]): string {
-  return `/${owner}/${repo.replace(GIT_SUFFIX, "")}`.toLowerCase();
+  return `/${owner}/${withoutGitSuffix(repo)}`.toLowerCase();
 }
 
 export function parseLink(absoluteUrl: string): Link {
@@ -241,60 +270,4 @@ export function isRedditOrXLink(absoluteUrl: string): boolean {
   const host = hostOf(absoluteUrl);
 
   return host === "redd.it" || isRedditHost(host) || X_HOSTS.has(host);
-}
-
-interface LinkPlace extends Link {
-  readonly originalUrl: string;
-  readonly community: string | null;
-}
-
-export function spellingOf({
-  normalizedUrl,
-  originalUrl,
-}: Readonly<Pick<LinkPlace, "normalizedUrl" | "originalUrl">>): string {
-  return URL.canParse(originalUrl) && parseLink(originalUrl).normalizedUrl === normalizedUrl
-    ? originalUrl
-    : normalizedUrl;
-}
-
-export function whereOf({
-  source,
-  kind,
-  normalizedUrl,
-  originalUrl,
-  community,
-}: Readonly<LinkPlace>): string {
-  const { host } = new URL(normalizedUrl);
-
-  const [first = "", second = ""] = segmentsOf(
-    new URL(spellingOf({ normalizedUrl, originalUrl })).pathname,
-  );
-
-  if (community !== null) {
-    return `r/${community}`;
-  }
-
-  if (source === "reddit") {
-    const [pastedFirst = "", pastedSecond = ""] = segmentsOf(new URL(originalUrl).pathname);
-
-    if (pastedSecond !== "" && REDDIT_PATH_PREFIXES.has(pastedFirst)) {
-      return pastedFirst === "r" ? `r/${pastedSecond}` : `u/${pastedSecond}`;
-    }
-  }
-
-  if (kind === "x-post" && first !== "i") {
-    return `@${first}`;
-  }
-
-  if (kind === "github-repo") {
-    return `${first}/${second.replace(GIT_SUFFIX, "")}`;
-  }
-
-  return host;
-}
-
-const SCHEME_AND_WWW = /^https?:\/\/(?:www\.)?/u;
-
-export function shownUrl(url: string): string {
-  return url.replace(SCHEME_AND_WWW, "");
 }

@@ -59,7 +59,7 @@ const STOP_RECONCILER =
   "CREATE TRIGGER stop_reconciler BEFORE INSERT ON search_fingerprints BEGIN SELECT RAISE(ABORT, 'held back for the test'); END;";
 
 const MARK_IDENTITY_DONE =
-  "INSERT INTO data_steps (name, version, cursor) VALUES ('item-identity', 1, NULL);";
+  "INSERT INTO data_steps (name, version, cursor) VALUES ('item-identity', 2, NULL);";
 
 function itemRow(index: number): string {
   const id = index + 1;

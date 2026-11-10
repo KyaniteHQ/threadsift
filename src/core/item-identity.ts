@@ -9,7 +9,7 @@ import { parseLink } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { items } from "./schema.ts";
 
-export const ITEM_IDENTITY_VERSION = 1;
+export const ITEM_IDENTITY_VERSION = 2;
 
 const STAGE_ROWS = 500;
 const STAGE_BYTES = 4_000_000;

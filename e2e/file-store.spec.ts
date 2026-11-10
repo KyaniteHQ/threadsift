@@ -21,7 +21,7 @@ import { isContainerTarget } from "./target.ts";
 
 const BIG_BYTES = 3 * 1024 * 1024;
 
-const FILE_NAME_MAX = 255;
+const FILE_NAME_MAX = 225;
 
 const CONCURRENT_BYTES = 512 * 1024;
 
@@ -94,6 +94,25 @@ async function expectLongestName(store: FileStore): Promise<void> {
   await expect(keysOf(store, "items/1/")).resolves.toContain(key);
   await store.delete([key]);
   await expect(textOf(store, key)).resolves.toBeNull();
+
+  const tooLong = `items/1/${"n".repeat(FILE_NAME_MAX + 1)}`;
+
+  await expect(store.put(tooLong, Buffer.from("longer"))).rejects.toBeInstanceOf(FileRefused);
+  await expect(store.get(tooLong)).rejects.toBeInstanceOf(FileRefused);
+}
+
+async function expectBoundaryLeftover({ store, plant }: Backend): Promise<void> {
+  const leftover = `items/5/.tmp-0123456789abcdef01234567-${"n".repeat(FILE_NAME_MAX)}`;
+  const foreign = `items/5/${"n".repeat(FILE_NAME_MAX + 1)}`;
+
+  expect(leftover.length - "items/5/".length).toBe(255);
+  await plant(leftover, "a crash left this");
+  await plant(foreign, "foreign");
+  await expect(keysOf(store, "items/5/")).resolves.toEqual([leftover]);
+  await expect(textOf(store, leftover)).resolves.toBe("a crash left this");
+  await store.delete([leftover]);
+  await expect(keysOf(store, "items/5/")).resolves.toEqual([]);
+  await expect(textOf(store, leftover)).resolves.toBeNull();
 }
 
 async function expectReadsSurviveDeletes(store: FileStore): Promise<void> {
@@ -191,6 +210,7 @@ test("the production file store adapter of this target puts, reads, replaces, li
     await expectPutGetOverwrite(backend.store);
     await expectConcurrentPuts(backend.store);
     await expectLongestName(backend.store);
+    await expectBoundaryLeftover(backend);
     await expectReadsSurviveDeletes(backend.store);
     await expectPrefixesAndPages(backend);
     await expectDeletes(backend.store);

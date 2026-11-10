@@ -1,7 +1,7 @@
 import { type SQLWrapper, and, asc, eq, gt, lte, min, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import { type CatalogKind, MERGE_ITEMS } from "./catalog-key-links.ts";
+import { type CatalogKind, MERGE_ITEMS, TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
 import { CATALOG_KEY_VERSION, catalogKey } from "./catalog.ts";
 import type { Advance, DataStep } from "./data-step-contract.ts";
 import { dropStaged, report, stageRenames } from "./data-step-support.ts";
@@ -196,10 +196,15 @@ function advance(db: Database, kind: CatalogKind, cursor: string | null) {
   }
 }
 
-export function catalogKeyStep(kind: CatalogKind): DataStep {
+function catalogKeyStep(kind: CatalogKind): DataStep {
   return {
     name: kind.step,
     version: CATALOG_KEY_VERSION,
     advance: (db, cursor) => advance(db, kind, cursor),
   };
 }
+
+export const catalogKeySteps: readonly DataStep[] = [
+  catalogKeyStep(TOPIC_KIND),
+  catalogKeyStep(TAG_KIND),
+];

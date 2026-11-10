@@ -79,6 +79,25 @@ test("every spelling of one X post is one Item, and a reply, a quote post and a 
   expect(await listForRun(request, run)).toHaveLength(4);
 });
 
+test("a link with a repeated www. or trailing dot has the identity that pasting its own identity gives, so every spelling is one Item", async ({
+  request,
+}) => {
+  const run = newRunId();
+  const identity = `https://example.com/${run}/page`;
+
+  const first = await postLinkRaw(request, `https://www.www.example.com/${run}/page`);
+
+  expect(first.status).toBe(201);
+  expect(first.body.item.normalizedUrl).toBe(identity);
+
+  await sameItem(request, first.body.item.id, [
+    identity,
+    `https://example.com../${run}/page`,
+    `https://www.example.com./${run}/page`,
+  ]);
+  expect(await listForRun(request, run)).toHaveLength(1);
+});
+
 test("two first pastes of two spellings of one X post at the same time make one Item", async ({
   request,
 }) => {

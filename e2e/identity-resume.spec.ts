@@ -17,7 +17,7 @@ test("a row that takes a planned identity between the plan and the renames makes
     instance.sql("DROP TRIGGER stop_batch");
     await runStep(owner, instance);
 
-    expect(marker(instance)).toEqual([{ name: "item-identity", version: 1, cursor: null }]);
+    expect(marker(instance)).toEqual([{ name: "item-identity", version: 2, cursor: null }]);
 
     const after = new Map(stored(instance).map(({ id, normalized_url: url }) => [id, url]));
 
@@ -44,7 +44,7 @@ test("a runner of an older release never lowers a newer release's recorded versi
 
   try {
     instance.sql(
-      `CREATE TRIGGER newer_release BEFORE DELETE ON data_step_renames WHEN (SELECT cursor FROM data_steps WHERE name = 'item-identity') = '1|finish:0' BEGIN UPDATE data_steps SET version = ${NEWER_RELEASE_VERSION}, cursor = NULL WHERE name = 'item-identity'; END`,
+      `CREATE TRIGGER newer_release BEFORE DELETE ON data_step_renames WHEN (SELECT cursor FROM data_steps WHERE name = 'item-identity') = '2|finish:0' BEGIN UPDATE data_steps SET version = ${NEWER_RELEASE_VERSION}, cursor = NULL WHERE name = 'item-identity'; END`,
     );
 
     instance.sql("DROP TRIGGER stop_batch");

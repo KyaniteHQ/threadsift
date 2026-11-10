@@ -1,7 +1,7 @@
 import { and, eq, gt, lt, lte, sql } from "drizzle-orm";
 
-import { TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
-import { catalogKeyStep } from "./catalog-key-step.ts";
+import { aiTaskOwnersStep } from "./ai-task-owner-step.ts";
+import { catalogKeySteps } from "./catalog-key-step.ts";
 import type { DataStep } from "./data-step-contract.ts";
 import { dataStepLease, dataSteps } from "./data-step-tables.ts";
 import { logFailure } from "./failure-log.ts";
@@ -22,8 +22,8 @@ const LEASE_POLL_MS = 100;
 
 const STEPS: readonly DataStep[] = [
   { name: "item-identity", version: ITEM_IDENTITY_VERSION, advance: advanceItemIdentity },
-  catalogKeyStep(TOPIC_KIND),
-  catalogKeyStep(TAG_KIND),
+  ...catalogKeySteps,
+  aiTaskOwnersStep,
 ];
 
 function cursorKey(version: number): string {

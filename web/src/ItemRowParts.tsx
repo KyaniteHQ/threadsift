@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { whereOf } from "../../src/core/links.ts";
+import { whereOf } from "../../src/core/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { commentCountsOf } from "./comment-counts.ts";
 import { Icon } from "./Icon.tsx";

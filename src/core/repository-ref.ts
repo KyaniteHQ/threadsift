@@ -1,4 +1,4 @@
-import { GIT_SUFFIX, segmentsOf } from "./links.ts";
+import { segmentsOf, withoutGitSuffix } from "./links.ts";
 
 export interface RepositoryRef {
   readonly owner: string;
@@ -8,5 +8,5 @@ export interface RepositoryRef {
 export function repositoryRef(normalizedUrl: string): RepositoryRef {
   const [owner = "", name = ""] = segmentsOf(new URL(normalizedUrl).pathname);
 
-  return { owner, name: name.replace(GIT_SUFFIX, "") };
+  return { owner, name: withoutGitSuffix(name) };
 }

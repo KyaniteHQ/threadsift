@@ -140,6 +140,7 @@ export function claimLostLines(instance: Instance, jobId: number): string[] {
 }
 
 export function releaseSweepThrottle(instance: Instance = mainInstance()): void {
+  instance.sql("DROP TRIGGER IF EXISTS hold_sweeps");
   instance.sql("DELETE FROM scheduled_runs");
 }
 

@@ -4,11 +4,12 @@ import { type FileHandle, lstat, mkdir, open, readdir, rename, rm } from "node:f
 import { join, sep } from "node:path";
 
 import {
-  FILE_NAME_MAX,
   FileRefused,
+  TEMPORARY_BYTES,
   type FileKey,
-  parseFileKey,
+  parseStoredKey,
   requireFileKey,
+  requireStoredKey,
   requireFilePrefix,
   requireListLimit,
   temporaryPrefix,
@@ -16,8 +17,6 @@ import {
 import type { FilePage, FileStore, StoredFile } from "../../core/ports.ts";
 
 const MISSING = new Set(["ENOENT", "ENOTDIR", "ENAMETOOLONG"]);
-
-const TEMPORARY_BYTES = 12;
 
 const CHUNK_BYTES = 65_536;
 
@@ -115,7 +114,7 @@ class FileFolder {
     return (await readdir(this.path("items", itemId), { withFileTypes: true }))
       .filter((entry) => entry.isFile())
       .map((entry) => `items/${itemId}/${entry.name}`)
-      .filter((key) => parseFileKey(key) !== null);
+      .filter((key) => parseStoredKey(key) !== null);
   }
 
   async keysUnder(itemId: string | null): Promise<string[]> {
@@ -197,9 +196,7 @@ async function readable(path: string): Promise<ReadableStream<Uint8Array> | null
 }
 
 function temporaryName(name: string): string {
-  const prefix = temporaryPrefix(randomBytes(TEMPORARY_BYTES).toString("hex"));
-
-  return prefix + name.slice(0, FILE_NAME_MAX - prefix.length);
+  return temporaryPrefix(randomBytes(TEMPORARY_BYTES).toString("hex")) + name;
 }
 
 async function writeAtomically(temporary: string, leaf: string, bytes: Uint8Array): Promise<void> {
@@ -232,12 +229,12 @@ export function dataFileStore(dataDir: string): FileStore {
       await writeAtomically(temporary, leaf, bytes);
     },
     get: async (key) => {
-      const { leaf, present } = await folder.locate(requireFileKey(key));
+      const { leaf, present } = await folder.locate(requireStoredKey(key));
 
       return present ? readable(leaf) : null;
     },
     delete: async (keys) => {
-      const parsed = keys.map((key) => requireFileKey(key));
+      const parsed = keys.map((key) => requireStoredKey(key));
       const located = await Promise.all(parsed.map((one) => folder.locate(one)));
 
       await Promise.all(

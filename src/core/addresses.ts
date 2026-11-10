@@ -150,7 +150,11 @@ export function isGlobalAddress(address: string): boolean {
 }
 
 export function withoutTrailingDot(hostname: string): string {
-  return hostname.replace(/\.$/u, "");
+  let end = hostname.length;
+
+  while (end > 0 && hostname[end - 1] === ".") end -= 1;
+
+  return hostname.slice(0, end);
 }
 
 function isLocalhostName(hostname: string): boolean {

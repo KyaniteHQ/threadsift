@@ -26,7 +26,7 @@ export async function runCatalogSteps(owner: APIRequestContext, instance: Instan
   await sweepNow(owner, instance);
   await expect
     .poll(() => finishedSteps(instance), { timeout: 120_000 })
-    .toEqual(["item-identity", "tag-keys", "topic-keys"]);
+    .toEqual(["ai-task-owners", "item-identity", "tag-keys", "topic-keys"]);
 }
 
 export function catalogState(instance: Instance) {
