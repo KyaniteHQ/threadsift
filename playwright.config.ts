@@ -15,12 +15,15 @@ process.env["THREADSIFT_SECRET_KEY"] ??= randomBytes(32).toString("hex");
 
 const IMAGE = "localhost/threadsift:smoke";
 
+const STATE = ".wrangler/smoke";
+
 const WORKER = [
-  "state=$(mktemp -d)",
+  `rm -rf ${STATE}`,
   "umask 077",
-  `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > "$state/env"`,
-  `pnpm exec wrangler d1 migrations apply DB --local --persist-to "$state/state"`,
-  `exec pnpm exec wrangler dev --local --test-scheduled --ip 127.0.0.1 --port ${PORT} --inspector-port 0 --persist-to "$state/state" --env-file "$state/env"`,
+  `mkdir -p ${STATE}`,
+  `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > ${STATE}/env`,
+  `pnpm exec wrangler d1 migrations apply DB --local --persist-to ${STATE}/state`,
+  `exec pnpm exec wrangler dev --local --test-scheduled --ip 127.0.0.1 --port ${PORT} --inspector-port 0 --persist-to ${STATE}/state --env-file ${STATE}/env`,
 ].join(" && ");
 
 const CONTAINER = [
