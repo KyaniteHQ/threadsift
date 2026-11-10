@@ -1,4 +1,4 @@
-import { lte } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { migrateData } from "./data-steps.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -14,7 +14,7 @@ async function claimSweep({ db }: Readonly<JobPorts>, now: number): Promise<bool
     .onConflictDoUpdate({
       target: scheduledRuns.task,
       set: { lastRunAt: now },
-      setWhere: lte(scheduledRuns.lastRunAt, now - TICK_SPACING_MS),
+      setWhere: sql`${scheduledRuns.lastRunAt} <= ${now - TICK_SPACING_MS} or ${scheduledRuns.lastRunAt} > ${now + TICK_SPACING_MS}`,
     })
     .returning({ task: scheduledRuns.task });
 

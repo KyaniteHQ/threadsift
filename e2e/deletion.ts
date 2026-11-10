@@ -63,7 +63,7 @@ export function expectNoOwnedRows(instance: Instance, id: number): void {
 
 export function holdSweeps(instance: Instance): void {
   instance.sql(
-    "INSERT INTO scheduled_runs (task, last_run_at) VALUES ('sweep', 9007199254740991) ON CONFLICT (task) DO UPDATE SET last_run_at = 9007199254740991",
+    "CREATE TRIGGER hold_sweeps BEFORE INSERT ON scheduled_runs BEGIN SELECT RAISE(IGNORE); END",
   );
 }
 
