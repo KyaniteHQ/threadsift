@@ -20,4 +20,3 @@ dist/
 .data/
 playwright-report/
 test-results/
-artifacts/

@@ -5,7 +5,6 @@ design/prototype
 .direnv
 dist
 docs
-e2e
 extension/node_modules
 extension/.output
 extension/.wxt
@@ -16,4 +15,3 @@ node_modules
 playwright-report
 test-results
 .wrangler
-artifacts

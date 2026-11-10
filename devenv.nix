@@ -16,11 +16,6 @@ let
   podmanPolicy = pkgs.writeText "policy.json" (
     builtins.toJSON { default = [ { type = "insecureAcceptAnything"; } ]; }
   );
-  e2eCommand = target: ''
-    jq --exit-status '(.args // []) | type == "array" and all(type == "string")' <<< "$DEVENV_TASK_INPUT" > /dev/null
-    mapfile -d "" -t args < <(jq --join-output '(.args // [])[] | ., "\u0000"' <<< "$DEVENV_TASK_INPUT")
-    exec tools/e2e/${target}.sh "''${args[@]}"
-  '';
   port = name: toString config.processes.${name}.ports.http.value;
 in
 {
@@ -33,8 +28,6 @@ in
     PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
     PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
     THREADSIFT_PODMAN_POLICY = "${podmanPolicy}";
-    THREADSIFT_CHECKOUT = config.devenv.root;
-    THREADSIFT_E2E_IMAGE = "localhost/threadsift:e2e-${builtins.hashString "sha256" config.env.THREADSIFT_CHECKOUT}";
   };
 
   packages = [
@@ -108,24 +101,6 @@ in
     "ci:audit" = {
       after = [ "ci:install" ];
       exec = "pnpm audit --prod --audit-level high";
-    };
-    "image:build" = {
-      exec = "exec tools/e2e/build-image.sh";
-    };
-    "e2e:container" = {
-      after = [
-        "ci:install"
-        "image:build"
-        "extension:build"
-      ];
-      exec = e2eCommand "container";
-    };
-    "e2e:worker" = {
-      after = [
-        "ci:install"
-        "ci:build"
-      ];
-      exec = e2eCommand "worker";
     };
   };
 

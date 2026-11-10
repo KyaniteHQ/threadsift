@@ -124,13 +124,6 @@ export default defineConfig({
   overrides: [
     { files: ["*.config.ts", "tools/**"], env: { node: true } },
     {
-      files: ["e2e/**"],
-      rules: {
-        "eslint/no-await-in-loop": "off",
-        "typescript/prefer-readonly-parameter-types": "off",
-      },
-    },
-    {
       files: ["src/core/**", "src/http/**"],
       rules: {
         "threadsift/static-import-source": "error",
