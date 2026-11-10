@@ -105,12 +105,15 @@ dialog.sheet::backdrop {
 }
 
 .it-title {
-  color: var(--acc-ink);
   display: -webkit-box;
   overflow: hidden;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.it-title .it-open {
+  color: var(--acc-ink);
 }
 
 [data-layout="list"] .it:has(.it-open:focus-visible) {
