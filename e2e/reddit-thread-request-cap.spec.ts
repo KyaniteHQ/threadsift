@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { admit, emptyRequest } from "../src/core/thread-answers.ts";
 import { mainInstance } from "./access.ts";
 import { post, postUrl, run } from "./thread-fixtures.ts";
 import {
@@ -38,20 +37,8 @@ function answerFor(id: string): string {
 
 const Kinds = z.array(z.object({ id: z.string(), kind: z.string() }));
 
-function fitting(url: string, answers: readonly string[]) {
-  const taken: string[] = [];
-  let sent = admit(emptyRequest(url), MAIN);
-
-  for (const answer of answers) {
-    const next = sent === null ? null : admit(sent, answer);
-
-    if (next === null) break;
-
-    sent = next;
-    taken.push(answer);
-  }
-
-  return { taken, bytes: sent?.bytes };
+function bytesOf(url: string, content: readonly string[]): number {
+  return Buffer.byteLength(JSON.stringify({ url, content }));
 }
 
 test("the answers that fit the request cap are saved, one more is refused, and the stubs of the answers left out stay as stubs", async ({
@@ -59,13 +46,12 @@ test("the answers that fit the request cap are saved, one more is refused, and t
 }) => {
   const url = postUrl(POST_ID);
   const answers = HIDDEN.map((id) => answerFor(id));
-  const { taken, bytes } = fitting(url, answers);
+  const taken = answers.slice(0, 2);
 
-  expect(taken, "answers that fit beside the first").toHaveLength(2);
-  expect(bytes).toBeLessThanOrEqual(REQUEST_CAP_BYTES);
-  expect(Buffer.byteLength(JSON.stringify({ url, content: [MAIN, ...taken] }))).toBe(bytes);
+  expect(bytesOf(url, [MAIN, ...taken])).toBeLessThanOrEqual(REQUEST_CAP_BYTES);
+  expect(bytesOf(url, [MAIN, ...answers.slice(0, 3)])).toBeGreaterThan(REQUEST_CAP_BYTES);
 
-  const over = await sendThread(request, { url, content: [MAIN, ...taken, answers[2] ?? ""] });
+  const over = await sendThread(request, { url, content: [MAIN, ...answers.slice(0, 3)] });
 
   expect(over.status).toBe(413);
   expect(z.object({ error: z.string() }).parse(await over.response.json()).error).toBe(

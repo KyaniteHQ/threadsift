@@ -3,14 +3,8 @@ import { z } from "zod";
 
 import { redditRefOf } from "../../src/core/links.ts";
 import { pause } from "../../src/core/pause.ts";
-import {
-  MORE_REQUEST_CAP,
-  type SentAnswers,
-  type ThreadAnswers,
-  admit,
-  emptyRequest,
-  hiddenRepliesOf,
-} from "../../src/core/thread-answers.ts";
+import { ITEM_REQUEST_BYTES, MORE_REQUEST_CAP } from "../../src/core/request-limits.ts";
+import { type ThreadAnswers, hiddenRepliesOf } from "../../src/core/thread-answers.ts";
 
 export const REQUEST_SPACING_MS = 500;
 
@@ -78,7 +72,6 @@ interface Plan {
 }
 
 interface Filled {
-  readonly sent: Readonly<SentAnswers>;
   readonly answers: readonly string[];
   readonly waiting: readonly string[];
   readonly asked: readonly string[];
@@ -87,7 +80,12 @@ interface Filled {
 async function fillFrom(plan: Readonly<Plan>, state: Readonly<Filled>): Promise<readonly string[]> {
   const [next, ...waiting] = state.waiting;
 
-  if (next === undefined || state.asked.length >= MORE_REQUEST_CAP || Date.now() >= plan.giveUpAt) {
+  if (
+    next === undefined ||
+    state.asked.length >= MORE_REQUEST_CAP ||
+    Date.now() >= plan.giveUpAt ||
+    charactersIn(state.answers) > ITEM_REQUEST_BYTES
+  ) {
     return state.answers;
   }
 
@@ -105,16 +103,34 @@ async function fillFrom(plan: Readonly<Plan>, state: Readonly<Filled>): Promise<
 
   if (found === null) return fillFrom(plan, { ...state, waiting, asked });
 
-  const sent = admit(state.sent, answer.text);
+  return fillFrom(plan, {
+    answers: [...state.answers, answer.text],
+    waiting: [...waiting, ...found],
+    asked,
+  });
+}
 
-  return sent === null
-    ? state.answers
-    : fillFrom(plan, {
-        sent,
-        answers: [...state.answers, answer.text],
-        waiting: [...waiting, ...found],
-        asked,
-      });
+function byteLength(text: string): number {
+  return new Blob([text]).size;
+}
+
+function charactersIn(answers: readonly string[]): number {
+  return answers.reduce((total, answer) => total + answer.length, 0);
+}
+
+function fitted(url: string, answers: ThreadAnswers): ThreadAnswers | null {
+  const [first, ...later] = answers;
+  let size = byteLength(JSON.stringify({ url, content: answers }));
+
+  while (size > ITEM_REQUEST_BYTES) {
+    const dropped = later.pop();
+
+    if (dropped === undefined) return null;
+
+    size -= byteLength(JSON.stringify(dropped)) + 1;
+  }
+
+  return [first, ...later];
 }
 
 export async function fetchThread(tab: Readonly<ThreadTab>): Promise<ThreadAnswers | null> {
@@ -124,14 +140,13 @@ export async function fetchThread(tab: Readonly<ThreadTab>): Promise<ThreadAnswe
 
   const first = await answerFor(tab.id, threadAddress(tab));
   const hidden = first.status === 200 ? hiddenRepliesOf(first.text, ref.postId) : null;
-  const sent = admit(emptyRequest(tab.url), first.text);
 
-  if (hidden === null || sent === null) return null;
+  if (hidden === null) return null;
 
   const [, ...later] = await fillFrom(
     { tab, postId: ref.postId, giveUpAt: Date.now() + FILL_DEADLINE_MS },
-    { sent, answers: [first.text], waiting: hidden, asked: [] },
+    { answers: [first.text], waiting: hidden, asked: [] },
   );
 
-  return [first.text, ...later];
+  return fitted(tab.url, [first.text, ...later]);
 }

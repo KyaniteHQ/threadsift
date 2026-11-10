@@ -4,7 +4,7 @@ import { bodyLimit } from "hono/body-limit";
 import { csrf } from "hono/csrf";
 
 import type { Ports } from "../core/ports.ts";
-import { ITEM_REQUEST_BYTES } from "../core/thread-answers.ts";
+import { ITEM_REQUEST_BYTES } from "../core/request-limits.ts";
 import { tokenIsValid } from "../core/tokens.ts";
 import { isOwnerOnly, isPublic } from "./access-rules.ts";
 import { ownerHasSession } from "./session-cookie.ts";
