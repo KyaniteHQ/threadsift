@@ -1,7 +1,7 @@
 import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { SEARCH_LABEL } from "../web/src/text.ts";
+import { LOAD_MORE, SEARCH_LABEL } from "../web/src/text.ts";
 import { choice, rowsInOrder } from "./filters.ts";
 import {
   LIBRARY_SIZE,
@@ -251,3 +251,38 @@ test("a search that leaves as many rows as the list had still loads the next pag
   await rows.last().scrollIntoViewIfNeeded();
   await expect(rows).toHaveCount(2 * PAGE_SIZE);
 });
+
+for (const layout of ["list", "grid"] as const) {
+  test(`${layout}: the keyboard alone reaches Load more after the last row, and Enter loads the next page`, async () => {
+    const { page } = library().screen;
+    const gate = Promise.withResolvers<void>();
+
+    await page.route(
+      (url) => url.pathname === "/api/items" && url.searchParams.has("cursor"),
+      async (route) => {
+        await gate.promise;
+        await route.continue();
+      },
+    );
+
+    await openLibrary(page, layout);
+
+    const rows = page.locator("article.it");
+    await expect(rows).toHaveCount(PAGE_SIZE);
+    await rows.last().locator("a, button").last().focus();
+    await page.keyboard.press("Tab");
+
+    const more = page.getByRole("button", { name: LOAD_MORE });
+    await expect(more).toBeFocused();
+    await expect(more).toHaveAttribute("aria-disabled", "true");
+
+    gate.resolve();
+    await expect(rows).toHaveCount(2 * PAGE_SIZE);
+    await expect(more).toBeFocused();
+    await expect(more).not.toHaveAttribute("aria-disabled", "true");
+
+    await page.keyboard.press("Enter");
+    await expect.poll(() => rows.count()).toBeGreaterThanOrEqual(3 * PAGE_SIZE);
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  });
+}

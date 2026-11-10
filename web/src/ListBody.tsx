@@ -12,6 +12,7 @@ import {
   EMPTY_LIST,
   LOADING_LABEL,
   LOAD_FAILED,
+  LOAD_MORE,
   NO_RESULTS,
   RETRY_LABEL,
   SORT_LABEL,
@@ -140,15 +141,22 @@ function ItemList({
 
 function MoreRows({
   state,
-  retry,
-}: Readonly<{ state: "idle" | "loading" | "failed"; retry: () => void }>) {
-  if (state === "loading") return <Loading />;
-
+  more,
+}: Readonly<{ state: "idle" | "loading" | "failed"; more: () => void }>) {
   if (state === "failed") {
-    return <Notice text={LOAD_FAILED} action={retry} label={RETRY_LABEL} alert />;
+    return <Notice text={LOAD_FAILED} action={more} label={RETRY_LABEL} alert />;
   }
 
-  return null;
+  return (
+    <>
+      {state === "loading" ? <Loading /> : null}
+      <div className="noresults">
+        <button type="button" className="btn" aria-disabled={state === "loading"} onClick={more}>
+          {LOAD_MORE}
+        </button>
+      </div>
+    </>
+  );
 }
 
 export function EmptyState({ heading, line }: Readonly<{ heading: string; line: string }>) {
@@ -193,7 +201,7 @@ function LoadedList({
       {bare ? null : (
         <ItemList items={list.items} loadedAt={list.loadedAt} rows={rows} shared={shared} />
       )}
-      {list.next === null ? null : <MoreRows state={list.more} retry={more} />}
+      {list.next === null ? null : <MoreRows state={list.more} more={more} />}
     </>
   );
 }
