@@ -41,10 +41,10 @@ jobs:
           if [[ -z $(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number') ]]; then
             gh pr create --head "$BRANCH" --base main \
               --title "chore(deps): update devenv.lock" \
-              --body "\`devenv update\` moved \`devenv.lock\`. A pull request opened with \`GITHUB_TOKEN\` holds its \`pull_request\` runs for approval, so the workflow approves the \`gate\` run on each head it pushes."
+              --body "\`devenv update\` moved \`devenv.lock\`. A pull request opened with \`GITHUB_TOKEN\` holds its \`pull_request\` runs for approval, so the workflow approves the \`gate\` and \`bundle\` runs on each head it pushes."
           fi
           head=$(git rev-parse HEAD)
-          pending=(gate)
+          pending=(gate bundle)
           for _ in $(seq 1 30); do
             runs=$(gh run list --branch "$BRANCH" --event pull_request --commit "$head" --json workflowName,databaseId,status --jq '.[] | "\(.workflowName) \(.databaseId) \(.status)"')
             left=()
