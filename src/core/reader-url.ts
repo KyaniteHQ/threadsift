@@ -6,7 +6,7 @@ export function readerUrl(url: string): string {
   return READABLE_URL.test(url) || keyOfFileRoute(url) !== null ? url : "";
 }
 
-const STORED_PICTURE_TEXT = "\uFFFC";
+export const STORED_PICTURE_TEXT = "\uFFFC";
 
 export function pictureText(alt: string, src: string): string {
   if (alt !== "") return alt;

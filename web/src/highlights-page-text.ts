@@ -14,6 +14,7 @@ export const HIGHLIGHTS_PAGE = {
   noResults: "No highlights or notes match",
   kindHighlight: "Highlight",
   kindNote: "Note",
+  picture: "Image",
   untitled: "Untitled",
   loadMore: "Load more",
   loadingMore: "Loading more…",

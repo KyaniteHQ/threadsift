@@ -1,7 +1,9 @@
-import { memo, useCallback, useId } from "react";
+import { type ReactNode, memo, useCallback, useId } from "react";
 
 import type { Entry } from "../../src/core/highlights-page-contract.ts";
+import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
+import { Icon } from "./Icon.tsx";
 import { type Place, placePath } from "./place.ts";
 import { NOT_FOUND } from "./reader-text.ts";
 import { useInternalLink } from "./routing.ts";
@@ -12,10 +14,32 @@ function placeOf(entry: Readonly<Entry>): Place {
   return entry.kind === "highlight" ? { kind: "highlight", id: entry.id } : { kind: "note" };
 }
 
+function Picture() {
+  return (
+    <span className="hp-pic">
+      <Icon name="picture" className="ic ic-s" label={HIGHLIGHTS_PAGE.picture} />
+    </span>
+  );
+}
+
+function quoteOf(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let offset = 0;
+
+  for (const words of text.split(STORED_PICTURE_TEXT)) {
+    if (offset > 0) nodes.push(<Picture key={offset} />);
+
+    nodes.push(words);
+    offset += words.length + 1;
+  }
+
+  return nodes;
+}
+
 function Passage({ entry, id }: Readonly<{ entry: Entry; id: string }>) {
   return entry.kind === "highlight" ? (
     <blockquote id={id} className="hp-text" dir="auto">
-      {entry.text}
+      {quoteOf(entry.text)}
     </blockquote>
   ) : (
     <p id={id} className="hp-text" dir="auto">

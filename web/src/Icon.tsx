@@ -33,6 +33,7 @@ const PATHS = {
   search: ["M18 11a7 7 0 1 1-14 0 7 7 0 0 1 14 0z", "M20 20l-3.5-3.5"],
   filters: ["M4 6h16", "M7 12h10", "M10 18h4"],
   chevron: ["M6 9l6 6 6-6"],
+  picture: ["M4 5h16v14H4z", "M4 16l4.5-4.5 3.5 3.5 2.5-2.5L20 17", "M15.5 9.5v0.01"],
   eye: ["M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z", "M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"],
   "eye-off": [
     "M3 3l18 18",
@@ -44,9 +45,16 @@ const PATHS = {
 export function Icon({
   name,
   className,
-}: Readonly<{ name: keyof typeof PATHS; className: string }>) {
+  label,
+}: Readonly<{ name: keyof typeof PATHS; className: string; label?: string }>) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden={label === undefined ? "true" : undefined}
+      role={label === undefined ? undefined : "img"}
+      aria-label={label}
+    >
       {PATHS[name].map((path) => (
         <path key={path} d={path} />
       ))}
