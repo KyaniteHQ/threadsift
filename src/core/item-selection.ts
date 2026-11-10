@@ -1,6 +1,7 @@
-import { desc, eq, getTableColumns } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
+import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { JOINED_VIEW_COLUMNS } from "./joined-view.ts";
 import type { Database } from "./ports.ts";
 import { digests, githubRepos, items } from "./schema.ts";
@@ -51,13 +52,47 @@ function listedItems(db: Database) {
 
 export type ListedItemRow = Awaited<ReturnType<typeof listedItems>>[number];
 
-export async function listItems(db: Database, filters: Readonly<ItemFilters>) {
+function pageQuery(
+  db: Database,
+  filters: Readonly<ItemFilters>,
+  cursor: Readonly<ItemCursor> | null,
+) {
+  const after =
+    cursor === null
+      ? undefined
+      : sql`(${items.savedAt}, ${items.id}) < (${cursor.savedAt}, ${cursor.id})`;
+
+  return listedItems(db)
+    .where(and(itemConditions(filters), after))
+    .orderBy(desc(items.savedAt), desc(items.id))
+    .limit(ITEMS_PAGE_SIZE + 1);
+}
+
+function pageOf(rows: readonly ListedItemRow[]) {
+  const shown = rows.slice(0, ITEMS_PAGE_SIZE);
+  const last = shown.at(-1);
+
+  return {
+    items: shown,
+    next: rows.length > shown.length && last !== undefined ? formatCursor(last) : null,
+  };
+}
+
+export async function listItems(
+  db: Database,
+  filters: Readonly<ItemFilters>,
+  cursor: Readonly<ItemCursor> | null,
+) {
+  if (cursor !== null) {
+    return { ...pageOf(await pageQuery(db, filters, cursor)), counts: null };
+  }
+
   const [rows, ...counted] = await db.batch([
-    listedItems(db).where(itemConditions(filters)).orderBy(desc(items.savedAt), desc(items.id)),
+    pageQuery(db, filters, null),
     ...countQueries(db, filters),
   ]);
 
-  return { items: rows, counts: filterCounts(counted) };
+  return { ...pageOf(rows), counts: filterCounts(counted) };
 }
 
 export async function getListedItem(db: Database, id: number): Promise<ListedItemRow | undefined> {

@@ -1,10 +1,15 @@
 import { LibraryMasthead } from "./LibraryMasthead.tsx";
-import { ListBody } from "./ListBody.tsx";
+import { ListBody, Notice } from "./ListBody.tsx";
 import { ListTools } from "./ListTools.tsx";
 import { HINT_LIST } from "./reader-text.ts";
 import type { Pages } from "./routing.ts";
+import { LOAD_FAILED, RETRY_LABEL } from "./text.ts";
 import type { LibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
+
+function LookupNotice({ failed, again }: Readonly<{ failed: boolean; again: () => void }>) {
+  return failed ? <Notice text={LOAD_FAILED} action={again} label={RETRY_LABEL} alert /> : null;
+}
 
 export function ListColumn({
   view,
@@ -38,6 +43,7 @@ export function ListColumn({
         leave={side.leaveSearch}
       />
       <main ref={listPane} className="list" tabIndex={-1}>
+        <LookupNotice failed={actions.lookupFailed} again={actions.lookAgain} />
         <ListBody
           list={shown}
           cardImages={look.settings.images === "on"}
@@ -49,6 +55,7 @@ export function ListColumn({
           clearAll={view.clearAll}
           open={side.reader.open}
           toggleRead={side.reader.toggleRead}
+          more={library.more}
         />
       </main>
     </div>

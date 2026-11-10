@@ -92,14 +92,18 @@ export function choice(page: Page, groupName: string, label: string): Locator {
   return group(page, groupName).getByRole("button", { name: new RegExp(`^${label}\\s*\\d`, "u") });
 }
 
-export async function rowIds(page: Page): Promise<number[]> {
+export async function rowsInOrder(page: Page): Promise<number[]> {
   const keys = await page
     .locator("article.it")
     .evaluateAll((rows) =>
       rows.map((row) => (row instanceof HTMLElement ? (row.dataset["key"] ?? "") : "")),
     );
 
-  return keys.map(Number).toSorted((left, right) => left - right);
+  return keys.map(Number);
+}
+
+export async function rowIds(page: Page): Promise<number[]> {
+  return (await rowsInOrder(page)).toSorted((left, right) => left - right);
 }
 
 export async function expectRows(

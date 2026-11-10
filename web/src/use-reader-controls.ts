@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 
 import type { Attention } from "./ItemRow.tsx";
-import type { Writes } from "./library.ts";
+import type { Paging, Writes } from "./library.ts";
 import type { ListState } from "./list-state.ts";
 import type { ReaderControls } from "./Reader.tsx";
 import type { Route } from "./routing.ts";
 import { type Announcement, useAnnouncement } from "./use-announcement.ts";
 import { useDeletion } from "./use-deletion.ts";
-import { useNavigation } from "./use-navigation.ts";
+import { type LibraryDom, useNavigation } from "./use-navigation.ts";
 import type { Look } from "./use-root.ts";
 
 function modeOf(look: Readonly<Look>): ReaderControls["mode"] {
@@ -56,27 +56,26 @@ export function useReaderControls({
   look,
   attend,
   writes,
-  inReader,
-  appOf,
+  dom,
 }: Readonly<{
   list: ListState;
   route: Route;
   look: Look;
   attend: (attention: Attention) => void;
-  writes: Writes;
-  inReader: () => boolean;
-  appOf: () => Element | null;
+  writes: Writes & Paging;
+  dom: LibraryDom;
 }>): ReaderState {
   const [hintInBar, setHintInBar] = useState(false);
   const { announcement, announce, toggleRead } = useAnnouncement(writes.setRead);
-  const remove = useDeletion({ route, attend, announce, appOf, remove: writes.remove });
+  const remove = useDeletion({ route, attend, announce, appOf: dom.appOf, remove: writes.remove });
 
   const navigation = useNavigation({
     list,
     route,
     attend,
-    inReader,
-    appOf,
+    dom,
+    more: writes.more,
+    announce,
     covers: look.reader !== "pane",
   });
 

@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { type RefObject, memo, useEffect, useRef } from "react";
 
 import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { Item } from "../../src/http/schemas.ts";
@@ -12,11 +12,13 @@ import {
   EMPTY_LIST,
   LOADING_LABEL,
   LOAD_FAILED,
+  LOAD_MORE,
   NO_RESULTS,
   RETRY_LABEL,
   SORT_LABEL,
   headLabel,
 } from "./text.ts";
+import { useNearEnd } from "./use-near-end.ts";
 
 const SKELETON_ROWS = [0, 1, 2] as const;
 export const RESULTS_ID = "results";
@@ -89,29 +91,30 @@ export function ListHeadGhost() {
   );
 }
 
+interface RowProps {
+  readonly cardImages: boolean;
+  readonly openId: number | null;
+  readonly attention: Attention;
+  readonly attended: () => void;
+  readonly tryAgain: (item: Item) => void;
+  readonly open: (id: number) => void;
+  readonly toggleRead: (item: Item) => void;
+}
+
 function ItemList({
   items,
   loadedAt,
-  cardImages,
-  openId,
-  attention,
-  attended,
-  tryAgain,
-  open,
-  toggleRead,
+  rows,
+  shared,
 }: Readonly<{
   items: readonly Item[];
   loadedAt: number;
-  cardImages: boolean;
-  openId: number | null;
-  attention: Attention;
-  attended: () => void;
-  tryAgain: (item: Item) => void;
-  open: (id: number) => void;
-  toggleRead: (item: Item) => void;
+  rows: RefObject<HTMLOListElement | null>;
+  shared: Readonly<RowProps>;
 }>) {
   return (
     <ol
+      ref={rows}
       // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from an ol with list-style none
       role="list"
       className="items"
@@ -122,17 +125,37 @@ function ItemList({
           <ItemRow
             item={item}
             now={loadedAt}
-            cardImages={cardImages}
-            isOpen={item.id === openId}
-            attention={item.id === attention?.id ? attention : null}
-            attended={attended}
-            tryAgain={tryAgain}
-            open={open}
-            toggleRead={toggleRead}
+            cardImages={shared.cardImages}
+            isOpen={item.id === shared.openId}
+            attention={item.id === shared.attention?.id ? shared.attention : null}
+            attended={shared.attended}
+            tryAgain={shared.tryAgain}
+            open={shared.open}
+            toggleRead={shared.toggleRead}
           />
         </li>
       ))}
     </ol>
+  );
+}
+
+function MoreRows({
+  state,
+  more,
+}: Readonly<{ state: "idle" | "loading" | "failed"; more: () => void }>) {
+  if (state === "failed") {
+    return <Notice text={LOAD_FAILED} action={more} label={RETRY_LABEL} alert />;
+  }
+
+  return (
+    <>
+      {state === "loading" ? <Loading /> : null}
+      <div className="noresults">
+        <button type="button" className="btn" aria-disabled={state === "loading"} onClick={more}>
+          {LOAD_MORE}
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -146,30 +169,49 @@ export function EmptyState({ heading, line }: Readonly<{ heading: string; line: 
   );
 }
 
-interface ListBodyProps {
+interface ListBodyProps extends RowProps {
   readonly list: ListState;
-  readonly cardImages: boolean;
-  readonly openId: number | null;
-  readonly attention: Attention;
-  readonly attended: () => void;
   readonly retry: () => void;
-  readonly tryAgain: (item: Item) => void;
   readonly clearAll: () => void;
-  readonly open: (id: number) => void;
-  readonly toggleRead: (item: Item) => void;
+  readonly more: () => void;
+}
+
+function LoadedList({
+  list,
+  more,
+  shared,
+}: Readonly<{
+  list: Extract<ListState, { readonly status: "ready" }>;
+  more: ListBodyProps["more"];
+  shared: Readonly<RowProps>;
+}>) {
+  const rows = useRef<HTMLOListElement>(null);
+
+  const waiting = list.next !== null && list.more === "idle";
+  const bare = list.items.length === 0;
+
+  useNearEnd(rows, list.items, waiting, more);
+
+  useEffect(() => {
+    if (bare && waiting) more();
+  }, [bare, more, waiting]);
+
+  return (
+    <>
+      {bare ? null : (
+        <ItemList items={list.items} loadedAt={list.loadedAt} rows={rows} shared={shared} />
+      )}
+      {list.next === null ? null : <MoreRows state={list.more} more={more} />}
+    </>
+  );
 }
 
 export const ListBody = memo(function ListBody({
   list,
-  cardImages,
-  openId,
-  attention,
-  attended,
   retry,
-  tryAgain,
   clearAll,
-  open,
-  toggleRead,
+  more,
+  ...shared
 }: Readonly<ListBodyProps>) {
   if (list.status === "loading") {
     return <Loading />;
@@ -179,25 +221,15 @@ export const ListBody = memo(function ListBody({
     return <Notice text={LOAD_FAILED} action={retry} label={RETRY_LABEL} alert />;
   }
 
-  if (list.items.length === 0 && list.counts.total > 0) {
+  const exhausted = list.items.length === 0 && list.next === null;
+
+  if (exhausted && list.counts.total > 0) {
     return <Notice text={NO_RESULTS} action={clearAll} label={CLEAR_ALL} alert={false} />;
   }
 
-  if (list.items.length === 0) {
+  if (exhausted) {
     return <EmptyState heading={EMPTY_LIST.heading} line={EMPTY_LIST.line} />;
   }
 
-  return (
-    <ItemList
-      items={list.items}
-      loadedAt={list.loadedAt}
-      cardImages={cardImages}
-      openId={openId}
-      attention={attention}
-      attended={attended}
-      tryAgain={tryAgain}
-      open={open}
-      toggleRead={toggleRead}
-    />
-  );
+  return <LoadedList list={list} more={more} shared={shared} />;
 });

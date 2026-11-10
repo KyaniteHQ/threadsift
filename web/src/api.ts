@@ -19,11 +19,13 @@ import {
   ErrorResponseSchema,
   ItemDetailResponseSchema,
   ItemListResponseSchema,
+  ItemPageResponseSchema,
   ItemResponseSchema,
   SavedItemResponseSchema,
   type Item,
   type ItemDetail,
   type ItemList,
+  type ItemPage,
 } from "../../src/http/schemas.ts";
 import { call, parsedFrom, unexpected } from "./calls.ts";
 import { type Filters, queryOf } from "./filters.ts";
@@ -112,6 +114,10 @@ export async function putNote(
 
 export function fetchItems(filters: Readonly<Filters>): Promise<ItemList> {
   return parsedFrom("GET", `/api/items${queryOf(filters)}`, ItemListResponseSchema);
+}
+
+export function fetchItemsAfter(filters: Readonly<Filters>, cursor: string): Promise<ItemPage> {
+  return parsedFrom("GET", `/api/items${queryOf(filters, cursor)}`, ItemPageResponseSchema);
 }
 
 export function fetchHighlightsPage(

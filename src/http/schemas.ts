@@ -4,6 +4,7 @@ import { ReaderDigestSchema } from "../core/ai-contract.ts";
 import { CommentsViewSchema } from "../core/comment-view.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { HighlightsViewSchema } from "../core/highlight-contract.ts";
+import { parseCursor } from "../core/item-page.ts";
 import {
   DIGEST_OUTCOMES,
   FAILURE_REASONS,
@@ -111,6 +112,10 @@ export const ItemQuerySchema = z.object({
   source: z.enum(SOURCES).optional(),
   read: z.enum(READ_STATES).optional(),
   url: HttpUrlSchema.optional(),
+  cursor: z
+    .string()
+    .refine((text) => parseCursor(text) !== null, "not a well-formed cursor")
+    .optional(),
 });
 
 const CountedNameSchema = z.object({
@@ -132,9 +137,15 @@ export const FilterCountsSchema = z.object({
   tags: z.array(CountedNameSchema).readonly(),
 });
 
-export const ItemListResponseSchema = z.object({
+export const ItemPageResponseSchema = z.object({
   items: z.array(ItemSchema),
-  counts: FilterCountsSchema,
+  next: z.string().nullable(),
+});
+
+export const ItemListResponseSchema = ItemPageResponseSchema.extend({ counts: FilterCountsSchema });
+
+export const ItemReadResponseSchema = ItemPageResponseSchema.extend({
+  counts: FilterCountsSchema.optional(),
 });
 
 export const REFUSAL_CODES = [
@@ -206,5 +217,7 @@ export type Token = z.infer<typeof TokenSchema>;
 export type Item = z.infer<typeof ItemSchema>;
 
 export type ItemList = z.infer<typeof ItemListResponseSchema>;
+
+export type ItemPage = z.infer<typeof ItemPageResponseSchema>;
 
 export type ItemDetail = z.infer<typeof ItemDetailSchema>;

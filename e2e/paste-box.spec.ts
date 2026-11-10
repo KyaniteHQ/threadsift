@@ -6,6 +6,7 @@ import { alertRegion } from "./card.ts";
 import { storeReadyLinks } from "./ingest.ts";
 import { addButton, newRunId, pasteCard, pasteField, rowOf, submitLink } from "./links.ts";
 import { fontsLoaded } from "./look.ts";
+import { expectRowInPaneView } from "./reader.ts";
 
 function rowCount(page: Page): Promise<number> {
   return page.locator("article.it").count();
@@ -238,31 +239,6 @@ async function pasteKnownLinkBelowTheFold(
   await expect(pasteField(page)).toHaveValue("");
 
   return known.body.item.id;
-}
-
-async function expectRowInPaneView(page: Page, key: number) {
-  await expect
-    .poll(
-      () =>
-        page.evaluate((id) => {
-          const row = document
-            .querySelector(`article.it[data-key="${id}"]`)
-            ?.getBoundingClientRect();
-
-          const headerBottom = document.querySelector(".list-head")?.getBoundingClientRect().bottom;
-          const paneBottom = document.querySelector(".list")?.getBoundingClientRect().bottom;
-
-          return (
-            row !== undefined &&
-            headerBottom !== undefined &&
-            paneBottom !== undefined &&
-            row.top >= headerBottom - 0.5 &&
-            row.bottom <= paneBottom + 0.5
-          );
-        }, key),
-      { message: "the row sits between the list header and the bottom of the list pane" },
-    )
-    .toBe(true);
 }
 
 test("pasting a known link brings its row into view and keeps focus in the field", async ({

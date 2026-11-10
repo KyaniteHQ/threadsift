@@ -58,15 +58,17 @@ export function focusNeighbour(
   scope: Element | null,
   direction: 1 | -1,
   { links, row, link }: Readonly<Cards>,
-): void {
+): boolean {
   const all = [...(scope?.querySelectorAll<HTMLElement>(links) ?? [])];
   const focused = document.activeElement?.closest(row)?.querySelector(link);
   const at = all.findIndex((each) => each === focused);
   const next = at < 0 ? (direction > 0 ? all.at(0) : all.at(-1)) : all[at + direction];
 
   next?.focus();
+
+  return next !== undefined;
 }
 
-export function focusNeighbourCard(scope: Element | null, direction: 1 | -1): void {
-  focusNeighbour(scope, direction, LIBRARY_CARDS);
+export function focusNeighbourCard(scope: Element | null, direction: 1 | -1): boolean {
+  return focusNeighbour(scope, direction, LIBRARY_CARDS);
 }
