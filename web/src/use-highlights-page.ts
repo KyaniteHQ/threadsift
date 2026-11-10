@@ -25,15 +25,6 @@ function readyFrom(query: Filters, page: Readonly<HighlightsPage>): Ready {
   return { status: "ready", query, ...page, more: "idle" };
 }
 
-export function matchedCount(
-  { sources }: Readonly<HighlightsPage["counts"]>,
-  { source }: Readonly<Filters>,
-): number {
-  return sources
-    .filter(({ key }) => source === null || key === source)
-    .reduce((sum, { count }) => sum + count, 0);
-}
-
 async function attempt(
   filters: Readonly<Filters>,
   cursor: string | null,

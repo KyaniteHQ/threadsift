@@ -22,6 +22,7 @@ import {
   sameItem,
   survivorOf,
   withItem,
+  withKnown,
   withRead,
   withoutItem,
 } from "./list-state.ts";
@@ -37,6 +38,10 @@ export interface Writes {
     id: number,
     whenGone: (survivor: number | null) => void,
   ) => Promise<number | null>;
+}
+
+export interface Paging {
+  readonly more: () => Promise<number | null>;
 }
 
 type SetList = Dispatch<SetStateAction<ListState>>;
@@ -99,7 +104,7 @@ function useSave(setList: SetList, upkeep: Readonly<Upkeep>) {
 
       const was = latest.current.known.find((item) => item.id === result.item.id);
       stamps.mark(result.item.id);
-      setList((current) => withItem(current, result.item, unfiltered.current));
+      setList((current) => withItem(current, result.item, unfiltered.current, !result.known));
       reads.settle(!unfiltered.current || digestMoved(was, result.item));
 
       return result;
@@ -159,9 +164,9 @@ export function useLibrary() {
   const [list, setList] = useState<ListState>({ status: "loading", known: [] });
   const { filters, ...changes } = useFilters();
   const [stamps] = useState(newStamps);
-  const reads = useReads(setList, filters, stamps);
-  const unfiltered = useLatest(!isFiltered(filters));
   const latest = useLatest(list);
+  const reads = useReads(setList, filters, stamps, latest);
+  const unfiltered = useLatest(!isFiltered(filters));
   const upkeep = { reads, stamps, unfiltered, latest };
   const save = useSave(setList, upkeep);
   const setRead = useSetRead(setList, upkeep);
@@ -173,5 +178,9 @@ export function useLibrary() {
     reads.reload();
   }, [reads]);
 
-  return { list, filters, save, setRead, remove, retry, ...changes };
+  const know = useCallback((item: Readonly<Item>) => {
+    setList((current) => withKnown(current, item));
+  }, []);
+
+  return { list, filters, save, setRead, remove, retry, know, more: reads.more, ...changes };
 }

@@ -1,7 +1,7 @@
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import type { SaveTarget } from "./api.ts";
+import { type SaveTarget, fetchItem } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { SaveAnswer } from "./library.ts";
 import type { ListState } from "./list-state.ts";
@@ -27,7 +27,11 @@ function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLEl
   return retryAndKeepPlace;
 }
 
-function useOpenItem(list: ListState, { openId, replace }: Route) {
+function useOpenItem(
+  list: ListState,
+  { openId, replace }: Route,
+  know: (item: Readonly<Item>) => void,
+) {
   const [attention, setAttention] = useState<Attention>(
     openId === null ? null : { id: openId, focus: true },
   );
@@ -36,10 +40,25 @@ function useOpenItem(list: ListState, { openId, replace }: Route) {
     list.status === "ready" && openId !== null && !list.known.some((item) => item.id === openId);
 
   useEffect(() => {
-    if (missing) {
-      replace("/");
-    }
-  }, [missing, replace]);
+    let current = true;
+
+    const find = async (): Promise<void> => {
+      if (!missing || openId === null) return;
+
+      const found = await fetchItem(openId).catch(() => "gone" as const);
+
+      if (!current) return;
+
+      if (found === "gone") replace("/");
+      else know(found);
+    };
+
+    void find();
+
+    return () => {
+      current = false;
+    };
+  }, [know, missing, openId, replace]);
 
   const attended = useCallback(() => {
     setAttention(null);
@@ -114,11 +133,12 @@ export function useListActions(
   actions: Readonly<{
     save: (target: SaveTarget) => Promise<SaveAnswer>;
     retry: () => void;
+    know: (item: Readonly<Item>) => void;
   }>,
   pane: RefObject<HTMLElement | null>,
   route: Route,
 ) {
-  const { attention, attend, attended } = useOpenItem(list, route);
+  const { attention, attend, attended } = useOpenItem(list, route, actions.know);
   const { queue, retryItem } = usePasteQueue();
 
   const tryAgain = useCallback(

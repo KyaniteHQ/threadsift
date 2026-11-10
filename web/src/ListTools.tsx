@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 
 import type { Filters } from "./filters.ts";
+import { matchedCount } from "./list-counts.ts";
 import { type ListState, countsOf } from "./list-state.ts";
 import { ListHead, ListHeadGhost } from "./ListBody.tsx";
 import { SearchField } from "./SearchField.tsx";
@@ -41,7 +42,11 @@ export function ListTools({
       />
       {reserves ? <ListHeadGhost /> : null}
       {list.status === "ready" && counts !== null ? (
-        <ListHead counts={counts} shown={list.items.length} filters={filters} />
+        <ListHead
+          counts={counts}
+          shown={list.next === null ? list.items.length : matchedCount(counts, filters)}
+          filters={filters}
+        />
       ) : null}
     </>
   );

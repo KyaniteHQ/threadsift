@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect } from "@playwright/test";
 import { z } from "zod";
 
-import { ItemListResponseSchema } from "../src/http/schemas.ts";
+import { listAllMatching } from "./api.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { sweepNow } from "./ingest.ts";
 
@@ -21,11 +21,7 @@ export async function matchesInOrder(
   q: string,
   more: Readonly<Record<string, string>> = {},
 ): Promise<number[]> {
-  const { status, response } = await listed(request, { q, ...more });
-
-  if (status !== 200) throw new Error(`GET /api/items?q=${q} answered ${status}`);
-
-  return ItemListResponseSchema.parse(await response.json()).items.map(({ id }) => id);
+  return (await listAllMatching(request, { q, ...more })).map(({ id }) => id);
 }
 
 export async function matches(

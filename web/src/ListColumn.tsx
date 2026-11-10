@@ -49,6 +49,7 @@ export function ListColumn({
           clearAll={view.clearAll}
           open={side.reader.open}
           toggleRead={side.reader.toggleRead}
+          more={library.more}
         />
       </main>
     </div>

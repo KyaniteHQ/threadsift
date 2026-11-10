@@ -6,8 +6,9 @@ import { z } from "zod";
 import type { Digest } from "../src/core/ai-contract.ts";
 import { SaveRefusalSchema } from "../src/http/save-schemas.ts";
 import {
-  ItemListResponseSchema,
   ItemDetailResponseSchema,
+  ItemListResponseSchema,
+  ItemPageResponseSchema,
   SavedItemResponseSchema,
 } from "../src/http/schemas.ts";
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";
@@ -119,10 +120,29 @@ export async function postLinkFetched(
   return { status: first.status, body: last.body, fetches };
 }
 
-export async function listAll(request: APIRequestContext) {
-  const response = await request.get("/api/items");
+export async function listAllMatching(
+  request: APIRequestContext,
+  params: Readonly<Record<string, string>> = {},
+) {
+  const first = await request.get("/api/items", { params });
+  expect(first.status(), `GET /api/items ${JSON.stringify(params)}`).toBe(200);
+  const { items, next } = ItemListResponseSchema.parse(await first.json());
+  const all = [...items];
+  let cursor = next;
 
-  return ItemListResponseSchema.parse(await response.json()).items;
+  while (cursor !== null) {
+    const response = await request.get("/api/items", { params: { ...params, cursor } });
+    expect(response.status(), `GET /api/items after ${cursor}`).toBe(200);
+    const page = ItemPageResponseSchema.parse(await response.json());
+    all.push(...page.items);
+    cursor = page.next;
+  }
+
+  return all;
+}
+
+export function listAll(request: APIRequestContext) {
+  return listAllMatching(request);
 }
 
 export async function listForRun(request: APIRequestContext, run: string) {

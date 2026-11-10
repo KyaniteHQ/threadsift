@@ -81,6 +81,7 @@ type ListOperation = z.infer<typeof OpenApiDocument>["paths"]["/api/items"]["get
 
 function expectListContract(schemas: Schemas, list: ListOperation): void {
   expect(list.parameters.map(({ name, in: place }) => `${place}:${name}`).toSorted()).toEqual([
+    "query:cursor",
     "query:q",
     "query:read",
     "query:source",
@@ -90,7 +91,7 @@ function expectListContract(schemas: Schemas, list: ListOperation): void {
   ]);
 
   const answer = jsonSchemaOf(list.responses["200"] ?? { content: {} });
-  expect(propertyNames(schemas, answer).toSorted()).toEqual(["counts", "items"]);
+  expect(propertyNames(schemas, answer).toSorted()).toEqual(["counts", "items", "next"]);
 
   expect(propertyNames(schemas, propertyOf(schemas, answer, "counts")).toSorted()).toEqual([
     "reads",
