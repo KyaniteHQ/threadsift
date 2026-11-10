@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isRefusedHost } from "../src/core/addresses.ts";
 import { readArticle } from "../src/core/article.ts";
 import { catalogKey } from "../src/core/catalog.ts";
 
@@ -44,23 +43,5 @@ describe("the parsers turn literal input into the values the library stores", ()
     assert.equal(catalogKey("  machine   LEARNING "), key);
     assert.equal(catalogKey("Café"), catalogKey("Café"));
     assert.notEqual(catalogKey("Machine Learning"), catalogKey("Machine Learnings"));
-  });
-
-  it("refuses the hosts that reach the Instance's own network and accepts public ones", () => {
-    for (const host of [
-      "localhost",
-      "app.localhost",
-      "127.0.0.1",
-      "10.0.0.5",
-      "192.168.1.20",
-      "169.254.169.254",
-      "[::1]",
-    ]) {
-      assert.equal(isRefusedHost(host), true, host);
-    }
-
-    for (const host of ["example.com", "8.8.8.8", "[2606:4700:4700::1111]"]) {
-      assert.equal(isRefusedHost(host), false, host);
-    }
   });
 });

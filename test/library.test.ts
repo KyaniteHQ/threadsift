@@ -189,13 +189,45 @@ describe("a link the owner pastes reaches the library, and the owner finds, read
     assert.equal((await listed("?source=article")).filter((id) => id === first.id).length, 1);
   });
 
-  it("refuses a link to a private address", async () => {
-    const refused = await instance.send("POST", "/api/items", {
-      url: "http://127.0.0.1:8080/admin",
-    });
+  it("refuses a link to a host on the Instance's own network and accepts one on a public address", async () => {
+    const refusedHosts = [
+      "localhost",
+      "app.localhost",
+      "127.0.0.1",
+      "10.0.0.5",
+      "192.168.1.20",
+      "169.254.169.254",
+      "[::1]",
+    ];
 
-    assert.equal(refused.status, 400);
-    assert.equal(ErrorResponseSchema.parse(JSON.parse(refused.body)).fetch, "refused");
+    const answers = await Promise.all(
+      refusedHosts.map((host) =>
+        instance.send("POST", "/api/items", { url: `http://${host}:8080/admin` }),
+      ),
+    );
+
+    assert.deepEqual(
+      answers.map(({ status, body }) => [
+        status,
+        ErrorResponseSchema.parse(JSON.parse(body)).fetch,
+      ]),
+      refusedHosts.map(() => [400, "refused"]),
+    );
+
+    const publicHosts = ["8.8.8.8", "[2606:4700:4700::1111]"];
+
+    const settled = await Promise.all(
+      publicHosts.map(async (host) => {
+        const { item } = await paste(`https://${host}/guide`, { page: PAGE });
+
+        return (await instance.settledItem(item.id)).status;
+      }),
+    );
+
+    assert.deepEqual(
+      settled,
+      publicHosts.map(() => "ready"),
+    );
   });
 
   it("saves a Highlight and a Note, reads them back, and removes the Item from the list and search when it is deleted", async () => {
