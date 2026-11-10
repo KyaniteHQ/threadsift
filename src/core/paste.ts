@@ -6,11 +6,12 @@ import type { Ports } from "./ports.ts";
 import { THREAD_CONTENT_BYTES } from "./reddit-json.ts";
 import { saveItem } from "./save-link.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
+import type { ThreadAnswers } from "./thread-answers.ts";
 import { type ThreadPasteResult, saveThread } from "./thread-paste.ts";
 
 export interface Supplied {
   readonly digest?: Digest | undefined;
-  readonly content?: string | undefined;
+  readonly content?: ThreadAnswers | undefined;
   readonly page?: SuppliedPage | undefined;
 }
 
@@ -37,7 +38,9 @@ export async function paste(
 
   if (content === undefined) return saveItem(ports, absoluteUrl, digest);
 
-  if (utf8Length(content) > THREAD_CONTENT_BYTES) return { kind: "too-large", field: "content" };
+  if (content.some((answer) => utf8Length(answer) > THREAD_CONTENT_BYTES)) {
+    return { kind: "too-large", field: "content" };
+  }
 
-  return saveThread(ports, absoluteUrl, { digest, content });
+  return saveThread(ports, absoluteUrl, { digest, answers: content });
 }

@@ -15,7 +15,7 @@ export type Node =
       readonly body: string;
       readonly replies: readonly Node[];
     }
-  | { readonly kind: "more" };
+  | { readonly kind: "more"; readonly children: readonly string[] };
 
 export function comment(
   id: string,
@@ -26,7 +26,11 @@ export function comment(
   return { kind: "comment", id, author, body, replies };
 }
 
-export const MORE: Node = { kind: "more" };
+export const MORE: Node = { kind: "more", children: ["x1", "x2", "x3"] };
+
+export function more(...children: readonly string[]): Node {
+  return { kind: "more", children };
+}
 
 export interface Post {
   readonly id: string;
@@ -42,7 +46,7 @@ function wireChildren(nodes: readonly Node[], parent: string, counter: { next: n
     if (node.kind === "more") {
       return {
         kind: "more",
-        data: { parent_id: parent, count: 3, children: ["x1", "x2", "x3"] },
+        data: { parent_id: parent, count: node.children.length, children: node.children },
       };
     }
 
@@ -123,7 +127,7 @@ export const AUTHORED_DIGEST = {
 
 export async function sendThread(
   request: APIRequestContext,
-  fields: Readonly<{ url: string; content: string; digest?: object }>,
+  fields: Readonly<{ url: string; content: string | readonly string[]; digest?: object }>,
 ) {
   const response = await request.post("/api/items", { data: fields });
 
@@ -132,7 +136,7 @@ export async function sendThread(
 
 export async function savedThread(
   request: APIRequestContext,
-  fields: Readonly<{ url: string; content: string; digest?: object }>,
+  fields: Readonly<{ url: string; content: string | readonly string[]; digest?: object }>,
 ) {
   const { status, response } = await sendThread(request, fields);
   expect(status, await response.text()).toBeLessThan(300);

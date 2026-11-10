@@ -19,12 +19,18 @@ export interface WireListing {
 
 export type WireChild =
   | { readonly kind: "t1"; readonly data: WireComment }
-  | { readonly kind: "more"; readonly data: { readonly parent_id: string } };
+  | {
+      readonly kind: "more";
+      readonly data: { readonly parent_id: string; readonly children: readonly string[] };
+    };
 
 const Child: z.ZodType<WireChild> = z.lazy(() =>
   z.union([
     z.object({ kind: z.literal("t1"), data: CommentData }),
-    z.object({ kind: z.literal("more"), data: z.object({ parent_id: z.string() }) }),
+    z.object({
+      kind: z.literal("more"),
+      data: z.object({ parent_id: z.string(), children: z.array(WireCommentId).default([]) }),
+    }),
   ]),
 );
 

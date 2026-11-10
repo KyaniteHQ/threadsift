@@ -1,21 +1,28 @@
 import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
-import { utf8Length } from "./digest-prompt.ts";
 import type { RedditRef } from "./links.ts";
-import { INLINE_TEXT_BYTES } from "./post-text-files.ts";
-import { type WireChild, type WireComment, type WirePost, ThreadJson } from "./reddit-wire.ts";
+import {
+  ThreadRefused,
+  type Walked,
+  checkedIds,
+  checkedMetadata,
+  checkedText,
+  graft,
+  refuse,
+  walk,
+} from "./reddit-tree.ts";
+import { type WireChild, type WirePost, ThreadJson } from "./reddit-wire.ts";
+import type { ThreadAnswers } from "./thread-answers.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
 
 export const THREAD_CONTENT_BYTES = 4 * 1024 * 1024;
 
-export const METADATA_BYTES = 4096;
-
 export interface ParsedThread {
   readonly title: string;
-  readonly author: string;
-  readonly community: string;
+  readonly author: string | null;
+  readonly community: string | null;
   readonly postText: string | null;
-  readonly postedAt: number;
+  readonly postedAt: number | null;
   readonly reported: number | null;
   readonly nodes: readonly ThreadNode[];
 }
@@ -24,88 +31,8 @@ export type ThreadParse =
   | { readonly kind: "thread"; readonly thread: ParsedThread }
   | { readonly kind: "refused"; readonly reason: string };
 
-class ThreadRefused extends Error {}
-
-interface Walked {
-  readonly comment: WireComment | null;
-  readonly parent: string;
-  readonly depth: number;
-}
-
-interface Pending {
-  readonly child: WireChild;
-  readonly parent: string;
-  readonly depth: number;
-}
-
-function refuse(reason: string): never {
-  throw new ThreadRefused(reason);
-}
-
 function milliseconds(seconds: number): number {
   return Math.round(seconds * 1000);
-}
-
-function checkedText(text: string, what: string): void {
-  if (utf8Length(text) > INLINE_TEXT_BYTES) {
-    refuse(`${what} is longer than ${String(INLINE_TEXT_BYTES)} bytes`);
-  }
-}
-
-function checkedMetadata(fields: Readonly<Record<string, string>>): void {
-  for (const [what, text] of Object.entries(fields)) {
-    if (utf8Length(text) > METADATA_BYTES) {
-      refuse(`${what} is longer than ${String(METADATA_BYTES)} bytes`);
-    }
-  }
-}
-
-function repliesOf({ replies }: Readonly<WireComment>): readonly WireChild[] {
-  return replies === undefined || replies === "" ? [] : replies.data.children;
-}
-
-function pendingOf(children: readonly WireChild[], parent: string, depth: number): Pending[] {
-  return children.map((child) => ({ child, parent, depth })).toReversed();
-}
-
-function walk(children: readonly WireChild[], root: string): readonly Walked[] {
-  const walked: Walked[] = [];
-  const ids = new Set<string>();
-  const stack = pendingOf(children, root, 0);
-
-  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
-    const { child, parent, depth } = next;
-
-    if (child.data.parent_id !== parent) {
-      refuse(`a parent_id does not match the tree under ${parent}`);
-    }
-
-    if (child.kind === "more") {
-      walked.push({ comment: null, parent, depth });
-      continue;
-    }
-
-    const { data } = child;
-
-    if (ids.has(data.id)) {
-      refuse(`the comment id ${data.id} appears twice`);
-    }
-
-    ids.add(data.id);
-    checkedMetadata({
-      [`the id of comment ${data.id}`]: data.id,
-      [`the author of comment ${data.id}`]: data.author,
-      [`the parent_id of comment ${data.id}`]: data.parent_id,
-    });
-    checkedText(data.body, `the body of comment ${data.id}`);
-    walked.push({ comment: data, parent, depth });
-
-    for (const reply of pendingOf(repliesOf(data), storedCommentId(data.id), depth + 1)) {
-      stack.push(reply);
-    }
-  }
-
-  return walked;
 }
 
 function nodeOf(
@@ -210,15 +137,24 @@ function ofComment(
   };
 }
 
+function firstParentOf(children: readonly WireChild[]): string {
+  return children[0]?.data.parent_id ?? "";
+}
+
 function boundaryOf(
   children: readonly WireChild[],
   post: Readonly<WirePost>,
   ref: Readonly<RedditRef>,
 ): string {
-  return ref.commentId === undefined ? `t3_${post.id}` : (children[0]?.data.parent_id ?? "");
+  return ref.commentId === undefined ? `t3_${post.id}` : firstParentOf(children);
 }
 
-function parseThread(content: string, ref: Readonly<RedditRef>): ParsedThread {
+interface Answer {
+  readonly post: WirePost;
+  readonly children: readonly WireChild[];
+}
+
+function readAnswer(content: string, ref: Readonly<RedditRef>): Answer {
   const parsed = ThreadJson.safeParse(JSON.parse(content));
 
   if (!parsed.success) {
@@ -234,6 +170,13 @@ function parseThread(content: string, ref: Readonly<RedditRef>): ParsedThread {
     return refuse(`the post id ${post.id} is not the id in the link`);
   }
 
+  return { post, children: comments.data.children };
+}
+
+function parseThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ParsedThread {
+  const [content, ...later] = answers;
+  const { post, children } = readAnswer(content, ref);
+
   checkedMetadata({
     "the post title": post.title,
     "the post author": post.author,
@@ -241,16 +184,25 @@ function parseThread(content: string, ref: Readonly<RedditRef>): ParsedThread {
   });
   checkedText(post.selftext, "the post text");
 
-  const walked = walk(comments.data.children, boundaryOf(comments.data.children, post, ref));
+  const merged = later.reduce<readonly Walked[]>(
+    (into, text) => {
+      const answer = readAnswer(text, ref).children;
+
+      return graft(into, walk(answer, firstParentOf(answer)));
+    },
+    walk(children, boundaryOf(children, post, ref)),
+  );
+
+  const walked = checkedIds(merged);
 
   return ref.commentId === undefined
     ? ofPost(post, walked)
     : ofComment(post, walked, ref.commentId.toLowerCase());
 }
 
-export function parseRedditThread(content: string, ref: Readonly<RedditRef>): ThreadParse {
+export function parseRedditThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ThreadParse {
   try {
-    return { kind: "thread", thread: parseThread(content, ref) };
+    return { kind: "thread", thread: parseThread(answers, ref) };
   } catch (error) {
     if (error instanceof ThreadRefused) return { kind: "refused", reason: error.message };
 

@@ -1,6 +1,7 @@
 import Defuddle, { createMarkdownContent } from "defuddle/full";
 
 import { replaceMedia } from "../../src/core/article-media.ts";
+import { redditRefOf } from "../../src/core/links.ts";
 import type { SuppliedPage } from "../../src/core/supplied-page.ts";
 
 export interface CapturedPage extends SuppliedPage {
@@ -73,6 +74,12 @@ function showSelectedImages(content: Document, shown: readonly ShownImage[], bas
   }
 }
 
+function titleOf(live: Document, extracted: string, url: string): string {
+  const titles = redditRefOf(url) === null ? [live.title, extracted] : [extracted, live.title];
+
+  return titles.find((title) => title.trim() !== "") ?? "";
+}
+
 export function capturePage(live: Document): CapturedPage {
   const url = live.location.href;
   const shown = shownImages(live);
@@ -85,7 +92,7 @@ export function capturePage(live: Document): CapturedPage {
   return {
     url,
     markdown: createMarkdownContent(content.body.innerHTML, url),
-    title: live.title.trim() === "" ? extracted.title : live.title,
+    title: titleOf(live, extracted.title, url),
     author: extracted.author,
     published: extracted.published,
     videos: linked.flatMap(({ url: address, video }) => (video ? [address] : [])),

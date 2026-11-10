@@ -1,17 +1,19 @@
 import type { Digest } from "./ai-contract.ts";
 import { type SaveResult, foundItem, queuedWrites } from "./items.ts";
 import { closeFetchJobs, enqueueRows } from "./job-rows.ts";
-import { isGitHubLink, isRedditOrXLink, isRefusedLink, parseLink } from "./links.ts";
+import { isGitHubLink, isRedditOrXLink, isRefusedLink, parseLink, redditRefOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { ownerOf } from "./reddit-thread.ts";
 import { PAGE_BYTES, type SuppliedPage, pageBytes } from "./supplied-page.ts";
+import { saveThreadPage } from "./thread-paste.ts";
 
 export type PageSaveResult =
   | SaveResult
   | { readonly kind: "invalid"; readonly field: "page"; readonly reason: string }
   | { readonly kind: "too-large"; readonly field: "page" };
 
-const NOT_A_PAGE_LINK = "only a link to an article or another web page takes a page";
+const NOT_A_PAGE_LINK =
+  "only a link to an article, another web page, or a Reddit post or comment takes a page";
 
 async function queuePage(
   ports: Ports,
@@ -48,11 +50,15 @@ export function savePage(
 ): Promise<PageSaveResult> | PageSaveResult {
   if (isRefusedLink(absoluteUrl)) return { kind: "refused" };
 
-  if (isRedditOrXLink(absoluteUrl) || isGitHubLink(absoluteUrl)) {
+  const ref = redditRefOf(absoluteUrl);
+
+  if (ref === null && (isRedditOrXLink(absoluteUrl) || isGitHubLink(absoluteUrl))) {
     return { kind: "invalid", field: "page", reason: NOT_A_PAGE_LINK };
   }
 
-  return pageBytes(page) > PAGE_BYTES
-    ? { kind: "too-large", field: "page" }
-    : queuePage(ports, absoluteUrl, digest, page);
+  if (pageBytes(page) > PAGE_BYTES) return { kind: "too-large", field: "page" };
+
+  return ref === null
+    ? queuePage(ports, absoluteUrl, digest, page)
+    : saveThreadPage(ports, absoluteUrl, { digest, page, ref });
 }

@@ -32,7 +32,7 @@ const saveItemRoute = createRoute({
   method: "post",
   path: "/api/items",
   description:
-    "Save a link as an Item. `content` supplies the Reddit JSON of a thread. `page` supplies the text of a web page that the caller read in its own browser tab: `markdown` (the page text), `title`, and optionally `author`, `published` (an ISO 8601 date) and `videos` (the video addresses the Markdown links to). The server publishes a `page` like a fetched article, with the same 100-word minimum, image storage and Highlight anchoring, and never fetches the page itself. A link takes `content` or `page`, not both, and `page` takes no Reddit, X or GitHub link.",
+    "Save a link as an Item. `content` supplies the Reddit JSON of a thread: one text, or 1 to 101 texts, the thread's `.json` first and then the permalink answers (`/comments/<post>/_/<comment>.json`) that fill its `more` stubs, each holding one comment at its top. `page` supplies the text of a web page that the caller read in its own browser tab: `markdown` (the page text), `title`, and optionally `author`, `published` (an ISO 8601 date) and `videos` (the video addresses the Markdown links to). The server publishes a `page` like a fetched article, with the same 100-word minimum, image storage and Highlight anchoring, and never fetches the page itself. A link takes `content` or `page`, not both. `page` takes no X or GitHub link and no Reddit link that is not a post or a comment; a Reddit post or comment takes it as its text, with no comment rows.",
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
     201: jsonBody(
@@ -45,11 +45,11 @@ const saveItemRoute = createRoute({
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      "The body is not an absolute http or https URL, or its host is not globally reachable. With `content`: the link is not a Reddit post or comment link, or `content` is not the Reddit JSON of that thread (malformed JSON, not a post Listing and a comment Listing, a post id that is not the link's, a missing or deleted requested comment, a repeated comment id, a parent_id that does not match the tree, or a text over 1,000,000 bytes). With `page`: the link is a Reddit, X or GitHub link, or `content` came too. The Item is unchanged.",
+      "The body is not an absolute http or https URL, or its host is not globally reachable. With `content`: the link is not a Reddit post or comment link, or `content` is not the Reddit JSON of that thread (malformed JSON, not a post Listing and a comment Listing, a post id that is not the link's, a missing or deleted requested comment, a repeated comment id, a parent_id that does not match the tree, a text over 1,000,000 bytes, or an answer after the first that fills no `more` stub of the thread). With `page`: the link is an X or GitHub link or a Reddit link that is not a post or comment, a Reddit page has no title, or `content` came too. The Item is unchanged.",
     ),
     413: jsonBody(
       ErrorResponseSchema,
-      "`content` is longer than 4 MiB, `page` is longer than 1,000,000 bytes once serialized as JSON, or the request body is longer than 8 MiB. Other routes refuse a body over 64 KiB. The Item is unchanged.",
+      "A text of `content` is longer than 4 MiB, `page` is longer than 1,000,000 bytes once serialized as JSON, or the request body is longer than 8 MiB. Other routes refuse a body over 64 KiB. The Item is unchanged.",
     ),
     503: jsonBody(
       ErrorResponseSchema,

@@ -102,6 +102,7 @@ export function segmentsOf(pathname: string): string[] {
 export interface RedditRef {
   readonly postId: string;
   readonly commentId: string | undefined;
+  readonly community: string | undefined;
 }
 
 function isRedditHost(host: string): boolean {
@@ -117,7 +118,7 @@ function redditRef(host: string, segments: readonly string[]): RedditRef | null 
     const [postId] = segments;
 
     return segments.length === 1 && isRedditId(postId)
-      ? { postId: postId.toLowerCase(), commentId: undefined }
+      ? { postId: postId.toLowerCase(), commentId: undefined, community: undefined }
       : null;
   }
 
@@ -136,7 +137,11 @@ function redditRef(host: string, segments: readonly string[]): RedditRef | null 
     return null;
   }
 
-  return { postId: postId.toLowerCase(), commentId: commentId?.toLowerCase() };
+  return {
+    postId: postId.toLowerCase(),
+    commentId: commentId?.toLowerCase(),
+    community: hasPrefix && prefix === "r" ? segments[1] : undefined,
+  };
 }
 
 function redditLink({ postId, commentId }: Readonly<RedditRef>): Link {

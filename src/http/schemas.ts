@@ -15,6 +15,7 @@ import {
 import { NoteViewSchema } from "../core/note-contract.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
 import { SuppliedPageSchema } from "../core/supplied-page.ts";
+import { ThreadAnswersSchema } from "../core/thread-answers.ts";
 import { ItemImageSchema, SizedImageSchema } from "./item-image.ts";
 
 const HttpUrlSchema = z.url({ protocol: /^https?$/u });
@@ -92,7 +93,7 @@ const ItemDetailSchema = withStatus(
 );
 
 export const SaveItemRequestSchema = z.object({
-  content: z.string().optional(),
+  content: ThreadAnswersSchema.optional(),
   digest: DigestSchema.optional(),
   page: SuppliedPageSchema.optional(),
   url: z.string().trim().pipe(HttpUrlSchema),

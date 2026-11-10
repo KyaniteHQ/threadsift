@@ -2,8 +2,10 @@ import { browser } from "wxt/browser";
 import { z } from "zod";
 
 import { SuppliedPageSchema } from "../../src/core/supplied-page.ts";
+import type { ThreadAnswers } from "../../src/core/thread-answers.ts";
 import { type Config, hostPattern } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
+import { type ThreadTab, fetchThread } from "./reddit-thread.ts";
 import type { SaveState } from "./state.ts";
 
 const CapturedSchema = SuppliedPageSchema.extend({ url: z.string() });
@@ -16,23 +18,47 @@ export const REQUEST_DEADLINE_MS = 25_000;
 
 const WEB_PAGE = /^https?:/u;
 
-async function capture(): Promise<z.infer<typeof CapturedSchema> | "page-blocked"> {
+type Captured = z.infer<typeof CapturedSchema>;
+
+type Body =
+  | { readonly url: string; readonly content: ThreadAnswers }
+  | { readonly url: string; readonly page: Omit<Captured, "url"> };
+
+async function activeTab(): Promise<ThreadTab | null> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
 
-  if (tab?.id === undefined || !WEB_PAGE.test(tab.url ?? "")) return "page-blocked";
+  return tab?.id !== undefined && WEB_PAGE.test(tab.url ?? "")
+    ? { id: tab.id, url: tab.url ?? "" }
+    : null;
+}
 
+async function capturedPage(tabId: number): Promise<Captured | null> {
   try {
     const [injected] = await browser.scripting.executeScript({
-      target: { tabId: tab.id },
+      target: { tabId },
       files: ["/capture.js"],
     });
 
     const captured = CapturedSchema.safeParse(injected?.result);
 
-    return captured.success ? captured.data : "page-blocked";
+    return captured.success ? captured.data : null;
   } catch {
-    return "page-blocked";
+    return null;
   }
+}
+
+async function bodyOf(tab: Readonly<ThreadTab>): Promise<Body | null> {
+  const answers = await fetchThread(tab);
+
+  if (answers !== null) return { url: tab.url, content: answers };
+
+  const captured = await capturedPage(tab.id);
+
+  if (captured === null) return null;
+
+  const { url, ...page } = captured;
+
+  return { url, page };
 }
 
 async function refusedState(response: Response): Promise<SaveState> {
@@ -42,7 +68,9 @@ async function refusedState(response: Response): Promise<SaveState> {
 
   if (refusal.data.fetch === "refused") return { kind: "private-link" };
 
-  return refusal.data.error.startsWith("page:") ? { kind: "unsupported-link" } : { kind: "failed" };
+  return refusal.data.error.startsWith("page: only ")
+    ? { kind: "unsupported-link" }
+    : { kind: "failed" };
 }
 
 async function stateOf(response: Response, origin: string): Promise<SaveState> {
@@ -69,17 +97,12 @@ async function stateOf(response: Response, origin: string): Promise<SaveState> {
   }
 }
 
-async function send(
-  { origin, token }: Readonly<Config>,
-  captured: Readonly<z.infer<typeof CapturedSchema>>,
-): Promise<SaveState> {
-  const { url, ...page } = captured;
-
+async function send({ origin, token }: Readonly<Config>, body: Readonly<Body>): Promise<SaveState> {
   try {
     const response = await fetch(new URL("/api/items", origin), {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ url, page }),
+      body: JSON.stringify(body),
       redirect: "error",
       signal: AbortSignal.timeout(REQUEST_DEADLINE_MS),
     });
@@ -99,7 +122,8 @@ export async function savePage(): Promise<SaveState> {
     return { kind: "access-missing" };
   }
 
-  const captured = await capture();
+  const tab = await activeTab();
+  const body = tab === null ? null : await bodyOf(tab);
 
-  return captured === "page-blocked" ? { kind: "page-blocked" } : send(config, captured);
+  return body === null ? { kind: "page-blocked" } : send(config, body);
 }

@@ -111,7 +111,7 @@ test("a page that a link cannot take is refused with its field named, and nothin
   const page = { markdown: WORDS, title: "Refused" };
 
   const cases = [
-    { url: "https://www.reddit.com/r/typescript/comments/abc123/a_post/", error: /^page: only/u },
+    { url: "https://www.reddit.com/r/typescript/", error: /^page: only/u },
     { url: "https://x.com/someone/status/1234567890", error: /^page: only/u },
     { url: "https://github.com/kepano/defuddle", error: /^page: only/u },
     { url: "http://127.0.0.1:9/page", error: /^url: /u },
@@ -129,6 +129,54 @@ test("a page that a link cannot take is refused with its field named, and nothin
   expect(both.status()).toBe(400);
   expect(await errorOf(both)).toBe("page: a link takes content or a page, not both");
   expect(await listAll(owner)).toEqual([]);
+});
+
+test("a Reddit post or comment link takes a page as its text, with the community from the link, and no thread rows", async () => {
+  const { owner, instance } = library;
+  const run = Date.now().toString(36);
+  const postUrl = `https://www.reddit.com/r/typescript/comments/p${run}/a_post/`;
+
+  const saved = await savePage(postUrl, {
+    markdown: `Post text ${WORDS}\n\n> a comment the page carried`,
+    title: "  A   post\n title ",
+    author: " ada ",
+    published: "2025-03-04T05:06:07Z",
+  });
+
+  expect(saved.status()).toBe(201);
+
+  const { item } = SavedItemResponseSchema.parse(await saved.json());
+  const done = await settled(owner, item.id);
+
+  expect(done).toMatchObject({
+    status: "ready",
+    source: "reddit",
+    kind: "reddit-post",
+    fetch: "ok",
+    title: "A post title",
+    author: "ada",
+    community: "typescript",
+    postedAt: Date.parse("2025-03-04T05:06:07Z"),
+    normalizedUrl: `https://reddit.com/r/all/comments/p${run}/`,
+  });
+  expect(done.postText).toContain("> a comment the page carried");
+  expect(done.comments).toMatchObject({ received: 0, kept: 0 });
+  expect(jobsOf(item.id, instance).map(({ kind }) => kind)).not.toContain("fetch");
+
+  const commentSaved = await savePage(`${postUrl}c${run}/`, {
+    markdown: WORDS,
+    title: "A comment",
+  });
+
+  expect(commentSaved.status()).toBe(201);
+  expect(
+    await settled(owner, SavedItemResponseSchema.parse(await commentSaved.json()).item.id),
+  ).toMatchObject({ source: "reddit", kind: "reddit-comment", postText: WORDS });
+
+  const untitled = await savePage(`${postUrl}d${run}/`, { markdown: WORDS, title: "  " });
+
+  expect(untitled.status()).toBe(400);
+  expect(await errorOf(untitled)).toBe("page: the page has no title");
 });
 
 const FILLERS = [
