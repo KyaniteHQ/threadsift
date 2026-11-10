@@ -1,7 +1,7 @@
 import { type Page, type TestInfo, expect } from "@playwright/test";
 
 import { DEFAULTS } from "../design/system/settings.ts";
-import { postLink } from "./api.ts";
+import { postLink, postPage } from "./api.ts";
 import { collectDesign } from "./design-checks.ts";
 import {
   BANDS_AT_WIDTH,
@@ -11,8 +11,13 @@ import {
   resize,
 } from "./design-screens.ts";
 import { loadFamilies, watchRequests } from "./fonts.ts";
-import { newRunId, titledPage } from "./links.ts";
+import { newRunId } from "./links.ts";
 import { app, attachScreenshot, computed, openPanel, panel, storeSettings } from "./look.ts";
+import { paragraphs, reader } from "./reader.ts";
+
+const POST_TEXT = "paragraph 1 holds a few ordinary sentences";
+
+const PARAGRAPHS = 6;
 
 export type StyleExpectation = Readonly<{
   id: string;
@@ -129,6 +134,20 @@ async function checkTheme(
   }
 }
 
+async function postStyleItems(page: Page): Promise<string> {
+  const run = newRunId();
+
+  const [, article] = await Promise.all([
+    postLink(page.request, `https://example.com/${run}/style`),
+    postPage(page.request, `https://style-${run}.invalid/article`, {
+      title: `Style ${run}`,
+      markdown: paragraphs(PARAGRAPHS, "Style"),
+    }),
+  ]);
+
+  return article.body.url;
+}
+
 export async function checkStyle(
   page: Page,
   info: TestInfo,
@@ -136,12 +155,7 @@ export async function checkStyle(
 ): Promise<void> {
   const { origins, fontFiles } = watchRequests(page);
 
-  const run = newRunId();
-
-  const [first] = await Promise.all([
-    postLink(page.request, titledPage(`Style ${run}`)),
-    postLink(page.request, `https://example.com/${run}/style`),
-  ]);
+  const address = await postStyleItems(page);
 
   for (const theme of THEMES) {
     await storeSettings(
@@ -158,9 +172,10 @@ export async function checkStyle(
         comments: "cards",
         images: "off",
       },
-      first.body.url,
+      address,
     );
     await expect(page.locator(".it.open")).toBeVisible();
+    await expect(reader(page).locator(".md")).toContainText(POST_TEXT);
     await expect(app(page)).toHaveAttribute("data-style", style.id);
     await checkTheme(page, style, theme, info);
   }

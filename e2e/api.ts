@@ -69,6 +69,20 @@ export async function postLink(request: APIRequestContext, url: string, timeout?
   return { status, body: { ...body, item: await settled(request, body.item.id, timeout) } };
 }
 
+export async function postPage(
+  request: APIRequestContext,
+  url: string,
+  page: Readonly<{ title: string; markdown: string }>,
+) {
+  const response = await request.post("/api/items", { data: { url, page } });
+  const body = SavedItemResponseSchema.parse(await response.json());
+
+  return {
+    status: response.status(),
+    body: { ...body, item: await settled(request, body.item.id) },
+  };
+}
+
 const FETCH_ATTEMPTS = 3;
 
 export type Fetch = Awaited<ReturnType<typeof itemOf>>["fetch"];
