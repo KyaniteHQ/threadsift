@@ -75,6 +75,7 @@ export function useReaderControls({
     attend,
     dom,
     more: writes.more,
+    announce,
     covers: look.reader !== "pane",
   });
 

@@ -3,9 +3,10 @@ import { z } from "zod";
 
 import { itemPath } from "../src/core/item-path.ts";
 import { NEXT_ITEM, PREVIOUS_ITEM } from "../web/src/reader-text.ts";
+import { LOAD_FAILED } from "../web/src/text.ts";
 import { link } from "./grid.ts";
 import { PAGE_SIZE, largeLibrary, openLibrary } from "./library-large.ts";
-import { DESKTOP, storeSettings } from "./look.ts";
+import { DESKTOP, afterTwoFrames, storeSettings } from "./look.ts";
 import { reader, row } from "./reader.ts";
 
 const library = largeLibrary();
@@ -89,4 +90,72 @@ test("an Item far past the first page opens by its address and the list still ho
   await expect(reader(page)).toContainText(titles[0]?.title ?? "no title");
   await expect(page).toHaveURL(openAt(far));
   await expect(page.locator("article.it")).toHaveCount(PAGE_SIZE);
+});
+
+function cursorReads(url: URL): boolean {
+  return url.pathname === "/api/items" && url.searchParams.has("cursor");
+}
+
+test("a press of k or Escape while the next page is on its way is not undone when the page lands", async () => {
+  const { screen, order } = library();
+  const { page } = screen;
+  const last = order[PAGE_SIZE - 1] ?? 0;
+  const gate = Promise.withResolvers<void>();
+
+  await page.route(cursorReads, async (route) => {
+    await gate.promise;
+    await route.continue();
+  });
+
+  await openLibrary(page, "list", itemPath(last));
+  await expect(reader(page)).toBeVisible();
+
+  await page.keyboard.press("j");
+  await page.keyboard.press("k");
+  await expect(page).toHaveURL(openAt(order[PAGE_SIZE - 2] ?? 0));
+  gate.resolve();
+  await expect(page.locator("article.it")).toHaveCount(2 * PAGE_SIZE);
+  await afterTwoFrames(page);
+  await expect(page).toHaveURL(openAt(order[PAGE_SIZE - 2] ?? 0));
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+
+  const slow = Promise.withResolvers<void>();
+
+  await page.route(cursorReads, async (route) => {
+    await slow.promise;
+    await route.continue();
+  });
+
+  await page.goto(itemPath(last));
+  await expect(reader(page)).toBeVisible();
+
+  await page.keyboard.press("j");
+  await page.keyboard.press("Escape");
+  await expect(reader(page)).toBeHidden();
+  slow.resolve();
+  await expect(page.locator("article.it")).toHaveCount(2 * PAGE_SIZE);
+  await afterTwoFrames(page);
+  await expect(reader(page)).toBeHidden();
+  await expect(page).toHaveURL(/\/$/u);
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+});
+
+test("a failed page read at the edge of the Grid sheet is announced inside the sheet, and Next reads the page again", async () => {
+  const { screen, order } = library();
+  const { page } = screen;
+  const last = order[PAGE_SIZE - 1] ?? 0;
+  const afterLast = order[PAGE_SIZE] ?? 0;
+
+  await page.route(cursorReads, (route) => route.fulfill({ status: 500, body: "{}" }));
+  await page.setViewportSize(DESKTOP);
+  await storeSettings(page, { layout: "grid", openAs: "sheet" }, itemPath(last));
+  await expect(page.locator("article.it")).toHaveCount(PAGE_SIZE);
+
+  await page.getByRole("button", { name: NEXT_ITEM }).click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toHaveText(LOAD_FAILED);
+  await expect(page).toHaveURL(openAt(last));
+
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await page.getByRole("button", { name: NEXT_ITEM }).click();
+  await expect(page).toHaveURL(openAt(afterLast));
 });

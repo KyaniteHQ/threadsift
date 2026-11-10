@@ -27,29 +27,30 @@ function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLEl
   return retryAndKeepPlace;
 }
 
-function useOpenItem(
+function useLookup(
   list: ListState,
   { openId, replace }: Route,
   know: (item: Readonly<Item>) => void,
 ) {
-  const [attention, setAttention] = useState<Attention>(
-    openId === null ? null : { id: openId, focus: true },
-  );
+  const [failedFor, setFailedFor] = useState<number | null>(null);
 
   const missing =
     list.status === "ready" && openId !== null && !list.known.some((item) => item.id === openId);
+
+  const lookingUp = missing && openId !== failedFor;
 
   useEffect(() => {
     let current = true;
 
     const find = async (): Promise<void> => {
-      if (!missing || openId === null) return;
+      if (!lookingUp || openId === null) return;
 
-      const found = await fetchItem(openId).catch(() => "gone" as const);
+      const found = await fetchItem(openId).catch(() => "failed" as const);
 
       if (!current) return;
 
       if (found === "gone") replace("/");
+      else if (found === "failed") setFailedFor(openId);
       else know(found);
     };
 
@@ -58,7 +59,23 @@ function useOpenItem(
     return () => {
       current = false;
     };
-  }, [know, missing, openId, replace]);
+  }, [know, lookingUp, openId, replace]);
+
+  if (failedFor !== null && openId !== failedFor) setFailedFor(null);
+
+  const lookupFailed = missing && openId === failedFor;
+
+  const lookAgain = useCallback(() => {
+    setFailedFor(null);
+  }, []);
+
+  return { lookupFailed, lookAgain };
+}
+
+function useOpenItem(list: ListState, { openId }: Route) {
+  const [attention, setAttention] = useState<Attention>(
+    openId === null ? null : { id: openId, focus: true },
+  );
 
   const attended = useCallback(() => {
     setAttention(null);
@@ -138,7 +155,9 @@ export function useListActions(
   pane: RefObject<HTMLElement | null>,
   route: Route,
 ) {
-  const { attention, attend, attended } = useOpenItem(list, route, actions.know);
+  const { attention, attend, attended } = useOpenItem(list, route);
+  const { lookupFailed, lookAgain } = useLookup(list, route, actions.know);
+
   const { queue, retryItem } = usePasteQueue();
 
   const tryAgain = useCallback(
@@ -153,6 +172,8 @@ export function useListActions(
     attention,
     attend,
     attended,
+    lookupFailed,
+    lookAgain,
     queue,
     tryAgain,
     retryItem,

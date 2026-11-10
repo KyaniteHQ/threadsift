@@ -1,4 +1,4 @@
-import { type RefObject, memo, useCallback, useRef } from "react";
+import { type RefObject, memo, useEffect, useRef } from "react";
 
 import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { Item } from "../../src/http/schemas.ts";
@@ -165,7 +165,7 @@ interface ListBodyProps extends RowProps {
   readonly list: ListState;
   readonly retry: () => void;
   readonly clearAll: () => void;
-  readonly more: () => Promise<number | null>;
+  readonly more: () => void;
 }
 
 function LoadedList({
@@ -179,16 +179,21 @@ function LoadedList({
 }>) {
   const rows = useRef<HTMLOListElement>(null);
 
-  const loadMore = useCallback(() => {
-    void more();
-  }, [more]);
+  const waiting = list.next !== null && list.more === "idle";
+  const bare = list.items.length === 0;
 
-  useNearEnd(rows, list.items.length, list.next !== null && list.more === "idle", loadMore);
+  useNearEnd(rows, list.items, waiting, more);
+
+  useEffect(() => {
+    if (bare && waiting) more();
+  }, [bare, more, waiting]);
 
   return (
     <>
-      <ItemList items={list.items} loadedAt={list.loadedAt} rows={rows} shared={shared} />
-      {list.next === null ? null : <MoreRows state={list.more} retry={loadMore} />}
+      {bare ? null : (
+        <ItemList items={list.items} loadedAt={list.loadedAt} rows={rows} shared={shared} />
+      )}
+      {list.next === null ? null : <MoreRows state={list.more} retry={more} />}
     </>
   );
 }
@@ -208,11 +213,13 @@ export const ListBody = memo(function ListBody({
     return <Notice text={LOAD_FAILED} action={retry} label={RETRY_LABEL} alert />;
   }
 
-  if (list.items.length === 0 && list.counts.total > 0) {
+  const exhausted = list.items.length === 0 && list.next === null;
+
+  if (exhausted && list.counts.total > 0) {
     return <Notice text={NO_RESULTS} action={clearAll} label={CLEAR_ALL} alert={false} />;
   }
 
-  if (list.items.length === 0) {
+  if (exhausted) {
     return <EmptyState heading={EMPTY_LIST.heading} line={EMPTY_LIST.line} />;
   }
 

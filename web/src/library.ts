@@ -41,7 +41,7 @@ export interface Writes {
 }
 
 export interface Paging {
-  readonly more: () => Promise<number | null>;
+  readonly more: () => void;
 }
 
 type SetList = Dispatch<SetStateAction<ListState>>;

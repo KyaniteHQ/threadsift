@@ -36,7 +36,7 @@ function replaced(items: readonly Item[], item: Readonly<Item>): Item[] {
   return items.map((current) => (current.id === item.id ? item : current));
 }
 
-function newer(left: Readonly<Item>, right: Readonly<Item>): boolean {
+export function newer(left: Readonly<Item>, right: Readonly<Item>): boolean {
   return left.savedAt > right.savedAt || (left.savedAt === right.savedAt && left.id > right.id);
 }
 
@@ -119,13 +119,16 @@ export interface Answer {
 export interface Settled {
   readonly changed: readonly number[];
   readonly counts: boolean;
-  readonly keeps: boolean;
 }
 
-function olderThan(items: readonly Item[], head: readonly Item[]): readonly Item[] {
-  const last = head.at(-1);
-
-  return last === undefined ? [] : items.filter((item) => newer(last, item));
+function lastWritten(
+  known: readonly Item[],
+  item: Readonly<Item>,
+  changed: readonly number[],
+): Item {
+  return (
+    (changed.includes(item.id) ? known.find((each) => each.id === item.id) : undefined) ?? item
+  );
 }
 
 export function loaded(
@@ -133,26 +136,16 @@ export function loaded(
   answer: Readonly<Answer>,
   settled: Readonly<Settled>,
 ): ListState {
-  const head = answer.items.map(
-    (item) =>
-      (settled.changed.includes(item.id)
-        ? current.known.find((known) => known.id === item.id)
-        : undefined) ?? item,
-  );
-
-  const tail =
-    settled.keeps && current.status === "ready" && answer.next !== null
-      ? olderThan(current.items, head)
-      : [];
+  const items = answer.items.map((item) => lastWritten(current.known, item, settled.changed));
 
   return {
     status: "ready",
-    known: head.reduceRight((all, item) => upserted(all, item), [...current.known]),
-    items: [...head, ...tail],
+    known: items.reduceRight((all, item) => upserted(all, item), [...current.known]),
+    items,
     counts: settled.counts || current.status !== "ready" ? answer.counts : current.counts,
     loadedAt: Date.now(),
     query: answer.query,
-    next: tail.length > 0 && current.status === "ready" ? current.next : answer.next,
+    next: answer.next,
     more: "idle",
   };
 }
@@ -169,13 +162,15 @@ export interface Page {
 export function appended(
   list: Readonly<ListState>,
   page: Readonly<Page>,
-  query: string,
-  cursor: string,
+  position: Readonly<{ query: string; cursor: string; changed: readonly number[] }>,
 ): ListState {
-  if (!continues(list, query, cursor)) return list;
+  if (!continues(list, position.query, position.cursor)) return list;
 
   const have = new Set(list.items.map((item) => item.id));
-  const fresh = page.items.filter((item) => !have.has(item.id));
+
+  const fresh = page.items
+    .filter((item) => !have.has(item.id))
+    .map((item) => lastWritten(list.known, item, position.changed));
 
   return {
     ...list,

@@ -9,24 +9,18 @@ import {
   useState,
 } from "react";
 
+import type { Item } from "../../src/http/schemas.ts";
 import { fetchItems, fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
 import type { Stamps } from "./item-polling.ts";
-import {
-  type Answer,
-  type ListState,
-  appended,
-  continues,
-  failedList,
-  loaded,
-  withMore,
-} from "./list-state.ts";
+import { useMore } from "./list-more.ts";
+import { type Answer, type ListState, failedList, type Page, loaded, newer } from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
 
 type SetList = Dispatch<SetStateAction<ListState>>;
 
 export interface Reads {
-  readonly more: () => Promise<number | null>;
+  readonly more: () => void;
   readonly reload: () => void;
   readonly recount: (wanted: boolean) => void;
   readonly settle: (wanted: boolean) => void;
@@ -115,128 +109,103 @@ function useRecount(wiring: Readonly<Wiring>, reload: () => void, filters: Reado
   );
 }
 
+interface Reach {
+  readonly edge: () => Item | undefined;
+  readonly isCurrent: () => boolean;
+}
+
+function edgeOf(list: Readonly<ListState>, asked: string): Item | undefined {
+  return list.status === "ready" && list.query === asked ? list.items.at(-1) : undefined;
+}
+
+async function continuing(
+  filters: Readonly<Filters>,
+  page: Readonly<Page>,
+  reach: Readonly<Reach>,
+): Promise<Page> {
+  const last = page.items.at(-1);
+  const edge = reach.edge();
+
+  if (
+    page.next === null ||
+    !reach.isCurrent() ||
+    last === undefined ||
+    edge === undefined ||
+    !newer(last, edge)
+  ) {
+    return page;
+  }
+
+  const following = await continuing(filters, await fetchItemsAfter(filters, page.next), reach);
+
+  return { items: [...page.items, ...following.items], next: following.next };
+}
+
+async function readThrough(filters: Readonly<Filters>, reach: Readonly<Reach>) {
+  const first = await fetchItems(filters);
+
+  return { ...first, ...(await continuing(filters, first, reach)) };
+}
+
+function landing(
+  { setList, requests, stamps }: Readonly<Wiring>,
+  request: Readonly<Request>,
+  asked: string,
+  recount: (wanted: boolean) => void,
+) {
+  return (answer: Readonly<Omit<Answer, "query">>): void => {
+    const changed = stamps.changedSince(request.startedAt);
+    const counts = requests.claimCounts(request, changed.length === 0);
+
+    const present = {
+      ...answer,
+      items: answer.items.filter((item) => !stamps.isGone(item.id)),
+      query: asked,
+    };
+
+    setList((current) => loaded(current, present, { changed, counts }));
+
+    if (changed.length > 0) recount(true);
+  };
+}
+
 function useListRead(
   query: Readonly<{ filters: Filters; generation: number }>,
   wiring: Readonly<Wiring>,
   recount: (wanted: boolean) => void,
+  latest: Readonly<RefObject<ListState>>,
 ) {
-  const { setList, requests, stamps } = wiring;
-  const shown = useRef<string | null>(null);
+  const { setList, requests } = wiring;
 
   useEffect(() => {
     const request = requests.list();
     const asked = queryOf(query.filters);
 
-    const land = (answer: Readonly<Omit<Answer, "query">>, keeps: boolean): void => {
-      const changed = stamps.changedSince(request.startedAt);
-      const counts = requests.claimCounts(request, changed.length === 0);
-
-      const present = {
-        ...answer,
-        items: answer.items.filter((item) => !stamps.isGone(item.id)),
-        query: asked,
-      };
-
-      setList((current) => loaded(current, present, { changed, counts, keeps }));
-
-      if (changed.length > 0) recount(true);
+    const reach = {
+      edge: () => edgeOf(latest.current, asked),
+      isCurrent: () => requests.isCurrent(request),
     };
 
+    const land = landing(wiring, request, asked, recount);
+
     const read = async (): Promise<void> => {
-      const answer = await fetchItems(query.filters).catch(() => null);
+      const answer = await readThrough(query.filters, reach).catch(() => null);
 
-      if (requests.isCurrent(request)) {
-        requests.finish();
+      if (!requests.isCurrent(request)) return;
 
-        if (answer === null) {
-          setList((current) =>
-            current.status === "ready" && shown.current === asked ? current : failedList(current),
-          );
-        } else {
-          const keeps = shown.current === asked;
-          shown.current = asked;
-          land(answer, keeps);
-        }
+      requests.finish();
+
+      if (answer === null) {
+        setList((current) =>
+          current.status === "ready" && current.query === asked ? current : failedList(current),
+        );
+      } else {
+        land(answer);
       }
     };
 
     void read();
-  }, [query, recount, requests, setList, stamps]);
-}
-
-interface Flight {
-  readonly key: string;
-  readonly promise: Promise<number | null>;
-}
-
-interface MoreWiring {
-  readonly setList: SetList;
-  readonly stamps: Stamps;
-  readonly latest: Readonly<RefObject<ListState>>;
-  readonly filtersNow: Readonly<RefObject<Filters>>;
-  readonly flight: RefObject<Flight | null>;
-}
-
-async function readNext(
-  { setList, stamps, latest }: Readonly<MoreWiring>,
-  asked: Readonly<Filters>,
-  query: string,
-  cursor: string,
-): Promise<number | null> {
-  setList((now) => withMore(now, query, cursor, "loading"));
-  const page = await fetchItemsAfter(asked, cursor).catch(() => null);
-
-  if (page === null) {
-    setList((now) => withMore(now, query, cursor, "failed"));
-
-    return null;
-  }
-
-  const present = { ...page, items: page.items.filter((item) => !stamps.isGone(item.id)) };
-  const before = latest.current;
-  setList((now) => appended(now, present, query, cursor));
-
-  if (!continues(before, query, cursor)) return null;
-
-  const have = new Set(before.items.map((item) => item.id));
-
-  return present.items.find((item) => !have.has(item.id))?.id ?? null;
-}
-
-function startNext(paging: Readonly<MoreWiring>): Promise<number | null> {
-  const { latest, filtersNow, flight } = paging;
-  const current = latest.current;
-  const asked = filtersNow.current;
-  const query = queryOf(asked);
-  const cursor = current.status === "ready" ? current.next : null;
-
-  if (cursor === null || !continues(current, query, cursor)) return Promise.resolve(null);
-
-  const key = `${query}|${cursor}`;
-
-  if (flight.current?.key === key) return flight.current.promise;
-
-  const promise = readNext(paging, asked, query, cursor).finally(() => {
-    if (flight.current?.promise === promise) flight.current = null;
-  });
-
-  flight.current = { key, promise };
-
-  return promise;
-}
-
-function useMore(
-  { setList, stamps }: Readonly<Wiring>,
-  filters: Readonly<Filters>,
-  latest: Readonly<RefObject<ListState>>,
-) {
-  const filtersNow = useLatest(filters);
-  const flight = useRef<Flight | null>(null);
-
-  return useCallback(
-    () => startNext({ setList, stamps, latest, filtersNow, flight }),
-    [filtersNow, latest, setList, stamps],
-  );
+  }, [latest, query, recount, requests, setList, wiring]);
 }
 
 export function useReads(
@@ -255,7 +224,7 @@ export function useReads(
   }, []);
 
   const recount = useRecount(wiring, reload, filters);
-  useListRead(query, wiring, recount);
+  useListRead(query, wiring, recount, latest);
   const more = useMore(wiring, filters, latest);
 
   const settle = useCallback(

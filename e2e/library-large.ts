@@ -123,6 +123,21 @@ export async function scrollUntil(page: Page, total: number): Promise<void> {
     .toBe(total);
 }
 
+export async function scrollPast(page: Page, total: number): Promise<void> {
+  const rows = page.locator("article.it");
+
+  await expect
+    .poll(
+      async () => {
+        await rows.last().scrollIntoViewIfNeeded();
+
+        return (await rows.count()) >= total;
+      },
+      { timeout: 180_000, intervals: [50] },
+    )
+    .toBe(true);
+}
+
 export function idsWhere(screen: FreshScreen, where: string): number[] {
   return screen.fresh
     .query(

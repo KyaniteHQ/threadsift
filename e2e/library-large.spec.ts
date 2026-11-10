@@ -1,6 +1,7 @@
 import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 import { z } from "zod";
 
+import { SEARCH_LABEL } from "../web/src/text.ts";
 import { choice, rowsInOrder } from "./filters.ts";
 import {
   LIBRARY_SIZE,
@@ -219,3 +220,34 @@ for (const layout of ["list", "grid"] as const) {
     expect(await rowsInOrder(page)).toEqual(idsWhere(screen, "source = 'reddit'"));
   });
 }
+
+test("a jump straight to the end of a short window loads the next page", async () => {
+  const { page } = library().screen;
+  await storeSettings(page, { layout: "list", openAs: "page" });
+  await page.setViewportSize({ width: DESKTOP.width, height: 300 });
+  await page.goto("/");
+
+  const rows = page.locator("article.it");
+  await expect(rows).toHaveCount(PAGE_SIZE);
+  await rows.last().scrollIntoViewIfNeeded();
+  await expect(rows).toHaveCount(2 * PAGE_SIZE);
+});
+
+test("a search that leaves as many rows as the list had still loads the next page when the list is scrolled", async () => {
+  const { screen } = library();
+  const { page } = screen;
+  await openLibrary(page, "list");
+
+  const rows = page.locator("article.it");
+  await expect(rows).toHaveCount(PAGE_SIZE);
+  await page.getByRole("searchbox", { name: SEARCH_LABEL }).fill("alpha");
+
+  const matching = idsWhere(screen, "title LIKE '% alpha'");
+
+  await expect
+    .poll(async () => (await rowsInOrder(page)).join(","))
+    .toBe(matching.slice(0, PAGE_SIZE).join(","));
+
+  await rows.last().scrollIntoViewIfNeeded();
+  await expect(rows).toHaveCount(2 * PAGE_SIZE);
+});
