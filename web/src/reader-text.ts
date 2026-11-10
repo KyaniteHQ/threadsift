@@ -25,9 +25,9 @@ export const DELETE_CONFIRM = "Delete item";
 export const DELETE_PENDING = "Deleting item…";
 export const DELETE_FAILED = "Couldn’t delete this item. Try again.";
 export const DELETED = "Item deleted.";
-export const BACK_LONG = "Back to list";
-export const BACK_TO_GRID = "Back to grid";
-export const BACK_SHORT = "Back";
+const BACK_LONG = "Back to list";
+const BACK_TO_GRID = "Back to grid";
+const BACK_SHORT = "Back";
 export const PREVIOUS_ITEM = "Previous item";
 export const NEXT_ITEM = "Next item";
 export const HINT_LIST = "j k move · Enter open · m read · / search";
@@ -86,8 +86,8 @@ export const NOTE_KEYS = "Ctrl+Enter or Cmd+Enter saves";
 export const NOTE_NEWER_LABEL = "Newer version";
 
 export const FOOTNOTES_LABEL = "Footnotes";
-export const FOOTNOTE_BACK = "Back to reference {reference}";
-export const FOOTNOTE_BACK_AGAIN = "Back to footnote {reference}, reference {again}";
+const FOOTNOTE_BACK = "Back to reference {reference}";
+const FOOTNOTE_BACK_AGAIN = "Back to footnote {reference}, reference {again}";
 
 export const REPOSITORY_LABELS = {
   stars: "Stars",

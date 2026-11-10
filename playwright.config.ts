@@ -1,30 +1,62 @@
-import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 
 import { defineConfig } from "@playwright/test";
+import { z } from "zod";
 
-import { OWNER_STATE_FILE } from "./e2e/access.ts";
-import { envValue, optionalEnv } from "./e2e/env.ts";
+const PORT = 8799;
 
-const baseURL = envValue("THREADSIFT_BASE_URL");
-const stateDir = envValue("THREADSIFT_E2E_DIR");
-const runDir = optionalEnv("THREADSIFT_RUN_DIR");
+const BASE_URL = `http://127.0.0.1:${PORT}`;
+
+const TARGET = z.enum(["worker", "container"]).parse(process.env["THREADSIFT_TARGET"]);
+
+process.env["SETUP_CODE"] ??= randomBytes(24).toString("base64url");
+
+process.env["THREADSIFT_SECRET_KEY"] ??= randomBytes(32).toString("hex");
+
+const IMAGE = "localhost/threadsift:smoke";
+
+const STATE = ".wrangler/smoke";
+
+const WORKER = [
+  `rm -rf ${STATE}`,
+  "umask 077",
+  `mkdir -p ${STATE}`,
+  `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > ${STATE}/env`,
+  `pnpm exec wrangler d1 migrations apply DB --local --persist-to ${STATE}/state`,
+  `exec pnpm exec wrangler dev --local --test-scheduled --ip 127.0.0.1 --port ${PORT} --inspector-port 0 --persist-to ${STATE}/state --env-file ${STATE}/env`,
+].join(" && ");
+
+const CONTAINER = [
+  `podman build --signature-policy "\${THREADSIFT_PODMAN_POLICY:?run inside the devenv shell}" --tag ${IMAGE} --file Containerfile .`,
+  `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY ${IMAGE}`,
+].join(" && ");
+
+const SERVERS = {
+  worker: { command: WORKER, timeout: 180_000 },
+  container: { command: CONTAINER, timeout: 600_000 },
+};
 
 export default defineConfig({
-  testDir: "e2e",
+  testDir: "smoke",
   workers: 1,
-  expect: { timeout: 30_000 },
-  outputDir: runDir === undefined ? "test-results" : join(runDir, "results"),
-  preserveOutput: runDir === undefined ? "failures-only" : "always",
-  reporter: [
-    ["list"],
-    [
-      "html",
-      {
-        open: "never",
-        outputFolder: runDir === undefined ? "playwright-report" : join(runDir, "html"),
-      },
-    ],
+  timeout: 90_000,
+  expect: { timeout: 20_000 },
+  reporter: "list",
+  use: { baseURL: BASE_URL, trace: "retain-on-failure" },
+  projects: [
+    { name: "smoke", testMatch: "smoke.spec.ts" },
+    {
+      name: "live",
+      testMatch: "live.spec.ts",
+      timeout: 480_000,
+      use: { trace: "off" },
+    },
   ],
-  globalSetup: "./e2e/global-setup.ts",
-  use: { baseURL, storageState: join(stateDir, OWNER_STATE_FILE) },
+  webServer: {
+    ...SERVERS[TARGET],
+    url: `${BASE_URL}/api/session`,
+    reuseExistingServer: false,
+    gracefulShutdown: { signal: "SIGTERM", timeout: 15_000 },
+    stdout: "pipe",
+  },
 });

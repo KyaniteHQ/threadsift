@@ -124,9 +124,10 @@ export default defineConfig({
   overrides: [
     { files: ["*.config.ts", "tools/**"], env: { node: true } },
     {
-      files: ["e2e/**"],
+      files: ["test/**", "smoke/**"],
       rules: {
-        "eslint/no-await-in-loop": "off",
+        "eslint/max-lines-per-function": "off",
+        "typescript/no-floating-promises": "off",
         "typescript/prefer-readonly-parameter-types": "off",
       },
     },

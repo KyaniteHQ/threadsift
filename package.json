@@ -13,7 +13,8 @@
     "fmt:check": "oxfmt --check",
     "lint": "oxlint --format=agent",
     "lint:extension": "pnpm --filter threadsift-extension run lint:firefox",
-    "lint:fix": "oxlint --fix --fix-suggestions"
+    "lint:fix": "oxlint --fix --fix-suggestions",
+    "test": "node --test test/"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.95",
@@ -63,8 +64,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.14.0",
-    "@cloudflare/workers-utils": "0.52.0",
     "@oxlint/plugins": "1.92.0",
     "@playwright/test": "1.64.1",
     "@types/node": "26.6.6",

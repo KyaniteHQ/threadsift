@@ -5,7 +5,7 @@ export const DIGEST_INSTRUCTIONS =
 
 export const DIGEST_INPUT_BYTES = 14_000;
 
-export const DIGEST_CATALOG_BYTES = 4500;
+const DIGEST_CATALOG_BYTES = 4500;
 
 export interface CatalogNames {
   readonly topics: readonly string[];
@@ -22,7 +22,7 @@ const CATALOG_OVERHEAD_BYTES = utf8Length('{"topics":[],"tags":[]}');
 export const CATALOG_LIST_BYTES = Math.floor((DIGEST_CATALOG_BYTES - CATALOG_OVERHEAD_BYTES) / 2);
 export const CATALOG_NAME_LIMIT = Math.floor(CATALOG_LIST_BYTES / 4);
 
-export interface PromptItem {
+interface PromptItem {
   readonly title: string | null;
   readonly source: string;
   readonly postText: string | null;

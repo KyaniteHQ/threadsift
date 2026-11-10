@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { ListState } from "./list-state.ts";
 
-export const LAST_LIST_KEY = "threadsift.last-list";
+const LAST_LIST_KEY = "threadsift.last-list";
 
 function lastListWasEmpty(): boolean {
   try {

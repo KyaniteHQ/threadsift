@@ -36,7 +36,7 @@ const Recorded = {
   createdAt: z.number().int(),
 };
 
-export const HighlightSchema = z.discriminatedUnion("status", [
+const HighlightSchema = z.discriminatedUnion("status", [
   z.object({
     ...Recorded,
     status: z.literal("attached"),
@@ -59,8 +59,6 @@ export const HighlightsViewSchema = z.object({
 export const HighlightResponseSchema = z.object({ highlight: HighlightSchema });
 
 export type CreateHighlightRequest = z.infer<typeof CreateHighlightRequestSchema>;
-
-export type HighlightSelector = z.infer<typeof SelectorSchema>;
 
 export type HighlightTarget = z.infer<typeof HighlightTargetSchema>;
 

@@ -16,11 +16,6 @@ let
   podmanPolicy = pkgs.writeText "policy.json" (
     builtins.toJSON { default = [ { type = "insecureAcceptAnything"; } ]; }
   );
-  e2eCommand = target: ''
-    jq --exit-status '(.args // []) | type == "array" and all(type == "string")' <<< "$DEVENV_TASK_INPUT" > /dev/null
-    mapfile -d "" -t args < <(jq --join-output '(.args // [])[] | ., "\u0000"' <<< "$DEVENV_TASK_INPUT")
-    exec tools/e2e/${target}.sh "''${args[@]}"
-  '';
   port = name: toString config.processes.${name}.ports.http.value;
 in
 {
@@ -33,8 +28,6 @@ in
     PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
     PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
     THREADSIFT_PODMAN_POLICY = "${podmanPolicy}";
-    THREADSIFT_CHECKOUT = config.devenv.root;
-    THREADSIFT_E2E_IMAGE = "localhost/threadsift:e2e-${builtins.hashString "sha256" config.env.THREADSIFT_CHECKOUT}";
   };
 
   packages = [
@@ -83,6 +76,13 @@ in
       always_run = true;
       stages = [ "pre-push" ];
     };
+    test-pre-push = {
+      enable = true;
+      entry = "${withNode} pnpm test";
+      pass_filenames = false;
+      always_run = true;
+      stages = [ "pre-push" ];
+    };
   };
 
   tasks = {
@@ -94,40 +94,47 @@ in
       after = [ "ci:install" ];
       exec = "pnpm run check";
     };
+    "ci:test" = {
+      after = [ "ci:install" ];
+      exec = "pnpm test";
+    };
     "extension:build" = {
       after = [ "ci:install" ];
       exec = "pnpm run build:extension";
+    };
+    "web:build" = {
+      after = [ "ci:install" ];
+      exec = "pnpm run build";
     };
     "ci:build" = {
       after = [
         "ci:install"
         "extension:build"
+        "web:build"
       ];
-      exec = "pnpm run build && pnpm run build:worker && pnpm run lint:extension";
+      exec = "pnpm run build:worker && pnpm run lint:extension";
     };
     "ci:audit" = {
       after = [ "ci:install" ];
       exec = "pnpm audit --prod --audit-level high";
     };
-    "image:build" = {
-      exec = "exec tools/e2e/build-image.sh";
+    "smoke:worker" = {
+      after = [ "web:build" ];
+      exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=smoke";
     };
-    "e2e:container" = {
-      after = [
-        "ci:install"
-        "image:build"
-        "extension:build"
-      ];
-      exec = e2eCommand "container";
+    "smoke:container" = {
+      after = [ "ci:install" ];
+      exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=smoke";
     };
-    "e2e:worker" = {
-      after = [
-        "ci:install"
-        "ci:build"
-      ];
-      exec = e2eCommand "worker";
+    "live:worker" = {
+      after = [ "web:build" ];
+      exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=live";
+    };
+    "live:container" = {
+      after = [ "ci:install" ];
+      exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=live";
     };
   };
 
-  enterTest = "devenv tasks run ci:check";
+  enterTest = "devenv tasks run ci:check ci:test";
 }

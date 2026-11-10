@@ -22,9 +22,7 @@
    element carrying the setting's attribute, and its block names it in a
    comment (plain: <id>); every other option is a [data-*="<id>"] rule that
    lists only what differs. Which option is the default is owned by the
-   settings table (SETTINGS in design/system/settings-table.ts), and
-   checkDefaults() in e2e/default-tokens.ts confirms that the option the table
-   names as default is the one drawn when no attribute is set.
+   settings table (SETTINGS in design/system/settings-table.ts).
 
    The app's root carries every attribute, built from the settings table:
    data-layout, data-open-as, data-style, data-theme, data-font, data-size,
