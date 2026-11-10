@@ -64,11 +64,17 @@ bound() {
 }
 
 start_bound() {
-  local dir=$1 name=$2
-  wait_for 10 bound "$dir" podman start "$name" || {
-    [[ $? -eq 2 ]] || cat "$dir/start.err" >&2
-    return 1
-  }
+  local dir=$1 name=$2 end=$((SECONDS + 5)) status
+  while :; do
+    bound "$dir" timeout 5 podman start "$name" && return 0
+    status=$?
+    [[ $status -ne 2 ]] || return 1
+    ((SECONDS < end)) || {
+      cat "$dir/start.err" >&2
+      return 1
+    }
+    sleep 0.2
+  done
 }
 
 case ${1:-} in
