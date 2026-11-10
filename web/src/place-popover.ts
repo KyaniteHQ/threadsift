@@ -7,7 +7,7 @@ export interface Box {
   readonly bottom: number;
 }
 
-export interface Edges {
+interface Edges {
   readonly first: Box;
   readonly last: Box;
 }
