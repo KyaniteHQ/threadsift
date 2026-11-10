@@ -12,6 +12,7 @@ import {
   SOURCES,
   WAIT_REASONS,
 } from "../core/kinds.ts";
+import { NoteViewSchema } from "../core/note-contract.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
 import { SuppliedPageSchema } from "../core/supplied-page.ts";
 import { ItemImageSchema, SizedImageSchema } from "./item-image.ts";
@@ -86,6 +87,7 @@ const ItemDetailSchema = withStatus(
     images: z.array(SizedImageSchema).readonly(),
     comments: CommentsViewSchema,
     highlights: HighlightsViewSchema,
+    note: NoteViewSchema,
   }),
 );
 

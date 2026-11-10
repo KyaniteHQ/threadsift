@@ -10,6 +10,12 @@ interface PlaceWatch {
   readonly stop: () => void;
 }
 
+function untouched(slot: HTMLElement, at: number): boolean {
+  const farthest = slot.scrollHeight - slot.clientHeight;
+
+  return Math.abs(slot.scrollTop - Math.min(at, farthest)) < 1;
+}
+
 function newSettler(slot: HTMLElement) {
   let cancel: (() => void) | null = null;
 
@@ -27,7 +33,7 @@ function newSettler(slot: HTMLElement) {
     let at = slot.scrollTop;
 
     const resettle = (): void => {
-      if (live && slot.isConnected && slot.scrollTop === at) {
+      if (live && slot.isConnected && untouched(slot, at)) {
         scrollToAnchor(slot, anchor);
         at = slot.scrollTop;
       }

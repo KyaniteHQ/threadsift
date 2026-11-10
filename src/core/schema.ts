@@ -36,6 +36,8 @@ export { type HighlightRow, highlights } from "./highlight-tables.ts";
 
 export { type MediaRow, media } from "./media-tables.ts";
 
+export { type NoteRow, notes } from "./note-tables.ts";
+
 export { aiSettingsRevision, openrouterConnectTransactions } from "./openrouter-tables.ts";
 
 export { redditComments, redditThreads } from "./reddit-tables.ts";

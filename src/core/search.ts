@@ -13,7 +13,16 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { SearchPartKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { digests, githubRepos, highlights, itemTags, items, searchParts, tags } from "./schema.ts";
+import {
+  digests,
+  githubRepos,
+  highlights,
+  itemTags,
+  items,
+  notes,
+  searchParts,
+  tags,
+} from "./schema.ts";
 import { jsonArrays } from "./thread-rows.ts";
 
 const CHUNK_UNITS = 125_000;
@@ -233,6 +242,19 @@ export function highlightPartWrites(db: Database, scope: Readonly<SQLWrapper>) {
         .innerJoin(items, sql`${items.id} = ${highlights.itemId}`)
         .where(and(sql`${scope}`, notExists(indexed)))
         .orderBy(highlights.id),
+    ),
+  ] as const;
+}
+
+export function notePartWrites(db: Database, scope: Readonly<SQLWrapper>) {
+  return [
+    replacing(db, scope, ["note"]),
+    db.insert(searchParts).select(
+      db
+        .select(partOf("note", notes.body))
+        .from(items)
+        .innerJoin(notes, sql`${notes.itemId} = ${items.id}`)
+        .where(and(sql`${scope}`, isNotNull(notes.body))),
     ),
   ] as const;
 }

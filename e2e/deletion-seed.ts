@@ -5,6 +5,7 @@ import {
   addGithubRepository,
   addHighlight,
   addMediaRow,
+  addNote,
   expectEveryTableOwns,
   holdSweeps,
 } from "./deletion.ts";
@@ -26,6 +27,8 @@ export const HARD_WORD = marker("kept", "gone");
 
 export const QUOTED_WORD = marker("quoted", "gone");
 
+export const NOTE_WORD = marker("noted", "gone");
+
 const POST_TEXT = `A body with ${QUOTED_WORD} in it.`;
 
 const Counted = z.array(z.object({ n: z.number() }));
@@ -44,6 +47,7 @@ export async function seedHardCase(screen: FreshScreen) {
   });
 
   await addHighlight(screen.context.request, item.id, POST_TEXT, QUOTED_WORD);
+  await addNote(screen.context.request, item.id, `A Note with ${NOTE_WORD} in it.`);
 
   const keys = [
     `items/${item.id}/img-1-1-0.png`,
@@ -91,10 +95,17 @@ export async function expectSeeded(
   expect(countOf(screen, `SELECT count(*) AS n FROM item_tags WHERE item_id = ${id}`)).toBe(3);
   expect(screen.fresh.listFiles(`items/${id}/`).map((file) => file.key)).toEqual([...keys]);
   expect(await matches(screen.context.request, HARD_WORD)).toEqual([id]);
+  expect(await matches(screen.context.request, NOTE_WORD)).toEqual([id]);
   expect(
     countOf(
       screen,
       `SELECT count(*) AS n FROM search_parts WHERE item_id = ${id} AND kind = 'highlight'`,
+    ),
+  ).toBe(1);
+  expect(
+    countOf(
+      screen,
+      `SELECT count(*) AS n FROM search_parts WHERE item_id = ${id} AND kind = 'note'`,
     ),
   ).toBe(1);
 }

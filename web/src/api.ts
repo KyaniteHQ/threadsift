@@ -6,6 +6,12 @@ import {
 } from "../../src/core/highlight-contract.ts";
 import type { ReadState } from "../../src/core/kinds.ts";
 import {
+  type NoteView,
+  NoteConflictSchema,
+  NoteResponseSchema,
+  type SaveNoteRequest,
+} from "../../src/core/note-contract.ts";
+import {
   ErrorResponseSchema,
   ItemDetailResponseSchema,
   ItemListResponseSchema,
@@ -78,6 +84,26 @@ export async function dropHighlight(id: number, highlightId: number): Promise<vo
   const response = await call("DELETE", path);
 
   if (!response.ok && response.status !== 404) throw unexpected("DELETE", path, response.status);
+}
+
+export type NoteSaveResult =
+  | { readonly outcome: "saved"; readonly note: NoteView }
+  | { readonly outcome: "newer"; readonly note: NoteView };
+
+export async function putNote(
+  id: number,
+  request: Readonly<SaveNoteRequest>,
+): Promise<NoteSaveResult> {
+  const path = `/api/items/${id}/note`;
+  const response = await call("PUT", path, { json: request });
+
+  if (response.status === 409) {
+    return { outcome: "newer", note: NoteConflictSchema.parse(await response.json()).note };
+  }
+
+  if (!response.ok) throw unexpected("PUT", path, response.status);
+
+  return { outcome: "saved", note: NoteResponseSchema.parse(await response.json()).note };
 }
 
 export function fetchItems(filters: Readonly<Filters>): Promise<ItemList> {

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { Instance } from "./access.ts";
 import { POST, created, postRevision, selectorOf } from "./highlights.ts";
+import { saved } from "./notes.ts";
 
 export const MANIFEST = [
   "ai_tasks",
@@ -13,6 +14,7 @@ export const MANIFEST = [
   "item_tags",
   "jobs",
   "media",
+  "notes",
   "reddit_comments",
   "reddit_threads",
   "search_fingerprints",
@@ -92,4 +94,8 @@ export async function addHighlight(
 
 export function removeBehindTheApp(id: number): string {
   return `DELETE FROM items WHERE id = ${id}`;
+}
+
+export async function addNote(request: APIRequestContext, id: number, body: string): Promise<void> {
+  await saved(request, id, body, 0);
 }
