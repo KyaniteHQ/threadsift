@@ -3,9 +3,10 @@ import { type RefObject, use, useMemo } from "react";
 import type { Item } from "../../src/http/schemas.ts";
 import { BASE_SAMPLE, FACE_WAIT_MS, LOOK_FONTS, sampleOf } from "./load-fonts.ts";
 import { postTextModule } from "./post-text-module.ts";
-import { ReaderContent, ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
+import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
+import { ReaderContent } from "./ReaderContent.tsx";
 import { useFaces } from "./use-faces.ts";
-import type { DetailState } from "./use-item-detail.ts";
+import type { DetailActions, DetailState } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
 
 function sampleOfDetail(state: DetailState): string | null {
@@ -24,11 +25,29 @@ function sampleOfDetail(state: DetailState): string | null {
   }
 }
 
+function useReadyState(
+  state: DetailState,
+  slot: RefObject<HTMLElement | null>,
+  itemId: number,
+  settingsKey: string,
+): Exclude<DetailState, { status: "loading" }> | null {
+  use(postTextModule());
+
+  const sample = useMemo(() => sampleOfDetail(state), [state]);
+  const [faces] = useFaces(slot, LOOK_FONTS, FACE_WAIT_MS, sample);
+  const ready = state.status === "loading" || !faces ? null : state;
+
+  useReadingPlace(slot, itemId, ready?.status === "ready", settingsKey);
+
+  return ready;
+}
+
 export function ReaderBody({
   item,
   slot,
   state,
-  retry,
+  actions,
+  announce,
   now,
   settingsKey,
   titleId,
@@ -38,18 +57,16 @@ export function ReaderBody({
   item: Item;
   slot: RefObject<HTMLElement | null>;
   state: DetailState;
-  retry: () => void;
+  actions: DetailActions;
+  announce: (text: string) => void;
   now: number;
   settingsKey: string;
   titleId: string;
   focusTitle: boolean;
   tryAgain: (item: Item) => void;
 }>) {
-  use(postTextModule());
-  const sample = useMemo(() => sampleOfDetail(state), [state]);
-  const [faces] = useFaces(slot, LOOK_FONTS, FACE_WAIT_MS, sample);
-  const ready = state.status === "loading" || !faces ? null : state;
-  useReadingPlace(slot, item.id, ready?.status === "ready", settingsKey);
+  const ready = useReadyState(state, slot, item.id, settingsKey);
+  const content = { item, actions, announce, tryAgain, now };
 
   return (
     <>
@@ -62,11 +79,7 @@ export function ReaderBody({
         loading={ready === null}
         tryAgain={tryAgain}
       />
-      {ready === null ? (
-        <ReaderLoading />
-      ) : (
-        <ReaderContent item={item} state={ready} retry={retry} tryAgain={tryAgain} now={now} />
-      )}
+      {ready === null ? <ReaderLoading /> : <ReaderContent {...content} state={ready} />}
     </>
   );
 }

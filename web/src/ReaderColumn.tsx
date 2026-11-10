@@ -5,18 +5,14 @@ import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import {
   DIGEST_PENDING,
   KEY_POINTS_LABEL,
-  READER_FAILED,
   READER_LOADING,
-  READER_STALE,
   SUMMARY_LABEL,
   postedLabel,
 } from "./reader-text.ts";
 import { HeadNote, Note } from "./ReaderNote.tsx";
-import { Original } from "./ReaderOriginal.tsx";
 import { savedLabel } from "./saved-label.ts";
 import { tagHue } from "./tag-hue.ts";
-import { DIGEST_NOT_UPDATED, NO_DIGEST, RETRY_LABEL, SOURCE_LABELS } from "./text.ts";
-import type { DetailState } from "./use-item-detail.ts";
+import { DIGEST_NOT_UPDATED, NO_DIGEST, SOURCE_LABELS } from "./text.ts";
 
 function bylineOf(item: Readonly<Item>): string {
   if (item.author === null) return "";
@@ -116,7 +112,7 @@ function digestNote(item: Readonly<Item>, hasDigest: boolean): string | null {
   return null;
 }
 
-function Agent({
+export function Agent({
   item,
   detail,
   tryAgain,
@@ -135,44 +131,4 @@ function Agent({
 
 export function ReaderLoading() {
   return <output className="rd-note rd-loading">{READER_LOADING}</output>;
-}
-
-export function ReaderContent({
-  item,
-  state,
-  retry,
-  tryAgain,
-  now,
-}: Readonly<{
-  item: Item;
-  state: Exclude<DetailState, { status: "loading" }>;
-  retry: () => void;
-  tryAgain: (item: Item) => void;
-  now: number;
-}>) {
-  if (state.status === "failed") {
-    return (
-      <div className="rd-orig" role="alert">
-        <p className="rd-note">{READER_FAILED}</p>
-        <button type="button" className="btn btn-block" onClick={retry}>
-          {RETRY_LABEL}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {state.stale ? (
-        <div className="rd-orig">
-          <output className="rd-note">{READER_STALE}</output>
-          <button type="button" className="btn btn-block" onClick={retry}>
-            {RETRY_LABEL}
-          </button>
-        </div>
-      ) : null}
-      <Agent item={item} detail={state.detail} tryAgain={tryAgain} />
-      <Original item={item} detail={state.detail} now={now} />
-    </>
-  );
 }

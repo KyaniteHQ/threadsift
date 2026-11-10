@@ -6,6 +6,10 @@ export interface Selector {
   readonly suffix: string;
 }
 
+export interface PlacedSelector extends Selector {
+  readonly hint: number;
+}
+
 export type Anchor =
   | { readonly status: "attached"; readonly start: number }
   | { readonly status: "gone" }
@@ -17,7 +21,7 @@ function pairAt(text: string, at: number): boolean {
   return (text.codePointAt(at) ?? 0) > BASIC_PLANE_END;
 }
 
-function codePointCount(text: string, end: number): number {
+export function codePointCount(text: string, end = text.length): number {
   let count = 0;
 
   for (let at = 0; at < end; at += pairAt(text, at) ? 2 : 1) count += 1;
@@ -25,8 +29,8 @@ function codePointCount(text: string, end: number): number {
   return count;
 }
 
-function unitIndexAt(text: string, codePoints: number): number | null {
-  let at = 0;
+export function unitIndexAt(text: string, codePoints: number, from = 0): number | null {
+  let at = from;
 
   for (let seen = 0; seen < codePoints; seen += 1) {
     if (at >= text.length) return null;
@@ -111,4 +115,18 @@ export function selectorHolds(text: string, selector: Readonly<Selector>, start:
   return (
     contextBefore(text, from) === selector.prefix && contextAfter(text, end) === selector.suffix
   );
+}
+
+export function selectorAt(text: string, start: number, length: number): PlacedSelector | null {
+  const from = unitIndexAt(text, start);
+  const end = unitIndexAt(text, start + length);
+
+  if (from === null || end === null) return null;
+
+  return {
+    exact: text.slice(from, end),
+    prefix: contextBefore(text, from),
+    suffix: contextAfter(text, end),
+    hint: start,
+  };
 }

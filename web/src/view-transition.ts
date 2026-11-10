@@ -1,7 +1,8 @@
 import { flushSync } from "react-dom";
 
+import { REDUCED_MOTION } from "./jump-to-comments.ts";
+
 const SOURCE = "vt-src";
-const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
 function rowOf(app: Element, key: number): Element | null {
   return app.querySelector(`.it[data-key="${key}"]`);

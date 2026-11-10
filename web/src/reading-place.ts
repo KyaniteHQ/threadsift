@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { collapsedText } from "./collapsed-text.ts";
+
 const STORAGE_KEY = "threadsift:reading-places";
 const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";
 const BAR_FALLBACK_HEIGHT = 56;
@@ -59,7 +61,7 @@ function shownBottom(block: Element): number | null {
 }
 
 function passageOf(block: Element): string {
-  return (block.textContent ?? "").replaceAll(/\s+/gu, " ").trim().slice(0, PASSAGE_LENGTH);
+  return collapsedText(block.textContent ?? "").slice(0, PASSAGE_LENGTH);
 }
 
 export function anchorAt(slot: HTMLElement): Anchor | null {

@@ -24,6 +24,7 @@ interface LinkAttributes extends Generated {
   readonly "aria-describedby"?: string | undefined;
   readonly "data-footnote-ref"?: string | undefined;
   readonly "data-footnote-backref"?: string | undefined;
+  readonly "data-failed-picture"?: string | undefined;
 }
 
 export function Link({
@@ -35,6 +36,7 @@ export function Link({
   "aria-describedby": describedBy,
   "data-footnote-ref": footnoteRef,
   "data-footnote-backref": footnoteBackref,
+  "data-failed-picture": failedPicture,
 }: Readonly<LinkAttributes>) {
   const scope = use(FootnoteScope);
 
@@ -53,6 +55,7 @@ export function Link({
       aria-describedby={scoped(scope, describedBy)}
       data-footnote-ref={footnoteRef}
       data-footnote-backref={footnoteBackref}
+      data-failed-picture={failedPicture}
     >
       {children}
     </a>

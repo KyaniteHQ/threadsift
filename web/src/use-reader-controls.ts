@@ -25,6 +25,31 @@ export interface ReaderState {
   readonly announcement: Announcement;
 }
 
+function useControls({
+  look,
+  navigation,
+  toggleRead,
+  remove,
+  announce,
+  hintPlaced,
+}: Readonly<{
+  look: Look;
+  navigation: Readonly<Pick<ReturnType<typeof useNavigation>, "close" | "titleFocus">>;
+  toggleRead: ReaderControls["toggleRead"];
+  remove: ReaderControls["remove"];
+  announce: ReaderControls["announce"];
+  hintPlaced: ReaderControls["hintPlaced"];
+}>): ReaderControls {
+  const { close, titleFocus } = navigation;
+  const mode = modeOf(look);
+  const settingsKey = JSON.stringify(look.settings);
+
+  return useMemo<ReaderControls>(
+    () => ({ mode, settingsKey, titleFocus, toggleRead, remove, announce, close, hintPlaced }),
+    [announce, close, hintPlaced, mode, remove, settingsKey, titleFocus, toggleRead],
+  );
+}
+
 export function useReaderControls({
   list,
   route,
@@ -55,18 +80,18 @@ export function useReaderControls({
     covers: look.reader !== "pane",
   });
 
-  const { close, titleFocus } = navigation;
-  const mode = modeOf(look);
-  const settingsKey = JSON.stringify(look.settings);
-
-  const controls = useMemo<ReaderControls>(
-    () => ({ mode, settingsKey, titleFocus, toggleRead, remove, close, hintPlaced: setHintInBar }),
-    [close, mode, remove, settingsKey, titleFocus, toggleRead],
-  );
+  const controls = useControls({
+    look,
+    navigation,
+    toggleRead,
+    remove,
+    announce,
+    hintPlaced: setHintInBar,
+  });
 
   return {
     open: navigation.open,
-    close,
+    close: navigation.close,
     step: navigation.step,
     toggleRead,
     controls,

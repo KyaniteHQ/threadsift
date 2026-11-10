@@ -14,6 +14,7 @@ export interface ReaderControls {
   readonly titleFocus: number | null;
   readonly toggleRead: (item: Item) => void;
   readonly remove: (item: Item) => Promise<void>;
+  readonly announce: (text: string) => void;
   readonly close: () => void;
   readonly hintPlaced: (inBar: boolean) => void;
 }
@@ -61,7 +62,7 @@ function ReaderCol({
   tryAgain: (item: Item) => void;
 }>) {
   const [now] = useState(Date.now);
-  const { state, retry } = useItemDetail(item.id, refreshKey(item));
+  const { state, actions } = useItemDetail(item.id, refreshKey(item));
   const moved = useFocusMoved();
   const focusTitle = !moved && (controls.mode !== "pane" || controls.titleFocus === item.id);
 
@@ -85,7 +86,8 @@ function ReaderCol({
           item={item}
           slot={slot}
           state={state}
-          retry={retry}
+          actions={actions}
+          announce={controls.announce}
           now={now}
           settingsKey={controls.settingsKey}
           titleId={titleId}

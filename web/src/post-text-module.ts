@@ -1,4 +1,7 @@
-import { type ComponentProps, type ReactElement, createElement, use } from "react";
+import { type ComponentProps, Fragment, type ReactElement, createElement, use } from "react";
+
+import { HighlightAction } from "./HighlightAction.tsx";
+import { useSpans } from "./highlights-context.ts";
 
 type PostTextExports = typeof import("./PostText.tsx");
 
@@ -19,12 +22,21 @@ export function postTextModule(): Promise<PostTextLoad> {
   return loading;
 }
 
-export function PostTextView(
-  props: Readonly<ComponentProps<PostTextExports["PostText"]>>,
-): ReactElement {
+export function PostTextView({
+  targetKey,
+  ...props
+}: Readonly<
+  Omit<ComponentProps<PostTextExports["PostText"]>, "spans"> & { targetKey: string }
+>): ReactElement {
   const loaded = use(postTextModule());
+  const spans = useSpans(targetKey);
 
   if (loaded.kind === "failed") throw new PostTextUnavailable();
 
-  return createElement(loaded.PostText, props);
+  return createElement(
+    Fragment,
+    null,
+    createElement(loaded.PostText, { ...props, targetKey, spans }),
+    createElement(HighlightAction, { targetKey }),
+  );
 }

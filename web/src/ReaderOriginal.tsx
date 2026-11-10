@@ -1,5 +1,6 @@
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { Comments } from "./Comments.tsx";
+import { POST_KEY } from "./highlight-target.ts";
 import { PostTextView } from "./post-text-module.ts";
 import { PostTextBoundary } from "./PostTextBoundary.tsx";
 import { NO_POST_TEXT, NO_README, SECTION_TITLES } from "./reader-text.ts";
@@ -47,6 +48,7 @@ export function Original({
             <h3 className="rd-h">{SECTION_TITLES[item.kind]}</h3>
             <PostTextView
               text={text}
+              targetKey={POST_KEY}
               itemId={item.kind === "article" ? item.id : null}
               images={detail.images}
             />

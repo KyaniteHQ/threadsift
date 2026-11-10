@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent } from "react";
 
-const TYPING = "input, textarea, select, dialog.st-pop, dialog.dlg, [contenteditable]";
+const TYPING = "input, textarea, select, dialog.st-pop, dialog.dlg, [popover], [contenteditable]";
+const POPOVER_OPEN = ":popover-open";
 const SIDEWAYS = "pre, .tbl";
 
 export interface KeyActions {
@@ -32,6 +33,7 @@ function press(event: KeyboardEvent, target: Element | null, actions: KeyActions
     (key === "ArrowLeft" || key === "ArrowRight") &&
     actions.arrows &&
     actions.openId !== null &&
+    !event.shiftKey &&
     !scrollsSideways
   ) {
     event.preventDefault();
@@ -49,7 +51,12 @@ function press(event: KeyboardEvent, target: Element | null, actions: KeyActions
   } else if (key === "/" && !actions.covered) {
     event.preventDefault();
     actions.focusSearch();
-  } else if (key === "Escape" && actions.openId !== null && !inPasteBox(event)) {
+  } else if (
+    key === "Escape" &&
+    actions.openId !== null &&
+    !inPasteBox(event) &&
+    document.querySelector(POPOVER_OPEN) === null
+  ) {
     event.preventDefault();
     actions.close();
   }

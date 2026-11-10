@@ -1,22 +1,11 @@
 import { useMemo } from "react";
 
+import { Announcement } from "./Announcement.tsx";
 import { ListColumn } from "./ListColumn.tsx";
 import { ReaderPane } from "./ReaderPane.tsx";
 import type { Route } from "./routing.ts";
 import { useLibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
-
-function Announcement({ text, failed }: Readonly<{ text: string; failed: boolean }>) {
-  return failed ? (
-    <div className="vh" role="alert">
-      {text}
-    </div>
-  ) : (
-    <output className="vh" aria-live="polite">
-      {text}
-    </output>
-  );
-}
 
 export function Library({
   look,
@@ -36,6 +25,7 @@ export function Library({
   const hasReader =
     counts !== null && counts.total > 0 && (look.reader === "pane" || openItem !== null);
 
+  const sheetOpen = hasReader && openItem !== null && look.reader === "sheet";
   const { steps, step, close } = side.reader;
   const nav = useMemo(() => ({ steps, step, close }), [steps, step, close]);
 
@@ -56,9 +46,10 @@ export function Library({
           look={look}
           openSettings={openSettings}
           tryAgain={view.actions.retryItem}
+          announcement={side.reader.announcement}
         />
       ) : null}
-      <Announcement text={side.reader.announcement.text} failed={side.reader.announcement.failed} />
+      {sheetOpen ? null : <Announcement {...side.reader.announcement} />}
     </div>
   );
 }
