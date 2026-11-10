@@ -25,6 +25,8 @@ const ARTICLE = "https://example.com/guides/backing-up-sqlite";
 
 const SECRET_WORD = "quokkafruit";
 
+const DELETED_WORD = "wombatplum";
+
 const DIGEST = {
   title: "Backing up SQLite safely",
   topic: "Databases",
@@ -198,7 +200,10 @@ describe("a link the owner pastes reaches the library, and the owner finds, read
 
   it("saves a Highlight and a Note, reads them back, and removes the Item from the list and search when it is deleted", async () => {
     const { item: saved } = await paste("https://example.com/guides/highlight-me", {
-      page: PAGE,
+      page: {
+        ...PAGE,
+        markdown: `${PAGE.markdown}\n\nThe ${DELETED_WORD} note stays with this Item.`,
+      },
       digest: DIGEST,
     });
 
@@ -245,10 +250,11 @@ describe("a link the owner pastes reaches the library, and the owner finds, read
       [[highlight.id, "attached"]],
     );
     assert.equal(kept.note.body, note.body);
+    assert.deepEqual(await listed(`?q=${DELETED_WORD}`), [saved.id]);
 
     assert.equal((await instance.send("DELETE", `/api/items/${String(saved.id)}`)).status, 204);
     assert.equal((await instance.send("GET", `/api/items/${String(saved.id)}`)).status, 404);
     assert.equal((await listed("")).includes(saved.id), false);
-    assert.equal((await listed("?q=highlight")).includes(saved.id), false);
+    assert.deepEqual(await listed(`?q=${DELETED_WORD}`), []);
   });
 });
