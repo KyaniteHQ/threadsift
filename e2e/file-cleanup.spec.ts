@@ -124,6 +124,22 @@ test("a tick deletes every file no Item names and no running attempt can publish
   );
 });
 
+test("a tick deletes the crash leftover of a post text file whose name has the longest accepted length", async () => {
+  test.setTimeout(TICK_WAIT_MS + 90_000);
+
+  const { id, job } = seededItem("done");
+  const head = `post-${job}-`;
+  const name = `${head}${"1".repeat(225 - head.length - ".md".length)}.md`;
+  const leftover = `items/${id}/.tmp-0123456789abcdef01234567-${name}`;
+
+  expect(name).toHaveLength(225);
+  expect(leftover.length - `items/${id}/`.length).toBe(255);
+  store(leftover, "a file a crash left");
+  expect(instance.listFiles(`items/${id}/`).map(({ key }) => key)).toEqual([leftover]);
+
+  await waitForFiles([]);
+});
+
 test("a tick leaves a file of a kind it does not own, an image-style name outside the image grammar included, and still deletes an orphaned post text file", async () => {
   test.setTimeout(TICK_WAIT_MS + 90_000);
 

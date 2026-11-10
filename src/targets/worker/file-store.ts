@@ -1,6 +1,7 @@
 import {
-  parseFileKey,
+  parseStoredKey,
   requireFileKey,
+  requireStoredKey,
   requireFilePrefix,
   requireListLimit,
 } from "../../core/file-keys.ts";
@@ -45,12 +46,12 @@ export function r2FileStore(bucket: FilesBucket): FileStore {
       await bucket.put(key, bytes);
     },
     get: async (key) => {
-      requireFileKey(key);
+      requireStoredKey(key);
 
       return (await bucket.get(key))?.body ?? null;
     },
     delete: async (keys) => {
-      for (const key of keys) requireFileKey(key);
+      for (const key of keys) requireStoredKey(key);
 
       await Promise.all(batchesOf(keys).map((batch) => bucket.delete(batch)));
     },
@@ -65,7 +66,7 @@ export function r2FileStore(bucket: FilesBucket): FileStore {
 
       return {
         files: listing.objects.flatMap(({ key, uploaded }) =>
-          parseFileKey(key) === null ? [] : [{ key, uploadedAt: uploaded.getTime() }],
+          parseStoredKey(key) === null ? [] : [{ key, uploadedAt: uploaded.getTime() }],
         ),
         cursor: listing.truncated ? (listing.cursor ?? null) : null,
       };
