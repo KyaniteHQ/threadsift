@@ -76,7 +76,8 @@ async function signOut(api: Readonly<Pick<APIRequestContext, "get" | "post">>): 
       kind: "http",
       status: ended.status(),
       reason: "Preview setup session cleanup failed",
-      recovery: "End the setup session in Instance settings and rerun deploy.",
+      recovery:
+        "Delete and recreate this disposable preview to end its sessions, then rerun deploy.",
     });
 }
 

@@ -234,7 +234,7 @@ async function cleanupSession(): Promise<void> {
           : new CommandFailure({
               kind: "check",
               reason: "Check session cleanup request failed",
-              recovery: "End the check session in Instance settings.",
+              recovery: "Change the owner password in Settings to end other sessions.",
             }),
       );
     }
@@ -258,7 +258,7 @@ async function signOut(): Promise<void> {
       kind: "http",
       status: logout.status(),
       reason: "Sign-out failed",
-      recovery: "End the check session in Instance settings.",
+      recovery: "Change the owner password in Settings to end other sessions.",
     });
 }
 
