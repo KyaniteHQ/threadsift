@@ -153,8 +153,9 @@ test("a copy that fails right after one that worked shows the failure and no Cop
   await onSettings(browser, async ({ page, context, fresh }) => {
     const origin = new URL(fresh.url).origin;
     await page.clock.install();
-    await page.clock.pauseAt(new Date(Date.now() + 1000));
+    await page.goto("/settings");
     await mint(page, "Copy twice");
+    await page.clock.pauseAt(new Date(Date.now() + 1000));
 
     await context.grantPermissions(["clipboard-write"], { origin });
     await page.getByRole("button", { name: SETTINGS.copy, exact: true }).click();
