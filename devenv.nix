@@ -147,6 +147,4 @@ in
       exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=live";
     };
   };
-
-  enterTest = "devenv tasks run ci:check ci:test";
 }
