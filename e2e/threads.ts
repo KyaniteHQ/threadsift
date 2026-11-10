@@ -171,3 +171,9 @@ export function generationOf(instance: Instance, itemId: number): number {
       ?.generation ?? -1
   );
 }
+
+const Headers = z.array(z.object({ generation: z.number() }));
+
+export function threadHeaders(instance: Instance, itemId: number) {
+  return instance.query(`SELECT generation FROM reddit_threads WHERE item_id = ${itemId}`, Headers);
+}

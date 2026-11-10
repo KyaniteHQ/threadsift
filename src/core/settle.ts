@@ -16,6 +16,7 @@ const NO_TEXT = { postText: null, postedAt: null } as const;
 function textFields(content: Readonly<Content>) {
   switch (content.kind) {
     case "article":
+    case "page":
       return { postText: content.postText, postedAt: content.postedAt };
     case "github-repo":
       return { postText: content.readme, postedAt: null };
@@ -30,7 +31,9 @@ function textFields(content: Readonly<Content>) {
 }
 
 function contentFields(content: Readonly<Content>) {
-  return { source: sourceOf(content.kind), kind: content.kind, ...textFields(content) };
+  return content.kind === "page"
+    ? textFields(content)
+    : { source: sourceOf(content.kind), kind: content.kind, ...textFields(content) };
 }
 
 export function isRetryable(result: FetchResult): result is "timeout" | "network" {

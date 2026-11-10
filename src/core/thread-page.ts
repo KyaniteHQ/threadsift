@@ -1,25 +1,36 @@
 import type { Digest } from "./ai-contract.ts";
-import type { Invalid, SaveResult, ThreadKept } from "./items.ts";
-import type { RedditRef } from "./links.ts";
+import { type SaveResult, type ThreadKept, itemAt, queuedWrites } from "./items.ts";
+import { closeFetchJobs, enqueueItemJobs } from "./job-rows.ts";
+import { parseLink } from "./links.ts";
 import type { Ports } from "./ports.ts";
-import { parseRedditPage } from "./reddit-page.ts";
+import { hasNoThread, ownerOf } from "./reddit-thread.ts";
+import { guardedWrite } from "./schema.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
-import { publish } from "./thread-paste.ts";
 
-export function saveThreadPage(
+export async function saveThreadPage(
   ports: Ports,
   absoluteUrl: string,
-  {
-    digest,
-    page,
-    ref,
-  }: Readonly<{ digest: Digest | undefined; page: SuppliedPage; ref: RedditRef }>,
-): Promise<SaveResult | Invalid<"page"> | ThreadKept> {
-  const parsed = parseRedditPage(page, ref);
+  { digest, page }: Readonly<{ digest: Digest | undefined; page: SuppliedPage }>,
+): Promise<SaveResult | ThreadKept> {
+  const { db } = ports;
+  const link = parseLink(absoluteUrl);
 
-  if (parsed.kind === "refused") {
-    return Promise.resolve({ kind: "invalid", field: "page", reason: parsed.reason });
-  }
+  const [insert, ...rest] = queuedWrites(
+    db,
+    { originalUrl: absoluteUrl, address: absoluteUrl, digest },
+    link,
+    JSON.stringify(page),
+  );
 
-  return publish(ports, absoluteUrl, parsed.thread, { digest, replacement: "no-thread" });
+  const inserted = await guardedWrite(db, hasNoThread(link.normalizedUrl), insert, [
+    closeFetchJobs(db, ownerOf(link.normalizedUrl).id),
+    ...rest,
+  ]);
+
+  if (inserted === null) return { kind: "thread-kept" };
+
+  const item = await itemAt(db, link.normalizedUrl);
+  await enqueueItemJobs(ports, item.id);
+
+  return { kind: "saved", item, created: inserted.length > 0 };
 }

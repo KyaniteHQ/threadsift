@@ -67,5 +67,5 @@ export function savePage(
 
   return ref === null
     ? queuePage(ports, absoluteUrl, digest, page)
-    : saveThreadPage(ports, absoluteUrl, { digest, page, ref });
+    : saveThreadPage(ports, absoluteUrl, { digest, page });
 }
