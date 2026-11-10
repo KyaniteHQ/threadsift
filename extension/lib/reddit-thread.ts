@@ -1,11 +1,16 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { ITEM_REQUEST_BYTES, MORE_REQUEST_CAP } from "../../src/core/limits.ts";
+import {
+  ITEM_REQUEST_BYTES,
+  MORE_REQUEST_CAP,
+  THREAD_CONTENT_BYTES,
+} from "../../src/core/limits.ts";
 import { redditRefOf } from "../../src/core/links.ts";
 import { pause } from "../../src/core/pause.ts";
 import { hiddenRepliesOf } from "../../src/core/reddit-tree.ts";
 import type { ThreadAnswers } from "../../src/core/thread-answers.ts";
+import { resultInTab } from "./tab-result.ts";
 
 export const REQUEST_SPACING_MS = 500;
 
@@ -21,12 +26,18 @@ const TabAnswerSchema = z.object({ status: z.number(), text: z.string() });
 
 type TabAnswer = z.infer<typeof TabAnswerSchema>;
 
+const NO_ANSWER: TabAnswer = { status: 0, text: "" };
+
 export interface ThreadTab {
   readonly id: number;
   readonly url: string;
 }
 
-async function readInTab(address: string, deadlineMs: number): Promise<TabAnswer> {
+async function readInTab(
+  address: string,
+  deadlineMs: number,
+  maxBytes: number,
+): Promise<TabAnswer> {
   try {
     const response = await fetch(address, {
       credentials: "include",
@@ -34,26 +45,46 @@ async function readInTab(address: string, deadlineMs: number): Promise<TabAnswer
       signal: AbortSignal.timeout(deadlineMs),
     });
 
-    return { status: response.status, text: await response.text() };
+    const declared = Number(response.headers.get("content-length"));
+
+    if (response.status !== 200 || response.body === null) {
+      return { status: response.status, text: "" };
+    }
+
+    if (declared > maxBytes) return { status: 0, text: "" };
+
+    let received = 0;
+
+    const limited = new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        received += chunk.byteLength;
+
+        if (received > maxBytes) {
+          controller.error(new RangeError("the answer is longer than the limit"));
+        } else {
+          controller.enqueue(chunk);
+        }
+      },
+    });
+
+    return { status: 200, text: await new Response(response.body.pipeThrough(limited)).text() };
   } catch {
     return { status: 0, text: "" };
   }
 }
 
 async function answerFor(tabId: number, address: string): Promise<TabAnswer> {
-  try {
-    const [injected] = await browser.scripting.executeScript({
-      target: { tabId },
-      func: readInTab,
-      args: [address, REQUEST_DEADLINE_MS],
-    });
+  const answer = await resultInTab(
+    () =>
+      browser.scripting.executeScript({
+        target: { tabId },
+        func: readInTab,
+        args: [address, REQUEST_DEADLINE_MS, THREAD_CONTENT_BYTES],
+      }),
+    TabAnswerSchema,
+  );
 
-    const answer = TabAnswerSchema.safeParse(injected?.result);
-
-    return answer.success ? answer.data : { status: 0, text: "" };
-  } catch {
-    return { status: 0, text: "" };
-  }
+  return answer ?? NO_ANSWER;
 }
 
 function threadAddress({ url }: Readonly<ThreadTab>): string {
@@ -66,57 +97,56 @@ function permalinkAddress({ url }: Readonly<ThreadTab>, postId: string, commentI
   return `${new URL(url).origin}/comments/${postId}/_/${commentId}.json?${QUERY}`;
 }
 
-interface Plan {
-  readonly tab: Readonly<ThreadTab>;
-  readonly postId: string;
-  readonly giveUpAt: number;
-}
+async function fillAnswers(
+  tab: Readonly<ThreadTab>,
+  postId: string,
+  first: string,
+  hidden: readonly string[],
+): Promise<ThreadAnswers> {
+  const answers: [string, ...string[]] = [first];
+  const queue = [...hidden];
+  const asked = new Set<string>();
+  const giveUpAt = Date.now() + FILL_DEADLINE_MS;
+  let held = first.length;
+  let startedAt = Date.now();
+  let at = 0;
 
-interface Filled {
-  readonly answers: readonly string[];
-  readonly waiting: readonly string[];
-  readonly asked: readonly string[];
-}
-
-async function fillFrom(plan: Readonly<Plan>, state: Readonly<Filled>): Promise<readonly string[]> {
-  const [next, ...waiting] = state.waiting;
-
-  if (
-    next === undefined ||
-    state.asked.length >= MORE_REQUEST_CAP ||
-    Date.now() >= plan.giveUpAt ||
-    charactersIn(state.answers) > ITEM_REQUEST_BYTES
+  while (
+    at < queue.length &&
+    asked.size < MORE_REQUEST_CAP &&
+    Date.now() < giveUpAt &&
+    held <= ITEM_REQUEST_BYTES
   ) {
-    return state.answers;
+    const id = queue[at];
+    at += 1;
+
+    if (id === undefined || asked.has(id)) continue;
+
+    asked.add(id);
+
+    // oxlint-disable-next-line eslint/no-await-in-loop -- the requests are sequential and spaced.
+    await pause(Math.max(0, REQUEST_SPACING_MS - (Date.now() - startedAt)));
+    startedAt = Date.now();
+
+    // oxlint-disable-next-line eslint/no-await-in-loop -- the requests are sequential and spaced.
+    const answer = await answerFor(tab.id, permalinkAddress(tab, postId, id));
+
+    if (answer.status === RATE_LIMITED) break;
+
+    const found = answer.status === 200 ? hiddenRepliesOf(answer.text, postId) : null;
+
+    if (found === null) continue;
+
+    answers.push(answer.text);
+    queue.push(...found);
+    held += answer.text.length;
   }
 
-  if (state.asked.includes(next)) return fillFrom(plan, { ...state, waiting });
-
-  const asked = [...state.asked, next];
-
-  await pause(REQUEST_SPACING_MS);
-
-  const answer = await answerFor(plan.tab.id, permalinkAddress(plan.tab, plan.postId, next));
-
-  if (answer.status === RATE_LIMITED) return state.answers;
-
-  const found = answer.status === 200 ? hiddenRepliesOf(answer.text, plan.postId) : null;
-
-  if (found === null) return fillFrom(plan, { ...state, waiting, asked });
-
-  return fillFrom(plan, {
-    answers: [...state.answers, answer.text],
-    waiting: [...waiting, ...found],
-    asked,
-  });
+  return answers;
 }
 
 function byteLength(text: string): number {
   return new Blob([text]).size;
-}
-
-function charactersIn(answers: readonly string[]): number {
-  return answers.reduce((total, answer) => total + answer.length, 0);
 }
 
 function fitted(url: string, answers: ThreadAnswers): ThreadAnswers | null {
@@ -142,12 +172,7 @@ export async function fetchThread(tab: Readonly<ThreadTab>): Promise<ThreadAnswe
   const first = await answerFor(tab.id, threadAddress(tab));
   const hidden = first.status === 200 ? hiddenRepliesOf(first.text, ref.postId) : null;
 
-  if (hidden === null) return null;
-
-  const [, ...later] = await fillFrom(
-    { tab, postId: ref.postId, giveUpAt: Date.now() + FILL_DEADLINE_MS },
-    { answers: [first.text], waiting: hidden, asked: [] },
-  );
-
-  return fitted(tab.url, [first.text, ...later]);
+  return hidden === null
+    ? null
+    : fitted(tab.url, await fillAnswers(tab, ref.postId, first.text, hidden));
 }

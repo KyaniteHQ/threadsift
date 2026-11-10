@@ -10,7 +10,12 @@ import { closeFetchJobs, enqueueRows } from "./job-rows.ts";
 import { isGitHubLink, isRedditOrXLink, isRefusedLink, parseLink, redditRefOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { ownerOf } from "./reddit-thread.ts";
-import { PAGE_BYTES, type SuppliedPage, pageBytes } from "./supplied-page.ts";
+import {
+  PAGE_BYTES,
+  type SuppliedPage,
+  UNSUPPORTED_PAGE_LINK,
+  pageBytes,
+} from "./supplied-page.ts";
 import { saveThreadPage } from "./thread-page.ts";
 
 export type PageSaveResult =
@@ -60,7 +65,7 @@ export async function savePage(
   const ref = redditRefOf(absoluteUrl);
 
   if (ref === null && (isRedditOrXLink(absoluteUrl) || isGitHubLink(absoluteUrl))) {
-    return { kind: "invalid", field: "page", reason: NOT_A_PAGE_LINK };
+    return { kind: "invalid", field: "page", reason: NOT_A_PAGE_LINK, code: UNSUPPORTED_PAGE_LINK };
   }
 
   if (pageBytes(page) > PAGE_BYTES) return { kind: "too-large", field: "page" };

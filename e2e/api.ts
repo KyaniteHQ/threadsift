@@ -1,12 +1,13 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { type APIRequestContext, expect, test } from "@playwright/test";
+import { type APIRequestContext, type APIResponse, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import type { Digest } from "../src/core/ai-contract.ts";
 import {
   ItemListResponseSchema,
   ItemDetailResponseSchema,
+  SaveRefusalSchema,
   SavedItemResponseSchema,
 } from "../src/http/schemas.ts";
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";
@@ -24,6 +25,14 @@ export async function postLinkRaw(
   const response = await request.post("/api/items", { data: { url, digest }, headers });
 
   return { status: response.status(), body: SavedItemResponseSchema.parse(await response.json()) };
+}
+
+export async function refusalOf(response: Readonly<APIResponse>) {
+  return SaveRefusalSchema.parse(await response.json());
+}
+
+export async function errorOf(response: Readonly<APIResponse>): Promise<string> {
+  return (await refusalOf(response)).error;
 }
 
 export async function getItem(request: APIRequestContext, id: number) {

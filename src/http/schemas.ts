@@ -14,7 +14,7 @@ import {
 } from "../core/kinds.ts";
 import { NoteViewSchema } from "../core/note-contract.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
-import { SuppliedPageSchema } from "../core/supplied-page.ts";
+import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../core/supplied-page.ts";
 import { ThreadAnswersSchema } from "../core/thread-answers.ts";
 import { ItemImageSchema, SizedImageSchema } from "./item-image.ts";
 
@@ -165,6 +165,10 @@ export const ErrorResponseSchema = z.object({
   error: z.string(),
   fetch: z.literal("refused").optional(),
   code: z.enum(REFUSAL_CODES).optional(),
+});
+
+export const SaveRefusalSchema = ErrorResponseSchema.extend({
+  code: z.literal(UNSUPPORTED_PAGE_LINK).optional(),
 });
 
 export const SessionStateSchema = z.discriminatedUnion("state", [

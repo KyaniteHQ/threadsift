@@ -1,18 +1,23 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { SuppliedPageSchema } from "../../src/core/supplied-page.ts";
+import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../../src/core/supplied-page.ts";
 import type { ThreadAnswers } from "../../src/core/thread-answers.ts";
 import { type Config, hostPattern } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
 import { type ThreadTab, fetchThread } from "./reddit-thread.ts";
 import type { SaveState } from "./state.ts";
+import { resultInTab } from "./tab-result.ts";
 
 const CapturedSchema = SuppliedPageSchema.extend({ url: z.string() });
 
 const SavedSchema = z.object({ url: z.string() });
 
-const RefusalSchema = z.object({ error: z.string(), fetch: z.string().optional() });
+const RefusalSchema = z.object({
+  error: z.string(),
+  fetch: z.string().optional(),
+  code: z.string().optional(),
+});
 
 export const REQUEST_DEADLINE_MS = 25_000;
 
@@ -26,25 +31,16 @@ type Body =
 
 async function activeTab(): Promise<ThreadTab | null> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+  const url = tab?.url ?? "";
 
-  return tab?.id !== undefined && WEB_PAGE.test(tab.url ?? "")
-    ? { id: tab.id, url: tab.url ?? "" }
-    : null;
+  return tab?.id !== undefined && WEB_PAGE.test(url) ? { id: tab.id, url } : null;
 }
 
-async function capturedPage(tabId: number): Promise<Captured | null> {
-  try {
-    const [injected] = await browser.scripting.executeScript({
-      target: { tabId },
-      files: ["/capture.js"],
-    });
-
-    const captured = CapturedSchema.safeParse(injected?.result);
-
-    return captured.success ? captured.data : null;
-  } catch {
-    return null;
-  }
+function capturedPage(tabId: number): Promise<Captured | null> {
+  return resultInTab(
+    () => browser.scripting.executeScript({ target: { tabId }, files: ["/capture.js"] }),
+    CapturedSchema,
+  );
 }
 
 async function bodyOf(tab: Readonly<ThreadTab>): Promise<Body | null> {
@@ -68,7 +64,7 @@ async function refusedState(response: Response): Promise<SaveState> {
 
   if (refusal.data.fetch === "refused") return { kind: "private-link" };
 
-  return refusal.data.error.startsWith("page: only ")
+  return refusal.data.code === UNSUPPORTED_PAGE_LINK
     ? { kind: "unsupported-link" }
     : { kind: "failed" };
 }

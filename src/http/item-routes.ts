@@ -15,6 +15,7 @@ import {
   ItemQuerySchema,
   ItemResponseSchema,
   SaveItemRequestSchema,
+  SaveRefusalSchema,
   SavedItemResponseSchema,
 } from "./schemas.ts";
 
@@ -46,8 +47,8 @@ const saveItemRoute = createRoute({
       "An Item with the same normalized URL already existed. It is `processing` again and has a new fetch job, unless a job was already queued or running. With `page`, the open fetch job ends first, so the new job always publishes the page.",
     ),
     400: jsonBody(
-      ErrorResponseSchema,
-      "The body is not an absolute http or https URL, or its host is not globally reachable. With `content`: the link is not a Reddit post or comment link, or `content` is not the Reddit JSON of that thread (malformed JSON, not a post Listing and a comment Listing, a post id that is not the link's, a missing or deleted requested comment, a repeated comment id, a parent_id that does not match the tree, a text over 1,000,000 bytes, or an answer after the first that fills no `more` stub of the thread). With `page`: the link is an X or GitHub link or a Reddit link that is not a post or comment, a Reddit page has no title, or `content` came too. The Item is unchanged.",
+      SaveRefusalSchema,
+      "The body is not an absolute http or https URL, or its host is not globally reachable. With `content`: the link is not a Reddit post or comment link, or `content` is not the Reddit JSON of that thread (malformed JSON, not a post Listing and a comment Listing, a post id that is not the link's, a missing or deleted requested comment, a repeated comment id, a parent_id that does not match the tree, a text over 1,000,000 bytes, or an answer after the first that fills no `more` stub of the thread). With `page`: the link is an X or GitHub link or a Reddit link that is not a post or comment, a Reddit page has no title, or `content` came too; a link that cannot take a page also answers `code: unsupported-link`. The Item is unchanged.",
     ),
     413: jsonBody(
       ErrorResponseSchema,
@@ -128,7 +129,7 @@ function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
     }
 
     if (saved.kind === "invalid") {
-      return c.json({ error: `${saved.field}: ${saved.reason}` }, 400);
+      return c.json({ error: `${saved.field}: ${saved.reason}`, code: saved.code }, 400);
     }
 
     return c.json(

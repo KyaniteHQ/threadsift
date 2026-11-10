@@ -4,6 +4,8 @@ import { utf8Length } from "./digest-prompt.ts";
 
 export const PAGE_BYTES = 1_000_000;
 
+export const UNSUPPORTED_PAGE_LINK = "unsupported-link";
+
 export const SuppliedPageSchema = z.object({
   markdown: z.string(),
   title: z.string(),

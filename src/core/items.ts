@@ -6,6 +6,7 @@ import { hasOpenJob, openingJob, enqueueRows } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
 import { items } from "./schema.ts";
+import type { UNSUPPORTED_PAGE_LINK } from "./supplied-page.ts";
 
 export type SaveResult =
   | { readonly kind: "saved"; readonly item: ListedItemRow; readonly created: boolean }
@@ -15,6 +16,7 @@ export interface Invalid<Field extends string> {
   readonly kind: "invalid";
   readonly field: Field;
   readonly reason: string;
+  readonly code?: typeof UNSUPPORTED_PAGE_LINK;
 }
 
 export interface ThreadKept {
