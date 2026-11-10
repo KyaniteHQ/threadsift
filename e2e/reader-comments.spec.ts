@@ -16,6 +16,7 @@ import { SAVED_COMMENT, rowKeptLabel } from "../web/src/text.ts";
 import { newCode, newPassword } from "./access.ts";
 import {
   comments,
+  expectJumpedToComments,
   listItemDepths,
   openItem,
   sweepBar,
@@ -144,17 +145,7 @@ test("the Comments button names the counts, shortens as the bar narrows, and tak
   expect(await crowdedControls(page)).toEqual([]);
 
   await bar(page).locator(".rd-cm").click();
-  const heading = comments(page).getByRole("heading", { name: COMMENTS_TITLE });
-  await expect(heading).toBeFocused();
-  await expect.poll(() => slot(page).evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  await expect
-    .poll(async () => {
-      const box = await heading.boundingBox();
-      const barBox = await bar(page).boundingBox();
-
-      return box !== null && barBox !== null && box.y >= barBox.y + barBox.height && box.y < 400;
-    })
-    .toBe(true);
+  await expectJumpedToComments(page);
 
   const seen = await sweepBar(page, { from: SWEEP_FROM, to: SWEEP_TO, step: SWEEP_STEP });
 
