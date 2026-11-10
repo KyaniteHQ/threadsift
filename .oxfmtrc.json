@@ -7,6 +7,7 @@
     "design/prototype/**",
     "design/system/*.css",
     ".claude/skills/**",
+    ".agents/skills/impeccable/**",
     "tools/oxlint/anti-slop/**",
     "pnpm-lock.yaml"
   ]

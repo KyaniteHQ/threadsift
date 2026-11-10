@@ -184,7 +184,12 @@ export default defineConfig({
       },
     },
   ],
-  ignorePatterns: ["design/prototype/**", "tools/oxlint/anti-slop/**", ".claude/**"],
+  ignorePatterns: [
+    "design/prototype/**",
+    "tools/oxlint/anti-slop/**",
+    ".claude/**",
+    ".agents/skills/impeccable/**",
+  ],
   options: {
     typeAware: true,
     typeCheck: true,
