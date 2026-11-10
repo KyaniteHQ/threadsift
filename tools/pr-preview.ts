@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import { CommandFailure } from "./command-failure.ts";
 import { previewResourceExists, removePreviewBucket } from "./preview-cloudflare.ts";
 import { provisionPreviewOwner } from "./preview-owner.ts";
 
-const [action, number, mode] = process.argv.slice(2);
+const [action, number, mode, artifact] = process.argv.slice(2);
 const operation = z.enum(["deploy", "close"]).parse(action);
 
 const pr = z
@@ -42,15 +42,39 @@ const source = z
   })
   .parse(unstable_readConfig({ config: "wrangler.jsonc" }));
 
+function requireRegularFiles(path: string): void {
+  const stat = lstatSync(path);
+
+  if (stat.isDirectory()) {
+    for (const entry of readdirSync(path)) requireRegularFiles(join(path, entry));
+  } else if (!stat.isFile()) {
+    throw new Error("Preview artifact must contain only regular files and directories");
+  }
+}
+
+const root = artifact === undefined ? process.cwd() : resolve(artifact);
+
+if (artifact !== undefined) {
+  requireRegularFiles(root);
+  z.literal(true).parse(lstatSync(join(root, "dist/worker/index.js")).isFile());
+  z.literal(true).parse(lstatSync(join(root, "dist/web")).isDirectory());
+  z.literal(true).parse(lstatSync(join(root, "migrations")).isDirectory());
+}
+
 const config = {
   ...source,
-  main: resolve(source.main),
-  assets: { ...source.assets, directory: resolve(source.assets.directory) },
+  main: artifact === undefined ? resolve(source.main) : join(root, "dist/worker/index.js"),
+  no_bundle: artifact !== undefined,
+  find_additional_modules: false,
+  assets: {
+    ...source.assets,
+    directory: artifact === undefined ? resolve(source.assets.directory) : join(root, "dist/web"),
+  },
   name,
   workers_dev: true,
   preview_urls: false,
   d1_databases: [
-    { binding: "DB", database_name: `${name}-db`, migrations_dir: resolve("migrations") },
+    { binding: "DB", database_name: `${name}-db`, migrations_dir: join(root, "migrations") },
   ],
   r2_buckets: [{ binding: "FILES", bucket_name: `${name}-files` }],
   ai: { binding: "AI" },

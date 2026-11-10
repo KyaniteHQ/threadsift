@@ -1,61 +1,104 @@
 name: pr-preview
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  pull_request_target:
-    types: [closed]
+  workflow_run:
+    workflows: [bundle]
+    types: [completed]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Closed pull request to clean up (empty sweeps closed previews)
+        required: false
+        type: string
 
 permissions:
   contents: read
 
-concurrency:
-  group: preview-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
-  queue: max
+defaults:
+  run:
+    shell: bash
 
 jobs:
+  select:
+    if: github.repository == 'KyaniteHQ/threadsift' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      deployments: read
+      pull-requests: read
+    outputs:
+      previews: ${{ steps.select.outputs.previews }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-devenv
+      - run: devenv tasks run ci:install
+      - id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          previews=$(devenv shell -- node tools/preview-selection.ts)
+          echo "previews=$previews" >> "$GITHUB_OUTPUT"
+
   preview:
-    if: github.repository == 'KyaniteHQ/threadsift' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: select
+    if: needs.select.outputs.previews != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        preview: ${{ fromJSON(needs.select.outputs.previews) }}
+    concurrency:
+      group: preview-${{ matrix.preview.pr }}
+      cancel-in-progress: false
+      queue: max
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: preview
     permissions:
+      actions: read
       contents: read
       deployments: write
       pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.action == 'closed' && github.event.repository.default_branch || github.event.pull_request.head.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-devenv
+      - run: devenv tasks run ci:install
       - id: current
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-          SHA: ${{ github.event.pull_request.head.sha }}
-          ACTION: ${{ github.event.action }}
-        shell: bash
+          PR: ${{ matrix.preview.pr }}
+          SHA: ${{ matrix.preview.sha }}
+          OPERATION: ${{ matrix.preview.operation }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" > "$RUNNER_TEMP/pr.json"
-          if [ "$ACTION" = closed ]; then
-            jq -e '.state == "closed"' "$RUNNER_TEMP/pr.json"
-            echo 'operation=close' >> "$GITHUB_OUTPUT"
-          elif jq -e --arg sha "$SHA" '.state == "open" and .head.sha == $sha' "$RUNNER_TEMP/pr.json" >/dev/null; then
+          if [ "$OPERATION" = close ]; then
+            if jq -e '.state == "closed"' "$RUNNER_TEMP/pr.json" >/dev/null; then
+              echo 'operation=close' >> "$GITHUB_OUTPUT"
+            fi
+          elif jq -e --arg sha "$SHA" --arg repo "$GITHUB_REPOSITORY" '.state == "open" and .head.sha == $sha and .head.repo.full_name == $repo' "$RUNNER_TEMP/pr.json" >/dev/null; then
             echo 'operation=deploy' >> "$GITHUB_OUTPUT"
           fi
-      - if: steps.current.outputs.operation == 'close'
-        run: devenv tasks run ci:install
       - if: steps.current.outputs.operation == 'deploy'
-        run: devenv tasks run web:build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: pr-preview
+          path: ${{ runner.temp }}/pr-preview
+          run-id: ${{ matrix.preview.run }}
+          github-token: ${{ github.token }}
       - id: deployment
         if: steps.current.outputs.operation == 'deploy'
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-          SHA: ${{ github.event.pull_request.head.sha }}
-        shell: bash
+          PR: ${{ matrix.preview.pr }}
+          SHA: ${{ matrix.preview.sha }}
         run: |
           jq -n --arg ref "$SHA" --arg environment "pr-$PR" '{ref:$ref,environment:$environment,auto_merge:false,required_contexts:[],transient_environment:true,production_environment:false}' > "$RUNNER_TEMP/deployment.json"
           id=$(gh api "repos/$GITHUB_REPOSITORY/deployments" --input "$RUNNER_TEMP/deployment.json" --jq .id)
@@ -69,9 +112,13 @@ jobs:
           DEMO_OWNER_PASSWORD: ${{ secrets.DEMO_OWNER_PASSWORD }}
           PREVIEW_SETUP_CODE: ${{ secrets.PREVIEW_SETUP_CODE }}
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/preview-output.jsonl
-          PR: ${{ github.event.pull_request.number }}
+          PR: ${{ matrix.preview.pr }}
           OPERATION: ${{ steps.current.outputs.operation }}
-        run: devenv shell -- node tools/pr-preview.ts "$OPERATION" "$PR" --apply
+          ARTIFACT: ${{ runner.temp }}/pr-preview
+        run: |
+          args=()
+          if [ "$OPERATION" = deploy ]; then args=("$ARTIFACT"); fi
+          devenv shell -- node tools/pr-preview.ts "$OPERATION" "$PR" --apply "${args[@]}"
       - if: always() && steps.deployment.outputs.id != ''
         name: Publish the deployment result
         env:
@@ -79,7 +126,6 @@ jobs:
           ID: ${{ steps.deployment.outputs.id }}
           RESULT: ${{ job.status }}
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/preview-output.jsonl
-        shell: bash
         run: |
           if [ "$RESULT" = success ]; then
             url=$(jq -rs '[.[] | select(.type == "deploy") | .targets[] | select(startswith("https://"))] | last' "$WRANGLER_OUTPUT_FILE_PATH")
@@ -92,8 +138,7 @@ jobs:
         name: Mark closed preview deployments inactive
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        shell: bash
+          PR: ${{ matrix.preview.pr }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/deployments?environment=pr-$PR&per_page=100" --paginate --jq '.[].id' > "$RUNNER_TEMP/deployments.txt"
           while read -r id; do
