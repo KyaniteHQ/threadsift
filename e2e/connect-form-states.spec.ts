@@ -26,6 +26,25 @@ function button(page: Page, name: string) {
   return aiSection(page).getByRole("button", { name, exact: true });
 }
 
+async function pressSaveAsConnectLeaves(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.addEventListener("beforeunload", () => {
+      let microtasks = 0;
+
+      const pressSave = () => {
+        document
+          .querySelector<HTMLButtonElement>('form[action="/api/settings/ai"] button[type=submit]')
+          ?.click();
+        microtasks += 1;
+
+        if (microtasks < 20) queueMicrotask(pressSave);
+      };
+
+      queueMicrotask(pressSave);
+    });
+  });
+}
+
 async function withScreen(
   browser: Parameters<typeof connectScreen>[0],
   work: (screen: ConnectScreen) => Promise<void>,
@@ -133,6 +152,7 @@ test("Save and Verify wait while Connect leaves the page, and a navigation that 
   await withScreen(browser, async (screen) => {
     const { page } = screen;
     await page.clock.install();
+    await pressSaveAsConnectLeaves(page);
     await page.route("https://openrouter.ai/auth?**", (route) => route.abort("aborted"));
     await page.goto("/settings");
 
