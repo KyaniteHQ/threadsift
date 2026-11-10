@@ -1,5 +1,11 @@
 import type { Digest } from "./ai-contract.ts";
-import { type SaveResult, foundItem, queuedWrites } from "./items.ts";
+import {
+  type Invalid,
+  type SaveResult,
+  type ThreadKept,
+  foundItem,
+  queuedWrites,
+} from "./items.ts";
 import { closeFetchJobs, enqueueRows } from "./job-rows.ts";
 import { isGitHubLink, isRedditOrXLink, isRefusedLink, parseLink, redditRefOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
@@ -9,9 +15,9 @@ import { saveThreadPage } from "./thread-page.ts";
 
 export type PageSaveResult =
   | SaveResult
-  | { readonly kind: "invalid"; readonly field: "page"; readonly reason: string }
+  | Invalid<"page">
   | { readonly kind: "too-large"; readonly field: "page" }
-  | { readonly kind: "thread-kept" };
+  | ThreadKept;
 
 const NOT_A_PAGE_LINK =
   "only a link to an article, another web page, or a Reddit post or comment takes a page";

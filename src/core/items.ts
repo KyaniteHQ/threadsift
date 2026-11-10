@@ -11,6 +11,16 @@ export type SaveResult =
   | { readonly kind: "saved"; readonly item: ListedItemRow; readonly created: boolean }
   | { readonly kind: "refused" };
 
+export interface Invalid<Field extends string> {
+  readonly kind: "invalid";
+  readonly field: Field;
+  readonly reason: string;
+}
+
+export interface ThreadKept {
+  readonly kind: "thread-kept";
+}
+
 export function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
   if (item === undefined) {
     throw new Error(`Item ${normalizedUrl} was neither inserted nor found`);

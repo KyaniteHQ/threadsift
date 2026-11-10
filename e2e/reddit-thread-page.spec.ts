@@ -50,3 +50,30 @@ test("a page for a Reddit link whose Item holds a saved thread answers 409 and l
   expect(commentRows(mainInstance(), item.id)).toEqual(rows);
   expect(generationOf(mainInstance(), item.id)).toBe(1);
 });
+
+test("a page for a Reddit link whose Item holds a thread with no comments and no published Digest answers 409 and leaves the thread", async ({
+  request,
+}) => {
+  const id = `mu${run}`;
+  const url = postUrl(id);
+
+  const { item } = await savedThread(request, {
+    url,
+    content: threadJson(
+      post(id, "The post text saved from the JSON, with no comments yet.", 0),
+      [],
+    ),
+  });
+
+  const before = await itemOf(request, item.id);
+
+  expect(commentRows(mainInstance(), item.id)).toEqual([]);
+
+  const refused = await request.post("/api/items", {
+    data: { url, page: { markdown: WORDS, title: "The rendered page" } },
+  });
+
+  expect(refused.status()).toBe(409);
+  expect(await itemOf(request, item.id)).toEqual(before);
+  expect(generationOf(mainInstance(), item.id)).toBe(1);
+});
