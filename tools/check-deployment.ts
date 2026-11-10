@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
@@ -14,6 +13,7 @@ import {
   SessionStateSchema,
 } from "../src/http/schemas.ts";
 import { CommandFailure, type Failure } from "./command-failure.ts";
+import { DEPLOYMENT_INPUT, suppliedDigestMatches } from "./deployment-input.ts";
 import { deploymentPassword } from "./deployment-password.ts";
 
 const [address, directory, digestMode = "provider"] = process.argv.slice(2);
@@ -124,10 +124,8 @@ async function run(): Promise<void> {
 
 async function paste(): Promise<number> {
   stage = "Paste";
-  const url = new URL("https://www.sqlite.org/whentouse.html");
-
-  url.searchParams.set("threadsift-check", randomUUID());
-  const existing = await api.get("/api/items", { params: { url: url.href } });
+  const { url } = DEPLOYMENT_INPUT;
+  const existing = await api.get("/api/items", { params: { url } });
 
   if (ItemListResponseSchema.parse(await existing.json()).items.length > 0)
     throw new CommandFailure({
@@ -136,16 +134,8 @@ async function paste(): Promise<number> {
       recovery: "Run again to generate a different check URL.",
     });
 
-  const digest = {
-    title: "Deployment check",
-    topic: "Deployment check",
-    tags: [],
-    summary: "Caller-supplied publication check.",
-    keyPoints: ["This Digest proves publication without a Provider call."],
-  };
-
   const saved = await api.post("/api/items", {
-    data: mode === "provider" ? { url: url.href } : { url: url.href, digest },
+    data: mode === "provider" ? { url } : { url, digest: DEPLOYMENT_INPUT.digest },
   });
 
   if (saved.status() !== 201)
@@ -177,8 +167,16 @@ async function waitForDigest(id: number, deadline: number): Promise<void> {
     item.fetch === "ok" &&
     item.postText !== null &&
     item.digest !== null
-  )
+  ) {
+    if (mode === "supplied" && !suppliedDigestMatches(item))
+      throw new CommandFailure({
+        kind: "check",
+        reason: "Supplied Digest differs from the published Digest",
+        recovery: "Check caller-supplied Digest publication on the Instance before running again.",
+      });
+
     return;
+  }
 
   if (Date.now() >= deadline)
     throw new CommandFailure({
