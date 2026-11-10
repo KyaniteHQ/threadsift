@@ -29,9 +29,9 @@ function Newer({
 }>) {
   return (
     <div className="nt-newer" role="alert">
-      <p className="rd-note">{NOTE_CHANGED}</p>
+      <p className="nt-msg">{NOTE_CHANGED}</p>
       <blockquote className="nt-text" dir="auto" aria-label={NOTE_NEWER_LABEL}>
-        {note.body ?? <span className="rd-note">{NOTE_NEWER_EMPTY}</span>}
+        {note.body ?? <span className="nt-msg">{NOTE_NEWER_EMPTY}</span>}
       </blockquote>
       <div className="nt-acts">
         <button type="button" className="btn btn-acc" aria-disabled={pending} onClick={keepMine}>
@@ -63,12 +63,12 @@ function Refusals({
   return (
     <>
       {failed ? (
-        <p className="rd-note" role="alert">
+        <p className="nt-msg" role="alert">
           {NOTE_FAILED}
         </p>
       ) : null}
       {tooLong ? (
-        <p className="rd-note" role="alert">
+        <p className="nt-msg" role="alert">
           {NOTE_TOO_LONG}
         </p>
       ) : null}
@@ -105,8 +105,8 @@ function Actions({
       <button type="button" className="btn btn-acc" aria-disabled={!canSave} onClick={save}>
         {NOTE_SAVE}
       </button>
-      <output className="rd-note">{justSaved ? NOTE_SAVED : ""}</output>
-      <span id={keys} className="rd-note nt-keys">
+      <output className="nt-msg">{justSaved ? NOTE_SAVED : ""}</output>
+      <span id={keys} className="nt-msg nt-keys">
         {NOTE_KEYS}
       </span>
     </div>

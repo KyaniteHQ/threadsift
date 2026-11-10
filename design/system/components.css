@@ -394,7 +394,7 @@ a.btn { text-decoration: none; }
 .rd-sec-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }
 .rd-kept { color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; }
 .rd-orig, .rd-readme, .rd-comments { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
-.rd-note { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); font-style: italic; }
+.rd-note, .nt-msg { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); font-style: italic; }
 
 .rd-hl { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
 .hl-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
@@ -413,7 +413,7 @@ button.hl-quote:hover { background: var(--surface-2); }
 @media (forced-colors: none) { .nt-field:focus-visible { border-color: var(--acc-ink); outline: none; box-shadow: 0 0 0 1px var(--acc-ink); } }
 .app[data-bp~="phone"] .nt-field { font-size: max(var(--t-floor), var(--t-body)); }
 .nt-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
-.nt-acts .rd-note { font-style: normal; }
+.nt-acts .nt-msg { font-style: normal; }
 .app[data-bp~="phone"] .nt-keys { display: none; }
 .nt-newer { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); }
 .nt-text { margin: 0; padding: 0; border: 0; color: var(--text); font-family: var(--f-read); font-size: var(--t-body); line-height: var(--lh-text); overflow-wrap: anywhere; white-space: pre-wrap; }
