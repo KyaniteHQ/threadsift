@@ -17,6 +17,10 @@ let
     builtins.toJSON { default = [ { type = "insecureAcceptAnything"; } ]; }
   );
   port = name: toString config.processes.${name}.ports.http.value;
+  browsers = pkgs.playwright-driver.browsers.override {
+    withFirefox = false;
+    withWebkit = false;
+  };
 in
 {
   languages.javascript = {
@@ -25,7 +29,7 @@ in
   };
 
   env = {
-    PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
+    PLAYWRIGHT_BROWSERS_PATH = "${browsers}";
     PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
     THREADSIFT_PODMAN_POLICY = "${podmanPolicy}";
   };
@@ -34,7 +38,7 @@ in
     pkgs.corepack
     pkgs.jq
     pkgs.podman
-    pkgs.playwright-driver.browsers
+    browsers
   ];
 
   scripts.worker-local = {

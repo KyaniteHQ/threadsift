@@ -16,9 +16,9 @@ runs:
         path: ~/.cache/nix
         key: nix-fetch-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devenv.lock', '.github/actions/setup-devenv/action.yml') }}
         restore-keys: nix-fetch-${{ runner.os }}-${{ runner.arch }}-
-    - name: Install devenv v2.4.0
+    - name: Install devenv from the locked nixpkgs
       shell: bash
-      run: nix profile add github:cachix/devenv/b904dcb51fe48c30db250038241507f60752f222#devenv
+      run: nix profile add "$(jq -r '.nodes[.nodes.root.inputs.nixpkgs].locked | "github:\(.owner)/\(.repo)/\(.rev)#devenv"' devenv.lock)"
     - name: Point pnpm at a cached store
       if: inputs.cache-pnpm == 'true'
       shell: bash
