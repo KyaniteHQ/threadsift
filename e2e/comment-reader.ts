@@ -1,8 +1,9 @@
 import { type Page, expect } from "@playwright/test";
 
+import { COMMENTS_TITLE } from "../web/src/reader-text.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
 import { fontsLoaded, storeSettings, viewportAt } from "./look.ts";
-import { bar, crowdedControls, reader } from "./reader.ts";
+import { bar, crowdedControls, reader, slot } from "./reader.ts";
 
 export async function openItem(
   screen: FreshScreen,
@@ -21,6 +22,20 @@ export async function openItem(
 
 export function comments(page: Page) {
   return page.locator(".rd-comments");
+}
+
+export async function expectJumpedToComments(page: Page): Promise<void> {
+  const heading = comments(page).getByRole("heading", { name: COMMENTS_TITLE });
+  await expect(heading).toBeFocused();
+  await expect.poll(() => slot(page).evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect
+    .poll(async () => {
+      const box = await heading.boundingBox();
+      const barBox = await bar(page).boundingBox();
+
+      return box !== null && barBox !== null && box.y >= barBox.y + barBox.height && box.y < 400;
+    })
+    .toBe(true);
 }
 
 export async function visibleButtonText(page: Page): Promise<string> {
