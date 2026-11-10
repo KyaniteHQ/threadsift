@@ -21,6 +21,7 @@ function textFields(content: Readonly<Content>) {
     case "github-repo":
       return { postText: content.readme, postedAt: null };
     case "link":
+    case "empty-page":
       return NO_TEXT;
     default: {
       const exhaustive: never = content;
@@ -31,9 +32,20 @@ function textFields(content: Readonly<Content>) {
 }
 
 function contentFields(content: Readonly<Content>) {
-  return content.kind === "page"
-    ? textFields(content)
-    : { source: sourceOf(content.kind), kind: content.kind, ...textFields(content) };
+  switch (content.kind) {
+    case "page":
+    case "empty-page":
+      return textFields(content);
+    case "article":
+    case "github-repo":
+    case "link":
+      return { source: sourceOf(content.kind), kind: content.kind, ...textFields(content) };
+    default: {
+      const exhaustive: never = content;
+
+      throw new Error(exhaustive);
+    }
+  }
 }
 
 export function isRetryable(result: FetchResult): result is "timeout" | "network" {

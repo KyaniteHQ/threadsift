@@ -30,6 +30,7 @@ interface PageText {
 export type Content =
   | ({ readonly kind: "article" } & PageText)
   | ({ readonly kind: "page" } & PageText)
+  | { readonly kind: "empty-page" }
   | {
       readonly kind: "github-repo";
       readonly repository: Repository;
@@ -57,6 +58,8 @@ export const NOT_REQUESTED: Concluded = { status: "not-requested" };
 export const MIN_ARTICLE_WORDS = 100;
 
 const NOT_AN_ARTICLE: Content = { kind: "link" };
+
+const EMPTY_PAGE: Content = { kind: "empty-page" };
 
 const SUBREDDIT_LINK = /^https:\/\/www\.reddit\.com\/r\/(?<name>[^/?#]+)\//u;
 
@@ -114,7 +117,7 @@ function redditPageDetails(
       community: redditRefOf(url)?.community ?? null,
       content:
         words < MIN_ARTICLE_WORDS
-          ? null
+          ? EMPTY_PAGE
           : { kind: "page", postText, postedAt, videos, images, url },
     },
   };
