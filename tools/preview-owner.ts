@@ -39,21 +39,21 @@ async function openOwner(api: Readonly<Pick<APIRequestContext, "get" | "post">>)
 }
 
 async function seedDemo(api: Readonly<Pick<APIRequestContext, "get" | "post">>): Promise<void> {
-  const listed = await api.get("/api/items");
-
-  if (listed.status() !== 200)
-    throw new CommandFailure({
-      kind: "http",
-      status: listed.status(),
-      reason: "Preview demo inventory failed",
-      recovery: "Check the preview HTTP API and rerun deploy.",
-    });
-
-  const { items } = ItemListResponseSchema.parse(await listed.json());
-
   await Promise.all(
     demoLinks.map(async (url) => {
-      if (items.some((item) => item.originalUrl === url)) return;
+      const listed = await api.get("/api/items", { params: { url } });
+
+      if (listed.status() !== 200)
+        throw new CommandFailure({
+          kind: "http",
+          status: listed.status(),
+          reason: "Preview demo inventory failed",
+          recovery: "Check the preview HTTP API and rerun deploy.",
+        });
+
+      const { items } = ItemListResponseSchema.parse(await listed.json());
+
+      if (items.length > 0) return;
 
       const saved = await api.post("/api/items", { data: { url } });
 
