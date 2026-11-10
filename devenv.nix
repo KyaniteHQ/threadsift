@@ -118,6 +118,18 @@ in
       after = [ "ci:install" ];
       exec = "pnpm audit --prod --audit-level high";
     };
+    "design:check" = {
+      exec = ".claude/skills/impeccable/scripts/impeccable detect \${GITHUB_ACTIONS:+--github} web";
+    };
+    "ci:gate" = {
+      after = [
+        "ci:check"
+        "ci:test"
+        "ci:build"
+        "ci:audit"
+        "design:check"
+      ];
+    };
     "smoke:worker" = {
       after = [ "web:build" ];
       exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=smoke";

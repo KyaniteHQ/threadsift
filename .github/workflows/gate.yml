@@ -20,13 +20,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-devenv
-      - run: devenv tasks run ci:check ci:test ci:build ci:audit
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.impeccable/bin
           key: impeccable-engine-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.claude/skills/impeccable/scripts/VERSION') }}
-      - run: .claude/skills/impeccable/scripts/impeccable detect --github web
+      - uses: ./.github/actions/setup-devenv
+      - run: devenv tasks run ci:gate
 
   smoke:
     if: github.repository == 'KyaniteHQ/threadsift'
