@@ -15,7 +15,7 @@ import {
 
 test.describe.configure({ timeout: 300_000 });
 
-const POST_ID = `m${run}`;
+const POST_ID = `mx${run}`;
 
 const THREAD = post(POST_ID, "A post body that the answers belong to.");
 
@@ -143,7 +143,7 @@ test("a thread saved with its more stubs is saved again with the answers behind 
 });
 
 test("a comment link takes the answers behind the stubs under its comment", async ({ request }) => {
-  const id = `n${run}`;
+  const id = `my${run}`;
   const tree = post(id, "The post that holds the saved comment.");
 
   const { item } = await savedThread(request, {

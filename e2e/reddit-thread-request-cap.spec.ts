@@ -22,7 +22,7 @@ const QUOTES_PER_BODY = 700_000;
 
 const HIDDEN = ["p1", "p2", "p3", "p4", "p5", "p6"] as const;
 
-const POST_ID = `r${run}`;
+const POST_ID = `mw${run}`;
 
 const THREAD = post(POST_ID, "A post whose hidden replies are large.");
 

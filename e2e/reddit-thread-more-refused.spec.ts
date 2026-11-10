@@ -18,7 +18,7 @@ test.describe.configure({ timeout: 300_000 });
 
 const MIB = 1024 * 1024;
 
-const POST_ID = `q${run}`;
+const POST_ID = `mz${run}`;
 
 const THREAD = post(POST_ID, "A post whose answers are refused.");
 

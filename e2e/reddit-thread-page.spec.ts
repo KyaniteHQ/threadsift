@@ -20,7 +20,7 @@ const WORDS = Array.from({ length: 140 }, (_, index) => `word${index}`).join(" "
 test("a page for a Reddit link whose Item holds a saved thread answers 409 and leaves the thread, its Kept comments and its text, also after a Digest sent with the page", async ({
   request,
 }) => {
-  const id = `k${run}`;
+  const id = `mv${run}`;
   const url = postUrl(id);
 
   const { item } = await savedThread(request, {
