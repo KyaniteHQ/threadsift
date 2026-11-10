@@ -12,18 +12,19 @@ const CODE_END: HastNode = { type: "text", value: "\n" };
 function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
   const label = node.id.endsWith(FOOTNOTE_LABEL_ID);
   const task = node.getAttribute("aria-hidden") === "true";
+  const picture = node.dataset["failedPicture"] !== undefined;
 
   return {
     type: "element",
-    tagName: label ? "h2" : task ? "input" : node.localName,
+    tagName: picture ? "img" : label ? "h2" : task ? "input" : node.localName,
     properties: {
       id: label ? FOOTNOTE_LABEL_ID : node.id,
       dataFootnoteRef: node.dataset["footnoteRef"],
       dataFootnoteBackref: node.dataset["footnoteBackref"],
       alt: node.getAttribute("alt") ?? undefined,
-      src: node.getAttribute("src") ?? undefined,
+      src: node.getAttribute(picture ? "href" : "src") ?? undefined,
     },
-    children,
+    children: picture ? [] : children,
   };
 }
 

@@ -4,9 +4,9 @@ import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 import { z } from "zod";
 
-import { FOOTNOTE_LABEL_ID, readerUrl } from "./reader-url.ts";
+import { FOOTNOTE_LABEL_ID, pictureText } from "./reader-url.ts";
 
-export const PROJECTION_VERSION = 1;
+export const PROJECTION_VERSION = 2;
 
 interface HastProperties {
   readonly alt?: unknown;
@@ -171,9 +171,7 @@ function isGenerated({ tagName, properties }: Readonly<HastNode>): boolean {
 }
 
 export function imageText({ properties }: Readonly<HastNode>): string {
-  const alt = TEXT.parse(properties?.alt);
-
-  return alt === "" ? readerUrl(TEXT.parse(properties?.src)) : alt;
+  return pictureText(TEXT.parse(properties?.alt), TEXT.parse(properties?.src));
 }
 
 function rowsOf(node: Readonly<HastNode>): HastNode[] {

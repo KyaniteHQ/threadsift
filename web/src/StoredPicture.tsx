@@ -1,7 +1,7 @@
 import { createContext, type ReactNode, use, useCallback, useMemo, useState } from "react";
 import { z } from "zod";
 
-import { isImageRouteOf } from "../../src/core/file-keys.ts";
+import { isImageRouteOf, keyOfFileRoute } from "../../src/core/file-keys.ts";
 import type { ImageSize } from "../../src/core/image-size.ts";
 import type { SizedImage } from "../../src/http/item-image.ts";
 import { Mark } from "./Mark.tsx";
@@ -50,6 +50,16 @@ function marked(highlights: string | undefined, picture: ReactNode): ReactNode {
   return highlights === undefined ? picture : <Mark data-highlights={highlights}>{picture}</Mark>;
 }
 
+function PictureLink({ href, alt }: Readonly<{ href: string; alt: string | undefined }>) {
+  const projectedAsPlaceholder = (alt ?? "") === "" && keyOfFileRoute(href) !== null;
+
+  return (
+    <Link href={href} data-failed-picture={projectedAsPlaceholder ? "" : undefined}>
+      {pictureLabel(href, alt)}
+    </Link>
+  );
+}
+
 function StoredPicture({
   href,
   alt,
@@ -68,7 +78,7 @@ function StoredPicture({
     [size],
   );
 
-  if (failed) return marked(highlights, <Link href={href}>{pictureLabel(href, alt)}</Link>);
+  if (failed) return marked(highlights, <PictureLink href={href} alt={alt} />);
 
   return (
     <span className="rd-media">
@@ -110,6 +120,6 @@ export function Picture({
       data-highlights={highlights}
     />
   ) : (
-    <Link href={href}>{pictureLabel(href, alt)}</Link>
+    <PictureLink href={href} alt={alt} />
   );
 }
