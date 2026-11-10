@@ -2,7 +2,7 @@
 
 Each implemented change gets one review from an agent that did not write it: the main session on Claude Opus, or gpt-6.1-sol at medium effort. The review runs on the owner's machine, never in CI, because OpenAI's CI guide rules out the ChatGPT plan in a public repository (`docs/architecture.md`, CI, releases and rollback, Secrets and forks).
 
-1. Clean up the diff for reuse, simplification, efficiency and altitude, and keep the cleanups that pass `pnpm check`. Claude Code runs `/simplify`; Codex runs the `tidy` skill.
+1. Clean up the diff for reuse, simplification, efficiency and altitude, and keep the cleanups that pass `devenv tasks run ci:gate`. Claude Code runs `/simplify`; Codex runs the `tidy` skill.
 2. Judge the diff in its final shape with the `thermo-nuclear-code-quality-review` skill, installed for Claude Code and Codex on the owner's machine. Without it, apply its seven checks:
    1. A reframing that deletes branches, helpers, modes or layers beats one that moves them.
    2. A file stays under 1000 lines.
