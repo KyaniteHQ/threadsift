@@ -49,7 +49,7 @@ export function Original({
             <PostTextView
               text={text}
               targetKey={POST_KEY}
-              itemId={item.kind === "article" ? item.id : null}
+              itemId={item.id}
               images={detail.images}
             />
           </section>
