@@ -47,6 +47,11 @@
       "groupSlug": "oxlint"
     },
     {
+      "description": "@playwright/test must stay on the version of nixpkgs' playwright-driver, whose browsers devenv.nix puts on PLAYWRIGHT_BROWSERS_PATH; a newer npm version looks for browser builds that path does not hold, so it moves by hand with the devenv.lock update that moves playwright-driver",
+      "matchPackageNames": ["@playwright/test"],
+      "enabled": false
+    },
+    {
       "description": "@cloudflare/workers-utils types what wrangler's experimental_readRawConfig returns and must match the version in wrangler's own devDependencies, so they move together even across a major",
       "matchPackageNames": ["wrangler", "@cloudflare/workers-utils"],
       "groupName": "wrangler",
