@@ -2,7 +2,7 @@ inputs:
   nixpkgs:
     url: github:cachix/devenv-nixpkgs/rolling
   git-hooks:
-    url: github:cachix/git-hooks.nix
+    url: github:cachix/git-hooks.nix/1ba1dbfe28738c9a71c266be6efa5b89e75491a9
     inputs:
       nixpkgs:
         follows: nixpkgs
