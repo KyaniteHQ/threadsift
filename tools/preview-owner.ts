@@ -1,6 +1,8 @@
 import { request } from "@playwright/test";
 import { z } from "zod";
 
+import { CommandFailure } from "./command-failure.ts";
+
 export async function provisionPreviewOwner(origin: string): Promise<void> {
   const code = z.string().min(16).parse(process.env["PREVIEW_SETUP_CODE"]);
   const password = z.string().min(15).parse(process.env["DEMO_OWNER_PASSWORD"]);
@@ -21,11 +23,23 @@ export async function provisionPreviewOwner(origin: string): Promise<void> {
       return;
     }
 
-    if (response.status() !== 204) throw new Error("Preview owner provisioning failed");
+    if (response.status() !== 204)
+      throw new CommandFailure({
+        kind: "http",
+        status: response.status(),
+        reason: "Preview owner provisioning failed",
+        recovery: "Check setup credentials, migrations and Worker readiness, then rerun deploy.",
+      });
 
     const ended = await api.post("/api/logout");
 
-    if (ended.status() !== 204) throw new Error("Preview setup session cleanup failed");
+    if (ended.status() !== 204)
+      throw new CommandFailure({
+        kind: "http",
+        status: ended.status(),
+        reason: "Preview setup session cleanup failed",
+        recovery: "End the setup session in Instance settings and rerun deploy.",
+      });
   } finally {
     await api.dispose();
   }

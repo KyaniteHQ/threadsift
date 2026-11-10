@@ -2,6 +2,8 @@ import { setTimeout } from "node:timers/promises";
 
 import { z } from "zod";
 
+import { CommandFailure } from "./command-failure.ts";
+
 const Job = z.object({
   success: z.literal(true),
   result: z.object({
@@ -26,13 +28,24 @@ export async function removePreviewBucket(bucket: string): Promise<void> {
     signal: AbortSignal.timeout(30_000),
   });
 
-  if (!started.ok) throw new Error(`R2 cleanup start failed (${String(started.status)})`);
+  if (!started.ok)
+    throw new CommandFailure({
+      kind: "http",
+      status: started.status,
+      reason: "R2 cleanup start failed",
+      recovery: "Check R2 token permissions and any active deletion job, then rerun close.",
+    });
 
   let job = Job.parse(await started.json()).result;
 
   job = await finished(job, endpoint, headers, deadline);
 
-  if (job.status !== "COMPLETED") throw new Error("R2 cleanup failed; rerun close");
+  if (job.status !== "COMPLETED")
+    throw new CommandFailure({
+      kind: "check",
+      reason: `R2 cleanup job ended ${job.status}`,
+      recovery: "Inspect the bucket deletion job in Cloudflare, then rerun close.",
+    });
 }
 
 async function finished(
@@ -43,7 +56,12 @@ async function finished(
 ): Promise<z.infer<typeof Job>["result"]> {
   if (job.status !== "ENQUEUED" && job.status !== "RUNNING") return job;
 
-  if (Date.now() >= deadline) throw new Error("R2 cleanup timed out; rerun close");
+  if (Date.now() >= deadline)
+    throw new CommandFailure({
+      kind: "check",
+      reason: "R2 cleanup timed out",
+      recovery: "Inspect the bucket deletion job in Cloudflare before rerunning close.",
+    });
   await setTimeout(2000);
 
   const response = await fetch(`${endpoint}/${encodeURIComponent(job.id)}`, {
@@ -51,7 +69,13 @@ async function finished(
     signal: AbortSignal.timeout(30_000),
   });
 
-  if (!response.ok) throw new Error(`R2 cleanup poll failed (${String(response.status)})`);
+  if (!response.ok)
+    throw new CommandFailure({
+      kind: "http",
+      status: response.status,
+      reason: "R2 cleanup polling failed",
+      recovery: "Check R2 token permissions and account availability, then rerun close.",
+    });
 
   return finished(Job.parse(await response.json()).result, endpoint, headers, deadline);
 }
@@ -92,7 +116,13 @@ export async function previewResourceExists(
 
   if (response.status === 404) return false;
 
-  if (!response.ok) throw new Error(`Preview inventory failed (${String(response.status)})`);
+  if (!response.ok)
+    throw new CommandFailure({
+      kind: "http",
+      status: response.status,
+      reason: `Preview ${kind} inventory failed`,
+      recovery: "Check the preview token permissions and account, then rerun close.",
+    });
 
   if (kind !== "queue") return true;
 

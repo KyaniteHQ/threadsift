@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
 
+import { CommandFailure } from "./command-failure.ts";
 import { previewResourceExists, removePreviewBucket } from "./preview-cloudflare.ts";
 import { provisionPreviewOwner } from "./preview-owner.ts";
 
@@ -73,10 +74,17 @@ function wrangler(args: readonly string[], input?: string): string {
     maxBuffer: 16 * 1024 * 1024,
   });
 
-  if (result.status !== 0)
-    throw new Error(
-      `Wrangler ${args.slice(0, 2).join(" ")} failed; no provider output was recorded`,
-    );
+  if (result.status !== 0) {
+    const providerCode = /\[code:\s*(\d+)\]/u.exec(`${result.stdout}${result.stderr}`)?.[1];
+    throw new CommandFailure({
+      kind: "command",
+      reason: `Wrangler ${args.slice(0, 2).join(" ")} failed`,
+      exitCode: result.status,
+      providerCode: providerCode === undefined ? null : Number(providerCode),
+      recovery:
+        "Check the preview token permissions and the named Wrangler operation; rerun after correcting the cause. Raw provider output is omitted.",
+    });
+  }
 
   return result.stdout;
 }
@@ -109,14 +117,14 @@ async function close(): Promise<void> {
   ]);
 
   if (databaseExists() || remaining.some(Boolean))
-    throw new Error("Preview cleanup incomplete; rerun close");
+    throw new CommandFailure({
+      kind: "check",
+      reason: "Preview cleanup incomplete; rerun close",
+      recovery: "Inspect the PR manifest and preview token permissions, then rerun close.",
+    });
 }
 
-async function deploy(): Promise<void> {
-  z.string().min(16).parse(process.env["PREVIEW_SETUP_CODE"]);
-  z.string().min(15).parse(process.env["DEMO_OWNER_PASSWORD"]);
-  wrangler(["deploy", "--keep-vars"]);
-
+function initializeSecrets(): void {
   const secrets = z
     .array(z.object({ name: z.string() }))
     .parse(JSON.parse(wrangler(["secret", "list"])));
@@ -130,6 +138,22 @@ async function deploy(): Promise<void> {
     missing["SETUP_CODE"] = z.string().min(16).parse(process.env["PREVIEW_SETUP_CODE"]);
 
   if (Object.keys(missing).length > 0) wrangler(["secret", "bulk"], JSON.stringify(missing));
+}
+
+async function deploy(): Promise<void> {
+  if (
+    !z.string().min(16).safeParse(process.env["PREVIEW_SETUP_CODE"]).success ||
+    !z.string().min(15).safeParse(process.env["DEMO_OWNER_PASSWORD"]).success
+  )
+    throw new CommandFailure({
+      kind: "check",
+      reason: "Preview setup credentials are missing or too short",
+      recovery:
+        "Set PREVIEW_SETUP_CODE to at least 16 characters and DEMO_OWNER_PASSWORD to at least 15 in the preview environment.",
+    });
+  wrangler(["deploy", "--keep-vars"]);
+
+  initializeSecrets();
 
   wrangler(["d1", "migrations", "apply", "DB", "--remote"]);
 
@@ -153,7 +177,11 @@ async function deploy(): Promise<void> {
     !url.hostname.startsWith(`${name}.`) ||
     !url.hostname.endsWith(".workers.dev")
   )
-    throw new Error("Unexpected preview origin");
+    throw new CommandFailure({
+      kind: "check",
+      reason: "Unexpected preview origin",
+      recovery: "Inspect the Wrangler deployment target; no owner credential was sent.",
+    });
   await provisionPreviewOwner(url.origin);
 }
 
@@ -174,13 +202,28 @@ try {
     writeFileSync(configPath, JSON.stringify(config), { mode: 0o600 });
 
     if (selectedMode === "--dry-run") {
-      if (operation !== "deploy") throw new Error("Use --plan for close");
+      if (operation !== "deploy")
+        throw new CommandFailure({
+          kind: "check",
+          reason: "Use --plan for close",
+          recovery: "Use close with --plan to inspect its manifest or --apply to delete it.",
+        });
       wrangler(["deploy", "--dry-run"]);
       console.log("Wrangler compiled the preview without remote mutations");
     } else if (operation === "deploy") await deploy();
     else await close();
   }
-} catch {
-  console.error(`Preview ${operation} failed; rerun the same command to resume`);
+} catch (error) {
+  const failure =
+    error instanceof CommandFailure
+      ? error.failure
+      : {
+          kind: "check",
+          reason: "Invalid preview configuration, response or transport failure",
+          recovery:
+            "Check preview credentials and account availability, then rerun the named operation.",
+        };
+
+  console.error(JSON.stringify({ operation, ...failure }));
   process.exitCode = 1;
 }
