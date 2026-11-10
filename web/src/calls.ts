@@ -6,7 +6,7 @@ import { announceSignedOut } from "./signed-out.ts";
 type Method = "GET" | "POST" | "PUT" | "DELETE";
 
 export type JsonBody =
-  | Readonly<Record<string, string | number | undefined>>
+  | Readonly<Record<string, string | number | boolean | undefined>>
   | Readonly<CreateHighlightRequest>;
 
 interface Call {

@@ -3,6 +3,7 @@ import { AiSection } from "./AiSection.tsx";
 import { Alert } from "./Alert.tsx";
 import { GithubSection } from "./GithubSection.tsx";
 import { PasswordSection } from "./PasswordSection.tsx";
+import { RedditSection } from "./RedditSection.tsx";
 import { TokensSection } from "./TokensSection.tsx";
 import type { SettingsLoad } from "./use-settings-load.ts";
 
@@ -15,6 +16,7 @@ export function SettingsSections({
     <>
       <AiSection initial={loaded.ai} />
       <GithubSection initial={loaded.github} />
+      <RedditSection initial={loaded.reddit} />
       <TokensSection initial={loaded.tokens} />
       <PasswordSection />
       <section className="sec" aria-labelledby="sign-out-title">

@@ -1,6 +1,3 @@
-import { parseHTML } from "linkedom";
-import { z } from "zod";
-
 import type { ArticleReading } from "./article.ts";
 import type { Page } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
@@ -8,6 +5,7 @@ import { collapsed } from "./format.ts";
 import { type Link, isGitHubLink, isVideoLink, parseLink, redditRefOf } from "./links.ts";
 import type { MarkdownImage } from "./markdown-images.ts";
 import type { PageReader } from "./ports.ts";
+import type { ParsedThread } from "./reddit-json.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 
 export interface Repository {
@@ -31,6 +29,7 @@ export type Content =
   | ({ readonly kind: "article" } & PageText)
   | ({ readonly kind: "page" } & PageText)
   | { readonly kind: "empty-page" }
+  | { readonly kind: "thread"; readonly thread: ParsedThread; readonly archivedAt: number }
   | {
       readonly kind: "github-repo";
       readonly repository: Repository;
@@ -60,22 +59,6 @@ export const MIN_ARTICLE_WORDS = 100;
 const NOT_AN_ARTICLE: Content = { kind: "link" };
 
 const EMPTY_PAGE: Content = { kind: "empty-page" };
-
-const SUBREDDIT_LINK = /^https:\/\/www\.reddit\.com\/r\/(?<name>[^/?#]+)\//u;
-
-const OembedSchema = z.object({
-  title: z.string(),
-  author_name: z.string().optional(),
-  html: z.string().optional(),
-});
-
-function parseOembed(text: string): z.infer<typeof OembedSchema> | null {
-  try {
-    return OembedSchema.parse(JSON.parse(text));
-  } catch {
-    return null;
-  }
-}
 
 function isArticleAddress(url: string): boolean {
   return !isVideoLink(url) && !isGitHubLink(url);
@@ -160,42 +143,4 @@ export async function detailsOfPage(
   }
 
   return articleDetails(await pages.article(page.text, page.url, deadline), page.url);
-}
-
-function subredditOf(html: string): string | null {
-  const { document } = parseHTML(html);
-
-  for (const anchor of document.querySelectorAll("a[href]")) {
-    const name = SUBREDDIT_LINK.exec(anchor.getAttribute("href") ?? "")?.groups?.["name"];
-
-    if (name !== undefined) {
-      return name;
-    }
-  }
-
-  return null;
-}
-
-export function detailsOfOembed(text: string): Concluded {
-  const answer = parseOembed(text);
-
-  if (answer === null) {
-    return { status: "unreadable" };
-  }
-
-  const title = collapsed(answer.title);
-
-  if (title === "") {
-    return { status: "no-title" };
-  }
-
-  return {
-    status: "ok",
-    found: {
-      title,
-      author: answer.author_name ?? null,
-      community: subredditOf(answer.html ?? ""),
-      content: null,
-    },
-  };
 }

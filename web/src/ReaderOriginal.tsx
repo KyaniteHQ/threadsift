@@ -3,7 +3,7 @@ import { Comments } from "./Comments.tsx";
 import { POST_KEY } from "./highlight-target.ts";
 import { PostTextView } from "./post-text-module.ts";
 import { PostTextBoundary } from "./PostTextBoundary.tsx";
-import { FILL_NOTE, NO_POST_TEXT, NO_README, SECTION_TITLES } from "./reader-text.ts";
+import { FILL_NOTE, NO_POST_TEXT, NO_README, SECTION_TITLES, archiveNote } from "./reader-text.ts";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
 import { CARD_TITLES, TOKEN_REFUSED, WAITING } from "./text.ts";
@@ -49,6 +49,9 @@ export function Original({
         <RepositoryBlock item={item} repository={detail.repository} now={now} />
       )}
       {waitsForThread(item) ? <p className="rd-note">{FILL_NOTE}</p> : null}
+      {detail.comments.archivedAt === null ? null : (
+        <p className="rd-note">{archiveNote(detail.comments.archivedAt, now)}</p>
+      )}
       <PostTextBoundary>
         {note === null ? null : <p className="rd-note">{note}</p>}
         {hasText ? (

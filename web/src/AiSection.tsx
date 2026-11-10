@@ -6,9 +6,9 @@ import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { ConnectButton, ConnectNotes, ConnectNotice } from "./ConnectControls.tsx";
+import { type Loaded, LoadedSection } from "./LoadedSection.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { type SavedKey, isSignedOut, useAiForm } from "./use-ai-form.ts";
-import { type Loaded, useLoaded } from "./use-settings-load.ts";
 
 type Form = Readonly<ReturnType<typeof useAiForm>>;
 
@@ -178,20 +178,19 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
   );
 }
 
-export function AiSection({ initial }: Readonly<{ initial: Loaded<AiView> }>) {
-  const { loaded, ready } = useLoaded(initial);
+const aiForm = (view: AiView, saved: (view: AiView) => void) => (
+  <AiForm view={view} saved={saved} />
+);
 
+export function AiSection({ initial }: Readonly<{ initial: Loaded<AiView> }>) {
   return (
-    <section className="sec" aria-labelledby="ai-title">
-      <h2 id="ai-title" className="rd-h">
-        {AI_TEXT.title}
-      </h2>
-      <p>{AI_TEXT.intro}</p>
-      {loaded.kind === "ready" ? (
-        <AiForm view={loaded.view} saved={ready} />
-      ) : (
-        <Alert text={AI_TEXT.loadFailed} />
-      )}
-    </section>
+    <LoadedSection
+      id="ai"
+      title={AI_TEXT.title}
+      intro={AI_TEXT.intro}
+      loadFailed={AI_TEXT.loadFailed}
+      initial={initial}
+      form={aiForm}
+    />
   );
 }

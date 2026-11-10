@@ -23,6 +23,7 @@ export const CommentNodeSchema = z.discriminatedUnion("kind", [
 
 export const CommentsViewSchema = z.object({
   reported: z.number().int().nonnegative().nullable(),
+  archivedAt: z.number().int().nonnegative().nullable(),
   received: z.number().int().nonnegative(),
   kept: z.number().int().nonnegative(),
   nodes: z.array(CommentNodeSchema).readonly(),
@@ -46,7 +47,13 @@ export interface CommentRow {
   readonly postedAt: number | null;
 }
 
-export const NO_COMMENTS: CommentsView = { reported: null, received: 0, kept: 0, nodes: [] };
+export const NO_COMMENTS: CommentsView = {
+  reported: null,
+  archivedAt: null,
+  received: 0,
+  kept: 0,
+  nodes: [],
+};
 
 function readableWithAncestors(rows: readonly CommentRow[]): Set<string> {
   const byId = new Map(rows.map((row) => [row.id, row]));
@@ -98,11 +105,15 @@ function nodeOf(row: Readonly<CommentRow>): CommentNode {
   };
 }
 
-export function commentsViewOf(rows: readonly CommentRow[], reported: number | null): CommentsView {
+export function commentsViewOf(
+  rows: readonly CommentRow[],
+  { reported, archivedAt }: Readonly<{ reported: number | null; archivedAt: number | null }>,
+): CommentsView {
   const shown = shownIds(rows);
 
   return {
     reported,
+    archivedAt,
     received: rows.filter((row) => row.kind === "comment").length,
     kept: rows.filter((row) => row.kept).length,
     nodes: rows.flatMap((row) => (shown.has(row.id) ? [nodeOf(row)] : [])),

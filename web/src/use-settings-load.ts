@@ -1,11 +1,13 @@
 import { type RefObject, useCallback, useEffect, useState } from "react";
 
 import type { GithubSettingsView } from "../../src/core/github-contract.ts";
+import type { RedditSettings } from "../../src/core/reddit-contract.ts";
 import type { Token } from "../../src/http/schemas.ts";
 import { fetchTokens } from "./access-api.ts";
 import { type AiView, fetchAiSettings } from "./ai-api.ts";
 import { fetchGithubSettings } from "./github-api.ts";
 import { SECTION_FONTS, loadFonts } from "./load-fonts.ts";
+import { fetchRedditSettings } from "./reddit-api.ts";
 
 export const SETTINGS_READ_MS = 20_000;
 
@@ -16,6 +18,7 @@ export type Loaded<View> =
 export interface SettingsLoad {
   readonly ai: Loaded<AiView>;
   readonly github: Loaded<GithubSettingsView>;
+  readonly reddit: Loaded<RedditSettings>;
   readonly tokens: Loaded<readonly Token[]>;
 }
 
@@ -54,16 +57,17 @@ export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLo
     const load = async (): Promise<void> => {
       const { signal } = controller;
 
-      const [ai, github, tokens] = await Promise.all([
+      const [ai, github, reddit, tokens] = await Promise.all([
         settled(fetchAiSettings, signal),
         settled(fetchGithubSettings, signal),
+        settled(fetchRedditSettings, signal),
         settled(fetchTokens, signal),
         page.current === null ? undefined : loadFonts(page.current, SECTION_FONTS, signal),
       ]);
 
       window.clearTimeout(deadline);
 
-      if (mounted) setLoaded({ ai, github, tokens });
+      if (mounted) setLoaded({ ai, github, reddit, tokens });
     };
 
     void load();

@@ -112,9 +112,16 @@ export async function commentCandidates(
   return rows.flatMap(({ id, parentId, body }) => (body === null ? [] : [{ id, parentId, body }]));
 }
 
-interface Owner {
+export interface Owner {
   readonly id: Readonly<SQLWrapper>;
   readonly generation: Readonly<SQLWrapper>;
+}
+
+export function ownerOfItem(itemId: number): Owner {
+  return {
+    id: sql`${itemId}`,
+    generation: sql`(select ${items.generation} from ${items} where ${items.id} = ${itemId})`,
+  };
 }
 
 export function ownerOf(normalizedUrl: string): Owner {
@@ -149,13 +156,18 @@ function supersededDeletes(db: Database, owner: Readonly<Owner>) {
   ];
 }
 
-function headerInsert(db: Database, owner: Readonly<Owner>, reported: number | null) {
+function headerInsert(
+  db: Database,
+  owner: Readonly<Owner>,
+  { reported, archivedAt }: Readonly<{ reported: number | null; archivedAt: number | null }>,
+) {
   return db.insert(redditThreads).select(
     db
       .select({
         itemId: sql<number>`${owner.id}`.as("item_id"),
         generation: sql<number>`${owner.generation}`.as("generation"),
         reported: sql<number | null>`${reported}`.as("reported"),
+        archivedAt: sql<number | null>`${archivedAt}`.as("archived_at"),
       })
       .from(sql`(select 1)`)
       .where(sql`1`),
@@ -187,14 +199,13 @@ function commentInsert(db: Database, owner: Readonly<Owner>, json: string) {
 
 export function threadWrites(
   db: Database,
-  normalizedUrl: string,
+  owner: Readonly<Owner>,
   thread: Readonly<ParsedThread>,
+  archivedAt: number | null,
 ): readonly BatchItem<"sqlite">[] {
-  const owner = ownerOf(normalizedUrl);
-
   return [
     ...supersededDeletes(db, owner),
-    headerInsert(db, owner, thread.reported),
+    headerInsert(db, owner, { reported: thread.reported, archivedAt }),
     ...jsonArrays(thread.nodes.map((node) => rowJson(node))).map((json) =>
       commentInsert(db, owner, json),
     ),

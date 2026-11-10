@@ -1,19 +1,14 @@
 import { isRefusedHost, webUrlOf } from "./addresses.ts";
 import { decoderFor, isHtmlType } from "./body-text.ts";
 import { type Capped, readCapped } from "./capped.ts";
+import { failedAnswer } from "./failed-answer.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import {
-  ERROR_BODY_BYTES,
-  type RateLimit,
-  isLimitStatus,
-  rateLimitOf,
-} from "./github-rate-limit.ts";
+import type { RateLimit } from "./github-rate-limit.ts";
 import { metaRefreshTarget } from "./meta-refresh.ts";
 import {
   HOP_DEADLINE_MS,
   type Network,
   NetworkFailure,
-  type NetworkResponse,
   type NetworkFailureReason,
   type RequestHeaders,
 } from "./ports.ts";
@@ -39,7 +34,12 @@ export interface RateLimited {
 
 export type Failed =
   | { readonly kind: "failed"; readonly reason: Exclude<GuardFailure, "status"> }
-  | { readonly kind: "failed"; readonly reason: "status"; readonly httpStatus: number }
+  | {
+      readonly kind: "failed";
+      readonly reason: "status";
+      readonly httpStatus: number;
+      readonly reset: string | null;
+    }
   | RateLimited;
 
 export interface FetchPolicy {
@@ -91,44 +91,11 @@ type Hop =
 
 const failed = (reason: Exclude<GuardFailure, "status">): Failed => ({ kind: "failed", reason });
 
-const failedStatus = (httpStatus: number): Failed => ({
-  kind: "failed",
-  reason: "status",
-  httpStatus,
-});
-
 function failureOf(
   deadlineHit: boolean,
   reason: NetworkFailureReason | null,
 ): Exclude<GuardFailure, "status"> {
   return deadlineHit ? "timeout" : (reason ?? "network");
-}
-
-function rateLimited(status: number, limit: Readonly<RateLimit>): RateLimited {
-  return { kind: "failed", reason: "rate-limited", httpStatus: status, limit };
-}
-
-async function failedAnswer(
-  response: Readonly<NetworkResponse>,
-  url: string,
-  policy: Readonly<FetchPolicy>,
-): Promise<Failed> {
-  const { status, rateLimit } = response;
-
-  if (!isLimitStatus(status) || !policy.readsLimits(url)) return failedStatus(status);
-
-  const byHeaders = rateLimitOf({ status, headers: rateLimit, body: "" }, Date.now());
-
-  if (byHeaders !== null) return rateLimited(status, byHeaders);
-
-  const { bytes } = await readCapped(response.body, ERROR_BODY_BYTES);
-
-  const limit = rateLimitOf(
-    { status, headers: rateLimit, body: new TextDecoder().decode(bytes) },
-    Date.now(),
-  );
-
-  return limit === null ? failedStatus(status) : rateLimited(status, limit);
 }
 
 async function requestHop(

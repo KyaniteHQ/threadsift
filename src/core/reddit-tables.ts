@@ -1,4 +1,12 @@
-import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 import { items } from "./schema.ts";
 
@@ -12,8 +20,18 @@ export const redditThreads = sqliteTable(
       .references(() => items.id, { onDelete: "cascade" }),
     generation: integer("generation").notNull(),
     reported: integer("reported"),
+    archivedAt: integer("archived_at"),
   },
   (table) => [primaryKey({ columns: [table.itemId, table.generation] })],
+);
+
+export const redditSettings = sqliteTable(
+  "reddit_settings",
+  {
+    id: integer("id").primaryKey(),
+    archiveFill: integer("archive_fill", { mode: "boolean" }).notNull(),
+  },
+  (table) => [check("reddit_settings_is_one_row", sql`${table.id} = 1`)],
 );
 
 export const redditComments = sqliteTable(
