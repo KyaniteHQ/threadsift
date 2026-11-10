@@ -33,7 +33,7 @@ const CONTAINER = [
 
 const SERVERS = {
   worker: { command: WORKER, timeout: 180_000 },
-  container: { command: CONTAINER, timeout: 900_000 },
+  container: { command: CONTAINER, timeout: 600_000 },
 };
 
 export default defineConfig({
