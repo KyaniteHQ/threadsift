@@ -1,18 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "helpers:pinGitHubActionDigests", "docker:pinDigests"],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "The devenv CLI that setup-devenv installs from a commit, with its release tag in the step name",
-      "managerFilePatterns": ["/^\\.github/actions/setup-devenv/action\\.yml$/"],
-      "matchStrings": [
-        "name: Install devenv (?<currentValue>v\\d+\\.\\d+\\.\\d+)\\n\\s+shell: bash\\n\\s+run: nix profile add github:cachix/devenv/(?<currentDigest>[a-f0-9]{40})#devenv"
-      ],
-      "datasourceTemplate": "github-tags",
-      "depNameTemplate": "cachix/devenv"
-    }
-  ],
   "timezone": "Europe/Istanbul",
   "schedule": ["before 9am on monday"],
   "dependencyDashboard": true,

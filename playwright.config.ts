@@ -26,7 +26,7 @@ const WORKER = [
 ].join(" && ");
 
 const CONTAINER = [
-  `podman build --signature-policy "\${THREADSIFT_PODMAN_POLICY:?run inside the devenv shell}" --tag ${IMAGE} --file Containerfile .`,
+  `podman build --jobs 0 --signature-policy "\${THREADSIFT_PODMAN_POLICY:?run inside the devenv shell}" --tag ${IMAGE} --file Containerfile .`,
   `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY ${IMAGE}`,
 ].join(" && ");
 
