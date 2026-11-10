@@ -3,13 +3,19 @@ import { Comments } from "./Comments.tsx";
 import { POST_KEY } from "./highlight-target.ts";
 import { PostTextView } from "./post-text-module.ts";
 import { PostTextBoundary } from "./PostTextBoundary.tsx";
-import { NO_POST_TEXT, NO_README, SECTION_TITLES } from "./reader-text.ts";
+import { FILL_NOTE, NO_POST_TEXT, NO_README, SECTION_TITLES } from "./reader-text.ts";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
 import { CARD_TITLES, TOKEN_REFUSED, WAITING } from "./text.ts";
 
-function missingTextNote(item: Readonly<Item>): string {
+function waitsForThread(item: Readonly<Item>): boolean {
+  return item.fillable && item.status !== "processing";
+}
+
+function missingTextNote(item: Readonly<Item>): string | null {
   if (item.status === "processing") return item.wait === null ? CARD_TITLES.reading : WAITING.title;
+
+  if (waitsForThread(item)) return null;
 
   return item.kind === "github-repo" && item.fetch === "ok" ? NO_README : NO_POST_TEXT;
 }
@@ -31,6 +37,8 @@ export function Original({
   now,
 }: Readonly<{ item: Item; detail: ItemDetail; now: number }>) {
   const text = detail.postText;
+  const hasText = text !== null && text.trim() !== "";
+  const note = hasText ? null : missingTextNote(item);
 
   return (
     <>
@@ -40,10 +48,10 @@ export function Original({
       {detail.repository === null ? null : (
         <RepositoryBlock item={item} repository={detail.repository} now={now} />
       )}
+      {waitsForThread(item) ? <p className="rd-note">{FILL_NOTE}</p> : null}
       <PostTextBoundary>
-        {text === null || text.trim() === "" ? (
-          <p className="rd-note">{missingTextNote(item)}</p>
-        ) : (
+        {note === null ? null : <p className="rd-note">{note}</p>}
+        {hasText ? (
           <section className="rd-orig">
             <h3 className="rd-h">{SECTION_TITLES[item.kind]}</h3>
             <PostTextView
@@ -53,7 +61,7 @@ export function Original({
               images={detail.images}
             />
           </section>
-        )}
+        ) : null}
         <Comments item={item} detail={detail} />
       </PostTextBoundary>
     </>

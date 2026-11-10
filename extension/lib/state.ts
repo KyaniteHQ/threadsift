@@ -22,6 +22,8 @@ export const SAVE_PORT = "save";
 
 export const CONFIG_PORT = "config";
 
+export const FILL_PORT = "fill";
+
 export const ConfigViewSchema = z.object({ origin: z.string().nullable(), hasToken: z.boolean() });
 
 export type ConfigView = z.infer<typeof ConfigViewSchema>;

@@ -17,6 +17,7 @@ export const EMPTY_JOINED_VIEW = {
   retryAt: null,
   imageKey: null,
   imageAlt: null,
+  fillable: false,
 } as const;
 
 const {

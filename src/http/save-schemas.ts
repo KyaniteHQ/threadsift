@@ -8,6 +8,7 @@ import { ErrorResponseSchema, HttpUrlSchema } from "./schemas.ts";
 export const SaveItemRequestSchema = z.object({
   content: ThreadAnswersSchema.optional(),
   digest: DigestSchema.optional(),
+  fill: z.literal(true).optional(),
   page: SuppliedPageSchema.optional(),
   url: z.string().trim().pipe(HttpUrlSchema),
 });

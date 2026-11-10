@@ -2,6 +2,17 @@ import { browser } from "wxt/browser";
 
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
 
+export const REDDIT_HOSTS = ["https://*.reddit.com/*"];
+
+export const THREAD_PAGES = [
+  "https://*.reddit.com/r/*/comments/*",
+  "https://*.reddit.com/user/*/comments/*",
+  "https://*.reddit.com/u/*/comments/*",
+  "https://*.reddit.com/comments/*",
+];
+
+export const FILL_SCRIPT_ID = "fill";
+
 export interface Config {
   readonly origin: string;
   readonly token: string;

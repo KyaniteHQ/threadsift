@@ -17,13 +17,15 @@ const TOO_LARGE = {
 
 const THREAD_KEPT = "page: the saved thread stays";
 
+const NOT_WAITING = "fill: no Item with this link is waiting for its thread";
+
 const UPDATING = "The library is being updated and takes no new link yet. Try again in a minute.";
 
 const saveItemRoute = createRoute({
   method: "post",
   path: "/api/items",
   description:
-    "Save a link as an Item. `content` supplies the Reddit JSON of a thread: one text, or 1 to 101 texts, the thread's `.json` first and then the permalink answers (`/comments/<post>/_/<comment>.json`) that fill its `more` stubs, each holding one comment at its top. `page` supplies the text of a web page that the caller read in its own browser tab: `markdown` (the page text), `title`, and optionally `author`, `published` (an ISO 8601 date) and `videos` (the video addresses the Markdown links to). The server publishes a `page` like a fetched article, with the same 100-word minimum, image storage and Highlight anchoring, and never fetches the page itself. A link takes `content` or `page`, not both. `page` takes no X or GitHub link and no Reddit link that is not a post or a comment; a Reddit post or comment takes it as its text and stays a Reddit Item with no comment rows, and a page under 100 words leaves it only its title, author and community; it answers 409 when the Item already holds a saved thread.",
+    "Save a link as an Item. `content` supplies the Reddit JSON of a thread: one text, or 1 to 101 texts, the thread's `.json` first and then the permalink answers (`/comments/<post>/_/<comment>.json`) that fill its `more` stubs, each holding one comment at its top. `page` supplies the text of a web page that the caller read in its own browser tab: `markdown` (the page text), `title`, and optionally `author`, `published` (an ISO 8601 date) and `videos` (the video addresses the Markdown links to). The server publishes a `page` like a fetched article, with the same 100-word minimum, image storage and Highlight anchoring, and never fetches the page itself. A link takes `content` or `page`, not both. `fill: true` with `content` saves the thread only for a Reddit post or comment Item that holds no thread yet, which the Item's `fillable` shows; it answers 409 and changes nothing when the Item already holds a saved thread or no Item has the link, and 400 with `page` or without `content`. `page` takes no X or GitHub link and no Reddit link that is not a post or a comment; a Reddit post or comment takes it as its text and stays a Reddit Item with no comment rows, and a page under 100 words leaves it only its title, author and community; it answers 409 when the Item already holds a saved thread.",
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
     201: jsonBody(
@@ -44,7 +46,7 @@ const saveItemRoute = createRoute({
     ),
     409: jsonBody(
       ErrorResponseSchema,
-      "`page` for a Reddit post or comment whose Item already holds a saved thread from `content`, which is a thread header and so also a thread with no comments or with no published Digest. The saved thread stays, with its Kept comments, and nothing changes.",
+      "`page` for a Reddit post or comment whose Item already holds a saved thread from `content`, which is a thread header and so also a thread with no comments or with no published Digest. The saved thread stays, with its Kept comments, and nothing changes. Also `fill: true` for a link whose Item holds a saved thread in that sense or does not exist.",
     ),
     503: jsonBody(
       ErrorResponseSchema,
@@ -55,8 +57,8 @@ const saveItemRoute = createRoute({
 
 export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(saveItemRoute, async (c) => {
-    const { url, digest, content, page } = c.req.valid("json");
-    const saved = await paste(ports, url, { digest, content, page });
+    const { url, digest, content, page, fill } = c.req.valid("json");
+    const saved = await paste(ports, url, { digest, content, page, fill });
 
     if (saved.kind === "too-large") {
       return c.json({ error: TOO_LARGE[saved.field] }, 413);
@@ -68,6 +70,10 @@ export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
 
     if (saved.kind === "updating") {
       return c.json({ error: UPDATING }, 503);
+    }
+
+    if (saved.kind === "not-waiting") {
+      return c.json({ error: NOT_WAITING }, 409);
     }
 
     if (saved.kind === "thread-kept") {

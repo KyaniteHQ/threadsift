@@ -40,6 +40,10 @@ export const SUMMARY_LABEL = "Summary";
 export const KEY_POINTS_LABEL = "Key points";
 export const DIGEST_PENDING = "The summary and key points are not ready yet.";
 export const NO_POST_TEXT = "This item has no post text.";
+
+export const FILL_NOTE =
+  "The thread for this item is not saved yet. Open it on Reddit with the Extension and filling turned on to fill it with the post and comments.";
+
 export const NO_README = "This repository has no Markdown README.";
 export const GITHUB_TOPICS_LABEL = "Topics on GitHub";
 export const NONE_STATED = "None stated";

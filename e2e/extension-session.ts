@@ -3,7 +3,7 @@ import { type APIRequestContext, type Page, expect, test } from "@playwright/tes
 import { TEXT } from "../extension/lib/text.ts";
 import { createToken } from "./access-helpers.ts";
 import { itemOf } from "./api.ts";
-import { ACTION_TEXT, type Extension, type Popup, loadExtension } from "./extension.ts";
+import { ACTION_TEXT, type Extension, type Grant, type Popup, loadExtension } from "./extension.ts";
 import { type Library, closeLibrary, openLibrary } from "./media-pages.ts";
 import type { MediaRow } from "./media.ts";
 
@@ -14,12 +14,14 @@ export interface Session {
   readonly tokenValue: string;
 }
 
-export function configuredExtensionSession(): () => Session {
+export function configuredExtensionSession(
+  access: Pick<Grant, "redditAccess"> = {},
+): () => Session {
   let current: Session | null = null;
 
   test.beforeEach(async () => {
     const library = await openLibrary();
-    const extension = await loadExtension({ instanceUrl: library.instance.url });
+    const extension = await loadExtension({ instanceUrl: library.instance.url, ...access });
     const { token, value } = await createToken(library.owner, "Extension");
     await extension.configure(library.instance.url, value);
     current = { library, extension, tokenId: token.id, tokenValue: value };

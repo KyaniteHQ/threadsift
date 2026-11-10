@@ -26,7 +26,7 @@ const WEB_PAGE = /^https?:/u;
 type Captured = z.infer<typeof CapturedSchema>;
 
 type Body =
-  | { readonly url: string; readonly content: ThreadAnswers }
+  | { readonly url: string; readonly content: ThreadAnswers; readonly fill?: true }
   | { readonly url: string; readonly page: Omit<Captured, "url"> };
 
 async function activeTab(): Promise<ThreadTab | null> {
@@ -95,7 +95,10 @@ async function stateOf(response: Response, origin: string): Promise<SaveState> {
   }
 }
 
-async function send({ origin, token }: Readonly<Config>, body: Readonly<Body>): Promise<SaveState> {
+export async function send(
+  { origin, token }: Readonly<Config>,
+  body: Readonly<Body>,
+): Promise<SaveState> {
   try {
     const response = await fetch(new URL("/api/items", origin), {
       method: "POST",

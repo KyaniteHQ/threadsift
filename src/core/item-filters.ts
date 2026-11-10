@@ -3,6 +3,7 @@ import { type SQL, and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm
 import { catalogKey } from "./catalog.ts";
 import type { ReadState, Source } from "./kinds.ts";
 import { READ_STATES, SOURCES } from "./kinds.ts";
+import { parseLink } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { itemTags, items, tags, topics } from "./schema.ts";
 import { searchTerms } from "./search-terms.ts";
@@ -14,6 +15,7 @@ export interface ItemFilters {
   readonly read: ReadState | undefined;
   readonly topic: string | undefined;
   readonly tag: string | undefined;
+  readonly normalizedUrl: string | undefined;
 }
 
 export interface TypedFilters {
@@ -22,6 +24,7 @@ export interface TypedFilters {
   readonly read?: ReadState | undefined;
   readonly topic?: string | undefined;
   readonly tag?: string | undefined;
+  readonly url?: string | undefined;
 }
 
 export interface CountedName {
@@ -54,6 +57,7 @@ export function itemFilters(typed: Readonly<TypedFilters>): ItemFilters {
     read: typed.read,
     topic: keyOf(typed.topic),
     tag: keyOf(typed.tag),
+    normalizedUrl: typed.url === undefined ? undefined : parseLink(typed.url).normalizedUrl,
   };
 }
 
@@ -79,7 +83,13 @@ export function itemConditions(filters: Readonly<ItemFilters>, skipping?: Facet)
     .filter(([facet]) => facet !== skipping)
     .map(([, condition]) => condition);
 
-  return and(filters.terms.length === 0 ? undefined : matching(filters.terms), ...chosen);
+  return and(
+    filters.terms.length === 0 ? undefined : matching(filters.terms),
+    filters.normalizedUrl === undefined
+      ? undefined
+      : eq(items.normalizedUrl, filters.normalizedUrl),
+    ...chosen,
+  );
 }
 
 export type Unit = () => SQL<number>;

@@ -44,6 +44,7 @@ export interface Extension {
   tab(url: string): Promise<Page>;
   press(tab: Page): Promise<Popup>;
   settings(): Promise<Page>;
+  registeredScripts(): Promise<readonly string[]>;
   configure(address: string, token: string): Promise<void>;
   storeWithoutAsking(address: string, token: string): Promise<void>;
   close(): Promise<void>;
@@ -51,19 +52,28 @@ export interface Extension {
 
 export interface Grant {
   readonly instanceUrl: string | null;
+  readonly redditAccess?: boolean;
 }
 
-function manifestWithGrant(directory: string, instanceUrl: string | null): void {
-  if (instanceUrl === null) return;
+const REDDIT_HOSTS = ["https://*.reddit.com/*"];
+
+function manifestWithGrant(directory: string, grant: Readonly<Grant>): void {
+  const { instanceUrl, redditAccess = false } = grant;
+  const hosts: string[] = [];
+
+  if (instanceUrl !== null) {
+    const { protocol, hostname } = new URL(instanceUrl);
+    hosts.push(`${protocol}//${hostname}/*`);
+  }
+
+  if (redditAccess) hosts.push(...REDDIT_HOSTS);
+
+  if (hosts.length === 0) return;
 
   const file = join(directory, "manifest.json");
   const manifest = z.looseObject({}).parse(JSON.parse(readFileSync(file, "utf8")));
-  const { protocol, hostname } = new URL(instanceUrl);
 
-  writeFileSync(
-    file,
-    JSON.stringify({ ...manifest, host_permissions: [`${protocol}//${hostname}/*`] }),
-  );
+  writeFileSync(file, JSON.stringify({ ...manifest, host_permissions: hosts }));
 }
 
 async function evaluateIn(socketUrl: string, expression: string): Promise<string | null> {
@@ -111,11 +121,11 @@ interface Launched {
   readonly id: string;
 }
 
-async function launch(instanceUrl: string | null): Promise<Launched> {
+async function launch(grant: Readonly<Grant>): Promise<Launched> {
   const home = mkdtempSync(join(tmpdir(), "threadsift-extension-"));
   const directory = join(home, "extension");
   cpSync(BUILD, directory, { recursive: true });
-  manifestWithGrant(directory, instanceUrl);
+  manifestWithGrant(directory, grant);
 
   const profile = join(home, "profile");
 
@@ -227,8 +237,22 @@ async function configureIn(
   await settings.close();
 }
 
-export async function loadExtension({ instanceUrl }: Readonly<Grant>): Promise<Extension> {
-  const launched = await launch(instanceUrl);
+const ScriptIds = z.array(z.string());
+
+async function registeredScriptsIn(launched: Readonly<Launched>): Promise<readonly string[]> {
+  const settings = await openSettings(launched);
+
+  const ids = await settings.evaluate(
+    "chrome.scripting.getRegisteredContentScripts().then((scripts) => scripts.map(({ id }) => id))",
+  );
+
+  await settings.close();
+
+  return ScriptIds.parse(ids);
+}
+
+export async function loadExtension(grant: Readonly<Grant>): Promise<Extension> {
+  const launched = await launch(grant);
   const { context, worker, id, home } = launched;
   const press = await popupPresser(launched);
 
@@ -244,6 +268,7 @@ export async function loadExtension({ instanceUrl }: Readonly<Grant>): Promise<E
     },
     press,
     settings: () => openSettings(launched),
+    registeredScripts: () => registeredScriptsIn(launched),
     configure: (address, token) => configureIn(launched, address, token),
     async storeWithoutAsking(address, token) {
       await worker.evaluate(
