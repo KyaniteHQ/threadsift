@@ -61,10 +61,8 @@ in
     worker = {
       ports.http.allocate = 8787;
       ports.inspector.allocate = 9229;
-      exec = ''
-        [ -d dist/web ] || ./node_modules/.bin/vite build
-        exec worker-local .wrangler/state ${port "worker"} --inspector-port ${toString config.processes.worker.ports.inspector.value}
-      '';
+      after = [ "web:build" ];
+      exec = "worker-local .wrangler/state ${port "worker"} --inspector-port ${toString config.processes.worker.ports.inspector.value}";
     };
   };
 
