@@ -1,10 +1,11 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
+import { ITEM_REQUEST_BYTES, MORE_REQUEST_CAP } from "../../src/core/limits.ts";
 import { redditRefOf } from "../../src/core/links.ts";
 import { pause } from "../../src/core/pause.ts";
-import { ITEM_REQUEST_BYTES, MORE_REQUEST_CAP } from "../../src/core/request-limits.ts";
-import { type ThreadAnswers, hiddenRepliesOf } from "../../src/core/thread-answers.ts";
+import { hiddenRepliesOf } from "../../src/core/reddit-tree.ts";
+import type { ThreadAnswers } from "../../src/core/thread-answers.ts";
 
 export const REQUEST_SPACING_MS = 500;
 

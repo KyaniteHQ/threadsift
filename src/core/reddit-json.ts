@@ -2,16 +2,18 @@ import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
 import type { RedditRef } from "./links.ts";
 import {
-  ThreadRefused,
   type Walked,
   checkedIds,
   checkedMetadata,
   checkedText,
+  firstParentOf,
   graft,
+  readAnswer,
+  refusing,
   refuse,
   walk,
 } from "./reddit-tree.ts";
-import { type WireChild, type WirePost, ThreadJson } from "./reddit-wire.ts";
+import type { WireChild, WirePost } from "./reddit-wire.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
 
@@ -135,10 +137,6 @@ function ofComment(
   };
 }
 
-function firstParentOf(children: readonly WireChild[]): string {
-  return children[0]?.data.parent_id ?? "";
-}
-
 function boundaryOf(
   children: readonly WireChild[],
   post: Readonly<WirePost>,
@@ -147,33 +145,9 @@ function boundaryOf(
   return ref.commentId === undefined ? `t3_${post.id}` : firstParentOf(children);
 }
 
-interface Answer {
-  readonly post: WirePost;
-  readonly children: readonly WireChild[];
-}
-
-function readAnswer(content: string, ref: Readonly<RedditRef>): Answer {
-  const parsed = ThreadJson.safeParse(JSON.parse(content));
-
-  if (!parsed.success) {
-    return refuse(
-      "the JSON is not a Reddit thread: a post Listing, then a comment Listing whose comment ids are 1 to 29 letters or digits",
-    );
-  }
-
-  const [posts, comments] = parsed.data;
-  const [{ data: post }] = posts.data.children;
-
-  if (post.id.toLowerCase() !== ref.postId.toLowerCase()) {
-    return refuse(`the post id ${post.id} is not the id in the link`);
-  }
-
-  return { post, children: comments.data.children };
-}
-
 function parseThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ParsedThread {
   const [content, ...later] = answers;
-  const { post, children } = readAnswer(content, ref);
+  const { post, children } = readAnswer(content, ref.postId);
 
   checkedMetadata({
     "the post title": post.title,
@@ -182,16 +156,16 @@ function parseThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ParsedTh
   });
   checkedText(post.selftext, "the post text");
 
-  const merged = later.reduce<readonly Walked[]>(
-    (into, text) => {
-      const answer = readAnswer(text, ref).children;
+  const ids = new Set<string>();
+  const first = walk(children, boundaryOf(children, post, ref));
 
-      return graft(into, walk(answer, firstParentOf(answer)));
-    },
-    walk(children, boundaryOf(children, post, ref)),
-  );
+  checkedIds(ids, first);
 
-  const walked = checkedIds(merged);
+  const walked = later.reduce<readonly Walked[]>((into, text) => {
+    const answer = readAnswer(text, ref.postId).children;
+
+    return graft(ids, into, walk(answer, firstParentOf(answer)));
+  }, first);
 
   return ref.commentId === undefined
     ? ofPost(post, walked)
@@ -199,15 +173,7 @@ function parseThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ParsedTh
 }
 
 export function parseRedditThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ThreadParse {
-  try {
-    return { kind: "thread", thread: parseThread(answers, ref) };
-  } catch (error) {
-    if (error instanceof ThreadRefused) return { kind: "refused", reason: error.message };
+  const read = refusing(() => parseThread(answers, ref));
 
-    if (error instanceof SyntaxError || error instanceof RangeError) {
-      return { kind: "refused", reason: "the content is not readable Reddit JSON" };
-    }
-
-    throw error;
-  }
+  return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
 }

@@ -1,9 +1,9 @@
 import { type Digest } from "./ai-contract.ts";
 import { dataStepsFinished } from "./data-steps.ts";
 import { utf8Length } from "./digest-prompt.ts";
+import { THREAD_CONTENT_BYTES } from "./limits.ts";
 import { type PageSaveResult, savePage } from "./page-save.ts";
 import type { Ports } from "./ports.ts";
-import { THREAD_CONTENT_BYTES } from "./request-limits.ts";
 import { saveItem } from "./save-link.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";

@@ -17,3 +17,7 @@ export const WireCommentId = z
 export function storedCommentId(wireId: string): string {
   return `${PREFIX}${wireId}`;
 }
+
+export function wireCommentId(storedId: string): string | null {
+  return storedId.startsWith(PREFIX) ? storedId.slice(PREFIX.length) : null;
+}

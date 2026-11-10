@@ -49,12 +49,12 @@ async function queuePage(
   };
 }
 
-export function savePage(
+export async function savePage(
   ports: Ports,
   absoluteUrl: string,
   digest: Digest | undefined,
   page: SuppliedPage,
-): Promise<PageSaveResult> | PageSaveResult {
+): Promise<PageSaveResult> {
   if (isRefusedLink(absoluteUrl)) return { kind: "refused" };
 
   const ref = redditRefOf(absoluteUrl);
@@ -65,7 +65,9 @@ export function savePage(
 
   if (pageBytes(page) > PAGE_BYTES) return { kind: "too-large", field: "page" };
 
-  return ref === null
+  const saved = await (ref === null
     ? queuePage(ports, absoluteUrl, digest, page)
-    : saveThreadPage(ports, absoluteUrl, { digest, page });
+    : saveThreadPage(ports, absoluteUrl, { digest, page }));
+
+  return saved;
 }
