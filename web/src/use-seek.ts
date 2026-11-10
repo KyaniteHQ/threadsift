@@ -35,6 +35,8 @@ const WAIT: Step = { kind: "wait" };
 const SHOW: Step = { kind: "show" };
 const STOP: Step = { kind: "stop" };
 
+const OWNER_MOVES = ["wheel", "touchmove", "keydown", "pointerdown"] as const;
+
 function stepOf(list: Readonly<ListState>, id: number, filtered: boolean): Step {
   if (list.status === "failed") return STOP;
 
@@ -75,6 +77,20 @@ function useSharedArrival(
   }, [know, ready, seek]);
 }
 
+function onOwnerMove(end: () => void): () => void {
+  for (const type of OWNER_MOVES) {
+    document.addEventListener(type, end, { capture: true, passive: true });
+  }
+
+  return () => {
+    for (const type of OWNER_MOVES) document.removeEventListener(type, end, true);
+  };
+}
+
+function useOwnerMoveEnds(started: Readonly<Seeking> | null, cancel: () => void): void {
+  useEffect(() => (started === null ? undefined : onOwnerMove(cancel)), [cancel, started]);
+}
+
 export function useSeek({ list, openId, filters, know, more, attend }: Seeker) {
   const [started, start] = useState<Seeking | null>(null);
   const live = useRef<Seeking | null>(null);
@@ -96,6 +112,7 @@ export function useSeek({ list, openId, filters, know, more, attend }: Seeker) {
   );
 
   useSharedArrival(list.status === "ready", know, seek);
+  useOwnerMoveEnds(started, cancel);
 
   useEffect(() => {
     if (started === null || live.current !== started) return;

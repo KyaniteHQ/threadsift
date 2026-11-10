@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 
-import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
+import { type APIRequestContext, type Page, type Request, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { ItemListResponseSchema, ItemReadResponseSchema } from "../src/http/schemas.ts";
@@ -188,12 +188,18 @@ export function isCursorRead(url: URL): boolean {
   return url.pathname === "/api/items" && url.searchParams.has("cursor");
 }
 
-export function watchCursorReads(page: Page): () => number {
+export function watchCursorReads(
+  page: Page,
+  event: "request" | "requestfinished" = "request",
+): () => number {
   let sent = 0;
 
-  page.on("request", (request) => {
+  const count = (request: Readonly<Request>): void => {
     if (isCursorRead(new URL(request.url()))) sent += 1;
-  });
+  };
+
+  if (event === "request") page.on("request", count);
+  else page.on("requestfinished", count);
 
   return () => sent;
 }

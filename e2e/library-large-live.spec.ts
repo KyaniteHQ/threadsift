@@ -135,6 +135,37 @@ test("opening another Item while a seek reads pages ends the seek: no further pa
   }
 });
 
+test("the owner's own scroll while a seek reads pages ends the seek: no further page is asked for and the far row is never revealed", async () => {
+  const { screen } = library();
+  const { page } = screen;
+  const far = idsWhere(screen, "1 = 1")[FAR_POSITION] ?? 0;
+  const held = await holdRead(page, isCursorRead);
+
+  try {
+    await openLibrary(page, "list");
+    await expect(page.locator("article.it")).toHaveCount(PAGE_SIZE);
+    const cursorReads = watchCursorReads(page);
+    const cursorAnswers = watchCursorReads(page, "requestfinished");
+
+    await pasteField(page).fill(storedLink(screen, far));
+    await pasteField(page).press("Enter");
+    await held.reached;
+
+    await page.locator("article.it").nth(2).hover();
+    await page.mouse.wheel(0, 100);
+    held.release();
+
+    await expect.poll(() => cursorAnswers() === cursorReads()).toBe(true);
+    const settled = cursorReads();
+    await afterTwoFrames(page);
+    expect(cursorReads()).toBe(settled);
+    await expect(row(page, far)).toHaveCount(0);
+  } finally {
+    held.release();
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  }
+});
+
 test("a failed page read ends a seek: no further page is read until Load more or Try again reads one", async () => {
   const { screen } = library();
   const { page } = screen;
