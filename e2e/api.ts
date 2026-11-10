@@ -4,10 +4,10 @@ import { type APIRequestContext, type APIResponse, expect, test } from "@playwri
 import { z } from "zod";
 
 import type { Digest } from "../src/core/ai-contract.ts";
+import { SaveRefusalSchema } from "../src/http/save-schemas.ts";
 import {
   ItemListResponseSchema,
   ItemDetailResponseSchema,
-  SaveRefusalSchema,
   SavedItemResponseSchema,
 } from "../src/http/schemas.ts";
 import { waitForRedditTurnIfNeeded } from "./reddit.ts";

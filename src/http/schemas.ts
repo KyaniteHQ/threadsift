@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DigestSchema, ReaderDigestSchema } from "../core/ai-contract.ts";
+import { ReaderDigestSchema } from "../core/ai-contract.ts";
 import { CommentsViewSchema } from "../core/comment-view.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { HighlightsViewSchema } from "../core/highlight-contract.ts";
@@ -14,11 +14,9 @@ import {
 } from "../core/kinds.ts";
 import { NoteViewSchema } from "../core/note-contract.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
-import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../core/supplied-page.ts";
-import { ThreadAnswersSchema } from "../core/thread-answers.ts";
 import { ItemImageSchema, SizedImageSchema } from "./item-image.ts";
 
-const HttpUrlSchema = z.url({ protocol: /^https?$/u });
+export const HttpUrlSchema = z.url({ protocol: /^https?$/u });
 
 export const WaitSchema = z.object({ reason: z.enum(WAIT_REASONS), retryAt: z.number().int() });
 
@@ -92,13 +90,6 @@ const ItemDetailSchema = withStatus(
   }),
 );
 
-export const SaveItemRequestSchema = z.object({
-  content: ThreadAnswersSchema.optional(),
-  digest: DigestSchema.optional(),
-  page: SuppliedPageSchema.optional(),
-  url: z.string().trim().pipe(HttpUrlSchema),
-});
-
 export const SavedItemResponseSchema = z.object({
   item: ItemSchema,
   url: z.string(),
@@ -165,10 +156,6 @@ export const ErrorResponseSchema = z.object({
   error: z.string(),
   fetch: z.literal("refused").optional(),
   code: z.enum(REFUSAL_CODES).optional(),
-});
-
-export const SaveRefusalSchema = ErrorResponseSchema.extend({
-  code: z.literal(UNSUPPORTED_PAGE_LINK).optional(),
 });
 
 export const SessionStateSchema = z.discriminatedUnion("state", [

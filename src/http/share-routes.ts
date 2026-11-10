@@ -6,7 +6,7 @@ import type { Ports } from "../core/ports.ts";
 import { SHARE_PATH, type ShareArrival, prefillOf, shareAddress } from "../core/share-address.ts";
 import { type SharedContent, sharedContentOf } from "../core/shared-link.ts";
 import { bodyCap } from "./guard.ts";
-import { SaveItemRequestSchema } from "./schemas.ts";
+import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { fieldsOf } from "./share-fields.ts";
 import { isTrustedShare } from "./share-trust.ts";
 
