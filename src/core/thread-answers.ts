@@ -1,10 +1,35 @@
 import { z } from "zod";
 
+import { utf8Length } from "./digest-prompt.ts";
 import { type WireChild, ThreadJson } from "./reddit-wire.ts";
 
 export const MORE_REQUEST_CAP = 100;
 
 export const MAX_THREAD_ANSWERS = 1 + MORE_REQUEST_CAP;
+
+export const THREAD_CONTENT_BYTES = 4 * 1024 * 1024;
+
+export const ITEM_REQUEST_BYTES = 8 * 1024 * 1024;
+
+export interface SentAnswers {
+  readonly bytes: number;
+  readonly count: number;
+}
+
+export function emptyRequest(url: string): SentAnswers {
+  return { bytes: utf8Length(JSON.stringify({ url, content: [] })), count: 0 };
+}
+
+export function admit(sent: Readonly<SentAnswers>, answer: string): SentAnswers | null {
+  const bytes = sent.bytes + utf8Length(JSON.stringify(answer)) + (sent.count === 0 ? 0 : 1);
+
+  const fits =
+    utf8Length(answer) <= THREAD_CONTENT_BYTES &&
+    bytes <= ITEM_REQUEST_BYTES &&
+    sent.count < MAX_THREAD_ANSWERS;
+
+  return fits ? { bytes, count: sent.count + 1 } : null;
+}
 
 export type ThreadAnswers = readonly [string, ...string[]];
 

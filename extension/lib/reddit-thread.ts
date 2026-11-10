@@ -5,7 +5,10 @@ import { redditRefOf } from "../../src/core/links.ts";
 import { pause } from "../../src/core/pause.ts";
 import {
   MORE_REQUEST_CAP,
+  type SentAnswers,
   type ThreadAnswers,
+  admit,
+  emptyRequest,
   hiddenRepliesOf,
 } from "../../src/core/thread-answers.ts";
 
@@ -75,6 +78,7 @@ interface Plan {
 }
 
 interface Filled {
+  readonly sent: Readonly<SentAnswers>;
   readonly answers: readonly string[];
   readonly waiting: readonly string[];
   readonly asked: readonly string[];
@@ -99,12 +103,18 @@ async function fillFrom(plan: Readonly<Plan>, state: Readonly<Filled>): Promise<
 
   const found = answer.status === 200 ? hiddenRepliesOf(answer.text, plan.postId) : null;
 
-  return fillFrom(
-    plan,
-    found === null
-      ? { answers: state.answers, waiting, asked }
-      : { answers: [...state.answers, answer.text], waiting: [...waiting, ...found], asked },
-  );
+  if (found === null) return fillFrom(plan, { ...state, waiting, asked });
+
+  const sent = admit(state.sent, answer.text);
+
+  return sent === null
+    ? state.answers
+    : fillFrom(plan, {
+        sent,
+        answers: [...state.answers, answer.text],
+        waiting: [...waiting, ...found],
+        asked,
+      });
 }
 
 export async function fetchThread(tab: Readonly<ThreadTab>): Promise<ThreadAnswers | null> {
@@ -114,12 +124,13 @@ export async function fetchThread(tab: Readonly<ThreadTab>): Promise<ThreadAnswe
 
   const first = await answerFor(tab.id, threadAddress(tab));
   const hidden = first.status === 200 ? hiddenRepliesOf(first.text, ref.postId) : null;
+  const sent = admit(emptyRequest(tab.url), first.text);
 
-  if (hidden === null) return null;
+  if (hidden === null || sent === null) return null;
 
   const [, ...later] = await fillFrom(
     { tab, postId: ref.postId, giveUpAt: Date.now() + FILL_DEADLINE_MS },
-    { answers: [first.text], waiting: hidden, asked: [] },
+    { sent, answers: [first.text], waiting: hidden, asked: [] },
   );
 
   return [first.text, ...later];

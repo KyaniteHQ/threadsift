@@ -4,6 +4,7 @@ import { bodyLimit } from "hono/body-limit";
 import { csrf } from "hono/csrf";
 
 import type { Ports } from "../core/ports.ts";
+import { ITEM_REQUEST_BYTES } from "../core/thread-answers.ts";
 import { tokenIsValid } from "../core/tokens.ts";
 import { isOwnerOnly, isPublic } from "./access-rules.ts";
 import { ownerHasSession } from "./session-cookie.ts";
@@ -14,8 +15,6 @@ export const bodyCap = bodyLimit({
   maxSize: BODY_LIMIT_BYTES,
   onError: (c) => c.json({ error: "The request body is larger than 64 KiB" }, 413),
 });
-
-export const ITEM_REQUEST_BYTES = 8 * 1024 * 1024;
 
 const itemCap = bodyLimit({
   maxSize: ITEM_REQUEST_BYTES,

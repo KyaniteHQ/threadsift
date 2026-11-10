@@ -15,8 +15,6 @@ import { type WireChild, type WirePost, ThreadJson } from "./reddit-wire.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
 
-export const THREAD_CONTENT_BYTES = 4 * 1024 * 1024;
-
 export interface ParsedThread {
   readonly title: string;
   readonly author: string | null;
