@@ -1,13 +1,14 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
-import { z } from "zod";
 
 import { mainInstance } from "./access.ts";
-import { itemOf } from "./api.ts";
+import { errorOf, itemOf } from "./api.ts";
 import { FIRST_DIGEST, firstTree, find, marker, post, postUrl, run } from "./thread-fixtures.ts";
 import {
   AUTHORED_DIGEST,
+  MIB,
   comment,
   commentRows,
+  counts,
   postOnlyJson,
   savedThread,
   sendThread,
@@ -18,7 +19,6 @@ test.describe.configure({ timeout: 300_000 });
 
 const POST_ID = `g${run}`;
 const COMMENT_ID = `h${run}`;
-const MIB = 1024 * 1024;
 
 const COMMENT_URL = `${postUrl(COMMENT_ID)}rc1/`;
 
@@ -201,22 +201,11 @@ const REFUSALS: readonly Refusal[] = [
   },
 ];
 
-const Count = z.array(z.object({ n: z.number() }));
-
-function counts(): number[] {
-  return mainInstance()
-    .query(
-      "SELECT count(*) AS n FROM items UNION ALL SELECT count(*) FROM jobs UNION ALL SELECT count(*) FROM reddit_comments UNION ALL SELECT count(*) FROM search_parts",
-      Count,
-    )
-    .map(({ n }) => n);
-}
-
 async function stateOf(request: APIRequestContext, ids: readonly number[]) {
   return {
     details: await Promise.all(ids.map((id) => itemOf(request, id))),
     rows: ids.map((id) => commentRows(mainInstance(), id)),
-    counts: counts(),
+    counts: counts(mainInstance()),
   };
 }
 
@@ -239,7 +228,7 @@ test("refused content answers 400 or 413 and leaves every Item, job, comment and
 
   for (const refusal of REFUSALS) {
     const { status, response } = await sendThread(request, refusal);
-    const { error } = z.object({ error: z.string() }).parse(await response.json());
+    const error = await errorOf(response);
 
     expect(status, refusal.name).toBe(refusal.status);
     expect(error, refusal.name).toContain(refusal.reason);

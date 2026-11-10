@@ -5,6 +5,8 @@ import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import type { Instance } from "./access.ts";
 import { settled } from "./api.ts";
 
+export const MIB = 1024 * 1024;
+
 const POST_CREATED = 1_700_000_000;
 
 export type Node =
@@ -153,14 +155,35 @@ const Rows = z.array(
     eligible: z.number(),
     kind: z.string(),
     hasBody: z.number(),
+    parentId: z.string().nullable(),
+    depth: z.number(),
   }),
 );
 
-export function commentRows(instance: Instance, itemId: number) {
+const ROW_COLUMNS =
+  "id, generation, kept, eligible, kind, body IS NOT NULL AS hasBody, parent_id AS parentId, depth";
+
+export function commentRows(instance: Instance, itemId: number, scope: "all" | "current" = "all") {
+  const current =
+    scope === "current"
+      ? `AND generation = (SELECT generation FROM items WHERE id = ${itemId})`
+      : "";
+
   return instance.query(
-    `SELECT id, generation, kept, eligible, kind, body IS NOT NULL AS hasBody FROM reddit_comments WHERE item_id = ${itemId} ORDER BY generation, position`,
+    `SELECT ${ROW_COLUMNS} FROM reddit_comments WHERE item_id = ${itemId} ${current} ORDER BY generation, position`,
     Rows,
   );
+}
+
+const Count = z.array(z.object({ n: z.number() }));
+
+export function counts(instance: Instance): number[] {
+  return instance
+    .query(
+      "SELECT count(*) AS n FROM items UNION ALL SELECT count(*) FROM jobs UNION ALL SELECT count(*) FROM reddit_comments UNION ALL SELECT count(*) FROM search_parts",
+      Count,
+    )
+    .map(({ n }) => n);
 }
 
 const Generation = z.array(z.object({ generation: z.number() }));

@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { z } from "zod";
 
 import { mainInstance } from "./access.ts";
+import { errorOf } from "./api.ts";
 import { post, postUrl, run } from "./thread-fixtures.ts";
 import {
   AUTHORED_DIGEST,
   comment,
+  MIB,
   commentRows,
   more,
   savedThread,
@@ -15,7 +16,7 @@ import {
 
 test.describe.configure({ timeout: 300_000 });
 
-const REQUEST_CAP_BYTES = 8 * 1024 * 1024;
+const REQUEST_CAP_BYTES = 8 * MIB;
 
 const QUOTES_PER_BODY = 700_000;
 
@@ -35,8 +36,6 @@ function answerFor(id: string): string {
   return threadJson(THREAD, [comment(id, "reader_b", '"'.repeat(QUOTES_PER_BODY))], "t1_c1");
 }
 
-const Kinds = z.array(z.object({ id: z.string(), kind: z.string() }));
-
 function bytesOf(url: string, content: readonly string[]): number {
   return Buffer.byteLength(JSON.stringify({ url, content }));
 }
@@ -54,9 +53,7 @@ test("the answers that fit the request cap are saved, one more is refused, and t
   const over = await sendThread(request, { url, content: [MAIN, ...answers.slice(0, 3)] });
 
   expect(over.status).toBe(413);
-  expect(z.object({ error: z.string() }).parse(await over.response.json()).error).toBe(
-    "The request body is larger than 8 MiB",
-  );
+  expect(await errorOf(over.response)).toBe("The request body is larger than 8 MiB");
 
   const { item } = await savedThread(request, {
     url,
@@ -64,10 +61,10 @@ test("the answers that fit the request cap are saved, one more is refused, and t
     digest: AUTHORED_DIGEST,
   });
 
-  const rows = mainInstance().query(
-    `SELECT id, kind FROM reddit_comments WHERE item_id = ${item.id} AND generation = (SELECT generation FROM items WHERE id = ${item.id}) ORDER BY position`,
-    Kinds,
-  );
+  const rows = commentRows(mainInstance(), item.id, "current").map(({ id, kind }) => ({
+    id,
+    kind,
+  }));
 
   expect(rows).toEqual([
     { id: "t1_c1", kind: "comment" },

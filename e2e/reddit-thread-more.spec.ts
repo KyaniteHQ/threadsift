@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { z } from "zod";
 
 import { mainInstance } from "./access.ts";
 import { post, postUrl, run } from "./thread-fixtures.ts";
 import {
   AUTHORED_DIGEST,
-  type Node,
   comment,
+  commentRows,
   generationOf,
   more,
   savedThread,
@@ -19,24 +18,13 @@ const POST_ID = `mx${run}`;
 
 const THREAD = post(POST_ID, "A post body that the answers belong to.");
 
-const StoredNode = z.array(
-  z.object({
-    id: z.string(),
-    parentId: z.string().nullable(),
-    depth: z.number(),
-    kind: z.string(),
-  }),
-);
-
-function answer(root: Node, parent: string): string {
-  return threadJson(THREAD, [root], parent);
-}
-
 function storedTreeOf(itemId: number) {
-  return mainInstance().query(
-    `SELECT id, parent_id AS parentId, depth, kind FROM reddit_comments WHERE item_id = ${itemId} AND generation = (SELECT generation FROM items WHERE id = ${itemId}) ORDER BY position`,
-    StoredNode,
-  );
+  return commentRows(mainInstance(), itemId, "current").map(({ id, parentId, depth, kind }) => ({
+    id,
+    parentId,
+    depth,
+    kind,
+  }));
 }
 
 const MAIN = threadJson(THREAD, [
@@ -49,35 +37,44 @@ const MAIN = threadJson(THREAD, [
   more("t1x", "t2x"),
 ]);
 
-const FIRST_HIDDEN = answer(
-  comment("m1", "reader_d", "The first hidden reply names the command that worked.", [
-    comment("m1a", "reader_e", "A reply under the first hidden reply."),
-    more("n1"),
-  ]),
+const FIRST_HIDDEN = threadJson(
+  THREAD,
+  [
+    comment("m1", "reader_d", "The first hidden reply names the command that worked.", [
+      comment("m1a", "reader_e", "A reply under the first hidden reply."),
+      more("n1"),
+    ]),
+  ],
   "t1_c1",
 );
 
-const SECOND_HIDDEN = answer(
-  comment("m2", "reader_f", "The second hidden reply links the upstream issue."),
+const SECOND_HIDDEN = threadJson(
+  THREAD,
+  [comment("m2", "reader_f", "The second hidden reply links the upstream issue.")],
   "t1_c1",
 );
 
-const NESTED = answer(
-  comment("n1", "reader_g", "The reply behind the stub inside the first hidden reply."),
+const NESTED = threadJson(
+  THREAD,
+  [comment("n1", "reader_g", "The reply behind the stub inside the first hidden reply.")],
   "t1_m1",
 );
 
-const CONTINUED = answer(
-  comment("p1", "reader_c", "The chain reaches the depth Reddit cuts at.", [
-    comment("q1", "reader_h", "The first reply below the cut.", [
-      comment("q2", "reader_i", "The second reply below the cut."),
+const CONTINUED = threadJson(
+  THREAD,
+  [
+    comment("p1", "reader_c", "The chain reaches the depth Reddit cuts at.", [
+      comment("q1", "reader_h", "The first reply below the cut.", [
+        comment("q2", "reader_i", "The second reply below the cut."),
+      ]),
     ]),
-  ]),
+  ],
   "t1_c2",
 );
 
-const TOP_LEVEL = answer(
-  comment("t1x", "reader_j", "A top-level reply that sat behind the last stub."),
+const TOP_LEVEL = threadJson(
+  THREAD,
+  [comment("t1x", "reader_j", "A top-level reply that sat behind the last stub.")],
   `t3_${POST_ID}`,
 );
 

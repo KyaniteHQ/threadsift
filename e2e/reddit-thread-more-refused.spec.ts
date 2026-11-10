@@ -1,13 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { z } from "zod";
 
 import { mainInstance } from "./access.ts";
-import { itemOf } from "./api.ts";
+import { errorOf, itemOf } from "./api.ts";
 import { post, postUrl, run } from "./thread-fixtures.ts";
 import {
   AUTHORED_DIGEST,
+  MIB,
   comment,
   commentRows,
+  counts,
   more,
   savedThread,
   sendThread,
@@ -16,15 +17,9 @@ import {
 
 test.describe.configure({ timeout: 300_000 });
 
-const MIB = 1024 * 1024;
-
 const POST_ID = `mz${run}`;
 
 const THREAD = post(POST_ID, "A post whose answers are refused.");
-
-function answerBehind(parent: string, ...tops: ReturnType<typeof comment>[]): string {
-  return threadJson(THREAD, tops, parent);
-}
 
 const MAIN = threadJson(THREAD, [
   comment("c1", "reader_a", "The first comment explains the setup in two sentences.", [
@@ -35,9 +30,10 @@ const MAIN = threadJson(THREAD, [
   ]),
 ]);
 
-const BEHIND_C1 = answerBehind(
+const BEHIND_C1 = threadJson(
+  THREAD,
+  [comment("m1", "reader_d", "A reply that sat behind a stub.")],
   "t1_c1",
-  comment("m1", "reader_d", "A reply that sat behind a stub."),
 );
 
 interface Refusal {
@@ -50,7 +46,7 @@ interface Refusal {
 const REFUSALS: readonly Refusal[] = [
   {
     name: "an answer that no more stub names",
-    content: [MAIN, answerBehind("t1_c1", comment("zz1", "a", "A reply."))],
+    content: [MAIN, threadJson(THREAD, [comment("zz1", "a", "A reply.")], "t1_c1")],
     status: 400,
     reason: "the answer for the comment zz1 fills no more stub",
   },
@@ -58,8 +54,8 @@ const REFUSALS: readonly Refusal[] = [
     name: "an answer that comes before the answer that holds its stub",
     content: [
       MAIN,
-      answerBehind("t1_m1", comment("n1", "a", "A reply.")),
-      answerBehind("t1_c1", comment("m1", "a", "A reply.", [more("n1")])),
+      threadJson(THREAD, [comment("n1", "a", "A reply.")], "t1_m1"),
+      threadJson(THREAD, [comment("m1", "a", "A reply.", [more("n1")])], "t1_c1"),
     ],
     status: 400,
     reason: "the answer for the comment n1 fills no more stub",
@@ -83,14 +79,14 @@ const REFUSALS: readonly Refusal[] = [
     name: "an answer with two comments at its top",
     content: [
       MAIN,
-      answerBehind("t1_c1", comment("m1", "a", "A reply."), comment("m2", "a", "A reply.")),
+      threadJson(THREAD, [comment("m1", "a", "A reply."), comment("m2", "a", "A reply.")], "t1_c1"),
     ],
     status: 400,
     reason: "exactly one comment at its top",
   },
   {
     name: "an answer whose comment has another parent than its stub",
-    content: [MAIN, answerBehind("t1_c2", comment("m1", "a", "A reply."))],
+    content: [MAIN, threadJson(THREAD, [comment("m1", "a", "A reply.")], "t1_c2")],
     status: 400,
     reason: "the parent_id of the comment m1 does not match its more stub",
   },
@@ -98,7 +94,11 @@ const REFUSALS: readonly Refusal[] = [
     name: "an answer that repeats a comment id of the thread",
     content: [
       MAIN,
-      answerBehind("t1_c1", comment("m1", "a", "A reply.", [comment("c2", "a", "A repeat.")])),
+      threadJson(
+        THREAD,
+        [comment("m1", "a", "A reply.", [comment("c2", "a", "A repeat.")])],
+        "t1_c1",
+      ),
     ],
     status: 400,
     reason: "the comment id c2 appears twice",
@@ -111,7 +111,7 @@ const REFUSALS: readonly Refusal[] = [
   },
   {
     name: "an answer with a more stub that lists an id that is not a comment id",
-    content: [MAIN, answerBehind("t1_c1", comment("m1", "a", "A reply.", [more("1-")]))],
+    content: [MAIN, threadJson(THREAD, [comment("m1", "a", "A reply.", [more("1-")])], "t1_c1")],
     status: 400,
     reason: "comment ids are 1 to 29 letters or digits",
   },
@@ -135,19 +135,6 @@ const REFUSALS: readonly Refusal[] = [
   },
 ];
 
-const Count = z.array(z.object({ n: z.number() }));
-
-const StoredRows = z.array(z.object({ id: z.string(), parentId: z.string().nullable() }));
-
-function counts(): number[] {
-  return mainInstance()
-    .query(
-      "SELECT count(*) AS n FROM items UNION ALL SELECT count(*) FROM jobs UNION ALL SELECT count(*) FROM reddit_comments UNION ALL SELECT count(*) FROM search_parts",
-      Count,
-    )
-    .map(({ n }) => n);
-}
-
 test("a refused answer leaves the Item, its comment rows, jobs and search parts as they were", async ({
   request,
 }) => {
@@ -161,11 +148,7 @@ test("a refused answer leaves the Item, its comment rows, jobs and search parts 
     return {
       detail: await itemOf(request, item.id),
       rows: commentRows(mainInstance(), item.id),
-      parents: mainInstance().query(
-        `SELECT id, parent_id AS parentId FROM reddit_comments WHERE item_id = ${item.id} ORDER BY generation, position`,
-        StoredRows,
-      ),
-      counts: counts(),
+      counts: counts(mainInstance()),
     };
   }
 
@@ -177,7 +160,7 @@ test("a refused answer leaves the Item, its comment rows, jobs and search parts 
       content: refusal.content,
     });
 
-    const { error } = z.object({ error: z.string() }).parse(await response.json());
+    const error = await errorOf(response);
 
     expect(status, refusal.name).toBe(refusal.status);
     expect(error, refusal.name).toContain(refusal.reason);
