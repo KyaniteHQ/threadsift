@@ -21,7 +21,7 @@ async function storeMedia(
 ): Promise<StoredMedia> {
   const content = fetched.status === "ok" ? fetched.found.content : null;
 
-  if (fetched.status !== "ok" || content?.kind !== "article") {
+  if (fetched.status !== "ok" || (content?.kind !== "article" && content?.kind !== "page")) {
     return { fetched, rows: [], written: [] };
   }
 

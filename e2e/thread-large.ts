@@ -1,7 +1,7 @@
 import { marker, post } from "./thread-fixtures.ts";
-import { comment, threadJson } from "./threads.ts";
+import { MIB, comment, threadJson } from "./threads.ts";
 
-export const FOUR_MIB = 4 * 1024 * 1024;
+export const FOUR_MIB = 4 * MIB;
 const BIG_BODY_UNITS = 82_500;
 
 export function bigBody(end: string): string {

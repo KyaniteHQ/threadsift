@@ -2,8 +2,8 @@ import { expect, request, test } from "@playwright/test";
 
 import { agentToken, bearer } from "./access.ts";
 import { type Upload, slowLink } from "./slow-link.ts";
+import { MIB } from "./threads.ts";
 
-const MIB = 1024 * 1024;
 const ROUNDS = 3;
 
 const UPLOADS: readonly Upload[] = ["buffered", "paced"];

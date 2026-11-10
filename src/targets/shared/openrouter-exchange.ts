@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { AI_KEY_MAX } from "../../core/ai-contract.ts";
 import type { OpenRouterExchange } from "../../core/openrouter-contract.ts";
+import { pause } from "../../core/pause.ts";
 import { HOP_DEADLINE_MS, type AiRuntime } from "../../core/ports.ts";
 import { aiTransport } from "./ai-transport.ts";
 
@@ -27,12 +28,6 @@ async function cappedText(body: AsyncIterable<Uint8Array>): Promise<string> {
   }
 
   return text + decoder.decode();
-}
-
-function pause(ms: number): Promise<void> {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
 }
 
 async function activated(send: typeof fetch, key: string, deadline: number): Promise<boolean> {

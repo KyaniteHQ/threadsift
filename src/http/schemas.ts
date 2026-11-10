@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DigestSchema, ReaderDigestSchema } from "../core/ai-contract.ts";
+import { ReaderDigestSchema } from "../core/ai-contract.ts";
 import { CommentsViewSchema } from "../core/comment-view.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { HighlightsViewSchema } from "../core/highlight-contract.ts";
@@ -14,10 +14,9 @@ import {
 } from "../core/kinds.ts";
 import { NoteViewSchema } from "../core/note-contract.ts";
 import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
-import { SuppliedPageSchema } from "../core/supplied-page.ts";
 import { ItemImageSchema, SizedImageSchema } from "./item-image.ts";
 
-const HttpUrlSchema = z.url({ protocol: /^https?$/u });
+export const HttpUrlSchema = z.url({ protocol: /^https?$/u });
 
 export const WaitSchema = z.object({ reason: z.enum(WAIT_REASONS), retryAt: z.number().int() });
 
@@ -90,13 +89,6 @@ const ItemDetailSchema = withStatus(
     note: NoteViewSchema,
   }),
 );
-
-export const SaveItemRequestSchema = z.object({
-  content: z.string().optional(),
-  digest: DigestSchema.optional(),
-  page: SuppliedPageSchema.optional(),
-  url: z.string().trim().pipe(HttpUrlSchema),
-});
 
 export const SavedItemResponseSchema = z.object({
   item: ItemSchema,

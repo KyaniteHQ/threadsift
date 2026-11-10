@@ -1,7 +1,7 @@
 import { type APIResponse, expect, test } from "@playwright/test";
 
-import { ErrorResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
-import { itemOf, listAll, settled } from "./api.ts";
+import { SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { errorOf, itemOf, listAll, refusalOf, settled } from "./api.ts";
 import { STALLING_PAGE } from "./articles.ts";
 import { claimLostLines, jobsOf } from "./ingest.ts";
 import { type Library, closeLibrary, openLibrary } from "./media-pages.ts";
@@ -32,10 +32,6 @@ interface PageBody {
 
 function savePage(url: string, page: Readonly<PageBody>, content?: string): Promise<APIResponse> {
   return library.owner.post("/api/items", { data: { url, page, content } });
-}
-
-async function errorOf(response: Readonly<APIResponse>): Promise<string> {
-  return ErrorResponseSchema.parse(await response.json()).error;
 }
 
 test("a page is published like a fetched article for a host the server could not reach, with its images and date", async () => {
@@ -111,17 +107,27 @@ test("a page that a link cannot take is refused with its field named, and nothin
   const page = { markdown: WORDS, title: "Refused" };
 
   const cases = [
-    { url: "https://www.reddit.com/r/typescript/comments/abc123/a_post/", error: /^page: only/u },
-    { url: "https://x.com/someone/status/1234567890", error: /^page: only/u },
-    { url: "https://github.com/kepano/defuddle", error: /^page: only/u },
-    { url: "http://127.0.0.1:9/page", error: /^url: /u },
+    {
+      url: "https://www.reddit.com/r/typescript/",
+      error: /^page: only/u,
+      code: "unsupported-link",
+    },
+    {
+      url: "https://x.com/someone/status/1234567890",
+      error: /^page: only/u,
+      code: "unsupported-link",
+    },
+    { url: "https://github.com/kepano/defuddle", error: /^page: only/u, code: "unsupported-link" },
+    { url: "http://127.0.0.1:9/page", error: /^url: /u, code: undefined },
   ];
 
-  for (const { url, error } of cases) {
+  for (const { url, error, code } of cases) {
     const response = await savePage(url, page);
+    const refusal = await refusalOf(response);
 
     expect(response.status(), url).toBe(400);
-    expect(await errorOf(response), url).toMatch(error);
+    expect(refusal.error, url).toMatch(error);
+    expect(refusal.code, url).toBe(code);
   }
 
   const both = await savePage("https://both.invalid/a", page, "{}");

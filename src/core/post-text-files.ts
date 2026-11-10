@@ -1,9 +1,8 @@
 import { eq } from "drizzle-orm";
 
 import { type ClaimedJob, type JobFiles, type JobPorts, NO_FILES } from "./job-outcome.ts";
+import { INLINE_TEXT_BYTES } from "./limits.ts";
 import { items } from "./schema.ts";
-
-export const INLINE_TEXT_BYTES = 1_000_000;
 
 const ENCODER = new TextEncoder();
 

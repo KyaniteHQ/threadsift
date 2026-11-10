@@ -236,3 +236,7 @@ export function readGeneration(itemId: number | Readonly<SQLWrapper>) {
 
   return sql<number | null>`coalesce((${published}), (${stored}))`;
 }
+
+export function hasNoThread(normalizedUrl: string): SQL {
+  return sql`${readGeneration(ownerOf(normalizedUrl).id)} is null`;
+}

@@ -7,6 +7,7 @@ import { dataStepLease, dataSteps } from "./data-step-tables.ts";
 import { logFailure } from "./failure-log.ts";
 import { guardedBatch } from "./guards.ts";
 import { ITEM_IDENTITY_VERSION, advanceItemIdentity } from "./item-identity.ts";
+import { pause } from "./pause.ts";
 import type { Database } from "./ports.ts";
 
 const UNITS_PER_RUN = 100;
@@ -136,12 +137,6 @@ async function otherRunHolds(db: Database): Promise<boolean> {
     .where(and(eq(dataStepLease.id, LEASE_ROW), gt(dataStepLease.expiresAt, Date.now())));
 
   return held !== undefined;
-}
-
-function pause(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
 }
 
 async function settled(db: Database, deadline: number): Promise<boolean> {

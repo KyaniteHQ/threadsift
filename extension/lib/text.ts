@@ -9,7 +9,10 @@ export const TEXT = {
   tokenRefused: "Your agent token is wrong or was revoked. Check it in the settings.",
   tooLarge: "The text on this page is too long to save.",
   privateLink: "This link leads to a private network or your computer, so it wasn’t saved.",
-  unsupportedLink: "The Extension can’t save Reddit, X or GitHub links yet.",
+  unsupportedLink:
+    "The Extension can’t save X, GitHub or Reddit pages other than a Reddit post or comment.",
+  threadKept:
+    "Couldn’t read this Reddit thread from the page. The copy in Threadsift stays as it was.",
   updating: "The library is finishing an update, so this page wasn’t saved. Try again in a minute.",
   unreachable: "Couldn’t reach your Threadsift address. Check the address and your connection.",
   failed: "Couldn’t save this page.",

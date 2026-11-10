@@ -1,17 +1,31 @@
 import type { Digest } from "./ai-contract.ts";
-import { type SaveResult, foundItem, queuedWrites } from "./items.ts";
+import {
+  type Invalid,
+  type SaveResult,
+  type ThreadKept,
+  foundItem,
+  queuedWrites,
+} from "./items.ts";
 import { closeFetchJobs, enqueueRows } from "./job-rows.ts";
-import { isGitHubLink, isRedditOrXLink, isRefusedLink, parseLink } from "./links.ts";
+import { isGitHubLink, isRedditOrXLink, isRefusedLink, parseLink, redditRefOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { ownerOf } from "./reddit-thread.ts";
-import { PAGE_BYTES, type SuppliedPage, pageBytes } from "./supplied-page.ts";
+import {
+  PAGE_BYTES,
+  type SuppliedPage,
+  UNSUPPORTED_PAGE_LINK,
+  pageBytes,
+} from "./supplied-page.ts";
+import { saveThreadPage } from "./thread-page.ts";
 
 export type PageSaveResult =
   | SaveResult
-  | { readonly kind: "invalid"; readonly field: "page"; readonly reason: string }
-  | { readonly kind: "too-large"; readonly field: "page" };
+  | Invalid<"page">
+  | { readonly kind: "too-large"; readonly field: "page" }
+  | ThreadKept;
 
-const NOT_A_PAGE_LINK = "only a link to an article or another web page takes a page";
+const NOT_A_PAGE_LINK =
+  "only a link to an article, another web page, or a Reddit post or comment takes a page";
 
 async function queuePage(
   ports: Ports,
@@ -40,19 +54,25 @@ async function queuePage(
   };
 }
 
-export function savePage(
+export async function savePage(
   ports: Ports,
   absoluteUrl: string,
   digest: Digest | undefined,
   page: SuppliedPage,
-): Promise<PageSaveResult> | PageSaveResult {
+): Promise<PageSaveResult> {
   if (isRefusedLink(absoluteUrl)) return { kind: "refused" };
 
-  if (isRedditOrXLink(absoluteUrl) || isGitHubLink(absoluteUrl)) {
-    return { kind: "invalid", field: "page", reason: NOT_A_PAGE_LINK };
+  const ref = redditRefOf(absoluteUrl);
+
+  if (ref === null && (isRedditOrXLink(absoluteUrl) || isGitHubLink(absoluteUrl))) {
+    return { kind: "invalid", field: "page", reason: NOT_A_PAGE_LINK, code: UNSUPPORTED_PAGE_LINK };
   }
 
-  return pageBytes(page) > PAGE_BYTES
-    ? { kind: "too-large", field: "page" }
-    : queuePage(ports, absoluteUrl, digest, page);
+  if (pageBytes(page) > PAGE_BYTES) return { kind: "too-large", field: "page" };
+
+  const saved = await (ref === null
+    ? queuePage(ports, absoluteUrl, digest, page)
+    : saveThreadPage(ports, absoluteUrl, { digest, page }));
+
+  return saved;
 }
