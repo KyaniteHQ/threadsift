@@ -4,6 +4,7 @@ import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import type { Edges } from "../web/src/place-popover.ts";
 import { KEEP_LABEL, REMOVE_LABEL } from "../web/src/reader-text.ts";
 import type { FreshScreen } from "./fresh-screen.ts";
+import { highlightsOf } from "./highlights.ts";
 import { fontsLoaded, storeSettings, viewportAt } from "./look.ts";
 import { reader } from "./reader.ts";
 import { post, postUrl } from "./thread-fixtures.ts";
@@ -150,4 +151,29 @@ export function selectedText(page: Page): Promise<string> {
 
 export async function markedText(scope: Locator): Promise<string> {
   return (await marks(scope).allTextContents()).join("");
+}
+
+export async function keepBetween(
+  { page, context }: Readonly<Pick<FreshScreen, "page" | "context">>,
+  itemId: number,
+  scope: Locator,
+  from: string,
+  to: string,
+): Promise<{ readonly id: number; readonly exact: string }> {
+  const before = (await highlightsOf(context.request, itemId)).items.length;
+
+  await selectBetween(scope, from, to);
+  await expect(keepButton(page)).toBeVisible();
+  await keepButton(page).click();
+  await expect(popover(page)).toBeHidden();
+
+  await expect
+    .poll(async () => (await highlightsOf(context.request, itemId)).items.length)
+    .toBe(before + 1);
+
+  const saved = (await highlightsOf(context.request, itemId)).items.at(-1);
+
+  expect(saved?.status).toBe("attached");
+
+  return { id: saved?.id ?? 0, exact: saved?.selector.exact ?? "" };
 }
