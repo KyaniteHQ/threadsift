@@ -102,6 +102,14 @@ in
       after = [ "ci:install" ];
       exec = "pnpm audit --prod --audit-level high";
     };
+    "smoke:worker" = {
+      after = [ "ci:install" ];
+      exec = "pnpm run build && THREADSIFT_TARGET=worker pnpm exec playwright test";
+    };
+    "smoke:container" = {
+      after = [ "ci:install" ];
+      exec = "THREADSIFT_TARGET=container pnpm exec playwright test";
+    };
   };
 
   enterTest = "devenv tasks run ci:check";

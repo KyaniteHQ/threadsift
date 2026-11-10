@@ -12,6 +12,7 @@ extension/.wxt
 .github
 .impeccable
 node_modules
-playwright-report
+smoke
+test
 test-results
 .wrangler

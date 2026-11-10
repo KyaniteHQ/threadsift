@@ -124,7 +124,7 @@ export default defineConfig({
   overrides: [
     { files: ["*.config.ts", "tools/**"], env: { node: true } },
     {
-      files: ["test/**"],
+      files: ["test/**", "smoke/**"],
       rules: {
         "eslint/max-lines-per-function": "off",
         "typescript/no-floating-promises": "off",
