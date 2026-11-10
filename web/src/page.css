@@ -105,6 +105,7 @@ dialog.sheet::backdrop {
 }
 
 .it-title {
+  color: var(--acc-ink);
   display: -webkit-box;
   overflow: hidden;
   overflow-wrap: anywhere;
