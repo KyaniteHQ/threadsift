@@ -16,6 +16,7 @@ let
   podmanPolicy = pkgs.writeText "policy.json" (
     builtins.toJSON { default = [ { type = "insecureAcceptAnything"; } ]; }
   );
+  image = "localhost/threadsift:smoke";
   port = name: toString config.processes.${name}.ports.http.value;
   browsers = pkgs.playwright-driver.browsers.override {
     withFirefox = false;
@@ -31,7 +32,7 @@ in
   env = {
     PLAYWRIGHT_BROWSERS_PATH = "${browsers}";
     PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
-    THREADSIFT_PODMAN_POLICY = "${podmanPolicy}";
+    THREADSIFT_IMAGE = image;
   };
 
   packages = [
@@ -144,12 +145,18 @@ in
         "design:check"
       ];
     };
+    "container:build" = {
+      exec = "podman build --jobs 0 --signature-policy ${podmanPolicy} --tag ${image} --file Containerfile .";
+    };
     "smoke:worker" = {
       after = [ "web:build" ];
       exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=smoke";
     };
     "smoke:container" = {
-      after = [ "ci:install" ];
+      after = [
+        "ci:install"
+        "container:build"
+      ];
       exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=smoke";
     };
     "live:worker" = {
@@ -157,7 +164,10 @@ in
       exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=live";
     };
     "live:container" = {
-      after = [ "ci:install" ];
+      after = [
+        "ci:install"
+        "container:build"
+      ];
       exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=live";
     };
   };
