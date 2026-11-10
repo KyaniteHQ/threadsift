@@ -37,6 +37,18 @@ in
     pkgs.playwright-driver.browsers
   ];
 
+  scripts.worker-local = {
+    description = "Apply the D1 migrations and start wrangler dev --local: worker-local <state dir> <port> [wrangler dev flags]";
+    exec = ''
+      set -e
+      state=''${1:?usage: worker-local <state dir> <port> [wrangler dev flags]}
+      port=''${2:?usage: worker-local <state dir> <port> [wrangler dev flags]}
+      shift 2
+      pnpm exec wrangler d1 migrations apply DB --local --persist-to "$state"
+      exec pnpm exec wrangler dev --local --port "$port" --persist-to "$state" "$@"
+    '';
+  };
+
   processes = {
     server = {
       ports.http.allocate = 8080;
@@ -44,16 +56,13 @@ in
     };
     web = {
       ports.http.allocate = 5173;
-      exec = "THREADSIFT_API_URL=http://127.0.0.1:${port "server"} ./node_modules/.bin/vite --port ${port "web"} --strictPort";
+      exec = "THREADSIFT_API_URL=http://127.0.0.1:${port "server"} vite --port ${port "web"} --strictPort";
     };
     worker = {
       ports.http.allocate = 8787;
       ports.inspector.allocate = 9229;
-      exec = ''
-        [ -d dist/web ] || ./node_modules/.bin/vite build
-        ./node_modules/.bin/wrangler d1 migrations apply DB --local --persist-to .wrangler/state
-        exec ./node_modules/.bin/wrangler dev --local --port ${port "worker"} --inspector-port ${toString config.processes.worker.ports.inspector.value} --persist-to .wrangler/state
-      '';
+      after = [ "web:build" ];
+      exec = "worker-local .wrangler/state ${port "worker"} --inspector-port ${toString config.processes.worker.ports.inspector.value}";
     };
   };
 
@@ -118,6 +127,19 @@ in
       after = [ "ci:install" ];
       exec = "pnpm audit --prod --audit-level high";
     };
+    "design:check" = {
+      showOutput = true;
+      exec = ".claude/skills/impeccable/scripts/impeccable detect \${GITHUB_ACTIONS:+--github} web";
+    };
+    "ci:gate" = {
+      after = [
+        "ci:check"
+        "ci:test"
+        "ci:build"
+        "ci:audit"
+        "design:check"
+      ];
+    };
     "smoke:worker" = {
       after = [ "web:build" ];
       exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=smoke";
@@ -135,6 +157,4 @@ in
       exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=live";
     };
   };
-
-  enterTest = "devenv tasks run ci:check ci:test";
 }

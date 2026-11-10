@@ -66,7 +66,7 @@ Write them by the `technical-writing` skill (`.claude/skills/technical-writing/`
 ## Finish
 
 1. Run `pnpm lint:fix`. It also applies suggestion fixes, which can change behaviour, so read its diff and keep or revert each one. Dangerous fixes (`--fix-dangerously`) are never applied.
-2. Run `pnpm check` and `pnpm test`.
+2. Run `devenv tasks run ci:gate`.
 3. Judge every comment the diff adds with `.claude/agents/comment-sicko.md`, and act on each verdict.
 4. Prove the change the way its caller meets it, and keep the command and its output as the artifact. A change that reaches an install target or a screen also gets `devenv tasks run smoke:worker` and `devenv tasks run smoke:container`, as `docs/testing.md` says. A change to tooling, config or scripts gets a run of that tool as its caller runs it, such as the edit hook fed a sample payload, a commit through the git hooks, or `devenv test`.
 
