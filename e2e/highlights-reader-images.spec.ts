@@ -97,7 +97,7 @@ test("a passage that runs across a stored picture is kept with the picture's alt
 
   await expect(body.locator(`mark[data-highlights~="${kept.id}"]`).first()).toBeVisible();
   await expect(
-    body.locator(`mark[data-highlights~="${kept.id}"] .rd-media img`),
+    body.locator(`.rd-media mark[data-highlights~="${kept.id}"] img`),
     "the covered picture is still an image inside the mark",
   ).not.toHaveCount(0);
   expect(await markedText(body)).toContain(kept.around.after);

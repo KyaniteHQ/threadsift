@@ -90,8 +90,25 @@ function textSlices(node: Readonly<HastNode>, cuts: readonly Cut[]): HastNode[] 
   });
 }
 
-function isStoredPicture(node: Readonly<HastNode>, itemId: number | null): boolean {
-  return itemId !== null && isImageRouteOf(TEXT.parse(node.properties?.src), itemId);
+function isStoredPicture(node: Readonly<HastNode> | undefined, itemId: number | null): boolean {
+  return (
+    node?.tagName === "img" &&
+    itemId !== null &&
+    isImageRouteOf(TEXT.parse(node.properties?.src), itemId)
+  );
+}
+
+function isGapBetweenPictures(
+  siblings: readonly HastNode[],
+  at: number,
+  itemId: number | null,
+): boolean {
+  return (
+    siblings[at]?.type === "text" &&
+    (siblings[at]?.value ?? "").trim() === "" &&
+    isStoredPicture(siblings[at - 1], itemId) &&
+    isStoredPicture(siblings[at + 1], itemId)
+  );
 }
 
 function slicesOf(
@@ -101,7 +118,15 @@ function slicesOf(
 ): HastNode[] {
   if (node.type === "element") {
     if (isStoredPicture(node, itemId)) {
-      return [marked([...new Set(cuts.map(({ id }) => id))], [node])];
+      return [
+        {
+          ...node,
+          properties: {
+            ...node.properties,
+            dataHighlights: idsAttribute([...new Set(cuts.map(({ id }) => id))]),
+          },
+        },
+      ];
     }
 
     return [
@@ -124,7 +149,14 @@ function rewrite(node: Readonly<HastNode>, cutsOf: CutsOf, itemId: number | null
 
   if (node.children === undefined) return [node];
 
-  return [{ ...node, children: node.children.flatMap((child) => rewrite(child, cutsOf, itemId)) }];
+  return [
+    {
+      ...node,
+      children: node.children.flatMap((child, at, siblings) =>
+        isGapBetweenPictures(siblings, at, itemId) ? [child] : rewrite(child, cutsOf, itemId),
+      ),
+    },
+  ];
 }
 
 interface MarkOptions {

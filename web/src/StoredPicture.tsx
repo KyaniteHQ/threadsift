@@ -1,9 +1,10 @@
-import { createContext, use, useCallback, useMemo, useState } from "react";
+import { createContext, type ReactNode, use, useCallback, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { isImageRouteOf } from "../../src/core/file-keys.ts";
 import type { ImageSize } from "../../src/core/image-size.ts";
 import type { SizedImage } from "../../src/http/item-image.ts";
+import { Mark } from "./Mark.tsx";
 import { Link } from "./ReaderLink.tsx";
 
 export interface Pictures {
@@ -34,6 +35,7 @@ interface PictureAttributes {
   readonly src?: string | undefined;
   readonly alt?: string | undefined;
   readonly title?: string | undefined;
+  readonly "data-highlights"?: string | undefined;
 }
 
 function pictureLabel(href: string, alt: string | undefined): string {
@@ -44,11 +46,16 @@ function reservedWidth({ width, height }: Readonly<ImageSize>): string {
   return `min(${width}px, calc(var(--media-max) * ${width} / ${height}))`;
 }
 
+function marked(highlights: string | undefined, picture: ReactNode): ReactNode {
+  return highlights === undefined ? picture : <Mark data-highlights={highlights}>{picture}</Mark>;
+}
+
 function StoredPicture({
   href,
   alt,
   title,
   size,
+  "data-highlights": highlights,
 }: Readonly<PictureAttributes & { href: string; size: ImageSize | undefined }>) {
   const [failed, setFailed] = useState(false);
 
@@ -61,32 +68,47 @@ function StoredPicture({
     [size],
   );
 
-  if (failed) return <Link href={href}>{pictureLabel(href, alt)}</Link>;
+  if (failed) return marked(highlights, <Link href={href}>{pictureLabel(href, alt)}</Link>);
 
   return (
     <span className="rd-media">
-      <img
-        className="pic"
-        src={href}
-        alt={alt ?? ""}
-        title={title}
-        width={size?.width}
-        height={size?.height}
-        style={style}
-        loading="lazy"
-        decoding="async"
-        onError={fail}
-      />
+      {marked(
+        highlights,
+        <img
+          className="pic"
+          src={href}
+          alt={alt ?? ""}
+          title={title}
+          width={size?.width}
+          height={size?.height}
+          style={style}
+          loading="lazy"
+          decoding="async"
+          onError={fail}
+        />,
+      )}
     </span>
   );
 }
 
-export function Picture({ src, alt, title }: Readonly<PictureAttributes>) {
+export function Picture({
+  src,
+  alt,
+  title,
+  "data-highlights": highlights,
+}: Readonly<PictureAttributes>) {
   const pictures = use(PictureScope);
   const href = z.string().catch("").parse(src);
 
   return pictures !== null && isImageRouteOf(href, pictures.itemId) ? (
-    <StoredPicture key={href} href={href} alt={alt} title={title} size={pictures.sizes.get(href)} />
+    <StoredPicture
+      key={href}
+      href={href}
+      alt={alt}
+      title={title}
+      size={pictures.sizes.get(href)}
+      data-highlights={highlights}
+    />
   ) : (
     <Link href={href}>{pictureLabel(href, alt)}</Link>
   );
