@@ -8,6 +8,7 @@ import type { ListState } from "./list-state.ts";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
 import type { PasteQueue, PasteRequest, SaveOutcome } from "./use-paste.ts";
+import { useSeek } from "./use-seek.ts";
 
 function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
   const retried = useRef(false);
@@ -94,7 +95,7 @@ function useOpenItem(list: ListState, { openId }: Route) {
 
 function useSaveAndShow(
   save: (target: SaveTarget) => Promise<SaveAnswer>,
-  attend: (attention: Attention) => void,
+  seek: (id: number) => void,
   pane: RefObject<HTMLElement | null>,
 ) {
   return useCallback(
@@ -106,14 +107,14 @@ function useSaveAndShow(
       if (result.outcome !== "saved") return { kind: "notice", notice: result.outcome };
 
       if (result.known) {
-        attend({ id: result.item.id, focus: false });
+        seek(result.item.id);
       } else if (pane.current !== null) {
         scrollToTop(pane.current);
       }
 
       return { kind: "item", itemId: result.item.id, refreshed: result.refreshed };
     },
-    [attend, pane, save],
+    [pane, save, seek],
   );
 }
 
@@ -151,6 +152,8 @@ export function useListActions(
     save: (target: SaveTarget) => Promise<SaveAnswer>;
     retry: () => void;
     know: (item: Readonly<Item>) => void;
+    more: () => void;
+    filtered: boolean;
   }>,
   pane: RefObject<HTMLElement | null>,
   route: Route,
@@ -159,6 +162,7 @@ export function useListActions(
   const { lookupFailed, lookAgain } = useLookup(list, route, actions.know);
 
   const { queue, retryItem } = usePasteQueue();
+  const seek = useSeek(list, !actions.filtered, actions.more, attend);
 
   const tryAgain = useCallback(
     (item: Item) => {
@@ -177,7 +181,7 @@ export function useListActions(
     queue,
     tryAgain,
     retryItem,
-    saveAndShow: useSaveAndShow(actions.save, attend, pane),
+    saveAndShow: useSaveAndShow(actions.save, seek, pane),
     retryAndKeepPlace: useKeptPlace(list, actions.retry, pane),
   };
 }

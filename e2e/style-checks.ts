@@ -11,7 +11,7 @@ import {
   resize,
 } from "./design-screens.ts";
 import { loadFamilies, watchRequests } from "./fonts.ts";
-import { newRunId } from "./links.ts";
+import { newRunId, titledPage } from "./links.ts";
 import { app, attachScreenshot, computed, openPanel, panel, storeSettings } from "./look.ts";
 
 export type StyleExpectation = Readonly<{
@@ -136,9 +136,11 @@ export async function checkStyle(
 ): Promise<void> {
   const { origins, fontFiles } = watchRequests(page);
 
-  const [, first] = await Promise.all([
-    postLink(page.request, `https://example.com/${newRunId()}/style`),
-    postLink(page.request, "https://example.com/"),
+  const run = newRunId();
+
+  const [first] = await Promise.all([
+    postLink(page.request, titledPage(`Style ${run}`)),
+    postLink(page.request, `https://example.com/${run}/style`),
   ]);
 
   for (const theme of THEMES) {

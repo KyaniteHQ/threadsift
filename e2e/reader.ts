@@ -99,6 +99,31 @@ export async function openLibrary(
   await expect(page.locator("article.it")).toHaveCount(expectedRows);
 }
 
+export async function expectRowInPaneView(page: Page, key: number) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate((id) => {
+          const box = document
+            .querySelector(`article.it[data-key="${id}"]`)
+            ?.getBoundingClientRect();
+
+          const headerBottom = document.querySelector(".list-head")?.getBoundingClientRect().bottom;
+          const paneBottom = document.querySelector(".list")?.getBoundingClientRect().bottom;
+
+          return (
+            box !== undefined &&
+            headerBottom !== undefined &&
+            paneBottom !== undefined &&
+            box.top >= headerBottom - 0.5 &&
+            box.bottom <= paneBottom + 0.5
+          );
+        }, key),
+      { message: "the row sits between the list header and the bottom of the list pane" },
+    )
+    .toBe(true);
+}
+
 export async function openRow(page: Page, id: number): Promise<void> {
   await row(page, id).locator("a.it-open").click();
   await expect(reader(page)).toBeVisible();

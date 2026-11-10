@@ -182,5 +182,16 @@ export function useLibrary() {
     setList((current) => withKnown(current, item));
   }, []);
 
-  return { list, filters, save, setRead, remove, retry, know, more: reads.more, ...changes };
+  return {
+    list,
+    filters,
+    filtered: isFiltered(filters),
+    save,
+    setRead,
+    remove,
+    retry,
+    know,
+    more: reads.more,
+    ...changes,
+  };
 }

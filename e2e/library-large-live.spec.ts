@@ -12,8 +12,7 @@ import {
   scrollUntil,
 } from "./library-large.ts";
 import { pasteField } from "./links.ts";
-import { afterTwoFrames } from "./look.ts";
-import { row } from "./reader.ts";
+import { expectRowInPaneView, row } from "./reader.ts";
 
 const library = largeLibrary();
 
@@ -53,30 +52,37 @@ test("a Read state change, a delete and a Paste deep in a loaded list change the
   expect(await page.evaluate(() => document.documentElement.dataset["kept"])).toBe("yes");
 });
 
-test("a Paste of a link the library already holds, whose row is not loaded, changes no count and adds no row", async () => {
-  const { screen, order } = library();
-  const { page } = screen;
-  await openLibrary(page, "list");
-  await expect(page.locator("article.it")).toHaveCount(PAGE_SIZE);
+for (const layout of ["list", "grid"] as const) {
+  test(`${layout}: a Paste of a link the library already holds, whose row is far past the first page, shows its row in view, changes no count and leaves every Item once to the end`, async () => {
+    const { screen } = library();
+    const { page } = screen;
+    const everyId = idsWhere(screen, "1 = 1");
+    await openLibrary(page, layout);
+    await expect(page.locator("article.it")).toHaveCount(PAGE_SIZE);
 
-  const before = await rowsInOrder(page);
-  const head = await results(page).innerText();
+    const head = await results(page).innerText();
+    const far = everyId[1999] ?? 0;
 
-  const stored = screen.fresh.query(
-    `SELECT normalized_url AS url FROM items WHERE id = ${order[2800]}`,
-    z.array(z.object({ url: z.string() })),
-  );
+    const stored = screen.fresh.query(
+      `SELECT normalized_url AS url FROM items WHERE id = ${far}`,
+      z.array(z.object({ url: z.string() })),
+    );
 
-  const saved = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === "/api/items" && response.request().method() === "POST",
-  );
+    const saved = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/items" && response.request().method() === "POST",
+    );
 
-  await pasteField(page).fill(stored[0]?.url ?? "");
-  await pasteField(page).press("Enter");
-  expect((await saved).status()).toBe(200);
-  await afterTwoFrames(page);
+    await pasteField(page).fill(stored[0]?.url ?? "");
+    await pasteField(page).press("Enter");
+    expect((await saved).status()).toBe(200);
 
-  await expect(results(page)).toHaveText(head);
-  expect(await rowsInOrder(page)).toEqual(before);
-});
+    await expect(row(page, far)).toBeVisible({ timeout: 60_000 });
+    await expectRowInPaneView(page, far);
+    await expect(results(page)).toHaveText(head);
+
+    await scrollUntil(page, everyId.length);
+    expect(await rowsInOrder(page)).toEqual(everyId);
+    await expect(results(page)).toHaveText(head);
+  });
+}
