@@ -91,16 +91,6 @@ blockquote.hp-text {
   padding-inline-start: var(--s3);
   border-inline-start: 2px solid var(--line-2);
 }
-.hp-pic {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 var(--s1);
-  border: 1px solid var(--line);
-  border-radius: var(--r1);
-  background: var(--surface-2);
-  color: var(--muted);
-  vertical-align: middle;
-}
 .hp-gone {
   margin: 0;
 }

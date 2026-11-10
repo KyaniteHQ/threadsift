@@ -1,6 +1,6 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { HIGHLIGHTS_PAGE } from "../web/src/highlights-page-text.ts";
+import { PICTURE_LABEL } from "../web/src/reader-text.ts";
 import { type ArticleScreen, openArticleScreen } from "./article-screen.ts";
 import { collapsed, emptyAltPicture, keepAround, openArticleBody } from "./highlight-pictures.ts";
 import { entries, openPage } from "./highlights-page-ui.ts";
@@ -44,7 +44,7 @@ async function expectPlaceholders(
     collapsed(kept.exact.replaceAll(OBJECT_REPLACEMENT, "")),
   );
 
-  const placeholders = quote.getByRole("img", { name: HIGHLIGHTS_PAGE.picture, exact: true });
+  const placeholders = quote.getByRole("img", { name: PICTURE_LABEL, exact: true });
 
   await expect(placeholders).toHaveCount(pictures);
   await expect(placeholders.first()).toBeVisible();
@@ -59,9 +59,7 @@ async function expectPlaceholders(
     (quoteBox?.x ?? 0) + (quoteBox?.width ?? 0) + 1,
   );
 
-  await expect(link).toHaveAccessibleDescription(
-    new RegExp(`\\b${HIGHLIGHTS_PAGE.picture}\\b`, "u"),
-  );
+  await expect(link).toHaveAccessibleDescription(new RegExp(`\\b${PICTURE_LABEL}\\b`, "u"));
 }
 
 test("a Highlight kept across a stored picture with empty alt text shows an image placeholder inside its quote on the Highlights page, named for assistive technology, and not the raw character", async () => {
