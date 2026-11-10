@@ -5,7 +5,7 @@ import { itemPath } from "../src/core/item-path.ts";
 import { NEXT_ITEM, PREVIOUS_ITEM } from "../web/src/reader-text.ts";
 import { LOAD_FAILED } from "../web/src/text.ts";
 import { link } from "./grid.ts";
-import { PAGE_SIZE, largeLibrary, openLibrary } from "./library-large.ts";
+import { PAGE_SIZE, isCursorRead, largeLibrary, openLibrary } from "./library-large.ts";
 import { DESKTOP, afterTwoFrames, storeSettings } from "./look.ts";
 import { reader, row } from "./reader.ts";
 
@@ -24,13 +24,10 @@ test("j carries the Reader across the page edge and k carries it back", async ()
 
   const gate = Promise.withResolvers<void>();
 
-  await page.route(
-    (url) => url.pathname === "/api/items" && url.searchParams.has("cursor"),
-    async (route) => {
-      await gate.promise;
-      await route.continue();
-    },
-  );
+  await page.route(isCursorRead, async (route) => {
+    await gate.promise;
+    await route.continue();
+  });
 
   await openLibrary(page, "list", itemPath(last));
   await expect(reader(page)).toBeVisible();
@@ -92,17 +89,13 @@ test("an Item far past the first page opens by its address and the list still ho
   await expect(page.locator("article.it")).toHaveCount(PAGE_SIZE);
 });
 
-function cursorReads(url: URL): boolean {
-  return url.pathname === "/api/items" && url.searchParams.has("cursor");
-}
-
 test("a press of k or Escape while the next page is on its way is not undone when the page lands", async () => {
   const { screen, order } = library();
   const { page } = screen;
   const last = order[PAGE_SIZE - 1] ?? 0;
   const gate = Promise.withResolvers<void>();
 
-  await page.route(cursorReads, async (route) => {
+  await page.route(isCursorRead, async (route) => {
     await gate.promise;
     await route.continue();
   });
@@ -121,7 +114,7 @@ test("a press of k or Escape while the next page is on its way is not undone whe
 
   const slow = Promise.withResolvers<void>();
 
-  await page.route(cursorReads, async (route) => {
+  await page.route(isCursorRead, async (route) => {
     await slow.promise;
     await route.continue();
   });
@@ -146,7 +139,7 @@ test("a failed page read at the edge of the Grid sheet is announced inside the s
   const last = order[PAGE_SIZE - 1] ?? 0;
   const afterLast = order[PAGE_SIZE] ?? 0;
 
-  await page.route(cursorReads, (route) => route.fulfill({ status: 500, body: "{}" }));
+  await page.route(isCursorRead, (route) => route.fulfill({ status: 500, body: "{}" }));
   await page.setViewportSize(DESKTOP);
   await storeSettings(page, { layout: "grid", openAs: "sheet" }, itemPath(last));
   await expect(page.locator("article.it")).toHaveCount(PAGE_SIZE);

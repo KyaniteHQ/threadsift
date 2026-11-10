@@ -10,6 +10,7 @@ import {
   attachJson,
   firstPage,
   idsWhere,
+  isCursorRead,
   largeLibrary,
   openLibrary,
   pageAfter,
@@ -257,13 +258,10 @@ for (const layout of ["list", "grid"] as const) {
     const { page } = library().screen;
     const gate = Promise.withResolvers<void>();
 
-    await page.route(
-      (url) => url.pathname === "/api/items" && url.searchParams.has("cursor"),
-      async (route) => {
-        await gate.promise;
-        await route.continue();
-      },
-    );
+    await page.route(isCursorRead, async (route) => {
+      await gate.promise;
+      await route.continue();
+    });
 
     await openLibrary(page, layout);
 

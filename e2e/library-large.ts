@@ -183,3 +183,26 @@ export async function openLibrary(page: Page, layout: "list" | "grid", path = "/
 export function results(page: Page) {
   return page.locator("#results");
 }
+
+export function isCursorRead(url: URL): boolean {
+  return url.pathname === "/api/items" && url.searchParams.has("cursor");
+}
+
+export function watchCursorReads(page: Page): () => number {
+  let sent = 0;
+
+  page.on("request", (request) => {
+    if (isCursorRead(new URL(request.url()))) sent += 1;
+  });
+
+  return () => sent;
+}
+
+export function storedLink(screen: FreshScreen, id: number): string {
+  const stored = screen.fresh.query(
+    `SELECT normalized_url AS url FROM items WHERE id = ${id}`,
+    z.array(z.object({ url: z.string() })),
+  );
+
+  return stored[0]?.url ?? "";
+}

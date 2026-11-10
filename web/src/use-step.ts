@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { itemPath } from "../../src/core/item-path.ts";
 import type { Attention } from "./ItemRow.tsx";
-import type { ListState } from "./list-state.ts";
+import { usePageReader } from "./list-more.ts";
+import type { ListState, Ready } from "./list-state.ts";
 import { focusNeighbourCard } from "./reveal.ts";
 import type { Route } from "./routing.ts";
 import { LOADING_LABEL, LOAD_FAILED } from "./text.ts";
@@ -44,40 +45,42 @@ interface Pending {
   readonly cards: boolean;
   readonly origin: Element | null;
   readonly shown: number;
-  readonly asked: boolean;
 }
 
-type Decision = Readonly<{ kind: "stop" } | { kind: "read" } | { kind: "go"; id: number }>;
+type Decision = Readonly<
+  { kind: "stop" } | { kind: "read"; list: Ready } | { kind: "go"; id: number }
+>;
 
 const STOP: Decision = { kind: "stop" };
-const READ: Decision = { kind: "read" };
 
 function goOrStop(id: number | null): Decision {
   return id === null ? STOP : { kind: "go", id };
 }
 
-function listed(list: Readonly<ListState>, id: number | null): boolean {
-  return id === null || (list.status === "ready" && list.items.some((item) => item.id === id));
+function listed(list: Readonly<Ready>, id: number | null): boolean {
+  return id === null || list.items.some((item) => item.id === id);
 }
 
-function decide(list: Readonly<ListState>, want: Readonly<Pending>, openId: number | null) {
-  if (list.status !== "ready" || want.openId !== openId) return STOP;
+function decide(list: Readonly<Ready>, want: Readonly<Pending>, openId: number | null): Decision {
+  const read: Decision = { kind: "read", list };
+
+  if (want.openId !== openId) return STOP;
 
   if (want.cards) {
     if (document.activeElement !== want.origin) return STOP;
 
     const found = list.items[want.shown];
 
-    return found === undefined ? READ : goOrStop(found.id);
+    return found === undefined ? read : goOrStop(found.id);
   }
 
   const next = neighbour(list, openId, want.direction);
 
-  if (!listed(list, openId)) return list.next === null ? goOrStop(next) : READ;
+  if (!listed(list, openId)) return list.next === null ? goOrStop(next) : read;
 
   if (next !== null) return goOrStop(next);
 
-  return want.direction < 0 || list.next === null ? STOP : READ;
+  return want.direction < 0 || list.next === null ? STOP : read;
 }
 
 function usePending() {
@@ -91,9 +94,6 @@ function usePending() {
       },
       clear: (): void => {
         held.current = null;
-      },
-      markAsked: (): void => {
-        if (held.current !== null) held.current = { ...held.current, asked: true };
       },
     }),
     [],
@@ -113,38 +113,43 @@ function useSettle(
   }: Pick<Stepping, "list" | "attend" | "more" | "announce"> & Readonly<{ openId: number | null }>,
   goTo: (id: number) => void,
 ) {
+  const reader = usePageReader(more);
+
   const settle = useCallback(() => {
     const want = pending.get();
 
     if (want === null) return;
 
-    const decision = decide(list, want, openId);
-    const phase = list.status === "ready" ? list.more : "idle";
+    const decision = list.status === "ready" ? decide(list, want, openId) : STOP;
+    const reading = decision.kind === "read" ? reader.read(decision.list) : null;
 
-    if (decision.kind === "read" && phase === "loading") return;
+    if (reading === "wait") return;
 
-    if (decision.kind === "read" && phase === "failed" && want.asked) {
-      pending.clear();
-      announce(LOAD_FAILED, true);
-    } else if (decision.kind === "read") {
-      pending.markAsked();
+    if (reading === "read") {
       announce(LOADING_LABEL);
-      more();
-    } else {
-      pending.clear();
 
-      if (want.asked) announce("");
-
-      if (decision.kind === "go" && want.cards) attend({ id: decision.id, focus: true });
-      else if (decision.kind === "go") goTo(decision.id);
+      return;
     }
-  }, [announce, attend, goTo, list, more, openId, pending]);
+
+    pending.clear();
+
+    if (reading === "failed") {
+      announce(LOAD_FAILED, true);
+
+      return;
+    }
+
+    if (reader.hasAsked()) announce("");
+
+    if (decision.kind === "go" && want.cards) attend({ id: decision.id, focus: true });
+    else if (decision.kind === "go") goTo(decision.id);
+  }, [announce, attend, goTo, list, openId, pending, reader]);
 
   useEffect(() => {
     settle();
   }, [settle]);
 
-  return settle;
+  return { settle, forget: reader.forget };
 }
 
 export function useStep({
@@ -171,7 +176,7 @@ export function useStep({
     [attend, focusTitleOf, inReader, replace],
   );
 
-  const settle = useSettle(pending, { list, openId, attend, more, announce }, goTo);
+  const { settle, forget } = useSettle(pending, { list, openId, attend, more, announce }, goTo);
 
   return useCallback(
     (direction: 1 | -1) => {
@@ -183,16 +188,17 @@ export function useStep({
         return;
       }
 
+      forget();
+
       pending.start({
         direction,
         openId,
         cards,
         origin: document.activeElement,
         shown: list.status === "ready" ? list.items.length : 0,
-        asked: false,
       });
       settle();
     },
-    [appOf, covers, list, openId, pending, settle],
+    [appOf, covers, forget, list, openId, pending, settle],
   );
 }

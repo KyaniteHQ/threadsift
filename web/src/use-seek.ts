@@ -1,59 +1,125 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 
+import type { Item } from "../../src/http/schemas.ts";
+import { fetchItem } from "./api.ts";
+import { type Filters, isFiltered } from "./filters.ts";
 import type { Attention } from "./ItemRow.tsx";
-import type { ListState } from "./list-state.ts";
+import { usePageReader } from "./list-more.ts";
+import type { ListState, Ready } from "./list-state.ts";
+import { ShareContext } from "./share-handoff.ts";
 
-type Step = "wait" | "read" | "show" | "stop";
+type Step = Readonly<
+  { kind: "wait" } | { kind: "show" } | { kind: "stop" } | { kind: "read"; list: Ready }
+>;
 
-function stepOf(
-  list: Readonly<ListState>,
-  id: number,
-  unfiltered: boolean,
-  failedAt: string | null,
-): Step {
-  if (list.status === "failed" || !list.known.some((item) => item.id === id)) return "stop";
-
-  if (list.status === "loading") return "wait";
-
-  if (list.items.some((item) => item.id === id)) return "show";
-
-  if (!unfiltered || list.next === null) return "stop";
-
-  if (list.more === "loading") return "wait";
-
-  return list.more === "failed" && failedAt === list.next ? "stop" : "read";
+interface Place {
+  readonly openId: number | null;
+  readonly filters: Readonly<Filters>;
 }
 
-export function useSeek(
-  list: Readonly<ListState>,
-  unfiltered: boolean,
-  more: () => void,
-  attend: (attention: Attention) => void,
-) {
-  const [seeking, setSeeking] = useState<number | null>(null);
-  const asked = useRef<string | null>(null);
+interface Seeking {
+  readonly id: number;
+  place: Place | null;
+}
+
+export type Seeker = Readonly<{
+  list: ListState;
+  openId: number | null;
+  filters: Readonly<Filters>;
+  know: (item: Readonly<Item>) => void;
+  more: () => void;
+  attend: (attention: Attention) => void;
+}>;
+
+const WAIT: Step = { kind: "wait" };
+const SHOW: Step = { kind: "show" };
+const STOP: Step = { kind: "stop" };
+
+function stepOf(list: Readonly<ListState>, id: number, filtered: boolean): Step {
+  if (list.status === "failed") return STOP;
+
+  if (list.status === "loading") return WAIT;
+
+  if (list.items.some((item) => item.id === id)) return SHOW;
+
+  if (!list.known.some((item) => item.id === id)) return STOP;
+
+  return filtered || list.next === null ? STOP : { kind: "read", list };
+}
+
+function useSharedArrival(
+  ready: boolean,
+  know: (item: Readonly<Item>) => void,
+  seek: (id: number) => void,
+): void {
+  const { arrival } = useContext(ShareContext);
+  const shared = useRef(arrival?.kind === "saved" ? arrival.id : null);
 
   useEffect(() => {
-    if (seeking === null) return;
+    const id = shared.current;
 
-    const step = stepOf(list, seeking, unfiltered, asked.current);
+    if (!ready || id === null) return;
 
-    if (step === "wait") return;
+    shared.current = null;
 
-    if (step === "read") {
-      asked.current = list.status === "ready" ? list.next : null;
-      more();
+    const find = async (): Promise<void> => {
+      const found = await fetchItem(id).catch(() => "failed" as const);
 
-      return;
+      if (found === "gone" || found === "failed") return;
+
+      know(found);
+      seek(found.id);
+    };
+
+    void find();
+  }, [know, ready, seek]);
+}
+
+export function useSeek({ list, openId, filters, know, more, attend }: Seeker) {
+  const [started, start] = useState<Seeking | null>(null);
+  const live = useRef<Seeking | null>(null);
+  const reader = usePageReader(more);
+  const { forget } = reader;
+
+  const cancel = useCallback(() => {
+    live.current = null;
+  }, []);
+
+  const seek = useCallback(
+    (id: number) => {
+      const next: Seeking = { id, place: null };
+      forget();
+      live.current = next;
+      start(next);
+    },
+    [forget],
+  );
+
+  useSharedArrival(list.status === "ready", know, seek);
+
+  useEffect(() => {
+    if (started === null || live.current !== started) return;
+
+    started.place ??= { openId, filters };
+    const { id, place } = started;
+
+    const step =
+      place.openId === openId && place.filters === filters
+        ? stepOf(list, id, isFiltered(filters))
+        : STOP;
+
+    if (step.kind === "wait") return;
+
+    if (step.kind === "read") {
+      const reading = reader.read(step.list);
+
+      if (reading === "read" || reading === "wait") return;
     }
 
-    if (step === "show") attend({ id: seeking, focus: false });
+    if (step.kind === "show") attend({ id, focus: false });
 
-    setSeeking(null);
-  }, [attend, list, more, seeking, unfiltered]);
+    live.current = null;
+  }, [attend, filters, list, openId, reader, started]);
 
-  return useCallback((id: number) => {
-    asked.current = null;
-    setSeeking(id);
-  }, []);
+  return { seek, cancel };
 }

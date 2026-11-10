@@ -20,7 +20,7 @@ export type ListState =
       readonly more: "idle" | "loading" | "failed";
     };
 
-type Ready = Extract<ListState, { readonly status: "ready" }>;
+export type Ready = Extract<ListState, { readonly status: "ready" }>;
 
 export function knownItems(list: Readonly<ListState>): readonly Item[] {
   return list.known;

@@ -1,9 +1,9 @@
-import { type RefObject, useCallback, useRef } from "react";
+import { type RefObject, useCallback, useMemo, useRef } from "react";
 
 import { fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
 import type { Stamps } from "./item-polling.ts";
-import { type ListState, appended, continues, withMore } from "./list-state.ts";
+import { type ListState, type Ready, appended, continues, withMore } from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
 
 type SetList = (update: (current: ListState) => ListState) => void;
@@ -73,4 +73,36 @@ export function useMore(
   return useCallback(() => {
     startNext({ setList, stamps, latest, filtersNow, flight });
   }, [filtersNow, latest, setList, stamps]);
+}
+
+export type Reading = "read" | "wait" | "end" | "failed";
+
+export function usePageReader(more: () => void) {
+  const asked = useRef<string | null>(null);
+
+  const read = useCallback(
+    (list: Readonly<Ready>): Reading => {
+      const cursor = list.next;
+
+      if (cursor === null) return "end";
+
+      if (list.more === "loading") return "wait";
+
+      if (list.more === "failed" && asked.current === cursor) return "failed";
+
+      asked.current = cursor;
+      more();
+
+      return "read";
+    },
+    [more],
+  );
+
+  const forget = useCallback(() => {
+    asked.current = null;
+  }, []);
+
+  const hasAsked = useCallback(() => asked.current !== null, []);
+
+  return useMemo(() => ({ read, forget, hasAsked }), [read, forget, hasAsked]);
 }

@@ -5,17 +5,13 @@ import { itemPath } from "../src/core/item-path.ts";
 import { MARK_READ } from "../web/src/reader-text.ts";
 import { LOAD_FAILED, RETRY_LABEL } from "../web/src/text.ts";
 import { head } from "./filters.ts";
-import { PAGE_SIZE, idsWhere, largeLibrary, openLibrary } from "./library-large.ts";
+import { PAGE_SIZE, idsWhere, isCursorRead, largeLibrary, openLibrary } from "./library-large.ts";
 import { bar, reader, row } from "./reader.ts";
 
 const library = largeLibrary();
 
 function openAt(id: number): RegExp {
   return new RegExp(`/items/${id}$`, "u");
-}
-
-function cursorReads(url: URL): boolean {
-  return url.pathname === "/api/items" && url.searchParams.has("cursor");
 }
 
 test("an Item opened by address and marked read while its page is on the way stays read when the page lands, and the counts agree", async () => {
@@ -26,7 +22,7 @@ test("an Item opened by address and marked read while its page is on the way sta
   const gate = Promise.withResolvers<void>();
   const answered = Promise.withResolvers<void>();
 
-  await page.route(cursorReads, async (route) => {
+  await page.route(isCursorRead, async (route) => {
     const response = await route.fetch();
     answered.resolve();
     await gate.promise;
