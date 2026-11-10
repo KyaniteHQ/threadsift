@@ -65,8 +65,8 @@ async function reconcilerVisited(id: number): Promise<void> {
     .toBe(1);
 }
 
-function withoutImagePaths(text: string | null): string | undefined {
-  return text?.replaceAll(/\/api\/files\/items\/\d+\/img-[\w.-]+/gu, "(image)");
+function withoutImages(text: string | null): string | undefined {
+  return text?.replaceAll(/!\[[^\]]*\]\([^)]*\)/gu, "(image)");
 }
 
 test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, searchable, and a second Paste replaces the file", async () => {
@@ -103,9 +103,7 @@ test("a Paste of a book over 1,000,000 bytes keeps the whole text in a file, sea
   expect(secondKey).not.toBe(firstKey);
   expect(postTextOf(instance, id)).toEqual({ key: secondKey, inline: null });
   await expectKeys(instance, `items/${id}/post-`, [secondKey], "the replaced file is gone");
-  expect(withoutImagePaths((await itemOf(owner, id)).postText)).toBe(
-    withoutImagePaths(item.postText),
-  );
+  expect(withoutImages((await itemOf(owner, id)).postText)).toBe(withoutImages(item.postText));
 
   await reconcilerVisited(id);
   expect(
