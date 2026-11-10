@@ -56,7 +56,7 @@ in
     };
     web = {
       ports.http.allocate = 5173;
-      exec = "THREADSIFT_API_URL=http://127.0.0.1:${port "server"} ./node_modules/.bin/vite --port ${port "web"} --strictPort";
+      exec = "THREADSIFT_API_URL=http://127.0.0.1:${port "server"} vite --port ${port "web"} --strictPort";
     };
     worker = {
       ports.http.allocate = 8787;
