@@ -68,9 +68,14 @@ async function runSeconds(page: Page, seconds: number, settled: () => Promise<vo
   }
 }
 
-async function openPaused(page: Page): Promise<void> {
+async function openPaused(page: Page, ids: readonly number[]): Promise<void> {
   await page.clock.install({ time: Date.now() });
   await page.goto("/");
+
+  for (const id of ids) {
+    await expect(row(page, id)).toBeVisible();
+  }
+
   await page.clock.pauseAt(Date.now() + 1000);
 }
 
@@ -84,8 +89,7 @@ test("an Item deleted elsewhere is read once more, leaves the list and is never 
 
   const reads = statusReads(page);
 
-  await openPaused(page);
-  await expect(row(page, deleted)).toBeVisible();
+  await openPaused(page, [kept, deleted]);
 
   const removal = await screen.context.request.delete(`/api/items/${deleted}`, {
     headers: await agentHeaders(screen),
@@ -111,10 +115,13 @@ test("a new processing Item does not start the others' reads over at once a seco
   const [old = 0] = processing(["https://example.com/old"]);
   const reads = statusReads(page);
 
-  await openPaused(page);
+  await openPaused(page, [old]);
   await runSeconds(page, 30, reads.settled);
 
   const before = reads.of(old);
+
+  expect(before).toBeGreaterThan(10);
+
   const restore = deferJobs(screen.fresh, "fetch");
 
   try {
@@ -139,8 +146,9 @@ test("an Item that waits for a time is read about once a minute until that time"
 
   const reads = statusReads(page);
 
-  await openPaused(page);
+  await openPaused(page, [waiting]);
   await runSeconds(page, 120, reads.settled);
 
+  expect(reads.of(waiting)).toBeGreaterThanOrEqual(1);
   expect(reads.of(waiting)).toBeLessThanOrEqual(3);
 });
