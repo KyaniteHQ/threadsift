@@ -102,24 +102,37 @@ in
       after = [ "ci:install" ];
       exec = "pnpm run build:extension";
     };
+    "web:build" = {
+      after = [ "ci:install" ];
+      exec = "pnpm run build";
+    };
     "ci:build" = {
       after = [
         "ci:install"
         "extension:build"
+        "web:build"
       ];
-      exec = "pnpm run build && pnpm run build:worker && pnpm run lint:extension";
+      exec = "pnpm run build:worker && pnpm run lint:extension";
     };
     "ci:audit" = {
       after = [ "ci:install" ];
       exec = "pnpm audit --prod --audit-level high";
     };
     "smoke:worker" = {
-      after = [ "ci:install" ];
-      exec = "pnpm run build && THREADSIFT_TARGET=worker pnpm exec playwright test";
+      after = [ "web:build" ];
+      exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=smoke";
     };
     "smoke:container" = {
       after = [ "ci:install" ];
-      exec = "THREADSIFT_TARGET=container pnpm exec playwright test";
+      exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=smoke";
+    };
+    "live:worker" = {
+      after = [ "web:build" ];
+      exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=live";
+    };
+    "live:container" = {
+      after = [ "ci:install" ];
+      exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=live";
     };
   };
 

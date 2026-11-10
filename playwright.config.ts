@@ -38,9 +38,17 @@ export default defineConfig({
   workers: 1,
   timeout: 90_000,
   expect: { timeout: 20_000 },
-  retries: process.env["CI"] === undefined ? 0 : 1,
   reporter: "list",
   use: { baseURL: BASE_URL, trace: "retain-on-failure" },
+  projects: [
+    { name: "smoke", testMatch: "smoke.spec.ts" },
+    {
+      name: "live",
+      testMatch: "live.spec.ts",
+      timeout: 480_000,
+      use: { trace: "off" },
+    },
+  ],
   webServer: {
     ...SERVERS[TARGET],
     url: `${BASE_URL}/api/session`,
