@@ -76,6 +76,13 @@ in
       always_run = true;
       stages = [ "pre-push" ];
     };
+    test-pre-push = {
+      enable = true;
+      entry = "${withNode} pnpm test";
+      pass_filenames = false;
+      always_run = true;
+      stages = [ "pre-push" ];
+    };
   };
 
   tasks = {
@@ -86,6 +93,10 @@ in
     "ci:check" = {
       after = [ "ci:install" ];
       exec = "pnpm run check";
+    };
+    "ci:test" = {
+      after = [ "ci:install" ];
+      exec = "pnpm test";
     };
     "extension:build" = {
       after = [ "ci:install" ];
@@ -112,5 +123,5 @@ in
     };
   };
 
-  enterTest = "devenv tasks run ci:check";
+  enterTest = "devenv tasks run ci:check ci:test";
 }
