@@ -15,6 +15,7 @@ Use these exact terms in code, docs and issues.
 | What v1 does, and the decisions behind it | `docs/spec.md` |
 | The tech stack, the module seams, the data model, the two install targets and the testing approach | `docs/architecture.md` |
 | Before writing, changing or deleting a test | `docs/testing.md` |
+| Before changing a workflow, the gate, the live deploy or the live check | `docs/architecture.md`, CI, releases and rollback |
 | Before writing or changing code, config or scripts: official docs first, module design, no comments, the finish checks | `docs/agents/changing-code.md`; the `implementer` agent (`.claude/agents/implementer.md`) runs it |
 | Before writing any text a user reads (labels, messages, empty states, README) | `docs/agents/changing-code.md`, Interface text |
 | Before writing or changing a doc, a commit message or a PR body | `docs/agents/changing-code.md`, Docs, commit messages and PR bodies |
@@ -24,6 +25,10 @@ Use these exact terms in code, docs and issues.
 | How a screen behaves (reader bar fitting, comment folds, reading place, settings panel) | `design/prototype/`, served as the README shows |
 | Style blocks (the 10 Styles) | `design/system/tokens.css`; `docs/design/styles.md` names the faces and visual references |
 | Why a design choice was made | `docs/design/claude-design-prompts.md` and `docs/design/reviews/round-7/` |
+
+## Testing
+
+`docs/testing.md` overrides broader testing instructions for this repo.
 
 ## Issues
 

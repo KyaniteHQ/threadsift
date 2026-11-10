@@ -49,7 +49,6 @@ The `error` text of the HTTP API is read by agents and `curl` and never shown by
 - Load the `ub-mode` skill before writing code. Where it differs from this page or from `docs/testing.md`, they win: its TDD, Crapper and Mutator sections give way to `docs/testing.md`, and its Commit and Push section gives way to the caller's branch and review flow.
 - For TypeScript, follow the `typescript-best-practices` skill (`.claude/skills/typescript-best-practices/`): discriminated unions, branded types, schemas before hand-written guards, exhaustive switches.
 - Outside data is parsed with Zod where it enters. `as` assertions fail lint (`typescript/consistent-type-assertions`); `as const` is allowed.
-- A change to `tools/pr-copy/` that a feature's copy check needs lands in its own pull request before the feature, because `copy-checks.yml` runs `main`'s `tools/pr-copy` against the pull request's copy (`docs/architecture.md`, Copy checks).
 
 ## Docs, commit messages and PR bodies
 
@@ -57,7 +56,7 @@ Write them by the `technical-writing` skill (`.claude/skills/technical-writing/`
 
 ## Tests
 
-`docs/testing.md` governs. A feature is proven end to end through the real app on both install targets, with no fakes and no recordings; a unit test is written only when the owner asks for one.
+`docs/testing.md` governs: real code, a real database and real runtimes, no fakes and no recordings. A change to a requirement that a test in `test/` or `smoke/` names updates that test; a new test is written only when the owner asks for one.
 
 ## Screens and browser code
 
@@ -67,8 +66,8 @@ Write them by the `technical-writing` skill (`.claude/skills/technical-writing/`
 ## Finish
 
 1. Run `pnpm lint:fix`. It also applies suggestion fixes, which can change behaviour, so read its diff and keep or revert each one. Dangerous fixes (`--fix-dangerously`) are never applied.
-2. Run `pnpm check`.
+2. Run `pnpm check` and `pnpm test`.
 3. Judge every comment the diff adds with `.claude/agents/comment-sicko.md`, and act on each verdict.
-4. Prove the change the way its caller meets it, and keep the command and its output as the artifact. A change to what the app does gets the end-to-end proof `docs/testing.md` asks for. A change to tooling, config or scripts gets a run of that tool as its caller runs it, such as the edit hook fed a sample payload, a commit through the git hooks, or `devenv test`.
+4. Prove the change the way its caller meets it, and keep the command and its output as the artifact. A change that reaches an install target or a screen also gets `devenv tasks run smoke:worker` and `devenv tasks run smoke:container`, as `docs/testing.md` says. A change to tooling, config or scripts gets a run of that tool as its caller runs it, such as the edit hook fed a sample payload, a commit through the git hooks, or `devenv test`.
 
 Done when all four pass on the final version of every changed file. `docs/agents/reviewing-code.md` says what happens next.
