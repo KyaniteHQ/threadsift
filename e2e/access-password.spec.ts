@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Browser, type Page, expect, test } from "@playwright/test";
 
 import { FIELDS, LOGIN } from "../web/src/access-text.ts";
 import { newCode, newPassword } from "./access.ts";
@@ -20,18 +20,29 @@ function formMethods(page: Page): Promise<string[]> {
     );
 }
 
+const TWO_LAUNCHES_MS = 90_000;
+
+const opened: FreshScreen[] = [];
+
 let setup: FreshScreen;
 let signIn: FreshScreen;
 
+async function openScreen(browser: Browser): Promise<FreshScreen> {
+  const screen = await openFresh(browser, code);
+  opened.push(screen);
+
+  return screen;
+}
+
 test.beforeAll(async ({ browser }) => {
-  setup = await openFresh(browser, code);
-  signIn = await openFresh(browser, code);
+  test.setTimeout(TWO_LAUNCHES_MS);
+  setup = await openScreen(browser);
+  signIn = await openScreen(browser);
   await setUpByApi(signIn.fresh.url, code, password);
 });
 
 test.afterAll(async () => {
-  await setup.close();
-  await signIn.close();
+  await Promise.all(opened.map((screen) => screen.close()));
 });
 
 test.describe("setup form", () => {
