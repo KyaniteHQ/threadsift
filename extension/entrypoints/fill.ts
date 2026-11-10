@@ -11,6 +11,9 @@ function reportThread(): void {
 export default defineUnlistedScript({
   main() {
     reportThread();
-    window.navigation.addEventListener("currententrychange", reportThread);
+
+    if (window.navigation !== undefined) {
+      window.navigation.addEventListener("currententrychange", reportThread);
+    }
   },
 });
