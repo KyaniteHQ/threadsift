@@ -41,8 +41,8 @@ in
     description = "Apply the D1 migrations and start wrangler dev --local: worker-local <state dir> <port> [wrangler dev flags]";
     exec = ''
       set -e
-      state=$1
-      port=$2
+      state=''${1:?usage: worker-local <state dir> <port> [wrangler dev flags]}
+      port=''${2:?usage: worker-local <state dir> <port> [wrangler dev flags]}
       shift 2
       pnpm exec wrangler d1 migrations apply DB --local --persist-to "$state"
       exec pnpm exec wrangler dev --local --port "$port" --persist-to "$state" "$@"
@@ -128,6 +128,7 @@ in
       exec = "pnpm audit --prod --audit-level high";
     };
     "design:check" = {
+      showOutput = true;
       exec = ".claude/skills/impeccable/scripts/impeccable detect \${GITHUB_ACTIONS:+--github} web";
     };
     "ci:gate" = {
