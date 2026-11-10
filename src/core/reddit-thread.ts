@@ -237,6 +237,14 @@ export function readGeneration(itemId: number | Readonly<SQLWrapper>) {
   return sql<number | null>`coalesce((${published}), (${stored}))`;
 }
 
+export function noThreadFor(itemId: number | Readonly<SQLWrapper>): SQL {
+  return sql`${readGeneration(itemId)} is null`;
+}
+
 export function hasNoThread(normalizedUrl: string): SQL {
-  return sql`${readGeneration(ownerOf(normalizedUrl).id)} is null`;
+  return noThreadFor(ownerOf(normalizedUrl).id);
+}
+
+export function awaitsThread(normalizedUrl: string): SQL {
+  return sql`exists (select 1 from ${items} where ${items.normalizedUrl} = ${normalizedUrl}) and ${hasNoThread(normalizedUrl)}`;
 }

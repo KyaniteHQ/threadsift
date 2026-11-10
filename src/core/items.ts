@@ -23,6 +23,10 @@ export interface ThreadKept {
   readonly kind: "thread-kept";
 }
 
+export interface NotWaiting {
+  readonly kind: "not-waiting";
+}
+
 export function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
   if (item === undefined) {
     throw new Error(`Item ${normalizedUrl} was neither inserted nor found`);

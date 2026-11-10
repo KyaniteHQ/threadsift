@@ -1,6 +1,13 @@
 import { browser } from "wxt/browser";
 
-import { hostPattern, instanceOrigin, storeConfig, storeOrigin } from "../../lib/config.ts";
+import {
+  REDDIT_HOSTS,
+  hostPattern,
+  instanceOrigin,
+  storeConfig,
+  storeOrigin,
+} from "../../lib/config.ts";
+import { hasRedditAccess } from "../../lib/fill-script.ts";
 import { applyLook, element } from "../../lib/page-look.ts";
 import { CONFIG_PORT, type ConfigView, ConfigViewSchema } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
@@ -13,6 +20,10 @@ const address = element("input", { id: "address", type: "url", autocomplete: "of
 const token = element("input", { id: "token", type: "password", autocomplete: "off" });
 const tokenHint = element("p", { class: "ext-hint" }, TEXT.tokenHint);
 const result = element("p", { class: "ext-status", role: "status" });
+
+const fillStatus = element("p", { class: "ext-status", "aria-live": "polite" });
+const fillButton = element("button", { type: "button", class: "btn btn-acc" });
+let fillOn = await hasRedditAccess();
 
 function requestView(): Promise<ConfigView> {
   const port = browser.runtime.connect({ name: CONFIG_PORT });
@@ -91,6 +102,48 @@ async function saveSettings(): Promise<void> {
   report(TEXT.settingsSaved, "ok");
 }
 
+function showFill(): void {
+  fillStatus.textContent = fillOn ? TEXT.fillIsOn : TEXT.fillIsOff;
+  fillStatus.dataset["tone"] = fillOn ? "ok" : "plain";
+  fillButton.textContent = fillOn ? TEXT.fillTurnOff : TEXT.fillTurnOn;
+}
+
+async function turnFill(): Promise<void> {
+  if (fillOn) {
+    await browser.permissions.remove({ origins: REDDIT_HOSTS });
+  } else if (!(await browser.permissions.request({ origins: REDDIT_HOSTS }))) {
+    fillStatus.textContent = TEXT.fillDenied;
+    fillStatus.dataset["tone"] = "warn";
+
+    return;
+  }
+
+  fillOn = await hasRedditAccess();
+  showFill();
+}
+
+async function followGrant(): Promise<void> {
+  fillOn = await hasRedditAccess();
+  showFill();
+}
+
+browser.permissions.onAdded.addListener(() => void followGrant());
+
+browser.permissions.onRemoved.addListener(() => void followGrant());
+
+fillButton.addEventListener("click", () => {
+  void turnFill();
+});
+
+const fillSection = element(
+  "section",
+  { class: "ext-form" },
+  element("h2", {}, TEXT.fillTitle),
+  element("p", { class: "ext-hint" }, TEXT.fillHint),
+  element("div", { class: "ext-actions" }, fillButton),
+  fillStatus,
+);
+
 const form = element(
   "form",
   { class: "ext-form" },
@@ -113,4 +166,6 @@ applyLook();
 
 show(view);
 
-root.append(element("h1", {}, TEXT.settingsTitle), form);
+showFill();
+
+root.append(element("h1", {}, TEXT.settingsTitle), form, fillSection);

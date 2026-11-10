@@ -7,12 +7,13 @@ import type { Ports } from "./ports.ts";
 import { saveItem } from "./save-link.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
-import { type ThreadPasteResult, saveThread } from "./thread-paste.ts";
+import { FILL_NEEDS_CONTENT, type ThreadPasteResult, saveThread } from "./thread-paste.ts";
 
 export interface Supplied {
   readonly digest?: Digest | undefined;
   readonly content?: ThreadAnswers | undefined;
   readonly page?: SuppliedPage | undefined;
+  readonly fill?: true | undefined;
 }
 
 export type PasteResult =
@@ -33,9 +34,13 @@ const ONE_OF_TWO = "a link takes content or a page, not both";
 export async function paste(
   ports: Ports,
   absoluteUrl: string,
-  { digest, content, page }: Readonly<Supplied> = {},
+  { digest, content, page, fill }: Readonly<Supplied> = {},
 ): Promise<PasteResult> {
   if (!(await dataStepsFinished(ports.db))) return { kind: "updating" };
+
+  if (fill === true && content === undefined) {
+    return FILL_NEEDS_CONTENT;
+  }
 
   if (page !== undefined) {
     return content === undefined
@@ -49,5 +54,5 @@ export async function paste(
     return { kind: "too-large", field: "content" };
   }
 
-  return saveThread(ports, absoluteUrl, { digest, answers: content });
+  return saveThread(ports, absoluteUrl, { digest, answers: content, fillOnly: fill === true });
 }

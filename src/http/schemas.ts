@@ -41,6 +41,7 @@ const ItemBaseSchema = z.object({
   commentsTotal: z.number().int().nonnegative().nullable(),
   wait: WaitSchema.nullable(),
   image: ItemImageSchema.nullable(),
+  fillable: z.boolean(),
 });
 
 const RepositorySchema = z.object({
@@ -109,6 +110,7 @@ export const ItemQuerySchema = z.object({
   tag: z.string().optional(),
   source: z.enum(SOURCES).optional(),
   read: z.enum(READ_STATES).optional(),
+  url: HttpUrlSchema.optional(),
 });
 
 const CountedNameSchema = z.object({

@@ -11,6 +11,7 @@ import { pause } from "../../src/core/pause.ts";
 import { hiddenRepliesOf } from "../../src/core/reddit-tree.ts";
 import type { ThreadAnswers } from "../../src/core/thread-answers.ts";
 import { resultInTab } from "./tab-result.ts";
+import { type ThreadBody, fitThreadBody } from "./thread-body.ts";
 
 export const REQUEST_SPACING_MS = 500;
 
@@ -114,6 +115,7 @@ async function fillAnswers(
   postId: string,
   first: string,
   hidden: readonly string[],
+  signal: AbortSignal | undefined,
 ): Promise<ThreadAnswers> {
   const answers: [string, ...string[]] = [first];
   const queue = [...hidden];
@@ -127,7 +129,8 @@ async function fillAnswers(
     at < queue.length &&
     asked.size < MORE_REQUEST_CAP &&
     Date.now() < giveUpAt &&
-    held <= ITEM_REQUEST_BYTES
+    held <= ITEM_REQUEST_BYTES &&
+    !stopped(signal)
   ) {
     const id = queue[at];
     at += 1;
@@ -156,26 +159,19 @@ async function fillAnswers(
   return answers;
 }
 
-function byteLength(text: string): number {
-  return new Blob([text]).size;
+function stopped(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
 }
 
-function fitted(url: string, answers: ThreadAnswers): ThreadAnswers | null {
-  const [first, ...later] = answers;
-  let size = byteLength(JSON.stringify({ url, content: answers }));
-
-  while (size > ITEM_REQUEST_BYTES) {
-    const dropped = later.pop();
-
-    if (dropped === undefined) return null;
-
-    size -= byteLength(JSON.stringify(dropped)) + 1;
-  }
-
-  return [first, ...later];
+export interface ThreadRead {
+  readonly fill?: true;
+  readonly signal?: AbortSignal;
 }
 
-export async function fetchThread(tab: Readonly<ThreadTab>): Promise<ThreadAnswers | null> {
+export async function fetchThread(
+  tab: Readonly<ThreadTab>,
+  { fill, signal }: Readonly<ThreadRead> = {},
+): Promise<ThreadBody | null> {
   const ref = redditRefOf(tab.url);
 
   if (ref === null) return null;
@@ -183,7 +179,9 @@ export async function fetchThread(tab: Readonly<ThreadTab>): Promise<ThreadAnswe
   const first = await answerFor(tab.id, threadAddress(tab), REQUEST_DEADLINE_MS);
   const hidden = first.status === 200 ? hiddenRepliesOf(first.text, ref.postId) : null;
 
-  return hidden === null
-    ? null
-    : fitted(tab.url, await fillAnswers(tab, ref.postId, first.text, hidden));
+  if (hidden === null || stopped(signal)) return null;
+
+  const answers = await fillAnswers(tab, ref.postId, first.text, hidden, signal);
+
+  return stopped(signal) ? null : fitThreadBody(tab.url, answers, fill === true);
 }

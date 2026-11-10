@@ -3,8 +3,16 @@ import { defineBackground } from "wxt/utils/define-background";
 
 import { restrictStorage } from "../lib/config.ts";
 import { loadConfigView } from "../lib/credentials.ts";
+import { syncFillScript } from "../lib/fill-script.ts";
+import { cancelFills, fillOpenedThread } from "../lib/fill.ts";
 import { savePage } from "../lib/save.ts";
-import { CONFIG_PORT, type ConfigView, SAVE_PORT, type SaveState } from "../lib/state.ts";
+import {
+  CONFIG_PORT,
+  type ConfigView,
+  FILL_PORT,
+  SAVE_PORT,
+  type SaveState,
+} from "../lib/state.ts";
 
 type Answer = SaveState | ConfigView;
 
@@ -26,14 +34,37 @@ async function answer(
   post(await compute());
 }
 
+function fillFrom(tabId: number | undefined, frameId: number | undefined, url: string | undefined) {
+  if (tabId !== undefined && frameId === 0 && url !== undefined) {
+    void fillOpenedThread({ id: tabId, url });
+  }
+}
+
 export default defineBackground({
   main() {
     void restrictStorage();
+    void syncFillScript();
+    browser.permissions.onAdded.addListener(() => void syncFillScript());
+    browser.permissions.onRemoved.addListener(() => {
+      cancelFills();
+      void syncFillScript();
+    });
 
     browser.runtime.onConnect.addListener((port) => {
+      const { sender } = port;
+
+      if (sender?.id !== browser.runtime.id) return;
+
+      if (port.name === FILL_PORT) {
+        fillFrom(sender.tab?.id, sender.frameId, sender.tab?.url);
+        port.disconnect();
+
+        return;
+      }
+
       const compute = answerFor(port.name);
 
-      if (port.sender?.id !== browser.runtime.id || compute === null) return;
+      if (compute === null) return;
 
       void answer(compute, (value) => {
         port.postMessage(value);

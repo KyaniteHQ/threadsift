@@ -63,6 +63,7 @@ const ITEM_FIELDS = [
   "status",
   "reason",
   "retry",
+  "fillable",
 ];
 
 async function documentOf(request: APIRequestContext, info: TestInfo) {
@@ -85,6 +86,7 @@ function expectListContract(schemas: Schemas, list: ListOperation): void {
     "query:source",
     "query:tag",
     "query:topic",
+    "query:url",
   ]);
 
   const answer = jsonSchemaOf(list.responses["200"] ?? { content: {} });
@@ -114,7 +116,13 @@ function expectSaveContract(schemas: Schemas, save: SaveOperation): void {
     "413",
     "503",
   ]);
-  expect(propertyNames(schemas, body).toSorted()).toEqual(["content", "digest", "page", "url"]);
+  expect(propertyNames(schemas, body).toSorted()).toEqual([
+    "content",
+    "digest",
+    "fill",
+    "page",
+    "url",
+  ]);
   expect(body.required).toEqual(["url"]);
   expectPageSchema(schemas, body);
   expect(save.responses["413"]?.description).toContain(

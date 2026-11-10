@@ -31,6 +31,14 @@ export const TEXT = {
   settingsSaved: "Settings saved.",
   accessDenied:
     "Access to the address was denied, so the settings weren’t saved. The Extension can’t save pages without it.",
+  fillTitle: "Fill saved Reddit Items",
+  fillHint:
+    "Opening a Reddit thread in your tab lets the Extension fill a matching saved Item that has no thread yet. Your browser will ask for access to reddit.com when you turn this on.",
+  fillTurnOn: "Turn on",
+  fillTurnOff: "Turn off",
+  fillIsOn: "Filling saved Reddit Items is on.",
+  fillIsOff: "Filling saved Reddit Items is off.",
+  fillDenied: "Access to reddit.com was denied, so nothing changed.",
   manifestDescription: "Save the page in your current tab to your Threadsift reading library.",
   actionTitle: "Save to Threadsift",
 } as const;
