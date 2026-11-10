@@ -23,6 +23,7 @@
     "src/**/*.ts",
     "web/**/*.ts",
     "web/**/*.tsx",
+    "test/**/*.ts",
     "tools/**/*.ts"
   ],
   "exclude": ["tools/oxlint/anti-slop/**"]

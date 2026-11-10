@@ -13,7 +13,8 @@
     "fmt:check": "oxfmt --check",
     "lint": "oxlint --format=agent",
     "lint:extension": "pnpm --filter threadsift-extension run lint:firefox",
-    "lint:fix": "oxlint --fix --fix-suggestions"
+    "lint:fix": "oxlint --fix --fix-suggestions",
+    "test": "node --test test/"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.95",

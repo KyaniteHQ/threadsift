@@ -124,6 +124,14 @@ export default defineConfig({
   overrides: [
     { files: ["*.config.ts", "tools/**"], env: { node: true } },
     {
+      files: ["test/**"],
+      rules: {
+        "eslint/max-lines-per-function": "off",
+        "typescript/no-floating-promises": "off",
+        "typescript/prefer-readonly-parameter-types": "off",
+      },
+    },
+    {
       files: ["src/core/**", "src/http/**"],
       rules: {
         "threadsift/static-import-source": "error",
