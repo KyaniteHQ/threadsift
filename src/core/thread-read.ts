@@ -98,9 +98,21 @@ export function threadReads(db: Database, itemId: number) {
 
 export function commentsOf(
   rows: readonly CommentRow[],
-  report: readonly Readonly<{ reported: number | null; archivedAt: number | null }>[],
+  report: readonly Readonly<{
+    reported: number | null;
+    archivedAt: number | null;
+    generation: number;
+  }>[],
+  postRevision: number,
 ): CommentsView {
   const [thread] = report;
 
-  return thread === undefined ? NO_COMMENTS : commentsViewOf(rows, thread);
+  if (thread === undefined) return NO_COMMENTS;
+
+  const { reported, archivedAt, generation } = thread;
+
+  return commentsViewOf(rows, {
+    reported,
+    archive: archivedAt === null ? null : { at: archivedAt, withPost: generation === postRevision },
+  });
 }

@@ -74,7 +74,7 @@ async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id
       ),
       repository: repository ?? null,
       images: sizedImagesOf(sizes),
-      comments: commentsOf(threadRows, threadReport),
+      comments: commentsOf(threadRows, threadReport, revision),
       highlights: highlightsViewOf(held, {
         post: revision,
         comments: threadReport[0]?.generation ?? null,

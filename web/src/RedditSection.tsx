@@ -20,12 +20,12 @@ type Option = (typeof OPTIONS)[number];
 function Choice({
   option,
   checked,
-  disabled,
+  busy,
   pick,
 }: Readonly<{
   option: Option;
   checked: boolean;
-  disabled: boolean;
+  busy: boolean;
   pick: (archiveFill: boolean) => void;
 }>) {
   const choose = useCallback(() => {
@@ -40,7 +40,7 @@ function Choice({
         className="st-in"
         name={LABEL_ID}
         checked={checked}
-        disabled={disabled}
+        aria-disabled={busy || undefined}
         onChange={choose}
       />
       {option.label}
@@ -70,7 +70,7 @@ function ArchiveFillRow({
             key={option.id}
             option={option}
             checked={view.archiveFill === option.archiveFill}
-            disabled={form.busy}
+            busy={form.busy}
             pick={form.pick}
           />
         ))}

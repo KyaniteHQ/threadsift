@@ -47,6 +47,9 @@ export const FILL_NOTE =
 export const ARCHIVE_NOTE =
   "The post and comments were filled from the Arctic Shift archive on {date}.";
 
+const ARCHIVE_COMMENTS_NOTE =
+  "Only the comments were filled from the Arctic Shift archive on {date}.";
+
 export const NO_README = "This repository has no Markdown README.";
 export const GITHUB_TOPICS_LABEL = "Topics on GitHub";
 export const NONE_STATED = "None stated";
@@ -156,8 +159,11 @@ export function postedLabel(postedAt: number, now: number): string {
   return filled(POSTED, { when: ageLabel(postedAt, now) });
 }
 
-export function archiveNote(archivedAt: number, now: number): string {
-  return filled(ARCHIVE_NOTE, { date: dateLabel(archivedAt, now) });
+export function archiveNote(
+  { at, withPost }: Readonly<{ at: number; withPost: boolean }>,
+  now: number,
+): string {
+  return filled(withPost ? ARCHIVE_NOTE : ARCHIVE_COMMENTS_NOTE, { date: dateLabel(at, now) });
 }
 
 export function codeName(lines: number): string {

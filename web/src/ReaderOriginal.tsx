@@ -49,8 +49,8 @@ export function Original({
         <RepositoryBlock item={item} repository={detail.repository} now={now} />
       )}
       {waitsForThread(item) ? <p className="rd-note">{FILL_NOTE}</p> : null}
-      {detail.comments.archivedAt === null ? null : (
-        <p className="rd-note">{archiveNote(detail.comments.archivedAt, now)}</p>
+      {detail.comments.archive === null ? null : (
+        <p className="rd-note">{archiveNote(detail.comments.archive, now)}</p>
       )}
       <PostTextBoundary>
         {note === null ? null : <p className="rd-note">{note}</p>}
