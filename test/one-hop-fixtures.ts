@@ -15,7 +15,9 @@ export const DIGEST = {
 
 export const SECRET_KEY = "ab".repeat(32);
 
-export const UNREACHABLE = "https://hop.invalid/page";
+const COOLDOWN_MS = 30 * 60 * 1000;
+
+export const LINKED = "https://github.com/threadsift-test/linked-repository";
 
 export interface PostFields {
   readonly selftext?: string;
@@ -123,13 +125,20 @@ export function toolsOf(instance: Instance) {
       itemId,
     );
 
+  const pendingDigests = (itemId: number) =>
+    query(
+      z.object({ pending: z.number() }),
+      "select pending_digest is not null as pending from items where id = ?",
+      itemId,
+    );
+
   const askForDigest = async (itemId: number) => {
     await instance.send("POST", `/api/items/${String(itemId)}/digest`);
 
     return instance.settledItem(itemId);
   };
 
-  return { paste, stored, candidates, digestJobs, aiTasks, askForDigest };
+  return { paste, stored, candidates, digestJobs, aiTasks, pendingDigests, askForDigest };
 }
 
 export async function warningsDuring<Value>(
@@ -151,3 +160,18 @@ export async function warningsDuring<Value>(
 
 export const hopLines = (warnings: readonly string[]) =>
   warnings.filter((line) => line.includes('"digest-hop"'));
+
+export function seedGithubCooldown(instance: Instance): void {
+  const database = new DatabaseSync(instance.databaseFile);
+
+  try {
+    database
+      .prepare("insert into github_cooldown (id, until) values (1, ?)")
+      .run(Date.now() + COOLDOWN_MS);
+  } finally {
+    database.close();
+  }
+}
+
+export const hopResults = (warnings: readonly string[]) =>
+  hopLines(warnings).map((line) => z.object({ result: z.string() }).parse(JSON.parse(line)).result);

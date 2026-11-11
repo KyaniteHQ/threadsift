@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { Instance } from "./instance.ts";
 import {
   DIGEST,
-  UNREACHABLE,
+  LINKED,
   addressOf,
   commentsOf,
   postOf,
@@ -120,7 +120,7 @@ describe("a Reddit post that links to a page stores one candidate link for the D
   it("counts a candidate as a Digest source: with no Provider saved the retry opens a job that makes no hop and ends as empty input with no attempt and no AI task", async () => {
     const { item } = await tools.paste(
       addressOf("only1"),
-      withoutComments("only1", { url: UNREACHABLE }),
+      withoutComments("only1", { url: LINKED }),
     );
 
     assert.equal((await instance.settledItem(item.id)).status, "ready");
@@ -132,6 +132,19 @@ describe("a Reddit post that links to a page stores one candidate link for the D
     assert.equal(settled.status, "ready");
     assert.equal(settled.digestOutcome, "none");
     assert.deepEqual(tools.digestJobs(item.id), [{ state: "done", attempts: 0 }]);
+    assert.deepEqual(tools.aiTasks(item.id), []);
+  });
+
+  it("drops a caller-sent Digest that has no text to publish over, so the candidate can open a model Digest later", async () => {
+    const { item } = await tools.paste(
+      addressOf("pending1"),
+      withoutComments("pending1", { url: LINKED }),
+      DIGEST,
+    );
+
+    assert.equal((await instance.settledItem(item.id)).status, "ready");
+    assert.deepEqual(tools.pendingDigests(item.id), [{ pending: 0 }]);
+    assert.deepEqual(tools.digestJobs(item.id), []);
     assert.deepEqual(tools.aiTasks(item.id), []);
   });
 
@@ -148,7 +161,7 @@ describe("a Reddit post that links to a page stores one candidate link for the D
 
     const { item } = await tools.paste(
       address,
-      threadOf("gen1", { url: UNREACHABLE, selftext: "A first text." }),
+      threadOf("gen1", { url: LINKED, selftext: "A first text." }),
       DIGEST,
     );
 
@@ -159,7 +172,7 @@ describe("a Reddit post that links to a page stores one candidate link for the D
 
     assert.deepEqual(
       tools.candidates(item.id).map(({ linked_url: linked }) => linked),
-      [UNREACHABLE, null],
+      [LINKED, null],
     );
 
     const jobsBefore = tools.digestJobs(item.id).length;
@@ -173,7 +186,7 @@ describe("a Reddit post that links to a page stores one candidate link for the D
     const { warnings, value: caller } = await warningsDuring(async () => {
       const { item } = await tools.paste(
         addressOf("caller1"),
-        threadOf("caller1", { url: UNREACHABLE, selftext: "Some text." }),
+        threadOf("caller1", { url: LINKED, selftext: "Some text." }),
         DIGEST,
       );
 

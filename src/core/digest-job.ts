@@ -64,6 +64,10 @@ export function digestAfterFetch(
   const configured = or(isNotNull(items.pendingDigest), providerSet()) ?? sql`0`;
 
   return [
+    db
+      .update(items)
+      .set({ pendingDigest: null })
+      .where(and(eq(items.id, job.itemId), not(hasDigestSource()))),
     openingDigest(db, {
       scope: and(eq(items.id, job.itemId), configured) ?? sql`0`,
       address: job.address,
