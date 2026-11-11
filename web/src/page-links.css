@@ -1,0 +1,8 @@
+.st-more {
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s4);
+}
+.app[data-bp~="phone"] .st-more .fl-link {
+  justify-content: center;
+  min-inline-size: var(--target);
+}

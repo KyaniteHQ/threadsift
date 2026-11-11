@@ -1,6 +1,7 @@
-import { type RefObject, useCallback, useEffect, useRef } from "react";
+import type { RefObject } from "react";
 
 import { focusNeighbour } from "./reveal.ts";
+import { useFocusNewRows } from "./use-focus-new-rows.ts";
 import { useLibraryKeys } from "./use-library-keys.ts";
 
 const NOTHING = (): void => undefined;
@@ -29,16 +30,5 @@ export function useFocusNewEntries(
   list: RefObject<HTMLOListElement | null>,
   count: number,
 ): (from: number) => void {
-  const waiting = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (waiting.current !== null && count > waiting.current) {
-      list.current?.querySelectorAll<HTMLElement>(".hp-open")[waiting.current]?.focus();
-      waiting.current = null;
-    }
-  }, [count, list]);
-
-  return useCallback((from: number) => {
-    waiting.current = from;
-  }, []);
+  return useFocusNewRows(list, count, ENTRIES.links);
 }

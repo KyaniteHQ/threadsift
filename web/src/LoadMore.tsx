@@ -1,3 +1,5 @@
+import type { MouseEvent } from "react";
+
 import { RETRY_LABEL, LOAD_MORE } from "./text.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 
@@ -13,7 +15,11 @@ export function LoadMore({
   more,
   failedText,
   loadMore,
-}: Readonly<{ more: More; failedText: string; loadMore: () => void }>) {
+}: Readonly<{
+  more: More;
+  failedText: string;
+  loadMore: (event: MouseEvent<HTMLButtonElement>) => void;
+}>) {
   return (
     <div className="rl-more">
       {more === "failed" ? (

@@ -1,9 +1,10 @@
 import { z } from "zod";
 
 import { AiRefusalSchema } from "./ai-contract.ts";
+import { CATALOG_KEY_MAX } from "./catalog-key-limit.ts";
 import { SOURCES } from "./kinds.ts";
 
-export const TOPIC_KEY_MAX = 500;
+export const TopicKeyParamSchema = z.object({ key: z.string().min(1).max(CATALOG_KEY_MAX) });
 
 export const OVERVIEW_TEXT_MAX = 1500;
 

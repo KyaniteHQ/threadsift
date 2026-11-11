@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { redditJsonOfArchive } from "../src/core/archive-adapter.ts";
 import { readArticle } from "../src/core/article.ts";
+import { CATALOG_KEY_EXPANSION_MAX, CATALOG_KEY_MAX } from "../src/core/catalog-key-limit.ts";
 import { catalogKey } from "../src/core/catalog.ts";
 import { parseRedditThread } from "../src/core/reddit-json.ts";
 import { overviewLine } from "../src/core/topic-overview-contract.ts";
@@ -186,5 +187,39 @@ describe("the overview line is the first line of an overview without its citatio
     assert.equal(overviewLine("No marks here"), "No marks here");
     assert.equal(overviewLine(""), null);
     assert.equal(overviewLine("\n  \n"), null);
+  });
+});
+
+const LAST_SURROGATE_CODE_POINT = 0xdfff;
+
+const FIRST_SURROGATE_CODE_POINT = 0xd800;
+
+const LAST_CODE_POINT = 0x10ffff;
+
+function expansionOf(codePoint: number): number {
+  const character = String.fromCodePoint(codePoint);
+
+  return (
+    Math.max(catalogKey(`a${character}`).length - 1, catalogKey(character).length) /
+    character.length
+  );
+}
+
+function worstExpansion(): number {
+  return Array.from({ length: LAST_CODE_POINT + 1 }, (_, codePoint) => codePoint)
+    .filter(
+      (codePoint) =>
+        codePoint < FIRST_SURROGATE_CODE_POINT || codePoint > LAST_SURROGATE_CODE_POINT,
+    )
+    .reduce((worst, codePoint) => Math.max(worst, expansionOf(codePoint)), 0);
+}
+
+describe("the catalog key limit covers the longest key a Topic name can make", () => {
+  it("is the worst expansion of one UTF-16 unit of a name, measured over every code point", () => {
+    assert.equal(worstExpansion(), CATALOG_KEY_EXPANSION_MAX);
+  });
+
+  it("holds the key of a longest name made of the worst character", () => {
+    assert.equal(catalogKey("\uFDFA".repeat(240)).length, CATALOG_KEY_MAX);
   });
 });

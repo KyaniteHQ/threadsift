@@ -194,8 +194,21 @@ async function openIndex(page: Page, browser: Browser, topic: TopicCase): Promis
   });
 
   expect(saved.status()).toBe(201);
+  await page.setViewportSize(PHONE);
   await page.goto("/");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
+
+  const boxes = await Promise.all(
+    [IMPORT.settingsLink, INDEX_PAGE.masthead].map((name) =>
+      page.getByRole("link", { name, exact: true }).boundingBox(),
+    ),
+  );
+
+  for (const box of boxes) {
+    expect(box?.width).toBeGreaterThanOrEqual(TARGET_PX);
+    expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
+  }
+
   await page.getByRole("link", { name: INDEX_PAGE.masthead, exact: true }).click();
   await expect(page).toHaveURL(/\/topics$/u);
   await expect(page).toHaveTitle("Index, Threadsift");
@@ -206,7 +219,6 @@ async function openIndex(page: Page, browser: Browser, topic: TopicCase): Promis
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name: INDEX_PAGE.title })).toBeVisible();
   await expect(row).toContainText(itemsLabel(1));
-  await page.setViewportSize(PHONE);
   expect((await row.boundingBox())?.height).toBeGreaterThanOrEqual(TARGET_PX);
   await row.getByRole("link", { name: topicLinkLabel(topic.name) }).click();
   await expect(page).toHaveURL(topic.address);

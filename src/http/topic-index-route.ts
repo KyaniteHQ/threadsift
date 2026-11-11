@@ -1,15 +1,15 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
+import { CATALOG_KEY_MAX } from "../core/catalog-key-limit.ts";
 import { ITEMS_PAGE_SIZE } from "../core/item-page.ts";
 import type { Ports } from "../core/ports.ts";
 import { TopicIndexSchema } from "../core/topic-index-contract.ts";
 import { readTopicIndex } from "../core/topic-index.ts";
-import { TOPIC_KEY_MAX } from "../core/topic-overview-contract.ts";
 import { jsonBody } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
-const IndexQuerySchema = z.object({ cursor: z.string().max(TOPIC_KEY_MAX).optional() });
+const IndexQuerySchema = z.object({ cursor: z.string().max(CATALOG_KEY_MAX).optional() });
 
 const listTopicsRoute = createRoute({
   method: "get",
@@ -22,7 +22,7 @@ const listTopicsRoute = createRoute({
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      `\`cursor\` is longer than ${String(TOPIC_KEY_MAX)} characters.`,
+      `\`cursor\` is longer than ${String(CATALOG_KEY_MAX)} characters, the longest catalog key a Topic name can make.`,
     ),
   },
 });

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
+import { CATALOG_KEY_MAX } from "../src/core/catalog-key-limit.ts";
+import { catalogKey } from "../src/core/catalog.ts";
 import { TopicIndexSchema } from "../src/core/topic-index-contract.ts";
+import { topicApiPath } from "../src/core/topic-path.ts";
 import { CreatedTokenResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { Instance, type Json } from "./instance.ts";
 
@@ -51,6 +54,8 @@ function storeOverview(
     database.close();
   }
 }
+
+const cursorPath = (length: number) => `/api/topics?cursor=${"a".repeat(length)}`;
 
 const read = (instance: Instance, query = "") =>
   instance.read("GET", `/api/topics${query}`, TopicIndexSchema);
@@ -142,44 +147,55 @@ describe("the Index lists every Topic once, ascending by key, with its Item coun
     );
   });
 
-  it("refuses a cursor longer than 500 characters", async () => {
-    assert.equal((await instance.send("GET", `/api/topics?cursor=${"a".repeat(501)}`)).status, 400);
-    assert.equal((await instance.send("GET", `/api/topics?cursor=${"a".repeat(500)}`)).status, 200);
+  it("refuses a cursor longer than the longest key a Topic name can make", async () => {
+    assert.equal((await instance.send("GET", cursorPath(CATALOG_KEY_MAX + 1))).status, 400);
+    assert.equal((await instance.send("GET", cursorPath(CATALOG_KEY_MAX))).status, 200);
   });
 });
 
-describe("the Index pages through 51 Topics", () => {
+const EXPANDING_NAME = "\uFDFA".repeat(30);
+
+const LATER_NAME = "\u064A";
+
+describe("the Index pages through 51 Topics, the last of the first page with a key longer than 500 characters", () => {
   let instance: Instance;
+  const expandingKey = catalogKey(EXPANDING_NAME);
 
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
 
-    await Promise.all(
-      Array.from({ length: 51 }, (_, at) => {
-        const name = `Topic ${String(at).padStart(2, "0")}`;
+    const names = [
+      ...Array.from({ length: 49 }, (_, at) => `Topic ${String(at).padStart(2, "0")}`),
+      EXPANDING_NAME,
+      LATER_NAME,
+    ];
 
-        return save(instance, `page-${String(at)}`, name);
-      }),
-    );
+    await Promise.all(names.map((name, at) => save(instance, `page-${String(at)}`, name)));
   });
 
   after(() => instance.close());
 
-  it("gives a page of 50 and a second page of 1, each Topic once", async () => {
+  it("gives a page of 50 and a second page of 1, each Topic once, whatever the length of the key that joins them", async () => {
+    assert.equal(expandingKey.length > 500, true);
+
     const first = await read(instance);
 
     assert.equal(first.topics.length, 50);
     assert.equal(first.total, 51);
-    assert.equal(first.next, first.topics.at(-1)?.key);
+    assert.equal(first.next, expandingKey);
 
     const second = await read(instance, `?cursor=${encodeURIComponent(first.next ?? "")}`);
 
     assert.deepEqual(
       second.topics.map(({ key }) => key),
-      ["topic 50"],
+      [catalogKey(LATER_NAME)],
     );
     assert.equal(second.next, null);
     assert.equal(new Set([...first.topics, ...second.topics].map(({ key }) => key)).size, 51);
+  });
+
+  it("opens the Topic page of the long key", async () => {
+    assert.equal((await instance.send("GET", topicApiPath(expandingKey))).status, 200);
   });
 });
