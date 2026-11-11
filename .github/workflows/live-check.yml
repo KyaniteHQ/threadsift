@@ -12,7 +12,7 @@ jobs:
   live-check:
     if: github.repository == 'KyaniteHQ/threadsift' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     environment: post-merge
     strategy:
       fail-fast: false
@@ -32,6 +32,5 @@ jobs:
       - env:
           THREADSIFT_LAYER_CACHE: ${{ steps.layer-cache.outputs.cache-hit == 'true' && format('{0}/layer-cache', runner.temp) || '' }}
           GITHUB_TOKEN: ${{ github.token }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODEL: nvidia/nemotron-3.5-super-vl:free
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ matrix.target == 'container' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
         run: devenv tasks run live:${{ matrix.target }} --show-output

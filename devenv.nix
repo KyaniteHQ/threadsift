@@ -22,6 +22,26 @@ let
     export THREADSIFT_IMAGE=localhost/threadsift:smoke-$slot
     export THREADSIFT_SMOKE_PORT=$((20000 + 0x$slot % 10000))
   '';
+  containerBuild = ''
+    set -euo pipefail
+    ${checkoutEnv}
+    cache=()
+    if [ -n "''${THREADSIFT_LAYER_CACHE:-}" ]; then
+      storage=''${THREADSIFT_LAYER_CACHE%/}
+      mkdir -p "$storage"
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY="$storage" OTEL_TRACES_EXPORTER=none \
+        ${lib.getExe pkgs.distribution} serve ${layerCache.config} > "$storage.log" 2>&1 &
+      registry=$!
+      trap 'kill "$registry" 2>/dev/null || true; wait "$registry" 2>/dev/null || true' EXIT
+      ${lib.getExe pkgs.curl} --silent --fail --max-time 2 --retry 10 --retry-delay 1 --retry-all-errors \
+        --output /dev/null http://${layerCache.address}/v2/ && kill -0 "$registry" \
+        || { cat "$storage.log"; exit 1; }
+      export CONTAINERS_REGISTRIES_CONF=${layerCache.registries}
+      cache=(--cache-from ${layerCache.repository} --cache-to ${layerCache.repository})
+    fi
+    podman build --jobs 0 --signature-policy ${podmanPolicy} "''${cache[@]}" --label ${smokeLabel} --tag "$THREADSIFT_IMAGE" --file Containerfile .
+    podman image prune --force --filter label=${smokeLabel} > /dev/null || echo "podman image prune failed" >&2
+  '';
   layerCache = {
     address = "127.0.0.1:5000";
     config = (pkgs.formats.yaml { }).generate "registry.yml" {
@@ -168,25 +188,12 @@ in
       ];
     };
     "container:build" = {
+      exec = containerBuild;
+    };
+    "live:image" = {
       exec = ''
-        set -euo pipefail
-        ${checkoutEnv}
-        cache=()
-        if [ -n "''${THREADSIFT_LAYER_CACHE:-}" ]; then
-          storage=''${THREADSIFT_LAYER_CACHE%/}
-          mkdir -p "$storage"
-          REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY="$storage" OTEL_TRACES_EXPORTER=none \
-            ${lib.getExe pkgs.distribution} serve ${layerCache.config} > "$storage.log" 2>&1 &
-          registry=$!
-          trap 'kill "$registry" 2>/dev/null || true; wait "$registry" 2>/dev/null || true' EXIT
-          ${lib.getExe pkgs.curl} --silent --fail --max-time 2 --retry 10 --retry-delay 1 --retry-all-errors \
-            --output /dev/null http://${layerCache.address}/v2/ && kill -0 "$registry" \
-            || { cat "$storage.log"; exit 1; }
-          export CONTAINERS_REGISTRIES_CONF=${layerCache.registries}
-          cache=(--cache-from ${layerCache.repository} --cache-to ${layerCache.repository})
-        fi
-        podman build --jobs 0 --signature-policy ${podmanPolicy} "''${cache[@]}" --label ${smokeLabel} --tag "$THREADSIFT_IMAGE" --file Containerfile .
-        podman image prune --force --filter label=${smokeLabel} > /dev/null || echo "podman image prune failed" >&2
+        : "''${CLAUDE_CODE_OAUTH_TOKEN:?run claude setup-token and set the token it prints, from the secret store of the owner locally and from a secret of the post-merge environment in CI}"
+        ${containerBuild}
       '';
     };
     "smoke:worker" = {
@@ -216,11 +223,11 @@ in
     "live:container" = {
       after = [
         "ci:install"
-        "container:build"
+        "live:image"
       ];
       exec = ''
         ${checkoutEnv}
-        THREADSIFT_TARGET=container pnpm exec playwright test --project=live
+        THREADSIFT_LIVE=1 THREADSIFT_TARGET=container pnpm exec playwright test --project=live
       '';
     };
   };
