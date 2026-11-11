@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
-import { ImportStateSchema } from "../src/core/import-cursor.ts";
+import { ImportStateSchema } from "../src/core/import-contract.ts";
 import { Instance } from "./instance.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;

@@ -2,6 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { FIELDS, LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
+import { IMPORT, countLabel } from "../web/src/import-text.ts";
 import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, topicLinkLabel } from "../web/src/topic-text.ts";
 
@@ -10,6 +11,10 @@ const PASSWORD = "a smoke password of fifteen or more";
 const X_LINK = "https://x.com/someone/status/1234567890";
 
 const X_ROW = "x.com/i/status/1234567890";
+
+const IMPORT_IDS = ["2000000001", "2000000002", "2000000003"];
+
+const IMPORT_LIST = IMPORT_IDS.map((id) => `https://x.com/importer/status/${id}`);
 
 const ARTICLE_LINK = "https://example.com/guides/backing-up-sqlite";
 
@@ -104,6 +109,34 @@ async function readSavedPage(page: Page): Promise<void> {
   await expect(page.locator(".reader")).toContainText(SENTENCE);
 }
 
+const importBox = (page: Page) => page.getByLabel(IMPORT.boxLabel, { exact: true });
+
+async function importList(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("link", { name: IMPORT.settingsLink }).click();
+  await expect(page).toHaveTitle("Import, Threadsift");
+  await importBox(page).fill(IMPORT_LIST.join("\n"));
+  await page.getByRole("button", { name: IMPORT.start }).click();
+  await expect(
+    page.getByText(countLabel(IMPORT_LIST.length, "added"), { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(IMPORT.finished)).toBeVisible();
+  await page.getByRole("link", { name: IMPORT.back }).click();
+  await expect(libraryHeading(page)).toBeVisible();
+
+  await expect(
+    page
+      .locator("article.it.it-link-only")
+      .filter({ hasText: new RegExp(`x\\.com/i/status/(${IMPORT_IDS.join("|")})`, "u") }),
+  ).toHaveCount(IMPORT_IDS.length);
+}
+
+async function importListAgain(page: Page): Promise<void> {
+  await page.goto("/import");
+  await importBox(page).fill(IMPORT_LIST.join("\n"));
+  await expect(page.getByText(IMPORT.resumeComplete)).toBeVisible();
+}
+
 async function openTopicPage(page: Page, topic: TopicCase): Promise<void> {
   const saved = await page.request.post("/api/items", {
     data: {
@@ -149,7 +182,7 @@ async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
   expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
 }
 
-test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, and opens the Topic pages of a dotted name and of a name made only of dots", async ({
+test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots", async ({
   page,
 }) => {
   await test.step("set up the owner with the setup code", () => setUp(page));
@@ -158,6 +191,10 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     pasteXLink(page));
   await test.step("save a page through the API and read its text in the Reader", () =>
     readSavedPage(page));
+  await test.step("import a list of three links from the settings panel and find its Items", () =>
+    importList(page));
+  await test.step("paste the same list after a reload and be told it was fully imported", () =>
+    importListAgain(page));
   await test.step("open the Topic page from the Reader and reload it on its address", () =>
     openTopicPage(page, DOTTED_TOPIC));
   await test.step("open a Topic made only of dots, which needs the tilde address", () =>

@@ -13,7 +13,7 @@ export type SharedContent =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "empty" };
 
-function linkIn(field: string): string | undefined {
+export function linkIn(field: string): string | undefined {
   const match = LINK.exec(field);
 
   return match === null ? undefined : match[0].replace(TRAILING_PUNCTUATION, "");

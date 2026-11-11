@@ -1,10 +1,8 @@
 import { z } from "zod";
 
-import { ImportSchema } from "../core/import-cursor.ts";
+import { BATCH_LINKS_MAX, ImportSchema } from "../core/import-contract.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { SavedItemResponseSchema } from "./schemas.ts";
-
-export const BATCH_LINKS_MAX = 100;
 
 const BatchLinkSchema = z.strictObject({
   url: SaveItemRequestSchema.shape.url,
@@ -25,3 +23,5 @@ export const BatchResponseSchema = z.object({
   results: z.array(ResultSchema).readonly(),
   import: ImportSchema.nullable(),
 });
+
+export { BATCH_LINKS_MAX, ImportNameSchema, ImportStateSchema } from "../core/import-contract.ts";

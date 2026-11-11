@@ -8,12 +8,15 @@ export const SETTINGS_PATH = "/settings";
 
 export const HIGHLIGHTS_PATH = "/highlights";
 
+export const IMPORT_PATH = "/import";
+
 export const RESET_PATH = "/reset";
 
 export interface Pages {
   readonly settings: () => void;
   readonly highlights: () => void;
   readonly topic: (key: string) => void;
+  readonly import: () => void;
 }
 
 export interface Route {
@@ -89,6 +92,9 @@ export function usePages(navigate: Route["navigate"]): Pages {
       },
       topic: (key) => {
         navigate(topicPath(key));
+      },
+      import: () => {
+        navigate(IMPORT_PATH);
       },
     }),
     [navigate],

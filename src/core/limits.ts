@@ -1,3 +1,5 @@
+export const BODY_LIMIT_BYTES = 64 * 1024;
+
 export const ITEM_REQUEST_BYTES = 8 * 1024 * 1024;
 
 export const THREAD_CONTENT_BYTES = 4 * 1024 * 1024;

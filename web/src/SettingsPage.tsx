@@ -2,11 +2,8 @@ import { useCallback, useRef, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
-import { BAR_FONTS } from "./load-fonts.ts";
-import { useInternalLink } from "./routing.ts";
+import { PageBar } from "./PageBar.tsx";
 import { SettingsSections } from "./SettingsSections.tsx";
-import { useFaces } from "./use-faces.ts";
-import { useFocusOnMount } from "./use-form.ts";
 import { SETTINGS_READ_MS, useSettingsLoad } from "./use-settings-load.ts";
 
 function Loading() {
@@ -23,14 +20,6 @@ export function SettingsPage({
   back,
   signedOut,
 }: Readonly<{ back: () => void; signedOut: () => void }>) {
-  const titleField = useRef<HTMLHeadingElement>(null);
-  const bar = useRef<HTMLElement>(null);
-  const [barFaces] = useFaces(bar, BAR_FONTS, SETTINGS_READ_MS);
-
-  useFocusOnMount(titleField);
-
-  const follow = useInternalLink(back);
-
   const column = useRef<HTMLElement>(null);
   const loaded = useSettingsLoad(column);
 
@@ -45,16 +34,12 @@ export function SettingsPage({
 
   return (
     <div className="pg">
-      <header ref={bar} className="pg-bar" data-faces={barFaces ? "loaded" : "loading"}>
-        <div className="pg-bar-in">
-          <a className="btn" href="/" onClick={follow}>
-            {SETTINGS.back}
-          </a>
-          <h1 ref={titleField} className="pg-title" tabIndex={-1}>
-            {SETTINGS.title}
-          </h1>
-        </div>
-      </header>
+      <PageBar
+        title={SETTINGS.title}
+        backLabel={SETTINGS.back}
+        back={back}
+        faceWaitMs={SETTINGS_READ_MS}
+      />
       <main ref={column} className="pg-col" aria-busy={loaded === null}>
         {loaded === null ? (
           <Loading />
