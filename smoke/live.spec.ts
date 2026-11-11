@@ -15,9 +15,9 @@ const PASSWORD = "a live check password of fifteen or more";
 
 const SECOND_ARTICLE_LINK = "https://www.sqlite.org/wal.html";
 
-const DIGEST_WAIT_MS = 300_000;
+const STEP_WAIT_MS = 300_000;
 
-const RELATED_WAIT_MS = 300_000;
+const CLAUDE_MODEL = "claude-haiku-5-5";
 
 const TARGET = z.enum(["worker", "container"]).parse(process.env["THREADSIFT_TARGET"]);
 
@@ -190,12 +190,12 @@ async function expectCallerDigest(
 async function saveAndVerifyClaudeCode(request: APIRequestContext): Promise<void> {
   await test.step("save the Claude Code Provider", async () => {
     const saved = await request.put("/api/settings/ai", {
-      data: { provider: "claude-code", model: "" },
+      data: { provider: "claude-code", model: CLAUDE_MODEL },
     });
 
     expect(saved.status()).toBe(200);
     expect(AiSaveResponseSchema.parse(await saved.json())).toMatchObject({
-      settings: { provider: "claude-code" },
+      settings: { provider: "claude-code", model: CLAUDE_MODEL },
     });
   });
 
@@ -216,7 +216,7 @@ async function waitForWikiWork(
     await expect
       .poll(() => digestStates(request, ids), {
         message: "one of the two Items holds a Digest",
-        timeout: DIGEST_WAIT_MS,
+        timeout: STEP_WAIT_MS,
         intervals: [2000, 5000],
       })
       .toContain("digest");
@@ -228,7 +228,7 @@ async function waitForWikiWork(
     await expect
       .poll(() => overviewText(request, topic), {
         message: "the Topic page holds a written overview",
-        timeout: DIGEST_WAIT_MS,
+        timeout: STEP_WAIT_MS,
         intervals: [2000, 5000],
       })
       .not.toBeNull();
@@ -241,7 +241,7 @@ async function waitForWikiWork(
       await expect
         .poll(() => digestStates(request, [id]), {
           message: "the second article holds a Digest",
-          timeout: DIGEST_WAIT_MS,
+          timeout: STEP_WAIT_MS,
           intervals: [2000, 5000],
         })
         .toContain("digest");
@@ -253,7 +253,7 @@ async function waitForWikiWork(
     await expect
       .poll(() => itemIdle(request, first), {
         message: "the first article has no open job",
-        timeout: DIGEST_WAIT_MS,
+        timeout: STEP_WAIT_MS,
         intervals: [2000, 5000],
       })
       .toBe(true);
@@ -265,7 +265,7 @@ async function waitForWikiWork(
     await expect
       .poll(() => relatedOf(request, first), {
         message: "the first article lists the second article as a Related Item",
-        timeout: RELATED_WAIT_MS,
+        timeout: STEP_WAIT_MS,
         intervals: [2000, 5000],
       })
       .toContain(second);
