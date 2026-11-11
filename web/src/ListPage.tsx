@@ -57,7 +57,7 @@ function Rows<Page extends PagedPage, Row>({
   return (
     <section aria-labelledby={RESULTS_ID} className="rl-items">
       <header className="list-head">
-        <h2 id={RESULTS_ID} className="results">
+        <h2 id={RESULTS_ID} className="results" tabIndex={-1}>
           {listing.head(ready)}
         </h2>
         <p className="label">{listing.text.sort}</p>
@@ -103,7 +103,10 @@ export function ListPage<Page extends PagedPage, Row>({
   listing,
   draw,
   back,
-}: Readonly<{ source: Source<Page>; back: () => void } & Shown<Page, Row>>) {
+  notice = null,
+}: Readonly<
+  { source: Source<Page>; back: () => void; notice?: string | null } & Shown<Page, Row>
+>) {
   const loading = source.state.status === "loading";
 
   return (
@@ -115,6 +118,7 @@ export function ListPage<Page extends PagedPage, Row>({
         ready={!loading}
       />
       <main className="pg-col rl-col" aria-busy={loading}>
+        {notice === null ? null : <p className="rd-note">{notice}</p>}
         <Body source={source} listing={listing} draw={draw} />
       </main>
     </div>

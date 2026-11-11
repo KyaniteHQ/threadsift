@@ -3,6 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./ports.ts";
+import { proposalRelinks } from "./proposal-relink.ts";
 import { itemTags, items, logEntries, tags, topicLeases, topicPages, topics } from "./schema.ts";
 import { tagPartWrites } from "./search.ts";
 
@@ -96,6 +97,7 @@ export const TAG_KIND: CatalogKind = {
     entryIds: [],
   }),
   relink: (db, loser, survivor, { itemIds }) => [
+    ...proposalRelinks(db, loser, survivor),
     db
       .update(itemTags)
       .set({ tagId: survivor })

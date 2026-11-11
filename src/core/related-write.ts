@@ -62,10 +62,6 @@ export function emptyOutcome(db: Database, source: Version): SettledOutcome {
   });
 }
 
-export function lostOutcome(db: Database): SettledOutcome {
-  return guardedOutcome(db, sql`0`);
-}
-
 export function pickedOutcome(
   db: Database,
   {

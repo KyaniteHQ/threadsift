@@ -5,6 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import type { z } from "zod";
 
+import { tick } from "../src/core/tick.ts";
 import { createApp } from "../src/http/app.ts";
 import { ItemDetailResponseSchema, ItemResponseSchema } from "../src/http/schemas.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
@@ -71,13 +72,16 @@ export class Instance {
   private readonly shutdown: () => Promise<void>;
 
   private readonly folder: string;
+  private readonly ports: Parameters<typeof tick>[0];
 
   private constructor(
     app: ReturnType<typeof createApp>,
+    ports: Parameters<typeof tick>[0],
     folder: string,
     shutdown: () => Promise<void>,
   ) {
     this.app = app;
+    this.ports = ports;
     this.folder = folder;
     this.shutdown = shutdown;
   }
@@ -114,7 +118,7 @@ export class Instance {
       throw error;
     });
 
-    return new Instance(createApp(node.ports), folder, async () => {
+    return new Instance(createApp(node.ports), node.ports, folder, async () => {
       await node.stop();
       await stop();
     });
@@ -130,6 +134,10 @@ export class Instance {
 
   get databaseFile(): string {
     return join(this.folder, "threadsift.db");
+  }
+
+  tick(): Promise<void> {
+    return tick(this.ports);
   }
 
   close(): Promise<void> {

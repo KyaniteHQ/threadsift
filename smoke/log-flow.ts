@@ -6,8 +6,7 @@ import { LOG_PAGE } from "../web/src/log-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE, RETRY_LABEL } from "../web/src/text.ts";
 import { topicLinkLabel } from "../web/src/topic-text.ts";
-
-const PHONE = { width: 390, height: 844 };
+import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 const TARGET_PX = 44;
 
@@ -57,16 +56,6 @@ async function openLogFromPanel(page: Page): Promise<void> {
   await page.getByRole("link", { name: LOG_PAGE.masthead, exact: true }).click();
   await expect(page).toHaveURL(/\/log$/u);
   await expect(page).toHaveTitle("Log, Threadsift");
-}
-
-async function expectNoSidewaysScroll(page: Page): Promise<void> {
-  const overflow = await page.evaluate(() => ({
-    page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    column: (document.querySelector("main")?.scrollWidth ?? 0) - window.innerWidth,
-  }));
-
-  expect(overflow.page).toBeLessThanOrEqual(0);
-  expect(overflow.column).toBeLessThanOrEqual(0);
 }
 
 async function expectTargets(page: Page, row: Locator): Promise<void> {
