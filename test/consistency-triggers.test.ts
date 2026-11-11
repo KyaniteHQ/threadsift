@@ -12,7 +12,14 @@ import type {
   Kind,
   Source,
 } from "../src/core/kinds.ts";
-import { FAILURE_REASONS, ITEM_STATUSES, JOB_KINDS, JOB_STATES, KINDS } from "../src/core/kinds.ts";
+import {
+  FAILURE_REASONS,
+  ITEM_STATUSES,
+  JOB_KINDS,
+  JOB_STATES,
+  KINDS,
+  LOG_ACTIONS,
+} from "../src/core/kinds.ts";
 import { sourceOf } from "../src/core/links.ts";
 import { Instance } from "./instance.ts";
 
@@ -149,4 +156,39 @@ describe("every status, reason, Source, kind and job value in src/core/kinds.ts 
   for (const row of [...statusRows, ...kindRows]) itemCases(row);
 
   for (const row of jobRows) jobCases(row);
+
+  const logCases = (action: string): void => {
+    it(`stores a Log entry: ${action}`, () => {
+      assert.doesNotThrow(() => {
+        database.prepare("insert into log_entries (at, action) values (0, ?)").run(action);
+      });
+    });
+
+    it(`updates a Log entry to: ${action}`, () => {
+      database.prepare("insert into log_entries (at, action) values (0, 'topic')").run();
+
+      assert.doesNotThrow(() => {
+        database
+          .prepare("update log_entries set action = ? where id = (select max(id) from log_entries)")
+          .run(action);
+      });
+    });
+  };
+
+  for (const action of LOG_ACTIONS) logCases(action);
+
+  it("refuses a Log entry with an action the code does not list, on insert and on update", () => {
+    assert.throws(() => {
+      database.prepare("insert into log_entries (at, action) values (0, 'unknown')").run();
+    }, /log_entries_action/u);
+
+    database.prepare("insert into log_entries (at, action) values (0, 'topic')").run();
+    assert.throws(() => {
+      database
+        .prepare(
+          "update log_entries set action = 'unknown' where id = (select max(id) from log_entries)",
+        )
+        .run();
+    }, /log_entries_action/u);
+  });
 });

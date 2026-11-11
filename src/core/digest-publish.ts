@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { type Digest, DigestSchema } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
-import { catalogCurrent, catalogEntries, linkingDigest } from "./catalog.ts";
+import { catalogCurrent, catalogEntries, publishedLinks } from "./catalog.ts";
 import {
   type DigestInput,
   currency,
@@ -120,7 +120,7 @@ export async function publishing(
       writes: [
         insertGuard(db, generation),
         insertGuard(db, catalog),
-        ...linkingDigest(db, item.id, entries),
+        ...publishedLinks(db, item.id, entries, digest.title),
         db
           .insert(digests)
           .values(stored)

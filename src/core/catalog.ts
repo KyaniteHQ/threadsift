@@ -4,7 +4,7 @@ import { type Digest, parseStoredDigest } from "./ai-contract.ts";
 import { caseFold } from "./case-folding.ts";
 import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
 import { logFailure } from "./failure-log.ts";
-import type { JobWrites } from "./job-outcome.ts";
+import { loggedDigest, loggedTopic } from "./log-writes.ts";
 import type { Database } from "./ports.ts";
 import {
   catalogLinking,
@@ -97,13 +97,14 @@ function bumpVersion(db: Database) {
     .where(and(eq(catalogVersion.id, 1), sql`changes() > 0`));
 }
 
-export function linkingDigest(db: Database, itemId: number, entries: CatalogEntries): JobWrites {
+export function linkingDigest(db: Database, itemId: number, entries: CatalogEntries) {
   const keys = entries.tagKeys;
 
   return [
     db.insert(catalogVersion).values({ id: 1, version: 0 }).onConflictDoNothing(),
     db.insert(topics).values(entries.topic).onConflictDoNothing({ target: topics.key }),
     bumpVersion(db),
+    loggedTopic(db, entries.topic.key),
     db
       .insert(tags)
       .select(
@@ -141,6 +142,23 @@ export function linkingDigest(db: Database, itemId: number, entries: CatalogEntr
       )
       .onConflictDoNothing(),
     openingOverview(db, itemId),
+  ];
+}
+
+export function publishedLinks(
+  db: Database,
+  itemId: number,
+  entries: CatalogEntries,
+  title: string,
+) {
+  return [
+    ...linkingDigest(db, itemId, entries),
+    loggedDigest(db, {
+      itemId,
+      title,
+      topicKey: entries.topic.key,
+      tagKeys: entries.tagKeys,
+    }),
   ];
 }
 

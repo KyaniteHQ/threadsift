@@ -4,6 +4,7 @@ import type { AiRefused } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
 import { guardedOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobWrites, SettledOutcome } from "./job-outcome.ts";
+import { loggedRelated } from "./log-writes.ts";
 import type { Database } from "./ports.ts";
 import type { PickItem } from "./related-input.ts";
 import type { RelatedResult } from "./related-task.ts";
@@ -77,6 +78,9 @@ export function pickedOutcome(
     taskId,
     writes: [
       ...replacedSet(db, versions.source.id, result.picks),
+      ...(result.picks.length === 0
+        ? []
+        : [loggedRelated(db, versions.source.id, result.picks.length)]),
       completedAiTask(db, { taskId, result }),
     ],
   });
