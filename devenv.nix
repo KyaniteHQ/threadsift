@@ -16,7 +16,12 @@ let
   podmanPolicy = pkgs.writeText "policy.json" (
     builtins.toJSON { default = [ { type = "insecureAcceptAnything"; } ]; }
   );
-  image = "localhost/threadsift:smoke";
+  smokeLabel = "io.threadsift.smoke=true";
+  checkoutEnv = ''
+    slot=$(printf %s "$DEVENV_ROOT" | sha256sum | cut -c1-12)
+    export THREADSIFT_IMAGE=localhost/threadsift:smoke-$slot
+    export THREADSIFT_SMOKE_PORT=$((20000 + 0x$slot % 10000))
+  '';
   layerCache = {
     address = "127.0.0.1:5000";
     config = (pkgs.formats.yaml { }).generate "registry.yml" {
@@ -50,7 +55,6 @@ in
   env = {
     PLAYWRIGHT_BROWSERS_PATH = "${browsers}";
     PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
-    THREADSIFT_IMAGE = image;
   };
 
   packages = [
@@ -166,6 +170,7 @@ in
     "container:build" = {
       exec = ''
         set -euo pipefail
+        ${checkoutEnv}
         cache=()
         if [ -n "''${THREADSIFT_LAYER_CACHE:-}" ]; then
           storage=''${THREADSIFT_LAYER_CACHE%/}
@@ -180,30 +185,43 @@ in
           export CONTAINERS_REGISTRIES_CONF=${layerCache.registries}
           cache=(--cache-from ${layerCache.repository} --cache-to ${layerCache.repository})
         fi
-        podman build --jobs 0 --signature-policy ${podmanPolicy} "''${cache[@]}" --tag ${image} --file Containerfile .
+        podman build --jobs 0 --signature-policy ${podmanPolicy} "''${cache[@]}" --label ${smokeLabel} --tag "$THREADSIFT_IMAGE" --file Containerfile .
+        podman image prune --force --filter label=${smokeLabel} > /dev/null || echo "podman image prune failed" >&2
       '';
     };
     "smoke:worker" = {
       after = [ "web:build" ];
-      exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=smoke";
+      exec = ''
+        ${checkoutEnv}
+        THREADSIFT_TARGET=worker pnpm exec playwright test --project=smoke
+      '';
     };
     "smoke:container" = {
       after = [
         "ci:install"
         "container:build"
       ];
-      exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=smoke";
+      exec = ''
+        ${checkoutEnv}
+        THREADSIFT_TARGET=container pnpm exec playwright test --project=smoke
+      '';
     };
     "live:worker" = {
       after = [ "web:build" ];
-      exec = "THREADSIFT_TARGET=worker pnpm exec playwright test --project=live";
+      exec = ''
+        ${checkoutEnv}
+        THREADSIFT_TARGET=worker pnpm exec playwright test --project=live
+      '';
     };
     "live:container" = {
       after = [
         "ci:install"
         "container:build"
       ];
-      exec = "THREADSIFT_TARGET=container pnpm exec playwright test --project=live";
+      exec = ''
+        ${checkoutEnv}
+        THREADSIFT_TARGET=container pnpm exec playwright test --project=live
+      '';
     };
   };
 }

@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { defineConfig } from "@playwright/test";
 import { z } from "zod";
 
-const PORT = 8799;
+const PORT = z.coerce.number().int().default(8799).parse(process.env["THREADSIFT_SMOKE_PORT"]);
 
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
@@ -23,7 +23,7 @@ const WORKER = [
   `exec worker-local ${STATE}/state ${PORT} --test-scheduled --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
 ].join(" && ");
 
-const CONTAINER = `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY "\${THREADSIFT_IMAGE:?run inside the devenv shell}"`;
+const CONTAINER = `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY "\${THREADSIFT_IMAGE:?run through devenv tasks}"`;
 
 const SERVERS = {
   worker: { command: WORKER, timeout: 180_000 },
