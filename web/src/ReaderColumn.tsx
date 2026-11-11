@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { shownUrl, whereOf } from "../../src/core/link-place.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
+import { keyed } from "./keyed.ts";
 import {
   DIGEST_PENDING,
   KEY_POINTS_LABEL,
@@ -13,6 +14,7 @@ import { HeadNote, Note } from "./ReaderNote.tsx";
 import { savedLabel } from "./saved-label.ts";
 import { tagHue } from "./tag-hue.ts";
 import { DIGEST_NOT_UPDATED, NO_DIGEST, SOURCE_LABELS } from "./text.ts";
+import { TopicLink } from "./TopicLink.tsx";
 
 function bylineOf(item: Readonly<Item>): string {
   if (item.author === null) return "";
@@ -65,17 +67,6 @@ export function ReaderHead({
   );
 }
 
-function keyed(texts: readonly string[]): readonly { key: string; text: string }[] {
-  const seen = new Map<string, number>();
-
-  return texts.map((text) => {
-    const count = (seen.get(text) ?? 0) + 1;
-    seen.set(text, count);
-
-    return { key: `${text}#${count}`, text };
-  });
-}
-
 function Summary({
   item,
   digest,
@@ -83,7 +74,7 @@ function Summary({
   return (
     <aside className="rd-agent" aria-label={SUMMARY_LABEL}>
       <p className="rd-filed">
-        {item.digestTopic === null ? null : <span className="rd-topic">{item.digestTopic}</span>}
+        {item.digestTopic === null ? null : <TopicLink name={item.digestTopic} />}
         <span className="tags">
           {keyed(digest.tags).map(({ key, text }) => (
             <span key={key} className="tag" data-tag={tagHue(text)}>

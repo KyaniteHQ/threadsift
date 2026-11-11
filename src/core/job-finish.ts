@@ -93,11 +93,13 @@ export async function finish(
     attempts,
     files = NO_FILES,
     precondition,
+    continuation = [],
   }: Readonly<{
     writes: readonly BatchItem<"sqlite">[];
     attempts: number;
     files?: JobFiles | undefined;
     precondition?: Readonly<Precondition> | undefined;
+    continuation?: readonly BatchItem<"sqlite">[] | undefined;
   }>,
 ): Promise<"done" | "lost" | Readonly<Precondition>> {
   const { db } = ports;
@@ -105,7 +107,7 @@ export async function finish(
   const wrote = await writeWhileHolding(
     db,
     job,
-    [...writes, ...closingWrites(db, job, attempts)],
+    [...writes, ...closingWrites(db, job, attempts), ...continuation],
     precondition,
   );
 
@@ -205,6 +207,7 @@ async function writeOutcome(
       attempts: job.attempts + (outcome.failedAttempt === true ? 1 : 0),
       files: outcome.files,
       precondition: outcome.precondition,
+      continuation: outcome.continuation,
     });
   } catch (error) {
     const state = await outcome.currency?.current();
@@ -224,9 +227,9 @@ async function discardTask(
   currency: JobCurrency | undefined,
   cause: Parameters<JobCurrency["discard"]>[0],
 ): Promise<void> {
-  const write = currency?.discard(cause);
+  const [first, ...rest] = currency?.discard(cause) ?? [];
 
-  if (write !== undefined) await db.batch([write]);
+  if (first !== undefined) await db.batch([first, ...rest]);
 }
 
 async function applySettled(

@@ -49,9 +49,11 @@ export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
 export const FAILURE_REASONS = ["timeout", "network", "gave-up", "rate-limited"] as const;
 
-export const WAIT_REASONS = ["github-rate-limit"] as const;
+export const WAIT_REASONS = ["github-rate-limit", "topic-busy"] as const;
 
-export const JOB_KINDS = ["fetch", "digest"] as const;
+export const ITEM_JOB_KINDS = ["fetch", "digest"] as const;
+
+export const JOB_KINDS = [...ITEM_JOB_KINDS, "topic_overview"] as const;
 
 export const JOB_STATES = ["queued", "running", "done"] as const;
 

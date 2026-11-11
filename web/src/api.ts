@@ -12,6 +12,13 @@ import {
   type SaveNoteRequest,
 } from "../../src/core/note-contract.ts";
 import {
+  OverviewRetryResponseSchema,
+  type Overview,
+  TopicPageSchema,
+  type TopicPage,
+} from "../../src/core/topic-overview-contract.ts";
+import { topicApiPath } from "../../src/core/topic-path.ts";
+import {
   HighlightsPageResponseSchema,
   type HighlightsPage,
 } from "../../src/http/highlights-page-schemas.ts";
@@ -129,6 +136,33 @@ export function fetchHighlightsPage(
     `/api/highlights${queryOf(filters, cursor)}`,
     HighlightsPageResponseSchema,
   );
+}
+
+export type TopicRead =
+  | { readonly outcome: "found"; readonly page: TopicPage }
+  | { readonly outcome: "missing" };
+
+export async function fetchTopicPage(key: string, cursor: string | null): Promise<TopicRead> {
+  const query = cursor === null ? "" : `?cursor=${encodeURIComponent(cursor)}`;
+  const path = `${topicApiPath(key)}${query}`;
+  const response = await call("GET", path);
+
+  if (response.status === 404) return { outcome: "missing" };
+
+  if (!response.ok) throw unexpected("GET", path, response.status);
+
+  return { outcome: "found", page: TopicPageSchema.parse(await response.json()) };
+}
+
+export async function retryTopicOverview(key: string): Promise<Overview | null> {
+  const path = `${topicApiPath(key)}/overview`;
+  const response = await call("POST", path);
+
+  if (response.status === 409) return null;
+
+  if (!response.ok) throw unexpected("POST", path, response.status);
+
+  return OverviewRetryResponseSchema.parse(await response.json()).overview;
 }
 
 export async function saveLink(url: string): Promise<SaveResult> {

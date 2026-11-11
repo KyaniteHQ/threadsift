@@ -17,7 +17,7 @@ import { loadAiConfig } from "./ai-settings.ts";
 import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
 import { holding } from "./job-rows.ts";
 import type { AiPorts, Database } from "./ports.ts";
-import { type JobRow, aiTasks } from "./schema.ts";
+import { type JobRow, aiTasks, settings } from "./schema.ts";
 
 export const TASKS = {
   digest: {
@@ -54,6 +54,10 @@ export function completedAiTask<Result>(
     .update(aiTasks)
     .set({ state: "done", result: JSON.stringify(task.result), refusal: null, status: null })
     .where(and(eq(aiTasks.id, task.taskId), eq(aiTasks.state, "running")));
+}
+
+export function providerSet() {
+  return sql`exists (select 1 from ${settings} where ${settings.id} = 1)`;
 }
 
 export function aiTaskRunning(taskId: number) {

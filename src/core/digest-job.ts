@@ -11,12 +11,12 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { expireAiTasks } from "./ai-tasks.ts";
+import { expireAiTasks, providerSet } from "./ai-tasks.ts";
 import { linkOlderDigests } from "./catalog.ts";
 import { hasDigestSource, setDigestFailure } from "./digest-source.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
-import { digests, items, settings } from "./schema.ts";
+import { digests, items } from "./schema.ts";
 
 export function openingDigest(
   db: Database,
@@ -34,10 +34,6 @@ export function openingDigest(
 export async function sweepDigests(db: Database, now: number): Promise<void> {
   await expireAiTasks(db, now);
   await linkOlderDigests(db);
-}
-
-export function providerSet() {
-  return sql`exists (select 1 from ${settings} where ${settings.id} = 1)`;
 }
 
 function keptDigest(db: Database) {

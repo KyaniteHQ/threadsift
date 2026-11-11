@@ -2,7 +2,8 @@ import { type Page, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { FIELDS, LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
-import { ADD_LABEL, PASTE_LABEL } from "../web/src/text.ts";
+import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
+import { TOPIC_PAGE, topicLinkLabel } from "../web/src/topic-text.ts";
 
 const PASSWORD = "a smoke password of fifteen or more";
 
@@ -18,6 +19,34 @@ const SENTENCE =
   "Copying the database file while the writer is busy can tear a page, so take the copy with the online backup command instead.";
 
 const ARTICLE_TEXT = Array.from({ length: 8 }, () => SENTENCE).join("\n\n");
+
+interface TopicCase {
+  readonly link: string;
+  readonly name: string;
+  readonly itemTitle: string;
+  readonly summary: string;
+  readonly address: RegExp;
+}
+
+const DOTTED_TOPIC: TopicCase = {
+  link: "https://example.com/guides/node-streams",
+  name: "Node.js",
+  itemTitle: "Streams in Node",
+  summary: "Streams move data in chunks.\nBackpressure keeps memory flat.",
+  address: /\/topics\/node%2Ejs$/u,
+};
+
+const DOTS_ONLY_TOPIC: TopicCase = {
+  link: "https://example.com/guides/dots",
+  name: "..",
+  itemTitle: "Two dots",
+  summary: "The Topic is made of two dots.",
+  address: /\/topics\/~%2E%2E$/u,
+};
+
+const PHONE = { width: 390, height: 844 };
+
+const TARGET_PX = 44;
 
 const SETUP_CODE = z.string().min(16).parse(process.env["SETUP_CODE"]);
 
@@ -75,7 +104,52 @@ async function readSavedPage(page: Page): Promise<void> {
   await expect(page.locator(".reader")).toContainText(SENTENCE);
 }
 
-test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, and opens a saved page in the Reader", async ({
+async function openTopicPage(page: Page, topic: TopicCase): Promise<void> {
+  const saved = await page.request.post("/api/items", {
+    data: {
+      url: topic.link,
+      page: { markdown: ARTICLE_TEXT, title: topic.itemTitle },
+      digest: {
+        title: topic.itemTitle,
+        topic: topic.name,
+        tags: ["streams"],
+        summary: topic.summary,
+        keyPoints: ["Pipe streams instead of buffering them"],
+      },
+    },
+  });
+
+  expect(saved.status()).toBe(201);
+  await page.goto("/");
+  await page
+    .locator("article.it")
+    .filter({ hasText: topic.itemTitle })
+    .getByRole("link")
+    .first()
+    .click();
+  await page.getByRole("link", { name: topicLinkLabel(topic.name) }).click();
+  await expect(page).toHaveURL(topic.address);
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
+  await expect(page.locator(".tp-it")).toContainText(topic.itemTitle);
+  await expect(page.locator(".tp-sum")).toContainText(topic.summary.split("\n").at(-1) ?? "");
+  await expect(page.getByText(TOPIC_PAGE.noProvider)).toBeVisible();
+}
+
+async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  await page.getByRole("button", { name: FILTERS_BUTTON, exact: true }).click();
+  await page.getByRole("button", { name: topic.name }).click();
+
+  const box = await page
+    .getByRole("link", { name: TOPIC_PAGE.openPage, exact: true })
+    .boundingBox();
+
+  expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
+}
+
+test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, and opens the Topic pages of a dotted name and of a name made only of dots", async ({
   page,
 }) => {
   await test.step("set up the owner with the setup code", () => setUp(page));
@@ -84,4 +158,10 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     pasteXLink(page));
   await test.step("save a page through the API and read its text in the Reader", () =>
     readSavedPage(page));
+  await test.step("open the Topic page from the Reader and reload it on its address", () =>
+    openTopicPage(page, DOTTED_TOPIC));
+  await test.step("open a Topic made only of dots, which needs the tilde address", () =>
+    openTopicPage(page, DOTS_ONLY_TOPIC));
+  await test.step("the filter rail's Topic link is a 44px target on a phone", () =>
+    phoneRailTarget(page, DOTTED_TOPIC));
 });

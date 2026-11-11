@@ -27,7 +27,7 @@ export function webRoutes(builtWebApp: string): Hono {
   routes.use("*", files);
 
   routes.get("*", (context, next) =>
-    isDocumentPath(context.req.path) ? document(context, next) : next(),
+    isDocumentPath(new URL(context.req.url).pathname) ? document(context, next) : next(),
   );
 
   return routes;
