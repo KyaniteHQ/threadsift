@@ -19,6 +19,8 @@ import {
   JOB_STATES,
   KINDS,
   LOG_ACTIONS,
+  PROPOSAL_KINDS,
+  PROPOSAL_STATES,
 } from "../src/core/kinds.ts";
 import { sourceOf } from "../src/core/links.ts";
 import { Instance } from "./instance.ts";
@@ -74,7 +76,7 @@ const jobRows: readonly JobRow[] = JOB_KINDS.flatMap((kind) =>
   JOB_STATES.map((state) => ({ kind, state })),
 );
 
-describe("every status, reason, Source, kind and job value in src/core/kinds.ts passes the consistency triggers", () => {
+describe("every status, reason, Source, kind, job, Log and proposal value in src/core/kinds.ts passes the consistency triggers", () => {
   let instance: Instance;
   let database: DatabaseSync;
   let saved = 0;
@@ -176,6 +178,74 @@ describe("every status, reason, Source, kind and job value in src/core/kinds.ts 
   };
 
   for (const action of LOG_ACTIONS) logCases(action);
+
+  const insertTags = (): readonly [number, number] => {
+    saved += 1;
+
+    const rows = database
+      .prepare("insert into tags (key, name) values (?, ?), (?, ?) returning id")
+      .all(`a${String(saved)}`, "A", `b${String(saved)}`, "B");
+
+    const [from, into] = z
+      .array(z.object({ id: z.number() }))
+      .parse(rows)
+      .map(({ id }) => id);
+
+    return [from ?? 0, into ?? 0];
+  };
+
+  const proposalCases = (kind: string, state: string): void => {
+    it(`stores a ${kind} proposal, ${state}`, () => {
+      const [from, into] = insertTags();
+
+      assert.doesNotThrow(() => {
+        database
+          .prepare(
+            "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) values (?, ?, ?, 'a reason', ?, 0)",
+          )
+          .run(kind, from, into, state);
+      });
+    });
+
+    it(`updates a proposal to a ${kind} proposal, ${state}`, () => {
+      const [from, into] = insertTags();
+      database
+        .prepare(
+          "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) values ('tag-merge', ?, ?, 'a reason', 'open', 0)",
+        )
+        .run(from, into);
+
+      assert.doesNotThrow(() => {
+        database
+          .prepare("update proposals set kind = ?, state = ? where from_tag_id = ?")
+          .run(kind, state, from);
+      });
+    });
+  };
+
+  for (const kind of PROPOSAL_KINDS) {
+    for (const state of PROPOSAL_STATES) proposalCases(kind, state);
+  }
+
+  it("refuses a proposal with a kind or state the code does not list, on insert and on update", () => {
+    const [from, into] = insertTags();
+
+    const insert = database.prepare(
+      "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) values (?, ?, ?, 'a reason', ?, 0)",
+    );
+
+    assert.throws(() => insert.run("unknown", from, into, "open"), /proposals_values/u);
+    assert.throws(() => insert.run("tag-merge", from, into, "unknown"), /proposals_values/u);
+
+    insert.run("tag-merge", from, into, "open");
+
+    const update = database.prepare(
+      "update proposals set kind = ?, state = ? where from_tag_id = ?",
+    );
+
+    assert.throws(() => update.run("unknown", "open", from), /proposals_values/u);
+    assert.throws(() => update.run("tag-merge", "unknown", from), /proposals_values/u);
+  });
 
   it("refuses a Log entry with an action the code does not list, on insert and on update", () => {
     assert.throws(() => {

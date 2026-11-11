@@ -45,6 +45,7 @@ export function SignedInScreen({
       return <ImportPage pages={pages} back={toLibrary} />;
     case "index":
     case "log":
+    case "proposals":
       return <WikiPage name={screen.name} pages={pages} back={toLibrary} />;
     case "topic":
       return <TopicPage key={screen.key} topicKey={screen.key} route={route} back={toLibrary} />;

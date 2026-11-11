@@ -5,6 +5,7 @@ import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { dueIds } from "./jobs.ts";
 import { sweepConnectTransactions } from "./openrouter-connect.ts";
+import { openWeeklyProposals } from "./proposal-week.ts";
 import { reconcileSearchParts } from "./search-reconciler.ts";
 
 const SWEEP_LIMIT = 100;
@@ -31,6 +32,7 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
         await sweepDigests(ports.db, now);
       },
     ],
+    ["proposals", () => openWeeklyProposals(ports, now)],
     ["search", () => reconcileSearchParts(ports)],
     ["files", () => cleanFiles(ports)],
   ];

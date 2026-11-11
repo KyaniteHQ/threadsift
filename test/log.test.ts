@@ -5,8 +5,8 @@ import { z } from "zod";
 
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
-import { lines, paste, readLog, seedEntries } from "./log-fixtures.ts";
-import { rows } from "./related-fixtures.ts";
+import { entryCount, lines, paste, readLog, seedEntries } from "./log-fixtures.ts";
+import { exec, rows } from "./related-fixtures.ts";
 
 const VersionSchema = z.object({ version: z.number() });
 
@@ -199,5 +199,29 @@ describe("deleting an Item removes its entries and keeps the Topic's", () => {
     assert.equal((await lines(instance)).length, 3);
     assert.equal((await instance.send("DELETE", `/api/items/${String(id)}`)).status, 204);
     assert.deepEqual(await lines(instance), ["topic | Staying"]);
+  });
+});
+
+describe("the Log lists only the actions this release knows", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start();
+    await instance.setUp();
+  });
+
+  after(() => instance.close());
+
+  it("answers 200 and leaves out a row with an action of a later release", async () => {
+    await paste(instance, "known", { title: "Known", topic: "Staying" });
+    exec(instance, "drop trigger log_entries_action_insert");
+    exec(instance, "insert into log_entries (at, action) values (1, 'merge')");
+
+    assert.equal((await instance.send("GET", "/api/log")).status, 200);
+    assert.equal(entryCount(instance, "merge"), 1);
+    assert.deepEqual(
+      (await lines(instance)).filter((line) => line.startsWith("merge")),
+      [],
+    );
   });
 });

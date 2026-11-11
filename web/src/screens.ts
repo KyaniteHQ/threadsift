@@ -5,6 +5,7 @@ import {
   IMPORT_PATH,
   INDEX_PATH,
   LOG_PATH,
+  PROPOSALS_PATH,
   RESET_PATH,
   SETTINGS_PATH,
 } from "./routing.ts";
@@ -19,6 +20,7 @@ const TITLES = {
   import: "Import, Threadsift",
   index: "Index, Threadsift",
   log: "Log, Threadsift",
+  proposals: "Proposals, Threadsift",
   topic: "Topic, Threadsift",
   library: "Threadsift",
   loading: "Threadsift",
@@ -37,6 +39,7 @@ export type ScreenState =
   | Named<"import">
   | Named<"index">
   | Named<"log">
+  | Named<"proposals">
   | Named<"library">
   | { readonly name: "setup"; readonly problem: SetupCodeProblem | null }
   | { readonly name: "topic"; readonly key: string };
@@ -46,7 +49,15 @@ export type ScreenName = ScreenState["name"];
 export type SignedInState = Extract<
   ScreenState,
   {
-    readonly name: "settings" | "highlights" | "import" | "index" | "log" | "library" | "topic";
+    readonly name:
+      | "settings"
+      | "highlights"
+      | "import"
+      | "index"
+      | "log"
+      | "proposals"
+      | "library"
+      | "topic";
   }
 >;
 
@@ -57,6 +68,7 @@ export function isSignedInScreen(screen: Readonly<ScreenState>): screen is Signe
     screen.name === "import" ||
     screen.name === "index" ||
     screen.name === "log" ||
+    screen.name === "proposals" ||
     screen.name === "library" ||
     screen.name === "topic"
   );
@@ -72,6 +84,8 @@ function signedInScreen(path: string): ScreenState {
   if (path === INDEX_PATH || path === `${INDEX_PATH}/`) return { name: "index" };
 
   if (path === LOG_PATH) return { name: "log" };
+
+  if (path === PROPOSALS_PATH) return { name: "proposals" };
 
   const key = topicKeyOf(path);
 

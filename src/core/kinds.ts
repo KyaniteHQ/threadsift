@@ -53,7 +53,12 @@ export const WAIT_REASONS = ["github-rate-limit", "topic-busy"] as const;
 
 export const ITEM_JOB_KINDS = ["fetch", "digest"] as const;
 
-export const JOB_KINDS = [...ITEM_JOB_KINDS, "topic_overview", "related_pick"] as const;
+export const JOB_KINDS = [
+  ...ITEM_JOB_KINDS,
+  "topic_overview",
+  "related_pick",
+  "proposals",
+] as const;
 
 export const SETUP_CODE_STATUSES = ["missing", "short", "set"] as const;
 
@@ -92,3 +97,11 @@ export const DIGEST_OUTCOMES = ["none", "pending", "failed"] as const;
 export const LOG_ACTIONS = ["ingest", "digest", "topic", "overview", "related"] as const;
 
 export type LogAction = (typeof LOG_ACTIONS)[number];
+
+export const PROPOSAL_KINDS = ["tag-merge"] as const;
+
+export const PROPOSAL_STATES = ["open", "accepting", "rejected", "declined"] as const;
+
+export type ProposalKind = (typeof PROPOSAL_KINDS)[number];
+
+export type ProposalState = (typeof PROPOSAL_STATES)[number];

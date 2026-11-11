@@ -1,6 +1,7 @@
-import { desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
+import { LOG_ACTIONS } from "./kinds.ts";
 import { type LogPage, LogEntrySchema } from "./log-contract.ts";
 import type { Database } from "./ports.ts";
 import { logEntries, logStart, topics } from "./schema.ts";
@@ -52,7 +53,12 @@ function pageQuery(db: Database, cursor: number | null) {
     })
     .from(logEntries)
     .leftJoin(topics, eq(topics.id, logEntries.topicId))
-    .where(cursor === null ? undefined : lt(logEntries.id, cursor))
+    .where(
+      and(
+        inArray(logEntries.action, LOG_ACTIONS),
+        cursor === null ? undefined : lt(logEntries.id, cursor),
+      ),
+    )
     .orderBy(desc(logEntries.id))
     .limit(ITEMS_PAGE_SIZE + 1);
 }

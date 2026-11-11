@@ -1,0 +1,46 @@
+.pr-effect {
+  overflow-wrap: anywhere;
+}
+.pr-name {
+  font-weight: var(--dw-strong);
+}
+.pr-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s4);
+  margin: 0;
+  font-size: var(--t-meta);
+  font-variant-numeric: tabular-nums;
+}
+.pr-counts > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s2);
+  min-width: 0;
+}
+.pr-counts dt,
+.pr-counts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.pr-counts dt {
+  color: var(--text);
+}
+.pr-reason {
+  font-size: var(--t-title);
+  color: var(--text);
+}
+.pr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  padding-block-start: var(--s1);
+}
+.pr-actions p {
+  margin: 0;
+}
+.app[data-bp~="phone"] .pr-reject {
+  min-block-size: var(--target);
+  min-inline-size: var(--target);
+}

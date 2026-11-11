@@ -100,6 +100,10 @@ _Avoid_: Event, Audit record
 A change the agent suggests on the weekly Proposals page, such as merging two Tags, which the owner accepts or rejects.
 _Avoid_: Suggestion, lint, fix
 
+**Proposals page**:
+The page, at `/proposals`, that lists the open Proposals of the weekly check, each with the two Tags, their Item counts and the agent's reason, and lets the owner reject one.
+_Avoid_: Suggestions page, Inbox
+
 **Pin**:
 An accepted correction kept so that a later regeneration cannot undo it.
 _Avoid_: Override, lock

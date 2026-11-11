@@ -14,6 +14,7 @@ Use these exact terms in code, docs and issues.
 |---|---|
 | What v1 does, and the decisions behind it | `docs/spec.md` |
 | The tech stack, the module seams, the data model, the two install targets and the testing approach | `docs/architecture.md` |
+| The weekly Tag-merge Proposals, the Proposals page and Reject (Accept and Pins build on them) | `docs/proposals.md` |
 | Before writing, changing or deleting a test | `docs/testing.md` |
 | Before changing a workflow, the gate, the live deploy or the live check | `docs/architecture.md`, CI, releases and rollback |
 | Before writing or changing code, config or scripts: official docs first, module design, no comments, the finish checks | `docs/agents/changing-code.md`; the `implementer` agent (`.claude/agents/implementer.md`) runs it |
