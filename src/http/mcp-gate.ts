@@ -11,7 +11,15 @@ export interface McpEnv {
 
 const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-const LOOPBACK_AUTHORITY = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/u;
+const AUTHORITY = /^(?<name>\[[0-9a-f:.]+\]|[^\s/?#@[\]:]+)(?::(?<port>\d{1,5}))?$/u;
+
+const MAX_PORT = 65_535;
+
+interface OriginPolicy {
+  readonly publicOrigin: string | null;
+  readonly publicHost: string | null;
+  readonly defaultPort: string;
+}
 
 function isLoopbackOrigin(origin: string): boolean {
   const url = URL.parse(origin);
@@ -19,34 +27,45 @@ function isLoopbackOrigin(origin: string): boolean {
   return url !== null && url.origin === origin && LOOPBACK_HOSTNAMES.has(url.hostname);
 }
 
-function hostAllowed(publicHost: string | null, host: string): boolean {
-  const lowered = host.toLowerCase();
+function hostAllowed({ publicHost, defaultPort }: Readonly<OriginPolicy>, host: string): boolean {
+  const groups = AUTHORITY.exec(host.toLowerCase())?.groups;
 
-  return publicHost === null ? LOOPBACK_AUTHORITY.test(lowered) : lowered === publicHost;
+  if (groups === undefined) {
+    return false;
+  }
+
+  const { name = "", port } = groups;
+  const portNumber = port === undefined ? undefined : Number(port);
+
+  if (portNumber !== undefined && (portNumber < 1 || portNumber > MAX_PORT)) {
+    return false;
+  }
+
+  if (publicHost === null) {
+    return LOOPBACK_HOSTNAMES.has(name);
+  }
+
+  const bare = portNumber === undefined || String(portNumber) === defaultPort;
+
+  return (bare ? name : `${name}:${String(portNumber)}`) === publicHost;
 }
 
 function originAllowed(publicOrigin: string | null, origin: string): boolean {
   return publicOrigin === null ? isLoopbackOrigin(origin) : origin === publicOrigin;
 }
 
-function refusalOf(
-  c: Context,
-  {
-    publicOrigin,
-    publicHost,
-  }: Readonly<{ publicOrigin: string | null; publicHost: string | null }>,
-): Response | null {
+function refusalOf(c: Context, policy: Readonly<OriginPolicy>): Response | null {
   const hosts = [new URL(c.req.url).host, c.req.header("host")].filter(
     (host) => host !== undefined,
   );
 
-  if (!hosts.every((host) => hostAllowed(publicHost, host))) {
+  if (!hosts.every((host) => hostAllowed(policy, host))) {
     return c.json({ error: "Host not allowed" }, 403);
   }
 
   const origin = c.req.header("origin");
 
-  if (origin !== undefined && !originAllowed(publicOrigin, origin)) {
+  if (origin !== undefined && !originAllowed(policy.publicOrigin, origin)) {
     return c.json({ error: "Origin not allowed" }, 403);
   }
 
@@ -62,9 +81,12 @@ function refusalOf(
 export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
   const { publicOrigin } = ports;
 
-  const origins = {
+  const publicUrl = publicOrigin === null ? null : new URL(publicOrigin);
+
+  const policy: OriginPolicy = {
     publicOrigin,
-    publicHost: publicOrigin === null ? null : new URL(publicOrigin).host,
+    publicHost: publicUrl?.host ?? null,
+    defaultPort: publicUrl?.protocol === "https:" ? "443" : "80",
   };
 
   const bearer = bearerCheck(async (value, c) => {
@@ -84,5 +106,5 @@ export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
     return true;
   });
 
-  return async (c, next) => refusalOf(c, origins) ?? (await bearer(c, next));
+  return async (c, next) => refusalOf(c, policy) ?? (await bearer(c, next));
 }

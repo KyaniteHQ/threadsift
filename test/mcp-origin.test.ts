@@ -24,6 +24,20 @@ function without(urls: readonly string[]): Case[] {
   return urls.map((url) => [url, undefined]);
 }
 
+function hostStatuses(
+  instance: Instance,
+  token: AgentToken,
+  hosts: readonly string[],
+  url = MCP_URL,
+) {
+  return Promise.all(
+    hosts.map(
+      async (host) =>
+        (await mcpRequest(instance, { url, headers: { ...bearer(token), host } })).status,
+    ),
+  );
+}
+
 function refusedAll(cases: readonly Case[]): number[] {
   return cases.map(() => 403);
 }
@@ -71,17 +85,10 @@ describe("/mcp refuses a Host or Origin that is not the Instance's own, whatever
     );
   });
 
-  it("accepts a loopback Host that spells out port 80", async () => {
-    const hosts = ["localhost:80", "127.0.0.1:80", "[::1]:80"];
+  it("accepts a loopback Host that spells out port 80 or an edge port", async () => {
+    const hosts = ["localhost:80", "127.0.0.1:80", "[::1]:80", "localhost:1", "localhost:65535"];
 
-    const answers = await Promise.all(
-      hosts.map(
-        async (host) =>
-          (await mcpRequest(local, { headers: { ...bearer(localToken), host } })).status,
-      ),
-    );
-
-    assert.deepEqual(answers, [200, 200, 200]);
+    assert.deepEqual(await hostStatuses(local, localToken, hosts), [200, 200, 200, 200, 200]);
   });
 
   it("refuses a Host that carries credentials, a path, a query, a fragment or a bad port", async () => {
@@ -95,19 +102,14 @@ describe("/mcp refuses a Host or Origin that is not the Instance's own, whatever
       "localhost:80:80",
       "localhost:123456",
       "localhost:abc",
+      "localhost:0",
+      "localhost:00000",
+      "localhost:65536",
+      "localhost:99999",
+      "[::1]:0",
     ];
 
-    const answers = await Promise.all(
-      hosts.map(
-        async (host) =>
-          (await mcpRequest(local, { headers: { ...bearer(localToken), host } })).status,
-      ),
-    );
-
-    assert.deepEqual(
-      answers,
-      hosts.map(() => 403),
-    );
+    assert.deepEqual(await hostStatuses(local, localToken, hosts), refusedAll(without(hosts)));
   });
 
   it("refuses a Host that is not loopback, with no Origin and with a matching attacker Origin", async () => {
@@ -180,6 +182,24 @@ describe("/mcp refuses a Host or Origin that is not the Instance's own, whatever
     );
   });
 
+  it("treats a Host that spells out the default port of the public origin as the bare Host", async () => {
+    const hosts = [
+      "threadsift.example.com:443",
+      "Threadsift.Example.com:443",
+      "threadsift.example.com:0443",
+      "threadsift.example.com",
+      "threadsift.example.com:80",
+      "threadsift.example.com:8443",
+      "threadsift.example.com:0",
+      "threadsift.example.com:99999",
+    ];
+
+    assert.deepEqual(
+      await hostStatuses(hosted, hostedToken, hosts, `${HOSTED}/mcp`),
+      [200, 200, 200, 200, 403, 403, 403, 403],
+    );
+  });
+
   it("accepts only the whole configured origin when a public origin is set", async () => {
     const url = "https://threadsift.example.com/mcp";
 
@@ -195,6 +215,18 @@ describe("/mcp refuses a Host or Origin that is not the Instance's own, whatever
         ["https://evil.example/mcp", "https://evil.example"],
       ]),
       [200, 403, 403, 403, 403, 403, 403, 403],
+    );
+  });
+
+  it("does not drop a port that is not the default of the public origin's scheme", async () => {
+    assert.deepEqual(
+      await hostStatuses(
+        withPort,
+        withPortToken,
+        ["localhost:8080", "localhost:80", "localhost"],
+        `${WITH_PORT}/mcp`,
+      ),
+      [200, 403, 403],
     );
   });
 
