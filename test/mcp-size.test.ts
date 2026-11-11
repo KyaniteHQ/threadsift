@@ -3,7 +3,14 @@ import { after, before, describe, it } from "node:test";
 
 import { ItemReadResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
-import { type AgentToken, MCP_URL, bearer, createAgentToken, mcpRequest } from "./mcp-client.ts";
+import {
+  type AgentToken,
+  MCP_URL,
+  bearer,
+  createAgentToken,
+  mcpHeaders,
+  mcpRequest,
+} from "./mcp-client.ts";
 
 const BODY_LIMIT = 64 * 1024;
 
@@ -47,27 +54,12 @@ describe("/mcp takes at most 64 KiB of request, whether or not the request says 
   const itemTotal = async (): Promise<number | undefined> =>
     (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total;
 
-  const post = (body: BodyInit) =>
-    instance.fetch(
-      new Request(MCP_URL, {
-        method: "POST",
-        headers: {
-          ...bearer(token),
-          "content-type": "application/json",
-          accept: "application/json, text/event-stream",
-        },
-        body,
-      }),
-    );
+  const post = (body: BodyInit) => mcpRequest(instance, { headers: bearer(token), body });
 
   const postStream = (body: ReadableStream<Uint8Array>) => {
     const init = {
       method: "POST",
-      headers: {
-        ...bearer(token),
-        "content-type": "application/json",
-        accept: "application/json, text/event-stream",
-      },
+      headers: mcpHeaders(bearer(token)),
       body,
       duplex: "half",
     };

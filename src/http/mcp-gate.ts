@@ -23,22 +23,28 @@ function isLoopbackOrigin(origin: string): boolean {
   return url !== null && url.origin === origin && LOOPBACK_HOSTNAMES.has(url.hostname);
 }
 
-function hostAllowed(publicOrigin: string | null, host: string): boolean {
+function hostAllowed(publicHost: string | null, host: string): boolean {
   const lowered = host.toLowerCase();
 
-  return publicOrigin === null ? isLoopbackHost(lowered) : lowered === new URL(publicOrigin).host;
+  return publicHost === null ? isLoopbackHost(lowered) : lowered === publicHost;
 }
 
 function originAllowed(publicOrigin: string | null, origin: string): boolean {
   return publicOrigin === null ? isLoopbackOrigin(origin) : origin === publicOrigin;
 }
 
-function refusalOf(c: Context, publicOrigin: string | null): Response | null {
+function refusalOf(
+  c: Context,
+  {
+    publicOrigin,
+    publicHost,
+  }: Readonly<{ publicOrigin: string | null; publicHost: string | null }>,
+): Response | null {
   const hosts = [new URL(c.req.url).host, c.req.header("host")].filter(
     (host) => host !== undefined,
   );
 
-  if (!hosts.every((host) => hostAllowed(publicOrigin, host))) {
+  if (!hosts.every((host) => hostAllowed(publicHost, host))) {
     return c.json({ error: "Host not allowed" }, 403);
   }
 
@@ -60,6 +66,11 @@ function refusalOf(c: Context, publicOrigin: string | null): Response | null {
 export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
   const { publicOrigin } = ports;
 
+  const origins = {
+    publicOrigin,
+    publicHost: publicOrigin === null ? null : new URL(publicOrigin).host,
+  };
+
   const bearer = bearerCheck(async (value, c) => {
     const token = await verifyToken(ports, value);
 
@@ -77,5 +88,5 @@ export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
     return true;
   });
 
-  return async (c, next) => refusalOf(c, publicOrigin) ?? (await bearer(c, next));
+  return async (c, next) => refusalOf(c, origins) ?? (await bearer(c, next));
 }

@@ -59,6 +59,14 @@ export function bearer(token: AgentToken) {
 
 export const TOOLS_LIST = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" });
 
+export function mcpHeaders(extra: Readonly<Record<string, string>> = {}) {
+  return {
+    "content-type": "application/json",
+    accept: "application/json, text/event-stream",
+    ...extra,
+  };
+}
+
 export function mcpRequest(
   instance: Instance,
   {
@@ -70,11 +78,7 @@ export function mcpRequest(
   return instance.fetch(
     new Request(url, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json, text/event-stream",
-        ...headers,
-      },
+      headers: mcpHeaders(headers),
       body,
     }),
   );
