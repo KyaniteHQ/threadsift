@@ -4,7 +4,7 @@ import { itemPath } from "../../src/core/item-path.ts";
 import type { LogEntry } from "../../src/core/log-contract.ts";
 import { topicPath } from "../../src/core/topic-path.ts";
 import { localDate, localTime } from "./log-date.ts";
-import { LOG_WORDS, addedRemoved, picksLabel } from "./log-text.ts";
+import { LOG_WORDS, addedRemoved, itemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
 import { LogLink } from "./LogLink.tsx";
 import type { Pages } from "./routing.ts";
 import { topicLinkLabel } from "./topic-text.ts";
@@ -112,6 +112,19 @@ function body(entry: Readonly<LogEntry>, pages: Pages): readonly Part[] {
       ];
     case "related":
       return [action, itemPart(entry.item, pages), { key: "picks", node: picksLabel(entry.picks) }];
+    case "merge":
+      return [
+        action,
+        {
+          key: "tags",
+          node: (
+            <span className="lg-tags">
+              {LOG_WORDS.tag} {mergeLabel(entry.from, entry.into)}
+            </span>
+          ),
+        },
+        { key: "items", node: itemsLabel(entry.items) },
+      ];
     default:
       return entry satisfies never;
   }

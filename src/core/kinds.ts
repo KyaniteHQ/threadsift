@@ -94,9 +94,11 @@ export type JobState = (typeof JOB_STATES)[number];
 
 export const DIGEST_OUTCOMES = ["none", "pending", "failed"] as const;
 
-export const LOG_ACTIONS = ["ingest", "digest", "topic", "overview", "related"] as const;
+export const LOG_ACTIONS = ["ingest", "digest", "topic", "overview", "related", "merge"] as const;
 
 export type LogAction = (typeof LOG_ACTIONS)[number];
+
+export const PIN_KINDS = ["tag-merge"] as const;
 
 export const PROPOSAL_KINDS = ["tag-merge"] as const;
 

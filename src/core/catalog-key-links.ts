@@ -2,6 +2,7 @@ import { type SQL, type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle
 import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import { repointedPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { proposalRelinks } from "./proposal-relink.ts";
 import { itemTags, items, logEntries, tags, topicLeases, topicPages, topics } from "./schema.ts";
@@ -24,7 +25,7 @@ export interface CatalogKind {
     survivor: number,
     moves: Readonly<Moves>,
   ) => readonly BatchItem<"sqlite">[];
-  readonly unlinked: (db: Database, id: number) => SQL | undefined;
+  readonly unlinked: (db: Database, id: number) => SQL;
 }
 
 async function firstIds(
@@ -50,21 +51,18 @@ function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
 
 const sibling = alias(itemTags, "sibling");
 
-function emptied(db: Database, id: number) {
-  return and(
-    notExists(
-      db
-        .select({ one: sql`1` })
-        .from(items)
-        .where(eq(items.topicId, id)),
-    ),
-    notExists(
-      db
-        .select({ one: sql`1` })
-        .from(logEntries)
-        .where(eq(logEntries.topicId, id)),
-    ),
-  );
+function emptied(db: Database, id: number): SQL {
+  return sql`${notExists(
+    db
+      .select({ one: sql`1` })
+      .from(items)
+      .where(eq(items.topicId, id)),
+  )} and ${notExists(
+    db
+      .select({ one: sql`1` })
+      .from(logEntries)
+      .where(eq(logEntries.topicId, id)),
+  )}`;
 }
 
 export const TOPIC_KIND: CatalogKind = {
@@ -89,6 +87,33 @@ export const TOPIC_KIND: CatalogKind = {
   unlinked: emptied,
 };
 
+export function tagMoves(
+  db: Database,
+  loser: number,
+  survivor: number,
+  within: (column: Readonly<SQLWrapper>) => SQL,
+) {
+  return [
+    db
+      .update(itemTags)
+      .set({ tagId: survivor })
+      .where(
+        and(
+          eq(itemTags.tagId, loser),
+          within(itemTags.itemId),
+          notExists(
+            db
+              .select({ one: sql`1` })
+              .from(sibling)
+              .where(and(eq(sibling.itemId, itemTags.itemId), eq(sibling.tagId, survivor))),
+          ),
+        ),
+      ),
+    db.delete(itemTags).where(and(eq(itemTags.tagId, loser), within(itemTags.itemId))),
+    ...tagPartWrites(db, within(items.id)),
+  ];
+}
+
 export const TAG_KIND: CatalogKind = {
   step: "tag-keys",
   table: tags,
@@ -98,23 +123,8 @@ export const TAG_KIND: CatalogKind = {
   }),
   relink: (db, loser, survivor, { itemIds }) => [
     ...proposalRelinks(db, loser, survivor),
-    db
-      .update(itemTags)
-      .set({ tagId: survivor })
-      .where(
-        and(
-          eq(itemTags.tagId, loser),
-          among(itemTags.itemId, itemIds),
-          notExists(
-            db
-              .select({ one: sql`1` })
-              .from(sibling)
-              .where(and(eq(sibling.itemId, itemTags.itemId), eq(sibling.tagId, survivor))),
-          ),
-        ),
-      ),
-    db.delete(itemTags).where(and(eq(itemTags.tagId, loser), among(itemTags.itemId, itemIds))),
-    ...tagPartWrites(db, among(items.id, itemIds)),
+    repointedPins(db, loser, survivor),
+    ...tagMoves(db, loser, survivor, (column) => among(column, itemIds)),
   ],
   unlinked: (db, id) =>
     notExists(

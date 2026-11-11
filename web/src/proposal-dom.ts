@@ -1,3 +1,5 @@
+export const ACCEPT_CLASS = "pr-accept";
+
 export const REJECT_CLASS = "pr-reject";
 
 export const REJECT_SELECTOR = `.${REJECT_CLASS}`;

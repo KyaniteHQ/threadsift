@@ -3,7 +3,7 @@ import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import type { LogAction } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { digests, logEntries, topics } from "./schema.ts";
+import { digests, logEntries, proposals, topics } from "./schema.ts";
 
 interface Fields {
   readonly action: SQL<LogAction> | LogAction;
@@ -13,6 +13,9 @@ interface Fields {
   readonly added?: number;
   readonly removed?: number;
   readonly picks?: number;
+  readonly mergedFrom?: string;
+  readonly mergedInto?: string;
+  readonly moved?: SQLWrapper | number;
   readonly itemId?: number;
   readonly topicId?: SQLWrapper;
 }
@@ -34,6 +37,9 @@ function appended(
         added: sql`${fields.added ?? null}`.as("added"),
         removed: sql`${fields.removed ?? null}`.as("removed"),
         picks: sql`${fields.picks ?? null}`.as("picks"),
+        mergedFrom: sql`${fields.mergedFrom ?? null}`.as("merged_from"),
+        mergedInto: sql`${fields.mergedInto ?? null}`.as("merged_into"),
+        moved: sql`${fields.moved ?? null}`.as("moved"),
         itemId: sql`${fields.itemId ?? null}`.as("item_id"),
         topicId: sql`${fields.topicId ?? null}`.as("topic_id"),
       })
@@ -97,5 +103,29 @@ export function loggedRelated(db: Database, itemId: number, picks: number) {
     title: digests.title,
     picks,
     itemId,
+  });
+}
+
+export function loggedMerge(
+  db: Database,
+  {
+    proposalId,
+    mergedFrom,
+    mergedInto,
+    when,
+  }: Readonly<{
+    proposalId: number;
+    mergedFrom: string;
+    mergedInto: string;
+    when: Readonly<SQLWrapper>;
+  }>,
+) {
+  return appended(db, {
+    from: proposals,
+    where: sql`${proposals.id} = ${proposalId} and ${when}`,
+    action: "merge",
+    mergedFrom,
+    mergedInto,
+    moved: sql`coalesce(${proposals.moved}, 0)`,
   });
 }

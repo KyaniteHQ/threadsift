@@ -4,7 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { z } from "zod";
 
 import { DigestSchema } from "../src/core/ai-contract.ts";
-import { catalogKey } from "../src/core/catalog.ts";
+import { catalogKey } from "../src/core/catalog-key.ts";
 import type { ItemDetailResponseSchema } from "../src/http/schemas.ts";
 
 const url = new URL("https://www.sqlite.org/whentouse.html");

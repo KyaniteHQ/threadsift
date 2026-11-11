@@ -12,9 +12,9 @@ import {
 } from "drizzle-orm";
 
 import { expireAiTasks, providerSet } from "./ai-tasks.ts";
-import { linkOlderDigests } from "./catalog.ts";
 import { hasDigestSource, setDigestFailure } from "./digest-source.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
+import { linkOlderDigests } from "./older-digests.ts";
 import type { Database } from "./ports.ts";
 import { digests, items } from "./schema.ts";
 

@@ -7,11 +7,13 @@ const TagRefSchema = z
   .object({ id: z.number().int(), name: z.string(), items: z.number().int().min(0) })
   .readonly();
 
+export const ListedStateSchema = z.enum(["open", "accepting"]);
+
 export const ProposalSchema = z
   .object({
     id: z.number().int(),
     kind: z.enum(PROPOSAL_KINDS),
-    state: z.literal("open"),
+    state: ListedStateSchema,
     reason: z.string(),
     from: TagRefSchema,
     into: TagRefSchema,
@@ -30,6 +32,8 @@ export const ProposalPageSchema = z
 export const ProposalIdParamSchema = z.object({ id: z.string().regex(/^\d{1,16}$/u) });
 
 export const RejectedSchema = z.object({ state: z.literal("rejected") }).readonly();
+
+export const AcceptedSchema = z.object({ state: z.enum(["done", "accepting"]) }).readonly();
 
 export type Proposal = z.infer<typeof ProposalSchema>;
 

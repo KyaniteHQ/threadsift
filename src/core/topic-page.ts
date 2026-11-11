@@ -1,7 +1,7 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { providerSet } from "./ai-tasks.ts";
-import { catalogKey } from "./catalog.ts";
+import { catalogKey } from "./catalog-key.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, topicPages, topics } from "./schema.ts";

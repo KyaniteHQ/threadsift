@@ -1,9 +1,17 @@
 import { memo, useCallback } from "react";
 
 import type { Proposal } from "../../src/core/proposal-contract.ts";
-import { REJECT_CLASS, rowId } from "./proposal-dom.ts";
-import { PROPOSAL_WORDS, itemsOfTag, rejectLabel, rejectRetryLabel } from "./proposals-text.ts";
+import { ACCEPT_CLASS, REJECT_CLASS, rowId } from "./proposal-dom.ts";
+import {
+  PROPOSAL_WORDS,
+  acceptLabel,
+  acceptRetryLabel,
+  itemsOfTag,
+  rejectLabel,
+  rejectRetryLabel,
+} from "./proposals-text.ts";
 import { RETRY_LABEL } from "./text.ts";
+import type { Failure } from "./use-proposals-page.ts";
 
 const SLOT = /\{(from|into)\}/u;
 
@@ -32,55 +40,82 @@ function Count({ name, items }: Readonly<{ name: string; items: number }>) {
   );
 }
 
-function Actions({
-  proposal,
-  pending,
-  failed,
-  reject,
-}: Readonly<{
-  proposal: Proposal;
-  pending: boolean;
-  failed: boolean;
-  reject: (proposal: Proposal) => void;
-}>) {
-  const press = useCallback(() => {
-    if (!pending) reject(proposal);
-  }, [pending, proposal, reject]);
+interface RowControls {
+  readonly proposal: Proposal;
+  readonly pending: boolean;
+  readonly failure: Failure | undefined;
+  readonly busy: boolean;
+  readonly accept: (proposal: Proposal) => void;
+  readonly reject: (proposal: Proposal) => void;
+}
+
+function Note({ children, alert }: Readonly<{ children: string; alert: boolean }>) {
+  return (
+    <p className="rd-note" role={alert ? "alert" : "status"}>
+      {children}
+    </p>
+  );
+}
+
+function Notes({
+  failure,
+  busy,
+  applying,
+}: Readonly<{ failure: Failure | undefined; busy: boolean; applying: boolean }>) {
+  if (applying) return <Note alert={false}>{PROPOSAL_WORDS.applying}</Note>;
+
+  if (failure === "accept") return <Note alert>{PROPOSAL_WORDS.acceptFailed}</Note>;
+
+  if (failure === "reject") return <Note alert>{PROPOSAL_WORDS.rejectFailed}</Note>;
+
+  return busy ? <Note alert={false}>{PROPOSAL_WORDS.busy}</Note> : null;
+}
+
+function Actions({ proposal, pending, failure, busy, accept, reject }: Readonly<RowControls>) {
+  const applying = proposal.state === "accepting";
+  const locked = pending || applying;
+
+  const pressAccept = useCallback(() => {
+    if (!locked) accept(proposal);
+  }, [accept, locked, proposal]);
+
+  const pressReject = useCallback(() => {
+    if (!locked) reject(proposal);
+  }, [locked, proposal, reject]);
 
   return (
     <div className="pr-actions">
       <button
         type="button"
-        className={`btn ${REJECT_CLASS}`}
-        aria-label={(failed ? rejectRetryLabel : rejectLabel)(
+        className={`btn btn-acc ${ACCEPT_CLASS}`}
+        aria-label={(failure === "accept" ? acceptRetryLabel : acceptLabel)(
           proposal.from.name,
           proposal.into.name,
         )}
-        aria-disabled={pending}
-        onClick={press}
+        aria-disabled={locked}
+        onClick={pressAccept}
       >
-        {failed ? RETRY_LABEL : PROPOSAL_WORDS.reject}
+        {failure === "accept" ? RETRY_LABEL : PROPOSAL_WORDS.accept}
       </button>
-      {failed ? (
-        <p className="rd-note" role="alert">
-          {PROPOSAL_WORDS.rejectFailed}
-        </p>
-      ) : null}
+      <button
+        type="button"
+        className={`btn ${REJECT_CLASS}`}
+        aria-label={(failure === "reject" ? rejectRetryLabel : rejectLabel)(
+          proposal.from.name,
+          proposal.into.name,
+        )}
+        aria-disabled={locked}
+        onClick={pressReject}
+      >
+        {failure === "reject" ? RETRY_LABEL : PROPOSAL_WORDS.reject}
+      </button>
+      <Notes failure={failure} busy={busy} applying={applying} />
     </div>
   );
 }
 
-export const ProposalRow = memo(function ProposalRow({
-  proposal,
-  pending,
-  failed,
-  reject,
-}: Readonly<{
-  proposal: Proposal;
-  pending: boolean;
-  failed: boolean;
-  reject: (proposal: Proposal) => void;
-}>) {
+export const ProposalRow = memo(function ProposalRow(controls: Readonly<RowControls>) {
+  const { proposal } = controls;
   const { from, into, reason } = proposal;
 
   return (
@@ -97,7 +132,7 @@ export const ProposalRow = memo(function ProposalRow({
           <span className="vh">{PROPOSAL_WORDS.reasonLabel}: </span>
           {reason}
         </p>
-        <Actions proposal={proposal} pending={pending} failed={failed} reject={reject} />
+        <Actions {...controls} />
       </article>
     </li>
   );

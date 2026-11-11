@@ -63,7 +63,7 @@ _Avoid_: Job, prompt, request, AI call
 ### Sorting
 
 **Topic**:
-The one broad subject of an Item, from a list the agent keeps and grows. Topics keep their first spelling; `catalogKey` in `src/core/catalog.ts` defines their identity.
+The one broad subject of an Item, from a list the agent keeps and grows. Topics keep their first spelling; `catalogKey` in `src/core/catalog-key.ts` defines their identity.
 _Avoid_: Category, folder
 
 **Tag**:
@@ -93,7 +93,7 @@ The list of the committed changes the agent made to the library, newest first, f
 _Avoid_: History, activity feed, audit trail
 
 **Log entry**:
-One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision) or a `related` (a stored set of picks). It keeps the title and names as they were when the change committed.
+One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks) or a `merge` (a Tag merged into another). It keeps the title and names as they were when the change committed.
 _Avoid_: Event, Audit record
 
 **Proposal**:
@@ -101,11 +101,11 @@ A change the agent suggests on the weekly Proposals page, such as merging two Ta
 _Avoid_: Suggestion, lint, fix
 
 **Proposals page**:
-The page, at `/proposals`, that lists the open Proposals of the weekly check, each with the two Tags, their Item counts and the agent's reason, and lets the owner reject one.
+The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags, their Item counts and the agent's reason, and lets the owner accept or reject one.
 _Avoid_: Suggestions page, Inbox
 
 **Pin**:
-An accepted correction kept so that a later regeneration cannot undo it.
+An accepted correction kept so that a later regeneration cannot undo it. For a Tag merge it records the merged-away Tag's key and the Tag it went into, so no later Digest creates the merged-away Tag again.
 _Avoid_: Override, lock
 
 ### Reading

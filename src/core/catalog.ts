@@ -1,37 +1,13 @@
-import { type SQLWrapper, and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
 
-import { type Digest, parseStoredDigest } from "./ai-contract.ts";
-import { caseFold } from "./case-folding.ts";
+import type { Digest } from "./ai-contract.ts";
+import { catalogKey } from "./catalog-key.ts";
 import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
-import { logFailure } from "./failure-log.ts";
 import { loggedDigest, loggedTopic } from "./log-writes.ts";
+import { pinnedDigest } from "./pins.ts";
 import type { Database } from "./ports.ts";
-import {
-  catalogLinking,
-  catalogVersion,
-  digests,
-  guardedBatch,
-  items,
-  itemTags,
-  tags,
-  topics,
-} from "./schema.ts";
-import { digestPartWrites } from "./search.ts";
+import { catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
 import { openingOverview } from "./topic-overview-open.ts";
-
-const OLDER_DIGEST_BATCH = 10;
-
-export const CATALOG_KEY_VERSION = 1;
-
-const DOT_AFTER_I = /i\u0307+/gu;
-
-export function catalogKey(name: string): string {
-  return caseFold(name.normalize("NFKC"))
-    .replaceAll(DOT_AFTER_I, "i")
-    .normalize("NFC")
-    .trim()
-    .replaceAll(/\s+/gu, " ");
-}
 
 export function catalogEntries(digest: Readonly<Digest>) {
   const names = new Map<string, { readonly key: string; readonly name: string }>();
@@ -50,6 +26,12 @@ export function catalogEntries(digest: Readonly<Digest>) {
 }
 
 type CatalogEntries = Readonly<ReturnType<typeof catalogEntries>>;
+
+export async function pinnedCatalog(db: Database, digest: Readonly<Digest>) {
+  const pinned = await pinnedDigest(db, digest);
+
+  return { pinned, entries: catalogEntries({ ...digest, tags: pinned.tags }) };
+}
 
 export function catalogCurrent(version: number, entries: CatalogEntries) {
   const keys = entries.tagKeys;
@@ -160,47 +142,4 @@ export function publishedLinks(
       tagKeys: entries.tagKeys,
     }),
   ];
-}
-
-async function linkOlderDigest(
-  db: Database,
-  row: Readonly<{ id: number; digest: string }>,
-): Promise<void> {
-  try {
-    const entries = catalogEntries(parseStoredDigest(row.digest));
-    const current = sql`exists (select 1 from ${items} join ${digests} on ${digests.itemId} = ${items.id} where ${items.id} = ${row.id} and ${items.topicId} is null and ${digests.digest} = ${row.digest})`;
-    await guardedBatch(db, current, [
-      ...linkingDigest(db, row.id, entries),
-      ...digestPartWrites(db, eq(items.id, row.id)),
-    ]);
-  } catch (error) {
-    logFailure("older-digest-not-linked", { digestId: row.id }, error);
-  }
-}
-
-function olderDigestRows(db: Database, after: number) {
-  return db
-    .select({ id: items.id, digest: digests.digest })
-    .from(items)
-    .innerJoin(digests, eq(digests.itemId, items.id))
-    .where(and(isNull(items.topicId), gt(items.id, after)))
-    .orderBy(asc(items.id))
-    .limit(OLDER_DIGEST_BATCH);
-}
-
-export async function linkOlderDigests(db: Database): Promise<void> {
-  const [cursor] = await db.select().from(catalogLinking).where(eq(catalogLinking.id, 1));
-  const after = cursor?.lastItemId ?? 0;
-  const next = await olderDigestRows(db, after);
-  const older = next.length === 0 && after > 0 ? await olderDigestRows(db, 0) : next;
-  const lastItemId = older.at(-1)?.id ?? 0;
-  await db
-    .insert(catalogLinking)
-    .values({ id: 1, lastItemId })
-    .onConflictDoUpdate({ target: catalogLinking.id, set: { lastItemId } });
-
-  for (const row of older) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Stored Digests are linked sequentially.
-    await linkOlderDigest(db, row);
-  }
 }
