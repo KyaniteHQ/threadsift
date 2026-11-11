@@ -21,6 +21,7 @@ export const redditThreads = sqliteTable(
     generation: integer("generation").notNull(),
     reported: integer("reported"),
     archivedAt: integer("archived_at"),
+    linkedUrl: text("linked_url"),
   },
   (table) => [primaryKey({ columns: [table.itemId, table.generation] })],
 );

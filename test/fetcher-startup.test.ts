@@ -34,7 +34,7 @@ const REFUSED = [
 ] as const;
 
 const refusal = async (list: string): Promise<string> => {
-  const outcome = await Instance.start(undefined, list).then(
+  const outcome = await Instance.start({ fetchers: list }).then(
     (instance) => instance,
     (error: Error) => error,
   );
@@ -96,10 +96,9 @@ describe("the container loads the modules named in THREADSIFT_FETCHERS before it
   });
 
   it("loads an absolute path, a file URL with a percent-encoded comma and the localhost form, and trims each entry", async () => {
-    const instance = await Instance.start(
-      undefined,
-      ` ${FIRST} , ${COMMA_URL} ,${pathToFileURL(fetcherFile("short.mts")).href.replace("file://", "file://localhost")}`,
-    );
+    const instance = await Instance.start({
+      fetchers: ` ${FIRST} , ${COMMA_URL} ,${pathToFileURL(fetcherFile("short.mts")).href.replace("file://", "file://localhost")}`,
+    });
 
     try {
       await instance.setUp();
@@ -128,7 +127,7 @@ describe("the container loads the modules named in THREADSIFT_FETCHERS before it
     ["blank", "   "],
   ] as const) {
     it(`starts with no plug-in when the variable is ${name}`, async () => {
-      const instance = await Instance.start(undefined, list);
+      const instance = await Instance.start({ fetchers: list });
 
       await instance.close();
     });

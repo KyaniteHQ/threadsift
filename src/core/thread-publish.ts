@@ -1,7 +1,7 @@
-import { and, eq, exists, not, notExists, sql } from "drizzle-orm";
+import { and, eq, exists, notExists, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
-import { hasDigestSource, setDigestFailure } from "./digest-source.ts";
+import { setDigestFailure } from "./digest-source.ts";
 import { closeFetchJobs, hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
@@ -61,10 +61,6 @@ function digestWrites(db: Database, { normalizedUrl, address }: Readonly<ThreadP
   const owner = ownerOf(normalizedUrl);
 
   return [
-    db
-      .update(items)
-      .set({ pendingDigest: null })
-      .where(and(eq(items.normalizedUrl, normalizedUrl), not(hasDigestSource()))),
     ...digestAfterFetch(db, { itemId: owner.id, address }),
     setDigestFailure(
       db,

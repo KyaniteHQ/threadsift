@@ -12,6 +12,12 @@ export function eligibleComments(): SQL {
   return sql`exists (select 1 from ${redditComments} where ${redditComments.itemId} = ${items.id} and ${redditComments.generation} = ${items.generation} and ${redditComments.eligible} = 1)`;
 }
 
+export function candidateLink(): SQL<string | null> {
+  return sql<
+    string | null
+  >`(select ${redditThreads.linkedUrl} from ${redditThreads} where ${redditThreads.itemId} = ${items.id} and ${redditThreads.generation} = ${items.generation})`;
+}
+
 export function keptCommentIds(): SQL<string> {
   return sql<string>`(select coalesce(json_group_array(id), '[]') from (select ${redditComments.id} as id from ${redditComments} join ${digests} on ${digests.itemId} = ${redditComments.itemId} and ${digests.generation} = ${redditComments.generation} where ${redditComments.itemId} = ${items.id} and ${redditComments.kept} = 1 order by ${redditComments.position}))`;
 }
@@ -159,7 +165,8 @@ function supersededDeletes(db: Database, owner: Readonly<Owner>) {
 function headerInsert(
   db: Database,
   owner: Readonly<Owner>,
-  { reported, archivedAt }: Readonly<{ reported: number | null; archivedAt: number | null }>,
+  { reported, linkedUrl }: Readonly<Pick<ParsedThread, "reported" | "linkedUrl">>,
+  archivedAt: number | null,
 ) {
   return db.insert(redditThreads).select(
     db
@@ -168,6 +175,7 @@ function headerInsert(
         generation: sql<number>`${owner.generation}`.as("generation"),
         reported: sql<number | null>`${reported}`.as("reported"),
         archivedAt: sql<number | null>`${archivedAt}`.as("archived_at"),
+        linkedUrl: sql<string | null>`${linkedUrl}`.as("linked_url"),
       })
       .from(sql`(select 1)`)
       .where(sql`1`),
@@ -205,7 +213,7 @@ export function threadWrites(
 ): readonly BatchItem<"sqlite">[] {
   return [
     ...supersededDeletes(db, owner),
-    headerInsert(db, owner, { reported: thread.reported, archivedAt }),
+    headerInsert(db, owner, thread, archivedAt),
     ...jsonArrays(thread.nodes.map((node) => rowJson(node))).map((json) =>
       commentInsert(db, owner, json),
     ),
