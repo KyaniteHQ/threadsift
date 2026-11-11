@@ -21,7 +21,7 @@ const SECOND_ARTICLE_LINK = "https://www.sqlite.org/wal.html";
 
 const DIGEST_WAIT_MS = 300_000;
 
-const RELATED_WAIT_MS = 180_000;
+const RELATED_WAIT_MS = 300_000;
 
 const SCHEDULED_ROUTE = "/cdn-cgi/local/scheduled";
 
@@ -99,19 +99,16 @@ async function overviewText(request: APIRequestContext, topic: string): Promise<
   return TopicPageSchema.parse(await answer.json()).overview.text;
 }
 
-async function relatedIds(
-  request: APIRequestContext,
-  ids: readonly number[],
-): Promise<readonly number[]> {
-  const lists = await Promise.all(
-    ids.map(async (id) => {
-      const answer = await request.get(`/api/items/${String(id)}`);
+async function relatedOf(request: APIRequestContext, id: number): Promise<readonly number[]> {
+  const answer = await request.get(`/api/items/${String(id)}`);
 
-      return ItemDetailResponseSchema.parse(await answer.json()).item.related;
-    }),
-  );
+  return ItemDetailResponseSchema.parse(await answer.json()).item.related.map((entry) => entry.id);
+}
 
-  return lists.flat().map((entry) => entry.id);
+async function itemIdle(request: APIRequestContext, id: number): Promise<boolean> {
+  const status = await request.get(`/api/items/${String(id)}/status`);
+
+  return ItemResponseSchema.parse(await status.json()).item.status !== "processing";
 }
 
 async function fireScheduledHandler(request: APIRequestContext): Promise<void> {
@@ -126,6 +123,7 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
   request,
 }) => {
   const ids: number[] = [];
+  let second = 0;
 
   await test.step("set up the owner", async () => {
     const created = await request.post("/api/setup", {
@@ -207,22 +205,60 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
       .not.toBeNull();
   });
 
-  await test.step("Paste a second article on the same subject and wait for a Related Item", async () => {
-    ids.push(await pasteAndSettle(request, SECOND_ARTICLE_LINK));
+  await test.step("Paste a second article on the same subject and wait for its Digest", async () => {
+    second = await pasteAndSettle(request, SECOND_ARTICLE_LINK);
 
     await expect
       .poll(
         async () => {
           await fireScheduledHandler(request);
 
-          return (await relatedIds(request, ids)).length;
+          return digestStates(request, [second]);
         },
         {
-          message: "an Item of the two same-subject articles lists a Related Item",
+          message: "the second article holds a Digest",
+          timeout: DIGEST_WAIT_MS,
+          intervals: [2000, 5000],
+        },
+      )
+      .toContain("digest");
+  });
+
+  await test.step("write the first article's Digest again and wait for the second article as its Related Item", async () => {
+    const [first] = ids;
+
+    await expect
+      .poll(
+        async () => {
+          await fireScheduledHandler(request);
+
+          return itemIdle(request, first ?? 0);
+        },
+        {
+          message: "the first article has no open job",
+          timeout: DIGEST_WAIT_MS,
+          intervals: [2000, 5000],
+        },
+      )
+      .toBe(true);
+
+    const queued = await request.post(`/api/items/${String(first)}/digest`);
+
+    expect(queued.status()).toBe(200);
+
+    await expect
+      .poll(
+        async () => {
+          await fireScheduledHandler(request);
+
+          return relatedOf(request, first ?? 0);
+        },
+        {
+          message: "the first article lists the second article as a Related Item",
           timeout: RELATED_WAIT_MS,
           intervals: [2000, 5000],
         },
       )
-      .toBeGreaterThan(0);
+      .toContain(second);
   });
 });

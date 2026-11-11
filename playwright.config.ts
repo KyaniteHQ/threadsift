@@ -42,7 +42,7 @@ export default defineConfig({
     {
       name: "live",
       testMatch: "live.spec.ts",
-      timeout: 660_000,
+      timeout: 1_200_000,
       use: { trace: "off" },
     },
   ],

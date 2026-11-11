@@ -256,7 +256,11 @@ describe("the related pick result takes at most 5 picks of sent Items, once each
   });
 
   it("trims a reason and refuses brackets, braces, quotation marks and line breaks in it", () => {
-    assert.equal(accepts([pick(11, "  A padded reason.  ")]), true);
+    const parsed = relatedPickTask(SENT).schema.parse({
+      picks: [pick(11, "  A padded reason.  ")],
+    });
+
+    assert.deepEqual(parsed.picks, [{ item: 11, reason: "A padded reason." }]);
 
     for (const text of ["a [b]", "a {b}", 'a "b"', "a\nb", "a\rb", "a [", "a }"]) {
       assert.equal(accepts([pick(11, text)]), false, text);

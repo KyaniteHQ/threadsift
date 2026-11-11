@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { z } from "zod";
+
 import { HighlightResponseSchema } from "../src/core/highlight-contract.ts";
 import { NoteResponseSchema } from "../src/core/note-contract.ts";
 import { Instance } from "./instance.ts";
@@ -12,9 +14,11 @@ import {
   pasteInOrder,
   pickJobs,
   pickTasks,
+  rows,
   saveProvider,
   sentInput,
   until,
+  exec,
 } from "./related-fixtures.ts";
 
 const TWELVE = "quasar lattice decoder notes alpha beta gamma delta epsilon zeta eta theta";
@@ -62,16 +66,19 @@ const THREAD = [
   },
 ];
 
-describe("the related pick sends the best-ranked candidates and no text outside the Digest parts", () => {
+const TaskIdSchema = z.object({ task_id: z.number() });
+
+describe("the related pick sends the best-ranked candidates", () => {
   let instance: Instance;
   let equal: number[];
   let strong: number;
-  let excluded: number[];
   let source: number;
 
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
+
+    await paste(instance, "undigested", { title: "-", noDigest: true });
 
     strong = await paste(instance, "strong", {
       title: "Quasar lattice",
@@ -86,6 +93,73 @@ describe("the related pick sends the best-ranked candidates and no text outside 
         { title: "Quasar report", summary: "A quasar report." },
       ]),
     );
+
+    await saveProvider(instance);
+
+    source = await paste(instance, "source", {
+      title: SOURCE_TITLE,
+      summary: "The source Summary.",
+      tags: ["quasar", "nebula"],
+    });
+  });
+
+  after(() => instance.close());
+
+  it("sends at most 20 candidates, each Item once, the source never, and ties in Item id order", async () => {
+    const task = await firstPickTask(instance, source);
+    const sent = sentInput(task.inputs);
+    const ids = sent.candidates.map(({ id }) => id);
+
+    assert.equal(sent.source.id, source);
+    assert.deepEqual(sent.source.tags, ["quasar", "nebula"]);
+    assert.equal(ids.length, 20);
+    assert.equal(new Set(ids).size, 20);
+    assert.equal(ids.includes(source), false);
+    assert.equal(ids[0], strong);
+    assert.deepEqual(
+      ids.filter((id) => equal.includes(id)),
+      equal.slice(0, 19),
+    );
+  });
+
+  it("records the source's Digest task id as the input revision and runs one pick job", async () => {
+    const [task] = await until(
+      () => pickTasks(instance, source),
+      (tasks) => tasks.length > 0,
+    );
+
+    const [digest] = rows(
+      instance,
+      TaskIdSchema,
+      "select task_id from digests where item_id = ?",
+      source,
+    );
+
+    const [job] = pickJobs(instance, source);
+
+    assert.ok(task !== undefined);
+    assert.ok(digest !== undefined);
+    assert.notEqual(digest.task_id, source);
+    assert.equal(task.input_revision, digest.task_id);
+    assert.equal(job?.kind, "related_pick");
+    assert.equal(pairsOf(instance, source).length, 0);
+  });
+});
+
+describe("the related pick matches only the Digest parts of an Item that has a Digest, through the first 12 words", () => {
+  let instance: Instance;
+  let inside: number;
+  let excluded: number[];
+  let source: number;
+
+  before(async () => {
+    instance = await Instance.start({ secretKey: SECRET_KEY });
+    await instance.setUp();
+
+    inside = await paste(instance, "inside", {
+      title: "Quasar report",
+      summary: "A longer quasar report that mentions the word once among many other words.",
+    });
 
     const beyondTerms = await paste(instance, "beyond", {
       title: "Iota",
@@ -104,11 +178,21 @@ describe("the related pick sends the best-ranked candidates and no text outside 
       pageTitle: "Quasar lattice decoder",
     });
 
-    const noDigest = await paste(instance, "none", {
-      title: "-",
-      pageTitle: "Quasar",
-      noDigest: true,
-    });
+    const undigested = await pasteInOrder(
+      instance,
+      Array.from({ length: 21 }, (_, index) => [
+        `none-${String(index)}`,
+        { title: "-", pageTitle: "Quasar", noDigest: true },
+      ]),
+    );
+
+    for (const id of undigested) {
+      exec(
+        instance,
+        "insert into search_parts (item_id, kind, body) values (?, 'summary', 'quasar lattice')",
+        id,
+      );
+    }
 
     const commentOnly = await paste(instance, "comment", {
       title: "Thread about food",
@@ -161,7 +245,7 @@ describe("the related pick sends the best-ranked candidates and no text outside 
       beyondTag,
       postTextOnly,
       titleOnly,
-      noDigest,
+      ...undigested,
       commentOnly,
       noted,
       highlighted,
@@ -178,45 +262,13 @@ describe("the related pick sends the best-ranked candidates and no text outside 
 
   after(() => instance.close());
 
-  it("sends at most 20 candidates, each Item once, the source never, and ties in Item id order", async () => {
-    const task = await firstPickTask(instance, source);
-    const sent = sentInput(task.inputs);
-    const ids = sent.candidates.map(({ id }) => id);
-
-    assert.equal(sent.source.id, source);
-    assert.deepEqual(sent.source.tags, ["quasar", "nebula"]);
-    assert.equal(ids.length, 20);
-    assert.equal(new Set(ids).size, 20);
-    assert.equal(ids.includes(source), false);
-    assert.equal(ids[0], strong);
-    assert.deepEqual(
-      ids.filter((id) => equal.includes(id)),
-      equal.slice(0, 19),
-    );
-  });
-
-  it("matches no Item through its fetched title, post text, comment, Highlight or Note, nor through a word past the 12th", async () => {
-    const ids = new Set(
-      sentInput((await firstPickTask(instance, source)).inputs).candidates.map(({ id }) => id),
-    );
+  it("sends the matching Item and no Item that matches only through its fetched title, post text, comment, Highlight, Note, a Summary without a Digest or a word past the 12th", async () => {
+    const sent = sentInput((await firstPickTask(instance, source)).inputs);
 
     assert.deepEqual(
-      excluded.filter((id) => ids.has(id)),
-      [],
+      sent.candidates.map(({ id }) => id),
+      [inside],
     );
-  });
-
-  it("records the source's Digest as the input revision and runs one pick job", async () => {
-    const [task] = await until(
-      () => pickTasks(instance, source),
-      (tasks) => tasks.length > 0,
-    );
-
-    const [job] = pickJobs(instance, source);
-
-    assert.ok(task !== undefined);
-    assert.equal(task.input_revision > 0, true);
-    assert.equal(job?.kind, "related_pick");
-    assert.equal(pairsOf(instance, source).length, 0);
+    assert.equal(excluded.length, 28);
   });
 });
