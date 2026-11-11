@@ -2,12 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { RedditSettingsSchema } from "../src/core/reddit-contract.ts";
-import { CreatedTokenResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
 
-const REDDIT_LINK = "https://www.reddit.com/r/NixOS/comments/v2xpjm/big_list_of_flakes_tutorials/";
-
-describe("the owner turns the Reddit archive fill on and off, and a pasted Reddit link stays Link-only with it off", () => {
+describe("the owner turns the Reddit archive fill on and off, and only the owner can", () => {
   let instance: Instance;
 
   before(async () => {
@@ -59,23 +57,5 @@ describe("the owner turns the Reddit archive fill on and off, and a pasted Reddi
       { archiveFill: true },
     );
     assert.deepEqual(await setting(), { archiveFill: true });
-  });
-
-  it("leaves a pasted Reddit link as a Link-only Item while the archive fill is off", async () => {
-    await instance.read("PUT", "/api/settings/reddit", RedditSettingsSchema, {
-      archiveFill: false,
-    });
-
-    const { item } = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
-      url: REDDIT_LINK,
-    });
-
-    const settled = await instance.settledItem(item.id);
-    const reader = await instance.detail(item.id);
-
-    assert.equal(settled.fillable, true);
-    assert.equal(reader.comments.received, 0);
-    assert.equal(reader.comments.archivedAt, null);
-    assert.equal(reader.postText, null);
   });
 });

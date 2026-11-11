@@ -16,7 +16,7 @@ export interface ArchivedThread {
 
 const ARCHIVE_ORIGIN = "https://arctic-shift.photon-reddit.com";
 
-export const MAX_RESET_WAIT_MS = 10_000;
+const MAX_RESET_WAIT_MS = 10_000;
 
 const TOO_MANY_REQUESTS = 429;
 
@@ -94,16 +94,16 @@ async function fetchedThread(
 }
 
 export async function archivedThread(
-  { db, network }: Readonly<Pick<Ports, "db" | "network">>,
+  ports: Readonly<Pick<Ports, "db" | "network">>,
   itemId: number,
   ref: Readonly<RedditRef>,
   deadline: AbortSignal,
 ): Promise<ArchivedThread | null> {
-  if (!(await archiveFillIsOn({ db })) || !(await guardHolds(db, noThreadFor(itemId)))) {
+  if (!(await archiveFillIsOn(ports)) || !(await guardHolds(ports.db, noThreadFor(itemId)))) {
     return null;
   }
 
-  const thread = await fetchedThread(network, ref, deadline);
+  const thread = await fetchedThread(ports.network, ref, deadline);
 
   return thread === null ? null : { thread, archivedAt: Date.now() };
 }

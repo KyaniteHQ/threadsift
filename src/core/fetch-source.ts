@@ -5,6 +5,13 @@ import { redditRefOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { SuppliedPageSchema } from "./supplied-page.ts";
 
+interface JobSource {
+  readonly address: string;
+  readonly attempts: number;
+  readonly itemId: number;
+  readonly page: string | null;
+}
+
 type SourcePorts = Readonly<Pick<Ports, "db" | "ai" | "network" | "pages">>;
 
 function archiveFilled(
@@ -26,31 +33,30 @@ function archiveFilled(
 
 async function fetchedWithArchive(
   ports: SourcePorts,
-  { address, attempts, itemId }: Readonly<{ address: string; attempts: number; itemId: number }>,
+  { address, attempts, itemId }: Readonly<JobSource>,
   deadline: AbortSignal,
 ): Promise<Fetched> {
-  const fetched = await fetchLink(ports, address, attempts, deadline);
   const ref = redditRefOf(address);
 
-  if (ref === null || fetched.status === "waiting") return fetched;
+  const [fetched, archived] = await Promise.all([
+    fetchLink(ports, address, attempts, deadline),
+    ref === null ? null : archivedThread(ports, itemId, ref, deadline),
+  ]);
 
-  const archived = await archivedThread(ports, itemId, ref, deadline);
-
-  return archived === null ? fetched : archiveFilled(fetched, archived);
+  return archived === null || fetched.status === "waiting"
+    ? fetched
+    : archiveFilled(fetched, archived);
 }
 
 export function fetchedForJob(
   ports: SourcePorts,
-  {
-    address,
-    attempts,
-    itemId,
-    page,
-  }: Readonly<{ address: string; attempts: number; itemId: number; page: string | null }>,
+  source: Readonly<JobSource>,
   deadline: AbortSignal,
 ): Promise<Fetched> {
+  const { address, page } = source;
+
   return page === null
-    ? fetchedWithArchive(ports, { address, attempts, itemId }, deadline)
+    ? fetchedWithArchive(ports, source, deadline)
     : readOrTimeOut(() =>
         detailsOfSuppliedPage(
           ports.pages,

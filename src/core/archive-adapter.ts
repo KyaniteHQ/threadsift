@@ -1,9 +1,8 @@
 import { z } from "zod";
 
+import { DELETED_BODY } from "./comment-filter.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { COMMENT_FIELDS, MoreChild, type WireChild, type WireComment } from "./reddit-wire.ts";
-
-const DELETED = "[deleted]";
 
 interface ArchiveListing {
   readonly kind: "Listing";
@@ -32,7 +31,7 @@ const Child: z.ZodType<WireChild, ArchiveChild> = z.lazy(() =>
         })
         .transform(({ _meta, ...comment }) =>
           _meta?.was_deleted_later === true
-            ? { ...comment, body: DELETED, author: DELETED }
+            ? { ...comment, body: DELETED_BODY, author: DELETED_BODY }
             : comment,
         ),
     }),

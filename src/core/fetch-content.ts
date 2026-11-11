@@ -49,9 +49,9 @@ function contentWrites(
   { db }: Readonly<Pick<JobPorts, "db">>,
   itemId: number,
   fetched: Readonly<Concluded>,
+  archived: ReturnType<typeof archivedOf>,
 ): readonly BatchItem<"sqlite">[] {
   const repository = fetchedRepository(fetched);
-  const archived = archivedOf(fetched);
 
   return [
     ...(repository === null ? [] : repositoryWrites(db, itemId, repository)),
@@ -81,6 +81,8 @@ export async function settledContent(
     ? mediaWrites(ports.db, job.itemId, stored.rows)
     : [];
 
+  const archived = archivedOf(fetched);
+
   const files: JobFiles = {
     written: [...placed.files.written, ...stored.written],
     superseded: [...placed.files.superseded, ...replacedMedia],
@@ -89,9 +91,9 @@ export async function settledContent(
   return {
     postText,
     replaces,
-    thread: archivedOf(fetched)?.thread ?? null,
+    thread: archived?.thread ?? null,
     fields: { ...settled, ...placed.columns },
-    contentPublication: contentWrites(ports, job.itemId, fetched),
+    contentPublication: contentWrites(ports, job.itemId, fetched, archived),
     mediaPublication,
     files,
   };
