@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 
 import { redditJsonOfArchive } from "../src/core/archive-adapter.ts";
 import { readArticle } from "../src/core/article.ts";
+import { CATALOG_KEY_EXPANSION_MAX, CATALOG_KEY_MAX } from "../src/core/catalog-key-limit.ts";
 import { catalogKey } from "../src/core/catalog.ts";
 import { parseRedditThread } from "../src/core/reddit-json.ts";
+import { overviewLine } from "../src/core/topic-overview-contract.ts";
 
 const PARAGRAPH =
   "A tear in the middle of a page is what a plain file copy risks when a writer is busy, so the safe route is the online backup command followed by a check that the copy opens.";
@@ -155,5 +157,69 @@ describe("the parsers turn literal input into the values the library stores", ()
         ["t1_c4", 2, false, null],
       ],
     );
+  });
+});
+
+describe("the overview line is the first line of an overview without its citation marks", () => {
+  it("takes one line, or the first of several", () => {
+    assert.equal(overviewLine("Backups need care [3]"), "Backups need care");
+    assert.equal(
+      overviewLine("Backups need care [3]\nCopies can tear [4][5]\nChecks help [6]"),
+      "Backups need care",
+    );
+  });
+
+  it("skips blank lines and reads CRLF text", () => {
+    assert.equal(overviewLine("\r\n  \r\nFirst line [1]\r\nSecond [2]"), "First line");
+  });
+
+  it("removes a mark inside the line as well as at its end, because the Topic page shows no raw mark", () => {
+    assert.equal(overviewLine("See [12] for the cause [13][14]"), "See for the cause");
+    assert.equal(overviewLine("[12] Mid [13] mark goes"), "Mid mark goes");
+  });
+
+  it("keeps a bracketed phrase that is not an id", () => {
+    assert.equal(overviewLine("Read [the docs] [12]"), "Read [the docs]");
+    assert.equal(overviewLine("Read [the docs]"), "Read [the docs]");
+  });
+
+  it("returns the text unchanged when it has no mark, and null when no line is left", () => {
+    assert.equal(overviewLine("No marks here"), "No marks here");
+    assert.equal(overviewLine(""), null);
+    assert.equal(overviewLine("\n  \n"), null);
+  });
+});
+
+const LAST_SURROGATE_CODE_POINT = 0xdfff;
+
+const FIRST_SURROGATE_CODE_POINT = 0xd800;
+
+const LAST_CODE_POINT = 0x10ffff;
+
+function expansionOf(codePoint: number): number {
+  const character = String.fromCodePoint(codePoint);
+
+  return (
+    Math.max(catalogKey(`a${character}`).length - 1, catalogKey(character).length) /
+    character.length
+  );
+}
+
+function worstExpansion(): number {
+  return Array.from({ length: LAST_CODE_POINT + 1 }, (_, codePoint) => codePoint)
+    .filter(
+      (codePoint) =>
+        codePoint < FIRST_SURROGATE_CODE_POINT || codePoint > LAST_SURROGATE_CODE_POINT,
+    )
+    .reduce((worst, codePoint) => Math.max(worst, expansionOf(codePoint)), 0);
+}
+
+describe("the catalog key limit covers the longest key a Topic name can make", () => {
+  it("is the worst expansion of one UTF-16 unit of a name, measured over every code point", () => {
+    assert.equal(worstExpansion(), CATALOG_KEY_EXPANSION_MAX);
+  });
+
+  it("holds the key of a longest name made of the worst character", () => {
+    assert.equal(catalogKey("\uFDFA".repeat(240)).length, CATALOG_KEY_MAX);
   });
 });

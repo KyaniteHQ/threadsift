@@ -1,22 +1,17 @@
 import { useState } from "react";
 
 import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
+import { LoadMore } from "./LoadMore.tsx";
 import { PageBar } from "./PageBar.tsx";
 import type { Route } from "./routing.ts";
-import { LOAD_MORE, RETRY_LABEL, SORT_LABEL } from "./text.ts";
+import { RETRY_LABEL, SORT_LABEL } from "./text.ts";
 import { TOPIC_PAGE, itemsLabel } from "./topic-text.ts";
 import { TopicItemRow } from "./TopicItems.tsx";
 import { TopicOverview } from "./TopicOverview.tsx";
 import { type TopicReady, type TopicState, useTopicPage } from "./use-topic-page.ts";
 
 function Loading() {
-  return <Skeleton label={TOPIC_PAGE.loading} row="tp-it" title="tp-title" />;
-}
-
-function moreLabel(more: TopicReady["more"]): string {
-  if (more === "loading") return TOPIC_PAGE.loadingMore;
-
-  return more === "failed" ? RETRY_LABEL : LOAD_MORE;
+  return <Skeleton label={TOPIC_PAGE.loading} row="rl-row" title="rl-title" />;
 }
 
 function ItemList({
@@ -34,7 +29,7 @@ function ItemList({
     <ol
       // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from an ol with list-style none
       role="list"
-      className="tp-list"
+      className="rl-list"
     >
       {state.items.map((item) => (
         <TopicItemRow
@@ -49,35 +44,13 @@ function ItemList({
   );
 }
 
-function More({ state, loadMore }: Readonly<{ state: TopicReady; loadMore: () => void }>) {
-  if (state.next === null) return null;
-
-  return (
-    <div className="tp-more">
-      {state.more === "failed" ? (
-        <p className="rd-note" role="alert">
-          {TOPIC_PAGE.loadMoreFailed}
-        </p>
-      ) : null}
-      <button
-        type="button"
-        className="btn"
-        aria-disabled={state.more === "loading"}
-        onClick={loadMore}
-      >
-        {moreLabel(state.more)}
-      </button>
-    </div>
-  );
-}
-
 function Items({
   state,
   loadMore,
   navigate,
 }: Readonly<{ state: TopicReady; loadMore: () => void; navigate: (to: string) => void }>) {
   return (
-    <section aria-labelledby={RESULTS_ID} className="tp-items">
+    <section aria-labelledby={RESULTS_ID} className="rl-items">
       <header className="list-head">
         <h2 id={RESULTS_ID} className="results">
           {itemsLabel(state.topic.itemCount)}
@@ -85,7 +58,9 @@ function Items({
         <p className="label">{SORT_LABEL}</p>
       </header>
       <ItemList state={state} navigate={navigate} />
-      <More state={state} loadMore={loadMore} />
+      {state.next === null ? null : (
+        <LoadMore more={state.more} failedText={TOPIC_PAGE.loadMoreFailed} loadMore={loadMore} />
+      )}
     </section>
   );
 }
@@ -143,7 +118,7 @@ export function TopicPage({
         backLabel={TOPIC_PAGE.back}
         ready={state.status !== "loading"}
       />
-      <main className="pg-col tp-col" aria-busy={state.status === "loading"}>
+      <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
         <Body
           state={state}
           retry={retry}

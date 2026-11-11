@@ -2,7 +2,9 @@ import { z } from "zod";
 
 import { StoredCommentId } from "./comment-id.ts";
 
-const ShortText = z.string().trim().min(1).max(240);
+export const SHORT_TEXT_MAX = 240;
+
+const ShortText = z.string().trim().min(1).max(SHORT_TEXT_MAX);
 export const AI_URL_MAX = 2048;
 export const AI_MODEL_MAX = 240;
 export const AI_KEY_MAX = 4096;

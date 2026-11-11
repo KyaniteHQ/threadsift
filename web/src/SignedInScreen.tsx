@@ -2,6 +2,7 @@ import { useCallback } from "react";
 
 import { HighlightsPage } from "./HighlightsPage.tsx";
 import { ImportPage } from "./ImportPage.tsx";
+import { IndexPage } from "./IndexPage.tsx";
 import { Library } from "./Library.tsx";
 import { type Route, usePages } from "./routing.ts";
 import type { SignedInState } from "./screens.ts";
@@ -42,6 +43,8 @@ export function SignedInScreen({
       return <HighlightsPage look={look} route={route} back={toLibrary} />;
     case "import":
       return <ImportPage pages={pages} back={toLibrary} />;
+    case "index":
+      return <IndexPage pages={pages} back={toLibrary} />;
     case "topic":
       return <TopicPage key={screen.key} topicKey={screen.key} route={route} back={toLibrary} />;
     case "library":

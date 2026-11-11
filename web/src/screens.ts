@@ -1,6 +1,6 @@
 import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
 import { topicKeyOf } from "../../src/core/topic-path.ts";
-import { HIGHLIGHTS_PATH, IMPORT_PATH, RESET_PATH, SETTINGS_PATH } from "./routing.ts";
+import { HIGHLIGHTS_PATH, IMPORT_PATH, INDEX_PATH, RESET_PATH, SETTINGS_PATH } from "./routing.ts";
 import type { View } from "./use-session-view.ts";
 
 const TITLES = {
@@ -10,6 +10,7 @@ const TITLES = {
   settings: "Settings, Threadsift",
   highlights: "Highlights, Threadsift",
   import: "Import, Threadsift",
+  index: "Index, Threadsift",
   topic: "Topic, Threadsift",
   library: "Threadsift",
   loading: "Threadsift",
@@ -26,6 +27,7 @@ export type ScreenState =
   | Named<"settings">
   | Named<"highlights">
   | Named<"import">
+  | Named<"index">
   | Named<"library">
   | { readonly name: "setup"; readonly problem: SetupCodeProblem | null }
   | { readonly name: "topic"; readonly key: string };
@@ -34,7 +36,7 @@ export type ScreenName = ScreenState["name"];
 
 export type SignedInState = Extract<
   ScreenState,
-  { readonly name: "settings" | "highlights" | "import" | "library" | "topic" }
+  { readonly name: "settings" | "highlights" | "import" | "index" | "library" | "topic" }
 >;
 
 export function isSignedInScreen(screen: Readonly<ScreenState>): screen is SignedInState {
@@ -42,6 +44,7 @@ export function isSignedInScreen(screen: Readonly<ScreenState>): screen is Signe
     screen.name === "settings" ||
     screen.name === "highlights" ||
     screen.name === "import" ||
+    screen.name === "index" ||
     screen.name === "library" ||
     screen.name === "topic"
   );
@@ -53,6 +56,8 @@ function signedInScreen(path: string): ScreenState {
   if (path === HIGHLIGHTS_PATH) return { name: "highlights" };
 
   if (path === IMPORT_PATH) return { name: "import" };
+
+  if (path === INDEX_PATH || path === `${INDEX_PATH}/`) return { name: "index" };
 
   const key = topicKeyOf(path);
 

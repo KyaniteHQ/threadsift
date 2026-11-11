@@ -1,0 +1,27 @@
+.ix-it {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--s3);
+  min-block-size: var(--target);
+}
+.ix-it .rl-title {
+  grid-column: 1;
+}
+.ix-count {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ix-line {
+  grid-column: 1 / -1;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  white-space: normal;
+}

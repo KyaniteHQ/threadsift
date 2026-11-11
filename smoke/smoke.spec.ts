@@ -1,10 +1,11 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Browser, type Page, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { FIELDS, LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
 import { IMPORT, countLabel } from "../web/src/import-text.ts";
+import { INDEX_PAGE } from "../web/src/index-text.ts";
 import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
-import { TOPIC_PAGE, topicLinkLabel } from "../web/src/topic-text.ts";
+import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 
 const PASSWORD = "a smoke password of fifteen or more";
 
@@ -47,6 +48,14 @@ const DOTS_ONLY_TOPIC: TopicCase = {
   itemTitle: "Two dots",
   summary: "The Topic is made of two dots.",
   address: /\/topics\/~%2E%2E$/u,
+};
+
+const INDEXED_TOPIC: TopicCase = {
+  link: "https://example.com/guides/indexing",
+  name: "Indexing",
+  itemTitle: "One item on the Index",
+  summary: "The Index lists every Topic.",
+  address: /\/topics\/indexing$/u,
 };
 
 const PHONE = { width: 390, height: 844 };
@@ -164,9 +173,67 @@ async function openTopicPage(page: Page, topic: TopicCase): Promise<void> {
   await expect(page).toHaveURL(topic.address);
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
-  await expect(page.locator(".tp-it")).toContainText(topic.itemTitle);
-  await expect(page.locator(".tp-sum")).toContainText(topic.summary.split("\n").at(-1) ?? "");
+  await expect(page.locator(".rl-row")).toContainText(topic.itemTitle);
+  await expect(page.locator(".rl-sum")).toContainText(topic.summary.split("\n").at(-1) ?? "");
   await expect(page.getByText(TOPIC_PAGE.noProvider)).toBeVisible();
+}
+
+async function openIndex(page: Page, browser: Browser, topic: TopicCase): Promise<void> {
+  const saved = await page.request.post("/api/items", {
+    data: {
+      url: topic.link,
+      page: { markdown: ARTICLE_TEXT, title: topic.itemTitle },
+      digest: {
+        title: topic.itemTitle,
+        topic: topic.name,
+        tags: ["index"],
+        summary: topic.summary,
+        keyPoints: ["The Index reads stored rows"],
+      },
+    },
+  });
+
+  expect(saved.status()).toBe(201);
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+
+  const boxes = await Promise.all(
+    [IMPORT.settingsLink, INDEX_PAGE.masthead].map((name) =>
+      page.getByRole("link", { name, exact: true }).boundingBox(),
+    ),
+  );
+
+  for (const box of boxes) {
+    expect(box?.width).toBeGreaterThanOrEqual(TARGET_PX);
+    expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
+  }
+
+  await page.getByRole("link", { name: INDEX_PAGE.masthead, exact: true }).click();
+  await expect(page).toHaveURL(/\/topics$/u);
+  await expect(page).toHaveTitle("Index, Threadsift");
+
+  const row = page.locator(".ix-it").filter({ hasText: topic.name });
+
+  await expect(row).toContainText(itemsLabel(1));
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: INDEX_PAGE.title })).toBeVisible();
+  await expect(row).toContainText(itemsLabel(1));
+  expect((await row.boundingBox())?.height).toBeGreaterThanOrEqual(TARGET_PX);
+  await row.getByRole("link", { name: topicLinkLabel(topic.name) }).click();
+  await expect(page).toHaveURL(topic.address);
+  await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
+
+  const signedOut = await browser.newContext();
+
+  try {
+    const visitor = await signedOut.newPage();
+
+    await visitor.goto("/topics");
+    await expect(visitor).toHaveTitle("Sign in to Threadsift");
+  } finally {
+    await signedOut.close();
+  }
 }
 
 async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
@@ -182,8 +249,9 @@ async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
   expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
 }
 
-test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots", async ({
+test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, and lists its Topics on the Index", async ({
   page,
+  browser,
 }) => {
   await test.step("set up the owner with the setup code", () => setUp(page));
   await test.step("sign out and sign in again", () => signOutAndIn(page));
@@ -199,6 +267,8 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     openTopicPage(page, DOTTED_TOPIC));
   await test.step("open a Topic made only of dots, which needs the tilde address", () =>
     openTopicPage(page, DOTS_ONLY_TOPIC));
+  await test.step("follow the settings panel's Index link, see a Topic with its count, open its page from the row, and visit the Index signed out", () =>
+    openIndex(page, browser, INDEXED_TOPIC));
   await test.step("the filter rail's Topic link is a 44px target on a phone", () =>
     phoneRailTarget(page, DOTTED_TOPIC));
 });

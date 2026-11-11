@@ -25,19 +25,19 @@ export const TopicItemRow = memo(function TopicItemRow({
 
   return (
     <li>
-      <article className="tp-it" data-read={item.read}>
+      <article className="rl-row" data-read={item.read}>
         <p className="it-meta">
           <span className="src">{SOURCE_LABELS[item.source]}</span>
           <time className="it-date" dateTime={new Date(item.savedAt).toISOString()}>
             {savedLabel(item.savedAt, now)}
           </time>
         </p>
-        <h2 className="tp-title">
-          <a className="tp-open" href={to} aria-describedby={summaryId} onClick={open}>
+        <h2 className="rl-title">
+          <a className="rl-open" href={to} aria-describedby={summaryId} onClick={open}>
             <bdi dir="auto">{item.title}</bdi>
           </a>
         </h2>
-        <p id={summaryId} className="tp-sum" dir="auto">
+        <p id={summaryId} className="rl-sum" dir="auto">
           {item.summary}
         </p>
         {flagged ? <p className="label">{TOPIC_PAGE.notInOverview}</p> : null}

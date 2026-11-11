@@ -10,11 +10,10 @@ import {
 
 import type { Overview, TopicItem, TopicPage } from "../../src/core/topic-overview-contract.ts";
 import { fetchTopicPage, retryTopicOverview } from "./api.ts";
+import type { More } from "./LoadMore.tsx";
 import { useLatest } from "./use-latest.ts";
 
 export const OVERVIEW_POLL_MS = 3000;
-
-type More = "idle" | "loading" | "failed";
 
 export interface TopicReady {
   readonly status: "ready";

@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 import { AiRefusalSchema } from "./ai-contract.ts";
+import { CATALOG_KEY_MAX } from "./catalog-key-limit.ts";
 import { SOURCES } from "./kinds.ts";
+
+export const TopicKeyParamSchema = z.object({ key: z.string().min(1).max(CATALOG_KEY_MAX) });
 
 export const OVERVIEW_TEXT_MAX = 1500;
 
@@ -26,6 +29,22 @@ const CITATION = /\[(\d{1,19})\]/gu;
 export function citedIds(text: string): readonly number[] {
   return [...new Set([...text.matchAll(CITATION)].map(([, id = ""]) => Number(id)))].filter(
     (id) => Number.isSafeInteger(id) && id > 0,
+  );
+}
+
+const LINE_BREAK = /\r\n|\r|\n/u;
+
+const CITATION_WITH_SPACE = /\s*\[\d{1,19}\]/gu;
+
+export function overviewLines(text: string): readonly string[] {
+  return text.split(LINE_BREAK).filter((line) => line.trim() !== "");
+}
+
+export function overviewLine(text: string): string | null {
+  return (
+    overviewLines(text)
+      .map((line) => line.replaceAll(CITATION_WITH_SPACE, "").trim())
+      .find((line) => line !== "") ?? null
   );
 }
 
