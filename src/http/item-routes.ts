@@ -1,4 +1,4 @@
-import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { type OpenAPIHono, type z, createRoute } from "@hono/zod-openapi";
 
 import { retryDigest } from "../core/digest-retry.ts";
 import { itemFilters } from "../core/item-filters.ts";
@@ -60,6 +60,20 @@ const retryDigestRoute = createRoute({
   },
 });
 
+export async function readItemPage(ports: Ports, query: Readonly<z.infer<typeof ItemQuerySchema>>) {
+  const { cursor, ...typed } = query;
+
+  const { items, next, counts } = await listItems(
+    ports.db,
+    itemFilters(typed),
+    cursor === undefined ? null : parseCursor(cursor),
+  );
+
+  const shown = { items: shownItems(items), next };
+
+  return counts === null ? shown : { ...shown, counts };
+}
+
 export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
   registerSaveRoute(app, ports);
   app.openapi(retryDigestRoute, async (c) => {
@@ -79,16 +93,6 @@ export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
   });
 
   app.openapi(listItemsRoute, async (c) => {
-    const { cursor, ...typed } = c.req.valid("query");
-
-    const { items, next, counts } = await listItems(
-      ports.db,
-      itemFilters(typed),
-      cursor === undefined ? null : parseCursor(cursor),
-    );
-
-    const shown = { items: shownItems(items), next };
-
-    return c.json(counts === null ? shown : { ...shown, counts }, 200);
+    return c.json(await readItemPage(ports, c.req.valid("query")), 200);
   });
 }

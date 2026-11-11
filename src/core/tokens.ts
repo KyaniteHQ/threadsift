@@ -46,17 +46,22 @@ export async function revokeToken(ports: Ports, id: number): Promise<boolean> {
   return revoked.length > 0;
 }
 
-export async function tokenIsValid(ports: Ports, value: string): Promise<boolean> {
+export interface VerifiedToken {
+  readonly id: number;
+  readonly name: string;
+}
+
+export async function verifyToken(ports: Ports, value: string): Promise<VerifiedToken | undefined> {
   const now = Date.now();
   const staleBefore = now - LAST_USE_STEP_MS;
 
   const [row] = await ports.db
-    .select({ id: agentTokens.id, lastUsedAt: agentTokens.lastUsedAt })
+    .select({ id: agentTokens.id, name: agentTokens.name, lastUsedAt: agentTokens.lastUsedAt })
     .from(agentTokens)
     .where(eq(agentTokens.digest, digestOf(ports.crypto, value)));
 
   if (row === undefined) {
-    return false;
+    return undefined;
   }
 
   if (row.lastUsedAt === null || row.lastUsedAt <= staleBefore) {
@@ -71,5 +76,5 @@ export async function tokenIsValid(ports: Ports, value: string): Promise<boolean
       );
   }
 
-  return true;
+  return { id: row.id, name: row.name };
 }

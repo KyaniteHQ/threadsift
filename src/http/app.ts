@@ -5,6 +5,7 @@ import { logFailure } from "../core/failure-log.ts";
 import type { Ports } from "../core/ports.ts";
 import { installApiMiddleware } from "./api-middleware.ts";
 import { NOT_FOUND } from "./item-routes.ts";
+import { mcpRoute } from "./mcp-route.ts";
 import { registerRoutes } from "./routes.ts";
 
 function reasonOf(error: z.ZodError): string {
@@ -22,6 +23,8 @@ export function createApp(ports: Ports): OpenAPIHono {
   installApiMiddleware(app, ports);
 
   registerRoutes(app, ports);
+
+  app.route("/", mcpRoute(ports));
 
   app.doc("/api/openapi.json", {
     openapi: "3.1.0",
