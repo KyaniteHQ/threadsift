@@ -10,10 +10,17 @@ export function PageBar({
   back,
   backLabel,
   ready = true,
-}: Readonly<{ title: string; back: () => void; backLabel: string; ready?: boolean }>) {
+  faceWaitMs = FACE_WAIT_MS,
+}: Readonly<{
+  title: string;
+  back: () => void;
+  backLabel: string;
+  ready?: boolean;
+  faceWaitMs?: number;
+}>) {
   const bar = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const [faces] = useFaces(bar, BAR_FONTS, FACE_WAIT_MS);
+  const [faces] = useFaces(bar, BAR_FONTS, faceWaitMs);
   const follow = useInternalLink(back);
 
   useFocusOnMount(heading, ready);

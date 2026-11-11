@@ -1,0 +1,135 @@
+.imp-col {
+  gap: var(--s5);
+}
+.imp-list,
+.imp-run {
+  gap: var(--s3);
+}
+.imp-run[data-idle="true"] {
+  margin-block-start: calc(var(--s5) * -1);
+}
+.imp-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.imp-status:empty {
+  margin-block-start: calc(var(--s3) * -1);
+}
+.imp-status p {
+  margin: 0;
+}
+.imp-lede {
+  color: var(--text);
+}
+.imp-box {
+  display: block;
+  width: 100%;
+  min-height: calc(var(--field-h) * 4);
+  padding: var(--s3);
+  border: 1px solid var(--ctl-line);
+  border-radius: var(--r2);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--f-mono);
+  font-size: var(--t-meta);
+  line-height: var(--lh-text);
+  overflow-wrap: anywhere;
+  resize: vertical;
+  white-space: pre-wrap;
+}
+.imp-box[readonly] {
+  background: var(--surface-2);
+}
+.imp-box:focus-visible {
+  border-color: var(--acc-ink);
+  box-shadow: 0 0 0 1px var(--acc-ink);
+}
+.app .imp-box:focus-visible {
+  outline: none;
+}
+.app[data-bp~="phone"] .imp-box {
+  font-size: max(var(--t-floor), var(--t-body));
+}
+.imp-file,
+.imp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+}
+.app[data-bp~="phone"] .imp-file .btn,
+.app[data-bp~="phone"] .imp-actions .btn {
+  flex: 1 1 auto;
+}
+.imp-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.imp-skipped,
+.imp-notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding-inline-start: var(--s3);
+  border-inline-start: 2px solid var(--line-2);
+}
+.imp-notice .fl-link {
+  padding-inline: 0;
+}
+.imp-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-meta);
+}
+.imp-lines li {
+  display: flex;
+  gap: var(--s3);
+}
+.imp-line {
+  flex: none;
+  min-width: 4.6em;
+  color: var(--muted);
+}
+.imp-text {
+  min-width: 0;
+  font-family: var(--f-mono);
+  overflow-wrap: anywhere;
+}
+.imp-bar {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: var(--s2);
+  border: 1px solid var(--ctl-line);
+  border-radius: var(--r4);
+  background: var(--surface);
+  color: var(--acc);
+  overflow: clip;
+}
+.imp-bar::-webkit-progress-bar {
+  background: transparent;
+}
+.imp-bar::-webkit-progress-value {
+  background: var(--acc);
+}
+.imp-bar::-moz-progress-bar {
+  background: var(--acc);
+}
+.imp-progress,
+.imp-counts {
+  font-variant-numeric: tabular-nums;
+}
+.imp-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

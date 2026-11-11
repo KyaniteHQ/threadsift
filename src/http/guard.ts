@@ -3,13 +3,11 @@ import { bearerAuth } from "hono/bearer-auth";
 import { bodyLimit } from "hono/body-limit";
 import { csrf } from "hono/csrf";
 
-import { ITEM_REQUEST_BYTES } from "../core/limits.ts";
+import { BODY_LIMIT_BYTES, ITEM_REQUEST_BYTES } from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
 import { verifyToken } from "../core/tokens.ts";
 import { isOwnerOnly, isPublic } from "./access-rules.ts";
 import { ownerHasSession } from "./session-cookie.ts";
-
-export const BODY_LIMIT_BYTES = 64 * 1024;
 
 export const bodyCap = bodyLimit({
   maxSize: BODY_LIMIT_BYTES,

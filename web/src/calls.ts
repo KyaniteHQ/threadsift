@@ -1,13 +1,15 @@
 import type { ZodType } from "zod";
 
 import type { CreateHighlightRequest } from "../../src/core/highlight-contract.ts";
+import type { ImportRequest } from "../../src/core/import-list.ts";
 import { announceSignedOut } from "./signed-out.ts";
 
 type Method = "GET" | "POST" | "PUT" | "DELETE";
 
 export type JsonBody =
   | Readonly<Record<string, string | number | boolean | undefined>>
-  | Readonly<CreateHighlightRequest>;
+  | Readonly<CreateHighlightRequest>
+  | Readonly<ImportRequest>;
 
 interface Call {
   readonly json?: JsonBody;

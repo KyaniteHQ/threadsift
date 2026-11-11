@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { ImportStateSchema } from "../src/core/import-cursor.ts";
+import { ImportStateSchema } from "../src/core/import-contract.ts";
 import { BatchResponseSchema } from "../src/http/batch-schemas.ts";
 import { ErrorResponseSchema } from "../src/http/schemas.ts";
 import { Instance, type Json } from "./instance.ts";

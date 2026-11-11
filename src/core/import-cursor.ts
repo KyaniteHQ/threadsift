@@ -1,23 +1,8 @@
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 
+import type { ImportCursor, ImportState } from "./import-contract.ts";
 import type { Database } from "./ports.ts";
 import { imports } from "./schema.ts";
-
-export const ImportNameSchema = z
-  .string()
-  .regex(/^[\w.-]{1,64}$/u, "1 to 64 letters, digits, `.`, `_` and `-`");
-
-export const ImportSchema = z.object({
-  name: ImportNameSchema,
-  cursor: z.string().min(1).max(256),
-});
-
-export const ImportStateSchema = ImportSchema.extend({ updatedAt: z.number().int() });
-
-export type ImportCursor = z.infer<typeof ImportSchema>;
-
-export type ImportState = z.infer<typeof ImportStateSchema>;
 
 export async function readImport(db: Database, name: string): Promise<ImportState | undefined> {
   const [found] = await db
