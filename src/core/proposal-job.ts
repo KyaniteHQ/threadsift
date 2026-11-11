@@ -1,6 +1,6 @@
 import { type SQL, eq, sql } from "drizzle-orm";
 
-import { AI_DEADLINE_MS, type AiRefused } from "./ai-contract.ts";
+import { AI_DEADLINE_MS, type AiRefused, type AiTaskDefinition } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask, runAiTask } from "./ai-tasks.ts";
 import { guardedOutcome, lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type {
@@ -13,14 +13,15 @@ import type {
 } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
-import { proposalsInput, readProposals } from "./proposal-input.ts";
+import { proposalsInput, readProposals, readTopicProposals } from "./proposal-input.ts";
 import {
   PROPOSALS_OUTPUT_TOKENS,
   type ProposalsResult,
   type SentPair,
   proposalsTask,
+  topicProposalsTask,
 } from "./proposal-task.ts";
-import { catalogVersion, proposals, tags } from "./schema.ts";
+import { catalogVersion, proposals, tags, topics } from "./schema.ts";
 
 interface StoredRow {
   readonly from: number;
@@ -29,10 +30,38 @@ interface StoredRow {
   readonly state: "open" | "declined";
 }
 
-function sentTagsExist(sent: readonly Readonly<SentPair>[]): SQL {
-  const ids = JSON.stringify(sent.flatMap(({ low, high }) => [low.id, high.id]));
+interface WeeklyRun {
+  readonly subject: "tag" | "topic";
+  readonly kind: "tag-merge" | "topic-merge";
+  readonly label: string;
+  readonly event: string;
+  readonly read: (db: Database) => Promise<readonly Readonly<SentPair>[]>;
+  readonly task: (sent: readonly Readonly<SentPair>[]) => AiTaskDefinition<ProposalsResult>;
+}
 
-  return sql`not exists (select 1 from json_each(${ids}) as wanted where not exists (select 1 from ${tags} where ${tags.id} = wanted.value))`;
+const TAG_RUN: WeeklyRun = {
+  subject: "tag",
+  kind: "tag-merge",
+  label: "Proposals run",
+  event: "proposals-run-failed",
+  read: readProposals,
+  task: proposalsTask,
+};
+
+const TOPIC_RUN: WeeklyRun = {
+  subject: "topic",
+  kind: "topic-merge",
+  label: "Topic proposals run",
+  event: "topic-proposals-run-failed",
+  read: readTopicProposals,
+  task: topicProposalsTask,
+};
+
+function sentExist({ subject }: Readonly<WeeklyRun>, sent: readonly Readonly<SentPair>[]): SQL {
+  const ids = JSON.stringify(sent.flatMap(({ low, high }) => [low.id, high.id]));
+  const table = subject === "tag" ? tags : topics;
+
+  return sql`not exists (select 1 from json_each(${ids}) as wanted where not exists (select 1 from ${table} where ${table.id} = wanted.value))`;
 }
 
 function rowsOf(
@@ -51,8 +80,15 @@ function rowsOf(
   ];
 }
 
-function storedRows(db: Database, rows: readonly Readonly<StoredRow>[]): JobWrites {
+function storedRows(
+  db: Database,
+  { subject, kind }: Readonly<WeeklyRun>,
+  rows: readonly Readonly<StoredRow>[],
+): JobWrites {
   if (rows.length === 0) return [];
+
+  const side = (own: typeof subject, path: "from" | "into") =>
+    subject === own ? sql<number>`json_extract(stored.value, ${`$.${path}`})` : sql<null>`null`;
 
   return [
     db
@@ -61,9 +97,11 @@ function storedRows(db: Database, rows: readonly Readonly<StoredRow>[]): JobWrit
         db
           .select({
             id: sql<null>`null`.as("id"),
-            kind: sql<"tag-merge">`'tag-merge'`.as("kind"),
-            fromTagId: sql<number>`json_extract(stored.value, '$.from')`.as("from_tag_id"),
-            intoTagId: sql<number>`json_extract(stored.value, '$.into')`.as("into_tag_id"),
+            kind: sql<WeeklyRun["kind"]>`${kind}`.as("kind"),
+            fromTagId: side("tag", "from").as("from_tag_id"),
+            intoTagId: side("tag", "into").as("into_tag_id"),
+            fromTopicId: side("topic", "from").as("from_topic_id"),
+            intoTopicId: side("topic", "into").as("into_topic_id"),
             reason: sql<string | null>`json_extract(stored.value, '$.reason')`.as("reason"),
             state: sql<StoredRow["state"]>`json_extract(stored.value, '$.state')`.as("state"),
             createdAt: sql<number>`${Date.now()}`.as("created_at"),
@@ -80,6 +118,7 @@ function storedRows(db: Database, rows: readonly Readonly<StoredRow>[]): JobWrit
 
 function storedOutcome(
   db: Database,
+  run: Readonly<WeeklyRun>,
   {
     sent,
     taskId,
@@ -90,10 +129,10 @@ function storedOutcome(
     result: Readonly<ProposalsResult>;
   }>,
 ): SettledOutcome {
-  return guardedOutcome(db, sql`${sentTagsExist(sent)} and ${aiTaskRunning(taskId)}`, {
+  return guardedOutcome(db, sql`${sentExist(run, sent)} and ${aiTaskRunning(taskId)}`, {
     taskId,
     writes: [
-      ...storedRows(db, rowsOf(sent, result.merges)),
+      ...storedRows(db, run, rowsOf(sent, result.merges)),
       completedAiTask(db, { taskId, result }),
     ],
   });
@@ -101,6 +140,7 @@ function storedOutcome(
 
 function refusedOutcome(
   db: Database,
+  run: Readonly<WeeklyRun>,
   job: Readonly<ClaimedJob>,
   {
     result,
@@ -110,7 +150,7 @@ function refusedOutcome(
     sent: readonly Readonly<SentPair>[];
   }>,
 ): Promise<SettledOutcome> {
-  return refusalOutcome(db, job, { result, current: sentTagsExist(sent), label: "Proposals run" });
+  return refusalOutcome(db, job, { result, current: sentExist(run, sent), label: run.label });
 }
 
 async function catalogRevision(ports: JobPorts): Promise<number> {
@@ -122,16 +162,20 @@ async function catalogRevision(ports: JobPorts): Promise<number> {
   return row?.version ?? 0;
 }
 
-async function attemptProposals(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
+async function attemptRun(
+  run: Readonly<WeeklyRun>,
+  ports: JobPorts,
+  job: Readonly<ClaimedJob>,
+): Promise<JobOutcome> {
   const { db } = ports;
   const inputRevision = await catalogRevision(ports);
-  const { input, sent } = proposalsInput(await readProposals(db));
+  const { input, sent } = proposalsInput(await run.read(db));
 
   if (sent.length === 0) return guardedOutcome(db, sql`1`);
 
   const result = await runAiTask(
     ports,
-    proposalsTask(sent),
+    run.task(sent),
     {
       text: input,
       inputRevision,
@@ -144,19 +188,25 @@ async function attemptProposals(ports: JobPorts, job: Readonly<ClaimedJob>): Pro
   if (result.kind === "claim-lost") return lostOutcome(db);
 
   if (result.kind !== "done") {
-    const refused = await refusedOutcome(db, job, { result, sent });
+    const refused = await refusedOutcome(db, run, job, { result, sent });
 
-    console.warn(JSON.stringify({ event: "proposals-run-failed", reason: result.reason }));
+    console.warn(JSON.stringify({ event: run.event, reason: result.reason }));
 
     return refused;
   }
 
-  return storedOutcome(db, { sent, taskId: result.taskId, result: result.result });
+  return storedOutcome(db, run, { sent, taskId: result.taskId, result: result.result });
 }
 
-export const proposalsHandler: JobHandler = {
-  deadlineMs: AI_DEADLINE_MS,
-  blockedBy: [],
-  attempt: attemptProposals,
-  exhausted: () => [],
-};
+function handlerOf(run: Readonly<WeeklyRun>): JobHandler {
+  return {
+    deadlineMs: AI_DEADLINE_MS,
+    blockedBy: [],
+    attempt: (ports, job) => attemptRun(run, ports, job),
+    exhausted: () => [],
+  };
+}
+
+export const proposalsHandler = handlerOf(TAG_RUN);
+
+export const topicProposalsHandler = handlerOf(TOPIC_RUN);

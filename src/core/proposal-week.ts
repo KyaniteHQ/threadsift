@@ -10,13 +10,15 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const NEWEST_DIGESTED_ITEM = sql`(select max(${digests.itemId}) from ${digests})`;
 
-function claimingWeek(db: Database, now: number) {
+type WeeklyTask = "proposals" | "topic_proposals";
+
+function claimingWeek(db: Database, now: number, task: WeeklyTask) {
   return db
     .insert(scheduledRuns)
     .select(
       db
         .select({
-          task: sql<string>`'proposals'`.as("task"),
+          task: sql<string>`${task}`.as("task"),
           lastRunAt: sql<number>`${now}`.as("last_run_at"),
         })
         .from(sql`(select 1) as one`)
@@ -30,13 +32,13 @@ function claimingWeek(db: Database, now: number) {
     .returning({ task: scheduledRuns.task });
 }
 
-export async function openWeeklyProposals(ports: JobPorts, now: number) {
+async function openWeek(ports: JobPorts, now: number, task: WeeklyTask) {
   const { db } = ports;
 
   const [, opened] = await db.batch([
-    claimingWeek(db, now),
+    claimingWeek(db, now, task),
     opening(db, {
-      kind: "proposals",
+      kind: task,
       address: sql`${items.originalUrl}`,
       now,
       where: sql`${items.id} = ${NEWEST_DIGESTED_ITEM} and changes() > 0`,
@@ -44,4 +46,12 @@ export async function openWeeklyProposals(ports: JobPorts, now: number) {
   ]);
 
   await enqueueRows(ports, opened);
+}
+
+export function openWeeklyProposals(ports: JobPorts, now: number) {
+  return openWeek(ports, now, "proposals");
+}
+
+export function openWeeklyTopicProposals(ports: JobPorts, now: number) {
+  return openWeek(ports, now, "topic_proposals");
 }

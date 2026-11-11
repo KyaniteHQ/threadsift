@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { catalogKey } from "../src/core/catalog-key.ts";
 import {
-  type CandidateTag,
+  type Candidate,
   PROPOSALS_MAX,
   candidatePairs,
   disjointPairs,
@@ -13,11 +13,11 @@ import {
 import { proposalsInput } from "../src/core/proposal-input.ts";
 import { PROPOSALS_INPUT_BYTES, type SentPair, proposalsTask } from "../src/core/proposal-task.ts";
 
-function tag(id: number, name: string, items = 1): CandidateTag {
+function tag(id: number, name: string, items = 1): Candidate {
   return { id, key: catalogKey(name), items };
 }
 
-function pairsOf(tags: readonly CandidateTag[], known: readonly string[] = []) {
+function pairsOf(tags: readonly Candidate[], known: readonly string[] = []) {
   return candidatePairs(tags, new Set(known)).map(
     ({ low, high }) => `${String(low)}-${String(high)}`,
   );
