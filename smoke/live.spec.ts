@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { AiSaveResponseSchema, DigestSchema } from "../src/core/ai-contract.ts";
+import { AiSaveResponseSchema, DigestSchema, VerifyResultSchema } from "../src/core/ai-contract.ts";
 import { catalogKey } from "../src/core/catalog.ts";
 import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/topic-path.ts";
@@ -12,10 +12,6 @@ import {
 } from "../src/http/schemas.ts";
 
 const PASSWORD = "a live check password of fifteen or more";
-
-const ARTICLE_LINK = "https://www.sqlite.org/whentouse.html";
-
-const REPOSITORY_LINK = "https://github.com/KyaniteHQ/threadsift";
 
 const SECOND_ARTICLE_LINK = "https://www.sqlite.org/wal.html";
 
@@ -28,6 +24,8 @@ const TARGET = z.enum(["worker", "container"]).parse(process.env["THREADSIFT_TAR
 const SETUP_CODE = z.string().min(16).parse(process.env["SETUP_CODE"]);
 
 const GITHUB_TOKEN = z.string().optional().parse(process.env["GITHUB_TOKEN"]);
+
+type Digest = z.infer<typeof DigestSchema>;
 
 const ARTICLE_DIGEST = DigestSchema.parse({
   title: "When to use SQLite",
@@ -49,10 +47,23 @@ const REPOSITORY_DIGEST = DigestSchema.parse({
   keptComments: [],
 });
 
+const PASTES = [
+  {
+    label: "an article page",
+    link: "https://www.sqlite.org/whentouse.html",
+    digest: ARTICLE_DIGEST,
+  },
+  {
+    label: "a GitHub repo",
+    link: "https://github.com/KyaniteHQ/threadsift",
+    digest: REPOSITORY_DIGEST,
+  },
+] as const;
+
 async function pasteAndSettle(
   request: APIRequestContext,
   url: string,
-  digest?: z.infer<typeof DigestSchema>,
+  digest?: Digest,
 ): Promise<number> {
   const saved = await request.post("/api/items", { data: { url, digest } });
 
@@ -143,10 +154,21 @@ async function setUpOwner(request: APIRequestContext): Promise<void> {
   });
 }
 
+function pasteLinks(request: APIRequestContext, callerSendsDigests: boolean) {
+  return Promise.all(
+    PASTES.map(({ label, link, digest }) =>
+      test.step(`Paste ${label} and read it`, async () => ({
+        id: await pasteAndSettle(request, link, callerSendsDigests ? digest : undefined),
+        digest,
+      })),
+    ),
+  );
+}
+
 async function expectCallerDigest(
   request: APIRequestContext,
   id: number,
-  sent: z.infer<typeof DigestSchema>,
+  sent: Digest,
 ): Promise<void> {
   const answer = await request.get(`/api/items/${String(id)}`);
   const { item } = ItemDetailResponseSchema.parse(await answer.json());
@@ -160,36 +182,7 @@ async function expectCallerDigest(
   });
 }
 
-async function runWorkerCheck(request: APIRequestContext): Promise<void> {
-  await setUpOwner(request);
-
-  await test.step("Paste an article page with a Digest and read it", async () => {
-    const id = await pasteAndSettle(request, ARTICLE_LINK, ARTICLE_DIGEST);
-
-    await expectCallerDigest(request, id, ARTICLE_DIGEST);
-  });
-
-  await test.step("Paste a GitHub repo with a Digest and read it", async () => {
-    const id = await pasteAndSettle(request, REPOSITORY_LINK, REPOSITORY_DIGEST);
-
-    await expectCallerDigest(request, id, REPOSITORY_DIGEST);
-  });
-}
-
-async function runContainerCheck(request: APIRequestContext): Promise<void> {
-  const ids: number[] = [];
-  let second = 0;
-
-  await setUpOwner(request);
-
-  await test.step("Paste an article page and read it", async () => {
-    ids.push(await pasteAndSettle(request, ARTICLE_LINK));
-  });
-
-  await test.step("Paste a GitHub repo and read it", async () => {
-    ids.push(await pasteAndSettle(request, REPOSITORY_LINK));
-  });
-
+async function saveAndVerifyClaudeCode(request: APIRequestContext): Promise<void> {
   await test.step("save the Claude Code Provider", async () => {
     const saved = await request.put("/api/settings/ai", {
       data: { provider: "claude-code", model: "" },
@@ -200,6 +193,16 @@ async function runContainerCheck(request: APIRequestContext): Promise<void> {
       settings: { provider: "claude-code" },
     });
   });
+
+  await test.step("Verify the Provider with one real Digest", async () => {
+    const verified = await request.post("/api/settings/ai/verify");
+
+    expect(VerifyResultSchema.parse(await verified.json())).toMatchObject({ kind: "done" });
+  });
+}
+
+async function waitForWikiWork(request: APIRequestContext, ids: readonly number[]): Promise<void> {
+  const [first] = ids;
 
   await test.step("wait for one real Digest", async () => {
     await expect
@@ -225,21 +228,22 @@ async function runContainerCheck(request: APIRequestContext): Promise<void> {
       .not.toBeNull();
   });
 
-  await test.step("Paste a second article on the same subject and wait for its Digest", async () => {
-    second = await pasteAndSettle(request, SECOND_ARTICLE_LINK);
+  const second =
+    await test.step("Paste a second article on the same subject and wait for its Digest", async () => {
+      const id = await pasteAndSettle(request, SECOND_ARTICLE_LINK);
 
-    await expect
-      .poll(() => digestStates(request, [second]), {
-        message: "the second article holds a Digest",
-        timeout: DIGEST_WAIT_MS,
-        intervals: [2000, 5000],
-      })
-      .toContain("digest");
-  });
+      await expect
+        .poll(() => digestStates(request, [id]), {
+          message: "the second article holds a Digest",
+          timeout: DIGEST_WAIT_MS,
+          intervals: [2000, 5000],
+        })
+        .toContain("digest");
+
+      return id;
+    });
 
   await test.step("write the first article's Digest again and wait for the second article as its Related Item", async () => {
-    const [first] = ids;
-
     await expect
       .poll(() => itemIdle(request, first ?? 0), {
         message: "the first article has no open job",
@@ -262,11 +266,27 @@ async function runContainerCheck(request: APIRequestContext): Promise<void> {
   });
 }
 
-test(
-  TARGET === "worker"
-    ? "real Pastes of an article and a GitHub repo are read, and their caller-sent Digests publish"
-    : "real Pastes of an article and a GitHub repo are read, and the Claude Code Provider writes a Digest",
-  async ({ request }) => {
-    await (TARGET === "worker" ? runWorkerCheck(request) : runContainerCheck(request));
-  },
-);
+const TITLES = {
+  worker:
+    "real Pastes of an article and a GitHub repo are read, and their caller-sent Digests publish",
+  container:
+    "real Pastes of an article and a GitHub repo are read, and the Claude Code Provider writes a Digest",
+};
+
+test(TITLES[TARGET], async ({ request }) => {
+  await setUpOwner(request);
+
+  const pasted = await pasteLinks(request, TARGET === "worker");
+
+  if (TARGET === "worker") {
+    await Promise.all(pasted.map(({ id, digest }) => expectCallerDigest(request, id, digest)));
+
+    return;
+  }
+
+  await saveAndVerifyClaudeCode(request);
+  await waitForWikiWork(
+    request,
+    pasted.map(({ id }) => id),
+  );
+});
