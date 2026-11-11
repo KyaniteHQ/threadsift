@@ -33,9 +33,10 @@ function revisedPage(
   const gone = new Set(read.removed);
   const replaced = new Set(prompt.included.map(({ id }) => id));
 
-  const kept = (read.page?.builtFrom ?? []).filter(
-    ({ item }) => !gone.has(item) && !replaced.has(item),
-  );
+  const kept =
+    prompt.current === null
+      ? []
+      : (read.page?.builtFrom ?? []).filter(({ item }) => !gone.has(item) && !replaced.has(item));
 
   return {
     topicId,

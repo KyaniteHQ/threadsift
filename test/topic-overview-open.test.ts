@@ -131,7 +131,7 @@ function storeOverview(instance: Instance, overview: string): void {
   }
 }
 
-async function removeAndWrite(instance: Instance, id: number) {
+async function removeAndRewrite(instance: Instance, id: number): Promise<void> {
   const saved = await instance.send("PUT", "/api/settings/ai", {
     provider: "openai-compatible",
     baseUrl: REFUSED_ADDRESS,
@@ -142,9 +142,9 @@ async function removeAndWrite(instance: Instance, id: number) {
   assert.equal(saved.status, 200);
   assert.equal((await instance.send("DELETE", `/api/items/${String(id)}`)).status, 204);
   assert.equal((await instance.send("POST", `${TOPIC_PATH}/overview`)).status, 202);
+}
 
-  const { overview, topic } = await overviewSettled(instance, Date.now() + OVERVIEW_DEADLINE_MS);
-
+function summary({ overview, topic }: Awaited<ReturnType<typeof overviewSettled>>) {
   return {
     state: overview.state,
     failure: overview.failure,
@@ -152,6 +152,22 @@ async function removeAndWrite(instance: Instance, id: number) {
     builtFrom: overview.builtFrom,
     items: topic.itemCount,
   };
+}
+
+async function removeAndWrite(instance: Instance, id: number) {
+  await removeAndRewrite(instance, id);
+
+  return summary(await overviewSettled(instance, Date.now() + OVERVIEW_DEADLINE_MS));
+}
+
+async function builtFromReaches(instance: Instance, count: number, deadline: number) {
+  const page = await instance.read("GET", TOPIC_PATH, TopicPageSchema);
+
+  if (page.overview.builtFrom === count || Date.now() > deadline) return page;
+
+  await delay(50);
+
+  return builtFromReaches(instance, count, deadline);
 }
 
 describe("a removed Item leaves the overview without a model call when nothing was added", () => {
@@ -208,6 +224,35 @@ describe("a removed Item that lines cite leaves those lines, without a model cal
       text: `About the first [${one}]\nAbout both [${two}]`,
       builtFrom: 2,
       items: 2,
+    });
+  });
+});
+
+describe("a removal that leaves no overview line sends the remaining Items to the model", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start({ secretKey: SECRET_KEY });
+    await instance.setUp();
+  });
+
+  after(() => instance.close());
+
+  it("counts them as not covered and keeps the Topic waiting for an overview", async () => {
+    const cited = await saveAndPublish(instance, "cited");
+
+    await saveAndPublish(instance, "other");
+    storeOverview(instance, `About the cited one [${String(cited)}]`);
+    await removeAndRewrite(instance, cited);
+
+    const page = await builtFromReaches(instance, 0, Date.now() + OVERVIEW_DEADLINE_MS);
+
+    assert.deepEqual(summary(page), {
+      state: "pending",
+      failure: null,
+      text: null,
+      builtFrom: 0,
+      items: 1,
     });
   });
 });
