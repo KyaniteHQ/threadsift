@@ -5,7 +5,7 @@ import { csrf } from "hono/csrf";
 
 import { ITEM_REQUEST_BYTES } from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
-import { tokenIsValid } from "../core/tokens.ts";
+import { verifyToken } from "../core/tokens.ts";
 import { isOwnerOnly, isPublic } from "./access-rules.ts";
 import { ownerHasSession } from "./session-cookie.ts";
 
@@ -31,9 +31,11 @@ function notBearer(c: Context): Response {
   return c.json({ error: NOT_BEARER }, 400);
 }
 
-function bearerCheck(ports: Ports): MiddlewareHandler {
+export function bearerCheck(
+  verified: (value: string, c: Context) => Promise<boolean>,
+): MiddlewareHandler {
   return bearerAuth({
-    verifyToken: (value) => tokenIsValid(ports, value),
+    verifyToken: verified,
     noAuthenticationHeader: { message: notBearer },
     invalidAuthenticationHeader: { message: { error: NOT_BEARER } },
     invalidToken: { message: { error: "Unknown or revoked agent token" } },
@@ -41,7 +43,7 @@ function bearerCheck(ports: Ports): MiddlewareHandler {
 }
 
 export function guard(ports: Ports): MiddlewareHandler {
-  const bearer = bearerCheck(ports);
+  const bearer = bearerCheck(async (value) => (await verifyToken(ports, value)) !== undefined);
   const cross = csrf();
 
   return async (c, next) => {

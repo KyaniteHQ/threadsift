@@ -20,12 +20,16 @@ const getItemRoute = createRoute({
   },
 });
 
+export async function readItem(ports: Ports, id: number) {
+  const item = await getItem(ports, id);
+
+  return item === undefined ? undefined : { item: itemView(item) };
+}
+
 export function registerItemDetailRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(getItemRoute, async (c) => {
-    const item = await getItem(ports, c.req.valid("param").id);
+    const read = await readItem(ports, c.req.valid("param").id);
 
-    return item === undefined
-      ? c.json({ error: NOT_FOUND }, 404)
-      : c.json({ item: itemView(item) }, 200);
+    return read === undefined ? c.json({ error: NOT_FOUND }, 404) : c.json(read, 200);
   });
 }

@@ -70,12 +70,19 @@ export class Instance {
   private readonly app: ReturnType<typeof createApp>;
   private readonly shutdown: () => Promise<void>;
 
-  private constructor(app: ReturnType<typeof createApp>, shutdown: () => Promise<void>) {
+  private readonly folder: string;
+
+  private constructor(
+    app: ReturnType<typeof createApp>,
+    folder: string,
+    shutdown: () => Promise<void>,
+  ) {
     this.app = app;
+    this.folder = folder;
     this.shutdown = shutdown;
   }
 
-  static async start(): Promise<Instance> {
+  static async start(publicOrigin?: string): Promise<Instance> {
     const folder = await mkdtemp(join(tmpdir(), "threadsift-test-"));
     const database = openDatabase(join(folder, "threadsift.db"), MIGRATIONS);
 
@@ -84,16 +91,28 @@ export class Instance {
       setupCode: SETUP_CODE,
       secretKey: undefined,
       resetCode: undefined,
-      publicOrigin: undefined,
+      publicOrigin,
       claude: { path: "", configDir: undefined, token: undefined },
       codex: { path: "", home: undefined, dataDir: join(folder, "data") },
     });
 
-    return new Instance(createApp(node.ports), async () => {
+    return new Instance(createApp(node.ports), folder, async () => {
       await node.stop();
       database.close();
       await rm(folder, { recursive: true });
     });
+  }
+
+  fetch(input: Request | string, init?: RequestInit): Promise<Response> {
+    return Promise.resolve(this.app.request(input, init));
+  }
+
+  get sessionCookie(): string | null {
+    return this.cookie;
+  }
+
+  get databaseFile(): string {
+    return join(this.folder, "threadsift.db");
   }
 
   close(): Promise<void> {

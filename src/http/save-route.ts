@@ -8,7 +8,7 @@ import { jsonBody, jsonRequest } from "./openapi.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
 import { ErrorResponseSchema, SavedItemResponseSchema } from "./schemas.ts";
 
-const REFUSED_HOST = "url: the host is not globally reachable";
+export const REFUSED_HOST = "url: the host is not globally reachable";
 
 const TOO_LARGE = {
   content: "content: longer than 4 MiB",
@@ -19,7 +19,8 @@ const THREAD_KEPT = "page: the saved thread stays";
 
 const NOT_WAITING = "fill: no Item with this link is waiting for its thread";
 
-const UPDATING = "The library is being updated and takes no new link yet. Try again in a minute.";
+export const UPDATING =
+  "The library is being updated and takes no new link yet. Try again in a minute.";
 
 const saveItemRoute = createRoute({
   method: "post",
