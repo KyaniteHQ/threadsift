@@ -4,6 +4,33 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$root"
 
+environment="$root/.agents/orb-env.sh"
+if [[ ! -f "$HOME/.bash_profile" ]]; then
+  if [[ -f "$HOME/.bash_login" ]]; then
+    printf 'source "$HOME/.bash_login"\n' >> "$HOME/.bash_profile"
+  elif [[ -f "$HOME/.profile" ]]; then
+    printf 'source "$HOME/.profile"\n' >> "$HOME/.bash_profile"
+  fi
+fi
+printf -v line 'if [[ -f %q ]]; then source %q; fi' "$environment" "$environment"
+if ! grep -Fqx -- "$line" "$HOME/.bash_profile" 2>/dev/null; then
+  printf '\n%s\n' "$line" >> "$HOME/.bash_profile"
+fi
+bash_environment="$root/.agents/orb-bash-env.sh"
+printf -v previous_line 'export BASH_ENV=%q' "$environment"
+printf -v line 'if [[ "${BASH_ENV:-}" != %q ]]; then if [[ "${BASH_ENV:-}" != %q ]]; then export THREADSIFT_ORB_PREVIOUS_BASH_ENV="${BASH_ENV:-}"; fi; export BASH_ENV=%q; fi' "$bash_environment" "$environment" "$bash_environment"
+if grep -Fqx -- "$previous_line" "$HOME/.bash_profile"; then
+  profile_update="$(mktemp "$HOME/.bash_profile.XXXXXX")"
+  trap 'rm -f -- "$profile_update"' EXIT
+  awk -v previous="$previous_line" -v replacement="$line" '{ if ($0 == previous) $0 = replacement; print }' "$HOME/.bash_profile" > "$profile_update"
+  chmod --reference="$HOME/.bash_profile" "$profile_update"
+  mv -f -- "$profile_update" "$HOME/.bash_profile"
+  trap - EXIT
+fi
+if ! grep -Fqx -- "$line" "$HOME/.bash_profile"; then
+  printf '\n%s\n' "$line" >> "$HOME/.bash_profile"
+fi
+
 hooks_dir="$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
 hook_bridge="$root/.agents/orb-hook"
 scope="$(git config --show-scope --get core.hooksPath | cut -f1 || true)"

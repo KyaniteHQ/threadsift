@@ -55,25 +55,9 @@ install_devenv() {
   export PATH="$profile/bin:$PATH"
 }
 
-enable_login_shell() {
-  local environment="$root/.agents/orb-env.sh" line
-  if [[ ! -f "$HOME/.bash_profile" ]]; then
-    if [[ -f "$HOME/.bash_login" ]]; then
-      printf 'source "$HOME/.bash_login"\n' >> "$HOME/.bash_profile"
-    elif [[ -f "$HOME/.profile" ]]; then
-      printf 'source "$HOME/.profile"\n' >> "$HOME/.bash_profile"
-    fi
-  fi
-  printf -v line 'if [[ -f %q ]]; then source %q; fi' "$environment" "$environment"
-  if ! grep -Fqx -- "$line" "$HOME/.bash_profile" 2>/dev/null; then
-    printf '\n%s\n' "$line" >> "$HOME/.bash_profile"
-  fi
-}
-
 run_step 'Install system prerequisites' install_system_packages
 run_step 'Prepare Nix' install_nix
 run_step 'Install locked devenv' install_devenv
 run_step 'Preserve inherited Git hooks' "$root/.agents/resume"
 run_step 'Install the development shell and dependencies' devenv --no-tui tasks run ci:install --show-output
 run_step 'Install repository Git hooks' devenv --no-tui tasks run devenv:git-hooks:install --show-output
-run_step 'Enable the development shell in login shells' enable_login_shell
