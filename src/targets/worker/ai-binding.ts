@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { type AiExecution, type AiTaskRequest, refusedAi } from "../../core/ai-contract.ts";
+import { logFailure } from "../../core/failure-log.ts";
 
 type Json = string | number | boolean | null | readonly Json[] | { readonly [key: string]: Json };
 
@@ -42,10 +43,16 @@ const REFUSALS = new Map<string, "model-not-found" | "timeout" | "provider-busy"
   ["3036", "provider-busy"],
 ]);
 
-function refusalOf(cause: Readonly<Error>) {
-  const code = UPSTREAM_CODE.exec(cause.message)?.groups?.["code"] ?? "";
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction, and this function reduces it to a refusal.
+function refusalOf(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const code = UPSTREAM_CODE.exec(message)?.groups?.["code"] ?? "";
+  const refusal = REFUSALS.get(code);
 
-  return refusedAi(REFUSALS.get(code) ?? "unreachable");
+  if (refusal === undefined)
+    logFailure("ai-binding-unmapped", { code: code === "" ? "none" : code }, error);
+
+  return refusedAi(refusal ?? "unreachable");
 }
 
 async function runBinding<Result>(
@@ -82,7 +89,7 @@ async function runBinding<Result>(
   } catch (error) {
     if (signal.aborted) return refusedAi("timeout");
 
-    return error instanceof Error ? refusalOf(error) : refusedAi("unreachable");
+    return refusalOf(error);
   }
 }
 

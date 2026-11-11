@@ -239,6 +239,7 @@ async function applySettled(
   try {
     result = await writeOutcome(ports, job, outcome);
   } catch (error) {
+    logFailure("job-write-failed", { jobId: job.id, kind: job.kind }, error);
     await discardTask(ports, outcome.currency, "error");
     throw error;
   }
