@@ -16,6 +16,7 @@ let
   podmanPolicy = pkgs.writeText "policy.json" (
     builtins.toJSON { default = [ { type = "insecureAcceptAnything"; } ]; }
   );
+  smokeLabel = "io.threadsift.smoke=true";
   checkoutEnv = ''
     slot=$(printf %s "$DEVENV_ROOT" | sha256sum | cut -c1-12)
     export THREADSIFT_IMAGE=localhost/threadsift:smoke-$slot
@@ -170,7 +171,6 @@ in
       exec = ''
         set -euo pipefail
         ${checkoutEnv}
-        previous=$(podman image inspect --format '{{.Id}}' "$THREADSIFT_IMAGE" 2>/dev/null || true)
         cache=()
         if [ -n "''${THREADSIFT_LAYER_CACHE:-}" ]; then
           storage=''${THREADSIFT_LAYER_CACHE%/}
@@ -185,11 +185,8 @@ in
           export CONTAINERS_REGISTRIES_CONF=${layerCache.registries}
           cache=(--cache-from ${layerCache.repository} --cache-to ${layerCache.repository})
         fi
-        podman build --jobs 0 --signature-policy ${podmanPolicy} "''${cache[@]}" --tag "$THREADSIFT_IMAGE" --file Containerfile .
-        current=$(podman image inspect --format '{{.Id}}' "$THREADSIFT_IMAGE")
-        if [ -n "$previous" ] && [ "$previous" != "$current" ]; then
-          podman rmi "$previous" > /dev/null || echo "kept replaced image $previous: still in use" >&2
-        fi
+        podman build --jobs 0 --signature-policy ${podmanPolicy} "''${cache[@]}" --label ${smokeLabel} --tag "$THREADSIFT_IMAGE" --file Containerfile .
+        podman image prune --force --filter label=${smokeLabel} > /dev/null || echo "podman image prune failed" >&2
       '';
     };
     "smoke:worker" = {
