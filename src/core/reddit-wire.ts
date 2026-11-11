@@ -24,14 +24,22 @@ export type WireChild =
       readonly data: { readonly parent_id: string; readonly children: readonly string[] };
     };
 
+export const COMMENT_FIELDS = {
+  id: WireCommentId,
+  author: z.string(),
+  body: z.string(),
+  parent_id: z.string(),
+  score: z.number().int().nullish(),
+  created_utc: z.number().nonnegative(),
+};
+
+export const MoreChild = z.object({
+  kind: z.literal("more"),
+  data: z.object({ parent_id: z.string(), children: z.array(WireCommentId).default([]) }),
+});
+
 const Child: z.ZodType<WireChild> = z.lazy(() =>
-  z.union([
-    z.object({ kind: z.literal("t1"), data: CommentData }),
-    z.object({
-      kind: z.literal("more"),
-      data: z.object({ parent_id: z.string(), children: z.array(WireCommentId).default([]) }),
-    }),
-  ]),
+  z.union([z.object({ kind: z.literal("t1"), data: CommentData }), MoreChild]),
 );
 
 const Listing = z.object({
@@ -40,12 +48,7 @@ const Listing = z.object({
 });
 
 const CommentData = z.object({
-  id: WireCommentId,
-  author: z.string(),
-  body: z.string(),
-  parent_id: z.string(),
-  score: z.number().int().nullish(),
-  created_utc: z.number().nonnegative(),
+  ...COMMENT_FIELDS,
   replies: z.union([z.literal(""), Listing]).optional(),
 });
 

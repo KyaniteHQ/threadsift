@@ -78,7 +78,11 @@ function threadRows(db: Database, itemId: number) {
 
 function threadReport(db: Database, itemId: number) {
   return db
-    .select({ reported: redditThreads.reported, generation: redditThreads.generation })
+    .select({
+      reported: redditThreads.reported,
+      archivedAt: redditThreads.archivedAt,
+      generation: redditThreads.generation,
+    })
     .from(redditThreads)
     .where(
       and(
@@ -94,9 +98,21 @@ export function threadReads(db: Database, itemId: number) {
 
 export function commentsOf(
   rows: readonly CommentRow[],
-  report: readonly Readonly<{ reported: number | null }>[],
+  report: readonly Readonly<{
+    reported: number | null;
+    archivedAt: number | null;
+    generation: number;
+  }>[],
+  postRevision: number,
 ): CommentsView {
   const [thread] = report;
 
-  return thread === undefined ? NO_COMMENTS : commentsViewOf(rows, thread.reported);
+  if (thread === undefined) return NO_COMMENTS;
+
+  const { reported, archivedAt, generation } = thread;
+
+  return commentsViewOf(rows, {
+    reported,
+    archive: archivedAt === null ? null : { at: archivedAt, withPost: generation === postRevision },
+  });
 }

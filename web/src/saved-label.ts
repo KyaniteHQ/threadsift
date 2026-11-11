@@ -13,8 +13,18 @@ function daysBetween(savedAt: number, now: number): number {
   return Math.round((todayUtc - savedUtc) / DAY_MS);
 }
 
+function isSameYear(at: number, now: number): boolean {
+  return new Date(at).getFullYear() === new Date(now).getFullYear();
+}
+
+export function dateLabel(at: number, now: number): string {
+  const sameYear = isSameYear(at, now);
+
+  return (sameYear ? DAY_IN_YEAR : DAY_WITH_YEAR).format(at);
+}
+
 export function ageLabel(savedAt: number, now: number): string {
-  const sameYear = new Date(savedAt).getFullYear() === new Date(now).getFullYear();
+  const sameYear = isSameYear(savedAt, now);
   const days = daysBetween(savedAt, now);
 
   if (sameYear && days < 1) {
@@ -25,7 +35,7 @@ export function ageLabel(savedAt: number, now: number): string {
     return `${days}d ago`;
   }
 
-  return (sameYear ? DAY_IN_YEAR : DAY_WITH_YEAR).format(savedAt);
+  return dateLabel(savedAt, now);
 }
 
 export function savedLabel(savedAt: number, now: number): string {

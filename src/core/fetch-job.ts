@@ -2,7 +2,8 @@ import { eq, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
 import { settledContent } from "./fetch-content.ts";
-import { FETCH_DEADLINE_MS, fetchedForJob } from "./fetch-link.ts";
+import { FETCH_DEADLINE_MS } from "./fetch-link.ts";
+import { fetchedForJob } from "./fetch-source.ts";
 import { anchoredOutcome } from "./highlight-publish.ts";
 import {
   type ClaimedJob,
@@ -12,7 +13,6 @@ import {
   type SettledOutcome,
   isLastAttempt,
 } from "./job-outcome.ts";
-import { fetchedRepository, repositoryWrites } from "./repositories.ts";
 import { items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import { isRetryable } from "./settle.ts";
@@ -52,17 +52,11 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
   if (fetched.status === "waiting") return waitingOutcome(ports.db, job, fetched);
 
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
-  const repository = fetchedRepository(fetched);
 
-  const { postText, replaces, fields, mediaPublication, files } = await settledContent(
-    ports,
-    job,
-    fetched,
-    title,
-    deadline,
-  );
+  const { postText, replaces, thread, fields, contentPublication, mediaPublication, files } =
+    await settledContent(ports, job, fetched, title, deadline);
 
-  const storesText = postText !== undefined && postText !== null;
+  const storesText = (postText !== undefined && postText !== null) || thread !== null;
 
   const columns = {
     ...fields,
@@ -76,7 +70,7 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
       ...(fields.title === undefined
         ? []
         : fetchedPartWrites(ports.db, eq(items.id, job.itemId), postText)),
-      ...(repository === null ? [] : repositoryWrites(ports.db, job.itemId, repository)),
+      ...contentPublication,
       ...mediaPublication,
       ...(replaces ? digestAfterFetch(ports.db, job) : []),
     ],
@@ -86,7 +80,7 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
   return replaces
     ? anchoredOutcome(ports.db, outcome, {
         owner: eq(items.id, job.itemId),
-        displayed: () => ({ post: postText }),
+        displayed: () => ({ post: postText, comments: thread?.nodes }),
       })
     : outcome;
 }

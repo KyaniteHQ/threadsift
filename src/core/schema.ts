@@ -40,7 +40,7 @@ export { type NoteRow, notes } from "./note-tables.ts";
 
 export { aiSettingsRevision, openrouterConnectTransactions } from "./openrouter-tables.ts";
 
-export { redditComments, redditThreads } from "./reddit-tables.ts";
+export { redditComments, redditSettings, redditThreads } from "./reddit-tables.ts";
 
 export const items = sqliteTable(
   "items",

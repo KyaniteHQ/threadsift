@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { redditJsonOfArchive } from "../src/core/archive-adapter.ts";
 import { readArticle } from "../src/core/article.ts";
 import { catalogKey } from "../src/core/catalog.ts";
+import { parseRedditThread } from "../src/core/reddit-json.ts";
 
 const PARAGRAPH =
   "A tear in the middle of a page is what a plain file copy risks when a writer is busy, so the safe route is the online backup command followed by a check that the copy opens.";
@@ -24,6 +26,51 @@ const HTML = `<!doctype html>
   </body>
 </html>`;
 
+interface ArchiveListing {
+  readonly kind: "Listing";
+  readonly data: { readonly dist: number; readonly children: readonly ArchiveComment[] };
+}
+
+interface ArchiveComment {
+  readonly kind: "t1";
+  readonly data: {
+    readonly id: string;
+    readonly author: string;
+    readonly body: string;
+    readonly parent_id: string;
+    readonly score: number;
+    readonly created_utc: number;
+    readonly _meta: Readonly<{ was_deleted_later?: boolean; retrieved_2nd_on?: number }>;
+    readonly replies: "" | ArchiveListing;
+  };
+}
+
+function archiveComment(
+  id: string,
+  parent: string,
+  body: string,
+  replies: "" | ArchiveListing,
+  meta: ArchiveComment["data"]["_meta"] = {},
+): ArchiveComment {
+  return {
+    kind: "t1",
+    data: {
+      id,
+      author: `user_${id}`,
+      body,
+      parent_id: parent,
+      score: 4,
+      created_utc: 1_700_000_100,
+      _meta: meta,
+      replies,
+    },
+  };
+}
+
+function archiveListing(...children: readonly ArchiveComment[]): ArchiveListing {
+  return { kind: "Listing", data: { dist: 0, children } };
+}
+
 describe("the parsers turn literal input into the values the library stores", () => {
   it("reads the title, author, date and body text of an article from its HTML", async () => {
     const reading = await readArticle(HTML, "https://example.com/backing-up-sqlite");
@@ -43,5 +90,70 @@ describe("the parsers turn literal input into the values the library stores", ()
     assert.equal(catalogKey("  machine   LEARNING "), key);
     assert.equal(catalogKey("Café"), catalogKey("Café"));
     assert.notEqual(catalogKey("Machine Learning"), catalogKey("Machine Learnings"));
+  });
+
+  it("reads an Arctic Shift comment tree like Reddit's JSON and drops what the archive saw deleted later", () => {
+    const post = {
+      data: [
+        {
+          id: "abc123",
+          title: "How do you back up SQLite?",
+          author: "asker",
+          subreddit: "selfhosted",
+          selftext: "I copy the file nightly.",
+          created_utc: 1_700_000_000,
+          num_comments: 4,
+        },
+      ],
+    };
+
+    const tree = {
+      data: [
+        archiveComment(
+          "c1",
+          "t3_abc123",
+          "Use the online backup command instead of copying the file.",
+          archiveListing(
+            archiveComment(
+              "c2",
+              "t1_c1",
+              "A plain copy can tear a page while a writer is busy.",
+              archiveListing(
+                archiveComment("c3", "t1_c2", "It worked for me after a restart.", ""),
+                archiveComment("c4", "t1_c2", "[removed]", ""),
+              ),
+              { was_deleted_later: true },
+            ),
+          ),
+          { retrieved_2nd_on: 1_700_000_900 },
+        ),
+      ],
+    };
+
+    const json = redditJsonOfArchive(JSON.stringify(post), JSON.stringify(tree));
+
+    assert.notEqual(json, null);
+
+    const parsed = parseRedditThread([json ?? ""], {
+      postId: "abc123",
+      commentId: undefined,
+      community: undefined,
+    });
+
+    assert.equal(parsed.kind, "thread");
+
+    if (parsed.kind !== "thread") return;
+
+    assert.equal(parsed.thread.title, "How do you back up SQLite?");
+    assert.equal(parsed.thread.reported, 4);
+    assert.deepEqual(
+      parsed.thread.nodes.map(({ id, depth, eligible, body }) => [id, depth, eligible, body]),
+      [
+        ["t1_c1", 0, true, "Use the online backup command instead of copying the file."],
+        ["t1_c2", 1, false, null],
+        ["t1_c3", 2, true, "It worked for me after a restart."],
+        ["t1_c4", 2, false, null],
+      ],
+    );
   });
 });

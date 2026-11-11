@@ -3,7 +3,7 @@ import type { Kind, Source } from "../../src/core/kinds.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
 import { collapsedText } from "./collapsed-text.ts";
 import type { CommentCounts } from "./comment-counts.ts";
-import { ageLabel } from "./saved-label.ts";
+import { ageLabel, dateLabel } from "./saved-label.ts";
 import { CLOSE_LABEL, filled } from "./text.ts";
 
 export const READER_PLACEHOLDER = "Select an item";
@@ -43,6 +43,12 @@ export const NO_POST_TEXT = "This item has no post text.";
 
 export const FILL_NOTE =
   "The thread for this item is not saved yet. Open it on Reddit with the Extension and filling turned on to fill it with the post and comments.";
+
+export const ARCHIVE_NOTE =
+  "The post and comments were filled from the Arctic Shift archive on {date}.";
+
+const ARCHIVE_COMMENTS_NOTE =
+  "Only the comments were filled from the Arctic Shift archive on {date}.";
 
 export const NO_README = "This repository has no Markdown README.";
 export const GITHUB_TOPICS_LABEL = "Topics on GitHub";
@@ -151,6 +157,13 @@ export function removeNamed(exact: string): string {
 
 export function postedLabel(postedAt: number, now: number): string {
   return filled(POSTED, { when: ageLabel(postedAt, now) });
+}
+
+export function archiveNote(
+  { at, withPost }: Readonly<{ at: number; withPost: boolean }>,
+  now: number,
+): string {
+  return filled(withPost ? ARCHIVE_NOTE : ARCHIVE_COMMENTS_NOTE, { date: dateLabel(at, now) });
 }
 
 export function codeName(lines: number): string {

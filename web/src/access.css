@@ -283,3 +283,14 @@
 .pg-ghost i:nth-child(2) {
   width: 70%;
 }
+
+.sec .st-seg {
+  align-self: flex-start;
+}
+.sec .st-b {
+  padding-inline: var(--s4);
+}
+.sec .st-b:has(:focus-visible) {
+  outline: 2px solid var(--acc-ink);
+  outline-offset: 2px;
+}

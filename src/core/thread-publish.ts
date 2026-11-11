@@ -93,7 +93,7 @@ export function threadPublication(
 ) {
   return [
     ...contentWrites(db, place, thread, pendingDigest),
-    ...threadWrites(db, place.normalizedUrl, thread),
+    ...threadWrites(db, ownerOf(place.normalizedUrl), thread, null),
     ...fetchedPartWrites(db, eq(items.normalizedUrl, place.normalizedUrl), thread.postText),
     ...digestWrites(db, place),
   ];

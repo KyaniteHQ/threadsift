@@ -1,11 +1,4 @@
-import {
-  type Concluded,
-  type Fetched,
-  NOT_REQUESTED,
-  detailsOfOembed,
-  detailsOfPage,
-  detailsOfSuppliedPage,
-} from "./details.ts";
+import { type Concluded, type Fetched, NOT_REQUESTED, detailsOfPage } from "./details.ts";
 import {
   type FetchPolicy,
   type GuardOutcome,
@@ -25,10 +18,10 @@ import {
   parseLink,
   redditRefOf,
 } from "./links.ts";
+import { detailsOfOembed } from "./oembed-details.ts";
 import { PageReadTimeout } from "./page-read-timeout.ts";
 import type { Network, PageReader, Ports } from "./ports.ts";
 import { repositoryRef } from "./repository-ref.ts";
-import { SuppliedPageSchema } from "./supplied-page.ts";
 
 export type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
@@ -63,7 +56,9 @@ function pagePolicy({ maxHtmlBytes }: Readonly<PageReader>): FetchPolicy {
   return { ...SMALL_POLICY, htmlMaxBytes: maxHtmlBytes };
 }
 
-async function readOrTimeOut(read: () => Promise<Concluded> | Concluded): Promise<Concluded> {
+export async function readOrTimeOut(
+  read: () => Promise<Concluded> | Concluded,
+): Promise<Concluded> {
   try {
     return await read();
   } catch (error) {
@@ -152,21 +147,4 @@ export async function resolveShortLink(
   return shareLink && redditRefOf(outcome.url) === null
     ? NOT_A_POST_OR_COMMENT
     : { kind: "resolved", address: outcome.url };
-}
-
-export function fetchedForJob(
-  ports: Readonly<Pick<Ports, "db" | "ai" | "network" | "pages">>,
-  { address, attempts, page }: Readonly<{ address: string; attempts: number; page: string | null }>,
-  deadline: AbortSignal,
-): Promise<Fetched> {
-  return page === null
-    ? fetchLink(ports, address, attempts, deadline)
-    : readOrTimeOut(() =>
-        detailsOfSuppliedPage(
-          ports.pages,
-          SuppliedPageSchema.parse(JSON.parse(page)),
-          address,
-          deadline,
-        ),
-      );
 }

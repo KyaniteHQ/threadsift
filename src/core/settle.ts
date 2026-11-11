@@ -18,6 +18,8 @@ function textFields(content: Readonly<Content>) {
     case "article":
     case "page":
       return { postText: content.postText, postedAt: content.postedAt };
+    case "thread":
+      return { postText: content.thread.postText, postedAt: content.thread.postedAt };
     case "github-repo":
       return { postText: content.readme, postedAt: null };
     case "link":
@@ -35,6 +37,7 @@ function contentFields(content: Readonly<Content>) {
   switch (content.kind) {
     case "page":
     case "empty-page":
+    case "thread":
       return textFields(content);
     case "article":
     case "github-repo":

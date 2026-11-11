@@ -119,8 +119,13 @@ export class Instance {
     return this.shutdown();
   }
 
-  async send(method: string, path: string, body: Json = null): Promise<Answer> {
-    const headers = new Headers({ origin: ORIGIN });
+  async send(
+    method: string,
+    path: string,
+    body: Json = null,
+    extraHeaders: Readonly<Record<string, string>> = {},
+  ): Promise<Answer> {
+    const headers = new Headers({ origin: ORIGIN, ...extraHeaders });
     const init: RequestInit = { method, headers };
 
     if (body !== null) {

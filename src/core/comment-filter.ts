@@ -1,4 +1,6 @@
-const REMOVED_BODIES: ReadonlySet<string> = new Set(["[deleted]", "[removed]"]);
+export const DELETED_BODY = "[deleted]";
+
+const REMOVED_BODIES: ReadonlySet<string> = new Set([DELETED_BODY, "[removed]"]);
 
 const BOT_ACCOUNTS: ReadonlySet<string> = new Set(["automoderator"]);
 
