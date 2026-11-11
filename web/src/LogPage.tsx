@@ -1,52 +1,28 @@
-import { EmptyState, Notice, Skeleton } from "./ListBody.tsx";
-import { localDate } from "./log-date.ts";
-import { LOG_PAGE, logEmptyLine } from "./log-text.ts";
-import { LogList } from "./LogList.tsx";
-import { PageBar } from "./PageBar.tsx";
-import type { Pages } from "./routing.ts";
-import { RETRY_LABEL } from "./text.ts";
-import { TOPIC_PAGE } from "./topic-text.ts";
-import { type LogState, useLogPage } from "./use-log-page.ts";
+import { useCallback } from "react";
 
-function Body({
-  state,
-  retry,
-  loadMore,
-  pages,
-}: Readonly<{ state: LogState; retry: () => void; loadMore: () => void; pages: Pages }>) {
-  switch (state.status) {
-    case "loading":
-      return <Skeleton label={LOG_PAGE.loading} row="lg-row" title="rl-title" />;
-    case "failed":
-      return <Notice text={LOG_PAGE.loadFailed} action={retry} label={RETRY_LABEL} alert />;
-    case "ready":
-      return state.entries.length === 0 ? (
-        <EmptyState
-          heading={LOG_PAGE.emptyHeading}
-          line={logEmptyLine(localDate(state.startedAt))}
-        />
-      ) : (
-        <LogList state={state} loadMore={loadMore} pages={pages} />
-      );
-    default:
-      return state satisfies never;
-  }
-}
+import type { LogEntry, LogPage as LogContent } from "../../src/core/log-contract.ts";
+import { type Listing, ListPage } from "./ListPage.tsx";
+import { localDate } from "./log-date.ts";
+import { LOG_PAGE, logEmptyLine, logSince } from "./log-text.ts";
+import { LogRow } from "./LogRow.tsx";
+import type { Pages } from "./routing.ts";
+import { useLogPage } from "./use-log-page.ts";
+
+const LISTING: Listing<LogContent, LogEntry> = {
+  text: LOG_PAGE,
+  focus: ".lg-link",
+  head: ({ startedAt }) => logSince(localDate(startedAt)),
+  emptyLine: ({ startedAt }) => logEmptyLine(localDate(startedAt)),
+  rows: ({ entries }) => entries,
+};
 
 export function LogPage({ pages, back }: Readonly<{ pages: Pages; back: () => void }>) {
-  const { state, retry, loadMore } = useLogPage();
+  const source = useLogPage();
 
-  return (
-    <div className="pg lg">
-      <PageBar
-        title={LOG_PAGE.title}
-        back={back}
-        backLabel={TOPIC_PAGE.back}
-        ready={state.status !== "loading"}
-      />
-      <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
-        <Body state={state} retry={retry} loadMore={loadMore} pages={pages} />
-      </main>
-    </div>
+  const draw = useCallback(
+    (entry: LogEntry) => <LogRow key={entry.id} entry={entry} pages={pages} />,
+    [pages],
   );
+
+  return <ListPage source={source} listing={LISTING} draw={draw} back={back} />;
 }

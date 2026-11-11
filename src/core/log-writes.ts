@@ -1,42 +1,45 @@
-import { type SQL, eq, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, eq, sql } from "drizzle-orm";
+import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import type { LogAction } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, logEntries, topics } from "./schema.ts";
 
-interface Row {
-  readonly action: SQL<LogAction>;
-  readonly title?: SQL;
-  readonly topic?: SQL;
+interface Fields {
+  readonly action: SQL<LogAction> | LogAction;
+  readonly title?: SQLWrapper | string;
+  readonly topic?: SQLWrapper;
   readonly tags?: SQL;
   readonly added?: number;
   readonly removed?: number;
   readonly picks?: number;
   readonly itemId?: number;
-  readonly topicId?: SQL;
+  readonly topicId?: SQLWrapper;
 }
 
-const NULL = sql<null>`null`;
-
-const named = (action: LogAction): SQL<LogAction> => sql<LogAction>`${action}`;
-
-const bound = (value: number | undefined): SQL => (value === undefined ? NULL : sql`${value}`);
-
-// oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle SQL value holds mutable chunks, so a row of them cannot be deeply readonly.
-function entryFields(row: Readonly<Row>) {
-  return {
-    id: NULL.as("id"),
-    at: sql<number>`${Date.now()}`.as("at"),
-    action: row.action.as("action"),
-    title: (row.title ?? NULL).as("title"),
-    topic: (row.topic ?? NULL).as("topic"),
-    tags: (row.tags ?? NULL).as("tags"),
-    added: bound(row.added).as("added"),
-    removed: bound(row.removed).as("removed"),
-    picks: bound(row.picks).as("picks"),
-    itemId: bound(row.itemId).as("item_id"),
-    topicId: (row.topicId ?? NULL).as("topic_id"),
-  };
+function appended(
+  db: Database,
+  // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle table and SQL value hold mutable chunks, so they cannot be deeply readonly.
+  fields: Readonly<Fields & { from: SQLiteTable; where: SQL | undefined }>,
+) {
+  return db.insert(logEntries).select(
+    db
+      .select({
+        id: sql<null>`null`.as("id"),
+        at: sql<number>`${Date.now()}`.as("at"),
+        action: sql`${fields.action}`.as("action"),
+        title: sql`${fields.title ?? null}`.as("title"),
+        topic: sql`${fields.topic ?? null}`.as("topic"),
+        tags: sql`${fields.tags ?? null}`.as("tags"),
+        added: sql`${fields.added ?? null}`.as("added"),
+        removed: sql`${fields.removed ?? null}`.as("removed"),
+        picks: sql`${fields.picks ?? null}`.as("picks"),
+        itemId: sql`${fields.itemId ?? null}`.as("item_id"),
+        topicId: sql`${fields.topicId ?? null}`.as("topic_id"),
+      })
+      .from(fields.from)
+      .where(fields.where),
+  );
 }
 
 export function loggedDigest(
@@ -48,40 +51,26 @@ export function loggedDigest(
     tagKeys,
   }: Readonly<{ itemId: number; title: string; topicKey: string; tagKeys: string }>,
 ) {
-  const tagNames = sql`(select json_group_array(tags.name order by wanted.key) from json_each(${tagKeys}) as wanted join tags on tags.key = wanted.value)`;
-
-  const action = sql<LogAction>`case when exists (select 1 from ${digests} where ${digests.itemId} = ${itemId}) then 'digest' else 'ingest' end`;
-
-  return db.insert(logEntries).select(
-    db
-      .select(
-        entryFields({
-          action,
-          title: sql`${title}`,
-          topic: sql`${topics.name}`,
-          tags: tagNames,
-          itemId,
-          topicId: sql`${topics.id}`,
-        }),
-      )
-      .from(topics)
-      .where(eq(topics.key, topicKey)),
-  );
+  return appended(db, {
+    from: topics,
+    where: eq(topics.key, topicKey),
+    action: sql<LogAction>`case when exists (select 1 from ${digests} where ${digests.itemId} = ${itemId}) then 'digest' else 'ingest' end`,
+    title,
+    topic: topics.name,
+    tags: sql`(select json_group_array(tags.name order by wanted.key) from json_each(${tagKeys}) as wanted join tags on tags.key = wanted.value)`,
+    itemId,
+    topicId: topics.id,
+  });
 }
 
 export function loggedTopic(db: Database, topicKey: string) {
-  return db.insert(logEntries).select(
-    db
-      .select(
-        entryFields({
-          action: named("topic"),
-          topic: sql`${topics.name}`,
-          topicId: sql`${topics.id}`,
-        }),
-      )
-      .from(topics)
-      .where(sql`${topics.key} = ${topicKey} and changes() > 0`),
-  );
+  return appended(db, {
+    from: topics,
+    where: sql`${topics.key} = ${topicKey} and changes() > 0`,
+    action: "topic",
+    topic: topics.name,
+    topicId: topics.id,
+  });
 }
 
 export function loggedOverview(
@@ -89,29 +78,24 @@ export function loggedOverview(
   topicId: number,
   { added, removed }: Readonly<{ added: number; removed: number }>,
 ) {
-  return db.insert(logEntries).select(
-    db
-      .select(
-        entryFields({
-          action: named("overview"),
-          topic: sql`${topics.name}`,
-          added,
-          removed,
-          topicId: sql`${topics.id}`,
-        }),
-      )
-      .from(topics)
-      .where(eq(topics.id, topicId)),
-  );
+  return appended(db, {
+    from: topics,
+    where: eq(topics.id, topicId),
+    action: "overview",
+    topic: topics.name,
+    added,
+    removed,
+    topicId: topics.id,
+  });
 }
 
 export function loggedRelated(db: Database, itemId: number, picks: number) {
-  return db.insert(logEntries).select(
-    db
-      .select(
-        entryFields({ action: named("related"), title: sql`${digests.title}`, picks, itemId }),
-      )
-      .from(digests)
-      .where(eq(digests.itemId, itemId)),
-  );
+  return appended(db, {
+    from: digests,
+    where: eq(digests.itemId, itemId),
+    action: "related",
+    title: digests.title,
+    picks,
+    itemId,
+  });
 }

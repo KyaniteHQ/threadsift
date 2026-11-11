@@ -26,6 +26,23 @@ export interface CatalogKind {
   readonly unlinked: (db: Database, id: number) => SQL | undefined;
 }
 
+async function firstIds(
+  db: Database,
+  // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle column type holds mutable config, so it cannot be deeply readonly.
+  ids: typeof items.id | typeof logEntries.id | typeof itemTags.itemId,
+  owner: Readonly<SQLWrapper>,
+  id: number,
+) {
+  const rows = await db
+    .select({ id: ids })
+    .from(ids.table)
+    .where(eq(owner, id))
+    .orderBy(asc(ids))
+    .limit(MERGE_ITEMS);
+
+  return rows.map((row) => row.id);
+}
+
 function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
   return sql`${column} in (select value from json_each(${JSON.stringify(itemIds)}))`;
 }
@@ -52,23 +69,10 @@ function emptied(db: Database, id: number) {
 export const TOPIC_KIND: CatalogKind = {
   step: "topic-keys",
   table: topics,
-  linked: async (db, id) => {
-    const rows = await db
-      .select({ id: items.id })
-      .from(items)
-      .where(eq(items.topicId, id))
-      .orderBy(asc(items.id))
-      .limit(MERGE_ITEMS);
-
-    const entries = await db
-      .select({ id: logEntries.id })
-      .from(logEntries)
-      .where(eq(logEntries.topicId, id))
-      .orderBy(asc(logEntries.id))
-      .limit(MERGE_ITEMS);
-
-    return { itemIds: rows.map((row) => row.id), entryIds: entries.map((row) => row.id) };
-  },
+  linked: async (db, id) => ({
+    itemIds: await firstIds(db, items.id, items.topicId, id),
+    entryIds: await firstIds(db, logEntries.id, logEntries.topicId, id),
+  }),
   relink: (db, loser, survivor, { itemIds, entryIds }) => [
     db
       .update(items)
@@ -87,16 +91,10 @@ export const TOPIC_KIND: CatalogKind = {
 export const TAG_KIND: CatalogKind = {
   step: "tag-keys",
   table: tags,
-  linked: async (db, id) => {
-    const rows = await db
-      .select({ id: itemTags.itemId })
-      .from(itemTags)
-      .where(eq(itemTags.tagId, id))
-      .orderBy(asc(itemTags.itemId))
-      .limit(MERGE_ITEMS);
-
-    return { itemIds: rows.map((row) => row.id), entryIds: [] };
-  },
+  linked: async (db, id) => ({
+    itemIds: await firstIds(db, itemTags.itemId, itemTags.tagId, id),
+    entryIds: [],
+  }),
   relink: (db, loser, survivor, { itemIds }) => [
     db
       .update(itemTags)

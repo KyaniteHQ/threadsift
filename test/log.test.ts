@@ -149,12 +149,16 @@ describe("the Log is paged newest first by id", () => {
   });
 
   it("answers 400 for a cursor that is malformed, not a safe integer or over 16 digits", async () => {
-    for (const cursor of ["abc", "-1", "1.5", "9007199254740993", "12345678901234567", ""]) {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- one request after the other keeps the failure's cursor in view.
-      const answer = await instance.send("GET", `/api/log?cursor=${cursor}`);
+    const cursors = ["abc", "-1", "1.5", "9007199254740993", "12345678901234567", ""];
 
-      assert.equal(answer.status, 400, `cursor ${cursor}`);
-    }
+    const answers = await Promise.all(
+      cursors.map((cursor) => instance.send("GET", `/api/log?cursor=${cursor}`)),
+    );
+
+    assert.deepEqual(
+      answers.map(({ status }) => status),
+      cursors.map(() => 400),
+    );
   });
 });
 

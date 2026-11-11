@@ -17,12 +17,16 @@ function Separator() {
   );
 }
 
-function Parts({ children }: Readonly<{ children: readonly ReactNode[] }>) {
-  return children.map((part, at) => (
-    // oxlint-disable-next-line react/no-array-index-key -- the parts of one line never reorder.
-    <span key={at}>
+interface Part {
+  readonly key: string;
+  readonly node: ReactNode;
+}
+
+function Parts({ children }: Readonly<{ children: readonly Part[] }>) {
+  return children.map(({ key, node }, at) => (
+    <span key={key}>
       {at === 0 ? null : <Separator />}
-      {part}
+      {node}
     </span>
   ));
 }
@@ -60,39 +64,54 @@ function TopicRef({
   );
 }
 
-function body(entry: Readonly<LogEntry>, pages: Pages): readonly ReactNode[] {
+function itemPart(item: { readonly id: number; readonly title: string }, pages: Pages): Part {
+  return { key: "item", node: <ItemLink item={item} pages={pages} /> };
+}
+
+function topicPart(topic: { readonly key: string; readonly name: string }, pages: Pages): Part {
+  return { key: "topic", node: <TopicRef topic={topic} pages={pages} /> };
+}
+
+function digestedParts(entry: Readonly<Extract<LogEntry, { tags: unknown }>>, pages: Pages) {
+  const labelled: Part = {
+    key: "topic",
+    node: (
+      <>
+        <span className="lg-word">{LOG_WORDS.topic} </span>
+        <TopicRef topic={entry.topic} pages={pages} />
+      </>
+    ),
+  };
+
+  const tags: Part = {
+    key: "tags",
+    node: (
+      <span className="lg-tags">
+        {LOG_WORDS.tags} {entry.tags.join(", ")}
+      </span>
+    ),
+  };
+
+  return [itemPart(entry.item, pages), labelled, ...(entry.tags.length === 0 ? [] : [tags])];
+}
+
+function body(entry: Readonly<LogEntry>, pages: Pages): readonly Part[] {
+  const action: Part = { key: "action", node: entry.action };
+
   switch (entry.action) {
     case "ingest":
     case "digest":
-      return [
-        entry.action,
-        <ItemLink key="item" item={entry.item} pages={pages} />,
-        <span key="topic">
-          <span className="lg-word">{LOG_WORDS.topic} </span>
-          <TopicRef topic={entry.topic} pages={pages} />
-        </span>,
-        ...(entry.tags.length === 0
-          ? []
-          : [
-              <span key="tags" className="lg-tags">
-                {LOG_WORDS.tags} {entry.tags.join(", ")}
-              </span>,
-            ]),
-      ];
+      return [action, ...digestedParts(entry, pages)];
     case "topic":
-      return [entry.action, <TopicRef key="topic" topic={entry.topic} pages={pages} />];
+      return [action, topicPart(entry.topic, pages)];
     case "overview":
       return [
-        entry.action,
-        <TopicRef key="topic" topic={entry.topic} pages={pages} />,
-        addedRemoved(entry.added, entry.removed),
+        action,
+        topicPart(entry.topic, pages),
+        { key: "counts", node: addedRemoved(entry.added, entry.removed) },
       ];
     case "related":
-      return [
-        entry.action,
-        <ItemLink key="item" item={entry.item} pages={pages} />,
-        picksLabel(entry.picks),
-      ];
+      return [action, itemPart(entry.item, pages), { key: "picks", node: picksLabel(entry.picks) }];
     default:
       return entry satisfies never;
   }
@@ -104,8 +123,8 @@ export const LogRow = memo(function LogRow({
 }: Readonly<{ entry: LogEntry; pages: Pages }>) {
   return (
     <li>
-      <article className="lg-row">
-        <p className="lg-line">
+      <article className="rl-row">
+        <p className="rl-sum lg-line">
           <time
             className="lg-date"
             dateTime={new Date(entry.at).toISOString()}

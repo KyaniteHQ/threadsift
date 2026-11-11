@@ -47,7 +47,7 @@ async function save(
   return SavedItemResponseSchema.parse(await saved.json()).item.id;
 }
 
-const rows = (page: Page) => page.locator(".lg-row");
+const rows = (page: Page) => page.locator(".lg-line");
 
 async function openLogFromPanel(page: Page): Promise<void> {
   await page.goto("/");
@@ -104,10 +104,10 @@ export async function logFlow(page: Page, browser: Browser): Promise<void> {
   await expect(rows(page).first()).toContainText("ingest");
   await expectNoSidewaysScroll(page);
 
-  for (const link of await rows(page).first().getByRole("link").all()) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- each link is measured in turn.
-    expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(TARGET_PX);
-  }
+  const links = await rows(page).first().getByRole("link").all();
+  const boxes = await Promise.all(links.map((link) => link.boundingBox()));
+
+  for (const box of boxes) expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await signedOutVisit(browser);
@@ -134,7 +134,7 @@ async function deleteAndReload(page: Page, id: number): Promise<void> {
   await expect(page).not.toHaveURL(new RegExp(`/items/${String(id)}$`, "u"));
   await page.goto("/log");
   await expect(rows(page).first()).toContainText(`topic | ${LOGGED.topic}`);
-  await expect(page.locator(".lg-row", { hasText: LONG_TITLE })).toHaveCount(0);
+  await expect(page.locator(".lg-line", { hasText: LONG_TITLE })).toHaveCount(0);
 }
 
 export async function failedLoadMore(page: Page): Promise<void> {

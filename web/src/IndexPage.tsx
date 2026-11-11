@@ -1,53 +1,27 @@
-import { INDEX_PAGE } from "./index-text.ts";
-import { IndexList } from "./IndexList.tsx";
-import { EmptyState, Notice, Skeleton } from "./ListBody.tsx";
-import { PageBar } from "./PageBar.tsx";
-import type { Pages } from "./routing.ts";
-import { RETRY_LABEL } from "./text.ts";
-import { TOPIC_PAGE } from "./topic-text.ts";
-import { type IndexState, useIndexPage } from "./use-index-page.ts";
+import { useCallback } from "react";
 
-function Body({
-  state,
-  retry,
-  loadMore,
-  open,
-}: Readonly<{
-  state: IndexState;
-  retry: () => void;
-  loadMore: () => void;
-  open: (key: string) => void;
-}>) {
-  switch (state.status) {
-    case "loading":
-      return <Skeleton label={INDEX_PAGE.loading} row="rl-row" title="rl-title" />;
-    case "failed":
-      return <Notice text={INDEX_PAGE.loadFailed} action={retry} label={RETRY_LABEL} alert />;
-    case "ready":
-      return state.topics.length === 0 ? (
-        <EmptyState heading={INDEX_PAGE.emptyHeading} line={INDEX_PAGE.emptyLine} />
-      ) : (
-        <IndexList state={state} loadMore={loadMore} open={open} />
-      );
-    default:
-      return state satisfies never;
-  }
-}
+import type { IndexTopic, TopicIndex } from "../../src/core/topic-index-contract.ts";
+import { INDEX_PAGE, indexHeadLabel } from "./index-text.ts";
+import { IndexRow } from "./IndexRow.tsx";
+import { type Listing, ListPage } from "./ListPage.tsx";
+import type { Pages } from "./routing.ts";
+import { useIndexPage } from "./use-index-page.ts";
+
+const LISTING: Listing<TopicIndex, IndexTopic> = {
+  text: INDEX_PAGE,
+  focus: ".rl-open",
+  head: ({ total }) => indexHeadLabel(total),
+  emptyLine: () => INDEX_PAGE.emptyLine,
+  rows: ({ topics }) => topics,
+};
 
 export function IndexPage({ pages, back }: Readonly<{ pages: Pages; back: () => void }>) {
-  const { state, retry, loadMore } = useIndexPage();
+  const source = useIndexPage();
 
-  return (
-    <div className="pg ix">
-      <PageBar
-        title={INDEX_PAGE.title}
-        back={back}
-        backLabel={TOPIC_PAGE.back}
-        ready={state.status !== "loading"}
-      />
-      <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
-        <Body state={state} retry={retry} loadMore={loadMore} open={pages.topic} />
-      </main>
-    </div>
+  const draw = useCallback(
+    (topic: IndexTopic) => <IndexRow key={topic.key} topic={topic} open={pages.topic} />,
+    [pages],
   );
+
+  return <ListPage source={source} listing={LISTING} draw={draw} back={back} />;
 }
