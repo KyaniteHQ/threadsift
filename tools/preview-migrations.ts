@@ -16,18 +16,23 @@ function names(
   return Rows.parse(JSON.parse(output)).map((row) => row.name);
 }
 
+export function hasTable(
+  run: (args: readonly string[]) => string,
+  scope: readonly string[],
+  table: string,
+): boolean {
+  return (
+    names(run, scope, `SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}'`)
+      .length > 0
+  );
+}
+
 export function hasForeignMigrations(
   run: (args: readonly string[]) => string,
   scope: readonly string[],
   migrationsDir: string,
 ): boolean {
-  const tracked = names(
-    run,
-    scope,
-    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'd1_migrations'",
-  );
-
-  if (tracked.length === 0) return false;
+  if (!hasTable(run, scope, "d1_migrations")) return false;
 
   const known = new Set(readdirSync(migrationsDir));
 
