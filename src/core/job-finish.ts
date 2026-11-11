@@ -2,7 +2,7 @@ import { and, eq, exists, isNotNull, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { openingDigest } from "./digest-job.ts";
-import { logFailure } from "./failure-log.ts";
+import { databaseCodeOf, logFailure } from "./failure-log.ts";
 import { namedKeys } from "./file-cleanup.ts";
 import {
   MAX_STALE_REQUEUES,
@@ -239,6 +239,11 @@ async function applySettled(
   try {
     result = await writeOutcome(ports, job, outcome);
   } catch (error) {
+    logFailure(
+      "job-write-failed",
+      { jobId: job.id, kind: job.kind, databaseCode: databaseCodeOf(error) },
+      error,
+    );
     await discardTask(ports, outcome.currency, "error");
     throw error;
   }
