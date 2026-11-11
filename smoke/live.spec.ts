@@ -47,18 +47,17 @@ const REPOSITORY_DIGEST = DigestSchema.parse({
   keptComments: [],
 });
 
-const PASTES = [
-  {
-    label: "an article page",
-    link: "https://www.sqlite.org/whentouse.html",
-    digest: ARTICLE_DIGEST,
-  },
-  {
-    label: "a GitHub repo",
-    link: "https://github.com/KyaniteHQ/threadsift",
-    digest: REPOSITORY_DIGEST,
-  },
-] as const;
+const ARTICLE = {
+  label: "an article page",
+  link: "https://www.sqlite.org/whentouse.html",
+  digest: ARTICLE_DIGEST,
+};
+
+const REPOSITORY = {
+  label: "a GitHub repo",
+  link: "https://github.com/KyaniteHQ/threadsift",
+  digest: REPOSITORY_DIGEST,
+};
 
 async function pasteAndSettle(
   request: APIRequestContext,
@@ -101,10 +100,7 @@ function digestStates(request: APIRequestContext, ids: readonly number[]) {
   );
 }
 
-async function digestedTopic(
-  request: APIRequestContext,
-  ids: readonly number[],
-): Promise<string | null> {
+async function digestedTopic(request: APIRequestContext, ids: readonly number[]): Promise<string> {
   const topics = await Promise.all(
     ids.map(async (id) => {
       const answer = await request.get(`/api/items/${String(id)}`);
@@ -113,7 +109,11 @@ async function digestedTopic(
     }),
   );
 
-  return topics.find((topic) => topic !== null) ?? null;
+  const topic = topics.find((name) => name !== null);
+
+  if (topic === undefined || topic === null) throw new Error("no Item holds a Digest with a Topic");
+
+  return topic;
 }
 
 async function overviewText(request: APIRequestContext, topic: string): Promise<string | null> {
@@ -154,15 +154,12 @@ async function setUpOwner(request: APIRequestContext): Promise<void> {
   });
 }
 
-function pasteLinks(request: APIRequestContext, callerSendsDigests: boolean) {
-  return Promise.all(
-    PASTES.map(({ label, link, digest }) =>
-      test.step(`Paste ${label} and read it`, async () => ({
-        id: await pasteAndSettle(request, link, callerSendsDigests ? digest : undefined),
-        digest,
-      })),
-    ),
-  );
+function pasteStep(
+  request: APIRequestContext,
+  { label, link }: { readonly label: string; readonly link: string },
+  digest?: Digest,
+): Promise<number> {
+  return test.step(`Paste ${label} and read it`, () => pasteAndSettle(request, link, digest));
 }
 
 async function expectCallerDigest(
@@ -180,6 +177,14 @@ async function expectCallerDigest(
     topic: sent.topic,
     digest: { summary: sent.summary, keyPoints: sent.keyPoints, tags: sent.tags },
   });
+
+  const page = await request.get(topicApiPath(catalogKey(sent.topic)));
+
+  expect(page.status(), `the Topic page of ${sent.topic}`).toBe(200);
+  expect(
+    TopicPageSchema.parse(await page.json()).items.map((entry) => entry.id),
+    `the Topic page of ${sent.topic} lists the Item`,
+  ).toContain(id);
 }
 
 async function saveAndVerifyClaudeCode(request: APIRequestContext): Promise<void> {
@@ -201,7 +206,10 @@ async function saveAndVerifyClaudeCode(request: APIRequestContext): Promise<void
   });
 }
 
-async function waitForWikiWork(request: APIRequestContext, ids: readonly number[]): Promise<void> {
+async function waitForWikiWork(
+  request: APIRequestContext,
+  ids: readonly [number, number],
+): Promise<void> {
   const [first] = ids;
 
   await test.step("wait for one real Digest", async () => {
@@ -217,10 +225,8 @@ async function waitForWikiWork(request: APIRequestContext, ids: readonly number[
   await test.step("wait for the Topic overview of that Digest", async () => {
     const topic = await digestedTopic(request, ids);
 
-    expect(topic, "a Digest names a Topic").not.toBeNull();
-
     await expect
-      .poll(() => overviewText(request, topic ?? ""), {
+      .poll(() => overviewText(request, topic), {
         message: "the Topic page holds a written overview",
         timeout: DIGEST_WAIT_MS,
         intervals: [2000, 5000],
@@ -245,7 +251,7 @@ async function waitForWikiWork(request: APIRequestContext, ids: readonly number[
 
   await test.step("write the first article's Digest again and wait for the second article as its Related Item", async () => {
     await expect
-      .poll(() => itemIdle(request, first ?? 0), {
+      .poll(() => itemIdle(request, first), {
         message: "the first article has no open job",
         timeout: DIGEST_WAIT_MS,
         intervals: [2000, 5000],
@@ -257,7 +263,7 @@ async function waitForWikiWork(request: APIRequestContext, ids: readonly number[
     expect(queued.status()).toBe(200);
 
     await expect
-      .poll(() => relatedOf(request, first ?? 0), {
+      .poll(() => relatedOf(request, first), {
         message: "the first article lists the second article as a Related Item",
         timeout: RELATED_WAIT_MS,
         intervals: [2000, 5000],
@@ -266,27 +272,29 @@ async function waitForWikiWork(request: APIRequestContext, ids: readonly number[
   });
 }
 
-const TITLES = {
-  worker:
-    "real Pastes of an article and a GitHub repo are read, and their caller-sent Digests publish",
-  container:
-    "real Pastes of an article and a GitHub repo are read, and the Claude Code Provider writes a Digest",
-};
-
-test(TITLES[TARGET], async ({ request }) => {
-  await setUpOwner(request);
-
-  const pasted = await pasteLinks(request, TARGET === "worker");
-
-  if (TARGET === "worker") {
-    await Promise.all(pasted.map(({ id, digest }) => expectCallerDigest(request, id, digest)));
-
-    return;
-  }
-
-  await saveAndVerifyClaudeCode(request);
-  await waitForWikiWork(
+if (TARGET === "worker") {
+  test("real Pastes of an article and a GitHub repo are read, and their caller-sent Digests publish", async ({
     request,
-    pasted.map(({ id }) => id),
-  );
-});
+  }) => {
+    await setUpOwner(request);
+
+    await Promise.all(
+      [ARTICLE, REPOSITORY].map(async (paste) => {
+        const id = await pasteStep(request, paste, paste.digest);
+
+        await expectCallerDigest(request, id, paste.digest);
+      }),
+    );
+  });
+} else {
+  test("real Pastes of an article and a GitHub repo are read, and the Claude Code Provider writes a Digest", async ({
+    request,
+  }) => {
+    await setUpOwner(request);
+
+    const ids = await Promise.all([pasteStep(request, ARTICLE), pasteStep(request, REPOSITORY)]);
+
+    await saveAndVerifyClaudeCode(request);
+    await waitForWikiWork(request, ids);
+  });
+}

@@ -12,7 +12,7 @@ jobs:
   live-check:
     if: github.repository == 'KyaniteHQ/threadsift' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     environment: post-merge
     strategy:
       fail-fast: false

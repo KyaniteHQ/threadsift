@@ -20,33 +20,26 @@ const WORKER = [
   "umask 077",
   `mkdir -p ${STATE}`,
   `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > ${STATE}/env`,
-  `exec worker-local ${STATE}/state ${PORT} --test-scheduled --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
+  `exec worker-local ${STATE}/state ${PORT} --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
 ].join(" && ");
 
 const CONTAINER_RUN = `podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY`;
 
 const IMAGE = '"${THREADSIFT_IMAGE:?run through devenv tasks}"';
 
-const CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN";
+const INSTALL_CLAUDE_CODE =
+  "env -u CLAUDE_CODE_OAUTH_TOKEN -u SETUP_CODE -u THREADSIFT_SECRET_KEY npm install --global --min-release-age=3 @anthropic-ai/claude-code";
+
+const LIVE_CONTAINER = `exec ${CONTAINER_RUN} --env CLAUDE_CODE_OAUTH_TOKEN ${IMAGE} sh -c '${INSTALL_CLAUDE_CODE} && claude --version && exec node src/targets/node/index.ts'`;
 
 const LIVE = process.env["THREADSIFT_LIVE"] === "1";
 
-function liveContainer(): string {
-  if ((process.env[CLAUDE_TOKEN] ?? "") === "")
-    throw new Error(
-      `${CLAUDE_TOKEN} is empty: run \`claude setup-token\` and set the token it prints, from the owner's secret store locally and from a secret of the post-merge environment in CI`,
-    );
-
-  return `exec ${CONTAINER_RUN} --env ${CLAUDE_TOKEN} ${IMAGE} sh -c 'npm install --global @anthropic-ai/claude-code && exec node src/targets/node/index.ts'`;
-}
-
-function server(target: "worker" | "container") {
-  if (target === "worker") return { command: WORKER, timeout: 180_000 };
-
-  return LIVE
-    ? { command: liveContainer(), timeout: 180_000 }
-    : { command: `exec ${CONTAINER_RUN} ${IMAGE}`, timeout: 60_000 };
-}
+const SERVERS = {
+  worker: { command: WORKER, timeout: 180_000 },
+  container: LIVE
+    ? { command: LIVE_CONTAINER, timeout: 180_000 }
+    : { command: `exec ${CONTAINER_RUN} ${IMAGE}`, timeout: 60_000 },
+};
 
 export default defineConfig({
   testDir: "smoke",
@@ -65,7 +58,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    ...server(TARGET),
+    ...SERVERS[TARGET],
     url: `${BASE_URL}/api/session`,
     reuseExistingServer: false,
     gracefulShutdown: { signal: "SIGTERM", timeout: 15_000 },
