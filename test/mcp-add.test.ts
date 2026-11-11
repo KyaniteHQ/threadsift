@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { after, before, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import type { Client } from "@modelcontextprotocol/client";
 
@@ -143,13 +143,13 @@ describe("a failure inside a tool reaches the agent as a fixed Internal error wi
   let instance: Instance;
   let client: Client;
 
-  before(async () => {
+  beforeEach(async () => {
     instance = await Instance.start();
     await instance.setUp();
     client = await connectAgent(instance, await createAgentToken(instance, "mcp failure"));
   });
 
-  after(async () => {
+  afterEach(async () => {
     await client.close();
     await instance.close();
   });
@@ -164,6 +164,24 @@ describe("a failure inside a tool reaches the agent as a fixed Internal error wi
     const database = new DatabaseSync(instance.databaseFile);
 
     database.exec("alter table notes rename to notes_hidden");
+    database.close();
+
+    const answer = await client.callTool({ name: "read", arguments: { id: item.id } });
+
+    assert.equal(answer.isError, true);
+    assert.deepEqual(answer.content, [{ type: "text", text: "Internal error" }]);
+  });
+
+  it("hides the validation message when a stored value breaks the output schema", async () => {
+    const { item } = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
+      url: "https://x.com/someone/status/4000000002",
+    });
+
+    await instance.settledItem(item.id);
+
+    const database = new DatabaseSync(instance.databaseFile);
+
+    database.prepare("update items set normalized_url = 'not a url' where id = ?").run(item.id);
     database.close();
 
     const answer = await client.callTool({ name: "read", arguments: { id: item.id } });

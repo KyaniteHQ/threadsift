@@ -11,11 +11,7 @@ export interface McpEnv {
 
 const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-function isLoopbackHost(host: string): boolean {
-  const url = URL.parse(`http://${host}`);
-
-  return url !== null && url.host === host && LOOPBACK_HOSTNAMES.has(url.hostname);
-}
+const LOOPBACK_AUTHORITY = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/u;
 
 function isLoopbackOrigin(origin: string): boolean {
   const url = URL.parse(origin);
@@ -26,7 +22,7 @@ function isLoopbackOrigin(origin: string): boolean {
 function hostAllowed(publicHost: string | null, host: string): boolean {
   const lowered = host.toLowerCase();
 
-  return publicHost === null ? isLoopbackHost(lowered) : lowered === publicHost;
+  return publicHost === null ? LOOPBACK_AUTHORITY.test(lowered) : lowered === publicHost;
 }
 
 function originAllowed(publicOrigin: string | null, origin: string): boolean {

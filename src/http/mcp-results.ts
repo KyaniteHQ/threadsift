@@ -16,8 +16,11 @@ type Structured =
 const INTERNAL_ERROR = "Internal error";
 
 export function answered<Body extends Structured>(
+  outputSchema: z.ZodType,
   structuredContent: Readonly<Body>,
 ): CallToolResult {
+  outputSchema.parse(structuredContent);
+
   return {
     content: [{ type: "text", text: JSON.stringify(structuredContent) }],
     structuredContent,

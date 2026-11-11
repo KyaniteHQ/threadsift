@@ -20,7 +20,9 @@ export function registerReadTools(server: McpServer, ports: Ports): void {
       outputSchema: ItemReadResponseSchema,
       annotations: { readOnlyHint: true },
     },
-    guarded("search", async (query) => answered(await readItemPage(ports, query))),
+    guarded("search", async (query) =>
+      answered(ItemReadResponseSchema, await readItemPage(ports, query)),
+    ),
   );
 
   server.registerTool(
@@ -36,7 +38,7 @@ export function registerReadTools(server: McpServer, ports: Ports): void {
     guarded("read", async ({ id }) => {
       const read = await readItem(ports, id);
 
-      return read === undefined ? refused(NOT_FOUND) : answered(read);
+      return read === undefined ? refused(NOT_FOUND) : answered(ItemDetailResponseSchema, read);
     }),
   );
 }

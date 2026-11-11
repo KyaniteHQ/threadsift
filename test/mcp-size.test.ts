@@ -54,17 +54,25 @@ describe("/mcp takes at most 64 KiB of request, whether or not the request says 
   const itemTotal = async (): Promise<number | undefined> =>
     (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total;
 
-  const post = (body: BodyInit) => mcpRequest(instance, { headers: bearer(token), body });
+  const declared = (text: string) =>
+    new Request(MCP_URL, {
+      method: "POST",
+      headers: mcpHeaders({
+        ...bearer(token),
+        "content-length": String(new TextEncoder().encode(text).length),
+      }),
+      body: text,
+    });
 
-  const postStream = (body: ReadableStream<Uint8Array>) => {
+  const streamed = (text: string, chunkBytes: number) => {
     const init = {
       method: "POST",
       headers: mcpHeaders(bearer(token)),
-      body,
+      body: chunked(text, chunkBytes),
       duplex: "half",
     };
 
-    return instance.fetch(new Request(MCP_URL, init));
+    return new Request(MCP_URL, init);
   };
 
   before(async () => {
@@ -76,9 +84,9 @@ describe("/mcp takes at most 64 KiB of request, whether or not the request says 
   after(() => instance.close());
 
   it("serves a body of exactly 64 KiB and answers 413 to one byte more", async () => {
-    assert.equal((await post(sizedSearch(BODY_LIMIT))).status, 200);
+    assert.equal((await instance.fetch(declared(sizedSearch(BODY_LIMIT)))).status, 200);
 
-    const over = await post(sizedSearch(BODY_LIMIT + 1));
+    const over = await instance.fetch(declared(sizedSearch(BODY_LIMIT + 1)));
 
     assert.equal(over.status, 413);
     assert.match(await over.text(), /64 KiB/u);
@@ -92,8 +100,13 @@ describe("/mcp takes at most 64 KiB of request, whether or not the request says 
       padding: "a".repeat(BODY_LIMIT),
     });
 
-    assert.equal((await postStream(chunked(text, 4096))).status, 413);
-    assert.equal((await post(text)).status, 413);
+    const withLength = declared(text);
+    const withoutLength = streamed(text, 4096);
+
+    assert.equal(withLength.headers.get("content-length"), String(text.length));
+    assert.equal(withoutLength.headers.has("content-length"), false);
+    assert.equal((await instance.fetch(withLength)).status, 413);
+    assert.equal((await instance.fetch(withoutLength)).status, 413);
     assert.equal(await itemTotal(), totalBefore);
   });
 
@@ -105,7 +118,10 @@ describe("/mcp takes at most 64 KiB of request, whether or not the request says 
       padding: "a".repeat(1000),
     });
 
-    assert.equal((await postStream(chunked(text, 100))).status, 200);
+    const request = streamed(text, 100);
+
+    assert.equal(request.headers.has("content-length"), false);
+    assert.equal((await instance.fetch(request)).status, 200);
     assert.equal(await itemTotal(), (totalBefore ?? 0) + 1);
   });
 

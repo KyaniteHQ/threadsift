@@ -32,7 +32,10 @@ export function registerAddTool(server: McpServer, ports: Ports): void {
 
       if (saved.kind !== "saved") throw new Error(`Paste answered ${saved.kind} without content`);
 
-      return answered({ item: itemView(saved.item), url: itemPath(saved.item.id) });
+      return answered(SavedItemResponseSchema, {
+        item: itemView(saved.item),
+        url: itemPath(saved.item.id),
+      });
     }),
   );
 }

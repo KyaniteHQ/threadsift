@@ -71,6 +71,45 @@ describe("/mcp refuses a Host or Origin that is not the Instance's own, whatever
     );
   });
 
+  it("accepts a loopback Host that spells out port 80", async () => {
+    const hosts = ["localhost:80", "127.0.0.1:80", "[::1]:80"];
+
+    const answers = await Promise.all(
+      hosts.map(
+        async (host) =>
+          (await mcpRequest(local, { headers: { ...bearer(localToken), host } })).status,
+      ),
+    );
+
+    assert.deepEqual(answers, [200, 200, 200]);
+  });
+
+  it("refuses a Host that carries credentials, a path, a query, a fragment or a bad port", async () => {
+    const hosts = [
+      "user@localhost",
+      "localhost:80@evil.example",
+      "localhost/evil",
+      "localhost?x=1",
+      "localhost#x",
+      "localhost:",
+      "localhost:80:80",
+      "localhost:123456",
+      "localhost:abc",
+    ];
+
+    const answers = await Promise.all(
+      hosts.map(
+        async (host) =>
+          (await mcpRequest(local, { headers: { ...bearer(localToken), host } })).status,
+      ),
+    );
+
+    assert.deepEqual(
+      answers,
+      hosts.map(() => 403),
+    );
+  });
+
   it("refuses a Host that is not loopback, with no Origin and with a matching attacker Origin", async () => {
     const hosts = [
       "http://evil.example/mcp",
