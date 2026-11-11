@@ -4,8 +4,12 @@ import { z } from "zod";
 import type { Database } from "./ports.ts";
 import { imports } from "./schema.ts";
 
+export const ImportNameSchema = z
+  .string()
+  .regex(/^[\w.-]{1,64}$/u, "1 to 64 letters, digits, `.`, `_` and `-`");
+
 export const ImportSchema = z.object({
-  name: z.string().regex(/^[\w.-]{1,64}$/u, "1 to 64 letters, digits, `.`, `_` and `-`"),
+  name: ImportNameSchema,
   cursor: z.string().min(1).max(256),
 });
 

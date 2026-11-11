@@ -1,7 +1,12 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import { type BatchEntry, pasteBatch } from "../core/batch-paste.ts";
-import { ImportStateSchema, readImport, saveImport } from "../core/import-cursor.ts";
+import {
+  ImportNameSchema,
+  ImportStateSchema,
+  readImport,
+  saveImport,
+} from "../core/import-cursor.ts";
 import { itemPath } from "../core/item-path.ts";
 import type { Ports } from "../core/ports.ts";
 import { BATCH_LINKS_MAX, BatchRequestSchema, BatchResponseSchema } from "./batch-schemas.ts";
@@ -38,7 +43,7 @@ const getImportRoute = createRoute({
   method: "get",
   path: "/api/imports/{name}",
   request: {
-    params: z.object({ name: BatchRequestSchema.shape.import.unwrap().shape.name }),
+    params: z.object({ name: ImportNameSchema }),
   },
   responses: {
     200: jsonBody(

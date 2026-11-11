@@ -4,12 +4,11 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { ImportStateSchema } from "../src/core/import-cursor.ts";
 import { BatchResponseSchema } from "../src/http/batch-schemas.ts";
 import { ErrorResponseSchema } from "../src/http/schemas.ts";
 import { Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-
-const ImportStateSchema = z.object({ name: z.string(), cursor: z.string(), updatedAt: z.number() });
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;
 
