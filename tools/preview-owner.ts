@@ -10,6 +10,7 @@ import { CommandFailure } from "./command-failure.ts";
 const demoLinks = [
   "https://stephango.com/saw",
   "https://matklad.github.io/2023/10/12/lsp-could-have-been-better.html",
+  "https://matklad.github.io/2022/04/25/why-lsp.html",
   "https://example.com/",
 ];
 

@@ -6,6 +6,7 @@ import { readArticle } from "../src/core/article.ts";
 import { CATALOG_KEY_EXPANSION_MAX, CATALOG_KEY_MAX } from "../src/core/catalog-key-limit.ts";
 import { catalogKey } from "../src/core/catalog.ts";
 import { parseRedditThread } from "../src/core/reddit-json.ts";
+import { relatedPickTask } from "../src/core/related-task.ts";
 import { overviewLine } from "../src/core/topic-overview-contract.ts";
 
 const PARAGRAPH =
@@ -221,5 +222,44 @@ describe("the catalog key limit covers the longest key a Topic name can make", (
 
   it("holds the key of a longest name made of the worst character", () => {
     assert.equal(catalogKey("\uFDFA".repeat(240)).length, CATALOG_KEY_MAX);
+  });
+});
+
+const SENT = [11, 12, 13, 14, 15, 16];
+
+function accepts(picks: readonly Readonly<{ item: number; reason: string }>[]): boolean {
+  return relatedPickTask(SENT).schema.safeParse({ picks }).success;
+}
+
+function pick(item: number, reason = "Both cover the same backup command.") {
+  return { item, reason };
+}
+
+describe("the related pick result takes at most 5 picks of sent Items, once each, with one plain line", () => {
+  it("takes zero picks and up to 5 picks of sent Items", () => {
+    assert.equal(accepts([]), true);
+    assert.equal(accepts(SENT.slice(0, 5).map((item) => pick(item))), true);
+  });
+
+  it("refuses 6 picks, a repeated Item, an Item that was not sent and the source Item", () => {
+    assert.equal(accepts(SENT.map((item) => pick(item))), false);
+    assert.equal(accepts([pick(11), pick(11)]), false);
+    assert.equal(accepts([pick(99)]), false);
+    assert.equal(accepts([pick(1)]), false);
+  });
+
+  it("takes a reason of 160 characters and refuses 161, an empty one and one that trims to nothing", () => {
+    assert.equal(accepts([pick(11, "r".repeat(160))]), true);
+    assert.equal(accepts([pick(11, "r".repeat(161))]), false);
+    assert.equal(accepts([pick(11, "")]), false);
+    assert.equal(accepts([pick(11, "  \t ")]), false);
+  });
+
+  it("trims a reason and refuses brackets, braces, quotation marks and line breaks in it", () => {
+    assert.equal(accepts([pick(11, "  A padded reason.  ")]), true);
+
+    for (const text of ["a [b]", "a {b}", 'a "b"', "a\nb", "a\rb", "a [", "a }"]) {
+      assert.equal(accepts([pick(11, text)]), false, text);
+    }
   });
 });

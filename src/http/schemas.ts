@@ -10,11 +10,12 @@ import {
   FAILURE_REASONS,
   KINDS,
   READ_STATES,
+  SETUP_CODE_STATUSES,
   SOURCES,
   WAIT_REASONS,
 } from "../core/kinds.ts";
 import { NoteViewSchema } from "../core/note-contract.ts";
-import { SETUP_CODE_STATUSES } from "../core/setup-code.ts";
+import { RelatedSchema } from "../core/related-contract.ts";
 import { ItemImageSchema, SizedImageSchema } from "./item-image.ts";
 
 export const HttpUrlSchema = z.url({ protocol: /^https?$/u });
@@ -89,6 +90,7 @@ const ItemDetailSchema = withStatus(
     comments: CommentsViewSchema,
     highlights: HighlightsViewSchema,
     note: NoteViewSchema,
+    related: RelatedSchema,
   }),
 );
 

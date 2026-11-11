@@ -4,6 +4,7 @@ import { POST_KEY } from "./highlight-target.ts";
 import { PostTextView } from "./post-text-module.ts";
 import { PostTextBoundary } from "./PostTextBoundary.tsx";
 import { FILL_NOTE, NO_POST_TEXT, NO_README, SECTION_TITLES, archiveNote } from "./reader-text.ts";
+import { Related } from "./Related.tsx";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
 import { CARD_TITLES, TOKEN_REFUSED, WAITING } from "./text.ts";
@@ -67,6 +68,7 @@ export function Original({
         ) : null}
         <Comments item={item} detail={detail} />
       </PostTextBoundary>
+      <Related entries={detail.related} />
     </>
   );
 }

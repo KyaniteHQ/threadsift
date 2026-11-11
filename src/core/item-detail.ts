@@ -1,14 +1,10 @@
-import { asc, eq, sql } from "drizzle-orm";
-
 import { type ReaderDigest, parseStoredDigest } from "./ai-contract.ts";
-import { highlightRows, highlightsViewOf } from "./highlights.ts";
-import { DETAIL_COLUMNS, selectItems } from "./item-selection.ts";
-import { noteRows, noteViewOf } from "./notes.ts";
+import { detailReads } from "./detail-reads.ts";
+import { highlightsViewOf } from "./highlights.ts";
+import { noteViewOf } from "./notes.ts";
 import type { Ports } from "./ports.ts";
-import { postTextOf, sizedImageRows, sizedImagesOf } from "./post-text.ts";
-import { REPOSITORY_COLUMNS } from "./repositories.ts";
-import { digests, githubRepos, itemTags, items, tags } from "./schema.ts";
-import { commentsOf, threadReads } from "./thread-read.ts";
+import { postTextOf, sizedImagesOf } from "./post-text.ts";
+import { commentsOf } from "./thread-read.ts";
 
 function readerDigest(
   id: number,
@@ -35,25 +31,18 @@ export async function getItem(ports: Readonly<Pick<Ports, "db" | "files">>, id: 
 }
 
 async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
-  const [[row], [stored], tagRows, [repository], threadRows, threadReport, held, [note], sizes] =
-    await db.batch([
-      selectItems(db, {
-        ...DETAIL_COLUMNS,
-        revision: sql<number>`${items.generation}`.as("post_revision"),
-      }).where(eq(items.id, id)),
-      db.select({ digest: digests.digest }).from(digests).where(eq(digests.itemId, id)),
-      db
-        .select({ name: tags.name })
-        .from(itemTags)
-        .innerJoin(tags, eq(tags.id, itemTags.tagId))
-        .where(eq(itemTags.itemId, id))
-        .orderBy(asc(sql`${itemTags}.rowid`)),
-      db.select(REPOSITORY_COLUMNS).from(githubRepos).where(eq(githubRepos.itemId, id)),
-      ...threadReads(db, id),
-      highlightRows(db, id),
-      noteRows(db, id),
-      sizedImageRows(db, id),
-    ]);
+  const [
+    [row],
+    [stored],
+    tagRows,
+    [repository],
+    threadRows,
+    threadReport,
+    held,
+    [note],
+    sizes,
+    related,
+  ] = await detailReads(db, id);
 
   if (row === undefined) {
     return row;
@@ -80,6 +69,7 @@ async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id
         comments: threadReport[0]?.generation ?? null,
       }),
       note: noteViewOf(note),
+      related,
     },
   };
 }

@@ -17,7 +17,11 @@ const ARTICLE_LINK = "https://www.sqlite.org/whentouse.html";
 
 const REPOSITORY_LINK = "https://github.com/KyaniteHQ/threadsift";
 
+const SECOND_ARTICLE_LINK = "https://www.sqlite.org/wal.html";
+
 const DIGEST_WAIT_MS = 300_000;
+
+const RELATED_WAIT_MS = 180_000;
 
 const SCHEDULED_ROUTE = "/cdn-cgi/local/scheduled";
 
@@ -93,6 +97,21 @@ async function overviewText(request: APIRequestContext, topic: string): Promise<
   expect(answer.status(), `the Topic page of ${topic}`).toBe(200);
 
   return TopicPageSchema.parse(await answer.json()).overview.text;
+}
+
+async function relatedIds(
+  request: APIRequestContext,
+  ids: readonly number[],
+): Promise<readonly number[]> {
+  const lists = await Promise.all(
+    ids.map(async (id) => {
+      const answer = await request.get(`/api/items/${String(id)}`);
+
+      return ItemDetailResponseSchema.parse(await answer.json()).item.related;
+    }),
+  );
+
+  return lists.flat().map((entry) => entry.id);
 }
 
 async function fireScheduledHandler(request: APIRequestContext): Promise<void> {
@@ -186,5 +205,24 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
         },
       )
       .not.toBeNull();
+  });
+
+  await test.step("Paste a second article on the same subject and wait for a Related Item", async () => {
+    ids.push(await pasteAndSettle(request, SECOND_ARTICLE_LINK));
+
+    await expect
+      .poll(
+        async () => {
+          await fireScheduledHandler(request);
+
+          return (await relatedIds(request, ids)).length;
+        },
+        {
+          message: "an Item of the two same-subject articles lists a Related Item",
+          timeout: RELATED_WAIT_MS,
+          intervals: [2000, 5000],
+        },
+      )
+      .toBeGreaterThan(0);
   });
 });
