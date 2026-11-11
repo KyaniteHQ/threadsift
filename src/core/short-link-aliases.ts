@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
-import { guardHolds, itemAliases, items } from "./schema.ts";
+import { guardHolds, holdsNoRow, itemAliases, items } from "./schema.ts";
 
 const holder = alias(items, "holder");
 const rival = alias(itemAliases, "rival");
@@ -31,12 +31,7 @@ export async function aliasedItem(
 }
 
 export function holdsNoAlias(db: Database, shortLink: string) {
-  return notExists(
-    db
-      .select({ one: sql`1` })
-      .from(itemAliases)
-      .where(eq(itemAliases.normalizedUrl, shortLink)),
-  );
+  return holdsNoRow(db, itemAliases, eq(itemAliases.normalizedUrl, shortLink));
 }
 
 export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }: Readonly<Link>) {
@@ -53,7 +48,7 @@ export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }:
   );
 }
 
-export async function unlessAliased<Written>(
+export async function unlessRefused<Written>(
   db: Database,
   condition: Readonly<SQLWrapper>,
   write: () => Promise<Written>,

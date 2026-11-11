@@ -1,12 +1,8 @@
-import { eq } from "drizzle-orm";
-
 import type { Digest } from "./ai-contract.ts";
-import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
-import { isRedditShareLink, isShortLink, parseLink } from "./links.ts";
-import { paste } from "./paste.ts";
-import type { Database, Ports } from "./ports.ts";
-import { items } from "./schema.ts";
-import { aliasedItem } from "./short-link-aliases.ts";
+import { dataStepsFinished } from "./data-steps.ts";
+import type { ListedItemRow } from "./item-selection.ts";
+import type { Ports } from "./ports.ts";
+import { saveItem } from "./save-link.ts";
 
 export interface BatchLink {
   readonly url: string;
@@ -21,38 +17,17 @@ export type BatchPaste =
   | { readonly kind: "done"; readonly entries: readonly BatchEntry[] }
   | { readonly kind: "updating" };
 
-async function heldItem(db: Database, absoluteUrl: string): Promise<ListedItemRow | undefined> {
-  const { normalizedUrl } = parseLink(absoluteUrl);
-
-  const alias =
-    isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)
-      ? await aliasedItem(db, normalizedUrl)
-      : undefined;
-
-  const [held] = await selectItems(db, LISTED_COLUMNS).where(
-    eq(items.normalizedUrl, alias?.normalizedUrl ?? normalizedUrl),
-  );
-
-  return held;
-}
-
-async function pasteNew(
+async function pasteOne(
   ports: Ports,
   { url, digest }: Readonly<BatchLink>,
 ): Promise<BatchEntry | null> {
-  const held = await heldItem(ports.db, url);
+  if (!(await dataStepsFinished(ports.db))) return null;
 
-  if (held !== undefined) return { outcome: "known", item: held };
+  const saved = await saveItem(ports, url, digest, "keep");
 
-  const saved = await paste(ports, url, { digest });
-
-  if (saved.kind === "updating") return null;
-
-  if (saved.kind === "refused") return { outcome: "refused", url };
-
-  if (saved.kind !== "saved") throw new Error(`Paste answered ${saved.kind} without content`);
-
-  return { outcome: saved.created ? "added" : "known", item: saved.item };
+  return saved.kind === "refused"
+    ? { outcome: "refused", url }
+    : { outcome: saved.created ? "added" : "known", item: saved.item };
 }
 
 export async function pasteBatch(ports: Ports, links: readonly BatchLink[]): Promise<BatchPaste> {
@@ -60,7 +35,7 @@ export async function pasteBatch(ports: Ports, links: readonly BatchLink[]): Pro
 
   for (const link of links) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Links are saved one after the other, in the order given.
-    const entry = await pasteNew(ports, link);
+    const entry = await pasteOne(ports, link);
 
     if (entry === null) return { kind: "updating" };
 

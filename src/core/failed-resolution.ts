@@ -2,13 +2,13 @@ import { type SQLWrapper, and, eq, notExists } from "drizzle-orm";
 
 import type { Concluded } from "./details.ts";
 import { EMPTY_JOINED_VIEW, LISTED_COLUMNS, selectItems } from "./item-selection.ts";
-import { type SaveResult, foundItem, itemAt } from "./items.ts";
+import { type Existing, type SaveResult, foundItem, itemAt } from "./items.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { guards, insertGuard, items } from "./schema.ts";
 import { settle } from "./settle.ts";
-import { holdsNoAlias, unlessAliased } from "./short-link-aliases.ts";
+import { holdsNoAlias, unlessRefused } from "./short-link-aliases.ts";
 
 interface Failure {
   readonly address: string;
@@ -68,19 +68,25 @@ async function refreshedFailure(
   return { kind: "saved", item: foundItem(item, normalizedUrl), created: false };
 }
 
+async function keptFailure(db: Database, { normalizedUrl }: Readonly<Link>): Promise<SaveResult> {
+  return { kind: "saved", item: await itemAt(db, normalizedUrl), created: false };
+}
+
 export function saveFailedResolution(
   db: Database,
   address: string,
   link: Readonly<Link>,
   fetched: Readonly<Concluded>,
+  existing: Existing,
 ): Promise<SaveResult | null> {
   const noAlias = holdsNoAlias(db, link.normalizedUrl);
   const failure = { address, link, fetched, now: Date.now() };
 
-  return unlessAliased(
+  return unlessRefused(
     db,
     noAlias,
     async () =>
-      (await insertedFailure(db, noAlias, failure)) ?? refreshedFailure(db, noAlias, failure),
+      (await insertedFailure(db, noAlias, failure)) ??
+      (existing === "keep" ? keptFailure(db, link) : refreshedFailure(db, noAlias, failure)),
   );
 }

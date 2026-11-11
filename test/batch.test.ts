@@ -9,8 +9,12 @@ import { BatchResponseSchema } from "../src/http/batch-schemas.ts";
 import { ErrorResponseSchema } from "../src/http/schemas.ts";
 import { Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
+import { DIGEST } from "./mcp-fixtures.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;
+
+const placed = (result: z.infer<typeof BatchResponseSchema>["results"][number]): string =>
+  "item" in result ? result.item.normalizedUrl : result.url;
 
 const links = (total: number) =>
   Array.from({ length: total }, (_, index) => ({ url: xLink(3100000000 + index) }));
@@ -34,6 +38,24 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     }
   };
 
+  const pendingSummary = (itemId: number): string | undefined => {
+    const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
+
+    try {
+      const row = z
+        .object({ pending: z.string().nullable() })
+        .parse(
+          database.prepare("select pending_digest as pending from items where id = ?").get(itemId),
+        );
+
+      return row.pending === null
+        ? undefined
+        : z.object({ summary: z.string() }).parse(JSON.parse(row.pending)).summary;
+    } finally {
+      database.close();
+    }
+  };
+
   const importOf = async (name: string) => {
     const answer = await instance.send("GET", `/api/imports/${name}`);
 
@@ -51,42 +73,67 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
 
   after(() => instance.close());
 
-  it("answers each link in order, then answers known for the repeat of the same call without opening a job", async () => {
+  it("answers each link in the order sent, and answers known, with no refresh, for the repeat of a settled call", async () => {
+    const sent = [xLink(3000000001), "http://localhost/private", xLink(3000000002)];
+
     const body = {
-      links: [
-        { url: xLink(3000000001) },
-        { url: "http://localhost/private" },
-        { url: xLink(3000000002) },
-      ],
+      links: sent.map((url) => ({ url })),
       import: { name: "x-bookmarks", cursor: "3000000002" },
     };
 
     const first = BatchResponseSchema.parse(JSON.parse((await batch(body)).body));
 
+    assert.deepEqual(first.results.map(placed), [
+      "https://x.com/i/status/3000000001",
+      "http://localhost/private",
+      "https://x.com/i/status/3000000002",
+    ]);
     assert.deepEqual(
       first.results.map((result) => result.outcome),
       ["added", "refused", "added"],
     );
-    assert.deepEqual(first.results[1], { url: "http://localhost/private", outcome: "refused" });
     assert.deepEqual(first.import, body.import);
+
+    for (const result of first.results) {
+      if ("item" in result) {
+        assert.equal(result.url, `/items/${String(result.item.id)}`);
+        // oxlint-disable-next-line eslint/no-await-in-loop -- one settle after another keeps the poll light.
+        await instance.settledItem(result.item.id);
+      }
+    }
 
     const jobsBefore = count("jobs");
     const itemsBefore = count("items");
-    const again = BatchResponseSchema.parse(JSON.parse((await batch(body)).body));
 
+    const repeated = {
+      ...body,
+      links: [
+        { url: sent[0] ?? "", digest: { ...DIGEST, summary: "Late digest.\nSecond line." } },
+        ...body.links.slice(1),
+      ],
+    };
+
+    const again = BatchResponseSchema.parse(JSON.parse((await batch(repeated)).body));
+
+    assert.deepEqual(again.results.map(placed), first.results.map(placed));
     assert.deepEqual(
       again.results.map((result) => result.outcome),
       ["known", "refused", "known"],
     );
-    assert.deepEqual(
-      again.results.map((result) => ("item" in result ? result.item.id : null)),
-      first.results.map((result) => ("item" in result ? result.item.id : null)),
-    );
+
+    for (const result of again.results) {
+      if ("item" in result) assert.equal(result.item.status, "ready");
+    }
+
+    const [firstItem] = first.results;
+
+    assert.ok(firstItem && "item" in firstItem);
+    assert.equal(pendingSummary(firstItem.item.id), undefined);
     assert.equal(count("jobs"), jobsBefore);
     assert.equal(count("items"), itemsBefore);
   });
 
-  it("saves the cursor after the last link and reads it back, and a call without import leaves it alone", async () => {
+  it("reads the cursor back, and a call without import leaves it alone", async () => {
     const saved = await importOf("x-bookmarks");
 
     assert.equal(saved.state?.cursor, "3000000002");
@@ -167,6 +214,35 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
 
     assert.equal(results.length, 100);
     assert.ok(results.every((result) => result.outcome === "added"));
+  });
+
+  it("keeps the Digest and the one job of the call that added a link when two calls send it at once", async () => {
+    const link = xLink(3400000001);
+
+    const sentBy = (summary: string) => ({
+      links: [{ url: link, digest: { ...DIGEST, summary } }],
+    });
+
+    const summaries = ["Digest of call one.\nSecond line.", "Digest of call two.\nSecond line."];
+    const jobsBefore = count("jobs");
+
+    const answers = await Promise.all(summaries.map((summary) => batch(sentBy(summary))));
+
+    const results = answers.map((answer) => BatchResponseSchema.parse(JSON.parse(answer.body)));
+
+    const [winner] = results.flatMap(({ results: [result] }, index) =>
+      result?.outcome === "added" && "item" in result ? [{ index, id: result.item.id }] : [],
+    );
+
+    assert.deepEqual(
+      results
+        .map(({ results: [result] }) => result?.outcome)
+        .toSorted((left, right) => String(left).localeCompare(String(right))),
+      ["added", "known"],
+    );
+    assert.ok(winner);
+    assert.equal(count("jobs"), jobsBefore + 1);
+    assert.ok([summaries[winner.index], undefined].includes(pendingSummary(winner.id)));
   });
 
   it("works with an agent token and answers 401 with no credentials", async () => {
