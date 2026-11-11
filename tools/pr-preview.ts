@@ -172,14 +172,16 @@ async function close(): Promise<void> {
     });
 }
 
-function recreateForeignDatabase(): void {
+async function recreateForeignDatabase(): Promise<void> {
   if (!databaseExists() || !hasForeignMigrations(wrangler, ["--remote"], join(root, "migrations")))
     return;
 
-  console.log(`${name}-db holds migrations this build lacks; recreating the preview database`);
+  console.log(`${name}-db has migrations this build lacks; recreating it and its bucket contents`);
+
+  if (await previewResourceExists("bucket", `${name}-files`))
+    await removePreviewBucket(`${name}-files`);
   wrangler(["d1", "delete", `${name}-db`, "--skip-confirmation"]);
   wrangler(["d1", "create", `${name}-db`]);
-
   writeFileSync(
     configPath,
     JSON.stringify({
@@ -217,7 +219,7 @@ async function deploy(): Promise<void> {
       recovery:
         "Set PREVIEW_SETUP_CODE to at least 16 characters and DEMO_OWNER_PASSWORD to at least 15 in the preview environment.",
     });
-  recreateForeignDatabase();
+  await recreateForeignDatabase();
 
   wrangler(["deploy", "--keep-vars"]);
 
