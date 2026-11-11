@@ -58,6 +58,7 @@ export const JOB_KINDS = [
   "topic_overview",
   "related_pick",
   "proposals",
+  "topic_proposals",
 ] as const;
 
 export const SETUP_CODE_STATUSES = ["missing", "short", "set"] as const;
@@ -100,7 +101,7 @@ export type LogAction = (typeof LOG_ACTIONS)[number];
 
 export const PIN_KINDS = ["tag-merge"] as const;
 
-export const PROPOSAL_KINDS = ["tag-merge"] as const;
+export const PROPOSAL_KINDS = ["tag-merge", "topic-merge"] as const;
 
 export const PROPOSAL_STATES = ["open", "accepting", "rejected", "declined"] as const;
 
