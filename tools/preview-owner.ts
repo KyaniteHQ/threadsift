@@ -3,7 +3,6 @@ import { setTimeout } from "node:timers/promises";
 import { type APIRequestContext, request } from "@playwright/test";
 import { z } from "zod";
 
-import { AiSaveResponseSchema, AiSettingsViewSchema } from "../src/core/ai-contract.ts";
 import { ItemListResponseSchema } from "../src/http/schemas.ts";
 import { CommandFailure } from "./command-failure.ts";
 
@@ -14,43 +13,27 @@ const demoLinks = [
   "https://example.com/",
 ];
 
-const demoProvider = {
-  provider: "workers-ai",
-  model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-} as const;
-
 const READ_ATTEMPTS = 11;
 const READ_PAUSE_MS = 5000;
 
-type Api = Readonly<Pick<APIRequestContext, "get" | "post" | "put">>;
+type Api = Readonly<Pick<APIRequestContext, "get" | "post">>;
 
-interface Read<Schema extends z.ZodType> {
-  readonly path: string;
-  readonly params: Readonly<Record<string, string>>;
-  readonly schema: Schema;
-  readonly reason: string;
-}
-
-async function read<Schema extends z.ZodType>(
-  api: Api,
-  target: Readonly<Read<Schema>>,
-  attempt = 1,
-): Promise<z.infer<Schema>> {
-  const response = await api.get(target.path, { params: target.params });
+async function demoItemCount(api: Api, url: string, attempt = 1): Promise<number> {
+  const response = await api.get("/api/items", { params: { url } });
   const status = response.status();
 
-  if (status === 200) return target.schema.parse(await response.json());
+  if (status === 200) return ItemListResponseSchema.parse(await response.json()).items.length;
 
   if (attempt < READ_ATTEMPTS && (status === 404 || status >= 500)) {
     await setTimeout(READ_PAUSE_MS);
 
-    return read(api, target, attempt + 1);
+    return demoItemCount(api, url, attempt + 1);
   }
 
   throw new CommandFailure({
     kind: "http",
     status,
-    reason: target.reason,
+    reason: "Preview demo inventory failed",
     recovery: "Check the preview HTTP API and rerun deploy.",
   });
 }
@@ -83,41 +66,10 @@ async function openOwner(api: Api): Promise<void> {
     });
 }
 
-async function saveDemoProvider(api: Api): Promise<void> {
-  const { settings } = await read(api, {
-    path: "/api/settings/ai",
-    params: {},
-    schema: AiSettingsViewSchema,
-    reason: "Preview Provider lookup failed",
-  });
-
-  if (settings !== null) return;
-
-  const saved = await api.put("/api/settings/ai", { data: demoProvider });
-
-  if (saved.status() !== 200 || "kind" in AiSaveResponseSchema.parse(await saved.json()))
-    throw new CommandFailure({
-      kind: "http",
-      status: saved.status(),
-      reason: "Preview Provider save failed",
-      recovery:
-        "Check that the preview Worker has the AI binding and rerun deploy; a Provider set by hand is kept.",
-    });
-}
-
 async function seedDemo(api: Api): Promise<void> {
-  await saveDemoProvider(api);
-
   await Promise.all(
     demoLinks.map(async (url) => {
-      const { items } = await read(api, {
-        path: "/api/items",
-        params: { url },
-        schema: ItemListResponseSchema,
-        reason: "Preview demo inventory failed",
-      });
-
-      if (items.length > 0) return;
+      if ((await demoItemCount(api, url)) > 0) return;
 
       const saved = await api.post("/api/items", { data: { url } });
 

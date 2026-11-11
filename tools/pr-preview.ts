@@ -82,7 +82,6 @@ const config = {
     { binding: "DB", database_name: `${name}-db`, migrations_dir: join(root, "migrations") },
   ],
   r2_buckets: [{ binding: "FILES", bucket_name: `${name}-files` }],
-  ai: { binding: "AI" },
   queues: {
     producers: [{ binding: "JOBS", queue: `${name}-jobs` }],
     consumers: [{ queue: `${name}-jobs`, max_batch_size: 1 }],
