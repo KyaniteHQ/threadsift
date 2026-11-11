@@ -19,16 +19,34 @@ const WORKER = [
   `rm -rf ${STATE}`,
   "umask 077",
   `mkdir -p ${STATE}`,
-  `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\nTHREADSIFT_OPENROUTER_MAX_PRICE_ZERO=true\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > ${STATE}/env`,
+  `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > ${STATE}/env`,
   `exec worker-local ${STATE}/state ${PORT} --test-scheduled --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
 ].join(" && ");
 
-const CONTAINER = `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY --env THREADSIFT_OPENROUTER_MAX_PRICE_ZERO=true "\${THREADSIFT_IMAGE:?run through devenv tasks}"`;
+const CONTAINER_RUN = `podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY`;
 
-const SERVERS = {
-  worker: { command: WORKER, timeout: 180_000 },
-  container: { command: CONTAINER, timeout: 60_000 },
-};
+const IMAGE = '"${THREADSIFT_IMAGE:?run through devenv tasks}"';
+
+const CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN";
+
+const LIVE = process.env["THREADSIFT_LIVE"] === "1";
+
+function liveContainer(): string {
+  if ((process.env[CLAUDE_TOKEN] ?? "") === "")
+    throw new Error(
+      `${CLAUDE_TOKEN} is empty: run \`claude setup-token\` and set the token it prints, from the owner's secret store locally and from a secret of the post-merge environment in CI`,
+    );
+
+  return `exec ${CONTAINER_RUN} --env ${CLAUDE_TOKEN} ${IMAGE} sh -c 'npm install --global @anthropic-ai/claude-code && exec node src/targets/node/index.ts'`;
+}
+
+function server(target: "worker" | "container") {
+  if (target === "worker") return { command: WORKER, timeout: 180_000 };
+
+  return LIVE
+    ? { command: liveContainer(), timeout: 180_000 }
+    : { command: `exec ${CONTAINER_RUN} ${IMAGE}`, timeout: 60_000 };
+}
 
 export default defineConfig({
   testDir: "smoke",
@@ -47,7 +65,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    ...SERVERS[TARGET],
+    ...server(TARGET),
     url: `${BASE_URL}/api/session`,
     reuseExistingServer: false,
     gracefulShutdown: { signal: "SIGTERM", timeout: 15_000 },

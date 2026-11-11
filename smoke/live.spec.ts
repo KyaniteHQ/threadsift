@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { AiSaveResponseSchema, PROVIDERS } from "../src/core/ai-contract.ts";
+import { AiSaveResponseSchema, DigestSchema } from "../src/core/ai-contract.ts";
 import { catalogKey } from "../src/core/catalog.ts";
 import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/topic-path.ts";
@@ -10,7 +10,6 @@ import {
   ItemResponseSchema,
   SavedItemResponseSchema,
 } from "../src/http/schemas.ts";
-import { checkFreeModel } from "./openrouter-pricing.ts";
 
 const PASSWORD = "a live check password of fifteen or more";
 
@@ -24,28 +23,38 @@ const DIGEST_WAIT_MS = 300_000;
 
 const RELATED_WAIT_MS = 300_000;
 
-const SCHEDULED_ROUTE = "/cdn-cgi/local/scheduled";
-
 const TARGET = z.enum(["worker", "container"]).parse(process.env["THREADSIFT_TARGET"]);
 
 const SETUP_CODE = z.string().min(16).parse(process.env["SETUP_CODE"]);
 
 const GITHUB_TOKEN = z.string().optional().parse(process.env["GITHUB_TOKEN"]);
 
-function requiredEnv(name: string, hint: string): string {
-  const value = process.env[name];
+const ARTICLE_DIGEST = DigestSchema.parse({
+  title: "When to use SQLite",
+  topic: "SQLite",
+  tags: ["database", "embedded"],
+  summary:
+    "SQLite suits devices, websites and files that applications share.\nIt gives way to client-server databases under heavy concurrent writes.",
+  keyPoints: ["Embedded devices and application files are a good fit"],
+  keptComments: [],
+});
 
-  if (value === undefined || value === "") throw new Error(`${name} is empty: ${hint}`);
+const REPOSITORY_DIGEST = DigestSchema.parse({
+  title: "Threadsift, a reading library",
+  topic: "Reading tools",
+  tags: ["library", "self-hosted"],
+  summary:
+    "Threadsift keeps the useful parts of saved links and grows a small wiki of the library.\nThe owner reads everything on one page.",
+  keyPoints: ["One owner runs one Instance"],
+  keptComments: [],
+});
 
-  return value;
-}
-
-const MODEL = PROVIDERS.openrouter.fields.model.parse(
-  requiredEnv("OPENROUTER_MODEL", "set it to a zero-priced OpenRouter text model"),
-);
-
-async function pasteAndSettle(request: APIRequestContext, url: string): Promise<number> {
-  const saved = await request.post("/api/items", { data: { url } });
+async function pasteAndSettle(
+  request: APIRequestContext,
+  url: string,
+  digest?: z.infer<typeof DigestSchema>,
+): Promise<number> {
+  const saved = await request.post("/api/items", { data: { url, digest } });
 
   expect(saved.status(), `Paste of ${url}`).toBe(201);
 
@@ -116,26 +125,7 @@ async function itemIdle(request: APIRequestContext, id: number): Promise<boolean
   return ItemResponseSchema.parse(await status.json()).item.status !== "processing";
 }
 
-async function fireScheduledHandler(request: APIRequestContext): Promise<void> {
-  if (TARGET !== "worker") return;
-
-  const fired = await request.get(SCHEDULED_ROUTE);
-
-  expect(fired.status(), "the scheduled handler runs").toBe(200);
-}
-
-test("real Pastes of an article and a GitHub repo are read, and the OpenRouter Provider writes a Digest", async ({
-  request,
-}) => {
-  const ids: number[] = [];
-  let second = 0;
-
-  await test.step("check the OpenRouter model's price", async () => {
-    await checkFreeModel(request, MODEL);
-  });
-
-  const key = requiredEnv("OPENROUTER_API_KEY", "add it as a secret of the post-merge environment");
-
+async function setUpOwner(request: APIRequestContext): Promise<void> {
   await test.step("set up the owner", async () => {
     const created = await request.post("/api/setup", {
       data: { code: SETUP_CODE, password: PASSWORD },
@@ -151,6 +141,46 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
 
     expect(await saved.json()).toEqual({ token: "saved", secretReady: true });
   });
+}
+
+async function expectCallerDigest(
+  request: APIRequestContext,
+  id: number,
+  sent: z.infer<typeof DigestSchema>,
+): Promise<void> {
+  const answer = await request.get(`/api/items/${String(id)}`);
+  const { item } = ItemDetailResponseSchema.parse(await answer.json());
+
+  expect(
+    { topic: item.digestTopic, digest: item.digest },
+    "the caller-sent Digest published with its Topic and Tags",
+  ).toEqual({
+    topic: sent.topic,
+    digest: { summary: sent.summary, keyPoints: sent.keyPoints, tags: sent.tags },
+  });
+}
+
+async function runWorkerCheck(request: APIRequestContext): Promise<void> {
+  await setUpOwner(request);
+
+  await test.step("Paste an article page with a Digest and read it", async () => {
+    const id = await pasteAndSettle(request, ARTICLE_LINK, ARTICLE_DIGEST);
+
+    await expectCallerDigest(request, id, ARTICLE_DIGEST);
+  });
+
+  await test.step("Paste a GitHub repo with a Digest and read it", async () => {
+    const id = await pasteAndSettle(request, REPOSITORY_LINK, REPOSITORY_DIGEST);
+
+    await expectCallerDigest(request, id, REPOSITORY_DIGEST);
+  });
+}
+
+async function runContainerCheck(request: APIRequestContext): Promise<void> {
+  const ids: number[] = [];
+  let second = 0;
+
+  await setUpOwner(request);
 
   await test.step("Paste an article page and read it", async () => {
     ids.push(await pasteAndSettle(request, ARTICLE_LINK));
@@ -160,31 +190,24 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
     ids.push(await pasteAndSettle(request, REPOSITORY_LINK));
   });
 
-  await test.step("save the OpenRouter Provider", async () => {
+  await test.step("save the Claude Code Provider", async () => {
     const saved = await request.put("/api/settings/ai", {
-      data: { provider: "openrouter", model: MODEL, key },
+      data: { provider: "claude-code", model: "" },
     });
 
     expect(saved.status()).toBe(200);
     expect(AiSaveResponseSchema.parse(await saved.json())).toMatchObject({
-      settings: { provider: "openrouter", model: MODEL, keySet: true },
+      settings: { provider: "claude-code" },
     });
   });
 
   await test.step("wait for one real Digest", async () => {
     await expect
-      .poll(
-        async () => {
-          await fireScheduledHandler(request);
-
-          return digestStates(request, ids);
-        },
-        {
-          message: "one of the two Items holds a Digest",
-          timeout: DIGEST_WAIT_MS,
-          intervals: [2000, 5000],
-        },
-      )
+      .poll(() => digestStates(request, ids), {
+        message: "one of the two Items holds a Digest",
+        timeout: DIGEST_WAIT_MS,
+        intervals: [2000, 5000],
+      })
       .toContain("digest");
   });
 
@@ -194,18 +217,11 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
     expect(topic, "a Digest names a Topic").not.toBeNull();
 
     await expect
-      .poll(
-        async () => {
-          await fireScheduledHandler(request);
-
-          return overviewText(request, topic ?? "");
-        },
-        {
-          message: "the Topic page holds a written overview",
-          timeout: DIGEST_WAIT_MS,
-          intervals: [2000, 5000],
-        },
-      )
+      .poll(() => overviewText(request, topic ?? ""), {
+        message: "the Topic page holds a written overview",
+        timeout: DIGEST_WAIT_MS,
+        intervals: [2000, 5000],
+      })
       .not.toBeNull();
   });
 
@@ -213,18 +229,11 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
     second = await pasteAndSettle(request, SECOND_ARTICLE_LINK);
 
     await expect
-      .poll(
-        async () => {
-          await fireScheduledHandler(request);
-
-          return digestStates(request, [second]);
-        },
-        {
-          message: "the second article holds a Digest",
-          timeout: DIGEST_WAIT_MS,
-          intervals: [2000, 5000],
-        },
-      )
+      .poll(() => digestStates(request, [second]), {
+        message: "the second article holds a Digest",
+        timeout: DIGEST_WAIT_MS,
+        intervals: [2000, 5000],
+      })
       .toContain("digest");
   });
 
@@ -232,18 +241,11 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
     const [first] = ids;
 
     await expect
-      .poll(
-        async () => {
-          await fireScheduledHandler(request);
-
-          return itemIdle(request, first ?? 0);
-        },
-        {
-          message: "the first article has no open job",
-          timeout: DIGEST_WAIT_MS,
-          intervals: [2000, 5000],
-        },
-      )
+      .poll(() => itemIdle(request, first ?? 0), {
+        message: "the first article has no open job",
+        timeout: DIGEST_WAIT_MS,
+        intervals: [2000, 5000],
+      })
       .toBe(true);
 
     const queued = await request.post(`/api/items/${String(first)}/digest`);
@@ -251,18 +253,20 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
     expect(queued.status()).toBe(200);
 
     await expect
-      .poll(
-        async () => {
-          await fireScheduledHandler(request);
-
-          return relatedOf(request, first ?? 0);
-        },
-        {
-          message: "the first article lists the second article as a Related Item",
-          timeout: RELATED_WAIT_MS,
-          intervals: [2000, 5000],
-        },
-      )
+      .poll(() => relatedOf(request, first ?? 0), {
+        message: "the first article lists the second article as a Related Item",
+        timeout: RELATED_WAIT_MS,
+        intervals: [2000, 5000],
+      })
       .toContain(second);
   });
-});
+}
+
+test(
+  TARGET === "worker"
+    ? "real Pastes of an article and a GitHub repo are read, and their caller-sent Digests publish"
+    : "real Pastes of an article and a GitHub repo are read, and the Claude Code Provider writes a Digest",
+  async ({ request }) => {
+    await (TARGET === "worker" ? runWorkerCheck(request) : runContainerCheck(request));
+  },
+);

@@ -220,7 +220,7 @@ in
       ];
       exec = ''
         ${checkoutEnv}
-        THREADSIFT_TARGET=container pnpm exec playwright test --project=live
+        THREADSIFT_LIVE=1 THREADSIFT_TARGET=container pnpm exec playwright test --project=live
       '';
     };
   };
