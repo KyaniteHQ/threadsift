@@ -7,7 +7,11 @@ import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
 
 import { CommandFailure } from "./command-failure.ts";
-import { previewResourceExists, removePreviewBucket } from "./preview-cloudflare.ts";
+import {
+  drainDeletedWorker,
+  previewResourceExists,
+  removePreviewBucket,
+} from "./preview-cloudflare.ts";
 import { hasForeignMigrations } from "./preview-migrations.ts";
 import { provisionPreviewOwner } from "./preview-owner.ts";
 
@@ -114,16 +118,12 @@ function wrangler(args: readonly string[], input?: string): string {
   return result.stdout;
 }
 
-function databaseId(): string | undefined {
+function databaseExists(): boolean {
   const databases = z
-    .array(z.object({ name: z.string(), uuid: z.string() }))
+    .array(z.object({ name: z.string() }))
     .parse(JSON.parse(wrangler(["d1", "list", "--json"])));
 
-  return databases.find((database) => database.name === `${name}-db`)?.uuid;
-}
-
-function databaseExists(): boolean {
-  return databaseId() !== undefined;
+  return databases.some((database) => database.name === `${name}-db`);
 }
 
 async function detachConsumer(): Promise<void> {
@@ -143,11 +143,13 @@ async function detachConsumer(): Promise<void> {
     wrangler(["queues", "consumer", "remove", `${name}-jobs`, name]);
 }
 
-async function close(): Promise<void> {
+async function stopWorker(): Promise<void> {
   await detachConsumer();
 
   if (await previewResourceExists("worker", name)) wrangler(["delete", "--name", name]);
+}
 
+async function removeStorage(): Promise<void> {
   if (await previewResourceExists("queue", `${name}-jobs`))
     wrangler(["queues", "delete", `${name}-jobs`]);
 
@@ -172,24 +174,19 @@ async function close(): Promise<void> {
     });
 }
 
-async function recreateForeignDatabase(): Promise<void> {
+async function close(): Promise<void> {
+  await stopWorker();
+  await removeStorage();
+}
+
+async function resetForeignHistory(): Promise<void> {
   if (!databaseExists() || !hasForeignMigrations(wrangler, ["--remote"], join(root, "migrations")))
     return;
 
-  console.log(`${name}-db has migrations this build lacks; recreating it and its bucket contents`);
-
-  if (await previewResourceExists("bucket", `${name}-files`))
-    await removePreviewBucket(`${name}-files`);
-  wrangler(["d1", "delete", `${name}-db`, "--skip-confirmation"]);
-  wrangler(["d1", "create", `${name}-db`]);
-  writeFileSync(
-    configPath,
-    JSON.stringify({
-      ...config,
-      d1_databases: [{ ...config.d1_databases[0], database_id: z.string().parse(databaseId()) }],
-    }),
-    { mode: 0o600 },
-  );
+  console.log(`${name}-db has migrations this build lacks; deleting the preview to deploy it anew`);
+  await stopWorker();
+  await drainDeletedWorker();
+  await removeStorage();
 }
 
 function initializeSecrets(): void {
@@ -219,7 +216,7 @@ async function deploy(): Promise<void> {
       recovery:
         "Set PREVIEW_SETUP_CODE to at least 16 characters and DEMO_OWNER_PASSWORD to at least 15 in the preview environment.",
     });
-  await recreateForeignDatabase();
+  await resetForeignHistory();
 
   wrangler(["deploy", "--keep-vars"]);
 

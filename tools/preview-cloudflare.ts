@@ -2,6 +2,7 @@ import { setTimeout } from "node:timers/promises";
 
 import { z } from "zod";
 
+import { FETCH_DEADLINE_MS } from "../src/core/fetch-link.ts";
 import { CommandFailure } from "./command-failure.ts";
 
 const Job = z.object({
@@ -11,6 +12,12 @@ const Job = z.object({
     status: z.enum(["ENQUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]),
   }),
 });
+
+const WORKER_DRAIN_MS = FETCH_DEADLINE_MS + 30_000;
+
+export async function drainDeletedWorker(): Promise<void> {
+  await setTimeout(WORKER_DRAIN_MS);
+}
 
 export async function removePreviewBucket(bucket: string): Promise<void> {
   z.string()
