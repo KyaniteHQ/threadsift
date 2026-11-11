@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { chooseCandidateLink } from "../src/core/candidate-link.ts";
 import {
   type CommentCandidate,
   DIGEST_INPUT_BYTES,
@@ -10,7 +11,6 @@ import {
   digestPrompt,
   utf8Length,
 } from "../src/core/digest-prompt.ts";
-import { hopTarget } from "../src/core/hop-link.ts";
 
 const NO_CATALOG = { topics: [], tags: [] };
 
@@ -159,31 +159,37 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
 describe("the link chooser picks the one link the Digest may follow", () => {
   it("reads inline, reference and automatic links of the post text, in order", () => {
     assert.equal(
-      hopTarget({
+      chooseCandidateLink({
         url: null,
         text: "See [a][ref] and <https://auto.example.org/x>\n\n[ref]: https://ref.example.org/y",
       }),
       "https://ref.example.org/y",
     );
     assert.equal(
-      hopTarget({ url: null, text: "Just text then https://bare.example.net/z." }),
+      chooseCandidateLink({ url: null, text: "Just text then https://bare.example.net/z." }),
       "https://bare.example.net/z",
     );
   });
 
   it("prefers the target of a link post over the post text, and skips it when it fails the rules", () => {
     assert.equal(
-      hopTarget({ url: "https://a.example.com/", text: "https://b.example.com/" }),
+      chooseCandidateLink({ url: "https://a.example.com/", text: "https://b.example.com/" }),
       "https://a.example.com/",
     );
     assert.equal(
-      hopTarget({ url: "https://www.youtube.com/watch?v=1", text: "https://b.example.com/" }),
+      chooseCandidateLink({
+        url: "https://www.youtube.com/watch?v=1",
+        text: "https://b.example.com/",
+      }),
       "https://b.example.com/",
     );
-    assert.equal(hopTarget({ url: "https://old.reddit.com/r/x/", text: null }), null);
+    assert.equal(chooseCandidateLink({ url: "https://old.reddit.com/r/x/", text: null }), null);
   });
 
   it("refuses a link longer than 4,096 bytes", () => {
-    assert.equal(hopTarget({ url: `https://example.com/${"a".repeat(4100)}`, text: null }), null);
+    assert.equal(
+      chooseCandidateLink({ url: `https://example.com/${"a".repeat(4100)}`, text: null }),
+      null,
+    );
   });
 });

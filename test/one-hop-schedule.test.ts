@@ -8,7 +8,9 @@ import {
   SECRET_KEY,
   UNREACHABLE,
   addressOf,
+  hopLines,
   toolsOf,
+  warningsDuring,
   withoutComments,
 } from "./one-hop-fixtures.ts";
 
@@ -37,15 +39,22 @@ describe("saving a Provider schedules an Item whose only source is a candidate",
     await instance.settledItem(linked.item.id);
     await instance.settledItem(bare.item.id);
 
-    const saved = await instance.send("PUT", "/api/settings/ai", {
-      provider: "openai-compatible",
-      baseUrl: "http://127.0.0.1:9/v1",
-      model: "a-model",
-      key: "a-key-for-a-provider-that-is-never-called",
+    const { warnings, value: saved } = await warningsDuring(async () => {
+      const answer = await instance.send("PUT", "/api/settings/ai", {
+        provider: "openai-compatible",
+        baseUrl: "http://127.0.0.1:9/v1",
+        model: "a-model",
+        key: "a-key-for-a-provider-that-is-never-called",
+      });
+
+      await instance.settledItem(linked.item.id);
+
+      return answer;
     });
 
     assert.equal(saved.status, 200);
     assert.equal(SavedSettingsSchema.parse(JSON.parse(saved.body)).settings.keySet, true);
+    assert.equal(hopLines(warnings).length, 1);
     assert.equal((await instance.settledItem(linked.item.id)).status, "ready");
     assert.deepEqual(tools.digestJobs(linked.item.id), [{ state: "done", attempts: 0 }]);
     assert.deepEqual(tools.digestJobs(bare.item.id), []);

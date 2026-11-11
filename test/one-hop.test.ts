@@ -10,6 +10,8 @@ import {
   postOf,
   threadOf,
   toolsOf,
+  hopLines,
+  warningsDuring,
   withoutComments,
 } from "./one-hop-fixtures.ts";
 
@@ -115,7 +117,7 @@ describe("a Reddit post that links to a page stores one candidate link for the D
     assert.deepEqual(tools.candidates(first.item.id), []);
   });
 
-  it("counts a candidate as a Digest source: the retry opens a job that ends as empty input with no attempt and no AI task", async () => {
+  it("counts a candidate as a Digest source: with no Provider saved the retry opens a job that makes no hop and ends as empty input with no attempt and no AI task", async () => {
     const { item } = await tools.paste(
       addressOf("only1"),
       withoutComments("only1", { url: UNREACHABLE }),
@@ -124,8 +126,9 @@ describe("a Reddit post that links to a page stores one candidate link for the D
     assert.equal((await instance.settledItem(item.id)).status, "ready");
     assert.deepEqual(tools.digestJobs(item.id), []);
 
-    const settled = await tools.askForDigest(item.id);
+    const { warnings, value: settled } = await warningsDuring(() => tools.askForDigest(item.id));
 
+    assert.deepEqual(hopLines(warnings), []);
     assert.equal(settled.status, "ready");
     assert.equal(settled.digestOutcome, "none");
     assert.deepEqual(tools.digestJobs(item.id), [{ state: "done", attempts: 0 }]);
@@ -167,31 +170,18 @@ describe("a Reddit post that links to a page stores one candidate link for the D
   });
 
   it("publishes a caller-sent Digest without a model call and without a hop", async () => {
-    const warnings: string[] = [];
-    const warn = console.warn;
-
-    console.warn = (line: string) => {
-      warnings.push(line);
-    };
-
-    try {
+    const { warnings, value: caller } = await warningsDuring(async () => {
       const { item } = await tools.paste(
         addressOf("caller1"),
         threadOf("caller1", { url: UNREACHABLE, selftext: "Some text." }),
         DIGEST,
       );
 
-      const settled = await instance.settledItem(item.id);
+      return { id: item.id, settled: await instance.settledItem(item.id) };
+    });
 
-      assert.equal(settled.digestTitle, DIGEST.title);
-      assert.deepEqual(tools.aiTasks(item.id), [{ executor: "caller" }]);
-    } finally {
-      console.warn = warn;
-    }
-
-    assert.equal(
-      warnings.some((line) => line.includes('"digest-hop"')),
-      false,
-    );
+    assert.equal(caller.settled.digestTitle, DIGEST.title);
+    assert.deepEqual(tools.aiTasks(caller.id), [{ executor: "caller" }]);
+    assert.deepEqual(hopLines(warnings), []);
   });
 });

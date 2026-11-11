@@ -1,4 +1,5 @@
 import { AI_DEADLINE_MS } from "./ai-contract.ts";
+import { loadAiConfig } from "./ai-settings.ts";
 import type { Fetched } from "./details.ts";
 import { type LinkedPage, cutDigestInput } from "./digest-prompt.ts";
 import { type DigestInput, staleOutcome } from "./digest-source.ts";
@@ -101,7 +102,9 @@ export async function hoppedPage(
   job: Readonly<ClaimedJob>,
   item: Readonly<DigestInput>,
 ): Promise<{ readonly page: HopPage } | { readonly outcome: JobOutcome }> {
-  if (item.linkedUrl === null) return { page: null };
+  if (item.linkedUrl === null || (await loadAiConfig(ports)).state !== "ready") {
+    return { page: null };
+  }
 
   const page = await linkedPageOf(ports, job, item);
   const stale = await staleOutcome(ports.db, item);

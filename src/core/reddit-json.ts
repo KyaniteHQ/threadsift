@@ -1,6 +1,6 @@
+import { chooseCandidateLink } from "./candidate-link.ts";
 import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
-import { hopTarget } from "./hop-link.ts";
 import type { RedditRef } from "./links.ts";
 import {
   type Walked,
@@ -101,7 +101,7 @@ function ofPost(post: Readonly<WirePost>, walked: readonly Walked[]): ParsedThre
     postText,
     postedAt: milliseconds(post.created_utc),
     reported: post.num_comments ?? null,
-    linkedUrl: hopTarget({ url: post.url ?? null, text: postText }),
+    linkedUrl: chooseCandidateLink({ url: post.url ?? null, text: postText }),
     nodes: nodesOf(walked, 0, `t3_${post.id}`),
   };
 }

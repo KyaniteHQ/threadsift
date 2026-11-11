@@ -131,3 +131,23 @@ export function toolsOf(instance: Instance) {
 
   return { paste, stored, candidates, digestJobs, aiTasks, askForDigest };
 }
+
+export async function warningsDuring<Value>(
+  run: () => Promise<Value>,
+): Promise<{ readonly warnings: readonly string[]; readonly value: Value }> {
+  const warnings: string[] = [];
+  const warn = console.warn;
+
+  console.warn = (line: string) => {
+    warnings.push(line);
+  };
+
+  try {
+    return { warnings, value: await run() };
+  } finally {
+    console.warn = warn;
+  }
+}
+
+export const hopLines = (warnings: readonly string[]) =>
+  warnings.filter((line) => line.includes('"digest-hop"'));

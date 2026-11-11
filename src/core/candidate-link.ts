@@ -3,7 +3,7 @@ import { fits } from "./image-download.ts";
 import { hostOf, isRedditOrXLink, isRefusedLink, isVideoLink } from "./links.ts";
 import { scanMarkdown } from "./markdown-images.ts";
 
-export interface HopPost {
+interface CandidatePost {
   readonly url: string | null;
   readonly text: string | null;
 }
@@ -28,6 +28,6 @@ function firstTarget(addresses: readonly (string | null)[]): string | null {
   return null;
 }
 
-export function hopTarget({ url, text }: Readonly<HopPost>): string | null {
+export function chooseCandidateLink({ url, text }: Readonly<CandidatePost>): string | null {
   return firstTarget([url]) ?? (text === null ? null : firstTarget(scanMarkdown(text, true).links));
 }
