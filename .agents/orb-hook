@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+hook_dir="$(git config --global --path --get core.hooksPath || git config --system --path --get core.hooksPath || true)"
+if [[ -z "$hook_dir" ]]; then
+  exit 0
+fi
+if [[ "$hook_dir" != /* ]]; then
+  hook_dir="$PWD/$hook_dir"
+fi
+
+hook="$hook_dir/${0##*/}"
+hook="${hook%.legacy}"
+if [[ -f "$hook" && -x "$hook" && ! "$hook" -ef "$0" ]]; then
+  exec "$hook" "$@"
+fi

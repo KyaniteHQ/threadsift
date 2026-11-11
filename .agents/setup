@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+cd "$root"
+
+run_step() {
+  local label=$1 start=$SECONDS
+  shift
+  printf '\n==> %s\n' "$label"
+  "$@"
+  printf '==> %s completed in %ss\n' "$label" "$((SECONDS - start))"
+}
+
+install_system_packages() {
+  local -a packages=()
+  command -v curl >/dev/null || packages+=(curl ca-certificates)
+  command -v jq >/dev/null || packages+=(jq)
+  command -v xz >/dev/null || packages+=(xz-utils)
+  if ((${#packages[@]})); then
+    sudo -n apt-get update
+    sudo -n apt-get install -y "${packages[@]}"
+  fi
+}
+
+install_nix() {
+  local nix_profile="$HOME/.nix-profile/etc/profile.d/nix.sh"
+  if ! command -v nix >/dev/null && [[ -f "$nix_profile" ]]; then
+    source "$nix_profile"
+  fi
+  if ! command -v nix >/dev/null; then
+    curl -fsSL https://releases.nixos.org/nix/nix-2.35.3/install |
+      sh -s -- --no-daemon --yes --no-channel-add --no-modify-profile
+    source "$nix_profile"
+  fi
+  if [[ "${NIX_CONFIG:-}" != *'extra-experimental-features = nix-command flakes'* ]]; then
+    export NIX_CONFIG="${NIX_CONFIG:+${NIX_CONFIG}$'\n'}extra-experimental-features = nix-command flakes"
+  fi
+}
+
+install_devenv() {
+  local profile="$HOME/.local/state/nix/profiles/threadsift-devenv"
+  local locked installed=''
+  locked="$(jq -er '.nodes[.nodes.root.inputs.nixpkgs].locked | select(.type == "github" and .owner and .repo and .rev) | "github:\(.owner)/\(.repo)/\(.rev)"' devenv.lock)"
+  mkdir -p "$(dirname -- "$profile")"
+  if [[ -e "$profile" ]]; then
+    installed="$(nix profile list --profile "$profile" --json | jq -r '.elements.devenv.originalUrl // empty')"
+  fi
+  if [[ "$installed" != "$locked" || ! -x "$profile/bin/devenv" ]]; then
+    if [[ -n "$installed" ]]; then
+      nix profile remove --profile "$profile" devenv
+    fi
+    nix profile add --profile "$profile" "$locked#devenv"
+  fi
+  export PATH="$profile/bin:$PATH"
+}
+
+enable_login_shell() {
+  local environment="$root/.agents/orb-env.sh" line
+  if [[ ! -f "$HOME/.bash_profile" ]]; then
+    if [[ -f "$HOME/.bash_login" ]]; then
+      printf 'source "$HOME/.bash_login"\n' >> "$HOME/.bash_profile"
+    elif [[ -f "$HOME/.profile" ]]; then
+      printf 'source "$HOME/.profile"\n' >> "$HOME/.bash_profile"
+    fi
+  fi
+  printf -v line 'if [[ -f %q ]]; then source %q; fi' "$environment" "$environment"
+  if ! grep -Fqx -- "$line" "$HOME/.bash_profile" 2>/dev/null; then
+    printf '\n%s\n' "$line" >> "$HOME/.bash_profile"
+  fi
+}
+
+run_step 'Install system prerequisites' install_system_packages
+run_step 'Prepare Nix' install_nix
+run_step 'Install locked devenv' install_devenv
+run_step 'Preserve inherited Git hooks' "$root/.agents/resume"
+run_step 'Install the development shell and dependencies' devenv --no-tui tasks run ci:install --show-output
+run_step 'Install repository Git hooks' devenv --no-tui tasks run devenv:git-hooks:install --show-output
+run_step 'Enable the development shell in login shells' enable_login_shell

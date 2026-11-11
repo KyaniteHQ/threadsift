@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+cd "$root"
+
+hooks_dir="$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
+hook_bridge="$root/.agents/orb-hook"
+scope="$(git config --show-scope --get core.hooksPath | cut -f1 || true)"
+bridge="$(git config --local --bool --get threadsift.orbHookBridge || true)"
+
+case "$scope" in
+  local|worktree)
+    if [[ "$bridge" != true || "$(git config --path --get core.hooksPath)" != "$hooks_dir" ]]; then
+      exit 0
+    fi
+    ;;
+  ''|global|system) ;;
+  *)
+    printf 'Cannot preserve Git hooks configured in %s scope\n' "$scope" >&2
+    exit 1
+    ;;
+esac
+
+mkdir -p "$hooks_dir"
+inherited="$(git config --global --path --get core.hooksPath || git config --system --path --get core.hooksPath || true)"
+if [[ -n "$inherited" && "$inherited" != /* ]]; then
+  inherited="$root/$inherited"
+fi
+
+if [[ -n "$inherited" && -d "$inherited" && ! "$inherited" -ef "$hooks_dir" ]]; then
+  for hook in "$inherited"/*; do
+    [[ -f "$hook" && -x "$hook" ]] || continue
+    name="${hook##*/}"
+    case "$name" in
+      *.sample|*.legacy) continue ;;
+      pre-commit|pre-push)
+        if [[ "$bridge" != true && ( -e "$hooks_dir/$name" || -L "$hooks_dir/$name" ) ]]; then
+          printf 'Cannot combine inherited Git hook with %s\n' "$hooks_dir/$name" >&2
+          exit 1
+        fi
+        destination="$hooks_dir/$name.legacy"
+        ;;
+      *) destination="$hooks_dir/$name" ;;
+    esac
+    if [[ "$hook_bridge" -ef "$destination" ]]; then
+      continue
+    fi
+    if [[ -e "$destination" || -L "$destination" ]]; then
+      printf 'Cannot preserve inherited Git hook: %s already exists\n' "$destination" >&2
+      exit 1
+    fi
+    ln -s -- "$hook_bridge" "$destination"
+  done
+fi
+
+if [[ "$scope" != local && "$scope" != worktree ]]; then
+  git config --local threadsift.orbHookBridge true
+  git config --local core.hooksPath "$hooks_dir"
+fi
