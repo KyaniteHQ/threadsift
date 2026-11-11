@@ -1,13 +1,6 @@
-import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
-
 import { z } from "zod";
 
-import type { JobWrites } from "../src/core/job-outcome.ts";
 import { type LogEntry, LogPageSchema } from "../src/core/log-contract.ts";
-import type { Database } from "../src/core/ports.ts";
-import { guards } from "../src/core/schema.ts";
-import { openDatabase } from "../src/targets/node/database.ts";
 import type { Instance } from "./instance.ts";
 import { type Fixture, exec, paste, rows } from "./related-fixtures.ts";
 
@@ -51,28 +44,6 @@ export function seedEntries(instance: Instance, count: number, at: number): void
 
 export { paste, type Fixture };
 
-export async function commit(db: Database, writes: JobWrites): Promise<void> {
-  const [first, ...rest] = writes;
-
-  if (first !== undefined) await db.batch([first, ...rest, db.delete(guards)]);
-}
-
-export function startTask(instance: Instance, itemId: number): number {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    const task = database
-      .prepare(
-        "insert into ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state, item_id) values ('digest', '', 0, 'caller', 1, ?, 'running', ?) returning id",
-      )
-      .get(Date.now() + 60_000, itemId);
-
-    return z.object({ id: z.number() }).parse(task).id;
-  } finally {
-    database.close();
-  }
-}
-
 export function entryCount(instance: Instance, action: string): number {
   return (
     rows(
@@ -82,8 +53,4 @@ export function entryCount(instance: Instance, action: string): number {
       action,
     )[0]?.n ?? 0
   );
-}
-
-export function openStored(instance: Instance) {
-  return openDatabase(instance.databaseFile, join(import.meta.dirname, "..", "migrations"));
 }

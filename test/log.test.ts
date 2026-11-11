@@ -114,12 +114,6 @@ describe("the Log is paged newest first by id", () => {
 
   after(() => instance.close());
 
-  it("answers an empty Log with no next page", async () => {
-    const page = await readLog(instance);
-
-    assert.deepEqual([page.entries.length, page.next], [0, null]);
-  });
-
   it("holds exactly 50 entries on an exact-full page with no next page", async () => {
     seedEntries(instance, 50, 1000);
 

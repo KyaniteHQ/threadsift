@@ -1,4 +1,4 @@
-import { type Browser, type Page, expect } from "@playwright/test";
+import { type Browser, type Locator, type Page, expect } from "@playwright/test";
 
 import { LogPageSchema } from "../src/core/log-contract.ts";
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
@@ -22,6 +22,8 @@ const MARKDOWN = Array.from(
 const LONG_TITLE =
   "A title that keeps going so the line has to wrap at the width of a phone and never scrolls sideways, with one very long word: " +
   "supercalifragilisticexpialidocious".repeat(2);
+
+const SHORT = { link: "https://example.com/guides/ai", name: "AI" };
 
 const LOGGED = {
   link: "https://example.com/guides/the-log",
@@ -67,6 +69,18 @@ async function expectNoSidewaysScroll(page: Page): Promise<void> {
   expect(overflow.column).toBeLessThanOrEqual(0);
 }
 
+async function expectTargets(page: Page, row: Locator): Promise<void> {
+  const links = await row.getByRole("link").all();
+  const boxes = await Promise.all(links.map((link) => link.boundingBox()));
+
+  expect(boxes).toHaveLength(2);
+
+  for (const box of boxes) {
+    expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
+    expect(box?.width).toBeGreaterThanOrEqual(TARGET_PX);
+  }
+}
+
 export async function logFlow(page: Page, browser: Browser): Promise<void> {
   const id = await save(page, LOGGED.link, {
     title: LONG_TITLE,
@@ -104,10 +118,12 @@ export async function logFlow(page: Page, browser: Browser): Promise<void> {
   await expect(rows(page).first()).toContainText("ingest");
   await expectNoSidewaysScroll(page);
 
-  const links = await rows(page).first().getByRole("link").all();
-  const boxes = await Promise.all(links.map((link) => link.boundingBox()));
+  await expectTargets(page, rows(page).first());
 
-  for (const box of boxes) expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
+  await save(page, SHORT.link, { title: SHORT.name, topic: SHORT.name, tags: [] });
+  await page.goto("/log");
+  await expect(rows(page).first()).toContainText(`ingest | ${SHORT.name} | topic: ${SHORT.name}`);
+  await expectTargets(page, rows(page).first());
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await signedOutVisit(browser);
@@ -133,7 +149,7 @@ async function deleteAndReload(page: Page, id: number): Promise<void> {
   await page.getByRole("button", { name: DELETE_CONFIRM }).click();
   await expect(page).not.toHaveURL(new RegExp(`/items/${String(id)}$`, "u"));
   await page.goto("/log");
-  await expect(rows(page).first()).toContainText(`topic | ${LOGGED.topic}`);
+  await expect(page.locator(".lg-line", { hasText: `topic | ${LOGGED.topic}` })).toHaveCount(1);
   await expect(page.locator(".lg-line", { hasText: LONG_TITLE })).toHaveCount(0);
 }
 
@@ -163,6 +179,8 @@ export async function failedLoadMore(page: Page): Promise<void> {
   await expect(page.getByText(LOG_PAGE.loadMoreFailed)).toBeVisible();
   await expect(rows(page)).toHaveCount(50);
   await page.context().setOffline(false);
-  await page.getByRole("button", { name: RETRY_LABEL }).click();
+  await page.getByRole("button", { name: RETRY_LABEL }).focus();
+  await page.keyboard.press("Enter");
   await expect(rows(page).nth(50)).toBeVisible();
+  await expect(rows(page).nth(50).getByRole("link").first()).toBeFocused();
 }

@@ -22,5 +22,7 @@
 .app[data-bp~="phone"] .lg-link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-block-size: var(--target);
+  min-inline-size: var(--target);
 }
