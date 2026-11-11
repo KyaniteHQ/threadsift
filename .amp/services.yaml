@@ -10,11 +10,11 @@ services:
     health: /
     portal:
       title: Threadsift
-      description: On a fresh library, read the setup code with `amp orb service logs api`.
+      description: 'On a fresh library, read the last "Setup code:" line with `amp orb service logs api`, then set a new password.'
   prototype:
     command: python3 -m http.server "$PORT" --bind 127.0.0.1
     cwd: design/prototype
     portal:
       url: /Main.dc.html
       title: Design prototype
-      description: Needs the gitignored data.json and img/ in design/prototype to show Items. Press T for Tweaks.
+      description: "Needs the owner's gitignored `data.json` and `img/` in `design/prototype` to show Items. Press T for Tweaks and Compare."
