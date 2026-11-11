@@ -38,18 +38,16 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
-      - &allow-userns
-        name: Allow unprivileged user namespaces for rootless Podman and Chromium
+      - name: Allow unprivileged user namespaces for rootless Podman and Chromium
         run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
-      - &layer-cache
-        id: layer-cache
+      - id: layer-cache
         if: matrix.target == 'container'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/layer-cache
           key: layer-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Containerfile', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'extension/package.json') }}
       - env:
-          THREADSIFT_LAYER_CACHE: &layer-cache-folder ${{ (github.event_name == 'push' || steps.layer-cache.outputs.cache-hit == 'true') && format('{0}/layer-cache', runner.temp) || '' }}
+          THREADSIFT_LAYER_CACHE: ${{ (github.event_name == 'push' || steps.layer-cache.outputs.cache-hit == 'true') && format('{0}/layer-cache', runner.temp) || '' }}
         run: devenv tasks run smoke:${{ matrix.target }} --show-output
       - if: matrix.target == 'container' && github.event_name == 'push' && steps.layer-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -120,25 +118,3 @@ jobs:
           url=$(jq --raw-output --slurp 'map(select(.type == "deploy")) | .[0].targets[0]' "$WRANGLER_OUTPUT_FILE_PATH")
           code=$(curl --silent --output /dev/null --write-out '%{http_code}' --fail --max-time 20 --retry 10 --retry-delay 5 --retry-all-errors "${url%/}/api/session")
           [ "$code" = 200 ]
-
-  live-check:
-    needs: gate
-    if: github.repository == 'KyaniteHQ/threadsift' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: post-merge
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [worker, container]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-devenv
-      - *allow-userns
-      - *layer-cache
-      - env:
-          THREADSIFT_LAYER_CACHE: *layer-cache-folder
-          GITHUB_TOKEN: ${{ github.token }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODEL: nvidia/nemotron-3.5-super-vl:free
-        run: devenv tasks run live:${{ matrix.target }} --show-output
