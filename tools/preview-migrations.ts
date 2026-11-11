@@ -19,7 +19,7 @@ export function rowNames(
 export function hasTable(
   run: (args: readonly string[]) => string,
   scope: readonly string[],
-  table: "d1_migrations" | "proposals",
+  table: "d1_migrations" | "pins" | "proposals",
 ): boolean {
   return (
     rowNames(
