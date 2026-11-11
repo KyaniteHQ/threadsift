@@ -248,7 +248,7 @@ async function deploy(): Promise<void> {
       reason: "Unexpected preview origin",
       recovery: "Inspect the Wrangler deployment target; no owner credential was sent.",
     });
-  await provisionPreviewOwner(url.origin);
+  await provisionPreviewOwner(url.origin, wrangler);
 }
 
 console.log(
