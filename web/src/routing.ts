@@ -12,12 +12,15 @@ export const IMPORT_PATH = "/import";
 
 export const INDEX_PATH = "/topics";
 
+export const LOG_PATH = "/log";
+
 export const RESET_PATH = "/reset";
 
 export interface Pages {
   readonly settings: () => void;
   readonly highlights: () => void;
   readonly index: () => void;
+  readonly log: () => void;
   readonly topic: (key: string) => void;
   readonly item: (id: number) => void;
   readonly import: () => void;
@@ -96,6 +99,9 @@ export function usePages(navigate: Route["navigate"]): Pages {
       },
       index: () => {
         navigate(INDEX_PATH);
+      },
+      log: () => {
+        navigate(LOG_PATH);
       },
       topic: (key) => {
         navigate(topicPath(key));

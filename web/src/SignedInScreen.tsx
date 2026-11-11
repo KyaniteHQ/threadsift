@@ -2,13 +2,13 @@ import { useCallback } from "react";
 
 import { HighlightsPage } from "./HighlightsPage.tsx";
 import { ImportPage } from "./ImportPage.tsx";
-import { IndexPage } from "./IndexPage.tsx";
 import { Library } from "./Library.tsx";
 import { type Route, usePages } from "./routing.ts";
 import type { SignedInState } from "./screens.ts";
 import { SettingsPage } from "./SettingsPage.tsx";
 import { TopicPage } from "./TopicPage.tsx";
 import type { Look } from "./use-root.ts";
+import { WikiPage } from "./WikiPage.tsx";
 
 export function SignedInScreen({
   screen,
@@ -44,7 +44,8 @@ export function SignedInScreen({
     case "import":
       return <ImportPage pages={pages} back={toLibrary} />;
     case "index":
-      return <IndexPage pages={pages} back={toLibrary} />;
+    case "log":
+      return <WikiPage name={screen.name} pages={pages} back={toLibrary} />;
     case "topic":
       return <TopicPage key={screen.key} topicKey={screen.key} route={route} back={toLibrary} />;
     case "library":

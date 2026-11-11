@@ -1,0 +1,38 @@
+.lg-row {
+  min-width: 0;
+  padding: var(--s3);
+  border-bottom: 1px solid var(--line);
+}
+.lg-row.it-ghost {
+  min-height: calc(var(--s6) * 2);
+}
+.lg-line {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-title);
+  line-height: var(--lh-ui);
+  overflow-wrap: anywhere;
+}
+.lg-date {
+  font-variant-numeric: tabular-nums;
+}
+.lg-link {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 0.2em;
+  overflow-wrap: anywhere;
+}
+.lg-link:hover {
+  text-decoration-color: var(--acc-ink);
+}
+.lg-link:focus-visible {
+  outline: 2px solid var(--acc-ink);
+  outline-offset: 2px;
+  border-radius: var(--r1);
+}
+.app[data-bp~="phone"] .lg-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target);
+}

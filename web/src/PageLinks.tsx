@@ -2,10 +2,12 @@ import { SETTINGS } from "./access-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { IMPORT } from "./import-text.ts";
 import { INDEX_PAGE } from "./index-text.ts";
+import { LOG_PAGE } from "./log-text.ts";
 import {
   HIGHLIGHTS_PATH,
   IMPORT_PATH,
   INDEX_PATH,
+  LOG_PATH,
   type Pages,
   SETTINGS_PATH,
   useInternalLink,
@@ -31,6 +33,7 @@ export function PageLinks({ pages }: Readonly<{ pages: Pages }>) {
       <PageLink path={HIGHLIGHTS_PATH} label={HIGHLIGHTS_PAGE.masthead} open={pages.highlights} />
       <PageLink path={IMPORT_PATH} label={IMPORT.settingsLink} open={pages.import} />
       <PageLink path={INDEX_PATH} label={INDEX_PAGE.masthead} open={pages.index} />
+      <PageLink path={LOG_PATH} label={LOG_PAGE.masthead} open={pages.log} />
       <PageLink path={SETTINGS_PATH} label={SETTINGS.instanceSettings} open={pages.settings} />
     </div>
   );

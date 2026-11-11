@@ -42,6 +42,7 @@ import "./row-list.css";
 import "./topic-page.css";
 import "./import-page.css";
 import "./index-page.css";
+import "./log-page.css";
 import "./quote-text.css";
 import "./related.css";
 import { StrictMode } from "react";

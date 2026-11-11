@@ -6,6 +6,7 @@ import { IMPORT, countLabel } from "../web/src/import-text.ts";
 import { INDEX_PAGE } from "../web/src/index-text.ts";
 import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
+import { failedLoadMore, logFlow } from "./log-flow.ts";
 import { readerWithoutProvider } from "./related-reader.ts";
 
 const PASSWORD = "a smoke password of fifteen or more";
@@ -66,6 +67,8 @@ const INDEXED_TOPIC: TopicCase = {
   summary: "The Index lists every Topic.",
   address: /\/topics\/indexing$/u,
 };
+
+const SMOKE_TIMEOUT_MS = 240_000;
 
 const PHONE = { width: 390, height: 844 };
 
@@ -258,10 +261,11 @@ async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
   expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
 }
 
-test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, and shows no Related Items without a Provider", async ({
+test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, lists the Digests it published on the Log, and shows no Related Items without a Provider", async ({
   page,
   browser,
 }) => {
+  test.setTimeout(SMOKE_TIMEOUT_MS);
   await test.step("set up the owner with the setup code", () => setUp(page));
   await test.step("sign out and sign in again", () => signOutAndIn(page));
   await test.step("paste an X link and find its Link-only row after a reload", () =>
@@ -278,6 +282,10 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     openTopicPage(page, DOTS_ONLY_TOPIC));
   await test.step("follow the settings panel's Index link, see a Topic with its count, open its page from the row, and visit the Index signed out", () =>
     openIndex(page, browser, INDEXED_TOPIC));
+  await test.step("follow the settings panel's Log link, see ingest above topic, open the Item and the Topic page, reload, see a phone-width line wrap, visit the Log signed out, and delete the Item", () =>
+    logFlow(page, browser));
+  await test.step("a failed Load more on the Log keeps its rows and Try again reads the next page", () =>
+    failedLoadMore(page));
   await test.step("a Pasted Item with a Digest and no Provider shows no Related Items section", () =>
     readerWithoutProvider(page, {
       topic: UNRELATED_TOPIC,

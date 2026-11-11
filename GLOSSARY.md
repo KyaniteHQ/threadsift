@@ -89,8 +89,12 @@ The page that lists every Topic with its Item count and overview line.
 _Avoid_: Home, dashboard, catalogue
 
 **Log**:
-The list of every agent action on the library, newest first.
+The list of the committed changes the agent made to the library, newest first, from the day the Instance began it.
 _Avoid_: History, activity feed, audit trail
+
+**Log entry**:
+One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision) or a `related` (a stored set of picks). It keeps the title and names as they were when the change committed.
+_Avoid_: Event, Audit record
 
 **Proposal**:
 A change the agent suggests on the weekly Proposals page, such as merging two Tags, which the owner accepts or rejects.

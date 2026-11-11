@@ -78,12 +78,12 @@ async function merge(db: Database, kind: CatalogKind, from: number): Promise<Adv
     return { writes: [], cursor: "rename:0" };
   }
 
-  const itemIds = await kind.linked(db, next.loser);
-  const emptied = itemIds.length < MERGE_ITEMS;
+  const moves = await kind.linked(db, next.loser);
+  const emptied = moves.itemIds.length < MERGE_ITEMS && moves.entryIds.length < MERGE_ITEMS;
 
   return {
     writes: [
-      ...kind.relink(db, next.loser, next.survivor, itemIds),
+      ...kind.relink(db, next.loser, next.survivor, moves),
       ...(emptied
         ? [
             db

@@ -64,3 +64,7 @@ export async function parsedFrom<Parsed>(
 
   return schema.parse(await response.json());
 }
+
+export function withCursor(path: string, cursor: string | null): string {
+  return cursor === null ? path : `${path}?cursor=${encodeURIComponent(cursor)}`;
+}

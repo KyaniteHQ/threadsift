@@ -43,6 +43,8 @@ export { type HighlightRow, highlights } from "./highlight-tables.ts";
 
 export { type ImportRow, imports } from "./import-tables.ts";
 
+export { logEntries, logStart } from "./log-tables.ts";
+
 export { type MediaRow, media } from "./media-tables.ts";
 
 export { type NoteRow, notes } from "./note-tables.ts";

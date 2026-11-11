@@ -1,24 +1,29 @@
-import { type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./ports.ts";
-import { itemTags, items, tags, topics } from "./schema.ts";
+import { itemTags, items, logEntries, tags, topicLeases, topicPages, topics } from "./schema.ts";
 import { tagPartWrites } from "./search.ts";
 
 export const MERGE_ITEMS = 500;
 
+export interface Moves {
+  readonly itemIds: readonly number[];
+  readonly entryIds: readonly number[];
+}
+
 export interface CatalogKind {
   readonly step: string;
   readonly table: typeof topics | typeof tags;
-  readonly linked: (db: Database, id: number) => Promise<readonly number[]>;
+  readonly linked: (db: Database, id: number) => Promise<Moves>;
   readonly relink: (
     db: Database,
     loser: number,
     survivor: number,
-    itemIds: readonly number[],
+    moves: Readonly<Moves>,
   ) => readonly BatchItem<"sqlite">[];
-  readonly unlinked: (db: Database, id: number) => ReturnType<typeof notExists>;
+  readonly unlinked: (db: Database, id: number) => SQL | undefined;
 }
 
 function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
@@ -26,6 +31,23 @@ function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
 }
 
 const sibling = alias(itemTags, "sibling");
+
+function emptied(db: Database, id: number) {
+  return and(
+    notExists(
+      db
+        .select({ one: sql`1` })
+        .from(items)
+        .where(eq(items.topicId, id)),
+    ),
+    notExists(
+      db
+        .select({ one: sql`1` })
+        .from(logEntries)
+        .where(eq(logEntries.topicId, id)),
+    ),
+  );
+}
 
 export const TOPIC_KIND: CatalogKind = {
   step: "topic-keys",
@@ -38,21 +60,28 @@ export const TOPIC_KIND: CatalogKind = {
       .orderBy(asc(items.id))
       .limit(MERGE_ITEMS);
 
-    return rows.map((row) => row.id);
+    const entries = await db
+      .select({ id: logEntries.id })
+      .from(logEntries)
+      .where(eq(logEntries.topicId, id))
+      .orderBy(asc(logEntries.id))
+      .limit(MERGE_ITEMS);
+
+    return { itemIds: rows.map((row) => row.id), entryIds: entries.map((row) => row.id) };
   },
-  relink: (db, loser, survivor, itemIds) => [
+  relink: (db, loser, survivor, { itemIds, entryIds }) => [
     db
       .update(items)
       .set({ topicId: survivor })
       .where(and(eq(items.topicId, loser), among(items.id, itemIds))),
+    db
+      .update(logEntries)
+      .set({ topicId: survivor })
+      .where(and(eq(logEntries.topicId, loser), among(logEntries.id, entryIds))),
+    db.delete(topicPages).where(and(eq(topicPages.topicId, loser), emptied(db, loser))),
+    db.delete(topicLeases).where(and(eq(topicLeases.topicId, loser), emptied(db, loser))),
   ],
-  unlinked: (db, id) =>
-    notExists(
-      db
-        .select({ one: sql`1` })
-        .from(items)
-        .where(eq(items.topicId, id)),
-    ),
+  unlinked: emptied,
 };
 
 export const TAG_KIND: CatalogKind = {
@@ -66,9 +95,9 @@ export const TAG_KIND: CatalogKind = {
       .orderBy(asc(itemTags.itemId))
       .limit(MERGE_ITEMS);
 
-    return rows.map((row) => row.id);
+    return { itemIds: rows.map((row) => row.id), entryIds: [] };
   },
-  relink: (db, loser, survivor, itemIds) => [
+  relink: (db, loser, survivor, { itemIds }) => [
     db
       .update(itemTags)
       .set({ tagId: survivor })
