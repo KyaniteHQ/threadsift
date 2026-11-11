@@ -200,7 +200,7 @@ async function saveAndVerifyClaudeCode(request: APIRequestContext): Promise<void
   });
 
   await test.step("Verify the Provider with one real Digest", async () => {
-    const verified = await request.post("/api/settings/ai/verify");
+    const verified = await request.post("/api/settings/ai/verify", { data: {} });
 
     expect(VerifyResultSchema.parse(await verified.json())).toMatchObject({ kind: "done" });
   });
@@ -258,7 +258,7 @@ async function waitForWikiWork(
       })
       .toBe(true);
 
-    const queued = await request.post(`/api/items/${String(first)}/digest`);
+    const queued = await request.post(`/api/items/${String(first)}/digest`, { data: {} });
 
     expect(queued.status()).toBe(200);
 
