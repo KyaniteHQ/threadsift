@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { CommandFailure } from "./command-failure.ts";
 import { previewResourceExists, removePreviewBucket } from "./preview-cloudflare.ts";
+import { hasForeignMigrations } from "./preview-migrations.ts";
 import { provisionPreviewOwner } from "./preview-owner.ts";
 
 const [action, number, mode, artifact] = process.argv.slice(2);
@@ -113,12 +114,16 @@ function wrangler(args: readonly string[], input?: string): string {
   return result.stdout;
 }
 
-function databaseExists(): boolean {
+function databaseId(): string | undefined {
   const databases = z
-    .array(z.object({ name: z.string() }))
+    .array(z.object({ name: z.string(), uuid: z.string() }))
     .parse(JSON.parse(wrangler(["d1", "list", "--json"])));
 
-  return databases.some((database) => database.name === `${name}-db`);
+  return databases.find((database) => database.name === `${name}-db`)?.uuid;
+}
+
+function databaseExists(): boolean {
+  return databaseId() !== undefined;
 }
 
 async function detachConsumer(): Promise<void> {
@@ -167,6 +172,24 @@ async function close(): Promise<void> {
     });
 }
 
+function recreateForeignDatabase(): void {
+  if (!databaseExists() || !hasForeignMigrations(wrangler, ["--remote"], join(root, "migrations")))
+    return;
+
+  console.log(`${name}-db holds migrations this build lacks; recreating the preview database`);
+  wrangler(["d1", "delete", `${name}-db`, "--skip-confirmation"]);
+  wrangler(["d1", "create", `${name}-db`]);
+
+  writeFileSync(
+    configPath,
+    JSON.stringify({
+      ...config,
+      d1_databases: [{ ...config.d1_databases[0], database_id: z.string().parse(databaseId()) }],
+    }),
+    { mode: 0o600 },
+  );
+}
+
 function initializeSecrets(): void {
   const secrets = z
     .array(z.object({ name: z.string() }))
@@ -194,6 +217,8 @@ async function deploy(): Promise<void> {
       recovery:
         "Set PREVIEW_SETUP_CODE to at least 16 characters and DEMO_OWNER_PASSWORD to at least 15 in the preview environment.",
     });
+  recreateForeignDatabase();
+
   wrangler(["deploy", "--keep-vars"]);
 
   initializeSecrets();
