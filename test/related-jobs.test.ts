@@ -4,7 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { z } from "zod";
 
-import { linkOlderDigests } from "../src/core/catalog.ts";
+import { linkOlderDigests } from "../src/core/older-digests.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
 import { entryCount } from "./log-fixtures.ts";

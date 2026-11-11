@@ -2,7 +2,7 @@ import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { AiSaveResponseSchema, DigestSchema, VerifyResultSchema } from "../src/core/ai-contract.ts";
-import { catalogKey } from "../src/core/catalog.ts";
+import { catalogKey } from "../src/core/catalog-key.ts";
 import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/topic-path.ts";
 import {

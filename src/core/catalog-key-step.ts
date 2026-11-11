@@ -2,10 +2,11 @@ import { type SQLWrapper, and, asc, eq, gt, lte, min, ne, notExists, or, sql } f
 import { alias } from "drizzle-orm/sqlite-core";
 
 import { type CatalogKind, MERGE_ITEMS, TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
-import { CATALOG_KEY_VERSION, catalogKey } from "./catalog.ts";
+import { CATALOG_KEY_VERSION, catalogKey } from "./catalog-key.ts";
 import type { Advance, DataStep } from "./data-step-contract.ts";
 import { dropStaged, report, stageRenames } from "./data-step-support.ts";
 import { dataStepRenames } from "./data-step-tables.ts";
+import { pinKeyStep } from "./pin-key-step.ts";
 import type { Database } from "./ports.ts";
 import { guards, insertGuard } from "./schema.ts";
 
@@ -207,4 +208,5 @@ function catalogKeyStep(kind: CatalogKind): DataStep {
 export const catalogKeySteps: readonly DataStep[] = [
   catalogKeyStep(TOPIC_KIND),
   catalogKeyStep(TAG_KIND),
+  pinKeyStep,
 ];

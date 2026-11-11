@@ -19,6 +19,7 @@ import {
   JOB_STATES,
   KINDS,
   LOG_ACTIONS,
+  PIN_KINDS,
   PROPOSAL_KINDS,
   PROPOSAL_STATES,
 } from "../src/core/kinds.ts";
@@ -245,6 +246,41 @@ describe("every status, reason, Source, kind, job, Log and proposal value in src
 
     assert.throws(() => update.run("unknown", "open", from), /proposals_values/u);
     assert.throws(() => update.run("tag-merge", "unknown", from), /proposals_values/u);
+  });
+
+  const pinCases = (kind: string): void => {
+    it(`stores and updates a ${kind} Pin`, () => {
+      const [, into] = insertTags();
+
+      assert.doesNotThrow(() => {
+        database
+          .prepare(
+            "insert into pins (kind, from_key, from_name, into_tag_id, created_at) values (?, ?, 'a name', ?, 0)",
+          )
+          .run(kind, `a key for ${kind}`, into);
+        database
+          .prepare("update pins set kind = ? where from_key = ?")
+          .run(kind, `a key for ${kind}`);
+      });
+    });
+  };
+
+  for (const kind of PIN_KINDS) pinCases(kind);
+
+  it("refuses a Pin with a kind the code does not list, on insert and on update", () => {
+    const [, into] = insertTags();
+
+    const insert = database.prepare(
+      "insert into pins (kind, from_key, from_name, into_tag_id, created_at) values (?, 'refused key', 'a name', ?, 0)",
+    );
+
+    assert.throws(() => insert.run("unknown", into), /pins_values/u);
+
+    insert.run("tag-merge", into);
+
+    assert.throws(() => {
+      database.prepare("update pins set kind = 'unknown' where from_key = 'refused key'").run();
+    }, /pins_values/u);
   });
 
   it("refuses a Log entry with an action the code does not list, on insert and on update", () => {

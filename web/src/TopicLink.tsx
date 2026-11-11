@@ -1,6 +1,6 @@
 import { use, useCallback } from "react";
 
-import { catalogKey } from "../../src/core/catalog.ts";
+import { catalogKey } from "../../src/core/catalog-key.ts";
 import { topicPath } from "../../src/core/topic-path.ts";
 import { PagesScope } from "./pages-scope.ts";
 import { useInternalLink } from "./routing.ts";

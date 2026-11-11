@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { catalogKey } from "../src/core/catalog.ts";
+import { catalogKey } from "../src/core/catalog-key.ts";
 import {
   type CandidateTag,
   PROPOSALS_MAX,

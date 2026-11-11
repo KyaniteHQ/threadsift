@@ -23,6 +23,8 @@ export function lineOf(entry: Readonly<LogEntry>): string {
       return `overview | ${entry.topic.name} | ${String(entry.added)} added, ${String(entry.removed)} removed`;
     case "related":
       return `related | ${entry.item.title} | ${String(entry.picks)} picks`;
+    case "merge":
+      return `merge | tag: ${entry.from} into ${entry.into} | ${String(entry.items)} Items`;
     default:
       return entry satisfies never;
   }

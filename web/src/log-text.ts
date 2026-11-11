@@ -24,6 +24,7 @@ export function logSince(date: string): string {
 export const LOG_WORDS = {
   topic: "topic:",
   tags: "tags:",
+  tag: "tag:",
 } as const;
 
 export function addedRemoved(added: number, removed: number): string {
@@ -32,4 +33,12 @@ export function addedRemoved(added: number, removed: number): string {
 
 export function picksLabel(picks: number): string {
   return picks === 1 ? "1 pick" : `${String(picks)} picks`;
+}
+
+export function mergeLabel(from: string, into: string): string {
+  return filled("{from} into {into}", { from, into });
+}
+
+export function itemsLabel(items: number): string {
+  return items === 1 ? "1 Item" : `${String(items)} Items`;
 }

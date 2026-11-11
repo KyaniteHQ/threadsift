@@ -215,12 +215,12 @@ describe("the Log lists only the actions this release knows", () => {
   it("answers 200 and leaves out a row with an action of a later release", async () => {
     await paste(instance, "known", { title: "Known", topic: "Staying" });
     exec(instance, "drop trigger log_entries_action_insert");
-    exec(instance, "insert into log_entries (at, action) values (1, 'merge')");
+    exec(instance, "insert into log_entries (at, action) values (1, 'prune')");
 
     assert.equal((await instance.send("GET", "/api/log")).status, 200);
-    assert.equal(entryCount(instance, "merge"), 1);
+    assert.equal(entryCount(instance, "prune"), 1);
     assert.deepEqual(
-      (await lines(instance)).filter((line) => line.startsWith("merge")),
+      (await lines(instance)).filter((line) => line.startsWith("prune")),
       [],
     );
   });

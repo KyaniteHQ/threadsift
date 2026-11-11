@@ -1,4 +1,4 @@
-import { type SQL, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import type { AiRefused } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
@@ -6,28 +6,9 @@ import { guardedOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobWrites, SettledOutcome } from "./job-outcome.ts";
 import { loggedRelated } from "./log-writes.ts";
 import type { Database } from "./ports.ts";
-import type { PickItem } from "./related-input.ts";
+import { type Version, type Versions, versionsHold } from "./related-input.ts";
 import type { RelatedResult } from "./related-task.ts";
 import { digests, relatedItems } from "./schema.ts";
-
-type Version = Readonly<Pick<PickItem, "id" | "digest">>;
-
-interface Versions {
-  readonly source: Version;
-  readonly sent: readonly Version[];
-}
-
-function digestHolds({ id, digest }: Version): SQL {
-  return sql`exists (select 1 from ${digests} where ${digests.itemId} = ${id} and ${digests.taskId} = ${digest})`;
-}
-
-function versionsHold({ source, sent }: Readonly<Versions>): SQL {
-  const wanted = JSON.stringify(sent.map(({ id, digest }) => ({ id, digest })));
-
-  const sentHold = sql`(select count(*) from json_each(${wanted}) as wanted join ${digests} as kept on kept.item_id = json_extract(wanted.value, '$.id') and kept.task_id = json_extract(wanted.value, '$.digest')) = ${sent.length}`;
-
-  return sql`${digestHolds(source)} and ${sentHold}`;
-}
 
 function replacedSet(db: Database, sourceId: number, picks: RelatedResult["picks"]): JobWrites {
   return [

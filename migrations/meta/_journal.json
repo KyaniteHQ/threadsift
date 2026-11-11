@@ -281,6 +281,13 @@
       "when": 1794419280191,
       "tag": "0039_weekly-tag-merge-proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1794429357749,
+      "tag": "0040_tag-merge-pins",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,9 @@ type Row = Readonly<{
   added: number | null;
   removed: number | null;
   picks: number | null;
+  mergedFrom: string | null;
+  mergedInto: string | null;
+  moved: number | null;
   itemId: number | null;
 }>;
 
@@ -32,6 +35,7 @@ function entryOf(row: Row) {
       topic: { id, at, action, topic },
       overview: { id, at, action, topic, added: row.added, removed: row.removed },
       related: { id, at, action, item, picks: row.picks },
+      merge: { id, at, action, from: row.mergedFrom, into: row.mergedInto, items: row.moved },
     }[action],
   );
 }
@@ -49,6 +53,9 @@ function pageQuery(db: Database, cursor: number | null) {
       added: logEntries.added,
       removed: logEntries.removed,
       picks: logEntries.picks,
+      mergedFrom: logEntries.mergedFrom,
+      mergedInto: logEntries.mergedInto,
+      moved: logEntries.moved,
       itemId: logEntries.itemId,
     })
     .from(logEntries)

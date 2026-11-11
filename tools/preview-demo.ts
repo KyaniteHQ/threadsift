@@ -1,4 +1,4 @@
-import { catalogKey } from "../src/core/catalog.ts";
+import { catalogKey } from "../src/core/catalog-key.ts";
 import { CommandFailure } from "./command-failure.ts";
 import { hasTable, rowNames } from "./preview-migrations.ts";
 

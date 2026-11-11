@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import { CATALOG_KEY_MAX } from "../src/core/catalog-key-limit.ts";
-import { catalogKey } from "../src/core/catalog.ts";
+import { catalogKey } from "../src/core/catalog-key.ts";
 import { TopicIndexSchema } from "../src/core/topic-index-contract.ts";
 import { topicApiPath } from "../src/core/topic-path.ts";
 import { CreatedTokenResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
