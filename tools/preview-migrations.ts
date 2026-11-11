@@ -6,7 +6,7 @@ const Rows = z
   .array(z.object({ results: z.array(z.object({ name: z.string() })) }))
   .transform((statements) => statements.flatMap((statement) => statement.results));
 
-function names(
+export function rowNames(
   run: (args: readonly string[]) => string,
   scope: readonly string[],
   query: string,
@@ -19,11 +19,14 @@ function names(
 export function hasTable(
   run: (args: readonly string[]) => string,
   scope: readonly string[],
-  table: string,
+  table: "d1_migrations" | "proposals",
 ): boolean {
   return (
-    names(run, scope, `SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}'`)
-      .length > 0
+    rowNames(
+      run,
+      scope,
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}'`,
+    ).length > 0
   );
 }
 
@@ -36,5 +39,5 @@ export function hasForeignMigrations(
 
   const known = new Set(readdirSync(migrationsDir));
 
-  return names(run, scope, "SELECT name FROM d1_migrations").some((name) => !known.has(name));
+  return rowNames(run, scope, "SELECT name FROM d1_migrations").some((name) => !known.has(name));
 }
