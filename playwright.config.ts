@@ -19,11 +19,11 @@ const WORKER = [
   `rm -rf ${STATE}`,
   "umask 077",
   `mkdir -p ${STATE}`,
-  `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > ${STATE}/env`,
+  `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\nTHREADSIFT_OPENROUTER_MAX_PRICE_ZERO=true\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > ${STATE}/env`,
   `exec worker-local ${STATE}/state ${PORT} --test-scheduled --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
 ].join(" && ");
 
-const CONTAINER = `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY "\${THREADSIFT_IMAGE:?run through devenv tasks}"`;
+const CONTAINER = `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY --env THREADSIFT_OPENROUTER_MAX_PRICE_ZERO=true "\${THREADSIFT_IMAGE:?run through devenv tasks}"`;
 
 const SERVERS = {
   worker: { command: WORKER, timeout: 180_000 },

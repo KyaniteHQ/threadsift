@@ -20,6 +20,7 @@ export interface NodeOptions extends OperatorCodeOptions {
   readonly secretKey: string | undefined;
   readonly resetCode: string | undefined;
   readonly publicOrigin: string | undefined;
+  readonly openRouterMaxPriceZero?: string | undefined;
 }
 
 export async function startNode(
@@ -36,7 +37,13 @@ export async function startNode(
   const ports: Ports = {
     db,
     files: dataFileStore(dataDir),
-    ai: await aiRuntime({ publicOnly: false, secretKey, request: fetch, cli: operator.cli }),
+    ai: await aiRuntime({
+      publicOnly: false,
+      secretKey,
+      request: fetch,
+      openRouterMaxPriceZero: options.openRouterMaxPriceZero,
+      cli: operator.cli,
+    }),
     network: nodeNetwork,
     pages,
     jobs: loop.queue,

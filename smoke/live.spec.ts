@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { AiSaveResponseSchema } from "../src/core/ai-contract.ts";
+import { AiSaveResponseSchema, PROVIDERS } from "../src/core/ai-contract.ts";
 import { catalogKey } from "../src/core/catalog.ts";
 import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/topic-path.ts";
@@ -10,6 +10,7 @@ import {
   ItemResponseSchema,
   SavedItemResponseSchema,
 } from "../src/http/schemas.ts";
+import { checkFreeModel } from "./openrouter-pricing.ts";
 
 const PASSWORD = "a live check password of fifteen or more";
 
@@ -38,6 +39,10 @@ function requiredEnv(name: string, hint: string): string {
 
   return value;
 }
+
+const MODEL = PROVIDERS.openrouter.fields.model.parse(
+  requiredEnv("OPENROUTER_MODEL", "set it to a zero-priced OpenRouter text model"),
+);
 
 async function pasteAndSettle(request: APIRequestContext, url: string): Promise<number> {
   const saved = await request.post("/api/items", { data: { url } });
@@ -125,6 +130,12 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
   const ids: number[] = [];
   let second = 0;
 
+  await test.step("check the OpenRouter model's price", async () => {
+    await checkFreeModel(request, MODEL);
+  });
+
+  const key = requiredEnv("OPENROUTER_API_KEY", "add it as a secret of the post-merge environment");
+
   await test.step("set up the owner", async () => {
     const created = await request.post("/api/setup", {
       data: { code: SETUP_CODE, password: PASSWORD },
@@ -150,20 +161,13 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
   });
 
   await test.step("save the OpenRouter Provider", async () => {
-    const key = requiredEnv(
-      "OPENROUTER_API_KEY",
-      "add it as a secret of the post-merge environment",
-    );
-
-    const model = requiredEnv("OPENROUTER_MODEL", "set it to one :free OpenRouter model");
-
     const saved = await request.put("/api/settings/ai", {
-      data: { provider: "openrouter", model, key },
+      data: { provider: "openrouter", model: MODEL, key },
     });
 
     expect(saved.status()).toBe(200);
     expect(AiSaveResponseSchema.parse(await saved.json())).toMatchObject({
-      settings: { provider: "openrouter", model, keySet: true },
+      settings: { provider: "openrouter", model: MODEL, keySet: true },
     });
   });
 
