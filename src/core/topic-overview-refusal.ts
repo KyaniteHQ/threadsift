@@ -1,14 +1,13 @@
-import { type AiRefused, retriesAi } from "./ai-contract.ts";
-import { currency } from "./digest-source.ts";
-import { type ClaimedJob, type SettledOutcome, isLastAttempt } from "./job-outcome.ts";
+import type { AiRefused } from "./ai-contract.ts";
+import { refusalOutcome } from "./guarded-outcome.ts";
+import type { ClaimedJob, SettledOutcome } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { insertGuard } from "./schema.ts";
 import { type TopicLease, releaseTopicLease } from "./topic-lease.ts";
 import type { OverviewPrompt, OverviewRead } from "./topic-overview-input.ts";
 import { markOverviewFailed } from "./topic-overview-open.ts";
 import { currentInputs } from "./topic-overview-write.ts";
 
-export async function refusedOutcome(
+export function refusedOutcome(
   db: Database,
   lease: Readonly<TopicLease>,
   job: Readonly<ClaimedJob>,
@@ -22,22 +21,11 @@ export async function refusedOutcome(
     prompt: Readonly<OverviewPrompt>;
   }>,
 ): Promise<SettledOutcome> {
-  const retriable = retriesAi(result);
-  const current = currentInputs(lease, read, prompt.included);
-  const held = currency(db, current, result.taskId, [releaseTopicLease(db, lease)]);
-  const stale = !(await held.current());
-
-  if (!stale && retriable && !isLastAttempt(job.attempts)) {
-    throw new Error(`Overview ${result.reason}`);
-  }
-
-  return {
-    currency: held,
-    failedAttempt: retriable,
-    writes: [
-      insertGuard(db, current),
-      markOverviewFailed(db, lease, result.reason),
-      releaseTopicLease(db, lease),
-    ],
-  };
+  return refusalOutcome(db, job, {
+    result,
+    current: currentInputs(lease, read, prompt.included),
+    label: "Overview",
+    writes: [markOverviewFailed(db, lease, result.reason)],
+    cleanup: [releaseTopicLease(db, lease)],
+  });
 }

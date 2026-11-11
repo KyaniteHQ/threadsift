@@ -1,27 +1,21 @@
-import { type SQLWrapper, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
-import { currency } from "./digest-source.ts";
-import type { JobWrites, SettledOutcome } from "./job-outcome.ts";
+import { guardedOutcome } from "./guarded-outcome.ts";
+import type { SettledOutcome } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { insertGuard, topicPages } from "./schema.ts";
+import { topicPages } from "./schema.ts";
 import { inputsHold } from "./topic-coverage.ts";
 import { type TopicLease, leaseHolds, releaseTopicLease } from "./topic-lease.ts";
 import type { OverviewPrompt, OverviewRead } from "./topic-overview-input.ts";
 import { type OverviewResult, overviewText } from "./topic-overview-task.ts";
 
 export function idleOutcome(db: Database, lease: Readonly<TopicLease>): SettledOutcome {
-  return {
-    currency: currency(db, sql`1`, null, [releaseTopicLease(db, lease)]),
-    writes: [releaseTopicLease(db, lease)],
-  };
+  return guardedOutcome(db, sql`1`, { cleanup: [releaseTopicLease(db, lease)] });
 }
 
 export function lostOutcome(db: Database, lease: Readonly<TopicLease>): SettledOutcome {
-  return {
-    currency: currency(db, sql`0`, null, [releaseTopicLease(db, lease)]),
-    writes: [insertGuard(db, sql`0`)],
-  };
+  return guardedOutcome(db, sql`0`, { cleanup: [releaseTopicLease(db, lease)] });
 }
 
 function revisedPage(
@@ -62,7 +56,6 @@ export function currentInputs(
 
 function storedPage(
   db: Database,
-  current: Readonly<SQLWrapper>,
   {
     topicId,
     read,
@@ -74,16 +67,13 @@ function storedPage(
     prompt: Readonly<OverviewPrompt>;
     overview: string | null;
   }>,
-): JobWrites {
+) {
   const stored = revisedPage(topicId, read, prompt, overview);
 
-  return [
-    insertGuard(db, current),
-    db
-      .insert(topicPages)
-      .values(stored)
-      .onConflictDoUpdate({ target: topicPages.topicId, set: stored }),
-  ];
+  return db
+    .insert(topicPages)
+    .values(stored)
+    .onConflictDoUpdate({ target: topicPages.topicId, set: stored });
 }
 
 export function keptOutcome(
@@ -91,20 +81,10 @@ export function keptOutcome(
   lease: Readonly<TopicLease>,
   { read, prompt }: Readonly<{ read: Readonly<OverviewRead>; prompt: Readonly<OverviewPrompt> }>,
 ): SettledOutcome {
-  const current = currentInputs(lease, read, prompt.included);
-
-  return {
-    currency: currency(db, current, null, [releaseTopicLease(db, lease)]),
-    writes: [
-      ...storedPage(db, current, {
-        topicId: lease.topicId,
-        read,
-        prompt,
-        overview: prompt.current,
-      }),
-      releaseTopicLease(db, lease),
-    ],
-  };
+  return guardedOutcome(db, currentInputs(lease, read, prompt.included), {
+    writes: [storedPage(db, { topicId: lease.topicId, read, prompt, overview: prompt.current })],
+    cleanup: [releaseTopicLease(db, lease)],
+  });
 }
 
 export function revisedOutcome(
@@ -126,12 +106,12 @@ export function revisedOutcome(
 
   const current = sql`${currentInputs(lease, read, prompt.included)} and ${aiTaskRunning(taskId)}`;
 
-  return {
-    currency: currency(db, current, taskId, [releaseTopicLease(db, lease)]),
+  return guardedOutcome(db, current, {
+    taskId,
     writes: [
-      ...storedPage(db, current, { topicId: lease.topicId, read, prompt, overview }),
+      storedPage(db, { topicId: lease.topicId, read, prompt, overview }),
       completedAiTask(db, { taskId, result }),
-      releaseTopicLease(db, lease),
     ],
-  };
+    cleanup: [releaseTopicLease(db, lease)],
+  });
 }

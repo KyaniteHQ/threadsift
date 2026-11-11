@@ -26,7 +26,7 @@ export type PickRead =
       readonly candidates: readonly PickItem[];
     };
 
-export type PickPrompt =
+type PickPrompt =
   | { readonly kind: "empty" }
   | { readonly kind: "refused"; readonly reason: "source-over-cap" | "none-fit" }
   | { readonly kind: "ask"; readonly input: string; readonly sent: readonly PickItem[] };
