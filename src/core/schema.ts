@@ -28,11 +28,20 @@ export { itemAliases } from "./alias-tables.ts";
 
 export { dataStepLease, dataStepRenames, dataSteps } from "./data-step-tables.ts";
 
-export { guardHolds, guardedBatch, guardedWrite, guards, insertGuard } from "./guards.ts";
+export {
+  guardHolds,
+  guardedBatch,
+  guardedWrite,
+  guards,
+  holdsNoRow,
+  insertGuard,
+} from "./guards.ts";
 
 export { githubCooldown, githubSettings } from "./github-tables.ts";
 
 export { type HighlightRow, highlights } from "./highlight-tables.ts";
+
+export { type ImportRow, imports } from "./import-tables.ts";
 
 export { type MediaRow, media } from "./media-tables.ts";
 

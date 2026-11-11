@@ -5,12 +5,15 @@ import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selectio
 import { hasOpenJob, openingJob, enqueueRows } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
-import { items } from "./schema.ts";
+import { guards, holdsNoRow, insertGuard, items } from "./schema.ts";
+import { unlessRefused } from "./short-link-aliases.ts";
 import type { UNSUPPORTED_PAGE_LINK } from "./supplied-page.ts";
 
 export type SaveResult =
   | { readonly kind: "saved"; readonly item: ListedItemRow; readonly created: boolean }
   | { readonly kind: "refused" };
+
+export type Existing = "refresh" | "keep";
 
 export interface Invalid<Field extends string> {
   readonly kind: "invalid";
@@ -81,7 +84,41 @@ export function queuedWrites(
   ] as const;
 }
 
-export async function saveQueued(ports: Ports, paste: Readonly<Paste>, link: Readonly<Link>) {
+export function holdsNoItem(db: Database, normalizedUrl: string) {
+  return holdsNoRow(db, items, eq(items.normalizedUrl, normalizedUrl));
+}
+
+async function saveNewOnly(
+  ports: Ports,
+  paste: Readonly<Paste>,
+  link: Readonly<Link>,
+): Promise<SaveResult> {
+  const { db } = ports;
+  const noItem = holdsNoItem(db, link.normalizedUrl);
+
+  const added = await unlessRefused(db, noItem, async () => {
+    const [, , , , queued, [item]] = await db.batch([
+      insertGuard(db, noItem),
+      ...queuedWrites(db, paste, link),
+      db.delete(guards),
+    ]);
+
+    await enqueueRows(ports, queued);
+
+    return { kind: "saved", item: foundItem(item, link.normalizedUrl), created: true } as const;
+  });
+
+  return added ?? { kind: "saved", item: await itemAt(db, link.normalizedUrl), created: false };
+}
+
+export async function saveQueued(
+  ports: Ports,
+  paste: Readonly<Paste>,
+  link: Readonly<Link>,
+  existing: Existing = "refresh",
+) {
+  if (existing === "keep") return saveNewOnly(ports, paste, link);
+
   const [inserted, , , queued, [item]] = await ports.db.batch(queuedWrites(ports.db, paste, link));
 
   await enqueueRows(ports, queued);

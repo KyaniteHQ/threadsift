@@ -1,6 +1,6 @@
-import { type SQLWrapper, sql } from "drizzle-orm";
+import { type SQLWrapper, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-import { check, integer, sqliteTable } from "drizzle-orm/sqlite-core";
+import { type SQLiteTable, check, integer, sqliteTable } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./ports.ts";
 
@@ -17,6 +17,20 @@ function guardRows(db: Database, condition: Readonly<SQLWrapper>) {
     .select({ ok: sql<number>`count(*)`.as("ok") })
     .from(sql`(select 1)`)
     .where(sql`${condition}`);
+}
+
+export function holdsNoRow(
+  db: Database,
+  // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle table type holds mutable column objects, so it cannot be deeply readonly.
+  table: SQLiteTable,
+  matching: Readonly<SQLWrapper>,
+) {
+  return notExists(
+    db
+      .select({ one: sql`1` })
+      .from(table)
+      .where(sql`${matching}`),
+  );
 }
 
 export function insertGuard(db: Database, condition: Readonly<SQLWrapper>) {
