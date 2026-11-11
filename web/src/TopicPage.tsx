@@ -11,7 +11,7 @@ import { TopicOverview } from "./TopicOverview.tsx";
 import { type TopicReady, type TopicState, useTopicPage } from "./use-topic-page.ts";
 
 function Loading() {
-  return <Skeleton label={TOPIC_PAGE.loading} row="tp-it" title="tp-title" />;
+  return <Skeleton label={TOPIC_PAGE.loading} row="rl-row" title="rl-title" />;
 }
 
 function ItemList({
@@ -29,7 +29,7 @@ function ItemList({
     <ol
       // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from an ol with list-style none
       role="list"
-      className="tp-list"
+      className="rl-list"
     >
       {state.items.map((item) => (
         <TopicItemRow
@@ -50,7 +50,7 @@ function Items({
   navigate,
 }: Readonly<{ state: TopicReady; loadMore: () => void; navigate: (to: string) => void }>) {
   return (
-    <section aria-labelledby={RESULTS_ID} className="tp-items">
+    <section aria-labelledby={RESULTS_ID} className="rl-items">
       <header className="list-head">
         <h2 id={RESULTS_ID} className="results">
           {itemsLabel(state.topic.itemCount)}
@@ -118,7 +118,7 @@ export function TopicPage({
         backLabel={TOPIC_PAGE.back}
         ready={state.status !== "loading"}
       />
-      <main className="pg-col tp-col" aria-busy={state.status === "loading"}>
+      <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
         <Body
           state={state}
           retry={retry}

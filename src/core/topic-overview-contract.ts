@@ -33,7 +33,7 @@ export function citedIds(text: string): readonly number[] {
 
 const LINE_BREAK = /\r\n|\r|\n/u;
 
-const TRAILING_CITATIONS = /(?:\s*\[\d{1,19}\])+\s*$/u;
+const CITATION_WITH_SPACE = /\s*\[\d{1,19}\]/gu;
 
 export function overviewLines(text: string): readonly string[] {
   return text.split(LINE_BREAK).filter((line) => line.trim() !== "");
@@ -42,7 +42,7 @@ export function overviewLines(text: string): readonly string[] {
 export function overviewLine(text: string): string | null {
   return (
     overviewLines(text)
-      .map((line) => line.replace(TRAILING_CITATIONS, "").trim())
+      .map((line) => line.replaceAll(CITATION_WITH_SPACE, "").trim())
       .find((line) => line !== "") ?? null
   );
 }

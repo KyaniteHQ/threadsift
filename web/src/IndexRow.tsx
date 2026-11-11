@@ -20,10 +20,10 @@ export const IndexRow = memo(function IndexRow({
 
   return (
     <li>
-      <article className="tp-it ix-it">
-        <h2 className="tp-title">
+      <article className="rl-row ix-it">
+        <h2 className="rl-title">
           <a
-            className="tp-open"
+            className="rl-open"
             href={topicPath(key)}
             aria-label={topicLinkLabel(name)}
             aria-describedby={overviewLine === null ? undefined : lineId}
@@ -34,7 +34,7 @@ export const IndexRow = memo(function IndexRow({
         </h2>
         <p className="ix-count">{itemsLabel(itemCount)}</p>
         {overviewLine === null ? null : (
-          <p id={lineId} className="tp-sum ix-line" dir="auto">
+          <p id={lineId} className="rl-sum ix-line" dir="auto">
             {overviewLine}
           </p>
         )}

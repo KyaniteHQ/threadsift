@@ -37,6 +37,7 @@ import "../../design/system/components.css";
 import "./page.css";
 import "./access.css";
 import "./highlights-page.css";
+import "./row-list.css";
 import "./topic-page.css";
 import "./import-page.css";
 import "./index-page.css";

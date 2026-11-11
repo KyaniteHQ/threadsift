@@ -5,7 +5,7 @@
   column-gap: var(--s3);
   min-block-size: var(--target);
 }
-.ix-it .tp-title {
+.ix-it .rl-title {
   grid-column: 1;
 }
 .ix-count {

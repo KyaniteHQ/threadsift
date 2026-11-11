@@ -97,7 +97,7 @@ describe("the Index lists every Topic once, ascending by key, with its Item coun
     assert.equal(next, null);
   });
 
-  it("shows the first line of a stored overview without its trailing marks, and null without an overview", async () => {
+  it("shows the first line of a stored overview without its marks, and null without an overview", async () => {
     const { topics } = await read(instance);
 
     assert.deepEqual(

@@ -173,8 +173,8 @@ async function openTopicPage(page: Page, topic: TopicCase): Promise<void> {
   await expect(page).toHaveURL(topic.address);
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
-  await expect(page.locator(".tp-it")).toContainText(topic.itemTitle);
-  await expect(page.locator(".tp-sum")).toContainText(topic.summary.split("\n").at(-1) ?? "");
+  await expect(page.locator(".rl-row")).toContainText(topic.itemTitle);
+  await expect(page.locator(".rl-sum")).toContainText(topic.summary.split("\n").at(-1) ?? "");
   await expect(page.getByText(TOPIC_PAGE.noProvider)).toBeVisible();
 }
 

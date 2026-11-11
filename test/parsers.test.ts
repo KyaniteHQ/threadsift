@@ -159,7 +159,7 @@ describe("the parsers turn literal input into the values the library stores", ()
   });
 });
 
-describe("the overview line is the first line of an overview without its trailing citation marks", () => {
+describe("the overview line is the first line of an overview without its citation marks", () => {
   it("takes one line, or the first of several", () => {
     assert.equal(overviewLine("Backups need care [3]"), "Backups need care");
     assert.equal(
@@ -172,9 +172,9 @@ describe("the overview line is the first line of an overview without its trailin
     assert.equal(overviewLine("\r\n  \r\nFirst line [1]\r\nSecond [2]"), "First line");
   });
 
-  it("removes marks only at the end of the line", () => {
-    assert.equal(overviewLine("See [12] for the cause [13][14]"), "See [12] for the cause");
-    assert.equal(overviewLine("Mid [12] mark stays"), "Mid [12] mark stays");
+  it("removes a mark inside the line as well as at its end, because the Topic page shows no raw mark", () => {
+    assert.equal(overviewLine("See [12] for the cause [13][14]"), "See for the cause");
+    assert.equal(overviewLine("[12] Mid [13] mark goes"), "Mid mark goes");
   });
 
   it("keeps a bracketed phrase that is not an id", () => {

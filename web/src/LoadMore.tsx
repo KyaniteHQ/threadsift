@@ -15,7 +15,7 @@ export function LoadMore({
   loadMore,
 }: Readonly<{ more: More; failedText: string; loadMore: () => void }>) {
   return (
-    <div className="tp-more">
+    <div className="rl-more">
       {more === "failed" ? (
         <p className="rd-note" role="alert">
           {failedText}

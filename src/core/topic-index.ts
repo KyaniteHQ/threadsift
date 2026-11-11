@@ -1,4 +1,4 @@
-import { asc, count, gt, sql } from "drizzle-orm";
+import { asc, count, eq, gt, sql } from "drizzle-orm";
 
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import type { Database } from "./ports.ts";
@@ -15,7 +15,7 @@ function pageQuery(db: Database, cursor: string | null) {
       overview: topicPages.overview,
     })
     .from(topics)
-    .leftJoin(topicPages, sql`${topicPages.topicId} = ${topics.id}`)
+    .leftJoin(topicPages, eq(topicPages.topicId, topics.id))
     .where(cursor === null ? undefined : gt(topics.key, cursor))
     .orderBy(asc(topics.key))
     .limit(ITEMS_PAGE_SIZE + 1);
