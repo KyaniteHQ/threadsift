@@ -7,7 +7,7 @@ import {
   queuedWrites,
 } from "./items.ts";
 import { closeFetchJobs, enqueueRows } from "./job-rows.ts";
-import { isGitHubLink, isRedditOrXLink, isRefusedLink, parseLink, redditRefOf } from "./links.ts";
+import { isRefusedLink, parseLink, redditRefOf, takesPage } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { ownerOf } from "./reddit-thread.ts";
 import {
@@ -62,15 +62,13 @@ export async function savePage(
 ): Promise<PageSaveResult> {
   if (isRefusedLink(absoluteUrl)) return { kind: "refused" };
 
-  const ref = redditRefOf(absoluteUrl);
-
-  if (ref === null && (isRedditOrXLink(absoluteUrl) || isGitHubLink(absoluteUrl))) {
+  if (!takesPage(absoluteUrl)) {
     return { kind: "invalid", field: "page", reason: NOT_A_PAGE_LINK, code: UNSUPPORTED_PAGE_LINK };
   }
 
   if (pageBytes(page) > PAGE_BYTES) return { kind: "too-large", field: "page" };
 
-  const saved = await (ref === null
+  const saved = await (redditRefOf(absoluteUrl) === null
     ? queuePage(ports, absoluteUrl, digest, page)
     : saveThreadPage(ports, absoluteUrl, { digest, page }));
 

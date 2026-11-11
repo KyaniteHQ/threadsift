@@ -1,9 +1,12 @@
 import { type ArchivedThread, archivedThread } from "./archive-fill.ts";
 import { type Concluded, type Fetched, detailsOfSuppliedPage } from "./details.ts";
 import { fetchLink, readOrTimeOut } from "./fetch-link.ts";
-import { redditRefOf } from "./links.ts";
-import type { Ports } from "./ports.ts";
-import { SuppliedPageSchema } from "./supplied-page.ts";
+import { redditRefOf, takesPage } from "./links.ts";
+import { pluginPage } from "./plugin-fetch.ts";
+import type { PageReader, Ports } from "./ports.ts";
+import { noThreadFor } from "./reddit-thread.ts";
+import { guardHolds } from "./schema.ts";
+import { type SuppliedPage, SuppliedPageSchema } from "./supplied-page.ts";
 
 interface JobSource {
   readonly address: string;
@@ -12,7 +15,7 @@ interface JobSource {
   readonly page: string | null;
 }
 
-type SourcePorts = Readonly<Pick<Ports, "db" | "ai" | "network" | "pages">>;
+type SourcePorts = Readonly<Pick<Ports, "db" | "ai" | "network" | "pages" | "fetchers">>;
 
 function archiveFilled(
   oembed: Readonly<Concluded>,
@@ -48,21 +51,52 @@ async function fetchedWithArchive(
     : archiveFilled(fetched, archived);
 }
 
-export function fetchedForJob(
+function suppliedDetails(
+  pages: Readonly<PageReader>,
+  page: SuppliedPage,
+  address: string,
+  deadline: AbortSignal,
+): Promise<Concluded> {
+  return readOrTimeOut(() => detailsOfSuppliedPage(pages, page, address, deadline));
+}
+
+async function fetchedByPlugin(
+  { db, pages, network, fetchers }: SourcePorts,
+  { address, itemId }: Readonly<JobSource>,
+  deadline: AbortSignal,
+): Promise<Concluded | null> {
+  if (fetchers.length === 0 || !takesPage(address)) return null;
+
+  if (redditRefOf(address) !== null && !(await guardHolds(db, noThreadFor(itemId)))) return null;
+
+  if (!(await network.reachable(address, deadline))) return { status: "refused" };
+
+  const result = await pluginPage(fetchers, address, deadline);
+
+  if (result.kind === "unclaimed") return null;
+
+  return result.kind === "failed"
+    ? { status: result.status }
+    : suppliedDetails(pages, result.page, address, deadline);
+}
+
+export async function fetchedForJob(
   ports: SourcePorts,
   source: Readonly<JobSource>,
   deadline: AbortSignal,
 ): Promise<Fetched> {
   const { address, page } = source;
 
-  return page === null
-    ? fetchedWithArchive(ports, source, deadline)
-    : readOrTimeOut(() =>
-        detailsOfSuppliedPage(
-          ports.pages,
-          SuppliedPageSchema.parse(JSON.parse(page)),
-          address,
-          deadline,
-        ),
-      );
+  if (page !== null) {
+    return suppliedDetails(
+      ports.pages,
+      SuppliedPageSchema.parse(JSON.parse(page)),
+      address,
+      deadline,
+    );
+  }
+
+  return (
+    (await fetchedByPlugin(ports, source, deadline)) ?? fetchedWithArchive(ports, source, deadline)
+  );
 }

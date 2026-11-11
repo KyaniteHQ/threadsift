@@ -82,9 +82,14 @@ export class Instance {
     this.shutdown = shutdown;
   }
 
-  static async start(publicOrigin?: string): Promise<Instance> {
+  static async start(publicOrigin?: string, fetchers?: string): Promise<Instance> {
     const folder = await mkdtemp(join(tmpdir(), "threadsift-test-"));
     const database = openDatabase(join(folder, "threadsift.db"), MIGRATIONS);
+
+    const stop = async () => {
+      database.close();
+      await rm(folder, { recursive: true });
+    };
 
     const node = await startNode(database.db, {
       dataDir: join(folder, "data"),
@@ -92,14 +97,18 @@ export class Instance {
       secretKey: undefined,
       resetCode: undefined,
       publicOrigin,
+      fetchers,
       claude: { path: "", configDir: undefined, token: undefined },
       codex: { path: "", home: undefined, dataDir: join(folder, "data") },
+    }).catch(async (error: Error) => {
+      await stop();
+
+      throw error;
     });
 
     return new Instance(createApp(node.ports), folder, async () => {
       await node.stop();
-      database.close();
-      await rm(folder, { recursive: true });
+      await stop();
     });
   }
 

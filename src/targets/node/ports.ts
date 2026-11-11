@@ -2,10 +2,10 @@ import type { Database, Ports } from "../../core/ports.ts";
 import { aiRuntime } from "../shared/ai-runtime.ts";
 import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
-import { type CliEnvironments, startCliRunners } from "./cli-runners.ts";
 import { dataFileStore } from "./file-store.ts";
 import { JobLoop } from "./job-loop.ts";
 import { nodeNetwork } from "./network.ts";
+import { type OperatorCodeOptions, startOperatorCode } from "./operator-code.ts";
 import { WorkerPageReader } from "./page-reader.ts";
 import { setupCodeOf } from "./setup-code.ts";
 
@@ -14,7 +14,7 @@ interface NodeRuntime {
   readonly stop: () => Promise<void>;
 }
 
-export interface NodeOptions extends CliEnvironments {
+export interface NodeOptions extends OperatorCodeOptions {
   readonly dataDir: string;
   readonly setupCode: string | undefined;
   readonly secretKey: string | undefined;
@@ -26,15 +26,17 @@ export async function startNode(
   db: Database,
   options: Readonly<NodeOptions>,
 ): Promise<NodeRuntime> {
-  const { dataDir, setupCode, secretKey, resetCode, publicOrigin, claude, codex } = options;
+  const { dataDir, setupCode, secretKey, resetCode, publicOrigin, fetchers, claude, codex } =
+    options;
+
+  const operator = await startOperatorCode({ fetchers, claude, codex });
   const loop = new JobLoop();
   const pages = new WorkerPageReader();
-  const cli = await startCliRunners({ claude, codex });
 
   const ports: Ports = {
     db,
     files: dataFileStore(dataDir),
-    ai: await aiRuntime({ publicOnly: false, secretKey, request: fetch, cli }),
+    ai: await aiRuntime({ publicOnly: false, secretKey, request: fetch, cli: operator.cli }),
     network: nodeNetwork,
     pages,
     jobs: loop.queue,
@@ -42,6 +44,7 @@ export async function startNode(
     setupCode: await setupCodeOf(db, configuredCode(setupCode)),
     resetCode: configuredCode(resetCode),
     publicOrigin: configuredOrigin(publicOrigin),
+    fetchers: operator.fetchers,
   };
 
   await loop.start(ports);
@@ -51,7 +54,7 @@ export async function startNode(
     stop: async () => {
       const drained = loop.stop();
 
-      for (const runner of cli) runner.stop();
+      for (const runner of operator.cli) runner.stop();
 
       await drained;
       pages.stop();

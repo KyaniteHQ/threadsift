@@ -51,5 +51,6 @@ export async function createWorkerPorts(env: Env): Promise<Ports> {
     setupCode: configuredCode(env.SETUP_CODE),
     resetCode: undefined,
     publicOrigin: configuredOrigin(env.THREADSIFT_PUBLIC_ORIGIN),
+    fetchers: [],
   };
 }

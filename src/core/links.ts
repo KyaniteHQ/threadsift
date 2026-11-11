@@ -271,3 +271,10 @@ export function isRedditOrXLink(absoluteUrl: string): boolean {
 
   return host === "redd.it" || isRedditHost(host) || X_HOSTS.has(host);
 }
+
+export function takesPage(absoluteUrl: string): boolean {
+  return (
+    redditRefOf(absoluteUrl) !== null ||
+    !(isRedditOrXLink(absoluteUrl) || isGitHubLink(absoluteUrl))
+  );
+}
