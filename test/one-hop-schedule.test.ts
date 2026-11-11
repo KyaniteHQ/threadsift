@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import { after, before, describe, it } from "node:test";
+
+import { z } from "zod";
+
+import { Instance } from "./instance.ts";
+import {
+  SECRET_KEY,
+  UNREACHABLE,
+  addressOf,
+  toolsOf,
+  withoutComments,
+} from "./one-hop-fixtures.ts";
+
+const SavedSettingsSchema = z.object({ settings: z.object({ keySet: z.boolean() }) });
+
+describe("saving a Provider schedules an Item whose only source is a candidate", () => {
+  let instance: Instance;
+  let tools: ReturnType<typeof toolsOf>;
+
+  before(async () => {
+    instance = await Instance.start({ secretKey: SECRET_KEY });
+    await instance.setUp();
+    tools = toolsOf(instance);
+  });
+
+  after(() => instance.close());
+
+  it("schedules an older Item whose only source is a candidate when a Provider is saved, and no Item without one", async () => {
+    const linked = await tools.paste(
+      addressOf("older1"),
+      withoutComments("older1", { url: UNREACHABLE }),
+    );
+
+    const bare = await tools.paste(addressOf("older2"), withoutComments("older2", {}));
+
+    await instance.settledItem(linked.item.id);
+    await instance.settledItem(bare.item.id);
+
+    const saved = await instance.send("PUT", "/api/settings/ai", {
+      provider: "openai-compatible",
+      baseUrl: "http://127.0.0.1:9/v1",
+      model: "a-model",
+      key: "a-key-for-a-provider-that-is-never-called",
+    });
+
+    assert.equal(saved.status, 200);
+    assert.equal(SavedSettingsSchema.parse(JSON.parse(saved.body)).settings.keySet, true);
+    assert.equal((await instance.settledItem(linked.item.id)).status, "ready");
+    assert.deepEqual(tools.digestJobs(linked.item.id), [{ state: "done", attempts: 0 }]);
+    assert.deepEqual(tools.digestJobs(bare.item.id), []);
+    assert.deepEqual(tools.aiTasks(linked.item.id), []);
+  });
+});

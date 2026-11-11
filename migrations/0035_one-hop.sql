@@ -1,0 +1,1 @@
+ALTER TABLE `reddit_threads` ADD `linked_url` text;

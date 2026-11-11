@@ -54,7 +54,7 @@ describe("a self-hoster's fetcher plug-in reads the links it claims, and only th
   let instance: Instance;
 
   before(async () => {
-    instance = await Instance.start(undefined, PLUGIN_LIST);
+    instance = await Instance.start({ fetchers: PLUGIN_LIST });
     await instance.setUp();
   });
 

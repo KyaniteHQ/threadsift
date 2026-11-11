@@ -12,7 +12,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { digestHandler } from "./digest-job.ts";
+import { digestHandler } from "./digest-attempt.ts";
 import { logFailure } from "./failure-log.ts";
 import { fetchHandler } from "./fetch-job.ts";
 import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";

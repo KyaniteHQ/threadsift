@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, exists, isNotNull, or, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, exists, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { failedAiTask } from "./ai-tasks.ts";
 import {
@@ -6,6 +6,7 @@ import {
   type CommentCounts,
   type DigestPrompt,
   DIGEST_INPUT_BYTES,
+  type LinkedPage,
   cutDigestInput,
   digestPrompt,
 } from "./digest-prompt.ts";
@@ -20,7 +21,7 @@ import {
 import { hasOpenJob } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
-import { commentCandidates, eligibleComments } from "./reddit-thread.ts";
+import { candidateLink, commentCandidates, eligibleComments } from "./reddit-thread.ts";
 import { insertGuard, items } from "./schema.ts";
 
 export function digestInput(db: Database, id: number) {
@@ -31,6 +32,7 @@ export function digestInput(db: Database, id: number) {
       source: items.source,
       generation: items.generation,
       pendingDigest: items.pendingDigest,
+      linkedUrl: candidateLink(),
       postTextKey: items.postTextKey,
       postText: sql<string | null>`substr(${items.postText}, 1, ${DIGEST_INPUT_BYTES})`,
       hasComments: sql<boolean>`${eligibleComments()}`.mapWith(Boolean),
@@ -39,8 +41,19 @@ export function digestInput(db: Database, id: number) {
     .where(eq(items.id, id));
 }
 
+function hasCandidateLink() {
+  return and(isNull(items.pendingDigest), isNotNull(candidateLink())) ?? sql`0`;
+}
+
 export function hasDigestSource() {
-  return or(isNotNull(items.postText), isNotNull(items.postTextKey), eligibleComments()) ?? sql`0`;
+  return (
+    or(
+      isNotNull(items.postText),
+      isNotNull(items.postTextKey),
+      eligibleComments(),
+      hasCandidateLink(),
+    ) ?? sql`0`
+  );
 }
 
 export type DigestInput = Awaited<ReturnType<typeof digestInput>>[number];
@@ -86,15 +99,27 @@ export function currency(
 
 class PostTextUnreadable extends Error {}
 
+export async function staleOutcome(
+  db: Database,
+  item: Readonly<DigestInput>,
+): Promise<JobOutcome | null> {
+  const generation = generationCurrent(item);
+  const read = currency(db, generation, null);
+
+  return (await read.current()) ? null : { currency: read, writes: [insertGuard(db, generation)] };
+}
+
 async function unreadableText(
   db: Database,
   job: Readonly<ClaimedJob>,
   item: Readonly<DigestInput>,
 ): Promise<JobOutcome> {
+  const stale = await staleOutcome(db, item);
+
+  if (stale !== null) return stale;
+
   const generation = generationCurrent(item);
   const read = currency(db, generation, null);
-
-  if (!(await read.current())) return { currency: read, writes: [insertGuard(db, generation)] };
 
   if (!isLastAttempt(job.attempts))
     throw new PostTextUnreadable(`The post text file of Item ${item.id} cannot be read`);
@@ -111,13 +136,19 @@ export async function modelInput(
   item: Readonly<DigestInput>,
   postText: string | null,
   catalog: Readonly<CatalogNames>,
+  page: Readonly<LinkedPage> | null,
 ): Promise<DigestPrompt> {
   const comments =
     item.source === "reddit"
       ? await commentCandidates(db, { itemId: item.id, generation: item.generation })
       : [];
 
-  return digestPrompt({ title: item.title, source: item.source, postText }, comments, catalog);
+  return digestPrompt(
+    { title: item.title, source: item.source, postText },
+    comments,
+    catalog,
+    page,
+  );
 }
 
 export function logSubmission(

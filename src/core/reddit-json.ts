@@ -1,5 +1,6 @@
 import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
+import { hopTarget } from "./hop-link.ts";
 import type { RedditRef } from "./links.ts";
 import {
   type Walked,
@@ -24,6 +25,7 @@ export interface ParsedThread {
   readonly postText: string | null;
   readonly postedAt: number | null;
   readonly reported: number | null;
+  readonly linkedUrl: string | null;
   readonly nodes: readonly ThreadNode[];
 }
 
@@ -90,13 +92,16 @@ function nodesOf(entries: readonly Walked[], base: number, root: string): readon
 }
 
 function ofPost(post: Readonly<WirePost>, walked: readonly Walked[]): ParsedThread {
+  const postText = isRemovedBody(post.selftext) ? null : post.selftext;
+
   return {
     title: post.title,
     author: post.author,
     community: post.subreddit,
-    postText: isRemovedBody(post.selftext) ? null : post.selftext,
+    postText,
     postedAt: milliseconds(post.created_utc),
     reported: post.num_comments ?? null,
+    linkedUrl: hopTarget({ url: post.url ?? null, text: postText }),
     nodes: nodesOf(walked, 0, `t3_${post.id}`),
   };
 }
@@ -129,6 +134,7 @@ function ofComment(
     postText: comment.body,
     postedAt: milliseconds(comment.created_utc),
     reported: null,
+    linkedUrl: null,
     nodes: nodesOf(
       end === -1 ? rest : rest.slice(0, end),
       root.depth + 1,

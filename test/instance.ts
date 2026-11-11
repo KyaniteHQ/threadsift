@@ -82,7 +82,15 @@ export class Instance {
     this.shutdown = shutdown;
   }
 
-  static async start(publicOrigin?: string, fetchers?: string): Promise<Instance> {
+  static async start({
+    publicOrigin,
+    fetchers,
+    secretKey,
+  }: Readonly<{
+    publicOrigin?: string | undefined;
+    fetchers?: string | undefined;
+    secretKey?: string | undefined;
+  }> = {}): Promise<Instance> {
     const folder = await mkdtemp(join(tmpdir(), "threadsift-test-"));
     const database = openDatabase(join(folder, "threadsift.db"), MIGRATIONS);
 
@@ -94,7 +102,7 @@ export class Instance {
     const node = await startNode(database.db, {
       dataDir: join(folder, "data"),
       setupCode: SETUP_CODE,
-      secretKey: undefined,
+      secretKey,
       resetCode: undefined,
       publicOrigin,
       fetchers,

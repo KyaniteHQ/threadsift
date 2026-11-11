@@ -14,7 +14,7 @@ describe("a link whose host resolves only to addresses the Instance may not reac
   let instance: Instance;
 
   before(async () => {
-    instance = await Instance.start(undefined, MODULE);
+    instance = await Instance.start({ fetchers: MODULE });
     await instance.setUp();
   });
 

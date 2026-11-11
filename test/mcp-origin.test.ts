@@ -54,10 +54,10 @@ describe("/mcp refuses a Host or Origin that is not the Instance's own, whatever
     local = await Instance.start();
     await local.setUp();
     localToken = await createAgentToken(local, "local");
-    hosted = await Instance.start(HOSTED);
+    hosted = await Instance.start({ publicOrigin: HOSTED });
     await hosted.setUp();
     hostedToken = await createAgentToken(hosted, "hosted");
-    withPort = await Instance.start(WITH_PORT);
+    withPort = await Instance.start({ publicOrigin: WITH_PORT });
     await withPort.setUp();
     withPortToken = await createAgentToken(withPort, "with port");
   });
