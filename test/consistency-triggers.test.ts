@@ -59,7 +59,9 @@ const statusRows: readonly ItemRow[] = ITEM_STATUSES.flatMap((status): readonly 
     : [withStatus(status, null)],
 );
 
-const kindRows: readonly ItemRow[] = KINDS.map((kind) => withKind(kind));
+const kindRows: readonly ItemRow[] = KINDS.filter((kind) => kind !== BASELINE_ITEM.kind).map(
+  (kind) => withKind(kind),
+);
 
 const jobRows: readonly JobRow[] = JOB_KINDS.flatMap((kind) =>
   JOB_STATES.map((state) => ({ kind, state })),
