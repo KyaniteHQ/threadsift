@@ -1,7 +1,7 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
-import { itemIdOf } from "../../src/core/item-path.ts";
+import { itemIdOf, itemPath } from "../../src/core/item-path.ts";
 import { topicPath } from "../../src/core/topic-path.ts";
 
 export const SETTINGS_PATH = "/settings";
@@ -19,6 +19,7 @@ export interface Pages {
   readonly highlights: () => void;
   readonly index: () => void;
   readonly topic: (key: string) => void;
+  readonly item: (id: number) => void;
   readonly import: () => void;
 }
 
@@ -98,6 +99,9 @@ export function usePages(navigate: Route["navigate"]): Pages {
       },
       topic: (key) => {
         navigate(topicPath(key));
+      },
+      item: (id) => {
+        navigate(itemPath(id));
       },
       import: () => {
         navigate(IMPORT_PATH);

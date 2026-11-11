@@ -69,6 +69,7 @@ export const KEEP_GROUP = "Keep highlight";
 export const REMOVE_LABEL = "Remove";
 export const REMOVE_GROUP = "Remove highlight";
 export const HIGHLIGHTS_TITLE = "Highlights";
+export const RELATED = { title: "Related Items", untitled: "Untitled" } as const;
 export const NOT_FOUND = "Passage no longer found because the item’s text changed.";
 export const KEPT_ANNOUNCEMENT = "Highlight kept.";
 export const REMOVED_ANNOUNCEMENT = "Highlight removed.";

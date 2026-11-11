@@ -43,6 +43,7 @@ import "./topic-page.css";
 import "./import-page.css";
 import "./index-page.css";
 import "./quote-text.css";
+import "./related.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 

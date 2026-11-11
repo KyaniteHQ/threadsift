@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { type AiTaskDefinition, MAX_OUTPUT_TOKENS } from "./ai-contract.ts";
+import { plainText } from "./plain-text.ts";
 import { OVERVIEW_LINES_MAX, OVERVIEW_TEXT_MAX } from "./topic-overview-contract.ts";
 
 const OVERVIEW_INSTRUCTIONS =
@@ -16,12 +17,7 @@ const SOURCES_MAX = 5;
 
 const LineSchema = z
   .object({
-    text: z
-      .string()
-      .trim()
-      .min(1)
-      .max(LINE_TEXT_MAX)
-      .regex(/^[^[\]{}"\r\n]+$/u),
+    text: plainText(LINE_TEXT_MAX),
     items: z.array(z.number().int().positive()).min(1).max(SOURCES_MAX).readonly(),
   })
   .readonly();

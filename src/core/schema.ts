@@ -51,6 +51,8 @@ export { aiSettingsRevision, openrouterConnectTransactions } from "./openrouter-
 
 export { redditComments, redditSettings, redditThreads } from "./reddit-tables.ts";
 
+export { relatedItems } from "./related-tables.ts";
+
 export { topicLeases, topicPages } from "./topic-tables.ts";
 
 export const items = sqliteTable(

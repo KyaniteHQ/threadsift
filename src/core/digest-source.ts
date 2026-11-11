@@ -1,6 +1,6 @@
 import { type SQLWrapper, and, eq, exists, isNotNull, isNull, or, sql } from "drizzle-orm";
 
-import { failedAiTask } from "./ai-tasks.ts";
+import { failedAiTask, providerSet } from "./ai-tasks.ts";
 import {
   type CatalogNames,
   type CommentCounts,
@@ -18,11 +18,20 @@ import {
   type JobPorts,
   isLastAttempt,
 } from "./job-outcome.ts";
-import { hasOpenJob } from "./job-rows.ts";
+import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
 import { candidateLink, commentCandidates, eligibleComments } from "./reddit-thread.ts";
 import { insertGuard, items } from "./schema.ts";
+
+export function openingPick(db: Database, itemId: number) {
+  return opening(db, {
+    kind: "related_pick",
+    address: sql`${items.originalUrl}`,
+    now: Date.now(),
+    where: and(eq(items.id, itemId), providerSet()) ?? sql`0`,
+  });
+}
 
 export function digestInput(db: Database, id: number) {
   return db

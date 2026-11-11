@@ -1,0 +1,71 @@
+.rel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-width: 0;
+}
+.rel-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rel-entry {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 0;
+  padding: var(--s3) 0;
+  border-top: 1px solid var(--line);
+}
+.rel-entry:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.rel-entry:has(.rel-link:focus-visible) {
+  outline: 2px solid var(--acc-ink);
+  outline-offset: calc(var(--s1) / -2);
+}
+.rel-src {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--f-ui);
+  font-size: var(--t-meta);
+  font-weight: 600;
+  line-height: var(--lh-ui);
+}
+.rel-link {
+  color: var(--text);
+  font-family: var(--f-display);
+  font-size: var(--t-title);
+  font-weight: var(--dw-soft);
+  letter-spacing: var(--dls);
+  line-height: var(--lh-title);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+.rel-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.rel-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-raise);
+}
+.app .rel-link:focus-visible {
+  outline: none;
+}
+.rel-reason {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--f-ui);
+  font-size: var(--t-meta);
+  line-height: var(--lh-ui);
+  overflow-wrap: anywhere;
+}
+.app[data-bp~="phone"] .rel-entry {
+  min-height: var(--target);
+}

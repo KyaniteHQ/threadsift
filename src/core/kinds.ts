@@ -53,13 +53,17 @@ export const WAIT_REASONS = ["github-rate-limit", "topic-busy"] as const;
 
 export const ITEM_JOB_KINDS = ["fetch", "digest"] as const;
 
-export const JOB_KINDS = [...ITEM_JOB_KINDS, "topic_overview"] as const;
+export const JOB_KINDS = [...ITEM_JOB_KINDS, "topic_overview", "related_pick"] as const;
+
+export const SETUP_CODE_STATUSES = ["missing", "short", "set"] as const;
 
 export const JOB_STATES = ["queued", "running", "done"] as const;
 
 export type Source = (typeof SOURCES)[number];
 
 export type Kind = (typeof KINDS)[number];
+
+export type SetupCodeStatus = (typeof SETUP_CODE_STATUSES)[number];
 
 export type ReadState = (typeof READ_STATES)[number];
 

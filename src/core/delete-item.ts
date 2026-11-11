@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 
 import { logFailure } from "./failure-log.ts";
 import { FILE_LIST_LIMIT } from "./file-keys.ts";
@@ -16,6 +16,7 @@ import {
   notes,
   redditComments,
   redditThreads,
+  relatedItems,
   searchFingerprints,
   searchParts,
 } from "./schema.ts";
@@ -56,6 +57,7 @@ export async function deleteItem(
     db.delete(highlights).where(eq(highlights.itemId, id)),
     db.delete(media).where(eq(media.itemId, id)),
     db.delete(notes).where(eq(notes.itemId, id)),
+    db.delete(relatedItems).where(or(eq(relatedItems.itemId, id), eq(relatedItems.relatedId, id))),
     db.delete(searchFingerprints).where(eq(searchFingerprints.itemId, id)),
     db.delete(itemTags).where(eq(itemTags.itemId, id)),
     db.delete(itemAliases).where(eq(itemAliases.itemId, id)),

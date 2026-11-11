@@ -8,6 +8,7 @@ import {
   currency,
   digestInput,
   generationCurrent,
+  openingPick,
   setDigestFailure,
 } from "./digest-source.ts";
 import {
@@ -124,6 +125,7 @@ export async function publishing(
           .insert(digests)
           .values(stored)
           .onConflictDoUpdate({ target: digests.itemId, set: stored }),
+        openingPick(db, item.id),
         ...selectionWrites(db, snapshot, kept),
         ...digestPartWrites(db, eq(items.id, item.id)),
         ...commentPartWrites(db, eq(items.id, item.id), bodies),
