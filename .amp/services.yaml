@@ -1,0 +1,20 @@
+services:
+  api:
+    command: DATA_DIR=.data node src/targets/node/index.ts
+    port: 8080
+    health: /api/session
+  web:
+    command: pnpm exec vite --host 127.0.0.1 --port "$PORT" --strictPort
+    env:
+      THREADSIFT_API_URL: http://127.0.0.1:8080
+    health: /
+    portal:
+      title: Threadsift
+      description: On a fresh library, read the setup code with `amp orb service logs api`.
+  prototype:
+    command: python3 -m http.server "$PORT" --bind 127.0.0.1
+    cwd: design/prototype
+    portal:
+      url: /Main.dc.html
+      title: Design prototype
+      description: Needs a gitignored data.json in design/prototype to show Items. Press T for Tweaks.
