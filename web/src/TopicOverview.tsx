@@ -1,7 +1,7 @@
 import { useId } from "react";
 
 import { itemPath } from "../../src/core/item-path.ts";
-import type { Overview } from "../../src/core/topic-overview-contract.ts";
+import { type Overview, overviewLines } from "../../src/core/topic-overview-contract.ts";
 import { keyed } from "./keyed.ts";
 import { useNavigateLink } from "./routing.ts";
 import { RETRY_LABEL } from "./text.ts";
@@ -64,9 +64,9 @@ function Lines({
   overview,
   navigate,
 }: Readonly<{ overview: Overview; navigate: (to: string) => void }>) {
-  return keyed((overview.text ?? "").split(/\r\n|\r|\n/u).filter((line) => line.trim() !== "")).map(
-    ({ key, text }) => <Line key={key} line={text} cited={overview.cited} navigate={navigate} />,
-  );
+  return keyed(overviewLines(overview.text ?? "")).map(({ key, text }) => (
+    <Line key={key} line={text} cited={overview.cited} navigate={navigate} />
+  ));
 }
 
 function Status({ overview, write }: Readonly<{ overview: Overview; write: () => void }>) {

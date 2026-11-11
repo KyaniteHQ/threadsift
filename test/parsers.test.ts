@@ -5,6 +5,7 @@ import { redditJsonOfArchive } from "../src/core/archive-adapter.ts";
 import { readArticle } from "../src/core/article.ts";
 import { catalogKey } from "../src/core/catalog.ts";
 import { parseRedditThread } from "../src/core/reddit-json.ts";
+import { overviewLine } from "../src/core/topic-overview-contract.ts";
 
 const PARAGRAPH =
   "A tear in the middle of a page is what a plain file copy risks when a writer is busy, so the safe route is the online backup command followed by a check that the copy opens.";
@@ -155,5 +156,35 @@ describe("the parsers turn literal input into the values the library stores", ()
         ["t1_c4", 2, false, null],
       ],
     );
+  });
+});
+
+describe("the overview line is the first line of an overview without its trailing citation marks", () => {
+  it("takes one line, or the first of several", () => {
+    assert.equal(overviewLine("Backups need care [3]"), "Backups need care");
+    assert.equal(
+      overviewLine("Backups need care [3]\nCopies can tear [4][5]\nChecks help [6]"),
+      "Backups need care",
+    );
+  });
+
+  it("skips blank lines and reads CRLF text", () => {
+    assert.equal(overviewLine("\r\n  \r\nFirst line [1]\r\nSecond [2]"), "First line");
+  });
+
+  it("removes marks only at the end of the line", () => {
+    assert.equal(overviewLine("See [12] for the cause [13][14]"), "See [12] for the cause");
+    assert.equal(overviewLine("Mid [12] mark stays"), "Mid [12] mark stays");
+  });
+
+  it("keeps a bracketed phrase that is not an id", () => {
+    assert.equal(overviewLine("Read [the docs] [12]"), "Read [the docs]");
+    assert.equal(overviewLine("Read [the docs]"), "Read [the docs]");
+  });
+
+  it("returns the text unchanged when it has no mark, and null when no line is left", () => {
+    assert.equal(overviewLine("No marks here"), "No marks here");
+    assert.equal(overviewLine(""), null);
+    assert.equal(overviewLine("\n  \n"), null);
   });
 });

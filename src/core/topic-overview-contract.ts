@@ -3,6 +3,8 @@ import { z } from "zod";
 import { AiRefusalSchema } from "./ai-contract.ts";
 import { SOURCES } from "./kinds.ts";
 
+export const TOPIC_KEY_MAX = 500;
+
 export const OVERVIEW_TEXT_MAX = 1500;
 
 export const OVERVIEW_LINES_MAX = 5;
@@ -26,6 +28,22 @@ const CITATION = /\[(\d{1,19})\]/gu;
 export function citedIds(text: string): readonly number[] {
   return [...new Set([...text.matchAll(CITATION)].map(([, id = ""]) => Number(id)))].filter(
     (id) => Number.isSafeInteger(id) && id > 0,
+  );
+}
+
+const LINE_BREAK = /\r\n|\r|\n/u;
+
+const TRAILING_CITATIONS = /(?:\s*\[\d{1,19}\])+\s*$/u;
+
+export function overviewLines(text: string): readonly string[] {
+  return text.split(LINE_BREAK).filter((line) => line.trim() !== "");
+}
+
+export function overviewLine(text: string): string | null {
+  return (
+    overviewLines(text)
+      .map((line) => line.replace(TRAILING_CITATIONS, "").trim())
+      .find((line) => line !== "") ?? null
   );
 }
 

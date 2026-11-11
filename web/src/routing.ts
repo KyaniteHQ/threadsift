@@ -10,11 +10,14 @@ export const HIGHLIGHTS_PATH = "/highlights";
 
 export const IMPORT_PATH = "/import";
 
+export const INDEX_PATH = "/topics";
+
 export const RESET_PATH = "/reset";
 
 export interface Pages {
   readonly settings: () => void;
   readonly highlights: () => void;
+  readonly index: () => void;
   readonly topic: (key: string) => void;
   readonly import: () => void;
 }
@@ -89,6 +92,9 @@ export function usePages(navigate: Route["navigate"]): Pages {
       },
       highlights: () => {
         navigate(HIGHLIGHTS_PATH);
+      },
+      index: () => {
+        navigate(INDEX_PATH);
       },
       topic: (key) => {
         navigate(topicPath(key));

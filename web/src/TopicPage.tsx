@@ -1,9 +1,10 @@
 import { useState } from "react";
 
 import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
+import { LoadMore } from "./LoadMore.tsx";
 import { PageBar } from "./PageBar.tsx";
 import type { Route } from "./routing.ts";
-import { LOAD_MORE, RETRY_LABEL, SORT_LABEL } from "./text.ts";
+import { RETRY_LABEL, SORT_LABEL } from "./text.ts";
 import { TOPIC_PAGE, itemsLabel } from "./topic-text.ts";
 import { TopicItemRow } from "./TopicItems.tsx";
 import { TopicOverview } from "./TopicOverview.tsx";
@@ -11,12 +12,6 @@ import { type TopicReady, type TopicState, useTopicPage } from "./use-topic-page
 
 function Loading() {
   return <Skeleton label={TOPIC_PAGE.loading} row="tp-it" title="tp-title" />;
-}
-
-function moreLabel(more: TopicReady["more"]): string {
-  if (more === "loading") return TOPIC_PAGE.loadingMore;
-
-  return more === "failed" ? RETRY_LABEL : LOAD_MORE;
 }
 
 function ItemList({
@@ -49,28 +44,6 @@ function ItemList({
   );
 }
 
-function More({ state, loadMore }: Readonly<{ state: TopicReady; loadMore: () => void }>) {
-  if (state.next === null) return null;
-
-  return (
-    <div className="tp-more">
-      {state.more === "failed" ? (
-        <p className="rd-note" role="alert">
-          {TOPIC_PAGE.loadMoreFailed}
-        </p>
-      ) : null}
-      <button
-        type="button"
-        className="btn"
-        aria-disabled={state.more === "loading"}
-        onClick={loadMore}
-      >
-        {moreLabel(state.more)}
-      </button>
-    </div>
-  );
-}
-
 function Items({
   state,
   loadMore,
@@ -85,7 +58,9 @@ function Items({
         <p className="label">{SORT_LABEL}</p>
       </header>
       <ItemList state={state} navigate={navigate} />
-      <More state={state} loadMore={loadMore} />
+      {state.next === null ? null : (
+        <LoadMore more={state.more} failedText={TOPIC_PAGE.loadMoreFailed} loadMore={loadMore} />
+      )}
     </section>
   );
 }

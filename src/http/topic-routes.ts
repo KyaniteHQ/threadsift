@@ -3,14 +3,18 @@ import { z } from "zod";
 
 import { ITEMS_PAGE_SIZE, parseCursor } from "../core/item-page.ts";
 import type { Ports } from "../core/ports.ts";
-import { OverviewRetryResponseSchema, TopicPageSchema } from "../core/topic-overview-contract.ts";
+import {
+  OverviewRetryResponseSchema,
+  TOPIC_KEY_MAX,
+  TopicPageSchema,
+} from "../core/topic-overview-contract.ts";
 import { readTopicPage } from "../core/topic-page.ts";
 import { retryOverview } from "../core/topic-retry.ts";
 import { NOT_FOUND } from "./item-routes.ts";
 import { jsonBody } from "./openapi.ts";
 import { ErrorResponseSchema, ItemQuerySchema } from "./schemas.ts";
 
-const TopicParamSchema = z.object({ key: z.string().min(1).max(500) });
+const TopicParamSchema = z.object({ key: z.string().min(1).max(TOPIC_KEY_MAX) });
 
 const TopicQuerySchema = ItemQuerySchema.pick({ cursor: true });
 
