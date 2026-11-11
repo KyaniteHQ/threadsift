@@ -3,6 +3,8 @@ import { hostOf, words } from "./words.mts";
 
 export const calls: string[] = [];
 
+export const asked: string[] = [];
+
 const pending: string[] = [];
 
 const LATER_MS = 100;
@@ -25,7 +27,11 @@ function afterAbort<Answer>(
 }
 
 export default {
-  matches: (url) => hostOf(url) === "deadline.test",
+  matches: (url) => {
+    asked.push(url);
+
+    return hostOf(url) === "deadline.test";
+  },
   fetch: (url, { signal }) => {
     const { pathname } = new URL(url);
 

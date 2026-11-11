@@ -80,12 +80,6 @@ async function fetchedFrom(
   address: string,
   deadline: AbortSignal,
 ): Promise<PluginResult> {
-  if (deadline.aborted) {
-    logFailure("fetcher-failed", failure(module, "timeout"), deadline.reason);
-
-    return TIMEOUT;
-  }
-
   let answer: PluginPage | typeof EXPIRED;
 
   try {
@@ -124,6 +118,12 @@ export function pluginPage(
   address: string,
   deadline: AbortSignal,
 ): Promise<PluginResult> {
+  if (deadline.aborted) {
+    logFailure("fetcher-failed", { stage: "timeout" }, deadline.reason);
+
+    return Promise.resolve(TIMEOUT);
+  }
+
   const claimed = claim(fetchers, address);
 
   if (claimed.kind === "claimed") return fetchedFrom(claimed.entry, address, deadline);

@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import { lookup } from "node:dns/promises";
+import { hostname } from "node:os";
+import { after, before, describe, it } from "node:test";
+
+import { isGlobalAddress } from "../src/core/addresses.ts";
+import { SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { fetcherFile, recordOf } from "./fetcher-record.ts";
+import { Instance } from "./instance.ts";
+
+const MODULE = fetcherFile("claims-every-address.mts");
+
+describe("a link whose host resolves only to addresses the Instance may not reach is refused before any plug-in is asked", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start(undefined, MODULE);
+    await instance.setUp();
+  });
+
+  after(() => instance.close());
+
+  it("answers refused for this machine's own host name and asks no plug-in", async (context) => {
+    const name = hostname();
+    const resolved = await lookup(name, { all: true }).catch(() => []);
+
+    if (resolved.length === 0 || resolved.some(({ address }) => isGlobalAddress(address))) {
+      context.skip("this machine's own host name does not resolve to a private address");
+
+      return;
+    }
+
+    const address = `http://${name}/guide`;
+
+    const { item } = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
+      url: address,
+    });
+
+    const settled = await instance.settledItem(item.id);
+
+    assert.equal(settled.fetch, "refused");
+    assert.deepEqual(await recordOf(MODULE, "asked"), []);
+  });
+});

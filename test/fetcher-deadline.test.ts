@@ -17,6 +17,8 @@ describe("a plug-in that does not answer before the fetch deadline ends the fetc
 
   const calls = () => recordOf(MODULE, "calls");
 
+  const asked = () => recordOf(MODULE, "asked");
+
   it("answers timeout when the promise never settles, and again for an answer or a rejection that arrives after the deadline", async () => {
     const unhandled: Error[] = [];
 
@@ -45,17 +47,22 @@ describe("a plug-in that does not answer before the fetch deadline ends the fetc
     assert.deepEqual(unhandled, []);
   });
 
-  it("does not call the plug-in when the deadline has already passed", async () => {
-    const before = (await calls()).length;
+  it("calls neither a matcher nor a fetch when the deadline has already passed, even when an earlier matcher throws", async () => {
+    const throwing = await loadFetchers(`${fetcherFile("throws-on-every-address.mts")},${MODULE}`);
+    const matchersBefore = (await asked()).length;
+    const fetchesBefore = (await calls()).length;
 
-    const result = await pluginPage(
-      await fetchers,
-      "https://deadline.test/never",
-      AbortSignal.abort(),
-    );
+    const results = await Promise.all([
+      pluginPage(await fetchers, "https://deadline.test/never", AbortSignal.abort()),
+      pluginPage(throwing, "https://deadline.test/never", AbortSignal.abort()),
+    ]);
 
-    assert.deepEqual(result, { kind: "failed", status: "timeout" });
-    assert.equal((await calls()).length, before);
+    assert.deepEqual(results, [
+      { kind: "failed", status: "timeout" },
+      { kind: "failed", status: "timeout" },
+    ]);
+    assert.equal((await asked()).length, matchersBefore);
+    assert.equal((await calls()).length, fetchesBefore);
   });
 
   it("treats an AbortError thrown while the deadline is still open as a plug-in failure, not a timeout", async () => {

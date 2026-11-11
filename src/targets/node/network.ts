@@ -1,4 +1,4 @@
-import { lookup } from "node:dns";
+import { type LookupAddress, lookup } from "node:dns";
 import { type IncomingMessage, request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import type { LookupFunction, TcpNetConnectOpts } from "node:net";
@@ -48,6 +48,21 @@ const globalAddressesOnly: LookupFunction = (hostname, options, callback) => {
   });
 };
 
+function lookedUp(hostname: string, signal: AbortSignal): Promise<readonly LookupAddress[] | null> {
+  return new Promise((resolve) => {
+    const abandon = () => {
+      resolve(null);
+    };
+
+    signal.addEventListener("abort", abandon, { once: true });
+
+    lookup(hostname, { all: true }, (error, resolved) => {
+      signal.removeEventListener("abort", abandon);
+      resolve(error === null ? resolved : null);
+    });
+  });
+}
+
 function firstHeader(value: string | readonly string[] | undefined): string | null {
   return [value].flat()[0] ?? null;
 }
@@ -63,6 +78,11 @@ function decodedBody(response: IncomingMessage, encoding: string): Readable {
 }
 
 export const nodeNetwork: Network = {
+  reachable: async (url, signal) => {
+    const addresses = await lookedUp(new URL(url).hostname.replaceAll(/^\[|\]$/gu, ""), signal);
+
+    return addresses === null || addresses.some(({ address }) => isGlobalAddress(address));
+  },
   get: (url, signal, headers) =>
     new Promise<NetworkResponse>((resolve, reject) => {
       const send = url.startsWith("https:") ? httpsRequest : httpRequest;

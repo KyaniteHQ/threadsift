@@ -55,6 +55,7 @@ export interface Network {
     signal: AbortSignal,
     headers: RequestHeaders,
   ) => Promise<NetworkResponse>;
+  readonly reachable: (url: string, signal: AbortSignal) => Promise<boolean>;
 }
 
 export interface PageReader {
