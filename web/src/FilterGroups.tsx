@@ -13,6 +13,7 @@ import {
   filled,
   namedOption,
 } from "./text.ts";
+import { TopicPageLink } from "./TopicLink.tsx";
 
 const SHOWN_ROWS = 5;
 
@@ -217,6 +218,7 @@ export function RowGroup({
           id={listId}
         />
       ) : null}
+      {facet === "topic" && chosen !== null ? <TopicPageLink topicKey={chosen} /> : null}
     </div>
   );
 }
@@ -242,16 +244,19 @@ export function NamedSelect({
   );
 
   return (
-    <label className="fl-g">
-      <span className="label">{FILTER_GROUPS[facet]}</span>
-      <select className="fl-sel" value={chosen ?? ""} onChange={change}>
-        <option value="">{ANY_CHOICE[facet]}</option>
-        {visibleRows(rows, chosen, searching).map((row) => (
-          <option key={row.key} value={row.key}>
-            {namedOption(row.name, row.count)}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="fl-g">
+      <label className="fl-g">
+        <span className="label">{FILTER_GROUPS[facet]}</span>
+        <select className="fl-sel" value={chosen ?? ""} onChange={change}>
+          <option value="">{ANY_CHOICE[facet]}</option>
+          {visibleRows(rows, chosen, searching).map((row) => (
+            <option key={row.key} value={row.key}>
+              {namedOption(row.name, row.count)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {facet === "topic" && chosen !== null ? <TopicPageLink topicKey={chosen} /> : null}
+    </div>
   );
 }

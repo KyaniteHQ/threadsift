@@ -1,4 +1,5 @@
 import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
+import { topicKeyOf } from "../../src/core/topic-path.ts";
 import { HIGHLIGHTS_PATH, RESET_PATH, SETTINGS_PATH } from "./routing.ts";
 import type { View } from "./use-session-view.ts";
 
@@ -8,30 +9,49 @@ const TITLES = {
   reset: "Reset password, Threadsift",
   settings: "Settings, Threadsift",
   highlights: "Highlights, Threadsift",
+  topic: "Topic, Threadsift",
   library: "Threadsift",
   loading: "Threadsift",
   unreachable: "Threadsift",
 } as const;
 
+type Named<Name extends string> = { readonly name: Name };
+
 export type ScreenState =
-  | {
-      readonly name:
-        | "loading"
-        | "unreachable"
-        | "login"
-        | "reset"
-        | "settings"
-        | "highlights"
-        | "library";
-    }
-  | { readonly name: "setup"; readonly problem: SetupCodeProblem | null };
+  | Named<"loading">
+  | Named<"unreachable">
+  | Named<"login">
+  | Named<"reset">
+  | Named<"settings">
+  | Named<"highlights">
+  | Named<"library">
+  | { readonly name: "setup"; readonly problem: SetupCodeProblem | null }
+  | { readonly name: "topic"; readonly key: string };
 
 export type ScreenName = ScreenState["name"];
 
-function signedInScreen(path: string): "settings" | "highlights" | "library" {
-  if (path === SETTINGS_PATH) return "settings";
+export type SignedInState = Extract<
+  ScreenState,
+  { readonly name: "settings" | "highlights" | "library" | "topic" }
+>;
 
-  return path === HIGHLIGHTS_PATH ? "highlights" : "library";
+export function isSignedInScreen(screen: Readonly<ScreenState>): screen is SignedInState {
+  return (
+    screen.name === "settings" ||
+    screen.name === "highlights" ||
+    screen.name === "library" ||
+    screen.name === "topic"
+  );
+}
+
+function signedInScreen(path: string): ScreenState {
+  if (path === SETTINGS_PATH) return { name: "settings" };
+
+  if (path === HIGHLIGHTS_PATH) return { name: "highlights" };
+
+  const key = topicKeyOf(path);
+
+  return key === null ? { name: "library" } : { name: "topic", key };
 }
 
 export function screenOf(view: View, path: string): ScreenState {
@@ -41,7 +61,7 @@ export function screenOf(view: View, path: string): ScreenState {
     case "signed-out":
       return { name: path === RESET_PATH ? "reset" : "login" };
     case "signed-in":
-      return { name: signedInScreen(path) };
+      return signedInScreen(path);
     case "loading":
     case "unreachable":
       return { name: view.state };

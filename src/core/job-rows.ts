@@ -3,14 +3,19 @@ import { alias } from "drizzle-orm/sqlite-core";
 
 import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import type { JobKind } from "./kinds.ts";
+import { ITEM_JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, items, jobs } from "./schema.ts";
 
 const openJobs = alias(jobs, "open_jobs");
 
 export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${items.id}`) {
-  return sql`(select 1 from ${jobs} as open_jobs where ${openJobs.itemId} = ${itemId} and ${openJobs.state} <> 'done' ${kind === undefined ? sql`` : sql`and ${openJobs.kind} = ${kind}`})`;
+  const kinds = kind === undefined ? ITEM_JOB_KINDS : [kind];
+
+  return sql`(select 1 from ${jobs} as open_jobs where ${openJobs.itemId} = ${itemId} and ${openJobs.state} <> 'done' and ${openJobs.kind} in (${sql.join(
+    kinds.map((each) => sql`${each}`),
+    sql`, `,
+  )}))`;
 }
 
 export const CLOSED_JOB = {

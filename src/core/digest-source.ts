@@ -80,6 +80,7 @@ export function currency(
   db: Database,
   current: Readonly<SQLWrapper>,
   taskId: number | null,
+  alsoOnDiscard: ReturnType<JobCurrency["discard"]> = [],
 ): JobCurrency {
   return {
     current: async () => {
@@ -87,13 +88,17 @@ export function currency(
 
       return row?.current === 1;
     },
-    discard: (cause) =>
-      taskId === null
-        ? undefined
-        : failedAiTask(db, taskId, {
-            reason: cause === "error" ? "unreachable" : cause,
-            status: null,
-          }),
+    discard: (cause) => [
+      ...(taskId === null
+        ? []
+        : [
+            failedAiTask(db, taskId, {
+              reason: cause === "error" ? "unreachable" : cause,
+              status: null,
+            }),
+          ]),
+      ...alsoOnDiscard,
+    ],
   };
 }
 

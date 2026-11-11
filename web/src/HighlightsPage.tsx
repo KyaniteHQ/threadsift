@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from "react";
 
 import { useFilters } from "./filters.ts";
-import { HighlightsBar } from "./HighlightsBar.tsx";
+import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { HighlightsBody } from "./HighlightsBody.tsx";
 import { HighlightsTools } from "./HighlightsTools.tsx";
+import { PageBar } from "./PageBar.tsx";
 import type { Route } from "./routing.ts";
 import { useEntryKeys } from "./use-highlights-focus.ts";
 import { useHighlightsPage } from "./use-highlights-page.ts";
@@ -33,7 +34,7 @@ export function HighlightsPage({
 
   return (
     <div className="pg hp">
-      <HighlightsBar back={back} />
+      <PageBar title={HIGHLIGHTS_PAGE.title} back={back} backLabel={HIGHLIGHTS_PAGE.back} />
       <main className="pg-col hp-col" aria-busy={state.status === "loading"}>
         <HighlightsTools
           state={state}

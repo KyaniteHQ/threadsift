@@ -2,6 +2,9 @@ import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
 import { AiSaveResponseSchema } from "../src/core/ai-contract.ts";
+import { catalogKey } from "../src/core/catalog.ts";
+import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
+import { topicApiPath } from "../src/core/topic-path.ts";
 import {
   ItemDetailResponseSchema,
   ItemResponseSchema,
@@ -67,6 +70,29 @@ function digestStates(request: APIRequestContext, ids: readonly number[]) {
       return item.digest === null ? item.digestOutcome : "digest";
     }),
   );
+}
+
+async function digestedTopic(
+  request: APIRequestContext,
+  ids: readonly number[],
+): Promise<string | null> {
+  const topics = await Promise.all(
+    ids.map(async (id) => {
+      const answer = await request.get(`/api/items/${String(id)}`);
+
+      return ItemDetailResponseSchema.parse(await answer.json()).item.digestTopic;
+    }),
+  );
+
+  return topics.find((topic) => topic !== null) ?? null;
+}
+
+async function overviewText(request: APIRequestContext, topic: string): Promise<string | null> {
+  const answer = await request.get(topicApiPath(catalogKey(topic)));
+
+  expect(answer.status(), `the Topic page of ${topic}`).toBe(200);
+
+  return TopicPageSchema.parse(await answer.json()).overview.text;
 }
 
 async function fireScheduledHandler(request: APIRequestContext): Promise<void> {
@@ -139,5 +165,26 @@ test("real Pastes of an article and a GitHub repo are read, and the OpenRouter P
         },
       )
       .toContain("digest");
+  });
+
+  await test.step("wait for the Topic overview of that Digest", async () => {
+    const topic = await digestedTopic(request, ids);
+
+    expect(topic, "a Digest names a Topic").not.toBeNull();
+
+    await expect
+      .poll(
+        async () => {
+          await fireScheduledHandler(request);
+
+          return overviewText(request, topic ?? "");
+        },
+        {
+          message: "the Topic page holds a written overview",
+          timeout: DIGEST_WAIT_MS,
+          intervals: [2000, 5000],
+        },
+      )
+      .not.toBeNull();
   });
 });

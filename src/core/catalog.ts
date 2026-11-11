@@ -17,6 +17,7 @@ import {
   topics,
 } from "./schema.ts";
 import { digestPartWrites } from "./search.ts";
+import { openingOverview } from "./topic-overview-open.ts";
 
 const OLDER_DIGEST_BATCH = 10;
 
@@ -139,6 +140,7 @@ export function linkingDigest(db: Database, itemId: number, entries: CatalogEntr
           .where(sql`1`),
       )
       .onConflictDoNothing(),
+    openingOverview(db, itemId),
   ];
 }
 

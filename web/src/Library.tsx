@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { Announcement } from "./Announcement.tsx";
 import { ListColumn } from "./ListColumn.tsx";
+import { PagesScope } from "./pages-scope.ts";
 import { ReaderPane } from "./ReaderPane.tsx";
 import type { Pages, Route } from "./routing.ts";
 import { useLibraryView } from "./use-library-view.ts";
@@ -30,20 +31,22 @@ export function Library({
   const nav = useMemo(() => ({ steps, step, close }), [steps, step, close]);
 
   return (
-    <div ref={root} className={classes.join(" ")}>
-      <ListColumn view={view} look={look} arrived={arrived} openId={route.openId} pages={pages} />
-      {hasReader ? (
-        <ReaderPane
-          item={openItem}
-          controls={side.reader.controls}
-          nav={nav}
-          look={look}
-          pages={pages}
-          tryAgain={view.actions.retryItem}
-          announcement={side.reader.announcement}
-        />
-      ) : null}
-      {sheetOpen ? null : <Announcement {...side.reader.announcement} />}
-    </div>
+    <PagesScope value={pages}>
+      <div ref={root} className={classes.join(" ")}>
+        <ListColumn view={view} look={look} arrived={arrived} openId={route.openId} pages={pages} />
+        {hasReader ? (
+          <ReaderPane
+            item={openItem}
+            controls={side.reader.controls}
+            nav={nav}
+            look={look}
+            pages={pages}
+            tryAgain={view.actions.retryItem}
+            announcement={side.reader.announcement}
+          />
+        ) : null}
+        {sheetOpen ? null : <Announcement {...side.reader.announcement} />}
+      </div>
+    </PagesScope>
   );
 }

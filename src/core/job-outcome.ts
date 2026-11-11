@@ -19,7 +19,7 @@ export type ClaimedJob = JobRow & {
 
 export interface JobCurrency {
   readonly current: () => Promise<boolean>;
-  readonly discard: (cause: "stale" | "lease-lost" | "error") => BatchItem<"sqlite"> | undefined;
+  readonly discard: (cause: "stale" | "lease-lost" | "error") => readonly BatchItem<"sqlite">[];
 }
 
 export interface JobFiles {
@@ -40,6 +40,7 @@ export interface SettledOutcome {
   readonly currency?: JobCurrency;
   readonly files?: JobFiles;
   readonly failedAttempt?: boolean;
+  readonly continuation?: JobWrites;
 }
 
 export interface AnchoredOutcome extends SettledOutcome {

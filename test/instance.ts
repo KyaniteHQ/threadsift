@@ -161,6 +161,15 @@ export class Instance {
     return { status: response.status, body: await response.text() };
   }
 
+  async sendWithToken(token: string, method: string, path: string): Promise<Answer> {
+    const response = await this.app.request(path, {
+      method,
+      headers: new Headers({ origin: ORIGIN, authorization: `Bearer ${token}` }),
+    });
+
+    return { status: response.status, body: await response.text() };
+  }
+
   async read<Schema extends z.ZodType>(
     method: string,
     path: string,

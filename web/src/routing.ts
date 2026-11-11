@@ -2,6 +2,7 @@ import { type MouseEvent, useCallback, useEffect, useMemo, useState } from "reac
 import { z } from "zod";
 
 import { itemIdOf } from "../../src/core/item-path.ts";
+import { topicPath } from "../../src/core/topic-path.ts";
 
 export const SETTINGS_PATH = "/settings";
 
@@ -12,6 +13,7 @@ export const RESET_PATH = "/reset";
 export interface Pages {
   readonly settings: () => void;
   readonly highlights: () => void;
+  readonly topic: (key: string) => void;
 }
 
 export interface Route {
@@ -85,6 +87,9 @@ export function usePages(navigate: Route["navigate"]): Pages {
       highlights: () => {
         navigate(HIGHLIGHTS_PATH);
       },
+      topic: (key) => {
+        navigate(topicPath(key));
+      },
     }),
     [navigate],
   );
@@ -103,5 +108,13 @@ export function useInternalLink(open: () => void) {
       open();
     },
     [open],
+  );
+}
+
+export function useNavigateLink(navigate: (to: string) => void, to: string) {
+  return useInternalLink(
+    useCallback(() => {
+      navigate(to);
+    }, [navigate, to]),
   );
 }
