@@ -74,7 +74,12 @@ JOIN tags AS into_tag ON into_tag.key = demo.into_key
 WHERE true
 ON CONFLICT DO NOTHING`;
 
-const missingDemoProposals = `WITH demo (from_key, into_key, reason) AS (VALUES ${demoPairs})
+function missingDemoProposals(pinsTable: boolean): string {
+  const accepted = pinsTable
+    ? "AND NOT EXISTS (SELECT 1 FROM pins WHERE pins.from_key = demo.from_key)"
+    : "";
+
+  return `WITH demo (from_key, into_key, reason) AS (VALUES ${demoPairs})
 SELECT demo.from_key || ' and ' || demo.into_key AS name
 FROM demo
 WHERE NOT EXISTS (
@@ -84,7 +89,8 @@ WHERE NOT EXISTS (
   JOIN tags AS into_tag ON into_tag.id = proposals.into_tag_id
   WHERE (from_tag.key = demo.from_key AND into_tag.key = demo.into_key)
     OR (from_tag.key = demo.into_key AND into_tag.key = demo.from_key)
-)`;
+) ${accepted}`;
+}
 
 export function seedDemoProposals(
   run: (args: readonly string[]) => string,
@@ -94,7 +100,7 @@ export function seedDemoProposals(
 
   run(["d1", "execute", "DB", "--json", "--command", demoProposalsInsert, ...scope]);
 
-  const missing = rowNames(run, scope, missingDemoProposals);
+  const missing = rowNames(run, scope, missingDemoProposals(hasTable(run, scope, "pins")));
 
   if (missing.length > 0)
     throw new CommandFailure({
