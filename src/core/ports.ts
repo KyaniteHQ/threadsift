@@ -3,6 +3,7 @@ import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
 import type { AiExecution, AiTaskRequest, CliProvider, Provider } from "./ai-contract.ts";
 import type { ArticleReading } from "./article.ts";
+import type { LoadedFetcher } from "./fetcher.ts";
 import type { OpenRouterExchange } from "./openrouter-contract.ts";
 import type { Sealer } from "./sealed-secret.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
@@ -114,6 +115,7 @@ export interface Ports {
   readonly resetCode: string | undefined;
   readonly publicOrigin: string | null;
   readonly ai: AiRuntime;
+  readonly fetchers: readonly LoadedFetcher[];
 }
 
 export const REQUEST_HEADERS = {
