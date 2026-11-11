@@ -7,7 +7,12 @@ import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
 
 import { CommandFailure } from "./command-failure.ts";
-import { previewResourceExists, removePreviewBucket } from "./preview-cloudflare.ts";
+import {
+  drainDeletedWorker,
+  previewResourceExists,
+  removePreviewBucket,
+} from "./preview-cloudflare.ts";
+import { hasForeignMigrations } from "./preview-migrations.ts";
 import { provisionPreviewOwner } from "./preview-owner.ts";
 
 const [action, number, mode, artifact] = process.argv.slice(2);
@@ -138,11 +143,13 @@ async function detachConsumer(): Promise<void> {
     wrangler(["queues", "consumer", "remove", `${name}-jobs`, name]);
 }
 
-async function close(): Promise<void> {
+async function stopWorker(): Promise<void> {
   await detachConsumer();
 
   if (await previewResourceExists("worker", name)) wrangler(["delete", "--name", name]);
+}
 
+async function removeStorage(): Promise<void> {
   if (await previewResourceExists("queue", `${name}-jobs`))
     wrangler(["queues", "delete", `${name}-jobs`]);
 
@@ -165,6 +172,21 @@ async function close(): Promise<void> {
       reason: "Preview cleanup incomplete; rerun close",
       recovery: "Inspect the PR manifest and preview token permissions, then rerun close.",
     });
+}
+
+async function close(): Promise<void> {
+  await stopWorker();
+  await removeStorage();
+}
+
+async function resetForeignHistory(): Promise<void> {
+  if (!databaseExists() || !hasForeignMigrations(wrangler, ["--remote"], join(root, "migrations")))
+    return;
+
+  console.log(`${name}-db has migrations this build lacks; deleting the preview to deploy it anew`);
+  await stopWorker();
+  await drainDeletedWorker();
+  await removeStorage();
 }
 
 function initializeSecrets(): void {
@@ -194,6 +216,8 @@ async function deploy(): Promise<void> {
       recovery:
         "Set PREVIEW_SETUP_CODE to at least 16 characters and DEMO_OWNER_PASSWORD to at least 15 in the preview environment.",
     });
+  await resetForeignHistory();
+
   wrangler(["deploy", "--keep-vars"]);
 
   initializeSecrets();
