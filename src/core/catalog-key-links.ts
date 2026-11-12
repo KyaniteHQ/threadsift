@@ -73,6 +73,7 @@ export const TOPIC_KIND: CatalogKind = {
     entryIds: await firstIds(db, logEntries.id, logEntries.topicId, id),
   }),
   relink: (db, loser, survivor, { itemIds, entryIds }) => [
+    ...proposalRelinks(db, "topic", loser, survivor),
     db
       .update(items)
       .set({ topicId: survivor })
@@ -122,7 +123,7 @@ export const TAG_KIND: CatalogKind = {
     entryIds: [],
   }),
   relink: (db, loser, survivor, { itemIds }) => [
-    ...proposalRelinks(db, loser, survivor),
+    ...proposalRelinks(db, "tag", loser, survivor),
     repointedPins(db, loser, survivor),
     ...tagMoves(db, loser, survivor, (column) => among(column, itemIds)),
   ],

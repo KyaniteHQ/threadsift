@@ -3,7 +3,7 @@ import { z } from "zod";
 import { PROPOSAL_KINDS } from "./kinds.ts";
 import { parseLogCursor } from "./log-contract.ts";
 
-const TagRefSchema = z
+const SubjectRefSchema = z
   .object({ id: z.number().int(), name: z.string(), items: z.number().int().min(0) })
   .readonly();
 
@@ -15,8 +15,8 @@ export const ProposalSchema = z
     kind: z.enum(PROPOSAL_KINDS),
     state: ListedStateSchema,
     reason: z.string(),
-    from: TagRefSchema,
-    into: TagRefSchema,
+    from: SubjectRefSchema,
+    into: SubjectRefSchema,
   })
   .readonly();
 
