@@ -181,7 +181,11 @@ in
     };
     "design:check" = {
       showOutput = true;
-      exec = ".claude/skills/impeccable/scripts/impeccable detect \${GITHUB_ACTIONS:+--github} web";
+      exec = ''
+        set -e
+        .claude/skills/impeccable/scripts/impeccable detect ''${GITHUB_ACTIONS:+--github} web
+        pnpm run check:faces
+      '';
     };
     "ci:gate" = {
       after = [
