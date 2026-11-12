@@ -1,9 +1,5 @@
-import type { MergeKind } from "../../src/core/kinds.ts";
-import type {
-  LostHighlightProposal,
-  MergeProposal,
-  Proposal,
-} from "../../src/core/proposal-contract.ts";
+import type { MergeKind, ProposalKind } from "../../src/core/kinds.ts";
+import type { Proposal } from "../../src/core/proposal-contract.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { filled } from "./text.ts";
 
@@ -28,7 +24,16 @@ export function proposalsEmptyLine(provider: boolean, checkedDate: string | null
   return checkedDate === null ? EMPTY_NOT_CHECKED : filled(EMPTY_CHECKED, { date: checkedDate });
 }
 
-const MERGE_WORDS = {
+type Wording =
+  | "effect"
+  | "acceptNamed"
+  | "acceptRetryNamed"
+  | "accepted"
+  | "rejectNamed"
+  | "rejectRetryNamed"
+  | "rejected";
+
+const WORDS = {
   "tag-merge": {
     effect: "Merge {from} into {into}",
     acceptNamed: "Accept merging {from} into {into}",
@@ -47,17 +52,16 @@ const MERGE_WORDS = {
     rejectRetryNamed: "Try again to reject merging topic {from} into {into}",
     rejected: "Rejected merging topic {from} into {into}.",
   },
-} as const satisfies Record<MergeKind, Record<string, string>>;
-
-const LOST_WORDS = {
-  effect: "Remove this highlight",
-  acceptNamed: "Accept removing highlight from {title}",
-  acceptRetryNamed: "Try again to accept removing highlight from {title}",
-  accepted: "Accepted removing highlight from {title}.",
-  rejectNamed: "Reject removing highlight from {title}",
-  rejectRetryNamed: "Try again to reject removing highlight from {title}",
-  rejected: "Rejected removing highlight from {title}.",
-} as const;
+  "highlight-lost": {
+    effect: "Remove this highlight",
+    acceptNamed: "Accept removing highlight from {title}",
+    acceptRetryNamed: "Try again to accept removing highlight from {title}",
+    accepted: "Accepted removing highlight from {title}.",
+    rejectNamed: "Reject removing highlight from {title}",
+    rejectRetryNamed: "Try again to reject removing highlight from {title}",
+    rejected: "Rejected removing highlight from {title}.",
+  },
+} as const satisfies Record<ProposalKind, Record<Wording, string>>;
 
 export const PROPOSAL_WORDS = {
   itemsOne: "1 item",
@@ -77,10 +81,10 @@ export const PROPOSAL_WORDS = {
 } as const;
 
 export function mergeEffect(kind: MergeKind): string {
-  return MERGE_WORDS[kind].effect;
+  return WORDS[kind].effect;
 }
 
-export const LOST_HIGHLIGHT_EFFECT = LOST_WORDS.effect;
+export const LOST_HIGHLIGHT_EFFECT = WORDS["highlight-lost"].effect;
 
 export function itemCount(count: number): string {
   return count === 1
@@ -88,24 +92,15 @@ export function itemCount(count: number): string {
     : filled(PROPOSAL_WORDS.itemsMany, { count: String(count) });
 }
 
-type Wording = Exclude<keyof typeof LOST_WORDS, "effect">;
-
-function titleOf({ highlight }: Readonly<LostHighlightProposal>): string {
-  return highlight.item.title ?? HIGHLIGHTS_PAGE.untitled;
-}
-
-function merging(wording: Wording) {
-  return ({ kind, from, into }: Readonly<MergeProposal>): string =>
-    filled(MERGE_WORDS[kind][wording], { from: from.name, into: into.name });
+function slotsOf(proposal: Readonly<Proposal>): Readonly<Record<string, string>> {
+  return proposal.kind === "highlight-lost"
+    ? { title: proposal.highlight.item.title ?? HIGHLIGHTS_PAGE.untitled }
+    : { from: proposal.from.name, into: proposal.into.name };
 }
 
 function wordedBy(wording: Wording) {
-  const ofMerge = merging(wording);
-
   return (proposal: Readonly<Proposal>): string =>
-    proposal.kind === "highlight-lost"
-      ? filled(LOST_WORDS[wording], { title: titleOf(proposal) })
-      : ofMerge(proposal);
+    filled(WORDS[proposal.kind][wording], slotsOf(proposal));
 }
 
 export const rejectLabel = wordedBy("rejectNamed");

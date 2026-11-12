@@ -1,23 +1,16 @@
-import {
-  type SQLWrapper,
-  and,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  lt,
-  max,
-  ne,
-  or,
-  sql,
-} from "drizzle-orm";
+import { type SQLWrapper, and, desc, eq, inArray, lt, max, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { itemTitle } from "./item-title.ts";
-import { MERGE_KINDS, WEEKLY_TASK } from "./kinds.ts";
+import { PROPOSAL_KINDS, type ProposalKind, WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { ListedStateSchema, type ProposalPage, ProposalSchema } from "./proposal-contract.ts";
+import {
+  ListedStateSchema,
+  type Proposal,
+  type ProposalPage,
+  ProposalSchema,
+} from "./proposal-contract.ts";
 import {
   digests,
   highlights,
@@ -51,17 +44,14 @@ function itemsWith(tagId: Readonly<SQLWrapper>, topicId: Readonly<SQLWrapper>) {
   >`case ${proposals.kind} when 'tag-merge' then (select count(*) from ${itemTags} where ${itemTags.tagId} = ${tagId}) when 'topic-merge' then (select count(*) from ${items} where ${items.topicId} = ${topicId}) end`;
 }
 
+const LISTED_WHILE = {
+  "tag-merge": undefined,
+  "topic-merge": undefined,
+  "highlight-lost": ne(highlights.status, "attached"),
+} as const satisfies Readonly<Record<ProposalKind, SQLWrapper | undefined>>;
+
 const listable = or(
-  and(
-    inArray(proposals.kind, MERGE_KINDS),
-    isNotNull(sql`coalesce(${fromTag.id}, ${fromTopic.id})`),
-    isNotNull(sql`coalesce(${intoTag.id}, ${intoTopic.id})`),
-  ),
-  and(
-    eq(proposals.kind, "highlight-lost"),
-    isNotNull(highlights.id),
-    ne(highlights.status, "attached"),
-  ),
+  ...PROPOSAL_KINDS.map((kind) => and(eq(proposals.kind, kind), LISTED_WHILE[kind])),
 );
 
 function pageQuery(db: Database, cursor: number | null) {
@@ -93,7 +83,6 @@ function pageQuery(db: Database, cursor: number | null) {
     .leftJoin(digests, eq(digests.itemId, items.id))
     .where(
       and(
-        knownProposal,
         inArray(proposals.state, ListedStateSchema.options),
         listable,
         cursor === null ? undefined : lt(proposals.id, cursor),
@@ -105,31 +94,35 @@ function pageQuery(db: Database, cursor: number | null) {
 
 type Row = Awaited<ReturnType<typeof pageQuery>>[number];
 
-function proposalOf(row: Readonly<Row>) {
-  const { id, kind, state } = row;
-
-  if (kind === "highlight-lost") {
-    return ProposalSchema.parse({
-      id,
-      kind,
-      state,
-      highlight: {
-        id: row.highlightId,
-        quote: row.quote,
-        item: { id: row.itemId, source: row.source, title: row.title },
-      },
-    });
-  }
-
+function mergeOf(row: Readonly<Row>) {
   return ProposalSchema.parse({
-    id,
-    kind,
-    state,
+    id: row.id,
+    kind: row.kind,
+    state: row.state,
     reason: row.reason ?? "",
     from: { id: row.fromId, name: row.fromName, items: row.fromItems },
     into: { id: row.intoId, name: row.intoName, items: row.intoItems },
   });
 }
+
+function lostOf(row: Readonly<Row>) {
+  return ProposalSchema.parse({
+    id: row.id,
+    kind: row.kind,
+    state: row.state,
+    highlight: {
+      id: row.highlightId,
+      quote: row.quote,
+      item: { id: row.itemId, source: row.source, title: row.title },
+    },
+  });
+}
+
+const PROPOSAL_OF = {
+  "tag-merge": mergeOf,
+  "topic-merge": mergeOf,
+  "highlight-lost": lostOf,
+} as const satisfies Readonly<Record<ProposalKind, (row: Readonly<Row>) => Proposal>>;
 
 export async function readProposalPage(db: Database, cursor: number | null): Promise<ProposalPage> {
   const [rows, [run], saved] = await db.batch([
@@ -145,7 +138,7 @@ export async function readProposalPage(db: Database, cursor: number | null): Pro
   const last = shown.at(-1);
 
   return {
-    proposals: shown.map((row) => proposalOf(row)),
+    proposals: shown.map((row) => PROPOSAL_OF[row.kind](row)),
     checkedAt: run?.at ?? null,
     provider: saved.length > 0,
     next: rows.length > shown.length && last !== undefined ? String(last.id) : null,

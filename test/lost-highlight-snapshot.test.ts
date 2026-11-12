@@ -6,7 +6,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
 import type { Database } from "../src/core/ports.ts";
-import { readProposalPage } from "../src/core/proposal-page.ts";
+import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 import {
   keepLostHighlight,
@@ -25,6 +25,8 @@ interface Counted {
 const BindingsSchema = z.array(
   z.union([z.null(), z.number(), z.bigint(), z.string(), z.instanceof(Uint8Array)]),
 );
+
+const touchesProposals = (sql: string) => sql.includes('"proposals"');
 
 function interrupted(file: string, between: () => Promise<void>): Counted {
   const sqlite = new DatabaseSync(file);
@@ -52,14 +54,19 @@ function interrupted(file: string, between: () => Promise<void>): Counted {
 
   const db = drizzle(
     async (sql, params, method) => {
-      calls += 1;
-      await between();
+      if (touchesProposals(sql)) {
+        calls += 1;
+        await between();
+      }
 
       return execute({ sql, params, method });
     },
     async (queries) => {
-      calls += 1;
-      await between();
+      if (queries.some(({ sql }) => touchesProposals(sql))) {
+        calls += 1;
+        await between();
+      }
+
       sqlite.exec("BEGIN");
 
       try {
@@ -94,7 +101,7 @@ describe("the Proposals page reads each row and its subject in one snapshot", ()
       });
     });
 
-    const page = await readProposalPage(replacing.db, null);
+    const page = await instance.readThrough(replacing.db, "/api/proposals", ProposalPageSchema);
     const [row] = page.proposals;
 
     assert.equal(replacing.calls(), 1);
@@ -113,7 +120,7 @@ describe("the Proposals page reads each row and its subject in one snapshot", ()
       return Promise.resolve();
     });
 
-    const page = await readProposalPage(removing.db, null);
+    const page = await instance.readThrough(removing.db, "/api/proposals", ProposalPageSchema);
 
     assert.equal(removing.calls(), 1);
     assert.deepEqual(page.proposals, []);

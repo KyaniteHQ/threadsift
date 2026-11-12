@@ -18,7 +18,7 @@ const AFTER = " A long sentence that comes after the passage and fills the store
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-export const isMerge = (proposal: Readonly<Proposal>): proposal is MergeProposal =>
+const isMerge = (proposal: Readonly<Proposal>): proposal is MergeProposal =>
   proposal.kind !== "highlight-lost";
 
 export const mergesOf = (page: Readonly<ProposalPage>): readonly MergeProposal[] =>

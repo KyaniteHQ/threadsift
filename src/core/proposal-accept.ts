@@ -7,7 +7,7 @@ import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
 import type { MergeRow } from "./merge-unit.ts";
-import { proposals } from "./schema.ts";
+import { knownProposal, proposals } from "./schema.ts";
 import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
 const UNITS_PER_ACCEPT = 50;
@@ -124,17 +124,21 @@ async function acceptMerge(ports: JobPorts, id: number): Promise<Acceptance> {
     : continueMerge(ports, id, UNITS_PER_ACCEPT - 1);
 }
 
+type Accepting = (ports: JobPorts, id: number) => Promise<Acceptance>;
+
+const ACCEPT = {
+  "tag-merge": acceptMerge,
+  "topic-merge": acceptMerge,
+  "highlight-lost": ({ db }, id) => acceptLostHighlight(db, id),
+} as const satisfies Readonly<Record<(typeof proposals.$inferSelect)["kind"], Accepting>>;
+
 export async function acceptProposal(ports: JobPorts, id: number): Promise<Acceptance> {
   const [found] = await ports.db
     .select({ kind: proposals.kind })
     .from(proposals)
-    .where(eq(proposals.id, id));
+    .where(and(eq(proposals.id, id), knownProposal));
 
-  if (found === undefined) return "unknown";
-
-  return found.kind === "highlight-lost"
-    ? acceptLostHighlight(ports.db, id)
-    : acceptMerge(ports, id);
+  return found === undefined ? "unknown" : ACCEPT[found.kind](ports, id);
 }
 
 export async function continueMerges(ports: JobPorts): Promise<void> {

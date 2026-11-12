@@ -8,7 +8,7 @@ import { PROPOSALS_MAX } from "./proposal-candidates.ts";
 import { highlights, proposals } from "./schema.ts";
 import { claimingWeek } from "./weekly-claim.ts";
 
-export type LostHighlightAcceptance = "done" | "unknown" | "not-open" | "not-current";
+type LostHighlightAcceptance = "done" | "unknown" | "not-open" | "not-current";
 
 const PLAIN_CHECK = "plain-check";
 
