@@ -13,11 +13,16 @@ Use these exact terms in code, docs and issues.
 | Need | Read |
 |---|---|
 | What v1 does, and the decisions behind it | `docs/spec.md` |
-| The tech stack, the module seams, the data model, the two install targets and the testing approach | `docs/architecture.md` |
+| What is built, and the file of each architecture section | `docs/architecture.md`, the index |
+| The tech stack | `docs/architecture/the-stack-at-a-glance.md` |
+| The module seams and the two install targets | `docs/architecture/one-codebase-two-install-targets.md` |
+| Where each file lives | `docs/architecture/repository-layout.md` |
+| The data model | `docs/architecture/data-model-outline.md` |
+| The testing approach | `docs/architecture/testing.md` |
 | Topic pages, the Index, Related Items, and the Log | `docs/wiki.md` |
 | The weekly Tag-merge Proposals, the Proposals page and Reject (Accept and Pins build on them) | `docs/proposals.md` |
 | Before writing, changing or deleting a test | `docs/testing.md` |
-| Before changing a workflow, the gate, the live deploy or the live check | `docs/architecture.md`, CI, releases and rollback |
+| Before changing a workflow, the gate, the live deploy or the live check | `docs/architecture/ci-releases-and-rollback.md` |
 | Before writing or changing code, config or scripts: official docs first, module design, no comments, the finish checks | `docs/agents/changing-code.md`; the `implementer` agent (`.claude/agents/implementer.md`) runs it |
 | Before writing any text a user reads (labels, messages, empty states, README) | `docs/agents/changing-code.md`, Interface text |
 | Before writing or changing a doc, a commit message or a PR body | `docs/agents/changing-code.md`, Docs, commit messages and PR bodies |

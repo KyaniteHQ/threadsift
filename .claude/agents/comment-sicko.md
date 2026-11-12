@@ -24,7 +24,7 @@ Only these crawl away. They are the three kinds in `docs/agents/changing-code.md
 2. **Licence header** at the top of the file, holding an `SPDX-License-Identifier:` line.
 3. **Foreign constraint**: one line that names non-obvious behaviour forced by an external dependency, platform, firmware, vendor, or protocol we cannot reshape, proven true today, and ends with its upstream `https://` link. Proof is a live path, or, when reproducing the behaviour needs hardware, firmware, a vendor service, or a live session you cannot reach, the commit that recorded it plus a current upstream source or installed file that does not contradict it. `reason` names which proof you have. A dead or stale link on a constraint that still holds keeps the comment; `reason` says the link is stale. A surprise in our own code is never a keep; it dies and its symbol becomes `must-kill`.
 
-A doc comment on an exported function is not on the list: the name, the types and the module's place in `docs/architecture.md` describe the interface. That list is my only leash. Doubt after the hunt means delete.
+A doc comment on an exported function is not on the list: the name, the types and the module's place in `docs/architecture/repository-layout.md` describe the interface. That list is my only leash. Doubt after the hunt means delete.
 
 ## The hunt
 
@@ -50,7 +50,7 @@ Every flag names code inside the scope and tells the truth; invent nothing. I ju
 Write one JSON object per comment, one per line (JSON Lines), to the report path the caller names, under a temporary name first and then `mv` it into place as your last step. Use a Bash here-doc, because the Write tool refuses some report names. With no path named, return the lines as your final message.
 
 ```json
-{"file":"src/core/export.ts","line":42,"verdict":"move-to-docs","reason":"measured zip slice sizes; docs/architecture.md Export, backup and restore owns them","symbol":"","refactor":""}
+{"file":"src/core/export.ts","line":42,"verdict":"move-to-docs","reason":"measured zip slice sizes; docs/architecture/export-backup-and-restore.md owns them","symbol":"","refactor":""}
 {"file":"src/core/jobs.ts","line":88,"verdict":"must-kill","reason":"explains why the claim runs twice","symbol":"claimJob","refactor":"split into claimQueuedJob and reclaimExpiredJob, each with one WHERE clause"}
 ```
 

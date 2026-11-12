@@ -28,7 +28,7 @@ const imageRoute = createRoute({
     401: jsonBody(ErrorResponseSchema, "No owner session and no agent token."),
     404: jsonBody(
       ErrorResponseSchema,
-      "The key is not a file key, no Item has it, or it is not a stored image of a published `media` row: an unpublished or superseded image, a temporary file, a post text file or any other object. A key the grammar of `docs/architecture.md` (Files) refuses answers 404 too.",
+      "The key is not a file key, no Item has it, or it is not a stored image of a published `media` row: an unpublished or superseded image, a temporary file, a post text file or any other object. A key the grammar of `docs/architecture/files.md` refuses answers 404 too.",
     ),
   },
 });

@@ -143,7 +143,7 @@ export default defineConfig({
               {
                 regex: "^(node|cloudflare):",
                 message:
-                  "src/core/ and src/http/ run on both targets; a runtime module belongs in an adapter under src/targets/ (docs/architecture.md, One codebase, two install targets).",
+                  "src/core/ and src/http/ run on both targets; a runtime module belongs in an adapter under src/targets/ (docs/architecture/one-codebase-two-install-targets.md).",
               },
               {
                 regex: "(^|[/#@])targets(/|$)",
@@ -163,7 +163,7 @@ export default defineConfig({
           ...["process", "Buffer", "global", "__dirname", "__filename", "require"].map((name) => ({
             name,
             message:
-              "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture.md, One codebase, two install targets).",
+              "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture/one-codebase-two-install-targets.md).",
           })),
         ],
       },

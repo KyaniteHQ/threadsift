@@ -1,6 +1,6 @@
 # Reviewing code
 
-Each implemented change gets one review from an agent that did not write it: the owner's global `code-reviewer` agent, which also runs a Codex review of the same change and merges both into one list. Start it with no `model` or `effort` argument, because a per-call value replaces the ones its definition sets. Where that agent is not installed, a Claude Opus session that did not write the change reviews it. The review runs on the owner's machine, never in CI, because OpenAI's CI guide rules out the ChatGPT plan in a public repository (`docs/architecture.md`, CI, releases and rollback, Secrets and forks).
+Each implemented change gets one review from an agent that did not write it: the owner's global `code-reviewer` agent, which also runs a Codex review of the same change and merges both into one list. Start it with no `model` or `effort` argument, because a per-call value replaces the ones its definition sets. Where that agent is not installed, a Claude Opus session that did not write the change reviews it. The review runs on the owner's machine, never in CI, because OpenAI's CI guide rules out the ChatGPT plan in a public repository (`docs/architecture/ci-releases-and-rollback.md`, Secrets and forks).
 
 The reviewer edits nothing and runs steps 2 to 4. The session that owns the change runs step 1 before the review, and steps 5 and 6 after it.
 

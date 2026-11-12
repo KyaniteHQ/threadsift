@@ -24,7 +24,7 @@ Three kinds of comment stay:
 
 ## Design
 
-The app is one core with ports, and each install target supplies an adapter per port: ports and adapters, also called hexagonal architecture (`docs/architecture.md`, One codebase, two install targets). Before adding or changing a module, a port or an interface, load the `codebase-design` skill (`.claude/skills/codebase-design/`) and use its words: module, interface, seam, adapter, depth, leverage. Where the skill differs from this page or from `docs/testing.md`, they win.
+The app is one core with ports, and each install target supplies an adapter per port: ports and adapters, also called hexagonal architecture (`docs/architecture/one-codebase-two-install-targets.md`). Before adding or changing a module, a port or an interface, load the `codebase-design` skill (`.claude/skills/codebase-design/`) and use its words: module, interface, seam, adapter, depth, leverage. Where the skill differs from this page or from `docs/testing.md`, they win.
 
 - A module hides a lot of behaviour behind a small interface. A module whose interface is as big as its body is shallow: merge it into its caller or deepen it.
 - `src/core/` and `src/http/` run on both targets and call ports only. Lint refuses there a `node:` or `cloudflare:` import, any import from `targets/`, and an `import()` whose source is not a plain string; the target's entry passes adapters in through `createApp(ports)`.

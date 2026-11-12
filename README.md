@@ -4,7 +4,7 @@ Threadsift is a reading library. You paste a link to something you saved (a Redd
 
 ## Status
 
-The build is under way and v1 is not released, so do not deploy it for real use. Both install targets, the container image and a Cloudflare Worker, run the same app. The status line at the top of `docs/architecture.md` says what is built and what is not, so this README keeps no list of its own.
+The build is under way and v1 is not released, so do not deploy it for real use. Both install targets, the container image and a Cloudflare Worker, run the same app. The status table at the top of `docs/architecture.md` says what is built and what is not, so this README keeps no list of its own.
 
 - `docs/spec.md`: what v1 does.
 - `docs/architecture.md`: what it is built with and where each part runs.
