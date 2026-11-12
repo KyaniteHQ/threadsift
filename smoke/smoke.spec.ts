@@ -8,7 +8,7 @@ import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
 import { proposalsFlow } from "./proposals-flow.ts";
-import { readerWithoutProvider } from "./related-reader.ts";
+import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
 
 const PASSWORD = "a smoke password of fifteen or more";
 
@@ -269,8 +269,8 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
   test.setTimeout(SMOKE_TIMEOUT_MS);
   await test.step("set up the owner with the setup code", () => setUp(page));
   await test.step("sign out and sign in again", () => signOutAndIn(page));
-  await test.step("paste an X link and find its Link-only row after a reload", () =>
-    pasteXLink(page));
+  await test.step("paste an X link, find its Link-only row after a reload", () => pasteXLink(page));
+  await test.step("save an X thread and read its Kept replies", () => readXThread(page));
   await test.step("save a page through the API and read its text in the Reader", () =>
     readSavedPage(page));
   await test.step("import a list of three links from the settings panel and find its Items", () =>

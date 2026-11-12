@@ -153,7 +153,7 @@ export async function modelInput(
   page: Readonly<LinkedPage> | null,
 ): Promise<DigestPrompt> {
   const comments =
-    item.source === "reddit"
+    item.source === "reddit" || item.source === "x"
       ? await commentCandidates(db, { itemId: item.id, generation: item.generation })
       : [];
 

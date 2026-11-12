@@ -29,7 +29,7 @@ export type Content =
   | ({ readonly kind: "article" } & PageText)
   | ({ readonly kind: "page" } & PageText)
   | { readonly kind: "empty-page" }
-  | { readonly kind: "thread"; readonly thread: ParsedThread; readonly archivedAt: number }
+  | { readonly kind: "thread"; readonly thread: ParsedThread; readonly archivedAt: number | null }
   | {
       readonly kind: "github-repo";
       readonly repository: Repository;

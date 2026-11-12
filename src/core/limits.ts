@@ -9,3 +9,5 @@ export const MORE_REQUEST_CAP = 100;
 export const MAX_THREAD_ANSWERS = 1 + MORE_REQUEST_CAP;
 
 export const INLINE_TEXT_BYTES = 1_000_000;
+
+export const X_REPLIES_MAX = 500;
