@@ -19,7 +19,7 @@ export function rowNames(
 export function hasTable(
   run: (args: readonly string[]) => string,
   scope: readonly string[],
-  table: "d1_migrations" | "pins" | "proposals",
+  table: "d1_migrations",
 ): boolean {
   return (
     rowNames(
@@ -28,6 +28,18 @@ export function hasTable(
       `SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}'`,
     ).length > 0
   );
+}
+
+export function columnNames(
+  run: (args: readonly string[]) => string,
+  scope: readonly string[],
+  tables: readonly ("pins" | "proposals")[],
+): ReadonlySet<string> {
+  const query = tables
+    .map((table) => `SELECT '${table}.' || name AS name FROM pragma_table_info('${table}')`)
+    .join(" UNION ALL ");
+
+  return new Set(rowNames(run, scope, query));
 }
 
 export function hasForeignMigrations(
