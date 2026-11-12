@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { type Session, fetchSession } from "./access-api.ts";
 import { useSignedOutListener } from "./signed-out.ts";
+import { useScreenState } from "./use-screen-state.ts";
 
 export type View = Session | { readonly state: "loading" } | { readonly state: "unreachable" };
 
@@ -26,7 +27,7 @@ async function readSession(
 }
 
 export function useSessionView() {
-  const [view, setView] = useState<View>(LOADING);
+  const [view, setView] = useScreenState<View>(LOADING);
   const latest = useRef<AbortController | null>(null);
 
   const refresh = useCallback(() => {
@@ -38,17 +39,17 @@ export function useSessionView() {
     void readSession(check, (next) => {
       if (latest.current === check) setView(next);
     });
-  }, []);
+  }, [setView]);
 
   useEffect(refresh, [refresh]);
 
   const signedIn = useCallback(() => {
     setView(SIGNED_IN);
-  }, []);
+  }, [setView]);
 
   const signedOut = useCallback(() => {
     setView(SIGNED_OUT);
-  }, []);
+  }, [setView]);
 
   useSignedOutListener(signedOut);
 

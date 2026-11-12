@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 
 import { itemIdOf } from "../../src/core/item-path.ts";
 import { usePath } from "./routing.ts";
@@ -7,17 +7,17 @@ import { screenOf, titleOf } from "./screens.ts";
 import { ShareContext, useShareHandoff } from "./share-handoff.ts";
 import { useArrival } from "./use-arrival.ts";
 import { useDocumentTitle } from "./use-document-title.ts";
-import { useRoot } from "./use-root.ts";
+import { type Look, useRoot } from "./use-root.ts";
 import { useSessionView } from "./use-session-view.ts";
 
-export function App() {
+export function App({ settings }: Readonly<{ settings: Look["settings"] }>) {
   const { path, navigate, replace, leave, closeItem } = usePath();
 
-  const { ref, attributes, ...look } = useRoot(closeItem);
+  const { ref, attributes, ...look } = useRoot(closeItem, settings);
   const { view, ...session } = useSessionView();
 
   const route = useMemo(
-    () => ({ openId: itemIdOf(path), navigate, replace, leave }),
+    () => ({ path, openId: itemIdOf(path), navigate, replace, leave }),
     [path, navigate, replace, leave],
   );
 
@@ -29,7 +29,9 @@ export function App() {
   return (
     <div ref={ref} className="app" {...attributes} data-reader={look.reader}>
       <ShareContext value={handoff}>
-        <Screen screen={screen} look={look} arrived={arrived} session={session} route={route} />
+        <Suspense fallback={null}>
+          <Screen screen={screen} look={look} arrived={arrived} session={session} route={route} />
+        </Suspense>
       </ShareContext>
     </div>
   );

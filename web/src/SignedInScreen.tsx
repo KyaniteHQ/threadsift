@@ -1,11 +1,10 @@
 import { useCallback } from "react";
 
 import { HighlightsPage } from "./HighlightsPage.tsx";
-import { ImportPage } from "./ImportPage.tsx";
+import { ImportPage, SettingsPage } from "./lazy-pages.tsx";
 import { Library } from "./Library.tsx";
 import { type Route, usePages } from "./routing.ts";
 import type { SignedInState } from "./screens.ts";
-import { SettingsPage } from "./SettingsPage.tsx";
 import { TopicPage } from "./TopicPage.tsx";
 import type { Look } from "./use-root.ts";
 import { WikiPage } from "./WikiPage.tsx";

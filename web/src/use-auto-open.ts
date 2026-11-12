@@ -7,12 +7,14 @@ import type { Route } from "./routing.ts";
 
 export function useAutoOpen({
   list,
+  path,
   openId,
   replace,
   wide,
   attend,
 }: Readonly<{
   list: ListState;
+  path: Route["path"];
   openId: Route["openId"];
   replace: Route["replace"];
   wide: boolean;
@@ -23,6 +25,8 @@ export function useAutoOpen({
   useEffect(() => {
     if (settled.current || list.status !== "ready") return;
 
+    if (window.location.pathname !== path) return;
+
     settled.current = true;
 
     const first = list.items.find((item) => item.readState === "unread");
@@ -31,5 +35,5 @@ export function useAutoOpen({
 
     attend({ id: first.id, focus: false });
     replace(itemPath(first.id));
-  }, [attend, list, openId, replace, wide]);
+  }, [attend, list, openId, path, replace, wide]);
 }

@@ -1,38 +1,10 @@
 import "./zod-jitless.ts";
-import "@fontsource-variable/inter/wght.css";
-import "@fontsource-variable/playfair-display/wght.css";
-import "@fontsource-variable/space-grotesk/wght.css";
-import "@fontsource-variable/nunito/wght.css";
-import "@fontsource-variable/dm-sans/opsz.css";
-import "@fontsource-variable/fraunces/wght.css";
-import "@fontsource-variable/eb-garamond/wght.css";
-import "@fontsource-variable/eb-garamond/wght-italic.css";
-import "@fontsource-variable/roboto-mono/wght.css";
-import "@fontsource/cal-sans/400.css";
-import "@fontsource/spectral/400.css";
-import "@fontsource/spectral/400-italic.css";
-import "@fontsource/spectral/600.css";
-import "@fontsource/spectral/700.css";
-import "@fontsource/dm-mono/400.css";
-import "@fontsource/fira-mono/400.css";
-import "@fontsource/space-mono/400.css";
-import "@fontsource-variable/bricolage-grotesque/opsz.css";
-import "@fontsource-variable/figtree/wght.css";
-import "@fontsource-variable/geist-mono/wght.css";
-import "@fontsource-variable/geist/wght.css";
-import "@fontsource-variable/instrument-sans/wght.css";
-import "@fontsource-variable/jetbrains-mono/wght.css";
-import "@fontsource-variable/newsreader/opsz-italic.css";
-import "@fontsource-variable/newsreader/opsz.css";
-import "@fontsource-variable/source-serif-4/opsz.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-sans/400.css";
 import "@fontsource/ibm-plex-sans/500.css";
 import "@fontsource/ibm-plex-sans/600.css";
 import "@fontsource/ibm-plex-sans/700.css";
-import "@fontsource/instrument-serif/400-italic.css";
-import "@fontsource/instrument-serif/400.css";
 import "../../design/system/tokens.css";
 import "../../design/system/components.css";
 import "./page.css";
@@ -50,7 +22,11 @@ import "./related.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { loadFaces, facesOf } from "../../design/system/style-faces.ts";
 import { App } from "./App.tsx";
+import { preloadPage } from "./lazy-pages.tsx";
+import { FACE_WAIT_MS, settledOrAborted } from "./load-fonts.ts";
+import { storedSettings } from "./use-settings.ts";
 
 const container = document.querySelector("#root");
 
@@ -58,8 +34,14 @@ if (container === null) {
   throw new Error("web/index.html has no #root element");
 }
 
+preloadPage(window.location.pathname);
+
+const settings = storedSettings();
+
+await settledOrAborted(loadFaces(facesOf(settings)), AbortSignal.timeout(FACE_WAIT_MS));
+
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <App settings={settings} />
   </StrictMode>,
 );

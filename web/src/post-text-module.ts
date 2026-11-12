@@ -1,25 +1,24 @@
-import { type ComponentProps, Fragment, type ReactElement, createElement, use } from "react";
+import { type ComponentProps, Fragment, type ReactElement, createElement } from "react";
 
 import { HighlightAction } from "./HighlightAction.tsx";
 import { useSpans } from "./highlights-context.ts";
+import { lazyModule } from "./lazy-module.ts";
 
 type PostTextExports = typeof import("./PostText.tsx");
 
-type PostTextLoad =
-  | { readonly kind: "ready"; readonly PostText: PostTextExports["PostText"] }
-  | { readonly kind: "failed" };
+const loadPostText = () => import("./PostText.tsx").then(({ PostText }) => PostText);
 
-export class PostTextUnavailable extends Error {}
+const LazyPostText = lazyModule(loadPostText);
 
-let loading: Promise<PostTextLoad> | null = null;
+let settled: Promise<boolean> | null = null;
 
-export function postTextModule(): Promise<PostTextLoad> {
-  loading ??= import("./PostText.tsx").then(
-    ({ PostText }): PostTextLoad => ({ kind: "ready", PostText }),
-    (): PostTextLoad => ({ kind: "failed" }),
+export function postTextModule(): Promise<boolean> {
+  settled ??= loadPostText().then(
+    () => true,
+    () => false,
   );
 
-  return loading;
+  return settled;
 }
 
 export function PostTextView({
@@ -28,15 +27,12 @@ export function PostTextView({
 }: Readonly<
   Omit<ComponentProps<PostTextExports["PostText"]>, "spans"> & { targetKey: string }
 >): ReactElement {
-  const loaded = use(postTextModule());
   const spans = useSpans(targetKey);
-
-  if (loaded.kind === "failed") throw new PostTextUnavailable();
 
   return createElement(
     Fragment,
     null,
-    createElement(loaded.PostText, { ...props, targetKey, spans }),
+    createElement(LazyPostText, { ...props, targetKey, spans }),
     createElement(HighlightAction, { targetKey }),
   );
 }

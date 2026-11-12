@@ -20,10 +20,10 @@ export interface Look {
   readonly reset: () => void;
 }
 
-export function useRoot(onLayoutChange: () => void) {
+export function useRoot(onLayoutChange: () => void, initial: Settings) {
   const ref = useRef<HTMLDivElement>(null);
   const bands = useBands(ref);
-  const { attributes, ...look } = useSettings(onLayoutChange);
+  const { attributes, ...look } = useSettings(onLayoutChange, initial);
   const [faces, releaseFaces] = useFaces(ref, LOOK_FONTS, FACE_WAIT_MS);
   const narrow = bands.includes("narrow");
 
