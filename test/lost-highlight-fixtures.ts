@@ -121,6 +121,11 @@ export async function proposeLost(
   state: "open" | "rejected" = "open",
 ): Promise<number> {
   await saveProvider(instance);
+  exec(
+    instance,
+    "insert or replace into scheduled_runs (task, last_run_at) values ('overview_proposals', ?)",
+    Date.now(),
+  );
   exec(instance, "delete from scheduled_runs where task = 'highlight_proposals'");
   await nextTick(instance);
 
