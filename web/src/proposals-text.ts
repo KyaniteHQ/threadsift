@@ -122,6 +122,7 @@ export const PROPOSAL_WORDS = {
     "Save a provider in the instance settings to update the overview; this row stays and Accept works after that.",
   reasonLabel: "Reason",
   summaryLabel: "Summary",
+  sideNamed: "disagrees with {other}",
 } as const;
 
 export function mergeEffect(kind: MergeKind): string {
@@ -137,6 +138,10 @@ export const OVERVIEW_GAP_EFFECT = { before: EFFECT_BEFORE, after: EFFECT_AFTER 
 const [DISAGREE_BEFORE = "", DISAGREE_AFTER = ""] = WORDS["items-disagree"].effect.split("{topic}");
 
 export const ITEMS_DISAGREE_EFFECT = { before: DISAGREE_BEFORE, after: DISAGREE_AFTER } as const;
+
+export function sideNamedWords(other: string): string {
+  return filled(PROPOSAL_WORDS.sideNamed, { other });
+}
 
 export function itemCount(count: number): string {
   return count === 1

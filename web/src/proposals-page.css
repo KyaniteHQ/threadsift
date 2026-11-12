@@ -88,7 +88,7 @@
 }
 .pr-sides {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: var(--s3) var(--s5);
   margin: 0;
   padding: 0;

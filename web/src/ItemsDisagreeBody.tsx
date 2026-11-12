@@ -4,12 +4,16 @@ import { itemPath } from "../../src/core/item-path.ts";
 import type { ItemsDisagreeProposal } from "../../src/core/proposal-contract.ts";
 import { topicPath } from "../../src/core/topic-path.ts";
 import { reasonId, sidesId } from "./proposal-dom.ts";
-import { ITEMS_DISAGREE_EFFECT, PROPOSAL_WORDS } from "./proposals-text.ts";
+import { ITEMS_DISAGREE_EFFECT, PROPOSAL_WORDS, sideNamedWords } from "./proposals-text.ts";
 import { useInternalLink } from "./routing.ts";
 
 type Side = ItemsDisagreeProposal["first"];
 
-function SideOf({ side, openItem }: Readonly<{ side: Side; openItem: (id: number) => void }>) {
+function SideOf({
+  side,
+  other,
+  openItem,
+}: Readonly<{ side: Side; other: Side; openItem: (id: number) => void }>) {
   const go = useInternalLink(
     useCallback(() => {
       openItem(side.id);
@@ -20,6 +24,7 @@ function SideOf({ side, openItem }: Readonly<{ side: Side; openItem: (id: number
     <li className="pr-side">
       <a className="pr-place pr-side-title" href={itemPath(side.id)} onClick={go}>
         <bdi dir="auto">{side.title}</bdi>
+        <span className="vh">, {sideNamedWords(other.title)}</span>
       </a>
       <p className="rl-sum pr-side-summary" dir="auto">
         <span className="vh">{PROPOSAL_WORDS.summaryLabel}: </span>
@@ -56,8 +61,8 @@ export function ItemsDisagreeBody({
         {ITEMS_DISAGREE_EFFECT.after}
       </h3>
       <ul className="pr-sides" id={sidesId(proposal.id)}>
-        <SideOf side={first} openItem={openItem} />
-        <SideOf side={second} openItem={openItem} />
+        <SideOf side={first} other={second} openItem={openItem} />
+        <SideOf side={second} other={first} openItem={openItem} />
       </ul>
       <p className="rl-sum pr-reason" dir="auto" id={reasonId(proposal.id)}>
         <span className="vh">{PROPOSAL_WORDS.reasonLabel}: </span>
