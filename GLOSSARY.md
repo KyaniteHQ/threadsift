@@ -93,7 +93,7 @@ The list of the committed changes the agent made to the library, newest first, f
 _Avoid_: History, activity feed, audit trail
 
 **Log entry**:
-One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks) a `merge` (a Tag merged into another) or a `merge-topic` (a Topic merged into another). It keeps the title and names as they were when the change committed.
+One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks), a `merge` (a Tag merged into another) or a `merge-topic` (a Topic merged into another). It keeps the title and names as they were when the change committed.
 _Avoid_: Event, Audit record
 
 **Proposal**:
