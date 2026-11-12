@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { count, inArray, sql } from "drizzle-orm";
 
 import { TOPIC_KIND, among, topicClosingWrites, topicMoves } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
@@ -6,7 +6,7 @@ import { loggedMerge } from "./log-writes.ts";
 import type { MergeRow, MergeUnit, PlanUnit } from "./merge-unit.ts";
 import { repointedTopicPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
-import { items, pins } from "./schema.ts";
+import { items, pins, topics } from "./schema.ts";
 import { type TopicLease, claimTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
 async function claimBoth(
@@ -37,9 +37,36 @@ async function claimBoth(
   }
 }
 
+async function topicsExist(db: Database, topicIds: readonly number[]): Promise<boolean> {
+  const [found] = await db
+    .select({ n: count() })
+    .from(topics)
+    .where(inArray(topics.id, [...topicIds]));
+
+  return found?.n === topicIds.length;
+}
+
+async function claimed(
+  db: Database,
+  row: Readonly<MergeRow>,
+  holder: string,
+): Promise<readonly [TopicLease, TopicLease] | null | "lost"> {
+  const ids = [row.from.id, row.into.id] as const;
+
+  try {
+    return await claimBoth(db, ids, holder);
+  } catch (error) {
+    if (await topicsExist(db, ids)) throw error;
+
+    return "lost";
+  }
+}
+
 export const planTopicUnit: PlanUnit = async (db, id, row) => {
   const holder = `topic_merge:${String(id)}:${String(row.revision)}`;
-  const leases = await claimBoth(db, [row.from.id, row.into.id], holder);
+  const leases = await claimed(db, row, holder);
+
+  if (leases === "lost") return "lost";
 
   if (leases === null) return "busy";
 
@@ -85,12 +112,11 @@ async function readUnit(
           intoTopicId: into.id,
           createdAt: Date.now(),
         })
-        .onConflictDoNothing(),
+        .onConflictDoUpdate({ target: [pins.kind, pins.fromKey], set: { intoTopicId: into.id } }),
       repointedTopicPins(db, from.id, into.id),
     ],
     moves: topicMoves(db, from.id, into.id, moves),
     cursor: null,
-    closing: closing.writes,
-    opening: closing.opening,
+    closing,
   };
 }

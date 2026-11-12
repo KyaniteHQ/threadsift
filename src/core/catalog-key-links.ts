@@ -219,9 +219,12 @@ export function topicClosingWrites(
   db: Database,
   loser: number,
   survivor: number,
-  before: readonly BatchItem<"sqlite">[] = [],
+  before: readonly BatchItem<"sqlite">[],
 ) {
   const opening = continuingOverview(db, survivor, TOPIC_KIND.unlinked(db, loser));
 
-  return { opening, writes: closingWrites(db, TOPIC_KIND, loser, [...before, opening]) };
+  return {
+    writes: closingWrites(db, TOPIC_KIND, loser, [...before, opening]),
+    wakes: [before.length],
+  };
 }

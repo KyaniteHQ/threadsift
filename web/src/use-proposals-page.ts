@@ -114,15 +114,27 @@ interface Leaving {
   readonly latest: Readonly<RefObject<Readonly<ProposalsState>>>;
   readonly edit: (change: (page: Readonly<ProposalPage>) => ProposalPage) => void;
   readonly reread: Settling["reread"];
+  readonly lastLoaded: Settling["lastLoaded"];
   readonly setFocus: Dispatch<SetStateAction<Focus>>;
 }
 
-function useLeave({ latest, edit, reread, setFocus }: Readonly<Leaving>) {
-  return useCallback(
-    async (proposal: Readonly<Proposal>) => {
-      setFocus(focusAfterLeaving(latest.current, proposal.id));
+type Departure = "rejected" | "merged";
 
-      const reloaded = onlyRowOfMore(latest.current, proposal.id) ? await reread(() => true) : null;
+function useLeave({ latest, edit, reread, lastLoaded, setFocus }: Readonly<Leaving>) {
+  return useCallback(
+    async (proposal: Readonly<Proposal>, departure: Departure) => {
+      const next = focusAfterLeaving(latest.current, proposal.id);
+
+      setFocus(next);
+
+      const through =
+        departure === "merged"
+          ? reachesBelow(lastLoaded())
+          : onlyRowOfMore(latest.current, proposal.id)
+            ? () => true
+            : null;
+
+      const reloaded = through === null ? null : await reread(through);
 
       if (reloaded === null) {
         edit((page) => without(page, proposal.id));
@@ -131,10 +143,12 @@ function useLeave({ latest, edit, reread, setFocus }: Readonly<Leaving>) {
       }
 
       const [first] = reloaded.proposals;
+      const stays = next.kind === "row" && reloaded.proposals.some(({ id }) => id === next.id);
 
-      setFocus(first === undefined ? { kind: "heading" } : { kind: "row", id: first.id });
+      if (!stays)
+        setFocus(first === undefined ? { kind: "heading" } : { kind: "row", id: first.id });
     },
-    [edit, latest, reread, setFocus],
+    [edit, lastLoaded, latest, reread, setFocus],
   );
 }
 
@@ -145,7 +159,7 @@ function useAccept({
   say,
 }: Readonly<{
   settle: (proposal: Readonly<Proposal>, failure: Failure) => Promise<void>;
-  leave: (proposal: Readonly<Proposal>) => Promise<void>;
+  leave: (proposal: Readonly<Proposal>, departure: Departure) => Promise<void>;
   edit: Leaving["edit"];
   say: (text: string) => void;
 }>) {
@@ -158,7 +172,7 @@ function useAccept({
       const outcome = await sendAccept(proposal.id);
 
       if (outcome === "done") {
-        await leave(proposal);
+        await leave(proposal, "merged");
         say(acceptedAnnouncement(proposal));
       } else if (outcome === "accepting") {
         edit((page) => applying(page, proposal.id));
@@ -222,7 +236,7 @@ export function useProposalsPage() {
   const lastLoaded = useLastLoaded(latest);
 
   const settle = useSettle({ reread, lastLoaded, setFailed, setFocus, say, setNotice });
-  const leave = useLeave({ latest, edit, reread, setFocus });
+  const leave = useLeave({ latest, edit, reread, lastLoaded, setFocus });
   const { accept, busy } = useAccept({ settle, leave, edit, say });
   const refresh = useCallback(() => reread(reachesBelow(lastLoaded())), [lastLoaded, reread]);
 
@@ -248,7 +262,7 @@ export function useProposalsPage() {
       if (action === "accept") {
         await accept(proposal);
       } else if ((await sendReject(proposal.id)) === "rejected") {
-        await leave(proposal);
+        await leave(proposal, "rejected");
         say(rejectedAnnouncement(proposal));
       } else {
         await settle(proposal, "reject");

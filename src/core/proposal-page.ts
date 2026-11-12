@@ -5,7 +5,16 @@ import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { ListedStateSchema, type ProposalPage } from "./proposal-contract.ts";
-import { itemTags, items, proposals, scheduledRuns, settings, tags, topics } from "./schema.ts";
+import {
+  itemTags,
+  items,
+  knownProposal,
+  proposals,
+  scheduledRuns,
+  settings,
+  tags,
+  topics,
+} from "./schema.ts";
 
 export type Rejection = "rejected" | "unknown" | "not-open";
 
@@ -46,6 +55,7 @@ function pageQuery(db: Database, cursor: number | null) {
     .leftJoin(intoTopic, eq(intoTopic.id, proposals.intoTopicId))
     .where(
       and(
+        knownProposal,
         inArray(proposals.state, ListedStateSchema.options),
         cursor === null ? undefined : lt(proposals.id, cursor),
       ),
@@ -86,12 +96,15 @@ export async function rejectProposal(db: Database, id: number): Promise<Rejectio
   const moved = await db
     .update(proposals)
     .set({ state: "rejected" })
-    .where(and(eq(proposals.id, id), eq(proposals.state, "open")))
+    .where(and(eq(proposals.id, id), knownProposal, eq(proposals.state, "open")))
     .returning({ id: proposals.id });
 
   if (moved.length > 0) return "rejected";
 
-  const [found] = await db.select({ id: proposals.id }).from(proposals).where(eq(proposals.id, id));
+  const [found] = await db
+    .select({ id: proposals.id })
+    .from(proposals)
+    .where(and(eq(proposals.id, id), knownProposal));
 
   return found === undefined ? "unknown" : "not-open";
 }

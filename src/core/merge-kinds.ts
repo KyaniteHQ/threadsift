@@ -1,10 +1,10 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import { type CatalogKind, TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
 import type { MergeRow, PlanUnit } from "./merge-unit.ts";
 import type { Database } from "./ports.ts";
-import { proposals, tags, topics } from "./schema.ts";
+import { knownProposal, proposals, tags, topics } from "./schema.ts";
 import { planTagUnit } from "./tag-merge-unit.ts";
 import { planTopicUnit } from "./topic-merge-unit.ts";
 
@@ -42,7 +42,7 @@ export async function readRow(db: Database, id: number): Promise<MergeRow | unde
     .leftJoin(intoTag, eq(intoTag.id, proposals.intoTagId))
     .leftJoin(fromTopic, eq(fromTopic.id, proposals.fromTopicId))
     .leftJoin(intoTopic, eq(intoTopic.id, proposals.intoTopicId))
-    .where(eq(proposals.id, id));
+    .where(and(eq(proposals.id, id), knownProposal));
 
   return row === undefined
     ? undefined

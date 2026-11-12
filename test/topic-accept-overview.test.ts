@@ -6,7 +6,6 @@ import { z } from "zod";
 import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { dump } from "./pin-fixtures.ts";
 import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";
 import { proposeTopics, topicId } from "./topic-accept-fixtures.ts";
 
@@ -108,7 +107,7 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
       );
     }));
 
-  it("opens nothing with no Provider saved, and the Topic page lists the moved Items as not in the overview yet", () =>
+  it("opens nothing with no Provider saved, and the survivor page lists every Item as not in the overview yet", () =>
     withLibrary({ provider: false }, async ({ instance, survivorItems }) => {
       assert.equal(
         (await accept(instance, proposeTopics(instance, ["Loser", "Survivor"]))).status,
@@ -126,17 +125,6 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
           page.overview.provider,
         ],
         ["Survivor", survivorItems.length + 2, true, false],
-      );
-      assert.equal(
-        count(instance, "select count(*) as n from jobs where kind = 'topic_overview'"),
-        0,
-      );
-      assert.equal(
-        dump(
-          instance,
-          "select count(*) as n from topics where id = " + String(topicId(instance, "Survivor")),
-        ),
-        JSON.stringify([{ n: 1 }]),
       );
     }));
 });

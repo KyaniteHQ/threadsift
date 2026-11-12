@@ -25,20 +25,22 @@ export const planTagUnit: PlanUnit = async (db, id, row) => {
           intoTagId: into.id,
           createdAt: Date.now(),
         })
-        .onConflictDoNothing(),
+        .onConflictDoUpdate({ target: [pins.kind, pins.fromKey], set: { intoTagId: into.id } }),
       repointedPins(db, from.id, into.id),
     ],
     moves: unit.writes,
     cursor: reachedEnd ? 0 : unit.last,
-    closing: closingWrites(db, TAG_KIND, from.id, [
-      loggedMerge(db, {
-        action: "merge",
-        proposalId: id,
-        mergedFrom: from.name,
-        mergedInto: into.name,
-        when: TAG_KIND.unlinked(db, from.id),
-      }),
-    ]),
-    opening: null,
+    closing: {
+      writes: closingWrites(db, TAG_KIND, from.id, [
+        loggedMerge(db, {
+          action: "merge",
+          proposalId: id,
+          mergedFrom: from.name,
+          mergedInto: into.name,
+          when: TAG_KIND.unlinked(db, from.id),
+        }),
+      ]),
+      wakes: [],
+    },
   };
 };

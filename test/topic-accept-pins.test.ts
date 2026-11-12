@@ -3,10 +3,11 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { dump } from "./pin-fixtures.ts";
-import { paste, rows } from "./related-fixtures.ts";
+import { exec, paste, rows } from "./related-fixtures.ts";
 import { itemsOf, proposeTopics, topicId } from "./topic-accept-fixtures.ts";
 
 const NamesSchema = z.object({ topic: z.string(), json: z.string() });
@@ -94,5 +95,53 @@ describe("the Topic Pin an Accept records keeps a merged Topic merged and follow
 
     assert.equal((await instance.send("DELETE", "/api/items/1")).status, 204);
     assert.equal(dump(instance, "select * from pins order by id"), digestsBefore);
+  });
+});
+
+describe("a Pin that already holds the merged-away key follows the Accept", () => {
+  it("points the Pin at the survivor, so the old address and a later Digest reach the survivor", async () => {
+    const instance = await Instance.start();
+
+    try {
+      await instance.setUp();
+      await paste(instance, "a", { title: "A", topic: "Alpha" });
+      await paste(instance, "b", { title: "B", topic: "Beta" });
+      await paste(instance, "c", { title: "C", topic: "Gamma" });
+
+      const beta = topicId(instance, "Beta");
+
+      exec(
+        instance,
+        "insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('topic-merge', 'alpha', 'Alpha', ?, 0)",
+        topicId(instance, "Gamma"),
+      );
+
+      assert.equal(
+        (await accept(instance, proposeTopics(instance, ["Alpha", "Beta"]))).status,
+        200,
+      );
+      assert.equal(
+        dump(instance, "select from_key, into_topic_id from pins"),
+        JSON.stringify([{ from_key: "alpha", into_topic_id: beta }]),
+      );
+      assert.equal(
+        (await instance.read("GET", "/api/topics/alpha", TopicPageSchema)).topic.name,
+        "Beta",
+      );
+
+      const later = await paste(instance, "later", { title: "Later", topic: "ALPHA" });
+
+      assert.equal(
+        count(
+          instance,
+          "select count(*) as n from items where id = ? and topic_id = ?",
+          later,
+          beta,
+        ),
+        1,
+      );
+    } finally {
+      await instance.close();
+    }
   });
 });

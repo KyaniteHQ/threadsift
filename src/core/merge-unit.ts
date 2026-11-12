@@ -22,18 +22,22 @@ export interface MergeRow {
 
 type Writes = readonly BatchItem<"sqlite">[];
 
+export interface MergeClosing {
+  readonly writes: Writes;
+  readonly wakes: readonly number[];
+}
+
 export interface MergeUnit {
   readonly leases: readonly Readonly<TopicLease>[];
   readonly moving: SQL;
   readonly pin: Writes;
   readonly moves: Writes;
   readonly cursor: number | null;
-  readonly closing: Writes;
-  readonly opening: BatchItem<"sqlite"> | null;
+  readonly closing: MergeClosing;
 }
 
 export type PlanUnit = (
   db: Database,
   id: number,
   row: Readonly<MergeRow>,
-) => Promise<MergeUnit | "busy">;
+) => Promise<MergeUnit | "busy" | "lost">;

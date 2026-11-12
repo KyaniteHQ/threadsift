@@ -102,9 +102,9 @@ function mergeParts(
   return [
     { key: "action", node: "merge" },
     {
-      key: "tags",
+      key: "names",
       node: (
-        <span className="lg-tags">
+        <span>
           {word} {mergeLabel(entry.from, entry.into)}
         </span>
       ),

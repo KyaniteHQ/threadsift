@@ -209,3 +209,34 @@ describe("two Accepts in a row chain without a dangling Pin", () => {
     assert.equal(tagsOfDigest(instance, later), JSON.stringify(["ai"]));
   });
 });
+
+describe("a Pin that already holds the merged-away Tag key follows the Accept", () => {
+  it("points the Pin at the survivor, so a later Digest that names the old Tag lands there", async () => {
+    const instance = await Instance.start();
+
+    try {
+      await instance.setUp();
+      await paste(instance, "one", { title: "One", tags: ["ml", "machine learning", "ai"] });
+      exec(
+        instance,
+        "insert into pins (kind, from_key, from_name, into_tag_id, created_at) values ('tag-merge', 'ml', 'ml', ?, 0)",
+        tagId(instance, "ai"),
+      );
+
+      assert.equal(
+        (await accept(instance, propose(instance, ["ml", "machine learning"]))).status,
+        200,
+      );
+      assert.deepEqual(
+        rows(instance, PinSchema, "select from_key, from_name, into_tag_id from pins order by id"),
+        [{ from_key: "ml", from_name: "ml", into_tag_id: tagId(instance, "machine learning") }],
+      );
+
+      const later = await paste(instance, "later", { title: "Later", tags: ["ML"] });
+
+      assert.equal(tagsOfDigest(instance, later), JSON.stringify(["machine learning"]));
+    } finally {
+      await instance.close();
+    }
+  });
+});

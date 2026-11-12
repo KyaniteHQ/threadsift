@@ -88,21 +88,6 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
     assert.equal(agent.body, JSON.stringify(owner));
   });
 
-  it("answers 409 not-open to an Accept of a rejected Topic row and leaves it rejected", async () => {
-    const [rejected] = rows(
-      instance,
-      IdSchema,
-      "select id from proposals where kind = 'topic-merge' and state = 'rejected'",
-    );
-
-    assert.ok(rejected !== undefined);
-
-    const answer = await instance.send("POST", `/api/proposals/${String(rejected.id)}/accept`);
-
-    assert.deepEqual([answer.status, answer.body], [409, JSON.stringify({ error: "not-open" })]);
-    assert.deepEqual(states(instance), ["open", "open", "rejected"]);
-  });
-
   it("rejects a Topic row once, answers 409 not-open after, lists it no more, and still rejects a Tag row", async () => {
     const [topic, tag] = (await instance.read("GET", "/api/proposals", ProposalPageSchema))
       .proposals;

@@ -23,7 +23,7 @@ const listProposalsRoute = createRoute({
   responses: {
     200: jsonBody(
       ProposalPageSchema,
-      `One page of the open and accepting Proposals, newest first by \`id\`, at most ${String(ITEMS_PAGE_SIZE)}. Each has \`id\`, \`kind\` (\`tag-merge\` or \`topic-merge\`), \`state\` (\`open\`, or \`accepting\` while its merge runs), \`reason\` (the agent's one line) and \`from\` and \`into\`, the two Tags or the two Topics as \`{ id, name, items }\`, where \`items\` is the number of Items that carry the Tag, or sit under the Topic, now. \`POST /api/proposals/{id}/accept\` merges \`from\` into \`into\` for a Tag merge. \`checkedAt\` is when the most recent weekly check (the Tag check or the Topic check) started, in milliseconds, or null before the first one. \`provider\` is whether a Provider is saved; the check runs only then. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged.`,
+      `One page of the open and accepting Proposals, newest first by \`id\`, at most ${String(ITEMS_PAGE_SIZE)}. Each has \`id\`, \`kind\` (\`tag-merge\` or \`topic-merge\`), \`state\` (\`open\`, or \`accepting\` while its merge runs), \`reason\` (the agent's one line) and \`from\` and \`into\`, the two Tags or the two Topics as \`{ id, name, items }\`, where \`items\` is the number of Items that carry the Tag, or sit under the Topic, now. \`POST /api/proposals/{id}/accept\` merges \`from\` into \`into\`, a Tag or a Topic by the \`kind\`. Only the kinds this release knows are listed. \`checkedAt\` is when the most recent weekly check (the Tag check or the Topic check) started, in milliseconds, or null before the first one. \`provider\` is whether a Provider is saved; the check runs only then. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged.`,
     ),
     400: jsonBody(
       ErrorResponseSchema,
@@ -41,7 +41,7 @@ const rejectProposalRoute = createRoute({
       RejectedSchema,
       "The Proposal is rejected. It leaves the list and its pair of Tags or Topics is never suggested again, whichever way round. Only the owner's session may reject; an agent token gets 403.",
     ),
-    404: jsonBody(ErrorResponseSchema, "No Proposal has this id."),
+    404: jsonBody(ErrorResponseSchema, "No Proposal of a kind this release knows has this id."),
     409: jsonBody(
       ErrorResponseSchema,
       "The Proposal is not open, so it cannot be rejected. The `error` is `not-open`.",
@@ -62,7 +62,10 @@ const acceptProposalRoute = createRoute({
       AcceptedSchema,
       "The merge started and units remain. The state is `accepting`, and the next scheduled tick finishes it.",
     ),
-    404: jsonBody(ErrorResponseSchema, "No Proposal has this id."),
+    404: jsonBody(
+      ErrorResponseSchema,
+      "No Proposal of a kind this release knows has this id. A row of a kind a later release stores answers 404 here and on reject, and is not listed.",
+    ),
     409: jsonBody(
       ErrorResponseSchema,
       "The Proposal is not open (`not-open`), another Proposal is accepting (`merge-busy`: one merge runs at a time), or an overview run or another merge holds the lease of one of the two Topics (`topic-busy`: a Topic merge only; the Proposal stays open and the call can be sent again).",

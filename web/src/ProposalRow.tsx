@@ -48,6 +48,7 @@ function Count({ name, items }: Readonly<{ name: string; items: number }>) {
 
 interface RowControls {
   readonly proposal: Proposal;
+  readonly overviewFollows: boolean;
   readonly pending: boolean;
   readonly failure: Failure | undefined;
   readonly busy: Busy | undefined;
@@ -120,7 +121,7 @@ function Actions({ proposal, pending, failure, busy, accept, reject }: Readonly<
 }
 
 export const ProposalRow = memo(function ProposalRow(controls: Readonly<RowControls>) {
-  const { proposal } = controls;
+  const { proposal, overviewFollows } = controls;
   const { from, into, reason } = proposal;
 
   return (
@@ -137,7 +138,7 @@ export const ProposalRow = memo(function ProposalRow(controls: Readonly<RowContr
           <span className="vh">{PROPOSAL_WORDS.reasonLabel}: </span>
           {reason}
         </p>
-        {proposal.kind === "topic-merge" && (
+        {proposal.kind === "topic-merge" && overviewFollows && (
           <p className="rl-sum pr-overview">{PROPOSAL_WORDS.topicOverviewEffect}</p>
         )}
         <Actions {...controls} />

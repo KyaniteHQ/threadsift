@@ -18,6 +18,8 @@ import {
   topicMergeLines,
 } from "./topic-accept-fixtures.ts";
 
+const StateSchema = z.object({ state: z.string() });
+
 const PinSchema = z.object({
   from_key: z.string(),
   from_name: z.string(),
@@ -86,6 +88,12 @@ describe("Accept of a Topic row answers by the row's state and refuses the wrong
     assert.deepEqual(
       [(await accept(instance, rejected)).body, (await accept(instance, open)).body],
       [JSON.stringify({ error: "not-open" }), JSON.stringify({ error: "merge-busy" })],
+    );
+    assert.deepEqual(
+      rows(instance, StateSchema, "select state from proposals order by id").map(
+        ({ state }) => state,
+      ),
+      ["rejected", "accepting", "open"],
     );
     assert.deepEqual(
       (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals.map(

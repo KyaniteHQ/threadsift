@@ -40,9 +40,9 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
   const { db } = ports;
   const unit = await MERGES[row.kind].plan(db, id, row);
 
-  if (unit === "busy") return "busy";
+  if (unit === "busy" || unit === "lost") return unit;
 
-  const writes = [
+  const head = [
     db
       .update(proposals)
       .set({ state: "accepting", moved: sql`coalesce(${proposals.moved}, 0) + ${unit.moving}` })
@@ -54,8 +54,9 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
       .set({ cursor: unit.cursor, unitRevision: row.revision + 1 })
       .where(eq(proposals.id, id)),
     ...unit.leases.map((lease) => releaseTopicLease(db, lease)),
-    ...unit.closing,
   ];
+
+  const writes = [...head, ...unit.closing.writes];
 
   try {
     const holds = sql`${and(unitGuard(id, row), ...unit.leases.map((lease) => leaseHolds(lease)))}`;
@@ -67,9 +68,10 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
       return "lost";
     }
 
-    if (unit.opening !== null) {
-      await enqueueRows(ports, OpenedSchema.parse(results[writes.indexOf(unit.opening)]));
-    }
+    await enqueueRows(
+      ports,
+      unit.closing.wakes.flatMap((at) => OpenedSchema.parse(results[head.length + at])),
+    );
 
     return "ran";
   } catch (error) {

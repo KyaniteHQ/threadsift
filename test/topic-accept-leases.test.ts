@@ -1,74 +1,26 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { script, seedTopicItems } from "./pin-fixtures.ts";
+import { script } from "./pin-fixtures.ts";
 import { exec, paste } from "./related-fixtures.ts";
 import {
+  acceptsAtOnce,
+  answerOf,
   heldLeases,
   holdLease,
   itemsOf,
   proposeTopics,
   topicId,
   topicMergeLines,
+  unchanged,
+  withLibrary,
 } from "./topic-accept-fixtures.ts";
-
-const AnswerSchema = z.object({ state: z.string().optional(), error: z.string().optional() });
-
-const answerOf = async (instance: Instance, id: number) => {
-  const { status, body } = await accept(instance, id);
-
-  return [status, AnswerSchema.parse(JSON.parse(body))];
-};
 
 const sweep = async (instance: Instance): Promise<void> => {
   exec(instance, "delete from scheduled_runs where task = 'sweep'");
   await instance.tick();
-};
-
-interface Library {
-  readonly instance: Instance;
-  readonly loser: number;
-  readonly survivor: number;
-  readonly proposal: number;
-}
-
-const withLibrary = async (run: (library: Library) => Promise<void>): Promise<void> => {
-  const instance = await Instance.start();
-
-  try {
-    await instance.setUp();
-    await paste(instance, "loser", { title: "Loser", topic: "Loser" });
-    await paste(instance, "keeper", { title: "Keeper", topic: "Survivor" });
-
-    const loser = topicId(instance, "Loser");
-    const survivor = topicId(instance, "Survivor");
-
-    seedTopicItems(instance, { topicId: loser, name: "Loser", from: 1000, items: 2 });
-    assert.ok(loser < survivor);
-    await run({
-      instance,
-      loser,
-      survivor,
-      proposal: proposeTopics(instance, ["Loser", "Survivor"]),
-    });
-  } finally {
-    await instance.close();
-  }
-};
-
-const unchanged = ({ instance, loser }: Library): void => {
-  assert.equal(itemsOf(instance, loser), 3);
-  assert.equal(count(instance, "select count(*) as n from pins"), 0);
-};
-
-const acceptsAtOnce = async ({ instance, survivor, proposal }: Library): Promise<void> => {
-  assert.deepEqual(await answerOf(instance, proposal), [200, { state: "done" }]);
-  assert.equal(itemsOf(instance, survivor), 4);
-  assert.equal(heldLeases(instance), 0);
 };
 
 describe("Accept of a Topic row releases every lease it claimed on every exit", () => {
@@ -111,7 +63,7 @@ describe("Accept of a Topic row releases every lease it claimed on every exit", 
       unchanged(library);
     }));
 
-  it("releases both leases when a key merge deletes the row between the claims and the batch, and then answers 404", () =>
+  it("releases both leases when the row is deleted between the claims and the batch, as a key merge that makes both Topics one does, and then answers 404", () =>
     withLibrary(async (library) => {
       const { instance, proposal } = library;
 
@@ -229,7 +181,7 @@ describe("the sweep stage continues an accepting Topic row and frees its leases 
     assert.equal(heldLeases(instance), 1);
   });
 
-  it("frees its leases when a Reject-like change moves the unit revision under every unit, and stops at the bound", async () => {
+  it("frees its leases and writes nothing when another runner moves the unit revision under every unit, and leaves the row accepting", async () => {
     exec(instance, "update topic_leases set expires_at = 0");
     script(
       instance,
