@@ -63,20 +63,34 @@ async function rethrowUnlessRefused(
   if (!refusedByGuard(error) || (await guardHolds(db, condition))) throw error;
 }
 
+export async function guardedResults(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  writes: readonly BatchItem<"sqlite">[],
+): Promise<readonly unknown[] | null> {
+  try {
+    const [, ...results] = await db.batch([
+      insertGuard(db, condition),
+      ...writes,
+      db.delete(guards),
+    ]);
+
+    const written: readonly unknown[] = results.slice(0, writes.length);
+
+    return written;
+  } catch (error) {
+    await rethrowUnlessRefused(db, condition, error);
+
+    return null;
+  }
+}
+
 export async function guardedBatch(
   db: Database,
   condition: Readonly<SQLWrapper>,
   writes: readonly BatchItem<"sqlite">[],
 ): Promise<boolean> {
-  try {
-    await db.batch([insertGuard(db, condition), ...writes, db.delete(guards)]);
-
-    return true;
-  } catch (error) {
-    await rethrowUnlessRefused(db, condition, error);
-
-    return false;
-  }
+  return (await guardedResults(db, condition, writes)) !== null;
 }
 
 export async function guardedWrite<Write extends BatchItem<"sqlite">>(

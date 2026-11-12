@@ -11,8 +11,10 @@ import {
 import type { Overview, TopicItem, TopicPage } from "../../src/core/topic-overview-contract.ts";
 import { fetchTopicPage, retryTopicOverview } from "./api.ts";
 import type { More } from "./LoadMore.tsx";
+import type { Route } from "./routing.ts";
 import { useLatest } from "./use-latest.ts";
 import { usePolling } from "./use-polling.ts";
+import { useSurvivorAddress } from "./use-survivor-address.ts";
 
 export interface TopicReady {
   readonly status: "ready";
@@ -201,7 +203,7 @@ function useWriteOverview(key: string, setState: SetState, reload: () => Promise
   }, [key, reload, setState]);
 }
 
-export function useTopicPage(key: string) {
+export function useTopicPage(key: string, replace: Route["replace"]) {
   const [state, setState] = useState<TopicState>(LOADING);
   const ticket = useTicket();
   const first = useFirstRead(key, setState, ticket);
@@ -218,6 +220,7 @@ export function useTopicPage(key: string) {
   }, [first]);
 
   useOverviewPoll(key, { setState, ticket, state });
+  useSurvivorAddress(state.status === "ready" ? state.topic.key : null, key, replace);
 
   return { state, retry, loadMore, writeOverview };
 }

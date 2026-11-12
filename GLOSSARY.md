@@ -77,7 +77,7 @@ _Avoid_: Status, archived, done
 ### The library wiki
 
 **Topic page**:
-The page for one Topic: the agent's short overview, built from that Topic's Items, and the list of those Items.
+The page for one Topic: the agent's short overview, built from that Topic's Items, and the list of those Items. Its address is the Topic's key; the address of a Topic that was merged into another opens the Topic it went into.
 _Avoid_: Category page, wiki page
 
 **Related Item**:
@@ -93,19 +93,19 @@ The list of the committed changes the agent made to the library, newest first, f
 _Avoid_: History, activity feed, audit trail
 
 **Log entry**:
-One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks) or a `merge` (a Tag merged into another). It keeps the title and names as they were when the change committed.
+One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks), a `merge` (a Tag merged into another) or a `merge-topic` (a Topic merged into another). It keeps the title and names as they were when the change committed.
 _Avoid_: Event, Audit record
 
 **Proposal**:
-A change the agent suggests on the weekly Proposals page, such as merging two Tags or two Topics. The owner accepts or rejects a Tag Proposal and can only reject a Topic Proposal for now.
+A change the agent suggests on the weekly Proposals page, such as merging two Tags or two Topics. The owner accepts or rejects a Proposal of either kind.
 _Avoid_: Suggestion, lint, fix
 
 **Proposals page**:
-The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, and lets the owner accept or reject a Tag Proposal and reject a Topic Proposal.
+The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, and lets the owner accept or reject each.
 _Avoid_: Suggestions page, Inbox
 
 **Pin**:
-An accepted correction kept so that a later regeneration cannot undo it. For a Tag merge it records the merged-away Tag's key and the Tag it went into, so no later Digest creates the merged-away Tag again. For a Topic merge it records the merged-away Topic's key and the Topic it went into in the same way; the app reads such a Pin, and Accept of a Topic merge, which will write one, is not built.
+An accepted correction kept so that a later regeneration cannot undo it. For a Tag merge it records the merged-away Tag's key and the Tag it went into, so no later Digest creates the merged-away Tag again. For a Topic merge it records the merged-away Topic's key and the Topic it went into in the same way; Accept of a Topic merge writes it, and the app reads it to keep the merged-away Topic from coming back and to open the Topic it went into at the merged-away Topic's old address.
 _Avoid_: Override, lock
 
 ### Reading

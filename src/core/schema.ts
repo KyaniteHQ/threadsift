@@ -55,7 +55,7 @@ export { redditComments, redditSettings, redditThreads } from "./reddit-tables.t
 
 export { pins } from "./pin-tables.ts";
 
-export { proposals } from "./proposal-tables.ts";
+export { knownProposal, proposals } from "./proposal-tables.ts";
 
 export { relatedItems } from "./related-tables.ts";
 

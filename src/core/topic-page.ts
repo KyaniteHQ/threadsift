@@ -4,7 +4,7 @@ import { providerSet } from "./ai-tasks.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import type { Database } from "./ports.ts";
-import { digests, items, topicPages, topics } from "./schema.ts";
+import { digests, items, pins, topicPages, topics } from "./schema.ts";
 import { notBuiltFrom } from "./topic-coverage.ts";
 import {
   type BuiltFrom,
@@ -30,7 +30,15 @@ export async function topicOfKey(db: Database, text: string): Promise<TopicRow |
     .from(topics)
     .where(eq(topics.key, key));
 
-  return topic ?? null;
+  if (topic !== undefined) return topic;
+
+  const [merged] = await db
+    .select({ id: topics.id, key: topics.key, name: topics.name })
+    .from(pins)
+    .innerJoin(topics, eq(topics.id, pins.intoTopicId))
+    .where(and(eq(pins.kind, "topic-merge"), eq(pins.fromKey, key)));
+
+  return merged ?? null;
 }
 
 function pageQuery(db: Database, topicId: number, cursor: Readonly<ItemCursor> | null) {

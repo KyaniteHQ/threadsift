@@ -95,6 +95,24 @@ function digestedParts(entry: Readonly<Extract<LogEntry, { tags: unknown }>>, pa
   return [itemPart(entry.item, pages), labelled, ...(entry.tags.length === 0 ? [] : [tags])];
 }
 
+function mergeParts(
+  word: string,
+  entry: Readonly<Extract<LogEntry, { from: unknown }>>,
+): readonly Part[] {
+  return [
+    { key: "action", node: "merge" },
+    {
+      key: "names",
+      node: (
+        <span>
+          {word} {mergeLabel(entry.from, entry.into)}
+        </span>
+      ),
+    },
+    { key: "items", node: itemsLabel(entry.items) },
+  ];
+}
+
 function body(entry: Readonly<LogEntry>, pages: Pages): readonly Part[] {
   const action: Part = { key: "action", node: entry.action };
 
@@ -113,18 +131,9 @@ function body(entry: Readonly<LogEntry>, pages: Pages): readonly Part[] {
     case "related":
       return [action, itemPart(entry.item, pages), { key: "picks", node: picksLabel(entry.picks) }];
     case "merge":
-      return [
-        action,
-        {
-          key: "tags",
-          node: (
-            <span className="lg-tags">
-              {LOG_WORDS.tag} {mergeLabel(entry.from, entry.into)}
-            </span>
-          ),
-        },
-        { key: "items", node: itemsLabel(entry.items) },
-      ];
+      return mergeParts(LOG_WORDS.tag, entry);
+    case "merge-topic":
+      return mergeParts(LOG_WORDS.topic, entry);
     default:
       return entry satisfies never;
   }

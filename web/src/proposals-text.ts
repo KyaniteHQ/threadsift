@@ -10,7 +10,7 @@ export const PROPOSALS_PAGE = {
   emptyHeading: "No proposals yet",
   loadMoreFailed: "Couldn’t load more proposals.",
   sort: "Newest first",
-  head: "Accepting a tag merge can’t be undone in this release. Rejecting is final: that pair of tags or topics won’t be proposed again.",
+  head: "Accepting a tag or topic merge can’t be undone in this release. Rejecting is final: that pair of tags or topics won’t be proposed again.",
 } as const;
 
 const EMPTY_NO_PROVIDER = "Save a provider in the instance settings to run the weekly check.";
@@ -26,12 +26,18 @@ export function proposalsEmptyLine(provider: boolean, checkedDate: string | null
 const MERGE_WORDS = {
   "tag-merge": {
     effect: "Merge {from} into {into}",
+    acceptNamed: "Accept merging {from} into {into}",
+    acceptRetryNamed: "Try again to accept merging {from} into {into}",
+    accepted: "Accepted merging {from} into {into}.",
     rejectNamed: "Reject merging {from} into {into}",
     rejectRetryNamed: "Try again to reject merging {from} into {into}",
     rejected: "Rejected merging {from} into {into}.",
   },
   "topic-merge": {
     effect: "Merge topic {from} into {into}",
+    acceptNamed: "Accept merging topic {from} into {into}",
+    acceptRetryNamed: "Try again to accept merging topic {from} into {into}",
+    accepted: "Accepted merging topic {from} into {into}.",
     rejectNamed: "Reject merging topic {from} into {into}",
     rejectRetryNamed: "Try again to reject merging topic {from} into {into}",
     rejected: "Rejected merging topic {from} into {into}.",
@@ -42,12 +48,12 @@ export const PROPOSAL_WORDS = {
   itemsOne: "1 item",
   itemsMany: "{count} items",
   accept: "Accept",
-  acceptNamed: "Accept merging {from} into {into}",
-  acceptRetryNamed: "Try again to accept merging {from} into {into}",
-  accepted: "Accepted merging {from} into {into}.",
   acceptFailed: "Couldn’t accept this proposal.",
   applying: "Applying…",
-  busy: "Another merge is already running.",
+  mergeBusy: "Another merge is already running.",
+  topicBusy: "One of these topics has an overview or another merge running.",
+  topicOverviewEffect:
+    "The surviving topic’s overview is written again later and counts the moved items.",
   reject: "Reject",
   rejectFailed: "Couldn’t reject this proposal.",
   alreadyDecided: "This proposal was already decided or is no longer in the list.",
@@ -64,7 +70,9 @@ export function itemCount(count: number): string {
     : filled(PROPOSAL_WORDS.itemsMany, { count: String(count) });
 }
 
-function merging(wording: "rejectNamed" | "rejectRetryNamed" | "rejected") {
+type Wording = keyof (typeof MERGE_WORDS)[ProposalKind];
+
+function merging(wording: Exclude<Wording, "effect">) {
   return ({ kind, from, into }: Readonly<Proposal>): string =>
     filled(MERGE_WORDS[kind][wording], { from: from.name, into: into.name });
 }
@@ -75,14 +83,8 @@ export const rejectRetryLabel = merging("rejectRetryNamed");
 
 export const rejectedAnnouncement = merging("rejected");
 
-export function acceptLabel(from: string, into: string): string {
-  return filled(PROPOSAL_WORDS.acceptNamed, { from, into });
-}
+export const acceptLabel = merging("acceptNamed");
 
-export function acceptRetryLabel(from: string, into: string): string {
-  return filled(PROPOSAL_WORDS.acceptRetryNamed, { from, into });
-}
+export const acceptRetryLabel = merging("acceptRetryNamed");
 
-export function acceptedAnnouncement(from: string, into: string): string {
-  return filled(PROPOSAL_WORDS.accepted, { from, into });
-}
+export const acceptedAnnouncement = merging("accepted");

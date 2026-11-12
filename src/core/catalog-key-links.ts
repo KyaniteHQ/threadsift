@@ -36,6 +36,7 @@ export interface CatalogKind {
   readonly pinKind: PinKind;
   readonly pinTarget: typeof pins.intoTagId | typeof pins.intoTopicId;
   readonly proposalFrom: typeof proposals.fromTagId | typeof proposals.fromTopicId;
+  readonly proposalInto: typeof proposals.intoTagId | typeof proposals.intoTopicId;
   readonly linked: (db: Database, id: number) => Promise<Moves>;
   readonly relink: (
     db: Database,
@@ -63,7 +64,7 @@ async function firstIds(
   return rows.map((row) => row.id);
 }
 
-function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
+export function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
   return sql`${column} in (select value from json_each(${JSON.stringify(itemIds)}))`;
 }
 
@@ -127,6 +128,7 @@ export const TOPIC_KIND: CatalogKind = {
   pinKind: "topic-merge",
   pinTarget: pins.intoTopicId,
   proposalFrom: proposals.fromTopicId,
+  proposalInto: proposals.intoTopicId,
   linked: async (db, id) => ({
     itemIds: await firstIds(db, items.id, items.topicId, id),
     entryIds: await firstIds(db, logEntries.id, logEntries.topicId, id),
@@ -172,6 +174,7 @@ export const TAG_KIND: CatalogKind = {
   pinKind: "tag-merge",
   pinTarget: pins.intoTagId,
   proposalFrom: proposals.fromTagId,
+  proposalInto: proposals.intoTagId,
   linked: async (db, id) => ({
     itemIds: await firstIds(db, itemTags.itemId, itemTags.tagId, id),
     entryIds: [],
@@ -212,8 +215,16 @@ export function closingWrites(
   ];
 }
 
-export function topicClosingWrites(db: Database, loser: number, survivor: number) {
-  return closingWrites(db, TOPIC_KIND, loser, [
-    continuingOverview(db, survivor, TOPIC_KIND.unlinked(db, loser)),
-  ]);
+export function topicClosingWrites(
+  db: Database,
+  loser: number,
+  survivor: number,
+  before: readonly BatchItem<"sqlite">[],
+) {
+  const opening = continuingOverview(db, survivor, TOPIC_KIND.unlinked(db, loser));
+
+  return {
+    writes: closingWrites(db, TOPIC_KIND, loser, [...before, opening]),
+    wakes: [before.length],
+  };
 }

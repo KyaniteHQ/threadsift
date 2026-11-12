@@ -53,19 +53,22 @@ export function ProposalsPage({ back }: Readonly<{ back: () => void }>) {
     [decide],
   );
 
+  const overviewFollows = source.state.status === "ready" && source.state.provider;
+
   const draw = useCallback(
     (proposal: Proposal) => (
       <ProposalRow
         key={proposal.id}
         proposal={proposal}
+        overviewFollows={overviewFollows}
         pending={pending.has(proposal.id)}
         failure={failed.get(proposal.id)}
-        busy={busy.has(proposal.id)}
+        busy={busy.get(proposal.id)}
         accept={pressAccept}
         reject={pressReject}
       />
     ),
-    [pending, failed, busy, pressAccept, pressReject],
+    [pending, failed, busy, overviewFollows, pressAccept, pressReject],
   );
 
   return (
