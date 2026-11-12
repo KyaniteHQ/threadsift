@@ -5,7 +5,11 @@ import { INDEX_PAGE } from "../web/src/index-text.ts";
 import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
-import { collectCspViolations, expectDocumentHeaders } from "./document-checks.ts";
+import {
+  collectCspViolations,
+  expectDocumentHeaders,
+  expectNoCspViolations,
+} from "./document-checks.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
 import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
 import { settingsSteps } from "./settings-steps.ts";
@@ -272,5 +276,6 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     }));
   await test.step("the filter rail's Topic link is a 44px target on a phone", () =>
     phoneRailTarget(page, DOTTED_TOPIC));
-  expect(violations, "Content-Security-Policy violations").toEqual([]);
+  await test.step("the page reported no Content-Security-Policy violation and reports a probe", () =>
+    expectNoCspViolations(page, violations));
 });
