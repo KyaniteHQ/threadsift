@@ -1,16 +1,14 @@
 import { type Browser, type Page, expect, test } from "@playwright/test";
-import { z } from "zod";
 
-import { FIELDS, LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
 import { IMPORT, countLabel } from "../web/src/import-text.ts";
 import { INDEX_PAGE } from "../web/src/index-text.ts";
 import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
+import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
+import { expectDocumentHeaders, visitSignedOut, watchContext } from "./document-checks.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
 import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
 import { settingsSteps } from "./settings-steps.ts";
-
-const PASSWORD = "a smoke password of fifteen or more";
 
 const X_LINK = "https://x.com/someone/status/1234567890";
 
@@ -74,33 +72,6 @@ const SMOKE_TIMEOUT_MS = 240_000;
 const PHONE = { width: 390, height: 844 };
 
 const TARGET_PX = 44;
-
-const SETUP_CODE = z.string().min(16).parse(process.env["SETUP_CODE"]);
-
-const libraryHeading = (page: Page) => page.getByRole("heading", { level: 1, name: "Threadsift" });
-
-const passwordField = (page: Page) =>
-  page.getByLabel(FIELDS.password, { exact: true }).and(page.locator("input"));
-
-async function setUp(page: Page): Promise<void> {
-  await page.goto("/");
-  await page.getByLabel(SETUP.codeLabel).fill(SETUP_CODE);
-  await page.getByRole("button", { name: SETUP.continue }).click();
-  await passwordField(page).fill(PASSWORD);
-  await page.getByLabel(FIELDS.confirmPassword).fill(PASSWORD);
-  await page.getByRole("button", { name: SETUP.create }).click();
-  await expect(libraryHeading(page)).toBeVisible();
-}
-
-async function signOutAndIn(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
-  await page.getByRole("button", { name: SETTINGS.signOut }).click();
-  await expect(page).toHaveTitle("Sign in to Threadsift");
-  await passwordField(page).fill(PASSWORD);
-  await page.getByRole("button", { name: LOGIN.signIn }).click();
-  await expect(libraryHeading(page)).toBeVisible();
-}
 
 async function pasteXLink(page: Page): Promise<void> {
   const row = page.locator("article.it.it-link-only");
@@ -237,16 +208,7 @@ async function openIndex(page: Page, browser: Browser, topic: TopicCase): Promis
   await expect(page).toHaveURL(topic.address);
   await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
 
-  const signedOut = await browser.newContext();
-
-  try {
-    const visitor = await signedOut.newPage();
-
-    await visitor.goto("/topics");
-    await expect(visitor).toHaveTitle("Sign in to Threadsift");
-  } finally {
-    await signedOut.close();
-  }
+  await visitSignedOut(browser, "/topics");
 }
 
 async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
@@ -267,6 +229,11 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
   browser,
 }) => {
   test.setTimeout(SMOKE_TIMEOUT_MS);
+
+  const expectNoCspViolations = await watchContext(page.context());
+
+  await test.step("the app page carries its security headers on / and on a deep address", () =>
+    expectDocumentHeaders(page));
   await test.step("set up the owner with the setup code", () => setUp(page));
   await test.step("sign out and sign in again", () => signOutAndIn(page));
   await test.step("paste an X link, find its Link-only row after a reload", () => pasteXLink(page));
@@ -296,4 +263,6 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     }));
   await test.step("the filter rail's Topic link is a 44px target on a phone", () =>
     phoneRailTarget(page, DOTTED_TOPIC));
+  await test.step("the page reported no Content-Security-Policy violation and reports a probe", () =>
+    expectNoCspViolations(page));
 });

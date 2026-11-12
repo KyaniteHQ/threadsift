@@ -3,7 +3,7 @@ import { DEFAULTS } from "./settings.ts";
 
 const IN_ENTRY_CSS = () => Promise.resolve();
 
-const FACES = {
+export const FACES = {
   "ibm-plex-sans": IN_ENTRY_CSS,
   "ibm-plex-mono": IN_ENTRY_CSS,
   inter: () => import("@fontsource-variable/inter/wght.css"),

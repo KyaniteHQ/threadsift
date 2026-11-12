@@ -68,6 +68,14 @@ function sessionPair(response: Readonly<Response>): string | null | undefined {
   return pair === `${SESSION_COOKIE}=` ? null : pair;
 }
 
+function requestOf(method: string, headers: Headers, body: Json): RequestInit {
+  if (body === null) return { method, headers };
+
+  headers.set("content-type", "application/json");
+
+  return { method, headers, body: JSON.stringify(body) };
+}
+
 export class Instance {
   private cookie: string | null = null;
   private readonly app: ReturnType<typeof createApp>;
@@ -159,16 +167,10 @@ export class Instance {
     extraHeaders: Readonly<Record<string, string>> = {},
   ): Promise<Answer> {
     const headers = new Headers({ origin: ORIGIN, ...extraHeaders });
-    const init: RequestInit = { method, headers };
-
-    if (body !== null) {
-      headers.set("content-type", "application/json");
-      init.body = JSON.stringify(body);
-    }
 
     if (this.cookie !== null) headers.set("cookie", this.cookie);
 
-    const response = await this.app.request(path, init);
+    const response = await this.app.request(path, requestOf(method, headers, body));
 
     const session = sessionPair(response);
 
@@ -202,11 +204,15 @@ export class Instance {
     return (await this.sendThrough(db, method, path)).status;
   }
 
-  async sendWithToken(token: string, method: string, path: string): Promise<Answer> {
-    const response = await this.app.request(path, {
-      method,
-      headers: new Headers({ origin: ORIGIN, authorization: `Bearer ${token}` }),
-    });
+  async sendWithToken(
+    token: string,
+    method: string,
+    path: string,
+    body: Json = null,
+  ): Promise<Answer> {
+    const headers = new Headers({ origin: ORIGIN, authorization: `Bearer ${token}` });
+
+    const response = await this.app.request(path, requestOf(method, headers, body));
 
     return { status: response.status, body: await response.text() };
   }

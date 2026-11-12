@@ -1,6 +1,7 @@
 import { type Browser, type Page, expect } from "@playwright/test";
 
 import { PROPOSALS_PAGE, proposalsEmptyLine } from "../web/src/proposals-text.ts";
+import { visitSignedOut } from "./document-checks.ts";
 import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 async function expectEmptyWithoutProvider(page: Page): Promise<void> {
@@ -27,14 +28,5 @@ export async function proposalsFlow(page: Page, browser: Browser): Promise<void>
   await expectNoSidewaysScroll(page);
   await page.setViewportSize({ width: 1280, height: 800 });
 
-  const signedOut = await browser.newContext();
-
-  try {
-    const visitor = await signedOut.newPage();
-
-    await visitor.goto("/proposals");
-    await expect(visitor).toHaveTitle("Sign in to Threadsift");
-  } finally {
-    await signedOut.close();
-  }
+  await visitSignedOut(browser, "/proposals");
 }
