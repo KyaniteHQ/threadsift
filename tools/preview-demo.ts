@@ -220,38 +220,35 @@ const demoOverviewTopics = [DEMO_TOPIC, demoTopicMerges[0].into, demoTopicMerges
 
 type DemoSeed = {
   readonly enabled: (facts: SchemaFacts) => boolean;
-  readonly inserts: (facts: SchemaFacts) => readonly string[];
+  readonly inserts: readonly string[];
   readonly check: (facts: SchemaFacts) => string;
 };
 
 const DEMO_SEEDS: readonly DemoSeed[] = [
   {
     enabled: () => true,
-    inserts: () => [insertProposals("tag-merge")],
+    inserts: [insertProposals("tag-merge")],
     check: (facts) => missingPairs("tag-merge", facts.includes("pins")),
   },
   {
     enabled: (facts) => facts.includes("topicProposals"),
-    inserts: () => [insertProposals("topic-merge")],
+    inserts: [insertProposals("topic-merge")],
     check: (facts) => missingPairs("topic-merge", facts.includes("topicPins")),
   },
   {
     enabled: (facts) => facts.includes("highlightProposals"),
-    inserts: () => [
-      insertHighlights(demoLostHighlights),
-      insertHighlightProposals(demoLostHighlights),
-    ],
+    inserts: [insertHighlights(demoLostHighlights), insertHighlightProposals(demoLostHighlights)],
     check: () => missingHighlights(demoLostHighlights),
   },
   {
     enabled: (facts) => facts.includes("overviewProposals"),
-    inserts: () => [insertOverviewProposals(demoOverviewTopics)],
+    inserts: [insertOverviewProposals(demoOverviewTopics)],
     check: () => missingOverviewProposals(demoOverviewTopics),
   },
   {
     enabled: (facts) => facts.includes("disagreementProposals"),
-    inserts: (facts) => [insertDisagreements(demoDisagreements, facts.includes("itemPins"))],
-    check: (facts) => missingDisagreements(demoDisagreements, facts.includes("itemPins")),
+    inserts: [insertDisagreements(demoDisagreements)],
+    check: () => missingDisagreements(demoDisagreements),
   },
 ];
 
@@ -265,7 +262,7 @@ export function seedDemoProposals(
 
   const seeds = DEMO_SEEDS.filter(({ enabled }) => enabled(facts));
 
-  const inserts = seeds.flatMap((seed) => seed.inserts(facts));
+  const inserts = seeds.flatMap((seed) => seed.inserts);
 
   run(["d1", "execute", "DB", "--json", "--command", inserts.join(";\n"), ...scope]);
 

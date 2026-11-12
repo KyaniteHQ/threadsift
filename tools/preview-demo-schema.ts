@@ -8,7 +8,6 @@ const SCHEMA_PROBES = {
   disagreementProposals: { table: "proposals", column: "from_item_id" },
   pins: { table: "pins", column: "id" },
   topicPins: { table: "pins", column: "into_topic_id" },
-  itemPins: { table: "pins", column: "from_item_id" },
 } as const;
 
 type ProbeName = keyof typeof SCHEMA_PROBES;
