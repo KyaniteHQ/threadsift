@@ -2,6 +2,7 @@ import { SETTINGS } from "./access-text.ts";
 import { AiSection } from "./AiSection.tsx";
 import { Alert } from "./Alert.tsx";
 import { GithubSection } from "./GithubSection.tsx";
+import { GrokBotSection } from "./GrokBotSection.tsx";
 import { PasswordSection } from "./PasswordSection.tsx";
 import { RedditSection } from "./RedditSection.tsx";
 import { TokensSection } from "./TokensSection.tsx";
@@ -16,6 +17,7 @@ export function SettingsSections({
     <>
       <AiSection initial={loaded.ai} />
       <GithubSection initial={loaded.github} />
+      <GrokBotSection initial={loaded.grokBot} />
       <RedditSection initial={loaded.reddit} />
       <TokensSection initial={loaded.tokens} />
       <PasswordSection />
