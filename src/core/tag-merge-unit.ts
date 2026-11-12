@@ -1,5 +1,3 @@
-import { sql } from "drizzle-orm";
-
 import { TAG_KIND, closingWrites } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { loggedMerge } from "./log-writes.ts";
@@ -15,7 +13,7 @@ export const planTagUnit: PlanUnit = async (db, id, row) => {
   const reachedEnd = unit.itemIds.length < REWRITE_UNIT_ITEMS;
 
   return {
-    guard: sql`1`,
+    leases: [],
     moving: unit.moving,
     pin: [
       db
@@ -32,7 +30,6 @@ export const planTagUnit: PlanUnit = async (db, id, row) => {
     ],
     moves: unit.writes,
     cursor: reachedEnd ? 0 : unit.last,
-    release: [],
     closing: closingWrites(db, TAG_KIND, from.id, [
       loggedMerge(db, {
         action: "merge",

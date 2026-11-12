@@ -24,6 +24,15 @@ export function releaseTopicLease(db: Database, lease: Readonly<TopicLease>) {
   return db.update(topicLeases).set({ expiresAt: 0 }).where(leaseMatches(lease));
 }
 
+export async function releaseTopicLeases(
+  db: Database,
+  leases: readonly Readonly<TopicLease>[],
+): Promise<void> {
+  const [first, ...rest] = leases.map((lease) => releaseTopicLease(db, lease));
+
+  if (first !== undefined) await db.batch([first, ...rest]);
+}
+
 export function recoverHolderLeases(db: Database, holder: string) {
   return db.update(topicLeases).set({ expiresAt: 0 }).where(eq(topicLeases.holder, holder));
 }

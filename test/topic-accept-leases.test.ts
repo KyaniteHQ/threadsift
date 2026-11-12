@@ -142,6 +142,43 @@ describe("Accept of a Topic row releases every lease it claimed on every exit", 
       await acceptsAtOnce(library);
     }));
 
+  it("releases both leases when reading the unit throws, leaves the row open, and accepts at once after the cause is gone", () =>
+    withLibrary(async (library) => {
+      const { instance, proposal } = library;
+
+      script(instance, "alter table log_entries rename column topic_id to renamed_topic_id");
+
+      assert.equal((await accept(instance, proposal)).status, 500);
+      assert.equal(heldLeases(instance), 0);
+      assert.equal(count(instance, "select count(*) as n from proposals where state = 'open'"), 1);
+      unchanged(library);
+      script(instance, "alter table log_entries rename column renamed_topic_id to topic_id");
+      await acceptsAtOnce(library);
+    }));
+
+  it("writes nothing when another holder takes a lease between the claim and the batch, and releases the one it still holds", () =>
+    withLibrary(async (library) => {
+      const { instance, loser, survivor, proposal } = library;
+
+      script(
+        instance,
+        `create trigger test_takeover after insert on topic_leases when new.topic_id = ${String(survivor)} begin update topic_leases set holder = 'someone else' where topic_id = new.topic_id; end;`,
+      );
+
+      assert.deepEqual(await answerOf(instance, proposal), [409, { error: "topic-busy" }]);
+      assert.equal(
+        count(
+          instance,
+          "select count(*) as n from topic_leases where topic_id = ? and expires_at > ?",
+          loser,
+          Date.now(),
+        ),
+        0,
+      );
+      assert.equal(heldLeases(instance), 1);
+      unchanged(library);
+    }));
+
   it("releases the first lease when the second claim throws, and accepts at once after the cause is gone", () =>
     withLibrary(async (library) => {
       const { instance, survivor, proposal } = library;

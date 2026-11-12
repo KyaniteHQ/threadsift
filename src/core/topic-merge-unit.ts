@@ -1,19 +1,13 @@
-import { and, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { TOPIC_KIND, among, topicClosingWrites, topicMoves } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { loggedMerge } from "./log-writes.ts";
-import type { MergeUnit, PlanUnit } from "./merge-unit.ts";
+import type { MergeRow, MergeUnit, PlanUnit } from "./merge-unit.ts";
 import { repointedTopicPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { items, pins } from "./schema.ts";
-import { type TopicLease, claimTopicLease, leaseHolds, releaseTopicLease } from "./topic-lease.ts";
-
-async function release(db: Database, leases: readonly Readonly<TopicLease>[]): Promise<void> {
-  const [first, ...rest] = leases.map((lease) => releaseTopicLease(db, lease));
-
-  if (first !== undefined) await db.batch([first, ...rest]);
-}
+import { type TopicLease, claimTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
 async function claimBoth(
   db: Database,
@@ -33,11 +27,11 @@ async function claimBoth(
 
     if (second !== null) return [first, second];
 
-    await release(db, [first]);
+    await releaseTopicLeases(db, [first]);
 
     return null;
   } catch (error) {
-    await release(db, [first]);
+    await releaseTopicLeases(db, [first]);
 
     throw error;
   }
@@ -52,7 +46,7 @@ export const planTopicUnit: PlanUnit = async (db, id, row) => {
   try {
     return await readUnit(db, id, row, leases);
   } catch (error) {
-    await release(db, leases);
+    await releaseTopicLeases(db, leases);
 
     throw error;
   }
@@ -61,7 +55,7 @@ export const planTopicUnit: PlanUnit = async (db, id, row) => {
 async function readUnit(
   db: Database,
   id: number,
-  row: Parameters<PlanUnit>[2],
+  row: Readonly<MergeRow>,
   leases: readonly [TopicLease, TopicLease],
 ): Promise<MergeUnit> {
   const from = { id: row.from.id, name: row.from.name };
@@ -79,7 +73,7 @@ async function readUnit(
   ]);
 
   return {
-    guard: sql`${and(...leases.map((lease) => leaseHolds(lease)))}`,
+    leases,
     moving: sql`(select count(*) from ${items} where ${items.topicId} = ${from.id} and ${among(items.id, moves.itemIds)})`,
     pin: [
       db
@@ -96,7 +90,6 @@ async function readUnit(
     ],
     moves: topicMoves(db, from.id, into.id, moves),
     cursor: null,
-    release: leases.map((lease) => releaseTopicLease(db, lease)),
     closing: closing.writes,
     opening: closing.opening,
   };

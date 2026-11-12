@@ -13,7 +13,7 @@ The agent's weekly suggestions to merge two Tags or two Topics, the page that li
 - `src/core/proposal-relink.ts`: what a Tag or Topic key merge does to the rows, and the collision priority.
 - `src/core/proposal-page.ts`: the read and Reject for `src/http/proposal-routes.ts`.
 - `src/core/proposal-accept.ts`: Accept and the sweep stage that continues it: the state machine both kinds share (the guard on the row's state and unit revision, `moved`, the unit revision, `merge-busy` and the answers), which runs one unit at a time through `runUnit` and dispatches on the row's `kind`.
-- `src/core/merge-row.ts` (`readRow`), `src/core/merge-unit.ts` (the row and unit types), `src/core/merge-kinds.ts` (the table from `kind` to its catalog and unit planner): what the state machine reads and calls.
+- `src/core/merge-kinds.ts` (`readRow` and the table `MERGES` from `kind` to its catalog and unit planner) and `src/core/merge-unit.ts` (the row and unit types): what the state machine reads and calls.
 - `src/core/tag-merge-unit.ts` (`planTagUnit`) and `src/core/topic-merge-unit.ts` (`planTopicUnit`, the two Topic leases): what one unit of each kind writes.
 - `src/core/tag-rewrite.ts`: the bounded rewrite of one Tag into another, shared by Accept and `pin-keys`.
 - `src/core/pin-tables.ts`, `src/core/pins.ts`: the `pins` table, the Pin read that Digest publication and the older-Digest linking share (Tag and Topic Pins), the guard on it, and the Pin repoints.

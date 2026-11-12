@@ -1,16 +1,15 @@
-import { type SQL, asc, eq, sql } from "drizzle-orm";
+import { type SQL, and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { guardedResults } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
-import { MERGES } from "./merge-kinds.ts";
-import { readRow } from "./merge-row.ts";
-import type { MergeRow, MergeUnit } from "./merge-unit.ts";
-import type { Database } from "./ports.ts";
+import { MERGES, readRow } from "./merge-kinds.ts";
+import type { MergeRow } from "./merge-unit.ts";
 import { proposals } from "./schema.ts";
+import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
-export const UNITS_PER_ACCEPT = 50;
+const UNITS_PER_ACCEPT = 50;
 
 export type Acceptance =
   | "done"
@@ -35,12 +34,6 @@ function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
     : sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'accepting' and coalesce(${proposals.unitRevision}, 0) = ${row.revision})`;
 }
 
-async function free(db: Database, release: MergeUnit["release"]): Promise<void> {
-  const [first, ...rest] = release;
-
-  if (first !== undefined) await db.batch([first, ...rest]);
-}
-
 type Outcome = "ran" | "lost" | "busy";
 
 async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Promise<Outcome> {
@@ -60,15 +53,16 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
       .update(proposals)
       .set({ cursor: unit.cursor, unitRevision: row.revision + 1 })
       .where(eq(proposals.id, id)),
-    ...unit.release,
+    ...unit.leases.map((lease) => releaseTopicLease(db, lease)),
     ...unit.closing,
   ];
 
   try {
-    const results = await guardedResults(db, sql`${unitGuard(id, row)} and ${unit.guard}`, writes);
+    const holds = sql`${and(unitGuard(id, row), ...unit.leases.map((lease) => leaseHolds(lease)))}`;
+    const results = await guardedResults(db, holds, writes);
 
     if (results === null) {
-      await free(db, unit.release);
+      await releaseTopicLeases(db, unit.leases);
 
       return "lost";
     }
@@ -79,7 +73,7 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
 
     return "ran";
   } catch (error) {
-    await free(db, unit.release);
+    await releaseTopicLeases(db, unit.leases);
 
     throw error;
   }

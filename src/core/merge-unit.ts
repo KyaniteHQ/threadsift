@@ -3,8 +3,9 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { ProposalKind, ProposalState } from "./kinds.ts";
 import type { Database } from "./ports.ts";
+import type { TopicLease } from "./topic-lease.ts";
 
-export interface MergeSide {
+interface MergeSide {
   readonly id: number;
   readonly key: string;
   readonly name: string;
@@ -22,12 +23,11 @@ export interface MergeRow {
 type Writes = readonly BatchItem<"sqlite">[];
 
 export interface MergeUnit {
-  readonly guard: SQL;
+  readonly leases: readonly Readonly<TopicLease>[];
   readonly moving: SQL;
   readonly pin: Writes;
   readonly moves: Writes;
   readonly cursor: number | null;
-  readonly release: Writes;
   readonly closing: Writes;
   readonly opening: BatchItem<"sqlite"> | null;
 }
