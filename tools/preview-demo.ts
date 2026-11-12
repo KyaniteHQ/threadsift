@@ -1,12 +1,18 @@
 import { catalogKey } from "../src/core/catalog-key.ts";
 import { CommandFailure } from "./command-failure.ts";
 import {
+  type DemoDisagreement,
+  insertDisagreements,
+  missingDisagreements,
+} from "./preview-demo-disagreements.ts";
+import {
   type DemoHighlight,
   insertHighlightProposals,
   insertHighlights,
   missingHighlights,
 } from "./preview-demo-highlights.ts";
 import { insertOverviewProposals, missingOverviewProposals } from "./preview-demo-overviews.ts";
+import { type SchemaFacts, schemaFacts } from "./preview-demo-schema.ts";
 import { rowNames } from "./preview-migrations.ts";
 import { NOW_MS, quoted } from "./preview-sql.ts";
 
@@ -126,6 +132,27 @@ const topicPastes = demoTopicMerges.flatMap(({ from, into }, index) => {
 
 export const demoDigestPastes: readonly DemoDigestPaste[] = [...tagPastes, ...topicPastes];
 
+const demoDisagreements = [
+  {
+    firstUrl: demoUrl(1),
+    secondUrl: demoUrl(2),
+    reason:
+      "One says the queue drops the oldest message when the buffer fills, and the other says it blocks new writes.",
+  },
+  {
+    firstUrl: demoUrl(3),
+    secondUrl: demoUrl(4),
+    reason:
+      "The two articles disagree on whether batch jobs should run once overnight or in small intervals all day.",
+  },
+  {
+    firstUrl: demoUrl(5),
+    secondUrl: demoUrl(6),
+    reason:
+      "Old backup snapshots expire after a week under one retention rule, while the other keeps them for a year.",
+  },
+] as const satisfies readonly DemoDisagreement[];
+
 const SUBJECTS = {
   "tag-merge": {
     label: "Tags",
@@ -191,65 +218,40 @@ WHERE NOT EXISTS (
 
 const demoOverviewTopics = [DEMO_TOPIC, demoTopicMerges[0].into, demoTopicMerges[1].into] as const;
 
-const SCHEMA_PROBES = {
-  proposals: { table: "proposals", column: "id" },
-  topicProposals: { table: "proposals", column: "from_topic_id" },
-  highlightProposals: { table: "proposals", column: "highlight_id" },
-  overviewProposals: { table: "proposals", column: "topic_id" },
-  pins: { table: "pins", column: "id" },
-  topicPins: { table: "pins", column: "into_topic_id" },
-} as const;
-
-type ProbeName = keyof typeof SCHEMA_PROBES;
-
-type SchemaFacts = readonly ProbeName[];
-
-function isProbeName(name: string): name is ProbeName {
-  return Object.hasOwn(SCHEMA_PROBES, name);
-}
-
-function schemaFacts(
-  run: (args: readonly string[]) => string,
-  scope: readonly string[],
-): SchemaFacts {
-  const probes = Object.entries(SCHEMA_PROBES)
-    .map(([fact, { table, column }]) => `('${fact}', '${table}', '${column}')`)
-    .join(", ");
-
-  const query = `WITH probe (fact, tbl, col) AS (VALUES ${probes})
-SELECT probe.fact AS name
-FROM probe
-WHERE EXISTS (SELECT 1 FROM pragma_table_info(probe.tbl) WHERE name = probe.col)`;
-
-  return rowNames(run, scope, query).filter((name) => isProbeName(name));
-}
-
 type DemoSeed = {
   readonly enabled: (facts: SchemaFacts) => boolean;
-  readonly inserts: readonly string[];
+  readonly inserts: (facts: SchemaFacts) => readonly string[];
   readonly check: (facts: SchemaFacts) => string;
 };
 
 const DEMO_SEEDS: readonly DemoSeed[] = [
   {
     enabled: () => true,
-    inserts: [insertProposals("tag-merge")],
+    inserts: () => [insertProposals("tag-merge")],
     check: (facts) => missingPairs("tag-merge", facts.includes("pins")),
   },
   {
     enabled: (facts) => facts.includes("topicProposals"),
-    inserts: [insertProposals("topic-merge")],
+    inserts: () => [insertProposals("topic-merge")],
     check: (facts) => missingPairs("topic-merge", facts.includes("topicPins")),
   },
   {
     enabled: (facts) => facts.includes("highlightProposals"),
-    inserts: [insertHighlights(demoLostHighlights), insertHighlightProposals(demoLostHighlights)],
+    inserts: () => [
+      insertHighlights(demoLostHighlights),
+      insertHighlightProposals(demoLostHighlights),
+    ],
     check: () => missingHighlights(demoLostHighlights),
   },
   {
     enabled: (facts) => facts.includes("overviewProposals"),
-    inserts: [insertOverviewProposals(demoOverviewTopics)],
+    inserts: () => [insertOverviewProposals(demoOverviewTopics)],
     check: () => missingOverviewProposals(demoOverviewTopics),
+  },
+  {
+    enabled: (facts) => facts.includes("disagreementProposals"),
+    inserts: (facts) => [insertDisagreements(demoDisagreements, facts.includes("itemPins"))],
+    check: (facts) => missingDisagreements(demoDisagreements, facts.includes("itemPins")),
   },
 ];
 
@@ -263,7 +265,7 @@ export function seedDemoProposals(
 
   const seeds = DEMO_SEEDS.filter(({ enabled }) => enabled(facts));
 
-  const inserts = seeds.flatMap((seed) => seed.inserts);
+  const inserts = seeds.flatMap((seed) => seed.inserts(facts));
 
   run(["d1", "execute", "DB", "--json", "--command", inserts.join(";\n"), ...scope]);
 
