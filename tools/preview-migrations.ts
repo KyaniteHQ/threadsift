@@ -6,6 +6,10 @@ const Rows = z
   .array(z.object({ results: z.array(z.object({ name: z.string() })) }))
   .transform((statements) => statements.flatMap((statement) => statement.results));
 
+export function quoted(text: string): string {
+  return `'${text.replaceAll("'", "''")}'`;
+}
+
 export function rowNames(
   run: (args: readonly string[]) => string,
   scope: readonly string[],
