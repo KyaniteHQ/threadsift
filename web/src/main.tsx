@@ -1,3 +1,4 @@
+import "./zod-jitless.ts";
 import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/playfair-display/wght.css";
 import "@fontsource-variable/space-grotesk/wght.css";
