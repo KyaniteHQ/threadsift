@@ -8,6 +8,7 @@ import {
   WEEK_MS,
   highlightStatus,
   keepLostHighlight,
+  nextTick,
   readPage,
   repaste,
   textHolding,
@@ -43,11 +44,6 @@ const claims = (instance: Instance) =>
   );
 
 const count = (instance: Instance, query: string) => rows(instance, CountSchema, query)[0]?.n ?? 0;
-
-async function nextTick(instance: Instance): Promise<void> {
-  exec(instance, "delete from scheduled_runs where task = 'sweep'");
-  await instance.tick();
-}
 
 function moveClaimBack(instance: Instance): void {
   exec(
@@ -142,7 +138,7 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     assert.equal(lostRows(instance).length, 3);
   });
 
-  it("deletes an open row whose Highlight is found again, and no read lists it before", async () => {
+  it("deletes an open row whose Highlight is found again only when the week is claimed, and no read lists it before", async () => {
     const [first] = lostRows(instance);
 
     assert.ok(first !== undefined);
@@ -155,6 +151,10 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
       ),
       false,
     );
+    assert.equal(lostRows(instance).length, 3);
+
+    await nextTick(instance);
+    assert.equal(highlightIds(instance).includes(first.highlight_id), true);
     assert.equal(lostRows(instance).length, 3);
 
     moveClaimBack(instance);

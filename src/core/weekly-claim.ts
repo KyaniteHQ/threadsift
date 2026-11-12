@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { providerSet } from "./ai-tasks.ts";
-import type { WEEKLY_TASK } from "./kinds.ts";
+import type { WeeklyTask } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, scheduledRuns } from "./schema.ts";
 
@@ -9,11 +9,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const NEWEST_DIGESTED_ITEM = sql`(select max(${digests.itemId}) from ${digests})`;
 
-export function claimingWeek(
-  db: Database,
-  now: number,
-  task: (typeof WEEKLY_TASK)[keyof typeof WEEKLY_TASK],
-) {
+export function claimingWeek(db: Database, now: number, task: WeeklyTask) {
   return db
     .insert(scheduledRuns)
     .select(

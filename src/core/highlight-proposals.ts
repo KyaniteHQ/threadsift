@@ -5,7 +5,7 @@ import { removalWrites } from "./highlights.ts";
 import { WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
-import { highlights, proposals } from "./schema.ts";
+import { highlights, proposals, scheduledRuns } from "./schema.ts";
 import { claimingWeek } from "./weekly-claim.ts";
 
 type LostHighlightAcceptance = "done" | "unknown" | "not-open" | "not-current";
@@ -58,11 +58,12 @@ function insertedRows(db: Database, now: number) {
     .onConflictDoNothing();
 }
 
-function foundAgain(db: Database) {
+function foundAgain(db: Database, now: number) {
   return db
     .delete(proposals)
     .where(
       and(
+        sql`exists (select 1 from ${scheduledRuns} where ${scheduledRuns.task} = ${WEEKLY_TASK["highlight-lost"]} and ${scheduledRuns.lastRunAt} = ${now})`,
         eq(proposals.kind, "highlight-lost"),
         eq(proposals.state, "open"),
         inArray(
@@ -80,7 +81,7 @@ export async function proposeLostHighlights(db: Database, now: number): Promise<
   await db.batch([
     claimingWeek(db, now, WEEKLY_TASK["highlight-lost"]),
     insertedRows(db, now),
-    foundAgain(db),
+    foundAgain(db, now),
   ]);
 }
 

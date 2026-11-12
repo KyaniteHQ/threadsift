@@ -1,16 +1,20 @@
 import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
 
+import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
 import { HighlightResponseSchema } from "../src/core/highlight-contract.ts";
+import type { Database } from "../src/core/ports.ts";
 import {
   type MergeProposal,
   type Proposal,
   type ProposalPage,
   ProposalPageSchema,
 } from "../src/core/proposal-contract.ts";
+import { batchTo, proxyTo } from "../src/targets/node/database.ts";
 import type { Instance } from "./instance.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
+import { exec, paste, rows, saveProvider } from "./related-fixtures.ts";
 
 const BEFORE = "A long sentence that comes before the passage and fills the stored context. ";
 
@@ -106,17 +110,35 @@ export async function keepLostHighlight(
 
 const IdSchema = z.object({ id: z.number() });
 
-export function proposeLost(instance: Instance, highlightId: number, state = "open"): number {
-  exec(
+export async function nextTick(instance: Instance): Promise<void> {
+  exec(instance, "delete from scheduled_runs where task = 'sweep'");
+  await instance.tick();
+}
+
+export async function proposeLost(
+  instance: Instance,
+  highlightId: number,
+  state: "open" | "rejected" = "open",
+): Promise<number> {
+  await saveProvider(instance);
+  exec(instance, "delete from scheduled_runs where task = 'highlight_proposals'");
+  await nextTick(instance);
+
+  const [row] = rows(
     instance,
-    "insert into proposals (kind, highlight_id, reason, state, created_at) values ('highlight-lost', ?, 'plain-check', ?, 1)",
+    IdSchema,
+    "select id from proposals where kind = 'highlight-lost' and highlight_id = ?",
     highlightId,
-    state,
   );
 
-  const [row] = rows(instance, IdSchema, "select max(id) as id from proposals");
+  if (row === undefined) throw new Error("the weekly check stored no Proposal for the Highlight");
 
-  if (row === undefined) throw new Error("no Proposal was stored");
+  if (state === "rejected") {
+    assert.equal(
+      (await instance.send("POST", `/api/proposals/${String(row.id)}/reject`)).status,
+      200,
+    );
+  }
 
   return row.id;
 }
@@ -128,3 +150,19 @@ const StateRowSchema = z.object({ id: z.number(), kind: z.string(), state: z.str
 
 export const proposalRows = (instance: Instance) =>
   rows(instance, StateRowSchema, "select id, kind, state from proposals order by id");
+
+export function withoutForeignKeys(file: string): Database {
+  const sqlite = new DatabaseSync(file);
+  const query = proxyTo(sqlite);
+  const batch = batchTo(sqlite);
+
+  return drizzle(query, async (queries) => {
+    sqlite.exec("PRAGMA foreign_keys = OFF");
+
+    try {
+      return await batch(queries);
+    } finally {
+      sqlite.exec("PRAGMA foreign_keys = ON");
+    }
+  });
+}

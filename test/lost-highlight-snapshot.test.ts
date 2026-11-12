@@ -3,10 +3,10 @@ import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import { drizzle } from "drizzle-orm/sqlite-proxy";
-import { z } from "zod";
 
 import type { Database } from "../src/core/ports.ts";
 import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
+import { batchTo, proxyTo } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
 import {
   keepLostHighlight,
@@ -15,69 +15,45 @@ import {
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { exec, paste } from "./related-fixtures.ts";
+import { SECRET_KEY, exec, paste } from "./related-fixtures.ts";
 
-interface Counted {
-  readonly db: Database;
-  readonly calls: () => number;
-}
+const READ_BY_THE_PAGE = ['"proposals"', '"highlights"', '"items"', '"digests"'];
 
-const BindingsSchema = z.array(
-  z.union([z.null(), z.number(), z.bigint(), z.string(), z.instanceof(Uint8Array)]),
-);
+const readsThePage = (sql: string) => READ_BY_THE_PAGE.some((table) => sql.includes(table));
 
-const touchesProposals = (sql: string) => sql.includes('"proposals"');
-
-function interrupted(file: string, between: () => Promise<void>): Counted {
+function writingAfterTheFirstRead(file: string, write: () => Promise<void>): Database {
   const sqlite = new DatabaseSync(file);
-  let calls = 0;
+  const query = proxyTo(sqlite);
+  const batch = batchTo(sqlite);
+  let written = false;
 
-  const execute = ({
-    sql,
-    params,
-    method,
-  }: Readonly<{ sql: string; params: unknown[]; method: string }>) => {
-    const statement = sqlite.prepare(sql);
-
-    statement.setReturnArrays(true);
-
-    const bindings = BindingsSchema.parse(params);
-
-    if (method === "run") {
-      statement.run(...bindings);
-
-      return { rows: [] };
+  const writeOnce = async () => {
+    if (!written) {
+      written = true;
+      await write();
     }
-
-    return { rows: statement.all(...bindings) };
   };
 
-  const db = drizzle(
+  return drizzle(
     async (sql, params, method) => {
-      if (touchesProposals(sql)) {
-        calls += 1;
-        await between();
+      const result = await query(sql, params, method);
+
+      if (readsThePage(sql)) {
+        await writeOnce();
       }
 
-      return execute({ sql, params, method });
+      return result;
     },
     async (queries) => {
-      if (queries.some(({ sql }) => touchesProposals(sql))) {
-        calls += 1;
-        await between();
+      const result = await batch(queries);
+
+      if (queries.some(({ sql }) => readsThePage(sql))) {
+        await writeOnce();
       }
 
-      sqlite.exec("BEGIN");
-
-      try {
-        return queries.map((query) => execute(query));
-      } finally {
-        sqlite.exec("COMMIT");
-      }
+      return result;
     },
   );
-
-  return { db, calls: () => calls };
 }
 
 describe("the Proposals page reads each row and its subject in one snapshot", () => {
@@ -85,51 +61,52 @@ describe("the Proposals page reads each row and its subject in one snapshot", ()
   let lost: { itemId: number; highlightId: number };
 
   before(async () => {
-    instance = await Instance.start();
+    instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
     lost = await keepLostHighlight(instance, "snapshot", "gone", "the snapshot passage");
-    proposeLost(instance, lost.highlightId);
+    await proposeLost(instance, lost.highlightId);
   });
 
   after(() => instance.close());
 
-  it("makes one call, so a Digest replaced before it is read whole and never half-filled", async () => {
-    const replacing = interrupted(instance.databaseFile, async () => {
+  it("shows the row as it was when the read began when a Digest is replaced right after", async () => {
+    const listed = await readPage(instance);
+
+    const replacing = writingAfterTheFirstRead(instance.databaseFile, async () => {
       await paste(instance, "snapshot", {
         title: "A new title",
         postText: textHolding("a passage that is not the quote"),
       });
     });
 
-    const page = await instance.readThrough(replacing.db, "/api/proposals", ProposalPageSchema);
-    const [row] = page.proposals;
+    const during = await instance.readThrough(replacing, "/api/proposals", ProposalPageSchema);
+    const later = await readPage(instance);
 
-    assert.equal(replacing.calls(), 1);
-    assert.equal(row?.kind, "highlight-lost");
-    assert.deepEqual(
-      row?.kind === "highlight-lost" ? [row.highlight.quote, row.highlight.item.title] : [],
-      ["the snapshot passage", "A new title"],
-    );
+    assert.deepEqual(during, listed);
+    assert.notDeepEqual(later, listed);
   });
 
-  it("makes one call, so a Highlight removed before it is read leaves no row", async () => {
-    const removing = interrupted(instance.databaseFile, () => {
+  it("lists the row when its Highlight is removed right after the read began", async () => {
+    const listed = await readPage(instance);
+
+    const removing = writingAfterTheFirstRead(instance.databaseFile, () => {
       exec(instance, "delete from search_parts where highlight_id = ?", lost.highlightId);
       exec(instance, "delete from highlights where id = ?", lost.highlightId);
 
       return Promise.resolve();
     });
 
-    const page = await instance.readThrough(removing.db, "/api/proposals", ProposalPageSchema);
+    const during = await instance.readThrough(removing, "/api/proposals", ProposalPageSchema);
 
-    assert.equal(removing.calls(), 1);
-    assert.deepEqual(page.proposals, []);
+    assert.equal(listed.proposals.length, 1);
+    assert.deepEqual(during, listed);
+    assert.deepEqual((await readPage(instance)).proposals, []);
   });
 
   it("omits a row whose Highlight is found again without a half-filled row", async () => {
     const again = await keepLostHighlight(instance, "again", "gone", "the passage that returns");
 
-    const id = proposeLost(instance, again.highlightId);
+    const id = await proposeLost(instance, again.highlightId);
 
     assert.equal(
       (await readPage(instance)).proposals.some((row) => row.id === id),

@@ -24,20 +24,29 @@ async function openModelRun(ports: JobPorts, now: number, kind: MergeKind) {
   await enqueueRows(ports, opened);
 }
 
+interface WeeklyRun {
+  readonly stage: string;
+  readonly run: (ports: JobPorts, now: number) => Promise<void>;
+}
+
 const WEEKLY_RUN = {
-  "tag-merge": (ports, now) => openModelRun(ports, now, "tag-merge"),
-  "topic-merge": (ports, now) => openModelRun(ports, now, "topic-merge"),
-  "highlight-lost": ({ db }, now) => proposeLostHighlights(db, now),
-} as const satisfies Readonly<
-  Record<ProposalKind, (ports: JobPorts, now: number) => Promise<void>>
->;
+  "tag-merge": { stage: "proposals", run: (ports, now) => openModelRun(ports, now, "tag-merge") },
+  "topic-merge": {
+    stage: "topic-proposals",
+    run: (ports, now) => openModelRun(ports, now, "topic-merge"),
+  },
+  "highlight-lost": {
+    stage: "highlight-proposals",
+    run: ({ db }, now) => proposeLostHighlights(db, now),
+  },
+} as const satisfies Readonly<Record<ProposalKind, WeeklyRun>>;
 
 export function weeklyStages(
   ports: JobPorts,
   now: number,
 ): readonly (readonly [name: string, run: () => Promise<void>])[] {
   return PROPOSAL_KINDS.map((kind) => [
-    WEEKLY_TASK[kind].replaceAll("_", "-"),
-    () => WEEKLY_RUN[kind](ports, now),
+    WEEKLY_RUN[kind].stage,
+    () => WEEKLY_RUN[kind].run(ports, now),
   ]);
 }

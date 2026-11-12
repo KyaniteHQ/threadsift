@@ -189,6 +189,15 @@ export class Instance {
     return schema.parse(JSON.parse(await response.text()));
   }
 
+  async statusThrough(db: Ports["db"], method: string, path: string): Promise<number> {
+    const response = await createApp({ ...this.ports, db }).request(path, {
+      method,
+      headers: new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" }),
+    });
+
+    return response.status;
+  }
+
   async sendWithToken(token: string, method: string, path: string): Promise<Answer> {
     const response = await this.app.request(path, {
       method,

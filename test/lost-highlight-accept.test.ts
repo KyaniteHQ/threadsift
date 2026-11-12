@@ -14,8 +14,9 @@ import {
   readPage,
   repaste,
   textHolding,
+  withoutForeignKeys,
 } from "./lost-highlight-fixtures.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
 
@@ -46,7 +47,7 @@ describe("Accept of a lost-Highlight row", () => {
   let instance: Instance;
 
   before(async () => {
-    instance = await Instance.start();
+    instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
   });
 
@@ -62,7 +63,7 @@ describe("Accept of a lost-Highlight row", () => {
       revision: reader.note.revision,
     });
 
-    const id = proposeLost(instance, lost.highlightId);
+    const id = await proposeLost(instance, lost.highlightId);
 
     assert.equal(partsOf(instance, lost.highlightId).length, 1);
 
@@ -101,7 +102,7 @@ describe("Accept of a lost-Highlight row", () => {
       "the second passage",
     );
 
-    const id = proposeLost(instance, lost.highlightId);
+    const id = await proposeLost(instance, lost.highlightId);
 
     await repaste(instance, "found-again", textHolding("the second passage"));
     assert.equal(highlightStatus(instance, lost.highlightId), "attached");
@@ -132,28 +133,38 @@ describe("deleting an Item that holds lost-Highlight rows", () => {
   let instance: Instance;
 
   before(async () => {
-    instance = await Instance.start();
+    instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
   });
 
   after(() => instance.close());
 
-  it("removes its open and rejected rows and leaves the rows of other Items", async () => {
+  it("removes its open and rejected rows with foreign keys off, leaves the rows of other Items, and cascades with them on", async () => {
     const first = await keepLostHighlight(instance, "first", "gone", "the first passage");
     const second = await keepPassage(instance, first.itemId, "A long sentence that comes after");
     const other = await keepLostHighlight(instance, "other", "gone", "the other passage");
 
     exec(instance, "update highlights set status = 'gone', start = null where id = ?", second);
 
-    const open = proposeLost(instance, first.highlightId);
-    const rejected = proposeLost(instance, second, "rejected");
-    const kept = proposeLost(instance, other.highlightId);
+    const open = await proposeLost(instance, first.highlightId);
+    const rejected = await proposeLost(instance, second, "rejected");
+    const kept = await proposeLost(instance, other.highlightId);
 
-    assert.equal((await instance.send("DELETE", `/api/items/${String(first.itemId)}`)).status, 204);
+    assert.equal(
+      await instance.statusThrough(
+        withoutForeignKeys(instance.databaseFile),
+        "DELETE",
+        `/api/items/${String(first.itemId)}`,
+      ),
+      204,
+    );
     assert.deepEqual(
       proposalRows(instance).map(({ id }) => id),
       [kept],
     );
     assert.equal([open, rejected].includes(kept), false);
+
+    assert.equal((await instance.send("DELETE", `/api/items/${String(other.itemId)}`)).status, 204);
+    assert.deepEqual(proposalRows(instance), []);
   });
 });
