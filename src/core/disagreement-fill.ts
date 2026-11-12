@@ -4,6 +4,12 @@ import { pairKey } from "./proposal-candidates.ts";
 
 const MIN_ITEMS = 2;
 
+const SMALLEST_ITEM = { id: 0, title: "", summary: "" };
+
+const SMALLEST_TOPIC_BYTES = utf8Length(
+  JSON.stringify({ id: 0, name: "", items: [SMALLEST_ITEM, SMALLEST_ITEM] }),
+);
+
 function decidedOf(topic: Readonly<SentTopic>, decided: Readonly<ReadonlySet<string>>) {
   return topic.items.flatMap((first, index) =>
     topic.items
@@ -55,4 +61,8 @@ export function fillDisagreementInput(
   }
 
   return { input: inputJson(sent, decided), sent };
+}
+
+export function hasNoRoomForAnother(input: string): boolean {
+  return utf8Length(input) + SMALLEST_TOPIC_BYTES > DISAGREEMENT_INPUT_BYTES;
 }

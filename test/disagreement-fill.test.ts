@@ -45,8 +45,8 @@ describe("one weekly call holds at most 14,000 bytes of Topics", () => {
       ids,
       Array.from({ length: ids.length }, (_, at) => 31 - at),
     );
-    assert.ok((task?.inputs ?? "").length <= CAP);
-    assert.ok((task?.inputs ?? "").length > CAP - 1400);
+    assert.ok(Buffer.byteLength(task?.inputs ?? "") <= CAP);
+    assert.ok(Buffer.byteLength(task?.inputs ?? "") > CAP - 1400);
   });
 
   it("skips a Topic that cannot fit 2 more Items, sends a later Topic that does fit, and keeps the Topics in newest-Digest order", () => {
@@ -55,6 +55,77 @@ describe("one weekly call holds at most 14,000 bytes of Topics", () => {
     assert.deepEqual(
       sent?.topics.map(({ name }) => name),
       ["Long", "Small"],
+    );
+  });
+});
+
+describe("one weekly call counts the bytes of the text and not its characters", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start({ secretKey: SECRET_KEY });
+    await instance.setUp();
+    seedTopics(instance, { 1: "Wide" });
+    seedDigested(
+      instance,
+      Array.from({ length: 6 }, (_, at) => ({
+        id: at + 1,
+        topic: 1,
+        savedAt: at + 1,
+        summary: "語".repeat(1000),
+      })),
+    );
+    await saveProvider(instance);
+    await runWeek(instance);
+  });
+
+  after(() => instance.close());
+
+  it("keeps a Topic of 3-byte characters within 14,000 bytes", () => {
+    const [task] = tasksOf(instance);
+    const [sent] = sentOf(instance);
+
+    assert.ok(Buffer.byteLength(task?.inputs ?? "") <= CAP);
+    assert.ok((task?.inputs ?? "").length < CAP);
+    assert.deepEqual(
+      sent?.topics[0]?.items.map(({ id }) => id),
+      [6, 5, 4, 3],
+    );
+  });
+});
+
+describe("a Topic after many Topics that cannot fit is still sent", () => {
+  const SKIPPED_TOPICS = 151;
+
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start({ secretKey: SECRET_KEY });
+    await instance.setUp();
+    seedTopics(instance, {
+      1: "Later",
+      ...Object.fromEntries(
+        Array.from({ length: SKIPPED_TOPICS }, (_, at) => [at + 2, `Too wide ${String(at)}`]),
+      ),
+    });
+    seedDigested(instance, [
+      { id: 1, topic: 1, savedAt: 1 },
+      { id: 2, topic: 1, savedAt: 2 },
+      ...Array.from({ length: SKIPPED_TOPICS }, (_, at) => [
+        { id: 10 + at * 2, topic: at + 2, savedAt: 1000 + at, summary: "x".repeat(7000) },
+        { id: 11 + at * 2, topic: at + 2, savedAt: 1000 + at, summary: "x".repeat(7000) },
+      ]).flat(),
+    ]);
+    await saveProvider(instance);
+    await runWeek(instance);
+  });
+
+  after(() => instance.close());
+
+  it("sends the Topic that fits after 151 Topics whose 2 Items each exceed the cap", () => {
+    assert.deepEqual(
+      sentOf(instance).flatMap(({ topics }) => topics.map(({ name }) => name)),
+      ["Later"],
     );
   });
 });

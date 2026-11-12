@@ -33,7 +33,8 @@ const SEED = `
     ('topic-merge', 1, 2, 'Rejected.', 'rejected', 3), ('topic-merge', 2, 3, 'Deleted.', 'open', 4);
   insert into proposals (kind, highlight_id, reason, state, created_at) values ('highlight-lost', 1, 'plain-check', 'declined', 5);
   insert into proposals (kind, topic_id, reason, state, created_at) values ('overview-gap', 1, 'plain-check', 'open', 6);
-  delete from proposals where id = 4;
+  insert into proposals (kind, topic_id, reason, state, created_at) values ('overview-gap', 2, 'plain-check', 'open', 7);
+  delete from proposals where id in (4, 7);
 `;
 
 describe("the disagreement migration on a database made by the release before it", () => {
@@ -108,18 +109,18 @@ describe("the disagreement migration on a database made by the release before it
     database.close();
   });
 
-  it("gives the next row an id above the old high-water mark and lists it beside the earlier kinds", async () => {
+  it("gives the next row an id above the deleted highest id and lists it beside the earlier kinds", async () => {
     const database = sqlite();
 
     const [inserted] = database
       .prepare(
-        "insert into proposals (kind, from_item_id, into_item_id, from_digest, into_digest, reason, state, created_at) values ('items-disagree', 1, 2, 1, 2, 'Opposite.', 'open', 7) returning id",
+        "insert into proposals (kind, from_item_id, into_item_id, from_digest, into_digest, reason, state, created_at) values ('items-disagree', 1, 2, 1, 2, 'Opposite.', 'open', 8) returning id",
       )
       .all();
 
     database.close();
-    assert.equal(inserted?.["id"], 7);
-    assert.equal((await readPage(instance)).proposals[0]?.id, 7);
+    assert.equal(inserted?.["id"], 8);
+    assert.equal((await readPage(instance)).proposals[0]?.id, 8);
   });
 
   it("accepts the new job kind and still refuses an unknown one", () => {

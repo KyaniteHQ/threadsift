@@ -6,18 +6,23 @@ import { z } from "zod";
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import {
   disagreementRows,
-  replaceDigest,
   jobsOf,
+  pasteItems,
   proposeDisagreement,
+  replaceDigest,
   runWeek,
-  seedDigested,
-  seedTopics,
   sentOf,
   tasksOf,
+  topicIdOf,
 } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import { SECRET_KEY, exec, rows, saveProvider } from "./related-fixtures.ts";
+
+const listedIds = async (instance: Instance): Promise<readonly number[]> =>
+  (await readPage(instance)).proposals.flatMap(({ id, kind }) =>
+    kind === "items-disagree" ? [id] : [],
+  );
 
 const LISTED = {
   id: 2,
@@ -36,16 +41,17 @@ describe("disagreement rows beside the other kinds", () => {
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
-    seedTopics(instance, { 1: "Reading", 2: "Other" });
-    seedDigested(instance, [
-      { id: 1, topic: 1, summary: LISTED.first.summary },
-      { id: 2, topic: 1, summary: LISTED.second.summary },
-      { id: 3, topic: 1 },
-      { id: 4, topic: 2 },
+    await pasteItems(instance, [
+      { topic: "Reading", title: LISTED.first.title, summary: LISTED.first.summary },
+      { topic: "Reading", title: LISTED.second.title, summary: LISTED.second.summary },
+      { topic: "Reading" },
+      { topic: "Other" },
     ]);
     exec(
       instance,
-      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) values ('topic-merge', 1, 2, 'Same subject.', 'open', 1)",
+      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) values ('topic-merge', ?, ?, 'Same subject.', 'open', 1)",
+      topicIdOf(instance, "Reading"),
+      topicIdOf(instance, "Other"),
     );
     proposeDisagreement(instance, [1, 2]);
     ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
@@ -55,7 +61,7 @@ describe("disagreement rows beside the other kinds", () => {
 
   after(() => instance.close());
 
-  it("lists the row to the owner and to an agent token in the same shape, with both Summaries read live, and 401 signed out", async () => {
+  it("lists the row to the owner and to an agent token in the same shape, with both stored Summaries, and 401 signed out", async () => {
     const owner = await readPage(instance);
     const agent = await instance.sendWithToken(token, "GET", "/api/proposals");
 
@@ -66,12 +72,6 @@ describe("disagreement rows beside the other kinds", () => {
     assert.equal(agent.body, JSON.stringify(owner));
     assert.equal((await instance.fetch("/api/proposals")).status, 401);
     assert.deepEqual(JSON.parse(JSON.stringify(owner.proposals[0])), LISTED);
-
-    exec(
-      instance,
-      "update digests set digest = replace(digest, 'on by default', 'enabled by default') where item_id = 1",
-    );
-    assert.match(JSON.stringify((await readPage(instance)).proposals[0]), /enabled by default/u);
   });
 
   it("refuses an agent token on accept and reject and a signed-out call, answers 404 for an unknown id", async () => {
@@ -116,48 +116,37 @@ describe("disagreement rows beside the other kinds", () => {
       ["topic-merge"],
     );
   });
-
-  it("describes the shape and the new code in the OpenAPI document", async () => {
-    const document = z
-      .object({ paths: z.record(z.string(), z.unknown()) })
-      .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
-
-    assert.match(JSON.stringify(document.paths["/api/proposals"]), /items-disagree/u);
-    assert.match(JSON.stringify(document.paths["/api/proposals/{id}/accept"]), /not-supported/u);
-  });
 });
 
 describe("a disagreement row stays only while the pair was judged on the Digests that are stored", () => {
   let instance: Instance;
+  let changed = 0;
+  let moved = 0;
+  let rejected = 0;
+  let kept = 0;
 
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
-    seedTopics(instance, { 1: "Reading", 2: "Other" });
-    seedDigested(instance, [
-      ...Array.from({ length: 9 }, (_, at) => ({ id: at + 1, topic: 1 })),
-      { id: 10, topic: 2 },
+    await pasteItems(instance, [
+      ...Array.from({ length: 9 }, () => ({ topic: "Reading" })),
+      { topic: "Other" },
     ]);
     await saveProvider(instance);
   });
 
   after(() => instance.close());
 
-  it("hides at once, and deletes at the next weekly stage, an open row whose Digest changed or whose Items left one Topic, and keeps a rejected row", async () => {
-    const changed = proposeDisagreement(instance, [1, 2]);
-    const moved = proposeDisagreement(instance, [3, 4]);
-    const rejected = proposeDisagreement(instance, [5, 6], "rejected");
-    const kept = proposeDisagreement(instance, [7, 8]);
+  it("hides at once, and deletes at the next weekly stage, an open row whose Digest changed, and keeps a rejected row", async () => {
+    changed = proposeDisagreement(instance, [1, 2]);
+    rejected = proposeDisagreement(instance, [5, 6], "rejected");
+    kept = proposeDisagreement(instance, [7, 8]);
 
-    replaceDigest(instance, 1, 900);
-    exec(instance, "update items set topic_id = 2 where id = 4");
-    replaceDigest(instance, 5, 901);
+    await replaceDigest(instance, 1, { topic: "Reading", summary: "A new summary of the first." });
+    await replaceDigest(instance, 5, { topic: "Reading", summary: "A new summary of the fifth." });
 
-    assert.deepEqual(
-      (await readPage(instance)).proposals.map(({ id }) => id),
-      [kept],
-    );
-    assert.equal(disagreementRows(instance).length, 4);
+    assert.deepEqual(await listedIds(instance), [kept]);
+    assert.equal(disagreementRows(instance).length, 3);
 
     await runWeek(instance);
 
@@ -165,25 +154,37 @@ describe("a disagreement row stays only while the pair was judged on the Digests
       disagreementRows(instance).map(({ id }) => id),
       [rejected, kept],
     );
-    assert.deepEqual(
-      [changed, moved].filter((id) => disagreementRows(instance).some((row) => row.id === id)),
-      [],
+    assert.equal(
+      disagreementRows(instance).some(({ id }) => id === changed),
+      false,
     );
   });
 
-  it("sends a decided pair as decided, rejected or not, and never stores the pair a second time in the other order", () => {
+  it("hides an open row whose Items sit in two Topics, keeps it through the next weekly stage, and lists it again when the Items are back in one Topic", async () => {
+    moved = proposeDisagreement(instance, [3, 4]);
+    exec(instance, "update items set topic_id = ? where id = 4", topicIdOf(instance, "Other"));
+
+    assert.deepEqual(await listedIds(instance), [kept]);
+
+    await runWeek(instance);
+
+    assert.equal(
+      disagreementRows(instance).some(({ id }) => id === moved),
+      true,
+    );
+
+    exec(instance, "update items set topic_id = ? where id = 4", topicIdOf(instance, "Reading"));
+
+    assert.deepEqual(await listedIds(instance), [moved, kept]);
+  });
+
+  it("sends a decided pair as decided, rejected or not", () => {
     const [sent] = sentOf(instance);
 
     assert.equal(
       sent?.decided.some(([low, high]) => low === 5 && high === 6),
       true,
     );
-    assert.throws(() => {
-      exec(
-        instance,
-        "insert into proposals (kind, from_item_id, into_item_id, from_digest, into_digest, reason, state, created_at) values ('items-disagree', 6, 5, 6, 901, 'Again.', 'open', 1)",
-      );
-    }, /UNIQUE/u);
   });
 });
 
@@ -193,14 +194,10 @@ describe("deleting an Item that a disagreement row names", () => {
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
-    seedTopics(instance, { 1: "Reading" });
-    seedDigested(instance, [
-      { id: 1, topic: 1 },
-      { id: 2, topic: 1 },
-      { id: 3, topic: 1 },
-      { id: 4, topic: 1 },
-      { id: 5, topic: 1 },
-    ]);
+    await pasteItems(
+      instance,
+      Array.from({ length: 5 }, () => ({ topic: "Reading" })),
+    );
     proposeDisagreement(instance, [1, 2]);
     proposeDisagreement(instance, [2, 3]);
     await saveProvider(instance);

@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { itemPath } from "../../src/core/item-path.ts";
 import type { ItemsDisagreeProposal } from "../../src/core/proposal-contract.ts";
 import { topicPath } from "../../src/core/topic-path.ts";
+import { reasonId, sidesId } from "./proposal-dom.ts";
 import { ITEMS_DISAGREE_EFFECT, PROPOSAL_WORDS } from "./proposals-text.ts";
 import { useInternalLink } from "./routing.ts";
 
@@ -54,11 +55,11 @@ export function ItemsDisagreeBody({
         </a>
         {ITEMS_DISAGREE_EFFECT.after}
       </h3>
-      <ul className="pr-sides">
+      <ul className="pr-sides" id={sidesId(proposal.id)}>
         <SideOf side={first} openItem={openItem} />
         <SideOf side={second} openItem={openItem} />
       </ul>
-      <p className="rl-sum pr-reason" dir="auto">
+      <p className="rl-sum pr-reason" dir="auto" id={reasonId(proposal.id)}>
         <span className="vh">{PROPOSAL_WORDS.reasonLabel}: </span>
         {reason}
       </p>

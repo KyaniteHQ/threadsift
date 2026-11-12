@@ -29,7 +29,7 @@ export interface WeeklyModelRun<Sent, Result> {
   readonly stored: (db: Database, done: Readonly<{ sent: Sent; result: Result }>) => JobWrites;
 }
 
-function storedOutcome<Sent, Result>(
+export function storedOutcome<Sent, Result>(
   db: Database,
   run: Readonly<WeeklyModelRun<Sent, Result>>,
   { sent, taskId, result }: Readonly<{ sent: Sent; taskId: number; result: Result }>,

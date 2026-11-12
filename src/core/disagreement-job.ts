@@ -1,6 +1,7 @@
 import { type SQL, sql } from "drizzle-orm";
 
 import { membersOf, readDisagreementInput } from "./disagreement-input.ts";
+import { clearedStaleDisagreements } from "./disagreement-rows.ts";
 import {
   DISAGREEMENT_OUTPUT_TOKENS,
   type DisagreementsResult,
@@ -95,14 +96,18 @@ function checkedTopics(db: Database, sent: Sent): JobWrites {
   ];
 }
 
-const RUN: WeeklyModelRun<Sent, DisagreementsResult> = {
+export const disagreementRun: WeeklyModelRun<Sent, DisagreementsResult> = {
   label: "Disagreement proposals run",
   event: "disagreement-proposals-run-failed",
   maxOutputTokens: DISAGREEMENT_OUTPUT_TOKENS,
   read: readDisagreementInput,
   task: disagreementTask,
   current: membersStill,
-  stored: (db, { sent, result }) => [...storedPairs(db, sent, result), ...checkedTopics(db, sent)],
+  stored: (db, { sent, result }) => [
+    clearedStaleDisagreements(db),
+    ...storedPairs(db, sent, result),
+    ...checkedTopics(db, sent),
+  ],
 };
 
-export const disagreementProposalsHandler = weeklyModelHandler(RUN);
+export const disagreementProposalsHandler = weeklyModelHandler(disagreementRun);

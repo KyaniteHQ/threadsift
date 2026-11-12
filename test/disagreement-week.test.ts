@@ -6,11 +6,13 @@ import { z } from "zod";
 import {
   checksOf,
   jobsOf,
+  membersText,
+  pasteItems,
+  proposeDisagreement,
   runWeek,
-  seedDigested,
-  seedTopics,
   sentOf,
   tasksOf,
+  topicIdOf,
 } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { claims, moveClaimBack, nextTick } from "./lost-highlight-fixtures.ts";
@@ -24,16 +26,12 @@ describe("the weekly disagreement claim", () => {
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
-    seedTopics(instance, { 1: "Reading" });
-    seedDigested(instance, [
-      { id: 1, topic: 1 },
-      { id: 2, topic: 1 },
-      { id: 3, topic: 1 },
+    await pasteItems(instance, [
+      { topic: "Reading" },
+      { topic: "Reading" },
+      { topic: "Reading" },
+      { topic: "Reading", noDigest: true },
     ]);
-    exec(
-      instance,
-      "insert into items (id, source, kind, normalized_url, original_url, saved_at) values (4, 'other', 'link', 'u4', 'u4', 4)",
-    );
   });
 
   after(() => instance.close());
@@ -80,39 +78,25 @@ describe("the Topics the weekly disagreement check reads", () => {
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
-    seedTopics(instance, {
-      1: "Older",
-      2: "Newer",
-      3: "Alone",
-      4: "Checked",
-      5: "Unreadable",
-      6: "Long",
-    });
-    seedDigested(instance, [
-      { id: 1, topic: 1, savedAt: 10 },
-      { id: 2, topic: 1, savedAt: 11 },
-      { id: 3, topic: 2, savedAt: 20 },
-      { id: 4, topic: 2, savedAt: 21 },
-      { id: 5, topic: 2, savedAt: 22 },
-      { id: 6, topic: 3, savedAt: 30 },
-      { id: 7, topic: 4, savedAt: 40 },
-      { id: 8, topic: 4, savedAt: 41 },
-      { id: 9, topic: 5, savedAt: 50 },
-      { id: 10, topic: 5, savedAt: 51, digest: "not json" },
-      ...Array.from({ length: 14 }, (_, at) => ({ id: 20 + at, topic: 6, savedAt: 100 + at })),
+    await pasteItems(instance, [
+      ...Array.from({ length: 2 }, () => ({ topic: "Older" })),
+      ...Array.from({ length: 3 }, () => ({ topic: "Newer" })),
+      { topic: "Alone" },
+      ...Array.from({ length: 2 }, () => ({ topic: "Checked" })),
+      ...Array.from({ length: 2 }, () => ({ topic: "Unreadable" })),
+      ...Array.from({ length: 14 }, () => ({ topic: "Long" })),
     ]);
     exec(instance, "update digests set digest = 'not json' where item_id = 10");
     exec(instance, "update digests set created_at = 5 where item_id in (1, 2)");
     exec(instance, "update digests set created_at = 90 where item_id in (3, 4, 5)");
-    exec(instance, "update digests set created_at = 999 where item_id between 20 and 33");
+    exec(instance, "update digests set created_at = 999 where item_id between 11 and 24");
     exec(
       instance,
-      "insert into topic_checks (topic_id, members, checked_at) values (4, '7:7,8:8', 1)",
+      "insert into topic_checks (topic_id, members, checked_at) values (?, ?, 1)",
+      topicIdOf(instance, "Checked"),
+      membersText(instance, [7, 8]),
     );
-    exec(
-      instance,
-      "insert into proposals (kind, from_item_id, into_item_id, from_digest, into_digest, reason, state, created_at) values ('items-disagree', 3, 4, 3, 4, 'Decided.', 'rejected', 1)",
-    );
+    proposeDisagreement(instance, [3, 4], "rejected");
     await saveProvider(instance);
     await runWeek(instance);
   });
@@ -125,7 +109,7 @@ describe("the Topics the weekly disagreement check reads", () => {
     assert.deepEqual(
       sent?.topics.map(({ name, items }) => [name, items.map(({ id }) => id)]),
       [
-        ["Long", [33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22]],
+        ["Long", [24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13]],
         ["Newer", [5, 4, 3]],
         ["Older", [2, 1]],
       ],
@@ -141,8 +125,10 @@ describe("the Topics the weekly disagreement check reads", () => {
       Object.keys(z.record(z.string(), z.unknown()).parse(JSON.parse(task?.inputs ?? "{}"))),
       ["topics", "decided"],
     );
-    assert.equal(task?.item_id, 33);
-    assert.ok((task?.inputs ?? "").length < 14_000);
-    assert.deepEqual(checksOf(instance), [{ topic_id: 4, members: "7:7,8:8" }]);
+    assert.equal(task?.item_id, 24);
+    assert.ok(Buffer.byteLength(task?.inputs ?? "") <= 14_000);
+    assert.deepEqual(checksOf(instance), [
+      { topic_id: topicIdOf(instance, "Checked"), members: membersText(instance, [7, 8]) },
+    ]);
   });
 });

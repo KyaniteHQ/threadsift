@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
 import { script } from "./pin-fixtures.ts";
-import { exec, rows, until } from "./related-fixtures.ts";
+import { exec, paste, rows, until } from "./related-fixtures.ts";
 
 export interface Seeded {
   readonly id: number;
@@ -158,11 +158,90 @@ export async function runWeek(instance: Instance): Promise<void> {
   );
 }
 
-export const replaceDigest = (instance: Instance, itemId: number, token: number): void => {
+export interface Pasted {
+  readonly topic: string;
+  readonly title?: string;
+  readonly summary?: string;
+  readonly noDigest?: boolean;
+}
+
+export function pasteItems(
+  instance: Instance,
+  specs: readonly Readonly<Pasted>[],
+): Promise<readonly number[]> {
+  return specs.reduce<Promise<readonly number[]>>(async (pending, spec, at) => {
+    const ids = await pending;
+
+    const id = await paste(instance, `disagree/${String(at)}`, {
+      title: spec.title ?? `Title ${String(at + 1)}`,
+      topic: spec.topic,
+      summary: spec.summary ?? `Summary ${String(at + 1)}.`,
+      noDigest: spec.noDigest === true,
+      url: `https://example.com/disagree/${String(at)}`,
+    });
+
+    return [...ids, id];
+  }, Promise.resolve([]));
+}
+
+export async function replaceDigest(
+  instance: Instance,
+  itemId: number,
+  fixture: Readonly<Pick<Pasted, "topic" | "title" | "summary">>,
+): Promise<void> {
+  const before = tokenOf(instance, itemId);
+
+  const [stored] = rows(
+    instance,
+    z.object({ original_url: z.string() }),
+    "select original_url from items where id = ?",
+    itemId,
+  );
+
+  if (stored === undefined) throw new Error(`Item ${String(itemId)} is not saved`);
+
+  await paste(instance, "replaced", {
+    title: fixture.title ?? `Title ${String(itemId)}`,
+    topic: fixture.topic,
+    summary: fixture.summary ?? "A replaced summary.",
+    url: stored.original_url,
+  });
+  await until(
+    () => tokenOf(instance, itemId),
+    (token) => token !== before,
+  );
+}
+
+export function runningTask(instance: Instance, state = "running"): number {
   exec(
     instance,
-    "insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state) values (?, 'digest', '{}', 0, 'caller', 1, 0, 'done')",
-    token,
+    "insert into ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state) values ('disagreement_proposals', '{}', 0, 'cli', 1, 4102444800000, ?)",
+    state,
   );
-  exec(instance, "update digests set task_id = ? where item_id = ?", token, itemId);
+
+  const [row] = rows(instance, z.object({ id: z.number() }), "select max(id) as id from ai_tasks");
+
+  if (row === undefined) throw new Error("no AI task was stored");
+
+  return row.id;
+}
+
+export const taskState = (instance: Instance, id: number): string | undefined =>
+  rows(instance, z.object({ state: z.string() }), "select state from ai_tasks where id = ?", id)[0]
+    ?.state;
+
+export const membersText = (instance: Instance, itemIds: readonly number[]): string =>
+  itemIds.map((id) => `${String(id)}:${String(tokenOf(instance, id))}`).join(",");
+
+export const topicIdOf = (instance: Instance, name: string): number => {
+  const [row] = rows(
+    instance,
+    z.object({ id: z.number() }),
+    "select id from topics where name = ?",
+    name,
+  );
+
+  if (row === undefined) throw new Error(`Topic ${name} does not exist`);
+
+  return row.id;
 };

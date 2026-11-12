@@ -4,10 +4,10 @@ import { after, before, describe, it } from "node:test";
 import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
 import {
   disagreementRows,
+  pasteItems,
   proposeDisagreement,
   replaceDigest,
-  seedDigested,
-  seedTopics,
+  tokenOf,
 } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { interrupted, touchesProposals } from "./interrupted-database.ts";
@@ -20,10 +20,9 @@ describe("the Proposals list filters disagreement rows before the page limit", (
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    seedTopics(instance, { 1: "Reading" });
-    seedDigested(
+    await pasteItems(
       instance,
-      Array.from({ length: 12 }, (_, at) => ({ id: at + 1, topic: 1 })),
+      Array.from({ length: 12 }, () => ({ topic: "Reading" })),
     );
 
     const pairs = Array.from({ length: 12 }, (_unused, low) =>
@@ -35,7 +34,7 @@ describe("the Proposals list filters disagreement rows before the page limit", (
       pairs
         .map(
           ([low, high], at) =>
-            `insert into proposals (kind, from_item_id, into_item_id, from_digest, into_digest, reason, state, created_at) values ('items-disagree', ${String(low)}, ${String(high)}, ${String(at >= 55 ? 0 : low)}, ${String(high)}, 'Reason.', 'open', 1);`,
+            `insert into proposals (kind, from_item_id, into_item_id, from_digest, into_digest, reason, state, created_at) values ('items-disagree', ${String(low)}, ${String(high)}, ${String(at >= 55 ? 0 : tokenOf(instance, low))}, ${String(tokenOf(instance, high))}, 'Reason.', 'open', 1);`,
         )
         .join("\n"),
     );
@@ -66,32 +65,37 @@ describe("the Proposals page reads a disagreement row and both Summaries in one 
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    seedTopics(instance, { 1: "Reading" });
-    seedDigested(instance, [
-      { id: 1, topic: 1 },
-      { id: 2, topic: 1 },
+    await pasteItems(instance, [
+      { topic: "Reading", summary: "The setting is on by default." },
+      { topic: "Reading", summary: "The setting is off by default." },
     ]);
     proposeDisagreement(instance, [1, 2]);
   });
 
   after(() => instance.close());
 
-  it("makes one call, so a Digest replaced before it is read leaves no half-filled row", async () => {
-    let counted = 0;
-
+  it("shows the Summaries its stored tokens name when a Digest is replaced after the first read", async () => {
     const replacing = interrupted(instance.databaseFile, touchesProposals, {
-      before: (call) => {
-        counted = call;
-        replaceDigest(instance, 2, 900);
-
-        return Promise.resolve();
+      after: async (call) => {
+        if (call === 1)
+          await replaceDigest(instance, 2, {
+            topic: "Reading",
+            summary: "The setting is not mentioned.",
+          });
       },
     });
 
     const page = await instance.readThrough(replacing, "/api/proposals", ProposalPageSchema);
 
-    assert.equal(counted, 1);
-    assert.deepEqual(page.proposals, []);
+    assert.deepEqual(
+      page.proposals.flatMap((proposal) =>
+        proposal.kind === "items-disagree"
+          ? [[proposal.first.summary, proposal.second.summary]]
+          : [],
+      ),
+      [["The setting is on by default.", "The setting is off by default."]],
+    );
     assert.equal(disagreementRows(instance).length, 1);
+    assert.deepEqual((await readPage(instance)).proposals, []);
   });
 });
