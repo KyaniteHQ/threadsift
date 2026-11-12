@@ -67,6 +67,12 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
     return [z.array(z.object({ id: z.number() })).parse(rows)[0]?.id ?? 0];
   };
 
+  const insertTopic = (): readonly [number] => {
+    const [topic] = insertSubjects("topics");
+
+    return [topic];
+  };
+
   const PROPOSAL_SUBJECTS = {
     "tag-merge": {
       columns: ["from_tag_id", "into_tag_id"],
@@ -77,6 +83,7 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
       create: () => insertSubjects("topics"),
     },
     "highlight-lost": { columns: ["highlight_id"], create: insertHighlight },
+    "overview-gap": { columns: ["topic_id"], create: insertTopic },
   } as const satisfies Readonly<
     Record<
       ProposalKind,
