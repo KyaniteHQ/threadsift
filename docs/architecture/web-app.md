@@ -55,7 +55,7 @@
 
   `DOCUMENT_POLICY` holds each directive. The reasons the code cannot show:
 
-  - `script-src` needs no `'unsafe-eval'`, because `web/src/zod-jitless.ts` turns off the `new Function` probe that Zod 4 runs for its object parsers (Zod README, `jitless`). It stays the first import of `web/src/main.tsx`, so it runs before any schema is built. Zod catches the blocked probe and falls back, so the only sign of a later import is `eval` violations in the browser console.
+  - `script-src` needs no `'unsafe-eval'`, because `web/src/zod-jitless.ts` turns off the `new Function` probe that Zod 4 runs for its object parsers (Zod README, `jitless`). It stays the first import of `web/src/main.tsx`, so it runs before any schema is built. Zod catches the blocked probe and falls back, so the only sign of a later import is `eval` violations in the browser console, which fail the smoke spec (`smoke/document-checks.ts`).
   - `style-src` needs no `'unsafe-inline'`, because Vite writes the stylesheet to a file and React sets `style` through the CSSOM, which the directive does not govern.
   - `font-src` carries `data:`, because Vite inlines one JetBrains Mono subset in the stylesheet.
   - `img-src` needs only `'self'`, because `isImageRouteOf` in `Picture` (`web/src/StoredPicture.tsx`) renders an image that is not a stored file as a link, and card images come from `fileRouteOf`.
