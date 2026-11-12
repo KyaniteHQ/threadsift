@@ -7,6 +7,7 @@ import { localDate } from "./log-date.ts";
 import { REJECT_SELECTOR, rejectSelectorOf } from "./proposal-dom.ts";
 import { ProposalRow } from "./ProposalRow.tsx";
 import { PROPOSALS_PAGE, proposalsEmptyLine } from "./proposals-text.ts";
+import type { Pages } from "./routing.ts";
 import { useProposalsPage } from "./use-proposals-page.ts";
 import type { Focus } from "./use-proposals-page.ts";
 
@@ -33,7 +34,7 @@ function useMoveFocus(focus: Readonly<Focus>, done: () => void) {
   }, [focus, done]);
 }
 
-export function ProposalsPage({ back }: Readonly<{ back: () => void }>) {
+export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: () => void }>) {
   const { source, pending, failed, busy, announcement, notice, focus, focused, decide } =
     useProposalsPage();
 
@@ -66,9 +67,10 @@ export function ProposalsPage({ back }: Readonly<{ back: () => void }>) {
         busy={busy.get(proposal.id)}
         accept={pressAccept}
         reject={pressReject}
+        open={pages.highlight}
       />
     ),
-    [pending, failed, busy, overviewFollows, pressAccept, pressReject],
+    [pending, failed, busy, overviewFollows, pressAccept, pressReject, pages],
   );
 
   return (

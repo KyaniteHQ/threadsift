@@ -6,6 +6,7 @@ import { z } from "zod";
 import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
+import { mergesOf } from "./lost-highlight-fixtures.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 
 const TagSchema = z.object({ id: z.number(), name: z.string() });
@@ -82,7 +83,7 @@ describe("the Proposals routes", () => {
     const page = await instance.read("GET", "/api/proposals", ProposalPageSchema);
 
     assert.deepEqual(
-      page.proposals.map(({ from, into, reason, state, kind }) => ({
+      mergesOf(page).map(({ from, into, reason, state, kind }) => ({
         from: `${from.name}:${String(from.items)}`,
         into: `${into.name}:${String(into.items)}`,
         reason,
@@ -181,7 +182,7 @@ describe("the Proposals routes", () => {
 
   it("leaves rows alone when an Item is deleted, with the counts shrinking live", async () => {
     const unchanged = states(instance);
-    const [only] = (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals;
+    const [only] = mergesOf(await instance.read("GET", "/api/proposals", ProposalPageSchema));
 
     assert.ok(only !== undefined);
 
@@ -198,7 +199,7 @@ describe("the Proposals routes", () => {
     assert.equal((await instance.send("DELETE", `/api/items/${String(gone.id)}`)).status, 204);
     assert.deepEqual(states(instance), unchanged);
 
-    const shrunk = (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals[0];
+    const [shrunk] = mergesOf(await instance.read("GET", "/api/proposals", ProposalPageSchema));
 
     assert.equal(shrunk?.into.items, only.into.items - 1);
   });

@@ -1,37 +1,13 @@
 import { sql } from "drizzle-orm";
 
-import { providerSet } from "./ai-tasks.ts";
+import { proposeLostHighlights } from "./highlight-proposals.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows, opening } from "./job-rows.ts";
-import { type ProposalKind, WEEKLY_TASK } from "./kinds.ts";
-import type { Database } from "./ports.ts";
-import { digests, items, scheduledRuns } from "./schema.ts";
+import { type MergeKind, PROPOSAL_KINDS, type ProposalKind, WEEKLY_TASK } from "./kinds.ts";
+import { items } from "./schema.ts";
+import { NEWEST_DIGESTED_ITEM, claimingWeek } from "./weekly-claim.ts";
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-const NEWEST_DIGESTED_ITEM = sql`(select max(${digests.itemId}) from ${digests})`;
-
-function claimingWeek(db: Database, now: number, task: (typeof WEEKLY_TASK)[ProposalKind]) {
-  return db
-    .insert(scheduledRuns)
-    .select(
-      db
-        .select({
-          task: sql<string>`${task}`.as("task"),
-          lastRunAt: sql<number>`${now}`.as("last_run_at"),
-        })
-        .from(sql`(select 1) as one`)
-        .where(sql`${providerSet()} and ${NEWEST_DIGESTED_ITEM} is not null`),
-    )
-    .onConflictDoUpdate({
-      target: scheduledRuns.task,
-      set: { lastRunAt: now },
-      setWhere: sql`${scheduledRuns.lastRunAt} <= ${now - WEEK_MS} or ${scheduledRuns.lastRunAt} > ${now + WEEK_MS}`,
-    })
-    .returning({ task: scheduledRuns.task });
-}
-
-export async function openWeeklyRun(ports: JobPorts, now: number, kind: ProposalKind) {
+async function openModelRun(ports: JobPorts, now: number, kind: MergeKind) {
   const { db } = ports;
   const task = WEEKLY_TASK[kind];
 
@@ -46,4 +22,31 @@ export async function openWeeklyRun(ports: JobPorts, now: number, kind: Proposal
   ]);
 
   await enqueueRows(ports, opened);
+}
+
+interface WeeklyRun {
+  readonly stage: string;
+  readonly run: (ports: JobPorts, now: number) => Promise<void>;
+}
+
+const WEEKLY_RUN = {
+  "tag-merge": { stage: "proposals", run: (ports, now) => openModelRun(ports, now, "tag-merge") },
+  "topic-merge": {
+    stage: "topic-proposals",
+    run: (ports, now) => openModelRun(ports, now, "topic-merge"),
+  },
+  "highlight-lost": {
+    stage: "highlight-proposals",
+    run: ({ db }, now) => proposeLostHighlights(db, now),
+  },
+} as const satisfies Readonly<Record<ProposalKind, WeeklyRun>>;
+
+export function weeklyStages(
+  ports: JobPorts,
+  now: number,
+): readonly (readonly [name: string, run: () => Promise<void>])[] {
+  return PROPOSAL_KINDS.map((kind) => [
+    WEEKLY_RUN[kind].stage,
+    () => WEEKLY_RUN[kind].run(ports, now),
+  ]);
 }

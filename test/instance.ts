@@ -17,6 +17,8 @@ export const PASSWORD = "an owner password of fifteen or more";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 
+type Ports = Parameters<typeof createApp>[0];
+
 const POLL_MS = 25;
 
 const SETTLE_DEADLINE_MS = 20_000;
@@ -72,11 +74,11 @@ export class Instance {
   private readonly shutdown: () => Promise<void>;
 
   private readonly folder: string;
-  private readonly ports: Parameters<typeof tick>[0];
+  private readonly ports: Ports;
 
   private constructor(
     app: ReturnType<typeof createApp>,
-    ports: Parameters<typeof tick>[0],
+    ports: Ports,
     folder: string,
     shutdown: () => Promise<void>,
   ) {
@@ -173,6 +175,27 @@ export class Instance {
     if (session !== undefined) this.cookie = session;
 
     return { status: response.status, body: await response.text() };
+  }
+
+  async readThrough<Schema extends z.ZodType>(
+    db: Ports["db"],
+    path: string,
+    schema: Schema,
+  ): Promise<z.infer<Schema>> {
+    const response = await createApp({ ...this.ports, db }).request(path, {
+      headers: new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" }),
+    });
+
+    return schema.parse(JSON.parse(await response.text()));
+  }
+
+  async statusThrough(db: Ports["db"], method: string, path: string): Promise<number> {
+    const response = await createApp({ ...this.ports, db }).request(path, {
+      method,
+      headers: new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" }),
+    });
+
+    return response.status;
   }
 
   async sendWithToken(token: string, method: string, path: string): Promise<Answer> {

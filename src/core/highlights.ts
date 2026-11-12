@@ -179,12 +179,8 @@ export async function createHighlight(
     : { kind: "created", highlight: highlightOf(saved, revisions) };
 }
 
-export async function removeHighlight(
-  db: Database,
-  itemId: number,
-  highlightId: number,
-): Promise<boolean> {
-  const [, removed] = await db.batch([
+export function removalWrites(db: Database, itemId: number, highlightId: number) {
+  return [
     db
       .delete(searchParts)
       .where(and(eq(searchParts.highlightId, highlightId), eq(searchParts.itemId, itemId))),
@@ -192,7 +188,15 @@ export async function removeHighlight(
       .delete(highlights)
       .where(and(eq(highlights.id, highlightId), eq(highlights.itemId, itemId)))
       .returning({ id: highlights.id }),
-  ]);
+  ] as const;
+}
+
+export async function removeHighlight(
+  db: Database,
+  itemId: number,
+  highlightId: number,
+): Promise<boolean> {
+  const [, removed] = await db.batch(removalWrites(db, itemId, highlightId));
 
   return removed.length > 0;
 }

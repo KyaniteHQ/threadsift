@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import { type CatalogKind, TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
+import { MERGE_KINDS } from "./kinds.ts";
 import type { MergeRow, PlanUnit } from "./merge-unit.ts";
 import type { Database } from "./ports.ts";
 import { knownProposal, proposals, tags, topics } from "./schema.ts";
@@ -44,10 +45,12 @@ export async function readRow(db: Database, id: number): Promise<MergeRow | unde
     .leftJoin(intoTopic, eq(intoTopic.id, proposals.intoTopicId))
     .where(and(eq(proposals.id, id), knownProposal));
 
-  return row === undefined
+  const kind = MERGE_KINDS.find((each) => each === row?.kind);
+
+  return row === undefined || kind === undefined
     ? undefined
     : {
-        kind: row.kind,
+        kind,
         state: row.state,
         cursor: row.cursor,
         revision: row.revision,

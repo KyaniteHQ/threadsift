@@ -1,7 +1,7 @@
 import { asc, count, eq, gt, inArray, sql } from "drizzle-orm";
 
 import { utf8Length } from "./digest-prompt.ts";
-import type { ProposalKind } from "./kinds.ts";
+import type { MergeKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import {
   type Candidate,
@@ -43,7 +43,7 @@ const USED = {
   "topic-merge": { table: topics, linked: items, link: items.topicId, counted: items.id },
 } as const;
 
-function usedSubjects(db: Database, kind: ProposalKind): Promise<readonly NamedCandidate[]> {
+function usedSubjects(db: Database, kind: MergeKind): Promise<readonly NamedCandidate[]> {
   const { table, linked, link, counted } = USED[kind];
 
   return allPages((after) =>
@@ -58,7 +58,7 @@ function usedSubjects(db: Database, kind: ProposalKind): Promise<readonly NamedC
   );
 }
 
-async function knownPairs(db: Database, kind: ProposalKind): Promise<ReadonlySet<string>> {
+async function knownPairs(db: Database, kind: MergeKind): Promise<ReadonlySet<string>> {
   const rows = await db
     .select({
       from: sql<number>`coalesce(${proposals.fromTagId}, ${proposals.fromTopicId})`,
@@ -154,7 +154,7 @@ function sentPair(
 
 export async function readProposalPairs(
   db: Database,
-  kind: ProposalKind,
+  kind: MergeKind,
 ): Promise<readonly SentPair[]> {
   const [all, known] = await Promise.all([usedSubjects(db, kind), knownPairs(db, kind)]);
   const chosen = disjointPairs(candidatePairs(all, known));

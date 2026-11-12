@@ -50,3 +50,31 @@
   font-size: var(--t-meta);
   color: var(--muted);
 }
+.pr-item {
+  font-size: var(--t-meta);
+}
+.pr-place {
+  color: var(--acc-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.app[data-bp~="phone"] .pr-place {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target);
+  min-inline-size: var(--target);
+}
+.pr-quote {
+  margin: 0;
+  padding-inline-start: var(--s3);
+  border-inline-start: 2px solid var(--line-2);
+  color: var(--text);
+  font-family: var(--f-read);
+  font-size: var(--t-body);
+  line-height: var(--lh-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.pr-gone {
+  margin: 0;
+}

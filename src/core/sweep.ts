@@ -6,7 +6,7 @@ import { enqueueRows } from "./job-rows.ts";
 import { dueIds } from "./jobs.ts";
 import { sweepConnectTransactions } from "./openrouter-connect.ts";
 import { continueMerges } from "./proposal-accept.ts";
-import { openWeeklyRun } from "./proposal-week.ts";
+import { weeklyStages } from "./proposal-week.ts";
 import { reconcileSearchParts } from "./search-reconciler.ts";
 
 const SWEEP_LIMIT = 100;
@@ -33,8 +33,7 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
         await sweepDigests(ports.db, now);
       },
     ],
-    ["proposals", () => openWeeklyRun(ports, now, "tag-merge")],
-    ["topic-proposals", () => openWeeklyRun(ports, now, "topic-merge")],
+    ...weeklyStages(ports, now),
     ["merges", () => continueMerges(ports)],
     ["search", () => reconcileSearchParts(ports)],
     ["files", () => cleanFiles(ports)],

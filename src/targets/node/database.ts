@@ -87,11 +87,11 @@ function promised<T>(work: () => T): Promise<T> {
   });
 }
 
-function proxyTo(sqlite: DatabaseSync): RemoteCallback {
+export function proxyTo(sqlite: DatabaseSync): RemoteCallback {
   return (sql, params, method) => promised(() => execute(sqlite, { sql, params, method }));
 }
 
-function batchTo(sqlite: DatabaseSync): AsyncBatchRemoteCallback {
+export function batchTo(sqlite: DatabaseSync): AsyncBatchRemoteCallback {
   return (queries) =>
     promised(() => inTransaction(sqlite, () => queries.map((query) => execute(sqlite, query))));
 }

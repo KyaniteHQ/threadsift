@@ -4,8 +4,14 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { PIN_KINDS, PROPOSAL_KINDS, PROPOSAL_STATES } from "../src/core/kinds.ts";
+import {
+  PIN_KINDS,
+  PROPOSAL_KINDS,
+  PROPOSAL_STATES,
+  type ProposalKind,
+} from "../src/core/kinds.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./related-fixtures.ts";
 
 const BUSY_TIMEOUT_MS = 5000;
 
@@ -16,6 +22,8 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
 
   before(async () => {
     instance = await Instance.start();
+    await instance.setUp();
+    await paste(instance, "subject", { title: "A subject" });
     database = new DatabaseSync(instance.databaseFile, { timeout: BUSY_TIMEOUT_MS });
   });
 
@@ -25,8 +33,8 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
   });
 
   const SUBJECTS = {
-    "tag-merge": { table: "tags", from: "from_tag_id", into: "into_tag_id" },
-    "topic-merge": { table: "topics", from: "from_topic_id", into: "into_topic_id" },
+    "tag-merge": { table: "tags", into: "into_tag_id" },
+    "topic-merge": { table: "topics", into: "into_topic_id" },
   } as const;
 
   const insertSubjects = (table: "tags" | "topics"): readonly [number, number] => {
@@ -46,28 +54,64 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
 
   const insertTags = (): readonly [number, number] => insertSubjects("tags");
 
-  const proposalInsert = (kind: keyof typeof SUBJECTS) =>
-    database.prepare(
-      `insert into proposals (kind, ${SUBJECTS[kind].from}, ${SUBJECTS[kind].into}, reason, state, created_at) values (?, ?, ?, 'a reason', ?, 0)`,
-    );
+  const insertHighlight = (): readonly [number] => {
+    saved += 1;
 
-  const proposalCases = (kind: keyof typeof SUBJECTS, state: string): void => {
+    const rows = database
+      .prepare(
+        `insert into highlights (item_id, exact, prefix, suffix, hint, projection, created_at, status, start)
+         select id, ?, '', '', 0, 1, 0, 'gone', null from items limit 1 returning id`,
+      )
+      .all(`quote ${String(saved)}`);
+
+    return [z.array(z.object({ id: z.number() })).parse(rows)[0]?.id ?? 0];
+  };
+
+  const PROPOSAL_SUBJECTS = {
+    "tag-merge": {
+      columns: ["from_tag_id", "into_tag_id"],
+      create: () => insertSubjects("tags"),
+    },
+    "topic-merge": {
+      columns: ["from_topic_id", "into_topic_id"],
+      create: () => insertSubjects("topics"),
+    },
+    "highlight-lost": { columns: ["highlight_id"], create: insertHighlight },
+  } as const satisfies Readonly<
+    Record<
+      ProposalKind,
+      { readonly columns: readonly string[]; readonly create: () => readonly number[] }
+    >
+  >;
+
+  const proposalInsert = (kind: ProposalKind) => {
+    const { columns } = PROPOSAL_SUBJECTS[kind];
+    const marks = columns.map(() => "?").join(", ");
+
+    return database.prepare(
+      `insert into proposals (kind, ${columns.join(", ")}, reason, state, created_at) values (?, ${marks}, 'a reason', ?, 0)`,
+    );
+  };
+
+  const proposalCases = (kind: ProposalKind, state: string): void => {
     it(`stores a ${kind} proposal, ${state}`, () => {
-      const [from, into] = insertSubjects(SUBJECTS[kind].table);
+      const subjects = PROPOSAL_SUBJECTS[kind].create();
 
       assert.doesNotThrow(() => {
-        proposalInsert(kind).run(kind, from, into, state);
+        proposalInsert(kind).run(kind, ...subjects, state);
       });
     });
 
     it(`updates a ${kind} proposal to ${state}`, () => {
-      const [from, into] = insertSubjects(SUBJECTS[kind].table);
-      proposalInsert(kind).run(kind, from, into, "open");
+      const subjects = PROPOSAL_SUBJECTS[kind].create();
+      proposalInsert(kind).run(kind, ...subjects, "open");
 
       assert.doesNotThrow(() => {
         database
-          .prepare(`update proposals set kind = ?, state = ? where ${SUBJECTS[kind].from} = ?`)
-          .run(kind, state, from);
+          .prepare(
+            `update proposals set kind = ?, state = ? where ${PROPOSAL_SUBJECTS[kind].columns[0]} = ?`,
+          )
+          .run(kind, state, subjects[0]);
       });
     });
   };

@@ -29,14 +29,14 @@ interface StoredRow {
   readonly state: "open" | "declined";
 }
 
-type ProposalKind = Parameters<typeof proposalsTask>[0];
+type MergeKind = Parameters<typeof proposalsTask>[0];
 
-const RUNS: Readonly<Record<ProposalKind, { readonly label: string; readonly event: string }>> = {
+const RUNS: Readonly<Record<MergeKind, { readonly label: string; readonly event: string }>> = {
   "tag-merge": { label: "Proposals run", event: "proposals-run-failed" },
   "topic-merge": { label: "Topic proposals run", event: "topic-proposals-run-failed" },
 };
 
-function sentExist(kind: ProposalKind, sent: readonly Readonly<SentPair>[]): SQL {
+function sentExist(kind: MergeKind, sent: readonly Readonly<SentPair>[]): SQL {
   const ids = JSON.stringify(sent.flatMap(({ low, high }) => [low.id, high.id]));
   const table = kind === "tag-merge" ? tags : topics;
 
@@ -61,12 +61,12 @@ function rowsOf(
 
 function storedRows(
   db: Database,
-  kind: ProposalKind,
+  kind: MergeKind,
   rows: readonly Readonly<StoredRow>[],
 ): JobWrites {
   if (rows.length === 0) return [];
 
-  const side = (own: ProposalKind, path: "from" | "into") =>
+  const side = (own: MergeKind, path: "from" | "into") =>
     kind === own ? sql<number>`json_extract(stored.value, ${`$.${path}`})` : sql<null>`null`;
 
   return [
@@ -76,7 +76,7 @@ function storedRows(
         db
           .select({
             id: sql<null>`null`.as("id"),
-            kind: sql<ProposalKind>`${kind}`.as("kind"),
+            kind: sql<MergeKind>`${kind}`.as("kind"),
             fromTagId: side("tag-merge", "from").as("from_tag_id"),
             intoTagId: side("tag-merge", "into").as("into_tag_id"),
             fromTopicId: side("topic-merge", "from").as("from_topic_id"),
@@ -87,6 +87,7 @@ function storedRows(
             cursor: sql<null>`null`.as("cursor"),
             moved: sql<null>`null`.as("moved"),
             unitRevision: sql<null>`null`.as("unit_revision"),
+            highlightId: sql<null>`null`.as("highlight_id"),
           })
           .from(sql`json_each(${JSON.stringify(rows)}) as stored`)
           .where(sql`true`),
@@ -97,7 +98,7 @@ function storedRows(
 
 function storedOutcome(
   db: Database,
-  kind: ProposalKind,
+  kind: MergeKind,
   {
     sent,
     taskId,
@@ -127,7 +128,7 @@ async function catalogRevision(ports: JobPorts): Promise<number> {
 }
 
 async function attemptRun(
-  kind: ProposalKind,
+  kind: MergeKind,
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
 ): Promise<JobOutcome> {
@@ -166,7 +167,7 @@ async function attemptRun(
   return storedOutcome(db, kind, { sent, taskId: result.taskId, result: result.result });
 }
 
-function handlerOf(kind: ProposalKind): JobHandler {
+function handlerOf(kind: MergeKind): JobHandler {
   return {
     deadlineMs: AI_DEADLINE_MS,
     blockedBy: [],

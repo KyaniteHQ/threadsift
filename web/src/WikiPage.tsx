@@ -14,7 +14,7 @@ export function WikiPage({
     case "log":
       return <LogPage pages={pages} back={back} />;
     case "proposals":
-      return <ProposalsPage back={back} />;
+      return <ProposalsPage pages={pages} back={back} />;
     default:
       return name satisfies never;
   }

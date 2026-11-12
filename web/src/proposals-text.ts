@@ -1,5 +1,6 @@
-import type { ProposalKind } from "../../src/core/kinds.ts";
+import type { MergeKind, ProposalKind } from "../../src/core/kinds.ts";
 import type { Proposal } from "../../src/core/proposal-contract.ts";
+import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { filled } from "./text.ts";
 
 export const PROPOSALS_PAGE = {
@@ -10,7 +11,7 @@ export const PROPOSALS_PAGE = {
   emptyHeading: "No proposals yet",
   loadMoreFailed: "Couldn’t load more proposals.",
   sort: "Newest first",
-  head: "Accepting a tag or topic merge can’t be undone in this release. Rejecting is final: that pair of tags or topics won’t be proposed again.",
+  head: "Accepting a merge can’t be undone in this release; accepting removes a highlight for good. Rejecting is final: that tag or topic pair or highlight stays as it is and won’t be proposed again.",
 } as const;
 
 const EMPTY_NO_PROVIDER = "Save a provider in the instance settings to run the weekly check.";
@@ -23,7 +24,16 @@ export function proposalsEmptyLine(provider: boolean, checkedDate: string | null
   return checkedDate === null ? EMPTY_NOT_CHECKED : filled(EMPTY_CHECKED, { date: checkedDate });
 }
 
-const MERGE_WORDS = {
+type Wording =
+  | "effect"
+  | "acceptNamed"
+  | "acceptRetryNamed"
+  | "accepted"
+  | "rejectNamed"
+  | "rejectRetryNamed"
+  | "rejected";
+
+const WORDS = {
   "tag-merge": {
     effect: "Merge {from} into {into}",
     acceptNamed: "Accept merging {from} into {into}",
@@ -42,7 +52,16 @@ const MERGE_WORDS = {
     rejectRetryNamed: "Try again to reject merging topic {from} into {into}",
     rejected: "Rejected merging topic {from} into {into}.",
   },
-} as const satisfies Record<ProposalKind, Record<string, string>>;
+  "highlight-lost": {
+    effect: "Remove this highlight",
+    acceptNamed: "Accept removing highlight “{quote}” from {title}",
+    acceptRetryNamed: "Try again to accept removing highlight “{quote}” from {title}",
+    accepted: "Accepted removing highlight “{quote}” from {title}.",
+    rejectNamed: "Reject removing highlight “{quote}” from {title}",
+    rejectRetryNamed: "Try again to reject removing highlight “{quote}” from {title}",
+    rejected: "Rejected removing highlight “{quote}” from {title}.",
+  },
+} as const satisfies Record<ProposalKind, Record<Wording, string>>;
 
 export const PROPOSAL_WORDS = {
   itemsOne: "1 item",
@@ -58,11 +77,14 @@ export const PROPOSAL_WORDS = {
   rejectFailed: "Couldn’t reject this proposal.",
   alreadyDecided: "This proposal was already decided or is no longer in the list.",
   reasonLabel: "Reason",
+  notCurrent: "Passage found in the item’s text again. The highlight stays; nothing was removed.",
 } as const;
 
-export function mergeEffect(kind: ProposalKind): string {
-  return MERGE_WORDS[kind].effect;
+export function mergeEffect(kind: MergeKind): string {
+  return WORDS[kind].effect;
 }
+
+export const LOST_HIGHLIGHT_EFFECT = WORDS["highlight-lost"].effect;
 
 export function itemCount(count: number): string {
   return count === 1
@@ -70,21 +92,44 @@ export function itemCount(count: number): string {
     : filled(PROPOSAL_WORDS.itemsMany, { count: String(count) });
 }
 
-type Wording = keyof (typeof MERGE_WORDS)[ProposalKind];
+const QUOTE_CUT = 40;
 
-function merging(wording: Exclude<Wording, "effect">) {
-  return ({ kind, from, into }: Readonly<Proposal>): string =>
-    filled(MERGE_WORDS[kind][wording], { from: from.name, into: into.name });
+function quoteCut(quote: string): string {
+  const letters = Array.from(quote.replaceAll(/\s+/gu, " ").trim());
+
+  return letters.length > QUOTE_CUT
+    ? `${letters.slice(0, QUOTE_CUT).join("").trimEnd()}…`
+    : letters.join("");
 }
 
-export const rejectLabel = merging("rejectNamed");
+function slotsOf(proposal: Readonly<Proposal>) {
+  switch (proposal.kind) {
+    case "tag-merge":
+    case "topic-merge":
+      return { from: proposal.from.name, into: proposal.into.name };
+    case "highlight-lost":
+      return {
+        quote: quoteCut(proposal.highlight.quote),
+        title: proposal.highlight.item.title ?? HIGHLIGHTS_PAGE.untitled,
+      };
+    default:
+      return proposal satisfies never;
+  }
+}
 
-export const rejectRetryLabel = merging("rejectRetryNamed");
+function wordedBy(wording: Wording) {
+  return (proposal: Readonly<Proposal>): string =>
+    filled(WORDS[proposal.kind][wording], slotsOf(proposal));
+}
 
-export const rejectedAnnouncement = merging("rejected");
+export const rejectLabel = wordedBy("rejectNamed");
 
-export const acceptLabel = merging("acceptNamed");
+export const rejectRetryLabel = wordedBy("rejectRetryNamed");
 
-export const acceptRetryLabel = merging("acceptRetryNamed");
+export const rejectedAnnouncement = wordedBy("rejected");
 
-export const acceptedAnnouncement = merging("accepted");
+export const acceptLabel = wordedBy("acceptNamed");
+
+export const acceptRetryLabel = wordedBy("acceptRetryNamed");
+
+export const acceptedAnnouncement = wordedBy("accepted");
