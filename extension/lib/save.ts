@@ -82,6 +82,8 @@ async function stateOf(response: Response, origin: string): Promise<SaveState> {
       return refusedState(response);
     case 401:
       return { kind: "token-refused" };
+    case 403:
+      return { kind: "scope-refused" };
     case 409:
       return { kind: "thread-kept" };
     case 413:

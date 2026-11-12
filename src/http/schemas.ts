@@ -6,10 +6,12 @@ import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { HighlightsViewSchema } from "../core/highlight-contract.ts";
 import { parseCursor } from "../core/item-page.ts";
 import {
+  DEFAULT_SCOPES,
   DIGEST_OUTCOMES,
   FAILURE_REASONS,
   KINDS,
   READ_STATES,
+  ScopeListSchema,
   SETUP_CODE_STATUSES,
   SOURCES,
   WAIT_REASONS,
@@ -195,13 +197,19 @@ export const TOKEN_NAME_MAX = 80;
 
 export const TokenNameSchema = z.string().trim().min(1).max(TOKEN_NAME_MAX);
 
-export const CreateTokenRequestSchema = z.object({ name: TokenNameSchema });
+export const CreateTokenRequestSchema = z.object({
+  name: TokenNameSchema,
+  scopes: ScopeListSchema.min(1)
+    .readonly()
+    .default([...DEFAULT_SCOPES]),
+});
 
 export const TokenSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   createdAt: z.number().int(),
   lastUsedAt: z.number().int().nullable(),
+  scopes: ScopeListSchema.readonly(),
 });
 
 export const CreatedTokenResponseSchema = z.object({ token: TokenSchema, value: z.string() });
@@ -215,6 +223,8 @@ export const HighlightParamsSchema = IdParamSchema.extend({
 });
 
 export type Token = z.infer<typeof TokenSchema>;
+
+export type CreateTokenRequest = z.input<typeof CreateTokenRequestSchema>;
 
 export type Item = z.infer<typeof ItemSchema>;
 

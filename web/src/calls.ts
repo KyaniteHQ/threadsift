@@ -2,6 +2,7 @@ import type { ZodType } from "zod";
 
 import type { CreateHighlightRequest } from "../../src/core/highlight-contract.ts";
 import type { ImportRequest } from "../../src/core/import-list.ts";
+import type { CreateTokenRequest } from "../../src/http/schemas.ts";
 import { announceSignedOut } from "./signed-out.ts";
 
 type Method = "GET" | "POST" | "PUT" | "DELETE";
@@ -9,7 +10,8 @@ type Method = "GET" | "POST" | "PUT" | "DELETE";
 export type JsonBody =
   | Readonly<Record<string, string | number | boolean | undefined>>
   | Readonly<CreateHighlightRequest>
-  | Readonly<ImportRequest>;
+  | Readonly<ImportRequest>
+  | Readonly<CreateTokenRequest>;
 
 interface Call {
   readonly json?: JsonBody;

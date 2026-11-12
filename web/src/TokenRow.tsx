@@ -3,6 +3,7 @@ import { useCallback, useId, useRef } from "react";
 import type { Token } from "../../src/http/schemas.ts";
 import { SETTINGS } from "./access-text.ts";
 import { ageLabel } from "./saved-label.ts";
+import { SCOPE_NAMES } from "./ScopePicker.tsx";
 import { filled } from "./text.ts";
 import { useEscape, useFocusOnMount } from "./use-form.ts";
 
@@ -21,7 +22,14 @@ function metaOf(token: Token): string {
       ? SETTINGS.neverUsed
       : filled(SETTINGS.lastUsed, { when: ageLabel(token.lastUsedAt, now) });
 
-  return `${created} · ${used}`;
+  const scopes = filled(SETTINGS.scopesMeta, {
+    scopes:
+      token.scopes.length === 0
+        ? SETTINGS.scopesNone
+        : token.scopes.map((scope) => SCOPE_NAMES[scope]).join(", "),
+  });
+
+  return `${created} · ${used} · ${scopes}`;
 }
 
 function Confirm({

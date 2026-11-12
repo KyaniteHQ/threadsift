@@ -5,7 +5,7 @@ export const GROK_BOT_TEXT = {
   sectionTitle: "Grok Bot",
   intro: "Connect your Grok Bot once here. Save sends the bot nothing.",
   tokenPointer:
-    "The bot’s chat skills need a token made in Agent tokens below, which the bot keeps.",
+    "The bot’s chat skills need a token with Read, Add and Digest made in Agent tokens below, which the bot keeps.",
   addressLabel: "Webhook address",
   addressHelp:
     "Copy it from the routine’s panel in your Grok Bot; use a public https address and keep it private.",

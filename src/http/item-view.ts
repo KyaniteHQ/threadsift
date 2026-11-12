@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import { logFailure } from "../core/failure-log.ts";
+import { itemPath } from "../core/item-path.ts";
 import { DIGEST_OUTCOMES, type FailureReason, type WaitReason } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { type ImageColumns, type ItemImageSchema, imageOf } from "./item-image.ts";
@@ -100,4 +101,8 @@ export function shownItems<Row extends StatusRow>(rows: readonly Readonly<Row>[]
       return [];
     }
   });
+}
+
+export function savedView<Row extends StatusRow>(row: Readonly<Row>) {
+  return { item: itemView(row), url: itemPath(row.id) };
 }

@@ -10,7 +10,7 @@ import {
 import { readTopicPage } from "../core/topic-page.ts";
 import { retryOverview } from "../core/topic-retry.ts";
 import { NOT_FOUND } from "./item-routes.ts";
-import { jsonBody } from "./openapi.ts";
+import { jsonBody, scopeNote, scopeRefusal } from "./openapi.ts";
 import { ErrorResponseSchema, ItemQuerySchema } from "./schemas.ts";
 
 const TopicQuerySchema = ItemQuerySchema.pick({ cursor: true });
@@ -38,8 +38,10 @@ const getTopicRoute = createRoute({
 const retryOverviewRoute = createRoute({
   method: "post",
   path: "/api/topics/{key}/overview",
+  description: `Write the Topic page overview again.${scopeNote("POST", "/api/topics/{key}/overview")}`,
   request: { params: TopicKeyParamSchema },
   responses: {
+    ...scopeRefusal("POST", "/api/topics/{key}/overview"),
     202: jsonBody(
       OverviewRetryResponseSchema,
       "An overview run is queued for the Topic, or one was already open. For the key of a merged-away Topic, it is queued for the Topic it was merged into. A failure from the last run is cleared. The Topic page shows the run as `pending` until it ends.",

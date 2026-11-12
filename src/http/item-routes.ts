@@ -6,7 +6,7 @@ import { ITEMS_PAGE_SIZE, parseCursor } from "../core/item-page.ts";
 import { getListedItem, listItems } from "../core/item-selection.ts";
 import type { Ports } from "../core/ports.ts";
 import { itemView, shownItems } from "./item-view.ts";
-import { jsonBody } from "./openapi.ts";
+import { jsonBody, scopeNote, scopeRefusal } from "./openapi.ts";
 import { registerSaveRoute } from "./save-route.ts";
 import {
   ErrorResponseSchema,
@@ -50,8 +50,10 @@ const getItemStatusRoute = createRoute({
 const retryDigestRoute = createRoute({
   method: "post",
   path: "/api/items/{id}/digest",
+  description: `Queue a Digest again.${scopeNote("POST", "/api/items/{id}/digest")}`,
   request: { params: IdParamSchema },
   responses: {
+    ...scopeRefusal("POST", "/api/items/{id}/digest"),
     200: jsonBody(
       ItemResponseSchema,
       "Queue a Digest over stored text, or return the unchanged Item when a Digest is already open or no text exists.",

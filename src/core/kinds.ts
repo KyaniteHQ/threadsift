@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export const SOURCES = ["reddit", "x", "github", "article", "other"] as const;
 
 export const KINDS = [
@@ -45,6 +47,8 @@ export const HIGHLIGHT_STATUSES = ["attached", ...HIGHLIGHT_REASONS] as const;
 
 export const THROTTLE_KINDS = ["setup", "login", "reset"] as const;
 
+export const SCOPES = ["read", "add", "digest", "delete"] as const;
+
 export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
 export const FAILURE_REASONS = ["timeout", "network", "gave-up", "rate-limited"] as const;
@@ -83,6 +87,12 @@ export type MediaOutcome = (typeof MEDIA_OUTCOMES)[number];
 export type MediaFailure = (typeof MEDIA_FAILURES)[number];
 
 export type ThrottleKind = (typeof THROTTLE_KINDS)[number];
+
+export type Scope = (typeof SCOPES)[number];
+
+export const ScopeListSchema = z.array(z.enum(SCOPES));
+
+export const DEFAULT_SCOPES = ["read", "add"] as const satisfies readonly Scope[];
 
 export type ItemStatus = (typeof ITEM_STATUSES)[number];
 

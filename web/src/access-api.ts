@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { Scope } from "../../src/core/kinds.ts";
 import type { PasswordProblem } from "../../src/core/passwords.ts";
 import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
 import {
@@ -109,8 +110,10 @@ export async function fetchTokens(signal: AbortSignal): Promise<Token[]> {
 
 export type CreatedToken = z.infer<typeof CreatedTokenResponseSchema>;
 
-export function createToken(name: string): Promise<CreatedToken> {
-  return parsedFrom("POST", "/api/tokens", CreatedTokenResponseSchema, { json: { name } });
+export function createToken(name: string, scopes: readonly Scope[]): Promise<CreatedToken> {
+  return parsedFrom("POST", "/api/tokens", CreatedTokenResponseSchema, {
+    json: { name, scopes },
+  });
 }
 
 export async function revokeToken(id: number): Promise<void> {
