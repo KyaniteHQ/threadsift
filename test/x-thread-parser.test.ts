@@ -136,13 +136,24 @@ describe("an X thread is read into the stored thread by parseXThread", () => {
 
     assert.equal(new Set(reasons.values()).size, reasons.size);
     assert.match(refusal(thread([reply(ID, ID)])), /cycle/u);
+    assert.match(
+      refusal(thread([{ ...reply(ID, POST_ID), id: "012" }])),
+      /replies\.0\.id must be digits only, with no leading zero/u,
+    );
+    assert.match(
+      refusal(thread([reply(ID, "012")])),
+      /replies\.0\.parentId must be digits only, with no leading zero/u,
+    );
     assert.match(reasons.get("cycle") ?? "", /cycle/u);
     assert.match(reasons.get("duplicate reply id") ?? "", /appears twice/u);
     assert.match(
       reasons.get("a 30-character reply id") ?? "",
       /replies\.0\.id must be at most 29 digits/u,
     );
-    assert.match(reasons.get("a non-digit reply id") ?? "", /replies\.0\.id must be digits only/u);
+    assert.match(
+      reasons.get("a non-digit reply id") ?? "",
+      /replies\.0\.id must be digits only, with no leading zero/u,
+    );
     assert.match(
       reasons.get("post author over 4096 bytes") ?? "",
       /the post author is longer than 4096 bytes/u,

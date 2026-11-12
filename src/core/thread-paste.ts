@@ -30,12 +30,14 @@ function refused(reason: string): ThreadParse {
   return { kind: "refused", reason };
 }
 
-function parsedThread(absoluteUrl: string, answers: ThreadAnswers): ThreadParse {
+function parsedThread(
+  absoluteUrl: string,
+  statusId: string | null,
+  answers: ThreadAnswers,
+): ThreadParse {
   const ref = redditRefOf(absoluteUrl);
 
   if (ref !== null) return parseRedditThread(answers, ref);
-
-  const statusId = statusIdOf(absoluteUrl);
 
   if (statusId === null) return refused(NOT_A_THREAD_LINK);
 
@@ -53,9 +55,11 @@ export async function saveThread(
     fillOnly,
   }: Readonly<{ digest: Digest | undefined; answers: ThreadAnswers; fillOnly: boolean }>,
 ): Promise<ThreadPasteResult> {
-  if (fillOnly && statusIdOf(absoluteUrl) !== null) return FILL_IS_REDDIT_ONLY;
+  const statusId = statusIdOf(absoluteUrl);
 
-  const parsed = parsedThread(absoluteUrl, answers);
+  if (fillOnly && statusId !== null) return FILL_IS_REDDIT_ONLY;
+
+  const parsed = parsedThread(absoluteUrl, statusId, answers);
 
   if (parsed.kind === "refused") {
     return { kind: "invalid", field: "content", reason: parsed.reason };

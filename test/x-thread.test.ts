@@ -122,6 +122,34 @@ describe("a caller sends an X post with its replies with a Paste, and the librar
     assert.equal(new Set(reasons).size, reasons.length);
   });
 
+  it("takes a link with a leading zero in its status id for the post with the plain id, and refuses an id with a leading zero", async () => {
+    const { saved, refused } = xClient(instance);
+    const padded = "https://x.com/someone/status/0000000000000000321";
+
+    const item = await saved({
+      url: padded,
+      content: JSON.stringify(thread([reply(2n, "321")], { id: "321" })),
+    });
+
+    assert.equal(item.normalizedUrl, "https://x.com/i/status/321");
+
+    const reasons = await Promise.all(
+      ["0321", "00"].map((id) =>
+        refused({ url: padded, content: JSON.stringify(thread([], { id })) }),
+      ),
+    );
+
+    assert.deepEqual(new Set(reasons).size, 1);
+    assert.match(reasons[0] ?? "", /post\.id must be digits only, with no leading zero/u);
+    assert.match(
+      await refused({
+        url: LINK,
+        content: JSON.stringify(thread([{ ...reply(2n, POST), id: "012" }], { id: POST })),
+      }),
+      /replies\.0\.id must be digits only, with no leading zero/u,
+    );
+  });
+
   it("answers 400 for an X thread sent with a Reddit link", async () => {
     const reason = await xClient(instance).refused({
       url: "https://www.reddit.com/r/selfhosted/comments/abc123/x/",

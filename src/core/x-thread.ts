@@ -50,7 +50,7 @@ function readThread(answer: string): XThread {
       `the content is not an X thread: ${issue?.path.join(".") ?? ""} ${issue?.message ?? ""}`.trimEnd(),
     );
   } catch (error) {
-    if (error instanceof SyntaxError || error instanceof RangeError) return refuse(NOT_READABLE);
+    if (error instanceof SyntaxError) return refuse(NOT_READABLE);
 
     throw error;
   }
@@ -80,31 +80,28 @@ function checkedReplies(postId: string, replies: readonly XReply[]): void {
   }
 }
 
-function idBefore(first: string, second: string): number {
-  const [one, other] = [BigInt(first), BigInt(second)];
+function order<Value extends bigint | number>(first: Value, second: Value): number {
+  if (first === second) return 0;
 
-  if (one === other) return 0;
+  return first < second ? -1 : 1;
+}
 
-  return one < other ? -1 : 1;
+function timeOf({ postedAt }: Readonly<XReply>): number {
+  return postedAt ?? Number.POSITIVE_INFINITY;
 }
 
 function replyBefore(first: Readonly<XReply>, second: Readonly<XReply>): number {
-  const [one, other] = [first.postedAt, second.postedAt];
-
-  if (one === null && other === null) return idBefore(first.id, second.id);
-
-  if (one === null) return 1;
-
-  if (other === null) return -1;
-
-  return one === other ? idBefore(first.id, second.id) : one - other;
+  return order(timeOf(first), timeOf(second)) || order(BigInt(first.id), BigInt(second.id));
 }
 
 function childrenByParent(replies: readonly XReply[]): ReadonlyMap<string, readonly XReply[]> {
   const children = new Map<string, XReply[]>();
 
   for (const reply of replies.toSorted(replyBefore)) {
-    children.set(reply.parentId, [...(children.get(reply.parentId) ?? []), reply]);
+    const siblings = children.get(reply.parentId) ?? [];
+
+    siblings.push(reply);
+    children.set(reply.parentId, siblings);
   }
 
   return children;

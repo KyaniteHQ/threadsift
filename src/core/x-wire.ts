@@ -6,7 +6,7 @@ const WIRE_ID_DIGITS = 29;
 
 const StatusId = z
   .string()
-  .regex(/^\d+$/u, { error: "must be digits only" })
+  .regex(/^[1-9]\d*$/u, { error: "must be digits only, with no leading zero" })
   .max(WIRE_ID_DIGITS, { error: `must be at most ${String(WIRE_ID_DIGITS)} digits` });
 
 const Handle = z
