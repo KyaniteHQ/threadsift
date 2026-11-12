@@ -8,6 +8,8 @@ set -euo pipefail
 image=$1
 seconds=60
 
+podman image exists "$image" || podman pull --quiet "$image" > /dev/null
+
 volume=$(podman volume create)
 container=
 cleanup() {
@@ -16,12 +18,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
-container=$(podman run --detach --publish 127.0.0.1::8080 --env PORT=8080 --volume "$volume:/data" "$image")
+container=$(podman run --detach --pull=never --publish 127.0.0.1::8080 --env PORT=8080 --volume "$volume:/data" "$image")
+SECONDS=0
 port=$(podman port "$container" 8080/tcp | head -n 1 | sed 's/.*://')
 url=http://127.0.0.1:$port/api/session
 
 while ((SECONDS < seconds)); do
-  code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 2 "$url" || true)
+  code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time "$((seconds - SECONDS > 2 ? 2 : seconds - SECONDS))" "$url" || true)
   if [[ $code == 200 ]]; then
     echo "start-check: $image answered 200 on /api/session after ${SECONDS} s"
     exit 0

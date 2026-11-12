@@ -19,12 +19,10 @@ let
   smokeLabel = "io.threadsift.smoke=true";
   checkoutEnv = ''
     slot=$(printf %s "$DEVENV_ROOT" | sha256sum | cut -c1-12)
-    export THREADSIFT_IMAGE=''${THREADSIFT_IMAGE:-localhost/threadsift:smoke-$slot}
+    export THREADSIFT_IMAGE=localhost/threadsift:smoke-$slot
     export THREADSIFT_SMOKE_PORT=$((20000 + 0x$slot % 10000))
   '';
-  containerBuild = ''
-    set -euo pipefail
-    ${checkoutEnv}
+  buildImage = ''
     cache=()
     if [ -n "''${THREADSIFT_LAYER_CACHE:-}" ]; then
       storage=''${THREADSIFT_LAYER_CACHE%/}
@@ -39,7 +37,14 @@ let
       export CONTAINERS_REGISTRIES_CONF=${layerCache.registries}
       cache=(--cache-from ${layerCache.repository} --cache-to ${layerCache.repository})
     fi
-    podman build --jobs 0 --signature-policy ${podmanPolicy} "''${cache[@]}" --label ${smokeLabel} --tag "$THREADSIFT_IMAGE" --file Containerfile .
+    podman build --jobs 0 --signature-policy ${podmanPolicy} "''${cache[@]}" "''${labels[@]}" --tag "$tag" --file Containerfile .
+  '';
+  containerBuild = ''
+    set -euo pipefail
+    ${checkoutEnv}
+    tag=$THREADSIFT_IMAGE
+    labels=(--label ${smokeLabel})
+    ${buildImage}
     podman image prune --force --filter label=${smokeLabel} > /dev/null || echo "podman image prune failed" >&2
   '';
   layerCache = {
@@ -189,6 +194,14 @@ in
     };
     "container:build" = {
       exec = containerBuild;
+    };
+    "image:build" = {
+      exec = ''
+        set -euo pipefail
+        tag=localhost/threadsift:publish
+        labels=()
+        ${buildImage}
+      '';
     };
     "live:image" = {
       exec = ''

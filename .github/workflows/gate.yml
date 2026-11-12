@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Push the image to ghcr.io and move main. Off builds both architectures, runs the start check and pushes nothing.
+        description: Push the image to ghcr.io and move the `main` tag. Off builds both architectures, runs the start check and pushes nothing.
         type: boolean
         default: false
 
@@ -17,6 +17,9 @@ concurrency:
 
 permissions:
   contents: read
+
+env:
+  IMAGE: ghcr.io/kyanitehq/threadsift
 
 jobs:
   check:
@@ -43,8 +46,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
-      - name: Allow unprivileged user namespaces for rootless Podman and Chromium
-        run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
+        with:
+          unprivileged-userns: "true"
       - id: layer-cache
         if: matrix.target == 'container'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -88,20 +91,11 @@ jobs:
       cancel-in-progress: false
       queue: max
     steps:
-      - id: head
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
-          if [ "$current" = "$GITHUB_SHA" ]; then
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Skipped: main is at $current now"
-          fi
-      - if: steps.head.outputs.current == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - id: head
+        uses: ./.github/actions/main-head
       - if: steps.head.outputs.current == 'true'
         uses: ./.github/actions/setup-devenv
       - if: steps.head.outputs.current == 'true'
@@ -124,87 +118,118 @@ jobs:
           code=$(curl --silent --output /dev/null --write-out '%{http_code}' --fail --max-time 20 --retry 10 --retry-delay 5 --retry-all-errors "${url%/}/api/session")
           [ "$code" = 200 ]
 
-  image:
+  image-head:
     needs: gate
     if: github.repository == 'KyaniteHQ/threadsift' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.mode.outputs.publish }}
+      current: ${{ steps.mode.outputs.current }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: head
+        uses: ./.github/actions/main-head
+      - id: mode
+        env:
+          PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+          HEAD_CURRENT: ${{ steps.head.outputs.current }}
+        run: |
+          if [ "$PUBLISH" = true ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "Publishing needs a run on main, this one is on $GITHUB_REF" >&2
+            exit 1
+          fi
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          if [ "$PUBLISH" = true ]; then
+            echo "current=$HEAD_CURRENT" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  image:
+    needs: image-head
+    if: needs.image-head.outputs.current == 'true'
     name: image (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     permissions:
       contents: read
       packages: write
+    concurrency:
+      group: image-${{ github.sha }}-${{ matrix.arch }}
+      cancel-in-progress: false
     strategy:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - arch: arm64
             runner: ubuntu-24.04-arm
     env:
-      IMAGE: ghcr.io/kyanitehq/threadsift
-      THREADSIFT_IMAGE: localhost/threadsift:image-${{ matrix.arch }}
-      PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+      ARCH: ${{ matrix.arch }}
+      PUBLISH: ${{ needs.image-head.outputs.publish }}
     steps:
-      - id: head
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "$PUBLISH" != true ]; then
-            echo "current=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "$GITHUB_REF" != refs/heads/main ]; then
-            echo "Publishing needs a run on main, this one is on $GITHUB_REF" >&2
-            exit 1
-          fi
-          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
-          if [ "$current" = "$GITHUB_SHA" ]; then
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Skipped: main is at $current now"
-          fi
-      - if: steps.head.outputs.current == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - if: steps.head.outputs.current == 'true'
-        uses: ./.github/actions/setup-devenv
+      - uses: ./.github/actions/setup-devenv
         with:
           cache-pnpm: "false"
-      - if: steps.head.outputs.current == 'true'
-        name: Allow unprivileged user namespaces for rootless Podman
-        run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
+          unprivileged-userns: "true"
+      - if: env.PUBLISH == 'true'
+        name: Log in to ghcr.io
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: printf %s "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - id: published
+        if: env.PUBLISH == 'true'
+        name: Look up the architecture image of this commit
+        run: |
+          digest=$(tools/image-digest.sh "$IMAGE:sha-$GITHUB_SHA-$ARCH")
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
       - id: layer-cache
-        if: steps.head.outputs.current == 'true' && matrix.arch == 'amd64'
+        if: matrix.arch == 'amd64' && steps.published.outputs.digest == ''
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/layer-cache
           key: layer-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Containerfile', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'extension/package.json') }}
-      - if: steps.head.outputs.current == 'true'
+      - if: steps.published.outputs.digest == ''
         name: Build the image
         env:
           THREADSIFT_LAYER_CACHE: ${{ steps.layer-cache.outputs.cache-hit == 'true' && format('{0}/layer-cache', runner.temp) || '' }}
-        run: devenv tasks run container:build --show-output
-      - if: steps.head.outputs.current == 'true' && env.PUBLISH != 'true'
+        run: devenv tasks run image:build --show-output
+      - if: env.PUBLISH != 'true'
         name: Start check on the local image
-        run: devenv shell -- tools/start-check.sh "$THREADSIFT_IMAGE"
-      - if: steps.head.outputs.current == 'true' && env.PUBLISH == 'true'
-        name: Push the image and start check on its digest
+        run: devenv shell -- tools/start-check.sh localhost/threadsift:publish
+      - if: env.PUBLISH == 'true'
+        name: Push the image unless this commit has one, and start check on its digest
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.published.outputs.digest }}
         run: |
-          ref=$IMAGE:sha-$GITHUB_SHA-${{ matrix.arch }}
-          printf %s "$GITHUB_TOKEN" | devenv shell -- podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          devenv shell -- podman tag "$THREADSIFT_IMAGE" "$ref"
-          devenv shell -- podman push --digestfile "$RUNNER_TEMP/digest" "$ref"
-          devenv shell -- podman image rm --all --force
-          devenv shell -- tools/start-check.sh "$IMAGE@$(cat "$RUNNER_TEMP/digest")"
+          if [ -z "$DIGEST" ]; then
+            ref=$IMAGE:sha-$GITHUB_SHA-$ARCH
+            devenv shell -- podman tag localhost/threadsift:publish "$ref"
+            devenv shell -- podman push --digestfile "$RUNNER_TEMP/pushed-digest" "$ref"
+            DIGEST=$(cat "$RUNNER_TEMP/pushed-digest")
+          fi
+          devenv shell -- podman image prune --all --force
+          devenv shell -- tools/start-check.sh "$IMAGE@$DIGEST"
+          printf %s "$DIGEST" > "$RUNNER_TEMP/digest-$ARCH"
+      - if: env.PUBLISH == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digest-${{ matrix.arch }}
+          retention-days: 1
 
   image-publish:
-    needs: image
-    if: github.repository == 'KyaniteHQ/threadsift' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish))
-    runs-on: ubuntu-latest
+    needs: [image-head, image]
+    if: needs.image-head.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -215,62 +240,57 @@ jobs:
       group: image-publish
       cancel-in-progress: false
       queue: max
-    env:
-      IMAGE: ghcr.io/kyanitehq/threadsift
     steps:
-      - id: head
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "$GITHUB_REF" != refs/heads/main ]; then
-            echo "Publishing needs a run on main, this one is on $GITHUB_REF" >&2
-            exit 1
-          fi
-          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
-          if [ "$current" = "$GITHUB_SHA" ]; then
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Skipped: main is at $current now"
-          fi
-      - if: steps.head.outputs.current == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - if: steps.head.outputs.current == 'true'
-        uses: ./.github/actions/setup-devenv
+      - uses: ./.github/actions/setup-devenv
         with:
           cache-pnpm: "false"
-      - if: steps.head.outputs.current == 'true'
-        name: Allow unprivileged user namespaces for rootless Podman
-        run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
-      - id: manifest
-        if: steps.head.outputs.current == 'true'
-        name: Make the multi-arch manifest
+          unprivileged-userns: "true"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+      - name: Log in to ghcr.io
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        run: printf %s "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - id: manifest
+        name: Make the multi-arch manifest from the checked digests unless this commit has one
+        shell: bash
         run: |
           list=$IMAGE:sha-$GITHUB_SHA
-          printf %s "$GITHUB_TOKEN" | devenv shell -- podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          devenv shell -- podman manifest create "$list"
-          for arch in amd64 arm64; do
-            devenv shell -- podman manifest add "$list" "docker://$list-$arch"
-          done
-          devenv shell -- podman manifest push --digestfile "$RUNNER_TEMP/digest" "$list" "docker://$list"
-          echo "digest=$(cat "$RUNNER_TEMP/digest")" >> "$GITHUB_OUTPUT"
-      - if: steps.head.outputs.current == 'true'
-        name: Start check on the manifest digest
-        run: devenv shell -- tools/start-check.sh "$IMAGE@${{ steps.manifest.outputs.digest }}"
-      - if: steps.head.outputs.current == 'true'
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+          digest=$(tools/image-digest.sh "$list")
+          if [ -z "$digest" ]; then
+            devenv shell -- podman manifest create "$list"
+            for arch in amd64 arm64; do
+              devenv shell -- podman manifest add "$list" "docker://$IMAGE@$(cat "$RUNNER_TEMP/digests/digest-$arch")"
+            done
+            devenv shell -- podman manifest push --digestfile "$RUNNER_TEMP/manifest-digest" "$list" "docker://$list"
+            digest=$(cat "$RUNNER_TEMP/manifest-digest")
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Start check on the manifest digest
+        env:
+          DIGEST: ${{ steps.manifest.outputs.digest }}
+        run: devenv shell -- tools/start-check.sh "$IMAGE@$DIGEST"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-name: ghcr.io/kyanitehq/threadsift
+          subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.manifest.outputs.digest }}
           push-to-registry: true
           create-storage-record: false
+      - id: head
+        uses: ./.github/actions/main-head
       - if: steps.head.outputs.current == 'true'
-        name: Move main to the manifest digest
+        name: Move the main tag to the manifest digest
         shell: bash
+        env:
+          DIGEST: ${{ steps.manifest.outputs.digest }}
         run: |
-          devenv shell -- podman manifest push --digestfile "$RUNNER_TEMP/main-digest" "$IMAGE:sha-$GITHUB_SHA" "docker://$IMAGE:main"
-          [ "$(cat "$RUNNER_TEMP/main-digest")" = "${{ steps.manifest.outputs.digest }}" ]
+          [ "$(tools/image-digest.sh "$IMAGE:sha-$GITHUB_SHA")" = "$DIGEST" ]
+          skopeo copy --all --preserve-digests "docker://$IMAGE@$DIGEST" "docker://$IMAGE:main"
+          [ "$(tools/image-digest.sh "$IMAGE:main")" = "$DIGEST" ]
