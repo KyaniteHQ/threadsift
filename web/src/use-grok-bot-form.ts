@@ -1,18 +1,19 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo } from "react";
 
-import { GrokBotInputSchema, type GrokBotView } from "../../src/core/grok-bot-contract.ts";
+import {
+  GrokBotInputSchema,
+  type GrokBotView,
+  grokBotAddressOf,
+} from "../../src/core/grok-bot-contract.ts";
 import { removeGrokBot, saveGrokBot, testGrokBot } from "./grok-bot-api.ts";
 import { GROK_BOT_TEXT, resultText } from "./grok-bot-text.ts";
+import type { ActionButton } from "./SettingsActions.tsx";
 import { type FieldState, useField, useGuard } from "./use-form.ts";
+import { type RunAction, useActionResult, useUnlessBlocked } from "./use-settings-action.ts";
 
 type Action = "save" | "test" | "remove";
 
-type Result =
-  | null
-  | { readonly kind: "ok"; readonly text: string }
-  | { readonly kind: "error"; readonly text: string };
-
-type Run = (action: Action, task: () => Promise<Result>) => Promise<void>;
+type Run = RunAction<Action>;
 
 type Changed = (view: GrokBotView) => void;
 
@@ -21,26 +22,8 @@ interface Fields {
   readonly key: FieldState;
 }
 
-function useGrokBotResult() {
-  const [action, setAction] = useState<Action | null>(null);
-  const [result, setResult] = useState<Result>(null);
-
-  const run: Run = useCallback(async (next, task) => {
-    setAction(next);
-    setResult(null);
-
-    try {
-      setResult(await task());
-    } catch {
-      setResult({ kind: "error", text: GROK_BOT_TEXT.failed });
-    }
-  }, []);
-
-  return { action, result, run };
-}
-
 function keyIsRequired(view: Readonly<GrokBotView>, address: string): boolean {
-  return view.key !== "usable" || address.trim() !== view.webhookUrl;
+  return view.key !== "usable" || grokBotAddressOf(address) !== view.webhookUrl;
 }
 
 function problemOf(
@@ -70,7 +53,7 @@ function useSave(
   run: Run,
 ) {
   const { address, key } = fields;
-  const { fail: failAddress } = address;
+  const { fail: failAddress, set: setAddress } = address;
   const { fail: failKey, clear: clearKey } = key;
 
   return useCallback(
@@ -94,11 +77,12 @@ function useSave(
 
         if ("kind" in response) return { kind: "error", text: resultText(response.reason) };
         changed(response);
+        setAddress(response.webhookUrl ?? "");
         clearKey();
 
         return { kind: "ok", text: GROK_BOT_TEXT.saved };
       }),
-    [view, address, key, failAddress, failKey, clearKey, changed, run],
+    [view, address, key, failAddress, setAddress, failKey, clearKey, changed, run],
   );
 }
 
@@ -114,7 +98,12 @@ function useTest(run: Run) {
   );
 }
 
-function useRemove({ address, key }: Readonly<Fields>, changed: Changed, run: Run) {
+function useRemove(
+  view: Readonly<GrokBotView>,
+  { address, key }: Readonly<Fields>,
+  changed: Changed,
+  run: Run,
+) {
   const { fail: failAddress, set: setAddress } = address;
   const { fail: failKey, clear: clearKey } = key;
 
@@ -122,7 +111,11 @@ function useRemove({ address, key }: Readonly<Fields>, changed: Changed, run: Ru
     () =>
       run("remove", async () => {
         await removeGrokBot();
-        changed({ configured: false, webhookUrl: null, key: "none" });
+        changed({
+          configured: false,
+          webhookUrl: null,
+          key: view.key === "missing" ? "missing" : "none",
+        });
         setAddress("");
         clearKey();
         failAddress(null);
@@ -130,24 +123,46 @@ function useRemove({ address, key }: Readonly<Fields>, changed: Changed, run: Ru
 
         return { kind: "ok", text: GROK_BOT_TEXT.removed };
       }),
-    [setAddress, clearKey, failAddress, failKey, changed, run],
+    [view.key, setAddress, clearKey, failAddress, failKey, changed, run],
   );
 }
 
-function useUnlessBlocked(
-  blocked: boolean,
-  guard: (task: () => Promise<void>) => void,
-  task: () => Promise<void>,
+function useButtons(
+  blocked: Readonly<Record<Action, boolean>>,
+  testNow: () => void,
+  removeNow: () => void,
 ) {
-  return useCallback(() => {
-    if (!blocked) guard(task);
-  }, [blocked, guard, task]);
+  return useMemo<readonly ActionButton<Action>[]>(
+    () => [
+      {
+        action: "save",
+        label: GROK_BOT_TEXT.save,
+        busyLabel: GROK_BOT_TEXT.saving,
+        blocked: blocked.save,
+      },
+      {
+        action: "test",
+        label: GROK_BOT_TEXT.test,
+        busyLabel: GROK_BOT_TEXT.testing,
+        blocked: blocked.test,
+        onClick: testNow,
+      },
+      {
+        action: "remove",
+        label: GROK_BOT_TEXT.remove,
+        busyLabel: GROK_BOT_TEXT.removing,
+        blocked: blocked.remove,
+        onClick: removeNow,
+      },
+    ],
+    [blocked.save, blocked.test, blocked.remove, testNow, removeNow],
+  );
 }
 
 export function useGrokBotForm(view: GrokBotView, changed: Changed) {
   const address = useField(null, view.webhookUrl ?? "");
   const key = useField();
-  const { action, result, run } = useGrokBotResult();
+  const { action, result, run } = useActionResult<Action>(GROK_BOT_TEXT.failed);
   const { busy, guard } = useGuard();
 
   const blocked = {
@@ -156,16 +171,24 @@ export function useGrokBotForm(view: GrokBotView, changed: Changed) {
     remove: !view.configured,
   } as const;
 
+  const testNow = useUnlessBlocked(blocked.test, guard, useTest(run));
+
+  const removeNow = useUnlessBlocked(
+    blocked.remove,
+    guard,
+    useRemove(view, { address, key }, changed, run),
+  );
+
+  const buttons = useButtons(blocked, testNow, removeNow);
+
   return {
     address,
     key,
     result,
     busy,
     action,
-    blocked,
+    buttons,
     keyRequired: keyIsRequired(view, address.value),
     submit: useUnlessBlocked(blocked.save, guard, useSave(view, { address, key }, changed, run)),
-    testNow: useUnlessBlocked(blocked.test, guard, useTest(run)),
-    removeNow: useUnlessBlocked(blocked.remove, guard, useRemove({ address, key }, changed, run)),
   };
 }

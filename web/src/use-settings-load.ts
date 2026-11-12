@@ -8,8 +8,6 @@ import { SECTION_FONTS, loadFonts } from "./load-fonts.ts";
 import { fetchRedditSettings } from "./reddit-api.ts";
 import type { Loaded, SettingsLoad } from "./settings-load-types.ts";
 
-export type { Loaded, SettingsLoad };
-
 export const SETTINGS_READ_MS = 20_000;
 
 async function settled<View>(
