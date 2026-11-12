@@ -5,7 +5,7 @@ import { INDEX_PAGE } from "../web/src/index-text.ts";
 import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
-import { collectCspViolations, expectDocumentHeaders } from "./document-checks.ts";
+import { expectDocumentHeaders, visitSignedOut, watchContext } from "./document-checks.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
 import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
 import { settingsSteps } from "./settings-steps.ts";
@@ -208,16 +208,7 @@ async function openIndex(page: Page, browser: Browser, topic: TopicCase): Promis
   await expect(page).toHaveURL(topic.address);
   await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
 
-  const signedOut = await browser.newContext();
-
-  try {
-    const visitor = await signedOut.newPage();
-
-    await visitor.goto("/topics");
-    await expect(visitor).toHaveTitle("Sign in to Threadsift");
-  } finally {
-    await signedOut.close();
-  }
+  await visitSignedOut(browser, "/topics");
 }
 
 async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
@@ -239,7 +230,7 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
 }) => {
   test.setTimeout(SMOKE_TIMEOUT_MS);
 
-  const violations = await collectCspViolations(page);
+  const expectNoCspViolations = await watchContext(page.context());
 
   await test.step("the app page carries its security headers on / and on a deep address", () =>
     expectDocumentHeaders(page));
@@ -272,5 +263,6 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     }));
   await test.step("the filter rail's Topic link is a 44px target on a phone", () =>
     phoneRailTarget(page, DOTTED_TOPIC));
-  expect(violations, "Content-Security-Policy violations").toEqual([]);
+  await test.step("the page reported no Content-Security-Policy violation and reports a probe", () =>
+    expectNoCspViolations(page));
 });

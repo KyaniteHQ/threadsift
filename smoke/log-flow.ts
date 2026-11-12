@@ -6,6 +6,7 @@ import { LOG_PAGE } from "../web/src/log-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE, RETRY_LABEL } from "../web/src/text.ts";
 import { topicLinkLabel } from "../web/src/topic-text.ts";
+import { visitSignedOut } from "./document-checks.ts";
 import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 const TARGET_PX = 44;
@@ -115,21 +116,8 @@ export async function logFlow(page: Page, browser: Browser): Promise<void> {
   await expectTargets(page, rows(page).first());
 
   await page.setViewportSize({ width: 1280, height: 800 });
-  await signedOutVisit(browser);
+  await visitSignedOut(browser, "/log");
   await deleteAndReload(page, id);
-}
-
-async function signedOutVisit(browser: Browser): Promise<void> {
-  const signedOut = await browser.newContext();
-
-  try {
-    const visitor = await signedOut.newPage();
-
-    await visitor.goto("/log");
-    await expect(visitor).toHaveTitle("Sign in to Threadsift");
-  } finally {
-    await signedOut.close();
-  }
 }
 
 async function deleteAndReload(page: Page, id: number): Promise<void> {
