@@ -88,30 +88,18 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
     assert.equal(agent.body, JSON.stringify(owner));
   });
 
-  it("answers 409 not-supported to an Accept of a Topic row, whatever its state, and leaves it open", async () => {
-    const [topic] = (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals;
-
+  it("answers 409 not-open to an Accept of a rejected Topic row and leaves it rejected", async () => {
     const [rejected] = rows(
       instance,
       IdSchema,
       "select id from proposals where kind = 'topic-merge' and state = 'rejected'",
     );
 
-    assert.ok(topic !== undefined && rejected !== undefined);
+    assert.ok(rejected !== undefined);
 
-    const answers = await Promise.all(
-      [topic.id, rejected.id].map((id) =>
-        instance.send("POST", `/api/proposals/${String(id)}/accept`),
-      ),
-    );
+    const answer = await instance.send("POST", `/api/proposals/${String(rejected.id)}/accept`);
 
-    assert.deepEqual(
-      answers.map(({ status, body }) => [status, body]),
-      [
-        [409, JSON.stringify({ error: "not-supported" })],
-        [409, JSON.stringify({ error: "not-supported" })],
-      ],
-    );
+    assert.deepEqual([answer.status, answer.body], [409, JSON.stringify({ error: "not-open" })]);
     assert.deepEqual(states(instance), ["open", "open", "rejected"]);
   });
 

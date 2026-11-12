@@ -92,7 +92,7 @@ export async function mergedTopic(db: Database): Promise<Advance> {
   return {
     writes: [
       ...TOPIC_KIND.relink(db, next.id, next.intoId, moves),
-      ...topicClosingWrites(db, next.id, next.intoId),
+      ...topicClosingWrites(db, next.id, next.intoId).writes,
     ],
     cursor: "topics",
   };

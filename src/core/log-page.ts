@@ -27,6 +27,7 @@ function entryOf(row: Row) {
   const { id, at, action } = row;
   const item = { id: row.itemId, title: row.title };
   const topic = { key: row.topicKey, name: row.topic };
+  const merged = { id, at, from: row.mergedFrom, into: row.mergedInto, items: row.moved };
 
   return LogEntrySchema.parse(
     {
@@ -35,7 +36,8 @@ function entryOf(row: Row) {
       topic: { id, at, action, topic },
       overview: { id, at, action, topic, added: row.added, removed: row.removed },
       related: { id, at, action, item, picks: row.picks },
-      merge: { id, at, action, from: row.mergedFrom, into: row.mergedInto, items: row.moved },
+      merge: { ...merged, action },
+      "merge-topic": { ...merged, action },
     }[action],
   );
 }

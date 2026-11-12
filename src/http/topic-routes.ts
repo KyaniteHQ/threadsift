@@ -28,7 +28,10 @@ const getTopicRoute = createRoute({
       ErrorResponseSchema,
       `\`cursor\` is malformed: not \`<saved date>.<id>\`, or \`key\` is longer than the longest catalog key a Topic name can make.`,
     ),
-    404: jsonBody(ErrorResponseSchema, "No Topic has this name or key."),
+    404: jsonBody(
+      ErrorResponseSchema,
+      "No Topic has this name or key, and no merged-away Topic had it.",
+    ),
   },
 });
 
@@ -39,9 +42,12 @@ const retryOverviewRoute = createRoute({
   responses: {
     202: jsonBody(
       OverviewRetryResponseSchema,
-      "An overview run is queued for the Topic, or one was already open. A failure from the last run is cleared. The Topic page shows the run as `pending` until it ends.",
+      "An overview run is queued for the Topic, or one was already open. For the key of a merged-away Topic, it is queued for the Topic it was merged into. A failure from the last run is cleared. The Topic page shows the run as `pending` until it ends.",
     ),
-    404: jsonBody(ErrorResponseSchema, "No Topic has this name or key."),
+    404: jsonBody(
+      ErrorResponseSchema,
+      "No Topic has this name or key, and no merged-away Topic had it.",
+    ),
     409: jsonBody(
       ErrorResponseSchema,
       "No overview can run: no Provider is saved, or the Topic has no Item with a Digest.",

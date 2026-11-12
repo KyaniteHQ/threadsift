@@ -109,11 +109,13 @@ export function loggedRelated(db: Database, itemId: number, picks: number) {
 export function loggedMerge(
   db: Database,
   {
+    action,
     proposalId,
     mergedFrom,
     mergedInto,
     when,
   }: Readonly<{
+    action: "merge" | "merge-topic";
     proposalId: number;
     mergedFrom: string;
     mergedInto: string;
@@ -123,7 +125,7 @@ export function loggedMerge(
   return appended(db, {
     from: proposals,
     where: sql`${proposals.id} = ${proposalId} and ${when}`,
-    action: "merge",
+    action,
     mergedFrom,
     mergedInto,
     moved: sql`coalesce(${proposals.moved}, 0)`,

@@ -12,6 +12,8 @@ const Digested = {
   tags: z.array(z.string()).readonly(),
 };
 
+const Merged = { from: z.string(), into: z.string(), items: z.number().int().min(0) };
+
 export const LogEntrySchema = z.discriminatedUnion("action", [
   z.object({ ...Shared, action: z.literal("ingest"), ...Digested }).readonly(),
   z.object({ ...Shared, action: z.literal("digest"), ...Digested }).readonly(),
@@ -33,15 +35,8 @@ export const LogEntrySchema = z.discriminatedUnion("action", [
       picks: z.number().int().min(1),
     })
     .readonly(),
-  z
-    .object({
-      ...Shared,
-      action: z.literal("merge"),
-      from: z.string(),
-      into: z.string(),
-      items: z.number().int().min(0),
-    })
-    .readonly(),
+  z.object({ ...Shared, action: z.literal("merge"), ...Merged }).readonly(),
+  z.object({ ...Shared, action: z.literal("merge-topic"), ...Merged }).readonly(),
 ]);
 
 export type LogEntry = z.infer<typeof LogEntrySchema>;

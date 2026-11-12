@@ -56,7 +56,7 @@ const acceptProposalRoute = createRoute({
   responses: {
     200: jsonBody(
       AcceptedSchema,
-      "The merge finished in this request: every Item carries `into` and the `from` Tag is gone, and a Pin keeps it from coming back. Only the owner's session may accept; an agent token gets 403.",
+      "The merge finished in this request: every Item carries `into` and the `from` Tag or Topic is gone, and a Pin keeps it from coming back. A Topic merge also tries once to open an overview run for `into`. Only the owner's session may accept; an agent token gets 403.",
     ),
     202: jsonBody(
       AcceptedSchema,
@@ -65,7 +65,7 @@ const acceptProposalRoute = createRoute({
     404: jsonBody(ErrorResponseSchema, "No Proposal has this id."),
     409: jsonBody(
       ErrorResponseSchema,
-      "The Proposal is not open (`not-open`), another Proposal is accepting (`merge-busy`: one merge runs at a time), or it suggests merging two Topics (`not-supported`: a Topic merge can be rejected but not yet accepted).",
+      "The Proposal is not open (`not-open`), another Proposal is accepting (`merge-busy`: one merge runs at a time), or an overview run or another merge holds the lease of one of the two Topics (`topic-busy`: a Topic merge only; the Proposal stays open and the call can be sent again).",
     ),
   },
 });
@@ -84,7 +84,7 @@ function registerList(app: OpenAPIHono, ports: Ports): void {
 function registerAccept(app: OpenAPIHono, ports: Ports): void {
   app.openapi(acceptProposalRoute, async (c) => {
     const { id } = c.req.valid("param");
-    const outcome = await acceptProposal(ports.db, Number(id));
+    const outcome = await acceptProposal(ports, Number(id));
 
     switch (outcome) {
       case "done":
@@ -95,7 +95,7 @@ function registerAccept(app: OpenAPIHono, ports: Ports): void {
         return c.json({ error: NOT_FOUND }, 404);
       case "not-open":
       case "merge-busy":
-      case "not-supported":
+      case "topic-busy":
         return c.json({ error: outcome }, 409);
       default: {
         const exhaustive: never = outcome;
