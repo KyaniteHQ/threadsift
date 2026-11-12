@@ -5,8 +5,8 @@ import { removalWrites } from "./highlights.ts";
 import { WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
-import { highlights, proposals, scheduledRuns } from "./schema.ts";
-import { claimingWeek } from "./weekly-claim.ts";
+import { highlights, proposals } from "./schema.ts";
+import { claimedAt, claimingWeek } from "./weekly-claim.ts";
 
 type LostHighlightAcceptance = "done" | "unknown" | "not-open" | "not-current";
 
@@ -50,6 +50,7 @@ function insertedRows(db: Database, now: number) {
           moved: sql<null>`null`.as("moved"),
           unitRevision: sql<null>`null`.as("unit_revision"),
           highlightId: sql<number>`${highlights.id}`.as("highlight_id"),
+          topicId: sql<null>`null`.as("topic_id"),
         })
         .from(highlights)
         .where(and(inArray(highlights.id, newestWithoutRow(db)), sql`changes() > 0`))
@@ -63,7 +64,7 @@ function foundAgain(db: Database, now: number) {
     .delete(proposals)
     .where(
       and(
-        sql`exists (select 1 from ${scheduledRuns} where ${scheduledRuns.task} = ${WEEKLY_TASK["highlight-lost"]} and ${scheduledRuns.lastRunAt} = ${now})`,
+        claimedAt(WEEKLY_TASK["highlight-lost"], now),
         eq(proposals.kind, "highlight-lost"),
         eq(proposals.state, "open"),
         inArray(

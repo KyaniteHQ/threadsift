@@ -189,13 +189,17 @@ export class Instance {
     return schema.parse(JSON.parse(await response.text()));
   }
 
-  async statusThrough(db: Ports["db"], method: string, path: string): Promise<number> {
+  async sendThrough(db: Ports["db"], method: string, path: string): Promise<Answer> {
     const response = await createApp({ ...this.ports, db }).request(path, {
       method,
       headers: new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" }),
     });
 
-    return response.status;
+    return { status: response.status, body: await response.text() };
+  }
+
+  async statusThrough(db: Ports["db"], method: string, path: string): Promise<number> {
+    return (await this.sendThrough(db, method, path)).status;
   }
 
   async sendWithToken(token: string, method: string, path: string): Promise<Answer> {

@@ -5,9 +5,10 @@ import { z } from "zod";
 
 import { Instance } from "./instance.ts";
 import {
-  WEEK_MS,
+  claims,
   highlightStatus,
   keepLostHighlight,
+  moveClaimBack,
   nextTick,
   readPage,
   repaste,
@@ -22,9 +23,9 @@ const LostSchema = z.object({
   reason: z.string().nullable(),
 });
 
-const CountSchema = z.object({ n: z.number() });
+const TASK = "highlight_proposals";
 
-const RunSchema = z.object({ last_run_at: z.number() });
+const CountSchema = z.object({ n: z.number() });
 
 const lostRows = (instance: Instance) =>
   rows(
@@ -36,22 +37,7 @@ const lostRows = (instance: Instance) =>
 const highlightIds = (instance: Instance) =>
   lostRows(instance).map(({ highlight_id }) => highlight_id);
 
-const claims = (instance: Instance) =>
-  rows(
-    instance,
-    RunSchema,
-    "select last_run_at from scheduled_runs where task = 'highlight_proposals'",
-  );
-
 const count = (instance: Instance, query: string) => rows(instance, CountSchema, query)[0]?.n ?? 0;
-
-function moveClaimBack(instance: Instance): void {
-  exec(
-    instance,
-    "update scheduled_runs set last_run_at = last_run_at - ? where task = 'highlight_proposals'",
-    WEEK_MS,
-  );
-}
 
 describe("the weekly lost-Highlight check with no Provider saved", () => {
   let instance: Instance;
@@ -66,11 +52,11 @@ describe("the weekly lost-Highlight check with no Provider saved", () => {
 
   it("claims nothing and stores no row, then claims on the first tick after a Provider is saved", async () => {
     await instance.tick();
-    assert.deepEqual([claims(instance), lostRows(instance)], [[], []]);
+    assert.deepEqual([claims(instance, TASK), lostRows(instance)], [[], []]);
 
     await saveProvider(instance);
     await nextTick(instance);
-    assert.equal(claims(instance).length, 1);
+    assert.equal(claims(instance, TASK).length, 1);
     assert.equal(lostRows(instance).length, 1);
   });
 });
@@ -109,7 +95,7 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
         ["open", "plain-check"],
       ],
     );
-    assert.equal(claims(instance).length, 1);
+    assert.equal(claims(instance, TASK).length, 1);
     assert.deepEqual(
       rows(instance, z.unknown(), "select * from highlights order by id"),
       highlightsBefore,
@@ -123,16 +109,16 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
 
   it("stores nothing on a second tick in the week", async () => {
     const stored = lostRows(instance);
-    const [claimed] = claims(instance);
+    const [claimed] = claims(instance, TASK);
 
     await keepLostHighlight(instance, "second");
     await nextTick(instance);
     assert.deepEqual(lostRows(instance), stored);
-    assert.deepEqual(claims(instance), [claimed]);
+    assert.deepEqual(claims(instance, TASK), [claimed]);
   });
 
   it("stores a row for a Highlight that has none once the claim is 7 days old", async () => {
-    moveClaimBack(instance);
+    moveClaimBack(instance, TASK);
     await nextTick(instance);
 
     assert.equal(lostRows(instance).length, 3);
@@ -157,7 +143,7 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     assert.equal(highlightIds(instance).includes(first.highlight_id), true);
     assert.equal(lostRows(instance).length, 3);
 
-    moveClaimBack(instance);
+    moveClaimBack(instance, TASK);
     await nextTick(instance);
     assert.deepEqual(highlightIds(instance).includes(first.highlight_id), false);
     assert.equal(lostRows(instance).length, 2);
@@ -176,7 +162,7 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     await repaste(instance, "ambiguous", textHolding("something else"));
     assert.equal(highlightStatus(instance, first.highlight_id), "gone");
 
-    moveClaimBack(instance);
+    moveClaimBack(instance, TASK);
     await nextTick(instance);
 
     assert.deepEqual(
@@ -217,11 +203,11 @@ describe("the weekly lost-Highlight check with more than 20 lost Highlights", ()
     const page = await readPage(instance);
 
     assert.deepEqual(
-      page.proposals.map((row) => (row.kind === "highlight-lost" ? row.highlight.id : 0)),
+      page.proposals.flatMap((row) => (row.kind === "highlight-lost" ? [row.highlight.id] : [])),
       first.toReversed(),
     );
 
-    moveClaimBack(instance);
+    moveClaimBack(instance, TASK);
     await nextTick(instance);
     assert.deepEqual(
       highlightIds(instance).toSorted((a, b) => a - b),

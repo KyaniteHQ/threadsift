@@ -11,7 +11,7 @@ export const PROPOSALS_PAGE = {
   emptyHeading: "No proposals yet",
   loadMoreFailed: "Couldn’t load more proposals.",
   sort: "Newest first",
-  head: "Accepting a merge can’t be undone in this release; accepting removes a highlight for good. Rejecting is final: that tag or topic pair or highlight stays as it is and won’t be proposed again.",
+  head: "Accepting a merge can’t be undone in this release, and accepting removes a highlight for good. Accepting an overview update starts a model run for that topic. Rejecting is final: that tag or topic pair, highlight or topic stays as it is and won’t be proposed again.",
 } as const;
 
 const EMPTY_NO_PROVIDER = "Save a provider in the instance settings to run the weekly check.";
@@ -31,7 +31,10 @@ type Wording =
   | "accepted"
   | "rejectNamed"
   | "rejectRetryNamed"
-  | "rejected";
+  | "rejected"
+  | "notCurrent";
+
+const ALREADY_DECIDED = "This proposal was already decided or is no longer in the list.";
 
 const WORDS = {
   "tag-merge": {
@@ -42,6 +45,7 @@ const WORDS = {
     rejectNamed: "Reject merging {from} into {into}",
     rejectRetryNamed: "Try again to reject merging {from} into {into}",
     rejected: "Rejected merging {from} into {into}.",
+    notCurrent: ALREADY_DECIDED,
   },
   "topic-merge": {
     effect: "Merge topic {from} into {into}",
@@ -51,6 +55,7 @@ const WORDS = {
     rejectNamed: "Reject merging topic {from} into {into}",
     rejectRetryNamed: "Try again to reject merging topic {from} into {into}",
     rejected: "Rejected merging topic {from} into {into}.",
+    notCurrent: ALREADY_DECIDED,
   },
   "highlight-lost": {
     effect: "Remove this highlight",
@@ -60,6 +65,18 @@ const WORDS = {
     rejectNamed: "Reject removing highlight “{quote}” from {title}",
     rejectRetryNamed: "Try again to reject removing highlight “{quote}” from {title}",
     rejected: "Rejected removing highlight “{quote}” from {title}.",
+    notCurrent: "Passage found in the item’s text again. The highlight stays; nothing was removed.",
+  },
+  "overview-gap": {
+    effect: "Update the overview of topic {topic}",
+    acceptNamed: "Accept updating the overview of topic {topic}",
+    acceptRetryNamed: "Try again to accept updating the overview of topic {topic}",
+    accepted: "Accepted updating the overview of topic {topic}.",
+    rejectNamed: "Reject updating the overview of topic {topic}",
+    rejectRetryNamed: "Try again to reject updating the overview of topic {topic}",
+    rejected: "Rejected updating the overview of topic {topic}.",
+    notCurrent:
+      "Every item of this topic is in the overview now, or a run for the topic is already open; nothing was started.",
   },
 } as const satisfies Record<ProposalKind, Record<Wording, string>>;
 
@@ -75,9 +92,13 @@ export const PROPOSAL_WORDS = {
     "The surviving topic’s overview is written again later and counts the moved items.",
   reject: "Reject",
   rejectFailed: "Couldn’t reject this proposal.",
-  alreadyDecided: "This proposal was already decided or is no longer in the list.",
+  alreadyDecided: ALREADY_DECIDED,
+  overviewCounts: "Items not in the overview: {uncovered} of {items}",
+  overviewCost:
+    "Accept writes the topic’s overview again: each call covers up to 40 items, so many items can take several calls, and the run stops when a call fails.",
+  noProvider:
+    "Save a provider in the instance settings to update the overview; this row stays and Accept works after that.",
   reasonLabel: "Reason",
-  notCurrent: "Passage found in the item’s text again. The highlight stays; nothing was removed.",
 } as const;
 
 export function mergeEffect(kind: MergeKind): string {
@@ -85,6 +106,10 @@ export function mergeEffect(kind: MergeKind): string {
 }
 
 export const LOST_HIGHLIGHT_EFFECT = WORDS["highlight-lost"].effect;
+
+const [EFFECT_BEFORE = "", EFFECT_AFTER = ""] = WORDS["overview-gap"].effect.split("{topic}");
+
+export const OVERVIEW_GAP_EFFECT = { before: EFFECT_BEFORE, after: EFFECT_AFTER } as const;
 
 export function itemCount(count: number): string {
   return count === 1
@@ -112,6 +137,8 @@ function slotsOf(proposal: Readonly<Proposal>) {
         quote: quoteCut(proposal.highlight.quote),
         title: proposal.highlight.item.title ?? HIGHLIGHTS_PAGE.untitled,
       };
+    case "overview-gap":
+      return { topic: proposal.topic.name };
     default:
       return proposal satisfies never;
   }
@@ -133,3 +160,15 @@ export const acceptLabel = wordedBy("acceptNamed");
 export const acceptRetryLabel = wordedBy("acceptRetryNamed");
 
 export const acceptedAnnouncement = wordedBy("accepted");
+
+export const notCurrentNote = wordedBy("notCurrent");
+
+export function overviewCounts({
+  uncovered,
+  items,
+}: Readonly<{ uncovered: number; items: number }>) {
+  return filled(PROPOSAL_WORDS.overviewCounts, {
+    uncovered: String(uncovered),
+    items: String(items),
+  });
+}

@@ -1,8 +1,13 @@
 import { type Dispatch, type RefObject, type SetStateAction, useCallback, useState } from "react";
 
 import type { Proposal, ProposalPage } from "../../src/core/proposal-contract.ts";
-import { type Busy, sendAccept, sendReject, fetchProposals } from "./proposals-api.ts";
-import { PROPOSAL_WORDS, acceptedAnnouncement, rejectedAnnouncement } from "./proposals-text.ts";
+import { type Busy, fetchProposals, isBusy, sendAccept, sendReject } from "./proposals-api.ts";
+import {
+  PROPOSAL_WORDS,
+  acceptedAnnouncement,
+  notCurrentNote,
+  rejectedAnnouncement,
+} from "./proposals-text.ts";
 import { applyingRows, useAcceptingPoll } from "./use-accepting-poll.ts";
 import type { Announcement } from "./use-announcement.ts";
 import { useLatest } from "./use-latest.ts";
@@ -176,10 +181,10 @@ function useAccept({
         say(acceptedAnnouncement(proposal));
       } else if (outcome === "accepting") {
         edit((page) => applying(page, proposal.id));
-      } else if (outcome === "merge-busy" || outcome === "topic-busy") {
+      } else if (isBusy(outcome)) {
         setBusy((was) => new Map(was).set(proposal.id, outcome));
       } else if (outcome === "not-current") {
-        await settle(proposal, "accept", PROPOSAL_WORDS.notCurrent);
+        await settle(proposal, "accept", notCurrentNote(proposal));
       } else {
         await settle(proposal, "accept", PROPOSAL_WORDS.alreadyDecided);
       }

@@ -23,7 +23,7 @@ const AFTER = " A long sentence that comes after the passage and fills the store
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const isMerge = (proposal: Readonly<Proposal>): proposal is MergeProposal =>
-  proposal.kind !== "highlight-lost";
+  proposal.kind === "tag-merge" || proposal.kind === "topic-merge";
 
 export const mergesOf = (page: Readonly<ProposalPage>): readonly MergeProposal[] =>
   page.proposals.filter(isMerge);
@@ -121,6 +121,11 @@ export async function proposeLost(
   state: "open" | "rejected" = "open",
 ): Promise<number> {
   await saveProvider(instance);
+  exec(
+    instance,
+    "insert or replace into scheduled_runs (task, last_run_at) values ('overview_proposals', ?)",
+    Date.now(),
+  );
   exec(instance, "delete from scheduled_runs where task = 'highlight_proposals'");
   await nextTick(instance);
 
@@ -165,4 +170,18 @@ export function withoutForeignKeys(file: string): Database {
       sqlite.exec("PRAGMA foreign_keys = ON");
     }
   });
+}
+
+const RunSchema = z.object({ last_run_at: z.number() });
+
+export const claims = (instance: Instance, task: string) =>
+  rows(instance, RunSchema, "select last_run_at from scheduled_runs where task = ?", task);
+
+export function moveClaimBack(instance: Instance, task: string): void {
+  exec(
+    instance,
+    "update scheduled_runs set last_run_at = last_run_at - ? where task = ?",
+    WEEK_MS,
+    task,
+  );
 }

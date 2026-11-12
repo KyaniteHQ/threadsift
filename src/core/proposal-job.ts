@@ -88,6 +88,7 @@ function storedRows(
             moved: sql<null>`null`.as("moved"),
             unitRevision: sql<null>`null`.as("unit_revision"),
             highlightId: sql<null>`null`.as("highlight_id"),
+            topicId: sql<null>`null`.as("topic_id"),
           })
           .from(sql`json_each(${JSON.stringify(rows)}) as stored`)
           .where(sql`true`),

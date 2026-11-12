@@ -1,19 +1,11 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
-import { openDatabase } from "../src/targets/node/database.ts";
-import { Instance } from "./instance.ts";
+import type { Instance } from "./instance.ts";
 import { mergesOf, readPage } from "./lost-highlight-fixtures.ts";
-
-const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
+import { type OlderRelease, startOlderRelease } from "./older-release.ts";
 
 const LOST_MIGRATION = "0044_lost-highlight-proposals.sql";
-
-const BUSY_TIMEOUT_MS = 5000;
 
 const SEED = `
   insert into items (id, source, kind, normalized_url, original_url, saved_at) values (1, 'article', 'article', 'u1', 'u1', 1);
@@ -39,42 +31,31 @@ const insertLost = (highlight: number | null, extra = "", values = "") =>
   `insert into proposals (kind, highlight_id${extra}, reason, state, created_at) values ('highlight-lost', ${String(highlight)}${values}, 'plain-check', 'open', 1)`;
 
 describe("the lost-Highlight migration on a database made by the release before it", () => {
-  let older = "";
+  let release: OlderRelease;
   let instance: Instance;
 
-  const sqlite = (): DatabaseSync => {
-    const database = new DatabaseSync(instance.databaseFile, { timeout: BUSY_TIMEOUT_MS });
-    database.exec("PRAGMA foreign_keys = ON");
+  const sqlite = () => release.sqlite();
 
-    return database;
-  };
+  const snapshot = (): string => {
+    const database = sqlite();
 
-  const seedOlder = (file: string): void => {
-    openDatabase(file, older).close();
+    const found = JSON.stringify([
+      database.prepare("select * from proposals order by id").all(),
+      database.prepare("select name, seq from sqlite_sequence order by name").all(),
+      database.prepare("select name from d1_migrations order by name").all(),
+    ]);
 
-    const made = new DatabaseSync(file);
+    database.close();
 
-    made.exec(SEED);
-    made.close();
+    return found;
   };
 
   before(async () => {
-    older = await mkdtemp(join(tmpdir(), "threadsift-lost-highlight-migration-"));
-
-    await Promise.all(
-      (await readdir(MIGRATIONS))
-        .filter((name) => name.endsWith(".sql") && name < LOST_MIGRATION)
-        .map((name) => cp(join(MIGRATIONS, name), join(older, name))),
-    );
-
-    instance = await Instance.start({ prepare: seedOlder });
-    await instance.setUp();
+    release = await startOlderRelease(LOST_MIGRATION, SEED);
+    ({ instance } = release);
   });
 
-  after(async () => {
-    await instance.close();
-    await rm(older, { recursive: true });
-  });
+  after(() => release.close());
 
   it("keeps every row in every state, with the same columns and ids", () => {
     const database = sqlite();
@@ -225,25 +206,11 @@ describe("the lost-Highlight migration on a database made by the release before 
   });
 
   it("starts again on the migrated file and changes no row, sequence or migration record", () => {
-    const state = (): string => {
-      const database = new DatabaseSync(instance.databaseFile, { timeout: BUSY_TIMEOUT_MS });
+    const earlier = snapshot();
 
-      const found = JSON.stringify([
-        database.prepare("select * from proposals order by id").all(),
-        database.prepare("select name, seq from sqlite_sequence order by name").all(),
-        database.prepare("select name from d1_migrations order by name").all(),
-      ]);
+    release.startAgain();
 
-      database.close();
-
-      return found;
-    };
-
-    const earlier = state();
-
-    openDatabase(instance.databaseFile, MIGRATIONS).close();
-
-    assert.equal(state(), earlier);
+    assert.equal(snapshot(), earlier);
     assert.match(earlier, new RegExp(LOST_MIGRATION, "u"));
   });
 });

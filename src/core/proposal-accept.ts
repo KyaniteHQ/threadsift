@@ -1,12 +1,12 @@
 import { type SQL, and, asc, eq, sql } from "drizzle-orm";
-import { z } from "zod";
 
 import { guardedResults } from "./guards.ts";
 import { acceptLostHighlight } from "./highlight-proposals.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { enqueueRows } from "./job-rows.ts";
+import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
 import type { MergeRow } from "./merge-unit.ts";
+import { acceptOverviewGap } from "./overview-proposals.ts";
 import { knownProposal, proposals } from "./schema.ts";
 import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
@@ -18,10 +18,9 @@ export type Acceptance =
   | "unknown"
   | "not-open"
   | "not-current"
+  | "no-provider"
   | "merge-busy"
   | "topic-busy";
-
-const OpenedSchema = z.array(z.object({ id: z.number().int() }));
 
 function acceptingElsewhere(): SQL {
   return sql`exists (select 1 from ${proposals} where ${proposals.state} = 'accepting')`;
@@ -72,7 +71,7 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
 
     await enqueueRows(
       ports,
-      unit.closing.wakes.flatMap((at) => OpenedSchema.parse(results[head.length + at])),
+      unit.closing.wakes.flatMap((at) => OpenedJobsSchema.parse(results[head.length + at])),
     );
 
     return "ran";
@@ -130,6 +129,7 @@ const ACCEPT = {
   "tag-merge": acceptMerge,
   "topic-merge": acceptMerge,
   "highlight-lost": ({ db }, id) => acceptLostHighlight(db, id),
+  "overview-gap": acceptOverviewGap,
 } as const satisfies Readonly<Record<(typeof proposals.$inferSelect)["kind"], Accepting>>;
 
 export async function acceptProposal(ports: JobPorts, id: number): Promise<Acceptance> {

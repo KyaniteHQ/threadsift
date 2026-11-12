@@ -2,6 +2,7 @@ import { memo } from "react";
 
 import type { MergeProposal } from "../../src/core/proposal-contract.ts";
 import { LostHighlightBody } from "./LostHighlightBody.tsx";
+import { OverviewGapBody } from "./OverviewGapBody.tsx";
 import { rowId } from "./proposal-dom.ts";
 import { Actions, type RowControls } from "./ProposalActions.tsx";
 import { PROPOSAL_WORDS, itemCount, mergeEffect } from "./proposals-text.ts";
@@ -66,26 +67,34 @@ function MergeBody({
 function ProposalBody({
   proposal,
   open,
+  openTopic,
   overviewFollows,
-}: Readonly<Pick<RowControls, "proposal" | "open" | "overviewFollows">>) {
+}: Readonly<Pick<RowControls, "proposal" | "open" | "openTopic" | "overviewFollows">>) {
   switch (proposal.kind) {
     case "tag-merge":
     case "topic-merge":
       return <MergeBody proposal={proposal} overviewFollows={overviewFollows} />;
     case "highlight-lost":
       return <LostHighlightBody proposal={proposal} open={open} />;
+    case "overview-gap":
+      return <OverviewGapBody proposal={proposal} openTopic={openTopic} />;
     default:
       return proposal satisfies never;
   }
 }
 
 export const ProposalRow = memo(function ProposalRow(controls: Readonly<RowControls>) {
-  const { proposal, open, overviewFollows } = controls;
+  const { proposal, open, openTopic, overviewFollows } = controls;
 
   return (
     <li>
       <article className="rl-row pr-row" id={rowId(proposal.id)}>
-        <ProposalBody proposal={proposal} open={open} overviewFollows={overviewFollows} />
+        <ProposalBody
+          proposal={proposal}
+          open={open}
+          openTopic={openTopic}
+          overviewFollows={overviewFollows}
+        />
         <Actions {...controls} />
       </article>
     </li>

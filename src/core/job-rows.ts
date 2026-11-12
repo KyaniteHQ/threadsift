@@ -1,5 +1,6 @@
 import { type SQLWrapper, and, eq, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import { z } from "zod";
 
 import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -8,6 +9,8 @@ import type { Database } from "./ports.ts";
 import { type JobRow, items, jobs } from "./schema.ts";
 
 const openJobs = alias(jobs, "open_jobs");
+
+export const OpenedJobsSchema = z.array(z.object({ id: z.number().int() }));
 
 export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${items.id}`) {
   const kinds = kind === undefined ? ITEM_JOB_KINDS : [kind];

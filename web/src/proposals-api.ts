@@ -3,11 +3,17 @@ import { z } from "zod";
 import { type ProposalPage, ProposalPageSchema } from "../../src/core/proposal-contract.ts";
 import { call, parsedFrom, withCursor } from "./calls.ts";
 
-export type Busy = "merge-busy" | "topic-busy";
+const BUSY_ANSWERS = ["merge-busy", "topic-busy", "no-provider"] as const;
+
+export type Busy = (typeof BUSY_ANSWERS)[number];
 
 export type Acceptance = "done" | "accepting" | Busy | "not-current" | "unknown";
 
-const RefusalSchema = z.object({ error: z.enum(["merge-busy", "topic-busy", "not-current"]) });
+const RefusalSchema = z.object({ error: z.enum([...BUSY_ANSWERS, "not-current"]) });
+
+export function isBusy(outcome: Acceptance): outcome is Busy {
+  return BUSY_ANSWERS.some((each) => each === outcome);
+}
 
 export function fetchProposals(cursor: string | null): Promise<ProposalPage> {
   return parsedFrom("GET", withCursor("/api/proposals", cursor), ProposalPageSchema);
