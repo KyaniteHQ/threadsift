@@ -7,10 +7,9 @@ import {
   TOPIC_KIND,
   closingWrites,
   topicClosingWrites,
-  topicMoves,
 } from "./catalog-key-links.ts";
 import type { Advance } from "./data-step-contract.ts";
-import { repointedPins, repointedTopicPins } from "./pins.ts";
+import { repointedPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { proposalRelinks } from "./proposal-relink.ts";
 import { pins, proposals, tags } from "./schema.ts";
@@ -79,22 +78,20 @@ export async function mergedTag(db: Database, cursor: string): Promise<Advance> 
 
 export async function mergedTopic(db: Database): Promise<Advance> {
   const [next] = await db
-    .select({ id: TOPIC_KIND.table.id, intoId: pins.intoTopicId })
+    .select({ id: TOPIC_KIND.table.id, intoId: sql<number>`${pins.intoTopicId}` })
     .from(TOPIC_KIND.table)
     .innerJoin(pins, and(eq(pins.kind, TOPIC_KIND.pinKind), eq(pins.fromKey, TOPIC_KIND.table.key)))
     .where(and(ne(pins.intoTopicId, TOPIC_KIND.table.id), accepting(db, TOPIC_KIND)))
     .orderBy(asc(TOPIC_KIND.table.id))
     .limit(1);
 
-  if (next === undefined || next.intoId === null) return { writes: [], cursor: "finish" };
+  if (next === undefined) return { writes: [], cursor: "finish" };
 
   const moves = await TOPIC_KIND.linked(db, next.id);
 
   return {
     writes: [
-      ...proposalRelinks(db, "topic-merge", next.id, next.intoId),
-      repointedTopicPins(db, next.id, next.intoId),
-      ...topicMoves(db, next.id, next.intoId, moves),
+      ...TOPIC_KIND.relink(db, next.id, next.intoId, moves),
       ...topicClosingWrites(db, next.id, next.intoId),
     ],
     cursor: "topics",

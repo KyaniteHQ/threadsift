@@ -3,7 +3,17 @@ import { describe, it } from "node:test";
 
 import { count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { LOSER_FIRST_ITEM, jobsOf, rerunSteps, seedLibrary } from "./pin-fixtures.ts";
+import {
+  LOSER_FIRST_ITEM,
+  holdSweep,
+  item,
+  jobsOf,
+  rerunSteps,
+  script,
+  seedFillerMerges,
+  seedLibrary,
+  seedTopicItems,
+} from "./pin-fixtures.ts";
 import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
 
 const seededRun = async (seed: (instance: Instance) => void) => {
@@ -72,6 +82,51 @@ describe("the final opening attempt for the survivor's overview", () => {
         JSON.stringify([
           { item_id: 1, kind: "topic_overview", state: "queued" },
           { item_id: LOSER_FIRST_ITEM, kind: "topic_overview", state: "queued" },
+        ]),
+      );
+    } finally {
+      await instance.close();
+    }
+  });
+});
+
+describe("the opening attempt for the survivor's overview waits for the last unit of the merge", () => {
+  const FILLER_MERGES = 97;
+
+  it("opens no job for the survivor while the loser still has Items, and one after the last unit", async () => {
+    const instance = await Instance.start({ secretKey: SECRET_KEY });
+
+    try {
+      await instance.setUp();
+      await saveProvider(instance);
+      script(
+        instance,
+        `
+        insert into topics (id, key, name) values
+          (1, 'machine learning', 'Machine Learning'), (3, 'filler target', 'Filler Target'), (200, 'ml', 'ML');
+        ${item(1, [], [], { topic: "Machine Learning", topicId: 1 })}
+        ${item(2, [], [], { topic: "Filler Target", topicId: 3 })}
+        insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('topic-merge', 'ml', 'ML', 1, 1);`,
+      );
+      seedFillerMerges(instance, { count: FILLER_MERGES, target: 3 });
+      seedTopicItems(instance, { topicId: 200, name: "ML", from: LOSER_FIRST_ITEM, items: 1100 });
+      await rerunSteps(instance, "pin-keys");
+
+      assert.equal(count(instance, "select count(*) as n from items where topic_id = 200"), 600);
+      assert.equal(
+        jobsOf(instance),
+        JSON.stringify([{ item_id: 2, kind: "topic_overview", state: "queued" }]),
+      );
+
+      holdSweep(instance);
+      await instance.tick();
+
+      assert.equal(count(instance, "select count(*) as n from topics where id = 200"), 0);
+      assert.equal(
+        jobsOf(instance),
+        JSON.stringify([
+          { item_id: 1, kind: "topic_overview", state: "queued" },
+          { item_id: 2, kind: "topic_overview", state: "queued" },
         ]),
       );
     } finally {

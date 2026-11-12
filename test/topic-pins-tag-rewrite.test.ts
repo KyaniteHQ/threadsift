@@ -58,3 +58,50 @@ describe("a Tag rewrite that read a Digest before a Topic rewrite changed it", (
     );
   });
 });
+
+describe("a Topic rewrite that read its Items before a publication linked one of them to another Topic", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start();
+    script(
+      instance,
+      `
+      insert into topics (id, key, name) values (1, 'reading', 'Reading'), (2, 'old', 'Old'), (3, 'third', 'Third');
+      ${item(1, [], [], { topic: "Old", topicId: 2 })}
+      ${item(2, [], [], { topic: "Old", topicId: 2 })}`,
+    );
+  });
+
+  after(() => instance.close());
+
+  it("leaves the Digest and the link of that Item on the other Topic and moves the rest", async () => {
+    const database = openDatabase(instance.databaseFile, MIGRATIONS);
+
+    try {
+      const moves = await TOPIC_KIND.linked(database.db, 2);
+
+      script(
+        instance,
+        `
+        update items set topic_id = 3 where id = 2;
+        update digests set topic = 'Third', digest = json_set(digest, '$.topic', 'Third') where item_id = 2;`,
+      );
+
+      await guardedBatch(database.db, sql`1`, topicMoves(database.db, 2, 1, moves));
+    } finally {
+      database.close();
+    }
+
+    assert.equal(
+      dump(
+        instance,
+        "select digests.item_id as id, digests.topic, json_extract(digest, '$.topic') as json_topic, items.topic_id from digests join items on items.id = digests.item_id order by digests.item_id",
+      ),
+      JSON.stringify([
+        { id: 1, topic: "Reading", json_topic: "Reading", topic_id: 1 },
+        { id: 2, topic: "Third", json_topic: "Third", topic_id: 3 },
+      ]),
+    );
+  });
+});

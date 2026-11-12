@@ -9,15 +9,17 @@ import { digestPartWrites } from "./search.ts";
 
 const OLDER_DIGEST_BATCH = 10;
 
-async function linkOlderDigest(
+export async function readOlderDigestLink(
   db: Database,
   row: Readonly<{ id: number; digest: string }>,
-): Promise<void> {
-  try {
-    const stored = parseStoredDigest(row.digest);
-    const { pinned, entries } = await pinnedCatalog(db, stored);
-    const unlinked = sql`exists (select 1 from ${items} join ${digests} on ${digests.itemId} = ${items.id} where ${items.id} = ${row.id} and ${items.topicId} is null and ${digests.digest} = ${row.digest})`;
-    await guardedBatch(db, sql`${unlinked} and ${pinned.current}`, [
+) {
+  const stored = parseStoredDigest(row.digest);
+  const { pinned, entries } = await pinnedCatalog(db, stored);
+  const unlinked = sql`exists (select 1 from ${items} join ${digests} on ${digests.itemId} = ${items.id} where ${items.id} = ${row.id} and ${items.topicId} is null and ${digests.digest} = ${row.digest})`;
+
+  return {
+    condition: sql`${unlinked} and ${pinned.current}`,
+    writes: [
       ...linkingDigest(db, row.id, entries),
       ...(pinned.renamed
         ? [
@@ -31,7 +33,18 @@ async function linkOlderDigest(
           ]
         : []),
       ...digestPartWrites(db, eq(items.id, row.id)),
-    ]);
+    ],
+  };
+}
+
+async function linkOlderDigest(
+  db: Database,
+  row: Readonly<{ id: number; digest: string }>,
+): Promise<void> {
+  try {
+    const { condition, writes } = await readOlderDigestLink(db, row);
+
+    await guardedBatch(db, condition, writes);
   } catch (error) {
     logFailure("older-digest-not-linked", { digestId: row.id }, error);
   }

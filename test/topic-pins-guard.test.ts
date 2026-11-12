@@ -13,7 +13,7 @@ const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 const topicPin = (id: number, into: number) =>
   `insert into pins (id, kind, from_key, from_name, into_topic_id, created_at) values (${String(id)}, 'topic-merge', 'ml', 'ML', ${String(into)}, 1);`;
 
-describe("the Pin guard refuses a batch whose Topic and Tag resolutions went stale", () => {
+describe("the Pin resolution condition fails when the Topic or Tag Pins it read have changed", () => {
   let instance: Instance;
   let database: ReturnType<typeof openDatabase>;
 

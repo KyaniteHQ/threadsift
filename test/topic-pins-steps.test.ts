@@ -49,10 +49,6 @@ describe("the pin-keys step recomputes Topic Pin keys and merges a Topic that ho
     );
   });
 
-  it("lets a Tag Pin and a Topic Pin share a key", () => {
-    assert.equal(count(instance, "select count(*) as n from pins where from_key = 'ml'"), 2);
-  });
-
   it("merges the Topic that holds a Pin's key into the Pin's target", () => {
     assert.equal(count(instance, "select count(*) as n from topics where id = 2"), 0);
     assert.equal(

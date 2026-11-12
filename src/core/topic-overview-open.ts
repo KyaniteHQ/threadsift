@@ -17,11 +17,7 @@ export function openingOverview(db: Database, itemId: number) {
   });
 }
 
-export function continuingOverview(
-  db: Database,
-  topicId: number,
-  when: Readonly<SQLWrapper> = sql`1`,
-) {
+export function continuingOverview(db: Database, topicId: number, when: Readonly<SQLWrapper>) {
   return opening(db, {
     kind: "topic_overview",
     address: sql`${items.originalUrl}`,

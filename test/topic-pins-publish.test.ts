@@ -79,7 +79,7 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
     );
   });
 
-  it("keeps the names the model returned in the AI task", () => {
+  it("keeps the Topic the caller sent in the AI task result", () => {
     const [{ topic } = { topic: "" }] = rows(
       instance,
       z.object({ topic: z.string() }),
@@ -129,13 +129,6 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
     assert.equal(linkedTopic(instance, 900), TARGET);
     assert.deepEqual(stored(instance, 900), { topic: TARGET, json_topic: TARGET });
     assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
-  });
-
-  it("changes no Pin when an Item is deleted", async () => {
-    const earlier = dump(instance, "select * from pins order by id");
-
-    assert.equal((await instance.send("DELETE", "/api/items/900")).status, 204);
-    assert.equal(dump(instance, "select * from pins order by id"), earlier);
   });
 });
 

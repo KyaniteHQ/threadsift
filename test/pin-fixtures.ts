@@ -153,3 +153,56 @@ export const jobsOf = (instance: Instance): string =>
     instance,
     "select item_id, kind, state from jobs where kind = 'topic_overview' order by item_id",
   );
+
+export const FILLER_FIRST_ID = 10;
+
+const FILLER_DIGEST = JSON.stringify({
+  title: "T",
+  topic: "Filler",
+  tags: [],
+  summary: "S",
+  keyPoints: ["K"],
+});
+
+export const seedFillerMerges = (
+  instance: Instance,
+  { count, target }: Readonly<{ count: number; target: number }>,
+): void => {
+  const last = FILLER_FIRST_ID + count - 1;
+  const range = `with recursive n(i) as (select ${String(FILLER_FIRST_ID)} union all select i + 1 from n where i < ${String(last)})`;
+
+  script(
+    instance,
+    `
+    ${range}
+    insert into topics (id, key, name) select i, 'filler ' || i, 'Filler ' || i from n;
+    ${range}
+    insert into pins (kind, from_key, from_name, into_topic_id, created_at)
+    select 'topic-merge', 'filler ' || i, 'Filler ' || i, ${String(target)}, i from n;
+    ${range}
+    insert into items (id, source, kind, normalized_url, original_url, saved_at, status, topic_id)
+    select 100000 + i, 'other', 'link', 'https://example.com/filler/' || i, 'https://example.com/filler/' || i, i, 'ready', i from n;
+    ${range}
+    insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state, item_id)
+    select 100000 + i, 'digest', '{}', 0, 'caller', 1, 0, 'done', 100000 + i from n;
+    ${range}
+    insert into digests (item_id, digest, title, topic, task_id, generation, created_at)
+    select 100000 + i, '${FILLER_DIGEST}', 'T', 'Filler ' || i, 100000 + i, 0, 1 from n;`,
+  );
+};
+
+export const topicNameOf = (instance: Instance, itemId: number): string | null =>
+  rows(
+    instance,
+    z.object({ name: z.string().nullable() }),
+    "select topics.name as name from items left join topics on topics.id = items.topic_id where items.id = ?",
+    itemId,
+  )[0]?.name ?? null;
+
+export const storedDigestOf = (instance: Instance, itemId: number): string =>
+  rows(
+    instance,
+    z.object({ digest: z.string() }),
+    "select digest from digests where item_id = ?",
+    itemId,
+  )[0]?.digest ?? "";

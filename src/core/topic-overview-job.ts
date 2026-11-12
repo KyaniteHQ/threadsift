@@ -1,3 +1,5 @@
+import { sql } from "drizzle-orm";
+
 import { AI_DEADLINE_MS } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
 import type {
@@ -46,7 +48,7 @@ async function reviseOverview(
   if (prompt.included.length === 0) {
     return {
       ...keptOutcome(db, lease, { read, prompt }),
-      continuation: [continuingOverview(db, lease.topicId)],
+      continuation: [continuingOverview(db, lease.topicId, sql`1`)],
     };
   }
 
@@ -68,7 +70,7 @@ async function reviseOverview(
 
   return {
     ...revisedOutcome(db, lease, { read, prompt, taskId: result.taskId, result: result.result }),
-    continuation: [continuingOverview(db, lease.topicId)],
+    continuation: [continuingOverview(db, lease.topicId, sql`1`)],
   };
 }
 
