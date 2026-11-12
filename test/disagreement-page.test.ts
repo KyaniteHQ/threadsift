@@ -93,28 +93,28 @@ describe("disagreement rows beside the other kinds", () => {
     assert.equal((await instance.send("POST", "/api/proposals/999/accept")).status, 404);
   });
 
-  it("answers 409 not-supported on accept and leaves the row open, then rejects it once and answers 409 not-open the second time", async () => {
+  it("rejects the row once, answers 409 not-open the second time and on accept, and lists it no more", async () => {
     const id = String(LISTED.id);
-    const accepted = await instance.send("POST", `/api/proposals/${id}/accept`);
-
-    assert.deepEqual(
-      [accepted.status, JSON.parse(accepted.body)],
-      [409, { error: "not-supported" }],
-    );
-    assert.deepEqual(
-      disagreementRows(instance).map(({ state }) => state),
-      ["open"],
-    );
-
     const rejected = await instance.send("POST", `/api/proposals/${id}/reject`);
     const again = await instance.send("POST", `/api/proposals/${id}/reject`);
+    const accepted = await instance.send("POST", `/api/proposals/${id}/accept`);
 
     assert.deepEqual([rejected.status, JSON.parse(rejected.body)], [200, { state: "rejected" }]);
     assert.deepEqual([again.status, JSON.parse(again.body)], [409, { error: "not-open" }]);
+    assert.deepEqual([accepted.status, JSON.parse(accepted.body)], [409, { error: "not-open" }]);
     assert.deepEqual(
       (await readPage(instance)).proposals.map(({ kind }) => kind),
       ["topic-merge"],
     );
+  });
+
+  it("describes the shape and the Accept answer in the OpenAPI document", async () => {
+    const document = z
+      .object({ paths: z.record(z.string(), z.unknown()) })
+      .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
+
+    assert.match(JSON.stringify(document.paths["/api/proposals"]), /items-disagree/u);
+    assert.match(JSON.stringify(document.paths["/api/proposals/{id}/accept"]), /items-disagree/u);
   });
 });
 

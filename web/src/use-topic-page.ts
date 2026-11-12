@@ -20,6 +20,7 @@ export interface TopicReady {
   readonly status: "ready";
   readonly topic: TopicPage["topic"];
   readonly overview: Overview;
+  readonly disagreements: TopicPage["disagreements"];
   readonly items: readonly TopicItem[];
   readonly next: string | null;
   readonly more: More;
@@ -50,7 +51,14 @@ async function attempt(key: string, cursor: string | null) {
 }
 
 function refreshed(now: TopicReady, page: Readonly<TopicPage>): TopicReady {
-  return { ...now, topic: page.topic, overview: page.overview, items: page.items, next: page.next };
+  return {
+    ...now,
+    topic: page.topic,
+    overview: page.overview,
+    disagreements: page.disagreements,
+    items: page.items,
+    next: page.next,
+  };
 }
 
 function newer(a: Readonly<TopicItem>, b: Readonly<TopicItem>): boolean {

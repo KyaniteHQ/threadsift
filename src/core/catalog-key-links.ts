@@ -2,7 +2,7 @@ import { type SQL, type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle
 import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import type { PinKind } from "./kinds.ts";
+import type { MergeKind } from "./kinds.ts";
 import { repointedPins, repointedTopicPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { proposalRelinks } from "./proposal-relink.ts";
@@ -33,7 +33,7 @@ export interface Moves {
 export interface CatalogKind {
   readonly step: string;
   readonly table: typeof topics | typeof tags;
-  readonly pinKind: PinKind;
+  readonly pinKind: MergeKind;
   readonly pinTarget: typeof pins.intoTagId | typeof pins.intoTopicId;
   readonly proposalFrom: typeof proposals.fromTagId | typeof proposals.fromTopicId;
   readonly proposalInto: typeof proposals.intoTagId | typeof proposals.intoTopicId;

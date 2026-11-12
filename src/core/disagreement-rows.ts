@@ -1,5 +1,6 @@
-import { and, eq, sql } from "drizzle-orm";
+import { type SQL, and, eq, sql } from "drizzle-orm";
 
+import { pairPinned } from "./disagreement-pins.ts";
 import { WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, proposals } from "./schema.ts";
@@ -11,15 +12,19 @@ function judgedOnStoredDigests(sameTopic: boolean) {
   return sql`exists (select 1 from ${items} as held_first join ${digests} as held_first_digest on held_first_digest.item_id = held_first.id and held_first_digest.task_id = ${proposals.fromDigest} join ${items} as held_second on held_second.id = ${proposals.intoItemId}${together} join ${digests} as held_second_digest on held_second_digest.item_id = held_second.id and held_second_digest.task_id = ${proposals.intoDigest} where held_first.id = ${proposals.fromItemId})`;
 }
 
-export function disagreementHolds() {
+export function disagreementCurrent(): SQL {
   return judgedOnStoredDigests(true);
+}
+
+export function disagreementHolds(): SQL {
+  return sql`(${disagreementCurrent()} and not ${pairPinned(proposals.fromItemId, proposals.intoItemId)})`;
 }
 
 function staleRows() {
   return and(
     eq(proposals.kind, "items-disagree"),
     eq(proposals.state, "open"),
-    sql`not ${judgedOnStoredDigests(false)}`,
+    sql`(not ${judgedOnStoredDigests(false)} or ${pairPinned(proposals.fromItemId, proposals.intoItemId)})`,
   );
 }
 

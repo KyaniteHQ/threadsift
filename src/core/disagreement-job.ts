@@ -1,6 +1,7 @@
 import { type SQL, sql } from "drizzle-orm";
 
 import { membersOf, readDisagreementInput } from "./disagreement-input.ts";
+import { pairPinned } from "./disagreement-pins.ts";
 import { clearedStaleDisagreements } from "./disagreement-rows.ts";
 import {
   DISAGREEMENT_OUTPUT_TOKENS,
@@ -69,7 +70,7 @@ function storedPairs(db: Database, sent: Sent, result: Readonly<DisagreementsRes
             ),
           )
           .from(sql`json_each(${JSON.stringify(pairRows(sent, result))}) as stored`)
-          .where(sql`true`),
+          .where(sql`not ${pairPinned(fieldOf("from"), fieldOf("into"))}`),
       )
       .onConflictDoNothing(),
   ];

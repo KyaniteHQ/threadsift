@@ -75,12 +75,25 @@ const TopicItemSchema = z
 
 export type TopicItem = z.infer<typeof TopicItemSchema>;
 
+const KnownDisagreementItemSchema = z
+  .object({ id: z.number().int(), title: z.string() })
+  .readonly();
+
+export const KnownDisagreementSchema = z
+  .object({
+    id: z.number().int(),
+    reason: z.string(),
+    items: z.tuple([KnownDisagreementItemSchema, KnownDisagreementItemSchema]).readonly(),
+  })
+  .readonly();
+
 export const TopicPageSchema = z
   .object({
     topic: z
       .object({ key: z.string(), name: z.string(), itemCount: z.number().int().min(0) })
       .readonly(),
     overview: OverviewSchema,
+    disagreements: z.array(KnownDisagreementSchema).readonly(),
     items: z.array(TopicItemSchema).readonly(),
     next: z.string().nullable(),
   })

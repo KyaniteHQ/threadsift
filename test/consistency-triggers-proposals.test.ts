@@ -7,6 +7,7 @@ import { z } from "zod";
 import {
   PIN_KINDS,
   PROPOSAL_KINDS,
+  type PinKind,
   PROPOSAL_STATES,
   type ProposalKind,
 } from "../src/core/kinds.ts";
@@ -14,6 +15,8 @@ import { Instance } from "./instance.ts";
 import { paste } from "./related-fixtures.ts";
 
 const BUSY_TIMEOUT_MS = 5000;
+
+type Subjects = Readonly<{ columns: readonly string[]; create: () => readonly number[] }>;
 
 describe("every proposal and Pin value in src/core/kinds.ts passes the consistency triggers", () => {
   let instance: Instance;
@@ -31,11 +34,6 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
     database.close();
     await instance.close();
   });
-
-  const SUBJECTS = {
-    "tag-merge": { table: "tags", into: "into_tag_id" },
-    "topic-merge": { table: "topics", into: "into_topic_id" },
-  } as const;
 
   const INSERTS = {
     tags: "insert into tags (key, name) values (?, ?), (?, ?) returning id",
@@ -89,12 +87,7 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
       columns: ["from_item_id", "into_item_id", "from_digest", "into_digest"],
       create: () => [...insertSubjects("items"), 1, 2],
     },
-  } as const satisfies Readonly<
-    Record<
-      ProposalKind,
-      { readonly columns: readonly string[]; readonly create: () => readonly number[] }
-    >
-  >;
+  } as const satisfies Readonly<Record<ProposalKind, Subjects>>;
 
   const proposalInsert = (kind: ProposalKind) => {
     const { columns } = PROPOSAL_SUBJECTS[kind];
@@ -181,17 +174,30 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
     );
   });
 
-  const pinInsert = (kind: keyof typeof SUBJECTS) =>
-    database.prepare(
-      `insert into pins (kind, from_key, from_name, ${SUBJECTS[kind].into}, created_at) values (?, ?, 'a name', ?, 0)`,
-    );
+  const PIN_SUBJECTS = {
+    "tag-merge": { columns: ["into_tag_id"], create: () => [insertSubjects("tags")[1]] },
+    "topic-merge": { columns: ["into_topic_id"], create: () => [insertSubjects("topics")[1]] },
+    "items-disagree": {
+      columns: ["from_item_id", "into_item_id", "from_digest", "into_digest"],
+      create: () => [...insertSubjects("items"), 1, 2],
+    },
+  } as const satisfies Readonly<Record<PinKind, Subjects>>;
 
-  const pinCases = (kind: keyof typeof SUBJECTS): void => {
+  const pinInsert = (kind: PinKind) => {
+    const { columns } = PIN_SUBJECTS[kind];
+    const marks = columns.map(() => "?").join(", ");
+
+    return database.prepare(
+      `insert into pins (kind, from_key, from_name, ${columns.join(", ")}, created_at) values (?, ?, 'a name', ${marks}, 0)`,
+    );
+  };
+
+  const pinCases = (kind: PinKind): void => {
     it(`stores and updates a ${kind} Pin`, () => {
-      const [, into] = insertSubjects(SUBJECTS[kind].table);
+      const subjects = PIN_SUBJECTS[kind].create();
 
       assert.doesNotThrow(() => {
-        pinInsert(kind).run(kind, `a key for ${kind}`, into);
+        pinInsert(kind).run(kind, `a key for ${kind}`, ...subjects);
         database
           .prepare("update pins set kind = ? where from_key = ?")
           .run(kind, `a key for ${kind}`);
