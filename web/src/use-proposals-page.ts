@@ -241,7 +241,7 @@ export function useProposalsPage() {
         await accept(proposal);
       } else if ((await sendReject(proposal.id)) === "rejected") {
         await leave(proposal);
-        say(rejectedAnnouncement(proposal.from.name, proposal.into.name));
+        say(rejectedAnnouncement(proposal));
       } else {
         await settle(proposal, "reject");
       }
