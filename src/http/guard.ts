@@ -6,8 +6,9 @@ import { csrf } from "hono/csrf";
 import { BODY_LIMIT_BYTES, ITEM_REQUEST_BYTES } from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
 import { verifyToken } from "../core/tokens.ts";
-import { isOwnerOnly, isPublic } from "./access-rules.ts";
+import { isOwnerOnly, isPublic, requiredScope } from "./access-rules.ts";
 import { ownerHasSession } from "./session-cookie.ts";
+import { requireScopes } from "./token-scopes.ts";
 
 export const bodyCap = bodyLimit({
   maxSize: BODY_LIMIT_BYTES,
@@ -25,6 +26,8 @@ function capFor(method: string, path: string): MiddlewareHandler {
 
 const NOT_BEARER = "Authorization header is not a bearer token";
 
+const NOT_FOR_TOKENS = "Agent tokens cannot use this route";
+
 function notBearer(c: Context): Response {
   return c.json({ error: NOT_BEARER }, 400);
 }
@@ -41,7 +44,18 @@ export function bearerCheck(
 }
 
 export function guard(ports: Ports): MiddlewareHandler {
-  const bearer = bearerCheck(async (value) => (await verifyToken(ports, value)) !== undefined);
+  const bearer = bearerCheck(async (value, c) => {
+    const token = await verifyToken(ports, value);
+
+    if (token === undefined) {
+      return false;
+    }
+
+    c.set("principal", { kind: "token", scopes: token.scopes });
+
+    return true;
+  });
+
   const cross = csrf();
 
   return async (c, next) => {
@@ -49,14 +63,22 @@ export function guard(ports: Ports): MiddlewareHandler {
     const protectedRoute = !isPublic(method, path);
     const carriesToken = protectedRoute && c.req.header("authorization") !== undefined;
 
+    c.set("principal", { kind: "anonymous" });
+
     if (protectedRoute) {
       if (carriesToken) {
         await bearer(c, async () => {});
 
-        if (isOwnerOnly(path)) {
-          return c.json({ error: "Agent tokens cannot use this route" }, 403);
+        const scope = requiredScope(method, path);
+
+        if (isOwnerOnly(path) || scope === undefined) {
+          return c.json({ error: NOT_FOR_TOKENS }, 403);
         }
-      } else if (!(await ownerHasSession(c, ports))) {
+
+        requireScopes(c, [scope]);
+      } else if (await ownerHasSession(c, ports)) {
+        c.set("principal", { kind: "owner" });
+      } else {
         return c.json({ error: "Sign in or send an agent token" }, 401);
       }
     }

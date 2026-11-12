@@ -1,12 +1,12 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { itemPath } from "../core/item-path.ts";
 import { paste } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
-import { itemView } from "./item-view.ts";
-import { jsonBody, jsonRequest } from "./openapi.ts";
+import { savedView } from "./item-view.ts";
+import { PASTE_DIGEST_SCOPE, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
 import { ErrorResponseSchema, SavedItemResponseSchema } from "./schemas.ts";
+import { requirePasteScopes } from "./token-scopes.ts";
 
 export const REFUSED_HOST = "url: the host is not globally reachable";
 
@@ -26,9 +26,11 @@ const saveItemRoute = createRoute({
   method: "post",
   path: "/api/items",
   description:
-    "Save a link as an Item. `content` supplies a thread. For a Reddit link it is the Reddit JSON: one text, or 1 to 101 texts, the thread's `.json` first and then the permalink answers (`/comments/<post>/_/<comment>.json`) that fill its `more` stubs, each holding one comment at its top. For an X link it is exactly one JSON text `{post, replies}`: `post` has `id` (the link's status id), `author` (the handle without @), `text`, `postedAt` (ISO 8601 or null) and `replies` (the reply count X reports, or null), and each of at most 500 `replies` has `id`, `parentId` (the post's id or another reply's id), `author`, `text`, `postedAt` and `likes` (a whole number or null); every id is a digit string with no leading zero and at most 29 digits, and no other field is allowed. `page` supplies the text of a web page that the caller read in its own browser tab: `markdown` (the page text), `title`, and optionally `author`, `published` (an ISO 8601 date) and `videos` (the video addresses the Markdown links to). The server publishes a `page` like a fetched article, with the same 100-word minimum, image storage and Highlight anchoring, and never fetches the page itself. A link takes `content` or `page`, not both. `fill: true` with `content` saves the thread only for a Reddit post or comment Item that holds no thread yet, which the Item's `fillable` shows; it answers 409 and changes nothing when the Item already holds a saved thread or no Item has the link, and 400 with `page` or without `content`. `page` takes no X or GitHub link and no Reddit link that is not a post or a comment; a Reddit post or comment takes it as its text and stays a Reddit Item with no comment rows, and a page under 100 words leaves it only its title, author and community; it answers 409 when the Item already holds a saved thread.",
+    "Save a link as an Item. `content` supplies a thread. For a Reddit link it is the Reddit JSON: one text, or 1 to 101 texts, the thread's `.json` first and then the permalink answers (`/comments/<post>/_/<comment>.json`) that fill its `more` stubs, each holding one comment at its top. For an X link it is exactly one JSON text `{post, replies}`: `post` has `id` (the link's status id), `author` (the handle without @), `text`, `postedAt` (ISO 8601 or null) and `replies` (the reply count X reports, or null), and each of at most 500 `replies` has `id`, `parentId` (the post's id or another reply's id), `author`, `text`, `postedAt` and `likes` (a whole number or null); every id is a digit string with no leading zero and at most 29 digits, and no other field is allowed. `page` supplies the text of a web page that the caller read in its own browser tab: `markdown` (the page text), `title`, and optionally `author`, `published` (an ISO 8601 date) and `videos` (the video addresses the Markdown links to). The server publishes a `page` like a fetched article, with the same 100-word minimum, image storage and Highlight anchoring, and never fetches the page itself. A link takes `content` or `page`, not both. `fill: true` with `content` saves the thread only for a Reddit post or comment Item that holds no thread yet, which the Item's `fillable` shows; it answers 409 and changes nothing when the Item already holds a saved thread or no Item has the link, and 400 with `page` or without `content`. `page` takes no X or GitHub link and no Reddit link that is not a post or a comment; a Reddit post or comment takes it as its text and stays a Reddit Item with no comment rows, and a page under 100 words leaves it only its title, author and community; it answers 409 when the Item already holds a saved thread." +
+    scopeNote("POST", "/api/items", PASTE_DIGEST_SCOPE),
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
+    ...scopeRefusal("POST", "/api/items", PASTE_DIGEST_SCOPE),
     201: jsonBody(
       SavedItemResponseSchema,
       "The link was new and is now an Item. The Item is `processing` until its fetch and Digest jobs end. Read `GET /api/items/{id}/status` until `status` leaves `processing`. A short link that cannot be resolved answers with its end state.",
@@ -59,6 +61,9 @@ const saveItemRoute = createRoute({
 export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(saveItemRoute, async (c) => {
     const { url, digest, content, page, fill } = c.req.valid("json");
+
+    requirePasteScopes(c, digest !== undefined);
+
     const saved = await paste(ports, url, { digest, content, page, fill });
 
     if (saved.kind === "too-large") {
@@ -85,9 +90,6 @@ export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
       return c.json({ error: `${saved.field}: ${saved.reason}`, code: saved.code }, 400);
     }
 
-    return c.json(
-      { item: itemView(saved.item), url: itemPath(saved.item.id) },
-      saved.created ? 201 : 200,
-    );
+    return c.json(savedView(saved.item), saved.created ? 201 : 200);
   });
 }

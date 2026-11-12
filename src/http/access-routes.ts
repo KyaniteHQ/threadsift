@@ -89,9 +89,11 @@ function registerSessionRoutes(app: OpenAPIHono, ports: Ports): void {
 }
 
 function registerTokenRoutes(app: OpenAPIHono, ports: Ports): void {
-  app.openapi(createTokenRoute, async (c) =>
-    c.json(await createToken(ports, c.req.valid("json").name), 201),
-  );
+  app.openapi(createTokenRoute, async (c) => {
+    const { name, scopes } = c.req.valid("json");
+
+    return c.json(await createToken(ports, name, scopes), 201);
+  });
 
   app.openapi(listTokensRoute, async (c) => c.json({ tokens: await listTokens(ports) }, 200));
 

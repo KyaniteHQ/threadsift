@@ -11,6 +11,7 @@ const FAILURE_TEXT: Readonly<Record<Failure, string>> = {
   "access-missing": TEXT.accessMissing,
   "page-blocked": TEXT.pageBlocked,
   "token-refused": TEXT.tokenRefused,
+  "scope-refused": TEXT.scopeRefused,
   "too-large": TEXT.tooLarge,
   "private-link": TEXT.privateLink,
   "unsupported-link": TEXT.unsupportedLink,
@@ -24,6 +25,7 @@ const NEEDS_SETTINGS: ReadonlySet<SaveState["kind"]> = new Set([
   "not-configured",
   "access-missing",
   "token-refused",
+  "scope-refused",
 ]);
 
 const root = document.querySelector("#root");
