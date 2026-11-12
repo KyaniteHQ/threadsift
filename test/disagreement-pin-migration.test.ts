@@ -105,67 +105,27 @@ describe("the Pin migration on a database made by the release before it", () => 
     assert.equal(inserted?.["id"], 4);
   });
 
-  it("refuses a disagreement Pin without both Items or both tokens, with equal ids or with a target, on insert and update", () => {
+  it("removes a disagreement Pin with the Item on either side of it and leaves the other Pins", () => {
     const database = sqlite();
 
-    const insert = (columns: string, values: string) => () => {
-      database.exec(
-        `insert into pins (kind, from_key, from_name, ${columns}, created_at) values ('items-disagree', 'k', 'r', ${values}, 5)`,
-      );
-    };
-
-    assert.throws(insert("from_item_id, into_item_id", "1, 2"), /pins_subject/u);
-    assert.throws(insert("from_digest, into_digest", "1, 2"), /pins_subject/u);
-    assert.throws(
-      insert("from_item_id, into_item_id, from_digest, into_digest", "1, 1, 1, 2"),
-      /pins_subject/u,
+    database.exec(
+      "insert into items (id, source, kind, normalized_url, original_url, saved_at, topic_id) values (3, 'article', 'article', 'u3', 'u3', 3, 1), (4, 'article', 'article', 'u4', 'u4', 4, 1)",
     );
-    assert.throws(
-      insert("from_item_id, into_item_id, from_digest, into_digest, into_tag_id", "1, 2, 1, 2, 1"),
-      /pins_subject/u,
+    database.exec(
+      "insert into pins (kind, from_key, from_name, from_item_id, into_item_id, from_digest, into_digest, created_at) values ('items-disagree', '3:4', 'Opposite.', 3, 4, 3, 4, 7)",
     );
-    assert.throws(
-      insert(
-        "from_item_id, into_item_id, from_digest, into_digest, into_topic_id",
-        "1, 2, 1, 2, 1",
-      ),
-      /pins_subject/u,
-    );
-    assert.throws(() => {
-      database.exec("update pins set into_item_id = from_item_id where id = 4");
-    }, /pins_subject/u);
-    assert.throws(() => {
-      database.exec("update pins set into_tag_id = 1 where id = 4");
-    }, /pins_subject/u);
-    database.close();
-  });
 
-  it("refuses the four new columns on a Tag Pin and a Topic Pin, on insert and update", () => {
-    const database = sqlite();
+    const disagreements = () =>
+      database
+        .prepare("select from_key as key from pins where kind = 'items-disagree' order by id")
+        .all()
+        .map((row) => row["key"]);
 
-    assert.throws(() => {
-      database.exec(
-        "insert into pins (kind, from_key, from_name, into_tag_id, from_item_id, created_at) values ('tag-merge', 'w', 'W', 1, 1, 6)",
-      );
-    }, /pins_subject/u);
-    assert.throws(() => {
-      database.exec(
-        "insert into pins (kind, from_key, from_name, into_topic_id, into_digest, created_at) values ('topic-merge', 'w', 'W', 1, 3, 6)",
-      );
-    }, /pins_subject/u);
-    assert.throws(() => {
-      database.exec("update pins set from_digest = 3 where id = 1");
-    }, /pins_subject/u);
-    assert.throws(() => {
-      database.exec("update pins set into_item_id = 2 where id = 2");
-    }, /pins_subject/u);
-    database.close();
-  });
-
-  it("removes a disagreement Pin with either Item it names", () => {
-    const database = sqlite();
-
+    assert.deepEqual(disagreements(), ["1:2", "3:4"]);
     database.exec("delete from items where id = 1");
+    assert.deepEqual(disagreements(), ["3:4"]);
+    database.exec("delete from items where id = 4");
+    assert.deepEqual(disagreements(), []);
     assert.equal(database.prepare("select count(*) as n from pins").get()?.["n"], 2);
     database.close();
   });

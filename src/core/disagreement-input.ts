@@ -138,28 +138,27 @@ function amongItems(column: Readonly<SQLWrapper>, wanted: string) {
 async function decidedPairs(db: Database, itemIds: readonly number[]): Promise<Set<string>> {
   const wanted = JSON.stringify(itemIds);
 
-  const [rows, pinned] = await Promise.all([
-    db
-      .select({ from: proposals.fromItemId, into: proposals.intoItemId })
-      .from(proposals)
-      .where(
-        and(
-          eq(proposals.kind, "items-disagree"),
-          amongItems(proposals.fromItemId, wanted),
-          amongItems(proposals.intoItemId, wanted),
-        ),
+  const rows = await db
+    .select({ from: proposals.fromItemId, into: proposals.intoItemId })
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.kind, "items-disagree"),
+        amongItems(proposals.fromItemId, wanted),
+        amongItems(proposals.intoItemId, wanted),
       ),
-    db
-      .select({ key: pins.fromKey })
-      .from(pins)
-      .where(
-        and(
-          currentDisagreementPin(),
-          amongItems(pins.fromItemId, wanted),
-          amongItems(pins.intoItemId, wanted),
-        ),
+    );
+
+  const pinned = await db
+    .select({ key: pins.fromKey })
+    .from(pins)
+    .where(
+      and(
+        currentDisagreementPin(),
+        amongItems(pins.fromItemId, wanted),
+        amongItems(pins.intoItemId, wanted),
       ),
-  ]);
+    );
 
   return new Set([
     ...rows.flatMap(({ from, into }) =>

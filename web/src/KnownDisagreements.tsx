@@ -32,7 +32,12 @@ function Entry({
       <p className="tp-line" dir="auto">
         {disagreement.reason}
       </p>
-      <ul className="tp-dis-items" aria-label={TOPIC_PAGE.disagreementsEntryLabel}>
+      <ul
+        // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from a ul with list-style none
+        role="list"
+        className="tp-dis-items"
+        aria-label={TOPIC_PAGE.disagreementsEntryLabel}
+      >
         {disagreement.items.map((side) => (
           <SideLink key={side.id} side={side} navigate={navigate} />
         ))}

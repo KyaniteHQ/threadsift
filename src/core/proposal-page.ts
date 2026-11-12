@@ -1,7 +1,13 @@
 import { type SQLWrapper, and, desc, eq, inArray, lt, max, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import { disagreementHolds } from "./disagreement-rows.ts";
+import {
+  disagreementHolds,
+  firstDigest,
+  firstItem,
+  secondDigest,
+  secondItem,
+} from "./disagreement-rows.ts";
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { itemTitle } from "./item-title.ts";
 import { PROPOSAL_KINDS, type ProposalKind, WEEKLY_TASK } from "./kinds.ts";
@@ -37,14 +43,6 @@ const fromTopic = alias(topics, "from_topic");
 const intoTopic = alias(topics, "into_topic");
 
 const subjectTopic = alias(topics, "subject_topic");
-
-const firstItem = alias(items, "first_item");
-
-const secondItem = alias(items, "second_item");
-
-const firstDigest = alias(digests, "first_digest");
-
-const secondDigest = alias(digests, "second_digest");
 
 function nameOf(tag: Readonly<SQLWrapper>, topic: Readonly<SQLWrapper>) {
   return sql<string>`coalesce(${tag}, ${topic})`;

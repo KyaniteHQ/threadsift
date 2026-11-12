@@ -2,8 +2,8 @@ import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { providerSet } from "./ai-tasks.ts";
 import { catalogKey } from "./catalog-key.ts";
-import { readDisagreements } from "./disagreement-pins.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
+import { readDisagreements } from "./known-disagreements.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, pins, topicPages, topics } from "./schema.ts";
 import { hasOpenOverview, notBuiltFrom } from "./topic-coverage.ts";

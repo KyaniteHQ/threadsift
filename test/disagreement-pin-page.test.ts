@@ -90,7 +90,7 @@ describe("the Topic page lists the disagreement Pins that still hold", () => {
       .object({ paths: z.record(z.string(), z.unknown()) })
       .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
 
-    assert.match(JSON.stringify(document.paths["/api/topics/{key}"]), /disagreements/u);
+    assert.match(JSON.stringify(document.paths["/api/topics/{key}"]), /"disagreements":\{/u);
   });
 });
 
@@ -129,6 +129,21 @@ describe("the Topic page shows at most 20 entries, newest first", () => {
     assert.deepEqual(
       listed.map(({ items }) => items[0]?.id),
       Array.from({ length: 20 }, (_, at) => (22 - at) * 2 + 1),
+    );
+  });
+
+  it("lists first the Pin of an old pair that was accepted again after its Digest changed", async () => {
+    replaceDigestToken(instance, 1, 900);
+    assert.deepEqual(await acceptStatus(instance, proposeDisagreement(instance, [1, 2])), [
+      200,
+      { state: "done" },
+    ]);
+
+    const listed = await topicDisagreements(instance, "reading");
+
+    assert.deepEqual(
+      listed.map(({ items }) => items[0]?.id),
+      [1, ...Array.from({ length: 19 }, (_, at) => (22 - at) * 2 + 1)],
     );
   });
 });
