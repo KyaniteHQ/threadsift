@@ -50,6 +50,7 @@ function insertedRows(db: Database, now: number) {
           moved: sql<null>`null`.as("moved"),
           unitRevision: sql<null>`null`.as("unit_revision"),
           highlightId: sql<number>`${highlights.id}`.as("highlight_id"),
+          topicId: sql<null>`null`.as("topic_id"),
         })
         .from(highlights)
         .where(and(inArray(highlights.id, newestWithoutRow(db)), sql`changes() > 0`))

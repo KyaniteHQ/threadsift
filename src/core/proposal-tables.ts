@@ -21,6 +21,7 @@ export const proposals = sqliteTable(
     moved: integer("moved"),
     unitRevision: integer("unit_revision"),
     highlightId: integer("highlight_id").references(() => highlights.id, { onDelete: "cascade" }),
+    topicId: integer("topic_id").references(() => topics.id, { onDelete: "cascade" }),
   },
   (table) => [
     uniqueIndex("proposals_pair").on(
@@ -32,6 +33,7 @@ export const proposals = sqliteTable(
       sql`max(${table.fromTopicId}, ${table.intoTopicId})`,
     ),
     uniqueIndex("proposals_highlight").on(table.highlightId),
+    uniqueIndex("proposals_overview_topic").on(table.topicId),
     index("proposals_from").on(table.fromTagId),
     index("proposals_into").on(table.intoTagId),
     index("proposals_from_topic").on(table.fromTopicId),
