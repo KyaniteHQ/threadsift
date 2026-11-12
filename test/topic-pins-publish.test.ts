@@ -6,7 +6,7 @@ import { z } from "zod";
 import { count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { dump, holdSweep, item, rerunSteps, script } from "./pin-fixtures.ts";
+import { dump, item, rerunSteps, script } from "./pin-fixtures.ts";
 import { exec, paste, rows, until } from "./related-fixtures.ts";
 
 const TARGET = "Machine Learning";
@@ -122,12 +122,7 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
   });
 
   it("links an unlinked stored Digest in the older-Digest linking and writes the target's name into it", async () => {
-    script(
-      instance,
-      item(900, [], [], { topic: "ML" }) +
-        "\ninsert into items (id, source, kind, normalized_url, original_url, saved_at) values (901, 'other', 'link', 'https://example.com/901', 'https://example.com/901', 901);",
-    );
-    holdSweep(instance);
+    script(instance, item(900, [], [], { topic: "ML" }));
     exec(instance, "delete from scheduled_runs where task = 'sweep'");
     await instance.tick();
 

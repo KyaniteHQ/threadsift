@@ -38,18 +38,15 @@ function digestsUnchanged(reads: readonly DigestRead[]) {
   return (column: Readonly<SQLWrapper>) => sql`${column} in (${unchanged})`;
 }
 
-function mergedDigest(
+function mergedTags(
   { digest }: Readonly<StoredDigest>,
   { from, into }: Readonly<{ from: TagRef; into: TagRef }>,
-): string | null {
+): readonly string[] | null {
   const parsed = parseStoredDigest(digest);
 
   if (!parsed.tags.some((name) => catalogKey(name) === from.key)) return null;
 
-  return JSON.stringify({
-    ...parsed,
-    tags: renamedTags(parsed.tags, (key) => (key === from.key ? into.name : undefined)),
-  });
+  return renamedTags(parsed.tags, (key) => (key === from.key ? into.name : undefined));
 }
 
 export function digestRewrites(
@@ -59,14 +56,16 @@ export function digestRewrites(
 ): readonly BatchItem<"sqlite">[] {
   return stored.flatMap((row) => {
     try {
-      const rewritten = mergedDigest(row, merge);
+      const rewritten = mergedTags(row, merge);
 
       return rewritten === null
         ? []
         : [
             db
               .update(digests)
-              .set({ digest: rewritten })
+              .set({
+                digest: sql`json_set(${digests.digest}, '$.tags', json(${JSON.stringify(rewritten)}))`,
+              })
               .where(
                 and(
                   eq(digests.itemId, row.itemId),
