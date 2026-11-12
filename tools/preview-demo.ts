@@ -6,8 +6,9 @@ import {
   insertHighlights,
   missingHighlights,
 } from "./preview-demo-highlights.ts";
+import { insertOverviewProposals, missingOverviewProposals } from "./preview-demo-overviews.ts";
 import { rowNames } from "./preview-migrations.ts";
-import { quoted } from "./preview-sql.ts";
+import { NOW_MS, quoted } from "./preview-sql.ts";
 
 type Pair = { readonly from: string; readonly into: string; readonly reason: string };
 
@@ -62,6 +63,8 @@ const demoTopicMerges = [
   },
 ] as const satisfies readonly Pair[];
 
+const DEMO_TOPIC = "Demo topic";
+
 function demoUrl(number: number): string {
   return `https://example.com/demo/${String(number)}`;
 }
@@ -109,7 +112,7 @@ function demoDigestPaste(
 }
 
 const tagPastes = demoTagMerges.map(({ from, into }, index) =>
-  demoDigestPaste(index + 1, { topic: "Demo topic", tags: [from, into] }),
+  demoDigestPaste(index + 1, { topic: DEMO_TOPIC, tags: [from, into] }),
 );
 
 const topicPastes = demoTopicMerges.flatMap(({ from, into }, index) => {
@@ -158,7 +161,7 @@ function insertProposals(kind: Kind): string {
 
   return `${pairsCte(kind)}
 INSERT INTO proposals (kind, ${fromColumn}, ${intoColumn}, reason, state, created_at)
-SELECT '${kind}', from_subject.id, into_subject.id, demo.reason, 'open', CAST(strftime('%s', 'now') AS INTEGER) * 1000
+SELECT '${kind}', from_subject.id, into_subject.id, demo.reason, 'open', ${NOW_MS}
 FROM demo
 JOIN ${table} AS from_subject ON from_subject.key = demo.from_key
 JOIN ${table} AS into_subject ON into_subject.key = demo.into_key
@@ -186,37 +189,69 @@ WHERE NOT EXISTS (
 ) ${accepted}`;
 }
 
+const demoOverviewTopics = [DEMO_TOPIC, demoTopicMerges[0].into, demoTopicMerges[1].into] as const;
+
 const SCHEMA_PROBES = {
   proposals: { table: "proposals", column: "id" },
   topicProposals: { table: "proposals", column: "from_topic_id" },
   highlightProposals: { table: "proposals", column: "highlight_id" },
+  overviewProposals: { table: "proposals", column: "topic_id" },
   pins: { table: "pins", column: "id" },
   topicPins: { table: "pins", column: "into_topic_id" },
 } as const;
 
-type SchemaFacts = Readonly<Record<keyof typeof SCHEMA_PROBES, boolean>>;
+type ProbeName = keyof typeof SCHEMA_PROBES;
+
+type SchemaFacts = readonly ProbeName[];
+
+function isProbeName(name: string): name is ProbeName {
+  return Object.hasOwn(SCHEMA_PROBES, name);
+}
 
 function schemaFacts(
   run: (args: readonly string[]) => string,
   scope: readonly string[],
 ): SchemaFacts {
-  const query = Object.entries(SCHEMA_PROBES)
-    .map(
-      ([fact, { table, column }]) =>
-        `SELECT '${fact}' AS name FROM pragma_table_info('${table}') WHERE name = '${column}'`,
-    )
-    .join(" UNION ALL ");
+  const probes = Object.entries(SCHEMA_PROBES)
+    .map(([fact, { table, column }]) => `('${fact}', '${table}', '${column}')`)
+    .join(", ");
 
-  const present = new Set(rowNames(run, scope, query));
+  const query = `WITH probe (fact, tbl, col) AS (VALUES ${probes})
+SELECT probe.fact AS name
+FROM probe
+WHERE EXISTS (SELECT 1 FROM pragma_table_info(probe.tbl) WHERE name = probe.col)`;
 
-  return {
-    proposals: present.has("proposals"),
-    topicProposals: present.has("topicProposals"),
-    highlightProposals: present.has("highlightProposals"),
-    pins: present.has("pins"),
-    topicPins: present.has("topicPins"),
-  };
+  return rowNames(run, scope, query).filter((name) => isProbeName(name));
 }
+
+type DemoSeed = {
+  readonly enabled: (facts: SchemaFacts) => boolean;
+  readonly inserts: readonly string[];
+  readonly check: (facts: SchemaFacts) => string;
+};
+
+const DEMO_SEEDS: readonly DemoSeed[] = [
+  {
+    enabled: () => true,
+    inserts: [insertProposals("tag-merge")],
+    check: (facts) => missingPairs("tag-merge", facts.includes("pins")),
+  },
+  {
+    enabled: (facts) => facts.includes("topicProposals"),
+    inserts: [insertProposals("topic-merge")],
+    check: (facts) => missingPairs("topic-merge", facts.includes("topicPins")),
+  },
+  {
+    enabled: (facts) => facts.includes("highlightProposals"),
+    inserts: [insertHighlights(demoLostHighlights), insertHighlightProposals(demoLostHighlights)],
+    check: () => missingHighlights(demoLostHighlights),
+  },
+  {
+    enabled: (facts) => facts.includes("overviewProposals"),
+    inserts: [insertOverviewProposals(demoOverviewTopics)],
+    check: () => missingOverviewProposals(demoOverviewTopics),
+  },
+];
 
 export function seedDemoProposals(
   run: (args: readonly string[]) => string,
@@ -224,31 +259,15 @@ export function seedDemoProposals(
 ): void {
   const facts = schemaFacts(run, scope);
 
-  if (!facts.proposals) return;
+  if (!facts.includes("proposals")) return;
 
-  const seeded: readonly { readonly kind: Kind; readonly pinsReadable: boolean }[] =
-    facts.topicProposals
-      ? [
-          { kind: "tag-merge", pinsReadable: facts.pins },
-          { kind: "topic-merge", pinsReadable: facts.topicPins },
-        ]
-      : [{ kind: "tag-merge", pinsReadable: facts.pins }];
+  const seeds = DEMO_SEEDS.filter(({ enabled }) => enabled(facts));
 
-  const inserts = [
-    ...seeded.map(({ kind }) => insertProposals(kind)),
-    ...(facts.highlightProposals
-      ? [insertHighlights(demoLostHighlights), insertHighlightProposals(demoLostHighlights)]
-      : []),
-  ];
+  const inserts = seeds.flatMap((seed) => seed.inserts);
 
   run(["d1", "execute", "DB", "--json", "--command", inserts.join(";\n"), ...scope]);
 
-  const checks = [
-    ...seeded.map(({ kind, pinsReadable }) => missingPairs(kind, pinsReadable)),
-    ...(facts.highlightProposals ? [missingHighlights(demoLostHighlights)] : []),
-  ];
-
-  const missing = rowNames(run, scope, checks.join(";\n"));
+  const missing = rowNames(run, scope, seeds.map((seed) => seed.check(facts)).join(";\n"));
 
   if (missing.length > 0)
     throw new CommandFailure({

@@ -1,12 +1,10 @@
 import { PROJECTION_VERSION } from "../src/core/text-projection.ts";
-import { quoted } from "./preview-sql.ts";
+import { NOW_MS, PLAIN_CHECK, quoted } from "./preview-sql.ts";
 
 export type DemoHighlight = { readonly url: string; readonly exact: string };
 
 const KIND = "highlight-lost";
-const REASON = "plain-check";
 const STATUS = "gone";
-const NOW_MS = "CAST(strftime('%s', 'now') AS INTEGER) * 1000";
 
 function demoCte(demos: readonly DemoHighlight[]): string {
   const rows = demos.map(({ url, exact }) => `(${quoted(url)}, ${quoted(exact)})`).join(", ");
@@ -28,7 +26,7 @@ WHERE NOT EXISTS (
 export function insertHighlightProposals(demos: readonly DemoHighlight[]): string {
   return `${demoCte(demos)}
 INSERT INTO proposals (kind, highlight_id, reason, state, created_at)
-SELECT ${quoted(KIND)}, highlights.id, ${quoted(REASON)}, 'open', ${NOW_MS}
+SELECT ${quoted(KIND)}, highlights.id, ${quoted(PLAIN_CHECK)}, 'open', ${NOW_MS}
 FROM demo
 JOIN items ON items.normalized_url = demo.url
 JOIN highlights ON highlights.item_id = items.id AND highlights.exact = demo.exact
