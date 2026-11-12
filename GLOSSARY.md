@@ -97,11 +97,11 @@ One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later o
 _Avoid_: Event, Audit record
 
 **Proposal**:
-A change the agent suggests on the weekly Proposals page: merging two Tags, merging two Topics, removing a Highlight that is no longer found, or writing again the overview of a Topic that leaves Items out. The owner accepts or rejects a Proposal of every kind.
+A change the agent suggests on the weekly Proposals page: merging two Tags, merging two Topics, removing a Highlight that is no longer found, writing again the overview of a Topic that leaves Items out, or two Items of one Topic whose Summaries disagree. The owner accepts or rejects a Proposal of every kind, except that Accept of a disagreement is not built yet and the owner can only reject it.
 _Avoid_: Suggestion, lint, fix
 
 **Proposals page**:
-The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, for a lost Highlight its quote and its Item's title as a link to the Highlight's place in the Reader, or for a Topic whose overview leaves Items out the Topic as a link to its page with how many of its Items are not in the overview and how many it has, and lets the owner accept or reject each.
+The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, for a lost Highlight its quote and its Item's title as a link to the Highlight's place in the Reader, for a Topic whose overview leaves Items out the Topic as a link to its page with how many of its Items are not in the overview and how many it has, or for two Items that disagree both titles as links to the Reader with their Summaries and the agent's reason, and lets the owner accept or reject each, a disagreement only reject.
 _Avoid_: Suggestions page, Inbox
 
 **Pin**:
