@@ -29,28 +29,14 @@ interface StoredRow {
   readonly state: "open" | "declined";
 }
 
-interface WeeklyRun {
-  readonly kind: "tag-merge" | "topic-merge";
-  readonly label: string;
-  readonly event: string;
-  readonly task: Parameters<typeof proposalsTask>[0];
-}
+type ProposalKind = Parameters<typeof proposalsTask>[0];
 
-const TAG_RUN: WeeklyRun = {
-  kind: "tag-merge",
-  label: "Proposals run",
-  event: "proposals-run-failed",
-  task: "proposals",
+const RUNS: Readonly<Record<ProposalKind, { readonly label: string; readonly event: string }>> = {
+  "tag-merge": { label: "Proposals run", event: "proposals-run-failed" },
+  "topic-merge": { label: "Topic proposals run", event: "topic-proposals-run-failed" },
 };
 
-const TOPIC_RUN: WeeklyRun = {
-  kind: "topic-merge",
-  label: "Topic proposals run",
-  event: "topic-proposals-run-failed",
-  task: "topic_proposals",
-};
-
-function sentExist({ kind }: Readonly<WeeklyRun>, sent: readonly Readonly<SentPair>[]): SQL {
+function sentExist(kind: ProposalKind, sent: readonly Readonly<SentPair>[]): SQL {
   const ids = JSON.stringify(sent.flatMap(({ low, high }) => [low.id, high.id]));
   const table = kind === "tag-merge" ? tags : topics;
 
@@ -75,12 +61,12 @@ function rowsOf(
 
 function storedRows(
   db: Database,
-  { kind }: Readonly<WeeklyRun>,
+  kind: ProposalKind,
   rows: readonly Readonly<StoredRow>[],
 ): JobWrites {
   if (rows.length === 0) return [];
 
-  const side = (own: WeeklyRun["kind"], path: "from" | "into") =>
+  const side = (own: ProposalKind, path: "from" | "into") =>
     kind === own ? sql<number>`json_extract(stored.value, ${`$.${path}`})` : sql<null>`null`;
 
   return [
@@ -90,7 +76,7 @@ function storedRows(
         db
           .select({
             id: sql<null>`null`.as("id"),
-            kind: sql<WeeklyRun["kind"]>`${kind}`.as("kind"),
+            kind: sql<ProposalKind>`${kind}`.as("kind"),
             fromTagId: side("tag-merge", "from").as("from_tag_id"),
             intoTagId: side("tag-merge", "into").as("into_tag_id"),
             fromTopicId: side("topic-merge", "from").as("from_topic_id"),
@@ -111,7 +97,7 @@ function storedRows(
 
 function storedOutcome(
   db: Database,
-  run: Readonly<WeeklyRun>,
+  kind: ProposalKind,
   {
     sent,
     taskId,
@@ -122,10 +108,10 @@ function storedOutcome(
     result: Readonly<ProposalsResult>;
   }>,
 ): SettledOutcome {
-  return guardedOutcome(db, sql`${sentExist(run, sent)} and ${aiTaskRunning(taskId)}`, {
+  return guardedOutcome(db, sql`${sentExist(kind, sent)} and ${aiTaskRunning(taskId)}`, {
     taskId,
     writes: [
-      ...storedRows(db, run, rowsOf(sent, result.merges)),
+      ...storedRows(db, kind, rowsOf(sent, result.merges)),
       completedAiTask(db, { taskId, result }),
     ],
   });
@@ -141,19 +127,19 @@ async function catalogRevision(ports: JobPorts): Promise<number> {
 }
 
 async function attemptRun(
-  run: Readonly<WeeklyRun>,
+  kind: ProposalKind,
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
 ): Promise<JobOutcome> {
   const { db } = ports;
   const inputRevision = await catalogRevision(ports);
-  const { input, sent } = proposalsInput(await readProposalPairs(db, run.kind));
+  const { input, sent } = proposalsInput(await readProposalPairs(db, kind));
 
   if (sent.length === 0) return guardedOutcome(db, sql`1`);
 
   const result = await runAiTask(
     ports,
-    proposalsTask(run.task, sent),
+    proposalsTask(kind, sent),
     {
       text: input,
       inputRevision,
@@ -168,27 +154,27 @@ async function attemptRun(
   if (result.kind !== "done") {
     const refused = await refusalOutcome(db, job, {
       result,
-      current: sentExist(run, sent),
-      label: run.label,
+      current: sentExist(kind, sent),
+      label: RUNS[kind].label,
     });
 
-    console.warn(JSON.stringify({ event: run.event, reason: result.reason }));
+    console.warn(JSON.stringify({ event: RUNS[kind].event, reason: result.reason }));
 
     return refused;
   }
 
-  return storedOutcome(db, run, { sent, taskId: result.taskId, result: result.result });
+  return storedOutcome(db, kind, { sent, taskId: result.taskId, result: result.result });
 }
 
-function handlerOf(run: Readonly<WeeklyRun>): JobHandler {
+function handlerOf(kind: ProposalKind): JobHandler {
   return {
     deadlineMs: AI_DEADLINE_MS,
     blockedBy: [],
-    attempt: (ports, job) => attemptRun(run, ports, job),
+    attempt: (ports, job) => attemptRun(kind, ports, job),
     exhausted: () => [],
   };
 }
 
-export const proposalsHandler = handlerOf(TAG_RUN);
+export const proposalsHandler = handlerOf("tag-merge");
 
-export const topicProposalsHandler = handlerOf(TOPIC_RUN);
+export const topicProposalsHandler = handlerOf("topic-merge");

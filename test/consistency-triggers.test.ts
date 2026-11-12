@@ -74,7 +74,7 @@ const jobRows: readonly JobRow[] = JOB_KINDS.flatMap((kind) =>
   JOB_STATES.map((state) => ({ kind, state })),
 );
 
-describe("every status, reason, Source, kind, job, Log and proposal value in src/core/kinds.ts passes the consistency triggers", () => {
+describe("every status, reason, Source, kind, job and Log value in src/core/kinds.ts passes the consistency triggers", () => {
   let instance: Instance;
   let database: DatabaseSync;
   let saved = 0;

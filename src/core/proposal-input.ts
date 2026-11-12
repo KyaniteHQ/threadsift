@@ -129,9 +129,17 @@ export function proposalsInput(pairs: readonly Readonly<SentPair>[]) {
   return { input: proposalsJson(sent), sent };
 }
 
+type Base = Readonly<Pick<NamedCandidate, "id" | "name" | "items">>;
+
 const NAMES = {
-  "tag-merge": { of: topicsOf, field: "topics" },
-  "topic-merge": { of: tagsOf, field: "tags" },
+  "tag-merge": {
+    of: topicsOf,
+    subject: (base: Base, names: readonly string[]): SentSubject => ({ ...base, topics: names }),
+  },
+  "topic-merge": {
+    of: tagsOf,
+    subject: (base: Base, names: readonly string[]): SentSubject => ({ ...base, tags: names }),
+  },
 } as const;
 
 function sentPair(
@@ -154,7 +162,7 @@ export async function readProposalPairs(
 
   if (ids.length === 0) return [];
 
-  const { of, field } = NAMES[kind];
+  const { of, subject } = NAMES[kind];
   const names = await of(db, ids);
 
   const named = new Map<number, SentSubject>(
@@ -162,7 +170,7 @@ export async function readProposalPairs(
       .filter(({ id }) => ids.includes(id))
       .map(({ id, name, items: used }) => [
         id,
-        { id, name, items: used, [field]: names.get(id) ?? [] },
+        subject({ id, name, items: used }, names.get(id) ?? []),
       ]),
   );
 

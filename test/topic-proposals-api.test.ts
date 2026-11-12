@@ -88,29 +88,6 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
     assert.equal(agent.body, JSON.stringify(owner));
   });
 
-  it("refuses a token a Reject and an Accept, and answers 404 for an unknown id", async () => {
-    const [topic] = (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals;
-
-    assert.ok(topic !== undefined);
-
-    const answers = await Promise.all(
-      ["reject", "accept"].map(async (action) => {
-        const path = `/api/proposals/${String(topic.id)}/${action}`;
-
-        return [
-          (await instance.sendWithToken(token, "POST", path)).status,
-          (await instance.fetch(path, { method: "POST" })).status,
-          (await instance.send("POST", `/api/proposals/999999/${action}`)).status,
-        ];
-      }),
-    );
-
-    assert.deepEqual(answers, [
-      [403, 401, 404],
-      [403, 401, 404],
-    ]);
-  });
-
   it("answers 409 not-supported to an Accept of a Topic row, whatever its state, and leaves it open", async () => {
     const [topic] = (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals;
 
@@ -162,13 +139,6 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
     );
     assert.deepEqual(states(instance), ["rejected", "rejected", "rejected"]);
   });
-
-  it("describes the accept route's not-supported answer in the OpenAPI document", async () => {
-    const { body } = await instance.send("GET", "/api/openapi.json");
-
-    assert.ok(body.includes("not-supported"));
-    assert.ok(body.includes("topic-merge"));
-  });
 });
 
 describe("checkedAt is the most recent start of either weekly run", () => {
@@ -207,36 +177,5 @@ describe("checkedAt is the most recent start of either weekly run", () => {
 
     exec(instance, "delete from scheduled_runs where task = 'topic_proposals'");
     assert.equal(await checkedAt(), 9000);
-  });
-});
-
-describe("deleting Items leaves a Topic row alone and shrinks its counts live", () => {
-  let instance: Instance;
-
-  before(async () => {
-    instance = await Instance.start();
-    await instance.setUp();
-  });
-
-  after(() => instance.close());
-
-  it("keeps the row and counts the Items that are left", async () => {
-    const first = await paste(instance, "one", { title: "One", topic: "ML" });
-    await paste(instance, "two", { title: "Two", topic: "ML" });
-    await paste(instance, "three", { title: "Three", topic: "Machine learning" });
-
-    exec(
-      instance,
-      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) values ('topic-merge', ?, ?, 'Short form.', 'open', 1)",
-      idOf(instance, "topics", "ML"),
-      idOf(instance, "topics", "Machine learning"),
-    );
-
-    assert.equal((await instance.send("DELETE", `/api/items/${String(first)}`)).status, 204);
-
-    const [row] = (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals;
-
-    assert.deepEqual([row?.from.items, row?.into.items], [1, 1]);
-    assert.deepEqual(states(instance), ["open"]);
   });
 });

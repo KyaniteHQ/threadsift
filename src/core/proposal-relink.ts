@@ -1,12 +1,11 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import type { ProposalKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { proposals } from "./schema.ts";
 
 const other = alias(proposals, "other");
-
-export type ProposalSubject = "tag" | "topic";
 
 interface Columns {
   readonly id: Readonly<SQLWrapper>;
@@ -16,11 +15,11 @@ interface Columns {
 }
 
 // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle table type holds mutable column objects, so it cannot be deeply readonly.
-function columnsOf(row: typeof proposals | typeof other, subject: ProposalSubject): Columns {
+function columnsOf(row: typeof proposals | typeof other, kind: ProposalKind): Columns {
   return {
     id: row.id,
-    from: subject === "tag" ? row.fromTagId : row.fromTopicId,
-    into: subject === "tag" ? row.intoTagId : row.intoTopicId,
+    from: kind === "tag-merge" ? row.fromTagId : row.fromTopicId,
+    into: kind === "tag-merge" ? row.intoTagId : row.intoTopicId,
     state: row.state,
   };
 }
@@ -41,14 +40,9 @@ function outranks(first: Readonly<Columns>, second: Readonly<Columns>): SQL {
   return sql`(${strength(first)} < ${strength(second)} or (${strength(first)} = ${strength(second)} and ${first.id} < ${second.id}))`;
 }
 
-export function proposalRelinks(
-  db: Database,
-  subject: ProposalSubject,
-  loser: number,
-  survivor: number,
-) {
-  const outer = columnsOf(proposals, subject);
-  const inner = columnsOf(other, subject);
+export function proposalRelinks(db: Database, kind: ProposalKind, loser: number, survivor: number) {
+  const outer = columnsOf(proposals, kind);
+  const inner = columnsOf(other, kind);
 
   return [
     db
@@ -69,7 +63,7 @@ export function proposalRelinks(
     db
       .update(proposals)
       .set(
-        subject === "tag"
+        kind === "tag-merge"
           ? {
               fromTagId: sql`case when ${outer.from} = ${loser} then ${survivor} else ${outer.from} end`,
               intoTagId: sql`case when ${outer.into} = ${loser} then ${survivor} else ${outer.into} end`,

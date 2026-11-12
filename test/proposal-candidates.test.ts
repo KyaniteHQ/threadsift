@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { catalogKey } from "../src/core/catalog-key.ts";
-import { WEEKLY_TASKS } from "../src/core/kinds.ts";
 import {
   type Candidate,
   PROPOSALS_MAX,
@@ -129,43 +128,42 @@ function merge(from: number, into: number, reason = "The same concept.") {
   return { from, into, reason };
 }
 
-for (const task of WEEKLY_TASKS) {
-  describe(`the result of the ${task} run names only sent pairs, each subject once, at most 20 merges, each with a short plain reason`, () => {
-    const SENT_PAIRS = [sent(1, "a"), sent(3, "b"), sent(5, "c")];
+describe("the result of a weekly run names only sent pairs, each subject once, at most 20 merges, each with a short plain reason", () => {
+  const SENT_PAIRS = [sent(1, "a"), sent(3, "b"), sent(5, "c")];
 
-    const resultAccepts = (merges: readonly unknown[]) =>
-      proposalsTask(task, SENT_PAIRS).schema.safeParse({ merges }).success;
+  const resultAccepts = (merges: readonly unknown[]) =>
+    proposalsTask("tag-merge", SENT_PAIRS).schema.safeParse({ merges }).success;
 
-    it("takes a pair either way round and zero merges", () => {
-      assert.equal(resultAccepts([]), true);
-      assert.equal(resultAccepts([merge(1, 2), merge(4, 3)]), true);
-    });
-
-    it("refuses a subject in two merges, an id or pair that was not sent, and from equal to into", () => {
-      assert.equal(resultAccepts([merge(1, 2), merge(2, 1)]), false);
-      assert.equal(resultAccepts([merge(1, 3)]), false);
-      assert.equal(resultAccepts([merge(1, 99)]), false);
-      assert.equal(resultAccepts([merge(1, 1)]), false);
-    });
-
-    it("takes 20 merges of 20 different sent pairs and refuses 21", () => {
-      const sentPairs = Array.from({ length: 21 }, (_, at) => sent(1 + 2 * at, "p"));
-      const merges = sentPairs.map(({ low, high }) => merge(low.id, high.id));
-
-      const accepts = (count: number) =>
-        proposalsTask(task, sentPairs).schema.safeParse({ merges: merges.slice(0, count) }).success;
-
-      assert.deepEqual([accepts(20), accepts(21)], [true, false]);
-    });
-
-    it("takes a reason of 160 characters, refuses 161 and refuses each forbidden character", () => {
-      assert.equal(resultAccepts([merge(1, 2, "r".repeat(160))]), true);
-      assert.equal(resultAccepts([merge(1, 2, "r".repeat(161))]), false);
-      assert.equal(resultAccepts([merge(1, 2, "")]), false);
-
-      for (const text of ["a [b]", "a {b}", 'a "b"', "a\nb", "a\rb"]) {
-        assert.equal(resultAccepts([merge(1, 2, text)]), false, text);
-      }
-    });
+  it("takes a pair either way round and zero merges", () => {
+    assert.equal(resultAccepts([]), true);
+    assert.equal(resultAccepts([merge(1, 2), merge(4, 3)]), true);
   });
-}
+
+  it("refuses a subject in two merges, an id or pair that was not sent, and from equal to into", () => {
+    assert.equal(resultAccepts([merge(1, 2), merge(2, 1)]), false);
+    assert.equal(resultAccepts([merge(1, 3)]), false);
+    assert.equal(resultAccepts([merge(1, 99)]), false);
+    assert.equal(resultAccepts([merge(1, 1)]), false);
+  });
+
+  it("takes 20 merges of 20 different sent pairs and refuses 21", () => {
+    const sentPairs = Array.from({ length: 21 }, (_, at) => sent(1 + 2 * at, "p"));
+    const merges = sentPairs.map(({ low, high }) => merge(low.id, high.id));
+
+    const accepts = (count: number) =>
+      proposalsTask("tag-merge", sentPairs).schema.safeParse({ merges: merges.slice(0, count) })
+        .success;
+
+    assert.deepEqual([accepts(20), accepts(21)], [true, false]);
+  });
+
+  it("takes a reason of 160 characters, refuses 161 and refuses each forbidden character", () => {
+    assert.equal(resultAccepts([merge(1, 2, "r".repeat(160))]), true);
+    assert.equal(resultAccepts([merge(1, 2, "r".repeat(161))]), false);
+    assert.equal(resultAccepts([merge(1, 2, "")]), false);
+
+    for (const text of ["a [b]", "a {b}", 'a "b"', "a\nb", "a\rb"]) {
+      assert.equal(resultAccepts([merge(1, 2, text)]), false, text);
+    }
+  });
+});

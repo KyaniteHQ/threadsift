@@ -33,8 +33,8 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
         await sweepDigests(ports.db, now);
       },
     ],
-    ["proposals", () => openWeeklyRun(ports, now, "proposals")],
-    ["topic-proposals", () => openWeeklyRun(ports, now, "topic_proposals")],
+    ["proposals", () => openWeeklyRun(ports, now, "tag-merge")],
+    ["topic-proposals", () => openWeeklyRun(ports, now, "topic-merge")],
     ["merges", () => continueMerges(ports.db)],
     ["search", () => reconcileSearchParts(ports)],
     ["files", () => cleanFiles(ports)],

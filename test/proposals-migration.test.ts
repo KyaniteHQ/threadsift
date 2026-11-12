@@ -1,43 +1,49 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
+import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
+import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
+import { Instance } from "./instance.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 
 const REBUILD = "0041_topic-merge-proposals.sql";
 
+const BUSY_TIMEOUT_MS = 5000;
+
+function stateOf(file: string): string {
+  const database = new DatabaseSync(file, { timeout: BUSY_TIMEOUT_MS });
+
+  const found = JSON.stringify([
+    database.prepare("select * from proposals order by id").all(),
+    database.prepare("select name, seq from sqlite_sequence order by name").all(),
+    database.prepare("select name from d1_migrations order by name").all(),
+  ]);
+
+  database.close();
+
+  return found;
+}
+
 describe("the proposals rebuild keeps every row and never reuses an id", () => {
-  let folder = "";
-  let file = "";
+  let older = "";
+  let instance: Instance;
 
   const sqlite = (): DatabaseSync => {
-    const database = new DatabaseSync(file);
+    const database = new DatabaseSync(instance.databaseFile, { timeout: BUSY_TIMEOUT_MS });
     database.exec("PRAGMA foreign_keys = ON");
 
     return database;
   };
 
-  before(async () => {
-    folder = await mkdtemp(join(tmpdir(), "threadsift-proposals-migration-"));
-    file = join(folder, "threadsift.db");
-
-    const older = join(folder, "older");
-    await mkdir(older);
-
-    await Promise.all(
-      (await readdir(MIGRATIONS))
-        .filter((name) => name.endsWith(".sql") && name < REBUILD)
-        .map((name) => cp(join(MIGRATIONS, name), join(older, name))),
-    );
-
+  const seedOlder = (file: string): void => {
     openDatabase(file, older).close();
 
-    const made = sqlite();
+    const made = new DatabaseSync(file);
 
     made.exec(`
       insert into tags (id, key, name) values (1, 'a', 'A'), (2, 'b', 'B'), (3, 'c', 'C'), (4, 'd', 'D'), (5, 'e', 'E'), (6, 'f', 'F');
@@ -50,11 +56,25 @@ describe("the proposals rebuild keeps every row and never reuses an id", () => {
       delete from proposals where id = 5;
     `);
     made.close();
+  };
 
-    openDatabase(file, MIGRATIONS).close();
+  before(async () => {
+    older = await mkdtemp(join(tmpdir(), "threadsift-proposals-migration-"));
+
+    await Promise.all(
+      (await readdir(MIGRATIONS))
+        .filter((name) => name.endsWith(".sql") && name < REBUILD)
+        .map((name) => cp(join(MIGRATIONS, name), join(older, name))),
+    );
+
+    instance = await Instance.start({ prepare: seedOlder });
+    await instance.setUp();
   });
 
-  after(() => rm(folder, { recursive: true }));
+  after(async () => {
+    await instance.close();
+    await rm(older, { recursive: true });
+  });
 
   it("keeps the rows and their columns", () => {
     const database = sqlite();
@@ -92,6 +112,39 @@ describe("the proposals rebuild keeps every row and never reuses an id", () => {
     database.close();
   });
 
+  it("lists the migrated open and accepting rows through the app, and rejects the open one", async () => {
+    const page = await instance.read("GET", "/api/proposals", ProposalPageSchema);
+
+    assert.deepEqual(
+      page.proposals.map(({ id, kind, state, from, into, reason }) => ({
+        id,
+        kind,
+        state,
+        from: from.name,
+        into: into.name,
+        reason,
+      })),
+      [
+        {
+          id: 2,
+          kind: "tag-merge",
+          state: "accepting",
+          from: "B",
+          into: "C",
+          reason: "Accepting.",
+        },
+        { id: 1, kind: "tag-merge", state: "open", from: "A", into: "B", reason: "Open." },
+      ],
+    );
+
+    const rejected = await instance.send("POST", "/api/proposals/1/reject");
+
+    assert.deepEqual(
+      [rejected.status, rejected.body],
+      [200, JSON.stringify({ state: "rejected" })],
+    );
+  });
+
   it("gives the next row an id above the old high-water mark, and leaves no placeholder row", () => {
     const database = sqlite();
 
@@ -106,17 +159,43 @@ describe("the proposals rebuild keeps every row and never reuses an id", () => {
     database.close();
   });
 
-  it("starts again on the migrated file without applying anything", () => {
-    openDatabase(file, MIGRATIONS).close();
-
+  it("keeps one row for a pair of Tags or of Topics whichever way round, and removes a Topic row with its Topic", () => {
     const database = sqlite();
 
+    database.exec("insert into topics (id, key, name) values (1, 'x', 'X'), (2, 'y', 'Y')");
+
+    const tagRow = database.prepare(
+      "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) values ('tag-merge', ?, ?, 'r', 'open', 7)",
+    );
+
+    const topicRow = database.prepare(
+      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) values ('topic-merge', ?, ?, 'r', 'open', 7)",
+    );
+
+    assert.throws(() => tagRow.run(6, 1), /proposals_pair/u);
+
+    topicRow.run(1, 2);
+
+    assert.throws(() => topicRow.run(2, 1), /proposals_topic_pair/u);
+    assert.throws(() => topicRow.run(1, 1), /proposals_topic_distinct/u);
+
+    database.exec("delete from topics");
+
     assert.equal(
-      database.prepare("select count(*) as n from d1_migrations where name = ?").get(REBUILD)?.[
+      database.prepare("select count(*) as n from proposals where kind = 'topic-merge'").get()?.[
         "n"
       ],
-      1,
+      0,
     );
     database.close();
+  });
+
+  it("starts again on the migrated file and changes no row, no sequence and no migration record", () => {
+    const earlier = stateOf(instance.databaseFile);
+
+    openDatabase(instance.databaseFile, MIGRATIONS).close();
+
+    assert.equal(stateOf(instance.databaseFile), earlier);
+    assert.match(earlier, new RegExp(REBUILD, "u"));
   });
 });

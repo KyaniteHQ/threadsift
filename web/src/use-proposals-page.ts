@@ -124,7 +124,15 @@ function useLeave({ latest, edit, reread, setFocus }: Readonly<Leaving>) {
 
       const reloaded = onlyRowOfMore(latest.current, proposal.id) ? await reread(() => true) : null;
 
-      if (reloaded === null) edit((page) => without(page, proposal.id));
+      if (reloaded === null) {
+        edit((page) => without(page, proposal.id));
+
+        return;
+      }
+
+      const [first] = reloaded.proposals;
+
+      setFocus(first === undefined ? { kind: "heading" } : { kind: "row", id: first.id });
     },
     [edit, latest, reread, setFocus],
   );
