@@ -93,7 +93,7 @@ describe("the weekly overview check picks only Topics that have a gap", () => {
     assert.ok(queued !== undefined && running !== undefined && built !== undefined);
     storePage(instance, "Covered", { builtFrom: "all" });
     queueOverview(instance, queued);
-    queueOverview(instance, running);
+    queueOverview(instance, running, "running");
     storePage(instance, "Removed", { builtFrom: "all" });
     exec(
       instance,

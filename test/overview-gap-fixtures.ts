@@ -100,13 +100,30 @@ export function storePage(
   );
 }
 
-export function queueOverview(instance: Instance, itemId: number): void {
+const OPEN_JOBS = {
+  queued: "'queued', 0, 0, 9999999999999, null",
+  running: "'running', 0, 0, 1, 9999999999999",
+} as const;
+
+export function queueOverview(
+  instance: Instance,
+  itemId: number,
+  state: keyof typeof OPEN_JOBS = "queued",
+): void {
   exec(
     instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at) select 'topic_overview', id, original_url, 'queued', 0, 0, 9999999999999 from items where id = ?",
+    `insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) select 'topic_overview', id, original_url, ${OPEN_JOBS[state]} from items where id = ?`,
     itemId,
   );
 }
+
+export const body = (error: string) => JSON.stringify({ error });
+
+export const jobOwners = (instance: Instance) =>
+  overviewJobs(instance).map(({ item_id }) => item_id);
+
+export const rowStates = (instance: Instance) =>
+  gapRows(instance).map(({ id, state }) => [id, state]);
 
 export const overviewJobs = (instance: Instance) =>
   rows(

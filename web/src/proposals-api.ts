@@ -3,7 +3,7 @@ import { z } from "zod";
 import { type ProposalPage, ProposalPageSchema } from "../../src/core/proposal-contract.ts";
 import { call, parsedFrom, withCursor } from "./calls.ts";
 
-export const BUSY_ANSWERS = ["merge-busy", "topic-busy", "no-provider"] as const;
+const BUSY_ANSWERS = ["merge-busy", "topic-busy", "no-provider"] as const;
 
 export type Busy = (typeof BUSY_ANSWERS)[number];
 

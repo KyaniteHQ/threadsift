@@ -11,7 +11,7 @@ export const PROPOSALS_PAGE = {
   emptyHeading: "No proposals yet",
   loadMoreFailed: "Couldn’t load more proposals.",
   sort: "Newest first",
-  head: "Accepting a merge can't be undone in this release, and accepting removes a highlight for good. Accepting an overview update starts a model run for that topic. Rejecting is final: that tag or topic pair, highlight or topic stays as it is and won't be proposed again.",
+  head: "Accepting a merge can’t be undone in this release, and accepting removes a highlight for good. Accepting an overview update starts a model run for that topic. Rejecting is final: that tag or topic pair, highlight or topic stays as it is and won’t be proposed again.",
 } as const;
 
 const EMPTY_NO_PROVIDER = "Save a provider in the instance settings to run the weekly check.";
@@ -93,9 +93,9 @@ export const PROPOSAL_WORDS = {
   reject: "Reject",
   rejectFailed: "Couldn’t reject this proposal.",
   alreadyDecided: ALREADY_DECIDED,
-  overviewCounts: "{uncovered} of {items} items not in the overview",
+  overviewCounts: "Items not in the overview: {uncovered} of {items}",
   overviewCost:
-    "Accept starts a run that covers up to 40 items per call until every item is in the overview, so many items can take several calls.",
+    "Accept writes the topic’s overview again: each call covers up to 40 items, so many items can take several calls, and the run stops when a call fails.",
   noProvider:
     "Save a provider in the instance settings to update the overview; this row stays and Accept works after that.",
   reasonLabel: "Reason",

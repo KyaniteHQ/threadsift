@@ -4,30 +4,25 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { accept } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { moveClaimBack, nextTick, proposalRows, readPage } from "./lost-highlight-fixtures.ts";
 import {
+  body,
   failureOf,
   gapRows,
+  jobOwners,
   overviewJobs,
   pasteTopics,
   proposeGap,
   queueOverview,
+  rowStates,
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
 
-const accept = (instance: Instance, id: number) =>
-  instance.send("POST", `/api/proposals/${String(id)}/accept`);
-
 const reject = (instance: Instance, id: number) =>
   instance.send("POST", `/api/proposals/${String(id)}/reject`);
-
-const body = (error: string) => JSON.stringify({ error });
-
-const jobOwners = (instance: Instance) => overviewJobs(instance).map(({ item_id }) => item_id);
-
-const rowStates = (instance: Instance) => gapRows(instance).map(({ id, state }) => [id, state]);
 
 describe("Accept of an overview-gap row", () => {
   let instance: Instance;

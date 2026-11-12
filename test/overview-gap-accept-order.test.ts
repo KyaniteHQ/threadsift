@@ -1,28 +1,25 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { accept } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { interrupted } from "./interrupted-database.ts";
+import { interrupted, touchesProposals } from "./interrupted-database.ts";
 import {
+  body,
   failureOf,
   gapRows,
+  jobOwners,
   overviewJobs,
   pasteTopics,
   proposeGap,
   queueOverview,
+  rowStates,
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
 import { holdLease, topicId } from "./topic-accept-fixtures.ts";
 
-const accept = (instance: Instance, id: number) =>
-  instance.send("POST", `/api/proposals/${String(id)}/accept`);
-
-const body = (error: string) => JSON.stringify({ error });
-
-const jobOwners = (instance: Instance) => overviewJobs(instance).map(({ item_id }) => item_id);
-
-const rowStates = (instance: Instance) => gapRows(instance).map(({ id, state }) => [id, state]);
+const GUARDED_BATCH = 3;
 
 describe("Accept of an overview-gap row chooses the run's owner inside its guarded batch", () => {
   let instance: Instance;
@@ -39,28 +36,27 @@ describe("Accept of an overview-gap row chooses the run's owner inside its guard
       Origin: ["o1"],
       Queueing: ["q1", "q2"],
       Unprovided: ["u1"],
-      "Single call": ["s1"],
+      "Single call": ["s1", "s2"],
+      Flipping: ["f1", "f2"],
     });
     await saveProvider(instance);
   });
 
   after(() => instance.close());
 
-  const acceptBetween = async (id: number, between: () => void) => {
-    const racing = interrupted(instance.databaseFile, (call) => {
-      if (call === 3) between();
-
-      return Promise.resolve();
-    });
-
-    const answer = await instance.sendThrough(
-      racing.db,
+  const acceptWith = (id: number, hook: (call: number) => Promise<void>) =>
+    instance.sendThrough(
+      interrupted(instance.databaseFile, touchesProposals, { before: hook }),
       "POST",
       `/api/proposals/${String(id)}/accept`,
     );
 
-    return { answer, calls: racing.calls() };
-  };
+  const acceptBetween = (id: number, between: () => void) =>
+    acceptWith(id, (call) => {
+      if (call === GUARDED_BATCH) between();
+
+      return Promise.resolve();
+    });
 
   const moveTo = (itemId: number, topic: string) => () => {
     exec(
@@ -77,7 +73,7 @@ describe("Accept of an overview-gap row chooses the run's owner inside its guard
     assert.ok(older !== undefined && newest !== undefined);
 
     const id = proposeGap(instance, "Moving");
-    const { answer } = await acceptBetween(id, moveTo(newest, "Elsewhere"));
+    const answer = await acceptBetween(id, moveTo(newest, "Elsewhere"));
 
     assert.equal(answer.status, 200);
     assert.deepEqual(jobOwners(instance), [older]);
@@ -92,7 +88,7 @@ describe("Accept of an overview-gap row chooses the run's owner inside its guard
 
     const id = proposeGap(instance, "Leaving");
     const jobs = overviewJobs(instance);
-    const { answer } = await acceptBetween(id, moveTo(uncovered, "Elsewhere"));
+    const answer = await acceptBetween(id, moveTo(uncovered, "Elsewhere"));
 
     assert.deepEqual([answer.status, answer.body], [409, body("not-current")]);
     assert.deepEqual(overviewJobs(instance), jobs);
@@ -130,7 +126,7 @@ describe("Accept of an overview-gap row chooses the run's owner inside its guard
     const id = proposeGap(instance, "Queueing");
     const jobs = overviewJobs(instance);
 
-    const { answer } = await acceptBetween(id, () => {
+    const answer = await acceptBetween(id, () => {
       queueOverview(instance, first);
     });
 
@@ -144,7 +140,7 @@ describe("Accept of an overview-gap row chooses the run's owner inside its guard
     const id = proposeGap(instance, "Unprovided");
     const jobs = overviewJobs(instance);
 
-    const { answer } = await acceptBetween(id, () => {
+    const answer = await acceptBetween(id, () => {
       exec(instance, "delete from settings");
     });
 
@@ -155,24 +151,46 @@ describe("Accept of an overview-gap row chooses the run's owner inside its guard
     await saveProvider(instance);
   });
 
-  it("writes the marker, the job and the row delete in one call after the reads", async () => {
+  it("clears the failure marker, starts one run for the newest Item and deletes the row while another holder owns the Topic lease", async () => {
+    const [, newest] = made["Single call"] ?? [];
+
+    assert.ok(newest !== undefined);
     storePage(instance, "Single call", { builtFrom: [], failure: "gave-up" });
     holdLease(instance, topicId(instance, "Single call"), "someone-else");
 
     const id = proposeGap(instance, "Single call");
-    const { answer, calls } = await acceptBetween(id, () => {});
+    const owners = jobOwners(instance);
+    const answer = await accept(instance, id);
 
     assert.equal(answer.status, 200);
-    assert.equal(calls, 3);
+    assert.deepEqual(jobOwners(instance), [...owners, newest]);
     assert.equal(failureOf(instance, "Single call"), null);
-    assert.equal(
-      overviewJobs(instance).some(({ item_id }) => item_id > 0),
-      true,
-    );
     assert.deepEqual(
       gapRows(instance).filter((row) => row.id === id),
       [],
     );
     exec(instance, "delete from topic_leases");
+  });
+
+  it("answers 200 and starts the run when the Provider returns between the refused batch and its recheck", async () => {
+    const [, newest] = made["Flipping"] ?? [];
+
+    assert.ok(newest !== undefined);
+
+    const id = proposeGap(instance, "Flipping");
+    const owners = jobOwners(instance);
+
+    const answer = await acceptWith(id, async (call) => {
+      if (call === GUARDED_BATCH) exec(instance, "delete from settings");
+
+      if (call === GUARDED_BATCH + 1) await saveProvider(instance);
+    });
+
+    assert.equal(answer.status, 200);
+    assert.deepEqual(jobOwners(instance), [...owners, newest]);
+    assert.deepEqual(
+      gapRows(instance).filter((row) => row.id === id),
+      [],
+    );
   });
 });

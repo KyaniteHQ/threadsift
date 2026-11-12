@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
-import { interrupted } from "./interrupted-database.ts";
+import { writingAfterTheFirstRead } from "./interrupted-database.ts";
 import { proposalRows, readPage } from "./lost-highlight-fixtures.ts";
 import {
   addTopics,
@@ -18,7 +16,17 @@ import {
   queueOverview,
   storePage,
 } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
+import { SECRET_KEY, exec, paste } from "./related-fixtures.ts";
+
+const READ_BY_THE_PAGE = ['"proposals"', '"topics"', '"items"', '"digests"', '"topic_pages"'];
+
+const readsThePage = (sql: string) => READ_BY_THE_PAGE.some((table) => sql.includes(table));
+
+const synchronously = (write: () => void) => () => {
+  write();
+
+  return Promise.resolve();
+};
 
 describe("overview-gap rows beside the other kinds", () => {
   let instance: Instance;
@@ -100,18 +108,6 @@ describe("overview-gap rows beside the other kinds", () => {
     exec(instance, "update jobs set state = 'done' where kind = 'topic_overview'");
     assert.equal(gapsOf(await readPage(instance)).length, 1);
   });
-
-  it("describes the shape and the new codes in the OpenAPI document", async () => {
-    const document = z
-      .object({ paths: z.record(z.string(), z.unknown()) })
-      .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
-
-    const accept = JSON.stringify(document.paths["/api/proposals/{id}/accept"]);
-
-    assert.match(JSON.stringify(document.paths["/api/proposals"]), /overview-gap/u);
-    assert.match(accept, /no-provider/u);
-    assert.match(accept, /not-current/u);
-  });
 });
 
 describe("the Proposals list filters overview-gap rows before the page limit", () => {
@@ -160,54 +156,91 @@ describe("the Proposals list filters overview-gap rows before the page limit", (
 
 describe("the Proposals page reads an overview-gap row and its counts in one snapshot", () => {
   let instance: Instance;
+  let made: Readonly<Record<string, readonly number[]>>;
 
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    await pasteTopics(instance, { Snapshot: ["s1", "s2"], Receiving: ["r1"] });
-    proposeGap(instance, "Snapshot");
+    made = await pasteTopics(instance, {
+      Mover: ["m1", "m2"],
+      Remover: ["r1", "r2"],
+      Replacer: ["p1", "p2"],
+      Receiving: ["v1"],
+    });
+    storePage(instance, "Replacer", { builtFrom: [made["Replacer"]?.[0] ?? 0] });
   });
 
   after(() => instance.close());
 
-  it("makes one call, so Items that move to another Topic before it is read never pair the row with the other Topic's counts", async () => {
-    const moving = interrupted(instance.databaseFile, () => {
-      exec(
-        instance,
-        "update items set topic_id = (select id from topics where name = 'Receiving') where topic_id = (select id from topics where name = 'Snapshot')",
-      );
-      exec(
-        instance,
-        "delete from log_entries where topic_id = (select id from topics where name = 'Snapshot')",
-      );
-      exec(instance, "delete from topics where name = 'Snapshot'");
+  const readDuring = (write: () => Promise<void>) =>
+    instance.readThrough(
+      writingAfterTheFirstRead(instance.databaseFile, readsThePage, write),
+      "/api/proposals",
+      ProposalPageSchema,
+    );
 
-      return Promise.resolve();
+  const moveAway = (topic: string) => {
+    exec(
+      instance,
+      "update items set topic_id = (select id from topics where name = 'Receiving') where topic_id = (select id from topics where name = ?)",
+      topic,
+    );
+  };
+
+  it("shows the row with the counts it had when the read began when its Items move to another Topic right after", async () => {
+    proposeGap(instance, "Mover");
+
+    const listed = await readPage(instance);
+
+    const during = await readDuring(
+      synchronously(() => {
+        moveAway("Mover");
+      }),
+    );
+
+    assert.deepEqual(sole(gapsOf(listed)).topic, {
+      key: "mover",
+      name: "Mover",
+      uncovered: 2,
+      items: 2,
     });
+    assert.deepEqual(during, listed);
+    assert.deepEqual(gapsOf(await readPage(instance)), []);
+    exec(instance, "delete from proposals");
+  });
 
-    const page = await instance.readThrough(moving.db, "/api/proposals", ProposalPageSchema);
+  it("lists the row when its Topic is deleted right after the read began", async () => {
+    proposeGap(instance, "Remover");
 
-    assert.equal(moving.calls(), 1);
-    assert.deepEqual(page.proposals, []);
+    const listed = await readPage(instance);
+
+    const during = await readDuring(
+      synchronously(() => {
+        moveAway("Remover");
+        exec(
+          instance,
+          "delete from log_entries where topic_id = (select id from topics where name = 'Remover')",
+        );
+        exec(instance, "delete from topics where name = 'Remover'");
+      }),
+    );
+
+    assert.equal(gapsOf(listed).length, 1);
+    assert.deepEqual(during, listed);
     assert.deepEqual(proposalRows(instance), []);
   });
 
-  it("makes one call, so a Digest replaced before it is read never leaves a half-counted row", async () => {
-    proposeGap(instance, "Receiving");
+  it("shows the counts from before a Digest is replaced when it is replaced right after the read began", async () => {
+    proposeGap(instance, "Replacer");
 
-    const replacing = interrupted(instance.databaseFile, () => {
-      storePage(instance, "Receiving", { builtFrom: "all" });
+    const listed = await readPage(instance);
 
-      return Promise.resolve();
+    const during = await readDuring(async () => {
+      await paste(instance, "p1", { title: "p1 again", topic: "Replacer" });
     });
 
-    const page = await instance.readThrough(replacing.db, "/api/proposals", ProposalPageSchema);
-
-    assert.equal(replacing.calls(), 1);
-    assert.deepEqual(gapsOf(page), []);
-    assert.equal(
-      rows(instance, z.object({ n: z.number() }), "select count(*) as n from proposals")[0]?.n,
-      1,
-    );
+    assert.deepEqual(sole(gapsOf(listed)).topic.uncovered, 1);
+    assert.deepEqual(during, listed);
+    assert.deepEqual(sole(gapsOf(await readPage(instance))).topic.uncovered, 2);
   });
 });

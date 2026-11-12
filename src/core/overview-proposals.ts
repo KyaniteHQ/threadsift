@@ -1,6 +1,5 @@
 import { and, asc, desc, eq, notExists, sql } from "drizzle-orm";
 
-import { providerSet } from "./ai-tasks.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { WEEKLY_TASK } from "./kinds.ts";
 import { startOverview } from "./overview-start.ts";
@@ -89,25 +88,6 @@ function stillOpen(id: number, topicId: number) {
   return sql`exists (select 1 from ${proposals} where ${proposals.id} = ${id} and ${proposals.kind} = 'overview-gap' and ${proposals.state} = 'open' and ${proposals.topicId} = ${topicId}) and ${hasUncovered(topicId)}`;
 }
 
-async function refusalOf(db: Database, id: number) {
-  const [row] = await db
-    .select({
-      state: proposals.state,
-      provider: sql<number>`${providerSet()}`,
-      current: sql<number>`${overviewGap(proposals.topicId)}`,
-    })
-    .from(proposals)
-    .where(and(eq(proposals.id, id), eq(proposals.kind, "overview-gap")));
-
-  if (row === undefined) return "unknown";
-
-  if (row.state !== "open") return "not-open";
-
-  if (row.provider !== 1) return "no-provider";
-
-  return row.current === 1 ? "retry" : "not-current";
-}
-
 export async function acceptOverviewGap(
   ports: JobPorts,
   id: number,
@@ -128,9 +108,18 @@ export async function acceptOverviewGap(
     after: [db.delete(proposals).where(and(eq(proposals.id, id), sql`changes() > 0`))],
   });
 
-  if (started) return "done";
+  if (started === "started") return "done";
 
-  const refusal = await refusalOf(db, id);
+  const [now] = await db
+    .select({ state: proposals.state, current: sql<number>`${overviewGap(proposals.topicId)}` })
+    .from(proposals)
+    .where(and(eq(proposals.id, id), eq(proposals.kind, "overview-gap")));
 
-  return refusal === "retry" ? acceptOverviewGap(ports, id) : refusal;
+  if (now === undefined) return "unknown";
+
+  if (now.state !== "open") return "not-open";
+
+  if (started === "no-provider") return "no-provider";
+
+  return started === "stale" && now.current === 1 ? acceptOverviewGap(ports, id) : "not-current";
 }

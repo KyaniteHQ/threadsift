@@ -1,20 +1,12 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
-import { openDatabase } from "../src/targets/node/database.ts";
-import { Instance } from "./instance.ts";
+import type { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
+import { type OlderRelease, startOlderRelease } from "./older-release.ts";
 import { gapsOf } from "./overview-gap-fixtures.ts";
 
-const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
-
 const OVERVIEW_MIGRATION = "0045_overview-gap-proposals.sql";
-
-const BUSY_TIMEOUT_MS = 5000;
 
 const SEED = `
   insert into topics (id, key, name) values (1, 'x', 'X'), (2, 'y', 'Y'), (3, 'z', 'Z');
@@ -44,42 +36,31 @@ const insertGap = (topic: number | null, extra = "", values = "") =>
   `insert into proposals (kind, topic_id${extra}, reason, state, created_at) values ('overview-gap', ${String(topic)}${values}, 'plain-check', 'open', 1)`;
 
 describe("the overview-gap migration on a database made by the release before it", () => {
-  let older = "";
+  let release: OlderRelease;
   let instance: Instance;
 
-  const sqlite = (): DatabaseSync => {
-    const database = new DatabaseSync(instance.databaseFile, { timeout: BUSY_TIMEOUT_MS });
-    database.exec("PRAGMA foreign_keys = ON");
+  const sqlite = () => release.sqlite();
 
-    return database;
-  };
+  const snapshot = (): string => {
+    const database = sqlite();
 
-  const seedOlder = (file: string): void => {
-    openDatabase(file, older).close();
+    const found = JSON.stringify([
+      database.prepare("select * from proposals order by id").all(),
+      database.prepare("select name, seq from sqlite_sequence order by name").all(),
+      database.prepare("select name from d1_migrations order by name").all(),
+    ]);
 
-    const made = new DatabaseSync(file);
+    database.close();
 
-    made.exec(SEED);
-    made.close();
+    return found;
   };
 
   before(async () => {
-    older = await mkdtemp(join(tmpdir(), "threadsift-overview-gap-migration-"));
-
-    await Promise.all(
-      (await readdir(MIGRATIONS))
-        .filter((name) => name.endsWith(".sql") && name < OVERVIEW_MIGRATION)
-        .map((name) => cp(join(MIGRATIONS, name), join(older, name))),
-    );
-
-    instance = await Instance.start({ prepare: seedOlder });
-    await instance.setUp();
+    release = await startOlderRelease(OVERVIEW_MIGRATION, SEED);
+    ({ instance } = release);
   });
 
-  after(async () => {
-    await instance.close();
-    await rm(older, { recursive: true });
-  });
+  after(() => release.close());
 
   it("keeps every row in every state with its columns and id, and gives topic_id the value null", () => {
     const database = sqlite();
@@ -251,25 +232,11 @@ describe("the overview-gap migration on a database made by the release before it
   });
 
   it("starts again on the migrated file and changes no row, sequence or migration record", () => {
-    const state = (): string => {
-      const database = new DatabaseSync(instance.databaseFile, { timeout: BUSY_TIMEOUT_MS });
+    const earlier = snapshot();
 
-      const found = JSON.stringify([
-        database.prepare("select * from proposals order by id").all(),
-        database.prepare("select name, seq from sqlite_sequence order by name").all(),
-        database.prepare("select name from d1_migrations order by name").all(),
-      ]);
+    release.startAgain();
 
-      database.close();
-
-      return found;
-    };
-
-    const earlier = state();
-
-    openDatabase(instance.databaseFile, MIGRATIONS).close();
-
-    assert.equal(state(), earlier);
+    assert.equal(snapshot(), earlier);
     assert.match(earlier, new RegExp(OVERVIEW_MIGRATION, "u"));
   });
 });

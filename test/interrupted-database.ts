@@ -1,73 +1,61 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { drizzle } from "drizzle-orm/sqlite-proxy";
-import { z } from "zod";
 
 import type { Database } from "../src/core/ports.ts";
+import { batchTo, proxyTo } from "../src/targets/node/database.ts";
 
-export interface Interrupted {
-  readonly db: Database;
-  readonly calls: () => number;
+export interface Interruption {
+  readonly before?: (call: number) => Promise<void>;
+  readonly after?: (call: number) => Promise<void>;
 }
 
-const BindingsSchema = z.array(
-  z.union([z.null(), z.number(), z.bigint(), z.string(), z.instanceof(Uint8Array)]),
-);
-
-const touchesProposals = (sql: string) => sql.includes('"proposals"');
+export const touchesProposals = (sql: string) => sql.includes('"proposals"');
 
 export function interrupted(
   file: string,
-  between: (call: number) => Promise<void>,
-  touches: (sql: string) => boolean = touchesProposals,
-): Interrupted {
+  touches: (sql: string) => boolean,
+  { before, after }: Readonly<Interruption>,
+): Database {
   const sqlite = new DatabaseSync(file);
+  const query = proxyTo(sqlite);
+  const batch = batchTo(sqlite);
   let calls = 0;
 
-  const execute = ({
-    sql,
-    params,
-    method,
-  }: Readonly<{ sql: string; params: unknown[]; method: string }>) => {
-    const statement = sqlite.prepare(sql);
+  const around = async <Result>(counted: boolean, run: () => Promise<Result>): Promise<Result> => {
+    if (!counted) return run();
 
-    statement.setReturnArrays(true);
+    calls += 1;
 
-    const bindings = BindingsSchema.parse(params);
+    const call = calls;
 
-    if (method === "run") {
-      statement.run(...bindings);
+    await before?.(call);
 
-      return { rows: [] };
-    }
+    const result = await run();
 
-    return { rows: statement.all(...bindings) };
+    await after?.(call);
+
+    return result;
   };
 
-  const db = drizzle(
-    async (sql, params, method) => {
-      if (touches(sql)) {
-        calls += 1;
-        await between(calls);
-      }
-
-      return execute({ sql, params, method });
-    },
-    async (queries) => {
-      if (queries.some(({ sql }) => touches(sql))) {
-        calls += 1;
-        await between(calls);
-      }
-
-      sqlite.exec("BEGIN");
-
-      try {
-        return queries.map((query) => execute(query));
-      } finally {
-        sqlite.exec("COMMIT");
-      }
-    },
+  return drizzle(
+    (sql, params, method) => around(touches(sql), () => query(sql, params, method)),
+    (queries) =>
+      around(
+        queries.some(({ sql }) => touches(sql)),
+        () => batch(queries),
+      ),
   );
+}
 
-  return { db, calls: () => calls };
+export function writingAfterTheFirstRead(
+  file: string,
+  touches: (sql: string) => boolean,
+  write: () => Promise<void>,
+): Database {
+  return interrupted(file, touches, {
+    after: async (call) => {
+      if (call === 1) await write();
+    },
+  });
 }

@@ -1,13 +1,9 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
-import { drizzle } from "drizzle-orm/sqlite-proxy";
-
-import type { Database } from "../src/core/ports.ts";
 import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
-import { batchTo, proxyTo } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
+import { writingAfterTheFirstRead } from "./interrupted-database.ts";
 import {
   keepLostHighlight,
   proposeLost,
@@ -20,41 +16,6 @@ import { SECRET_KEY, exec, paste } from "./related-fixtures.ts";
 const READ_BY_THE_PAGE = ['"proposals"', '"highlights"', '"items"', '"digests"'];
 
 const readsThePage = (sql: string) => READ_BY_THE_PAGE.some((table) => sql.includes(table));
-
-function writingAfterTheFirstRead(file: string, write: () => Promise<void>): Database {
-  const sqlite = new DatabaseSync(file);
-  const query = proxyTo(sqlite);
-  const batch = batchTo(sqlite);
-  let written = false;
-
-  const writeOnce = async () => {
-    if (!written) {
-      written = true;
-      await write();
-    }
-  };
-
-  return drizzle(
-    async (sql, params, method) => {
-      const result = await query(sql, params, method);
-
-      if (readsThePage(sql)) {
-        await writeOnce();
-      }
-
-      return result;
-    },
-    async (queries) => {
-      const result = await batch(queries);
-
-      if (queries.some(({ sql }) => readsThePage(sql))) {
-        await writeOnce();
-      }
-
-      return result;
-    },
-  );
-}
 
 describe("the Proposals page reads each row and its subject in one snapshot", () => {
   let instance: Instance;
@@ -72,7 +33,7 @@ describe("the Proposals page reads each row and its subject in one snapshot", ()
   it("shows the row as it was when the read began when a Digest is replaced right after", async () => {
     const listed = await readPage(instance);
 
-    const replacing = writingAfterTheFirstRead(instance.databaseFile, async () => {
+    const replacing = writingAfterTheFirstRead(instance.databaseFile, readsThePage, async () => {
       await paste(instance, "snapshot", {
         title: "A new title",
         postText: textHolding("a passage that is not the quote"),
@@ -89,7 +50,7 @@ describe("the Proposals page reads each row and its subject in one snapshot", ()
   it("lists the row when its Highlight is removed right after the read began", async () => {
     const listed = await readPage(instance);
 
-    const removing = writingAfterTheFirstRead(instance.databaseFile, () => {
+    const removing = writingAfterTheFirstRead(instance.databaseFile, readsThePage, () => {
       exec(instance, "delete from search_parts where highlight_id = ?", lost.highlightId);
       exec(instance, "delete from highlights where id = ?", lost.highlightId);
 

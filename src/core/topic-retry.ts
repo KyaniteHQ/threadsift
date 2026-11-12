@@ -1,9 +1,8 @@
-import { sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { providerSet } from "./ai-tasks.ts";
-import { newestOwner, startOverview } from "./overview-start.ts";
+import { startOverview } from "./overview-start.ts";
 import type { Ports } from "./ports.ts";
-import { hasOpenOverview } from "./topic-coverage.ts";
+import { topicPages } from "./schema.ts";
 import type { Overview } from "./topic-overview-contract.ts";
 import { type TopicRow, readTopicOverview, topicOfKey } from "./topic-page.ts";
 
@@ -13,21 +12,14 @@ type OverviewRetry =
 
 async function retryingTopic(ports: Ports, topic: Readonly<TopicRow>): Promise<OverviewRetry> {
   const { db } = ports;
+  const result = await startOverview(ports, topic.id);
 
-  if (!(await startOverview(ports, topic.id))) {
-    const [facts] = await db
-      .select({
-        provider: sql<number>`${providerSet()}`,
-        owner: sql<number | null>`${newestOwner(topic.id)}`,
-        open: sql<number>`${hasOpenOverview(topic.id)}`,
-      })
-      .from(sql`(select 1)`);
+  if (result === "no-provider" || result === "no-items") return { outcome: result };
 
-    if (facts?.provider !== 1) return { outcome: "no-provider" };
+  if (result === "stale") return retryingTopic(ports, topic);
 
-    if (facts.owner === null) return { outcome: "no-items" };
-
-    if (facts.open !== 1) return retryingTopic(ports, topic);
+  if (result === "open") {
+    await db.update(topicPages).set({ failure: null }).where(eq(topicPages.topicId, topic.id));
   }
 
   return { outcome: "started", overview: (await readTopicOverview(db, topic.id)).overview };
