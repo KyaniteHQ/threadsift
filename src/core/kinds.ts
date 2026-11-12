@@ -97,6 +97,7 @@ export const WEEKLY_TASK = {
   "tag-merge": "proposals",
   "topic-merge": "topic_proposals",
   "highlight-lost": "highlight_proposals",
+  "overview-gap": "overview_proposals",
 } as const satisfies Readonly<Record<ProposalKind, string>>;
 
 export type WeeklyTask = (typeof WEEKLY_TASK)[ProposalKind];
@@ -121,7 +122,7 @@ export type PinKind = (typeof PIN_KINDS)[number];
 
 export const MERGE_KINDS = ["tag-merge", "topic-merge"] as const;
 
-export const PROPOSAL_KINDS = [...MERGE_KINDS, "highlight-lost"] as const;
+export const PROPOSAL_KINDS = [...MERGE_KINDS, "highlight-lost", "overview-gap"] as const;
 
 export const PROPOSAL_STATES = ["open", "accepting", "rejected", "declined"] as const;
 

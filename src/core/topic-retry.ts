@@ -1,48 +1,40 @@
-import { eq, desc } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { providerSet } from "./ai-tasks.ts";
-import { guardHolds } from "./guards.ts";
-import { enqueueRows } from "./job-rows.ts";
-import type { Database, Ports } from "./ports.ts";
-import { digests, items, topicPages } from "./schema.ts";
+import { newestOwner, startOverview } from "./overview-start.ts";
+import type { Ports } from "./ports.ts";
+import { hasOpenOverview } from "./topic-coverage.ts";
 import type { Overview } from "./topic-overview-contract.ts";
-import { openingOverview } from "./topic-overview-open.ts";
 import { type TopicRow, readTopicOverview, topicOfKey } from "./topic-page.ts";
 
 type OverviewRetry =
   | { readonly outcome: "started"; readonly overview: Overview }
   | { readonly outcome: "unknown-topic" | "no-provider" | "no-items" };
 
-async function newestItemOf(db: Database, topic: Readonly<TopicRow>): Promise<number | undefined> {
-  const [newest] = await db
-    .select({ id: items.id })
-    .from(items)
-    .innerJoin(digests, eq(digests.itemId, items.id))
-    .where(eq(items.topicId, topic.id))
-    .orderBy(desc(items.savedAt), desc(items.id))
-    .limit(1);
+async function retryingTopic(ports: Ports, topic: Readonly<TopicRow>): Promise<OverviewRetry> {
+  const { db } = ports;
 
-  return newest?.id;
+  if (!(await startOverview(ports, topic.id))) {
+    const [facts] = await db
+      .select({
+        provider: sql<number>`${providerSet()}`,
+        owner: sql<number | null>`${newestOwner(topic.id)}`,
+        open: sql<number>`${hasOpenOverview(topic.id)}`,
+      })
+      .from(sql`(select 1)`);
+
+    if (facts?.provider !== 1) return { outcome: "no-provider" };
+
+    if (facts.owner === null) return { outcome: "no-items" };
+
+    if (facts.open !== 1) return retryingTopic(ports, topic);
+  }
+
+  return { outcome: "started", overview: (await readTopicOverview(db, topic.id)).overview };
 }
 
 export async function retryOverview(ports: Ports, keyText: string): Promise<OverviewRetry> {
-  const { db } = ports;
-  const topic = await topicOfKey(db, keyText);
+  const topic = await topicOfKey(ports.db, keyText);
 
-  if (topic === null) return { outcome: "unknown-topic" };
-
-  if (!(await guardHolds(db, providerSet()))) return { outcome: "no-provider" };
-
-  const owner = await newestItemOf(db, topic);
-
-  if (owner === undefined) return { outcome: "no-items" };
-
-  const [, queued] = await db.batch([
-    db.update(topicPages).set({ failure: null }).where(eq(topicPages.topicId, topic.id)),
-    openingOverview(db, owner),
-  ]);
-
-  await enqueueRows(ports, queued);
-
-  return { outcome: "started", overview: (await readTopicOverview(db, topic.id)).overview };
+  return topic === null ? { outcome: "unknown-topic" } : retryingTopic(ports, topic);
 }

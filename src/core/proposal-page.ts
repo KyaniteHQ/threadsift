@@ -23,6 +23,7 @@ import {
   tags,
   topics,
 } from "./schema.ts";
+import { digestedCount, overviewGap, uncoveredCount } from "./topic-coverage.ts";
 
 export type Rejection = "rejected" | "unknown" | "not-open";
 
@@ -33,6 +34,8 @@ const intoTag = alias(tags, "into_tag");
 const fromTopic = alias(topics, "from_topic");
 
 const intoTopic = alias(topics, "into_topic");
+
+const gapTopic = alias(topics, "gap_topic");
 
 function nameOf(tag: Readonly<SQLWrapper>, topic: Readonly<SQLWrapper>) {
   return sql<string>`coalesce(${tag}, ${topic})`;
@@ -48,6 +51,7 @@ const LISTED_WHILE = {
   "tag-merge": undefined,
   "topic-merge": undefined,
   "highlight-lost": ne(highlights.status, "attached"),
+  "overview-gap": overviewGap(proposals.topicId),
 } as const satisfies Readonly<Record<ProposalKind, SQLWrapper | undefined>>;
 
 const listable = or(
@@ -72,12 +76,25 @@ function pageQuery(db: Database, cursor: number | null) {
       itemId: sql<number | null>`${items.id}`.as("item_id"),
       source: sql<string | null>`${items.source}`.as("source"),
       title: itemTitle().as("title"),
+      topicKey: sql<string | null>`${gapTopic.key}`.as("topic_key"),
+      topicName: sql<string | null>`${gapTopic.name}`.as("topic_name"),
+      uncovered: sql<
+        number | null
+      >`case ${proposals.kind} when 'overview-gap' then ${uncoveredCount(proposals.topicId)} end`.as(
+        "uncovered",
+      ),
+      digested: sql<
+        number | null
+      >`case ${proposals.kind} when 'overview-gap' then ${digestedCount(proposals.topicId)} end`.as(
+        "digested",
+      ),
     })
     .from(proposals)
     .leftJoin(fromTag, eq(fromTag.id, proposals.fromTagId))
     .leftJoin(intoTag, eq(intoTag.id, proposals.intoTagId))
     .leftJoin(fromTopic, eq(fromTopic.id, proposals.fromTopicId))
     .leftJoin(intoTopic, eq(intoTopic.id, proposals.intoTopicId))
+    .leftJoin(gapTopic, eq(gapTopic.id, proposals.topicId))
     .leftJoin(highlights, eq(highlights.id, proposals.highlightId))
     .leftJoin(items, eq(items.id, highlights.itemId))
     .leftJoin(digests, eq(digests.itemId, items.id))
@@ -118,10 +135,25 @@ function lostOf(row: Readonly<Row>) {
   });
 }
 
+function gapOf(row: Readonly<Row>) {
+  return ProposalSchema.parse({
+    id: row.id,
+    kind: row.kind,
+    state: row.state,
+    topic: {
+      key: row.topicKey,
+      name: row.topicName,
+      uncovered: row.uncovered,
+      items: row.digested,
+    },
+  });
+}
+
 const PROPOSAL_OF = {
   "tag-merge": mergeOf,
   "topic-merge": mergeOf,
   "highlight-lost": lostOf,
+  "overview-gap": gapOf,
 } as const satisfies Readonly<Record<ProposalKind, (row: Readonly<Row>) => Proposal>>;
 
 export async function readProposalPage(db: Database, cursor: number | null): Promise<ProposalPage> {

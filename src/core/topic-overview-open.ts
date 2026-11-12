@@ -8,7 +8,7 @@ import { coverageGaps } from "./topic-coverage.ts";
 import { type TopicLease, leaseMatches } from "./topic-lease.ts";
 import type { OverviewFailure } from "./topic-overview-contract.ts";
 
-export function openingOverview(db: Database, itemId: number) {
+export function openingOverview(db: Database, itemId: number | Readonly<SQLWrapper>) {
   return opening(db, {
     kind: "topic_overview",
     address: sql`${items.originalUrl}`,

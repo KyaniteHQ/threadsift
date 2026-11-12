@@ -1,24 +1,26 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
-import { digests, items, topicPages } from "./schema.ts";
+import { digests, items, jobs, topicPages } from "./schema.ts";
 
-function builtFrom(topicId: number) {
+type TopicRef = number | Readonly<SQLWrapper>;
+
+function builtFrom(topicId: TopicRef) {
   return sql`json_each(coalesce((select ${topicPages.builtFrom} from ${topicPages} where ${topicPages.topicId} = ${topicId}), '[]'))`;
 }
 
 export function notBuiltFrom(
-  topicId: number,
+  topicId: TopicRef,
   itemId: Readonly<SQLWrapper>,
   digestId: Readonly<SQLWrapper>,
 ): SQL {
   return sql`not exists (select 1 from ${builtFrom(topicId)} as built where json_extract(built.value, '$.item') = ${itemId} and json_extract(built.value, '$.digest') = ${digestId})`;
 }
 
-function removedFrom(topicId: number): SQL {
+function removedFrom(topicId: TopicRef): SQL {
   return sql`not exists (select 1 from ${items} as member where member.id = json_extract(built.value, '$.item') and member.topic_id = ${topicId})`;
 }
 
-export function removedItemIds(topicId: number): SQL {
+export function removedItemIds(topicId: TopicRef): SQL {
   return sql`select json_extract(built.value, '$.item') as id from ${builtFrom(topicId)} as built where ${removedFrom(topicId)}`;
 }
 
@@ -47,8 +49,30 @@ export function inputsHold(
   return sql`${revised} and ${includedHold} and ${removedStay} and ${retainedStay}`;
 }
 
-export function coverageGaps(topicId: number): SQL {
-  const uncovered = sql`exists (select 1 from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId} and ${notBuiltFrom(topicId, sql`member.id`, sql`kept.task_id`)})`;
+function uncoveredFrom(topicId: TopicRef): SQL {
+  return sql`from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId} and ${notBuiltFrom(topicId, sql`member.id`, sql`kept.task_id`)}`;
+}
 
-  return sql`(${uncovered} or exists (${removedItemIds(topicId)}))`;
+export function hasUncovered(topicId: TopicRef): SQL {
+  return sql`exists (select 1 ${uncoveredFrom(topicId)})`;
+}
+
+export function uncoveredCount(topicId: TopicRef): SQL {
+  return sql`(select count(*) ${uncoveredFrom(topicId)})`;
+}
+
+export function digestedCount(topicId: TopicRef): SQL {
+  return sql`(select count(*) from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId})`;
+}
+
+export function hasOpenOverview(topicId: TopicRef): SQL {
+  return sql`exists (select 1 from ${jobs} as open_overview join ${items} as owner on owner.id = open_overview.item_id where open_overview.kind = 'topic_overview' and open_overview.state <> 'done' and owner.topic_id = ${topicId})`;
+}
+
+export function overviewGap(topicId: TopicRef): SQL {
+  return sql`${hasUncovered(topicId)} and not ${hasOpenOverview(topicId)}`;
+}
+
+export function coverageGaps(topicId: number): SQL {
+  return sql`(${hasUncovered(topicId)} or exists (${removedItemIds(topicId)}))`;
 }

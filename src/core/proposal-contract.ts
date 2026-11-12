@@ -41,9 +41,26 @@ const LostHighlightProposalSchema = z
   })
   .readonly();
 
+const OverviewGapProposalSchema = z
+  .object({
+    id: z.number().int(),
+    kind: z.literal("overview-gap"),
+    state: ListedStateSchema,
+    topic: z
+      .object({
+        key: z.string(),
+        name: z.string(),
+        uncovered: z.number().int().min(1),
+        items: z.number().int().min(1),
+      })
+      .readonly(),
+  })
+  .readonly();
+
 export const ProposalSchema = z.discriminatedUnion("kind", [
   MergeProposalSchema,
   LostHighlightProposalSchema,
+  OverviewGapProposalSchema,
 ]);
 
 export const ProposalPageSchema = z
@@ -66,6 +83,8 @@ export type Proposal = z.infer<typeof ProposalSchema>;
 export type MergeProposal = z.infer<typeof MergeProposalSchema>;
 
 export type LostHighlightProposal = z.infer<typeof LostHighlightProposalSchema>;
+
+export type OverviewGapProposal = z.infer<typeof OverviewGapProposalSchema>;
 
 export type ProposalPage = z.infer<typeof ProposalPageSchema>;
 

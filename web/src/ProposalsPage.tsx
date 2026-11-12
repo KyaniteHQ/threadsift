@@ -68,6 +68,7 @@ export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: ()
         accept={pressAccept}
         reject={pressReject}
         open={pages.highlight}
+        openTopic={pages.topic}
       />
     ),
     [pending, failed, busy, overviewFollows, pressAccept, pressReject, pages],

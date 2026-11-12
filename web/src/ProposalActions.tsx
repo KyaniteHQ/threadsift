@@ -22,6 +22,7 @@ export interface RowControls {
   readonly accept: (proposal: Proposal) => void;
   readonly reject: (proposal: Proposal) => void;
   readonly open: (itemId: number, highlightId: number) => void;
+  readonly openTopic: (key: string) => void;
 }
 
 function Note({ children, alert }: Readonly<{ children: string; alert: boolean }>) {
@@ -35,6 +36,7 @@ function Note({ children, alert }: Readonly<{ children: string; alert: boolean }
 const BUSY_NOTES = {
   "merge-busy": PROPOSAL_WORDS.mergeBusy,
   "topic-busy": PROPOSAL_WORDS.topicBusy,
+  "no-provider": PROPOSAL_WORDS.noProvider,
 } as const satisfies Record<Busy, string>;
 
 function Notes({
