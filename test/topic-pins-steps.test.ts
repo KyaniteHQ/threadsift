@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { CATALOG_KEY_VERSION } from "../src/core/catalog-key.ts";
 import { count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { dump, holdSweep, item, rerunSteps, script, stepOneUnit } from "./pin-fixtures.ts";
+import { dump, holdSweep, item, rerunSteps, script } from "./pin-fixtures.ts";
 
 describe("the pin-keys step recomputes Topic Pin keys and merges a Topic that holds a Pin's key", () => {
   let instance: Instance;
@@ -154,22 +154,32 @@ describe("the pin-keys completion check", () => {
       `
       insert into topics (id, key, name) values (1, 'machine learning', 'Machine Learning'), (2, 'ml', 'ML');
       insert into pins (id, kind, from_key, from_name, into_topic_id, created_at) values (1, 'topic-merge', 'ml', 'ML', 1, 1);
-      ${item(1, [], [], { topic: "ML", topicId: 2 })}`,
+      ${item(1, [], [], { topic: "ML", topicId: 2 })}
+      insert or replace into data_steps (name, version, cursor) values ('pin-keys', 0, '${String(CATALOG_KEY_VERSION)}|finish');`,
     );
+    holdSweep(instance);
+    await instance.tick();
   });
 
   after(() => instance.close());
 
-  it("goes back to the merge phase and records nothing while a Topic holds a Pin's key", async () => {
-    assert.equal(await stepOneUnit(instance, "finish"), "topics");
-    assert.equal(count(instance, "select count(*) as n from topics where id = 2"), 1);
+  it("does not record the step done while a Topic holds a Pin's key, and merges that Topic first", () => {
+    assert.equal(count(instance, "select count(*) as n from topics where id = 2"), 0);
+    assert.equal(
+      dump(instance, "select topic_id from items where id = 1"),
+      JSON.stringify([{ topic_id: 1 }]),
+    );
   });
 
-  it("finishes once no Topic but a Pin's target holds a Pin's key", async () => {
-    assert.equal(await stepOneUnit(instance, "topics"), "topics");
-    assert.equal(count(instance, "select count(*) as n from topics where id = 2"), 0);
-    assert.equal(await stepOneUnit(instance, "topics"), "finish");
-    assert.equal(await stepOneUnit(instance, "finish"), null);
+  it("records the step done once no Topic but a Pin's target holds a Pin's key", () => {
+    assert.equal(
+      count(
+        instance,
+        "select count(*) as n from data_steps where name = 'pin-keys' and cursor is null and version = " +
+          String(CATALOG_KEY_VERSION),
+      ),
+      1,
+    );
   });
 });
 

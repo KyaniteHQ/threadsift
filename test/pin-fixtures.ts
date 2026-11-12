@@ -1,13 +1,7 @@
-import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import { sql } from "drizzle-orm";
 import { z } from "zod";
 
-import type { Advance } from "../src/core/data-step-contract.ts";
-import { guardedBatch } from "../src/core/guards.ts";
-import { pinKeyStep } from "../src/core/pin-key-step.ts";
-import { openDatabase } from "../src/targets/node/database.ts";
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 
@@ -102,34 +96,6 @@ export const seedLogEntries = (
      insert into log_entries (at, action, topic, topic_id)
      select i, 'topic', '${name}', ${String(topicId)} from n;`,
   );
-};
-
-const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
-
-export const stepOneUnit = async (
-  instance: Instance,
-  from: string | null = "topics",
-): Promise<string | null> => {
-  const database = openDatabase(instance.databaseFile, MIGRATIONS);
-
-  try {
-    const unit: Advance = await pinKeyStep.advance(database.db, from);
-
-    await guardedBatch(database.db, sql`1`, unit.writes);
-
-    return unit.cursor;
-  } finally {
-    database.close();
-  }
-};
-
-export const stepPinKeys = async (instance: Instance): Promise<void> => {
-  let cursor: string | null = null;
-
-  do {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Each unit reads what the previous one wrote.
-    cursor = await stepOneUnit(instance, cursor);
-  } while (cursor !== null);
 };
 
 export const LOSER_ITEMS = 1100;

@@ -2,13 +2,13 @@ import { type SQL, type SQLWrapper, and, asc, eq, gt, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { parseStoredDigest } from "./ai-contract.ts";
-import { TAG_KIND, tagMoves } from "./catalog-key-links.ts";
+import { tagMoves } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { report } from "./data-step-support.ts";
 import { type DigestRead, storedTags, unchangedDigests } from "./digest-state.ts";
 import { renamedTags } from "./pins.ts";
 import type { Database } from "./ports.ts";
-import { catalogVersion, dataStepRenames, digests, itemTags, tags } from "./schema.ts";
+import { digests, itemTags } from "./schema.ts";
 
 export const REWRITE_UNIT_ITEMS = 100;
 
@@ -129,23 +129,4 @@ export async function readRewrite(
       ...digestRewrites(db, stored, { from, into }),
     ],
   };
-}
-
-export function closingWrites(db: Database, tagId: number, logged: readonly BatchItem<"sqlite">[]) {
-  const gone = TAG_KIND.unlinked(db, tagId);
-
-  return [
-    ...logged,
-    db.insert(catalogVersion).values({ id: 1, version: 0 }).onConflictDoNothing(),
-    db
-      .update(catalogVersion)
-      .set({ version: sql`${catalogVersion.version} + 1` })
-      .where(and(eq(catalogVersion.id, 1), gone)),
-    db
-      .delete(dataStepRenames)
-      .where(
-        and(eq(dataStepRenames.step, TAG_KIND.step), eq(dataStepRenames.subject, tagId), gone),
-      ),
-    db.delete(tags).where(and(eq(tags.id, tagId), gone)),
-  ];
 }

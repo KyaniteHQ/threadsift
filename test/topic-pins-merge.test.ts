@@ -13,7 +13,6 @@ import {
   seedLibrary,
   seedLogEntries,
   seedTopicItems,
-  stepOneUnit,
 } from "./pin-fixtures.ts";
 
 describe("pin-keys merges a Topic recreated under a pinned key through the shared Topic rewrite", () => {
@@ -113,40 +112,11 @@ describe("pin-keys merges a Topic recreated under a pinned key through the share
   });
 });
 
-describe("a Topic with more than one unit of Items or Log entries is removed only after its last unit", () => {
+describe("a Topic with more than one unit of Log entries keeps its Items and entries until the last unit", () => {
   let instance: Instance;
 
   before(async () => {
     instance = await Instance.start();
-  });
-
-  after(() => instance.close());
-
-  it("takes 3 units for 1,100 Items and keeps the loser until the last", async () => {
-    script(
-      instance,
-      `insert into topics (id, key, name) values (1, 'machine learning', 'Machine Learning'), (2, 'ml', 'ML');
-       insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('topic-merge', 'ml', 'ML', 1, 1);`,
-    );
-    seedTopicItems(instance, { topicId: 2, name: "ML", from: 1, items: 1100 });
-
-    const remaining: number[] = [];
-
-    for (;;) {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Each unit reads what the previous one wrote.
-      const cursor = await stepOneUnit(instance);
-
-      remaining.push(count(instance, "select count(*) as n from items where topic_id = 2"));
-
-      if (count(instance, "select count(*) as n from topics where id = 2") === 0) break;
-
-      assert.equal(cursor, "topics");
-    }
-
-    assert.deepEqual(remaining, [600, 100, 0]);
-  });
-
-  it("takes 3 units for 1,001 Log entries on 3 Items and keeps the loser until the last", async () => {
     script(
       instance,
       `insert into topics (id, key, name) values (3, 'deep learning', 'Deep Learning'), (4, 'dl', 'DL');
@@ -154,19 +124,25 @@ describe("a Topic with more than one unit of Items or Log entries is removed onl
     );
     seedTopicItems(instance, { topicId: 4, name: "DL", from: 5000, items: 3 });
     seedLogEntries(instance, { topicId: 4, name: "DL", entries: 1001 });
+    await rerunSteps(instance, "pin-keys");
+  });
 
-    const remaining: number[] = [];
+  after(() => instance.close());
 
-    for (;;) {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Each unit reads what the previous one wrote.
-      await stepOneUnit(instance);
-      remaining.push(count(instance, "select count(*) as n from log_entries where topic_id = 4"));
-
-      if (count(instance, "select count(*) as n from topics where id = 4") === 0) break;
-    }
-
-    assert.deepEqual(remaining, [501, 1, 0]);
+  it("moves all 1,001 Log entries and the 3 Items to the target, then removes the loser", () => {
     assert.equal(count(instance, "select count(*) as n from log_entries where topic_id = 3"), 1001);
+    assert.equal(count(instance, "select count(*) as n from log_entries where topic_id = 4"), 0);
     assert.equal(count(instance, "select count(*) as n from items where topic_id = 3"), 3);
+    assert.equal(count(instance, "select count(*) as n from topics where id = 4"), 0);
+  });
+
+  it("finishes the step in that one tick", () => {
+    assert.equal(
+      count(
+        instance,
+        "select count(*) as n from data_steps where name = 'pin-keys' and cursor is null",
+      ),
+      1,
+    );
   });
 });

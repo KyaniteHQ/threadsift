@@ -1,13 +1,13 @@
 import { type SQL, asc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import { TAG_KIND } from "./catalog-key-links.ts";
+import { TAG_KIND, closingWrites } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { loggedMerge } from "./log-writes.ts";
 import { repointedPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { guardedBatch, pins, proposals, tags } from "./schema.ts";
-import { REWRITE_UNIT_ITEMS, closingWrites, readRewrite } from "./tag-rewrite.ts";
+import { REWRITE_UNIT_ITEMS, readRewrite } from "./tag-rewrite.ts";
 
 export const UNITS_PER_ACCEPT = 50;
 
@@ -88,7 +88,7 @@ async function runUnit(db: Database, id: number, row: Readonly<Row>): Promise<bo
       .update(proposals)
       .set({ cursor: reachedEnd ? 0 : unit.last, unitRevision: row.revision + 1 })
       .where(eq(proposals.id, id)),
-    ...closingWrites(db, from.id, [
+    ...closingWrites(db, TAG_KIND, from.id, [
       loggedMerge(db, {
         proposalId: id,
         mergedFrom: from.name,

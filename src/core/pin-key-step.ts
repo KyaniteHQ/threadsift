@@ -1,10 +1,10 @@
 import { type SQL, asc, sql } from "drizzle-orm";
 
 import { CATALOG_KEY_MAX } from "./catalog-key-limit.ts";
+import { TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
 import { CATALOG_KEY_VERSION, catalogKey } from "./catalog-key.ts";
 import type { Advance, DataStep } from "./data-step-contract.ts";
-import { mergedTag, misfiledTags } from "./pin-tag-merge.ts";
-import { mergedTopic, misfiledTopics } from "./pin-topic-merge.ts";
+import { mergedTag, mergedTopic, misfiled } from "./pin-merge.ts";
 import type { Database } from "./ports.ts";
 import { guards, insertGuard, pins } from "./schema.ts";
 
@@ -76,7 +76,7 @@ function holds(db: Database, stored: readonly Readonly<{ id: number; key: string
 }
 
 function settled(db: Database, total: number): SQL {
-  return sql`(select count(*) from ${pins}) = ${total} and not exists ${misfiledTags(db)} and not exists ${misfiledTopics(db)}`;
+  return sql`(select count(*) from ${pins}) = ${total} and not exists ${misfiled(db, TAG_KIND)} and not exists ${misfiled(db, TOPIC_KIND)}`;
 }
 
 async function finished(db: Database): Promise<Advance> {
@@ -87,9 +87,10 @@ async function finished(db: Database): Promise<Advance> {
 
   if (rows.some(({ name, key }) => catalogKey(name) !== key)) return { writes: [], cursor: "keys" };
 
-  if ((await misfiledTags(db).limit(1)).length > 0) return { writes: [], cursor: "merge:0:0" };
+  if ((await misfiled(db, TAG_KIND).limit(1)).length > 0)
+    return { writes: [], cursor: "merge:0:0" };
 
-  if ((await misfiledTopics(db).limit(1)).length > 0) return { writes: [], cursor: "topics" };
+  if ((await misfiled(db, TOPIC_KIND).limit(1)).length > 0) return { writes: [], cursor: "topics" };
 
   return {
     writes: [

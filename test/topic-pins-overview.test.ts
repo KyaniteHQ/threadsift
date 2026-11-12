@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { LOSER_FIRST_ITEM, jobsOf, seedLibrary, stepPinKeys } from "./pin-fixtures.ts";
+import { LOSER_FIRST_ITEM, jobsOf, rerunSteps, seedLibrary } from "./pin-fixtures.ts";
 import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
 
 const seededRun = async (seed: (instance: Instance) => void) => {
@@ -13,7 +13,7 @@ const seededRun = async (seed: (instance: Instance) => void) => {
   await saveProvider(instance);
   seedLibrary(instance);
   seed(instance);
-  await stepPinKeys(instance);
+  await rerunSteps(instance, "pin-keys");
 
   return instance;
 };
