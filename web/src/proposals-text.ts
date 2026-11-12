@@ -54,12 +54,12 @@ const WORDS = {
   },
   "highlight-lost": {
     effect: "Remove this highlight",
-    acceptNamed: "Accept removing highlight from {title}",
-    acceptRetryNamed: "Try again to accept removing highlight from {title}",
-    accepted: "Accepted removing highlight from {title}.",
-    rejectNamed: "Reject removing highlight from {title}",
-    rejectRetryNamed: "Try again to reject removing highlight from {title}",
-    rejected: "Rejected removing highlight from {title}.",
+    acceptNamed: "Accept removing highlight “{quote}” from {title}",
+    acceptRetryNamed: "Try again to accept removing highlight “{quote}” from {title}",
+    accepted: "Accepted removing highlight “{quote}” from {title}.",
+    rejectNamed: "Reject removing highlight “{quote}” from {title}",
+    rejectRetryNamed: "Try again to reject removing highlight “{quote}” from {title}",
+    rejected: "Rejected removing highlight “{quote}” from {title}.",
   },
 } as const satisfies Record<ProposalKind, Record<Wording, string>>;
 
@@ -92,10 +92,29 @@ export function itemCount(count: number): string {
     : filled(PROPOSAL_WORDS.itemsMany, { count: String(count) });
 }
 
-function slotsOf(proposal: Readonly<Proposal>): Readonly<Record<string, string>> {
-  return proposal.kind === "highlight-lost"
-    ? { title: proposal.highlight.item.title ?? HIGHLIGHTS_PAGE.untitled }
-    : { from: proposal.from.name, into: proposal.into.name };
+const QUOTE_CUT = 40;
+
+function quoteCut(quote: string): string {
+  const letters = Array.from(quote.replaceAll(/\s+/gu, " ").trim());
+
+  return letters.length > QUOTE_CUT
+    ? `${letters.slice(0, QUOTE_CUT).join("").trimEnd()}…`
+    : letters.join("");
+}
+
+function slotsOf(proposal: Readonly<Proposal>) {
+  switch (proposal.kind) {
+    case "tag-merge":
+    case "topic-merge":
+      return { from: proposal.from.name, into: proposal.into.name };
+    case "highlight-lost":
+      return {
+        quote: quoteCut(proposal.highlight.quote),
+        title: proposal.highlight.item.title ?? HIGHLIGHTS_PAGE.untitled,
+      };
+    default:
+      return proposal satisfies never;
+  }
 }
 
 function wordedBy(wording: Wording) {

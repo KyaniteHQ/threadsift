@@ -62,6 +62,7 @@
   display: inline-flex;
   align-items: center;
   min-block-size: var(--target);
+  min-inline-size: var(--target);
 }
 .pr-quote {
   margin: 0;

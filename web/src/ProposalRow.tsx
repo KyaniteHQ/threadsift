@@ -63,17 +63,29 @@ function MergeBody({
   );
 }
 
+function ProposalBody({
+  proposal,
+  open,
+  overviewFollows,
+}: Readonly<Pick<RowControls, "proposal" | "open" | "overviewFollows">>) {
+  switch (proposal.kind) {
+    case "tag-merge":
+    case "topic-merge":
+      return <MergeBody proposal={proposal} overviewFollows={overviewFollows} />;
+    case "highlight-lost":
+      return <LostHighlightBody proposal={proposal} open={open} />;
+    default:
+      return proposal satisfies never;
+  }
+}
+
 export const ProposalRow = memo(function ProposalRow(controls: Readonly<RowControls>) {
   const { proposal, open, overviewFollows } = controls;
 
   return (
     <li>
       <article className="rl-row pr-row" id={rowId(proposal.id)}>
-        {proposal.kind === "highlight-lost" ? (
-          <LostHighlightBody proposal={proposal} open={open} />
-        ) : (
-          <MergeBody proposal={proposal} overviewFollows={overviewFollows} />
-        )}
+        <ProposalBody proposal={proposal} open={open} overviewFollows={overviewFollows} />
         <Actions {...controls} />
       </article>
     </li>

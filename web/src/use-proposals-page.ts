@@ -118,7 +118,7 @@ interface Leaving {
   readonly setFocus: Dispatch<SetStateAction<Focus>>;
 }
 
-type Departure = "rejected" | "merged";
+type Departure = "rejected" | "accepted";
 
 function useLeave({ latest, edit, reread, lastLoaded, setFocus }: Readonly<Leaving>) {
   return useCallback(
@@ -128,7 +128,7 @@ function useLeave({ latest, edit, reread, lastLoaded, setFocus }: Readonly<Leavi
       setFocus(next);
 
       const through =
-        departure === "merged"
+        departure === "accepted"
           ? reachesBelow(lastLoaded())
           : onlyRowOfMore(latest.current, proposal.id)
             ? () => true
@@ -172,7 +172,7 @@ function useAccept({
       const outcome = await sendAccept(proposal.id);
 
       if (outcome === "done") {
-        await leave(proposal, "merged");
+        await leave(proposal, "accepted");
         say(acceptedAnnouncement(proposal));
       } else if (outcome === "accepting") {
         edit((page) => applying(page, proposal.id));
