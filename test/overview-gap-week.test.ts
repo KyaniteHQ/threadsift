@@ -179,11 +179,12 @@ describe("the weekly overview check deletes an open row whose gap closed", () =>
     closed = proposeGap(instance, "Closing");
     proposeGap(instance, "Staying");
     await saveProvider(instance);
+    await nextTick(instance);
   });
 
   after(() => instance.close());
 
-  it("lists no row for the closed gap before the next stage, and the stage deletes it", async () => {
+  it("lists no row for the closed gap, keeps it on a tick in the same week, and deletes it when the week is claimed again", async () => {
     storePage(instance, "Closing", { builtFrom: "all" });
 
     assert.deepEqual(
@@ -195,6 +196,13 @@ describe("the weekly overview check deletes an open row whose gap closed", () =>
       true,
     );
 
+    await nextTick(instance);
+    assert.equal(
+      gapRows(instance).some(({ id }) => id === closed),
+      true,
+    );
+
+    moveClaimBack(instance, TASK);
     await nextTick(instance);
     assert.deepEqual(gapTopics(instance), ["Staying"]);
   });

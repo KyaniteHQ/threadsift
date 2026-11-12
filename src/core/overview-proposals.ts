@@ -8,7 +8,7 @@ import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
 import { proposals, topics } from "./schema.ts";
 import { hasUncovered, overviewGap, uncoveredCount } from "./topic-coverage.ts";
-import { claimingWeek } from "./weekly-claim.ts";
+import { claimedAt, claimingWeek } from "./weekly-claim.ts";
 
 type OverviewGapAcceptance = "done" | "unknown" | "not-open" | "no-provider" | "not-current";
 
@@ -64,11 +64,12 @@ function insertedRows(db: Database, now: number) {
     .onConflictDoNothing();
 }
 
-function closedGaps(db: Database) {
+function closedGaps(db: Database, now: number) {
   return db
     .delete(proposals)
     .where(
       and(
+        claimedAt(WEEKLY_TASK["overview-gap"], now),
         eq(proposals.kind, "overview-gap"),
         eq(proposals.state, "open"),
         sql`not (${overviewGap(proposals.topicId)})`,
@@ -80,7 +81,7 @@ export async function proposeOverviewGaps(db: Database, now: number): Promise<vo
   await db.batch([
     claimingWeek(db, now, WEEKLY_TASK["overview-gap"]),
     insertedRows(db, now),
-    closedGaps(db),
+    closedGaps(db, now),
   ]);
 }
 

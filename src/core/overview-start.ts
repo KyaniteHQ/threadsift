@@ -1,8 +1,8 @@
-import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { providerSet } from "./ai-tasks.ts";
-import { guardedResults } from "./guards.ts";
+import { guardedWrite } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { digests, items, topicPages } from "./schema.ts";
@@ -13,7 +13,7 @@ export function newestOwner(topicId: number): SQL {
   return sql`(select owner.id from ${items} as owner join ${digests} as kept on kept.item_id = owner.id where owner.topic_id = ${topicId} order by owner.saved_at desc, owner.id desc limit 1)`;
 }
 
-export function overviewStartable(topicId: number): SQL {
+function overviewStartable(topicId: number): SQL {
   return sql`${providerSet()} and ${newestOwner(topicId)} is not null and not ${hasOpenOverview(topicId)}`;
 }
 
@@ -21,21 +21,20 @@ export async function startOverview(
   ports: JobPorts,
   topicId: number,
   {
-    when,
+    when = sql`1`,
     after = [],
   }: Readonly<{ when?: Readonly<SQLWrapper>; after?: readonly BatchItem<"sqlite">[] }> = {},
 ): Promise<boolean> {
   const { db } = ports;
 
-  const results = await guardedResults(db, and(overviewStartable(topicId), when) ?? sql`0`, [
-    db.update(topicPages).set({ failure: null }).where(eq(topicPages.topicId, topicId)),
+  const queued = await guardedWrite(
+    db,
+    sql`${overviewStartable(topicId)} and ${when}`,
     openingOverview(db, newestOwner(topicId)),
-    ...after,
-  ]);
+    [...after, db.update(topicPages).set({ failure: null }).where(eq(topicPages.topicId, topicId))],
+  );
 
-  if (results === null) return false;
-
-  const [, queued] = results;
+  if (queued === null) return false;
 
   await enqueueRows(ports, OpenedJobsSchema.parse(queued));
 

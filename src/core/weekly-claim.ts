@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 
 import { providerSet } from "./ai-tasks.ts";
 import type { WeeklyTask } from "./kinds.ts";
@@ -27,4 +27,8 @@ export function claimingWeek(db: Database, now: number, task: WeeklyTask) {
       setWhere: sql`${scheduledRuns.lastRunAt} <= ${now - WEEK_MS} or ${scheduledRuns.lastRunAt} > ${now + WEEK_MS}`,
     })
     .returning({ task: scheduledRuns.task });
+}
+
+export function claimedAt(task: WeeklyTask, now: number): SQL {
+  return sql`exists (select 1 from ${scheduledRuns} where ${scheduledRuns.task} = ${task} and ${scheduledRuns.lastRunAt} = ${now})`;
 }

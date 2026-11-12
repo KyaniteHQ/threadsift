@@ -78,16 +78,8 @@ function pageQuery(db: Database, cursor: number | null) {
       title: itemTitle().as("title"),
       topicKey: sql<string | null>`${gapTopic.key}`.as("topic_key"),
       topicName: sql<string | null>`${gapTopic.name}`.as("topic_name"),
-      uncovered: sql<
-        number | null
-      >`case ${proposals.kind} when 'overview-gap' then ${uncoveredCount(proposals.topicId)} end`.as(
-        "uncovered",
-      ),
-      digested: sql<
-        number | null
-      >`case ${proposals.kind} when 'overview-gap' then ${digestedCount(proposals.topicId)} end`.as(
-        "digested",
-      ),
+      uncovered: sql<number>`${uncoveredCount(proposals.topicId)}`.as("uncovered"),
+      digested: sql<number>`${digestedCount(proposals.topicId)}`.as("digested"),
     })
     .from(proposals)
     .leftJoin(fromTag, eq(fromTag.id, proposals.fromTagId))
