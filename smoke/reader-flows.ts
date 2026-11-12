@@ -6,7 +6,7 @@ import { rowKeptLabel } from "../web/src/text.ts";
 
 const THREAD_ID = "3000000000000000001";
 
-const THREAD_LINK = `https://x.com/someone/status/${THREAD_ID}`;
+const THREAD_LINK = `https://x.com/Someone/status/${THREAD_ID}`;
 
 const THREAD_TITLE = "Online backups for a busy database file";
 
@@ -110,6 +110,7 @@ export async function readXThread(page: Page): Promise<void> {
 
   const reader = page.locator(".reader");
 
+  await expect(reader.locator(".rd-src span", { hasText: /@someone/iu })).toHaveCount(1);
   await expect(reader).toContainText(FACT);
   await expect(reader).toContainText("Likes: 2");
   await expect(reader.locator(".cm-author", { hasText: "@bob" })).toHaveCount(1);

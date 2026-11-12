@@ -45,7 +45,7 @@ export function ReaderHead({
     <header className="rd-head" inert={loading}>
       <p className="rd-src">
         <span className="src">{SOURCE_LABELS[item.source]}</span>
-        <span>{whereOf(item)}</span>
+        {item.source === "x" && item.author !== null ? null : <span>{whereOf(item)}</span>}
         <span>{handleOf(item.source, item.author)}</span>
         <span>
           {detail === null || detail.postedAt === null ? "" : postedLabel(detail.postedAt, now)}
