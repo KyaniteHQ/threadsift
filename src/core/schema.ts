@@ -59,7 +59,7 @@ export { knownProposal, proposals } from "./proposal-tables.ts";
 
 export { relatedItems } from "./related-tables.ts";
 
-export { topicLeases, topicPages } from "./topic-tables.ts";
+export { topicChecks, topicLeases, topicPages } from "./topic-tables.ts";
 
 export const items = sqliteTable(
   "items",
