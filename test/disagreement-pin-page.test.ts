@@ -4,13 +4,13 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { proposeDisagreement, seedDigested, seedTopics } from "./disagreement-fixtures.ts";
 import {
-  proposeDisagreement,
-  replaceDigest,
-  seedDigested,
-  seedTopics,
-} from "./disagreement-fixtures.ts";
-import { acceptStatus, pinRows, topicDisagreements } from "./disagreement-pin-fixtures.ts";
+  acceptStatus,
+  pinRows,
+  replaceDigestToken,
+  topicDisagreements,
+} from "./disagreement-pin-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
 
@@ -72,7 +72,7 @@ describe("the Topic page lists the disagreement Pins that still hold", () => {
       "select task_id from digests where item_id = 2",
     )[0]?.task_id;
 
-    replaceDigest(instance, 2, 900);
+    replaceDigestToken(instance, 2, 900);
     assert.deepEqual(await topicDisagreements(instance, "reading"), []);
     exec(instance, "update digests set task_id = ? where item_id = 2", original ?? 0);
     assert.equal((await topicDisagreements(instance, "reading")).length, 1);

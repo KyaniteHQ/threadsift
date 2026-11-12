@@ -4,13 +4,12 @@ import { after, before, describe, it } from "node:test";
 import {
   disagreementRows,
   proposeDisagreement,
-  replaceDigest,
   runWeek,
   seedDigested,
   seedTopics,
   sentOf,
 } from "./disagreement-fixtures.ts";
-import { acceptStatus, pinRows } from "./disagreement-pin-fixtures.ts";
+import { acceptStatus, pinRows, replaceDigestToken } from "./disagreement-pin-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import { SECRET_KEY, saveProvider } from "./related-fixtures.ts";
@@ -33,10 +32,10 @@ describe("the weekly disagreement check treats a pair with a current Pin as deci
     duplicate = proposeDisagreement(instance, [1, 2]);
     rejected = proposeDisagreement(instance, [3, 4], "rejected");
     await acceptStatus(instance, proposeDisagreement(instance, [5, 6]));
-    replaceDigest(instance, 5, 900);
+    replaceDigestToken(instance, 5, 900);
     staleRow = proposeDisagreement(instance, [5, 6]);
     await acceptStatus(instance, proposeDisagreement(instance, [7, 8]));
-    replaceDigest(instance, 7, 901);
+    replaceDigestToken(instance, 7, 901);
     await saveProvider(instance);
   });
 

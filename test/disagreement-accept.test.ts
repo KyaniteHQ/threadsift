@@ -5,12 +5,12 @@ import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import {
   disagreementRows,
   proposeDisagreement,
-  replaceDigest,
   seedDigested,
   seedTopics,
 } from "./disagreement-fixtures.ts";
-import { pinRows, acceptStatus } from "./disagreement-pin-fixtures.ts";
+import { acceptStatus, pinRows, replaceDigestToken } from "./disagreement-pin-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { interrupted, touchesProposals } from "./interrupted-database.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import { SECRET_KEY, exec } from "./related-fixtures.ts";
 
@@ -86,7 +86,7 @@ describe("Accept of a disagreement keeps the pair as a Pin", () => {
   it("answers 409 not-current when either Item has a newer Digest, and keeps the row with no Pin", async () => {
     const id = proposeDisagreement(instance, [10, 11]);
 
-    replaceDigest(instance, 11, 900);
+    replaceDigestToken(instance, 11, 900);
     assert.deepEqual(await acceptStatus(instance, id), [409, { error: "not-current" }]);
     assert.equal(pinRows(instance).length, 1);
     assert.equal(
@@ -161,7 +161,7 @@ describe("accepting a new row for a pair whose Pin is stale", () => {
 
     const [older] = pinRows(instance);
 
-    replaceDigest(instance, 2, 950);
+    replaceDigestToken(instance, 2, 950);
     assert.deepEqual(await acceptStatus(instance, proposeDisagreement(instance, [1, 2])), [
       200,
       { state: "done" },
@@ -172,5 +172,47 @@ describe("accepting a new row for a pair whose Pin is stale", () => {
     assert.equal(found.length, 1);
     assert.equal(found[0]?.id, older?.id);
     assert.deepEqual([found[0]?.from_digest, found[0]?.into_digest], [1, 950]);
+  });
+});
+
+const GUARDED_BATCH = 3;
+
+describe("Accept of a disagreement writes the Pin only while both Digests are the ones it read", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start();
+    await instance.setUp();
+    seedTopics(instance, { 1: "Reading" });
+    seedDigested(instance, [
+      { id: 1, topic: 1 },
+      { id: 2, topic: 1 },
+    ]);
+  });
+
+  after(() => instance.close());
+
+  it("answers not-current and writes no Pin when a Digest changes between the read and the write, and keeps the row", async () => {
+    const id = proposeDisagreement(instance, [1, 2]);
+
+    const answer = await instance.sendThrough(
+      interrupted(instance.databaseFile, touchesProposals, {
+        before: (call) => {
+          if (call === GUARDED_BATCH) replaceDigestToken(instance, 2, 900);
+
+          return Promise.resolve();
+        },
+      }),
+      "POST",
+      `/api/proposals/${String(id)}/accept`,
+    );
+
+    assert.equal(answer.status, 409);
+    assert.deepEqual(JSON.parse(answer.body), { error: "not-current" });
+    assert.deepEqual(pinRows(instance), []);
+    assert.equal(
+      disagreementRows(instance).some((row) => row.id === id),
+      true,
+    );
   });
 });
