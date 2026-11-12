@@ -1,15 +1,14 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { readDisagreementInput } from "../src/core/disagreement-input.ts";
-import { disagreementRun } from "../src/core/disagreement-job.ts";
-import { storedOutcome } from "../src/core/weekly-model-run.ts";
 import {
+  applyAnswer,
   disagreementRows,
   proposeDisagreement,
   runningTask,
   seedDigested,
   seedTopics,
+  sentTopics,
   tokenOf,
 } from "./disagreement-fixtures.ts";
 import { acceptStatus, pinRows, replaceDigestToken } from "./disagreement-pin-fixtures.ts";
@@ -22,20 +21,8 @@ type Pair = Readonly<{ a: number; b: number; reason: string }>;
 
 async function storeAnswer(instance: Instance, disagreements: readonly Pair[]): Promise<void> {
   const db = interrupted(instance.databaseFile, () => false, {});
-  const read = await readDisagreementInput(db);
 
-  assert.ok(read !== null);
-
-  const { writes } = storedOutcome(db, disagreementRun, {
-    sent: read.sent,
-    taskId: runningTask(instance),
-    result: { disagreements },
-  });
-
-  const [head, ...rest] = writes;
-
-  assert.ok(head !== undefined);
-  await db.batch([head, ...rest]);
+  await applyAnswer({ db, sent: await sentTopics(db) }, runningTask(instance), disagreements);
 }
 
 describe("the guarded store of a weekly disagreement answer, applied to the outcome the production handler builds", () => {

@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { readDisagreementInput } from "../src/core/disagreement-input.ts";
-import { disagreementRun } from "../src/core/disagreement-job.ts";
 import { refusedByGuard } from "../src/core/guards.ts";
-import { storedOutcome } from "../src/core/weekly-model-run.ts";
 import {
+  applyAnswer,
   checksOf,
   disagreementRows,
   membersText,
@@ -13,6 +11,7 @@ import {
   proposeDisagreement,
   replaceDigest,
   runningTask,
+  sentTopics,
   taskState,
   tokenOf,
   topicIdOf,
@@ -27,31 +26,6 @@ type Reading = Readonly<{
   db: ReturnType<typeof interrupted>;
   sent: Awaited<ReturnType<typeof sentTopics>>;
 }>;
-
-const sentTopics = async (db: ReturnType<typeof interrupted>) => {
-  const read = await readDisagreementInput(db);
-
-  assert.ok(read !== null);
-
-  return read.sent;
-};
-
-async function apply(
-  { db, sent }: Readonly<Pick<Reading, "db" | "sent">>,
-  taskId: number,
-  disagreements: readonly Readonly<{ a: number; b: number; reason: string }>[],
-): Promise<void> {
-  const { writes } = storedOutcome(db, disagreementRun, {
-    sent,
-    taskId,
-    result: { disagreements },
-  });
-
-  const [head, ...rest] = writes;
-
-  assert.ok(head !== undefined);
-  await db.batch([head, ...rest]);
-}
 
 async function start(): Promise<Reading> {
   const instance = await Instance.start();
@@ -88,7 +62,7 @@ describe("the guarded store of a disagreement run, applied to the outcome the pr
       ["Other", "Reading"],
     );
 
-    await apply(reading, taskId, [{ a: 2, b: 1, reason: REASON }]);
+    await applyAnswer(reading, taskId, [{ a: 2, b: 1, reason: REASON }]);
 
     assert.deepEqual(
       disagreementRows(instance).map((row) => [
@@ -116,14 +90,14 @@ describe("the guarded store of a disagreement run, applied to the outcome the pr
 
     const taskId = runningTask(instance);
 
-    await apply(reading, taskId, [{ a: 1, b: 2, reason: "A second reason." }]);
+    await applyAnswer(reading, taskId, [{ a: 1, b: 2, reason: "A second reason." }]);
     assert.deepEqual(disagreementRows(instance), [existing]);
 
     assert.equal(
       (await instance.send("POST", `/api/proposals/${String(existing.id)}/reject`)).status,
       200,
     );
-    await apply(reading, runningTask(instance), [{ a: 2, b: 1, reason: "A third reason." }]);
+    await applyAnswer(reading, runningTask(instance), [{ a: 2, b: 1, reason: "A third reason." }]);
     assert.deepEqual(
       disagreementRows(instance).map(({ id, state }) => [id, state]),
       [[existing.id, "rejected"]],
@@ -147,7 +121,7 @@ describe("the guard of the store of a disagreement run", () => {
 
     await replaceDigest(instance, 2, { topic: "Reading", summary: "A replaced summary." });
 
-    await assert.rejects(apply(reading, taskId, [{ a: 1, b: 2, reason: REASON }]), (error) =>
+    await assert.rejects(applyAnswer(reading, taskId, [{ a: 1, b: 2, reason: REASON }]), (error) =>
       refusedByGuard(error),
     );
     assert.deepEqual(disagreementRows(instance), []);
@@ -160,7 +134,7 @@ describe("the guard of the store of a disagreement run", () => {
     const fresh = { db: reading.db, sent: await sentTopics(reading.db) };
     const taskId = runningTask(instance, "failed");
 
-    await assert.rejects(apply(fresh, taskId, [{ a: 1, b: 2, reason: REASON }]), (error) =>
+    await assert.rejects(applyAnswer(fresh, taskId, [{ a: 1, b: 2, reason: REASON }]), (error) =>
       refusedByGuard(error),
     );
     assert.deepEqual(disagreementRows(instance), []);
@@ -185,7 +159,7 @@ describe("the store of a disagreement run next to a row that a new Digest made s
 
     const sent = await sentTopics(db);
 
-    await apply({ db, sent }, runningTask(instance), [{ a: 1, b: 2, reason: REASON }]);
+    await applyAnswer({ db, sent }, runningTask(instance), [{ a: 1, b: 2, reason: REASON }]);
 
     const stored = disagreementRows(instance);
 
