@@ -6,6 +6,7 @@ import {
   insertHighlights,
   missingHighlights,
 } from "./preview-demo-highlights.ts";
+import { insertOverviewProposals, missingOverviewProposals } from "./preview-demo-overviews.ts";
 import { rowNames } from "./preview-migrations.ts";
 import { quoted } from "./preview-sql.ts";
 
@@ -61,6 +62,8 @@ const demoTopicMerges = [
     reason: "Home lab and Homelab are two spellings of the hobby of running servers at home.",
   },
 ] as const satisfies readonly Pair[];
+
+const demoOverviewTopics = ["Demo topic", "Machine learning", "Games"] as const;
 
 function demoUrl(number: number): string {
   return `https://example.com/demo/${String(number)}`;
@@ -190,6 +193,7 @@ const SCHEMA_PROBES = {
   proposals: { table: "proposals", column: "id" },
   topicProposals: { table: "proposals", column: "from_topic_id" },
   highlightProposals: { table: "proposals", column: "highlight_id" },
+  overviewProposals: { table: "proposals", column: "topic_id" },
   pins: { table: "pins", column: "id" },
   topicPins: { table: "pins", column: "into_topic_id" },
 } as const;
@@ -200,12 +204,14 @@ function schemaFacts(
   run: (args: readonly string[]) => string,
   scope: readonly string[],
 ): SchemaFacts {
-  const query = Object.entries(SCHEMA_PROBES)
-    .map(
-      ([fact, { table, column }]) =>
-        `SELECT '${fact}' AS name FROM pragma_table_info('${table}') WHERE name = '${column}'`,
-    )
-    .join(" UNION ALL ");
+  const probes = Object.entries(SCHEMA_PROBES)
+    .map(([fact, { table, column }]) => `('${fact}', '${table}', '${column}')`)
+    .join(", ");
+
+  const query = `WITH probe (fact, tbl, col) AS (VALUES ${probes})
+SELECT probe.fact AS name
+FROM probe
+WHERE EXISTS (SELECT 1 FROM pragma_table_info(probe.tbl) WHERE name = probe.col)`;
 
   const present = new Set(rowNames(run, scope, query));
 
@@ -213,6 +219,7 @@ function schemaFacts(
     proposals: present.has("proposals"),
     topicProposals: present.has("topicProposals"),
     highlightProposals: present.has("highlightProposals"),
+    overviewProposals: present.has("overviewProposals"),
     pins: present.has("pins"),
     topicPins: present.has("topicPins"),
   };
@@ -239,6 +246,7 @@ export function seedDemoProposals(
     ...(facts.highlightProposals
       ? [insertHighlights(demoLostHighlights), insertHighlightProposals(demoLostHighlights)]
       : []),
+    ...(facts.overviewProposals ? [insertOverviewProposals(demoOverviewTopics)] : []),
   ];
 
   run(["d1", "execute", "DB", "--json", "--command", inserts.join(";\n"), ...scope]);
@@ -246,6 +254,7 @@ export function seedDemoProposals(
   const checks = [
     ...seeded.map(({ kind, pinsReadable }) => missingPairs(kind, pinsReadable)),
     ...(facts.highlightProposals ? [missingHighlights(demoLostHighlights)] : []),
+    ...(facts.overviewProposals ? [missingOverviewProposals(demoOverviewTopics)] : []),
   ];
 
   const missing = rowNames(run, scope, checks.join(";\n"));
