@@ -1,6 +1,7 @@
 import { inArray, sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+import { highlights } from "./highlight-tables.ts";
 import { PROPOSAL_KINDS, PROPOSAL_STATES } from "./kinds.ts";
 import { tags, topics } from "./schema.ts";
 
@@ -19,6 +20,7 @@ export const proposals = sqliteTable(
     cursor: integer("cursor"),
     moved: integer("moved"),
     unitRevision: integer("unit_revision"),
+    highlightId: integer("highlight_id").references(() => highlights.id, { onDelete: "cascade" }),
   },
   (table) => [
     uniqueIndex("proposals_pair").on(
@@ -29,6 +31,7 @@ export const proposals = sqliteTable(
       sql`min(${table.fromTopicId}, ${table.intoTopicId})`,
       sql`max(${table.fromTopicId}, ${table.intoTopicId})`,
     ),
+    uniqueIndex("proposals_highlight").on(table.highlightId),
     index("proposals_from").on(table.fromTagId),
     index("proposals_into").on(table.intoTagId),
     index("proposals_from_topic").on(table.fromTopicId),

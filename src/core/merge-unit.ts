@@ -1,7 +1,7 @@
 import type { SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import type { ProposalKind, ProposalState } from "./kinds.ts";
+import type { MergeKind, ProposalState } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import type { TopicLease } from "./topic-lease.ts";
 
@@ -12,7 +12,7 @@ interface MergeSide {
 }
 
 export interface MergeRow {
-  readonly kind: ProposalKind;
+  readonly kind: MergeKind;
   readonly state: ProposalState;
   readonly cursor: number | null;
   readonly revision: number;

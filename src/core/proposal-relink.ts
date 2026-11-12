@@ -1,7 +1,7 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import type { ProposalKind } from "./kinds.ts";
+import type { MergeKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { proposals } from "./schema.ts";
 
@@ -15,7 +15,7 @@ interface Columns {
 }
 
 // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle table type holds mutable column objects, so it cannot be deeply readonly.
-function columnsOf(row: typeof proposals | typeof other, kind: ProposalKind): Columns {
+function columnsOf(row: typeof proposals | typeof other, kind: MergeKind): Columns {
   return {
     id: row.id,
     from: kind === "tag-merge" ? row.fromTagId : row.fromTopicId,
@@ -40,7 +40,7 @@ function outranks(first: Readonly<Columns>, second: Readonly<Columns>): SQL {
   return sql`(${strength(first)} < ${strength(second)} or (${strength(first)} = ${strength(second)} and ${first.id} < ${second.id}))`;
 }
 
-export function proposalRelinks(db: Database, kind: ProposalKind, loser: number, survivor: number) {
+export function proposalRelinks(db: Database, kind: MergeKind, loser: number, survivor: number) {
   const outer = columnsOf(proposals, kind);
   const inner = columnsOf(other, kind);
 

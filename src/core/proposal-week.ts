@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { providerSet } from "./ai-tasks.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows, opening } from "./job-rows.ts";
-import { type ProposalKind, WEEKLY_TASK } from "./kinds.ts";
+import { type MergeKind, WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, scheduledRuns } from "./schema.ts";
 
@@ -11,7 +11,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const NEWEST_DIGESTED_ITEM = sql`(select max(${digests.itemId}) from ${digests})`;
 
-function claimingWeek(db: Database, now: number, task: (typeof WEEKLY_TASK)[ProposalKind]) {
+function claimingWeek(db: Database, now: number, task: (typeof WEEKLY_TASK)[MergeKind]) {
   return db
     .insert(scheduledRuns)
     .select(
@@ -31,7 +31,7 @@ function claimingWeek(db: Database, now: number, task: (typeof WEEKLY_TASK)[Prop
     .returning({ task: scheduledRuns.task });
 }
 
-export async function openWeeklyRun(ports: JobPorts, now: number, kind: ProposalKind) {
+export async function openWeeklyRun(ports: JobPorts, now: number, kind: MergeKind) {
   const { db } = ports;
   const task = WEEKLY_TASK[kind];
 
