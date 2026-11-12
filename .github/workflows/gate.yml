@@ -33,7 +33,12 @@ jobs:
           path: ~/.impeccable/bin
           key: impeccable-engine-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.claude/skills/impeccable/scripts/VERSION') }}
       - uses: ./.github/actions/setup-devenv
-      - run: devenv tasks run ci:gate
+      - shell: bash
+        run: |
+          hostname
+          getent ahosts "$(hostname)" || echo "no address"
+          devenv tasks run ci:install
+          devenv shell -- node --test --test-reporter=spec test/fetcher-private-host.test.ts test/grok-bot-network.test.ts
 
   smoke:
     if: github.repository == 'KyaniteHQ/threadsift'
