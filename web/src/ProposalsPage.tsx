@@ -35,24 +35,10 @@ function useMoveFocus(focus: Readonly<Focus>, done: () => void) {
 }
 
 export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: () => void }>) {
-  const { source, pending, failed, busy, announcement, notice, focus, focused, decide } =
+  const { source, pending, failed, busy, announcement, notice, focus, focused, press } =
     useProposalsPage();
 
   useMoveFocus(focus, focused);
-
-  const pressAccept = useCallback(
-    (proposal: Proposal) => {
-      void decide(proposal, "accept");
-    },
-    [decide],
-  );
-
-  const pressReject = useCallback(
-    (proposal: Proposal) => {
-      void decide(proposal, "reject");
-    },
-    [decide],
-  );
 
   const overviewFollows = source.state.status === "ready" && source.state.provider;
 
@@ -65,13 +51,14 @@ export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: ()
         pending={pending.has(proposal.id)}
         failure={failed.get(proposal.id)}
         busy={busy.get(proposal.id)}
-        accept={pressAccept}
-        reject={pressReject}
+        accept={press.accept}
+        reject={press.reject}
         open={pages.highlight}
         openTopic={pages.topic}
+        openItem={pages.item}
       />
     ),
-    [pending, failed, busy, overviewFollows, pressAccept, pressReject, pages],
+    [pending, failed, busy, overviewFollows, press, pages],
   );
 
   return (

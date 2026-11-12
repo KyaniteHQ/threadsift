@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
+import { staleDisagreements } from "./disagreement-rows.ts";
 import { proposeLostHighlights } from "./highlight-proposals.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows, opening } from "./job-rows.ts";
@@ -8,7 +10,14 @@ import { proposeOverviewGaps } from "./overview-proposals.ts";
 import { items } from "./schema.ts";
 import { NEWEST_DIGESTED_ITEM, claimingWeek } from "./weekly-claim.ts";
 
-async function openModelRun(ports: JobPorts, now: number, kind: MergeKind) {
+type ModelRunKind = MergeKind | "items-disagree";
+
+async function openModelRun(
+  ports: JobPorts,
+  now: number,
+  kind: ModelRunKind,
+  after: readonly BatchItem<"sqlite">[] = [],
+) {
   const { db } = ports;
   const task = WEEKLY_TASK[kind];
 
@@ -20,6 +29,7 @@ async function openModelRun(ports: JobPorts, now: number, kind: MergeKind) {
       now,
       where: sql`${items.id} = ${NEWEST_DIGESTED_ITEM} and changes() > 0`,
     }),
+    ...after,
   ]);
 
   await enqueueRows(ports, opened);
@@ -43,6 +53,11 @@ const WEEKLY_RUN = {
   "overview-gap": {
     stage: "overview-proposals",
     run: ({ db }, now) => proposeOverviewGaps(db, now),
+  },
+  "items-disagree": {
+    stage: "disagreement-proposals",
+    run: (ports, now) =>
+      openModelRun(ports, now, "items-disagree", [staleDisagreements(ports.db, now)]),
   },
 } as const satisfies Readonly<Record<ProposalKind, WeeklyRun>>;
 

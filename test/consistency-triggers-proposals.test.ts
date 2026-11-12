@@ -37,11 +37,18 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
     "topic-merge": { table: "topics", into: "into_topic_id" },
   } as const;
 
-  const insertSubjects = (table: "tags" | "topics"): readonly [number, number] => {
+  const INSERTS = {
+    tags: "insert into tags (key, name) values (?, ?), (?, ?) returning id",
+    topics: "insert into topics (key, name) values (?, ?), (?, ?) returning id",
+    items:
+      "insert into items (source, kind, normalized_url, original_url, saved_at) values ('article', 'article', ?, ?, 0), ('article', 'article', ?, ?, 0) returning id",
+  } as const;
+
+  const insertSubjects = (table: keyof typeof INSERTS): readonly [number, number] => {
     saved += 1;
 
     const rows = database
-      .prepare(`insert into ${table} (key, name) values (?, ?), (?, ?) returning id`)
+      .prepare(INSERTS[table])
       .all(`a${String(saved)}`, "A", `b${String(saved)}`, "B");
 
     const [from, into] = z
@@ -67,12 +74,6 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
     return [z.array(z.object({ id: z.number() })).parse(rows)[0]?.id ?? 0];
   };
 
-  const insertTopic = (): readonly [number] => {
-    const [topic] = insertSubjects("topics");
-
-    return [topic];
-  };
-
   const PROPOSAL_SUBJECTS = {
     "tag-merge": {
       columns: ["from_tag_id", "into_tag_id"],
@@ -83,7 +84,11 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
       create: () => insertSubjects("topics"),
     },
     "highlight-lost": { columns: ["highlight_id"], create: insertHighlight },
-    "overview-gap": { columns: ["topic_id"], create: insertTopic },
+    "overview-gap": { columns: ["topic_id"], create: () => [insertSubjects("topics")[0]] },
+    "items-disagree": {
+      columns: ["from_item_id", "into_item_id", "from_digest", "into_digest"],
+      create: () => [...insertSubjects("items"), 1, 2],
+    },
   } as const satisfies Readonly<
     Record<
       ProposalKind,

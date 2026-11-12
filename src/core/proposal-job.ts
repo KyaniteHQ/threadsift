@@ -1,19 +1,10 @@
 import { type SQL, eq, sql } from "drizzle-orm";
 
-import { AI_DEADLINE_MS } from "./ai-contract.ts";
-import { aiTaskRunning, completedAiTask, runAiTask } from "./ai-tasks.ts";
-import { guardedOutcome, lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
-import type {
-  ClaimedJob,
-  JobHandler,
-  JobOutcome,
-  JobPorts,
-  JobWrites,
-  SettledOutcome,
-} from "./job-outcome.ts";
+import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { proposalsInput, readProposalPairs } from "./proposal-input.ts";
+import { proposalRow } from "./proposal-row.ts";
 import {
   PROPOSALS_OUTPUT_TOKENS,
   type ProposalsResult,
@@ -21,6 +12,7 @@ import {
   proposalsTask,
 } from "./proposal-task.ts";
 import { catalogVersion, proposals, tags, topics } from "./schema.ts";
+import { type WeeklyModelRun, weeklyModelHandler } from "./weekly-model-run.ts";
 
 interface StoredRow {
   readonly from: number;
@@ -31,22 +23,21 @@ interface StoredRow {
 
 type MergeKind = Parameters<typeof proposalsTask>[0];
 
+type Sent = readonly Readonly<SentPair>[];
+
 const RUNS: Readonly<Record<MergeKind, { readonly label: string; readonly event: string }>> = {
   "tag-merge": { label: "Proposals run", event: "proposals-run-failed" },
   "topic-merge": { label: "Topic proposals run", event: "topic-proposals-run-failed" },
 };
 
-function sentExist(kind: MergeKind, sent: readonly Readonly<SentPair>[]): SQL {
+function sentExist(kind: MergeKind, sent: Sent): SQL {
   const ids = JSON.stringify(sent.flatMap(({ low, high }) => [low.id, high.id]));
   const table = kind === "tag-merge" ? tags : topics;
 
   return sql`not exists (select 1 from json_each(${ids}) as wanted where not exists (select 1 from ${table} where ${table.id} = wanted.value))`;
 }
 
-function rowsOf(
-  sent: readonly Readonly<SentPair>[],
-  merges: ProposalsResult["merges"],
-): readonly StoredRow[] {
+function rowsOf(sent: Sent, merges: ProposalsResult["merges"]): readonly StoredRow[] {
   const merged = new Set(merges.map(({ from, into }) => pairKey(from, into)));
 
   return [
@@ -67,7 +58,7 @@ function storedRows(
   if (rows.length === 0) return [];
 
   const side = (own: MergeKind, path: "from" | "into") =>
-    kind === own ? sql<number>`json_extract(stored.value, ${`$.${path}`})` : sql<null>`null`;
+    kind === own ? sql`json_extract(stored.value, ${`$.${path}`})` : sql`null`;
 
   return [
     db
@@ -75,20 +66,20 @@ function storedRows(
       .select(
         db
           .select({
-            id: sql<null>`null`.as("id"),
-            kind: sql<MergeKind>`${kind}`.as("kind"),
-            fromTagId: side("tag-merge", "from").as("from_tag_id"),
-            intoTagId: side("tag-merge", "into").as("into_tag_id"),
-            fromTopicId: side("topic-merge", "from").as("from_topic_id"),
-            intoTopicId: side("topic-merge", "into").as("into_topic_id"),
-            reason: sql<string | null>`json_extract(stored.value, '$.reason')`.as("reason"),
-            state: sql<StoredRow["state"]>`json_extract(stored.value, '$.state')`.as("state"),
-            createdAt: sql<number>`${Date.now()}`.as("created_at"),
-            cursor: sql<null>`null`.as("cursor"),
-            moved: sql<null>`null`.as("moved"),
-            unitRevision: sql<null>`null`.as("unit_revision"),
-            highlightId: sql<null>`null`.as("highlight_id"),
-            topicId: sql<null>`null`.as("topic_id"),
+            ...proposalRow(
+              {
+                kind,
+                state: sql`json_extract(stored.value, '$.state')`,
+                reason: sql`json_extract(stored.value, '$.reason')`,
+                createdAt: Date.now(),
+              },
+              {
+                fromTagId: side("tag-merge", "from"),
+                intoTagId: side("tag-merge", "into"),
+                fromTopicId: side("topic-merge", "from"),
+                intoTopicId: side("topic-merge", "into"),
+              },
+            ),
           })
           .from(sql`json_each(${JSON.stringify(rows)}) as stored`)
           .where(sql`true`),
@@ -97,30 +88,8 @@ function storedRows(
   ];
 }
 
-function storedOutcome(
-  db: Database,
-  kind: MergeKind,
-  {
-    sent,
-    taskId,
-    result,
-  }: Readonly<{
-    sent: readonly Readonly<SentPair>[];
-    taskId: number;
-    result: Readonly<ProposalsResult>;
-  }>,
-): SettledOutcome {
-  return guardedOutcome(db, sql`${sentExist(kind, sent)} and ${aiTaskRunning(taskId)}`, {
-    taskId,
-    writes: [
-      ...storedRows(db, kind, rowsOf(sent, result.merges)),
-      completedAiTask(db, { taskId, result }),
-    ],
-  });
-}
-
-async function catalogRevision(ports: JobPorts): Promise<number> {
-  const [row] = await ports.db
+async function catalogRevision(db: Database): Promise<number> {
+  const [row] = await db
     .select({ version: catalogVersion.version })
     .from(catalogVersion)
     .where(eq(catalogVersion.id, 1));
@@ -128,55 +97,22 @@ async function catalogRevision(ports: JobPorts): Promise<number> {
   return row?.version ?? 0;
 }
 
-async function attemptRun(
-  kind: MergeKind,
-  ports: JobPorts,
-  job: Readonly<ClaimedJob>,
-): Promise<JobOutcome> {
-  const { db } = ports;
-  const inputRevision = await catalogRevision(ports);
-  const { input, sent } = proposalsInput(await readProposalPairs(db, kind));
-
-  if (sent.length === 0) return guardedOutcome(db, sql`1`);
-
-  const result = await runAiTask(
-    ports,
-    proposalsTask(kind, sent),
-    {
-      text: input,
-      inputRevision,
-      attempts: job.attempts + 1,
-      maxOutputTokens: PROPOSALS_OUTPUT_TOKENS,
-    },
-    job,
-  );
-
-  if (result.kind === "claim-lost") return lostOutcome(db);
-
-  if (result.kind !== "done") {
-    const refused = await refusalOutcome(db, job, {
-      result,
-      current: sentExist(kind, sent),
-      label: RUNS[kind].label,
-    });
-
-    console.warn(JSON.stringify({ event: RUNS[kind].event, reason: result.reason }));
-
-    return refused;
-  }
-
-  return storedOutcome(db, kind, { sent, taskId: result.taskId, result: result.result });
-}
-
-function handlerOf(kind: MergeKind): JobHandler {
+function runOf(kind: MergeKind): WeeklyModelRun<Sent, ProposalsResult> {
   return {
-    deadlineMs: AI_DEADLINE_MS,
-    blockedBy: [],
-    attempt: (ports, job) => attemptRun(kind, ports, job),
-    exhausted: () => [],
+    ...RUNS[kind],
+    maxOutputTokens: PROPOSALS_OUTPUT_TOKENS,
+    read: async (db) => {
+      const inputRevision = await catalogRevision(db);
+      const { input, sent } = proposalsInput(await readProposalPairs(db, kind));
+
+      return sent.length === 0 ? null : { input, inputRevision, sent };
+    },
+    task: (sent) => proposalsTask(kind, sent),
+    current: (sent) => sentExist(kind, sent),
+    stored: (db, { sent, result }) => storedRows(db, kind, rowsOf(sent, result.merges)),
   };
 }
 
-export const proposalsHandler = handlerOf("tag-merge");
+export const proposalsHandler = weeklyModelHandler(runOf("tag-merge"));
 
-export const topicProposalsHandler = handlerOf("topic-merge");
+export const topicProposalsHandler = weeklyModelHandler(runOf("topic-merge"));

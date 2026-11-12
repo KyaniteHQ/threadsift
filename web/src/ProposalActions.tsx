@@ -4,9 +4,11 @@ import type { Proposal } from "../../src/core/proposal-contract.ts";
 import { ACCEPT_CLASS, REJECT_CLASS } from "./proposal-dom.ts";
 import type { Busy } from "./proposals-api.ts";
 import {
+  type AcceptableProposal,
   PROPOSAL_WORDS,
   acceptLabel,
   acceptRetryLabel,
+  isAcceptable,
   rejectLabel,
   rejectRetryLabel,
 } from "./proposals-text.ts";
@@ -19,10 +21,11 @@ export interface RowControls {
   readonly pending: boolean;
   readonly failure: Failure | undefined;
   readonly busy: Busy | undefined;
-  readonly accept: (proposal: Proposal) => void;
+  readonly accept: (proposal: AcceptableProposal) => void;
   readonly reject: (proposal: Proposal) => void;
   readonly open: (itemId: number, highlightId: number) => void;
   readonly openTopic: (key: string) => void;
+  readonly openItem: (id: number) => void;
 }
 
 function Note({ children, alert }: Readonly<{ children: string; alert: boolean }>) {
@@ -65,7 +68,7 @@ export function Actions({
   const locked = pending || applying;
 
   const pressAccept = useCallback(() => {
-    if (!locked) accept(proposal);
+    if (!locked && isAcceptable(proposal)) accept(proposal);
   }, [accept, locked, proposal]);
 
   const pressReject = useCallback(() => {
@@ -74,15 +77,17 @@ export function Actions({
 
   return (
     <div className="pr-actions">
-      <button
-        type="button"
-        className={`btn btn-acc ${ACCEPT_CLASS}`}
-        aria-label={(failure === "accept" ? acceptRetryLabel : acceptLabel)(proposal)}
-        aria-disabled={locked}
-        onClick={pressAccept}
-      >
-        {failure === "accept" ? RETRY_LABEL : PROPOSAL_WORDS.accept}
-      </button>
+      {isAcceptable(proposal) && (
+        <button
+          type="button"
+          className={`btn btn-acc ${ACCEPT_CLASS}`}
+          aria-label={(failure === "accept" ? acceptRetryLabel : acceptLabel)(proposal)}
+          aria-disabled={locked}
+          onClick={pressAccept}
+        >
+          {failure === "accept" ? RETRY_LABEL : PROPOSAL_WORDS.accept}
+        </button>
+      )}
       <button
         type="button"
         className={`btn ${REJECT_CLASS}`}
