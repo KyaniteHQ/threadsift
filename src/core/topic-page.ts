@@ -3,6 +3,7 @@ import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { providerSet } from "./ai-tasks.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
+import { readDisagreements } from "./known-disagreements.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, pins, topicPages, topics } from "./schema.ts";
 import { hasOpenOverview, notBuiltFrom } from "./topic-coverage.ts";
@@ -142,9 +143,10 @@ export async function readTopicPage(
 
   if (topic === null) return undefined;
 
-  const [rows, { overview, total, builtFrom }] = await Promise.all([
+  const [rows, { overview, total, builtFrom }, disagreements] = await Promise.all([
     pageQuery(db, topic.id, cursor),
     readTopicOverview(db, topic.id),
+    readDisagreements(db, topic.id),
   ]);
 
   const built = new Map(builtFrom.map(({ item, digest }) => [item, digest]));
@@ -154,6 +156,7 @@ export async function readTopicPage(
   return {
     topic: { key: topic.key, name: topic.name, itemCount: total },
     overview,
+    disagreements,
     items: shown.map((row) => ({
       id: row.id,
       source: row.source,

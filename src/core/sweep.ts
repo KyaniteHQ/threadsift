@@ -4,8 +4,8 @@ import { cleanFiles } from "./file-cleanup.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { dueIds } from "./jobs.ts";
+import { continueMerges } from "./merge-accept.ts";
 import { sweepConnectTransactions } from "./openrouter-connect.ts";
-import { continueMerges } from "./proposal-accept.ts";
 import { weeklyStages } from "./proposal-week.ts";
 import { reconcileSearchParts } from "./search-reconciler.ts";
 

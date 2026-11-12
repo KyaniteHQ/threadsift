@@ -1,14 +1,17 @@
-import { type SQL, asc, sql } from "drizzle-orm";
+import { type SQL, asc, inArray, sql } from "drizzle-orm";
 
 import { CATALOG_KEY_MAX } from "./catalog-key-limit.ts";
 import { TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
 import { CATALOG_KEY_VERSION, catalogKey } from "./catalog-key.ts";
 import type { Advance, DataStep } from "./data-step-contract.ts";
+import { MERGE_KINDS } from "./kinds.ts";
 import { mergedTag, mergedTopic, misfiled } from "./pin-merge.ts";
 import type { Database } from "./ports.ts";
 import { guards, insertGuard, pins } from "./schema.ts";
 
 const PINS_PER_STATEMENT = 100;
+
+const mergePin = inArray(pins.kind, [...MERGE_KINDS]);
 
 const TEMPORARY_KEY = "~".repeat(CATALOG_KEY_MAX + 1);
 
@@ -26,6 +29,7 @@ async function recomputedKeys(db: Database): Promise<Advance> {
   const rows = await db
     .select({ id: pins.id, kind: pins.kind, key: pins.fromKey, name: pins.fromName })
     .from(pins)
+    .where(mergePin)
     .orderBy(asc(pins.id));
 
   const owners = new Map<string, number>();
@@ -76,13 +80,14 @@ function holds(db: Database, stored: readonly Readonly<{ id: number; key: string
 }
 
 function settled(db: Database, total: number): SQL {
-  return sql`(select count(*) from ${pins}) = ${total} and not exists ${misfiled(db, TAG_KIND)} and not exists ${misfiled(db, TOPIC_KIND)}`;
+  return sql`(select count(*) from ${pins} where ${mergePin}) = ${total} and not exists ${misfiled(db, TAG_KIND)} and not exists ${misfiled(db, TOPIC_KIND)}`;
 }
 
 async function finished(db: Database): Promise<Advance> {
   const rows = await db
     .select({ id: pins.id, key: pins.fromKey, name: pins.fromName })
     .from(pins)
+    .where(mergePin)
     .orderBy(asc(pins.id));
 
   if (rows.some(({ name, key }) => catalogKey(name) !== key)) return { writes: [], cursor: "keys" };

@@ -77,7 +77,7 @@ _Avoid_: Status, archived, done
 ### The library wiki
 
 **Topic page**:
-The page for one Topic: the agent's short overview, built from that Topic's Items, and the list of those Items. Its address is the Topic's key; the address of a Topic that was merged into another opens the Topic it went into.
+The page for one Topic: the agent's short overview, built from that Topic's Items, the Known disagreements (the accepted pairs of its Items that disagree, with the agent's reason), and the list of those Items. Its address is the Topic's key; the address of a Topic that was merged into another opens the Topic it went into.
 _Avoid_: Category page, wiki page
 
 **Related Item**:
@@ -97,15 +97,15 @@ One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later o
 _Avoid_: Event, Audit record
 
 **Proposal**:
-A change the agent suggests on the weekly Proposals page: merging two Tags, merging two Topics, removing a Highlight that is no longer found, writing again the overview of a Topic that leaves Items out, or two Items of one Topic whose Summaries disagree. The owner accepts or rejects a Proposal of every kind, except that Accept of a disagreement is not built yet and the owner can only reject it.
+A change the agent suggests on the weekly Proposals page: merging two Tags, merging two Topics, removing a Highlight that is no longer found, writing again the overview of a Topic that leaves Items out, or two Items of one Topic whose Summaries disagree. The owner accepts or rejects a Proposal of every kind.
 _Avoid_: Suggestion, lint, fix
 
 **Proposals page**:
-The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, for a lost Highlight its quote and its Item's title as a link to the Highlight's place in the Reader, for a Topic whose overview leaves Items out the Topic as a link to its page with how many of its Items are not in the overview and how many it has, or for two Items that disagree both titles as links to the Reader with their Summaries and the agent's reason, and lets the owner accept or reject each, a disagreement only reject.
+The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, for a lost Highlight its quote and its Item's title as a link to the Highlight's place in the Reader, for a Topic whose overview leaves Items out the Topic as a link to its page with how many of its Items are not in the overview and how many it has, or for two Items that disagree both titles as links to the Reader with their Summaries and the agent's reason, and lets the owner accept or reject each.
 _Avoid_: Suggestions page, Inbox
 
 **Pin**:
-An accepted correction kept so that a later regeneration cannot undo it. For a Tag merge it records the merged-away Tag's key and the Tag it went into, so no later Digest creates the merged-away Tag again. For a Topic merge it records the merged-away Topic's key and the Topic it went into in the same way; Accept of a Topic merge writes it, and the app reads it to keep the merged-away Topic from coming back and to open the Topic it went into at the merged-away Topic's old address.
+An accepted correction kept so that a later regeneration cannot undo it. For a Tag merge it records the merged-away Tag's key and the Tag it went into, so no later Digest creates the merged-away Tag again. For a Topic merge it records the merged-away Topic's key and the Topic it went into in the same way; Accept of a Topic merge writes it, and the app reads it to keep the merged-away Topic from coming back and to open the Topic it went into at the merged-away Topic's old address. A Pin of a disagreement names two Items that disagree and holds only while both Items carry the Digests it was accepted on.
 _Avoid_: Override, lock
 
 ### Reading

@@ -56,7 +56,7 @@ const acceptProposalRoute = createRoute({
   responses: {
     200: jsonBody(
       AcceptedSchema,
-      "The merge finished in this request: every Item carries `into` and the `from` Tag or Topic is gone, and a Pin keeps it from coming back. A Topic merge also tries once to open an overview run for `into`. For a `highlight-lost` row the Highlight and its search part are removed with the Proposal, and a second call answers 404. For an `overview-gap` row one overview run was queued for the Topic, the Topic page's failure marker was cleared and the Proposal was deleted in one write, and a second call answers 404; the run reads at most 40 uncovered Items and starts the next run itself after a success until every Item is covered, so covering N Items takes at least ceil(N / 40) successful model calls, and a failed run stops the chain. Only the owner's session may accept; an agent token gets 403.",
+      "The merge finished in this request: every Item carries `into` and the `from` Tag or Topic is gone, and a Pin keeps it from coming back. A Topic merge also tries once to open an overview run for `into`. For a `highlight-lost` row the Highlight and its search part are removed with the Proposal, and a second call answers 404. For an `items-disagree` row the pair was kept as a Pin and the Proposal was deleted in one write, no model ran, and a second call answers 404. For an `overview-gap` row one overview run was queued for the Topic, the Topic page's failure marker was cleared and the Proposal was deleted in one write, and a second call answers 404; the run reads at most 40 uncovered Items and starts the next run itself after a success until every Item is covered, so covering N Items takes at least ceil(N / 40) successful model calls, and a failed run stops the chain. Only the owner's session may accept; an agent token gets 403.",
     ),
     202: jsonBody(
       AcceptedSchema,
@@ -68,7 +68,7 @@ const acceptProposalRoute = createRoute({
     ),
     409: jsonBody(
       ErrorResponseSchema,
-      "The Proposal is not open (`not-open`); the row is not current (`not-current`: the row stays and the list stops showing it), because the Highlight of a `highlight-lost` row is found in its Item again, or the Topic of an `overview-gap` row has no Item left that its overview was not built from or already has an overview run open; no Provider is saved for an `overview-gap` row (`no-provider`: the row stays open); another Proposal is accepting (`merge-busy`: one merge runs at a time); or an overview run or another merge holds the lease of one of the two Topics (`topic-busy`: a Topic merge only; the Proposal stays open and the call can be sent again); or the row is an `items-disagree` row (`not-supported`: Accept of a disagreement is not built, and the row stays open).",
+      "The Proposal is not open (`not-open`); the row is not current (`not-current`: the row stays and the list stops showing it), because the Highlight of a `highlight-lost` row is found in its Item again, the Topic of an `overview-gap` row has no Item left that its overview was not built from or already has an overview run open, or an `items-disagree` row names an Item that has a newer Digest or the two Items no longer sit under one Topic; no Provider is saved for an `overview-gap` row (`no-provider`: the row stays open); another Proposal is accepting (`merge-busy`: one merge runs at a time); or an overview run or another merge holds the lease of one of the two Topics (`topic-busy`: a Topic merge only; the Proposal stays open and the call can be sent again).",
     ),
   },
 });
@@ -98,7 +98,6 @@ function registerAccept(app: OpenAPIHono, ports: Ports): void {
         return c.json({ error: NOT_FOUND }, 404);
       case "not-open":
       case "not-current":
-      case "not-supported":
       case "no-provider":
       case "merge-busy":
       case "topic-busy":

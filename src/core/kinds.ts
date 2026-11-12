@@ -118,11 +118,11 @@ export const LOG_ACTIONS = [
 
 export type LogAction = (typeof LOG_ACTIONS)[number];
 
-export const PIN_KINDS = ["tag-merge", "topic-merge"] as const;
+export const MERGE_KINDS = ["tag-merge", "topic-merge"] as const;
+
+export const PIN_KINDS = [...MERGE_KINDS, "items-disagree"] as const;
 
 export type PinKind = (typeof PIN_KINDS)[number];
-
-export const MERGE_KINDS = ["tag-merge", "topic-merge"] as const;
 
 export const PROPOSAL_KINDS = [
   ...MERGE_KINDS,

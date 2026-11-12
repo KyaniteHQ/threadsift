@@ -22,7 +22,7 @@ export function reasonId(id: number): string {
   return `${rowId(id)}-reason`;
 }
 
-export function rejectDescription(proposal: Readonly<Proposal>): string | undefined {
+export function rowDescription(proposal: Readonly<Proposal>): string | undefined {
   return proposal.kind === "items-disagree"
     ? `${sidesId(proposal.id)} ${reasonId(proposal.id)}`
     : undefined;

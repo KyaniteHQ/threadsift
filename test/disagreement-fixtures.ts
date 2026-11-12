@@ -1,6 +1,12 @@
+import assert from "node:assert/strict";
+
 import { z } from "zod";
 
+import { readDisagreementInput } from "../src/core/disagreement-input.ts";
+import { disagreementRun } from "../src/core/disagreement-job.ts";
+import { storedOutcome } from "../src/core/weekly-model-run.ts";
 import type { Instance } from "./instance.ts";
+import type { interrupted } from "./interrupted-database.ts";
 import { script } from "./pin-fixtures.ts";
 import { exec, paste, rows, until } from "./related-fixtures.ts";
 
@@ -245,3 +251,30 @@ export const topicIdOf = (instance: Instance, name: string): number => {
 
   return row.id;
 };
+
+export type ReadingDatabase = ReturnType<typeof interrupted>;
+
+export async function sentTopics(db: ReadingDatabase) {
+  const read = await readDisagreementInput(db);
+
+  assert.ok(read !== null);
+
+  return read.sent;
+}
+
+export async function applyAnswer(
+  { db, sent }: Readonly<{ db: ReadingDatabase; sent: Awaited<ReturnType<typeof sentTopics>> }>,
+  taskId: number,
+  disagreements: readonly Readonly<{ a: number; b: number; reason: string }>[],
+): Promise<void> {
+  const { writes } = storedOutcome(db, disagreementRun, {
+    sent,
+    taskId,
+    result: { disagreements },
+  });
+
+  const [head, ...rest] = writes;
+
+  assert.ok(head !== undefined);
+  await db.batch([head, ...rest]);
+}

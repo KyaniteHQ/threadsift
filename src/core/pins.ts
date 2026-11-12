@@ -2,12 +2,12 @@ import { type SQL, and, eq, or, sql } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
-import type { PinKind } from "./kinds.ts";
+import type { MergeKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { pins, tags, topics } from "./schema.ts";
 
 interface Resolution {
-  readonly kind: PinKind;
+  readonly kind: MergeKind;
   readonly key: string;
   readonly pin: string;
 }
@@ -54,7 +54,7 @@ function resolutionHolds(resolutions: readonly Readonly<Resolution>[]): SQL {
 }
 
 function resolutionOf(
-  kind: PinKind,
+  kind: MergeKind,
   key: string,
   row: Readonly<{ id: number; target: number }> | undefined,
 ): Resolution {

@@ -68,6 +68,7 @@ export function ItemsDisagreeBody({
         <span className="vh">{PROPOSAL_WORDS.reasonLabel}: </span>
         {reason}
       </p>
+      <p className="rl-sum pr-keeps">{PROPOSAL_WORDS.disagreementKept}</p>
     </>
   );
 }

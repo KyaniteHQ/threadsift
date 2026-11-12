@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import type { Proposal } from "../../src/core/proposal-contract.ts";
-import { ACCEPT_CLASS, REJECT_CLASS, rejectDescription } from "./proposal-dom.ts";
+import { ACCEPT_CLASS, REJECT_CLASS, rowDescription } from "./proposal-dom.ts";
 import type { Busy } from "./proposals-api.ts";
 import {
   type AcceptableProposal,
@@ -82,6 +82,7 @@ export function Actions({
           type="button"
           className={`btn btn-acc ${ACCEPT_CLASS}`}
           aria-label={(failure === "accept" ? acceptRetryLabel : acceptLabel)(proposal)}
+          aria-describedby={rowDescription(proposal)}
           aria-disabled={locked}
           onClick={pressAccept}
         >
@@ -92,7 +93,7 @@ export function Actions({
         type="button"
         className={`btn ${REJECT_CLASS}`}
         aria-label={(failure === "reject" ? rejectRetryLabel : rejectLabel)(proposal)}
-        aria-describedby={rejectDescription(proposal)}
+        aria-describedby={rowDescription(proposal)}
         aria-disabled={locked}
         onClick={pressReject}
       >

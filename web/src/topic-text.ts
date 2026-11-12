@@ -21,6 +21,8 @@ export const TOPIC_PAGE = {
   loadingMore: "Loading more…",
   loadMoreFailed: "Couldn’t load more items.",
   openPage: "Open topic page",
+  disagreementsHeading: "Known disagreements",
+  disagreementsEntryLabel: "Items in this disagreement",
 } as const;
 
 const BUILT_FROM_SOME = "Built from {built} of {total} items";

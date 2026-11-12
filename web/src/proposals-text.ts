@@ -11,7 +11,7 @@ export const PROPOSALS_PAGE = {
   emptyHeading: "No proposals yet",
   loadMoreFailed: "Couldn’t load more proposals.",
   sort: "Newest first",
-  head: "Accepting a merge can’t be undone in this release, and accepting removes a highlight for good. Accepting an overview update starts a model run for that topic. Rejecting is final: that tag, topic or item pair, highlight or topic stays as it is and won’t be proposed again.",
+  head: "Accepting a merge can’t be undone in this release, and accepting removes a highlight for good. Accepting an overview update starts a model run for that topic, and accepting a disagreement keeps the pair on the topic page. Rejecting is final: that tag, topic or item pair, highlight or topic stays as it is and won’t be proposed again.",
 } as const;
 
 const EMPTY_NO_PROVIDER = "Save a provider in the instance settings to run the weekly check.";
@@ -92,6 +92,16 @@ const ACCEPT_WORDS = {
     notCurrent:
       "Every item of this topic is in the overview now, or a run for the topic is already open; nothing was started.",
   },
+  "items-disagree": {
+    acceptNamed:
+      "Accept keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+    acceptRetryNamed:
+      "Try again to accept keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+    accepted:
+      "Accepted keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
+    notCurrent:
+      "Nothing was kept, because the agent read one of the two items again or the two items no longer share a topic.",
+  },
 } as const satisfies Partial<Record<ProposalKind, Record<AcceptWording, string>>>;
 
 type AcceptableKind = keyof typeof ACCEPT_WORDS;
@@ -120,6 +130,8 @@ export const PROPOSAL_WORDS = {
     "Accept writes the topic’s overview again: each call covers up to 40 items, so many items can take several calls, and the run stops when a call fails.",
   noProvider:
     "Save a provider in the instance settings to update the overview; this row stays and Accept works after that.",
+  disagreementKept:
+    "Accept keeps this pair on the topic page under Known disagreements, and changes nothing in the items.",
   reasonLabel: "Reason",
   summaryLabel: "Summary",
   sideNamed: "disagrees with {other}",

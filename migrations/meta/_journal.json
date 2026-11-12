@@ -330,6 +330,13 @@
       "when": 1794475239746,
       "tag": "0046_disagreement-proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1794481568655,
+      "tag": "0047_disagreement-pins",
+      "breakpoints": true
     }
   ]
 }
