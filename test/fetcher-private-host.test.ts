@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
-import { lookup } from "node:dns/promises";
-import { hostname } from "node:os";
 import { after, before, describe, it } from "node:test";
 
-import { isGlobalAddress } from "../src/core/addresses.ts";
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
 import { Instance } from "./instance.ts";
+import { ownPrivateHostName } from "./own-host-name.ts";
 
 const MODULE = fetcherFile("claims-every-address.mts");
 
@@ -20,15 +18,8 @@ describe("a link whose host resolves only to addresses the Instance may not reac
 
   after(() => instance.close());
 
-  it("answers refused for this machine's own host name and asks no plug-in", async (context) => {
-    const name = hostname();
-    const resolved = await lookup(name, { all: true }).catch(() => []);
-
-    if (resolved.length === 0 || resolved.some(({ address }) => isGlobalAddress(address))) {
-      context.skip("this machine's own host name does not resolve to a private address");
-
-      return;
-    }
+  it("answers refused for this machine's own host name and asks no plug-in", async () => {
+    const name = await ownPrivateHostName();
 
     const address = `http://${name}/guide`;
 
