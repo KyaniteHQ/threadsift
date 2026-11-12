@@ -104,7 +104,7 @@ export default defineConfig({
       },
     ],
     "import/extensions": ["error", "always", { ignorePackages: true }],
-    "import/no-unassigned-import": ["error", { allow: ["**/*.css"] }],
+    "import/no-unassigned-import": ["error", { allow: ["**/*.css", "**/zod-jitless.ts"] }],
 
     "anti-slop/no-array-filter-map": "error",
     "anti-slop/no-reduce-accumulator-copy": "error",

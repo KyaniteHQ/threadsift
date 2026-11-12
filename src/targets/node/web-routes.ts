@@ -4,16 +4,25 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { type Context, Hono } from "hono";
 
 import { isDocumentPath } from "../../http/document-path.ts";
-
-const IMMUTABLE = "public, max-age=31536000, immutable";
-const REVALIDATE = "no-cache";
+import {
+  DOCUMENT_HEADERS,
+  HASHED_ASSET_HEADERS,
+  REVALIDATED_HEADERS,
+} from "../../http/web-headers.ts";
 
 export function webRoutes(builtWebApp: string): Hono {
   const webRoot = relative(process.cwd(), builtWebApp);
   const hashedAssetsDir = join(webRoot, "assets") + sep;
+  const documentFile = join(webRoot, "index.html");
+
+  function headersOf(path: string): Readonly<Record<string, string>> {
+    if (path.startsWith(hashedAssetsDir)) return HASHED_ASSET_HEADERS;
+
+    return path === documentFile ? DOCUMENT_HEADERS : REVALIDATED_HEADERS;
+  }
 
   function onFound(path: string, context: Context): void {
-    context.header("Cache-Control", path.startsWith(hashedAssetsDir) ? IMMUTABLE : REVALIDATE);
+    for (const [name, value] of Object.entries(headersOf(path))) context.header(name, value);
   }
 
   const files = serveStatic({ root: webRoot, onFound });

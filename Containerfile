@@ -13,7 +13,7 @@ FROM base AS web-build
 RUN pnpm install --frozen-lockfile --filter threadsift
 COPY tsconfig.json vite.config.ts ./
 COPY design design
-COPY tools/theme-script.ts tools/theme-script.ts
+COPY tools/theme-script.ts tools/worker-headers.ts tools/
 COPY src src
 COPY web web
 RUN pnpm exec vite build
