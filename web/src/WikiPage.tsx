@@ -1,6 +1,5 @@
 import { IndexPage } from "./IndexPage.tsx";
-import { LogPage } from "./LogPage.tsx";
-import { ProposalsPage } from "./ProposalsPage.tsx";
+import { LogPage, ProposalsPage } from "./lazy-pages.tsx";
 import type { Pages } from "./routing.ts";
 
 export function WikiPage({

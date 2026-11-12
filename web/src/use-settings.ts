@@ -20,6 +20,7 @@ import {
   rootAttributes,
   serialize,
 } from "../../design/system/settings.ts";
+import { facesOf } from "../../design/system/style-faces.ts";
 import { useSettledAttributes } from "./look-faces.ts";
 import { MATCH_SYSTEM_NOTES } from "./text.ts";
 
@@ -29,6 +30,10 @@ function readStorage(): string | null {
   } catch {
     return null;
   }
+}
+
+export function storedSettings(): Settings {
+  return readStored(readStorage());
 }
 
 function writeStorage(text: string): void {
@@ -94,11 +99,11 @@ function useStorageSync(
   }, []);
 }
 
-export function useSettings(onLayoutChange: () => void) {
-  const [settings, setSettings] = useState(() => readStored(readStorage()));
+export function useSettings(onLayoutChange: () => void, initial: Settings) {
+  const [settings, setSettings] = useState(initial);
   const isDark = useSyncExternalStore(subscribeToDeviceScheme, deviceIsDark);
   const wanted = useMemo(() => rootAttributes(settings, isDark), [settings, isDark]);
-  const attributes = useSettledAttributes(wanted);
+  const attributes = useSettledAttributes(wanted, facesOf(settings));
 
   usePageAttributes(attributes);
 

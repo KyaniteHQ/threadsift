@@ -81,9 +81,9 @@ export function useReaderSide({
 }>): ReaderSide {
   const dom = useLibraryDom(root);
   const reader = useReaderControls({ list, route, look, attend, writes, dom });
-  const { openId, replace } = route;
+  const { path, openId, replace } = route;
 
-  useAutoOpen({ list, openId, replace, wide: look.reader === "pane", attend });
+  useAutoOpen({ list, path, openId, replace, wide: look.reader === "pane", attend });
 
   const leaveSearch = useCallback(() => {
     if (openId === null) root.current?.querySelector<HTMLElement>(".list")?.focus();

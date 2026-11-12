@@ -19,24 +19,37 @@ export function stacksOf(root: HTMLElement, variables: readonly string[]): strin
   return variables.map((variable) => style.getPropertyValue(variable));
 }
 
+export function whenAborted(signal: AbortSignal): Promise<void> {
+  return signal.aborted
+    ? Promise.resolve()
+    : new Promise<void>((resolve) => {
+        signal.addEventListener("abort", () => {
+          resolve();
+        });
+      });
+}
+
+export async function settledOrAborted(
+  work: Readonly<Promise<unknown>>,
+  signal: AbortSignal,
+): Promise<void> {
+  await Promise.race([work, whenAborted(signal)]);
+}
+
 export async function loadStacks(
   stacks: readonly string[],
   signal: AbortSignal,
   sample = BASE_SAMPLE,
 ): Promise<void> {
+  if (signal.aborted) return;
+
   const loads = stacks.flatMap((stack) =>
     STYLES.flatMap((style) =>
       WEIGHTS.map((weight) => document.fonts.load(`${style} ${weight} 1em ${stack}`, sample)),
     ),
   );
 
-  const given = new Promise<void>((resolve) => {
-    signal.addEventListener("abort", () => {
-      resolve();
-    });
-  });
-
-  await Promise.race([Promise.allSettled(loads), given]);
+  await settledOrAborted(Promise.allSettled(loads), signal);
 }
 
 export function loadFonts(
