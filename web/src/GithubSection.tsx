@@ -11,9 +11,10 @@ import {
   TOKEN_PLACEHOLDER,
   TOKEN_STATES,
 } from "./github-text.ts";
-import { SwapButton } from "./SwapButton.tsx";
+import type { Loaded } from "./settings-load-types.ts";
+import { SettingsActions } from "./SettingsActions.tsx";
 import { useGithubForm } from "./use-github-form.ts";
-import { type Loaded, useLoaded } from "./use-settings-load.ts";
+import { useLoaded } from "./use-settings-load.ts";
 
 const TOKEN_KIND = {
   name: "token",
@@ -43,49 +44,6 @@ function Steps() {
       </ol>
       <p className="fld-help">{GITHUB_TEXT.classicNote}</p>
     </>
-  );
-}
-
-function GithubActions({
-  busy,
-  action,
-  blocked,
-  onVerify,
-  onRemove,
-}: Readonly<{
-  busy: boolean;
-  action: "save" | "verify" | "remove" | null;
-  blocked: Readonly<Record<"save" | "verify" | "remove", boolean>>;
-  onVerify: () => void;
-  onRemove: () => void;
-}>) {
-  return (
-    <div className="ai-actions">
-      <SwapButton
-        label={GITHUB_TEXT.save}
-        busyLabel={GITHUB_TEXT.saving}
-        busy={busy && action === "save"}
-        blocked={busy || blocked.save}
-      />
-      <SwapButton
-        label={GITHUB_TEXT.verify}
-        busyLabel={GITHUB_TEXT.verifying}
-        busy={busy && action === "verify"}
-        blocked={busy || blocked.verify}
-        type="button"
-        onClick={onVerify}
-        secondary
-      />
-      <SwapButton
-        label={GITHUB_TEXT.remove}
-        busyLabel={GITHUB_TEXT.removing}
-        busy={busy && action === "remove"}
-        blocked={busy || blocked.remove}
-        type="button"
-        onClick={onRemove}
-        secondary
-      />
-    </div>
   );
 }
 
@@ -121,13 +79,7 @@ function GithubForm({
         />
         <p>{TOKEN_STATES[view.token]}</p>
         {form.blocked.save ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
-        <GithubActions
-          busy={form.busy}
-          action={form.action}
-          blocked={form.blocked}
-          onVerify={form.verifyNow}
-          onRemove={form.removeNow}
-        />
+        <SettingsActions busy={form.busy} current={form.action} buttons={form.buttons} />
       </form>
       <output>{form.result?.kind === "ok" ? form.result.text : null}</output>
       <Alert text={form.result?.kind === "error" ? form.result.text : null} />

@@ -16,7 +16,7 @@ export function SwapButton({
   busy: boolean;
   blocked?: boolean;
   type?: "submit" | "button";
-  onClick?: MouseEventHandler<HTMLButtonElement>;
+  onClick?: MouseEventHandler<HTMLButtonElement> | undefined;
   secondary?: boolean;
 }>) {
   return (

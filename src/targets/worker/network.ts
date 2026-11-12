@@ -1,4 +1,5 @@
-import { type Network, REQUEST_HEADERS } from "../../core/ports.ts";
+import { type Network, type NetworkResponse, REQUEST_HEADERS } from "../../core/ports.ts";
+import { assertPublicHost } from "../../core/public-host.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
 const CLOUDFLARE_ERROR_PAGE = /^error code: 1[0-9]{3}\s*$/u;
@@ -34,25 +35,37 @@ async function refuseUnreachableOrigin(url: string, response: Response): Promise
   }
 }
 
+function networkResponse(response: Response): NetworkResponse {
+  return {
+    status: response.status,
+    location: response.headers.get("location"),
+    contentType: response.headers.get("content-type"),
+    rateLimit: {
+      retryAfter: response.headers.get("retry-after"),
+      remaining: response.headers.get("x-ratelimit-remaining"),
+      reset: response.headers.get("x-ratelimit-reset"),
+    },
+    body: chunksOf(response.bodyUsed ? null : response.body),
+  };
+}
+
 export const workerNetwork: Network = {
   reachable: () => Promise.resolve(true),
-  get: async (url, signal, headers) => {
-    const response = await workerFetch(url, {
-      signal,
-      headers: { ...REQUEST_HEADERS, ...headers },
-    });
+  get: async (url, signal, headers) =>
+    networkResponse(
+      await workerFetch(url, { signal, headers: { ...REQUEST_HEADERS, ...headers } }),
+    ),
+  post: async (url, body, signal, headers) => {
+    assertPublicHost(url);
 
-    return {
-      status: response.status,
-      location: response.headers.get("location"),
-      contentType: response.headers.get("content-type"),
-      rateLimit: {
-        retryAfter: response.headers.get("retry-after"),
-        remaining: response.headers.get("x-ratelimit-remaining"),
-        reset: response.headers.get("x-ratelimit-reset"),
-      },
-      body: chunksOf(response.bodyUsed ? null : response.body),
-    };
+    return networkResponse(
+      await workerFetch(url, {
+        method: "POST",
+        body,
+        signal,
+        headers: { "user-agent": REQUEST_HEADERS["user-agent"], ...headers },
+      }),
+    );
   },
 };
 

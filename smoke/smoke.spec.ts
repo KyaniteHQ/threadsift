@@ -7,8 +7,8 @@ import { INDEX_PAGE } from "../web/src/index-text.ts";
 import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
-import { proposalsFlow } from "./proposals-flow.ts";
 import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
+import { settingsSteps } from "./settings-steps.ts";
 
 const PASSWORD = "a smoke password of fifteen or more";
 
@@ -287,8 +287,7 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     logFlow(page, browser));
   await test.step("a failed Load more on the Log keeps its rows and Try again reads the next page", () =>
     failedLoadMore(page));
-  await test.step("follow the settings panel's Proposals link, see the no-Provider empty state with no Reject, reload on the address, fit a phone width, and visit it signed out", () =>
-    proposalsFlow(page, browser));
+  await settingsSteps(page, browser);
   await test.step("a Pasted Item with a Digest and no Provider shows no Related Items section", () =>
     readerWithoutProvider(page, {
       topic: UNRELATED_TOPIC,
