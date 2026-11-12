@@ -1,18 +1,16 @@
 import { z } from "zod";
 
+import { WIRE_ID_MAX } from "./comment-id.ts";
 import { X_REPLIES_MAX } from "./limits.ts";
-
-const WIRE_ID_DIGITS = 29;
 
 const StatusId = z
   .string()
   .regex(/^[1-9]\d*$/u, { error: "must be digits only, with no leading zero" })
-  .max(WIRE_ID_DIGITS, { error: `must be at most ${String(WIRE_ID_DIGITS)} digits` });
+  .max(WIRE_ID_MAX, { error: `must be at most ${String(WIRE_ID_MAX)} digits` });
 
-const Handle = z
-  .string()
-  .min(1, { error: "must not be empty" })
-  .refine((handle) => !handle.startsWith("@"), { error: "must be the handle without @" });
+const Handle = z.string().regex(/^[A-Za-z0-9_]+$/u, {
+  error: "must be the handle without @, with letters, digits and underscores only",
+});
 
 const PostedAt = z.iso
   .datetime({ offset: true, error: "must be an ISO 8601 date and time or null" })

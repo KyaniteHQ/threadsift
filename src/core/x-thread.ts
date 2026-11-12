@@ -18,13 +18,13 @@ interface Placed {
 function firstLineOf(text: string): string {
   return (
     text
-      .split(/\r?\n/u)
+      .split(/\r\n|[\r\n\u2028\u2029]/u)
       .find((line) => line.trim() !== "")
       ?.trim() ?? ""
   );
 }
 
-export function postTitle(text: string): string {
+function postTitle(text: string): string {
   const characters = Array.from(firstLineOf(text));
 
   if (characters.length <= TITLE_CHARACTERS) return characters.join("");
@@ -46,9 +46,11 @@ function readThread(answer: string): XThread {
 
     const [issue] = parsed.error.issues;
 
-    return refuse(
-      `the content is not an X thread: ${issue?.path.join(".") ?? ""} ${issue?.message ?? ""}`.trimEnd(),
-    );
+    const detail = [issue?.path.join("."), issue?.message]
+      .filter((part) => part !== undefined && part !== "")
+      .join(" ");
+
+    return refuse(`the content is not an X thread: ${detail}`);
   } catch (error) {
     if (error instanceof SyntaxError) return refuse(NOT_READABLE);
 

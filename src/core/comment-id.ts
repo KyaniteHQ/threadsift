@@ -4,6 +4,8 @@ const PREFIX = "t1_";
 
 const MAX_BYTES = 32;
 
+export const WIRE_ID_MAX = MAX_BYTES - PREFIX.length;
+
 export const StoredCommentId = z
   .string()
   .max(MAX_BYTES)
@@ -11,7 +13,7 @@ export const StoredCommentId = z
 
 export const WireCommentId = z
   .string()
-  .max(MAX_BYTES - PREFIX.length)
+  .max(WIRE_ID_MAX)
   .regex(/^[a-z\d]+$/iu);
 
 export function storedCommentId(wireId: string): string {
