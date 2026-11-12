@@ -29,7 +29,7 @@ function stateOf(file: string): string {
   return found;
 }
 
-describe("the proposals rebuild keeps every row and never reuses an id", () => {
+describe("the proposals and Pins rebuilds keep every row and never reuse an id", () => {
   let older = "";
   let instance: Instance;
 
@@ -54,6 +54,9 @@ describe("the proposals rebuild keeps every row and never reuses an id", () => {
         ('tag-merge', 4, 5, 'Rejected.', 'rejected', 4, null, null, null),
         ('tag-merge', 5, 6, 'Deleted.', 'open', 5, null, null, null);
       delete from proposals where id = 5;
+      insert into pins (kind, from_key, from_name, into_tag_id, created_at) values
+        ('tag-merge', 'old a', 'Old A', 2, 1), ('tag-merge', 'old b', 'Old B', 3, 2), ('tag-merge', 'old c', 'Old C', 4, 3);
+      delete from pins where id = 3;
     `);
     made.close();
   };
@@ -156,6 +159,32 @@ describe("the proposals rebuild keeps every row and never reuses an id", () => {
 
     assert.equal(inserted?.["id"], 6);
     assert.equal(database.prepare("select count(*) as n from proposals").get()?.["n"], 5);
+    database.close();
+  });
+
+  it("keeps the Tag Pins of the older file, gives the next Pin an id above the old high-water mark and leaves no placeholder row", () => {
+    const database = sqlite();
+
+    assert.equal(
+      JSON.stringify(
+        database
+          .prepare("select id, kind, from_key, into_tag_id, into_topic_id from pins order by id")
+          .all(),
+      ),
+      JSON.stringify([
+        { id: 1, kind: "tag-merge", from_key: "old a", into_tag_id: 2, into_topic_id: null },
+        { id: 2, kind: "tag-merge", from_key: "old b", into_tag_id: 3, into_topic_id: null },
+      ]),
+    );
+
+    const [inserted] = database
+      .prepare(
+        "insert into pins (kind, from_key, from_name, into_tag_id, created_at) values ('tag-merge', 'old d', 'Old D', 5, 4) returning id",
+      )
+      .all();
+
+    assert.equal(inserted?.["id"], 4);
+    assert.equal(database.prepare("select count(*) as n from pins").get()?.["n"], 3);
     database.close();
   });
 

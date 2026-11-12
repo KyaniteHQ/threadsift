@@ -2,11 +2,26 @@ import { type SQL, type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle
 import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import { repointedPins } from "./pins.ts";
+import type { PinKind } from "./kinds.ts";
+import { repointedPins, repointedTopicPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { proposalRelinks } from "./proposal-relink.ts";
-import { itemTags, items, logEntries, tags, topicLeases, topicPages, topics } from "./schema.ts";
+import {
+  catalogVersion,
+  dataStepRenames,
+  digests,
+  itemTags,
+  items,
+  logEntries,
+  pins,
+  proposals,
+  tags,
+  topicLeases,
+  topicPages,
+  topics,
+} from "./schema.ts";
 import { tagPartWrites } from "./search.ts";
+import { continuingOverview } from "./topic-overview-open.ts";
 
 export const MERGE_ITEMS = 500;
 
@@ -18,6 +33,9 @@ export interface Moves {
 export interface CatalogKind {
   readonly step: string;
   readonly table: typeof topics | typeof tags;
+  readonly pinKind: PinKind;
+  readonly pinTarget: typeof pins.intoTagId | typeof pins.intoTopicId;
+  readonly proposalFrom: typeof proposals.fromTagId | typeof proposals.fromTopicId;
   readonly linked: (db: Database, id: number) => Promise<Moves>;
   readonly relink: (
     db: Database,
@@ -65,15 +83,31 @@ function emptied(db: Database, id: number): SQL {
   )}`;
 }
 
-export const TOPIC_KIND: CatalogKind = {
-  step: "topic-keys",
-  table: topics,
-  linked: async (db, id) => ({
-    itemIds: await firstIds(db, items.id, items.topicId, id),
-    entryIds: await firstIds(db, logEntries.id, logEntries.topicId, id),
-  }),
-  relink: (db, loser, survivor, { itemIds, entryIds }) => [
-    ...proposalRelinks(db, "topic-merge", loser, survivor),
+export function isLastUnit({ itemIds, entryIds }: Readonly<Moves>): boolean {
+  return itemIds.length < MERGE_ITEMS && entryIds.length < MERGE_ITEMS;
+}
+
+export function topicMoves(
+  db: Database,
+  loser: number,
+  survivor: number,
+  { itemIds, entryIds }: Readonly<Moves>,
+) {
+  const survivorName = sql`(select ${topics.name} from ${topics} where ${topics.id} = ${survivor})`;
+
+  return [
+    db
+      .update(digests)
+      .set({
+        topic: survivorName,
+        digest: sql`case when json_valid(${digests.digest}) then json_set(${digests.digest}, '$.topic', ${survivorName}) else ${digests.digest} end`,
+      })
+      .where(
+        and(
+          among(digests.itemId, itemIds),
+          sql`${digests.itemId} in (select ${items.id} from ${items} where ${items.topicId} = ${loser})`,
+        ),
+      ),
     db
       .update(items)
       .set({ topicId: survivor })
@@ -84,6 +118,23 @@ export const TOPIC_KIND: CatalogKind = {
       .where(and(eq(logEntries.topicId, loser), among(logEntries.id, entryIds))),
     db.delete(topicPages).where(and(eq(topicPages.topicId, loser), emptied(db, loser))),
     db.delete(topicLeases).where(and(eq(topicLeases.topicId, loser), emptied(db, loser))),
+  ];
+}
+
+export const TOPIC_KIND: CatalogKind = {
+  step: "topic-keys",
+  table: topics,
+  pinKind: "topic-merge",
+  pinTarget: pins.intoTopicId,
+  proposalFrom: proposals.fromTopicId,
+  linked: async (db, id) => ({
+    itemIds: await firstIds(db, items.id, items.topicId, id),
+    entryIds: await firstIds(db, logEntries.id, logEntries.topicId, id),
+  }),
+  relink: (db, loser, survivor, moves) => [
+    ...proposalRelinks(db, "topic-merge", loser, survivor),
+    repointedTopicPins(db, loser, survivor),
+    ...topicMoves(db, loser, survivor, moves),
   ],
   unlinked: emptied,
 };
@@ -118,6 +169,9 @@ export function tagMoves(
 export const TAG_KIND: CatalogKind = {
   step: "tag-keys",
   table: tags,
+  pinKind: "tag-merge",
+  pinTarget: pins.intoTagId,
+  proposalFrom: proposals.fromTagId,
   linked: async (db, id) => ({
     itemIds: await firstIds(db, itemTags.itemId, itemTags.tagId, id),
     entryIds: [],
@@ -135,3 +189,31 @@ export const TAG_KIND: CatalogKind = {
         .where(eq(itemTags.tagId, id)),
     ),
 };
+
+export function closingWrites(
+  db: Database,
+  kind: CatalogKind,
+  id: number,
+  before: readonly BatchItem<"sqlite">[] = [],
+) {
+  const gone = kind.unlinked(db, id);
+
+  return [
+    ...before,
+    db.insert(catalogVersion).values({ id: 1, version: 0 }).onConflictDoNothing(),
+    db
+      .update(catalogVersion)
+      .set({ version: sql`${catalogVersion.version} + 1` })
+      .where(and(eq(catalogVersion.id, 1), gone)),
+    db
+      .delete(dataStepRenames)
+      .where(and(eq(dataStepRenames.step, kind.step), eq(dataStepRenames.subject, id), gone)),
+    db.delete(kind.table).where(and(eq(kind.table.id, id), gone)),
+  ];
+}
+
+export function topicClosingWrites(db: Database, loser: number, survivor: number) {
+  return closingWrites(db, TOPIC_KIND, loser, [
+    continuingOverview(db, survivor, TOPIC_KIND.unlinked(db, loser)),
+  ]);
+}

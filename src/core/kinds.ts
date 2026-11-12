@@ -106,7 +106,9 @@ export const LOG_ACTIONS = ["ingest", "digest", "topic", "overview", "related", 
 
 export type LogAction = (typeof LOG_ACTIONS)[number];
 
-export const PIN_KINDS = ["tag-merge"] as const;
+export const PIN_KINDS = ["tag-merge", "topic-merge"] as const;
+
+export type PinKind = (typeof PIN_KINDS)[number];
 
 export const PROPOSAL_KINDS = ["tag-merge", "topic-merge"] as const;
 

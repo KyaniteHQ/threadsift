@@ -30,7 +30,10 @@ type CatalogEntries = Readonly<ReturnType<typeof catalogEntries>>;
 export async function pinnedCatalog(db: Database, digest: Readonly<Digest>) {
   const pinned = await pinnedDigest(db, digest);
 
-  return { pinned, entries: catalogEntries({ ...digest, tags: pinned.tags }) };
+  return {
+    pinned,
+    entries: catalogEntries({ ...digest, tags: pinned.tags, topic: pinned.topic }),
+  };
 }
 
 export function catalogCurrent(version: number, entries: CatalogEntries) {

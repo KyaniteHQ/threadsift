@@ -1,52 +1,11 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
-
-import { z } from "zod";
 
 import { LogPageSchema } from "../src/core/log-contract.ts";
 import { count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
-
-const AnyRowSchema = z.record(z.string(), z.unknown());
-
-const script = (instance: Instance, statements: string): void => {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    database.exec(statements);
-  } finally {
-    database.close();
-  }
-};
-
-const dump = (instance: Instance, query: string): string =>
-  JSON.stringify(rows(instance, AnyRowSchema, query));
-
-const item = (id: number, tags: readonly number[], digestTags: readonly string[]): string => `
-  insert into items (id, source, kind, normalized_url, original_url, saved_at)
-    values (${String(id)}, 'other', 'link', 'https://example.com/${String(id)}', 'https://example.com/${String(id)}', ${String(id)});
-  insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state, item_id)
-    values (${String(id)}, 'digest', '{}', 0, 'caller', 1, 0, 'done', ${String(id)});
-  insert into digests (item_id, digest, title, topic, task_id, generation, created_at)
-    values (${String(id)}, '${JSON.stringify({ title: "T", topic: "Reading", tags: digestTags, summary: "S", keyPoints: ["K"] })}', 'T', 'Reading', ${String(id)}, 0, 1);
-  ${tags.map((tag) => `insert into item_tags (item_id, tag_id) values (${String(id)}, ${String(tag)});`).join("\n")}`;
-
-const holdSweep = (instance: Instance): void => {
-  exec(
-    instance,
-    "insert or replace into scheduled_runs (task, last_run_at) values ('sweep', ?)",
-    Date.now(),
-  );
-};
-
-const rerunSteps = async (instance: Instance, ...steps: readonly string[]): Promise<void> => {
-  for (const name of steps) exec(instance, "delete from data_steps where name = ?", name);
-
-  holdSweep(instance);
-  await instance.tick();
-};
+import { dump, holdSweep, item, rerunSteps, script } from "./pin-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 describe("the pin-keys step recomputes Pin keys and merges a Tag that holds a Pin's key", () => {
   let instance: Instance;

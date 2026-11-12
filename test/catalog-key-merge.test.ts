@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { migrateData } from "../src/core/data-steps.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
+import { warningsDuring } from "./one-hop-fixtures.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 
@@ -20,6 +21,7 @@ describe("the topic-keys step merges two Topics with entries, a page and a lease
   let folder = "";
   let database: ReturnType<typeof openDatabase>;
   let sqlite: DatabaseSync;
+  let warnings: readonly string[] = [];
 
   const rows = (query: string): string => JSON.stringify(sqlite.prepare(query).all());
 
@@ -46,7 +48,7 @@ describe("the topic-keys step merges two Topics with entries, a page and a lease
         insert into log_entries (at, action, topic, topic_id) select i, 'overview', 'ISTANBUL', 2 from n;
     `);
 
-    await migrateData(database.db);
+    ({ warnings } = await warningsDuring(() => migrateData(database.db)));
   });
 
   after(async () => {
@@ -69,6 +71,13 @@ describe("the topic-keys step merges two Topics with entries, a page and a lease
       LOSER_ENTRIES + 1,
     );
     assert.equal(count("select count(*) as n from log_entries"), LOSER_ENTRIES + 1);
+  });
+
+  it("finishes the loser's Log-only second unit without a restage of the step", () => {
+    assert.deepEqual(
+      warnings.filter((line) => line.includes("catalog-keys-restaged")),
+      [],
+    );
   });
 
   it("removes the loser's page and lease with it and keeps the survivor's", () => {

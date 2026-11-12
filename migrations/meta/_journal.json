@@ -295,6 +295,13 @@
       "when": 1794440954742,
       "tag": "0041_topic-merge-proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1794448795209,
+      "tag": "0042_topic-merge-pins",
+      "breakpoints": true
     }
   ]
 }

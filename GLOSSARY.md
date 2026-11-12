@@ -105,7 +105,7 @@ The page, at `/proposals`, that lists the open Proposals of the weekly check and
 _Avoid_: Suggestions page, Inbox
 
 **Pin**:
-An accepted correction kept so that a later regeneration cannot undo it. For a Tag merge it records the merged-away Tag's key and the Tag it went into, so no later Digest creates the merged-away Tag again.
+An accepted correction kept so that a later regeneration cannot undo it. For a Tag merge it records the merged-away Tag's key and the Tag it went into, so no later Digest creates the merged-away Tag again. For a Topic merge it records the merged-away Topic's key and the Topic it went into in the same way; the app reads such a Pin, and Accept of a Topic merge, which will write one, is not built.
 _Avoid_: Override, lock
 
 ### Reading
