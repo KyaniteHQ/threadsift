@@ -27,16 +27,15 @@ function Entry({
   disagreement,
   navigate,
 }: Readonly<{ disagreement: Disagreement; navigate: (to: string) => void }>) {
-  const [first, second] = disagreement.items;
-
   return (
     <li className="tp-dis">
       <p className="tp-line" dir="auto">
         {disagreement.reason}
       </p>
       <ul className="tp-dis-items" aria-label={TOPIC_PAGE.disagreementsEntryLabel}>
-        <SideLink side={first} navigate={navigate} />
-        <SideLink side={second} navigate={navigate} />
+        {disagreement.items.map((side) => (
+          <SideLink key={side.id} side={side} navigate={navigate} />
+        ))}
       </ul>
     </li>
   );
