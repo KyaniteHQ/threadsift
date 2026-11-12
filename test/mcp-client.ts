@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { z } from "zod";
 
-import { DEFAULT_SCOPES } from "../src/core/kinds.ts";
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import type { Instance, Json } from "./instance.ts";
 
@@ -22,12 +21,14 @@ export interface Agents {
 export async function createAgentToken(
   instance: Instance,
   name: string,
-  scopes: readonly string[] = DEFAULT_SCOPES,
+  scopes?: readonly string[],
 ): Promise<AgentToken> {
-  const { token, value } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
-    name,
-    scopes: [...scopes],
-  });
+  const { token, value } = await instance.read(
+    "POST",
+    "/api/tokens",
+    CreatedTokenResponseSchema,
+    scopes === undefined ? { name } : { name, scopes: [...scopes] },
+  );
 
   return { id: token.id, value };
 }

@@ -1,16 +1,22 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { TokenListResponseSchema } from "../src/http/schemas.ts";
-import { Instance, PASSWORD } from "./instance.ts";
+import {
+  ItemReadResponseSchema,
+  SavedItemResponseSchema,
+  TokenListResponseSchema,
+} from "../src/http/schemas.ts";
+import { Instance, type Json, PASSWORD } from "./instance.ts";
 import {
   type AgentToken,
+  type Agents,
   MCP_URL,
   bearer,
   connectBoth,
   createAgentToken,
   mcpRequest,
 } from "./mcp-client.ts";
+import { DIGEST } from "./mcp-fixtures.ts";
 
 const WRONG_PASSWORD = "not the password of the owner";
 
@@ -122,5 +128,92 @@ describe("/mcp admits only a valid agent token sent in the Authorization header,
 
     assert.equal((await instance.send("POST", "/api/login", { password: PASSWORD })).status, 429);
     assert.equal(await status(bearer(token)), 200);
+  });
+});
+
+describe("an agent token calls an /mcp tool only with the scope the tool needs", () => {
+  let instance: Instance;
+  let itemId: number;
+  const connected: Agents[] = [];
+
+  const connect = async (scopes: readonly string[]) => {
+    const agents = await connectBoth(
+      instance,
+      await createAgentToken(instance, "mcp scopes", scopes),
+    );
+
+    connected.push(agents);
+
+    return [agents.legacy, agents.modern];
+  };
+
+  const total = async () =>
+    (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total;
+
+  const call = (
+    clients: Awaited<ReturnType<typeof connect>>,
+    name: string,
+    args: Readonly<Record<string, Json>>,
+  ) => clients.map((client) => client.callTool({ name, arguments: args }));
+
+  const answered = async (answers: ReturnType<typeof call>) =>
+    (await Promise.all(answers)).map(({ isError }) => isError === true);
+
+  before(async () => {
+    instance = await Instance.start();
+    await instance.setUp();
+    itemId = (
+      await instance.read("POST", "/api/items", SavedItemResponseSchema, {
+        url: "https://x.com/someone/status/6000000001",
+      })
+    ).item.id;
+  });
+
+  after(async () => {
+    await Promise.all(connected.flatMap(({ legacy, modern }) => [legacy.close(), modern.close()]));
+    await instance.close();
+  });
+
+  it("lets a token with read search and read, and refuses its add without saving the link", async () => {
+    const clients = await connect(["read"]);
+    const itemsBefore = await total();
+    const link = { url: "https://x.com/someone/status/6000000002" };
+
+    assert.deepEqual(await answered(call(clients, "search", {})), [false, false]);
+    assert.deepEqual(await answered(call(clients, "read", { id: itemId })), [false, false]);
+    await Promise.all(
+      call(clients, "add", link).map((each) => assert.rejects(each, /required "add"/u)),
+    );
+    assert.equal(await total(), itemsBefore);
+  });
+
+  it("lets a token with add alone add a link, and refuses its search and read", async () => {
+    const clients = await connect(["add"]);
+
+    assert.deepEqual(
+      await answered(call(clients, "add", { url: "https://x.com/someone/status/6000000003" })),
+      [false, false],
+    );
+    await Promise.all(
+      [call(clients, "search", {}), call(clients, "read", { id: itemId })]
+        .flat()
+        .map((each) => assert.rejects(each, /required "read"/u)),
+    );
+  });
+
+  it("refuses an add that sends a Digest unless the token also holds digest, and saves nothing", async () => {
+    const itemsBefore = await total();
+    const withDigest = { url: "https://x.com/someone/status/6000000004", digest: DIGEST };
+
+    await Promise.all(
+      call(await connect(["read", "add"]), "add", withDigest).map((each) =>
+        assert.rejects(each, /required "add digest"/u),
+      ),
+    );
+    assert.equal(await total(), itemsBefore);
+    assert.deepEqual(await answered(call(await connect(["add", "digest"]), "add", withDigest)), [
+      false,
+      false,
+    ]);
   });
 });
