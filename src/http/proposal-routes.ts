@@ -23,7 +23,7 @@ const listProposalsRoute = createRoute({
   responses: {
     200: jsonBody(
       ProposalPageSchema,
-      `One page of the open and accepting Proposals, newest first by \`id\`, at most ${String(ITEMS_PAGE_SIZE)}. Each has \`id\`, \`kind\` (\`tag-merge\`), \`state\` (\`open\`, or \`accepting\` while its merge runs), \`reason\` (the agent's one line) and \`from\` and \`into\`, the two Tags as \`{ id, name, items }\`, where \`items\` is the number of Items that carry the Tag now. \`POST /api/proposals/{id}/accept\` merges \`from\` into \`into\`. \`checkedAt\` is when the last weekly check started, in milliseconds, or null before the first one. \`provider\` is whether a Provider is saved; the check runs only then. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged.`,
+      `One page of the open and accepting Proposals, newest first by \`id\`, at most ${String(ITEMS_PAGE_SIZE)}. Each has \`id\`, \`kind\` (\`tag-merge\` or \`topic-merge\`), \`state\` (\`open\`, or \`accepting\` while its merge runs), \`reason\` (the agent's one line) and \`from\` and \`into\`, the two Tags or the two Topics as \`{ id, name, items }\`, where \`items\` is the number of Items that carry the Tag, or sit under the Topic, now. \`POST /api/proposals/{id}/accept\` merges \`from\` into \`into\` for a Tag merge. \`checkedAt\` is when the most recent weekly check (the Tag check or the Topic check) started, in milliseconds, or null before the first one. \`provider\` is whether a Provider is saved; the check runs only then. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged.`,
     ),
     400: jsonBody(
       ErrorResponseSchema,
@@ -39,7 +39,7 @@ const rejectProposalRoute = createRoute({
   responses: {
     200: jsonBody(
       RejectedSchema,
-      "The Proposal is rejected. It leaves the list and its pair of Tags is never suggested again, whichever way round. Only the owner's session may reject; an agent token gets 403.",
+      "The Proposal is rejected. It leaves the list and its pair of Tags or Topics is never suggested again, whichever way round. Only the owner's session may reject; an agent token gets 403.",
     ),
     404: jsonBody(ErrorResponseSchema, "No Proposal has this id."),
     409: jsonBody(
@@ -65,7 +65,7 @@ const acceptProposalRoute = createRoute({
     404: jsonBody(ErrorResponseSchema, "No Proposal has this id."),
     409: jsonBody(
       ErrorResponseSchema,
-      "The Proposal is not open (`not-open`), or another Proposal is accepting (`merge-busy`): one merge runs at a time.",
+      "The Proposal is not open (`not-open`), another Proposal is accepting (`merge-busy`: one merge runs at a time), or it suggests merging two Topics (`not-supported`: a Topic merge can be rejected but not yet accepted).",
     ),
   },
 });
@@ -95,6 +95,7 @@ function registerAccept(app: OpenAPIHono, ports: Ports): void {
         return c.json({ error: NOT_FOUND }, 404);
       case "not-open":
       case "merge-busy":
+      case "not-supported":
         return c.json({ error: outcome }, 409);
       default: {
         const exhaustive: never = outcome;

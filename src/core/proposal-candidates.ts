@@ -1,6 +1,6 @@
 export const PROPOSALS_MAX = 20;
 
-export interface CandidateTag {
+export interface Candidate {
   readonly id: number;
   readonly key: string;
   readonly items: number;
@@ -43,14 +43,14 @@ export function pairKey(first: number, second: number): string {
     : `${String(second)}:${String(first)}`;
 }
 
-function orderedPair(first: Readonly<CandidateTag>, second: Readonly<CandidateTag>): CandidatePair {
+function orderedPair(first: Readonly<Candidate>, second: Readonly<Candidate>): CandidatePair {
   const [low, high] = first.id < second.id ? [first, second] : [second, first];
 
   return { low: low.id, high: high.id, weight: first.items + second.items };
 }
 
-function byLooseKey(tags: readonly Readonly<CandidateTag>[]) {
-  const groups = new Map<string, CandidateTag[]>();
+function byLooseKey(tags: readonly Readonly<Candidate>[]) {
+  const groups = new Map<string, Candidate[]>();
 
   for (const tag of tags) {
     const loose = looseKey(tag.key);
@@ -61,7 +61,7 @@ function byLooseKey(tags: readonly Readonly<CandidateTag>[]) {
   return groups;
 }
 
-function* sameKeyPairs(groups: Readonly<ReadonlyMap<string, readonly Readonly<CandidateTag>[]>>) {
+function* sameKeyPairs(groups: Readonly<ReadonlyMap<string, readonly Readonly<Candidate>[]>>) {
   for (const group of groups.values()) {
     for (const [index, first] of group.entries()) {
       for (const second of group.slice(index + 1)) yield orderedPair(first, second);
@@ -70,8 +70,8 @@ function* sameKeyPairs(groups: Readonly<ReadonlyMap<string, readonly Readonly<Ca
 }
 
 function* initialismPairs(
-  tags: readonly Readonly<CandidateTag>[],
-  groups: Readonly<ReadonlyMap<string, readonly Readonly<CandidateTag>[]>>,
+  tags: readonly Readonly<Candidate>[],
+  groups: Readonly<ReadonlyMap<string, readonly Readonly<Candidate>[]>>,
 ) {
   for (const tag of tags) {
     const letters = initialism(tag.key);
@@ -89,7 +89,7 @@ function byWeightThenIds(first: Readonly<CandidatePair>, second: Readonly<Candid
 }
 
 export function candidatePairs(
-  tags: readonly Readonly<CandidateTag>[],
+  tags: readonly Readonly<Candidate>[],
   known: Readonly<ReadonlySet<string>>,
 ): readonly CandidatePair[] {
   const used = tags.filter(({ items }) => items > 0);

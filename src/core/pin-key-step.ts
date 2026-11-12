@@ -121,7 +121,7 @@ async function mergedTag(db: Database, cursor: string): Promise<Advance> {
 
   return {
     writes: [
-      ...proposalRelinks(db, from.id, target.id),
+      ...proposalRelinks(db, "tag-merge", from.id, target.id),
       repointedPins(db, from.id, target.id),
       ...unit.writes,
       ...closingWrites(db, from.id, []),

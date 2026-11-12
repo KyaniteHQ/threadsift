@@ -288,6 +288,13 @@
       "when": 1794429357749,
       "tag": "0040_tag-merge-pins",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1794440954742,
+      "tag": "0041_topic-merge-proposals",
+      "breakpoints": true
     }
   ]
 }

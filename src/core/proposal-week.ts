@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { providerSet } from "./ai-tasks.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows, opening } from "./job-rows.ts";
+import { type ProposalKind, WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, scheduledRuns } from "./schema.ts";
 
@@ -10,13 +11,13 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const NEWEST_DIGESTED_ITEM = sql`(select max(${digests.itemId}) from ${digests})`;
 
-function claimingWeek(db: Database, now: number) {
+function claimingWeek(db: Database, now: number, task: (typeof WEEKLY_TASK)[ProposalKind]) {
   return db
     .insert(scheduledRuns)
     .select(
       db
         .select({
-          task: sql<string>`'proposals'`.as("task"),
+          task: sql<string>`${task}`.as("task"),
           lastRunAt: sql<number>`${now}`.as("last_run_at"),
         })
         .from(sql`(select 1) as one`)
@@ -30,13 +31,14 @@ function claimingWeek(db: Database, now: number) {
     .returning({ task: scheduledRuns.task });
 }
 
-export async function openWeeklyProposals(ports: JobPorts, now: number) {
+export async function openWeeklyRun(ports: JobPorts, now: number, kind: ProposalKind) {
   const { db } = ports;
+  const task = WEEKLY_TASK[kind];
 
   const [, opened] = await db.batch([
-    claimingWeek(db, now),
+    claimingWeek(db, now, task),
     opening(db, {
-      kind: "proposals",
+      kind: task,
       address: sql`${items.originalUrl}`,
       now,
       where: sql`${items.id} = ${NEWEST_DIGESTED_ITEM} and changes() > 0`,

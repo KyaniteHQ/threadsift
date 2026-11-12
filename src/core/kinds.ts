@@ -58,6 +58,7 @@ export const JOB_KINDS = [
   "topic_overview",
   "related_pick",
   "proposals",
+  "topic_proposals",
 ] as const;
 
 export const SETUP_CODE_STATUSES = ["missing", "short", "set"] as const;
@@ -92,6 +93,13 @@ export type JobKind = (typeof JOB_KINDS)[number];
 
 export type JobState = (typeof JOB_STATES)[number];
 
+export const WEEKLY_TASK = {
+  "tag-merge": "proposals",
+  "topic-merge": "topic_proposals",
+} as const satisfies Readonly<Record<ProposalKind, JobKind>>;
+
+export type WeeklyTask = (typeof WEEKLY_TASK)[ProposalKind];
+
 export const DIGEST_OUTCOMES = ["none", "pending", "failed"] as const;
 
 export const LOG_ACTIONS = ["ingest", "digest", "topic", "overview", "related", "merge"] as const;
@@ -100,7 +108,7 @@ export type LogAction = (typeof LOG_ACTIONS)[number];
 
 export const PIN_KINDS = ["tag-merge"] as const;
 
-export const PROPOSAL_KINDS = ["tag-merge"] as const;
+export const PROPOSAL_KINDS = ["tag-merge", "topic-merge"] as const;
 
 export const PROPOSAL_STATES = ["open", "accepting", "rejected", "declined"] as const;
 

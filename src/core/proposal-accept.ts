@@ -11,7 +11,13 @@ import { REWRITE_UNIT_ITEMS, closingWrites, readRewrite } from "./tag-rewrite.ts
 
 export const UNITS_PER_ACCEPT = 50;
 
-export type Acceptance = "done" | "accepting" | "unknown" | "not-open" | "merge-busy";
+export type Acceptance =
+  | "done"
+  | "accepting"
+  | "unknown"
+  | "not-open"
+  | "merge-busy"
+  | "not-supported";
 
 const fromTag = alias(tags, "from_tag");
 
@@ -109,10 +115,19 @@ export async function continueMerge(
   return continueMerge(db, id, budget - 1);
 }
 
+async function isTopicMerge(db: Database, id: number): Promise<boolean> {
+  const [row] = await db
+    .select({ kind: proposals.kind })
+    .from(proposals)
+    .where(eq(proposals.id, id));
+
+  return row?.kind === "topic-merge";
+}
+
 export async function acceptProposal(db: Database, id: number): Promise<Acceptance> {
   const row = await readRow(db, id);
 
-  if (row === undefined) return "unknown";
+  if (row === undefined) return (await isTopicMerge(db, id)) ? "not-supported" : "unknown";
 
   if (row.state !== "open") return "not-open";
 

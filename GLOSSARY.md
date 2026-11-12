@@ -97,11 +97,11 @@ One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later o
 _Avoid_: Event, Audit record
 
 **Proposal**:
-A change the agent suggests on the weekly Proposals page, such as merging two Tags, which the owner accepts or rejects.
+A change the agent suggests on the weekly Proposals page, such as merging two Tags or two Topics. The owner accepts or rejects a Tag Proposal and can only reject a Topic Proposal for now.
 _Avoid_: Suggestion, lint, fix
 
 **Proposals page**:
-The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags, their Item counts and the agent's reason, and lets the owner accept or reject one.
+The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, and lets the owner accept or reject a Tag Proposal and reject a Topic Proposal.
 _Avoid_: Suggestions page, Inbox
 
 **Pin**:

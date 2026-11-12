@@ -124,7 +124,15 @@ function useLeave({ latest, edit, reread, setFocus }: Readonly<Leaving>) {
 
       const reloaded = onlyRowOfMore(latest.current, proposal.id) ? await reread(() => true) : null;
 
-      if (reloaded === null) edit((page) => without(page, proposal.id));
+      if (reloaded === null) {
+        edit((page) => without(page, proposal.id));
+
+        return;
+      }
+
+      const [first] = reloaded.proposals;
+
+      setFocus(first === undefined ? { kind: "heading" } : { kind: "row", id: first.id });
     },
     [edit, latest, reread, setFocus],
   );
@@ -241,7 +249,7 @@ export function useProposalsPage() {
         await accept(proposal);
       } else if ((await sendReject(proposal.id)) === "rejected") {
         await leave(proposal);
-        say(rejectedAnnouncement(proposal.from.name, proposal.into.name));
+        say(rejectedAnnouncement(proposal));
       } else {
         await settle(proposal, "reject");
       }

@@ -1,77 +1,117 @@
-import { asc, count, eq, gt, inArray } from "drizzle-orm";
+import { asc, count, eq, gt, inArray, sql } from "drizzle-orm";
 
 import { utf8Length } from "./digest-prompt.ts";
+import type { ProposalKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import {
+  type Candidate,
   type CandidatePair,
-  type CandidateTag,
   candidatePairs,
   disjointPairs,
   pairKey,
 } from "./proposal-candidates.ts";
-import { PROPOSALS_INPUT_BYTES, type ProposalTag, type SentPair } from "./proposal-task.ts";
+import { PROPOSALS_INPUT_BYTES, type SentPair, type SentSubject } from "./proposal-task.ts";
 import { itemTags, items, proposals, tags, topics } from "./schema.ts";
 
-const TOPICS_PER_TAG = 3;
+const NAMES_PER_SUBJECT = 3;
 
-const TAG_PAGE = 1000;
+const SUBJECT_PAGE = 1000;
 
-type NamedTag = CandidateTag & { readonly name: string };
+type NamedCandidate = Candidate & { readonly name: string };
 
-async function usedTags(db: Database, after = 0): Promise<readonly NamedTag[]> {
-  const page = await db
-    .select({ id: tags.id, key: tags.key, name: tags.name, items: count(itemTags.itemId) })
-    .from(tags)
-    .innerJoin(itemTags, eq(itemTags.tagId, tags.id))
-    .where(gt(tags.id, after))
-    .groupBy(tags.id)
-    .orderBy(asc(tags.id))
-    .limit(TAG_PAGE);
-
-  const last = page.at(-1);
-
-  if (last === undefined || page.length < TAG_PAGE) return page;
-
-  return [...page, ...(await usedTags(db, last.id))];
+interface NameRow {
+  readonly owner: number;
+  readonly key: string;
+  readonly name: string;
+  readonly used: number;
 }
 
-async function knownPairs(db: Database): Promise<ReadonlySet<string>> {
+async function allPages(
+  readPage: (after: number) => Promise<readonly NamedCandidate[]>,
+  after = 0,
+): Promise<readonly NamedCandidate[]> {
+  const page = await readPage(after);
+  const last = page.at(-1);
+
+  if (last === undefined || page.length < SUBJECT_PAGE) return page;
+
+  return [...page, ...(await allPages(readPage, last.id))];
+}
+
+const USED = {
+  "tag-merge": { table: tags, linked: itemTags, link: itemTags.tagId, counted: itemTags.itemId },
+  "topic-merge": { table: topics, linked: items, link: items.topicId, counted: items.id },
+} as const;
+
+function usedSubjects(db: Database, kind: ProposalKind): Promise<readonly NamedCandidate[]> {
+  const { table, linked, link, counted } = USED[kind];
+
+  return allPages((after) =>
+    db
+      .select({ id: table.id, key: table.key, name: table.name, items: count(counted) })
+      .from(table)
+      .innerJoin(linked, eq(link, table.id))
+      .where(gt(table.id, after))
+      .groupBy(table.id)
+      .orderBy(asc(table.id))
+      .limit(SUBJECT_PAGE),
+  );
+}
+
+async function knownPairs(db: Database, kind: ProposalKind): Promise<ReadonlySet<string>> {
   const rows = await db
-    .select({ from: proposals.fromTagId, into: proposals.intoTagId })
-    .from(proposals);
+    .select({
+      from: sql<number>`coalesce(${proposals.fromTagId}, ${proposals.fromTopicId})`,
+      into: sql<number>`coalesce(${proposals.intoTagId}, ${proposals.intoTopicId})`,
+    })
+    .from(proposals)
+    .where(eq(proposals.kind, kind));
 
   return new Set(rows.map(({ from, into }) => pairKey(from, into)));
 }
 
-async function topicsOf(
-  db: Database,
-  ids: readonly number[],
-): Promise<ReadonlyMap<number, readonly string[]>> {
-  const rows = await db
-    .select({
-      tagId: itemTags.tagId,
-      key: topics.key,
-      name: topics.name,
-      used: count(),
-    })
-    .from(itemTags)
-    .innerJoin(items, eq(items.id, itemTags.itemId))
-    .innerJoin(topics, eq(topics.id, items.topicId))
-    .where(inArray(itemTags.tagId, ids))
-    .groupBy(itemTags.tagId, topics.id);
+function mostUsed(rows: readonly Readonly<NameRow>[]): ReadonlyMap<number, readonly string[]> {
+  const byOwner = new Map<number, NameRow[]>();
 
-  const byTag = new Map<number, typeof rows>();
-
-  for (const row of rows) byTag.set(row.tagId, [...(byTag.get(row.tagId) ?? []), row]);
+  for (const row of rows) byOwner.set(row.owner, [...(byOwner.get(row.owner) ?? []), row]);
 
   return new Map(
-    [...byTag].map(([tagId, each]) => [
-      tagId,
+    [...byOwner].map(([owner, each]) => [
+      owner,
       each
         .toSorted((first, second) => second.used - first.used || (first.key < second.key ? -1 : 1))
-        .slice(0, TOPICS_PER_TAG)
+        .slice(0, NAMES_PER_SUBJECT)
         .map(({ name }) => name),
     ]),
+  );
+}
+
+async function topicsOf(db: Database, ids: readonly number[]) {
+  return mostUsed(
+    await db
+      .select({ owner: itemTags.tagId, key: topics.key, name: topics.name, used: count() })
+      .from(itemTags)
+      .innerJoin(items, eq(items.id, itemTags.itemId))
+      .innerJoin(topics, eq(topics.id, items.topicId))
+      .where(inArray(itemTags.tagId, ids))
+      .groupBy(itemTags.tagId, topics.id),
+  );
+}
+
+async function tagsOf(db: Database, ids: readonly number[]) {
+  return mostUsed(
+    await db
+      .select({
+        owner: sql<number>`${items.topicId}`,
+        key: tags.key,
+        name: tags.name,
+        used: count(),
+      })
+      .from(items)
+      .innerJoin(itemTags, eq(itemTags.itemId, items.id))
+      .innerJoin(tags, eq(tags.id, itemTags.tagId))
+      .where(inArray(items.topicId, ids))
+      .groupBy(items.topicId, tags.id),
   );
 }
 
@@ -80,7 +120,7 @@ function proposalsJson(pairs: readonly Readonly<SentPair>[]): string {
 }
 
 export function proposalsInput(pairs: readonly Readonly<SentPair>[]) {
-  const sent: SentPair[] = [];
+  const sent: Readonly<SentPair>[] = [];
 
   for (const pair of pairs) {
     if (utf8Length(proposalsJson([...sent, pair])) <= PROPOSALS_INPUT_BYTES) sent.push(pair);
@@ -89,9 +129,22 @@ export function proposalsInput(pairs: readonly Readonly<SentPair>[]) {
   return { input: proposalsJson(sent), sent };
 }
 
+type Base = Readonly<Pick<NamedCandidate, "id" | "name" | "items">>;
+
+const NAMES = {
+  "tag-merge": {
+    of: topicsOf,
+    subject: (base: Base, names: readonly string[]): SentSubject => ({ ...base, topics: names }),
+  },
+  "topic-merge": {
+    of: tagsOf,
+    subject: (base: Base, names: readonly string[]): SentSubject => ({ ...base, tags: names }),
+  },
+} as const;
+
 function sentPair(
   { low, high }: Readonly<CandidatePair>,
-  named: Readonly<ReadonlyMap<number, Readonly<ProposalTag>>>,
+  named: Readonly<ReadonlyMap<number, SentSubject>>,
 ): SentPair | null {
   const first = named.get(low);
   const second = named.get(high);
@@ -99,21 +152,25 @@ function sentPair(
   return first === undefined || second === undefined ? null : { low: first, high: second };
 }
 
-export async function readProposals(db: Database) {
-  const [all, known] = await Promise.all([usedTags(db), knownPairs(db)]);
+export async function readProposalPairs(
+  db: Database,
+  kind: ProposalKind,
+): Promise<readonly SentPair[]> {
+  const [all, known] = await Promise.all([usedSubjects(db, kind), knownPairs(db, kind)]);
   const chosen = disjointPairs(candidatePairs(all, known));
   const ids = chosen.flatMap(({ low, high }) => [low, high]);
 
   if (ids.length === 0) return [];
 
-  const topicNames = await topicsOf(db, ids);
+  const { of, subject } = NAMES[kind];
+  const names = await of(db, ids);
 
-  const named = new Map(
+  const named = new Map<number, SentSubject>(
     all
       .filter(({ id }) => ids.includes(id))
       .map(({ id, name, items: used }) => [
         id,
-        { id, name, items: used, topics: topicNames.get(id) ?? [] },
+        subject({ id, name, items: used }, names.get(id) ?? []),
       ]),
   );
 

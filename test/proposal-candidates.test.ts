@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { catalogKey } from "../src/core/catalog-key.ts";
 import {
-  type CandidateTag,
+  type Candidate,
   PROPOSALS_MAX,
   candidatePairs,
   disjointPairs,
@@ -13,11 +13,11 @@ import {
 import { proposalsInput } from "../src/core/proposal-input.ts";
 import { PROPOSALS_INPUT_BYTES, type SentPair, proposalsTask } from "../src/core/proposal-task.ts";
 
-function tag(id: number, name: string, items = 1): CandidateTag {
+function tag(id: number, name: string, items = 1): Candidate {
   return { id, key: catalogKey(name), items };
 }
 
-function pairsOf(tags: readonly CandidateTag[], known: readonly string[] = []) {
+function pairsOf(tags: readonly Candidate[], known: readonly string[] = []) {
   return candidatePairs(tags, new Set(known)).map(
     ({ low, high }) => `${String(low)}-${String(high)}`,
   );
@@ -103,7 +103,7 @@ function sent(id: number, name: string): SentPair {
   return { low: side(id), high: side(id + 1) };
 }
 
-describe("the input of the Tag-merge run holds whole pairs within 14,000 bytes", () => {
+describe("the input of a weekly run holds whole pairs within 14,000 bytes", () => {
   it("adds each pair whole in order and skips one that does not fit", () => {
     const small = sent(1, "a");
     const big = sent(3, "b".repeat(PROPOSALS_INPUT_BYTES));
@@ -128,18 +128,18 @@ function merge(from: number, into: number, reason = "The same concept.") {
   return { from, into, reason };
 }
 
-describe("the result of the Tag-merge run names only sent pairs, each Tag once, at most 20 merges, each with a short plain reason", () => {
+describe("the result of a weekly run names only sent pairs, each subject once, at most 20 merges, each with a short plain reason", () => {
   const SENT_PAIRS = [sent(1, "a"), sent(3, "b"), sent(5, "c")];
 
   const resultAccepts = (merges: readonly unknown[]) =>
-    proposalsTask(SENT_PAIRS).schema.safeParse({ merges }).success;
+    proposalsTask("tag-merge", SENT_PAIRS).schema.safeParse({ merges }).success;
 
   it("takes a pair either way round and zero merges", () => {
     assert.equal(resultAccepts([]), true);
     assert.equal(resultAccepts([merge(1, 2), merge(4, 3)]), true);
   });
 
-  it("refuses a Tag in two merges, an id or pair that was not sent, and from equal to into", () => {
+  it("refuses a subject in two merges, an id or pair that was not sent, and from equal to into", () => {
     assert.equal(resultAccepts([merge(1, 2), merge(2, 1)]), false);
     assert.equal(resultAccepts([merge(1, 3)]), false);
     assert.equal(resultAccepts([merge(1, 99)]), false);
@@ -151,7 +151,8 @@ describe("the result of the Tag-merge run names only sent pairs, each Tag once, 
     const merges = sentPairs.map(({ low, high }) => merge(low.id, high.id));
 
     const accepts = (count: number) =>
-      proposalsTask(sentPairs).schema.safeParse({ merges: merges.slice(0, count) }).success;
+      proposalsTask("tag-merge", sentPairs).schema.safeParse({ merges: merges.slice(0, count) })
+        .success;
 
     assert.deepEqual([accepts(20), accepts(21)], [true, false]);
   });
