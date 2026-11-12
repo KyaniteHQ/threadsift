@@ -100,7 +100,7 @@ const ACCEPT_WORDS = {
     accepted:
       "Accepted keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
     notCurrent:
-      "One of the two items has a new summary, or they no longer share a topic; nothing was kept.",
+      "Nothing was kept, because the agent read one of the two items again or the two items no longer share a topic.",
   },
 } as const satisfies Partial<Record<ProposalKind, Record<AcceptWording, string>>>;
 
@@ -131,7 +131,7 @@ export const PROPOSAL_WORDS = {
   noProvider:
     "Save a provider in the instance settings to update the overview; this row stays and Accept works after that.",
   disagreementKept:
-    "Accept keeps this pair on the topic page under Known disagreements and changes nothing in the items.",
+    "Accept keeps this pair on the topic page under Known disagreements, and changes nothing in the items.",
   reasonLabel: "Reason",
   summaryLabel: "Summary",
   sideNamed: "disagrees with {other}",
