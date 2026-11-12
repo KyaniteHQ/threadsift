@@ -63,13 +63,13 @@ function storedDigest(
     model: string | null;
     published: Readonly<Digest>;
   }>,
-  tags: readonly string[],
+  { tags, topic }: Readonly<{ tags: readonly string[]; topic: string }>,
 ) {
   return {
     itemId: item.id,
-    digest: JSON.stringify({ ...published, tags }),
+    digest: JSON.stringify({ ...published, tags, topic }),
     title: digest.title,
-    topic: digest.topic,
+    topic,
     taskId,
     provider,
     model,
@@ -113,7 +113,7 @@ export async function publishing(
   const kept = published.keptComments ?? [];
   const bodies = kept.length === 0 ? [] : await selectedBodies(db, snapshot, kept);
 
-  const stored = storedDigest(item, digest, taskId, origin, pinned.tags);
+  const stored = storedDigest(item, digest, taskId, origin, pinned);
 
   return anchoredOutcome(
     db,

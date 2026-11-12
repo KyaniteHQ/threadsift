@@ -2,10 +2,19 @@ import { type SQL, type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle
 import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import { repointedPins } from "./pins.ts";
+import { repointedPins, repointedTopicPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { proposalRelinks } from "./proposal-relink.ts";
-import { itemTags, items, logEntries, tags, topicLeases, topicPages, topics } from "./schema.ts";
+import {
+  digests,
+  itemTags,
+  items,
+  logEntries,
+  tags,
+  topicLeases,
+  topicPages,
+  topics,
+} from "./schema.ts";
 import { tagPartWrites } from "./search.ts";
 
 export const MERGE_ITEMS = 500;
@@ -65,15 +74,31 @@ function emptied(db: Database, id: number): SQL {
   )}`;
 }
 
-export const TOPIC_KIND: CatalogKind = {
-  step: "topic-keys",
-  table: topics,
-  linked: async (db, id) => ({
-    itemIds: await firstIds(db, items.id, items.topicId, id),
-    entryIds: await firstIds(db, logEntries.id, logEntries.topicId, id),
-  }),
-  relink: (db, loser, survivor, { itemIds, entryIds }) => [
-    ...proposalRelinks(db, "topic-merge", loser, survivor),
+export function isLastUnit({ itemIds, entryIds }: Readonly<Moves>): boolean {
+  return itemIds.length < MERGE_ITEMS && entryIds.length < MERGE_ITEMS;
+}
+
+export function topicMoves(
+  db: Database,
+  loser: number,
+  survivor: number,
+  { itemIds, entryIds }: Readonly<Moves>,
+) {
+  const survivorName = sql`(select ${topics.name} from ${topics} where ${topics.id} = ${survivor})`;
+
+  return [
+    db
+      .update(digests)
+      .set({
+        topic: survivorName,
+        digest: sql`case when json_valid(${digests.digest}) then json_set(${digests.digest}, '$.topic', ${survivorName}) else ${digests.digest} end`,
+      })
+      .where(
+        and(
+          among(digests.itemId, itemIds),
+          sql`${digests.itemId} in (select ${items.id} from ${items} where ${items.topicId} = ${loser})`,
+        ),
+      ),
     db
       .update(items)
       .set({ topicId: survivor })
@@ -84,6 +109,20 @@ export const TOPIC_KIND: CatalogKind = {
       .where(and(eq(logEntries.topicId, loser), among(logEntries.id, entryIds))),
     db.delete(topicPages).where(and(eq(topicPages.topicId, loser), emptied(db, loser))),
     db.delete(topicLeases).where(and(eq(topicLeases.topicId, loser), emptied(db, loser))),
+  ];
+}
+
+export const TOPIC_KIND: CatalogKind = {
+  step: "topic-keys",
+  table: topics,
+  linked: async (db, id) => ({
+    itemIds: await firstIds(db, items.id, items.topicId, id),
+    entryIds: await firstIds(db, logEntries.id, logEntries.topicId, id),
+  }),
+  relink: (db, loser, survivor, moves) => [
+    ...proposalRelinks(db, "topic-merge", loser, survivor),
+    repointedTopicPins(db, loser, survivor),
+    ...topicMoves(db, loser, survivor, moves),
   ],
   unlinked: emptied,
 };

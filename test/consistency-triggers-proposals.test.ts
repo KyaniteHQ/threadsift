@@ -125,16 +125,17 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
     );
   });
 
-  const pinCases = (kind: string): void => {
+  const pinInsert = (kind: keyof typeof SUBJECTS) =>
+    database.prepare(
+      `insert into pins (kind, from_key, from_name, ${SUBJECTS[kind].into}, created_at) values (?, ?, 'a name', ?, 0)`,
+    );
+
+  const pinCases = (kind: keyof typeof SUBJECTS): void => {
     it(`stores and updates a ${kind} Pin`, () => {
-      const [, into] = insertTags();
+      const [, into] = insertSubjects(SUBJECTS[kind].table);
 
       assert.doesNotThrow(() => {
-        database
-          .prepare(
-            "insert into pins (kind, from_key, from_name, into_tag_id, created_at) values (?, ?, 'a name', ?, 0)",
-          )
-          .run(kind, `a key for ${kind}`, into);
+        pinInsert(kind).run(kind, `a key for ${kind}`, into);
         database
           .prepare("update pins set kind = ? where from_key = ?")
           .run(kind, `a key for ${kind}`);
@@ -158,5 +159,79 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
     assert.throws(() => {
       database.prepare("update pins set kind = 'unknown' where from_key = 'refused key'").run();
     }, /pins_values/u);
+  });
+
+  it("refuses a Pin whose target column does not match its kind, on insert and on update", () => {
+    const [, intoTag] = insertTags();
+    const [, intoTopic] = insertSubjects("topics");
+
+    assert.throws(
+      () =>
+        database
+          .prepare(
+            "insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('tag-merge', 'wrong column', 'a name', ?, 0)",
+          )
+          .run(intoTopic),
+      /pins_subject/u,
+    );
+    assert.throws(
+      () =>
+        database
+          .prepare(
+            "insert into pins (kind, from_key, from_name, into_tag_id, created_at) values ('topic-merge', 'wrong column', 'a name', ?, 0)",
+          )
+          .run(intoTag),
+      /pins_subject/u,
+    );
+    assert.throws(
+      () =>
+        database
+          .prepare(
+            "insert into pins (kind, from_key, from_name, into_tag_id, into_topic_id, created_at) values ('topic-merge', 'both columns', 'a name', ?, ?, 0)",
+          )
+          .run(intoTag, intoTopic),
+      /pins_subject/u,
+    );
+    assert.throws(
+      () =>
+        database
+          .prepare(
+            "insert into pins (kind, from_key, from_name, created_at) values ('tag-merge', 'no target', 'a name', 0)",
+          )
+          .run(),
+      /pins_subject/u,
+    );
+
+    pinInsert("tag-merge").run("tag-merge", "tag for update", intoTag);
+    pinInsert("topic-merge").run("topic-merge", "topic for update", intoTopic);
+
+    assert.throws(
+      () =>
+        database
+          .prepare("update pins set kind = 'topic-merge' where from_key = 'tag for update'")
+          .run(),
+      /pins_subject/u,
+    );
+    assert.throws(
+      () =>
+        database
+          .prepare("update pins set into_tag_id = ? where from_key = 'topic for update'")
+          .run(intoTag),
+      /pins_subject/u,
+    );
+  });
+
+  it("lets a Tag Pin and a Topic Pin share a key", () => {
+    const [, intoTag] = insertTags();
+    const [, intoTopic] = insertSubjects("topics");
+
+    pinInsert("tag-merge").run("tag-merge", "shared key", intoTag);
+
+    assert.doesNotThrow(() => {
+      pinInsert("topic-merge").run("topic-merge", "shared key", intoTopic);
+    });
+    assert.throws(() => {
+      pinInsert("topic-merge").run("topic-merge", "shared key", intoTopic);
+    }, /UNIQUE/u);
   });
 });

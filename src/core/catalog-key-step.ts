@@ -1,7 +1,7 @@
 import { type SQLWrapper, and, asc, eq, gt, lte, min, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import { type CatalogKind, MERGE_ITEMS, TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
+import { type CatalogKind, TAG_KIND, TOPIC_KIND, isLastUnit } from "./catalog-key-links.ts";
 import { CATALOG_KEY_VERSION, catalogKey } from "./catalog-key.ts";
 import type { Advance, DataStep } from "./data-step-contract.ts";
 import { dropStaged, report, stageRenames } from "./data-step-support.ts";
@@ -80,7 +80,7 @@ async function merge(db: Database, kind: CatalogKind, from: number): Promise<Adv
   }
 
   const moves = await kind.linked(db, next.loser);
-  const emptied = moves.itemIds.length < MERGE_ITEMS && moves.entryIds.length < MERGE_ITEMS;
+  const emptied = isLastUnit(moves);
 
   return {
     writes: [

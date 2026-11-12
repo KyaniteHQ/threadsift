@@ -1,16 +1,12 @@
-import { type SQL, and, asc, eq, gte, ne, notExists, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/sqlite-core";
+import { type SQL, asc, sql } from "drizzle-orm";
 
 import { CATALOG_KEY_MAX } from "./catalog-key-limit.ts";
 import { CATALOG_KEY_VERSION, catalogKey } from "./catalog-key.ts";
 import type { Advance, DataStep } from "./data-step-contract.ts";
-import { repointedPins } from "./pins.ts";
+import { mergedTag, misfiledTags } from "./pin-tag-merge.ts";
+import { mergedTopic, misfiledTopics } from "./pin-topic-merge.ts";
 import type { Database } from "./ports.ts";
-import { proposalRelinks } from "./proposal-relink.ts";
-import { guards, insertGuard, pins, proposals, tags } from "./schema.ts";
-import { REWRITE_UNIT_ITEMS, closingWrites, readRewrite } from "./tag-rewrite.ts";
-
-const into = alias(tags, "into_tag");
+import { guards, insertGuard, pins } from "./schema.ts";
 
 const PINS_PER_STATEMENT = 100;
 
@@ -24,27 +20,6 @@ function chunked<Row>(rows: readonly Row[]): readonly (readonly Row[])[] {
 
 function idsAmong(ids: readonly number[]) {
   return sql`${pins.id} in (select value from json_each(${JSON.stringify(ids)}))`;
-}
-
-function numbers(cursor: string): readonly number[] {
-  return cursor.split(":").slice(1).map(Number);
-}
-
-function acceptingFrom(db: Database) {
-  return notExists(
-    db
-      .select({ one: sql`1` })
-      .from(proposals)
-      .where(and(eq(proposals.fromTagId, tags.id), eq(proposals.state, "accepting"))),
-  );
-}
-
-function misfiledTags(db: Database) {
-  return db
-    .select({ id: tags.id })
-    .from(tags)
-    .innerJoin(pins, and(eq(pins.kind, "tag-merge"), eq(pins.fromKey, tags.key)))
-    .where(and(ne(pins.intoTagId, tags.id), acceptingFrom(db)));
 }
 
 async function recomputedKeys(db: Database): Promise<Advance> {
@@ -94,42 +69,6 @@ async function recomputedKeys(db: Database): Promise<Advance> {
   };
 }
 
-async function mergedTag(db: Database, cursor: string): Promise<Advance> {
-  const [fromId = 0, after = 0] = numbers(cursor);
-
-  const [next] = await db
-    .select({
-      id: tags.id,
-      key: tags.key,
-      name: tags.name,
-      intoId: into.id,
-      intoKey: into.key,
-      intoName: into.name,
-    })
-    .from(tags)
-    .innerJoin(pins, and(eq(pins.kind, "tag-merge"), eq(pins.fromKey, tags.key)))
-    .innerJoin(into, eq(into.id, pins.intoTagId))
-    .where(and(gte(tags.id, fromId), ne(pins.intoTagId, tags.id), acceptingFrom(db)))
-    .orderBy(asc(tags.id))
-    .limit(1);
-
-  if (next === undefined) return { writes: [], cursor: "finish" };
-
-  const from = { id: next.id, key: next.key, name: next.name };
-  const target = { id: next.intoId, key: next.intoKey, name: next.intoName };
-  const unit = await readRewrite(db, { from, into: target, after: next.id === fromId ? after : 0 });
-
-  return {
-    writes: [
-      ...proposalRelinks(db, "tag-merge", from.id, target.id),
-      repointedPins(db, from.id, target.id),
-      ...unit.writes,
-      ...closingWrites(db, from.id, []),
-    ],
-    cursor: `merge:${String(from.id)}:${String(unit.itemIds.length < REWRITE_UNIT_ITEMS ? 0 : unit.last)}`,
-  };
-}
-
 function holds(db: Database, stored: readonly Readonly<{ id: number; key: string }>[]): SQL {
   const wanted = JSON.stringify(stored);
 
@@ -137,7 +76,7 @@ function holds(db: Database, stored: readonly Readonly<{ id: number; key: string
 }
 
 function settled(db: Database, total: number): SQL {
-  return sql`(select count(*) from ${pins}) = ${total} and not exists ${misfiledTags(db)}`;
+  return sql`(select count(*) from ${pins}) = ${total} and not exists ${misfiledTags(db)} and not exists ${misfiledTopics(db)}`;
 }
 
 async function finished(db: Database): Promise<Advance> {
@@ -149,6 +88,8 @@ async function finished(db: Database): Promise<Advance> {
   if (rows.some(({ name, key }) => catalogKey(name) !== key)) return { writes: [], cursor: "keys" };
 
   if ((await misfiledTags(db).limit(1)).length > 0) return { writes: [], cursor: "merge:0:0" };
+
+  if ((await misfiledTopics(db).limit(1)).length > 0) return { writes: [], cursor: "topics" };
 
   return {
     writes: [
@@ -165,7 +106,9 @@ async function finished(db: Database): Promise<Advance> {
 function advance(db: Database, cursor: string | null): Promise<Advance> {
   if (cursor === null || cursor === "keys") return recomputedKeys(db);
 
-  return cursor.startsWith("merge:") ? mergedTag(db, cursor) : finished(db);
+  if (cursor.startsWith("merge:")) return mergedTag(db, cursor);
+
+  return cursor === "topics" ? mergedTopic(db) : finished(db);
 }
 
 export const pinKeyStep: DataStep = {

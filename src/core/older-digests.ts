@@ -23,7 +23,10 @@ async function linkOlderDigest(
         ? [
             db
               .update(digests)
-              .set({ digest: JSON.stringify({ ...stored, tags: pinned.tags }) })
+              .set({
+                digest: JSON.stringify({ ...stored, tags: pinned.tags, topic: pinned.topic }),
+                topic: pinned.topic,
+              })
               .where(eq(digests.itemId, row.id)),
           ]
         : []),

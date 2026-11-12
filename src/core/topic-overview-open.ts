@@ -17,7 +17,11 @@ export function openingOverview(db: Database, itemId: number) {
   });
 }
 
-export function continuingOverview(db: Database, topicId: number) {
+export function continuingOverview(
+  db: Database,
+  topicId: number,
+  when: Readonly<SQLWrapper> = sql`1`,
+) {
   return opening(db, {
     kind: "topic_overview",
     address: sql`${items.originalUrl}`,
@@ -27,6 +31,7 @@ export function continuingOverview(db: Database, topicId: number) {
         sql`${items.id} = (select min(member.id) from ${items} as member where member.topic_id = ${topicId})`,
         providerSet(),
         coverageGaps(topicId),
+        when,
       ) ?? sql`0`,
   });
 }
