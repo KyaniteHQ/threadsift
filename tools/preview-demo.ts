@@ -1,12 +1,13 @@
 import { catalogKey } from "../src/core/catalog-key.ts";
 import { CommandFailure } from "./command-failure.ts";
 import {
-  demoUrl,
+  type DemoHighlight,
   insertHighlightProposals,
   insertHighlights,
   missingHighlights,
 } from "./preview-demo-highlights.ts";
-import { quoted, rowNames } from "./preview-migrations.ts";
+import { rowNames } from "./preview-migrations.ts";
+import { quoted } from "./preview-sql.ts";
 
 type Pair = { readonly from: string; readonly into: string; readonly reason: string };
 
@@ -60,6 +61,19 @@ const demoTopicMerges = [
     reason: "Home lab and Homelab are two spellings of the hobby of running servers at home.",
   },
 ] as const satisfies readonly Pair[];
+
+function demoUrl(number: number): string {
+  return `https://example.com/demo/${String(number)}`;
+}
+
+const demoLostHighlights = [
+  { url: demoUrl(1), exact: "The queue drops the oldest message when the buffer fills." },
+  {
+    url: demoUrl(2),
+    exact: "Batch jobs run after midnight to leave daytime capacity for live traffic.",
+  },
+  { url: demoUrl(3), exact: "Old snapshots expire only after the new backup finishes." },
+] as const satisfies readonly DemoHighlight[];
 
 type DemoDigestPaste = {
   readonly url: string;
@@ -222,14 +236,16 @@ export function seedDemoProposals(
 
   const inserts = [
     ...seeded.map(({ kind }) => insertProposals(kind)),
-    ...(facts.highlightProposals ? [insertHighlights(), insertHighlightProposals()] : []),
+    ...(facts.highlightProposals
+      ? [insertHighlights(demoLostHighlights), insertHighlightProposals(demoLostHighlights)]
+      : []),
   ];
 
   run(["d1", "execute", "DB", "--json", "--command", inserts.join(";\n"), ...scope]);
 
   const checks = [
     ...seeded.map(({ kind, pinsReadable }) => missingPairs(kind, pinsReadable)),
-    ...(facts.highlightProposals ? [missingHighlights()] : []),
+    ...(facts.highlightProposals ? [missingHighlights(demoLostHighlights)] : []),
   ];
 
   const missing = rowNames(run, scope, checks.join(";\n"));

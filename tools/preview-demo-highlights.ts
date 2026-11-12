@@ -1,39 +1,23 @@
 import { PROJECTION_VERSION } from "../src/core/text-projection.ts";
-import { quoted } from "./preview-migrations.ts";
+import { quoted } from "./preview-sql.ts";
 
-const demoLostHighlights = [
-  {
-    item: 1,
-    exact: "The queue drops the oldest message when the buffer fills.",
-  },
-  {
-    item: 2,
-    exact: "Batch jobs run after midnight to leave daytime capacity for live traffic.",
-  },
-  {
-    item: 3,
-    exact: "Old snapshots expire only after the new backup finishes.",
-  },
-] as const;
+export type DemoHighlight = { readonly url: string; readonly exact: string };
 
-const LOST_HIGHLIGHT_REASON = "plain-check";
+const KIND = "highlight-lost";
+const REASON = "plain-check";
+const STATUS = "gone";
+const NOW_MS = "CAST(strftime('%s', 'now') AS INTEGER) * 1000";
 
-export function demoUrl(number: number): string {
-  return `https://example.com/demo/${String(number)}`;
-}
-
-function highlightsCte(): string {
-  const rows = demoLostHighlights
-    .map(({ item, exact }) => `(${quoted(demoUrl(item))}, ${quoted(exact)})`)
-    .join(", ");
+function demoCte(demos: readonly DemoHighlight[]): string {
+  const rows = demos.map(({ url, exact }) => `(${quoted(url)}, ${quoted(exact)})`).join(", ");
 
   return `WITH demo (url, exact) AS (VALUES ${rows})`;
 }
 
-export function insertHighlights(): string {
-  return `${highlightsCte()}
+export function insertHighlights(demos: readonly DemoHighlight[]): string {
+  return `${demoCte(demos)}
 INSERT INTO highlights (item_id, comment_id, exact, prefix, suffix, hint, projection, created_at, status, start)
-SELECT items.id, NULL, demo.exact, '', '', 0, ${String(PROJECTION_VERSION)}, CAST(strftime('%s', 'now') AS INTEGER) * 1000, 'gone', NULL
+SELECT items.id, NULL, demo.exact, '', '', 0, ${String(PROJECTION_VERSION)}, ${NOW_MS}, ${quoted(STATUS)}, NULL
 FROM demo
 JOIN items ON items.normalized_url = demo.url
 WHERE NOT EXISTS (
@@ -41,10 +25,10 @@ WHERE NOT EXISTS (
 )`;
 }
 
-export function insertHighlightProposals(): string {
-  return `${highlightsCte()}
+export function insertHighlightProposals(demos: readonly DemoHighlight[]): string {
+  return `${demoCte(demos)}
 INSERT INTO proposals (kind, highlight_id, reason, state, created_at)
-SELECT 'highlight-lost', highlights.id, '${LOST_HIGHLIGHT_REASON}', 'open', CAST(strftime('%s', 'now') AS INTEGER) * 1000
+SELECT ${quoted(KIND)}, highlights.id, ${quoted(REASON)}, 'open', ${NOW_MS}
 FROM demo
 JOIN items ON items.normalized_url = demo.url
 JOIN highlights ON highlights.item_id = items.id AND highlights.exact = demo.exact
@@ -52,17 +36,18 @@ WHERE true
 ON CONFLICT DO NOTHING`;
 }
 
-export function missingHighlights(): string {
-  return `${highlightsCte()}
+export function missingHighlights(demos: readonly DemoHighlight[]): string {
+  return `${demoCte(demos)}
 SELECT 'Highlight "' || demo.exact || '" on ' || demo.url AS name
 FROM demo
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM items
-  JOIN highlights ON highlights.item_id = items.id
-  JOIN proposals ON proposals.highlight_id = highlights.id
-  WHERE items.normalized_url = demo.url
-    AND highlights.exact = demo.exact
-    AND proposals.kind = 'highlight-lost'
-)`;
+WHERE NOT EXISTS (SELECT 1 FROM items WHERE items.normalized_url = demo.url)
+  OR EXISTS (
+    SELECT 1
+    FROM items
+    JOIN highlights ON highlights.item_id = items.id AND highlights.exact = demo.exact
+    WHERE items.normalized_url = demo.url
+      AND NOT EXISTS (
+        SELECT 1 FROM proposals WHERE proposals.highlight_id = highlights.id AND proposals.kind = ${quoted(KIND)}
+      )
+  )`;
 }
