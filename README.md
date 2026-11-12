@@ -28,6 +28,16 @@ Then open http://127.0.0.1:8000/Main.dc.html. Press T for the Tweaks panel, whic
 
 The prototype's sample data is not in the repo, because it is the owner's real saves: other people's posts, comments and images. Without it the app shows "Couldn’t load the library data." To fill it, put a `data.json` in the shape `library.js` reads, and its images in `img/`, inside `design/prototype/`; both paths are gitignored.
 
+## Run the container image
+
+The image is published at `ghcr.io/kyanitehq/threadsift` for `amd64` and `arm64`, and the tag `main` is the latest build that started and answered; a tag `sha-<commit sha>` is every build and never moves.
+
+```sh
+podman run --detach --name threadsift --publish 8080:8080 --volume threadsift-data:/data ghcr.io/kyanitehq/threadsift:main
+```
+
+The app listens on plain HTTP on port 8080, and the owner's reverse proxy or tunnel gives it HTTPS. The data stays in the `threadsift-data` volume. To go back, run the same command with a `sha-<previous commit sha>` tag on the same volume.
+
 ## Use Claude Code on the container
 
 The container image ships no AI command-line tool and keeps everything you install or sign in to in its `/data` volume.

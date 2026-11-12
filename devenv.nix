@@ -19,7 +19,7 @@ let
   smokeLabel = "io.threadsift.smoke=true";
   checkoutEnv = ''
     slot=$(printf %s "$DEVENV_ROOT" | sha256sum | cut -c1-12)
-    export THREADSIFT_IMAGE=localhost/threadsift:smoke-$slot
+    export THREADSIFT_IMAGE=''${THREADSIFT_IMAGE:-localhost/threadsift:smoke-$slot}
     export THREADSIFT_SMOKE_PORT=$((20000 + 0x$slot % 10000))
   '';
   containerBuild = ''
