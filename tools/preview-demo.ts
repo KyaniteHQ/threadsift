@@ -1,10 +1,10 @@
 import { catalogKey } from "../src/core/catalog-key.ts";
 import { CommandFailure } from "./command-failure.ts";
-import { columnNames, rowNames } from "./preview-migrations.ts";
+import { rowNames } from "./preview-migrations.ts";
 
 type Pair = { readonly from: string; readonly into: string; readonly reason: string };
 
-export const demoTagMerges = [
+const demoTagMerges = [
   {
     from: "machine-learning",
     into: "Machine Learning",
@@ -37,21 +37,21 @@ export const demoTagMerges = [
   },
 ] as const satisfies readonly Pair[];
 
-export const demoTopicMerges = [
+const demoTopicMerges = [
   {
     from: "ML",
     into: "Machine learning",
-    reason: "ML is the usual short form of Machine learning, so both Topics cover the same field.",
+    reason: "ML is the usual short form of Machine learning, both name the same subject.",
   },
   {
     from: "Game",
     into: "Games",
-    reason: "Game is the singular of Games, and both Topics hold writing about video games.",
+    reason: "Game is the singular of Games, both hold writing about video games.",
   },
   {
     from: "Home lab",
     into: "Homelab",
-    reason: "Home lab and Homelab are two spellings of the same hobby of running servers at home.",
+    reason: "Home lab and Homelab are two spellings of the hobby of running servers at home.",
   },
 ] as const satisfies readonly Pair[];
 
@@ -103,39 +103,31 @@ const topicPastes = demoTopicMerges.flatMap(({ from, into }, index) => {
 
 export const demoDigestPastes: readonly DemoDigestPaste[] = [...tagPastes, ...topicPastes];
 
-type Subject = {
-  readonly kind: "tag-merge" | "topic-merge";
-  readonly label: "Tags" | "Topics";
-  readonly table: "tags" | "topics";
-  readonly fromColumn: "from_tag_id" | "from_topic_id";
-  readonly intoColumn: "into_tag_id" | "into_topic_id";
-  readonly pairs: readonly Pair[];
-};
+const SUBJECTS = {
+  "tag-merge": {
+    label: "Tags",
+    table: "tags",
+    fromColumn: "from_tag_id",
+    intoColumn: "into_tag_id",
+    pairs: demoTagMerges,
+  },
+  "topic-merge": {
+    label: "Topics",
+    table: "topics",
+    fromColumn: "from_topic_id",
+    intoColumn: "into_topic_id",
+    pairs: demoTopicMerges,
+  },
+} as const;
 
-const tagSubject: Subject = {
-  kind: "tag-merge",
-  label: "Tags",
-  table: "tags",
-  fromColumn: "from_tag_id",
-  intoColumn: "into_tag_id",
-  pairs: demoTagMerges,
-};
-
-const topicSubject: Subject = {
-  kind: "topic-merge",
-  label: "Topics",
-  table: "topics",
-  fromColumn: "from_topic_id",
-  intoColumn: "into_topic_id",
-  pairs: demoTopicMerges,
-};
+type Kind = keyof typeof SUBJECTS;
 
 function quoted(text: string): string {
   return `'${text.replaceAll("'", "''")}'`;
 }
 
-function pairsCte({ pairs }: Subject): string {
-  const rows = pairs
+function pairsCte(kind: Kind): string {
+  const rows = SUBJECTS[kind].pairs
     .map(
       ({ from, into, reason }) =>
         `(${quoted(catalogKey(from))}, ${quoted(catalogKey(into))}, ${quoted(reason)})`,
@@ -145,10 +137,10 @@ function pairsCte({ pairs }: Subject): string {
   return `WITH demo (from_key, into_key, reason) AS (VALUES ${rows})`;
 }
 
-function insertProposals(subject: Subject): string {
-  const { kind, table, fromColumn, intoColumn } = subject;
+function insertProposals(kind: Kind): string {
+  const { table, fromColumn, intoColumn } = SUBJECTS[kind];
 
-  return `${pairsCte(subject)}
+  return `${pairsCte(kind)}
 INSERT INTO proposals (kind, ${fromColumn}, ${intoColumn}, reason, state, created_at)
 SELECT '${kind}', from_subject.id, into_subject.id, demo.reason, 'open', CAST(strftime('%s', 'now') AS INTEGER) * 1000
 FROM demo
@@ -158,14 +150,14 @@ WHERE true
 ON CONFLICT DO NOTHING`;
 }
 
-function missingPairs(subject: Subject, pinsReadable: boolean): string {
-  const { kind, label, table, fromColumn, intoColumn } = subject;
+function missingPairs(kind: Kind, pinsReadable: boolean): string {
+  const { label, table, fromColumn, intoColumn } = SUBJECTS[kind];
 
   const accepted = pinsReadable
-    ? `AND NOT EXISTS (SELECT 1 FROM pins WHERE pins.kind = '${kind}' AND pins.from_key = demo.from_key)`
+    ? `AND NOT EXISTS (SELECT 1 FROM pins WHERE pins.kind = '${kind}' AND pins.from_key IN (demo.from_key, demo.into_key))`
     : "";
 
-  return `${pairsCte(subject)}
+  return `${pairsCte(kind)}
 SELECT '${label} ' || demo.from_key || ' and ' || demo.into_key AS name
 FROM demo
 WHERE NOT EXISTS (
@@ -178,29 +170,66 @@ WHERE NOT EXISTS (
 ) ${accepted}`;
 }
 
+const SCHEMA_PROBES = {
+  proposals: { table: "proposals", column: "id" },
+  topicProposals: { table: "proposals", column: "from_topic_id" },
+  pins: { table: "pins", column: "id" },
+  topicPins: { table: "pins", column: "into_topic_id" },
+} as const;
+
+type SchemaFacts = Readonly<Record<keyof typeof SCHEMA_PROBES, boolean>>;
+
+function schemaFacts(
+  run: (args: readonly string[]) => string,
+  scope: readonly string[],
+): SchemaFacts {
+  const query = Object.entries(SCHEMA_PROBES)
+    .map(
+      ([fact, { table, column }]) =>
+        `SELECT '${fact}' AS name FROM pragma_table_info('${table}') WHERE name = '${column}'`,
+    )
+    .join(" UNION ALL ");
+
+  const present = new Set(rowNames(run, scope, query));
+
+  return {
+    proposals: present.has("proposals"),
+    topicProposals: present.has("topicProposals"),
+    pins: present.has("pins"),
+    topicPins: present.has("topicPins"),
+  };
+}
+
 export function seedDemoProposals(
   run: (args: readonly string[]) => string,
   scope: readonly string[],
 ): void {
-  const columns = columnNames(run, scope, ["pins", "proposals"]);
+  const facts = schemaFacts(run, scope);
 
-  if (!columns.has("proposals.id")) return;
+  if (!facts.proposals) return;
 
-  const seeded = columns.has("proposals.from_topic_id")
-    ? [
-        { subject: tagSubject, pinsReadable: columns.has("pins.id") },
-        { subject: topicSubject, pinsReadable: columns.has("pins.into_topic_id") },
-      ]
-    : [{ subject: tagSubject, pinsReadable: columns.has("pins.id") }];
+  const seeded: readonly { readonly kind: Kind; readonly pinsReadable: boolean }[] =
+    facts.topicProposals
+      ? [
+          { kind: "tag-merge", pinsReadable: facts.pins },
+          { kind: "topic-merge", pinsReadable: facts.topicPins },
+        ]
+      : [{ kind: "tag-merge", pinsReadable: facts.pins }];
 
-  const inserts = seeded.map(({ subject }) => insertProposals(subject)).join(";\n");
-
-  run(["d1", "execute", "DB", "--json", "--command", inserts, ...scope]);
+  run([
+    "d1",
+    "execute",
+    "DB",
+    "--json",
+    "--command",
+    seeded.map(({ kind }) => insertProposals(kind)).join(";\n"),
+    ...scope,
+  ]);
 
   const missing = rowNames(
     run,
     scope,
-    seeded.map(({ subject, pinsReadable }) => missingPairs(subject, pinsReadable)).join(";\n"),
+    seeded.map(({ kind, pinsReadable }) => missingPairs(kind, pinsReadable)).join(";\n"),
   );
 
   if (missing.length > 0)
