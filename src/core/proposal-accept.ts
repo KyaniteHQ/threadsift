@@ -2,6 +2,7 @@ import { type SQL, and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { guardedResults } from "./guards.ts";
+import { acceptLostHighlight } from "./highlight-proposals.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
@@ -16,6 +17,7 @@ export type Acceptance =
   | "accepting"
   | "unknown"
   | "not-open"
+  | "not-current"
   | "merge-busy"
   | "topic-busy";
 
@@ -97,7 +99,7 @@ export async function continueMerge(
   return continueMerge(ports, id, budget - 1);
 }
 
-export async function acceptProposal(ports: JobPorts, id: number): Promise<Acceptance> {
+async function acceptMerge(ports: JobPorts, id: number): Promise<Acceptance> {
   const { db } = ports;
   const row = await readRow(db, id);
 
@@ -115,11 +117,24 @@ export async function acceptProposal(ports: JobPorts, id: number): Promise<Accep
 
   if (outcome === "busy") return "topic-busy";
 
-  if (outcome === "lost") return acceptProposal(ports, id);
+  if (outcome === "lost") return acceptMerge(ports, id);
 
   return (await readRow(db, id)) === undefined
     ? "done"
     : continueMerge(ports, id, UNITS_PER_ACCEPT - 1);
+}
+
+export async function acceptProposal(ports: JobPorts, id: number): Promise<Acceptance> {
+  const [found] = await ports.db
+    .select({ kind: proposals.kind })
+    .from(proposals)
+    .where(eq(proposals.id, id));
+
+  if (found === undefined) return "unknown";
+
+  return found.kind === "highlight-lost"
+    ? acceptLostHighlight(ports.db, id)
+    : acceptMerge(ports, id);
 }
 
 export async function continueMerges(ports: JobPorts): Promise<void> {

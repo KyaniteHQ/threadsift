@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { PROPOSAL_KINDS } from "./kinds.ts";
+import { MERGE_KINDS, SOURCES } from "./kinds.ts";
 import { parseLogCursor } from "./log-contract.ts";
 
 const SubjectRefSchema = z
@@ -9,16 +9,42 @@ const SubjectRefSchema = z
 
 export const ListedStateSchema = z.enum(["open", "accepting"]);
 
-export const ProposalSchema = z
+const MergeProposalSchema = z
   .object({
     id: z.number().int(),
-    kind: z.enum(PROPOSAL_KINDS),
+    kind: z.enum(MERGE_KINDS),
     state: ListedStateSchema,
     reason: z.string(),
     from: SubjectRefSchema,
     into: SubjectRefSchema,
   })
   .readonly();
+
+const LostHighlightProposalSchema = z
+  .object({
+    id: z.number().int(),
+    kind: z.literal("highlight-lost"),
+    state: ListedStateSchema,
+    highlight: z
+      .object({
+        id: z.number().int(),
+        quote: z.string(),
+        item: z
+          .object({
+            id: z.number().int(),
+            source: z.enum(SOURCES),
+            title: z.string().nullable(),
+          })
+          .readonly(),
+      })
+      .readonly(),
+  })
+  .readonly();
+
+export const ProposalSchema = z.discriminatedUnion("kind", [
+  MergeProposalSchema,
+  LostHighlightProposalSchema,
+]);
 
 export const ProposalPageSchema = z
   .object({
@@ -36,6 +62,10 @@ export const RejectedSchema = z.object({ state: z.literal("rejected") }).readonl
 export const AcceptedSchema = z.object({ state: z.enum(["done", "accepting"]) }).readonly();
 
 export type Proposal = z.infer<typeof ProposalSchema>;
+
+export type MergeProposal = z.infer<typeof MergeProposalSchema>;
+
+export type LostHighlightProposal = z.infer<typeof LostHighlightProposalSchema>;
 
 export type ProposalPage = z.infer<typeof ProposalPageSchema>;
 

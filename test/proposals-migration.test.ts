@@ -8,6 +8,7 @@ import { after, before, describe, it } from "node:test";
 import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
+import { mergesOf } from "./lost-highlight-fixtures.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 
@@ -119,7 +120,7 @@ describe("the proposals and Pins rebuilds keep every row and never reuse an id",
     const page = await instance.read("GET", "/api/proposals", ProposalPageSchema);
 
     assert.deepEqual(
-      page.proposals.map(({ id, kind, state, from, into, reason }) => ({
+      mergesOf(page).map(({ id, kind, state, from, into, reason }) => ({
         id,
         kind,
         state,

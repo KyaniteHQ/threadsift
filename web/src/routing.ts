@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { itemIdOf, itemPath } from "../../src/core/item-path.ts";
 import { topicPath } from "../../src/core/topic-path.ts";
+import { placePath } from "./place.ts";
 
 export const SETTINGS_PATH = "/settings";
 
@@ -26,6 +27,7 @@ export interface Pages {
   readonly proposals: () => void;
   readonly topic: (key: string) => void;
   readonly item: (id: number) => void;
+  readonly highlight: (itemId: number, highlightId: number) => void;
   readonly import: () => void;
 }
 
@@ -114,6 +116,9 @@ export function usePages(navigate: Route["navigate"]): Pages {
       },
       item: (id) => {
         navigate(itemPath(id));
+      },
+      highlight: (itemId, highlightId) => {
+        navigate(placePath(itemId, { kind: "highlight", id: highlightId }));
       },
       import: () => {
         navigate(IMPORT_PATH);

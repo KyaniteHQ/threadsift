@@ -5,9 +5,9 @@ import { call, parsedFrom, withCursor } from "./calls.ts";
 
 export type Busy = "merge-busy" | "topic-busy";
 
-export type Acceptance = "done" | "accepting" | Busy | "unknown";
+export type Acceptance = "done" | "accepting" | Busy | "not-current" | "unknown";
 
-const BusySchema = z.object({ error: z.enum(["merge-busy", "topic-busy"]) });
+const RefusalSchema = z.object({ error: z.enum(["merge-busy", "topic-busy", "not-current"]) });
 
 export function fetchProposals(cursor: string | null): Promise<ProposalPage> {
   return parsedFrom("GET", withCursor("/api/proposals", cursor), ProposalPageSchema);
@@ -34,9 +34,9 @@ export async function sendAccept(id: number): Promise<Acceptance> {
 
     if (response.status !== 409) return ANSWERS.get(response.status) ?? "unknown";
 
-    const busy = BusySchema.safeParse(await response.json().catch(() => null));
+    const refusal = RefusalSchema.safeParse(await response.json().catch(() => null));
 
-    return busy.success ? busy.data.error : "unknown";
+    return refusal.success ? refusal.data.error : "unknown";
   } catch {
     return "unknown";
   }

@@ -97,11 +97,11 @@ One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later o
 _Avoid_: Event, Audit record
 
 **Proposal**:
-A change the agent suggests on the weekly Proposals page, such as merging two Tags or two Topics. The owner accepts or rejects a Proposal of either kind.
+A change the agent suggests on the weekly Proposals page: merging two Tags, merging two Topics, or removing a Highlight that is no longer found. The owner accepts or rejects a Proposal of every kind.
 _Avoid_: Suggestion, lint, fix
 
 **Proposals page**:
-The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, and lets the owner accept or reject each.
+The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, or for a lost Highlight its quote and its Item's title as a link to the Highlight's place in the Reader, and lets the owner accept or reject each.
 _Avoid_: Suggestions page, Inbox
 
 **Pin**:
@@ -133,7 +133,7 @@ _Avoid_: Detail view, article view
 ### Keeping
 
 **Highlight**:
-A passage of an Item's post text or of one Kept comment that the owner selected to keep; it stays when a refresh changes the text, marked as no longer found.
+A passage of an Item's post text or of one Kept comment that the owner selected to keep; it stays when a refresh changes the text, marked as no longer found. A Proposal can suggest removing one that is no longer found, and only the owner's Accept removes it.
 _Avoid_: Clip, quote, annotation, bookmark
 
 **Note**:

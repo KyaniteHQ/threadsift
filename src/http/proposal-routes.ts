@@ -23,7 +23,7 @@ const listProposalsRoute = createRoute({
   responses: {
     200: jsonBody(
       ProposalPageSchema,
-      `One page of the open and accepting Proposals, newest first by \`id\`, at most ${String(ITEMS_PAGE_SIZE)}. Each has \`id\`, \`kind\` (\`tag-merge\` or \`topic-merge\`), \`state\` (\`open\`, or \`accepting\` while its merge runs), \`reason\` (the agent's one line) and \`from\` and \`into\`, the two Tags or the two Topics as \`{ id, name, items }\`, where \`items\` is the number of Items that carry the Tag, or sit under the Topic, now. \`POST /api/proposals/{id}/accept\` merges \`from\` into \`into\`, a Tag or a Topic by the \`kind\`. Only the kinds this release knows are listed. \`checkedAt\` is when the most recent weekly check (the Tag check or the Topic check) started, in milliseconds, or null before the first one. \`provider\` is whether a Provider is saved; the check runs only then. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged.`,
+      `One page of the open and accepting Proposals, newest first by \`id\`, at most ${String(ITEMS_PAGE_SIZE)}. Each has \`id\`, \`kind\` and \`state\` (\`open\`, or \`accepting\` while a merge runs). A \`tag-merge\` or \`topic-merge\` row has \`reason\` (the agent's one line) and \`from\` and \`into\`, the two Tags or the two Topics as \`{ id, name, items }\`, where \`items\` is the number of Items that carry the Tag, or sit under the Topic, now. A \`highlight-lost\` row has \`highlight\`, \`{ id, quote, item }\`: \`quote\` is the text the owner kept, and \`item\` is \`{ id, source, title }\` for the Item it belongs to, where \`title\` is the Digest title, else the fetched title, or null. It is listed only while the Highlight is not found in its Item's text. \`POST /api/proposals/{id}/accept\` merges \`from\` into \`into\` for a merge, and removes the Highlight for a \`highlight-lost\` row. \`checkedAt\` is when the most recent weekly check (the Tag check, the Topic check or the Highlight check) started, in milliseconds, or null before the first one. \`provider\` is whether a Provider is saved; the weekly checks run only then. Only the kinds this release knows are listed. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged.`,
     ),
     400: jsonBody(
       ErrorResponseSchema,
@@ -39,7 +39,7 @@ const rejectProposalRoute = createRoute({
   responses: {
     200: jsonBody(
       RejectedSchema,
-      "The Proposal is rejected. It leaves the list and its pair of Tags or Topics is never suggested again, whichever way round. Only the owner's session may reject; an agent token gets 403.",
+      "The Proposal is rejected. It leaves the list. Its pair of Tags or Topics, or its Highlight, is never suggested again, and a rejected Highlight stays as it is. Only the owner's session may reject; an agent token gets 403.",
     ),
     404: jsonBody(ErrorResponseSchema, "No Proposal of a kind this release knows has this id."),
     409: jsonBody(
@@ -56,7 +56,7 @@ const acceptProposalRoute = createRoute({
   responses: {
     200: jsonBody(
       AcceptedSchema,
-      "The merge finished in this request: every Item carries `into` and the `from` Tag or Topic is gone, and a Pin keeps it from coming back. A Topic merge also tries once to open an overview run for `into`. Only the owner's session may accept; an agent token gets 403.",
+      "The merge finished in this request: every Item carries `into` and the `from` Tag or Topic is gone, and a Pin keeps it from coming back. A Topic merge also tries once to open an overview run for `into`. For a `highlight-lost` row the Highlight and its search part are removed with the Proposal, and a second call answers 404. Only the owner's session may accept; an agent token gets 403.",
     ),
     202: jsonBody(
       AcceptedSchema,
@@ -68,7 +68,7 @@ const acceptProposalRoute = createRoute({
     ),
     409: jsonBody(
       ErrorResponseSchema,
-      "The Proposal is not open (`not-open`), another Proposal is accepting (`merge-busy`: one merge runs at a time), or an overview run or another merge holds the lease of one of the two Topics (`topic-busy`: a Topic merge only; the Proposal stays open and the call can be sent again).",
+      "The Proposal is not open (`not-open`), the Highlight of a `highlight-lost` row is found in its Item again (`not-current`: the row stays and the list stops showing it), another Proposal is accepting (`merge-busy`: one merge runs at a time), or an overview run or another merge holds the lease of one of the two Topics (`topic-busy`: a Topic merge only; the Proposal stays open and the call can be sent again).",
     ),
   },
 });
@@ -97,6 +97,7 @@ function registerAccept(app: OpenAPIHono, ports: Ports): void {
       case "unknown":
         return c.json({ error: NOT_FOUND }, 404);
       case "not-open":
+      case "not-current":
       case "merge-busy":
       case "topic-busy":
         return c.json({ error: outcome }, 409);

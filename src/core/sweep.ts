@@ -35,6 +35,7 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
     ],
     ["proposals", () => openWeeklyRun(ports, now, "tag-merge")],
     ["topic-proposals", () => openWeeklyRun(ports, now, "topic-merge")],
+    ["highlight-proposals", () => openWeeklyRun(ports, now, "highlight-lost")],
     ["merges", () => continueMerges(ports)],
     ["search", () => reconcileSearchParts(ports)],
     ["files", () => cleanFiles(ports)],

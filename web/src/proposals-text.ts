@@ -1,5 +1,10 @@
-import type { ProposalKind } from "../../src/core/kinds.ts";
-import type { Proposal } from "../../src/core/proposal-contract.ts";
+import type { MergeKind } from "../../src/core/kinds.ts";
+import type {
+  LostHighlightProposal,
+  MergeProposal,
+  Proposal,
+} from "../../src/core/proposal-contract.ts";
+import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { filled } from "./text.ts";
 
 export const PROPOSALS_PAGE = {
@@ -10,7 +15,7 @@ export const PROPOSALS_PAGE = {
   emptyHeading: "No proposals yet",
   loadMoreFailed: "Couldn’t load more proposals.",
   sort: "Newest first",
-  head: "Accepting a tag or topic merge can’t be undone in this release. Rejecting is final: that pair of tags or topics won’t be proposed again.",
+  head: "Accepting a merge can’t be undone in this release; accepting removes a highlight for good. Rejecting is final: that tag or topic pair or highlight stays as it is and won’t be proposed again.",
 } as const;
 
 const EMPTY_NO_PROVIDER = "Save a provider in the instance settings to run the weekly check.";
@@ -42,7 +47,17 @@ const MERGE_WORDS = {
     rejectRetryNamed: "Try again to reject merging topic {from} into {into}",
     rejected: "Rejected merging topic {from} into {into}.",
   },
-} as const satisfies Record<ProposalKind, Record<string, string>>;
+} as const satisfies Record<MergeKind, Record<string, string>>;
+
+const LOST_WORDS = {
+  effect: "Remove this highlight",
+  acceptNamed: "Accept removing highlight from {title}",
+  acceptRetryNamed: "Try again to accept removing highlight from {title}",
+  accepted: "Accepted removing highlight from {title}.",
+  rejectNamed: "Reject removing highlight from {title}",
+  rejectRetryNamed: "Try again to reject removing highlight from {title}",
+  rejected: "Rejected removing highlight from {title}.",
+} as const;
 
 export const PROPOSAL_WORDS = {
   itemsOne: "1 item",
@@ -58,11 +73,14 @@ export const PROPOSAL_WORDS = {
   rejectFailed: "Couldn’t reject this proposal.",
   alreadyDecided: "This proposal was already decided or is no longer in the list.",
   reasonLabel: "Reason",
+  notCurrent: "Passage found in the item’s text again. The highlight stays; nothing was removed.",
 } as const;
 
-export function mergeEffect(kind: ProposalKind): string {
+export function mergeEffect(kind: MergeKind): string {
   return MERGE_WORDS[kind].effect;
 }
+
+export const LOST_HIGHLIGHT_EFFECT = LOST_WORDS.effect;
 
 export function itemCount(count: number): string {
   return count === 1
@@ -70,21 +88,34 @@ export function itemCount(count: number): string {
     : filled(PROPOSAL_WORDS.itemsMany, { count: String(count) });
 }
 
-type Wording = keyof (typeof MERGE_WORDS)[ProposalKind];
+type Wording = Exclude<keyof typeof LOST_WORDS, "effect">;
 
-function merging(wording: Exclude<Wording, "effect">) {
-  return ({ kind, from, into }: Readonly<Proposal>): string =>
+function titleOf({ highlight }: Readonly<LostHighlightProposal>): string {
+  return highlight.item.title ?? HIGHLIGHTS_PAGE.untitled;
+}
+
+function merging(wording: Wording) {
+  return ({ kind, from, into }: Readonly<MergeProposal>): string =>
     filled(MERGE_WORDS[kind][wording], { from: from.name, into: into.name });
 }
 
-export const rejectLabel = merging("rejectNamed");
+function wordedBy(wording: Wording) {
+  const ofMerge = merging(wording);
 
-export const rejectRetryLabel = merging("rejectRetryNamed");
+  return (proposal: Readonly<Proposal>): string =>
+    proposal.kind === "highlight-lost"
+      ? filled(LOST_WORDS[wording], { title: titleOf(proposal) })
+      : ofMerge(proposal);
+}
 
-export const rejectedAnnouncement = merging("rejected");
+export const rejectLabel = wordedBy("rejectNamed");
 
-export const acceptLabel = merging("acceptNamed");
+export const rejectRetryLabel = wordedBy("rejectRetryNamed");
 
-export const acceptRetryLabel = merging("acceptRetryNamed");
+export const rejectedAnnouncement = wordedBy("rejected");
 
-export const acceptedAnnouncement = merging("accepted");
+export const acceptLabel = wordedBy("acceptNamed");
+
+export const acceptRetryLabel = wordedBy("acceptRetryNamed");
+
+export const acceptedAnnouncement = wordedBy("accepted");

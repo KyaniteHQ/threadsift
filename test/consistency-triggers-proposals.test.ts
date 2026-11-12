@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { PIN_KINDS, PROPOSAL_KINDS, PROPOSAL_STATES } from "../src/core/kinds.ts";
+import { MERGE_KINDS, PIN_KINDS, PROPOSAL_STATES } from "../src/core/kinds.ts";
 import { Instance } from "./instance.ts";
 
 const BUSY_TIMEOUT_MS = 5000;
@@ -72,7 +72,7 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
     });
   };
 
-  for (const kind of PROPOSAL_KINDS) {
+  for (const kind of MERGE_KINDS) {
     for (const state of PROPOSAL_STATES) proposalCases(kind, state);
   }
 

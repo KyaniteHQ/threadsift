@@ -81,13 +81,13 @@ function useSettle({
   setNotice,
 }: Readonly<Settling>) {
   return useCallback(
-    async (proposal: Readonly<Proposal>, failure: Failure) => {
+    async (proposal: Readonly<Proposal>, failure: Failure, goneNote: string) => {
       const page = await reread(reachesBelow(lastLoaded()));
       const now = page?.proposals.find(({ id }) => id === proposal.id);
 
       if (page !== null && now === undefined) {
-        setNotice(PROPOSAL_WORDS.alreadyDecided);
-        say(PROPOSAL_WORDS.alreadyDecided);
+        setNotice(goneNote);
+        say(goneNote);
         setFocus({ kind: "heading" });
 
         return;
@@ -158,7 +158,7 @@ function useAccept({
   edit,
   say,
 }: Readonly<{
-  settle: (proposal: Readonly<Proposal>, failure: Failure) => Promise<void>;
+  settle: (proposal: Readonly<Proposal>, failure: Failure, goneNote: string) => Promise<void>;
   leave: (proposal: Readonly<Proposal>, departure: Departure) => Promise<void>;
   edit: Leaving["edit"];
   say: (text: string) => void;
@@ -178,8 +178,10 @@ function useAccept({
         edit((page) => applying(page, proposal.id));
       } else if (outcome === "merge-busy" || outcome === "topic-busy") {
         setBusy((was) => new Map(was).set(proposal.id, outcome));
+      } else if (outcome === "not-current") {
+        await settle(proposal, "accept", PROPOSAL_WORDS.notCurrent);
       } else {
-        await settle(proposal, "accept");
+        await settle(proposal, "accept", PROPOSAL_WORDS.alreadyDecided);
       }
     },
     [edit, leave, say, settle],
@@ -265,7 +267,7 @@ export function useProposalsPage() {
         await leave(proposal, "rejected");
         say(rejectedAnnouncement(proposal));
       } else {
-        await settle(proposal, "reject");
+        await settle(proposal, "reject", PROPOSAL_WORDS.alreadyDecided);
       }
 
       finish(proposal);

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
+import { mergesOf } from "./lost-highlight-fixtures.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
@@ -73,7 +74,7 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
     const signedOut = await instance.fetch("/api/proposals");
 
     assert.deepEqual(
-      owner.proposals.map(({ kind, from, into, state }) => ({
+      mergesOf(owner).map(({ kind, from, into, state }) => ({
         kind,
         from: `${from.name}:${String(from.items)}`,
         into: `${into.name}:${String(into.items)}`,
