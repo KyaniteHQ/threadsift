@@ -134,6 +134,7 @@ const COMMENTS_BUTTON = "Comments {kept} of {total}";
 const COMMENTS_BUTTON_SHORT = "{kept} of {total}";
 const COMMENTS_BUTTON_COUNT = "{kept}";
 const SCORE = "{score} pts";
+const LIKES = "Likes: {count}";
 
 export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: number): string {
   const values = {
@@ -209,6 +210,20 @@ export function commentsButtonLabels(counts: Readonly<CommentCounts>) {
   };
 }
 
-export function scoreLabel(score: number): string {
-  return filled(SCORE, { score: groupedNumber(score) });
+export function scoreLabel(score: number, source: Source): string {
+  return source === "x"
+    ? filled(LIKES, { count: groupedNumber(score) })
+    : filled(SCORE, { score: groupedNumber(score) });
+}
+
+export function handleOf(source: Source, author: string | null): string {
+  if (author === null) return "";
+
+  if (source === "reddit") return `u/${author}`;
+
+  return source === "x" ? `@${author}` : author;
+}
+
+export function isSameHandle(first: string | null, second: string | null): boolean {
+  return first !== null && second !== null && first.toLowerCase() === second.toLowerCase();
 }

@@ -17,6 +17,8 @@ import {
   STUB_DROPPED,
   STUB_MORE,
   STUB_NOT_KEPT,
+  handleOf,
+  isSameHandle,
   keptLabel,
   scoreLabel,
 } from "./reader-text.ts";
@@ -25,10 +27,6 @@ const TOP_OFFSET: CSSProperties = { scrollMarginTop: "calc(var(--bar-h) + var(--
 
 function depthStyle(depth: number): CSSProperties {
   return Object.fromEntries([["--d", depth]]);
-}
-
-function authorOf(author: string | null): string {
-  return author === null ? "" : `u/${author}`;
 }
 
 function initialOf(author: string | null): string {
@@ -114,16 +112,20 @@ function CommentText({ comment }: Readonly<{ comment: Comment }>) {
   );
 }
 
-function KeptComment({ comment, op }: Readonly<{ comment: Comment; op: boolean }>) {
+function KeptComment({
+  comment,
+  source,
+  op,
+}: Readonly<{ comment: Comment; source: Item["source"]; op: boolean }>) {
   return (
     <div className="cm-card">
       <p className="cm-head">
         <span className="cm-av" aria-hidden="true">
           {initialOf(comment.author)}
         </span>
-        <span className="cm-author">{authorOf(comment.author)}</span>
+        <span className="cm-author">{handleOf(source, comment.author)}</span>
         {op ? <span className="op">{OP_LABEL}</span> : null}
-        <span>{comment.score === null ? "" : scoreLabel(comment.score)}</span>
+        <span>{comment.score === null ? "" : scoreLabel(comment.score, source)}</span>
       </p>
       <CommentText comment={comment} />
     </div>
@@ -150,10 +152,14 @@ function Stub({ kind }: Readonly<{ kind: keyof typeof STUB_TEXTS }>) {
   );
 }
 
-function Node({ node, op }: Readonly<{ node: CommentNode; op: boolean }>) {
+function Node({
+  node,
+  source,
+  op,
+}: Readonly<{ node: CommentNode; source: Item["source"]; op: boolean }>) {
   switch (node.kind) {
     case "comment":
-      return <KeptComment comment={node} op={op} />;
+      return <KeptComment comment={node} source={source} op={op} />;
     case "stub":
       return <Stub kind={node.reason} />;
     case "more":
@@ -176,9 +182,13 @@ function classesOf(node: Readonly<CommentNode>, first: boolean): string {
 
 function Branches({
   branches,
-  author,
+  owner,
   first,
-}: Readonly<{ branches: readonly Branch[]; author: string | null; first: boolean }>) {
+}: Readonly<{
+  branches: readonly Branch[];
+  owner: Readonly<Pick<Item, "author" | "source">>;
+  first: boolean;
+}>) {
   return (
     <ol className="tree">
       {branches.map(({ node, replies }, index) => (
@@ -190,11 +200,12 @@ function Branches({
           <div className="cm-row">
             <Node
               node={node}
-              op={node.kind === "comment" && node.author !== null && node.author === author}
+              source={owner.source}
+              op={node.kind === "comment" && isSameHandle(node.author, owner.author)}
             />
           </div>
           {replies.length === 0 ? null : (
-            <Branches branches={replies} author={author} first={false} />
+            <Branches branches={replies} owner={owner} first={false} />
           )}
         </li>
       ))}
@@ -219,7 +230,7 @@ function CommentTree({
         <p className="rd-kept">{keptLabel(counts)}</p>
       </div>
       {counts.kept === 0 ? <p className="rd-note">{NONE_KEPT}</p> : null}
-      {branches.length === 0 ? null : <Branches branches={branches} author={item.author} first />}
+      {branches.length === 0 ? null : <Branches branches={branches} owner={item} first />}
     </section>
   );
 }

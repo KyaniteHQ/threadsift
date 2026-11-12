@@ -8,6 +8,7 @@ import {
   KEY_POINTS_LABEL,
   READER_LOADING,
   SUMMARY_LABEL,
+  handleOf,
   postedLabel,
 } from "./reader-text.ts";
 import { HeadNote, Note } from "./ReaderNote.tsx";
@@ -15,14 +16,6 @@ import { savedLabel } from "./saved-label.ts";
 import { tagHue } from "./tag-hue.ts";
 import { DIGEST_NOT_UPDATED, NO_DIGEST, SOURCE_LABELS } from "./text.ts";
 import { TopicLink } from "./TopicLink.tsx";
-
-function bylineOf(item: Readonly<Item>): string {
-  if (item.author === null) return "";
-
-  if (item.source === "reddit") return `u/${item.author}`;
-
-  return item.source === "x" ? `@${item.author}` : item.author;
-}
 
 export function ReaderHead({
   item,
@@ -53,7 +46,7 @@ export function ReaderHead({
       <p className="rd-src">
         <span className="src">{SOURCE_LABELS[item.source]}</span>
         <span>{whereOf(item)}</span>
-        <span>{bylineOf(item)}</span>
+        <span>{handleOf(item.source, item.author)}</span>
         <span>
           {detail === null || detail.postedAt === null ? "" : postedLabel(detail.postedAt, now)}
         </span>

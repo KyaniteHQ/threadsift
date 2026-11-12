@@ -192,9 +192,21 @@ function githubKind(segments: readonly string[]): Kind {
   return isRepository ? "github-repo" : "link";
 }
 
+function statusIdIn(host: string, pathname: string): string | null {
+  const digits = X_HOSTS.has(host) ? X_STATUS_PATH.exec(pathname)?.[1] : undefined;
+
+  return digits === undefined ? null : digits.replace(LEADING_ZEROS, "");
+}
+
+export function statusIdOf(absoluteUrl: string): string | null {
+  const { hostname, pathname } = new URL(absoluteUrl);
+
+  return statusIdIn(canonicalHost(hostname), pathname);
+}
+
 function xLink(statusId: string): Link {
   return {
-    normalizedUrl: `https://x.com/i/status/${statusId.replace(LEADING_ZEROS, "")}`,
+    normalizedUrl: `https://x.com/i/status/${statusId}`,
     kind: "x-post",
     source: "x",
   };
@@ -219,9 +231,9 @@ export function parseLink(absoluteUrl: string): Link {
     return redditLink(reddit);
   }
 
-  const statusId = X_HOSTS.has(host) ? X_STATUS_PATH.exec(url.pathname)?.[1] : undefined;
+  const statusId = statusIdIn(host, url.pathname);
 
-  if (statusId !== undefined) {
+  if (statusId !== null) {
     return xLink(statusId);
   }
 
