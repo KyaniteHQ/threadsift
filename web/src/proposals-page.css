@@ -45,3 +45,8 @@
   min-block-size: var(--target);
   min-inline-size: var(--target);
 }
+.pr-overview {
+  margin: 0;
+  font-size: var(--t-meta);
+  color: var(--muted);
+}

@@ -60,7 +60,7 @@ export function ProposalsPage({ back }: Readonly<{ back: () => void }>) {
         proposal={proposal}
         pending={pending.has(proposal.id)}
         failure={failed.get(proposal.id)}
-        busy={busy.has(proposal.id)}
+        busy={busy.get(proposal.id)}
         accept={pressAccept}
         reject={pressReject}
       />

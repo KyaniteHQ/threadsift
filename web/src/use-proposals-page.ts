@@ -1,7 +1,7 @@
 import { type Dispatch, type RefObject, type SetStateAction, useCallback, useState } from "react";
 
 import type { Proposal, ProposalPage } from "../../src/core/proposal-contract.ts";
-import { sendAccept, sendReject, fetchProposals } from "./proposals-api.ts";
+import { type Busy, sendAccept, sendReject, fetchProposals } from "./proposals-api.ts";
 import { PROPOSAL_WORDS, acceptedAnnouncement, rejectedAnnouncement } from "./proposals-text.ts";
 import { applyingRows, useAcceptingPoll } from "./use-accepting-poll.ts";
 import type { Announcement } from "./use-announcement.ts";
@@ -103,11 +103,11 @@ function withoutId(ids: Readonly<ReadonlySet<number>>, id: number): ReadonlySet<
   return new Set([...ids].filter((each) => each !== id));
 }
 
-function withoutFailure(
-  failures: Readonly<ReadonlyMap<number, Failure>>,
+function withoutKey<Value>(
+  map: Readonly<ReadonlyMap<number, Value>>,
   id: number,
-): ReadonlyMap<number, Failure> {
-  return new Map([...failures].filter(([each]) => each !== id));
+): ReadonlyMap<number, Value> {
+  return new Map([...map].filter(([each]) => each !== id));
 }
 
 interface Leaving {
@@ -149,21 +149,21 @@ function useAccept({
   edit: Leaving["edit"];
   say: (text: string) => void;
 }>) {
-  const [busy, setBusy] = useState<ReadonlySet<number>>(new Set());
+  const [busy, setBusy] = useState<ReadonlyMap<number, Busy>>(new Map());
 
   const accept = useCallback(
     async (proposal: Readonly<Proposal>) => {
-      setBusy((was) => withoutId(was, proposal.id));
+      setBusy((was) => withoutKey(was, proposal.id));
 
       const outcome = await sendAccept(proposal.id);
 
       if (outcome === "done") {
         await leave(proposal);
-        say(acceptedAnnouncement(proposal.from.name, proposal.into.name));
+        say(acceptedAnnouncement(proposal));
       } else if (outcome === "accepting") {
         edit((page) => applying(page, proposal.id));
-      } else if (outcome === "busy") {
-        setBusy((was) => new Set(was).add(proposal.id));
+      } else if (outcome === "merge-busy" || outcome === "topic-busy") {
+        setBusy((was) => new Map(was).set(proposal.id, outcome));
       } else {
         await settle(proposal, "accept");
       }
@@ -188,7 +188,7 @@ function useRowFlags() {
   const start = useCallback((proposal: Readonly<Proposal>) => {
     setPending((was) => new Set(was).add(proposal.id));
     setNotice(null);
-    setFailed((was) => withoutFailure(was, proposal.id));
+    setFailed((was) => withoutKey(was, proposal.id));
   }, []);
 
   const finish = useCallback((proposal: Readonly<Proposal>) => {
@@ -228,8 +228,8 @@ export function useProposalsPage() {
 
   const gone = useCallback(
     (rows: readonly Proposal[], before: Readonly<ProposalsState>) => {
-      rows.forEach(({ from, into }) => {
-        say(acceptedAnnouncement(from.name, into.name));
+      rows.forEach((row) => {
+        say(acceptedAnnouncement(row));
       });
 
       const [first] = rows;

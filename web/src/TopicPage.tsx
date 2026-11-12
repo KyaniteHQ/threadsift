@@ -107,7 +107,7 @@ export function TopicPage({
   route,
   back,
 }: Readonly<{ topicKey: string; route: Route; back: () => void }>) {
-  const { state, retry, loadMore, writeOverview } = useTopicPage(topicKey);
+  const { state, retry, loadMore, writeOverview } = useTopicPage(topicKey, route.replace);
   const name = state.status === "ready" ? state.topic.name : "";
 
   return (
