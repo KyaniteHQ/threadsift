@@ -1,15 +1,27 @@
-import { and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 
 import { parseStoredDigest } from "./ai-contract.ts";
 import { fillDisagreementInput } from "./disagreement-fill.ts";
-import { membersOf, newestDigestAt, touched } from "./disagreement-members.ts";
 import { DISAGREEMENT_ITEMS, type SentItem, type SentTopic } from "./disagreement-task.ts";
 import { logFailure } from "./failure-log.ts";
 import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
-import { digests, items, proposals, topics } from "./schema.ts";
+import { digests, items, proposals, topicChecks, topics } from "./schema.ts";
+import { digestedCount } from "./topic-coverage.ts";
 
 const TOPICS_READ = 150;
+
+export function membersOf(topicId: Readonly<SQLWrapper>): SQL<string | null> {
+  return sql`(select group_concat(newest.id || ':' || newest.digest, ',' order by newest.id) from (select member.id as id, kept.task_id as digest from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId} order by member.saved_at desc, member.id desc limit ${DISAGREEMENT_ITEMS}) as newest)`;
+}
+
+function newestDigestAt(topicId: Readonly<SQLWrapper>): SQL<number> {
+  return sql`(select max(kept.created_at) from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId})`;
+}
+
+function touched(topicId: Readonly<SQLWrapper>): SQL {
+  return sql`${digestedCount(topicId)} >= 2 and ${membersOf(topicId)} is not (select ${topicChecks.members} from ${topicChecks} where ${topicChecks.topicId} = ${topicId})`;
+}
 
 interface ReadRow {
   readonly topicId: number;

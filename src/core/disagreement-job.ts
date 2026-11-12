@@ -1,7 +1,6 @@
 import { type SQL, sql } from "drizzle-orm";
 
-import { readDisagreementInput } from "./disagreement-input.ts";
-import { membersOf } from "./disagreement-members.ts";
+import { membersOf, readDisagreementInput } from "./disagreement-input.ts";
 import {
   DISAGREEMENT_OUTPUT_TOKENS,
   type DisagreementsResult,

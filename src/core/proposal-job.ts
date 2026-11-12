@@ -1,5 +1,6 @@
-import { type SQL, eq, sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 
+import { readCatalogVersion } from "./catalog.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
@@ -11,7 +12,7 @@ import {
   type SentPair,
   proposalsTask,
 } from "./proposal-task.ts";
-import { catalogVersion, proposals, tags, topics } from "./schema.ts";
+import { proposals, tags, topics } from "./schema.ts";
 import { type WeeklyModelRun, weeklyModelHandler } from "./weekly-model-run.ts";
 
 interface StoredRow {
@@ -65,8 +66,8 @@ function storedRows(
       .insert(proposals)
       .select(
         db
-          .select({
-            ...proposalRow(
+          .select(
+            proposalRow(
               {
                 kind,
                 state: sql`json_extract(stored.value, '$.state')`,
@@ -80,7 +81,7 @@ function storedRows(
                 intoTopicId: side("topic-merge", "into"),
               },
             ),
-          })
+          )
           .from(sql`json_each(${JSON.stringify(rows)}) as stored`)
           .where(sql`true`),
       )
@@ -88,21 +89,12 @@ function storedRows(
   ];
 }
 
-async function catalogRevision(db: Database): Promise<number> {
-  const [row] = await db
-    .select({ version: catalogVersion.version })
-    .from(catalogVersion)
-    .where(eq(catalogVersion.id, 1));
-
-  return row?.version ?? 0;
-}
-
 function runOf(kind: MergeKind): WeeklyModelRun<Sent, ProposalsResult> {
   return {
     ...RUNS[kind],
     maxOutputTokens: PROPOSALS_OUTPUT_TOKENS,
     read: async (db) => {
-      const inputRevision = await catalogRevision(db);
+      const inputRevision = await readCatalogVersion(db);
       const { input, sent } = proposalsInput(await readProposalPairs(db, kind));
 
       return sent.length === 0 ? null : { input, inputRevision, sent };

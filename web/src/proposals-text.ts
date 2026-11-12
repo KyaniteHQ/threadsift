@@ -57,9 +57,12 @@ const WORDS = {
   },
   "items-disagree": {
     effect: "These two items disagree in topic {topic}",
-    rejectNamed: "Reject the disagreement between {first} and {second}",
-    rejectRetryNamed: "Try again to reject the disagreement between {first} and {second}",
-    rejected: "Rejected the disagreement between {first} and {second}.",
+    rejectNamed:
+      "Reject the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+    rejectRetryNamed:
+      "Try again to reject the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+    rejected:
+      "Rejected the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
   },
 } as const satisfies Record<ProposalKind, Record<Wording, string>>;
 
@@ -141,13 +144,13 @@ export function itemCount(count: number): string {
     : filled(PROPOSAL_WORDS.itemsMany, { count: String(count) });
 }
 
-const QUOTE_CUT = 40;
+const TEXT_CUT = 40;
 
-function quoteCut(quote: string): string {
-  const letters = Array.from(quote.replaceAll(/\s+/gu, " ").trim());
+function textCut(text: string): string {
+  const letters = Array.from(text.replaceAll(/\s+/gu, " ").trim());
 
-  return letters.length > QUOTE_CUT
-    ? `${letters.slice(0, QUOTE_CUT).join("").trimEnd()}…`
+  return letters.length > TEXT_CUT
+    ? `${letters.slice(0, TEXT_CUT).join("").trimEnd()}…`
     : letters.join("");
 }
 
@@ -158,13 +161,18 @@ function slotsOf(proposal: Readonly<Proposal>) {
       return { from: proposal.from.name, into: proposal.into.name };
     case "highlight-lost":
       return {
-        quote: quoteCut(proposal.highlight.quote),
+        quote: textCut(proposal.highlight.quote),
         title: proposal.highlight.item.title ?? HIGHLIGHTS_PAGE.untitled,
       };
     case "overview-gap":
       return { topic: proposal.topic.name };
     case "items-disagree":
-      return { first: proposal.first.title, second: proposal.second.title };
+      return {
+        first: proposal.first.title,
+        firstSummary: textCut(proposal.first.summary),
+        second: proposal.second.title,
+        secondSummary: textCut(proposal.second.summary),
+      };
     default:
       return proposal satisfies never;
   }
