@@ -10,13 +10,7 @@ import {
   disjointPairs,
   pairKey,
 } from "./proposal-candidates.ts";
-import {
-  PROPOSALS_INPUT_BYTES,
-  type ProposalTag,
-  type ProposalTopic,
-  type SentPair,
-  type SentSubject,
-} from "./proposal-task.ts";
+import { PROPOSALS_INPUT_BYTES, type SentPair, type SentSubject } from "./proposal-task.ts";
 import { itemTags, items, proposals, tags, topics } from "./schema.ts";
 
 const NAMES_PER_SUBJECT = 3;
@@ -44,28 +38,22 @@ async function allPages(
   return [...page, ...(await allPages(readPage, last.id))];
 }
 
-function usedTags(db: Database): Promise<readonly NamedCandidate[]> {
-  return allPages((after) =>
-    db
-      .select({ id: tags.id, key: tags.key, name: tags.name, items: count(itemTags.itemId) })
-      .from(tags)
-      .innerJoin(itemTags, eq(itemTags.tagId, tags.id))
-      .where(gt(tags.id, after))
-      .groupBy(tags.id)
-      .orderBy(asc(tags.id))
-      .limit(SUBJECT_PAGE),
-  );
-}
+const USED = {
+  "tag-merge": { table: tags, linked: itemTags, link: itemTags.tagId, counted: itemTags.itemId },
+  "topic-merge": { table: topics, linked: items, link: items.topicId, counted: items.id },
+} as const;
 
-function usedTopics(db: Database): Promise<readonly NamedCandidate[]> {
+function usedSubjects(db: Database, kind: ProposalKind): Promise<readonly NamedCandidate[]> {
+  const { table, linked, link, counted } = USED[kind];
+
   return allPages((after) =>
     db
-      .select({ id: topics.id, key: topics.key, name: topics.name, items: count(items.id) })
-      .from(topics)
-      .innerJoin(items, eq(items.topicId, topics.id))
-      .where(gt(topics.id, after))
-      .groupBy(topics.id)
-      .orderBy(asc(topics.id))
+      .select({ id: table.id, key: table.key, name: table.name, items: count(counted) })
+      .from(table)
+      .innerJoin(linked, eq(link, table.id))
+      .where(gt(table.id, after))
+      .groupBy(table.id)
+      .orderBy(asc(table.id))
       .limit(SUBJECT_PAGE),
   );
 }
@@ -131,8 +119,8 @@ function proposalsJson(pairs: readonly Readonly<SentPair>[]): string {
   return JSON.stringify({ pairs: pairs.map(({ low, high }) => [low, high]) });
 }
 
-export function proposalsInput<Pair extends Readonly<SentPair>>(pairs: readonly Pair[]) {
-  const sent: Pair[] = [];
+export function proposalsInput(pairs: readonly Readonly<SentPair>[]) {
+  const sent: Readonly<SentPair>[] = [];
 
   for (const pair of pairs) {
     if (utf8Length(proposalsJson([...sent, pair])) <= PROPOSALS_INPUT_BYTES) sent.push(pair);
@@ -141,61 +129,42 @@ export function proposalsInput<Pair extends Readonly<SentPair>>(pairs: readonly 
   return { input: proposalsJson(sent), sent };
 }
 
-interface PairSource<Subject extends SentSubject> {
-  readonly used: (db: Database) => Promise<readonly NamedCandidate[]>;
-  readonly known: (db: Database) => Promise<ReadonlySet<string>>;
-  readonly names: (
-    db: Database,
-    ids: readonly number[],
-  ) => Promise<ReadonlyMap<number, readonly string[]>>;
-  readonly subject: (row: Readonly<NamedCandidate>, names: readonly string[]) => Subject;
-}
+const NAMES = {
+  "tag-merge": { of: topicsOf, field: "topics" },
+  "topic-merge": { of: tagsOf, field: "tags" },
+} as const;
 
-function sentPair<Subject extends SentSubject>(
+function sentPair(
   { low, high }: Readonly<CandidatePair>,
-  named: Readonly<ReadonlyMap<number, Subject>>,
-): SentPair<Subject> | null {
+  named: Readonly<ReadonlyMap<number, SentSubject>>,
+): SentPair | null {
   const first = named.get(low);
   const second = named.get(high);
 
   return first === undefined || second === undefined ? null : { low: first, high: second };
 }
 
-async function readPairs<Subject extends SentSubject>(
+export async function readProposalPairs(
   db: Database,
-  source: Readonly<PairSource<Subject>>,
-): Promise<readonly SentPair<Subject>[]> {
-  const [all, known] = await Promise.all([source.used(db), source.known(db)]);
+  kind: ProposalKind,
+): Promise<readonly SentPair[]> {
+  const [all, known] = await Promise.all([usedSubjects(db, kind), knownPairs(db, kind)]);
   const chosen = disjointPairs(candidatePairs(all, known));
   const ids = chosen.flatMap(({ low, high }) => [low, high]);
 
   if (ids.length === 0) return [];
 
-  const names = await source.names(db, ids);
+  const { of, field } = NAMES[kind];
+  const names = await of(db, ids);
 
-  const named = new Map<number, Subject>(
+  const named = new Map<number, SentSubject>(
     all
       .filter(({ id }) => ids.includes(id))
-      .map((row) => [row.id, source.subject(row, names.get(row.id) ?? [])] as const),
+      .map(({ id, name, items: used }) => [
+        id,
+        { id, name, items: used, [field]: names.get(id) ?? [] },
+      ]),
   );
 
   return chosen.flatMap((pair) => sentPair(pair, named) ?? []);
-}
-
-export function readProposals(db: Database): Promise<readonly SentPair<ProposalTag>[]> {
-  return readPairs(db, {
-    used: usedTags,
-    known: (each) => knownPairs(each, "tag-merge"),
-    names: topicsOf,
-    subject: ({ id, name, items: used }, names) => ({ id, name, items: used, topics: names }),
-  });
-}
-
-export function readTopicProposals(db: Database): Promise<readonly SentPair<ProposalTopic>[]> {
-  return readPairs(db, {
-    used: usedTopics,
-    known: (each) => knownPairs(each, "topic-merge"),
-    names: tagsOf,
-    subject: ({ id, name, items: used }, names) => ({ id, name, items: used, tags: names }),
-  });
 }

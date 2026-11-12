@@ -125,11 +125,9 @@ async function isTopicMerge(db: Database, id: number): Promise<boolean> {
 }
 
 export async function acceptProposal(db: Database, id: number): Promise<Acceptance> {
-  if (await isTopicMerge(db, id)) return "not-supported";
-
   const row = await readRow(db, id);
 
-  if (row === undefined) return "unknown";
+  if (row === undefined) return (await isTopicMerge(db, id)) ? "not-supported" : "unknown";
 
   if (row.state !== "open") return "not-open";
 

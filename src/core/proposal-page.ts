@@ -2,6 +2,7 @@ import { type SQLWrapper, and, desc, eq, inArray, lt, max, sql } from "drizzle-o
 import { alias } from "drizzle-orm/sqlite-core";
 
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
+import { WEEKLY_TASKS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { ListedStateSchema, type ProposalPage } from "./proposal-contract.ts";
 import { itemTags, items, proposals, scheduledRuns, settings, tags, topics } from "./schema.ts";
@@ -15,8 +16,6 @@ const intoTag = alias(tags, "into_tag");
 const fromTopic = alias(topics, "from_topic");
 
 const intoTopic = alias(topics, "into_topic");
-
-const WEEKLY_TASKS = ["proposals", "topic_proposals"];
 
 function nameOf(tag: Readonly<SQLWrapper>, topic: Readonly<SQLWrapper>) {
   return sql<string>`coalesce(${tag}, ${topic})`;
@@ -61,7 +60,7 @@ export async function readProposalPage(db: Database, cursor: number | null): Pro
     db
       .select({ at: max(scheduledRuns.lastRunAt) })
       .from(scheduledRuns)
-      .where(inArray(scheduledRuns.task, WEEKLY_TASKS)),
+      .where(inArray(scheduledRuns.task, [...WEEKLY_TASKS])),
     db.select({ id: settings.id }).from(settings).where(eq(settings.id, 1)),
   ]);
 

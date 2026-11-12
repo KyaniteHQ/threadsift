@@ -4,9 +4,9 @@ The agent's weekly suggestions to merge two Tags or two Topics, the page that li
 
 ## Code map
 
-- `src/core/proposal-week.ts`: the two weekly claims (`proposals` and `topic_proposals`) and the job each opens.
+- `src/core/proposal-week.ts`: the weekly claim (`openWeeklyRun`, once for `proposals` and once for `topic_proposals`) and the job it opens.
 - `src/core/proposal-candidates.ts`: the plain check, for Tags and for Topics.
-- `src/core/proposal-input.ts`: the reads of both runs and the input fill rule.
+- `src/core/proposal-input.ts`: the read of either run (`readProposalPairs`) and the input fill rule.
 - `src/core/proposal-task.ts`: instructions of both tasks, the result schema and budgets.
 - `src/core/proposal-job.ts`: the run (`proposalsHandler` for Tags, `topicProposalsHandler` for Topics) and its guarded batches.
 - `src/core/proposal-tables.ts`: the table, re-exported by `schema.ts`.
@@ -85,7 +85,7 @@ A `merge` entry (`loggedMerge` in `src/core/log-writes.ts`) holds the two Tag na
 
 ## The reads of the run
 
-`usedTags` and `usedTopics` read the Tags, or the Topics, that have an Item in pages of 1,000 by id, as a recursion that asks for the page after the last id, because D1 caps one result at 50 MB. `knownPairs` reads every `proposals` row of the run's kind in one query: a row is under 100 bytes and at most 20 rows are added a week, so 50 MB takes about 480 years of weeks (guess).
+`usedSubjects` reads the Tags, or the Topics, that have an Item in pages of 1,000 by id, as a recursion that asks for the page after the last id, because D1 caps one result at 50 MB. `knownPairs` reads every `proposals` row of the run's kind in one query: a row is under 100 bytes and at most 20 rows are added a week, so 50 MB takes about 480 years of weeks (guess).
 
 ## Identity
 

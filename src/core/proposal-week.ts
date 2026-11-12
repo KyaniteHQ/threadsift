@@ -3,14 +3,13 @@ import { sql } from "drizzle-orm";
 import { providerSet } from "./ai-tasks.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows, opening } from "./job-rows.ts";
+import type { WeeklyTask } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, scheduledRuns } from "./schema.ts";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const NEWEST_DIGESTED_ITEM = sql`(select max(${digests.itemId}) from ${digests})`;
-
-type WeeklyTask = "proposals" | "topic_proposals";
 
 function claimingWeek(db: Database, now: number, task: WeeklyTask) {
   return db
@@ -32,7 +31,7 @@ function claimingWeek(db: Database, now: number, task: WeeklyTask) {
     .returning({ task: scheduledRuns.task });
 }
 
-async function openWeek(ports: JobPorts, now: number, task: WeeklyTask) {
+export async function openWeeklyRun(ports: JobPorts, now: number, task: WeeklyTask) {
   const { db } = ports;
 
   const [, opened] = await db.batch([
@@ -46,12 +45,4 @@ async function openWeek(ports: JobPorts, now: number, task: WeeklyTask) {
   ]);
 
   await enqueueRows(ports, opened);
-}
-
-export function openWeeklyProposals(ports: JobPorts, now: number) {
-  return openWeek(ports, now, "proposals");
-}
-
-export function openWeeklyTopicProposals(ports: JobPorts, now: number) {
-  return openWeek(ports, now, "topic_proposals");
 }

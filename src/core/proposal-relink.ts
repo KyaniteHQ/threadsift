@@ -41,15 +41,6 @@ function outranks(first: Readonly<Columns>, second: Readonly<Columns>): SQL {
   return sql`(${strength(first)} < ${strength(second)} or (${strength(first)} = ${strength(second)} and ${first.id} < ${second.id}))`;
 }
 
-function sharesPartner(
-  first: Readonly<Columns>,
-  firstId: number,
-  second: Readonly<Columns>,
-  secondId: number,
-): SQL {
-  return sql`(${names(second, secondId)} and ${partner(second, secondId)} = ${partner(first, firstId)})`;
-}
-
 export function proposalRelinks(
   db: Database,
   subject: ProposalSubject,
@@ -68,12 +59,12 @@ export function proposalRelinks(
     db
       .delete(proposals)
       .where(
-        sql`${names(outer, loser)} and exists (select 1 from ${proposals} as other where ${sharesPartner(outer, loser, inner, survivor)} and not ${outranks(outer, inner)})`,
+        sql`${names(outer, loser)} and exists (select 1 from ${proposals} as other where ${names(inner, survivor)} and ${partner(inner, survivor)} = ${partner(outer, loser)} and not ${outranks(outer, inner)})`,
       ),
     db
       .delete(proposals)
       .where(
-        sql`${names(outer, survivor)} and exists (select 1 from ${proposals} as other where ${sharesPartner(outer, survivor, inner, loser)} and ${outranks(inner, outer)})`,
+        sql`${names(outer, survivor)} and exists (select 1 from ${proposals} as other where ${names(inner, loser)} and ${partner(inner, loser)} = ${partner(outer, survivor)} and ${outranks(inner, outer)})`,
       ),
     db
       .update(proposals)
