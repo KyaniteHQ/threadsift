@@ -135,6 +135,8 @@ describe("an X thread is read into the stored thread by parseXThread", () => {
     ]);
 
     assert.equal(new Set(reasons.values()).size, reasons.size);
+    assert.match(refusal(thread([reply(ID, ID)])), /cycle/u);
+    assert.match(reasons.get("cycle") ?? "", /cycle/u);
     assert.match(reasons.get("duplicate reply id") ?? "", /appears twice/u);
     assert.match(
       reasons.get("a 30-character reply id") ?? "",
