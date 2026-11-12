@@ -23,7 +23,7 @@ const listProposalsRoute = createRoute({
   responses: {
     200: jsonBody(
       ProposalPageSchema,
-      `One page of the open and accepting Proposals, newest first by \`id\`, at most ${String(ITEMS_PAGE_SIZE)}. Each has \`id\`, \`kind\` and \`state\` (\`open\`, or \`accepting\` while a merge runs). A \`tag-merge\` or \`topic-merge\` row has \`reason\` (the agent's one line) and \`from\` and \`into\`, the two Tags or the two Topics as \`{ id, name, items }\`, where \`items\` is the number of Items that carry the Tag, or sit under the Topic, now. A \`highlight-lost\` row has \`highlight\`, \`{ id, quote, item }\`: \`quote\` is the text the owner kept, and \`item\` is \`{ id, source, title }\` for the Item it belongs to, where \`title\` is the Digest title, else the fetched title, or null. It is listed only while the Highlight is not found in its Item's text. An \`overview-gap\` row has \`topic\`, \`{ key, name, uncovered, items }\`: \`items\` is the number of Items under the Topic that have a Digest, and \`uncovered\` is how many of them the Topic's overview was not built from, both counted now. It is listed only while \`uncovered\` is above 0 and no overview run is open for the Topic. \`POST /api/proposals/{id}/accept\` merges \`from\` into \`into\` for a merge, removes the Highlight for a \`highlight-lost\` row, and starts the Topic's overview run for an \`overview-gap\` row. \`checkedAt\` is when the most recent weekly check (the Tag check, the Topic check, the Highlight check or the overview check) started, in milliseconds, or null before the first one. \`provider\` is whether a Provider is saved; the weekly checks run only then. Only the kinds this release knows are listed. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged.`,
+      `One page of the open and accepting Proposals, newest first by \`id\`, at most ${String(ITEMS_PAGE_SIZE)}. Each has \`id\`, \`kind\` and \`state\` (\`open\`, or \`accepting\` while a merge runs). A \`tag-merge\` or \`topic-merge\` row has \`reason\` (the agent's one line) and \`from\` and \`into\`, the two Tags or the two Topics as \`{ id, name, items }\`, where \`items\` is the number of Items that carry the Tag, or sit under the Topic, now. A \`highlight-lost\` row has \`highlight\`, \`{ id, quote, item }\`: \`quote\` is the text the owner kept, and \`item\` is \`{ id, source, title }\` for the Item it belongs to, where \`title\` is the Digest title, else the fetched title, or null. It is listed only while the Highlight is not found in its Item's text. An \`overview-gap\` row has \`topic\`, \`{ key, name, uncovered, items }\`: \`items\` is the number of Items under the Topic that have a Digest, and \`uncovered\` is how many of them the Topic's overview was not built from, both counted now. It is listed only while \`uncovered\` is above 0 and no overview run is open for the Topic. An \`items-disagree\` row has \`reason\` (the agent's one line), \`topic\` as \`{ key, name }\`, and \`first\` and \`second\`, the two Items as \`{ id, title, summary }\`, \`first\` the one with the lower id: \`title\` is the Digest title and \`summary\` the stored Summary, both read live. It is listed only while both Items still have the Digest the pair was judged on and sit under one Topic. \`POST /api/proposals/{id}/accept\` merges \`from\` into \`into\` for a merge, removes the Highlight for a \`highlight-lost\` row, and starts the Topic's overview run for an \`overview-gap\` row. \`checkedAt\` is when the most recent weekly check (the Tag check, the Topic check, the Highlight check, the overview check or the disagreement check) started, in milliseconds, or null before the first one. \`provider\` is whether a Provider is saved; the weekly checks run only then. Only the kinds this release knows are listed. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged.`,
     ),
     400: jsonBody(
       ErrorResponseSchema,
@@ -39,7 +39,7 @@ const rejectProposalRoute = createRoute({
   responses: {
     200: jsonBody(
       RejectedSchema,
-      "The Proposal is rejected. It leaves the list. Its pair of Tags or Topics, its Highlight, or its Topic's overview, is never suggested again, and a rejected Highlight stays as it is. Only the owner's session may reject; an agent token gets 403.",
+      "The Proposal is rejected. It leaves the list. Its pair of Tags, Topics or Items, its Highlight, or its Topic's overview, is never suggested again, and a rejected Highlight stays as it is. Only the owner's session may reject; an agent token gets 403.",
     ),
     404: jsonBody(ErrorResponseSchema, "No Proposal of a kind this release knows has this id."),
     409: jsonBody(
@@ -68,7 +68,7 @@ const acceptProposalRoute = createRoute({
     ),
     409: jsonBody(
       ErrorResponseSchema,
-      "The Proposal is not open (`not-open`); the row is not current (`not-current`: the row stays and the list stops showing it), because the Highlight of a `highlight-lost` row is found in its Item again, or the Topic of an `overview-gap` row has no Item left that its overview was not built from or already has an overview run open; no Provider is saved for an `overview-gap` row (`no-provider`: the row stays open); another Proposal is accepting (`merge-busy`: one merge runs at a time); or an overview run or another merge holds the lease of one of the two Topics (`topic-busy`: a Topic merge only; the Proposal stays open and the call can be sent again).",
+      "The Proposal is not open (`not-open`); the row is not current (`not-current`: the row stays and the list stops showing it), because the Highlight of a `highlight-lost` row is found in its Item again, or the Topic of an `overview-gap` row has no Item left that its overview was not built from or already has an overview run open; no Provider is saved for an `overview-gap` row (`no-provider`: the row stays open); another Proposal is accepting (`merge-busy`: one merge runs at a time); or an overview run or another merge holds the lease of one of the two Topics (`topic-busy`: a Topic merge only; the Proposal stays open and the call can be sent again); or the row is an `items-disagree` row (`not-supported`: Accept of a disagreement is not built, and the row stays open).",
     ),
   },
 });
@@ -98,6 +98,7 @@ function registerAccept(app: OpenAPIHono, ports: Ports): void {
         return c.json({ error: NOT_FOUND }, 404);
       case "not-open":
       case "not-current":
+      case "not-supported":
       case "no-provider":
       case "merge-busy":
       case "topic-busy":

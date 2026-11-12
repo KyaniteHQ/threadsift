@@ -1,6 +1,7 @@
 import { memo } from "react";
 
 import type { MergeProposal } from "../../src/core/proposal-contract.ts";
+import { ItemsDisagreeBody } from "./ItemsDisagreeBody.tsx";
 import { LostHighlightBody } from "./LostHighlightBody.tsx";
 import { OverviewGapBody } from "./OverviewGapBody.tsx";
 import { rowId } from "./proposal-dom.ts";
@@ -69,7 +70,10 @@ function ProposalBody({
   open,
   openTopic,
   overviewFollows,
-}: Readonly<Pick<RowControls, "proposal" | "open" | "openTopic" | "overviewFollows">>) {
+  openItem,
+}: Readonly<
+  Pick<RowControls, "proposal" | "open" | "openTopic" | "openItem" | "overviewFollows">
+>) {
   switch (proposal.kind) {
     case "tag-merge":
     case "topic-merge":
@@ -78,13 +82,15 @@ function ProposalBody({
       return <LostHighlightBody proposal={proposal} open={open} />;
     case "overview-gap":
       return <OverviewGapBody proposal={proposal} openTopic={openTopic} />;
+    case "items-disagree":
+      return <ItemsDisagreeBody proposal={proposal} openItem={openItem} openTopic={openTopic} />;
     default:
       return proposal satisfies never;
   }
 }
 
 export const ProposalRow = memo(function ProposalRow(controls: Readonly<RowControls>) {
-  const { proposal, open, openTopic, overviewFollows } = controls;
+  const { proposal, open, openTopic, openItem, overviewFollows } = controls;
 
   return (
     <li>
@@ -93,6 +99,7 @@ export const ProposalRow = memo(function ProposalRow(controls: Readonly<RowContr
           proposal={proposal}
           open={open}
           openTopic={openTopic}
+          openItem={openItem}
           overviewFollows={overviewFollows}
         />
         <Actions {...controls} />

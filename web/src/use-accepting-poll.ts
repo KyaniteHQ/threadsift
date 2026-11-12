@@ -1,14 +1,15 @@
 import { type RefObject, useCallback } from "react";
 
-import type { Proposal, ProposalPage } from "../../src/core/proposal-contract.ts";
+import type { ProposalPage } from "../../src/core/proposal-contract.ts";
+import { type AcceptableProposal, isAcceptable } from "./proposals-text.ts";
 import type { Paged } from "./use-paged-read.ts";
 import { usePolling } from "./use-polling.ts";
 
 type State = Paged<ProposalPage>;
 
-export function applyingRows(state: Readonly<State>): readonly Proposal[] {
+export function applyingRows(state: Readonly<State>): readonly AcceptableProposal[] {
   return state.status === "ready"
-    ? state.proposals.filter(({ state: each }) => each === "accepting")
+    ? state.proposals.filter(isAcceptable).filter(({ state: each }) => each === "accepting")
     : [];
 }
 
@@ -16,7 +17,7 @@ interface Poll {
   readonly applying: boolean;
   readonly latest: Readonly<RefObject<Readonly<State>>>;
   readonly refresh: () => Promise<ProposalPage | null>;
-  readonly gone: (rows: readonly Proposal[], before: Readonly<State>) => void;
+  readonly gone: (rows: readonly AcceptableProposal[], before: Readonly<State>) => void;
 }
 
 export function useAcceptingPoll({ applying, latest, refresh, gone }: Readonly<Poll>) {

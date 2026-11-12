@@ -6,7 +6,7 @@ import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
 import type { MergeRow } from "./merge-unit.ts";
-import { acceptOverviewGap } from "./overview-proposals.ts";
+import { acceptOverviewGap } from "./overview-accept.ts";
 import { knownProposal, proposals } from "./schema.ts";
 import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
@@ -18,6 +18,7 @@ export type Acceptance =
   | "unknown"
   | "not-open"
   | "not-current"
+  | "not-supported"
   | "no-provider"
   | "merge-busy"
   | "topic-busy";
@@ -130,6 +131,7 @@ const ACCEPT = {
   "topic-merge": acceptMerge,
   "highlight-lost": ({ db }, id) => acceptLostHighlight(db, id),
   "overview-gap": acceptOverviewGap,
+  "items-disagree": () => Promise.resolve("not-supported"),
 } as const satisfies Readonly<Record<(typeof proposals.$inferSelect)["kind"], Accepting>>;
 
 export async function acceptProposal(ports: JobPorts, id: number): Promise<Acceptance> {

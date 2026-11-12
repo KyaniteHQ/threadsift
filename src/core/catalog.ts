@@ -36,10 +36,18 @@ export async function pinnedCatalog(db: Database, digest: Readonly<Digest>) {
   };
 }
 
+const CATALOG_VERSION = sql<number>`coalesce((select version from ${catalogVersion} where id = 1), 0)`;
+
+export async function readCatalogVersion(db: Database): Promise<number> {
+  const [row] = await db.select({ version: CATALOG_VERSION }).from(sql`(select 1) as one`);
+
+  return row?.version ?? 0;
+}
+
 export function catalogCurrent(version: number, entries: CatalogEntries) {
   const keys = entries.tagKeys;
 
-  return sql`(coalesce((select version from ${catalogVersion} where id = 1), 0) = ${version} or (exists (select 1 from ${topics} where key = ${entries.topic.key}) and not exists (select 1 from json_each(${keys}) wanted where not exists (select 1 from ${tags} where key = wanted.value))))`;
+  return sql`(${CATALOG_VERSION} = ${version} or (exists (select 1 from ${topics} where key = ${entries.topic.key}) and not exists (select 1 from json_each(${keys}) wanted where not exists (select 1 from ${tags} where key = wanted.value))))`;
 }
 
 function topNames(db: Database, table: Readonly<SQLWrapper>, usage: Readonly<SQLWrapper>) {

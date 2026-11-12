@@ -86,3 +86,26 @@
 .pr-effect .pr-place {
   font-weight: var(--dw-strong);
 }
+.pr-sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--s3) var(--s5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pr-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 0;
+}
+.pr-side-title {
+  align-self: flex-start;
+  font-weight: var(--dw-strong);
+  overflow-wrap: anywhere;
+}
+.pr-side-summary {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

@@ -1,17 +1,18 @@
 import { type Dispatch, type RefObject, type SetStateAction, useCallback, useState } from "react";
 
 import type { Proposal, ProposalPage } from "../../src/core/proposal-contract.ts";
-import { type Busy, fetchProposals, isBusy, sendAccept, sendReject } from "./proposals-api.ts";
+import { type Busy, fetchProposals, isBusy, sendAccept } from "./proposals-api.ts";
 import {
+  type AcceptableProposal,
   PROPOSAL_WORDS,
   acceptedAnnouncement,
   notCurrentNote,
-  rejectedAnnouncement,
 } from "./proposals-text.ts";
 import { applyingRows, useAcceptingPoll } from "./use-accepting-poll.ts";
 import type { Announcement } from "./use-announcement.ts";
 import { useLatest } from "./use-latest.ts";
 import { type Paged, type PagedReady, usePagedRead } from "./use-paged-read.ts";
+import { usePresses } from "./use-proposal-presses.ts";
 
 export type ProposalsReady = PagedReady<ProposalPage>;
 
@@ -171,7 +172,7 @@ function useAccept({
   const [busy, setBusy] = useState<ReadonlyMap<number, Busy>>(new Map());
 
   const accept = useCallback(
-    async (proposal: Readonly<Proposal>) => {
+    async (proposal: Readonly<AcceptableProposal>) => {
       setBusy((was) => withoutKey(was, proposal.id));
 
       const outcome = await sendAccept(proposal.id);
@@ -248,7 +249,7 @@ export function useProposalsPage() {
   const refresh = useCallback(() => reread(reachesBelow(lastLoaded())), [lastLoaded, reread]);
 
   const gone = useCallback(
-    (rows: readonly Proposal[], before: Readonly<ProposalsState>) => {
+    (rows: readonly AcceptableProposal[], before: Readonly<ProposalsState>) => {
       rows.forEach((row) => {
         say(acceptedAnnouncement(row));
       });
@@ -262,23 +263,7 @@ export function useProposalsPage() {
 
   useAcceptingPoll({ applying: applyingRows(state).length > 0, latest, refresh, gone });
 
-  const decide = useCallback(
-    async (proposal: Readonly<Proposal>, action: "accept" | "reject") => {
-      start(proposal);
+  const press = usePresses({ start, finish, accept, settle, leave, say });
 
-      if (action === "accept") {
-        await accept(proposal);
-      } else if ((await sendReject(proposal.id)) === "rejected") {
-        await leave(proposal, "rejected");
-        say(rejectedAnnouncement(proposal));
-      } else {
-        await settle(proposal, "reject", PROPOSAL_WORDS.alreadyDecided);
-      }
-
-      finish(proposal);
-    },
-    [accept, finish, leave, say, settle, start],
-  );
-
-  return { source, ...flags, busy, focused, decide };
+  return { source, ...flags, busy, focused, press };
 }

@@ -76,6 +76,11 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     await repaste(instance, "found", textHolding("the passage of found"));
     assert.equal(highlightStatus(instance, attached), "attached");
     await saveProvider(instance);
+    exec(
+      instance,
+      "insert or replace into scheduled_runs (task, last_run_at) values ('disagreement_proposals', ?)",
+      Date.now(),
+    );
   });
 
   after(() => instance.close());

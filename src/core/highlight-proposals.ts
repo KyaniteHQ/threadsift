@@ -5,6 +5,7 @@ import { removalWrites } from "./highlights.ts";
 import { WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
+import { proposalRow } from "./proposal-row.ts";
 import { highlights, proposals } from "./schema.ts";
 import { claimedAt, claimingWeek } from "./weekly-claim.ts";
 
@@ -36,22 +37,17 @@ function insertedRows(db: Database, now: number) {
     .insert(proposals)
     .select(
       db
-        .select({
-          id: sql<null>`null`.as("id"),
-          kind: sql<"highlight-lost">`'highlight-lost'`.as("kind"),
-          fromTagId: sql<null>`null`.as("from_tag_id"),
-          intoTagId: sql<null>`null`.as("into_tag_id"),
-          fromTopicId: sql<null>`null`.as("from_topic_id"),
-          intoTopicId: sql<null>`null`.as("into_topic_id"),
-          reason: sql<string>`${PLAIN_CHECK}`.as("reason"),
-          state: sql<"open">`'open'`.as("state"),
-          createdAt: sql<number>`${now}`.as("created_at"),
-          cursor: sql<null>`null`.as("cursor"),
-          moved: sql<null>`null`.as("moved"),
-          unitRevision: sql<null>`null`.as("unit_revision"),
-          highlightId: sql<number>`${highlights.id}`.as("highlight_id"),
-          topicId: sql<null>`null`.as("topic_id"),
-        })
+        .select(
+          proposalRow(
+            {
+              kind: "highlight-lost",
+              state: sql`'open'`,
+              reason: sql`${PLAIN_CHECK}`,
+              createdAt: now,
+            },
+            { highlightId: sql<number>`${highlights.id}` },
+          ),
+        )
         .from(highlights)
         .where(and(inArray(highlights.id, newestWithoutRow(db)), sql`changes() > 0`))
         .orderBy(asc(highlights.id)),

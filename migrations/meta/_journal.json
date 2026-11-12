@@ -323,6 +323,13 @@
       "when": 1794467249005,
       "tag": "0045_overview-gap-proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1794475239746,
+      "tag": "0046_disagreement-proposals",
+      "breakpoints": true
     }
   ]
 }

@@ -64,6 +64,7 @@ export async function deleteItem(
           db.select({ id: highlights.id }).from(highlights).where(eq(highlights.itemId, id)),
         ),
       ),
+    db.delete(proposals).where(or(eq(proposals.fromItemId, id), eq(proposals.intoItemId, id))),
     db.delete(highlights).where(eq(highlights.itemId, id)),
     db.delete(media).where(eq(media.itemId, id)),
     db.delete(notes).where(eq(notes.itemId, id)),
