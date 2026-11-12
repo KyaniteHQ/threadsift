@@ -55,7 +55,7 @@ const testRoute = createRoute({
   responses: {
     200: jsonBody(
       GrokBotTestSchema,
-      "What the saved address and key got back from one ping: `ok` (HTTP 200), `wrong-key` (401 or 403), `not-found` (404), `bot-error` (any other status), `unreachable`, `timeout` (8 seconds), `refused` (the saved address fails the address rule), `not-configured` or `secret-missing`. The bot's own 401 is a result inside this 200, so it never signs the owner out. The ping wakes the bot's routine and costs it one run.",
+      "What the saved address and key got back from one ping: `ok` (HTTP 200), `wrong-key` (401 or 403), `not-found` (404), `bot-error` (any other status), `unreachable`, `timeout` (8 seconds), `refused` (the saved address fails the address rule, or on the container its name resolves only to non-global addresses), `not-configured` or `secret-missing`. The bot's own 401 is a result inside this 200, so it never signs the owner out. The ping wakes the bot's routine and costs it one run.",
     ),
   },
 });

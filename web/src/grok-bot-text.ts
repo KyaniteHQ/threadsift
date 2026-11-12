@@ -34,7 +34,8 @@ export const GROK_BOT_TEXT = {
     "Enter a key up to 4,096 characters: letters, digits and punctuation only, no spaces or line breaks, and no accented or other non-ASCII characters.",
   keyNeeded: "Enter a key to save this address.",
   resultOk: "The Grok Bot answered and its routine woke.",
-  resultWrongKey: "The Grok Bot refused the key. Enter the key again and save.",
+  resultWrongKey:
+    "The Grok Bot turned the ping down; the key or address may be wrong. Copy both again from the routine’s panel and save.",
   resultNotFound: "The Grok Bot has no routine at that address. Check the address and save again.",
   resultBotError: "The Grok Bot answered with an error. Try Test again later.",
   resultUnreachable: "The Grok Bot did not answer. Check the address and connection.",
