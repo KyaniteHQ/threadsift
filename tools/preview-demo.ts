@@ -1,6 +1,13 @@
 import { catalogKey } from "../src/core/catalog-key.ts";
 import { CommandFailure } from "./command-failure.ts";
+import {
+  type DemoHighlight,
+  insertHighlightProposals,
+  insertHighlights,
+  missingHighlights,
+} from "./preview-demo-highlights.ts";
 import { rowNames } from "./preview-migrations.ts";
+import { quoted } from "./preview-sql.ts";
 
 type Pair = { readonly from: string; readonly into: string; readonly reason: string };
 
@@ -55,6 +62,19 @@ const demoTopicMerges = [
   },
 ] as const satisfies readonly Pair[];
 
+function demoUrl(number: number): string {
+  return `https://example.com/demo/${String(number)}`;
+}
+
+const demoLostHighlights = [
+  { url: demoUrl(1), exact: "The queue drops the oldest message when the buffer fills." },
+  {
+    url: demoUrl(2),
+    exact: "Batch jobs run after midnight to leave daytime capacity for live traffic.",
+  },
+  { url: demoUrl(3), exact: "Old snapshots expire only after the new backup finishes." },
+] as const satisfies readonly DemoHighlight[];
+
 type DemoDigestPaste = {
   readonly url: string;
   readonly page: { readonly markdown: string; readonly title: string };
@@ -74,7 +94,7 @@ function demoDigestPaste(
   const label = `Demo item ${String(number)}`;
 
   return {
-    url: `https://example.com/demo/${String(number)}`,
+    url: demoUrl(number),
     page: {
       markdown: Array.from({ length: 30 }, () => `${label} text.`).join("\n\n"),
       title: label,
@@ -121,10 +141,6 @@ const SUBJECTS = {
 } as const;
 
 type Kind = keyof typeof SUBJECTS;
-
-function quoted(text: string): string {
-  return `'${text.replaceAll("'", "''")}'`;
-}
 
 function pairsCte(kind: Kind): string {
   const rows = SUBJECTS[kind].pairs
@@ -173,6 +189,7 @@ WHERE NOT EXISTS (
 const SCHEMA_PROBES = {
   proposals: { table: "proposals", column: "id" },
   topicProposals: { table: "proposals", column: "from_topic_id" },
+  highlightProposals: { table: "proposals", column: "highlight_id" },
   pins: { table: "pins", column: "id" },
   topicPins: { table: "pins", column: "into_topic_id" },
 } as const;
@@ -195,6 +212,7 @@ function schemaFacts(
   return {
     proposals: present.has("proposals"),
     topicProposals: present.has("topicProposals"),
+    highlightProposals: present.has("highlightProposals"),
     pins: present.has("pins"),
     topicPins: present.has("topicPins"),
   };
@@ -216,27 +234,27 @@ export function seedDemoProposals(
         ]
       : [{ kind: "tag-merge", pinsReadable: facts.pins }];
 
-  run([
-    "d1",
-    "execute",
-    "DB",
-    "--json",
-    "--command",
-    seeded.map(({ kind }) => insertProposals(kind)).join(";\n"),
-    ...scope,
-  ]);
+  const inserts = [
+    ...seeded.map(({ kind }) => insertProposals(kind)),
+    ...(facts.highlightProposals
+      ? [insertHighlights(demoLostHighlights), insertHighlightProposals(demoLostHighlights)]
+      : []),
+  ];
 
-  const missing = rowNames(
-    run,
-    scope,
-    seeded.map(({ kind, pinsReadable }) => missingPairs(kind, pinsReadable)).join(";\n"),
-  );
+  run(["d1", "execute", "DB", "--json", "--command", inserts.join(";\n"), ...scope]);
+
+  const checks = [
+    ...seeded.map(({ kind, pinsReadable }) => missingPairs(kind, pinsReadable)),
+    ...(facts.highlightProposals ? [missingHighlights(demoLostHighlights)] : []),
+  ];
+
+  const missing = rowNames(run, scope, checks.join(";\n"));
 
   if (missing.length > 0)
     throw new CommandFailure({
       kind: "check",
-      reason: `Preview demo Proposals missing for the pairs ${missing.join(", ")}`,
+      reason: `Preview demo Proposals missing for ${missing.join(", ")}`,
       recovery:
-        "Check that the preview's Tags and Topics carry the demo names and that Digest publication finished, then rerun deploy.",
+        "Check that the preview's Tags, Topics and demo Items carry the demo names and that Digest publication finished, then rerun deploy.",
     });
 }
