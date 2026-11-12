@@ -34,15 +34,16 @@ describe("the address of a merged-away Topic opens the Topic it was merged into"
   after(() => instance.close());
 
   it("answers the survivor's page with the survivor's key for the old key in any spelling", async () => {
-    for (const spelling of ["ml", "ML", "Ml"]) {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Each spelling is read in turn.
-      const page = await instance.read("GET", `/api/topics/${spelling}`, TopicPageSchema);
+    const pages = await Promise.all(
+      ["ml", "ML", "Ml"].map((spelling) =>
+        instance.read("GET", `/api/topics/${spelling}`, TopicPageSchema),
+      ),
+    );
 
-      assert.deepEqual(
-        [page.topic.key, page.topic.name, page.items.length],
-        ["machine learning", "Machine learning", 2],
-      );
-    }
+    assert.deepEqual(
+      pages.map((page) => [page.topic.key, page.topic.name, page.items.length]),
+      Array.from({ length: 3 }, () => ["machine learning", "Machine learning", 2]),
+    );
   });
 
   it("answers 404 on both routes for a key that no Topic and no Pin has", async () => {
