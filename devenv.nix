@@ -86,6 +86,8 @@ in
     pkgs.corepack
     pkgs.jq
     pkgs.podman
+    pkgs.python3
+    pkgs.curl
     browsers
   ];
 

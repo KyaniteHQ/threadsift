@@ -12,8 +12,8 @@ import {
   NOTICES,
   READING_NOTE,
   RETRY_LABEL,
-  WAITING,
   type NoticeKey,
+  waitTitle,
 } from "./text.ts";
 import { useAfter } from "./use-form.ts";
 import { waitText } from "./wait-text.ts";
@@ -81,9 +81,9 @@ function faceOfView(view: Readonly<CardView>, item: Readonly<Item>): Face {
       return {
         icon: "spin",
         tone: "tone-acc",
-        title: view.wait === null ? CARD_TITLES.reading : WAITING.title,
+        title: view.wait === null ? CARD_TITLES.reading : waitTitle(view.wait),
         name,
-        note: view.wait === null ? READING_NOTE : waitText(view.wait.retryAt, Date.now()),
+        note: view.wait === null ? READING_NOTE : waitText(view.wait, Date.now()),
         wait: view.wait,
         itemTitle: null,
         alert: false,
@@ -242,7 +242,7 @@ export function PasteCard({
       {url === "" ? null : <p className="ps-url">{shownUrl(url)}</p>}
       {face.wait === null ? null : (
         <p className="ps-sub">
-          <WaitText retryAt={face.wait.retryAt} />
+          <WaitText wait={face.wait} />
         </p>
       )}
       {face.wait !== null || face.note === null ? null : <p className="ps-sub">{face.note}</p>}

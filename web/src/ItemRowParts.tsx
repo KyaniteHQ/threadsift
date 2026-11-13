@@ -111,7 +111,7 @@ function Waiting({ wait }: Readonly<{ wait: NonNullable<Item["wait"]> }>) {
     <div className="it-fail">
       <p>
         <Icon name="refresh" className="ic ic-s tone-acc" />
-        <WaitText retryAt={wait.retryAt} />
+        <WaitText wait={wait} />
       </p>
     </div>
   );

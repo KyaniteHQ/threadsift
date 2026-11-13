@@ -16,10 +16,21 @@ const PUBLIC_ROUTES: readonly PublicRoute[] = [
 const OWNER_ONLY_PATH =
   /^\/api\/(?:(?:tokens|logout|settings|password)(?:\/|$)|items\/[^/]+\/(?:read-state$|note$|highlights(?:\/|$))|proposals\/[^/]+\/(?:accept|reject)$)/u;
 
-const TASK_CALLBACK_PATH = /^\/api\/ai-tasks\/[^/]+\/result$/u;
+const TASK_CALLBACK_PATH = /^\/api\/ai-tasks\/[^/]+\/(?:result|intake)$/u;
+
+const TASK_READ_PATH = /^\/api\/ai-tasks\/[^/]+$/u;
+
+const INTAKE_PATH = /^\/api\/ai-tasks\/[^/]+\/intake$/u;
 
 export function isTaskCallback(method: string, path: string): boolean {
-  return method === "POST" && TASK_CALLBACK_PATH.test(path);
+  return (
+    (method === "POST" && TASK_CALLBACK_PATH.test(path)) ||
+    (method === "GET" && TASK_READ_PATH.test(path))
+  );
+}
+
+export function isIntakeCallback(method: string, path: string): boolean {
+  return method === "POST" && INTAKE_PATH.test(path);
 }
 
 export function isPublic(method: string, path: string): boolean {

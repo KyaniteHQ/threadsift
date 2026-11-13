@@ -7,14 +7,15 @@ import { FILL_NOTE, NO_POST_TEXT, NO_README, SECTION_TITLES, archiveNote } from 
 import { Related } from "./Related.tsx";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
-import { CARD_TITLES, TOKEN_REFUSED, WAITING } from "./text.ts";
+import { CARD_TITLES, TOKEN_REFUSED, waitTitle } from "./text.ts";
 
 function waitsForThread(item: Readonly<Item>): boolean {
   return item.fillable && item.status !== "processing";
 }
 
 function missingTextNote(item: Readonly<Item>): string | null {
-  if (item.status === "processing") return item.wait === null ? CARD_TITLES.reading : WAITING.title;
+  if (item.status === "processing")
+    return item.wait === null ? CARD_TITLES.reading : waitTitle(item.wait);
 
   if (waitsForThread(item)) return null;
 

@@ -6,6 +6,8 @@ import { SECRET_INPUT_MAX } from "./secret-input.ts";
 
 export const GROK_BOT_KEY_MAX = SECRET_INPUT_MAX;
 
+export const GROK_BOT_PING_KIND = "ping";
+
 const PUBLIC_ONLY = true;
 
 const QUERY_OR_FRAGMENT_MARK = /[?#]/u;

@@ -47,7 +47,7 @@ export function HeadNote({
     <>
       {item.wait === null ? null : (
         <p className="rd-note">
-          <WaitText retryAt={item.wait.retryAt} />
+          <WaitText wait={item.wait} />
         </p>
       )}
       {text === null ? null : (

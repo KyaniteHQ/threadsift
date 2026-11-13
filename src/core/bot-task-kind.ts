@@ -2,12 +2,12 @@ import type { SQLWrapper } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AiTaskDefinition } from "./ai-contract.ts";
+import { answerApplier } from "./bot-task-apply.ts";
 import type { BotTaskStart } from "./bot-task-start.ts";
 import type { BotTaskRow } from "./bot-task-states.ts";
 import { guardHolds } from "./guards.ts";
 import type { ClaimedJob, JobOutcome, JobPorts, JobWrites } from "./job-outcome.ts";
 import { parsedJson } from "./parsed-json.ts";
-import type { Database } from "./ports.ts";
 import { reasonsOf } from "./zod-reasons.ts";
 
 export interface BotResult {
@@ -35,11 +35,21 @@ export type BotParse =
     }
   | { readonly kind: "invalid"; readonly reasons: string };
 
-export interface BotTaskKind {
+export type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "context">>;
+
+export interface SentTaskKind {
   readonly prepare: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<BotPreparation>;
-  readonly release: (db: Database, job: Readonly<ClaimedJob>) => JobWrites;
-  readonly current: (db: Database, context: string) => Promise<boolean>;
+  readonly release: (db: JobPorts["db"], job: Readonly<ClaimedJob>) => JobWrites;
+  readonly current: (db: JobPorts["db"], context: string) => Promise<boolean>;
   readonly describe: (context: string) => BotInstructions | null;
+  readonly apply: (
+    ports: JobPorts,
+    job: Readonly<ClaimedJob>,
+    task: Readonly<BotTaskRow>,
+  ) => Promise<JobOutcome>;
+}
+
+export interface BotTaskKind extends SentTaskKind {
   readonly parse: (context: string, body: Readonly<BotResult>) => BotParse;
 }
 
@@ -74,6 +84,21 @@ function parsedAnswer<Context, Result>(
   };
 }
 
+function describing<Context, Result>({
+  context,
+  task,
+}: Readonly<Pick<KindParts<Context, Result>, "context" | "task">>): BotTaskKind["describe"] {
+  return (contextText) => {
+    const parsed = parsedJson(context, contextText);
+
+    if (parsed === null) return null;
+
+    const { instructions, schema } = task(parsed);
+
+    return { instructions, schema: z.toJSONSchema(schema, { io: "output" }) };
+  };
+}
+
 export function botTaskKind<Context, Result>({
   current,
   release = () => [],
@@ -86,32 +111,19 @@ export function botTaskKind<Context, Result>({
     prepare: BotTaskKind["prepare"];
   }
 >): BotTaskKind {
-  const { context, task } = parts;
+  const describe = describing(parts);
+  const parse: BotTaskKind["parse"] = (contextText, body) => parsedAnswer(parts, contextText, body);
 
   return {
     prepare,
     release,
     current: async (db, contextText) => {
-      const parsed = parsedJson(context, contextText);
+      const parsed = parsedJson(parts.context, contextText);
 
       return parsed !== null && (await guardHolds(db, current(parsed)));
     },
-    describe: (contextText) => {
-      const parsed = parsedJson(context, contextText);
-
-      if (parsed === null) return null;
-
-      const { instructions, schema } = task(parsed);
-
-      return { instructions, schema: z.toJSONSchema(schema, { io: "output" }) };
-    },
-    parse: (contextText, body) => parsedAnswer(parts, contextText, body),
+    describe,
+    parse,
+    apply: answerApplier(parse),
   };
-}
-
-export function reparsed(
-  kind: BotTaskKind,
-  { context, result }: Readonly<Pick<BotTaskRow, "context" | "result">>,
-): BotParse {
-  return kind.parse(context ?? "", { result: parsedJson(z.json(), result ?? "") });
 }

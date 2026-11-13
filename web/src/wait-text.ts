@@ -1,5 +1,7 @@
-import { filled } from "./text.ts";
-import { WAITING } from "./text.ts";
+import type { Item } from "../../src/http/schemas.ts";
+import { WAITING, filled } from "./text.ts";
+
+type Wait = NonNullable<Item["wait"]>;
 
 const TIME = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
 const DAY = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
@@ -14,6 +16,8 @@ function whenOf(retryAt: number, now: number): string {
   return isSameDay(retryAt, now) ? `at ${time}` : `on ${DAY.format(retryAt)} at ${time}`;
 }
 
-export function waitText(retryAt: number, now: number): string {
-  return retryAt <= now ? WAITING.due : filled(WAITING.until, { when: whenOf(retryAt, now) });
+export function waitText({ reason, retryAt }: Readonly<Wait>, now: number): string {
+  const texts = WAITING[reason];
+
+  return retryAt <= now ? texts.due : filled(texts.until, { when: whenOf(retryAt, now) });
 }

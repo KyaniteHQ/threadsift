@@ -131,6 +131,12 @@ Before every task the app checks what Codex would load. If the machine has a Cod
 
 Under [OpenAI's CI guide](https://learn.chatgpt.com/docs/auth/ci-cd-auth), OpenAI allows ChatGPT-account sign-in only on trusted private infrastructure, such as your own home server. Use one `auth.json` per machine, never share it between machines, and never put it in logs, a repository or public artifacts. OpenAI recommends API keys for automation, so choose an API Provider for an Import. If Verify says the sign-in was rejected, run the login command again.
 
+## Connect Grok Bot
+
+Threadsift hands X links to Grok Bot to read posts and replies and save them back. See [bot/README.md](bot/README.md) to install and update it.
+
+Open Settings, find Grok Bot, paste the routine's webhook address and key, and press Test. Every pasted X link goes to the bot first; without one, it stays a Link-only Item.
+
 ## License
 
 Copyright (C) 2026 Kyanite Labs.

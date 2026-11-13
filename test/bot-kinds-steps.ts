@@ -1,5 +1,5 @@
 import { botStep } from "../src/core/bot-step.ts";
-import { reparsed } from "../src/core/bot-task-kind.ts";
+import { reparsed } from "../src/core/bot-task-apply.ts";
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
