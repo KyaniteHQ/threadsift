@@ -42,6 +42,11 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
     mkdirSync(join(copy, "tools"));
     cpSync(join(ROOT, "bot"), join(copy, "bot"), { recursive: true });
     cpSync(join(ROOT, "tools", "bot-release.sh"), join(copy, "tools", "bot-release.sh"));
+    writeFileSync(join(copy, "bot", "VERSION"), "0\n");
+    writeFileSync(
+      skillPath(),
+      readFileSync(skillPath(), "utf8").replace(/TAG=[^ ;]+/u, "TAG=unreleased"),
+    );
   });
 
   after(() => {
