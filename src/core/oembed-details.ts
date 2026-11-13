@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { Concluded } from "./details.ts";
 import { collapsed } from "./format.ts";
+import { parsedJson } from "./parsed-json.ts";
 
 const SUBREDDIT_LINK = /^https:\/\/www\.reddit\.com\/r\/(?<name>[^/?#]+)\//u;
 
@@ -11,14 +12,6 @@ const OembedSchema = z.object({
   author_name: z.string().optional(),
   html: z.string().optional(),
 });
-
-function parseOembed(text: string): z.infer<typeof OembedSchema> | null {
-  try {
-    return OembedSchema.parse(JSON.parse(text));
-  } catch {
-    return null;
-  }
-}
 
 function subredditOf(html: string): string | null {
   const { document } = parseHTML(html);
@@ -35,7 +28,7 @@ function subredditOf(html: string): string | null {
 }
 
 export function detailsOfOembed(text: string): Concluded {
-  const answer = parseOembed(text);
+  const answer = parsedJson(OembedSchema, text);
 
   if (answer === null) {
     return { status: "unreadable" };

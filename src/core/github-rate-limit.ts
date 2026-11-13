@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { parseHttpDate } from "./http-date.ts";
+import { parsedJson } from "./parsed-json.ts";
 import type { RateLimitHeaders } from "./ports.ts";
 
 export type RateLimitKind = "primary" | "secondary";
@@ -54,21 +55,11 @@ function retryAfterAt(value: string | null, now: number): number | null {
   return date === null ? null : laterThan(date, now);
 }
 
-function messageOf(body: string): string {
-  try {
-    const parsed = ErrorBodySchema.safeParse(JSON.parse(body));
-
-    return parsed.success ? parsed.data.message : "";
-  } catch {
-    return "";
-  }
-}
-
 export function rateLimitOf(answer: Readonly<LimitedAnswer>, now: number): RateLimit | null {
   if (!isLimitStatus(answer.status)) return null;
 
   const primary = answer.headers.remaining?.trim() === "0";
-  const secondary = SECONDARY_MESSAGE.test(messageOf(answer.body));
+  const secondary = SECONDARY_MESSAGE.test(parsedJson(ErrorBodySchema, answer.body)?.message ?? "");
 
   if (!primary && !secondary) return null;
 
