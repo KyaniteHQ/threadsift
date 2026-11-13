@@ -28,7 +28,7 @@ export interface LibraryDom {
   readonly appOf: () => Element | null;
 }
 
-export type Stepping = Readonly<{
+type Stepping = Readonly<{
   list: ListState;
   route: Route;
   attend: (attention: Attention) => void;

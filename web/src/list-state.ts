@@ -1,6 +1,7 @@
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { countedWith } from "./list-counts.ts";
+import { type More, newer } from "./list-paging.ts";
 
 export type ListState =
   | { readonly status: "loading"; readonly known: readonly Item[] }
@@ -17,7 +18,7 @@ export type ListState =
       readonly loadedAt: number;
       readonly query: string;
       readonly next: string | null;
-      readonly more: "idle" | "loading" | "failed";
+      readonly more: More;
     };
 
 export type Ready = Extract<ListState, { readonly status: "ready" }>;
@@ -34,10 +35,6 @@ function upserted(items: readonly Item[], item: Readonly<Item>): Item[] {
 
 function replaced(items: readonly Item[], item: Readonly<Item>): Item[] {
   return items.map((current) => (current.id === item.id ? item : current));
-}
-
-export function newer(left: Readonly<Item>, right: Readonly<Item>): boolean {
-  return left.savedAt > right.savedAt || (left.savedAt === right.savedAt && left.id > right.id);
 }
 
 function placed(list: Readonly<Ready>, item: Readonly<Item>): Item[] {
@@ -185,7 +182,7 @@ export function withMore(
   list: Readonly<ListState>,
   query: string,
   cursor: string,
-  more: Ready["more"],
+  more: More,
 ): ListState {
   return continues(list, query, cursor) ? { ...list, more } : list;
 }

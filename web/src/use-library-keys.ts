@@ -4,7 +4,7 @@ const TYPING = "input, textarea, select, dialog.st-pop, dialog.dlg, [popover], [
 const POPOVER_OPEN = ":popover-open";
 const SIDEWAYS = "pre, .tbl";
 
-export interface KeyActions {
+interface KeyActions {
   readonly openId: number | null;
   readonly covered: boolean;
   readonly arrows: boolean;

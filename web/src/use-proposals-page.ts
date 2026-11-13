@@ -11,15 +11,13 @@ import {
 import { applyingRows, useAcceptingPoll } from "./use-accepting-poll.ts";
 import type { Announcement } from "./use-announcement.ts";
 import { useLatest } from "./use-latest.ts";
-import { type Paged, type PagedReady, usePagedRead } from "./use-paged-read.ts";
+import { type Paged, usePagedRead } from "./use-paged-read.ts";
 import { usePresses } from "./use-proposal-presses.ts";
 import { useProposalRows } from "./use-proposal-rows.ts";
 
 type RowSend = ReturnType<typeof useProposalRows>["send"];
 
-export type ProposalsReady = PagedReady<ProposalPage>;
-
-export type ProposalsState = Paged<ProposalPage>;
+type ProposalsState = Paged<ProposalPage>;
 
 const SILENT: Announcement = { text: "", failed: false };
 
@@ -30,7 +28,7 @@ export type Focus =
 
 const NO_FOCUS: Focus = { kind: "none" };
 
-export function focusAfterLeaving(state: Readonly<ProposalsState>, id: number): Focus {
+function focusAfterLeaving(state: Readonly<ProposalsState>, id: number): Focus {
   if (state.status !== "ready") return { kind: "heading" };
 
   const at = state.proposals.findIndex((each) => each.id === id);
@@ -43,7 +41,7 @@ function withMoreProposals(shown: Readonly<ProposalPage>, added: Readonly<Propos
   return { ...added, proposals: [...shown.proposals, ...added.proposals] };
 }
 
-export function reachesBelow(boundary: number) {
+function reachesBelow(boundary: number) {
   return (page: Readonly<ProposalPage>): boolean => (page.proposals.at(-1)?.id ?? 0) <= boundary;
 }
 

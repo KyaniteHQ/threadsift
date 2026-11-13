@@ -21,7 +21,7 @@ function intersect(a: Box, b: Box): Box {
   };
 }
 
-export interface Placement {
+interface Placement {
   readonly clipping: readonly Element[];
   readonly bar: Element | null;
   readonly below: boolean;

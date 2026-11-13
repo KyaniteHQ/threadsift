@@ -1,8 +1,7 @@
 import type { MouseEvent } from "react";
 
+import type { More } from "./list-paging.ts";
 import { LOADING_MORE, LOAD_MORE, RETRY_LABEL } from "./text.ts";
-
-export type More = "idle" | "loading" | "failed";
 
 function moreLabel(more: More): string {
   if (more === "loading") return LOADING_MORE;

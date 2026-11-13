@@ -1,10 +1,10 @@
-export type RevokeFlow =
+type RevokeFlow =
   | { readonly kind: "idle"; readonly focus: number | null }
   | { readonly kind: "asking"; readonly id: number }
   | { readonly kind: "revoking"; readonly id: number; readonly request: number }
   | { readonly kind: "failed"; readonly id: number };
 
-export type RevokeEvent =
+type RevokeEvent =
   | { readonly kind: "ask"; readonly id: number }
   | { readonly kind: "cancel"; readonly id: number }
   | { readonly kind: "begin"; readonly id: number; readonly request: number }

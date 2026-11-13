@@ -2,7 +2,7 @@ import type { Session } from "./access-api.ts";
 
 export type View = Session | { readonly state: "loading" } | { readonly state: "unreachable" };
 
-export type SessionFlow =
+type SessionFlow =
   | { readonly kind: "settled"; readonly view: View }
   | { readonly kind: "checking"; readonly check: Readonly<AbortController>; readonly view: View };
 

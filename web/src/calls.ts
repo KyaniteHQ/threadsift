@@ -19,6 +19,10 @@ interface Call {
   readonly signal?: AbortSignal;
 }
 
+interface OkCall extends Call {
+  readonly tolerates?: readonly number[];
+}
+
 const JSON_HEADERS = { "content-type": "application/json" } as const;
 
 export async function call(
@@ -38,22 +42,30 @@ export async function call(
   return response;
 }
 
-export function unexpected(method: Method, path: string, status: number): Error {
+function unexpected(method: Method, path: string, status: number): Error {
   return new Error(`${method} ${path} answered ${status}`);
 }
 
 export async function callOk(
   method: Method,
   path: string,
-  options: Readonly<Call> = {},
+  options: Readonly<OkCall> = {},
 ): Promise<Response> {
+  const { tolerates = [] } = options;
   const response = await call(method, path, options);
 
-  if (!response.ok) {
+  if (!response.ok && !tolerates.includes(response.status)) {
     throw unexpected(method, path, response.status);
   }
 
   return response;
+}
+
+export async function parsedBody<Parsed>(
+  response: Response,
+  schema: ZodType<Parsed>,
+): Promise<Parsed> {
+  return schema.parse(await response.json());
 }
 
 export async function parsedFrom<Parsed>(
@@ -62,9 +74,19 @@ export async function parsedFrom<Parsed>(
   schema: ZodType<Parsed>,
   options: Readonly<Call> = {},
 ): Promise<Parsed> {
-  const response = await callOk(method, path, options);
+  return parsedBody(await callOk(method, path, options), schema);
+}
 
-  return schema.parse(await response.json());
+export async function parsedOrNull<Parsed>(
+  method: Method,
+  path: string,
+  schema: ZodType<Parsed>,
+  absentStatus: number,
+  options: Readonly<Call> = {},
+): Promise<Parsed | null> {
+  const response = await callOk(method, path, { ...options, tolerates: [absentStatus] });
+
+  return response.status === absentStatus ? null : parsedBody(response, schema);
 }
 
 export function withCursor(path: string, cursor: string | null): string {
