@@ -2,10 +2,13 @@ import { and, eq, gt } from "drizzle-orm";
 
 import { readRevision } from "./ai-settings.ts";
 import { digestOf } from "./encoding.ts";
+import { DATABASE_NOW } from "./guards.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
-import { CURRENT_REVISION } from "./openrouter-tables.ts";
+import {
+  CURRENT_REVISION,
+  openrouterConnectTransactions as transactions,
+} from "./openrouter-tables.ts";
 import type { Ports } from "./ports.ts";
-import { DATABASE_NOW, openrouterConnectTransactions as transactions } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
 
 export interface Attempt {

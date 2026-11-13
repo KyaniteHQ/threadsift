@@ -156,6 +156,25 @@ export function upsertSettings(db: Database, row: Readonly<PreparedSettings>) {
   return db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row });
 }
 
+export async function holdsSettings(
+  db: Database,
+  row: Readonly<PreparedSettings>,
+): Promise<boolean> {
+  try {
+    const [stored] = await db.select().from(settings);
+
+    return (
+      stored !== undefined &&
+      "sealedKey" in row &&
+      stored.sealedKey === row.sealedKey &&
+      stored.provider === row.provider &&
+      stored.model === row.model
+    );
+  } catch {
+    return false;
+  }
+}
+
 const SAVE_ATTEMPTS = 5;
 
 export async function saveAiSettings(
