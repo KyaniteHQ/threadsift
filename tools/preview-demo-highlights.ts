@@ -1,5 +1,5 @@
 import { PROJECTION_VERSION } from "../src/core/text-projection.ts";
-import { NOW_MS, PLAIN_CHECK, quoted } from "./preview-sql.ts";
+import { NOW_MS, PLAIN_CHECK, quoted, valuesCte } from "./preview-sql.ts";
 
 export type DemoHighlight = { readonly url: string; readonly exact: string };
 
@@ -7,9 +7,11 @@ const KIND = "highlight-lost";
 const STATUS = "gone";
 
 function demoCte(demos: readonly DemoHighlight[]): string {
-  const rows = demos.map(({ url, exact }) => `(${quoted(url)}, ${quoted(exact)})`).join(", ");
-
-  return `WITH demo (url, exact) AS (VALUES ${rows})`;
+  return valuesCte(
+    "demo",
+    ["url", "exact"],
+    demos.map(({ url, exact }) => [url, exact]),
+  );
 }
 
 export function insertHighlights(demos: readonly DemoHighlight[]): string {

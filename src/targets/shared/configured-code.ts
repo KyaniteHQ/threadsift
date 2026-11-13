@@ -1,6 +1,6 @@
 const LOCAL_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
 
-export class PublicOriginInvalid extends Error {
+class PublicOriginInvalid extends Error {
   constructor() {
     super(
       "THREADSIFT_PUBLIC_ORIGIN must be one origin: an https:// address with no credentials, path, query or fragment, or an http:// address on localhost or 127.0.0.1. Fix or remove the setting and start again.",

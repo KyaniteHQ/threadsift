@@ -22,7 +22,6 @@ interface Fields {
 
 function appended(
   db: Database,
-  // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle table and SQL value hold mutable chunks, so they cannot be deeply readonly.
   fields: Readonly<Fields & { from: SQLiteTable; where: SQL | undefined }>,
 ) {
   return db.insert(logEntries).select(

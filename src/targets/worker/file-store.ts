@@ -1,3 +1,4 @@
+import { batchesOf } from "../../core/batches.ts";
 import {
   parseStoredKey,
   requireFileKey,
@@ -33,12 +34,6 @@ export interface FilesBucket {
 
 const R2_DELETE_BATCH_KEYS = 1000;
 
-function batchesOf(keys: readonly string[]): string[][] {
-  return Array.from({ length: Math.ceil(keys.length / R2_DELETE_BATCH_KEYS) }, (_, index) =>
-    keys.slice(index * R2_DELETE_BATCH_KEYS, (index + 1) * R2_DELETE_BATCH_KEYS),
-  );
-}
-
 export function r2FileStore(bucket: FilesBucket): FileStore {
   return {
     put: async (key, bytes) => {
@@ -53,7 +48,7 @@ export function r2FileStore(bucket: FilesBucket): FileStore {
     delete: async (keys) => {
       for (const key of keys) requireStoredKey(key);
 
-      await Promise.all(batchesOf(keys).map((batch) => bucket.delete(batch)));
+      await Promise.all(batchesOf(keys, R2_DELETE_BATCH_KEYS).map((batch) => bucket.delete(batch)));
     },
     list: async (prefix, cursor, limit): Promise<FilePage> => {
       requireFilePrefix(prefix);

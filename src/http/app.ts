@@ -4,8 +4,8 @@ import { HTTPException } from "hono/http-exception";
 import { logFailure } from "../core/failure-log.ts";
 import type { Ports } from "../core/ports.ts";
 import { installApiMiddleware } from "./api-middleware.ts";
-import { NOT_FOUND } from "./item-routes.ts";
 import { mcpRoute } from "./mcp-route.ts";
+import { notFound } from "./refusals.ts";
 import { registerRoutes } from "./routes.ts";
 
 function reasonOf(error: z.ZodError): string {
@@ -31,7 +31,7 @@ export function createApp(ports: Ports): OpenAPIHono {
     info: { title: "Threadsift", version: "1" },
   });
 
-  app.all("/api/*", (c) => c.json({ error: NOT_FOUND }, 404));
+  app.all("/api/*", notFound);
 
   app.onError(async (error, c) => {
     if (error instanceof HTTPException) {

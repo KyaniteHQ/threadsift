@@ -1,9 +1,9 @@
-import { and, eq, exists, isNotNull, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { openingDigest } from "./digest-job.ts";
 import { databaseCodeOf, logFailure } from "./failure-log.ts";
 import { namedKeys } from "./file-cleanup.ts";
+import { closeJob } from "./job-close.ts";
 import {
   MAX_STALE_REQUEUES,
   STALE_DELAYS_MS,
@@ -16,10 +16,10 @@ import {
   type Precondition,
   type SettledOutcome,
 } from "./job-outcome.ts";
-import { CLOSED_JOB, enqueueItemJobs, enqueueQuietly, hasOpenJob, holding } from "./job-rows.ts";
+import { enqueueItemJobs, enqueueQuietly, holding } from "./job-rows.ts";
 import type { WaitReason } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, guardHolds, guardedBatch, items, jobs } from "./schema.ts";
+import { type JobRow, guardHolds, guardedBatch, jobs } from "./schema.ts";
 
 function writeWhileHolding(
   db: Database,
@@ -54,37 +54,6 @@ async function unnamed(ports: JobPorts, keys: readonly string[]): Promise<readon
   return keys.filter((key) => !named.has(key));
 }
 
-function owedDigest(db: Database, itemId: number) {
-  return openingDigest(db, {
-    scope: and(eq(items.id, itemId), isNotNull(items.pendingDigest)) ?? sql`0`,
-    address: items.originalUrl,
-    now: Date.now(),
-  }).job;
-}
-
-function closingWrites(
-  db: Database,
-  job: Readonly<JobRow>,
-  attempts: number,
-): readonly BatchItem<"sqlite">[] {
-  const open = exists(hasOpenJob());
-
-  return [
-    db
-      .update(jobs)
-      .set({ ...CLOSED_JOB, attempts })
-      .where(eq(jobs.id, job.id)),
-    ...(job.kind === "digest" ? [owedDigest(db, job.itemId)] : []),
-    db
-      .update(items)
-      .set({
-        status: sql`case when ${items.status} = 'failed' then 'failed' when ${open} then 'processing' else 'ready' end`,
-        reason: sql`case when ${items.status} = 'failed' then ${items.reason} when ${open} then null else ${items.reason} end`,
-      })
-      .where(eq(items.id, job.itemId)),
-  ];
-}
-
 export async function finish(
   ports: JobPorts,
   job: Readonly<JobRow>,
@@ -107,7 +76,7 @@ export async function finish(
   const wrote = await writeWhileHolding(
     db,
     job,
-    [...writes, ...closingWrites(db, job, attempts), ...continuation],
+    [...writes, ...closeJob(db, job, attempts), ...continuation],
     precondition,
   );
 
@@ -146,7 +115,7 @@ export async function exhaust(
 
   const wrote = await guardedBatch(db, and(holding(job), sameInput) ?? holding(job), [
     ...handler.exhausted(db, job),
-    ...closingWrites(db, job, attempts),
+    ...closeJob(db, job, attempts),
   ]);
 
   if (!wrote && sameInput !== undefined && (await guardHolds(db, holding(job)))) {

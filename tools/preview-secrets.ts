@@ -5,11 +5,9 @@ import { join } from "node:path";
 
 import { z } from "zod";
 
-import { previewResourceExists } from "./preview-cloudflare.ts";
+import { type Wrangler, previewResourceExists } from "./preview-cloudflare.ts";
 
 export const REQUIRED_SECRETS = ["THREADSIFT_SECRET_KEY", "SETUP_CODE"] as const;
-
-type Wrangler = (args: readonly string[]) => string;
 
 const initialValues = {
   THREADSIFT_SECRET_KEY: () => randomBytes(32).toString("hex"),

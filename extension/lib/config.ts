@@ -35,6 +35,10 @@ export function storeConfig({ origin, token }: Readonly<Config>): Promise<void> 
   return browser.storage.local.set({ instance: origin, token });
 }
 
+export function storeFill(on: boolean): Promise<void> {
+  return browser.storage.local.set({ fill: on });
+}
+
 export async function restrictStorage(): Promise<void> {
   if ("setAccessLevel" in browser.storage.local) {
     await browser.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });

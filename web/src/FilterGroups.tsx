@@ -20,6 +20,7 @@ const SHOWN_ROWS = 5;
 export interface Segment<Key extends string> {
   readonly key: Key | null;
   readonly label: string;
+  readonly name?: string;
   readonly count: number;
 }
 
@@ -43,6 +44,7 @@ function SegmentButton<Key extends string>({
       type="button"
       className={bar ? "fl-chip" : "fl-seg-b"}
       aria-pressed={pressed}
+      aria-label={segment.name}
       title={countTip(segment.label, segment.count)}
       onClick={press}
     >
@@ -89,23 +91,42 @@ export function Segments<Key extends string>({
 
 export function withAll<Key extends string>(
   segments: readonly Segment<Key>[],
+  allName: string,
 ): readonly Segment<Key>[] {
   const sum = segments.reduce((all, segment) => all + segment.count, 0);
 
-  return [{ key: null, label: ALL_CHOICE, count: sum }, ...segments];
+  return [
+    { key: null, label: ALL_CHOICE, name: filled(allName, { count: String(sum) }), count: sum },
+    ...segments,
+  ];
 }
 
 function Row({
   row,
+  heading,
   pressed,
   pick,
-}: Readonly<{ row: CountedName; pressed: boolean; pick: (key: string | null) => void }>) {
+}: Readonly<{
+  row: CountedName;
+  heading: string;
+  pressed: boolean;
+  pick: (key: string | null) => void;
+}>) {
+  const id = useId();
+
   const press = useCallback(() => {
     pick(pressed ? null : row.key);
   }, [pick, pressed, row.key]);
 
   return (
-    <button type="button" className="fl-row" aria-pressed={pressed} onClick={press}>
+    <button
+      type="button"
+      id={id}
+      className="fl-row"
+      aria-labelledby={`${id} ${heading}`}
+      aria-pressed={pressed}
+      onClick={press}
+    >
       <bdi dir="auto">{row.name}</bdi>
       <span className="fl-n">{row.count}</span>
     </button>
@@ -150,6 +171,7 @@ function Rows({
   searching,
   pick,
   id,
+  heading,
 }: Readonly<{
   facet: "topic" | "tag";
   rows: readonly CountedName[];
@@ -157,6 +179,7 @@ function Rows({
   searching: boolean;
   pick: (key: string | null) => void;
   id: string;
+  heading: string;
 }>) {
   const [all, toggleAll] = useToggle(false);
   const visible = visibleRows(rows, chosen, searching);
@@ -169,7 +192,7 @@ function Rows({
     <fieldset id={id} className="fl-rows" aria-label={FILTER_GROUPS[facet]}>
       {rows.length === 0 ? <p className="list-hint">{NO_ROWS[facet]}</p> : null}
       {shown.map((row) => (
-        <Row key={row.key} row={row} pressed={row.key === chosen} pick={pick} />
+        <Row key={row.key} row={row} heading={heading} pressed={row.key === chosen} pick={pick} />
       ))}
       {visible.length > SHOWN_ROWS ? (
         <MoreRows facet={facet} count={visible.length} all={all} toggle={toggleAll} />
@@ -195,6 +218,7 @@ export function RowGroup({
 }>) {
   const [open, toggle] = useToggle(startsOpen);
   const listId = useId();
+  const headingId = useId();
 
   return (
     <div className="fl-group">
@@ -205,7 +229,9 @@ export function RowGroup({
         aria-controls={listId}
         onClick={toggle}
       >
-        <span className="label">{FILTER_GROUPS[facet]}</span>
+        <span id={headingId} className="label">
+          {FILTER_GROUPS[facet]}
+        </span>
         <Icon name="chevron" className="ic ic-s" />
       </button>
       {open ? (
@@ -216,6 +242,7 @@ export function RowGroup({
           searching={searching}
           pick={pick}
           id={listId}
+          heading={headingId}
         />
       ) : null}
       {facet === "topic" && chosen !== null ? <TopicPageLink topicKey={chosen} /> : null}

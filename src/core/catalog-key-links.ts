@@ -48,7 +48,6 @@ export interface CatalogKind {
 
 async function firstIds(
   db: Database,
-  // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle column type holds mutable config, so it cannot be deeply readonly.
   ids: typeof items.id | typeof logEntries.id | typeof itemTags.itemId,
   owner: Readonly<SQLWrapper>,
   id: number,

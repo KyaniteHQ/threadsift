@@ -1,18 +1,8 @@
-import {
-  type SQLWrapper,
-  and,
-  eq,
-  exists,
-  isNotNull,
-  ne,
-  not,
-  notExists,
-  or,
-  sql,
-} from "drizzle-orm";
+import { type SQLWrapper, and, eq, isNotNull, not, notExists, or, sql } from "drizzle-orm";
 
 import { expireAiTasks, providerSet } from "./ai-tasks.ts";
-import { hasDigestSource, setDigestFailure } from "./digest-source.ts";
+import { hasDigestSource, keptNotUpdated } from "./digest-source.ts";
+import { NOT_FAILED, setStatus } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { linkOlderDigests } from "./older-digests.ts";
 import type { Database } from "./ports.ts";
@@ -36,23 +26,6 @@ export async function sweepDigests(db: Database, now: number): Promise<void> {
   await linkOlderDigests(db);
 }
 
-function keptDigest(db: Database) {
-  return exists(
-    db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
-  );
-}
-
-export function markKeptDigest(
-  db: Database,
-  itemId: number | Readonly<SQLWrapper>,
-  when: Readonly<SQLWrapper> = sql`1`,
-) {
-  return [
-    setDigestFailure(db, itemId, false),
-    setDigestFailure(db, itemId, true, and(keptDigest(db), sql`${when}`) ?? sql`0`),
-  ];
-}
-
 export function digestAfterFetch(
   db: Database,
   job: Readonly<{ itemId: number | Readonly<SQLWrapper>; address: string }>,
@@ -69,7 +42,7 @@ export function digestAfterFetch(
       address: job.address,
       now: Date.now(),
     }).job,
-    ...markKeptDigest(
+    ...keptNotUpdated(
       db,
       job.itemId,
       or(sql`not (${configured})`, not(hasDigestSource())) ?? sql`0`,
@@ -81,7 +54,7 @@ export function olderDigests(db: Database) {
   const older = openingDigest(db, {
     scope:
       and(
-        ne(items.status, "failed"),
+        NOT_FAILED,
         eq(items.digestFailed, false),
         notExists(
           db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
@@ -91,8 +64,5 @@ export function olderDigests(db: Database) {
     now: Date.now(),
   });
 
-  return [
-    db.update(items).set({ status: "processing", reason: null }).where(older.eligible),
-    older.job,
-  ];
+  return [setStatus(db, { kind: "queued" }, older.eligible), older.job];
 }

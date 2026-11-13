@@ -14,7 +14,6 @@ interface Columns {
   readonly state: Readonly<SQLWrapper>;
 }
 
-// oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle table type holds mutable column objects, so it cannot be deeply readonly.
 function columnsOf(row: typeof proposals | typeof other, kind: MergeKind): Columns {
   return {
     id: row.id,

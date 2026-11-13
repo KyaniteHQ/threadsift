@@ -50,17 +50,14 @@ jobs:
           unprivileged-userns: "true"
       - id: layer-cache
         if: matrix.target == 'container'
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ runner.temp }}/layer-cache
-          key: layer-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Containerfile', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'extension/package.json') }}
+        uses: ./.github/actions/layer-cache-restore
       - env:
-          THREADSIFT_LAYER_CACHE: ${{ (github.event_name == 'push' || steps.layer-cache.outputs.cache-hit == 'true') && format('{0}/layer-cache', runner.temp) || '' }}
+          THREADSIFT_LAYER_CACHE: ${{ (github.event_name == 'push' || steps.layer-cache.outputs.cache-hit == 'true') && steps.layer-cache.outputs.path || '' }}
         run: devenv tasks run smoke:${{ matrix.target }} --show-output
       - if: matrix.target == 'container' && github.event_name == 'push' && steps.layer-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ runner.temp }}/layer-cache
+          path: ${{ steps.layer-cache.outputs.path }}
           key: ${{ steps.layer-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
@@ -75,6 +72,7 @@ jobs:
     if: always() && github.repository == 'KyaniteHQ/threadsift'
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    permissions: {}
     steps:
       - env:
           RESULTS: ${{ toJSON(needs.*.result) }}
@@ -179,11 +177,7 @@ jobs:
           cache-pnpm: "false"
           unprivileged-userns: "true"
       - if: env.PUBLISH == 'true'
-        name: Log in to ghcr.io
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: printf %s "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+        uses: ./.github/actions/ghcr-login
       - id: published
         if: env.PUBLISH == 'true'
         name: Look up the architecture image of this commit
@@ -192,14 +186,11 @@ jobs:
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
       - id: layer-cache
         if: matrix.arch == 'amd64' && steps.published.outputs.digest == ''
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ runner.temp }}/layer-cache
-          key: layer-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Containerfile', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'extension/package.json') }}
+        uses: ./.github/actions/layer-cache-restore
       - if: steps.published.outputs.digest == ''
         name: Build the image
         env:
-          THREADSIFT_LAYER_CACHE: ${{ steps.layer-cache.outputs.cache-hit == 'true' && format('{0}/layer-cache', runner.temp) || '' }}
+          THREADSIFT_LAYER_CACHE: ${{ steps.layer-cache.outputs.cache-hit == 'true' && steps.layer-cache.outputs.path || '' }}
         run: devenv tasks run image:build --show-output
       - if: env.PUBLISH != 'true'
         name: Start check on the local image
@@ -253,11 +244,7 @@ jobs:
           pattern: digest-*
           path: ${{ runner.temp }}/digests
           merge-multiple: true
-      - name: Log in to ghcr.io
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: printf %s "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - uses: ./.github/actions/ghcr-login
       - id: manifest
         name: Make the multi-arch manifest from the checked digests unless this commit has one
         shell: bash

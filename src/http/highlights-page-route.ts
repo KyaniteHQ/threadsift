@@ -1,6 +1,6 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { HIGHLIGHTS_PAGE_SIZE, parseCursor } from "../core/highlights-page-contract.ts";
+import { HIGHLIGHTS_PAGE_SIZE } from "../core/highlights-page-contract.ts";
 import { highlightsPage } from "../core/highlights-page.ts";
 import { itemFilters } from "../core/item-filters.ts";
 import type { Ports } from "../core/ports.ts";
@@ -26,13 +26,9 @@ const listHighlightsRoute = createRoute({
 
 export function registerHighlightsPageRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(listHighlightsRoute, async (c) => {
-    const { cursor, ...typed } = c.req.valid("query");
+    const { cursor = null, ...typed } = c.req.valid("query");
 
-    const page = await highlightsPage(
-      ports.db,
-      itemFilters(typed),
-      cursor === undefined ? null : parseCursor(cursor),
-    );
+    const page = await highlightsPage(ports.db, itemFilters(typed), cursor);
 
     return c.json(page, 200);
   });

@@ -1,4 +1,4 @@
-import { NOW_MS, quoted } from "./preview-sql.ts";
+import { NOW_MS, quoted, valuesCte } from "./preview-sql.ts";
 
 export type DemoDisagreement = {
   readonly firstUrl: string;
@@ -9,14 +9,13 @@ export type DemoDisagreement = {
 const KIND = "items-disagree";
 
 function demoCte(demos: readonly DemoDisagreement[]): string {
-  const rows = demos
-    .map(
-      ({ firstUrl, secondUrl, reason }) =>
-        `(${quoted(firstUrl)}, ${quoted(secondUrl)}, ${quoted(reason)})`,
-    )
-    .join(", ");
+  const demo = valuesCte(
+    "demo",
+    ["first_url", "second_url", "reason"],
+    demos.map(({ firstUrl, secondUrl, reason }) => [firstUrl, secondUrl, reason]),
+  );
 
-  return `WITH demo (first_url, second_url, reason) AS (VALUES ${rows}),
+  return `${demo},
 pair AS (
   SELECT demo.first_url, demo.second_url, demo.reason, min(first_item.id, second_item.id) AS low_id, max(first_item.id, second_item.id) AS high_id
   FROM demo

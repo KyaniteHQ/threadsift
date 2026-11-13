@@ -2,8 +2,8 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import { deleteItem } from "../core/delete-item.ts";
 import type { Ports } from "../core/ports.ts";
-import { NOT_FOUND } from "./item-routes.ts";
 import { jsonBody, noContent, scopeNote, scopeRefusal } from "./openapi.ts";
+import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
 
 const deleteItemRoute = createRoute({
@@ -23,8 +23,6 @@ const deleteItemRoute = createRoute({
 
 export function registerDeleteItemRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(deleteItemRoute, async (c) =>
-    (await deleteItem(ports, c.req.valid("param").id))
-      ? c.body(null, 204)
-      : c.json({ error: NOT_FOUND }, 404),
+    (await deleteItem(ports, c.req.valid("param").id)) ? c.body(null, 204) : notFound(c),
   );
 }

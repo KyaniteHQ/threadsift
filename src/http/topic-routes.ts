@@ -1,6 +1,6 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { ITEMS_PAGE_SIZE, parseCursor } from "../core/item-page.ts";
+import { ITEMS_PAGE_SIZE } from "../core/item-page.ts";
 import type { Ports } from "../core/ports.ts";
 import {
   OverviewRetryResponseSchema,
@@ -9,8 +9,8 @@ import {
 } from "../core/topic-overview-contract.ts";
 import { readTopicPage } from "../core/topic-page.ts";
 import { retryOverview } from "../core/topic-retry.ts";
-import { NOT_FOUND } from "./item-routes.ts";
 import { jsonBody, scopeNote, scopeRefusal } from "./openapi.ts";
+import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, ItemQuerySchema } from "./schemas.ts";
 
 const TopicQuerySchema = ItemQuerySchema.pick({ cursor: true });
@@ -60,15 +60,11 @@ const retryOverviewRoute = createRoute({
 export function registerTopicRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(getTopicRoute, async (c) => {
     const { key } = c.req.valid("param");
-    const { cursor } = c.req.valid("query");
+    const { cursor = null } = c.req.valid("query");
 
-    const page = await readTopicPage(
-      ports.db,
-      key,
-      cursor === undefined ? null : parseCursor(cursor),
-    );
+    const page = await readTopicPage(ports.db, key, cursor);
 
-    return page === undefined ? c.json({ error: NOT_FOUND }, 404) : c.json(page, 200);
+    return page === undefined ? notFound(c) : c.json(page, 200);
   });
 
   app.openapi(retryOverviewRoute, async (c) => {
@@ -77,7 +73,7 @@ export function registerTopicRoutes(app: OpenAPIHono, ports: Ports): void {
 
     switch (result.outcome) {
       case "unknown-topic":
-        return c.json({ error: NOT_FOUND }, 404);
+        return notFound(c);
       case "no-provider":
         return c.json({ error: "No Provider is saved" }, 409);
       case "no-items":

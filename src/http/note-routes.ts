@@ -7,8 +7,8 @@ import {
 } from "../core/note-contract.ts";
 import { saveNote } from "../core/notes.ts";
 import type { Ports } from "../core/ports.ts";
-import { NOT_FOUND } from "./item-routes.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
+import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
 
 const STALE =
@@ -46,7 +46,7 @@ export function registerNoteRoutes(app: OpenAPIHono, ports: Ports): void {
 
     switch (saved.kind) {
       case "no-item":
-        return c.json({ error: NOT_FOUND }, 404);
+        return notFound(c);
       case "stale":
         return c.json({ error: STALE, note: saved.note }, 409);
       case "saved":

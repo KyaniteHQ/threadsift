@@ -12,7 +12,7 @@ import {
 } from "./batch-schemas.ts";
 import { savedView } from "./item-view.ts";
 import { jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
-import { UPDATING } from "./save-route.ts";
+import { UPDATING } from "./refusals.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 import { requirePasteScopes } from "./token-scopes.ts";
 

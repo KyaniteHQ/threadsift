@@ -14,7 +14,7 @@ interface NodeRuntime {
   readonly stop: () => Promise<void>;
 }
 
-export interface NodeOptions extends OperatorCodeOptions {
+interface NodeOptions extends OperatorCodeOptions {
   readonly dataDir: string;
   readonly setupCode: string | undefined;
   readonly secretKey: string | undefined;

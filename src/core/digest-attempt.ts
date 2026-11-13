@@ -4,17 +4,17 @@ import { type AiRefused, parseStoredDigest, retriesAi } from "./ai-contract.ts";
 import { TASKS, runAiTask, startCallerTask } from "./ai-tasks.ts";
 import { readCatalog } from "./catalog.ts";
 import { DIGEST_DEADLINE_MS, type HopPage, hoppedPage } from "./digest-hop.ts";
-import { markKeptDigest } from "./digest-job.ts";
 import { publishing, readForPublishing } from "./digest-publish.ts";
 import {
   type DigestInput,
   currency,
   generationCurrent,
   logSubmission,
+  keptNotUpdated,
+  markDigest,
   modelInput,
   readDigestText,
   refusedInput,
-  setDigestFailure,
 } from "./digest-source.ts";
 import {
   type ClaimedJob,
@@ -30,7 +30,7 @@ type Database = JobPorts["db"];
 async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const { item, anchors } = await readForPublishing(ports.db, job.itemId);
 
-  if (item === undefined) return { writes: markKeptDigest(ports.db, job.itemId) };
+  if (item === undefined) return { writes: keptNotUpdated(ports.db, job.itemId) };
 
   if (item.pendingDigest === null) return attemptModel(ports, job, item);
 
@@ -44,7 +44,7 @@ function emptyInput(db: Database, item: Readonly<DigestInput>): JobOutcome {
 
   return {
     currency: currency(db, generation, null),
-    writes: [insertGuard(db, generation), ...markKeptDigest(db, item.id)],
+    writes: [insertGuard(db, generation), ...keptNotUpdated(db, item.id)],
   };
 }
 
@@ -145,7 +145,7 @@ function refusedAi(
   return {
     currency: currency(db, generation, result.taskId),
     failedAttempt: retriable,
-    writes: [insertGuard(db, generation), setDigestFailure(db, item.id, true)],
+    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
   };
 }
 
@@ -157,7 +157,7 @@ export const digestHandler: JobHandler = {
   deadlineMs: DIGEST_DEADLINE_MS,
   blockedBy: ["fetch"],
   attempt: attemptDigest,
-  exhausted: (db, job) => [setDigestFailure(db, job.itemId, true)],
+  exhausted: (db, job) => [markDigest(db, job.itemId, "attempt-failed")],
   inputCurrent: (job) =>
     sql`exists (select 1 from ${items} where ${items.id} = ${job.itemId} and ${items.generation} is ${job.attemptGeneration})`,
 };

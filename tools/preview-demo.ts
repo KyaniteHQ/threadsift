@@ -1,5 +1,6 @@
 import { catalogKey } from "../src/core/catalog-key.ts";
 import { CommandFailure } from "./command-failure.ts";
+import type { Wrangler } from "./preview-cloudflare.ts";
 import {
   type DemoDisagreement,
   insertDisagreements,
@@ -14,7 +15,7 @@ import {
 import { insertOverviewProposals, missingOverviewProposals } from "./preview-demo-overviews.ts";
 import { type SchemaFacts, schemaFacts } from "./preview-demo-schema.ts";
 import { rowNames } from "./preview-migrations.ts";
-import { NOW_MS, quoted } from "./preview-sql.ts";
+import { NOW_MS, valuesCte } from "./preview-sql.ts";
 
 type Pair = { readonly from: string; readonly into: string; readonly reason: string };
 
@@ -173,14 +174,15 @@ const SUBJECTS = {
 type Kind = keyof typeof SUBJECTS;
 
 function pairsCte(kind: Kind): string {
-  const rows = SUBJECTS[kind].pairs
-    .map(
-      ({ from, into, reason }) =>
-        `(${quoted(catalogKey(from))}, ${quoted(catalogKey(into))}, ${quoted(reason)})`,
-    )
-    .join(", ");
-
-  return `WITH demo (from_key, into_key, reason) AS (VALUES ${rows})`;
+  return valuesCte(
+    "demo",
+    ["from_key", "into_key", "reason"],
+    SUBJECTS[kind].pairs.map(({ from, into, reason }) => [
+      catalogKey(from),
+      catalogKey(into),
+      reason,
+    ]),
+  );
 }
 
 function insertProposals(kind: Kind): string {
@@ -252,10 +254,7 @@ const DEMO_SEEDS: readonly DemoSeed[] = [
   },
 ];
 
-export function seedDemoProposals(
-  run: (args: readonly string[]) => string,
-  scope: readonly string[],
-): void {
+export function seedDemoProposals(run: Wrangler, scope: readonly string[]): void {
   const facts = schemaFacts(run, scope);
 
   if (!facts.includes("proposals")) return;

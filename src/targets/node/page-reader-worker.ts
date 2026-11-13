@@ -1,19 +1,9 @@
 import { parentPort } from "node:worker_threads";
 
-import { z } from "zod";
-
 import { readArticle, readSuppliedPage, readTitle } from "../../core/article.ts";
-import { SuppliedPageSchema } from "../../core/supplied-page.ts";
+import { type Reply, type RequestMessage, RequestMessageSchema } from "./page-reader-protocol.ts";
 
-const RequestSchema = z.discriminatedUnion("kind", [
-  z.object({ id: z.number(), kind: z.literal("title"), html: z.string() }),
-  z.object({ id: z.number(), kind: z.literal("article"), html: z.string(), url: z.string() }),
-  z.object({ id: z.number(), kind: z.literal("page"), page: SuppliedPageSchema }),
-]);
-
-type Request = z.infer<typeof RequestSchema>;
-
-function answerOf(request: Readonly<Request>) {
+function answerOf(request: Readonly<RequestMessage>) {
   switch (request.kind) {
     case "title":
       return Promise.resolve(readTitle(request.html));
@@ -35,18 +25,21 @@ if (parentPort === null) {
 
 const parent = parentPort;
 
-async function reply(request: Readonly<Request>): Promise<void> {
+function send(answer: Readonly<Reply>): void {
+  // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
+  parent.postMessage(answer);
+}
+
+async function reply(request: Readonly<RequestMessage>): Promise<void> {
   try {
-    const value = await answerOf(request);
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
-    parent.postMessage({ id: request.id, ok: true, value });
+    send({ id: request.id, ok: true, value: await answerOf(request) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "the page could not be read";
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
-    parent.postMessage({ id: request.id, ok: false, message });
+
+    send({ id: request.id, ok: false, message });
   }
 }
 
 parent.on("message", (message) => {
-  void reply(RequestSchema.parse(message));
+  void reply(RequestMessageSchema.parse(message));
 });

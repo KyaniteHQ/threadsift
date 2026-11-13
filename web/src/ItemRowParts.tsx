@@ -20,6 +20,34 @@ import {
 } from "./text.ts";
 import { WaitText } from "./WaitText.tsx";
 
+export type RowIds = Readonly<{
+  title: string;
+  meta: string;
+  foot: string;
+  open: string;
+  read: string;
+  retry: string;
+}>;
+
+export function rowIds(base: string): RowIds {
+  return {
+    title: `${base}-title`,
+    meta: `${base}-meta`,
+    foot: `${base}-foot`,
+    open: `${base}-open`,
+    read: `${base}-read`,
+    retry: `${base}-retry`,
+  };
+}
+
+export function controlName(own: string, ids: RowIds): string {
+  return [own, ids.title, ids.meta, ids.foot].join(" ");
+}
+
+export function linkName(ids: RowIds): string {
+  return [ids.open, ids.meta, ids.foot].join(" ");
+}
+
 function rejectsToken(item: Readonly<Item>): boolean {
   return item.status === "ready" && item.fetch === "github-token";
 }
@@ -30,11 +58,11 @@ function showsSkeleton(item: Readonly<Item>): boolean {
 
 function Failed({
   item,
-  describedBy,
+  ids,
   tryAgain,
 }: Readonly<{
   item: Exclude<Item, { retry: null }>;
-  describedBy: string;
+  ids: RowIds;
   tryAgain: (item: Item) => void;
 }>) {
   const retry = useCallback(() => {
@@ -51,7 +79,13 @@ function Failed({
             ? NO_DIGEST
             : DIGEST_NOT_UPDATED}
       </p>
-      <button type="button" className="btn" aria-describedby={describedBy} onClick={retry}>
+      <button
+        type="button"
+        id={ids.retry}
+        className="btn"
+        aria-labelledby={controlName(ids.retry, ids)}
+        onClick={retry}
+      >
         {RETRY_LABEL}
       </button>
     </div>
@@ -102,7 +136,7 @@ function commentNote(item: Readonly<Item>): string | null {
   return counts === null ? null : rowKeptLabel(counts.kept, counts.total);
 }
 
-function Foot({ item }: Readonly<{ item: Item }>) {
+function Foot({ item, id }: Readonly<{ item: Item; id: string }>) {
   const note = commentNote(item);
 
   if (item.digestTopic === null && item.stars === null && note === null) {
@@ -110,7 +144,7 @@ function Foot({ item }: Readonly<{ item: Item }>) {
   }
 
   return (
-    <p className="it-foot">
+    <p id={id} className="it-foot">
       {item.digestTopic === null ? null : (
         <bdi className="it-topic" dir="auto">
           {item.digestTopic}
@@ -124,28 +158,26 @@ function Foot({ item }: Readonly<{ item: Item }>) {
 
 export function Status({
   item,
-  describedBy,
+  ids,
   tryAgain,
-}: Readonly<{ item: Item; describedBy: string; tryAgain: (item: Item) => void }>) {
+}: Readonly<{ item: Item; ids: RowIds; tryAgain: (item: Item) => void }>) {
   if (showsSkeleton(item)) {
     return <Skeleton />;
   }
 
   return (
     <div className="it-end">
-      <Foot item={item} />
+      <Foot item={item} id={ids.foot} />
       {rejectsToken(item) ? <TokenRefused /> : null}
       {item.wait === null ? null : <Waiting wait={item.wait} />}
-      {item.retry === null ? null : (
-        <Failed item={item} describedBy={describedBy} tryAgain={tryAgain} />
-      )}
+      {item.retry === null ? null : <Failed item={item} ids={ids} tryAgain={tryAgain} />}
     </div>
   );
 }
 
-export function Meta({ item, now }: Readonly<{ item: Item; now: number }>) {
+export function Meta({ item, now, id }: Readonly<{ item: Item; now: number; id: string }>) {
   return (
-    <p className="it-meta">
+    <p id={id} className="it-meta">
       {item.status === "processing" ? <Icon name="spin" className="ic ic-s proc-ic spin" /> : null}
       <span className="src">{SOURCE_LABELS[item.source]}</span>
       <span>{whereOf(item)}</span>

@@ -1,10 +1,9 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { getItem } from "../core/item-detail.ts";
 import type { Ports } from "../core/ports.ts";
-import { NOT_FOUND } from "./item-routes.ts";
-import { itemView } from "./item-view.ts";
+import { readItem } from "./item-read.ts";
 import { jsonBody } from "./openapi.ts";
+import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, IdParamSchema, ItemDetailResponseSchema } from "./schemas.ts";
 
 const getItemRoute = createRoute({
@@ -20,16 +19,10 @@ const getItemRoute = createRoute({
   },
 });
 
-export async function readItem(ports: Ports, id: number) {
-  const item = await getItem(ports, id);
-
-  return item === undefined ? undefined : { item: itemView(item) };
-}
-
 export function registerItemDetailRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(getItemRoute, async (c) => {
     const read = await readItem(ports, c.req.valid("param").id);
 
-    return read === undefined ? c.json({ error: NOT_FOUND }, 404) : c.json(read, 200);
+    return read === undefined ? notFound(c) : c.json(read, 200);
   });
 }
