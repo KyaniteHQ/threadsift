@@ -9,6 +9,7 @@ import {
 } from "../core/grok-bot-contract.ts";
 import { pingGrokBot, readGrokBot, removeGrokBot, saveGrokBot } from "../core/grok-bot.ts";
 import type { Ports } from "../core/ports.ts";
+import { registerAiTaskRoutes } from "./ai-task-routes.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
@@ -62,6 +63,7 @@ const testRoute = createRoute({
 });
 
 export function registerGrokBotRoutes(app: OpenAPIHono, ports: Ports): void {
+  registerAiTaskRoutes(app, ports);
   app.openapi(readRoute, async (c) => c.json(await readGrokBot(ports), 200));
   app.openapi(saveRoute, async (c) => {
     const saved = await saveGrokBot(ports, c.req.valid("json"));

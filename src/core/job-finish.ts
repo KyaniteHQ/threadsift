@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { type SQL, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { databaseCodeOf, logFailure, report } from "./failure-log.ts";
@@ -19,7 +19,7 @@ import {
 import { enqueueItemJobs, enqueueQuietly, holding } from "./job-rows.ts";
 import type { WaitReason } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, guardHolds, guardedBatch, jobs } from "./schema.ts";
+import { type JobRow, aiTasks, guardHolds, guardedBatch, jobs } from "./schema.ts";
 
 function writeWhileHolding(
   db: Database,
@@ -132,6 +132,12 @@ export async function exhaust(
   await afterClose(ports, job, wrote, NO_FILES);
 }
 
+function dueAt(until: number, answeredTask: number | undefined): number | SQL {
+  if (answeredTask === undefined) return until;
+
+  return sql`case when exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${answeredTask} and ${aiTasks.answeredAt} is not null) then ${Date.now()} else ${until} end`;
+}
+
 export async function queueLater(
   ports: JobPorts,
   job: Readonly<JobRow>,
@@ -140,7 +146,14 @@ export async function queueLater(
     attempts,
     staleRequeues,
     wait,
-  }: Readonly<{ until: number; attempts: number; staleRequeues: number; wait: WaitReason | null }>,
+    unlessAnswered,
+  }: Readonly<{
+    until: number;
+    attempts: number;
+    staleRequeues: number;
+    wait: WaitReason | null;
+    unlessAnswered?: number | undefined;
+  }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
     ports.db
@@ -149,7 +162,7 @@ export async function queueLater(
         state: "queued",
         attempts,
         staleRequeues,
-        nextAttemptAt: until,
+        nextAttemptAt: dueAt(until, unlessAnswered),
         claimExpires: null,
         waitReason: wait,
       })
@@ -256,6 +269,7 @@ export async function applyOutcome(
       attempts: job.attempts + (outcome.countsAttempt ? 1 : 0),
       staleRequeues: job.staleRequeues,
       wait: outcome.wait,
+      unlessAnswered: outcome.unlessAnswered,
     });
 
     return;

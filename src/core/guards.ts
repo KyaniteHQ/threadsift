@@ -19,6 +19,8 @@ function guardRows(db: Database, condition: Readonly<SQLWrapper>) {
     .where(sql`${condition}`);
 }
 
+export const DATABASE_NOW = sql<number>`cast((julianday('now') - 2440587.5) * 86400000 as integer)`;
+
 export function holdsNoRow(db: Database, table: SQLiteTable, matching: Readonly<SQLWrapper>) {
   return notExists(
     db

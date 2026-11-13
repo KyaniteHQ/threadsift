@@ -17,7 +17,7 @@ import {
   type Ports,
 } from "./ports.ts";
 
-type GrokBotPorts = Pick<Ports, "db" | "ai">;
+type GrokBotPorts = Pick<Ports, "db" | "secrets">;
 
 type PingPorts = GrokBotPorts & Pick<Ports, "network">;
 
@@ -50,7 +50,7 @@ async function loadStored(ports: Readonly<GrokBotPorts>): Promise<Stored | null>
 
   if (row === undefined) return null;
 
-  const { secrets } = ports.ai;
+  const { secrets } = ports;
 
   return { row, key: secrets === null ? null : await secrets.open(row.sealedKey) };
 }
@@ -68,7 +68,7 @@ function viewOf(secretReady: boolean, stored: Readonly<Stored> | null): GrokBotV
 }
 
 export async function readGrokBot(ports: Readonly<GrokBotPorts>): Promise<GrokBotView> {
-  return viewOf(ports.ai.secrets !== null, await loadStored(ports));
+  return viewOf(ports.secrets !== null, await loadStored(ports));
 }
 
 function unchangedSince(ports: Readonly<GrokBotPorts>, stored: Readonly<Stored> | null) {
@@ -94,7 +94,7 @@ export async function saveGrokBot(
   input: Readonly<GrokBotInput>,
   attemptsLeft = SAVE_ATTEMPTS,
 ): Promise<GrokBotSaveOutcome> {
-  const { secrets } = ports.ai;
+  const { secrets } = ports;
 
   if (secrets === null) return { kind: "secret-missing" };
 
@@ -132,7 +132,7 @@ export async function saveGrokBot(
 export async function removeGrokBot(ports: Readonly<GrokBotPorts>): Promise<GrokBotView> {
   await ports.db.delete(grokBotSettings).where(eq(grokBotSettings.id, 1));
 
-  return viewOf(ports.ai.secrets !== null, null);
+  return viewOf(ports.secrets !== null, null);
 }
 
 export function resultOfStatus(status: number): GrokBotResult {
@@ -152,6 +152,10 @@ function resultOfFailure(
   return reason ?? "unreachable";
 }
 
+function anySignal(deadline: AbortSignal, signal: AbortSignal | undefined): AbortSignal {
+  return signal === undefined ? deadline : AbortSignal.any([signal, deadline]);
+}
+
 async function discarded(body: AsyncIterable<Uint8Array>): Promise<void> {
   let seen = 0;
 
@@ -162,24 +166,44 @@ async function discarded(body: AsyncIterable<Uint8Array>): Promise<void> {
   }
 }
 
-async function sentPing(
+export interface GrokBotPost {
+  readonly result: GrokBotResult;
+  readonly status: number | null;
+}
+
+type GrokBotConnection =
+  | { readonly kind: "ready"; readonly row: SavedRow; readonly key: string }
+  | { readonly kind: "unready"; readonly reason: "secret-missing" | "not-configured" | "refused" };
+
+export async function grokBotConnection(ports: Readonly<GrokBotPorts>): Promise<GrokBotConnection> {
+  if (ports.secrets === null) return { kind: "unready", reason: "secret-missing" };
+
+  const stored = await loadStored(ports);
+
+  if (stored === null) return { kind: "unready", reason: "not-configured" };
+
+  const { row, key } = stored;
+
+  if (key === null) return { kind: "unready", reason: "secret-missing" };
+
+  if (!allowedGrokBotUrl(row.webhookUrl)) return { kind: "unready", reason: "refused" };
+
+  return { kind: "ready", row, key };
+}
+
+export async function postToGrokBot(
   network: Network,
   { row, key }: Readonly<{ row: SavedRow; key: string }>,
-  signal: AbortSignal,
-): Promise<{ readonly result: GrokBotResult; readonly status: number | null }> {
+  { body, signal }: Readonly<{ body: string; signal?: AbortSignal | undefined }>,
+): Promise<GrokBotPost> {
   const deadline = AbortSignal.timeout(HOP_DEADLINE_MS);
 
   try {
-    const response = await network.post(
-      row.webhookUrl,
-      PING_BODY,
-      AbortSignal.any([signal, deadline]),
-      {
-        "content-type": "application/json",
-        authorization: `Bearer ${key}`,
-        "x-automation-key": key,
-      },
-    );
+    const response = await network.post(row.webhookUrl, body, anySignal(deadline, signal), {
+      "content-type": "application/json",
+      authorization: `Bearer ${key}`,
+      "x-automation-key": key,
+    });
 
     await discarded(response.body).catch(() => null);
 
@@ -196,19 +220,11 @@ export async function pingGrokBot(
   ports: Readonly<PingPorts>,
   signal: AbortSignal,
 ): Promise<GrokBotResult> {
-  if (ports.ai.secrets === null) return "secret-missing";
+  const connection = await grokBotConnection(ports);
 
-  const stored = await loadStored(ports);
+  if (connection.kind === "unready") return connection.reason;
 
-  if (stored === null) return "not-configured";
-
-  const { row, key } = stored;
-
-  if (key === null) return "secret-missing";
-
-  if (!allowedGrokBotUrl(row.webhookUrl)) return "refused";
-
-  const sent = await sentPing(ports.network, { row, key }, signal);
+  const sent = await postToGrokBot(ports.network, connection, { body: PING_BODY, signal });
 
   console.warn(JSON.stringify({ event: "grok-bot-ping", ...sent }));
 

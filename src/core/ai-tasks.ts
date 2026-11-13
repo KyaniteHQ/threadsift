@@ -1,4 +1,4 @@
-import { and, eq, lt, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 
 import {
   type AiConnection,
@@ -14,10 +14,11 @@ import {
   refusedAi,
 } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-settings.ts";
+import { type TaskOrigin, type TaskOwner, originOf, startTask } from "./ai-task-start.ts";
+import { mayComplete, mayExpire, mayFail } from "./bot-task-states.ts";
 import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
-import { holding } from "./job-rows.ts";
 import type { AiPorts, Database } from "./ports.ts";
-import { type JobRow, aiTasks, settings } from "./schema.ts";
+import { aiTasks, settings } from "./schema.ts";
 
 export const TASKS = {
   digest: {
@@ -38,8 +39,6 @@ export interface DoneTask<Result> {
 
 type TaskResult<Result> = DoneTask<Result> | (AiRefused & { readonly taskId: number | null });
 
-export type TaskOwner = Readonly<Pick<JobRow, "id" | "attempts" | "itemId">>;
-
 export interface ClaimLost {
   readonly kind: "claim-lost";
 }
@@ -53,7 +52,7 @@ export function completedAiTask<Result>(
   return db
     .update(aiTasks)
     .set({ state: "done", result: JSON.stringify(task.result), refusal: null, status: null })
-    .where(and(eq(aiTasks.id, task.taskId), eq(aiTasks.state, "running")));
+    .where(and(eq(aiTasks.id, task.taskId), eq(aiTasks.state, "running"), mayComplete()));
 }
 
 export function providerSet() {
@@ -68,9 +67,15 @@ export function failedAiTask(
   db: Database,
   taskId: number,
   failure: Readonly<{ reason: AiRefusal | "stale" | "lease-lost"; status: number | null }>,
+  claim?: Readonly<SQLWrapper>,
 ) {
   return failingAiTask(db, failure).where(
-    and(eq(aiTasks.id, taskId), eq(aiTasks.state, "running")),
+    and(
+      eq(aiTasks.id, taskId),
+      eq(aiTasks.state, "running"),
+      mayFail(failure.reason),
+      claim && sql`${claim}`,
+    ),
   );
 }
 
@@ -85,7 +90,7 @@ function failingAiTask(
 
 export function expireAiTasks(db: Database, now: number) {
   return failingAiTask(db, { reason: "timeout", status: null }).where(
-    and(eq(aiTasks.state, "running"), lt(aiTasks.deadline, now)),
+    and(eq(aiTasks.state, "running"), mayExpire(now)),
   );
 }
 
@@ -218,53 +223,7 @@ async function failTask(
   }
 }
 
-interface TaskOrigin {
-  readonly executor: string;
-  readonly provider: Provider | null;
-  readonly model: string | null;
-}
-
 const CALLER_ORIGIN: TaskOrigin = { executor: "caller", provider: null, model: null };
-
-function originOf(config: Readonly<AiConnection>): TaskOrigin {
-  return { executor: config.kind, provider: config.provider, model: modelOf(config) };
-}
-
-async function startTask(
-  ports: AiPorts,
-  kind: string,
-  text: string,
-  input: Readonly<{ inputRevision: number; attempts: number }>,
-  origin: Readonly<TaskOrigin>,
-  owner: TaskOwner | null,
-) {
-  const [task] = await ports.db
-    .insert(aiTasks)
-    .select(
-      ports.db
-        .select({
-          id: sql<null>`null`.as("id"),
-          kind: sql<string>`${kind}`.as("kind"),
-          inputs: sql<string>`${text}`.as("inputs"),
-          inputRevision: sql<number>`${input.inputRevision}`.as("input_revision"),
-          executor: sql<string>`${origin.executor}`.as("executor"),
-          provider: sql<string | null>`${origin.provider}`.as("provider"),
-          model: sql<string | null>`${origin.model}`.as("model"),
-          attempts: sql<number>`${input.attempts}`.as("attempts"),
-          deadline: sql<number>`${Date.now() + AI_DEADLINE_MS}`.as("deadline"),
-          state: sql<"running">`'running'`.as("state"),
-          result: sql<null>`null`.as("result"),
-          refusal: sql<null>`null`.as("refusal"),
-          status: sql<null>`null`.as("status"),
-          itemId: sql<number | null>`${owner?.itemId ?? null}`.as("item_id"),
-        })
-        .from(sql`(select 1)`)
-        .where(owner === null ? sql`1` : holding(owner)),
-    )
-    .returning({ id: aiTasks.id });
-
-  return task ?? null;
-}
 
 export async function startCallerTask(
   ports: AiPorts,

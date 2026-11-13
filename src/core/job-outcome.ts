@@ -51,6 +51,7 @@ export interface DeferredOutcome {
   readonly deferredUntil: number;
   readonly wait: WaitReason;
   readonly countsAttempt: boolean;
+  readonly unlessAnswered?: number;
 }
 
 export type JobOutcome = SettledOutcome | DeferredOutcome;
