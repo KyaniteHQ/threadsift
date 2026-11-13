@@ -18,8 +18,8 @@ function Loading() {
 
 export function SettingsPage({
   back,
-  signedOut,
-}: Readonly<{ back: () => void; signedOut: () => void }>) {
+  loggedOut,
+}: Readonly<{ back: () => void; loggedOut: () => void }>) {
   const column = useRef<HTMLElement>(null);
   const loaded = useSettingsLoad(column);
 
@@ -27,10 +27,10 @@ export function SettingsPage({
 
   const signOut = useCallback(() => {
     setFailed(false);
-    logOut().then(signedOut, () => {
+    logOut().then(loggedOut, () => {
       setFailed(true);
     });
-  }, [signedOut]);
+  }, [loggedOut]);
 
   return (
     <div className="pg">

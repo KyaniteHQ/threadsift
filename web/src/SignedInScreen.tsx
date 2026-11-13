@@ -14,13 +14,13 @@ export function SignedInScreen({
   look,
   arrived,
   route,
-  signedOut,
+  loggedOut,
 }: Readonly<{
   screen: SignedInState;
   look: Look;
   arrived: boolean;
   route: Route;
-  signedOut: () => void;
+  loggedOut: () => void;
 }>) {
   const { navigate } = route;
 
@@ -32,12 +32,12 @@ export function SignedInScreen({
 
   const leave = useCallback(() => {
     navigate("/");
-    signedOut();
-  }, [navigate, signedOut]);
+    loggedOut();
+  }, [navigate, loggedOut]);
 
   switch (screen.name) {
     case "settings":
-      return <SettingsPage back={toLibrary} signedOut={leave} />;
+      return <SettingsPage back={toLibrary} loggedOut={leave} />;
     case "highlights":
       return <HighlightsPage look={look} route={route} back={toLibrary} />;
     case "import":

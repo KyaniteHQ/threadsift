@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { fetchSession } from "./access-api.ts";
 import { UNREACHABLE, type SessionEvent, reduceSession, startSession } from "./session-state.ts";
-import { useSignedOutListener } from "./signed-out.ts";
+import { useUnauthorizedListener } from "./unauthorized.ts";
 import { useFlow } from "./use-flow.ts";
 
 const CHECK_DEADLINE_MS = 10_000;
@@ -48,12 +48,25 @@ export function useSessionView() {
     send({ kind: "signed-in" });
   }, [send]);
 
-  const signedOut = useCallback(() => {
-    live.current?.abort();
-    send({ kind: "signed-out" });
+  const unauthorized = useCallback(() => {
+    const check = new AbortController();
+
+    if (send({ kind: "unauthorized", check })) {
+      live.current = check;
+      void answer(check, send);
+    }
   }, [send]);
 
-  useSignedOutListener(signedOut);
+  useUnauthorizedListener(unauthorized);
 
-  return { view: flow.view, refresh, signedIn, signedOut };
+  const loggedOut = useCallback(() => {
+    const check = new AbortController();
+
+    live.current?.abort();
+    live.current = check;
+    send({ kind: "logged-out", check });
+    void answer(check, send);
+  }, [send]);
+
+  return { view: flow.view, refresh, signedIn, loggedOut };
 }
