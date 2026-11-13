@@ -1,9 +1,10 @@
-import { and, asc, eq, gt, isNull, sql } from "drizzle-orm";
+import { type SQL, and, asc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { parseStoredDigest } from "./ai-contract.ts";
 import { linkingDigest, pinnedCatalog } from "./catalog.ts";
 import { logFailure } from "./failure-log.ts";
 import { guardedBatch } from "./guards.ts";
+import { nextItemPage } from "./item-cursor.ts";
 import type { Database } from "./ports.ts";
 import { catalogLinking, digests, items } from "./schema.ts";
 import { digestPartWrites } from "./search.ts";
@@ -51,7 +52,7 @@ async function linkOlderDigest(
   }
 }
 
-function olderDigestRows(db: Database, after: number) {
+function olderDigestRows(db: Database, after: SQL) {
   return db
     .select({ id: items.id, digest: digests.digest })
     .from(items)
@@ -62,15 +63,7 @@ function olderDigestRows(db: Database, after: number) {
 }
 
 export async function linkOlderDigests(db: Database): Promise<void> {
-  const [cursor] = await db.select().from(catalogLinking).where(eq(catalogLinking.id, 1));
-  const after = cursor?.lastItemId ?? 0;
-  const next = await olderDigestRows(db, after);
-  const older = next.length === 0 && after > 0 ? await olderDigestRows(db, 0) : next;
-  const lastItemId = older.at(-1)?.id ?? 0;
-  await db
-    .insert(catalogLinking)
-    .values({ id: 1, lastItemId })
-    .onConflictDoUpdate({ target: catalogLinking.id, set: { lastItemId } });
+  const older = await nextItemPage(db, catalogLinking, (after) => olderDigestRows(db, after));
 
   for (const row of older) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Stored Digests are linked sequentially.
