@@ -33,7 +33,7 @@ The app is one core with ports, and each install target supplies an adapter per 
 
 ## Interface text
 
-Every text a user reads is written by `tools/copy/write-copy.sh`, never by hand: labels, buttons, messages, empty states, errors, onboarding, and README and site prose. The owner chose this instead of picking a voice by hand. The script runs the Antigravity CLI (`agy`) on Gemini 4 Argon at high effort, falls back to Gemini 3.8 Flash at high effort when Argon is rate limited, and has it follow the vendored `humanizer` skill (`.agents/skills/humanizer/`) with `PRODUCT.md` and `GLOSSARY.md` as context.
+Every text a user reads in the product is written by `tools/copy/write-copy.sh`, never by hand: labels, buttons, messages, empty states, errors, onboarding, and site prose. The README and the guides under `docs/guides/` are docs and follow Docs, commit messages and PR bodies below. The owner chose this instead of picking a voice by hand. The script runs the Antigravity CLI (`agy`) on Gemini 4 Argon at high effort, falls back to Gemini 3.8 Flash at high effort when Argon is rate limited, and has it follow the vendored `humanizer` skill (`.agents/skills/humanizer/`) with `PRODUCT.md` and `GLOSSARY.md` as context.
 
 1. Write a brief to a file outside the repository: where the text shows, what it must say, the facts it may use, length and case limits, and the neighbouring texts it must match.
 2. Run `tools/copy/write-copy.sh <brief>`. It prints the text, or exits non-zero with the reason: 64 for a missing brief, 69 when `agy` is not installed, is signed out or does not list both models, 75 when both models are rate limited, 1 for any other failure.
@@ -52,7 +52,7 @@ The `error` text of the HTTP API is read by agents and `curl` and never shown by
 
 ## Docs, commit messages and PR bodies
 
-Write them by the `technical-writing` skill (`.claude/skills/technical-writing/`). A doc points at the code and never restates or copies it: it names the file, symbol or command, and holds only what the code cannot show, such as the reason for a choice, a constraint, a measured fact with its command, or a procedure.
+Write them, the README and the guides under `docs/guides/` included, by the `technical-writing` skill (`.claude/skills/technical-writing/`), and apply the `humanizer` skill (`.agents/skills/humanizer/`) as that skill says. A doc points at the code and never restates or copies it: it names the file, symbol or command, and holds only what the code cannot show, such as the reason for a choice, a constraint, a measured fact with its command, or a procedure.
 
 ## Tests
 

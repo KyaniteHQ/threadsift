@@ -18,7 +18,7 @@ test/                             core tests: the real app in process on a temp 
 smoke/                            the Playwright smoke spec for both targets and the post-merge live check
 playwright.config.ts              starts the Worker or the container for the smoke spec and the live check
 tools/oxlint/                     lint rule plugins: vendored anti-slop and Threadsift's own rules
-tools/copy/                       write-copy.sh, which writes every text a user reads
+tools/copy/                       write-copy.sh, which writes every text a user reads in the product
 tools/bot-release.sh              refreshes or checks bot/SHA256SUMS and the hash and tag pinned in the bot's skill, and makes a bot release
 tools/icons/                      build.ts, which draws the installable app's icons from the design tokens
 tools/case-folding/               build.ts, which generates src/core/case-folding-table.ts from the Unicode data file, and check.ts, which checks the key function
