@@ -12,3 +12,7 @@ It has one skill, `threadsift`. This folder holds its text (`skills/threadsift/S
 To update, say "update threadsift" in the bot's chat. The bot tells you what changed and asks first. Nothing is pushed to an installed bot. Each update installs a tagged release; the template itself does not change.
 
 The bot's computer is shared by all your bots, so other bots can see the token and files in `~/threadsift/`.
+
+The files the bot writes for a task or a link, in `~/threadsift/tmp/`, are deleted by the script when it uses them, and any file left there is deleted after one day. A task's folder in `~/threadsift/tasks/` holds the task's text and its credential. The credential is deleted when the task is answered or closed, or after one day when the task is never answered, and the rest of the folder is deleted 7 days after the task is done. `~/threadsift/state/` keeps the position of the last bookmark sync, and nothing else is kept.
+
+The bot writes every text it passes to its script by typing it into one shell call, and one call carries at most 3,000 characters. A longer text is written in several calls that the script joins into one file. The limit is below the smallest size that failed in a test on the Grok Bot shell tool: a call of about 20,000 characters arrived with no command at all, twice, and a call of about 1,000 characters worked. It is a safe size, not a measured maximum. For an X post, the bot reads at most the first 100 replies, because it types each reply into the answer, though Threadsift itself accepts up to 500 replies.

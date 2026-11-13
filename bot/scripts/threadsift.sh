@@ -7,6 +7,9 @@ command="${1:-}"
 first="${2:-}"
 second="${3:-}"
 
+WRITE_CAP=8388608
+NAME='^[a-z][a-z0-9-]{0,31}-([0-9a-f]{32})\.(json|txt)$'
+
 route_of() {
   case "$1" in
     check) method=GET; template="/api/items"; credential=agent ;;
@@ -17,6 +20,7 @@ route_of() {
     task-answer) method=POST; template="/api/ai-tasks/{id}/result"; credential=task ;;
     task-intake) method=POST; template="/api/ai-tasks/{id}/intake"; credential=task ;;
     task-error) method=POST; template="/api/ai-tasks/{id}/result"; credential=task ;;
+    *) return 1 ;;
   esac
 }
 
@@ -46,6 +50,19 @@ reason_of() {
   esac
 }
 
+work=""
+part=""
+joined=""
+inputs=()
+
+cleanup() {
+  [[ -z "$work" ]] || rm -rf -- "${work:?}"
+  [[ -z "$part" ]] || rm -f -- "${part:?}"
+  [[ -z "$joined" ]] || rm -f -- "${joined:?}"
+  [[ ${#inputs[@]} -eq 0 ]] || rm -f -- "${inputs[@]}"
+}
+trap cleanup EXIT
+
 stop() { echo "$1"; [[ -z "${2:-}" ]] || echo "$2" >&2; exit 2; }
 
 inside() {
@@ -62,6 +79,19 @@ sys.exit(1)
 ' "$@"
 }
 
+take() {
+  taken="$(inside "$1" "$HERE/tmp")" || stop bad-input "$2 must be a file in ~/threadsift/tmp"
+  inputs+=("$taken")
+}
+
+plain_dirs() {
+  local dir
+  for dir in tmp tasks state; do
+    [[ ! -L "$HERE/$dir" ]] || stop bad-input "$dir must not be a link"
+  done
+  mkdir -p "$HERE/tmp" "$HERE/tasks" "$HERE/state"
+}
+
 folder_of() {
   [[ "$1" =~ ^[0-9]{1,16}$ ]] || stop bad-input "bad task id"
   folder="$HERE/tasks/$1"
@@ -69,33 +99,117 @@ folder_of() {
 
 hash_of() { printf '%s' "$1" | sha256sum | cut -d' ' -f1; }
 
+stored_file() {
+  cat -- "$1" > "$2.part" && mv -T -- "$2.part" "$2"
+}
+
+mark_word() {
+  local hex
+  hex="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')" || true
+  [[ "$hex" =~ ^[0-9a-f]{32}$ ]] || stop failed "no random bytes"
+  echo "TS_$hex"
+}
+
+written() {
+  local mode="$1" name="$2" target size
+  [[ "$name" =~ $NAME ]] || stop bad-input "bad file name"
+  plain_dirs
+  target="$HERE/tmp/$name"
+  if [[ "$mode" == append ]]; then
+    [[ -f "$target" && ! -L "$target" ]] || stop bad-input "append needs a file that write made"
+  fi
+  part="$HERE/tmp/.$name.part"
+  head -c $((WRITE_CAP + 2)) 2> /dev/null > "$part" || stop bad-input "no text on standard input"
+  [[ "$(tail -c 1 "$part" | od -An -tx1 | tr -d ' \n')" != 0a ]] || truncate -s -1 -- "$part"
+  size="$(wc -c < "$part")"
+  [[ "$mode" != append ]] || size=$((size + $(wc -c < "$target")))
+  [[ "$size" -le "$WRITE_CAP" ]] || stop bad-input "the text is over 8 MiB"
+  if [[ "$mode" == append ]]; then
+    joined="$HERE/tmp/.$name.join"
+    cat -- "$target" "$part" > "$joined" || stop failed "cannot join the parts"
+    mv -T -- "$joined" "$target" || stop failed "cannot store the file"
+  else
+    mv -T -- "$part" "$target" || stop failed "cannot store the file"
+  fi
+  find "$HERE/tmp" -maxdepth 1 -type f -mmin +1440 -delete 2> /dev/null || true
+  echo ok
+}
+
+bookmarks_get() {
+  plain_dirs
+  python3 -I -c '
+import json, re, sys
+
+try:
+    with open(sys.argv[1]) as handle:
+        cursor = json.load(handle)
+    newest = cursor["newest_id"]
+    print(newest if re.fullmatch(r"[0-9]{1,30}", newest) else "none")
+except Exception:
+    print("none")
+' "$HERE/state/bookmarks.json"
+}
+
+bookmarks_set() {
+  local file
+  plain_dirs
+  take "$1" "the cursor file"
+  file="$taken"
+  python3 -I -c '
+import json, re, sys
+
+with open(sys.argv[1]) as handle:
+    cursor = json.load(handle)
+if not (isinstance(cursor, dict) and list(cursor) == ["newest_id"] and isinstance(cursor["newest_id"], str) and re.fullmatch(r"[0-9]{1,30}", cursor["newest_id"])):
+    sys.exit(1)
+' "$file" 2> /dev/null || stop bad-input 'the cursor must be {"newest_id":"<digits>"}'
+  mv -T -- "$file" "$HERE/state/bookmarks.json" || stop failed "cannot store the cursor"
+  echo ok
+}
+
+pruned_tasks() {
+  local dir
+  while IFS= read -r -d '' dir; do
+    [[ "$dir" =~ /tasks/[0-9]{1,16}$ ]] || continue
+    if [[ -f "$dir/done" ]]; then
+      [[ -z "$(find "$dir/done" -maxdepth 0 -mmin +10080)" ]] || rm -rf -- "${dir:?}"
+    elif [[ -f "$dir/token" ]]; then
+      find "$dir/token" -maxdepth 0 -mmin +1440 -delete 2> /dev/null || true
+    fi
+  done < <(find "$HERE/tasks" -mindepth 1 -maxdepth 1 -type d -print0)
+}
+
 case "$command" in
-  check|topics|search|save|task-open|task-answer|task-error) route_of "$command" ;;
-  *) stop bad-input "unknown command" ;;
+  mark) mark_word; exit 0 ;;
+  write) written write "$first"; exit 0 ;;
+  append) written append "$first"; exit 0 ;;
+  bookmarks-get) bookmarks_get; exit 0 ;;
+  bookmarks-set) bookmarks_set "$first"; exit 0 ;;
 esac
 
-URL="${THREADSIFT_URL:-}"
-[[ "$URL" =~ ^(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\.0\.0\.1|localhost):[0-9]{1,5})$ ]] || stop not-configured "THREADSIFT_URL must be an https address with no path"
+[[ "$command" != task-intake ]] && route_of "$command" || stop bad-input "unknown command"
 
-work="$(mktemp -d)"
-trap 'rm -rf "${work:?}"' EXIT
-request="$work/request"
-response="$work/response"
-options=()
-folder=""
+plain_dirs
+
 id=""
 token=""
-path="$template"
-mkdir -p "$HERE/tmp"
+folder=""
+taken=""
+link_file=""
+thread_file=""
+query_file=""
+answer_file=""
 
-if [[ "$credential" == agent ]]; then
-  token="${THREADSIFT_AGENT_TOKEN:-}"
-  [[ -n "$token" ]] || stop not-configured "THREADSIFT_AGENT_TOKEN is not set"
-fi
+case "$command" in
+  save) take "$first" "the link file"; link_file="$taken"; [[ -z "$second" ]] || { take "$second" "the thread file"; thread_file="$taken"; } ;;
+  search) take "$first" "the query file"; query_file="$taken" ;;
+  task-answer) take "$second" "the answer file"; answer_file="$taken" ;;
+esac
 
 if [[ "$command" == task-open ]]; then
-  event="$(inside "$first" "$HERE/tmp")" || stop bad-input "the event file must be a file in ~/threadsift/tmp"
-  if parsed="$(python3 -I - "$event" <<'PY'
+  take "$first" "the event file"
+  event="$taken"
+  parsed="$(python3 -I - "$event" <<'PY'
 import json, re, sys
 
 try:
@@ -120,12 +234,7 @@ try:
 except Exception:
     sys.exit(1)
 PY
-  )"; then
-    rm -f -- "$event"
-  else
-    rm -f -- "$event"
-    stop bad-input "the event is not a task of this Instance"
-  fi
+  )" || stop bad-input "the event is not a task of this Instance"
   [[ "$parsed" != ping ]] || { echo ping; exit 0; }
   read -r id token _ <<< "$parsed"
   folder_of "$id"
@@ -133,9 +242,29 @@ PY
     echo already-done
     exit 0
   fi
-  mkdir -p "$folder"
-  printf '%s' "$token" > "$folder/token"
-  rm -f "${folder:?}"/task.json "${folder:?}"/answer.json "${folder:?}"/errors.txt
+  if [[ -f "$folder/task.json" && ! -f "$folder/done" && -n "$(find "$folder/task.json" -maxdepth 0 -mmin -60)" ]]; then
+    echo already-open
+    exit 0
+  fi
+  pruned_tasks
+fi
+
+URL="${THREADSIFT_URL:-}"
+[[ "$URL" =~ ^(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\.0\.0\.1|localhost):[0-9]{1,5})$ ]] || stop not-configured "THREADSIFT_URL must be an https address with no path"
+
+work="$(mktemp -d)"
+request="$work/request"
+response="$work/response"
+options=()
+path="$template"
+out=""
+
+if [[ "$credential" == agent ]]; then
+  token="${THREADSIFT_AGENT_TOKEN:-}"
+  [[ -n "$token" ]] || stop not-configured "THREADSIFT_AGENT_TOKEN is not set"
+fi
+
+if [[ "$command" == task-open ]]; then
   path="${template//\{id\}/$id}"
 elif [[ "$credential" == task ]]; then
   folder_of "$first"
@@ -156,8 +285,13 @@ fi
 
 case "$command" in
   check) options=(--get --data-urlencode "url=https://example.com/") ;;
+  topics)
+    [[ "$first" =~ ^[0-9a-f]{32}$ ]] || stop bad-input "topics takes the hex of a fresh mark"
+    out="$HERE/tmp/topics-$first.json"
+    ;;
   search)
-    file="$(inside "$first" "$HERE/tmp")" || stop bad-input "the query file must be a file in ~/threadsift/tmp"
+    [[ "$(basename "$query_file")" =~ $NAME ]] || stop bad-input "the query file needs a name made by write"
+    out="$HERE/tmp/search-${BASH_REMATCH[1]}.json"
     query="$(python3 -I -c '
 import sys
 
@@ -165,24 +299,19 @@ text = open(sys.argv[1]).read().rstrip("\n")
 if text.strip() == "" or "\n" in text or "\r" in text:
     sys.exit(1)
 print(text)
-' "$file")" || stop bad-input "the query must be one line"
+' "$query_file")" || stop bad-input "the query must be one line"
     options=(--get --data-urlencode "q=$query")
     ;;
   save|task-intake|task-answer|task-error)
     mode="$command"
     arg1="" arg2=""
     case "$command" in
-      save)
-        arg1="$(inside "$first" "$HERE/tmp")" || stop bad-input "the link file must be a file in ~/threadsift/tmp"
-        if [[ -n "$second" ]]; then arg2="$(inside "$second" "$HERE/tmp")" || stop bad-input "the thread file must be a file in ~/threadsift/tmp"; fi
-        ;;
+      save) arg1="$link_file"; arg2="$thread_file" ;;
       task-error)
         reason_of "$second" || stop bad-input "unknown reason word"
         arg1="$sentence"
         ;;
-      *)
-        arg1="$(inside "$second" "$folder" "$HERE/tmp")" || stop bad-input "the answer file must be a file in the task folder or in ~/threadsift/tmp"
-        ;;
+      *) arg1="$answer_file" ;;
     esac
     if ! python3 -I - "$mode" "$arg1" "$arg2" > "$request" 2> "$work/reasons" <<'PY'
 import json, re, sys
@@ -237,7 +366,7 @@ status="$(curl --disable --silent --show-error --max-redirs 0 --max-time 60 \
 word="$(word_of "$status")"
 
 if [[ "$word" == invalid ]]; then
-  if [[ -n "$folder" ]]; then cat "$response" > "$folder/errors.txt"; else cat "$response" >&2; fi
+  if [[ -n "$folder" && -d "$folder" ]]; then stored_file "$response" "$folder/errors.txt"; else cat "$response" >&2; fi
 fi
 
 shaped() {
@@ -270,14 +399,18 @@ if [[ "$word" == ok && "$method" == GET ]] && ! shaped; then word=failed; fi
 if [[ "$word" == ok ]]; then
   case "$command" in
     search|topics)
-      cat "$response" > "$HERE/tmp/$command.json"
+      stored_file "$response" "$out"
       if [[ "$command" == search ]]; then
         python3 -I -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1]))["items"] else 1)' "$response" || word=none
       fi
       ;;
     task-open)
-      cat "$response" > "$folder/task.json"
       kind="$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["kind"])' "$response")"
+      mkdir -p "$folder"
+      printf '%s' "$token" > "$work/token"
+      stored_file "$work/token" "$folder/token"
+      stored_file "$response" "$folder/task.json"
+      rm -f "${folder:?}"/errors.txt
       word="ok $id $kind"
       ;;
   esac
@@ -285,7 +418,9 @@ fi
 
 case "$command:$word" in
   task-open:closed|task-answer:ok|task-answer:closed|task-intake:ok|task-intake:closed|task-error:ok|task-error:closed)
-    printf '%s' "$(hash_of "$token")" > "$folder/done"
+    mkdir -p "$folder"
+    printf '%s' "$(hash_of "$token")" > "$work/done"
+    stored_file "$work/done" "$folder/done"
     rm -f "${folder:?}"/token
     ;;
 esac

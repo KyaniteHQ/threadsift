@@ -36,7 +36,7 @@ describe("the Threadsift bot's script opens and answers a Verify task like any D
     assert.notEqual(read.instructions, "");
     assert.equal(read.schema["type"], "object");
 
-    const answer = world.folder.taskFile(task.id, "answer.json", JSON.stringify(ANSWER));
+    const answer = await world.folder.made("answer", JSON.stringify(ANSWER));
 
     assert.equal((await world.folder.run(["task-answer", id, answer], world.env())).word, "ok");
     assert.notEqual(taskRow(world.instance, task.id).answered_at, null);

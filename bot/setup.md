@@ -8,6 +8,7 @@ Follow with the owner, one step at a time. Never ask for a secret in chat; a sec
    chmod 700 ~/threadsift ~/threadsift/threadsift.sh && mkdir -p ~/threadsift/tasks ~/threadsift/state ~/threadsift/tmp
    ```
    The bootstrap line in the threadsift skill already wrote `~/threadsift/VERSION`.
+   The script deletes each file in `~/threadsift/tmp` when it uses it, and any file left there after one day. It deletes a task's credential when the task is answered or closed, or after one day when the task is never answered, and the rest of a task's folder 7 days after the task is done.
 5. `~/threadsift/threadsift.sh check` must print `ok`. On `not-configured`, `unauthorized`, `forbidden` or `unreachable`, say which and stop. On `ok`, delete `~/threadsift/state/alerted-not-configured` if it exists.
 6. Propose an Auto-review allow rule with the rule-change card: "Run ~/threadsift/threadsift.sh commands in the shell for Threadsift". If their app can't save rules from chat, point them to Auto-review rules in Settings with that sentence.
 7. Create a routine named `threadsift-webhook`, trigger `{ "type": "webhook" }`, with this prompt:

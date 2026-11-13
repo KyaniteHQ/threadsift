@@ -36,8 +36,6 @@ describe("the script takes a webhook event only as a file it parses itself, and 
   after(() => world.close());
 
   it("answers bad-input for an event whose fields hold shell syntax, quotes, newlines or a path, and creates nothing outside the folders of tasks", async () => {
-    const unchanged = world.folder.tree();
-
     const words = await Promise.all(
       HOSTILE_EVENTS.map((body) => run(["task-open", world.folder.event(body)])),
     );
@@ -45,7 +43,7 @@ describe("the script takes a webhook event only as a file it parses itself, and 
     assert.deepEqual(new Set(words), new Set(["bad-input"]));
     assert.deepEqual(
       world.folder.tree().filter((entry) => !entry.startsWith("tmp")),
-      unchanged.filter((entry) => !entry.startsWith("tmp")),
+      ["state", "tasks", "threadsift.sh"],
     );
     assert.equal(world.folder.tree().filter((entry) => entry.startsWith("tmp/event")).length, 0);
     assert.equal(existsSync(join(world.folder.path, "pwned")), false);
@@ -87,18 +85,21 @@ describe("the script takes a webhook event only as a file it parses itself, and 
     assert.equal(
       await run([
         "save",
-        world.folder.tmpFile("two.txt", "https://a.example/\nhttps://b.example/"),
+        world.folder.tmpFile("two", "https://a.example/\nhttps://b.example/", "txt"),
       ]),
       "bad-input",
     );
     assert.equal(
-      await run(["save", world.folder.tmpFile("quote.txt", "https://example.com/it's")]),
+      await run(["save", world.folder.tmpFile("quote", "https://example.com/it's", "txt")]),
       "ok",
     );
     assert.equal(
-      await run(["save", world.folder.tmpFile("scheme.txt", "javascript:alert(1)")]),
+      await run(["save", world.folder.tmpFile("scheme", "javascript:alert(1)", "txt")]),
       "bad-input",
     );
-    assert.equal(await run(["search", world.folder.tmpFile("two-lines.txt", "a\nb")]), "bad-input");
+    assert.equal(
+      await run(["search", world.folder.tmpFile("two-lines", "a\nb", "txt")]),
+      "bad-input",
+    );
   });
 });
