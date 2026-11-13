@@ -4,6 +4,8 @@ import { z } from "zod";
 export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("saving") }),
   z.object({ kind: z.literal("saved"), itemUrl: z.string() }),
+  z.object({ kind: z.literal("saved-incomplete"), itemUrl: z.string() }),
+  z.object({ kind: z.literal("saved-page"), itemUrl: z.string() }),
   z.object({ kind: z.literal("not-configured") }),
   z.object({ kind: z.literal("access-missing") }),
   z.object({ kind: z.literal("page-blocked") }),

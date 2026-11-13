@@ -1,6 +1,8 @@
 export const TEXT = {
   saving: "Saving…",
   saved: "Page saved.",
+  savedIncomplete: "The thread was saved, but some replies are missing.",
+  savedPage: "Couldn’t read the thread’s comments, so the page was saved instead.",
   openItem: "Open in Threadsift",
   notConfigured: "Add your Threadsift address and agent token in the settings to save pages.",
   openSettings: "Open settings",
