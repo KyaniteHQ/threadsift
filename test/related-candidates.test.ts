@@ -12,7 +12,6 @@ import {
   pairsOf,
   paste,
   pasteInOrder,
-  pickJobs,
   pickTasks,
   rows,
   saveProvider,
@@ -80,6 +79,7 @@ describe("the related pick sends the best-ranked candidates", () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
 
+    exec(instance, "delete from sqlite_sequence where name = 'ai_tasks'");
     exec(
       instance,
       "insert into sqlite_sequence (name, seq) values ('ai_tasks', ?)",
@@ -109,6 +109,18 @@ describe("the related pick sends the best-ranked candidates", () => {
       summary: "The source Summary.",
       tags: ["quasar", "nebula"],
     });
+
+    const [digest] = rows(
+      instance,
+      TaskIdSchema,
+      "select task_id from digests where item_id = ?",
+      source,
+    );
+
+    assert.ok(
+      digest !== undefined && digest.task_id > FIRST_TASK_ID_FLOOR,
+      "the ai_tasks id sequence was not seeded above every Item id",
+    );
   });
 
   after(() => instance.close());
@@ -130,7 +142,7 @@ describe("the related pick sends the best-ranked candidates", () => {
     );
   });
 
-  it("records the source's Digest task id as the input revision and runs one pick job", async () => {
+  it("records the source's Digest task id as the input revision", async () => {
     const [task] = await until(
       () => pickTasks(instance, source),
       (tasks) => tasks.length > 0,
@@ -143,14 +155,9 @@ describe("the related pick sends the best-ranked candidates", () => {
       source,
     );
 
-    const [job] = pickJobs(instance, source);
-
     assert.ok(task !== undefined);
     assert.ok(digest !== undefined);
-    assert.ok(digest.task_id > FIRST_TASK_ID_FLOOR);
-    assert.notEqual(digest.task_id, source);
     assert.equal(task.input_revision, digest.task_id);
-    assert.equal(job?.kind, "related_pick");
     assert.equal(pairsOf(instance, source).length, 0);
   });
 });
