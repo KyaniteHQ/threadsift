@@ -5,7 +5,13 @@ import { BUDGET_SPENT } from "../../src/core/kinds.ts";
 import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../../src/core/supplied-page.ts";
 import { type Config, hostPattern } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
-import { type ThreadTab, fetchThread } from "./reddit-thread.ts";
+import {
+  type Completeness,
+  type Fetched,
+  type ThreadTab,
+  fetchThread,
+  pageCompleteness,
+} from "./reddit-thread.ts";
 import type { SaveState } from "./state.ts";
 import { resultInTab } from "./tab-result.ts";
 import type { ThreadBody } from "./thread-body.ts";
@@ -22,11 +28,17 @@ const RefusalSchema = z.object({
 
 export const REQUEST_DEADLINE_MS = 25_000;
 
+const SAVED_KIND = {
+  whole: "saved",
+  "replies-missing": "saved-incomplete",
+  "page-only": "saved-page",
+} as const satisfies Record<Completeness, SaveState["kind"]>;
+
 const WEB_PAGE = /^https?:/u;
 
 type Captured = z.infer<typeof CapturedSchema>;
 
-type Body = ThreadBody | { readonly url: string; readonly page: Omit<Captured, "url"> };
+type Saving = Fetched<ThreadBody | { readonly url: string; readonly page: Omit<Captured, "url"> }>;
 
 async function activeTab(): Promise<ThreadTab | null> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
@@ -42,7 +54,7 @@ function capturedPage(tabId: number): Promise<Captured | null> {
   );
 }
 
-async function bodyOf(tab: Readonly<ThreadTab>): Promise<Body | null> {
+async function bodyOf(tab: Readonly<ThreadTab>): Promise<Saving | null> {
   const thread = await fetchThread(tab);
 
   if (thread !== null) return thread;
@@ -53,7 +65,10 @@ async function bodyOf(tab: Readonly<ThreadTab>): Promise<Body | null> {
 
   const { url, ...page } = captured;
 
-  return { url, page };
+  return {
+    body: { url, page },
+    completeness: pageCompleteness(tab),
+  };
 }
 
 async function refusedState(response: Response): Promise<SaveState> {
@@ -76,15 +91,21 @@ async function spentState(response: Response): Promise<SaveState> {
     : { kind: "failed" };
 }
 
-async function stateOf(response: Response, origin: string): Promise<SaveState> {
+async function stateOf(
+  response: Response,
+  origin: string,
+  completeness: Completeness,
+): Promise<SaveState> {
   switch (response.status) {
     case 200:
     case 201: {
       const saved = SavedSchema.safeParse(await response.json().catch(() => null));
 
-      return saved.success
-        ? { kind: "saved", itemUrl: new URL(saved.data.url, origin).href }
-        : { kind: "failed" };
+      if (!saved.success) return { kind: "failed" };
+
+      const itemUrl = new URL(saved.data.url, origin).href;
+
+      return { kind: SAVED_KIND[completeness], itemUrl };
     }
 
     case 400:
@@ -108,7 +129,7 @@ async function stateOf(response: Response, origin: string): Promise<SaveState> {
 
 export async function send(
   { origin, token }: Readonly<Config>,
-  body: Readonly<Body>,
+  { body, completeness }: Readonly<Saving>,
 ): Promise<SaveState> {
   try {
     const response = await fetch(new URL("/api/items", origin), {
@@ -119,7 +140,7 @@ export async function send(
       signal: AbortSignal.timeout(REQUEST_DEADLINE_MS),
     });
 
-    return await stateOf(response, origin);
+    return await stateOf(response, origin, completeness);
   } catch {
     return { kind: "unreachable" };
   }
@@ -135,7 +156,7 @@ export async function savePage(): Promise<SaveState> {
   }
 
   const tab = await activeTab();
-  const body = tab === null ? null : await bodyOf(tab);
+  const saving = tab === null ? null : await bodyOf(tab);
 
-  return body === null ? { kind: "page-blocked" } : send(config, body);
+  return saving === null ? { kind: "page-blocked" } : send(config, saving);
 }

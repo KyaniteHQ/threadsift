@@ -2,6 +2,7 @@ import { storedCommentId, wireCommentId } from "./comment-id.ts";
 import { utf8Length } from "./digest-prompt.ts";
 import { INLINE_TEXT_BYTES } from "./limits.ts";
 import { type WireChild, type WireComment, type WirePost, ThreadJson } from "./reddit-wire.ts";
+import type { ThreadAnswers } from "./thread-answers.ts";
 
 const METADATA_BYTES = 4096;
 
@@ -142,6 +143,19 @@ export function graft(
   return [...into.slice(0, at), ...placed, ...left, ...into.slice(at + 1)];
 }
 
+export function graftAll(
+  ids: Readonly<Set<string>>,
+  first: readonly Walked[],
+  later: readonly string[],
+  postId: string,
+): readonly Walked[] {
+  return later.reduce<readonly Walked[]>((into, text) => {
+    const answer = readAnswer(text, postId).children;
+
+    return graft(ids, into, walk(answer, firstParentOf(answer)));
+  }, first);
+}
+
 export function checkedIds(ids: Readonly<Set<string>>, walked: readonly Walked[]): void {
   for (const { comment } of walked) {
     if (comment === null) continue;
@@ -213,6 +227,22 @@ export function hiddenRepliesOf(content: string, postId: string): readonly strin
     const { children } = readAnswer(content, postId);
 
     return hiddenIdsOf(walk(children, firstParentOf(children)));
+  });
+
+  return read.kind === "read" ? read.value : null;
+}
+
+export function unfilledStubsOf(answers: ThreadAnswers, postId: string): number | null {
+  const [content, ...later] = answers;
+
+  const read = refusing(() => {
+    const { children } = readAnswer(content, postId);
+    const ids = new Set<string>();
+    const first = walk(children, firstParentOf(children));
+
+    checkedIds(ids, first);
+
+    return graftAll(ids, first, later, postId).filter(({ comment }) => comment === null).length;
   });
 
   return read.kind === "read" ? read.value : null;

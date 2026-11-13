@@ -41,9 +41,9 @@ async function fillOnce(
 ): Promise<void> {
   if (!(await isWaiting(config, tab.url)) || signal.aborted) return;
 
-  const body = await fetchThread(tab, { fill: true, signal });
+  const fetched = await fetchThread(tab, { fill: true, signal });
 
-  if (body !== null && !signal.aborted) await send(config, body);
+  if (fetched !== null && !signal.aborted) await send(config, fetched);
 }
 
 export async function fillOpenedThread(tab: Readonly<ThreadTab>): Promise<void> {

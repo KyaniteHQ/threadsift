@@ -6,31 +6,6 @@ import { TEXT } from "../../lib/text.ts";
 
 const SAVE_DEADLINE_MS = 240_000;
 
-type Failure = Exclude<SaveState["kind"], "saving" | "saved">;
-
-const FAILURE_TEXT: Readonly<Record<Failure, string>> = {
-  "not-configured": TEXT.notConfigured,
-  "access-missing": TEXT.accessMissing,
-  "page-blocked": TEXT.pageBlocked,
-  "token-refused": TEXT.tokenRefused,
-  "scope-refused": TEXT.scopeRefused,
-  "too-large": TEXT.tooLarge,
-  "private-link": TEXT.privateLink,
-  "unsupported-link": TEXT.unsupportedLink,
-  "thread-kept": TEXT.threadKept,
-  "budget-spent": TEXT.budgetSpent,
-  updating: TEXT.updating,
-  unreachable: TEXT.unreachable,
-  failed: TEXT.failed,
-};
-
-const NEEDS_SETTINGS: ReadonlySet<SaveState["kind"]> = new Set([
-  "not-configured",
-  "access-missing",
-  "token-refused",
-  "scope-refused",
-]);
-
 const root = document.querySelector("#root");
 
 if (root === null) throw new Error("the popup has no root element");
@@ -46,32 +21,85 @@ function status(text: string, tone: "ok" | "warn" | "plain"): HTMLParagraphEleme
   return element("p", { class: "ext-status", role: "status", "data-tone": tone }, text);
 }
 
+function openItem(itemUrl: string): HTMLAnchorElement {
+  return element(
+    "a",
+    { class: "btn btn-acc", href: itemUrl, target: "_blank", rel: "noreferrer" },
+    TEXT.openItem,
+  );
+}
+
 function actions(state: Readonly<SaveState>): HTMLElement[] {
-  if (state.kind === "saved") {
-    return [
-      element(
-        "a",
-        { class: "btn btn-acc", href: state.itemUrl, target: "_blank", rel: "noreferrer" },
-        TEXT.openItem,
-      ),
-    ];
+  switch (state.kind) {
+    case "saved":
+    case "saved-incomplete":
+    case "saved-page":
+      return [openItem(state.itemUrl)];
+    case "saving":
+    case "thread-kept":
+    case "budget-spent":
+      return [];
+    case "not-configured":
+    case "access-missing":
+    case "token-refused":
+    case "scope-refused":
+      return [button(TEXT.openSettings, () => void browser.runtime.openOptionsPage())];
+    case "page-blocked":
+    case "too-large":
+    case "private-link":
+    case "unsupported-link":
+    case "updating":
+    case "unreachable":
+    case "failed":
+      return [button(TEXT.tryAgain, () => void save())];
+    default:
+      return state satisfies never;
   }
+}
 
-  if (state.kind === "saving" || state.kind === "thread-kept" || state.kind === "budget-spent") {
-    return [];
-  }
-
-  return NEEDS_SETTINGS.has(state.kind)
-    ? [button(TEXT.openSettings, () => void browser.runtime.openOptionsPage())]
-    : [button(TEXT.tryAgain, () => void save())];
+function warning(text: string): HTMLParagraphElement {
+  return status(text, "warn");
 }
 
 function messageOf(state: Readonly<SaveState>): HTMLParagraphElement {
-  if (state.kind === "saving") return status(TEXT.saving, "plain");
-
-  if (state.kind === "saved") return status(TEXT.saved, "ok");
-
-  return status(FAILURE_TEXT[state.kind], "warn");
+  switch (state.kind) {
+    case "saving":
+      return status(TEXT.saving, "plain");
+    case "saved":
+      return status(TEXT.saved, "ok");
+    case "saved-incomplete":
+      return warning(TEXT.savedIncomplete);
+    case "saved-page":
+      return warning(TEXT.savedPage);
+    case "not-configured":
+      return warning(TEXT.notConfigured);
+    case "access-missing":
+      return warning(TEXT.accessMissing);
+    case "page-blocked":
+      return warning(TEXT.pageBlocked);
+    case "token-refused":
+      return warning(TEXT.tokenRefused);
+    case "scope-refused":
+      return warning(TEXT.scopeRefused);
+    case "too-large":
+      return warning(TEXT.tooLarge);
+    case "private-link":
+      return warning(TEXT.privateLink);
+    case "unsupported-link":
+      return warning(TEXT.unsupportedLink);
+    case "thread-kept":
+      return warning(TEXT.threadKept);
+    case "budget-spent":
+      return warning(TEXT.budgetSpent);
+    case "updating":
+      return warning(TEXT.updating);
+    case "unreachable":
+      return warning(TEXT.unreachable);
+    case "failed":
+      return warning(TEXT.failed);
+    default:
+      return state satisfies never;
+  }
 }
 
 function show(state: Readonly<SaveState>): void {

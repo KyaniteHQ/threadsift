@@ -8,7 +8,7 @@ import {
   checkedMetadata,
   checkedText,
   firstParentOf,
-  graft,
+  graftAll,
   readAnswer,
   refusing,
   refuse,
@@ -167,11 +167,7 @@ function parseThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ParsedTh
 
   checkedIds(ids, first);
 
-  const walked = later.reduce<readonly Walked[]>((into, text) => {
-    const answer = readAnswer(text, ref.postId).children;
-
-    return graft(ids, into, walk(answer, firstParentOf(answer)));
-  }, first);
+  const walked = graftAll(ids, first, later, ref.postId);
 
   return ref.commentId === undefined
     ? ofPost(post, walked)
