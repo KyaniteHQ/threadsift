@@ -5,7 +5,7 @@ import { removalWrites } from "./highlights.ts";
 import { WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
-import { proposalRow } from "./proposal-row.ts";
+import { proposalRow, removedOpen } from "./proposal-lifecycle.ts";
 import { highlights, proposals } from "./schema.ts";
 import { claimedAt, claimingWeek } from "./weekly-claim.ts";
 
@@ -56,22 +56,15 @@ function insertedRows(db: Database, now: number) {
 }
 
 function foundAgain(db: Database, now: number) {
-  return db
-    .delete(proposals)
-    .where(
-      and(
-        claimedAt(WEEKLY_TASK["highlight-lost"], now),
-        eq(proposals.kind, "highlight-lost"),
-        eq(proposals.state, "open"),
-        inArray(
-          proposals.highlightId,
-          db
-            .select({ id: highlights.id })
-            .from(highlights)
-            .where(eq(highlights.status, "attached")),
-        ),
-      ),
-    );
+  return removedOpen(
+    db,
+    claimedAt(WEEKLY_TASK["highlight-lost"], now),
+    eq(proposals.kind, "highlight-lost"),
+    inArray(
+      proposals.highlightId,
+      db.select({ id: highlights.id }).from(highlights).where(eq(highlights.status, "attached")),
+    ),
+  );
 }
 
 export async function proposeLostHighlights(db: Database, now: number): Promise<void> {

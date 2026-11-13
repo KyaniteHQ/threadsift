@@ -2,7 +2,7 @@ import { type SQLWrapper, and, desc, eq, inArray, lt, max, ne, or, sql } from "d
 import { alias } from "drizzle-orm/sqlite-core";
 
 import {
-  disagreementHolds,
+  DISAGREEMENT,
   firstDigest,
   firstItem,
   secondDigest,
@@ -23,7 +23,6 @@ import {
   highlights,
   itemTags,
   items,
-  knownProposal,
   proposals,
   scheduledRuns,
   settings,
@@ -31,8 +30,6 @@ import {
   topics,
 } from "./schema.ts";
 import { digestedCount, overviewGap, uncoveredCount } from "./topic-coverage.ts";
-
-export type Rejection = "rejected" | "unknown" | "not-open";
 
 const fromTag = alias(tags, "from_tag");
 
@@ -59,7 +56,7 @@ const LISTED_WHILE = {
   "topic-merge": undefined,
   "highlight-lost": ne(highlights.status, "attached"),
   "overview-gap": overviewGap(proposals.topicId),
-  "items-disagree": disagreementHolds(),
+  "items-disagree": DISAGREEMENT.listed,
 } as const satisfies Readonly<Record<ProposalKind, SQLWrapper | undefined>>;
 
 const listable = or(
@@ -224,21 +221,4 @@ export async function readProposalPage(db: Database, cursor: number | null): Pro
     provider: saved.length > 0,
     next: rows.length > shown.length && last !== undefined ? String(last.id) : null,
   };
-}
-
-export async function rejectProposal(db: Database, id: number): Promise<Rejection> {
-  const moved = await db
-    .update(proposals)
-    .set({ state: "rejected" })
-    .where(and(eq(proposals.id, id), knownProposal, eq(proposals.state, "open")))
-    .returning({ id: proposals.id });
-
-  if (moved.length > 0) return "rejected";
-
-  const [found] = await db
-    .select({ id: proposals.id })
-    .from(proposals)
-    .where(and(eq(proposals.id, id), knownProposal));
-
-  return found === undefined ? "unknown" : "not-open";
 }

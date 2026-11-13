@@ -11,7 +11,7 @@ import {
 import type { Advance } from "./data-step-contract.ts";
 import { repointedPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
-import { proposalRelinks } from "./proposal-relink.ts";
+import { proposalRelinks } from "./proposal-lifecycle.ts";
 import { pins, proposals, tags } from "./schema.ts";
 import { REWRITE_UNIT_ITEMS, readRewrite } from "./tag-rewrite.ts";
 

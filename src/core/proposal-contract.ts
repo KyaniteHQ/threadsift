@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import { MERGE_KINDS, SOURCES } from "./kinds.ts";
-import { parseLogCursor } from "./log-contract.ts";
 
 const SubjectRefSchema = z
   .object({ id: z.number().int(), name: z.string(), items: z.number().int().min(0) })
@@ -106,10 +105,3 @@ export type OverviewGapProposal = z.infer<typeof OverviewGapProposalSchema>;
 export type ItemsDisagreeProposal = z.infer<typeof ItemsDisagreeProposalSchema>;
 
 export type ProposalPage = z.infer<typeof ProposalPageSchema>;
-
-export const ProposalQuerySchema = z.object({
-  cursor: z
-    .string()
-    .refine((text) => parseLogCursor(text) !== null, "not a well-formed cursor")
-    .optional(),
-});
