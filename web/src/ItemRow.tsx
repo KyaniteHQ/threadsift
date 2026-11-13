@@ -4,7 +4,7 @@ import { itemPath } from "../../src/core/item-path.ts";
 import { shownUrl } from "../../src/core/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Meta, Status } from "./ItemRowParts.tsx";
-import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
+import { ROW_MARK_READ, ROW_MARK_UNREAD, rowToggleName } from "./reader-text.ts";
 import { revealInPane } from "./reveal.ts";
 import { useInternalLink } from "./routing.ts";
 
@@ -75,18 +75,23 @@ function useAttention(
   }, [attended, attention, link, row]);
 }
 
+function rowName(item: Readonly<Item>): string {
+  return item.digestTitle ?? item.title ?? shownUrl(item.normalizedUrl);
+}
+
 function ReadDot({ item, toggleRead }: Readonly<{ item: Item; toggleRead: (item: Item) => void }>) {
   const toggle = useCallback(() => {
     toggleRead(item);
   }, [item, toggleRead]);
 
   const label = item.readState === "unread" ? ROW_MARK_READ : ROW_MARK_UNREAD;
+  const name = rowToggleName(item.readState, rowName(item));
 
   return (
     <button
       type="button"
       className="it-dot"
-      aria-label={label}
+      aria-label={name}
       title={`${label} (m)`}
       onClick={toggle}
     >

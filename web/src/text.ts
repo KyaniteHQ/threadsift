@@ -152,6 +152,11 @@ export const FILTER_GROUPS = {
 
 export const ALL_CHOICE = "All";
 
+export const ALL_NAMED = {
+  source: "All {count} items from all sources",
+  read: "All {count} items in all read states",
+} as const;
+
 export const READ_LABELS: Readonly<Record<ReadState, string>> = {
   unread: "Unread",
   read: "Read",

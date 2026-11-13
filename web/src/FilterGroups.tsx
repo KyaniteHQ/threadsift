@@ -20,6 +20,7 @@ const SHOWN_ROWS = 5;
 export interface Segment<Key extends string> {
   readonly key: Key | null;
   readonly label: string;
+  readonly name?: string;
   readonly count: number;
 }
 
@@ -43,6 +44,7 @@ function SegmentButton<Key extends string>({
       type="button"
       className={bar ? "fl-chip" : "fl-seg-b"}
       aria-pressed={pressed}
+      aria-label={segment.name}
       title={countTip(segment.label, segment.count)}
       onClick={press}
     >
@@ -89,10 +91,14 @@ export function Segments<Key extends string>({
 
 export function withAll<Key extends string>(
   segments: readonly Segment<Key>[],
+  allName: string,
 ): readonly Segment<Key>[] {
   const sum = segments.reduce((all, segment) => all + segment.count, 0);
 
-  return [{ key: null, label: ALL_CHOICE, count: sum }, ...segments];
+  return [
+    { key: null, label: ALL_CHOICE, name: filled(allName, { count: String(sum) }), count: sum },
+    ...segments,
+  ];
 }
 
 function Row({
