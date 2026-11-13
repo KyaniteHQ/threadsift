@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import type { Scope } from "../core/kinds.ts";
 import { type NeededScopes, lacksScope, missingScope, pasteScopes } from "../core/scopes.ts";
 
-export type Principal =
+type Principal =
   | { readonly kind: "owner" }
   | { readonly kind: "token"; readonly scopes: readonly Scope[] }
   | { readonly kind: "anonymous" };

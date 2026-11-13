@@ -4,11 +4,10 @@ import { paste } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
 import { savedView } from "./item-view.ts";
 import { PASTE_DIGEST_SCOPE, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
+import { REFUSED_HOST, UPDATING } from "./refusals.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
 import { ErrorResponseSchema, SavedItemResponseSchema } from "./schemas.ts";
 import { requirePasteScopes } from "./token-scopes.ts";
-
-export const REFUSED_HOST = "url: the host is not globally reachable";
 
 const TOO_LARGE = {
   content: "content: longer than 4 MiB",
@@ -18,9 +17,6 @@ const TOO_LARGE = {
 const THREAD_KEPT = "page: the saved thread stays";
 
 const NOT_WAITING = "fill: no Item with this link is waiting for its thread";
-
-export const UPDATING =
-  "The library is being updated and takes no new link yet. Try again in a minute.";
 
 const saveItemRoute = createRoute({
   method: "post",

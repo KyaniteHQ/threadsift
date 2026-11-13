@@ -2,9 +2,9 @@ import { type McpServer, requireScopes } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import type { Ports } from "../core/ports.ts";
-import { readItem } from "./item-detail-route.ts";
-import { NOT_FOUND, readItemPage } from "./item-routes.ts";
+import { readItem, readItemPage } from "./item-read.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
+import { NOT_FOUND } from "./refusals.ts";
 import { ItemDetailResponseSchema, ItemQuerySchema, ItemReadResponseSchema } from "./schemas.ts";
 
 const READ_ONLY = requireScopes("read");

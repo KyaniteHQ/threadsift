@@ -6,14 +6,9 @@ import { LogPageSchema, parseLogCursor } from "../core/log-contract.ts";
 import { readLog } from "../core/log-page.ts";
 import type { Ports } from "../core/ports.ts";
 import { jsonBody } from "./openapi.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
+import { ErrorResponseSchema, cursorParam } from "./schemas.ts";
 
-const LogQuerySchema = z.object({
-  cursor: z
-    .string()
-    .refine((text) => parseLogCursor(text) !== null, "not a well-formed cursor")
-    .optional(),
-});
+const LogQuerySchema = z.object({ cursor: cursorParam(parseLogCursor) });
 
 const listLogRoute = createRoute({
   method: "get",
@@ -33,11 +28,8 @@ const listLogRoute = createRoute({
 
 export function registerLogRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(listLogRoute, async (c) => {
-    const { cursor } = c.req.valid("query");
+    const { cursor = null } = c.req.valid("query");
 
-    return c.json(
-      await readLog(ports.db, cursor === undefined ? null : parseLogCursor(cursor)),
-      200,
-    );
+    return c.json(await readLog(ports.db, cursor), 200);
   });
 }

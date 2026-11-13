@@ -1,11 +1,11 @@
 import type { Scope } from "../core/kinds.ts";
 
-export interface PublicRoute {
+interface PublicRoute {
   readonly method: string;
   readonly path: string;
 }
 
-export const PUBLIC_ROUTES: readonly PublicRoute[] = [
+const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { method: "GET", path: "/api/session" },
   { method: "POST", path: "/api/setup/code" },
   { method: "POST", path: "/api/setup" },

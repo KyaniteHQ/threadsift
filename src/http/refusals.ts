@@ -22,11 +22,22 @@ const MESSAGES = {
   "no-owner": "This Instance has no owner yet",
 } as const satisfies Record<RefusalCode, string>;
 
+export const NOT_FOUND = "Not found";
+
+export const REFUSED_HOST = "url: the host is not globally reachable";
+
+export const UPDATING =
+  "The library is being updated and takes no new link yet. Try again in a minute.";
+
 const WRONG_PASSWORD = "The password is wrong";
 
 const WRONG_RESET_CODE = "The reset code is wrong";
 
 export const PASSWORD_RULE = `The password is shorter than ${PASSWORD_MIN} or longer than ${groupedNumber(PASSWORD_MAX)} characters.`;
+
+export function notFound(c: Context) {
+  return c.json({ error: NOT_FOUND }, 404);
+}
 
 export function locked(c: Context, retryAfter: number) {
   c.header("Retry-After", String(retryAfter));

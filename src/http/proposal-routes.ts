@@ -12,8 +12,8 @@ import {
   RejectedSchema,
 } from "../core/proposal-contract.ts";
 import { readProposalPage, rejectProposal } from "../core/proposal-page.ts";
-import { NOT_FOUND } from "./item-routes.ts";
 import { jsonBody } from "./openapi.ts";
+import { NOT_FOUND } from "./refusals.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
 const listProposalsRoute = createRoute({

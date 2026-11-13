@@ -2,9 +2,9 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import type { Ports } from "../core/ports.ts";
 import { setReadState } from "../core/read-state.ts";
-import { NOT_FOUND } from "./item-routes.ts";
 import { itemView } from "./item-view.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
+import { notFound } from "./refusals.ts";
 import {
   ErrorResponseSchema,
   IdParamSchema,
@@ -34,8 +34,6 @@ export function registerReadStateRoute(app: OpenAPIHono, ports: Ports): void {
       c.req.valid("json").readState,
     );
 
-    return item === undefined
-      ? c.json({ error: NOT_FOUND }, 404)
-      : c.json({ item: itemView(item) }, 200);
+    return item === undefined ? notFound(c) : c.json({ item: itemView(item) }, 200);
   });
 }
