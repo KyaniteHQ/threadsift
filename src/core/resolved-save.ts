@@ -1,5 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
+import { guardHolds, guards, insertGuard } from "./guards.ts";
 import { LISTED_COLUMNS, selectItems } from "./item-selection.ts";
 import {
   type Existing,
@@ -12,7 +13,7 @@ import {
 import { enqueueRows } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Ports } from "./ports.ts";
-import { guardHolds, guards, insertGuard, items } from "./schema.ts";
+import { items } from "./schema.ts";
 import {
   holdsNoRival,
   promoteFailedItem,

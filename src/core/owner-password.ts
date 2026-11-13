@@ -1,10 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 
 import { digestOf } from "./encoding.ts";
+import { guardedBatch } from "./guards.ts";
 import { passwordHashIs, passwordHashOf, verifyOwnerPassword } from "./owner.ts";
 import { type PasswordProblem, hashPassword, passwordLength } from "./passwords.ts";
 import type { Database, Ports } from "./ports.ts";
-import { guardedBatch, owner, spentResetCodes, throttles } from "./schema.ts";
+import { owner, spentResetCodes, throttles } from "./schema.ts";
 import {
   type StartedSession,
   endAllSessions,

@@ -1,11 +1,12 @@
 import { eq, sql } from "drizzle-orm";
 
+import { guardHolds, guardedWrite } from "./guards.ts";
 import { anchoredOutcome } from "./highlight-publish.ts";
 import type { AnchoredOutcome } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
 import { awaitsThread } from "./reddit-thread.ts";
-import { guardHolds, guardedWrite, items } from "./schema.ts";
+import { items } from "./schema.ts";
 import { type ThreadPlace, threadItemInsert, threadPublication } from "./thread-publish.ts";
 
 async function commit(

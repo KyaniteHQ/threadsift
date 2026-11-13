@@ -1,5 +1,6 @@
 import { redditJsonOfArchive } from "./archive-adapter.ts";
 import { type FetchPolicy, type GuardOutcome, guardedFetch } from "./fetch-guard.ts";
+import { guardHolds } from "./guards.ts";
 import { ITEM_REQUEST_BYTES } from "./limits.ts";
 import type { RedditRef } from "./links.ts";
 import { pause } from "./pause.ts";
@@ -7,7 +8,6 @@ import type { Network, Ports } from "./ports.ts";
 import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
 import { archiveFillIsOn } from "./reddit-settings.ts";
 import { noThreadFor } from "./reddit-thread.ts";
-import { guardHolds } from "./schema.ts";
 
 export interface ArchivedThread {
   readonly thread: ParsedThread;
