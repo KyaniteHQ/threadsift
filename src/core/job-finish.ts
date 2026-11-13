@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { databaseCodeOf, logFailure } from "./failure-log.ts";
+import { databaseCodeOf, logFailure, report } from "./failure-log.ts";
 import { namedKeys } from "./file-cleanup.ts";
 import { closeJob } from "./job-close.ts";
 import {
@@ -31,7 +31,7 @@ function writeWhileHolding(
 }
 
 function logClaimLost(job: Readonly<Pick<JobRow, "id" | "attempts">>): void {
-  console.warn(JSON.stringify({ event: "job-claim-lost", jobId: job.id, attempt: job.attempts }));
+  report("job-claim-lost", { jobId: job.id, attempt: job.attempts });
 }
 
 async function deleteQuietly(

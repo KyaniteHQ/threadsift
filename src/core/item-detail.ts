@@ -1,5 +1,6 @@
 import { type ReaderDigest, parseStoredDigest } from "./ai-contract.ts";
 import { detailReads } from "./detail-reads.ts";
+import { logFailure } from "./failure-log.ts";
 import { highlightsViewOf } from "./highlights.ts";
 import { noteViewOf } from "./notes.ts";
 import type { Ports } from "./ports.ts";
@@ -18,7 +19,7 @@ function readerDigest(
 
     return { summary, keyPoints, tags: tagNames };
   } catch (error) {
-    console.error(`Digest of Item ${id} is not readable`, error);
+    logFailure("item-digest-unreadable", { itemId: id }, error);
 
     return null;
   }

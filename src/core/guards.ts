@@ -40,10 +40,9 @@ export async function guardHolds(db: Database, condition: Readonly<SQLWrapper>):
 
 const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)/u;
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction, and this function reduces it to whether a guard check failed.
-export function refusedByGuard(error: unknown): boolean {
-  for (let cause = error; cause instanceof Error; cause = cause.cause) {
-    if (GUARD_REFUSED.test(cause.message)) return true;
+export function refusedByGuard(cause: unknown): boolean {
+  for (let current = cause; current instanceof Error; current = current.cause) {
+    if (GUARD_REFUSED.test(current.message)) return true;
   }
 
   return false;
@@ -52,10 +51,9 @@ export function refusedByGuard(error: unknown): boolean {
 async function rethrowUnlessRefused(
   db: Database,
   condition: Readonly<SQLWrapper>,
-  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction.
-  error: unknown,
+  cause: unknown,
 ): Promise<void> {
-  if (!refusedByGuard(error) || (await guardHolds(db, condition))) throw error;
+  if (!refusedByGuard(cause) || (await guardHolds(db, condition))) throw cause;
 }
 
 export async function guardedResults(

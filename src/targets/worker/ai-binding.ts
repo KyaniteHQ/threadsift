@@ -43,14 +43,13 @@ const REFUSALS = new Map<string, "model-not-found" | "timeout" | "provider-busy"
   ["3036", "provider-busy"],
 ]);
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction, and this function reduces it to a refusal.
-function refusalOf(error: unknown) {
-  const message = error instanceof Error ? error.message : "";
+function refusalOf(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : "";
   const code = UPSTREAM_CODE.exec(message)?.groups?.["code"] ?? "";
   const refusal = REFUSALS.get(code);
 
   if (refusal === undefined)
-    logFailure("ai-binding-unmapped", { code: code === "" ? "none" : code }, error);
+    logFailure("ai-binding-unmapped", { code: code === "" ? "none" : code }, cause);
 
   return refusedAi(refusal ?? "unreachable");
 }

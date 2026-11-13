@@ -10,7 +10,7 @@ import {
   cutDigestInput,
   digestPrompt,
 } from "./digest-prompt.ts";
-import { logFailure } from "./failure-log.ts";
+import { logFailure, report } from "./failure-log.ts";
 import {
   type ClaimedJob,
   type JobCurrency,
@@ -197,15 +197,12 @@ export function logSubmission(
   item: Readonly<DigestInput>,
   counts: Readonly<CommentCounts>,
 ): void {
-  console.warn(
-    JSON.stringify({
-      event: "digest-comments-submitted",
-      taskId,
-      itemId: item.id,
-      generation: item.generation,
-      ...counts,
-    }),
-  );
+  report("digest-comments-submitted", {
+    taskId,
+    itemId: item.id,
+    generation: item.generation,
+    ...counts,
+  });
 }
 
 export function refusedInput(
@@ -215,14 +212,11 @@ export function refusedInput(
 ): JobOutcome {
   const generation = generationCurrent(item);
 
-  console.warn(
-    JSON.stringify({
-      event: "digest-input-refused",
-      itemId: item.id,
-      reason: "fixed-metadata-over-cap",
-      fixedBytes,
-    }),
-  );
+  report("digest-input-refused", {
+    itemId: item.id,
+    reason: "fixed-metadata-over-cap",
+    fixedBytes,
+  });
 
   return {
     currency: currency(db, generation, null),

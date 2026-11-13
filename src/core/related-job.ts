@@ -1,5 +1,6 @@
 import { AI_DEADLINE_MS } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
+import { report } from "./failure-log.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { type PickItem, type PickRead, pickPrompt, readPick } from "./related-input.ts";
@@ -18,14 +19,7 @@ function logRefused(
   { source, candidates }: Readonly<ReadyPick>,
   reason: "source-over-cap" | "none-fit",
 ): void {
-  console.warn(
-    JSON.stringify({
-      event: "related-input-refused",
-      itemId: source.id,
-      reason,
-      candidates: candidates.length,
-    }),
-  );
+  report("related-input-refused", { itemId: source.id, reason, candidates: candidates.length });
 }
 
 async function asking(

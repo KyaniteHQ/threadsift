@@ -1,8 +1,8 @@
 import { and, asc, count, eq, gt, inArray, min } from "drizzle-orm";
 
 import type { Advance } from "./data-step-contract.ts";
-import { dropStaged, report } from "./data-step-support.ts";
-import { dataStepRenames } from "./data-step-tables.ts";
+import { dataStepRenames, dropStaged } from "./data-step-tables.ts";
+import { report } from "./failure-log.ts";
 import { STEP } from "./item-identity-staging.ts";
 import type { Database } from "./ports.ts";
 import { items } from "./schema.ts";
