@@ -43,7 +43,16 @@ export const ROUTINE_PATHS = [
   join("routines", "threadsift-bookmarks.md"),
 ];
 
-export const DOC_PATHS = [SKILL_PATH, "setup.md", "update.md", "profile.md", ...ROUTINE_PATHS];
+export const DOC_PATHS = [
+  SKILL_PATH,
+  "README.md",
+  "setup.md",
+  "update.md",
+  "profile.md",
+  ...ROUTINE_PATHS,
+];
+
+export const LOCAL_COMMANDS = ["mark", "write", "append", "bookmarks-get", "bookmarks-set"];
 
 export const scriptText = (): string => botFile(join("scripts", "threadsift.sh")).text;
 

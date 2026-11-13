@@ -88,7 +88,7 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
     assert.equal(release("refresh").status, 0);
   });
 
-  it("bumps VERSION, writes the tag and the hash into SKILL.md, and fails when VERSION and the tag differ", () => {
+  it("bumps VERSION, writes the tag and the hash into SKILL.md, refreshes the files of a release whose tag does not exist yet, and fails when VERSION and the tag differ", () => {
     const version = Number(readFileSync(join(copy, "bot", "VERSION"), "utf8"));
     const released = release("release");
 
@@ -97,6 +97,11 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
       readFileSync(skillPath(), "utf8"),
       new RegExp(`TAG=bot-v${String(version + 1)} SUMS_SHA256=[0-9a-f]{64}`, "u"),
     );
+    assert.equal(release("check").status, 0);
+
+    appendFileSync(join(copy, "bot", "setup.md"), "A change before the tag exists.\n");
+    assert.equal(release("check").status, 1);
+    assert.equal(release("refresh").status, 0);
     assert.equal(release("check").status, 0);
 
     writeFileSync(join(copy, "bot", "VERSION"), "99\n");
