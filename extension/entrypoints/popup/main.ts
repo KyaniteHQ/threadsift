@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 
 import { applyLook, element } from "../../lib/page-look.ts";
-import { SAVE_PORT, type SaveState, SaveStateSchema } from "../../lib/state.ts";
+import { SAVE_PORT, type SaveState, SaveStateSchema, ask } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
 
 type Failure = Exclude<SaveState["kind"], "saving" | "saved">;
@@ -58,7 +58,7 @@ function actions(state: Readonly<SaveState>): HTMLElement[] {
 
   return NEEDS_SETTINGS.has(state.kind)
     ? [button(TEXT.openSettings, () => void browser.runtime.openOptionsPage())]
-    : [button(TEXT.tryAgain, save)];
+    : [button(TEXT.tryAgain, () => void save())];
 }
 
 function messageOf(state: Readonly<SaveState>): HTMLParagraphElement {
@@ -77,23 +77,16 @@ function show(state: Readonly<SaveState>): void {
   );
 }
 
-function save(): void {
+async function save(): Promise<void> {
   show({ kind: "saving" });
 
-  const port = browser.runtime.connect({ name: SAVE_PORT });
-
-  port.onMessage.addListener((message) => {
-    const state = SaveStateSchema.safeParse(message);
-
-    show(state.success ? state.data : { kind: "failed" });
-    port.disconnect();
-  });
-
-  port.onDisconnect.addListener(() => {
+  try {
+    show(await ask(SAVE_PORT, SaveStateSchema));
+  } catch {
     show({ kind: "failed" });
-  });
+  }
 }
 
 applyLook();
 
-save();
+void save();

@@ -1,16 +1,29 @@
 import { browser } from "wxt/browser";
 
-import {
-  REDDIT_HOSTS,
-  hostPattern,
-  instanceOrigin,
-  storeConfig,
-  storeOrigin,
-} from "../../lib/config.ts";
-import { hasRedditAccess } from "../../lib/fill-script.ts";
+import { type FillState, loadFill, turnFill } from "../../lib/fill-setting.ts";
 import { applyLook, element } from "../../lib/page-look.ts";
-import { CONFIG_PORT, type ConfigView, ConfigViewSchema } from "../../lib/state.ts";
+import {
+  type Failure,
+  type Refusal,
+  type SettingsState,
+  loadSettings,
+  saveSettings,
+} from "../../lib/settings.ts";
+import type { ConfigView } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
+
+type Tone = "ok" | "warn" | "plain";
+
+const REFUSAL_TEXT: Readonly<Record<Refusal, string>> = {
+  address: TEXT.addressInvalid,
+  token: TEXT.tokenMissing,
+  access: TEXT.accessDenied,
+};
+
+const FAILURE_TEXT: Readonly<Record<Failure, string>> = {
+  "not-saved": TEXT.settingsNotSaved,
+  "old-access-kept": TEXT.oldAccessKept,
+};
 
 const root = document.querySelector("#root");
 
@@ -20,28 +33,13 @@ const address = element("input", { id: "address", type: "url", autocomplete: "of
 const token = element("input", { id: "token", type: "password", autocomplete: "off" });
 const tokenHint = element("p", { class: "ext-hint" }, TEXT.tokenHint);
 const result = element("p", { class: "ext-status", role: "status" });
+const saveButton = element("button", { type: "submit", class: "btn btn-acc" }, TEXT.saveSettings);
 
 const fillStatus = element("p", { class: "ext-status", "aria-live": "polite" });
-const fillButton = element("button", { type: "button", class: "btn btn-acc" });
-let fillOn = await hasRedditAccess();
+const fillButton = element("button", { type: "button", class: "btn btn-acc" }, TEXT.fillTurnOn);
 
-function requestView(): Promise<ConfigView> {
-  const port = browser.runtime.connect({ name: CONFIG_PORT });
-
-  return new Promise((resolve, reject) => {
-    port.onMessage.addListener((message) => {
-      const view = ConfigViewSchema.safeParse(message);
-      port.disconnect();
-
-      if (view.success) resolve(view.data);
-      else reject(new Error("the background worker sent an unreadable settings view"));
-    });
-
-    port.onDisconnect.addListener(() => {
-      reject(new Error("the background worker closed the settings port"));
-    });
-  });
-}
+let settings: SettingsState = { kind: "loading" };
+let fill: FillState = { kind: "loading" };
 
 function field(label: string, input: HTMLElement, hint: HTMLElement): HTMLDivElement {
   return element(
@@ -53,87 +51,139 @@ function field(label: string, input: HTMLElement, hint: HTMLElement): HTMLDivEle
   );
 }
 
-function report(text: string, tone: "ok" | "warn"): void {
-  result.textContent = text;
-  result.dataset["tone"] = tone;
+function say(target: HTMLElement, text: string, tone: Tone): void {
+  target.textContent = text;
+  target.dataset["tone"] = tone;
 }
 
-function show({ origin, hasToken }: Readonly<ConfigView>): void {
+function showStored({ origin, hasToken }: Readonly<ConfigView>): void {
   address.value = origin ?? "";
   token.value = "";
   tokenHint.textContent = hasToken ? TEXT.tokenKept : TEXT.tokenHint;
 }
 
-let view = await requestView();
+function renderSettings(state: Readonly<SettingsState>): void {
+  saveButton.disabled = state.kind === "loading" || state.kind === "unreadable";
 
-async function saveSettings(): Promise<void> {
-  const origin = instanceOrigin(address.value);
-  const secret = token.value.trim();
+  switch (state.kind) {
+    case "loading":
+      say(result, "", "plain");
+      break;
+    case "unreadable":
+      say(result, TEXT.settingsUnreadable, "warn");
+      break;
+    case "idle":
+      showStored(state.stored);
+      say(result, "", "plain");
+      break;
+    case "saving":
+      saveButton.disabled = true;
+      say(result, TEXT.saving, "plain");
+      break;
+    case "saved":
+      showStored(state.stored);
+      say(result, TEXT.settingsSaved, "ok");
+      break;
+    case "refused":
+      say(result, REFUSAL_TEXT[state.reason], "warn");
+      break;
+    case "failed":
+      showStored(state.stored);
+      say(result, FAILURE_TEXT[state.step], "warn");
+      break;
+    default: {
+      const exhaustive: never = state;
 
-  if (origin === null) {
-    report(TEXT.addressInvalid, "warn");
-
-    return;
+      return exhaustive;
+    }
   }
-
-  if (secret === "" && !view.hasToken) {
-    report(TEXT.tokenMissing, "warn");
-
-    return;
-  }
-
-  const pattern = hostPattern(origin);
-
-  if (!(await browser.permissions.request({ origins: [pattern] }))) {
-    report(TEXT.accessDenied, "warn");
-
-    return;
-  }
-
-  if (secret === "") await storeOrigin(origin);
-  else await storeConfig({ origin, token: secret });
-
-  if (view.origin !== null && hostPattern(view.origin) !== pattern) {
-    await browser.permissions.remove({ origins: [hostPattern(view.origin)] });
-  }
-
-  view = { origin, hasToken: true };
-  show(view);
-  report(TEXT.settingsSaved, "ok");
 }
 
-function showFill(): void {
-  fillStatus.textContent = fillOn ? TEXT.fillIsOn : TEXT.fillIsOff;
-  fillStatus.dataset["tone"] = fillOn ? "ok" : "plain";
-  fillButton.textContent = fillOn ? TEXT.fillTurnOff : TEXT.fillTurnOn;
+function moveSettings(next: SettingsState): void {
+  settings = next;
+  renderSettings(next);
 }
 
-async function turnFill(): Promise<void> {
-  if (fillOn) {
-    await browser.permissions.remove({ origins: REDDIT_HOSTS });
-  } else if (!(await browser.permissions.request({ origins: REDDIT_HOSTS }))) {
-    fillStatus.textContent = TEXT.fillDenied;
-    fillStatus.dataset["tone"] = "warn";
+function renderFill(state: Readonly<FillState>): void {
+  fillButton.disabled =
+    state.kind === "loading" || state.kind === "unreadable" || state.kind === "working";
 
+  switch (state.kind) {
+    case "loading":
+      say(fillStatus, "", "plain");
+      break;
+    case "unreadable":
+      say(fillStatus, TEXT.settingsUnreadable, "warn");
+      break;
+    case "idle":
+    case "working":
+      fillButton.textContent = state.on ? TEXT.fillTurnOff : TEXT.fillTurnOn;
+      say(fillStatus, state.on ? TEXT.fillIsOn : TEXT.fillIsOff, state.on ? "ok" : "plain");
+      break;
+    case "denied":
+      fillButton.textContent = TEXT.fillTurnOn;
+      say(fillStatus, TEXT.fillDenied, "warn");
+      break;
+    case "failed":
+      fillButton.textContent = state.on ? TEXT.fillTurnOff : TEXT.fillTurnOn;
+      say(fillStatus, TEXT.fillFailed, "warn");
+      break;
+    default: {
+      const exhaustive: never = state;
+
+      return exhaustive;
+    }
+  }
+}
+
+function moveFill(next: FillState): void {
+  fill = next;
+  renderFill(next);
+}
+
+function submitSettings(): void {
+  const current = settings;
+
+  if (current.kind === "loading" || current.kind === "unreadable" || current.kind === "saving") {
     return;
   }
 
-  fillOn = await hasRedditAccess();
-  showFill();
+  moveSettings({ kind: "saving", stored: current.stored });
+
+  void saveSettings(current.stored, { address: address.value, token: token.value }).then(
+    moveSettings,
+  );
+}
+
+function pressFill(): void {
+  const current = fill;
+
+  if (current.kind === "loading" || current.kind === "unreadable" || current.kind === "working") {
+    return;
+  }
+
+  moveFill({ kind: "working", on: current.on });
+
+  void turnFill(current.on).then(moveFill);
+}
+
+function isTurningFill(): boolean {
+  return fill.kind === "working";
 }
 
 async function followGrant(): Promise<void> {
-  fillOn = await hasRedditAccess();
-  showFill();
+  if (isTurningFill()) return;
+
+  const next = await loadFill();
+
+  if (!isTurningFill()) moveFill(next);
 }
 
 browser.permissions.onAdded.addListener(() => void followGrant());
 
 browser.permissions.onRemoved.addListener(() => void followGrant());
 
-fillButton.addEventListener("click", () => {
-  void turnFill();
-});
+fillButton.addEventListener("click", pressFill);
 
 const fillSection = element(
   "section",
@@ -149,23 +199,25 @@ const form = element(
   { class: "ext-form" },
   field(TEXT.addressLabel, address, element("p", { class: "ext-hint" }, TEXT.addressHint)),
   field(TEXT.tokenLabel, token, tokenHint),
-  element(
-    "div",
-    { class: "ext-actions" },
-    element("button", { type: "submit", class: "btn btn-acc" }, TEXT.saveSettings),
-  ),
+  element("div", { class: "ext-actions" }, saveButton),
   result,
 );
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  void saveSettings();
+  submitSettings();
 });
 
 applyLook();
 
-show(view);
+renderSettings(settings);
 
-showFill();
+renderFill(fill);
 
 root.append(element("h1", {}, TEXT.settingsTitle), form, fillSection);
+
+const [loadedSettings, loadedFill] = await Promise.all([loadSettings(), loadFill()]);
+
+moveSettings(loadedSettings);
+
+moveFill(loadedFill);

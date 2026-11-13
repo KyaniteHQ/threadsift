@@ -13,9 +13,9 @@ import type { ThreadAnswers } from "../../src/core/thread-answers.ts";
 import { resultInTab } from "./tab-result.ts";
 import { type ThreadBody, fitThreadBody } from "./thread-body.ts";
 
-export const REQUEST_SPACING_MS = 500;
+const REQUEST_SPACING_MS = 500;
 
-export const FILL_DEADLINE_MS = 150_000;
+const FILL_DEADLINE_MS = 150_000;
 
 const REQUEST_DEADLINE_MS = 15_000;
 
@@ -163,7 +163,7 @@ function stopped(signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true;
 }
 
-export interface ThreadRead {
+interface ThreadRead {
   readonly fill?: true;
   readonly signal?: AbortSignal;
 }

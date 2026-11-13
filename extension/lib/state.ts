@@ -1,3 +1,4 @@
+import { browser } from "wxt/browser";
 import { z } from "zod";
 
 export const SaveStateSchema = z.discriminatedUnion("kind", [
@@ -28,3 +29,24 @@ export const FILL_PORT = "fill";
 export const ConfigViewSchema = z.object({ origin: z.string().nullable(), hasToken: z.boolean() });
 
 export type ConfigView = z.infer<typeof ConfigViewSchema>;
+
+export function ask<Schema extends z.ZodType>(
+  name: string,
+  schema: Schema,
+): Promise<z.output<Schema>> {
+  const port = browser.runtime.connect({ name });
+
+  return new Promise((resolve, reject) => {
+    port.onMessage.addListener((message) => {
+      const answer = schema.safeParse(message);
+      port.disconnect();
+
+      if (answer.success) resolve(answer.data);
+      else reject(new Error(`the background worker sent an unreadable "${name}" answer`));
+    });
+
+    port.onDisconnect.addListener(() => {
+      reject(new Error(`the background worker closed the "${name}" port`));
+    });
+  });
+}
