@@ -41,8 +41,8 @@ export async function guardHolds(db: Database, condition: Readonly<SQLWrapper>):
 const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)/u;
 
 export function refusedByGuard(cause: unknown): boolean {
-  for (let current = cause; current instanceof Error; current = current.cause) {
-    if (GUARD_REFUSED.test(current.message)) return true;
+  for (let link = cause; link instanceof Error; link = link.cause) {
+    if (GUARD_REFUSED.test(link.message)) return true;
   }
 
   return false;

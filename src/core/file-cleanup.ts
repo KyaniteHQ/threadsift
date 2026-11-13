@@ -1,13 +1,12 @@
 import { and, eq, exists, or, sql } from "drizzle-orm";
 
-import { ITEM_FILES_ROOT, attemptFileKeys, finalKeyOf, isSweptKey } from "./file-keys.ts";
+import { ITEM_FILES_ROOT, finalKeyOf, isSweptKey } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
+import { ATTEMPT_FILES } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { fileCleaning, items, jobs, media } from "./schema.ts";
 
 const CLEANUP_PAGE_KEYS = 100;
-
-const ATTEMPT_FILES = attemptFileKeys(jobs);
 
 function named(db: Database) {
   return or(
