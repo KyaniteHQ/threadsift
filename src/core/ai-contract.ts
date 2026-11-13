@@ -164,6 +164,7 @@ const HttpSettingsViewSchema = z.object({
   baseUrl: z.string(),
   model: z.string(),
   keySet: z.boolean(),
+  keyReadable: z.boolean(),
 });
 
 const KeylessSettingsViewSchema = z.object({

@@ -40,7 +40,7 @@ Before the first run, create the secret key once; this command stops without cha
 (set -Ceu; umask 077; key=$(openssl rand -hex 32); printf 'THREADSIFT_SECRET_KEY=%s\n' "$key" > "$HOME/threadsift.env")
 ```
 
-`THREADSIFT_SECRET_KEY` is 32 random bytes as 64 hex characters. The app encrypts the keys you save in Settings with it: a Provider's API key, the GitHub token and the Grok Bot key; without it, Settings cannot save an API key. Back up and reuse the file on every run, a rollback included. If the key changes or is lost, the app cannot read saved keys; a saved Provider API key works again only with the original key back.
+`THREADSIFT_SECRET_KEY` is 32 random bytes as 64 hex characters. The app encrypts the keys you save in Settings with it: a Provider's API key, the GitHub token and the Grok Bot key; without it, Settings cannot save an API key. Back up and reuse the file on every run, a rollback included. When `THREADSIFT_SECRET_KEY` changes or is lost, the app cannot read the keys it saved before. Put the original key back, which makes keys saved under it readable again; or, with a valid key set, save each key again in Settings, which replaces the unreadable one. A key saved under a replacement `THREADSIFT_SECRET_KEY` opens only with that replacement key; if the original key is put back, enter it again in Settings.
 
 Start the Instance:
 

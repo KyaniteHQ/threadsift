@@ -18,7 +18,12 @@ const PROVIDER_UNAVAILABLE = "This Instance does not offer that Provider";
 const readRoute = createRoute({
   method: "get",
   path: "/api/settings/ai",
-  responses: { 200: jsonBody(AiSettingsViewSchema, "Provider settings and whether a key is set.") },
+  responses: {
+    200: jsonBody(
+      AiSettingsViewSchema,
+      "Provider settings, whether a key is set, whether the Instance has a sealing key (`secretReady`) and whether that key opens the saved one (`keyReadable`).",
+    ),
+  },
 });
 
 const saveRoute = createRoute({

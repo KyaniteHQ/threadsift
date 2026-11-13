@@ -60,6 +60,10 @@ function needsSecret(provider: Provider): boolean {
   return provider !== "workers-ai" && !isCliProvider(provider);
 }
 
+function holdsUnreadableKey({ secretReady, settings }: Readonly<AiView>): boolean {
+  return secretReady && settings !== null && "keyReadable" in settings && !settings.keyReadable;
+}
+
 export function isSignedOut(view: AiView, provider: Provider): boolean {
   return isCliProvider(provider) && !view.signedIn.includes(provider);
 }
@@ -68,6 +72,7 @@ function useVerify(view: AiView, { run }: Readonly<Pick<AiPhase, "run">>) {
   const verifyBlocked =
     view.settings === null ||
     (needsSecret(view.settings.provider) && !view.secretReady) ||
+    holdsUnreadableKey(view) ||
     isSignedOut(view, view.settings.provider);
 
   const provider = view.settings?.provider;
@@ -87,13 +92,17 @@ function useVerify(view: AiView, { run }: Readonly<Pick<AiPhase, "run">>) {
   return { verifyNow, verifyBlocked };
 }
 
-export type SavedKey = "applies" | "changed" | "none";
+export type SavedKey = "applies" | "changed" | "unreadable" | "none";
 
 function savedKeyOf(
-  { settings }: Readonly<AiView>,
+  view: Readonly<AiView>,
   form: Readonly<{ provider: Provider; baseUrl: string; model: string }>,
 ): SavedKey {
+  const { settings } = view;
+
   if (settings === null || !("keySet" in settings) || !settings.keySet) return "none";
+
+  if (holdsUnreadableKey(view)) return "unreadable";
 
   const url =
     form.provider === "openai-compatible"

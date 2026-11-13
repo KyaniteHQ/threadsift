@@ -33,7 +33,7 @@ const startRoute = createRoute({
     ),
     503: jsonBody(
       ErrorResponseSchema,
-      "Connect is unavailable: the Instance has no public origin, no usable sealing key, or a stored key it cannot open. No attempt was recorded.",
+      "Connect is unavailable: the Instance has no public origin or no usable sealing key. No attempt was recorded.",
     ),
   },
 });
