@@ -14,12 +14,12 @@ export interface BotResult {
   readonly result: unknown;
 }
 
-export interface BotInstructions {
+interface BotInstructions {
   readonly instructions: string;
   readonly schema: z.core.JSONSchema.BaseSchema;
 }
 
-export type BotPreparation =
+type BotPreparation =
   | {
       readonly kind: "ask";
       readonly start: BotTaskStart;
@@ -27,7 +27,7 @@ export type BotPreparation =
     }
   | { readonly kind: "settled"; readonly outcome: JobOutcome };
 
-export type BotAnswer =
+type BotAnswer =
   | { readonly kind: "valid"; readonly normalized: string }
   | { readonly kind: "invalid"; readonly reasons: string };
 

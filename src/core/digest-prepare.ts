@@ -16,7 +16,7 @@ import type { Database } from "./ports.ts";
 
 type ReadyPrompt = Extract<DigestPrompt, { kind: "ready" }>;
 
-export type DigestPrepared =
+type DigestPrepared =
   | { readonly kind: "settled"; readonly outcome: JobOutcome }
   | {
       readonly kind: "ask";

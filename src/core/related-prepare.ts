@@ -6,7 +6,7 @@ import { closedOutcome, emptyOutcome, noDigestOutcome } from "./related-write.ts
 
 type ReadyPick = Extract<PickRead, { kind: "read" }>;
 
-export type RelatedPrepared =
+type RelatedPrepared =
   | { readonly kind: "settled"; readonly outcome: SettledOutcome }
   | {
       readonly kind: "ask";

@@ -17,7 +17,7 @@ export function utcDay(now: number): string {
   return new Date(now).toISOString().slice(0, 10);
 }
 
-export function nextUtcMidnight(now: number): number {
+function nextUtcMidnight(now: number): number {
   return (Math.floor(now / DAY_MS) + 1) * DAY_MS;
 }
 
@@ -33,7 +33,7 @@ export function budgetOf(limit: number | null, added: number, now: number): Toke
     : { kind: "spent", limit, added, until: nextUtcMidnight(now) };
 }
 
-export function spentUntilMidnight(now: number): BudgetSpent {
+function spentUntilMidnight(now: number): BudgetSpent {
   return { kind: BUDGET_SPENT, until: nextUtcMidnight(now) };
 }
 

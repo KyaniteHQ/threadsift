@@ -29,7 +29,7 @@ export interface BotTaskStart {
   readonly deadlineMs?: number;
 }
 
-export interface BotOwner {
+interface BotOwner {
   readonly claim: SQL | undefined;
   readonly jobId: number | null;
   readonly itemId: number | null;
@@ -55,7 +55,7 @@ export const VERIFY_OWNER: BotOwner = {
   places: GROK_BOT_IN_FLIGHT - GROK_BOT_WEEKLY_RESERVE,
 };
 
-export type BotStarted =
+type BotStarted =
   | {
       readonly kind: "started";
       readonly task: Readonly<Pick<BotTaskRow, "id" | "kind" | "inputs" | "context" | "deadline">>;

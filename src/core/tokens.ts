@@ -11,7 +11,7 @@ const TOKEN_BYTES = 32;
 const TOKEN_PREFIX = "tsa_";
 const LAST_USE_STEP_MS = 3_600_000;
 
-export type TokenSummary = Omit<AgentTokenRow, "digest" | "scopes" | "dailyBudget"> & {
+type TokenSummary = Omit<AgentTokenRow, "digest" | "scopes" | "dailyBudget"> & {
   readonly scopes: readonly Scope[];
   readonly budget: TokenBudget;
 };
@@ -109,7 +109,7 @@ export async function revokeToken(ports: Ports, id: number): Promise<boolean> {
   return revoked.length > 0;
 }
 
-export interface VerifiedToken {
+interface VerifiedToken {
   readonly id: number;
   readonly name: string;
   readonly scopes: readonly Scope[];

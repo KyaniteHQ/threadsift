@@ -253,13 +253,13 @@ export interface HttpAiConnection {
   readonly key: string;
 }
 
-export interface BindingAiConnection {
+interface BindingAiConnection {
   readonly kind: "binding";
   readonly provider: "workers-ai";
   readonly model: string;
 }
 
-export interface CliAiConnection {
+interface CliAiConnection {
   readonly kind: "cli";
   readonly provider: CliProvider;
   readonly model: string;

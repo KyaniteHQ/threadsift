@@ -7,7 +7,7 @@ import { report } from "./failure-log.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
 
-export type HopPage = LinkedPage | null;
+type HopPage = LinkedPage | null;
 
 export const DIGEST_DEADLINE_MS = AI_DEADLINE_MS + FETCH_DEADLINE_MS;
 

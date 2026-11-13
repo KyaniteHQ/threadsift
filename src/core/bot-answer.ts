@@ -30,7 +30,7 @@ export type AnswerOutcome =
   | { readonly kind: "closed" }
   | { readonly kind: "invalid"; readonly reasons: string };
 
-export type StoredAnswer =
+type StoredAnswer =
   | { readonly kind: "result"; readonly body: Readonly<BotResult> }
   | { readonly kind: "error"; readonly text: string };
 

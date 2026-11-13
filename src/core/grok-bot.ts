@@ -183,12 +183,12 @@ async function discarded(body: AsyncIterable<Uint8Array>): Promise<void> {
   }
 }
 
-export interface GrokBotPost {
+interface GrokBotPost {
   readonly result: GrokBotResult;
   readonly status: number | null;
 }
 
-export type GrokBotConnection =
+type GrokBotConnection =
   | { readonly kind: "ready"; readonly row: SavedRow; readonly key: string }
   | { readonly kind: "unready"; readonly reason: "secret-missing" | "not-configured" | "refused" };
 

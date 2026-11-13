@@ -25,7 +25,7 @@ export const TaskReadSchema = z.strictObject({
 
 type TaskRead = z.output<typeof TaskReadSchema>;
 
-export type TaskReading =
+type TaskReading =
   | { readonly kind: "open"; readonly task: TaskRead }
   | { readonly kind: "unsupported" }
   | { readonly kind: "closed" };
