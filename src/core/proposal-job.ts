@@ -13,7 +13,7 @@ import {
   proposalsTask,
 } from "./proposal-task.ts";
 import { proposals, tags, topics } from "./schema.ts";
-import { type WeeklyModelRun, weeklyModelHandler } from "./weekly-model-run.ts";
+import { type WeeklyModelRun, storedField, weeklyModelHandler } from "./weekly-model-run.ts";
 
 interface StoredRow {
   readonly from: number;
@@ -59,7 +59,7 @@ function storedRows(
   if (rows.length === 0) return [];
 
   const side = (own: MergeKind, path: "from" | "into") =>
-    kind === own ? sql`json_extract(stored.value, ${`$.${path}`})` : sql`null`;
+    kind === own ? storedField(path) : sql`null`;
 
   return [
     db
@@ -70,8 +70,8 @@ function storedRows(
             proposalRow(
               {
                 kind,
-                state: sql`json_extract(stored.value, '$.state')`,
-                reason: sql`json_extract(stored.value, '$.reason')`,
+                state: storedField("state"),
+                reason: storedField("reason"),
                 createdAt: Date.now(),
               },
               {

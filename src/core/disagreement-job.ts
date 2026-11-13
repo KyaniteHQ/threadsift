@@ -13,11 +13,9 @@ import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { proposalRow } from "./proposal-lifecycle.ts";
 import { proposals, topicChecks } from "./schema.ts";
-import { type WeeklyModelRun, weeklyModelHandler } from "./weekly-model-run.ts";
+import { type WeeklyModelRun, storedField, weeklyModelHandler } from "./weekly-model-run.ts";
 
 type Sent = readonly Readonly<SentTopic>[];
-
-const fieldOf = (path: string) => sql`json_extract(stored.value, ${`$.${path}`})`;
 
 function readMembers(sent: Sent): string {
   return JSON.stringify(sent.map(({ id, members }) => ({ topic: id, members })));
@@ -58,19 +56,19 @@ function storedPairs(db: Database, sent: Sent, result: Readonly<DisagreementsRes
               {
                 kind: "items-disagree",
                 state: sql`'open'`,
-                reason: fieldOf("reason"),
+                reason: storedField("reason"),
                 createdAt: Date.now(),
               },
               {
-                fromItemId: fieldOf("from"),
-                intoItemId: fieldOf("into"),
-                fromDigest: fieldOf("fromDigest"),
-                intoDigest: fieldOf("intoDigest"),
+                fromItemId: storedField("from"),
+                intoItemId: storedField("into"),
+                fromDigest: storedField("fromDigest"),
+                intoDigest: storedField("intoDigest"),
               },
             ),
           )
           .from(sql`json_each(${JSON.stringify(pairRows(sent, result))}) as stored`)
-          .where(sql`not ${pairPinned(fieldOf("from"), fieldOf("into"))}`),
+          .where(sql`not ${pairPinned(storedField("from"), storedField("into"))}`),
       )
       .onConflictDoNothing(),
   ];
@@ -83,8 +81,8 @@ function checkedTopics(db: Database, sent: Sent): JobWrites {
       .select(
         db
           .select({
-            topicId: sql<number>`json_extract(stored.value, '$.topic')`.as("topic_id"),
-            members: sql<string>`json_extract(stored.value, '$.members')`.as("members"),
+            topicId: storedField<number>("topic").as("topic_id"),
+            members: storedField<string>("members").as("members"),
             checkedAt: sql<number>`${Date.now()}`.as("checked_at"),
           })
           .from(sql`json_each(${readMembers(sent)}) as stored`)

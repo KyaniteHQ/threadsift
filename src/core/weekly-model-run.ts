@@ -30,6 +30,10 @@ export interface WeeklyModelRun<Sent, Result> {
   readonly stored: (db: Database, done: Readonly<{ sent: Sent; result: Result }>) => JobWrites;
 }
 
+export function storedField<Value = unknown>(path: string): SQL<Value> {
+  return sql<Value>`json_extract(stored.value, ${`$.${path}`})`;
+}
+
 export function storedOutcome<Sent, Result>(
   db: Database,
   run: Readonly<WeeklyModelRun<Sent, Result>>,
