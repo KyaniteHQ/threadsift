@@ -100,6 +100,6 @@ Write the query, on one line, with your file tool to `~/threadsift/tmp/query-<n>
 ## Setup and update
 For "set up threadsift" or a new owner's first conversation, follow `~/threadsift/setup.md`. For "update threadsift", follow `~/threadsift/update.md`. If the file or the script is missing, fetch the pinned release first with this exact line:
 ```bash
-TAG=unreleased SUMS_SHA256=bbb6fa22017ee271b58595f97ee81e6c705be377dd2f496b8f0aa7292accfdb0; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
+TAG=bot-v1 SUMS_SHA256=bbb6fa22017ee271b58595f97ee81e6c705be377dd2f496b8f0aa7292accfdb0; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
 ```
 If any check fails, delete what was fetched, tell the owner, and stop.
