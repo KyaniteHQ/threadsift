@@ -1,4 +1,4 @@
-import { eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, sql } from "drizzle-orm";
 
 import {
   GROK_BOT_PING_KIND,
@@ -46,14 +46,19 @@ const WRONG_KEY_STATUSES: ReadonlySet<number> = new Set([401, 403]);
 
 const NOT_FOUND = 404;
 
+export async function openedGrokBot(
+  secrets: GrokBotPorts["secrets"],
+  row: Readonly<SavedRow> | undefined,
+): Promise<Stored | null> {
+  if (row === undefined) return null;
+
+  return { row, key: secrets === null ? null : await secrets.open(row.sealedKey) };
+}
+
 async function loadStored(ports: Readonly<GrokBotPorts>): Promise<Stored | null> {
   const [row] = await ports.db.select().from(grokBotSettings).where(eq(grokBotSettings.id, 1));
 
-  if (row === undefined) return null;
-
-  const { secrets } = ports;
-
-  return { row, key: secrets === null ? null : await secrets.open(row.sealedKey) };
+  return openedGrokBot(ports.secrets, row);
 }
 
 function viewOf(secretReady: boolean, stored: Readonly<Stored> | null): GrokBotView {
@@ -130,10 +135,21 @@ export async function saveGrokBot(
   return saveGrokBot(ports, input, attemptsLeft - 1);
 }
 
-export async function removeGrokBot(ports: Readonly<GrokBotPorts>): Promise<GrokBotView> {
-  await ports.db.delete(grokBotSettings).where(eq(grokBotSettings.id, 1));
+export async function removeGrokBot(
+  ports: Readonly<GrokBotPorts>,
+): Promise<{ readonly kind: "removed"; readonly view: GrokBotView } | { readonly kind: "in-use" }> {
+  await ports.db
+    .delete(grokBotSettings)
+    .where(and(eq(grokBotSettings.id, 1), eq(grokBotSettings.useAsProvider, false)));
 
-  return viewOf(ports.secrets !== null, null);
+  const [kept] = await ports.db
+    .select({ id: grokBotSettings.id })
+    .from(grokBotSettings)
+    .where(eq(grokBotSettings.id, 1));
+
+  return kept === undefined
+    ? { kind: "removed", view: viewOf(ports.secrets !== null, null) }
+    : { kind: "in-use" };
 }
 
 export function resultOfStatus(status: number): GrokBotResult {
@@ -172,14 +188,15 @@ export interface GrokBotPost {
   readonly status: number | null;
 }
 
-type GrokBotConnection =
+export type GrokBotConnection =
   | { readonly kind: "ready"; readonly row: SavedRow; readonly key: string }
   | { readonly kind: "unready"; readonly reason: "secret-missing" | "not-configured" | "refused" };
 
-export async function grokBotConnection(ports: Readonly<GrokBotPorts>): Promise<GrokBotConnection> {
-  if (ports.secrets === null) return { kind: "unready", reason: "secret-missing" };
-
-  const stored = await loadStored(ports);
+export function connectionOf(
+  secrets: GrokBotPorts["secrets"],
+  stored: Readonly<Stored> | null,
+): GrokBotConnection {
+  if (secrets === null) return { kind: "unready", reason: "secret-missing" };
 
   if (stored === null) return { kind: "unready", reason: "not-configured" };
 
@@ -190,6 +207,10 @@ export async function grokBotConnection(ports: Readonly<GrokBotPorts>): Promise<
   if (!allowedGrokBotUrl(row.webhookUrl)) return { kind: "unready", reason: "refused" };
 
   return { kind: "ready", row, key };
+}
+
+export async function grokBotConnection(ports: Readonly<GrokBotPorts>): Promise<GrokBotConnection> {
+  return connectionOf(ports.secrets, await loadStored(ports));
 }
 
 export async function postToGrokBot(

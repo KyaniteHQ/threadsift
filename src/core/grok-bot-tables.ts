@@ -8,6 +8,7 @@ export const grokBotSettings = sqliteTable(
     webhookUrl: text("webhook_url").notNull(),
     sealedKey: text("sealed_key").notNull(),
     updatedAt: integer("updated_at").notNull(),
+    useAsProvider: integer("use_as_provider", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [check("grok_bot_settings_is_one_row", sql`${table.id} = 1`)],
 );

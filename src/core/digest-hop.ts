@@ -1,5 +1,5 @@
 import { AI_DEADLINE_MS } from "./ai-contract.ts";
-import { loadAiConfig } from "./ai-settings.ts";
+import { loadAiConfig } from "./ai-load.ts";
 import type { Fetched } from "./details.ts";
 import { type LinkedPage, cutDigestInput } from "./digest-prompt.ts";
 import { type DigestInput, staleOutcome } from "./digest-source.ts";
@@ -95,14 +95,18 @@ async function linkedPageOf(
     : { url: linkedUrl, title: found.title, text: cutDigestInput(found.text) };
 }
 
+async function aiCanRun(ports: JobPorts): Promise<boolean> {
+  const { state } = await loadAiConfig(ports);
+
+  return state === "ready" || state === "grok-bot";
+}
+
 export async function hoppedPage(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
   item: Readonly<DigestInput>,
 ): Promise<{ readonly page: HopPage } | { readonly outcome: JobOutcome }> {
-  if (item.linkedUrl === null || (await loadAiConfig(ports)).state !== "ready") {
-    return { page: null };
-  }
+  if (item.linkedUrl === null || !(await aiCanRun(ports))) return { page: null };
 
   const page = await linkedPageOf(ports, job, item);
   const stale = await staleOutcome(ports.db, item);

@@ -1,3 +1,5 @@
+import { GROK_BOT_FIRST } from "../../src/core/grok-bot-contract.ts";
+
 export const AI_TEXT = {
   "key-needed":
     "An API key is required on first save or after changing Provider, URL or model. Enter the API key and save again.",
@@ -17,6 +19,17 @@ export const AI_TEXT = {
   workersAi: "Workers AI",
   claudeCode: "Claude Code on this server",
   codex: "Codex on this server",
+  grokBot: "Grok Bot",
+  grokBotHelp:
+    "Grok Bot runs every AI task for the library. Nothing else on this form needs filling in.",
+  grokBotFirst: GROK_BOT_FIRST,
+  grokBotLink: "Grok Bot section",
+  grokBotKey:
+    "No API key is needed. Grok Bot uses the address and key saved in the Grok Bot section.",
+  verifyingBot: "Waiting for bot…",
+  botTimeout:
+    "The Grok Bot did not answer in 60 seconds. Check that the bot's routine is on and try Verify again.",
+  botBusy: "The Grok Bot answered with an error or is busy. Try Verify later.",
   workersAiHelp:
     "Workers AI runs on this Instance's Cloudflare account. No URL or API key is needed.",
   keyNotNeeded: "No API key needed for Workers AI.",

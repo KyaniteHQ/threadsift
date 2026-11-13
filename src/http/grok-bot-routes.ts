@@ -1,6 +1,8 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import {
+  GROK_BOT_IN_USE,
+  GrokBotInUseSchema,
   GrokBotInputSchema,
   GrokBotSaveResponseSchema,
   GrokBotTestSchema,
@@ -48,6 +50,10 @@ const removeRoute = createRoute({
       GrokBotViewSchema,
       "The settings after they are removed. Removing when none are set also succeeds.",
     ),
+    409: jsonBody(
+      GrokBotInUseSchema,
+      "Grok Bot is the Provider (`code: in-use`). Nothing is removed until another Provider is saved.",
+    ),
   },
 });
 
@@ -82,7 +88,13 @@ export function registerGrokBotRoutes(app: OpenAPIHono, ports: Ports): void {
       }
     }
   });
-  app.openapi(removeRoute, async (c) => c.json(await removeGrokBot(ports), 200));
+  app.openapi(removeRoute, async (c) => {
+    const removed = await removeGrokBot(ports);
+
+    return removed.kind === "removed"
+      ? c.json(removed.view, 200)
+      : c.json({ error: GROK_BOT_IN_USE, code: "in-use" } as const, 409);
+  });
   app.openapi(testRoute, async (c) =>
     c.json({ result: await pingGrokBot(ports, c.req.raw.signal) }, 200),
   );

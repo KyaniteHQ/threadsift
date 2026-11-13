@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm";
 
 import {
-  type PreparedSettings,
+  type PreparedSave,
   holdsSettings,
   prepareAiSettings,
-  upsertSettings,
+  providerWrites,
 } from "./ai-settings.ts";
 import { logFailure } from "./failure-log.ts";
 import { DATABASE_NOW, guardedBatch } from "./guards.ts";
@@ -35,15 +35,19 @@ async function committed(
   {
     sessionId,
     claimed,
-    row,
-  }: Readonly<{ sessionId: string; claimed: Claimed; row: Readonly<PreparedSettings> }>,
+    prepared,
+  }: Readonly<{
+    sessionId: string;
+    claimed: Claimed;
+    prepared: Readonly<PreparedSave>;
+  }>,
   extraWrites: () => JobWrites,
 ): Promise<boolean> {
   try {
     return await guardedBatch(
       ports.db,
       sql`${sessionIsLive(ports.crypto, sessionId, DATABASE_NOW)} and ${CURRENT_REVISION} = ${claimed.expectedRevision} and ${DATABASE_NOW} < ${claimed.expiresAt}`,
-      [upsertSettings(ports.db, row), ...extraWrites()],
+      [...providerWrites(ports.db, prepared), ...extraWrites()],
     );
   } catch (error) {
     logFailure("openrouter-connect-commit-failed", {}, error);
@@ -61,9 +65,7 @@ export async function saveConnectedKey(
 
   if (prepared === null || "kind" in prepared) return "possible-orphan";
 
-  const { row } = prepared;
+  if (await committed(ports, { sessionId, claimed, prepared }, extraWrites)) return "connected";
 
-  if (await committed(ports, { sessionId, claimed, row }, extraWrites)) return "connected";
-
-  return (await holdsSettings(ports.db, row)) ? "connected" : "possible-orphan";
+  return (await holdsSettings(ports.db, prepared.row)) ? "connected" : "possible-orphan";
 }

@@ -1,13 +1,14 @@
 import { botStep } from "../src/core/bot-step.ts";
 import { sendBotTask } from "../src/core/bot-task-send.ts";
-import { startBotTask } from "../src/core/bot-task-start.ts";
-import type { BotTaskRow } from "../src/core/bot-task-states.ts";
+import { ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
-import type { ClaimedJob } from "../src/core/job-outcome.ts";
+import { holding } from "../src/core/job-rows.ts";
 import { relatedBotKind } from "../src/core/related-bot.ts";
 import { openJob } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, until } from "./related-fixtures.ts";
+
+type ClaimedJob = Awaited<ReturnType<typeof openJob>>;
 
 export async function startedTask(
   instance: Instance,
@@ -20,7 +21,7 @@ export async function startedTask(
 
   if (prepared.kind !== "ask") throw new Error("the Related pick has nothing to ask");
 
-  const started = await startBotTask(instance.core, job, prepared.start);
+  const started = await startBotTask(instance.core, ownerOf(job), prepared.start);
 
   if (started.kind !== "started") throw new Error(`the task did not start: ${started.kind}`);
 
@@ -47,9 +48,15 @@ export async function settle(
 
 export function sendFor(
   instance: Instance,
-  { job, task, token }: Readonly<{ job: Readonly<ClaimedJob>; task: BotTaskRow; token: string }>,
+  {
+    job,
+    task,
+    token,
+  }: Readonly<
+    { job: Readonly<ClaimedJob> } & Pick<Parameters<typeof sendBotTask>[1], "task" | "token">
+  >,
 ) {
-  return sendBotTask(instance.core, { kind: relatedBotKind, job, task, token });
+  return sendBotTask(instance.core, { kind: relatedBotKind, claim: holding(job), task, token });
 }
 
 export function reclaimed(instance: Instance, job: Readonly<ClaimedJob>): void {

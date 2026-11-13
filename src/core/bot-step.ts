@@ -1,6 +1,8 @@
+import type { ModelAi } from "./ai-contract.ts";
+import { loadAiConfig } from "./ai-load.ts";
 import type { SentTaskKind } from "./bot-task-kind.ts";
 import { sendBotTask } from "./bot-task-send.ts";
-import { type BotTaskStart, startBotTask } from "./bot-task-start.ts";
+import { type BotTaskStart, ownerOf, startBotTask } from "./bot-task-start.ts";
 import {
   type BotTaskRow,
   chargedReport,
@@ -14,10 +16,13 @@ import { lostOutcome } from "./guarded-outcome.ts";
 import type {
   ClaimedJob,
   DeferredOutcome,
+  JobHandler,
   JobOutcome,
   JobPorts,
   JobWrites,
+  ModelHandler,
 } from "./job-outcome.ts";
+import { holding } from "./job-rows.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
 
@@ -30,7 +35,7 @@ function waiting(task: Waiting, writes: JobWrites = []): DeferredOutcome {
     deferredUntil: task.deadline,
     wait: "grok-bot",
     countsAttempt: false,
-    unlessAnswered: task.id,
+    unlessOpen: task.id,
     writes,
   };
 }
@@ -51,7 +56,8 @@ async function sentOutcome(
     release?: JobWrites;
   }>,
 ): Promise<JobOutcome> {
-  const sent = await sendBotTask(ports, context);
+  const { kind, job, task, token } = context;
+  const sent = await sendBotTask(ports, { kind, task, token, claim: holding(job) });
 
   if (sent.kind === "failed") throw new Error(`The Grok Bot send failed: ${sent.reason}`);
 
@@ -64,13 +70,21 @@ async function startedOutcome(
   {
     kind,
     start,
+    started: logStarted,
     release,
-  }: Readonly<{ kind: SentTaskKind; start: BotTaskStart; release: JobWrites }>,
+  }: Readonly<{
+    kind: SentTaskKind;
+    start: BotTaskStart;
+    started: ((taskId: number) => void) | undefined;
+    release: JobWrites;
+  }>,
 ): Promise<JobOutcome> {
-  const started = await startBotTask(ports, job, start);
+  const started = await startBotTask(ports, ownerOf(job), start);
 
   switch (started.kind) {
     case "started":
+      logStarted?.(started.task.id);
+
       return sentOutcome(ports, {
         kind,
         job,
@@ -107,7 +121,12 @@ async function startStep(
   const release = kind.release(ports.db, job);
 
   try {
-    return await startedOutcome(ports, job, { kind, start: prepared.start, release });
+    return await startedOutcome(ports, job, {
+      kind,
+      start: prepared.start,
+      started: prepared.started,
+      release,
+    });
   } catch (error) {
     await released(ports, release);
 
@@ -195,4 +214,24 @@ export async function botStep(
       return exhaustive;
     }
   }
+}
+
+export function onGrokBot<Rest extends readonly unknown[]>(
+  attempt: (
+    ports: JobPorts,
+    job: Readonly<ClaimedJob>,
+    ai: ModelAi,
+    ...rest: Rest
+  ) => Promise<JobOutcome>,
+  kind: SentTaskKind,
+) {
+  return async (ports: JobPorts, job: Readonly<ClaimedJob>, ...rest: Rest): Promise<JobOutcome> => {
+    const ai = await loadAiConfig(ports);
+
+    return ai.state === "grok-bot" ? botStep(ports, job, kind) : attempt(ports, job, ai, ...rest);
+  };
+}
+
+export function routedHandler(handler: ModelHandler, kind: SentTaskKind): JobHandler {
+  return { ...handler, attempt: onGrokBot(handler.attempt, kind) };
 }

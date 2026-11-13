@@ -12,7 +12,7 @@ const THIRD_SEND = 2;
 
 const ANSWER = '{"kept":true}';
 
-describe("a job that gives up fails the bot task it still waits on and keeps one that holds an answer", () => {
+describe("a job that gives up ends every bot task it still holds, the one that holds an answer included", () => {
   for (const { kind } of KIND_CASES) {
     it(kind, async () => {
       const instance = await botInstance();
@@ -55,10 +55,10 @@ describe("a job that gives up fails the bot task it still waits on and keeps one
         );
 
         const given = taskRow(instance, waiting);
-        const kept = taskRow(instance, answered);
+        const unapplied = taskRow(instance, answered);
 
         assert.deepEqual([given.state, given.refusal], ["failed", "timeout"]);
-        assert.deepEqual([kept.state, kept.result], ["running", ANSWER]);
+        assert.deepEqual([unapplied.state, unapplied.refusal], ["failed", "stale"]);
         assert.equal(jobRow(instance, job.id).state, "done");
       } finally {
         await instance.close();

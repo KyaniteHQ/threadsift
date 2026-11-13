@@ -1,8 +1,8 @@
-import { AI_DEADLINE_MS } from "./ai-contract.ts";
+import { AI_DEADLINE_MS, type ModelAi } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
 import { givenUpTasks } from "./bot-task-states.ts";
 import { lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
-import type { ClaimedJob, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobPorts, ModelHandler } from "./job-outcome.ts";
 import { releaseTopicLease } from "./topic-lease.ts";
 import { type OverviewPrepared, preparedOverview } from "./topic-overview-prepare.ts";
 import { overviewGaveUp, overviewRefused } from "./topic-overview-run.ts";
@@ -14,12 +14,15 @@ type Asked = Extract<OverviewPrepared, { kind: "ask" }>;
 async function reviseOverview(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
-  { lease, read, prompt }: Readonly<Asked>,
+  { ai, ...asked }: Readonly<{ ai: ModelAi } & Asked>,
 ): Promise<JobOutcome> {
   const { db } = ports;
 
+  const { lease, read, prompt } = asked;
+
   const result = await runAiTask(
     ports,
+    ai,
     topicOverviewTask(prompt),
     {
       text: prompt.input,
@@ -47,13 +50,17 @@ async function reviseOverview(
   return revisedOutcome(db, lease, { read, prompt, taskId: result.taskId, result: result.result });
 }
 
-async function attemptOverview(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
+async function attemptOverview(
+  ports: JobPorts,
+  job: Readonly<ClaimedJob>,
+  ai: ModelAi,
+): Promise<JobOutcome> {
   const prepared = await preparedOverview(ports.db, job);
 
   if (prepared.kind === "settled") return prepared.outcome;
 
   try {
-    return await reviseOverview(ports, job, prepared);
+    return await reviseOverview(ports, job, { ...prepared, ai });
   } catch (error) {
     await ports.db.batch([releaseTopicLease(ports.db, prepared.lease)]);
 
@@ -61,7 +68,7 @@ async function attemptOverview(ports: JobPorts, job: Readonly<ClaimedJob>): Prom
   }
 }
 
-export const topicOverviewHandler: JobHandler = {
+export const topicOverviewHandler: ModelHandler = {
   deadlineMs: AI_DEADLINE_MS,
   blockedBy: ["digest"],
   attempt: attemptOverview,

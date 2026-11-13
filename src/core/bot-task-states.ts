@@ -5,6 +5,7 @@ import { DATABASE_NOW, guardHolds, guardedBatch } from "./guards.ts";
 import { holding } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, aiTasks, jobs } from "./schema.ts";
+import { X_INTAKE_TASK } from "./x-intake-contract.ts";
 
 export const GROK_BOT_EXECUTOR = "grok-bot";
 
@@ -17,6 +18,8 @@ export type BotStep = "start" | "charge" | "apply" | "expire" | "resend" | "wait
 type Held = Readonly<Pick<JobRow, "id" | "attempts">>;
 
 const BOT_ERROR_REFUSAL = "provider-busy";
+
+const ABANDONED_REFUSAL = "abandoned";
 
 const ABANDONED_AFTER_MS = 24 * 60 * 60 * 1000;
 
@@ -110,17 +113,17 @@ export function mayExpire(now: number): SQL | undefined {
   );
 }
 
-export function sentTask(
+export async function sentTask(
   db: Database,
-  job: Readonly<Held>,
+  claim: SQL | undefined,
   { taskId, now }: Readonly<{ taskId: number; now: number }>,
-): Promise<boolean> {
-  return guardedBatch(db, holding(job), [
-    db
-      .update(aiTasks)
-      .set({ sentAt: now })
-      .where(and(eq(aiTasks.id, taskId), eq(aiTasks.state, "running"), isNull(aiTasks.sentAt))),
-  ]);
+): Promise<void> {
+  await db
+    .update(aiTasks)
+    .set({ sentAt: now })
+    .where(
+      and(eq(aiTasks.id, taskId), eq(aiTasks.state, "running"), isNull(aiTasks.sentAt), claim),
+    );
 }
 
 export async function renewedCredential(
@@ -234,8 +237,32 @@ export async function timedOutTask(
 export function givenUpTasks(db: Database, job: Readonly<Pick<JobRow, "id">>) {
   return db
     .update(aiTasks)
-    .set({ state: "failed", result: null, refusal: "timeout", status: null })
-    .where(
-      and(eq(aiTasks.jobId, job.id), eq(aiTasks.state, "running"), isNull(aiTasks.answeredAt)),
-    );
+    .set({
+      state: "failed",
+      result: null,
+      refusal: sql`case when ${aiTasks.answeredAt} is null then 'timeout' else 'stale' end`,
+      status: null,
+    })
+    .where(and(eq(aiTasks.jobId, job.id), eq(aiTasks.state, "running")));
+}
+
+export function abandonedTasks(db: Database, now: number): readonly BatchItem<"sqlite">[] {
+  const providerTasks = and(
+    eq(aiTasks.executor, GROK_BOT_EXECUTOR),
+    eq(aiTasks.state, "running"),
+    ne(aiTasks.kind, X_INTAKE_TASK),
+  );
+
+  return [
+    db
+      .update(aiTasks)
+      .set({ state: "failed", result: null, refusal: ABANDONED_REFUSAL, status: null })
+      .where(providerTasks),
+    db
+      .update(jobs)
+      .set({ nextAttemptAt: now })
+      .where(
+        and(eq(jobs.state, "queued"), eq(jobs.waitReason, "grok-bot"), ne(jobs.kind, "fetch")),
+      ),
+  ];
 }

@@ -78,6 +78,7 @@ export const PROVIDERS = {
     names: ["model"],
     fields: { model: CliModel },
   },
+  "grok-bot": { id: "grok-bot", label: "grokBot", url: null, names: [], fields: {} },
 } as const;
 
 export const HttpProviderSchema = z.enum([
@@ -100,10 +101,13 @@ export function isCliProvider(provider: string): provider is CliProvider {
   return CliProviderSchema.safeParse(provider).success;
 }
 
+export const GROK_BOT_PROVIDER = PROVIDERS["grok-bot"].id;
+
 export const ProviderSchema = z.enum([
   ...HttpProviderSchema.options,
   PROVIDERS["workers-ai"].id,
   ...CliProviderSchema.options,
+  GROK_BOT_PROVIDER,
 ]);
 
 export type Provider = z.infer<typeof ProviderSchema>;
@@ -123,6 +127,7 @@ export const AiSettingsInputSchema = z.discriminatedUnion("provider", [
     ...PROVIDERS["claude-code"].fields,
   }),
   z.object({ provider: z.literal(PROVIDERS.codex.id), ...PROVIDERS.codex.fields }),
+  z.object({ provider: z.literal(GROK_BOT_PROVIDER) }),
 ]);
 
 const AiExecutionRefusalSchema = z.enum([
@@ -168,7 +173,7 @@ const HttpSettingsViewSchema = z.object({
 });
 
 const KeylessSettingsViewSchema = z.object({
-  provider: z.enum([PROVIDERS["workers-ai"].id, ...CliProviderSchema.options]),
+  provider: z.enum([PROVIDERS["workers-ai"].id, ...CliProviderSchema.options, GROK_BOT_PROVIDER]),
   model: z.string(),
 });
 
@@ -198,6 +203,8 @@ export const VerifyResultSchema = z.discriminatedUnion("kind", [
 export type AiRefused = Extract<z.infer<typeof VerifyResultSchema>, { readonly kind: "refused" }>;
 
 export const AiSaveResponseSchema = z.union([AiSettingsViewSchema, AiRefusedSchema]);
+
+export type AiSaveResponse = z.infer<typeof AiSaveResponseSchema>;
 
 export function refusedAi<Reason extends AiRefusal>(
   reason: Reason,
@@ -233,6 +240,10 @@ export function retriesAi({ reason, status }: Readonly<AiRefused>): boolean {
 }
 
 export type AiConnection = HttpAiConnection | BindingAiConnection | CliAiConnection;
+
+export type ModelAi =
+  | { readonly state: "not-configured" | "secret-missing" }
+  | { readonly state: "ready"; readonly config: AiConnection };
 
 export interface HttpAiConnection {
   readonly kind: "http";

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  GROK_BOT_PROVIDER,
   PROVIDERS,
   HttpProviderSchema,
   type AiExecution,
@@ -54,6 +55,7 @@ export async function aiAndSecrets({
       ...HTTP_PROVIDERS,
       ...(binding === undefined ? [] : [PROVIDERS["workers-ai"].id]),
       ...cli.map(({ provider }) => provider),
+      GROK_BOT_PROVIDER,
     ],
     publicOnly,
     allowsUrl: (url) => allowedAiUrl(url, publicOnly),

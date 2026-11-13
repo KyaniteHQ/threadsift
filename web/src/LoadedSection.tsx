@@ -29,7 +29,7 @@ export function LoadedSection<View>({
   const { loaded, ready } = useLoaded(initial);
 
   return (
-    <section className="sec" aria-labelledby={`${id}-title`}>
+    <section id={id} className="sec" aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`} className="rd-h">
         {title}
       </h2>

@@ -1,3 +1,5 @@
+import type { SQL } from "drizzle-orm";
+
 import { type AiRefusal } from "./ai-contract.ts";
 import type { WebhookBody } from "./ai-task-read.ts";
 import { failedAiTask } from "./ai-tasks.ts";
@@ -6,12 +8,11 @@ import { sentTask } from "./bot-task-states.ts";
 import { report } from "./failure-log.ts";
 import type { GrokBotResult } from "./grok-bot-contract.ts";
 import { grokBotConnection, postToGrokBot } from "./grok-bot.ts";
-import type { ClaimedJob, JobPorts } from "./job-outcome.ts";
-import { holding } from "./job-rows.ts";
+import type { JobPorts } from "./job-outcome.ts";
 
 type SendPorts = Pick<JobPorts, "db" | "secrets" | "network">;
 
-type Sending = Readonly<{ job: Readonly<Pick<ClaimedJob, "id" | "attempts">>; taskId: number }>;
+type Sending = Readonly<{ claim: SQL | undefined; taskId: number }>;
 
 export type BotSend =
   | { readonly kind: "sent" }
@@ -31,7 +32,7 @@ const REFUSAL_OF_RESULT = {
 
 async function failedSend(
   ports: Readonly<SendPorts>,
-  { job, taskId }: Readonly<Sending>,
+  { claim, taskId }: Readonly<Sending>,
   failure: Readonly<{ result: Exclude<GrokBotResult, "ok">; status: number | null }>,
 ): Promise<BotSend> {
   const reason = REFUSAL_OF_RESULT[failure.result];
@@ -40,7 +41,7 @@ async function failedSend(
     ports.db,
     taskId,
     { reason, status: failure.status },
-    holding(job),
+    claim,
   ).returning();
 
   return failed === undefined
@@ -49,7 +50,7 @@ async function failedSend(
 }
 
 export function webhookBodyOf(
-  kind: SentTaskKind,
+  kind: Pick<SentTaskKind, "describe">,
   { task, token }: Readonly<{ task: SentTask; token: string }>,
 ): string | null {
   if (kind.describe(task.context ?? "") === null) return null;
@@ -69,15 +70,15 @@ export async function sendBotTask(
     kind,
     task,
     token,
-    job,
+    claim,
   }: Readonly<{
-    kind: SentTaskKind;
+    kind: Pick<SentTaskKind, "describe">;
     task: SentTask;
     token: string;
-    job: Readonly<Pick<ClaimedJob, "id" | "attempts">>;
+    claim: SQL | undefined;
   }>,
 ): Promise<BotSend> {
-  const sending = { job, taskId: task.id };
+  const sending = { claim, taskId: task.id };
   const body = webhookBodyOf(kind, { task, token });
 
   if (body === null) return failedSend(ports, sending, { result: "refused", status: null });
@@ -99,7 +100,7 @@ export async function sendBotTask(
   if (posted.result !== "ok")
     return failedSend(ports, sending, { ...posted, result: posted.result });
 
-  await sentTask(ports.db, job, { taskId: task.id, now: Date.now() });
+  await sentTask(ports.db, claim, { taskId: task.id, now: Date.now() });
 
   return { kind: "sent" };
 }
