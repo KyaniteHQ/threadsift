@@ -1,6 +1,8 @@
 import { exclusive, reconcileAccess } from "./access.ts";
 import { instanceOrigin, storeConfig, storeFill, storeOrigin } from "./config.ts";
+import { syncScripts } from "./content-scripts.ts";
 import { loadConfigView, stored } from "./credentials.ts";
+import { cancelFills } from "./fill.ts";
 import { logFailure } from "./log.ts";
 import type { ChangeAnswer, SettingsRequest } from "./state.ts";
 
@@ -42,8 +44,11 @@ async function tryWrite(request: Readonly<SettingsRequest>): Promise<ChangeAnswe
 
 export function changeSettings(request: Readonly<SettingsRequest>): Promise<ChangeAnswer> {
   return exclusive(async () => {
+    if (request.kind === "fill" && !request.on) cancelFills();
+
     const written = await tryWrite(request);
     const access = await reconcileAccess();
+    await syncScripts();
 
     return { stored: await loadConfigView(), write: written, access };
   });

@@ -56,6 +56,8 @@ const SCOPED_ROUTES: readonly ScopedRoute[] = [
   { method: "POST", path: /^\/api\/items\/[^/]+\/digest$/u, scope: "digest" },
   { method: "POST", path: /^\/api\/topics\/[^/]+\/overview$/u, scope: "digest" },
   { method: "DELETE", path: /^\/api\/items\/[^/]+$/u, scope: "delete" },
+  { method: "PUT", path: /^\/api\/reddit-account$/u, scope: "reddit" },
+  { method: "DELETE", path: /^\/api\/reddit-account$/u, scope: "reddit" },
 ];
 
 export function requiredScope(method: string, path: string): Scope | undefined {

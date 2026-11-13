@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { SCOPES, THROTTLE_KINDS } from "./kinds.ts";
+import { LEGACY_SCOPES, THROTTLE_KINDS } from "./kinds.ts";
 
 export const owner = sqliteTable(
   "owner",
@@ -29,7 +29,10 @@ export const agentTokens = sqliteTable("agent_tokens", {
   digest: text("digest").notNull().unique(),
   createdAt: integer("created_at").notNull(),
   lastUsedAt: integer("last_used_at"),
-  scopes: text("scopes", { mode: "json" }).$type<readonly string[]>().notNull().default(SCOPES),
+  scopes: text("scopes", { mode: "json" })
+    .$type<readonly string[]>()
+    .notNull()
+    .default(LEGACY_SCOPES),
   dailyBudget: integer("daily_budget"),
 });
 

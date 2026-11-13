@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import {
@@ -57,6 +58,7 @@ const TOKENS: readonly { readonly scopes?: string[]; readonly allowed: readonly 
   { scopes: ["read", "delete"], allowed: [...READ, "delete"] },
   { scopes: ["read", "add", "digest"], allowed: CALLS.filter((call) => call !== "delete") },
   { scopes: ALL, allowed: CALLS },
+  { scopes: ["read", "reddit"], allowed: READ },
 ];
 
 const link = (tag: string): string => `https://x.com/someone/status/${tag}`;
@@ -182,14 +184,15 @@ describe("an agent token calls only what its scopes allow", () => {
     await createAgentToken(instance, "listed default");
     await createAgentToken(instance, "listed two", ["read", "delete"]);
     await createAgentToken(instance, "listed digest", ["digest"]);
+    await createAgentToken(instance, "listed reddit", ["read", "reddit"]);
 
     const { tokens } = await instance.read("GET", "/api/tokens", TokenListResponseSchema);
 
     assert.deepEqual(
-      ["listed default", "listed two", "listed digest"].map(
+      ["listed default", "listed two", "listed digest", "listed reddit"].map(
         (name) => tokens.find((each) => each.name === name)?.scopes,
       ),
-      [["read", "add"], ["read", "delete"], ["digest"]],
+      [["read", "add"], ["read", "delete"], ["digest"], ["read", "reddit"]],
     );
   });
 });
@@ -226,5 +229,44 @@ describe("a token that existed before scopes keeps all four", () => {
     );
 
     assert.ok(CALLS.every((call) => statuses[call] !== 403));
+  });
+});
+
+describe("a token whose stored scopes name a scope this release does not know", () => {
+  let instance: Instance;
+
+  const store = (id: number, scopes: string): void => {
+    const database = new DatabaseSync(instance.databaseFile);
+
+    database.prepare("update agent_tokens set scopes = ? where id = ?").run(scopes, id);
+    database.close();
+  };
+
+  before(async () => {
+    instance = await Instance.start();
+    await instance.setUp();
+  });
+
+  after(() => instance.close());
+
+  it("keeps the scopes it knows, drops the others, and lists the same", async () => {
+    const { id, value } = await createAgentToken(instance, "from a later release");
+
+    store(id, JSON.stringify(["read", "add", "scope-of-a-later-release"]));
+
+    assert.equal((await instance.sendWithToken(value, "GET", "/api/items")).status, 200);
+    assert.equal((await instance.sendWithToken(value, "DELETE", "/api/items/1")).status, 403);
+
+    const { tokens } = await instance.read("GET", "/api/tokens", TokenListResponseSchema);
+
+    assert.deepEqual(tokens.find((each) => each.id === id)?.scopes, ["read", "add"]);
+  });
+
+  it("still fails closed when the stored scopes are not a list of names", async () => {
+    const { id, value } = await createAgentToken(instance, "unreadable scopes");
+
+    store(id, JSON.stringify({ read: true }));
+
+    assert.notEqual((await instance.sendWithToken(value, "GET", "/api/items")).status, 200);
   });
 });

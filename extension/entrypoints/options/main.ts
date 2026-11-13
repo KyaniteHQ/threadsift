@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 
 import { type FillState, loadFill, turnFill } from "../../lib/fill-setting.ts";
-import { applyLook, element } from "../../lib/page-look.ts";
+import { applyLook, element, say } from "../../lib/page-look.ts";
 import {
   type Failure,
   type Refusal,
@@ -11,8 +11,7 @@ import {
 } from "../../lib/settings.ts";
 import type { ConfigView } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
-
-type Tone = "ok" | "warn" | "plain";
+import { redditSection, refreshReddit } from "./reddit-section.ts";
 
 const REFUSAL_TEXT: Readonly<Record<Refusal, string>> = {
   address: TEXT.addressInvalid,
@@ -52,11 +51,6 @@ function field(label: string, input: HTMLElement, hint: HTMLElement): HTMLDivEle
     element("div", { class: "field" }, input),
     hint,
   );
-}
-
-function say(target: HTMLElement, text: string, tone: Tone): void {
-  target.textContent = text;
-  target.dataset["tone"] = tone;
 }
 
 function showStored({ origin, hasToken }: Readonly<ConfigView>): void {
@@ -152,6 +146,11 @@ function moveFill(next: FillState): void {
   renderFill(next);
 }
 
+function settled(next: SettingsState): void {
+  moveSettings(next);
+  void refreshReddit();
+}
+
 function submitSettings(): void {
   const current = settings;
 
@@ -161,9 +160,7 @@ function submitSettings(): void {
 
   moveSettings({ kind: "saving", stored: current.stored });
 
-  void saveSettings(current.stored, { address: address.value, token: token.value }).then(
-    moveSettings,
-  );
+  void saveSettings(current.stored, { address: address.value, token: token.value }).then(settled);
 }
 
 function pressFill(): void {
@@ -227,8 +224,10 @@ renderSettings(settings);
 
 renderFill(fill);
 
-root.append(element("h1", {}, TEXT.settingsTitle), form, fillSection);
+root.append(element("h1", {}, TEXT.settingsTitle), form, fillSection, redditSection);
 
 void followGrant();
+
+void refreshReddit();
 
 moveSettings(await loadSettings());

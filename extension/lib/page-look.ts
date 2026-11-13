@@ -20,3 +20,10 @@ export function element<Tag extends keyof HTMLElementTagNameMap>(
 
   return created;
 }
+
+export type Tone = "ok" | "warn" | "plain";
+
+export function say(target: HTMLElement, text: string, tone: Tone): void {
+  target.textContent = text;
+  target.dataset["tone"] = tone;
+}
