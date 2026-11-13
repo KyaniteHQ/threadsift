@@ -1,6 +1,7 @@
 import { eq, exists, sql } from "drizzle-orm";
 
 import {
+  GROK_BOT_PING_KIND,
   type GrokBotInput,
   type GrokBotResult,
   type GrokBotView,
@@ -37,7 +38,7 @@ const SAVE_ATTEMPTS = 5;
 
 const ANSWER_BYTES = 16 * 1024;
 
-const PING_BODY = JSON.stringify({ kind: "ping" });
+const PING_BODY = JSON.stringify({ kind: GROK_BOT_PING_KIND });
 
 const OK = 200;
 

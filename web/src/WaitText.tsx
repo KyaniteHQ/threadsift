@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 
+import type { Item } from "../../src/http/schemas.ts";
 import { useAfter } from "./use-form.ts";
 import { waitText } from "./wait-text.ts";
 
@@ -18,6 +19,6 @@ function useClock(until: number): number {
   return now;
 }
 
-export function WaitText({ retryAt }: Readonly<{ retryAt: number }>) {
-  return waitText(retryAt, useClock(retryAt));
+export function WaitText({ wait }: Readonly<{ wait: NonNullable<Item["wait"]> }>) {
+  return waitText(wait, useClock(wait.retryAt));
 }

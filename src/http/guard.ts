@@ -6,7 +6,13 @@ import { csrf } from "hono/csrf";
 import { BODY_LIMIT_BYTES, ITEM_REQUEST_BYTES, RESULT_BODY_BYTES } from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
 import { verifyToken } from "../core/tokens.ts";
-import { isOwnerOnly, isPublic, isTaskCallback, requiredScope } from "./access-rules.ts";
+import {
+  isIntakeCallback,
+  isOwnerOnly,
+  isPublic,
+  isTaskCallback,
+  requiredScope,
+} from "./access-rules.ts";
 import { ownerHasSession } from "./session-cookie.ts";
 import { requireScopes } from "./token-scopes.ts";
 
@@ -26,9 +32,11 @@ const resultCap = bodyLimit({
 });
 
 function capFor(method: string, path: string): MiddlewareHandler {
-  if (isTaskCallback(method, path)) return resultCap;
+  if (isIntakeCallback(method, path) || (method === "POST" && path === "/api/items")) {
+    return itemCap;
+  }
 
-  return method === "POST" && path === "/api/items" ? itemCap : bodyCap;
+  return isTaskCallback(method, path) ? resultCap : bodyCap;
 }
 
 const NOT_BEARER = "Authorization header is not a bearer token";

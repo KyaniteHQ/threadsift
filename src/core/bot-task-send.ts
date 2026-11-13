@@ -1,19 +1,15 @@
 import { type AiRefusal } from "./ai-contract.ts";
+import type { WebhookBody } from "./ai-task-read.ts";
 import { failedAiTask } from "./ai-tasks.ts";
-import type { BotTaskKind } from "./bot-task-kind.ts";
-import { type BotTaskRow, sentTask } from "./bot-task-states.ts";
-import { utf8Length } from "./digest-prompt.ts";
+import type { SentTask, SentTaskKind } from "./bot-task-kind.ts";
+import { sentTask } from "./bot-task-states.ts";
 import { report } from "./failure-log.ts";
 import type { GrokBotResult } from "./grok-bot-contract.ts";
 import { grokBotConnection, postToGrokBot } from "./grok-bot.ts";
 import type { ClaimedJob, JobPorts } from "./job-outcome.ts";
 import { holding } from "./job-rows.ts";
 
-const GROK_BOT_BODY_BYTES = 512 * 1024;
-
 type SendPorts = Pick<JobPorts, "db" | "secrets" | "network">;
-
-type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "inputs" | "context">>;
 
 type Sending = Readonly<{ job: Readonly<Pick<ClaimedJob, "id" | "attempts">>; taskId: number }>;
 
@@ -52,24 +48,19 @@ async function failedSend(
     : { kind: "failed", reason, status: failure.status };
 }
 
-function payloadOf(
-  kind: BotTaskKind,
+export function webhookBodyOf(
+  kind: SentTaskKind,
   { task, token }: Readonly<{ task: SentTask; token: string }>,
 ): string | null {
-  const described = kind.describe(task.context ?? "");
+  if (kind.describe(task.context ?? "") === null) return null;
 
-  if (described === null) return null;
-
-  const body = JSON.stringify({
+  const body: WebhookBody = {
     taskId: task.id,
     kind: task.kind,
-    instructions: described.instructions,
-    input: task.inputs,
-    schema: described.schema,
     callbackToken: token,
-  });
+  };
 
-  return utf8Length(body) > GROK_BOT_BODY_BYTES ? null : body;
+  return JSON.stringify(body);
 }
 
 export async function sendBotTask(
@@ -80,14 +71,14 @@ export async function sendBotTask(
     token,
     job,
   }: Readonly<{
-    kind: BotTaskKind;
+    kind: SentTaskKind;
     task: SentTask;
     token: string;
     job: Readonly<Pick<ClaimedJob, "id" | "attempts">>;
   }>,
 ): Promise<BotSend> {
   const sending = { job, taskId: task.id };
-  const body = payloadOf(kind, { task, token });
+  const body = webhookBodyOf(kind, { task, token });
 
   if (body === null) return failedSend(ports, sending, { result: "refused", status: null });
 

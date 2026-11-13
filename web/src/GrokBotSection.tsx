@@ -89,6 +89,7 @@ function GrokBotForm({
 
 const grokBotForm = (view: GrokBotView, changed: (view: GrokBotView) => void) => (
   <>
+    <p className="fld-help">{GROK_BOT_TEXT.xLinks}</p>
     <p className="fld-help">{GROK_BOT_TEXT.tokenPointer}</p>
     <GrokBotForm view={view} changed={changed} />
   </>

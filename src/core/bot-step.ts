@@ -1,5 +1,4 @@
-import { failedAiTask } from "./ai-tasks.ts";
-import { type BotTaskKind, reparsed } from "./bot-task-kind.ts";
+import type { SentTaskKind } from "./bot-task-kind.ts";
 import { sendBotTask } from "./bot-task-send.ts";
 import { type BotTaskStart, startBotTask } from "./bot-task-start.ts";
 import {
@@ -19,7 +18,6 @@ import type {
   JobPorts,
   JobWrites,
 } from "./job-outcome.ts";
-import { holding } from "./job-rows.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
 
@@ -46,7 +44,7 @@ async function released(ports: JobPorts, release: JobWrites): Promise<void> {
 async function sentOutcome(
   ports: JobPorts,
   context: Readonly<{
-    kind: BotTaskKind;
+    kind: SentTaskKind;
     job: Readonly<ClaimedJob>;
     task: SentTask;
     token: string;
@@ -67,7 +65,7 @@ async function startedOutcome(
     kind,
     start,
     release,
-  }: Readonly<{ kind: BotTaskKind; start: BotTaskStart; release: JobWrites }>,
+  }: Readonly<{ kind: SentTaskKind; start: BotTaskStart; release: JobWrites }>,
 ): Promise<JobOutcome> {
   const started = await startBotTask(ports, job, start);
 
@@ -100,7 +98,7 @@ async function startedOutcome(
 async function startStep(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
-  kind: BotTaskKind,
+  kind: SentTaskKind,
 ): Promise<JobOutcome> {
   const prepared = await kind.prepare(ports, job);
 
@@ -119,7 +117,7 @@ async function startStep(
 
 async function resendStep(
   ports: JobPorts,
-  context: Readonly<{ kind: BotTaskKind; job: Readonly<ClaimedJob>; task: SentTask }>,
+  context: Readonly<{ kind: SentTaskKind; job: Readonly<ClaimedJob>; task: SentTask }>,
 ): Promise<JobOutcome> {
   const { kind, job, task } = context;
   const credential = newCallbackCredential(ports.crypto);
@@ -142,24 +140,10 @@ async function resendStep(
   }
 }
 
-async function applyStep(
-  ports: JobPorts,
-  job: Readonly<ClaimedJob>,
-  { kind, task }: Readonly<{ kind: BotTaskKind; task: BotTaskRow }>,
-): Promise<JobOutcome> {
-  const parsed = reparsed(kind, task);
-
-  if (parsed.kind === "valid") return parsed.apply(ports, job, task);
-
-  await failedAiTask(ports.db, task.id, { reason: "no-json", status: null }, holding(job));
-
-  throw new Error("The Grok Bot answer no longer fits its task");
-}
-
 async function expireStep(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
-  { kind, task }: Readonly<{ kind: BotTaskKind; task: BotTaskRow }>,
+  { kind, task }: Readonly<{ kind: SentTaskKind; task: BotTaskRow }>,
 ): Promise<JobOutcome> {
   const timedOut = await timedOutTask(ports.db, job, { taskId: task.id, now: Date.now() });
 
@@ -181,7 +165,7 @@ async function expireStep(
 export async function botStep(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
-  kind: BotTaskKind,
+  kind: SentTaskKind,
 ): Promise<JobOutcome> {
   const task = await latestTask(ports.db, job.id);
   const step = stepOf(task, Date.now());
@@ -198,7 +182,7 @@ export async function botStep(
     case "wait":
       return waiting(task, kind.release(ports.db, job));
     case "apply":
-      return applyStep(ports, job, { kind, task });
+      return kind.apply(ports, job, task);
     case "expire":
       return expireStep(ports, job, { kind, task });
     case "charge":

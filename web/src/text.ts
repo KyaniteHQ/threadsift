@@ -1,7 +1,7 @@
 import type { FetchFailure } from "../../src/core/fetch-results.ts";
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import { groupedNumber } from "../../src/core/format.ts";
-import type { FailureReason, ReadState, Source } from "../../src/core/kinds.ts";
+import type { FailureReason, ReadState, Source, WaitReason } from "../../src/core/kinds.ts";
 
 export function filled(template: string, values: Readonly<Record<string, string>>): string {
   return Object.entries(values).reduce(
@@ -114,10 +114,26 @@ export const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
 };
 
 export const WAITING = {
-  title: "Waiting for GitHub",
-  until: "GitHub is limiting requests, so Threadsift will try again {when}.",
-  due: "GitHub is limiting requests, so Threadsift is waiting to retry.",
-} as const;
+  "github-rate-limit": {
+    title: "Waiting for GitHub",
+    until: "GitHub is limiting requests, so Threadsift will try again {when}.",
+    due: "GitHub is limiting requests, so Threadsift is waiting to retry.",
+  },
+  "grok-bot": {
+    title: "Waiting for Grok Bot",
+    until: "Grok Bot is reading this Item, so Threadsift will check again {when}.",
+    due: "Grok Bot is reading this Item, so Threadsift is waiting to check.",
+  },
+  "topic-busy": {
+    title: "Waiting for Topic",
+    until: "This Topic is updating, so Threadsift will try again {when}.",
+    due: "This Topic is updating, so Threadsift is waiting to try again.",
+  },
+} as const satisfies Record<WaitReason, Readonly<{ title: string; until: string; due: string }>>;
+
+export function waitTitle({ reason }: Readonly<{ reason: WaitReason }>): string {
+  return WAITING[reason].title;
+}
 
 export const BLANK = "\u00A0";
 export const SORT_LABEL = "Newest saved first";
