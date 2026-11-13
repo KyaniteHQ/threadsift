@@ -129,10 +129,6 @@ function accepted<Result>(schema: z.ZodType<Result>, answer: string): AiExecutio
   return parsed.success ? { kind: "done", result: parsed.data } : refusedAi("no-json");
 }
 
-export function outputSchema(schema: z.ZodType): string {
-  return JSON.stringify(z.toJSONSchema(schema, { target: "draft-7" }));
-}
-
 export const UNKNOWN_MODEL_REFUSAL = apiRefusal(404);
 
 export function readOutcome<Result>(
@@ -163,7 +159,7 @@ const BASE_TEXT = [
   "<environment_context>",
 ];
 
-export interface Surface {
+interface Surface {
   readonly extraTools: readonly string[];
   readonly foreignTexts: number;
 }

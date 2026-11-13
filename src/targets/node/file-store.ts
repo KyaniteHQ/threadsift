@@ -7,6 +7,7 @@ import {
   FileRefused,
   TEMPORARY_BYTES,
   type FileKey,
+  isItemId,
   parseStoredKey,
   requireFileKey,
   requireStoredKey,
@@ -15,19 +16,14 @@ import {
   temporaryPrefix,
 } from "../../core/file-keys.ts";
 import type { FilePage, FileStore, StoredFile } from "../../core/ports.ts";
-
-const MISSING = new Set(["ENOENT", "ENOTDIR", "ENAMETOOLONG"]);
+import { hasErrnoCode } from "./errno.ts";
 
 const CHUNK_BYTES = 65_536;
 
 type Kind = "directory" | "file";
 
-function isErrno(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
-}
-
 function isMissing(error: unknown): error is NodeJS.ErrnoException {
-  return isErrno(error) && MISSING.has(String(error.code));
+  return hasErrnoCode(error, "ENOENT", "ENOTDIR", "ENAMETOOLONG");
 }
 
 async function exists(path: string, wanted: Kind): Promise<boolean> {
@@ -63,6 +59,10 @@ async function ensureAll(folders: readonly string[]): Promise<void> {
   }
 
   await ensureAll(rest);
+}
+
+function endsBefore(folderPrefix: string, cursor: string): boolean {
+  return cursor > folderPrefix && !cursor.startsWith(folderPrefix);
 }
 
 interface Located {
@@ -108,25 +108,50 @@ class FileFolder {
     return { leaf, present };
   }
 
-  async keysIn(itemId: string): Promise<string[]> {
-    if (!(await this.hasFolders(itemId))) return [];
+  private async keysIn(itemId: string): Promise<string[]> {
+    try {
+      return (await readdir(this.path("items", itemId), { withFileTypes: true }))
+        .filter((entry) => entry.isFile())
+        .map((entry) => `items/${itemId}/${entry.name}`)
+        .filter((key) => parseStoredKey(key) !== null)
+        .toSorted();
+    } catch (error) {
+      if (hasErrnoCode(error, "ENOENT")) return [];
 
-    return (await readdir(this.path("items", itemId), { withFileTypes: true }))
-      .filter((entry) => entry.isFile())
-      .map((entry) => `items/${itemId}/${entry.name}`)
-      .filter((key) => parseStoredKey(key) !== null);
+      throw error;
+    }
   }
 
-  async keysUnder(itemId: string | null): Promise<string[]> {
-    if (itemId !== null) return (await this.keysIn(itemId)).toSorted();
+  private async itemIds(itemId: string | null): Promise<string[]> {
+    if (itemId !== null) return [itemId];
 
-    if (!(await this.hasFolders(null))) return [];
+    return (await readdir(this.path("items"), { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory() && isItemId(entry.name))
+      .map((entry) => entry.name)
+      .toSorted();
+  }
 
-    const folders = (await readdir(this.path("items"), { withFileTypes: true })).filter((entry) =>
-      entry.isDirectory(),
+  private async keysFrom(
+    [first, ...rest]: readonly string[],
+    cursor: string | null,
+    limit: number,
+  ): Promise<string[]> {
+    if (first === undefined || limit < 1) return [];
+
+    const found = (await this.keysIn(first)).filter((key) => cursor === null || key > cursor);
+    const later = await this.keysFrom(rest, cursor, limit - found.length);
+
+    return [...found, ...later].slice(0, limit);
+  }
+
+  async keysAfter(itemId: string | null, cursor: string | null, limit: number): Promise<string[]> {
+    if (!(await this.hasFolders(itemId))) return [];
+
+    const itemIds = (await this.itemIds(itemId)).filter(
+      (id) => cursor === null || !endsBefore(`items/${id}/`, cursor),
     );
 
-    return (await Promise.all(folders.map((entry) => this.keysIn(entry.name)))).flat().toSorted();
+    return this.keysFrom(itemIds, cursor, limit);
   }
 
   async uploaded(key: string): Promise<StoredFile | null> {
@@ -148,7 +173,7 @@ async function openLeaf(path: string): Promise<FileHandle | null> {
   } catch (error) {
     if (isMissing(error)) return null;
 
-    if (isErrno(error) && error.code === "ELOOP") {
+    if (hasErrnoCode(error, "ELOOP")) {
       throw new FileRefused(`${path} is a symlink`);
     }
 
@@ -243,8 +268,7 @@ export function dataFileStore(dataDir: string): FileStore {
     },
     list: async (prefix, cursor, limit): Promise<FilePage> => {
       const size = requireListLimit(limit);
-      const keys = await folder.keysUnder(requireFilePrefix(prefix).itemId);
-      const after = cursor === null ? keys : keys.filter((key) => key > cursor);
+      const after = await folder.keysAfter(requireFilePrefix(prefix).itemId, cursor, size + 1);
       const page = after.slice(0, size);
 
       const files = (await Promise.all(page.map((key) => folder.uploaded(key)))).filter(

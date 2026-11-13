@@ -1,4 +1,4 @@
-export type Release = () => void;
+type Release = () => void;
 
 export class Slots {
   private free: number;

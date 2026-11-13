@@ -6,17 +6,9 @@ import { type ArticleReading, ArticleReadingSchema } from "../../core/article.ts
 import { PageReadTimeout } from "../../core/page-read-timeout.ts";
 import type { PageReader } from "../../core/ports.ts";
 import type { SuppliedPage } from "../../core/supplied-page.ts";
+import { type PageRequest, ReplySchema } from "./page-reader-protocol.ts";
 
 const WORKER_FILE = new URL("./page-reader-worker.ts", import.meta.url);
-
-const ReplySchema = z.discriminatedUnion("ok", [
-  z.object({
-    id: z.number(),
-    ok: z.literal(true),
-    value: z.union([z.string(), ArticleReadingSchema]),
-  }),
-  z.object({ id: z.number(), ok: z.literal(false), message: z.string() }),
-]);
 
 const AnswerSchema = z.union([
   ReplySchema,
@@ -31,13 +23,8 @@ type WorkerAnswer = z.infer<typeof AnswerSchema>;
 
 type Answered = string | Readonly<ArticleReading>;
 
-type Request =
-  | { readonly kind: "title"; readonly html: string }
-  | { readonly kind: "article"; readonly html: string; readonly url: string }
-  | { readonly kind: "page"; readonly page: SuppliedPage };
-
 interface Pending {
-  readonly request: Request;
+  readonly request: PageRequest;
   readonly succeed: (value: Answered) => void;
   readonly fail: (error: Readonly<Error>) => void;
 }
@@ -75,7 +62,7 @@ export class WorkerPageReader implements PageReader {
   }
 
   private async ask<Answer>(
-    request: Readonly<Request>,
+    request: Readonly<PageRequest>,
     deadline: AbortSignal,
     parse: (value: Answered) => Answer,
   ): Promise<Answer> {
@@ -136,7 +123,7 @@ export class WorkerPageReader implements PageReader {
     void worker.terminate();
   }
 
-  private post(id: number, request: Request): void {
+  private post(id: number, request: PageRequest): void {
     // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
     this.workerThread().postMessage({ id, ...request });
   }

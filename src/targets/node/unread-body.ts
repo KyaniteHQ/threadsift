@@ -3,7 +3,7 @@ import type { IncomingMessage } from "node:http";
 import type { HttpBindings } from "@hono/node-server";
 import type { MiddlewareHandler } from "hono";
 
-export const MAX_DISCARD_BYTES = 64 * 1024 * 1024;
+const MAX_DISCARD_BYTES = 64 * 1024 * 1024;
 
 function discardBody(incoming: IncomingMessage): Promise<boolean> {
   return new Promise((resolve) => {
