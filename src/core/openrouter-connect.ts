@@ -2,6 +2,7 @@ import { and, eq, gt, lte, notExists, or, sql } from "drizzle-orm";
 
 import { loadAiConfig } from "./ai-settings.ts";
 import { base64url, digestOf, randomSecret } from "./encoding.ts";
+import { guardedBatch } from "./guards.ts";
 import {
   CONNECT_CALLBACK_PATH,
   CONNECT_LIFETIME_MS,
@@ -9,7 +10,7 @@ import {
 } from "./openrouter-contract.ts";
 import { CURRENT_REVISION, DATABASE_NOW } from "./openrouter-tables.ts";
 import type { Database, Ports } from "./ports.ts";
-import { guardedBatch, openrouterConnectTransactions, sessions } from "./schema.ts";
+import { openrouterConnectTransactions, sessions } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
 
 const AUTHORIZATION_URL = "https://openrouter.ai/auth";
@@ -38,7 +39,7 @@ export async function startOpenRouterConnect(
   { sessionId, model, revision }: Readonly<ConnectStartInput & { sessionId: string }>,
 ): Promise<StartResult> {
   const { publicOrigin: origin, crypto } = ports;
-  const sealer = ports.ai.secrets;
+  const sealer = ports.secrets;
   const loaded = await loadAiConfig(ports);
 
   if (origin === null || sealer === null || loaded.state === "secret-missing")

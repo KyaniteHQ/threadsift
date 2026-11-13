@@ -16,7 +16,7 @@ import { githubSettings } from "./github-tables.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { HOP_DEADLINE_MS, type Ports } from "./ports.ts";
 
-type TokenPorts = Pick<Ports, "db" | "ai">;
+type TokenPorts = Pick<Ports, "db" | "secrets">;
 
 type VerifyPorts = TokenPorts & Pick<Ports, "network">;
 
@@ -29,13 +29,13 @@ const RateLimitSchema = z.object({
   }),
 });
 
-export async function loadGithubAuth({ db, ai }: Readonly<TokenPorts>): Promise<GithubAuth> {
+export async function loadGithubAuth({ db, secrets }: Readonly<TokenPorts>): Promise<GithubAuth> {
   const [row] = await db.select().from(githubSettings).where(eq(githubSettings.id, 1));
 
   if (row === undefined) return ANONYMOUS;
 
   const { sealedToken: sealed } = row;
-  const token = ai.secrets === null ? null : await ai.secrets.open(sealed);
+  const token = secrets === null ? null : await secrets.open(sealed);
 
   return token === null ? { kind: "unreadable", sealed } : { kind: "token", token, sealed };
 }
@@ -54,7 +54,7 @@ export async function withCurrentCredential<Result>(
 }
 
 function viewOf(kind: GithubAuth["kind"], ports: Readonly<TokenPorts>): GithubSettingsView {
-  const secretReady = ports.ai.secrets !== null;
+  const secretReady = ports.secrets !== null;
 
   switch (kind) {
     case "anonymous":
@@ -79,7 +79,7 @@ export async function saveGithubToken(
   ports: Readonly<TokenPorts>,
   { token }: Readonly<GithubTokenInput>,
 ) {
-  const { secrets } = ports.ai;
+  const { secrets } = ports;
 
   if (secrets === null) return refusedGithub("secret-missing");
 
@@ -148,7 +148,7 @@ export function verifyGithubToken(
   ports: Readonly<VerifyPorts>,
   signal: AbortSignal,
 ): Promise<GithubVerifyResult> {
-  if (ports.ai.secrets === null) return Promise.resolve(refusedGithub("secret-missing"));
+  if (ports.secrets === null) return Promise.resolve(refusedGithub("secret-missing"));
 
   return withCurrentCredential(ports, (auth) => verifiedWith(ports, auth, signal));
 }

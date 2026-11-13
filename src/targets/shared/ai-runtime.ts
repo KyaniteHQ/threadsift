@@ -9,7 +9,7 @@ import {
   refusedAi,
 } from "../../core/ai-contract.ts";
 import { allowedAiUrl } from "../../core/ai-url.ts";
-import type { AiRuntime } from "../../core/ports.ts";
+import type { AiRuntime, Ports } from "../../core/ports.ts";
 import { sealedSecrets } from "../../core/sealed-secret.ts";
 import { openRouterExchange } from "./openrouter-exchange.ts";
 
@@ -36,18 +36,20 @@ interface AiRuntimeOptions {
 
 const HTTP_PROVIDERS = HttpProviderSchema.options;
 
-export async function aiRuntime({
+export async function aiAndSecrets({
   publicOnly,
   secretKey,
   request,
   openRouterMaxPriceZero,
   binding,
   cli = [],
-}: AiRuntimeOptions): Promise<AiRuntime> {
+}: AiRuntimeOptions): Promise<Pick<Ports, "ai" | "secrets">> {
   const zeroOpenRouterPrice =
     z.enum(["true", "false"]).default("false").parse(openRouterMaxPriceZero) === "true";
 
-  return {
+  const secrets = await sealedSecrets(secretKey);
+
+  const ai: AiRuntime = {
     providers: [
       ...HTTP_PROVIDERS,
       ...(binding === undefined ? [] : [PROVIDERS["workers-ai"].id]),
@@ -55,7 +57,7 @@ export async function aiRuntime({
     ],
     publicOnly,
     allowsUrl: (url) => allowedAiUrl(url, publicOnly),
-    secrets: await sealedSecrets(secretKey),
+    secrets,
     signedIn: async () => {
       const states = await Promise.all(
         cli.map(async (runner) => [runner, await runner.signedIn()] as const),
@@ -80,4 +82,6 @@ export async function aiRuntime({
     },
     exchangeOpenRouterCode: openRouterExchange(request),
   };
+
+  return { ai, secrets };
 }
