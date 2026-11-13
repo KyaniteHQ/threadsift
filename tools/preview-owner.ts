@@ -4,7 +4,7 @@ import { type APIRequestContext, request } from "@playwright/test";
 import { z } from "zod";
 
 import { SaveItemRequestSchema } from "../src/http/save-schemas.ts";
-import { type Item, ItemListResponseSchema } from "../src/http/schemas.ts";
+import { type Item, ItemListResponseSchema, SessionStateSchema } from "../src/http/schemas.ts";
 import { CommandFailure } from "./command-failure.ts";
 import { demoDigestPastes, seedDemoProposals } from "./preview-demo.ts";
 
@@ -20,6 +20,7 @@ const demoPastes: readonly Paste[] = [
 
 const READ_ATTEMPTS = 11;
 const READ_PAUSE_MS = 5000;
+const READY_READ_TIMEOUT_MS = 10_000;
 const DIGEST_WAIT_MS = 120_000;
 
 type Api = Readonly<Pick<APIRequestContext, "get" | "post">>;
@@ -40,22 +41,57 @@ async function readItems(api: Api, url: string): Promise<readonly Item[] | null>
   });
 }
 
-async function demoItems(api: Api, url: string, attempt = 1): Promise<readonly Item[]> {
-  const items = await readItems(api, url);
+async function untilAnswered<T>(
+  read: () => Promise<T | null>,
+  reason: string,
+  recovery: string,
+  attempt = 1,
+): Promise<T> {
+  const answer = await read();
 
-  if (items !== null) return items;
+  if (answer !== null) return answer;
 
   if (attempt >= READ_ATTEMPTS)
-    throw new CommandFailure({
-      kind: "http",
-      status: 503,
-      reason: "Preview demo inventory failed",
-      recovery: "Check the preview HTTP API and rerun deploy.",
-    });
+    throw new CommandFailure({ kind: "http", status: 503, reason, recovery });
 
   await setTimeout(READ_PAUSE_MS);
 
-  return demoItems(api, url, attempt + 1);
+  return untilAnswered(read, reason, recovery, attempt + 1);
+}
+
+function demoItems(api: Api, url: string): Promise<readonly Item[]> {
+  return untilAnswered(
+    () => readItems(api, url),
+    "Preview demo inventory failed",
+    "Check the preview HTTP API and rerun deploy.",
+  );
+}
+
+async function readSetupSession(api: Api): Promise<true | null> {
+  const response = await api.get("/api/session", { timeout: READY_READ_TIMEOUT_MS });
+  const status = response.status();
+
+  if (status === 404 || status >= 500) return null;
+
+  if (status !== 200)
+    throw new CommandFailure({
+      kind: "http",
+      status,
+      reason: "Preview readiness check failed",
+      recovery: "Check the preview HTTP API and rerun deploy.",
+    });
+
+  const session = SessionStateSchema.parse(await response.json());
+
+  return session.state === "setup" && session.code !== "set" ? null : true;
+}
+
+function awaitReady(api: Api): Promise<true> {
+  return untilAnswered(
+    () => readSetupSession(api),
+    "Preview Worker did not become ready",
+    "Check that GET /api/session answers 200 with a setup code that is set, and that the migrations are applied, then rerun deploy.",
+  );
 }
 
 async function openOwner(api: Api): Promise<void> {
@@ -65,13 +101,15 @@ async function openOwner(api: Api): Promise<void> {
 
   if (setup.status() === 204) return;
 
+  const refusal = z.object({ code: z.string() }).safeParse(await setup.json().catch(() => null));
+
   if (setup.status() === 409)
     z.object({ code: z.literal("owner-exists") }).parse(await setup.json());
   else
     throw new CommandFailure({
       kind: "http",
       status: setup.status(),
-      reason: "Preview owner provisioning failed",
+      reason: `Preview owner provisioning failed${refusal.success ? ` (${refusal.data.code})` : ""}`,
       recovery: "Check setup credentials, migrations and Worker readiness, then rerun deploy.",
     });
 
@@ -156,6 +194,7 @@ export async function provisionPreviewOwner(
   });
 
   try {
+    await awaitReady(api);
     await openOwner(api);
 
     try {
