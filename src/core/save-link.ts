@@ -1,4 +1,5 @@
 import type { Digest } from "./ai-contract.ts";
+import { type Caller, countedToken } from "./caller.ts";
 import { saveFailedResolution } from "./failed-resolution.ts";
 import { resolveShortLink } from "./fetch-link.ts";
 import { type Existing, type SaveResult, saveQueued } from "./items.ts";
@@ -12,6 +13,7 @@ async function saveShortLink(
   pasted: string,
   digest: Digest | undefined,
   existing: Existing,
+  addedByToken: number | null,
 ): Promise<SaveResult> {
   const { normalizedUrl: shortLink } = parseLink(pasted);
   const known = await aliasedItem(ports.db, shortLink);
@@ -19,7 +21,7 @@ async function saveShortLink(
   if (known !== undefined) {
     return saveQueued(
       ports,
-      { originalUrl: pasted, address: known.address, digest },
+      { originalUrl: pasted, address: known.address, digest, addedByToken },
       known,
       existing,
     );
@@ -35,33 +37,37 @@ async function saveShortLink(
           parseLink(pasted),
           resolution.fetched,
           existing,
+          addedByToken,
         )
       : await saveResolved(
           ports,
           shortLink,
-          { originalUrl: pasted, address: resolution.address, digest },
+          { originalUrl: pasted, address: resolution.address, digest, addedByToken },
           parseLink(resolution.address),
           existing,
         );
 
-  return saved ?? saveShortLink(ports, pasted, digest, existing);
+  return saved ?? saveShortLink(ports, pasted, digest, existing, addedByToken);
 }
 
 export function saveItem(
   ports: Ports,
   absoluteUrl: string,
-  digest?: Digest,
-  existing: Existing = "refresh",
+  digest: Digest | undefined,
+  existing: Existing,
+  caller: Caller,
 ): Promise<SaveResult> {
   if (isRefusedLink(absoluteUrl)) {
     return Promise.resolve({ kind: "refused" });
   }
 
+  const addedByToken = countedToken(caller);
+
   return isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)
-    ? saveShortLink(ports, absoluteUrl, digest, existing)
+    ? saveShortLink(ports, absoluteUrl, digest, existing, addedByToken)
     : saveQueued(
         ports,
-        { originalUrl: absoluteUrl, address: absoluteUrl, digest },
+        { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
         parseLink(absoluteUrl),
         existing,
       );

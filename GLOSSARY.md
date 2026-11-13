@@ -36,6 +36,10 @@ _Avoid_: Import, capture, add-link
 Adding many Items at once: the owner's X bookmarks and folders, or a pasted or uploaded list of links.
 _Avoid_: Bulk paste, sync, backfill
 
+**Daily budget**:
+The number of new Items one agent token may add in a UTC day; a link the library already holds does not count.
+_Avoid_: Quota, rate limit, allowance
+
 **Extension**:
 The browser extension that saves the page in the owner's own tab, including a Reddit post with its visible comments.
 _Avoid_: Clipper, add-on, plugin

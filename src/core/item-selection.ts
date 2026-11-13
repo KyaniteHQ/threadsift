@@ -11,6 +11,7 @@ const {
   digestFailed: _digestFailed,
   pendingDigest: _pendingDigest,
   topicId: _topicId,
+  addedByToken: _addedByToken,
   ...DETAIL_COLUMNS
 } = getTableColumns(items);
 

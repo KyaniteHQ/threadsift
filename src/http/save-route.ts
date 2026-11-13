@@ -3,11 +3,18 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { paste } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
 import { savedView } from "./item-view.ts";
-import { PASTE_DIGEST_SCOPE, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
-import { REFUSED_HOST, UPDATING } from "./refusals.ts";
+import {
+  PASTE_DIGEST_SCOPE,
+  budgetRefusal,
+  jsonBody,
+  jsonRequest,
+  scopeNote,
+  scopeRefusal,
+} from "./openapi.ts";
+import { REFUSED_HOST, UPDATING, budgetSpent } from "./refusals.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
 import { ErrorResponseSchema, SavedItemResponseSchema } from "./schemas.ts";
-import { requirePasteScopes } from "./token-scopes.ts";
+import { callerOf, requirePasteScopes } from "./token-scopes.ts";
 
 const TOO_LARGE = {
   content: "content: longer than 4 MiB",
@@ -27,6 +34,7 @@ const saveItemRoute = createRoute({
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
     ...scopeRefusal("POST", "/api/items", PASTE_DIGEST_SCOPE),
+    ...budgetRefusal,
     201: jsonBody(
       SavedItemResponseSchema,
       "The link was new and is now an Item. The Item is `processing` until its fetch and Digest jobs end. Read `GET /api/items/{id}/status` until `status` leaves `processing`. A short link that cannot be resolved answers with its end state.",
@@ -60,7 +68,9 @@ export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
 
     requirePasteScopes(c, digest !== undefined);
 
-    const saved = await paste(ports, url, { digest, content, page, fill });
+    const saved = await paste(ports, url, callerOf(c), { digest, content, page, fill });
+
+    if (saved.kind === "budget-spent") return budgetSpent(c, saved);
 
     if (saved.kind === "too-large") {
       return c.json({ error: TOO_LARGE[saved.field] }, 413);

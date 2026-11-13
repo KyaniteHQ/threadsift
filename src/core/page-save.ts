@@ -1,4 +1,5 @@
 import type { Digest } from "./ai-contract.ts";
+import { type Caller, countedToken } from "./caller.ts";
 import {
   type Invalid,
   type SaveResult,
@@ -33,6 +34,7 @@ async function queuePage(
   absoluteUrl: string,
   digest: Digest | undefined,
   page: SuppliedPage,
+  caller: Caller,
 ): Promise<SaveResult> {
   const link = parseLink(absoluteUrl);
 
@@ -40,7 +42,12 @@ async function queuePage(
     closeFetchJobs(ports.db, ownerOf(link.normalizedUrl).id),
     ...queuedWrites(
       ports.db,
-      { originalUrl: absoluteUrl, address: absoluteUrl, digest },
+      {
+        originalUrl: absoluteUrl,
+        address: absoluteUrl,
+        digest,
+        addedByToken: countedToken(caller),
+      },
       link,
       JSON.stringify(page),
     ),
@@ -60,6 +67,7 @@ export async function savePage(
   absoluteUrl: string,
   digest: Digest | undefined,
   page: SuppliedPage,
+  caller: Caller,
 ): Promise<PageSaveResult> {
   if (isRefusedLink(absoluteUrl)) return { kind: "refused" };
 
@@ -70,8 +78,8 @@ export async function savePage(
   if (pageBytes(page) > PAGE_BYTES) return { kind: "too-large", field: "page" };
 
   const saved = await (redditRefOf(absoluteUrl) === null
-    ? queuePage(ports, absoluteUrl, digest, page)
-    : saveThreadPage(ports, absoluteUrl, { digest, page }));
+    ? queuePage(ports, absoluteUrl, digest, page, caller)
+    : saveThreadPage(ports, absoluteUrl, { digest, page, addedByToken: countedToken(caller) }));
 
   return saved;
 }

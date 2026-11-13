@@ -12,6 +12,7 @@ import { fetchedPartWrites } from "./search.ts";
 
 export interface ThreadPlace extends Link {
   readonly address: string;
+  readonly addedByToken: number | null;
 }
 
 export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
@@ -23,6 +24,7 @@ export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
       normalizedUrl: place.normalizedUrl,
       originalUrl: place.address,
       savedAt: Date.now(),
+      addedByToken: place.addedByToken,
     })
     .onConflictDoNothing({ target: items.normalizedUrl })
     .returning({ id: items.id });

@@ -5,20 +5,22 @@ import type { Ports } from "../core/ports.ts";
 import { MCP_PATH } from "./document-path.ts";
 import { bodyCap } from "./guard.ts";
 import { registerAddTool } from "./mcp-add-tool.ts";
-import { type McpEnv, mcpGate } from "./mcp-gate.ts";
+import { type McpEnv, McpExtraSchema, mcpGate } from "./mcp-gate.ts";
 import { registerReadTools } from "./mcp-read-tools.ts";
 
-function createMcpServer(ports: Ports): McpServer {
+function createMcpServer(ports: Ports, tokenId: number): McpServer {
   const server = new McpServer({ name: "threadsift", version: "1" });
 
   registerReadTools(server, ports);
-  registerAddTool(server, ports);
+  registerAddTool(server, ports, tokenId);
 
   return server;
 }
 
 export function mcpRoute(ports: Ports): Hono<McpEnv> {
-  const handler = createMcpHandler(() => createMcpServer(ports));
+  const handler = createMcpHandler(({ authInfo }) =>
+    createMcpServer(ports, McpExtraSchema.parse(authInfo?.extra).tokenId),
+  );
 
   const route = new Hono<McpEnv>();
 

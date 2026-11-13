@@ -1,4 +1,6 @@
+import { type Budgeted, withinBudget } from "./agent-token-budget.ts";
 import type { Digest } from "./ai-contract.ts";
+import type { Caller } from "./caller.ts";
 import { dataStepsFinished } from "./data-steps.ts";
 import type { ListedItemRow } from "./item-selection.ts";
 import type { Ports } from "./ports.ts";
@@ -13,29 +15,36 @@ export type BatchEntry =
   | { readonly outcome: "added" | "known"; readonly item: ListedItemRow }
   | { readonly outcome: "refused"; readonly url: string };
 
-type BatchPaste =
+type BatchSaved =
   | { readonly kind: "done"; readonly entries: readonly BatchEntry[] }
   | { readonly kind: "updating" };
+
+type BatchPaste = Budgeted<BatchSaved>;
 
 async function pasteOne(
   ports: Ports,
   { url, digest }: Readonly<BatchLink>,
+  caller: Caller,
 ): Promise<BatchEntry | null> {
   if (!(await dataStepsFinished(ports.db))) return null;
 
-  const saved = await saveItem(ports, url, digest, "keep");
+  const saved = await saveItem(ports, url, digest, "keep", caller);
 
   return saved.kind === "refused"
     ? { outcome: "refused", url }
     : { outcome: saved.created ? "added" : "known", item: saved.item };
 }
 
-export async function pasteBatch(ports: Ports, links: readonly BatchLink[]): Promise<BatchPaste> {
+async function pasteEach(
+  ports: Ports,
+  links: readonly BatchLink[],
+  caller: Caller,
+): Promise<BatchSaved> {
   const entries: BatchEntry[] = [];
 
   for (const link of links) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Links are saved one after the other, in the order given.
-    const entry = await pasteOne(ports, link);
+    const entry = await pasteOne(ports, link, caller);
 
     if (entry === null) return { kind: "updating" };
 
@@ -43,4 +52,17 @@ export async function pasteBatch(ports: Ports, links: readonly BatchLink[]): Pro
   }
 
   return { kind: "done", entries };
+}
+
+export function pasteBatch(
+  ports: Ports,
+  links: readonly BatchLink[],
+  caller: Caller,
+): Promise<BatchPaste> {
+  return withinBudget(
+    ports,
+    caller,
+    links.map(({ url }) => url),
+    (saveAs) => pasteEach(ports, links, saveAs),
+  );
 }

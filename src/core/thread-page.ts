@@ -11,14 +11,18 @@ import type { SuppliedPage } from "./supplied-page.ts";
 export async function saveThreadPage(
   ports: Ports,
   absoluteUrl: string,
-  { digest, page }: Readonly<{ digest: Digest | undefined; page: SuppliedPage }>,
+  {
+    digest,
+    page,
+    addedByToken,
+  }: Readonly<{ digest: Digest | undefined; page: SuppliedPage; addedByToken: number | null }>,
 ): Promise<SaveResult | ThreadKept> {
   const { db } = ports;
   const link = parseLink(absoluteUrl);
 
   const [insert, ...rest] = queuedWrites(
     db,
-    { originalUrl: absoluteUrl, address: absoluteUrl, digest },
+    { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
     link,
     JSON.stringify(page),
   );

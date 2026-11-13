@@ -51,11 +51,12 @@ export interface Paste {
   readonly originalUrl: string;
   readonly address: string;
   readonly digest: Digest | undefined;
+  readonly addedByToken: number | null;
 }
 
 export function queuedWrites(
   db: Database,
-  { originalUrl, address, digest }: Readonly<Paste>,
+  { originalUrl, address, digest, addedByToken }: Readonly<Paste>,
   { normalizedUrl, kind, source }: Readonly<Link>,
   page?: string,
 ) {
@@ -71,6 +72,7 @@ export function queuedWrites(
         normalizedUrl,
         originalUrl,
         savedAt: now,
+        addedByToken,
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),

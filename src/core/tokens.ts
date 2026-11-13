@@ -1,30 +1,53 @@
-import { and, desc, eq, getTableColumns, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, isNull, lte, or, sql } from "drizzle-orm";
 
+import { budgetOf, forgetOldDays, utcDay } from "./agent-token-budget.ts";
 import { digestOf, randomSecret } from "./encoding.ts";
-import { ScopeListSchema, type Scope } from "./kinds.ts";
+import { ScopeListSchema, type Scope, type TokenBudget } from "./kinds.ts";
+import { DEFAULT_TOKEN_BUDGET } from "./limits.ts";
 import type { Ports } from "./ports.ts";
-import { type AgentTokenRow, agentTokens } from "./schema.ts";
+import { type AgentTokenRow, agentTokenDays, agentTokens } from "./schema.ts";
 
 const TOKEN_BYTES = 32;
 const TOKEN_PREFIX = "tsa_";
 const LAST_USE_STEP_MS = 3_600_000;
 
-export type TokenSummary = Omit<AgentTokenRow, "digest" | "scopes"> & {
+export type TokenSummary = Omit<AgentTokenRow, "digest" | "scopes" | "dailyBudget"> & {
   readonly scopes: readonly Scope[];
+  readonly budget: TokenBudget;
 };
 
 const { digest: _digest, ...summary } = getTableColumns(agentTokens);
 
-function summaryOf(row: Readonly<Omit<AgentTokenRow, "digest">>): TokenSummary {
+type SummaryRow = Omit<AgentTokenRow, "digest"> & { readonly added: number };
+
+function summaryOf(
+  { dailyBudget, added, ...row }: Readonly<SummaryRow>,
+  now: number,
+): TokenSummary {
   const scopes = ScopeListSchema.safeParse(row.scopes);
 
-  return { ...row, scopes: scopes.success ? scopes.data : [] };
+  return {
+    ...row,
+    scopes: scopes.success ? scopes.data : [],
+    budget: budgetOf(dailyBudget, added, now),
+  };
+}
+
+function summaries(ports: Ports, now: number) {
+  return ports.db
+    .select({ ...summary, added: sql<number>`coalesce(${agentTokenDays.added}, 0)` })
+    .from(agentTokens)
+    .leftJoin(
+      agentTokenDays,
+      and(eq(agentTokenDays.tokenId, agentTokens.id), eq(agentTokenDays.day, utcDay(now))),
+    );
 }
 
 export async function createToken(
   ports: Ports,
   name: string,
   scopes: readonly Scope[],
+  dailyBudget: number | null = DEFAULT_TOKEN_BUDGET,
 ): Promise<{ readonly token: TokenSummary; readonly value: string }> {
   const value = `${TOKEN_PREFIX}${randomSecret(ports.crypto, TOKEN_BYTES)}`;
 
@@ -35,6 +58,7 @@ export async function createToken(
       digest: digestOf(ports.crypto, value),
       createdAt: Date.now(),
       scopes: [...new Set(scopes)],
+      dailyBudget,
     })
     .returning(summary);
 
@@ -42,16 +66,38 @@ export async function createToken(
     throw new Error("The agent token was not stored");
   }
 
-  return { token: summaryOf(token), value };
+  return { token: summaryOf({ ...token, added: 0 }, Date.now()), value };
 }
 
 export async function listTokens(ports: Ports): Promise<TokenSummary[]> {
-  const rows = await ports.db
-    .select(summary)
-    .from(agentTokens)
-    .orderBy(desc(agentTokens.createdAt), desc(agentTokens.id));
+  const now = Date.now();
 
-  return rows.map((row) => summaryOf(row));
+  const rows = await summaries(ports, now).orderBy(
+    desc(agentTokens.createdAt),
+    desc(agentTokens.id),
+  );
+
+  return rows.map((row) => summaryOf(row, now));
+}
+
+export async function changeBudget(
+  ports: Ports,
+  id: number,
+  dailyBudget: number | null,
+): Promise<TokenSummary | undefined> {
+  const now = Date.now();
+
+  const changed = await ports.db
+    .update(agentTokens)
+    .set({ dailyBudget })
+    .where(eq(agentTokens.id, id))
+    .returning({ id: agentTokens.id });
+
+  if (changed.length === 0) return undefined;
+
+  const [row] = await summaries(ports, now).where(eq(agentTokens.id, id));
+
+  return row === undefined ? undefined : summaryOf(row, now);
 }
 
 export async function revokeToken(ports: Ports, id: number): Promise<boolean> {
@@ -97,6 +143,8 @@ export async function verifyToken(ports: Ports, value: string): Promise<Verified
           or(isNull(agentTokens.lastUsedAt), lte(agentTokens.lastUsedAt, staleBefore)),
         ),
       );
+
+    await forgetOldDays(ports.db, row.id, now);
   }
 
   return { id: row.id, name: row.name, scopes: ScopeListSchema.parse(row.scopes) };

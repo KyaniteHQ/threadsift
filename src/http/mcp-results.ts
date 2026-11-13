@@ -27,8 +27,17 @@ export function answered<Body extends Structured>(
   };
 }
 
-export function refused(message: string): CallToolResult {
-  return { content: [{ type: "text", text: message }], isError: true };
+export interface RefusalDetails {
+  readonly code: string;
+  readonly retryAfter: number;
+}
+
+export function refused(message: string, details?: Readonly<RefusalDetails>): CallToolResult {
+  const result: CallToolResult = { content: [{ type: "text", text: message }], isError: true };
+
+  if (details !== undefined) result.structuredContent = { ...details };
+
+  return result;
 }
 
 export function guarded<Input>(

@@ -1,5 +1,6 @@
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import type { Context, MiddlewareHandler } from "hono";
+import { z } from "zod";
 
 import type { Ports } from "../core/ports.ts";
 import { verifyToken } from "../core/tokens.ts";
@@ -8,6 +9,8 @@ import { bearerCheck } from "./guard.ts";
 export interface McpEnv {
   Variables: { caller: AuthInfo };
 }
+
+export const McpExtraSchema = z.object({ tokenId: z.number().int() });
 
 const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
@@ -100,7 +103,7 @@ export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
       token: value,
       clientId: `agent-token-${String(token.id)}`,
       scopes: [...token.scopes],
-      extra: { name: token.name },
+      extra: { name: token.name, tokenId: token.id },
     });
 
     return true;

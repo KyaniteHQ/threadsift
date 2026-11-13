@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
+import { BUDGET_SPENT } from "../../src/core/kinds.ts";
 import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../../src/core/supplied-page.ts";
 import { type Config, hostPattern } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
@@ -67,6 +68,14 @@ async function refusedState(response: Response): Promise<SaveState> {
     : { kind: "failed" };
 }
 
+async function spentState(response: Response): Promise<SaveState> {
+  const refusal = RefusalSchema.safeParse(await response.json().catch(() => null));
+
+  return refusal.success && refusal.data.code === BUDGET_SPENT
+    ? { kind: "budget-spent" }
+    : { kind: "failed" };
+}
+
 async function stateOf(response: Response, origin: string): Promise<SaveState> {
   switch (response.status) {
     case 200:
@@ -88,6 +97,8 @@ async function stateOf(response: Response, origin: string): Promise<SaveState> {
       return { kind: "thread-kept" };
     case 413:
       return { kind: "too-large" };
+    case 429:
+      return spentState(response);
     case 503:
       return { kind: "updating" };
     default:

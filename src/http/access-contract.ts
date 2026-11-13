@@ -3,6 +3,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { PASSWORD_RULE } from "./refusals.ts";
 import {
+  ChangeBudgetRequestSchema,
   ChangePasswordRequestSchema,
   CreateTokenRequestSchema,
   CreatedTokenResponseSchema,
@@ -14,6 +15,7 @@ import {
   SetupRequestSchema,
   IdParamSchema,
   TokenListResponseSchema,
+  TokenSummaryResponseSchema,
 } from "./schemas.ts";
 
 const errorBody = (description: string) => jsonBody(ErrorResponseSchema, description);
@@ -120,10 +122,10 @@ export const createTokenRoute = createRoute({
   responses: {
     201: jsonBody(
       CreatedTokenResponseSchema,
-      "The token, with the `scopes` it holds, and its value, which is never shown again. `scopes` in the request defaults to `read` and `add`.",
+      "The token, with the `scopes` it holds and its `budget`, and its value, which is never shown again. `scopes` in the request defaults to `read` and `add`. `dailyBudget` is the number of new Items the token may add each UTC day; it defaults to 200 and `null` means no budget.",
     ),
     400: errorBody(
-      "`name` is empty or longer than 80 characters, or `scopes` is empty or names something other than `read`, `add`, `digest` and `delete`.",
+      "`name` is empty or longer than 80 characters, `scopes` is empty or names something other than `read`, `add`, `digest` and `delete`, or `dailyBudget` is not a whole number above 0 or null.",
     ),
   },
 });
@@ -134,7 +136,7 @@ export const listTokensRoute = createRoute({
   responses: {
     200: jsonBody(
       TokenListResponseSchema,
-      "Every token with its `scopes`, newest first, without its value.",
+      "Every token with its `scopes` and its `budget`, newest first, without its value. `budget` is `unlimited` with the Items added today, `within` with the `limit`, the Items added today and how many are `left`, or `spent` with the `limit` and the time in milliseconds when the budget starts again.",
     ),
   },
 });
@@ -145,6 +147,20 @@ export const revokeTokenRoute = createRoute({
   request: { params: IdParamSchema },
   responses: {
     204: noContent("The token is revoked and its next use gets 401."),
+    404: errorBody("No such token."),
+  },
+});
+
+export const changeBudgetRoute = createRoute({
+  method: "patch",
+  path: "/api/tokens/{id}",
+  request: { params: IdParamSchema, body: jsonRequest(ChangeBudgetRequestSchema) },
+  responses: {
+    200: jsonBody(
+      TokenSummaryResponseSchema,
+      "The token with its new `budget`. A budget lower than the Items added today leaves the token spent until 00:00 UTC.",
+    ),
+    400: errorBody("`dailyBudget` is missing, or not a whole number above 0 or null."),
     404: errorBody("No such token."),
   },
 });
