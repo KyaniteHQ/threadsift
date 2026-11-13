@@ -133,10 +133,10 @@ export async function exhaust(
   await afterClose(ports, job, wrote, NO_FILES);
 }
 
-function dueAt(until: number, answeredTask: number | undefined): number | SQL {
-  if (answeredTask === undefined) return until;
+function dueAt(until: number, closedTask: number | undefined): number | SQL {
+  if (closedTask === undefined) return until;
 
-  return sql`case when exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${answeredTask} and ${aiTasks.answeredAt} is not null) then ${Date.now()} else ${until} end`;
+  return sql`case when exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${closedTask} and (${aiTasks.answeredAt} is not null or ${aiTasks.state} <> 'running')) then ${Date.now()} else ${until} end`;
 }
 
 export async function queueLater(
@@ -147,14 +147,14 @@ export async function queueLater(
     attempts,
     staleRequeues,
     wait,
-    unlessAnswered,
+    unlessOpen,
     writes = [],
   }: Readonly<{
     until: number;
     attempts: number;
     staleRequeues: number;
     wait: WaitReason | null;
-    unlessAnswered?: number | undefined;
+    unlessOpen?: number | undefined;
     writes?: JobWrites | undefined;
   }>,
 ): Promise<void> {
@@ -166,7 +166,7 @@ export async function queueLater(
         state: "queued",
         attempts,
         staleRequeues,
-        nextAttemptAt: dueAt(until, unlessAnswered),
+        nextAttemptAt: dueAt(until, unlessOpen),
         claimExpires: null,
         waitReason: wait,
       })
@@ -273,7 +273,7 @@ export async function applyOutcome(
       attempts: job.attempts + (outcome.countsAttempt ? 1 : 0),
       staleRequeues: job.staleRequeues,
       wait: outcome.wait,
-      unlessAnswered: outcome.unlessAnswered,
+      unlessOpen: outcome.unlessOpen,
       writes: outcome.writes,
     });
 

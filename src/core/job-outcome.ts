@@ -1,6 +1,7 @@
 import type { SQLWrapper } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import type { ModelAi } from "./ai-contract.ts";
 import type { JobKind, WaitReason } from "./kinds.ts";
 import type { Database, Ports } from "./ports.ts";
 import type { JobRow } from "./schema.ts";
@@ -51,7 +52,7 @@ export interface DeferredOutcome {
   readonly deferredUntil: number;
   readonly wait: WaitReason;
   readonly countsAttempt: boolean;
-  readonly unlessAnswered?: number;
+  readonly unlessOpen?: number;
   readonly writes?: JobWrites;
 }
 
@@ -63,6 +64,14 @@ export interface JobHandler {
   readonly attempt: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<JobOutcome>;
   readonly exhausted: (db: Database, job: Readonly<JobRow>) => JobWrites;
   readonly inputCurrent?: (job: Readonly<JobRow>) => SQLWrapper;
+}
+
+export interface ModelHandler extends Omit<JobHandler, "attempt"> {
+  readonly attempt: (
+    ports: JobPorts,
+    job: Readonly<ClaimedJob>,
+    ai: ModelAi,
+  ) => Promise<JobOutcome>;
 }
 
 export const RETRY_DELAYS_MS = [30_000, 120_000] as const;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { BOT_TASK_KINDS } from "./bot-task-kinds.ts";
+import { botKindOf } from "./bot-task-kinds.ts";
 import { type BotTaskRow, acceptsAnswer } from "./bot-task-states.ts";
 import { guardHolds } from "./guards.ts";
 import type { Database } from "./ports.ts";
@@ -31,10 +31,7 @@ export type TaskReading =
   | { readonly kind: "closed" };
 
 function describedTask(task: Readonly<Pick<BotTaskRow, "kind" | "context">>) {
-  const kind =
-    task.kind === X_INTAKE_TASK
-      ? xIntakeKind
-      : Object.entries(BOT_TASK_KINDS).find(([name]) => name === task.kind)?.[1];
+  const kind = task.kind === X_INTAKE_TASK ? xIntakeKind : botKindOf(task);
 
   return kind?.describe(task.context ?? "") ?? null;
 }

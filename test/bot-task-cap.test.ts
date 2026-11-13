@@ -4,6 +4,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import {
   GROK_BOT_IN_FLIGHT,
   GROK_BOT_WEEKLY_RESERVE,
+  ownerOf,
   startBotTask,
 } from "../src/core/bot-task-start.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
@@ -31,7 +32,7 @@ describe("no more than 10 Grok Bot tasks are outstanding, however the starts ove
   let library: BotLibrary;
 
   const startAll = (jobs: readonly ClaimedJob[]) =>
-    Promise.all(jobs.map((job) => startBotTask(instance.core, job, START)));
+    Promise.all(jobs.map((job) => startBotTask(instance.core, ownerOf(job), START)));
 
   const kindsOf = async (count: number, kind: string) =>
     (await startAll(await bulkJobs(instance, count, kind))).map(({ kind: outcome }) => outcome);
@@ -138,6 +139,6 @@ describe("no more than 10 Grok Bot tasks are outstanding, however the starts ove
     const [digest] = await bulkJobs(instance, 1, "digest");
 
     assert.ok(digest);
-    assert.equal((await startBotTask(instance.core, digest, START)).kind, "started");
+    assert.equal((await startBotTask(instance.core, ownerOf(digest), START)).kind, "started");
   });
 });

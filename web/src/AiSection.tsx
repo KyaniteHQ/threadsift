@@ -1,4 +1,9 @@
-import { type Digest, type Provider, isCliProvider } from "../../src/core/ai-contract.ts";
+import {
+  type Digest,
+  type Provider,
+  GROK_BOT_PROVIDER,
+  isCliProvider,
+} from "../../src/core/ai-contract.ts";
 import type { AiView } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
@@ -31,6 +36,7 @@ const RUNNING = {
   idle: null,
   saving: "save",
   verifying: "verify",
+  waiting: "verify",
   connecting: "connect",
   leaving: "connect",
 } as const satisfies Record<Form["phase"], AiAction | null>;
@@ -41,7 +47,8 @@ function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] 
     {
       action: "verify",
       label: AI_TEXT.verify,
-      busyLabel: AI_TEXT.verifying,
+      busyLabel:
+        view.settings?.provider === GROK_BOT_PROVIDER ? AI_TEXT.verifyingBot : AI_TEXT.verifying,
       blocked: form.verifyBlocked,
       onClick: form.verifyNow,
     },
@@ -70,6 +77,8 @@ const KEY_STATUS = {
 
 function keyStatus(provider: Provider, savedKey: SavedKey): string {
   if (provider === "workers-ai") return AI_TEXT.keyNotNeeded;
+
+  if (provider === GROK_BOT_PROVIDER) return AI_TEXT.grokBotKey;
 
   if (isCliProvider(provider)) return CLI_TEXT[provider].keyNotNeeded;
 
@@ -110,6 +119,14 @@ function ProviderNotes({
         </p>
       ) : null}
       {saveBlocked && !signedOut ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
+      {provider === GROK_BOT_PROVIDER ? (
+        <>
+          <p className="fld-help">{AI_TEXT.grokBotHelp}</p>
+          <p className="fld-help">
+            <a href="#grok-bot">{AI_TEXT.grokBotLink}</a>
+          </p>
+        </>
+      ) : null}
       {provider === "openrouter" ? <ConnectNotes view={view} /> : null}
     </>
   );

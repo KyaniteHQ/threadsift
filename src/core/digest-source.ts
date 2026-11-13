@@ -22,7 +22,7 @@ import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
 import { candidateLink, commentCandidates, eligibleComments } from "./reddit-thread.ts";
-import { digests, insertGuard, items } from "./schema.ts";
+import { type JobRow, digests, insertGuard, items } from "./schema.ts";
 
 export function openingPick(db: Database, itemId: number) {
   return opening(db, {
@@ -203,6 +203,16 @@ export function logSubmission(
     generation: item.generation,
     ...counts,
   });
+}
+
+export function attemptGenerationCurrent(
+  job: Readonly<Pick<JobRow, "itemId" | "attemptGeneration">>,
+) {
+  return sql`exists (select 1 from ${items} where ${items.id} = ${job.itemId} and ${items.generation} is ${job.attemptGeneration})`;
+}
+
+export function lostClaim(db: Database): JobOutcome {
+  return { writes: [insertGuard(db, sql`0`)] };
 }
 
 export function refusedInput(

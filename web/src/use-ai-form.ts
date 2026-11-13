@@ -1,6 +1,7 @@
 import { useCallback, useState, type ChangeEvent } from "react";
 
 import {
+  GROK_BOT_PROVIDER,
   PROVIDERS,
   ProviderSchema,
   AiSettingsInputSchema,
@@ -51,9 +52,22 @@ function useAiFields(view: AiView) {
 function refusalText(refusal: AiRefused, provider: Provider): string {
   if (isCliProvider(provider) && refusal.reason === "wrong-key") return CLI_TEXT[provider].rejected;
 
+  if (provider === GROK_BOT_PROVIDER && refusal.reason === "timeout") return AI_TEXT.botTimeout;
+
+  if (provider === GROK_BOT_PROVIDER && refusal.reason === "provider-busy") return AI_TEXT.botBusy;
+
   return refusal.reason === "provider-busy" && refusal.status !== null
     ? `${AI_TEXT[refusal.reason]} (${String(refusal.status)})`
     : AI_TEXT[refusal.reason];
+}
+
+function failureText(
+  response: Extract<Awaited<ReturnType<typeof saveAiSettings>>, { readonly kind: string }>,
+  provider: Provider,
+): string {
+  if (response.kind === "refused") return refusalText(response, provider);
+
+  return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
 }
 
 function needsSecret(provider: Provider): boolean {
@@ -80,7 +94,7 @@ function useVerify(view: AiView, { run }: Readonly<Pick<AiPhase, "run">>) {
   const verifyNow = useCallback(() => {
     if (verifyBlocked || provider === undefined) return;
 
-    run("verifying", async (): Promise<Outcome> => {
+    run(provider === GROK_BOT_PROVIDER ? "waiting" : "verifying", async (): Promise<Outcome> => {
       const response = await verifyAi();
 
       return response.kind === "done"
@@ -142,7 +156,8 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
 
       const response = await saveAiSettings(input);
 
-      if ("kind" in response) return { kind: "error", text: refusalText(response, provider) };
+      if ("kind" in response) return { kind: "error", text: failureText(response, provider) };
+
       saved(response);
       clearKey();
 

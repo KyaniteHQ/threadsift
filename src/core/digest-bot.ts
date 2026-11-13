@@ -5,7 +5,7 @@ import { botTaskKind } from "./bot-task-kind.ts";
 import { GROK_BOT_EXECUTOR } from "./bot-task-states.ts";
 import { preparedDigest } from "./digest-prepare.ts";
 import { publishing } from "./digest-publish.ts";
-import { digestInput, generationCurrent, keptNotUpdated } from "./digest-source.ts";
+import { digestInput, generationCurrent, keptNotUpdated, logSubmission } from "./digest-source.ts";
 import { settled } from "./job-outcome.ts";
 
 const ContextSchema = z
@@ -53,6 +53,9 @@ export const digestBotKind = botTaskKind({
           submitted: prompt.submitted,
           staleRequeues: job.staleRequeues,
         }),
+      },
+      started: (taskId) => {
+        logSubmission(taskId, item, prompt.counts);
       },
     };
   },

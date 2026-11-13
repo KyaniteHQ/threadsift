@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { BotResult } from "./bot-task-kind.ts";
-import { BOT_TASK_KINDS } from "./bot-task-kinds.ts";
+import { botKindOf } from "./bot-task-kinds.ts";
 import {
   type BotTaskRow,
   GROK_BOT_EXECUTOR,
@@ -24,14 +24,6 @@ export const BotAnswerSchema = z.union([
   z.strictObject({ error: z.string().min(1).max(ERROR_TEXT_MAX) }),
 ]);
 
-function isBotTaskKind(kind: string): kind is keyof typeof BOT_TASK_KINDS {
-  return Object.hasOwn(BOT_TASK_KINDS, kind);
-}
-
-function botTaskKindOf(kind: string) {
-  return isBotTaskKind(kind) ? BOT_TASK_KINDS[kind] : null;
-}
-
 export type AnswerOutcome =
   | { readonly kind: "accepted" }
   | { readonly kind: "unsupported" }
@@ -51,7 +43,7 @@ function intakeOf(
   task: Readonly<BotTaskRow>,
   { answer, now }: Readonly<{ answer: StoredAnswer; now: number }>,
 ): Intake {
-  const kind = botTaskKindOf(task.kind);
+  const kind = botKindOf(task);
 
   if (task.executor !== GROK_BOT_EXECUTOR || kind === null) return { kind: "unsupported" };
 

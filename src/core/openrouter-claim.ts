@@ -1,6 +1,6 @@
 import { and, eq, gt } from "drizzle-orm";
 
-import { readRevision } from "./ai-settings.ts";
+import { readRevision } from "./ai-load.ts";
 import { digestOf } from "./encoding.ts";
 import { DATABASE_NOW } from "./guards.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";

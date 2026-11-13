@@ -82,3 +82,20 @@ export const GrokBotTestSchema = z.object({ result: GrokBotResultSchema });
 
 export const KEY_NEEDED =
   "key: a key is needed when the address is new or the saved key cannot be opened";
+
+export const VERIFY_WAIT_MS = 60_000;
+
+export const GROK_BOT_FIRST = "Save a Grok Bot address and key first.";
+
+export const GROK_BOT_IN_USE =
+  "Grok Bot is the Provider, so pick and save another Provider in the AI section first.";
+
+export const GrokBotUnreadySchema = z.object({
+  error: z.string(),
+  code: z.enum(["not-configured", "secret-missing"]),
+});
+
+export const GrokBotInUseSchema = z.object({
+  error: z.literal(GROK_BOT_IN_USE),
+  code: z.literal("in-use"),
+});

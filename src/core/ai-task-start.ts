@@ -18,7 +18,7 @@ export function originOf(config: Readonly<AiConnection>): TaskOrigin {
 }
 
 export interface BotColumns {
-  readonly jobId: number;
+  readonly jobId: number | null;
   readonly callbackHash: string;
   readonly context: string;
 }

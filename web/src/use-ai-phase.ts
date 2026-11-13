@@ -16,7 +16,7 @@ export type Outcome =
   | { readonly kind: "ok"; readonly text: string; readonly digest?: Digest }
   | { readonly kind: "error"; readonly text: string };
 
-export type Phase = "idle" | "saving" | "verifying" | "connecting" | "leaving";
+export type Phase = "idle" | "saving" | "verifying" | "waiting" | "connecting" | "leaving";
 
 type Working = Exclude<Phase, "idle" | "leaving">;
 

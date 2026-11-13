@@ -20,20 +20,26 @@ export interface BotInstructions {
 }
 
 export type BotPreparation =
-  | { readonly kind: "ask"; readonly start: BotTaskStart }
+  | {
+      readonly kind: "ask";
+      readonly start: BotTaskStart;
+      readonly started?: (taskId: number) => void;
+    }
   | { readonly kind: "settled"; readonly outcome: JobOutcome };
 
+export type BotAnswer =
+  | { readonly kind: "valid"; readonly normalized: string }
+  | { readonly kind: "invalid"; readonly reasons: string };
+
 export type BotParse =
-  | {
-      readonly kind: "valid";
-      readonly normalized: string;
+  | (Extract<BotAnswer, { readonly kind: "valid" }> & {
       readonly apply: (
         ports: JobPorts,
         job: Readonly<ClaimedJob>,
         task: Readonly<Pick<BotTaskRow, "id">>,
       ) => Promise<JobOutcome>;
-    }
-  | { readonly kind: "invalid"; readonly reasons: string };
+    })
+  | Extract<BotAnswer, { readonly kind: "invalid" }>;
 
 export type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "context">>;
 
@@ -49,13 +55,21 @@ export interface SentTaskKind {
   ) => Promise<JobOutcome>;
 }
 
-export interface BotTaskKind extends SentTaskKind {
+export interface BotAnswering {
+  readonly describe: SentTaskKind["describe"];
+  readonly parse: (context: string, body: Readonly<BotResult>) => BotAnswer;
+}
+
+export interface BotTaskKind extends SentTaskKind, BotAnswering {
   readonly parse: (context: string, body: Readonly<BotResult>) => BotParse;
 }
 
-interface KindParts<Context, Result> {
+interface AnsweringParts<Context, Result> {
   readonly context: z.ZodType<Context>;
   readonly task: (context: Context) => AiTaskDefinition<Result>;
+}
+
+interface KindParts<Context, Result> extends AnsweringParts<Context, Result> {
   readonly apply: (
     ports: JobPorts,
     job: Readonly<ClaimedJob>,
@@ -63,11 +77,18 @@ interface KindParts<Context, Result> {
   ) => Promise<JobOutcome>;
 }
 
-function parsedAnswer<Context, Result>(
-  { context, task, apply }: Readonly<KindParts<Context, Result>>,
+function answerOf<Context, Result>(
+  { context, task }: Readonly<AnsweringParts<Context, Result>>,
   contextText: string,
   { result }: Readonly<BotResult>,
-): BotParse {
+):
+  | {
+      readonly kind: "valid";
+      readonly normalized: string;
+      readonly context: Context;
+      readonly result: Result;
+    }
+  | Extract<BotAnswer, { readonly kind: "invalid" }> {
   const parsedContext = parsedJson(context, contextText);
 
   if (parsedContext === null) return { kind: "invalid", reasons: "context: unreadable" };
@@ -79,23 +100,31 @@ function parsedAnswer<Context, Result>(
   return {
     kind: "valid",
     normalized: JSON.stringify(parsed.data),
-    apply: (ports, job, { id }) =>
-      apply(ports, job, { context: parsedContext, taskId: id, result: parsed.data }),
+    context: parsedContext,
+    result: parsed.data,
   };
 }
 
-function describing<Context, Result>({
-  context,
-  task,
-}: Readonly<Pick<KindParts<Context, Result>, "context" | "task">>): BotTaskKind["describe"] {
-  return (contextText) => {
-    const parsed = parsedJson(context, contextText);
+export function botAnswering<Context, Result>(
+  parts: Readonly<AnsweringParts<Context, Result>>,
+): BotAnswering {
+  const { context, task } = parts;
 
-    if (parsed === null) return null;
+  return {
+    describe: (contextText) => {
+      const parsed = parsedJson(context, contextText);
 
-    const { instructions, schema } = task(parsed);
+      if (parsed === null) return null;
 
-    return { instructions, schema: z.toJSONSchema(schema, { io: "output" }) };
+      const { instructions, schema } = task(parsed);
+
+      return { instructions, schema: z.toJSONSchema(schema, { io: "output" }) };
+    },
+    parse: (contextText, body) => {
+      const answer = answerOf(parts, contextText, body);
+
+      return answer.kind === "valid" ? { kind: "valid", normalized: answer.normalized } : answer;
+    },
   };
 }
 
@@ -103,6 +132,7 @@ export function botTaskKind<Context, Result>({
   current,
   release = () => [],
   prepare,
+  apply,
   ...parts
 }: Readonly<
   KindParts<Context, Result> & {
@@ -111,8 +141,20 @@ export function botTaskKind<Context, Result>({
     prepare: BotTaskKind["prepare"];
   }
 >): BotTaskKind {
-  const describe = describing(parts);
-  const parse: BotTaskKind["parse"] = (contextText, body) => parsedAnswer(parts, contextText, body);
+  const { describe } = botAnswering(parts);
+
+  const parse: BotTaskKind["parse"] = (contextText, body) => {
+    const answer = answerOf(parts, contextText, body);
+
+    if (answer.kind === "invalid") return answer;
+
+    return {
+      kind: "valid",
+      normalized: answer.normalized,
+      apply: (ports, job, { id }) =>
+        apply(ports, job, { context: answer.context, taskId: id, result: answer.result }),
+    };
+  };
 
   return {
     prepare,

@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { botStep } from "../src/core/bot-step.ts";
-import { startBotTask } from "../src/core/bot-task-start.ts";
+import { ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import { jobs } from "../src/core/schema.ts";
 import { xIntakeKind } from "../src/core/x-intake.ts";
@@ -80,7 +80,7 @@ export async function sentIntake(instance: Instance): Promise<IntakeTask> {
 
   if (prepared.kind !== "ask") throw new Error("the intake task has nothing to ask");
 
-  const started = await startBotTask(instance.core, job, prepared.start);
+  const started = await startBotTask(instance.core, ownerOf(job), prepared.start);
 
   if (started.kind !== "started") throw new Error(`the task did not start: ${started.kind}`);
 

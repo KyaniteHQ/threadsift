@@ -1,5 +1,5 @@
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
-import { startBotTask } from "../src/core/bot-task-start.ts";
+import { ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import { claimTopicLease, releaseTopicLease } from "../src/core/topic-lease.ts";
 import type { BotKindName, KindCase } from "./bot-kinds-cases.ts";
@@ -38,7 +38,7 @@ export async function sentTask(
 
   if (prepared.kind !== "ask") throw new Error("the kind has nothing to ask");
 
-  const started = await startBotTask(instance.core, job, prepared.start);
+  const started = await startBotTask(instance.core, ownerOf(job), prepared.start);
 
   if (started.kind !== "started") throw new Error(`the task did not start: ${started.kind}`);
 

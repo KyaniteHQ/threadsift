@@ -142,7 +142,7 @@ export function toolsOf(instance: Instance) {
 }
 
 export async function warningsDuring<Value>(
-  run: () => Promise<Value>,
+  run: (seen: readonly string[]) => Promise<Value>,
 ): Promise<{ readonly warnings: readonly string[]; readonly value: Value }> {
   const warnings: string[] = [];
   const warn = console.warn;
@@ -152,7 +152,7 @@ export async function warningsDuring<Value>(
   };
 
   try {
-    return { warnings, value: await run() };
+    return { warnings, value: await run(warnings) };
   } finally {
     console.warn = warn;
   }

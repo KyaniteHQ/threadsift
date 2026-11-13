@@ -1,4 +1,4 @@
-import type { GrokBotResult } from "../../src/core/grok-bot-contract.ts";
+import { GROK_BOT_IN_USE, type GrokBotResult } from "../../src/core/grok-bot-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
 
 export const GROK_BOT_TEXT = {
@@ -31,6 +31,7 @@ export const GROK_BOT_TEXT = {
   remove: "Remove",
   removing: "Removing…",
   removed: "Grok Bot removed.",
+  removeInUse: GROK_BOT_IN_USE,
   invalidAddress: "Enter a public https address with no username, password, query or fragment.",
   invalidKey:
     "Enter a key up to 4,096 characters: letters, digits and punctuation only, no spaces or line breaks, and no accented or other non-ASCII characters.",

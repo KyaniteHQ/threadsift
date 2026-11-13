@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 
 import { insertTask } from "./ai-task-start.ts";
 import { type BotTaskRow, GROK_BOT_EXECUTOR } from "./bot-task-states.ts";
@@ -26,7 +26,34 @@ export interface BotTaskStart {
   readonly inputs: string;
   readonly inputRevision: number;
   readonly context: string;
+  readonly deadlineMs?: number;
 }
+
+export interface BotOwner {
+  readonly claim: SQL | undefined;
+  readonly jobId: number | null;
+  readonly itemId: number | null;
+  readonly attempts: number;
+  readonly places: number;
+}
+
+export const ownerOf = (job: Readonly<JobRow>): BotOwner => ({
+  claim: holding(job),
+  jobId: job.id,
+  itemId: job.itemId,
+  attempts: job.attempts + 1,
+  places: WEEKLY_JOB_KINDS.has(job.kind)
+    ? GROK_BOT_IN_FLIGHT
+    : GROK_BOT_IN_FLIGHT - GROK_BOT_WEEKLY_RESERVE,
+});
+
+export const VERIFY_OWNER: BotOwner = {
+  claim: undefined,
+  jobId: null,
+  itemId: null,
+  attempts: 1,
+  places: GROK_BOT_IN_FLIGHT - GROK_BOT_WEEKLY_RESERVE,
+};
 
 export type BotStarted =
   | {
@@ -37,22 +64,20 @@ export type BotStarted =
   | { readonly kind: "full" }
   | { readonly kind: "claim-lost" };
 
-function underCap(now: number, kind: JobKind) {
-  const limit = WEEKLY_JOB_KINDS.has(kind)
-    ? GROK_BOT_IN_FLIGHT
-    : GROK_BOT_IN_FLIGHT - GROK_BOT_WEEKLY_RESERVE;
-
-  return sql`(select count(*) from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null and ${aiTasks.deadline} > ${now}) < ${limit}`;
+function underCap(now: number, places: number) {
+  return sql`(select count(*) from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null and ${aiTasks.deadline} > ${now}) < ${places}`;
 }
 
 export async function startBotTask(
   { db, crypto }: Readonly<Pick<JobPorts, "db" | "crypto">>,
-  job: Readonly<JobRow>,
+  owner: Readonly<BotOwner>,
   start: Readonly<BotTaskStart>,
 ): Promise<BotStarted> {
   const now = Date.now();
-  const deadline = now + BOT_TASK_DEADLINE_MS;
+  const deadline = now + (start.deadlineMs ?? BOT_TASK_DEADLINE_MS);
   const credential = newCallbackCredential(crypto);
+  const { claim } = owner;
+  const cap = underCap(now, owner.places);
 
   const inserted = await insertTask(
     db,
@@ -60,13 +85,13 @@ export async function startBotTask(
       kind: start.kind,
       inputs: start.inputs,
       inputRevision: start.inputRevision,
-      attempts: job.attempts + 1,
+      attempts: owner.attempts,
       deadline,
       origin: { executor: GROK_BOT_EXECUTOR, provider: null, model: null },
-      itemId: job.itemId,
-      bot: { jobId: job.id, callbackHash: credential.hash, context: start.context },
+      itemId: owner.itemId,
+      bot: { jobId: owner.jobId, callbackHash: credential.hash, context: start.context },
     },
-    sql`${holding(job)} and ${underCap(now, job.kind)}`,
+    claim === undefined ? cap : sql`${claim} and ${cap}`,
   );
 
   if (inserted !== null) {
@@ -79,5 +104,7 @@ export async function startBotTask(
     };
   }
 
-  return (await guardHolds(db, holding(job))) ? { kind: "full" } : { kind: "claim-lost" };
+  return claim === undefined || (await guardHolds(db, claim))
+    ? { kind: "full" }
+    : { kind: "claim-lost" };
 }

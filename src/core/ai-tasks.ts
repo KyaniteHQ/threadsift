@@ -2,18 +2,18 @@ import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 
 import {
   type AiConnection,
+  type ModelAi,
   type Provider,
   type AiRefused,
   type AiRefusal,
   type AiTaskDefinition,
   AI_DEADLINE_MS,
   BASE_OUTPUT_TOKENS,
+  modelOf,
   VERIFY_INPUT,
   ModelDigestSchema,
-  modelOf,
   refusedAi,
 } from "./ai-contract.ts";
-import { loadAiConfig } from "./ai-settings.ts";
 import { type TaskOrigin, type TaskOwner, originOf, startTask } from "./ai-task-start.ts";
 import { mayComplete, mayExpire, mayFail } from "./bot-task-states.ts";
 import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
@@ -94,9 +94,10 @@ export function expireAiTasks(db: Database, now: number) {
   );
 }
 
-export async function verifyAi(ports: AiPorts, attempt: AbortSignal) {
+export async function verifyAi(ports: AiPorts, ai: ModelAi, attempt: AbortSignal) {
   const result = await runAiTask(
     ports,
+    ai,
     TASKS.digest,
     { text: VERIFY_INPUT, inputRevision: 1, attempts: 1, maxOutputTokens: BASE_OUTPUT_TOKENS },
     null,
@@ -126,6 +127,7 @@ interface TaskInput {
 
 export function runAiTask<Result>(
   ports: AiPorts,
+  ai: ModelAi,
   definition: AiTaskDefinition<Result>,
   input: Readonly<TaskInput>,
   owner: null,
@@ -133,6 +135,7 @@ export function runAiTask<Result>(
 ): Promise<TaskResult<Result>>;
 export function runAiTask<Result>(
   ports: AiPorts,
+  ai: ModelAi,
   definition: AiTaskDefinition<Result>,
   input: Readonly<TaskInput>,
   owner: TaskOwner,
@@ -140,15 +143,14 @@ export function runAiTask<Result>(
 ): Promise<TaskResult<Result> | ClaimLost>;
 export async function runAiTask<Result>(
   ports: AiPorts,
+  ai: ModelAi,
   definition: AiTaskDefinition<Result>,
   input: Readonly<TaskInput>,
   owner: TaskOwner | null,
   attempt?: AbortSignal,
 ): Promise<TaskResult<Result> | ClaimLost> {
-  const loaded = await loadAiConfig(ports);
-
-  if (loaded.state !== "ready") return { ...refusedAi(loaded.state), taskId: null };
-  const { config } = loaded;
+  if (ai.state !== "ready") return { ...refusedAi(ai.state), taskId: null };
+  const { config } = ai;
 
   if (config.kind === "http" && !ports.ai.allowsUrl(config.baseUrl))
     return { ...refusedAi("refused"), taskId: null };
@@ -177,7 +179,12 @@ async function execute<Result>(
     text,
     taskId,
     maxOutputTokens,
-  }: Readonly<{ config: AiConnection; text: string; taskId: number; maxOutputTokens: number }>,
+  }: Readonly<{
+    config: AiConnection;
+    text: string;
+    taskId: number;
+    maxOutputTokens: number;
+  }>,
   attempt: AbortSignal | undefined,
 ): Promise<TaskResult<Result>> {
   const deadline = AbortSignal.timeout(AI_DEADLINE_MS);

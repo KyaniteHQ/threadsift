@@ -97,7 +97,11 @@ function useRemove({ address, key }: Readonly<Fields>, changed: Changed): Task {
   const { fail: failKey, clear: clearKey } = key;
 
   return useCallback(async () => {
-    changed(await removeGrokBot());
+    const removed = await removeGrokBot();
+
+    if (removed.kind === "in-use") return { kind: "error", text: GROK_BOT_TEXT.removeInUse };
+
+    changed(removed.view);
     setAddress("");
     clearKey();
     failAddress(null);

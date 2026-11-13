@@ -53,7 +53,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
       deferredUntil: taskRow(instance, task.id).deadline,
       wait: "grok-bot",
       countsAttempt: false,
-      unlessAnswered: task.id,
+      unlessOpen: task.id,
     } as const;
 
     assert.equal((await answered(instance, task, answerOf(picksFor(candidate())))).status, 204);
@@ -76,7 +76,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
       deferredUntil: taskRow(instance, task.id).deadline,
       wait: "grok-bot",
       countsAttempt: false,
-      unlessAnswered: task.id,
+      unlessOpen: task.id,
     } as const;
 
     await applyOutcome(instance.core, task.job, deferral);
@@ -91,7 +91,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
       deferredUntil: taskRow(instance, task.id).deadline,
       wait: "grok-bot",
       countsAttempt: false,
-      unlessAnswered: task.id,
+      unlessOpen: task.id,
     });
     assert.equal(jobRow(instance, task.job.id).state, "queued");
     assert.equal((await answered(instance, task, answerOf(picksFor(candidate())))).status, 204);
