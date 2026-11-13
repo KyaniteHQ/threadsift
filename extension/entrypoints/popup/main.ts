@@ -4,6 +4,8 @@ import { applyLook, element } from "../../lib/page-look.ts";
 import { SAVE_PORT, type SaveState, SaveStateSchema, ask } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
 
+const SAVE_DEADLINE_MS = 240_000;
+
 type Failure = Exclude<SaveState["kind"], "saving" | "saved">;
 
 const FAILURE_TEXT: Readonly<Record<Failure, string>> = {
@@ -81,7 +83,7 @@ async function save(): Promise<void> {
   show({ kind: "saving" });
 
   try {
-    show(await ask(SAVE_PORT, SaveStateSchema));
+    show(await ask(SAVE_PORT, SaveStateSchema, { deadlineMs: SAVE_DEADLINE_MS }));
   } catch {
     show({ kind: "failed" });
   }

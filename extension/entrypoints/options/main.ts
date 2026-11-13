@@ -23,6 +23,7 @@ const REFUSAL_TEXT: Readonly<Record<Refusal, string>> = {
 const FAILURE_TEXT: Readonly<Record<Failure, string>> = {
   "not-saved": TEXT.settingsNotSaved,
   "old-access-kept": TEXT.oldAccessKept,
+  "not-saved-access-kept": TEXT.accessKeptNotSaved,
 };
 
 const root = document.querySelector("#root");
@@ -36,10 +37,12 @@ const result = element("p", { class: "ext-status", role: "status" });
 const saveButton = element("button", { type: "submit", class: "btn btn-acc" }, TEXT.saveSettings);
 
 const fillStatus = element("p", { class: "ext-status", "aria-live": "polite" });
+const fillNote = element("p", { class: "ext-status", role: "status" });
 const fillButton = element("button", { type: "button", class: "btn btn-acc" }, TEXT.fillTurnOn);
 
 let settings: SettingsState = { kind: "loading" };
 let fill: FillState = { kind: "loading" };
+let fillVersion = 0;
 
 function field(label: string, input: HTMLElement, hint: HTMLElement): HTMLDivElement {
   return element(
@@ -63,7 +66,8 @@ function showStored({ origin, hasToken }: Readonly<ConfigView>): void {
 }
 
 function renderSettings(state: Readonly<SettingsState>): void {
-  saveButton.disabled = state.kind === "loading" || state.kind === "unreadable";
+  saveButton.disabled =
+    state.kind === "loading" || state.kind === "unreadable" || state.kind === "saving";
 
   switch (state.kind) {
     case "loading":
@@ -77,7 +81,6 @@ function renderSettings(state: Readonly<SettingsState>): void {
       say(result, "", "plain");
       break;
     case "saving":
-      saveButton.disabled = true;
       say(result, TEXT.saving, "plain");
       break;
     case "saved":
@@ -104,6 +107,11 @@ function moveSettings(next: SettingsState): void {
   renderSettings(next);
 }
 
+function labelFill(on: boolean): void {
+  fillButton.textContent = on ? TEXT.fillTurnOff : TEXT.fillTurnOn;
+  say(fillStatus, on ? TEXT.fillIsOn : TEXT.fillIsOff, on ? "ok" : "plain");
+}
+
 function renderFill(state: Readonly<FillState>): void {
   fillButton.disabled =
     state.kind === "loading" || state.kind === "unreadable" || state.kind === "working";
@@ -111,22 +119,24 @@ function renderFill(state: Readonly<FillState>): void {
   switch (state.kind) {
     case "loading":
       say(fillStatus, "", "plain");
+      say(fillNote, "", "plain");
       break;
     case "unreadable":
-      say(fillStatus, TEXT.settingsUnreadable, "warn");
+      say(fillStatus, "", "plain");
+      say(fillNote, TEXT.fillUnreadable, "warn");
       break;
     case "idle":
     case "working":
-      fillButton.textContent = state.on ? TEXT.fillTurnOff : TEXT.fillTurnOn;
-      say(fillStatus, state.on ? TEXT.fillIsOn : TEXT.fillIsOff, state.on ? "ok" : "plain");
+      labelFill(state.on);
+      say(fillNote, "", "plain");
       break;
     case "denied":
-      fillButton.textContent = TEXT.fillTurnOn;
-      say(fillStatus, TEXT.fillDenied, "warn");
+      labelFill(state.on);
+      say(fillNote, TEXT.fillDenied, "warn");
       break;
     case "failed":
-      fillButton.textContent = state.on ? TEXT.fillTurnOff : TEXT.fillTurnOn;
-      say(fillStatus, TEXT.fillFailed, "warn");
+      labelFill(state.on);
+      say(fillNote, TEXT.fillFailed, "warn");
       break;
     default: {
       const exhaustive: never = state;
@@ -137,6 +147,7 @@ function renderFill(state: Readonly<FillState>): void {
 }
 
 function moveFill(next: FillState): void {
+  fillVersion += 1;
   fill = next;
   renderFill(next);
 }
@@ -164,19 +175,20 @@ function pressFill(): void {
 
   moveFill({ kind: "working", on: current.on });
 
-  void turnFill(current.on).then(moveFill);
+  void turnFill(!current.on).then(moveFill);
 }
 
-function isTurningFill(): boolean {
+function fillIsWorking(): boolean {
   return fill.kind === "working";
 }
 
 async function followGrant(): Promise<void> {
-  if (isTurningFill()) return;
+  if (fillIsWorking()) return;
 
+  const version = fillVersion;
   const next = await loadFill();
 
-  if (!isTurningFill()) moveFill(next);
+  if (version === fillVersion) moveFill(next);
 }
 
 browser.permissions.onAdded.addListener(() => void followGrant());
@@ -192,6 +204,7 @@ const fillSection = element(
   element("p", { class: "ext-hint" }, TEXT.fillHint),
   element("div", { class: "ext-actions" }, fillButton),
   fillStatus,
+  fillNote,
 );
 
 const form = element(
@@ -216,8 +229,6 @@ renderFill(fill);
 
 root.append(element("h1", {}, TEXT.settingsTitle), form, fillSection);
 
-const [loadedSettings, loadedFill] = await Promise.all([loadSettings(), loadFill()]);
+void followGrant();
 
-moveSettings(loadedSettings);
-
-moveFill(loadedFill);
+moveSettings(await loadSettings());

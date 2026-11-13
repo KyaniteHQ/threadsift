@@ -1,11 +1,22 @@
 import { browser } from "wxt/browser";
 
-import { hostPattern, instanceOrigin, storeConfig, storeOrigin } from "./config.ts";
-import { CONFIG_PORT, type ConfigView, ConfigViewSchema, ask } from "./state.ts";
+import { hostPattern, instanceOrigin } from "./config.ts";
+import { logFailure } from "./log.ts";
+import {
+  ANSWER_DEADLINE_MS,
+  CONFIG_PORT,
+  type ChangeAnswer,
+  ChangeAnswerSchema,
+  type ConfigView,
+  ConfigViewSchema,
+  SETTINGS_PORT,
+  type SettingsRequest,
+  ask,
+} from "./state.ts";
 
 export type Refusal = "address" | "token" | "access";
 
-export type Failure = "not-saved" | "old-access-kept";
+export type Failure = "not-saved" | "old-access-kept" | "not-saved-access-kept";
 
 export type SettingsState =
   | { readonly kind: "loading" }
@@ -21,32 +32,57 @@ export interface SettingsInput {
   readonly token: string;
 }
 
-async function readStored(): Promise<ConfigView | null> {
+export async function readStored(): Promise<ConfigView | null> {
   try {
-    return await ask(CONFIG_PORT, ConfigViewSchema);
-  } catch {
+    return await ask(CONFIG_PORT, ConfigViewSchema, { deadlineMs: ANSWER_DEADLINE_MS });
+  } catch (cause) {
+    logFailure("settings-read-failed", cause);
+
     return null;
   }
 }
 
-export async function loadSettings(): Promise<SettingsState> {
-  const stored = await readStored();
-
-  return stored === null ? { kind: "unreadable" } : { kind: "idle", stored };
-}
-
-async function failedAs(step: Failure): Promise<SettingsState> {
-  const stored = await readStored();
-
-  return stored === null ? { kind: "unreadable" } : { kind: "failed", stored, step };
-}
-
-async function dropAccess(pattern: string): Promise<boolean> {
+export async function requestChange(request: SettingsRequest): Promise<ChangeAnswer | null> {
   try {
-    return await browser.permissions.remove({ origins: [pattern] });
-  } catch {
-    return false;
+    return await ask(SETTINGS_PORT, ChangeAnswerSchema, {
+      deadlineMs: ANSWER_DEADLINE_MS,
+      request,
+    });
+  } catch (cause) {
+    logFailure("settings-change-failed", cause);
+
+    return null;
   }
+}
+
+async function readState(
+  make: (stored: Readonly<ConfigView>) => SettingsState,
+): Promise<SettingsState> {
+  const stored = await readStored();
+
+  return stored === null ? { kind: "unreadable" } : make(stored);
+}
+
+export function loadSettings(): Promise<SettingsState> {
+  return readState((stored) => ({ kind: "idle", stored }));
+}
+
+function failureOf({ write, access }: Readonly<ChangeAnswer>): Failure | null {
+  if (write === "done") return access === "kept" ? "old-access-kept" : null;
+
+  return access === "kept" ? "not-saved-access-kept" : "not-saved";
+}
+
+function stateOf(answer: Readonly<ChangeAnswer>): SettingsState {
+  const step = failureOf(answer);
+
+  return step === null
+    ? { kind: "saved", stored: answer.stored }
+    : { kind: "failed", stored: answer.stored, step };
+}
+
+function notSaved(): Promise<SettingsState> {
+  return readState((stored) => ({ kind: "failed", stored, step: "not-saved" }));
 }
 
 export async function saveSettings(
@@ -60,25 +96,23 @@ export async function saveSettings(
 
   if (secret === "" && !stored.hasToken) return { kind: "refused", stored, reason: "token" };
 
-  const pattern = hostPattern(origin);
-  const previous = stored.origin === null ? null : hostPattern(stored.origin);
+  let granted: boolean;
 
   try {
-    if (!(await browser.permissions.request({ origins: [pattern] }))) {
-      return { kind: "refused", stored, reason: "access" };
-    }
+    granted = await browser.permissions.request({ origins: [hostPattern(origin)] });
+  } catch (cause) {
+    logFailure("settings-request-failed", cause);
 
-    if (secret === "") await storeOrigin(origin);
-    else await storeConfig({ origin, token: secret });
-  } catch {
-    if (pattern !== previous) await dropAccess(pattern);
-
-    return failedAs("not-saved");
+    return notSaved();
   }
 
-  if (previous !== null && previous !== pattern && !(await dropAccess(previous))) {
-    return failedAs("old-access-kept");
-  }
+  if (!granted) return { kind: "refused", stored, reason: "access" };
 
-  return { kind: "saved", stored: { origin, hasToken: true } };
+  const answer = await requestChange({
+    kind: "save",
+    origin,
+    token: secret === "" ? null : secret,
+  });
+
+  return answer === null ? { kind: "unreadable" } : stateOf(answer);
 }
