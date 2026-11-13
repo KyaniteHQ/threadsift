@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { botStep } from "../src/core/bot-step.ts";
@@ -34,6 +34,16 @@ export function insertedFetchJob(instance: Instance, itemId: number, address: st
   );
 }
 
+export function keptOffTheNetwork(instance: Instance, itemId: number, address: string): void {
+  exec(
+    instance,
+    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values ('x_verify', ?, ?, 'running', 0, 0, 0, ?)",
+    itemId,
+    address,
+    Date.now() + HOUR_MS,
+  );
+}
+
 export function insertedXItem(instance: Instance, statusId: string): number {
   exec(
     instance,
@@ -58,7 +68,7 @@ export async function openFetchJob(instance: Instance, itemId: number): Promise<
   const [job] = await instance.core.db
     .select()
     .from(jobs)
-    .where(eq(jobs.itemId, itemId))
+    .where(and(eq(jobs.itemId, itemId), eq(jobs.kind, "fetch")))
     .orderBy(desc(jobs.id))
     .limit(1);
 
@@ -124,4 +134,12 @@ export function openJobIds(instance: Instance, itemId: number): readonly number[
 
 export function stepOf(instance: Instance, job: Readonly<ClaimedJob>) {
   return botStep(instance.core, job, xIntakeKind);
+}
+
+export async function sentIntakeForContent(instance: Instance): Promise<IntakeTask> {
+  const task = await sentIntake(instance);
+
+  keptOffTheNetwork(instance, task.itemId, addressOf(task.statusId));
+
+  return task;
 }

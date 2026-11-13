@@ -20,6 +20,7 @@ export async function settledFetch(
   job: Readonly<ClaimedJob>,
   fetched: Readonly<Concluded>,
   deadline: AbortSignal,
+  suppliedDigest: string | null = null,
 ) {
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
 
@@ -30,7 +31,7 @@ export async function settledFetch(
 
   const columns = {
     ...fields,
-    pendingDigest: storesText ? items.pendingDigest : null,
+    pendingDigest: storesText ? (suppliedDigest ?? items.pendingDigest) : null,
     generation: replaces ? sql`${items.generation} + 1` : items.generation,
   };
 

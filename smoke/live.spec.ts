@@ -10,6 +10,8 @@ import {
   ItemResponseSchema,
   SavedItemResponseSchema,
 } from "../src/http/schemas.ts";
+import { digestStates, digestedTopic, itemIdle, overviewText, relatedOf } from "./live-reads.ts";
+import { savedXThreadThroughIntake } from "./x-live-flow.ts";
 
 const PASSWORD = "a live check password of fifteen or more";
 
@@ -87,53 +89,6 @@ async function pasteAndSettle(
   expect({ status, fetch: result }, `${url} is read`).toEqual({ status: "ready", fetch: "ok" });
 
   return item.id;
-}
-
-function digestStates(request: APIRequestContext, ids: readonly number[]) {
-  return Promise.all(
-    ids.map(async (id) => {
-      const answer = await request.get(`/api/items/${String(id)}`);
-      const { item } = ItemDetailResponseSchema.parse(await answer.json());
-
-      return item.digest === null ? item.digestOutcome : "digest";
-    }),
-  );
-}
-
-async function digestedTopic(request: APIRequestContext, ids: readonly number[]): Promise<string> {
-  const topics = await Promise.all(
-    ids.map(async (id) => {
-      const answer = await request.get(`/api/items/${String(id)}`);
-
-      return ItemDetailResponseSchema.parse(await answer.json()).item.digestTopic;
-    }),
-  );
-
-  const topic = topics.find((name) => name !== null);
-
-  if (topic === undefined || topic === null) throw new Error("no Item holds a Digest with a Topic");
-
-  return topic;
-}
-
-async function overviewText(request: APIRequestContext, topic: string): Promise<string | null> {
-  const answer = await request.get(topicApiPath(catalogKey(topic)));
-
-  expect(answer.status(), `the Topic page of ${topic}`).toBe(200);
-
-  return TopicPageSchema.parse(await answer.json()).overview.text;
-}
-
-async function relatedOf(request: APIRequestContext, id: number): Promise<readonly number[]> {
-  const answer = await request.get(`/api/items/${String(id)}`);
-
-  return ItemDetailResponseSchema.parse(await answer.json()).item.related.map((entry) => entry.id);
-}
-
-async function itemIdle(request: APIRequestContext, id: number): Promise<boolean> {
-  const status = await request.get(`/api/items/${String(id)}/status`);
-
-  return ItemResponseSchema.parse(await status.json()).item.status !== "processing";
 }
 
 async function setUpOwner(request: APIRequestContext): Promise<void> {
@@ -298,3 +253,9 @@ if (TARGET === "worker") {
     await waitForWikiWork(request, ids);
   });
 }
+
+test("a real public X thread saved through the Grok Bot intake is shown after X confirms its posts", async ({
+  request,
+}) => {
+  await savedXThreadThroughIntake(request, { password: PASSWORD, setupCode: SETUP_CODE });
+});

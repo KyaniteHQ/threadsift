@@ -58,9 +58,11 @@ export const WAIT_REASONS = [
   "topic-busy",
   "grok-bot",
   "reddit-limit",
+  "x-verify",
+  "x-reread",
 ] as const;
 
-export const ITEM_JOB_KINDS = ["fetch", "digest"] as const;
+export const ITEM_JOB_KINDS = ["fetch", "digest", "x_verify"] as const;
 
 export const JOB_KINDS = [
   ...ITEM_JOB_KINDS,

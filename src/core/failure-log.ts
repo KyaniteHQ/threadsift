@@ -30,6 +30,14 @@ export function errorClassOf(cause: unknown): string {
   return cause instanceof Error ? cause.constructor.name : "NotAnError";
 }
 
+const ErrnoSchema = z.looseObject({ code: z.string().regex(/^E[A-Z0-9]+$/u) });
+
+export function errnoCodeOf(cause: unknown): string {
+  const errno = ErrnoSchema.safeParse(cause);
+
+  return errno.success ? errno.data.code : "none";
+}
+
 export function databaseCodeOf(cause: unknown, depth = 0): string {
   const failure = DatabaseErrorSchema.safeParse(cause);
 

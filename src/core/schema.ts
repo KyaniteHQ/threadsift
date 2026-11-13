@@ -67,6 +67,8 @@ export { searchFingerprints, searchParts, searchReconciling } from "./search-tab
 
 export { topicChecks, topicLeases, topicPages } from "./topic-tables.ts";
 
+export { xVerifications } from "./x-verification-tables.ts";
+
 export const items = sqliteTable(
   "items",
   {

@@ -33,6 +33,10 @@ export function noteOf(item: Readonly<Item>): NoticeKey | null {
     return "github-token";
   }
 
+  if (item.source === "x" && item.fetch === "unreadable") {
+    return item.title === null ? "x-unreadable" : "x-kept";
+  }
+
   return item.title === null ? NOTE_OF_RESULT[item.fetch] : "title-kept";
 }
 

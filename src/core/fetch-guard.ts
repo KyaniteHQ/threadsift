@@ -40,6 +40,7 @@ export type Failed =
       readonly reason: "status";
       readonly httpStatus: number;
       readonly reset: string | null;
+      readonly body?: string;
     }
   | RateLimited;
 
@@ -49,6 +50,7 @@ export interface FetchPolicy {
   readonly readsBody: (url: string) => boolean;
   readonly headers: (url: string) => RequestHeaders;
   readonly readsLimits: (url: string) => boolean;
+  readonly readsForbiddenBody?: (url: string) => boolean;
   readonly htmlMaxBytes: number;
   readonly dataMaxBytes: number;
 }

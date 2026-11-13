@@ -7,6 +7,7 @@ import type { LoadedFetcher } from "./fetcher.ts";
 import type { OpenRouterExchange } from "./openrouter-contract.ts";
 import type { Sealer } from "./sealed-secret.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
+import type { XFetcher } from "./x-fetcher.ts";
 
 export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
 
@@ -128,6 +129,7 @@ export interface Ports {
   readonly publicOrigin: string | null;
   readonly ai: AiRuntime;
   readonly fetchers: readonly LoadedFetcher[];
+  readonly xFetcher: XFetcher | null;
 }
 
 export const REQUEST_HEADERS = {

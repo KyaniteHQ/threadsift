@@ -85,6 +85,48 @@ Under [OpenAI's CI guide](https://learn.chatgpt.com/docs/auth/ci-cd-auth), OpenA
 
 Threadsift hands X links to Grok Bot, which reads the posts and replies and saves them back. [bot/README.md](../../bot/README.md) says how to install and update the bot.
 
-Open Settings, find Grok Bot, paste the routine's webhook address and key, press **Save**, then press **Test**. Every pasted X link goes to the bot first. Without a bot, an X link stays a Link-only Item.
+Open Settings, find Grok Bot, paste the routine's webhook address and key, press **Save**, then press **Test**. Every pasted X link goes to the saved bot first; without a saved bot, a container fetches the link with the grok CLI when it is set up (the section "Use the grok CLI for X posts on the container" below), and otherwise the link stays a Link-only Item. A saved bot is never skipped, and a bot that does not answer is not retried through the CLI.
 
 The Provider list always shows Grok Bot, and you can choose it once the Grok Bot settings are saved and usable.
+
+## Use the grok CLI for X posts on the container
+
+When no Grok Bot is saved, Threadsift can fetch a pasted X post and its replies on the container by running the grok command-line tool (the grok CLI) on the server. It is an optional step. The image ships no grok CLI, and nothing in the app installs it. Everything is kept in the `/data` volume, in the folder `/data/grok`. On the Cloudflare Worker install there is no such tool, and a pasted X link stays a Link-only Item there unless a Grok Bot is saved.
+
+1. Install the grok CLI into the volume (the image has `curl` for the installer):
+
+   ```sh
+   podman exec -it -e HOME=/data/grok -e GROK_BIN_DIR=/data/grok/bin <container> bash -c 'curl -fsSL https://x.ai/cli/install.sh | bash'
+   ```
+
+2. Restart the Instance so it finds the tool:
+
+   ```sh
+   podman restart <container>
+   ```
+
+3. Sign in on the server:
+
+   ```sh
+   podman exec -it -e HOME=/data/grok <container> grok login --device-auth
+   ```
+
+   The tool prints a link and a code; open the link on any device, enter the code and approve. The login is saved in `/data/grok/auth.json` in the volume.
+
+4. Open Settings. The "X posts" section shows the grok CLI as signed in. Paste an X link; the Item shows the post and its replies like a Reddit thread.
+
+The install and login stay in the volume when the container is removed and recreated on the same volume. Installing, updating or removing the CLI needs a restart.
+
+Every fetch is one run on the owner's Grok plan, and it counts against that plan's usage. At most 2 fetches run at once.
+
+A fetch run can call the two X tools and xAI's own web search and page-open tools, which grok 1.0.77 cannot turn off without losing the X tools. It can call no tool of the server: no shell, no file, no edit, no subagent, no MCP and no workflow tool. Its prompt holds only the number of the post, and the posts reach it only as tool results. A hostile reply could still make the run search or open a public web page, which sends public post text and the Grok account's saved rules to that page. For this reason use a Grok account kept for this server, with no private rules saved in it.
+
+Threadsift stores the thread first and shows it only after checking each post against X’s public embed answer. Every post must exist on X under that id and author, and every character X shows must match the saved text, counting line breaks and runs of spaces as one space and matching short links to where they lead. A reply that fails is left out, and the Item ends with a note that further replies were not saved. If the post itself fails, nothing is shown and the Item stays a Link-only Item. The rest of a long post cut off by X, a Paste with content, media, and a reply’s place in the thread are not checked. When X cannot be reached or limits requests, Threadsift keeps what the agent gave, shows nothing yet, and tries again a little later, up to two more times; after that, the link stays a Link-only Item.
+
+Before the first fetch after the app starts, and again whenever the installed binary changes, the app makes one test run, and it checks every real run too. It refuses the fetch unless the tool is the checked version, 1.0.77, and offers no tool of the server. A newer version is refused, the Item stays Link-only, the log shows `x-fetch-refused` with the category `surface-unproven`, and Settings shows "Not proven" with the version. The app never reads or copies the login file.
+
+After the grok CLI is updated or replaced, restart the Instance with `podman restart <container>`; the app then runs its test run again at the next fetch. The refusal lasts until the restart or until the binary changes, and the log line `x-fetch-refused` with the category `surface-unproven` names it.
+
+The run asks the model to make at most 5 lookups. That is a request, not a limit the app enforces; the 2-minute fetch deadline is the limit. A post with very many replies stores only the replies the first lookups return, the Reader then shows that further replies were not saved, and a later fetch never replaces a stored thread with one that has fewer replies.
+
+A signed-out CLI leaves a Link-only Item with no Try again button. Sign in, then paste the link again.

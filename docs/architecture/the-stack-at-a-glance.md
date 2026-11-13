@@ -12,7 +12,7 @@
 | Schedule | one tick that enqueues due work | in-process minute timer | Cron Trigger |
 | AI over HTTP | AI SDK (`ai` 7) with its provider packages | yes | yes |
 | Workers AI | the `AI` binding, called directly | no | yes |
-| AI through a CLI | own subprocess runner in `src/targets/node/` | `claude -p` and `codex exec`; `grok` was checked and is not added (CLI executor, Grok CLI) | no |
+| AI through a CLI | own subprocess runner in `src/targets/node/` | `claude -p` and `codex exec`; `grok` is not a Provider and fetches X posts (CLI executor, Grok CLI; Fetchers, X) | no |
 | AI through Grok Bot | task webhook and result callback | yes | yes |
 | Article text | Defuddle on linkedom | yes | yes |
 | Web app | React 19 single-page app built by Vite | served by Hono | Workers static assets |

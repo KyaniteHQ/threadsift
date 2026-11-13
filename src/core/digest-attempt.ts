@@ -49,7 +49,7 @@ async function attemptCaller(
 
 export const digestHandler: JobHandler = {
   deadlineMs: DIGEST_DEADLINE_MS,
-  blockedBy: ["fetch"],
+  blockedBy: ["fetch", "x_verify"],
   attempt: attemptDigest,
   exhausted: (db, job) => [markDigest(db, job.itemId, "attempt-failed"), givenUpTasks(db, job)],
   inputCurrent: attemptGenerationCurrent,

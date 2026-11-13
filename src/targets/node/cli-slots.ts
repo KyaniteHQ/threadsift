@@ -58,3 +58,19 @@ export class Slots {
     else next();
   }
 }
+
+export async function inSlot<Result>(
+  slots: Slots,
+  stop: AbortSignal,
+  work: () => Promise<Result>,
+): Promise<Result | null> {
+  const release = await slots.acquire(stop);
+
+  if (release === null) return null;
+
+  try {
+    return await work();
+  } finally {
+    release();
+  }
+}

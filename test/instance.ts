@@ -128,6 +128,7 @@ export class Instance {
       fetchers,
       claude: { path: "", configDir: undefined, token: undefined },
       codex: { path: "", home: undefined, dataDir: join(folder, "data") },
+      grok: { path: "", home: undefined, dataDir: join(folder, "data") },
     }).catch(async (error: Error) => {
       await stop();
 

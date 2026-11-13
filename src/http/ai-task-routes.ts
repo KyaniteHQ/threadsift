@@ -77,7 +77,7 @@ const intakeRoute = createRoute({
   },
   responses: {
     204: noContent(
-      "With `content`, the X thread is stored on the task's Item, the Digest (when the body holds one) is kept for the Item's Digest job, the task is done and the Item's fetch job is closed. With `unavailable`, the task is done, the fetch job is closed and the Item stays a Link-only Item. A second call lands on 409.",
+      "With `content`, the X thread is stored for the task's Item without being shown, the Digest (when the body holds one) is kept for the Item's Digest job, the task is done and the Item's fetch job is closed. A verification job then checks every post of the thread against X's own embed answer and shows only what X confirms; a thread whose post X does not confirm, or that X cannot confirm after the job's retries, ends the Item with the fetch result `unreadable`, which keeps the saved copy of an Item that had one and leaves a new Item without content. The thread is limited to 1,499,998 bytes of JSON, as for any other row. With `unavailable`, the task is done, the fetch job is closed and the Item stays a Link-only Item. A second call lands on 409.",
     ),
     400: jsonBody(
       ErrorResponseSchema,

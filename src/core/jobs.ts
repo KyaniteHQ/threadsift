@@ -19,7 +19,7 @@ import { CLAIM_MARGIN_MS, type ClaimedJob, type JobPorts, RETRY_DELAYS_MS } from
 import { ATTEMPT_FILES, hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { items, jobs } from "./schema.ts";
+import { items, jobs, xVerifications } from "./schema.ts";
 
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 
@@ -56,7 +56,10 @@ export function dueIds(db: Database, now: number, limit: number) {
     .limit(limit);
 }
 
-const ITEM_GENERATION = sql`(select ${items.generation} from ${items} where ${items.id} = ${jobs.itemId})`;
+const INPUT_VERSION = sql`case ${jobs.kind}
+  when 'digest' then (select ${items.generation} from ${items} where ${items.id} = ${jobs.itemId})
+  when 'x_verify' then (select ${xVerifications.revision} from ${xVerifications} where ${xVerifications.itemId} = ${jobs.itemId})
+end`;
 
 async function claim(db: Database, which: () => SQL, now: number): Promise<ClaimedJob | null> {
   const [claimed] = await db
@@ -64,8 +67,8 @@ async function claim(db: Database, which: () => SQL, now: number): Promise<Claim
     .set({
       state: "running",
       claimExpires: sql`${now} + case ${jobs.kind} ${LEASE_MS} end`,
-      attempts: sql`case when ${jobs.kind} = 'digest' and ${jobs.attemptGeneration} <> ${ITEM_GENERATION} then 0 else ${jobs.attempts} + (${jobs.state} = 'running') end`,
-      attemptGeneration: sql`case when ${jobs.kind} = 'digest' then ${ITEM_GENERATION} else ${jobs.attemptGeneration} end`,
+      attempts: sql`case when ${jobs.attemptGeneration} <> ${INPUT_VERSION} then 0 else ${jobs.attempts} + (${jobs.state} = 'running') end`,
+      attemptGeneration: INPUT_VERSION,
       waitReason: null,
     })
     .where(and(which(), isDue(now)))

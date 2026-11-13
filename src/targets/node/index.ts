@@ -27,6 +27,7 @@ const env = z
     CLAUDE_CONFIG_DIR: z.string().optional(),
     CLAUDE_CODE_OAUTH_TOKEN: z.string().optional(),
     CODEX_HOME: z.string().optional(),
+    GROK_HOME: z.string().optional(),
   })
   .parse(process.env);
 
@@ -57,6 +58,11 @@ const node = await startNode(database.db, {
   codex: {
     path: env.PATH,
     home: env.CODEX_HOME,
+    dataDir: env.DATA_DIR,
+  },
+  grok: {
+    path: env.PATH,
+    home: env.GROK_HOME,
     dataDir: env.DATA_DIR,
   },
 });

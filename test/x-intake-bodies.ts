@@ -19,13 +19,18 @@ const LONG_REPLIES = 100;
 
 const LONG_TEXT = "a long reply ".repeat(300);
 
-export const longAnswerOf = (statusId: string) => ({
+const answerOfReplies = (statusId: string, text: string) => ({
   content: JSON.stringify(
     thread(
       Array.from({ length: LONG_REPLIES }, (_, index) =>
-        reply(3_000_000_000_000_000_000n + BigInt(index), statusId, { text: LONG_TEXT }),
+        reply(3_000_000_000_000_000_000n + BigInt(index), statusId, { text }),
       ),
       { id: statusId },
     ),
   ),
 });
+
+export const longAnswerOf = (statusId: string) => answerOfReplies(statusId, LONG_TEXT);
+
+export const oversizedAnswerOf = (statusId: string) =>
+  answerOfReplies(statusId, LONG_TEXT.repeat(7));

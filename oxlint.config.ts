@@ -57,7 +57,10 @@ export default defineConfig({
           { from: "package", name: "McpServer", package: "@modelcontextprotocol/server" },
           { from: "package", name: "OpenAPIHono", package: "@hono/zod-openapi" },
           { from: "lib", name: "Document" },
-          { from: "file", name: ["Database", "CatalogKind", "Look", "InputKind", "Slots"] },
+          {
+            from: "file",
+            name: ["Database", "CatalogKind", "Look", "InputKind", "Slots", "GrokCli"],
+          },
           { from: "package", name: ["ZodError", "ZodObject"], package: "zod" },
           {
             from: "package",

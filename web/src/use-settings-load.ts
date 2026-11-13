@@ -8,6 +8,7 @@ import { SECTION_FONTS, loadFonts } from "./load-fonts.ts";
 import { fetchRedditAccount } from "./reddit-account-api.ts";
 import { fetchRedditSettings } from "./reddit-api.ts";
 import type { Loaded, SettingsLoad } from "./settings-load-types.ts";
+import { fetchXSettings } from "./x-api.ts";
 
 export const SETTINGS_READ_MS = 20_000;
 
@@ -46,19 +47,20 @@ export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLo
     const load = async (): Promise<void> => {
       const { signal } = controller;
 
-      const [ai, github, grokBot, reddit, redditAccount, tokens] = await Promise.all([
+      const [ai, github, grokBot, reddit, redditAccount, tokens, x] = await Promise.all([
         settled(fetchAiSettings, signal),
         settled(fetchGithubSettings, signal),
         settled(fetchGrokBotSettings, signal),
         settled(fetchRedditSettings, signal),
         settled(fetchRedditAccount, signal),
         settled(fetchTokens, signal),
+        settled(fetchXSettings, signal),
         page.current === null ? undefined : loadFonts(page.current, SECTION_FONTS, signal),
       ]);
 
       window.clearTimeout(deadline);
 
-      if (mounted) setLoaded({ ai, github, grokBot, reddit, redditAccount, tokens });
+      if (mounted) setLoaded({ ai, github, grokBot, reddit, redditAccount, tokens, x });
     };
 
     void load();

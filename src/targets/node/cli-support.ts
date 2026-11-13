@@ -12,7 +12,7 @@ import {
 } from "../../core/ai-contract.ts";
 import type { CliRunner } from "../shared/ai-runtime.ts";
 import type { ProcessEnd } from "./cli-process.ts";
-import type { Slots } from "./cli-slots.ts";
+import { type Slots, inSlot } from "./cli-slots.ts";
 
 export const STDOUT_CAP = 1024 * 1024;
 export const STDERR_CAP = 64 * 1024;
@@ -57,16 +57,17 @@ export async function inEmptyFolder<Result>(
   }
 }
 
-function answerWithin(
+export function answerWithin<Answer>(
   shutdown: AbortSignal,
-  probe: (signal: AbortSignal) => Promise<boolean>,
-): Promise<boolean> {
+  probe: (signal: AbortSignal) => Promise<Answer>,
+  unanswered: Answer,
+): Promise<Answer> {
   const deadline = AbortSignal.any([AbortSignal.timeout(PROBE_MS), shutdown]);
-  const answer = probe(deadline).catch(() => false);
+  const answer = probe(deadline).catch(() => unanswered);
 
-  const expired = new Promise<false>((resolve) => {
+  const expired = new Promise<Answer>((resolve) => {
     deadline.addEventListener("abort", () => {
-      resolve(false);
+      resolve(unanswered);
     });
   });
 
@@ -151,7 +152,7 @@ export abstract class SlottedCli implements CliRunner {
   }
 
   readonly signedIn = (): Promise<boolean> =>
-    answerWithin(this.shutdown.signal, (signal) => this.probe(signal));
+    answerWithin(this.shutdown.signal, (signal) => this.probe(signal), false);
 
   readonly run = async <Result>(
     task: AiTaskRequest<Result>,
@@ -164,18 +165,15 @@ export abstract class SlottedCli implements CliRunner {
     if (early !== null) return early;
 
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
-    const release = await this.slots.acquire(stop);
 
-    if (release === null) return refusedAi("timeout");
-
-    try {
+    const done = await inSlot(this.slots, stop, async () => {
       const { result, code } = await this.attempt(task, model, stop);
 
       if (result.kind === "refused") report(this.provider, result.reason, code);
 
       return result;
-    } finally {
-      release();
-    }
+    });
+
+    return done ?? refusedAi("timeout");
   };
 }

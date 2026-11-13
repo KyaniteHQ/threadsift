@@ -1,11 +1,11 @@
-import { type SQLWrapper, and, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { openingDigest } from "./digest-job.ts";
 import { setStatus } from "./item-status.ts";
 import { ITEM_JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, items, jobs } from "./schema.ts";
+import { type JobRow, items, jobs, xVerifications } from "./schema.ts";
 
 const CLOSED_JOB = {
   state: "done",
@@ -41,9 +41,18 @@ export function closeJob(
   ];
 }
 
-export function closeFetchJobs(db: Database, itemId: Readonly<SQLWrapper>) {
-  return db
-    .update(jobs)
-    .set(CLOSED_JOB)
-    .where(and(eq(jobs.itemId, sql`${itemId}`), eq(jobs.kind, "fetch"), ne(jobs.state, "done")));
+export function closeItemJobs(db: Database, itemId: Readonly<SQLWrapper>) {
+  return [
+    db
+      .update(jobs)
+      .set(CLOSED_JOB)
+      .where(
+        and(
+          eq(jobs.itemId, sql`${itemId}`),
+          inArray(jobs.kind, ["fetch", "x_verify"]),
+          ne(jobs.state, "done"),
+        ),
+      ),
+    db.delete(xVerifications).where(eq(xVerifications.itemId, sql`${itemId}`)),
+  ] as const;
 }

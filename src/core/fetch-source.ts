@@ -7,6 +7,7 @@ import type { PageReader, Ports } from "./ports.ts";
 import { fetchedWithThread } from "./reddit-fetch.ts";
 import { noThreadFor } from "./reddit-thread.ts";
 import { type SuppliedPage, SuppliedPageSchema } from "./supplied-page.ts";
+import { type ToVerify, fetchedByX } from "./x-fetcher.ts";
 
 interface JobSource {
   readonly id: number;
@@ -17,7 +18,10 @@ interface JobSource {
 }
 
 type SourcePorts = Readonly<
-  Pick<Ports, "db" | "secrets" | "network" | "pages" | "fetchers" | "jobs" | "redditSession">
+  Pick<
+    Ports,
+    "db" | "secrets" | "network" | "pages" | "fetchers" | "jobs" | "redditSession" | "xFetcher"
+  >
 >;
 
 function suppliedDetails(
@@ -53,7 +57,7 @@ export async function fetchedForJob(
   ports: SourcePorts,
   source: Readonly<JobSource>,
   deadline: AbortSignal,
-): Promise<Fetched> {
+): Promise<Fetched | ToVerify> {
   const { address, page } = source;
 
   if (page !== null) {
@@ -66,6 +70,8 @@ export async function fetchedForJob(
   }
 
   return (
-    (await fetchedByPlugin(ports, source, deadline)) ?? fetchedWithThread(ports, source, deadline)
+    (await fetchedByPlugin(ports, source, deadline)) ??
+    (await fetchedByX(ports, source, deadline)) ??
+    fetchedWithThread(ports, source, deadline)
   );
 }
