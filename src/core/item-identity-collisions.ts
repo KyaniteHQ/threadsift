@@ -9,6 +9,13 @@ import { items } from "./schema.ts";
 
 const REPORT_GROUPS = 20;
 const IDENTITY_LOG_CHARS = 1000;
+const QUERY_OR_FRAGMENT = /[?#]/u;
+
+function loggedIdentity(identity: string): string {
+  const [beforeQuery = ""] = identity.split(QUERY_OR_FRAGMENT, 1);
+
+  return beforeQuery.slice(0, IDENTITY_LOG_CHARS);
+}
 
 function groupsAfter(db: Database, from: number) {
   const leader = min(dataStepRenames.subject);
@@ -53,7 +60,7 @@ export async function reportCollisions(db: Database, from: number): Promise<Adva
 
   for (const { identity } of groups) {
     report("item-identity-collision", {
-      identity: identity.slice(0, IDENTITY_LOG_CHARS),
+      identity: loggedIdentity(identity),
       itemIds: members
         .filter((member) => member.identity === identity)
         .map(({ id }) => id)
