@@ -19,12 +19,7 @@ function guardRows(db: Database, condition: Readonly<SQLWrapper>) {
     .where(sql`${condition}`);
 }
 
-export function holdsNoRow(
-  db: Database,
-  // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle table type holds mutable column objects, so it cannot be deeply readonly.
-  table: SQLiteTable,
-  matching: Readonly<SQLWrapper>,
-) {
+export function holdsNoRow(db: Database, table: SQLiteTable, matching: Readonly<SQLWrapper>) {
   return notExists(
     db
       .select({ one: sql`1` })

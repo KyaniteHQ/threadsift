@@ -100,6 +100,11 @@ export default defineConfig({
             package: "@types/react",
           },
           { from: "package", name: ["ZodType"], package: "zod" },
+          {
+            from: "package",
+            name: ["SQL", "SQLWrapper", "SQLiteColumn", "SQLiteTable", "Subquery"],
+            package: "drizzle-orm",
+          },
         ],
       },
     ],
