@@ -133,7 +133,7 @@ function Row({
   );
 }
 
-export function visibleRows(
+function visibleRows(
   rows: readonly CountedName[],
   chosen: string | null,
   searching: boolean,

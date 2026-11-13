@@ -1,12 +1,4 @@
-import {
-  type RefObject,
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useId,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { type RefObject, useCallback, useEffect, useId, useRef } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { CLOSED, type DeleteEvent, type DeleteFlow, reduceDelete } from "./delete-flow.ts";
@@ -23,8 +15,7 @@ import {
 } from "./reader-text.ts";
 import { useFlow } from "./use-flow.ts";
 import { useAfter } from "./use-form.ts";
-
-const NOTHING = (): void => undefined;
+import { useModalDialog } from "./use-modal-dialog.ts";
 
 const DELETE_WAIT_MS = 20_000;
 
@@ -43,52 +34,36 @@ function containTab(dialog: HTMLElement, signal: AbortSignal): void {
   );
 }
 
-function useModal(
+function useDeleteModal(
   dialog: RefObject<HTMLDialogElement | null>,
   first: RefObject<HTMLElement | null>,
-  { pending, cancel }: Readonly<{ pending: boolean; cancel: () => void }>,
+  step: Readonly<{ pending: boolean; cancel: () => void }>,
 ): void {
-  const refuse = useEffectEvent(() => {
-    if (!pending) cancel();
-  });
-
-  const restore = useEffectEvent(() => {
-    if (pending) dialog.current?.showModal();
-    else cancel();
-  });
-
-  useLayoutEffect(() => {
-    const element = dialog.current;
-
-    if (element === null) return NOTHING;
-
-    const listeners = new AbortController();
-    const { signal } = listeners;
-
+  useModalDialog(dialog, step, (element, signal, latest) => {
     element.addEventListener(
       "cancel",
       (event) => {
         event.preventDefault();
-        refuse();
+
+        const { pending, cancel } = latest();
+
+        if (!pending) cancel();
       },
       { signal },
     );
     element.addEventListener(
       "close",
       () => {
-        restore();
+        const { pending, cancel } = latest();
+
+        if (pending) dialog.current?.showModal();
+        else cancel();
       },
       { signal },
     );
     containTab(element, signal);
-    element.showModal();
     first.current?.focus();
-
-    return () => {
-      listeners.abort();
-      element.close();
-    };
-  }, [dialog, first]);
+  });
 }
 
 function useHoldFocus(dialog: RefObject<HTMLDialogElement | null>, pending: boolean): void {
@@ -134,7 +109,7 @@ function DeleteDialog({
   const titleId = useId();
   const textId = useId();
   const pending = step === "pending";
-  useModal(dialog, first, { pending, cancel });
+  useDeleteModal(dialog, first, { pending, cancel });
   useHoldFocus(dialog, pending);
 
   return (
@@ -166,11 +141,9 @@ function useReturnFocus(asking: boolean, trigger: RefObject<HTMLElement | null>)
   useEffect(() => {
     const button = trigger.current;
 
-    return asking
-      ? () => {
-          button?.focus();
-        }
-      : NOTHING;
+    return () => {
+      if (asking) button?.focus();
+    };
   }, [asking, trigger]);
 }
 

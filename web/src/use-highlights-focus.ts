@@ -1,10 +1,9 @@
 import type { RefObject } from "react";
 
+import { NOTHING } from "./nothing.ts";
 import { focusNeighbour } from "./reveal.ts";
 import { useFocusNewRows } from "./use-focus-new-rows.ts";
 import { useLibraryKeys } from "./use-library-keys.ts";
-
-const NOTHING = (): void => undefined;
 
 const ENTRIES = { links: ".hp-open", row: "article.hp-it", link: ".hp-open" } as const;
 

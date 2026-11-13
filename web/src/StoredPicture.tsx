@@ -7,7 +7,7 @@ import type { SizedImage } from "../../src/http/item-image.ts";
 import { Mark } from "./Mark.tsx";
 import { Link } from "./ReaderLink.tsx";
 
-export interface Pictures {
+interface Pictures {
   readonly itemId: number;
   readonly sizes: ReadonlyMap<string, ImageSize>;
 }

@@ -37,6 +37,7 @@ export default defineConfig({
       },
     ],
     "unicorn/no-abusive-eslint-disable": "error",
+    "jsx-a11y/no-redundant-roles": ["error", { ol: ["list"], ul: ["list"] }],
     "unicorn/prefer-node-protocol": "error",
     "eslint/no-inline-comments": [
       "error",

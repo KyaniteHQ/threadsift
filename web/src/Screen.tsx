@@ -6,7 +6,7 @@ import { SignedOutScreen } from "./SignedOutScreen.tsx";
 import { Unreachable } from "./Unreachable.tsx";
 import type { Look } from "./use-root.ts";
 
-export interface SessionActions {
+interface SessionActions {
   readonly refresh: () => void;
   readonly signedIn: () => void;
   readonly signedOut: () => void;

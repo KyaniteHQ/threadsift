@@ -19,11 +19,7 @@ function ItemList({
   }
 
   return (
-    <ol
-      // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from an ol with list-style none
-      role="list"
-      className="rl-list"
-    >
+    <ol role="list" className="rl-list">
       {state.items.map((item) => (
         <TopicItemRow
           key={item.id}
@@ -52,7 +48,12 @@ export function TopicItemsSection({
       </header>
       <ItemList state={state} navigate={navigate} />
       {state.next === null ? null : (
-        <LoadMore more={state.more} failedText={TOPIC_PAGE.loadMoreFailed} loadMore={loadMore} />
+        <LoadMore
+          more={state.more}
+          failedText={TOPIC_PAGE.loadMoreFailed}
+          disabled={state.more === "loading"}
+          loadMore={loadMore}
+        />
       )}
     </section>
   );

@@ -1,8 +1,9 @@
-import { type ReactNode, useCallback, useEffectEvent, useLayoutEffect, useRef } from "react";
+import { type ReactNode, useCallback, useRef } from "react";
 
 import { Icon } from "./Icon.tsx";
 import { watchDismissal } from "./panel-dom.ts";
 import { NEXT_ITEM, PREVIOUS_ITEM } from "./reader-text.ts";
+import { useModalDialog } from "./use-modal-dialog.ts";
 
 export interface SheetNav {
   readonly steps: Readonly<{ previous: boolean; next: boolean }>;
@@ -57,29 +58,18 @@ function SideButton({
   );
 }
 
-const NOTHING = (): void => undefined;
-
-function useModal(close: () => void) {
+function useSheet(close: () => void) {
   const dialog = useRef<HTMLDialogElement>(null);
 
-  const dismiss = useEffectEvent(() => {
-    close();
+  useModalDialog(dialog, close, (element, signal, latest) => {
+    watchDismissal(
+      element,
+      () => {
+        latest()();
+      },
+      signal,
+    );
   });
-
-  useLayoutEffect(() => {
-    const element = dialog.current;
-
-    if (element === null) return NOTHING;
-
-    const listeners = new AbortController();
-    element.showModal();
-    watchDismissal(element, dismiss, listeners.signal);
-
-    return () => {
-      listeners.abort();
-      element.close();
-    };
-  }, []);
 
   return dialog;
 }
@@ -89,7 +79,7 @@ export function Sheet({
   nav,
   children,
 }: Readonly<{ titleId: string; nav: SheetNav; children: ReactNode }>) {
-  const dialog = useModal(nav.close);
+  const dialog = useSheet(nav.close);
 
   return (
     <dialog ref={dialog} className="sheet" aria-labelledby={titleId}>

@@ -121,10 +121,12 @@ export const WAITING = {
 
 export const BLANK = "\u00A0";
 export const SORT_LABEL = "Newest saved first";
-export const NEW_TAB_LABEL = "opens in a new tab";
 export const LOADING_LABEL = "Loading saved links…";
 
 export const LOAD_MORE = "Load more";
+export const LOADING_MORE = "Loading more…";
+export const NEWEST_FIRST = "Newest first";
+export const BACK_TO_LIBRARY = "Back to library";
 export const LOAD_FAILED = "Couldn’t load your saved links.";
 
 export const SETTINGS_GEAR_LABEL = "Settings";

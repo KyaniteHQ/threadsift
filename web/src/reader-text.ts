@@ -44,8 +44,7 @@ export const NO_POST_TEXT = "This item has no post text.";
 export const FILL_NOTE =
   "The thread for this item is not saved yet. Open it on Reddit with the Extension and filling turned on to fill it with the post and comments.";
 
-export const ARCHIVE_NOTE =
-  "The post and comments were filled from the Arctic Shift archive on {date}.";
+const ARCHIVE_NOTE = "The post and comments were filled from the Arctic Shift archive on {date}.";
 
 const ARCHIVE_COMMENTS_NOTE =
   "Only the comments were filled from the Arctic Shift archive on {date}.";

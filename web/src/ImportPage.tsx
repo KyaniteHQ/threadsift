@@ -15,7 +15,7 @@ export function ImportPage({ pages, back }: Readonly<{ pages: Pages; back: () =>
 
   return (
     <div className="pg imp">
-      <PageBar title={IMPORT.title} backLabel={IMPORT.back} back={back} />
+      <PageBar title={IMPORT.title} back={back} />
       <main className="pg-col imp-col">
         <ListSection input={input} list={list} locked={runner.state.phase === "running"} />
         <RunSection check={check} links={list.links} runner={runner} retry={retry} />
