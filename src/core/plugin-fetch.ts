@@ -4,7 +4,7 @@ import { logFailure } from "./failure-log.ts";
 import { type LoadedFetcher, type PluginPage, PluginPageSchema } from "./fetcher.ts";
 import { PAGE_BYTES, pageBytes } from "./supplied-page.ts";
 
-export type PluginResult =
+type PluginResult =
   | { readonly kind: "unclaimed" }
   | { readonly kind: "page"; readonly page: PluginPage }
   | { readonly kind: "failed"; readonly status: "unreadable" | "timeout" };

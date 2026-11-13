@@ -1,6 +1,6 @@
-export const CONTEXT_CODE_POINTS = 32;
+const CONTEXT_CODE_POINTS = 32;
 
-export interface Selector {
+interface Selector {
   readonly exact: string;
   readonly prefix: string;
   readonly suffix: string;

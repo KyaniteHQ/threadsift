@@ -6,7 +6,7 @@ import { sessions } from "./schema.ts";
 
 const SESSION_BYTES = 32;
 export const DAY_MS = 86_400_000;
-export const SESSION_DAYS = 30;
+const SESSION_DAYS = 30;
 const SESSION_MS = SESSION_DAYS * DAY_MS;
 export const SESSION_MAX_AGE_SECONDS = SESSION_MS / 1000;
 
@@ -15,14 +15,12 @@ export interface StartedSession {
   readonly maxAge: number;
 }
 
-export interface PreparedSession extends StartedSession {
+interface PreparedSession extends StartedSession {
   readonly digest: string;
   readonly expiresAt: number;
 }
 
-export type SessionCheck =
-  | { readonly valid: false }
-  | { readonly valid: true; readonly renewed: boolean };
+type SessionCheck = { readonly valid: false } | { readonly valid: true; readonly renewed: boolean };
 
 export function prepareSession(crypto: Crypto): PreparedSession {
   const id = randomSecret(crypto, SESSION_BYTES);

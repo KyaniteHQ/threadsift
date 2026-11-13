@@ -4,7 +4,7 @@ const DOTS_ONLY = /^~*\.+$/u;
 
 const ESCAPED_DOTS = /^~+\.+$/u;
 
-export function topicSegment(key: string): string {
+function topicSegment(key: string): string {
   return DOTS_ONLY.test(key) ? `~${key}` : key;
 }
 

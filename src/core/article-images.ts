@@ -32,20 +32,20 @@ const NO_DETAILS = {
   size: null,
 } as const;
 
-export interface MediaPlan {
+interface MediaPlan {
   readonly postText: string;
   readonly rows: readonly MediaRowValue[];
   readonly written: readonly string[];
 }
 
-export interface ArticleMedia {
+interface ArticleMedia {
   readonly postText: string;
   readonly videos: readonly string[];
   readonly images: readonly MarkdownImage[];
   readonly url: string;
 }
 
-export interface ImageSink {
+interface ImageSink {
   readonly network: Network;
   readonly files: FileStore;
   readonly crypto: Crypto;

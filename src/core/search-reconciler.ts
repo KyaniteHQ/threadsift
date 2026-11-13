@@ -1,8 +1,9 @@
-import { asc, eq, gt, sql } from "drizzle-orm";
+import { type SQL, asc, eq, gt, sql } from "drizzle-orm";
 
 import { digestOf } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
 import { guardedBatch } from "./guards.ts";
+import { nextItemPage } from "./item-cursor.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { Crypto, Database } from "./ports.ts";
 import { keptBodies, keptCommentIds } from "./reddit-thread.ts";
@@ -56,7 +57,7 @@ function repositoryOfItem() {
   >`(select ${repositoryText()} from ${githubRepos} where ${githubRepos.itemId} = ${items.id})`;
 }
 
-function itemsAfter(db: Database, after: number) {
+function itemsAfter(db: Database, after: SQL) {
   return db
     .select({
       id: items.id,
@@ -146,16 +147,7 @@ async function reconcileRow(ports: JobPorts, row: Readonly<Reconciled>): Promise
 
 export async function reconcileSearchParts(ports: JobPorts): Promise<void> {
   const { db } = ports;
-  const [cursor] = await db.select().from(searchReconciling).where(eq(searchReconciling.id, 1));
-  const after = cursor?.lastItemId ?? 0;
-  const next = await itemsAfter(db, after);
-  const page = next.length === 0 && after > 0 ? await itemsAfter(db, 0) : next;
-  const lastItemId = page.at(-1)?.id ?? 0;
-
-  await db
-    .insert(searchReconciling)
-    .values({ id: 1, lastItemId })
-    .onConflictDoUpdate({ target: searchReconciling.id, set: { lastItemId } });
+  const page = await nextItemPage(db, searchReconciling, (after) => itemsAfter(db, after));
 
   for (const row of page) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Items are reconciled sequentially.

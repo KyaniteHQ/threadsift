@@ -1,30 +1,19 @@
 import { sql } from "drizzle-orm";
 
-import { type PreparedSettings, prepareAiSettings, upsertSettings } from "./ai-settings.ts";
+import {
+  type PreparedSettings,
+  holdsSettings,
+  prepareAiSettings,
+  upsertSettings,
+} from "./ai-settings.ts";
 import { logFailure } from "./failure-log.ts";
+import { DATABASE_NOW, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Claimed } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
 import { CURRENT_REVISION } from "./openrouter-tables.ts";
-import type { Database, Ports } from "./ports.ts";
-import { DATABASE_NOW, guardedBatch, settings } from "./schema.ts";
+import type { Ports } from "./ports.ts";
 import { sessionIsLive } from "./sessions.ts";
-
-async function holdsRow(db: Database, row: Readonly<PreparedSettings>): Promise<boolean> {
-  try {
-    const [stored] = await db.select().from(settings);
-
-    return (
-      stored !== undefined &&
-      "sealedKey" in row &&
-      stored.sealedKey === row.sealedKey &&
-      stored.provider === row.provider &&
-      stored.model === row.model
-    );
-  } catch {
-    return false;
-  }
-}
 
 type Prepared = Awaited<ReturnType<typeof prepareAiSettings>>;
 
@@ -76,5 +65,5 @@ export async function saveConnectedKey(
 
   if (await committed(ports, { sessionId, claimed, row }, extraWrites)) return "connected";
 
-  return (await holdsRow(ports.db, row)) ? "connected" : "possible-orphan";
+  return (await holdsSettings(ports.db, row)) ? "connected" : "possible-orphan";
 }

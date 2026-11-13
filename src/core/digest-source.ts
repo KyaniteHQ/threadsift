@@ -224,7 +224,7 @@ export function refusedInput(
   };
 }
 
-export type DigestText = { readonly text: string | null } | { readonly outcome: JobOutcome };
+type DigestText = { readonly text: string | null } | { readonly outcome: JobOutcome };
 
 export async function readDigestText(
   ports: JobPorts,

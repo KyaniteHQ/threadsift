@@ -14,7 +14,7 @@ import type {
 } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 
-export interface ModelRead<Sent> {
+interface ModelRead<Sent> {
   readonly input: string;
   readonly inputRevision: number;
   readonly sent: Sent;
@@ -28,6 +28,10 @@ export interface WeeklyModelRun<Sent, Result> {
   readonly task: (sent: Sent) => AiTaskDefinition<Result>;
   readonly current: (sent: Sent) => SQL;
   readonly stored: (db: Database, done: Readonly<{ sent: Sent; result: Result }>) => JobWrites;
+}
+
+export function storedField<Value = unknown>(path: string): SQL<Value> {
+  return sql<Value>`json_extract(stored.value, ${`$.${path}`})`;
 }
 
 export function storedOutcome<Sent, Result>(

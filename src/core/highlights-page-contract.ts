@@ -4,7 +4,7 @@ import { SOURCES } from "./kinds.ts";
 
 export const HIGHLIGHTS_PAGE_SIZE = 50;
 
-export const ENTRY_KINDS = ["highlight", "note"] as const;
+const ENTRY_KINDS = ["highlight", "note"] as const;
 
 export type EntryKind = (typeof ENTRY_KINDS)[number];
 

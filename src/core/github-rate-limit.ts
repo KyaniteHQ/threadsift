@@ -1,16 +1,17 @@
 import { z } from "zod";
 
 import { parseHttpDate } from "./http-date.ts";
+import { parsedJson } from "./parsed-json.ts";
 import type { RateLimitHeaders } from "./ports.ts";
 
-export type RateLimitKind = "primary" | "secondary";
+type RateLimitKind = "primary" | "secondary";
 
 export interface RateLimit {
   readonly kind: RateLimitKind;
   readonly until: number | null;
 }
 
-export interface LimitedAnswer {
+interface LimitedAnswer {
   readonly status: number;
   readonly headers: Readonly<RateLimitHeaders>;
   readonly body: string;
@@ -54,21 +55,11 @@ function retryAfterAt(value: string | null, now: number): number | null {
   return date === null ? null : laterThan(date, now);
 }
 
-function messageOf(body: string): string {
-  try {
-    const parsed = ErrorBodySchema.safeParse(JSON.parse(body));
-
-    return parsed.success ? parsed.data.message : "";
-  } catch {
-    return "";
-  }
-}
-
 export function rateLimitOf(answer: Readonly<LimitedAnswer>, now: number): RateLimit | null {
   if (!isLimitStatus(answer.status)) return null;
 
   const primary = answer.headers.remaining?.trim() === "0";
-  const secondary = SECONDARY_MESSAGE.test(messageOf(answer.body));
+  const secondary = SECONDARY_MESSAGE.test(parsedJson(ErrorBodySchema, answer.body)?.message ?? "");
 
   if (!primary && !secondary) return null;
 

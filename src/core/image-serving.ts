@@ -5,7 +5,7 @@ import { IMAGE_EXTENSIONS, type ImageType, declaredImageType } from "./image-typ
 import type { Ports } from "./ports.ts";
 import { media } from "./schema.ts";
 
-export interface ServedImage {
+interface ServedImage {
   readonly body: ReadableStream<Uint8Array>;
   readonly contentType: ImageType;
   readonly size: number;

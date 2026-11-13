@@ -13,7 +13,7 @@ export interface AnchorSnapshot {
   readonly highlights: readonly Readonly<HighlightRow>[];
 }
 
-export interface DisplayedAfter {
+interface DisplayedAfter {
   readonly post?: string | null | undefined;
   readonly comments?: readonly Readonly<{ id: string; body: string | null }>[] | undefined;
 }

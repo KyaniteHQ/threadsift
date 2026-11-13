@@ -1,6 +1,7 @@
 import { eq, lt, sql } from "drizzle-orm";
 
 import { AI_DEADLINE_MS } from "./ai-contract.ts";
+import { batchAll } from "./guards.ts";
 import type { Database } from "./ports.ts";
 import { topicLeases } from "./schema.ts";
 
@@ -28,9 +29,10 @@ export async function releaseTopicLeases(
   db: Database,
   leases: readonly Readonly<TopicLease>[],
 ): Promise<void> {
-  const [first, ...rest] = leases.map((lease) => releaseTopicLease(db, lease));
-
-  if (first !== undefined) await db.batch([first, ...rest]);
+  await batchAll(
+    db,
+    leases.map((lease) => releaseTopicLease(db, lease)),
+  );
 }
 
 export function recoverPrefixLeases(db: Database, holderPrefix: string) {

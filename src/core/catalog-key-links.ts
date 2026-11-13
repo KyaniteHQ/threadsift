@@ -22,9 +22,9 @@ import {
 import { tagPartWrites } from "./search.ts";
 import { continuingOverview, overviewRemoved } from "./topic-overview-run.ts";
 
-export const MERGE_ITEMS = 500;
+const MERGE_ITEMS = 500;
 
-export interface Moves {
+interface Moves {
   readonly itemIds: readonly number[];
   readonly entryIds: readonly number[];
 }
@@ -62,7 +62,7 @@ async function firstIds(
   return rows.map((row) => row.id);
 }
 
-export function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
+function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
   return sql`${column} in (select value from json_each(${JSON.stringify(itemIds)}))`;
 }
 

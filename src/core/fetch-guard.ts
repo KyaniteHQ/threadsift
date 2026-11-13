@@ -61,7 +61,7 @@ export interface Page {
   readonly cut: boolean;
 }
 
-export interface Bytes {
+interface Bytes {
   readonly kind: "bytes";
   readonly url: string;
   readonly contentType: string | null;
@@ -77,7 +77,7 @@ interface Stopped {
 
 export type GuardOutcome = Page | Stopped | Failed;
 
-export type BytesOutcome = Bytes | Stopped | Failed;
+type BytesOutcome = Bytes | Stopped | Failed;
 
 const NO_BODY: Capped = { bytes: new Uint8Array(0), cut: false };
 

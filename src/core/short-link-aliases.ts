@@ -1,7 +1,6 @@
-import { type SQLWrapper, and, eq, isNotNull, isNull, ne, notExists, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import { guardHolds, holdsNoRow } from "./guards.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { itemAliases, items } from "./schema.ts";
@@ -9,7 +8,7 @@ import { itemAliases, items } from "./schema.ts";
 const holder = alias(items, "holder");
 const rival = alias(itemAliases, "rival");
 
-export interface AliasedItem extends Link {
+interface AliasedItem extends Link {
   readonly address: string;
 }
 
@@ -31,10 +30,6 @@ export async function aliasedItem(
   return found;
 }
 
-export function holdsNoAlias(db: Database, shortLink: string) {
-  return holdsNoRow(db, itemAliases, eq(itemAliases.normalizedUrl, shortLink));
-}
-
 export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }: Readonly<Link>) {
   const holds = db
     .select({ one: sql`1` })
@@ -47,20 +42,6 @@ export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }:
       .from(rival)
       .where(and(eq(rival.normalizedUrl, shortLink), notExists(holds))),
   );
-}
-
-export async function unlessRefused<Written>(
-  db: Database,
-  condition: Readonly<SQLWrapper>,
-  write: () => Promise<Written>,
-): Promise<Written | null> {
-  try {
-    return await write();
-  } catch (error) {
-    if (await guardHolds(db, condition)) throw error;
-
-    return null;
-  }
 }
 
 export function promoteFailedItem(

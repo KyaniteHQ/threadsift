@@ -6,7 +6,7 @@ import type { Database } from "./ports.ts";
 import { items, notes } from "./schema.ts";
 import { notePartWrites } from "./search.ts";
 
-export type SavedNote =
+type SavedNote =
   | { readonly kind: "saved" | "stale"; readonly note: NoteView }
   | { readonly kind: "no-item" };
 

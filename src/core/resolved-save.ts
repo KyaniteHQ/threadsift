@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
-import { guardHolds, guards, insertGuard } from "./guards.ts";
+import { guardHolds, guards, insertGuard, unlessRefused } from "./guards.ts";
 import { LISTED_COLUMNS, selectItems } from "./item-selection.ts";
 import {
   type Existing,
@@ -14,12 +14,7 @@ import { enqueueRows } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
-import {
-  holdsNoRival,
-  promoteFailedItem,
-  recordAlias,
-  unlessRefused,
-} from "./short-link-aliases.ts";
+import { holdsNoRival, promoteFailedItem, recordAlias } from "./short-link-aliases.ts";
 
 function saveResolvedRefreshing(
   ports: Ports,

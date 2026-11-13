@@ -4,7 +4,13 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { parseStoredDigest } from "./ai-contract.ts";
 import { tagMoves } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
-import { type DigestRead, storedTags, unchangedDigests } from "./digest-state.ts";
+import {
+  type DigestRead,
+  type StoredDigest,
+  storedDigests,
+  storedTags,
+  unchangedDigests,
+} from "./digest-state.ts";
 import { report } from "./failure-log.ts";
 import { renamedTags } from "./pins.ts";
 import type { Database } from "./ports.ts";
@@ -12,24 +18,17 @@ import { digests, itemTags } from "./schema.ts";
 
 export const REWRITE_UNIT_ITEMS = 100;
 
-export interface TagRef {
+interface TagRef {
   readonly id: number;
   readonly key: string;
   readonly name: string;
 }
 
-export interface RewriteUnit {
+interface RewriteUnit {
   readonly itemIds: readonly number[];
   readonly last: number;
   readonly moving: SQL;
   readonly writes: readonly BatchItem<"sqlite">[];
-}
-
-interface StoredDigest {
-  readonly itemId: number;
-  readonly digest: string;
-  readonly taskId: number;
-  readonly tags: string | null;
 }
 
 function digestsUnchanged(reads: readonly DigestRead[]) {
@@ -49,7 +48,7 @@ function mergedTags(
   return renamedTags(parsed.tags, (key) => (key === from.key ? into.name : undefined));
 }
 
-export function digestRewrites(
+function digestRewrites(
   db: Database,
   stored: readonly Readonly<StoredDigest>[],
   merge: Readonly<{ from: TagRef; into: TagRef }>,
@@ -95,20 +94,7 @@ export async function readRewrite(
 
   const itemIds = linked.map(({ itemId }) => itemId);
 
-  const stored =
-    itemIds.length === 0
-      ? []
-      : await db
-          .select({
-            itemId: digests.itemId,
-            digest: digests.digest,
-            taskId: digests.taskId,
-            tags: storedTags,
-          })
-          .from(digests)
-          .where(
-            sql`${digests.itemId} in (select value from json_each(${JSON.stringify(itemIds)}))`,
-          );
+  const stored = itemIds.length === 0 ? [] : await storedDigests(db, itemIds);
 
   const read = new Map(stored.map((row) => [row.itemId, row]));
 

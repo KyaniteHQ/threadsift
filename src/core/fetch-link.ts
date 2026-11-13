@@ -23,7 +23,7 @@ import { PageReadTimeout } from "./page-read-timeout.ts";
 import type { Network, PageReader, Ports } from "./ports.ts";
 import { repositoryRef } from "./repository-ref.ts";
 
-export type ShortLinkResolution =
+type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
   | { readonly kind: "failed"; readonly fetched: Concluded };
 

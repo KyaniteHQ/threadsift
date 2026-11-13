@@ -80,7 +80,7 @@ function imageOf(
   return { start, end, destination, alt: node.alt ?? "", title: node.title ?? null };
 }
 
-export interface MarkdownScan {
+interface MarkdownScan {
   readonly images: readonly MarkdownImage[];
   readonly links: readonly string[];
 }

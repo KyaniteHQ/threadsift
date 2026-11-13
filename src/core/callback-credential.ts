@@ -11,7 +11,7 @@ const CALLBACK_BYTES = 32;
 
 export const BEARER_CALLBACK = /^Bearer (tst_[A-Za-z0-9_-]+)$/u;
 
-export interface CallbackCredential {
+interface CallbackCredential {
   readonly value: string;
   readonly hash: string;
 }

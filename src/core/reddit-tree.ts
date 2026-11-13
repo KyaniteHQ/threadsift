@@ -5,7 +5,7 @@ import { type WireChild, type WireComment, type WirePost, ThreadJson } from "./r
 
 const METADATA_BYTES = 4096;
 
-export class ThreadRefused extends Error {}
+class ThreadRefused extends Error {}
 
 export interface Walked {
   readonly comment: WireComment | null;

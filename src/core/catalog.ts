@@ -3,13 +3,14 @@ import { type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
 import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
+import { amongJson } from "./guards.ts";
 import { loggedDigest, loggedTopic } from "./log-writes.ts";
 import { pinnedDigest } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
 import { openingOverview } from "./topic-overview-run.ts";
 
-export function catalogEntries(digest: Readonly<Digest>) {
+function catalogEntries(digest: Readonly<Digest>) {
   const names = new Map<string, { readonly key: string; readonly name: string }>();
 
   for (const name of digest.tags) {
@@ -121,7 +122,7 @@ export function linkingDigest(db: Database, itemId: number, entries: CatalogEntr
       .where(
         and(
           eq(itemTags.itemId, itemId),
-          sql`${itemTags.tagId} not in (select id from ${tags} where key in (select value from json_each(${keys})))`,
+          sql`${itemTags.tagId} not in (select id from ${tags} where ${amongJson(tags.key, keys)})`,
         ),
       ),
     db

@@ -2,21 +2,15 @@ import { sql } from "drizzle-orm";
 
 import { migrateData } from "./data-steps.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { scheduledRuns } from "./schema.ts";
+import { claimingRun } from "./scheduled-claim.ts";
 import { sweep } from "./sweep.ts";
+
+const SWEEP_TASK = "sweep";
 
 const TICK_SPACING_MS = 30_000;
 
 async function claimSweep({ db }: Readonly<JobPorts>, now: number): Promise<boolean> {
-  const claimed = await db
-    .insert(scheduledRuns)
-    .values({ task: "sweep", lastRunAt: now })
-    .onConflictDoUpdate({
-      target: scheduledRuns.task,
-      set: { lastRunAt: now },
-      setWhere: sql`${scheduledRuns.lastRunAt} <= ${now - TICK_SPACING_MS} or ${scheduledRuns.lastRunAt} > ${now + TICK_SPACING_MS}`,
-    })
-    .returning({ task: scheduledRuns.task });
+  const claimed = await claimingRun(db, SWEEP_TASK, now, TICK_SPACING_MS, sql`true`);
 
   return claimed.length > 0;
 }

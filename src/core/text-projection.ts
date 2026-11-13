@@ -53,7 +53,7 @@ interface Run {
   length: number;
 }
 
-export interface Projection {
+interface Projection {
   readonly text: string;
   readonly pieces: readonly Piece[];
 }

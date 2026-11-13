@@ -90,7 +90,7 @@ const KnownDisagreementItemSchema = z
   .object({ id: z.number().int(), title: z.string() })
   .readonly();
 
-export const KnownDisagreementSchema = z
+const KnownDisagreementSchema = z
   .object({
     id: z.number().int(),
     reason: z.string(),

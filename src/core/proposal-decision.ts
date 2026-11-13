@@ -30,7 +30,7 @@ export async function acceptProposal(ports: JobPorts, id: number): Promise<Accep
   return found === undefined ? "unknown" : ACCEPT[found.kind](ports, id);
 }
 
-export type Rejection = "rejected" | "unknown" | "not-open";
+type Rejection = "rejected" | "unknown" | "not-open";
 
 export async function rejectProposal(db: Database, id: number): Promise<Rejection> {
   const moved = await rejection(db, id);

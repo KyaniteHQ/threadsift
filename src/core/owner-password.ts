@@ -21,7 +21,7 @@ import {
 } from "./setup-code.ts";
 import { settleAttempt } from "./throttle.ts";
 
-export type ChangeResult =
+type ChangeResult =
   | { readonly kind: "changed"; readonly session: StartedSession }
   | { readonly kind: "password"; readonly length: PasswordProblem }
   | { readonly kind: "locked"; readonly retryAfter: number }

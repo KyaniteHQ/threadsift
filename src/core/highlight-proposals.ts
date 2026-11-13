@@ -2,16 +2,12 @@ import { and, asc, desc, eq, exists, inArray, ne, notExists, sql } from "drizzle
 
 import { guardedResults } from "./guards.ts";
 import { removalWrites } from "./highlights.ts";
-import { WEEKLY_TASK } from "./kinds.ts";
+import { plainCheckRow, plainCheckWeek } from "./plain-check-week.ts";
 import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
-import { proposalRow, removedOpen } from "./proposal-lifecycle.ts";
 import { highlights, proposals } from "./schema.ts";
-import { claimedAt, claimingWeek } from "./weekly-claim.ts";
 
 type LostHighlightAcceptance = "done" | "unknown" | "not-open" | "not-current";
-
-const PLAIN_CHECK = "plain-check";
 
 function newestWithoutRow(db: Database) {
   return db
@@ -38,15 +34,7 @@ function insertedRows(db: Database, now: number) {
     .select(
       db
         .select(
-          proposalRow(
-            {
-              kind: "highlight-lost",
-              state: sql`'open'`,
-              reason: sql`${PLAIN_CHECK}`,
-              createdAt: now,
-            },
-            { highlightId: sql<number>`${highlights.id}` },
-          ),
+          plainCheckRow("highlight-lost", now, { highlightId: sql<number>`${highlights.id}` }),
         )
         .from(highlights)
         .where(and(inArray(highlights.id, newestWithoutRow(db)), sql`changes() > 0`))
@@ -55,24 +43,18 @@ function insertedRows(db: Database, now: number) {
     .onConflictDoNothing();
 }
 
-function foundAgain(db: Database, now: number) {
-  return removedOpen(
-    db,
-    claimedAt(WEEKLY_TASK["highlight-lost"], now),
-    eq(proposals.kind, "highlight-lost"),
-    inArray(
-      proposals.highlightId,
-      db.select({ id: highlights.id }).from(highlights).where(eq(highlights.status, "attached")),
-    ),
+function attachedAgain(db: Database) {
+  return inArray(
+    proposals.highlightId,
+    db.select({ id: highlights.id }).from(highlights).where(eq(highlights.status, "attached")),
   );
 }
 
 export async function proposeLostHighlights(db: Database, now: number): Promise<void> {
-  await db.batch([
-    claimingWeek(db, now, WEEKLY_TASK["highlight-lost"]),
-    insertedRows(db, now),
-    foundAgain(db, now),
-  ]);
+  await plainCheckWeek(db, now, "highlight-lost", {
+    inserted: insertedRows(db, now),
+    closedWhen: attachedAgain(db),
+  });
 }
 
 function stillLost(db: Database, id: number) {

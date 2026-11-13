@@ -22,7 +22,7 @@ export interface MergeRow {
 
 type Writes = readonly BatchItem<"sqlite">[];
 
-export interface MergeClosing {
+interface MergeClosing {
   readonly writes: Writes;
   readonly wakes: readonly number[];
 }
