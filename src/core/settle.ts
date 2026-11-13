@@ -1,10 +1,15 @@
+import { eq } from "drizzle-orm";
+
 import type { Concluded, Content } from "./details.ts";
 import type { FetchResult } from "./fetch-results.ts";
+import { NO_OPEN_JOBS, type StatusEvent, statusColumns } from "./item-status.ts";
 import { sourceOf } from "./links.ts";
-import type { ItemRow } from "./schema.ts";
+import type { Database } from "./ports.ts";
+import { type ItemRow, items } from "./schema.ts";
 
-type Settled = Pick<ItemRow, "status" | "reason" | "fetch"> &
-  Partial<
+type Settled = Pick<ItemRow, "fetch"> & {
+  readonly event: Extract<StatusEvent, { kind: "settled" | "failed" }>;
+} & Partial<
     Pick<
       ItemRow,
       "title" | "author" | "community" | "fetchedAt" | "source" | "kind" | "postText" | "postedAt"
@@ -55,13 +60,12 @@ export function isRetryable(result: FetchResult): result is "timeout" | "network
   return result === "timeout" || result === "network";
 }
 
-export function settle(fetched: Readonly<Concluded>, current: string | null, now: number): Settled {
+function settle(fetched: Readonly<Concluded>, current: string | null, now: number): Settled {
   if (fetched.status === "ok") {
     const { content, ...found } = fetched.found;
 
     const settled: Settled = {
-      status: "ready",
-      reason: null,
+      event: { kind: "settled" },
       fetch: "ok",
       ...found,
       fetchedAt: now,
@@ -73,8 +77,27 @@ export function settle(fetched: Readonly<Concluded>, current: string | null, now
   const result = fetched.status;
 
   if (isRetryable(result) && current === null) {
-    return { status: "failed", reason: result, fetch: result };
+    return { event: { kind: "failed", reason: result }, fetch: result };
   }
 
-  return { status: "ready", reason: null, fetch: result };
+  return { event: { kind: "settled" }, fetch: result };
+}
+
+export function settledNew(fetched: Readonly<Concluded>, now: number) {
+  const { event, ...fields } = settle(fetched, null, now);
+
+  return { ...fields, ...statusColumns(event, NO_OPEN_JOBS) };
+}
+
+export function settledKnown(fetched: Readonly<Concluded>, current: string | null, now: number) {
+  const { event, ...fields } = settle(fetched, current, now);
+
+  return { ...fields, ...statusColumns(event) };
+}
+
+export function failedFetch(db: Database, itemId: number, reason: "gave-up" | "rate-limited") {
+  return db
+    .update(items)
+    .set({ ...statusColumns({ kind: "failed", reason }), pendingDigest: null })
+    .where(eq(items.id, itemId));
 }

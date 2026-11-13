@@ -22,7 +22,7 @@ import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
 import { candidateLink, commentCandidates, eligibleComments } from "./reddit-thread.ts";
-import { insertGuard, items } from "./schema.ts";
+import { digests, insertGuard, items } from "./schema.ts";
 
 export function openingPick(db: Database, itemId: number) {
   return opening(db, {
@@ -67,16 +67,43 @@ export function hasDigestSource() {
 
 export type DigestInput = Awaited<ReturnType<typeof digestInput>>[number];
 
-export function setDigestFailure(
+function setMarker(
   db: Database,
   itemId: number | Readonly<SQLWrapper>,
   failed: boolean,
-  condition: Readonly<SQLWrapper> = exists(hasOpenJob("digest")),
+  condition: Readonly<SQLWrapper>,
 ) {
   return db
     .update(items)
     .set({ digestFailed: failed })
     .where(and(eq(items.id, itemId), sql`${condition}`));
+}
+
+function whileDigestOpen() {
+  return exists(hasOpenJob("digest"));
+}
+
+export function markDigest(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+  mark: "cleared" | "attempt-failed",
+) {
+  return setMarker(db, itemId, mark === "attempt-failed", whileDigestOpen());
+}
+
+export function keptNotUpdated(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+  when: Readonly<SQLWrapper> = sql`1`,
+) {
+  const kept = exists(
+    db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
+  );
+
+  return [
+    markDigest(db, itemId, "cleared"),
+    setMarker(db, itemId, true, and(kept, sql`${when}`) ?? sql`0`),
+  ] as const;
 }
 
 export function generationCurrent(
@@ -141,7 +168,7 @@ async function unreadableText(
   return {
     currency: read,
     failedAttempt: true,
-    writes: [insertGuard(db, generation), setDigestFailure(db, item.id, true)],
+    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
   };
 }
 
@@ -199,7 +226,7 @@ export function refusedInput(
 
   return {
     currency: currency(db, generation, null),
-    writes: [insertGuard(db, generation), setDigestFailure(db, item.id, true)],
+    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
   };
 }
 

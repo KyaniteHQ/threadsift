@@ -6,21 +6,6 @@ import { JOINED_VIEW_COLUMNS } from "./joined-view.ts";
 import type { Database } from "./ports.ts";
 import { digests, githubRepos, items } from "./schema.ts";
 
-export const EMPTY_JOINED_VIEW = {
-  digestTitle: null,
-  digestTopic: null,
-  digestOutcome: "none",
-  digestSource: false,
-  stars: null,
-  commentsKept: null,
-  commentsTotal: null,
-  waitReason: null,
-  retryAt: null,
-  imageKey: null,
-  imageAlt: null,
-  fillable: false,
-} as const;
-
 const {
   generation: _generation,
   digestFailed: _digestFailed,

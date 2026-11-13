@@ -15,7 +15,7 @@ import {
 } from "./job-outcome.ts";
 import { items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
-import { isRetryable } from "./settle.ts";
+import { failedFetch, isRetryable } from "./settle.ts";
 
 async function titleOf(db: JobPorts["db"], itemId: number): Promise<string | null> {
   const [item] = await db.select({ title: items.title }).from(items).where(eq(items.id, itemId));
@@ -24,15 +24,7 @@ async function titleOf(db: JobPorts["db"], itemId: number): Promise<string | nul
 }
 
 function rateLimitGaveUp(db: JobPorts["db"], job: Readonly<ClaimedJob>): JobOutcome {
-  return {
-    writes: [
-      db
-        .update(items)
-        .set({ status: "failed", reason: "rate-limited", pendingDigest: null })
-        .where(eq(items.id, job.itemId)),
-    ],
-    failedAttempt: true,
-  };
+  return { writes: [failedFetch(db, job.itemId, "rate-limited")], failedAttempt: true };
 }
 
 function waitingOutcome(
@@ -89,10 +81,5 @@ export const fetchHandler: JobHandler = {
   deadlineMs: FETCH_DEADLINE_MS,
   blockedBy: [],
   attempt: attemptFetch,
-  exhausted: (db, job) => [
-    db
-      .update(items)
-      .set({ status: "failed", reason: "gave-up", pendingDigest: null })
-      .where(eq(items.id, job.itemId)),
-  ],
+  exhausted: (db, job) => [failedFetch(db, job.itemId, "gave-up")],
 };
