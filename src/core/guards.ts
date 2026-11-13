@@ -21,6 +21,15 @@ function guardRows(db: Database, condition: Readonly<SQLWrapper>) {
 
 export const DATABASE_NOW = sql<number>`cast((julianday('now') - 2440587.5) * 86400000 as integer)`;
 
+export async function batchAll(
+  db: Database,
+  writes: readonly BatchItem<"sqlite">[],
+): Promise<void> {
+  const [first, ...rest] = writes;
+
+  if (first !== undefined) await db.batch([first, ...rest]);
+}
+
 export function amongJson(column: Readonly<SQLWrapper>, json: string) {
   return sql`${column} in (select value from json_each(${json}))`;
 }
