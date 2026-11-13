@@ -6,16 +6,17 @@ import {
   PROVIDERS,
   refusedAi,
 } from "../../core/ai-contract.ts";
-import type { CliRunner } from "../shared/ai-runtime.ts";
 import type { ProcessEnd } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
+  type Attempt,
   STDOUT_CAP,
-  answerWithin,
+  SlottedCli,
   endRefusal,
   exitCode,
   findBinary,
-  report,
+  outputSchema,
+  promptOf,
 } from "./cli-support.ts";
 import { codexHomeOf, reserveCodexHome } from "./codex-home.ts";
 import {
@@ -31,7 +32,6 @@ import {
 import {
   type ToollessCatalog,
   UNKNOWN_MODEL_REFUSAL,
-  outputSchema,
   readOutcome,
   surfaceOf,
 } from "./codex-protocol.ts";
@@ -49,31 +49,22 @@ export interface CodexEnvironment {
   readonly dataDir: string;
 }
 
-export class CodexCli implements CliRunner {
+class CodexCli extends SlottedCli {
   readonly provider = PROVIDERS.codex.id;
-  private readonly shutdown = new AbortController();
   private readonly installation: Readonly<Installation>;
   private readonly catalog: Readonly<ToollessCatalog>;
-  private readonly slots: Slots;
 
   constructor(
     installation: Readonly<Installation>,
     catalog: Readonly<ToollessCatalog>,
     slots: Slots,
   ) {
+    super(slots);
     this.installation = installation;
     this.catalog = catalog;
-    this.slots = slots;
   }
 
-  stop(): void {
-    this.shutdown.abort();
-  }
-
-  readonly signedIn = (): Promise<boolean> =>
-    answerWithin(this.shutdown.signal, (signal) => this.probe(signal));
-
-  private async probe(signal: AbortSignal): Promise<boolean> {
+  protected async probe(signal: AbortSignal): Promise<boolean> {
     const end = await inRunFolders((folders) =>
       this.spawn(folders, ["login", "status"], "", signal, { cap: STDOUT_CAP, keep: false }),
     );
@@ -81,56 +72,32 @@ export class CodexCli implements CliRunner {
     return end.kind === "exited" && end.code === 0;
   }
 
-  readonly run = async <Result>(
-    task: AiTaskRequest<Result>,
-    signal: AbortSignal,
-  ): Promise<AiExecution<Result>> => {
-    if (task.config.kind !== "cli") return refusedAi("unreachable");
-    const { model } = task.config;
+  protected override refusalBeforeSlot(model: string) {
+    return model !== "" && !this.catalog.slugs.includes(model) ? UNKNOWN_MODEL_REFUSAL : null;
+  }
 
-    if (model !== "" && !this.catalog.slugs.includes(model)) return UNKNOWN_MODEL_REFUSAL;
-    const stop = AbortSignal.any([signal, this.shutdown.signal]);
-    const release = await this.slots.acquire(stop);
-
-    if (release === null) return refusedAi("timeout");
-
-    try {
-      const { result, code } = await inRunFolders((folders) =>
-        this.attempt(task, model, folders, stop),
-      );
-
-      if (result.kind === "refused") report(this.provider, result.reason, code);
-
-      return result;
-    } finally {
-      release();
-    }
-  };
-
-  private async attempt<Result>(
+  protected attempt<Result>(
     task: AiTaskRequest<Result>,
     model: string,
-    folders: Readonly<RunFolders>,
     signal: AbortSignal,
-  ) {
-    await Promise.all([
-      writeFile(folders.catalogFile, this.catalog.bytes),
-      writeFile(folders.schemaFile, outputSchema(task.schema)),
-    ]);
+  ): Promise<Attempt<Result>> {
+    return inRunFolders(async (folders) => {
+      await Promise.all([
+        writeFile(folders.catalogFile, this.catalog.bytes),
+        writeFile(folders.schemaFile, outputSchema(task.schema)),
+      ]);
 
-    const unsafe = await this.unsafeSurface(folders, model, signal);
+      const unsafe = await this.unsafeSurface(folders, model, signal);
 
-    if (unsafe !== null) return { result: unsafe, code: null };
+      if (unsafe !== null) return { result: unsafe, code: null };
 
-    const end = await this.spawn(
-      folders,
-      taskArguments(folders, model),
-      `${task.instructions}\n\n${task.input}`,
-      signal,
-      { cap: STDOUT_CAP, keep: true },
-    );
+      const end = await this.spawn(folders, taskArguments(folders, model), promptOf(task), signal, {
+        cap: STDOUT_CAP,
+        keep: true,
+      });
 
-    return { result: await this.outcome(task.schema, end), code: exitCode(end) };
+      return { result: await this.outcome(task.schema, end), code: exitCode(end) };
+    });
   }
 
   private async unsafeSurface(folders: Readonly<RunFolders>, model: string, signal: AbortSignal) {

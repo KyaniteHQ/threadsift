@@ -10,21 +10,22 @@ import {
 } from "../../core/ai-contract.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
 import { apiRefusal } from "../shared/ai-call.ts";
-import type { CliRunner } from "../shared/ai-runtime.ts";
 import { configuredCode } from "../shared/configured-code.ts";
 import { type ProcessEnd, runProcess } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
+  type Attempt,
   STDERR_CAP,
   STDOUT_CAP,
-  answerWithin,
+  SlottedCli,
   childPath,
   endRefusal,
   exitCode,
   findBinary,
   inEmptyFolder,
+  outputSchema,
   present,
-  report,
+  promptOf,
 } from "./cli-support.ts";
 
 export interface ClaudeEnvironment {
@@ -66,55 +67,36 @@ function taskArguments(schema: string, model: string): string[] {
   ];
 }
 
-export class ClaudeCode implements CliRunner {
+class ClaudeCode extends SlottedCli {
   readonly provider = PROVIDERS["claude-code"].id;
-  private readonly shutdown = new AbortController();
   private readonly binary: string;
   private readonly environment: Readonly<ClaudeEnvironment>;
-  private readonly slots: Slots;
 
   constructor(binary: string, environment: Readonly<ClaudeEnvironment>, slots: Slots) {
+    super(slots);
     this.binary = binary;
     this.environment = environment;
-    this.slots = slots;
   }
 
-  stop(): void {
-    this.shutdown.abort();
-  }
-
-  readonly signedIn = (): Promise<boolean> =>
-    answerWithin(this.shutdown.signal, (signal) => this.probe(signal));
-
-  private async probe(signal: AbortSignal): Promise<boolean> {
+  protected async probe(signal: AbortSignal): Promise<boolean> {
     const end = await this.spawn(["auth", "status", "--json"], "", signal);
 
     return end.kind === "exited" && parsedJson(StatusSchema, end.stdout)?.loggedIn === true;
   }
 
-  readonly run = async <Result>(
+  protected async attempt<Result>(
     task: AiTaskRequest<Result>,
+    model: string,
     signal: AbortSignal,
-  ): Promise<AiExecution<Result>> => {
-    if (task.config.kind !== "cli") return refusedAi("unreachable");
-    const stop = AbortSignal.any([signal, this.shutdown.signal]);
-    const release = await this.slots.acquire(stop);
+  ): Promise<Attempt<Result>> {
+    const end = await this.spawn(
+      taskArguments(outputSchema(task.schema), model),
+      promptOf(task),
+      signal,
+    );
 
-    if (release === null) return refusedAi("timeout");
-
-    try {
-      const schema = JSON.stringify(z.toJSONSchema(task.schema, { target: "draft-7" }));
-      const prompt = `${task.instructions}\n\n${task.input}`;
-      const end = await this.spawn(taskArguments(schema, task.config.model), prompt, stop);
-      const result = await this.outcome(task.schema, end);
-
-      if (result.kind === "refused") report(this.provider, result.reason, exitCode(end));
-
-      return result;
-    } finally {
-      release();
-    }
-  };
+    return { result: await this.outcome(task.schema, end), code: exitCode(end) };
+  }
 
   private spawn(args: readonly string[], stdin: string, signal: AbortSignal) {
     return inEmptyFolder((cwd) =>

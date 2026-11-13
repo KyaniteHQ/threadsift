@@ -2,12 +2,21 @@ import { access, constants, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join } from "node:path";
 
-import { type CliProvider, refusedAi } from "../../core/ai-contract.ts";
+import { z } from "zod";
+
+import {
+  type AiExecution,
+  type AiTaskRequest,
+  type CliProvider,
+  refusedAi,
+} from "../../core/ai-contract.ts";
+import type { CliRunner } from "../shared/ai-runtime.ts";
 import type { ProcessEnd } from "./cli-process.ts";
+import type { Slots } from "./cli-slots.ts";
 
 export const STDOUT_CAP = 1024 * 1024;
 export const STDERR_CAP = 64 * 1024;
-export const PROBE_MS = 15_000;
+const PROBE_MS = 15_000;
 
 const FIXED_PATH = ["/usr/local/bin", "/usr/bin", "/bin"];
 
@@ -48,7 +57,7 @@ export async function inEmptyFolder<Result>(
   }
 }
 
-export function answerWithin(
+function answerWithin(
   shutdown: AbortSignal,
   probe: (signal: AbortSignal) => Promise<boolean>,
 ): Promise<boolean> {
@@ -72,7 +81,7 @@ export function exitCode(end: Readonly<ProcessEnd>): number | null {
   return end.kind === "exited" ? end.code : null;
 }
 
-export function report(provider: CliProvider, reason: string, code: number | null): void {
+function report(provider: CliProvider, reason: string, code: number | null): void {
   console.error(JSON.stringify({ event: "cli-refused", provider, reason, exit: code }));
 }
 
@@ -90,4 +99,72 @@ export function endRefusal(end: Exclude<ProcessEnd, { readonly kind: "exited" }>
       return exhaustive;
     }
   }
+}
+
+export function outputSchema(schema: z.ZodType): string {
+  return JSON.stringify(z.toJSONSchema(schema, { target: "draft-7" }));
+}
+
+export function promptOf({ instructions, input }: Readonly<AiTaskRequest<unknown>>): string {
+  return `${instructions}\n\n${input}`;
+}
+
+export interface Attempt<Result> {
+  readonly result: AiExecution<Result>;
+  readonly code: number | null;
+}
+
+export abstract class SlottedCli implements CliRunner {
+  abstract readonly provider: CliProvider;
+  private readonly shutdown = new AbortController();
+  private readonly slots: Slots;
+
+  constructor(slots: Slots) {
+    this.slots = slots;
+  }
+
+  protected abstract probe(signal: AbortSignal): Promise<boolean>;
+
+  protected abstract attempt<Result>(
+    task: AiTaskRequest<Result>,
+    model: string,
+    signal: AbortSignal,
+  ): Promise<Attempt<Result>>;
+
+  protected refusalBeforeSlot(_model: string): AiExecution<never> | null {
+    return null;
+  }
+
+  stop(): void {
+    this.shutdown.abort();
+  }
+
+  readonly signedIn = (): Promise<boolean> =>
+    answerWithin(this.shutdown.signal, (signal) => this.probe(signal));
+
+  readonly run = async <Result>(
+    task: AiTaskRequest<Result>,
+    signal: AbortSignal,
+  ): Promise<AiExecution<Result>> => {
+    if (task.config.kind !== "cli") return refusedAi("unreachable");
+    const { model } = task.config;
+    const early = this.refusalBeforeSlot(model);
+
+    if (early !== null) return early;
+
+    const stop = AbortSignal.any([signal, this.shutdown.signal]);
+    const release = await this.slots.acquire(stop);
+
+    if (release === null) return refusedAi("timeout");
+
+    try {
+      const { result, code } = await this.attempt(task, model, stop);
+
+      if (result.kind === "refused") report(this.provider, result.reason, code);
+
+      return result;
+    } finally {
+      release();
+    }
+  };
 }
