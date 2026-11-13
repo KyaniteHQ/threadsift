@@ -1,5 +1,6 @@
 import { type SQL, asc, inArray, sql } from "drizzle-orm";
 
+import { batchesOf } from "./batches.ts";
 import { CATALOG_KEY_MAX } from "./catalog-key-limit.ts";
 import { TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
 import { CATALOG_KEY_VERSION, catalogKey } from "./catalog-key.ts";
@@ -14,12 +15,6 @@ const PINS_PER_STATEMENT = 100;
 const mergePin = inArray(pins.kind, [...MERGE_KINDS]);
 
 const TEMPORARY_KEY = "~".repeat(CATALOG_KEY_MAX + 1);
-
-function chunked<Row>(rows: readonly Row[]): readonly (readonly Row[])[] {
-  return Array.from({ length: Math.ceil(rows.length / PINS_PER_STATEMENT) }, (_, at) =>
-    rows.slice(at * PINS_PER_STATEMENT, (at + 1) * PINS_PER_STATEMENT),
-  );
-}
 
 function idsAmong(ids: readonly number[]) {
   return sql`${pins.id} in (select value from json_each(${JSON.stringify(ids)}))`;
@@ -49,11 +44,11 @@ async function recomputedKeys(db: Database): Promise<Advance> {
     }
   }
 
-  const pieces = chunked(changed);
+  const pieces = batchesOf(changed, PINS_PER_STATEMENT);
 
   return {
     writes: [
-      ...chunked(losers).map((ids) => db.delete(pins).where(idsAmong(ids))),
+      ...batchesOf(losers, PINS_PER_STATEMENT).map((ids) => db.delete(pins).where(idsAmong(ids))),
       ...pieces.map((piece) =>
         db
           .update(pins)
@@ -100,9 +95,10 @@ async function finished(db: Database): Promise<Advance> {
   return {
     writes: [
       insertGuard(db, settled(db, rows.length)),
-      ...chunked(rows.map(({ id, key }) => ({ id, key }))).map((piece) =>
-        insertGuard(db, holds(db, piece)),
-      ),
+      ...batchesOf(
+        rows.map(({ id, key }) => ({ id, key })),
+        PINS_PER_STATEMENT,
+      ).map((piece) => insertGuard(db, holds(db, piece))),
       db.delete(guards),
     ],
     cursor: null,
