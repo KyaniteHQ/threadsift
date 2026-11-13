@@ -6,8 +6,6 @@ import { stored } from "./credentials.ts";
 import { hasRedditAccess } from "./fill-script.ts";
 import { logFailure } from "./log.ts";
 
-export const START_RECONCILE_DELAY_MS = 5_000;
-
 export type AccessResult = "reconciled" | "kept";
 
 let queue: Promise<unknown> = Promise.resolve();
