@@ -9,8 +9,17 @@ export interface Credential {
 
 export function answerTo(
   instance: Instance,
-  { id, token }: Readonly<Credential>,
+  who: Readonly<Credential>,
   body: Json,
+  extra: Readonly<Record<string, string>> = {},
+): Promise<Response> {
+  return rawAnswerTo(instance, who, JSON.stringify(body), extra);
+}
+
+export function rawAnswerTo(
+  instance: Instance,
+  { id, token }: Readonly<Credential>,
+  body: string,
   extra: Readonly<Record<string, string>> = {},
 ): Promise<Response> {
   const headers = new Headers({ "content-type": "application/json", ...extra });
@@ -20,7 +29,7 @@ export function answerTo(
   return instance.fetch(`/api/ai-tasks/${String(id)}/result`, {
     method: "POST",
     headers,
-    body: JSON.stringify(body),
+    body,
   });
 }
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import type { BotTaskKind } from "./bot-task-kind.ts";
+import type { BotResult } from "./bot-task-kind.ts";
+import { BOT_TASK_KINDS } from "./bot-task-kinds.ts";
 import {
   type BotTaskRow,
   GROK_BOT_EXECUTOR,
@@ -13,7 +14,6 @@ import { report } from "./failure-log.ts";
 import { guardedBatch } from "./guards.ts";
 import type { JobPorts, JobWrites } from "./job-outcome.ts";
 import { enqueueQuietly } from "./job-rows.ts";
-import { relatedBotKind } from "./related-bot.ts";
 
 const ERROR_TEXT_MAX = 200;
 
@@ -24,17 +24,11 @@ export const BotAnswerSchema = z.union([
   z.strictObject({ error: z.string().min(1).max(ERROR_TEXT_MAX) }),
 ]);
 
-export const BOT_TASK_KINDS = {
-  related_pick: relatedBotKind,
-} as const satisfies Readonly<Record<string, BotTaskKind>>;
-
-type BotTaskKindName = keyof typeof BOT_TASK_KINDS;
-
-function isBotTaskKind(kind: string): kind is BotTaskKindName {
+function isBotTaskKind(kind: string): kind is keyof typeof BOT_TASK_KINDS {
   return Object.hasOwn(BOT_TASK_KINDS, kind);
 }
 
-function botTaskKindOf(kind: string): BotTaskKind | null {
+function botTaskKindOf(kind: string) {
   return isBotTaskKind(kind) ? BOT_TASK_KINDS[kind] : null;
 }
 
@@ -45,7 +39,7 @@ export type AnswerOutcome =
   | { readonly kind: "invalid"; readonly reasons: string };
 
 export type StoredAnswer =
-  | { readonly kind: "result"; readonly resultText: string }
+  | { readonly kind: "result"; readonly body: Readonly<BotResult> }
   | { readonly kind: "error"; readonly text: string };
 
 type Intake = Exclude<AnswerOutcome, { kind: "accepted" }> | { kind: "write"; writes: JobWrites };
@@ -71,12 +65,14 @@ function intakeOf(
     return { kind: "write", writes: reportedWrites(db, task, now) };
   }
 
-  const { resultText } = answer;
-  const parsed = kind.parse(task.context ?? "", resultText);
+  const parsed = kind.parse(task.context ?? "", answer.body);
 
   if (parsed.kind === "invalid") return { kind: "invalid", reasons: parsed.reasons };
 
-  return { kind: "write", writes: answeredWrites(db, task, { resultText, now }) };
+  return {
+    kind: "write",
+    writes: answeredWrites(db, task, { resultText: parsed.normalized, now }),
+  };
 }
 
 async function committed(

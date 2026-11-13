@@ -12,7 +12,7 @@ import {
   retireTasks,
   saveBot,
 } from "./bot-task-fixtures.ts";
-import { answered, answerTo, errorOf } from "./bot-task-http.ts";
+import { answered, answerTo, errorOf, rawAnswerTo } from "./bot-task-http.ts";
 import { taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
@@ -101,6 +101,37 @@ describe("the result route answers each status of its contract and writes nothin
     assert.equal(taskRow(instance, task.id).answered_at, null);
   });
 
+  it("answers 400 to a result nested too deeply to read and leaves the task open", async () => {
+    const task = await fresh();
+    const depth = 100_000;
+
+    const response = await rawAnswerTo(
+      instance,
+      task,
+      `{"result":${"[".repeat(depth)}${"]".repeat(depth)}}`,
+    );
+
+    const row = taskRow(instance, task.id);
+
+    assert.equal(response.status, 400);
+    assert.deepEqual([row.state, row.answered_at, row.result], ["running", null, null]);
+  });
+
+  it("stores the answer as the task's schema read it, without the keys the schema does not name", async () => {
+    const task = await fresh();
+    const padding = "x".repeat(10_000);
+
+    const answer = await answered(instance, task, {
+      result: { picks: [{ item: candidate(), reason: "Both cover the same lattice." }], padding },
+    });
+
+    assert.equal(answer.status, 204);
+    assert.deepEqual(
+      JSON.parse(taskRow(instance, task.id).result ?? "null"),
+      picksFor(candidate()),
+    );
+  });
+
   it("answers 403 to the owner's session and to an agent token, and stores nothing", async () => {
     const task = await fresh();
     const body = answerOf(picksFor(candidate()));
@@ -120,7 +151,7 @@ describe("the result route answers each status of its contract and writes nothin
     const cases = [
       ["x_intake", "grok-bot"],
       ["related_pick", "caller"],
-      ["digest", "grok-bot"],
+      ["highlight_proposals", "grok-bot"],
       ["related_pick", "http"],
       ["toString", "grok-bot"],
     ] as const;

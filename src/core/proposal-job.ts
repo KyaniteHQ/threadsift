@@ -10,6 +10,8 @@ import {
   PROPOSALS_OUTPUT_TOKENS,
   type ProposalsResult,
   type SentPair,
+  SentPairsSchema,
+  mergeTaskKind,
   proposalsTask,
 } from "./proposal-task.ts";
 import { proposals, tags, topics } from "./schema.ts";
@@ -89,9 +91,11 @@ function storedRows(
   ];
 }
 
-function runOf(kind: MergeKind): WeeklyModelRun<Sent, ProposalsResult> {
+export function runOf(kind: MergeKind): WeeklyModelRun<Sent, ProposalsResult> {
   return {
     ...RUNS[kind],
+    kind: mergeTaskKind(kind),
+    sent: SentPairsSchema,
     maxOutputTokens: PROPOSALS_OUTPUT_TOKENS,
     read: async (db) => {
       const inputRevision = await readCatalogVersion(db);

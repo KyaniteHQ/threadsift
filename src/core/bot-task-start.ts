@@ -6,9 +6,18 @@ import { newCallbackCredential } from "./callback-credential.ts";
 import { guardHolds } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { holding } from "./job-rows.ts";
+import type { JobKind } from "./kinds.ts";
 import { type JobRow, aiTasks } from "./schema.ts";
 
 export const GROK_BOT_IN_FLIGHT = 10;
+
+export const GROK_BOT_WEEKLY_RESERVE = 3;
+
+const WEEKLY_JOB_KINDS = new Set<JobKind>([
+  "proposals",
+  "topic_proposals",
+  "disagreement_proposals",
+]);
 
 const BOT_TASK_DEADLINE_MS = 60 * 60 * 1000;
 
@@ -28,8 +37,12 @@ export type BotStarted =
   | { readonly kind: "full" }
   | { readonly kind: "claim-lost" };
 
-function underCap(now: number) {
-  return sql`(select count(*) from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.state} = 'running' and (${aiTasks.answeredAt} is not null or ${aiTasks.deadline} > ${now})) < ${GROK_BOT_IN_FLIGHT}`;
+function underCap(now: number, kind: JobKind) {
+  const limit = WEEKLY_JOB_KINDS.has(kind)
+    ? GROK_BOT_IN_FLIGHT
+    : GROK_BOT_IN_FLIGHT - GROK_BOT_WEEKLY_RESERVE;
+
+  return sql`(select count(*) from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null and ${aiTasks.deadline} > ${now}) < ${limit}`;
 }
 
 export async function startBotTask(
@@ -53,7 +66,7 @@ export async function startBotTask(
       itemId: job.itemId,
       bot: { jobId: job.id, callbackHash: credential.hash, context: start.context },
     },
-    sql`${holding(job)} and ${underCap(now)}`,
+    sql`${holding(job)} and ${underCap(now, job.kind)}`,
   );
 
   if (inserted !== null) {

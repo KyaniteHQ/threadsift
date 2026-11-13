@@ -109,7 +109,7 @@ describe("the Related pick reads its own persisted context and result", () => {
     ],
   });
 
-  const parse = (result: Json) => relatedBotKind.parse(context, JSON.stringify(result)).kind;
+  const parse = (result: Json) => relatedBotKind.parse(context, { result }).kind;
 
   it("accepts picks of sent ids and refuses an id that was not sent, a duplicate and a bad shape", () => {
     assert.deepEqual(
@@ -137,7 +137,7 @@ describe("the Related pick reads its own persisted context and result", () => {
   });
 
   it("reads no context that is not its own", () => {
-    assert.equal(relatedBotKind.parse("{}", "{}").kind, "invalid");
+    assert.equal(relatedBotKind.parse("{}", { result: {} }).kind, "invalid");
     assert.equal(relatedBotKind.describe("{}"), null);
   });
 

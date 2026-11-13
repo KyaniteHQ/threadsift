@@ -18,7 +18,7 @@ const OVERVIEW_STATES = ["idle", "pending", "failed"] as const;
 
 export type OverviewFailure = z.infer<typeof OverviewFailureSchema>;
 
-const BuiltFromSchema = z
+export const BuiltFromSchema = z
   .array(
     z.object({ item: z.number().int().positive(), digest: z.number().int().positive() }).readonly(),
   )

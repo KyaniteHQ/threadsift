@@ -2,8 +2,9 @@ import { sql } from "drizzle-orm";
 
 import { type AiRefused, parseStoredDigest, retriesAi } from "./ai-contract.ts";
 import { TASKS, runAiTask, startCallerTask } from "./ai-tasks.ts";
-import { readCatalog } from "./catalog.ts";
-import { DIGEST_DEADLINE_MS, type HopPage, hoppedPage } from "./digest-hop.ts";
+import { givenUpTasks } from "./bot-task-states.ts";
+import { DIGEST_DEADLINE_MS } from "./digest-hop.ts";
+import { emptyInput, hasContent, preparedDigest } from "./digest-prepare.ts";
 import { publishing, readForPublishing } from "./digest-publish.ts";
 import {
   type DigestInput,
@@ -12,11 +13,7 @@ import {
   logSubmission,
   keptNotUpdated,
   markDigest,
-  modelInput,
-  readDigestText,
-  refusedInput,
 } from "./digest-source.ts";
-import { insertGuard } from "./guards.ts";
 import {
   type ClaimedJob,
   type JobHandler,
@@ -24,7 +21,7 @@ import {
   type JobPorts,
   isLastAttempt,
 } from "./job-outcome.ts";
-import { items } from "./schema.ts";
+import { insertGuard, items } from "./schema.ts";
 
 type Database = JobPorts["db"];
 
@@ -38,19 +35,6 @@ async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promis
   return hasContent(item)
     ? attemptCaller(ports, job, item, item.pendingDigest, anchors)
     : emptyInput(ports.db, item);
-}
-
-function emptyInput(db: Database, item: Readonly<DigestInput>): JobOutcome {
-  const generation = generationCurrent(item);
-
-  return {
-    currency: currency(db, generation, null),
-    writes: [insertGuard(db, generation), ...keptNotUpdated(db, item.id)],
-  };
-}
-
-function hasContent(item: Readonly<DigestInput>): boolean {
-  return item.postText !== null || item.postTextKey !== null || item.hasComments;
 }
 
 async function attemptCaller(
@@ -79,29 +63,11 @@ async function attemptModel(
   job: Readonly<ClaimedJob>,
   item: Readonly<DigestInput>,
 ): Promise<JobOutcome> {
-  const filed = await readDigestText(ports, job, item);
+  const prepared = await preparedDigest(ports, job, item);
 
-  if ("outcome" in filed) return filed.outcome;
+  if (prepared.kind === "settled") return prepared.outcome;
 
-  const hop = await hoppedPage(ports, job, item);
-
-  if ("outcome" in hop) return hop.outcome;
-
-  return hop.page === null && !hasContent(item)
-    ? emptyInput(ports.db, item)
-    : askModel(ports, job, item, { text: filed.text, page: hop.page });
-}
-
-async function askModel(
-  ports: JobPorts,
-  job: Readonly<ClaimedJob>,
-  item: Readonly<DigestInput>,
-  { text, page }: Readonly<{ text: string | null; page: HopPage }>,
-): Promise<JobOutcome> {
-  const catalog = await readCatalog(ports.db);
-  const prompt = await modelInput(ports.db, item, text, catalog, page);
-
-  if (prompt.kind === "too-large") return refusedInput(ports.db, item, prompt.fixedBytes);
+  const { catalog, prompt } = prepared;
 
   const result = await runAiTask(
     ports,
@@ -158,7 +124,7 @@ export const digestHandler: JobHandler = {
   deadlineMs: DIGEST_DEADLINE_MS,
   blockedBy: ["fetch"],
   attempt: attemptDigest,
-  exhausted: (db, job) => [markDigest(db, job.itemId, "attempt-failed")],
+  exhausted: (db, job) => [markDigest(db, job.itemId, "attempt-failed"), givenUpTasks(db, job)],
   inputCurrent: (job) =>
     sql`exists (select 1 from ${items} where ${items.id} = ${job.itemId} and ${items.generation} is ${job.attemptGeneration})`,
 };

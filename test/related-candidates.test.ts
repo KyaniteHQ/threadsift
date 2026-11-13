@@ -18,52 +18,12 @@ import {
   sentInput,
   until,
   exec,
+  REDDIT_THREAD,
 } from "./related-fixtures.ts";
 
 const TWELVE = "quasar lattice decoder notes alpha beta gamma delta epsilon zeta eta theta";
 
 const SOURCE_TITLE = `${TWELVE} iota kappa`;
-
-const THREAD = [
-  {
-    kind: "Listing",
-    data: {
-      children: [
-        {
-          kind: "t3",
-          data: {
-            id: "q1",
-            title: "A thread",
-            author: "asker",
-            subreddit: "science",
-            selftext: "Nothing to see.",
-            created_utc: 1_700_000_000,
-            num_comments: 1,
-          },
-        },
-      ],
-    },
-  },
-  {
-    kind: "Listing",
-    data: {
-      children: [
-        {
-          kind: "t1",
-          data: {
-            id: "c1",
-            author: "someone",
-            body: "A quasar decoder remark that explains the lattice trick in detail.",
-            parent_id: "t3_q1",
-            score: 5,
-            created_utc: 1_700_000_100,
-            replies: "",
-          },
-        },
-      ],
-    },
-  },
-];
 
 const TaskIdSchema = z.object({ task_id: z.number() });
 
@@ -213,7 +173,7 @@ describe("the related pick matches only the Digest parts of an Item that has a D
     const commentOnly = await paste(instance, "comment", {
       title: "Thread about food",
       url: "https://www.reddit.com/r/science/comments/q1/a_thread/",
-      content: JSON.stringify(THREAD),
+      content: JSON.stringify(REDDIT_THREAD),
       kept: ["t1_c1"],
     });
 

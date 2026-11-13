@@ -10,6 +10,7 @@ import {
   type JobCurrency,
   type JobFiles,
   type JobHandler,
+  type JobWrites,
   NO_FILES,
   type JobOutcome,
   type JobPorts,
@@ -147,15 +148,18 @@ export async function queueLater(
     staleRequeues,
     wait,
     unlessAnswered,
+    writes = [],
   }: Readonly<{
     until: number;
     attempts: number;
     staleRequeues: number;
     wait: WaitReason | null;
     unlessAnswered?: number | undefined;
+    writes?: JobWrites | undefined;
   }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
+    ...writes,
     ports.db
       .update(jobs)
       .set({
@@ -270,6 +274,7 @@ export async function applyOutcome(
       staleRequeues: job.staleRequeues,
       wait: outcome.wait,
       unlessAnswered: outcome.unlessAnswered,
+      writes: outcome.writes,
     });
 
     return;

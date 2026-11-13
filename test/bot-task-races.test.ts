@@ -164,7 +164,7 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
 
     const outcome = await acceptBotAnswer(instance.core, snapshot, {
       kind: "result",
-      resultText: JSON.stringify(picksFor(firstCandidate())),
+      body: { result: picksFor(firstCandidate()) },
     });
 
     assert.equal(outcome.kind, "closed");
