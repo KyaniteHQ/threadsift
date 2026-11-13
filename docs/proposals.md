@@ -1,6 +1,6 @@
 # Proposals
 
-The agent's weekly suggestions to merge two Tags or two Topics, the weekly plain check for Highlights that are no longer found, the weekly plain check for Topics whose overview leaves out Items, the weekly model check for two Items of one Topic whose Summaries disagree, the page that lists every kind, Reject, Accept of either merge and the Pin it leaves, Accept of a lost Highlight, Accept of an overview update, and Accept of a disagreement with the Pin it leaves. The other Proposal kinds are not built. `docs/architecture/jobs-leases-and-the-schedule.md` and `docs/architecture/ai-tasks-and-providers.md` (The `proposals` task) hold the run, its input and its freshness rule; this file holds the rest.
+The agent's weekly suggestions to merge two Tags or two Topics, the weekly plain check for Highlights that are no longer found, the weekly plain check for Topics whose overview leaves out Items, the weekly model check for two Items of one Topic whose Summaries disagree, the page that lists every kind, Reject, Accept of either merge and the Pin it leaves, Accept of a lost Highlight, Accept of an overview update, and Accept of a disagreement with the Pin it leaves. `docs/architecture/jobs-leases-and-the-schedule.md` and `docs/architecture/ai-tasks-and-providers.md` (The `proposals` task) hold the run, its input and its freshness rule; this file holds the rest.
 
 ## Code map
 
