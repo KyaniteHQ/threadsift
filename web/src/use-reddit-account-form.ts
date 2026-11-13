@@ -1,14 +1,18 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { type RedditAccountView, redditSessionOf } from "../../src/core/reddit-account-contract.ts";
 import {
+  fetchRedditAccount,
   removeRedditAccount,
   saveRedditAccount,
   verifyRedditAccount,
 } from "./reddit-account-api.ts";
-import { REDDIT_ACCOUNT_TEXT, resultText } from "./reddit-account-text.ts";
+import { REDDIT_ACCOUNT_TEXT, relayText, resultText } from "./reddit-account-text.ts";
+import { askExtension } from "./reddit-relay.ts";
 import { type FieldState, useField } from "./use-form.ts";
 import {
+  type ActionButton,
+  type RunAction,
   type Task,
   outcomeOf,
   useAction,
@@ -16,9 +20,15 @@ import {
   useActionFlow,
 } from "./use-settings-action.ts";
 
-type Action = "save" | "verify" | "remove";
+type Action = "save" | "verify" | "remove" | "reconnect";
 
 type Changed = (view: RedditAccountView) => void;
+
+const RECONNECTABLE: ReadonlySet<RedditAccountView["state"]> = new Set([
+  "none",
+  "expired",
+  "unreadable",
+]);
 
 const LABELS = {
   save: { label: REDDIT_ACCOUNT_TEXT.connect, busyLabel: REDDIT_ACCOUNT_TEXT.connecting },
@@ -63,6 +73,20 @@ const verify: Task = async () => {
   return { kind: result === "ok" ? "ok" : "error", text: resultText(result) };
 };
 
+function useReconnect(changed: Changed): Task {
+  return useCallback(async () => {
+    const state = await askExtension();
+
+    changed(await fetchRedditAccount());
+
+    if (state === null) return { kind: "error", text: REDDIT_ACCOUNT_TEXT.extensionMissing };
+
+    if (state !== "connected") return { kind: "error", text: relayText(state) };
+
+    return { kind: "ok", text: relayText(state) };
+  }, [changed]);
+}
+
 function useDisconnect(session: FieldState, changed: Changed): Task {
   const { fail, clear } = session;
 
@@ -73,6 +97,54 @@ function useDisconnect(session: FieldState, changed: Changed): Task {
 
     return { kind: "ok", text: REDDIT_ACCOUNT_TEXT.disconnected };
   }, [fail, clear, changed]);
+}
+
+function useButtons(
+  view: Readonly<RedditAccountView>,
+  run: RunAction<Action>,
+  changed: Changed,
+  {
+    verifyNow,
+    disconnectNow,
+    blocked,
+  }: Readonly<{
+    verifyNow: () => void;
+    disconnectNow: () => void;
+    blocked: Readonly<Record<"save" | "verify" | "remove", boolean>>;
+  }>,
+) {
+  const reconnectNow = useAction({
+    run,
+    action: "reconnect",
+    blocked: false,
+    task: useReconnect(changed),
+  });
+
+  const base = useActionButtons({
+    check: "verify",
+    labels: LABELS,
+    blocked,
+    press: { check: verifyNow, remove: disconnectNow },
+  });
+
+  const reconnectable = RECONNECTABLE.has(view.state);
+
+  return useMemo<readonly ActionButton<Action>[]>(
+    () =>
+      reconnectable
+        ? [
+            ...base,
+            {
+              action: "reconnect",
+              label: REDDIT_ACCOUNT_TEXT.reconnectExtension,
+              busyLabel: REDDIT_ACCOUNT_TEXT.reconnectingExtension,
+              blocked: false,
+              onClick: reconnectNow,
+            },
+          ]
+        : base,
+    [base, reconnectable, reconnectNow],
+  );
 }
 
 export function useRedditAccountForm(view: RedditAccountView, changed: Changed) {
@@ -102,12 +174,7 @@ export function useRedditAccountForm(view: RedditAccountView, changed: Changed) 
     task: useDisconnect(session, changed),
   });
 
-  const buttons = useActionButtons({
-    check: "verify",
-    labels: LABELS,
-    blocked,
-    press: { check: verifyNow, remove: disconnectNow },
-  });
+  const buttons = useButtons(view, run, changed, { verifyNow, disconnectNow, blocked });
 
   return {
     session,

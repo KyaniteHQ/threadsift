@@ -47,7 +47,9 @@ export const HIGHLIGHT_STATUSES = ["attached", ...HIGHLIGHT_REASONS] as const;
 
 export const THROTTLE_KINDS = ["setup", "login", "reset"] as const;
 
-export const SCOPES = ["read", "add", "digest", "delete"] as const;
+export const LEGACY_SCOPES = ["read", "add", "digest", "delete"] as const;
+
+export const SCOPES = [...LEGACY_SCOPES, "reddit"] as const;
 
 export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
@@ -98,6 +100,10 @@ export type ThrottleKind = (typeof THROTTLE_KINDS)[number];
 export type Scope = (typeof SCOPES)[number];
 
 export const ScopeListSchema = z.array(z.enum(SCOPES));
+
+export const StoredScopesSchema = z
+  .array(z.string())
+  .transform((names) => SCOPES.filter((scope) => names.includes(scope)));
 
 export const DEFAULT_SCOPES = ["read", "add"] as const satisfies readonly Scope[];
 

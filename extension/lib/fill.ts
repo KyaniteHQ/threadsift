@@ -2,10 +2,10 @@ import { browser } from "wxt/browser";
 import { z } from "zod";
 
 import { parseLink, redditRefOf } from "../../src/core/links.ts";
-import { type Config, REDDIT_HOSTS, hostPattern } from "./config.ts";
-import { loadConfig } from "./credentials.ts";
+import { type Config, REDDIT_HOSTS, REQUEST_DEADLINE_MS, hostPattern } from "./config.ts";
+import { fillWanted, loadConfig } from "./credentials.ts";
 import { type ThreadTab, fetchThread } from "./reddit-thread.ts";
-import { REQUEST_DEADLINE_MS, send } from "./save.ts";
+import { send } from "./save.ts";
 
 const ListedSchema = z.object({ items: z.array(z.object({ fillable: z.boolean() })) });
 
@@ -49,7 +49,7 @@ async function fillOnce(
 export async function fillOpenedThread(tab: Readonly<ThreadTab>): Promise<void> {
   const config = await loadConfig();
 
-  if (config === null || redditRefOf(tab.url) === null) return;
+  if (config === null || redditRefOf(tab.url) === null || !(await fillWanted())) return;
 
   const origins = [hostPattern(config.origin), ...REDDIT_HOSTS];
 

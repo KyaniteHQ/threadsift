@@ -8,6 +8,7 @@ const SCOPE_LABELS = {
   add: SETTINGS.scopeAdd,
   digest: SETTINGS.scopeDigest,
   delete: SETTINGS.scopeDelete,
+  reddit: SETTINGS.scopeReddit,
 } as const satisfies Readonly<Record<Scope, string>>;
 
 export const SCOPE_NAMES = {
@@ -15,6 +16,7 @@ export const SCOPE_NAMES = {
   add: SETTINGS.scopeNameAdd,
   digest: SETTINGS.scopeNameDigest,
   delete: SETTINGS.scopeNameDelete,
+  reddit: SETTINGS.scopeNameReddit,
 } as const satisfies Readonly<Record<Scope, string>>;
 
 function ScopeOption({

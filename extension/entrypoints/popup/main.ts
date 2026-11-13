@@ -1,10 +1,23 @@
 import { browser } from "wxt/browser";
 
 import { applyLook, element } from "../../lib/page-look.ts";
+import {
+  type RedditView,
+  loadReddit,
+  reconnectFromPopup,
+  redditActions,
+  redditLabel,
+  redditStatusText,
+  redditTone,
+} from "../../lib/reddit-setting.ts";
 import { SAVE_PORT, type SaveState, SaveStateSchema, ask } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
 
 const SAVE_DEADLINE_MS = 240_000;
+
+let reddit: RedditView | null = null;
+
+let latest: SaveState = { kind: "saving" };
 
 const root = document.querySelector("#root");
 
@@ -102,12 +115,43 @@ function messageOf(state: Readonly<SaveState>): HTMLParagraphElement {
   }
 }
 
+function redditBlock(view: Readonly<RedditView> | null): HTMLElement[] {
+  if (view === null) return [];
+
+  const text = view.kind === "expired" ? TEXT.popupExpired : redditStatusText(view);
+
+  const buttons = redditActions(view)
+    .filter((action) => action !== "disconnect")
+    .map((action) => button(redditLabel(action), () => void reconnect()));
+
+  return [status(text, redditTone(view)), element("div", { class: "ext-actions" }, ...buttons)];
+}
+
 function show(state: Readonly<SaveState>): void {
+  latest = state;
+
   root?.replaceChildren(
     element("h1", {}, "Threadsift"),
     messageOf(state),
     element("div", { class: "ext-actions" }, ...actions(state)),
+    ...redditBlock(reddit),
   );
+}
+
+function moveReddit(next: RedditView | null): void {
+  reddit = next;
+  show(latest);
+}
+
+async function reconnect(): Promise<void> {
+  moveReddit({ kind: "working", access: false });
+  moveReddit((await reconnectFromPopup()) ?? { kind: "expired", access: false });
+}
+
+async function offerReconnect(): Promise<void> {
+  const view = await loadReddit();
+
+  if (view.kind === "expired") moveReddit(view);
 }
 
 async function save(): Promise<void> {
@@ -122,4 +166,6 @@ async function save(): Promise<void> {
 
 applyLook();
 
-void save();
+await save();
+
+await offerReconnect();

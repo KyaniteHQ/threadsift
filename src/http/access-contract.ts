@@ -125,7 +125,7 @@ export const createTokenRoute = createRoute({
       "The token, with the `scopes` it holds and its `budget`, and its value, which is never shown again. `scopes` in the request defaults to `read` and `add`. `dailyBudget` is the number of new Items the token may add each UTC day; it defaults to 200 and `null` means no budget.",
     ),
     400: errorBody(
-      "`name` is empty or longer than 80 characters, `scopes` is empty or names something other than `read`, `add`, `digest` and `delete`, or `dailyBudget` is not a whole number above 0 or null.",
+      "`name` is empty or longer than 80 characters, `scopes` is empty or names something other than `read`, `add`, `digest`, `delete` and `reddit`, or `dailyBudget` is not a whole number above 0 or null.",
     ),
   },
 });

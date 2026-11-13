@@ -1,6 +1,8 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
+import { REDDIT_CONNECT_STATES } from "../../src/core/reddit-relay-contract.ts";
+
 export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("saving") }),
   z.object({ kind: z.literal("saved"), itemUrl: z.string() }),
@@ -31,6 +33,8 @@ export const FILL_PORT = "fill";
 
 export const SETTINGS_PORT = "settings";
 
+export const REDDIT_PORT = "reddit";
+
 export const ANSWER_DEADLINE_MS = 10_000;
 
 export const ConfigViewSchema = z.object({
@@ -56,9 +60,21 @@ export const ChangeAnswerSchema = z.object({
 
 export type ChangeAnswer = z.infer<typeof ChangeAnswerSchema>;
 
+export const RedditRequestSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("read") }),
+  z.object({ kind: z.literal("connect") }),
+  z.object({ kind: z.literal("disconnect") }),
+]);
+
+export type RedditRequest = z.infer<typeof RedditRequestSchema>;
+
+export const RedditAnswerSchema = z.object({ state: z.enum(REDDIT_CONNECT_STATES) });
+
+export type RedditAnswer = z.infer<typeof RedditAnswerSchema>;
+
 export interface AskOptions {
   readonly deadlineMs: number;
-  readonly request?: SettingsRequest;
+  readonly request?: SettingsRequest | RedditRequest;
 }
 
 export function ask<Schema extends z.ZodType>(

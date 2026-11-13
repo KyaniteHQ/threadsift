@@ -1,8 +1,7 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { type Config, instanceOrigin } from "./config.ts";
-import { hasRedditAccess } from "./fill-script.ts";
+import { type Config, hasRedditAccess, instanceOrigin, storeFill } from "./config.ts";
 import type { ConfigView } from "./state.ts";
 
 const StoredSchema = z.object({
@@ -19,6 +18,18 @@ export async function stored(): Promise<z.infer<typeof StoredSchema>> {
   return read.success ? read.data : {};
 }
 
+export async function fillWanted(): Promise<boolean> {
+  return (await stored()).fill !== false;
+}
+
+export async function settleFill(): Promise<void> {
+  const { fill } = await stored();
+  const granted = await hasRedditAccess();
+  const settled = fill === undefined ? granted : fill && granted;
+
+  if (settled !== fill) await storeFill(settled);
+}
+
 export async function loadConfig(): Promise<Config | null> {
   const { instance, token } = await stored();
   const origin = instanceOrigin(instance ?? "");
@@ -27,11 +38,11 @@ export async function loadConfig(): Promise<Config | null> {
 }
 
 export async function loadConfigView(): Promise<ConfigView> {
-  const { instance, token, fill } = await stored();
+  const { instance, token } = await stored();
 
   return {
     origin: instanceOrigin(instance ?? ""),
     hasToken: token !== undefined && token !== "",
-    fill: fill !== false && (await hasRedditAccess()),
+    fill: (await fillWanted()) && (await hasRedditAccess()),
   };
 }

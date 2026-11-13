@@ -2,6 +2,7 @@ import type {
   RedditAccountView,
   RedditVerifyResult,
 } from "../../src/core/reddit-account-contract.ts";
+import type { RedditConnectState } from "../../src/core/reddit-relay-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
 
 export const REDDIT_ACCOUNT_GUIDE_URL =
@@ -42,6 +43,20 @@ export const REDDIT_ACCOUNT_TEXT = {
   resultUnreachable: "Reddit did not answer. Try again.",
   resultTimeout: "Reddit did not answer in 15 seconds. Try again.",
   resultNotConfigured: "Connect a Reddit account first, then press Verify.",
+  reconnectExtension: "Reconnect with the Extension",
+  reconnectingExtension: "Reconnecting with the Extension…",
+  extensionMissing:
+    "The Extension did not answer. Use the Extension’s Connect Reddit button, or paste the cookie value in the field above.",
+  extensionNoAccess:
+    "The Extension has no access to cookies and reddit.com. Press Connect Reddit once in the Extension’s settings page.",
+  extensionSignedOut: "Your browser isn’t signed in to Reddit. Sign in and try again.",
+  extensionScopeRefused:
+    "The Extension’s agent token lacks the Reddit scope. Make a new agent token with the Reddit scope under Agent tokens above and enter it in the Extension’s settings.",
+  extensionTokenRefused:
+    "The Extension’s agent token is wrong or was revoked. Check it in the Extension’s settings.",
+  extensionUnreachable:
+    "The Extension couldn’t reach this Instance. Check the address in the Extension’s settings.",
+  extensionFailed: "Couldn’t reconnect with the Extension. Try again.",
   loadFailed: "Couldn’t load the Reddit account settings. Reload the page.",
   failed: "Couldn’t connect, verify or disconnect the Reddit account. Try again.",
 } as const;
@@ -65,6 +80,26 @@ const RESULT_TEXT = {
   "secret-missing": AI_TEXT["secret-missing"],
   unreadable: REDDIT_ACCOUNT_TEXT.stateUnreadable,
 } as const satisfies Record<RedditVerifyResult, string>;
+
+const RELAY_TEXT = {
+  connected: REDDIT_ACCOUNT_TEXT.connected,
+  unavailable: REDDIT_ACCOUNT_TEXT.extensionFailed,
+  none: REDDIT_ACCOUNT_TEXT.extensionFailed,
+  expired: REDDIT_ACCOUNT_TEXT.extensionFailed,
+  unreadable: REDDIT_ACCOUNT_TEXT.extensionFailed,
+  missing: AI_TEXT["secret-missing"],
+  "no-access": REDDIT_ACCOUNT_TEXT.extensionNoAccess,
+  "signed-out": REDDIT_ACCOUNT_TEXT.extensionSignedOut,
+  "scope-refused": REDDIT_ACCOUNT_TEXT.extensionScopeRefused,
+  "token-refused": REDDIT_ACCOUNT_TEXT.extensionTokenRefused,
+  unreachable: REDDIT_ACCOUNT_TEXT.extensionUnreachable,
+  failed: REDDIT_ACCOUNT_TEXT.extensionFailed,
+  "access-kept": REDDIT_ACCOUNT_TEXT.extensionFailed,
+} as const satisfies Record<RedditConnectState, string>;
+
+export function relayText(state: RedditConnectState): string {
+  return RELAY_TEXT[state];
+}
 
 export function stateText(state: RedditAccountView["state"]): string {
   return STATE_TEXT[state];

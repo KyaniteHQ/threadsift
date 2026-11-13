@@ -6,6 +6,16 @@ Use a separate Reddit account for this, not your main one. Reddit's User Agreeme
 
 The session is a cookie value that works like a password for that account. Threadsift keeps it sealed on your Instance with `THREADSIFT_SECRET_KEY`, sends it only to `reddit.com`, and never shows it again after you save it.
 
+## Connect with the Extension
+
+1. Sign in to Reddit in the browser that has the Extension, with the separate account.
+2. Open the Extension's settings page and choose **Connect Reddit**. The browser asks for the `cookies` permission and for reddit.com. The Extension reads the `reddit_session` cookie and sends it only to your Instance.
+3. Your agent token needs the `reddit` scope. Turn it on when you create the token.
+
+When the account expires, the Extension's popup and Settings offer **Reconnect** with one click. **Disconnect** in the Extension gives the `cookies` permission back.
+
+If you prefer not to give the Extension that permission, paste the value by hand as follows.
+
 ## Find the session value
 
 1. Open a private window, go to `https://www.reddit.com` and sign in with the separate account.

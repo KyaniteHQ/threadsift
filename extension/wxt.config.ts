@@ -15,6 +15,7 @@ export default defineConfig({
       name: "Threadsift",
       description: TEXT.manifestDescription,
       permissions: ["activeTab", "scripting", "storage"],
+      optional_permissions: ["cookies"],
       optional_host_permissions: HOSTS,
       action: { default_title: TEXT.actionTitle },
     };

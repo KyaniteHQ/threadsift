@@ -30,6 +30,7 @@ describe("the Reddit account settings are reached only by the signed-in owner", 
     await instance.setUp();
     ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
       name: "reddit-account-access",
+      scopes: ["read", "reddit"],
     }));
   });
 

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { BUDGET_SPENT } from "../../src/core/kinds.ts";
 import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../../src/core/supplied-page.ts";
-import { type Config, hostPattern } from "./config.ts";
+import { type Config, holdsInstanceAccess, instanceRequest } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
 import {
   type Completeness,
@@ -25,8 +25,6 @@ const RefusalSchema = z.object({
   fetch: z.string().optional(),
   code: z.string().optional(),
 });
-
-export const REQUEST_DEADLINE_MS = 25_000;
 
 const SAVED_KIND = {
   whole: "saved",
@@ -128,19 +126,13 @@ async function stateOf(
 }
 
 export async function send(
-  { origin, token }: Readonly<Config>,
+  config: Readonly<Config>,
   { body, completeness }: Readonly<Saving>,
 ): Promise<SaveState> {
   try {
-    const response = await fetch(new URL("/api/items", origin), {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify(body),
-      redirect: "error",
-      signal: AbortSignal.timeout(REQUEST_DEADLINE_MS),
-    });
+    const response = await instanceRequest(config, "/api/items", { method: "POST", body });
 
-    return await stateOf(response, origin, completeness);
+    return await stateOf(response, config.origin, completeness);
   } catch {
     return { kind: "unreachable" };
   }
@@ -151,7 +143,7 @@ export async function savePage(): Promise<SaveState> {
 
   if (config === null) return { kind: "not-configured" };
 
-  if (!(await browser.permissions.contains({ origins: [hostPattern(config.origin)] }))) {
+  if (!(await holdsInstanceAccess(config.origin))) {
     return { kind: "access-missing" };
   }
 

@@ -9,7 +9,7 @@ Status: chosen on 2026-11-04 in a grill with the owner and revised after four mo
 | Built | A caller that fetched an X post with its replies saves them with a Paste as one JSON text |
 | Built | Agents with an agent token search, read and add Items through MCP at `/mcp` |
 | Built | The container loads a self-hoster's fetcher plug-ins at start (page text only) |
-| Built | The owner's connected Reddit account is the first source for a Reddit link without Extension content, one fill at a time (the Extension's Connect Reddit button is not built) |
+| Built | The owner's connected Reddit account is the first source for a Reddit link without Extension content, one fill at a time; the Extension's Connect Reddit button and Settings Reconnect connect it in one click |
 | Built | A Reddit post that links to an article or a GitHub repository gives the Digest that page's text (the one hop) |
 | Built | A routine or an agent saves many links, with a cursor the Instance keeps, through `POST /api/items/batch`, and the owner imports a pasted or uploaded list of links on the Import screen at `/import` with the same call |
 | Built | The first wiki slice, Topic pages (an agent-written overview and the Topic's Items, reached from the Reader and the filters), is built |

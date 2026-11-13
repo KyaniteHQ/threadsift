@@ -1,9 +1,8 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { REDDIT_HOSTS, hostPattern, instanceOrigin } from "./config.ts";
-import { stored } from "./credentials.ts";
-import { hasRedditAccess } from "./fill-script.ts";
+import { REDDIT_HOSTS, holdsRedditConnect, hostPattern, instanceOrigin } from "./config.ts";
+import { settleFill, stored } from "./credentials.ts";
 import { logFailure } from "./log.ts";
 
 export type AccessResult = "reconciled" | "kept";
@@ -35,7 +34,9 @@ async function neededOrigins(): Promise<ReadonlySet<string>> {
   const origin = instanceOrigin(instance ?? "");
   const needed = new Set<string>(origin === null ? [] : [hostPattern(origin)]);
 
-  if (fill ?? (await hasRedditAccess())) for (const host of REDDIT_HOSTS) needed.add(host);
+  const keepReddit = fill === true || (await holdsRedditConnect());
+
+  if (keepReddit) for (const host of REDDIT_HOSTS) needed.add(host);
 
   return needed;
 }
@@ -55,6 +56,8 @@ async function dropOrigin(origin: string): Promise<boolean> {
 }
 
 async function reconcile(): Promise<AccessResult> {
+  await settleFill();
+
   const [needed, held] = await Promise.all([neededOrigins(), browser.permissions.getAll()]);
   const required = requiredOrigins();
 

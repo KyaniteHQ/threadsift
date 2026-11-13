@@ -3,7 +3,8 @@ import { defineBackground } from "wxt/utils/define-background";
 
 import { exclusive, reconcileAccess } from "../lib/access.ts";
 import { restrictStorage } from "../lib/config.ts";
-import { syncFillScript } from "../lib/fill-script.ts";
+import { syncScripts } from "../lib/content-scripts.ts";
+import { settleFill } from "../lib/credentials.ts";
 import { cancelFills, fillOpenedThread } from "../lib/fill.ts";
 import { FILL_PORT } from "../lib/state.ts";
 import { servePort } from "../lib/worker-ports.ts";
@@ -14,16 +15,28 @@ function fillFrom(tabId: number | undefined, frameId: number | undefined, url: s
   }
 }
 
+async function followRevoke(): Promise<void> {
+  await exclusive(settleFill);
+  await syncScripts();
+}
+
 export default defineBackground({
   main() {
     void restrictStorage();
-    void syncFillScript();
-    browser.runtime.onStartup.addListener(() => void exclusive(reconcileAccess));
-    browser.runtime.onInstalled.addListener(() => void exclusive(reconcileAccess));
-    browser.permissions.onAdded.addListener(() => void syncFillScript());
-    browser.permissions.onRemoved.addListener(() => {
-      cancelFills();
-      void syncFillScript();
+    void syncScripts();
+    browser.runtime.onStartup.addListener(() => {
+      void exclusive(reconcileAccess);
+      void syncScripts();
+    });
+    browser.runtime.onInstalled.addListener(() => {
+      void exclusive(reconcileAccess);
+      void syncScripts();
+    });
+    browser.permissions.onAdded.addListener(() => void syncScripts());
+    browser.permissions.onRemoved.addListener(({ origins }) => {
+      if ((origins ?? []).length > 0) cancelFills();
+
+      void followRevoke();
     });
 
     browser.runtime.onConnect.addListener((port) => {

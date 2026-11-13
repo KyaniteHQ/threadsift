@@ -1,37 +1,13 @@
-import { browser } from "wxt/browser";
+import { FILL_SCRIPT_ID, REDDIT_HOSTS, hasRedditAccess } from "./config.ts";
+import { type Registration, syncContentScript } from "./content-script-sync.ts";
+import { fillWanted } from "./credentials.ts";
 
-import { FILL_SCRIPT_ID, REDDIT_HOSTS } from "./config.ts";
+async function wanted(): Promise<Registration | null> {
+  const active = (await hasRedditAccess()) && (await fillWanted());
 
-export function hasRedditAccess(): Promise<boolean> {
-  return browser.permissions.contains({ origins: REDDIT_HOSTS });
+  return active ? { js: "fill.js", matches: REDDIT_HOSTS } : null;
 }
-
-async function syncOnce(): Promise<void> {
-  const [granted, registered] = await Promise.all([
-    hasRedditAccess(),
-    browser.scripting.getRegisteredContentScripts({ ids: [FILL_SCRIPT_ID] }),
-  ]);
-
-  if (granted && registered.length === 0) {
-    await browser.scripting.registerContentScripts([
-      {
-        id: FILL_SCRIPT_ID,
-        js: ["fill.js"],
-        matches: REDDIT_HOSTS,
-        runAt: "document_idle",
-        persistAcrossSessions: true,
-      },
-    ]);
-  } else if (!granted && registered.length > 0) {
-    await browser.scripting.unregisterContentScripts({ ids: [FILL_SCRIPT_ID] });
-  }
-}
-
-let pending: Promise<void> = Promise.resolve();
 
 export function syncFillScript(): Promise<void> {
-  const run = pending.then(syncOnce);
-  pending = run.catch(() => {});
-
-  return run;
+  return syncContentScript(FILL_SCRIPT_ID, wanted);
 }

@@ -18,7 +18,7 @@ type ActionEvent<Action extends string> =
 
 export type Task = () => Promise<Outcome | null>;
 
-type RunAction<Action extends string> = (action: Action, task: Task) => Promise<void>;
+export type RunAction<Action extends string> = (action: Action, task: Task) => Promise<void>;
 
 export interface ActionButton<Action extends string> {
   readonly action: Action;

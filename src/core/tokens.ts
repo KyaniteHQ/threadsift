@@ -2,7 +2,7 @@ import { and, desc, eq, getTableColumns, isNull, lte, or, sql } from "drizzle-or
 
 import { budgetOf, forgetOldDays, utcDay } from "./agent-token-budget.ts";
 import { digestOf, randomSecret } from "./encoding.ts";
-import { ScopeListSchema, type Scope, type TokenBudget } from "./kinds.ts";
+import { StoredScopesSchema, type Scope, type TokenBudget } from "./kinds.ts";
 import { DEFAULT_TOKEN_BUDGET } from "./limits.ts";
 import type { Ports } from "./ports.ts";
 import { type AgentTokenRow, agentTokenDays, agentTokens } from "./schema.ts";
@@ -24,7 +24,7 @@ function summaryOf(
   { dailyBudget, added, ...row }: Readonly<SummaryRow>,
   now: number,
 ): TokenSummary {
-  const scopes = ScopeListSchema.safeParse(row.scopes);
+  const scopes = StoredScopesSchema.safeParse(row.scopes);
 
   return {
     ...row,
@@ -147,5 +147,5 @@ export async function verifyToken(ports: Ports, value: string): Promise<Verified
     await forgetOldDays(ports.db, row.id, now);
   }
 
-  return { id: row.id, name: row.name, scopes: ScopeListSchema.parse(row.scopes) };
+  return { id: row.id, name: row.name, scopes: StoredScopesSchema.parse(row.scopes) };
 }
