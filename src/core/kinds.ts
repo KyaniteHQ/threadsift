@@ -116,6 +116,8 @@ export type WeeklyTask = (typeof WEEKLY_TASK)[ProposalKind];
 
 export const DIGEST_OUTCOMES = ["none", "pending", "failed"] as const;
 
+export type DigestOutcome = (typeof DIGEST_OUTCOMES)[number];
+
 export const LOG_ACTIONS = [
   "ingest",
   "digest",

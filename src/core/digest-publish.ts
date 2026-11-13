@@ -8,8 +8,8 @@ import {
   currency,
   digestInput,
   generationCurrent,
+  markDigest,
   openingPick,
-  setDigestFailure,
 } from "./digest-source.ts";
 import {
   type AnchorSnapshot,
@@ -133,7 +133,7 @@ export async function publishing(
         ...commentPartWrites(db, eq(items.id, item.id), bodies),
         completedAiTask(db, { taskId, result: published }),
         db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
-        setDigestFailure(db, item.id, false),
+        ...markDigest(db, item.id, { kind: "cleared" }),
       ],
     },
     keptCommentsPublication(db, snapshot),

@@ -1,13 +1,14 @@
-import { and, eq, exists, ne, notExists, sql } from "drizzle-orm";
+import { and, eq, exists, notExists, sql } from "drizzle-orm";
 
 import { openingDigest } from "./digest-job.ts";
-import { setDigestFailure } from "./digest-source.ts";
+import { markDigest } from "./digest-source.ts";
 import {
   LISTED_COLUMNS,
   type ListedItemRow,
   getListedItem,
   selectItems,
 } from "./item-selection.ts";
+import { NOT_FAILED, setStatus } from "./item-status.ts";
 import { enqueueRows, hasOpenJob } from "./job-rows.ts";
 import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
@@ -26,7 +27,7 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
 
   if (known.status === "failed") return getListedItem(ports.db, id);
 
-  const live = and(eq(items.id, id), ne(items.status, "failed")) ?? sql`0`;
+  const live = and(eq(items.id, id), NOT_FAILED) ?? sql`0`;
 
   const [, queued, , , [item]] = await ports.db.batch([
     ports.db
@@ -38,11 +39,8 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
       address: known.originalUrl,
       now: Date.now(),
     }).job,
-    setDigestFailure(ports.db, id, false),
-    ports.db
-      .update(items)
-      .set({ status: "processing", reason: null })
-      .where(and(live, exists(hasOpenJob("digest")))),
+    ...markDigest(ports.db, id, { kind: "cleared" }),
+    setStatus(ports.db, { kind: "queued" }, and(live, exists(hasOpenJob("digest"))) ?? sql`0`),
     selectItems(ports.db, LISTED_COLUMNS).where(eq(items.normalizedUrl, known.normalizedUrl)),
   ]);
 

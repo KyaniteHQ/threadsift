@@ -1,13 +1,13 @@
 import { type SQLWrapper, and, eq, notExists } from "drizzle-orm";
 
 import type { Concluded } from "./details.ts";
-import { EMPTY_JOINED_VIEW, LISTED_COLUMNS, selectItems } from "./item-selection.ts";
+import { LISTED_COLUMNS, selectItems } from "./item-selection.ts";
 import { type Existing, type SaveResult, foundItem, itemAt } from "./items.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { guards, insertGuard, items } from "./schema.ts";
-import { settle } from "./settle.ts";
+import { settledKnown, settledNew } from "./settle.ts";
 import { holdsNoAlias, unlessRefused } from "./short-link-aliases.ts";
 
 interface Failure {
@@ -22,7 +22,7 @@ async function insertedFailure(
   noAlias: Readonly<SQLWrapper>,
   { address, link: { normalizedUrl, kind, source }, fetched, now }: Readonly<Failure>,
 ): Promise<SaveResult | undefined> {
-  const [, [inserted]] = await db.batch([
+  const [, inserted] = await db.batch([
     insertGuard(db, noAlias),
     db
       .insert(items)
@@ -32,16 +32,16 @@ async function insertedFailure(
         normalizedUrl,
         originalUrl: address,
         savedAt: now,
-        ...settle(fetched, null, now),
+        ...settledNew(fetched, now),
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
-      .returning(LISTED_COLUMNS),
+      .returning({ id: items.id }),
     db.delete(guards),
   ]);
 
-  return inserted === undefined
+  return inserted.length === 0
     ? undefined
-    : { kind: "saved", item: { ...inserted, ...EMPTY_JOINED_VIEW }, created: true };
+    : { kind: "saved", item: await itemAt(db, normalizedUrl), created: true };
 }
 
 async function refreshedFailure(
@@ -59,7 +59,7 @@ async function refreshedFailure(
       .where(and(eq(items.id, known.id), notExists(hasOpenJob("digest")))),
     db
       .update(items)
-      .set(settle(fetched, known.title, now))
+      .set(settledKnown(fetched, known.title, now))
       .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
     selectItems(db, LISTED_COLUMNS).where(eq(items.id, known.id)),
     db.delete(guards),

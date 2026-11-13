@@ -22,7 +22,7 @@ import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
 import { candidateLink, commentCandidates, eligibleComments } from "./reddit-thread.ts";
-import { insertGuard, items } from "./schema.ts";
+import { digests, insertGuard, items } from "./schema.ts";
 
 export function openingPick(db: Database, itemId: number) {
   return opening(db, {
@@ -67,16 +67,66 @@ export function hasDigestSource() {
 
 export type DigestInput = Awaited<ReturnType<typeof digestInput>>[number];
 
-export function setDigestFailure(
+export type DigestMark =
+  | { readonly kind: "cleared" }
+  | { readonly kind: "attempt-failed" }
+  | { readonly kind: "kept-not-updated"; readonly when?: Readonly<SQLWrapper> };
+
+function setMarker(
   db: Database,
   itemId: number | Readonly<SQLWrapper>,
   failed: boolean,
-  condition: Readonly<SQLWrapper> = exists(hasOpenJob("digest")),
+  condition: Readonly<SQLWrapper>,
 ) {
   return db
     .update(items)
     .set({ digestFailed: failed })
     .where(and(eq(items.id, itemId), sql`${condition}`));
+}
+
+function whileDigestOpen() {
+  return exists(hasOpenJob("digest"));
+}
+
+function keptDigest(db: Database) {
+  return exists(
+    db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
+  );
+}
+
+type Marker = ReturnType<typeof setMarker>;
+
+export function markDigest(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+  mark: Readonly<Exclude<DigestMark, { kind: "kept-not-updated" }>>,
+): readonly [Marker];
+export function markDigest(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+  mark: Readonly<Extract<DigestMark, { kind: "kept-not-updated" }>>,
+): readonly [Marker, Marker];
+export function markDigest(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+  mark: Readonly<DigestMark>,
+): readonly Marker[] {
+  switch (mark.kind) {
+    case "cleared":
+      return [setMarker(db, itemId, false, whileDigestOpen())];
+    case "attempt-failed":
+      return [setMarker(db, itemId, true, whileDigestOpen())];
+    case "kept-not-updated":
+      return [
+        setMarker(db, itemId, false, whileDigestOpen()),
+        setMarker(db, itemId, true, and(keptDigest(db), sql`${mark.when ?? sql`1`}`) ?? sql`0`),
+      ];
+    default: {
+      const exhaustive: never = mark;
+
+      throw new Error(exhaustive);
+    }
+  }
 }
 
 export function generationCurrent(
@@ -141,7 +191,7 @@ async function unreadableText(
   return {
     currency: read,
     failedAttempt: true,
-    writes: [insertGuard(db, generation), setDigestFailure(db, item.id, true)],
+    writes: [insertGuard(db, generation), ...markDigest(db, item.id, { kind: "attempt-failed" })],
   };
 }
 
@@ -199,7 +249,7 @@ export function refusedInput(
 
   return {
     currency: currency(db, generation, null),
-    writes: [insertGuard(db, generation), setDigestFailure(db, item.id, true)],
+    writes: [insertGuard(db, generation), ...markDigest(db, item.id, { kind: "attempt-failed" })],
   };
 }
 

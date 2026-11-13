@@ -7,7 +7,7 @@ import { mediaKeysOf, mediaWrites } from "./media-writes.ts";
 import { placePostText } from "./post-text-files.ts";
 import { ownerOfItem, threadWrites } from "./reddit-thread.ts";
 import { fetchedRepository, repositoryWrites } from "./repositories.ts";
-import { settle } from "./settle.ts";
+import { settledKnown } from "./settle.ts";
 
 interface StoredMedia {
   readonly fetched: Concluded;
@@ -69,7 +69,7 @@ export async function settledContent(
   deadline: AbortSignal,
 ) {
   const stored = await storeMedia(ports, job.imagePrefix, fetched, deadline);
-  const { postText, ...settled } = settle(stored.fetched, title, Date.now());
+  const { postText, ...settled } = settledKnown(stored.fetched, title, Date.now());
   const replaces = postText !== undefined;
 
   const [placed, replacedMedia] = await Promise.all([

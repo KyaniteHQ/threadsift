@@ -1,6 +1,7 @@
 import type { Digest } from "./ai-contract.ts";
 import { type SaveResult, type ThreadKept, itemAt, queuedWrites } from "./items.ts";
-import { closeFetchJobs, enqueueItemJobs } from "./job-rows.ts";
+import { closeFetchJobs } from "./job-close.ts";
+import { enqueueItemJobs } from "./job-rows.ts";
 import { parseLink } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { hasNoThread, ownerOf } from "./reddit-thread.ts";
@@ -23,7 +24,7 @@ export async function saveThreadPage(
   );
 
   const inserted = await guardedWrite(db, hasNoThread(link.normalizedUrl), insert, [
-    closeFetchJobs(db, ownerOf(link.normalizedUrl).id),
+    ...closeFetchJobs(db, ownerOf(link.normalizedUrl).id),
     ...rest,
   ]);
 

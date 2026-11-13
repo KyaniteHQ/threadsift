@@ -1,8 +1,9 @@
-import { and, eq, notExists } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
 import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
-import { hasOpenJob, openingJob, enqueueRows } from "./job-rows.ts";
+import { newItemStatus, setStatus } from "./item-status.ts";
+import { openingJob, enqueueRows } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
 import { guards, holdsNoRow, insertGuard, items } from "./schema.ts";
@@ -70,14 +71,11 @@ export function queuedWrites(
         normalizedUrl,
         originalUrl,
         savedAt: now,
-        status: "processing",
+        ...newItemStatus({ kind: "queued" }),
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),
-    db
-      .update(items)
-      .set({ status: "processing", reason: null })
-      .where(and(eq(items.normalizedUrl, normalizedUrl), notExists(hasOpenJob("fetch")))),
+    setStatus(db, { kind: "queued" }, eq(items.normalizedUrl, normalizedUrl)),
     db.update(items).set({ pendingDigest }).where(eq(items.normalizedUrl, normalizedUrl)),
     openingJob(db, { kind: "fetch", address, normalizedUrl, now, page }),
     selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
