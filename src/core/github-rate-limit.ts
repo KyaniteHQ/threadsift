@@ -4,14 +4,14 @@ import { parseHttpDate } from "./http-date.ts";
 import { parsedJson } from "./parsed-json.ts";
 import type { RateLimitHeaders } from "./ports.ts";
 
-export type RateLimitKind = "primary" | "secondary";
+type RateLimitKind = "primary" | "secondary";
 
 export interface RateLimit {
   readonly kind: RateLimitKind;
   readonly until: number | null;
 }
 
-export interface LimitedAnswer {
+interface LimitedAnswer {
   readonly status: number;
   readonly headers: Readonly<RateLimitHeaders>;
   readonly body: string;

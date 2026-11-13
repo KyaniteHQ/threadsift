@@ -9,7 +9,7 @@ import { digests, items } from "./schema.ts";
 import { hasOpenOverview, openOverviewJob } from "./topic-coverage.ts";
 import { openingOverview, overviewOpened } from "./topic-overview-run.ts";
 
-export type OverviewStart =
+type OverviewStart =
   | { readonly kind: "started" | "no-provider" | "no-items" | "stale" }
   | { readonly kind: "open"; readonly jobId: number };
 

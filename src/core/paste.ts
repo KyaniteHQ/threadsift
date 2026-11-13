@@ -16,7 +16,7 @@ export interface Supplied {
   readonly fill?: true | undefined;
 }
 
-export type PasteResult =
+type PasteResult =
   | ThreadPasteResult
   | PageSaveResult
   | { readonly kind: "too-large"; readonly field: "content" }

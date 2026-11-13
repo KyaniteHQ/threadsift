@@ -49,7 +49,7 @@ function hardCut(text: string): number {
   return straddling ? CHUNK_UNITS - 1 : CHUNK_UNITS;
 }
 
-export function chunkPostText(text: string): readonly string[] {
+function chunkPostText(text: string): readonly string[] {
   if (new TextEncoder().encode(text).length <= CHUNK_TRIGGER_BYTES) {
     return text.trim() === "" ? [] : [text];
   }

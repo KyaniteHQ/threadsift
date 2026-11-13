@@ -2,7 +2,7 @@ const LINK = /https?:\/\/\S+/iu;
 
 const TRAILING_PUNCTUATION = /[.,;:!?)\]}'"]+$/u;
 
-export interface SharedFields {
+interface SharedFields {
   readonly title: string;
   readonly text: string;
   readonly url: string;

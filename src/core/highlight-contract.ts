@@ -3,7 +3,7 @@ import { z } from "zod";
 import { StoredCommentId } from "./comment-id.ts";
 import { HIGHLIGHT_REASONS } from "./kinds.ts";
 
-export const HighlightTargetSchema = z.discriminatedUnion("kind", [
+const HighlightTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("post") }),
   z.object({ kind: z.literal("comment"), commentId: StoredCommentId }),
 ]);
@@ -15,7 +15,7 @@ const ExactSchema = z
 
 const PositionSchema = z.number().int().nonnegative();
 
-export const SelectorSchema = z.object({
+const SelectorSchema = z.object({
   exact: z.string(),
   prefix: z.string(),
   suffix: z.string(),

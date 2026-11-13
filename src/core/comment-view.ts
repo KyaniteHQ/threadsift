@@ -8,7 +8,7 @@ const Place = {
   depth: z.number().int().nonnegative(),
 };
 
-export const CommentNodeSchema = z.discriminatedUnion("kind", [
+const CommentNodeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("comment"),
     ...Place,

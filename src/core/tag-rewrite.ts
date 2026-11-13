@@ -12,13 +12,13 @@ import { digests, itemTags } from "./schema.ts";
 
 export const REWRITE_UNIT_ITEMS = 100;
 
-export interface TagRef {
+interface TagRef {
   readonly id: number;
   readonly key: string;
   readonly name: string;
 }
 
-export interface RewriteUnit {
+interface RewriteUnit {
   readonly itemIds: readonly number[];
   readonly last: number;
   readonly moving: SQL;
@@ -49,7 +49,7 @@ function mergedTags(
   return renamedTags(parsed.tags, (key) => (key === from.key ? into.name : undefined));
 }
 
-export function digestRewrites(
+function digestRewrites(
   db: Database,
   stored: readonly Readonly<StoredDigest>[],
   merge: Readonly<{ from: TagRef; into: TagRef }>,

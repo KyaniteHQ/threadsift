@@ -12,7 +12,7 @@ interface Resolution {
   readonly pin: string;
 }
 
-export interface PinnedDigest {
+interface PinnedDigest {
   readonly tags: readonly string[];
   readonly topic: string;
   readonly renamed: boolean;

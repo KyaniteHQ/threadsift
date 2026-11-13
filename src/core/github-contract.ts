@@ -15,7 +15,7 @@ export const GithubSettingsViewSchema = z.object({
 
 export type GithubSettingsView = z.infer<typeof GithubSettingsViewSchema>;
 
-export const GithubRefusalSchema = z.enum([
+const GithubRefusalSchema = z.enum([
   "secret-missing",
   "not-configured",
   "wrong-token",
@@ -25,7 +25,7 @@ export const GithubRefusalSchema = z.enum([
   "rate-limited",
 ]);
 
-export type GithubRefusal = z.infer<typeof GithubRefusalSchema>;
+type GithubRefusal = z.infer<typeof GithubRefusalSchema>;
 
 const GithubRefusedSchema = z.object({
   kind: z.literal("refused"),

@@ -83,7 +83,7 @@ export interface FileKey {
   readonly name: string;
 }
 
-export interface FilePrefix {
+interface FilePrefix {
   readonly itemId: string | null;
 }
 

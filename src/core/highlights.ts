@@ -15,7 +15,7 @@ import { highlightPartWrites } from "./search.ts";
 import { PROJECTION_VERSION, projectText } from "./text-projection.ts";
 import { readableBody } from "./thread-read.ts";
 
-export type CreatedHighlight =
+type CreatedHighlight =
   | { readonly kind: "created" | "existing"; readonly highlight: Highlight }
   | { readonly kind: "no-item" | "no-comment" | "stale" | "mismatch" };
 

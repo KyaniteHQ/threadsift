@@ -7,7 +7,7 @@ export const RESET_CODE_MIN = 32;
 
 export type SetupCodeProblem = Exclude<SetupCodeStatus, "set">;
 
-export type SetupCodeCheck =
+type SetupCodeCheck =
   | { readonly status: "set"; readonly code: string }
   | { readonly status: SetupCodeProblem };
 

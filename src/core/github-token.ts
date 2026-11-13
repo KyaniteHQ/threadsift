@@ -29,7 +29,7 @@ const RateLimitSchema = z.object({
   }),
 });
 
-export async function loadGithubAuth({ db, secrets }: Readonly<TokenPorts>): Promise<GithubAuth> {
+async function loadGithubAuth({ db, secrets }: Readonly<TokenPorts>): Promise<GithubAuth> {
   const [row] = await db.select().from(githubSettings).where(eq(githubSettings.id, 1));
 
   if (row === undefined) return ANONYMOUS;

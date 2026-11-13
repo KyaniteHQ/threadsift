@@ -80,7 +80,7 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
   }
 }
 
-export async function continueMerge(
+async function continueMerge(
   ports: JobPorts,
   id: number,
   budget: number,

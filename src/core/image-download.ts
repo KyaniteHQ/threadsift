@@ -6,8 +6,8 @@ import type { MediaFailure } from "./kinds.ts";
 import { isRedditOrXLink } from "./links.ts";
 import type { Network } from "./ports.ts";
 
-export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-export const MAX_URL_BYTES = 4096;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_URL_BYTES = 4096;
 
 const BASE64_CHARACTERS = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 4;
 

@@ -19,7 +19,7 @@ export function utf8Length(text: string): number {
 }
 
 const CATALOG_OVERHEAD_BYTES = utf8Length('{"topics":[],"tags":[]}');
-export const CATALOG_LIST_BYTES = Math.floor((DIGEST_CATALOG_BYTES - CATALOG_OVERHEAD_BYTES) / 2);
+const CATALOG_LIST_BYTES = Math.floor((DIGEST_CATALOG_BYTES - CATALOG_OVERHEAD_BYTES) / 2);
 export const CATALOG_NAME_LIMIT = Math.floor(CATALOG_LIST_BYTES / 4);
 
 interface PromptItem {

@@ -8,7 +8,7 @@ import { PROPOSAL_REASON_MAX } from "./proposal-task.ts";
 
 export const DISAGREEMENT_ITEMS = 12;
 
-export const DISAGREEMENTS_MAX = 10;
+const DISAGREEMENTS_MAX = 10;
 
 export const DISAGREEMENT_INPUT_BYTES = 14_000;
 

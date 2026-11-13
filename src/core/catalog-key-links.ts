@@ -22,9 +22,9 @@ import {
 import { tagPartWrites } from "./search.ts";
 import { continuingOverview, overviewRemoved } from "./topic-overview-run.ts";
 
-export const MERGE_ITEMS = 500;
+const MERGE_ITEMS = 500;
 
-export interface Moves {
+interface Moves {
   readonly itemIds: readonly number[];
   readonly entryIds: readonly number[];
 }

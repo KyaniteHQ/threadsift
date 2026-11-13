@@ -9,7 +9,7 @@ import { itemAliases, items } from "./schema.ts";
 const holder = alias(items, "holder");
 const rival = alias(itemAliases, "rival");
 
-export interface AliasedItem extends Link {
+interface AliasedItem extends Link {
   readonly address: string;
 }
 

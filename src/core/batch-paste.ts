@@ -4,7 +4,7 @@ import type { ListedItemRow } from "./item-selection.ts";
 import type { Ports } from "./ports.ts";
 import { saveItem } from "./save-link.ts";
 
-export interface BatchLink {
+interface BatchLink {
   readonly url: string;
   readonly digest?: Digest | undefined;
 }
@@ -13,7 +13,7 @@ export type BatchEntry =
   | { readonly outcome: "added" | "known"; readonly item: ListedItemRow }
   | { readonly outcome: "refused"; readonly url: string };
 
-export type BatchPaste =
+type BatchPaste =
   | { readonly kind: "done"; readonly entries: readonly BatchEntry[] }
   | { readonly kind: "updating" };
 

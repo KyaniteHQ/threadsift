@@ -9,7 +9,7 @@ import type { Database } from "./ports.ts";
 import { catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
 import { openingOverview } from "./topic-overview-run.ts";
 
-export function catalogEntries(digest: Readonly<Digest>) {
+function catalogEntries(digest: Readonly<Digest>) {
   const names = new Map<string, { readonly key: string; readonly name: string }>();
 
   for (const name of digest.tags) {

@@ -6,7 +6,7 @@ import { items } from "./schema.ts";
 
 const ENCODER = new TextEncoder();
 
-export interface PlacedText {
+interface PlacedText {
   readonly columns: Readonly<{ postText: string | null; postTextKey: string | null }> | null;
   readonly files: JobFiles;
 }

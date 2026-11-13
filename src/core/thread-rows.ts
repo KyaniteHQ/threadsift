@@ -13,7 +13,7 @@ export interface ThreadNode {
   readonly eligible: boolean;
 }
 
-export const STATEMENT_JSON_BYTES = 1_500_000;
+const STATEMENT_JSON_BYTES = 1_500_000;
 
 const BRACKETS = 2;
 

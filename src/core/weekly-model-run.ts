@@ -14,7 +14,7 @@ import type {
 } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 
-export interface ModelRead<Sent> {
+interface ModelRead<Sent> {
   readonly input: string;
   readonly inputRevision: number;
   readonly sent: Sent;

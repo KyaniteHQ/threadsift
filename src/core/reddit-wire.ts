@@ -12,7 +12,7 @@ export interface WireComment {
   readonly replies?: "" | WireListing | undefined;
 }
 
-export interface WireListing {
+interface WireListing {
   readonly kind: "Listing";
   readonly data: { readonly children: readonly WireChild[] };
 }

@@ -19,7 +19,7 @@ export interface ItemFilters {
   readonly normalizedUrl: string | undefined;
 }
 
-export interface TypedFilters {
+interface TypedFilters {
   readonly q?: string | undefined;
   readonly source?: Source | undefined;
   readonly read?: ReadState | undefined;
@@ -78,7 +78,7 @@ export function itemConditions(filters: Readonly<ItemFilters>, skipping?: Facet)
   );
 }
 
-export type Unit = () => SQL<number>;
+type Unit = () => SQL<number>;
 
 function keyCounts<Column extends typeof items.source | typeof items.readState>(
   db: Database,
@@ -204,7 +204,7 @@ function tally<Key extends string>(
   return keys.map((key) => ({ key, count: byKey.get(key) ?? 0 }));
 }
 
-export type FacetResults = readonly [
+type FacetResults = readonly [
   readonly KeyCount<Source>[],
   readonly IdName[],
   readonly IdCount[],

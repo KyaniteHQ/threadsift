@@ -26,7 +26,7 @@ const SKIPPED_SHOWN = 5;
 
 const SKIPPED_TEXT_MAX = 120;
 
-export interface SkippedRow {
+interface SkippedRow {
   readonly row: number;
   readonly text: string;
 }
@@ -70,11 +70,7 @@ function bytesOf(value: Readonly<ImportRequest> | Readonly<{ url: string }>): nu
   return encoder.encode(JSON.stringify(value)).length;
 }
 
-export function importRequest(
-  links: readonly string[],
-  name: string,
-  cursor: number,
-): ImportRequest {
+function importRequest(links: readonly string[], name: string, cursor: number): ImportRequest {
   return { links: links.map((url) => ({ url })), import: { name, cursor: String(cursor) } };
 }
 

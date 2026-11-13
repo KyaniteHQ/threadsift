@@ -29,7 +29,7 @@ export interface Waiting {
   readonly limited: boolean;
 }
 
-export type ApiOutcome = Exclude<GuardOutcome, RateLimited> | Waiting;
+type ApiOutcome = Exclude<GuardOutcome, RateLimited> | Waiting;
 
 const API_HEADERS: RequestHeaders = {
   accept: "application/vnd.github+json",
@@ -54,7 +54,7 @@ export function apiPolicy(token: string | null): FetchPolicy {
   };
 }
 
-export function getApi(
+function getApi(
   network: Network,
   path: string,
   policy: Readonly<FetchPolicy>,

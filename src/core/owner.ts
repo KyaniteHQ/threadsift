@@ -24,13 +24,13 @@ export type SetupBlock =
   | { readonly kind: "locked"; readonly retryAfter: number }
   | { readonly kind: "wrong" };
 
-export type SetupResult =
+type SetupResult =
   | SetupBlock
   | { readonly kind: "password"; readonly length: PasswordProblem }
   | { readonly kind: "created"; readonly session: StartedSession }
   | { readonly kind: "superseded" };
 
-export type LoginResult =
+type LoginResult =
   | { readonly kind: "signed-in"; readonly session: StartedSession }
   | { readonly kind: "locked"; readonly retryAfter: number }
   | { readonly kind: "wrong" }

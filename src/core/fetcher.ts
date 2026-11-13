@@ -6,7 +6,7 @@ export const PluginPageSchema = SuppliedPageSchema.omit({ videos: true }).strict
 
 export type PluginPage = Readonly<z.infer<typeof PluginPageSchema>>;
 
-export interface FetchContext {
+interface FetchContext {
   readonly signal: AbortSignal;
 }
 

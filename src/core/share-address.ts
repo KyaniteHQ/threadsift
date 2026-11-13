@@ -2,11 +2,11 @@ import { z } from "zod";
 
 export const SHARE_PATH = "/share";
 
-export const PREFILL_MAX = 1000;
+const PREFILL_MAX = 1000;
 
 const PREFILL_NOTICES = ["empty", "invalid", "private", "updating"] as const;
 
-export type PrefillNotice = (typeof PREFILL_NOTICES)[number];
+type PrefillNotice = (typeof PREFILL_NOTICES)[number];
 
 export type ShareArrival =
   | { readonly kind: "saved"; readonly id: number; readonly refreshed: boolean }

@@ -10,7 +10,7 @@ import { coverageGaps } from "./topic-coverage.ts";
 import { type TopicLease, leaseMatches, recoverPrefixLeases } from "./topic-lease.ts";
 import type { BuiltFrom, OverviewFailure } from "./topic-overview-contract.ts";
 
-export function overviewHolderPrefix(jobId: number): string {
+function overviewHolderPrefix(jobId: number): string {
   return `topic_overview:${String(jobId)}:`;
 }
 

@@ -16,7 +16,7 @@ const AUTHORIZATION_URL = "https://openrouter.ai/auth";
 const KEY_LABEL = "Threadsift";
 const RANDOM_BYTES = 32;
 
-export type StartResult =
+type StartResult =
   | { readonly kind: "started"; readonly authorizationUrl: string; readonly expiresAt: number }
   | { readonly kind: "unavailable" }
   | { readonly kind: "stale" };
