@@ -1,7 +1,8 @@
 import { count, inArray, sql } from "drizzle-orm";
 
-import { TOPIC_KIND, among, topicClosingWrites, topicMoves } from "./catalog-key-links.ts";
+import { TOPIC_KIND, topicClosingWrites, topicMoves } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
+import { among } from "./guards.ts";
 import { loggedMerge } from "./log-writes.ts";
 import type { MergeRow, MergeUnit, PlanUnit } from "./merge-unit.ts";
 import { repointedTopicPins } from "./pins.ts";

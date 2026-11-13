@@ -2,6 +2,7 @@ import { type SQL, and, eq, or, sql } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
+import { among } from "./guards.ts";
 import type { MergeKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { pins, tags, topics } from "./schema.ts";
@@ -61,10 +62,6 @@ function resolutionOf(
   return { kind, key, pin: row === undefined ? "" : pinToken(row.id, row.target) };
 }
 
-function keysAmong(keys: readonly string[]) {
-  return sql`${pins.fromKey} in (select value from json_each(${JSON.stringify(keys)}))`;
-}
-
 function pinsFor(db: Database, tagKeys: readonly string[], topicKey: string) {
   return db
     .select({
@@ -79,7 +76,7 @@ function pinsFor(db: Database, tagKeys: readonly string[], topicKey: string) {
     .leftJoin(topics, eq(topics.id, pins.intoTopicId))
     .where(
       or(
-        and(eq(pins.kind, "tag-merge"), keysAmong(tagKeys)),
+        and(eq(pins.kind, "tag-merge"), among(pins.fromKey, tagKeys)),
         and(eq(pins.kind, "topic-merge"), eq(pins.fromKey, topicKey)),
       ),
     );

@@ -4,7 +4,13 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { parseStoredDigest } from "./ai-contract.ts";
 import { tagMoves } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
-import { type DigestRead, storedTags, unchangedDigests } from "./digest-state.ts";
+import {
+  type DigestRead,
+  type StoredDigest,
+  storedDigests,
+  storedTags,
+  unchangedDigests,
+} from "./digest-state.ts";
 import { report } from "./failure-log.ts";
 import { renamedTags } from "./pins.ts";
 import type { Database } from "./ports.ts";
@@ -23,13 +29,6 @@ interface RewriteUnit {
   readonly last: number;
   readonly moving: SQL;
   readonly writes: readonly BatchItem<"sqlite">[];
-}
-
-interface StoredDigest {
-  readonly itemId: number;
-  readonly digest: string;
-  readonly taskId: number;
-  readonly tags: string | null;
 }
 
 function digestsUnchanged(reads: readonly DigestRead[]) {
@@ -95,20 +94,7 @@ export async function readRewrite(
 
   const itemIds = linked.map(({ itemId }) => itemId);
 
-  const stored =
-    itemIds.length === 0
-      ? []
-      : await db
-          .select({
-            itemId: digests.itemId,
-            digest: digests.digest,
-            taskId: digests.taskId,
-            tags: storedTags,
-          })
-          .from(digests)
-          .where(
-            sql`${digests.itemId} in (select value from json_each(${JSON.stringify(itemIds)}))`,
-          );
+  const stored = itemIds.length === 0 ? [] : await storedDigests(db, itemIds);
 
   const read = new Map(stored.map((row) => [row.itemId, row]));
 

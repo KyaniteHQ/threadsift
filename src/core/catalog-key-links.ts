@@ -62,7 +62,7 @@ async function firstIds(
   return rows.map((row) => row.id);
 }
 
-export function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
+function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
   return sql`${column} in (select value from json_each(${JSON.stringify(itemIds)}))`;
 }
 

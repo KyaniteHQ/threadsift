@@ -13,12 +13,11 @@ import {
 import { z } from "zod";
 
 import { fillDisagreementInput, hasNoRoomForAnother } from "./disagreement-fill.ts";
-import { currentDisagreementPin } from "./disagreement-pins.ts";
+import { decidedPairs } from "./disagreement-pins.ts";
 import { DISAGREEMENT_ITEMS, type SentItem, type SentTopic } from "./disagreement-task.ts";
 import { logFailure } from "./failure-log.ts";
 import type { Database } from "./ports.ts";
-import { pairKey } from "./proposal-candidates.ts";
-import { digests, items, pins, proposals, topicChecks, topics } from "./schema.ts";
+import { digests, items, topicChecks, topics } from "./schema.ts";
 import { digestedCount } from "./topic-coverage.ts";
 
 const TOPICS_PAGE = 20;
@@ -129,43 +128,6 @@ function candidateOf(rows: readonly Readonly<ReadRow>[]): SentTopic | null {
   return readable.length < 2
     ? null
     : { id: first.topicId, name: first.name, members: first.members, items: readable };
-}
-
-function amongItems(column: Readonly<SQLWrapper>, wanted: string) {
-  return sql`${column} in (select value from json_each(${wanted}))`;
-}
-
-async function decidedPairs(db: Database, itemIds: readonly number[]): Promise<Set<string>> {
-  const wanted = JSON.stringify(itemIds);
-
-  const rows = await db
-    .select({ from: proposals.fromItemId, into: proposals.intoItemId })
-    .from(proposals)
-    .where(
-      and(
-        eq(proposals.kind, "items-disagree"),
-        amongItems(proposals.fromItemId, wanted),
-        amongItems(proposals.intoItemId, wanted),
-      ),
-    );
-
-  const pinned = await db
-    .select({ key: pins.fromKey })
-    .from(pins)
-    .where(
-      and(
-        currentDisagreementPin(),
-        amongItems(pins.fromItemId, wanted),
-        amongItems(pins.intoItemId, wanted),
-      ),
-    );
-
-  return new Set([
-    ...rows.flatMap(({ from, into }) =>
-      from === null || into === null ? [] : [pairKey(from, into)],
-    ),
-    ...pinned.map(({ key }) => key),
-  ]);
 }
 
 async function withPage(

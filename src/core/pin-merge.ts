@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, ne, notExists, sql } from "drizzle-orm";
+import { type SQL, and, asc, eq, gte, ne, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import {
@@ -30,7 +30,7 @@ function accepting(db: Database, kind: CatalogKind) {
   );
 }
 
-export function misfiled(db: Database, kind: CatalogKind) {
+function misfiled(db: Database, kind: CatalogKind) {
   const { table } = kind;
 
   return db
@@ -38,6 +38,16 @@ export function misfiled(db: Database, kind: CatalogKind) {
     .from(table)
     .innerJoin(pins, and(eq(pins.kind, kind.pinKind), eq(pins.fromKey, table.key)))
     .where(and(ne(kind.pinTarget, table.id), accepting(db, kind)));
+}
+
+export function noneMisfiled(db: Database): SQL {
+  return sql`not exists ${misfiled(db, TAG_KIND)} and not exists ${misfiled(db, TOPIC_KIND)}`;
+}
+
+export async function firstMisfiled(db: Database): Promise<"tags" | "topics" | null> {
+  if ((await misfiled(db, TAG_KIND).limit(1)).length > 0) return "tags";
+
+  return (await misfiled(db, TOPIC_KIND).limit(1)).length > 0 ? "topics" : null;
 }
 
 export async function mergedTag(db: Database, cursor: string): Promise<Advance> {
