@@ -82,12 +82,7 @@ export function overviewRemoved(db: Database, topicId: number, when: Readonly<SQ
 
 type TopicIds = SubqueryWithSelection<{ topicId: SQL.Aliased<number> }, "failing">;
 
-function failed(
-  db: Database,
-  // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle subquery type holds mutable column objects, so it cannot be deeply readonly.
-  topicIds: TopicIds,
-  failure: OverviewFailure,
-) {
+function failed(db: Database, topicIds: TopicIds, failure: OverviewFailure) {
   return db
     .insert(topicPages)
     .select(
