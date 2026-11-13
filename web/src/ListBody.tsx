@@ -1,6 +1,6 @@
 import { type RefObject, memo, useEffect, useRef } from "react";
 
-import type { FilterCounts } from "../../src/core/item-filters.ts";
+import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";

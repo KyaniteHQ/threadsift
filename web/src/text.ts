@@ -1,6 +1,6 @@
 import type { FetchFailure } from "../../src/core/fetch-results.ts";
+import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import { groupedNumber } from "../../src/core/format.ts";
-import type { FilterCounts } from "../../src/core/item-filters.ts";
 import type { FailureReason, ReadState, Source } from "../../src/core/kinds.ts";
 
 export function filled(template: string, values: Readonly<Record<string, string>>): string {
