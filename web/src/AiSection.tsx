@@ -1,14 +1,12 @@
-import { useCallback, type ReactNode, type SubmitEvent } from "react";
-
 import { type Digest, type Provider, isCliProvider } from "../../src/core/ai-contract.ts";
 import type { AiView } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
-import { Alert } from "./Alert.tsx";
-import { ConnectButton, ConnectNotes, ConnectNotice } from "./ConnectControls.tsx";
-import { type Loaded, LoadedSection } from "./LoadedSection.tsx";
-import { SwapButton } from "./SwapButton.tsx";
+import { ConnectNotes, ConnectNotice } from "./ConnectControls.tsx";
+import type { SectionSpec } from "./LoadedSection.tsx";
+import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
 import { type SavedKey, isSignedOut, useAiForm } from "./use-ai-form.ts";
+import type { ActionButton } from "./use-settings-action.ts";
 
 type Form = Readonly<ReturnType<typeof useAiForm>>;
 
@@ -27,41 +25,40 @@ function DigestResult({ digest }: Readonly<{ digest: Readonly<Digest> }>) {
   );
 }
 
-function AiActions({
-  saveBlocked,
-  verifyBlocked,
-  phase,
-  onVerify,
-  children,
-}: Readonly<{
-  saveBlocked: boolean;
-  verifyBlocked: boolean;
-  phase: Form["phase"];
-  onVerify: () => void;
-  children: ReactNode;
-}>) {
-  const busy = phase !== "idle";
+type AiAction = "save" | "verify" | "connect";
 
-  return (
-    <div className="ai-actions">
-      <SwapButton
-        label={AI_TEXT.save}
-        busyLabel={AI_TEXT.saving}
-        busy={phase === "saving"}
-        blocked={busy || saveBlocked}
-      />
-      <SwapButton
-        label={AI_TEXT.verify}
-        busyLabel={AI_TEXT.verifying}
-        busy={phase === "verifying"}
-        blocked={busy || verifyBlocked}
-        type="button"
-        onClick={onVerify}
-        secondary
-      />
-      {children}
-    </div>
-  );
+const RUNNING = {
+  idle: null,
+  saving: "save",
+  verifying: "verify",
+  connecting: "connect",
+  leaving: "connect",
+} as const satisfies Record<Form["phase"], AiAction | null>;
+
+function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] {
+  const buttons: readonly ActionButton<AiAction>[] = [
+    { action: "save", label: AI_TEXT.save, busyLabel: AI_TEXT.saving, blocked: form.saveBlocked },
+    {
+      action: "verify",
+      label: AI_TEXT.verify,
+      busyLabel: AI_TEXT.verifying,
+      blocked: form.verifyBlocked,
+      onClick: form.verifyNow,
+    },
+  ];
+
+  if (form.fields.provider !== "openrouter" || !view.connect) return buttons;
+
+  return [
+    ...buttons,
+    {
+      action: "connect",
+      label: AI_TEXT.connect,
+      busyLabel: AI_TEXT.connecting,
+      blocked: !view.secretReady,
+      onClick: form.connection.connect,
+    },
+  ];
 }
 
 const KEY_STATUS = {
@@ -82,8 +79,7 @@ function keyStatus(provider: Provider, savedKey: SavedKey): string {
 function AiOutcome({ outcome }: Readonly<{ outcome: Form["outcome"] }>) {
   return (
     <>
-      <output>{outcome?.kind === "ok" ? outcome.text : null}</output>
-      <Alert text={outcome?.kind === "error" ? outcome.text : null} />
+      <SettingsResult outcome={outcome} />
       {outcome?.kind === "ok" && outcome.digest !== undefined ? (
         <DigestResult digest={outcome.digest} />
       ) : null}
@@ -142,37 +138,14 @@ function AiControls({ view, form }: Readonly<{ view: AiView; form: Form }>) {
 
 function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView) => void }>) {
   const form = useAiForm(view, saved);
-  const { fields, phase, saveBlocked, connection, submit } = form;
-
-  const onSubmit = useCallback(
-    (event: SubmitEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      submit();
-    },
-    [submit],
-  );
+  const { phase, submit } = form;
 
   return (
     <>
-      <form
-        method="post"
-        action="/api/settings/ai"
-        className="stack ai-form"
-        onSubmit={onSubmit}
-        aria-busy={phase !== "idle"}
-      >
+      <SettingsForm action="/api/settings/ai" busy={phase !== "idle"} submit={submit}>
         <AiControls view={view} form={form} />
-        <AiActions
-          saveBlocked={saveBlocked}
-          verifyBlocked={form.verifyBlocked}
-          phase={phase}
-          onVerify={form.verifyNow}
-        >
-          {fields.provider === "openrouter" ? (
-            <ConnectButton view={view} connection={connection} blocked={phase !== "idle"} />
-          ) : null}
-        </AiActions>
-      </form>
+        <SettingsActions running={RUNNING[phase]} buttons={aiButtons(view, form)} />
+      </SettingsForm>
       <ConnectNotice view={view} notice={form.notice} />
       <AiOutcome outcome={form.outcome} />
     </>
@@ -183,15 +156,10 @@ const aiForm = (view: AiView, saved: (view: AiView) => void) => (
   <AiForm view={view} saved={saved} />
 );
 
-export function AiSection({ initial }: Readonly<{ initial: Loaded<AiView> }>) {
-  return (
-    <LoadedSection
-      id="ai"
-      title={AI_TEXT.title}
-      intro={AI_TEXT.intro}
-      loadFailed={AI_TEXT.loadFailed}
-      initial={initial}
-      form={aiForm}
-    />
-  );
-}
+export const AI_SECTION: SectionSpec<AiView> = {
+  id: "ai",
+  title: AI_TEXT.title,
+  intro: AI_TEXT.intro,
+  loadFailed: AI_TEXT.loadFailed,
+  form: aiForm,
+};

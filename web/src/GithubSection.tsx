@@ -1,8 +1,5 @@
-import { useCallback, type SubmitEvent } from "react";
-
 import { GITHUB_TOKEN_MAX, type GithubSettingsView } from "../../src/core/github-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
-import { Alert } from "./Alert.tsx";
 import { FormField } from "./FormField.tsx";
 import {
   GITHUB_TEXT,
@@ -11,10 +8,10 @@ import {
   TOKEN_PLACEHOLDER,
   TOKEN_STATES,
 } from "./github-text.ts";
-import type { Loaded } from "./settings-load-types.ts";
-import { SettingsActions } from "./SettingsActions.tsx";
+import type { SectionSpec } from "./LoadedSection.tsx";
+import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
 import { useGithubForm } from "./use-github-form.ts";
-import { useLoaded } from "./use-settings-load.ts";
+import { runningAction } from "./use-settings-action.ts";
 
 const TOKEN_KIND = {
   name: "token",
@@ -52,25 +49,10 @@ function GithubForm({
   changed,
 }: Readonly<{ view: GithubSettingsView; changed: (view: GithubSettingsView) => void }>) {
   const form = useGithubForm(view, changed);
-  const { submit } = form;
-
-  const onSubmit = useCallback(
-    (event: SubmitEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      submit();
-    },
-    [submit],
-  );
 
   return (
     <>
-      <form
-        method="post"
-        action="/api/settings/github"
-        className="stack ai-form"
-        onSubmit={onSubmit}
-        aria-busy={form.busy}
-      >
+      <SettingsForm action="/api/settings/github" busy={form.busy} submit={form.submit}>
         <FormField
           field={form.token}
           label={GITHUB_TEXT.fieldLabel}
@@ -79,32 +61,27 @@ function GithubForm({
         />
         <p>{TOKEN_STATES[view.token]}</p>
         {form.blocked.save ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
-        <SettingsActions flow={form.flow} buttons={form.buttons} />
-      </form>
-      <output>{form.result?.kind === "ok" ? form.result.text : null}</output>
-      <Alert text={form.result?.kind === "error" ? form.result.text : null} />
+        <SettingsActions running={runningAction(form.flow)} buttons={form.buttons} />
+      </SettingsForm>
+      <SettingsResult outcome={form.result} />
     </>
   );
 }
 
-export function GithubSection({ initial }: Readonly<{ initial: Loaded<GithubSettingsView> }>) {
-  const { loaded, ready } = useLoaded(initial);
+const githubForm = (view: GithubSettingsView, changed: (view: GithubSettingsView) => void) => (
+  <GithubForm view={view} changed={changed} />
+);
 
-  return (
-    <section className="sec" aria-labelledby="github-title">
-      <h2 id="github-title" className="rd-h">
-        {GITHUB_TEXT.sectionTitle}
-      </h2>
-      <p>{GITHUB_TEXT.intro}</p>
-      <Steps />
-      {loaded.kind === "ready" ? (
-        <GithubForm view={loaded.view} changed={ready} />
-      ) : (
-        <Alert text={GITHUB_TEXT.loadFailed} />
-      )}
-      <a className="fl-link gh-link" href={GUIDE_URL} target="_blank" rel="noopener noreferrer">
-        {GITHUB_TEXT.guideLink}
-      </a>
-    </section>
-  );
-}
+export const GITHUB_SECTION: SectionSpec<GithubSettingsView> = {
+  id: "github",
+  title: GITHUB_TEXT.sectionTitle,
+  intro: GITHUB_TEXT.intro,
+  loadFailed: GITHUB_TEXT.loadFailed,
+  lead: <Steps />,
+  foot: (
+    <a className="fl-link gh-link" href={GUIDE_URL} target="_blank" rel="noopener noreferrer">
+      {GITHUB_TEXT.guideLink}
+    </a>
+  ),
+  form: githubForm,
+};

@@ -2,26 +2,6 @@ import type { ConnectNotice as Notice } from "../../src/core/openrouter-contract
 import type { AiView } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { Alert } from "./Alert.tsx";
-import { SwapButton } from "./SwapButton.tsx";
-import type { Connection } from "./use-connect.ts";
-
-export function ConnectButton({
-  view,
-  connection,
-  blocked,
-}: Readonly<{ view: AiView; connection: Connection; blocked: boolean }>) {
-  return view.connect ? (
-    <SwapButton
-      label={AI_TEXT.connect}
-      busyLabel={AI_TEXT.connecting}
-      busy={connection.connecting}
-      blocked={blocked || !view.secretReady}
-      type="button"
-      onClick={connection.connect}
-      secondary
-    />
-  ) : null;
-}
 
 export function ConnectNotes({ view }: Readonly<{ view: AiView }>) {
   return (

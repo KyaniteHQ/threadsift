@@ -1,10 +1,11 @@
 import { SETTINGS } from "./access-text.ts";
-import { AiSection } from "./AiSection.tsx";
+import { AI_SECTION } from "./AiSection.tsx";
 import { Alert } from "./Alert.tsx";
-import { GithubSection } from "./GithubSection.tsx";
-import { GrokBotSection } from "./GrokBotSection.tsx";
+import { GITHUB_SECTION } from "./GithubSection.tsx";
+import { GROK_BOT_SECTION } from "./GrokBotSection.tsx";
+import { LoadedSection } from "./LoadedSection.tsx";
 import { PasswordSection } from "./PasswordSection.tsx";
-import { RedditSection } from "./RedditSection.tsx";
+import { REDDIT_SECTION } from "./RedditSection.tsx";
 import type { SettingsLoad } from "./settings-load-types.ts";
 import { TokensSection } from "./TokensSection.tsx";
 
@@ -15,10 +16,10 @@ export function SettingsSections({
 }: Readonly<{ loaded: SettingsLoad; signOut: () => void; signOutFailed: boolean }>) {
   return (
     <>
-      <AiSection initial={loaded.ai} />
-      <GithubSection initial={loaded.github} />
-      <GrokBotSection initial={loaded.grokBot} />
-      <RedditSection initial={loaded.reddit} />
+      <LoadedSection {...AI_SECTION} initial={loaded.ai} />
+      <LoadedSection {...GITHUB_SECTION} initial={loaded.github} />
+      <LoadedSection {...GROK_BOT_SECTION} initial={loaded.grokBot} />
+      <LoadedSection {...REDDIT_SECTION} initial={loaded.reddit} />
       <TokensSection initial={loaded.tokens} />
       <PasswordSection />
       <section className="sec" aria-labelledby="sign-out-title">
