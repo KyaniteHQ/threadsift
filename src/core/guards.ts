@@ -48,6 +48,20 @@ export async function guardHolds(db: Database, condition: Readonly<SQLWrapper>):
   return current?.ok === 1;
 }
 
+export async function unlessRefused<Written>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  write: () => Promise<Written>,
+): Promise<Written | null> {
+  try {
+    return await write();
+  } catch (error) {
+    if (await guardHolds(db, condition)) throw error;
+
+    return null;
+  }
+}
+
 const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)/u;
 
 export function refusedByGuard(cause: unknown): boolean {

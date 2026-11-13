@@ -1,14 +1,14 @@
 import { type SQLWrapper, and, eq, notExists } from "drizzle-orm";
 
 import type { Concluded } from "./details.ts";
+import { guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { LISTED_COLUMNS, selectItems } from "./item-selection.ts";
 import { type Existing, type SaveResult, foundItem, itemAt } from "./items.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
-import { guards, insertGuard, items } from "./schema.ts";
+import { itemAliases, items } from "./schema.ts";
 import { settledKnown, settledNew } from "./settle.ts";
-import { holdsNoAlias, unlessRefused } from "./short-link-aliases.ts";
 
 interface Failure {
   readonly address: string;
@@ -80,7 +80,7 @@ export function saveFailedResolution(
   fetched: Readonly<Concluded>,
   existing: Existing,
 ): Promise<SaveResult | null> {
-  const noAlias = holdsNoAlias(db, link.normalizedUrl);
+  const noAlias = holdsNoRow(db, itemAliases, eq(itemAliases.normalizedUrl, link.normalizedUrl));
   const failure = { address, link, fetched, now: Date.now() };
 
   return unlessRefused(
