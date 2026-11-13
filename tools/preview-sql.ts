@@ -11,7 +11,7 @@ export function valuesCte(
   columns: readonly string[],
   rows: readonly (readonly string[])[],
 ): string {
-  const values = rows.map((row) => `(${row.join(", ")})`).join(", ");
+  const values = rows.map((row) => `(${row.map((cell) => quoted(cell)).join(", ")})`).join(", ");
 
   return `WITH ${name} (${columns.join(", ")}) AS (VALUES ${values})`;
 }

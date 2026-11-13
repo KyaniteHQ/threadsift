@@ -7,7 +7,7 @@ function demoCte(topics: readonly string[]): string {
   return valuesCte(
     "demo",
     ["key", "name"],
-    topics.map((topic) => [quoted(catalogKey(topic)), quoted(topic)]),
+    topics.map((topic) => [catalogKey(topic), topic]),
   );
 }
 

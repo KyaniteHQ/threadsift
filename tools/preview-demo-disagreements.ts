@@ -12,11 +12,7 @@ function demoCte(demos: readonly DemoDisagreement[]): string {
   const demo = valuesCte(
     "demo",
     ["first_url", "second_url", "reason"],
-    demos.map(({ firstUrl, secondUrl, reason }) => [
-      quoted(firstUrl),
-      quoted(secondUrl),
-      quoted(reason),
-    ]),
+    demos.map(({ firstUrl, secondUrl, reason }) => [firstUrl, secondUrl, reason]),
   );
 
   return `${demo},

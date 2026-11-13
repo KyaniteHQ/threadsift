@@ -1,6 +1,6 @@
 import type { Wrangler } from "./preview-cloudflare.ts";
 import { rowNames } from "./preview-migrations.ts";
-import { quoted, valuesCte } from "./preview-sql.ts";
+import { valuesCte } from "./preview-sql.ts";
 
 const SCHEMA_PROBES = {
   proposals: { table: "proposals", column: "id" },
@@ -24,11 +24,7 @@ export function schemaFacts(run: Wrangler, scope: readonly string[]): SchemaFact
   const probes = valuesCte(
     "probe",
     ["fact", "tbl", "col"],
-    Object.entries(SCHEMA_PROBES).map(([fact, { table, column }]) => [
-      quoted(fact),
-      quoted(table),
-      quoted(column),
-    ]),
+    Object.entries(SCHEMA_PROBES).map(([fact, { table, column }]) => [fact, table, column]),
   );
 
   const query = `${probes}

@@ -15,7 +15,7 @@ import {
 import { insertOverviewProposals, missingOverviewProposals } from "./preview-demo-overviews.ts";
 import { type SchemaFacts, schemaFacts } from "./preview-demo-schema.ts";
 import { rowNames } from "./preview-migrations.ts";
-import { NOW_MS, quoted, valuesCte } from "./preview-sql.ts";
+import { NOW_MS, valuesCte } from "./preview-sql.ts";
 
 type Pair = { readonly from: string; readonly into: string; readonly reason: string };
 
@@ -178,9 +178,9 @@ function pairsCte(kind: Kind): string {
     "demo",
     ["from_key", "into_key", "reason"],
     SUBJECTS[kind].pairs.map(({ from, into, reason }) => [
-      quoted(catalogKey(from)),
-      quoted(catalogKey(into)),
-      quoted(reason),
+      catalogKey(from),
+      catalogKey(into),
+      reason,
     ]),
   );
 }

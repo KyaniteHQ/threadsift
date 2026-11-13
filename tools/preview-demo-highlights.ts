@@ -10,7 +10,7 @@ function demoCte(demos: readonly DemoHighlight[]): string {
   return valuesCte(
     "demo",
     ["url", "exact"],
-    demos.map(({ url, exact }) => [quoted(url), quoted(exact)]),
+    demos.map(({ url, exact }) => [url, exact]),
   );
 }
 
