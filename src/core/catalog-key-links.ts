@@ -1,7 +1,7 @@
 import { type SQL, type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-import { alias } from "drizzle-orm/sqlite-core";
 
+import { among } from "./guards.ts";
 import type { MergeKind } from "./kinds.ts";
 import { repointedPins, repointedTopicPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
@@ -19,7 +19,7 @@ import {
   topicLeases,
   topics,
 } from "./schema.ts";
-import { tagPartWrites } from "./search.ts";
+import { siblingTags, tagPartWrites } from "./search.ts";
 import { continuingOverview, overviewRemoved } from "./topic-overview-run.ts";
 
 const MERGE_ITEMS = 500;
@@ -61,12 +61,6 @@ async function firstIds(
 
   return rows.map((row) => row.id);
 }
-
-function among(column: Readonly<SQLWrapper>, itemIds: readonly number[]) {
-  return sql`${column} in (select value from json_each(${JSON.stringify(itemIds)}))`;
-}
-
-const sibling = alias(itemTags, "sibling");
 
 function emptied(db: Database, id: number): SQL {
   return sql`${notExists(
@@ -156,8 +150,8 @@ export function tagMoves(
           notExists(
             db
               .select({ one: sql`1` })
-              .from(sibling)
-              .where(and(eq(sibling.itemId, itemTags.itemId), eq(sibling.tagId, survivor))),
+              .from(siblingTags)
+              .where(and(eq(siblingTags.itemId, itemTags.itemId), eq(siblingTags.tagId, survivor))),
           ),
         ),
       ),

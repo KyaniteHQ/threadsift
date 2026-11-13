@@ -10,6 +10,7 @@ import {
   sql,
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
+import { alias } from "drizzle-orm/sqlite-core";
 
 import type { SearchPartKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
@@ -24,6 +25,8 @@ import {
   tags,
 } from "./schema.ts";
 import { jsonArrays } from "./thread-rows.ts";
+
+export const siblingTags = alias(itemTags, "sibling");
 
 const CHUNK_UNITS = 125_000;
 const CHUNK_TRIGGER_BYTES = 500_000;

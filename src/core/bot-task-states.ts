@@ -11,7 +11,7 @@ export const GROK_BOT_EXECUTOR = "grok-bot";
 
 export type BotTaskRow = typeof aiTasks.$inferSelect;
 
-export type BotTaskState = "unsent" | "sent" | "answered" | "applied" | "failed";
+type BotTaskState = "unsent" | "sent" | "answered" | "applied" | "failed";
 
 export type BotStep = "start" | "charge" | "apply" | "expire" | "resend" | "wait";
 
@@ -209,7 +209,7 @@ export async function chargedReport(
   ]);
 }
 
-export type TimeOut = "timed-out" | "claim-lost" | "changed";
+type TimeOut = "timed-out" | "claim-lost" | "changed";
 
 export async function timedOutTask(
   db: Database,

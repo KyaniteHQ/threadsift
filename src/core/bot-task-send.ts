@@ -14,7 +14,7 @@ type SendPorts = Pick<JobPorts, "db" | "secrets" | "network">;
 
 type Sending = Readonly<{ claim: SQL | undefined; taskId: number }>;
 
-export type BotSend =
+type BotSend =
   | { readonly kind: "sent" }
   | { readonly kind: "unchanged" }
   | { readonly kind: "failed"; readonly reason: AiRefusal; readonly status: number | null };

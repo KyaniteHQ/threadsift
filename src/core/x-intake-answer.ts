@@ -15,7 +15,7 @@ import {
 } from "./x-intake-writes.ts";
 import { parseXThread } from "./x-thread.ts";
 
-export type IntakeOutcome =
+type IntakeOutcome =
   | { readonly kind: "accepted" }
   | { readonly kind: "unsupported" }
   | { readonly kind: "closed" }

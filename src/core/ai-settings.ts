@@ -70,7 +70,7 @@ type Prepared = Exclude<
 
 export type PreparedSave = Prepared;
 
-export type PreparedSettings = Prepared["row"];
+type PreparedSettings = Prepared["row"];
 
 export function providerWrites(db: Database, { row, leavesBot }: Readonly<Prepared>): JobWrites {
   return [

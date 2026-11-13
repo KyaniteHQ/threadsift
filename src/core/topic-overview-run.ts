@@ -136,7 +136,7 @@ export function overviewGaveUp(
   ];
 }
 
-export function markTopicOverviewFailed(db: Database, jobId: number, failure: OverviewFailure) {
+function markTopicOverviewFailed(db: Database, jobId: number, failure: OverviewFailure) {
   const sent = db
     .select({ topicId: sql<number>`${topics.id}`.as("topic_id") })
     .from(aiTasks)

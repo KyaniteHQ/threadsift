@@ -29,7 +29,7 @@ export const TASKS = {
   },
 } as const;
 
-export interface DoneTask<Result> {
+interface DoneTask<Result> {
   readonly kind: "done";
   readonly result: Result;
   readonly taskId: number;
@@ -39,7 +39,7 @@ export interface DoneTask<Result> {
 
 type TaskResult<Result> = DoneTask<Result> | (AiRefused & { readonly taskId: number | null });
 
-export interface ClaimLost {
+interface ClaimLost {
   readonly kind: "claim-lost";
 }
 

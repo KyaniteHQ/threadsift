@@ -17,13 +17,13 @@ export function originOf(config: Readonly<AiConnection>): TaskOrigin {
   return { executor: config.kind, provider: config.provider, model: modelOf(config) };
 }
 
-export interface BotColumns {
+interface BotColumns {
   readonly jobId: number | null;
   readonly callbackHash: string;
   readonly context: string;
 }
 
-export interface NewTask {
+interface NewTask {
   readonly kind: string;
   readonly inputs: string;
   readonly inputRevision: number;

@@ -26,7 +26,7 @@ export type OverviewPrepared =
       readonly prompt: OverviewPrompt;
     };
 
-export function busyOutcome(): DeferredOutcome {
+function busyOutcome(): DeferredOutcome {
   return { deferredUntil: Date.now() + BUSY_RETRY_MS, wait: "topic-busy", countsAttempt: false };
 }
 
