@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 
 import { Capture } from "./cli-capture.ts";
+import { hasErrnoCode } from "./errno.ts";
 
 const KILL_GRACE_MS = 5000;
 
@@ -29,7 +30,7 @@ function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
   try {
     process.kill(-pid, signal);
   } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ESRCH") return;
+    if (hasErrnoCode(error, "ESRCH")) return;
 
     throw error;
   }

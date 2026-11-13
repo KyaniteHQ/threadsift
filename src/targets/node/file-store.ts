@@ -7,6 +7,7 @@ import {
   FileRefused,
   TEMPORARY_BYTES,
   type FileKey,
+  isItemId,
   parseStoredKey,
   requireFileKey,
   requireStoredKey,
@@ -15,19 +16,14 @@ import {
   temporaryPrefix,
 } from "../../core/file-keys.ts";
 import type { FilePage, FileStore, StoredFile } from "../../core/ports.ts";
-
-const MISSING = new Set(["ENOENT", "ENOTDIR", "ENAMETOOLONG"]);
+import { hasErrnoCode } from "./errno.ts";
 
 const CHUNK_BYTES = 65_536;
 
 type Kind = "directory" | "file";
 
-function isErrno(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
-}
-
 function isMissing(error: unknown): error is NodeJS.ErrnoException {
-  return isErrno(error) && MISSING.has(String(error.code));
+  return hasErrnoCode(error, "ENOENT", "ENOTDIR", "ENAMETOOLONG");
 }
 
 async function exists(path: string, wanted: Kind): Promise<boolean> {
@@ -113,34 +109,37 @@ class FileFolder {
   }
 
   private async keysIn(itemId: string): Promise<string[]> {
-    return (await readdir(this.path("items", itemId), { withFileTypes: true }))
-      .filter((entry) => entry.isFile())
-      .map((entry) => `items/${itemId}/${entry.name}`)
-      .filter((key) => parseStoredKey(key) !== null)
-      .toSorted();
+    try {
+      return (await readdir(this.path("items", itemId), { withFileTypes: true }))
+        .filter((entry) => entry.isFile())
+        .map((entry) => `items/${itemId}/${entry.name}`)
+        .filter((key) => parseStoredKey(key) !== null)
+        .toSorted();
+    } catch (error) {
+      if (hasErrnoCode(error, "ENOENT")) return [];
+
+      throw error;
+    }
   }
 
   private async itemIds(itemId: string | null): Promise<string[]> {
     if (itemId !== null) return [itemId];
 
     return (await readdir(this.path("items"), { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory())
+      .filter((entry) => entry.isDirectory() && isItemId(entry.name))
       .map((entry) => entry.name)
       .toSorted();
   }
 
   private async keysFrom(
-    itemIds: readonly string[],
-    at: number,
+    [first, ...rest]: readonly string[],
     cursor: string | null,
     limit: number,
   ): Promise<string[]> {
-    const itemId = itemIds[at];
+    if (first === undefined || limit < 1) return [];
 
-    if (itemId === undefined || limit < 1) return [];
-
-    const found = (await this.keysIn(itemId)).filter((key) => cursor === null || key > cursor);
-    const later = await this.keysFrom(itemIds, at + 1, cursor, limit - found.length);
+    const found = (await this.keysIn(first)).filter((key) => cursor === null || key > cursor);
+    const later = await this.keysFrom(rest, cursor, limit - found.length);
 
     return [...found, ...later].slice(0, limit);
   }
@@ -152,7 +151,7 @@ class FileFolder {
       (id) => cursor === null || !endsBefore(`items/${id}/`, cursor),
     );
 
-    return this.keysFrom(itemIds, 0, cursor, limit);
+    return this.keysFrom(itemIds, cursor, limit);
   }
 
   async uploaded(key: string): Promise<StoredFile | null> {
@@ -174,7 +173,7 @@ async function openLeaf(path: string): Promise<FileHandle | null> {
   } catch (error) {
     if (isMissing(error)) return null;
 
-    if (isErrno(error) && error.code === "ELOOP") {
+    if (hasErrnoCode(error, "ELOOP")) {
       throw new FileRefused(`${path} is a symlink`);
     }
 
