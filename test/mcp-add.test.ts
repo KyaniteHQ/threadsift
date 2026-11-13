@@ -4,7 +4,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import type { Client } from "@modelcontextprotocol/client";
 
-import { UPDATING } from "../src/http/save-route.ts";
+import { UPDATING } from "../src/http/refusals.ts";
 import {
   ErrorResponseSchema,
   ItemReadResponseSchema,

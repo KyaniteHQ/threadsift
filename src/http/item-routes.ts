@@ -1,13 +1,13 @@
-import { type OpenAPIHono, type z, createRoute } from "@hono/zod-openapi";
+import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import { retryDigest } from "../core/digest-retry.ts";
-import { itemFilters } from "../core/item-filters.ts";
-import { ITEMS_PAGE_SIZE, parseCursor } from "../core/item-page.ts";
-import { getListedItem, listItems } from "../core/item-selection.ts";
+import { ITEMS_PAGE_SIZE } from "../core/item-page.ts";
+import { getListedItem } from "../core/item-selection.ts";
 import type { Ports } from "../core/ports.ts";
-import { itemView, shownItems } from "./item-view.ts";
+import { readItemPage } from "./item-read.ts";
+import { itemView } from "./item-view.ts";
 import { jsonBody, scopeNote, scopeRefusal } from "./openapi.ts";
-import { registerSaveRoute } from "./save-route.ts";
+import { notFound } from "./refusals.ts";
 import {
   ErrorResponseSchema,
   IdParamSchema,
@@ -15,8 +15,6 @@ import {
   ItemReadResponseSchema,
   ItemResponseSchema,
 } from "./schemas.ts";
-
-export const NOT_FOUND = "Not found";
 
 const listItemsRoute = createRoute({
   method: "get",
@@ -62,36 +60,17 @@ const retryDigestRoute = createRoute({
   },
 });
 
-export async function readItemPage(ports: Ports, query: Readonly<z.infer<typeof ItemQuerySchema>>) {
-  const { cursor, ...typed } = query;
-
-  const { items, next, counts } = await listItems(
-    ports.db,
-    itemFilters(typed),
-    cursor === undefined ? null : parseCursor(cursor),
-  );
-
-  const shown = { items: shownItems(items), next };
-
-  return counts === null ? shown : { ...shown, counts };
-}
-
 export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
-  registerSaveRoute(app, ports);
   app.openapi(retryDigestRoute, async (c) => {
     const item = await retryDigest(ports, c.req.valid("param").id);
 
-    return item === undefined
-      ? c.json({ error: NOT_FOUND }, 404)
-      : c.json({ item: itemView(item) }, 200);
+    return item === undefined ? notFound(c) : c.json({ item: itemView(item) }, 200);
   });
 
   app.openapi(getItemStatusRoute, async (c) => {
     const item = await getListedItem(ports.db, c.req.valid("param").id);
 
-    return item === undefined
-      ? c.json({ error: NOT_FOUND }, 404)
-      : c.json({ item: itemView(item) }, 200);
+    return item === undefined ? notFound(c) : c.json({ item: itemView(item) }, 200);
   });
 
   app.openapi(listItemsRoute, async (c) => {

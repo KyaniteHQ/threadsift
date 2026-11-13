@@ -18,7 +18,7 @@ export function sessionIdOf(c: Context): string | undefined {
   return getCookie(c, COOKIE_NAME, "host");
 }
 
-export function sendSession(c: Context, id: string, maxAge: number): void {
+function sendSession(c: Context, id: string, maxAge: number): void {
   setCookie(c, COOKIE_NAME, id, { ...ATTRIBUTES, maxAge });
 }
 

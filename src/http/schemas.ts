@@ -109,6 +109,23 @@ export const ReadStateRequestSchema = z.object({ readState: z.enum(READ_STATES) 
 
 export const SEARCH_MAX = 200;
 
+export function cursorParam<Cursor>(parse: (text: string) => Cursor | null) {
+  return z
+    .string()
+    .transform((text, context) => {
+      const cursor = parse(text);
+
+      if (cursor === null) {
+        context.addIssue({ code: "custom", message: "not a well-formed cursor" });
+
+        return z.NEVER;
+      }
+
+      return cursor;
+    })
+    .optional();
+}
+
 export const ItemQuerySchema = z.object({
   q: z.string().max(SEARCH_MAX).optional(),
   topic: z.string().optional(),
@@ -116,10 +133,7 @@ export const ItemQuerySchema = z.object({
   source: z.enum(SOURCES).optional(),
   read: z.enum(READ_STATES).optional(),
   url: HttpUrlSchema.optional(),
-  cursor: z
-    .string()
-    .refine((text) => parseCursor(text) !== null, "not a well-formed cursor")
-    .optional(),
+  cursor: cursorParam(parseCursor),
 });
 
 const CountedNameSchema = z.object({
@@ -152,7 +166,7 @@ export const ItemReadResponseSchema = ItemPageResponseSchema.extend({
   counts: FilterCountsSchema.optional(),
 });
 
-export const REFUSAL_CODES = [
+const REFUSAL_CODES = [
   "wrong",
   "owner-exists",
   "locked",
@@ -195,7 +209,7 @@ export const ResetPasswordRequestSchema = z.object({ code: z.string(), password:
 
 export const TOKEN_NAME_MAX = 80;
 
-export const TokenNameSchema = z.string().trim().min(1).max(TOKEN_NAME_MAX);
+const TokenNameSchema = z.string().trim().min(1).max(TOKEN_NAME_MAX);
 
 export const CreateTokenRequestSchema = z.object({
   name: TokenNameSchema,
@@ -204,7 +218,7 @@ export const CreateTokenRequestSchema = z.object({
     .default([...DEFAULT_SCOPES]),
 });
 
-export const TokenSchema = z.object({
+const TokenSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   createdAt: z.number().int(),

@@ -4,8 +4,8 @@ import { FILE_ROUTE } from "../core/file-keys.ts";
 import { servedImage } from "../core/image-serving.ts";
 import { IMAGE_TYPES } from "../core/image-type.ts";
 import type { Ports } from "../core/ports.ts";
-import { NOT_FOUND } from "./item-routes.ts";
 import { jsonBody } from "./openapi.ts";
+import { NOT_FOUND } from "./refusals.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
 const FileParamsSchema = z.object({ id: z.string(), name: z.string() });
