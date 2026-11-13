@@ -9,15 +9,16 @@ The app is one core with ports, and each target supplies an adapter per port. Op
                                       |
                  core: ingest pipeline, AI tasks, wiki, export, restore
                                       |
-   ports:   Database   FileStore   JobQueue   Scheduler   AiExecutor          fetchers list
-             |           |           |          |          |                   |
-container:  node:sqlite  folder     loop       timer      HTTP, CLI, Grok Bot  plug-in modules
-Cloudflare: D1           R2         Queues     Cron       HTTP, Workers AI, Grok Bot  none
+   ports:   Database   FileStore   JobQueue   Scheduler   AiExecutor          fetchers list   RedditSession
+             |           |           |          |          |                   |               |
+container:  node:sqlite  folder     loop       timer      HTTP, CLI, Grok Bot  plug-in modules  platform fetch
+Cloudflare: D1           R2         Queues     Cron       HTTP, Workers AI, Grok Bot  none        cloudflare:sockets
 ```
 
 - The core imports no runtime module (`node:*`, `cloudflare:*`). Only the two target entry files and their adapters do, so a core change runs on both targets by construction.
 - The `Crypto` port has one adapter, `nodeCrypto` in `src/targets/shared/`, and both targets pass it, because the Worker runs `node:crypto` through `nodejs_compat`. This is the accepted exception to the two-adapter rule. The port exists because the lint bans `node:` imports in `src/core` and `src/http`.
 - `Ports.fetchers` is a second accepted exception to the two-adapter rule, and it is a list, not a behaviour port: it holds the fetcher plug-ins the container loaded, and the Worker builds `fetchers: []` and carries no loader. The feature exists only because a self-hoster adds code to the container (`docs/spec.md`, Install and deployment), so no second production adapter can exist, and a wrapper that made the empty Worker list look like one would be a test adapter in disguise. The core reads the list as data and calls no per-target code for it (`pluginPage` in `src/core/plugin-fetch.ts`).
+- `Ports.redditSession` has two production adapters that cannot be one function: `nodeRedditSession` (`src/targets/node/network.ts`, the platform `fetch` with a manual redirect) and `workerRedditSession` (`src/targets/worker/reddit-session.ts`, a raw TLS socket from `cloudflare:sockets` with HTTP/1.1 from `src/targets/worker/http1.ts`), because Reddit answers the Workers `fetch` client with 403 even with the owner's session cookie while a socket from the same Worker got 200 (`docs/architecture/fetchers.md`, Reddit). It has one call, `get(path, cookie, signal)`, to `www.reddit.com` only. The shared request headers and the body bound are in `src/core/reddit-session.ts`.
 - The Worker builds its ports once per isolate and keeps the promise (`portsOf` in `src/targets/worker/index.ts`). A build that rejects clears the promise, so the next request builds again instead of failing the same way for the life of the isolate. No real input makes the build reject (`sealedSecrets` accepts only 64 hexadecimal digits and then imports a valid key), so this path is unverified.
 - Ports reach routes through `createApp(ports)`, never through `c.env`, because `c.env` holds Worker bindings on Cloudflare and Node's request and response on Node. `waitUntil` lives in the Worker entry for the same reason: Hono's Node adapter passes no execution context.
 - Code that only one target has (CLI Providers, the grok X fetcher, fetcher plug-ins, the local vault folder, Workers AI) is an adapter the other target does not register. The settings screens list only registered adapters, as `docs/spec.md` (AI providers) asks.

@@ -8,7 +8,16 @@ import type { JobRow } from "./schema.ts";
 
 export type JobPorts = Pick<
   Ports,
-  "db" | "files" | "network" | "pages" | "jobs" | "ai" | "secrets" | "crypto" | "fetchers"
+  | "db"
+  | "files"
+  | "network"
+  | "redditSession"
+  | "pages"
+  | "jobs"
+  | "ai"
+  | "secrets"
+  | "crypto"
+  | "fetchers"
 >;
 
 export type JobWrites = readonly BatchItem<"sqlite">[];
@@ -58,7 +67,18 @@ export interface DeferredOutcome {
 
 export type JobOutcome = SettledOutcome | DeferredOutcome;
 
-export interface JobHandler {
+export type Closing =
+  | { readonly kind: "closed" }
+  | { readonly kind: "deferred"; readonly wait: WaitReason | null };
+
+export interface JobClosing {
+  readonly closing?: (db: Database, job: Readonly<JobRow>, how: Closing) => JobWrites;
+  readonly afterClosed?: (ports: JobPorts, job: Readonly<JobRow>, closed: boolean) => Promise<void>;
+}
+
+export const NO_CLOSING: JobClosing = {};
+
+export interface JobHandler extends JobClosing {
   readonly deadlineMs: number;
   readonly blockedBy: readonly JobKind[];
   readonly attempt: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<JobOutcome>;
@@ -73,6 +93,8 @@ export interface ModelHandler extends Omit<JobHandler, "attempt"> {
     ai: ModelAi,
   ) => Promise<JobOutcome>;
 }
+
+export const CLAIM_MARGIN_MS = 120_000;
 
 export const RETRY_DELAYS_MS = [30_000, 120_000] as const;
 

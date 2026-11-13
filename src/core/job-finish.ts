@@ -2,15 +2,17 @@ import { type SQL, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { databaseCodeOf, logFailure, report } from "./failure-log.ts";
-import { namedKeys } from "./file-cleanup.ts";
+import { deleteQuietly, unnamed } from "./file-cleanup.ts";
 import { closeJob } from "./job-close.ts";
 import {
   MAX_STALE_REQUEUES,
   STALE_DELAYS_MS,
   type JobCurrency,
+  type JobClosing,
   type JobFiles,
   type JobHandler,
   type JobWrites,
+  NO_CLOSING,
   NO_FILES,
   type JobOutcome,
   type JobPorts,
@@ -35,26 +37,6 @@ function logClaimLost(job: Readonly<Pick<JobRow, "id" | "attempts">>): void {
   report("job-claim-lost", { jobId: job.id, attempt: job.attempts });
 }
 
-async function deleteQuietly(
-  ports: JobPorts,
-  keys: readonly string[],
-  doomed: (keys: readonly string[]) => Promise<readonly string[]> = (all) => Promise.resolve(all),
-): Promise<void> {
-  if (keys.length === 0) return;
-
-  try {
-    await ports.files.delete(await doomed(keys));
-  } catch (error) {
-    logFailure("file-not-deleted", { keys: keys.length }, error);
-  }
-}
-
-async function unnamed(ports: JobPorts, keys: readonly string[]): Promise<readonly string[]> {
-  const named = await namedKeys(ports.db, keys);
-
-  return keys.filter((key) => !named.has(key));
-}
-
 export async function finish(
   ports: JobPorts,
   job: Readonly<JobRow>,
@@ -64,12 +46,14 @@ export async function finish(
     files = NO_FILES,
     precondition,
     continuation = [],
+    closing = NO_CLOSING,
   }: Readonly<{
     writes: readonly BatchItem<"sqlite">[];
     attempts: number;
     files?: JobFiles | undefined;
     precondition?: Readonly<Precondition> | undefined;
     continuation?: readonly BatchItem<"sqlite">[] | undefined;
+    closing?: JobClosing | undefined;
   }>,
 ): Promise<"done" | "lost" | Readonly<Precondition>> {
   const { db } = ports;
@@ -77,7 +61,12 @@ export async function finish(
   const wrote = await writeWhileHolding(
     db,
     job,
-    [...writes, ...closeJob(db, job, attempts), ...continuation],
+    [
+      ...writes,
+      ...closeJob(db, job, attempts),
+      ...(closing.closing?.(db, job, { kind: "closed" }) ?? []),
+      ...continuation,
+    ],
     precondition,
   );
 
@@ -85,7 +74,7 @@ export async function finish(
     return precondition;
   }
 
-  await afterClose(ports, job, wrote, files);
+  await afterClose(ports, job, wrote, files, closing);
 
   return wrote ? "done" : "lost";
 }
@@ -95,8 +84,11 @@ async function afterClose(
   job: Readonly<JobRow>,
   wrote: boolean,
   files: JobFiles,
+  closing: JobClosing,
 ): Promise<void> {
   await enqueueItemJobs(ports, job.itemId);
+
+  await closing.afterClosed?.(ports, job, wrote);
 
   await (wrote
     ? deleteQuietly(ports, files.superseded)
@@ -108,7 +100,7 @@ async function afterClose(
 export async function exhaust(
   ports: JobPorts,
   job: Readonly<JobRow>,
-  handler: Pick<JobHandler, "exhausted" | "inputCurrent">,
+  handler: Pick<JobHandler, "exhausted" | "inputCurrent" | "closing" | "afterClosed">,
   attempts: number,
 ): Promise<void> {
   const { db } = ports;
@@ -117,6 +109,7 @@ export async function exhaust(
   const wrote = await guardedBatch(db, and(holding(job), sameInput) ?? holding(job), [
     ...handler.exhausted(db, job),
     ...closeJob(db, job, attempts),
+    ...(handler.closing?.(db, job, { kind: "closed" }) ?? []),
   ]);
 
   if (!wrote && sameInput !== undefined && (await guardHolds(db, holding(job)))) {
@@ -125,12 +118,13 @@ export async function exhaust(
       attempts: job.attempts,
       staleRequeues: 0,
       wait: null,
+      closing: handler,
     });
 
     return;
   }
 
-  await afterClose(ports, job, wrote, NO_FILES);
+  await afterClose(ports, job, wrote, NO_FILES, handler);
 }
 
 function dueAt(until: number, closedTask: number | undefined): number | SQL {
@@ -149,6 +143,7 @@ export async function queueLater(
     wait,
     unlessOpen,
     writes = [],
+    closing = NO_CLOSING,
   }: Readonly<{
     until: number;
     attempts: number;
@@ -156,10 +151,12 @@ export async function queueLater(
     wait: WaitReason | null;
     unlessOpen?: number | undefined;
     writes?: JobWrites | undefined;
+    closing?: JobClosing | undefined;
   }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
     ...writes,
+    ...(closing.closing?.(ports.db, job, { kind: "deferred", wait }) ?? []),
     ports.db
       .update(jobs)
       .set({
@@ -177,6 +174,7 @@ export async function queueLater(
     await enqueueQuietly(ports, [job.id], Math.max(0, until - Date.now()));
   } else {
     logClaimLost(job);
+    await closing.afterClosed?.(ports, job, false);
   }
 }
 
@@ -184,6 +182,7 @@ async function writeOutcome(
   ports: JobPorts,
   job: Readonly<JobRow>,
   outcome: SettledOutcome,
+  closing: JobClosing,
 ): Promise<"done" | "lost" | "stale"> {
   let result: Awaited<ReturnType<typeof finish>>;
 
@@ -194,6 +193,7 @@ async function writeOutcome(
       files: outcome.files,
       precondition: outcome.precondition,
       continuation: outcome.continuation,
+      closing,
     });
   } catch (error) {
     const state = await outcome.currency?.current();
@@ -205,7 +205,7 @@ async function writeOutcome(
 
   if (result === "done" || result === "lost") return result;
 
-  return writeOutcome(ports, job, await result.rebuild());
+  return writeOutcome(ports, job, await result.rebuild(), closing);
 }
 
 async function discardTask(
@@ -222,11 +222,12 @@ async function applySettled(
   ports: JobPorts,
   job: Readonly<JobRow>,
   outcome: SettledOutcome,
+  closing: JobClosing,
 ): Promise<void> {
   let result: Awaited<ReturnType<typeof writeOutcome>>;
 
   try {
-    result = await writeOutcome(ports, job, outcome);
+    result = await writeOutcome(ports, job, outcome, closing);
   } catch (error) {
     logFailure(
       "job-write-failed",
@@ -251,6 +252,7 @@ async function applySettled(
         attempts: job.attempts,
         staleRequeues,
         wait: null,
+        closing,
       });
       break;
     }
@@ -266,6 +268,7 @@ export async function applyOutcome(
   ports: JobPorts,
   job: Readonly<JobRow>,
   outcome: JobOutcome,
+  closing: JobClosing = NO_CLOSING,
 ): Promise<void> {
   if ("deferredUntil" in outcome) {
     await queueLater(ports, job, {
@@ -275,10 +278,11 @@ export async function applyOutcome(
       wait: outcome.wait,
       unlessOpen: outcome.unlessOpen,
       writes: outcome.writes,
+      closing,
     });
 
     return;
   }
 
-  await applySettled(ports, job, outcome);
+  await applySettled(ports, job, outcome, closing);
 }

@@ -1,29 +1,19 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { ITEM_REQUEST_BYTES, THREAD_CONTENT_BYTES } from "../../src/core/limits.ts";
+import { THREAD_CONTENT_BYTES } from "../../src/core/limits.ts";
 import { redditRefOf } from "../../src/core/links.ts";
-import { pause } from "../../src/core/pause.ts";
 import { hiddenRepliesOf, unfilledStubsOf } from "../../src/core/reddit-tree.ts";
 import {
-  NEW_WINDOW,
-  type RequestWindow,
-  afterRequest,
-  mayAsk,
-} from "../../src/core/reddit-window.ts";
-import type { ThreadAnswers } from "../../src/core/thread-answers.ts";
+  REQUEST_DEADLINE_MS,
+  THREAD_QUERY,
+  fillAnswers,
+  permalinkPath,
+} from "../../src/core/thread-fill.ts";
 import { resultInTab } from "./tab-result.ts";
 import { type ThreadBody, fitThreadBody } from "./thread-body.ts";
 
-const REQUEST_SPACING_MS = 500;
-
 const FILL_DEADLINE_MS = 150_000;
-
-const REQUEST_DEADLINE_MS = 15_000;
-
-const QUERY = "limit=500&raw_json=1";
-
-const RATE_LIMITED = 429;
 
 const TabAnswerSchema = z.object({
   status: z.number(),
@@ -105,82 +95,7 @@ async function answerFor(tabId: number, address: string, deadlineMs: number): Pr
 function threadAddress({ url }: Readonly<ThreadTab>): string {
   const { origin, pathname } = new URL(url);
 
-  return `${origin}${pathname.replace(/\/+$/u, "")}/.json?${QUERY}`;
-}
-
-function permalinkAddress({ url }: Readonly<ThreadTab>, postId: string, commentId: string): string {
-  return `${new URL(url).origin}/comments/${postId}/_/${commentId}.json?${QUERY}`;
-}
-
-async function answerAfter(
-  tab: Readonly<ThreadTab>,
-  address: string,
-  { wait, giveUpAt }: Readonly<{ wait: number; giveUpAt: number }>,
-): Promise<TabAnswer | null> {
-  await pause(wait);
-
-  const left = giveUpAt - Date.now();
-
-  return left <= 0 ? null : answerFor(tab.id, address, Math.min(REQUEST_DEADLINE_MS, left));
-}
-
-function spacingWait(startedAt: number): number {
-  return Math.max(0, REQUEST_SPACING_MS - (Date.now() - startedAt));
-}
-
-function mayContinue(
-  window: Readonly<RequestWindow>,
-  held: number,
-  giveUpAt: number,
-  signal: AbortSignal | undefined,
-): boolean {
-  return mayAsk(window) && Date.now() < giveUpAt && held <= ITEM_REQUEST_BYTES && !stopped(signal);
-}
-
-async function fillAnswers(
-  tab: Readonly<ThreadTab>,
-  postId: string,
-  first: Readonly<TabAnswer>,
-  hidden: readonly string[],
-  signal: AbortSignal | undefined,
-): Promise<ThreadAnswers> {
-  const answers: [string, ...string[]] = [first.text];
-  const queue = [...hidden];
-  const asked = new Set<string>();
-  const giveUpAt = Date.now() + FILL_DEADLINE_MS;
-  let window = afterRequest(NEW_WINDOW, first.remaining);
-  let held = first.text.length;
-  let startedAt = Date.now();
-
-  for (const id of queue) {
-    if (!mayContinue(window, held, giveUpAt, signal)) break;
-
-    if (asked.has(id)) continue;
-
-    asked.add(id);
-
-    const wait = spacingWait(startedAt);
-    startedAt = Date.now() + wait;
-
-    // oxlint-disable-next-line eslint/no-await-in-loop -- the requests are sequential and spaced.
-    const answer = await answerAfter(tab, permalinkAddress(tab, postId, id), { wait, giveUpAt });
-
-    if (answer === null) break;
-
-    window = afterRequest(window, answer.remaining);
-
-    if (answer.status === RATE_LIMITED) break;
-
-    const found = answer.status === 200 ? hiddenRepliesOf(answer.text, postId) : null;
-
-    if (found === null) continue;
-
-    answers.push(answer.text);
-    queue.push(...found);
-    held += answer.text.length;
-  }
-
-  return answers;
+  return `${origin}${pathname.replace(/\/+$/u, "")}/.json?${THREAD_QUERY}`;
 }
 
 function stopped(signal: AbortSignal | undefined): boolean {
@@ -216,11 +131,21 @@ export async function fetchThread(
 
   if (hidden === null || stopped(signal)) return null;
 
-  const answers = await fillAnswers(tab, ref.postId, first, hidden, signal);
+  const filled = await fillAnswers(
+    (address, deadlineMs) => answerFor(tab.id, address, deadlineMs),
+    {
+      addressFor: (commentId) =>
+        `${new URL(tab.url).origin}${permalinkPath(ref.postId, commentId)}`,
+      postId: ref.postId,
+      first,
+      hidden,
+    },
+    { deadlineMs: FILL_DEADLINE_MS, signal },
+  );
 
   if (stopped(signal)) return null;
 
-  const body = fitThreadBody(tab.url, answers, fill === true);
+  const body = fitThreadBody(tab.url, filled.answers, fill === true);
 
   if (body === null) return null;
 

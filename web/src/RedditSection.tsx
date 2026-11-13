@@ -2,8 +2,10 @@ import { useCallback } from "react";
 
 import type { RedditSettings } from "../../src/core/reddit-contract.ts";
 import { Alert } from "./Alert.tsx";
-import type { SectionSpec } from "./LoadedSection.tsx";
+import { LoadedSection, type SectionSpec } from "./LoadedSection.tsx";
 import { REDDIT_TEXT } from "./reddit-text.ts";
+import { REDDIT_ACCOUNT_SECTION } from "./RedditAccountSection.tsx";
+import type { SettingsLoad } from "./settings-load-types.ts";
 import { useRedditForm } from "./use-reddit-form.ts";
 
 const LABEL_ID = "reddit-archive-label";
@@ -95,3 +97,12 @@ export const REDDIT_SECTION: SectionSpec<RedditSettings> = {
   loadFailed: REDDIT_TEXT.loadFailed,
   form: archiveFillForm,
 };
+
+export function RedditSections({ loaded }: Readonly<{ loaded: SettingsLoad }>) {
+  return (
+    <>
+      <LoadedSection {...REDDIT_SECTION} initial={loaded.reddit} />
+      <LoadedSection {...REDDIT_ACCOUNT_SECTION} initial={loaded.redditAccount} />
+    </>
+  );
+}

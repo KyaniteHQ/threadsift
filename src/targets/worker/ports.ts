@@ -8,8 +8,18 @@ import { type AiBinding, bindingRunner } from "./ai-binding.ts";
 import { type FilesBucket, r2FileStore } from "./file-store.ts";
 import { workerNetwork, workerFetch } from "./network.ts";
 import { workerPageReader } from "./page-reader.ts";
+import { workerRedditSession } from "./reddit-session.ts";
 
 const MAX_QUEUE_DELAY_SECONDS = 86_400;
+
+// sendBatch takes at most 100 messages per call: https://developers.cloudflare.com/queues/platform/limits/
+const QUEUE_BATCH_MESSAGES = 100;
+
+function batchesOf(jobIds: readonly number[]): readonly (readonly number[])[] {
+  return Array.from({ length: Math.ceil(jobIds.length / QUEUE_BATCH_MESSAGES) }, (_, at) =>
+    jobIds.slice(at * QUEUE_BATCH_MESSAGES, (at + 1) * QUEUE_BATCH_MESSAGES),
+  );
+}
 
 export interface Env {
   readonly DB: Parameters<typeof drizzle>[0];
@@ -41,13 +51,19 @@ export async function createWorkerPorts(env: Env): Promise<Ports> {
       binding: env.AI === undefined ? undefined : bindingRunner(env.AI),
     })),
     network: workerNetwork,
+    redditSession: workerRedditSession,
     pages: workerPageReader,
     jobs: {
-      enqueue: (jobIds, delayMs) =>
-        env.JOBS.sendBatch(
-          jobIds.map((jobId) => ({ body: { jobId } })),
-          { delaySeconds: Math.min(Math.ceil(delayMs / 1000), MAX_QUEUE_DELAY_SECONDS) },
-        ),
+      enqueue: async (jobIds, delayMs) => {
+        await Promise.all(
+          batchesOf(jobIds).map((batch) =>
+            env.JOBS.sendBatch(
+              batch.map((jobId) => ({ body: { jobId } })),
+              { delaySeconds: Math.min(Math.ceil(delayMs / 1000), MAX_QUEUE_DELAY_SECONDS) },
+            ),
+          ),
+        );
+      },
     },
     crypto: nodeCrypto,
     setupCode: configuredCode(env.SETUP_CODE),

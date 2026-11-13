@@ -53,7 +53,12 @@ export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
 export const FAILURE_REASONS = ["timeout", "network", "gave-up", "rate-limited"] as const;
 
-export const WAIT_REASONS = ["github-rate-limit", "topic-busy", "grok-bot"] as const;
+export const WAIT_REASONS = [
+  "github-rate-limit",
+  "topic-busy",
+  "grok-bot",
+  "reddit-limit",
+] as const;
 
 export const ITEM_JOB_KINDS = ["fetch", "digest"] as const;
 

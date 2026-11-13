@@ -15,13 +15,12 @@ import {
 import { logFailure } from "./failure-log.ts";
 import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";
 import { HANDLERS } from "./job-handlers.ts";
-import { type ClaimedJob, type JobPorts, RETRY_DELAYS_MS } from "./job-outcome.ts";
+import { CLAIM_MARGIN_MS, type ClaimedJob, type JobPorts, RETRY_DELAYS_MS } from "./job-outcome.ts";
 import { ATTEMPT_FILES, hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { items, jobs } from "./schema.ts";
 
-const CLAIM_MARGIN_MS = 120_000;
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 
 const LEASE_MS = sql.join(
@@ -95,7 +94,7 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<ClaimedJob>)
   }
 
   try {
-    await applyOutcome(ports, job, await handler.attempt(ports, job));
+    await applyOutcome(ports, job, await handler.attempt(ports, job), handler);
   } catch (error) {
     logFailure(
       "job-attempt-failed",
@@ -111,6 +110,7 @@ export async function executeClaimed(ports: JobPorts, job: Readonly<ClaimedJob>)
           attempts: job.attempts + 1,
           staleRequeues: 0,
           wait: null,
+          closing: handler,
         }));
   }
 }

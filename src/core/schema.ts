@@ -53,6 +53,8 @@ export { type NoteRow, notes } from "./note-tables.ts";
 
 export { aiSettingsRevision, openrouterConnectTransactions } from "./openrouter-tables.ts";
 
+export { redditAccount } from "./reddit-account-tables.ts";
+
 export { redditComments, redditSettings, redditThreads } from "./reddit-tables.ts";
 
 export { pins } from "./pin-tables.ts";

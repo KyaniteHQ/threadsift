@@ -5,7 +5,7 @@ import { GITHUB_SECTION } from "./GithubSection.tsx";
 import { GROK_BOT_SECTION } from "./GrokBotSection.tsx";
 import { LoadedSection } from "./LoadedSection.tsx";
 import { PasswordSection } from "./PasswordSection.tsx";
-import { REDDIT_SECTION } from "./RedditSection.tsx";
+import { RedditSections } from "./RedditSection.tsx";
 import type { SettingsLoad } from "./settings-load-types.ts";
 import { TokensSection } from "./TokensSection.tsx";
 
@@ -19,7 +19,7 @@ export function SettingsSections({
       <LoadedSection {...AI_SECTION} initial={loaded.ai} />
       <LoadedSection {...GITHUB_SECTION} initial={loaded.github} />
       <LoadedSection {...GROK_BOT_SECTION} initial={loaded.grokBot} />
-      <LoadedSection {...REDDIT_SECTION} initial={loaded.reddit} />
+      <RedditSections loaded={loaded} />
       <TokensSection initial={loaded.tokens} />
       <PasswordSection />
       <section className="sec" aria-labelledby="sign-out-title">

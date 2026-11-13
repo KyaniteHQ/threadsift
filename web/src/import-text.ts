@@ -27,7 +27,22 @@ export const IMPORT = {
   aiSettingsLink: "AI settings",
   noProvider:
     "No Provider is saved yet. Each Item is saved now and gets its Digest after you save a Provider.",
+  redditExpired:
+    "The connected Reddit session has expired, so Reddit links are filled from the archive until you connect again.",
+  redditSettingsLink: "Reddit account settings",
 } as const;
+
+const REDDIT_NOTE_ONE =
+  "1 of the links is a Reddit post or comment, which Threadsift reads with the connected Reddit account. Reddit allows about 100 requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows each link’s wait.";
+
+const REDDIT_NOTE_MANY =
+  "{count} of the links are Reddit posts or comments, which Threadsift reads one at a time with the connected Reddit account. Reddit allows about 100 requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows each link’s wait.";
+
+const REDDIT_DONE_ONE =
+  "1 Reddit link is saved. Reading continues in the background, and the library shows each link’s wait.";
+
+const REDDIT_DONE_MANY =
+  "{count} Reddit links are saved. Reading continues in the background one at a time, and the library shows each link’s wait.";
 
 const READY_SINGULAR = "{count} link ready";
 const READY_PLURAL = "{count} links ready";
@@ -121,4 +136,14 @@ export function countLabel(count: number, kind: keyof typeof COUNTS): string {
 
 export function planNoticeLabel(provider: CliProvider): string {
   return filled(PLAN_NOTICE, { provider: PLAN_NAMES[provider] });
+}
+
+export function redditNoteLabel(count: number, finished: boolean): string {
+  if (finished) {
+    return count === 1
+      ? REDDIT_DONE_ONE
+      : filled(REDDIT_DONE_MANY, { count: groupedNumber(count) });
+  }
+
+  return count === 1 ? REDDIT_NOTE_ONE : filled(REDDIT_NOTE_MANY, { count: groupedNumber(count) });
 }

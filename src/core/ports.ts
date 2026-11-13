@@ -64,6 +64,10 @@ export interface Network {
   readonly reachable: (url: string, signal: AbortSignal) => Promise<boolean>;
 }
 
+export interface RedditSession {
+  readonly get: (path: string, cookie: string, signal: AbortSignal) => Promise<NetworkResponse>;
+}
+
 export interface PageReader {
   readonly maxHtmlBytes: number;
   readonly title: (html: string, deadline: AbortSignal) => Promise<string>;
@@ -114,6 +118,7 @@ export interface Ports {
   readonly db: Database;
   readonly files: FileStore;
   readonly network: Network;
+  readonly redditSession: RedditSession;
   readonly pages: PageReader;
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
