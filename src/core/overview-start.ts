@@ -1,13 +1,13 @@
-import { type SQL, type SQLWrapper, eq, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { providerSet } from "./ai-tasks.ts";
 import { guardedWrite, refusedByGuard } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
-import { digests, items, topicPages } from "./schema.ts";
+import { digests, items } from "./schema.ts";
 import { hasOpenOverview } from "./topic-coverage.ts";
-import { openingOverview } from "./topic-overview-open.ts";
+import { openingOverview, overviewOpened } from "./topic-overview-run.ts";
 
 export type OverviewStart = "started" | "no-provider" | "no-items" | "open" | "stale";
 
@@ -50,10 +50,7 @@ export async function startOverview(
       db,
       sql`${overviewStartable(topicId)} and ${when}`,
       openingOverview(db, newestOwner(topicId)),
-      [
-        ...after,
-        db.update(topicPages).set({ failure: null }).where(eq(topicPages.topicId, topicId)),
-      ],
+      [...after, overviewOpened(db, topicId)],
     );
 
     if (queued === null) return await refusalOf(ports, topicId);

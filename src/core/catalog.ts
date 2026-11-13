@@ -7,7 +7,7 @@ import { loggedDigest, loggedTopic } from "./log-writes.ts";
 import { pinnedDigest } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
-import { openingOverview } from "./topic-overview-open.ts";
+import { openingOverview } from "./topic-overview-run.ts";
 
 export function catalogEntries(digest: Readonly<Digest>) {
   const names = new Map<string, { readonly key: string; readonly name: string }>();
