@@ -68,6 +68,8 @@ const THREAD = [
 
 const TaskIdSchema = z.object({ task_id: z.number() });
 
+const FIRST_TASK_ID_FLOOR = 1_000_000;
+
 describe("the related pick sends the best-ranked candidates", () => {
   let instance: Instance;
   let equal: number[];
@@ -77,6 +79,12 @@ describe("the related pick sends the best-ranked candidates", () => {
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
+
+    exec(
+      instance,
+      "insert into sqlite_sequence (name, seq) values ('ai_tasks', ?)",
+      FIRST_TASK_ID_FLOOR,
+    );
 
     await paste(instance, "undigested", { title: "-", noDigest: true });
 
@@ -139,6 +147,7 @@ describe("the related pick sends the best-ranked candidates", () => {
 
     assert.ok(task !== undefined);
     assert.ok(digest !== undefined);
+    assert.ok(digest.task_id > FIRST_TASK_ID_FLOOR);
     assert.notEqual(digest.task_id, source);
     assert.equal(task.input_revision, digest.task_id);
     assert.equal(job?.kind, "related_pick");
