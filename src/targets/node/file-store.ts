@@ -65,6 +65,10 @@ async function ensureAll(folders: readonly string[]): Promise<void> {
   await ensureAll(rest);
 }
 
+function endsBefore(folderPrefix: string, cursor: string): boolean {
+  return cursor > folderPrefix && !cursor.startsWith(folderPrefix);
+}
+
 interface Located {
   readonly leaf: string;
   readonly present: boolean;
@@ -108,25 +112,47 @@ class FileFolder {
     return { leaf, present };
   }
 
-  async keysIn(itemId: string): Promise<string[]> {
-    if (!(await this.hasFolders(itemId))) return [];
-
+  private async keysIn(itemId: string): Promise<string[]> {
     return (await readdir(this.path("items", itemId), { withFileTypes: true }))
       .filter((entry) => entry.isFile())
       .map((entry) => `items/${itemId}/${entry.name}`)
-      .filter((key) => parseStoredKey(key) !== null);
+      .filter((key) => parseStoredKey(key) !== null)
+      .toSorted();
   }
 
-  async keysUnder(itemId: string | null): Promise<string[]> {
-    if (itemId !== null) return (await this.keysIn(itemId)).toSorted();
+  private async itemIds(itemId: string | null): Promise<string[]> {
+    if (itemId !== null) return [itemId];
 
-    if (!(await this.hasFolders(null))) return [];
+    return (await readdir(this.path("items"), { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .toSorted();
+  }
 
-    const folders = (await readdir(this.path("items"), { withFileTypes: true })).filter((entry) =>
-      entry.isDirectory(),
+  private async keysFrom(
+    itemIds: readonly string[],
+    at: number,
+    cursor: string | null,
+    limit: number,
+  ): Promise<string[]> {
+    const itemId = itemIds[at];
+
+    if (itemId === undefined || limit < 1) return [];
+
+    const found = (await this.keysIn(itemId)).filter((key) => cursor === null || key > cursor);
+    const later = await this.keysFrom(itemIds, at + 1, cursor, limit - found.length);
+
+    return [...found, ...later].slice(0, limit);
+  }
+
+  async keysAfter(itemId: string | null, cursor: string | null, limit: number): Promise<string[]> {
+    if (!(await this.hasFolders(itemId))) return [];
+
+    const itemIds = (await this.itemIds(itemId)).filter(
+      (id) => cursor === null || !endsBefore(`items/${id}/`, cursor),
     );
 
-    return (await Promise.all(folders.map((entry) => this.keysIn(entry.name)))).flat().toSorted();
+    return this.keysFrom(itemIds, 0, cursor, limit);
   }
 
   async uploaded(key: string): Promise<StoredFile | null> {
@@ -243,8 +269,7 @@ export function dataFileStore(dataDir: string): FileStore {
     },
     list: async (prefix, cursor, limit): Promise<FilePage> => {
       const size = requireListLimit(limit);
-      const keys = await folder.keysUnder(requireFilePrefix(prefix).itemId);
-      const after = cursor === null ? keys : keys.filter((key) => key > cursor);
+      const after = await folder.keysAfter(requireFilePrefix(prefix).itemId, cursor, size + 1);
       const page = after.slice(0, size);
 
       const files = (await Promise.all(page.map((key) => folder.uploaded(key)))).filter(
