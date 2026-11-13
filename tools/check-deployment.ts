@@ -179,7 +179,7 @@ async function deleteOwnedItem(
   report.record(`only new Item ${String(owned)} was deleted`);
 }
 
-async function cleanup(api: InstanceApi, report: DeploymentRun): Promise<void> {
+async function cleanupItem(api: InstanceApi, report: DeploymentRun): Promise<void> {
   report.enter("cleanup");
 
   const owned = report.owned();
@@ -199,7 +199,9 @@ async function cleanup(api: InstanceApi, report: DeploymentRun): Promise<void> {
       );
     }
   }
+}
 
+async function cleanupSession(api: InstanceApi, report: DeploymentRun): Promise<void> {
   report.enter("sign-out");
 
   if (report.signedIn()) {
@@ -222,6 +224,18 @@ async function cleanup(api: InstanceApi, report: DeploymentRun): Promise<void> {
   }
 }
 
+async function inOrder(steps: readonly (() => Promise<void>)[]): Promise<void> {
+  const [step, ...rest] = steps;
+
+  if (step === undefined) return;
+
+  const first = await Promise.allSettled([step()]);
+  const later = await Promise.allSettled([inOrder(rest)]);
+  const failed = [...first, ...later].find((outcome) => outcome.status === "rejected");
+
+  if (failed !== undefined) throw failed.reason;
+}
+
 async function main(): Promise<void> {
   const report = deploymentRun(artifact, mode);
   const api = await openInstanceApi(origin.origin);
@@ -240,8 +254,11 @@ async function main(): Promise<void> {
           },
     );
   } finally {
-    await cleanup(api, report);
-    await api.dispose();
+    await inOrder([
+      () => cleanupItem(api, report),
+      () => cleanupSession(api, report),
+      () => api.dispose(),
+    ]);
   }
 
   if (process.exitCode !== 1) console.log("Deployment check passed; see result.json");
