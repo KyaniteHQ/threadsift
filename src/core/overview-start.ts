@@ -6,10 +6,12 @@ import { guardedWrite, refusedByGuard } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { digests, items } from "./schema.ts";
-import { hasOpenOverview } from "./topic-coverage.ts";
+import { hasOpenOverview, openOverviewJob } from "./topic-coverage.ts";
 import { openingOverview, overviewOpened } from "./topic-overview-run.ts";
 
-export type OverviewStart = "started" | "no-provider" | "no-items" | "open" | "stale";
+export type OverviewStart =
+  | { readonly kind: "started" | "no-provider" | "no-items" | "stale" }
+  | { readonly kind: "open"; readonly jobId: number };
 
 function newestOwner(topicId: number): SQL {
   return sql`(select owner.id from ${items} as owner join ${digests} as kept on kept.item_id = owner.id where owner.topic_id = ${topicId} order by owner.saved_at desc, owner.id desc limit 1)`;
@@ -24,15 +26,15 @@ async function refusalOf(ports: JobPorts, topicId: number): Promise<OverviewStar
     .select({
       provider: sql<number>`${providerSet()}`,
       owner: sql<number | null>`${newestOwner(topicId)}`,
-      open: sql<number>`${hasOpenOverview(topicId)}`,
+      openJob: sql<number | null>`${openOverviewJob(topicId)}`,
     })
     .from(sql`(select 1)`);
 
-  if (facts?.provider !== 1) return "no-provider";
+  if (facts?.provider !== 1) return { kind: "no-provider" };
 
-  if (facts.owner === null) return "no-items";
+  if (facts.owner === null) return { kind: "no-items" };
 
-  return facts.open === 1 ? "open" : "stale";
+  return facts.openJob === null ? { kind: "stale" } : { kind: "open", jobId: facts.openJob };
 }
 
 export async function startOverview(
@@ -57,9 +59,9 @@ export async function startOverview(
 
     await enqueueRows(ports, OpenedJobsSchema.parse(queued));
 
-    return "started";
+    return { kind: "started" };
   } catch (error) {
-    if (refusedByGuard(error)) return "stale";
+    if (refusedByGuard(error)) return { kind: "stale" };
 
     throw error;
   }

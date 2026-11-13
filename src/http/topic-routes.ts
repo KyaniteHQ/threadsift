@@ -44,7 +44,7 @@ const retryOverviewRoute = createRoute({
     ...scopeRefusal("POST", "/api/topics/{key}/overview"),
     202: jsonBody(
       OverviewRetryResponseSchema,
-      "An overview run is queued for the Topic, or one was already open. For the key of a merged-away Topic, it is queued for the Topic it was merged into. A failure from the last run is cleared. The Topic page shows the run as `pending` until it ends.",
+      "An overview run is queued for the Topic, or one was already open. For the key of a merged-away Topic, it is queued for the Topic it was merged into. A failure marker is cleared when this call opens a run, or when the run it found open is still open. The Topic page shows the run as `pending` until it ends.",
     ),
     404: jsonBody(
       ErrorResponseSchema,

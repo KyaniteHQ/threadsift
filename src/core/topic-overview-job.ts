@@ -85,7 +85,7 @@ async function attemptOverview(ports: JobPorts, job: Readonly<ClaimedJob>): Prom
 
   if (topicId === null) return { writes: [] };
 
-  const lease = await claimTopicLease(ports.db, topicId, overviewHolder(job.id));
+  const lease = await claimTopicLease(ports.db, topicId, overviewHolder(job));
 
   if (lease === null) {
     return { deferredUntil: Date.now() + BUSY_RETRY_MS, wait: "topic-busy", countsAttempt: false };

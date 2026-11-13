@@ -1,12 +1,19 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
+import { providerSet } from "./ai-tasks.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { readDisagreements } from "./known-disagreements.ts";
 import type { Database } from "./ports.ts";
-import { digests, items, pins, topics } from "./schema.ts";
-import type { TopicPage } from "./topic-overview-contract.ts";
-import { readTopicOverview } from "./topic-overview-run.ts";
+import { digests, items, pins, topicPages, topics } from "./schema.ts";
+import { hasOpenOverview, notBuiltFrom } from "./topic-coverage.ts";
+import {
+  type BuiltFrom,
+  type Overview,
+  type TopicPage,
+  citedIds,
+  overviewState,
+} from "./topic-overview-contract.ts";
 import { topicKeyOfSegment } from "./topic-path.ts";
 
 export interface TopicRow {
@@ -57,6 +64,75 @@ function pageQuery(db: Database, topicId: number, cursor: Readonly<ItemCursor> |
     .where(and(eq(items.topicId, topicId), after))
     .orderBy(desc(items.savedAt), desc(items.id))
     .limit(ITEMS_PAGE_SIZE + 1);
+}
+
+function overviewReads(db: Database, topicId: number) {
+  return db.batch([
+    db
+      .select({
+        overview: topicPages.overview,
+        builtFrom: topicPages.builtFrom,
+        failure: topicPages.failure,
+      })
+      .from(topicPages)
+      .where(eq(topicPages.topicId, topicId)),
+    db
+      .select({
+        total: count(),
+        built: sql<number>`coalesce(sum(case when not (${notBuiltFrom(topicId, sql`${items.id}`, sql`${digests.taskId}`)}) then 1 else 0 end), 0)`,
+      })
+      .from(items)
+      .innerJoin(digests, eq(digests.itemId, items.id))
+      .where(eq(items.topicId, topicId)),
+    db
+      .select({
+        pending: sql<number>`${hasOpenOverview(topicId)}`,
+        provider: sql<number>`${providerSet()}`,
+      })
+      .from(sql`(select 1)`),
+  ]);
+}
+
+interface Cited {
+  readonly id: number;
+  readonly title: string;
+}
+
+function citedTitles(db: Database, topicId: number, text: string | null): Promise<Cited[]> {
+  const ids = text === null ? [] : citedIds(text);
+
+  if (ids.length === 0) return Promise.resolve([]);
+
+  return db
+    .select({ id: items.id, title: digests.title })
+    .from(items)
+    .innerJoin(digests, eq(digests.itemId, items.id))
+    .where(and(eq(items.topicId, topicId), inArray(items.id, ids)));
+}
+
+interface TopicOverviewRead {
+  readonly overview: Overview;
+  readonly total: number;
+  readonly builtFrom: BuiltFrom;
+}
+
+export async function readTopicOverview(db: Database, topicId: number): Promise<TopicOverviewRead> {
+  const [[page], [counts], [flags]] = await overviewReads(db, topicId);
+  const failure = page?.failure ?? null;
+  const cited = await citedTitles(db, topicId, page?.overview ?? null);
+
+  return {
+    total: counts?.total ?? 0,
+    builtFrom: page?.builtFrom ?? [],
+    overview: {
+      state: overviewState({ open: flags?.pending === 1, failure }),
+      text: page?.overview ?? null,
+      cited,
+      builtFrom: counts?.built ?? 0,
+      provider: flags?.provider === 1,
+      failure,
+    },
+  };
 }
 
 export async function readTopicPage(
