@@ -28,6 +28,8 @@ A key saved under a replacement `THREADSIFT_SECRET_KEY` opens only with that rep
 
 The app listens on plain HTTP, and the README's `podman run` command publishes port 8080 on `127.0.0.1` only. To reach it from other devices, put your own reverse proxy or tunnel in front of it, and let that give it HTTPS. The data stays in the `threadsift-data` volume.
 
+Add the external address to `~/threadsift.env` as one more line, `THREADSIFT_PUBLIC_ORIGIN=https://<your host>`, with no path and no trailing slash, then recreate the container. Without it, the app refuses MCP requests that come through the public host, and OpenRouter's Connect button does not work. The key file keeps the line, so every later run and rollback that passes `--env-file` keeps it too.
+
 ## Go back to an older build
 
 Find the commit of the tag you want on the package page, put it in place of `<commit sha>`, and run both lines. They remove the container and run that build on the same volume and key file:

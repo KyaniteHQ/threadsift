@@ -2,7 +2,7 @@
 
 The Provider is where the agent's AI comes from. You pick one in Settings, and the agent uses it for every Digest and its other AI tasks, such as Topic overviews.
 
-An API Provider needs only its key: choose Anthropic, OpenAI, xAI, OpenRouter or an OpenAI-compatible URL, fill in the fields, press **Save**, then press **Verify**. The rest of this guide covers the Providers that need more setup: Claude Code and Codex, which run as command-line tools inside the container, and Grok Bot.
+An API Provider needs only the fields Settings shows: choose Anthropic, OpenAI, xAI, OpenRouter or an OpenAI-compatible URL, then fill in the model and the API key, and for an OpenAI-compatible URL also the base URL. Press **Save**, then press **Verify**. The rest of this guide covers the Providers that need more setup: Claude Code and Codex, which run as command-line tools inside the container, and Grok Bot.
 
 The container image ships no AI command-line tool. Everything you install or sign in to stays in its `/data` volume. In the commands below, replace `<container>` with the container's name, which is `threadsift` if you followed the README.
 
@@ -36,7 +36,7 @@ The container image ships no AI command-line tool. Everything you install or sig
 
 4. Open Settings, choose "Claude Code on this server" as the Provider, press **Save**, then press **Verify**.
 
-The install and the login stay in the volume when you remove and recreate the container on the same volume. Installing or removing Claude Code needs a restart. npm 12 skips the install script unless you allow it, so on npm 12 run `npm config set "allow-scripts=@anthropic-ai/claude-code" --location=user` first. The image's npm is 11.20.0 and needs no change. If Claude Code rejects the token, Verify shows it.
+The install and the login stay in the volume when you remove and recreate the container on the same volume. Installing or removing Claude Code needs a restart. npm 12 skips the install script unless you allow it, so on npm 12 run `podman exec -it <container> npm config set "allow-scripts=@anthropic-ai/claude-code" --location=user` first. The image's npm is 11.20.0 and needs no change. If Claude Code rejects the token, Verify shows it.
 
 ## Use Codex on the container
 
@@ -85,6 +85,6 @@ Under [OpenAI's CI guide](https://learn.chatgpt.com/docs/auth/ci-cd-auth), OpenA
 
 Threadsift hands X links to Grok Bot, which reads the posts and replies and saves them back. [bot/README.md](../../bot/README.md) says how to install and update the bot.
 
-Open Settings, find Grok Bot, paste the routine's webhook address and key, and press **Test**. Every pasted X link goes to the bot first. Without a bot, an X link stays a Link-only Item.
+Open Settings, find Grok Bot, paste the routine's webhook address and key, press **Save**, then press **Test**. Every pasted X link goes to the bot first. Without a bot, an X link stays a Link-only Item.
 
-Once the Grok Bot settings are saved and usable, Grok Bot is also offered as the Provider.
+The Provider list always shows Grok Bot, and you can choose it once the Grok Bot settings are saved and usable.

@@ -12,7 +12,7 @@ This folder is a clickable mockup of the first screens, exported from a visual d
 
 ## Viewing
 
-The prototype loads its data with `fetch`, so it needs a local web server:
+The prototype loads its data with `fetch`, and some browsers block its scripts over `file://`, so it needs a local web server:
 
 ```sh
 cd design/prototype

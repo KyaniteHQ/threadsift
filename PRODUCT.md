@@ -38,7 +38,7 @@ Karakeep, the closest open-source tool, has no comment-thread model, so a saved 
 ## Brand Commitments
 
 - The name is Threadsift. The masthead wordmark reads Threadsift; the Style named Library keeps its name.
-- Interface text has no hand-picked voice: `tools/copy/write-copy.sh` writes every text a user reads, as `docs/agents/changing-code.md` (Interface text) describes.
+- Interface text has no hand-picked voice: `tools/copy/write-copy.sh` writes every text a user reads in the product, as `docs/agents/changing-code.md` (Interface text) describes.
 
 ## Evidence on Hand
 
