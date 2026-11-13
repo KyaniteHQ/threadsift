@@ -5,6 +5,7 @@ import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
 import type { MergeRow } from "./merge-unit.ts";
+import { anyAccepting, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
 import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
@@ -18,17 +19,24 @@ export type MergeAcceptance =
   | "merge-busy"
   | "topic-busy";
 
-function acceptingElsewhere(): SQL {
-  return sql`exists (select 1 from ${proposals} where ${proposals.state} = 'accepting')`;
-}
-
 function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
   const { catalog } = MERGES[row.kind];
   const names = sql`${proposals.id} = ${id} and ${catalog.proposalFrom} = ${row.from.id} and ${catalog.proposalInto} = ${row.into.id} and exists (select 1 from ${catalog.table} where ${catalog.table.id} = ${row.from.id} and ${catalog.table.key} = ${row.from.key}) and exists (select 1 from ${catalog.table} where ${catalog.table.id} = ${row.into.id} and ${catalog.table.key} = ${row.into.key})`;
 
-  return row.state === "open"
-    ? sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'open') and not ${acceptingElsewhere()}`
-    : sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'accepting' and coalesce(${proposals.unitRevision}, 0) = ${row.revision})`;
+  switch (row.state) {
+    case "open":
+      return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'open') and not ${anyAccepting()}`;
+    case "accepting":
+      return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'accepting' and coalesce(${proposals.unitRevision}, 0) = ${row.revision})`;
+    case "rejected":
+    case "declined":
+      return sql`false`;
+    default: {
+      const exhaustive: never = row.state;
+
+      return exhaustive;
+    }
+  }
 }
 
 type Outcome = "ran" | "lost" | "busy";
@@ -40,16 +48,10 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
   if (unit === "busy" || unit === "lost") return unit;
 
   const head = [
-    db
-      .update(proposals)
-      .set({ state: "accepting", moved: sql`coalesce(${proposals.moved}, 0) + ${unit.moving}` })
-      .where(eq(proposals.id, id)),
+    unitApplied(db, id, unit.moving),
     ...unit.pin,
     ...unit.moves,
-    db
-      .update(proposals)
-      .set({ cursor: unit.cursor, unitRevision: row.revision + 1 })
-      .where(eq(proposals.id, id)),
+    unitAdvanced(db, id, unit.cursor, row.revision + 1),
     ...unit.leases.map((lease) => releaseTopicLease(db, lease)),
   ];
 
@@ -103,7 +105,7 @@ export async function acceptMerge(ports: JobPorts, id: number): Promise<MergeAcc
   if (row.state !== "open") return "not-open";
 
   const [elsewhere] = await db
-    .select({ busy: sql<number>`${acceptingElsewhere()}` })
+    .select({ busy: sql<number>`${anyAccepting()}` })
     .from(sql`(select 1)`);
 
   if (elsewhere?.busy === 1) return "merge-busy";

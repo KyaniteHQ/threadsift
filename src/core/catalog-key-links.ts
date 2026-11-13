@@ -5,7 +5,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { MergeKind } from "./kinds.ts";
 import { repointedPins, repointedTopicPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
-import { proposalRelinks } from "./proposal-relink.ts";
+import { proposalRelinks } from "./proposal-lifecycle.ts";
 import {
   catalogVersion,
   dataStepRenames,

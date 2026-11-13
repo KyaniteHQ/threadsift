@@ -1,20 +1,21 @@
-import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import { ITEMS_PAGE_SIZE } from "../core/item-page.ts";
 import { parseLogCursor } from "../core/log-contract.ts";
 import type { Ports } from "../core/ports.ts";
-import { acceptProposal } from "../core/proposal-accept.ts";
 import {
   AcceptedSchema,
   ProposalIdParamSchema,
   ProposalPageSchema,
-  ProposalQuerySchema,
   RejectedSchema,
 } from "../core/proposal-contract.ts";
-import { readProposalPage, rejectProposal } from "../core/proposal-page.ts";
+import { acceptProposal, rejectProposal } from "../core/proposal-decision.ts";
+import { readProposalPage } from "../core/proposal-page.ts";
 import { jsonBody } from "./openapi.ts";
-import { NOT_FOUND } from "./refusals.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
+import { notFound } from "./refusals.ts";
+import { ErrorResponseSchema, cursorParam } from "./schemas.ts";
+
+const ProposalQuerySchema = z.object({ cursor: cursorParam(parseLogCursor) });
 
 const listProposalsRoute = createRoute({
   method: "get",
@@ -77,10 +78,7 @@ function registerList(app: OpenAPIHono, ports: Ports): void {
   app.openapi(listProposalsRoute, async (c) => {
     const { cursor } = c.req.valid("query");
 
-    return c.json(
-      await readProposalPage(ports.db, cursor === undefined ? null : parseLogCursor(cursor)),
-      200,
-    );
+    return c.json(await readProposalPage(ports.db, cursor ?? null), 200);
   });
 }
 
@@ -95,7 +93,7 @@ function registerAccept(app: OpenAPIHono, ports: Ports): void {
       case "accepting":
         return c.json({ state: "accepting" as const }, 202);
       case "unknown":
-        return c.json({ error: NOT_FOUND }, 404);
+        return notFound(c);
       case "not-open":
       case "not-current":
       case "no-provider":
@@ -120,7 +118,7 @@ function registerReject(app: OpenAPIHono, ports: Ports): void {
       case "rejected":
         return c.json({ state: "rejected" as const }, 200);
       case "unknown":
-        return c.json({ error: NOT_FOUND }, 404);
+        return notFound(c);
       case "not-open":
         return c.json({ error: "not-open" }, 409);
       default: {

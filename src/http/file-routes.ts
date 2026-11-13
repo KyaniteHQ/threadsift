@@ -5,7 +5,7 @@ import { servedImage } from "../core/image-serving.ts";
 import { IMAGE_TYPES } from "../core/image-type.ts";
 import type { Ports } from "../core/ports.ts";
 import { jsonBody } from "./openapi.ts";
-import { NOT_FOUND } from "./refusals.ts";
+import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
 const FileParamsSchema = z.object({ id: z.string(), name: z.string() });
@@ -38,7 +38,7 @@ export function registerFileRoutes(app: OpenAPIHono, ports: Ports): void {
     const { id, name } = c.req.valid("param");
     const image = await servedImage(ports, itemFileKey(id, name));
 
-    if (image === null) return c.json({ error: NOT_FOUND }, 404);
+    if (image === null) return notFound(c);
 
     return c.body(image.body, 200, {
       "content-type": image.contentType,

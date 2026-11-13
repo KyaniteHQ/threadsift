@@ -31,6 +31,8 @@ describe("a Proposal of a kind a later release stores is neither listed nor acte
       instance,
       `drop trigger proposals_values_insert;
        drop trigger proposals_values_update;
+       drop trigger proposals_state_insert;
+       drop trigger proposals_state_update;
        drop trigger proposals_subject_insert;
        drop trigger proposals_subject_update;
        with recursive n(i) as (select 1 union all select i + 1 from n where i < ${String(UNKNOWN_ROWS)})

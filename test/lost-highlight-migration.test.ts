@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { LIFECYCLE } from "../src/core/proposal-lifecycle.ts";
 import type { Instance } from "./instance.ts";
 import { mergesOf, readPage } from "./lost-highlight-fixtures.ts";
 import { type OlderRelease, startOlderRelease } from "./older-release.ts";
@@ -181,10 +182,10 @@ describe("the lost-Highlight migration on a database made by the release before 
     database.close();
   });
 
-  it("updates a lost row to every state, and removes it with its Highlight", () => {
+  it("updates a lost row to every state it holds, and removes it with its Highlight", () => {
     const database = sqlite();
 
-    for (const state of ["accepting", "rejected", "declined", "open"]) {
+    for (const state of LIFECYCLE["highlight-lost"].held) {
       assert.doesNotThrow(() => {
         database.exec(`update proposals set state = '${state}' where highlight_id = 1`);
       });

@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import type { JobPorts } from "./job-outcome.ts";
 import { startOverview } from "./overview-start.ts";
+import { removedOpen } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
 import { hasUncovered, overviewGap } from "./topic-coverage.ts";
 
@@ -28,7 +29,7 @@ export async function acceptOverviewGap(
 
   const started = await startOverview(ports, row.topicId, {
     when: stillOpen(id, row.topicId),
-    after: [db.delete(proposals).where(and(eq(proposals.id, id), sql`changes() > 0`))],
+    after: [removedOpen(db, eq(proposals.id, id), sql`changes() > 0`)],
   });
 
   if (started.kind === "started") return "done";

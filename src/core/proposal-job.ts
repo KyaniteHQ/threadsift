@@ -5,7 +5,7 @@ import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { proposalsInput, readProposalPairs } from "./proposal-input.ts";
-import { proposalRow } from "./proposal-row.ts";
+import { type InsertedState, proposalRow } from "./proposal-lifecycle.ts";
 import {
   PROPOSALS_OUTPUT_TOKENS,
   type ProposalsResult,
@@ -19,7 +19,7 @@ interface StoredRow {
   readonly from: number;
   readonly into: number;
   readonly reason: string | null;
-  readonly state: "open" | "declined";
+  readonly state: InsertedState<MergeKind>;
 }
 
 type MergeKind = Parameters<typeof proposalsTask>[0];
