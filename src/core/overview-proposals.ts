@@ -1,14 +1,10 @@
 import { and, asc, desc, eq, notExists, sql } from "drizzle-orm";
 
-import { WEEKLY_TASK } from "./kinds.ts";
+import { plainCheckRow, plainCheckWeek } from "./plain-check-week.ts";
 import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
-import { proposalRow, removedOpen } from "./proposal-lifecycle.ts";
-import { claimedAt, claimingWeek } from "./scheduled-claim.ts";
 import { proposals, topics } from "./schema.ts";
 import { overviewGap, uncoveredCount } from "./topic-coverage.ts";
-
-const PLAIN_CHECK = "plain-check";
 
 function mostBehind(db: Database) {
   return db
@@ -37,17 +33,7 @@ function insertedRows(db: Database, now: number) {
     .insert(proposals)
     .select(
       db
-        .select(
-          proposalRow(
-            {
-              kind: "overview-gap",
-              state: sql`'open'`,
-              reason: sql`${PLAIN_CHECK}`,
-              createdAt: now,
-            },
-            { topicId: sql<number>`${picked.id}` },
-          ),
-        )
+        .select(plainCheckRow("overview-gap", now, { topicId: sql<number>`${picked.id}` }))
         .from(picked)
         .where(sql`changes() > 0`)
         .orderBy(asc(picked.uncovered), desc(picked.id)),
@@ -55,19 +41,9 @@ function insertedRows(db: Database, now: number) {
     .onConflictDoNothing();
 }
 
-function closedGaps(db: Database, now: number) {
-  return removedOpen(
-    db,
-    claimedAt(WEEKLY_TASK["overview-gap"], now),
-    eq(proposals.kind, "overview-gap"),
-    sql`not (${overviewGap(proposals.topicId)})`,
-  );
-}
-
 export async function proposeOverviewGaps(db: Database, now: number): Promise<void> {
-  await db.batch([
-    claimingWeek(db, now, WEEKLY_TASK["overview-gap"]),
-    insertedRows(db, now),
-    closedGaps(db, now),
-  ]);
+  await plainCheckWeek(db, now, "overview-gap", {
+    inserted: insertedRows(db, now),
+    closedWhen: sql`not (${overviewGap(proposals.topicId)})`,
+  });
 }
