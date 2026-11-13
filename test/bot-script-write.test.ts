@@ -181,6 +181,38 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
     assert.equal(readFileSync(file).length, ITEM_REQUEST_BYTES);
   });
 
+  it("forgets the search and topics files of one hex and no other file, and answers bad-input and changes nothing for a word that is not the hex of a mark", async () => {
+    const other = HEX.replaceAll("0", "9");
+    const folder = new ScriptFolder();
+    const forget = async (word: string) => (await folder.run(["forget", word], {})).word;
+
+    try {
+      const written = await Promise.all(
+        [`search-${HEX}.json`, `topics-${HEX}.json`, `search-${other}.json`, `link-${HEX}.txt`].map(
+          async (name) => (await folder.run(["write", name], {}, "text")).word,
+        ),
+      );
+
+      assert.deepEqual(written, ["ok", "ok", "ok", "ok"]);
+      assert.equal(await forget(HEX), "ok");
+      assert.deepEqual(readdirSync(join(folder.path, "tmp")).toSorted(), [
+        `link-${HEX}.txt`,
+        `search-${other}.json`,
+      ]);
+
+      const unchanged = folder.tree();
+
+      const words = await Promise.all(
+        ["", "../x", "ABC", HEX.toUpperCase(), `${HEX}0`].map((word) => forget(word)),
+      );
+
+      assert.deepEqual(words, ["bad-input", "bad-input", "bad-input", "bad-input", "bad-input"]);
+      assert.deepEqual(folder.tree(), unchanged);
+    } finally {
+      folder.remove();
+    }
+  });
+
   it("refuses to write through a link in place of tmp, tasks or state, and writes nothing behind it", async () => {
     assert.deepEqual(await Promise.all(["tmp", "tasks", "state"].map((folder) => refuse(folder))), [
       ["bad-input", []],
@@ -220,39 +252,5 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
 
     assert.equal(await run(["task-open", file]), `ok ${String(task.id)} x_intake`);
     assert.equal(existsSync(file), false);
-  });
-
-  it("keeps the newest id of the bookmarks in state, prints none before the first one, and refuses a file that is not the cursor", async () => {
-    assert.equal(await run(["bookmarks-get"]), "none");
-
-    const cursor = (text: string) => world.folder.made("bookmarks", text);
-
-    const refused = [
-      "not json",
-      "[]",
-      '{"newest_id":12}',
-      '{"newest_id":"12a"}',
-      '{"newest_id":"1","extra":true}',
-      '{"newest_id":""}',
-      `{"newest_id":"${"1".repeat(31)}"}`,
-    ];
-
-    assert.deepEqual(
-      await Promise.all(refused.map(async (text) => run(["bookmarks-set", await cursor(text)]))),
-      refused.map(() => "bad-input"),
-    );
-
-    assert.equal(await run(["bookmarks-get"]), "none");
-
-    const good = await cursor('{"newest_id":"1999999999999999001"}');
-
-    assert.equal(await run(["bookmarks-set", good]), "ok");
-    assert.equal(existsSync(good), false);
-    assert.equal(await run(["bookmarks-get"]), "1999999999999999001");
-    assert.equal(
-      await run(["bookmarks-set", join(world.folder.path, "threadsift.sh")]),
-      "bad-input",
-    );
-    assert.equal(await run(["bookmarks-get"]), "1999999999999999001");
   });
 });

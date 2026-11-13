@@ -11,9 +11,11 @@ import {
   LOCAL_COMMANDS,
   ROUTINE_PATHS,
   SKILL_PATH,
+  WITHOUT_STATUS,
+  bookmarkWordsOf,
   botFile,
   commandsOf,
-  fencesOf,
+  flagsOf,
   frontmatterOf,
   proseOf,
   reasonsOf,
@@ -88,6 +90,8 @@ describe("the Threadsift bot files say only what the script, the API and the sch
         "topics",
         "search",
         "save",
+        "bookmarks-cursor",
+        "bookmarks-send",
         "task-open",
         "task-answer",
         "task-intake",
@@ -147,6 +151,26 @@ describe("the Threadsift bot files say only what the script, the API and the sch
       reasonsOf(script).filter((word) => !spansOf(skill.text).some((span) => span.includes(word))),
       [],
     );
+
+    const sync = new Set(spansOf(sectionOf(skill.text, "Bookmark sync")));
+
+    assert.deepEqual(
+      [...bookmarkWordsOf(script, statusesOf)].filter((word) => !sync.has(word)),
+      [],
+    );
+    assert.deepEqual(
+      flagsOf(script).filter(
+        (word) =>
+          !spansOf(skill.text).some(
+            (span) => span.startsWith("bookmarks-send <file> ") && span.split(" ").includes(word),
+          ),
+      ),
+      [],
+    );
+    assert.deepEqual(
+      WITHOUT_STATUS.filter((word) => !scriptWordsOf(script).includes(word)),
+      [],
+    );
   });
 
   it("takes no shell word from outside the script: every command of the bot files has only a task id placeholder, a fixed word of the script or a path under ~/threadsift", () => {
@@ -155,7 +179,7 @@ describe("the Threadsift bot files say only what the script, the API and the sch
       ...LOCAL_COMMANDS,
     ]);
 
-    const fixed = new Set(reasonsOf(script));
+    const fixed = new Set([...reasonsOf(script), ...flagsOf(script)]);
     const shown = DOC_PATHS.flatMap((path) => spansOf(proseOf(botFile(path).text)));
 
     const bad = shown.flatMap((span) =>
@@ -176,13 +200,19 @@ describe("the Threadsift bot files say only what the script, the API and the sch
     );
   });
 
-  it("names, in each routine and the profile, a section the skill has, and gives setup the text of each routine", () => {
+  it("names, in each routine, a section the skill has, and gives setup the text of each routine", () => {
     const setup = botFile("setup.md").text;
 
-    for (const path of [...ROUTINE_PATHS, "profile.md"]) {
+    for (const path of ROUTINE_PATHS) {
       const { text } = botFile(path);
 
-      for (const [, section = ""] of text.matchAll(/skill: ([a-z ]+?)[,.]/gu)) {
+      const sections = [...text.matchAll(/skill: ([a-z -]+?)[,.]/gu)].map(
+        ([, section = ""]) => section,
+      );
+
+      assert.notEqual(sections.length, 0, path);
+
+      for (const section of sections) {
         assert.ok(skill.text.toLowerCase().includes(`## ${section}\n`), `${path} ${section}`);
       }
     }
@@ -229,9 +259,13 @@ describe("the Threadsift bot files say only what the script, the API and the sch
     const names = [
       ...new Set(
         DOC_PATHS.flatMap((path) =>
-          spansOf(proseOf(botFile(path).text)).filter(
-            (span) => /<hex[12]?>/u.test(span) && !span.includes(" ") && span.includes("."),
-          ),
+          spansOf(proseOf(botFile(path).text))
+            .filter((span) => /<hex[12]?>/u.test(span) && !span.includes(" ") && span.includes("."))
+            .map((span) =>
+              (span.split("/").pop() ?? "")
+                .replace("<kind>", "kind")
+                .replaceAll(HEX_PLACEHOLDER, "0123456789abcdef0123456789abcdef"),
+            ),
         ),
       ),
     ];
@@ -242,32 +276,13 @@ describe("the Threadsift bot files say only what the script, the API and the sch
       assert.ok(names.length >= 5);
 
       const words = await Promise.all(
-        names.map(async (span) => {
-          const name = (span.split("/").pop() ?? "")
-            .replace("<kind>", "kind")
-            .replaceAll(HEX_PLACEHOLDER, "0123456789abcdef0123456789abcdef");
-
-          return (await folder.run(["write", name], {}, "text")).word;
-        }),
+        names.map(async (name) => (await folder.run(["write", name], {}, "text")).word),
       );
 
       assert.deepEqual(
         words,
         names.map(() => "ok"),
       );
-    } finally {
-      folder.remove();
-    }
-  });
-
-  it("shows a bookmark cursor that bookmarks-set accepts", async () => {
-    const shown = fencesOf(skill.text).find(({ label }) => label === "cursor");
-    const folder = new ScriptFolder();
-
-    try {
-      const file = await folder.made("bookmarks", (shown?.body ?? "").replace("<digits>", "123"));
-
-      assert.equal((await folder.run(["bookmarks-set", file], {})).word, "ok");
     } finally {
       folder.remove();
     }

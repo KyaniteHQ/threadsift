@@ -6,6 +6,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 command="${1:-}"
 first="${2:-}"
 second="${3:-}"
+third="${4:-}"
 
 WRITE_CAP=8388608
 NAME='^[a-z][a-z0-9-]{0,31}-([0-9a-f]{32})\.(json|txt)$'
@@ -16,6 +17,8 @@ route_of() {
     topics) method=GET; template="/api/topics"; credential=agent ;;
     search) method=GET; template="/api/items"; credential=agent ;;
     save) method=POST; template="/api/items"; credential=agent ;;
+    bookmarks-cursor) method=GET; template="/api/imports/{name}"; credential=agent ;;
+    bookmarks-send) method=POST; template="/api/items/batch"; credential=agent ;;
     task-open) method=GET; template="/api/ai-tasks/{id}"; credential=task ;;
     task-answer) method=POST; template="/api/ai-tasks/{id}/result"; credential=task ;;
     task-intake) method=POST; template="/api/ai-tasks/{id}/intake"; credential=task ;;
@@ -26,16 +29,17 @@ route_of() {
 
 word_of() {
   case "$command:$1" in
-    check:200|topics:200|search:200|task-open:200) echo ok ;;
+    check:200|topics:200|search:200|task-open:200|bookmarks-cursor:200|bookmarks-send:200) echo ok ;;
     task-answer:204|task-intake:204|task-error:204|save:201) echo ok ;;
     save:200) echo duplicate ;;
+    bookmarks-cursor:404) echo none ;;
     *:400) echo invalid ;;
     *:401) echo unauthorized ;;
     *:403) echo forbidden ;;
     *:409) echo closed ;;
     *:413) echo too-large ;;
-    save:429) echo budget-spent ;;
-    save:503) echo updating ;;
+    save:429|bookmarks-send:429) echo budget-spent ;;
+    save:503|bookmarks-send:503) echo updating ;;
     *:000) echo unreachable ;;
     *) echo failed ;;
   esac
@@ -135,35 +139,10 @@ written() {
   echo ok
 }
 
-bookmarks_get() {
+forgotten() {
+  [[ "$1" =~ ^[0-9a-f]{32}$ ]] || stop bad-input "forget takes the hex of a mark"
   plain_dirs
-  python3 -I -c '
-import json, re, sys
-
-try:
-    with open(sys.argv[1]) as handle:
-        cursor = json.load(handle)
-    newest = cursor["newest_id"]
-    print(newest if re.fullmatch(r"[0-9]{1,30}", newest) else "none")
-except Exception:
-    print("none")
-' "$HERE/state/bookmarks.json"
-}
-
-bookmarks_set() {
-  local file
-  plain_dirs
-  take "$1" "the cursor file"
-  file="$taken"
-  python3 -I -c '
-import json, re, sys
-
-with open(sys.argv[1]) as handle:
-    cursor = json.load(handle)
-if not (isinstance(cursor, dict) and list(cursor) == ["newest_id"] and isinstance(cursor["newest_id"], str) and re.fullmatch(r"[0-9]{1,30}", cursor["newest_id"])):
-    sys.exit(1)
-' "$file" 2> /dev/null || stop bad-input 'the cursor must be {"newest_id":"<digits>"}'
-  mv -T -- "$file" "$HERE/state/bookmarks.json" || stop failed "cannot store the cursor"
+  rm -f -- "${HERE:?}/tmp/search-$1.json" "${HERE:?}/tmp/topics-$1.json"
   echo ok
 }
 
@@ -181,10 +160,9 @@ pruned_tasks() {
 
 case "$command" in
   mark) mark_word; exit 0 ;;
+  forget) forgotten "$first"; exit 0 ;;
   write) written write "$first"; exit 0 ;;
   append) written append "$first"; exit 0 ;;
-  bookmarks-get) bookmarks_get; exit 0 ;;
-  bookmarks-set) bookmarks_set "$first"; exit 0 ;;
 esac
 
 [[ "$command" != task-intake ]] && route_of "$command" || stop bad-input "unknown command"
@@ -196,6 +174,8 @@ token=""
 folder=""
 taken=""
 link_file=""
+ids_file=""
+import_name=""
 thread_file=""
 query_file=""
 answer_file=""
@@ -203,6 +183,7 @@ answer_file=""
 case "$command" in
   save) take "$first" "the link file"; link_file="$taken"; [[ -z "$second" ]] || { take "$second" "the thread file"; thread_file="$taken"; } ;;
   search) take "$first" "the query file"; query_file="$taken" ;;
+  bookmarks-send) take "$first" "the id file"; ids_file="$taken" ;;
   task-answer) take "$second" "the answer file"; answer_file="$taken" ;;
 esac
 
@@ -281,6 +262,8 @@ elif [[ "$credential" == task ]]; then
   path="${template//\{id\}/$id}"
 fi
 
+[[ "$command" != bookmarks-cursor ]] || path="${template//\{name\}/x-bookmarks}"
+
 [[ "$token" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || stop bad-input "bad credential"
 
 case "$command" in
@@ -302,11 +285,20 @@ print(text)
 ' "$query_file")" || stop bad-input "the query must be one line"
     options=(--get --data-urlencode "q=$query")
     ;;
-  save|task-intake|task-answer|task-error)
+  save|task-intake|task-answer|task-error|bookmarks-send)
     mode="$command"
     arg1="" arg2=""
     case "$command" in
       save) arg1="$link_file"; arg2="$thread_file" ;;
+      bookmarks-send)
+        case "$second:$third" in
+          :) ;;
+          cursor:) import_name=x-bookmarks ;;
+          cursor:all) import_name=x-bookmarks-all ;;
+          *) stop bad-input "the words after the file are cursor, or cursor all" ;;
+        esac
+        arg1="$ids_file"; arg2="$import_name"
+        ;;
       task-error)
         reason_of "$second" || stop bad-input "unknown reason word"
         arg1="$sentence"
@@ -316,7 +308,7 @@ print(text)
     if ! python3 -I - "$mode" "$arg1" "$arg2" > "$request" 2> "$work/reasons" <<'PY'
 import json, re, sys
 
-mode, first, second = sys.argv[1:4]
+mode, first, extra = sys.argv[1:4]
 
 def load(path):
     with open(path) as handle:
@@ -331,14 +323,22 @@ try:
             sys.exit("the answer must be a JSON object")
     elif mode == "task-answer":
         body = {"result": load(first)}
+    elif mode == "bookmarks-send":
+        found = load(first)
+        ids = found.get("ids") if isinstance(found, dict) and list(found) == ["ids"] else None
+        if not (isinstance(ids, list) and 1 <= len(ids) <= 100 and all(isinstance(each, str) and re.fullmatch(r"[0-9]{1,30}", each) for each in ids)):
+            sys.exit("the file must hold only ids, 1 to 100 post ids as digit strings")
+        body = {"links": [{"url": f"https://x.com/i/status/{each}"} for each in ids]}
+        if extra:
+            body["import"] = {"name": extra, "cursor": ids[0]}
     else:
         with open(first) as handle:
             link = handle.read().rstrip("\n")
         if not re.fullmatch(r"https?://[^\s\x00-\x1f\x7f]{1,2000}", link):
             sys.exit("the link must be one http or https URL on one line")
         body = {"url": link}
-        if second:
-            with open(second) as handle:
+        if extra:
+            with open(extra) as handle:
                 body["content"] = handle.read()
     json.dump(body, sys.stdout)
 except SystemExit:
@@ -379,6 +379,11 @@ if not isinstance(body, dict):
     sys.exit(1)
 if mode in ("check", "search"):
     ok = isinstance(body.get("items"), list)
+elif mode == "bookmarks-cursor":
+    ok = isinstance(body.get("cursor"), str)
+elif mode == "bookmarks-send":
+    sent = len(json.load(open(sys.argv[3]))["links"])
+    ok = isinstance(body.get("results"), list) and len(body["results"]) == sent and all(isinstance(each, dict) and each.get("outcome") in ("added", "known", "refused") for each in body["results"])
 elif mode == "topics":
     ok = isinstance(body.get("topics"), list)
 else:
@@ -391,10 +396,10 @@ else:
         and isinstance(body.get("schema"), dict)
     )
 sys.exit(0 if ok else 1)
-' "$response" "$command" 2> /dev/null
+' "$response" "$command" "$request" 2> /dev/null
 }
 
-if [[ "$word" == ok && "$method" == GET ]] && ! shaped; then word=failed; fi
+if [[ "$word" == ok && ( "$method" == GET || "$command" == bookmarks-send ) ]] && ! shaped; then word=failed; fi
 
 if [[ "$word" == ok ]]; then
   case "$command" in
@@ -403,6 +408,12 @@ if [[ "$word" == ok ]]; then
       if [[ "$command" == search ]]; then
         python3 -I -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1]))["items"] else 1)' "$response" || word=none
       fi
+      ;;
+    bookmarks-cursor)
+      word="$(python3 -I -c 'import json,re,sys; print(re.fullmatch(r"[0-9]{1,30}", json.load(open(sys.argv[1]))["cursor"]).group(0))' "$response" 2> /dev/null)" || word=failed
+      ;;
+    bookmarks-send)
+      word="ok $(python3 -I -c 'import json,sys; r=[each["outcome"] for each in json.load(open(sys.argv[1]))["results"]]; print(r.count("added"), r.count("known"), r.count("refused"))' "$response")"
       ;;
     task-open)
       kind="$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["kind"])' "$response")"
