@@ -8,7 +8,7 @@ function isSameDay(left: number, right: number): boolean {
   return new Date(left).toDateString() === new Date(right).toDateString();
 }
 
-export function whenOf(retryAt: number, now: number): string {
+function whenOf(retryAt: number, now: number): string {
   const time = TIME.format(retryAt);
 
   return isSameDay(retryAt, now) ? `at ${time}` : `on ${DAY.format(retryAt)} at ${time}`;

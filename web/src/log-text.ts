@@ -1,4 +1,4 @@
-import { filled } from "./text.ts";
+import { NEWEST_FIRST, filled } from "./text.ts";
 
 export const LOG_PAGE = {
   masthead: "Log",
@@ -7,7 +7,7 @@ export const LOG_PAGE = {
   loadFailed: "Couldn’t load the log.",
   emptyHeading: "Nothing in the log yet",
   loadMoreFailed: "Couldn’t load more of the log.",
-  sort: "Newest first",
+  sort: NEWEST_FIRST,
 } as const;
 
 const EMPTY_LINE = "The log began on {date}. Changes the agent makes from then on appear here.";

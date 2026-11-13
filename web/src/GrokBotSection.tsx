@@ -1,13 +1,11 @@
-import { useCallback, type SubmitEvent } from "react";
-
 import { GROK_BOT_KEY_MAX, type GrokBotView } from "../../src/core/grok-bot-contract.ts";
-import { Alert } from "./Alert.tsx";
 import { FormField } from "./FormField.tsx";
 import { GROK_BOT_TEXT, KEY_STATES } from "./grok-bot-text.ts";
-import { type Loaded, LoadedSection } from "./LoadedSection.tsx";
-import { SettingsActions } from "./SettingsActions.tsx";
+import type { SectionSpec } from "./LoadedSection.tsx";
+import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
 import type { FieldState } from "./use-form.ts";
 import { useGrokBotForm } from "./use-grok-bot-form.ts";
+import { runningAction } from "./use-settings-action.ts";
 
 const ADDRESS_KIND = {
   name: "webhookUrl",
@@ -66,24 +64,13 @@ function GrokBotForm({
   changed,
 }: Readonly<{ view: GrokBotView; changed: (view: GrokBotView) => void }>) {
   const form = useGrokBotForm(view, changed);
-  const { submit } = form;
-
-  const onSubmit = useCallback(
-    (event: SubmitEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      submit();
-    },
-    [submit],
-  );
 
   return (
     <>
-      <form
-        method="post"
+      <SettingsForm
         action="/api/settings/grok-bot"
-        className="stack ai-form"
-        onSubmit={onSubmit}
-        aria-busy={form.busy}
+        busy={form.busy}
+        submit={form.submit}
         noValidate
       >
         <GrokBotFields
@@ -92,11 +79,10 @@ function GrokBotForm({
           keyField={form.key}
           keyRequired={form.keyRequired}
         />
-        <SettingsActions flow={form.flow} buttons={form.buttons} />
+        <SettingsActions running={runningAction(form.flow)} buttons={form.buttons} />
         <p className="fld-help">{GROK_BOT_TEXT.testCost}</p>
-      </form>
-      <output>{form.result?.kind === "ok" ? form.result.text : null}</output>
-      <Alert text={form.result?.kind === "error" ? form.result.text : null} />
+      </SettingsForm>
+      <SettingsResult outcome={form.result} />
     </>
   );
 }
@@ -108,15 +94,10 @@ const grokBotForm = (view: GrokBotView, changed: (view: GrokBotView) => void) =>
   </>
 );
 
-export function GrokBotSection({ initial }: Readonly<{ initial: Loaded<GrokBotView> }>) {
-  return (
-    <LoadedSection
-      id="grok-bot"
-      title={GROK_BOT_TEXT.sectionTitle}
-      intro={GROK_BOT_TEXT.intro}
-      loadFailed={GROK_BOT_TEXT.loadFailed}
-      initial={initial}
-      form={grokBotForm}
-    />
-  );
-}
+export const GROK_BOT_SECTION: SectionSpec<GrokBotView> = {
+  id: "grok-bot",
+  title: GROK_BOT_TEXT.sectionTitle,
+  intro: GROK_BOT_TEXT.intro,
+  loadFailed: GROK_BOT_TEXT.loadFailed,
+  form: grokBotForm,
+};

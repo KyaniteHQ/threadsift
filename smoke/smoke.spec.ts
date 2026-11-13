@@ -2,7 +2,13 @@ import { type Browser, type Page, expect, test } from "@playwright/test";
 
 import { IMPORT, countLabel } from "../web/src/import-text.ts";
 import { INDEX_PAGE } from "../web/src/index-text.ts";
-import { ADD_LABEL, FILTERS_BUTTON, FILTER_GROUPS, PASTE_LABEL } from "../web/src/text.ts";
+import {
+  ADD_LABEL,
+  BACK_TO_LIBRARY,
+  FILTERS_BUTTON,
+  FILTER_GROUPS,
+  PASTE_LABEL,
+} from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
 import { expectDocumentHeaders, visitSignedOut, watchContext } from "./document-checks.ts";
@@ -114,7 +120,7 @@ async function importList(page: Page): Promise<void> {
     page.getByText(countLabel(IMPORT_LIST.length, "added"), { exact: true }),
   ).toBeVisible();
   await expect(page.getByText(IMPORT.finished)).toBeVisible();
-  await page.getByRole("link", { name: IMPORT.back }).click();
+  await page.getByRole("link", { name: BACK_TO_LIBRARY }).click();
   await expect(libraryHeading(page)).toBeVisible();
 
   await expect(

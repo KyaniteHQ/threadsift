@@ -94,7 +94,6 @@ export const WAIT = {
 
 export const SETTINGS = {
   title: "Settings",
-  back: "Back to library",
   instanceSettings: "Instance settings",
   tokensTitle: "Agent tokens",
   tokensIntro:

@@ -17,7 +17,7 @@ const CODE_INPUT = {
   mono: true,
 } as const;
 
-export interface CodeStepProps {
+interface CodeStepProps {
   readonly wrong: boolean;
   readonly go: GoTo;
   readonly exists: () => void;

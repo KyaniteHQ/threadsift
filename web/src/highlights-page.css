@@ -91,20 +91,6 @@ blockquote.hp-text {
   margin: 0;
 }
 
-.hp-more {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s2) var(--s3);
-  padding-block: var(--s3);
-}
-.hp-more p {
-  margin: 0;
-}
-.app[data-bp~="phone"] .hp-more .btn {
-  flex: 1 1 auto;
-}
-
 .hp-it.it-ghost {
   min-height: calc(var(--s6) * 2);
 }

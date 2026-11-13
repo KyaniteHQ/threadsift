@@ -4,7 +4,6 @@ import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { PageBar } from "./PageBar.tsx";
 import { RETRY_LABEL } from "./text.ts";
-import { TOPIC_PAGE } from "./topic-text.ts";
 import { useFocusNewRows } from "./use-focus-new-rows.ts";
 import type { Paged, PagedPage, PagedReady } from "./use-paged-read.ts";
 
@@ -62,16 +61,16 @@ function Rows<Page extends PagedPage, Row>({
         </h2>
         <p className="label">{listing.text.sort}</p>
       </header>
-      <ol
-        // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from an ol with list-style none
-        role="list"
-        ref={list}
-        className="rl-list"
-      >
+      <ol ref={list} role="list" className="rl-list">
         {listing.rows(ready).map((row) => draw(row))}
       </ol>
       {ready.next === null ? null : (
-        <LoadMore more={ready.more} failedText={listing.text.loadMoreFailed} loadMore={more} />
+        <LoadMore
+          more={ready.more}
+          failedText={listing.text.loadMoreFailed}
+          disabled={ready.more === "loading"}
+          loadMore={more}
+        />
       )}
     </section>
   );
@@ -111,12 +110,7 @@ export function ListPage<Page extends PagedPage, Row>({
 
   return (
     <div className="pg">
-      <PageBar
-        title={listing.text.title}
-        back={back}
-        backLabel={TOPIC_PAGE.back}
-        ready={!loading}
-      />
+      <PageBar title={listing.text.title} back={back} ready={!loading} />
       <main className="pg-col rl-col" aria-busy={loading}>
         {notice === null ? null : <p className="rd-note">{notice}</p>}
         <Body source={source} listing={listing} draw={draw} />

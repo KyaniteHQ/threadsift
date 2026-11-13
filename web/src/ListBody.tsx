@@ -113,13 +113,7 @@ function ItemList({
   shared: Readonly<RowProps>;
 }>) {
   return (
-    <ol
-      ref={rows}
-      // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from an ol with list-style none
-      role="list"
-      className="items"
-      aria-labelledby={RESULTS_ID}
-    >
+    <ol ref={rows} role="list" className="items" aria-labelledby={RESULTS_ID}>
       {items.map((item) => (
         <li key={item.id}>
           <ItemRow

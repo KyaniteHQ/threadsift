@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { NOTHING } from "./nothing.ts";
 import { type PanelRefs, watchPopover, watchSheet } from "./panel-dom.ts";
 
 const FIRST_CHOICE = '.st-body input[type="radio"]:checked';
-
-const NOTHING = (): void => undefined;
 
 type View = Readonly<{ open: boolean; refocusGear: boolean }>;
 

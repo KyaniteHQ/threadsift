@@ -2,7 +2,7 @@ import { type ComponentProps, Fragment, type ReactElement, createElement } from 
 
 import { HighlightAction } from "./HighlightAction.tsx";
 import { useSpans } from "./highlights-context.ts";
-import { lazyModule } from "./lazy-module.ts";
+import { lazyModule } from "./ModuleBoundary.tsx";
 
 type PostTextExports = typeof import("./PostText.tsx");
 

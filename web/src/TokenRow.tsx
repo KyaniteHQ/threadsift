@@ -7,7 +7,7 @@ import { SCOPE_NAMES } from "./ScopePicker.tsx";
 import { filled } from "./text.ts";
 import { useEscape, useFocusOnMount } from "./use-form.ts";
 
-export interface RowActions {
+interface RowActions {
   readonly ask: (id: number) => void;
   readonly cancel: (id: number) => void;
   readonly revoke: (id: number) => Promise<void>;

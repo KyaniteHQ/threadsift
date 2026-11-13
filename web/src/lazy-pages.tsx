@@ -1,7 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 
-import { lazyModule } from "./lazy-module.ts";
-import { ModuleBoundary } from "./ModuleBoundary.tsx";
+import { ModuleBoundary, lazyModule } from "./ModuleBoundary.tsx";
 import { IMPORT_PATH, LOG_PATH, PROPOSALS_PATH, SETTINGS_PATH } from "./routing.ts";
 import { Unreachable } from "./Unreachable.tsx";
 

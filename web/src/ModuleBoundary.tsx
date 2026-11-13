@@ -1,6 +1,10 @@
-import { Component, type ReactNode } from "react";
+import { Component, type ComponentType, type ReactNode, lazy } from "react";
 
-import { ModuleUnavailable } from "./module-unavailable.ts";
+import { ModuleUnavailable, unavailable } from "./module-unavailable.ts";
+
+export function lazyModule<Props extends object>(load: () => Promise<ComponentType<Props>>) {
+  return lazy(() => load().then((component) => ({ default: component }), unavailable));
+}
 
 interface BoundaryState {
   readonly error: Error | null;
