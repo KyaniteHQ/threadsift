@@ -65,8 +65,12 @@ export function digestedCount(topicId: TopicRef): SQL {
   return sql`(select count(*) from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId})`;
 }
 
+export function openOverviewJob(topicId: TopicRef): SQL {
+  return sql`(select open_overview.id from ${jobs} as open_overview join ${items} as owner on owner.id = open_overview.item_id where open_overview.kind = 'topic_overview' and open_overview.state <> 'done' and owner.topic_id = ${topicId} order by open_overview.id limit 1)`;
+}
+
 export function hasOpenOverview(topicId: TopicRef): SQL {
-  return sql`exists (select 1 from ${jobs} as open_overview join ${items} as owner on owner.id = open_overview.item_id where open_overview.kind = 'topic_overview' and open_overview.state <> 'done' and owner.topic_id = ${topicId})`;
+  return sql`(${openOverviewJob(topicId)} is not null)`;
 }
 
 export function overviewGap(topicId: TopicRef): SQL {

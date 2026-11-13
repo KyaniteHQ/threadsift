@@ -31,7 +31,7 @@ export async function acceptOverviewGap(
     after: [db.delete(proposals).where(and(eq(proposals.id, id), sql`changes() > 0`))],
   });
 
-  if (started === "started") return "done";
+  if (started.kind === "started") return "done";
 
   const [now] = await db
     .select({ state: proposals.state, current: sql<number>`${overviewGap(proposals.topicId)}` })
@@ -42,7 +42,9 @@ export async function acceptOverviewGap(
 
   if (now.state !== "open") return "not-open";
 
-  if (started === "no-provider") return "no-provider";
+  if (started.kind === "no-provider") return "no-provider";
 
-  return started === "stale" && now.current === 1 ? acceptOverviewGap(ports, id) : "not-current";
+  return started.kind === "stale" && now.current === 1
+    ? acceptOverviewGap(ports, id)
+    : "not-current";
 }

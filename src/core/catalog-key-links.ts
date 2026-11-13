@@ -17,11 +17,10 @@ import {
   proposals,
   tags,
   topicLeases,
-  topicPages,
   topics,
 } from "./schema.ts";
 import { tagPartWrites } from "./search.ts";
-import { continuingOverview } from "./topic-overview-open.ts";
+import { continuingOverview, overviewRemoved } from "./topic-overview-run.ts";
 
 export const MERGE_ITEMS = 500;
 
@@ -117,7 +116,7 @@ export function topicMoves(
       .update(logEntries)
       .set({ topicId: survivor })
       .where(and(eq(logEntries.topicId, loser), among(logEntries.id, entryIds))),
-    db.delete(topicPages).where(and(eq(topicPages.topicId, loser), emptied(db, loser))),
+    overviewRemoved(db, loser, emptied(db, loser)),
     db.delete(topicLeases).where(and(eq(topicLeases.topicId, loser), emptied(db, loser))),
   ];
 }

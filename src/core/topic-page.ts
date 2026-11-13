@@ -12,6 +12,7 @@ import {
   type Overview,
   type TopicPage,
   citedIds,
+  overviewState,
 } from "./topic-overview-contract.ts";
 import { topicKeyOfSegment } from "./topic-path.ts";
 
@@ -124,7 +125,7 @@ export async function readTopicOverview(db: Database, topicId: number): Promise<
     total: counts?.total ?? 0,
     builtFrom: page?.builtFrom ?? [],
     overview: {
-      state: flags?.pending === 1 ? "pending" : failure === null ? "idle" : "failed",
+      state: overviewState({ open: flags?.pending === 1, failure }),
       text: page?.overview ?? null,
       cited,
       builtFrom: counts?.built ?? 0,

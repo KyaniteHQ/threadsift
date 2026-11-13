@@ -33,8 +33,11 @@ export async function releaseTopicLeases(
   if (first !== undefined) await db.batch([first, ...rest]);
 }
 
-export function recoverHolderLeases(db: Database, holder: string) {
-  return db.update(topicLeases).set({ expiresAt: 0 }).where(eq(topicLeases.holder, holder));
+export function recoverPrefixLeases(db: Database, holderPrefix: string) {
+  return db
+    .update(topicLeases)
+    .set({ expiresAt: 0 })
+    .where(sql`substr(${topicLeases.holder}, 1, length(${holderPrefix})) = ${holderPrefix}`);
 }
 
 export async function claimTopicLease(

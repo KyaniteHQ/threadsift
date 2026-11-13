@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm";
-
 import { startOverview } from "./overview-start.ts";
 import type { Ports } from "./ports.ts";
-import { topicPages } from "./schema.ts";
 import type { Overview } from "./topic-overview-contract.ts";
+import { overviewRetried } from "./topic-overview-run.ts";
 import { type TopicRow, readTopicOverview, topicOfKey } from "./topic-page.ts";
 
 type OverviewRetry =
@@ -14,12 +12,21 @@ async function retryingTopic(ports: Ports, topic: Readonly<TopicRow>): Promise<O
   const { db } = ports;
   const result = await startOverview(ports, topic.id);
 
-  if (result === "no-provider" || result === "no-items") return { outcome: result };
-
-  if (result === "stale") return retryingTopic(ports, topic);
-
-  if (result === "open") {
-    await db.update(topicPages).set({ failure: null }).where(eq(topicPages.topicId, topic.id));
+  switch (result.kind) {
+    case "no-provider":
+    case "no-items":
+      return { outcome: result.kind };
+    case "stale":
+      return retryingTopic(ports, topic);
+    case "open":
+      await overviewRetried(db, topic.id, result.jobId);
+      break;
+    case "started":
+      break;
+    default: {
+      const exhaustive: never = result;
+      throw new Error(JSON.stringify(exhaustive));
+    }
   }
 
   return { outcome: "started", overview: (await readTopicOverview(db, topic.id)).overview };
