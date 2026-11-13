@@ -3,9 +3,9 @@ import { and, eq, gt } from "drizzle-orm";
 import { readRevision } from "./ai-settings.ts";
 import { digestOf } from "./encoding.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
-import { CURRENT_REVISION, DATABASE_NOW } from "./openrouter-tables.ts";
+import { CURRENT_REVISION } from "./openrouter-tables.ts";
 import type { Ports } from "./ports.ts";
-import { openrouterConnectTransactions as transactions } from "./schema.ts";
+import { DATABASE_NOW, openrouterConnectTransactions as transactions } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
 
 export interface Attempt {

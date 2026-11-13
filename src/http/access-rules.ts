@@ -16,8 +16,17 @@ const PUBLIC_ROUTES: readonly PublicRoute[] = [
 const OWNER_ONLY_PATH =
   /^\/api\/(?:(?:tokens|logout|settings|password)(?:\/|$)|items\/[^/]+\/(?:read-state$|note$|highlights(?:\/|$))|proposals\/[^/]+\/(?:accept|reject)$)/u;
 
+const TASK_CALLBACK_PATH = /^\/api\/ai-tasks\/[^/]+\/result$/u;
+
+export function isTaskCallback(method: string, path: string): boolean {
+  return method === "POST" && TASK_CALLBACK_PATH.test(path);
+}
+
 export function isPublic(method: string, path: string): boolean {
-  return PUBLIC_ROUTES.some((route) => route.method === method && route.path === path);
+  return (
+    PUBLIC_ROUTES.some((route) => route.method === method && route.path === path) ||
+    isTaskCallback(method, path)
+  );
 }
 
 export function isOwnerOnly(path: string): boolean {

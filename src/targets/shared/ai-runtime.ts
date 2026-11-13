@@ -57,7 +57,6 @@ export async function aiAndSecrets({
     ],
     publicOnly,
     allowsUrl: (url) => allowedAiUrl(url, publicOnly),
-    secrets,
     signedIn: async () => {
       const states = await Promise.all(
         cli.map(async (runner) => [runner, await runner.signedIn()] as const),

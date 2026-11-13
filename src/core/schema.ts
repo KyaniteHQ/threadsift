@@ -27,6 +27,7 @@ export { itemAliases } from "./alias-tables.ts";
 export { dataStepLease, dataStepRenames, dataSteps } from "./data-step-tables.ts";
 
 export {
+  DATABASE_NOW,
   guardHolds,
   guardedBatch,
   guardedWrite,
@@ -197,8 +198,17 @@ export const aiTasks = sqliteTable(
     refusal: text("refusal"),
     status: integer("status"),
     itemId: integer("item_id").references(() => items.id, { onDelete: "cascade" }),
+    callbackHash: text("callback_hash"),
+    jobId: integer("job_id"),
+    context: text("context"),
+    sentAt: integer("sent_at"),
+    answeredAt: integer("answered_at"),
   },
-  (table) => [index("ai_tasks_item").on(table.itemId)],
+  (table) => [
+    index("ai_tasks_item").on(table.itemId),
+    index("ai_tasks_job").on(table.jobId),
+    index("ai_tasks_executor_state").on(table.executor, table.state),
+  ],
 );
 
 export const digests = sqliteTable("digests", {

@@ -358,6 +358,13 @@
       "when": 1794532250346,
       "tag": "0050_proposal-lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1794544758343,
+      "tag": "0051_bot-task-lifecycle",
+      "breakpoints": true
     }
   ]
 }

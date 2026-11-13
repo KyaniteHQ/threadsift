@@ -148,6 +148,10 @@ export class Instance {
     return this.cookie;
   }
 
+  get core(): Ports {
+    return this.ports;
+  }
+
   get databaseFile(): string {
     return join(this.folder, "threadsift.db");
   }

@@ -99,7 +99,6 @@ export interface AiRuntime {
   readonly providers: readonly Provider[];
   readonly publicOnly: boolean;
   readonly allowsUrl: (url: string) => boolean;
-  readonly secrets: Sealer | null;
   readonly signedIn: () => Promise<readonly CliProvider[]>;
   readonly run: <Result>(
     task: AiTaskRequest<Result>,
