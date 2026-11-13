@@ -35,15 +35,22 @@ if (parentPort === null) {
 
 const parent = parentPort;
 
+type Answer =
+  | { readonly id: number; readonly ok: true; readonly value: unknown }
+  | { readonly id: number; readonly ok: false; readonly message: string };
+
+function send(answer: Readonly<Answer>): void {
+  // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
+  parent.postMessage(answer);
+}
+
 async function reply(request: Readonly<Request>): Promise<void> {
   try {
-    const value = await answerOf(request);
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
-    parent.postMessage({ id: request.id, ok: true, value });
+    send({ id: request.id, ok: true, value: await answerOf(request) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "the page could not be read";
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
-    parent.postMessage({ id: request.id, ok: false, message });
+
+    send({ id: request.id, ok: false, message });
   }
 }
 

@@ -2,9 +2,9 @@ import { spawn } from "node:child_process";
 
 import { Capture } from "./cli-capture.ts";
 
-export const KILL_GRACE_MS = 5000;
+const KILL_GRACE_MS = 5000;
 
-export interface ProcessSpec {
+interface ProcessSpec {
   readonly file: string;
   readonly args: readonly string[];
   readonly env: Readonly<Record<string, string>>;
