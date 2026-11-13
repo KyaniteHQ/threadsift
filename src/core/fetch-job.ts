@@ -9,6 +9,9 @@ import {
   type JobPorts,
   isLastAttempt,
 } from "./job-outcome.ts";
+import type { WaitReason } from "./kinds.ts";
+import { redditRefOf } from "./links.ts";
+import { redditClosed, redditClosing } from "./reddit-account-queue.ts";
 import { failedFetch } from "./settle.ts";
 import { handedToGrokBot } from "./x-intake-hand.ts";
 
@@ -19,11 +22,11 @@ function rateLimitGaveUp(db: JobPorts["db"], job: Readonly<ClaimedJob>): JobOutc
 function waitingOutcome(
   db: JobPorts["db"],
   job: Readonly<ClaimedJob>,
-  { until, limited }: Readonly<{ until: number; limited: boolean }>,
+  { until, limited, wait }: Readonly<{ until: number; limited: boolean; wait: WaitReason }>,
 ): JobOutcome {
   if (limited && isLastAttempt(job.attempts)) return rateLimitGaveUp(db, job);
 
-  return { deferredUntil: until, wait: "github-rate-limit", countsAttempt: limited };
+  return { deferredUntil: until, wait, countsAttempt: limited };
 }
 
 async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
@@ -46,4 +49,8 @@ export const fetchHandler: JobHandler = {
   blockedBy: [],
   attempt: attemptFetch,
   exhausted: (db, job) => [failedFetch(db, job.itemId, "gave-up"), givenUpTasks(db, job)],
+  closing: (db, job, how) => (redditRefOf(job.address) === null ? [] : redditClosing(db, job, how)),
+  afterClosed: async (ports, job, closed) => {
+    if (redditRefOf(job.address) !== null) await redditClosed(ports, job, closed);
+  },
 };

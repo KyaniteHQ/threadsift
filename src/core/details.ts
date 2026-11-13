@@ -2,6 +2,7 @@ import type { ArticleReading } from "./article.ts";
 import type { Page } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { collapsed } from "./format.ts";
+import type { WaitReason } from "./kinds.ts";
 import { type Link, isGitHubLink, isVideoLink, parseLink, redditRefOf } from "./links.ts";
 import type { MarkdownImage } from "./markdown-images.ts";
 import type { PageReader } from "./ports.ts";
@@ -50,7 +51,12 @@ export type Concluded =
 
 export type Fetched =
   | Concluded
-  | { readonly status: "waiting"; readonly until: number; readonly limited: boolean };
+  | {
+      readonly status: "waiting";
+      readonly until: number;
+      readonly limited: boolean;
+      readonly wait: WaitReason;
+    };
 
 export const NOT_REQUESTED: Concluded = { status: "not-requested" };
 

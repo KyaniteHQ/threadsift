@@ -1,55 +1,24 @@
-import { type ArchivedThread, archivedThread } from "./archive-fill.ts";
 import { type Concluded, type Fetched, detailsOfSuppliedPage } from "./details.ts";
-import { fetchLink, readOrTimeOut } from "./fetch-link.ts";
+import { readOrTimeOut } from "./fetch-link.ts";
 import { guardHolds } from "./guards.ts";
 import { redditRefOf, takesPage } from "./links.ts";
 import { pluginPage } from "./plugin-fetch.ts";
 import type { PageReader, Ports } from "./ports.ts";
+import { fetchedWithThread } from "./reddit-fetch.ts";
 import { noThreadFor } from "./reddit-thread.ts";
 import { type SuppliedPage, SuppliedPageSchema } from "./supplied-page.ts";
 
 interface JobSource {
+  readonly id: number;
   readonly address: string;
   readonly attempts: number;
   readonly itemId: number;
   readonly page: string | null;
 }
 
-type SourcePorts = Readonly<Pick<Ports, "db" | "secrets" | "network" | "pages" | "fetchers">>;
-
-function archiveFilled(
-  oembed: Readonly<Concluded>,
-  { thread, archivedAt }: Readonly<ArchivedThread>,
-): Concluded {
-  const known = oembed.status === "ok" ? oembed.found : null;
-
-  return {
-    status: "ok",
-    found: {
-      title: known?.title ?? thread.title,
-      author: known?.author ?? thread.author,
-      community: known?.community ?? thread.community,
-      content: { kind: "thread", thread, archivedAt },
-    },
-  };
-}
-
-async function fetchedWithArchive(
-  ports: SourcePorts,
-  { address, attempts, itemId }: Readonly<JobSource>,
-  deadline: AbortSignal,
-): Promise<Fetched> {
-  const ref = redditRefOf(address);
-
-  const [fetched, archived] = await Promise.all([
-    fetchLink(ports, address, attempts, deadline),
-    ref === null ? null : archivedThread(ports, itemId, ref, deadline),
-  ]);
-
-  return archived === null || fetched.status === "waiting"
-    ? fetched
-    : archiveFilled(fetched, archived);
-}
+type SourcePorts = Readonly<
+  Pick<Ports, "db" | "secrets" | "network" | "pages" | "fetchers" | "jobs" | "redditSession">
+>;
 
 function suppliedDetails(
   pages: Readonly<PageReader>,
@@ -97,6 +66,6 @@ export async function fetchedForJob(
   }
 
   return (
-    (await fetchedByPlugin(ports, source, deadline)) ?? fetchedWithArchive(ports, source, deadline)
+    (await fetchedByPlugin(ports, source, deadline)) ?? fetchedWithThread(ports, source, deadline)
   );
 }

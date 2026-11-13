@@ -4,7 +4,7 @@ import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 import { dataFileStore } from "./file-store.ts";
 import { JobLoop } from "./job-loop.ts";
-import { nodeNetwork } from "./network.ts";
+import { nodeNetwork, nodeRedditSession } from "./network.ts";
 import { type OperatorCodeOptions, startOperatorCode } from "./operator-code.ts";
 import { WorkerPageReader } from "./page-reader.ts";
 import { setupCodeOf } from "./setup-code.ts";
@@ -45,6 +45,7 @@ export async function startNode(
       cli: operator.cli,
     })),
     network: nodeNetwork,
+    redditSession: nodeRedditSession,
     pages,
     jobs: loop.queue,
     crypto: nodeCrypto,

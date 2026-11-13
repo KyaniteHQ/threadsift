@@ -89,7 +89,7 @@ export function opening(
 }
 
 export async function enqueueQuietly(
-  ports: JobPorts,
+  ports: Pick<JobPorts, "jobs">,
   jobIds: readonly number[],
   delayMs: number,
 ): Promise<void> {

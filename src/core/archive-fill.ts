@@ -11,7 +11,7 @@ import { noThreadFor } from "./reddit-thread.ts";
 
 export interface ArchivedThread {
   readonly thread: ParsedThread;
-  readonly archivedAt: number;
+  readonly archivedAt: number | null;
 }
 
 const ARCHIVE_ORIGIN = "https://arctic-shift.photon-reddit.com";

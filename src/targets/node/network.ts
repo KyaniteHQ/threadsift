@@ -11,10 +11,18 @@ import {
   type Network,
   type NetworkResponse,
   REQUEST_HEADERS,
+  type RedditSession,
   type RequestHeaders,
   NetworkFailure,
 } from "../../core/ports.ts";
 import { assertPublicHost } from "../../core/public-host.ts";
+import {
+  REDDIT_HOST,
+  boundedBody,
+  redditRateLimitOf,
+  redditSessionHeaders,
+  refusedRequestLine,
+} from "../../core/reddit-session.ts";
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
 const IDENTITY = "identity";
@@ -149,5 +157,25 @@ export const nodeNetwork: Network = {
     );
 
     return response;
+  },
+};
+
+export const nodeRedditSession: RedditSession = {
+  get: async (path, cookie, signal) => {
+    if (refusedRequestLine(path, cookie)) throw new TypeError("the request line is not allowed");
+
+    const response = await fetch(`https://${REDDIT_HOST}${path}`, {
+      headers: redditSessionHeaders(cookie),
+      redirect: "manual",
+      signal,
+    });
+
+    return {
+      status: response.status,
+      location: response.headers.get("location"),
+      contentType: response.headers.get("content-type"),
+      rateLimit: redditRateLimitOf((name) => response.headers.get(name)),
+      body: boundedBody(response.body ?? []),
+    };
   },
 };

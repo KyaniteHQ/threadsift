@@ -97,7 +97,7 @@ function failureOf(outcome: Exclude<GuardOutcome, Page>, tokenSent: boolean): Fe
 }
 
 function waitingFetched({ until, limited }: Readonly<Waiting>): Fetched {
-  return { status: "waiting", until, limited };
+  return { status: "waiting", until, limited, wait: "github-rate-limit" };
 }
 
 async function readmeAfter(

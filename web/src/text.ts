@@ -124,6 +124,12 @@ export const WAITING = {
     until: "Grok Bot is reading this Item, so Threadsift will check again {when}.",
     due: "Grok Bot is reading this Item, so Threadsift is waiting to check.",
   },
+  "reddit-limit": {
+    title: "Waiting for Reddit",
+    until:
+      "Threadsift reads Reddit threads one at a time within Reddit’s limit and will check this one again {when}.",
+    due: "Threadsift reads Reddit threads one at a time within Reddit’s limit and is waiting to check.",
+  },
   "topic-busy": {
     title: "Waiting for Topic",
     until: "This Topic is updating, so Threadsift will try again {when}.",

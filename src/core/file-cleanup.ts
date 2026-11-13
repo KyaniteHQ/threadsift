@@ -1,5 +1,6 @@
 import { and, eq, exists, or, sql } from "drizzle-orm";
 
+import { logFailure } from "./failure-log.ts";
 import { ITEM_FILES_ROOT, finalKeyOf, isSweptKey } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { ATTEMPT_FILES } from "./job-rows.ts";
@@ -75,4 +76,27 @@ export async function cleanFiles({ db, files }: Readonly<Pick<JobPorts, "db" | "
     .insert(fileCleaning)
     .values({ id: 1, cursor: page.cursor })
     .onConflictDoUpdate({ target: fileCleaning.id, set: { cursor: page.cursor } });
+}
+
+export async function deleteQuietly(
+  ports: JobPorts,
+  keys: readonly string[],
+  doomed: (keys: readonly string[]) => Promise<readonly string[]> = (all) => Promise.resolve(all),
+): Promise<void> {
+  if (keys.length === 0) return;
+
+  try {
+    await ports.files.delete(await doomed(keys));
+  } catch (error) {
+    logFailure("file-not-deleted", { keys: keys.length }, error);
+  }
+}
+
+export async function unnamed(
+  ports: JobPorts,
+  keys: readonly string[],
+): Promise<readonly string[]> {
+  const held = await namedKeys(ports.db, keys);
+
+  return keys.filter((key) => !held.has(key));
 }
