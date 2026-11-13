@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
-import { newItemStatus, setStatus } from "./item-status.ts";
+import { setStatus } from "./item-status.ts";
 import { closeFetchJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
@@ -23,7 +23,6 @@ export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
       normalizedUrl: place.normalizedUrl,
       originalUrl: place.address,
       savedAt: Date.now(),
-      ...newItemStatus({ kind: "queued" }),
     })
     .onConflictDoNothing({ target: items.normalizedUrl })
     .returning({ id: items.id });
@@ -38,7 +37,7 @@ function contentWrites(
   const owner = ownerOf(normalizedUrl);
 
   return [
-    ...closeFetchJobs(db, owner.id),
+    closeFetchJobs(db, owner.id),
     db
       .update(items)
       .set({

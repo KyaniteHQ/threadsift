@@ -24,7 +24,7 @@ export async function saveThreadPage(
   );
 
   const inserted = await guardedWrite(db, hasNoThread(link.normalizedUrl), insert, [
-    ...closeFetchJobs(db, ownerOf(link.normalizedUrl).id),
+    closeFetchJobs(db, ownerOf(link.normalizedUrl).id),
     ...rest,
   ]);
 

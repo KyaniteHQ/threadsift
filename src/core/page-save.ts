@@ -36,8 +36,8 @@ async function queuePage(
 ): Promise<SaveResult> {
   const link = parseLink(absoluteUrl);
 
-  const [, , inserted, , , queued, [item]] = await ports.db.batch([
-    ...closeFetchJobs(ports.db, ownerOf(link.normalizedUrl).id),
+  const [, inserted, , , queued, [item]] = await ports.db.batch([
+    closeFetchJobs(ports.db, ownerOf(link.normalizedUrl).id),
     ...queuedWrites(
       ports.db,
       { originalUrl: absoluteUrl, address: absoluteUrl, digest },

@@ -8,7 +8,7 @@ import {
   getListedItem,
   selectItems,
 } from "./item-selection.ts";
-import { NOT_FAILED, setStatus } from "./item-status.ts";
+import { IS_FAILED, NOT_FAILED, setStatus } from "./item-status.ts";
 import { enqueueRows, hasOpenJob } from "./job-rows.ts";
 import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
@@ -18,14 +18,14 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
     .select({
       originalUrl: items.originalUrl,
       normalizedUrl: items.normalizedUrl,
-      status: items.status,
+      failed: sql<boolean>`${IS_FAILED}`.mapWith(Boolean),
     })
     .from(items)
     .where(eq(items.id, id));
 
   if (known === undefined) return undefined;
 
-  if (known.status === "failed") return getListedItem(ports.db, id);
+  if (known.failed) return getListedItem(ports.db, id);
 
   const live = and(eq(items.id, id), NOT_FAILED) ?? sql`0`;
 
@@ -39,7 +39,7 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
       address: known.originalUrl,
       now: Date.now(),
     }).job,
-    ...markDigest(ports.db, id, { kind: "cleared" }),
+    markDigest(ports.db, id, "cleared"),
     setStatus(ports.db, { kind: "queued" }, and(live, exists(hasOpenJob("digest"))) ?? sql`0`),
     selectItems(ports.db, LISTED_COLUMNS).where(eq(items.normalizedUrl, known.normalizedUrl)),
   ]);

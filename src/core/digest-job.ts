@@ -1,7 +1,7 @@
 import { type SQLWrapper, and, eq, isNotNull, not, notExists, or, sql } from "drizzle-orm";
 
 import { expireAiTasks, providerSet } from "./ai-tasks.ts";
-import { hasDigestSource, markDigest } from "./digest-source.ts";
+import { hasDigestSource, keptNotUpdated } from "./digest-source.ts";
 import { NOT_FAILED, setStatus } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { linkOlderDigests } from "./older-digests.ts";
@@ -42,10 +42,11 @@ export function digestAfterFetch(
       address: job.address,
       now: Date.now(),
     }).job,
-    ...markDigest(db, job.itemId, {
-      kind: "kept-not-updated",
-      when: or(sql`not (${configured})`, not(hasDigestSource())) ?? sql`0`,
-    }),
+    ...keptNotUpdated(
+      db,
+      job.itemId,
+      or(sql`not (${configured})`, not(hasDigestSource())) ?? sql`0`,
+    ),
   ];
 }
 

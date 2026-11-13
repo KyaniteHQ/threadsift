@@ -67,11 +67,6 @@ export function hasDigestSource() {
 
 export type DigestInput = Awaited<ReturnType<typeof digestInput>>[number];
 
-export type DigestMark =
-  | { readonly kind: "cleared" }
-  | { readonly kind: "attempt-failed" }
-  | { readonly kind: "kept-not-updated"; readonly when?: Readonly<SQLWrapper> };
-
 function setMarker(
   db: Database,
   itemId: number | Readonly<SQLWrapper>,
@@ -88,45 +83,27 @@ function whileDigestOpen() {
   return exists(hasOpenJob("digest"));
 }
 
-function keptDigest(db: Database) {
-  return exists(
-    db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
-  );
+export function markDigest(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+  mark: "cleared" | "attempt-failed",
+) {
+  return setMarker(db, itemId, mark === "attempt-failed", whileDigestOpen());
 }
 
-type Marker = ReturnType<typeof setMarker>;
+export function keptNotUpdated(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+  when: Readonly<SQLWrapper> = sql`1`,
+) {
+  const kept = exists(
+    db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
+  );
 
-export function markDigest(
-  db: Database,
-  itemId: number | Readonly<SQLWrapper>,
-  mark: Readonly<Exclude<DigestMark, { kind: "kept-not-updated" }>>,
-): readonly [Marker];
-export function markDigest(
-  db: Database,
-  itemId: number | Readonly<SQLWrapper>,
-  mark: Readonly<Extract<DigestMark, { kind: "kept-not-updated" }>>,
-): readonly [Marker, Marker];
-export function markDigest(
-  db: Database,
-  itemId: number | Readonly<SQLWrapper>,
-  mark: Readonly<DigestMark>,
-): readonly Marker[] {
-  switch (mark.kind) {
-    case "cleared":
-      return [setMarker(db, itemId, false, whileDigestOpen())];
-    case "attempt-failed":
-      return [setMarker(db, itemId, true, whileDigestOpen())];
-    case "kept-not-updated":
-      return [
-        setMarker(db, itemId, false, whileDigestOpen()),
-        setMarker(db, itemId, true, and(keptDigest(db), sql`${mark.when ?? sql`1`}`) ?? sql`0`),
-      ];
-    default: {
-      const exhaustive: never = mark;
-
-      throw new Error(exhaustive);
-    }
-  }
+  return [
+    markDigest(db, itemId, "cleared"),
+    setMarker(db, itemId, true, and(kept, sql`${when}`) ?? sql`0`),
+  ] as const;
 }
 
 export function generationCurrent(
@@ -191,7 +168,7 @@ async function unreadableText(
   return {
     currency: read,
     failedAttempt: true,
-    writes: [insertGuard(db, generation), ...markDigest(db, item.id, { kind: "attempt-failed" })],
+    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
   };
 }
 
@@ -249,7 +226,7 @@ export function refusedInput(
 
   return {
     currency: currency(db, generation, null),
-    writes: [insertGuard(db, generation), ...markDigest(db, item.id, { kind: "attempt-failed" })],
+    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
   };
 }
 

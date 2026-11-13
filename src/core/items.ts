@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
 import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
-import { newItemStatus, setStatus } from "./item-status.ts";
+import { setStatus } from "./item-status.ts";
 import { openingJob, enqueueRows } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
@@ -71,7 +71,6 @@ export function queuedWrites(
         normalizedUrl,
         originalUrl,
         savedAt: now,
-        ...newItemStatus({ kind: "queued" }),
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),

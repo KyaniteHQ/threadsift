@@ -22,7 +22,7 @@ async function insertedFailure(
   noAlias: Readonly<SQLWrapper>,
   { address, link: { normalizedUrl, kind, source }, fetched, now }: Readonly<Failure>,
 ): Promise<SaveResult | undefined> {
-  const [, inserted] = await db.batch([
+  const [, inserted, [item]] = await db.batch([
     insertGuard(db, noAlias),
     db
       .insert(items)
@@ -36,12 +36,13 @@ async function insertedFailure(
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),
+    selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
     db.delete(guards),
   ]);
 
   return inserted.length === 0
     ? undefined
-    : { kind: "saved", item: await itemAt(db, normalizedUrl), created: true };
+    : { kind: "saved", item: foundItem(item, normalizedUrl), created: true };
 }
 
 async function refreshedFailure(

@@ -133,7 +133,7 @@ export async function publishing(
         ...commentPartWrites(db, eq(items.id, item.id), bodies),
         completedAiTask(db, { taskId, result: published }),
         db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
-        ...markDigest(db, item.id, { kind: "cleared" }),
+        markDigest(db, item.id, "cleared"),
       ],
     },
     keptCommentsPublication(db, snapshot),

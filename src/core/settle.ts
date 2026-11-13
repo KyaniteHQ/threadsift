@@ -2,13 +2,13 @@ import { eq } from "drizzle-orm";
 
 import type { Concluded, Content } from "./details.ts";
 import type { FetchResult } from "./fetch-results.ts";
-import { type StatusEvent, newItemStatus, statusColumns } from "./item-status.ts";
+import { NO_OPEN_JOBS, type StatusEvent, statusColumns } from "./item-status.ts";
 import { sourceOf } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { type ItemRow, items } from "./schema.ts";
 
 type Settled = Pick<ItemRow, "fetch"> & {
-  readonly event: StatusEvent;
+  readonly event: Extract<StatusEvent, { kind: "settled" | "failed" }>;
 } & Partial<
     Pick<
       ItemRow,
@@ -86,7 +86,7 @@ function settle(fetched: Readonly<Concluded>, current: string | null, now: numbe
 export function settledNew(fetched: Readonly<Concluded>, now: number) {
   const { event, ...fields } = settle(fetched, null, now);
 
-  return { ...fields, ...newItemStatus(event) };
+  return { ...fields, ...statusColumns(event, NO_OPEN_JOBS) };
 }
 
 export function settledKnown(fetched: Readonly<Concluded>, current: string | null, now: number) {

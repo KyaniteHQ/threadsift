@@ -10,6 +10,7 @@ import {
   currency,
   generationCurrent,
   logSubmission,
+  keptNotUpdated,
   markDigest,
   modelInput,
   readDigestText,
@@ -29,8 +30,7 @@ type Database = JobPorts["db"];
 async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const { item, anchors } = await readForPublishing(ports.db, job.itemId);
 
-  if (item === undefined)
-    return { writes: markDigest(ports.db, job.itemId, { kind: "kept-not-updated" }) };
+  if (item === undefined) return { writes: keptNotUpdated(ports.db, job.itemId) };
 
   if (item.pendingDigest === null) return attemptModel(ports, job, item);
 
@@ -44,7 +44,7 @@ function emptyInput(db: Database, item: Readonly<DigestInput>): JobOutcome {
 
   return {
     currency: currency(db, generation, null),
-    writes: [insertGuard(db, generation), ...markDigest(db, item.id, { kind: "kept-not-updated" })],
+    writes: [insertGuard(db, generation), ...keptNotUpdated(db, item.id)],
   };
 }
 
@@ -145,7 +145,7 @@ function refusedAi(
   return {
     currency: currency(db, generation, result.taskId),
     failedAttempt: retriable,
-    writes: [insertGuard(db, generation), ...markDigest(db, item.id, { kind: "attempt-failed" })],
+    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
   };
 }
 
@@ -157,7 +157,7 @@ export const digestHandler: JobHandler = {
   deadlineMs: DIGEST_DEADLINE_MS,
   blockedBy: ["fetch"],
   attempt: attemptDigest,
-  exhausted: (db, job) => markDigest(db, job.itemId, { kind: "attempt-failed" }),
+  exhausted: (db, job) => [markDigest(db, job.itemId, "attempt-failed")],
   inputCurrent: (job) =>
     sql`exists (select 1 from ${items} where ${items.id} = ${job.itemId} and ${items.generation} is ${job.attemptGeneration})`,
 };
