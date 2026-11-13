@@ -46,9 +46,7 @@ export function registerAiTaskRoutes(app: OpenAPIHono, ports: Ports): void {
     const outcome = await acceptBotAnswer(
       ports,
       c.get("callbackTask"),
-      "error" in body
-        ? { kind: "error", text: body.error }
-        : { kind: "result", resultText: JSON.stringify(body.result) },
+      "error" in body ? { kind: "error", text: body.error } : { kind: "result", body },
     );
 
     switch (outcome.kind) {

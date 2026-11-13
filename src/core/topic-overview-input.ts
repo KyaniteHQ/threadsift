@@ -43,6 +43,16 @@ export interface OverviewPrompt {
   readonly mustChange: boolean;
 }
 
+export interface OverviewBasis {
+  readonly page: { readonly revision: number; readonly builtFrom: BuiltFrom } | null;
+  readonly removed: readonly number[];
+}
+
+export interface OverviewSent {
+  readonly current: string | null;
+  readonly included: readonly Readonly<Pick<AddedItem, "id" | "digest">>[];
+}
+
 function addedItem(row: Readonly<{ id: number; digest: number; stored: string }>) {
   try {
     const { title, summary, keyPoints }: Digest = parseStoredDigest(row.stored);

@@ -235,5 +235,7 @@ export function givenUpTasks(db: Database, job: Readonly<Pick<JobRow, "id">>) {
   return db
     .update(aiTasks)
     .set({ state: "failed", result: null, refusal: "timeout", status: null })
-    .where(and(eq(aiTasks.jobId, job.id), eq(aiTasks.state, "running")));
+    .where(
+      and(eq(aiTasks.jobId, job.id), eq(aiTasks.state, "running"), isNull(aiTasks.answeredAt)),
+    );
 }

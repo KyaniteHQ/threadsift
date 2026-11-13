@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import { type JobRow, jobs } from "../src/core/schema.ts";
 import { KEY, PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
-import type { Instance, Json } from "./instance.ts";
+import { Instance, type Json } from "./instance.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 
 export { SECRET_KEY };
@@ -51,7 +51,11 @@ function claimedOf(job: Readonly<JobRow>): ClaimedJob {
   return Object.assign({ attemptKey: "", imagePrefix: "" }, job);
 }
 
-export async function bulkJobs(instance: Instance, count: number): Promise<readonly ClaimedJob[]> {
+export async function bulkJobs(
+  instance: Instance,
+  count: number,
+  kind = "related_pick",
+): Promise<readonly ClaimedJob[]> {
   const first =
     (rows(instance, z.object({ id: z.number().nullable() }), "select max(id) as id from items")[0]
       ?.id ?? 0) + 1;
@@ -68,7 +72,8 @@ export async function bulkJobs(instance: Instance, count: number): Promise<reado
     );
     exec(
       instance,
-      "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values ('related_pick', ?, 'https://example.com/x', 'running', 0, 0, 0, ?)",
+      "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', 0, 0, 0, ?)",
+      kind,
       id,
       Date.now() + YEAR_MS,
     );
@@ -88,21 +93,28 @@ export async function bulkJobs(instance: Instance, count: number): Promise<reado
   );
 }
 
-export async function openJob(
+export async function openJobOfKind(
   instance: Instance,
-  itemId: number,
-  attempts = 0,
+  {
+    kind,
+    itemId,
+    attempts = 0,
+    staleRequeues = 0,
+  }: Readonly<{ kind: string; itemId: number; attempts?: number; staleRequeues?: number }>,
 ): Promise<ClaimedJob> {
   exec(
     instance,
-    "update jobs set state = 'done', claim_expires = null where kind = 'related_pick' and item_id = ?",
+    "update jobs set state = 'done', claim_expires = null where kind = ? and item_id = ?",
+    kind,
     itemId,
   );
   exec(
     instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values ('related_pick', ?, 'https://example.com/x', 'running', ?, 0, 0, ?)",
+    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', ?, ?, 0, ?)",
+    kind,
     itemId,
     attempts,
+    staleRequeues,
     Date.now() + 3_600_000,
   );
 
@@ -116,6 +128,19 @@ export async function openJob(
   if (job === undefined) throw new Error("the job was not stored");
 
   return claimedOf(job);
+}
+
+export function openJob(instance: Instance, itemId: number, attempts = 0): Promise<ClaimedJob> {
+  return openJobOfKind(instance, { kind: "related_pick", itemId, attempts });
+}
+
+export async function botInstance(): Promise<Instance> {
+  const instance = await Instance.start({ secretKey: SECRET_KEY });
+
+  await instance.setUp();
+  await saveBot(instance);
+
+  return instance;
 }
 
 export function pastDeadline(instance: Instance, taskId: number): void {

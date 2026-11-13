@@ -22,20 +22,24 @@ const INSTRUCTIONS: Readonly<Record<MergeKind, string>> = {
   "topic-merge": TOPIC_INSTRUCTIONS,
 };
 
-interface SentBase {
-  readonly id: number;
-  readonly name: string;
-  readonly items: number;
-}
+const SENT_SUBJECT_FIELDS = {
+  id: z.number().int().positive(),
+  name: z.string(),
+  items: z.number().int().min(0),
+};
 
-export type SentSubject =
-  | (SentBase & { readonly topics: readonly string[] })
-  | (SentBase & { readonly tags: readonly string[] });
+const SentSubjectSchema = z.union([
+  z.object({ ...SENT_SUBJECT_FIELDS, topics: z.array(z.string()).readonly() }).readonly(),
+  z.object({ ...SENT_SUBJECT_FIELDS, tags: z.array(z.string()).readonly() }).readonly(),
+]);
 
-export interface SentPair {
-  readonly low: SentSubject;
-  readonly high: SentSubject;
-}
+const SentPairSchema = z.object({ low: SentSubjectSchema, high: SentSubjectSchema }).readonly();
+
+export const SentPairsSchema = z.array(SentPairSchema).readonly();
+
+export type SentSubject = z.infer<typeof SentSubjectSchema>;
+
+export type SentPair = z.infer<typeof SentPairSchema>;
 
 export interface ProposalsResult {
   readonly merges: readonly Readonly<{ from: number; into: number; reason: string }>[];
@@ -62,16 +66,23 @@ function mergesAreSentPairs(
   );
 }
 
+export function mergeTaskKind(kind: MergeKind) {
+  return WEEKLY_TASK[kind];
+}
+
 export function proposalsTask(
   kind: MergeKind,
   sent: readonly Readonly<SentPair>[],
 ): AiTaskDefinition<ProposalsResult> {
   return {
-    kind: WEEKLY_TASK[kind],
+    kind: mergeTaskKind(kind),
     instructions: INSTRUCTIONS[kind],
     prepareInput: (input) => input,
     schema: z
       .object({ merges: z.array(MergeSchema).max(PROPOSALS_MAX).readonly() })
-      .refine(({ merges }) => mergesAreSentPairs(merges, sent)),
+      .refine(({ merges }) => mergesAreSentPairs(merges, sent), {
+        error:
+          "merges: each merge must name both ids of one pair that was sent, and no id may repeat",
+      }),
   };
 }

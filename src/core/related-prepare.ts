@@ -1,5 +1,5 @@
 import { report } from "./failure-log.ts";
-import type { SettledOutcome } from "./job-outcome.ts";
+import { type SettledOutcome, settled } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { type PickItem, type PickRead, pickPrompt, readPick } from "./related-input.ts";
 import { closedOutcome, emptyOutcome, noDigestOutcome } from "./related-write.ts";
@@ -20,10 +20,6 @@ function logRefused(
   reason: "source-over-cap" | "none-fit",
 ): void {
   report("related-input-refused", { itemId: source.id, reason, candidates: candidates.length });
-}
-
-function settled(outcome: SettledOutcome): RelatedPrepared {
-  return { kind: "settled", outcome };
 }
 
 function preparedPick(db: Database, read: Readonly<ReadyPick>): RelatedPrepared {

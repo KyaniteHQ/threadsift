@@ -5,8 +5,10 @@ import { pairPinned } from "./disagreement-pins.ts";
 import { clearedStaleDisagreements } from "./disagreement-rows.ts";
 import {
   DISAGREEMENT_OUTPUT_TOKENS,
+  DISAGREEMENT_TASK_KIND,
   type DisagreementsResult,
   type SentTopic,
+  SentTopicsSchema,
   disagreementTask,
 } from "./disagreement-task.ts";
 import type { JobWrites } from "./job-outcome.ts";
@@ -96,6 +98,8 @@ function checkedTopics(db: Database, sent: Sent): JobWrites {
 }
 
 export const disagreementRun: WeeklyModelRun<Sent, DisagreementsResult> = {
+  kind: DISAGREEMENT_TASK_KIND,
+  sent: SentTopicsSchema,
   label: "Disagreement proposals run",
   event: "disagreement-proposals-run-failed",
   maxOutputTokens: DISAGREEMENT_OUTPUT_TOKENS,

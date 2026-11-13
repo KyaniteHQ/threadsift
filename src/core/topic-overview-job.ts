@@ -1,54 +1,22 @@
-import { sql } from "drizzle-orm";
-
 import { AI_DEADLINE_MS } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
-import { refusalOutcome } from "./guarded-outcome.ts";
-import type {
-  ClaimedJob,
-  JobHandler,
-  JobOutcome,
-  JobPorts,
-  SettledOutcome,
-} from "./job-outcome.ts";
-import { type TopicLease, claimTopicLease, releaseTopicLease } from "./topic-lease.ts";
-import { overviewPrompt, readOverview, topicOfItem } from "./topic-overview-input.ts";
-import {
-  continuingOverview,
-  overviewGaveUp,
-  overviewHolder,
-  overviewRefused,
-} from "./topic-overview-run.ts";
+import { givenUpTasks } from "./bot-task-states.ts";
+import { lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
+import type { ClaimedJob, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { releaseTopicLease } from "./topic-lease.ts";
+import { type OverviewPrepared, preparedOverview } from "./topic-overview-prepare.ts";
+import { overviewGaveUp, overviewRefused } from "./topic-overview-run.ts";
 import { OVERVIEW_OUTPUT_TOKENS, topicOverviewTask } from "./topic-overview-task.ts";
-import {
-  currentInputs,
-  idleOutcome,
-  keptOutcome,
-  lostOutcome,
-  revisedOutcome,
-} from "./topic-overview-write.ts";
+import { currentInputs, revisedOutcome } from "./topic-overview-write.ts";
 
-const BUSY_RETRY_MS = 15_000;
+type Asked = Extract<OverviewPrepared, { kind: "ask" }>;
 
 async function reviseOverview(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
-  lease: Readonly<TopicLease>,
-): Promise<SettledOutcome> {
+  { lease, read, prompt }: Readonly<Asked>,
+): Promise<JobOutcome> {
   const { db } = ports;
-  const read = await readOverview(db, lease.topicId);
-
-  if (read === null) return idleOutcome(db, lease);
-
-  const prompt = overviewPrompt(read);
-
-  if (prompt.included.length === 0 && read.removed.length === 0) return idleOutcome(db, lease);
-
-  if (prompt.included.length === 0) {
-    return {
-      ...keptOutcome(db, lease, { read, prompt }),
-      continuation: [continuingOverview(db, lease.topicId, sql`1`)],
-    };
-  }
 
   const result = await runAiTask(
     ports,
@@ -62,7 +30,9 @@ async function reviseOverview(
     job,
   );
 
-  if (result.kind === "claim-lost") return lostOutcome(db, lease);
+  if (result.kind === "claim-lost") {
+    return lostOutcome(db, { cleanup: [releaseTopicLease(db, lease)] });
+  }
 
   if (result.kind !== "done") {
     return refusalOutcome(db, job, {
@@ -74,27 +44,18 @@ async function reviseOverview(
     });
   }
 
-  return {
-    ...revisedOutcome(db, lease, { read, prompt, taskId: result.taskId, result: result.result }),
-    continuation: [continuingOverview(db, lease.topicId, sql`1`)],
-  };
+  return revisedOutcome(db, lease, { read, prompt, taskId: result.taskId, result: result.result });
 }
 
 async function attemptOverview(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
-  const topicId = await topicOfItem(ports.db, job.itemId);
+  const prepared = await preparedOverview(ports.db, job);
 
-  if (topicId === null) return { writes: [] };
-
-  const lease = await claimTopicLease(ports.db, topicId, overviewHolder(job));
-
-  if (lease === null) {
-    return { deferredUntil: Date.now() + BUSY_RETRY_MS, wait: "topic-busy", countsAttempt: false };
-  }
+  if (prepared.kind === "settled") return prepared.outcome;
 
   try {
-    return await reviseOverview(ports, job, lease);
+    return await reviseOverview(ports, job, prepared);
   } catch (error) {
-    await ports.db.batch([releaseTopicLease(ports.db, lease)]);
+    await ports.db.batch([releaseTopicLease(ports.db, prepared.lease)]);
 
     throw error;
   }
@@ -104,5 +65,5 @@ export const topicOverviewHandler: JobHandler = {
   deadlineMs: AI_DEADLINE_MS,
   blockedBy: ["digest"],
   attempt: attemptOverview,
-  exhausted: overviewGaveUp,
+  exhausted: (db, job) => [...overviewGaveUp(db, job), givenUpTasks(db, job)],
 };

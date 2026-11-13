@@ -18,6 +18,47 @@ const POLL_MS = 25;
 const SENTENCE =
   "Copying the database file while the writer is busy can tear a page, so take the copy with the online backup command instead.";
 
+export const REDDIT_THREAD = [
+  {
+    kind: "Listing",
+    data: {
+      children: [
+        {
+          kind: "t3",
+          data: {
+            id: "q1",
+            title: "A thread",
+            author: "asker",
+            subreddit: "science",
+            selftext: "Nothing to see.",
+            created_utc: 1_700_000_000,
+            num_comments: 1,
+          },
+        },
+      ],
+    },
+  },
+  {
+    kind: "Listing",
+    data: {
+      children: [
+        {
+          kind: "t1",
+          data: {
+            id: "c1",
+            author: "someone",
+            body: "A quasar decoder remark that explains the lattice trick in detail.",
+            parent_id: "t3_q1",
+            score: 5,
+            created_utc: 1_700_000_100,
+            replies: "",
+          },
+        },
+      ],
+    },
+  },
+];
+
 export interface Fixture {
   readonly title: string;
   readonly topic?: string;

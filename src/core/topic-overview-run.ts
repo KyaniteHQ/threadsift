@@ -5,12 +5,12 @@ import { providerSet } from "./ai-tasks.ts";
 import type { ClaimedJob } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, items, jobs, topicLeases, topicPages } from "./schema.ts";
+import { type JobRow, aiTasks, items, jobs, topicLeases, topicPages, topics } from "./schema.ts";
 import { coverageGaps } from "./topic-coverage.ts";
 import { type TopicLease, leaseMatches, recoverPrefixLeases } from "./topic-lease.ts";
 import type { BuiltFrom, OverviewFailure } from "./topic-overview-contract.ts";
 
-function overviewHolderPrefix(jobId: number): string {
+export function overviewHolderPrefix(jobId: number): string {
   return `topic_overview:${String(jobId)}:`;
 }
 
@@ -115,6 +115,10 @@ export function overviewRefused(
   return failed(db, held, failure);
 }
 
+function ownedByJob(jobId: number) {
+  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.jobId} = ${jobId})`;
+}
+
 export function overviewGaveUp(
   db: Database,
   { id, itemId }: Readonly<Pick<JobRow, "id" | "itemId">>,
@@ -122,8 +126,25 @@ export function overviewGaveUp(
   const owned = db
     .select({ topicId: sql<number>`${items.topicId}`.as("topic_id") })
     .from(items)
-    .where(and(eq(items.id, itemId), isNotNull(items.topicId)))
+    .where(and(eq(items.id, itemId), isNotNull(items.topicId), sql`not ${ownedByJob(id)}`))
     .as("failing");
 
-  return [failed(db, owned, "gave-up"), recoverPrefixLeases(db, overviewHolderPrefix(id))];
+  return [
+    failed(db, owned, "gave-up"),
+    markTopicOverviewFailed(db, id, "gave-up"),
+    recoverPrefixLeases(db, overviewHolderPrefix(id)),
+  ];
+}
+
+export function markTopicOverviewFailed(db: Database, jobId: number, failure: OverviewFailure) {
+  const sent = db
+    .select({ topicId: sql<number>`${topics.id}`.as("topic_id") })
+    .from(aiTasks)
+    .innerJoin(topics, sql`${topics.id} = json_extract(${aiTasks.context}, '$.topicId')`)
+    .where(
+      sql`${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.job_id = ${jobId} and latest.kind = 'topic_overview') and not exists (select 1 from ${topicPages} where ${topicPages.topicId} = ${topics.id} and ${topicPages.revision} > json_extract(${aiTasks.context}, '$.revision'))`,
+    )
+    .as("failing");
+
+  return failed(db, sent, failure);
 }

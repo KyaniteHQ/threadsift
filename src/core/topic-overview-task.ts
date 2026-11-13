@@ -53,8 +53,15 @@ export function topicOverviewTask({
         lines: z.array(LineSchema).max(OVERVIEW_LINES_MAX).readonly(),
         unchanged: z.boolean(),
       })
-      .refine(({ unchanged, lines }) => (unchanged ? !mustChange : lines.length > 0))
-      .refine(({ lines }) => lines.every(({ items }) => items.every((id) => allowed.has(id))))
-      .refine((result) => overviewText(result).length <= OVERVIEW_TEXT_MAX),
+      .refine(({ unchanged, lines }) => (unchanged ? !mustChange : lines.length > 0), {
+        error:
+          "unchanged: set it to true only when the overview exists and nothing changes; otherwise return at least one line",
+      })
+      .refine(({ lines }) => lines.every(({ items }) => items.every((id) => allowed.has(id))), {
+        error: "lines: each items id must be an id from the input or the current overview",
+      })
+      .refine((result) => overviewText(result).length <= OVERVIEW_TEXT_MAX, {
+        error: `lines: the overview text must be at most ${String(OVERVIEW_TEXT_MAX)} characters`,
+      }),
   };
 }

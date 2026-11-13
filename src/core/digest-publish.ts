@@ -50,8 +50,10 @@ export async function readForPublishing(db: JobPorts["db"], itemId: number) {
   return { item, anchors: snapshotOf(reads) };
 }
 
+type PublishedItem = Readonly<Pick<DigestInput, "id" | "generation" | "pendingDigest">>;
+
 function storedDigest(
-  item: Readonly<DigestInput>,
+  item: PublishedItem,
   digest: Readonly<Digest>,
   taskId: number,
   {
@@ -92,7 +94,7 @@ function keptCommentsPublication(
 
 export async function publishing(
   db: JobPorts["db"],
-  item: Readonly<DigestInput>,
+  item: PublishedItem,
   digest: Readonly<Digest>,
   taskId: number,
   source: DigestSource,

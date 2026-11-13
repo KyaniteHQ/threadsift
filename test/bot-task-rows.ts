@@ -87,3 +87,68 @@ export function insertedTask(
 export function digestOfToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
+
+export function rowCount(instance: Instance, table: string, where = "1 = 1"): number {
+  return (
+    rows(
+      instance,
+      z.object({ n: z.number() }),
+      `select count(*) as n from ${table} where ${where}`,
+    )[0]?.n ?? 0
+  );
+}
+
+export function topicLeaseFree(instance: Instance, topicId: number): boolean {
+  const [lease] = rows(
+    instance,
+    z.object({ expires_at: z.number() }),
+    "select expires_at from topic_leases where topic_id = ?",
+    topicId,
+  );
+
+  return (lease?.expires_at ?? 0) <= Date.now();
+}
+
+export function topicFailures(instance: Instance) {
+  return rows(
+    instance,
+    z.object({ topic_id: z.number(), failure: z.string().nullable() }),
+    "select topic_id, failure from topic_pages order by topic_id",
+  );
+}
+
+const LIBRARY_TABLES = [
+  "digests",
+  "topic_pages",
+  "proposals",
+  "topic_checks",
+  "log_entries",
+  "ai_tasks",
+] as const;
+
+export function libraryDump(instance: Instance): string {
+  return JSON.stringify(
+    LIBRARY_TABLES.map((table) =>
+      rows(instance, z.looseObject({}), `select * from ${table} order by 1`),
+    ),
+  );
+}
+
+const PageSchema = z.object({
+  overview: z.string(),
+  revision: z.number(),
+  built_from: z.array(z.object({ item: z.number(), digest: z.number() })),
+});
+
+export function topicPage(instance: Instance, topicId: number) {
+  const [page] = rows(
+    instance,
+    z.object({ overview: z.string(), revision: z.number(), built_from: z.string() }),
+    "select overview, revision, built_from from topic_pages where topic_id = ?",
+    topicId,
+  );
+
+  return page === undefined
+    ? null
+    : PageSchema.parse({ ...page, built_from: z.json().parse(JSON.parse(page.built_from)) });
+}

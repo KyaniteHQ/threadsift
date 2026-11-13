@@ -1,12 +1,14 @@
+import { sql } from "drizzle-orm";
+
 import { loggedOverview } from "./log-writes.ts";
 import type { Database } from "./ports.ts";
-import type { OverviewPrompt, OverviewRead } from "./topic-overview-input.ts";
-import { overviewStored } from "./topic-overview-run.ts";
+import type { OverviewBasis, OverviewSent } from "./topic-overview-input.ts";
+import { continuingOverview, overviewStored } from "./topic-overview-run.ts";
 
 function revisedPage(
   topicId: number,
-  read: Readonly<OverviewRead>,
-  prompt: Readonly<OverviewPrompt>,
+  read: Readonly<OverviewBasis>,
+  prompt: Readonly<OverviewSent>,
   overview: string | null,
 ) {
   const gone = new Set(read.removed);
@@ -34,16 +36,19 @@ export function storedPage(
     overview,
   }: Readonly<{
     topicId: number;
-    read: Readonly<OverviewRead>;
-    prompt: Readonly<OverviewPrompt>;
+    read: Readonly<OverviewBasis>;
+    prompt: Readonly<OverviewSent>;
     overview: string | null;
   }>,
 ) {
-  return [
-    overviewStored(db, revisedPage(topicId, read, prompt, overview)),
-    loggedOverview(db, topicId, {
-      added: prompt.included.length,
-      removed: read.removed.length,
-    }),
-  ];
+  return {
+    writes: [
+      overviewStored(db, revisedPage(topicId, read, prompt, overview)),
+      loggedOverview(db, topicId, {
+        added: prompt.included.length,
+        removed: read.removed.length,
+      }),
+    ],
+    continuation: [continuingOverview(db, topicId, sql`1`)],
+  };
 }

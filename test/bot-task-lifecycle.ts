@@ -14,7 +14,7 @@ export async function startedTask(
   job: Readonly<ClaimedJob>,
 ): Promise<{ readonly id: number; readonly token: string }> {
   const prepared = await until(
-    () => relatedBotKind.prepare(instance.core.db, job),
+    () => relatedBotKind.prepare(instance.core, job),
     ({ kind }) => kind === "ask",
   );
 

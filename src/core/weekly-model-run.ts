@@ -1,7 +1,9 @@
 import { type SQL, sql } from "drizzle-orm";
+import type { z } from "zod";
 
 import { AI_DEADLINE_MS, type AiTaskDefinition } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask, runAiTask } from "./ai-tasks.ts";
+import { givenUpTasks } from "./bot-task-states.ts";
 import { report } from "./failure-log.ts";
 import { guardedOutcome, lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type {
@@ -12,6 +14,7 @@ import type {
   JobWrites,
   SettledOutcome,
 } from "./job-outcome.ts";
+import type { WeeklyTask } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 
 interface ModelRead<Sent> {
@@ -21,6 +24,8 @@ interface ModelRead<Sent> {
 }
 
 export interface WeeklyModelRun<Sent, Result> {
+  readonly kind: WeeklyTask;
+  readonly sent: z.ZodType<Sent>;
   readonly label: string;
   readonly event: string;
   readonly maxOutputTokens: number;
@@ -93,6 +98,6 @@ export function weeklyModelHandler<Sent, Result>(
     deadlineMs: AI_DEADLINE_MS,
     blockedBy: [],
     attempt: (ports, job) => attemptRun(run, ports, job),
-    exhausted: () => [],
+    exhausted: (db, job) => [givenUpTasks(db, job)],
   };
 }

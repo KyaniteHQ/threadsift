@@ -31,8 +31,11 @@ export function guardedOutcome(
   };
 }
 
-export function lostOutcome(db: Database): GuardedOutcome {
-  return guardedOutcome(db, sql`0`);
+export function lostOutcome(
+  db: Database,
+  guarded: Readonly<Pick<Guarded, "taskId" | "cleanup">> = {},
+): GuardedOutcome {
+  return guardedOutcome(db, sql`0`, guarded);
 }
 
 export async function refusalOutcome(

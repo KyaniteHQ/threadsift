@@ -52,6 +52,7 @@ export interface DeferredOutcome {
   readonly wait: WaitReason;
   readonly countsAttempt: boolean;
   readonly unlessAnswered?: number;
+  readonly writes?: JobWrites;
 }
 
 export type JobOutcome = SettledOutcome | DeferredOutcome;
@@ -65,6 +66,10 @@ export interface JobHandler {
 }
 
 export const RETRY_DELAYS_MS = [30_000, 120_000] as const;
+
+export function settled<Outcome extends JobOutcome>(outcome: Outcome) {
+  return { kind: "settled", outcome } as const;
+}
 
 export function isLastAttempt(attempts: number): boolean {
   return RETRY_DELAYS_MS[attempts] === undefined;
