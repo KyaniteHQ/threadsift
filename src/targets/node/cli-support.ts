@@ -135,6 +135,17 @@ export abstract class SlottedCli implements CliRunner {
     return null;
   }
 
+  protected async outcome<Result>(
+    end: Readonly<ProcessEnd>,
+    read: (
+      exited: Readonly<Extract<ProcessEnd, { readonly kind: "exited" }>>,
+    ) => AiExecution<Result> | null,
+  ): Promise<AiExecution<Result>> {
+    if (end.kind !== "exited") return endRefusal(end);
+
+    return read(end) ?? refusedAi((await this.signedIn()) ? "unreachable" : "not-configured");
+  }
+
   stop(): void {
     this.shutdown.abort();
   }

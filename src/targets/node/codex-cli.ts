@@ -1,12 +1,6 @@
 import { writeFile } from "node:fs/promises";
 
-import {
-  type AiExecution,
-  type AiTaskRequest,
-  PROVIDERS,
-  refusedAi,
-} from "../../core/ai-contract.ts";
-import type { ProcessEnd } from "./cli-process.ts";
+import { type AiTaskRequest, PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
   type Attempt,
@@ -96,7 +90,11 @@ class CodexCli extends SlottedCli {
         keep: true,
       });
 
-      return { result: await this.outcome(task.schema, end), code: exitCode(end) };
+      const result = await this.outcome(end, ({ stdout, code }) =>
+        readOutcome(task.schema, stdout, code),
+      );
+
+      return { result, code: exitCode(end) };
     });
   }
 
@@ -129,18 +127,6 @@ class CodexCli extends SlottedCli {
     stdout: Readonly<Capture>,
   ) {
     return spawnCodex(this.installation, folders, args, stdin, signal, stdout);
-  }
-
-  private async outcome<Result>(
-    schema: AiTaskRequest<Result>["schema"],
-    end: Readonly<ProcessEnd>,
-  ): Promise<AiExecution<Result>> {
-    if (end.kind !== "exited") return endRefusal(end);
-
-    return (
-      readOutcome(schema, end.stdout, end.code) ??
-      refusedAi((await this.signedIn()) ? "unreachable" : "not-configured")
-    );
   }
 }
 

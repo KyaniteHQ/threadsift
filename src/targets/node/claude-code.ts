@@ -11,7 +11,7 @@ import {
 import { parsedJson } from "../../core/parsed-json.ts";
 import { apiRefusal } from "../shared/ai-call.ts";
 import { configuredCode } from "../shared/configured-code.ts";
-import { type ProcessEnd, runProcess } from "./cli-process.ts";
+import { runProcess } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
   type Attempt,
@@ -19,7 +19,6 @@ import {
   STDOUT_CAP,
   SlottedCli,
   childPath,
-  endRefusal,
   exitCode,
   findBinary,
   inEmptyFolder,
@@ -95,7 +94,9 @@ class ClaudeCode extends SlottedCli {
       signal,
     );
 
-    return { result: await this.outcome(task.schema, end), code: exitCode(end) };
+    const result = await this.outcome(end, (exited) => this.answerOf(task.schema, exited));
+
+    return { result, code: exitCode(end) };
   }
 
   private spawn(args: readonly string[], stdin: string, signal: AbortSignal) {
@@ -129,15 +130,13 @@ class ClaudeCode extends SlottedCli {
     ]);
   }
 
-  private async outcome<Result>(
+  private answerOf<Result>(
     schema: z.ZodType<Result>,
-    end: Readonly<ProcessEnd>,
-  ): Promise<AiExecution<Result>> {
-    if (end.kind !== "exited") return endRefusal(end);
+    { stdout, code }: Readonly<{ stdout: string; code: number | null }>,
+  ): AiExecution<Result> | null {
+    const envelope = parsedJson(EnvelopeSchema, stdout);
 
-    const envelope = parsedJson(EnvelopeSchema, end.stdout);
-
-    if (envelope === null) return refusedAi(end.code === 0 ? "no-json" : "unreachable");
+    if (envelope === null) return refusedAi(code === 0 ? "no-json" : "unreachable");
 
     if (!envelope.is_error) {
       const parsed = schema.safeParse(envelope.structured_output);
@@ -145,9 +144,7 @@ class ClaudeCode extends SlottedCli {
       return parsed.success ? { kind: "done", result: parsed.data } : refusedAi("no-json");
     }
 
-    if (envelope.api_error_status !== null) return apiRefusal(envelope.api_error_status);
-
-    return refusedAi((await this.signedIn()) ? "unreachable" : "not-configured");
+    return envelope.api_error_status === null ? null : apiRefusal(envelope.api_error_status);
   }
 }
 
