@@ -28,7 +28,7 @@ Once a week the agent also looks for problems in the library, such as two Tags t
 - Save a Reddit thread or a web page from your own browser tab with the Extension. For a Reddit thread, it reads the post and its comments through your signed-in tab.
 - Send links from a script with the HTTP API and an agent token you create in Settings. `/api/openapi.json` on your Instance describes the REST routes.
 - Let an agent search, read and add Items over MCP at `/mcp`, with its own agent token.
-- Hand X links to Grok Bot, which reads the post and its replies and saves them back. This path is partly built and has not run against a real bot yet. [bot/README.md](bot/README.md) says how to install the bot.
+- Hand X links to Grok Bot, which reads the post and its replies and saves them back. [bot/README.md](bot/README.md) says how to install the bot.
 
 ## Bring your own AI
 

@@ -4,10 +4,16 @@ The Threadsift bot is a Grok Bot for one Threadsift Instance. It answers tasks T
 
 The bot has one skill, `threadsift`. The folder holds the skill text (`skills/threadsift/SKILL.md`), the short bot profile (`profile.md`, one description, because a template has one profile field), the setup and update guides (`setup.md`, `update.md`), two routine prompts (`routines/`), and the script (`scripts/threadsift.sh`) that makes every call to the Instance. The rules of the bot (what it never does, its voice, what its memory holds) are in the skill, not the profile.
 
-1. Import the template in Grok Bot, then say "set up threadsift" in the new bot's chat.
+1. Open the template address below, import the template in Grok Bot, then say "set up threadsift" in the new bot's chat.
 2. Setup asks for your Instance address and an agent token (made under Agent tokens in Settings, with Read and Add scopes) through masked secret cards, so neither appears in chat.
 3. It installs the script, checks the connection, and creates the two routines.
 4. Paste the webhook address and key from the `threadsift-webhook` routine's panel into Threadsift Settings, in the Grok Bot section; they are never part of the template.
+
+The template address:
+
+```text
+https://x.ai/bot/oQiF1E7zmx2VTHQTOlyei
+```
 
 To update, say "update threadsift" in the bot's chat. The bot tells you what changed and asks first. Nothing is pushed to an installed bot. Each update installs a tagged release; the template itself does not change.
 
@@ -27,4 +33,4 @@ The bot sends only the post ids of the owner's X bookmarks to the Threadsift Ins
 4. Give it: the profile name `Threadsift` and the description from `profile.md`; the skill name `threadsift`, the description from the frontmatter of `SKILL.md`, and the body without the frontmatter, as the getting-started skill; the X plugin; no routines, no memories, no files, no secrets.
 5. Ask it to run a shell diff of the text it will pass against the saved skill body before it stages the template. A staged template cannot be read back, and the host writes the frontmatter again, so the packed file is not byte for byte the saved one.
 6. Check the review card the bot shows.
-7. Publish.
+7. Publish, then copy the template's link. When it differs from the template address in this file, replace the address.
