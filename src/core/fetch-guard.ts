@@ -2,6 +2,7 @@ import { isRefusedHost, webUrlOf } from "./addresses.ts";
 import { decoderFor, isHtmlType } from "./body-text.ts";
 import { type Capped, readCapped } from "./capped.ts";
 import { failedAnswer } from "./failed-answer.ts";
+import { report } from "./failure-log.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import type { RateLimit } from "./github-rate-limit.ts";
 import { metaRefreshTarget } from "./meta-refresh.ts";
@@ -258,7 +259,7 @@ export function loggedFailureOf(
   }
 
   if (outcome.reason === "status" || outcome.reason === "rate-limited") {
-    console.warn(JSON.stringify({ event: "fetch-status", httpStatus: outcome.httpStatus }));
+    report("fetch-status", { httpStatus: outcome.httpStatus });
   }
 
   return outcome.reason === "rate-limited" ? "status" : outcome.reason;

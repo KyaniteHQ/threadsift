@@ -68,7 +68,7 @@ export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
     readRevision(ports.db),
   ]);
 
-  const snapshot = { sealer: ports.ai.secrets, revision: counter?.revision ?? 0 };
+  const snapshot = { sealer: ports.secrets, revision: counter?.revision ?? 0 };
   const { sealer } = snapshot;
 
   if (row === undefined) return { ...snapshot, state: "not-configured" };

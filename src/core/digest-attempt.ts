@@ -16,6 +16,7 @@ import {
   readDigestText,
   refusedInput,
 } from "./digest-source.ts";
+import { insertGuard } from "./guards.ts";
 import {
   type ClaimedJob,
   type JobHandler,
@@ -23,7 +24,7 @@ import {
   type JobPorts,
   isLastAttempt,
 } from "./job-outcome.ts";
-import { insertGuard, items } from "./schema.ts";
+import { items } from "./schema.ts";
 
 type Database = JobPorts["db"];
 

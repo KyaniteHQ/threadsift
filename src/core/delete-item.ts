@@ -1,7 +1,7 @@
 import { eq, inArray, or } from "drizzle-orm";
 
 import { logFailure } from "./failure-log.ts";
-import { FILE_LIST_LIMIT } from "./file-keys.ts";
+import { FILE_LIST_LIMIT, itemFilesPrefix } from "./file-keys.ts";
 import type { FileStore, Ports } from "./ports.ts";
 import {
   aiTasks,
@@ -30,7 +30,7 @@ async function storedKeys(files: FileStore, itemId: number): Promise<string[]> {
 
   do {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each page starts at the cursor the previous page returned.
-    const page = await files.list(`items/${itemId}/`, cursor, FILE_LIST_LIMIT);
+    const page = await files.list(itemFilesPrefix(itemId), cursor, FILE_LIST_LIMIT);
     keys.push(...page.files.map(({ key }) => key));
     cursor = page.cursor;
   } while (cursor !== null);

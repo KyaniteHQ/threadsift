@@ -1,8 +1,7 @@
 import { and, asc, eq, gt, lte, sql } from "drizzle-orm";
 
 import type { Advance } from "./data-step-contract.ts";
-import { dropStaged, stageRenames } from "./data-step-support.ts";
-import { dataStepRenames } from "./data-step-tables.ts";
+import { dataStepRenames, dropStaged, stageRenames } from "./data-step-tables.ts";
 import { finish, reportCollisions } from "./item-identity-collisions.ts";
 import { STEP, dropResolved, renameStaged } from "./item-identity-staging.ts";
 import { parseLink } from "./links.ts";

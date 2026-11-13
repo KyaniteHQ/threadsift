@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 
+import { guardedBatch } from "./guards.ts";
 import {
   type PasswordProblem,
   hashPassword,
@@ -7,7 +8,7 @@ import {
   passwordMatches,
 } from "./passwords.ts";
 import type { Database, Ports } from "./ports.ts";
-import { guardedBatch, owner } from "./schema.ts";
+import { owner } from "./schema.ts";
 import { type StartedSession, prepareSession, sessionWrites } from "./sessions.ts";
 import {
   SETUP_CODE_MIN,

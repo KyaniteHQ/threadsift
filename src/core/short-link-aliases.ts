@@ -1,9 +1,10 @@
 import { type SQLWrapper, and, eq, isNotNull, isNull, ne, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import { guardHolds, holdsNoRow } from "./guards.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
-import { guardHolds, holdsNoRow, itemAliases, items } from "./schema.ts";
+import { itemAliases, items } from "./schema.ts";
 
 const holder = alias(items, "holder");
 const rival = alias(itemAliases, "rival");

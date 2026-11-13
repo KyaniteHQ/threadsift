@@ -1,8 +1,9 @@
 import { type SQL, eq, sql } from "drizzle-orm";
 
+import { guardedWrite } from "./guards.ts";
 import { type NoteView, type SaveNoteRequest, storedNoteBody } from "./note-contract.ts";
 import type { Database } from "./ports.ts";
-import { guardedWrite, items, notes } from "./schema.ts";
+import { items, notes } from "./schema.ts";
 import { notePartWrites } from "./search.ts";
 
 export type SavedNote =

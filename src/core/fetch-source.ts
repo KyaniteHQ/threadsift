@@ -1,11 +1,11 @@
 import { type ArchivedThread, archivedThread } from "./archive-fill.ts";
 import { type Concluded, type Fetched, detailsOfSuppliedPage } from "./details.ts";
 import { fetchLink, readOrTimeOut } from "./fetch-link.ts";
+import { guardHolds } from "./guards.ts";
 import { redditRefOf, takesPage } from "./links.ts";
 import { pluginPage } from "./plugin-fetch.ts";
 import type { PageReader, Ports } from "./ports.ts";
 import { noThreadFor } from "./reddit-thread.ts";
-import { guardHolds } from "./schema.ts";
 import { type SuppliedPage, SuppliedPageSchema } from "./supplied-page.ts";
 
 interface JobSource {
@@ -15,7 +15,7 @@ interface JobSource {
   readonly page: string | null;
 }
 
-type SourcePorts = Readonly<Pick<Ports, "db" | "ai" | "network" | "pages" | "fetchers">>;
+type SourcePorts = Readonly<Pick<Ports, "db" | "secrets" | "network" | "pages" | "fetchers">>;
 
 function archiveFilled(
   oembed: Readonly<Concluded>,

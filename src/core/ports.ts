@@ -118,6 +118,7 @@ export interface Ports {
   readonly pages: PageReader;
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
+  readonly secrets: Sealer | null;
   readonly setupCode: string | undefined;
   readonly resetCode: string | undefined;
   readonly publicOrigin: string | null;
@@ -130,6 +131,6 @@ export const REQUEST_HEADERS = {
   accept: "text/html,application/json;q=0.9,*/*;q=0.8",
 } as const;
 
-export type AiPorts = Pick<Ports, "db" | "ai">;
+export type AiPorts = Pick<Ports, "db" | "ai" | "secrets">;
 
-export type SettingsPorts = Pick<Ports, "db" | "ai" | "publicOrigin">;
+export type SettingsPorts = Pick<Ports, "db" | "ai" | "secrets" | "publicOrigin">;

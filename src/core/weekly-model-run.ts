@@ -2,6 +2,7 @@ import { type SQL, sql } from "drizzle-orm";
 
 import { AI_DEADLINE_MS, type AiTaskDefinition } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask, runAiTask } from "./ai-tasks.ts";
+import { report } from "./failure-log.ts";
 import { guardedOutcome, lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type {
   ClaimedJob,
@@ -73,7 +74,7 @@ async function attemptRun<Sent, Result>(
       label: run.label,
     });
 
-    console.warn(JSON.stringify({ event: run.event, reason: result.reason }));
+    report(run.event, { reason: result.reason });
 
     return refused;
   }

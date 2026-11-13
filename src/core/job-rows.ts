@@ -3,10 +3,13 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
 import { logFailure } from "./failure-log.ts";
+import { attemptFileKeys } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { ITEM_JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, items, jobs } from "./schema.ts";
+
+export const ATTEMPT_FILES = attemptFileKeys(jobs);
 
 const openJobs = alias(jobs, "open_jobs");
 

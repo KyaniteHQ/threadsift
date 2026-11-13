@@ -1,6 +1,6 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { FILE_ROUTE } from "../core/file-keys.ts";
+import { FILE_ROUTE, itemFileKey } from "../core/file-keys.ts";
 import { servedImage } from "../core/image-serving.ts";
 import { IMAGE_TYPES } from "../core/image-type.ts";
 import type { Ports } from "../core/ports.ts";
@@ -36,7 +36,7 @@ const imageRoute = createRoute({
 export function registerFileRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(imageRoute, async (c) => {
     const { id, name } = c.req.valid("param");
-    const image = await servedImage(ports, `items/${id}/${name}`);
+    const image = await servedImage(ports, itemFileKey(id, name));
 
     if (image === null) return c.json({ error: NOT_FOUND }, 404);
 

@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 
 import type { Ports } from "../../core/ports.ts";
-import { aiRuntime } from "../shared/ai-runtime.ts";
+import { aiAndSecrets } from "../shared/ai-runtime.ts";
 import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 import { type AiBinding, bindingRunner } from "./ai-binding.ts";
@@ -33,13 +33,13 @@ export async function createWorkerPorts(env: Env): Promise<Ports> {
   return {
     db: drizzle(env.DB),
     files: r2FileStore(env.FILES),
-    ai: await aiRuntime({
+    ...(await aiAndSecrets({
       publicOnly: true,
       secretKey: env.THREADSIFT_SECRET_KEY,
       request: workerFetch,
       openRouterMaxPriceZero: env.THREADSIFT_OPENROUTER_MAX_PRICE_ZERO,
       binding: env.AI === undefined ? undefined : bindingRunner(env.AI),
-    }),
+    })),
     network: workerNetwork,
     pages: workerPageReader,
     jobs: {

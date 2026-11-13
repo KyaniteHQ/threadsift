@@ -1,7 +1,7 @@
 import { setTimeout } from "node:timers/promises";
 
 import { migrateData } from "../../core/data-steps.ts";
-import { logFailure } from "../../core/failure-log.ts";
+import { logFailure, report } from "../../core/failure-log.ts";
 import type { JobPorts } from "../../core/job-outcome.ts";
 import { abandonRunning, claimNextDue, executeClaimed } from "../../core/jobs.ts";
 import { HOP_DEADLINE_MS, type JobQueue } from "../../core/ports.ts";
@@ -12,7 +12,7 @@ const LOOP_POLL_MS = 5000;
 const TICK_MS = 60_000;
 const STOP_WAIT_MS = HOP_DEADLINE_MS + 1000;
 
-function report(what: string, error: Readonly<Error>): void {
+function reportFailure(what: string, error: Readonly<Error>): void {
   logFailure("job-loop-failed", { what }, error);
 }
 
@@ -58,7 +58,7 @@ export class JobLoop {
       await abandonRunning(ports.db);
 
       await migrateData(ports.db).catch((error: Readonly<Error>) => {
-        report("The data steps failed", error);
+        reportFailure("The data steps failed", error);
       });
     } catch (error) {
       this.state = { kind: "idle" };
@@ -145,7 +145,7 @@ export class JobLoop {
     this.track(() =>
       tick(ports)
         .catch((error: Readonly<Error>) => {
-          report("The minute tick failed", error);
+          reportFailure("The minute tick failed", error);
         })
         .finally(() => {
           this.ticking = false;
@@ -172,7 +172,7 @@ export class JobLoop {
 
         // oxlint-disable-next-line eslint/no-await-in-loop -- a wake that arrives during a pass starts one more pass.
         await this.startJobs().catch((error: Readonly<Error>) => {
-          report("The job loop could not read the next job", error);
+          reportFailure("The job loop could not read the next job", error);
         });
       } while (this.wokenWhileDraining);
     } finally {
@@ -188,7 +188,7 @@ export class JobLoop {
         live += 1;
       } else if (!run.abandoned) {
         run.abandoned = true;
-        console.warn(JSON.stringify({ event: "job-run-abandoned", jobId: run.jobId }));
+        report("job-run-abandoned", { jobId: run.jobId });
       }
     }
 
@@ -214,7 +214,7 @@ export class JobLoop {
     this.track(() =>
       executeClaimed(state.ports, job)
         .catch((error: Readonly<Error>) => {
-          report(`Job ${job.id} could not be finished`, error);
+          reportFailure(`Job ${job.id} could not be finished`, error);
         })
         .finally(() => {
           this.runs.delete(run);

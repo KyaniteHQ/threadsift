@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useRef } from "react";
 
-import type { FilterCounts } from "../../src/core/item-filters.ts";
+import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { useLibrary } from "./library.ts";
 import { type ListState, countsOf, knownItems } from "./list-state.ts";
