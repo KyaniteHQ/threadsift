@@ -3,10 +3,12 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { completedAiTask, failedAiTask } from "./ai-tasks.ts";
 import { type BotTaskRow, acceptsAnswer } from "./bot-task-states.ts";
 import { statusColumns } from "./item-status.ts";
-import { closeFetchJobs } from "./job-close.ts";
+import { closeItemJobs } from "./job-close.ts";
 import type { JobPorts, JobWrites } from "./job-outcome.ts";
 import { enqueueQuietly } from "./job-rows.ts";
 import { aiTasks, items, jobs } from "./schema.ts";
+import { queuedVerification } from "./x-verify-store.ts";
+import type { XThreadValue } from "./x-wire.ts";
 
 export type IntakeTask = Readonly<
   Pick<BotTaskRow, "id" | "callbackHash" | "inputRevision"> & {
@@ -46,11 +48,27 @@ export function answeredIntake(
   ];
 }
 
+export function storedIntake(
+  db: JobPorts["db"],
+  task: IntakeTask,
+  stored: Readonly<{
+    address: string;
+    thread: Readonly<XThreadValue>;
+    digest: string | null;
+  }>,
+): JobWrites {
+  return [
+    ...closeItemJobs(db, sql`${task.itemId}`),
+    ...queuedVerification(db, { itemId: task.itemId, ...stored }),
+    ...answeredIntake(db, task, { unavailable: false }),
+  ];
+}
+
 export function unavailableIntake(db: JobPorts["db"], task: IntakeTask): JobWrites {
   const { itemId } = task;
 
   return [
-    closeFetchJobs(db, sql`${itemId}`),
+    ...closeItemJobs(db, sql`${itemId}`),
     db
       .update(items)
       .set({ fetch: "status", ...statusColumns({ kind: "settled" }), pendingDigest: null })

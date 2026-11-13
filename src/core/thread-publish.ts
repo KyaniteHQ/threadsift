@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
 import { setStatus } from "./item-status.ts";
-import { closeFetchJobs } from "./job-close.ts";
+import { closeItemJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
@@ -39,7 +39,7 @@ function contentWrites(
   const owner = ownerOf(normalizedUrl);
 
   return [
-    closeFetchJobs(db, owner.id),
+    ...closeItemJobs(db, owner.id),
     db
       .update(items)
       .set({

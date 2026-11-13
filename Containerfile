@@ -20,16 +20,16 @@ RUN pnpm exec vite build
 
 FROM node
 LABEL org.opencontainers.image.source=https://github.com/KyaniteHQ/threadsift
-ENV NODE_ENV=production DATA_DIR=/data PORT=8080 NPM_CONFIG_PREFIX=/data/cli CLAUDE_CONFIG_DIR=/data/claude CODEX_HOME=/data/codex
-ENV PATH=/data/cli/bin:$PATH
-RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production DATA_DIR=/data PORT=8080 NPM_CONFIG_PREFIX=/data/cli CLAUDE_CONFIG_DIR=/data/claude CODEX_HOME=/data/codex GROK_HOME=/data/grok
+ENV PATH=/data/cli/bin:/data/grok/bin:$PATH
+RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=prod-deps /app/node_modules node_modules
 COPY package.json ./
 COPY src src
 COPY migrations migrations
 COPY --from=web-build /app/dist/web dist/web
-RUN mkdir -p /data/cli /data/claude /data/codex && chmod 700 /data/codex && chown -R node:node /data
+RUN mkdir -p /data/cli /data/claude /data/codex /data/grok && chmod 700 /data/codex /data/grok && chown -R node:node /data
 VOLUME /data
 USER node
 EXPOSE 8080

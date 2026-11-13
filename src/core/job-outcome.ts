@@ -18,6 +18,7 @@ export type JobPorts = Pick<
   | "secrets"
   | "crypto"
   | "fetchers"
+  | "xFetcher"
 >;
 
 export type JobWrites = readonly BatchItem<"sqlite">[];
@@ -59,7 +60,7 @@ export interface AnchoredOutcome extends SettledOutcome {
 
 export interface DeferredOutcome {
   readonly deferredUntil: number;
-  readonly wait: WaitReason;
+  readonly wait: WaitReason | null;
   readonly countsAttempt: boolean;
   readonly unlessOpen?: number;
   readonly writes?: JobWrites;

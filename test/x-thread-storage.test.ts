@@ -17,6 +17,8 @@ const PARENT = "t1_1000000000000000011";
 
 const CHILD = "t1_1000000000000000012";
 
+const NEW_REPLIES = [21n, 22n, 23n, 24n, 25n, 26n];
+
 describe("an X thread is stored like a Reddit thread, read in the Reader and rebuilt by a newer Paste", () => {
   let instance: Instance;
 
@@ -97,7 +99,12 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
 
     await saved({
       url: STORED_LINK,
-      content: JSON.stringify(thread([reply(21n, STORED)], { id: STORED })),
+      content: JSON.stringify(
+        thread(
+          NEW_REPLIES.map((number) => reply(number, STORED)),
+          { id: STORED },
+        ),
+      ),
       digest: { ...DIGEST, keptComments: ["t1_21"] },
     });
     await instance.settledItem(id);

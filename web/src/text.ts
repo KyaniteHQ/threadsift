@@ -25,6 +25,8 @@ export type NoticeKey =
   | "failed"
   | "updating"
   | "title-kept"
+  | "x-unreadable"
+  | "x-kept"
   | "private";
 
 export interface Notice {
@@ -79,6 +81,14 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
     text: "GitHub rejected the saved token, so this Item wasn’t updated. Replace or remove the token in Settings, then paste the link again.",
     kind: "save-note",
   },
+  "x-unreadable": {
+    text: "This post couldn’t be read. The grok CLI is signed out or not a version Threadsift has checked, X’s embed service couldn’t be reached, or the post didn’t match what X shows. Check Settings, X posts, for the CLI state.",
+    kind: "save-note",
+  },
+  "x-kept": {
+    text: "The saved copy was kept. A refresh with fewer replies than the saved one is never saved. The grok CLI is signed out or unchecked, X’s embed service failed, or the post didn’t match what X shows. Check Settings, X posts.",
+    kind: "save-note",
+  },
   "title-kept": {
     text: "Couldn’t update the title for this link, so the title saved earlier was kept.",
     kind: "save-note",
@@ -129,6 +139,17 @@ export const WAITING = {
     until:
       "Threadsift reads Reddit threads one at a time within Reddit’s limit and will check this one again {when}.",
     due: "Threadsift reads Reddit threads one at a time within Reddit’s limit and is waiting to check.",
+  },
+  "x-verify": {
+    title: "Waiting for X",
+    until: "X isn’t answering or is limiting requests, so Threadsift will try again {when}.",
+    due: "X isn’t answering or is limiting requests, so Threadsift is waiting to retry.",
+  },
+  "x-reread": {
+    title: "Waiting for the grok CLI",
+    until:
+      "The grok CLI couldn’t read the post and X didn’t say the post is gone, so Threadsift will read it again {when}.",
+    due: "The grok CLI couldn’t read the post and X didn’t say the post is gone, so Threadsift is waiting to read it again.",
   },
   "topic-busy": {
     title: "Waiting for Topic",

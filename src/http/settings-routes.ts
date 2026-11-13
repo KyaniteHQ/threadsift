@@ -7,6 +7,7 @@ import { registerGrokBotRoutes } from "./grok-bot-routes.ts";
 import { registerOpenRouterRoutes } from "./openrouter-routes.ts";
 import { registerRedditAccountRoutes } from "./reddit-account-routes.ts";
 import { registerRedditRoutes } from "./reddit-routes.ts";
+import { registerXRoutes } from "./x-routes.ts";
 
 export function registerSettingsRoutes(app: OpenAPIHono, ports: Ports): void {
   registerAiRoutes(app, ports);
@@ -15,4 +16,5 @@ export function registerSettingsRoutes(app: OpenAPIHono, ports: Ports): void {
   registerGrokBotRoutes(app, ports);
   registerRedditRoutes(app, ports);
   registerRedditAccountRoutes(app, ports);
+  registerXRoutes(app, ports);
 }

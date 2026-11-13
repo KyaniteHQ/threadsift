@@ -5,12 +5,18 @@ import { CreatedTokenResponseSchema, SavedItemResponseSchema } from "../src/http
 import { botInstance } from "./bot-task-fixtures.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec, until } from "./related-fixtures.ts";
-import { DIGEST_TITLE, answerOf, contentOf, digestOf, longAnswerOf } from "./x-intake-bodies.ts";
-import { intakeTo, sentIntake } from "./x-intake-fixtures.ts";
-import { itemRow, stored } from "./x-intake-rows.ts";
+import { exec } from "./related-fixtures.ts";
+import {
+  answerOf,
+  contentOf,
+  digestOf,
+  longAnswerOf,
+  oversizedAnswerOf,
+} from "./x-intake-bodies.ts";
+import { intakeTo, sentIntake, sentIntakeForContent } from "./x-intake-fixtures.ts";
+import { itemRow, stored, verificationRow } from "./x-intake-rows.ts";
 
-describe("an X link answer with the task's credential publishes once and only for the task it was sent for", () => {
+describe("an X link answer with the task's credential is stored once and only for the task it was sent for", () => {
   let instance: Instance;
   let agentToken = "";
 
@@ -26,28 +32,25 @@ describe("an X link answer with the task's credential publishes once and only fo
 
   after(() => instance.close());
 
-  it("stores the thread, keeps the Digest for the Item, closes the task and the job, and answers a repeat with 409 and no change", async () => {
-    const task = await sentIntake(instance);
+  it("stores the thread for verification without showing it, keeps the Digest for the Item, closes the task and the job, and answers a repeat with 409 and no change", async () => {
+    const task = await sentIntakeForContent(instance);
     const started = Date.now();
 
     const answer = await intakeTo(instance, task, answerOf(task.statusId));
 
     assert.equal(answer.status, 204);
-    assert.equal((await instance.settledItem(task.itemId)).status, "ready");
-
-    const detail = await until(
-      () => instance.detail(task.itemId),
-      ({ digestTitle }) => digestTitle !== null,
-    );
 
     const row = taskRow(instance, task.id);
+    const verification = verificationRow(instance, task.itemId);
+    const item = itemRow(instance, task.itemId);
 
-    assert.equal(detail.comments.received, 6);
-    assert.equal(detail.digestTitle, DIGEST_TITLE);
     assert.deepEqual([row.state, row.refusal], ["done", null]);
     assert.ok((row.answered_at ?? 0) >= started);
     assert.equal(jobRow(instance, task.job.id).state, "done");
-    assert.equal(itemRow(instance, task.itemId).fetch_result, "ok");
+    assert.equal(verification?.thread.replies.length, 6);
+    assert.equal(verification?.digest, JSON.stringify(digestOf()));
+    assert.deepEqual([item.fetch_result, item.generation], [null, 0]);
+    assert.equal(stored(instance, ["reddit_comments", "digests"]), "[[],[]]");
 
     const unchanged = stored(instance);
     const repeat = await intakeTo(instance, task, answerOf(task.statusId));
@@ -57,7 +60,7 @@ describe("an X link answer with the task's credential publishes once and only fo
   });
 
   it("takes a thread answer of more than 256 KiB, the size of a result answer, up to 8 MiB", async () => {
-    const task = await sentIntake(instance);
+    const task = await sentIntakeForContent(instance);
     const body = longAnswerOf(task.statusId);
 
     assert.ok(body.content.length > 256 * 1024);
@@ -66,8 +69,17 @@ describe("an X link answer with the task's credential publishes once and only fo
     assert.equal(response.status, 204, await response.text());
   });
 
+  it("refuses with 400 a thread whose stored row would pass the limit of one D1 statement, and names the limit", async () => {
+    const task = await sentIntakeForContent(instance);
+    const response = await intakeTo(instance, task, oversizedAnswerOf(task.statusId));
+
+    assert.equal(response.status, 400);
+    assert.match(await response.text(), /1499998 bytes/u);
+    assert.equal(verificationRow(instance, task.itemId), undefined);
+  });
+
   it("keeps a Digest the owner supplied with the link when the answer holds none", async () => {
-    const task = await sentIntake(instance);
+    const task = await sentIntakeForContent(instance);
     const supplied = JSON.stringify(digestOf());
 
     exec(instance, "update items set pending_digest = ? where id = ?", supplied, task.itemId);
@@ -76,13 +88,8 @@ describe("an X link answer with the task's credential publishes once and only fo
       content: contentOf(task.statusId),
     });
 
-    const detail = await until(
-      () => instance.detail(task.itemId),
-      ({ digestTitle }) => digestTitle !== null,
-    );
-
     assert.equal(answer.status, 204);
-    assert.equal(detail.digestTitle, DIGEST_TITLE);
+    assert.equal(verificationRow(instance, task.itemId)?.digest, supplied);
   });
 
   it("answers 401 for a missing, wrong, foreign or unknown credential and 403 for a session or an agent token, with no row changed", async () => {

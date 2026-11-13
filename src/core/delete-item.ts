@@ -22,6 +22,7 @@ import {
   relatedItems,
   searchFingerprints,
   searchParts,
+  xVerifications,
 } from "./schema.ts";
 
 async function storedKeys(files: FileStore, itemId: number): Promise<string[]> {
@@ -56,6 +57,7 @@ export async function deleteItem(
     db.delete(redditComments).where(eq(redditComments.itemId, id)),
     db.delete(redditThreads).where(eq(redditThreads.itemId, id)),
     db.delete(githubRepos).where(eq(githubRepos.itemId, id)),
+    db.delete(xVerifications).where(eq(xVerifications.itemId, id)),
     db.delete(searchParts).where(eq(searchParts.itemId, id)),
     ...goneWithItem(db, id),
     db.delete(pins).where(or(eq(pins.fromItemId, id), eq(pins.intoItemId, id))),

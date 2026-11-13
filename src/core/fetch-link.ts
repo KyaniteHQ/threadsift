@@ -29,7 +29,7 @@ type ShortLinkResolution =
 
 export const FETCH_DEADLINE_MS = 120_000;
 
-const SMALL_POLICY: FetchPolicy = {
+export const SMALL_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
   followMetaRefresh: isShortLink,
   readsBody: () => true,

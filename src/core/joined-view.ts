@@ -22,16 +22,16 @@ const DIGEST_VIEW_COLUMNS = {
   digestSource: sql<boolean>`${hasDigestSource()}`.mapWith(Boolean).as("digest_source"),
 };
 
-const WAITING_FETCH = sql`${jobs.itemId} = ${items.id} and ${jobs.kind} = 'fetch' and ${jobs.state} = 'queued' and ${jobs.waitReason} is not null`;
+const WAITING_JOB = sql`${jobs.itemId} = ${items.id} and ${jobs.kind} in ('fetch', 'x_verify') and ${jobs.state} = 'queued' and ${jobs.waitReason} is not null`;
 
 const WAIT_VIEW_COLUMNS = {
   waitReason:
-    sql<WaitReason | null>`(select ${jobs.waitReason} from ${jobs} where ${WAITING_FETCH})`.as(
+    sql<WaitReason | null>`(select ${jobs.waitReason} from ${jobs} where ${WAITING_JOB})`.as(
       "wait_reason",
     ),
-  retryAt: sql<
-    number | null
-  >`(select ${jobs.nextAttemptAt} from ${jobs} where ${WAITING_FETCH})`.as("retry_at"),
+  retryAt: sql<number | null>`(select ${jobs.nextAttemptAt} from ${jobs} where ${WAITING_JOB})`.as(
+    "retry_at",
+  ),
 };
 
 const FIRST_STORED = sql`from ${media} where ${media.itemId} = ${items.id} and ${media.outcome} = 'stored' order by ${media.position} limit 1`;

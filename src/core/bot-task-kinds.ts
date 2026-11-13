@@ -16,7 +16,7 @@ export const BOT_TASK_KINDS = {
   proposals: weeklyBotKind(runOf("tag-merge")),
   topic_proposals: weeklyBotKind(runOf("topic-merge")),
   disagreement_proposals: weeklyBotKind(disagreementRun),
-} as const satisfies Readonly<Record<Exclude<JobKind, "fetch">, BotTaskKind>>;
+} as const satisfies Readonly<Record<Exclude<JobKind, "fetch" | "x_verify">, BotTaskKind>>;
 
 function isBotTaskKind(kind: string): kind is keyof typeof BOT_TASK_KINDS {
   return Object.hasOwn(BOT_TASK_KINDS, kind);

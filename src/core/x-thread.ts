@@ -1,9 +1,10 @@
 import { isPlainCodeDrop } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
+import { utf8Length } from "./digest-prompt.ts";
 import type { ParsedThread, ThreadParse } from "./reddit-json.ts";
 import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
-import { type XReply, type XThread, XThreadSchema } from "./x-wire.ts";
+import { type XReply, type XThreadValue, XThreadSchema } from "./x-wire.ts";
 
 const TITLE_CHARACTERS = 120;
 
@@ -38,7 +39,7 @@ function postTitle(text: string): string {
     .trimEnd();
 }
 
-function readThread(answer: string): XThread {
+function readThread(answer: string): XThreadValue {
   try {
     const parsed = XThreadSchema.safeParse(JSON.parse(answer));
 
@@ -162,8 +163,31 @@ function nodeOf({ reply, parentId, depth }: Readonly<Placed>, position: number):
   return node;
 }
 
-function parseThread(answer: string, statusId: string): ParsedThread {
-  const { post, replies } = readThread(answer);
+function withMoreMarked(thread: Readonly<ParsedThread>): ParsedThread {
+  const received = thread.nodes.length;
+  const { reported } = thread;
+  const missing = reported === null ? received > 0 : reported > received;
+
+  if (!missing) return thread;
+
+  const more: ThreadNode = {
+    id: `more_${String(received)}`,
+    parentId: null,
+    position: received,
+    depth: 0,
+    kind: "more",
+    author: null,
+    body: null,
+    score: null,
+    postedAt: null,
+    eligible: false,
+  };
+
+  return { ...thread, nodes: [...thread.nodes, more] };
+}
+
+function parseThread(value: XThreadValue, statusId: string): ParsedThread {
+  const { post, replies } = value;
 
   if (post.id !== statusId) refuse(`the post id ${post.id} is not the status id in the link`);
 
@@ -171,7 +195,13 @@ function parseThread(answer: string, statusId: string): ParsedThread {
   checkedText(post.text, "the post text");
   checkedReplies(post.id, replies);
 
-  return {
+  const nodes = walk(post.id, replies).map((entry, position) => nodeOf(entry, position));
+
+  if (utf8Length(JSON.stringify(value)) > MAX_ROW_BYTES) {
+    refuse(`the thread is longer than ${String(MAX_ROW_BYTES)} bytes once stored`);
+  }
+
+  return withMoreMarked({
     title: postTitle(post.text),
     author: post.author,
     community: null,
@@ -179,12 +209,28 @@ function parseThread(answer: string, statusId: string): ParsedThread {
     postedAt: post.postedAt,
     reported: post.replies,
     linkedUrl: null,
-    nodes: walk(post.id, replies).map((entry, position) => nodeOf(entry, position)),
-  };
+    nodes,
+  });
+}
+
+export function parseXThreadValue(thread: XThreadValue, statusId: string): ThreadParse {
+  const read = refusing(() => parseThread(thread, statusId));
+
+  return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
+}
+
+export function readXThreadValue(
+  answer: string,
+):
+  | { readonly kind: "value"; readonly value: XThreadValue }
+  | { readonly kind: "refused"; readonly reason: string } {
+  const read = refusing(() => readThread(answer));
+
+  return read.kind === "read" ? { kind: "value", value: read.value } : read;
 }
 
 export function parseXThread(answer: string, statusId: string): ThreadParse {
-  const read = refusing(() => parseThread(answer, statusId));
+  const read = readXThreadValue(answer);
 
-  return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
+  return read.kind === "value" ? parseXThreadValue(read.value, statusId) : read;
 }

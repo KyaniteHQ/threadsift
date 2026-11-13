@@ -27,10 +27,10 @@ export async function startNode(
   db: Database,
   options: Readonly<NodeOptions>,
 ): Promise<NodeRuntime> {
-  const { dataDir, setupCode, secretKey, resetCode, publicOrigin, fetchers, claude, codex } =
+  const { dataDir, setupCode, secretKey, resetCode, publicOrigin, fetchers, claude, codex, grok } =
     options;
 
-  const operator = await startOperatorCode({ fetchers, claude, codex });
+  const operator = await startOperatorCode({ fetchers, claude, codex, grok });
   const loop = new JobLoop();
   const pages = new WorkerPageReader();
 
@@ -53,6 +53,7 @@ export async function startNode(
     resetCode: configuredCode(resetCode),
     publicOrigin: configuredOrigin(publicOrigin),
     fetchers: operator.fetchers,
+    xFetcher: operator.xFetcher,
   };
 
   await loop.start(ports);
@@ -63,6 +64,8 @@ export async function startNode(
       const drained = loop.stop();
 
       for (const runner of operator.cli) runner.stop();
+
+      operator.xFetcher?.stop();
 
       await drained;
       pages.stop();

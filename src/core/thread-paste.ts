@@ -2,18 +2,23 @@ import { type Digest } from "./ai-contract.ts";
 import { type Caller, countedToken } from "./caller.ts";
 import { type Invalid, type NotWaiting, type SaveResult, itemAt } from "./items.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
-import { parseLink, redditRefOf, statusIdOf } from "./links.ts";
+import { parseLink, statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
-import { type ThreadParse, parseRedditThread } from "./reddit-json.ts";
 import { type ThreadAnswers, fitsContentLimit } from "./thread-answers.ts";
+import { fewerThanSaved, parsedThread } from "./thread-input.ts";
 import { publishThread } from "./thread-save.ts";
-import { parseXThread } from "./x-thread.ts";
 
 export type ThreadPasteResult =
   | SaveResult
   | Invalid<"content" | "fill">
   | NotWaiting
   | { readonly kind: "too-large"; readonly field: "content" };
+
+const FEWER_REPLIES: Invalid<"content"> = {
+  kind: "invalid",
+  field: "content",
+  reason: "the thread has fewer replies than the saved one, so the saved one was kept",
+};
 
 export const FILL_NEEDS_CONTENT: Invalid<"fill"> = {
   kind: "invalid",
@@ -26,30 +31,6 @@ const FILL_IS_REDDIT_ONLY: Invalid<"fill"> = {
   field: "fill",
   reason: "only a Reddit thread can be filled",
 };
-
-const NOT_A_THREAD_LINK = "only a Reddit post or comment link or an X post link takes content";
-
-const ONE_X_TEXT = "an X post takes one JSON text of the post and its replies";
-
-function refused(reason: string): ThreadParse {
-  return { kind: "refused", reason };
-}
-
-function parsedThread(
-  absoluteUrl: string,
-  statusId: string | null,
-  answers: ThreadAnswers,
-): ThreadParse {
-  const ref = redditRefOf(absoluteUrl);
-
-  if (ref !== null) return parseRedditThread(answers, ref);
-
-  if (statusId === null) return refused(NOT_A_THREAD_LINK);
-
-  const [answer, ...later] = answers;
-
-  return later.length === 0 ? parseXThread(answer, statusId) : refused(ONE_X_TEXT);
-}
 
 export async function saveThread(
   ports: Ports,
@@ -85,6 +66,8 @@ export async function saveThread(
     address: absoluteUrl,
     addedByToken: countedToken(caller),
   };
+
+  if (await fewerThanSaved(db, place, parsed.thread)) return FEWER_REPLIES;
 
   const created = await publishThread(db, place, parsed.thread, {
     pendingDigest: digest === undefined ? null : JSON.stringify(digest),

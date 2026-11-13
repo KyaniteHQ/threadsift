@@ -7,7 +7,7 @@ import {
   foundItem,
   queuedWrites,
 } from "./items.ts";
-import { closeFetchJobs } from "./job-close.ts";
+import { closeItemJobs } from "./job-close.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { isRefusedLink, parseLink, redditRefOf, takesPage } from "./links.ts";
 import type { Ports } from "./ports.ts";
@@ -38,8 +38,8 @@ async function queuePage(
 ): Promise<SaveResult> {
   const link = parseLink(absoluteUrl);
 
-  const [, inserted, , , queued, [item]] = await ports.db.batch([
-    closeFetchJobs(ports.db, ownerOf(link.normalizedUrl).id),
+  const [, , inserted, , , queued, [item]] = await ports.db.batch([
+    ...closeItemJobs(ports.db, ownerOf(link.normalizedUrl).id),
     ...queuedWrites(
       ports.db,
       {

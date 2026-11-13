@@ -1,0 +1,4 @@
+{
+  "error": "Sorry, you are not authorized to see this status.",
+  "request": "\/oembed?url=https:\/\/x.com\/i\/status\/34&omit_script=1"
+}
