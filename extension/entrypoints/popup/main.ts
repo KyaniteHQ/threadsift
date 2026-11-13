@@ -18,6 +18,7 @@ const FAILURE_TEXT: Readonly<Record<Failure, string>> = {
   "private-link": TEXT.privateLink,
   "unsupported-link": TEXT.unsupportedLink,
   "thread-kept": TEXT.threadKept,
+  "budget-spent": TEXT.budgetSpent,
   updating: TEXT.updating,
   unreachable: TEXT.unreachable,
   failed: TEXT.failed,
@@ -56,7 +57,9 @@ function actions(state: Readonly<SaveState>): HTMLElement[] {
     ];
   }
 
-  if (state.kind === "saving" || state.kind === "thread-kept") return [];
+  if (state.kind === "saving" || state.kind === "thread-kept" || state.kind === "budget-spent") {
+    return [];
+  }
 
   return NEEDS_SETTINGS.has(state.kind)
     ? [button(TEXT.openSettings, () => void browser.runtime.openOptionsPage())]

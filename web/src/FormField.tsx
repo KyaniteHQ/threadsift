@@ -10,6 +10,7 @@ interface InputKind {
   readonly autoComplete: string;
   readonly mono?: true;
   readonly maxLength?: number | undefined;
+  readonly inputMode?: "numeric" | undefined;
   readonly placeholder?: string | undefined;
 }
 
@@ -43,6 +44,7 @@ function Input({
       autoCapitalize="off"
       className={kind.mono === true ? "mono" : undefined}
       maxLength={kind.maxLength}
+      inputMode={kind.inputMode}
       placeholder={kind.placeholder}
       required={kind.required}
       pattern={kind.pattern}

@@ -11,10 +11,10 @@ import {
   ImportStateSchema,
 } from "./batch-schemas.ts";
 import { savedView } from "./item-view.ts";
-import { jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
-import { UPDATING } from "./refusals.ts";
+import { budgetRefusal, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
+import { UPDATING, budgetSpent } from "./refusals.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
-import { requirePasteScopes } from "./token-scopes.ts";
+import { callerOf, requirePasteScopes } from "./token-scopes.ts";
 
 const BATCH_DIGEST_SCOPE =
   " An entry with a `digest` needs the `digest` scope as well, and the call saves nothing without it.";
@@ -24,10 +24,11 @@ const NO_IMPORT = "No cursor is saved under this name";
 const batchRoute = createRoute({
   method: "post",
   path: "/api/items/batch",
-  description: `Save many links in one call and, optionally, keep a cursor on the Instance. \`links\` holds 1 to ${String(BATCH_LINKS_MAX)} entries of \`url\` and optionally \`digest\`, with the rules of \`POST /api/items\`; an entry takes no \`content\`, \`page\` or \`fill\`. The links are saved one after the other, in the order given. \`results[i]\` answers \`links[i]\`: \`added\` (a new Item, with its \`item\` and \`url\` as \`POST /api/items\` answers them), \`known\` (the library already holds the link, so it is not fetched again, gets no new Digest and keeps the Digest sent with it unused; \`POST /api/items\` refreshes it) or \`refused\` (the host is not globally reachable; \`url\` is the link sent). A refused link does not stop the others. \`import\` is \`{name, cursor}\`: \`name\` is 1 to 64 characters of letters, digits, \`.\`, \`_\` and \`-\` that the caller chooses, and \`cursor\` is an opaque text of 1 to 256 characters, such as the last bookmark id. The Instance saves \`cursor\` under \`name\` only after every link has an outcome, so a call that dies half way leaves the old cursor and the caller sends the same links again, and the repeat answers \`known\` for the links already saved. The answer repeats the saved \`import\`, or null when the call sent none. \`GET /api/imports/{name}\` reads the cursor back.${scopeNote("POST", "/api/items/batch", BATCH_DIGEST_SCOPE)}`,
+  description: `Save many links in one call and, optionally, keep a cursor on the Instance. \`links\` holds 1 to ${String(BATCH_LINKS_MAX)} entries of \`url\` and optionally \`digest\`, with the rules of \`POST /api/items\`; an entry takes no \`content\`, \`page\` or \`fill\`. The links are saved one after the other, in the order given. An agent token that does not have budget left for every new link in the call gets 429 and nothing is saved. \`results[i]\` answers \`links[i]\`: \`added\` (a new Item, with its \`item\` and \`url\` as \`POST /api/items\` answers them), \`known\` (the library already holds the link, so it is not fetched again, gets no new Digest and keeps the Digest sent with it unused; \`POST /api/items\` refreshes it) or \`refused\` (the host is not globally reachable; \`url\` is the link sent). A refused link does not stop the others. \`import\` is \`{name, cursor}\`: \`name\` is 1 to 64 characters of letters, digits, \`.\`, \`_\` and \`-\` that the caller chooses, and \`cursor\` is an opaque text of 1 to 256 characters, such as the last bookmark id. The Instance saves \`cursor\` under \`name\` only after every link has an outcome, so a call that dies half way leaves the old cursor and the caller sends the same links again, and the repeat answers \`known\` for the links already saved. The answer repeats the saved \`import\`, or null when the call sent none. \`GET /api/imports/{name}\` reads the cursor back.${scopeNote("POST", "/api/items/batch", BATCH_DIGEST_SCOPE)}`,
   request: { body: jsonRequest(BatchRequestSchema) },
   responses: {
     ...scopeRefusal("POST", "/api/items/batch", BATCH_DIGEST_SCOPE),
+    ...budgetRefusal,
     200: jsonBody(
       BatchResponseSchema,
       "Every link has an outcome in `results`, in the order sent, and the cursor is saved.",
@@ -75,7 +76,9 @@ export function registerBatchRoutes(app: OpenAPIHono, ports: Ports): void {
       links.some(({ digest }) => digest !== undefined),
     );
 
-    const pasted = await pasteBatch(ports, links);
+    const pasted = await pasteBatch(ports, links, callerOf(c));
+
+    if (pasted.kind === "budget-spent") return budgetSpent(c, pasted);
 
     if (pasted.kind === "updating") return c.json({ error: UPDATING }, 503);
 

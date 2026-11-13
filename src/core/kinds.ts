@@ -94,6 +94,35 @@ export const ScopeListSchema = z.array(z.enum(SCOPES));
 
 export const DEFAULT_SCOPES = ["read", "add"] as const satisfies readonly Scope[];
 
+export const BUDGET_SPENT = "budget-spent";
+
+export interface BudgetSpent {
+  readonly kind: typeof BUDGET_SPENT;
+  readonly until: number;
+}
+
+const WholeCount = z.number().int().nonnegative();
+
+export const TokenBudgetSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("unlimited"), added: WholeCount }),
+  z.object({
+    kind: z.literal("within"),
+    limit: WholeCount,
+    added: WholeCount,
+    left: WholeCount,
+  }),
+  z.object({
+    kind: z.literal("spent"),
+    limit: WholeCount,
+    added: WholeCount,
+    until: z.number().int(),
+  }),
+]);
+
+export type TokenBudget = z.infer<typeof TokenBudgetSchema>;
+
+export const DailyBudgetSchema = z.number().int().positive().nullable();
+
 export type ItemStatus = (typeof ITEM_STATUSES)[number];
 
 export type FailureReason = (typeof FAILURE_REASONS)[number];

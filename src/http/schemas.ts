@@ -6,7 +6,9 @@ import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { HighlightsViewSchema } from "../core/highlight-contract.ts";
 import { parseCursor } from "../core/item-page.ts";
 import {
+  BUDGET_SPENT,
   DEFAULT_SCOPES,
+  DailyBudgetSchema,
   DIGEST_OUTCOMES,
   FAILURE_REASONS,
   KINDS,
@@ -14,6 +16,7 @@ import {
   ScopeListSchema,
   SETUP_CODE_STATUSES,
   SOURCES,
+  TokenBudgetSchema,
   WAIT_REASONS,
 } from "../core/kinds.ts";
 import { NoteViewSchema } from "../core/note-contract.ts";
@@ -189,6 +192,8 @@ export const ErrorResponseSchema = z.object({
   code: z.enum(REFUSAL_CODES).optional(),
 });
 
+export const BudgetRefusalSchema = z.object({ error: z.string(), code: z.literal(BUDGET_SPENT) });
+
 export const SessionStateSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("setup"), code: z.enum(SETUP_CODE_STATUSES) }),
   z.object({ state: z.enum(["signed-out", "signed-in"]) }),
@@ -216,7 +221,10 @@ export const CreateTokenRequestSchema = z.object({
   scopes: ScopeListSchema.min(1)
     .readonly()
     .default([...DEFAULT_SCOPES]),
+  dailyBudget: DailyBudgetSchema.optional(),
 });
+
+export const ChangeBudgetRequestSchema = z.object({ dailyBudget: DailyBudgetSchema });
 
 const TokenSchema = z.object({
   id: z.number().int(),
@@ -224,9 +232,12 @@ const TokenSchema = z.object({
   createdAt: z.number().int(),
   lastUsedAt: z.number().int().nullable(),
   scopes: ScopeListSchema.readonly(),
+  budget: TokenBudgetSchema,
 });
 
 export const CreatedTokenResponseSchema = z.object({ token: TokenSchema, value: z.string() });
+
+export const TokenSummaryResponseSchema = z.object({ token: TokenSchema });
 
 export const TokenListResponseSchema = z.object({ tokens: z.array(TokenSchema) });
 
@@ -239,6 +250,8 @@ export const HighlightParamsSchema = IdParamSchema.extend({
 export type Token = z.infer<typeof TokenSchema>;
 
 export type CreateTokenRequest = z.input<typeof CreateTokenRequestSchema>;
+
+export type ChangeBudgetRequest = z.infer<typeof ChangeBudgetRequestSchema>;
 
 export type Item = z.infer<typeof ItemSchema>;
 

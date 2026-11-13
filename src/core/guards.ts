@@ -73,12 +73,16 @@ export async function unlessRefused<Written>(
 
 const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)/u;
 
-export function refusedByGuard(cause: unknown): boolean {
+export function refusedBy(cause: unknown, refusal: Readonly<RegExp>): boolean {
   for (let link = cause; link instanceof Error; link = link.cause) {
-    if (GUARD_REFUSED.test(link.message)) return true;
+    if (refusal.test(link.message)) return true;
   }
 
   return false;
+}
+
+export function refusedByGuard(cause: unknown): boolean {
+  return refusedBy(cause, GUARD_REFUSED);
 }
 
 async function rethrowUnlessRefused(

@@ -1,7 +1,7 @@
+import { type Budgeted, unlessSpent } from "./agent-token-budget.ts";
 import { type Digest } from "./ai-contract.ts";
+import type { Caller } from "./caller.ts";
 import { dataStepsFinished } from "./data-steps.ts";
-import { utf8Length } from "./digest-prompt.ts";
-import { THREAD_CONTENT_BYTES } from "./limits.ts";
 import { type PageSaveResult, savePage } from "./page-save.ts";
 import type { Ports } from "./ports.ts";
 import { saveItem } from "./save-link.ts";
@@ -16,26 +16,18 @@ export interface Supplied {
   readonly fill?: true | undefined;
 }
 
-type PasteResult =
-  | ThreadPasteResult
-  | PageSaveResult
-  | { readonly kind: "too-large"; readonly field: "content" }
-  | { readonly kind: "updating" };
+type Pasted = ThreadPasteResult | PageSaveResult | { readonly kind: "updating" };
 
-function fitsAnswer(answer: string): boolean {
-  return (
-    answer.length <= THREAD_CONTENT_BYTES &&
-    (answer.length * 3 <= THREAD_CONTENT_BYTES || utf8Length(answer) <= THREAD_CONTENT_BYTES)
-  );
-}
+type PasteResult = Budgeted<Pasted>;
 
 const ONE_OF_TWO = "a link takes content or a page, not both";
 
-export async function paste(
+async function pasted(
   ports: Ports,
   absoluteUrl: string,
-  { digest, content, page, fill }: Readonly<Supplied> = {},
-): Promise<PasteResult> {
+  caller: Caller,
+  { digest, content, page, fill }: Readonly<Supplied>,
+): Promise<Pasted> {
   if (!(await dataStepsFinished(ports.db))) return { kind: "updating" };
 
   if (fill === true && content === undefined) {
@@ -44,15 +36,25 @@ export async function paste(
 
   if (page !== undefined) {
     return content === undefined
-      ? savePage(ports, absoluteUrl, digest, page)
+      ? savePage(ports, absoluteUrl, digest, page, caller)
       : { kind: "invalid", field: "page", reason: ONE_OF_TWO };
   }
 
-  if (content === undefined) return saveItem(ports, absoluteUrl, digest);
+  if (content === undefined) return saveItem(ports, absoluteUrl, digest, "refresh", caller);
 
-  if (!content.every((answer) => fitsAnswer(answer))) {
-    return { kind: "too-large", field: "content" };
-  }
+  return saveThread(ports, absoluteUrl, {
+    digest,
+    answers: content,
+    fillOnly: fill === true,
+    caller,
+  });
+}
 
-  return saveThread(ports, absoluteUrl, { digest, answers: content, fillOnly: fill === true });
+export function paste(
+  ports: Ports,
+  absoluteUrl: string,
+  caller: Caller,
+  supplied: Readonly<Supplied>,
+): Promise<PasteResult> {
+  return unlessSpent(() => pasted(ports, absoluteUrl, caller, supplied));
 }

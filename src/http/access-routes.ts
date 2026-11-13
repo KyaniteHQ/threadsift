@@ -4,8 +4,9 @@ import { checkSetupCode, hasOwner, login, setUpOwner } from "../core/owner.ts";
 import type { Ports } from "../core/ports.ts";
 import { endSession } from "../core/sessions.ts";
 import { SETUP_CODE_MIN, checkConfiguredCode } from "../core/setup-code.ts";
-import { createToken, listTokens, revokeToken } from "../core/tokens.ts";
+import { changeBudget, createToken, listTokens, revokeToken } from "../core/tokens.ts";
 import {
+  changeBudgetRoute,
   createTokenRoute,
   listTokensRoute,
   loginRoute,
@@ -90,9 +91,19 @@ function registerSessionRoutes(app: OpenAPIHono, ports: Ports): void {
 
 function registerTokenRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(createTokenRoute, async (c) => {
-    const { name, scopes } = c.req.valid("json");
+    const { name, scopes, dailyBudget } = c.req.valid("json");
 
-    return c.json(await createToken(ports, name, scopes), 201);
+    return c.json(await createToken(ports, name, scopes, dailyBudget), 201);
+  });
+
+  app.openapi(changeBudgetRoute, async (c) => {
+    const token = await changeBudget(
+      ports,
+      c.req.valid("param").id,
+      c.req.valid("json").dailyBudget,
+    );
+
+    return token === undefined ? c.json({ error: "No such token" }, 404) : c.json({ token }, 200);
   });
 
   app.openapi(listTokensRoute, async (c) => c.json({ tokens: await listTokens(ports) }, 200));

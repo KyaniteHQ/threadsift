@@ -10,7 +10,7 @@ import type { Ports } from "../core/ports.ts";
 import { pasteScopes } from "../core/scopes.ts";
 import { savedView } from "./item-view.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
-import { REFUSED_HOST, UPDATING } from "./refusals.ts";
+import { BUDGET_SPENT_MESSAGE, REFUSED_HOST, UPDATING, budgetRefusalOf } from "./refusals.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { SavedItemResponseSchema } from "./schemas.ts";
 
@@ -27,20 +27,24 @@ const addScopes: ScopeChallengeHandler = (call) => {
   return requireScopes(...pasteScopes(sendsDigest))(call);
 };
 
-export function registerAddTool(server: McpServer, ports: Ports): void {
+export function registerAddTool(server: McpServer, ports: Ports, tokenId: number): void {
   server.registerTool(
     "add",
     {
       title: "Add a link",
       description:
-        "Save a link as an Item. A link the library already holds is refreshed. The Item is `processing` until its fetch and Digest end, so read it again with `read`, or with `search` and `url`. `digest` is optional and publishes without a Provider call once the text is fetched.",
+        "Save a link as an Item. A link the library already holds is refreshed and does not count against the token's daily budget. Each new Item counts, and a token that has added its daily budget of Items gets an error until 00:00 UTC. The Item is `processing` until its fetch and Digest end, so read it again with `read`, or with `search` and `url`. `digest` is optional and publishes without a Provider call once the text is fetched.",
       inputSchema: AddInputSchema,
       outputSchema: SavedItemResponseSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       scopeChallenge: addScopes,
     },
     guarded("add", async ({ url, digest }: Readonly<z.infer<typeof AddInputSchema>>) => {
-      const saved = await paste(ports, url, { digest });
+      const saved = await paste(ports, url, { kind: "token", id: tokenId }, { digest });
+
+      if (saved.kind === "budget-spent") {
+        return refused(BUDGET_SPENT_MESSAGE, budgetRefusalOf(saved));
+      }
 
       if (saved.kind === "refused") return refused(REFUSED_HOST);
 

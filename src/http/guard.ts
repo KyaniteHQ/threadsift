@@ -58,7 +58,7 @@ export function guard(ports: Ports): MiddlewareHandler {
       return false;
     }
 
-    c.set("principal", { kind: "token", scopes: token.scopes });
+    c.set("principal", { kind: "token", id: token.id, scopes: token.scopes });
 
     return true;
   });

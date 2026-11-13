@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { MAX_THREAD_ANSWERS } from "./limits.ts";
+import { utf8Length } from "./digest-prompt.ts";
+import { MAX_THREAD_ANSWERS, THREAD_CONTENT_BYTES } from "./limits.ts";
 
 export type ThreadAnswers = readonly [string, ...string[]];
 
@@ -15,3 +16,14 @@ export const ThreadAnswersSchema = z.union(
   ],
   { error: ANSWERS_ERROR },
 );
+
+function fitsAnswer(answer: string): boolean {
+  return (
+    answer.length <= THREAD_CONTENT_BYTES &&
+    (answer.length * 3 <= THREAD_CONTENT_BYTES || utf8Length(answer) <= THREAD_CONTENT_BYTES)
+  );
+}
+
+export function fitsContentLimit(answers: ThreadAnswers): boolean {
+  return answers.every((answer) => fitsAnswer(answer));
+}

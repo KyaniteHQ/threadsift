@@ -8,6 +8,7 @@ import {
   ErrorResponseSchema,
   SessionStateSchema,
   TokenListResponseSchema,
+  TokenSummaryResponseSchema,
   type RefusalCode,
   type Token,
 } from "../../src/http/schemas.ts";
@@ -106,10 +107,22 @@ export async function fetchTokens(signal: AbortSignal): Promise<Token[]> {
 
 type CreatedToken = z.infer<typeof CreatedTokenResponseSchema>;
 
-export function createToken(name: string, scopes: readonly Scope[]): Promise<CreatedToken> {
+export function createToken(
+  name: string,
+  scopes: readonly Scope[],
+  dailyBudget: number | null,
+): Promise<CreatedToken> {
   return parsedFrom("POST", "/api/tokens", CreatedTokenResponseSchema, {
-    json: { name, scopes },
+    json: { name, scopes, dailyBudget },
   });
+}
+
+export async function changeBudget(id: number, dailyBudget: number | null): Promise<Token> {
+  const { token } = await parsedFrom("PATCH", `/api/tokens/${id}`, TokenSummaryResponseSchema, {
+    json: { dailyBudget },
+  });
+
+  return token;
 }
 
 export async function revokeToken(id: number): Promise<void> {

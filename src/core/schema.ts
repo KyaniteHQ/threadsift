@@ -15,6 +15,7 @@ import {
 
 export {
   type AgentTokenRow,
+  agentTokenDays,
   agentTokens,
   owner,
   sessions,
@@ -88,6 +89,7 @@ export const items = sqliteTable(
     status: text("status", { enum: ITEM_STATUSES }).notNull().default("ready"),
     reason: text("reason", { enum: FAILURE_REASONS }),
     fetch: text("fetch_result", { enum: FETCH_RESULTS }),
+    addedByToken: integer("added_by_token"),
   },
   (table) => [
     index("items_saved_at_id").on(table.savedAt, table.id),

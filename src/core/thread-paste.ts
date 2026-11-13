@@ -1,14 +1,19 @@
 import { type Digest } from "./ai-contract.ts";
+import { type Caller, countedToken } from "./caller.ts";
 import { type Invalid, type NotWaiting, type SaveResult, itemAt } from "./items.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
 import { parseLink, redditRefOf, statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { type ThreadParse, parseRedditThread } from "./reddit-json.ts";
-import type { ThreadAnswers } from "./thread-answers.ts";
+import { type ThreadAnswers, fitsContentLimit } from "./thread-answers.ts";
 import { publishThread } from "./thread-save.ts";
 import { parseXThread } from "./x-thread.ts";
 
-export type ThreadPasteResult = SaveResult | Invalid<"content" | "fill"> | NotWaiting;
+export type ThreadPasteResult =
+  | SaveResult
+  | Invalid<"content" | "fill">
+  | NotWaiting
+  | { readonly kind: "too-large"; readonly field: "content" };
 
 export const FILL_NEEDS_CONTENT: Invalid<"fill"> = {
   kind: "invalid",
@@ -53,8 +58,16 @@ export async function saveThread(
     digest,
     answers,
     fillOnly,
-  }: Readonly<{ digest: Digest | undefined; answers: ThreadAnswers; fillOnly: boolean }>,
+    caller,
+  }: Readonly<{
+    digest: Digest | undefined;
+    answers: ThreadAnswers;
+    fillOnly: boolean;
+    caller: Caller;
+  }>,
 ): Promise<ThreadPasteResult> {
+  if (!fitsContentLimit(answers)) return { kind: "too-large", field: "content" };
+
   const statusId = statusIdOf(absoluteUrl);
 
   if (fillOnly && statusId !== null) return FILL_IS_REDDIT_ONLY;
@@ -66,7 +79,12 @@ export async function saveThread(
   }
 
   const { db } = ports;
-  const place = { ...parseLink(absoluteUrl), address: absoluteUrl };
+
+  const place = {
+    ...parseLink(absoluteUrl),
+    address: absoluteUrl,
+    addedByToken: countedToken(caller),
+  };
 
   const created = await publishThread(db, place, parsed.thread, {
     pendingDigest: digest === undefined ? null : JSON.stringify(digest),
