@@ -15,11 +15,13 @@ const Job = z.object({
 
 const WORKER_DRAIN_MS = FETCH_DEADLINE_MS + 30_000;
 
-export async function drainDeletedWorker(): Promise<void> {
+export type Wrangler = (args: readonly string[]) => string;
+
+async function drainDeletedWorker(): Promise<void> {
   await setTimeout(WORKER_DRAIN_MS);
 }
 
-export async function removePreviewBucket(bucket: string): Promise<void> {
+async function removePreviewBucket(bucket: string): Promise<void> {
   z.string()
     .regex(/^threadsift-pr-[1-9]\d{0,7}-files$/u)
     .parse(bucket);
@@ -138,4 +140,72 @@ export async function previewResourceExists(
     .parse(await response.json());
 
   return answer.result.some((queue) => queue.queue_name === name);
+}
+
+export function previewDatabaseExists(name: string, wrangler: Wrangler): boolean {
+  const databases = z
+    .array(z.object({ name: z.string() }))
+    .parse(JSON.parse(wrangler(["d1", "list", "--json"])));
+
+  return databases.some((database) => database.name === `${name}-db`);
+}
+
+async function detachConsumer(name: string, wrangler: Wrangler): Promise<void> {
+  if (!(await previewResourceExists("queue", `${name}-jobs`))) return;
+
+  const consumers = z
+    .array(z.union([z.object({ script: z.string() }), z.object({ service: z.string() })]))
+    .parse(
+      JSON.parse(wrangler(["queues", "consumer", "worker", "list", `${name}-jobs`, "--json"])),
+    );
+
+  if (
+    consumers.some(
+      (consumer) => ("script" in consumer ? consumer.script : consumer.service) === name,
+    )
+  )
+    wrangler(["queues", "consumer", "remove", `${name}-jobs`, name]);
+}
+
+async function stopWorker(name: string, wrangler: Wrangler): Promise<void> {
+  await detachConsumer(name, wrangler);
+
+  if (await previewResourceExists("worker", name)) wrangler(["delete", "--name", name]);
+}
+
+async function removeStorage(name: string, wrangler: Wrangler): Promise<void> {
+  if (await previewResourceExists("queue", `${name}-jobs`))
+    wrangler(["queues", "delete", `${name}-jobs`]);
+
+  if (await previewResourceExists("bucket", `${name}-files`)) {
+    await removePreviewBucket(`${name}-files`);
+    wrangler(["r2", "bucket", "delete", `${name}-files`]);
+  }
+
+  if (previewDatabaseExists(name, wrangler))
+    wrangler(["d1", "delete", `${name}-db`, "--skip-confirmation"]);
+
+  const remaining = await Promise.all([
+    previewResourceExists("worker", name),
+    previewResourceExists("queue", `${name}-jobs`),
+    previewResourceExists("bucket", `${name}-files`),
+  ]);
+
+  if (previewDatabaseExists(name, wrangler) || remaining.some(Boolean))
+    throw new CommandFailure({
+      kind: "check",
+      reason: "Preview cleanup incomplete; rerun close",
+      recovery: "Inspect the PR manifest and preview token permissions, then rerun close.",
+    });
+}
+
+export async function closePreview(name: string, wrangler: Wrangler): Promise<void> {
+  await stopWorker(name, wrangler);
+  await removeStorage(name, wrangler);
+}
+
+export async function resetPreview(name: string, wrangler: Wrangler): Promise<void> {
+  await stopWorker(name, wrangler);
+  await drainDeletedWorker();
+  await removeStorage(name, wrangler);
 }

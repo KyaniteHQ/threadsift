@@ -2,12 +2,14 @@ import { readdirSync } from "node:fs";
 
 import { z } from "zod";
 
+import type { Wrangler } from "./preview-cloudflare.ts";
+
 const Rows = z
   .array(z.object({ results: z.array(z.object({ name: z.string() })) }))
   .transform((statements) => statements.flatMap((statement) => statement.results));
 
 export function rowNames(
-  run: (args: readonly string[]) => string,
+  run: Wrangler,
   scope: readonly string[],
   query: string,
 ): readonly string[] {
@@ -17,7 +19,7 @@ export function rowNames(
 }
 
 export function hasTable(
-  run: (args: readonly string[]) => string,
+  run: Wrangler,
   scope: readonly string[],
   table: "d1_migrations" | "pins" | "proposals",
 ): boolean {
@@ -31,7 +33,7 @@ export function hasTable(
 }
 
 export function hasForeignMigrations(
-  run: (args: readonly string[]) => string,
+  run: Wrangler,
   scope: readonly string[],
   migrationsDir: string,
 ): boolean {

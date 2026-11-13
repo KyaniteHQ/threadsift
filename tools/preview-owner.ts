@@ -1,11 +1,13 @@
 import { setTimeout } from "node:timers/promises";
 
-import { type APIRequestContext, type APIResponse, request } from "@playwright/test";
+import type { APIResponse } from "@playwright/test";
 import { z } from "zod";
 
 import { SaveItemRequestSchema } from "../src/http/save-schemas.ts";
 import { ErrorResponseSchema, type Item, ItemListResponseSchema } from "../src/http/schemas.ts";
 import { CommandFailure } from "./command-failure.ts";
+import { type InstanceApi, openInstanceApi, signIn, signOut } from "./instance-api.ts";
+import type { Wrangler } from "./preview-cloudflare.ts";
 import { demoDigestPastes, seedDemoProposals } from "./preview-demo.ts";
 
 type Paste = Pick<z.input<typeof SaveItemRequestSchema>, "digest" | "page" | "url">;
@@ -22,8 +24,6 @@ const READ_ATTEMPTS = 11;
 const READ_PAUSE_MS = 5000;
 const ROUTE_READ_TIMEOUT_MS = 10_000;
 const DIGEST_WAIT_MS = 120_000;
-
-type Api = Readonly<Pick<APIRequestContext, "get" | "post">>;
 
 type Attempt<T> =
   | { readonly kind: "answered"; readonly value: T }
@@ -69,7 +69,7 @@ interface Query {
   readonly timeout?: number;
 }
 
-async function get(api: Api, path: string, query: Query): Promise<Reply> {
+async function get(api: InstanceApi, path: string, query: Query): Promise<Reply> {
   try {
     return {
       kind: "reply",
@@ -86,7 +86,7 @@ async function get(api: Api, path: string, query: Query): Promise<Reply> {
   }
 }
 
-async function readItems(api: Api, url: string): Promise<Attempt<readonly Item[]>> {
+async function readItems(api: InstanceApi, url: string): Promise<Attempt<readonly Item[]>> {
   const reply = await get(api, "/api/items", { params: { url } });
 
   if (reply.kind === "failed") return pending(reply.observed);
@@ -109,7 +109,7 @@ async function readItems(api: Api, url: string): Promise<Attempt<readonly Item[]
   });
 }
 
-function demoItems(api: Api, url: string): Promise<readonly Item[]> {
+function demoItems(api: InstanceApi, url: string): Promise<readonly Item[]> {
   return untilAnswered({
     read: () => readItems(api, url),
     reason: "Preview demo inventory did not answer",
@@ -117,7 +117,7 @@ function demoItems(api: Api, url: string): Promise<readonly Item[]> {
   });
 }
 
-async function readRoute(api: Api): Promise<Attempt<void>> {
+async function readRoute(api: InstanceApi): Promise<Attempt<void>> {
   const reply = await get(api, "/api/session", { timeout: ROUTE_READ_TIMEOUT_MS });
 
   if (reply.kind === "failed") return pending(reply.observed);
@@ -136,7 +136,7 @@ async function readRoute(api: Api): Promise<Attempt<void>> {
   });
 }
 
-function awaitRoute(api: Api): Promise<void> {
+function awaitRoute(api: InstanceApi): Promise<void> {
   return untilAnswered({
     read: () => readRoute(api),
     reason: "Preview Worker did not answer GET /api/session with 200",
@@ -145,7 +145,7 @@ function awaitRoute(api: Api): Promise<void> {
   });
 }
 
-async function openOwner(api: Api): Promise<void> {
+async function openOwner(api: InstanceApi): Promise<void> {
   const code = z.string().min(16).parse(process.env["PREVIEW_SETUP_CODE"]);
   const password = z.string().min(15).parse(process.env["DEMO_OWNER_PASSWORD"]);
   const setup = await api.post("/api/setup", { data: { code, password } });
@@ -164,22 +164,17 @@ async function openOwner(api: Api): Promise<void> {
       recovery: "Check setup credentials, migrations and Worker readiness, then rerun deploy.",
     });
 
-  const signedIn = await api.post("/api/login", { data: { password } });
-
-  if (signedIn.status() !== 204)
-    throw new CommandFailure({
-      kind: "http",
-      status: signedIn.status(),
-      reason: "Preview owner sign-in failed",
-      recovery: "Restore the preview owner's saved password, then rerun deploy.",
-    });
+  await signIn(api, password, {
+    reason: "Preview owner sign-in failed",
+    recovery: "Restore the preview owner's saved password, then rerun deploy.",
+  });
 }
 
 function hasDigest(item: Item | undefined): boolean {
   return item !== undefined && item.digestTitle !== null;
 }
 
-async function awaitDigest(api: Api, url: string, deadline: number): Promise<void> {
+async function awaitDigest(api: InstanceApi, url: string, deadline: number): Promise<void> {
   const read = await readItems(api, url);
   const [item] = read.kind === "answered" ? read.value : [];
 
@@ -197,7 +192,7 @@ async function awaitDigest(api: Api, url: string, deadline: number): Promise<voi
   return awaitDigest(api, url, deadline);
 }
 
-async function seedDemo(api: Api): Promise<void> {
+async function seedDemo(api: InstanceApi): Promise<void> {
   await Promise.all(
     demoPastes.map(async (data) => {
       const [item] = await demoItems(api, data.url);
@@ -221,29 +216,8 @@ async function seedDemo(api: Api): Promise<void> {
   await Promise.all(demoDigestPastes.map(({ url }) => awaitDigest(api, url, deadline)));
 }
 
-async function signOut(api: Api): Promise<void> {
-  const ended = await api.post("/api/logout");
-
-  if (ended.status() !== 204)
-    throw new CommandFailure({
-      kind: "http",
-      status: ended.status(),
-      reason: "Preview setup session cleanup failed",
-      recovery:
-        "Delete and recreate this disposable preview to end its sessions, then rerun deploy.",
-    });
-}
-
-export async function provisionPreviewOwner(
-  origin: string,
-  wrangler: (args: readonly string[]) => string,
-): Promise<void> {
-  const api = await request.newContext({
-    baseURL: origin,
-    timeout: 30_000,
-    maxRedirects: 0,
-    extraHTTPHeaders: { Origin: origin },
-  });
+export async function provisionPreviewOwner(origin: string, wrangler: Wrangler): Promise<void> {
+  const api = await openInstanceApi(origin);
 
   try {
     await awaitRoute(api);
@@ -252,7 +226,11 @@ export async function provisionPreviewOwner(
     try {
       await seedDemo(api);
     } finally {
-      await signOut(api);
+      await signOut(api, {
+        reason: "Preview setup session cleanup failed",
+        recovery:
+          "Delete and recreate this disposable preview to end its sessions, then rerun deploy.",
+      });
     }
   } finally {
     await api.dispose();

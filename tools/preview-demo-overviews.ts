@@ -1,12 +1,14 @@
 import { catalogKey } from "../src/core/catalog-key.ts";
-import { NOW_MS, PLAIN_CHECK, quoted } from "./preview-sql.ts";
+import { NOW_MS, PLAIN_CHECK, quoted, valuesCte } from "./preview-sql.ts";
 
 const KIND = "overview-gap";
 
 function demoCte(topics: readonly string[]): string {
-  const rows = topics.map((topic) => `(${quoted(catalogKey(topic))}, ${quoted(topic)})`).join(", ");
-
-  return `WITH demo (key, name) AS (VALUES ${rows})`;
+  return valuesCte(
+    "demo",
+    ["key", "name"],
+    topics.map((topic) => [catalogKey(topic), topic]),
+  );
 }
 
 export function insertOverviewProposals(topics: readonly string[]): string {

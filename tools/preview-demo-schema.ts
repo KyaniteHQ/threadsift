@@ -1,4 +1,6 @@
+import type { Wrangler } from "./preview-cloudflare.ts";
 import { rowNames } from "./preview-migrations.ts";
+import { valuesCte } from "./preview-sql.ts";
 
 const SCHEMA_PROBES = {
   proposals: { table: "proposals", column: "id" },
@@ -18,15 +20,14 @@ function isProbeName(name: string): name is ProbeName {
   return Object.hasOwn(SCHEMA_PROBES, name);
 }
 
-export function schemaFacts(
-  run: (args: readonly string[]) => string,
-  scope: readonly string[],
-): SchemaFacts {
-  const probes = Object.entries(SCHEMA_PROBES)
-    .map(([fact, { table, column }]) => `('${fact}', '${table}', '${column}')`)
-    .join(", ");
+export function schemaFacts(run: Wrangler, scope: readonly string[]): SchemaFacts {
+  const probes = valuesCte(
+    "probe",
+    ["fact", "tbl", "col"],
+    Object.entries(SCHEMA_PROBES).map(([fact, { table, column }]) => [fact, table, column]),
+  );
 
-  const query = `WITH probe (fact, tbl, col) AS (VALUES ${probes})
+  const query = `${probes}
 SELECT probe.fact AS name
 FROM probe
 WHERE EXISTS (SELECT 1 FROM pragma_table_info(probe.tbl) WHERE name = probe.col)`;
