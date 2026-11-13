@@ -1,3 +1,5 @@
+import { type SQLWrapper, sql } from "drizzle-orm";
+
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
 
 export const FILE_LIST_LIMIT = 1000;
@@ -33,6 +35,31 @@ const IMAGE = new RegExp(
 const PREFIX = /^items\/(?:(?<itemId>[1-9][0-9]{0,18})\/)?$/u;
 
 export const FILE_ROUTE = "/api/files/";
+
+export const ITEM_FILES_ROOT = "items/";
+
+export function itemFilesPrefix(itemId: number | string): string {
+  return `${ITEM_FILES_ROOT}${itemId}/`;
+}
+
+export function itemFileKey(itemId: number | string, name: string): string {
+  return `${itemFilesPrefix(itemId)}${name}`;
+}
+
+interface AttemptColumns {
+  readonly itemId: SQLWrapper;
+  readonly id: SQLWrapper;
+  readonly attempts: SQLWrapper;
+}
+
+export function attemptFileKeys({ itemId, id, attempts }: Readonly<AttemptColumns>) {
+  const folder = sql`${sql.raw(`'${ITEM_FILES_ROOT}'`)} || ${itemId} || '/'`;
+
+  return {
+    postText: sql<string>`${folder} || 'post-' || ${id} || '-' || ${attempts} || '.md'`,
+    imagePrefix: sql<string>`${folder} || 'img-' || ${id} || '-' || ${attempts} || '-'`,
+  };
+}
 
 export function temporaryPrefix(random: string): string {
   return `.tmp-${random}-`;

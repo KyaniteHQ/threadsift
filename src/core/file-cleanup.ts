@@ -1,11 +1,13 @@
 import { and, eq, exists, or, sql } from "drizzle-orm";
 
-import { finalKeyOf, isSweptKey } from "./file-keys.ts";
+import { ITEM_FILES_ROOT, attemptFileKeys, finalKeyOf, isSweptKey } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { ATTEMPT_IMAGES, ATTEMPT_KEY, fileCleaning, items, jobs, media } from "./schema.ts";
+import { fileCleaning, items, jobs, media } from "./schema.ts";
 
 const CLEANUP_PAGE_KEYS = 100;
+
+const ATTEMPT_FILES = attemptFileKeys(jobs);
 
 function named(db: Database) {
   return or(
@@ -48,8 +50,8 @@ async function protectedKeys(db: Database, keys: readonly string[]): Promise<Rea
         and(
           eq(jobs.state, "running"),
           or(
-            sql`${ATTEMPT_KEY} = listed.value`,
-            sql`substr(listed.value, 1, length(${ATTEMPT_IMAGES})) = ${ATTEMPT_IMAGES}`,
+            sql`${ATTEMPT_FILES.postText} = listed.value`,
+            sql`substr(listed.value, 1, length(${ATTEMPT_FILES.imagePrefix})) = ${ATTEMPT_FILES.imagePrefix}`,
           ),
         ),
       ),
@@ -62,7 +64,7 @@ async function protectedKeys(db: Database, keys: readonly string[]): Promise<Rea
 
 export async function cleanFiles({ db, files }: Readonly<Pick<JobPorts, "db" | "files">>) {
   const [saved] = await db.select().from(fileCleaning).where(eq(fileCleaning.id, 1));
-  const page = await files.list("items/", saved?.cursor ?? null, CLEANUP_PAGE_KEYS);
+  const page = await files.list(ITEM_FILES_ROOT, saved?.cursor ?? null, CLEANUP_PAGE_KEYS);
   const keys = page.files.map(({ key }) => key);
   const owned = keys.filter((key) => isSweptKey(finalKeyOf(key)));
   const kept = await protectedKeys(db, [...new Set(owned.map((key) => finalKeyOf(key)))]);

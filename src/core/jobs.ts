@@ -13,13 +13,14 @@ import {
 } from "drizzle-orm";
 
 import { logFailure } from "./failure-log.ts";
+import { attemptFileKeys } from "./file-keys.ts";
 import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";
 import { HANDLERS } from "./job-handlers.ts";
 import { type ClaimedJob, type JobPorts, RETRY_DELAYS_MS } from "./job-outcome.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { ATTEMPT_IMAGES, ATTEMPT_KEY, items, jobs } from "./schema.ts";
+import { items, jobs } from "./schema.ts";
 
 const CLAIM_MARGIN_MS = 120_000;
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
@@ -57,6 +58,8 @@ export function dueIds(db: Database, now: number, limit: number) {
     .limit(limit);
 }
 
+const ATTEMPT_FILES = attemptFileKeys(jobs);
+
 const ITEM_GENERATION = sql`(select ${items.generation} from ${items} where ${items.id} = ${jobs.itemId})`;
 
 async function claim(db: Database, which: () => SQL, now: number): Promise<ClaimedJob | null> {
@@ -72,8 +75,8 @@ async function claim(db: Database, which: () => SQL, now: number): Promise<Claim
     .where(and(which(), isDue(now)))
     .returning({
       ...getTableColumns(jobs),
-      attemptKey: ATTEMPT_KEY,
-      imagePrefix: ATTEMPT_IMAGES,
+      attemptKey: ATTEMPT_FILES.postText,
+      imagePrefix: ATTEMPT_FILES.imagePrefix,
     });
 
   return claimed ?? null;
