@@ -2,7 +2,7 @@ import { type Browser, type Page, expect, test } from "@playwright/test";
 
 import { IMPORT, countLabel } from "../web/src/import-text.ts";
 import { INDEX_PAGE } from "../web/src/index-text.ts";
-import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
+import { ADD_LABEL, FILTERS_BUTTON, FILTER_GROUPS, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
 import { expectDocumentHeaders, visitSignedOut, watchContext } from "./document-checks.ts";
@@ -215,7 +215,10 @@ async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
   await page.setViewportSize(PHONE);
   await page.goto("/");
   await page.getByRole("button", { name: FILTERS_BUTTON, exact: true }).click();
-  await page.getByRole("button", { name: topic.name }).click();
+  await page
+    .getByRole("group", { name: FILTER_GROUPS.topic })
+    .getByRole("button", { name: topic.name })
+    .click();
 
   const box = await page
     .getByRole("link", { name: TOPIC_PAGE.openPage, exact: true })
