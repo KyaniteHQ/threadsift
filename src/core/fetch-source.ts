@@ -1,13 +1,13 @@
 import { type Concluded, type Fetched, detailsOfSuppliedPage } from "./details.ts";
 import { readOrTimeOut } from "./fetch-link.ts";
-import { guardHolds } from "./guards.ts";
 import { redditRefOf, takesPage } from "./links.ts";
 import { pluginPage } from "./plugin-fetch.ts";
 import type { PageReader, Ports } from "./ports.ts";
 import { fetchedWithThread } from "./reddit-fetch.ts";
-import { noThreadFor } from "./reddit-thread.ts";
+import { holdsNoThread } from "./reddit-thread.ts";
 import { type SuppliedPage, SuppliedPageSchema } from "./supplied-page.ts";
 import { type ToVerify, fetchedByX } from "./x-fetcher.ts";
+import { type XRoute, noted } from "./x-reader.ts";
 
 interface JobSource {
   readonly id: number;
@@ -18,10 +18,7 @@ interface JobSource {
 }
 
 type SourcePorts = Readonly<
-  Pick<
-    Ports,
-    "db" | "secrets" | "network" | "pages" | "fetchers" | "jobs" | "redditSession" | "xFetcher"
-  >
+  Pick<Ports, "db" | "secrets" | "network" | "pages" | "fetchers" | "jobs" | "redditSession">
 >;
 
 function suppliedDetails(
@@ -40,7 +37,7 @@ async function fetchedByPlugin(
 ): Promise<Concluded | null> {
   if (fetchers.length === 0 || !takesPage(address)) return null;
 
-  if (redditRefOf(address) !== null && !(await guardHolds(db, noThreadFor(itemId)))) return null;
+  if (redditRefOf(address) !== null && !(await holdsNoThread(db, itemId))) return null;
 
   if (!(await network.reachable(address, deadline))) return { status: "refused" };
 
@@ -57,6 +54,7 @@ export async function fetchedForJob(
   ports: SourcePorts,
   source: Readonly<JobSource>,
   deadline: AbortSignal,
+  route: Readonly<XRoute>,
 ): Promise<Fetched | ToVerify> {
   const { address, page } = source;
 
@@ -71,7 +69,7 @@ export async function fetchedForJob(
 
   return (
     (await fetchedByPlugin(ports, source, deadline)) ??
-    (await fetchedByX(ports, source, deadline)) ??
-    fetchedWithThread(ports, source, deadline)
+    (await fetchedByX(ports, route.kind === "grok-cli" ? route.fetcher : null, source, deadline)) ??
+    noted(await fetchedWithThread(ports, source, deadline), route)
   );
 }

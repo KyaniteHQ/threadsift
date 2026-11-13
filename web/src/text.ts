@@ -1,7 +1,14 @@
 import type { FetchFailure } from "../../src/core/fetch-results.ts";
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import { groupedNumber } from "../../src/core/format.ts";
-import type { FailureReason, ReadState, Source, WaitReason } from "../../src/core/kinds.ts";
+import type {
+  FailureReason,
+  ReadState,
+  Source,
+  WaitReason,
+  XReadNote,
+} from "../../src/core/kinds.ts";
+import { type XNoticeKey, X_NOTICES } from "./x-text.ts";
 
 export function filled(template: string, values: Readonly<Record<string, string>>): string {
   return Object.entries(values).reduce(
@@ -25,8 +32,7 @@ export type NoticeKey =
   | "failed"
   | "updating"
   | "title-kept"
-  | "x-unreadable"
-  | "x-kept"
+  | XNoticeKey
   | "private";
 
 export interface Notice {
@@ -81,14 +87,7 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
     text: "GitHub rejected the saved token, so this Item wasn’t updated. Replace or remove the token in Settings, then paste the link again.",
     kind: "save-note",
   },
-  "x-unreadable": {
-    text: "This post couldn’t be read. The grok CLI is signed out or not a version Threadsift has checked, X’s embed service couldn’t be reached, or the post didn’t match what X shows. Check Settings, X posts, for the CLI state.",
-    kind: "save-note",
-  },
-  "x-kept": {
-    text: "The saved copy was kept. A refresh with fewer replies than the saved one is never saved. The grok CLI is signed out or unchecked, X’s embed service failed, or the post didn’t match what X shows. Check Settings, X posts.",
-    kind: "save-note",
-  },
+  ...X_NOTICES,
   "title-kept": {
     text: "Couldn’t update the title for this link, so the title saved earlier was kept.",
     kind: "save-note",
@@ -122,6 +121,13 @@ export const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
   "gave-up": "Something went wrong while reading the link",
   "rate-limited": "The link wasn’t updated because GitHub kept limiting requests",
 };
+
+export function failureTitleOf({
+  reason,
+  xNote,
+}: Readonly<{ reason: FailureReason; xNote?: XReadNote | null | undefined }>): string {
+  return xNote === null || xNote === undefined ? FAILURE_TITLES[reason] : NOTICES[xNote].text;
+}
 
 export const WAITING = {
   "github-rate-limit": {

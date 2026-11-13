@@ -2,11 +2,11 @@ import { useCallback } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { noteOf } from "./paste-card.ts";
-import { FAILURE_TITLES, NOTICES, RETRY_LABEL } from "./text.ts";
+import { NOTICES, RETRY_LABEL, failureTitleOf } from "./text.ts";
 import { WaitText } from "./WaitText.tsx";
 
 function noteTextOf(item: Readonly<Item>): string | null {
-  if (item.status === "failed") return FAILURE_TITLES[item.reason];
+  if (item.status === "failed") return failureTitleOf(item);
 
   if (item.fetch === "github-token") return null;
 

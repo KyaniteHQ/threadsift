@@ -85,13 +85,13 @@ Under [OpenAI's CI guide](https://learn.chatgpt.com/docs/auth/ci-cd-auth), OpenA
 
 Threadsift hands X links to Grok Bot, which reads the posts and replies and saves them back. [bot/README.md](../../bot/README.md) says how to install and update the bot.
 
-Open Settings, find Grok Bot, paste the routine's webhook address and key, press **Save**, then press **Test**. Every pasted X link goes to the saved bot first; without a saved bot, a container fetches the link with the grok CLI when it is set up (the section "Use the grok CLI for X posts on the container" below), and otherwise the link stays a Link-only Item. A saved bot is never skipped, and a bot that does not answer is not retried through the CLI.
+Open Settings, find Grok Bot, paste the routine's webhook address and key, press **Save**, then press **Test**. In Settings, the X posts section chooses which reader fetches X links. With the default, Auto, every pasted X link goes to the saved bot first; without a saved bot, a container fetches the link with the grok CLI when it is set up (the section "Use the grok CLI for X posts on the container" below), and otherwise the link stays a Link-only Item. A saved bot is never skipped under Auto, and a bot that does not answer is not retried through the CLI. Choose Grok Bot or grok CLI to use that reader alone: when it cannot be used, the link stays a Link-only Item and its note names the cause, and the other reader is not tried.
 
 The Provider list always shows Grok Bot, and you can choose it once the Grok Bot settings are saved and usable.
 
 ## Use the grok CLI for X posts on the container
 
-When no Grok Bot is saved, Threadsift can fetch a pasted X post and its replies on the container by running the grok command-line tool (the grok CLI) on the server. It is an optional step. The image ships no grok CLI, and nothing in the app installs it. Everything is kept in the `/data` volume, in the folder `/data/grok`. On the Cloudflare Worker install there is no such tool, and a pasted X link stays a Link-only Item there unless a Grok Bot is saved.
+When no Grok Bot is saved, or when you choose the grok CLI in the X posts section, Threadsift can fetch a pasted X post and its replies on the container by running the grok command-line tool (the grok CLI) on the server. It is an optional step. The image ships no grok CLI, and nothing in the app installs it. Everything is kept in the `/data` volume, in the folder `/data/grok`. On the Cloudflare Worker install there is no such tool, and a pasted X link stays a Link-only Item there unless a Grok Bot is saved.
 
 1. Install the grok CLI into the volume (the image has `curl` for the installer):
 

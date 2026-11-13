@@ -64,6 +64,26 @@ export const WAIT_REASONS = [
   "x-reread",
 ] as const;
 
+export const X_READER_CHOICES = ["auto", "grok-bot", "grok-cli"] as const;
+
+export const X_READ_NOTES = [
+  "bot-not-set-up",
+  "bot-key-unopened",
+  "bot-address-refused",
+  "bot-timed-out",
+  "bot-failed",
+  "bot-unavailable",
+  "cli-not-installed",
+  "cli-signed-out",
+  "cli-not-proven",
+  "cli-usage-limit",
+  "cli-unreachable",
+  "cli-failed",
+  "x-unconfirmed",
+  "x-answer-refused",
+  "x-fewer-replies",
+] as const;
+
 export const ITEM_JOB_KINDS = ["fetch", "digest", "x_verify"] as const;
 
 export const JOB_KINDS = [
@@ -141,6 +161,10 @@ export type ItemStatus = (typeof ITEM_STATUSES)[number];
 export type FailureReason = (typeof FAILURE_REASONS)[number];
 
 export type WaitReason = (typeof WAIT_REASONS)[number];
+
+export type XReaderChoice = (typeof X_READER_CHOICES)[number];
+
+export type XReadNote = (typeof X_READ_NOTES)[number];
 
 export type JobKind = (typeof JOB_KINDS)[number];
 

@@ -3,7 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import { StoredCommentId } from "./comment-id.ts";
 import type { CommentCandidate } from "./digest-prompt.ts";
-import { among } from "./guards.ts";
+import { among, guardHolds } from "./guards.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
 import { digests, items, redditComments, redditThreads } from "./schema.ts";
@@ -255,6 +255,10 @@ export function readGeneration(itemId: number | Readonly<SQLWrapper>) {
   const stored = sql`select max(${redditThreads.generation}) from ${redditThreads} where ${redditThreads.itemId} = ${itemId}`;
 
   return sql<number | null>`coalesce((${published}), (${stored}))`;
+}
+
+export function holdsNoThread(db: Database, itemId: number): Promise<boolean> {
+  return guardHolds(db, noThreadFor(itemId));
 }
 
 export function noThreadFor(itemId: number | Readonly<SQLWrapper>): SQL {

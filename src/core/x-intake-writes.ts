@@ -71,7 +71,12 @@ export function unavailableIntake(db: JobPorts["db"], task: IntakeTask): JobWrit
     ...closeItemJobs(db, sql`${itemId}`),
     db
       .update(items)
-      .set({ fetch: "status", ...statusColumns({ kind: "settled" }), pendingDigest: null })
+      .set({
+        fetch: "status",
+        xNote: "bot-unavailable",
+        ...statusColumns({ kind: "settled" }),
+        pendingDigest: null,
+      })
       .where(eq(items.id, itemId)),
     ...answeredIntake(db, task, { unavailable: true }),
   ];

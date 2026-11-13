@@ -2,7 +2,12 @@ import { z } from "zod";
 
 import { errnoCodeOf, errorClassOf, report } from "../../core/failure-log.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
-import type { XFetch, XFetchFailure, XRefusalCategory } from "../../core/x-fetcher.ts";
+import {
+  NOTE_OF_REFUSAL,
+  type XFetch,
+  type XFetchFailure,
+  type XRefusalCategory,
+} from "../../core/x-fetcher.ts";
 import type { XThreadValue } from "../../core/x-wire.ts";
 import type { ProcessEnd } from "./cli-process.ts";
 import { XFetchAnswerSchema } from "./grok-surface.ts";
@@ -156,5 +161,9 @@ export function logged(outcome: Outcome, elapsedMs: number): XFetch {
 
   report("x-fetch-refused", { category: refusal.category, exit: exit ?? "none" });
 
-  return { kind: "failed", status: refusal.status };
+  const note = NOTE_OF_REFUSAL[refusal.category];
+
+  return note === null
+    ? { kind: "failed", status: refusal.status }
+    : { kind: "failed", status: refusal.status, note };
 }

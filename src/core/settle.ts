@@ -1,13 +1,14 @@
-import { eq } from "drizzle-orm";
+import { type SQL, eq } from "drizzle-orm";
 
 import type { Concluded, Content } from "./details.ts";
 import type { FetchResult } from "./fetch-results.ts";
 import { NO_OPEN_JOBS, type StatusEvent, statusColumns } from "./item-status.ts";
+import type { XReadNote } from "./kinds.ts";
 import { sourceOf } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { type ItemRow, items } from "./schema.ts";
 
-type Settled = Pick<ItemRow, "fetch"> & {
+type Settled = Pick<ItemRow, "fetch" | "xNote"> & {
   readonly event: Extract<StatusEvent, { kind: "settled" | "failed" }>;
 } & Partial<
     Pick<
@@ -61,12 +62,15 @@ export function isRetryable(result: FetchResult): result is "timeout" | "network
 }
 
 function settle(fetched: Readonly<Concluded>, current: string | null, now: number): Settled {
+  const xNote = fetched.note ?? null;
+
   if (fetched.status === "ok") {
     const { content, ...found } = fetched.found;
 
     const settled: Settled = {
       event: { kind: "settled" },
       fetch: "ok",
+      xNote,
       ...found,
       fetchedAt: now,
     };
@@ -77,10 +81,10 @@ function settle(fetched: Readonly<Concluded>, current: string | null, now: numbe
   const result = fetched.status;
 
   if (isRetryable(result) && current === null) {
-    return { event: { kind: "failed", reason: result }, fetch: result };
+    return { event: { kind: "failed", reason: result }, fetch: result, xNote };
   }
 
-  return { event: { kind: "settled" }, fetch: result };
+  return { event: { kind: "settled" }, fetch: result, xNote };
 }
 
 export function settledNew(fetched: Readonly<Concluded>, now: number) {
@@ -95,9 +99,14 @@ export function settledKnown(fetched: Readonly<Concluded>, current: string | nul
   return { ...fields, ...statusColumns(event) };
 }
 
-export function failedFetch(db: Database, itemId: number, reason: "gave-up" | "rate-limited") {
+export function failedFetch(
+  db: Database,
+  itemId: number,
+  reason: "gave-up" | "rate-limited",
+  xNote: XReadNote | SQL<XReadNote | null> | null,
+) {
   return db
     .update(items)
-    .set({ ...statusColumns({ kind: "failed", reason }), pendingDigest: null })
+    .set({ ...statusColumns({ kind: "failed", reason }), xNote, pendingDigest: null })
     .where(eq(items.id, itemId));
 }

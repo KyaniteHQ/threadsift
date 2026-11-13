@@ -8,7 +8,6 @@ import { PASTE_OPEN } from "./reader-text.ts";
 import {
   CARD_TITLES,
   DISMISS_LABEL,
-  FAILURE_TITLES,
   NOTICES,
   READING_NOTE,
   RETRY_LABEL,
@@ -96,7 +95,7 @@ function faceOfView(view: Readonly<CardView>, item: Readonly<Item>): Face {
       return {
         icon: "warn",
         tone: "tone-warn",
-        title: FAILURE_TITLES[view.reason],
+        title: view.title,
         name,
         note: null,
         wait: null,

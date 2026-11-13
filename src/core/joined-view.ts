@@ -4,7 +4,7 @@ import { COMMENT_COUNT_COLUMNS } from "./comment-counts.ts";
 import { hasDigestSource } from "./digest-source.ts";
 import { STATUS_VIEW_COLUMNS } from "./item-status.ts";
 import { hasOpenJob } from "./job-rows.ts";
-import type { DigestOutcome, WaitReason } from "./kinds.ts";
+import type { DigestOutcome, WaitReason, XReadNote } from "./kinds.ts";
 import { noThreadFor } from "./reddit-thread.ts";
 import { digests, items, jobs, media, topics } from "./schema.ts";
 
@@ -48,8 +48,16 @@ const FILL_VIEW_COLUMNS = {
       .as("fillable"),
 };
 
+const NOTE_VIEW_COLUMNS = {
+  xNote:
+    sql<XReadNote | null>`case when ${items.fetch} = 'ok' then null else ${items.xNote} end`.as(
+      "x_note",
+    ),
+};
+
 export const JOINED_VIEW_COLUMNS = {
   ...STATUS_VIEW_COLUMNS,
+  ...NOTE_VIEW_COLUMNS,
   ...DIGEST_VIEW_COLUMNS,
   ...WAIT_VIEW_COLUMNS,
   ...COMMENT_COUNT_COLUMNS,

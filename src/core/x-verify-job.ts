@@ -76,6 +76,6 @@ export const xVerifyHandler: JobHandler = {
   deadlineMs: SLICE_DEADLINE_MS,
   blockedBy: [],
   attempt: attemptVerification,
-  exhausted: (db, job) => unreadableWrites(db, job.itemId, job.attemptGeneration),
+  exhausted: (db, job) => unreadableWrites(db, job.itemId, job.attemptGeneration, "x-unconfirmed"),
   inputCurrent: ({ itemId, attemptGeneration }) => revisionHolds(itemId, attemptGeneration),
 };
