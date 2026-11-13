@@ -1,5 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -14,6 +13,7 @@ import {
 } from "./preview-cloudflare.ts";
 import { hasForeignMigrations } from "./preview-migrations.ts";
 import { provisionPreviewOwner } from "./preview-owner.ts";
+import { REQUIRED_SECRETS, deployWithSecrets } from "./preview-secrets.ts";
 
 const [action, number, mode, artifact] = process.argv.slice(2);
 const operation = z.enum(["deploy", "close"]).parse(action);
@@ -78,6 +78,7 @@ const config = {
   name,
   workers_dev: true,
   preview_urls: false,
+  secrets: { required: REQUIRED_SECRETS },
   d1_databases: [
     { binding: "DB", database_name: `${name}-db`, migrations_dir: join(root, "migrations") },
   ],
@@ -188,22 +189,6 @@ async function resetForeignHistory(): Promise<void> {
   await removeStorage();
 }
 
-function initializeSecrets(): void {
-  const secrets = z
-    .array(z.object({ name: z.string() }))
-    .parse(JSON.parse(wrangler(["secret", "list"])));
-
-  const missing: Record<string, string> = {};
-
-  if (!secrets.some((secret) => secret.name === "THREADSIFT_SECRET_KEY"))
-    missing["THREADSIFT_SECRET_KEY"] = randomBytes(32).toString("hex");
-
-  if (!secrets.some((secret) => secret.name === "SETUP_CODE"))
-    missing["SETUP_CODE"] = z.string().min(16).parse(process.env["PREVIEW_SETUP_CODE"]);
-
-  if (Object.keys(missing).length > 0) wrangler(["secret", "bulk"], JSON.stringify(missing));
-}
-
 async function deploy(): Promise<void> {
   if (
     !z.string().min(16).safeParse(process.env["PREVIEW_SETUP_CODE"]).success ||
@@ -217,9 +202,7 @@ async function deploy(): Promise<void> {
     });
   await resetForeignHistory();
 
-  wrangler(["deploy", "--keep-vars"]);
-
-  initializeSecrets();
+  await deployWithSecrets(name, wrangler);
 
   wrangler(["d1", "migrations", "apply", "DB", "--remote"]);
 

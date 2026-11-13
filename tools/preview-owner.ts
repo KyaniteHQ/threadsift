@@ -1,10 +1,10 @@
 import { setTimeout } from "node:timers/promises";
 
-import { type APIRequestContext, request } from "@playwright/test";
+import { type APIRequestContext, type APIResponse, request } from "@playwright/test";
 import { z } from "zod";
 
 import { SaveItemRequestSchema } from "../src/http/save-schemas.ts";
-import { type Item, ItemListResponseSchema, SessionStateSchema } from "../src/http/schemas.ts";
+import { ErrorResponseSchema, type Item, ItemListResponseSchema } from "../src/http/schemas.ts";
 import { CommandFailure } from "./command-failure.ts";
 import { demoDigestPastes, seedDemoProposals } from "./preview-demo.ts";
 
@@ -20,18 +20,86 @@ const demoPastes: readonly Paste[] = [
 
 const READ_ATTEMPTS = 11;
 const READ_PAUSE_MS = 5000;
-const READY_READ_TIMEOUT_MS = 10_000;
+const ROUTE_READ_TIMEOUT_MS = 10_000;
 const DIGEST_WAIT_MS = 120_000;
 
 type Api = Readonly<Pick<APIRequestContext, "get" | "post">>;
 
-async function readItems(api: Api, url: string): Promise<readonly Item[] | null> {
-  const response = await api.get("/api/items", { params: { url } });
-  const status = response.status();
+type Attempt<T> =
+  | { readonly kind: "answered"; readonly value: T }
+  | { readonly kind: "pending"; readonly observed: string };
 
-  if (status === 200) return ItemListResponseSchema.parse(await response.json()).items;
+interface Retry<T> {
+  readonly read: () => Promise<Attempt<T>>;
+  readonly reason: string;
+  readonly recovery: string;
+}
 
-  if (status === 404 || status >= 500) return null;
+function pending(observed: string): Attempt<never> {
+  return { kind: "pending", observed };
+}
+
+function untilAnswered<T>({ read, reason, recovery }: Retry<T>): Promise<T> {
+  const attemptFrom = async (attempt: number): Promise<T> => {
+    const result = await read();
+
+    if (result.kind === "answered") return result.value;
+
+    if (attempt >= READ_ATTEMPTS)
+      throw new CommandFailure({
+        kind: "check",
+        reason: `${reason} (last answer: ${result.observed})`,
+        recovery,
+      });
+
+    await setTimeout(READ_PAUSE_MS);
+
+    return attemptFrom(attempt + 1);
+  };
+
+  return attemptFrom(1);
+}
+
+type Reply =
+  | { readonly kind: "reply"; readonly response: APIResponse }
+  | { readonly kind: "failed"; readonly observed: string };
+
+interface Query {
+  readonly params?: Readonly<Record<string, string>>;
+  readonly timeout?: number;
+}
+
+async function get(api: Api, path: string, query: Query): Promise<Reply> {
+  try {
+    return {
+      kind: "reply",
+      response: await api.get(path, query),
+    };
+  } catch (error) {
+    return {
+      kind: "failed",
+      observed:
+        error instanceof Error
+          ? `${error.name}: ${error.message.split("\n")[0] ?? ""}`
+          : "transport error",
+    };
+  }
+}
+
+async function readItems(api: Api, url: string): Promise<Attempt<readonly Item[]>> {
+  const reply = await get(api, "/api/items", { params: { url } });
+
+  if (reply.kind === "failed") return pending(reply.observed);
+
+  const status = reply.response.status();
+
+  if (status === 200)
+    return {
+      kind: "answered",
+      value: ItemListResponseSchema.parse(await reply.response.json()).items,
+    };
+
+  if (status === 404 || status >= 500) return pending(`status ${status}`);
 
   throw new CommandFailure({
     kind: "http",
@@ -41,75 +109,58 @@ async function readItems(api: Api, url: string): Promise<readonly Item[] | null>
   });
 }
 
-async function untilAnswered<T>(
-  read: () => Promise<T | null>,
-  reason: string,
-  recovery: string,
-  attempt = 1,
-): Promise<T> {
-  const answer = await read();
-
-  if (answer !== null) return answer;
-
-  if (attempt >= READ_ATTEMPTS)
-    throw new CommandFailure({ kind: "http", status: 503, reason, recovery });
-
-  await setTimeout(READ_PAUSE_MS);
-
-  return untilAnswered(read, reason, recovery, attempt + 1);
-}
-
 function demoItems(api: Api, url: string): Promise<readonly Item[]> {
-  return untilAnswered(
-    () => readItems(api, url),
-    "Preview demo inventory failed",
-    "Check the preview HTTP API and rerun deploy.",
-  );
+  return untilAnswered({
+    read: () => readItems(api, url),
+    reason: "Preview demo inventory did not answer",
+    recovery: "Check the preview HTTP API and rerun deploy.",
+  });
 }
 
-async function readSetupSession(api: Api): Promise<true | null> {
-  const response = await api.get("/api/session", { timeout: READY_READ_TIMEOUT_MS });
-  const status = response.status();
+async function readRoute(api: Api): Promise<Attempt<void>> {
+  const reply = await get(api, "/api/session", { timeout: ROUTE_READ_TIMEOUT_MS });
 
-  if (status === 404 || status >= 500) return null;
+  if (reply.kind === "failed") return pending(reply.observed);
 
-  if (status !== 200)
-    throw new CommandFailure({
-      kind: "http",
-      status,
-      reason: "Preview readiness check failed",
-      recovery: "Check the preview HTTP API and rerun deploy.",
-    });
+  const status = reply.response.status();
 
-  const session = SessionStateSchema.parse(await response.json());
+  if (status === 200) return { kind: "answered", value: undefined };
 
-  return session.state === "setup" && session.code !== "set" ? null : true;
+  if (status === 404 || status >= 500) return pending(`status ${status}`);
+
+  throw new CommandFailure({
+    kind: "http",
+    status,
+    reason: "Preview readiness check failed",
+    recovery: "Check the preview HTTP API and rerun deploy.",
+  });
 }
 
-function awaitReady(api: Api): Promise<true> {
-  return untilAnswered(
-    () => readSetupSession(api),
-    "Preview Worker did not become ready",
-    "Check that GET /api/session answers 200 with a setup code that is set, and that the migrations are applied, then rerun deploy.",
-  );
+function awaitRoute(api: Api): Promise<void> {
+  return untilAnswered({
+    read: () => readRoute(api),
+    reason: "Preview Worker did not answer GET /api/session with 200",
+    recovery:
+      "Check that the new workers.dev route serves the Worker and that the migrations are applied, then rerun deploy.",
+  });
 }
 
 async function openOwner(api: Api): Promise<void> {
   const code = z.string().min(16).parse(process.env["PREVIEW_SETUP_CODE"]);
   const password = z.string().min(15).parse(process.env["DEMO_OWNER_PASSWORD"]);
   const setup = await api.post("/api/setup", { data: { code, password } });
+  const status = setup.status();
 
-  if (setup.status() === 204) return;
+  if (status === 204) return;
 
-  const refusal = z.object({ code: z.string() }).safeParse(await setup.json().catch(() => null));
+  const refusal = ErrorResponseSchema.safeParse(await setup.json().catch(() => null));
+  const refused = refusal.success ? refusal.data.code : undefined;
 
-  if (setup.status() === 409)
-    z.object({ code: z.literal("owner-exists") }).parse(await setup.json());
-  else
+  if (status !== 409 || refused !== "owner-exists")
     throw new CommandFailure({
       kind: "http",
-      status: setup.status(),
-      reason: `Preview owner provisioning failed${refusal.success ? ` (${refusal.data.code})` : ""}`,
+      status,
+      reason: `Preview owner provisioning failed (${refused ?? "no known refusal code"})`,
       recovery: "Check setup credentials, migrations and Worker readiness, then rerun deploy.",
     });
 
@@ -129,7 +180,8 @@ function hasDigest(item: Item | undefined): boolean {
 }
 
 async function awaitDigest(api: Api, url: string, deadline: number): Promise<void> {
-  const [item] = (await readItems(api, url)) ?? [];
+  const read = await readItems(api, url);
+  const [item] = read.kind === "answered" ? read.value : [];
 
   if (hasDigest(item)) return;
 
@@ -194,7 +246,7 @@ export async function provisionPreviewOwner(
   });
 
   try {
-    await awaitReady(api);
+    await awaitRoute(api);
     await openOwner(api);
 
     try {
