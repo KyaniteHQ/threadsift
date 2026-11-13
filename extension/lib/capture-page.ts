@@ -4,7 +4,7 @@ import { replaceMedia } from "../../src/core/article-media.ts";
 import { redditRefOf } from "../../src/core/links.ts";
 import type { SuppliedPage } from "../../src/core/supplied-page.ts";
 
-export interface CapturedPage extends SuppliedPage {
+interface CapturedPage extends SuppliedPage {
   readonly url: string;
 }
 
