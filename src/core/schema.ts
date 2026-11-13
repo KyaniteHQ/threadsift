@@ -11,6 +11,7 @@ import {
   READ_STATES,
   SOURCES,
   WAIT_REASONS,
+  X_READ_NOTES,
 } from "./kinds.ts";
 
 export {
@@ -67,6 +68,8 @@ export { searchFingerprints, searchParts, searchReconciling } from "./search-tab
 
 export { topicChecks, topicLeases, topicPages } from "./topic-tables.ts";
 
+export { xSettings } from "./x-settings-tables.ts";
+
 export { xVerifications } from "./x-verification-tables.ts";
 
 export const items = sqliteTable(
@@ -93,6 +96,7 @@ export const items = sqliteTable(
     status: text("status", { enum: ITEM_STATUSES }).notNull().default("ready"),
     reason: text("reason", { enum: FAILURE_REASONS }),
     fetch: text("fetch_result", { enum: FETCH_RESULTS }),
+    xNote: text("x_note", { enum: X_READ_NOTES }),
     addedByToken: integer("added_by_token"),
   },
   (table) => [

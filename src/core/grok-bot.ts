@@ -188,9 +188,13 @@ interface GrokBotPost {
   readonly status: number | null;
 }
 
+export const GROK_BOT_UNREADY = ["secret-missing", "not-configured", "refused"] as const;
+
+export type GrokBotUnready = (typeof GROK_BOT_UNREADY)[number];
+
 type GrokBotConnection =
   | { readonly kind: "ready"; readonly row: SavedRow; readonly key: string }
-  | { readonly kind: "unready"; readonly reason: "secret-missing" | "not-configured" | "refused" };
+  | { readonly kind: "unready"; readonly reason: GrokBotUnready };
 
 export function connectionOf(
   secrets: GrokBotPorts["secrets"],

@@ -4,6 +4,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { statusColumns } from "./item-status.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
+import type { XReadNote } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { items, jobs, xVerifications } from "./schema.ts";
 import { type Judged, startingJudged } from "./x-verify-state.ts";
@@ -79,11 +80,23 @@ export function forgotten(
     .where(and(eq(xVerifications.itemId, itemId), sql`${xVerifications.revision} is ${revision}`));
 }
 
-export function unreadableWrites(db: Database, itemId: number, revision: number | null): JobWrites {
+export type WithdrawnNote = XReadNote | null;
+
+export function unreadableWrites(
+  db: Database,
+  itemId: number,
+  revision: number | null,
+  xNote: WithdrawnNote,
+): JobWrites {
   return [
     db
       .update(items)
-      .set({ fetch: "unreadable", ...statusColumns({ kind: "settled" }), pendingDigest: null })
+      .set({
+        fetch: "unreadable",
+        xNote,
+        ...statusColumns({ kind: "settled" }),
+        pendingDigest: null,
+      })
       .where(eq(items.id, itemId)),
     forgotten(db, itemId, revision),
   ];

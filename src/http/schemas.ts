@@ -18,6 +18,7 @@ import {
   SOURCES,
   TokenBudgetSchema,
   WAIT_REASONS,
+  X_READ_NOTES,
 } from "../core/kinds.ts";
 import { NoteViewSchema } from "../core/note-contract.ts";
 import { RelatedSchema } from "../core/related-contract.ts";
@@ -42,6 +43,7 @@ const ItemBaseSchema = z.object({
   community: z.string().nullable(),
   fetchedAt: z.number().int().nullable(),
   fetch: z.enum(FETCH_RESULTS).nullable(),
+  xNote: z.enum(X_READ_NOTES).nullable().optional(),
   readState: z.enum(READ_STATES),
   stars: z.number().int().nonnegative().nullable(),
   commentsKept: z.number().int().nonnegative().nullable(),

@@ -51,6 +51,7 @@ function contentWrites(
         postedAt: thread.postedAt,
         fetchedAt: Date.now(),
         fetch: "ok",
+        xNote: null,
         pendingDigest,
         generation: sql`${items.generation} + 1`,
       })

@@ -9,12 +9,12 @@ import { savedLabel } from "./saved-label.ts";
 import {
   CARD_TITLES,
   DIGEST_NOT_UPDATED,
-  FAILURE_TITLES,
   NO_DIGEST,
   RETRY_LABEL,
   SAVED_COMMENT,
   SOURCE_LABELS,
   TOKEN_REFUSED,
+  failureTitleOf,
   rowKeptLabel,
   starsLabel,
 } from "./text.ts";
@@ -74,7 +74,7 @@ function Failed({
       <p>
         <Icon name="warn" className="ic ic-s tone-warn" />
         {item.status === "failed"
-          ? FAILURE_TITLES[item.reason]
+          ? failureTitleOf(item)
           : item.digestTitle === null
             ? NO_DIGEST
             : DIGEST_NOT_UPDATED}

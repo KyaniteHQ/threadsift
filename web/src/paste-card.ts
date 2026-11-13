@@ -1,12 +1,11 @@
 import type { FetchResult } from "../../src/core/fetch-results.ts";
-import type { FailureReason } from "../../src/core/kinds.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import type { NoteKey, NoticeKey } from "./text.ts";
+import { type NoteKey, type NoticeKey, failureTitleOf } from "./text.ts";
 
 export type CardView =
   | { readonly kind: "reading"; readonly wait: Item["wait"] }
   | { readonly kind: "added" | "refreshed"; readonly note: NoticeKey | null }
-  | { readonly kind: "failed"; readonly reason: FailureReason };
+  | { readonly kind: "failed"; readonly title: string };
 
 const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
   ok: null,
@@ -25,6 +24,10 @@ const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
 };
 
 export function noteOf(item: Readonly<Item>): NoticeKey | null {
+  if (item.xNote !== null && item.xNote !== undefined) {
+    return item.status === "processing" ? null : item.xNote;
+  }
+
   if (item.fetch === null || item.fetch === "ok") {
     return null;
   }
@@ -46,7 +49,7 @@ export function viewOf(item: Readonly<Item>, refreshed: boolean): CardView {
   }
 
   if (item.status === "failed") {
-    return { kind: "failed", reason: item.reason };
+    return { kind: "failed", title: failureTitleOf(item) };
   }
 
   return { kind: refreshed ? "refreshed" : "added", note: noteOf(item) };

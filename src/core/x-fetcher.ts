@@ -2,6 +2,7 @@ import type { Fetched } from "./details.ts";
 import { report } from "./failure-log.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { RETRY_DELAYS_MS, isLastAttempt } from "./job-outcome.ts";
+import type { XReadNote } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { parseXThreadValue } from "./x-thread.ts";
@@ -26,7 +27,7 @@ export interface ToVerify {
 
 export type XFetch =
   | { readonly kind: "thread"; readonly thread: XThreadValue }
-  | { readonly kind: "failed"; readonly status: XFetchFailure };
+  | { readonly kind: "failed"; readonly status: XFetchFailure; readonly note?: XReadNote };
 
 export type XRefusalCategory =
   | "signed-out"
@@ -41,6 +42,21 @@ export type XRefusalCategory =
   | "answer-refused"
   | "fewer-replies"
   | "internal";
+
+export const NOTE_OF_REFUSAL = {
+  "signed-out": "cli-signed-out",
+  "usage-limit": "cli-usage-limit",
+  unreachable: "cli-unreachable",
+  deadline: null,
+  "cli-error": "cli-failed",
+  "no-answer": "cli-failed",
+  "over-size": "cli-failed",
+  "spawn-failed": "cli-not-installed",
+  "surface-unproven": "cli-not-proven",
+  "answer-refused": "x-answer-refused",
+  "fewer-replies": "x-fewer-replies",
+  internal: "cli-failed",
+} as const satisfies Readonly<Record<XRefusalCategory, XReadNote | null>>;
 
 export interface XFetcher {
   readonly id: "grok-cli";
@@ -82,29 +98,31 @@ async function concluded(
   const fetched = await fetcher.fetch(statusId, signal);
 
   if (fetched.kind === "failed") {
-    return fetched.status === "status"
-      ? notFoundBy(network, source, statusId, signal)
-      : { status: fetched.status };
+    if (fetched.status === "status") return notFoundBy(network, source, statusId, signal);
+
+    return fetched.note === undefined
+      ? { status: fetched.status }
+      : { status: fetched.status, note: fetched.note };
   }
 
   if (parseXThreadValue(fetched.thread, statusId).kind === "refused") {
     report("x-fetch-refused", { category: "answer-refused" satisfies XRefusalCategory });
 
-    return { status: "unreadable" };
+    return { status: "unreadable", note: NOTE_OF_REFUSAL["answer-refused"] };
   }
 
   return { status: "to-verify", thread: fetched.thread };
 }
 
 export function fetchedByX(
-  ports: Readonly<Pick<Ports, "xFetcher" | "network">>,
+  ports: Readonly<Pick<Ports, "network">>,
+  fetcher: XFetcher | null,
   source: Readonly<XSource>,
   signal: AbortSignal,
 ): Promise<Fetched | ToVerify> | null {
   const statusId = StatusIdSchema.safeParse(statusIdOf(source.address));
-  const { xFetcher } = ports;
 
-  return xFetcher === null || !statusId.success
+  return fetcher === null || !statusId.success
     ? null
-    : concluded(ports, xFetcher, source, statusId.data, signal);
+    : concluded(ports, fetcher, source, statusId.data, signal);
 }

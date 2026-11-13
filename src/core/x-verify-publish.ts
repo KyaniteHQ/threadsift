@@ -4,10 +4,17 @@ import { report } from "./failure-log.ts";
 import { settledFetch } from "./fetch-settle.ts";
 import type { ClaimedJob, JobPorts, SettledOutcome } from "./job-outcome.ts";
 import { ownerOfItem } from "./reddit-thread.ts";
+import { NOTE_OF_REFUSAL } from "./x-fetcher.ts";
 import { fewerThanStored, holdsAtLeastStored, publishableThread } from "./x-partial.ts";
 import { type Verification, verificationOf } from "./x-verify-read.ts";
 import { type Progress, progressOf } from "./x-verify-state.ts";
-import { forgotten, reopened, revisionHolds, unreadableWrites } from "./x-verify-store.ts";
+import {
+  type WithdrawnNote,
+  forgotten,
+  reopened,
+  revisionHolds,
+  unreadableWrites,
+} from "./x-verify-store.ts";
 
 const PUBLISH_DEADLINE_MS = 90_000;
 
@@ -19,9 +26,10 @@ export function withdrawn(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
   revision: number,
+  note: WithdrawnNote = null,
 ): SettledOutcome {
   return {
-    writes: unreadableWrites(ports.db, job.itemId, revision),
+    writes: unreadableWrites(ports.db, job.itemId, revision, note),
     precondition: {
       holds: revisionHolds(job.itemId, revision),
       rebuild: () => rebuilt(ports, job),
@@ -72,13 +80,13 @@ async function published(
   if (thread === null) {
     report("x-fetch-refused", { category: "answer-refused" });
 
-    return withdrawn(ports, job, row.revision);
+    return withdrawn(ports, job, row.revision, NOTE_OF_REFUSAL["answer-refused"]);
   }
 
   if (await fewerThanStored(ports.db, ownerOfItem(job.itemId), thread)) {
     report("x-fetch-refused", { category: "fewer-replies" });
 
-    return withdrawn(ports, job, row.revision);
+    return withdrawn(ports, job, row.revision, NOTE_OF_REFUSAL["fewer-replies"]);
   }
 
   report("x-verify", {
@@ -124,11 +132,11 @@ export function ended(
     case "refused":
       report("x-verify-refused", { reason: "root" });
 
-      return Promise.resolve(withdrawn(ports, job, row.revision));
+      return Promise.resolve(withdrawn(ports, job, row.revision, "x-unconfirmed"));
     case "gave-up":
       report("x-verify-refused", { reason: "unavailable" });
 
-      return Promise.resolve(withdrawn(ports, job, row.revision));
+      return Promise.resolve(withdrawn(ports, job, row.revision, "x-unconfirmed"));
     default: {
       const exhaustive: never = ending;
 

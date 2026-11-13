@@ -6,7 +6,7 @@ import type { ToVerify } from "./x-fetcher.ts";
 import { queuedVerification } from "./x-verify-store.ts";
 
 function rateLimitGaveUp(db: JobPorts["db"], job: Readonly<ClaimedJob>): JobOutcome {
-  return { writes: [failedFetch(db, job.itemId, "rate-limited")], failedAttempt: true };
+  return { writes: [failedFetch(db, job.itemId, "rate-limited", null)], failedAttempt: true };
 }
 
 function waitingOutcome(

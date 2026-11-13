@@ -3,6 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import { DATABASE_NOW, guardHolds, guardedBatch } from "./guards.ts";
 import { holding } from "./job-rows.ts";
+import type { XReadNote } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, aiTasks, jobs } from "./schema.ts";
 import { X_INTAKE_TASK } from "./x-intake-contract.ts";
@@ -96,6 +97,18 @@ export async function latestTask(db: Database, jobId: number): Promise<BotTaskRo
     .limit(1);
 
   return task ?? null;
+}
+
+export function botFailureNote(jobId: number) {
+  const unanswered = sql`(${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null) or (${aiTasks.state} = 'failed' and ${aiTasks.refusal} = 'timeout')`;
+
+  return sql<XReadNote | null>`(select case when ${unanswered} then 'bot-timed-out' else 'bot-failed' end from ${aiTasks} where ${aiTasks.jobId} = ${jobId} and ${aiTasks.kind} = ${X_INTAKE_TASK} order by ${aiTasks.id} desc limit 1)`;
+}
+
+export async function hasOpenIntakeTask(db: Database, jobId: number): Promise<boolean> {
+  const task = await latestTask(db, jobId);
+
+  return task !== null && task.kind === X_INTAKE_TASK && task.state === "running";
 }
 
 export function mayFail(reason: string): SQL | undefined {

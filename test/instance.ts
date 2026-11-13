@@ -209,6 +209,24 @@ export class Instance {
     return (await this.sendThrough(db, method, path)).status;
   }
 
+  async sendWithPublicOnlyAiAndNoXFetcher(
+    method: string,
+    path: string,
+    body: Json = null,
+  ): Promise<Answer> {
+    const headers = new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" });
+
+    const worker = createApp({
+      ...this.ports,
+      ai: { ...this.ports.ai, publicOnly: true },
+      xFetcher: null,
+    });
+
+    const response = await worker.request(path, requestOf(method, headers, body));
+
+    return { status: response.status, body: await response.text() };
+  }
+
   async sendWithToken(
     token: string,
     method: string,
