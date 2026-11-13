@@ -19,12 +19,7 @@ function guardRows(db: Database, condition: Readonly<SQLWrapper>) {
     .where(sql`${condition}`);
 }
 
-export function holdsNoRow(
-  db: Database,
-  // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a Drizzle table type holds mutable column objects, so it cannot be deeply readonly.
-  table: SQLiteTable,
-  matching: Readonly<SQLWrapper>,
-) {
+export function holdsNoRow(db: Database, table: SQLiteTable, matching: Readonly<SQLWrapper>) {
   return notExists(
     db
       .select({ one: sql`1` })
@@ -46,7 +41,7 @@ export async function guardHolds(db: Database, condition: Readonly<SQLWrapper>):
 const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)/u;
 
 // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction, and this function reduces it to whether a guard check failed.
-function refusedByGuard(error: unknown): boolean {
+export function refusedByGuard(error: unknown): boolean {
   for (let cause = error; cause instanceof Error; cause = cause.cause) {
     if (GUARD_REFUSED.test(cause.message)) return true;
   }
@@ -63,20 +58,34 @@ async function rethrowUnlessRefused(
   if (!refusedByGuard(error) || (await guardHolds(db, condition))) throw error;
 }
 
+export async function guardedResults(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  writes: readonly BatchItem<"sqlite">[],
+): Promise<readonly unknown[] | null> {
+  try {
+    const [, ...results] = await db.batch([
+      insertGuard(db, condition),
+      ...writes,
+      db.delete(guards),
+    ]);
+
+    const written: readonly unknown[] = results.slice(0, writes.length);
+
+    return written;
+  } catch (error) {
+    await rethrowUnlessRefused(db, condition, error);
+
+    return null;
+  }
+}
+
 export async function guardedBatch(
   db: Database,
   condition: Readonly<SQLWrapper>,
   writes: readonly BatchItem<"sqlite">[],
 ): Promise<boolean> {
-  try {
-    await db.batch([insertGuard(db, condition), ...writes, db.delete(guards)]);
-
-    return true;
-  } catch (error) {
-    await rethrowUnlessRefused(db, condition, error);
-
-    return false;
-  }
+  return (await guardedResults(db, condition, writes)) !== null;
 }
 
 export async function guardedWrite<Write extends BatchItem<"sqlite">>(

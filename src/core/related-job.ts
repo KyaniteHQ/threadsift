@@ -1,12 +1,12 @@
 import { AI_DEADLINE_MS } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
+import { lostOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { type PickItem, type PickRead, pickPrompt, readPick } from "./related-input.ts";
 import { RELATED_OUTPUT_TOKENS, relatedPickTask } from "./related-task.ts";
 import {
   closedOutcome,
   emptyOutcome,
-  lostOutcome,
   noDigestOutcome,
   pickedOutcome,
   refusedOutcome,

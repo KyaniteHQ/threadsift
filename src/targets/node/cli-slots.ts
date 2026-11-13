@@ -1,4 +1,4 @@
-export type Release = () => void;
+type Release = () => void;
 
 export class Slots {
   private free: number;
@@ -14,7 +14,7 @@ export class Slots {
     if (this.free > 0) {
       this.free -= 1;
 
-      return Promise.resolve(this.release);
+      return Promise.resolve(this.grant());
     }
 
     return new Promise((resolve) => {
@@ -25,7 +25,15 @@ export class Slots {
 
       const handOver = (): void => {
         signal.removeEventListener("abort", onAbort);
-        resolve(this.release);
+
+        if (signal.aborted) {
+          resolve(null);
+          this.pass();
+
+          return;
+        }
+
+        resolve(this.grant());
       };
 
       this.waiting.push(handOver);
@@ -33,10 +41,20 @@ export class Slots {
     });
   }
 
-  private readonly release: Release = () => {
+  private grant(): Release {
+    let held = true;
+
+    return () => {
+      if (!held) return;
+      held = false;
+      this.pass();
+    };
+  }
+
+  private pass(): void {
     const next = this.waiting.shift();
 
     if (next === undefined) this.free += 1;
     else next();
-  };
+  }
 }

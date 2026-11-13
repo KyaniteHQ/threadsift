@@ -11,14 +11,16 @@ import {
 import type { Overview, TopicItem, TopicPage } from "../../src/core/topic-overview-contract.ts";
 import { fetchTopicPage, retryTopicOverview } from "./api.ts";
 import type { More } from "./LoadMore.tsx";
+import type { Route } from "./routing.ts";
 import { useLatest } from "./use-latest.ts";
-
-export const OVERVIEW_POLL_MS = 3000;
+import { usePolling } from "./use-polling.ts";
+import { useSurvivorAddress } from "./use-survivor-address.ts";
 
 export interface TopicReady {
   readonly status: "ready";
   readonly topic: TopicPage["topic"];
   readonly overview: Overview;
+  readonly disagreements: TopicPage["disagreements"];
   readonly items: readonly TopicItem[];
   readonly next: string | null;
   readonly more: More;
@@ -49,7 +51,14 @@ async function attempt(key: string, cursor: string | null) {
 }
 
 function refreshed(now: TopicReady, page: Readonly<TopicPage>): TopicReady {
-  return { ...now, topic: page.topic, overview: page.overview, items: page.items, next: page.next };
+  return {
+    ...now,
+    topic: page.topic,
+    overview: page.overview,
+    disagreements: page.disagreements,
+    items: page.items,
+    next: page.next,
+  };
 }
 
 function newer(a: Readonly<TopicItem>, b: Readonly<TopicItem>): boolean {
@@ -171,28 +180,18 @@ function useOverviewPoll(
   const latest = useLatest(state);
   const pending = state.status === "ready" && state.overview.state === "pending";
 
-  useEffect(() => {
-    const timer = pending
-      ? window.setInterval(() => {
-          const loaded = latest.current;
-          const mine = ticket.now();
+  usePolling(pending, async () => {
+    const loaded = latest.current;
+    const mine = ticket.now();
 
-          if (loaded.status !== "ready" || loaded.more === "loading") return;
+    if (loaded.status !== "ready" || loaded.more === "loading") return;
 
-          void freshRead(key, loaded.items.at(-1)).then((page) => {
-            if (page !== null && ticket.now() === mine) {
-              setState((now) => applyRefresh(now, { page, loaded }));
-            }
+    const page = await freshRead(key, loaded.items.at(-1));
 
-            return page;
-          });
-        }, OVERVIEW_POLL_MS)
-      : null;
-
-    return () => {
-      if (timer !== null) window.clearInterval(timer);
-    };
-  }, [key, latest, pending, setState, ticket]);
+    if (page !== null && ticket.now() === mine) {
+      setState((now) => applyRefresh(now, { page, loaded }));
+    }
+  });
 }
 
 function useWriteOverview(key: string, setState: SetState, reload: () => Promise<void>) {
@@ -212,7 +211,7 @@ function useWriteOverview(key: string, setState: SetState, reload: () => Promise
   }, [key, reload, setState]);
 }
 
-export function useTopicPage(key: string) {
+export function useTopicPage(key: string, replace: Route["replace"]) {
   const [state, setState] = useState<TopicState>(LOADING);
   const ticket = useTicket();
   const first = useFirstRead(key, setState, ticket);
@@ -229,6 +228,7 @@ export function useTopicPage(key: string) {
   }, [first]);
 
   useOverviewPoll(key, { setState, ticket, state });
+  useSurvivorAddress(state.status === "ready" ? state.topic.key : null, key, replace);
 
   return { state, retry, loadMore, writeOverview };
 }

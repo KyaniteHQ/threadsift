@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
 import { Alert } from "./Alert.tsx";
-import { type Loaded, useLoaded } from "./use-settings-load.ts";
+import type { Loaded } from "./settings-load-types.ts";
+import { useLoaded } from "./use-settings-load.ts";
 
 export type { Loaded };
 

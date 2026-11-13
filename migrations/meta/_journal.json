@@ -267,6 +267,90 @@
       "when": 1794387948323,
       "tag": "0037_related-items",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1794406026987,
+      "tag": "0038_log-entries",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1794419280191,
+      "tag": "0039_weekly-tag-merge-proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1794429357749,
+      "tag": "0040_tag-merge-pins",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1794440954742,
+      "tag": "0041_topic-merge-proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1794448795209,
+      "tag": "0042_topic-merge-pins",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1794453228361,
+      "tag": "0043_merge-topic-log-action",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1794460634702,
+      "tag": "0044_lost-highlight-proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1794467249005,
+      "tag": "0045_overview-gap-proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1794475239746,
+      "tag": "0046_disagreement-proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1794481568655,
+      "tag": "0047_disagreement-pins",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1794500169862,
+      "tag": "0048_grok-bot-settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1794502231175,
+      "tag": "0049_agent-token-scopes",
+      "breakpoints": true
     }
   ]
 }

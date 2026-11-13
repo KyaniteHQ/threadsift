@@ -1,0 +1,28 @@
+.lg-line {
+  font-size: var(--t-title);
+}
+.lg-date {
+  font-variant-numeric: tabular-nums;
+}
+.lg-link {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 0.2em;
+  overflow-wrap: anywhere;
+}
+.lg-link:hover {
+  text-decoration-color: var(--acc-ink);
+}
+.lg-link:focus-visible {
+  outline: 2px solid var(--acc-ink);
+  outline-offset: 2px;
+  border-radius: var(--r1);
+}
+.app[data-bp~="phone"] .lg-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--target);
+  min-inline-size: var(--target);
+}

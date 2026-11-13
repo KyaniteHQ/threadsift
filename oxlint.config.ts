@@ -100,11 +100,16 @@ export default defineConfig({
             package: "@types/react",
           },
           { from: "package", name: ["ZodType"], package: "zod" },
+          {
+            from: "package",
+            name: ["SQL", "SQLWrapper", "SQLiteColumn", "SQLiteTable", "Subquery"],
+            package: "drizzle-orm",
+          },
         ],
       },
     ],
     "import/extensions": ["error", "always", { ignorePackages: true }],
-    "import/no-unassigned-import": ["error", { allow: ["**/*.css"] }],
+    "import/no-unassigned-import": ["error", { allow: ["**/*.css", "**/zod-jitless.ts"] }],
 
     "anti-slop/no-array-filter-map": "error",
     "anti-slop/no-reduce-accumulator-copy": "error",
@@ -143,7 +148,7 @@ export default defineConfig({
               {
                 regex: "^(node|cloudflare):",
                 message:
-                  "src/core/ and src/http/ run on both targets; a runtime module belongs in an adapter under src/targets/ (docs/architecture.md, One codebase, two install targets).",
+                  "src/core/ and src/http/ run on both targets; a runtime module belongs in an adapter under src/targets/ (docs/architecture/one-codebase-two-install-targets.md).",
               },
               {
                 regex: "(^|[/#@])targets(/|$)",
@@ -163,7 +168,7 @@ export default defineConfig({
           ...["process", "Buffer", "global", "__dirname", "__filename", "require"].map((name) => ({
             name,
             message:
-              "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture.md, One codebase, two install targets).",
+              "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture/one-codebase-two-install-targets.md).",
           })),
         ],
       },

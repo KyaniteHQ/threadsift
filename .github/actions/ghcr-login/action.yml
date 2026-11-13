@@ -1,0 +1,9 @@
+name: Log in to ghcr.io
+description: Runs docker login for ghcr.io with the workflow token; the job needs packages write.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: printf %s "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin

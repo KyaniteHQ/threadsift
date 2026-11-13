@@ -1,12 +1,10 @@
 import { z } from "zod";
 
-export const GITHUB_TOKEN_MAX = 4096;
+import { SECRET_INPUT_MAX, SecretInputSchema } from "./secret-input.ts";
 
-const NO_SPACE_OR_CONTROL = /^[^\s\p{Cc}]+$/u;
+export const GITHUB_TOKEN_MAX = SECRET_INPUT_MAX;
 
-export const GithubTokenInputSchema = z.object({
-  token: z.string().max(GITHUB_TOKEN_MAX).regex(NO_SPACE_OR_CONTROL),
-});
+export const GithubTokenInputSchema = z.object({ token: SecretInputSchema });
 
 export type GithubTokenInput = z.infer<typeof GithubTokenInputSchema>;
 

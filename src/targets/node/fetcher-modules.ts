@@ -18,7 +18,7 @@ const FILE_URL = /^file:/iu;
 
 const ModuleSchema = z.object({ default: z.custom<Fetcher>(isFetcher) });
 
-export class FetcherLoadError extends Error {
+class FetcherLoadError extends Error {
   constructor(module: string, stage: Stage, errorClass: string) {
     super(`fetcher module ${JSON.stringify(module)} failed at ${stage} (${errorClass})`);
   }

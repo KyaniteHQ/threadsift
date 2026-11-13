@@ -7,6 +7,8 @@ export const TEXT = {
   accessMissing: "The Extension has no access to your address. Allow access in the settings.",
   pageBlocked: "Your browser doesn’t let extensions read this page, so it can’t be saved.",
   tokenRefused: "Your agent token is wrong or was revoked. Check it in the settings.",
+  scopeRefused:
+    "Your agent token is missing a scope the Extension needs. Use a token with the Read and Add scopes in the settings.",
   tooLarge: "The text on this page is too long to save.",
   privateLink: "This link leads to a private network or your computer, so it wasn’t saved.",
   unsupportedLink:
@@ -25,10 +27,17 @@ export const TEXT = {
   tokenLabel: "Agent token",
   tokenKept:
     "An agent token is saved. Leave the field empty to keep it, or enter a new token to replace it.",
-  tokenHint: "Create an agent token in Threadsift settings under Agent tokens.",
+  tokenHint:
+    "Create an agent token in Threadsift settings under Agent tokens with the Read and Add scopes.",
   tokenMissing: "Enter an agent token.",
   saveSettings: "Save settings",
   settingsSaved: "Settings saved.",
+  settingsNotSaved: "Couldn’t save the settings, so nothing changed. Try saving again.",
+  oldAccessKept:
+    "Settings saved. Your browser couldn’t remove access to the old address, so it keeps access until you remove it in the browser’s extension settings.",
+  accessKeptNotSaved:
+    "Couldn’t save the settings. Your browser couldn’t remove access to the address, so it keeps access until you remove it in the browser’s extension settings.",
+  settingsUnreadable: "Couldn’t load the settings. Reload the page.",
   accessDenied:
     "Access to the address was denied, so the settings weren’t saved. The Extension can’t save pages without it.",
   fillTitle: "Fill saved Reddit Items",
@@ -39,6 +48,8 @@ export const TEXT = {
   fillIsOn: "Filling saved Reddit Items is on.",
   fillIsOff: "Filling saved Reddit Items is off.",
   fillDenied: "Access to reddit.com was denied, so nothing changed.",
+  fillFailed: "Couldn’t change access to reddit.com. Try again.",
+  fillUnreadable: "Couldn’t check whether filling is on. Reload the page.",
   manifestDescription: "Save the page in your current tab to your Threadsift reading library.",
   actionTitle: "Save to Threadsift",
 } as const;

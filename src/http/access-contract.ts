@@ -120,7 +120,10 @@ export const createTokenRoute = createRoute({
   responses: {
     201: jsonBody(
       CreatedTokenResponseSchema,
-      "The token and its value, which is never shown again.",
+      "The token, with the `scopes` it holds, and its value, which is never shown again. `scopes` in the request defaults to `read` and `add`.",
+    ),
+    400: errorBody(
+      "`name` is empty or longer than 80 characters, or `scopes` is empty or names something other than `read`, `add`, `digest` and `delete`.",
     ),
   },
 });
@@ -129,7 +132,10 @@ export const listTokensRoute = createRoute({
   method: "get",
   path: "/api/tokens",
   responses: {
-    200: jsonBody(TokenListResponseSchema, "Every token, newest first, without its value."),
+    200: jsonBody(
+      TokenListResponseSchema,
+      "Every token with its `scopes`, newest first, without its value.",
+    ),
   },
 });
 

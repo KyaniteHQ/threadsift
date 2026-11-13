@@ -20,14 +20,25 @@ const WORKER = [
   "umask 077",
   `mkdir -p ${STATE}`,
   `printf 'SETUP_CODE=%s\\nTHREADSIFT_SECRET_KEY=%s\\n' "$SETUP_CODE" "$THREADSIFT_SECRET_KEY" > ${STATE}/env`,
-  `exec worker-local ${STATE}/state ${PORT} --test-scheduled --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
+  `exec worker-local ${STATE}/state ${PORT} --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
 ].join(" && ");
 
-const CONTAINER = `exec podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY "\${THREADSIFT_IMAGE:?run through devenv tasks}"`;
+const CONTAINER_RUN = `podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY`;
+
+const IMAGE = '"${THREADSIFT_IMAGE:?run through devenv tasks}"';
+
+const INSTALL_CLAUDE_CODE =
+  "env -u CLAUDE_CODE_OAUTH_TOKEN -u SETUP_CODE -u THREADSIFT_SECRET_KEY npm install --global --min-release-age=3 @anthropic-ai/claude-code";
+
+const LIVE_CONTAINER = `exec ${CONTAINER_RUN} --env CLAUDE_CODE_OAUTH_TOKEN ${IMAGE} sh -c '${INSTALL_CLAUDE_CODE} && claude --version && exec node src/targets/node/index.ts'`;
+
+const LIVE = process.env["THREADSIFT_LIVE"] === "1";
 
 const SERVERS = {
   worker: { command: WORKER, timeout: 180_000 },
-  container: { command: CONTAINER, timeout: 60_000 },
+  container: LIVE
+    ? { command: LIVE_CONTAINER, timeout: 180_000 }
+    : { command: `exec ${CONTAINER_RUN} ${IMAGE}`, timeout: 60_000 },
 };
 
 export default defineConfig({

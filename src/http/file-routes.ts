@@ -4,8 +4,8 @@ import { FILE_ROUTE } from "../core/file-keys.ts";
 import { servedImage } from "../core/image-serving.ts";
 import { IMAGE_TYPES } from "../core/image-type.ts";
 import type { Ports } from "../core/ports.ts";
-import { NOT_FOUND } from "./item-routes.ts";
 import { jsonBody } from "./openapi.ts";
+import { NOT_FOUND } from "./refusals.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
 const FileParamsSchema = z.object({ id: z.string(), name: z.string() });
@@ -28,7 +28,7 @@ const imageRoute = createRoute({
     401: jsonBody(ErrorResponseSchema, "No owner session and no agent token."),
     404: jsonBody(
       ErrorResponseSchema,
-      "The key is not a file key, no Item has it, or it is not a stored image of a published `media` row: an unpublished or superseded image, a temporary file, a post text file or any other object. A key the grammar of `docs/architecture.md` (Files) refuses answers 404 too.",
+      "The key is not a file key, no Item has it, or it is not a stored image of a published `media` row: an unpublished or superseded image, a temporary file, a post text file or any other object. A key the grammar of `docs/architecture/files.md` refuses answers 404 too.",
     ),
   },
 });

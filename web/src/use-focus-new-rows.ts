@@ -22,7 +22,7 @@ export function useFocusNewRows(
     const active = document.activeElement;
 
     if (active === wait.origin || active === document.body) {
-      list.current?.querySelectorAll<HTMLElement>(link)[wait.from]?.focus();
+      list.current?.children[wait.from]?.querySelector<HTMLElement>(link)?.focus();
     }
   }, [count, link, list]);
 

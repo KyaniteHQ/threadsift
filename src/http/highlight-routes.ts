@@ -7,8 +7,8 @@ import {
 import { createHighlight, removeHighlight } from "../core/highlights.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerHighlightsPageRoute } from "./highlights-page-route.ts";
-import { NOT_FOUND } from "./item-routes.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
+import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, HighlightParamsSchema, IdParamSchema } from "./schemas.ts";
 
 const NO_COMMENT = "The thread the Reader shows has no such comment";
@@ -73,7 +73,7 @@ export function registerHighlightRoutes(app: OpenAPIHono, ports: Ports): void {
 
     switch (created.kind) {
       case "no-item":
-        return c.json({ error: NOT_FOUND }, 404);
+        return notFound(c);
       case "no-comment":
         return c.json({ error: NO_COMMENT }, 404);
       case "stale":
@@ -95,9 +95,7 @@ export function registerHighlightRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(removeHighlightRoute, async (c) => {
     const { id, highlightId } = c.req.valid("param");
 
-    return (await removeHighlight(ports.db, id, highlightId))
-      ? c.body(null, 204)
-      : c.json({ error: NOT_FOUND }, 404);
+    return (await removeHighlight(ports.db, id, highlightId)) ? c.body(null, 204) : notFound(c);
   });
 
   registerHighlightsPageRoute(app, ports);

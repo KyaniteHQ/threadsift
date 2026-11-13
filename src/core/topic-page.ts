@@ -1,16 +1,18 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { providerSet } from "./ai-tasks.ts";
-import { catalogKey } from "./catalog.ts";
+import { catalogKey } from "./catalog-key.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
+import { readDisagreements } from "./known-disagreements.ts";
 import type { Database } from "./ports.ts";
-import { digests, items, topicPages, topics } from "./schema.ts";
-import { notBuiltFrom } from "./topic-coverage.ts";
+import { digests, items, pins, topicPages, topics } from "./schema.ts";
+import { hasOpenOverview, notBuiltFrom } from "./topic-coverage.ts";
 import {
   type BuiltFrom,
   type Overview,
   type TopicPage,
   citedIds,
+  overviewState,
 } from "./topic-overview-contract.ts";
 import { topicKeyOfSegment } from "./topic-path.ts";
 
@@ -30,7 +32,15 @@ export async function topicOfKey(db: Database, text: string): Promise<TopicRow |
     .from(topics)
     .where(eq(topics.key, key));
 
-  return topic ?? null;
+  if (topic !== undefined) return topic;
+
+  const [merged] = await db
+    .select({ id: topics.id, key: topics.key, name: topics.name })
+    .from(pins)
+    .innerJoin(topics, eq(topics.id, pins.intoTopicId))
+    .where(and(eq(pins.kind, "topic-merge"), eq(pins.fromKey, key)));
+
+  return merged ?? null;
 }
 
 function pageQuery(db: Database, topicId: number, cursor: Readonly<ItemCursor> | null) {
@@ -76,7 +86,7 @@ function overviewReads(db: Database, topicId: number) {
       .where(eq(items.topicId, topicId)),
     db
       .select({
-        pending: sql<number>`exists (select 1 from jobs as open_overview join items as owner on owner.id = open_overview.item_id where open_overview.kind = 'topic_overview' and open_overview.state <> 'done' and owner.topic_id = ${topicId})`,
+        pending: sql<number>`${hasOpenOverview(topicId)}`,
         provider: sql<number>`${providerSet()}`,
       })
       .from(sql`(select 1)`),
@@ -115,7 +125,7 @@ export async function readTopicOverview(db: Database, topicId: number): Promise<
     total: counts?.total ?? 0,
     builtFrom: page?.builtFrom ?? [],
     overview: {
-      state: flags?.pending === 1 ? "pending" : failure === null ? "idle" : "failed",
+      state: overviewState({ open: flags?.pending === 1, failure }),
       text: page?.overview ?? null,
       cited,
       builtFrom: counts?.built ?? 0,
@@ -134,9 +144,10 @@ export async function readTopicPage(
 
   if (topic === null) return undefined;
 
-  const [rows, { overview, total, builtFrom }] = await Promise.all([
+  const [rows, { overview, total, builtFrom }, disagreements] = await Promise.all([
     pageQuery(db, topic.id, cursor),
     readTopicOverview(db, topic.id),
+    readDisagreements(db, topic.id),
   ]);
 
   const built = new Map(builtFrom.map(({ item, digest }) => [item, digest]));
@@ -146,6 +157,7 @@ export async function readTopicPage(
   return {
     topic: { key: topic.key, name: topic.name, itemCount: total },
     overview,
+    disagreements,
     items: shown.map((row) => ({
       id: row.id,
       source: row.source,

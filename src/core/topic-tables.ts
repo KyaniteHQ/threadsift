@@ -22,3 +22,11 @@ export const topicLeases = sqliteTable("topic_leases", {
   expiresAt: integer("expires_at").notNull(),
   generation: integer("generation").notNull(),
 });
+
+export const topicChecks = sqliteTable("topic_checks", {
+  topicId: integer("topic_id")
+    .primaryKey()
+    .references(() => topics.id, { onDelete: "cascade" }),
+  members: text("members").notNull(),
+  checkedAt: integer("checked_at").notNull(),
+});

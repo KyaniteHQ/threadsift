@@ -110,7 +110,11 @@ export function rows<Schema extends z.ZodType>(
   }
 }
 
-export function exec(instance: Instance, query: string, ...params: readonly (string | number)[]) {
+export function exec(
+  instance: Instance,
+  query: string,
+  ...params: readonly (string | number | null)[]
+) {
   const database = new DatabaseSync(instance.databaseFile);
 
   try {

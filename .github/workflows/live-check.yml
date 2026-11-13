@@ -12,7 +12,7 @@ jobs:
   live-check:
     if: github.repository == 'KyaniteHQ/threadsift' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     environment: post-merge
     strategy:
       fail-fast: false
@@ -21,17 +21,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
-      - name: Allow unprivileged user namespaces for rootless Podman and Chromium
-        run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
+        with:
+          unprivileged-userns: "true"
       - id: layer-cache
         if: matrix.target == 'container'
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ runner.temp }}/layer-cache
-          key: layer-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Containerfile', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'extension/package.json') }}
+        uses: ./.github/actions/layer-cache-restore
       - env:
-          THREADSIFT_LAYER_CACHE: ${{ steps.layer-cache.outputs.cache-hit == 'true' && format('{0}/layer-cache', runner.temp) || '' }}
+          THREADSIFT_LAYER_CACHE: ${{ steps.layer-cache.outputs.cache-hit == 'true' && steps.layer-cache.outputs.path || '' }}
           GITHUB_TOKEN: ${{ github.token }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODEL: nvidia/nemotron-3.5-super-vl:free
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ matrix.target == 'container' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
         run: devenv tasks run live:${{ matrix.target }} --show-output

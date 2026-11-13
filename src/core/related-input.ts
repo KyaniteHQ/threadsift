@@ -1,7 +1,8 @@
-import { eq, inArray } from "drizzle-orm";
+import { type SQL, type SQLWrapper, eq, inArray, sql } from "drizzle-orm";
 
 import { parseStoredDigest } from "./ai-contract.ts";
 import { utf8Length } from "./digest-prompt.ts";
+import { storedTags, unchangedDigests } from "./digest-state.ts";
 import { logFailure } from "./failure-log.ts";
 import type { Database } from "./ports.ts";
 import { candidateIds, relatedTerms } from "./related-candidates.ts";
@@ -15,11 +16,44 @@ export interface PickItem {
   readonly topic: string;
   readonly summary: string;
   readonly tags: readonly string[];
+  readonly storedTags: string | null;
+}
+
+export type Version = Readonly<Pick<PickItem, "id" | "digest" | "storedTags">>;
+
+export interface Versions {
+  readonly source: Version;
+  readonly sent: readonly Version[];
+}
+
+export function versionsHold({ source, sent }: Readonly<Versions>): SQL {
+  const reads = [source, ...sent].map(({ id, digest, storedTags: tags }) => ({
+    id,
+    task: digest,
+    tags,
+  }));
+
+  return sql`(select count(*) from (${unchangedDigests(reads)})) = ${reads.length}`;
+}
+
+function digestRows(db: Database, where: Readonly<SQLWrapper>) {
+  return db
+    .select({
+      id: digests.itemId,
+      digest: digests.taskId,
+      stored: digests.digest,
+      storedTags,
+    })
+    .from(digests)
+    .where(sql`${where}`);
 }
 
 export type PickRead =
   | { readonly kind: "absent" }
-  | { readonly kind: "unreadable"; readonly source: Readonly<Pick<PickItem, "id" | "digest">> }
+  | {
+      readonly kind: "unreadable";
+      readonly source: Readonly<Pick<PickItem, "id" | "digest" | "storedTags">>;
+    }
   | {
       readonly kind: "read";
       readonly source: PickItem;
@@ -31,13 +65,28 @@ type PickPrompt =
   | { readonly kind: "refused"; readonly reason: "source-over-cap" | "none-fit" }
   | { readonly kind: "ask"; readonly input: string; readonly sent: readonly PickItem[] };
 
-function pickItem(row: Readonly<{ id: number; digest: number; stored: string }>): PickItem {
-  const { title, topic, summary, tags } = parseStoredDigest(row.stored);
-
-  return { id: row.id, digest: row.digest, title, topic, summary, tags };
+interface DigestRow {
+  readonly id: number;
+  readonly digest: number;
+  readonly stored: string;
+  readonly storedTags: string | null;
 }
 
-function readableCandidate(row: Readonly<{ id: number; digest: number; stored: string }>) {
+function pickItem(row: Readonly<DigestRow>): PickItem {
+  const { title, topic, summary, tags } = parseStoredDigest(row.stored);
+
+  return {
+    id: row.id,
+    digest: row.digest,
+    title,
+    topic,
+    summary,
+    tags,
+    storedTags: row.storedTags,
+  };
+}
+
+function readableCandidate(row: Readonly<DigestRow>) {
   try {
     return [pickItem(row)];
   } catch (error) {
@@ -48,10 +97,7 @@ function readableCandidate(row: Readonly<{ id: number; digest: number; stored: s
 }
 
 export async function readPick(db: Database, itemId: number): Promise<PickRead> {
-  const [row] = await db
-    .select({ id: digests.itemId, digest: digests.taskId, stored: digests.digest })
-    .from(digests)
-    .where(eq(digests.itemId, itemId));
+  const [row] = await digestRows(db, eq(digests.itemId, itemId));
 
   if (row === undefined) return { kind: "absent" };
 
@@ -62,18 +108,15 @@ export async function readPick(db: Database, itemId: number): Promise<PickRead> 
   } catch (error) {
     logFailure("related-digest-unreadable", { itemId }, error);
 
-    return { kind: "unreadable", source: { id: itemId, digest: row.digest } };
+    return {
+      kind: "unreadable",
+      source: { id: itemId, digest: row.digest, storedTags: row.storedTags },
+    };
   }
 
   const ids = await candidateIds(db, itemId, relatedTerms(source));
 
-  const rows =
-    ids.length === 0
-      ? []
-      : await db
-          .select({ id: digests.itemId, digest: digests.taskId, stored: digests.digest })
-          .from(digests)
-          .where(inArray(digests.itemId, ids));
+  const rows = ids.length === 0 ? [] : await digestRows(db, inArray(digests.itemId, ids));
 
   const byId = new Map(rows.map((each) => [each.id, each]));
 

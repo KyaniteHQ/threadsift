@@ -1,0 +1,1 @@
+ALTER TABLE `agent_tokens` ADD `scopes` text DEFAULT '["read","add","digest","delete"]' NOT NULL;

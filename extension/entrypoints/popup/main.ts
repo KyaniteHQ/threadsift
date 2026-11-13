@@ -1,8 +1,10 @@
 import { browser } from "wxt/browser";
 
 import { applyLook, element } from "../../lib/page-look.ts";
-import { SAVE_PORT, type SaveState, SaveStateSchema } from "../../lib/state.ts";
+import { SAVE_PORT, type SaveState, SaveStateSchema, ask } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
+
+const SAVE_DEADLINE_MS = 240_000;
 
 type Failure = Exclude<SaveState["kind"], "saving" | "saved">;
 
@@ -11,6 +13,7 @@ const FAILURE_TEXT: Readonly<Record<Failure, string>> = {
   "access-missing": TEXT.accessMissing,
   "page-blocked": TEXT.pageBlocked,
   "token-refused": TEXT.tokenRefused,
+  "scope-refused": TEXT.scopeRefused,
   "too-large": TEXT.tooLarge,
   "private-link": TEXT.privateLink,
   "unsupported-link": TEXT.unsupportedLink,
@@ -24,6 +27,7 @@ const NEEDS_SETTINGS: ReadonlySet<SaveState["kind"]> = new Set([
   "not-configured",
   "access-missing",
   "token-refused",
+  "scope-refused",
 ]);
 
 const root = document.querySelector("#root");
@@ -56,7 +60,7 @@ function actions(state: Readonly<SaveState>): HTMLElement[] {
 
   return NEEDS_SETTINGS.has(state.kind)
     ? [button(TEXT.openSettings, () => void browser.runtime.openOptionsPage())]
-    : [button(TEXT.tryAgain, save)];
+    : [button(TEXT.tryAgain, () => void save())];
 }
 
 function messageOf(state: Readonly<SaveState>): HTMLParagraphElement {
@@ -75,23 +79,16 @@ function show(state: Readonly<SaveState>): void {
   );
 }
 
-function save(): void {
+async function save(): Promise<void> {
   show({ kind: "saving" });
 
-  const port = browser.runtime.connect({ name: SAVE_PORT });
-
-  port.onMessage.addListener((message) => {
-    const state = SaveStateSchema.safeParse(message);
-
-    show(state.success ? state.data : { kind: "failed" });
-    port.disconnect();
-  });
-
-  port.onDisconnect.addListener(() => {
+  try {
+    show(await ask(SAVE_PORT, SaveStateSchema, { deadlineMs: SAVE_DEADLINE_MS }));
+  } catch {
     show({ kind: "failed" });
-  });
+  }
 }
 
 applyLook();
 
-save();
+void save();

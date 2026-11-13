@@ -18,10 +18,17 @@ export interface Agents {
   readonly modern: Client;
 }
 
-export async function createAgentToken(instance: Instance, name: string): Promise<AgentToken> {
-  const { token, value } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
-    name,
-  });
+export async function createAgentToken(
+  instance: Instance,
+  name: string,
+  scopes?: readonly string[],
+): Promise<AgentToken> {
+  const { token, value } = await instance.read(
+    "POST",
+    "/api/tokens",
+    CreatedTokenResponseSchema,
+    scopes === undefined ? { name } : { name, scopes: [...scopes] },
+  );
 
   return { id: token.id, value };
 }

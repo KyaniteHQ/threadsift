@@ -113,6 +113,10 @@ export function isImageRouteOf(path: string, itemId: number): boolean {
   return key !== null && IMAGE.test(key) && parseFileKey(key)?.itemId === String(itemId);
 }
 
+export function isItemId(id: string): boolean {
+  return PREFIX.exec(`items/${id}/`)?.groups?.["itemId"] !== undefined;
+}
+
 export function requireFilePrefix(prefix: string): FilePrefix {
   const match = PREFIX.exec(prefix);
 

@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import {
   PROVIDERS,
   HttpProviderSchema,
@@ -27,6 +29,7 @@ interface AiRuntimeOptions {
   readonly publicOnly: boolean;
   readonly secretKey: string | undefined;
   readonly request: typeof fetch;
+  readonly openRouterMaxPriceZero?: string | undefined;
   readonly binding?: TaskRunner | undefined;
   readonly cli?: readonly CliRunner[] | undefined;
 }
@@ -37,9 +40,13 @@ export async function aiRuntime({
   publicOnly,
   secretKey,
   request,
+  openRouterMaxPriceZero,
   binding,
   cli = [],
 }: AiRuntimeOptions): Promise<AiRuntime> {
+  const zeroOpenRouterPrice =
+    z.enum(["true", "false"]).default("false").parse(openRouterMaxPriceZero) === "true";
+
   return {
     providers: [
       ...HTTP_PROVIDERS,
@@ -69,7 +76,7 @@ export async function aiRuntime({
 
       const { runHttp } = await import("./ai-executor.ts");
 
-      return runHttp(request, task, signal);
+      return runHttp(request, task, signal, zeroOpenRouterPrice);
     },
     exchangeOpenRouterCode: openRouterExchange(request),
   };

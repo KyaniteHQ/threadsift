@@ -1,4 +1,4 @@
-import { eq, or } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 
 import { logFailure } from "./failure-log.ts";
 import { FILE_LIST_LIMIT } from "./file-keys.ts";
@@ -12,8 +12,11 @@ import {
   itemTags,
   items,
   jobs,
+  logEntries,
   media,
   notes,
+  pins,
+  proposals,
   redditComments,
   redditThreads,
   relatedItems,
@@ -54,10 +57,21 @@ export async function deleteItem(
     db.delete(redditThreads).where(eq(redditThreads.itemId, id)),
     db.delete(githubRepos).where(eq(githubRepos.itemId, id)),
     db.delete(searchParts).where(eq(searchParts.itemId, id)),
+    db
+      .delete(proposals)
+      .where(
+        inArray(
+          proposals.highlightId,
+          db.select({ id: highlights.id }).from(highlights).where(eq(highlights.itemId, id)),
+        ),
+      ),
+    db.delete(proposals).where(or(eq(proposals.fromItemId, id), eq(proposals.intoItemId, id))),
+    db.delete(pins).where(or(eq(pins.fromItemId, id), eq(pins.intoItemId, id))),
     db.delete(highlights).where(eq(highlights.itemId, id)),
     db.delete(media).where(eq(media.itemId, id)),
     db.delete(notes).where(eq(notes.itemId, id)),
     db.delete(relatedItems).where(or(eq(relatedItems.itemId, id), eq(relatedItems.relatedId, id))),
+    db.delete(logEntries).where(eq(logEntries.itemId, id)),
     db.delete(searchFingerprints).where(eq(searchFingerprints.itemId, id)),
     db.delete(itemTags).where(eq(itemTags.itemId, id)),
     db.delete(itemAliases).where(eq(itemAliases.itemId, id)),

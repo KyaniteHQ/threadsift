@@ -1,14 +1,14 @@
 import { type Browser, type Page, expect, test } from "@playwright/test";
-import { z } from "zod";
 
-import { FIELDS, LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
 import { IMPORT, countLabel } from "../web/src/import-text.ts";
 import { INDEX_PAGE } from "../web/src/index-text.ts";
-import { ADD_LABEL, FILTERS_BUTTON, PASTE_LABEL } from "../web/src/text.ts";
+import { ADD_LABEL, FILTERS_BUTTON, FILTER_GROUPS, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
-import { readerWithoutProvider } from "./related-reader.ts";
-
-const PASSWORD = "a smoke password of fifteen or more";
+import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
+import { expectDocumentHeaders, visitSignedOut, watchContext } from "./document-checks.ts";
+import { failedLoadMore, logFlow } from "./log-flow.ts";
+import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
+import { settingsSteps } from "./settings-steps.ts";
 
 const X_LINK = "https://x.com/someone/status/1234567890";
 
@@ -67,36 +67,11 @@ const INDEXED_TOPIC: TopicCase = {
   address: /\/topics\/indexing$/u,
 };
 
+const SMOKE_TIMEOUT_MS = 240_000;
+
 const PHONE = { width: 390, height: 844 };
 
 const TARGET_PX = 44;
-
-const SETUP_CODE = z.string().min(16).parse(process.env["SETUP_CODE"]);
-
-const libraryHeading = (page: Page) => page.getByRole("heading", { level: 1, name: "Threadsift" });
-
-const passwordField = (page: Page) =>
-  page.getByLabel(FIELDS.password, { exact: true }).and(page.locator("input"));
-
-async function setUp(page: Page): Promise<void> {
-  await page.goto("/");
-  await page.getByLabel(SETUP.codeLabel).fill(SETUP_CODE);
-  await page.getByRole("button", { name: SETUP.continue }).click();
-  await passwordField(page).fill(PASSWORD);
-  await page.getByLabel(FIELDS.confirmPassword).fill(PASSWORD);
-  await page.getByRole("button", { name: SETUP.create }).click();
-  await expect(libraryHeading(page)).toBeVisible();
-}
-
-async function signOutAndIn(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
-  await page.getByRole("button", { name: SETTINGS.signOut }).click();
-  await expect(page).toHaveTitle("Sign in to Threadsift");
-  await passwordField(page).fill(PASSWORD);
-  await page.getByRole("button", { name: LOGIN.signIn }).click();
-  await expect(libraryHeading(page)).toBeVisible();
-}
 
 async function pasteXLink(page: Page): Promise<void> {
   const row = page.locator("article.it.it-link-only");
@@ -233,23 +208,17 @@ async function openIndex(page: Page, browser: Browser, topic: TopicCase): Promis
   await expect(page).toHaveURL(topic.address);
   await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
 
-  const signedOut = await browser.newContext();
-
-  try {
-    const visitor = await signedOut.newPage();
-
-    await visitor.goto("/topics");
-    await expect(visitor).toHaveTitle("Sign in to Threadsift");
-  } finally {
-    await signedOut.close();
-  }
+  await visitSignedOut(browser, "/topics");
 }
 
 async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
   await page.setViewportSize(PHONE);
   await page.goto("/");
   await page.getByRole("button", { name: FILTERS_BUTTON, exact: true }).click();
-  await page.getByRole("button", { name: topic.name }).click();
+  await page
+    .getByRole("group", { name: FILTER_GROUPS.topic })
+    .getByRole("button", { name: topic.name })
+    .click();
 
   const box = await page
     .getByRole("link", { name: TOPIC_PAGE.openPage, exact: true })
@@ -258,14 +227,20 @@ async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
   expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
 }
 
-test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, and shows no Related Items without a Provider", async ({
+test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, lists the Digests it published on the Log, and shows no Related Items without a Provider", async ({
   page,
   browser,
 }) => {
+  test.setTimeout(SMOKE_TIMEOUT_MS);
+
+  const expectNoCspViolations = await watchContext(page.context());
+
+  await test.step("the app page carries its security headers on / and on a deep address", () =>
+    expectDocumentHeaders(page));
   await test.step("set up the owner with the setup code", () => setUp(page));
   await test.step("sign out and sign in again", () => signOutAndIn(page));
-  await test.step("paste an X link and find its Link-only row after a reload", () =>
-    pasteXLink(page));
+  await test.step("paste an X link, find its Link-only row after a reload", () => pasteXLink(page));
+  await test.step("save an X thread and read its Kept replies", () => readXThread(page));
   await test.step("save a page through the API and read its text in the Reader", () =>
     readSavedPage(page));
   await test.step("import a list of three links from the settings panel and find its Items", () =>
@@ -278,6 +253,11 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     openTopicPage(page, DOTS_ONLY_TOPIC));
   await test.step("follow the settings panel's Index link, see a Topic with its count, open its page from the row, and visit the Index signed out", () =>
     openIndex(page, browser, INDEXED_TOPIC));
+  await test.step("follow the settings panel's Log link, see ingest above topic, open the Item and the Topic page, reload, see a phone-width line wrap, visit the Log signed out, and delete the Item", () =>
+    logFlow(page, browser));
+  await test.step("a failed Load more on the Log keeps its rows and Try again reads the next page", () =>
+    failedLoadMore(page));
+  await settingsSteps(page, browser);
   await test.step("a Pasted Item with a Digest and no Provider shows no Related Items section", () =>
     readerWithoutProvider(page, {
       topic: UNRELATED_TOPIC,
@@ -286,4 +266,6 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     }));
   await test.step("the filter rail's Topic link is a 44px target on a phone", () =>
     phoneRailTarget(page, DOTTED_TOPIC));
+  await test.step("the page reported no Content-Security-Policy violation and reports a probe", () =>
+    expectNoCspViolations(page));
 });

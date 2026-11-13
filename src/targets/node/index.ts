@@ -21,6 +21,7 @@ const env = z
     THREADSIFT_SECRET_KEY: z.string().optional(),
     PASSWORD_RESET_CODE: z.string().optional(),
     THREADSIFT_PUBLIC_ORIGIN: z.string().optional(),
+    THREADSIFT_OPENROUTER_MAX_PRICE_ZERO: z.string().optional(),
     THREADSIFT_FETCHERS: z.string().optional(),
     PATH: z.string().default(""),
     CLAUDE_CONFIG_DIR: z.string().optional(),
@@ -46,6 +47,7 @@ const node = await startNode(database.db, {
   secretKey: env.THREADSIFT_SECRET_KEY,
   resetCode: env.PASSWORD_RESET_CODE,
   publicOrigin: env.THREADSIFT_PUBLIC_ORIGIN,
+  openRouterMaxPriceZero: env.THREADSIFT_OPENROUTER_MAX_PRICE_ZERO,
   fetchers: env.THREADSIFT_FETCHERS,
   claude: {
     path: env.PATH,

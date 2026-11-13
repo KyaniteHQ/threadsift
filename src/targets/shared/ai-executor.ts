@@ -24,6 +24,14 @@ import { AiAddressRefused } from "../../core/ai-url.ts";
 import { AI_CALL_OPTIONS, apiRefusal } from "./ai-call.ts";
 import { aiTransport } from "./ai-transport.ts";
 
+const ZERO_OPENROUTER_PRICE = {
+  openrouter: {
+    provider: {
+      max_price: { prompt: "0", completion: "0", request: "0", image: "0", audio: "0" },
+    },
+  },
+};
+
 function languageModel(config: Readonly<HttpAiConnection>, request: typeof fetch) {
   const settings = { baseURL: config.baseUrl, apiKey: config.key, fetch: aiTransport(request) };
 
@@ -61,6 +69,7 @@ export async function runHttp<Result>(
   request: typeof fetch,
   task: AiTaskRequest<Result>,
   signal: AbortSignal,
+  zeroOpenRouterPrice: boolean,
 ): Promise<AiExecution<Result>> {
   const { config } = task;
 
@@ -74,6 +83,8 @@ export async function runHttp<Result>(
       prompt: task.input,
       abortSignal: signal,
       maxOutputTokens: task.maxOutputTokens,
+      providerOptions:
+        config.provider === "openrouter" && zeroOpenRouterPrice ? ZERO_OPENROUTER_PRICE : {},
       ...AI_CALL_OPTIONS,
     });
 

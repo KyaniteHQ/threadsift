@@ -163,7 +163,7 @@ export function EmptyState({ heading, line }: Readonly<{ heading: string; line: 
   return (
     <div className="empty">
       <Icon name="tray" className="ic ic-xl" />
-      <h2>{heading}</h2>
+      <h2 tabIndex={-1}>{heading}</h2>
       <p>{line}</p>
     </div>
   );

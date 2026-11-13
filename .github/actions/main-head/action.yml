@@ -1,0 +1,21 @@
+name: Check that main is at this commit
+description: Sets current to true when the main branch still points at the commit this run belongs to.
+outputs:
+  current:
+    description: "true when main is at GITHUB_SHA, otherwise false."
+    value: ${{ steps.head.outputs.current }}
+runs:
+  using: composite
+  steps:
+    - id: head
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+        if [ "$current" = "$GITHUB_SHA" ]; then
+          echo "current=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "current=false" >> "$GITHUB_OUTPUT"
+          echo "Skipped: main is at $current now"
+        fi

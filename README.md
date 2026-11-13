@@ -4,7 +4,7 @@ Threadsift is a reading library. You paste a link to something you saved (a Redd
 
 ## Status
 
-The build is under way and v1 is not released, so do not deploy it for real use. Both install targets, the container image and a Cloudflare Worker, run the same app. The status line at the top of `docs/architecture.md` says what is built and what is not, so this README keeps no list of its own.
+The build is under way and v1 is not released, so do not deploy it for real use. Both install targets, the container image and a Cloudflare Worker, run the same app. The status table at the top of `docs/architecture.md` says what is built and what is not, so this README keeps no list of its own.
 
 - `docs/spec.md`: what v1 does.
 - `docs/architecture.md`: what it is built with and where each part runs.
@@ -27,6 +27,45 @@ python3 -m http.server 8000
 Then open http://127.0.0.1:8000/Main.dc.html. Press T for the Tweaks panel, which has Compare for two settings side by side.
 
 The prototype's sample data is not in the repo, because it is the owner's real saves: other people's posts, comments and images. Without it the app shows "Couldn’t load the library data." To fill it, put a `data.json` in the shape `library.js` reads, and its images in `img/`, inside `design/prototype/`; both paths are gitignored.
+
+## Run the container image
+
+The image is published at `ghcr.io/kyanitehq/threadsift` for `amd64` and `arm64`, and the tag `main` is the latest build that started and answered; a tag `sha-<commit sha>` is one build and never moves.
+
+You need [Podman](https://podman.io/docs/installation), `openssl`, and bash or zsh for the commands; on macOS and Windows, a Podman machine must be running.
+
+Before the first run, create the secret key once; this command stops without changing an existing file:
+
+```sh
+(set -Ceu; umask 077; key=$(openssl rand -hex 32); printf 'THREADSIFT_SECRET_KEY=%s\n' "$key" > "$HOME/threadsift.env")
+```
+
+`THREADSIFT_SECRET_KEY` is 32 random bytes as 64 hex characters. The app encrypts the keys you save in Settings with it: a Provider's API key, the GitHub token and the Grok Bot key; without it, Settings cannot save an API key. Back up and reuse the file on every run, a rollback included. If the key changes or is lost, the app cannot read saved keys; a saved Provider API key works again only with the original key back.
+
+Start the Instance:
+
+```sh
+podman run --detach --name threadsift --pull=newer --publish 127.0.0.1:8080:8080 --volume threadsift-data:/data --env-file "$HOME/threadsift.env" ghcr.io/kyanitehq/threadsift:main
+```
+
+The app listens on plain HTTP, the command publishes the port on this machine only, and the owner's reverse proxy or tunnel gives it HTTPS from outside. The data stays in the `threadsift-data` volume.
+
+While it has no owner, each Instance start logs a new `Setup code: <code>` line, and only the newest code works:
+
+```sh
+podman logs threadsift
+```
+
+If the line is not logged yet, run it again after a few seconds. Open http://127.0.0.1:8080, enter the newest code and choose a password.
+
+To go back to an older build, replace `<commit sha>` with a tag's commit from the package page and run both lines; they remove the container and run that build on the same volume and key file:
+
+```sh
+podman rm --force threadsift
+podman run --detach --name threadsift --publish 127.0.0.1:8080:8080 --volume threadsift-data:/data --env-file "$HOME/threadsift.env" "ghcr.io/kyanitehq/threadsift:sha-<commit sha>"
+```
+
+The tags are listed on the package page of the repository on GitHub, and a commit with no tag there has no image.
 
 ## Use Claude Code on the container
 
@@ -56,7 +95,7 @@ The container image ships no AI command-line tool and keeps everything you insta
    claude setup-token
    ```
 
-   Start the container with the token it prints in the `CLAUDE_CODE_OAUTH_TOKEN` environment variable (for example `--env CLAUDE_CODE_OAUTH_TOKEN`). Set it at container start; an export in a later `podman exec` shell does not reach the running app.
+   Start the container with the token it prints in the `CLAUDE_CODE_OAUTH_TOKEN` environment variable: keep `--env-file "$HOME/threadsift.env"` on the run command, because a container started without it has no secret key, and add `--env CLAUDE_CODE_OAUTH_TOKEN` beside it. Set it at container start; an export in a later `podman exec` shell does not reach the running app.
 
 4. Open Settings, choose "Claude Code on this server" as the Provider, press Save, then press Verify.
 

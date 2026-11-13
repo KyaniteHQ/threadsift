@@ -9,6 +9,7 @@ import {
   formatCursor,
 } from "./highlights-page-contract.ts";
 import { type ItemFilters, facetCounts, facetQueries, itemConditions } from "./item-filters.ts";
+import { itemTitle } from "./item-title.ts";
 import type { Source } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, highlights, items, notes, searchParts } from "./schema.ts";
@@ -56,7 +57,7 @@ function entryTotals(db: Database) {
 const ITEM_COLUMNS = {
   itemId: sql<number>`${items.id}`.as("item_id"),
   source: sql<Source>`${items.source}`.as("source"),
-  title: sql<string | null>`coalesce(${digests.title}, ${items.title})`.as("title"),
+  title: itemTitle().as("title"),
   savedAt: sql<number>`${items.savedAt}`.as("saved_at"),
 };
 

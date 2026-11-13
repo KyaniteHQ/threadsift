@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { FACE_WAIT_MS, LOOK_FONTS, loadStacks, stacksOf } from "./load-fonts.ts";
+import { type FaceId, loadFaces } from "../../design/system/style-faces.ts";
+import { FACE_WAIT_MS, LOOK_FONTS, loadStacks, stacksOf, whenAborted } from "./load-fonts.ts";
 
 type Attributes = Readonly<Record<string, string>>;
 
@@ -25,7 +26,7 @@ function newStacks(wanted: Attributes, shown: Attributes): string[] {
   return stacksFor(wanted).filter((stack) => !known.has(stack));
 }
 
-export function useSettledAttributes(wanted: Attributes): Attributes {
+export function useSettledAttributes(wanted: Attributes, faces: readonly FaceId[]): Attributes {
   const [settled, setSettled] = useState(wanted);
   const stacks = useMemo(() => newStacks(wanted, settled), [wanted, settled]);
 
@@ -35,10 +36,17 @@ export function useSettledAttributes(wanted: Attributes): Attributes {
     const superseded = new AbortController();
 
     const load = async (): Promise<void> => {
-      await loadStacks(
-        stacks,
-        AbortSignal.any([superseded.signal, AbortSignal.timeout(FACE_WAIT_MS)]),
-      );
+      const signal = AbortSignal.any([superseded.signal, AbortSignal.timeout(FACE_WAIT_MS)]);
+
+      const loaded = await Promise.race([loadFaces(faces), whenAborted(signal).then(() => true)]);
+
+      if (!loaded) {
+        window.location.reload();
+
+        return;
+      }
+
+      await loadStacks(stacks, signal);
 
       if (!superseded.signal.aborted) setSettled(wanted);
     };
@@ -48,7 +56,7 @@ export function useSettledAttributes(wanted: Attributes): Attributes {
     return () => {
       superseded.abort();
     };
-  }, [stacks, wanted]);
+  }, [faces, stacks, wanted]);
 
   return stacks.length === 0 ? wanted : settled;
 }

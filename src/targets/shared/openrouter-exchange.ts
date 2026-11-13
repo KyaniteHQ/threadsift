@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { AI_KEY_MAX } from "../../core/ai-contract.ts";
+import { readCapped } from "../../core/capped.ts";
 import type { OpenRouterExchange } from "../../core/openrouter-contract.ts";
 import { pause } from "../../core/pause.ts";
 import { HOP_DEADLINE_MS, type AiRuntime } from "../../core/ports.ts";
@@ -16,18 +17,11 @@ const REFUSING_STATUSES: ReadonlySet<number> = new Set([400, 403]);
 const KeyAnswerSchema = z.object({ key: z.string().min(1).max(AI_KEY_MAX) });
 
 async function cappedText(body: AsyncIterable<Uint8Array>): Promise<string> {
-  const decoder = new TextDecoder();
-  let text = "";
-  let total = 0;
+  const { bytes, cut } = await readCapped(body, ANSWER_CAP_BYTES);
 
-  for await (const chunk of body) {
-    total += chunk.byteLength;
+  if (cut) throw new RangeError("answer too long");
 
-    if (total > ANSWER_CAP_BYTES) throw new RangeError("answer too long");
-    text += decoder.decode(chunk, { stream: true });
-  }
-
-  return text + decoder.decode();
+  return new TextDecoder().decode(bytes);
 }
 
 async function activated(send: typeof fetch, key: string, deadline: number): Promise<boolean> {

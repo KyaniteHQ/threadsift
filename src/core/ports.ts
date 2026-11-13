@@ -55,6 +55,12 @@ export interface Network {
     signal: AbortSignal,
     headers: RequestHeaders,
   ) => Promise<NetworkResponse>;
+  readonly post: (
+    url: string,
+    body: string,
+    signal: AbortSignal,
+    headers: RequestHeaders,
+  ) => Promise<NetworkResponse>;
   readonly reachable: (url: string, signal: AbortSignal) => Promise<boolean>;
 }
 

@@ -1,5 +1,6 @@
-import { type SQLWrapper, and, eq, ne, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import { z } from "zod";
 
 import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -9,6 +10,8 @@ import { type JobRow, items, jobs } from "./schema.ts";
 
 const openJobs = alias(jobs, "open_jobs");
 
+export const OpenedJobsSchema = z.array(z.object({ id: z.number().int() }));
+
 export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${items.id}`) {
   const kinds = kind === undefined ? ITEM_JOB_KINDS : [kind];
 
@@ -16,20 +19,6 @@ export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${
     kinds.map((each) => sql`${each}`),
     sql`, `,
   )}))`;
-}
-
-export const CLOSED_JOB = {
-  state: "done",
-  claimExpires: null,
-  staleRequeues: 0,
-  page: null,
-} as const;
-
-export function closeFetchJobs(db: Database, itemId: Readonly<SQLWrapper>) {
-  return db
-    .update(jobs)
-    .set(CLOSED_JOB)
-    .where(and(eq(jobs.itemId, sql`${itemId}`), eq(jobs.kind, "fetch"), ne(jobs.state, "done")));
 }
 
 export function holding(job: Readonly<Pick<JobRow, "id" | "attempts">>) {

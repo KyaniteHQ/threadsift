@@ -1,0 +1,112 @@
+.pr-effect {
+  overflow-wrap: anywhere;
+}
+.pr-name {
+  font-weight: var(--dw-strong);
+}
+.pr-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s4);
+  margin: 0;
+  font-size: var(--t-meta);
+  font-variant-numeric: tabular-nums;
+}
+.pr-counts > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s2);
+  min-width: 0;
+}
+.pr-counts dt,
+.pr-counts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.pr-counts dt {
+  color: var(--text);
+}
+.pr-reason {
+  font-size: var(--t-title);
+  color: var(--text);
+}
+.pr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  padding-block-start: var(--s1);
+}
+.pr-actions p {
+  margin: 0;
+}
+.app[data-bp~="phone"] .pr-accept,
+.app[data-bp~="phone"] .pr-reject {
+  min-block-size: var(--target);
+  min-inline-size: var(--target);
+}
+.pr-overview,
+.pr-keeps {
+  margin: 0;
+  font-size: var(--t-meta);
+  color: var(--muted);
+}
+.pr-item {
+  font-size: var(--t-meta);
+}
+.pr-place {
+  color: var(--acc-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.app[data-bp~="phone"] .pr-place {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target);
+  min-inline-size: var(--target);
+}
+.pr-quote {
+  margin: 0;
+  padding-inline-start: var(--s3);
+  border-inline-start: 2px solid var(--line-2);
+  color: var(--text);
+  font-family: var(--f-read);
+  font-size: var(--t-body);
+  line-height: var(--lh-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.pr-gone {
+  margin: 0;
+}
+.pr-gap {
+  margin: 0;
+  font-size: var(--t-meta);
+  font-variant-numeric: tabular-nums;
+}
+.pr-effect .pr-place {
+  font-weight: var(--dw-strong);
+}
+.pr-sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--s3) var(--s5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pr-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 0;
+}
+.pr-side-title {
+  align-self: flex-start;
+  font-weight: var(--dw-strong);
+  overflow-wrap: anywhere;
+}
+.pr-side-summary {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

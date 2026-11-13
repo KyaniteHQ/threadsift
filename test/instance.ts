@@ -5,6 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import type { z } from "zod";
 
+import { tick } from "../src/core/tick.ts";
 import { createApp } from "../src/http/app.ts";
 import { ItemDetailResponseSchema, ItemResponseSchema } from "../src/http/schemas.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
@@ -15,6 +16,8 @@ export const SETUP_CODE = "a-setup-code-of-sixteen-or-more";
 export const PASSWORD = "an owner password of fifteen or more";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
+
+type Ports = Parameters<typeof createApp>[0];
 
 const POLL_MS = 25;
 
@@ -65,19 +68,30 @@ function sessionPair(response: Readonly<Response>): string | null | undefined {
   return pair === `${SESSION_COOKIE}=` ? null : pair;
 }
 
+function requestOf(method: string, headers: Headers, body: Json): RequestInit {
+  if (body === null) return { method, headers };
+
+  headers.set("content-type", "application/json");
+
+  return { method, headers, body: JSON.stringify(body) };
+}
+
 export class Instance {
   private cookie: string | null = null;
   private readonly app: ReturnType<typeof createApp>;
   private readonly shutdown: () => Promise<void>;
 
   private readonly folder: string;
+  private readonly ports: Ports;
 
   private constructor(
     app: ReturnType<typeof createApp>,
+    ports: Ports,
     folder: string,
     shutdown: () => Promise<void>,
   ) {
     this.app = app;
+    this.ports = ports;
     this.folder = folder;
     this.shutdown = shutdown;
   }
@@ -86,13 +100,19 @@ export class Instance {
     publicOrigin,
     fetchers,
     secretKey,
+    prepare,
   }: Readonly<{
     publicOrigin?: string | undefined;
     fetchers?: string | undefined;
     secretKey?: string | undefined;
+    prepare?: ((databaseFile: string) => void) | undefined;
   }> = {}): Promise<Instance> {
     const folder = await mkdtemp(join(tmpdir(), "threadsift-test-"));
-    const database = openDatabase(join(folder, "threadsift.db"), MIGRATIONS);
+    const file = join(folder, "threadsift.db");
+
+    prepare?.(file);
+
+    const database = openDatabase(file, MIGRATIONS);
 
     const stop = async () => {
       database.close();
@@ -114,7 +134,7 @@ export class Instance {
       throw error;
     });
 
-    return new Instance(createApp(node.ports), folder, async () => {
+    return new Instance(createApp(node.ports), node.ports, folder, async () => {
       await node.stop();
       await stop();
     });
@@ -132,6 +152,10 @@ export class Instance {
     return join(this.folder, "threadsift.db");
   }
 
+  tick(): Promise<void> {
+    return tick(this.ports);
+  }
+
   close(): Promise<void> {
     return this.shutdown();
   }
@@ -143,16 +167,10 @@ export class Instance {
     extraHeaders: Readonly<Record<string, string>> = {},
   ): Promise<Answer> {
     const headers = new Headers({ origin: ORIGIN, ...extraHeaders });
-    const init: RequestInit = { method, headers };
-
-    if (body !== null) {
-      headers.set("content-type", "application/json");
-      init.body = JSON.stringify(body);
-    }
 
     if (this.cookie !== null) headers.set("cookie", this.cookie);
 
-    const response = await this.app.request(path, init);
+    const response = await this.app.request(path, requestOf(method, headers, body));
 
     const session = sessionPair(response);
 
@@ -161,11 +179,40 @@ export class Instance {
     return { status: response.status, body: await response.text() };
   }
 
-  async sendWithToken(token: string, method: string, path: string): Promise<Answer> {
-    const response = await this.app.request(path, {
-      method,
-      headers: new Headers({ origin: ORIGIN, authorization: `Bearer ${token}` }),
+  async readThrough<Schema extends z.ZodType>(
+    db: Ports["db"],
+    path: string,
+    schema: Schema,
+  ): Promise<z.infer<Schema>> {
+    const response = await createApp({ ...this.ports, db }).request(path, {
+      headers: new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" }),
     });
+
+    return schema.parse(JSON.parse(await response.text()));
+  }
+
+  async sendThrough(db: Ports["db"], method: string, path: string): Promise<Answer> {
+    const response = await createApp({ ...this.ports, db }).request(path, {
+      method,
+      headers: new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" }),
+    });
+
+    return { status: response.status, body: await response.text() };
+  }
+
+  async statusThrough(db: Ports["db"], method: string, path: string): Promise<number> {
+    return (await this.sendThrough(db, method, path)).status;
+  }
+
+  async sendWithToken(
+    token: string,
+    method: string,
+    path: string,
+    body: Json = null,
+  ): Promise<Answer> {
+    const headers = new Headers({ origin: ORIGIN, authorization: `Bearer ${token}` });
+
+    const response = await this.app.request(path, requestOf(method, headers, body));
 
     return { status: response.status, body: await response.text() };
   }

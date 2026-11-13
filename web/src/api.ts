@@ -34,7 +34,7 @@ import {
   type ItemList,
   type ItemPage,
 } from "../../src/http/schemas.ts";
-import { call, parsedFrom, unexpected } from "./calls.ts";
+import { call, parsedFrom, unexpected, withCursor } from "./calls.ts";
 import { type Filters, queryOf } from "./filters.ts";
 
 export type SaveResult =
@@ -143,8 +143,7 @@ export type TopicRead =
   | { readonly outcome: "missing" };
 
 export async function fetchTopicPage(key: string, cursor: string | null): Promise<TopicRead> {
-  const query = cursor === null ? "" : `?cursor=${encodeURIComponent(cursor)}`;
-  const path = `${topicApiPath(key)}${query}`;
+  const path = withCursor(topicApiPath(key), cursor);
   const response = await call("GET", path);
 
   if (response.status === 404) return { outcome: "missing" };

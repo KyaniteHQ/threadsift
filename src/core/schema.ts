@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { FETCH_RESULTS } from "./fetch-results.ts";
-import { highlights } from "./highlight-tables.ts";
 import {
   FAILURE_REASONS,
   ITEM_STATUSES,
@@ -10,7 +9,6 @@ import {
   JOB_STATES,
   KINDS,
   READ_STATES,
-  SEARCH_PART_KINDS,
   SOURCES,
   WAIT_REASONS,
 } from "./kinds.ts";
@@ -39,9 +37,13 @@ export {
 
 export { githubCooldown, githubSettings } from "./github-tables.ts";
 
+export { grokBotSettings } from "./grok-bot-tables.ts";
+
 export { type HighlightRow, highlights } from "./highlight-tables.ts";
 
 export { type ImportRow, imports } from "./import-tables.ts";
+
+export { logEntries, logStart } from "./log-tables.ts";
 
 export { type MediaRow, media } from "./media-tables.ts";
 
@@ -51,9 +53,15 @@ export { aiSettingsRevision, openrouterConnectTransactions } from "./openrouter-
 
 export { redditComments, redditSettings, redditThreads } from "./reddit-tables.ts";
 
+export { pins } from "./pin-tables.ts";
+
+export { knownProposal, proposals } from "./proposal-tables.ts";
+
 export { relatedItems } from "./related-tables.ts";
 
-export { topicLeases, topicPages } from "./topic-tables.ts";
+export { searchFingerprints, searchParts, searchReconciling } from "./search-tables.ts";
+
+export { topicChecks, topicLeases, topicPages } from "./topic-tables.ts";
 
 export const items = sqliteTable(
   "items",
@@ -257,37 +265,4 @@ export const catalogLinking = sqliteTable(
     lastItemId: integer("last_item_id").notNull(),
   },
   (table) => [check("catalog_linking_is_one_row", sql`${table.id} = 1`)],
-);
-
-export const searchParts = sqliteTable(
-  "search_parts",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    itemId: integer("item_id")
-      .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
-    kind: text("kind", { enum: SEARCH_PART_KINDS }).notNull(),
-    body: text("body").notNull(),
-    highlightId: integer("highlight_id").references(() => highlights.id),
-  },
-  (table) => [
-    index("search_parts_item").on(table.itemId),
-    uniqueIndex("search_parts_highlight").on(table.highlightId),
-  ],
-);
-
-export const searchFingerprints = sqliteTable("search_fingerprints", {
-  itemId: integer("item_id")
-    .primaryKey()
-    .references(() => items.id, { onDelete: "cascade" }),
-  fingerprint: text("fingerprint").notNull(),
-});
-
-export const searchReconciling = sqliteTable(
-  "search_reconciling",
-  {
-    id: integer("id").primaryKey(),
-    lastItemId: integer("last_item_id").notNull(),
-  },
-  (table) => [check("search_reconciling_is_one_row", sql`${table.id} = 1`)],
 );

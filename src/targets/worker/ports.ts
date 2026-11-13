@@ -24,6 +24,7 @@ export interface Env {
   readonly PASSWORD_RESET_CODE?: string;
   readonly THREADSIFT_SECRET_KEY?: string;
   readonly THREADSIFT_PUBLIC_ORIGIN?: string;
+  readonly THREADSIFT_OPENROUTER_MAX_PRICE_ZERO?: string;
   readonly ASSETS: Readonly<{ fetch: (input: Request) => Promise<Response> }>;
   readonly AI?: AiBinding;
 }
@@ -36,6 +37,7 @@ export async function createWorkerPorts(env: Env): Promise<Ports> {
       publicOnly: true,
       secretKey: env.THREADSIFT_SECRET_KEY,
       request: workerFetch,
+      openRouterMaxPriceZero: env.THREADSIFT_OPENROUTER_MAX_PRICE_ZERO,
       binding: env.AI === undefined ? undefined : bindingRunner(env.AI),
     }),
     network: workerNetwork,

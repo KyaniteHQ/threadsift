@@ -99,7 +99,7 @@ export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
     c.set("caller", {
       token: value,
       clientId: `agent-token-${String(token.id)}`,
-      scopes: [],
+      scopes: [...token.scopes],
       extra: { name: token.name },
     });
 

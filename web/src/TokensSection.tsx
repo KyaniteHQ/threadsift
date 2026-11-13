@@ -3,11 +3,11 @@ import { useCallback, useState } from "react";
 import type { Token } from "../../src/http/schemas.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
+import type { Loaded } from "./settings-load-types.ts";
 import { TokenForm } from "./TokenForm.tsx";
 import { TokenList } from "./TokenList.tsx";
 import { TokenReveal } from "./TokenReveal.tsx";
 import { useField } from "./use-form.ts";
-import type { Loaded } from "./use-settings-load.ts";
 
 const NO_TOKENS: readonly Token[] = [];
 

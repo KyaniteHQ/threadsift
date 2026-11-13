@@ -56,3 +56,52 @@ a.fl-link {
   display: inline-flex;
   align-items: center;
 }
+.tp-disagreements {
+  gap: var(--s3);
+}
+.tp-dis-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tp-dis {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding-block: var(--s3);
+  border-block-start: 1px solid var(--line);
+}
+.tp-dis:first-child {
+  padding-block-start: 0;
+  border-block-start: 0;
+}
+.tp-dis:last-child {
+  padding-block-end: 0;
+}
+.tp-dis-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tp-dis-link {
+  display: inline-block;
+  max-inline-size: 100%;
+  color: var(--acc-ink);
+  font-family: var(--f-ui);
+  font-size: var(--t-meta);
+  font-weight: var(--dw-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+.app[data-bp~="phone"] .tp-dis-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target);
+  min-inline-size: var(--target);
+}

@@ -1,6 +1,6 @@
 import { type SQL, and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 
-import { catalogKey } from "./catalog.ts";
+import { catalogKey } from "./catalog-key.ts";
 import type { ReadState, Source } from "./kinds.ts";
 import { READ_STATES, SOURCES } from "./kinds.ts";
 import { parseLink } from "./links.ts";

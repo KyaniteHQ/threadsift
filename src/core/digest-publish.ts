@@ -2,14 +2,14 @@ import { eq, sql } from "drizzle-orm";
 
 import { type Digest, DigestSchema } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
-import { catalogCurrent, catalogEntries, linkingDigest } from "./catalog.ts";
+import { catalogCurrent, pinnedCatalog, publishedLinks } from "./catalog.ts";
 import {
   type DigestInput,
   currency,
   digestInput,
   generationCurrent,
+  markDigest,
   openingPick,
-  setDigestFailure,
 } from "./digest-source.ts";
 import {
   type AnchorSnapshot,
@@ -63,12 +63,13 @@ function storedDigest(
     model: string | null;
     published: Readonly<Digest>;
   }>,
+  { tags, topic }: Readonly<{ tags: readonly string[]; topic: string }>,
 ) {
   return {
     itemId: item.id,
-    digest: JSON.stringify(published),
+    digest: JSON.stringify({ ...published, tags, topic }),
     title: digest.title,
-    topic: digest.topic,
+    topic,
     taskId,
     provider,
     model,
@@ -97,7 +98,7 @@ export async function publishing(
   source: DigestSource,
   anchors?: Readonly<AnchorSnapshot>,
 ): Promise<JobOutcome> {
-  const entries = catalogEntries(digest);
+  const { pinned, entries } = await pinnedCatalog(db, digest);
   const snapshot = { itemId: item.id, generation: item.generation };
 
   const submitted =
@@ -106,12 +107,13 @@ export async function publishing(
       : await eligibleAmong(db, snapshot, digest.keptComments ?? []);
 
   const origin = digestOrigin(source, digest, entries, submitted);
-  const { catalog, published } = origin;
+  const { published } = origin;
   const generation = sql`${generationCurrent(item)} and ${aiTaskRunning(taskId)}`;
+  const catalog = sql`${origin.catalog} and ${pinned.current}`;
   const kept = published.keptComments ?? [];
   const bodies = kept.length === 0 ? [] : await selectedBodies(db, snapshot, kept);
 
-  const stored = storedDigest(item, digest, taskId, origin);
+  const stored = storedDigest(item, digest, taskId, origin, pinned);
 
   return anchoredOutcome(
     db,
@@ -120,7 +122,7 @@ export async function publishing(
       writes: [
         insertGuard(db, generation),
         insertGuard(db, catalog),
-        ...linkingDigest(db, item.id, entries),
+        ...publishedLinks(db, item.id, entries, digest.title),
         db
           .insert(digests)
           .values(stored)
@@ -131,7 +133,7 @@ export async function publishing(
         ...commentPartWrites(db, eq(items.id, item.id), bodies),
         completedAiTask(db, { taskId, result: published }),
         db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
-        setDigestFailure(db, item.id, false),
+        markDigest(db, item.id, "cleared"),
       ],
     },
     keptCommentsPublication(db, snapshot),
@@ -142,7 +144,7 @@ export async function publishing(
 function digestOrigin(
   source: DigestSource,
   digest: Readonly<Digest>,
-  entries: Readonly<ReturnType<typeof catalogEntries>>,
+  entries: Parameters<typeof catalogCurrent>[1],
   submitted: readonly string[],
 ) {
   const published = DigestSchema.parse({

@@ -14,6 +14,8 @@ export const OVERVIEW_FAILURES = ["gave-up", ...AiRefusalSchema.options] as cons
 
 const OverviewFailureSchema = z.enum(OVERVIEW_FAILURES);
 
+const OVERVIEW_STATES = ["idle", "pending", "failed"] as const;
+
 export type OverviewFailure = z.infer<typeof OverviewFailureSchema>;
 
 const BuiltFromSchema = z
@@ -50,7 +52,7 @@ export function overviewLine(text: string): string | null {
 
 const OverviewSchema = z
   .object({
-    state: z.enum(["idle", "pending", "failed"]),
+    state: z.enum(OVERVIEW_STATES),
     text: z.string().nullable(),
     cited: z.array(z.object({ id: z.number().int(), title: z.string() }).readonly()).readonly(),
     builtFrom: z.number().int().min(0),
@@ -60,6 +62,15 @@ const OverviewSchema = z
   .readonly();
 
 export type Overview = z.infer<typeof OverviewSchema>;
+
+export function overviewState({
+  open,
+  failure,
+}: Readonly<{ open: boolean; failure: OverviewFailure | null }>): Overview["state"] {
+  if (open) return "pending";
+
+  return failure === null ? "idle" : "failed";
+}
 
 const TopicItemSchema = z
   .object({
@@ -75,12 +86,25 @@ const TopicItemSchema = z
 
 export type TopicItem = z.infer<typeof TopicItemSchema>;
 
+const KnownDisagreementItemSchema = z
+  .object({ id: z.number().int(), title: z.string() })
+  .readonly();
+
+export const KnownDisagreementSchema = z
+  .object({
+    id: z.number().int(),
+    reason: z.string(),
+    items: z.tuple([KnownDisagreementItemSchema, KnownDisagreementItemSchema]).readonly(),
+  })
+  .readonly();
+
 export const TopicPageSchema = z
   .object({
     topic: z
       .object({ key: z.string(), name: z.string(), itemCount: z.number().int().min(0) })
       .readonly(),
     overview: OverviewSchema,
+    disagreements: z.array(KnownDisagreementSchema).readonly(),
     items: z.array(TopicItemSchema).readonly(),
     next: z.string().nullable(),
   })

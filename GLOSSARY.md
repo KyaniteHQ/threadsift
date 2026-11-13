@@ -63,7 +63,7 @@ _Avoid_: Job, prompt, request, AI call
 ### Sorting
 
 **Topic**:
-The one broad subject of an Item, from a list the agent keeps and grows. Topics keep their first spelling; `catalogKey` in `src/core/catalog.ts` defines their identity.
+The one broad subject of an Item, from a list the agent keeps and grows. Topics keep their first spelling; `catalogKey` in `src/core/catalog-key.ts` defines their identity.
 _Avoid_: Category, folder
 
 **Tag**:
@@ -77,7 +77,7 @@ _Avoid_: Status, archived, done
 ### The library wiki
 
 **Topic page**:
-The page for one Topic: the agent's short overview, built from that Topic's Items, and the list of those Items.
+The page for one Topic: the agent's short overview, built from that Topic's Items, the Known disagreements (the accepted pairs of its Items that disagree, with the agent's reason), and the list of those Items. Its address is the Topic's key; the address of a Topic that was merged into another opens the Topic it went into.
 _Avoid_: Category page, wiki page
 
 **Related Item**:
@@ -89,15 +89,23 @@ The page that lists every Topic with its Item count and overview line.
 _Avoid_: Home, dashboard, catalogue
 
 **Log**:
-The list of every agent action on the library, newest first.
+The list of the committed changes the agent made to the library, newest first, from the day the Instance began it.
 _Avoid_: History, activity feed, audit trail
 
+**Log entry**:
+One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks), a `merge` (a Tag merged into another) or a `merge-topic` (a Topic merged into another). It keeps the title and names as they were when the change committed.
+_Avoid_: Event, Audit record
+
 **Proposal**:
-A change the agent suggests on the weekly Proposals page, such as merging two Tags, which the owner accepts or rejects.
+A change the agent suggests on the weekly Proposals page: merging two Tags, merging two Topics, removing a Highlight that is no longer found, writing again the overview of a Topic that leaves Items out, or two Items of one Topic whose Summaries disagree. The owner accepts or rejects a Proposal of every kind.
 _Avoid_: Suggestion, lint, fix
 
+**Proposals page**:
+The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, for a lost Highlight its quote and its Item's title as a link to the Highlight's place in the Reader, for a Topic whose overview leaves Items out the Topic as a link to its page with how many of its Items are not in the overview and how many it has, or for two Items that disagree both titles as links to the Reader with their Summaries and the agent's reason, and lets the owner accept or reject each.
+_Avoid_: Suggestions page, Inbox
+
 **Pin**:
-An accepted correction kept so that a later regeneration cannot undo it.
+An accepted correction kept so that a later regeneration cannot undo it. For a Tag merge it records the merged-away Tag's key and the Tag it went into, so no later Digest creates the merged-away Tag again. For a Topic merge it records the merged-away Topic's key and the Topic it went into in the same way; Accept of a Topic merge writes it, and the app reads it to keep the merged-away Topic from coming back and to open the Topic it went into at the merged-away Topic's old address. A Pin of a disagreement names two Items that disagree and holds only while both Items carry the Digests it was accepted on.
 _Avoid_: Override, lock
 
 ### Reading
@@ -125,7 +133,7 @@ _Avoid_: Detail view, article view
 ### Keeping
 
 **Highlight**:
-A passage of an Item's post text or of one Kept comment that the owner selected to keep; it stays when a refresh changes the text, marked as no longer found.
+A passage of an Item's post text or of one Kept comment that the owner selected to keep; it stays when a refresh changes the text, marked as no longer found. A Proposal can suggest removing one that is no longer found, and only the owner's Accept removes it.
 _Avoid_: Clip, quote, annotation, bookmark
 
 **Note**:

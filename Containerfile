@@ -13,12 +13,13 @@ FROM base AS web-build
 RUN pnpm install --frozen-lockfile --filter threadsift
 COPY tsconfig.json vite.config.ts ./
 COPY design design
-COPY tools/theme-script.ts tools/theme-script.ts
+COPY tools/theme-script.ts tools/worker-headers.ts tools/
 COPY src src
 COPY web web
 RUN pnpm exec vite build
 
 FROM node
+LABEL org.opencontainers.image.source=https://github.com/KyaniteHQ/threadsift
 ENV NODE_ENV=production DATA_DIR=/data PORT=8080 NPM_CONFIG_PREFIX=/data/cli CLAUDE_CONFIG_DIR=/data/claude CODEX_HOME=/data/codex
 ENV PATH=/data/cli/bin:$PATH
 RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*

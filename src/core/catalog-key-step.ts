@@ -1,11 +1,12 @@
 import { type SQLWrapper, and, asc, eq, gt, lte, min, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import { type CatalogKind, MERGE_ITEMS, TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
-import { CATALOG_KEY_VERSION, catalogKey } from "./catalog.ts";
+import { type CatalogKind, TAG_KIND, TOPIC_KIND, isLastUnit } from "./catalog-key-links.ts";
+import { CATALOG_KEY_VERSION, catalogKey } from "./catalog-key.ts";
 import type { Advance, DataStep } from "./data-step-contract.ts";
 import { dropStaged, report, stageRenames } from "./data-step-support.ts";
 import { dataStepRenames } from "./data-step-tables.ts";
+import { pinKeyStep } from "./pin-key-step.ts";
 import type { Database } from "./ports.ts";
 import { guards, insertGuard } from "./schema.ts";
 
@@ -78,12 +79,12 @@ async function merge(db: Database, kind: CatalogKind, from: number): Promise<Adv
     return { writes: [], cursor: "rename:0" };
   }
 
-  const itemIds = await kind.linked(db, next.loser);
-  const emptied = itemIds.length < MERGE_ITEMS;
+  const moves = await kind.linked(db, next.loser);
+  const emptied = isLastUnit(moves);
 
   return {
     writes: [
-      ...kind.relink(db, next.loser, next.survivor, itemIds),
+      ...kind.relink(db, next.loser, next.survivor, moves),
       ...(emptied
         ? [
             db
@@ -207,4 +208,5 @@ function catalogKeyStep(kind: CatalogKind): DataStep {
 export const catalogKeySteps: readonly DataStep[] = [
   catalogKeyStep(TOPIC_KIND),
   catalogKeyStep(TAG_KIND),
+  pinKeyStep,
 ];

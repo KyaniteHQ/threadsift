@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { redditJsonOfArchive } from "../src/core/archive-adapter.ts";
 import { readArticle } from "../src/core/article.ts";
 import { CATALOG_KEY_EXPANSION_MAX, CATALOG_KEY_MAX } from "../src/core/catalog-key-limit.ts";
-import { catalogKey } from "../src/core/catalog.ts";
+import { catalogKey } from "../src/core/catalog-key.ts";
 import { parseRedditThread } from "../src/core/reddit-json.ts";
 import { relatedPickTask } from "../src/core/related-task.ts";
 import { overviewLine } from "../src/core/topic-overview-contract.ts";

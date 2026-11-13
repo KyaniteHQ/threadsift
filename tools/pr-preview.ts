@@ -1,5 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -7,13 +6,10 @@ import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
 
 import { CommandFailure } from "./command-failure.ts";
-import {
-  drainDeletedWorker,
-  previewResourceExists,
-  removePreviewBucket,
-} from "./preview-cloudflare.ts";
+import { closePreview, previewDatabaseExists, resetPreview } from "./preview-cloudflare.ts";
 import { hasForeignMigrations } from "./preview-migrations.ts";
 import { provisionPreviewOwner } from "./preview-owner.ts";
+import { REQUIRED_SECRETS, deployWithSecrets } from "./preview-secrets.ts";
 
 const [action, number, mode, artifact] = process.argv.slice(2);
 const operation = z.enum(["deploy", "close"]).parse(action);
@@ -78,21 +74,20 @@ const config = {
   name,
   workers_dev: true,
   preview_urls: false,
+  secrets: { required: REQUIRED_SECRETS },
   d1_databases: [
     { binding: "DB", database_name: `${name}-db`, migrations_dir: join(root, "migrations") },
   ],
   r2_buckets: [{ binding: "FILES", bucket_name: `${name}-files` }],
-  ai: { binding: "AI" },
   queues: {
     producers: [{ binding: "JOBS", queue: `${name}-jobs` }],
     consumers: [{ queue: `${name}-jobs`, max_batch_size: 1 }],
   },
 };
 
-function wrangler(args: readonly string[], input?: string): string {
+function wrangler(args: readonly string[]): string {
   const result = spawnSync("pnpm", ["exec", "wrangler", ...args, "--config", configPath], {
     encoding: "utf8",
-    input,
     timeout: args[0] === "deploy" ? 600_000 : 120_000,
     env: {
       ...process.env,
@@ -118,91 +113,15 @@ function wrangler(args: readonly string[], input?: string): string {
   return result.stdout;
 }
 
-function databaseExists(): boolean {
-  const databases = z
-    .array(z.object({ name: z.string() }))
-    .parse(JSON.parse(wrangler(["d1", "list", "--json"])));
-
-  return databases.some((database) => database.name === `${name}-db`);
-}
-
-async function detachConsumer(): Promise<void> {
-  if (!(await previewResourceExists("queue", `${name}-jobs`))) return;
-
-  const consumers = z
-    .array(z.union([z.object({ script: z.string() }), z.object({ service: z.string() })]))
-    .parse(
-      JSON.parse(wrangler(["queues", "consumer", "worker", "list", `${name}-jobs`, "--json"])),
-    );
-
-  if (
-    consumers.some(
-      (consumer) => ("script" in consumer ? consumer.script : consumer.service) === name,
-    )
-  )
-    wrangler(["queues", "consumer", "remove", `${name}-jobs`, name]);
-}
-
-async function stopWorker(): Promise<void> {
-  await detachConsumer();
-
-  if (await previewResourceExists("worker", name)) wrangler(["delete", "--name", name]);
-}
-
-async function removeStorage(): Promise<void> {
-  if (await previewResourceExists("queue", `${name}-jobs`))
-    wrangler(["queues", "delete", `${name}-jobs`]);
-
-  if (await previewResourceExists("bucket", `${name}-files`)) {
-    await removePreviewBucket(`${name}-files`);
-    wrangler(["r2", "bucket", "delete", `${name}-files`]);
-  }
-
-  if (databaseExists()) wrangler(["d1", "delete", `${name}-db`, "--skip-confirmation"]);
-
-  const remaining = await Promise.all([
-    previewResourceExists("worker", name),
-    previewResourceExists("queue", `${name}-jobs`),
-    previewResourceExists("bucket", `${name}-files`),
-  ]);
-
-  if (databaseExists() || remaining.some(Boolean))
-    throw new CommandFailure({
-      kind: "check",
-      reason: "Preview cleanup incomplete; rerun close",
-      recovery: "Inspect the PR manifest and preview token permissions, then rerun close.",
-    });
-}
-
-async function close(): Promise<void> {
-  await stopWorker();
-  await removeStorage();
-}
-
 async function resetForeignHistory(): Promise<void> {
-  if (!databaseExists() || !hasForeignMigrations(wrangler, ["--remote"], join(root, "migrations")))
+  if (
+    !previewDatabaseExists(name, wrangler) ||
+    !hasForeignMigrations(wrangler, ["--remote"], join(root, "migrations"))
+  )
     return;
 
   console.log(`${name}-db has migrations this build lacks; deleting the preview to deploy it anew`);
-  await stopWorker();
-  await drainDeletedWorker();
-  await removeStorage();
-}
-
-function initializeSecrets(): void {
-  const secrets = z
-    .array(z.object({ name: z.string() }))
-    .parse(JSON.parse(wrangler(["secret", "list"])));
-
-  const missing: Record<string, string> = {};
-
-  if (!secrets.some((secret) => secret.name === "THREADSIFT_SECRET_KEY"))
-    missing["THREADSIFT_SECRET_KEY"] = randomBytes(32).toString("hex");
-
-  if (!secrets.some((secret) => secret.name === "SETUP_CODE"))
-    missing["SETUP_CODE"] = z.string().min(16).parse(process.env["PREVIEW_SETUP_CODE"]);
-
-  if (Object.keys(missing).length > 0) wrangler(["secret", "bulk"], JSON.stringify(missing));
+  await resetPreview(name, wrangler);
 }
 
 async function deploy(): Promise<void> {
@@ -218,9 +137,7 @@ async function deploy(): Promise<void> {
     });
   await resetForeignHistory();
 
-  wrangler(["deploy", "--keep-vars"]);
-
-  initializeSecrets();
+  await deployWithSecrets(name, wrangler);
 
   wrangler(["d1", "migrations", "apply", "DB", "--remote"]);
 
@@ -249,7 +166,7 @@ async function deploy(): Promise<void> {
       reason: "Unexpected preview origin",
       recovery: "Inspect the Wrangler deployment target; no owner credential was sent.",
     });
-  await provisionPreviewOwner(url.origin);
+  await provisionPreviewOwner(url.origin, wrangler);
 }
 
 console.log(
@@ -278,7 +195,7 @@ try {
       wrangler(["deploy", "--dry-run"]);
       console.log("Wrangler compiled the preview without remote mutations");
     } else if (operation === "deploy") await deploy();
-    else await close();
+    else await closePreview(name, wrangler);
   }
 } catch (error) {
   const failure =

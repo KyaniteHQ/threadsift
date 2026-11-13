@@ -4,9 +4,16 @@ inputs:
   cache-pnpm:
     description: Cache the pnpm store, keyed on pnpm-lock.yaml.
     default: "true"
+  unprivileged-userns:
+    description: Allow unprivileged user namespaces, which rootless Podman and Chromium need on Ubuntu 24.04.
+    default: "false"
 runs:
   using: composite
   steps:
+    - name: Allow unprivileged user namespaces
+      if: inputs.unprivileged-userns == 'true'
+      shell: bash
+      run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
     - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
     - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
       with:

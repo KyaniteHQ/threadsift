@@ -1,71 +1,43 @@
 import type { z } from "zod";
 
 import { logFailure } from "../core/failure-log.ts";
-import { DIGEST_OUTCOMES, type FailureReason, type WaitReason } from "../core/kinds.ts";
+import { itemPath } from "../core/item-path.ts";
+import type { WaitReason } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
+import { type ShownStatus, type ShownStatusInput, shownStatus } from "../core/shown-status.ts";
 import { type ImageColumns, type ItemImageSchema, imageOf } from "./item-image.ts";
 import { ItemSchema, type WaitSchema } from "./schemas.ts";
 
-type StatusFields =
-  | { readonly status: "failed"; readonly reason: FailureReason; readonly retry: "paste" }
-  | { readonly status: "processing"; readonly reason: null; readonly retry: null }
-  | {
-      readonly status: "ready";
-      readonly reason: null;
-      readonly retry: "digest" | "paste";
-      readonly digestOutcome: "failed";
-    }
-  | {
-      readonly status: "ready";
-      readonly reason: null;
-      readonly retry: null;
-      readonly digestOutcome: "none";
-    };
-
-type StatusRow = Pick<ItemRow, "id" | "status" | "reason"> & {
-  readonly digestOutcome: (typeof DIGEST_OUTCOMES)[number];
-  readonly digestSource: boolean;
-  readonly waitReason: WaitReason | null;
-  readonly retryAt: number | null;
-} & ImageColumns;
+type StatusRow = Pick<ItemRow, "id"> &
+  ShownStatusInput & {
+    readonly waitReason: WaitReason | null;
+    readonly retryAt: number | null;
+  } & ImageColumns;
 
 type Wait = z.infer<typeof WaitSchema>;
+
+type StatusFields =
+  | Extract<ShownStatus, { status: "failed" | "processing" }>
+  | (Extract<ShownStatus, { status: "ready" }> &
+      (
+        | { readonly retry: "digest" | "paste"; readonly digestOutcome: "failed" }
+        | { readonly retry: null; readonly digestOutcome: "none" }
+      ));
+
+function statusFields(row: Readonly<StatusRow>): StatusFields {
+  const shown = shownStatus(row);
+
+  if (shown.status !== "ready") return shown;
+
+  return shown.retry === null
+    ? { ...shown, retry: null, digestOutcome: "none" }
+    : { ...shown, retry: shown.retry, digestOutcome: "failed" };
+}
 
 function waitOf({ status, waitReason, retryAt }: Readonly<StatusRow>): Wait | null {
   return status === "processing" && waitReason !== null && retryAt !== null
     ? { reason: waitReason, retryAt }
     : null;
-}
-
-function statusOf(item: Readonly<StatusRow>): StatusFields {
-  const { id, status, reason } = item;
-
-  if (status === "failed") {
-    if (reason === null) {
-      throw new Error(`Item ${String(id)} is failed and has no reason`);
-    }
-
-    return { status, reason, retry: "paste" };
-  }
-
-  if (reason !== null) {
-    throw new Error(`Item ${String(id)} is ${status} and has the reason ${reason}`);
-  }
-
-  if (status === "processing") return { status, reason, retry: null };
-
-  if (item.digestOutcome === "pending") {
-    throw new Error(`Item ${String(id)} is ready and its Digest is pending`);
-  }
-
-  if (item.digestOutcome === "none") return { status, reason, retry: null, digestOutcome: "none" };
-
-  return {
-    status,
-    reason,
-    retry: item.digestSource ? "digest" : "paste",
-    digestOutcome: "failed",
-  };
 }
 
 export function itemView<Row extends StatusRow>(
@@ -84,7 +56,7 @@ export function itemView<Row extends StatusRow>(
     ...view
   } = row;
 
-  return { ...view, ...statusOf(row), wait: waitOf(row), image: imageOf(row) };
+  return { ...view, ...statusFields(row), wait: waitOf(row), image: imageOf(row) };
 }
 
 export function shownItems<Row extends StatusRow>(rows: readonly Readonly<Row>[]) {
@@ -100,4 +72,8 @@ export function shownItems<Row extends StatusRow>(rows: readonly Readonly<Row>[]
       return [];
     }
   });
+}
+
+export function savedView<Row extends StatusRow>(row: Readonly<Row>) {
+  return { item: itemView(row), url: itemPath(row.id) };
 }

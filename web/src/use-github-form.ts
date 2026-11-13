@@ -1,38 +1,17 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo } from "react";
 
 import { type GithubSettingsView, GithubTokenInputSchema } from "../../src/core/github-contract.ts";
 import { removeGithubToken, saveGithubToken, verifyGithubToken } from "./github-api.ts";
 import { GITHUB_TEXT, refusalText, verifiedText } from "./github-text.ts";
+import type { ActionButton } from "./SettingsActions.tsx";
 import { type FieldState, useField, useGuard } from "./use-form.ts";
+import { type RunAction, useActionResult, useUnlessBlocked } from "./use-settings-action.ts";
 
 type Action = "save" | "verify" | "remove";
 
-type Result =
-  | null
-  | { readonly kind: "ok"; readonly text: string }
-  | { readonly kind: "error"; readonly text: string };
-
-type Run = (action: Action, task: () => Promise<Result>) => Promise<void>;
+type Run = RunAction<Action>;
 
 type Changed = (view: GithubSettingsView) => void;
-
-function useGithubResult() {
-  const [action, setAction] = useState<Action | null>(null);
-  const [result, setResult] = useState<Result>(null);
-
-  const run: Run = useCallback(async (next, task) => {
-    setAction(next);
-    setResult(null);
-
-    try {
-      setResult(await task());
-    } catch {
-      setResult({ kind: "error", text: GITHUB_TEXT.failed });
-    }
-  }, []);
-
-  return { action, result, run };
-}
 
 function useSave(token: FieldState, changed: Changed, run: Run) {
   const { value, fail, clear } = token;
@@ -91,19 +70,9 @@ function useRemove(token: FieldState, changed: Changed, run: Run) {
   );
 }
 
-function useUnlessBlocked(
-  blocked: boolean,
-  guard: (task: () => Promise<void>) => void,
-  task: () => Promise<void>,
-) {
-  return useCallback(() => {
-    if (!blocked) guard(task);
-  }, [blocked, guard, task]);
-}
-
 export function useGithubForm(view: GithubSettingsView, changed: Changed) {
   const token = useField();
-  const { action, result, run } = useGithubResult();
+  const { action, result, run } = useActionResult<Action>(GITHUB_TEXT.failed);
   const { busy, guard } = useGuard();
 
   const blocked = {
@@ -112,14 +81,42 @@ export function useGithubForm(view: GithubSettingsView, changed: Changed) {
     remove: view.token === "none",
   } as const;
 
+  const verifyNow = useUnlessBlocked(blocked.verify, guard, useVerify(run));
+  const removeNow = useUnlessBlocked(blocked.remove, guard, useRemove(token, changed, run));
+
+  const buttons = useMemo<readonly ActionButton<Action>[]>(
+    () => [
+      {
+        action: "save",
+        label: GITHUB_TEXT.save,
+        busyLabel: GITHUB_TEXT.saving,
+        blocked: blocked.save,
+      },
+      {
+        action: "verify",
+        label: GITHUB_TEXT.verify,
+        busyLabel: GITHUB_TEXT.verifying,
+        blocked: blocked.verify,
+        onClick: verifyNow,
+      },
+      {
+        action: "remove",
+        label: GITHUB_TEXT.remove,
+        busyLabel: GITHUB_TEXT.removing,
+        blocked: blocked.remove,
+        onClick: removeNow,
+      },
+    ],
+    [blocked.save, blocked.verify, blocked.remove, verifyNow, removeNow],
+  );
+
   return {
     token,
     result,
     busy,
     action,
     blocked,
+    buttons,
     submit: useUnlessBlocked(blocked.save, guard, useSave(token, changed, run)),
-    verifyNow: useUnlessBlocked(blocked.verify, guard, useVerify(run)),
-    removeNow: useUnlessBlocked(blocked.remove, guard, useRemove(token, changed, run)),
   };
 }

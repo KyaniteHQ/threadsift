@@ -6,6 +6,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
+import { failureOf, overviewJobs, queueOverview, storePage } from "./overview-gap-fixtures.ts";
+import { saveProvider } from "./related-fixtures.ts";
 
 const SENTENCE =
   "Copying the database file while the writer is busy can tear a page, so take the copy with the online backup command instead.";
@@ -254,5 +256,32 @@ describe("a removal that leaves no overview line sends the remaining Items to th
       builtFrom: 0,
       items: 1,
     });
+  });
+});
+
+describe("Try again while a run is open for another Item of the Topic", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start({ secretKey: SECRET_KEY });
+    await instance.setUp();
+  });
+
+  after(() => instance.close());
+
+  it("answers 202, opens no second run and clears the failure marker", async () => {
+    const open = await saveAndPublish(instance, "open");
+
+    await saveAndPublish(instance, "other");
+    await saveProvider(instance);
+    storePage(instance, TOPIC, { builtFrom: [open], failure: "gave-up" });
+    queueOverview(instance, open);
+
+    const jobs = overviewJobs(instance);
+
+    assert.equal((await instance.send("POST", `${TOPIC_PATH}/overview`)).status, 202);
+    assert.deepEqual(overviewJobs(instance), jobs);
+    assert.equal(jobs.length, 1);
+    assert.equal(failureOf(instance, TOPIC), null);
   });
 });

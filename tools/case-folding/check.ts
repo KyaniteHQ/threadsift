@@ -1,4 +1,4 @@
-import { catalogKey } from "../../src/core/catalog.ts";
+import { catalogKey } from "../../src/core/catalog-key.ts";
 
 const SURROGATES_FIRST = 0xd800;
 const SURROGATES_LAST = 0xdfff;

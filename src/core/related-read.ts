@@ -1,5 +1,6 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
+import { itemTitle } from "./item-title.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, relatedItems } from "./schema.ts";
 
@@ -7,7 +8,7 @@ export function relatedRows(db: Database, itemId: number) {
   return db
     .select({
       id: items.id,
-      title: sql<string | null>`coalesce(${digests.title}, ${items.title})`,
+      title: itemTitle(),
       source: items.source,
       reason: relatedItems.reason,
     })

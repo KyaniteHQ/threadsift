@@ -1,4 +1,4 @@
-import type { SQLWrapper } from "drizzle-orm";
+import { type SQLWrapper, sql } from "drizzle-orm";
 
 import { type AiRefused, retriesAi } from "./ai-contract.ts";
 import { currency } from "./digest-source.ts";
@@ -29,6 +29,10 @@ export function guardedOutcome(
     currency: currency(db, current, taskId, cleanup),
     writes: [insertGuard(db, current), ...writes, ...cleanup],
   };
+}
+
+export function lostOutcome(db: Database): GuardedOutcome {
+  return guardedOutcome(db, sql`0`);
 }
 
 export async function refusalOutcome(

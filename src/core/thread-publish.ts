@@ -1,13 +1,13 @@
-import { and, eq, exists, notExists, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
-import { setDigestFailure } from "./digest-source.ts";
-import { closeFetchJobs, hasOpenJob } from "./job-rows.ts";
+import { setStatus } from "./item-status.ts";
+import { closeFetchJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
 import { ownerOf, threadWrites } from "./reddit-thread.ts";
-import { digests, items } from "./schema.ts";
+import { items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 
 export interface ThreadPlace extends Link {
@@ -23,7 +23,6 @@ export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
       normalizedUrl: place.normalizedUrl,
       originalUrl: place.address,
       savedAt: Date.now(),
-      status: "processing",
     })
     .onConflictDoNothing({ target: items.normalizedUrl })
     .returning({ id: items.id });
@@ -62,22 +61,7 @@ function digestWrites(db: Database, { normalizedUrl, address }: Readonly<ThreadP
 
   return [
     ...digestAfterFetch(db, { itemId: owner.id, address }),
-    setDigestFailure(
-      db,
-      owner.id,
-      true,
-      and(
-        notExists(hasOpenJob("digest")),
-        exists(db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id))),
-      ) ?? sql`0`,
-    ),
-    db
-      .update(items)
-      .set({
-        status: sql`case when exists ${hasOpenJob()} then 'processing' else 'ready' end`,
-        reason: null,
-      })
-      .where(eq(items.normalizedUrl, normalizedUrl)),
+    setStatus(db, { kind: "settled" }, eq(items.normalizedUrl, normalizedUrl)),
   ];
 }
 

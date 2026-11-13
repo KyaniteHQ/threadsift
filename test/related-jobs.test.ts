@@ -4,9 +4,10 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { z } from "zod";
 
-import { linkOlderDigests } from "../src/core/catalog.ts";
+import { linkOlderDigests } from "../src/core/older-digests.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
+import { entryCount } from "./log-fixtures.ts";
 import {
   SECRET_KEY,
   exec,
@@ -132,7 +133,7 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
 
   after(() => instance.close());
 
-  it("fails the AI task, keeps the set and leaves the Item ready", async () => {
+  it("fails the AI task, keeps the set, leaves the Item ready and writes no related entry", async () => {
     const task = await firstPickTask(instance, id);
 
     assert.equal(task.state, "failed");
@@ -143,6 +144,7 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
     );
     assert.equal((await instance.settledItem(id)).status, "ready");
     assert.equal(openPicks(instance, id), 1);
+    assert.equal(entryCount(instance, "related"), 0);
   });
 
   it("waits behind the Item's open Digest job and runs after it ends", async () => {
@@ -188,7 +190,7 @@ describe("an Item with no term or no candidate gets an empty set and makes no AI
 
   after(() => instance.close());
 
-  it("clears the seeded earlier set and closes the job", async () => {
+  it("clears the seeded earlier set, closes the job and writes no related entry for the empty set", async () => {
     await until(
       () => [pairsOf(instance, noTerm).length, pairsOf(instance, noCandidate).length],
       (counts) => counts.every((each) => each === 0),
@@ -199,5 +201,6 @@ describe("an Item with no term or no candidate gets an empty set and makes no AI
     );
     assert.deepEqual(pickTasks(instance, noTerm), []);
     assert.deepEqual(pickTasks(instance, noCandidate), []);
+    assert.equal(entryCount(instance, "related"), 0);
   });
 });

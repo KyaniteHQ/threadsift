@@ -4,7 +4,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import type { Client } from "@modelcontextprotocol/client";
 
-import { UPDATING } from "../src/http/save-route.ts";
+import { UPDATING } from "../src/http/refusals.ts";
 import {
   ErrorResponseSchema,
   ItemReadResponseSchema,
@@ -31,7 +31,10 @@ describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    agents = await connectBoth(instance, await createAgentToken(instance, "mcp add"));
+    agents = await connectBoth(
+      instance,
+      await createAgentToken(instance, "mcp add", ["read", "add", "digest"]),
+    );
   });
 
   after(async () => {

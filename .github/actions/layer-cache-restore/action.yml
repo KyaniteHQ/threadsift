@@ -1,0 +1,20 @@
+name: Restore the container layer cache
+description: Restores the layer cache folder for the current Containerfile and package files, without restore-keys.
+outputs:
+  cache-hit:
+    description: "true when the cache of this key was restored."
+    value: ${{ steps.restore.outputs.cache-hit }}
+  cache-primary-key:
+    description: The key that was looked up, for saving a miss.
+    value: ${{ steps.restore.outputs.cache-primary-key }}
+  path:
+    description: The folder that THREADSIFT_LAYER_CACHE names.
+    value: ${{ runner.temp }}/layer-cache
+runs:
+  using: composite
+  steps:
+    - id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/layer-cache
+        key: layer-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Containerfile', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'extension/package.json') }}
