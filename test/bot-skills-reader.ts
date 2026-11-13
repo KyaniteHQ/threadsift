@@ -52,7 +52,7 @@ export const DOC_PATHS = [
   ...ROUTINE_PATHS,
 ];
 
-export const LOCAL_COMMANDS = ["mark", "write", "append", "bookmarks-get", "bookmarks-set"];
+export const LOCAL_COMMANDS = ["mark", "write", "append", "forget"];
 
 export const scriptText = (): string => botFile(join("scripts", "threadsift.sh")).text;
 
@@ -96,6 +96,39 @@ export function commandsOf(script: string): readonly Command[] {
       credential,
     }),
   );
+}
+
+export function flagsOf(script: string): readonly string[] {
+  return [
+    ...new Set(
+      [...script.matchAll(/^ {10}([a-z]*):([a-z]*)\) import_name=/gmu)].flatMap(
+        ([, first = "", second = ""]) => [first, second].filter((word) => word !== ""),
+      ),
+    ),
+  ];
+}
+
+const BOOKMARK_COMMANDS = new Set(["bookmarks-cursor", "bookmarks-send"]);
+
+export const WITHOUT_STATUS = ["unreachable", "failed", "bad-input", "not-configured"];
+
+export function bookmarkWordsOf(
+  script: string,
+  statusesOf: (command: Command) => readonly string[],
+): ReadonlySet<string> {
+  const arms = wordArmsOf(script);
+  const words = new Set(WITHOUT_STATUS);
+
+  for (const command of commandsOf(script).filter(({ name }) => BOOKMARK_COMMANDS.has(name))) {
+    for (const status of statusesOf(command)) {
+      words.add(wordOf(arms, { command: command.name, status }) ?? "");
+    }
+  }
+
+  words.delete("");
+  words.delete("ok");
+
+  return words;
 }
 
 export function reasonsOf(script: string): readonly string[] {

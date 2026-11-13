@@ -9,8 +9,17 @@ import { z } from "zod";
 import { TopicIndexSchema } from "../src/core/topic-index-contract.ts";
 import { ScriptWorld } from "./bot-script-world.ts";
 import { intakeThread } from "./bot-skills-examples.ts";
+import { SKILL_PATH, botFile, fencesOf } from "./bot-skills-reader.ts";
 
 const STATUS_ID = "1999999999999999001";
+
+const CursorSchema = z.object({ cursor: z.string() });
+
+const IdsSchema = z.object({ ids: z.array(z.string()) });
+
+const SentLinksSchema = z.object({
+  items: z.array(z.object({ originalUrl: z.string() })),
+});
 
 const SearchFileSchema = z.object({
   items: z.array(z.object({ normalizedUrl: z.string() })),
@@ -27,6 +36,27 @@ describe("the script checks the connection, saves, searches and lists topics, an
   const xPost = () => link("x", `https://x.com/someone/status/${STATUS_ID}`);
 
   const link = (name: string, text: string) => world.folder.tmpFile(name, text, "txt");
+
+  const ids = (list: readonly string[]) =>
+    world.folder.made("bookmarks", JSON.stringify({ ids: list }));
+
+  const read = async <Schema extends z.ZodType>(
+    path: string,
+    schema: Schema,
+  ): Promise<z.infer<Schema>> =>
+    schema.parse(
+      await (
+        await fetch(`${world.address}${path}`, {
+          headers: { Authorization: `Bearer ${world.agentToken}` },
+        })
+      ).json(),
+    );
+
+  const cursorOf = async (name: string) =>
+    (await read(`/api/imports/${name}`, CursorSchema)).cursor;
+
+  const stored = async () =>
+    (await read("/api/items", SentLinksSchema)).items.map(({ originalUrl }) => originalUrl);
 
   before(async () => {
     world = await ScriptWorld.start();
@@ -145,6 +175,86 @@ describe("the script checks the connection, saves, searches and lists topics, an
     assert.equal(await run(["topics"]), "bad-input");
     assert.equal(await run(["topics", "../x"]), "bad-input");
     assert.equal(await run(["topics", "ABC"]), "bad-input");
+  });
+
+  it("sends bookmark post ids as links that the Instance stores as the links https://x.com/i/status/<id>, answers known for the same ids, and keeps and reads back the cursor of the sync and of the import from the first id of the file sent", async () => {
+    const three = ["2000000000000000001", "2000000000000000002", "2000000000000000003"];
+
+    assert.equal(await run(["bookmarks-cursor"]), "none");
+    assert.equal(await run(["bookmarks-send", await ids(three)]), "ok 3 0 0");
+
+    const urls = await stored();
+
+    assert.ok(three.every((id) => urls.includes(`https://x.com/i/status/${id}`)));
+    assert.equal(await run(["bookmarks-send", await ids(three)]), "ok 0 3 0");
+    assert.equal(await run(["bookmarks-cursor"]), "none");
+
+    const sent = await ids(three.slice(2));
+
+    assert.equal(await run(["bookmarks-send", sent, "cursor"]), "ok 0 1 0");
+    assert.equal(existsSync(sent), false);
+    assert.equal(await run(["bookmarks-cursor"]), "2000000000000000003");
+    assert.equal(
+      await run(["bookmarks-send", await ids(three.slice(0, 2).toReversed()), "cursor", "all"]),
+      "ok 0 2 0",
+    );
+    assert.equal(await run(["bookmarks-cursor"]), "2000000000000000003");
+    assert.equal(await cursorOf("x-bookmarks-all"), "2000000000000000002");
+  });
+
+  it("sends the ids of the example in the skill, and answers bad-input and changes neither the library nor the cursor for a file that is not 1 to 100 post ids or for words that are not cursor or cursor all", async () => {
+    const shown = fencesOf(botFile(SKILL_PATH).text).find(({ label }) => label === "ids");
+    const example = IdsSchema.parse(JSON.parse(shown?.body ?? ""));
+    const file = (text: string) => world.folder.made("bookmarks", text);
+    const valid = '{"ids":["2000000000000000011"]}';
+
+    assert.equal(
+      await run(["bookmarks-send", await file(shown?.body ?? "")]),
+      `ok ${String(example.ids.length)} 0 0`,
+    );
+
+    const unchanged = [await stored(), await run(["bookmarks-cursor"])];
+
+    const refused = [
+      "not json",
+      '{"ids":[]}',
+      '{"ids":["12a"]}',
+      '{"ids":[12]}',
+      '{"ids":["1"],"extra":1}',
+      JSON.stringify({ ids: Array.from({ length: 101 }, (_, index) => String(index + 1)) }),
+    ];
+
+    assert.deepEqual(
+      await Promise.all(refused.map(async (text) => run(["bookmarks-send", await file(text)]))),
+      refused.map(() => "bad-input"),
+    );
+
+    const words = [["abc"], ["all"], ["", "all"], ["cursor", "abc"], ["2000000000000000011"]];
+
+    assert.deepEqual(
+      await Promise.all(
+        words.map(async (rest) => run(["bookmarks-send", await file(valid), ...rest])),
+      ),
+      words.map(() => "bad-input"),
+    );
+    assert.equal(
+      await run(["bookmarks-send", join(world.folder.path, "threadsift.sh")]),
+      "bad-input",
+    );
+    assert.deepEqual([await stored(), await run(["bookmarks-cursor"])], unchanged);
+  });
+
+  it("answers failed when the Instance answers a batch with fewer results than the ids sent", async () => {
+    const faulty = await world.answeringEmptyBatch();
+
+    try {
+      assert.equal(
+        await run(["bookmarks-send", await ids(["2000000000000000021"])], world.env(faulty.url)),
+        "failed",
+      );
+    } finally {
+      faulty.stop();
+    }
   });
 
   it("answers bad-input for a command the script does not offer, a search without a file and a task id that is not a number", async () => {

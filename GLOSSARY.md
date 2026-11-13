@@ -33,7 +33,7 @@ The act of adding one Item by pasting its link; pasting a known link again refre
 _Avoid_: Import, capture, add-link
 
 **Import**:
-Adding many Items at once: the owner's X bookmarks and folders, or a pasted or uploaded list of links.
+Adding many Items at once: the owner's X bookmarks, or a pasted or uploaded list of links.
 _Avoid_: Bulk paste, sync, backfill
 
 **Daily budget**:

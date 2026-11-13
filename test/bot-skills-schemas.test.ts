@@ -34,9 +34,7 @@ describe("the skill names the task kinds, the task fields and the answer fields 
       spansOf(read ?? "").filter((span) => /^[a-z]+$/iu.test(span)),
       Object.keys(TaskReadSchema.shape),
     );
-    assert.ok(
-      botFile("profile.md").text.includes(`{${Object.keys(WebhookBodySchema.shape).join(", ")}}`),
-    );
+    assert.ok(spansOf(webhook).includes(`{${Object.keys(WebhookBodySchema.shape).join(", ")}}`));
 
     for (const span of spansOf(proseOf(skill.text)).filter((found) => found.startsWith("{"))) {
       for (const [, key = ""] of span.matchAll(/"(\w+)":/gu)) assert.ok(fields.has(key), key);
