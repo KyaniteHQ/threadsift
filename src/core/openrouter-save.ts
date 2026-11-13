@@ -5,9 +5,9 @@ import { logFailure } from "./failure-log.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Claimed } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
-import { CURRENT_REVISION, DATABASE_NOW } from "./openrouter-tables.ts";
+import { CURRENT_REVISION } from "./openrouter-tables.ts";
 import type { Database, Ports } from "./ports.ts";
-import { guardedBatch, settings } from "./schema.ts";
+import { DATABASE_NOW, guardedBatch, settings } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
 
 async function holdsRow(db: Database, row: Readonly<PreparedSettings>): Promise<boolean> {

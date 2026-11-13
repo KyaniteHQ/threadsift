@@ -1,7 +1,7 @@
 import type { MergeKind, ProposalKind } from "../../src/core/kinds.ts";
 import type { Proposal } from "../../src/core/proposal-contract.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
-import { filled } from "./text.ts";
+import { NEWEST_FIRST, filled } from "./text.ts";
 
 export const PROPOSALS_PAGE = {
   masthead: "Proposals",
@@ -10,7 +10,7 @@ export const PROPOSALS_PAGE = {
   loadFailed: "Couldn’t load proposals.",
   emptyHeading: "No proposals yet",
   loadMoreFailed: "Couldn’t load more proposals.",
-  sort: "Newest first",
+  sort: NEWEST_FIRST,
   head: "Accepting a merge can’t be undone in this release, and accepting removes a highlight for good. Accepting an overview update starts a model run for that topic, and accepting a disagreement keeps the pair on the topic page. Rejecting is final: that tag, topic or item pair, highlight or topic stays as it is and won’t be proposed again.",
 } as const;
 

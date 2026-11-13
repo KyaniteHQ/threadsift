@@ -1,27 +1,23 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import type { RedditSettings } from "../../src/core/reddit-contract.ts";
 import { saveRedditSettings } from "./reddit-api.ts";
-import { useGuard } from "./use-form.ts";
+import { REDDIT_TEXT } from "./reddit-text.ts";
+import { outcomeOf, useActionFlow } from "./use-settings-action.ts";
 
 export function useRedditForm(changed: (view: RedditSettings) => void) {
-  const { busy, guard } = useGuard();
-  const [failed, setFailed] = useState(false);
+  const { flow, run } = useActionFlow<"save">(REDDIT_TEXT.failed);
 
   const pick = useCallback(
     (archiveFill: boolean) => {
-      guard(async () => {
-        setFailed(false);
+      void run("save", async () => {
+        changed(await saveRedditSettings({ archiveFill }));
 
-        try {
-          changed(await saveRedditSettings({ archiveFill }));
-        } catch {
-          setFailed(true);
-        }
+        return null;
       });
     },
-    [changed, guard],
+    [changed, run],
   );
 
-  return { busy, failed, pick };
+  return { busy: flow.kind === "running", failed: outcomeOf(flow)?.kind === "error", pick };
 }

@@ -26,14 +26,12 @@ const DatabaseErrorSchema = z.looseObject({
   cause: z.unknown().optional(),
 });
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction, and this function reduces it to a class name.
-export function errorClassOf(error: unknown): string {
-  return error instanceof Error ? error.constructor.name : "NotAnError";
+export function errorClassOf(cause: unknown): string {
+  return cause instanceof Error ? cause.constructor.name : "NotAnError";
 }
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction, and this function reduces it to an allowlisted code.
-export function databaseCodeOf(error: unknown, depth = 0): string {
-  const failure = DatabaseErrorSchema.safeParse(error);
+export function databaseCodeOf(cause: unknown, depth = 0): string {
+  const failure = DatabaseErrorSchema.safeParse(cause);
 
   if (!failure.success) return "unknown";
 
@@ -48,11 +46,17 @@ export function databaseCodeOf(error: unknown, depth = 0): string {
   return depth < 2 ? databaseCodeOf(failure.data.cause, depth + 1) : "unknown";
 }
 
+export function report(
+  event: string,
+  fields: Readonly<Record<string, number | string | readonly number[]>>,
+): void {
+  console.warn(JSON.stringify({ event, ...fields }));
+}
+
 export function logFailure(
   event: string,
   fields: Readonly<Record<string, string | number>>,
-  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction, and this function reduces it to a class name.
-  error: unknown,
+  cause: unknown,
 ): void {
-  console.error(JSON.stringify({ event, ...fields, error: errorClassOf(error) }));
+  console.error(JSON.stringify({ event, ...fields, error: errorClassOf(cause) }));
 }

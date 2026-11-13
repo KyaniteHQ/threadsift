@@ -1,8 +1,9 @@
-import { eq, inArray, or } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 
 import { logFailure } from "./failure-log.ts";
-import { FILE_LIST_LIMIT } from "./file-keys.ts";
+import { FILE_LIST_LIMIT, itemFilesPrefix } from "./file-keys.ts";
 import type { FileStore, Ports } from "./ports.ts";
+import { goneWithItem } from "./proposal-lifecycle.ts";
 import {
   aiTasks,
   digests,
@@ -16,7 +17,6 @@ import {
   media,
   notes,
   pins,
-  proposals,
   redditComments,
   redditThreads,
   relatedItems,
@@ -30,7 +30,7 @@ async function storedKeys(files: FileStore, itemId: number): Promise<string[]> {
 
   do {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each page starts at the cursor the previous page returned.
-    const page = await files.list(`items/${itemId}/`, cursor, FILE_LIST_LIMIT);
+    const page = await files.list(itemFilesPrefix(itemId), cursor, FILE_LIST_LIMIT);
     keys.push(...page.files.map(({ key }) => key));
     cursor = page.cursor;
   } while (cursor !== null);
@@ -57,15 +57,7 @@ export async function deleteItem(
     db.delete(redditThreads).where(eq(redditThreads.itemId, id)),
     db.delete(githubRepos).where(eq(githubRepos.itemId, id)),
     db.delete(searchParts).where(eq(searchParts.itemId, id)),
-    db
-      .delete(proposals)
-      .where(
-        inArray(
-          proposals.highlightId,
-          db.select({ id: highlights.id }).from(highlights).where(eq(highlights.itemId, id)),
-        ),
-      ),
-    db.delete(proposals).where(or(eq(proposals.fromItemId, id), eq(proposals.intoItemId, id))),
+    ...goneWithItem(db, id),
     db.delete(pins).where(or(eq(pins.fromItemId, id), eq(pins.intoItemId, id))),
     db.delete(highlights).where(eq(highlights.itemId, id)),
     db.delete(media).where(eq(media.itemId, id)),

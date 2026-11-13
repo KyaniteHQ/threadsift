@@ -1,5 +1,5 @@
 import type { Database, Ports } from "../../core/ports.ts";
-import { aiRuntime } from "../shared/ai-runtime.ts";
+import { aiAndSecrets } from "../shared/ai-runtime.ts";
 import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 import { dataFileStore } from "./file-store.ts";
@@ -37,13 +37,13 @@ export async function startNode(
   const ports: Ports = {
     db,
     files: dataFileStore(dataDir),
-    ai: await aiRuntime({
+    ...(await aiAndSecrets({
       publicOnly: false,
       secretKey,
       request: fetch,
       openRouterMaxPriceZero: options.openRouterMaxPriceZero,
       cli: operator.cli,
-    }),
+    })),
     network: nodeNetwork,
     pages,
     jobs: loop.queue,

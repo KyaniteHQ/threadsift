@@ -7,6 +7,8 @@ const BUSY_ANSWERS = ["merge-busy", "topic-busy", "no-provider"] as const;
 
 export type Busy = (typeof BUSY_ANSWERS)[number];
 
+export type Failure = "accept" | "reject";
+
 export type Acceptance = "done" | "accepting" | Busy | "not-current" | "unknown";
 
 const RefusalSchema = z.object({ error: z.enum([...BUSY_ANSWERS, "not-current"]) });

@@ -4,11 +4,11 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { type CatalogKind, TAG_KIND, TOPIC_KIND, isLastUnit } from "./catalog-key-links.ts";
 import { CATALOG_KEY_VERSION, catalogKey } from "./catalog-key.ts";
 import type { Advance, DataStep } from "./data-step-contract.ts";
-import { dropStaged, report, stageRenames } from "./data-step-support.ts";
-import { dataStepRenames } from "./data-step-tables.ts";
+import { dataStepRenames, dropStaged, stageRenames } from "./data-step-tables.ts";
+import { report } from "./failure-log.ts";
+import { guards, insertGuard } from "./guards.ts";
 import { pinKeyStep } from "./pin-key-step.ts";
 import type { Database } from "./ports.ts";
-import { guards, insertGuard } from "./schema.ts";
 
 const STAGE_ROWS = 100;
 const RENAME_ROWS = 500;

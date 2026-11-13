@@ -1,10 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { currentDisagreementPin } from "./disagreement-pins.ts";
-import { disagreementCurrent } from "./disagreement-rows.ts";
+import { DISAGREEMENT } from "./disagreement-rows.ts";
 import { guardedResults } from "./guards.ts";
 import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
+import { removedOpen } from "./proposal-lifecycle.ts";
 import { pins, proposals } from "./schema.ts";
 
 type DisagreementAcceptance = "done" | "unknown" | "not-open" | "not-current";
@@ -15,7 +16,7 @@ interface Side {
 }
 
 function stillCurrent(id: number) {
-  return sql`exists (select 1 from ${proposals} where ${proposals.id} = ${id} and ${proposals.kind} = 'items-disagree' and ${proposals.state} = 'open' and ${disagreementCurrent()})`;
+  return sql`exists (select 1 from ${proposals} where ${proposals.id} = ${id} and ${proposals.kind} = 'items-disagree' and ${proposals.state} = 'open' and ${DISAGREEMENT.accepts})`;
 }
 
 function keptPair(db: Database, reason: string, [low, high]: readonly [Side, Side]) {
@@ -62,7 +63,7 @@ export async function acceptDisagreement(
   id: number,
 ): Promise<DisagreementAcceptance> {
   const [row] = await db
-    .select({ proposal: proposals, current: sql<number>`${disagreementCurrent()}` })
+    .select({ proposal: proposals, current: sql<number>`${DISAGREEMENT.accepts}` })
     .from(proposals)
     .where(and(eq(proposals.id, id), eq(proposals.kind, "items-disagree")));
 
@@ -77,7 +78,7 @@ export async function acceptDisagreement(
 
   const accepted = await guardedResults(db, stillCurrent(id), [
     keptPair(db, reason, sides),
-    db.delete(proposals).where(eq(proposals.id, id)),
+    removedOpen(db, eq(proposals.id, id)),
   ]);
 
   return accepted === null ? acceptDisagreement(db, id) : "done";

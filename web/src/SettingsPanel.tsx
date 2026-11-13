@@ -93,7 +93,7 @@ export function SettingsPanel({ look, pages }: Readonly<{ look: Look; pages: Pag
             <SettingsRows
               settings={settings}
               themeNote={themeNote}
-              narrow={look.narrow}
+              narrow={modal}
               idBase={idBase}
               choose={choose}
             />

@@ -68,7 +68,7 @@ export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
     readRevision(ports.db),
   ]);
 
-  const snapshot = { sealer: ports.ai.secrets, revision: counter?.revision ?? 0 };
+  const snapshot = { sealer: ports.secrets, revision: counter?.revision ?? 0 };
   const { sealer } = snapshot;
 
   if (row === undefined) return { ...snapshot, state: "not-configured" };
@@ -104,32 +104,38 @@ function keylessConnection(saved: Readonly<Keyless>): BindingAiConnection | CliA
 async function aiView(
   saved: Stored | undefined,
   ports: SettingsPorts,
-  state: Readonly<{ secretReady: boolean; revision: number }>,
+  state: Readonly<{ keyReadable: boolean; revision: number }>,
 ): Promise<AiSettingsView> {
   return {
-    settings: viewOf(saved),
+    settings: viewOf(saved, state.keyReadable),
     providers: ports.ai.providers,
     signedIn: await ports.ai.signedIn(),
-    secretReady: state.secretReady,
+    secretReady: ports.secrets !== null,
     publicOnly: ports.ai.publicOnly,
     revision: state.revision,
     connect: ports.publicOrigin !== null,
   };
 }
 
-function viewOf(saved: Stored | undefined): AiSettingsView["settings"] {
+function viewOf(saved: Stored | undefined, keyReadable: boolean): AiSettingsView["settings"] {
   if (saved === undefined) return null;
 
   return saved.sealedKey === null
     ? { provider: saved.provider, model: saved.model }
-    : { provider: saved.provider, baseUrl: saved.baseUrl, model: saved.model, keySet: true };
+    : {
+        provider: saved.provider,
+        baseUrl: saved.baseUrl,
+        model: saved.model,
+        keySet: true,
+        keyReadable,
+      };
 }
 
 export async function readAiSettings(ports: SettingsPorts): Promise<AiSettingsView> {
   const loaded = await loadAiConfig(ports);
 
   return aiView(loaded.state === "not-configured" ? undefined : loaded.saved, ports, {
-    secretReady: loaded.sealer !== null && loaded.state !== "secret-missing",
+    keyReadable: loaded.state !== "secret-missing",
     revision: loaded.revision,
   });
 }
@@ -188,7 +194,7 @@ async function nextSettings(ports: AiPorts, loaded: LoadedAi, input: Readonly<Ai
 
   const { sealer } = loaded;
 
-  if (sealer === null || loaded.state === "secret-missing") return refusedAi("secret-missing");
+  if (sealer === null) return refusedAi("secret-missing");
 
   const baseUrl =
     "baseUrl" in input ? withoutTrailingSlashes(input.baseUrl) : PROVIDERS[input.provider].url;
@@ -196,15 +202,18 @@ async function nextSettings(ports: AiPorts, loaded: LoadedAi, input: Readonly<Ai
   if (!ports.ai.allowsUrl(baseUrl)) return refusedAi("refused");
 
   const same =
-    loaded.state === "ready" &&
-    loaded.config.kind === "http" &&
-    loaded.config.provider === input.provider &&
-    loaded.config.baseUrl === baseUrl &&
-    loaded.config.model === input.model;
+    loaded.state !== "not-configured" &&
+    loaded.saved.provider === input.provider &&
+    loaded.saved.baseUrl === baseUrl &&
+    loaded.saved.model === input.model;
 
-  const key = input.key ?? (same ? loaded.config.key : null);
+  if (input.key === undefined && !same) return refusedAi("key-needed");
 
-  if (key === null) return refusedAi("key-needed");
+  const key =
+    input.key ??
+    (loaded.state === "ready" && loaded.config.kind === "http" ? loaded.config.key : null);
+
+  if (key === null) return refusedAi("secret-missing");
 
   return {
     provider: input.provider,

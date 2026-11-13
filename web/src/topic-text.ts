@@ -1,7 +1,6 @@
 import { filled } from "./text.ts";
 
 export const TOPIC_PAGE = {
-  back: "Back to library",
   overviewHeading: "Overview",
   overviewPending: "Writing overview…",
   overviewFailed: "Couldn’t write the overview.",
@@ -18,7 +17,6 @@ export const TOPIC_PAGE = {
   notFoundLine: "Go back to the library to see your items.",
   emptyHeading: "No items in this topic",
   emptyLine: "This topic has no items in your library.",
-  loadingMore: "Loading more…",
   loadMoreFailed: "Couldn’t load more items.",
   openPage: "Open topic page",
   disagreementsHeading: "Known disagreements",

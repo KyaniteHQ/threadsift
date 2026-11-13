@@ -1,11 +1,11 @@
 import type { Digest } from "./ai-contract.ts";
+import { guardedWrite } from "./guards.ts";
 import { type SaveResult, type ThreadKept, itemAt, queuedWrites } from "./items.ts";
 import { closeFetchJobs } from "./job-close.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
 import { parseLink } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { hasNoThread, ownerOf } from "./reddit-thread.ts";
-import { guardedWrite } from "./schema.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 
 export async function saveThreadPage(

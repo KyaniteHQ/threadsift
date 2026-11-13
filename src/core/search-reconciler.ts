@@ -2,12 +2,12 @@ import { asc, eq, gt, sql } from "drizzle-orm";
 
 import { digestOf } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
+import { guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { Crypto, Database } from "./ports.ts";
 import { keptBodies, keptCommentIds } from "./reddit-thread.ts";
 import {
   digests,
-  guardedBatch,
   highlights,
   itemTags,
   items,

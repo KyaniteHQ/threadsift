@@ -1,12 +1,13 @@
 import { useCallback, useMemo } from "react";
 
 import type { Proposal } from "../../src/core/proposal-contract.ts";
-import { sendReject } from "./proposals-api.ts";
+import type { RowEvent } from "./proposal-row-state.ts";
+import { type Failure, sendReject } from "./proposals-api.ts";
 import { type AcceptableProposal, PROPOSAL_WORDS, rejectedAnnouncement } from "./proposals-text.ts";
 
 interface Presses {
-  readonly start: (proposal: Readonly<Proposal>) => void;
-  readonly finish: (proposal: Readonly<Proposal>) => void;
+  readonly send: (event: RowEvent) => boolean;
+  readonly setNotice: (text: string | null) => void;
   readonly accept: (proposal: Readonly<AcceptableProposal>) => Promise<void>;
   readonly settle: (
     proposal: Readonly<Proposal>,
@@ -17,14 +18,16 @@ interface Presses {
   readonly say: (text: string) => void;
 }
 
-export function usePresses({ start, finish, accept, settle, leave, say }: Readonly<Presses>) {
+export function usePresses({ send, setNotice, accept, settle, leave, say }: Readonly<Presses>) {
   const decide = useCallback(
-    async (proposal: Readonly<Proposal>, run: () => Promise<void>) => {
-      start(proposal);
+    async (proposal: Readonly<Proposal>, action: Failure, run: () => Promise<void>) => {
+      if (!send({ kind: "press", id: proposal.id, action })) return;
+
+      setNotice(null);
       await run();
-      finish(proposal);
+      send({ kind: "release", id: proposal.id });
     },
-    [finish, start],
+    [send, setNotice],
   );
 
   const reject = useCallback(
@@ -41,14 +44,14 @@ export function usePresses({ start, finish, accept, settle, leave, say }: Readon
 
   const pressAccept = useCallback(
     (proposal: Readonly<AcceptableProposal>) => {
-      void decide(proposal, () => accept(proposal));
+      void decide(proposal, "accept", () => accept(proposal));
     },
     [accept, decide],
   );
 
   const pressReject = useCallback(
     (proposal: Readonly<Proposal>) => {
-      void decide(proposal, () => reject(proposal));
+      void decide(proposal, "reject", () => reject(proposal));
     },
     [decide, reject],
   );

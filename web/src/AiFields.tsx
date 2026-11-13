@@ -10,7 +10,7 @@ import {
 } from "../../src/core/ai-contract.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { FormField } from "./FormField.tsx";
-import type { useAiForm } from "./use-ai-form.ts";
+import type { SavedKey, useAiForm } from "./use-ai-form.ts";
 
 type Fields = ReturnType<typeof useAiForm>["fields"];
 
@@ -72,8 +72,12 @@ function modelHelp(provider: Provider) {
   return provider === "workers-ai" ? AI_TEXT.workersAiHelp : undefined;
 }
 
-function helpFor(name: "baseUrl" | "model" | "key", provider: Provider, publicOnly: boolean) {
-  if (name === "key") return AI_TEXT.keyHelp;
+function helpFor(
+  name: "baseUrl" | "model" | "key",
+  provider: Provider,
+  { publicOnly, savedKey }: Readonly<{ publicOnly: boolean; savedKey: SavedKey }>,
+) {
+  if (name === "key") return savedKey === "unreadable" ? undefined : AI_TEXT.keyHelp;
 
   if (name === "model") return modelHelp(provider);
 
@@ -97,12 +101,12 @@ export function AiFields({
   fields,
   disabled,
   publicOnly,
-  keyRequired,
+  savedKey,
 }: Readonly<{
   fields: Fields;
   disabled: boolean;
   publicOnly: boolean;
-  keyRequired: boolean;
+  savedKey: SavedKey;
 }>) {
   const names = PROVIDERS[fields.provider].names;
 
@@ -114,8 +118,8 @@ export function AiFields({
           key={name}
           field={fields[name]}
           label={AI_TEXT[name]}
-          kind={kindFor(name, fields.provider, publicOnly, keyRequired)}
-          help={helpFor(name, fields.provider, publicOnly)}
+          kind={kindFor(name, fields.provider, publicOnly, savedKey !== "applies")}
+          help={helpFor(name, fields.provider, { publicOnly, savedKey })}
         />
       ))}
     </>

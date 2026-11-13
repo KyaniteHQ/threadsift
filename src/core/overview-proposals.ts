@@ -3,7 +3,7 @@ import { and, asc, desc, eq, notExists, sql } from "drizzle-orm";
 import { WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
-import { proposalRow } from "./proposal-row.ts";
+import { proposalRow, removedOpen } from "./proposal-lifecycle.ts";
 import { proposals, topics } from "./schema.ts";
 import { overviewGap, uncoveredCount } from "./topic-coverage.ts";
 import { claimedAt, claimingWeek } from "./weekly-claim.ts";
@@ -56,16 +56,12 @@ function insertedRows(db: Database, now: number) {
 }
 
 function closedGaps(db: Database, now: number) {
-  return db
-    .delete(proposals)
-    .where(
-      and(
-        claimedAt(WEEKLY_TASK["overview-gap"], now),
-        eq(proposals.kind, "overview-gap"),
-        eq(proposals.state, "open"),
-        sql`not (${overviewGap(proposals.topicId)})`,
-      ),
-    );
+  return removedOpen(
+    db,
+    claimedAt(WEEKLY_TASK["overview-gap"], now),
+    eq(proposals.kind, "overview-gap"),
+    sql`not (${overviewGap(proposals.topicId)})`,
+  );
 }
 
 export async function proposeOverviewGaps(db: Database, now: number): Promise<void> {

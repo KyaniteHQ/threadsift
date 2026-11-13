@@ -133,13 +133,18 @@ describe("Save seals the key, never returns it, and asks for a new key with a ne
     assert.notEqual(second?.sealed_key, first?.sealed_key);
   });
 
-  it("removes the row and answers 204 each time", async () => {
+  it("removes the row and answers 200 with the view each time", async () => {
+    const none = { configured: false, webhookUrl: null, key: "none" };
     const first = await instance.send("DELETE", PATH);
     const second = await instance.send("DELETE", PATH);
 
-    assert.deepEqual([first.status, second.status], [204, 204]);
+    assert.deepEqual([first.status, second.status], [200, 200]);
+    assert.deepEqual(
+      [first, second].map(({ body }) => GrokBotViewSchema.parse(JSON.parse(body))),
+      [none, none],
+    );
     assert.deepEqual(saved(instance), []);
-    assert.deepEqual(await view(instance), { configured: false, webhookUrl: null, key: "none" });
+    assert.deepEqual(await view(instance), none);
   });
 });
 

@@ -2,6 +2,7 @@ import { useCallback } from "react";
 
 import type { Proposal } from "../../src/core/proposal-contract.ts";
 import { ACCEPT_CLASS, REJECT_CLASS, rowDescription } from "./proposal-dom.ts";
+import type { RowState } from "./proposal-row-state.ts";
 import type { Busy } from "./proposals-api.ts";
 import {
   type AcceptableProposal,
@@ -13,14 +14,11 @@ import {
   rejectRetryLabel,
 } from "./proposals-text.ts";
 import { RETRY_LABEL } from "./text.ts";
-import type { Failure } from "./use-proposals-page.ts";
 
 export interface RowControls {
   readonly proposal: Proposal;
   readonly overviewFollows: boolean;
-  readonly pending: boolean;
-  readonly failure: Failure | undefined;
-  readonly busy: Busy | undefined;
+  readonly row: RowState;
   readonly accept: (proposal: AcceptableProposal) => void;
   readonly reject: (proposal: Proposal) => void;
   readonly open: (itemId: number, highlightId: number) => void;
@@ -42,30 +40,31 @@ const BUSY_NOTES = {
   "no-provider": PROPOSAL_WORDS.noProvider,
 } as const satisfies Record<Busy, string>;
 
-function Notes({
-  failure,
-  busy,
-  applying,
-}: Readonly<{ failure: Failure | undefined; busy: Busy | undefined; applying: boolean }>) {
+function Notes({ row, applying }: Readonly<{ row: RowState; applying: boolean }>) {
   if (applying) return <Note alert={false}>{PROPOSAL_WORDS.applying}</Note>;
 
-  if (failure === "accept") return <Note alert>{PROPOSAL_WORDS.acceptFailed}</Note>;
-
-  if (failure === "reject") return <Note alert>{PROPOSAL_WORDS.rejectFailed}</Note>;
-
-  return busy === undefined ? null : <Note alert={false}>{BUSY_NOTES[busy]}</Note>;
+  switch (row.kind) {
+    case "failed":
+      return (
+        <Note alert>
+          {row.failure === "accept" ? PROPOSAL_WORDS.acceptFailed : PROPOSAL_WORDS.rejectFailed}
+        </Note>
+      );
+    case "busy":
+      return <Note alert={false}>{BUSY_NOTES[row.busy]}</Note>;
+    case "pressing":
+      return row.busy === null ? null : <Note alert={false}>{BUSY_NOTES[row.busy]}</Note>;
+    case "idle":
+      return null;
+    default:
+      return row satisfies never;
+  }
 }
 
-export function Actions({
-  proposal,
-  pending,
-  failure,
-  busy,
-  accept,
-  reject,
-}: Readonly<RowControls>) {
+export function Actions({ proposal, row, accept, reject }: Readonly<RowControls>) {
   const applying = proposal.state === "accepting";
-  const locked = pending || applying;
+  const locked = row.kind === "pressing" || applying;
+  const failure = row.kind === "failed" ? row.failure : undefined;
 
   const pressAccept = useCallback(() => {
     if (!locked && isAcceptable(proposal)) accept(proposal);
@@ -99,7 +98,7 @@ export function Actions({
       >
         {failure === "reject" ? RETRY_LABEL : PROPOSAL_WORDS.reject}
       </button>
-      <Notes failure={failure} busy={busy} applying={applying} />
+      <Notes row={row} applying={applying} />
     </div>
   );
 }

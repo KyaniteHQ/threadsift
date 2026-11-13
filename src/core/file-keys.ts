@@ -1,6 +1,10 @@
+import { type SQLWrapper, sql } from "drizzle-orm";
+
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
 
 export const FILE_LIST_LIMIT = 1000;
+
+export const ITEM_FILES_ROOT = "items/";
 
 export class FileRefused extends Error {}
 
@@ -12,7 +16,7 @@ const FILE_NAME_MAX = FOLDER_NAME_MAX - temporaryPrefix("0".repeat(TEMPORARY_BYT
 
 function keyPattern(nameMax: number): RegExp {
   return new RegExp(
-    `^items/(?<itemId>[1-9][0-9]{0,18})/(?!\\.{1,2}$)(?<name>[A-Za-z0-9._-]{1,${nameMax}})$`,
+    `^${ITEM_FILES_ROOT}(?<itemId>[1-9][0-9]{0,18})/(?!\\.{1,2}$)(?<name>[A-Za-z0-9._-]{1,${nameMax}})$`,
     "u",
   );
 }
@@ -21,18 +25,44 @@ const KEY = keyPattern(FILE_NAME_MAX);
 
 const STORED_KEY = keyPattern(FOLDER_NAME_MAX);
 
-const TEMPORARY = /^(?<folder>items\/[1-9][0-9]{0,18}\/)\.tmp-[0-9a-f]+-(?<name>.+)$/u;
-
-const POST_TEXT = /^items\/[1-9][0-9]{0,18}\/post-[0-9]+-[0-9]+\.md$/u;
-
-const IMAGE = new RegExp(
-  `^items/[1-9][0-9]{0,18}/img-[0-9]+-[0-9]+-[0-9]+\\.(?:${Object.values(IMAGE_EXTENSIONS).join("|")})$`,
+const TEMPORARY = new RegExp(
+  `^(?<folder>${ITEM_FILES_ROOT}[1-9][0-9]{0,18}/)\\.tmp-[0-9a-f]+-(?<name>.+)$`,
   "u",
 );
 
-const PREFIX = /^items\/(?:(?<itemId>[1-9][0-9]{0,18})\/)?$/u;
+const POST_TEXT = new RegExp(`^${ITEM_FILES_ROOT}[1-9][0-9]{0,18}/post-[0-9]+-[0-9]+\\.md$`, "u");
+
+const IMAGE = new RegExp(
+  `^${ITEM_FILES_ROOT}[1-9][0-9]{0,18}/img-[0-9]+-[0-9]+-[0-9]+\\.(?:${Object.values(IMAGE_EXTENSIONS).join("|")})$`,
+  "u",
+);
+
+const PREFIX = new RegExp(`^${ITEM_FILES_ROOT}(?:(?<itemId>[1-9][0-9]{0,18})/)?$`, "u");
 
 export const FILE_ROUTE = "/api/files/";
+
+export function itemFilesPrefix(itemId: number | string): string {
+  return `${ITEM_FILES_ROOT}${itemId}/`;
+}
+
+export function itemFileKey(itemId: number | string, name: string): string {
+  return `${itemFilesPrefix(itemId)}${name}`;
+}
+
+interface AttemptColumns {
+  readonly itemId: SQLWrapper;
+  readonly id: SQLWrapper;
+  readonly attempts: SQLWrapper;
+}
+
+export function attemptFileKeys({ itemId, id, attempts }: Readonly<AttemptColumns>) {
+  const folder = sql`${sql.raw(`'${ITEM_FILES_ROOT}'`)} || ${itemId} || '/'`;
+
+  return {
+    postText: sql<string>`${folder} || 'post-' || ${id} || '-' || ${attempts} || '.md'`,
+    imagePrefix: sql<string>`${folder} || 'img-' || ${id} || '-' || ${attempts} || '-'`,
+  };
+}
 
 export function temporaryPrefix(random: string): string {
   return `.tmp-${random}-`;
@@ -114,7 +144,7 @@ export function isImageRouteOf(path: string, itemId: number): boolean {
 }
 
 export function isItemId(id: string): boolean {
-  return PREFIX.exec(`items/${id}/`)?.groups?.["itemId"] !== undefined;
+  return PREFIX.exec(itemFilesPrefix(id))?.groups?.["itemId"] !== undefined;
 }
 
 export function requireFilePrefix(prefix: string): FilePrefix {

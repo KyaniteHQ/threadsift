@@ -11,7 +11,7 @@ import {
   type RefusalCode,
   type Token,
 } from "../../src/http/schemas.ts";
-import { type JsonBody, call, callOk, parsedFrom, unexpected } from "./calls.ts";
+import { type JsonBody, call, callOk, parsedFrom } from "./calls.ts";
 
 export type Session = z.infer<typeof SessionStateSchema>;
 
@@ -97,18 +97,14 @@ export function resetPassword(code: string, password: string): Promise<Attempt> 
 }
 
 export async function logOut(): Promise<void> {
-  const response = await call("POST", "/api/logout");
-
-  if (!response.ok && response.status !== UNAUTHORIZED) {
-    throw unexpected("POST", "/api/logout", response.status);
-  }
+  await callOk("POST", "/api/logout", { tolerates: [UNAUTHORIZED] });
 }
 
 export async function fetchTokens(signal: AbortSignal): Promise<Token[]> {
   return (await parsedFrom("GET", "/api/tokens", TokenListResponseSchema, { signal })).tokens;
 }
 
-export type CreatedToken = z.infer<typeof CreatedTokenResponseSchema>;
+type CreatedToken = z.infer<typeof CreatedTokenResponseSchema>;
 
 export function createToken(name: string, scopes: readonly Scope[]): Promise<CreatedToken> {
   return parsedFrom("POST", "/api/tokens", CreatedTokenResponseSchema, {

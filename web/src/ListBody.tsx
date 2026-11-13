@@ -1,6 +1,6 @@
 import { type RefObject, memo, useEffect, useRef } from "react";
 
-import type { FilterCounts } from "../../src/core/item-filters.ts";
+import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
@@ -113,13 +113,7 @@ function ItemList({
   shared: Readonly<RowProps>;
 }>) {
   return (
-    <ol
-      ref={rows}
-      // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from an ol with list-style none
-      role="list"
-      className="items"
-      aria-labelledby={RESULTS_ID}
-    >
+    <ol ref={rows} role="list" className="items" aria-labelledby={RESULTS_ID}>
       {items.map((item) => (
         <li key={item.id}>
           <ItemRow

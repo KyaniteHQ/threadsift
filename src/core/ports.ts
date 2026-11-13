@@ -99,7 +99,6 @@ export interface AiRuntime {
   readonly providers: readonly Provider[];
   readonly publicOnly: boolean;
   readonly allowsUrl: (url: string) => boolean;
-  readonly secrets: Sealer | null;
   readonly signedIn: () => Promise<readonly CliProvider[]>;
   readonly run: <Result>(
     task: AiTaskRequest<Result>,
@@ -118,6 +117,7 @@ export interface Ports {
   readonly pages: PageReader;
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
+  readonly secrets: Sealer | null;
   readonly setupCode: string | undefined;
   readonly resetCode: string | undefined;
   readonly publicOrigin: string | null;
@@ -130,6 +130,6 @@ export const REQUEST_HEADERS = {
   accept: "text/html,application/json;q=0.9,*/*;q=0.8",
 } as const;
 
-export type AiPorts = Pick<Ports, "db" | "ai">;
+export type AiPorts = Pick<Ports, "db" | "ai" | "secrets">;
 
-export type SettingsPorts = Pick<Ports, "db" | "ai" | "publicOrigin">;
+export type SettingsPorts = Pick<Ports, "db" | "ai" | "secrets" | "publicOrigin">;

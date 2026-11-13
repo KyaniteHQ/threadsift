@@ -1,11 +1,11 @@
 import { type RefObject, useCallback } from "react";
 
-import type { Entry } from "../../src/core/highlights-page-contract.ts";
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { HighlightEntry } from "./HighlightEntry.tsx";
 import { HIGHLIGHTS_PAGE, pageHeadLabel } from "./highlights-page-text.ts";
 import { matchedCount } from "./list-counts.ts";
 import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
+import { LoadMore } from "./LoadMore.tsx";
 import { CLEAR_ALL, RETRY_LABEL } from "./text.ts";
 import { useFocusNewEntries } from "./use-highlights-focus.ts";
 import { type PageState, type Ready, canLoadMore } from "./use-highlights-page.ts";
@@ -28,12 +28,6 @@ function Head({ state, filters }: Readonly<{ state: Ready; filters: Filters }>) 
   );
 }
 
-function moreLabel(more: Ready["more"]): string {
-  if (more === "loading") return HIGHLIGHTS_PAGE.loadingMore;
-
-  return more === "failed" ? RETRY_LABEL : HIGHLIGHTS_PAGE.loadMore;
-}
-
 function More({
   state,
   filters,
@@ -42,21 +36,12 @@ function More({
   if (state.next === null) return null;
 
   return (
-    <div className="hp-more">
-      {state.more === "failed" ? (
-        <p className="rd-note" role="alert">
-          {HIGHLIGHTS_PAGE.loadMoreFailed}
-        </p>
-      ) : null}
-      <button
-        type="button"
-        className="btn"
-        aria-disabled={!canLoadMore(state, filters)}
-        onClick={loadMore}
-      >
-        {moreLabel(state.more)}
-      </button>
-    </div>
+    <LoadMore
+      more={state.more}
+      failedText={HIGHLIGHTS_PAGE.loadMoreFailed}
+      disabled={!canLoadMore(state, filters)}
+      loadMore={loadMore}
+    />
   );
 }
 
@@ -66,19 +51,13 @@ function EntryList({
   navigate,
   list,
 }: Readonly<{
-  entries: readonly Entry[];
+  entries: Ready["entries"];
   now: number;
   navigate: (to: string) => void;
   list: RefObject<HTMLOListElement | null>;
 }>) {
   return (
-    <ol
-      ref={list}
-      // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from an ol with list-style none
-      role="list"
-      className="hp-list"
-      aria-labelledby={RESULTS_ID}
-    >
+    <ol ref={list} role="list" className="hp-list" aria-labelledby={RESULTS_ID}>
       {entries.map((entry) => (
         <HighlightEntry
           key={`${entry.kind}:${String(entry.id)}`}

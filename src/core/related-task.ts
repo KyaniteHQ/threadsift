@@ -31,7 +31,11 @@ export function relatedPickTask(sent: readonly number[]): AiTaskDefinition<Relat
     prepareInput: (input) => input,
     schema: z
       .object({ picks: z.array(PickSchema).max(RELATED_MAX).readonly() })
-      .refine(({ picks }) => new Set(picks.map(({ item }) => item)).size === picks.length)
-      .refine(({ picks }) => picks.every(({ item }) => allowed.has(item))),
+      .refine(({ picks }) => new Set(picks.map(({ item }) => item)).size === picks.length, {
+        error: "picks: each item may be picked once",
+      })
+      .refine(({ picks }) => picks.every(({ item }) => allowed.has(item)), {
+        error: "picks: each item must be the id of a candidate that was sent",
+      }),
   };
 }

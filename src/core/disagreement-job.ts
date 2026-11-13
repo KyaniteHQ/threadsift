@@ -11,7 +11,7 @@ import {
 } from "./disagreement-task.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { proposalRow } from "./proposal-row.ts";
+import { proposalRow } from "./proposal-lifecycle.ts";
 import { proposals, topicChecks } from "./schema.ts";
 import { type WeeklyModelRun, weeklyModelHandler } from "./weekly-model-run.ts";
 

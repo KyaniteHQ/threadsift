@@ -1,12 +1,10 @@
 import type { MouseEvent } from "react";
 
-import { RETRY_LABEL, LOAD_MORE } from "./text.ts";
-import { TOPIC_PAGE } from "./topic-text.ts";
-
-export type More = "idle" | "loading" | "failed";
+import type { More } from "./list-paging.ts";
+import { LOADING_MORE, LOAD_MORE, RETRY_LABEL } from "./text.ts";
 
 function moreLabel(more: More): string {
-  if (more === "loading") return TOPIC_PAGE.loadingMore;
+  if (more === "loading") return LOADING_MORE;
 
   return more === "failed" ? RETRY_LABEL : LOAD_MORE;
 }
@@ -14,10 +12,12 @@ function moreLabel(more: More): string {
 export function LoadMore({
   more,
   failedText,
+  disabled,
   loadMore,
 }: Readonly<{
   more: More;
   failedText: string;
+  disabled: boolean;
   loadMore: (event: MouseEvent<HTMLButtonElement>) => void;
 }>) {
   return (
@@ -27,7 +27,7 @@ export function LoadMore({
           {failedText}
         </p>
       ) : null}
-      <button type="button" className="btn" aria-disabled={more === "loading"} onClick={loadMore}>
+      <button type="button" className="btn" aria-disabled={disabled} onClick={loadMore}>
         {moreLabel(more)}
       </button>
     </div>

@@ -29,7 +29,7 @@ export async function completeOpenRouterConnect(
   });
 
   const { publicOrigin: origin } = ports;
-  const sealer = ports.ai.secrets;
+  const sealer = ports.secrets;
 
   if (!parameters.success || origin === null || sealer === null) return "incomplete";
 

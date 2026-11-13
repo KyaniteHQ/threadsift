@@ -1,6 +1,6 @@
 import { type ChangeEvent, useCallback, useId, useState } from "react";
 
-import type { CountedName } from "../../src/core/item-filters.ts";
+import type { CountedName } from "../../src/core/filter-counts-contract.ts";
 import { Icon } from "./Icon.tsx";
 import {
   ALL_CHOICE,
@@ -133,7 +133,7 @@ function Row({
   );
 }
 
-export function visibleRows(
+function visibleRows(
   rows: readonly CountedName[],
   chosen: string | null,
   searching: boolean,

@@ -7,7 +7,7 @@ import type { JobRow } from "./schema.ts";
 
 export type JobPorts = Pick<
   Ports,
-  "db" | "files" | "network" | "pages" | "jobs" | "ai" | "crypto" | "fetchers"
+  "db" | "files" | "network" | "pages" | "jobs" | "ai" | "secrets" | "crypto" | "fetchers"
 >;
 
 export type JobWrites = readonly BatchItem<"sqlite">[];
@@ -51,6 +51,7 @@ export interface DeferredOutcome {
   readonly deferredUntil: number;
   readonly wait: WaitReason;
   readonly countsAttempt: boolean;
+  readonly unlessAnswered?: number;
 }
 
 export type JobOutcome = SettledOutcome | DeferredOutcome;

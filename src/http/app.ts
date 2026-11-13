@@ -1,23 +1,18 @@
-import { OpenAPIHono, type z } from "@hono/zod-openapi";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 
 import { logFailure } from "../core/failure-log.ts";
 import type { Ports } from "../core/ports.ts";
+import { reasonsOf } from "../core/zod-reasons.ts";
 import { installApiMiddleware } from "./api-middleware.ts";
 import { mcpRoute } from "./mcp-route.ts";
 import { notFound } from "./refusals.ts";
 import { registerRoutes } from "./routes.ts";
 
-function reasonOf(error: z.ZodError): string {
-  return error.issues
-    .map((issue) => `${issue.path.join(".") || "body"}: ${issue.message}`)
-    .join("; ");
-}
-
 export function createApp(ports: Ports): OpenAPIHono {
   const app = new OpenAPIHono({
     defaultHook: (result, c) =>
-      result.success ? undefined : c.json({ error: reasonOf(result.error) }, 400),
+      result.success ? undefined : c.json({ error: reasonsOf(result.error) }, 400),
   });
 
   installApiMiddleware(app, ports);
@@ -26,7 +21,7 @@ export function createApp(ports: Ports): OpenAPIHono {
 
   app.route("/", mcpRoute(ports));
 
-  app.doc("/api/openapi.json", {
+  app.doc31("/api/openapi.json", {
     openapi: "3.1.0",
     info: { title: "Threadsift", version: "1" },
   });

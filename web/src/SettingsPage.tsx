@@ -34,12 +34,7 @@ export function SettingsPage({
 
   return (
     <div className="pg">
-      <PageBar
-        title={SETTINGS.title}
-        backLabel={SETTINGS.back}
-        back={back}
-        faceWaitMs={SETTINGS_READ_MS}
-      />
+      <PageBar title={SETTINGS.title} back={back} faceWaitMs={SETTINGS_READ_MS} />
       <main ref={column} className="pg-col" aria-busy={loaded === null}>
         {loaded === null ? (
           <Loading />

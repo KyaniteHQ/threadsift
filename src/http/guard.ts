@@ -3,10 +3,10 @@ import { bearerAuth } from "hono/bearer-auth";
 import { bodyLimit } from "hono/body-limit";
 import { csrf } from "hono/csrf";
 
-import { BODY_LIMIT_BYTES, ITEM_REQUEST_BYTES } from "../core/limits.ts";
+import { BODY_LIMIT_BYTES, ITEM_REQUEST_BYTES, RESULT_BODY_BYTES } from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
 import { verifyToken } from "../core/tokens.ts";
-import { isOwnerOnly, isPublic, requiredScope } from "./access-rules.ts";
+import { isOwnerOnly, isPublic, isTaskCallback, requiredScope } from "./access-rules.ts";
 import { ownerHasSession } from "./session-cookie.ts";
 import { requireScopes } from "./token-scopes.ts";
 
@@ -20,7 +20,14 @@ const itemCap = bodyLimit({
   onError: (c) => c.json({ error: "The request body is larger than 8 MiB" }, 413),
 });
 
+const resultCap = bodyLimit({
+  maxSize: RESULT_BODY_BYTES,
+  onError: (c) => c.json({ error: "The request body is larger than 256 KiB" }, 413),
+});
+
 function capFor(method: string, path: string): MiddlewareHandler {
+  if (isTaskCallback(method, path)) return resultCap;
+
   return method === "POST" && path === "/api/items" ? itemCap : bodyCap;
 }
 

@@ -1,10 +1,11 @@
 import { useCallback, useId, useState } from "react";
 
-import type { FilterCounts } from "../../src/core/item-filters.ts";
+import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import { READ_STATES, SOURCES, type ReadState, type Source } from "../../src/core/kinds.ts";
 import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
 import { type Choice, type Filters, NO_FILTERS, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
+import { NOTHING } from "./nothing.ts";
 import {
   ALL_NAMED,
   BLANK,
@@ -19,7 +20,7 @@ import {
 
 type Choose = (choice: Choice) => void;
 
-export type PanelCounts = Pick<FilterCounts, "sources" | "topics" | "tags"> &
+type PanelCounts = Pick<FilterCounts, "sources" | "topics" | "tags"> &
   Partial<Pick<FilterCounts, "reads">>;
 
 const sourceChoice = (value: Source | null): Choice => ({ facet: "source", value });
@@ -166,8 +167,6 @@ const UNLOADED_COUNTS: FilterCounts = {
   topics: [],
   tags: [],
 };
-
-const NOTHING = (): void => undefined;
 
 export function FilterGhost({
   collapsible,

@@ -1,3 +1,4 @@
+import { report } from "./failure-log.ts";
 import {
   type FetchPolicy,
   type GuardOutcome,
@@ -79,7 +80,7 @@ export async function requestApi(
   const until = limitedUntil(outcome.limit, Date.now(), attempts);
 
   await startCooldown(db, until, auth);
-  console.warn(JSON.stringify({ event: "github-rate-limited", limit: outcome.limit.kind, until }));
+  report("github-rate-limited", { limit: outcome.limit.kind, until });
 
   return { kind: "waiting", until, limited: true };
 }

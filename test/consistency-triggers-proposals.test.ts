@@ -4,13 +4,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import {
-  PIN_KINDS,
-  PROPOSAL_KINDS,
-  type PinKind,
-  PROPOSAL_STATES,
-  type ProposalKind,
-} from "../src/core/kinds.ts";
+import { PIN_KINDS, PROPOSAL_KINDS, type PinKind, type ProposalKind } from "../src/core/kinds.ts";
+import { LIFECYCLE } from "../src/core/proposal-lifecycle.ts";
 import { Instance } from "./instance.ts";
 import { paste } from "./related-fixtures.ts";
 
@@ -122,7 +117,7 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
   };
 
   for (const kind of PROPOSAL_KINDS) {
-    for (const state of PROPOSAL_STATES) proposalCases(kind, state);
+    for (const state of LIFECYCLE[kind].held) proposalCases(kind, state);
   }
 
   it("refuses a proposal with a kind or state the code does not list, on insert and on update", () => {

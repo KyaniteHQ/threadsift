@@ -98,7 +98,7 @@ async function fetchedOfOembed(
 }
 
 export async function fetchLink(
-  ports: Readonly<Pick<Ports, "db" | "ai" | "network" | "pages">>,
+  ports: Readonly<Pick<Ports, "db" | "secrets" | "network" | "pages">>,
   address: string,
   attempts: number,
   deadline: AbortSignal,

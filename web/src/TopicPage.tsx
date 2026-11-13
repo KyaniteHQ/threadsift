@@ -60,12 +60,7 @@ export function TopicPage({
 
   return (
     <div className="pg tp">
-      <PageBar
-        title={name}
-        back={back}
-        backLabel={TOPIC_PAGE.back}
-        ready={state.status !== "loading"}
-      />
+      <PageBar title={name} back={back} ready={state.status !== "loading"} />
       <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
         <Body
           state={state}

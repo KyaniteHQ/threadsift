@@ -2,7 +2,7 @@ import { useCallback } from "react";
 
 import type { RedditSettings } from "../../src/core/reddit-contract.ts";
 import { Alert } from "./Alert.tsx";
-import { type Loaded, LoadedSection } from "./LoadedSection.tsx";
+import type { SectionSpec } from "./LoadedSection.tsx";
 import { REDDIT_TEXT } from "./reddit-text.ts";
 import { useRedditForm } from "./use-reddit-form.ts";
 
@@ -88,15 +88,10 @@ const archiveFillForm = (view: RedditSettings, changed: (view: RedditSettings) =
   <ArchiveFillRow view={view} changed={changed} />
 );
 
-export function RedditSection({ initial }: Readonly<{ initial: Loaded<RedditSettings> }>) {
-  return (
-    <LoadedSection
-      id="reddit"
-      title={REDDIT_TEXT.sectionTitle}
-      intro={REDDIT_TEXT.intro}
-      loadFailed={REDDIT_TEXT.loadFailed}
-      initial={initial}
-      form={archiveFillForm}
-    />
-  );
-}
+export const REDDIT_SECTION: SectionSpec<RedditSettings> = {
+  id: "reddit",
+  title: REDDIT_TEXT.sectionTitle,
+  intro: REDDIT_TEXT.intro,
+  loadFailed: REDDIT_TEXT.loadFailed,
+  form: archiveFillForm,
+};

@@ -3,7 +3,7 @@ import { useCallback, useId } from "react";
 import { SCOPES, type Scope } from "../../src/core/kinds.ts";
 import { SETTINGS } from "./access-text.ts";
 
-export const SCOPE_LABELS = {
+const SCOPE_LABELS = {
   read: SETTINGS.scopeRead,
   add: SETTINGS.scopeAdd,
   digest: SETTINGS.scopeDigest,

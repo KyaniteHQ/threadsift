@@ -9,7 +9,7 @@ import {
   RESET_PATH,
   SETTINGS_PATH,
 } from "./routing.ts";
-import type { View } from "./use-session-view.ts";
+import type { View } from "./session-state.ts";
 
 const TITLES = {
   setup: "Set up Threadsift",

@@ -1,57 +1,59 @@
 import { useCallback, useEffect, useRef } from "react";
 
-import { type Session, fetchSession } from "./access-api.ts";
+import { fetchSession } from "./access-api.ts";
+import { UNREACHABLE, type SessionEvent, reduceSession, startSession } from "./session-state.ts";
 import { useSignedOutListener } from "./signed-out.ts";
-import { useScreenState } from "./use-screen-state.ts";
-
-export type View = Session | { readonly state: "loading" } | { readonly state: "unreachable" };
-
-const LOADING: View = { state: "loading" };
-const UNREACHABLE: View = { state: "unreachable" };
-const SIGNED_IN: View = { state: "signed-in" };
-const SIGNED_OUT: View = { state: "signed-out" };
+import { useFlow } from "./use-flow.ts";
 
 const CHECK_DEADLINE_MS = 10_000;
 
-async function readSession(
-  check: Readonly<AbortController>,
-  accept: (view: View) => void,
-): Promise<void> {
+async function readSession(check: Readonly<AbortController>) {
   try {
-    accept(
-      await fetchSession(AbortSignal.any([check.signal, AbortSignal.timeout(CHECK_DEADLINE_MS)])),
+    return await fetchSession(
+      AbortSignal.any([check.signal, AbortSignal.timeout(CHECK_DEADLINE_MS)]),
     );
   } catch {
-    accept(UNREACHABLE);
+    return UNREACHABLE;
   }
 }
 
+async function answer(check: Readonly<AbortController>, send: (event: SessionEvent) => boolean) {
+  send({ kind: "answer", check, view: await readSession(check) });
+}
+
 export function useSessionView() {
-  const [view, setView] = useScreenState<View>(LOADING);
-  const latest = useRef<AbortController | null>(null);
+  const [flow, send] = useFlow(reduceSession, startSession(), true);
+  const live = useRef<Readonly<AbortController> | null>(null);
 
   const refresh = useCallback(() => {
-    latest.current?.abort();
-
     const check = new AbortController();
-    latest.current = check;
 
-    void readSession(check, (next) => {
-      if (latest.current === check) setView(next);
-    });
-  }, [setView]);
+    live.current?.abort();
+    live.current = check;
+    send({ kind: "check", check });
+    void answer(check, send);
+  }, [send]);
+
+  useEffect(
+    () => () => {
+      live.current?.abort();
+    },
+    [],
+  );
 
   useEffect(refresh, [refresh]);
 
   const signedIn = useCallback(() => {
-    setView(SIGNED_IN);
-  }, [setView]);
+    live.current?.abort();
+    send({ kind: "signed-in" });
+  }, [send]);
 
   const signedOut = useCallback(() => {
-    setView(SIGNED_OUT);
-  }, [setView]);
+    live.current?.abort();
+    send({ kind: "signed-out" });
+  }, [send]);
 
   useSignedOutListener(signedOut);
 
-  return { view, refresh, signedIn, signedOut };
+  return { view: flow.view, refresh, signedIn, signedOut };
 }

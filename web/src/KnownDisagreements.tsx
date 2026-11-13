@@ -32,12 +32,7 @@ function Entry({
       <p className="tp-line" dir="auto">
         {disagreement.reason}
       </p>
-      <ul
-        // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from a ul with list-style none
-        role="list"
-        className="tp-dis-items"
-        aria-label={TOPIC_PAGE.disagreementsEntryLabel}
-      >
+      <ul role="list" className="tp-dis-items" aria-label={TOPIC_PAGE.disagreementsEntryLabel}>
         {disagreement.items.map((side) => (
           <SideLink key={side.id} side={side} navigate={navigate} />
         ))}
@@ -59,11 +54,7 @@ export function KnownDisagreements({
       <h2 id={headingId} className="label">
         {TOPIC_PAGE.disagreementsHeading}
       </h2>
-      <ul
-        // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics from a ul with list-style none
-        role="list"
-        className="tp-dis-list"
-      >
+      <ul role="list" className="tp-dis-list">
         {disagreements.map((disagreement) => (
           <Entry key={disagreement.id} disagreement={disagreement} navigate={navigate} />
         ))}

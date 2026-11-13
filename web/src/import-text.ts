@@ -1,12 +1,11 @@
 import type { CliProvider } from "../../src/core/ai-contract.ts";
 import { groupedNumber } from "../../src/core/format.ts";
 import type { SkipReason } from "../../src/core/import-list.ts";
-import { filled } from "./text.ts";
+import { RETRY_LABEL, filled } from "./text.ts";
 
 export const IMPORT = {
   settingsLink: "Import",
   title: "Import",
-  back: "Back to library",
   lede: "Paste one link per line, or choose a .csv or .txt file. A Reddit saved_posts.csv works as it is, and other CSV files can use a permalink or url column.",
   boxLabel: "Links",
   fileButton: "Choose file",
@@ -14,7 +13,7 @@ export const IMPORT = {
   noLinks: "No links found.",
   checking: "Checking this list…",
   checkFailed: "Couldn’t check whether this list was imported before.",
-  retry: "Try again",
+  retry: RETRY_LABEL,
   resumeComplete: "You already imported this whole list.",
   start: "Start import",
   resume: "Continue",

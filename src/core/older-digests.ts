@@ -3,8 +3,9 @@ import { and, asc, eq, gt, isNull, sql } from "drizzle-orm";
 import { parseStoredDigest } from "./ai-contract.ts";
 import { linkingDigest, pinnedCatalog } from "./catalog.ts";
 import { logFailure } from "./failure-log.ts";
+import { guardedBatch } from "./guards.ts";
 import type { Database } from "./ports.ts";
-import { catalogLinking, digests, guardedBatch, items } from "./schema.ts";
+import { catalogLinking, digests, items } from "./schema.ts";
 import { digestPartWrites } from "./search.ts";
 
 const OLDER_DIGEST_BATCH = 10;

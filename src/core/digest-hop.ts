@@ -3,6 +3,7 @@ import { loadAiConfig } from "./ai-settings.ts";
 import type { Fetched } from "./details.ts";
 import { type LinkedPage, cutDigestInput } from "./digest-prompt.ts";
 import { type DigestInput, staleOutcome } from "./digest-source.ts";
+import { report } from "./failure-log.ts";
 import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
 
@@ -64,16 +65,13 @@ function logHop(
   result: HopResult,
   startedAt: number,
 ): void {
-  console.warn(
-    JSON.stringify({
-      event: "digest-hop",
-      jobId: job.id,
-      itemId: item.id,
-      generation: item.generation,
-      result,
-      elapsedMs: Date.now() - startedAt,
-    }),
-  );
+  report("digest-hop", {
+    jobId: job.id,
+    itemId: item.id,
+    generation: item.generation,
+    result,
+    elapsedMs: Date.now() - startedAt,
+  });
 }
 
 async function linkedPageOf(

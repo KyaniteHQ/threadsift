@@ -1,15 +1,7 @@
-import {
-  type RefObject,
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { type RefObject, useCallback, useEffect, useId, useRef } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
+import { CLOSED, type DeleteEvent, type DeleteFlow, reduceDelete } from "./delete-flow.ts";
 import { Icon } from "./Icon.tsx";
 import { tabWrapTarget } from "./panel-dom.ts";
 import {
@@ -21,11 +13,9 @@ import {
   DELETE_PENDING,
   DELETE_TITLE,
 } from "./reader-text.ts";
+import { useFlow } from "./use-flow.ts";
 import { useAfter } from "./use-form.ts";
-
-type Step = "closed" | "asking" | "pending" | "failed";
-
-const NOTHING = (): void => undefined;
+import { useModalDialog } from "./use-modal-dialog.ts";
 
 const DELETE_WAIT_MS = 20_000;
 
@@ -44,52 +34,36 @@ function containTab(dialog: HTMLElement, signal: AbortSignal): void {
   );
 }
 
-function useModal(
+function useDeleteModal(
   dialog: RefObject<HTMLDialogElement | null>,
   first: RefObject<HTMLElement | null>,
-  { pending, cancel }: Readonly<{ pending: boolean; cancel: () => void }>,
+  step: Readonly<{ pending: boolean; cancel: () => void }>,
 ): void {
-  const refuse = useEffectEvent(() => {
-    if (!pending) cancel();
-  });
-
-  const restore = useEffectEvent(() => {
-    if (pending) dialog.current?.showModal();
-    else cancel();
-  });
-
-  useLayoutEffect(() => {
-    const element = dialog.current;
-
-    if (element === null) return NOTHING;
-
-    const listeners = new AbortController();
-    const { signal } = listeners;
-
+  useModalDialog(dialog, step, (element, signal, latest) => {
     element.addEventListener(
       "cancel",
       (event) => {
         event.preventDefault();
-        refuse();
+
+        const { pending, cancel } = latest();
+
+        if (!pending) cancel();
       },
       { signal },
     );
     element.addEventListener(
       "close",
       () => {
-        restore();
+        const { pending, cancel } = latest();
+
+        if (pending) dialog.current?.showModal();
+        else cancel();
       },
       { signal },
     );
     containTab(element, signal);
-    element.showModal();
     first.current?.focus();
-
-    return () => {
-      listeners.abort();
-      element.close();
-    };
-  }, [dialog, first]);
+  });
 }
 
 function useHoldFocus(dialog: RefObject<HTMLDialogElement | null>, pending: boolean): void {
@@ -125,13 +99,17 @@ function DeleteDialog({
   step,
   cancel,
   confirm,
-}: Readonly<{ step: Exclude<Step, "closed">; cancel: () => void; confirm: () => void }>) {
+}: Readonly<{
+  step: Exclude<DeleteFlow["kind"], "closed">;
+  cancel: () => void;
+  confirm: () => void;
+}>) {
   const dialog = useRef<HTMLDialogElement>(null);
   const first = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const textId = useId();
   const pending = step === "pending";
-  useModal(dialog, first, { pending, cancel });
+  useDeleteModal(dialog, first, { pending, cancel });
   useHoldFocus(dialog, pending);
 
   return (
@@ -163,48 +141,62 @@ function useReturnFocus(asking: boolean, trigger: RefObject<HTMLElement | null>)
   useEffect(() => {
     const button = trigger.current;
 
-    return asking
-      ? () => {
-          button?.focus();
-        }
-      : NOTHING;
+    return () => {
+      if (asking) button?.focus();
+    };
   }, [asking, trigger]);
+}
+
+async function settleDelete(
+  remove: () => Promise<void>,
+  attempt: number,
+  send: (event: DeleteEvent) => boolean,
+) {
+  try {
+    await remove();
+    send({ kind: "delete" });
+  } catch {
+    send({ kind: "refuse", attempt });
+  }
+}
+
+function useDeleteFlow(item: Item, remove: (item: Item) => Promise<void>) {
+  const [flow, send] = useFlow(reduceDelete, CLOSED);
+  const attempts = useRef(0);
+
+  const ask = useCallback(() => {
+    send({ kind: "ask" });
+  }, [send]);
+
+  const cancel = useCallback(() => {
+    send({ kind: "cancel" });
+  }, [send]);
+
+  const confirm = useCallback(() => {
+    const attempt = attempts.current + 1;
+
+    if (!send({ kind: "confirm", attempt })) return;
+
+    attempts.current = attempt;
+    void settleDelete(() => remove(item), attempt, send);
+  }, [item, remove, send]);
+
+  const timedOut = useCallback(() => {
+    send({ kind: "time-out" });
+  }, [send]);
+
+  useAfter(flow.kind === "pending", DELETE_WAIT_MS, timedOut);
+
+  return { flow, ask, cancel, confirm };
 }
 
 export function DeleteItem({
   item,
   remove,
 }: Readonly<{ item: Item; remove: (item: Item) => Promise<void> }>) {
-  const [step, setStep] = useState<Step>("closed");
+  const { flow, ask, cancel, confirm } = useDeleteFlow(item, remove);
   const trigger = useRef<HTMLButtonElement>(null);
-  useReturnFocus(step !== "closed", trigger);
-
-  const attempt = useRef(0);
-
-  const ask = useCallback(() => {
-    setStep("asking");
-  }, []);
-
-  const cancel = useCallback(() => {
-    attempt.current += 1;
-    setStep("closed");
-  }, []);
-
-  const confirm = useCallback(() => {
-    attempt.current += 1;
-
-    const mine = attempt.current;
-    setStep("pending");
-    remove(item).catch(() => {
-      if (attempt.current === mine) setStep("failed");
-    });
-  }, [item, remove]);
-
-  const timedOut = useCallback(() => {
-    setStep("failed");
-  }, []);
-
-  useAfter(step === "pending", DELETE_WAIT_MS, timedOut);
+  useReturnFocus(flow.kind !== "closed", trigger);
 
   return (
     <>
@@ -212,7 +204,9 @@ export function DeleteItem({
         <Icon name="trash" className="ic rd-del-ic" />
         <span className="rd-act-l">{DELETE_LABEL}</span>
       </button>
-      {step === "closed" ? null : <DeleteDialog step={step} cancel={cancel} confirm={confirm} />}
+      {flow.kind === "closed" ? null : (
+        <DeleteDialog step={flow.kind} cancel={cancel} confirm={confirm} />
+      )}
     </>
   );
 }

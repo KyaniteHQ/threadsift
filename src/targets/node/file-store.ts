@@ -8,6 +8,8 @@ import {
   TEMPORARY_BYTES,
   type FileKey,
   isItemId,
+  itemFileKey,
+  itemFilesPrefix,
   parseStoredKey,
   requireFileKey,
   requireStoredKey,
@@ -112,7 +114,7 @@ class FileFolder {
     try {
       return (await readdir(this.path("items", itemId), { withFileTypes: true }))
         .filter((entry) => entry.isFile())
-        .map((entry) => `items/${itemId}/${entry.name}`)
+        .map((entry) => itemFileKey(itemId, entry.name))
         .filter((key) => parseStoredKey(key) !== null)
         .toSorted();
     } catch (error) {
@@ -148,7 +150,7 @@ class FileFolder {
     if (!(await this.hasFolders(itemId))) return [];
 
     const itemIds = (await this.itemIds(itemId)).filter(
-      (id) => cursor === null || !endsBefore(`items/${id}/`, cursor),
+      (id) => cursor === null || !endsBefore(itemFilesPrefix(id), cursor),
     );
 
     return this.keysFrom(itemIds, cursor, limit);

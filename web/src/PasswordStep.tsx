@@ -10,7 +10,7 @@ import { SwapButton } from "./SwapButton.tsx";
 import { type FieldState, useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
 import { useOutcome } from "./use-outcome.ts";
 
-export interface PasswordStepProps {
+interface PasswordStepProps {
   readonly code: string;
   readonly go: GoTo;
   readonly exists: () => void;

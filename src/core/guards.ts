@@ -19,6 +19,8 @@ function guardRows(db: Database, condition: Readonly<SQLWrapper>) {
     .where(sql`${condition}`);
 }
 
+export const DATABASE_NOW = sql<number>`cast((julianday('now') - 2440587.5) * 86400000 as integer)`;
+
 export function holdsNoRow(db: Database, table: SQLiteTable, matching: Readonly<SQLWrapper>) {
   return notExists(
     db
@@ -40,10 +42,9 @@ export async function guardHolds(db: Database, condition: Readonly<SQLWrapper>):
 
 const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)/u;
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction, and this function reduces it to whether a guard check failed.
-export function refusedByGuard(error: unknown): boolean {
-  for (let cause = error; cause instanceof Error; cause = cause.cause) {
-    if (GUARD_REFUSED.test(cause.message)) return true;
+export function refusedByGuard(cause: unknown): boolean {
+  for (let link = cause; link instanceof Error; link = link.cause) {
+    if (GUARD_REFUSED.test(link.message)) return true;
   }
 
   return false;
@@ -52,10 +53,9 @@ export function refusedByGuard(error: unknown): boolean {
 async function rethrowUnlessRefused(
   db: Database,
   condition: Readonly<SQLWrapper>,
-  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a catch variable is unparsed by construction.
-  error: unknown,
+  cause: unknown,
 ): Promise<void> {
-  if (!refusedByGuard(error) || (await guardHolds(db, condition))) throw error;
+  if (!refusedByGuard(cause) || (await guardHolds(db, condition))) throw cause;
 }
 
 export async function guardedResults(

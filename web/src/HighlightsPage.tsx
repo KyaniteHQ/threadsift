@@ -34,7 +34,7 @@ export function HighlightsPage({
 
   return (
     <div className="pg hp">
-      <PageBar title={HIGHLIGHTS_PAGE.title} back={back} backLabel={HIGHLIGHTS_PAGE.back} />
+      <PageBar title={HIGHLIGHTS_PAGE.title} back={back} />
       <main className="pg-col hp-col" aria-busy={state.status === "loading"}>
         <HighlightsTools
           state={state}

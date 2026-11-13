@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { LIFECYCLE } from "../src/core/proposal-lifecycle.ts";
 import type { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import { type OlderRelease, startOlderRelease } from "./older-release.ts";
@@ -212,10 +213,10 @@ describe("the overview-gap migration on a database made by the release before it
     database.close();
   });
 
-  it("updates a row to every state and removes it with its Topic", () => {
+  it("updates a row to every state it holds and removes it with its Topic", () => {
     const database = sqlite();
 
-    for (const state of ["accepting", "rejected", "declined", "open"]) {
+    for (const state of LIFECYCLE["overview-gap"].held) {
       assert.doesNotThrow(() => {
         database.exec(`update proposals set state = '${state}' where topic_id = 1`);
       });

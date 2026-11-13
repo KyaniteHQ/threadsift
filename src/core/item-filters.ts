@@ -1,6 +1,7 @@
 import { type SQL, and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { catalogKey } from "./catalog-key.ts";
+import type { CountedName, FilterCounts } from "./filter-counts-contract.ts";
 import type { ReadState, Source } from "./kinds.ts";
 import { READ_STATES, SOURCES } from "./kinds.ts";
 import { parseLink } from "./links.ts";
@@ -25,21 +26,6 @@ export interface TypedFilters {
   readonly topic?: string | undefined;
   readonly tag?: string | undefined;
   readonly url?: string | undefined;
-}
-
-export interface CountedName {
-  readonly key: string;
-  readonly name: string;
-  readonly count: number;
-}
-
-export interface FilterCounts {
-  readonly total: number;
-  readonly unread: number;
-  readonly sources: readonly { readonly key: Source; readonly count: number }[];
-  readonly reads: readonly { readonly key: ReadState; readonly count: number }[];
-  readonly topics: readonly CountedName[];
-  readonly tags: readonly CountedName[];
 }
 
 type Facet = "source" | "read" | "topic" | "tag";

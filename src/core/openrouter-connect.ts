@@ -1,15 +1,15 @@
 import { and, eq, gt, lte, notExists, or, sql } from "drizzle-orm";
 
-import { loadAiConfig } from "./ai-settings.ts";
 import { base64url, digestOf, randomSecret } from "./encoding.ts";
+import { DATABASE_NOW, guardedBatch } from "./guards.ts";
 import {
   CONNECT_CALLBACK_PATH,
   CONNECT_LIFETIME_MS,
   type ConnectStartInput,
 } from "./openrouter-contract.ts";
-import { CURRENT_REVISION, DATABASE_NOW } from "./openrouter-tables.ts";
+import { CURRENT_REVISION } from "./openrouter-tables.ts";
 import type { Database, Ports } from "./ports.ts";
-import { guardedBatch, openrouterConnectTransactions, sessions } from "./schema.ts";
+import { openrouterConnectTransactions, sessions } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
 
 const AUTHORIZATION_URL = "https://openrouter.ai/auth";
@@ -38,11 +38,9 @@ export async function startOpenRouterConnect(
   { sessionId, model, revision }: Readonly<ConnectStartInput & { sessionId: string }>,
 ): Promise<StartResult> {
   const { publicOrigin: origin, crypto } = ports;
-  const sealer = ports.ai.secrets;
-  const loaded = await loadAiConfig(ports);
+  const sealer = ports.secrets;
 
-  if (origin === null || sealer === null || loaded.state === "secret-missing")
-    return { kind: "unavailable" };
+  if (origin === null || sealer === null) return { kind: "unavailable" };
 
   const state = randomSecret(crypto, RANDOM_BYTES);
   const verifier = randomSecret(crypto, RANDOM_BYTES);
