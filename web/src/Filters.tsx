@@ -6,6 +6,7 @@ import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
 import { type Choice, type Filters, NO_FILTERS, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import {
+  ALL_NAMED,
   BLANK,
   CLEAR_FILTERS,
   FILTERS_BUTTON,
@@ -25,7 +26,7 @@ const sourceChoice = (value: Source | null): Choice => ({ facet: "source", value
 const readChoice = (value: ReadState | null): Choice => ({ facet: "read", value });
 
 function FacetSegments<Key extends string>({
-  name,
+  facet,
   wrap,
   bar,
   counts,
@@ -34,7 +35,7 @@ function FacetSegments<Key extends string>({
   choice,
   choose,
 }: Readonly<{
-  name: string;
+  facet: "source" | "read";
   wrap: boolean;
   bar: boolean;
   counts: readonly { readonly key: Key; readonly count: number }[];
@@ -52,11 +53,14 @@ function FacetSegments<Key extends string>({
 
   return (
     <Segments
-      name={name}
+      name={FILTER_GROUPS[facet]}
       wrap={wrap}
       bar={bar}
       chosen={chosen}
-      segments={withAll(counts.map(({ key, count }) => ({ key, label: labels[key], count })))}
+      segments={withAll(
+        counts.map(({ key, count }) => ({ key, label: labels[key], count })),
+        ALL_NAMED[facet],
+      )}
       pick={pick}
     />
   );
@@ -122,7 +126,7 @@ function Panel({
   return (
     <div id={id} className="fl-panel">
       <FacetSegments
-        name={FILTER_GROUPS.source}
+        facet="source"
         wrap
         bar={bar}
         counts={counts.sources}
@@ -133,7 +137,7 @@ function Panel({
       />
       {counts.reads === undefined ? null : (
         <FacetSegments
-          name={FILTER_GROUPS.read}
+          facet="read"
           wrap={false}
           bar={bar}
           counts={counts.reads}
