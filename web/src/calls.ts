@@ -3,7 +3,7 @@ import type { ZodType } from "zod";
 import type { CreateHighlightRequest } from "../../src/core/highlight-contract.ts";
 import type { ImportRequest } from "../../src/core/import-list.ts";
 import type { ChangeBudgetRequest, CreateTokenRequest } from "../../src/http/schemas.ts";
-import { announceSignedOut } from "./signed-out.ts";
+import { announceUnauthorized } from "./unauthorized.ts";
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -37,7 +37,7 @@ export async function call(
   const response = await fetch(path, signal === undefined ? init : { ...init, signal });
 
   if (signsOut && response.status === 401) {
-    announceSignedOut();
+    announceUnauthorized();
   }
 
   return response;

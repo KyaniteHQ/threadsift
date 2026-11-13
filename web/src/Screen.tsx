@@ -9,7 +9,7 @@ import type { Look } from "./use-root.ts";
 interface SessionActions {
   readonly refresh: () => void;
   readonly signedIn: () => void;
-  readonly signedOut: () => void;
+  readonly loggedOut: () => void;
 }
 
 export function Screen({
@@ -35,7 +35,7 @@ export function Screen({
         look={look}
         arrived={arrived}
         route={route}
-        signedOut={session.signedOut}
+        loggedOut={session.loggedOut}
       />
     );
   }
