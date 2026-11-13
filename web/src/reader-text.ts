@@ -1,5 +1,5 @@
 import { groupedNumber } from "../../src/core/format.ts";
-import type { Kind, ReadState, Source } from "../../src/core/kinds.ts";
+import type { Kind, Source } from "../../src/core/kinds.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
 import { collapsedText } from "./collapsed-text.ts";
 import type { CommentCounts } from "./comment-counts.ts";
@@ -11,8 +11,6 @@ export const MARK_READ = "Mark read";
 export const MARK_UNREAD = "Mark unread";
 export const ROW_MARK_READ = "Mark as read";
 export const ROW_MARK_UNREAD = "Mark as unread";
-const ROW_MARK_READ_NAMED = "Mark {title} as read";
-const ROW_MARK_UNREAD_NAMED = "Mark {title} as unread";
 export const MARKED_READ = "Marked as read";
 export const MARKED_UNREAD = "Marked as unread";
 export const READ_FAILED = "Couldn’t change this item’s read state.";
@@ -145,10 +143,6 @@ export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: numb
   };
 
   return filled(rereferenceIndex > 1 ? FOOTNOTE_BACK_AGAIN : FOOTNOTE_BACK, values);
-}
-
-export function rowToggleName(readState: ReadState, title: string): string {
-  return filled(readState === "unread" ? ROW_MARK_READ_NAMED : ROW_MARK_UNREAD_NAMED, { title });
 }
 
 export function removeNamed(exact: string): string {

@@ -3,8 +3,8 @@ import { type RefObject, memo, useCallback, useEffect, useId, useRef, useState }
 import { itemPath } from "../../src/core/item-path.ts";
 import { shownUrl } from "../../src/core/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import { Meta, Status } from "./ItemRowParts.tsx";
-import { ROW_MARK_READ, ROW_MARK_UNREAD, rowToggleName } from "./reader-text.ts";
+import { Meta, type RowIds, Status, controlName, linkName, rowIds } from "./ItemRowParts.tsx";
+import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
 import { revealInPane } from "./reveal.ts";
 import { useInternalLink } from "./routing.ts";
 
@@ -75,26 +75,28 @@ function useAttention(
   }, [attended, attention, link, row]);
 }
 
-function rowName(item: Readonly<Item>): string {
-  return item.digestTitle ?? item.title ?? shownUrl(item.normalizedUrl);
-}
-
-function ReadDot({ item, toggleRead }: Readonly<{ item: Item; toggleRead: (item: Item) => void }>) {
+function ReadDot({
+  item,
+  ids,
+  toggleRead,
+}: Readonly<{ item: Item; ids: RowIds; toggleRead: (item: Item) => void }>) {
   const toggle = useCallback(() => {
     toggleRead(item);
   }, [item, toggleRead]);
 
   const label = item.readState === "unread" ? ROW_MARK_READ : ROW_MARK_UNREAD;
-  const name = rowToggleName(item.readState, rowName(item));
 
   return (
     <button
       type="button"
       className="it-dot"
-      aria-label={name}
+      aria-labelledby={controlName(ids.read, ids)}
       title={`${label} (m)`}
       onClick={toggle}
     >
+      <span id={ids.read} className="vh">
+        {label}
+      </span>
       <i />
     </button>
   );
@@ -102,13 +104,13 @@ function ReadDot({ item, toggleRead }: Readonly<{ item: Item; toggleRead: (item:
 
 function RowTitle({
   item,
-  id,
+  ids,
   link,
   isOpen,
   open,
 }: Readonly<{
   item: Item;
-  id: string;
+  ids: RowIds;
   link: RefObject<HTMLAnchorElement | null>;
   isOpen: boolean;
   open: (id: number) => void;
@@ -122,10 +124,12 @@ function RowTitle({
   const title = item.digestTitle ?? item.title;
 
   return (
-    <h2 id={id} className="it-title">
+    <h2 id={ids.title} className="it-title" aria-labelledby={ids.title}>
       <a
         ref={link}
+        id={ids.open}
         className="it-open"
+        aria-labelledby={linkName(ids)}
         href={itemPath(item.id)}
         aria-current={isOpen ? "true" : undefined}
         onClick={choose}
@@ -159,18 +163,18 @@ export const ItemRow = memo(function ItemRow({
 }>) {
   const row = useRef<HTMLElement>(null);
   const link = useRef<HTMLAnchorElement>(null);
-  const titleId = useId();
+  const ids = rowIds(useId());
   const [broken, setBroken] = useState<string | null>(null);
   const image = shownImage(item, cardImages, broken);
   useAttention(row, link, attention, attended);
 
   return (
     <article ref={row} className={rowClasses(item, isOpen, image !== null)} data-key={item.id}>
-      <ReadDot item={item} toggleRead={toggleRead} />
-      <Meta item={item} now={now} />
-      <RowTitle item={item} id={titleId} link={link} isOpen={isOpen} open={open} />
+      <ReadDot item={item} ids={ids} toggleRead={toggleRead} />
+      <Meta item={item} now={now} id={ids.meta} />
+      <RowTitle item={item} ids={ids} link={link} isOpen={isOpen} open={open} />
       {image === null ? null : <CardImage image={image} broke={setBroken} />}
-      <Status item={item} describedBy={titleId} tryAgain={tryAgain} />
+      <Status item={item} ids={ids} tryAgain={tryAgain} />
     </article>
   );
 });

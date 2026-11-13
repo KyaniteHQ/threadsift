@@ -5,7 +5,7 @@ import type { FailureReason, ReadState, Source } from "../../src/core/kinds.ts";
 
 export function filled(template: string, values: Readonly<Record<string, string>>): string {
   return Object.entries(values).reduce(
-    (text, [key, value]) => text.replaceAll(`{${key}}`, value),
+    (text, [key, value]) => text.replaceAll(`{${key}}`, () => value),
     template,
   );
 }
@@ -153,8 +153,8 @@ export const FILTER_GROUPS = {
 export const ALL_CHOICE = "All";
 
 export const ALL_NAMED = {
-  source: "All {count} items from all sources",
-  read: "All {count} items in all read states",
+  source: "All {count} from all sources",
+  read: "All {count} in all read states",
 } as const;
 
 export const READ_LABELS: Readonly<Record<ReadState, string>> = {
