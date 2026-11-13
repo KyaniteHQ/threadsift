@@ -1,42 +1,17 @@
-import { type RefObject, useCallback, useRef, useState } from "react";
+import { type RefObject, useCallback, useRef } from "react";
 
 import type { Token } from "../../src/http/schemas.ts";
 import { revokeToken } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
+import { START, askedId, reduceRevoke } from "./token-revoke.ts";
 import { TokenRow } from "./TokenRow.tsx";
+import { useFlow } from "./use-flow.ts";
 
-function useQuestion() {
-  const [asking, setAsking] = useState<number | null>(null);
-  const [focusId, setFocusId] = useState<number | null>(null);
-  const [failed, setFailed] = useState(false);
-  const generation = useRef(0);
+function neighbourOf(tokens: readonly Token[], id: number): number | null {
+  const index = tokens.findIndex((token) => token.id === id);
 
-  const ask = useCallback((id: number) => {
-    generation.current += 1;
-    setFailed(false);
-    setAsking(id);
-  }, []);
-
-  const cancel = useCallback((id: number) => {
-    generation.current += 1;
-    setFailed(false);
-    setAsking(null);
-    setFocusId(id);
-  }, []);
-
-  const answered = useCallback((id: number, next: number | null) => {
-    generation.current += 1;
-    setFailed(false);
-    setAsking((current) => (current === id ? null : current));
-    setFocusId(next);
-  }, []);
-
-  const refused = useCallback((question: number) => {
-    if (generation.current === question) setFailed(true);
-  }, []);
-
-  return { asking, focusId, failed, generation, refused, ask, cancel, answered };
+  return (tokens[index + 1] ?? tokens[index - 1])?.id ?? null;
 }
 
 function useRevoke(
@@ -44,44 +19,50 @@ function useRevoke(
   removed: (id: number) => void,
   nameField: RefObject<HTMLInputElement | null>,
 ) {
-  const { asking, focusId, failed, generation, refused, ask, cancel, answered } = useQuestion();
-  const [revoking, setRevoking] = useState(false);
-  const inFlight = useRef(false);
+  const [flow, send] = useFlow(reduceRevoke, START);
+  const requests = useRef(0);
+
+  const ask = useCallback(
+    (id: number) => {
+      send({ kind: "ask", id });
+    },
+    [send],
+  );
+
+  const cancel = useCallback(
+    (id: number) => {
+      send({ kind: "cancel", id });
+    },
+    [send],
+  );
 
   const revoke = useCallback(
     async (id: number) => {
-      if (inFlight.current) return;
+      const request = requests.current + 1;
 
-      inFlight.current = true;
-      setRevoking(true);
+      if (!send({ kind: "begin", id, request })) return;
 
-      const question = generation.current;
+      requests.current = request;
 
-      const index = tokens.findIndex((token) => token.id === id);
-      const neighbour = tokens[index + 1] ?? tokens[index - 1];
+      const next = neighbourOf(tokens, id);
 
       try {
         await revokeToken(id);
       } catch {
-        refused(question);
+        send({ kind: "refuse", id, request });
 
         return;
-      } finally {
-        inFlight.current = false;
-        setRevoking(false);
       }
 
       removed(id);
-      answered(id, neighbour?.id ?? null);
+      send({ kind: "revoked", id, request, next });
 
-      if (neighbour === undefined) {
-        nameField.current?.focus();
-      }
+      if (next === null) nameField.current?.focus();
     },
-    [answered, generation, nameField, refused, removed, tokens],
+    [nameField, removed, send, tokens],
   );
 
-  return { asking, focusId, failed, revoking, actions: { ask, cancel, revoke } };
+  return { flow, actions: { ask, cancel, revoke } };
 }
 
 export function TokenList({
@@ -93,11 +74,13 @@ export function TokenList({
   removed: (id: number) => void;
   nameField: RefObject<HTMLInputElement | null>;
 }>) {
-  const { asking, focusId, failed, revoking, actions } = useRevoke(tokens, removed, nameField);
+  const { flow, actions } = useRevoke(tokens, removed, nameField);
+  const asking = askedId(flow);
+  const focusId = flow.kind === "idle" ? flow.focus : null;
 
   return (
     <>
-      <Alert text={failed ? SETTINGS.revokeFailed : null} />
+      <Alert text={flow.kind === "failed" ? SETTINGS.revokeFailed : null} />
       {tokens.length === 0 ? null : (
         <ul className="toks">
           {tokens.map((token) => (
@@ -105,7 +88,7 @@ export function TokenList({
               key={token.id}
               token={token}
               asking={asking === token.id}
-              revoking={revoking}
+              revoking={flow.kind === "revoking"}
               focusRevoke={focusId === token.id}
               actions={actions}
             />

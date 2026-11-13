@@ -79,7 +79,7 @@ function GithubForm({
         />
         <p>{TOKEN_STATES[view.token]}</p>
         {form.blocked.save ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
-        <SettingsActions busy={form.busy} current={form.action} buttons={form.buttons} />
+        <SettingsActions flow={form.flow} buttons={form.buttons} />
       </form>
       <output>{form.result?.kind === "ok" ? form.result.text : null}</output>
       <Alert text={form.result?.kind === "error" ? form.result.text : null} />

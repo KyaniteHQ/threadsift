@@ -35,8 +35,7 @@ function useMoveFocus(focus: Readonly<Focus>, done: () => void) {
 }
 
 export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: () => void }>) {
-  const { source, pending, failed, busy, announcement, notice, focus, focused, press } =
-    useProposalsPage();
+  const { source, rowFor, announcement, notice, focus, focused, press } = useProposalsPage();
 
   useMoveFocus(focus, focused);
 
@@ -48,9 +47,7 @@ export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: ()
         key={proposal.id}
         proposal={proposal}
         overviewFollows={overviewFollows}
-        pending={pending.has(proposal.id)}
-        failure={failed.get(proposal.id)}
-        busy={busy.get(proposal.id)}
+        row={rowFor(proposal.id)}
         accept={press.accept}
         reject={press.reject}
         open={pages.highlight}
@@ -58,7 +55,7 @@ export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: ()
         openItem={pages.item}
       />
     ),
-    [pending, failed, busy, overviewFollows, press, pages],
+    [rowFor, overviewFollows, press, pages],
   );
 
   return (

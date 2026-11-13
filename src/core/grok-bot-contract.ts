@@ -38,11 +38,18 @@ export const GrokBotInputSchema = z.object({
 
 export type GrokBotInput = z.infer<typeof GrokBotInputSchema>;
 
-export const GrokBotViewSchema = z.object({
-  configured: z.boolean(),
-  webhookUrl: z.string().nullable(),
-  key: z.enum(["none", "usable", "unreadable", "missing"]),
-});
+export const GrokBotViewSchema = z.discriminatedUnion("configured", [
+  z.object({
+    configured: z.literal(false),
+    webhookUrl: z.null(),
+    key: z.enum(["none", "missing"]),
+  }),
+  z.object({
+    configured: z.literal(true),
+    webhookUrl: z.string(),
+    key: z.enum(["usable", "unreadable", "missing"]),
+  }),
+]);
 
 export type GrokBotView = z.infer<typeof GrokBotViewSchema>;
 

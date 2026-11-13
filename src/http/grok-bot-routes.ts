@@ -9,10 +9,8 @@ import {
 } from "../core/grok-bot-contract.ts";
 import { pingGrokBot, readGrokBot, removeGrokBot, saveGrokBot } from "../core/grok-bot.ts";
 import type { Ports } from "../core/ports.ts";
-import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
+import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
-
-const NO_CONTENT = 204;
 
 const readRoute = createRoute({
   method: "get",
@@ -45,7 +43,10 @@ const removeRoute = createRoute({
   method: "delete",
   path: "/api/settings/grok-bot",
   responses: {
-    204: noContent("The settings are removed. Removing when none are set also succeeds."),
+    200: jsonBody(
+      GrokBotViewSchema,
+      "The settings after they are removed. Removing when none are set also succeeds.",
+    ),
   },
 });
 
@@ -79,11 +80,7 @@ export function registerGrokBotRoutes(app: OpenAPIHono, ports: Ports): void {
       }
     }
   });
-  app.openapi(removeRoute, async (c) => {
-    await removeGrokBot(ports);
-
-    return c.body(null, NO_CONTENT);
-  });
+  app.openapi(removeRoute, async (c) => c.json(await removeGrokBot(ports), 200));
   app.openapi(testRoute, async (c) =>
     c.json({ result: await pingGrokBot(ports, c.req.raw.signal) }, 200),
   );
