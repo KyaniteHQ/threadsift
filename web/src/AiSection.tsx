@@ -67,6 +67,7 @@ function AiActions({
 const KEY_STATUS = {
   applies: AI_TEXT.keySet,
   changed: AI_TEXT.keyChanged,
+  unreadable: AI_TEXT.keyUnreadable,
   none: AI_TEXT.keyMissing,
 } as const;
 
@@ -127,7 +128,7 @@ function AiControls({ view, form }: Readonly<{ view: AiView; form: Form }>) {
         fields={fields}
         disabled={phase !== "idle"}
         publicOnly={view.publicOnly}
-        keyRequired={savedKey !== "applies"}
+        savedKey={savedKey}
       />
       <ProviderNotes
         view={view}

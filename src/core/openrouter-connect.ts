@@ -1,6 +1,5 @@
 import { and, eq, gt, lte, notExists, or, sql } from "drizzle-orm";
 
-import { loadAiConfig } from "./ai-settings.ts";
 import { base64url, digestOf, randomSecret } from "./encoding.ts";
 import { guardedBatch } from "./guards.ts";
 import {
@@ -40,10 +39,8 @@ export async function startOpenRouterConnect(
 ): Promise<StartResult> {
   const { publicOrigin: origin, crypto } = ports;
   const sealer = ports.secrets;
-  const loaded = await loadAiConfig(ports);
 
-  if (origin === null || sealer === null || loaded.state === "secret-missing")
-    return { kind: "unavailable" };
+  if (origin === null || sealer === null) return { kind: "unavailable" };
 
   const state = randomSecret(crypto, RANDOM_BYTES);
   const verifier = randomSecret(crypto, RANDOM_BYTES);
