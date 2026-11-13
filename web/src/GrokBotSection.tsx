@@ -92,7 +92,7 @@ function GrokBotForm({
           keyField={form.key}
           keyRequired={form.keyRequired}
         />
-        <SettingsActions busy={form.busy} current={form.action} buttons={form.buttons} />
+        <SettingsActions flow={form.flow} buttons={form.buttons} />
         <p className="fld-help">{GROK_BOT_TEXT.testCost}</p>
       </form>
       <output>{form.result?.kind === "ok" ? form.result.text : null}</output>

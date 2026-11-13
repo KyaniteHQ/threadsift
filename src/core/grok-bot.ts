@@ -56,11 +56,13 @@ async function loadStored(ports: Readonly<GrokBotPorts>): Promise<Stored | null>
 }
 
 function viewOf(secretReady: boolean, stored: Readonly<Stored> | null): GrokBotView {
-  const webhookUrl = stored?.row.webhookUrl ?? null;
+  if (stored === null) {
+    return { configured: false, webhookUrl: null, key: secretReady ? "none" : "missing" };
+  }
 
-  if (!secretReady) return { configured: stored !== null, webhookUrl, key: "missing" };
+  const { webhookUrl } = stored.row;
 
-  if (stored === null) return { configured: false, webhookUrl, key: "none" };
+  if (!secretReady) return { configured: true, webhookUrl, key: "missing" };
 
   return { configured: true, webhookUrl, key: stored.key === null ? "unreadable" : "usable" };
 }
@@ -127,8 +129,10 @@ export async function saveGrokBot(
   return saveGrokBot(ports, input, attemptsLeft - 1);
 }
 
-export async function removeGrokBot(ports: Readonly<GrokBotPorts>): Promise<void> {
+export async function removeGrokBot(ports: Readonly<GrokBotPorts>): Promise<GrokBotView> {
   await ports.db.delete(grokBotSettings).where(eq(grokBotSettings.id, 1));
+
+  return viewOf(ports.ai.secrets !== null, null);
 }
 
 export function resultOfStatus(status: number): GrokBotResult {

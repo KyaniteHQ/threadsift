@@ -1,22 +1,15 @@
 import { SwapButton } from "./SwapButton.tsx";
-
-export interface ActionButton<Action extends string> {
-  readonly action: Action;
-  readonly label: string;
-  readonly busyLabel: string;
-  readonly blocked: boolean;
-  readonly onClick?: () => void;
-}
+import { type ActionButton, type ActionFlow, runningAction } from "./use-settings-action.ts";
 
 export function SettingsActions<Action extends string>({
-  busy,
-  current,
+  flow,
   buttons,
 }: Readonly<{
-  busy: boolean;
-  current: Action | null;
+  flow: ActionFlow<Action>;
   buttons: readonly ActionButton<Action>[];
 }>) {
+  const current = runningAction(flow);
+
   return (
     <div className="ai-actions">
       {buttons.map(({ action, label, busyLabel, blocked, onClick }) => (
@@ -24,8 +17,8 @@ export function SettingsActions<Action extends string>({
           key={action}
           label={label}
           busyLabel={busyLabel}
-          busy={busy && current === action}
-          blocked={busy || blocked}
+          busy={current === action}
+          blocked={current !== null || blocked}
           type={onClick === undefined ? "submit" : "button"}
           onClick={onClick}
           secondary={onClick !== undefined}
