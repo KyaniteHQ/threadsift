@@ -4,9 +4,9 @@ import { WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
 import { proposalRow, removedOpen } from "./proposal-lifecycle.ts";
+import { claimedAt, claimingWeek } from "./scheduled-claim.ts";
 import { proposals, topics } from "./schema.ts";
 import { overviewGap, uncoveredCount } from "./topic-coverage.ts";
-import { claimedAt, claimingWeek } from "./weekly-claim.ts";
 
 const PLAIN_CHECK = "plain-check";
 

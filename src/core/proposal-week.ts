@@ -7,8 +7,8 @@ import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows, opening } from "./job-rows.ts";
 import { type MergeKind, PROPOSAL_KINDS, type ProposalKind, WEEKLY_TASK } from "./kinds.ts";
 import { proposeOverviewGaps } from "./overview-proposals.ts";
+import { NEWEST_DIGESTED_ITEM, claimingWeek } from "./scheduled-claim.ts";
 import { items } from "./schema.ts";
-import { NEWEST_DIGESTED_ITEM, claimingWeek } from "./weekly-claim.ts";
 
 type ModelRunKind = MergeKind | "items-disagree";
 

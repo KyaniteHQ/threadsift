@@ -6,8 +6,8 @@ import { WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
 import { proposalRow, removedOpen } from "./proposal-lifecycle.ts";
+import { claimedAt, claimingWeek } from "./scheduled-claim.ts";
 import { highlights, proposals } from "./schema.ts";
-import { claimedAt, claimingWeek } from "./weekly-claim.ts";
 
 type LostHighlightAcceptance = "done" | "unknown" | "not-open" | "not-current";
 
