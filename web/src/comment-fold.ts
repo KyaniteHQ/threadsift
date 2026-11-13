@@ -4,7 +4,7 @@ import { pixelsOf } from "./css-length.ts";
 
 const FOLD_OVER_LINES = 8;
 
-export type CommentFold = "none" | "tall" | "long";
+type CommentFold = "none" | "tall" | "long";
 
 function foldOf(box: HTMLElement): CommentFold {
   const line = pixelsOf(getComputedStyle(box.querySelector(".md") ?? box).lineHeight);

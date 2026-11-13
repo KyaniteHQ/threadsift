@@ -1,20 +1,13 @@
-import {
-  type Dispatch,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from "react";
 
 import type { Overview, TopicItem, TopicPage } from "../../src/core/topic-overview-contract.ts";
 import { fetchTopicPage, retryTopicOverview } from "./api.ts";
-import type { More } from "./LoadMore.tsx";
+import { type More, newer } from "./list-paging.ts";
 import type { Route } from "./routing.ts";
 import { useLatest } from "./use-latest.ts";
 import { usePolling } from "./use-polling.ts";
 import { useSurvivorAddress } from "./use-survivor-address.ts";
+import { type Ticket, useTicket } from "./use-ticket.ts";
 
 export interface TopicReady {
   readonly status: "ready";
@@ -61,10 +54,6 @@ function refreshed(now: TopicReady, page: Readonly<TopicPage>): TopicReady {
   };
 }
 
-function newer(a: Readonly<TopicItem>, b: Readonly<TopicItem>): boolean {
-  return a.savedAt > b.savedAt || (a.savedAt === b.savedAt && a.id > b.id);
-}
-
 async function readThrough(
   key: string,
   last: Readonly<TopicItem> | undefined,
@@ -103,33 +92,12 @@ function appended(now: TopicState, page: Readonly<TopicPage> | null): TopicState
 
 type SetState = Dispatch<SetStateAction<TopicState>>;
 
-interface Ticket {
-  readonly take: () => number;
-  readonly now: () => number;
-}
-
-function useTicket(): Ticket {
-  const count = useRef(0);
-
-  return useMemo(
-    () => ({
-      take: () => {
-        count.current += 1;
-
-        return count.current;
-      },
-      now: () => count.current,
-    }),
-    [],
-  );
-}
-
 function useFirstRead(key: string, setState: SetState, ticket: Ticket) {
   return useCallback(async () => {
     const mine = ticket.take();
     const read = await attempt(key, null);
 
-    if (ticket.now() !== mine) return;
+    if (!ticket.matches(mine)) return;
 
     if (read === null) setState(FAILED);
     else setState(read.outcome === "missing" ? MISSING : readyFrom(read.page));
@@ -151,7 +119,7 @@ function useLoadMore(
     setState({ ...current, more: "loading" });
 
     void attempt(key, current.next).then((read) => {
-      if (ticket.now() === mine) {
+      if (ticket.matches(mine)) {
         setState((now) => appended(now, read?.outcome === "found" ? read.page : null));
       }
 
@@ -188,7 +156,7 @@ function useOverviewPoll(
 
     const page = await freshRead(key, loaded.items.at(-1));
 
-    if (page !== null && ticket.now() === mine) {
+    if (page !== null && ticket.matches(mine)) {
       setState((now) => applyRefresh(now, { page, loaded }));
     }
   });

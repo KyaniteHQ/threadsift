@@ -2,7 +2,7 @@ import { codePointCount } from "../../src/core/highlight-anchor.ts";
 import { FOOTNOTE_LABEL_ID } from "../../src/core/reader-url.ts";
 import { type HastNode, projectTree } from "../../src/core/text-projection.ts";
 
-export interface DomProjection {
+interface DomProjection {
   readonly text: string;
   readonly spanOf: (range: Range) => { readonly start: number; readonly end: number } | null;
 }

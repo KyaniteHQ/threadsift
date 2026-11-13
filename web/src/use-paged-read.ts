@@ -1,15 +1,8 @@
-import {
-  type Dispatch,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from "react";
 
-import type { More } from "./LoadMore.tsx";
+import type { More } from "./list-paging.ts";
 import { useLatest } from "./use-latest.ts";
+import { type Ticket, useTicket } from "./use-ticket.ts";
 
 export interface PagedPage {
   readonly next: string | null;
@@ -69,27 +62,6 @@ async function readThrough<Page extends PagedPage>(
   const rest = await readThrough(read, joined, { cursor: page.next, through });
 
   return rest === null ? null : joined(page, rest);
-}
-
-interface Ticket {
-  readonly take: () => number;
-  readonly matches: (mine: number) => boolean;
-}
-
-function useTicket(): Ticket {
-  const count = useRef(0);
-
-  return useMemo(
-    () => ({
-      take: () => {
-        count.current += 1;
-
-        return count.current;
-      },
-      matches: (mine) => count.current === mine,
-    }),
-    [],
-  );
 }
 
 const REREADS = 3;
@@ -167,10 +139,12 @@ export function usePagedRead<Page extends PagedPage>(
     void firstRead(read, ticket, setState);
   }, [read, ticket]);
 
-  const loadMore = useCallback((): void => {
+  const loadMore = useCallback((): boolean => {
     const current = latest.current;
 
-    if (current.status !== "ready" || current.next === null || current.more === "loading") return;
+    if (current.status !== "ready" || current.next === null || current.more === "loading") {
+      return false;
+    }
 
     const mine = ticket.take();
     setState({ ...current, more: "loading" });
@@ -180,6 +154,8 @@ export function usePagedRead<Page extends PagedPage>(
 
       return page;
     });
+
+    return true;
   }, [joined, latest, read, ticket]);
 
   const { edit, reread } = useRewrites({ read, joined, ticket, setState });

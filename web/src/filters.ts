@@ -30,7 +30,7 @@ export function isFiltered(filters: Readonly<Filters>): boolean {
   return chosenCount(filters) > 0 || isSearching(filters);
 }
 
-export function withChoice(filters: Readonly<Filters>, choice: Readonly<Choice>): Filters {
+function withChoice(filters: Readonly<Filters>, choice: Readonly<Choice>): Filters {
   switch (choice.facet) {
     case "source":
       return { ...filters, source: choice.value };

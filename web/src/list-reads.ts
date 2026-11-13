@@ -14,7 +14,8 @@ import { fetchItems, fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
 import type { Stamps } from "./item-polling.ts";
 import { useMore } from "./list-more.ts";
-import { type Answer, type ListState, failedList, type Page, loaded, newer } from "./list-state.ts";
+import { newer } from "./list-paging.ts";
+import { type Answer, type ListState, failedList, type Page, loaded } from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
 
 type SetList = Dispatch<SetStateAction<ListState>>;

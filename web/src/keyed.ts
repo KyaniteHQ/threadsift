@@ -1,4 +1,4 @@
-export interface Keyed {
+interface Keyed {
   readonly key: string;
   readonly text: string;
 }

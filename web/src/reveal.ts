@@ -46,7 +46,7 @@ export function focusListStart(pane: HTMLElement): void {
   (start ?? pane).focus();
 }
 
-export interface Cards {
+interface Cards {
   readonly links: string;
   readonly row: string;
   readonly link: string;

@@ -34,7 +34,7 @@ import {
   type ItemList,
   type ItemPage,
 } from "../../src/http/schemas.ts";
-import { call, parsedFrom, unexpected, withCursor } from "./calls.ts";
+import { callOk, parsedBody, parsedFrom, parsedOrNull, withCursor } from "./calls.ts";
 import { type Filters, queryOf } from "./filters.ts";
 
 export type SaveResult =
@@ -49,14 +49,9 @@ export type SaveResult =
     };
 
 export async function fetchItem(id: number): Promise<Item | "gone"> {
-  const path = `/api/items/${id}/status`;
-  const response = await call("GET", path);
+  const answer = await parsedOrNull("GET", `/api/items/${id}/status`, ItemResponseSchema, 404);
 
-  if (response.status === 404) return "gone";
-
-  if (!response.ok) throw unexpected("GET", path, response.status);
-
-  return ItemResponseSchema.parse(await response.json()).item;
+  return answer === null ? "gone" : answer.item;
 }
 
 export async function fetchItemDetail(id: number): Promise<ItemDetail> {
@@ -71,7 +66,7 @@ export async function putReadState(id: number, readState: ReadState): Promise<It
   ).item;
 }
 
-export type KeepResult =
+type KeepResult =
   | { readonly outcome: "kept"; readonly highlight: Highlight }
   | { readonly outcome: "changed" };
 
@@ -79,24 +74,21 @@ export async function keepHighlight(
   id: number,
   request: Readonly<CreateHighlightRequest>,
 ): Promise<KeepResult> {
-  const path = `/api/items/${id}/highlights`;
-  const response = await call("POST", path, { json: request });
+  const response = await callOk("POST", `/api/items/${id}/highlights`, {
+    json: request,
+    tolerates: [404, 409],
+  });
 
   if (response.status === 404 || response.status === 409) return { outcome: "changed" };
 
-  if (!response.ok) throw unexpected("POST", path, response.status);
-
   return {
     outcome: "kept",
-    highlight: HighlightResponseSchema.parse(await response.json()).highlight,
+    highlight: (await parsedBody(response, HighlightResponseSchema)).highlight,
   };
 }
 
 export async function dropHighlight(id: number, highlightId: number): Promise<void> {
-  const path = `/api/items/${id}/highlights/${highlightId}`;
-  const response = await call("DELETE", path);
-
-  if (!response.ok && response.status !== 404) throw unexpected("DELETE", path, response.status);
+  await callOk("DELETE", `/api/items/${id}/highlights/${highlightId}`, { tolerates: [404] });
 }
 
 export type NoteSaveResult =
@@ -107,16 +99,14 @@ export async function putNote(
   id: number,
   request: Readonly<SaveNoteRequest>,
 ): Promise<NoteSaveResult> {
-  const path = `/api/items/${id}/note`;
-  const response = await call("PUT", path, { json: request });
+  const response = await callOk("PUT", `/api/items/${id}/note`, {
+    json: request,
+    tolerates: [409],
+  });
 
-  if (response.status === 409) {
-    return { outcome: "newer", note: NoteConflictSchema.parse(await response.json()).note };
-  }
-
-  if (!response.ok) throw unexpected("PUT", path, response.status);
-
-  return { outcome: "saved", note: NoteResponseSchema.parse(await response.json()).note };
+  return response.status === 409
+    ? { outcome: "newer", note: (await parsedBody(response, NoteConflictSchema)).note }
+    : { outcome: "saved", note: (await parsedBody(response, NoteResponseSchema)).note };
 }
 
 export function fetchItems(filters: Readonly<Filters>): Promise<ItemList> {
@@ -138,37 +128,37 @@ export function fetchHighlightsPage(
   );
 }
 
-export type TopicRead =
+type TopicRead =
   | { readonly outcome: "found"; readonly page: TopicPage }
   | { readonly outcome: "missing" };
 
 export async function fetchTopicPage(key: string, cursor: string | null): Promise<TopicRead> {
-  const path = withCursor(topicApiPath(key), cursor);
-  const response = await call("GET", path);
+  const page = await parsedOrNull(
+    "GET",
+    withCursor(topicApiPath(key), cursor),
+    TopicPageSchema,
+    404,
+  );
 
-  if (response.status === 404) return { outcome: "missing" };
-
-  if (!response.ok) throw unexpected("GET", path, response.status);
-
-  return { outcome: "found", page: TopicPageSchema.parse(await response.json()) };
+  return page === null ? { outcome: "missing" } : { outcome: "found", page };
 }
 
 export async function retryTopicOverview(key: string): Promise<Overview | null> {
-  const path = `${topicApiPath(key)}/overview`;
-  const response = await call("POST", path);
+  const answer = await parsedOrNull(
+    "POST",
+    `${topicApiPath(key)}/overview`,
+    OverviewRetryResponseSchema,
+    409,
+  );
 
-  if (response.status === 409) return null;
-
-  if (!response.ok) throw unexpected("POST", path, response.status);
-
-  return OverviewRetryResponseSchema.parse(await response.json()).overview;
+  return answer === null ? null : answer.overview;
 }
 
 export async function saveLink(url: string): Promise<SaveResult> {
-  const response = await call("POST", "/api/items", { json: { url } });
+  const response = await callOk("POST", "/api/items", { json: { url }, tolerates: [400, 503] });
 
   if (response.status === 400) {
-    const { fetch: refusal } = ErrorResponseSchema.parse(await response.json());
+    const { fetch: refusal } = await parsedBody(response, ErrorResponseSchema);
 
     return { outcome: refusal === "refused" ? "private" : "invalid" };
   }
@@ -177,11 +167,7 @@ export async function saveLink(url: string): Promise<SaveResult> {
     return { outcome: "updating" };
   }
 
-  if (!response.ok) {
-    throw unexpected("POST", "/api/items", response.status);
-  }
-
-  const { item } = SavedItemResponseSchema.parse(await response.json());
+  const { item } = await parsedBody(response, SavedItemResponseSchema);
 
   const known = response.status !== 201;
 
@@ -189,11 +175,7 @@ export async function saveLink(url: string): Promise<SaveResult> {
 }
 
 export async function removeItem(id: number): Promise<void> {
-  const response = await call("DELETE", `/api/items/${id}`);
-
-  if (!response.ok && response.status !== 404) {
-    throw unexpected("DELETE", `/api/items/${id}`, response.status);
-  }
+  await callOk("DELETE", `/api/items/${id}`, { tolerates: [404] });
 }
 
 export async function regenerateDigest(id: number): Promise<Item> {

@@ -5,7 +5,7 @@ import { scrollAndFocus } from "./jump-to-comments.ts";
 import { type Place, arrivalPlace } from "./place.ts";
 import { provided } from "./provided.ts";
 
-export interface Arrivals {
+interface Arrivals {
   readonly take: (kind: Place["kind"]) => Place | null;
   readonly pending: () => boolean;
 }

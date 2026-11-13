@@ -4,7 +4,7 @@ const PARTS = ".rd-back, .rd-hint, .rd-cm, .st-gear, .rd-act";
 const TOLERANCE = 0.5;
 const ROUNDING = 1;
 
-export function barOverflows(bar: HTMLElement): boolean {
+function barOverflows(bar: HTMLElement): boolean {
   const box = bar.getBoundingClientRect();
   const style = getComputedStyle(bar);
   const left = box.left + (pixelsOf(style.paddingLeft) ?? 0) - TOLERANCE;

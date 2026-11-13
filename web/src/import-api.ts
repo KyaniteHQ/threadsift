@@ -1,7 +1,7 @@
 import { ImportStateSchema } from "../../src/core/import-contract.ts";
 import type { ImportRequest } from "../../src/core/import-list.ts";
 import { BatchResponseSchema } from "../../src/http/batch-schemas.ts";
-import { call, unexpected } from "./calls.ts";
+import { call, parsedBody, parsedOrNull } from "./calls.ts";
 
 export interface Counts {
   readonly added: number;
@@ -16,14 +16,11 @@ type BatchAnswer =
 export const NO_COUNTS: Counts = { added: 0, known: 0, refused: 0 };
 
 export async function fetchImportCursor(name: string, signal: AbortSignal): Promise<string | null> {
-  const path = `/api/imports/${name}`;
-  const response = await call("GET", path, { signal });
+  const state = await parsedOrNull("GET", `/api/imports/${name}`, ImportStateSchema, 404, {
+    signal,
+  });
 
-  if (response.status === 404) return null;
-
-  if (!response.ok) throw unexpected("GET", path, response.status);
-
-  return ImportStateSchema.parse(await response.json()).cursor;
+  return state === null ? null : state.cursor;
 }
 
 function countsOf(outcomes: readonly (keyof Counts)[]): Counts {
@@ -44,7 +41,7 @@ export async function postBatch(request: Readonly<ImportRequest>): Promise<Batch
 
     if (!response.ok) return { kind: "rejected" };
 
-    const { results } = BatchResponseSchema.parse(await response.json());
+    const { results } = await parsedBody(response, BatchResponseSchema);
 
     return { kind: "saved", counts: countsOf(results.map(({ outcome }) => outcome)) };
   } catch {
