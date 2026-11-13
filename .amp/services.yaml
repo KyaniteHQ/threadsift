@@ -1,0 +1,20 @@
+services:
+  api:
+    command: DATA_DIR=.data/orb node src/targets/node/index.ts
+    port: 18080
+    health: /api/session
+  web:
+    command: vite --host 127.0.0.1 --port "$PORT" --strictPort
+    env:
+      THREADSIFT_API_URL: http://127.0.0.1:18080
+    health: /
+    portal:
+      title: Threadsift
+      description: 'On a fresh library, read the last "Setup code:" line with `amp orb service logs api`, then set a new password.'
+  prototype:
+    command: python3 -m http.server "$PORT" --bind 127.0.0.1
+    cwd: design/prototype
+    portal:
+      url: /Main.dc.html
+      title: Design prototype
+      description: "Needs the owner's gitignored `data.json` and `img/` in `design/prototype` to show Items. Press T for Tweaks and Compare."
