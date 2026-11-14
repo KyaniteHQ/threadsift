@@ -1,3 +1,4 @@
+import type { SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Database } from "./ports.ts";
@@ -5,6 +6,7 @@ import type { Database } from "./ports.ts";
 export interface Advance {
   readonly writes: readonly BatchItem<"sqlite">[];
   readonly cursor: string | null;
+  readonly guard?: SQL;
 }
 
 export interface DataStep {

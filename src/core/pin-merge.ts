@@ -1,4 +1,4 @@
-import { type SQL, and, asc, eq, gte, ne, notExists, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, gte, ne, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import {
@@ -21,12 +21,12 @@ function numbers(cursor: string): readonly number[] {
   return cursor.split(":").slice(1).map(Number);
 }
 
-function accepting(db: Database, kind: CatalogKind) {
+function accepting(db: Database, kind: CatalogKind, fromId: Readonly<SQLWrapper> | number) {
   return notExists(
     db
       .select({ one: sql`1` })
       .from(proposals)
-      .where(and(eq(kind.proposalFrom, kind.table.id), eq(proposals.state, "accepting"))),
+      .where(and(eq(kind.proposalFrom, fromId), eq(proposals.state, "accepting"))),
   );
 }
 
@@ -37,7 +37,7 @@ function misfiled(db: Database, kind: CatalogKind) {
     .select({ id: table.id })
     .from(table)
     .innerJoin(pins, and(eq(pins.kind, kind.pinKind), eq(pins.fromKey, table.key)))
-    .where(and(ne(kind.pinTarget, table.id), accepting(db, kind)));
+    .where(and(ne(kind.pinTarget, table.id), accepting(db, kind, table.id)));
 }
 
 export function noneMisfiled(db: Database): SQL {
@@ -65,7 +65,7 @@ export async function mergedTag(db: Database, cursor: string): Promise<Advance> 
     .from(tags)
     .innerJoin(pins, and(eq(pins.kind, TAG_KIND.pinKind), eq(pins.fromKey, tags.key)))
     .innerJoin(into, eq(into.id, pins.intoTagId))
-    .where(and(gte(tags.id, fromId), ne(pins.intoTagId, tags.id), accepting(db, TAG_KIND)))
+    .where(and(gte(tags.id, fromId), ne(pins.intoTagId, tags.id), accepting(db, TAG_KIND, tags.id)))
     .orderBy(asc(tags.id))
     .limit(1);
 
@@ -82,6 +82,7 @@ export async function mergedTag(db: Database, cursor: string): Promise<Advance> 
       ...unit.writes,
       ...closingWrites(db, TAG_KIND, from.id),
     ],
+    guard: accepting(db, TAG_KIND, from.id),
     cursor: `merge:${String(from.id)}:${String(unit.itemIds.length < REWRITE_UNIT_ITEMS ? 0 : unit.last)}`,
   };
 }
@@ -91,7 +92,12 @@ export async function mergedTopic(db: Database): Promise<Advance> {
     .select({ id: TOPIC_KIND.table.id, intoId: sql<number>`${pins.intoTopicId}` })
     .from(TOPIC_KIND.table)
     .innerJoin(pins, and(eq(pins.kind, TOPIC_KIND.pinKind), eq(pins.fromKey, TOPIC_KIND.table.key)))
-    .where(and(ne(pins.intoTopicId, TOPIC_KIND.table.id), accepting(db, TOPIC_KIND)))
+    .where(
+      and(
+        ne(pins.intoTopicId, TOPIC_KIND.table.id),
+        accepting(db, TOPIC_KIND, TOPIC_KIND.table.id),
+      ),
+    )
     .orderBy(asc(TOPIC_KIND.table.id))
     .limit(1);
 
