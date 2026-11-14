@@ -57,6 +57,8 @@ function move(next: RedditView): void {
 }
 
 export async function refreshReddit(): Promise<void> {
+  if (current.kind === "working") return;
+
   const started = version;
   const next = await loadReddit();
 
