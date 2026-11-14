@@ -51,8 +51,12 @@ describe("with Grok Bot saved as the Provider the production runner counts a kin
 
       try {
         const owner = await libraryOnBot(instance, kindCase);
-        const opened = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
-        const job = { ...opened, attemptGeneration: generationOf(instance, owner) };
+
+        const job = await openJobOf(instance, {
+          kind: kindCase.kind,
+          itemId: owner,
+          attemptGeneration: generationOf(instance, owner),
+        });
 
         const first = await unansweredClaim(instance, { kindCase, job });
 

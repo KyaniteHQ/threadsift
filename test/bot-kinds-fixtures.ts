@@ -24,6 +24,7 @@ export function openJobOf(
     itemId: number;
     attempts?: number;
     staleRequeues?: number;
+    attemptGeneration?: number | null;
   }>,
 ): Promise<ClaimedJob> {
   return openJobOfKind(instance, options);

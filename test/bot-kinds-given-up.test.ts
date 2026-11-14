@@ -27,7 +27,13 @@ describe("a job that gives up ends every bot task it still holds, the one that h
           address,
         );
 
-        const job = await openJobOf(instance, { kind, itemId: 500, attempts: THIRD_SEND });
+        const job = await openJobOf(instance, {
+          kind,
+          itemId: 500,
+          attempts: THIRD_SEND,
+          attemptGeneration: 0,
+        });
+
         const waiting = insertedTask(instance, { kind, executor: "grok-bot", token: "waiting" });
         const answered = insertedTask(instance, { kind, executor: "grok-bot", token: "answered" });
 
@@ -47,12 +53,7 @@ describe("a job that gives up ends every bot task it still holds, the one that h
           answered,
         );
 
-        await exhaust(
-          instance.core,
-          { ...job, attemptGeneration: 0 },
-          HANDLERS[kind],
-          THIRD_SEND + 1,
-        );
+        await exhaust(instance.core, job, HANDLERS[kind], THIRD_SEND + 1);
 
         const given = taskRow(instance, waiting);
         const unapplied = taskRow(instance, answered);

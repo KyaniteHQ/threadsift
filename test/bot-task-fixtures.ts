@@ -104,7 +104,14 @@ export async function openJobOfKind(
     itemId,
     attempts = 0,
     staleRequeues = 0,
-  }: Readonly<{ kind: string; itemId: number; attempts?: number; staleRequeues?: number }>,
+    attemptGeneration = null,
+  }: Readonly<{
+    kind: string;
+    itemId: number;
+    attempts?: number;
+    staleRequeues?: number;
+    attemptGeneration?: number | null;
+  }>,
 ): Promise<ClaimedJob> {
   exec(
     instance,
@@ -114,11 +121,12 @@ export async function openJobOfKind(
   );
   exec(
     instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', ?, ?, 0, ?)",
+    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, attempt_generation, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', ?, ?, ?, 0, ?)",
     kind,
     itemId,
     attempts,
     staleRequeues,
+    attemptGeneration,
     Date.now() + 3_600_000,
   );
 
