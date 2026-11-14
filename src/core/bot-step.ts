@@ -2,7 +2,7 @@ import type { ModelAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
 import type { SentTaskKind } from "./bot-task-kind.ts";
 import { sendBotTask } from "./bot-task-send.ts";
-import { type BotTaskStart, ownerOf, providerOwnerOf, startBotTask } from "./bot-task-start.ts";
+import { type BotTaskStart, ownerOf, startBotTask } from "./bot-task-start.ts";
 import {
   type BotTaskRow,
   chargedReport,
@@ -79,8 +79,7 @@ async function startedOutcome(
     release: JobWrites;
   }>,
 ): Promise<JobOutcome> {
-  const owner = kind.servesProvider ? providerOwnerOf(job) : ownerOf(job);
-  const started = await startBotTask(ports, owner, start);
+  const started = await startBotTask(ports, ownerOf(job), start);
 
   switch (started.kind) {
     case "started":
@@ -101,8 +100,6 @@ async function startedOutcome(
         countsAttempt: false,
         writes: release,
       };
-    case "provider-left":
-      return { deferredUntil: Date.now(), wait: null, countsAttempt: false, writes: release };
     case "claim-lost":
       return lostOutcome(ports.db, { cleanup: release });
     default: {

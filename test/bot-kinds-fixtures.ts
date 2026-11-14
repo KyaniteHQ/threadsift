@@ -3,13 +3,13 @@ import { ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import { claimTopicLease, releaseTopicLease } from "../src/core/topic-lease.ts";
 import type { BotKindName, KindCase } from "./bot-kinds-cases.ts";
-import { openJobOfKind } from "./bot-task-fixtures.ts";
+import { openJobOfKind, selectGrokBot } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 
-export { botInstance, chooseBotProvider } from "./bot-task-fixtures.ts";
+export { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 
 export interface Sent {
   readonly id: number;
@@ -35,6 +35,8 @@ export async function sentTask(
   kind: BotKindName,
   job: Readonly<ClaimedJob>,
 ): Promise<Sent> {
+  await selectGrokBot(instance);
+
   const prepared = await BOT_TASK_KINDS[kind].prepare(instance.core, job);
 
   if (prepared.kind !== "ask") throw new Error("the kind has nothing to ask");
