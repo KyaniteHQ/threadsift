@@ -266,18 +266,6 @@ export async function timedOutTask(
   return (await guardHolds(db, holding(job))) ? "changed" : "claim-lost";
 }
 
-export function givenUpTasks(db: Database, job: Readonly<Pick<JobRow, "id">>) {
-  return db
-    .update(aiTasks)
-    .set({
-      state: "failed",
-      result: null,
-      refusal: sql`case when ${aiTasks.answeredAt} is null then 'timeout' else 'stale' end`,
-      status: null,
-    })
-    .where(and(eq(aiTasks.jobId, job.id), eq(aiTasks.state, "running")));
-}
-
 export function abandonedTasks(db: Database, now: number): readonly BatchItem<"sqlite">[] {
   const providerTasks = and(
     eq(aiTasks.executor, GROK_BOT_EXECUTOR),

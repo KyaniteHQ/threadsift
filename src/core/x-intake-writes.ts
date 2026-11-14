@@ -60,9 +60,9 @@ export function storedIntake(
   }>,
 ): JobWrites {
   return [
+    ...answeredIntake(db, task, { unavailable: false }),
     ...closeItemJobs(db, sql`${task.itemId}`),
     ...queuedVerification(db, { itemId: task.itemId, ...stored }),
-    ...answeredIntake(db, task, { unavailable: false }),
   ];
 }
 
@@ -70,6 +70,7 @@ export function unavailableIntake(db: JobPorts["db"], task: IntakeTask): JobWrit
   const { itemId } = task;
 
   return [
+    ...answeredIntake(db, task, { unavailable: true }),
     ...closeItemJobs(db, sql`${itemId}`),
     db
       .update(items)
@@ -80,7 +81,6 @@ export function unavailableIntake(db: JobPorts["db"], task: IntakeTask): JobWrit
         pendingDigest: null,
       })
       .where(eq(items.id, itemId)),
-    ...answeredIntake(db, task, { unavailable: true }),
   ];
 }
 
