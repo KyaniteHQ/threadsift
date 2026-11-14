@@ -9,6 +9,7 @@ import {
 } from "./reddit-account-contract.ts";
 import {
   accountRow,
+  clearRefusals,
   connectAccount,
   disconnectAccount,
   expireAccount,
@@ -204,5 +205,8 @@ async function settledVerdict(
 
   if (verdict === "logged-out") await expireAccount(ports, now);
 
-  if (verdict === "ok") await restoreAccount(ports.db, now);
+  if (verdict === "ok") {
+    await restoreAccount(ports.db, now);
+    await clearRefusals(ports.db);
+  }
 }
