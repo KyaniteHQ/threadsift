@@ -12,6 +12,8 @@ import { OVERVIEW_INPUT_BYTES } from "./topic-overview-task.ts";
 
 const ADDED_READ_LIMIT = 40;
 
+const ALL_ROWS = Number.MAX_SAFE_INTEGER;
+
 const REMOVED_LIMIT = 200;
 
 const KEY_POINTS_SENT = 3;
@@ -102,22 +104,21 @@ interface AddedRead {
 async function addedFrom(
   db: Database,
   topicId: number,
-  { rows, offset }: Readonly<{ rows: readonly AddedRow[]; offset: number }>,
+  first: readonly AddedRow[],
 ): Promise<AddedRead> {
-  const readable = rows.flatMap((row) => addedItem(row));
+  const readable = first.flatMap((row) => addedItem(row));
 
-  if (readable.length > 0 || rows.length < ADDED_READ_LIMIT) {
-    return { readable, unreadable: rows.length - readable.length };
+  if (readable.length > 0 || first.length < ADDED_READ_LIMIT) {
+    return { readable, unreadable: first.length - readable.length };
   }
 
-  const next = offset + rows.length;
+  const rest = await addedRows(db, topicId).limit(ALL_ROWS).offset(first.length);
+  const later = rest.flatMap((row) => addedItem(row));
 
-  const rest = await addedFrom(db, topicId, {
-    rows: await addedRows(db, topicId).limit(ADDED_READ_LIMIT).offset(next),
-    offset: next,
-  });
-
-  return { readable: rest.readable, unreadable: rows.length + rest.unreadable };
+  return {
+    readable: later.slice(0, ADDED_READ_LIMIT),
+    unreadable: first.length + rest.length - later.length,
+  };
 }
 
 export async function readOverview(db: Database, topicId: number): Promise<OverviewRead | null> {
@@ -140,7 +141,7 @@ export async function readOverview(db: Database, topicId: number): Promise<Overv
 
   if (topic === undefined) return null;
 
-  const { readable, unreadable } = await addedFrom(db, topicId, { rows: added, offset: 0 });
+  const { readable, unreadable } = await addedFrom(db, topicId, added);
 
   return {
     name: topic.name,
