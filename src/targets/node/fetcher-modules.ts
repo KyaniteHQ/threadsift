@@ -1,5 +1,6 @@
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
+import { setTimeout } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { z } from "zod";
@@ -15,6 +16,8 @@ interface Entry {
 }
 
 const FILE_URL = /^file:/iu;
+
+const IMPORT_DEADLINE_MS = 30_000;
 
 const ModuleSchema = z.object({ default: z.custom<Fetcher>(isFetcher) });
 
@@ -56,11 +59,26 @@ async function realFileOf(path: string): Promise<string> {
   return real;
 }
 
+async function withinDeadline<Value>(module: string, step: () => Promise<Value>): Promise<Value> {
+  const waiting = new AbortController();
+
+  const expired = setTimeout(IMPORT_DEADLINE_MS, undefined, { signal: waiting.signal }).then(
+    () => {
+      throw new FetcherLoadError(module, "import", "TimeoutError");
+    },
+    () => new Promise<never>(() => {}),
+  );
+
+  try {
+    return await Promise.race([step(), expired]);
+  } finally {
+    waiting.abort();
+  }
+}
+
 async function importedFetcher({ module, path }: Readonly<Entry>): Promise<LoadedFetcher> {
-  const namespace: unknown = await atStage(
-    module,
-    "import",
-    () => import(pathToFileURL(path).href),
+  const namespace: unknown = await withinDeadline(module, () =>
+    atStage(module, "import", () => import(pathToFileURL(path).href)),
   );
 
   const exported = await atStage(module, "shape", () => ModuleSchema.parse(namespace));
