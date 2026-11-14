@@ -56,7 +56,7 @@ function useRevoke(
       }
 
       removed(id);
-      send({ kind: "revoked", id, request, next });
+      send({ kind: "revoked", id, next });
 
       if (next === null) nameField.current?.focus();
     },

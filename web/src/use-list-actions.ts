@@ -4,7 +4,7 @@ import type { Item } from "../../src/http/schemas.ts";
 import { type SaveTarget, fetchItem } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { SaveAnswer } from "./library.ts";
-import type { ListState } from "./list-state.ts";
+import { type ListState, readFor } from "./list-state.ts";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
 import type { PasteQueue, PasteRequest, SaveOutcome } from "./use-paste.ts";
@@ -73,7 +73,15 @@ function useLookup(
   return { lookupFailed, lookAgain };
 }
 
-function useOpenItem(list: ListState, { openId }: Route) {
+function lostRow(list: ListState, filters: Seeker["filters"], attention: Attention): boolean {
+  if (attention === null || list.status !== "ready") return false;
+
+  const reloading = attention.focus && !readFor(list, filters);
+
+  return !reloading && !list.items.some((item) => item.id === attention.id);
+}
+
+function useOpenItem(list: ListState, filters: Seeker["filters"], { openId }: Route) {
   const [attention, setAttention] = useState<Attention>(
     openId === null ? null : { id: openId, focus: true },
   );
@@ -82,13 +90,7 @@ function useOpenItem(list: ListState, { openId }: Route) {
     setAttention(null);
   }, []);
 
-  const unshown =
-    attention !== null &&
-    !attention.focus &&
-    list.status === "ready" &&
-    !list.items.some((item) => item.id === attention.id);
-
-  if (unshown) setAttention(null);
+  if (lostRow(list, filters, attention)) setAttention(null);
 
   return { attention, attend: setAttention, attended };
 }
@@ -187,7 +189,7 @@ export function useListActions(
   pane: RefObject<HTMLElement | null>,
   route: Route,
 ) {
-  const { attention, attend: reveal, attended } = useOpenItem(list, route);
+  const { attention, attend: reveal, attended } = useOpenItem(list, actions.filters, route);
   const { lookupFailed, lookAgain } = useLookup(list, route, actions.know);
 
   const { queue, retryItem } = usePasteQueue();
