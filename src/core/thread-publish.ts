@@ -7,7 +7,7 @@ import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
 import { ownerOf, threadWrites } from "./reddit-thread.ts";
-import { items } from "./schema.ts";
+import { items, media } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 
 export interface ThreadPlace extends Link {
@@ -40,6 +40,7 @@ function contentWrites(
 
   return [
     ...closeItemJobs(db, owner.id),
+    db.delete(media).where(eq(media.itemId, owner.id)),
     db
       .update(items)
       .set({

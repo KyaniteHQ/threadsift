@@ -38,9 +38,11 @@ export function scopeRefusal(method: string, path: string, extra = "") {
   };
 }
 
-export const budgetRefusal = {
-  429: jsonBody(
-    BudgetRefusalSchema,
-    "The agent token has added its daily budget of Items. Nothing is saved, `code` is `budget-spent`, and `Retry-After` gives the seconds until 00:00 UTC, when the budget starts again. A link the library already holds is not counted and is still answered. The owner's session has no budget.",
-  ),
-};
+export function budgetRefusal(whatIsSaved: string) {
+  return {
+    429: jsonBody(
+      BudgetRefusalSchema,
+      `The agent token has added its daily budget of Items. ${whatIsSaved} \`code\` is \`budget-spent\`, and \`Retry-After\` gives the seconds until 00:00 UTC, when the budget starts again. A link the library already holds is not counted and is still answered. The owner's session has no budget.`,
+    ),
+  };
+}

@@ -1,4 +1,4 @@
-import { type Budgeted, withinBudget } from "./agent-token-budget.ts";
+import { type Budgeted, type CountedSaves, withinBudget } from "./agent-token-budget.ts";
 import type { Digest } from "./ai-contract.ts";
 import type { Caller } from "./caller.ts";
 import { dataStepsFinished } from "./data-steps.ts";
@@ -24,11 +24,11 @@ type BatchPaste = Budgeted<BatchSaved>;
 async function pasteOne(
   ports: Ports,
   { url, digest }: Readonly<BatchLink>,
-  caller: Caller,
+  counted: CountedSaves,
 ): Promise<BatchEntry | null> {
   if (!(await dataStepsFinished(ports.db))) return null;
 
-  const saved = await saveItem(ports, url, digest, "keep", caller);
+  const saved = await counted.save((caller) => saveItem(ports, url, digest, "keep", caller));
 
   return saved.kind === "refused"
     ? { outcome: "refused", url }
@@ -38,13 +38,13 @@ async function pasteOne(
 async function pasteEach(
   ports: Ports,
   links: readonly BatchLink[],
-  caller: Caller,
+  counted: CountedSaves,
 ): Promise<BatchSaved> {
   const entries: BatchEntry[] = [];
 
   for (const link of links) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Links are saved one after the other, in the order given.
-    const entry = await pasteOne(ports, link, caller);
+    const entry = await pasteOne(ports, link, counted);
 
     if (entry === null) return { kind: "updating" };
 
@@ -63,6 +63,6 @@ export function pasteBatch(
     ports,
     caller,
     links.map(({ url }) => url),
-    (saveAs) => pasteEach(ports, links, saveAs),
+    (counted) => pasteEach(ports, links, counted),
   );
 }
