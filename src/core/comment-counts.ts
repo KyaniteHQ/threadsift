@@ -25,7 +25,7 @@ export const COMMENT_COUNT_COLUMNS = {
   ),
   commentsFilter: sql<
     CommentCount["filter"] | null
-  >`case when (${READ}) is null then null when exists (${PUBLISHED}) then 'kept' else 'unfiltered' end`.as(
+  >`case when (${READ}) is null or not exists (select 1 from ${redditComments} where ${OF_READ_THREAD}) then null when exists (${PUBLISHED}) then 'kept' else 'unfiltered' end`.as(
     "comments_filter",
   ),
   commentsShown: sql<

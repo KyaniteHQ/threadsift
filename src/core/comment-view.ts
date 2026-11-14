@@ -155,9 +155,9 @@ function nodeOf(row: Readonly<CommentRow>): CommentNode {
 
 function viewOf(
   { published, digest }: Readonly<Pick<ThreadReport, "published" | "digest">>,
-  { shown, total }: Readonly<{ shown: number; total: number }>,
+  { shown, received, total }: Readonly<{ shown: number; received: number; total: number }>,
 ): CommentsFilter {
-  if (total === 0) return { filter: "absent" };
+  if (received === 0) return { filter: "absent" };
 
   if (published) {
     const count = { filter: "kept", shown, total } as const;
@@ -185,6 +185,7 @@ export function commentsViewOf(
     { published, digest },
     {
       shown: comments.filter((row) => row.readable).length,
+      received: comments.length,
       total: Math.max(reported ?? 0, comments.length),
     },
   );
