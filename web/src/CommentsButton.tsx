@@ -1,11 +1,11 @@
 import { type MouseEvent, useCallback } from "react";
 
-import type { CommentCounts } from "./comment-counts.ts";
+import type { CommentCount } from "../../src/core/comment-view.ts";
 import { Icon } from "./Icon.tsx";
 import { jumpToComments } from "./jump-to-comments.ts";
 import { commentsButtonLabels } from "./reader-text.ts";
 
-export function CommentsButton({ counts }: Readonly<{ counts: CommentCounts }>) {
+export function CommentsButton({ counts }: Readonly<{ counts: CommentCount }>) {
   const labels = commentsButtonLabels(counts);
 
   const jump = useCallback((event: MouseEvent<HTMLButtonElement>) => {

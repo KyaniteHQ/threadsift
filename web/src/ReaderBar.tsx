@@ -42,9 +42,18 @@ const STEPS: Readonly<Record<BarMode, Steps>> = {
 };
 
 function fitSignature(item: Readonly<Item>, mode: BarMode, settingsKey: string): string {
-  const { id, readState, commentsKept, commentsTotal } = item;
+  const { id, readState, commentCount, commentsKept, commentsTotal } = item;
 
-  return [id, readState, commentsKept, commentsTotal, mode, settingsKey].join("|");
+  return [
+    id,
+    readState,
+    commentCount?.shown,
+    commentCount?.total,
+    commentsKept,
+    commentsTotal,
+    mode,
+    settingsKey,
+  ].join("|");
 }
 
 function useProgress(bar: RefObject<HTMLElement | null>): void {

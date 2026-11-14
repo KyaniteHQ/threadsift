@@ -8,7 +8,7 @@ v1 is not released, so do not use Threadsift for real yet.
 
 ## Read the useful part of a thread
 
-The agent keeps a comment only when it adds a fact, a fix, a working link or command, first-hand experience or a real counterargument, and it leaves out agreement, jokes and repeats. The Reader shows the post, the Summary and Key points, and the Kept comments in their tree. Where the agent dropped a parent comment, one short line stands in for it, so the reply under it still makes sense. Your Highlights and your Note on the Item sit in the same view.
+The agent keeps a comment only when it adds a fact, a fix, a working link or command, first-hand experience or a real counterargument, and it leaves out agreement, jokes and repeats. The Reader shows the post, the Summary and Key points, and the comments in their tree (the Kept ones once the agent has chosen them, every comment that passes the first step until then). Where the agent dropped a parent comment, one short line stands in for it, so the reply under it still makes sense. Your Highlights and your Note on the Item sit in the same view.
 
 ## Let the agent keep a wiki of the library
 

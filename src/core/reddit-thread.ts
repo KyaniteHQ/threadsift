@@ -6,7 +6,7 @@ import type { CommentCandidate } from "./digest-prompt.ts";
 import { among, guardHolds } from "./guards.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
-import { digests, items, redditComments, redditThreads } from "./schema.ts";
+import { digests, highlights, items, redditComments, redditThreads } from "./schema.ts";
 import { jsonArrays, rowJson } from "./thread-rows.ts";
 
 export function eligibleComments(): SQL {
@@ -17,6 +17,13 @@ export function candidateLink(): SQL<string | null> {
   return sql<
     string | null
   >`(select ${redditThreads.linkedUrl} from ${redditThreads} where ${redditThreads.itemId} = ${items.id} and ${redditThreads.generation} = ${items.generation})`;
+}
+
+export function commentReadable(): SQL<boolean> {
+  const covered = sql`${redditComments}.generation in (${publishedGeneration(sql`${redditComments}.item_id`)})`;
+  const held = sql`exists (select 1 from ${highlights} where ${highlights.itemId} = ${redditComments}.item_id and ${highlights.status} = 'attached' and ${highlights.commentId} = ${redditComments}.id)`;
+
+  return sql<boolean>`(${redditComments.kept} = 1 or ${held} or (${redditComments.eligible} = 1 and not ${covered}))`;
 }
 
 export function keptCommentIds(): SQL<string> {
@@ -166,7 +173,11 @@ function supersededDeletes(db: Database, owner: Readonly<Owner>) {
 function headerInsert(
   db: Database,
   owner: Readonly<Owner>,
-  { reported, linkedUrl }: Readonly<Pick<ParsedThread, "reported" | "linkedUrl">>,
+  {
+    reported,
+    linkedUrl,
+    postLink,
+  }: Readonly<Pick<ParsedThread, "reported" | "linkedUrl" | "postLink">>,
   archivedAt: number | null,
 ) {
   return db.insert(redditThreads).select(
@@ -177,6 +188,7 @@ function headerInsert(
         reported: sql<number | null>`${reported}`.as("reported"),
         archivedAt: sql<number | null>`${archivedAt}`.as("archived_at"),
         linkedUrl: sql<string | null>`${linkedUrl}`.as("linked_url"),
+        postLink: sql<string | null>`${postLink}`.as("post_link"),
       })
       .from(sql`(select 1)`)
       .where(sql`1`),

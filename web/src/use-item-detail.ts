@@ -11,6 +11,7 @@ import {
 import type { HighlightsView } from "../../src/core/highlight-contract.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { fetchItemDetail } from "./api.ts";
+import { commentCountOf } from "./comment-counts.ts";
 
 export type DetailState =
   | { readonly status: "loading" }
@@ -28,7 +29,18 @@ export interface DetailActions {
 const LOADING: DetailState = { status: "loading" };
 
 export function refreshKey(item: Readonly<Item>): string {
-  return [item.status, item.fetchedAt, item.title, item.digestTitle, item.digestOutcome].join("|");
+  const counts = commentCountOf(item);
+
+  return [
+    item.status,
+    item.fetchedAt,
+    item.title,
+    item.digestTitle,
+    item.digestOutcome,
+    counts?.filter,
+    counts?.shown,
+    counts?.total,
+  ].join("|");
 }
 
 const FAILED: Answer["state"] = { status: "failed" };

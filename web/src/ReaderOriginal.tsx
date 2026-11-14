@@ -13,13 +13,15 @@ function waitsForThread(item: Readonly<Item>): boolean {
   return item.fillable && item.status !== "processing";
 }
 
-function missingTextNote(item: Readonly<Item>): string | null {
+function missingTextNote(item: Readonly<Item>, hasLink: boolean): string | null {
   if (item.status === "processing")
     return item.wait === null ? CARD_TITLES.reading : waitTitle(item.wait);
 
   if (waitsForThread(item)) return null;
 
-  return item.kind === "github-repo" && item.fetch === "ok" ? NO_README : NO_POST_TEXT;
+  if (item.kind === "github-repo" && item.fetch === "ok") return NO_README;
+
+  return hasLink ? null : NO_POST_TEXT;
 }
 
 function TokenRefused({ text }: Readonly<{ text: string }>) {
@@ -40,7 +42,7 @@ export function Original({
 }: Readonly<{ item: Item; detail: ItemDetail; now: number }>) {
   const text = detail.postText;
   const hasText = text !== null && text.trim() !== "";
-  const note = hasText ? null : missingTextNote(item);
+  const note = hasText ? null : missingTextNote(item, (detail.link ?? null) !== null);
 
   return (
     <>

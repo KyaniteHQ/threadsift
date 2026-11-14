@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import { type CommentCount, type CountColumns, commentCountOf } from "../core/comment-view.ts";
 import { logFailure } from "../core/failure-log.ts";
 import { itemPath } from "../core/item-path.ts";
 import type { WaitReason } from "../core/kinds.ts";
@@ -12,7 +13,8 @@ type StatusRow = Pick<ItemRow, "id"> &
   ShownStatusInput & {
     readonly waitReason: WaitReason | null;
     readonly retryAt: number | null;
-  } & ImageColumns;
+  } & ImageColumns &
+  CountColumns;
 
 type Wait = z.infer<typeof WaitSchema>;
 
@@ -42,9 +44,19 @@ function waitOf({ status, waitReason, retryAt }: Readonly<StatusRow>): Wait | nu
 
 export function itemView<Row extends StatusRow>(
   row: Readonly<Row>,
-): Omit<Row, keyof ImageColumns | "status" | "reason" | "digestSource" | "waitReason" | "retryAt"> &
+): Omit<
+  Row,
+  | keyof ImageColumns
+  | keyof CountColumns
+  | "status"
+  | "reason"
+  | "digestSource"
+  | "waitReason"
+  | "retryAt"
+> &
   StatusFields & {
     readonly wait: Wait | null;
+    readonly commentCount: CommentCount | null;
     readonly image: z.infer<typeof ItemImageSchema> | null;
   } {
   const {
@@ -53,10 +65,19 @@ export function itemView<Row extends StatusRow>(
     retryAt: _retryAt,
     imageKey: _imageKey,
     imageAlt: _imageAlt,
+    commentsFilter: _commentsFilter,
+    commentsShown: _commentsShown,
+    commentsOutOf: _commentsOutOf,
     ...view
   } = row;
 
-  return { ...view, ...statusFields(row), wait: waitOf(row), image: imageOf(row) };
+  return {
+    ...view,
+    ...statusFields(row),
+    wait: waitOf(row),
+    image: imageOf(row),
+    commentCount: commentCountOf(row),
+  };
 }
 
 export function shownItems<Row extends StatusRow>(rows: readonly Readonly<Row>[]) {

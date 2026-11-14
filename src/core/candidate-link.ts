@@ -31,3 +31,9 @@ function firstTarget(addresses: readonly (string | null)[]): string | null {
 export function chooseCandidateLink({ url, text }: Readonly<CandidatePost>): string | null {
   return firstTarget([url]) ?? (text === null ? null : firstTarget(scanMarkdown(text, true).links));
 }
+
+export function shownLinkOf(address: string | null): string | null {
+  const url = address === null ? null : webUrlOf(address);
+
+  return url !== null && fits(url.href) ? url.href : null;
+}

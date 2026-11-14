@@ -1,7 +1,7 @@
-import { chooseCandidateLink } from "./candidate-link.ts";
+import { chooseCandidateLink, shownLinkOf } from "./candidate-link.ts";
 import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
-import type { RedditRef } from "./links.ts";
+import { type RedditRef, redditRefOf } from "./links.ts";
 import {
   type Walked,
   checkedIds,
@@ -26,6 +26,7 @@ export interface ParsedThread {
   readonly postedAt: number | null;
   readonly reported: number | null;
   readonly linkedUrl: string | null;
+  readonly postLink: string | null;
   readonly nodes: readonly ThreadNode[];
 }
 
@@ -91,6 +92,14 @@ function nodesOf(entries: readonly Walked[], base: number, root: string): readon
   });
 }
 
+function postLinkOf(post: Readonly<WirePost>): string | null {
+  if (post.is_self !== false) return null;
+
+  const link = shownLinkOf(post.url ?? null);
+
+  return link === null || redditRefOf(link)?.postId === post.id.toLowerCase() ? null : link;
+}
+
 function ofPost(post: Readonly<WirePost>, walked: readonly Walked[]): ParsedThread {
   const postText = isRemovedBody(post.selftext) ? null : post.selftext;
 
@@ -102,6 +111,7 @@ function ofPost(post: Readonly<WirePost>, walked: readonly Walked[]): ParsedThre
     postedAt: milliseconds(post.created_utc),
     reported: post.num_comments ?? null,
     linkedUrl: chooseCandidateLink({ url: post.url ?? null, text: postText }),
+    postLink: postLinkOf(post),
     nodes: nodesOf(walked, 0, `t3_${post.id}`),
   };
 }
@@ -135,6 +145,7 @@ function ofComment(
     postedAt: milliseconds(comment.created_utc),
     reported: null,
     linkedUrl: null,
+    postLink: null,
     nodes: nodesOf(
       end === -1 ? rest : rest.slice(0, end),
       root.depth + 1,

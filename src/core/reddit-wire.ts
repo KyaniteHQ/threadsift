@@ -59,6 +59,7 @@ const PostData = z
     author: z.string(),
     subreddit: z.string().min(1),
     selftext: z.string(),
+    is_self: z.boolean().nullish(),
     url: z
       .json()
       .optional()

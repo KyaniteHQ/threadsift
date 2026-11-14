@@ -33,7 +33,7 @@ export function registerReadTools(server: McpServer, ports: Ports): void {
     {
       title: "Read an Item",
       description:
-        "Read one Item by `id`: its status, post text, Digest, Kept comments, Highlights and Note.",
+        "Read one Item by `id`: its status, post text, Digest, comments (the Kept ones, or every comment that passes the script's first step while no Digest covers the thread), Highlights and Note.",
       inputSchema: ReadInputSchema,
       outputSchema: ItemDetailResponseSchema,
       annotations: { readOnlyHint: true },

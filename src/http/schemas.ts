@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { ReaderDigestSchema } from "../core/ai-contract.ts";
-import { CommentsViewSchema } from "../core/comment-view.ts";
+import { CommentCountSchema, CommentsViewSchema } from "../core/comment-view.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { HighlightsViewSchema } from "../core/highlight-contract.ts";
 import { parseCursor } from "../core/item-page.ts";
@@ -48,6 +48,7 @@ const ItemBaseSchema = z.object({
   stars: z.number().int().nonnegative().nullable(),
   commentsKept: z.number().int().nonnegative().nullable(),
   commentsTotal: z.number().int().nonnegative().nullable(),
+  commentCount: CommentCountSchema.nullable().optional(),
   wait: WaitSchema.nullable(),
   image: ItemImageSchema.nullable(),
   fillable: z.boolean(),
@@ -94,6 +95,7 @@ const ItemDetailSchema = withStatus(
     digest: ReaderDigestSchema.nullable(),
     repository: RepositorySchema.nullable(),
     images: z.array(SizedImageSchema).readonly(),
+    link: HttpUrlSchema.nullable().optional(),
     comments: CommentsViewSchema,
     highlights: HighlightsViewSchema,
     note: NoteViewSchema,

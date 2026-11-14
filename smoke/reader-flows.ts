@@ -2,7 +2,6 @@ import { type Page, expect } from "@playwright/test";
 
 import { ItemDetailResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
-import { rowKeptLabel } from "../web/src/text.ts";
 
 const THREAD_ID = "3000000000000000001";
 
@@ -105,7 +104,7 @@ export async function readXThread(page: Page): Promise<void> {
 
   const row = page.locator("article.it").filter({ hasText: THREAD_TITLE });
 
-  await expect(row).toContainText(rowKeptLabel(2, 3));
+  await expect(row).toContainText("Kept 2 of 3");
   await row.getByRole("link").first().click();
 
   const reader = page.locator(".reader");

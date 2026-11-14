@@ -1,8 +1,8 @@
+import type { CommentCount, UnfilteredCause } from "../../src/core/comment-view.ts";
 import { groupedNumber } from "../../src/core/format.ts";
 import type { Kind, Source } from "../../src/core/kinds.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
 import { collapsedText } from "./collapsed-text.ts";
-import type { CommentCounts } from "./comment-counts.ts";
 import { ageLabel, dateLabel } from "./saved-label.ts";
 import { CLOSE_LABEL, filled } from "./text.ts";
 
@@ -56,6 +56,19 @@ export const PASTE_OPEN = "Open";
 export const FOLD_HIDE = "Show fewer lines";
 export const COMMENTS_TITLE = "Comments";
 export const NONE_KEPT = "None of the comments added anything the post doesn't already say.";
+
+const UNFILTERED_LEAD = "The comments below are not filtered by a Digest yet.";
+
+export const UNFILTERED_NOTES = {
+  pending: `${UNFILTERED_LEAD} One is being made now, and the filter follows when it is ready.`,
+  failed: `${UNFILTERED_LEAD} The last Digest run failed.`,
+  "no-provider": `${UNFILTERED_LEAD} No Provider is saved, so no Digest can be made.`,
+  "not-run": `${UNFILTERED_LEAD} A Provider is saved, but this item has no Digest yet.`,
+  older: `${UNFILTERED_LEAD} The Digest was made from earlier text and does not cover them.`,
+} as const satisfies Record<UnfilteredCause, string>;
+
+export const ALL_REMOVED = "The comments of this thread were removed, written by bots or empty.";
+
 export const CONTEXT_LABEL = "Context";
 export const STUB_DROPPED = "Removed comment shown so the replies below make sense.";
 export const STUB_NOT_KEPT = "Comment not kept, shown so the replies below make sense.";
@@ -128,10 +141,18 @@ const CODE_ONE = "Code block, 1 line";
 const CODE_MANY = "Code block, {count} lines";
 const TABLE_NAME = "Table, {count} columns";
 const FOLD_SHOW = "Show all {count} lines";
-const COMMENTS_KEPT = "Kept {kept} of {total} comments";
-const COMMENTS_BUTTON = "Comments {kept} of {total}";
-const COMMENTS_BUTTON_SHORT = "{kept} of {total}";
-const COMMENTS_BUTTON_COUNT = "{kept}";
+
+const COUNT_TEXTS = {
+  kept: { row: "Kept {shown} of {total}", heading: "Kept {shown} of {total} comments" },
+  unfiltered: {
+    row: "Showing {shown} of {total}",
+    heading: "Showing {shown} of {total} comments",
+  },
+} as const satisfies Record<CommentCount["filter"], Record<"row" | "heading", string>>;
+
+const COMMENTS_BUTTON = "Comments {shown} of {total}";
+const COMMENTS_BUTTON_SHORT = "{shown} of {total}";
+const COMMENTS_BUTTON_COUNT = "{shown}";
 const SCORE = "{score} pts";
 const LIKES = "Likes: {count}";
 
@@ -191,15 +212,15 @@ export function leaveOf(sheet: boolean, grid: boolean): Leave {
   return { long: grid ? BACK_TO_GRID : BACK_LONG, short: BACK_SHORT, icon: "left" };
 }
 
-function numbers({ kept, total }: Readonly<CommentCounts>) {
-  return { kept: groupedNumber(kept), total: groupedNumber(total) };
+function numbers({ shown, total }: Readonly<Pick<CommentCount, "shown" | "total">>) {
+  return { shown: groupedNumber(shown), total: groupedNumber(total) };
 }
 
-export function keptLabel(counts: Readonly<CommentCounts>): string {
-  return filled(COMMENTS_KEPT, numbers(counts));
+export function countLabel(counts: Readonly<CommentCount>, place: "row" | "heading"): string {
+  return filled(COUNT_TEXTS[counts.filter][place], numbers(counts));
 }
 
-export function commentsButtonLabels(counts: Readonly<CommentCounts>) {
+export function commentsButtonLabels(counts: Readonly<Pick<CommentCount, "shown" | "total">>) {
   const values = numbers(counts);
 
   return {

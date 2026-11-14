@@ -2,8 +2,9 @@ import { useCallback } from "react";
 
 import { whereOf } from "../../src/core/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import { commentCountsOf } from "./comment-counts.ts";
+import { commentCountOf } from "./comment-counts.ts";
 import { Icon } from "./Icon.tsx";
+import { countLabel } from "./reader-text.ts";
 import { SETTINGS_PATH } from "./routing.ts";
 import { savedLabel } from "./saved-label.ts";
 import {
@@ -15,7 +16,6 @@ import {
   SOURCE_LABELS,
   TOKEN_REFUSED,
   failureTitleOf,
-  rowKeptLabel,
   starsLabel,
 } from "./text.ts";
 import { WaitText } from "./WaitText.tsx";
@@ -131,9 +131,9 @@ function Skeleton() {
 function commentNote(item: Readonly<Item>): string | null {
   if (item.kind === "reddit-comment") return SAVED_COMMENT;
 
-  const counts = commentCountsOf(item);
+  const counts = commentCountOf(item);
 
-  return counts === null ? null : rowKeptLabel(counts.kept, counts.total);
+  return counts === null ? null : countLabel(counts, "row");
 }
 
 function Foot({ item, id }: Readonly<{ item: Item; id: string }>) {

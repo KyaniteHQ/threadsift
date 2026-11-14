@@ -36,6 +36,7 @@ export function ReaderHead({
 }>) {
   const title = useRef<HTMLHeadingElement>(null);
   const name = item.digestTitle ?? item.title;
+  const link = detail?.link ?? null;
 
   useEffect(() => {
     if (focusTitle && !loading) title.current?.focus({ preventScroll: true });
@@ -55,6 +56,11 @@ export function ReaderHead({
       <h2 ref={title} id={titleId} className="rd-title" tabIndex={-1}>
         <bdi dir="auto">{name ?? shownUrl(item.normalizedUrl)}</bdi>
       </h2>
+      {link === null ? null : (
+        <a className="rd-link" href={link} target="_blank" rel="noopener noreferrer">
+          {link}
+        </a>
+      )}
       <HeadNote item={item} tryAgain={tryAgain} />
     </header>
   );
