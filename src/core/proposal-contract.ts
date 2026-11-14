@@ -14,7 +14,7 @@ const MergeProposalSchema = z
     kind: z.enum(MERGE_KINDS),
     state: ListedStateSchema,
     reason: z.string(),
-    failedRuns: z.number().int().min(0),
+    failedRuns: z.number().int().min(0).default(0),
     from: SubjectRefSchema,
     into: SubjectRefSchema,
   })
