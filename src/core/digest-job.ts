@@ -1,12 +1,30 @@
-import { type SQLWrapper, and, eq, isNotNull, not, notExists, or, sql } from "drizzle-orm";
+import {
+  type SQLWrapper,
+  and,
+  asc,
+  eq,
+  inArray,
+  isNotNull,
+  not,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm";
 
-import { expireAiTasks, providerSet } from "./ai-tasks.ts";
+import { expireAiTasks } from "./ai-tasks.ts";
 import { hasDigestSource, keptNotUpdated } from "./digest-source.ts";
 import { NOT_FAILED, setStatus } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { linkOlderDigests } from "./older-digests.ts";
 import type { Database } from "./ports.ts";
+import { grokBotChosen, providerSet } from "./provider-saved.ts";
 import { digests, items } from "./schema.ts";
+
+const OWED_DIGESTS_PER_SWEEP = 20;
+
+function eligibleDigest(scope: Readonly<SQLWrapper>) {
+  return and(sql`${scope}`, hasDigestSource(), notExists(hasOpenJob("digest"))) ?? sql`0`;
+}
 
 export function openingDigest(
   db: Database,
@@ -16,7 +34,7 @@ export function openingDigest(
     now,
   }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
 ) {
-  const eligible = and(sql`${scope}`, hasDigestSource(), notExists(hasOpenJob("digest"))) ?? sql`0`;
+  const eligible = eligibleDigest(scope);
 
   return { eligible, job: opening(db, { kind: "digest", address, now, where: eligible }) };
 }
@@ -24,6 +42,7 @@ export function openingDigest(
 export async function sweepDigests(db: Database, now: number): Promise<void> {
   await expireAiTasks(db, now);
   await linkOlderDigests(db);
+  await db.batch(owedDigests(db, { provider: grokBotChosen(), limit: OWED_DIGESTS_PER_SWEEP }));
 }
 
 export function digestAfterFetch(
@@ -50,19 +69,40 @@ export function digestAfterFetch(
   ];
 }
 
-export function olderDigests(db: Database) {
+function owedDigests(
+  db: Database,
+  { provider, limit }: Readonly<{ provider: Readonly<SQLWrapper>; limit: number | undefined }>,
+) {
+  const withoutDigest =
+    and(
+      sql`${provider}`,
+      NOT_FAILED,
+      eq(items.digestFailed, false),
+      notExists(
+        db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
+      ),
+    ) ?? sql`0`;
+
   const older = openingDigest(db, {
     scope:
-      and(
-        NOT_FAILED,
-        eq(items.digestFailed, false),
-        notExists(
-          db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
-        ),
-      ) ?? sql`0`,
+      limit === undefined
+        ? withoutDigest
+        : inArray(
+            items.id,
+            db
+              .select({ id: items.id })
+              .from(items)
+              .where(eligibleDigest(withoutDigest))
+              .orderBy(asc(items.id))
+              .limit(limit),
+          ),
     address: sql`${items.originalUrl}`,
     now: Date.now(),
   });
 
-  return [setStatus(db, { kind: "queued" }, older.eligible), older.job];
+  return [setStatus(db, { kind: "queued" }, older.eligible), older.job] as const;
+}
+
+export function olderDigests(db: Database) {
+  return owedDigests(db, { provider: providerSet(), limit: undefined });
 }

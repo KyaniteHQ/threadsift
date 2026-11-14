@@ -1,10 +1,10 @@
 import { type SQL, type SQLWrapper, and, eq, isNotNull, sql } from "drizzle-orm";
 import type { SubqueryWithSelection } from "drizzle-orm/sqlite-core";
 
-import { providerSet } from "./ai-tasks.ts";
 import type { ClaimedJob } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
+import { providerSet } from "./provider-saved.ts";
 import { type JobRow, aiTasks, items, jobs, topicLeases, topicPages, topics } from "./schema.ts";
 import { coverageGaps } from "./topic-coverage.ts";
 import { type TopicLease, leaseMatches, recoverPrefixLeases } from "./topic-lease.ts";

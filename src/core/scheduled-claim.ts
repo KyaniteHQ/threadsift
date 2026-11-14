@@ -1,8 +1,8 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
-import { providerSet } from "./ai-tasks.ts";
 import type { WeeklyTask } from "./kinds.ts";
 import type { Database } from "./ports.ts";
+import { providerSet } from "./provider-saved.ts";
 import { digests, scheduledRuns } from "./schema.ts";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { botInstance } from "./bot-task-fixtures.ts";
+import { chooseGrokBot, unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
   DIGEST,
@@ -8,12 +10,15 @@ import {
   addressOf,
   commentsOf,
   postOf,
+  SECRET_KEY,
+  seedGithubCooldown,
   threadOf,
   toolsOf,
   hopLines,
   warningsDuring,
   withoutComments,
 } from "./one-hop-fixtures.ts";
+import { saveProvider } from "./related-fixtures.ts";
 
 describe("a Reddit post that links to a page stores one candidate link for the Digest", () => {
   let instance: Instance;
@@ -196,5 +201,50 @@ describe("a Reddit post that links to a page stores one candidate link for the D
     assert.equal(caller.settled.digestTitle, DIGEST.title);
     assert.deepEqual(tools.aiTasks(caller.id), [{ executor: "caller" }]);
     assert.deepEqual(hopLines(warnings), []);
+  });
+});
+
+describe("a Reddit post whose only source is a candidate link ends failed with Try again when a Provider is saved and the Digest cannot run", () => {
+  it("fails when the linked page cannot be read", async () => {
+    const instance = await Instance.start({ secretKey: SECRET_KEY });
+
+    try {
+      await instance.setUp();
+      seedGithubCooldown(instance);
+      await saveProvider(instance);
+
+      const { item } = await toolsOf(instance).paste(
+        addressOf("failing1"),
+        withoutComments("failing1", { url: LINKED }),
+      );
+
+      const settled = await instance.settledItem(item.id);
+
+      assert.equal(settled.digestOutcome, "failed");
+      assert.equal(settled.retry, "digest");
+    } finally {
+      await instance.close();
+    }
+  });
+
+  it("fails when the key of Grok Bot does not open", async () => {
+    const instance = await botInstance();
+
+    try {
+      assert.equal((await chooseGrokBot(instance)).status, 200);
+      unreadableBotKey(instance);
+
+      const { item } = await toolsOf(instance).paste(
+        addressOf("failing2"),
+        withoutComments("failing2", { url: LINKED }),
+      );
+
+      const settled = await instance.settledItem(item.id);
+
+      assert.equal(settled.digestOutcome, "failed");
+      assert.equal(settled.retry, "digest");
+    } finally {
+      await instance.close();
+    }
   });
 });

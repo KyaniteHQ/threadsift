@@ -1,26 +1,19 @@
 import { type SQLWrapper, and, eq, exists, isNotNull, isNull, or, sql } from "drizzle-orm";
 
-import { failedAiTask, providerSet } from "./ai-tasks.ts";
+import { failedAiTask } from "./ai-tasks.ts";
 import {
   type CatalogNames,
   type CommentCounts,
   type DigestPrompt,
   DIGEST_INPUT_BYTES,
   type LinkedPage,
-  cutDigestInput,
   digestPrompt,
 } from "./digest-prompt.ts";
-import { logFailure, report } from "./failure-log.ts";
-import {
-  type ClaimedJob,
-  type JobCurrency,
-  type JobOutcome,
-  type JobPorts,
-  isLastAttempt,
-} from "./job-outcome.ts";
+import { report } from "./failure-log.ts";
+import { type JobCurrency, type JobOutcome } from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
-import { readPostText } from "./post-text.ts";
+import { providerSet } from "./provider-saved.ts";
 import { candidateLink, commentCandidates, eligibleComments } from "./reddit-thread.ts";
 import { type JobRow, digests, insertGuard, items } from "./schema.ts";
 
@@ -106,6 +99,13 @@ export function keptNotUpdated(
   ] as const;
 }
 
+export function unusableInput(db: Database, itemId: number) {
+  return [
+    ...keptNotUpdated(db, itemId),
+    setMarker(db, itemId, true, and(whileDigestOpen(), providerSet()) ?? sql`0`),
+  ] as const;
+}
+
 export function generationCurrent(
   item: Readonly<Pick<DigestInput, "id" | "generation" | "pendingDigest">>,
 ) {
@@ -138,8 +138,6 @@ export function currency(
   };
 }
 
-class PostTextUnreadable extends Error {}
-
 export async function staleOutcome(
   db: Database,
   item: Readonly<DigestInput>,
@@ -148,28 +146,6 @@ export async function staleOutcome(
   const read = currency(db, generation, null);
 
   return (await read.current()) ? null : { currency: read, writes: [insertGuard(db, generation)] };
-}
-
-async function unreadableText(
-  db: Database,
-  job: Readonly<ClaimedJob>,
-  item: Readonly<DigestInput>,
-): Promise<JobOutcome> {
-  const stale = await staleOutcome(db, item);
-
-  if (stale !== null) return stale;
-
-  const generation = generationCurrent(item);
-  const read = currency(db, generation, null);
-
-  if (!isLastAttempt(job.attempts))
-    throw new PostTextUnreadable(`The post text file of Item ${item.id} cannot be read`);
-
-  return {
-    currency: read,
-    failedAttempt: true,
-    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
-  };
 }
 
 export async function modelInput(
@@ -213,46 +189,4 @@ export function attemptGenerationCurrent(
 
 export function lostClaim(db: Database): JobOutcome {
   return { writes: [insertGuard(db, sql`0`)] };
-}
-
-export function refusedInput(
-  db: Database,
-  item: Readonly<DigestInput>,
-  fixedBytes: number,
-): JobOutcome {
-  const generation = generationCurrent(item);
-
-  report("digest-input-refused", {
-    itemId: item.id,
-    reason: "fixed-metadata-over-cap",
-    fixedBytes,
-  });
-
-  return {
-    currency: currency(db, generation, null),
-    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
-  };
-}
-
-type DigestText = { readonly text: string | null } | { readonly outcome: JobOutcome };
-
-export async function readDigestText(
-  ports: JobPorts,
-  job: Readonly<ClaimedJob>,
-  item: Readonly<DigestInput>,
-): Promise<DigestText> {
-  if (item.postTextKey === null) return { text: item.postText };
-
-  let text: string | null;
-
-  try {
-    text = await readPostText(ports.files, item.id, item.postTextKey);
-  } catch (error) {
-    logFailure("post-text-not-read", { itemId: item.id }, error);
-    text = null;
-  }
-
-  return text === null
-    ? { outcome: await unreadableText(ports.db, job, item) }
-    : { text: cutDigestInput(text) };
 }
