@@ -205,11 +205,11 @@ export async function withinBudget<Saved>(
 
   const ledger = slotLedger(caller.id, reserved.slots);
 
-  const saved = await unlessSpent(() => run(ledger.saves));
-
-  await settle(db, caller.id, ledger, reserved);
-
-  return saved;
+  try {
+    return await unlessSpent(() => run(ledger.saves));
+  } finally {
+    await settle(db, caller.id, ledger, reserved);
+  }
 }
 
 export async function forgetOldDays(db: Database, tokenId: number, now: number): Promise<void> {
