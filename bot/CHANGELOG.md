@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A bookmark sync that stops at 20 pages stores the top bookmark as its cursor, so the next sync starts from the top instead of sending the same 2,000 bookmarks again.
+
 ## bot-v3
 
 - The skill now holds the bot's rules (what it never does, its voice, and what its memory holds), and an installed bot keeps its own profile.
