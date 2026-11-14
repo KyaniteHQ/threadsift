@@ -1,6 +1,7 @@
-import { type SQLWrapper, and, eq, isNotNull, isNull, ne, notExists, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import { holdsNoRow } from "./guards.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { itemAliases, items } from "./schema.ts";
@@ -44,26 +45,12 @@ export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }:
   );
 }
 
-interface FetchColumns {
-  readonly normalizedUrl: Readonly<SQLWrapper>;
-  readonly fetch: Readonly<SQLWrapper>;
-  readonly fetchedAt: Readonly<SQLWrapper>;
-}
-
-function failedResolutionAt(
-  { normalizedUrl, fetch, fetchedAt }: Readonly<FetchColumns>,
-  shortLink: string,
-) {
-  return and(eq(normalizedUrl, shortLink), isNotNull(fetch), ne(fetch, "ok"), isNull(fetchedAt));
+function failedResolutionAt(shortLink: string) {
+  return sql`${eq(items.normalizedUrl, shortLink)} and ${isNotNull(items.fetch)} and ${ne(items.fetch, "ok")} and ${isNull(items.fetchedAt)}`;
 }
 
 export function holdsNoFailedItem(db: Database, shortLink: string) {
-  return notExists(
-    db
-      .select({ one: sql`1` })
-      .from(holder)
-      .where(failedResolutionAt(holder, shortLink)),
-  );
+  return holdsNoRow(db, items, failedResolutionAt(shortLink));
 }
 
 export function promoteFailedItem(
@@ -79,7 +66,7 @@ export function promoteFailedItem(
   return db
     .update(items)
     .set({ normalizedUrl, kind, source })
-    .where(and(failedResolutionAt(items, shortLink), notExists(taken)));
+    .where(and(failedResolutionAt(shortLink), notExists(taken)));
 }
 
 export function recordAlias(
