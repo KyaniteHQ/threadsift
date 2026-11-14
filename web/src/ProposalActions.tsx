@@ -11,6 +11,7 @@ import {
   acceptRetryLabel,
   applyFailedNote,
   isAcceptable,
+  isMerge,
   rejectLabel,
   rejectRetryLabel,
 } from "./proposals-text.ts";
@@ -42,12 +43,12 @@ const BUSY_NOTES = {
 } as const satisfies Record<Busy, string>;
 
 function ApplyingNotes({ proposal }: Readonly<{ proposal: Proposal }>) {
-  const failed = "failedRuns" in proposal ? applyFailedNote(proposal.failedRuns) : null;
-
   return (
     <>
       <Note alert={false}>{PROPOSAL_WORDS.applying}</Note>
-      {failed !== null && <Note alert={false}>{failed}</Note>}
+      {isMerge(proposal) && proposal.failedRuns > 0 && (
+        <p className="rd-note">{applyFailedNote(proposal.failedRuns)}</p>
+      )}
     </>
   );
 }

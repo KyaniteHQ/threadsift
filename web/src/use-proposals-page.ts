@@ -6,6 +6,7 @@ import {
   type AcceptableProposal,
   PROPOSAL_WORDS,
   acceptedAnnouncement,
+  firstFailures,
   isAcceptable,
   notCurrentNote,
 } from "./proposals-text.ts";
@@ -257,6 +258,7 @@ function useAnnouncingReread(
       const texts = [
         ...(own === null ? [] : [own]),
         ...left.map((row) => acceptedAnnouncement(row)),
+        ...firstFailures(applyingRows(before), page?.proposals ?? []),
       ];
 
       const [first] = left;
