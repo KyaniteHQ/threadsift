@@ -32,6 +32,7 @@ export type Attempt = { readonly kind: "ok" } | Refusal;
 const DEFAULT_RETRY_SECONDS = 60;
 const NO_CONTENT = 204;
 const UNAUTHORIZED = 401;
+const NOT_FOUND = 404;
 
 const REFUSALS = {
   wrong: { kind: "wrong" },
@@ -132,5 +133,5 @@ export async function changeBudget(id: number, dailyBudget: number | null): Prom
 }
 
 export async function revokeToken(id: number): Promise<void> {
-  await callOk(del(DATABASE_WRITE_DEADLINE_MS), `/api/tokens/${id}`);
+  await callOk(del(DATABASE_WRITE_DEADLINE_MS), `/api/tokens/${id}`, { tolerates: [NOT_FOUND] });
 }

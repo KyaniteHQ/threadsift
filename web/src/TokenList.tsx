@@ -66,7 +66,7 @@ function useRevoke(
   return { flow, actions: { ask, cancel, revoke } };
 }
 
-function useBudget(changed: (token: Token) => void) {
+function useBudget(changed: (token: Token) => void, reread: () => void) {
   const [flow, send] = useFlow(reduceBudget, BUDGET_START);
   const requests = useRef(0);
 
@@ -98,13 +98,14 @@ function useBudget(changed: (token: Token) => void) {
         token = await changeBudget(id, dailyBudget);
       } catch {
         send({ kind: "refuse", id, request });
+        reread();
 
         return;
       }
 
       if (send({ kind: "saved", id, request })) changed(token);
     },
-    [changed, send],
+    [changed, reread, send],
   );
 
   return { flow, actions: { editBudget, cancelBudget, saveBudget } };
@@ -114,15 +115,17 @@ export function TokenList({
   tokens,
   removed,
   changed,
+  reread,
   nameField,
 }: Readonly<{
   tokens: readonly Token[];
   removed: (id: number) => void;
   changed: (token: Token) => void;
+  reread: () => void;
   nameField: RefObject<HTMLInputElement | null>;
 }>) {
   const revoke = useRevoke(tokens, removed, nameField);
-  const budget = useBudget(changed);
+  const budget = useBudget(changed, reread);
   const { flow } = revoke;
   const { ask, cancel, revoke: revokeThis } = revoke.actions;
   const { editBudget, cancelBudget, saveBudget } = budget.actions;
