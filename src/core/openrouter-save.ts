@@ -5,9 +5,10 @@ import {
   holdsSettings,
   prepareAiSettings,
   providerWrites,
+  storedSettings,
 } from "./ai-settings.ts";
 import { logFailure } from "./failure-log.ts";
-import { DATABASE_NOW, batchAll, guardedBatch } from "./guards.ts";
+import { DATABASE_NOW, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Claimed } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
@@ -16,11 +17,6 @@ import type { Ports } from "./ports.ts";
 import { sessionIsLive } from "./sessions.ts";
 
 type Prepared = Awaited<ReturnType<typeof prepareAiSettings>>;
-
-interface AfterSave {
-  readonly activated: () => Promise<boolean>;
-  readonly extraWrites: () => JobWrites;
-}
 
 async function prepareOrNull(
   ports: Ports,
@@ -60,36 +56,36 @@ async function committed(
   }
 }
 
-async function openedOlderDigests(ports: Ports, extraWrites: () => JobWrites): Promise<boolean> {
+async function stillStored(
+  ports: Ports,
+  row: Readonly<PreparedSave["row"]>,
+  writes: JobWrites,
+): Promise<boolean> {
   try {
-    await batchAll(ports.db, extraWrites());
-
-    return true;
+    return await guardedBatch(ports.db, storedSettings(row), writes);
   } catch (error) {
     logFailure("openrouter-connect-digests-failed", {}, error);
 
-    return false;
+    return holdsSettings(ports.db, row);
   }
 }
 
 async function afterActivation(
   ports: Ports,
   { row }: Readonly<PreparedSave>,
-  { activated, extraWrites }: Readonly<AfterSave>,
+  { key, extraWrites }: Readonly<{ key: string; extraWrites: () => JobWrites }>,
 ): Promise<ConnectNotice> {
-  const active = await activated();
+  const active = await ports.ai.awaitOpenRouterActivation(key);
 
-  if (!(await holdsSettings(ports.db, row))) return "settings-changed";
+  if (!(await stillStored(ports, row, active ? extraWrites() : []))) return "settings-changed";
 
-  if (!active) return "activation-pending";
-
-  return (await openedOlderDigests(ports, extraWrites)) ? "connected" : "activation-pending";
+  return active ? "connected" : "activation-pending";
 }
 
 export async function saveConnectedKey(
   ports: Ports,
   { sessionId, claimed, key }: Readonly<{ sessionId: string; claimed: Claimed; key: string }>,
-  after: Readonly<AfterSave>,
+  extraWrites: () => JobWrites,
 ): Promise<ConnectNotice> {
   const prepared = await prepareOrNull(ports, { claimed, key });
 
@@ -99,7 +95,7 @@ export async function saveConnectedKey(
     (await committed(ports, { sessionId, claimed, prepared })) ||
     (await holdsSettings(ports.db, prepared.row))
   ) {
-    return afterActivation(ports, prepared, after);
+    return afterActivation(ports, prepared, { key, extraWrites });
   }
 
   return "possible-orphan";

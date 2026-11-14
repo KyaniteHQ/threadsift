@@ -1,6 +1,5 @@
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
-import { setTimeout } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { z } from "zod";
@@ -59,21 +58,18 @@ async function realFileOf(path: string): Promise<string> {
   return real;
 }
 
-async function withinDeadline<Value>(module: string, step: () => Promise<Value>): Promise<Value> {
-  const waiting = new AbortController();
+function withinDeadline<Value>(module: string, step: () => Promise<Value>): Promise<Value> {
+  return new Promise<Value>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new FetcherLoadError(module, "import", "TimeoutError"));
+    }, IMPORT_DEADLINE_MS);
 
-  const expired = setTimeout(IMPORT_DEADLINE_MS, undefined, { signal: waiting.signal }).then(
-    () => {
-      throw new FetcherLoadError(module, "import", "TimeoutError");
-    },
-    () => new Promise<never>(() => {}),
-  );
-
-  try {
-    return await Promise.race([step(), expired]);
-  } finally {
-    waiting.abort();
-  }
+    step()
+      .then(resolve, reject)
+      .finally(() => {
+        clearTimeout(timer);
+      });
+  });
 }
 
 async function importedFetcher({ module, path }: Readonly<Entry>): Promise<LoadedFetcher> {

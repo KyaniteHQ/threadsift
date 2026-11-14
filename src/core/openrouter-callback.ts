@@ -53,12 +53,5 @@ export async function completeOpenRouterConnect(
 
   if (exchange.kind !== "key") return "possible-orphan";
 
-  return saveConnectedKey(
-    ports,
-    { sessionId, claimed, key: exchange.key },
-    {
-      activated: () => ports.ai.awaitOpenRouterActivation(exchange.key),
-      extraWrites,
-    },
-  );
+  return saveConnectedKey(ports, { sessionId, claimed, key: exchange.key }, extraWrites);
 }
