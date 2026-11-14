@@ -19,14 +19,21 @@ export async function releasedAfterFailure(
   }
 }
 
-export async function countedFailure(db: Database, id: number, revision: number): Promise<void> {
+export async function recordedFailure(
+  db: Database,
+  id: number,
+  revision: number,
+  cause: unknown,
+): Promise<void> {
+  logFailure("merge-unit-failed", { proposal: id, databaseCode: databaseCodeOf(cause) }, cause);
+
   try {
     await unitFailed(db, id, revision);
-  } catch (cause) {
+  } catch (countCause) {
     logFailure(
       "merge-unit-failure-not-counted",
-      { proposal: id, databaseCode: databaseCodeOf(cause) },
-      cause,
+      { proposal: id, databaseCode: databaseCodeOf(countCause) },
+      countCause,
     );
   }
 }
