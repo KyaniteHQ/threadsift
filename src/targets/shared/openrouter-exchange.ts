@@ -45,21 +45,20 @@ async function activated(send: typeof fetch, key: string, deadline: number): Pro
   return activated(send, key, deadline);
 }
 
-async function keyOf(
-  send: typeof fetch,
-  body: AsyncIterable<Uint8Array> | null,
-): Promise<OpenRouterExchange> {
+async function keyOf(body: AsyncIterable<Uint8Array> | null): Promise<OpenRouterExchange> {
   const answer = KeyAnswerSchema.safeParse(
     body === null ? null : JSON.parse(await cappedText(body)),
   );
 
-  return answer.success
-    ? {
-        kind: "key",
-        key: answer.data.key,
-        active: await activated(send, answer.data.key, Date.now() + ACTIVATION_WAIT_MS),
-      }
-    : { kind: "uncertain" };
+  return answer.success ? { kind: "key", key: answer.data.key } : { kind: "uncertain" };
+}
+
+export function openRouterActivation(
+  request: typeof fetch,
+): AiRuntime["awaitOpenRouterActivation"] {
+  const send = aiTransport(request);
+
+  return (key) => activated(send, key, Date.now() + ACTIVATION_WAIT_MS);
 }
 
 export function openRouterExchange(request: typeof fetch): AiRuntime["exchangeOpenRouterCode"] {
@@ -74,7 +73,7 @@ export function openRouterExchange(request: typeof fetch): AiRuntime["exchangeOp
         signal,
       });
 
-      if (response.status === 200) return await keyOf(send, response.body);
+      if (response.status === 200) return await keyOf(response.body);
 
       await response.body?.cancel();
 

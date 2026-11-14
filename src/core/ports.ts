@@ -113,6 +113,7 @@ export interface AiRuntime {
     input: Readonly<{ code: string; verifier: string }>,
     signal: AbortSignal,
   ) => Promise<OpenRouterExchange>;
+  readonly awaitOpenRouterActivation: (key: string) => Promise<boolean>;
 }
 
 export interface Ports {

@@ -37,6 +37,6 @@ export function returnAddress(notice: ConnectNotice | null): string {
 }
 
 export type OpenRouterExchange =
-  | { readonly kind: "key"; readonly key: string; readonly active: boolean }
+  | { readonly kind: "key"; readonly key: string }
   | { readonly kind: "refused" }
   | { readonly kind: "uncertain" };
