@@ -1,10 +1,12 @@
+import assert from "node:assert/strict";
+
 import { asc, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import { type JobRow, jobs } from "../src/core/schema.ts";
 import { KEY, PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
-import { Instance, type Json } from "./instance.ts";
+import { type Answer, Instance, type Json } from "./instance.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 
 export { SECRET_KEY };
@@ -22,6 +24,18 @@ export async function saveBot(instance: Instance): Promise<void> {
   const saved = await instance.send("PUT", PATH, { webhookUrl: UNREACHABLE_ADDRESS, key: KEY });
 
   if (saved.status !== 200) throw new Error("the Grok Bot address was not saved");
+}
+
+export const AI_PATH = "/api/settings/ai";
+
+export function chooseGrokBot(instance: Instance): Promise<Answer> {
+  return instance.send("PUT", AI_PATH, { provider: "grok-bot" });
+}
+
+export async function selectGrokBot(instance: Instance): Promise<void> {
+  const chosen = await chooseGrokBot(instance);
+
+  assert.equal(chosen.status, 200, chosen.body);
 }
 
 export async function relatedLibrary(instance: Instance): Promise<BotLibrary> {
@@ -100,7 +114,14 @@ export async function openJobOfKind(
     itemId,
     attempts = 0,
     staleRequeues = 0,
-  }: Readonly<{ kind: string; itemId: number; attempts?: number; staleRequeues?: number }>,
+    attemptGeneration = null,
+  }: Readonly<{
+    kind: string;
+    itemId: number;
+    attempts?: number;
+    staleRequeues?: number;
+    attemptGeneration?: number | null;
+  }>,
 ): Promise<ClaimedJob> {
   exec(
     instance,
@@ -110,11 +131,12 @@ export async function openJobOfKind(
   );
   exec(
     instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', ?, ?, 0, ?)",
+    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, attempt_generation, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', ?, ?, ?, 0, ?)",
     kind,
     itemId,
     attempts,
     staleRequeues,
+    attemptGeneration,
     Date.now() + 3_600_000,
   );
 

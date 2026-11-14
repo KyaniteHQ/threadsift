@@ -13,7 +13,7 @@ import {
   sentTask,
 } from "./bot-kinds-fixtures.ts";
 import { outcomeOf } from "./bot-kinds-steps.ts";
-import { pastDeadline, retireTasks } from "./bot-task-fixtures.ts";
+import { pastDeadline, retireTasks, selectGrokBot } from "./bot-task-fixtures.ts";
 import { insertedTask, jobRow, rowCount, taskRow, topicLeaseFree } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
@@ -32,6 +32,7 @@ describe("a Topic overview holds the Topic's lease for the read and the send onl
   before(async () => {
     instance = await botInstance();
     await overview.library(instance);
+    await selectGrokBot(instance);
   });
 
   beforeEach(() => {

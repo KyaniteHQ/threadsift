@@ -3,7 +3,6 @@ import type { z } from "zod";
 
 import { AI_DEADLINE_MS, type AiTaskDefinition, type ModelAi } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask, runAiTask } from "./ai-tasks.ts";
-import { givenUpTasks } from "./bot-task-states.ts";
 import { report } from "./failure-log.ts";
 import { guardedOutcome, lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type {
@@ -100,6 +99,5 @@ export function weeklyModelHandler<Sent, Result>(
     deadlineMs: AI_DEADLINE_MS,
     blockedBy: [],
     attempt: (ports, job, ai) => attemptRun(run, ports, job, ai),
-    exhausted: (db, job) => [givenUpTasks(db, job)],
   };
 }

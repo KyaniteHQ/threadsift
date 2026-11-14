@@ -27,12 +27,29 @@ export const redditSection = element(
 let current: RedditView = { kind: "loading", access: false };
 let version = 0;
 
+function settlingAt(started: number): (answer: RedditView) => void {
+  return (answer) => {
+    if (version === started) {
+      move(answer);
+
+      return;
+    }
+
+    move({ kind: "loading", access: false });
+    void refreshReddit();
+  };
+}
+
 function press(action: RedditAction): void {
   if (current.kind === "working") return;
 
   move({ kind: "working", access: false });
 
-  void (action === "disconnect" ? disconnectRedditFromPage() : connectRedditFromPage()).then(move);
+  const started = version;
+
+  void (action === "disconnect" ? disconnectRedditFromPage() : connectRedditFromPage()).then(
+    settlingAt(started),
+  );
 }
 
 function actionButton(action: RedditAction): HTMLButtonElement {
@@ -45,7 +62,7 @@ function actionButton(action: RedditAction): HTMLButtonElement {
 }
 
 function render(view: Readonly<RedditView>): void {
-  redditSection.hidden = view.kind === "unavailable";
+  redditSection.hidden = view.kind === "unavailable" && !view.access;
   say(status, redditStatusText(view), redditTone(view));
   buttons.replaceChildren(...redditActions(view).map((action) => actionButton(action)));
 }
@@ -57,6 +74,12 @@ function move(next: RedditView): void {
 }
 
 export async function refreshReddit(): Promise<void> {
+  if (current.kind === "working") {
+    version += 1;
+
+    return;
+  }
+
   const started = version;
   const next = await loadReddit();
 

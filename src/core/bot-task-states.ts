@@ -16,7 +16,7 @@ type BotTaskState = "unsent" | "sent" | "answered" | "applied" | "failed";
 
 export type BotStep = "start" | "charge" | "apply" | "expire" | "resend" | "wait";
 
-type Held = Readonly<Pick<JobRow, "id" | "attempts">>;
+type Held = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration">>;
 
 const BOT_ERROR_REFUSAL = "provider-busy";
 
@@ -230,13 +230,14 @@ export function reportedWrites(
 export async function chargedReport(
   db: Database,
   job: Readonly<Held>,
-  taskId: number,
+  { taskId, release }: Readonly<{ taskId: number; release: readonly BatchItem<"sqlite">[] }>,
 ): Promise<void> {
   await guardedBatch(db, holding(job), [
     db
       .update(aiTasks)
       .set({ answeredAt: null })
       .where(and(eq(aiTasks.id, taskId), REPORTED_ERROR)),
+    ...release,
   ]);
 }
 
@@ -263,18 +264,6 @@ export async function timedOutTask(
   if (wrote) return "timed-out";
 
   return (await guardHolds(db, holding(job))) ? "changed" : "claim-lost";
-}
-
-export function givenUpTasks(db: Database, job: Readonly<Pick<JobRow, "id">>) {
-  return db
-    .update(aiTasks)
-    .set({
-      state: "failed",
-      result: null,
-      refusal: sql`case when ${aiTasks.answeredAt} is null then 'timeout' else 'stale' end`,
-      status: null,
-    })
-    .where(and(eq(aiTasks.jobId, job.id), eq(aiTasks.state, "running")));
 }
 
 export function abandonedTasks(db: Database, now: number): readonly BatchItem<"sqlite">[] {

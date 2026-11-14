@@ -92,9 +92,12 @@ async function runUnits(
 
   const prefix = cursorKey(step.version);
   const resume = row.cursor?.startsWith(prefix) === true ? row.cursor.slice(prefix.length) : null;
-  const { writes, cursor } = await step.advance(db, resume);
+  const { writes, cursor, guard } = await step.advance(db, resume);
 
-  const kept = await guardedBatch(db, leaseHeld(holder), [
+  const held = leaseHeld(holder);
+  const condition = and(held, guard) ?? held;
+
+  const kept = await guardedBatch(db, condition, [
     ...writes,
     progress(db, step, cursor),
     db

@@ -1,5 +1,6 @@
 import type { ZodType } from "zod";
 
+import { within } from "../../src/core/deadline.ts";
 import type { CreateHighlightRequest } from "../../src/core/highlight-contract.ts";
 import type { ImportRequest } from "../../src/core/import-list.ts";
 import type { ChangeBudgetRequest, CreateTokenRequest } from "../../src/http/schemas.ts";
@@ -17,14 +18,24 @@ export type JsonBody =
 interface Call {
   readonly json?: JsonBody;
   readonly signsOut?: boolean;
-  readonly signal?: AbortSignal;
+  readonly signal?: AbortSignal | undefined;
 }
 
 interface OkCall extends Call {
   readonly tolerates?: readonly number[];
 }
 
+export const READ_DEADLINE_MS = 20_000;
+
 const JSON_HEADERS = { "content-type": "application/json" } as const;
+
+function signalOf(method: Method, caller: AbortSignal | undefined): AbortSignal | undefined {
+  if (method !== "GET") return caller;
+
+  const deadline = AbortSignal.timeout(READ_DEADLINE_MS);
+
+  return within(caller, deadline);
+}
 
 export async function call(
   method: Method,
@@ -34,7 +45,8 @@ export async function call(
   const init: RequestInit =
     json === undefined ? { method } : { method, headers: JSON_HEADERS, body: JSON.stringify(json) };
 
-  const response = await fetch(path, signal === undefined ? init : { ...init, signal });
+  const limit = signalOf(method, signal);
+  const response = await fetch(path, limit === undefined ? init : { ...init, signal: limit });
 
   if (signsOut && response.status === 401) {
     announceUnauthorized();

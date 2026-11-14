@@ -144,6 +144,8 @@ function moveReddit(next: RedditView | null): void {
 }
 
 async function reconnect(): Promise<void> {
+  if (reddit?.kind === "working") return;
+
   moveReddit({ kind: "working", access: false });
   moveReddit((await reconnectFromPopup()) ?? { kind: "expired", access: false });
 }

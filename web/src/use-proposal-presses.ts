@@ -14,11 +14,14 @@ interface Presses {
     failure: "reject",
     goneNote: string,
   ) => Promise<void>;
-  readonly leave: (proposal: Readonly<Proposal>, departure: "rejected") => Promise<void>;
-  readonly say: (text: string) => void;
+  readonly leave: (
+    proposal: Readonly<Proposal>,
+    departure: "rejected",
+    says: string,
+  ) => Promise<void>;
 }
 
-export function usePresses({ send, setNotice, accept, settle, leave, say }: Readonly<Presses>) {
+export function usePresses({ send, setNotice, accept, settle, leave }: Readonly<Presses>) {
   const decide = useCallback(
     async (proposal: Readonly<Proposal>, action: Failure, run: () => Promise<void>) => {
       if (!send({ kind: "press", id: proposal.id, action })) return;
@@ -33,13 +36,12 @@ export function usePresses({ send, setNotice, accept, settle, leave, say }: Read
   const reject = useCallback(
     async (proposal: Readonly<Proposal>) => {
       if ((await sendReject(proposal.id)) === "rejected") {
-        await leave(proposal, "rejected");
-        say(rejectedAnnouncement(proposal));
+        await leave(proposal, "rejected", rejectedAnnouncement(proposal));
       } else {
         await settle(proposal, "reject", PROPOSAL_WORDS.alreadyDecided);
       }
     },
-    [leave, say, settle],
+    [leave, settle],
   );
 
   const pressAccept = useCallback(

@@ -24,8 +24,8 @@ export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${
   )}))`;
 }
 
-export function holding(job: Readonly<Pick<JobRow, "id" | "attempts">>) {
-  return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobs.state} = 'running' and ${jobs.attempts} = ${job.attempts})`;
+export function holding(job: Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration">>) {
+  return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobs.state} = 'running' and ${jobs.attempts} = ${job.attempts} and ${jobs.attemptGeneration} is ${job.attemptGeneration})`;
 }
 
 export function openingJob(

@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { statusColumns } from "./item-status.ts";
+import { setStatus, statusColumns } from "./item-status.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
@@ -19,6 +19,7 @@ export function reopened(db: Database, itemId: number, address: string) {
       .update(jobs)
       .set({ attempts: 0, nextAttemptAt: now, waitReason: null })
       .where(and(eq(jobs.itemId, itemId), eq(jobs.kind, "x_verify"), eq(jobs.state, "queued"))),
+    setStatus(db, { kind: "jobs-changed" }, eq(items.id, itemId)),
   ] as const;
 }
 

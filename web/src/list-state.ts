@@ -24,6 +24,10 @@ export type ListState =
 
 export type Ready = Extract<ListState, { readonly status: "ready" }>;
 
+export function readFor(list: Readonly<ListState>, query: string): list is Ready {
+  return list.status === "ready" && list.query === query;
+}
+
 export function hasRows(list: Readonly<ListState>): boolean {
   return list.status !== "ready" || !isEmptyResult(list.items.length, list.next);
 }
@@ -153,7 +157,7 @@ export function loaded(
 }
 
 export function continues(list: Readonly<ListState>, query: string, cursor: string): list is Ready {
-  return list.status === "ready" && list.query === query && list.next === cursor;
+  return readFor(list, query) && list.next === cursor;
 }
 
 export interface Page {

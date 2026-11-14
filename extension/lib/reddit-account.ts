@@ -2,9 +2,11 @@ import { browser } from "wxt/browser";
 
 import { RedditAccountSaveResponseSchema } from "../../src/core/reddit-account-contract.ts";
 import type { RedditConnectState } from "../../src/core/reddit-relay-contract.ts";
-import { exclusive, reconcileAccess } from "./access.ts";
+import { exclusive, oneAtATime, reconcileAccess } from "./access.ts";
 import { type Config, holdsInstanceAccess, holdsRedditConnect, instanceRequest } from "./config.ts";
 import { logFailure } from "./log.ts";
+
+const accountWrites = oneAtATime();
 
 const COOKIE = { url: "https://www.reddit.com/", name: "reddit_session" };
 
@@ -65,7 +67,7 @@ export function readRedditState(config: Readonly<Config> | null): Promise<Reddit
   return config === null ? Promise.resolve("unavailable") : call(config, { method: "GET" });
 }
 
-export async function connectReddit(config: Readonly<Config> | null): Promise<RedditConnectState> {
+async function connectNow(config: Readonly<Config> | null): Promise<RedditConnectState> {
   if (config === null) return "unavailable";
 
   if (!(await holdsRedditConnect()) || !(await holdsInstanceAccess(config.origin))) {
@@ -91,10 +93,18 @@ async function giveBackCookies(state: RedditConnectState): Promise<RedditConnect
   return (await browser.permissions.contains({ permissions: ["cookies"] })) ? "access-kept" : state;
 }
 
-export async function disconnectReddit(
-  config: Readonly<Config> | null,
-): Promise<RedditConnectState> {
+async function disconnectNow(config: Readonly<Config> | null): Promise<RedditConnectState> {
   const state = config === null ? "none" : await call(config, { method: "DELETE" });
 
-  return state === "none" || state === "missing" ? exclusive(() => giveBackCookies(state)) : state;
+  return state === "none" || state === "missing" || state === "unavailable"
+    ? exclusive(() => giveBackCookies(state))
+    : state;
+}
+
+export function connectReddit(config: Readonly<Config> | null): Promise<RedditConnectState> {
+  return accountWrites(() => connectNow(config));
+}
+
+export function disconnectReddit(config: Readonly<Config> | null): Promise<RedditConnectState> {
+  return accountWrites(() => disconnectNow(config));
 }

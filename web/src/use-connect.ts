@@ -4,7 +4,6 @@ import { type AiView, fetchAiSettings, startConnect } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { type AiPhase, LEAVING, type Outcome } from "./use-ai-phase.ts";
 import type { FieldState } from "./use-form.ts";
-import { SETTINGS_READ_MS } from "./use-settings-load.ts";
 
 export interface Connection {
   readonly connect: () => void;
@@ -22,7 +21,7 @@ function failure(text: string): Outcome {
 }
 
 function usePageRestore(
-  { restore, report }: Readonly<Pick<AiPhase, "restore" | "report">>,
+  { restore, refuse }: Readonly<Pick<AiPhase, "restore" | "refuse">>,
   restored: (view: AiView) => void,
 ): void {
   useEffect(() => {
@@ -30,9 +29,9 @@ function usePageRestore(
       restore();
 
       try {
-        restored(await fetchAiSettings(AbortSignal.timeout(SETTINGS_READ_MS)));
+        restored(await fetchAiSettings());
       } catch {
-        report(failure(FAILURE_TEXT.failed));
+        refuse(FAILURE_TEXT.failed);
       }
     };
 
@@ -45,7 +44,7 @@ function usePageRestore(
     return () => {
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [restore, report, restored]);
+  }, [restore, refuse, restored]);
 }
 
 async function start(

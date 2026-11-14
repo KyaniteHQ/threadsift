@@ -14,7 +14,12 @@ import { enqueueRows } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
-import { holdsNoRival, promoteFailedItem, recordAlias } from "./short-link-aliases.ts";
+import {
+  holdsNoFailedItem,
+  holdsNoRival,
+  promoteFailedItem,
+  recordAlias,
+} from "./short-link-aliases.ts";
 
 function saveResolvedRefreshing(
   ports: Ports,
@@ -52,7 +57,7 @@ async function saveResolvedNewOnly(
 ): Promise<SaveResult | null> {
   const { db } = ports;
   const noRival = holdsNoRival(db, shortLink, link);
-  const bothHold = sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)}`;
+  const bothHold = sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, shortLink)}`;
 
   const added = await unlessRefused(db, bothHold, async () => {
     const [, , , , queued, [item]] = await db.batch([
@@ -70,8 +75,9 @@ async function saveResolvedNewOnly(
   if (added !== null || !(await guardHolds(db, noRival))) return added;
 
   return unlessRefused(db, noRival, async () => {
-    const [, , [item]] = await db.batch([
+    const [, , , [item]] = await db.batch([
       insertGuard(db, noRival),
+      promoteFailedItem(db, shortLink, link),
       recordAlias(db, shortLink, paste.address, link),
       selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, link.normalizedUrl)),
       db.delete(guards),

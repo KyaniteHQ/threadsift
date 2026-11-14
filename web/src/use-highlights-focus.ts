@@ -2,7 +2,7 @@ import type { RefObject } from "react";
 
 import { NOTHING } from "./nothing.ts";
 import { focusNeighbour } from "./reveal.ts";
-import { useFocusNewRows } from "./use-focus-new-rows.ts";
+import { type LoadedRows, useFocusNewRows } from "./use-focus-new-rows.ts";
 import { useLibraryKeys } from "./use-library-keys.ts";
 
 const ENTRIES = { links: ".hp-open", row: "article.hp-it", link: ".hp-open" } as const;
@@ -27,7 +27,7 @@ export function useEntryKeys(list: RefObject<HTMLOListElement | null>): void {
 
 export function useFocusNewEntries(
   list: RefObject<HTMLOListElement | null>,
-  count: number,
+  rows: Readonly<LoadedRows>,
 ): (from: number) => void {
-  return useFocusNewRows(list, count, ENTRIES.links);
+  return useFocusNewRows(list, rows, ENTRIES.links);
 }

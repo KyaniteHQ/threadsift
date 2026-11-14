@@ -18,7 +18,7 @@ export type AiView = z.infer<typeof AiSettingsViewSchema>;
 
 type VerifyResult = z.infer<typeof VerifyResultSchema>;
 
-export function fetchAiSettings(signal: AbortSignal): Promise<AiView> {
+export function fetchAiSettings(signal?: AbortSignal): Promise<AiView> {
   return parsedFrom("GET", "/api/settings/ai", AiSettingsViewSchema, { signal });
 }
 

@@ -5,6 +5,7 @@ import {
   holdsSettings,
   prepareAiSettings,
   providerWrites,
+  storedSettings,
 } from "./ai-settings.ts";
 import { logFailure } from "./failure-log.ts";
 import { DATABASE_NOW, guardedBatch } from "./guards.ts";
@@ -41,19 +42,44 @@ async function committed(
     claimed: Claimed;
     prepared: Readonly<PreparedSave>;
   }>,
-  extraWrites: () => JobWrites,
 ): Promise<boolean> {
   try {
     return await guardedBatch(
       ports.db,
       sql`${sessionIsLive(ports.crypto, sessionId, DATABASE_NOW)} and ${CURRENT_REVISION} = ${claimed.expectedRevision} and ${DATABASE_NOW} < ${claimed.expiresAt}`,
-      [...providerWrites(ports.db, prepared), ...extraWrites()],
+      providerWrites(ports.db, prepared),
     );
   } catch (error) {
     logFailure("openrouter-connect-commit-failed", {}, error);
 
     return false;
   }
+}
+
+async function stillStored(
+  ports: Ports,
+  row: Readonly<PreparedSave["row"]>,
+  writes: JobWrites,
+): Promise<boolean> {
+  try {
+    return await guardedBatch(ports.db, storedSettings(row), writes);
+  } catch (error) {
+    logFailure("openrouter-connect-digests-failed", {}, error);
+
+    return holdsSettings(ports.db, row);
+  }
+}
+
+async function afterActivation(
+  ports: Ports,
+  { row }: Readonly<PreparedSave>,
+  { key, extraWrites }: Readonly<{ key: string; extraWrites: () => JobWrites }>,
+): Promise<ConnectNotice> {
+  const active = await ports.ai.awaitOpenRouterActivation(key);
+
+  if (!(await stillStored(ports, row, active ? extraWrites() : []))) return "settings-changed";
+
+  return active ? "connected" : "activation-pending";
 }
 
 export async function saveConnectedKey(
@@ -65,7 +91,12 @@ export async function saveConnectedKey(
 
   if (prepared === null || "kind" in prepared) return "possible-orphan";
 
-  if (await committed(ports, { sessionId, claimed, prepared }, extraWrites)) return "connected";
+  if (
+    (await committed(ports, { sessionId, claimed, prepared })) ||
+    (await holdsSettings(ports.db, prepared.row))
+  ) {
+    return afterActivation(ports, prepared, { key, extraWrites });
+  }
 
-  return (await holdsSettings(ports.db, prepared.row)) ? "connected" : "possible-orphan";
+  return "possible-orphan";
 }

@@ -6,12 +6,13 @@ import {
   type AcceptableProposal,
   PROPOSAL_WORDS,
   acceptedAnnouncement,
+  isAcceptable,
   notCurrentNote,
 } from "./proposals-text.ts";
-import { applyingRows, useAcceptingPoll } from "./use-accepting-poll.ts";
 import type { Announcement } from "./use-announcement.ts";
 import { useLatest } from "./use-latest.ts";
 import { type Paged, usePagedRead } from "./use-paged-read.ts";
+import { usePolling } from "./use-polling.ts";
 import { usePresses } from "./use-proposal-presses.ts";
 import { useProposalRows } from "./use-proposal-rows.ts";
 
@@ -66,26 +67,38 @@ function applying(page: Readonly<ProposalPage>, id: number): ProposalPage {
   };
 }
 
+interface Press {
+  readonly id: number;
+  readonly says: (page: Readonly<ProposalPage> | null) => string | null;
+}
+
 interface Settling {
   readonly reread: (
     through: (page: Readonly<ProposalPage>) => boolean,
+    press?: Readonly<Press>,
   ) => Promise<ProposalPage | null>;
   readonly lastLoaded: () => number;
   readonly send: RowSend;
   readonly setFocus: Dispatch<SetStateAction<Focus>>;
-  readonly say: (text: string) => void;
   readonly setNotice: (text: string | null) => void;
 }
 
-function useSettle({ reread, lastLoaded, send, setFocus, say, setNotice }: Readonly<Settling>) {
+function hasLeft(page: Readonly<ProposalPage> | null, id: number): page is ProposalPage {
+  return page !== null && !page.proposals.some((each) => each.id === id);
+}
+
+function useSettle({ reread, lastLoaded, send, setFocus, setNotice }: Readonly<Settling>) {
   return useCallback(
     async (proposal: Readonly<Proposal>, failure: Failure, goneNote: string) => {
-      const page = await reread(reachesBelow(lastLoaded()));
+      const page = await reread(reachesBelow(lastLoaded()), {
+        id: proposal.id,
+        says: (read) => (hasLeft(read, proposal.id) ? goneNote : null),
+      });
+
       const now = page?.proposals.find(({ id }) => id === proposal.id);
 
-      if (page !== null && now === undefined) {
+      if (hasLeft(page, proposal.id)) {
         setNotice(goneNote);
-        say(goneNote);
         setFocus({ kind: "heading" });
 
         return;
@@ -93,7 +106,7 @@ function useSettle({ reread, lastLoaded, send, setFocus, say, setNotice }: Reado
 
       if (now?.state !== "accepting") send({ kind: "fail", id: proposal.id, failure });
     },
-    [lastLoaded, reread, say, send, setFocus, setNotice],
+    [lastLoaded, reread, send, setFocus, setNotice],
   );
 }
 
@@ -102,29 +115,41 @@ interface Leaving {
   readonly edit: (change: (page: Readonly<ProposalPage>) => ProposalPage) => void;
   readonly reread: Settling["reread"];
   readonly lastLoaded: Settling["lastLoaded"];
+  readonly retry: () => void;
   readonly setFocus: Dispatch<SetStateAction<Focus>>;
+  readonly say: (text: string) => void;
 }
 
 type Departure = "rejected" | "accepted";
 
-function useLeave({ latest, edit, reread, lastLoaded, setFocus }: Readonly<Leaving>) {
+function useLeave({ latest, edit, reread, lastLoaded, retry, setFocus, say }: Readonly<Leaving>) {
   return useCallback(
-    async (proposal: Readonly<Proposal>, departure: Departure) => {
+    async (proposal: Readonly<Proposal>, departure: Departure, says: string) => {
       const next = focusAfterLeaving(latest.current, proposal.id);
 
       setFocus(next);
 
-      const through =
-        departure === "accepted"
-          ? reachesBelow(lastLoaded())
-          : onlyRowOfMore(latest.current, proposal.id)
-            ? () => true
-            : null;
+      const onlyRow = onlyRowOfMore(latest.current, proposal.id);
 
-      const reloaded = through === null ? null : await reread(through);
+      const through =
+        departure === "accepted" ? reachesBelow(lastLoaded()) : onlyRow ? () => true : null;
+
+      const dropLocally = (): void => {
+        edit((page) => without(page, proposal.id));
+      };
+
+      if (through === null) {
+        say(says);
+        dropLocally();
+
+        return;
+      }
+
+      const reloaded = await reread(through, { id: proposal.id, says: () => says });
 
       if (reloaded === null) {
-        edit((page) => without(page, proposal.id));
+        if (onlyRow) retry();
+        else dropLocally();
 
         return;
       }
@@ -132,10 +157,10 @@ function useLeave({ latest, edit, reread, lastLoaded, setFocus }: Readonly<Leavi
       const [first] = reloaded.proposals;
       const stays = next.kind === "row" && reloaded.proposals.some(({ id }) => id === next.id);
 
-      if (!stays)
-        setFocus(first === undefined ? { kind: "heading" } : { kind: "row", id: first.id });
+      if (stays) setFocus(next);
+      else setFocus(first === undefined ? { kind: "heading" } : { kind: "row", id: first.id });
     },
-    [edit, lastLoaded, latest, reread, setFocus],
+    [edit, lastLoaded, latest, reread, retry, say, setFocus],
   );
 }
 
@@ -144,21 +169,18 @@ function useAccept({
   leave,
   edit,
   send,
-  say,
 }: Readonly<{
   settle: (proposal: Readonly<Proposal>, failure: Failure, goneNote: string) => Promise<void>;
-  leave: (proposal: Readonly<Proposal>, departure: Departure) => Promise<void>;
+  leave: (proposal: Readonly<Proposal>, departure: Departure, says: string) => Promise<void>;
   edit: Leaving["edit"];
   send: RowSend;
-  say: (text: string) => void;
 }>) {
   return useCallback(
     async (proposal: Readonly<AcceptableProposal>) => {
       const outcome = await sendAccept(proposal.id);
 
       if (outcome === "done") {
-        await leave(proposal, "accepted");
-        say(acceptedAnnouncement(proposal));
+        await leave(proposal, "accepted", acceptedAnnouncement(proposal));
       } else if (outcome === "accepting") {
         edit((page) => applying(page, proposal.id));
       } else if (isBusy(outcome)) {
@@ -169,7 +191,7 @@ function useAccept({
         await settle(proposal, "accept", PROPOSAL_WORDS.alreadyDecided);
       }
     },
-    [edit, leave, say, send, settle],
+    [edit, leave, send, settle],
   );
 }
 
@@ -201,35 +223,74 @@ function useLastLoaded(latest: Readonly<RefObject<Readonly<ProposalsState>>>) {
   }, [latest]);
 }
 
+function applyingRows(state: Readonly<ProposalsState>): readonly AcceptableProposal[] {
+  return state.status === "ready"
+    ? state.proposals.filter(isAcceptable).filter(({ state: each }) => each === "accepting")
+    : [];
+}
+
+function leftRows(
+  before: Readonly<ProposalsState>,
+  page: Readonly<ProposalPage> | null,
+  pressed: number | undefined,
+): readonly AcceptableProposal[] {
+  return applyingRows(before).filter(({ id }) => id !== pressed && hasLeft(page, id));
+}
+
+function useAnnouncingReread(
+  reread: (through: (page: Readonly<ProposalPage>) => boolean) => Promise<ProposalPage | null>,
+  latest: Readonly<RefObject<Readonly<ProposalsState>>>,
+  announce: Readonly<{
+    say: (text: string) => void;
+    setFocus: Dispatch<SetStateAction<Focus>>;
+  }>,
+) {
+  const { say, setFocus } = announce;
+
+  return useCallback(
+    async (through: (page: Readonly<ProposalPage>) => boolean, press?: Readonly<Press>) => {
+      const before = latest.current;
+      const page = await reread(through);
+      const left = leftRows(before, page, press?.id);
+      const own = press?.says(page) ?? null;
+
+      const texts = [
+        ...(own === null ? [] : [own]),
+        ...left.map((row) => acceptedAnnouncement(row)),
+      ];
+
+      const [first] = left;
+
+      if (texts.length > 0) say(texts.join(" "));
+
+      if (first !== undefined && press === undefined) setFocus(focusAfterLeaving(before, first.id));
+
+      return page;
+    },
+    [latest, reread, say, setFocus],
+  );
+}
+
 export function useProposalsPage() {
   const source = usePagedRead(fetchProposals, withMoreProposals);
-  const { state, edit, reread } = source;
+  const { state, edit, reread: rawReread, retry } = source;
   const latest = useLatest(state);
   const { flags, controls } = useRowFlags();
   const { send, setFocus, setNotice, say, focused } = controls;
+  const reread = useAnnouncingReread(rawReread, latest, { say, setFocus });
   const lastLoaded = useLastLoaded(latest);
 
-  const settle = useSettle({ reread, lastLoaded, send, setFocus, say, setNotice });
-  const leave = useLeave({ latest, edit, reread, lastLoaded, setFocus });
-  const accept = useAccept({ settle, leave, edit, send, say });
-  const refresh = useCallback(() => reread(reachesBelow(lastLoaded())), [lastLoaded, reread]);
+  const settle = useSettle({ reread, lastLoaded, send, setFocus, setNotice });
+  const leave = useLeave({ latest, edit, reread, lastLoaded, retry, setFocus, say });
+  const accept = useAccept({ settle, leave, edit, send });
 
-  const gone = useCallback(
-    (rows: readonly AcceptableProposal[], before: Readonly<ProposalsState>) => {
-      rows.forEach((row) => {
-        say(acceptedAnnouncement(row));
-      });
+  const refresh = useCallback(async () => {
+    await reread(reachesBelow(lastLoaded()));
+  }, [lastLoaded, reread]);
 
-      const [first] = rows;
+  usePolling(applyingRows(state).length > 0, refresh);
 
-      if (first !== undefined) setFocus(focusAfterLeaving(before, first.id));
-    },
-    [say, setFocus],
-  );
-
-  useAcceptingPoll({ applying: applyingRows(state).length > 0, latest, refresh, gone });
-
-  const press = usePresses({ send, setNotice, accept, settle, leave, say });
+  const press = usePresses({ send, setNotice, accept, settle, leave });
 
   return { source, ...flags, focused, press };
 }

@@ -6,7 +6,7 @@ import { KIND_CASES, type KindCase } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { jobRow, rowCount, taskRow, taskRows, topicFailures } from "./bot-task-rows.ts";
-import { chooseGrokBot, generationOf } from "./grok-bot-provider-fixtures.ts";
+import { generationOf, selectGrokBot } from "./grok-bot-provider-fixtures.ts";
 import {
   claimedAgain,
   selectedWithUnreadableKey,
@@ -37,9 +37,7 @@ const FAILURE_SHOWN = {
 
 async function libraryOnBot(instance: Instance, kindCase: KindCase): Promise<number> {
   const owner = await kindCase.library(instance);
-  const chosen = await chooseGrokBot(instance);
-
-  assert.equal(chosen.status, 200, chosen.body);
+  await selectGrokBot(instance);
 
   return owner;
 }
@@ -51,8 +49,12 @@ describe("with Grok Bot saved as the Provider the production runner counts a kin
 
       try {
         const owner = await libraryOnBot(instance, kindCase);
-        const opened = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
-        const job = { ...opened, attemptGeneration: generationOf(instance, owner) };
+
+        const job = await openJobOf(instance, {
+          kind: kindCase.kind,
+          itemId: owner,
+          attemptGeneration: generationOf(instance, owner),
+        });
 
         const first = await unansweredClaim(instance, { kindCase, job });
 

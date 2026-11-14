@@ -41,7 +41,7 @@ type FillPorts = Pick<Ports, "db" | "secrets" | "jobs" | "redditSession">;
 export interface HeldAccount {
   readonly jobId: number;
   readonly session: string;
-  readonly sealed: string;
+  readonly sealedSession: string;
   readonly lastRequestAt: number | null;
 }
 
@@ -92,6 +92,7 @@ function logged(
 function recorded(run: Readonly<Run>, answer: Readonly<RedditAnswer>): Promise<void> {
   return recordWindow(
     run.ports.db,
+    run.held,
     {
       left: leftOf(answer.remaining),
       reset: answer.reset,
@@ -125,19 +126,19 @@ async function sessionAnswered(
   if (verdict.answer !== null) await recorded(run, verdict.answer);
 
   if (verdict.verdict === "logged-out") {
-    await expireAccount(ports, Date.now());
+    await expireAccount(ports, held, Date.now());
 
     return "logged-out";
   }
 
   if (verdict.verdict === "ok") {
-    await clearRefusals(ports.db);
+    await clearRefusals(ports.db, held);
 
     return "refused";
   }
 
   if (verdict.verdict === "blocked" && verdict.answer?.status === FORBIDDEN) {
-    return (await countRefusal(ports, held.jobId, Date.now())) === "expired"
+    return (await countRefusal(ports, held, held.jobId, Date.now())) === "expired"
       ? "logged-out"
       : "refused";
   }
@@ -175,6 +176,7 @@ async function waitForWindow(
 ): Promise<AccountThread> {
   await recordWindow(
     run.ports.db,
+    run.held,
     { left: 0, reset: first.reset, retryAfter: null, limited: false },
     Date.now(),
   );
@@ -196,12 +198,13 @@ async function filledThread(
     {
       deadlineMs: FILL_DEADLINE_MS,
       signal: run.deadline,
-      mayContinue: () => stillConnected(run.ports.db, run.held.sealed),
+      mayContinue: () => stillConnected(run.ports.db, run.held),
     },
   );
 
   await recordWindow(
     run.ports.db,
+    run.held,
     {
       left: filled.window.left,
       reset: filled.last.reset ?? null,
@@ -240,7 +243,7 @@ async function afterFirst(
     return FALLBACK;
   }
 
-  await clearRefusals(run.ports.db);
+  await clearRefusals(run.ports.db, run.held);
 
   return windowFits(first.remaining, hidden)
     ? filledThread(run, first, hidden)

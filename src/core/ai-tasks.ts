@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, isNotNull, sql } from "drizzle-orm";
 
 import {
   type AiConnection,
@@ -16,6 +16,7 @@ import {
 } from "./ai-contract.ts";
 import { type TaskOrigin, type TaskOwner, originOf, startTask } from "./ai-task-start.ts";
 import { mayComplete, mayExpire, mayFail } from "./bot-task-states.ts";
+import { within } from "./deadline.ts";
 import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
 import type { AiPorts, Database } from "./ports.ts";
 import { aiTasks } from "./schema.ts";
@@ -82,6 +83,23 @@ function failingAiTask(
   return db
     .update(aiTasks)
     .set({ state: "failed", result: null, refusal: failure.reason, status: failure.status });
+}
+
+export function givenUpTasks(db: Database, tasks: Readonly<SQLWrapper>) {
+  const running = and(sql`${tasks}`, eq(aiTasks.state, "running"));
+
+  return [
+    failingAiTask(db, { reason: "timeout", status: null }).where(and(running, mayFail("timeout"))),
+    failingAiTask(db, { reason: "stale", status: null }).where(
+      and(running, isNotNull(aiTasks.answeredAt)),
+    ),
+  ] as const;
+}
+
+export function supersededTasks(db: Database, tasks: Readonly<SQLWrapper>) {
+  return failingAiTask(db, { reason: "stale", status: null }).where(
+    and(sql`${tasks}`, eq(aiTasks.state, "running"), mayFail("stale")),
+  );
 }
 
 export function expireAiTasks(db: Database, now: number) {
@@ -184,7 +202,7 @@ async function execute<Result>(
   attempt: AbortSignal | undefined,
 ): Promise<TaskResult<Result>> {
   const deadline = AbortSignal.timeout(AI_DEADLINE_MS);
-  const signal = attempt === undefined ? deadline : AbortSignal.any([attempt, deadline]);
+  const signal = within(attempt, deadline);
 
   try {
     const result = await ports.ai.run(

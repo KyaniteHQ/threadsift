@@ -1,6 +1,5 @@
 import { AI_DEADLINE_MS, type ModelAi } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
-import { givenUpTasks } from "./bot-task-states.ts";
 import { lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobOutcome, JobPorts, ModelHandler } from "./job-outcome.ts";
 import { releaseTopicLease } from "./topic-lease.ts";
@@ -72,5 +71,5 @@ export const topicOverviewHandler: ModelHandler = {
   deadlineMs: AI_DEADLINE_MS,
   blockedBy: ["digest"],
   attempt: attemptOverview,
-  exhausted: (db, job) => [...overviewGaveUp(db, job), givenUpTasks(db, job)],
+  exhausted: (db, job) => overviewGaveUp(db, job),
 };

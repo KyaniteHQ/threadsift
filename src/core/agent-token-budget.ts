@@ -1,7 +1,8 @@
 import { and, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { Caller } from "./caller.ts";
-import { refusedBy } from "./guards.ts";
+import { batchAll, refusedBy } from "./guards.ts";
+import type { SaveResult } from "./items.ts";
 import { BUDGET_SPENT, type BudgetSpent, type TokenBudget } from "./kinds.ts";
 import { isRedditShareLink, isRefusedLink, isShortLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
@@ -84,10 +85,8 @@ async function reserveSlots(
   return reserved.length > 0;
 }
 
-async function adjustDay(db: Database, tokenId: number, day: string, change: number) {
-  if (change === 0) return;
-
-  await db
+function dayAdjustment(db: Database, tokenId: number, day: string, change: number) {
+  return db
     .insert(agentTokenDays)
     .values({ tokenId, day, added: Math.max(change, 0) })
     .onConflictDoUpdate({
@@ -124,51 +123,70 @@ async function possiblyNew(db: Database, urls: readonly string[]): Promise<numbe
   return addresses.size - heldAddresses + (shortLinks.size - heldShortLinks);
 }
 
-interface SavedBatch {
-  readonly kind: string;
-  readonly entries?: readonly {
-    readonly outcome: string;
-    readonly item?: { readonly id: number };
-  }[];
+interface Reserved {
+  readonly slots: number;
+  readonly day: string;
 }
 
-async function settle(
-  db: Database,
-  tokenId: number,
-  saved: Readonly<SavedBatch>,
-  reserved: { readonly slots: number; readonly day: string },
-): Promise<void> {
-  const created = (saved.entries ?? []).flatMap(({ outcome, item }) =>
-    outcome === "added" && item !== undefined ? [item.id] : [],
-  );
+export type SaveAs = <Result extends SaveResult>(
+  write: (caller: Caller) => Promise<Result>,
+) => Promise<Result>;
 
-  const attributed =
-    created.length === 0
-      ? []
-      : await db
-          .update(items)
-          .set({ addedByToken: tokenId })
-          .where(sql`${items.id} in ${jsonList(created)}`)
-          .returning({ savedAt: items.savedAt });
+function slotLedger(db: Database, tokenId: number, { slots, day }: Readonly<Reserved>) {
+  const created: { id: number; savedAt: number }[] = [];
+  let held = 0;
 
-  const perDay = new Map<string, number>([[reserved.day, -reserved.slots]]);
+  const saveAs: SaveAs = async (write) => {
+    if (held === slots) return write({ kind: "token", id: tokenId });
 
-  for (const { savedAt } of attributed) {
-    const day = utcDay(savedAt);
+    held += 1;
 
-    perDay.set(day, (perDay.get(day) ?? 0) + 1);
-  }
+    const result = await write({ kind: "batch", id: tokenId });
 
-  await Promise.all([...perDay].map(([day, change]) => adjustDay(db, tokenId, day, change)));
+    if (result.kind === "saved" && result.created) {
+      created.push({ id: result.item.id, savedAt: result.item.savedAt });
+    } else {
+      held -= 1;
+    }
+
+    return result;
+  };
+
+  const settle = () => {
+    const threw = held - created.length;
+    const perDay = new Map<string, number>([[day, threw - slots]]);
+
+    for (const { savedAt } of created) {
+      const savedDay = utcDay(savedAt);
+
+      perDay.set(savedDay, (perDay.get(savedDay) ?? 0) + 1);
+    }
+
+    return batchAll(db, [
+      ...(created.length === 0
+        ? []
+        : [
+            db
+              .update(items)
+              .set({ addedByToken: tokenId })
+              .where(sql`${items.id} in ${jsonList(created.map(({ id }) => id))}`),
+          ]),
+      ...[...perDay].flatMap(([adjusted, change]) =>
+        change === 0 ? [] : [dayAdjustment(db, tokenId, adjusted, change)],
+      ),
+    ]);
+  };
+
+  return { saveAs, settle };
 }
 
-export async function withinBudget<Saved extends SavedBatch>(
+export async function withinBudget<Saved>(
   { db }: Readonly<Pick<Ports, "db">>,
   caller: Readonly<Caller>,
   urls: readonly string[],
-  run: (saveAs: Caller) => Promise<Saved>,
+  run: (saveAs: SaveAs) => Promise<Saved>,
 ): Promise<Budgeted<Saved>> {
-  if (caller.kind !== "token") return run(caller);
+  if (caller.kind !== "token") return run((write) => write(caller));
 
   const now = Date.now();
   const reserved = { slots: await possiblyNew(db, urls), day: utcDay(now) };
@@ -177,11 +195,13 @@ export async function withinBudget<Saved extends SavedBatch>(
     return spentUntilMidnight(now);
   }
 
-  const saved = await run({ kind: "batch", id: caller.id });
+  const ledger = slotLedger(db, caller.id, reserved);
 
-  await settle(db, caller.id, saved, reserved);
-
-  return saved;
+  try {
+    return await unlessSpent(() => run(ledger.saveAs));
+  } finally {
+    await ledger.settle();
+  }
 }
 
 export async function forgetOldDays(db: Database, tokenId: number, now: number): Promise<void> {

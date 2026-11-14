@@ -4,6 +4,7 @@ import type { SentTaskKind } from "./bot-task-kind.ts";
 import { sendBotTask } from "./bot-task-send.ts";
 import { type BotTaskStart, ownerOf, startBotTask } from "./bot-task-start.ts";
 import {
+  type BotStep,
   type BotTaskRow,
   chargedReport,
   latestTask,
@@ -25,6 +26,8 @@ import type {
 import { holding } from "./job-rows.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
+
+const STALENESS_CHECKED_STEPS: ReadonlySet<BotStep> = new Set(["resend", "wait", "expire"]);
 
 type Waiting = Readonly<Pick<BotTaskRow, "id" | "deadline">>;
 
@@ -192,7 +195,7 @@ export async function botStep(
 
   if (task === null || step === "start") return startStep(ports, job, kind);
 
-  if (step !== "apply" && !(await kind.current(ports.db, task.context ?? ""))) {
+  if (STALENESS_CHECKED_STEPS.has(step) && !(await kind.current(ports.db, task.context ?? ""))) {
     return lostOutcome(ports.db, { taskId: task.id, cleanup: kind.release(ports.db, job) });
   }
 
@@ -206,7 +209,7 @@ export async function botStep(
     case "expire":
       return expireStep(ports, job, { kind, task });
     case "charge":
-      await chargedReport(ports.db, job, task.id);
+      await chargedReport(ports.db, job, { taskId: task.id, release: kind.release(ports.db, job) });
 
       throw new Error("The Grok Bot reported an error for the task");
     default: {

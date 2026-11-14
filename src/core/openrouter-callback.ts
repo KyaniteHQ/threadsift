@@ -7,8 +7,6 @@ import type { ConnectNotice } from "./openrouter-contract.ts";
 import { saveConnectedKey } from "./openrouter-save.ts";
 import { HOP_DEADLINE_MS, type Ports } from "./ports.ts";
 
-const NO_WRITES = (): JobWrites => [];
-
 const CallbackQuerySchema = z.object({
   code: z.tuple([z.string().min(1).max(AI_KEY_MAX)]),
   state: z.tuple([z.string().regex(/^[\w-]{43}$/u)]),
@@ -55,11 +53,5 @@ export async function completeOpenRouterConnect(
 
   if (exchange.kind !== "key") return "possible-orphan";
 
-  const saved = await saveConnectedKey(
-    ports,
-    { sessionId, claimed, key: exchange.key },
-    exchange.active ? extraWrites : NO_WRITES,
-  );
-
-  return saved === "connected" && !exchange.active ? "activation-pending" : saved;
+  return saveConnectedKey(ports, { sessionId, claimed, key: exchange.key }, extraWrites);
 }

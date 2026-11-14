@@ -87,8 +87,8 @@ function Listed({
   clearAll: () => void;
   list: RefObject<HTMLOListElement | null>;
 }>) {
-  const expectFocus = useFocusNewEntries(list, state.entries.length);
   const { length } = state.entries;
+  const expectFocus = useFocusNewEntries(list, { count: length, more: state.more });
 
   const more = useCallback(() => {
     if (loadMore()) expectFocus(length);

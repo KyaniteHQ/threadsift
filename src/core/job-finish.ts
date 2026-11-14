@@ -107,7 +107,7 @@ export async function exhaust(
   const sameInput = handler.inputCurrent?.(job);
 
   const wrote = await guardedBatch(db, and(holding(job), sameInput) ?? holding(job), [
-    ...handler.exhausted(db, job),
+    ...(handler.exhausted?.(db, job) ?? []),
     ...closeJob(db, job, attempts),
     ...(handler.closing?.(db, job, { kind: "closed" }) ?? []),
   ]);

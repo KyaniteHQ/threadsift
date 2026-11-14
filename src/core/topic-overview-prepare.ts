@@ -49,6 +49,8 @@ async function readyOverview(db: Database, lease: Readonly<TopicLease>): Promise
   const prompt = overviewPrompt(read);
 
   if (prompt.included.length === 0 && read.removed.length === 0) {
+    if (read.added.length > 0) throw new Error("no added Digest fits the overview input");
+
     return settled(idleOutcome(db, lease, read));
   }
 

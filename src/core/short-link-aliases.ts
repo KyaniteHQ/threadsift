@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, isNull, ne, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import { holdsNoRow } from "./guards.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { itemAliases, items } from "./schema.ts";
@@ -44,6 +45,14 @@ export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }:
   );
 }
 
+function failedResolutionAt(shortLink: string) {
+  return sql`${eq(items.normalizedUrl, shortLink)} and ${isNotNull(items.fetch)} and ${ne(items.fetch, "ok")} and ${isNull(items.fetchedAt)}`;
+}
+
+export function holdsNoFailedItem(db: Database, shortLink: string) {
+  return holdsNoRow(db, items, failedResolutionAt(shortLink));
+}
+
 export function promoteFailedItem(
   db: Database,
   shortLink: string,
@@ -57,15 +66,7 @@ export function promoteFailedItem(
   return db
     .update(items)
     .set({ normalizedUrl, kind, source })
-    .where(
-      and(
-        eq(items.normalizedUrl, shortLink),
-        isNotNull(items.fetch),
-        ne(items.fetch, "ok"),
-        isNull(items.fetchedAt),
-        notExists(taken),
-      ),
-    );
+    .where(and(failedResolutionAt(shortLink), notExists(taken)));
 }
 
 export function recordAlias(

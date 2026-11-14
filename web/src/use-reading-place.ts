@@ -17,12 +17,40 @@ function untouched(slot: HTMLElement, at: number): boolean {
   return Math.abs(slot.scrollTop - Math.min(at, farthest)) < 1;
 }
 
-function newSettler(slot: HTMLElement) {
-  let cancel: (() => void) | null = null;
+function holdAnchor(slot: HTMLElement, anchor: Readonly<Anchor>, done: () => void) {
+  let live = true;
+  let at = slot.scrollTop;
+
+  const resettle = (): void => {
+    if (live && slot.isConnected && untouched(slot, at)) {
+      scrollToAnchor(slot, anchor);
+      at = slot.scrollTop;
+    }
+  };
+
+  const timer = window.setTimeout(() => {
+    resettle();
+    done();
+  }, SETTLE_DELAY_MS);
+
+  void document.fonts.ready.then(resettle);
+
+  return {
+    cancel: () => {
+      live = false;
+      window.clearTimeout(timer);
+    },
+    moved: () => !untouched(slot, at),
+  };
+}
+
+function newSettler(slot: HTMLElement, first: Readonly<Anchor> | null) {
+  let hold: ReturnType<typeof holdAnchor> | null = null;
+  let seen = first;
 
   const stop = (): void => {
-    cancel?.();
-    cancel = null;
+    hold?.cancel();
+    hold = null;
   };
 
   const returnTo = (anchor: Readonly<Anchor> | null): void => {
@@ -30,30 +58,23 @@ function newSettler(slot: HTMLElement) {
 
     if (anchor === null || !scrollToAnchor(slot, anchor)) return;
 
-    let live = true;
-    let at = slot.scrollTop;
-
-    const resettle = (): void => {
-      if (live && slot.isConnected && untouched(slot, at)) {
-        scrollToAnchor(slot, anchor);
-        at = slot.scrollTop;
-      }
-    };
-
-    const timer = window.setTimeout(() => {
-      resettle();
-      cancel = null;
-    }, SETTLE_DELAY_MS);
-
-    void document.fonts.ready.then(resettle);
-
-    cancel = () => {
-      live = false;
-      window.clearTimeout(timer);
-    };
+    hold = holdAnchor(slot, anchor, () => {
+      hold = null;
+    });
   };
 
-  return { returnTo, stop, isSettling: () => cancel !== null };
+  const scrolled = (): void => {
+    if (hold === null || hold.moved()) {
+      stop();
+      seen = anchorAt(slot);
+    }
+  };
+
+  const reflowed = (): void => {
+    returnTo(seen);
+  };
+
+  return { reflowed, scrolled, place: () => (hold === null ? anchorAt(slot) : seen), stop };
 }
 
 function onWidthChange(slot: HTMLElement, changed: () => void): () => void {
@@ -116,21 +137,20 @@ function onImageSettled(slot: HTMLElement, reflowed: () => void): () => void {
 }
 
 function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): PlaceWatch {
-  const settler = newSettler(slot);
-  let seen = arriving ? null : placeOf(itemId);
+  const settler = newSettler(slot, arriving ? null : placeOf(itemId));
   let saveTimer = 0;
   let frame = 0;
 
   const save = (): void => {
     window.clearTimeout(saveTimer);
-    keepPlace(itemId, anchorAt(slot));
+    keepPlace(itemId, settler.place());
   };
 
   const onScroll = (): void => {
-    if (!settler.isSettling() && frame === 0) {
+    if (frame === 0) {
       frame = window.requestAnimationFrame(() => {
         frame = 0;
-        seen = anchorAt(slot);
+        settler.scrolled();
       });
     }
 
@@ -138,12 +158,10 @@ function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): Place
     saveTimer = window.setTimeout(save, SAVE_DELAY_MS);
   };
 
-  const reflowed = (): void => {
-    settler.returnTo(seen);
-  };
+  const { reflowed } = settler;
 
   slot.scrollTop = 0;
-  settler.returnTo(seen);
+  reflowed();
   slot.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("pagehide", save);
   const unwatchWidth = onWidthChange(slot, reflowed);
@@ -153,6 +171,8 @@ function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): Place
   return {
     reflowed,
     stop: () => {
+      const kept = settler.place();
+
       settler.stop();
       window.clearTimeout(saveTimer);
       window.cancelAnimationFrame(frame);
@@ -160,7 +180,7 @@ function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): Place
       slot.removeEventListener("scroll", onScroll);
       unwatchImages();
       unwatchWidth();
-      keepPlace(itemId, anchorAt(slot));
+      keepPlace(itemId, kept);
     },
   };
 }

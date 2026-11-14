@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 
 import {
   GROK_BOT_PROVIDER,
@@ -9,7 +9,7 @@ import {
 import { type LoadedAi, type Snapshot, loadAiConfig } from "./ai-load.ts";
 import { type ModelSettingsInput, nextSettings } from "./ai-next-settings.ts";
 import { leaveGrokBotWrites, preparedBot } from "./bot-provider.ts";
-import { guardedBatch } from "./guards.ts";
+import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import { CURRENT_REVISION } from "./openrouter-tables.ts";
 import type { Database, SettingsPorts } from "./ports.ts";
@@ -79,20 +79,18 @@ export function providerWrites(db: Database, { row, leavesBot }: Readonly<Prepar
   ];
 }
 
+export function storedSettings(row: Readonly<PreparedSettings>): SQL {
+  if (!("sealedKey" in row)) return sql`0`;
+
+  return sql`exists (select 1 from ${settings} where ${settings.id} = ${row.id} and ${settings.sealedKey} = ${row.sealedKey} and ${settings.provider} = ${row.provider} and ${settings.model} = ${row.model})`;
+}
+
 export async function holdsSettings(
   db: Database,
   row: Readonly<PreparedSettings>,
 ): Promise<boolean> {
   try {
-    const [stored] = await db.select().from(settings);
-
-    return (
-      stored !== undefined &&
-      "sealedKey" in row &&
-      stored.sealedKey === row.sealedKey &&
-      stored.provider === row.provider &&
-      stored.model === row.model
-    );
+    return await guardHolds(db, storedSettings(row));
   } catch {
     return false;
   }

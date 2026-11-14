@@ -4,7 +4,7 @@ import { ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
 import { holding } from "../src/core/job-rows.ts";
 import { relatedBotKind } from "../src/core/related-bot.ts";
-import { openJob } from "./bot-task-fixtures.ts";
+import { openJob, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, until } from "./related-fixtures.ts";
 
@@ -14,6 +14,8 @@ export async function startedTask(
   instance: Instance,
   job: Readonly<ClaimedJob>,
 ): Promise<{ readonly id: number; readonly token: string }> {
+  await selectGrokBot(instance);
+
   const prepared = await until(
     () => relatedBotKind.prepare(instance.core, job),
     ({ kind }) => kind === "ask",

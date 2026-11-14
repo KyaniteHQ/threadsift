@@ -1,8 +1,13 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, exists, or, sql } from "drizzle-orm";
 
 import type { JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { WAIT_CHECK_MS, enqueueWaiting, releaseWaiting } from "./reddit-account-queue.ts";
+import {
+  WAIT_CHECK_MS,
+  enqueueWaiting,
+  releaseWaiting,
+  releaseWaitingWhen,
+} from "./reddit-account-queue.ts";
 import { type AccountRow, redditAccount } from "./reddit-account-tables.ts";
 import { millisecondsOf } from "./reddit-window.ts";
 
@@ -37,13 +42,17 @@ export async function accountRow(db: Database): Promise<AccountRow | null> {
   return row ?? null;
 }
 
-export function stillConnected(db: Database, sealedSession: string): Promise<boolean> {
+export type AccountSession = Readonly<Pick<AccountRow, "sealedSession">>;
+
+function ofSession({ sealedSession }: AccountSession) {
+  return and(eq(redditAccount.id, ACCOUNT_ROW), eq(redditAccount.sealedSession, sealedSession));
+}
+
+export function stillConnected(db: Database, session: AccountSession): Promise<boolean> {
   return db
     .select({ id: redditAccount.id })
     .from(redditAccount)
-    .where(
-      and(eq(redditAccount.state, "connected"), eq(redditAccount.sealedSession, sealedSession)),
-    )
+    .where(and(ofSession(session), eq(redditAccount.state, "connected")))
     .then((rows) => rows.length === 1);
 }
 
@@ -56,6 +65,7 @@ export interface WindowRecord {
 
 export async function recordWindow(
   db: Database,
+  session: AccountSession,
   { left, reset, retryAfter, limited }: Readonly<WindowRecord>,
   now: number,
 ): Promise<void> {
@@ -71,7 +81,7 @@ export async function recordWindow(
 
   if (resetMs !== null) changes.windowResetsAt = now + resetMs;
 
-  await db.update(redditAccount).set(changes).where(eq(redditAccount.id, ACCOUNT_ROW));
+  await db.update(redditAccount).set(changes).where(ofSession(session));
 }
 
 export async function connectAccount(
@@ -97,23 +107,47 @@ export async function connectAccount(
     .onConflictDoUpdate({ target: redditAccount.id, set: fresh });
 }
 
-export async function restoreAccount(db: Database, now: number): Promise<void> {
+export async function confirmAccount(
+  db: Database,
+  session: AccountSession,
+  now: number,
+): Promise<void> {
   await db
     .update(redditAccount)
-    .set({ state: "connected", stateAt: now, refusedCount: 0, refusedJob: null })
-    .where(and(eq(redditAccount.id, ACCOUNT_ROW), eq(redditAccount.state, "expired")));
+    .set({
+      state: "connected",
+      stateAt: sql`case when ${redditAccount.state} = 'expired' then ${now} else ${redditAccount.stateAt} end`,
+      refusedCount: 0,
+      refusedJob: null,
+    })
+    .where(
+      and(
+        ofSession(session),
+        or(eq(redditAccount.state, "expired"), sql`${redditAccount.refusedCount} > 0`),
+      ),
+    );
 }
 
 export async function expireAccount(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
+  session: AccountSession,
   now: number,
 ): Promise<void> {
   await ports.db.batch([
     ports.db
       .update(redditAccount)
       .set({ state: "expired", stateAt: now })
-      .where(and(eq(redditAccount.id, ACCOUNT_ROW), eq(redditAccount.state, "connected"))),
-    releaseWaiting(ports.db, now),
+      .where(and(ofSession(session), eq(redditAccount.state, "connected"))),
+    releaseWaitingWhen(
+      ports.db,
+      now,
+      exists(
+        ports.db
+          .select({ one: sql`1` })
+          .from(redditAccount)
+          .where(and(ofSession(session), eq(redditAccount.state, "expired"))),
+      ),
+    ),
   ]);
 
   await enqueueWaiting(ports, now, "all");
@@ -131,15 +165,16 @@ export async function disconnectAccount(
   await enqueueWaiting(ports, now, "all");
 }
 
-export async function clearRefusals(db: Database): Promise<void> {
+export async function clearRefusals(db: Database, session: AccountSession): Promise<void> {
   await db
     .update(redditAccount)
     .set({ refusedCount: 0, refusedJob: null })
-    .where(and(eq(redditAccount.id, ACCOUNT_ROW), sql`${redditAccount.refusedCount} > 0`));
+    .where(and(ofSession(session), sql`${redditAccount.refusedCount} > 0`));
 }
 
 export async function countRefusal(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
+  session: AccountSession,
   jobId: number,
   now: number,
 ): Promise<"counted" | "expired"> {
@@ -149,12 +184,12 @@ export async function countRefusal(
       refusedCount: sql`case when ${redditAccount.refusedJob} = ${jobId} then ${redditAccount.refusedCount} else ${redditAccount.refusedCount} + 1 end`,
       refusedJob: jobId,
     })
-    .where(and(eq(redditAccount.id, ACCOUNT_ROW), eq(redditAccount.state, "connected")))
+    .where(and(ofSession(session), eq(redditAccount.state, "connected")))
     .returning({ count: redditAccount.refusedCount });
 
   if (counted === undefined || counted.count < REFUSALS_TO_EXPIRE) return "counted";
 
-  await expireAccount(ports, now);
+  await expireAccount(ports, session, now);
 
   return "expired";
 }

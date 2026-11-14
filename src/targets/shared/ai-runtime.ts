@@ -12,7 +12,7 @@ import {
 import { allowedAiUrl } from "../../core/ai-url.ts";
 import type { AiRuntime, Ports } from "../../core/ports.ts";
 import { sealedSecrets } from "../../core/sealed-secret.ts";
-import { openRouterExchange } from "./openrouter-exchange.ts";
+import { openRouterActivation, openRouterExchange } from "./openrouter-exchange.ts";
 
 type TaskRunner = <Result>(
   task: AiTaskRequest<Result>,
@@ -82,6 +82,7 @@ export async function aiAndSecrets({
       return runHttp(request, task, signal, zeroOpenRouterPrice);
     },
     exchangeOpenRouterCode: openRouterExchange(request),
+    awaitOpenRouterActivation: openRouterActivation(request),
   };
 
   return { ai, secrets };

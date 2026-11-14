@@ -16,6 +16,8 @@ interface Entry {
 
 const FILE_URL = /^file:/iu;
 
+const IMPORT_DEADLINE_MS = 30_000;
+
 const ModuleSchema = z.object({ default: z.custom<Fetcher>(isFetcher) });
 
 class FetcherLoadError extends Error {
@@ -56,11 +58,23 @@ async function realFileOf(path: string): Promise<string> {
   return real;
 }
 
+function withinDeadline<Value>(module: string, step: () => Promise<Value>): Promise<Value> {
+  return new Promise<Value>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new FetcherLoadError(module, "import", "TimeoutError"));
+    }, IMPORT_DEADLINE_MS);
+
+    step()
+      .then(resolve, reject)
+      .finally(() => {
+        clearTimeout(timer);
+      });
+  });
+}
+
 async function importedFetcher({ module, path }: Readonly<Entry>): Promise<LoadedFetcher> {
-  const namespace: unknown = await atStage(
-    module,
-    "import",
-    () => import(pathToFileURL(path).href),
+  const namespace: unknown = await withinDeadline(module, () =>
+    atStage(module, "import", () => import(pathToFileURL(path).href)),
   );
 
   const exported = await atStage(module, "shape", () => ModuleSchema.parse(namespace));

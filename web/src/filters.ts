@@ -85,5 +85,5 @@ export function useFilters() {
     setFilters((now) => ({ ...NO_FILTERS, q: now.q }));
   }, []);
 
-  return { filters, choose, search, clear, clearChosen };
+  return { filters, query: queryOf(filters), choose, search, clear, clearChosen };
 }

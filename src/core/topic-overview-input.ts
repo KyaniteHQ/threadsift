@@ -12,6 +12,8 @@ import { OVERVIEW_INPUT_BYTES } from "./topic-overview-task.ts";
 
 const ADDED_READ_LIMIT = 40;
 
+const ALL_ROWS = Number.MAX_SAFE_INTEGER;
+
 const REMOVED_LIMIT = 200;
 
 const KEY_POINTS_SENT = 3;
@@ -54,7 +56,13 @@ export interface OverviewSent {
   readonly included: readonly Readonly<Pick<AddedItem, "id" | "digest">>[];
 }
 
-function addedItem(row: Readonly<{ id: number; digest: number; stored: string }>) {
+interface AddedRow {
+  readonly id: number;
+  readonly digest: number;
+  readonly stored: string;
+}
+
+function addedItem(row: Readonly<AddedRow>) {
   try {
     const { title, summary, keyPoints }: Digest = parseStoredDigest(row.stored);
 
@@ -74,6 +82,45 @@ function addedItem(row: Readonly<{ id: number; digest: number; stored: string }>
   }
 }
 
+function addedRows(db: Database, topicId: number) {
+  return db
+    .select({ id: items.id, digest: digests.taskId, stored: digests.digest })
+    .from(items)
+    .innerJoin(digests, eq(digests.itemId, items.id))
+    .where(
+      and(
+        eq(items.topicId, topicId),
+        notBuiltFrom(topicId, sql`${items.id}`, sql`${digests.taskId}`),
+      ),
+    )
+    .orderBy(desc(digests.createdAt), desc(items.id));
+}
+
+interface AddedRead {
+  readonly readable: readonly AddedItem[];
+  readonly unreadable: number;
+}
+
+async function addedFrom(
+  db: Database,
+  topicId: number,
+  first: readonly AddedRow[],
+): Promise<AddedRead> {
+  const readable = first.flatMap((row) => addedItem(row));
+
+  if (readable.length > 0 || first.length < ADDED_READ_LIMIT) {
+    return { readable, unreadable: first.length - readable.length };
+  }
+
+  const rest = await addedRows(db, topicId).limit(ALL_ROWS).offset(first.length);
+  const later = rest.flatMap((row) => addedItem(row));
+
+  return {
+    readable: later.slice(0, ADDED_READ_LIMIT),
+    unreadable: first.length + rest.length - later.length,
+  };
+}
+
 export async function readOverview(db: Database, topicId: number): Promise<OverviewRead | null> {
   const [[topic], [page], added, gone] = await db.batch([
     db.select({ name: topics.name }).from(topics).where(eq(topics.id, topicId)),
@@ -85,18 +132,7 @@ export async function readOverview(db: Database, topicId: number): Promise<Overv
       })
       .from(topicPages)
       .where(eq(topicPages.topicId, topicId)),
-    db
-      .select({ id: items.id, digest: digests.taskId, stored: digests.digest })
-      .from(items)
-      .innerJoin(digests, eq(digests.itemId, items.id))
-      .where(
-        and(
-          eq(items.topicId, topicId),
-          notBuiltFrom(topicId, sql`${items.id}`, sql`${digests.taskId}`),
-        ),
-      )
-      .orderBy(desc(digests.createdAt), desc(items.id))
-      .limit(ADDED_READ_LIMIT),
+    addedRows(db, topicId).limit(ADDED_READ_LIMIT),
     db
       .select({ id: sql<number>`gone.id` })
       .from(sql`(${removedItemIds(topicId)}) as gone`)
@@ -105,13 +141,13 @@ export async function readOverview(db: Database, topicId: number): Promise<Overv
 
   if (topic === undefined) return null;
 
-  const readable = added.flatMap((row) => addedItem(row));
+  const { readable, unreadable } = await addedFrom(db, topicId, added);
 
   return {
     name: topic.name,
     page: page ?? null,
     added: readable,
-    unreadable: added.length - readable.length,
+    unreadable,
     removed: gone.map(({ id }) => id),
   };
 }

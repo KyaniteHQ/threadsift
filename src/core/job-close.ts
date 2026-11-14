@@ -1,11 +1,12 @@
 import { type SQLWrapper, and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { givenUpTasks, supersededTasks } from "./ai-tasks.ts";
 import { openingDigest } from "./digest-job.ts";
 import { setStatus } from "./item-status.ts";
 import { ITEM_JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, items, jobs, xVerifications } from "./schema.ts";
+import { type JobRow, aiTasks, items, jobs, xVerifications } from "./schema.ts";
 
 const CLOSED_JOB = {
   state: "done",
@@ -34,6 +35,7 @@ export function closeJob(
       .update(jobs)
       .set({ ...CLOSED_JOB, attempts })
       .where(eq(jobs.id, job.id)),
+    ...givenUpTasks(db, eq(aiTasks.jobId, job.id)),
     ...(job.kind === "digest" ? [owedDigest(db, job.itemId)] : []),
     ...(ITEM_JOB_KINDS.some((owner) => owner === job.kind)
       ? [setStatus(db, { kind: "jobs-changed" }, eq(items.id, job.itemId))]
@@ -41,18 +43,23 @@ export function closeJob(
   ];
 }
 
-export function closeItemJobs(db: Database, itemId: Readonly<SQLWrapper>) {
+export function closeItemJobs(
+  db: Database,
+  itemId: Readonly<SQLWrapper>,
+  { answering }: Readonly<{ answering?: number }> = {},
+) {
+  const ofItem = and(eq(jobs.itemId, sql`${itemId}`), inArray(jobs.kind, ["fetch", "x_verify"]));
+  const itemJobs = db.select({ id: jobs.id }).from(jobs).where(ofItem);
+
   return [
+    supersededTasks(
+      db,
+      sql`${inArray(aiTasks.jobId, itemJobs)} and ${aiTasks.id} is not ${answering ?? null}`,
+    ),
     db
       .update(jobs)
       .set(CLOSED_JOB)
-      .where(
-        and(
-          eq(jobs.itemId, sql`${itemId}`),
-          inArray(jobs.kind, ["fetch", "x_verify"]),
-          ne(jobs.state, "done"),
-        ),
-      ),
+      .where(and(ofItem, ne(jobs.state, "done"))),
     db.delete(xVerifications).where(eq(xVerifications.itemId, sql`${itemId}`)),
   ] as const;
 }

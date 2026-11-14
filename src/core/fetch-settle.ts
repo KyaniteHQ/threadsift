@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import type { Concluded } from "./details.ts";
 import { digestAfterFetch } from "./digest-job.ts";
 import { settledContent } from "./fetch-content.ts";
-import { anchoredOutcome } from "./highlight-publish.ts";
+import { anchoredOutcome, displayedBesideThread } from "./highlight-publish.ts";
 import type { ClaimedJob, JobPorts, SettledOutcome } from "./job-outcome.ts";
 import { items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
@@ -51,7 +51,7 @@ export async function settledFetch(
   return replaces
     ? anchoredOutcome(ports.db, outcome, {
         owner: eq(items.id, job.itemId),
-        displayed: () => ({ post: postText, comments: thread?.nodes }),
+        displayed: displayedBesideThread({ post: postText, comments: thread?.nodes }),
       })
     : outcome;
 }

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { withinBudget } from "../src/core/agent-token-budget.ts";
-import { type BatchEntry } from "../src/core/batch-paste.ts";
 import { saveFailedResolution } from "../src/core/failed-resolution.ts";
 import { parseLink } from "../src/core/links.ts";
 import { saveItem } from "../src/core/save-link.ts";
@@ -33,51 +32,60 @@ describe("the counts of a token stay equal to the Items it created", () => {
 
   after(() => instance.close());
 
-  it("counts and attributes the Items a batch recreates when a held link is deleted while the batch runs, so the count passes the budget by at most the deleted links", async () => {
-    const token = await makeToken(instance, 2);
+  describe("a batch whose held links are deleted while it runs", () => {
+    let token: Awaited<ReturnType<typeof makeToken>>;
+    let answer: string;
 
-    const held = await Promise.all(
-      [401, 402].map(async (number) =>
-        SavedItemResponseSchema.parse(
-          JSON.parse((await instance.send("POST", "/api/items", { url: xLink(number) })).body),
+    before(async () => {
+      token = await makeToken(instance, 2);
+
+      const held = await Promise.all(
+        [401, 402].map(async (number) =>
+          SavedItemResponseSchema.parse(
+            JSON.parse((await instance.send("POST", "/api/items", { url: xLink(number) })).body),
+          ),
         ),
-      ),
-    );
+      );
 
-    await addLink(instance, token, 403);
+      await addLink(instance, token, 403);
 
-    const urls = [xLink(401), xLink(402), xLink(404)];
+      const urls = [xLink(401), xLink(402), xLink(404)];
 
-    const saved = await withinBudget(
-      instance.core,
-      { kind: "token", id: token.id },
-      urls,
-      async (saveAs) => {
-        await Promise.all(
-          held.map(({ item }) => instance.send("DELETE", `/api/items/${String(item.id)}`)),
-        );
+      const saved = await withinBudget(
+        instance.core,
+        { kind: "token", id: token.id },
+        urls,
+        async (saveAs) => {
+          const saveOne = (url: string) =>
+            saveAs((caller) => saveItem(instance.core, url, undefined, "keep", caller));
 
-        const results = await Promise.all(
-          urls.map((url) => saveItem(instance.core, url, undefined, "keep", saveAs)),
-        );
+          await Promise.all(
+            held.map(({ item }) => instance.send("DELETE", `/api/items/${String(item.id)}`)),
+          );
 
-        const entries = results.flatMap((result): BatchEntry[] =>
-          result.kind === "saved"
-            ? [{ outcome: result.created ? "added" : "known", item: result.item }]
-            : [],
-        );
+          for (const url of urls) {
+            // oxlint-disable-next-line eslint/no-await-in-loop -- The links are saved one after the other, as a batch saves them.
+            await saveOne(url);
+          }
 
-        return { kind: "done", entries } as const;
-      },
-    );
+          return { kind: "done" } as const;
+        },
+      );
 
-    assert.equal(saved.kind, "done");
-    assert.deepEqual(itemsSavedByDay(instance, token.id), itemsCounted(instance, token.id));
+      answer = saved.kind;
+    });
 
-    const [[, counted] = [dayOf(Date.now()), 0]] = itemsCounted(instance, token.id);
+    it("refuses the link it would recreate past the budget", () => {
+      assert.equal(answer, "budget-spent");
+    });
 
-    assert.equal(counted, 4);
-    assert.equal(counted - 2, held.length);
+    it("counts and attributes the Items it saved before the refusal", () => {
+      assert.deepEqual(itemsSavedByDay(instance, token.id), itemsCounted(instance, token.id));
+
+      const [[, counted] = [dayOf(Date.now()), 0]] = itemsCounted(instance, token.id);
+
+      assert.equal(counted, 2);
+    });
   });
 
   it("charges and attributes a short link whose resolution failed", async () => {

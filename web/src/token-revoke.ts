@@ -9,12 +9,7 @@ type RevokeEvent =
   | { readonly kind: "cancel"; readonly id: number }
   | { readonly kind: "begin"; readonly id: number; readonly request: number }
   | { readonly kind: "refuse"; readonly id: number; readonly request: number }
-  | {
-      readonly kind: "revoked";
-      readonly id: number;
-      readonly request: number;
-      readonly next: number | null;
-    };
+  | { readonly kind: "revoked"; readonly id: number; readonly next: number | null };
 
 export const START: RevokeFlow = { kind: "idle", focus: null };
 
@@ -39,7 +34,7 @@ export function reduceRevoke(flow: RevokeFlow, event: RevokeEvent): RevokeFlow {
     case "refuse":
       return isRevoking(flow, event.id, event.request) ? { kind: "failed", id: event.id } : flow;
     case "revoked":
-      return isRevoking(flow, event.id, event.request) ? { kind: "idle", focus: event.next } : flow;
+      return askedId(flow) === event.id ? { kind: "idle", focus: event.next } : flow;
     default: {
       const exhaustive: never = event;
 

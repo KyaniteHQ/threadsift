@@ -44,7 +44,7 @@ export async function accountTurn(
         held: {
           jobId: id,
           session,
-          sealed: taken.sealedSession,
+          sealedSession: taken.sealedSession,
           lastRequestAt: taken.lastRequestAt,
         },
       };
