@@ -1,7 +1,7 @@
 import { type Dispatch, type RefObject, useCallback, useEffect, useReducer, useRef } from "react";
 
 import type { NoteView } from "../../src/core/note-contract.ts";
-import { putNote } from "./api.ts";
+import { putNote } from "./keeping-api.ts";
 import { draftOf, keepDraft, watchDraft } from "./note-draft.ts";
 import {
   type NoteAction,

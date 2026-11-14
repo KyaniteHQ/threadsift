@@ -4,8 +4,9 @@ import type { Fetched } from "./details.ts";
 import { type LinkedPage, cutDigestInput } from "./digest-prompt.ts";
 import { type DigestInput, staleOutcome } from "./digest-source.ts";
 import { report } from "./failure-log.ts";
-import { FETCH_DEADLINE_MS, fetchLink } from "./fetch-link.ts";
+import { fetchLink } from "./fetch-link.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { FETCH_DEADLINE_MS } from "./request-waits.ts";
 
 type HopPage = LinkedPage | null;
 

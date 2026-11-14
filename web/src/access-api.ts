@@ -12,7 +12,8 @@ import {
   type RefusalCode,
   type Token,
 } from "../../src/http/schemas.ts";
-import { type JsonBody, call, callOk, parsedFrom } from "./calls.ts";
+import { type JsonBody, call, callOk, del, parsedFrom, patch, post } from "./calls.ts";
+import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 export type Session = z.infer<typeof SessionStateSchema>;
 
@@ -65,7 +66,7 @@ async function refusalOf(response: Response): Promise<Refusal> {
 
 async function attempt(path: string, json: JsonBody, signsOut = false): Promise<Attempt> {
   try {
-    const response = await call("POST", path, { json, signsOut });
+    const response = await call(post(DATABASE_WRITE_DEADLINE_MS), path, { json, signsOut });
 
     return response.status === NO_CONTENT ? { kind: "ok" } : await refusalOf(response);
   } catch {
@@ -98,7 +99,7 @@ export function resetPassword(code: string, password: string): Promise<Attempt> 
 }
 
 export async function logOut(): Promise<void> {
-  await callOk("POST", "/api/logout", { tolerates: [UNAUTHORIZED] });
+  await callOk(post(DATABASE_WRITE_DEADLINE_MS), "/api/logout", { tolerates: [UNAUTHORIZED] });
 }
 
 export async function fetchTokens(signal: AbortSignal): Promise<Token[]> {
@@ -112,19 +113,24 @@ export function createToken(
   scopes: readonly Scope[],
   dailyBudget: number | null,
 ): Promise<CreatedToken> {
-  return parsedFrom("POST", "/api/tokens", CreatedTokenResponseSchema, {
+  return parsedFrom(post(DATABASE_WRITE_DEADLINE_MS), "/api/tokens", CreatedTokenResponseSchema, {
     json: { name, scopes, dailyBudget },
   });
 }
 
 export async function changeBudget(id: number, dailyBudget: number | null): Promise<Token> {
-  const { token } = await parsedFrom("PATCH", `/api/tokens/${id}`, TokenSummaryResponseSchema, {
-    json: { dailyBudget },
-  });
+  const { token } = await parsedFrom(
+    patch(DATABASE_WRITE_DEADLINE_MS),
+    `/api/tokens/${id}`,
+    TokenSummaryResponseSchema,
+    {
+      json: { dailyBudget },
+    },
+  );
 
   return token;
 }
 
 export async function revokeToken(id: number): Promise<void> {
-  await callOk("DELETE", `/api/tokens/${id}`);
+  await callOk(del(DATABASE_WRITE_DEADLINE_MS), `/api/tokens/${id}`);
 }

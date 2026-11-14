@@ -6,7 +6,18 @@ import type { ImportRequest } from "../../src/core/import-list.ts";
 import type { ChangeBudgetRequest, CreateTokenRequest } from "../../src/http/schemas.ts";
 import { announceUnauthorized } from "./unauthorized.ts";
 
-type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+type WriteMethod = "POST" | "PUT" | "PATCH" | "DELETE";
+
+export const NO_DEADLINE = "none";
+
+export type Deadline = number | typeof NO_DEADLINE;
+
+export interface Write {
+  readonly method: WriteMethod;
+  readonly deadline: Deadline;
+}
+
+type Method = "GET" | Write;
 
 export type JsonBody =
   | Readonly<Record<string, string | number | boolean | undefined>>
@@ -29,12 +40,36 @@ export const READ_DEADLINE_MS = 20_000;
 
 const JSON_HEADERS = { "content-type": "application/json" } as const;
 
+export function post(deadline: Deadline): Write {
+  return { method: "POST", deadline };
+}
+
+export function put(deadline: Deadline): Write {
+  return { method: "PUT", deadline };
+}
+
+export function patch(deadline: Deadline): Write {
+  return { method: "PATCH", deadline };
+}
+
+export function del(deadline: Deadline): Write {
+  return { method: "DELETE", deadline };
+}
+
+function methodOf(method: Method): string {
+  return method === "GET" ? method : method.method;
+}
+
+function deadlineOf(method: Method): AbortSignal | undefined {
+  if (method === "GET") return AbortSignal.timeout(READ_DEADLINE_MS);
+
+  return method.deadline === NO_DEADLINE ? undefined : AbortSignal.timeout(method.deadline);
+}
+
 function signalOf(method: Method, caller: AbortSignal | undefined): AbortSignal | undefined {
-  if (method !== "GET") return caller;
+  const deadline = deadlineOf(method);
 
-  const deadline = AbortSignal.timeout(READ_DEADLINE_MS);
-
-  return within(caller, deadline);
+  return deadline === undefined ? caller : within(caller, deadline);
 }
 
 export async function call(
@@ -42,8 +77,12 @@ export async function call(
   path: string,
   { json, signsOut = true, signal }: Readonly<Call> = {},
 ): Promise<Response> {
+  const verb = methodOf(method);
+
   const init: RequestInit =
-    json === undefined ? { method } : { method, headers: JSON_HEADERS, body: JSON.stringify(json) };
+    json === undefined
+      ? { method: verb }
+      : { method: verb, headers: JSON_HEADERS, body: JSON.stringify(json) };
 
   const limit = signalOf(method, signal);
   const response = await fetch(path, limit === undefined ? init : { ...init, signal: limit });
@@ -56,7 +95,7 @@ export async function call(
 }
 
 function unexpected(method: Method, path: string, status: number): Error {
-  return new Error(`${method} ${path} answered ${status}`);
+  return new Error(`${methodOf(method)} ${path} answered ${status}`);
 }
 
 export async function callOk(

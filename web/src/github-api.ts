@@ -4,7 +4,8 @@ import {
   GithubVerifyResultSchema,
   type GithubTokenInput,
 } from "../../src/core/github-contract.ts";
-import { parsedFrom } from "./calls.ts";
+import { del, parsedFrom, post, put } from "./calls.ts";
+import { DATABASE_WRITE_DEADLINE_MS, HOP_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/github";
 
@@ -13,13 +14,15 @@ export function fetchGithubSettings(signal: AbortSignal) {
 }
 
 export function saveGithubToken(input: Readonly<GithubTokenInput>) {
-  return parsedFrom("PUT", ENDPOINT, GithubSaveResponseSchema, { json: input });
+  return parsedFrom(put(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, GithubSaveResponseSchema, {
+    json: input,
+  });
 }
 
 export function removeGithubToken() {
-  return parsedFrom("DELETE", ENDPOINT, GithubSettingsViewSchema);
+  return parsedFrom(del(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, GithubSettingsViewSchema);
 }
 
 export function verifyGithubToken() {
-  return parsedFrom("POST", `${ENDPOINT}/verify`, GithubVerifyResultSchema);
+  return parsedFrom(post(HOP_WRITE_DEADLINE_MS), `${ENDPOINT}/verify`, GithubVerifyResultSchema);
 }

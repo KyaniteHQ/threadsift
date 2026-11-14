@@ -12,7 +12,12 @@ import {
   ConnectStartResponseSchema,
   type ConnectStartInput,
 } from "../../src/core/openrouter-contract.ts";
-import { call, callOk, parsedBody, parsedFrom } from "./calls.ts";
+import { call, callOk, parsedBody, parsedFrom, post, put } from "./calls.ts";
+import {
+  AI_SAVE_DEADLINE_MS,
+  AI_VERIFY_DEADLINE_MS,
+  DATABASE_WRITE_DEADLINE_MS,
+} from "./write-deadlines.ts";
 
 export type AiView = z.infer<typeof AiSettingsViewSchema>;
 
@@ -29,7 +34,10 @@ type AiSave =
   | { readonly kind: "grok-bot-unready"; readonly code: GrokBotUnready["code"] };
 
 export async function saveAiSettings(input: Readonly<AiSettingsInput>): Promise<AiSave> {
-  const response = await callOk("PUT", "/api/settings/ai", { json: input, tolerates: [400] });
+  const response = await callOk(put(AI_SAVE_DEADLINE_MS), "/api/settings/ai", {
+    json: input,
+    tolerates: [400],
+  });
 
   if (response.status !== 400) return parsedBody(response, AiSaveResponseSchema);
 
@@ -41,7 +49,7 @@ export async function saveAiSettings(input: Readonly<AiSettingsInput>): Promise<
 }
 
 export function verifyAi(): Promise<VerifyResult> {
-  return parsedFrom("POST", "/api/settings/ai/verify", VerifyResultSchema);
+  return parsedFrom(post(AI_VERIFY_DEADLINE_MS), "/api/settings/ai/verify", VerifyResultSchema);
 }
 
 type ConnectStart =
@@ -49,7 +57,9 @@ type ConnectStart =
   | { readonly kind: "stale" | "unavailable" | "failed" };
 
 export async function startConnect(input: Readonly<ConnectStartInput>): Promise<ConnectStart> {
-  const response = await call("POST", CONNECT_START_PATH, { json: input });
+  const response = await call(post(DATABASE_WRITE_DEADLINE_MS), CONNECT_START_PATH, {
+    json: input,
+  });
 
   if (response.status === 201)
     return {

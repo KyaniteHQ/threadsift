@@ -2,7 +2,7 @@ import { setTimeout } from "node:timers/promises";
 
 import { z } from "zod";
 
-import { FETCH_DEADLINE_MS } from "../src/core/fetch-link.ts";
+import { FETCH_DEADLINE_MS } from "../src/core/request-waits.ts";
 import { CommandFailure } from "./command-failure.ts";
 
 const Job = z.object({

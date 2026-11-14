@@ -1,7 +1,6 @@
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 
 import type { Highlight, HighlightsView } from "../../src/core/highlight-contract.ts";
-import { dropHighlight, keepHighlight } from "./api.ts";
 import { HighlightList } from "./HighlightList.tsx";
 import {
   type HighlightsApi,
@@ -10,6 +9,7 @@ import {
   PanelContext,
   useSpanIndex,
 } from "./highlights-context.ts";
+import { dropHighlight, keepHighlight } from "./keeping-api.ts";
 import {
   KEEP_FAILED,
   KEEP_STALE,

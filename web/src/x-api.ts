@@ -1,6 +1,7 @@
 import type { XReaderChoice } from "../../src/core/kinds.ts";
 import { XSettingsViewSchema } from "../../src/core/x-settings.ts";
-import { parsedFrom } from "./calls.ts";
+import { parsedFrom, put } from "./calls.ts";
+import { PROBED_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/x";
 
@@ -9,5 +10,7 @@ export function fetchXSettings(signal: AbortSignal) {
 }
 
 export function saveXReader(reader: XReaderChoice) {
-  return parsedFrom("PUT", ENDPOINT, XSettingsViewSchema, { json: { reader } });
+  return parsedFrom(put(PROBED_WRITE_DEADLINE_MS), ENDPOINT, XSettingsViewSchema, {
+    json: { reader },
+  });
 }

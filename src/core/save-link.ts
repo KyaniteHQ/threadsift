@@ -5,6 +5,7 @@ import { resolveShortLink } from "./fetch-link.ts";
 import { type Existing, type SaveResult, saveQueued } from "./items.ts";
 import { isRedditShareLink, isRefusedLink, isShortLink, parseLink } from "./links.ts";
 import type { Ports } from "./ports.ts";
+import { FETCH_DEADLINE_MS } from "./request-waits.ts";
 import { saveResolved } from "./resolved-save.ts";
 import { aliasedItem } from "./short-link-aliases.ts";
 
@@ -27,7 +28,11 @@ async function saveShortLink(
     );
   }
 
-  const resolution = await resolveShortLink(ports.network, pasted);
+  const resolution = await resolveShortLink(
+    ports.network,
+    pasted,
+    AbortSignal.timeout(FETCH_DEADLINE_MS),
+  );
 
   const saved =
     resolution.kind === "failed"

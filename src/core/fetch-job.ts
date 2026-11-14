@@ -1,9 +1,9 @@
 import { botFailureNote } from "./bot-task-states.ts";
 import { attemptFetch } from "./fetch-attempt.ts";
-import { FETCH_DEADLINE_MS } from "./fetch-link.ts";
 import type { JobHandler } from "./job-outcome.ts";
 import { redditRefOf } from "./links.ts";
 import { redditClosed, redditClosing } from "./reddit-account-queue.ts";
+import { FETCH_DEADLINE_MS } from "./request-waits.ts";
 import { failedFetch } from "./settle.ts";
 import { xVerifyHandler } from "./x-verify-job.ts";
 

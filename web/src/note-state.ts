@@ -3,7 +3,7 @@ import {
   type NoteView,
   storedNoteBody,
 } from "../../src/core/note-contract.ts";
-import type { NoteSaveResult } from "./api.ts";
+import type { NoteSaveResult } from "./keeping-api.ts";
 import type { NoteDraft, NoteSent } from "./note-draft.ts";
 
 export interface NoteState {
