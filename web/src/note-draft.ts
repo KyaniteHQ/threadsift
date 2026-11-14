@@ -16,17 +16,11 @@ function keyOf(itemId: number): string {
   return `threadsift.note-draft.${String(itemId)}`;
 }
 
-function parsedDraft(text: string | null): NoteDraft | null {
-  try {
-    return text === null ? null : DraftSchema.parse(JSON.parse(text));
-  } catch {
-    return null;
-  }
-}
-
 export function draftOf(itemId: number): NoteDraft | null {
   try {
-    return parsedDraft(localStorage.getItem(keyOf(itemId)));
+    const stored = localStorage.getItem(keyOf(itemId));
+
+    return stored === null ? null : DraftSchema.parse(JSON.parse(stored));
   } catch {
     return null;
   }
@@ -39,7 +33,7 @@ export function watchDraft(itemId: number, changed: (draft: NoteDraft) => void):
   addEventListener(
     "storage",
     (event) => {
-      const draft = event.key === key ? parsedDraft(event.newValue) : null;
+      const draft = event.key === key ? draftOf(itemId) : null;
 
       if (draft !== null) changed(draft);
     },
