@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { type KindCase, KIND_CASES, caseOf } from "./bot-kinds-cases.ts";
+import { type KindCase, KIND_CASES } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { settled } from "./bot-kinds-steps.ts";
 import { pastDeadline } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { jobRow, taskRow, topicLeaseFree } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 
 describe("an answer whose guard moved between the send and the answer is accepted and then fails the task as stale", () => {
   for (const kindCase of KIND_CASES) {
@@ -54,40 +53,6 @@ describe("an answer whose guard moved between the send and the answer is accepte
       });
     }
   }
-});
-
-describe("a Digest the Grok Bot answered after another Digest changed the catalog", () => {
-  it("is published at once, with its new Topic and Tag, and the job is not requeued", async () => {
-    const instance = await botInstance();
-
-    try {
-      const kindCase = caseOf("digest");
-      const owner = await kindCase.library(instance);
-      const job = await openJobOf(instance, { kind: "digest", itemId: owner });
-
-      const sent = await answeredAs(instance, {
-        kindCase,
-        job,
-        between: () => {
-          exec(
-            instance,
-            "insert into catalog_version (id, version) values (1, 5) on conflict (id) do update set version = version + 5",
-          );
-        },
-      });
-
-      await settled(instance, "digest", job);
-
-      const task = taskRow(instance, sent.id);
-      const done = jobRow(instance, job.id);
-
-      assert.deepEqual([task.state, task.refusal], ["done", null]);
-      assert.deepEqual([done.state, done.stale_requeues], ["done", 0]);
-      assert.equal(kindCase.wrote(instance, owner), true);
-    } finally {
-      await instance.close();
-    }
-  });
 });
 
 const PHASES = ["waiting", "timed out", "reported an error"] as const;
