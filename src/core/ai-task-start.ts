@@ -5,7 +5,7 @@ import { holding } from "./job-rows.ts";
 import type { AiPorts, Database } from "./ports.ts";
 import { type JobRow, aiTasks } from "./schema.ts";
 
-export type TaskOwner = Readonly<Pick<JobRow, "id" | "attempts" | "itemId">>;
+export type TaskOwner = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration" | "itemId">>;
 
 export interface TaskOrigin {
   readonly executor: string;

@@ -16,7 +16,7 @@ type BotTaskState = "unsent" | "sent" | "answered" | "applied" | "failed";
 
 export type BotStep = "start" | "charge" | "apply" | "expire" | "resend" | "wait";
 
-type Held = Readonly<Pick<JobRow, "id" | "attempts">>;
+type Held = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration">>;
 
 const BOT_ERROR_REFUSAL = "provider-busy";
 
