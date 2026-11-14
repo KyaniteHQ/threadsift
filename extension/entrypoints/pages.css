@@ -52,6 +52,10 @@
   gap: var(--s4);
 }
 
+.ext-form[hidden] {
+  display: none;
+}
+
 .ext-field {
   display: grid;
   gap: var(--s2);
