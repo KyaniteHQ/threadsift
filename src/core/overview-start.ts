@@ -1,10 +1,10 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { providerSet } from "./ai-tasks.ts";
 import { guardedWrite, refusedByGuard } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
+import { providerSet } from "./provider-saved.ts";
 import { digests, items } from "./schema.ts";
 import { hasOpenOverview, openOverviewJob } from "./topic-coverage.ts";
 import { openingOverview, overviewOpened } from "./topic-overview-run.ts";
