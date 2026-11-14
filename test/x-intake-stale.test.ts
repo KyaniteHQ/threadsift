@@ -74,7 +74,7 @@ describe("an answer the task no longer takes publishes nothing, and an unavailab
     const answer = await intakeTo(instance, task, answerOf(task.statusId));
 
     assert.equal(answer.status, 409);
-    assert.equal(taskRow(instance, task.id).refusal, "timeout");
+    assert.equal(taskRow(instance, task.id).refusal, "stale");
     assert.equal(stored(instance, PUBLISHED_TABLES), unchanged);
     assert.equal((await instance.detail(task.itemId)).comments.received, 1);
   });
