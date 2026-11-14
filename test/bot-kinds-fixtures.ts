@@ -19,13 +19,7 @@ export interface Sent {
 
 export function openJobOf(
   instance: Instance,
-  options: Readonly<{
-    kind: BotKindName;
-    itemId: number;
-    attempts?: number;
-    staleRequeues?: number;
-    attemptGeneration?: number | null;
-  }>,
+  options: Readonly<Parameters<typeof openJobOfKind>[1] & { kind: BotKindName }>,
 ): Promise<ClaimedJob> {
   return openJobOfKind(instance, options);
 }
