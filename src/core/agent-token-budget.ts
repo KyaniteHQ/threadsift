@@ -2,6 +2,7 @@ import { and, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { Caller } from "./caller.ts";
 import { refusedBy } from "./guards.ts";
+import type { SaveResult } from "./items.ts";
 import { BUDGET_SPENT, type BudgetSpent, type TokenBudget } from "./kinds.ts";
 import { isRedditShareLink, isRefusedLink, isShortLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
@@ -124,24 +125,49 @@ async function possiblyNew(db: Database, urls: readonly string[]): Promise<numbe
   return addresses.size - heldAddresses + (shortLinks.size - heldShortLinks);
 }
 
-interface SavedBatch {
-  readonly kind: string;
-  readonly entries?: readonly {
-    readonly outcome: string;
-    readonly item?: { readonly id: number };
-  }[];
+interface Reserved {
+  readonly slots: number;
+  readonly day: string;
+}
+
+export interface CountedSaves {
+  readonly save: <Result extends SaveResult>(
+    write: (caller: Caller) => Promise<Result>,
+  ) => Promise<Result>;
+}
+
+interface SlotLedger {
+  readonly saves: CountedSaves;
+  readonly created: readonly number[];
+  readonly free: () => number;
+}
+
+function slotLedger(tokenId: number, slots: number): SlotLedger {
+  const created: number[] = [];
+  let free = slots;
+
+  const save: CountedSaves["save"] = async (write) => {
+    if (free === 0) return write({ kind: "token", id: tokenId });
+
+    free -= 1;
+
+    const result = await write({ kind: "batch", id: tokenId });
+
+    if (result.kind === "saved" && result.created) created.push(result.item.id);
+    else free += 1;
+
+    return result;
+  };
+
+  return { saves: { save }, created, free: () => free };
 }
 
 async function settle(
   db: Database,
   tokenId: number,
-  saved: Readonly<SavedBatch>,
-  reserved: { readonly slots: number; readonly day: string },
+  { created, free }: Readonly<Pick<SlotLedger, "created" | "free">>,
+  reserved: Reserved,
 ): Promise<void> {
-  const created = (saved.entries ?? []).flatMap(({ outcome, item }) =>
-    outcome === "added" && item !== undefined ? [item.id] : [],
-  );
-
   const attributed =
     created.length === 0
       ? []
@@ -151,7 +177,7 @@ async function settle(
           .where(sql`${items.id} in ${jsonList(created)}`)
           .returning({ savedAt: items.savedAt });
 
-  const perDay = new Map<string, number>([[reserved.day, -reserved.slots]]);
+  const perDay = new Map<string, number>([[reserved.day, -(free() + created.length)]]);
 
   for (const { savedAt } of attributed) {
     const day = utcDay(savedAt);
@@ -162,13 +188,13 @@ async function settle(
   await Promise.all([...perDay].map(([day, change]) => adjustDay(db, tokenId, day, change)));
 }
 
-export async function withinBudget<Saved extends SavedBatch>(
+export async function withinBudget<Saved>(
   { db }: Readonly<Pick<Ports, "db">>,
   caller: Readonly<Caller>,
   urls: readonly string[],
-  run: (saveAs: Caller) => Promise<Saved>,
+  run: (saves: CountedSaves) => Promise<Saved>,
 ): Promise<Budgeted<Saved>> {
-  if (caller.kind !== "token") return run(caller);
+  if (caller.kind !== "token") return run({ save: (write) => write(caller) });
 
   const now = Date.now();
   const reserved = { slots: await possiblyNew(db, urls), day: utcDay(now) };
@@ -177,9 +203,11 @@ export async function withinBudget<Saved extends SavedBatch>(
     return spentUntilMidnight(now);
   }
 
-  const saved = await run({ kind: "batch", id: caller.id });
+  const ledger = slotLedger(caller.id, reserved.slots);
 
-  await settle(db, caller.id, saved, reserved);
+  const saved = await unlessSpent(() => run(ledger.saves));
+
+  await settle(db, caller.id, ledger, reserved);
 
   return saved;
 }
