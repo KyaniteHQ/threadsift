@@ -1,0 +1,1 @@
+ALTER TABLE `reddit_threads` ADD `post_link` text;

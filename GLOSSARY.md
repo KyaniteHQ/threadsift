@@ -123,7 +123,7 @@ The short list of points under the Summary.
 _Avoid_: Highlights, takeaways
 
 **Kept comment**:
-A comment the agent kept because it adds a fact, a fix, a working link or command, first-hand experience or a real counterargument.
+A comment the agent kept because it adds a fact, a fix, a working link or command, first-hand experience or a real counterargument. Until a Digest covers the thread the Reader shows the comments that pass the first step instead, under a line that says so; search and export still hold Kept comments only.
 _Avoid_: Top comment, filtered comment
 
 **Context stub**:
@@ -131,13 +131,13 @@ One line in a comment tree that stands in for comments not shown: a dropped pare
 _Avoid_: Placeholder, removed comment
 
 **Reader**:
-The view that shows one Item in full: header, Summary, Key points, post text, Kept comments, and the owner's Highlights and Note.
+The view that shows one Item in full: header, Summary, Key points, post text, the comments (Kept comments once a Digest covers the thread, otherwise every comment that passes the first step of the comment filter), the link a Reddit link post points at, and the owner's Highlights and Note.
 _Avoid_: Detail view, article view
 
 ### Keeping
 
 **Highlight**:
-A passage of an Item's post text or of one Kept comment that the owner selected to keep; it stays when a refresh changes the text, marked as no longer found. A Proposal can suggest removing one that is no longer found, and only the owner's Accept removes it.
+A passage of an Item's post text or of one comment the Reader shows that the owner selected to keep; it stays when a refresh changes the text, marked as no longer found. A Proposal can suggest removing one that is no longer found, and only the owner's Accept removes it.
 _Avoid_: Clip, quote, annotation, bookmark
 
 **Note**:

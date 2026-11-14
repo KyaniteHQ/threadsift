@@ -1,29 +1,16 @@
-import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
-import { type CommentRow, type CommentsView, NO_COMMENTS, commentsViewOf } from "./comment-view.ts";
+import {
+  type CommentRow,
+  type CommentsView,
+  NO_COMMENTS,
+  type ThreadReport,
+  commentsViewOf,
+} from "./comment-view.ts";
 import type { Database } from "./ports.ts";
-import { readGeneration } from "./reddit-thread.ts";
-import { highlights, redditComments, redditThreads } from "./schema.ts";
-
-function readableComments(db: Database, itemId: number) {
-  const held = db
-    .select({ commentId: highlights.commentId })
-    .from(highlights)
-    .where(
-      and(
-        eq(highlights.itemId, itemId),
-        eq(highlights.status, "attached"),
-        isNotNull(highlights.commentId),
-      ),
-    )
-    .groupBy(highlights.commentId)
-    .as("held");
-
-  return {
-    held,
-    readable: sql`(${redditComments.kept} or ${held.commentId} is not null)`,
-  };
-}
+import { providerSet } from "./provider-saved.ts";
+import { commentReadable, readGeneration } from "./reddit-thread.ts";
+import { digests, redditComments, redditThreads } from "./schema.ts";
 
 export function readableBody(
   db: Database,
@@ -31,25 +18,22 @@ export function readableBody(
   commentId: string | null,
   generation: number,
 ) {
-  const { held, readable } = readableComments(db, itemId);
-
   return db
     .select({ body: redditComments.body })
     .from(redditComments)
-    .leftJoin(held, eq(held.commentId, redditComments.id))
     .where(
       and(
         eq(redditComments.itemId, itemId),
         eq(redditComments.generation, generation),
         commentId === null ? sql`0` : eq(redditComments.id, commentId),
         eq(redditComments.kind, "comment"),
-        readable,
+        commentReadable(),
       ),
     );
 }
 
 function threadRows(db: Database, itemId: number) {
-  const { held, readable } = readableComments(db, itemId);
+  const readable = commentReadable();
 
   return db
     .select({
@@ -66,7 +50,6 @@ function threadRows(db: Database, itemId: number) {
       postedAt: sql<number | null>`case when ${readable} then ${redditComments.postedAt} end`,
     })
     .from(redditComments)
-    .leftJoin(held, eq(held.commentId, redditComments.id))
     .where(
       and(
         eq(redditComments.itemId, itemId),
@@ -82,8 +65,20 @@ function threadReport(db: Database, itemId: number) {
       reported: redditThreads.reported,
       archivedAt: redditThreads.archivedAt,
       generation: redditThreads.generation,
+      published: sql<boolean>`${digests.itemId} is not null`.mapWith(Boolean),
+      provider: sql<boolean>`${providerSet()}`.mapWith(Boolean),
+      link: sql<
+        string | null
+      >`(select newest.post_link from reddit_threads as newest where newest.item_id = ${redditThreads}.item_id order by newest.generation desc limit 1)`,
     })
     .from(redditThreads)
+    .leftJoin(
+      digests,
+      and(
+        eq(digests.itemId, redditThreads.itemId),
+        eq(digests.generation, redditThreads.generation),
+      ),
+    )
     .where(
       and(
         eq(redditThreads.itemId, itemId),
@@ -102,17 +97,22 @@ export function commentsOf(
     reported: number | null;
     archivedAt: number | null;
     generation: number;
+    published: boolean;
+    provider: boolean;
   }>[],
   postRevision: number,
+  digest: Omit<ThreadReport["digest"], "provider">,
 ): CommentsView {
   const [thread] = report;
 
   if (thread === undefined) return NO_COMMENTS;
 
-  const { reported, archivedAt, generation } = thread;
+  const { reported, archivedAt, generation, published, provider } = thread;
 
   return commentsViewOf(rows, {
     reported,
     archive: archivedAt === null ? null : { at: archivedAt, withPost: generation === postRevision },
+    published,
+    digest: { ...digest, provider },
   });
 }

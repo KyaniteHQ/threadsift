@@ -1,13 +1,27 @@
-import type { Item } from "../../src/http/schemas.ts";
+import type { CommentCount, CommentsFilter } from "../../src/core/comment-view.ts";
+import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 
-export interface CommentCounts {
-  readonly kept: number;
-  readonly total: number;
+export function commentCountOf({
+  commentCount,
+  commentsKept,
+  commentsTotal,
+}: Readonly<Pick<Item, "commentCount" | "commentsKept" | "commentsTotal">>): CommentCount | null {
+  if (commentCount !== undefined) return commentCount;
+
+  return commentsKept === null || commentsTotal === null || commentsTotal === 0
+    ? null
+    : { filter: "kept", shown: commentsKept, total: commentsTotal };
 }
 
-export function commentCountsOf({
-  commentsKept: kept,
-  commentsTotal: total,
-}: Readonly<Pick<Item, "commentsKept" | "commentsTotal">>): CommentCounts | null {
-  return kept === null || total === null || total === 0 ? null : { kept, total };
+export function commentsFilterOf(
+  item: Readonly<Pick<Item, "commentCount" | "commentsKept" | "commentsTotal">>,
+  { view }: Readonly<Pick<ItemDetail["comments"], "view">>,
+): CommentsFilter {
+  if (view !== undefined) return view;
+
+  const count = commentCountOf(item);
+
+  if (count === null) return { filter: "absent" };
+
+  return count.shown === 0 ? { filter: "nothing-kept", count } : { filter: "kept", count };
 }

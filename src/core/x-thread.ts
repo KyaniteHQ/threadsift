@@ -190,6 +190,7 @@ function parseThread(value: XThreadValue, statusId: string): ParsedThread {
     postedAt: post.postedAt,
     reported: post.replies,
     linkedUrl: null,
+    postLink: null,
     nodes,
   });
 }
