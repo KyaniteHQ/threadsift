@@ -91,7 +91,7 @@ function ReadDot({
       type="button"
       className="it-dot"
       aria-labelledby={controlName(ids.read, ids)}
-      title={`${label} (m)`}
+      aria-keyshortcuts="m"
       onClick={toggle}
     >
       <span id={ids.read} className="vh">

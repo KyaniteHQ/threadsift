@@ -82,7 +82,7 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.disconnected)).toBeVisible();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNone)).toBeVisible();
 
-  await button(page, REDDIT_ACCOUNT_TEXT.reconnectExtension).click();
+  await button(page, REDDIT_ACCOUNT_TEXT.connectExtension).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.extensionMissing)).toBeVisible();
 
   await page.setViewportSize(PHONE);

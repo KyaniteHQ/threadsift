@@ -43,7 +43,13 @@ const RUNNING = {
 
 function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] {
   const buttons: readonly ActionButton<AiAction>[] = [
-    { action: "save", label: AI_TEXT.save, busyLabel: AI_TEXT.saving, blocked: form.saveBlocked },
+    {
+      action: "save",
+      label: AI_TEXT.save,
+      busyLabel: AI_TEXT.saving,
+      blocked: form.saveBlocked,
+      secondary: false,
+    },
     {
       action: "verify",
       label: AI_TEXT.verify,
@@ -51,6 +57,7 @@ function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] 
         view.settings?.provider === GROK_BOT_PROVIDER ? AI_TEXT.verifyingBot : AI_TEXT.verifying,
       blocked: form.verifyBlocked,
       onClick: form.verifyNow,
+      secondary: true,
     },
   ];
 
@@ -64,6 +71,7 @@ function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] 
       busyLabel: AI_TEXT.connecting,
       blocked: !view.secretReady,
       onClick: form.connection.connect,
+      secondary: true,
     },
   ];
 }

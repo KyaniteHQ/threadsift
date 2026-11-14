@@ -14,11 +14,18 @@ export type ActionFlow<Action extends string> =
 
 type ActionEvent<Action extends string> =
   | { readonly kind: "begin"; readonly action: Action }
-  | { readonly kind: "settle"; readonly outcome: Outcome | null };
+  | { readonly kind: "settle"; readonly outcome: Outcome | null }
+  | { readonly kind: "refuse"; readonly action: Action; readonly text: string };
 
 export type Task = () => Promise<Outcome | null>;
 
-export type RunAction<Action extends string> = (action: Action, task: Task) => Promise<void>;
+export type Unavailable = string | null;
+
+export type RunAction<Action extends string> = (
+  action: Action,
+  task: Task,
+  unavailable?: Unavailable,
+) => Promise<void>;
 
 export interface ActionButton<Action extends string> {
   readonly action: Action;
@@ -26,6 +33,7 @@ export interface ActionButton<Action extends string> {
   readonly busyLabel: string;
   readonly blocked: boolean;
   readonly onClick?: () => void;
+  readonly secondary: boolean;
 }
 
 function reduceFlow<Action extends string>(
@@ -41,6 +49,10 @@ function reduceFlow<Action extends string>(
       return event.outcome === null
         ? { kind: "idle" }
         : { kind: "done", action: flow.action, outcome: event.outcome };
+    case "refuse":
+      return flow.kind === "running"
+        ? flow
+        : { kind: "done", action: event.action, outcome: { kind: "error", text: event.text } };
     default: {
       const exhaustive: never = event;
 
@@ -63,7 +75,13 @@ export function useActionFlow<Action extends string>(failedText: string) {
   });
 
   const run: RunAction<Action> = useCallback(
-    async (action, task) => {
+    async (action, task, unavailable = null) => {
+      if (unavailable !== null) {
+        send({ kind: "refuse", action, text: unavailable });
+
+        return;
+      }
+
       if (!send({ kind: "begin", action })) return;
 
       try {
@@ -81,12 +99,12 @@ export function useActionFlow<Action extends string>(failedText: string) {
 export function useAction<Action extends string>({
   run,
   action,
-  blocked,
+  unavailable,
   task,
-}: Readonly<{ run: RunAction<Action>; action: Action; blocked: boolean; task: Task }>) {
+}: Readonly<{ run: RunAction<Action>; action: Action; unavailable: Unavailable; task: Task }>) {
   return useCallback(() => {
-    if (!blocked) void run(action, task);
-  }, [action, blocked, run, task]);
+    void run(action, task, unavailable);
+  }, [action, unavailable, run, task]);
 }
 
 interface Labels {
@@ -97,27 +115,50 @@ interface Labels {
 interface ButtonSet<Check extends string> {
   readonly check: Check;
   readonly labels: Readonly<Record<"save" | "remove" | Check, Labels>>;
-  readonly blocked: Readonly<Record<"save" | "remove" | Check, boolean>>;
+  readonly unavailable: Readonly<Record<"save" | "remove" | Check, Unavailable>>;
   readonly press: { readonly check: () => void; readonly remove: () => void };
+  readonly saveSecondary?: boolean;
 }
 
 export function useActionButtons<Check extends string>({
   check,
   labels,
-  blocked,
+  unavailable,
   press,
+  saveSecondary = false,
 }: Readonly<ButtonSet<Check>>) {
-  const saveBlocked = blocked.save;
-  const checkBlocked = blocked[check];
-  const removeBlocked = blocked.remove;
+  const saveBlocked = unavailable.save !== null;
+  const checkBlocked = unavailable[check] !== null;
+  const removeBlocked = unavailable.remove !== null;
   const { check: pressCheck, remove: pressRemove } = press;
 
   return useMemo<readonly ActionButton<"save" | "remove" | Check>[]>(
     () => [
-      { action: "save", ...labels.save, blocked: saveBlocked },
-      { action: check, ...labels[check], blocked: checkBlocked, onClick: pressCheck },
-      { action: "remove", ...labels.remove, blocked: removeBlocked, onClick: pressRemove },
+      { action: "save", ...labels.save, blocked: saveBlocked, secondary: saveSecondary },
+      {
+        action: check,
+        ...labels[check],
+        blocked: checkBlocked,
+        onClick: pressCheck,
+        secondary: true,
+      },
+      {
+        action: "remove",
+        ...labels.remove,
+        blocked: removeBlocked,
+        onClick: pressRemove,
+        secondary: true,
+      },
     ],
-    [check, labels, saveBlocked, checkBlocked, removeBlocked, pressCheck, pressRemove],
+    [
+      check,
+      labels,
+      saveBlocked,
+      checkBlocked,
+      removeBlocked,
+      pressCheck,
+      pressRemove,
+      saveSecondary,
+    ],
   );
 }

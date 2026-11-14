@@ -32,6 +32,7 @@ type Event =
   | { readonly kind: "begin"; readonly phase: Working }
   | { readonly kind: "leave" }
   | { readonly kind: "settle"; readonly outcome: Outcome }
+  | { readonly kind: "refuse"; readonly outcome: Outcome }
   | { readonly kind: "restore" };
 
 function noticeOf(search: string): ConnectNotice | null {
@@ -50,6 +51,10 @@ function reduce(state: FormState, event: Event): FormState {
   if (event.kind === "leave") return { ...state, phase: "leaving" };
 
   if (event.kind === "settle") return { ...state, phase: "idle", outcome: event.outcome };
+
+  if (event.kind === "refuse") {
+    return state.phase === "idle" ? { ...state, outcome: event.outcome } : state;
+  }
 
   return state.phase === "leaving" ? { ...state, phase: "idle" } : state;
 }
@@ -76,6 +81,10 @@ export function useAiPhase() {
     if (noticed) window.history.replaceState(null, "", window.location.pathname);
   }, [noticed]);
 
+  const refuse = useCallback((text: string) => {
+    dispatch({ kind: "refuse", outcome: { kind: "error", text } });
+  }, []);
+
   const run = useCallback(
     (next: Working, task: Task) => {
       guard(async () => {
@@ -97,7 +106,7 @@ export function useAiPhase() {
     [guard],
   );
 
-  return { phase, outcome: state.outcome, notice, run, restore, report };
+  return { phase, outcome: state.outcome, notice, run, restore, report, refuse };
 }
 
 export type AiPhase = ReturnType<typeof useAiPhase>;

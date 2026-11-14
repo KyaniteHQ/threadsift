@@ -123,6 +123,15 @@
 .sec h2 {
   margin: 0;
 }
+.sec .fld-err:empty {
+  position: absolute;
+}
+.pg :is(p, li, legend, label) {
+  text-wrap: pretty;
+}
+.pg :is(h1, h2, h3) {
+  text-wrap: balance;
+}
 
 .reveal {
   position: relative;
@@ -171,7 +180,6 @@
 }
 .reveal p,
 .reveal-title {
-  text-wrap: pretty;
   overflow-wrap: anywhere;
 }
 .app[data-bp~="phone"] .stack .btn-flush {

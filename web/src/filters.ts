@@ -26,6 +26,10 @@ export function isSearching({ q }: Readonly<Filters>): boolean {
   return searchTerms(q).length > 0;
 }
 
+export function isEmptyResult(rows: number, next: string | null): boolean {
+  return rows === 0 && next === null;
+}
+
 export function isFiltered(filters: Readonly<Filters>): boolean {
   return chosenCount(filters) > 0 || isSearching(filters);
 }

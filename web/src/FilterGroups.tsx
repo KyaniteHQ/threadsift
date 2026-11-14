@@ -9,7 +9,6 @@ import {
   FILTER_GROUPS,
   NO_ROWS,
   SHOW_FEWER,
-  countTip,
   filled,
   namedOption,
 } from "./text.ts";
@@ -45,7 +44,6 @@ function SegmentButton<Key extends string>({
       className={bar ? "fl-chip" : "fl-seg-b"}
       aria-pressed={pressed}
       aria-label={segment.name}
-      title={countTip(segment.label, segment.count)}
       onClick={press}
     >
       {segment.label}

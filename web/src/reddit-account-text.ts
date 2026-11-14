@@ -32,6 +32,9 @@ export const REDDIT_ACCOUNT_TEXT = {
   disconnecting: "Disconnecting…",
   connected: "Reddit account connected.",
   disconnected: "Reddit account disconnected.",
+  removeNothing: "There is no connected Reddit account to disconnect.",
+  pasteLead:
+    "Pasting the cookie by hand is the other way to connect when the Extension is not available.",
   valueNeeded: "Enter a session cookie to connect.",
   invalidValue:
     "Enter 1 to 4,096 characters using only letters, digits and . _ ~ + / = % -, with no spaces, semicolons or line breaks.",
@@ -43,6 +46,8 @@ export const REDDIT_ACCOUNT_TEXT = {
   resultUnreachable: "Reddit did not answer. Try again.",
   resultTimeout: "Reddit did not answer in 15 seconds. Try again.",
   resultNotConfigured: "Connect a Reddit account first, then press Verify.",
+  connectExtension: "Connect with the Extension",
+  connectingExtension: "Connecting with the Extension…",
   reconnectExtension: "Reconnect with the Extension",
   reconnectingExtension: "Reconnecting with the Extension…",
   extensionMissing:

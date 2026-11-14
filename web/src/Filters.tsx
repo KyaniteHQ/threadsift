@@ -109,11 +109,24 @@ function NamedRows({
   );
 }
 
+function ClearFilters({
+  filters,
+  hasRows,
+  clearChosen,
+}: Readonly<{ filters: Filters; hasRows: boolean; clearChosen: () => void }>) {
+  return hasRows && chosenCount(filters) > 0 ? (
+    <button type="button" className="fl-link" onClick={clearChosen}>
+      {CLEAR_FILTERS}
+    </button>
+  ) : null;
+}
+
 function Panel({
   counts,
   filters,
   choose,
   clearChosen,
+  hasRows,
   bar,
   id,
 }: Readonly<{
@@ -121,6 +134,7 @@ function Panel({
   filters: Filters;
   choose: Choose;
   clearChosen: () => void;
+  hasRows: boolean;
   bar: boolean;
   id: string;
 }>) {
@@ -150,11 +164,7 @@ function Panel({
       )}
       <NamedRows facet="topic" bar={bar} counts={counts} filters={filters} choose={choose} />
       <NamedRows facet="tag" bar={bar} counts={counts} filters={filters} choose={choose} />
-      {chosenCount(filters) > 0 ? (
-        <button type="button" className="fl-link" onClick={clearChosen}>
-          {CLEAR_FILTERS}
-        </button>
-      ) : null}
+      <ClearFilters filters={filters} hasRows={hasRows} clearChosen={clearChosen} />
     </div>
   );
 }
@@ -189,11 +199,32 @@ export function FilterGhost({
           filters={NO_FILTERS}
           choose={NOTHING}
           clearChosen={NOTHING}
+          hasRows={false}
           bar
           id={panelId}
         />
       )}
     </div>
+  );
+}
+
+function FilterToggle({
+  expanded,
+  panelId,
+  chosen,
+  toggle,
+}: Readonly<{ expanded: boolean; panelId: string; chosen: number; toggle: () => void }>) {
+  return (
+    <button
+      type="button"
+      className="btn fl-toggle"
+      aria-expanded={expanded}
+      aria-controls={panelId}
+      onClick={toggle}
+    >
+      <Icon name="filters" className="ic ic-s" />
+      {chosen === 0 ? FILTERS_BUTTON : filled(FILTERS_BUTTON_ACTIVE, { count: String(chosen) })}
+    </button>
   );
 }
 
@@ -204,6 +235,7 @@ export function FilterPane({
   bar,
   choose,
   clearChosen,
+  hasRows,
 }: Readonly<{
   counts: PanelCounts;
   filters: Filters;
@@ -211,6 +243,7 @@ export function FilterPane({
   bar: boolean;
   choose: Choose;
   clearChosen: () => void;
+  hasRows: boolean;
 }>) {
   const [expanded, setExpanded] = useState(false);
   const panelId = useId();
@@ -223,16 +256,7 @@ export function FilterPane({
   return (
     <div className={bar ? "fl fl-bar" : "fl fl-rail"}>
       {collapsible ? (
-        <button
-          type="button"
-          className="btn fl-toggle"
-          aria-expanded={expanded}
-          aria-controls={panelId}
-          onClick={toggle}
-        >
-          <Icon name="filters" className="ic ic-s" />
-          {chosen === 0 ? FILTERS_BUTTON : filled(FILTERS_BUTTON_ACTIVE, { count: String(chosen) })}
-        </button>
+        <FilterToggle expanded={expanded} panelId={panelId} chosen={chosen} toggle={toggle} />
       ) : null}
       {collapsible && !expanded ? null : (
         <Panel
@@ -240,6 +264,7 @@ export function FilterPane({
           filters={filters}
           choose={choose}
           clearChosen={clearChosen}
+          hasRows={hasRows}
           bar={bar}
           id={panelId}
         />

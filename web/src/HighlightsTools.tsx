@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 
-import type { Filters, useFilters } from "./filters.ts";
+import { type Filters, type useFilters, isEmptyResult } from "./filters.ts";
 import { FilterGhost, FilterPane } from "./Filters.tsx";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { SearchField } from "./SearchField.tsx";
@@ -47,6 +47,7 @@ export function HighlightsTools({
             bar
             choose={filtering.choose}
             clearChosen={filtering.clearChosen}
+            hasRows={!isEmptyResult(state.entries.length, state.next)}
           />
         ) : (
           <FilterGhost collapsible={look.narrow} bar />

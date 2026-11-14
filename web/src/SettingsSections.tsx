@@ -18,14 +18,14 @@ export function SettingsSections({
 
   return (
     <>
+      <SignOutSection signOut={signOut} failed={signOutFailed} />
+      <PasswordSection />
       <LoadedSection {...AI_SECTION} initial={loaded.ai} />
       <LoadedSection key={version} {...X_SECTION} initial={x} />
       <LoadedSection {...GITHUB_SECTION} initial={loaded.github} />
       <LoadedSection {...grokBot} initial={loaded.grokBot} />
       <RedditSections loaded={loaded} />
       <TokensSection initial={loaded.tokens} />
-      <PasswordSection />
-      <SignOutSection signOut={signOut} failed={signOutFailed} />
     </>
   );
 }

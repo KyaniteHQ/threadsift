@@ -31,6 +31,7 @@ export const GROK_BOT_TEXT = {
   remove: "Remove",
   removing: "Removing…",
   removed: "Grok Bot removed.",
+  removeNothing: "Nothing is saved to remove.",
   removeInUse: GROK_BOT_IN_USE,
   invalidAddress: "Enter a public https address with no username, password, query or fragment.",
   invalidKey:

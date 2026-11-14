@@ -60,7 +60,7 @@ function GithubForm({
           help={GITHUB_TEXT.fieldHelp}
         />
         <p>{TOKEN_STATES[view.token]}</p>
-        {form.blocked.save ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
+        {form.secretMissing ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
         <SettingsActions running={runningAction(form.flow)} buttons={form.buttons} />
       </SettingsForm>
       <SettingsResult outcome={form.result} />

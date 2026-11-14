@@ -1,8 +1,9 @@
 import { useCallback } from "react";
 
 import { type GithubSettingsView, GithubTokenInputSchema } from "../../src/core/github-contract.ts";
+import { AI_TEXT } from "./ai-text.ts";
 import { removeGithubToken, saveGithubToken, verifyGithubToken } from "./github-api.ts";
-import { GITHUB_TEXT, refusalText, verifiedText } from "./github-text.ts";
+import { GITHUB_TEXT, TOKEN_STATES, refusalText, verifiedText } from "./github-text.ts";
 import { type FieldState, useField } from "./use-form.ts";
 import {
   type Task,
@@ -65,36 +66,49 @@ function useRemove(token: FieldState, changed: Changed): Task {
   }, [changed, clear, fail]);
 }
 
+function verifyUnavailable(view: Readonly<GithubSettingsView>): string | null {
+  if (!view.secretReady) return AI_TEXT["secret-missing"];
+
+  if (view.token === "saved") return null;
+
+  return view.token === "none" ? GITHUB_TEXT.notConfigured : TOKEN_STATES.unreadable;
+}
+
 export function useGithubForm(view: GithubSettingsView, changed: Changed) {
   const token = useField();
   const { flow, run } = useActionFlow<Action>(GITHUB_TEXT.failed);
 
-  const blocked = {
-    save: !view.secretReady,
-    verify: !view.secretReady || view.token !== "saved",
-    remove: view.token === "none",
+  const unavailable = {
+    save: view.secretReady ? null : AI_TEXT["secret-missing"],
+    verify: verifyUnavailable(view),
+    remove: view.token === "none" ? GITHUB_TEXT.removeNothing : null,
   } as const;
 
   const submit = useAction({
     run,
     action: "save",
-    blocked: blocked.save,
+    unavailable: unavailable.save,
     task: useSave(token, changed),
   });
 
-  const verifyNow = useAction({ run, action: "verify", blocked: blocked.verify, task: verify });
+  const verifyNow = useAction({
+    run,
+    action: "verify",
+    unavailable: unavailable.verify,
+    task: verify,
+  });
 
   const removeNow = useAction({
     run,
     action: "remove",
-    blocked: blocked.remove,
+    unavailable: unavailable.remove,
     task: useRemove(token, changed),
   });
 
   const buttons = useActionButtons({
     check: "verify",
     labels: LABELS,
-    blocked,
+    unavailable,
     press: { check: verifyNow, remove: removeNow },
   });
 
@@ -103,7 +117,7 @@ export function useGithubForm(view: GithubSettingsView, changed: Changed) {
     flow,
     result: outcomeOf(flow),
     busy: flow.kind === "running",
-    blocked,
+    secretMissing: unavailable.save !== null,
     buttons,
     submit,
   };

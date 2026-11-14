@@ -18,6 +18,7 @@ import {
   useAction,
   useActionButtons,
   useActionFlow,
+  type Unavailable,
 } from "./use-settings-action.ts";
 
 type Action = "save" | "verify" | "remove" | "reconnect";
@@ -34,6 +35,16 @@ const LABELS = {
   save: { label: REDDIT_ACCOUNT_TEXT.connect, busyLabel: REDDIT_ACCOUNT_TEXT.connecting },
   verify: { label: REDDIT_ACCOUNT_TEXT.verify, busyLabel: REDDIT_ACCOUNT_TEXT.verifying },
   remove: { label: REDDIT_ACCOUNT_TEXT.disconnect, busyLabel: REDDIT_ACCOUNT_TEXT.disconnecting },
+} as const;
+
+const EXTENSION_FIRST = {
+  label: REDDIT_ACCOUNT_TEXT.connectExtension,
+  busyLabel: REDDIT_ACCOUNT_TEXT.connectingExtension,
+} as const;
+
+const EXTENSION_AGAIN = {
+  label: REDDIT_ACCOUNT_TEXT.reconnectExtension,
+  busyLabel: REDDIT_ACCOUNT_TEXT.reconnectingExtension,
 } as const;
 
 function useConnect(session: FieldState, changed: Changed): Task {
@@ -67,11 +78,15 @@ function useConnect(session: FieldState, changed: Changed): Task {
   }, [fail, clear, value, changed]);
 }
 
-const verify: Task = async () => {
-  const result = await verifyRedditAccount();
+function useVerify(changed: Changed): Task {
+  return useCallback(async () => {
+    const result = await verifyRedditAccount();
 
-  return { kind: result === "ok" ? "ok" : "error", text: resultText(result) };
-};
+    changed(await fetchRedditAccount());
+
+    return { kind: result === "ok" ? "ok" : "error", text: resultText(result) };
+  }, [changed]);
+}
 
 function useReconnect(changed: Changed): Task {
   return useCallback(async () => {
@@ -99,52 +114,68 @@ function useDisconnect(session: FieldState, changed: Changed): Task {
   }, [fail, clear, changed]);
 }
 
-function useButtons(
-  view: Readonly<RedditAccountView>,
+function verifyUnavailable({ state }: Readonly<RedditAccountView>): Unavailable {
+  switch (state) {
+    case "none":
+      return resultText("not-configured");
+    case "missing":
+      return resultText("secret-missing");
+    case "connected":
+    case "expired":
+    case "unreadable":
+      return null;
+    default: {
+      const exhaustive: never = state;
+
+      return exhaustive;
+    }
+  }
+}
+
+function removeUnavailable({ state }: Readonly<RedditAccountView>): Unavailable {
+  return state === "none" ? REDDIT_ACCOUNT_TEXT.removeNothing : null;
+}
+
+function unavailableOf(view: Readonly<RedditAccountView>) {
+  return {
+    save: view.state === "missing" ? resultText("secret-missing") : null,
+    verify: verifyUnavailable(view),
+    remove: removeUnavailable(view),
+  } as const;
+}
+
+function useExtensionButton(
+  { state }: Readonly<RedditAccountView>,
   run: RunAction<Action>,
   changed: Changed,
-  {
-    verifyNow,
-    disconnectNow,
-    blocked,
-  }: Readonly<{
-    verifyNow: () => void;
-    disconnectNow: () => void;
-    blocked: Readonly<Record<"save" | "verify" | "remove", boolean>>;
-  }>,
 ) {
   const reconnectNow = useAction({
     run,
     action: "reconnect",
-    blocked: false,
+    unavailable: null,
     task: useReconnect(changed),
   });
 
-  const base = useActionButtons({
-    check: "verify",
-    labels: LABELS,
-    blocked,
-    press: { check: verifyNow, remove: disconnectNow },
-  });
+  const labels = state === "none" ? EXTENSION_FIRST : EXTENSION_AGAIN;
+  const offered = RECONNECTABLE.has(state);
 
-  const reconnectable = RECONNECTABLE.has(view.state);
-
-  return useMemo<readonly ActionButton<Action>[]>(
+  const extension = useMemo<readonly ActionButton<Action>[]>(
     () =>
-      reconnectable
+      offered
         ? [
-            ...base,
             {
               action: "reconnect",
-              label: REDDIT_ACCOUNT_TEXT.reconnectExtension,
-              busyLabel: REDDIT_ACCOUNT_TEXT.reconnectingExtension,
+              ...labels,
               blocked: false,
               onClick: reconnectNow,
+              secondary: false,
             },
           ]
-        : base,
-    [base, reconnectable, reconnectNow],
+        : [],
+    [offered, labels, reconnectNow],
   );
+
+  return extension;
 }
 
 export function useRedditAccountForm(view: RedditAccountView, changed: Changed) {
@@ -152,29 +183,38 @@ export function useRedditAccountForm(view: RedditAccountView, changed: Changed) 
   const { flow, run } = useActionFlow<Action>(REDDIT_ACCOUNT_TEXT.failed);
   const saved = view.state !== "none" && view.state !== "missing";
 
-  const blocked = {
-    save: view.state === "missing",
-    verify: !saved,
-    remove: view.state === "none" || view.state === "missing",
-  } as const;
+  const unavailable = unavailableOf(view);
 
   const submit = useAction({
     run,
     action: "save",
-    blocked: blocked.save,
+    unavailable: unavailable.save,
     task: useConnect(session, changed),
   });
 
-  const verifyNow = useAction({ run, action: "verify", blocked: blocked.verify, task: verify });
+  const verifyNow = useAction({
+    run,
+    action: "verify",
+    unavailable: unavailable.verify,
+    task: useVerify(changed),
+  });
 
   const disconnectNow = useAction({
     run,
     action: "remove",
-    blocked: blocked.remove,
+    unavailable: unavailable.remove,
     task: useDisconnect(session, changed),
   });
 
-  const buttons = useButtons(view, run, changed, { verifyNow, disconnectNow, blocked });
+  const extension = useExtensionButton(view, run, changed);
+
+  const buttons = useActionButtons({
+    check: "verify",
+    labels: LABELS,
+    unavailable,
+    press: { check: verifyNow, remove: disconnectNow },
+    saveSecondary: extension.length > 0,
+  });
 
   return {
     session,
@@ -182,6 +222,7 @@ export function useRedditAccountForm(view: RedditAccountView, changed: Changed) 
     result: outcomeOf(flow),
     busy: flow.kind === "running",
     buttons,
+    extension,
     submit,
     saved,
   };
