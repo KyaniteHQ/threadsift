@@ -134,9 +134,13 @@ function useLeave({ latest, edit, reread, lastLoaded, retry, setFocus, say }: Re
       const through =
         departure === "accepted" ? reachesBelow(lastLoaded()) : onlyRow ? () => true : null;
 
+      const dropLocally = (): void => {
+        edit((page) => without(page, proposal.id));
+      };
+
       if (through === null) {
         say(says);
-        edit((page) => without(page, proposal.id));
+        dropLocally();
 
         return;
       }
@@ -145,7 +149,7 @@ function useLeave({ latest, edit, reread, lastLoaded, retry, setFocus, say }: Re
 
       if (reloaded === null) {
         if (onlyRow) retry();
-        else edit((page) => without(page, proposal.id));
+        else dropLocally();
 
         return;
       }

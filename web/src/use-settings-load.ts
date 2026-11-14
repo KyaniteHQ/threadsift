@@ -1,5 +1,6 @@
 import { type RefObject, useCallback, useEffect, useState } from "react";
 
+import { within } from "../../src/core/deadline.ts";
 import { READ_DEADLINE_MS } from "./calls.ts";
 import { SECTION_FONTS, loadFonts } from "./load-fonts.ts";
 import type { Loaded, SettingsLoad } from "./settings-load-types.ts";
@@ -22,19 +23,13 @@ export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLo
     const controller = new AbortController();
     let mounted = true;
 
-    const deadline = window.setTimeout(() => {
-      controller.abort();
-    }, READ_DEADLINE_MS);
-
     const load = async (): Promise<void> => {
-      const { signal } = controller;
+      const signal = within(controller.signal, AbortSignal.timeout(READ_DEADLINE_MS));
 
       const [reads] = await Promise.all([
         readSettings(signal),
         page.current === null ? undefined : loadFonts(page.current, SECTION_FONTS, signal),
       ]);
-
-      window.clearTimeout(deadline);
 
       if (mounted) setLoaded(reads);
     };
@@ -43,7 +38,6 @@ export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLo
 
     return () => {
       mounted = false;
-      window.clearTimeout(deadline);
       controller.abort();
     };
   }, [page]);

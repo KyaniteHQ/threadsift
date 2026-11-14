@@ -11,7 +11,7 @@ import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 import { sentIntake } from "./x-intake-fixtures.ts";
 
-export { AI_PATH, chooseGrokBot } from "./bot-task-fixtures.ts";
+export { AI_PATH, chooseGrokBot, selectGrokBot } from "./bot-task-fixtures.ts";
 
 export async function botProviderInstance(): Promise<Instance> {
   const instance = await botInstance();

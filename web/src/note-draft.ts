@@ -2,11 +2,7 @@ import { z } from "zod";
 
 const SentSchema = z.object({ body: z.string(), revision: z.number().int().nonnegative() });
 
-const DraftSchema = z.object({
-  body: z.string(),
-  revision: z.number().int().nonnegative(),
-  sent: SentSchema.nullable().default(null),
-});
+const DraftSchema = SentSchema.extend({ sent: SentSchema.nullable().default(null) });
 
 export type NoteSent = z.infer<typeof SentSchema>;
 

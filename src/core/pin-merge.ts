@@ -1,4 +1,4 @@
-import { type SQL, type SQLWrapper, and, asc, eq, gte, ne, notExists, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, gte, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import {
@@ -9,6 +9,7 @@ import {
   topicClosingWrites,
 } from "./catalog-key-links.ts";
 import type { Advance } from "./data-step-contract.ts";
+import { holdsNoRow } from "./guards.ts";
 import { repointedPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { proposalRelinks } from "./proposal-lifecycle.ts";
@@ -26,11 +27,10 @@ function noAcceptingProposal(
   kind: CatalogKind,
   fromId: Readonly<SQLWrapper> | number,
 ) {
-  return notExists(
-    db
-      .select({ one: sql`1` })
-      .from(proposals)
-      .where(and(eq(kind.proposalFrom, fromId), eq(proposals.state, "accepting"))),
+  return holdsNoRow(
+    db,
+    proposals,
+    sql`${eq(kind.proposalFrom, fromId)} and ${eq(proposals.state, "accepting")}`,
   );
 }
 
