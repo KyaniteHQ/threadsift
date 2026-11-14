@@ -102,14 +102,20 @@ function useRecount(wiring: Readonly<Wiring>, reload: () => void, filters: Reado
         const answer = await fetchItems(filtersNow.current).catch(() => null);
         const unchanged = stamps.changedSince(request.startedAt).length === 0;
 
-        if (answer === null) reload();
-        else if (requests.isCurrent(request)) {
-          if (!unchanged) await run();
-          else if (requests.claimCounts(request, unchanged)) {
-            setList((current) =>
-              current.status === "ready" ? { ...current, counts: answer.counts } : current,
-            );
-          }
+        if (answer === null) {
+          reload();
+
+          return;
+        }
+
+        if (!requests.isCurrent(request)) return;
+
+        if (!unchanged) return run();
+
+        if (requests.claimCounts(request, true)) {
+          setList((current) =>
+            current.status === "ready" ? { ...current, counts: answer.counts } : current,
+          );
         }
       };
 
