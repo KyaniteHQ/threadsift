@@ -161,16 +161,16 @@ export function sideNamedWords(other: string): string {
   return filled(PROPOSAL_WORDS.sideNamed, { other });
 }
 
+function counted(count: number, one: string, many: string): string {
+  return count === 1 ? one : filled(many, { count: String(count) });
+}
+
 export function itemCount(count: number): string {
-  return count === 1
-    ? PROPOSAL_WORDS.itemsOne
-    : filled(PROPOSAL_WORDS.itemsMany, { count: String(count) });
+  return counted(count, PROPOSAL_WORDS.itemsOne, PROPOSAL_WORDS.itemsMany);
 }
 
 export function applyFailedNote(failedRuns: number): string {
-  return failedRuns === 1
-    ? PROPOSAL_WORDS.applyFailedOnce
-    : filled(PROPOSAL_WORDS.applyFailedMany, { count: String(failedRuns) });
+  return counted(failedRuns, PROPOSAL_WORDS.applyFailedOnce, PROPOSAL_WORDS.applyFailedMany);
 }
 
 export function firstFailures(
