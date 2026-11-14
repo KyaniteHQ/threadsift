@@ -26,28 +26,30 @@ export const redditSection = element(
 
 let current: RedditView = { kind: "loading", access: false };
 let version = 0;
-let savedDuringPress = false;
+
+function settlingAt(started: number): (answer: RedditView) => void {
+  return (answer) => {
+    if (version === started) {
+      move(answer);
+
+      return;
+    }
+
+    move({ kind: "loading", access: false });
+    void refreshReddit();
+  };
+}
 
 function press(action: RedditAction): void {
   if (current.kind === "working") return;
 
   move({ kind: "working", access: false });
 
+  const started = version;
+
   void (action === "disconnect" ? disconnectRedditFromPage() : connectRedditFromPage()).then(
-    settlePress,
+    settlingAt(started),
   );
-}
-
-function settlePress(answer: RedditView): void {
-  if (!savedDuringPress) {
-    move(answer);
-
-    return;
-  }
-
-  savedDuringPress = false;
-  move({ kind: "loading", access: false });
-  void refreshReddit();
 }
 
 function actionButton(action: RedditAction): HTMLButtonElement {
@@ -73,7 +75,7 @@ function move(next: RedditView): void {
 
 export async function refreshReddit(): Promise<void> {
   if (current.kind === "working") {
-    savedDuringPress = true;
+    version += 1;
 
     return;
   }
