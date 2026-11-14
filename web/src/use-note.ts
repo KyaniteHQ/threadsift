@@ -2,7 +2,7 @@ import { type Dispatch, type RefObject, useCallback, useEffect, useReducer, useR
 
 import type { NoteView } from "../../src/core/note-contract.ts";
 import { putNote } from "./api.ts";
-import { draftOf, keepDraft } from "./note-draft.ts";
+import { type NoteDraft, draftOf, keepDraft, watchDraft } from "./note-draft.ts";
 import {
   type NoteAction,
   type NoteState,
@@ -24,7 +24,7 @@ function useSend(
       if (sending.current) return;
 
       sending.current = true;
-      dispatch({ kind: "send" });
+      dispatch({ kind: "send", sent: { body: draft, revision } });
 
       const answer = await putNote(itemId, { body: draft, revision }).catch(() => null);
 
@@ -52,12 +52,32 @@ function view(state: Readonly<NoteState>) {
   };
 }
 
-function useKeptDraft(itemId: number, { saved, draft }: Readonly<NoteState>, dirty: boolean) {
+function useKeptDraft(
+  itemId: number,
+  { saved, draft, sent }: Readonly<NoteState>,
+  dirty: boolean,
+  dispatch: Dispatch<NoteAction>,
+) {
   const { revision } = saved;
+  const adopted = useRef<NoteDraft | null>(null);
+
+  useEffect(
+    () =>
+      watchDraft(itemId, (kept) => {
+        adopted.current = kept;
+        dispatch({ kind: "adopt", kept });
+      }),
+    [itemId, dispatch],
+  );
 
   useEffect(() => {
-    keepDraft(itemId, dirty ? { body: draft, revision } : null);
-  }, [itemId, dirty, draft, revision]);
+    const echo = adopted.current;
+    adopted.current = null;
+
+    if (echo?.body === draft && echo.revision === revision) return;
+
+    keepDraft(itemId, dirty ? { body: draft, revision, sent } : null);
+  }, [itemId, dirty, draft, revision, sent]);
 }
 
 export function useNote(
@@ -72,7 +92,7 @@ export function useNote(
   const send = useSend(itemId, state.draft, dispatch, field);
   const shown = view(state);
   const { saved, newer } = state;
-  useKeptDraft(itemId, state, shown.dirty || shown.pending);
+  useKeptDraft(itemId, state, shown.dirty || shown.pending, dispatch);
 
   const save = useCallback(() => {
     if (shown.canSave) void send(saved.revision, false);

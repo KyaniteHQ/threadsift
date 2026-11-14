@@ -137,7 +137,7 @@ export function HighlightsProvider({
   const { keep, remove } = useHighlightWrites(itemId, actions, { announce, fail, dismiss });
 
   const failure = useMemo<Failure | null>(() => {
-    if (failed !== null) return { text: failed, reloads: false };
+    if (failed !== null) return { text: failed, reloads: unavailable };
 
     return unavailable ? { text: SELECT_FAILED, reloads: true } : null;
   }, [failed, unavailable]);

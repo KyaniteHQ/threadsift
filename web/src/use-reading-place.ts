@@ -17,8 +17,13 @@ function untouched(slot: HTMLElement, at: number): boolean {
   return Math.abs(slot.scrollTop - Math.min(at, farthest)) < 1;
 }
 
-function newSettler(slot: HTMLElement) {
+function newSettler(slot: HTMLElement, first: Readonly<Anchor> | null) {
   let cancel: (() => void) | null = null;
+  let seen = first;
+
+  const see = (): void => {
+    seen = anchorAt(slot);
+  };
 
   const stop = (): void => {
     cancel?.();
@@ -34,10 +39,12 @@ function newSettler(slot: HTMLElement) {
     let at = slot.scrollTop;
 
     const resettle = (): void => {
-      if (live && slot.isConnected && untouched(slot, at)) {
+      if (!live || !slot.isConnected) return;
+
+      if (untouched(slot, at)) {
         scrollToAnchor(slot, anchor);
         at = slot.scrollTop;
-      }
+      } else see();
     };
 
     const timer = window.setTimeout(() => {
@@ -53,7 +60,11 @@ function newSettler(slot: HTMLElement) {
     };
   };
 
-  return { returnTo, stop, isSettling: () => cancel !== null };
+  const reflowed = (): void => {
+    returnTo(seen);
+  };
+
+  return { reflowed, see, stop, isSettling: () => cancel !== null };
 }
 
 function onWidthChange(slot: HTMLElement, changed: () => void): () => void {
@@ -116,8 +127,7 @@ function onImageSettled(slot: HTMLElement, reflowed: () => void): () => void {
 }
 
 function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): PlaceWatch {
-  const settler = newSettler(slot);
-  let seen = arriving ? null : placeOf(itemId);
+  const settler = newSettler(slot, arriving ? null : placeOf(itemId));
   let saveTimer = 0;
   let frame = 0;
 
@@ -130,7 +140,7 @@ function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): Place
     if (!settler.isSettling() && frame === 0) {
       frame = window.requestAnimationFrame(() => {
         frame = 0;
-        seen = anchorAt(slot);
+        settler.see();
       });
     }
 
@@ -138,12 +148,10 @@ function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): Place
     saveTimer = window.setTimeout(save, SAVE_DELAY_MS);
   };
 
-  const reflowed = (): void => {
-    settler.returnTo(seen);
-  };
+  const { reflowed } = settler;
 
   slot.scrollTop = 0;
-  settler.returnTo(seen);
+  reflowed();
   slot.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("pagehide", save);
   const unwatchWidth = onWidthChange(slot, reflowed);
