@@ -110,6 +110,7 @@ export async function mergedTopic(db: Database): Promise<Advance> {
       ...TOPIC_KIND.relink(db, next.id, next.intoId, moves),
       ...topicClosingWrites(db, next.id, next.intoId, []).writes,
     ],
+    guard: accepting(db, TOPIC_KIND, next.id),
     cursor: "topics",
   };
 }
