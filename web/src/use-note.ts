@@ -24,7 +24,7 @@ function useSend(
       if (sending.current) return;
 
       sending.current = true;
-      dispatch({ kind: "send" });
+      dispatch({ kind: "send", sent: { body: draft, revision } });
 
       const answer = await putNote(itemId, { body: draft, revision }).catch(() => null);
 
@@ -54,7 +54,7 @@ function view(state: Readonly<NoteState>) {
 
 function useKeptDraft(
   itemId: number,
-  { saved, draft }: Readonly<NoteState>,
+  { saved, draft, sent }: Readonly<NoteState>,
   dirty: boolean,
   dispatch: Dispatch<NoteAction>,
 ) {
@@ -76,8 +76,8 @@ function useKeptDraft(
 
     if (echo?.body === draft && echo.revision === revision) return;
 
-    keepDraft(itemId, dirty ? { body: draft, revision } : null);
-  }, [itemId, dirty, draft, revision]);
+    keepDraft(itemId, dirty ? { body: draft, revision, sent } : null);
+  }, [itemId, dirty, draft, revision, sent]);
 }
 
 export function useNote(

@@ -4,7 +4,7 @@ import {
   storedNoteBody,
 } from "../../src/core/note-contract.ts";
 import type { NoteSaveResult } from "./api.ts";
-import type { NoteDraft } from "./note-draft.ts";
+import type { NoteDraft, NoteSent } from "./note-draft.ts";
 
 export interface NoteState {
   readonly saved: NoteView;
@@ -12,11 +12,12 @@ export interface NoteState {
   readonly newer: NoteView | null;
   readonly outcome: "idle" | "saved" | "failed";
   readonly pending: boolean;
+  readonly sent: NoteSent | null;
 }
 
 export type NoteAction =
   | { readonly kind: "type"; readonly text: string }
-  | { readonly kind: "send" }
+  | { readonly kind: "send"; readonly sent: Readonly<NoteSent> }
   | {
       readonly kind: "answer";
       readonly sent: string;
@@ -25,14 +26,24 @@ export type NoteAction =
   | { readonly kind: "take-newer" }
   | { readonly kind: "adopt"; readonly kept: Readonly<NoteDraft> };
 
+function ownSaveCommitted(saved: Readonly<NoteView>, { sent }: Readonly<NoteDraft>): boolean {
+  return (
+    sent !== null &&
+    saved.revision === sent.revision + 1 &&
+    saved.body === storedNoteBody(sent.body)
+  );
+}
+
 export function noteStart(saved: Readonly<NoteView>, kept: Readonly<NoteDraft> | null): NoteState {
-  const idle = { newer: null, outcome: "idle", pending: false } as const;
+  const idle = { newer: null, outcome: "idle", pending: false, sent: null } as const;
 
   if (kept === null || storedNoteBody(kept.body) === saved.body) {
     return { ...idle, saved, draft: saved.body ?? "" };
   }
 
-  return { ...idle, saved: { body: saved.body, revision: kept.revision }, draft: kept.body };
+  const revision = ownSaveCommitted(saved, kept) ? saved.revision : kept.revision;
+
+  return { ...idle, saved: { body: saved.body, revision }, draft: kept.body };
 }
 
 export function noteFlags({ saved, draft, newer, pending }: Readonly<NoteState>) {
@@ -47,7 +58,7 @@ function answered(
   sent: string,
   answer: Readonly<NoteSaveResult> | null,
 ): NoteState {
-  const idle = { ...state, pending: false };
+  const idle = { ...state, pending: false, sent: null };
 
   if (answer === null) return { ...idle, outcome: "failed" };
 
@@ -71,7 +82,7 @@ export function noteReducer(state: Readonly<NoteState>, action: Readonly<NoteAct
         outcome: state.outcome === "saved" ? "idle" : state.outcome,
       };
     case "send":
-      return { ...state, pending: true, outcome: "idle" };
+      return { ...state, pending: true, sent: action.sent, outcome: "idle" };
     case "answer":
       return answered(state, action.sent, action.answer);
     case "take-newer":
