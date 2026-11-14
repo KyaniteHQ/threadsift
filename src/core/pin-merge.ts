@@ -21,7 +21,11 @@ function numbers(cursor: string): readonly number[] {
   return cursor.split(":").slice(1).map(Number);
 }
 
-function accepting(db: Database, kind: CatalogKind, fromId: Readonly<SQLWrapper> | number) {
+function noAcceptingProposal(
+  db: Database,
+  kind: CatalogKind,
+  fromId: Readonly<SQLWrapper> | number,
+) {
   return notExists(
     db
       .select({ one: sql`1` })
@@ -37,7 +41,7 @@ function misfiled(db: Database, kind: CatalogKind) {
     .select({ id: table.id })
     .from(table)
     .innerJoin(pins, and(eq(pins.kind, kind.pinKind), eq(pins.fromKey, table.key)))
-    .where(and(ne(kind.pinTarget, table.id), accepting(db, kind, table.id)));
+    .where(and(ne(kind.pinTarget, table.id), noAcceptingProposal(db, kind, table.id)));
 }
 
 export function noneMisfiled(db: Database): SQL {
@@ -65,7 +69,13 @@ export async function mergedTag(db: Database, cursor: string): Promise<Advance> 
     .from(tags)
     .innerJoin(pins, and(eq(pins.kind, TAG_KIND.pinKind), eq(pins.fromKey, tags.key)))
     .innerJoin(into, eq(into.id, pins.intoTagId))
-    .where(and(gte(tags.id, fromId), ne(pins.intoTagId, tags.id), accepting(db, TAG_KIND, tags.id)))
+    .where(
+      and(
+        gte(tags.id, fromId),
+        ne(pins.intoTagId, tags.id),
+        noAcceptingProposal(db, TAG_KIND, tags.id),
+      ),
+    )
     .orderBy(asc(tags.id))
     .limit(1);
 
@@ -82,7 +92,7 @@ export async function mergedTag(db: Database, cursor: string): Promise<Advance> 
       ...unit.writes,
       ...closingWrites(db, TAG_KIND, from.id),
     ],
-    guard: accepting(db, TAG_KIND, from.id),
+    guard: noAcceptingProposal(db, TAG_KIND, from.id),
     cursor: `merge:${String(from.id)}:${String(unit.itemIds.length < REWRITE_UNIT_ITEMS ? 0 : unit.last)}`,
   };
 }
@@ -95,7 +105,7 @@ export async function mergedTopic(db: Database): Promise<Advance> {
     .where(
       and(
         ne(pins.intoTopicId, TOPIC_KIND.table.id),
-        accepting(db, TOPIC_KIND, TOPIC_KIND.table.id),
+        noAcceptingProposal(db, TOPIC_KIND, TOPIC_KIND.table.id),
       ),
     )
     .orderBy(asc(TOPIC_KIND.table.id))
@@ -110,7 +120,7 @@ export async function mergedTopic(db: Database): Promise<Advance> {
       ...TOPIC_KIND.relink(db, next.id, next.intoId, moves),
       ...topicClosingWrites(db, next.id, next.intoId, []).writes,
     ],
-    guard: accepting(db, TOPIC_KIND, next.id),
+    guard: noAcceptingProposal(db, TOPIC_KIND, next.id),
     cursor: "topics",
   };
 }

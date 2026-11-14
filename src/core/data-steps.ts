@@ -94,8 +94,8 @@ async function runUnits(
   const resume = row.cursor?.startsWith(prefix) === true ? row.cursor.slice(prefix.length) : null;
   const { writes, cursor, guard } = await step.advance(db, resume);
 
-  const condition =
-    guard === undefined ? leaseHeld(holder) : sql`${leaseHeld(holder)} and ${guard}`;
+  const held = leaseHeld(holder);
+  const condition = and(held, guard) ?? held;
 
   const kept = await guardedBatch(db, condition, [
     ...writes,
