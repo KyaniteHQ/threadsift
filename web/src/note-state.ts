@@ -12,6 +12,7 @@ export interface NoteState {
   readonly newer: NoteView | null;
   readonly outcome: "idle" | "saved" | "failed";
   readonly sent: NoteSent | null;
+  readonly pending: boolean;
   readonly adopted: boolean;
 }
 
@@ -22,7 +23,7 @@ export type NoteAction =
   | { readonly kind: "take-newer" }
   | { readonly kind: "adopt"; readonly kept: Readonly<NoteDraft> };
 
-function ownSaveCommitted(saved: Readonly<NoteView>, { sent }: Readonly<NoteDraft>): boolean {
+function ownSaveCommitted(saved: Readonly<NoteView>, sent: Readonly<NoteSent> | null): boolean {
   return (
     sent !== null &&
     saved.revision === sent.revision + 1 &&
@@ -31,34 +32,43 @@ function ownSaveCommitted(saved: Readonly<NoteView>, { sent }: Readonly<NoteDraf
 }
 
 export function noteStart(saved: Readonly<NoteView>, kept: Readonly<NoteDraft> | null): NoteState {
-  const idle = { newer: null, outcome: "idle", sent: null, adopted: false } as const;
+  const idle = { newer: null, outcome: "idle", pending: false, adopted: false } as const;
 
   if (kept === null || storedNoteBody(kept.body) === saved.body) {
-    return { ...idle, saved, draft: saved.body ?? "" };
+    return { ...idle, saved, draft: saved.body ?? "", sent: null };
   }
 
-  const revision = ownSaveCommitted(saved, kept) ? saved.revision : kept.revision;
+  const committed = ownSaveCommitted(saved, kept.sent);
+  const revision = committed ? saved.revision : kept.revision;
 
-  return { ...idle, saved: { body: saved.body, revision }, draft: kept.body };
+  return {
+    ...idle,
+    saved: { body: saved.body, revision },
+    draft: kept.body,
+    sent: committed ? null : kept.sent,
+  };
 }
 
-export function noteFlags({ saved, draft, newer, sent }: Readonly<NoteState>) {
+export function noteFlags({ saved, draft, newer, pending }: Readonly<NoteState>) {
   const dirty = storedNoteBody(draft) !== saved.body;
   const tooLong = Array.from(draft).length > NOTE_MAX_CODE_POINTS;
-  const pending = sent !== null;
 
   return { dirty, tooLong, pending, canSave: dirty && !tooLong && !pending && newer === null };
 }
 
 function answered(state: Readonly<NoteState>, answer: Readonly<NoteSaveResult> | null): NoteState {
-  const idle = { ...state, sent: null, adopted: false };
+  const idle = { ...state, pending: false, adopted: false };
 
   if (answer === null) return { ...idle, outcome: "failed" };
 
-  if (answer.outcome === "newer") return { ...idle, newer: answer.note };
+  const resolved = { ...idle, sent: null };
+
+  if (answer.outcome === "newer" && !ownSaveCommitted(answer.note, state.sent)) {
+    return { ...resolved, newer: answer.note };
+  }
 
   return {
-    ...idle,
+    ...resolved,
     saved: answer.note,
     newer: null,
     outcome: "saved",
@@ -76,11 +86,11 @@ export function noteReducer(state: Readonly<NoteState>, action: Readonly<NoteAct
         outcome: state.outcome === "saved" ? "idle" : state.outcome,
       };
     case "send":
-      return { ...state, sent: action.sent, adopted: false, outcome: "idle" };
+      return { ...state, sent: action.sent, pending: true, adopted: false, outcome: "idle" };
     case "answer":
       return answered(state, action.answer);
     case "take-newer":
-      return state.newer === null || state.sent !== null
+      return state.newer === null || state.pending
         ? state
         : {
             ...state,
