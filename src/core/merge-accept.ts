@@ -3,15 +3,10 @@ import { type SQL, and, asc, eq, sql } from "drizzle-orm";
 import { guardedResults } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
+import { countedFailure, releasedAfterFailure } from "./merge-failure.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
 import type { MergeRow, MergeUnit } from "./merge-unit.ts";
-import {
-  anyAccepting,
-  atRevision,
-  unitAdvanced,
-  unitApplied,
-  unitFailed,
-} from "./proposal-lifecycle.ts";
+import { anyAccepting, atRevision, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
 import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
@@ -82,7 +77,7 @@ async function applyUnit(
 
     return "ran";
   } catch (error) {
-    await releaseTopicLeases(db, unit.leases);
+    await releasedAfterFailure(db, id, unit.leases);
 
     throw error;
   }
@@ -94,7 +89,7 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
 
     return unit === "busy" || unit === "lost" ? unit : await applyUnit(ports, id, row, unit);
   } catch (error) {
-    await unitFailed(ports.db, id, row.revision);
+    await countedFailure(ports.db, id, row.revision);
 
     throw error;
   }
