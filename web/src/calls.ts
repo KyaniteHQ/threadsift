@@ -1,5 +1,6 @@
 import type { ZodType } from "zod";
 
+import { within } from "../../src/core/deadline.ts";
 import type { CreateHighlightRequest } from "../../src/core/highlight-contract.ts";
 import type { ImportRequest } from "../../src/core/import-list.ts";
 import type { ChangeBudgetRequest, CreateTokenRequest } from "../../src/http/schemas.ts";
@@ -33,7 +34,7 @@ function signalOf(method: Method, caller: AbortSignal | undefined): AbortSignal 
 
   const deadline = AbortSignal.timeout(READ_DEADLINE_MS);
 
-  return caller === undefined ? deadline : AbortSignal.any([caller, deadline]);
+  return within(caller, deadline);
 }
 
 export async function call(

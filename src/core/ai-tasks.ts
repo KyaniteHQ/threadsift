@@ -16,6 +16,7 @@ import {
 } from "./ai-contract.ts";
 import { type TaskOrigin, type TaskOwner, originOf, startTask } from "./ai-task-start.ts";
 import { mayComplete, mayExpire, mayFail } from "./bot-task-states.ts";
+import { within } from "./deadline.ts";
 import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
 import type { AiPorts, Database } from "./ports.ts";
 import { aiTasks } from "./schema.ts";
@@ -184,7 +185,7 @@ async function execute<Result>(
   attempt: AbortSignal | undefined,
 ): Promise<TaskResult<Result>> {
   const deadline = AbortSignal.timeout(AI_DEADLINE_MS);
-  const signal = attempt === undefined ? deadline : AbortSignal.any([attempt, deadline]);
+  const signal = within(attempt, deadline);
 
   try {
     const result = await ports.ai.run(
