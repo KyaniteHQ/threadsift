@@ -45,7 +45,7 @@ function actionButton(action: RedditAction): HTMLButtonElement {
 }
 
 function render(view: Readonly<RedditView>): void {
-  redditSection.hidden = view.kind === "unavailable";
+  redditSection.hidden = view.kind === "unavailable" && !view.access;
   say(status, redditStatusText(view), redditTone(view));
   buttons.replaceChildren(...redditActions(view).map((action) => actionButton(action)));
 }

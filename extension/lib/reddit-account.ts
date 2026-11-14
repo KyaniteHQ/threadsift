@@ -96,5 +96,7 @@ export async function disconnectReddit(
 ): Promise<RedditConnectState> {
   const state = config === null ? "none" : await call(config, { method: "DELETE" });
 
-  return state === "none" || state === "missing" ? exclusive(() => giveBackCookies(state)) : state;
+  return state === "none" || state === "missing" || state === "unavailable"
+    ? exclusive(() => giveBackCookies(state))
+    : state;
 }
