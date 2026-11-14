@@ -1,6 +1,6 @@
 import { type RefObject, useCallback } from "react";
 
-import { type Filters, isFiltered, isSearching } from "./filters.ts";
+import { type Filters, isEmptyResult, isFiltered, isSearching } from "./filters.ts";
 import { HighlightEntry } from "./HighlightEntry.tsx";
 import { HIGHLIGHTS_PAGE, pageHeadLabel } from "./highlights-page-text.ts";
 import { matchedCount } from "./list-counts.ts";
@@ -97,7 +97,7 @@ function Listed({
   return (
     <>
       <Head state={state} filters={filters} />
-      {length === 0 ? (
+      {isEmptyResult(length, state.next) ? (
         <Notice
           text={HIGHLIGHTS_PAGE.noResults}
           action={clearAll}

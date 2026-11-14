@@ -1,3 +1,4 @@
+import type { CliProvider } from "../../src/core/ai-contract.ts";
 import { GROK_BOT_FIRST } from "../../src/core/grok-bot-contract.ts";
 
 export const AI_TEXT = {
@@ -120,3 +121,9 @@ export const CLI_TEXT = {
     rejected: AI_TEXT.codexRejected,
   },
 } as const;
+
+export function signedOutSentence(provider: CliProvider): string {
+  const { signedOut, signInCommand } = CLI_TEXT[provider];
+
+  return `${signedOut} ${signInCommand}.`;
+}

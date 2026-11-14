@@ -1,5 +1,6 @@
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
+import { isEmptyResult } from "./filters.ts";
 import { countedWith } from "./list-counts.ts";
 import { type More, newer } from "./list-paging.ts";
 
@@ -22,6 +23,10 @@ export type ListState =
     };
 
 export type Ready = Extract<ListState, { readonly status: "ready" }>;
+
+export function hasRows(list: Readonly<ListState>): boolean {
+  return list.status !== "ready" || !isEmptyResult(list.items.length, list.next);
+}
 
 export function knownItems(list: Readonly<ListState>): readonly Item[] {
   return list.known;

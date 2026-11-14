@@ -27,6 +27,7 @@ export const GITHUB_TEXT = {
   remove: "Remove token",
   removing: "Removing token…",
   removed: "Token removed.",
+  removeNothing: "There is no saved token to remove.",
   invalidToken: "Enter a token up to 4,096 characters with no spaces or line breaks.",
   notConfigured: "Save a token first, then run Verify.",
   wrongToken: "GitHub rejected the token. Check it and save it again.",

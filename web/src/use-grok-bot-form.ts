@@ -6,7 +6,7 @@ import {
   grokBotAddressOf,
 } from "../../src/core/grok-bot-contract.ts";
 import { removeGrokBot, saveGrokBot, testGrokBot } from "./grok-bot-api.ts";
-import { GROK_BOT_TEXT, resultText } from "./grok-bot-text.ts";
+import { GROK_BOT_TEXT, KEY_STATES, resultText } from "./grok-bot-text.ts";
 import { type FieldState, useField } from "./use-form.ts";
 import {
   type Task,
@@ -111,38 +111,44 @@ function useRemove({ address, key }: Readonly<Fields>, changed: Changed): Task {
   }, [setAddress, clearKey, failAddress, failKey, changed]);
 }
 
+function testUnavailable({ key }: Readonly<GrokBotView>): string | null {
+  if (key === "usable") return null;
+
+  return key === "none" ? GROK_BOT_TEXT.resultNotConfigured : KEY_STATES[key];
+}
+
 export function useGrokBotForm(view: GrokBotView, changed: Changed) {
   const address = useField(null, view.webhookUrl ?? "");
   const key = useField();
   const { flow, run } = useActionFlow<Action>(GROK_BOT_TEXT.failed);
   const fields = { address, key };
 
-  const blocked = {
-    save: view.key === "missing",
-    test: view.key !== "usable",
-    remove: !view.configured,
+  const unavailable = {
+    save: view.key === "missing" ? KEY_STATES.missing : null,
+    test: testUnavailable(view),
+    remove: view.configured ? null : GROK_BOT_TEXT.removeNothing,
   } as const;
 
   const submit = useAction({
     run,
     action: "save",
-    blocked: blocked.save,
+    unavailable: unavailable.save,
     task: useSave(view, fields, changed),
   });
 
-  const testNow = useAction({ run, action: "test", blocked: blocked.test, task: test });
+  const testNow = useAction({ run, action: "test", unavailable: unavailable.test, task: test });
 
   const removeNow = useAction({
     run,
     action: "remove",
-    blocked: blocked.remove,
+    unavailable: unavailable.remove,
     task: useRemove(fields, changed),
   });
 
   const buttons = useActionButtons({
     check: "test",
     labels: LABELS,
-    blocked,
+    unavailable,
     press: { check: testNow, remove: removeNow },
   });
 

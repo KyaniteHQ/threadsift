@@ -16,6 +16,7 @@ function FilterSlot({
   look,
   choose,
   clearChosen,
+  hasRows,
 }: Readonly<{
   counts: FilterCounts | null;
   loading: boolean;
@@ -23,6 +24,7 @@ function FilterSlot({
   look: Look;
   choose: (choice: Choice) => void;
   clearChosen: () => void;
+  hasRows: boolean;
 }>) {
   const bar = look.settings.layout === "grid";
   const collapsible = bar ? look.narrow : look.medium;
@@ -45,6 +47,7 @@ function FilterSlot({
         bar={bar}
         choose={choose}
         clearChosen={clearChosen}
+        hasRows={hasRows}
       />
     </div>
   );
@@ -58,6 +61,7 @@ export function Masthead({
   filters,
   choose,
   clearChosen,
+  hasRows,
   save,
   focusOnMount,
   items,
@@ -71,6 +75,7 @@ export function Masthead({
   filters: Filters;
   choose: (choice: Choice) => void;
   clearChosen: () => void;
+  hasRows: boolean;
   save: (target: SaveTarget) => Promise<SaveOutcome>;
   focusOnMount: boolean;
   items: readonly Item[];
@@ -90,6 +95,7 @@ export function Masthead({
         look={look}
         choose={choose}
         clearChosen={clearChosen}
+        hasRows={hasRows}
       />
     </header>
   );

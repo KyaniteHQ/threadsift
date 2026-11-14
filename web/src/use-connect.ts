@@ -68,7 +68,7 @@ export function useConnect(
   flow: Readonly<AiPhase>,
   restored: (view: AiView) => void,
 ): Connection {
-  const { phase, run } = flow;
+  const { phase, run, refuse } = flow;
   const { model, key } = fields;
   const { value: modelValue, fail: failModel } = model;
   const { clear: clearKey } = key;
@@ -76,7 +76,11 @@ export function useConnect(
   usePageRestore(flow, restored);
 
   const connect = useCallback(() => {
-    if (!secretReady) return;
+    if (!secretReady) {
+      refuse(AI_TEXT["secret-missing"]);
+
+      return;
+    }
 
     failModel(null);
 
@@ -96,7 +100,7 @@ export function useConnect(
 
       return LEAVING;
     });
-  }, [secretReady, modelValue, revision, failModel, clearKey, run]);
+  }, [secretReady, modelValue, revision, failModel, clearKey, run, refuse]);
 
   return { connect, connecting: phase === "connecting" || phase === LEAVING };
 }

@@ -2,7 +2,7 @@ import { type RefObject, memo, useEffect, useRef } from "react";
 
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import { type Filters, isFiltered, isSearching } from "./filters.ts";
+import { type Filters, isEmptyResult, isFiltered, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
@@ -215,7 +215,7 @@ export const ListBody = memo(function ListBody({
     return <Notice text={LOAD_FAILED} action={retry} label={RETRY_LABEL} alert />;
   }
 
-  const exhausted = list.items.length === 0 && list.next === null;
+  const exhausted = isEmptyResult(list.items.length, list.next);
 
   if (exhausted && list.counts.total > 0) {
     return <Notice text={NO_RESULTS} action={clearAll} label={CLEAR_ALL} alert={false} />;

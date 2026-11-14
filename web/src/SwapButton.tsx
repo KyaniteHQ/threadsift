@@ -25,6 +25,7 @@ export function SwapButton({
       className={secondary ? "btn swap" : "btn btn-acc swap"}
       onClick={onClick}
       aria-disabled={busy || blocked ? true : undefined}
+      formNoValidate={blocked && type === "submit" ? true : undefined}
     >
       <span className={busy ? "swap-off" : undefined}>{label}</span>
       <span className={busy ? undefined : "swap-off"}>

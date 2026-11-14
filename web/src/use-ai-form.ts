@@ -11,7 +11,7 @@ import {
   withoutTrailingSlashes,
 } from "../../src/core/ai-contract.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
-import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
+import { AI_TEXT, CLI_TEXT, signedOutSentence } from "./ai-text.ts";
 import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";
 import { useConnect } from "./use-connect.ts";
 import { useField } from "./use-form.ts";
@@ -82,17 +82,40 @@ export function isSignedOut(view: AiView, provider: Provider): boolean {
   return isCliProvider(provider) && !view.signedIn.includes(provider);
 }
 
-function useVerify(view: AiView, { run }: Readonly<Pick<AiPhase, "run">>) {
-  const verifyBlocked =
-    view.settings === null ||
-    (needsSecret(view.settings.provider) && !view.secretReady) ||
-    holdsUnreadableKey(view) ||
-    isSignedOut(view, view.settings.provider);
+function signedOutText(view: Readonly<AiView>, provider: Provider): string | null {
+  return isCliProvider(provider) && isSignedOut(view, provider)
+    ? signedOutSentence(provider)
+    : null;
+}
 
+function saveUnavailable(view: Readonly<AiView>, provider: Provider): string | null {
+  if (needsSecret(provider) && !view.secretReady) return AI_TEXT["secret-missing"];
+
+  return signedOutText(view, provider);
+}
+
+function verifyUnavailable(view: Readonly<AiView>): string | null {
+  const { settings } = view;
+
+  if (settings === null) return AI_TEXT["not-configured"];
+
+  if (holdsUnreadableKey(view)) return AI_TEXT.keyUnreadable;
+
+  return saveUnavailable(view, settings.provider);
+}
+
+function useVerify(view: AiView, { run, refuse }: Readonly<Pick<AiPhase, "run" | "refuse">>) {
+  const unavailable = verifyUnavailable(view);
   const provider = view.settings?.provider;
 
   const verifyNow = useCallback(() => {
-    if (verifyBlocked || provider === undefined) return;
+    if (unavailable !== null) {
+      refuse(unavailable);
+
+      return;
+    }
+
+    if (provider === undefined) return;
 
     run(provider === GROK_BOT_PROVIDER ? "waiting" : "verifying", async (): Promise<Outcome> => {
       const response = await verifyAi();
@@ -101,9 +124,9 @@ function useVerify(view: AiView, { run }: Readonly<Pick<AiPhase, "run">>) {
         ? { kind: "ok", text: AI_TEXT.verified, digest: response.digest }
         : { kind: "error", text: refusalText(response, provider) };
     });
-  }, [verifyBlocked, provider, run]);
+  }, [unavailable, provider, run, refuse]);
 
-  return { verifyNow, verifyBlocked };
+  return { verifyNow, verifyBlocked: unavailable !== null };
 }
 
 export type SavedKey = "applies" | "changed" | "unreadable" | "none";
@@ -131,20 +154,22 @@ function savedKeyOf(
   return same ? "applies" : "changed";
 }
 
-export function useAiForm(view: AiView, saved: (value: AiView) => void) {
-  const fields = useAiFields(view);
+function useSave(
+  view: AiView,
+  fields: ReturnType<typeof useAiFields>,
+  { run, refuse }: Readonly<Pick<AiPhase, "run" | "refuse">>,
+  saved: (value: AiView) => void,
+) {
   const { provider, baseUrl, model, key } = fields;
   const { value: keyValue, clear: clearKey } = key;
-  const flow = useAiPhase();
-  const { phase, run } = flow;
-  const saveBlocked = (needsSecret(provider) && !view.secretReady) || isSignedOut(view, provider);
-
-  const { verifyNow, verifyBlocked } = useVerify(view, flow);
-  const connection = useConnect(view, fields, flow, saved);
-  const savedKey = savedKeyOf(view, { provider, baseUrl: baseUrl.value, model: model.value });
+  const unavailable = saveUnavailable(view, provider);
 
   const submit = useCallback(() => {
-    if (saveBlocked) return;
+    if (unavailable !== null) {
+      refuse(unavailable);
+
+      return;
+    }
 
     run("saving", async (): Promise<Outcome> => {
       const input = AiSettingsInputSchema.parse({
@@ -163,11 +188,24 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
 
       return { kind: "ok", text: AI_TEXT.saved };
     });
-  }, [saveBlocked, run, provider, baseUrl.value, model.value, keyValue, clearKey, saved]);
+  }, [unavailable, refuse, run, provider, baseUrl.value, model.value, keyValue, clearKey, saved]);
+
+  return { submit, saveBlocked: unavailable !== null };
+}
+
+export function useAiForm(view: AiView, saved: (value: AiView) => void) {
+  const fields = useAiFields(view);
+  const { provider, baseUrl, model } = fields;
+  const flow = useAiPhase();
+
+  const { verifyNow, verifyBlocked } = useVerify(view, flow);
+  const { submit, saveBlocked } = useSave(view, fields, flow, saved);
+  const connection = useConnect(view, fields, flow, saved);
+  const savedKey = savedKeyOf(view, { provider, baseUrl: baseUrl.value, model: model.value });
 
   return {
     fields,
-    phase,
+    phase: flow.phase,
     outcome: flow.outcome,
     notice: flow.notice,
     savedKey,

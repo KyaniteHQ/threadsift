@@ -32,6 +32,12 @@ function RedditAccountForm({
         submit={form.submit}
         noValidate
       >
+        {form.extension.length === 0 ? null : (
+          <>
+            <SettingsActions running={runningAction(form.flow)} buttons={form.extension} />
+            <p className="fld-help">{REDDIT_ACCOUNT_TEXT.pasteLead}</p>
+          </>
+        )}
         <FormField
           field={form.session}
           label={REDDIT_ACCOUNT_TEXT.fieldLabel}

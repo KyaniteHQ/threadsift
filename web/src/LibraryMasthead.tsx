@@ -1,4 +1,4 @@
-import { knownItems } from "./list-state.ts";
+import { hasRows, knownItems } from "./list-state.ts";
 import { Masthead } from "./Masthead.tsx";
 import type { Pages } from "./routing.ts";
 import type { LibraryView } from "./use-library-view.ts";
@@ -21,6 +21,7 @@ export function LibraryMasthead({
       filters={library.filters}
       choose={library.choose}
       clearChosen={library.clearChosen}
+      hasRows={hasRows(library.list)}
       save={actions.saveAndShow}
       focusOnMount={arrived}
       items={knownItems(library.list)}

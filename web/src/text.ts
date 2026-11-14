@@ -213,13 +213,6 @@ export const READ_LABELS: Readonly<Record<ReadState, string>> = {
   read: "Read",
 };
 
-const COUNT_TIP_ONE = "{name}: {count} item";
-const COUNT_TIP_MANY = "{name}: {count} items";
-
-export function countTip(name: string, count: number): string {
-  return filled(count === 1 ? COUNT_TIP_ONE : COUNT_TIP_MANY, { name, count: String(count) });
-}
-
 export const ALL_ROWS = { topic: "All {count} topics", tag: "All {count} tags" } as const;
 export const SHOW_FEWER = "Show fewer";
 export const FILTERS_BUTTON = "Filters";
