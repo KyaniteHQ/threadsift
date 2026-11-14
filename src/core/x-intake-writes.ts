@@ -61,7 +61,7 @@ export function storedIntake(
 ): JobWrites {
   return [
     ...answeredIntake(db, task, { unavailable: false }),
-    ...closeItemJobs(db, sql`${task.itemId}`),
+    ...closeItemJobs(db, sql`${task.itemId}`, { answering: task.id }),
     ...queuedVerification(db, { itemId: task.itemId, ...stored }),
   ];
 }
@@ -71,7 +71,7 @@ export function unavailableIntake(db: JobPorts["db"], task: IntakeTask): JobWrit
 
   return [
     ...answeredIntake(db, task, { unavailable: true }),
-    ...closeItemJobs(db, sql`${itemId}`),
+    ...closeItemJobs(db, sql`${itemId}`, { answering: task.id }),
     db
       .update(items)
       .set({

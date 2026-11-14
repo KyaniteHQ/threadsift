@@ -59,5 +59,4 @@ export const relatedPickHandler: ModelHandler = {
   deadlineMs: AI_DEADLINE_MS,
   blockedBy: ["digest"],
   attempt: attemptPick,
-  exhausted: () => [],
 };

@@ -1,10 +1,12 @@
+import assert from "node:assert/strict";
+
 import { asc, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import { type JobRow, jobs } from "../src/core/schema.ts";
 import { KEY, PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
-import { Instance, type Json } from "./instance.ts";
+import { type Answer, Instance, type Json } from "./instance.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 
 export { SECRET_KEY };
@@ -24,8 +26,16 @@ export async function saveBot(instance: Instance): Promise<void> {
   if (saved.status !== 200) throw new Error("the Grok Bot address was not saved");
 }
 
-export function chooseBotProvider(instance: Instance): void {
-  exec(instance, "update grok_bot_settings set use_as_provider = 1 where id = 1");
+export const AI_PATH = "/api/settings/ai";
+
+export function chooseGrokBot(instance: Instance): Promise<Answer> {
+  return instance.send("PUT", AI_PATH, { provider: "grok-bot" });
+}
+
+export async function selectGrokBot(instance: Instance): Promise<void> {
+  const chosen = await chooseGrokBot(instance);
+
+  assert.equal(chosen.status, 200, chosen.body);
 }
 
 export async function relatedLibrary(instance: Instance): Promise<BotLibrary> {

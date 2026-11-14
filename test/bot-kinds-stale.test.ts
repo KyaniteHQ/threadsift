@@ -121,7 +121,11 @@ describe("a task whose input moved before any answer is failed as stale, and no 
 
 describe("a reported bot error is charged as an attempt even when the input moved", () => {
   for (const kindCase of KIND_CASES) {
-    it(`${kindCase.kind}, after ${kindCase.moves[0]?.name ?? ""}`, async () => {
+    const [moved] = kindCase.moves;
+
+    if (moved === undefined) throw new Error(`${kindCase.kind} has no move of its input`);
+
+    it(`${kindCase.kind}, after ${moved.name}`, async () => {
       const instance = await botInstance();
 
       try {
@@ -129,7 +133,7 @@ describe("a reported bot error is charged as an attempt even when the input move
         const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
         const sent = await sentTask(instance, kindCase.kind, job);
 
-        kindCase.moves[0]?.move(instance, sent.context);
+        moved.move(instance, sent.context);
 
         const reported = await answered(instance, sent, {
           error: "The bot could not read the input.",

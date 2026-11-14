@@ -3,7 +3,7 @@ import { z } from "zod";
 import { type VerifyResultSchema, VERIFY_INPUT, refusedAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
 import { TASKS, verifyAi } from "./ai-tasks.ts";
-import { botAnswering } from "./bot-task-kind.ts";
+import { botAnswering } from "./bot-task-answering.ts";
 import { sendBotTask } from "./bot-task-send.ts";
 import { type BotTaskStart, VERIFY_OWNER, startBotTask } from "./bot-task-start.ts";
 import { parsedJson } from "./parsed-json.ts";

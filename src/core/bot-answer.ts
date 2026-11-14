@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { BotResult } from "./bot-task-kind.ts";
+import type { BotResult } from "./bot-task-answering.ts";
 import { botKindOf } from "./bot-task-kinds.ts";
 import {
   type BotTaskRow,

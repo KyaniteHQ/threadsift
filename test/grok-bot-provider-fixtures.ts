@@ -6,22 +6,17 @@ import { z } from "zod";
 import { VERIFY_OWNER, startBotTask } from "../src/core/bot-task-start.ts";
 import { VERIFY_START } from "../src/core/bot-verify.ts";
 import { awaitVerifiedDigest } from "../src/core/verify-wait.ts";
-import { botInstance } from "./bot-task-fixtures.ts";
-import type { Answer, Instance } from "./instance.ts";
+import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
+import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 import { sentIntake } from "./x-intake-fixtures.ts";
 
-export const AI_PATH = "/api/settings/ai";
-
-export function chooseGrokBot(instance: Instance): Promise<Answer> {
-  return instance.send("PUT", AI_PATH, { provider: "grok-bot" });
-}
+export { AI_PATH, chooseGrokBot } from "./bot-task-fixtures.ts";
 
 export async function botProviderInstance(): Promise<Instance> {
   const instance = await botInstance();
-  const chosen = await chooseGrokBot(instance);
 
-  assert.equal(chosen.status, 200, chosen.body);
+  await selectGrokBot(instance);
 
   return instance;
 }

@@ -83,7 +83,7 @@ export interface JobHandler extends JobClosing {
   readonly deadlineMs: number;
   readonly blockedBy: readonly JobKind[];
   readonly attempt: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<JobOutcome>;
-  readonly exhausted: (db: Database, job: Readonly<JobRow>) => JobWrites;
+  readonly exhausted?: (db: Database, job: Readonly<JobRow>) => JobWrites;
   readonly inputCurrent?: (job: Readonly<JobRow>) => SQLWrapper;
 }
 

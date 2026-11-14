@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, isNotNull, sql } from "drizzle-orm";
 
 import {
   type AiConnection,
@@ -83,6 +83,23 @@ function failingAiTask(
   return db
     .update(aiTasks)
     .set({ state: "failed", result: null, refusal: failure.reason, status: failure.status });
+}
+
+export function givenUpTasks(db: Database, tasks: Readonly<SQLWrapper>) {
+  const running = and(sql`${tasks}`, eq(aiTasks.state, "running"));
+
+  return [
+    failingAiTask(db, { reason: "timeout", status: null }).where(and(running, mayFail("timeout"))),
+    failingAiTask(db, { reason: "stale", status: null }).where(
+      and(running, isNotNull(aiTasks.answeredAt)),
+    ),
+  ] as const;
+}
+
+export function supersededTasks(db: Database, tasks: Readonly<SQLWrapper>) {
+  return failingAiTask(db, { reason: "stale", status: null }).where(
+    and(sql`${tasks}`, eq(aiTasks.state, "running"), mayFail("stale")),
+  );
 }
 
 export function expireAiTasks(db: Database, now: number) {

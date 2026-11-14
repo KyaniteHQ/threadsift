@@ -2,8 +2,9 @@ import type { ModelAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
 import type { SentTaskKind } from "./bot-task-kind.ts";
 import { sendBotTask } from "./bot-task-send.ts";
-import { type BotTaskStart, ownerOf, providerOwnerOf, startBotTask } from "./bot-task-start.ts";
+import { type BotTaskStart, ownerOf, startBotTask } from "./bot-task-start.ts";
 import {
+  type BotStep,
   type BotTaskRow,
   chargedReport,
   latestTask,
@@ -25,6 +26,8 @@ import type {
 import { holding } from "./job-rows.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
+
+const STALENESS_CHECKED_STEPS: ReadonlySet<BotStep> = new Set(["resend", "wait", "expire"]);
 
 type Waiting = Readonly<Pick<BotTaskRow, "id" | "deadline">>;
 
@@ -79,8 +82,7 @@ async function startedOutcome(
     release: JobWrites;
   }>,
 ): Promise<JobOutcome> {
-  const owner = kind.servesProvider ? providerOwnerOf(job) : ownerOf(job);
-  const started = await startBotTask(ports, owner, start);
+  const started = await startBotTask(ports, ownerOf(job), start);
 
   switch (started.kind) {
     case "started":
@@ -101,8 +103,6 @@ async function startedOutcome(
         countsAttempt: false,
         writes: release,
       };
-    case "provider-left":
-      return { deferredUntil: Date.now(), wait: null, countsAttempt: false, writes: release };
     case "claim-lost":
       return lostOutcome(ports.db, { cleanup: release });
     default: {
@@ -195,11 +195,7 @@ export async function botStep(
 
   if (task === null || step === "start") return startStep(ports, job, kind);
 
-  if (
-    step !== "apply" &&
-    step !== "charge" &&
-    !(await kind.current(ports.db, task.context ?? ""))
-  ) {
+  if (STALENESS_CHECKED_STEPS.has(step) && !(await kind.current(ports.db, task.context ?? ""))) {
     return lostOutcome(ports.db, { taskId: task.id, cleanup: kind.release(ports.db, job) });
   }
 

@@ -7,13 +7,13 @@ import {
   type BotLibrary,
   SECRET_KEY,
   answerOf,
-  chooseBotProvider,
   openJob,
   pastDeadline,
   picksFor,
   relatedLibrary,
   retireTasks,
   saveBot,
+  selectGrokBot,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { reclaimed, startedTask, step, taskAfterStart } from "./bot-task-lifecycle.ts";
@@ -42,7 +42,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
     await instance.setUp();
     await saveBot(instance);
     library = await relatedLibrary(instance);
-    chooseBotProvider(instance);
+    await selectGrokBot(instance);
   });
 
   beforeEach(() => {
@@ -218,7 +218,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
     await instance.setUp();
     await saveBot(instance);
     library = await relatedLibrary(instance);
-    chooseBotProvider(instance);
+    await selectGrokBot(instance);
   });
 
   after(() => instance.close());

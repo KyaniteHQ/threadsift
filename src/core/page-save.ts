@@ -1,14 +1,8 @@
 import type { Digest } from "./ai-contract.ts";
 import { type Caller, countedToken } from "./caller.ts";
-import {
-  type Invalid,
-  type SaveResult,
-  type ThreadKept,
-  foundItem,
-  queuedWrites,
-} from "./items.ts";
+import { type Invalid, type SaveResult, type ThreadKept, itemAt, queuedWrites } from "./items.ts";
 import { closeItemJobs } from "./job-close.ts";
-import { enqueueRows } from "./job-rows.ts";
+import { enqueueItemJobs } from "./job-rows.ts";
 import { isRefusedLink, parseLink, redditRefOf, takesPage } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { ownerOf } from "./reddit-thread.ts";
@@ -38,28 +32,29 @@ async function queuePage(
 ): Promise<SaveResult> {
   const link = parseLink(absoluteUrl);
 
-  const [, , , inserted, , , queued, [item]] = await ports.db.batch([
+  const [insert, ...rest] = queuedWrites(
+    ports.db,
+    {
+      originalUrl: absoluteUrl,
+      address: absoluteUrl,
+      digest,
+      addedByToken: countedToken(caller),
+    },
+    link,
+    JSON.stringify(page),
+  );
+
+  const [inserted] = await ports.db.batch([
+    insert,
     ...closeItemJobs(ports.db, ownerOf(link.normalizedUrl).id),
-    ...queuedWrites(
-      ports.db,
-      {
-        originalUrl: absoluteUrl,
-        address: absoluteUrl,
-        digest,
-        addedByToken: countedToken(caller),
-      },
-      link,
-      JSON.stringify(page),
-    ),
+    ...rest,
   ]);
 
-  await enqueueRows(ports, queued);
+  const item = await itemAt(ports.db, link.normalizedUrl);
 
-  return {
-    kind: "saved",
-    item: foundItem(item, link.normalizedUrl),
-    created: inserted.length > 0,
-  };
+  await enqueueItemJobs(ports, item.id);
+
+  return { kind: "saved", item, created: inserted.length > 0 };
 }
 
 export async function savePage(

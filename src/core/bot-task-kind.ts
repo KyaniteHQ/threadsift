@@ -1,23 +1,20 @@
-import type { SQLWrapper } from "drizzle-orm";
-import { z } from "zod";
+import { and, type SQLWrapper } from "drizzle-orm";
 
-import type { AiTaskDefinition } from "./ai-contract.ts";
+import {
+  type AnsweringParts,
+  type BotAnswer,
+  type BotAnswering,
+  type BotResult,
+  answerOf,
+  botAnswering,
+} from "./bot-task-answering.ts";
 import { answerApplier } from "./bot-task-apply.ts";
 import type { BotTaskStart } from "./bot-task-start.ts";
 import type { BotTaskRow } from "./bot-task-states.ts";
 import { guardHolds } from "./guards.ts";
 import type { ClaimedJob, JobOutcome, JobPorts, JobWrites } from "./job-outcome.ts";
 import { parsedJson } from "./parsed-json.ts";
-import { reasonsOf } from "./zod-reasons.ts";
-
-export interface BotResult {
-  readonly result: unknown;
-}
-
-interface BotInstructions {
-  readonly instructions: string;
-  readonly schema: z.core.JSONSchema.BaseSchema;
-}
+import { grokBotChosen } from "./provider-saved.ts";
 
 type BotPreparation =
   | {
@@ -26,10 +23,6 @@ type BotPreparation =
       readonly started?: (taskId: number) => void;
     }
   | { readonly kind: "settled"; readonly outcome: JobOutcome };
-
-type BotAnswer =
-  | { readonly kind: "valid"; readonly normalized: string }
-  | { readonly kind: "invalid"; readonly reasons: string };
 
 export type BotParse =
   | (Extract<BotAnswer, { readonly kind: "valid" }> & {
@@ -44,11 +37,10 @@ export type BotParse =
 export type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "context">>;
 
 export interface SentTaskKind {
-  readonly servesProvider: boolean;
   readonly prepare: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<BotPreparation>;
   readonly release: (db: JobPorts["db"], job: Readonly<ClaimedJob>) => JobWrites;
   readonly current: (db: JobPorts["db"], context: string) => Promise<boolean>;
-  readonly describe: (context: string) => BotInstructions | null;
+  readonly describe: BotAnswering["describe"];
   readonly apply: (
     ports: JobPorts,
     job: Readonly<ClaimedJob>,
@@ -56,18 +48,8 @@ export interface SentTaskKind {
   ) => Promise<JobOutcome>;
 }
 
-export interface BotAnswering {
-  readonly describe: SentTaskKind["describe"];
-  readonly parse: (context: string, body: Readonly<BotResult>) => BotAnswer;
-}
-
 export interface BotTaskKind extends SentTaskKind, BotAnswering {
   readonly parse: (context: string, body: Readonly<BotResult>) => BotParse;
-}
-
-interface AnsweringParts<Context, Result> {
-  readonly context: z.ZodType<Context>;
-  readonly task: (context: Context) => AiTaskDefinition<Result>;
 }
 
 interface KindParts<Context, Result> extends AnsweringParts<Context, Result> {
@@ -78,54 +60,18 @@ interface KindParts<Context, Result> extends AnsweringParts<Context, Result> {
   ) => Promise<JobOutcome>;
 }
 
-function answerOf<Context, Result>(
-  { context, task }: Readonly<AnsweringParts<Context, Result>>,
-  contextText: string,
-  { result }: Readonly<BotResult>,
-):
-  | {
-      readonly kind: "valid";
-      readonly normalized: string;
-      readonly context: Context;
-      readonly result: Result;
-    }
-  | Extract<BotAnswer, { readonly kind: "invalid" }> {
-  const parsedContext = parsedJson(context, contextText);
+function whileChosen(prepare: BotTaskKind["prepare"]): BotTaskKind["prepare"] {
+  return async (ports, job) => {
+    const prepared = await prepare(ports, job);
 
-  if (parsedContext === null) return { kind: "invalid", reasons: "context: unreadable" };
+    if (prepared.kind !== "ask") return prepared;
 
-  const parsed = task(parsedContext).schema.safeParse(result);
+    const chosen = grokBotChosen();
 
-  if (!parsed.success) return { kind: "invalid", reasons: reasonsOf(parsed.error) };
-
-  return {
-    kind: "valid",
-    normalized: JSON.stringify(parsed.data),
-    context: parsedContext,
-    result: parsed.data,
-  };
-}
-
-export function botAnswering<Context, Result>(
-  parts: Readonly<AnsweringParts<Context, Result>>,
-): BotAnswering {
-  const { context, task } = parts;
-
-  return {
-    describe: (contextText) => {
-      const parsed = parsedJson(context, contextText);
-
-      if (parsed === null) return null;
-
-      const { instructions, schema } = task(parsed);
-
-      return { instructions, schema: z.toJSONSchema(schema, { io: "output" }) };
-    },
-    parse: (contextText, body) => {
-      const answer = answerOf(parts, contextText, body);
-
-      return answer.kind === "valid" ? { kind: "valid", normalized: answer.normalized } : answer;
-    },
+    return {
+      ...prepared,
+      start: { ...prepared.start, holds: and(prepared.start.holds, chosen) ?? chosen },
+    };
   };
 }
 
@@ -158,8 +104,7 @@ export function botTaskKind<Context, Result>({
   };
 
   return {
-    servesProvider: true,
-    prepare,
+    prepare: whileChosen(prepare),
     release,
     current: async (db, contextText) => {
       const parsed = parsedJson(parts.context, contextText);

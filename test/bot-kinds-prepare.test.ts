@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
 import { KIND_CASES, caseOf } from "./bot-kinds-cases.ts";
-import { botInstance, chooseBotProvider, openJobOf } from "./bot-kinds-fixtures.ts";
+import { botInstance, openJobOf, selectGrokBot } from "./bot-kinds-fixtures.ts";
 import { outcomeOf } from "./bot-kinds-steps.ts";
 import { jobRow, rowCount, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
@@ -55,7 +55,7 @@ describe("the payload of each kind builds, so the send reaches the network and f
         const owner = await kindCase.library(instance);
         const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
 
-        chooseBotProvider(instance);
+        await selectGrokBot(instance);
 
         await assert.rejects(outcomeOf(instance, kindCase.kind, job), /send failed: unreachable/u);
 

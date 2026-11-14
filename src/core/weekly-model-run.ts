@@ -99,6 +99,5 @@ export function weeklyModelHandler<Sent, Result>(
     deadlineMs: AI_DEADLINE_MS,
     blockedBy: [],
     attempt: (ports, job, ai) => attemptRun(run, ports, job, ai),
-    exhausted: () => [],
   };
 }
