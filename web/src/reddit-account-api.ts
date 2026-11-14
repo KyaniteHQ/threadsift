@@ -8,12 +8,7 @@ import { parsedFrom } from "./calls.ts";
 const ENDPOINT = "/api/settings/reddit-account";
 
 export function fetchRedditAccount(signal?: AbortSignal) {
-  return parsedFrom(
-    "GET",
-    ENDPOINT,
-    RedditAccountViewSchema,
-    signal === undefined ? {} : { signal },
-  );
+  return parsedFrom("GET", ENDPOINT, RedditAccountViewSchema, { signal });
 }
 
 export function saveRedditAccount(session: string) {

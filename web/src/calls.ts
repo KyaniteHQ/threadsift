@@ -17,7 +17,7 @@ export type JsonBody =
 interface Call {
   readonly json?: JsonBody;
   readonly signsOut?: boolean;
-  readonly signal?: AbortSignal;
+  readonly signal?: AbortSignal | undefined;
 }
 
 interface OkCall extends Call {
