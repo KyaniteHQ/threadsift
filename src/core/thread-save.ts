@@ -1,7 +1,7 @@
 import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 
 import { guardHolds, guardedWrite } from "./guards.ts";
-import { anchoredOutcome } from "./highlight-publish.ts";
+import { anchoredOutcome, displayedBesideThread } from "./highlight-publish.ts";
 import type { AnchoredOutcome, JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import type { ParsedThread } from "./reddit-json.ts";
@@ -64,10 +64,7 @@ export async function publishThread(
     { writes: threadPublication(db, place, thread, pendingDigest) },
     {
       owner: eq(items.normalizedUrl, place.normalizedUrl),
-      displayed: ({ threaded }) => ({
-        post: thread.postText,
-        comments: threaded ? undefined : thread.nodes,
-      }),
+      displayed: displayedBesideThread({ post: thread.postText, comments: thread.nodes }),
     },
   );
 
