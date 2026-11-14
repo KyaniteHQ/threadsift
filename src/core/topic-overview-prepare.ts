@@ -1,9 +1,16 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNotNull, or, sql } from "drizzle-orm";
 
+import { GROK_BOT_EXECUTOR } from "./bot-task-states.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
-import { type ClaimedJob, type DeferredOutcome, type JobOutcome, settled } from "./job-outcome.ts";
+import {
+  type ClaimedJob,
+  type DeferredOutcome,
+  type JobOutcome,
+  type JobWrites,
+  settled,
+} from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { topics } from "./schema.ts";
+import { aiTasks, topics } from "./schema.ts";
 import { type TopicLease, claimTopicLease, releaseTopicLease } from "./topic-lease.ts";
 import {
   type OverviewPrompt,
@@ -26,8 +33,31 @@ export type OverviewPrepared =
       readonly prompt: OverviewPrompt;
     };
 
-function busyOutcome(): DeferredOutcome {
-  return { deferredUntil: Date.now() + BUSY_RETRY_MS, wait: "topic-busy", countsAttempt: false };
+function busyOutcome(writes: JobWrites = []): DeferredOutcome {
+  return {
+    deferredUntil: Date.now() + BUSY_RETRY_MS,
+    wait: "topic-busy",
+    countsAttempt: false,
+    writes,
+  };
+}
+
+async function overviewAtBot(db: Database, topicId: number): Promise<boolean> {
+  const [sent] = await db
+    .select({ id: aiTasks.id })
+    .from(aiTasks)
+    .where(
+      and(
+        eq(aiTasks.executor, GROK_BOT_EXECUTOR),
+        eq(aiTasks.kind, "topic_overview"),
+        eq(aiTasks.state, "running"),
+        sql`json_extract(${aiTasks.context}, '$.topicId') = ${topicId}`,
+        or(isNotNull(aiTasks.answeredAt), gt(aiTasks.deadline, Date.now())),
+      ),
+    )
+    .limit(1);
+
+  return sent !== undefined;
 }
 
 async function readyOverview(db: Database, lease: Readonly<TopicLease>): Promise<OverviewPrepared> {
@@ -78,6 +108,9 @@ export async function preparedOverview(
   if (lease === null) return settled(busyOutcome());
 
   try {
+    if (await overviewAtBot(db, topicId))
+      return settled(busyOutcome([releaseTopicLease(db, lease)]));
+
     return await readyOverview(db, lease);
   } catch (error) {
     await db.batch([releaseTopicLease(db, lease)]);

@@ -6,7 +6,9 @@ import { GROK_BOT_EXECUTOR } from "./bot-task-states.ts";
 import { preparedDigest } from "./digest-prepare.ts";
 import { publishing } from "./digest-publish.ts";
 import { digestInput, generationCurrent, keptNotUpdated, logSubmission } from "./digest-source.ts";
-import { settled } from "./job-outcome.ts";
+import { MAX_STALE_REQUEUES, settled } from "./job-outcome.ts";
+
+const NO_CATALOG_REASK = MAX_STALE_REQUEUES;
 
 const ContextSchema = z
   .object({
@@ -14,7 +16,6 @@ const ContextSchema = z
     generation: z.number().int().min(0),
     version: z.number().int().min(0),
     submitted: z.array(z.string()).readonly(),
-    staleRequeues: z.number().int().min(0),
   })
   .readonly();
 
@@ -51,7 +52,6 @@ export const digestBotKind = botTaskKind({
           generation: item.generation,
           version: catalog.version,
           submitted: prompt.submitted,
-          staleRequeues: job.staleRequeues,
         }),
       },
       started: (taskId) => {
@@ -70,7 +70,7 @@ export const digestBotKind = botTaskKind({
         provider: GROK_BOT_EXECUTOR,
         model: null,
         version: context.version,
-        staleRequeues: context.staleRequeues,
+        staleRequeues: NO_CATALOG_REASK,
         submitted: context.submitted,
       },
     ),
