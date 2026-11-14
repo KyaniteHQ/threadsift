@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 import { botTaskKind } from "./bot-task-kind.ts";
+import { overviewAtBot } from "./bot-task-states.ts";
 import { inputsHold } from "./topic-coverage.ts";
-import { recoverPrefixLeases } from "./topic-lease.ts";
+import { leaseHolds, recoverPrefixLeases } from "./topic-lease.ts";
 import { BuiltFromSchema } from "./topic-overview-contract.ts";
 import { leasedForApply, preparedOverview } from "./topic-overview-prepare.ts";
 import { overviewHolderPrefix } from "./topic-overview-run.ts";
@@ -31,7 +32,7 @@ export const topicOverviewBotKind = botTaskKind({
     inputsHold(topicId, { revision, included, removed }),
   release: (db, job) => [recoverPrefixLeases(db, overviewHolderPrefix(job.id))],
   prepare: async (ports, job) => {
-    const prepared = await preparedOverview(ports.db, job);
+    const prepared = await preparedOverview(ports.db, job, overviewAtBot);
 
     if (prepared.kind === "settled") return prepared;
 
@@ -54,6 +55,7 @@ export const topicOverviewBotKind = botTaskKind({
           mustChange: prompt.mustChange,
           current: prompt.current,
         }),
+        holds: leaseHolds(lease),
       },
     };
   },

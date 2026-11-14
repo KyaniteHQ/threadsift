@@ -1,4 +1,4 @@
-import { type SQL, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, sql } from "drizzle-orm";
 
 import { insertTask } from "./ai-task-start.ts";
 import { type BotTaskRow, GROK_BOT_EXECUTOR } from "./bot-task-states.ts";
@@ -27,6 +27,7 @@ export interface BotTaskStart {
   readonly inputRevision: number;
   readonly context: string;
   readonly deadlineMs?: number;
+  readonly holds?: Readonly<SQLWrapper>;
 }
 
 interface BotOwner {
@@ -62,6 +63,7 @@ type BotStarted =
       readonly token: string;
     }
   | { readonly kind: "full" }
+  | { readonly kind: "lease-lost" }
   | { readonly kind: "claim-lost" };
 
 function underCap(now: number, places: number) {
@@ -91,7 +93,7 @@ export async function startBotTask(
       itemId: owner.itemId,
       bot: { jobId: owner.jobId, callbackHash: credential.hash, context: start.context },
     },
-    claim === undefined ? cap : sql`${claim} and ${cap}`,
+    and(claim, start.holds, cap) ?? cap,
   );
 
   if (inserted !== null) {
@@ -104,7 +106,11 @@ export async function startBotTask(
     };
   }
 
-  return claim === undefined || (await guardHolds(db, claim))
-    ? { kind: "full" }
-    : { kind: "claim-lost" };
+  if (claim !== undefined && !(await guardHolds(db, claim))) return { kind: "claim-lost" };
+
+  if (start.holds !== undefined && !(await guardHolds(db, start.holds))) {
+    return { kind: "lease-lost" };
+  }
+
+  return { kind: "full" };
 }

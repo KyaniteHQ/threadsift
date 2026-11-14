@@ -6,15 +6,12 @@ import { GROK_BOT_EXECUTOR } from "./bot-task-states.ts";
 import { preparedDigest } from "./digest-prepare.ts";
 import { publishing } from "./digest-publish.ts";
 import { digestInput, generationCurrent, keptNotUpdated, logSubmission } from "./digest-source.ts";
-import { MAX_STALE_REQUEUES, settled } from "./job-outcome.ts";
-
-const NO_CATALOG_REASK = MAX_STALE_REQUEUES;
+import { settled } from "./job-outcome.ts";
 
 const ContextSchema = z
   .object({
     itemId: z.number().int().positive(),
     generation: z.number().int().min(0),
-    version: z.number().int().min(0),
     submitted: z.array(z.string()).readonly(),
   })
   .readonly();
@@ -39,7 +36,7 @@ export const digestBotKind = botTaskKind({
 
     if (prepared.kind === "settled") return prepared;
 
-    const { catalog, prompt } = prepared;
+    const { prompt } = prepared;
 
     return {
       kind: "ask",
@@ -50,7 +47,6 @@ export const digestBotKind = botTaskKind({
         context: JSON.stringify({
           itemId: item.id,
           generation: item.generation,
-          version: catalog.version,
           submitted: prompt.submitted,
         }),
       },
@@ -69,8 +65,7 @@ export const digestBotKind = botTaskKind({
         executor: "model",
         provider: GROK_BOT_EXECUTOR,
         model: null,
-        version: context.version,
-        staleRequeues: NO_CATALOG_REASK,
+        catalog: { kind: "unchecked" },
         submitted: context.submitted,
       },
     ),

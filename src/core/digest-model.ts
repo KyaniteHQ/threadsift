@@ -50,8 +50,7 @@ async function attemptOnExecutor(
     executor: "model",
     provider: result.provider,
     model: result.model,
-    version: catalog.version,
-    staleRequeues: job.staleRequeues,
+    catalog: { kind: "checked", version: catalog.version, staleRequeues: job.staleRequeues },
     submitted: prompt.submitted,
   });
 }

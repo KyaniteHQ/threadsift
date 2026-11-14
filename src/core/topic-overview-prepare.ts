@@ -1,6 +1,5 @@
-import { and, eq, gt, isNotNull, or, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { GROK_BOT_EXECUTOR } from "./bot-task-states.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
 import {
   type ClaimedJob,
@@ -10,7 +9,7 @@ import {
   settled,
 } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { aiTasks, topics } from "./schema.ts";
+import { topics } from "./schema.ts";
 import { type TopicLease, claimTopicLease, releaseTopicLease } from "./topic-lease.ts";
 import {
   type OverviewPrompt,
@@ -42,33 +41,15 @@ function busyOutcome(writes: JobWrites = []): DeferredOutcome {
   };
 }
 
-async function overviewAtBot(db: Database, topicId: number): Promise<boolean> {
-  const [sent] = await db
-    .select({ id: aiTasks.id })
-    .from(aiTasks)
-    .where(
-      and(
-        eq(aiTasks.executor, GROK_BOT_EXECUTOR),
-        eq(aiTasks.kind, "topic_overview"),
-        eq(aiTasks.state, "running"),
-        sql`json_extract(${aiTasks.context}, '$.topicId') = ${topicId}`,
-        or(isNotNull(aiTasks.answeredAt), gt(aiTasks.deadline, Date.now())),
-      ),
-    )
-    .limit(1);
-
-  return sent !== undefined;
-}
-
 async function readyOverview(db: Database, lease: Readonly<TopicLease>): Promise<OverviewPrepared> {
   const read = await readOverview(db, lease.topicId);
 
-  if (read === null) return settled(idleOutcome(db, lease));
+  if (read === null) return settled(idleOutcome(db, lease, { unreadable: 0 }));
 
   const prompt = overviewPrompt(read);
 
   if (prompt.included.length === 0 && read.removed.length === 0) {
-    return settled(idleOutcome(db, lease));
+    return settled(idleOutcome(db, lease, read));
   }
 
   if (prompt.included.length === 0) {
@@ -96,6 +77,7 @@ async function claimedLease(
 export async function preparedOverview(
   db: Database,
   job: Readonly<ClaimedJob>,
+  deferWhile?: (db: Database, topicId: number) => Promise<boolean>,
 ): Promise<OverviewPrepared> {
   const topicId = await topicOfItem(db, job.itemId);
 
@@ -108,8 +90,9 @@ export async function preparedOverview(
   if (lease === null) return settled(busyOutcome());
 
   try {
-    if (await overviewAtBot(db, topicId))
+    if ((await deferWhile?.(db, topicId)) === true) {
       return settled(busyOutcome([releaseTopicLease(db, lease)]));
+    }
 
     return await readyOverview(db, lease);
   } catch (error) {

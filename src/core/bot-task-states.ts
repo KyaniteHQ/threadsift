@@ -1,4 +1,4 @@
-import { type SQL, and, desc, eq, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+import { type SQL, and, desc, eq, gt, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { DATABASE_NOW, guardHolds, guardedBatch } from "./guards.ts";
@@ -86,6 +86,24 @@ export function stepOf(
       return exhaustive;
     }
   }
+}
+
+export async function overviewAtBot(db: Database, topicId: number): Promise<boolean> {
+  const [found] = await db
+    .select({ id: aiTasks.id })
+    .from(aiTasks)
+    .where(
+      and(
+        eq(aiTasks.executor, GROK_BOT_EXECUTOR),
+        eq(aiTasks.kind, "topic_overview"),
+        eq(aiTasks.state, "running"),
+        sql`json_extract(${aiTasks.context}, '$.topicId') = ${topicId}`,
+        or(isNotNull(aiTasks.answeredAt), gt(aiTasks.deadline, Date.now())),
+      ),
+    )
+    .limit(1);
+
+  return found !== undefined;
 }
 
 export async function latestTask(db: Database, jobId: number): Promise<BotTaskRow | null> {
