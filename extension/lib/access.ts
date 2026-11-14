@@ -7,14 +7,18 @@ import { logFailure } from "./log.ts";
 
 export type AccessResult = "reconciled" | "kept";
 
-let queue: Promise<unknown> = Promise.resolve();
+export function oneAtATime(): <Result>(task: () => Promise<Result>) => Promise<Result> {
+  let queue: Promise<unknown> = Promise.resolve();
 
-export function exclusive<Result>(task: () => Promise<Result>): Promise<Result> {
-  const run = queue.then(task);
-  queue = run.catch(() => {});
+  return (task) => {
+    const run = queue.then(task);
+    queue = run.catch(() => {});
 
-  return run;
+    return run;
+  };
 }
+
+export const exclusive = oneAtATime();
 
 const ManifestSchema = z.object({
   host_permissions: z.array(z.string()).nullish(),
