@@ -8,7 +8,7 @@ import { MERGES, readRow } from "./merge-kinds.ts";
 import type { MergeRow, MergeUnit } from "./merge-unit.ts";
 import { anyAccepting, atRevision, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
-import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
+import { leaseHolds, releaseTopicLease } from "./topic-lease.ts";
 
 const UNITS_PER_ACCEPT = 50;
 
@@ -65,7 +65,7 @@ async function applyUnit(
     const results = await guardedResults(db, holds, writes);
 
     if (results === null) {
-      await releaseTopicLeases(db, unit.leases);
+      await releasedAfterFailure(db, id, unit.leases);
 
       return "lost";
     }
