@@ -51,7 +51,10 @@ export async function settledFetch(
   return replaces
     ? anchoredOutcome(ports.db, outcome, {
         owner: eq(items.id, job.itemId),
-        displayed: () => ({ post: postText, comments: thread?.nodes }),
+        displayed: ({ threaded }) => ({
+          post: postText,
+          comments: threaded ? undefined : thread?.nodes,
+        }),
       })
     : outcome;
 }
