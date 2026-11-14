@@ -294,5 +294,7 @@ export const MAX_OUTPUT_TOKENS = 8192;
 
 export const AI_DEADLINE_MS = 10 * 60 * 1000;
 
+export const AI_SAVE_ATTEMPTS = 5;
+
 export const VERIFY_INPUT =
   "A post on Notebook Weekly describes how a reading group keeps a shared notebook. Each reader records a useful passage and its source, then compares notes at the next meeting. The group keeps corrections beside the original passages so readers can see what changed.";

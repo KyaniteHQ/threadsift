@@ -8,13 +8,14 @@ import {
   afterRequest,
   mayAsk,
 } from "./reddit-window.ts";
+import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
 
 export const THREAD_QUERY = "limit=500&raw_json=1";
 
 export const RATE_LIMITED = 429;
 
-export const REQUEST_DEADLINE_MS = 15_000;
+export { REQUEST_DEADLINE_MS };
 
 export interface FillAnswer {
   readonly status: number;
