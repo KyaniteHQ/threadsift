@@ -116,6 +116,7 @@ The Reader draws a Highlight (slice 15a2) from what the server stores here. The 
 | Refresh that finds an image for the first time | A new row with a new id. |
 | Failed refresh, or a result that publishes no content | Rows, files and text stay as they were. |
 | Refresh with no images, or a change to Other | Every row of the Item is deleted and every file goes. |
+| A thread published over the Item (a Paste with `content`, or a fill; `threadPublication`) | Every row of the Item is deleted in the publishing batch, and the cleanup pass removes the files that no row names. |
 | Delete of the Item | `deleteItem` deletes the rows (Deleting an Item) and the prefix delete removes the files. |
 | Export and restore | Not built. The export carries the ids, the file keys and the video URLs, and rewrites file-route links in the text to relative paths, so a restore keeps every row and link. |
 | Merge of two copies | Not built. Two Items never share rows, because the match key holds `item_id`. |
