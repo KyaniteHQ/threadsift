@@ -16,6 +16,7 @@ function mergeOf(row: Readonly<Row>) {
     kind: row.kind,
     state: row.state,
     reason: row.reason ?? "",
+    failedRuns: row.failedRuns,
     from: { id: row.fromId, name: row.fromName, items: row.fromItems },
     into: { id: row.intoId, name: row.intoName, items: row.intoItems },
   });

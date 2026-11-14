@@ -5,7 +5,7 @@ import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
 import type { MergeRow } from "./merge-unit.ts";
-import { anyAccepting, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
+import { anyAccepting, unitAdvanced, unitApplied, unitFailed } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
 import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
@@ -80,6 +80,20 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
   }
 }
 
+async function continuedUnit(
+  ports: JobPorts,
+  id: number,
+  row: Readonly<MergeRow>,
+): Promise<Outcome> {
+  try {
+    return await runUnit(ports, id, row);
+  } catch (error) {
+    await unitFailed(ports.db, id, row.revision);
+
+    throw error;
+  }
+}
+
 async function continueMerge(
   ports: JobPorts,
   id: number,
@@ -91,7 +105,7 @@ async function continueMerge(
 
   if (budget === 0) return "accepting";
 
-  if ((await runUnit(ports, id, row)) === "busy") return "accepting";
+  if ((await continuedUnit(ports, id, row)) === "busy") return "accepting";
 
   return continueMerge(ports, id, budget - 1);
 }

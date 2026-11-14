@@ -118,6 +118,8 @@ export const PROPOSAL_WORDS = {
   accept: "Accept",
   acceptFailed: "Couldn’t accept this proposal.",
   applying: "Applying…",
+  applyFailedOnce: "Applying this merge failed once. The server log has the reason.",
+  applyFailedMany: "Applying this merge failed {count} times. The server log has the reason.",
   mergeBusy: "Another merge is already running.",
   topicBusy: "One of these topics has an overview or another merge running.",
   topicOverviewEffect:
@@ -159,6 +161,14 @@ export function itemCount(count: number): string {
   return count === 1
     ? PROPOSAL_WORDS.itemsOne
     : filled(PROPOSAL_WORDS.itemsMany, { count: String(count) });
+}
+
+export function applyFailedNote(failedRuns: number): string | null {
+  if (failedRuns === 0) return null;
+
+  return failedRuns === 1
+    ? PROPOSAL_WORDS.applyFailedOnce
+    : filled(PROPOSAL_WORDS.applyFailedMany, { count: String(failedRuns) });
 }
 
 const TEXT_CUT = 40;
