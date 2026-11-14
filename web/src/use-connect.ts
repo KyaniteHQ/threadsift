@@ -22,7 +22,7 @@ function failure(text: string): Outcome {
 }
 
 function usePageRestore(
-  { restore, report }: Readonly<Pick<AiPhase, "restore" | "report">>,
+  { restore, refuse }: Readonly<Pick<AiPhase, "restore" | "refuse">>,
   restored: (view: AiView) => void,
 ): void {
   useEffect(() => {
@@ -32,7 +32,7 @@ function usePageRestore(
       try {
         restored(await fetchAiSettings(AbortSignal.timeout(SETTINGS_READ_MS)));
       } catch {
-        report(failure(FAILURE_TEXT.failed));
+        refuse(FAILURE_TEXT.failed);
       }
     };
 
@@ -45,7 +45,7 @@ function usePageRestore(
     return () => {
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [restore, report, restored]);
+  }, [restore, refuse, restored]);
 }
 
 async function start(

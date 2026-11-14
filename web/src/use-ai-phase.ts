@@ -71,10 +71,6 @@ export function useAiPhase() {
     dispatch({ kind: "restore" });
   }, []);
 
-  const report = useCallback((outcome: Outcome) => {
-    dispatch({ kind: "settle", outcome });
-  }, []);
-
   useAfter(phase === LEAVING, LEAVE_WAIT_MS, restore);
 
   useEffect(() => {
@@ -106,7 +102,7 @@ export function useAiPhase() {
     [guard],
   );
 
-  return { phase, outcome: state.outcome, notice, run, restore, report, refuse };
+  return { phase, outcome: state.outcome, notice, run, restore, refuse };
 }
 
 export type AiPhase = ReturnType<typeof useAiPhase>;
