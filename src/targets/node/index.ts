@@ -81,6 +81,12 @@ async function shutdown(): Promise<void> {
   });
 }
 
-process.once("SIGTERM", () => void shutdown());
+let shuttingDown: Promise<void> | undefined;
 
-process.once("SIGINT", () => void shutdown());
+function shutdownOnce(): void {
+  shuttingDown ??= shutdown();
+}
+
+process.once("SIGTERM", shutdownOnce);
+
+process.once("SIGINT", shutdownOnce);
