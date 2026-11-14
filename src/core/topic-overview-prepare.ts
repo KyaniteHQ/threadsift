@@ -1,7 +1,13 @@
 import { eq } from "drizzle-orm";
 
 import { lostOutcome } from "./guarded-outcome.ts";
-import { type ClaimedJob, type DeferredOutcome, type JobOutcome, settled } from "./job-outcome.ts";
+import {
+  type ClaimedJob,
+  type DeferredOutcome,
+  type JobOutcome,
+  type JobWrites,
+  settled,
+} from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { topics } from "./schema.ts";
 import { type TopicLease, claimTopicLease, releaseTopicLease } from "./topic-lease.ts";
@@ -26,19 +32,24 @@ export type OverviewPrepared =
       readonly prompt: OverviewPrompt;
     };
 
-function busyOutcome(): DeferredOutcome {
-  return { deferredUntil: Date.now() + BUSY_RETRY_MS, wait: "topic-busy", countsAttempt: false };
+function busyOutcome(writes: JobWrites = []): DeferredOutcome {
+  return {
+    deferredUntil: Date.now() + BUSY_RETRY_MS,
+    wait: "topic-busy",
+    countsAttempt: false,
+    writes,
+  };
 }
 
 async function readyOverview(db: Database, lease: Readonly<TopicLease>): Promise<OverviewPrepared> {
   const read = await readOverview(db, lease.topicId);
 
-  if (read === null) return settled(idleOutcome(db, lease));
+  if (read === null) return settled(idleOutcome(db, lease, { unreadable: 0 }));
 
   const prompt = overviewPrompt(read);
 
   if (prompt.included.length === 0 && read.removed.length === 0) {
-    return settled(idleOutcome(db, lease));
+    return settled(idleOutcome(db, lease, read));
   }
 
   if (prompt.included.length === 0) {
@@ -66,6 +77,7 @@ async function claimedLease(
 export async function preparedOverview(
   db: Database,
   job: Readonly<ClaimedJob>,
+  deferWhile?: (db: Database, topicId: number) => Promise<boolean>,
 ): Promise<OverviewPrepared> {
   const topicId = await topicOfItem(db, job.itemId);
 
@@ -78,6 +90,10 @@ export async function preparedOverview(
   if (lease === null) return settled(busyOutcome());
 
   try {
+    if ((await deferWhile?.(db, topicId)) === true) {
+      return settled(busyOutcome([releaseTopicLease(db, lease)]));
+    }
+
     return await readyOverview(db, lease);
   } catch (error) {
     await db.batch([releaseTopicLease(db, lease)]);

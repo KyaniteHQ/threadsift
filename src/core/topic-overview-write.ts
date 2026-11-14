@@ -4,14 +4,20 @@ import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
 import { guardedOutcome } from "./guarded-outcome.ts";
 import type { SettledOutcome } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { inputsHold } from "./topic-coverage.ts";
+import { inputsHold, removedItemIds, uncoveredCount } from "./topic-coverage.ts";
 import { type TopicLease, leaseHolds, releaseTopicLease } from "./topic-lease.ts";
 import type { OverviewBasis, OverviewSent } from "./topic-overview-input.ts";
 import { type OverviewResult, overviewText } from "./topic-overview-task.ts";
 import { storedPage } from "./topic-page-store.ts";
 
-export function idleOutcome(db: Database, lease: Readonly<TopicLease>): SettledOutcome {
-  return guardedOutcome(db, sql`1`, { cleanup: [releaseTopicLease(db, lease)] });
+export function idleOutcome(
+  db: Database,
+  lease: Readonly<TopicLease>,
+  { unreadable }: Readonly<{ unreadable: number }>,
+): SettledOutcome {
+  const noGaps = sql`${uncoveredCount(lease.topicId)} = ${unreadable} and not exists (${removedItemIds(lease.topicId)})`;
+
+  return guardedOutcome(db, noGaps, { cleanup: [releaseTopicLease(db, lease)] });
 }
 
 export function currentInputs(

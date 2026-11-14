@@ -94,16 +94,14 @@ async function movedWhile(
 
 describe("a task whose input moved before any answer is failed as stale, and no attempt is charged", () => {
   const cases = KIND_CASES.flatMap((kindCase) =>
-    kindCase.moves
-      .filter(({ needsAnswer }) => needsAnswer !== true)
-      .flatMap(({ name, move }, index) =>
-        PHASES.slice(0, index === 0 ? PHASES.length : 1).map((phase) => ({
-          kindCase,
-          name,
-          move,
-          phase,
-        })),
-      ),
+    kindCase.moves.flatMap(({ name, move }, index) =>
+      PHASES.slice(0, index === 0 ? PHASES.length : 1).map((phase) => ({
+        kindCase,
+        name,
+        move,
+        phase,
+      })),
+    ),
   );
 
   for (const { kindCase, name, move, phase } of cases) {

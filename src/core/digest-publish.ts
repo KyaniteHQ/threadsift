@@ -30,14 +30,17 @@ import {
 import { digests, insertGuard, items } from "./schema.ts";
 import { commentPartWrites, digestPartWrites } from "./search.ts";
 
+type CatalogRule =
+  | { readonly kind: "checked"; readonly version: number; readonly staleRequeues: number }
+  | { readonly kind: "unchecked" };
+
 type DigestSource =
   | { readonly executor: "caller" }
   | {
       readonly executor: "model";
       readonly provider: string;
       readonly model: string | null;
-      readonly version: number;
-      readonly staleRequeues: number;
+      readonly catalog: CatalogRule;
       readonly submitted: readonly string[];
     };
 
@@ -143,6 +146,22 @@ export async function publishing(
   );
 }
 
+function catalogGuard(rule: CatalogRule, entries: Parameters<typeof catalogCurrent>[1]) {
+  switch (rule.kind) {
+    case "checked":
+      return rule.staleRequeues >= MAX_STALE_REQUEUES
+        ? sql`1`
+        : catalogCurrent(rule.version, entries);
+    case "unchecked":
+      return sql`1`;
+    default: {
+      const exhaustive: never = rule;
+
+      return exhaustive;
+    }
+  }
+}
+
 function digestOrigin(
   source: DigestSource,
   digest: Readonly<Digest>,
@@ -160,10 +179,7 @@ function digestOrigin(
     case "model":
       return {
         published,
-        catalog:
-          source.staleRequeues >= MAX_STALE_REQUEUES
-            ? sql`1`
-            : catalogCurrent(source.version, entries),
+        catalog: catalogGuard(source.catalog, entries),
         provider: source.provider,
         model: source.model,
       };

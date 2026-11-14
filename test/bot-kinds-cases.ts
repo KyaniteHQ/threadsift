@@ -24,7 +24,6 @@ export interface KindCase {
   readonly wrote: (instance: Instance, owner: number) => boolean;
   readonly moves: readonly {
     readonly name: string;
-    readonly needsAnswer?: true;
     readonly move: (instance: Instance, context: string) => void;
   }[];
 }
@@ -111,16 +110,6 @@ export const KIND_CASES: readonly KindCase[] = [
             instance,
             "update items set generation = generation + 1 where id = ?",
             DigestContext.parse(JSON.parse(context)).itemId,
-          );
-        },
-      },
-      {
-        name: "a changed catalog version with a Topic the catalog does not hold",
-        needsAnswer: true,
-        move: (instance) => {
-          exec(
-            instance,
-            "insert into catalog_version (id, version) values (1, 5) on conflict (id) do update set version = version + 5",
           );
         },
       },

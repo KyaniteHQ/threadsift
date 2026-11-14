@@ -32,6 +32,7 @@ export interface OverviewRead {
     readonly builtFrom: BuiltFrom;
   } | null;
   readonly added: readonly AddedItem[];
+  readonly unreadable: number;
   readonly removed: readonly number[];
 }
 
@@ -104,10 +105,13 @@ export async function readOverview(db: Database, topicId: number): Promise<Overv
 
   if (topic === undefined) return null;
 
+  const readable = added.flatMap((row) => addedItem(row));
+
   return {
     name: topic.name,
     page: page ?? null,
-    added: added.flatMap((row) => addedItem(row)),
+    added: readable,
+    unreadable: added.length - readable.length,
     removed: gone.map(({ id }) => id),
   };
 }
@@ -124,6 +128,31 @@ function promptJson(
   });
 }
 
+function fitted(
+  read: Readonly<OverviewRead>,
+  {
+    current,
+    included,
+    item,
+  }: Readonly<{
+    current: string | null;
+    included: readonly AddedItem[];
+    item: AddedItem;
+  }>,
+): AddedItem | null {
+  const fewest = included.length === 0 ? 0 : item.keyPoints.length;
+
+  for (let count = item.keyPoints.length; count >= fewest; count -= 1) {
+    const cut = { ...item, keyPoints: item.keyPoints.slice(0, count) };
+
+    if (utf8Length(promptJson(read, current, [...included, cut])) <= OVERVIEW_INPUT_BYTES) {
+      return cut;
+    }
+  }
+
+  return null;
+}
+
 export function overviewPrompt(read: Readonly<OverviewRead>): OverviewPrompt {
   const included: AddedItem[] = [];
 
@@ -132,9 +161,11 @@ export function overviewPrompt(read: Readonly<OverviewRead>): OverviewPrompt {
   const current = overviewWithout(read.page?.overview ?? null, read.removed);
 
   for (const item of read.added) {
-    if (utf8Length(promptJson(read, current, [...included, item])) > OVERVIEW_INPUT_BYTES) break;
+    const sent = fitted(read, { current, included, item });
 
-    included.push(item);
+    if (sent === null) break;
+
+    included.push(sent);
   }
 
   const kept = (read.page?.builtFrom ?? []).map(({ item }) => item).filter((id) => !gone.has(id));

@@ -12,9 +12,7 @@ const ContextSchema = z
   .object({
     itemId: z.number().int().positive(),
     generation: z.number().int().min(0),
-    version: z.number().int().min(0),
     submitted: z.array(z.string()).readonly(),
-    staleRequeues: z.number().int().min(0),
   })
   .readonly();
 
@@ -38,7 +36,7 @@ export const digestBotKind = botTaskKind({
 
     if (prepared.kind === "settled") return prepared;
 
-    const { catalog, prompt } = prepared;
+    const { prompt } = prepared;
 
     return {
       kind: "ask",
@@ -49,9 +47,7 @@ export const digestBotKind = botTaskKind({
         context: JSON.stringify({
           itemId: item.id,
           generation: item.generation,
-          version: catalog.version,
           submitted: prompt.submitted,
-          staleRequeues: job.staleRequeues,
         }),
       },
       started: (taskId) => {
@@ -69,8 +65,7 @@ export const digestBotKind = botTaskKind({
         executor: "model",
         provider: GROK_BOT_EXECUTOR,
         model: null,
-        version: context.version,
-        staleRequeues: context.staleRequeues,
+        catalog: { kind: "unchecked" },
         submitted: context.submitted,
       },
     ),

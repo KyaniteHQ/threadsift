@@ -93,6 +93,7 @@ async function startedOutcome(
         release,
       });
     case "full":
+    case "lease-lost":
       return {
         deferredUntil: Date.now() + FULL_CAP_DEFER_MS,
         wait: "grok-bot",
