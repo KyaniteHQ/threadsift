@@ -7,6 +7,7 @@ import { guardHolds } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { holding } from "./job-rows.ts";
 import type { JobKind } from "./kinds.ts";
+import { grokBotChosen } from "./provider-saved.ts";
 import { type JobRow, aiTasks } from "./schema.ts";
 
 export const GROK_BOT_IN_FLIGHT = 10;
@@ -32,6 +33,7 @@ export interface BotTaskStart {
 
 interface BotOwner {
   readonly claim: SQL | undefined;
+  readonly whileChosen?: SQL;
   readonly jobId: number | null;
   readonly itemId: number | null;
   readonly attempts: number;
@@ -46,6 +48,11 @@ export const ownerOf = (job: Readonly<JobRow>): BotOwner => ({
   places: WEEKLY_JOB_KINDS.has(job.kind)
     ? GROK_BOT_IN_FLIGHT
     : GROK_BOT_IN_FLIGHT - GROK_BOT_WEEKLY_RESERVE,
+});
+
+export const providerOwnerOf = (job: Readonly<JobRow>): BotOwner => ({
+  ...ownerOf(job),
+  whileChosen: grokBotChosen(),
 });
 
 export const VERIFY_OWNER: BotOwner = {
@@ -64,6 +71,7 @@ type BotStarted =
     }
   | { readonly kind: "full" }
   | { readonly kind: "lease-lost" }
+  | { readonly kind: "provider-left" }
   | { readonly kind: "claim-lost" };
 
 function underCap(now: number, places: number) {
@@ -93,7 +101,7 @@ export async function startBotTask(
       itemId: owner.itemId,
       bot: { jobId: owner.jobId, callbackHash: credential.hash, context: start.context },
     },
-    and(claim, start.holds, cap) ?? cap,
+    and(claim, owner.whileChosen, start.holds, cap) ?? cap,
   );
 
   if (inserted !== null) {
@@ -107,6 +115,10 @@ export async function startBotTask(
   }
 
   if (claim !== undefined && !(await guardHolds(db, claim))) return { kind: "claim-lost" };
+
+  if (owner.whileChosen !== undefined && !(await guardHolds(db, owner.whileChosen))) {
+    return { kind: "provider-left" };
+  }
 
   if (start.holds !== undefined && !(await guardHolds(db, start.holds))) {
     return { kind: "lease-lost" };

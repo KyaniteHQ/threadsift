@@ -24,6 +24,10 @@ export async function saveBot(instance: Instance): Promise<void> {
   if (saved.status !== 200) throw new Error("the Grok Bot address was not saved");
 }
 
+export function chooseBotProvider(instance: Instance): void {
+  exec(instance, "update grok_bot_settings set use_as_provider = 1 where id = 1");
+}
+
 export async function relatedLibrary(instance: Instance): Promise<BotLibrary> {
   const first = await paste(instance, "near-one", { title: "Quasar lattice", tags: ["quasar"] });
   const second = await paste(instance, "near-two", { title: "Quasar notes", tags: ["quasar"] });

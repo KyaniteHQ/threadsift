@@ -13,6 +13,7 @@ import {
   type BotLibrary,
   SECRET_KEY,
   bulkJobs,
+  chooseBotProvider,
   openJob,
   relatedLibrary,
   retireTasks,
@@ -42,6 +43,7 @@ describe("no more than 10 Grok Bot tasks are outstanding, however the starts ove
     await instance.setUp();
     await saveBot(instance);
     library = await relatedLibrary(instance);
+    chooseBotProvider(instance);
   });
 
   beforeEach(() => {

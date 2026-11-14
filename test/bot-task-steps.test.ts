@@ -7,6 +7,7 @@ import {
   type BotLibrary,
   SECRET_KEY,
   answerOf,
+  chooseBotProvider,
   openJob,
   pastDeadline,
   picksFor,
@@ -41,6 +42,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
     await instance.setUp();
     await saveBot(instance);
     library = await relatedLibrary(instance);
+    chooseBotProvider(instance);
   });
 
   beforeEach(() => {
@@ -216,6 +218,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
     await instance.setUp();
     await saveBot(instance);
     library = await relatedLibrary(instance);
+    chooseBotProvider(instance);
   });
 
   after(() => instance.close());

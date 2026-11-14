@@ -6,6 +6,7 @@ import { caseOf } from "./bot-kinds-cases.ts";
 import {
   answeredAs,
   botInstance,
+  chooseBotProvider,
   claimedAndReleased,
   holdTopic,
   leasesRunOut,
@@ -32,6 +33,7 @@ describe("a Topic overview holds the Topic's lease for the read and the send onl
   before(async () => {
     instance = await botInstance();
     await overview.library(instance);
+    chooseBotProvider(instance);
   });
 
   beforeEach(() => {

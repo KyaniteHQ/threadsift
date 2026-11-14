@@ -44,6 +44,7 @@ export type BotParse =
 export type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "context">>;
 
 export interface SentTaskKind {
+  readonly servesProvider: boolean;
   readonly prepare: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<BotPreparation>;
   readonly release: (db: JobPorts["db"], job: Readonly<ClaimedJob>) => JobWrites;
   readonly current: (db: JobPorts["db"], context: string) => Promise<boolean>;
@@ -157,6 +158,7 @@ export function botTaskKind<Context, Result>({
   };
 
   return {
+    servesProvider: true,
     prepare,
     release,
     current: async (db, contextText) => {
