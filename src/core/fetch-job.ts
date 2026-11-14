@@ -1,4 +1,4 @@
-import { botFailureNote, givenUpTasks } from "./bot-task-states.ts";
+import { botFailureNote } from "./bot-task-states.ts";
 import { attemptFetch } from "./fetch-attempt.ts";
 import { FETCH_DEADLINE_MS } from "./fetch-link.ts";
 import type { JobHandler } from "./job-outcome.ts";
@@ -11,10 +11,7 @@ export const fetchHandler: JobHandler = {
   deadlineMs: FETCH_DEADLINE_MS,
   blockedBy: [],
   attempt: attemptFetch,
-  exhausted: (db, job) => [
-    failedFetch(db, job.itemId, "gave-up", botFailureNote(job.id)),
-    givenUpTasks(db, job),
-  ],
+  exhausted: (db, job) => [failedFetch(db, job.itemId, "gave-up", botFailureNote(job.id))],
   closing: (db, job, how) => (redditRefOf(job.address) === null ? [] : redditClosing(db, job, how)),
   afterClosed: async (ports, job, closed) => {
     if (redditRefOf(job.address) !== null) await redditClosed(ports, job, closed);

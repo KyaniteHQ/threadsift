@@ -2,7 +2,7 @@ import type { ModelAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
 import type { SentTaskKind } from "./bot-task-kind.ts";
 import { sendBotTask } from "./bot-task-send.ts";
-import { type BotTaskStart, ownerOf, startBotTask } from "./bot-task-start.ts";
+import { type BotTaskStart, ownerOf, providerOwnerOf, startBotTask } from "./bot-task-start.ts";
 import {
   type BotTaskRow,
   chargedReport,
@@ -79,7 +79,8 @@ async function startedOutcome(
     release: JobWrites;
   }>,
 ): Promise<JobOutcome> {
-  const started = await startBotTask(ports, ownerOf(job), start);
+  const owner = kind.servesProvider ? providerOwnerOf(job) : ownerOf(job);
+  const started = await startBotTask(ports, owner, start);
 
   switch (started.kind) {
     case "started":
@@ -100,6 +101,8 @@ async function startedOutcome(
         countsAttempt: false,
         writes: release,
       };
+    case "provider-left":
+      return { deferredUntil: Date.now(), wait: null, countsAttempt: false, writes: release };
     case "claim-lost":
       return lostOutcome(ports.db, { cleanup: release });
     default: {
@@ -192,7 +195,11 @@ export async function botStep(
 
   if (task === null || step === "start") return startStep(ports, job, kind);
 
-  if (step !== "apply" && !(await kind.current(ports.db, task.context ?? ""))) {
+  if (
+    step !== "apply" &&
+    step !== "charge" &&
+    !(await kind.current(ports.db, task.context ?? ""))
+  ) {
     return lostOutcome(ports.db, { taskId: task.id, cleanup: kind.release(ports.db, job) });
   }
 
@@ -206,7 +213,7 @@ export async function botStep(
     case "expire":
       return expireStep(ports, job, { kind, task });
     case "charge":
-      await chargedReport(ports.db, job, task.id);
+      await chargedReport(ports.db, job, { taskId: task.id, release: kind.release(ports.db, job) });
 
       throw new Error("The Grok Bot reported an error for the task");
     default: {

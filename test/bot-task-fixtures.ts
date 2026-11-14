@@ -24,6 +24,10 @@ export async function saveBot(instance: Instance): Promise<void> {
   if (saved.status !== 200) throw new Error("the Grok Bot address was not saved");
 }
 
+export function chooseBotProvider(instance: Instance): void {
+  exec(instance, "update grok_bot_settings set use_as_provider = 1 where id = 1");
+}
+
 export async function relatedLibrary(instance: Instance): Promise<BotLibrary> {
   const first = await paste(instance, "near-one", { title: "Quasar lattice", tags: ["quasar"] });
   const second = await paste(instance, "near-two", { title: "Quasar notes", tags: ["quasar"] });
@@ -100,7 +104,14 @@ export async function openJobOfKind(
     itemId,
     attempts = 0,
     staleRequeues = 0,
-  }: Readonly<{ kind: string; itemId: number; attempts?: number; staleRequeues?: number }>,
+    attemptGeneration = null,
+  }: Readonly<{
+    kind: string;
+    itemId: number;
+    attempts?: number;
+    staleRequeues?: number;
+    attemptGeneration?: number | null;
+  }>,
 ): Promise<ClaimedJob> {
   exec(
     instance,
@@ -110,11 +121,12 @@ export async function openJobOfKind(
   );
   exec(
     instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', ?, ?, 0, ?)",
+    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, attempt_generation, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', ?, ?, ?, 0, ?)",
     kind,
     itemId,
     attempts,
     staleRequeues,
+    attemptGeneration,
     Date.now() + 3_600_000,
   );
 

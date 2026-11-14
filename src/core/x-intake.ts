@@ -17,6 +17,7 @@ import {
 } from "./x-intake-contract.ts";
 
 export const xIntakeKind: SentTaskKind = {
+  servesProvider: false,
   apply: ({ db }, _job, { id }) => Promise.resolve(lostOutcome(db, { taskId: id })),
   release: () => [],
   prepare: async ({ db }, job) => {

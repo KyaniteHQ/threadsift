@@ -55,7 +55,7 @@ describe("an answer whose guard moved between the send and the answer is accepte
   }
 });
 
-const PHASES = ["waiting", "timed out", "reported an error"] as const;
+const PHASES = ["waiting", "timed out"] as const;
 
 type Phase = (typeof PHASES)[number];
 
@@ -80,12 +80,6 @@ async function movedWhile(
   move(instance, sent.context);
 
   if (phase === "timed out") pastDeadline(instance, sent.id);
-
-  if (phase === "reported an error") {
-    const reported = await answered(instance, sent, { error: "The bot could not read the input." });
-
-    assert.equal(reported.status, 204);
-  }
 
   await settled(instance, kindCase.kind, job);
 
@@ -114,8 +108,42 @@ describe("a task whose input moved before any answer is failed as stale, and no 
         const queued = jobRow(instance, job.id);
 
         assert.equal(task.state, "failed");
-        assert.equal(task.refusal, phase === "reported an error" ? "provider-busy" : "stale");
+        assert.equal(task.refusal, "stale");
         assert.deepEqual([queued.state, queued.attempts, queued.stale_requeues], ["queued", 0, 3]);
+        assert.equal(kindCase.wrote(instance, owner), false);
+        assert.equal(topicLeaseFree(instance, 1), true);
+      } finally {
+        await instance.close();
+      }
+    });
+  }
+});
+
+describe("a reported bot error is charged as an attempt even when the input moved", () => {
+  for (const kindCase of KIND_CASES) {
+    it(`${kindCase.kind}, after ${kindCase.moves[0]?.name ?? ""}`, async () => {
+      const instance = await botInstance();
+
+      try {
+        const owner = await kindCase.library(instance);
+        const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
+        const sent = await sentTask(instance, kindCase.kind, job);
+
+        kindCase.moves[0]?.move(instance, sent.context);
+
+        const reported = await answered(instance, sent, {
+          error: "The bot could not read the input.",
+        });
+
+        assert.equal(reported.status, 204);
+        await assert.rejects(settled(instance, kindCase.kind, job), /reported an error/u);
+
+        const task = taskRow(instance, sent.id);
+
+        assert.deepEqual(
+          [task.state, task.refusal, task.answered_at],
+          ["failed", "provider-busy", null],
+        );
         assert.equal(kindCase.wrote(instance, owner), false);
         assert.equal(topicLeaseFree(instance, 1), true);
       } finally {

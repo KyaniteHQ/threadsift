@@ -5,7 +5,7 @@ import { openingDigest } from "./digest-job.ts";
 import { setStatus } from "./item-status.ts";
 import { ITEM_JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, items, jobs, xVerifications } from "./schema.ts";
+import { type JobRow, aiTasks, items, jobs, xVerifications } from "./schema.ts";
 
 const CLOSED_JOB = {
   state: "done",
@@ -15,6 +15,18 @@ const CLOSED_JOB = {
   staleRequeues: 0,
   page: null,
 } as const;
+
+function givenUpTasks(db: Database, jobIds: Readonly<SQLWrapper>) {
+  return db
+    .update(aiTasks)
+    .set({
+      state: "failed",
+      result: null,
+      refusal: sql`case when ${aiTasks.answeredAt} is null then 'timeout' else 'stale' end`,
+      status: null,
+    })
+    .where(and(sql`${aiTasks.jobId} in (${jobIds})`, eq(aiTasks.state, "running")));
+}
 
 function owedDigest(db: Database, itemId: number) {
   return openingDigest(db, {
@@ -34,6 +46,7 @@ export function closeJob(
       .update(jobs)
       .set({ ...CLOSED_JOB, attempts })
       .where(eq(jobs.id, job.id)),
+    givenUpTasks(db, sql`${job.id}`),
     ...(job.kind === "digest" ? [owedDigest(db, job.itemId)] : []),
     ...(ITEM_JOB_KINDS.some((owner) => owner === job.kind)
       ? [setStatus(db, { kind: "jobs-changed" }, eq(items.id, job.itemId))]
@@ -42,17 +55,15 @@ export function closeJob(
 }
 
 export function closeItemJobs(db: Database, itemId: Readonly<SQLWrapper>) {
+  const open = and(
+    eq(jobs.itemId, sql`${itemId}`),
+    inArray(jobs.kind, ["fetch", "x_verify"]),
+    ne(jobs.state, "done"),
+  );
+
   return [
-    db
-      .update(jobs)
-      .set(CLOSED_JOB)
-      .where(
-        and(
-          eq(jobs.itemId, sql`${itemId}`),
-          inArray(jobs.kind, ["fetch", "x_verify"]),
-          ne(jobs.state, "done"),
-        ),
-      ),
+    givenUpTasks(db, db.select({ id: jobs.id }).from(jobs).where(open)),
+    db.update(jobs).set(CLOSED_JOB).where(open),
     db.delete(xVerifications).where(eq(xVerifications.itemId, sql`${itemId}`)),
   ] as const;
 }

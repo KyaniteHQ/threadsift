@@ -9,7 +9,7 @@ import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 
-export { botInstance } from "./bot-task-fixtures.ts";
+export { botInstance, chooseBotProvider } from "./bot-task-fixtures.ts";
 
 export interface Sent {
   readonly id: number;
@@ -24,6 +24,7 @@ export function openJobOf(
     itemId: number;
     attempts?: number;
     staleRequeues?: number;
+    attemptGeneration?: number | null;
   }>,
 ): Promise<ClaimedJob> {
   return openJobOfKind(instance, options);
