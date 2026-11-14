@@ -1,5 +1,5 @@
 import type { MergeKind, ProposalKind } from "../../src/core/kinds.ts";
-import type { Proposal } from "../../src/core/proposal-contract.ts";
+import type { MergeProposal, Proposal } from "../../src/core/proposal-contract.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { NEWEST_FIRST, filled } from "./text.ts";
 
@@ -108,6 +108,10 @@ type AcceptableKind = keyof typeof ACCEPT_WORDS;
 
 export type AcceptableProposal = Extract<Proposal, { readonly kind: AcceptableKind }>;
 
+export function isMerge(proposal: Readonly<Proposal>): proposal is MergeProposal {
+  return proposal.kind === "tag-merge" || proposal.kind === "topic-merge";
+}
+
 export function isAcceptable(proposal: Readonly<Proposal>): proposal is AcceptableProposal {
   return proposal.kind in ACCEPT_WORDS;
 }
@@ -118,6 +122,8 @@ export const PROPOSAL_WORDS = {
   accept: "Accept",
   acceptFailed: "Couldn’t accept this proposal.",
   applying: "Applying…",
+  applyFailedOnce: "Applying this merge failed once. The server log has the reason.",
+  applyFailedMany: "Applying this merge failed {count} times. The server log has the reason.",
   mergeBusy: "Another merge is already running.",
   topicBusy: "One of these topics has an overview or another merge running.",
   topicOverviewEffect:
@@ -155,10 +161,31 @@ export function sideNamedWords(other: string): string {
   return filled(PROPOSAL_WORDS.sideNamed, { other });
 }
 
+function counted(count: number, one: string, many: string): string {
+  return count === 1 ? one : filled(many, { count: String(count) });
+}
+
 export function itemCount(count: number): string {
-  return count === 1
-    ? PROPOSAL_WORDS.itemsOne
-    : filled(PROPOSAL_WORDS.itemsMany, { count: String(count) });
+  return counted(count, PROPOSAL_WORDS.itemsOne, PROPOSAL_WORDS.itemsMany);
+}
+
+export function applyFailedNote(failedRuns: number): string {
+  return counted(failedRuns, PROPOSAL_WORDS.applyFailedOnce, PROPOSAL_WORDS.applyFailedMany);
+}
+
+export function firstFailures(
+  applying: readonly Readonly<Proposal>[],
+  read: readonly Readonly<Proposal>[],
+): readonly string[] {
+  const unfailed = new Set(
+    applying.flatMap((each) => (isMerge(each) && each.failedRuns === 0 ? [each.id] : [])),
+  );
+
+  return read.flatMap((each) =>
+    isMerge(each) && unfailed.has(each.id) && each.failedRuns > 0
+      ? [applyFailedNote(each.failedRuns)]
+      : [],
+  );
 }
 
 const TEXT_CUT = 40;

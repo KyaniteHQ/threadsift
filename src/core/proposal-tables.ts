@@ -20,6 +20,7 @@ export const proposals = sqliteTable(
     cursor: integer("cursor"),
     moved: integer("moved"),
     unitRevision: integer("unit_revision"),
+    failedRuns: integer("failed_runs"),
     highlightId: integer("highlight_id").references(() => highlights.id, { onDelete: "cascade" }),
     topicId: integer("topic_id").references(() => topics.id, { onDelete: "cascade" }),
     fromItemId: integer("from_item_id").references(() => items.id, { onDelete: "cascade" }),

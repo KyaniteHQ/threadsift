@@ -69,11 +69,26 @@ export function unitApplied(db: Database, id: number, moving: Readonly<SQLWrappe
     .where(and(eq(proposals.id, id), inArray(proposals.state, MOVES.apply.from)));
 }
 
+export function revisionOf(): SQL {
+  return sql`coalesce(${proposals.unitRevision}, 0)`;
+}
+
+export function atRevision(revision: number): SQL {
+  return sql`${revisionOf()} = ${revision}`;
+}
+
 export function unitAdvanced(db: Database, id: number, cursor: number | null, revision: number) {
   return db
     .update(proposals)
-    .set({ cursor, unitRevision: revision })
+    .set({ cursor, unitRevision: revision, failedRuns: null })
     .where(and(eq(proposals.id, id), eq(proposals.state, MOVES.apply.to)));
+}
+
+export function unitFailed(db: Database, id: number, revision: number) {
+  return db
+    .update(proposals)
+    .set({ failedRuns: sql`coalesce(${proposals.failedRuns}, 0) + 1` })
+    .where(and(eq(proposals.id, id), eq(proposals.state, MOVES.apply.to), atRevision(revision)));
 }
 
 export function removedOpen(db: Database, ...conditions: readonly Readonly<SQLWrapper>[]) {
@@ -212,6 +227,7 @@ export function proposalRow<Kind extends ProposalKind>(
     cursor: sql<null>`null`.as("cursor"),
     moved: sql<null>`null`.as("moved"),
     unitRevision: sql<null>`null`.as("unit_revision"),
+    failedRuns: sql<null>`null`.as("failed_runs"),
     highlightId: sql<number | null>`${subjects.highlightId ?? NONE}`.as("highlight_id"),
     topicId: sql<number | null>`${subjects.topicId ?? NONE}`.as("topic_id"),
     fromItemId: sql<number | null>`${subjects.fromItemId ?? NONE}`.as("from_item_id"),

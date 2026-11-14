@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { mergesOf } from "./lost-highlight-fixtures.ts";
 import { script } from "./pin-fixtures.ts";
 import { exec, paste } from "./related-fixtures.ts";
 import {
@@ -203,6 +205,46 @@ describe("the sweep stage continues an accepting Topic row and frees its leases 
 
     assert.equal(count(instance, "select count(*) as n from proposals"), 0);
     assert.deepEqual(await topicMergeLines(instance), ["Loser into Survivor | 1 Items"]);
+    assert.equal(heldLeases(instance), 0);
+  });
+
+  it("counts each run of the merges stage whose unit fails, shows the count on the Proposals page, and finishes once the cause is gone", async () => {
+    await paste(instance, "second", { title: "Second", topic: "Second" });
+    const second = proposeTopics(instance, ["Second", "Survivor"], "accepting");
+    exec(instance, "update proposals set moved = 0, unit_revision = 1 where id = ?", second);
+    exec(
+      instance,
+      "insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('topic-merge', 'second', 'Second', ?, 1)",
+      survivor,
+    );
+    script(
+      instance,
+      "create trigger test_on_pin before insert on pins begin select raise(abort, 'the unit fails'); end;",
+    );
+
+    const failedRuns = (): number =>
+      count(instance, "select coalesce(failed_runs, 0) as n from proposals where id = ?", second);
+
+    const failingSweep = async (runs: number): Promise<void> => {
+      await assert.rejects(sweep(instance), /the unit fails/u);
+
+      assert.equal(failedRuns(), runs);
+    };
+
+    await failingSweep(1);
+    await failingSweep(2);
+    await failingSweep(3);
+
+    const page = await instance.read("GET", "/api/proposals", ProposalPageSchema);
+
+    assert.deepEqual(
+      mergesOf(page).map(({ id, state, failedRuns: shown }) => [id, state, shown]),
+      [[second, "accepting", 3]],
+    );
+    script(instance, "drop trigger test_on_pin");
+    await sweep(instance);
+
+    assert.equal(count(instance, "select count(*) as n from proposals"), 0);
     assert.equal(heldLeases(instance), 0);
   });
 });

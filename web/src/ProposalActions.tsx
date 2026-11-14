@@ -9,7 +9,9 @@ import {
   PROPOSAL_WORDS,
   acceptLabel,
   acceptRetryLabel,
+  applyFailedNote,
   isAcceptable,
+  isMerge,
   rejectLabel,
   rejectRetryLabel,
 } from "./proposals-text.ts";
@@ -40,8 +42,23 @@ const BUSY_NOTES = {
   "no-provider": PROPOSAL_WORDS.noProvider,
 } as const satisfies Record<Busy, string>;
 
-function Notes({ row, applying }: Readonly<{ row: RowState; applying: boolean }>) {
-  if (applying) return <Note alert={false}>{PROPOSAL_WORDS.applying}</Note>;
+function ApplyingNotes({ proposal }: Readonly<{ proposal: Proposal }>) {
+  return (
+    <>
+      <Note alert={false}>{PROPOSAL_WORDS.applying}</Note>
+      {isMerge(proposal) && proposal.failedRuns > 0 && (
+        <p className="rd-note">{applyFailedNote(proposal.failedRuns)}</p>
+      )}
+    </>
+  );
+}
+
+function Notes({
+  proposal,
+  row,
+  applying,
+}: Readonly<{ proposal: Proposal; row: RowState; applying: boolean }>) {
+  if (applying) return <ApplyingNotes proposal={proposal} />;
 
   switch (row.kind) {
     case "failed":
@@ -98,7 +115,7 @@ export function Actions({ proposal, row, accept, reject }: Readonly<RowControls>
       >
         {failure === "reject" ? RETRY_LABEL : PROPOSAL_WORDS.reject}
       </button>
-      <Notes row={row} applying={applying} />
+      <Notes proposal={proposal} row={row} applying={applying} />
     </div>
   );
 }

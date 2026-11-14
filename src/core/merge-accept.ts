@@ -3,11 +3,12 @@ import { type SQL, and, asc, eq, sql } from "drizzle-orm";
 import { guardedResults } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
+import { recordedFailure, releasedAfterFailure } from "./merge-failure.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
-import type { MergeRow } from "./merge-unit.ts";
-import { anyAccepting, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
+import type { MergeRow, MergeUnit } from "./merge-unit.ts";
+import { anyAccepting, atRevision, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
-import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
+import { leaseHolds, releaseTopicLease } from "./topic-lease.ts";
 
 const UNITS_PER_ACCEPT = 50;
 
@@ -27,7 +28,7 @@ function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
     case "open":
       return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'open') and not ${anyAccepting()}`;
     case "accepting":
-      return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'accepting' and coalesce(${proposals.unitRevision}, 0) = ${row.revision})`;
+      return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'accepting' and ${atRevision(row.revision)})`;
     case "rejected":
     case "declined":
       return sql`false`;
@@ -41,11 +42,13 @@ function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
 
 type Outcome = "ran" | "lost" | "busy";
 
-async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Promise<Outcome> {
+async function applyUnit(
+  ports: JobPorts,
+  id: number,
+  row: Readonly<MergeRow>,
+  unit: Readonly<MergeUnit>,
+): Promise<Outcome> {
   const { db } = ports;
-  const unit = await MERGES[row.kind].plan(db, id, row);
-
-  if (unit === "busy" || unit === "lost") return unit;
 
   const head = [
     unitApplied(db, id, unit.moving),
@@ -62,7 +65,7 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
     const results = await guardedResults(db, holds, writes);
 
     if (results === null) {
-      await releaseTopicLeases(db, unit.leases);
+      await releasedAfterFailure(db, id, unit.leases);
 
       return "lost";
     }
@@ -74,7 +77,19 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
 
     return "ran";
   } catch (error) {
-    await releaseTopicLeases(db, unit.leases);
+    await releasedAfterFailure(db, id, unit.leases);
+
+    throw error;
+  }
+}
+
+async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Promise<Outcome> {
+  try {
+    const unit = await MERGES[row.kind].plan(ports.db, id, row);
+
+    return unit === "busy" || unit === "lost" ? unit : await applyUnit(ports, id, row, unit);
+  } catch (error) {
+    await recordedFailure(ports.db, id, row.revision, error);
 
     throw error;
   }

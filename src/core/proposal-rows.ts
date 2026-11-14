@@ -64,6 +64,7 @@ const PAGE_COLUMNS = {
   kind: proposals.kind,
   reason: proposals.reason,
   state: proposals.state,
+  failedRuns: sql<number>`coalesce(${proposals.failedRuns}, 0)`.as("failed_runs"),
   fromId: sql<number | null>`coalesce(${fromTag.id}, ${fromTopic.id})`.as("from_id"),
   fromName: nameOf(fromTag.name, fromTopic.name).as("from_name"),
   fromItems: itemsWith(fromTag.id, fromTopic.id).as("from_items"),

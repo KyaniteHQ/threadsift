@@ -9,7 +9,7 @@ const BUSY_TIMEOUT_MS = 5000;
 
 const SEEDED = 400;
 
-const MERGE_COLUMNS = ["cursor", "moved", "unit_revision"] as const;
+const MERGE_COLUMNS = ["cursor", "moved", "unit_revision", "failed_runs"] as const;
 
 const SUBJECTS = {
   "tag-merge": (n) => ["from_tag_id, into_tag_id", `${String(n)}, ${String(n + 1)}`],
