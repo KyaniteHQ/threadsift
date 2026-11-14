@@ -1,6 +1,7 @@
 import { type SQLWrapper, and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { givenUpTasks } from "./bot-task-states.ts";
 import { openingDigest } from "./digest-job.ts";
 import { setStatus } from "./item-status.ts";
 import { ITEM_JOB_KINDS } from "./kinds.ts";
@@ -34,6 +35,7 @@ export function closeJob(
       .update(jobs)
       .set({ ...CLOSED_JOB, attempts })
       .where(eq(jobs.id, job.id)),
+    givenUpTasks(db, job),
     ...(job.kind === "digest" ? [owedDigest(db, job.itemId)] : []),
     ...(ITEM_JOB_KINDS.some((owner) => owner === job.kind)
       ? [setStatus(db, { kind: "jobs-changed" }, eq(items.id, job.itemId))]

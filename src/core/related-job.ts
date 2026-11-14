@@ -1,6 +1,5 @@
 import { AI_DEADLINE_MS, type ModelAi } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
-import { givenUpTasks } from "./bot-task-states.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobOutcome, JobPorts, ModelHandler } from "./job-outcome.ts";
 import type { PickItem } from "./related-input.ts";
@@ -60,5 +59,5 @@ export const relatedPickHandler: ModelHandler = {
   deadlineMs: AI_DEADLINE_MS,
   blockedBy: ["digest"],
   attempt: attemptPick,
-  exhausted: (db, job) => [givenUpTasks(db, job)],
+  exhausted: () => [],
 };
