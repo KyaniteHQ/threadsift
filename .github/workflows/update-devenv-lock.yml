@@ -47,14 +47,14 @@ jobs:
           head=$(git rev-parse HEAD)
           pending=(gate bundle)
           for _ in $(seq 1 30); do
-            runs=$(gh run list --branch "$BRANCH" --event pull_request --commit "$head" --json workflowName,databaseId,status --jq '.[] | "\(.workflowName) \(.databaseId) \(.status)"')
+            runs=$(gh run list --branch "$BRANCH" --event pull_request --commit "$head" --json workflowName,databaseId,status,conclusion --jq '.[] | "\(.workflowName) \(.databaseId) \(if .conclusion == "action_required" then "held" elif .status == "in_progress" or .status == "completed" then "started" else "waiting" end)"')
             left=()
             for name in "${pending[@]}"; do
-              read -r _ run status <<< "$(grep -m1 "^$name " <<< "$runs" || true)"
-              if [[ -z $run ]]; then
-                left+=("$name")
-              elif [[ $status == action_required ]]; then
+              read -r _ run state <<< "$(grep -m1 "^$name " <<< "$runs" || true)"
+              if [[ $state == held ]]; then
                 gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run/approve"
+              elif [[ $state != started ]]; then
+                left+=("$name")
               fi
             done
             pending=("${left[@]}")
