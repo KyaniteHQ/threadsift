@@ -92,6 +92,7 @@ function logged(
 function recorded(run: Readonly<Run>, answer: Readonly<RedditAnswer>): Promise<void> {
   return recordWindow(
     run.ports.db,
+    run.held.sealed,
     {
       left: leftOf(answer.remaining),
       reset: answer.reset,
@@ -125,19 +126,19 @@ async function sessionAnswered(
   if (verdict.answer !== null) await recorded(run, verdict.answer);
 
   if (verdict.verdict === "logged-out") {
-    await expireAccount(ports, Date.now());
+    await expireAccount(ports, held.sealed, Date.now());
 
     return "logged-out";
   }
 
   if (verdict.verdict === "ok") {
-    await clearRefusals(ports.db);
+    await clearRefusals(ports.db, held.sealed);
 
     return "refused";
   }
 
   if (verdict.verdict === "blocked" && verdict.answer?.status === FORBIDDEN) {
-    return (await countRefusal(ports, held.jobId, Date.now())) === "expired"
+    return (await countRefusal(ports, held.sealed, held.jobId, Date.now())) === "expired"
       ? "logged-out"
       : "refused";
   }
@@ -175,6 +176,7 @@ async function waitForWindow(
 ): Promise<AccountThread> {
   await recordWindow(
     run.ports.db,
+    run.held.sealed,
     { left: 0, reset: first.reset, retryAfter: null, limited: false },
     Date.now(),
   );
@@ -202,6 +204,7 @@ async function filledThread(
 
   await recordWindow(
     run.ports.db,
+    run.held.sealed,
     {
       left: filled.window.left,
       reset: filled.last.reset ?? null,
@@ -240,7 +243,7 @@ async function afterFirst(
     return FALLBACK;
   }
 
-  await clearRefusals(run.ports.db);
+  await clearRefusals(run.ports.db, run.held.sealed);
 
   return windowFits(first.remaining, hidden)
     ? filledThread(run, first, hidden)

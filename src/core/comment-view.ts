@@ -155,14 +155,19 @@ function nodeOf(row: Readonly<CommentRow>): CommentNode {
 
 function viewOf(
   { published, digest }: Readonly<Pick<ThreadReport, "published" | "digest">>,
-  { shown, total }: Readonly<{ shown: number; total: number }>,
+  {
+    shown,
+    kept,
+    received,
+    total,
+  }: Readonly<{ shown: number; kept: number; received: number; total: number }>,
 ): CommentsFilter {
-  if (total === 0) return { filter: "absent" };
+  if (received === 0) return { filter: "absent" };
 
   if (published) {
     const count = { filter: "kept", shown, total } as const;
 
-    return shown === 0 ? { filter: "nothing-kept", count } : { filter: "kept", count };
+    return kept === 0 ? { filter: "nothing-kept", count } : { filter: "kept", count };
   }
 
   if (shown === 0) return { filter: "removed" };
@@ -180,11 +185,14 @@ export function commentsViewOf(
 ): CommentsView {
   const shown = shownIds(rows);
   const comments = rows.filter((row) => row.kind === "comment");
+  const kept = comments.filter((row) => row.kept).length;
 
   const view = viewOf(
     { published, digest },
     {
       shown: comments.filter((row) => row.readable).length,
+      kept,
+      received: comments.length,
       total: Math.max(reported ?? 0, comments.length),
     },
   );
@@ -193,7 +201,7 @@ export function commentsViewOf(
     reported,
     archive,
     received: comments.length,
-    kept: comments.filter((row) => row.kept).length,
+    kept,
     nodes:
       view.filter === "removed"
         ? []

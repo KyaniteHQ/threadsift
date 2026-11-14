@@ -9,6 +9,7 @@ import {
 } from "./reddit-account-contract.ts";
 import {
   accountRow,
+  clearRefusals,
   connectAccount,
   disconnectAccount,
   expireAccount,
@@ -177,13 +178,14 @@ export async function verifyRedditAccount(
 
   const { verdict, answer } = await checkSession(ports, session, signal);
 
-  await settledVerdict(ports, verdict, answer);
+  await settledVerdict(ports, row.sealedSession, verdict, answer);
 
   return verdict;
 }
 
 async function settledVerdict(
   ports: Readonly<VerifyPorts>,
+  sealedSession: string,
   verdict: SessionVerdict,
   answer: Readonly<RedditAnswer> | null,
 ): Promise<void> {
@@ -192,6 +194,7 @@ async function settledVerdict(
   if (answer !== null) {
     await recordWindow(
       ports.db,
+      sealedSession,
       {
         left: leftOf(answer.remaining),
         reset: answer.reset,
@@ -202,7 +205,10 @@ async function settledVerdict(
     );
   }
 
-  if (verdict === "logged-out") await expireAccount(ports, now);
+  if (verdict === "logged-out") await expireAccount(ports, sealedSession, now);
 
-  if (verdict === "ok") await restoreAccount(ports.db, now);
+  if (verdict === "ok") {
+    await restoreAccount(ports.db, sealedSession, now);
+    await clearRefusals(ports.db, sealedSession);
+  }
 }
