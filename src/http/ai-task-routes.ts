@@ -4,8 +4,8 @@ import type { Context } from "hono";
 import { TaskReadSchema, readableTask } from "../core/ai-task-read.ts";
 import { BotAnswerSchema, acceptBotAnswer } from "../core/bot-answer.ts";
 import type { Ports } from "../core/ports.ts";
-import { acceptIntake } from "../core/x-intake-answer.ts";
-import { IntakeAnswerSchema } from "../core/x-intake-contract.ts";
+import { acceptIntake, refusedIntake } from "../core/x-intake-answer.ts";
+import { IntakeAnswerSchema, refusedBodyOf } from "../core/x-intake-contract.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 import { CREDENTIAL_ONLY, CREDENTIAL_REQUIRED, taskCredential } from "./task-credential.ts";
@@ -81,7 +81,7 @@ const intakeRoute = createRoute({
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      `The task is not an X link task (\`${UNSUPPORTED_TASK}\`); the body is neither \`{ "content": <text>, "digest"?: <Digest> }\` nor \`{ "unavailable": true }\`; or \`content\` is not an X thread JSON text of the task's post, with the reasons in \`error\`. The task stays open, so the bot can answer again.`,
+      `The task is not an X link task (\`${UNSUPPORTED_TASK}\`); the body is neither \`{ "content": <text>, "digest"?: <Digest> }\` nor \`{ "unavailable": true }\`; or \`content\` is not an X thread JSON text of the task's post, with the reasons in \`error\`. The task stays open, so the bot can answer again. The second refusal of one send moves the task's deadline to now, so the same deadline transition runs: the task fails as a timeout and the next send follows at the job's retry delay.`,
     ),
     ...CREDENTIAL_REFUSALS,
     409: jsonBody(
@@ -147,8 +147,33 @@ export function registerAiTaskRoutes(app: OpenAPIHono, ports: Ports): void {
   registerRead(app, ports);
   app.use("/api/ai-tasks/:id/result", taskCredential(ports));
   app.use("/api/ai-tasks/:id/intake", taskCredential(ports));
-  app.openapi(intakeRoute, async (c) =>
-    answered(c, await acceptIntake(ports, c.get("callbackTask"), c.req.valid("json"))),
+  app.use("/api/ai-tasks/:id/intake", async (c, next) => {
+    await next();
+
+    if (c.res.status === 400) {
+      await refusedIntake(
+        ports,
+        c.get("callbackTask"),
+        c.get("intakeRefusal") ?? "unreadable-body",
+      );
+    }
+  });
+  app.openapi(
+    intakeRoute,
+    async (c) => {
+      const outcome = await acceptIntake(ports, c.get("callbackTask"), c.req.valid("json"));
+
+      if (outcome.kind === "invalid") c.set("intakeRefusal", outcome.logged);
+
+      return answered(c, outcome);
+    },
+    (result, c) => {
+      const refusal = result.success ? null : refusedBodyOf(result.error);
+
+      if (refusal !== null) c.set("intakeRefusal", refusal.logged);
+
+      return refusal === null ? undefined : c.json({ error: refusal.error }, 400);
+    },
   );
   app.openapi(resultRoute, async (c) => {
     const body = c.req.valid("json");

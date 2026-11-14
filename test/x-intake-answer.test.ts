@@ -14,7 +14,7 @@ import {
   oversizedAnswerOf,
 } from "./x-intake-bodies.ts";
 import { intakeTo, sentIntake, sentIntakeForContent } from "./x-intake-fixtures.ts";
-import { itemRow, stored, verificationRow } from "./x-intake-rows.ts";
+import { PUBLISHED_TABLES, itemRow, stored, verificationRow } from "./x-intake-rows.ts";
 
 describe("an X link answer with the task's credential is stored once and only for the task it was sent for", () => {
   let instance: Instance;
@@ -139,7 +139,7 @@ describe("an X link answer with the task's credential is stored once and only fo
     assert.match(await wrongKind.text(), /unsupported-task/u);
 
     const task = await sentIntake(instance);
-    const unchanged = stored(instance);
+    const unchanged = stored(instance, PUBLISHED_TABLES);
 
     const bodies = [
       { content: "not json" },
@@ -155,7 +155,7 @@ describe("an X link answer with the task's credential is stored once and only fo
     );
 
     assert.deepEqual(statuses, [400, 400, 400, 400, 400, 400]);
-    assert.equal(stored(instance), unchanged);
+    assert.equal(stored(instance, PUBLISHED_TABLES), unchanged);
     assert.equal(taskRow(instance, task.id).state, "running");
   });
 

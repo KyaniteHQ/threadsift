@@ -146,7 +146,7 @@ export async function renewedCredential(
 ): Promise<boolean> {
   const [renewed] = await db
     .update(aiTasks)
-    .set({ callbackHash })
+    .set({ callbackHash, answerRefusals: 0 })
     .where(
       and(
         eq(aiTasks.id, taskId),

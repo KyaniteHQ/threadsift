@@ -5,6 +5,7 @@ import type { ParsedThread, ThreadParse } from "./reddit-json.ts";
 import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
 import { type XReply, type XThreadValue, XThreadSchema } from "./x-wire.ts";
+import { fieldNamesOf, issueCodesOf } from "./zod-reasons.ts";
 
 const TITLE_CHARACTERS = 120;
 
@@ -37,26 +38,6 @@ function postTitle(text: string): string {
     .slice(0, space > 0 ? space : TITLE_CHARACTERS)
     .join("")
     .trimEnd();
-}
-
-function readThread(answer: string): XThreadValue {
-  try {
-    const parsed = XThreadSchema.safeParse(JSON.parse(answer));
-
-    if (parsed.success) return parsed.data;
-
-    const [issue] = parsed.error.issues;
-
-    const detail = [issue?.path.join("."), issue?.message]
-      .filter((part) => part !== undefined && part !== "")
-      .join(" ");
-
-    return refuse(`the content is not an X thread: ${detail}`);
-  } catch (error) {
-    if (error instanceof SyntaxError) return refuse(NOT_READABLE);
-
-    throw error;
-  }
 }
 
 function checkedReplies(postId: string, replies: readonly XReply[]): void {
@@ -219,14 +200,40 @@ export function parseXThreadValue(thread: XThreadValue, statusId: string): Threa
   return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
 }
 
-export function readXThreadValue(
-  answer: string,
-):
-  | { readonly kind: "value"; readonly value: XThreadValue }
-  | { readonly kind: "refused"; readonly reason: string } {
-  const read = refusing(() => readThread(answer));
+const THREAD_FIELDS = fieldNamesOf(XThreadSchema);
 
-  return read.kind === "read" ? { kind: "value", value: read.value } : read;
+type ThreadRead =
+  | { readonly kind: "value"; readonly value: XThreadValue }
+  | { readonly kind: "refused"; readonly reason: string; readonly logged: string };
+
+export function readXThreadValue(answer: string): ThreadRead {
+  let json: unknown;
+
+  try {
+    json = JSON.parse(answer);
+  } catch (error) {
+    if (error instanceof SyntaxError || error instanceof RangeError) {
+      return { kind: "refused", reason: NOT_READABLE, logged: "not-json" };
+    }
+
+    throw error;
+  }
+
+  const parsed = XThreadSchema.safeParse(json);
+
+  if (parsed.success) return { kind: "value", value: parsed.data };
+
+  const [issue] = parsed.error.issues;
+
+  const detail = [issue?.path.join("."), issue?.message]
+    .filter((part) => part !== undefined && part !== "")
+    .join(" ");
+
+  return {
+    kind: "refused",
+    reason: `the content is not an X thread: ${detail}`,
+    logged: issueCodesOf(parsed.error, THREAD_FIELDS),
+  };
 }
 
 export function parseXThread(answer: string, statusId: string): ThreadParse {

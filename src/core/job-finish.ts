@@ -130,7 +130,9 @@ export async function exhaust(
 function dueAt(until: number, closedTask: number | undefined): number | SQL {
   if (closedTask === undefined) return until;
 
-  return sql`case when exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${closedTask} and (${aiTasks.answeredAt} is not null or ${aiTasks.state} <> 'running')) then ${Date.now()} else ${until} end`;
+  const now = Date.now();
+
+  return sql`case when exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${closedTask} and (${aiTasks.answeredAt} is not null or ${aiTasks.state} <> 'running')) then ${now} else min(${until}, coalesce((select ${aiTasks.deadline} from ${aiTasks} where ${aiTasks.id} = ${closedTask}), ${until})) end`;
 }
 
 export async function queueLater(
@@ -171,7 +173,12 @@ export async function queueLater(
   ]);
 
   if (wrote) {
-    await enqueueQuietly(ports, [job.id], Math.max(0, until - Date.now()));
+    const [due] = await ports.db
+      .select({ at: jobs.nextAttemptAt })
+      .from(jobs)
+      .where(eq(jobs.id, job.id));
+
+    await enqueueQuietly(ports, [job.id], Math.max(0, (due?.at ?? until) - Date.now()));
   } else {
     logClaimLost(job);
     await closing.afterClosed?.(ports, job, false);

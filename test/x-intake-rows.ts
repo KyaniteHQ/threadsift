@@ -72,3 +72,14 @@ export function commentCount(instance: Instance, itemId: number): number {
     )[0]?.n ?? -1
   );
 }
+
+export function refusalsOf(instance: Instance, id: number): number {
+  return (
+    rows(
+      instance,
+      z.object({ refusals: z.number() }),
+      "select answer_refusals as refusals from ai_tasks where id = ?",
+      id,
+    )[0]?.refusals ?? -1
+  );
+}
