@@ -230,13 +230,14 @@ export function reportedWrites(
 export async function chargedReport(
   db: Database,
   job: Readonly<Held>,
-  taskId: number,
+  { taskId, release }: Readonly<{ taskId: number; release: readonly BatchItem<"sqlite">[] }>,
 ): Promise<void> {
   await guardedBatch(db, holding(job), [
     db
       .update(aiTasks)
       .set({ answeredAt: null })
       .where(and(eq(aiTasks.id, taskId), REPORTED_ERROR)),
+    ...release,
   ]);
 }
 

@@ -192,7 +192,11 @@ export async function botStep(
 
   if (task === null || step === "start") return startStep(ports, job, kind);
 
-  if (step !== "apply" && !(await kind.current(ports.db, task.context ?? ""))) {
+  if (
+    step !== "apply" &&
+    step !== "charge" &&
+    !(await kind.current(ports.db, task.context ?? ""))
+  ) {
     return lostOutcome(ports.db, { taskId: task.id, cleanup: kind.release(ports.db, job) });
   }
 
@@ -206,7 +210,7 @@ export async function botStep(
     case "expire":
       return expireStep(ports, job, { kind, task });
     case "charge":
-      await chargedReport(ports.db, job, task.id);
+      await chargedReport(ports.db, job, { taskId: task.id, release: kind.release(ports.db, job) });
 
       throw new Error("The Grok Bot reported an error for the task");
     default: {
