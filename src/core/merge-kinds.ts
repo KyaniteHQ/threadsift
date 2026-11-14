@@ -5,6 +5,7 @@ import { type CatalogKind, TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
 import { MERGE_KINDS } from "./kinds.ts";
 import type { MergeRow, PlanUnit } from "./merge-unit.ts";
 import type { Database } from "./ports.ts";
+import { revisionOf } from "./proposal-lifecycle.ts";
 import { knownProposal, proposals, tags, topics } from "./schema.ts";
 import { planTagUnit } from "./tag-merge-unit.ts";
 import { planTopicUnit } from "./topic-merge-unit.ts";
@@ -30,7 +31,7 @@ export async function readRow(db: Database, id: number): Promise<MergeRow | unde
       kind: proposals.kind,
       state: proposals.state,
       cursor: proposals.cursor,
-      revision: sql<number>`coalesce(${proposals.unitRevision}, 0)`.as("revision"),
+      revision: sql<number>`${revisionOf()}`.as("revision"),
       fromId: sql<number>`coalesce(${fromTag.id}, ${fromTopic.id})`.as("from_id"),
       fromKey: sql<string>`coalesce(${fromTag.key}, ${fromTopic.key})`.as("from_key"),
       fromName: sql<string>`coalesce(${fromTag.name}, ${fromTopic.name})`.as("from_name"),

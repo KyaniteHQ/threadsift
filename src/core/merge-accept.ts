@@ -4,8 +4,14 @@ import { guardedResults } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
-import type { MergeRow } from "./merge-unit.ts";
-import { anyAccepting, unitAdvanced, unitApplied, unitFailed } from "./proposal-lifecycle.ts";
+import type { MergeRow, MergeUnit } from "./merge-unit.ts";
+import {
+  anyAccepting,
+  atRevision,
+  unitAdvanced,
+  unitApplied,
+  unitFailed,
+} from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
 import { leaseHolds, releaseTopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
@@ -27,7 +33,7 @@ function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
     case "open":
       return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'open') and not ${anyAccepting()}`;
     case "accepting":
-      return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'accepting' and coalesce(${proposals.unitRevision}, 0) = ${row.revision})`;
+      return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'accepting' and ${atRevision(row.revision)})`;
     case "rejected":
     case "declined":
       return sql`false`;
@@ -41,11 +47,13 @@ function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
 
 type Outcome = "ran" | "lost" | "busy";
 
-async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Promise<Outcome> {
+async function applyUnit(
+  ports: JobPorts,
+  id: number,
+  row: Readonly<MergeRow>,
+  unit: Readonly<MergeUnit>,
+): Promise<Outcome> {
   const { db } = ports;
-  const unit = await MERGES[row.kind].plan(db, id, row);
-
-  if (unit === "busy" || unit === "lost") return unit;
 
   const head = [
     unitApplied(db, id, unit.moving),
@@ -80,13 +88,11 @@ async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Pr
   }
 }
 
-async function continuedUnit(
-  ports: JobPorts,
-  id: number,
-  row: Readonly<MergeRow>,
-): Promise<Outcome> {
+async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Promise<Outcome> {
   try {
-    return await runUnit(ports, id, row);
+    const unit = await MERGES[row.kind].plan(ports.db, id, row);
+
+    return unit === "busy" || unit === "lost" ? unit : await applyUnit(ports, id, row, unit);
   } catch (error) {
     await unitFailed(ports.db, id, row.revision);
 
@@ -105,7 +111,7 @@ async function continueMerge(
 
   if (budget === 0) return "accepting";
 
-  if ((await continuedUnit(ports, id, row)) === "busy") return "accepting";
+  if ((await runUnit(ports, id, row)) === "busy") return "accepting";
 
   return continueMerge(ports, id, budget - 1);
 }

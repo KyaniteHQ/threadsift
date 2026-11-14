@@ -69,6 +69,14 @@ export function unitApplied(db: Database, id: number, moving: Readonly<SQLWrappe
     .where(and(eq(proposals.id, id), inArray(proposals.state, MOVES.apply.from)));
 }
 
+export function revisionOf(): SQL {
+  return sql`coalesce(${proposals.unitRevision}, 0)`;
+}
+
+export function atRevision(revision: number): SQL {
+  return sql`${revisionOf()} = ${revision}`;
+}
+
 export function unitAdvanced(db: Database, id: number, cursor: number | null, revision: number) {
   return db
     .update(proposals)
@@ -80,13 +88,7 @@ export function unitFailed(db: Database, id: number, revision: number) {
   return db
     .update(proposals)
     .set({ failedRuns: sql`coalesce(${proposals.failedRuns}, 0) + 1` })
-    .where(
-      and(
-        eq(proposals.id, id),
-        eq(proposals.state, MOVES.apply.to),
-        sql`coalesce(${proposals.unitRevision}, 0) = ${revision}`,
-      ),
-    );
+    .where(and(eq(proposals.id, id), eq(proposals.state, MOVES.apply.to), atRevision(revision)));
 }
 
 export function removedOpen(db: Database, ...conditions: readonly Readonly<SQLWrapper>[]) {
