@@ -34,7 +34,7 @@ const saveItemRoute = createRoute({
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
     ...scopeRefusal("POST", "/api/items", PASTE_DIGEST_SCOPE),
-    ...budgetRefusal,
+    ...budgetRefusal("Nothing is saved."),
     201: jsonBody(
       SavedItemResponseSchema,
       "The link was new and is now an Item. The Item is `processing` until its fetch and Digest jobs end. Read `GET /api/items/{id}/status` until `status` leaves `processing`. A short link that cannot be resolved answers with its end state.",
