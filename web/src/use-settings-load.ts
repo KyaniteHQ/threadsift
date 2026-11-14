@@ -10,8 +10,6 @@ import { fetchRedditSettings } from "./reddit-api.ts";
 import type { Loaded, SettingsLoad } from "./settings-load-types.ts";
 import { fetchXSettings } from "./x-api.ts";
 
-export const SETTINGS_READ_MS = 20_000;
-
 async function settled<View>(
   load: (signal: AbortSignal) => Promise<View>,
   signal: AbortSignal,
@@ -33,7 +31,10 @@ export function useLoaded<View>(initial: Loaded<View>) {
   return { loaded, ready };
 }
 
-export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLoad | null {
+export function useSettingsLoad(
+  page: RefObject<HTMLElement | null>,
+  waitMs: number,
+): SettingsLoad | null {
   const [loaded, setLoaded] = useState<SettingsLoad | null>(null);
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLo
 
     const deadline = window.setTimeout(() => {
       controller.abort();
-    }, SETTINGS_READ_MS);
+    }, waitMs);
 
     const load = async (): Promise<void> => {
       const { signal } = controller;
@@ -70,7 +71,7 @@ export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLo
       window.clearTimeout(deadline);
       controller.abort();
     };
-  }, [page]);
+  }, [page, waitMs]);
 
   return loaded;
 }

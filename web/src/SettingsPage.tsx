@@ -2,9 +2,10 @@ import { useCallback, useRef, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
+import { READ_DEADLINE_MS } from "./calls.ts";
 import { PageBar } from "./PageBar.tsx";
 import { SettingsSections } from "./SettingsSections.tsx";
-import { SETTINGS_READ_MS, useSettingsLoad } from "./use-settings-load.ts";
+import { useSettingsLoad } from "./use-settings-load.ts";
 
 function Loading() {
   return (
@@ -21,7 +22,7 @@ export function SettingsPage({
   loggedOut,
 }: Readonly<{ back: () => void; loggedOut: () => void }>) {
   const column = useRef<HTMLElement>(null);
-  const loaded = useSettingsLoad(column);
+  const loaded = useSettingsLoad(column, READ_DEADLINE_MS);
 
   const [failed, setFailed] = useState(false);
 
@@ -34,7 +35,7 @@ export function SettingsPage({
 
   return (
     <div className="pg">
-      <PageBar title={SETTINGS.title} back={back} faceWaitMs={SETTINGS_READ_MS} />
+      <PageBar title={SETTINGS.title} back={back} faceWaitMs={READ_DEADLINE_MS} />
       <main ref={column} className="pg-col" aria-busy={loaded === null}>
         {loaded === null ? (
           <Loading />

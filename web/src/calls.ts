@@ -24,7 +24,17 @@ interface OkCall extends Call {
   readonly tolerates?: readonly number[];
 }
 
+export const READ_DEADLINE_MS = 20_000;
+
 const JSON_HEADERS = { "content-type": "application/json" } as const;
+
+function signalOf(method: Method, caller: AbortSignal | undefined): AbortSignal | undefined {
+  if (method !== "GET") return caller;
+
+  const deadline = AbortSignal.timeout(READ_DEADLINE_MS);
+
+  return caller === undefined ? deadline : AbortSignal.any([caller, deadline]);
+}
 
 export async function call(
   method: Method,
@@ -34,7 +44,8 @@ export async function call(
   const init: RequestInit =
     json === undefined ? { method } : { method, headers: JSON_HEADERS, body: JSON.stringify(json) };
 
-  const response = await fetch(path, signal === undefined ? init : { ...init, signal });
+  const limit = signalOf(method, signal);
+  const response = await fetch(path, limit === undefined ? init : { ...init, signal: limit });
 
   if (signsOut && response.status === 401) {
     announceUnauthorized();
