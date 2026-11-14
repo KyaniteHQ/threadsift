@@ -1,6 +1,6 @@
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import { type Filters, isEmptyResult, queryOf } from "./filters.ts";
+import { isEmptyResult } from "./filters.ts";
 import { countedWith } from "./list-counts.ts";
 import { type More, newer } from "./list-paging.ts";
 
@@ -24,8 +24,8 @@ export type ListState =
 
 export type Ready = Extract<ListState, { readonly status: "ready" }>;
 
-export function readFor(list: Readonly<ListState>, filters: Readonly<Filters>): list is Ready {
-  return list.status === "ready" && list.query === queryOf(filters);
+export function readFor(list: Readonly<ListState>, query: string): list is Ready {
+  return list.status === "ready" && list.query === query;
 }
 
 export function hasRows(list: Readonly<ListState>): boolean {
@@ -157,7 +157,7 @@ export function loaded(
 }
 
 export function continues(list: Readonly<ListState>, query: string, cursor: string): list is Ready {
-  return list.status === "ready" && list.query === query && list.next === cursor;
+  return readFor(list, query) && list.next === cursor;
 }
 
 export interface Page {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { within } from "./deadline.ts";
 import type { Ports } from "./ports.ts";
 import {
   REDDIT_SESSION_INVALID,
@@ -147,11 +148,7 @@ export async function checkSession(
 
   try {
     const answer = await answerOf(
-      await redditSession.get(
-        ME_PATH,
-        cookie,
-        signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
-      ),
+      await redditSession.get(ME_PATH, cookie, within(signal, deadline)),
     );
 
     return { verdict: verdictOf(answer), answer };

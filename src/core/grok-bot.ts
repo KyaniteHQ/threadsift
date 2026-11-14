@@ -1,5 +1,6 @@
 import { and, eq, exists, sql } from "drizzle-orm";
 
+import { within } from "./deadline.ts";
 import {
   GROK_BOT_PING_KIND,
   type GrokBotInput,
@@ -169,10 +170,6 @@ function resultOfFailure(
   return reason ?? "unreachable";
 }
 
-function anySignal(deadline: AbortSignal, signal: AbortSignal | undefined): AbortSignal {
-  return signal === undefined ? deadline : AbortSignal.any([signal, deadline]);
-}
-
 async function discarded(body: AsyncIterable<Uint8Array>): Promise<void> {
   let seen = 0;
 
@@ -225,7 +222,7 @@ export async function postToGrokBot(
   const deadline = AbortSignal.timeout(HOP_DEADLINE_MS);
 
   try {
-    const response = await network.post(row.webhookUrl, body, anySignal(deadline, signal), {
+    const response = await network.post(row.webhookUrl, body, within(signal, deadline), {
       "content-type": "application/json",
       authorization: `Bearer ${key}`,
       "x-automation-key": key,

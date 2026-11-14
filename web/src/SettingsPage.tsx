@@ -22,7 +22,7 @@ export function SettingsPage({
   loggedOut,
 }: Readonly<{ back: () => void; loggedOut: () => void }>) {
   const column = useRef<HTMLElement>(null);
-  const loaded = useSettingsLoad(column, READ_DEADLINE_MS);
+  const loaded = useSettingsLoad(column);
 
   const [failed, setFailed] = useState(false);
 

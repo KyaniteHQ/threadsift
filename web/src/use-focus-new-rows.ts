@@ -2,6 +2,11 @@ import { type RefObject, useCallback, useEffect, useRef } from "react";
 
 import type { More } from "./list-paging.ts";
 
+export interface LoadedRows {
+  readonly count: number;
+  readonly more: More;
+}
+
 interface Waiting {
   readonly from: number;
   readonly origin: Element | null;
@@ -9,7 +14,7 @@ interface Waiting {
 
 export function useFocusNewRows(
   list: RefObject<HTMLElement | null>,
-  { count, more }: Readonly<{ count: number; more: More }>,
+  { count, more }: Readonly<LoadedRows>,
   link: string,
 ): (from: number | null) => void {
   const waiting = useRef<Waiting | null>(null);

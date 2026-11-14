@@ -15,7 +15,14 @@ import { type Filters, queryOf } from "./filters.ts";
 import type { Stamps } from "./item-polling.ts";
 import { useMore } from "./list-more.ts";
 import { newer } from "./list-paging.ts";
-import { type Answer, type ListState, failedList, type Page, loaded } from "./list-state.ts";
+import {
+  type Answer,
+  type ListState,
+  failedList,
+  type Page,
+  loaded,
+  readFor,
+} from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
 
 type SetList = Dispatch<SetStateAction<ListState>>;
@@ -95,14 +102,20 @@ function useRecount(wiring: Readonly<Wiring>, reload: () => void, filters: Reado
         const answer = await fetchItems(filtersNow.current).catch(() => null);
         const unchanged = stamps.changedSince(request.startedAt).length === 0;
 
-        if (answer === null) reload();
-        else if (requests.isCurrent(request)) {
-          if (!unchanged) await run();
-          else if (requests.claimCounts(request, unchanged)) {
-            setList((current) =>
-              current.status === "ready" ? { ...current, counts: answer.counts } : current,
-            );
-          }
+        if (answer === null) {
+          reload();
+
+          return;
+        }
+
+        if (!requests.isCurrent(request)) return;
+
+        if (!unchanged) return run();
+
+        if (requests.claimCounts(request, true)) {
+          setList((current) =>
+            current.status === "ready" ? { ...current, counts: answer.counts } : current,
+          );
         }
       };
 
@@ -118,7 +131,7 @@ interface Reach {
 }
 
 function edgeOf(list: Readonly<ListState>, asked: string): Item | undefined {
-  return list.status === "ready" && list.query === asked ? list.items.at(-1) : undefined;
+  return readFor(list, asked) ? list.items.at(-1) : undefined;
 }
 
 async function continuing(
@@ -199,9 +212,7 @@ function useListRead(
       requests.finish();
 
       if (answer === null) {
-        setList((current) =>
-          current.status === "ready" && current.query === asked ? current : failedList(current),
-        );
+        setList((current) => (readFor(current, asked) ? current : failedList(current)));
       } else {
         land(answer);
       }

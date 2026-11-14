@@ -73,15 +73,15 @@ function useLookup(
   return { lookupFailed, lookAgain };
 }
 
-function lostRow(list: ListState, filters: Seeker["filters"], attention: Attention): boolean {
+function lostRow(list: ListState, query: string, attention: Attention): boolean {
   if (attention === null || list.status !== "ready") return false;
 
-  const reloading = attention.focus && !readFor(list, filters);
+  const reloading = attention.focus && !readFor(list, query);
 
   return !reloading && !list.items.some((item) => item.id === attention.id);
 }
 
-function useOpenItem(list: ListState, filters: Seeker["filters"], { openId }: Route) {
+function useOpenItem(list: ListState, query: string, { openId }: Route) {
   const [attention, setAttention] = useState<Attention>(
     openId === null ? null : { id: openId, focus: true },
   );
@@ -90,7 +90,7 @@ function useOpenItem(list: ListState, filters: Seeker["filters"], { openId }: Ro
     setAttention(null);
   }, []);
 
-  if (lostRow(list, filters, attention)) setAttention(null);
+  if (lostRow(list, query, attention)) setAttention(null);
 
   return { attention, attend: setAttention, attended };
 }
@@ -185,11 +185,12 @@ export function useListActions(
     know: (item: Readonly<Item>) => void;
     more: () => void;
     filters: Seeker["filters"];
+    query: string;
   }>,
   pane: RefObject<HTMLElement | null>,
   route: Route,
 ) {
-  const { attention, attend: reveal, attended } = useOpenItem(list, actions.filters, route);
+  const { attention, attend: reveal, attended } = useOpenItem(list, actions.query, route);
   const { lookupFailed, lookAgain } = useLookup(list, route, actions.know);
 
   const { queue, retryItem } = usePasteQueue();

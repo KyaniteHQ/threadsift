@@ -35,8 +35,7 @@ function useMoveFocus(focus: Readonly<Focus>, done: () => void) {
 }
 
 export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: () => void }>) {
-  const { source, rowFor, announcement, finished, notice, focus, focused, press } =
-    useProposalsPage();
+  const { source, rowFor, announcement, notice, focus, focused, press } = useProposalsPage();
 
   useMoveFocus(focus, focused);
 
@@ -63,7 +62,6 @@ export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: ()
     <>
       <ListPage source={source} listing={LISTING} draw={draw} back={back} notice={notice} />
       <Announcement text={announcement.text} failed={announcement.failed} />
-      <Announcement text={finished} failed={false} />
     </>
   );
 }
