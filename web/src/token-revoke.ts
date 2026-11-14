@@ -34,9 +34,7 @@ export function reduceRevoke(flow: RevokeFlow, event: RevokeEvent): RevokeFlow {
     case "refuse":
       return isRevoking(flow, event.id, event.request) ? { kind: "failed", id: event.id } : flow;
     case "revoked":
-      return flow.kind !== "idle" && flow.id === event.id
-        ? { kind: "idle", focus: event.next }
-        : flow;
+      return askedId(flow) === event.id ? { kind: "idle", focus: event.next } : flow;
     default: {
       const exhaustive: never = event;
 
