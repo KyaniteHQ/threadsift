@@ -22,7 +22,8 @@ export type NoteAction =
       readonly sent: string;
       readonly answer: NoteSaveResult | null;
     }
-  | { readonly kind: "take-newer" };
+  | { readonly kind: "take-newer" }
+  | { readonly kind: "adopt"; readonly kept: Readonly<NoteDraft> };
 
 export function noteStart(saved: Readonly<NoteView>, kept: Readonly<NoteDraft> | null): NoteState {
   const idle = { newer: null, outcome: "idle", pending: false } as const;
@@ -83,6 +84,13 @@ export function noteReducer(state: Readonly<NoteState>, action: Readonly<NoteAct
             newer: null,
             outcome: "idle",
           };
+
+    case "adopt": {
+      const { saved, draft } = noteStart(state.saved, action.kept);
+
+      return { ...state, saved, draft };
+    }
+
     default: {
       const exhaustive: never = action;
 

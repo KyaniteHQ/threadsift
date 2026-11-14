@@ -8,14 +8,39 @@ function keyOf(itemId: number): string {
   return `threadsift.note-draft.${String(itemId)}`;
 }
 
-export function draftOf(itemId: number): NoteDraft | null {
+function parsedDraft(text: string | null): NoteDraft | null {
   try {
-    const stored = localStorage.getItem(keyOf(itemId));
-
-    return stored === null ? null : DraftSchema.parse(JSON.parse(stored));
+    return text === null ? null : DraftSchema.parse(JSON.parse(text));
   } catch {
     return null;
   }
+}
+
+export function draftOf(itemId: number): NoteDraft | null {
+  try {
+    return parsedDraft(localStorage.getItem(keyOf(itemId)));
+  } catch {
+    return null;
+  }
+}
+
+export function watchDraft(itemId: number, changed: (draft: NoteDraft) => void): () => void {
+  const key = keyOf(itemId);
+  const listeners = new AbortController();
+
+  addEventListener(
+    "storage",
+    (event) => {
+      const draft = event.key === key ? parsedDraft(event.newValue) : null;
+
+      if (draft !== null) changed(draft);
+    },
+    { signal: listeners.signal },
+  );
+
+  return () => {
+    listeners.abort();
+  };
 }
 
 export function keepDraft(itemId: number, draft: Readonly<NoteDraft> | null): void {
