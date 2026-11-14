@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This repo holds Threadsift, a reading library: paste a link, an agent keeps the useful parts and grows a small wiki of the library, read everything on one page. The first screens are designed, the tech stack is chosen and the lint and agent tooling is in place. The app is a walking skeleton: paste a link, see it in the list, on both install targets.
+This repo holds Threadsift, a reading library: paste a link, an agent keeps the useful parts and grows a small wiki of the library, read everything on one page. v1 is not released. The app runs on two install targets, a container and Cloudflare.
 
 ## Domain language: read before naming anything
 
