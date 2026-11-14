@@ -43,7 +43,7 @@ function Rows<Page extends PagedPage, Row>({
 }: Readonly<{ ready: PagedReady<Page>; loadMore: () => void } & Shown<Page, Row>>) {
   const list = useRef<HTMLOListElement>(null);
   const { length } = listing.rows(ready);
-  const expectFocus = useFocusNewRows(list, length, listing.focus);
+  const expectFocus = useFocusNewRows(list, { count: length, more: ready.more }, listing.focus);
 
   const more = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {

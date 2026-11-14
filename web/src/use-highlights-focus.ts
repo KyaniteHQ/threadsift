@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 
+import type { More } from "./list-paging.ts";
 import { NOTHING } from "./nothing.ts";
 import { focusNeighbour } from "./reveal.ts";
 import { useFocusNewRows } from "./use-focus-new-rows.ts";
@@ -27,7 +28,7 @@ export function useEntryKeys(list: RefObject<HTMLOListElement | null>): void {
 
 export function useFocusNewEntries(
   list: RefObject<HTMLOListElement | null>,
-  count: number,
+  rows: Readonly<{ count: number; more: More }>,
 ): (from: number) => void {
-  return useFocusNewRows(list, count, ENTRIES.links);
+  return useFocusNewRows(list, rows, ENTRIES.links);
 }
