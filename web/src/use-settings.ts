@@ -75,6 +75,8 @@ function useStorageSync(
   const receive = useEffectEvent((text: string | null) => {
     const next = readStored(text);
 
+    if (serialize(next) === serialize(settings)) return;
+
     if (next.layout !== settings.layout) onLayoutChange();
 
     setSettings(next);
@@ -92,6 +94,8 @@ function useStorageSync(
       },
       { signal: listeners.signal },
     );
+
+    receive(readStorage());
 
     return () => {
       listeners.abort();
