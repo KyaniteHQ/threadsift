@@ -13,6 +13,13 @@ export function applyingRows(state: Readonly<State>): readonly AcceptableProposa
     : [];
 }
 
+export function leftRows(
+  before: Readonly<State>,
+  page: Readonly<ProposalPage>,
+): readonly AcceptableProposal[] {
+  return applyingRows(before).filter(({ id }) => !page.proposals.some((each) => each.id === id));
+}
+
 interface Poll {
   readonly applying: boolean;
   readonly latest: Readonly<RefObject<Readonly<State>>>;
@@ -23,12 +30,11 @@ interface Poll {
 export function useAcceptingPoll({ applying, latest, refresh, gone }: Readonly<Poll>) {
   const poll = useCallback(async () => {
     const before = latest.current;
-    const watched = applyingRows(before);
     const page = await refresh();
 
     if (page === null) return;
 
-    const missing = watched.filter(({ id }) => !page.proposals.some((each) => each.id === id));
+    const missing = leftRows(before, page);
 
     if (missing.length > 0) gone(missing, before);
   }, [gone, latest, refresh]);
