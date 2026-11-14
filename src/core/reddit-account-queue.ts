@@ -154,8 +154,8 @@ export async function redditClosed(
   await enqueueWaiting(ports, now, "oldest");
 }
 
-export function releaseWaiting(db: Database, now: number): BatchItem<"sqlite"> {
-  return db.update(jobs).set({ nextAttemptAt: now }).where(WAITING);
+export function releaseWaiting(db: Database, now: number, also?: SQL): BatchItem<"sqlite"> {
+  return db.update(jobs).set({ nextAttemptAt: now }).where(and(WAITING, also));
 }
 
 export async function enqueueWaiting(
