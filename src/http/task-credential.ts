@@ -9,6 +9,7 @@ import { ownerHasSession } from "./session-cookie.ts";
 declare module "hono" {
   interface ContextVariableMap {
     callbackTask: BotTaskRow;
+    intakeRefusal: string;
   }
 }
 

@@ -213,6 +213,7 @@ export const aiTasks = sqliteTable(
     context: text("context"),
     sentAt: integer("sent_at"),
     answeredAt: integer("answered_at"),
+    answerRefusals: integer("answer_refusals").notNull().default(0),
   },
   (table) => [
     index("ai_tasks_item").on(table.itemId),

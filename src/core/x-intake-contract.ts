@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { DigestSchema } from "./ai-contract.ts";
+import { fieldNamesOf, issueCodesOf, reasonsOf } from "./zod-reasons.ts";
 
 export const X_INTAKE_TASK = "x_intake";
 
@@ -28,3 +29,9 @@ export const IntakeAnswerSchema = z.union([
 ]);
 
 export type IntakeAnswer = z.output<typeof IntakeAnswerSchema>;
+
+const INTAKE_FIELDS = fieldNamesOf(IntakeAnswerSchema);
+
+export function refusedBodyOf(error: z.ZodError) {
+  return { error: reasonsOf(error), logged: issueCodesOf(error, INTAKE_FIELDS) };
+}

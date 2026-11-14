@@ -17,6 +17,8 @@ export type IntakeTask = Readonly<
   }
 >;
 
+export const REFUSALS_BEFORE_RESEND = 2;
+
 export function intakeLive(task: IntakeTask) {
   return sql`${acceptsAnswer(task)} and exists (select 1 from ${jobs} where ${jobs.id} = ${task.jobId} and ${jobs.state} <> 'done') and exists (select 1 from ${items} where ${items.id} = ${task.itemId} and ${items.generation} = ${task.inputRevision})`;
 }
@@ -95,4 +97,35 @@ export async function staleIntake(
     .returning({ id: jobs.id });
 
   if (woken !== undefined) await enqueueQuietly(ports, [woken.id], 0);
+}
+
+export async function refusedAnswer(
+  db: JobPorts["db"],
+  task: IntakeTask,
+  now: number,
+): Promise<number | null> {
+  const refused = sql`${aiTasks.answerRefusals} + 1`;
+
+  const [counted] = await db.batch([
+    db
+      .update(aiTasks)
+      .set({
+        answerRefusals: refused,
+        deadline: sql`case when ${refused} >= ${REFUSALS_BEFORE_RESEND} then ${now} else ${aiTasks.deadline} end`,
+      })
+      .where(and(eq(aiTasks.id, task.id), intakeLive(task)))
+      .returning({ refusals: aiTasks.answerRefusals }),
+    db
+      .update(jobs)
+      .set({ nextAttemptAt: now })
+      .where(
+        and(
+          eq(jobs.id, task.jobId),
+          ne(jobs.state, "done"),
+          sql`exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${task.id} and ${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null and ${aiTasks.deadline} = ${now} and ${aiTasks.answerRefusals} >= ${REFUSALS_BEFORE_RESEND})`,
+        ),
+      ),
+  ]);
+
+  return counted[0]?.refusals ?? null;
 }

@@ -63,6 +63,7 @@ export async function insertTask(
           context: sql<string | null>`${task.bot?.context ?? null}`.as("context"),
           sentAt: sql<null>`null`.as("sent_at"),
           answeredAt: sql<null>`null`.as("answered_at"),
+          answerRefusals: sql<number>`0`.as("answer_refusals"),
         })
         .from(sql`(select 1)`)
         .where(sql`${condition}`),

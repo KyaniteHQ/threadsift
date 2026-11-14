@@ -143,3 +143,21 @@ export async function sentIntakeForContent(instance: Instance): Promise<IntakeTa
 
   return task;
 }
+
+export async function waitingIntake(instance: Instance): Promise<IntakeTask> {
+  const task = await sentIntake(instance);
+
+  exec(
+    instance,
+    "update jobs set state = 'queued', next_attempt_at = ?, claim_expires = null, wait_reason = 'grok-bot' where id = ?",
+    rows(
+      instance,
+      z.object({ deadline: z.number() }),
+      "select deadline from ai_tasks where id = ?",
+      task.id,
+    )[0]?.deadline ?? 0,
+    task.job.id,
+  );
+
+  return task;
+}

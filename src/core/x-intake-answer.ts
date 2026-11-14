@@ -1,13 +1,16 @@
 import { type BotTaskRow, acceptsAnswer } from "./bot-task-states.ts";
+import { logFailure, report } from "./failure-log.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { enqueueItemJobs } from "./job-rows.ts";
+import { enqueueItemJobs, enqueueQuietly } from "./job-rows.ts";
 import { statusIdOf } from "./links.ts";
 import { X_INTAKE_TASK, type IntakeAnswer } from "./x-intake-contract.ts";
 import {
   type IntakeTask,
+  REFUSALS_BEFORE_RESEND,
   intakeItem,
   intakeLive,
+  refusedAnswer,
   staleIntake,
   storedIntake,
   unavailableIntake,
@@ -18,9 +21,11 @@ type IntakeOutcome =
   | { readonly kind: "accepted" }
   | { readonly kind: "unsupported" }
   | { readonly kind: "closed" }
-  | { readonly kind: "invalid"; readonly reasons: string };
+  | { readonly kind: "invalid"; readonly reasons: string; readonly logged: string };
 
 const CLOSED: IntakeOutcome = { kind: "closed" };
+
+const REFUSAL_LOGGED_MAX = 1000;
 
 function intakeTaskOf(task: Readonly<BotTaskRow>): IntakeTask | null {
   const { jobId, itemId } = task;
@@ -47,11 +52,19 @@ async function stored(
 
   const read = readXThreadValue(answer.content);
 
-  if (read.kind === "refused") return { kind: "invalid", reasons: read.reason };
+  if (read.kind === "refused") {
+    return { kind: "invalid", reasons: read.reason, logged: read.logged };
+  }
 
   const parsed = parseXThreadValue(read.value, statusId);
 
-  if (parsed.kind === "refused") return { kind: "invalid", reasons: parsed.reason };
+  if (parsed.kind === "refused") {
+    return {
+      kind: "invalid",
+      reasons: parsed.reason,
+      logged: `thread-rule ${parsed.reason.replaceAll(/\d+/gu, "#")}`,
+    };
+  }
 
   const written = await guardedBatch(
     db,
@@ -90,4 +103,33 @@ export async function acceptIntake(
   }
 
   return stored(ports, intake, answer);
+}
+
+export async function refusedIntake(
+  ports: JobPorts,
+  task: Readonly<BotTaskRow>,
+  logged: string,
+): Promise<void> {
+  const intake = task.kind === X_INTAKE_TASK ? intakeTaskOf(task) : null;
+
+  if (intake === null) return;
+
+  const refusals = await refusedAnswer(ports.db, intake, Date.now()).catch(
+    (error: Readonly<Error>) => {
+      logFailure("grok-bot-answer-refusal-not-counted", { taskId: intake.id }, error);
+
+      return null;
+    },
+  );
+
+  if (refusals === null) return;
+
+  report("grok-bot-answer-refused", {
+    taskId: intake.id,
+    itemId: intake.itemId,
+    refusals,
+    issues: logged.slice(0, REFUSAL_LOGGED_MAX),
+  });
+
+  if (refusals >= REFUSALS_BEFORE_RESEND) await enqueueQuietly(ports, [intake.jobId], 0);
 }
