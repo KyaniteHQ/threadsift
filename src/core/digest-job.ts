@@ -18,7 +18,7 @@ import { hasOpenJob, opening } from "./job-rows.ts";
 import { linkOlderDigests } from "./older-digests.ts";
 import type { Database } from "./ports.ts";
 import { grokBotChosen, providerSet } from "./provider-saved.ts";
-import { digests, items } from "./schema.ts";
+import { aiTasks, digests, items } from "./schema.ts";
 
 const OWED_DIGESTS_PER_SWEEP = 20;
 
@@ -42,7 +42,13 @@ export function openingDigest(
 export async function sweepDigests(db: Database, now: number): Promise<void> {
   await expireAiTasks(db, now);
   await linkOlderDigests(db);
-  await db.batch(owedDigests(db, { provider: grokBotChosen(), limit: OWED_DIGESTS_PER_SWEEP }));
+  await db.batch(
+    owedDigests(db, {
+      provider: grokBotChosen(),
+      limit: OWED_DIGESTS_PER_SWEEP,
+      retried: sql`0`,
+    }),
+  );
 }
 
 export function digestAfterFetch(
@@ -69,15 +75,27 @@ export function digestAfterFetch(
   ];
 }
 
+function lastDigestRefusedKey() {
+  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.itemId} = ${items.id} and ${aiTasks.kind} = 'digest' and ${aiTasks.state} = 'failed' and ${aiTasks.refusal} = 'wrong-key' and ${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.item_id = ${items.id} and latest.kind = 'digest'))`;
+}
+
 function owedDigests(
   db: Database,
-  { provider, limit }: Readonly<{ provider: Readonly<SQLWrapper>; limit: number | undefined }>,
+  {
+    provider,
+    limit,
+    retried,
+  }: Readonly<{
+    provider: Readonly<SQLWrapper>;
+    limit: number | undefined;
+    retried: Readonly<SQLWrapper>;
+  }>,
 ) {
   const withoutDigest =
     and(
       sql`${provider}`,
       NOT_FAILED,
-      eq(items.digestFailed, false),
+      or(eq(items.digestFailed, false), sql`${retried}`),
       notExists(
         db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
       ),
@@ -104,5 +122,9 @@ function owedDigests(
 }
 
 export function olderDigests(db: Database) {
-  return owedDigests(db, { provider: providerSet(), limit: undefined });
+  return owedDigests(db, {
+    provider: providerSet(),
+    limit: undefined,
+    retried: lastDigestRefusedKey(),
+  });
 }
