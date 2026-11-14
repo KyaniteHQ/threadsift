@@ -8,13 +8,13 @@ import {
   redditSessionOf,
 } from "./reddit-account-contract.ts";
 import {
+  type AccountSession,
   accountRow,
-  clearRefusals,
+  confirmAccount,
   connectAccount,
   disconnectAccount,
   expireAccount,
   recordWindow,
-  restoreAccount,
 } from "./reddit-account-states.ts";
 import { type AccountRow } from "./reddit-account-tables.ts";
 import { type RedditAnswer, answerOf } from "./reddit-session.ts";
@@ -178,14 +178,14 @@ export async function verifyRedditAccount(
 
   const { verdict, answer } = await checkSession(ports, session, signal);
 
-  await settledVerdict(ports, row.sealedSession, verdict, answer);
+  await settledVerdict(ports, row, verdict, answer);
 
   return verdict;
 }
 
 async function settledVerdict(
   ports: Readonly<VerifyPorts>,
-  sealedSession: string,
+  session: AccountSession,
   verdict: SessionVerdict,
   answer: Readonly<RedditAnswer> | null,
 ): Promise<void> {
@@ -194,7 +194,7 @@ async function settledVerdict(
   if (answer !== null) {
     await recordWindow(
       ports.db,
-      sealedSession,
+      session,
       {
         left: leftOf(answer.remaining),
         reset: answer.reset,
@@ -205,10 +205,7 @@ async function settledVerdict(
     );
   }
 
-  if (verdict === "logged-out") await expireAccount(ports, sealedSession, now);
+  if (verdict === "logged-out") await expireAccount(ports, session, now);
 
-  if (verdict === "ok") {
-    await restoreAccount(ports.db, sealedSession, now);
-    await clearRefusals(ports.db, sealedSession);
-  }
+  if (verdict === "ok") await confirmAccount(ports.db, session, now);
 }

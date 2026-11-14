@@ -25,6 +25,10 @@ export interface Publication {
   ) => DisplayedAfter | Promise<DisplayedAfter>;
 }
 
+export function displayedBesideThread(after: Readonly<DisplayedAfter>): Publication["displayed"] {
+  return ({ threaded }) => ({ post: after.post, comments: threaded ? undefined : after.comments });
+}
+
 type Project = (key: string, markdown: string) => string;
 
 function memoProjection(): Project {
