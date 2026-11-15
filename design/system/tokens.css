@@ -30,8 +30,8 @@
    data-images; and two the app works out: data-reader (pane, page or sheet:
    from the layout, Open items as and the width) and data-bp (every width
    band the app is under: "narrow medium wide full" at 600px). The page's
-   html element carries the same data-theme and data-style, so the page
-   background and color-scheme follow the look past the app's edges.
+   html element carries the same data-theme, data-layout and data-style, so
+   the page background and color-scheme follow the look past the app's edges.
 
    Per-element variables, set by a component on one element, never on the
    root: --d (a comment's depth, inline style on .cm), --tag-h (a tag's hue,

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-15T22:59:06Z",
+  "generatedAt": "2026-11-15T23:23:26Z",
   "title": "Design System: Threadsift",
   "extensions": {
     "colorMeta": {
@@ -218,7 +218,7 @@
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "The wordmark (in the app bar and on the sign-in screen), the reader title, the page headings such as Settings and Import, and the empty-library heading. 24px in List, 30px in Grid, 0.85 under 760px, except that the reader title and the page headings never go under --rd-title-min (1.1) times Headline, which is 22px. The wordmark in the app bar and the empty-library heading keep the 0.85 scale, and the sign-in wordmark stays at --t-display unscaled. These three have no minimum against Headline, because they are not reading headings, so at a very small browser font they can fall under it; only the 12px text floor (--t-floor-ui) holds them."
+        "purpose": "The wordmark (in the app bar and on the sign-in screen), the reader title, the page headings such as Settings and Import, and the empty-library heading. 24px in List, 30px in Grid, 0.85 under 760px, except that the reader title and the page headings never go under --rd-title-min (1.1) times Headline, 22px at the default 16px browser font. The wordmark in the app bar and the empty-library heading keep the 0.85 scale, and the sign-in wordmark stays at --t-display unscaled. These three have no minimum against Headline, because they are not reading headings, so at a very small browser font they can fall under it; only the 12px text floor (--t-floor-ui) holds them."
       },
       "headline": {
         "displayName": "Headline",
@@ -226,7 +226,7 @@
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Item titles in rows and cards; 700 when unread."
+        "purpose": "Item titles in rows and cards. An unread title takes --dw-strong, 700 in the default Plex pair; Instrument Serif and the Cal.com Style have one display weight, so there the unread dot alone marks it."
       },
       "body": {
         "displayName": "Body",

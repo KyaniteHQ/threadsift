@@ -63,7 +63,6 @@ export function CodeStep(props: Readonly<CodeStepProps>) {
 
   return (
     <form className="stack" method="post" onSubmit={onSubmit}>
-      <p className="label">{SETUP.stepOne}</p>
       <h1 className="auth-title">{SETUP.codeTitle}</h1>
       <div className="help-pair">
         <p className="fld-help">

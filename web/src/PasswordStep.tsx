@@ -88,7 +88,6 @@ export function PasswordStep(props: Readonly<PasswordStepProps>) {
 
   return (
     <form className="stack" method="post" onSubmit={onSubmit}>
-      <p className="label">{SETUP.stepTwo}</p>
       <h1 className="auth-title">{SETUP.passwordTitle}</h1>
       <UsernameHint />
       <PasswordField
