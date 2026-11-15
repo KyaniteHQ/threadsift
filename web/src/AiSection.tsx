@@ -48,6 +48,7 @@ function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] 
       label: AI_TEXT.save,
       busyLabel: AI_TEXT.saving,
       blocked: form.saveBlocked,
+      hint: null,
       secondary: false,
     },
     {
@@ -56,6 +57,7 @@ function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] 
       busyLabel:
         view.settings?.provider === GROK_BOT_PROVIDER ? AI_TEXT.verifyingBot : AI_TEXT.verifying,
       blocked: form.verifyBlocked,
+      hint: form.verifyHint,
       onClick: form.verifyNow,
       secondary: true,
     },
@@ -70,6 +72,7 @@ function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] 
       label: AI_TEXT.connect,
       busyLabel: AI_TEXT.connecting,
       blocked: !view.secretReady,
+      hint: null,
       onClick: form.connection.connect,
       secondary: true,
     },

@@ -32,6 +32,7 @@ export interface ActionButton<Action extends string> {
   readonly label: string;
   readonly busyLabel: string;
   readonly blocked: boolean;
+  readonly hint: Unavailable;
   readonly onClick?: () => void;
   readonly secondary: boolean;
 }
@@ -116,14 +117,24 @@ interface ButtonSet<Check extends string> {
   readonly check: Check;
   readonly labels: Readonly<Record<"save" | "remove" | Check, Labels>>;
   readonly unavailable: Readonly<Record<"save" | "remove" | Check, Unavailable>>;
+  readonly checkHint: Unavailable;
   readonly press: { readonly check: () => void; readonly remove: () => void };
   readonly saveSecondary?: boolean;
+}
+
+function plain<Action extends string>(
+  action: Action,
+  { label, busyLabel }: Readonly<Labels>,
+  blocked: boolean,
+): ActionButton<Action> {
+  return { action, label, busyLabel, blocked, hint: null, secondary: true };
 }
 
 export function useActionButtons<Check extends string>({
   check,
   labels,
   unavailable,
+  checkHint,
   press,
   saveSecondary = false,
 }: Readonly<ButtonSet<Check>>) {
@@ -134,27 +145,16 @@ export function useActionButtons<Check extends string>({
 
   return useMemo<readonly ActionButton<"save" | "remove" | Check>[]>(
     () => [
-      { action: "save", ...labels.save, blocked: saveBlocked, secondary: saveSecondary },
-      {
-        action: check,
-        ...labels[check],
-        blocked: checkBlocked,
-        onClick: pressCheck,
-        secondary: true,
-      },
-      {
-        action: "remove",
-        ...labels.remove,
-        blocked: removeBlocked,
-        onClick: pressRemove,
-        secondary: true,
-      },
+      { ...plain("save", labels.save, saveBlocked), secondary: saveSecondary },
+      { ...plain(check, labels[check], checkBlocked), hint: checkHint, onClick: pressCheck },
+      { ...plain("remove", labels.remove, removeBlocked), onClick: pressRemove },
     ],
     [
       check,
       labels,
       saveBlocked,
       checkBlocked,
+      checkHint,
       removeBlocked,
       pressCheck,
       pressRemove,

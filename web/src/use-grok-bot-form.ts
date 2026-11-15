@@ -111,10 +111,14 @@ function useRemove({ address, key }: Readonly<Fields>, changed: Changed): Task {
   }, [setAddress, clearKey, failAddress, failKey, changed]);
 }
 
-function testUnavailable({ key }: Readonly<GrokBotView>): string | null {
-  if (key === "usable") return null;
+function testHint({ key }: Readonly<GrokBotView>): string | null {
+  return key === "none" ? GROK_BOT_TEXT.resultNotConfigured : null;
+}
 
-  return key === "none" ? GROK_BOT_TEXT.resultNotConfigured : KEY_STATES[key];
+function testUnavailable(view: Readonly<GrokBotView>): string | null {
+  if (view.key === "usable") return null;
+
+  return testHint(view) ?? KEY_STATES[view.key];
 }
 
 export function useGrokBotForm(view: GrokBotView, changed: Changed) {
@@ -149,6 +153,7 @@ export function useGrokBotForm(view: GrokBotView, changed: Changed) {
     check: "test",
     labels: LABELS,
     unavailable,
+    checkHint: testHint(view),
     press: { check: testNow, remove: removeNow },
   });
 

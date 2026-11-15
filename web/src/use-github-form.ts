@@ -66,12 +66,16 @@ function useRemove(token: FieldState, changed: Changed): Task {
   }, [changed, clear, fail]);
 }
 
+function verifyHint(view: Readonly<GithubSettingsView>): string | null {
+  return view.secretReady && view.token === "none" ? GITHUB_TEXT.notConfigured : null;
+}
+
 function verifyUnavailable(view: Readonly<GithubSettingsView>): string | null {
   if (!view.secretReady) return AI_TEXT["secret-missing"];
 
   if (view.token === "saved") return null;
 
-  return view.token === "none" ? GITHUB_TEXT.notConfigured : TOKEN_STATES.unreadable;
+  return verifyHint(view) ?? TOKEN_STATES.unreadable;
 }
 
 export function useGithubForm(view: GithubSettingsView, changed: Changed) {
@@ -109,6 +113,7 @@ export function useGithubForm(view: GithubSettingsView, changed: Changed) {
     check: "verify",
     labels: LABELS,
     unavailable,
+    checkHint: verifyHint(view),
     press: { check: verifyNow, remove: removeNow },
   });
 
