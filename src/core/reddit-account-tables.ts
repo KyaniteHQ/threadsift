@@ -18,6 +18,8 @@ export const redditAccount = sqliteTable(
     lastRequestAt: integer("last_request_at"),
     refusedCount: integer("refused_count").notNull().default(0),
     refusedJob: integer("refused_job"),
+    refusedThreads: text("refused_threads").notNull().default("[]"),
+    refusalsClearedAt: integer("refusals_cleared_at"),
     windowRemaining: integer("window_remaining"),
     windowResetsAt: integer("window_resets_at"),
     connectedAt: integer("connected_at").notNull(),

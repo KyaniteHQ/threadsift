@@ -1,4 +1,5 @@
-import { and, eq, exists, or, sql } from "drizzle-orm";
+import { and, eq, exists, isNull, lte, or, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 import type { JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
@@ -12,6 +13,8 @@ import { type AccountRow, redditAccount } from "./reddit-account-tables.ts";
 import { millisecondsOf } from "./reddit-window.ts";
 
 export const REFUSALS_TO_EXPIRE = 3;
+
+const NO_THREADS = "[]";
 
 const MAX_LIMIT_MS = 3_600_000;
 
@@ -89,7 +92,7 @@ export async function connectAccount(
     windowRemaining: null,
     windowResetsAt: null,
     refusedCount: 0,
-    refusedJob: null,
+    refusedThreads: NO_THREADS,
     connectedAt: now,
   } as const;
 
@@ -110,14 +113,27 @@ export async function confirmAccount(
       state: "connected",
       stateAt: sql`case when ${redditAccount.state} = 'expired' then ${now} else ${redditAccount.stateAt} end`,
       refusedCount: 0,
-      refusedJob: null,
+      refusedThreads: NO_THREADS,
+      refusalsClearedAt: now,
     })
-    .where(
-      and(
-        ofSession(session),
-        or(eq(redditAccount.state, "expired"), sql`${redditAccount.refusedCount} > 0`),
-      ),
-    );
+    .where(ofSession(session));
+}
+
+function releaseWhenExpired(
+  db: Database,
+  session: AccountSession,
+  now: number,
+): BatchItem<"sqlite"> {
+  return releaseWaitingWhen(
+    db,
+    now,
+    exists(
+      db
+        .select({ one: sql`1` })
+        .from(redditAccount)
+        .where(and(ofSession(session), eq(redditAccount.state, "expired"))),
+    ),
+  );
 }
 
 export async function expireAccount(
@@ -130,16 +146,7 @@ export async function expireAccount(
       .update(redditAccount)
       .set({ state: "expired", stateAt: now })
       .where(and(ofSession(session), eq(redditAccount.state, "connected"))),
-    releaseWaitingWhen(
-      ports.db,
-      now,
-      exists(
-        ports.db
-          .select({ one: sql`1` })
-          .from(redditAccount)
-          .where(and(ofSession(session), eq(redditAccount.state, "expired"))),
-      ),
-    ),
+    releaseWhenExpired(ports.db, session, now),
   ]);
 
   await enqueueWaiting(ports, now, "all");
@@ -157,31 +164,59 @@ export async function disconnectAccount(
   await enqueueWaiting(ports, now, "all");
 }
 
-export async function clearRefusals(db: Database, session: AccountSession): Promise<void> {
+export async function clearRefusals(
+  db: Database,
+  session: AccountSession,
+  now: number,
+): Promise<void> {
   await db
     .update(redditAccount)
-    .set({ refusedCount: 0, refusedJob: null })
-    .where(and(ofSession(session), sql`${redditAccount.refusedCount} > 0`));
+    .set({ refusedCount: 0, refusedThreads: NO_THREADS, refusalsClearedAt: now })
+    .where(ofSession(session));
 }
 
 export async function countRefusal(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
   session: AccountSession,
-  jobId: number,
+  { thread, startedAt }: Readonly<{ thread: string; startedAt: number }>,
   now: number,
-): Promise<"counted" | "expired"> {
-  const [counted] = await ports.db
-    .update(redditAccount)
-    .set({
-      refusedCount: sql`case when ${redditAccount.refusedJob} = ${jobId} then ${redditAccount.refusedCount} else ${redditAccount.refusedCount} + 1 end`,
-      refusedJob: jobId,
-    })
-    .where(and(ofSession(session), eq(redditAccount.state, "connected")))
-    .returning({ count: redditAccount.refusedCount });
+): Promise<"counted" | "ignored" | "expired"> {
+  const current = sql`(case when json_array_length(${redditAccount.refusedThreads}) = ${redditAccount.refusedCount} then ${redditAccount.refusedThreads} else ${NO_THREADS} end)`;
 
-  if (counted === undefined || counted.count < REFUSALS_TO_EXPIRE) return "counted";
+  const known = sql`exists (select 1 from json_each(${current}) where value = ${thread})`;
 
-  await expireAccount(ports, session, now);
+  const threads = sql`case when ${known} then ${current} else json_insert(${current}, '$[#]', ${thread}) end`;
+
+  const count = sql`json_array_length(${threads})`;
+
+  const [[counted]] = await ports.db.batch([
+    ports.db
+      .update(redditAccount)
+      .set({
+        refusedThreads: threads,
+        refusedCount: count,
+        state: sql`case when ${count} >= ${REFUSALS_TO_EXPIRE} then 'expired' else ${redditAccount.state} end`,
+        stateAt: sql`case when ${count} >= ${REFUSALS_TO_EXPIRE} then ${now} else ${redditAccount.stateAt} end`,
+      })
+      .where(
+        and(
+          ofSession(session),
+          eq(redditAccount.state, "connected"),
+          or(
+            isNull(redditAccount.refusalsClearedAt),
+            lte(redditAccount.refusalsClearedAt, startedAt),
+          ),
+        ),
+      )
+      .returning({ state: redditAccount.state }),
+    releaseWhenExpired(ports.db, session, now),
+  ]);
+
+  if (counted === undefined) return "ignored";
+
+  if (counted.state !== "expired") return "counted";
+
+  await enqueueWaiting(ports, now, "all");
 
   return "expired";
 }
