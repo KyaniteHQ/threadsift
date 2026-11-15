@@ -218,11 +218,11 @@
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "The wordmark (in the app bar and on the sign-in screen), the reader title, the page headings such as Settings and Import, and the empty-library heading. 24px in List, 30px in Grid, 0.85 under 760px, except that the reader title never goes under --rd-title-min (1.1) times Headline, which is 22px."
+        "purpose": "The wordmark (in the app bar and on the sign-in screen), the reader title, the page headings such as Settings and Import, and the empty-library heading. 24px in List, 30px in Grid, 0.85 under 760px, except that the reader title and the page headings never go under --rd-title-min (1.1) times Headline, which is 22px. The wordmark in the app bar and the empty-library heading keep the 0.85 scale, and the sign-in wordmark stays at --t-display unscaled. These three have no minimum against Headline, because they are not reading headings, so at a very small browser font they can fall under it; only the 12px text floor (--t-floor-ui) holds them."
       },
       "headline": {
         "displayName": "Headline",
-        "purpose": "Reader section headings such as Original post, Comments and README."
+        "purpose": "Reader section headings such as Original post, Comments and README. Never under the 16px reading floor divided by --post-h-cap (about 16.84px)."
       },
       "title": {
         "displayName": "Title",
