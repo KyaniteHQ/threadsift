@@ -1,30 +1,22 @@
 import type { CommentNode } from "./comment-view.ts";
 import { isImageRouteOf, keyOfFileRoute } from "./file-keys.ts";
 import type { Kind, ReadState, Source } from "./kinds.ts";
-import { scanMarkdown } from "./markdown-images.ts";
-
-const NOTE_TEXT = {
-  untitled: "Untitled",
-  summary: "Summary",
-  keyPoints: "Key points",
-  highlights: "Highlights",
-  note: "Note",
-  comments: "Comments",
-  context: "Context",
-  highlightNotFound: "Passage no longer found because the item’s text changed.",
-  stubDropped: "Removed comment shown so the replies below make sense.",
-  stubNotKept: "Comment not kept, shown so the replies below make sense.",
-  stubMore: "Further replies were not saved.",
-} as const;
-
-const POST_TEXT_TITLES: Readonly<Record<Kind, string>> = {
-  "reddit-post": "Original post",
-  "reddit-comment": "Original post",
-  "x-post": "Original post",
-  "github-repo": "README",
-  article: "Article",
-  link: "Original post",
-};
+import { inlineImage, rewriteImages, scanMarkdown } from "./markdown-images.ts";
+import {
+  COMMENTS_TITLE,
+  CONTEXT_LABEL,
+  HIGHLIGHTS_TITLE,
+  KEY_POINTS_LABEL,
+  NOTE_TITLE,
+  NOT_FOUND,
+  SECTION_TITLES,
+  STUB_DROPPED,
+  STUB_MORE,
+  STUB_NOT_KEPT,
+  SUMMARY_LABEL,
+  UNTITLED,
+  handleOf,
+} from "./reader-text.ts";
 
 const SLUG_CODE_POINTS = 80;
 
@@ -83,10 +75,27 @@ function lineBreaksOf(text: string): string[] {
   return text.split(/\r\n|\r|\n/u);
 }
 
+const INLINE_SPECIALS = /[\\`*_[\]<>&~|]/gu;
+
+const BLOCK_MARKER = /^(\s{0,3})([#>+=-])/u;
+
+const LIST_NUMBER = /^(\s{0,3}\d+)([.)])/u;
+
+function plainMarkdown(text: string): string {
+  return lineBreaksOf(text)
+    .map((line) =>
+      line
+        .replaceAll(INLINE_SPECIALS, "\\$&")
+        .replace(BLOCK_MARKER, "$1\\$2")
+        .replace(LIST_NUMBER, "$1\\$2"),
+    )
+    .join("\n");
+}
+
 function titleOf({ title }: Readonly<Pick<ItemNoteInput, "title">>): string {
   const single = (title ?? "").replaceAll(/\s+/gu, " ").trim();
 
-  return single === "" ? NOTE_TEXT.untitled : single;
+  return single === "" ? UNTITLED : plainMarkdown(single);
 }
 
 function frontMatter(input: Readonly<ItemNoteInput>): string {
@@ -112,11 +121,13 @@ function quotedLines(text: string): string[] {
 }
 
 function highlightLines({ exact, found }: Readonly<NoteHighlight>): string[] {
-  return [...quotedLines(exact), ...(found ? [] : ["", `*${NOTE_TEXT.highlightNotFound}*`])];
+  return [...quotedLines(plainMarkdown(exact)), ...(found ? [] : ["", `*${NOT_FOUND}*`])];
 }
 
 function keyPointLines(point: string): string[] {
-  return lineBreaksOf(point).map((line, at) => (at === 0 ? `- ${line}` : `  ${line}`));
+  return lineBreaksOf(plainMarkdown(point)).map((line, at) =>
+    at === 0 ? `- ${line}` : `  ${line}`,
+  );
 }
 
 function section(heading: string, blocks: readonly (readonly string[])[]): string[] {
@@ -134,18 +145,10 @@ function depthPrefix(depth: number): string {
 }
 
 const STUB_TEXTS = {
-  dropped: NOTE_TEXT.stubDropped,
-  "not-kept": NOTE_TEXT.stubNotKept,
-  more: NOTE_TEXT.stubMore,
+  dropped: STUB_DROPPED,
+  "not-kept": STUB_NOT_KEPT,
+  more: STUB_MORE,
 } as const;
-
-function handleOf(source: Source, author: string | null): string {
-  if (author === null) return "";
-
-  if (source === "reddit") return `u/${author}`;
-
-  return source === "x" ? `@${author}` : author;
-}
 
 function commentLines(node: Readonly<CommentNode>, source: Source): string[] {
   const prefix = depthPrefix(node.depth);
@@ -153,13 +156,13 @@ function commentLines(node: Readonly<CommentNode>, source: Source): string[] {
   if (node.kind !== "comment") {
     const reason = node.kind === "more" ? "more" : node.reason;
 
-    return [`${prefix}*${NOTE_TEXT.context}: ${STUB_TEXTS[reason]}*`];
+    return [`${prefix}*${CONTEXT_LABEL}: ${STUB_TEXTS[reason]}*`];
   }
 
   const handle = handleOf(source, node.author);
 
   return [
-    ...(handle === "" ? [] : [`${prefix}**${handle}**`, markers(node.depth + 1)]),
+    ...(handle === "" ? [] : [`${prefix}**${plainMarkdown(handle)}**`, markers(node.depth + 1)]),
     ...lineBreaksOf(node.body).map((line) =>
       line === "" ? markers(node.depth + 1) : prefix + line,
     ),
@@ -174,25 +177,21 @@ function commentSection(nodes: readonly CommentNode[], source: Source): string[]
     ...commentLines(node, source),
   ]);
 
-  return [`## ${NOTE_TEXT.comments}`, "", ...lines, ""];
+  return [`## ${COMMENTS_TITLE}`, "", ...lines, ""];
 }
 
-export function noteImagesBesideNote(text: string, itemId: number): string {
+function imagesBesideNote(text: string, itemId: number): string {
   const { images } = scanMarkdown(text, false);
 
-  return images
-    .filter(({ destination }) => isImageRouteOf(destination, itemId))
-    .toSorted((first, second) => second.start - first.start)
-    .reduce((rewritten, { start, end, destination }) => {
-      const key = keyOfFileRoute(destination) ?? destination;
-      const name = key.slice(key.lastIndexOf("/") + 1);
-      const span = rewritten.slice(start, end);
-      const at = span.lastIndexOf(destination);
-
-      return at === -1
-        ? rewritten
-        : rewritten.slice(0, start + at) + name + rewritten.slice(start + at + destination.length);
-    }, text);
+  return rewriteImages(
+    text,
+    images
+      .filter(({ destination }) => isImageRouteOf(destination, itemId))
+      .map((image) => ({
+        image,
+        text: inlineImage(image, keyOfFileRoute(image.destination)?.split("/").at(-1) ?? ""),
+      })),
+  );
 }
 
 export function itemNote(input: Readonly<ItemNoteInput>): string {
@@ -201,16 +200,18 @@ export function itemNote(input: Readonly<ItemNoteInput>): string {
   const body = [
     `# ${titleOf(input)}`,
     "",
-    ...(input.summary === null ? [] : [`## ${NOTE_TEXT.summary}`, "", input.summary, ""]),
+    ...(input.summary === null
+      ? []
+      : [`## ${SUMMARY_LABEL}`, "", plainMarkdown(input.summary), ""]),
     ...section(
-      NOTE_TEXT.keyPoints,
+      KEY_POINTS_LABEL,
       input.keyPoints.length === 0 ? [] : [input.keyPoints.flatMap(keyPointLines)],
     ),
-    ...section(NOTE_TEXT.highlights, input.highlights.map(highlightLines)),
-    ...(input.note === null ? [] : [`## ${NOTE_TEXT.note}`, "", input.note, ""]),
+    ...section(HIGHLIGHTS_TITLE, input.highlights.map(highlightLines)),
+    ...(input.note === null ? [] : [`## ${NOTE_TITLE}`, "", plainMarkdown(input.note), ""]),
     ...(postText === null
       ? []
-      : [`## ${POST_TEXT_TITLES[input.kind]}`, "", noteImagesBesideNote(postText, input.id), ""]),
+      : [`## ${SECTION_TITLES[input.kind]}`, "", imagesBesideNote(postText, input.id), ""]),
     ...commentSection(input.comments, input.source),
   ];
 
@@ -225,7 +226,7 @@ function sliced(slug: string): string {
   return points.join("").replaceAll(/-+$/gu, "");
 }
 
-export function noteSlug(title: string | null): string {
+function noteSlug(title: string | null): string {
   const lowered = (title ?? "")
     .toLowerCase()
     .replaceAll(/[^\p{L}\p{N}]+/gu, "-")

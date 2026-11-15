@@ -1,218 +1,195 @@
-import { and, asc, eq, gt, isNotNull, sql } from "drizzle-orm";
+import { asc, gt } from "drizzle-orm";
 
-import { EXPORT_SLICE_BYTES } from "./export-contract.ts";
-import { parseFileKey } from "./file-keys.ts";
+import { EXPORT_SLICE_BYTES, type PartialItem } from "./export-contract.ts";
+import { type Plan, type StoredFile, planOf } from "./export-plan.ts";
 import { readItem } from "./item-detail.ts";
-import { itemNote, noteFileName } from "./item-note.ts";
-import type { Database, FileStore, Ports } from "./ports.ts";
-import { items, media } from "./schema.ts";
-import { type ZipFile, joined } from "./zip.ts";
+import type { FileStore, Ports } from "./ports.ts";
+import { items } from "./schema.ts";
+import type { ZipFile } from "./zip.ts";
 
-export class ExportFileMissing extends Error {}
-
-const TEXT = new TextEncoder();
+class ExportFileMissing extends Error {}
 
 type ItemPorts = Pick<Ports, "db" | "files">;
 
-type ImagesRead =
-  | { readonly kind: "missing"; readonly key: string }
-  | { readonly kind: "ready"; readonly files: readonly ZipFile[] };
+interface Place {
+  readonly skip: number;
+  readonly used: number;
+}
 
-type Gathered = ImagesRead | { readonly kind: "gone" };
-
-async function bytesOf(files: Pick<FileStore, "get">, key: string): Promise<Uint8Array | null> {
+async function readSized(
+  files: Pick<FileStore, "get">,
+  { key, size }: Readonly<StoredFile>,
+): Promise<Uint8Array | null> {
   const body = await files.get(key);
 
   if (body === null) return null;
 
-  const chunks: Uint8Array[] = [];
+  const bytes = new Uint8Array(size);
+  let filled = 0;
 
   for await (const chunk of body) {
-    chunks.push(chunk);
+    if (filled + chunk.length > size) return null;
+
+    bytes.set(chunk, filled);
+    filled += chunk.length;
   }
 
-  return joined(chunks);
+  return filled === size ? bytes : null;
 }
 
-async function storedFileKeys(db: Database, itemId: number): Promise<readonly string[]> {
-  const rows = await db
-    .select({ key: media.fileKey })
-    .from(media)
-    .where(and(eq(media.itemId, itemId), eq(media.outcome, "stored"), isNotNull(media.fileKey)))
-    .orderBy(asc(media.position));
+type Reading =
+  | { readonly kind: "missing"; readonly key: string }
+  | { readonly kind: "read"; readonly files: readonly ZipFile[] };
 
-  return rows.flatMap(({ key }) => (key === null ? [] : [key]));
-}
-
-function ownedBy(itemId: number, key: string): boolean {
-  return parseFileKey(key)?.itemId === String(itemId);
-}
-
-async function readImages(
+async function readEach(
   files: Pick<FileStore, "get">,
-  itemId: number,
-  keys: readonly string[],
-): Promise<ImagesRead> {
-  const read = await Promise.all(
-    keys.map(async (key) => ({
-      key,
-      bytes: ownedBy(itemId, key) ? await bytesOf(files, key) : null,
-    })),
-  );
+  pending: readonly StoredFile[],
+  read: readonly ZipFile[],
+): Promise<Reading> {
+  const [next, ...rest] = pending;
 
-  const lost = read.find(({ bytes }) => bytes === null);
+  if (next === undefined) return { kind: "read", files: read };
 
-  if (lost !== undefined) return { kind: "missing", key: lost.key };
+  const bytes = await readSized(files, next);
+
+  return bytes === null
+    ? { kind: "missing", key: next.key }
+    : readEach(files, rest, [...read, { name: next.key, bytes }]);
+}
+
+interface Chosen {
+  readonly head: readonly ZipFile[];
+  readonly stored: readonly StoredFile[];
+  readonly next: number | null;
+}
+
+function choose(plan: Readonly<Plan>, { skip, used }: Readonly<Place>): Chosen {
+  const sizes = [
+    ...plan.head.map(({ bytes }) => bytes.length),
+    ...plan.stored.map(({ size }) => size),
+  ];
+
+  let total = used;
+  let at = skip;
+
+  while (at < sizes.length && (total === 0 || total + (sizes[at] ?? 0) <= EXPORT_SLICE_BYTES)) {
+    total += sizes[at] ?? 0;
+    at += 1;
+  }
+
+  const headCount = plan.head.length;
 
   return {
-    kind: "ready",
-    files: read.flatMap(({ key, bytes }) => (bytes === null ? [] : [{ name: key, bytes }])),
+    head: plan.head.slice(skip, at),
+    stored: plan.stored.slice(Math.max(0, skip - headCount), Math.max(0, at - headCount)),
+    next: at < sizes.length ? at : null,
   };
 }
 
-type ReaderItem = NonNullable<Awaited<ReturnType<typeof readItem>>>["item"];
+type Gathered =
+  | { readonly kind: "gone" }
+  | { readonly kind: "missing"; readonly key: string }
+  | {
+      readonly kind: "ready";
+      readonly files: readonly ZipFile[];
+      readonly next: number | null;
+    };
 
-type NotedItem = Readonly<
-  Pick<
-    ReaderItem,
-    | "id"
-    | "source"
-    | "kind"
-    | "originalUrl"
-    | "author"
-    | "community"
-    | "postedAt"
-    | "savedAt"
-    | "fetchedAt"
-    | "digestTopic"
-    | "readState"
-    | "digestTitle"
-    | "title"
-    | "digest"
-    | "highlights"
-    | "note"
-    | "postText"
-    | "comments"
-  >
->;
-
-function noteOf(item: NotedItem): string {
-  const filter = item.comments.view?.filter;
-
-  return itemNote({
-    id: item.id,
-    source: item.source,
-    kind: item.kind,
-    url: item.originalUrl,
-    author: item.author,
-    community: item.community,
-    postedAt: item.postedAt,
-    savedAt: item.savedAt,
-    fetchedAt: item.fetchedAt,
-    topic: item.digestTopic,
-    tags: item.digest?.tags ?? [],
-    readState: item.readState,
-    title: item.digestTitle ?? item.title,
-    summary: item.digest?.summary ?? null,
-    keyPoints: item.digest?.keyPoints ?? [],
-    highlights: item.highlights.items.map(({ selector, status }) => ({
-      exact: selector.exact,
-      found: status === "attached",
-    })),
-    note: item.note.body,
-    postText: item.postText,
-    comments: filter === "kept" || filter === "nothing-kept" ? item.comments.nodes : [],
-  });
-}
-
-async function gather(ports: Readonly<ItemPorts>, itemId: number): Promise<Gathered> {
+async function gather(
+  ports: Readonly<ItemPorts>,
+  itemId: number,
+  place: Readonly<Place>,
+): Promise<Gathered> {
   const read = await readItem(ports, itemId);
 
   if (read === undefined) return { kind: "gone" };
 
-  const { item, postTextKey } = read;
+  const planned = planOf({
+    item: read.item,
+    keptNodes: read.keptNodes(),
+    postTextKey: read.postTextKey,
+    storedFiles: read.storedFiles,
+  });
 
-  if (postTextKey !== null && (item.postText === null || !ownedBy(itemId, postTextKey))) {
-    return { kind: "missing", key: postTextKey };
-  }
+  if (planned.kind === "missing") return planned;
 
-  const images = await readImages(ports.files, itemId, await storedFileKeys(ports.db, itemId));
+  const chosen = choose(planned.plan, place);
+  const images = await readEach(ports.files, chosen.stored, []);
 
-  if (images.kind === "missing") return images;
-
-  return {
-    kind: "ready",
-    files: [
-      {
-        name: `items/${String(itemId)}/${noteFileName(item.digestTitle ?? item.title)}`,
-        bytes: TEXT.encode(noteOf(item)),
-      },
-      ...(postTextKey === null || item.postText === null
-        ? []
-        : [{ name: postTextKey, bytes: TEXT.encode(item.postText) }]),
-      ...images.files,
-    ],
-  };
+  return images.kind === "missing"
+    ? images
+    : { kind: "ready", files: [...chosen.head, ...images.files], next: chosen.next };
 }
 
-export async function itemEntries(
+async function itemEntries(
   ports: Readonly<ItemPorts>,
   itemId: number,
-): Promise<readonly ZipFile[] | null> {
-  const first = await gather(ports, itemId);
-  const settled = first.kind === "missing" ? await gather(ports, itemId) : first;
+  place: Readonly<Place>,
+): Promise<Exclude<Gathered, { kind: "missing" }>> {
+  const first = await gather(ports, itemId, place);
+  const settled = first.kind === "missing" ? await gather(ports, itemId, place) : first;
 
   if (settled.kind === "missing") {
     throw new ExportFileMissing(`The file ${settled.key} is missing for Item ${String(itemId)}`);
   }
 
-  return settled.kind === "gone" ? null : settled.files;
+  return settled;
 }
 
 export interface TakenItems {
   readonly files: readonly ZipFile[];
   readonly count: number;
   readonly last: number;
+  readonly partial: PartialItem | null;
   readonly done: boolean;
   readonly full: boolean;
-}
-
-interface Listed {
-  readonly id: number;
-  readonly imageBytes: number;
 }
 
 interface Taking extends TakenItems {
   readonly bytes: number;
 }
 
+interface Taker {
+  readonly root: string;
+  readonly resume: PartialItem | null;
+}
+
 async function takeEach(
   ports: Readonly<ItemPorts>,
-  root: string,
-  pending: readonly Listed[],
+  taker: Readonly<Taker>,
+  pending: readonly number[],
   taking: Readonly<Taking>,
 ): Promise<Taking> {
-  const [next, ...rest] = pending;
+  const [id, ...rest] = pending;
 
-  if (next === undefined) return taking;
+  if (id === undefined) return taking;
 
-  if (taking.bytes > 0 && taking.bytes + next.imageBytes > EXPORT_SLICE_BYTES) {
-    return { ...taking, full: true };
+  const skip = taker.resume?.id === id ? taker.resume.entries : 0;
+  const gathered = await itemEntries(ports, id, { skip, used: taking.bytes });
+
+  if (gathered.kind === "gone") {
+    return takeEach(ports, taker, rest, { ...taking, count: taking.count + 1, last: id });
   }
 
-  const entries = (await itemEntries(ports, next.id)) ?? [];
-
-  return takeEach(ports, root, rest, {
+  const counted = {
+    ...taking,
     files: [
       ...taking.files,
-      ...entries.map(({ name, bytes }) => ({ name: `${root}/${name}`, bytes })),
+      ...gathered.files.map(({ name, bytes }) => ({ name: `${taker.root}/${name}`, bytes })),
     ],
+    bytes: gathered.files.reduce((sum, { bytes }) => sum + bytes.length, taking.bytes),
     count: taking.count + 1,
-    last: next.id,
-    done: false,
-    full: false,
-    bytes: entries.reduce((sum, { bytes }) => sum + bytes.length, taking.bytes),
-  });
+  };
+
+  if (gathered.next !== null) {
+    return {
+      ...counted,
+      partial: gathered.next > 0 ? { id, entries: gathered.next } : null,
+      full: true,
+    };
+  }
+
+  return takeEach(ports, taker, rest, { ...counted, last: id });
 }
 
 export async function takeItems(
@@ -220,28 +197,30 @@ export async function takeItems(
   {
     root,
     after,
+    resume,
     limit,
     used,
-  }: Readonly<{ root: string; after: number; limit: number; used: number }>,
+  }: Readonly<{
+    root: string;
+    after: number;
+    resume: PartialItem | null;
+    limit: number;
+    used: number;
+  }>,
 ): Promise<TakenItems> {
   const listed = await ports.db
-    .select({
-      id: items.id,
-      imageBytes: sql<number>`coalesce((select sum(${media.size}) from ${media} where ${media.itemId} = ${items.id} and ${media.outcome} = 'stored'), 0)`,
-    })
+    .select({ id: items.id })
     .from(items)
     .where(gt(items.id, after))
     .orderBy(asc(items.id))
     .limit(limit);
 
-  const { bytes: _bytes, ...taken } = await takeEach(ports, root, listed, {
-    files: [],
-    count: 0,
-    last: after,
-    done: false,
-    full: false,
-    bytes: used,
-  });
+  const { bytes: _bytes, ...taken } = await takeEach(
+    ports,
+    { root, resume },
+    listed.map(({ id }) => id),
+    { files: [], count: 0, last: after, partial: null, done: false, full: false, bytes: used },
+  );
 
   return { ...taken, done: !taken.full && listed.length < limit };
 }

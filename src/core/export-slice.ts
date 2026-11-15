@@ -1,18 +1,16 @@
-import { sql } from "drizzle-orm";
-
-import { BACKUP_TABLES } from "./backup-tables.ts";
 import {
   EXPORT_ENTRY_BYTES,
-  EXPORT_FORMAT,
   EXPORT_PAGE_ROWS,
   EXPORT_SLICE_BYTES,
   EXPORT_SLICE_ITEMS,
   ITEM_FILES_STREAM,
   type ExportTally,
   ExportTallySchema,
+  type PartialItem,
   exportRootName,
 } from "./export-contract.ts";
 import { takeItems } from "./export-items.ts";
+import { manifestFile, recordPath } from "./export-manifest.ts";
 import { type RecordRow, STREAMS, openItemCount, tablePage } from "./export-records.ts";
 import type { Database, Ports } from "./ports.ts";
 import type { ExportRow } from "./schema.ts";
@@ -37,6 +35,7 @@ interface Progress {
   readonly finished: readonly string[];
   readonly itemFiles: readonly ZipFile[];
   readonly itemCount: number;
+  readonly partial: PartialItem | null;
   readonly full: boolean;
 }
 
@@ -65,10 +64,6 @@ function entriesOf(lines: readonly Uint8Array[]): readonly Uint8Array[] {
   }
 
   return bytes === 0 ? entries : [...entries, joined(current)];
-}
-
-function recordPath(table: string, number: number): string {
-  return `records/${table}.${String(number)}.jsonl`;
 }
 
 function recordFiles(
@@ -153,6 +148,7 @@ async function takeItemFiles(
   const taken = await takeItems(ports, {
     root,
     after: progress.cursor,
+    resume: progress.partial,
     limit: EXPORT_SLICE_ITEMS - progress.itemCount,
     used: progress.bytes,
   });
@@ -164,6 +160,7 @@ async function takeItemFiles(
     bytes: taken.files.reduce((sum, { bytes }) => sum + bytes.length, progress.bytes),
     itemFiles: [...progress.itemFiles, ...taken.files],
     itemCount: progress.itemCount + taken.count,
+    partial: taken.partial,
     full: taken.full,
   };
 }
@@ -191,53 +188,23 @@ async function fill(
   return fill(ports, { root, progress: next });
 }
 
-async function manifestFile(
-  db: Database,
-  { createdAt, tally }: Readonly<{ createdAt: number; tally: ExportTally }>,
-): Promise<ZipFile> {
-  const [migration] = await db
-    .select({ name: sql<string | null>`max(name)` })
-    .from(sql`d1_migrations`);
-
-  const steps = await db
-    .select({ name: sql<string>`name`, version: sql<number>`version` })
-    .from(sql`data_steps`)
-    .orderBy(sql`name`);
-
-  const sequences = await db
-    .select({ name: sql<string>`name`, seq: sql<number>`seq` })
-    .from(sql`sqlite_sequence`)
-    .orderBy(sql`name`);
-
-  const tables = Object.keys(BACKUP_TABLES).map((table) => {
-    const counted = tally.tables[table] ?? { files: 0, rows: 0 };
-
-    return [
-      table,
-      {
-        files: Array.from({ length: counted.files }, (_, at) => recordPath(table, at + 1)),
-        rows: counted.rows,
-      },
-    ] as const;
-  });
-
-  const manifest = {
-    format: EXPORT_FORMAT,
-    exportedAt: new Date(createdAt).toISOString(),
-    migration: migration?.name ?? null,
-    dataSteps: Object.fromEntries(steps.map(({ name, version }) => [name, version])),
-    tables: Object.fromEntries(tables),
-    sequences: Object.fromEntries(
-      sequences
-        .filter(({ name }) => Object.hasOwn(BACKUP_TABLES, name))
-        .map(({ name, seq }) => [name, seq]),
-    ),
-    openItems: tally.openItems,
-  };
-
+function startOf({
+  position,
+  cursor,
+  partial,
+}: Readonly<Pick<Progress, "position" | "cursor" | "partial">>): Progress {
   return {
-    name: `${exportRootName(createdAt)}/threadsift.json`,
-    bytes: TEXT.encode(`${JSON.stringify(manifest, null, 2)}\n`),
+    position,
+    cursor,
+    partial,
+    bytes: 0,
+    openItems: 0,
+    perRow: 0,
+    taken: [],
+    finished: [],
+    itemFiles: [],
+    itemCount: 0,
+    full: false,
   };
 }
 
@@ -262,22 +229,18 @@ export async function buildSlice(
 
   const progress = await fill(ports, {
     root,
-    progress: {
-      position,
-      cursor: run.cursor,
-      bytes: 0,
-      openItems: 0,
-      perRow: 0,
-      taken: [],
-      finished: [],
-      itemFiles: [],
-      itemCount: 0,
-      full: false,
-    },
+    progress: startOf({ position, cursor: run.cursor, partial: before.partial }),
   });
 
   const { files, tally } = recordFiles(root, before, progress);
-  const counted = { ...tally, list: LIST, openItems: tally.openItems + progress.openItems };
+
+  const counted = {
+    ...tally,
+    list: LIST,
+    openItems: tally.openItems + progress.openItems,
+    partial: progress.partial,
+  };
+
   const finished = progress.position >= STREAMS.length;
 
   return {

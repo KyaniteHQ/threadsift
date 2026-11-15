@@ -1,6 +1,21 @@
 import type { CommentCount, UnfilteredCause } from "../../src/core/comment-view.ts";
 import { groupedNumber } from "../../src/core/format.ts";
-import type { Kind, Source } from "../../src/core/kinds.ts";
+import type { Source } from "../../src/core/kinds.ts";
+import {
+  COMMENTS_TITLE,
+  CONTEXT_LABEL,
+  HIGHLIGHTS_TITLE,
+  KEY_POINTS_LABEL,
+  NOTE_TITLE,
+  NOT_FOUND,
+  SECTION_TITLES,
+  STUB_DROPPED,
+  STUB_MORE,
+  STUB_NOT_KEPT,
+  SUMMARY_LABEL,
+  UNTITLED,
+  handleOf,
+} from "../../src/core/reader-text.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
 import { collapsedText } from "./collapsed-text.ts";
 import { ageLabel, dateLabel } from "./saved-label.ts";
@@ -36,8 +51,6 @@ export const READER_LOADING = "Loading item…";
 export const READER_FAILED = "Couldn’t load this item.";
 export const READER_STALE = "This text is from earlier and may be outdated.";
 export const POST_TEXT_FAILED = "Couldn’t show this item’s post text and comments.";
-export const SUMMARY_LABEL = "Summary";
-export const KEY_POINTS_LABEL = "Key points";
 export const DIGEST_PENDING = "The summary and key points are not ready yet.";
 export const NO_POST_TEXT = "This item has no post text.";
 
@@ -54,7 +67,6 @@ export const GITHUB_TOPICS_LABEL = "Topics on GitHub";
 export const NONE_STATED = "None stated";
 export const PASTE_OPEN = "Open";
 export const FOLD_HIDE = "Show fewer lines";
-export const COMMENTS_TITLE = "Comments";
 export const NONE_KEPT = "None of the comments added anything the post doesn't already say.";
 
 const UNFILTERED_LEAD = "The comments below are not filtered by a Digest yet.";
@@ -69,10 +81,6 @@ export const UNFILTERED_NOTES = {
 
 export const ALL_REMOVED = "The comments of this thread were removed, written by bots or empty.";
 
-export const CONTEXT_LABEL = "Context";
-export const STUB_DROPPED = "Removed comment shown so the replies below make sense.";
-export const STUB_NOT_KEPT = "Comment not kept, shown so the replies below make sense.";
-export const STUB_MORE = "Further replies were not saved.";
 export const OP_LABEL = "OP";
 export const SHOW_FULL_COMMENT = "Show full comment";
 export const SHOW_LESS = "Show less";
@@ -80,9 +88,7 @@ export const KEEP_LABEL = "Keep";
 export const KEEP_GROUP = "Keep highlight";
 export const REMOVE_LABEL = "Remove";
 export const REMOVE_GROUP = "Remove highlight";
-export const HIGHLIGHTS_TITLE = "Highlights";
-export const RELATED = { title: "Related Items", untitled: "Untitled" } as const;
-export const NOT_FOUND = "Passage no longer found because the item’s text changed.";
+export const RELATED = { title: "Related Items", untitled: UNTITLED } as const;
 export const KEPT_ANNOUNCEMENT = "Highlight kept.";
 export const REMOVED_ANNOUNCEMENT = "Highlight removed.";
 export const KEEP_FAILED = "Couldn’t keep this highlight. Select the passage again.";
@@ -92,7 +98,6 @@ export const REMOVE_FAILED = "Couldn’t remove this highlight. Try again.";
 export const KEEP_STALE =
   "Couldn’t keep this highlight because the item’s text changed. Select the passage again once the new text is shown.";
 
-export const NOTE_TITLE = "Note";
 export const NOTE_SAVE = "Save";
 export const NOTE_SAVED = "Saved";
 export const NOTE_FAILED = "Couldn’t save this note. Your text is still here. Try again.";
@@ -121,15 +126,6 @@ export const OPEN_LABELS: Readonly<Record<Source, string>> = {
   github: "Open on GitHub",
   article: "Open article",
   other: "Open link",
-};
-
-export const SECTION_TITLES: Readonly<Record<Kind, string>> = {
-  "reddit-post": "Original post",
-  "reddit-comment": "Original post",
-  "x-post": "Original post",
-  "github-repo": "README",
-  article: "Article",
-  link: "Original post",
 };
 
 export const PICTURE_LABEL = "Image";
@@ -236,14 +232,21 @@ export function scoreLabel(score: number, source: Source): string {
     : filled(SCORE, { score: groupedNumber(score) });
 }
 
-export function handleOf(source: Source, author: string | null): string {
-  if (author === null) return "";
-
-  if (source === "reddit") return `u/${author}`;
-
-  return source === "x" ? `@${author}` : author;
-}
-
 export function isSameHandle(first: string | null, second: string | null): boolean {
   return first !== null && second !== null && first.toLowerCase() === second.toLowerCase();
 }
+
+export {
+  COMMENTS_TITLE,
+  CONTEXT_LABEL,
+  HIGHLIGHTS_TITLE,
+  KEY_POINTS_LABEL,
+  NOTE_TITLE,
+  NOT_FOUND,
+  SECTION_TITLES,
+  STUB_DROPPED,
+  STUB_MORE,
+  STUB_NOT_KEPT,
+  SUMMARY_LABEL,
+  handleOf,
+};

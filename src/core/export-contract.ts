@@ -24,6 +24,12 @@ export type ExportFailure = (typeof EXPORT_FAILURES)[number];
 
 const WholeCount = z.number().int().nonnegative();
 
+const PartialItemSchema = z
+  .object({ id: z.number().int().positive(), entries: WholeCount })
+  .readonly();
+
+export type PartialItem = z.infer<typeof PartialItemSchema>;
+
 export const ExportTallySchema = z
   .object({
     tables: z
@@ -32,12 +38,19 @@ export const ExportTallySchema = z
     openItems: WholeCount,
     generations: z.array(WholeCount).readonly(),
     list: z.string(),
+    partial: PartialItemSchema.nullable().default(null),
   })
   .readonly();
 
 export type ExportTally = z.infer<typeof ExportTallySchema>;
 
-export const NO_TALLY: ExportTally = { tables: {}, openItems: 0, generations: [], list: "" };
+export const NO_TALLY: ExportTally = {
+  tables: {},
+  openItems: 0,
+  generations: [],
+  list: "",
+  partial: null,
+};
 
 const RunningExportSchema = z.object({
   state: z.literal("running"),
