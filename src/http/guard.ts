@@ -3,7 +3,12 @@ import { bearerAuth } from "hono/bearer-auth";
 import { bodyLimit } from "hono/body-limit";
 import { csrf } from "hono/csrf";
 
-import { BODY_LIMIT_BYTES, ITEM_REQUEST_BYTES, RESULT_BODY_BYTES } from "../core/limits.ts";
+import {
+  BODY_LIMIT_BYTES,
+  ITEM_REQUEST_BYTES,
+  RESTORE_PART_BYTES,
+  RESULT_BODY_BYTES,
+} from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
 import { verifyToken } from "../core/tokens.ts";
 import {
@@ -31,7 +36,16 @@ const resultCap = bodyLimit({
   onError: (c) => c.json({ error: "The request body is larger than 256 KiB" }, 413),
 });
 
+const partCap = bodyLimit({
+  maxSize: RESTORE_PART_BYTES,
+  onError: (c) => c.json({ error: "The request body is larger than the part size" }, 413),
+});
+
+const PART_PATH = /^\/api\/restore\/[^/]+\/parts\/[^/]+$/u;
+
 function capFor(method: string, path: string): MiddlewareHandler {
+  if (method === "PUT" && PART_PATH.test(path)) return partCap;
+
   if (isIntakeCallback(method, path) || (method === "POST" && path === "/api/items")) {
     return itemCap;
   }

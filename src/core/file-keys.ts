@@ -6,6 +6,8 @@ export const ITEM_FILES_ROOT = "items/";
 
 export const EXPORT_FILES_ROOT = "exports/";
 
+export const RESTORE_FILES_ROOT = "restores/";
+
 export class FileRefused extends Error {}
 
 export const TEMPORARY_BYTES = 12;
@@ -18,9 +20,11 @@ const OWNER_ID = "[1-9][0-9]{0,18}";
 
 const EXPORT_NAME = /^(?:(?:part|dir)-[1-9][0-9]{0,9}-[0-9]{1,10}|tail-[0-9]{1,10})$/u;
 
+const RESTORE_NAME = /^part-[1-9][0-9]{0,9}$/u;
+
 function keyPattern(nameMax: number): RegExp {
   return new RegExp(
-    `^(?<root>${ITEM_FILES_ROOT}|${EXPORT_FILES_ROOT})(?<ownerId>${OWNER_ID})/(?!\\.{1,2}$)(?<name>[A-Za-z0-9._-]{1,${nameMax}})$`,
+    `^(?<root>${ITEM_FILES_ROOT}|${EXPORT_FILES_ROOT}|${RESTORE_FILES_ROOT})(?<ownerId>${OWNER_ID})/(?!\\.{1,2}$)(?<name>[A-Za-z0-9._-]{1,${nameMax}})$`,
     "u",
   );
 }
@@ -30,7 +34,7 @@ const KEY = keyPattern(FILE_NAME_MAX);
 const STORED_KEY = keyPattern(FOLDER_NAME_MAX);
 
 const TEMPORARY = new RegExp(
-  `^(?<folder>(?:${ITEM_FILES_ROOT}|${EXPORT_FILES_ROOT})${OWNER_ID}/)\\.tmp-[0-9a-f]+-(?<name>.+)$`,
+  `^(?<folder>(?:${ITEM_FILES_ROOT}|${EXPORT_FILES_ROOT}|${RESTORE_FILES_ROOT})${OWNER_ID}/)\\.tmp-[0-9a-f]+-(?<name>.+)$`,
   "u",
 );
 
@@ -42,7 +46,7 @@ const IMAGE = new RegExp(
 );
 
 const PREFIX = new RegExp(
-  `^(?<root>${ITEM_FILES_ROOT}|${EXPORT_FILES_ROOT})(?:(?<ownerId>${OWNER_ID})/)?$`,
+  `^(?<root>${ITEM_FILES_ROOT}|${EXPORT_FILES_ROOT}|${RESTORE_FILES_ROOT})(?:(?<ownerId>${OWNER_ID})/)?$`,
   "u",
 );
 
@@ -77,7 +81,13 @@ export interface FileKey {
   readonly name: string;
 }
 
-export type StoreRoot = "items" | "exports";
+export type StoreRoot = "items" | "exports" | "restores";
+
+export const STORE_ROOT_PREFIX = {
+  items: ITEM_FILES_ROOT,
+  exports: EXPORT_FILES_ROOT,
+  restores: RESTORE_FILES_ROOT,
+} as const satisfies Readonly<Record<StoreRoot, string>>;
 
 export interface StoreKey {
   readonly root: StoreRoot;
@@ -93,7 +103,9 @@ export interface StorePrefix {
 function storeRootOf(root: string): StoreRoot | null {
   if (root === ITEM_FILES_ROOT) return "items";
 
-  return root === EXPORT_FILES_ROOT ? "exports" : null;
+  if (root === EXPORT_FILES_ROOT) return "exports";
+
+  return root === RESTORE_FILES_ROOT ? "restores" : null;
 }
 
 function storeKeyOf(pattern: Readonly<RegExp>, key: string): StoreKey | null {
@@ -105,12 +117,16 @@ function storeKeyOf(pattern: Readonly<RegExp>, key: string): StoreKey | null {
   return { root: kind, ownerId, name };
 }
 
-function exportNamed(parsed: Readonly<StoreKey> | null): StoreKey | null {
-  return parsed?.root === "exports" && !EXPORT_NAME.test(parsed.name) ? null : parsed;
+function named(parsed: Readonly<StoreKey> | null): StoreKey | null {
+  if (parsed?.root === "exports") return EXPORT_NAME.test(parsed.name) ? parsed : null;
+
+  if (parsed?.root === "restores") return RESTORE_NAME.test(parsed.name) ? parsed : null;
+
+  return parsed;
 }
 
 function storedKeyOf(key: string): StoreKey | null {
-  const final = exportNamed(storeKeyOf(KEY, key));
+  const final = named(storeKeyOf(KEY, key));
 
   if (final !== null) return final;
 
@@ -118,9 +134,7 @@ function storedKeyOf(key: string): StoreKey | null {
 
   if (stored === null) return null;
 
-  return TEMPORARY.test(key) && exportNamed(storeKeyOf(KEY, finalKeyOf(key))) !== null
-    ? stored
-    : null;
+  return TEMPORARY.test(key) && named(storeKeyOf(KEY, finalKeyOf(key))) !== null ? stored : null;
 }
 
 export function exportFilesPrefix(exportId: number | string): string {
@@ -129,6 +143,14 @@ export function exportFilesPrefix(exportId: number | string): string {
 
 export function exportFileKey(exportId: number | string, name: string): string {
   return `${exportFilesPrefix(exportId)}${name}`;
+}
+
+export function restoreFilesPrefix(restoreId: number | string): string {
+  return `${RESTORE_FILES_ROOT}${restoreId}/`;
+}
+
+export function restorePartKey(restoreId: number | string, part: number): string {
+  return `${restoreFilesPrefix(restoreId)}part-${String(part)}`;
 }
 
 export function parseFileKey(key: string): FileKey | null {
@@ -152,7 +174,7 @@ export function requireStoredKey(key: string): StoreKey {
 }
 
 export function requireFileKey(key: string): StoreKey {
-  const parsed = exportNamed(storeKeyOf(KEY, key));
+  const parsed = named(storeKeyOf(KEY, key));
 
   if (parsed === null) {
     throw new FileRefused(`${JSON.stringify(key)} is not a file key`);

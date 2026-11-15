@@ -76,9 +76,9 @@ end`;
 function claimedRow(row: Readonly<ClaimedColumns>): ClaimedRow {
   const { attemptKey: _key, imagePrefix: _prefix, kind, itemId, ...columns } = row;
 
-  if (kind !== "export") return ownedClaim(row);
+  if (kind !== "export" && kind !== "restore") return ownedClaim(row);
 
-  if (itemId !== null) throw new Error(`Job ${String(row.id)} is an export with an Item`);
+  if (itemId !== null) throw new Error(`Job ${String(row.id)} is a ${kind} with an Item`);
 
   return { ...columns, kind, itemId };
 }
@@ -110,9 +110,11 @@ export function claimNextDue(db: Database): Promise<ClaimedRow | null> {
 }
 
 export function executeClaimed(ports: JobPorts, job: Readonly<ClaimedRow>): Promise<void> {
-  return job.kind === "export"
-    ? attempted(ports, job, HANDLERS.export)
-    : attempted(ports, job, HANDLERS[job.kind]);
+  if (job.kind === "export") return attempted(ports, job, HANDLERS.export);
+
+  if (job.kind === "restore") return attempted(ports, job, HANDLERS.restore);
+
+  return attempted(ports, job, HANDLERS[job.kind]);
 }
 
 async function attempted<Claimed extends ClaimedRow>(

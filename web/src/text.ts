@@ -31,6 +31,7 @@ export type NoticeKey =
   | "invalid"
   | "failed"
   | "updating"
+  | "restoring"
   | "title-kept"
   | XNoticeKey
   | "private";
@@ -49,6 +50,10 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
   failed: { text: "Couldn’t save this link.", kind: "save-error" },
   updating: {
     text: "The library is finishing an update, so this link wasn’t saved. Paste the link again in a minute.",
+    kind: "save-error",
+  },
+  restoring: {
+    text: "A Restore is running, so this link wasn’t saved. Paste the link again when the Restore has finished.",
     kind: "save-error",
   },
   refused: {

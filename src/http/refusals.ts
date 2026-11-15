@@ -31,6 +31,9 @@ export const REFUSED_HOST = "url: the host is not globally reachable";
 export const UPDATING =
   "The library is being updated and takes no new link yet. Try again in a minute.";
 
+export const RESTORING =
+  "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
+
 const WRONG_PASSWORD = "The password is wrong";
 
 const WRONG_RESET_CODE = "The reset code is wrong";

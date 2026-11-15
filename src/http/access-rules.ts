@@ -14,7 +14,7 @@ const PUBLIC_ROUTES: readonly PublicRoute[] = [
 ];
 
 const OWNER_ONLY_PATH =
-  /^\/api\/(?:(?:tokens|logout|settings|password|export)(?:\/|$)|items\/[^/]+\/(?:read-state$|note$|highlights(?:\/|$))|proposals\/[^/]+\/(?:accept|reject)$)/u;
+  /^\/api\/(?:(?:tokens|logout|settings|password|export|restore)(?:\/|$)|items\/[^/]+\/(?:read-state$|note$|highlights(?:\/|$))|proposals\/[^/]+\/(?:accept|reject)$)/u;
 
 const TASK_CALLBACK_PATH = /^\/api\/ai-tasks\/[^/]+\/(?:result|intake)$/u;
 

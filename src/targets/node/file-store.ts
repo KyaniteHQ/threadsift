@@ -5,9 +5,8 @@ import { join, sep } from "node:path";
 
 import { bestEffort } from "../../core/failure-log.ts";
 import {
-  EXPORT_FILES_ROOT,
   FileRefused,
-  ITEM_FILES_ROOT,
+  STORE_ROOT_PREFIX,
   type StoreKey,
   type StoreRoot,
   TEMPORARY_BYTES,
@@ -71,10 +70,8 @@ function endsBefore(folderPrefix: string, cursor: string): boolean {
   return cursor > folderPrefix && !cursor.startsWith(folderPrefix);
 }
 
-const ROOT_PREFIX = { items: ITEM_FILES_ROOT, exports: EXPORT_FILES_ROOT } as const;
-
 function ownerPrefix(root: StoreRoot, ownerId: string): string {
-  return `${ROOT_PREFIX[root]}${ownerId}/`;
+  return `${STORE_ROOT_PREFIX[root]}${ownerId}/`;
 }
 
 interface Located {

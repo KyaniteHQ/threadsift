@@ -4,6 +4,7 @@ import { exportDownloadAddress } from "./export-api.ts";
 import { EXPORT_TEXT, failureLabel, progressLabel, readyDetailLabel } from "./export-text.ts";
 import { Icon } from "./Icon.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
+import { RestoreBlock } from "./RestoreBlock.tsx";
 import { SettingsResult } from "./SettingsForm.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { useBackup } from "./use-backup.ts";
@@ -90,6 +91,7 @@ function BackupForm({
         ) : null}
       </div>
       <SettingsResult outcome={result} />
+      <RestoreBlock />
     </>
   );
 }

@@ -102,7 +102,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
     const claimed = await claimNextDue(instance.core.db);
 
     assert.ok(due.some(({ id }) => id === task.job.id));
-    assert.ok(claimed !== null && claimed.kind !== "export");
+    assert.ok(claimed !== null && claimed.kind !== "export" && claimed.kind !== "restore");
     assert.equal(claimed.id, task.job.id);
 
     await applyOutcome(instance.core, claimed, await step(instance, claimed));

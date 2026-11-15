@@ -8,6 +8,7 @@ import { guardedBatch } from "./guards.ts";
 import { pause } from "./pause.ts";
 import type { Database } from "./ports.ts";
 import { LEASE_WAIT_MS } from "./request-waits.ts";
+import { restoreRunning } from "./restore-state.ts";
 
 const UNITS_PER_RUN = 100;
 
@@ -100,6 +101,8 @@ async function runUnits(
 }
 
 export async function migrateData(db: Database): Promise<void> {
+  if (await restoreRunning(db)) return;
+
   const holder = crypto.randomUUID();
 
   if (!(await claimLease(db, holder))) return;

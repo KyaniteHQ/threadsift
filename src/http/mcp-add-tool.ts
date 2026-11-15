@@ -10,7 +10,13 @@ import type { Ports } from "../core/ports.ts";
 import { pasteScopes } from "../core/scopes.ts";
 import { savedView } from "./item-view.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
-import { BUDGET_SPENT_MESSAGE, REFUSED_HOST, UPDATING, budgetRefusalOf } from "./refusals.ts";
+import {
+  BUDGET_SPENT_MESSAGE,
+  REFUSED_HOST,
+  RESTORING,
+  UPDATING,
+  budgetRefusalOf,
+} from "./refusals.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { SavedItemResponseSchema } from "./schemas.ts";
 
@@ -49,6 +55,8 @@ export function registerAddTool(server: McpServer, ports: Ports, tokenId: number
       if (saved.kind === "refused") return refused(REFUSED_HOST);
 
       if (saved.kind === "updating") return refused(UPDATING);
+
+      if (saved.kind === "restoring") return refused(RESTORING);
 
       if (saved.kind !== "saved") throw new Error(`Paste answered ${saved.kind} without content`);
 

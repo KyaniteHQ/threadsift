@@ -35,7 +35,9 @@ export type ClaimedJob = Claim<OwnedJobKind, number> & {
 
 export type ClaimedExport = Claim<"export", null>;
 
-export type ClaimedRow = ClaimedJob | ClaimedExport;
+export type ClaimedRestore = Claim<"restore", null>;
+
+export type ClaimedRow = ClaimedJob | ClaimedExport | ClaimedRestore;
 
 export interface ClaimedColumns extends JobRow {
   readonly attemptKey: string | null;
@@ -47,6 +49,7 @@ export function ownedClaim(row: Readonly<ClaimedColumns>): ClaimedJob {
 
   if (
     columns.kind === "export" ||
+    columns.kind === "restore" ||
     columns.itemId === null ||
     attemptKey === null ||
     imagePrefix === null
@@ -111,7 +114,7 @@ export interface JobClosing<Claimed extends ClaimedRow = ClaimedJob> {
 }
 
 export type JobHandlers = Readonly<Record<OwnedJobKind, JobHandler>> &
-  Readonly<{ export: JobHandler<ClaimedExport> }>;
+  Readonly<{ export: JobHandler<ClaimedExport>; restore: JobHandler<ClaimedRestore> }>;
 
 export const NO_CLOSING: JobClosing<ClaimedRow> = {};
 

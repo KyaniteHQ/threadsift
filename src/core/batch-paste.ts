@@ -1,9 +1,10 @@
 import { type Budgeted, type SaveAs, withinBudget } from "./agent-token-budget.ts";
 import type { Digest } from "./ai-contract.ts";
 import type { Caller } from "./caller.ts";
-import { dataStepsFinished } from "./data-steps.ts";
 import type { ListedItemRow } from "./item-selection.ts";
+import { type Closed, whileOpen } from "./library-gate.ts";
 import type { Ports } from "./ports.ts";
+import { restoreRunning } from "./restore-state.ts";
 import { saveItem } from "./save-link.ts";
 
 interface BatchLink {
@@ -17,7 +18,8 @@ export type BatchEntry =
 
 type BatchSaved =
   | { readonly kind: "done"; readonly entries: readonly BatchEntry[] }
-  | { readonly kind: "updating" };
+  | { readonly kind: "updating" }
+  | { readonly kind: "restoring" };
 
 type BatchPaste = Budgeted<BatchSaved>;
 
@@ -25,10 +27,12 @@ async function pasteOne(
   ports: Ports,
   { url, digest }: Readonly<BatchLink>,
   saveAs: SaveAs,
-): Promise<BatchEntry | null> {
-  if (!(await dataStepsFinished(ports.db))) return null;
+): Promise<BatchEntry | Closed> {
+  const saved = await whileOpen(ports.db, () =>
+    saveAs((caller) => saveItem(ports, url, digest, "keep", caller)),
+  );
 
-  const saved = await saveAs((caller) => saveItem(ports, url, digest, "keep", caller));
+  if (saved.kind === "restoring" || saved.kind === "updating") return saved;
 
   return saved.kind === "refused"
     ? { outcome: "refused", url }
@@ -46,7 +50,7 @@ async function pasteEach(
     // oxlint-disable-next-line eslint/no-await-in-loop -- Links are saved one after the other, in the order given.
     const entry = await pasteOne(ports, link, saveAs);
 
-    if (entry === null) return { kind: "updating" };
+    if ("kind" in entry) return entry;
 
     entries.push(entry);
   }
@@ -54,11 +58,13 @@ async function pasteEach(
   return { kind: "done", entries };
 }
 
-export function pasteBatch(
+export async function pasteBatch(
   ports: Ports,
   links: readonly BatchLink[],
   caller: Caller,
 ): Promise<BatchPaste> {
+  if (await restoreRunning(ports.db)) return { kind: "restoring" };
+
   return withinBudget(
     ports,
     caller,

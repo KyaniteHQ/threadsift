@@ -2,6 +2,7 @@ import { ImportStateSchema } from "../../src/core/import-contract.ts";
 import type { ImportRequest } from "../../src/core/import-list.ts";
 import { BatchResponseSchema } from "../../src/http/batch-schemas.ts";
 import { NO_DEADLINE, call, parsedBody, parsedOrNull, post } from "./calls.ts";
+import { unavailableKind } from "./unavailable.ts";
 
 export interface Counts {
   readonly added: number;
@@ -11,7 +12,7 @@ export interface Counts {
 
 type BatchAnswer =
   | { readonly kind: "saved"; readonly counts: Counts }
-  | { readonly kind: "updating" | "network" | "rejected" };
+  | { readonly kind: "updating" | "restoring" | "network" | "rejected" };
 
 export const NO_COUNTS: Counts = { added: 0, known: 0, refused: 0 };
 
@@ -37,7 +38,7 @@ export async function postBatch(request: Readonly<ImportRequest>): Promise<Batch
   try {
     const response = await call(post(NO_DEADLINE), "/api/items/batch", { json: request });
 
-    if (response.status === 503) return { kind: "updating" };
+    if (response.status === 503) return { kind: await unavailableKind(response) };
 
     if (!response.ok) return { kind: "rejected" };
 

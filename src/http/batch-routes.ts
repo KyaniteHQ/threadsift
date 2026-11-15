@@ -12,8 +12,8 @@ import {
 } from "./batch-schemas.ts";
 import { savedView } from "./item-view.ts";
 import { budgetRefusal, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
-import { UPDATING, budgetSpent } from "./refusals.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
+import { RESTORING, UPDATING, budgetSpent } from "./refusals.ts";
+import { ErrorResponseSchema, RESTORING_CODE, UnavailableResponseSchema } from "./schemas.ts";
 import { callerOf, requirePasteScopes } from "./token-scopes.ts";
 
 const BATCH_DIGEST_SCOPE =
@@ -41,8 +41,8 @@ const batchRoute = createRoute({
     ),
     413: jsonBody(ErrorResponseSchema, "The request body is larger than 64 KiB."),
     503: jsonBody(
-      ErrorResponseSchema,
-      "A new release is rewriting the stored Items and has not finished, so the link it reached is not saved. Links before it stay saved and the cursor does not move. Send the call again after a minute.",
+      UnavailableResponseSchema,
+      "A new release is rewriting the stored Items and has not finished, so the link it reached is not saved. Links before it stay saved and the cursor does not move. Send the call again after a minute. While a restore runs (`code` is `restoring`), nothing is saved.",
     ),
   },
 });
@@ -83,6 +83,8 @@ export function registerBatchRoutes(app: OpenAPIHono, ports: Ports): void {
     if (pasted.kind === "budget-spent") return budgetSpent(c, pasted);
 
     if (pasted.kind === "updating") return c.json({ error: UPDATING }, 503);
+
+    if (pasted.kind === "restoring") return c.json({ error: RESTORING, code: RESTORING_CODE }, 503);
 
     const saved = cursor === undefined ? null : await saveImport(ports.db, cursor);
 
