@@ -17,7 +17,7 @@ The page for one Topic (slice 22). The server side is `src/core/topic-page.ts` (
 |---|---|
 | Rename of the Topic's first spelling | The key and the ids stay. The address and `built_from` keep working. |
 | Refresh or new Digest of an Item | The Item id stays. The Digest's AI task id changes, so the next overview run counts that Item as not yet built from and reads its new Digest. |
-| Re-import, export and restore | Items keep their ids. An export carries `topic_pages` with the `topics` rows and Items it points at, so the Item ids in `built_from` still resolve. The Digest ids are version tokens: the export drops the `ai_tasks` row of a Digest that a newer Digest replaced, and the token still compares right after a restore, because the restore keeps every id and `digests.task_id` is restored unchanged. `topic_leases` is a working table and stays out of the export. Not built. |
+| Re-import, export and restore | Items keep their ids. An export carries `topic_pages` with the `topics` rows and Items it points at, so the Item ids in `built_from` still resolve. The Digest ids are version tokens: the export drops the `ai_tasks` row of a Digest that a newer Digest replaced, and the token still compares right after a restore, because the restore keeps every id and `digests.task_id` is restored unchanged. `topic_leases` is a working table and stays out of the export. Built. |
 | Deleting an Item | `deleteItem` removes no `topic_pages` row, because the page holds the Item id only inside JSON. The Item leaves the Topic's list at once. The next run finds the ids in `built_from` that no longer belong to the Topic (`removedItemIds` in `src/core/topic-coverage.ts`), sends them to the model as removed and stores an overview without them. |
 | An accepted disagreement of two Items | The `items-disagree` Pin names the two Items (`pins.from_item_id`, `pins.into_item_id`) and the Digest task ids they carried, so the Topic read lists the entry only while both Items sit under the Topic and still carry those Digests. A Topic merge leaves it listed under the survivor, because the Pin names no Topic. A new Digest of either Item or a move out of the Topic hides it, and deleting either Item deletes the Pin (`docs/proposals.md`, Identity). |
 | Moving an Item to another Topic | The same as a delete for the old Topic. |
@@ -53,7 +53,7 @@ The agent's links from one Item to up to 5 others (slice 24). The code is `src/c
 
 | Record or reference | Identity | Survives | Breaks |
 |---|---|---|---|
-| A `related_items` row | the pair of two generated Item ids that are never reused; it has no id of its own, because nothing points at a pair and the set of one Item is replaced as a whole | a refresh or re-Paste of either Item, a Topic or Tag change, a rename, an export and restore that keeps Item ids (the export carries the pairs with the Items they name; restore is not built) | deleting either Item |
+| A `related_items` row | the pair of two generated Item ids that are never reused; it has no id of its own, because nothing points at a pair and the set of one Item is replaced as a whole | a refresh or re-Paste of either Item, a Topic or Tag change, a rename, an export and restore that keeps Item ids (the export carries the pairs with the Items they name) | deleting either Item |
 | The set of one source Item | replaced in one batch by the next stored pick | the other Item's new Digest (its reason may be out of date until this Item's next pick) | this Item's next pick |
 | `position` | 0 to 4 within one source Item | a read | a replacement; a delete leaves a gap |
 | The `related_pick` job | the job row's generated id, never reused; its open-work lifetime ends when it closes, and the row stays | a restart, a lost queue message, a stale requeue | its close |
@@ -104,7 +104,7 @@ The Log lists the committed changes to the library, the agent's own and the merg
 
 | Record or reference | Identity | Survives | Breaks |
 |---|---|---|---|
-| A `log_entries` row | a generated id, never reused (`AUTOINCREMENT`) | a Paste (it writes none; a Digest it leads to writes its own), a refresh, a rename, a Tag or Topic merge (the snapshot stays; the `topic_id` moves to the kept Topic), an export and restore that keep the ids and the Item and Topic ids the rows name (restore is not built) | deleting the Item it names |
+| A `log_entries` row | a generated id, never reused (`AUTOINCREMENT`) | a Paste (it writes none; a Digest it leads to writes its own), a refresh, a rename, a Tag or Topic merge (the snapshot stays; the `topic_id` moves to the kept Topic), an export and restore that keep the ids and the Item and Topic ids the rows name | deleting the Item it names |
 | `item_id` of an entry | the Item's id, `ON DELETE cascade` | everything an Item id survives | the Item's deletion, which removes the entry, because it holds that Item's title and Tags |
 | `topic_id` of an entry | the Topic row's id, no delete action | a refresh, an export and restore | a Topic merge: the `topic-keys` step and Accept of a Topic merge move it to the kept Topic (`docs/architecture/data-model-outline.md`, Catalog keys) |
 | The snapshot text | stored as written: the Digest title, the Topic's first spelling and the Tag names in the catalog's spelling at the time of the batch | everything | nothing |

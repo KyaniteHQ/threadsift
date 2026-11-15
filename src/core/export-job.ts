@@ -10,46 +10,23 @@ import { type BuiltSlice, buildSlice } from "./export-slice.ts";
 import { report } from "./failure-log.ts";
 import { exportFileKey } from "./file-keys.ts";
 import type { ClaimedExport, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
-import { enqueueRows } from "./job-rows.ts";
+import {
+  enqueueRows,
+  openingUnowned,
+  unownedAddress,
+  unownedOwnerId,
+  unownedRun,
+} from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { type ExportRow, exportRuns, jobs } from "./schema.ts";
 import { dosTimeOf, endOfArchive, packFiles } from "./zip.ts";
 
-const ADDRESS = /^exports\/(?<id>[1-9][0-9]{0,18})$/u;
-
 export function exportAddress(exportId: number): string {
-  return `exports/${String(exportId)}`;
-}
-
-function exportIdOf(address: string): number | null {
-  const id = ADDRESS.exec(address)?.groups?.["id"];
-
-  return id === undefined ? null : Number(id);
+  return unownedAddress("export", exportId);
 }
 
 export function openingExportJob(db: Database, scope: Readonly<SQLWrapper>) {
-  return db
-    .insert(jobs)
-    .select(
-      db
-        .select({
-          id: sql<null>`null`.as("id"),
-          kind: sql<"export">`'export'`.as("kind"),
-          itemId: sql<null>`null`.as("item_id"),
-          address: sql<string>`'exports/' || ${exportRuns.id}`.as("address"),
-          state: sql<"queued">`'queued'`.as("state"),
-          attempts: sql<number>`0`.as("attempts"),
-          staleRequeues: sql<number>`0`.as("stale_requeues"),
-          attemptGeneration: sql<null>`null`.as("attempt_generation"),
-          nextAttemptAt: sql<number>`${Date.now()}`.as("next_attempt_at"),
-          claimExpires: sql<null>`null`.as("claim_expires"),
-          waitReason: sql<null>`null`.as("wait_reason"),
-          page: sql<null>`null`.as("page"),
-        })
-        .from(exportRuns)
-        .where(sql`${scope}`),
-    )
-    .returning({ id: jobs.id });
+  return openingUnowned(db, "export", exportRuns, scope);
 }
 
 function stillAt(db: Database, exportId: number, parts: number) {
@@ -140,14 +117,12 @@ function checkpoint(
     .where(and(eq(exportRuns.id, run.id), eq(exportRuns.state, "running")));
 }
 
-async function runOf(db: Database, address: string): Promise<ExportRow | null> {
-  const exportId = exportIdOf(address);
+function runOf(db: Database, address: string): Promise<ExportRow | null> {
+  return unownedRun("export", address, async (id) => {
+    const [run] = await db.select().from(exportRuns).where(eq(exportRuns.id, id));
 
-  if (exportId === null) return null;
-
-  const [run] = await db.select().from(exportRuns).where(eq(exportRuns.id, exportId));
-
-  return run ?? null;
+    return run;
+  });
 }
 
 function failure(db: Database, exportId: number, reason: ExportFailure) {
@@ -205,7 +180,7 @@ export const exportHandler: JobHandler<ClaimedExport> = {
   blockedBy: [],
   attempt: attemptSlice,
   exhausted: (db, job) => {
-    const exportId = exportIdOf(job.address);
+    const exportId = unownedOwnerId("export", job.address);
 
     return exportId === null ? [] : [failure(db, exportId, "gave-up")];
   },

@@ -11,14 +11,18 @@ export function recordPath(table: string, number: number): string {
   return `records/${table}.${String(number)}.jsonl`;
 }
 
-export async function manifestFile(
-  db: Database,
-  { createdAt, tally }: Readonly<{ createdAt: number; tally: ExportTally }>,
-): Promise<ZipFile> {
+export async function appliedMigration(db: Database): Promise<string | null> {
   const [migration] = await db
     .select({ name: sql<string | null>`max(name)` })
     .from(sql`d1_migrations`);
 
+  return migration?.name ?? null;
+}
+
+export async function manifestFile(
+  db: Database,
+  { createdAt, tally }: Readonly<{ createdAt: number; tally: ExportTally }>,
+): Promise<ZipFile> {
   const steps = await db
     .select({ name: sql<string>`name`, version: sql<number>`version` })
     .from(sql`data_steps`)
@@ -44,7 +48,7 @@ export async function manifestFile(
   const manifest = {
     format: EXPORT_FORMAT,
     exportedAt: new Date(createdAt).toISOString(),
-    migration: migration?.name ?? null,
+    migration: await appliedMigration(db),
     dataSteps: Object.fromEntries(steps.map(({ name, version }) => [name, version])),
     tables: Object.fromEntries(tables),
     sequences: Object.fromEntries(

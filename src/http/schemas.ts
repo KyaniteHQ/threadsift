@@ -173,6 +173,8 @@ export const ItemReadResponseSchema = ItemPageResponseSchema.extend({
   counts: FilterCountsSchema.optional(),
 });
 
+export const RESTORING_CODE = "restoring";
+
 const REFUSAL_CODES = [
   "wrong",
   "owner-exists",
@@ -194,6 +196,11 @@ export const ErrorResponseSchema = z.object({
   error: z.string(),
   fetch: z.literal("refused").optional(),
   code: z.enum(REFUSAL_CODES).optional(),
+});
+
+export const UnavailableResponseSchema = z.object({
+  error: z.string(),
+  code: z.literal(RESTORING_CODE).optional(),
 });
 
 export const BudgetRefusalSchema = z.object({ error: z.string(), code: z.literal(BUDGET_SPENT) });

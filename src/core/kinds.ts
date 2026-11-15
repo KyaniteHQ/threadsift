@@ -97,13 +97,21 @@ export const OWNED_JOB_KINDS = [
   "disagreement_proposals",
 ] as const;
 
-export const JOB_KINDS = [...OWNED_JOB_KINDS, "export"] as const;
+export const UNOWNED_JOB_KINDS = ["export", "restore"] as const;
+
+export const JOB_KINDS = [...OWNED_JOB_KINDS, ...UNOWNED_JOB_KINDS] as const;
 
 export const SETUP_CODE_STATUSES = ["missing", "short", "set"] as const;
 
 export const JOB_STATES = ["queued", "running", "done"] as const;
 
 export const EXPORT_STATES = ["running", "ready", "failed", "removing", "expired"] as const;
+
+export const RESTORE_STATES = ["uploading", "running", "done", "failed"] as const;
+
+export const RUNNING_RESTORE_PHASES = ["check", "tables", "finish"] as const;
+
+export const RESTORE_PHASES = ["upload", ...RUNNING_RESTORE_PHASES] as const;
 
 export type Source = (typeof SOURCES)[number];
 
@@ -181,6 +189,12 @@ export type OwnedJobKind = (typeof OWNED_JOB_KINDS)[number];
 export type JobState = (typeof JOB_STATES)[number];
 
 export type ExportState = (typeof EXPORT_STATES)[number];
+
+export type RestoreState = (typeof RESTORE_STATES)[number];
+
+export type RestorePhase = (typeof RESTORE_PHASES)[number];
+
+export type UnownedJobKind = (typeof UNOWNED_JOB_KINDS)[number];
 
 export const WEEKLY_TASK = {
   "tag-merge": "proposals",

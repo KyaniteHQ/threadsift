@@ -30,7 +30,7 @@ export async function claimedAgain(
   assert.equal(claimed?.id, job.id);
 
   assert.ok(
-    claimed !== null && claimed.kind !== "export",
+    claimed !== null && claimed.kind !== "export" && claimed.kind !== "restore",
     `Job ${String(job.id)} claimed as ${claimed?.kind}`,
   );
 

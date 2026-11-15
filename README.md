@@ -68,7 +68,7 @@ The app answers on this machine only, over plain HTTP. To reach it from other de
 
 ## Status
 
-Threadsift is a working app that is still being built. The status table at the top of [docs/architecture.md](docs/architecture.md) says what is built and what is not. Restore is among the parts that are not built, which is why v1 is not ready for a library you want to keep. The container image is the install target you can run today. A Cloudflare Worker runs the same app, and its deploy button is not built yet.
+Threadsift is a working app that is still being built. The status table at the top of [docs/architecture.md](docs/architecture.md) says what is built and what is not. The restore of stored images, cancel and resume of a restore, and the Cloudflare deploy button are among the parts that are not built, which is why v1 is not ready for a library you want to keep. The container image is the install target you can run today. A Cloudflare Worker runs the same app, and its deploy button is not built yet.
 
 ## Find your way around
 

@@ -75,6 +75,8 @@ const PLAN_NOTICE =
 const FAILED = {
   updating:
     "Import stopped at {done} of {total} because the library is being updated. Try again in a minute.",
+  restoring:
+    "Import stopped at {done} of {total} because a Restore is running. Start the Import again when the Restore has finished.",
   network: "Import stopped at {done} of {total} because Threadsift couldn’t be reached.",
   rejected: "Import stopped at {done} of {total} because the Instance didn’t accept a batch.",
 } as const;

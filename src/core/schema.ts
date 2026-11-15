@@ -65,6 +65,8 @@ export { knownProposal, proposals } from "./proposal-tables.ts";
 
 export { relatedItems } from "./related-tables.ts";
 
+export { type RestoreRow, restoreRuns } from "./restore-tables.ts";
+
 export { searchFingerprints, searchParts, searchReconciling } from "./search-tables.ts";
 
 export { topicChecks, topicLeases, topicPages } from "./topic-tables.ts";

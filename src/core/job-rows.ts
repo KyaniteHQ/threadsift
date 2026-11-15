@@ -5,9 +5,9 @@ import { z } from "zod";
 import { logFailure } from "./failure-log.ts";
 import { ITEM_FILES_ROOT } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { ITEM_JOB_KINDS, type JobKind } from "./kinds.ts";
+import { ITEM_JOB_KINDS, type JobKind, type UnownedJobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type JobRow, items, jobs } from "./schema.ts";
+import { type JobRow, exportRuns, items, jobs, restoreRuns } from "./schema.ts";
 
 interface AttemptColumns {
   readonly itemId: SQLWrapper;
@@ -100,6 +100,61 @@ export function opening(
         .where(sql`${where}`),
     )
     .onConflictDoNothing()
+    .returning({ id: jobs.id });
+}
+
+const ADDRESS_ROOTS = { export: "exports", restore: "restores" } as const satisfies Readonly<
+  Record<UnownedJobKind, string>
+>;
+
+export function unownedAddress(kind: UnownedJobKind, ownerId: number): string {
+  return `${ADDRESS_ROOTS[kind]}/${String(ownerId)}`;
+}
+
+export function unownedOwnerId(kind: UnownedJobKind, address: string): number | null {
+  const id = new RegExp(`^${ADDRESS_ROOTS[kind]}/(?<id>[1-9][0-9]{0,18})$`, "u").exec(address)
+    ?.groups?.["id"];
+
+  return id === undefined ? null : Number(id);
+}
+
+export async function unownedRun<Run>(
+  kind: UnownedJobKind,
+  address: string,
+  load: (id: number) => Promise<Run | undefined>,
+): Promise<Run | null> {
+  const ownerId = unownedOwnerId(kind, address);
+
+  return ownerId === null ? null : ((await load(ownerId)) ?? null);
+}
+
+export function openingUnowned(
+  db: Database,
+  kind: UnownedJobKind,
+  owner: typeof exportRuns | typeof restoreRuns,
+  where: Readonly<SQLWrapper>,
+) {
+  return db
+    .insert(jobs)
+    .select(
+      db
+        .select({
+          id: sql<null>`null`.as("id"),
+          kind: sql<UnownedJobKind>`${kind}`.as("kind"),
+          itemId: sql<null>`null`.as("item_id"),
+          address: sql<string>`${ADDRESS_ROOTS[kind]} || '/' || ${owner.id}`.as("address"),
+          state: sql<"queued">`'queued'`.as("state"),
+          attempts: sql<number>`0`.as("attempts"),
+          staleRequeues: sql<number>`0`.as("stale_requeues"),
+          attemptGeneration: sql<null>`null`.as("attempt_generation"),
+          nextAttemptAt: sql<number>`${Date.now()}`.as("next_attempt_at"),
+          claimExpires: sql<null>`null`.as("claim_expires"),
+          waitReason: sql<null>`null`.as("wait_reason"),
+          page: sql<null>`null`.as("page"),
+        })
+        .from(owner)
+        .where(sql`${where}`),
+    )
     .returning({ id: jobs.id });
 }
 

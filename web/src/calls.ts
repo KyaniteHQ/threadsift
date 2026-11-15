@@ -28,6 +28,7 @@ export type JsonBody =
 
 interface Call {
   readonly json?: JsonBody;
+  readonly bytes?: Readonly<Blob>;
   readonly signsOut?: boolean;
   readonly signal?: AbortSignal | undefined;
 }
@@ -39,6 +40,8 @@ interface OkCall extends Call {
 export const READ_DEADLINE_MS = 20_000;
 
 const JSON_HEADERS = { "content-type": "application/json" } as const;
+
+const BYTES_HEADERS = { "content-type": "application/octet-stream" } as const;
 
 export function post(deadline: Deadline): Write {
   return { method: "POST", deadline };
@@ -72,17 +75,28 @@ function signalOf(method: Method, caller: AbortSignal | undefined): AbortSignal 
   return deadline === undefined ? caller : within(caller, deadline);
 }
 
+function requestInit(
+  verb: string,
+  json: JsonBody | undefined,
+  bytes: Readonly<Blob> | undefined,
+): RequestInit {
+  if (json !== undefined) {
+    return { method: verb, headers: JSON_HEADERS, body: JSON.stringify(json) };
+  }
+
+  return bytes === undefined
+    ? { method: verb }
+    : { method: verb, headers: BYTES_HEADERS, body: bytes };
+}
+
 export async function call(
   method: Method,
   path: string,
-  { json, signsOut = true, signal }: Readonly<Call> = {},
+  { json, bytes, signsOut = true, signal }: Readonly<Call> = {},
 ): Promise<Response> {
   const verb = methodOf(method);
 
-  const init: RequestInit =
-    json === undefined
-      ? { method: verb }
-      : { method: verb, headers: JSON_HEADERS, body: JSON.stringify(json) };
+  const init = requestInit(verb, json, bytes);
 
   const limit = signalOf(method, signal);
   const response = await fetch(path, limit === undefined ? init : { ...init, signal: limit });

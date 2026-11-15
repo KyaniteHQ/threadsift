@@ -29,7 +29,8 @@ async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
       return prefillOf(link, "private");
     }
 
-    case "updating": {
+    case "updating":
+    case "restoring": {
       return prefillOf(link, "updating");
     }
 

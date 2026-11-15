@@ -10,8 +10,8 @@ const TABLE = Uint32Array.from({ length: 256 }, (_, start) => {
   return value >>> 0;
 });
 
-export function crc32(bytes: Uint8Array): number {
-  let crc = 0xff_ff_ff_ff;
+export function crc32(bytes: Uint8Array, previous = 0): number {
+  let crc = (previous ^ 0xff_ff_ff_ff) >>> 0;
 
   for (let at = 0; at < bytes.length; at += 1) {
     crc = (TABLE[(crc ^ (bytes[at] ?? 0)) & 0xff] ?? 0) ^ (crc >>> 8);

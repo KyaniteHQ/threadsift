@@ -267,6 +267,7 @@ export const EXCLUDED_TABLES = {
   x_settings: "provider-choice",
   jobs: "work-in-flight",
   exports: "work-in-flight",
+  restores: "work-in-flight",
   topic_leases: "work-in-flight",
   data_step_lease: "work-in-flight",
   data_step_renames: "work-in-flight",

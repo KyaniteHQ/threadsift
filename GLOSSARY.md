@@ -165,8 +165,12 @@ The zip of the whole library that the owner starts and downloads: the manifest `
 _Avoid_: Dump, archive
 
 **Backup**:
-The section at the end of Settings where the owner starts an Export, follows it, downloads the zip and deletes it. It names the screen, never the zip; `backup` in the code names the list of tables the Export holds.
+The section at the end of Settings where the owner starts an Export, follows it, downloads the zip and deletes it, and where the owner starts a Restore. It names the screen, never the zip; `backup` in the code names the list of tables the Export holds.
 _Avoid_: Export section, Backups page
+
+**Restore**:
+The owner's upload of an Export zip into an Instance whose library is empty, and the run that brings every library record back with its id. The zip holds no Provider keys, password or agent tokens, so the owner enters those again. It is not an Import, which adds links.
+_Avoid_: Import (of a zip), recovery, migration
 
 ### Settings
 

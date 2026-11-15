@@ -11,9 +11,14 @@ import {
   scopeNote,
   scopeRefusal,
 } from "./openapi.ts";
-import { REFUSED_HOST, UPDATING, budgetSpent } from "./refusals.ts";
+import { REFUSED_HOST, RESTORING, UPDATING, budgetSpent } from "./refusals.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
-import { ErrorResponseSchema, SavedItemResponseSchema } from "./schemas.ts";
+import {
+  ErrorResponseSchema,
+  RESTORING_CODE,
+  SavedItemResponseSchema,
+  UnavailableResponseSchema,
+} from "./schemas.ts";
 import { callerOf, requirePasteScopes } from "./token-scopes.ts";
 
 const TOO_LARGE = {
@@ -56,8 +61,8 @@ const saveItemRoute = createRoute({
       "`page` for a Reddit post or comment whose Item already holds a saved thread from `content`, which is a thread header and so also a thread with no comments or with no published Digest. The saved thread stays, with its Kept comments, and nothing changes. Also `fill: true` for a link whose Item holds a saved thread in that sense or does not exist.",
     ),
     503: jsonBody(
-      ErrorResponseSchema,
-      "A new release is rewriting the stored Items and has not finished, so the link is not saved. Reads and deletes work meanwhile. Send the link again after a minute.",
+      UnavailableResponseSchema,
+      "A new release is rewriting the stored Items and has not finished, or a restore is running (`code` is `restoring`), so the link is not saved. Reads and deletes work meanwhile. Send the link again after a minute, or when the restore has finished.",
     ),
   },
 });
@@ -82,6 +87,10 @@ export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
 
     if (saved.kind === "updating") {
       return c.json({ error: UPDATING }, 503);
+    }
+
+    if (saved.kind === "restoring") {
+      return c.json({ error: RESTORING, code: RESTORING_CODE }, 503);
     }
 
     if (saved.kind === "not-waiting") {
