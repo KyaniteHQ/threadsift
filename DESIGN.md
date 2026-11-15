@@ -152,7 +152,7 @@ components:
 
 Threadsift is a quiet library room. The saved text leads, and the interface stays in the background. The mood is quiet, bookish and exact. Chrome is drawn in near-white surfaces, cool greys and hairlines, and one accent hue marks state. The reading column holds post and comment text at one size and one line length. The metadata, controls and lists around it are smaller and greyer than that text.
 
-The look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens. Today these are Font, Text size, Text width, Density, Comment style, Accent, Tag style, Card images and Style, which offers Library and the 10 Styles in `docs/design/styles.md`. Theme (Light, Dark, Sepia and Match system, which follows the device) and Layout (List, Grid) are attributes on the same root. With no Theme stored, the app draws Light (`docs/spec.md`, Themes). `design/system/tokens.css` is the source every value is read from, and `design/system/settings-table.ts` owns which option is the default. The page's `html` element carries the same `data-theme` and `data-style` as the app root, so the page background and `color-scheme` follow the theme past the app's edges. The tokens in this file record the default look: Light theme, the Plex font pair, Cobalt accent, Medium text size, Medium text width, Compact density and the List layout.
+The look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens. Today these are Font, Text size, Text width, Density, Comment style, Accent, Tag style, Card images and Style, which offers Library and the 10 Styles in `docs/design/styles.md`. Theme (Light, Dark, Sepia and Match system, which follows the device) and Layout (List, Grid) are attributes on the same root. With no Theme stored, the app draws Light (`docs/spec.md`, Themes). `design/system/tokens.css` is the source every value is read from, except the literal values its header lists, and `design/system/settings-table.ts` owns which option is the default. The page's `html` element carries the same `data-theme` and `data-style` as the app root, so the page background and `color-scheme` follow the theme past the app's edges. The tokens in this file record the default look: Light theme, the Plex font pair, Cobalt accent, Medium text size, Medium text width, Compact density and the List layout.
 
 Density is compact by default, because a library with hundreds of saves needs many rows on screen, but the reading column never gets denser with it. Components are refined and restrained. Two looks are rejected. One is a social feed: Reddit's or X's own chrome, with vote arrows, avatars ahead of the item title, and engagement counts as the loudest thing on a row. The other is a SaaS dashboard: gradient hero cards, number tiles and icons in coloured circles.
 
@@ -160,7 +160,7 @@ Density is compact by default, because a library with hundreds of saves needs ma
 - One accent hue on cool or warm neutrals. The theme sets the accent's lightness and chroma.
 - One reading size and one capped line length for post, comment and summary text.
 - Flat hairline structure in List. Soft shadows sit only on Grid cards and floating layers.
-- Every value is a token, and every Look option is a token swap on the app root.
+- Every value is a token, except the literal values the `design/system/tokens.css` header lists, and every Look option is a token swap on the app root.
 - The app answers to its own width, through `data-bp`, in five bands.
 
 ## Colors
@@ -169,8 +169,8 @@ The palette is near-white surfaces with a faint cool tint, ink-dark text, and a 
 
 ### Primary
 - **Cobalt** (`cobalt`): the default accent. Fills the pressed segment button, the pressed filter chip, the accent button, the unread dot, the unread badge, the reading progress line and the open row's left bar. Rust, Moss, Iris and Teal are the other four accents. Each changes only the hue (`--ah`).
-- **Cobalt ink** (`cobalt-ink`): the accent as text and outline. Links, the "show more" links, the focus ring and the focused field's border use it, because it is darker than the fill and holds 4.5:1 as text.
-- **Cobalt soft** (`cobalt-soft`): the accent's pale tint. It fills the open list row, the selected filter row, search highlights and the OP label in comments. In Sepia this tint is mixed into the paper colour, so it reads as a warm grey, a cream or a faint sage, never a blue block.
+- **Cobalt ink** (`cobalt-ink`): the accent as text and outline. Links, the "show more" links, the focus ring and the focused field's border use it, because it holds 4.5:1 as text. It is darker than the fill in Light and Sepia and lighter than it in Dark.
+- **Cobalt soft** (`cobalt-soft`): the accent's pale tint. It fills the open list row, the selected filter row, the Highlights kept in post and comment text and the OP label in comments. In Sepia this tint is mixed into the paper colour, so it reads as a warm grey, a cream or a faint sage, never a blue block.
 - **On accent** (`on-accent`): text and icons on a full accent fill.
 
 ### Neutral
@@ -187,7 +187,7 @@ The palette is near-white surfaces with a faint cool tint, ink-dark text, and a 
 Dark and Sepia redefine every neutral and the accent's lightness and chroma in `design/system/tokens.css`. Grid tilts the greys toward violet (`--nh`, `--nc`), and Sepia ignores that tilt. Tags take one of eight hues at a fixed chroma (`--tag-c`), shown only as a dot before the name in the default Tag style.
 
 ### Named Rules
-**The One Accent Rule.** The accent is the one colour that marks selection, action and state. The tag hues, the paste card's status tones and the accent swatches in the settings panel are the only other colours in the chrome. A full accent fill covers nothing larger than a control, a dot or a bar. A larger selected area, such as the open row, takes the soft tint.
+**The One Accent Rule.** The accent is the one colour that marks selection, action and state. The tag hues, the paste card's status tones, the `warn` colour of field errors, delete buttons and the failure mark on an Item row, and the accent swatches in the settings panel are the only other colours in the chrome. A full accent fill covers nothing larger than a control, a dot or a bar. A larger selected area, such as the open row, takes the soft tint.
 
 **The Theme Owns Lightness Rule.** An accent sets hue only. Each theme sets the accent's lightness and chroma (`--acc-l`, `--acc-c`, `--acc-ink`), so every accent meets the contrast floor in every theme without its own per-theme values.
 
@@ -218,7 +218,7 @@ Type sizes are in rem, so the browser's own font size scales them, and the pixel
 
 ## Layout
 
-Spacing runs on six steps (`s1` to `s6`, 4px to 32px). Density multiplies the vertical spacing of list rows and cards (`--k`, 0.75 at Compact) and changes list text size. It never changes the reader.
+Spacing runs on six steps (`s1` to `s6`, 4px to 32px). Density multiplies the vertical spacing of list rows and cards (`--k`, 0.75 at Compact) and changes list text size. It never changes the Reader's post, comment and summary text (`--t-read`). The Highlights list and the Note box in the Reader, and the Highlights page, follow it.
 
 List is three panes. The sidebar (`--rail-w`, 264px) holds the wordmark, paste box and filter rail, the item list sits between `--list-min` and `--list-w` (300px to 420px), and the reader pane takes the rest. Under `--bp-medium` (1080px) the sidebar becomes a header above the list. Under `--bp-narrow` (760px) everything stacks into one column and items open full page. Grid is a header row (wordmark, search, paste box), a filter bar, then a card grid centred at most `--page-max` (1480px) wide, with 4, 3, 3, 2 and 1 columns from the widest band down. In Grid, an item opens as a full page or as a sheet up to `--sheet-w` (760px) wide over the dimmed grid, with Previous and Next buttons outside the sheet.
 
@@ -268,11 +268,11 @@ Quiet framed buttons that sit on the surface like the rest of the page.
 
 ### Inputs / Fields
 - **Style:** surface fill, control-line edge, 8px corners, `--field-h` (40px) tall and `--target` (44px) under 480px, with the input text at list body size.
-- **Focus:** the edge turns accent-ink and thickens with a 1px inner ring.
+- **Focus:** the edge turns accent-ink and thickens with a 1px ring outside the border.
 
 ### Navigation
 - **Filter rail (List):** segmented Source and Status controls with counts, then collapsible Topic and Tags groups. A selected row or segment takes the soft accent tint and weight 600. The tint measures under 3:1 against the rail, so the change to weight 600 is what shows the state. Counts use tabular figures.
-- **Reader bar:** one `--bar-h` (56px) row that sticks to the top of the reader. As it narrows it drops, in order, the key hint, the position text, the button labels, the comments total and the word on Back. A 2px accent line along its bottom edge shows reading progress.
+- **Reader bar:** one `--bar-h` (56px) row that sticks to the top of the reader. As it narrows it drops, in order, the key hint, the button labels, the comments total and the word on Back. A 2px accent line along its bottom edge shows reading progress.
 - **Settings panel:** a `--pop-w` (25rem, 400px at the default size) panel under the gear, with segmented controls, a font select and accent swatches. Under 760px it becomes a sheet from the bottom with a fixed header and footer.
 
 ### List row (signature)
@@ -291,7 +291,7 @@ Opening an item grows its card or row into the reader over `--dur-move` (280ms) 
 - **Do** add a new Look option as a `data-*` rule on the app root that lists only the tokens it changes, and add the option to the settings table in `design/system/settings-table.ts`.
 - **Do** keep every text and background pair at 4.5:1 or more, and every mark, icon and border a person needs to see a control or its state at 3:1 or more, in every theme with every accent and Style.
 - **Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or an empty unread dot. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.
-- **Do** make every target at least 44px under 480px, except a link inside rendered post or comment text (`.md`), which keeps the size of the sentence around it (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).
+- **Do** make every target at least 44px under 480px, except the width of a link inside rendered post or comment text (`.md`). That link keeps the width of its text, and `--link-pad` sets its height (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).
 - **Do** mark the open row with its 3px bar as well as its tint.
 - **Do** give every animation a reduced-motion form.
 - **Do** keep the reading column at the Text width setting's measure, and keep the unread dot on the first metadata line, never on a picture.

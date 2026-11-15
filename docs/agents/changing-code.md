@@ -16,7 +16,7 @@ Agents copy what they read, so a comment that excuses a workaround teaches the n
 
 Three kinds of comment stay:
 
-- A tool directive that a tool reads: a lint suppression that names its rule and gives its reason after `--`, `@ts-expect-error` with its reason, `/// <reference ... />`, `// oxfmt-ignore`, and the bundler annotations `/* @vite-ignore */`, `/* #__PURE__ */`, `/* #__NO_SIDE_EFFECTS__ */` and `/** @jsxImportSource ... */`. The comment holds the directive alone, with no prose around it. `prettier-ignore` is refused, because oxfmt reads `oxfmt-ignore`.
+- A tool directive that a tool reads: a lint suppression that names its rule and gives its reason after `--`, `@ts-expect-error` with its reason, `/// <reference ... />`, `// oxfmt-ignore`, and the bundler annotations `/* @vite-ignore */`, `/* #__PURE__ */`, `/* #__NO_SIDE_EFFECTS__ */` and `/** @jsxImportSource ... */`. The comment holds the directive alone, with no prose around it. `prettier-ignore` is refused, so the repository has one directive form, `oxfmt-ignore`.
 - A licence header at the top of the file: a block comment that holds an `SPDX-License-Identifier:` line and any copyright lines, or the single line `// SPDX-License-Identifier: <id>`.
 - One line that names a constraint an outside dependency, platform or protocol forces and ends with its upstream `https://` link. It sits on its own line, because `eslint/no-inline-comments` refuses a comment after code.
 
@@ -28,7 +28,7 @@ The app is one core with ports, and each install target supplies an adapter per 
 
 - A module hides a lot of behaviour behind a small interface. A module whose interface is as big as its body is shallow: merge it into its caller or deepen it.
 - `src/core/` and `src/http/` run on both targets and call ports only. Lint refuses there a `node:` or `cloudflare:` import, any import from `targets/`, and an `import()` whose source is not a plain string; the target's entry passes adapters in through `createApp(ports)`.
-- A port exists only when two production adapters need it, such as the Node and Worker targets or two Providers. A test adapter does not count, because tests use no fakes (`docs/testing.md`).
+- A port exists only when two production adapters need it, such as the Node and Worker targets or two Providers. A test adapter does not count, because tests use no fakes (`docs/testing.md`). `Crypto` and `fetchers` are the accepted exceptions: `Crypto` has one adapter because lint bans `node:` imports in `src/core`, and `fetchers` is a plug-in list that only the container loads (`docs/architecture/one-codebase-two-install-targets.md`).
 - Names come from `GLOSSARY.md`.
 
 ## State, writes and failures

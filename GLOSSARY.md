@@ -41,7 +41,7 @@ The number of new Items one agent token may add in a UTC day; a link the library
 _Avoid_: Quota, rate limit, allowance
 
 **Extension**:
-The browser extension that saves the page in the owner's own tab, including a Reddit post with its visible comments.
+The browser extension that saves the page in the owner's own tab, including a Reddit post with its visible comments and, as far as Reddit's request limit allows, the replies behind its `more` stubs.
 _Avoid_: Clipper, add-on, plugin
 
 **Short-link alias**:
@@ -49,7 +49,7 @@ A short link's or Reddit share link's normalized address, kept with the Item it 
 _Avoid_: Redirect, mapping
 
 **Link-only Item**:
-An Item stored with its link, title and author only, such as a Reddit link saved without the Extension.
+An Item stored with its link and, when the source gave them, its title, author and, for a Reddit link, community, and with no fetched content, such as a Reddit link saved without the Extension. A Reddit Item stops being Link-only when Arctic Shift or the connected Reddit account fills its thread.
 _Avoid_: Stub, placeholder, bookmark
 
 **Threadsift bot**:
@@ -61,7 +61,7 @@ The agent's output for one Item, stored apart from the fetched content: clean ti
 _Avoid_: Analysis, enrichment, AI output
 
 **AI task**:
-One piece of agent work on the library: a Digest, a Topic page overview, a pick of Related Items, or the weekly Proposals.
+One piece of agent work on the library: a Digest, a Topic page overview, a pick of Related Items, the weekly Proposals, or the Grok Bot's read of an X link.
 _Avoid_: Job, prompt, request, AI call
 
 ### Sorting
@@ -93,7 +93,7 @@ The page that lists every Topic with its Item count and overview line.
 _Avoid_: Home, dashboard, catalogue
 
 **Log**:
-The list of the committed changes the agent made to the library, newest first, from the day the Instance began it.
+The list of the committed changes to the library, newest first, from the day the Instance began it: the agent's own changes, and the merges the owner accepts.
 _Avoid_: History, activity feed, audit trail
 
 **Log entry**:
@@ -127,11 +127,11 @@ A comment the agent kept because it adds a fact, a fix, a working link or comman
 _Avoid_: Top comment, filtered comment
 
 **Context stub**:
-One line in a comment tree that stands in for comments not shown: a dropped parent, so a Kept comment under it still reads correctly, or replies behind a Reddit `more` stub, which say they were not saved.
+One line in a comment tree that stands in for comments not shown: a dropped parent, so a Kept comment under it still reads correctly, or replies that were not saved. The second kind is a Reddit `more` stub, or the last line of an X thread whose post reports more replies than it holds, or no count; it says they were not saved.
 _Avoid_: Placeholder, removed comment
 
 **Reader**:
-The view that shows one Item in full: header, Summary, Key points, post text, the comments (Kept comments once a Digest covers the thread, otherwise every comment that passes the first step of the comment filter), the link a Reddit link post points at, and the owner's Highlights and Note.
+The view that shows one Item in full: header, Summary, Key points, post text, the comments (Kept comments, and any comment that holds an attached Highlight, once a Digest covers the thread, otherwise every comment that passes the first step of the comment filter), the link a Reddit link post points at, and the owner's Highlights and Note.
 _Avoid_: Detail view, article view
 
 **Author thread**:
@@ -145,7 +145,7 @@ _Avoid_: Quote thread, quoted tweet, embed
 ### Keeping
 
 **Highlight**:
-A passage of an Item's post text or of one comment the Reader shows that the owner selected to keep; it stays when a refresh changes the text, marked as no longer found. A Proposal can suggest removing one that is no longer found, and only the owner's Accept removes it.
+A passage of an Item's post text or of one comment the Reader shows that the owner selected to keep; it stays when a refresh changes the text, marked as no longer found. A Proposal can suggest removing one that is no longer found, and only the owner removes a single Highlight, with Accept or with Remove in the Reader.
 _Avoid_: Clip, quote, annotation, bookmark
 
 **Note**:
