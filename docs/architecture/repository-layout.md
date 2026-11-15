@@ -23,6 +23,7 @@ tools/bot-release.sh              refreshes or checks bot/SHA256SUMS and the has
 tools/icons/                      build.ts, which draws the installable app's icons from the design tokens
 tools/case-folding/               build.ts, which generates src/core/case-folding-table.ts from the Unicode data file, and check.ts, which checks the key function
 tools/check-worker-size.ts        pnpm build:worker; fails when the Worker upload passes the 64 MiB limit
+tools/extension-chromium.ts       a manual run of the built Extension in Chromium against an Instance on the container (`tools/extension-chromium/` holds its stand-in for Reddit and its checks); `extension-and-threadsift-bot.md`, Run the Extension in Chromium, says how to run it
 tools/theme-script.ts             the Vite plugin that emits the first-paint theme script as a hashed file and links it from index.html
 tools/worker-headers.ts           the Vite plugin that writes dist/web/_headers from src/http/web-headers.ts
 extension/                        the browser Extension (WXT): popup, settings page, background worker and the page capture script; its own pnpm workspace package

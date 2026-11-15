@@ -44,9 +44,10 @@ async function tryWrite(request: Readonly<SettingsRequest>): Promise<ChangeAnswe
 
 export function changeSettings(request: Readonly<SettingsRequest>): Promise<ChangeAnswer> {
   return exclusive(async () => {
+    const written = await tryWrite(request);
+
     if (request.kind === "fill" && !request.on) cancelFills();
 
-    const written = await tryWrite(request);
     const access = await reconcileAccess();
     await syncScripts();
 
