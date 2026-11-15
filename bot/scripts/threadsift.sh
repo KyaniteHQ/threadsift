@@ -2,6 +2,8 @@
 set -euo pipefail
 umask 077
 
+{ true >&0; } 2> /dev/null || exec 0< /dev/null
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 command="${1:-}"
 first="${2:-}"

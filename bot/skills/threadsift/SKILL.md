@@ -136,6 +136,6 @@ End `threadsift import: <added> added, <known> known, <refused> refused`. When t
 ## Setup and update
 For "set up threadsift" or a new owner's first conversation, follow `~/threadsift/setup.md`. For "update threadsift", follow `~/threadsift/update.md`, and apply an update only on the owner's yes. If the file or the script is missing, fetch the pinned release first with this exact line:
 ```bash
-TAG=bot-v3 SUMS_SHA256=92b93a1a688d580a5f36c697897609e487106afdf7a9d9a7071c87a939cde5f6; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
+TAG=bot-v4 SUMS_SHA256=7f9983b462a1418b7c8580cf63a5c6bba004b00a73282ba63532a309c3f876d9; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
 ```
 If any check fails, delete what was fetched, tell the owner, and stop.
