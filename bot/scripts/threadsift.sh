@@ -13,6 +13,7 @@ third="${4:-}"
 
 WRITE_CAP=8388608
 NAME='^[a-z][a-z0-9-]{0,31}-([0-9a-f]{32})\.(json|txt)$'
+ORIGIN='^(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\.0\.0\.1|localhost):[0-9]{1,5})$'
 
 route_of() {
   case "$1" in
@@ -149,6 +150,17 @@ forgotten() {
   echo ok
 }
 
+same_address() {
+  local typed
+  plain_dirs
+  take "$1" "the address file"
+  [[ "$(basename "$taken")" =~ $NAME ]] || stop bad-input "the address file needs a name made by write"
+  typed="$(< "$taken")"
+  [[ "$typed" =~ $ORIGIN ]] || stop bad-input "the address must be an https address with the host, a port when it has one, and nothing after it"
+  [[ "${THREADSIFT_URL:-}" =~ $ORIGIN ]] || stop not-configured "THREADSIFT_URL must be an https address with no path"
+  if [[ "${typed,,}" == "${THREADSIFT_URL,,}" ]]; then echo ok; else echo differs; fi
+}
+
 pruned_tasks() {
   local dir
   while IFS= read -r -d '' dir; do
@@ -164,6 +176,7 @@ pruned_tasks() {
 case "$command" in
   mark) mark_word; exit 0 ;;
   forget) forgotten "$first"; exit 0 ;;
+  same-address) same_address "$first"; exit 0 ;;
   write) written write "$first"; exit 0 ;;
   append) written append "$first"; exit 0 ;;
 esac
@@ -234,7 +247,7 @@ PY
 fi
 
 URL="${THREADSIFT_URL:-}"
-[[ "$URL" =~ ^(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\.0\.0\.1|localhost):[0-9]{1,5})$ ]] || stop not-configured "THREADSIFT_URL must be an https address with no path"
+[[ "$URL" =~ $ORIGIN ]] || stop not-configured "THREADSIFT_URL must be an https address with no path"
 
 work="$(mktemp -d)"
 request="$work/request"
@@ -413,7 +426,7 @@ item = body["item"]["id"]
 if isinstance(item, bool) or not isinstance(item, int) or body["url"] != f"/items/{item}":
     sys.exit(1)
 print(item)
-' "$response" 2> /dev/null)" && word="$word $saved_id $URL/items/$saved_id" || word=failed
+' "$response" 2> /dev/null)" && word="$word $saved_id /items/$saved_id" || word=failed
 fi
 
 if [[ "$word" == ok ]]; then

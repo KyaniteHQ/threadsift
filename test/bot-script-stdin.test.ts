@@ -20,7 +20,7 @@ interface Case {
 const comparable = ({ word, reasons, code }: Ran, hasTaskId: boolean) => {
   const normalized = word
     .replace(/^TS_[0-9a-f]{32}$/u, "TS_<hex>")
-    .replace(/^(ok|duplicate) (\d+) (\S+)\/items\/\2$/u, "$1 <id> $3/items/<id>");
+    .replace(/^(ok|duplicate) (\d+) \/items\/\2$/u, "$1 <id> /items/<id>");
 
   return {
     word: hasTaskId ? normalized.replace(/^ok \d+ /u, "ok <id> ") : normalized,
@@ -64,6 +64,12 @@ describe("the script prints the same word, reasons and exit code with standard i
       word: /^bad-input$/u,
       code: 2,
       args: () => Promise.resolve(["forget", "nope"]),
+    },
+    {
+      name: "same-address",
+      word: /^ok$/u,
+      code: 0,
+      args: async () => ["same-address", await world.folder.made("address", world.address, "txt")],
     },
     {
       name: "write",
@@ -132,7 +138,7 @@ describe("the script prints the same word, reasons and exit code with standard i
     },
     {
       name: "save",
-      word: /^ok (\d+) http:\/\/127\.0\.0\.1:\d+\/items\/\1$/u,
+      word: /^ok (\d+) \/items\/\1$/u,
       code: 0,
       args: async () => [
         "save",
