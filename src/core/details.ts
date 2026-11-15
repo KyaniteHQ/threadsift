@@ -6,7 +6,7 @@ import type { WaitReason, XReadNote } from "./kinds.ts";
 import { type Link, isGitHubLink, isVideoLink, parseLink, redditRefOf } from "./links.ts";
 import type { MarkdownImage } from "./markdown-images.ts";
 import type { PageReader } from "./ports.ts";
-import type { ParsedThread } from "./reddit-json.ts";
+import type { StoredThread } from "./stored-thread.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 
 export interface Repository {
@@ -30,7 +30,7 @@ export type Content =
   | ({ readonly kind: "article" } & PageText)
   | ({ readonly kind: "page" } & PageText)
   | { readonly kind: "empty-page" }
-  | { readonly kind: "thread"; readonly thread: ParsedThread; readonly archivedAt: number | null }
+  | { readonly kind: "thread"; readonly thread: StoredThread; readonly archivedAt: number | null }
   | {
       readonly kind: "github-repo";
       readonly repository: Repository;

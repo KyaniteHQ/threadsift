@@ -1,7 +1,8 @@
 import { redditRefOf } from "./links.ts";
 import type { Database } from "./ports.ts";
-import { type ThreadParse, parseRedditThread, type ParsedThread } from "./reddit-json.ts";
+import { parseRedditThread } from "./reddit-json.ts";
 import { ownerOf } from "./reddit-thread.ts";
+import type { StoredParse, StoredThread } from "./stored-thread.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
 import type { ThreadPlace } from "./thread-publish.ts";
 import { fewerThanStored } from "./x-partial.ts";
@@ -11,7 +12,7 @@ const NOT_A_THREAD_LINK = "only a Reddit post or comment link or an X post link 
 
 const ONE_X_TEXT = "an X post takes one JSON text of the post and its replies";
 
-function refused(reason: string): ThreadParse {
+function refused(reason: string): StoredParse {
   return { kind: "refused", reason };
 }
 
@@ -19,7 +20,7 @@ export function parsedThread(
   absoluteUrl: string,
   statusId: string | null,
   answers: ThreadAnswers,
-): ThreadParse {
+): StoredParse {
   const ref = redditRefOf(absoluteUrl);
 
   if (ref !== null) return parseRedditThread(answers, ref);
@@ -34,7 +35,7 @@ export function parsedThread(
 export function fewerThanSaved(
   db: Database,
   place: Readonly<ThreadPlace>,
-  thread: Readonly<ParsedThread>,
+  thread: Readonly<StoredThread>,
 ): Promise<boolean> {
   return place.kind === "x-post"
     ? fewerThanStored(db, ownerOf(place.normalizedUrl), thread)

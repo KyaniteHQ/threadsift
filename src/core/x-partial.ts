@@ -2,14 +2,16 @@ import { type SQLWrapper, eq, sql } from "drizzle-orm";
 
 import { statusIdOf } from "./links.ts";
 import type { Database } from "./ports.ts";
-import type { ParsedThread } from "./reddit-json.ts";
 import type { Owner } from "./reddit-thread.ts";
-import { items, redditComments } from "./schema.ts";
-import { parseXThreadValue } from "./x-thread.ts";
-import type { XThreadValue } from "./x-wire.ts";
+import { items, redditComments, redditThreads } from "./schema.ts";
+import type { StoredThread } from "./stored-thread.ts";
+import type { JoinedAuthorThread } from "./x-author-thread.ts";
+import { parseJoinedXThread } from "./x-thread.ts";
 
 function storedReplies(itemId: number | Readonly<SQLWrapper>) {
-  return sql<number>`(select count(*) from ${redditComments} as kept where kept.item_id = ${itemId} and kept.kind = 'comment' and kept.generation = (select max(newest.generation) from ${redditComments} as newest where newest.item_id = ${itemId} and newest.kind = 'comment'))`;
+  const generation = sql`max(coalesce((select max(newest.generation) from ${redditComments} as newest where newest.item_id = ${itemId} and newest.kind = 'comment'), -1), coalesce((select max(joined.generation) from ${redditThreads} as joined where joined.item_id = ${itemId} and joined.follow_ups > 0), -1))`;
+
+  return sql<number>`((select count(*) from ${redditComments} as kept where kept.item_id = ${itemId} and kept.kind = 'comment' and kept.generation = ${generation}) + coalesce((select stored.follow_ups from ${redditThreads} as stored where stored.item_id = ${itemId} and stored.generation = ${generation}), 0))`;
 }
 
 export function holdsAtLeastStored(itemId: number, replies: number) {
@@ -19,17 +21,17 @@ export function holdsAtLeastStored(itemId: number, replies: number) {
 export async function fewerThanStored(
   db: Database,
   owner: Readonly<Owner>,
-  { nodes }: Readonly<ParsedThread>,
+  { nodes, followUps = 0 }: Readonly<Pick<StoredThread, "nodes" | "followUps">>,
 ): Promise<boolean> {
   const [row] = await db.select({ stored: storedReplies(owner.id) }).from(sql`(select 1)`);
 
-  return nodes.filter(({ kind }) => kind === "comment").length < (row?.stored ?? 0);
+  return nodes.filter(({ kind }) => kind === "comment").length + followUps < (row?.stored ?? 0);
 }
 
 export async function publishableThread(
   db: Database,
   itemId: number,
-  value: Readonly<XThreadValue>,
+  joined: Readonly<JoinedAuthorThread>,
 ) {
   const [item] = await db
     .select({ normalizedUrl: items.normalizedUrl })
@@ -37,7 +39,7 @@ export async function publishableThread(
     .where(eq(items.id, itemId));
 
   const statusId = item === undefined ? null : statusIdOf(item.normalizedUrl);
-  const parsed = statusId === null ? null : parseXThreadValue(value, statusId);
+  const parsed = statusId === null ? null : parseJoinedXThread(joined, statusId);
 
   return parsed?.kind === "thread" ? parsed.thread : null;
 }

@@ -53,7 +53,15 @@ export const BACKUP_TABLES = {
   },
   reddit_threads: {
     scope: "per-item",
-    columns: ["item_id", "generation", "reported", "archived_at", "linked_url", "post_link"],
+    columns: [
+      "item_id",
+      "generation",
+      "reported",
+      "archived_at",
+      "linked_url",
+      "post_link",
+      "follow_ups",
+    ],
     leftOut: [],
   },
   reddit_comments: {

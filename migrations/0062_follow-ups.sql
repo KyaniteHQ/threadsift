@@ -1,0 +1,1 @@
+ALTER TABLE `reddit_threads` ADD `follow_ups` integer DEFAULT 0 NOT NULL;

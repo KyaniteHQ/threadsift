@@ -4,9 +4,9 @@ import { guardHolds, guardedWrite } from "./guards.ts";
 import { anchoredOutcome, displayedBesideThread } from "./highlight-publish.ts";
 import type { AnchoredOutcome, JobWrites } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import type { ParsedThread } from "./reddit-json.ts";
 import { awaitsThread } from "./reddit-thread.ts";
 import { items } from "./schema.ts";
+import type { StoredThread } from "./stored-thread.ts";
 import { type ThreadPlace, threadItemInsert, threadPublication } from "./thread-publish.ts";
 
 export interface Binding {
@@ -52,7 +52,7 @@ async function commit(
 export async function publishThread(
   db: Database,
   place: Readonly<ThreadPlace>,
-  thread: Readonly<ParsedThread>,
+  thread: Readonly<StoredThread>,
   {
     pendingDigest,
     fillOnly,
