@@ -13,6 +13,7 @@ interface JobSource {
   readonly id: number;
   readonly address: string;
   readonly attempts: number;
+  readonly attemptGeneration: number | null;
   readonly itemId: number;
   readonly page: string | null;
 }

@@ -158,7 +158,6 @@ export async function queueLater<Claimed extends ClaimedRow>(
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
     ...writes,
-    ...(closing.closing?.(ports.db, job, { kind: "deferred", wait }) ?? []),
     ports.db
       .update(jobs)
       .set({
@@ -170,6 +169,7 @@ export async function queueLater<Claimed extends ClaimedRow>(
         waitReason: wait,
       })
       .where(eq(jobs.id, job.id)),
+    ...(closing.closing?.(ports.db, job, { kind: "deferred", wait }) ?? []),
   ]);
 
   if (wrote) {

@@ -48,14 +48,6 @@ function ofSession({ sealedSession }: AccountSession) {
   return and(eq(redditAccount.id, ACCOUNT_ROW), eq(redditAccount.sealedSession, sealedSession));
 }
 
-export function stillConnected(db: Database, session: AccountSession): Promise<boolean> {
-  return db
-    .select({ id: redditAccount.id })
-    .from(redditAccount)
-    .where(and(ofSession(session), eq(redditAccount.state, "connected")))
-    .then((rows) => rows.length === 1);
-}
-
 export interface WindowRecord {
   readonly left: number | null;
   readonly reset: string | null;

@@ -15,7 +15,7 @@ import {
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { CLAIM_MARGIN_MS, type Closing, type JobPorts } from "./job-outcome.ts";
-import { enqueueQuietly } from "./job-rows.ts";
+import { enqueueQuietly, holding } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { type AccountRow, redditAccount } from "./reddit-account-tables.ts";
 import { type JobRow, jobs } from "./schema.ts";
@@ -49,7 +49,6 @@ function turnIsFree(db: Database, jobId: number, now: number): SQL | undefined {
       isNull(redditAccount.busyUntil),
       lte(redditAccount.busyUntil, now),
       eq(redditAccount.busyJob, jobId),
-      notExists(jobIsOpen(db, redditAccount.busyJob)),
     ),
     or(isNull(redditAccount.limitedUntil), lte(redditAccount.limitedUntil, now)),
     or(
@@ -69,19 +68,49 @@ function queueAllows(db: Database, jobId: number): SQL | undefined {
   );
 }
 
+export type TurnRun = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration">>;
+
+function ownedBy(run: Readonly<Pick<TurnRun, "id" | "attempts">>): SQL | undefined {
+  return and(eq(redditAccount.busyJob, run.id), eq(redditAccount.busyAttempt, run.attempts));
+}
+
+export async function holdsTurn(
+  db: Database,
+  run: TurnRun,
+  { sealedSession }: Readonly<Pick<AccountRow, "sealedSession">>,
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: redditAccount.id })
+    .from(redditAccount)
+    .where(
+      and(
+        eq(redditAccount.id, ACCOUNT_ROW),
+        eq(redditAccount.sealedSession, sealedSession),
+        eq(redditAccount.state, "connected"),
+        ownedBy(run),
+        holding(run),
+      ),
+    );
+
+  return rows.length === 1;
+}
+
 export async function takeTurn(
   db: Database,
-  jobId: number,
+  run: TurnRun,
   now: number,
 ): Promise<AccountRow | null> {
+  const jobId = run.id;
+
   const [taken] = await db
     .update(redditAccount)
     .set({
       busyJob: jobId,
+      busyAttempt: run.attempts,
       busyUntil: now + FILL_DEADLINE_MS + CLAIM_MARGIN_MS,
       queueHead: sql`(select min(${jobs.id}) from ${jobs} where ${WAITING} and ${jobs.id} <> ${jobId})`,
     })
-    .where(and(turnIsFree(db, jobId, now), queueAllows(db, jobId)))
+    .where(and(turnIsFree(db, jobId, now), queueAllows(db, jobId), holding(run)))
     .returning();
 
   return taken ?? null;
@@ -95,14 +124,14 @@ export function resumeAt(row: Readonly<AccountRow>, now: number): number {
   return Math.min(now + WAIT_CHECK_MS, holds.length === 0 ? Infinity : Math.max(...holds));
 }
 
-function releaseTurn(db: Database, jobId: number): BatchItem<"sqlite"> {
+function releaseTurn(db: Database, run: TurnRun): BatchItem<"sqlite"> {
   return db
     .update(redditAccount)
-    .set({ busyJob: null, busyUntil: null })
-    .where(eq(redditAccount.busyJob, jobId));
+    .set({ busyJob: null, busyAttempt: null, busyUntil: null })
+    .where(ownedBy(run));
 }
 
-function wakeOldest(db: Database, jobId: number, now: number): BatchItem<"sqlite"> {
+function wakeOldest(db: Database, run: TurnRun, now: number): BatchItem<"sqlite"> {
   return db
     .update(jobs)
     .set({ nextAttemptAt: now })
@@ -110,19 +139,21 @@ function wakeOldest(db: Database, jobId: number, now: number): BatchItem<"sqlite
       and(
         WAITING,
         eq(jobs.id, sql`${OLDEST_WAITING}`),
-        sql`exists (select 1 from ${redditAccount} where ${redditAccount.busyJob} = ${jobId})`,
+        sql`exists (select 1 from ${redditAccount} where ${ownedBy(run)})`,
       ),
     );
 }
 
-function deferTurn(db: Database, jobId: number, waits: boolean): BatchItem<"sqlite"> {
+function deferTurn(db: Database, run: TurnRun, waits: boolean): BatchItem<"sqlite"> {
+  const jobId = run.id;
   const headStays = sql`${redditAccount.queueHead} is not null and ${redditAccount.queueHead} < ${jobId} and exists (select 1 from ${jobs} where ${jobs.id} = ${redditAccount.queueHead} and ${jobs.state} <> 'done')`;
-  const holds = sql`${redditAccount.busyJob} = ${jobId}`;
+  const holds = sql`${ownedBy(run)}`;
 
   return db
     .update(redditAccount)
     .set({
       busyJob: sql`case when ${holds} then null else ${redditAccount.busyJob} end`,
+      busyAttempt: sql`case when ${holds} then null else ${redditAccount.busyAttempt} end`,
       busyUntil: sql`case when ${holds} then null else ${redditAccount.busyUntil} end`,
       queueHead: waits
         ? sql`case when ${headStays} then ${redditAccount.queueHead} else min(${jobId}, coalesce(${OLDEST_WAITING}, ${jobId})) end`
@@ -131,25 +162,41 @@ function deferTurn(db: Database, jobId: number, waits: boolean): BatchItem<"sqli
     .where(eq(redditAccount.id, ACCOUNT_ROW));
 }
 
+function wakeWhenFree(db: Database, run: TurnRun, now: number): BatchItem<"sqlite"> {
+  const takeable = and(turnIsFree(db, run.id, now), queueAllows(db, run.id));
+
+  return db
+    .update(jobs)
+    .set({ nextAttemptAt: now })
+    .where(
+      and(
+        eq(jobs.id, run.id),
+        WAITING,
+        sql`exists (select 1 from ${redditAccount} where ${takeable})`,
+      ),
+    );
+}
+
 export function redditClosing(
   db: Database,
-  job: Readonly<Pick<JobRow, "id">>,
+  job: TurnRun,
   how: Closing,
 ): readonly BatchItem<"sqlite">[] {
   return how.kind === "closed"
-    ? [wakeOldest(db, job.id, Date.now()), releaseTurn(db, job.id)]
-    : [deferTurn(db, job.id, how.wait === "reddit-limit")];
+    ? [wakeOldest(db, job, Date.now()), releaseTurn(db, job)]
+    : how.wait === "reddit-limit"
+      ? [deferTurn(db, job, true), wakeWhenFree(db, job, Date.now())]
+      : [deferTurn(db, job, false)];
 }
 
 export async function redditClosed(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
-  job: Readonly<Pick<JobRow, "id">>,
+  job: TurnRun,
   closed: boolean,
 ): Promise<void> {
   const now = Date.now();
 
-  if (!closed)
-    await ports.db.batch([wakeOldest(ports.db, job.id, now), releaseTurn(ports.db, job.id)]);
+  if (!closed) await ports.db.batch([wakeOldest(ports.db, job, now), releaseTurn(ports.db, job)]);
 
   await enqueueWaiting(ports, now, "oldest");
 }

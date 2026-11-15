@@ -13,6 +13,7 @@ export const redditAccount = sqliteTable(
     limitedUntil: integer("limited_until"),
     busyUntil: integer("busy_until"),
     busyJob: integer("busy_job"),
+    busyAttempt: integer("busy_attempt"),
     queueHead: integer("queue_head"),
     lastRequestAt: integer("last_request_at"),
     refusedCount: integer("refused_count").notNull().default(0),

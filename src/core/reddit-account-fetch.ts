@@ -1,15 +1,20 @@
 import { report } from "./failure-log.ts";
 import type { RedditRef } from "./links.ts";
 import type { Ports } from "./ports.ts";
-import { FILL_DEADLINE_MS, WAIT_CHECK_MS } from "./reddit-account-queue.ts";
+import {
+  FILL_DEADLINE_MS,
+  type TurnRun,
+  WAIT_CHECK_MS,
+  holdsTurn,
+} from "./reddit-account-queue.ts";
 import {
   clearRefusals,
   countRefusal,
   expireAccount,
   limitedUntilOf,
+  type WindowRecord,
   recordWindow,
   resetAtOf,
-  stillConnected,
 } from "./reddit-account-states.ts";
 import { checkSession } from "./reddit-account.ts";
 import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
@@ -39,7 +44,7 @@ export type AccountThread =
 type FillPorts = Pick<Ports, "db" | "secrets" | "jobs" | "redditSession">;
 
 export interface HeldAccount {
-  readonly jobId: number;
+  readonly run: TurnRun;
   readonly session: string;
   readonly sealedSession: string;
   readonly lastRequestAt: number | null;
@@ -89,18 +94,21 @@ function logged(
   });
 }
 
+function holds({ ports, held }: Readonly<Run>): Promise<boolean> {
+  return holdsTurn(ports.db, held.run, held);
+}
+
+async function record(run: Readonly<Run>, change: Readonly<WindowRecord>): Promise<void> {
+  if (await holds(run)) await recordWindow(run.ports.db, run.held, change, Date.now());
+}
+
 function recorded(run: Readonly<Run>, answer: Readonly<RedditAnswer>): Promise<void> {
-  return recordWindow(
-    run.ports.db,
-    run.held,
-    {
-      left: leftOf(answer.remaining),
-      reset: answer.reset,
-      retryAfter: answer.retryAfter,
-      limited: answer.status === RATE_LIMITED,
-    },
-    Date.now(),
-  );
+  return record(run, {
+    left: leftOf(answer.remaining),
+    reset: answer.reset,
+    retryAfter: answer.retryAfter,
+    limited: answer.status === RATE_LIMITED,
+  });
 }
 
 function limitedAtFirst(run: Readonly<Run>, first: Readonly<RedditAnswer>): AccountThread {
@@ -138,7 +146,7 @@ async function sessionAnswered(
   }
 
   if (verdict.verdict === "blocked" && verdict.answer?.status === FORBIDDEN) {
-    return (await countRefusal(ports, held, held.jobId, Date.now())) === "expired"
+    return (await countRefusal(ports, held, held.run.id, Date.now())) === "expired"
       ? "logged-out"
       : "refused";
   }
@@ -160,6 +168,12 @@ async function refusedAtFirst(
 
   await pauseForSpacing(Date.now());
 
+  if (!(await holds(run))) {
+    logged(run, "stopped", { requests: 1, status: first.status, left: first.remaining });
+
+    return FALLBACK;
+  }
+
   const result = await sessionAnswered(
     run,
     await checkSession(run.ports, run.held.session, run.deadline),
@@ -174,12 +188,7 @@ async function waitForWindow(
   run: Readonly<Run>,
   first: Readonly<RedditAnswer>,
 ): Promise<AccountThread> {
-  await recordWindow(
-    run.ports.db,
-    run.held,
-    { left: 0, reset: first.reset, retryAfter: null, limited: false },
-    Date.now(),
-  );
+  await record(run, { left: 0, reset: first.reset, retryAfter: null, limited: false });
   logged(run, "budget", { requests: 1, status: first.status, left: first.remaining });
 
   return { kind: "waiting", until: resetAtOf(first.reset, Date.now()), limited: false };
@@ -198,21 +207,16 @@ async function filledThread(
     {
       deadlineMs: FILL_DEADLINE_MS,
       signal: run.deadline,
-      mayContinue: () => stillConnected(run.ports.db, run.held),
+      mayContinue: () => holds(run),
     },
   );
 
-  await recordWindow(
-    run.ports.db,
-    run.held,
-    {
-      left: filled.window.left,
-      reset: filled.last.reset ?? null,
-      retryAfter: filled.last.retryAfter ?? null,
-      limited: filled.rateLimited,
-    },
-    Date.now(),
-  );
+  await record(run, {
+    left: filled.window.left,
+    reset: filled.last.reset ?? null,
+    retryAfter: filled.last.retryAfter ?? null,
+    limited: filled.rateLimited,
+  });
 
   const parsed = parseRedditThread(filled.answers, run.ref);
 
@@ -273,6 +277,8 @@ export async function accountThread(
   const run: Run = { ports, held, ref, lastAttempt, deadline, startedAt: Date.now(), answerFor };
 
   await pauseForSpacing(held.lastRequestAt);
+
+  if (!(await holds(run))) return FALLBACK;
 
   return afterFirst(run, await answerFor(firstPathOf(ref), REQUEST_DEADLINE_MS));
 }
