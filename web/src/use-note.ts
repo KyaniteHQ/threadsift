@@ -9,6 +9,7 @@ import {
   noteFlags,
   noteReducer,
   noteStart,
+  sentOf,
 } from "./note-state.ts";
 
 function useSend(
@@ -54,7 +55,7 @@ function view(state: Readonly<NoteState>) {
 
 function useKeptDraft(
   itemId: number,
-  { saved, draft, sent, adopted }: Readonly<NoteState>,
+  { saved, draft, attempt, adopted }: Readonly<NoteState>,
   dirty: boolean,
   dispatch: Dispatch<NoteAction>,
 ) {
@@ -69,8 +70,9 @@ function useKeptDraft(
   );
 
   useEffect(() => {
-    if (!adopted) keepDraft(itemId, dirty ? { body: draft, revision, sent } : null);
-  }, [itemId, dirty, draft, revision, sent, adopted]);
+    if (!adopted)
+      keepDraft(itemId, dirty ? { body: draft, revision, sent: sentOf(attempt) } : null);
+  }, [itemId, dirty, draft, revision, attempt, adopted]);
 }
 
 export function useNote(
