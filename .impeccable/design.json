@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-10T23:20:34Z",
+  "generatedAt": "2026-11-15T22:40:11Z",
   "title": "Design System: Threadsift",
   "extensions": {
     "colorMeta": {
@@ -330,7 +330,7 @@
       "refersTo": "field",
       "description": "The search and paste fields.",
       "html": "<label class=\"ds-field\"><input placeholder=\"Search the library\"></label>",
-      "css": ".ds-field { display: flex; align-items: center; min-height: var(--field-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); } .ds-field:focus-within { border-color: var(--acc-ink); box-shadow: 0 0 0 1px var(--acc-ink); } .ds-field input { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--text); font-family: var(--f-ui); font-size: var(--t-body); outline: none; } .ds-field input::placeholder { color: var(--muted); opacity: 1; }"
+      "css": ".ds-field { display: flex; align-items: center; min-height: var(--field-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); } .ds-field:has(input:focus-visible) { border-color: var(--acc-ink); box-shadow: 0 0 0 1px var(--acc-ink); } .ds-field input { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--text); font-family: var(--f-ui); font-size: var(--t-body); outline: none; } .ds-field input::placeholder { color: var(--muted); opacity: 1; }"
     },
     {
       "name": "Filter chip",
@@ -369,24 +369,24 @@
       "kind": "card",
       "refersTo": "summary-box",
       "description": "The reader's Topic, Tags, summary and key points, flat on the page.",
-      "html": "<section class=\"ds-agent\"><p class=\"ds-filed\"><b>Self-hosting</b> <span class=\"ds-tag\"><i></i>docker</span></p><p class=\"ds-text\">A two-line summary of what the thread says and what the kept comments add.</p></section>",
-      "css": ".ds-agent { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); color: var(--text); } .ds-filed { display: flex; gap: var(--s3); align-items: center; margin: 0; font-family: var(--f-ui); font-size: var(--t-meta); } .ds-tag { display: inline-flex; align-items: center; gap: var(--s1); color: var(--muted); } .ds-tag i { width: var(--dot); height: var(--dot); border-radius: var(--r4); background: oklch(var(--tag-l) var(--tag-c) 195); } .ds-text { margin: 0; font-family: var(--f-read); font-size: var(--t-read); line-height: var(--lh-text); }"
+      "html": "<section class=\"ds-agent\"><p class=\"ds-filed\"><b>Self-hosting</b> <span class=\"ds-tags\"><span class=\"ds-tag\"><i></i>docker</span></span></p><p class=\"ds-text\">A two-line summary of what the thread says and what the kept comments add.</p></section>",
+      "css": ".ds-agent { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); color: var(--text); } .ds-filed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); margin: 0; font-family: var(--f-ui); font-size: var(--t-meta); } .ds-tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); max-width: 100%; } .ds-tag { display: inline-flex; align-items: flex-start; gap: var(--tag-gap); max-width: 100%; overflow-wrap: anywhere; padding: var(--tag-pad-y) var(--tag-pad); border: var(--tag-box); border-radius: calc(0.5lh + var(--tag-pad-y) + 1px); background: var(--tag-bg); color: var(--tag-fg); } .ds-tag::before { content: var(--tag-mark); } .ds-tag i { display: var(--tag-dot); flex: none; margin-block-start: calc((1lh - var(--dot)) / 2); width: var(--dot); height: var(--dot); border-radius: var(--r4); background: oklch(var(--tag-l) var(--tag-c) 195); } .ds-text { margin: 0; font-family: var(--f-read); font-size: var(--t-read); line-height: var(--lh-text); }"
     }
   ],
   "narrative": {
     "northStar": "The Reading Room",
-    "overview": "**Creative North Star: \"The Reading Room\"**\n\nThreadsift is a quiet library room. The saved text leads, and the interface stays in the background. The mood is quiet, bookish and exact. Chrome is drawn in near-white surfaces, cool greys and hairlines, and one accent hue marks state. The reading column holds post and comment text at one size and one line length. The metadata, controls and lists around it are smaller and greyer than that text.\n\nThe look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens. Today these are Font, Text size, Text width, Density, Comment style, Accent, Tag style, Card images and Style, which offers Library and the 10 Styles in `docs/design/styles.md`. Theme (Light, Dark, Sepia and Match system, which follows the device) and Layout (List, Grid) are attributes on the same root. With no Theme stored, the app draws Light (`docs/spec.md`, Themes). `design/system/tokens.css` is the source every value is read from, and `design/system/settings-table.ts` owns which option is the default. The page's `html` element carries the same `data-theme` and `data-style` as the app root, so the page background and `color-scheme` follow the theme past the app's edges. The tokens in this file record the default look: Light theme, the Plex font pair, Cobalt accent, Medium text size, Medium text width, Compact density and the List layout.\n\nDensity is compact by default, because a library with hundreds of saves needs many rows on screen, but the reading column never gets denser with it. Components are refined and restrained. Two looks are rejected. One is a social feed: Reddit's or X's own chrome, with vote arrows, avatars ahead of the item title, and engagement counts as the loudest thing on a row. The other is a SaaS dashboard: gradient hero cards, number tiles and icons in coloured circles.",
+    "overview": "**Creative North Star: \"The Reading Room\"**\n\nThreadsift is a quiet library room. The saved text leads, and the interface stays in the background. The mood is quiet, bookish and exact. Chrome is drawn in near-white surfaces, cool greys and hairlines, and one accent hue marks state. The reading column holds post and comment text at one size and one line length. The metadata, controls and lists around it are smaller and greyer than that text.\n\nThe look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens; Theme and Layout are attributes on the same root. `design/system/tokens.css` is the source every value is read from, except the literal values its header lists, and `design/system/settings-table.ts` owns the list of settings and which option is the default. The tokens in this file record the default look: Light theme, the Plex font pair, Cobalt accent, Medium text size, Medium text width, Compact density and the List layout.\n\nDensity is compact by default, because a library with hundreds of saves needs many rows on screen, but the reading column never gets denser with it. Components are refined and restrained. Two looks are rejected. One is a social feed: Reddit's or X's own chrome, with vote arrows, avatars ahead of the item title, and engagement counts as the loudest thing on a row. The other is a SaaS dashboard: gradient hero cards, number tiles and icons in coloured circles.",
     "keyCharacteristics": [
       "One accent hue on cool or warm neutrals. The theme sets the accent's lightness and chroma.",
       "One reading size and one capped line length for post, comment and summary text.",
       "Flat hairline structure in List. Soft shadows sit only on Grid cards and floating layers.",
-      "Every value is a token, and every Look option is a token swap on the app root.",
+      "Every value is a token, except the literal values the `design/system/tokens.css` header lists, and every Look option is a token swap on the app root.",
       "The app answers to its own width, through `data-bp`, in five bands."
     ],
     "rules": [
       {
         "name": "The One Accent Rule",
-        "body": "The accent is the one colour that marks selection, action and state. The tag hues, the paste card's status tones and the accent swatches in the settings panel are the only other colours in the chrome. A full accent fill covers nothing larger than a control, a dot or a bar. A larger selected area, such as the open row, takes the soft tint.",
+        "body": "The accent is the one colour that marks selection, action and state. The tag hues, the paste card's status tones, the `warn` colour of field errors, delete buttons and the failure mark on an Item row, and the accent swatches in the settings panel are the only other colours in the chrome. A full accent fill covers nothing larger than a control, a dot or a bar. A larger selected area, such as the open row, takes the soft tint.",
         "section": "colors"
       },
       {
@@ -425,7 +425,7 @@
       "**Do** add a new Look option as a `data-*` rule on the app root that lists only the tokens it changes, and add the option to the settings table in `design/system/settings-table.ts`.",
       "**Do** keep every text and background pair at 4.5:1 or more, and every mark, icon and border a person needs to see a control or its state at 3:1 or more, in every theme with every accent and Style.",
       "**Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or an empty unread dot. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.",
-      "**Do** make every target at least 44px under 480px, except a link inside rendered post or comment text (`.md`), which keeps the size of the sentence around it (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).",
+      "**Do** make every target at least 44px under 480px, except the width of a link inside rendered post or comment text (`.md`). That link keeps the width of its text, and `--link-pad` sets its height (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).",
       "**Do** mark the open row with its 3px bar as well as its tint.",
       "**Do** give every animation a reduced-motion form.",
       "**Do** keep the reading column at the Text width setting's measure, and keep the unread dot on the first metadata line, never on a picture."
