@@ -3,7 +3,14 @@ import { type Caller, countedBy } from "./caller.ts";
 import { type Invalid, type SaveResult, type ThreadKept, itemAt, queuedWrites } from "./items.ts";
 import { closeItemJobs } from "./job-close.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
-import { isRefusedLink, parseLink, redditRefOf, takesPage } from "./links.ts";
+import {
+  isRedditShareLink,
+  isRefusedLink,
+  isShortLink,
+  parseLink,
+  redditRefOf,
+  takesPage,
+} from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { ownerOf } from "./reddit-thread.ts";
 import {
@@ -22,6 +29,9 @@ export type PageSaveResult =
 
 const NOT_A_PAGE_LINK =
   "only a link to an article, another web page, or a Reddit post or comment takes a page";
+
+const SHORTENED_LINK_PAGE =
+  "a short link or a Reddit share link takes no page; send the page at the address the link leads to, or send the link alone";
 
 async function queuePage(
   ports: Ports,
@@ -65,6 +75,15 @@ export async function savePage(
   caller: Caller,
 ): Promise<PageSaveResult> {
   if (isRefusedLink(absoluteUrl)) return { kind: "refused" };
+
+  if (isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)) {
+    return {
+      kind: "invalid",
+      field: "page",
+      reason: SHORTENED_LINK_PAGE,
+      code: UNSUPPORTED_PAGE_LINK,
+    };
+  }
 
   if (!takesPage(absoluteUrl)) {
     return { kind: "invalid", field: "page", reason: NOT_A_PAGE_LINK, code: UNSUPPORTED_PAGE_LINK };
