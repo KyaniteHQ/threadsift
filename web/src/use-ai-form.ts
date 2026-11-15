@@ -104,17 +104,7 @@ function verifyUnavailable(view: Readonly<AiView>): string | null {
   return saveUnavailable(view, settings.provider);
 }
 
-function savableHint(view: Readonly<AiView>, provider: Provider): string | null {
-  return view.settings === null && saveUnavailable(view, provider) === null
-    ? AI_TEXT["not-configured"]
-    : null;
-}
-
-function useVerify(
-  view: AiView,
-  formProvider: Provider,
-  { run, refuse }: Readonly<Pick<AiPhase, "run" | "refuse">>,
-) {
+function useVerify(view: AiView, { run, refuse }: Readonly<Pick<AiPhase, "run" | "refuse">>) {
   const unavailable = verifyUnavailable(view);
   const provider = view.settings?.provider;
 
@@ -139,7 +129,7 @@ function useVerify(
   return {
     verifyNow,
     verifyBlocked: unavailable !== null,
-    verifyHint: savableHint(view, formProvider),
+    verifyHint: view.settings === null ? (unavailable ?? undefined) : undefined,
   };
 }
 
@@ -212,7 +202,7 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
   const { provider, baseUrl, model } = fields;
   const flow = useAiPhase();
 
-  const { verifyNow, verifyBlocked, verifyHint } = useVerify(view, provider, flow);
+  const { verifyNow, verifyBlocked, verifyHint } = useVerify(view, flow);
   const { submit, saveBlocked } = useSave(view, fields, flow, saved);
   const connection = useConnect(view, fields, flow, saved);
   const savedKey = savedKeyOf(view, { provider, baseUrl: baseUrl.value, model: model.value });

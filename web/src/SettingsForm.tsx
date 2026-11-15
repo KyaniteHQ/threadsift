@@ -45,8 +45,8 @@ export function SettingsActions<Action extends string>({
   running: Action | null;
   buttons: readonly ActionButton<Action>[];
 }>) {
-  const id = useId();
-  const hintId = (action: Action) => `${id}-${action}-hint`;
+  const hintId = `${useId()}-hint`;
+  const hinted = buttons.find(({ hint }) => hint !== undefined)?.hint;
 
   return (
     <>
@@ -59,18 +59,16 @@ export function SettingsActions<Action extends string>({
             busy={running === action}
             blocked={running !== null || blocked}
             type={onClick === undefined ? "submit" : "button"}
-            onClick={hint === null ? onClick : undefined}
+            onClick={hint === undefined ? onClick : undefined}
             secondary={secondary}
-            describedBy={hint === null ? undefined : hintId(action)}
+            describedBy={hint === undefined ? undefined : hintId}
           />
         ))}
       </div>
-      {buttons.map(({ action, hint }) =>
-        hint === null ? null : (
-          <p key={action} id={hintId(action)} className="fld-help">
-            {hint}
-          </p>
-        ),
+      {hinted === undefined ? null : (
+        <p id={hintId} className="fld-help">
+          {hinted}
+        </p>
       )}
     </>
   );

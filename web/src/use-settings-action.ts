@@ -32,7 +32,7 @@ export interface ActionButton<Action extends string> {
   readonly label: string;
   readonly busyLabel: string;
   readonly blocked: boolean;
-  readonly hint: Unavailable;
+  readonly hint?: string | undefined;
   readonly onClick?: () => void;
   readonly secondary: boolean;
 }
@@ -117,24 +117,16 @@ interface ButtonSet<Check extends string> {
   readonly check: Check;
   readonly labels: Readonly<Record<"save" | "remove" | Check, Labels>>;
   readonly unavailable: Readonly<Record<"save" | "remove" | Check, Unavailable>>;
-  readonly checkHint: Unavailable;
+  readonly nothingSaved: boolean;
   readonly press: { readonly check: () => void; readonly remove: () => void };
   readonly saveSecondary?: boolean;
-}
-
-function plain<Action extends string>(
-  action: Action,
-  { label, busyLabel }: Readonly<Labels>,
-  blocked: boolean,
-): ActionButton<Action> {
-  return { action, label, busyLabel, blocked, hint: null, secondary: true };
 }
 
 export function useActionButtons<Check extends string>({
   check,
   labels,
   unavailable,
-  checkHint,
+  nothingSaved,
   press,
   saveSecondary = false,
 }: Readonly<ButtonSet<Check>>) {
@@ -143,18 +135,33 @@ export function useActionButtons<Check extends string>({
   const removeBlocked = unavailable.remove !== null;
   const { check: pressCheck, remove: pressRemove } = press;
 
+  const hint = nothingSaved ? (unavailable[check] ?? undefined) : undefined;
+
   return useMemo<readonly ActionButton<"save" | "remove" | Check>[]>(
     () => [
-      { ...plain("save", labels.save, saveBlocked), secondary: saveSecondary },
-      { ...plain(check, labels[check], checkBlocked), hint: checkHint, onClick: pressCheck },
-      { ...plain("remove", labels.remove, removeBlocked), onClick: pressRemove },
+      { action: "save", ...labels.save, blocked: saveBlocked, secondary: saveSecondary },
+      {
+        action: check,
+        ...labels[check],
+        blocked: checkBlocked,
+        hint,
+        onClick: pressCheck,
+        secondary: true,
+      },
+      {
+        action: "remove",
+        ...labels.remove,
+        blocked: removeBlocked,
+        onClick: pressRemove,
+        secondary: true,
+      },
     ],
     [
       check,
       labels,
       saveBlocked,
       checkBlocked,
-      checkHint,
+      hint,
       removeBlocked,
       pressCheck,
       pressRemove,

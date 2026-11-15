@@ -132,10 +132,6 @@ function verifyUnavailable({ state }: Readonly<RedditAccountView>): Unavailable 
   }
 }
 
-function verifyHint({ state }: Readonly<RedditAccountView>): Unavailable {
-  return state === "none" ? resultText("not-configured") : null;
-}
-
 function removeUnavailable({ state }: Readonly<RedditAccountView>): Unavailable {
   return state === "none" ? REDDIT_ACCOUNT_TEXT.removeNothing : null;
 }
@@ -171,7 +167,6 @@ function useExtensionButton(
               action: "reconnect",
               ...labels,
               blocked: false,
-              hint: null,
               onClick: reconnectNow,
               secondary: false,
             },
@@ -217,7 +212,7 @@ export function useRedditAccountForm(view: RedditAccountView, changed: Changed) 
     check: "verify",
     labels: LABELS,
     unavailable,
-    checkHint: verifyHint(view),
+    nothingSaved: view.state === "none",
     press: { check: verifyNow, remove: disconnectNow },
     saveSecondary: extension.length > 0,
   });
