@@ -85,7 +85,7 @@
    text field never go under: iOS Safari zooms the page when a focused field's
    text is smaller. Six spacing steps, four radii. */
 :root {
-  --t-label: 0.75rem; --t-meta: 0.8125rem; --t-code: 0.875rem; --t-h2: 1.25rem; --post-h-cap: 0.95; --t-read-base: 1.0625rem; --t-floor: 16px;
+  --t-label: 0.75rem; --t-meta: 0.8125rem; --t-code: 0.875rem; --t-h2: 1.25rem; --post-h-cap: 0.95; --rd-title-min: 1.1; --t-read-base: 1.0625rem; --t-floor: 16px;
   --lh-display: 1.15; --lh-title: 1.25; --lh-label: 1.4; --lh-ui: 1.45; --lh-text: 1.5; --lh-read: 1.6; --lh-code: 1.5;
   --ls-label: 0.06em;                 /* uppercase labels */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;

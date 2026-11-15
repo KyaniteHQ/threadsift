@@ -218,7 +218,7 @@
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "The wordmark, the reader title and the empty-library heading. 24px in List, 30px in Grid, 0.85 under 760px."
+        "purpose": "The wordmark (in the app bar and on the sign-in screen), the reader title, the page headings such as Settings and Import, and the empty-library heading. 24px in List, 30px in Grid, 0.85 under 760px, except that the reader title never goes under --rd-title-min (1.1) times Headline, which is 22px."
       },
       "headline": {
         "displayName": "Headline",
