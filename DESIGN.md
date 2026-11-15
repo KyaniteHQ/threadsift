@@ -200,7 +200,7 @@ Dark and Sepia redefine every neutral and the accent's lightness and chroma in `
 **Character:** IBM Plex Sans sets titles, lists, labels and reading text, and IBM Plex Mono sets code. The Font setting swaps in four other pairs (Newsreader with Instrument Sans, Bricolage Grotesque with Figtree, Instrument Serif with Geist, JetBrains Mono with Source Serif 4), most with their own display weights and size factors.
 
 ### Hierarchy
-- **Display** (`--t-display`: 600, 24px in List and 30px in Grid, 1.15): the wordmark, the reader title and the empty-library heading. It scales to 0.85 under 760px.
+- **Display** (`--t-display`: 600, 24px in List and 30px in Grid, 1.15): the wordmark (in the app bar and on the sign-in screen), the reader title, the page headings such as Settings and Import, and the empty-library heading. It scales to 0.85 under 760px, except that the reader title never goes under `--rd-title-min` (1.1) times Headline, which is 22px, so it stays the largest heading in the Reader in every Font and Style.
 - **Headline** (`--t-h2`: 600, 20px, 1.25): reader section headings such as Original post, Comments and README.
 - **Title** (`--t-title`: 500, 15px at Compact, 1.25): item titles in rows and cards. An unread item's title is 700. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped.
 - **Body** (`--t-read`: 400, 17px at Medium text size, 1.6): post and comment text in the reading column, up to 62 average characters a line at Medium text width (56 Narrow, 68 Wide). The reader's summary and key points use the same size at line height 1.5 (`--lh-text`).
