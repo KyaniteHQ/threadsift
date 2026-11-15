@@ -18,7 +18,7 @@ const FILE_NAME_MAX = FOLDER_NAME_MAX - temporaryPrefix("0".repeat(TEMPORARY_BYT
 
 const OWNER_ID = "[1-9][0-9]{0,18}";
 
-const EXPORT_NAME = /^(?:(?:part|dir)-[1-9][0-9]{0,9}|tail)$/u;
+const EXPORT_NAME = /^(?:(?:part|dir)-[1-9][0-9]{0,9}-[0-9]{1,10}|tail-[0-9]{1,10})$/u;
 
 function keyPattern(nameMax: number): RegExp {
   return new RegExp(
@@ -119,11 +119,15 @@ function storeKeyOf(pattern: Readonly<RegExp>, key: string): StoreKey | null {
 
   if (kind === null || ownerId === undefined || name === undefined) return null;
 
-  return kind === "exports" && !EXPORT_NAME.test(name) ? null : { root: kind, ownerId, name };
+  return { root: kind, ownerId, name };
+}
+
+function exportNamed(parsed: Readonly<StoreKey> | null): StoreKey | null {
+  return parsed?.root === "exports" && !EXPORT_NAME.test(parsed.name) ? null : parsed;
 }
 
 function storedKeyOf(key: string): StoreKey | null {
-  const final = storeKeyOf(KEY, key);
+  const final = exportNamed(storeKeyOf(KEY, key));
 
   if (final !== null) return final;
 
@@ -131,7 +135,9 @@ function storedKeyOf(key: string): StoreKey | null {
 
   if (stored === null) return null;
 
-  return TEMPORARY.test(key) && storeKeyOf(KEY, finalKeyOf(key)) !== null ? stored : null;
+  return TEMPORARY.test(key) && exportNamed(storeKeyOf(KEY, finalKeyOf(key))) !== null
+    ? stored
+    : null;
 }
 
 export function exportFilesPrefix(exportId: number | string): string {
@@ -163,7 +169,7 @@ export function requireStoredKey(key: string): StoreKey {
 }
 
 export function requireFileKey(key: string): StoreKey {
-  const parsed = storeKeyOf(KEY, key);
+  const parsed = exportNamed(storeKeyOf(KEY, key));
 
   if (parsed === null) {
     throw new FileRefused(`${JSON.stringify(key)} is not a file key`);

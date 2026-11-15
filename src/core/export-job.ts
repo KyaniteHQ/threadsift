@@ -1,5 +1,11 @@
 import { type SQLWrapper, and, eq, exists, ne, sql } from "drizzle-orm";
 
+import {
+  EXPORT_SLICE_DEADLINE_MS,
+  type ExportFailure,
+  exportObjectName,
+  exportTailName,
+} from "./export-contract.ts";
 import { type BuiltSlice, buildSlice } from "./export-slice.ts";
 import { report } from "./failure-log.ts";
 import { exportFileKey } from "./file-keys.ts";
@@ -8,8 +14,6 @@ import { enqueueRows } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { type ExportRow, exportRuns, jobs } from "./schema.ts";
 import { dosTimeOf, endOfArchive, packFiles } from "./zip.ts";
-
-const SLICE_DEADLINE_MS = 600_000;
 
 const ADDRESS = /^exports\/(?<id>[1-9][0-9]{0,18})$/u;
 
@@ -71,9 +75,13 @@ interface PackedSlice {
   readonly tailBytes: number | null;
 }
 
-function packedSlice(run: Readonly<ExportRow>, slice: Readonly<BuiltSlice>): PackedSlice {
+function packedSlice(
+  run: Readonly<ExportRow>,
+  slice: Readonly<BuiltSlice>,
+  generation: number,
+): PackedSlice {
   const packed = packFiles(slice.files, { offset: run.dataBytes, dos: dosTimeOf(run.createdAt) });
-  const part = String(run.parts + 1);
+  const part = run.parts + 1;
   const entries = run.entries + slice.files.length;
   const dataBytes = run.dataBytes + packed.data.length;
   const dirBytes = run.dirBytes + packed.directory.length;
@@ -84,9 +92,17 @@ function packedSlice(run: Readonly<ExportRow>, slice: Readonly<BuiltSlice>): Pac
 
   return {
     objects: [
-      { key: exportFileKey(run.id, `part-${part}`), bytes: packed.data },
-      { key: exportFileKey(run.id, `dir-${part}`), bytes: packed.directory },
-      ...(tail === null ? [] : [{ key: exportFileKey(run.id, "tail"), bytes: tail }]),
+      {
+        key: exportFileKey(run.id, exportObjectName("part", part, generation)),
+        bytes: packed.data,
+      },
+      {
+        key: exportFileKey(run.id, exportObjectName("dir", part, generation)),
+        bytes: packed.directory,
+      },
+      ...(tail === null
+        ? []
+        : [{ key: exportFileKey(run.id, exportTailName(generation)), bytes: tail }]),
     ],
     entries,
     dataBytes,
@@ -134,6 +150,13 @@ async function runOf(db: Database, address: string): Promise<ExportRow | null> {
   return run ?? null;
 }
 
+function failure(db: Database, exportId: number, reason: ExportFailure) {
+  return db
+    .update(exportRuns)
+    .set({ state: "failed", failure: reason, updatedAt: Date.now() })
+    .where(and(eq(exportRuns.id, exportId), eq(exportRuns.state, "running")));
+}
+
 async function attemptSlice(ports: JobPorts, job: Readonly<ClaimedExport>): Promise<JobOutcome> {
   const { db, files } = ports;
   const run = await runOf(db, job.address);
@@ -141,8 +164,16 @@ async function attemptSlice(ports: JobPorts, job: Readonly<ClaimedExport>): Prom
   if (run?.state !== "running") return { writes: [] };
 
   const started = performance.now();
-  const slice = await buildSlice(db, run);
-  const packed = packedSlice(run, slice);
+  const built = await buildSlice(db, run);
+
+  if (built === null) return { writes: [failure(db, run.id, "list-changed")] };
+
+  const slice = {
+    ...built,
+    tally: { ...built.tally, generations: [...built.tally.generations, job.attempts] },
+  };
+
+  const packed = packedSlice(run, slice, job.attempts);
 
   await Promise.all(packed.objects.map(({ key, bytes }) => files.put(key, bytes)));
 
@@ -156,6 +187,7 @@ async function attemptSlice(ports: JobPorts, job: Readonly<ClaimedExport>): Prom
 
   return {
     writes: [checkpoint(db, run, slice, packed)],
+    files: { written: packed.objects.map(({ key }) => key), superseded: [] },
     continuation: slice.finished ? [] : [openingExportJob(db, eq(exportRuns.id, run.id))],
     precondition: {
       holds: stillAt(db, run.id, run.parts),
@@ -169,20 +201,13 @@ async function attemptSlice(ports: JobPorts, job: Readonly<ClaimedExport>): Prom
 }
 
 export const exportHandler: JobHandler<ClaimedExport> = {
-  deadlineMs: SLICE_DEADLINE_MS,
+  deadlineMs: EXPORT_SLICE_DEADLINE_MS,
   blockedBy: [],
   attempt: attemptSlice,
   exhausted: (db, job) => {
     const exportId = exportIdOf(job.address);
 
-    return exportId === null
-      ? []
-      : [
-          db
-            .update(exportRuns)
-            .set({ state: "failed", failure: "gave-up", updatedAt: Date.now() })
-            .where(and(eq(exportRuns.id, exportId), eq(exportRuns.state, "running"))),
-        ];
+    return exportId === null ? [] : [failure(db, exportId, "gave-up")];
   },
   afterClosed: async (ports, job, closed) => {
     if (!closed) return;

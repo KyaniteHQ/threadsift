@@ -101,7 +101,7 @@ export const SETUP_CODE_STATUSES = ["missing", "short", "set"] as const;
 
 export const JOB_STATES = ["queued", "running", "done"] as const;
 
-export const EXPORT_STATES = ["running", "ready", "failed", "expired"] as const;
+export const EXPORT_STATES = ["running", "ready", "failed", "removing", "expired"] as const;
 
 export type Source = (typeof SOURCES)[number];
 

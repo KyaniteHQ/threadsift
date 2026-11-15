@@ -1,11 +1,17 @@
 import { and, eq, inArray, lt, or } from "drizzle-orm";
 
-import { EXPORT_CLEANUP_BATCH, EXPORT_KEEP_MS, EXPORT_SETTLE_MS } from "./export-contract.ts";
+import {
+  EXPORT_CLEANUP_BATCH,
+  EXPORT_KEEP_MS,
+  EXPORT_SLICE_DEADLINE_MS,
+} from "./export-contract.ts";
 import { logFailure } from "./failure-log.ts";
 import { FILE_LIST_LIMIT, exportFilesPrefix } from "./file-keys.ts";
-import type { JobPorts } from "./job-outcome.ts";
+import { CLAIM_MARGIN_MS, type JobPorts } from "./job-outcome.ts";
 import type { FileStore } from "./ports.ts";
 import { exportRuns } from "./schema.ts";
+
+const SETTLE_MS = EXPORT_SLICE_DEADLINE_MS + CLAIM_MARGIN_MS;
 
 type CleanupPorts = Pick<JobPorts, "db" | "files">;
 
@@ -19,11 +25,17 @@ async function removeObjects(files: FileStore, exportId: number): Promise<void> 
 }
 
 export async function removeExport({ db, files }: Readonly<CleanupPorts>, id: number) {
+  await db
+    .update(exportRuns)
+    .set({ state: "removing", updatedAt: Date.now() })
+    .where(and(eq(exportRuns.id, id), inArray(exportRuns.state, ["ready", "failed"])));
+
   await removeObjects(files, id);
+
   await db
     .update(exportRuns)
     .set({ state: "expired", updatedAt: Date.now() })
-    .where(and(eq(exportRuns.id, id), inArray(exportRuns.state, ["ready", "failed"])));
+    .where(and(eq(exportRuns.id, id), eq(exportRuns.state, "removing")));
 }
 
 export async function removeQuietly(ports: Readonly<CleanupPorts>, id: number): Promise<void> {
@@ -40,10 +52,8 @@ export async function cleanExports(ports: Readonly<CleanupPorts>): Promise<void>
     .from(exportRuns)
     .where(
       or(
-        and(
-          eq(exportRuns.state, "failed"),
-          lt(exportRuns.updatedAt, Date.now() - EXPORT_SETTLE_MS),
-        ),
+        eq(exportRuns.state, "removing"),
+        and(eq(exportRuns.state, "failed"), lt(exportRuns.updatedAt, Date.now() - SETTLE_MS)),
         and(eq(exportRuns.state, "ready"), lt(exportRuns.finishedAt, Date.now() - EXPORT_KEEP_MS)),
       ),
     )

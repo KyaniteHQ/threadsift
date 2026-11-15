@@ -3,7 +3,7 @@ CREATE TABLE `exports` (
 	`state` text NOT NULL,
 	`created_at` integer NOT NULL,
 	`finished_at` integer,
-	`stream` integer DEFAULT 0 NOT NULL,
+	`stream` text DEFAULT '' NOT NULL,
 	`cursor` integer DEFAULT 0 NOT NULL,
 	`entries` integer DEFAULT 0 NOT NULL,
 	`data_bytes` integer DEFAULT 0 NOT NULL,
@@ -16,11 +16,11 @@ CREATE TABLE `exports` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `exports_one_live` ON `exports` ((1)) WHERE "exports"."state" in ('running', 'ready');--> statement-breakpoint
-CREATE TRIGGER `exports_values_insert` BEFORE INSERT ON `exports` WHEN NEW.state not in ('running', 'ready', 'failed', 'expired') BEGIN
+CREATE TRIGGER `exports_values_insert` BEFORE INSERT ON `exports` WHEN NEW.state not in ('running', 'ready', 'failed', 'removing', 'expired') BEGIN
 	SELECT RAISE(ABORT, 'exports_values: an export has a known state');
 END;
 --> statement-breakpoint
-CREATE TRIGGER `exports_values_update` BEFORE UPDATE OF `state` ON `exports` WHEN NEW.state not in ('running', 'ready', 'failed', 'expired') BEGIN
+CREATE TRIGGER `exports_values_update` BEFORE UPDATE OF `state` ON `exports` WHEN NEW.state not in ('running', 'ready', 'failed', 'removing', 'expired') BEGIN
 	SELECT RAISE(ABORT, 'exports_values: an export has a known state');
 END;
 --> statement-breakpoint

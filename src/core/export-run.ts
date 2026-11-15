@@ -1,7 +1,14 @@
-import { and, desc, eq, ne, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { removeExport, removeQuietly } from "./export-cleanup.ts";
-import { type ExportStatus, NO_TALLY, exportDay } from "./export-contract.ts";
+import {
+  type ExportStatus,
+  ExportTallySchema,
+  NO_TALLY,
+  exportDay,
+  exportObjectName,
+  exportTailName,
+} from "./export-contract.ts";
 import { exportAddress, openingExportJob } from "./export-job.ts";
 import { exportFileKey } from "./file-keys.ts";
 import { refusedBy } from "./guards.ts";
@@ -16,25 +23,23 @@ export type StartedExport =
   | { readonly kind: "started"; readonly id: number }
   | { readonly kind: "running" };
 
-async function latestExport(db: JobPorts["db"]): Promise<ExportRow | null> {
-  const [latest] = await db
-    .select()
-    .from(exportRuns)
-    .where(
-      and(
-        ne(exportRuns.state, "expired"),
-        sql`not (${exportRuns.state} = 'failed' and ${exportRuns.failure} = 'cancelled')`,
-      ),
-    )
-    .orderBy(desc(exportRuns.id))
-    .limit(1);
+async function newestExport(db: JobPorts["db"]): Promise<ExportRow | null> {
+  const [newest] = await db.select().from(exportRuns).orderBy(desc(exportRuns.id)).limit(1);
 
-  return latest ?? null;
+  return newest ?? null;
+}
+
+function shown(run: Readonly<ExportRow>): boolean {
+  return (
+    run.state === "running" ||
+    run.state === "ready" ||
+    (run.state === "failed" && run.failure !== "cancelled")
+  );
 }
 
 export async function startExport(ports: JobPorts): Promise<StartedExport> {
   const { db } = ports;
-  const live = await latestExport(db);
+  const live = await newestExport(db);
 
   if (live?.state === "running") return { kind: "running" };
 
@@ -76,9 +81,9 @@ export async function startExport(ports: JobPorts): Promise<StartedExport> {
 }
 
 export async function exportStatus(db: JobPorts["db"]): Promise<ExportStatus> {
-  const run = await latestExport(db);
+  const run = await newestExport(db);
 
-  if (run === null) return { state: "none" };
+  if (run === null || !shown(run)) return { state: "none" };
 
   const { id, createdAt } = run;
 
@@ -103,8 +108,13 @@ export async function exportStatus(db: JobPorts["db"]): Promise<ExportStatus> {
         parts: run.parts,
         zipBytes: run.dataBytes + run.dirBytes + run.tailBytes,
       };
-    case "failed":
-      return { state: "failed", id, createdAt, failure: run.failure ?? "gave-up" };
+    case "failed": {
+      if (run.failure === null) throw new Error(`Export ${String(id)} failed with no reason`);
+
+      return { state: "failed", id, createdAt, failure: run.failure };
+    }
+
+    case "removing":
     case "expired":
       return { state: "none" };
     default:
@@ -116,23 +126,24 @@ export type DeletedExport = "deleted" | "none";
 
 export async function deleteExport(ports: JobPorts): Promise<DeletedExport> {
   const { db } = ports;
-  const run = await latestExport(db);
+  const run = await newestExport(db);
 
-  if (run === null) return "none";
+  if (run === null || !shown(run)) return "none";
 
   if (run.state === "running") {
-    await db.batch([
+    const [stopped] = await db.batch([
       db
         .update(exportRuns)
         .set({ state: "failed", failure: "cancelled", updatedAt: Date.now() })
-        .where(and(eq(exportRuns.id, run.id), eq(exportRuns.state, "running"))),
+        .where(and(eq(exportRuns.id, run.id), eq(exportRuns.state, "running")))
+        .returning({ id: exportRuns.id }),
       db
         .update(jobs)
         .set(CLOSED_JOB)
         .where(and(eq(jobs.kind, "export"), eq(jobs.address, exportAddress(run.id)))),
     ]);
 
-    return "deleted";
+    if (stopped.length > 0) return "deleted";
   }
 
   await removeExport(ports, run.id);
@@ -154,13 +165,19 @@ export async function readyExport(db: JobPorts["db"], id: number): Promise<Ready
 
   if (run === undefined) return null;
 
-  const numbered = (name: string) =>
-    Array.from({ length: run.parts }, (_, at) =>
-      exportFileKey(run.id, `${name}-${String(at + 1)}`),
+  const { generations } = ExportTallySchema.parse(JSON.parse(run.tally));
+
+  const tail = generations.at(-1);
+
+  if (tail === undefined) return null;
+
+  const named = (kind: "part" | "dir") =>
+    generations.map((generation, at) =>
+      exportFileKey(run.id, exportObjectName(kind, at + 1, generation)),
     );
 
   return {
-    keys: [...numbered("part"), ...numbered("dir"), exportFileKey(run.id, "tail")],
+    keys: [...named("part"), ...named("dir"), exportFileKey(run.id, exportTailName(tail))],
     size: run.dataBytes + run.dirBytes + run.tailBytes,
     filename: `threadsift-${exportDay(run.createdAt)}.zip`,
   };
