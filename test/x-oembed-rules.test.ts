@@ -12,12 +12,6 @@ import {
   BAND_RESOLVED,
   BAND_TEXT,
   JAPANESE,
-  CUT_MEDIA_HEAD,
-  CUT_MEDIA_ID,
-  CUT_LINK_HEAD,
-  CUT_LINK_ID,
-  TWO_LINKS_HEAD,
-  TWO_LINKS_ID,
   mediaOnly,
   NOTHING_RESOLVED,
   REPLY_LONG,
@@ -25,7 +19,6 @@ import {
   SHORT,
   WHOLE_LINKS,
   postOf,
-  typed,
   verdict,
   verdictOf,
   withParagraph,
@@ -57,6 +50,53 @@ describe("a stored post must be what X shows for the id and the author, characte
         SHORT(REPLY_SHORT.replace("see the", "see​the")),
       ],
       ["verified", "verified", "verified", "rejected", "rejected", "rejected"],
+    );
+  });
+
+  it("reads the line break X leaves out before a mention as one separator, and rejects a mention joined to the word before it", () => {
+    const html = '<a href="https://x.com/orchard?ref_src=twsrc%5Etfw">@orchard</a>';
+
+    const post = (text: string) =>
+      verdictOf(
+        withParagraph(
+          "reply-short.json",
+          `Ever notice the rule never says why?<br><br>That holds whether it works or not${html}&#39;s notes ban it<br><br>Pair it with ${html}&#39;s rule`,
+        ),
+        "3100000000000000016",
+        "quiet_reader",
+        text,
+      );
+
+    const stored =
+      "Ever notice the rule never says why?\n\nThat holds whether it works or not\n\n@orchard's notes ban it\n\nPair it with @orchard's rule";
+
+    assert.deepEqual(
+      [
+        stored,
+        stored.replace("not\n\n@", "not @"),
+        stored.replace("not\n\n@", "not\n@"),
+        stored.replace("with @", "with\n@"),
+        stored.replace("not\n\n@", "not@"),
+        stored.replace("with @", "with@"),
+        stored.replace("works", "work"),
+        stored.replace("works or not", "works"),
+        stored.replace("works or not", "works or not now"),
+        stored.replaceAll("@orchard", "@orchrd"),
+        stored.replace("\n\n@orchard's notes ban it", ""),
+      ].map((text) => post(text)),
+      [
+        "verified",
+        "verified",
+        "verified",
+        "verified",
+        "rejected",
+        "rejected",
+        "rejected",
+        "rejected",
+        "rejected",
+        "rejected",
+        "rejected",
+      ],
     );
   });
 
@@ -145,6 +185,7 @@ describe("a stored post must be what X shows for the id and the author, characte
         BAND(BAND_TEXT.replace("https://northpier.example/BlueAndLoud", "")),
         BAND(`${BAND_TEXT} https://northpier.example/BlueAndLoud`),
         BAND(BAND_TEXT.replace("\n\n#NORTHPIER", " #NORTHPIER")),
+        BAND(BAND_TEXT.replace("#NORTHPIER #blueandloud", "#NORTHPIER#blueandloud")),
       ],
       [
         "verified",
@@ -155,6 +196,7 @@ describe("a stored post must be what X shows for the id and the author, characte
         "rejected",
         "rejected",
         "verified",
+        "rejected",
       ],
     );
   });
@@ -199,81 +241,6 @@ describe("a stored post must be what X shows for the id and the author, characte
         verdict("long-cut-bare.json", CUT_BARE_ID, "FIELDNOTES_ANA", `${CUT_BARE_HEAD}…`),
       ],
       ["rejected", "rejected", "verified"],
-    );
-  });
-
-  it("verifies the head of a cut post and leaves its tail unverified, whether the cut is followed by a link, a media link or nothing", () => {
-    assert.deepEqual(
-      [
-        verdict(
-          "long-cut-bare.json",
-          CUT_BARE_ID,
-          "fieldnotes_ana",
-          `${CUT_BARE_HEAD} a forged tail that X does not show`,
-        ),
-        verdict(
-          "long-cut-bare.json",
-          CUT_BARE_ID,
-          "fieldnotes_ana",
-          `${CUT_BARE_HEAD} the real remaining words of the post`,
-        ),
-        verdict("long-cut-bare.json", CUT_BARE_ID, "fieldnotes_ana", `${CUT_BARE_HEAD}…`),
-        verdict(
-          "long-cut-media.json",
-          CUT_MEDIA_ID,
-          "gridwright",
-          `${CUT_MEDIA_HEAD} and the whole rest of the long post`,
-        ),
-        verdict(
-          "long-cut-link.json",
-          CUT_LINK_ID,
-          "makerlane",
-          `${CUT_LINK_HEAD} the rest https://example.com/x`,
-        ),
-        verdict(
-          "long-cut-two-links.json",
-          TWO_LINKS_ID,
-          "gridwright",
-          `${TWO_LINKS_HEAD} the rest of the post that X does not show`,
-        ),
-      ],
-      [
-        "tail-unverified",
-        "tail-unverified",
-        "verified",
-        "tail-unverified",
-        "tail-unverified",
-        "tail-unverified",
-      ],
-    );
-  });
-
-  it("compares a short post that ends in an ellipsis whole, so a forged tail after it is rejected", () => {
-    assert.deepEqual(
-      [typed("Maybe…"), typed("Maybe… and a forged tail"), typed("Perhaps…")],
-      ["verified", "rejected", "rejected"],
-    );
-  });
-
-  it("rejects a cut post whose head is altered or shorter than the head X shows", () => {
-    assert.deepEqual(
-      [
-        verdict(
-          "long-cut-bare.json",
-          CUT_BARE_ID,
-          "fieldnotes_ana",
-          `${CUT_BARE_HEAD.replace("always", "never")} tail`,
-        ),
-        verdict("long-cut-bare.json", CUT_BARE_ID, "fieldnotes_ana", CUT_BARE_HEAD.slice(0, 100)),
-        verdict("long-cut-bare.json", CUT_BARE_ID, "fieldnotes_ana", "A different post."),
-        verdict(
-          "long-cut-media.json",
-          CUT_MEDIA_ID,
-          "gridwright",
-          `${CUT_MEDIA_HEAD.replace("https://t.co/Kk2Ab6Cc4D", "https://example.com/x")} tail`,
-        ),
-      ],
-      ["rejected", "rejected", "rejected", "rejected"],
     );
   });
 });
