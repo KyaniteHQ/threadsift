@@ -62,6 +62,12 @@ function threadSchemaOf<
 
 export const XThreadSchema = threadSchemaOf(WirePostedAt, z.never().optional());
 
+export const XCliThreadSchema = XThreadSchema.extend({
+  post: XThreadSchema.shape.post.extend({
+    quoted: XThreadSchema.shape.post.shape.quoted.unwrap(),
+  }),
+});
+
 export const StoredXThreadSchema = threadSchemaOf(StoredPostedAt, z.boolean().optional());
 
 export type XThread = z.output<typeof XThreadSchema>;

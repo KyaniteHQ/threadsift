@@ -1,9 +1,9 @@
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
-import { statusIdOf } from "./links.ts";
 import { parsedJson } from "./parsed-json.ts";
-import { type Anchor, type Item, LINK, itemsOf } from "./x-paragraph.ts";
+import { type Anchor, type Item, LINK, itemsOf, squashed } from "./x-paragraph.ts";
+import { rejectedQuotes, withoutQuoteLink } from "./x-quote-link.ts";
 
 const ELLIPSIS = "\u2026";
 const CLOSING = String.raw`[^\s.,;:!?)\]'"”’]`;
@@ -48,16 +48,15 @@ export interface StoredPost {
   readonly id: string;
   readonly author: string;
   readonly text: string;
+  readonly chain?: { readonly next: string | null };
+}
+
+export interface Checked {
+  readonly judgement: Judgement;
+  readonly rejects: readonly string[];
 }
 
 export type Resolved = ReadonlyMap<string, string>;
-
-function squashed(text: string): string {
-  return text
-    .replaceAll(new RegExp(String.raw`\s*${LINK}\s*`, "gu"), LINK)
-    .replaceAll(/\s+/gu, " ")
-    .trim();
-}
 
 const FLATTENED: Readonly<Record<Item["kind"], (item: Readonly<Item>) => string>> = {
   text: (item) => (item.kind === "text" ? item.text : ""),
@@ -223,36 +222,6 @@ export function resolutionsNeeded(stored: string, post: Readonly<OembedPost>): r
   ];
 }
 
-function pointsAtOtherStatus(address: string | undefined, ownId: string): boolean {
-  if (address === undefined || !URL.canParse(address)) return false;
-
-  const id = statusIdOf(address);
-
-  return id !== null && id !== ownId;
-}
-
-function withoutQuoteLink(
-  post: Readonly<OembedPost>,
-  resolved: Readonly<Resolved>,
-): OembedPost | null {
-  const last = post.links.at(-1);
-
-  if (
-    post.cut !== null ||
-    last === undefined ||
-    !post.whole.endsWith(LINK) ||
-    !pointsAtOtherStatus(resolved.get(last.href), post.id)
-  ) {
-    return null;
-  }
-
-  return {
-    ...post,
-    links: post.links.slice(0, -1),
-    whole: squashed(post.whole.slice(0, -LINK.length)),
-  };
-}
-
 function judgedAs(
   stored: Readonly<StoredPost>,
   post: Readonly<OembedPost>,
@@ -278,16 +247,35 @@ function judgedAs(
   return head?.startsWith(post.cut.head) === true ? "tail-unverified" : "rejected";
 }
 
+export function checked(
+  stored: Readonly<StoredPost>,
+  post: Readonly<OembedPost>,
+  resolved: Readonly<Resolved>,
+): Checked {
+  const whole = judgedAs(stored, post, resolved);
+  const quote = whole === "rejected" ? withoutQuoteLink(post, resolved) : null;
+
+  const judgement =
+    quote === null
+      ? whole
+      : judgedAs(stored, { ...post, links: quote.links, whole: quote.whole }, resolved);
+
+  if (judgement === "rejected") return { judgement, rejects: [] };
+
+  return {
+    judgement,
+    rejects: rejectedQuotes(
+      stored.chain?.next,
+      quote?.target ?? null,
+      post.cut === null && post.links.length === 0,
+    ),
+  };
+}
+
 export function judged(
   stored: Readonly<StoredPost>,
   post: Readonly<OembedPost>,
   resolved: Readonly<Resolved>,
 ): Judgement {
-  const whole = judgedAs(stored, post, resolved);
-
-  if (whole !== "rejected") return whole;
-
-  const bare = withoutQuoteLink(post, resolved);
-
-  return bare === null ? whole : judgedAs(stored, bare, resolved);
+  return checked(stored, post, resolved).judgement;
 }

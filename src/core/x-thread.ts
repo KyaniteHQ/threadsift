@@ -5,7 +5,7 @@ import type { ParsedThread, ThreadParse } from "./reddit-json.ts";
 import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts";
 import type { StoredParse } from "./stored-thread.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
-import { type JoinedPost, joinedPost } from "./x-joined-post.ts";
+import { type JoinedPost, LINE_BREAK, joinedPost } from "./x-joined-post.ts";
 import { type XReply, type XThreadValue, XThreadSchema } from "./x-wire.ts";
 import { fieldNamesOf, issueCodesOf } from "./zod-reasons.ts";
 
@@ -22,7 +22,7 @@ interface Placed {
 function firstLineOf(text: string): string {
   return (
     text
-      .split(/\r\n|[\r\n\u2028\u2029]/u)
+      .split(LINE_BREAK)
       .find((line) => line.trim() !== "")
       ?.trim() ?? ""
   );
@@ -201,10 +201,6 @@ function parseThread(value: XThreadValue, statusId: string): ParsedThread {
 
   const nodes = walk(post.id, replies).map((entry, position) => nodeOf(entry, position));
 
-  if (utf8Length(JSON.stringify(value)) > MAX_ROW_BYTES) {
-    refuse(`the thread is longer than ${String(MAX_ROW_BYTES)} bytes once stored`);
-  }
-
   return withMoreMarked({
     title: postTitle(post.text),
     author: post.author,
@@ -218,8 +214,20 @@ function parseThread(value: XThreadValue, statusId: string): ParsedThread {
   });
 }
 
+function checkedRow(value: XThreadValue): void {
+  if (utf8Length(JSON.stringify(value)) > MAX_ROW_BYTES) {
+    refuse(`the thread is longer than ${String(MAX_ROW_BYTES)} bytes once stored`);
+  }
+}
+
 export function parseXThreadValue(thread: XThreadValue, statusId: string): ThreadParse {
-  const read = refusing(() => parseThread(thread, statusId));
+  const read = refusing(() => {
+    const parsed = parseThread(thread, statusId);
+
+    checkedRow(thread);
+
+    return parsed;
+  });
 
   return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
 }
@@ -228,9 +236,9 @@ export function parseJoinedXThread(
   { thread, followUps }: Readonly<Pick<JoinedPost, "thread" | "followUps">>,
   statusId: string,
 ): StoredParse {
-  const read = parseXThreadValue(thread, statusId);
+  const read = refusing(() => parseThread(thread, statusId));
 
-  return read.kind === "thread" ? { kind: "thread", thread: { ...read.thread, followUps } } : read;
+  return read.kind === "read" ? { kind: "thread", thread: { ...read.value, followUps } } : read;
 }
 
 const THREAD_FIELDS = fieldNamesOf(XThreadSchema);
@@ -280,8 +288,5 @@ export function parseXThread(answer: string, statusId: string): StoredParse {
 
   const everyReply = new Set(read.value.replies.map(({ id }) => id));
 
-  return parseJoinedXThread(
-    joinedPost(read.value, everyReply, () => true),
-    statusId,
-  );
+  return parseJoinedXThread(joinedPost(read.value, everyReply, {}), statusId);
 }

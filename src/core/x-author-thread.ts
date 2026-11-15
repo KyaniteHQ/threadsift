@@ -4,7 +4,7 @@ import type { XReply, XThreadValue } from "./x-wire.ts";
 
 const NOT_SAVED_NOTE = "Author follow-up posts that X did not confirm were not saved.";
 
-const PART_SEPARATOR = "\n\n";
+export const PART_SEPARATOR = "\n\n";
 
 type RepliesById = Readonly<ReadonlyMap<string, Readonly<XReply>>>;
 

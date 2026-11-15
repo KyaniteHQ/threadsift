@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { X_QUOTES_MAX, X_REPLIES_MAX } from "../../core/limits.ts";
-import { XThreadSchema } from "../../core/x-wire.ts";
+import { XCliThreadSchema } from "../../core/x-wire.ts";
 
 export const PROVEN_VERSION = "grok 1.0.77 (50ca579fa996)";
 
@@ -37,11 +37,11 @@ const DENIED_TOOLS = [
 
 const WireAnswerSchema = z.strictObject({
   found: z.boolean(),
-  thread: XThreadSchema.nullable(),
+  thread: XCliThreadSchema.nullable(),
 });
 
 export const XFetchAnswerSchema = z.discriminatedUnion("found", [
-  z.strictObject({ found: z.literal(true), thread: XThreadSchema }),
+  z.strictObject({ found: z.literal(true), thread: XCliThreadSchema }),
   z.strictObject({ found: z.literal(false), thread: z.null() }),
 ]);
 

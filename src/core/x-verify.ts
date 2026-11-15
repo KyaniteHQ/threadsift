@@ -7,7 +7,7 @@ import {
   type OembedAnswer,
   type Resolved,
   type StoredPost,
-  judged,
+  checked,
   oembedAnswerOf,
   resolutionsNeeded,
 } from "./x-oembed.ts";
@@ -151,12 +151,14 @@ async function checkedPost(
   signal: AbortSignal,
   asking: Readonly<Asking>,
   isRoot: boolean,
-): Promise<Judgement | null> {
+): Promise<Judged | null> {
   asking.counted();
 
   const answer = await answerFor(network, stored.id, signal);
 
-  if (answer.kind === "absent" || (answer.kind === "unusable" && !isRoot)) return "rejected";
+  if (answer.kind === "absent" || (answer.kind === "unusable" && !isRoot)) {
+    return { [stored.id]: "rejected" };
+  }
 
   const resolved =
     answer.kind === "post"
@@ -174,7 +176,12 @@ async function checkedPost(
     return null;
   }
 
-  return judged(stored, answer.post, resolved);
+  const { judgement, rejects } = checked(stored, answer.post, resolved);
+
+  return {
+    [stored.id]: judgement,
+    ...Object.fromEntries(rejects.map((id) => [id, "rejected"] as const)),
+  };
 }
 
 export async function askedSlice(
@@ -192,7 +199,7 @@ export async function askedSlice(
 
     if (stored === undefined || asking.isStopped()) return;
 
-    const judgement = await checkedPost(
+    const judgements = await checkedPost(
       network,
       stored,
       signal,
@@ -200,7 +207,9 @@ export async function askedSlice(
       stored.id === thread.post.id,
     );
 
-    if (judgement !== null) added[stored.id] = judgement;
+    for (const [id, judgement] of Object.entries(judgements ?? {})) {
+      if (added[id] !== "rejected") added[id] = judgement;
+    }
 
     return work();
   };

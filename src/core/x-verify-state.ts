@@ -1,4 +1,4 @@
-import { joinedPost } from "./x-joined-post.ts";
+import { joinedPost, leadingQuotes } from "./x-joined-post.ts";
 import { type Judgement, MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
 import type { XThreadValue } from "./x-wire.ts";
 
@@ -18,8 +18,20 @@ export type Progress =
       readonly unverifiedTails: number;
     };
 
-function postsOf({ post, replies }: Readonly<XThreadValue>): readonly StoredPost[] {
-  return [post, ...post.quoted, ...replies].map(({ id, author, text }) => ({ id, author, text }));
+function postsOf(
+  { post, replies }: Readonly<XThreadValue>,
+  judgedSoFar: Judged,
+): readonly StoredPost[] {
+  const chain = [post, ...leadingQuotes(post.quoted, judgedSoFar)].map(
+    ({ id, author, text }, index) => ({
+      id,
+      author,
+      text,
+      chain: { next: post.quoted[index]?.id ?? null },
+    }),
+  );
+
+  return [...chain, ...replies.map(({ id, author, text }) => ({ id, author, text }))];
 }
 
 function costOf({ text }: Readonly<StoredPost>): number {
@@ -30,7 +42,7 @@ export function sliceOf(
   thread: Readonly<XThreadValue>,
   judgedSoFar: Judged,
 ): readonly StoredPost[] {
-  const pending = postsOf(thread).filter(({ id }) => judgedSoFar[id] === undefined);
+  const pending = postsOf(thread, judgedSoFar).filter(({ id }) => judgedSoFar[id] === undefined);
   const [first] = pending;
 
   if (first === undefined) return [];
@@ -64,7 +76,7 @@ export function startingJudged({ post, replies }: Readonly<XThreadValue>): Judge
 export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged): Progress {
   if (judgedSoFar[thread.post.id] === "rejected") return { kind: "refused" };
 
-  const pending = postsOf(thread).filter(({ id }) => judgedSoFar[id] === undefined);
+  const pending = postsOf(thread, judgedSoFar).filter(({ id }) => judgedSoFar[id] === undefined);
 
   if (pending.length > 0) return { kind: "asking", pending };
 
@@ -72,24 +84,17 @@ export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged):
     thread.replies.filter(({ id }) => judgedSoFar[id] !== "rejected").map(({ id }) => id),
   );
 
-  const {
-    thread: joined,
-    followUps,
-    quoted,
-  } = joinedPost(thread, kept, (id) => judgedSoFar[id] !== "rejected");
-
-  const shownQuotes = new Set(thread.post.quoted.slice(0, quoted).map((quote) => quote.id));
+  const { thread: joined, followUps, quotes } = joinedPost(thread, kept, judgedSoFar);
+  const shown = new Set([thread.post.id, ...kept, ...quotes.map(({ id }) => id)]);
 
   return {
     kind: "ready",
     thread: joined,
     followUps,
-    quoted,
+    quoted: quotes.length,
     dropped: thread.replies.length - kept.size,
-    unverifiedTails: postsOf(thread).filter(
-      ({ id }) =>
-        judgedSoFar[id] === "tail-unverified" &&
-        (id === thread.post.id || kept.has(id) || shownQuotes.has(id)),
+    unverifiedTails: postsOf(thread, judgedSoFar).filter(
+      ({ id }) => judgedSoFar[id] === "tail-unverified" && shown.has(id),
     ).length,
   };
 }

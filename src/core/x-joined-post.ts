@@ -1,13 +1,16 @@
 import { utf8Length } from "./digest-prompt.ts";
-import { INLINE_TEXT_BYTES } from "./limits.ts";
-import { type JoinedAuthorThread, joinedAuthorThread } from "./x-author-thread.ts";
+import { INLINE_TEXT_BYTES, X_QUOTES_MAX } from "./limits.ts";
+import { type JoinedAuthorThread, PART_SEPARATOR, joinedAuthorThread } from "./x-author-thread.ts";
+import type { Judgement } from "./x-oembed.ts";
 import type { XQuoted, XThreadValue } from "./x-wire.ts";
 
-const NOT_SAVED_NOTE = "Quoted posts that X did not confirm were not saved.";
+const NOT_SAVED_NOTE = "Quoted posts were not saved.";
 
-const PART_SEPARATOR = "\n\n";
+export const LINE_BREAK = /\r\n|[\r\n\u2028\u2029]/u;
 
-const LINE_END = /\r\n|[\r\n\u2028\u2029]/u;
+const FENCE = /^ {0,3}(`{3,}|~{3,})/u;
+
+type Judgements = Readonly<Record<string, Judgement>>;
 
 function prefixOf(depth: number): string {
   return "> ".repeat(depth + 1);
@@ -15,6 +18,35 @@ function prefixOf(depth: number): string {
 
 function quotedLine(depth: number, line: string): string {
   return line === "" ? prefixOf(depth).trimEnd() : `${prefixOf(depth)}${line}`;
+}
+
+const NOTE_ROOM = utf8Length(
+  `${PART_SEPARATOR}${quotedLine(X_QUOTES_MAX, "")}\n${quotedLine(X_QUOTES_MAX, NOT_SAVED_NOTE)}`,
+);
+
+function closedFences(text: string): string {
+  let open: string | null = null;
+
+  for (const line of text.split(LINE_BREAK)) {
+    const match = FENCE.exec(line);
+
+    if (match === null) continue;
+
+    const fence = match[1] ?? "";
+    const rest = line.slice(match[0].length);
+
+    if (open === null) {
+      if (!(fence.startsWith("`") && rest.includes("`"))) open = fence;
+    } else if (
+      fence.startsWith(open[0] ?? "") &&
+      fence.length >= open.length &&
+      rest.trim() === ""
+    ) {
+      open = null;
+    }
+  }
+
+  return open === null ? text : `${text}\n${open}`;
 }
 
 function headerOf({ id, author, postedAt }: Readonly<XQuoted>): string {
@@ -27,9 +59,9 @@ function headerOf({ id, author, postedAt }: Readonly<XQuoted>): string {
 }
 
 function linesOf(quote: Readonly<XQuoted>, depth: number): string[] {
-  const text = quote.text.trimEnd();
+  const text = closedFences(quote.text.trimEnd());
 
-  return [headerOf(quote), ...(text === "" ? [] : ["", ...text.split(LINE_END)])].map((line) =>
+  return [headerOf(quote), ...(text === "" ? [] : ["", ...text.split(LINE_BREAK)])].map((line) =>
     quotedLine(depth, line),
   );
 }
@@ -50,57 +82,67 @@ function blockOf(chain: readonly Readonly<XQuoted>[], notSaved: boolean): string
   return [...lines, ...note].join("\n");
 }
 
-function quotesKept(
+export function leadingQuotes(
   quoted: readonly Readonly<XQuoted>[],
-  isKept: (id: string) => boolean,
+  judged: Judgements,
 ): readonly Readonly<XQuoted>[] {
-  const stop = quoted.findIndex(({ id }) => !isKept(id));
+  const stop = quoted.findIndex(({ id }) => judged[id] === "rejected");
 
   return stop === -1 ? quoted : quoted.slice(0, stop);
 }
 
-function fittingBlock(shown: readonly Readonly<XQuoted>[], total: number, room: number): string {
-  for (let count = shown.length; count >= 0; count -= 1) {
-    const block = blockOf(shown.slice(0, count), count < total);
+function fittingQuotes(
+  leading: readonly Readonly<XQuoted>[],
+  room: number,
+): readonly Readonly<XQuoted>[] {
+  for (let count = leading.length; count > 0; count -= 1) {
+    const chain = leading.slice(0, count);
 
-    if (block === "" || utf8Length(`${PART_SEPARATOR}${block}`) <= room) return block;
+    if (utf8Length(`${PART_SEPARATOR}${blockOf(chain, false)}`) <= room) return chain;
   }
 
-  return "";
+  return [];
 }
 
-function joinedQuotes(
-  thread: Readonly<XThreadValue>,
-  shown: readonly Readonly<XQuoted>[],
-): XThreadValue {
-  const { post } = thread;
-  const block = fittingBlock(shown, post.quoted.length, INLINE_TEXT_BYTES - utf8Length(post.text));
+function omittedQuote(thread: Readonly<XThreadValue>, judged: Judgements): boolean {
+  const known = new Set([
+    thread.post.id,
+    ...thread.replies.map(({ id }) => id),
+    ...thread.post.quoted.map(({ id }) => id),
+  ]);
 
-  return {
-    ...thread,
-    post: {
-      ...post,
-      text: block === "" ? post.text : `${post.text}${PART_SEPARATOR}${block}`,
-      quoted: [],
-    },
-  };
+  return Object.entries(judged).some(
+    ([id, judgement]) => judgement === "rejected" && !known.has(id),
+  );
 }
 
 export interface JoinedPost extends JoinedAuthorThread {
-  readonly quoted: number;
+  readonly quotes: readonly Readonly<XQuoted>[];
 }
 
 export function joinedPost(
   thread: Readonly<XThreadValue>,
   keptReplies: Readonly<ReadonlySet<string>>,
-  isQuoteKept: (id: string) => boolean,
+  judged: Judgements,
 ): JoinedPost {
-  const author = joinedAuthorThread(thread, keptReplies);
-  const shown = quotesKept(thread.post.quoted, isQuoteKept);
+  const { post } = thread;
+  const root = closedFences(post.text);
+  const leading = leadingQuotes(post.quoted, judged);
+  const quotes = fittingQuotes(leading, INLINE_TEXT_BYTES - utf8Length(root) - NOTE_ROOM);
+  const notSaved = quotes.length < post.quoted.length || omittedQuote(thread, judged);
+  const block = blockOf(quotes, notSaved);
 
-  return {
-    ...author,
-    thread: joinedQuotes(author.thread, shown),
-    quoted: shown.length,
-  };
+  const author = joinedAuthorThread(
+    {
+      ...thread,
+      post: {
+        ...post,
+        text: block === "" ? post.text : `${root}${PART_SEPARATOR}${block}`,
+        quoted: [],
+      },
+    },
+    keptReplies,
+  );
+
+  return { ...author, quotes };
 }

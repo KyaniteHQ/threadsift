@@ -26,7 +26,7 @@ interface PromptItem {
   readonly title: string | null;
   readonly source: string;
   readonly postText: string | null;
-  readonly joinedPost?: boolean;
+  readonly authorThread?: boolean;
 }
 
 export interface LinkedPage {
@@ -94,7 +94,7 @@ function selection(
   rest: number,
 ) {
   const postBytes = item.postText === null ? 0 : jsonBytes(item.postText) - jsonBytes("");
-  const commentRoom = item.joinedPost === true ? rest - postBytes : rest;
+  const commentRoom = item.authorThread === true ? rest - postBytes : rest;
   const share = fill(records, [], Math.max(0, Math.min(Math.ceil(rest / 2), commentRoom)));
   const prefix = item.postText === null ? null : longestPrefix(item.postText, rest - share.used);
   const afterText = rest - share.used - (prefix === null ? 0 : jsonBytes(prefix) - jsonBytes(""));
