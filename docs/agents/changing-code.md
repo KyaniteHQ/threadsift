@@ -57,7 +57,7 @@ The `error` text of the HTTP API is read by agents and `curl` and never shown by
 
 `agy` must be signed in on the machine; a contributor without it leaves a visible placeholder, `[text needed]`, for the owner to run the script.
 
-A text that tells the owner where to look names only what a run shows there. Bad: "The server log has the reason" while the line holds an error class and a database code. Good: a text that names what the line holds, after a run of the failure and a read of the log.
+A text that tells the owner where to look names only what a run shows there. Bad: a note that says the log has the reason while the line holds only an error class and a code. Good: a note that names the line and what it holds, written after a run of the failure and a read of the log.
 
 ## Code
 

@@ -122,8 +122,10 @@ export const PROPOSAL_WORDS = {
   accept: "Accept",
   acceptFailed: "Couldn’t accept this proposal.",
   applying: "Applying…",
-  applyFailedOnce: "Applying this merge failed once. The server log has the reason.",
-  applyFailedMany: "Applying this merge failed {count} times. The server log has the reason.",
+  applyFailedOnce:
+    "Applying this merge failed once. The server log has a merge-unit-failed line with the error class and any database code.",
+  applyFailedMany:
+    "Applying this merge failed {count} times. The server log has a merge-unit-failed line with the error class and any database code.",
   mergeBusy: "Another merge is already running.",
   topicBusy: "One of these topics has an overview or another merge running.",
   topicOverviewEffect:
