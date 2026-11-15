@@ -64,7 +64,25 @@ const PROVEN_ARGUMENTS: readonly string[] = [
   "--no-auto-update",
 ];
 
-const MAX_REPLY_CALLS = 5;
+const MAX_REPLY_CALLS = 6;
+
+const MAX_CALLS_PER_QUERY = 2;
+
+const LIKE_STEPS = [300, 100, 30, 10] as const;
+
+function replyQueries(statusId: string): string[] {
+  const base = `conversation_id:${statusId} filter:replies`;
+
+  const bands = LIKE_STEPS.map((floor, index) => {
+    const above = LIKE_STEPS[index - 1];
+
+    return above === undefined
+      ? `${base} min_faves:${String(floor)}`
+      : `${base} min_faves:${String(floor)} -min_faves:${String(above)}`;
+  });
+
+  return [...bands, `${base} -min_faves:${String(LIKE_STEPS.at(-1))}`];
+}
 
 export function runArguments(promptFile: string, cwd: string): string[] {
   return ["--prompt-file", promptFile, "--cwd", cwd, ...PROVEN_ARGUMENTS];
@@ -106,15 +124,23 @@ export function isProvenVersion(version: string | null): boolean {
 export const PREFLIGHT_PROMPT =
   'Reply with the JSON {"found":false,"thread":null} and nothing else. Do not call any tool.';
 
+function repliesStep(statusId: string): string {
+  return [
+    '3. Call x_keyword_search with mode "Latest" and limit 10 for each of these queries, in this order:',
+    ...replyQueries(statusId).map((query) => `   - ${query}`),
+    `   When a call returns 10 posts, call the same query again with " max_id:" and the lowest post id that call returned added to the end, to get the next page. Make at most ${String(MAX_CALLS_PER_QUERY)} calls for each query and at most ${String(MAX_REPLY_CALLS)} calls to x_keyword_search in total, then stop.`,
+  ].join("\n");
+}
+
 export function fetchPrompt(statusId: string): string {
   return [
     "Fetch one X post, the posts it quotes and its replies, and return them as JSON.",
     "",
     `1. Call x_thread_fetch once with the post id ${statusId}.`,
     `2. Read the Quoted Post in that result. Add it as the first entry of post.quoted, with its id, the author's handle, its text and its time. Then call x_thread_fetch with the id of the last entry of post.quoted, read the Quoted Post in that result, and add it as the next entry. Go on down the chain until a result shows no Quoted Post or post.quoted holds ${String(X_QUOTES_MAX)} entries. Never add a post that only a reply quotes. Leave post.quoted empty when the requested post quotes nothing.`,
-    `3. Call x_keyword_search with the query "conversation_id:${statusId} filter:replies" and the largest limit the tool accepts. If the answer says more replies exist, call it again for the next page. Make at most ${String(MAX_REPLY_CALLS)} calls to x_keyword_search in total, then stop.`,
+    repliesStep(statusId),
     "4. Copy every text exactly as the tools return it. Do not translate, shorten, correct or summarize anything.",
-    "5. Set the parentId of each reply to the id of the post or reply it answers, taken from the reply structure the tools return.",
+    "5. Return every reply the calls of steps 1 and 3 gave, each id once, in any order. Set the parentId of each reply to the id of the post or reply it answers, taken from the reply structure the tools return. Set likes and replies of each reply to its Likes and Replies counts.",
     "6. Use null for a value the tools do not give. Do not look up anything else.",
     "7. If x_thread_fetch finds no post with that id, answer with found false and thread null.",
     `8. Write nothing before or between the tool calls. After the last call, answer once with only the JSON of the given schema, with found true and the thread, at most ${String(X_REPLIES_MAX)} replies.`,

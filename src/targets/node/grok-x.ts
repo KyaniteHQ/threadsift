@@ -1,7 +1,7 @@
 import { join } from "node:path";
 
 import type { XFetch, XFetcher, XFetcherStatus } from "../../core/x-fetcher.ts";
-import { Slots, inSlot } from "./cli-slots.ts";
+import { Slots, inTimedSlot } from "./cli-slots.ts";
 import { findBinary } from "./cli-support.ts";
 import {
   type Outcome,
@@ -94,8 +94,8 @@ class GrokXFetcher implements StoppableXFetcher {
     const prompt = fetchPrompt(statusId);
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
 
-    const outcome = await inSlot(this.slots, stop, () =>
-      this.attempt(prompt, stop).catch(internal),
+    const outcome = await inTimedSlot(this.slots, stop, (run) =>
+      this.attempt(prompt, run).catch(internal),
     );
 
     return logged(outcome ?? OUT_OF_TIME, Date.now() - started);

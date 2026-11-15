@@ -34,7 +34,11 @@ const found = (thread_: ReturnType<typeof thread>) =>
   envelope({
     structuredOutput: {
       found: true,
-      thread: { ...thread_, post: { ...thread_.post, quoted: [] } },
+      thread: {
+        ...thread_,
+        post: { ...thread_.post, quoted: [] },
+        replies: thread_.replies.map((each) => ({ ...each, replies: null })),
+      },
     },
   });
 
@@ -179,6 +183,12 @@ describe("the prompt holds only the digits of the status id", () => {
       fetchPrompt(first).replaceAll(first, "ID"),
       fetchPrompt(second).replaceAll(second, "ID"),
     );
-    assert.equal(fetchPrompt(first).split(first).length, 3);
+
+    const queries = fetchPrompt(first)
+      .split("\n")
+      .filter((line) => line.includes("conversation_id:"));
+
+    assert.equal(queries.length, 5);
+    assert.ok(queries.every((line) => line.includes(`conversation_id:${first} filter:replies`)));
   });
 });

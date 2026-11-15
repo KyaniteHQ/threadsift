@@ -2,7 +2,7 @@ import { botStep } from "./bot-step.ts";
 import { outcomeOfFetched } from "./fetch-outcome.ts";
 import { fetchedForJob } from "./fetch-source.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
-import { FETCH_DEADLINE_MS } from "./request-waits.ts";
+import { FETCH_DEADLINE_MS, X_RUN_DEADLINE_MS, X_SLOT_WAIT_MS } from "./request-waits.ts";
 import { xIntakeKind } from "./x-intake.ts";
 import { NO_READER, xRouteOf } from "./x-reader.ts";
 
@@ -14,7 +14,10 @@ export async function attemptFetch(
 
   if (route.kind === "grok-bot") return botStep(ports, job, xIntakeKind);
 
-  const deadline = AbortSignal.timeout(FETCH_DEADLINE_MS);
+  const deadline = AbortSignal.timeout(
+    route.kind === "grok-cli" ? X_RUN_DEADLINE_MS + X_SLOT_WAIT_MS : FETCH_DEADLINE_MS,
+  );
+
   const fetched = await fetchedForJob(ports, job, deadline, route);
 
   return outcomeOfFetched(ports, job, fetched, deadline);
