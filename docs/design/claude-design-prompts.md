@@ -2,6 +2,8 @@
 
 Attach `<scratch>/library-sample-data.json` to prompt 1.
 
+Prompts 2b, 3 (the counter prompt that kept A and C2) and 3d are not here, because Prompts 2c, 3b and 3e replaced them; `git log -p -- docs/design/claude-design-prompts.md` holds their text.
+
 ## Prompt 1: four drafts in one file, with a Tweaks panel
 
 ```text
@@ -42,12 +44,6 @@ Check contrast and keyboard focus in every draft and theme before showing it to 
 
 ```text
 Before I review: save this version as a checkpoint named "drafts-v1" and tell me where it is stored. Then list what each draft A to D is trying to do in one line each, and anything from my brief you could not do.
-```
-
-## Prompt 3: narrowing down (fill in after review)
-
-```text
-Keep drafts <X> and <Y>, drop the others. Make 2 new variations of each kept draft that push it further in different directions, as drafts <X>1, <X>2, <Y>1, <Y>2 in the same Tweaks panel. Keep every axis and the Compare mode working.
 ```
 
 ## Prompt 4: design system (final, after round 7; Omer: P0-P2 do not gate)
@@ -92,61 +88,6 @@ Known issues in the prototype; fix them in the system instead of copying them:
 Tell me what you could not take from the attachments.
 ```
 
-## Prompt 2b: counter prompt after the review of drafts-v1 (keeps A and D)
-
-```text
-First save the current version as a checkpoint named "drafts-v1" and tell me where it is stored.
-
-Then keep drafts A (Mail) and D (Index) and drop B and C. Steal from them: B's reading type (Newsreader-style serif at 17-18px for post and comment text) and C's sticky reader header on phone.
-
-Fix these in both kept drafts:
-1. Paste status, phone: under 480px wide, lay out every paste status card as a column: icon and title, then the URL wrapped (no clipping), then Try again, Open and Dismiss as full-width 44px buttons. Today "Try again" sits past the right edge at 390px, so a blocked link cannot be retried.
-2. Paste status, draft A desktop: the failed, done and refreshed cards are drawn behind the list pane and cannot be seen. Put the card inside the sidebar under the Add button, full width.
-3. Touch targets under 480px: every button, filter and link at least 44px high. Minimum text size 12px at every density (some meta lines are 10.5-11px today).
-4. Kept comments end in "..." mid-sentence. Show the full comment, folded after 6 lines with a "Show full comment" control.
-5. Rename the stub label "Not kept" to "Context", with the tooltip "Removed comment shown so the replies below make sense".
-6. GitHub reader: show the repository's own topics as plain muted text labelled "Topics on GitHub", not as pills that look like our tags. Add a README section; where the data has no README text, show the visible placeholder "[README excerpt]".
-7. Keyboard: j/k move through the list, Enter opens, m toggles read, / focuses search. Show these keys as a small hint near Mark read.
-8. Summaries must say what the kept comments concluded, not only what the post says. Redo the Garmin, Proschi, Hyper Solutions and Agenix summaries; the Agenix one states OP's original worry as fact although OP's SOLVED note and the kept replies retract it. Apply the high-pass filter strictly: drop replies that only agree, thank, or repeat the post (for example the CapMonster and ZennoLab replies on the Hyper Solutions thread), so the "kept N of M" counts drop.
-9. In dark theme set images to 90% brightness with a 1px border.
-
-Draft A only:
-- Show the 2-line summary under each list title (2 lines, not 1); shrink the thumbnail to 40px.
-- On desktop, open the first unread item in the reader on load; keep "Select an item to read" only when the filtered list is empty.
-- Source and Status become two compact segmented rows at the top of the sidebar. Topic and Tags become collapsible groups (Topic open, Tags closed) showing 5 rows plus "All N", with live counts.
-
-Draft D only:
-- With a reader open, collapse the masthead to a 48px bar (small wordmark left, paste icon button right) and make the Index / Mark read / Open bar sticky. Keep the large wordmark on the library screen.
-- Show the 2-line summary under each index entry (14px, muted).
-- Move the unread marker into the numeral column left of "01" (filled for unread, ring for read).
-- At 1440 widen the margin column to 320px and centre the spread. Keep the reader text measure at about 70 characters (it is about 105 today).
-- Keep the condensed serif as the only headline face for D; other type pairings change only body and UI text.
-
-Then make two variations that push further, as drafts A1 and D1 in the same Tweaks panel:
-- A1: draft A with D's reader, where topic, tags, summary and key points sit in a margin column beside the original post.
-- D1: draft D where the reader opens on the digest (summary, key points, kept comments) and the original post is folded below it.
-
-Tweaks panel: in Compare mode, render each side at its full desktop layout scaled to 50% instead of narrowing it to 720px, and move the panel so it does not cover the right side. A URL without cmp or tw must not inherit Compare mode or a hidden panel from storage. Hide the Images axis on the GitHub reader.
-
-Clean up the file structure so it stays easy to change:
-- Put everything that differs between drafts in one table at the top of the script, one row per draft (reader type, grouping, back control, focus target, which list parts show). No `s.d === 'B'`-style checks anywhere else, and do not render a draft's elements in the other drafts.
-- One type scale as named variables (label, meta, body, title, brand), about 6 spacing steps, 4 corner radii, and the layout breakpoints defined once and also used by the script. No component rule writes its own pixel size; a draft may only change a variable's value.
-- One reusable text renderer (paragraph, heading, quote, lists, code, bold, link) used by the post body, the quoted post and every comment. Remove the three pasted copies.
-- One state object with one function that writes it to the URL and storage and one that reads it back, with the same rule for every key (defaults, then saved, then URL). Derive the screen from what is open. Do not refer to items by numeric id.
-- Define each accent and type pairing once in a data table and generate the CSS variables and the Tweaks swatches from it.
-- Put the Tweaks panel, Compare labels and loading text in a section marked "prototype tool only" with its own variables, separate from the app's design values.
-- Store the item images as files in the project, referenced by relative path, so the HTML export includes them (the last export had none).
-
-Fix these bugs:
-- The Reddit reader in B and D logs "TypeError: Cannot read properties of undefined (reading 'openId')" from componentDidUpdate on every update; guard against a missing previous state.
-- Choosing a paste state in Tweaks within about 2.4 seconds of a real paste is overwritten by the paste timer; cancel the timer when the screen or paste state changes.
-- Reloading after opening an item restores a different item.
-- In Compare, focus and scroll reset target the left pane only.
-- In D, the first topic heading gets a top margin when the processing row comes first.
-
-Finally, check contrast, keyboard focus and 390px width again for A, A1, D and D1 in light, dark and sepia, and tell me what you could not do.
-```
-
 ## Prompt 2c: counter prompt with Omer's pick (keep A and C, drop B and D, new reader for C)
 
 ```text
@@ -185,76 +126,10 @@ Draft C (and C1-C3) only:
 
 Tweaks panel: in Compare mode, render each side at its full desktop layout scaled to 50% instead of narrowing it to 720px, and move the panel so it does not cover the right side. A URL without cmp or tw must not inherit Compare mode or a hidden panel from storage. Hide the Images axis on the GitHub reader.
 
-Clean up the file structure so it stays easy to change:
-- Put everything that differs between drafts in one table at the top of the script, one row per draft (reader type, back control, focus target, which list parts show). No `s.d === 'B'`-style checks anywhere else, and do not render a draft's elements in the other drafts.
-- One type scale as named variables (label, meta, body, title, brand), about 6 spacing steps, 4 corner radii, and the layout breakpoints defined once and also used by the script. No component rule writes its own pixel size; a draft may only change a variable's value. Draft A must follow the Type tweak for list titles too.
-- One reusable text renderer (paragraph, heading, quote, lists, code, bold, link) used by the post body, the quoted post and every comment. Remove the three pasted copies.
-- One state object with one function that writes it to the URL and storage and one that reads it back, with the same rule for every key (defaults, then saved, then URL). Derive the screen from what is open. Do not refer to items by numeric id.
-- Define each accent and type pairing once in a data table and generate the CSS variables and the Tweaks swatches from it.
-- Put the Tweaks panel, Compare labels and loading text in a section marked "prototype tool only" with its own variables, separate from the app's design values.
-- Store the item images as files in the project, referenced by relative path, so the HTML export includes them (the last export had none).
-
-Fix these bugs:
-- The reader logs "TypeError: Cannot read properties of undefined (reading 'openId')" from componentDidUpdate on every update; guard against a missing previous state.
-- Choosing a paste state in Tweaks within about 2.4 seconds of a real paste is overwritten by the paste timer; cancel the timer when the screen or paste state changes.
-- Reloading after opening an item restores a different item.
-- In Compare, focus and scroll reset target the left pane only.
-
 Finally, check contrast, keyboard focus and 390px width again for A, C, C1, C2 and C3 in light, dark and sepia, and tell me what you could not do.
 ```
 
-## Prompt 3: counter prompt after the review of drafts-v2 (keep A and C2)
-
-```text
-First save the current version as a checkpoint named "drafts-v2" and tell me where it is stored.
-
-Then keep draft A (Mail) and draft C2 (Grid with the full-page reader). Drop C, C1 and C3. From now on call C2 just "C · Grid".
-
-Fix in draft A:
-1. The paste status card (failed, done, refreshed) is still hidden behind the list pane at 1280, 1440 and 1920 wide; only 49px of it shows and Try again is invisible. The cause: in the sidebar, `.paste` is a wrapping column and `.ps` (flex-basis 100%) wraps into a second column. Make the card sit under the Add button at the sidebar's full width, with the URL wrapped and the buttons stacked. Check 1280, 1440 and 1920 in all three states.
-2. While a paste state shows, keep the reader open on the current item instead of "Select an item to read".
-3. j and k open the next or previous item directly in the reader pane, as they do in C, so one key moves one item.
-4. At 390, when a paste card shows, let it span the full row under the wordmark (today it is 256 of 390px wide next to an empty 100px column).
-
-Fix in C (the old C2):
-5. Show the position between Previous and Next ("5 of 18"), with the left and right arrow keys named in the button tooltips.
-6. On Back, play the open animation in reverse into the card.
-7. Image cards: crop from the top left so the first line of a screenshot is whole ("PrimeFoldTools/ ndon" and "asone32/llama.cpp-" are cut today). When an image is mostly one dark or flat colour (the Proschi terminal reads as a black box), use the text-only card instead.
-
-Fix in both:
-8. Reader text: post and comment body at least 16px at every density, with a text column capped at about 68 characters (lines are 108 to 119 characters today). Density changes list spacing and list text only.
-9. Reader bar at widths under 480px: one 56px row (Back, Previous and Next where they exist, Mark read and Open as 44px icon buttons with labels for screen readers). Today it is two rows and 107px high.
-10. Nested comments at 390: comment text keeps at least 75% of the screen width at depth 2 and 3 in the lines, cards and rail styles (today 73%, 66% and 59%). Cap the total indent at 16px and show deeper levels with a thin rail only.
-11. Key hint: show "j k move · Enter open · m read · / search" in 12px muted text next to Mark read, hidden under 480px. The hint must not live only in the Tweaks panel.
-12. Headings: item titles in the list are h2 under the h1 "Library", not h3.
-13. Inline links in reader text are 18px high; under 480px give them at least 44px of tap area with padding.
-14. With a search active, hide topic rows whose count is 0.
-15. Empty library: say "Paste a Reddit, X, GitHub or article link in the box" and add one line: "The agent files it with a topic, up to 3 tags and a short summary."
-16. Sort the list by the date I saved the item, newest first, and say so with a small "Newest saved first" label above the list. The date on each row stays the post date; label it "posted 1d ago".
-
-Content fixes in data:
-17. Proschi key point 2 says load, latency, availability and cost show "on each card"; the post says only the load shows on each card. Fix it.
-18. Garmin summary: "Replies point out", not "Replies conclude", because one kept reply says Garmin's own policy looks clean.
-19. Drop James-w07's thank-you reply on the Hyper Solutions thread, and show the Proschi parent "How does this compare to mermaid and plantuml?" as a Context stub.
-20. In the Agenix thread, OP's own replies (including the retraction "I now consider it entirely incorrect") are useful: keep them as comments with an OP badge, not Context stubs.
-21. The GitHub reader must show `repo.readme` when the data has it, and the "[README excerpt]" placeholder only when it is empty.
-
-Structure, so the file stays easy to change:
-22. In Compare, each pane uses its own draft's rules for open, close, keys, scroll and focus. Add one helper that returns the draft of a pane and use it everywhere instead of the current Tweaks draft.
-23. Write each draft as its own complete row in the draft table with about 8 fields (list, reader, back, nav, autoOpen, neutral, vars, look), with no shared helper object. Remove fields that are the same in every row or follow from another field (scrim, modal, arrows, grow, slot, stackStatus, focus, the parts flags). Put the rule "is the list hidden while the reader is open" in the table once.
-24. One small Inline component renders plain, bold, link and code spans once; paragraphs, headings, quotes, both list types and table cells use it.
-25. Define breakpoints and card column counts in one table; set one data-bp attribute per pane from a ResizeObserver on the panes only. Remove the MutationObserver on the body and do not read column counts or text overflow back from the page. Add one note that this exists because Compare scales panes inside the page, and a real build should use container queries.
-26. Keep the paste box state in one object (mode, the link being added, the timer) changed only through one function that cancels the timer and updates everything in one step. The generic state setter must not know about paste. This also fixes a bug: opening an item within 2.4 seconds of a paste leaves the Processing spinner running forever.
-27. Move the Tweaks panel, the reader styles, the filters and the paste status card into their own component files with their own styles, and the tables into a separate script file if globals reach the component; keep Main for layout and the draft table. Tell me if a split is not possible.
-28. data.json holds facts only (kind, ISO dates, score, counts, block and span types). Build template flags and display strings ("1d ago", "Kept 4 of 142 comments") in one place in the script.
-29. At most 6 type sizes (merge lead, read and comment sizes), one uppercase label style, 44px touch targets set only by changing the size variables on phone, no unused classes (im-on, has-pic, is-new, read, kept, kids), one table of paste messages, booleans instead of "1"/"0" strings inside the state, tag dot and swatch colours computed in CSS from variables, one img element in Picture with the file name from the data, one back icon element and one read-dot button placed by CSS, and Tweaks rows described by one kind value.
-30. Bugs: on first render every pane is treated as 1440px wide, so a phone starts in the desktop layout; a hand-written ?d=C URL gets the saved look of the last draft instead of C's own look.
-
-Finally, check contrast, keyboard focus, 44px targets, 12px minimum text and 390px width for A and C in light, dark and sepia, and tell me what you could not do.
-```
-
-
-## Prompt 3b: same as Prompt 3, but keeps both C2 and C3 for Omer to choose
+## Prompt 3b: counter prompt after the review of drafts-v2 (keeps A, C2 and C3)
 
 ```text
 First save the current version as a checkpoint named "drafts-v2" and tell me where it is stored.
@@ -284,28 +159,10 @@ Fix in both:
 15. Empty library: say "Paste a Reddit, X, GitHub or article link in the box" and add one line: "The agent files it with a topic, up to 3 tags and a short summary."
 16. Sort the list by the date I saved the item, newest first, and say so with a small "Newest saved first" label above the list. The date on each row stays the post date; label it "posted 1d ago".
 
-Content fixes in data:
-17. Proschi key point 2 says load, latency, availability and cost show "on each card"; the post says only the load shows on each card. Fix it.
-18. Garmin summary: "Replies point out", not "Replies conclude", because one kept reply says Garmin's own policy looks clean.
-19. Drop James-w07's thank-you reply on the Hyper Solutions thread, and show the Proschi parent "How does this compare to mermaid and plantuml?" as a Context stub.
-20. In the Agenix thread, OP's own replies (including the retraction "I now consider it entirely incorrect") are useful: keep them as comments with an OP badge, not Context stubs.
-21. The GitHub reader must show `repo.readme` when the data has it, and the "[README excerpt]" placeholder only when it is empty.
-
-Structure, so the file stays easy to change:
-22. In Compare, each pane uses its own draft's rules for open, close, keys, scroll and focus. Add one helper that returns the draft of a pane and use it everywhere instead of the current Tweaks draft.
-23. Write each draft as its own complete row in the draft table with about 8 fields (list, reader, back, nav, autoOpen, neutral, vars, look), with no shared helper object. Remove fields that are the same in every row or follow from another field (scrim, modal, arrows, grow, slot, stackStatus, focus, the parts flags). Put the rule "is the list hidden while the reader is open" in the table once.
-24. One small Inline component renders plain, bold, link and code spans once; paragraphs, headings, quotes, both list types and table cells use it.
-25. Define breakpoints and card column counts in one table; set one data-bp attribute per pane from a ResizeObserver on the panes only. Remove the MutationObserver on the body and do not read column counts or text overflow back from the page. Add one note that this exists because Compare scales panes inside the page, and a real build should use container queries.
-26. Keep the paste box state in one object (mode, the link being added, the timer) changed only through one function that cancels the timer and updates everything in one step. The generic state setter must not know about paste. This also fixes a bug: opening an item within 2.4 seconds of a paste leaves the Processing spinner running forever.
-27. Move the Tweaks panel, the reader styles, the filters and the paste status card into their own component files with their own styles, and the tables into a separate script file if globals reach the component; keep Main for layout and the draft table. Tell me if a split is not possible.
-28. data.json holds facts only (kind, ISO dates, score, counts, block and span types). Build template flags and display strings ("1d ago", "Kept 4 of 142 comments") in one place in the script.
-29. At most 6 type sizes (merge lead, read and comment sizes), one uppercase label style, 44px touch targets set only by changing the size variables on phone, no unused classes (im-on, has-pic, is-new, read, kept, kids), one table of paste messages, booleans instead of "1"/"0" strings inside the state, tag dot and swatch colours computed in CSS from variables, one img element in Picture with the file name from the data, one back icon element and one read-dot button placed by CSS, and Tweaks rows described by one kind value.
-30. Bugs: on first render every pane is treated as 1440px wide, so a phone starts in the desktop layout; a hand-written ?d=C2 or ?d=C3 URL gets the saved look of the last draft instead of that draft's own look.
-
 Finally, check contrast, keyboard focus, 44px targets, 12px minimum text and 390px width for A, C2 and C3 in light, dark and sepia, and tell me what you could not do.
 ```
 
-## Prompt 3c (round 3 review fixes; keeps A, C2, C3; attach library-full-text.json)
+## Prompt 3c (round 3 review fixes; keeps A, C2, C3)
 
 First save the current version as a checkpoint named "drafts-v3". This time include the main board file in the checkpoint folder (drafts-v2 has Reader, Text, Picture, data.json and images but no main file, so it cannot be restored on its own). Tell me where it is stored.
 
@@ -332,55 +189,9 @@ Fix in all three:
 14. An `open=` value that is not an item in the data is ignored when the page loads.
 15. The C3 focus trap must not include the Tweaks panel controls.
 
-Structure, so the prototype stays easy to change and reads clearly as a reference:
-16. Make the library app one component that knows nothing about Compare: one draft, one width, one open item, and its own key listener that ignores keys from outside its own app. Make Compare a separate small shell that shows that component twice, each with its own draft and its own open item, and move the Tweaks panel and presets into that shell. This removes the pane numbers (`_pane`, `data-pane`, `paneSet`, `draftOf(i)`, `bpAt(i)`, `covers(i)`, `paneEl(i)`, the widths array). If two copies of one imported component cannot keep separate state in this tool, tell me and keep the current Compare.
-17. Put opening, closing and stepping through one function that runs the view transition, then the scroll, the focus and the highlight, in that order. Remove the hand-over fields between the click handlers and the code that runs after render (`_intent`, the `open` comparison in `componentDidUpdate`, `afterOpen`), and write the saved state from `setS`, the one place that changes it (this removes `_prev`).
-18. Keep in library.js only what several components share: the look tables, the state read and write rules, the data preparation and the display helpers. Let each component (Reader, PasteStatus, Filters, Text, Inline and the list row) build its own template flags from the facts it receives, so each template and the code behind it sit in one file. Remove the 14 exports nothing uses.
-19. Work out each draft's derived facts (list hidden, modal, animated, shows a placeholder, filter style, nav style) once in one function and use that result everywhere, instead of checking `reader === 'sheet'` and similar strings in 10 places.
-20. When the Tweaks panel shows a paste state, store the demo item and link in the paste object, so the card code has no demo branches. Remove the card fields nothing uses (`rowKey`, `processingUrl`, `readPressed`), and add one line saying Done appears only from the Tweaks panel.
-21. Pass the real methods to the Tweaks panel instead of one-line wrappers, and let its template branch on each row's kind without the four extra flag fields.
-22. Write the 1/0 to true/false conversion once. Write the sheet width formula once as a variable. Name the variables the tool shell supplies (`--vh`). Add a one-line note that Sepia ignores the draft's grey hue. Put the "Kept N of M" text outside the label heading instead of undoing the label style. Add one line saying the image blob cache exists only for the design canvas.
-
-Data:
-23. I attached library-full-text.json with the full text the sample was missing: "posts" has the full post markdown for the 6 items marked bodyCut (Hyper Solutions is about 15,000 characters), "comments" has the full markdown for the 8 kept comments marked cut, and "readmes" has the full README for both GitHub items. Replace the cut text with it, convert it to the same block format data.json already uses, and remove the cut flags, so the reader shows real long posts and a real README. The READMEs contain HTML (a, img, h1, p align="center") and relative image paths: render the HTML headings and paragraphs as text and leave out images whose path is relative. Keep the "saved copy stops here" note in the code for a fetch that stops partway, and make it reachable from the Tweaks panel so it can still be reviewed. Check that the fold, the 68-character measure and the reader bar still work on the long Hyper Solutions post and the long comments.
-
 Finally, check A, C2 and C3 in light, dark and sepia at 390, 480, 600, 1440 and 1920 for contrast, keyboard focus, 44px targets, 12px minimum text and no sideways scroll; check that Compare still shows each pane with its own draft's rules; and tell me what you could not do.
 
-## Prompt 3d (round 4 review fixes; keeps A, C2, C3)
-
-First save the current version as a checkpoint named "drafts-v4".
-
-Keep all three drafts: A (Mail), C2 (full-page reader) and C3 (centred sheet). Every fix that names C2 and C3 goes into both.
-
-Long reads, now that the data is full (all drafts):
-1. Tables must not break inside words. Siftly's "The 4-Stage Pipeline" table reads "Entity Extract ion" and "Semant ic Taggin g" at 1440 and 390, because `.md` sets `overflow-wrap: anywhere` and a cell can shrink to one character. Keep `overflow-wrap: anywhere` only on code and link text; table cells use normal wrapping, and the table gets `min-width: max-content` inside its scroll box so a wide table scrolls sideways instead.
-2. Code blocks: set `pre` to 14px mono (the one exception to the 16px reading size; that rule is for prose). Show a fade on the right edge while a block can scroll sideways. Fold a block taller than 14 lines behind "Show all N lines", like a comment. Give each block a visible focus ring. Check the Siftly directory tree and the long llama.cpp log comment at 1440 and 390.
-3. Keep markdown heading levels. Convert the posts and READMEs again from library-full-text.json (it is in this chat's uploads) with `{type: 'h', level: 1..4}`; today all 36 Siftly headings have no level and look the same. Draw three styles: level 1 is hidden when it repeats the item title, level 2 is 20px weight 700 with 1.8em above and a hairline, level 3 and lower are 17px weight 700. A `---` line becomes a rule, not 50 hyphens.
-4. A long item needs a way to the comments: when the item has kept comments, put a "Comments 14" link in the reader bar that scrolls to the comment section, and show a 2px reading-progress line under the bar. Hyper Solutions is 8,972px tall and its kept comments start at about 8,400px.
-5. Comment fold: decide it after render. Fold a comment only when its full height is more than 8 lines, measured once after render and again when its own width changes; then show 6 lines, counting paragraph gaps. Today at Wide 4 of 8 folds on Agenix hide one line or less. An expanded comment taller than one screen gets "Show less" at the top as well as the end.
-
-Paste card:
-6. In C2 and C3, show "Reading the link" only in the floating card under the Paste box. Add the item to the grid only when it is ready, with the New badge; today the placeholder takes the first slot, every card shifts, and they shift back when it fails.
-7. Under 760px the paste card goes back into the page flow as a full-width row under the Paste box; at 390 the floating card in C3 now covers Search, Filters and the first card.
-8. "Added" and "Already saved, refreshed" close by themselves after 6 seconds; "Failed" stays until Dismiss. Escape in the Paste box dismisses the card.
-
-Smaller fixes:
-9. In A, show the key hint whenever the keys work: at 760 to 1383px, where the reader bar has no room for it, put it under the search field in the same 12px muted style.
-10. In C3 under 760px, make the sheet full screen like the phone layout, with Previous and Next in the bar (today the sheet is the window minus 144px, a 424px column at 600). In dark theme give the sheet the surface colour and a 1px line-2 border, and raise the scrim to 0.7, so its edge is visible.
-11. At 390, the C2 and C3 Filters button fills the row like A's (today 85px).
-12. When the app starts with an open item, scroll the list so its row is visible, centred (A with Siftly open puts the row below the screen).
-13. The loading branch of the app's display values must return `announce` and the other paste fields; today `{{ announce }} never resolved` is logged 671 times per load.
-14. The Context stub must not break a user name in the middle ("u/James-" / "w07").
-
-Structure:
-15. Make the app report plain facts about what it shows (open item kind, has comments, has media, long post, empty, paste mode), and move the Tweaks rules (which axes matter, the demo screens and demo paste states, the `demo` block in data.json) into the shell. Put whatever hook must stay in one block marked "Prototype hooks, not part of the design". Decide and write in one line whether a Tweaks screen button changes both panes in Compare.
-16. Do not guess text widths in script. With item 5 the Reader measures comment overflow; let CSS container queries on the reader decide when the key hint and the bar labels show. Remove `barFit`, `lineChars`, `lines()` and the width numbers that copy CSS values.
-17. Make the list row or card its own component with its own styles and template flags, like Reader and PasteStatus, so Library keeps only the layout, the state and the keys.
-18. Small: compare values directly in templates (`b.type === 'p'`) instead of building an `isX` flag for each case; focus the reader title by the id the app already passes, not by the Reader's class name; add the "highlight the closed card" fact to the draft rules and read `autoOpen` from them; write the short-link rule once in library.js; pass Tweaks one `actions` object instead of 12 props; name each number two files must share (panel width 320, Compare scale 0.5) in one place; drop the fallback object in Filters.
-
-Finally, check A, C2 and C3 in light, dark and sepia at 390, 600, 1440 and 1920 with Hyper Solutions, Agenix and Siftly open: contrast, keyboard focus, 44px targets under 480, 12px minimum text, no sideways scroll of the page, no word broken inside a table cell, and the fold showing no button on a comment of 8 lines or fewer. Tell me what you could not do.
-
-## Prompt 3e (replaces 3d: List and Grid layouts and Page or Sheet reader become app settings; visual fixes only)
+## Prompt 3e (round 4 review fixes: List and Grid layouts and Page or Sheet reader become app settings; visual fixes only)
 
 First save the current version as a checkpoint named "drafts-v4".
 

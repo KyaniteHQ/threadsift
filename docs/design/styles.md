@@ -2,20 +2,7 @@
 
 The prototype's "Style" setting offers Library (the default) and these 10 styles. Each was picked on 2026-11-04 from [refero.design](https://styles.refero.design/) for a reading app with long text, comment threads and a list or grid of saves, and each is mapped onto the system tokens as one `[data-style]` block in `design/system/tokens.css`, with Light, Dark and Sepia themes. The refero exports themselves are not copied here; each entry links to its page.
 
-Commercial faces were swapped for Google Fonts:
-
-| Style | Display | Body |
-|---|---|---|
-| Anthropic | Source Serif 4 | Source Serif 4 |
-| Slash | Playfair Display | Inter |
-| Modal | Space Grotesk | Inter |
-| mymind | Playfair Display | DM Sans |
-| Monocle | Spectral | Spectral |
-| Linear | Inter | Inter |
-| Switch-Lit | Fraunces | Inter |
-| Cursor | Inter | EB Garamond |
-| Steep | Newsreader | Inter |
-| Cal.com | Cal Sans | Inter |
+Commercial faces were swapped for Google Fonts. `design/system/style-faces.ts` lists the faces each style loads, and its `[data-style]` block in `design/system/tokens.css` holds the stacks.
 
 ## 1. Anthropic (warm editorial serif, light)
 

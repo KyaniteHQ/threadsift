@@ -105,11 +105,11 @@ A change the agent suggests on the weekly Proposals page: merging two Tags, merg
 _Avoid_: Suggestion, lint, fix
 
 **Proposals page**:
-The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the two Tags or the two Topics, their Item counts and the agent's reason, for a lost Highlight its quote and its Item's title as a link to the Highlight's place in the Reader, for a Topic whose overview leaves Items out the Topic as a link to its page with how many of its Items are not in the overview and how many it has, or for two Items that disagree both titles as links to the Reader with their Summaries and the agent's reason, and lets the owner accept or reject each.
+The page, at `/proposals`, that lists the open Proposals of the weekly check and the one being applied, each with the agent's reason, and lets the owner accept or reject each.
 _Avoid_: Suggestions page, Inbox
 
 **Pin**:
-An accepted correction kept so that a later regeneration cannot undo it. For a Tag merge it records the merged-away Tag's key and the Tag it went into, so no later Digest creates the merged-away Tag again. For a Topic merge it records the merged-away Topic's key and the Topic it went into in the same way; Accept of a Topic merge writes it, and the app reads it to keep the merged-away Topic from coming back and to open the Topic it went into at the merged-away Topic's old address. A Pin of a disagreement names two Items that disagree and holds only while both Items carry the Digests it was accepted on.
+An accepted correction kept so that a later regeneration cannot undo it. A Pin of a Tag merge or a Topic merge records the merged-away key and the one it went into, so no later Digest creates the merged-away Tag or Topic again, and a Topic's old address opens the Topic it went into. A Pin of a disagreement names two Items that disagree and holds only while both Items carry the Digests it was accepted on.
 _Avoid_: Override, lock
 
 ### Reading

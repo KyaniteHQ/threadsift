@@ -46,10 +46,10 @@ Each rule names the code that shows its shape. Where a doc already states the ru
 
 ## Interface text
 
-Every text a user reads in the product is written by `tools/copy/write-copy.sh`, never by hand: labels, buttons, messages, empty states, errors, onboarding, and site prose. The README and the guides under `docs/guides/` are docs and follow Docs, commit messages and PR bodies below. The owner chose this instead of picking a voice by hand. The script runs the Antigravity CLI (`agy`) on Gemini 4 Argon at high effort, falls back to Gemini 3.8 Flash at high effort when Argon is rate limited, and has it follow the vendored `humanizer` skill (`.agents/skills/humanizer/`) with `PRODUCT.md` and `GLOSSARY.md` as context.
+Every text a user reads in the product is written by `tools/copy/write-copy.sh`, never by hand: labels, buttons, messages, empty states, errors, onboarding, and site prose. The README and the guides under `docs/guides/` are docs and follow Docs, commit messages and PR bodies below. The owner chose this instead of picking a voice by hand. The script runs the Antigravity CLI (`agy`) with the vendored `humanizer` skill (`.agents/skills/humanizer/`), `PRODUCT.md` and `GLOSSARY.md` as context.
 
 1. Write a brief to a file outside the repository: where the text shows, what it must say, the facts it may use, length and case limits, and the neighbouring texts it must match.
-2. Run `tools/copy/write-copy.sh <brief>`. It prints the text, or exits non-zero with the reason: 64 for a missing brief, 69 when `agy` is not installed, is signed out or does not list both models, 75 when both models are rate limited, 1 for any other failure.
+2. Run `tools/copy/write-copy.sh <brief>`. It prints the text, or exits non-zero with the reason on stderr.
 3. Use the text as printed. When it is wrong, fix the brief and run the script again.
 4. Quote the brief and the printed text in the commit message and in the report, so the reviewer can check the text came from the script.
 

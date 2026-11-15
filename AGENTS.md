@@ -13,10 +13,10 @@ Use these exact terms in code, docs and issues.
 | Need | Read |
 |---|---|
 | What v1 does, and the decisions behind it | `docs/spec.md` |
-| What is built, and the file of each architecture section | `docs/architecture.md`, the index |
+| What is not fully built yet, and the file of each architecture section | `docs/architecture.md`, the index |
 | The tech stack | `docs/architecture/the-stack-at-a-glance.md` |
 | The module seams and the two install targets | `docs/architecture/one-codebase-two-install-targets.md` |
-| Where each file lives | `docs/architecture/repository-layout.md` |
+| Where files go, and why | `docs/architecture/repository-layout.md` |
 | The data model | `docs/architecture/data-model-outline.md` |
 | The testing approach | `docs/architecture/testing.md` |
 | Topic pages, the Index, Related Items, and the Log | `docs/wiki.md` |

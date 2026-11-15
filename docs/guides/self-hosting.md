@@ -1,6 +1,6 @@
 # Run Threadsift on your own server
 
-The README's "Try it on your machine" section starts an Instance with the container image. This guide covers what comes after that: the image tags, the secret key, HTTPS, and going back to an older build.
+The README's "Try it on your machine" section starts an Instance. This guide covers what comes after.
 
 ## Pick an image tag
 
