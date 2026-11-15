@@ -5,6 +5,7 @@
 ## bot-v6
 
 - A chat save links the Item even when the Instance URL is a stored secret. `save` prints `ok <id> <path>` and `duplicate <id> <path>`, where `<path>` is `/items/<id>`, instead of an address with the Instance URL, which the chat hides because that URL is a stored secret. The skill tells the bot to join the path to the Instance URL it keeps as a memory, and to answer with the id and no link when that memory is missing.
+- Five lines of the bot files now say what the script does. The script deletes a file left in `tmp` after one day only when a later `write` or `append` stores its text, and it deletes an unanswered task's credential after one day, and a finished task's folder after 7 days, only when a later `task-open` starts another task. `topics` and `forget` take the hex of a `mark` word. A `search` file lists the library's Tags in `counts.tags`. After `unreachable` or `failed` on a send with `cursor`, the Instance may have saved the cursor. A thread read takes one post read and up to 4 search pages, not two reads.
 
 ## bot-v5
 
