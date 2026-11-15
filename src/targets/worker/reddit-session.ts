@@ -1,5 +1,6 @@
 import { connect } from "cloudflare:sockets";
 
+import { bestEffort } from "../../core/failure-log.ts";
 import type { RedditSession } from "../../core/ports.ts";
 import {
   REDDIT_HOST,
@@ -11,9 +12,7 @@ import { readResponse, requestBytes } from "./http1.ts";
 
 const TLS_PORT = 443;
 
-function failureIgnored(): null {
-  return null;
-}
+const SOCKET_NOT_CLOSED = { event: "reddit-socket-not-closed", fields: {} } as const;
 
 async function* closing(
   body: AsyncIterable<Uint8Array>,
@@ -22,7 +21,7 @@ async function* closing(
   try {
     yield* body;
   } finally {
-    await close().catch(failureIgnored);
+    await bestEffort(SOCKET_NOT_CLOSED, close);
   }
 }
 
@@ -40,7 +39,7 @@ export const workerRedditSession: RedditSession = {
     signal.addEventListener(
       "abort",
       () => {
-        void close().catch(failureIgnored);
+        void bestEffort(SOCKET_NOT_CLOSED, close);
       },
       { once: true },
     );
@@ -58,7 +57,7 @@ export const workerRedditSession: RedditSession = {
 
       return { ...response, body: boundedBody(closing(response.body, close)) };
     } catch (error) {
-      await close().catch(failureIgnored);
+      await bestEffort(SOCKET_NOT_CLOSED, close);
 
       throw error;
     }

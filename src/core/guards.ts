@@ -2,6 +2,7 @@ import { type SQLWrapper, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { type SQLiteTable, check, integer, sqliteTable } from "drizzle-orm/sqlite-core";
 
+import { readOrAssume } from "./failure-log.ts";
 import type { Database } from "./ports.ts";
 
 export const guards = sqliteTable(
@@ -57,6 +58,12 @@ export async function guardHolds(db: Database, condition: Readonly<SQLWrapper>):
   return current?.ok === 1;
 }
 
+function guardHeldOrUnread(db: Database, condition: Readonly<SQLWrapper>): Promise<boolean> {
+  return readOrAssume(true, { event: "guard-read-failed", fields: {} }, () =>
+    guardHolds(db, condition),
+  );
+}
+
 export async function unlessRefused<Written>(
   db: Database,
   condition: Readonly<SQLWrapper>,
@@ -65,7 +72,7 @@ export async function unlessRefused<Written>(
   try {
     return await write();
   } catch (error) {
-    if (await guardHolds(db, condition)) throw error;
+    if (await guardHeldOrUnread(db, condition)) throw error;
 
     return null;
   }
@@ -90,7 +97,7 @@ async function rethrowUnlessRefused(
   condition: Readonly<SQLWrapper>,
   cause: unknown,
 ): Promise<void> {
-  if (!refusedByGuard(cause) || (await guardHolds(db, condition))) throw cause;
+  if (!refusedByGuard(cause) || (await guardHeldOrUnread(db, condition))) throw cause;
 }
 
 export async function guardedResults(

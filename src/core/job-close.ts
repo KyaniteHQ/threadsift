@@ -3,8 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import { givenUpTasks, supersededTasks } from "./ai-tasks.ts";
 import { openingDigest } from "./digest-job.ts";
-import { setStatus } from "./item-status.ts";
-import { ITEM_JOB_KINDS } from "./kinds.ts";
+import type { JobCurrency } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, aiTasks, items, jobs, xVerifications } from "./schema.ts";
 
@@ -22,7 +21,7 @@ function owedDigest(db: Database, itemId: number) {
     scope: and(eq(items.id, itemId), isNotNull(items.pendingDigest)) ?? sql`0`,
     address: items.originalUrl,
     now: Date.now(),
-  }).job;
+  });
 }
 
 export function closeJob(
@@ -39,9 +38,6 @@ export function closeJob(
       .where(eq(jobs.id, job.id)),
     ...givenUpTasks(db, eq(aiTasks.jobId, job.id)),
     ...(job.kind === "digest" && itemId !== null ? [owedDigest(db, itemId)] : []),
-    ...(itemId !== null && ITEM_JOB_KINDS.some((owner) => owner === job.kind)
-      ? [setStatus(db, { kind: "jobs-changed" }, eq(items.id, itemId))]
-      : []),
   ];
 }
 
@@ -64,4 +60,14 @@ export function closeItemJobs(
       .where(and(ofItem, ne(jobs.state, "done"))),
     db.delete(xVerifications).where(eq(xVerifications.itemId, sql`${itemId}`)),
   ] as const;
+}
+
+export async function discardTask(
+  db: Database,
+  currency: JobCurrency | undefined,
+  cause: Parameters<JobCurrency["discard"]>[0],
+): Promise<void> {
+  const [first, ...rest] = currency?.discard(cause) ?? [];
+
+  if (first !== undefined) await db.batch([first, ...rest]);
 }

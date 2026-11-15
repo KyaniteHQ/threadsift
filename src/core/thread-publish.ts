@@ -1,7 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
 import { digestAfterFetch } from "./digest-job.ts";
-import { setStatus } from "./item-status.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
@@ -53,6 +52,7 @@ function contentWrites(
         fetchedAt: Date.now(),
         fetch: "ok",
         xNote: null,
+        reason: null,
         pendingDigest,
         generation: sql`${items.generation} + 1`,
       })
@@ -63,10 +63,7 @@ function contentWrites(
 function digestWrites(db: Database, { normalizedUrl, address }: Readonly<ThreadPlace>) {
   const owner = ownerOf(normalizedUrl);
 
-  return [
-    ...digestAfterFetch(db, { itemId: owner.id, address }),
-    setStatus(db, { kind: "settled" }, eq(items.normalizedUrl, normalizedUrl)),
-  ];
+  return digestAfterFetch(db, { itemId: owner.id, address });
 }
 
 export function threadPublication(

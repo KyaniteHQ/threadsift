@@ -1,6 +1,7 @@
 import { and, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { Caller } from "./caller.ts";
+import { withCleanup } from "./failure-log.ts";
 import { batchAll, refusedBy } from "./guards.ts";
 import type { SaveResult } from "./items.ts";
 import { BUDGET_SPENT, type BudgetSpent, type TokenBudget } from "./kinds.ts";
@@ -197,11 +198,11 @@ export async function withinBudget<Saved>(
 
   const ledger = slotLedger(db, caller.id, reserved);
 
-  try {
-    return await unlessSpent(() => run(ledger.saveAs));
-  } finally {
-    await ledger.settle();
-  }
+  return withCleanup(
+    { event: "token-budget-not-settled", fields: { tokenId: caller.id } },
+    () => unlessSpent(() => run(ledger.saveAs)),
+    () => ledger.settle(),
+  );
 }
 
 export async function forgetOldDays(db: Database, tokenId: number, now: number): Promise<void> {

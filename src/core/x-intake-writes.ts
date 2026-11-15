@@ -2,7 +2,6 @@ import { and, eq, ne, sql } from "drizzle-orm";
 
 import { completedAiTask, failedAiTask } from "./ai-tasks.ts";
 import { type BotTaskRow, acceptsAnswer } from "./bot-task-states.ts";
-import { statusColumns } from "./item-status.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { JobPorts, JobWrites } from "./job-outcome.ts";
 import { enqueueQuietly } from "./job-rows.ts";
@@ -77,7 +76,7 @@ export function unavailableIntake(db: JobPorts["db"], task: IntakeTask): JobWrit
       .set({
         fetch: "status",
         xNote: "bot-unavailable",
-        ...statusColumns({ kind: "settled" }),
+        reason: null,
         pendingDigest: null,
       })
       .where(eq(items.id, itemId)),

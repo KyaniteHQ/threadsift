@@ -4,7 +4,6 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 import { FETCH_RESULTS } from "./fetch-results.ts";
 import {
   FAILURE_REASONS,
-  ITEM_STATUSES,
   JOB_KINDS,
   JOB_STATES,
   KINDS,
@@ -95,7 +94,6 @@ export const items = sqliteTable(
     generation: integer("generation").notNull().default(0),
     digestFailed: integer("digest_failed", { mode: "boolean" }).notNull().default(false),
     readState: text("read_state", { enum: READ_STATES }).notNull().default("unread"),
-    status: text("status", { enum: ITEM_STATUSES }).notNull().default("ready"),
     reason: text("reason", { enum: FAILURE_REASONS }),
     fetch: text("fetch_result", { enum: FETCH_RESULTS }),
     xNote: text("x_note", { enum: X_READ_NOTES }),

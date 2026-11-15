@@ -14,7 +14,7 @@ export function stored(instance: Instance, tables: readonly string[] = ALL_TABLE
 }
 
 export const ItemRowSchema = z.object({
-  status: z.string(),
+  reason: z.string().nullable(),
   fetch_result: z.string().nullable(),
   pending_digest: z.string().nullable(),
   generation: z.number(),
@@ -24,7 +24,7 @@ export function itemRow(instance: Instance, id: number) {
   const [row] = rows(
     instance,
     ItemRowSchema,
-    "select status, fetch_result, pending_digest, generation from items where id = ?",
+    "select reason, fetch_result, pending_digest, generation from items where id = ?",
     id,
   );
 

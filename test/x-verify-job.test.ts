@@ -47,7 +47,7 @@ describe("a thread waits as stored state until every post of it was judged, and 
 
     const item = itemRow(instance, itemId);
 
-    assert.deepEqual([item.fetch_result, item.status], ["ok", "ready"]);
+    assert.deepEqual([item.fetch_result, item.reason], ["ok", null]);
     assert.equal(detail.digestTitle, digestOf().title);
     assert.equal(detail.comments.received, value.replies.length - 1);
     assert.equal(detail.comments.nodes.at(-1)?.kind, "more");
@@ -64,7 +64,7 @@ describe("a thread waits as stored state until every post of it was judged, and 
 
     const item = itemRow(instance, itemId);
 
-    assert.deepEqual([item.fetch_result, item.status], ["unreadable", "ready"]);
+    assert.deepEqual([item.fetch_result, item.reason], ["unreadable", null]);
     assert.equal(commentCount(instance, itemId), 0);
     assert.equal(verificationRow(instance, itemId), undefined);
   });

@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import type { Digest } from "./ai-contract.ts";
 import { guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
-import { setStatus } from "./item-status.ts";
 import { openingJob, enqueueRows } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
@@ -76,8 +75,10 @@ export function queuedWrites(
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),
-    setStatus(db, { kind: "queued" }, eq(items.normalizedUrl, normalizedUrl)),
-    db.update(items).set({ pendingDigest }).where(eq(items.normalizedUrl, normalizedUrl)),
+    db
+      .update(items)
+      .set({ reason: null, pendingDigest })
+      .where(eq(items.normalizedUrl, normalizedUrl)),
     openingJob(db, { kind: "fetch", address, normalizedUrl, now, page }),
     selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
   ] as const;
@@ -96,7 +97,7 @@ async function saveNewOnly(
   const noItem = holdsNoItem(db, link.normalizedUrl);
 
   const added = await unlessRefused(db, noItem, async () => {
-    const [, , , , queued, [item]] = await db.batch([
+    const [, , , queued, [item]] = await db.batch([
       insertGuard(db, noItem),
       ...queuedWrites(db, paste, link),
       db.delete(guards),
@@ -118,7 +119,7 @@ export async function saveQueued(
 ) {
   if (existing === "keep") return saveNewOnly(ports, paste, link);
 
-  const [inserted, , , queued, [item]] = await ports.db.batch(queuedWrites(ports.db, paste, link));
+  const [inserted, , queued, [item]] = await ports.db.batch(queuedWrites(ports.db, paste, link));
 
   await enqueueRows(ports, queued);
 

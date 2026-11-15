@@ -114,8 +114,8 @@ describe("an answer the task no longer takes publishes nothing, and an unavailab
 
     assert.equal(answer.status, 204);
     assert.deepEqual(
-      [item.status, item.fetch_result, row.state, jobRow(instance, task.job.id).state],
-      ["ready", "status", "done", "done"],
+      [item.reason, item.fetch_result, row.state, jobRow(instance, task.job.id).state],
+      [null, "status", "done", "done"],
     );
     assert.equal((await intakeTo(instance, task, { unavailable: true })).status, 409);
   });

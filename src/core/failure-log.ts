@@ -68,3 +68,72 @@ export function logFailure(
 ): void {
   console.error(JSON.stringify({ event, ...fields, error: errorClassOf(cause) }));
 }
+
+export interface FailureLine {
+  readonly event: string;
+  readonly fields: Readonly<Record<string, string | number>>;
+}
+
+const ABSENT_CODES = new Map([
+  ["databaseCode", "unknown"],
+  ["errno", "none"],
+]);
+
+function codesOf(cause: unknown): Readonly<Record<string, string>> {
+  const found = { databaseCode: databaseCodeOf(cause), errno: errnoCodeOf(cause) };
+
+  return Object.fromEntries(
+    Object.entries(found).filter(([name, code]) => code !== ABSENT_CODES.get(name)),
+  );
+}
+
+export function reportFailure(failure: Readonly<FailureLine>, cause: unknown): void {
+  try {
+    logFailure(failure.event, { ...failure.fields, ...codesOf(cause) }, cause);
+  } catch {
+    console.error(JSON.stringify({ event: "failure-unreadable", failed: failure.event }));
+  }
+}
+
+export async function readOrAssume<Answer>(
+  assumed: Answer,
+  failure: Readonly<FailureLine>,
+  read: () => Promise<Answer>,
+): Promise<Answer> {
+  try {
+    return await read();
+  } catch (cause) {
+    reportFailure(failure, cause);
+
+    return assumed;
+  }
+}
+
+export async function bestEffort<Done>(
+  failure: Readonly<FailureLine>,
+  cleanup: () => Promise<Done>,
+): Promise<void> {
+  await readOrAssume(undefined, failure, async () => {
+    await cleanup();
+  });
+}
+
+export async function withCleanup<Result, Done>(
+  failure: Readonly<FailureLine>,
+  body: () => Promise<Result>,
+  cleanup: () => Promise<Done>,
+): Promise<Result> {
+  let result: Result;
+
+  try {
+    result = await body();
+  } catch (error) {
+    await bestEffort(failure, cleanup);
+
+    throw error;
+  }
+
+  await cleanup();
+
+  return result;
+}
