@@ -15,6 +15,8 @@ const CANNOT_THROW = {
   "src/core/topic-lease.ts": ["leaseReleasedAfterFailure"],
 };
 
+const SERVER_MODULES = ["^(drizzle-orm|hono)(/|$)", "^@hono/", "^node:", "^cloudflare:"];
+
 const WEB_FETCH = {
   name: "fetch",
   message:
@@ -173,6 +175,10 @@ export default defineConfig({
           { cannotThrow: CANNOT_THROW, finalizers: true },
         ],
       },
+    },
+    {
+      files: ["web/src/**", "extension/entrypoints/**", "extension/lib/**"],
+      rules: { "threadsift/no-server-value-import": ["error", { forbidden: SERVER_MODULES }] },
     },
     {
       files: ["tools/oxlint/threadsift/**"],
