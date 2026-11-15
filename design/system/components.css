@@ -67,7 +67,7 @@ a.btn { text-decoration: none; }
 .src { color: var(--text); font-weight: 600; }
 /* tags: the Tag style setting picks the --tag-* values; data-tag on each tag picks its hue */
 .tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }
-.tag { display: inline-flex; align-items: center; gap: var(--s1); padding: var(--tag-pad-y) var(--tag-pad); border: var(--tag-box); border-radius: var(--r4); background: var(--tag-bg); color: var(--tag-fg); }
+.tag { display: inline-flex; align-items: center; gap: var(--tag-gap); padding: var(--tag-pad-y) var(--tag-pad); border: var(--tag-box); border-radius: var(--r4); background: var(--tag-bg); color: var(--tag-fg); }
 .tag::before { content: var(--tag-mark); }
 .tag-dot { display: var(--tag-dot); flex: none; width: var(--dot); height: var(--dot); border-radius: var(--r4); background: oklch(var(--tag-l) var(--tag-c) var(--tag-h)); }
 
@@ -375,13 +375,10 @@ a.btn { text-decoration: none; }
 .rd-src, .rd-meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
 .rd-src span:empty { display: none; }
 .rd-title { font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); overflow-wrap: anywhere; }
-.rd-title:focus { outline: none; }
+.rd-title:focus:not(:focus-visible) { outline: none; }
 .rd-link { display: block; width: fit-content; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--acc-ink); font-family: var(--f-ui); font-size: var(--t-meta); text-underline-offset: 2px; padding-block: var(--link-pad); }
-/* Section headings (h3): Original post, Saved comment, Repository, README, Comments or
-   Replies. They outrank every heading inside a post (h4 to h6, never larger than the reading
-   size), so the page reads in the same order as its outline. */
 .rd-h { color: var(--text); font-family: var(--f-display); font-size: var(--t-h2); font-weight: var(--dw); letter-spacing: var(--dls); line-height: var(--lh-title); }
-.rd-h:focus { outline: none; }
+.rd-h:focus:not(:focus-visible) { outline: none; }
 
 /* the summary: topic, tags, the 2-line summary and the key points. A box on the page; flat
    inside the sheet, which is a box already. */
@@ -430,7 +427,7 @@ button.hl-quote:hover { background: var(--surface-2); }
 .x-av { display: grid; place-items: center; flex: none; width: var(--av-l); height: var(--av-l); border: 1px solid var(--line-2); border-radius: var(--r4); background: var(--surface-2); font-weight: 700; }
 .x-media { display: grid; grid-template-columns: 1fr; gap: var(--s2); }
 .x-media.many { grid-template-columns: 1fr 1fr; }
-.media-ph { display: flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 180px; border: 1px dashed var(--line-2); border-radius: var(--r3); background: var(--surface-2); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
+.media-ph { display: flex; align-items: center; justify-content: center; gap: var(--s2); min-height: var(--media-ph-h); border: 1px dashed var(--line-2); border-radius: var(--r3); background: var(--surface-2); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
 .x-quote { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3) var(--s4); border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); }
 .x-q-head { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
 .x-q-head strong { color: var(--text); }
@@ -482,10 +479,7 @@ button.hl-quote:hover { background: var(--surface-2); }
 .md p, .md ul, .md ol, .md blockquote, .md .code, .md .h, .md .sxw { margin: 0 0 0.75em; }
 .md > :last-child { margin-bottom: 0; }
 .md p, .md li, .md blockquote { text-wrap: pretty; }
-/* headings: h4 (levels 1 and 2) has a hairline above; h5 and h6 (levels 3 and 4) don't. Both at
-   the reading size, under the reader's 20px section headings. A rule right before a level-2
-   heading is its hairline. */
-.md .h { font-size: var(--t-read); line-height: var(--lh-title); }
+.md .h { font-size: min(var(--t-read), var(--t-h2) * var(--post-h-cap)); line-height: var(--lh-title); }
 .md .h-2 { margin-top: 1.8em; padding-top: 0.7em; border-top: 1px solid var(--line); font-family: var(--f-display); font-weight: var(--dw-strong); letter-spacing: var(--dls); }
 .md .h-3 { margin-top: 1.2em; font-family: var(--f-read); font-weight: 600; }
 .md > .h:first-child { margin-top: 0; padding-top: 0; border-top: 0; }

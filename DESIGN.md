@@ -212,7 +212,7 @@ Dark and Sepia redefine every neutral and the accent's lightness and chroma in `
 Type sizes are in rem, so the browser's own font size scales them, and the pixel values above are the ones at its default of 16px. Text size (Small 0.9, Medium 1, Large 1.15) multiplies the title, list body and reading sizes through `--tz`. Reading text keeps its 16px floor (`--t-floor`) at Small, and label and meta text never scale, so no text is under 12px. Under 480px the paste field's text is at least 16px, because iOS Safari zooms the page when a focused field's text is smaller.
 
 ### Named Rules
-**The One Reading Size Rule.** Post, comment and summary text share one size (`--t-read`). Headings inside a post render at that same size, so the reader's section headings (`--t-h2`) always outrank them and the page reads in outline order.
+**The One Reading Size Rule.** Post, comment and summary text share one size (`--t-read`). Headings inside a post render at that same size, but never over `--post-h-cap` (0.95) times Headline, so the reader's section headings (`--t-h2`) always outrank them, at a Large Text size too, and the page reads in outline order.
 
 **The Plain Panel Rule.** The settings panel keeps the Plex pair whatever the Font setting is, so the controls that change the font never move.
 

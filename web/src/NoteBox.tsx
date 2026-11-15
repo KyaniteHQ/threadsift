@@ -133,7 +133,7 @@ export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial:
 
   return (
     <section className="rd-nt" aria-labelledby={heading}>
-      <h3 id={heading} className="label">
+      <h3 id={heading} className="rd-h">
         {NOTE_TITLE}
       </h3>
       <textarea

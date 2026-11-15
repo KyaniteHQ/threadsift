@@ -12,7 +12,7 @@ import { isSetByStyle } from "../../design/system/settings.ts";
 import { OPEN_AS_NARROW_NOTE, STYLE_NOTE } from "./text.ts";
 
 function appliesTo(row: SettingRow, settings: Readonly<Settings>): boolean {
-  return row.shown && (row.key !== "openAs" || settings.layout === "grid");
+  return row.key !== "openAs" || settings.layout === "grid";
 }
 
 function shownGroups(settings: Readonly<Settings>) {

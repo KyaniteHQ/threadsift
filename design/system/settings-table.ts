@@ -15,7 +15,6 @@ interface Setting {
   readonly onPage?: boolean;
   readonly setByStyle?: boolean;
   readonly look: boolean;
-  readonly shown: boolean;
   readonly default: string;
   readonly options: readonly [Option, ...Option[]];
 }
@@ -34,7 +33,6 @@ export const THEME = setting({
   kind: "segments",
   group: "Reading",
   look: false,
-  shown: true,
   default: "light",
   options: [
     { id: "light", label: "Light" },
@@ -53,7 +51,6 @@ export const SETTINGS = [
     kind: "segments",
     group: "View",
     look: false,
-    shown: true,
     default: "list",
     options: [
       { id: "list", label: "List" },
@@ -67,7 +64,6 @@ export const SETTINGS = [
     kind: "segments",
     group: "View",
     look: false,
-    shown: true,
     default: "page",
     options: [
       { id: "page", label: "Page" },
@@ -82,7 +78,6 @@ export const SETTINGS = [
     kind: "select",
     group: "Reading",
     look: true,
-    shown: true,
     default: "library",
     options: [
       { id: "library", label: "Library" },
@@ -107,7 +102,6 @@ export const SETTINGS = [
     kind: "select",
     group: "Reading",
     look: true,
-    shown: true,
     default: "plex",
     options: [
       { id: "plex", label: "IBM Plex Sans + Plex Mono" },
@@ -124,7 +118,6 @@ export const SETTINGS = [
     kind: "segments",
     group: "Reading",
     look: true,
-    shown: true,
     default: "medium",
     options: [
       { id: "small", label: "Small" },
@@ -139,7 +132,6 @@ export const SETTINGS = [
     kind: "segments",
     group: "Reading",
     look: true,
-    shown: true,
     default: "medium",
     options: [
       { id: "narrow", label: "Narrow" },
@@ -154,7 +146,6 @@ export const SETTINGS = [
     kind: "segments",
     group: "Reading",
     look: true,
-    shown: true,
     default: "compact",
     options: [
       { id: "compact", label: "Compact" },
@@ -169,7 +160,6 @@ export const SETTINGS = [
     kind: "segments",
     group: "Reading",
     look: true,
-    shown: true,
     default: "lines",
     options: [
       { id: "lines", label: "Indented lines" },
@@ -185,7 +175,6 @@ export const SETTINGS = [
     kind: "swatches",
     group: "Cards and tags",
     look: true,
-    shown: true,
     default: "cobalt",
     options: [
       { id: "cobalt", label: "Cobalt" },
@@ -202,7 +191,6 @@ export const SETTINGS = [
     kind: "segments",
     group: "Cards and tags",
     look: true,
-    shown: false,
     default: "dots",
     options: [
       { id: "chips", label: "Chips" },
@@ -217,7 +205,6 @@ export const SETTINGS = [
     kind: "segments",
     group: "Cards and tags",
     look: true,
-    shown: true,
     default: "on",
     options: [
       { id: "on", label: "On" },
