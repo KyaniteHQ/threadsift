@@ -12,7 +12,6 @@ import {
   JSONParseError,
   TypeValidationError,
 } from "ai";
-import { z } from "zod";
 
 import {
   type AiExecution,
@@ -120,8 +119,6 @@ function executionRefusal(cause: unknown, provider: HttpAiConnection["provider"]
   if (NoOutputGeneratedError.isInstance(cause)) return refusedAi("no-json");
   const parseError = APICallError.isInstance(cause) ? cause.cause : cause;
 
-  if (holdsRefusalPart(parseError)) return refusedAi("declined");
-
   if (JSONParseError.isInstance(parseError) || TypeValidationError.isInstance(parseError))
     return refusedAi("no-json", APICallError.isInstance(cause) ? (cause.statusCode ?? null) : null);
 
@@ -132,20 +129,4 @@ function unusableFinish(finishReason: FinishReason | undefined) {
   if (finishReason === "content-filter") return refusedAi("declined");
 
   return finishReason === "length" ? refusedAi("cut-off") : null;
-}
-
-const RefusalResponseSchema = z.object({
-  output: z.array(z.object({ content: z.array(z.object({ type: z.string() })).optional() })),
-});
-
-function holdsRefusalPart(cause: unknown): boolean {
-  if (!TypeValidationError.isInstance(cause)) return false;
-  const response = RefusalResponseSchema.safeParse(cause.value);
-
-  return (
-    response.success &&
-    response.data.output.some((item) =>
-      (item.content ?? []).some((part) => part.type === "refusal"),
-    )
-  );
 }
