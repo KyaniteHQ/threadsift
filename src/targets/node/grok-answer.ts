@@ -161,6 +161,8 @@ export function logged(outcome: Outcome, elapsedMs: number): XFetch {
 
   report("x-fetch-refused", { category: refusal.category, exit: exit ?? "none" });
 
+  if (refusal.category === "no-answer") return { kind: "unanswered" };
+
   const note = NOTE_OF_REFUSAL[refusal.category];
 
   return note === null

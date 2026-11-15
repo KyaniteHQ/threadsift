@@ -27,6 +27,7 @@ export interface ToVerify {
 
 export type XFetch =
   | { readonly kind: "thread"; readonly thread: XThreadValue }
+  | { readonly kind: "unanswered" }
   | { readonly kind: "failed"; readonly status: XFetchFailure; readonly note?: XReadNote };
 
 export type XRefusalCategory =
@@ -70,22 +71,32 @@ interface XSource {
   readonly attempts: number;
 }
 
-async function notFoundBy(
-  network: Ports["network"],
-  { attempts }: Readonly<XSource>,
-  statusId: string,
-  signal: AbortSignal,
-): Promise<Fetched> {
-  if (isLastAttempt(attempts) || (await shownOnX(network, statusId, signal)) === "absent") {
-    return { status: "status" };
-  }
-
+function readAgain({ attempts }: Readonly<XSource>): Fetched {
   return {
     status: "waiting",
     until: Date.now() + (RETRY_DELAYS_MS[attempts] ?? 0),
     limited: true,
     wait: "x-reread",
   };
+}
+
+async function notFoundBy(
+  network: Ports["network"],
+  source: Readonly<XSource>,
+  statusId: string,
+  signal: AbortSignal,
+): Promise<Fetched> {
+  if (isLastAttempt(source.attempts) || (await shownOnX(network, statusId, signal)) === "absent") {
+    return { status: "status" };
+  }
+
+  return readAgain(source);
+}
+
+function unansweredBy(source: Readonly<XSource>): Fetched {
+  return isLastAttempt(source.attempts)
+    ? { status: "unreadable", note: NOTE_OF_REFUSAL["no-answer"] }
+    : readAgain(source);
 }
 
 async function concluded(
@@ -96,6 +107,8 @@ async function concluded(
   signal: AbortSignal,
 ): Promise<Fetched | ToVerify> {
   const fetched = await fetcher.fetch(statusId, signal);
+
+  if (fetched.kind === "unanswered") return unansweredBy(source);
 
   if (fetched.kind === "failed") {
     if (fetched.status === "status") return notFoundBy(network, source, statusId, signal);
