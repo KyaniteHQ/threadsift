@@ -30,29 +30,36 @@ export interface ThreadTab {
   readonly url: string;
 }
 
+// oxlint-disable-next-line eslint/max-lines-per-function -- executeScript serializes this function alone into the tab, so it cannot call a helper.
 async function readInTab(
   address: string,
   deadlineMs: number,
   maxBytes: number,
+  cancelEvent: string,
 ): Promise<TabAnswer> {
   let remaining: string | null = null;
+  const cancelled = new AbortController();
+
+  window.addEventListener(cancelEvent, cancelled.abort.bind(cancelled), {
+    signal: cancelled.signal,
+  });
 
   try {
     const response = await fetch(address, {
       credentials: "include",
       headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(deadlineMs),
+      signal: AbortSignal.any([AbortSignal.timeout(deadlineMs), cancelled.signal]),
     });
 
     remaining = response.headers.get("x-ratelimit-remaining");
-
-    const declared = Number(response.headers.get("content-length"));
 
     if (response.status !== 200 || response.body === null) {
       return { status: response.status, text: "", remaining };
     }
 
-    if (declared > maxBytes) return { status: 0, text: "", remaining };
+    if (Number(response.headers.get("content-length")) > maxBytes) {
+      return { status: 0, text: "", remaining };
+    }
 
     let received = 0;
 
@@ -68,38 +75,63 @@ async function readInTab(
       },
     });
 
-    return {
-      status: 200,
-      text: await new Response(response.body.pipeThrough(limited)).text(),
-      remaining,
-    };
+    const text = await new Response(response.body.pipeThrough(limited)).text();
+
+    return { status: 200, text, remaining };
   } catch {
     return { status: 0, text: "", remaining };
+  } finally {
+    cancelled.abort();
   }
 }
 
-async function answerFor(tabId: number, address: string, deadlineMs: number): Promise<TabAnswer> {
-  const answer = await resultInTab(
-    () =>
-      browser.scripting.executeScript({
-        target: { tabId },
-        func: readInTab,
-        args: [address, deadlineMs, THREAD_CONTENT_BYTES],
-      }),
-    TabAnswerSchema,
-  );
+function cancelInTab(cancelEvent: string): void {
+  window.dispatchEvent(new Event(cancelEvent));
+}
 
-  return answer ?? NO_ANSWER;
+function stopped(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
+}
+
+async function answerFor(
+  tabId: number,
+  address: string,
+  deadlineMs: number,
+  signal: AbortSignal | undefined,
+): Promise<TabAnswer> {
+  if (stopped(signal)) return NO_ANSWER;
+
+  const cancelEvent = `threadsift-cancel-${crypto.randomUUID()}`;
+
+  const cancel = (): void => {
+    browser.scripting
+      .executeScript({ target: { tabId }, func: cancelInTab, args: [cancelEvent] })
+      .catch(() => null);
+  };
+
+  signal?.addEventListener("abort", cancel, { once: true });
+
+  try {
+    const answer = await resultInTab(
+      () =>
+        browser.scripting.executeScript({
+          target: { tabId },
+          func: readInTab,
+          args: [address, deadlineMs, THREAD_CONTENT_BYTES, cancelEvent],
+        }),
+      TabAnswerSchema,
+    );
+
+    return answer ?? NO_ANSWER;
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+  }
 }
 
 function threadAddress({ url }: Readonly<ThreadTab>): string {
   const { origin, pathname } = new URL(url);
 
   return `${origin}${pathname.replace(/\/+$/u, "")}/.json?${THREAD_QUERY}`;
-}
-
-function stopped(signal: AbortSignal | undefined): boolean {
-  return signal?.aborted === true;
 }
 
 interface ThreadRead {
@@ -126,13 +158,13 @@ export async function fetchThread(
 
   if (ref === null) return null;
 
-  const first = await answerFor(tab.id, threadAddress(tab), REQUEST_DEADLINE_MS);
+  const first = await answerFor(tab.id, threadAddress(tab), REQUEST_DEADLINE_MS, signal);
   const hidden = first.status === 200 ? hiddenRepliesOf(first.text, ref.postId) : null;
 
   if (hidden === null || stopped(signal)) return null;
 
   const filled = await fillAnswers(
-    (address, deadlineMs) => answerFor(tab.id, address, deadlineMs),
+    (address, deadlineMs) => answerFor(tab.id, address, deadlineMs, signal),
     {
       addressFor: (commentId) =>
         `${new URL(tab.url).origin}${permalinkPath(ref.postId, commentId)}`,

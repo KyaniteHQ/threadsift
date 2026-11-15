@@ -89,11 +89,11 @@ async function answerAfter(
 ): Promise<FillAnswer | null> {
   await pause(wait);
 
+  if (mayContinue !== undefined && !(await mayContinue())) return null;
+
   const left = giveUpAt - Date.now();
 
   if (left <= 0 || stopped(signal)) return null;
-
-  if (mayContinue !== undefined && !(await mayContinue())) return null;
 
   return answerFor(address, Math.min(REQUEST_DEADLINE_MS, left));
 }

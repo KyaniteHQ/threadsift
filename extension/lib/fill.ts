@@ -46,14 +46,15 @@ async function fillOnce(
   if (fetched !== null && !signal.aborted) await send(config, fetched);
 }
 
+async function mayFill({ origin }: Readonly<Config>): Promise<boolean> {
+  return (
+    (await fillWanted()) &&
+    browser.permissions.contains({ origins: [hostPattern(origin), ...REDDIT_HOSTS] })
+  );
+}
+
 export async function fillOpenedThread(tab: Readonly<ThreadTab>): Promise<void> {
-  const config = await loadConfig();
-
-  if (config === null || redditRefOf(tab.url) === null || !(await fillWanted())) return;
-
-  const origins = [hostPattern(config.origin), ...REDDIT_HOSTS];
-
-  if (!(await browser.permissions.contains({ origins }))) return;
+  if (redditRefOf(tab.url) === null) return;
 
   const key = parseLink(tab.url).normalizedUrl;
 
@@ -63,7 +64,9 @@ export async function fillOpenedThread(tab: Readonly<ThreadTab>): Promise<void> 
   filling.set(key, running);
 
   try {
-    await fillOnce(config, tab, running.signal);
+    const config = await loadConfig();
+
+    if (config !== null && (await mayFill(config))) await fillOnce(config, tab, running.signal);
   } finally {
     filling.delete(key);
   }
