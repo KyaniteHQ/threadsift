@@ -70,10 +70,6 @@ export class ScriptWorld {
     return this.servers.failing.url;
   }
 
-  answeringEmptyBatch(): Promise<Listening> {
-    return listening(() => Promise.resolve(Response.json({ results: [] })));
-  }
-
   env(url = this.address, token = this.agentToken) {
     return { THREADSIFT_URL: url, THREADSIFT_AGENT_TOKEN: token };
   }

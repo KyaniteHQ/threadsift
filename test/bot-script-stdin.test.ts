@@ -18,7 +18,9 @@ interface Case {
 }
 
 const comparable = ({ word, reasons, code }: Ran, hasTaskId: boolean) => {
-  const normalized = word.replace(/^TS_[0-9a-f]{32}$/u, "TS_<hex>");
+  const normalized = word
+    .replace(/^TS_[0-9a-f]{32}$/u, "TS_<hex>")
+    .replace(/^(ok|duplicate) (\d+) (\S+)\/items\/\2$/u, "$1 <id> $3/items/<id>");
 
   return {
     word: hasTaskId ? normalized.replace(/^ok \d+ /u, "ok <id> ") : normalized,
@@ -130,7 +132,7 @@ describe("the script prints the same word, reasons and exit code with standard i
     },
     {
       name: "save",
-      word: /^ok$/u,
+      word: /^ok (\d+) http:\/\/127\.0\.0\.1:\d+\/items\/\1$/u,
       code: 0,
       args: async () => [
         "save",

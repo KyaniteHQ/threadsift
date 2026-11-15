@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## bot-v5
+
+- A chat save answers with a link to the Item in your library. `save` prints `ok <id> <address>` for a new link and `duplicate <id> <address>` for a link the library already holds, and the skill tells the bot to answer with the link, instead of `ok` and `duplicate` alone, which gave the bot no Item to link.
+
 ## bot-v4
 
 - `write` stores an empty file and answers `ok`, and `append` leaves the file as it was and answers `ok`, when the shell starts the script with its standard input closed, the same as with an empty standard input, instead of `bad-input` with "no text on standard input". No other command reads standard input, so no other command changes.
