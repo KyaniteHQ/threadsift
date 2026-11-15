@@ -30,7 +30,7 @@ const CONTAINER_NAME = `threadsift-smoke-${PORT}`;
 
 const CONTAINER_STATE = join(import.meta.dirname, ".wrangler", `smoke-container-${PORT}`);
 
-const CONTAINER_CAPTURE = join(import.meta.dirname, "test-results", "container-failure");
+const CONTAINER_CAPTURE = join(import.meta.dirname, "smoke-evidence", "container");
 
 const CONTAINERS_CONF = join(CONTAINER_STATE, "containers.conf");
 

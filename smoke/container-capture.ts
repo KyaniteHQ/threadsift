@@ -35,6 +35,10 @@ const CONTAINER_FILES = [
   "/sys/fs/cgroup/memory.max",
 ];
 
+function runFolder(startedAtSeconds: number): string {
+  return new Date(startedAtSeconds * 1000).toISOString().replace(".000Z", "Z").replaceAll(":", "-");
+}
+
 export default class ContainerCapture implements Reporter {
   readonly #options: Options;
 
@@ -63,15 +67,16 @@ export default class ContainerCapture implements Reporter {
     if (this.#captured || result.status === test.expectedStatus) return;
     this.#captured = true;
     const options = this.#options;
-    const { container, stateDir, captureDir, image, port } = options;
+    const { container, stateDir, image, port } = options;
+    const captureDir = join(options.captureDir, runFolder(this.#startedAt));
     const deadline = Date.now() + CAPTURE_BUDGET_MS;
     const endedAt = new Date(result.startTime.getTime() + result.duration).toISOString();
     const probes = reachability(options, endedAt, deadline);
 
     const keep = (name: string, text: string): void => {
       try {
-        mkdirSync(captureDir, { recursive: true });
-        writeFileSync(join(captureDir, name), redact(text));
+        mkdirSync(captureDir, { recursive: true, mode: 0o700 });
+        writeFileSync(join(captureDir, name), redact(text), { mode: 0o600 });
       } catch (error) {
         console.error(`container capture: ${name} not written: ${String(error)}`);
       }
@@ -127,5 +132,6 @@ export default class ContainerCapture implements Reporter {
         run("journalctl", ["--dmesg", "--no-pager", "--since", `@${this.#startedAt}`], deadline),
       ),
     );
+    console.error(`container capture: evidence written to ${captureDir}`);
   }
 }

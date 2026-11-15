@@ -15,4 +15,5 @@ node_modules
 smoke
 test
 test-results
+smoke-evidence
 .wrangler
