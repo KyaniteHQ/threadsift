@@ -8,7 +8,7 @@ wrangler.jsonc, package.json      Worker config and the scripts; the root is the
 devenv.nix, devenv.yaml           the development environment and the gate tasks
 Containerfile                     the container image
 migrations/                       SQL files from drizzle-kit, applied on both targets
-src/core/                         ingest pipeline, jobs, access, ports, and the export (`export-*.ts`, `zip.ts`, `crc32.ts`)
+src/core/                         ingest pipeline, jobs, access, ports, and the export (`export-*.ts`, `item-note.ts`, `zip.ts`, `crc32.ts`)
 src/http/                         Hono routes, the guard in front of them and the MCP endpoint (`mcp-*.ts`)
 src/targets/shared/               adapters both targets use: `node:crypto` behind the Crypto port
 src/targets/node/                 container entry and adapters

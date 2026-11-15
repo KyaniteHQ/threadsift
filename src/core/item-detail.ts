@@ -31,7 +31,7 @@ export async function getItem(ports: Readonly<Pick<Ports, "db" | "files">>, id: 
   return first?.textLost === true ? (await readItem(ports, id))?.item : first?.item;
 }
 
-async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
+export async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
   const [
     [row],
     [stored],
@@ -54,6 +54,7 @@ async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id
 
   return {
     textLost: postText === null && postTextKey !== null,
+    postTextKey,
     item: {
       ...item,
       postText,

@@ -8,6 +8,10 @@ export const EXPORT_SLICE_BYTES = 8 * 1024 * 1024;
 
 export const EXPORT_PAGE_ROWS = 2000;
 
+export const EXPORT_SLICE_ITEMS = 40;
+
+export const ITEM_FILES_STREAM = "item-files";
+
 export const EXPORT_ENTRY_BYTES = 8 * 1024 * 1024;
 
 export const EXPORT_KEEP_MS = 24 * 60 * 60 * 1000;

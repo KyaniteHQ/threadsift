@@ -2,6 +2,7 @@ import { type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { BACKUP_TABLES } from "./backup-tables.ts";
+import { ITEM_FILES_STREAM } from "./export-contract.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 
@@ -24,6 +25,7 @@ const PageRowSchema = z.record(z.string(), CellSchema);
 export const STREAMS: readonly string[] = [
   ...FIRST_TABLES,
   ...Object.keys(BACKUP_TABLES).filter((name) => !FIRST_TABLES.some((first) => first === name)),
+  ITEM_FILES_STREAM,
 ];
 
 function columnsOf(table: string): readonly string[] {

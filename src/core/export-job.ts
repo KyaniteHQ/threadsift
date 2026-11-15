@@ -164,7 +164,7 @@ async function attemptSlice(ports: JobPorts, job: Readonly<ClaimedExport>): Prom
   if (run?.state !== "running") return { writes: [] };
 
   const started = performance.now();
-  const built = await buildSlice(db, run);
+  const built = await buildSlice(ports, run);
 
   if (built === null) return { writes: [failure(db, run.id, "list-changed")] };
 
