@@ -3,7 +3,7 @@ import { type SQLWrapper, and, eq, notExists } from "drizzle-orm";
 import type { Concluded } from "./details.ts";
 import { guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { LISTED_COLUMNS, selectItems } from "./item-selection.ts";
-import { type Existing, type SaveResult, foundItem, itemAt } from "./items.ts";
+import { type Existing, type Paste, type SaveResult, foundItem, itemAt } from "./items.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
@@ -15,13 +15,13 @@ interface Failure {
   readonly link: Readonly<Link>;
   readonly fetched: Readonly<Concluded>;
   readonly now: number;
-  readonly addedByToken: number | null;
+  readonly counting: Paste["counting"];
 }
 
 async function insertedFailure(
   db: Database,
   noAlias: Readonly<SQLWrapper>,
-  { address, link: { normalizedUrl, kind, source }, fetched, now, addedByToken }: Readonly<Failure>,
+  { address, link: { normalizedUrl, kind, source }, fetched, now, counting }: Readonly<Failure>,
 ): Promise<SaveResult | undefined> {
   const [, inserted, [item]] = await db.batch([
     insertGuard(db, noAlias),
@@ -33,7 +33,7 @@ async function insertedFailure(
         normalizedUrl,
         originalUrl: address,
         savedAt: now,
-        addedByToken,
+        ...counting,
         ...settledNew(fetched, now),
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
@@ -81,10 +81,10 @@ export function saveFailedResolution(
   link: Readonly<Link>,
   fetched: Readonly<Concluded>,
   existing: Existing,
-  addedByToken: number | null,
+  counting: Paste["counting"],
 ): Promise<SaveResult | null> {
   const noAlias = holdsNoRow(db, itemAliases, eq(itemAliases.normalizedUrl, link.normalizedUrl));
-  const failure = { address, link, fetched, now: Date.now(), addedByToken };
+  const failure = { address, link, fetched, now: Date.now(), counting };
 
   return unlessRefused(
     db,

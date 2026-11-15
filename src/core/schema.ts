@@ -100,6 +100,7 @@ export const items = sqliteTable(
     fetch: text("fetch_result", { enum: FETCH_RESULTS }),
     xNote: text("x_note", { enum: X_READ_NOTES }),
     addedByToken: integer("added_by_token"),
+    budgetSlotDay: text("budget_slot_day"),
   },
   (table) => [
     index("items_saved_at_id").on(table.savedAt, table.id),

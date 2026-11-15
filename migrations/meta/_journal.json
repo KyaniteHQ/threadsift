@@ -463,6 +463,13 @@
       "when": 1794766295300,
       "tag": "0065_reddit-refused-threads",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "6",
+      "when": 1794767268152,
+      "tag": "0066_budget-slot-day",
+      "breakpoints": true
     }
   ]
 }

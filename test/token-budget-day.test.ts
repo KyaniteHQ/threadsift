@@ -8,6 +8,7 @@ import {
   atClock,
   budgetOf,
   dayOf,
+  execute,
   itemsCounted,
   itemsSavedByDay,
   makeToken,
@@ -133,21 +134,29 @@ describe("an agent token's day is the UTC day, and a refusal says how long until
     ]);
   });
 
-  it("charges a batch that crosses midnight, each Item to the day it was saved on", async () => {
-    const token = await makeToken(instance, 5);
+  it("charges a batch that crosses midnight, each Item to the day it was saved on, and stops it at the new day's budget", async () => {
+    const token = await makeToken(instance, 3);
     const midnight = nextMidnight(Date.now());
     const database = total(instance, "items");
+
+    execute(
+      instance,
+      `insert into agent_token_days (token_id, day, added) values (${String(token.id)}, '${dayOf(midnight)}', 2)`,
+    );
 
     const answer = await atClock(
       () => midnight - 500 + 1000 * (total(instance, "items") - database),
       () => addBatch(instance, token, [301, 302, 303]),
     );
 
-    assert.equal(answer.status, 200);
+    assert.equal(answer.status, 429);
     assert.deepEqual(itemsSavedByDay(instance, token.id), [
       [dayOf(midnight - 1), 1],
-      [dayOf(midnight), 2],
+      [dayOf(midnight), 1],
     ]);
-    assert.deepEqual(itemsCounted(instance, token.id), itemsSavedByDay(instance, token.id));
+    assert.deepEqual(itemsCounted(instance, token.id), [
+      [dayOf(midnight - 1), 2],
+      [dayOf(midnight), 3],
+    ]);
   });
 });

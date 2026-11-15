@@ -1,5 +1,5 @@
 import { type Digest } from "./ai-contract.ts";
-import { type Caller, countedToken } from "./caller.ts";
+import { type Caller, countedBy } from "./caller.ts";
 import { type Invalid, type NotWaiting, type SaveResult, itemAt } from "./items.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
 import { parseLink, statusIdOf } from "./links.ts";
@@ -58,7 +58,7 @@ export async function saveThread(
   const place = {
     ...parseLink(absoluteUrl),
     address: absoluteUrl,
-    addedByToken: countedToken(caller),
+    counting: countedBy(caller),
   };
 
   const published = await publishThread(db, place, parsed.thread, {

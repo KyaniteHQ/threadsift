@@ -1,5 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
+import type { Counting } from "./caller.ts";
 import { digestAfterFetch } from "./digest-job.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
@@ -11,7 +12,7 @@ import type { StoredThread } from "./stored-thread.ts";
 
 export interface ThreadPlace extends Link {
   readonly address: string;
-  readonly addedByToken: number | null;
+  readonly counting: Counting;
 }
 
 export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
@@ -23,7 +24,7 @@ export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
       normalizedUrl: place.normalizedUrl,
       originalUrl: place.address,
       savedAt: Date.now(),
-      addedByToken: place.addedByToken,
+      ...place.counting,
     })
     .onConflictDoNothing({ target: items.normalizedUrl })
     .returning({ id: items.id });

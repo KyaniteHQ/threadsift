@@ -29,7 +29,7 @@ const batchRoute = createRoute({
   responses: {
     ...scopeRefusal("POST", "/api/items/batch", BATCH_DIGEST_SCOPE),
     ...budgetRefusal(
-      "The check before the first save refuses a call when the token lacks budget for every new link in it, and then nothing is saved. A held link that another request deletes during the call is saved again and can use the last of the budget, and the call then answers 429 after it saved the links before that one. Those links stay saved and counted. Send the same links again, and the saved ones answer `known`.",
+      "The check before the first save refuses a call when the token lacks budget for every new link in it, and then nothing is saved. A held link that another request deletes during the call is saved again and can use the last of the budget, and a call that crosses 00:00 UTC counts the links it saves after midnight on the new day and stops at that day's budget. The call then answers 429 after it saved the links before that one. Those links stay saved and counted. Send the same links again, and the saved ones answer `known`.",
     ),
     200: jsonBody(
       BatchResponseSchema,
