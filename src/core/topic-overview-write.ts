@@ -29,6 +29,7 @@ export function currentInputs(
     revision: read.page?.revision ?? 0,
     included,
     removed: read.removed,
+    removedTotal: read.removedTotal,
   })}`;
 }
 

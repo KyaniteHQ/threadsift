@@ -30,10 +30,12 @@ export function inputsHold(
     revision,
     included,
     removed,
+    removedTotal,
   }: Readonly<{
     revision: number;
     included: readonly Readonly<{ id: number; digest: number }>[];
     removed: readonly number[];
+    removedTotal: number;
   }>,
 ): SQL {
   const wanted = JSON.stringify(included.map(({ id, digest }) => ({ item: id, digest })));
@@ -44,9 +46,9 @@ export function inputsHold(
 
   const removedStay = sql`not exists (select 1 from json_each(${JSON.stringify(removed)}) as gone join ${items} as member on member.id = gone.value where member.topic_id = ${topicId})`;
 
-  const retainedStay = sql`not exists (select 1 from ${builtFrom(topicId)} as built where json_extract(built.value, '$.item') not in (select value from json_each(${JSON.stringify(removed)})) and ${removedFrom(topicId)})`;
+  const removedCount = sql`(select count(*) from (${removedItemIds(topicId)})) = ${removedTotal}`;
 
-  return sql`${revised} and ${includedHold} and ${removedStay} and ${retainedStay}`;
+  return sql`${revised} and ${includedHold} and ${removedStay} and ${removedCount}`;
 }
 
 function uncoveredFrom(topicId: TopicRef): SQL {

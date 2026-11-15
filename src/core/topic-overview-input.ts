@@ -6,7 +6,7 @@ import { logFailure } from "./failure-log.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, topicPages, topics } from "./schema.ts";
 import { notBuiltFrom, removedItemIds } from "./topic-coverage.ts";
-import type { BuiltFrom } from "./topic-overview-contract.ts";
+import { type BuiltFrom, citedIds } from "./topic-overview-contract.ts";
 import { overviewWithout } from "./topic-overview-prune.ts";
 import { OVERVIEW_INPUT_BYTES } from "./topic-overview-task.ts";
 
@@ -36,6 +36,7 @@ export interface OverviewRead {
   readonly added: readonly AddedItem[];
   readonly unreadable: number;
   readonly removed: readonly number[];
+  readonly removedTotal: number;
 }
 
 export interface OverviewPrompt {
@@ -49,6 +50,7 @@ export interface OverviewPrompt {
 export interface OverviewBasis {
   readonly page: { readonly revision: number; readonly builtFrom: BuiltFrom } | null;
   readonly removed: readonly number[];
+  readonly removedTotal: number;
 }
 
 export interface OverviewSent {
@@ -121,8 +123,25 @@ async function addedFrom(
   };
 }
 
+async function withCitedRemoved(
+  db: Database,
+  topicId: number,
+  { read, overview }: Readonly<{ read: readonly number[]; overview: string | null }>,
+): Promise<readonly number[]> {
+  const cited = overview === null ? [] : citedIds(overview);
+
+  if (cited.length === 0) return read;
+
+  const gone = await db
+    .select({ id: sql<number>`gone.id` })
+    .from(sql`(${removedItemIds(topicId)}) as gone`)
+    .where(sql`gone.id in (select value from json_each(${JSON.stringify(cited)}))`);
+
+  return [...new Set([...read, ...gone.map(({ id }) => id)])];
+}
+
 export async function readOverview(db: Database, topicId: number): Promise<OverviewRead | null> {
-  const [[topic], [page], added, gone] = await db.batch([
+  const [[topic], [page], added, gone, [counted]] = await db.batch([
     db.select({ name: topics.name }).from(topics).where(eq(topics.id, topicId)),
     db
       .select({
@@ -137,18 +156,25 @@ export async function readOverview(db: Database, topicId: number): Promise<Overv
       .select({ id: sql<number>`gone.id` })
       .from(sql`(${removedItemIds(topicId)}) as gone`)
       .limit(REMOVED_LIMIT),
+    db.select({ total: sql<number>`count(*)` }).from(sql`(${removedItemIds(topicId)}) as gone`),
   ]);
 
   if (topic === undefined) return null;
 
   const { readable, unreadable } = await addedFrom(db, topicId, added);
 
+  const removed = await withCitedRemoved(db, topicId, {
+    read: gone.map(({ id }) => id),
+    overview: page?.overview ?? null,
+  });
+
   return {
     name: topic.name,
     page: page ?? null,
     added: readable,
     unreadable,
-    removed: gone.map(({ id }) => id),
+    removed,
+    removedTotal: counted?.total ?? 0,
   };
 }
 
