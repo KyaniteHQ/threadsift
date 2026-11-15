@@ -85,15 +85,11 @@ function keptQuery(search: string, host: string): string {
   return kept.length > 0 ? `?${kept.join("&")}` : "";
 }
 
-const MOBILE_X_REST: ReadonlySet<string> = new Set(["x.com", "twitter.com"]);
-
 const WWW_MIN_REST_LABELS = 2;
 
 function startsAfterArtifact(labels: readonly string[], first: number): number {
-  const rest = labels.slice(first + 1);
-
-  const isWww = labels[first] === "www" && rest.length >= WWW_MIN_REST_LABELS;
-  const isMobile = labels[first] === "mobile" && MOBILE_X_REST.has(rest.join("."));
+  const isWww = labels[first] === "www" && labels.length - first - 1 >= WWW_MIN_REST_LABELS;
+  const isMobile = labels[first] === "mobile" && X_HOSTS.has(labels.slice(first + 1).join("."));
 
   return isWww || isMobile ? first + 1 : first;
 }
