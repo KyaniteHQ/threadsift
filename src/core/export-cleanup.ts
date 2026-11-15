@@ -1,12 +1,17 @@
-import { and, eq, inArray, lt, or } from "drizzle-orm";
+import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 
 import {
   EXPORT_CLEANUP_BATCH,
   EXPORT_KEEP_MS,
   EXPORT_SLICE_DEADLINE_MS,
 } from "./export-contract.ts";
-import { logFailure } from "./failure-log.ts";
-import { FILE_LIST_LIMIT, exportFilesPrefix } from "./file-keys.ts";
+import { logFailure, report } from "./failure-log.ts";
+import {
+  EXPORT_FILES_ROOT,
+  FILE_LIST_LIMIT,
+  exportFilesPrefix,
+  parseStoredKey,
+} from "./file-keys.ts";
 import { CLAIM_MARGIN_MS, type JobPorts } from "./job-outcome.ts";
 import type { FileStore } from "./ports.ts";
 import { exportRuns } from "./schema.ts";
@@ -22,6 +27,50 @@ async function removeObjects(files: FileStore, exportId: number): Promise<void> 
 
   await files.delete(page.files.map(({ key }) => key));
   await removeObjects(files, exportId);
+}
+
+async function expiredKeys(
+  db: CleanupPorts["db"],
+  keys: readonly string[],
+): Promise<readonly string[]> {
+  const owned = keys.flatMap((key) => {
+    const parsed = parseStoredKey(key);
+    const id = Number(parsed?.ownerId);
+
+    return parsed?.root === "exports" && Number.isSafeInteger(id) ? [{ key, id }] : [];
+  });
+
+  const owners = [...new Set(owned.map(({ id }) => id))];
+
+  const expired = await db
+    .select({ id: exportRuns.id })
+    .from(exportRuns)
+    .where(
+      and(
+        eq(exportRuns.state, "expired"),
+        inArray(exportRuns.id, sql`(select value from json_each(${JSON.stringify(owners)}))`),
+      ),
+    );
+
+  const ids = new Set(expired.map(({ id }) => id));
+
+  return owned.flatMap(({ key, id }) => (ids.has(id) ? [key] : []));
+}
+
+async function removeStrays(
+  { db, files }: Readonly<CleanupPorts>,
+  cursor: string | null,
+): Promise<number> {
+  const page = await files.list(EXPORT_FILES_ROOT, cursor, FILE_LIST_LIMIT);
+
+  const stray = await expiredKeys(
+    db,
+    page.files.map(({ key }) => key),
+  );
+
+  if (stray.length > 0) await files.delete(stray);
+
+  return stray.length + (page.cursor === null ? 0 : await removeStrays({ db, files }, page.cursor));
 }
 
 export async function removeExport({ db, files }: Readonly<CleanupPorts>, id: number) {
@@ -61,4 +110,8 @@ export async function cleanExports(ports: Readonly<CleanupPorts>): Promise<void>
     .limit(EXPORT_CLEANUP_BATCH);
 
   await Promise.all(stale.map(({ id }) => removeExport(ports, id)));
+
+  const removed = await removeStrays(ports, null);
+
+  if (removed > 0) report("export-stray-objects-removed", { keys: removed });
 }
