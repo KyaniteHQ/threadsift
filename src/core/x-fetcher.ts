@@ -2,16 +2,12 @@ import type { Fetched } from "./details.ts";
 import { report } from "./failure-log.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { RETRY_DELAYS_MS, isLastAttempt } from "./job-outcome.ts";
-import type { XReadNote } from "./kinds.ts";
+import type { XFetcherState, XReadNote } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { parseXThreadValue } from "./x-thread.ts";
 import { shownOnX } from "./x-verify.ts";
 import { StatusIdSchema, type XThreadValue } from "./x-wire.ts";
-
-export const X_FETCHER_STATES = ["signed-in", "signed-out", "not-proven", "unknown"] as const;
-
-export type XFetcherState = (typeof X_FETCHER_STATES)[number];
 
 export interface XFetcherStatus {
   readonly state: XFetcherState;

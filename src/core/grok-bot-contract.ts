@@ -90,6 +90,10 @@ export const GROK_BOT_FIRST = "Save a Grok Bot address and key first.";
 export const GROK_BOT_IN_USE =
   "Grok Bot is the Provider, so pick and save another Provider in the AI section first.";
 
+export const GROK_BOT_UNREADY = ["secret-missing", "not-configured", "refused"] as const;
+
+export type GrokBotUnreadyReason = (typeof GROK_BOT_UNREADY)[number];
+
 export const GrokBotUnreadySchema = z.object({
   error: z.string(),
   code: z.enum(["not-configured", "secret-missing"]),

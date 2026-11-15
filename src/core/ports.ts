@@ -9,9 +9,9 @@ import type { Sealer } from "./sealed-secret.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 import type { XFetcher } from "./x-fetcher.ts";
 
-export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
+export { HOP_DEADLINE_MS } from "./request-waits.ts";
 
-export const HOP_DEADLINE_MS = 8000;
+export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
 
 export interface RateLimitHeaders {
   readonly retryAfter: string | null;

@@ -1,5 +1,3 @@
-import { type SQLWrapper, sql } from "drizzle-orm";
-
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
 
 export const FILE_LIST_LIMIT = 1000;
@@ -58,21 +56,6 @@ export function itemFilesPrefix(itemId: number | string): string {
 
 export function itemFileKey(itemId: number | string, name: string): string {
   return `${itemFilesPrefix(itemId)}${name}`;
-}
-
-interface AttemptColumns {
-  readonly itemId: SQLWrapper;
-  readonly id: SQLWrapper;
-  readonly attempts: SQLWrapper;
-}
-
-export function attemptFileKeys({ itemId, id, attempts }: Readonly<AttemptColumns>) {
-  const folder = sql`${sql.raw(`'${ITEM_FILES_ROOT}'`)} || ${itemId} || '/'`;
-
-  return {
-    postText: sql<string>`${folder} || 'post-' || ${id} || '-' || ${attempts} || '.md'`,
-    imagePrefix: sql<string>`${folder} || 'img-' || ${id} || '-' || ${attempts} || '-'`,
-  };
 }
 
 export function temporaryPrefix(random: string): string {

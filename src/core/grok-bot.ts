@@ -5,6 +5,7 @@ import {
   GROK_BOT_PING_KIND,
   type GrokBotInput,
   type GrokBotResult,
+  type GrokBotUnreadyReason,
   type GrokBotView,
   allowedGrokBotUrl,
   grokBotAddressOf,
@@ -185,13 +186,9 @@ interface GrokBotPost {
   readonly status: number | null;
 }
 
-export const GROK_BOT_UNREADY = ["secret-missing", "not-configured", "refused"] as const;
-
-export type GrokBotUnready = (typeof GROK_BOT_UNREADY)[number];
-
 type GrokBotConnection =
   | { readonly kind: "ready"; readonly row: SavedRow; readonly key: string }
-  | { readonly kind: "unready"; readonly reason: GrokBotUnready };
+  | { readonly kind: "unready"; readonly reason: GrokBotUnreadyReason };
 
 export function connectionOf(
   secrets: GrokBotPorts["secrets"],
