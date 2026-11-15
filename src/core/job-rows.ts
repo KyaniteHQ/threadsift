@@ -3,11 +3,26 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
 import { logFailure } from "./failure-log.ts";
-import { attemptFileKeys } from "./file-keys.ts";
+import { ITEM_FILES_ROOT } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { ITEM_JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, items, jobs } from "./schema.ts";
+
+interface AttemptColumns {
+  readonly itemId: SQLWrapper;
+  readonly id: SQLWrapper;
+  readonly attempts: SQLWrapper;
+}
+
+function attemptFileKeys({ itemId, id, attempts }: Readonly<AttemptColumns>) {
+  const folder = sql`${sql.raw(`'${ITEM_FILES_ROOT}'`)} || ${itemId} || '/'`;
+
+  return {
+    postText: sql<string>`${folder} || 'post-' || ${id} || '-' || ${attempts} || '.md'`,
+    imagePrefix: sql<string>`${folder} || 'img-' || ${id} || '-' || ${attempts} || '-'`,
+  };
+}
 
 export const ATTEMPT_FILES = attemptFileKeys(jobs);
 
