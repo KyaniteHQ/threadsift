@@ -1,9 +1,9 @@
 import { type SQL, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { databaseCodeOf, logFailure, readOrAssume, report } from "./failure-log.ts";
+import { bestEffort, databaseCodeOf, logFailure, readOrAssume, report } from "./failure-log.ts";
 import { deleteQuietly, unnamed } from "./file-cleanup.ts";
-import { closeJob } from "./job-close.ts";
+import { closeJob, discardTask } from "./job-close.ts";
 import {
   MAX_STALE_REQUEUES,
   STALE_DELAYS_MS,
@@ -19,13 +19,7 @@ import {
   type Precondition,
   type SettledOutcome,
 } from "./job-outcome.ts";
-import {
-  discardTask,
-  discardedAfterFailure,
-  enqueueItemJobs,
-  enqueueQuietly,
-  holding,
-} from "./job-rows.ts";
+import { enqueueItemJobs, enqueueQuietly, holding } from "./job-rows.ts";
 import type { WaitReason } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, aiTasks, guardHolds, guardedBatch, jobs } from "./schema.ts";
@@ -241,7 +235,10 @@ async function applySettled<Claimed extends ClaimedRow>(
       { jobId: job.id, kind: job.kind, databaseCode: databaseCodeOf(error) },
       error,
     );
-    await discardedAfterFailure(ports, job, outcome.currency);
+    await bestEffort(
+      { event: "job-task-not-discarded", fields: { jobId: job.id, kind: job.kind } },
+      () => discardTask(ports.db, outcome.currency, "error"),
+    );
     throw error;
   }
 
@@ -249,10 +246,10 @@ async function applySettled<Claimed extends ClaimedRow>(
     case "done":
       break;
     case "lost":
-      await discardTask(ports, outcome.currency, "lease-lost");
+      await discardTask(ports.db, outcome.currency, "lease-lost");
       break;
     case "stale": {
-      await discardTask(ports, outcome.currency, "stale");
+      await discardTask(ports.db, outcome.currency, "stale");
       const staleRequeues = Math.min(job.staleRequeues + 1, MAX_STALE_REQUEUES);
       await queueLater(ports, job, {
         until: Date.now() + (STALE_DELAYS_MS[job.staleRequeues] ?? STALE_DELAYS_MS[2]),

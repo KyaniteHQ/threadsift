@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { bestEffort, readOrAssume } from "./failure-log.ts";
+import { readOrAssume } from "./failure-log.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
 import {
   type ClaimedJob,
@@ -11,7 +11,12 @@ import {
 } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { topics } from "./schema.ts";
-import { type TopicLease, claimTopicLease, releaseTopicLease } from "./topic-lease.ts";
+import {
+  type TopicLease,
+  claimTopicLease,
+  leaseReleasedAfterFailure,
+  releaseTopicLease,
+} from "./topic-lease.ts";
 import {
   type OverviewPrompt,
   type OverviewRead,
@@ -110,10 +115,7 @@ export async function preparedOverview(
 
     return await readyOverview(db, lease);
   } catch (error) {
-    await bestEffort(
-      { event: "topic-lease-not-released", fields: { topicId: lease.topicId } },
-      () => db.batch([releaseTopicLease(db, lease)]),
-    );
+    await leaseReleasedAfterFailure(db, lease);
 
     throw error;
   }

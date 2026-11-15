@@ -3,7 +3,7 @@ import { type SQL, and, asc, eq, sql } from "drizzle-orm";
 import { guardedResults } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
-import { recordedFailure, releasedAfterFailure } from "./merge-failure.ts";
+import { recordingFailure, releasedAfterFailure } from "./merge-failure.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
 import type { MergeRow, MergeUnit } from "./merge-unit.ts";
 import { anyAccepting, atRevision, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
@@ -83,16 +83,12 @@ async function applyUnit(
   }
 }
 
-async function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Promise<Outcome> {
-  try {
+function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Promise<Outcome> {
+  return recordingFailure(ports.db, { id, revision: row.revision }, async () => {
     const unit = await MERGES[row.kind].plan(ports.db, id, row);
 
-    return unit === "busy" || unit === "lost" ? unit : await applyUnit(ports, id, row, unit);
-  } catch (error) {
-    await recordedFailure(ports.db, id, row.revision, error);
-
-    throw error;
-  }
+    return unit === "busy" || unit === "lost" ? unit : applyUnit(ports, id, row, unit);
+  });
 }
 
 async function continueMerge(

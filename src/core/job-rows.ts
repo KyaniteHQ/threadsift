@@ -2,9 +2,9 @@ import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
-import { bestEffort, logFailure } from "./failure-log.ts";
+import { logFailure } from "./failure-log.ts";
 import { attemptFileKeys } from "./file-keys.ts";
-import type { JobCurrency, JobPorts, JobWrites } from "./job-outcome.ts";
+import type { JobPorts } from "./job-outcome.ts";
 import { ITEM_JOB_KINDS, type JobKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, items, jobs } from "./schema.ts";
@@ -125,39 +125,4 @@ export async function enqueueItemJobs(ports: JobPorts, itemId: number): Promise<
   } catch (error) {
     logFailure("jobs-not-queued", { itemId }, error);
   }
-}
-
-export async function discardTask(
-  { db }: Readonly<Pick<JobPorts, "db">>,
-  currency: JobCurrency | undefined,
-  cause: Parameters<JobCurrency["discard"]>[0],
-): Promise<void> {
-  const [first, ...rest] = currency?.discard(cause) ?? [];
-
-  if (first !== undefined) await db.batch([first, ...rest]);
-}
-
-export async function discardedAfterFailure(
-  ports: JobPorts,
-  job: Readonly<Pick<JobRow, "id" | "kind">>,
-  currency: JobCurrency | undefined,
-): Promise<void> {
-  await bestEffort(
-    { event: "job-task-not-discarded", fields: { jobId: job.id, kind: job.kind } },
-    () => discardTask(ports, currency, "error"),
-  );
-}
-
-export async function releasedAfterAttemptFailure(
-  ports: JobPorts,
-  job: Readonly<Pick<JobRow, "id">>,
-  release: JobWrites,
-): Promise<void> {
-  const [first, ...rest] = release;
-
-  if (first === undefined) return;
-
-  await bestEffort({ event: "job-writes-not-released", fields: { jobId: job.id } }, () =>
-    ports.db.batch([first, ...rest]),
-  );
 }

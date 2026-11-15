@@ -8,6 +8,13 @@ const NODE_GLOBALS = ["process", "Buffer", "global", "__dirname", "__filename", 
   }),
 );
 
+const CANNOT_THROW = {
+  "src/core/failure-log.ts": ["bestEffort", "readOrAssume"],
+  "src/core/merge-failure.ts": ["releasedAfterFailure"],
+  "src/core/guards.ts": ["guardHeldOrUnread"],
+  "src/core/topic-lease.ts": ["leaseReleasedAfterFailure"],
+};
+
 const WEB_FETCH = {
   name: "fetch",
   message:
@@ -41,17 +48,7 @@ export default defineConfig({
     "threadsift/no-comments": "error",
     "threadsift/no-await-before-rethrow": [
       "error",
-      {
-        cannotThrow: [
-          "bestEffort",
-          "readOrAssume",
-          "releasedAfterFailure",
-          "recordedFailure",
-          "discardedAfterFailure",
-          "guardHeldOrUnread",
-          "releasedAfterAttemptFailure",
-        ],
-      },
+      { cannotThrow: CANNOT_THROW, finalizers: false },
     ],
     "react/react-in-jsx-scope": "off",
     "typescript/ban-ts-comment": [
@@ -80,7 +77,6 @@ export default defineConfig({
       {
         ignoreInferredTypes: true,
         allow: [
-          { from: "package", name: ["Context", "ImportExpression"], package: "@oxlint/plugins" },
           { from: "package", name: "Context", package: "hono" },
           { from: "package", name: "McpServer", package: "@modelcontextprotocol/server" },
           { from: "package", name: "OpenAPIHono", package: "@hono/zod-openapi" },
@@ -170,6 +166,19 @@ export default defineConfig({
       },
     },
     {
+      files: ["src/**"],
+      rules: {
+        "threadsift/no-await-before-rethrow": [
+          "error",
+          { cannotThrow: CANNOT_THROW, finalizers: true },
+        ],
+      },
+    },
+    {
+      files: ["tools/oxlint/threadsift/**"],
+      rules: { "typescript/prefer-readonly-parameter-types": "off" },
+    },
+    {
       files: ["tools/extension-chromium/**"],
       rules: { "typescript/prefer-readonly-parameter-types": "off" },
     },
@@ -203,7 +212,17 @@ export default defineConfig({
     {
       files: ["web/**"],
       excludeFiles: ["web/src/calls.ts"],
-      rules: { "eslint/no-restricted-globals": ["error", ...NODE_GLOBALS, WEB_FETCH] },
+      rules: {
+        "eslint/no-restricted-globals": ["error", ...NODE_GLOBALS, WEB_FETCH],
+        "eslint/no-restricted-properties": [
+          "error",
+          ...["globalThis", "window", "self"].map((object) => ({
+            object,
+            property: WEB_FETCH.name,
+            message: WEB_FETCH.message,
+          })),
+        ],
+      },
     },
     {
       files: ["web/**"],

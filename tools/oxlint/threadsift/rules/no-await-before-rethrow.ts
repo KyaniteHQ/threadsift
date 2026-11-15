@@ -1,35 +1,88 @@
 import { defineRule } from "@oxlint/plugins";
-import type { ESTree } from "@oxlint/plugins";
+import type { Context, ESTree } from "@oxlint/plugins";
 import { z } from "zod";
 
-const OptionsSchema = z.object({ cannotThrow: z.array(z.string()).default([]) });
+import {
+  type Trusted,
+  caughtBy,
+  isTrusted,
+  repositoryPath,
+  undeclaredNames,
+} from "../shared/bindings.ts";
+import { canThrowAfter, catchesAround, finalizerAround } from "../shared/catch-paths.ts";
 
-interface Enclosing {
-  readonly clause: ESTree.CatchClause | undefined;
-  readonly guarded: boolean;
+const OptionsSchema = z.object({
+  cannotThrow: z.record(z.string(), z.array(z.string())).default({}),
+  finalizers: z.boolean().default(true),
+});
+
+interface Found {
+  trusted: Trusted;
+  finalizers: boolean;
+  readonly awaits: Map<ESTree.CatchClause, ESTree.Node[]>;
+  readonly throws: Map<ESTree.CatchClause, ESTree.ThrowStatement[]>;
+  readonly reported: Set<ESTree.Node>;
 }
 
-// oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- ESTree nodes are mutable by construction, so no parameter of node type is readonly
-function enclosingCatch(start: Readonly<ESTree.Node>): Enclosing {
-  let guarded = false;
-  let child = start;
+type Message = "awaitBeforeRethrow" | "awaitInFinally";
 
-  for (let parent = start.parent; parent !== null; parent = parent.parent) {
-    if (parent.type === "CatchClause") return { clause: parent, guarded };
+function awaitedCallee(awaited: ESTree.Node): ESTree.IdentifierReference | null {
+  if (awaited.type !== "AwaitExpression") return null;
 
-    if (
-      parent.type === "FunctionDeclaration" ||
-      parent.type === "FunctionExpression" ||
-      parent.type === "ArrowFunctionExpression"
-    )
-      break;
+  const { argument } = awaited;
 
-    if (parent.type === "TryStatement" && parent.block === child) guarded = true;
+  return argument.type === "CallExpression" && argument.callee.type === "Identifier"
+    ? argument.callee
+    : null;
+}
 
-    child = parent;
+function startOver(found: Found, options: readonly unknown[]): void {
+  const parsed = OptionsSchema.parse(options[0] ?? {});
+
+  found.awaits.clear();
+  found.throws.clear();
+  found.reported.clear();
+  found.finalizers = parsed.finalizers;
+  found.trusted = new Map(
+    Object.entries(parsed.cannotThrow).map(([module, names]) => [module, new Set(names)]),
+  );
+}
+
+function report(context: Context, found: Found, node: ESTree.Node, messageId: Message): void {
+  if (found.reported.has(node)) return;
+
+  found.reported.add(node);
+  context.report({ node, messageId });
+}
+
+function noteAwait(context: Context, found: Found, awaited: ESTree.Node): void {
+  const callee = awaitedCallee(awaited);
+
+  if (callee !== null && isTrusted(context, found.trusted, callee)) return;
+
+  if (found.finalizers && finalizerAround(awaited))
+    report(context, found, awaited, "awaitInFinally");
+
+  for (const { clause, guarded } of catchesAround(awaited)) {
+    if (!guarded) found.awaits.set(clause, [...(found.awaits.get(clause) ?? []), awaited]);
   }
+}
 
-  return { clause: undefined, guarded };
+function checkClause(context: Context, found: Found, clause: ESTree.CatchClause): void {
+  const thrown = found.throws.get(clause) ?? [];
+
+  for (const awaited of found.awaits.get(clause) ?? []) {
+    if (thrown.some((each) => canThrowAfter(awaited, each, clause)))
+      report(context, found, awaited, "awaitBeforeRethrow");
+  }
+}
+
+function checkStale(context: Context, found: Found, program: ESTree.Program): void {
+  const names = found.trusted.get(repositoryPath(context.cwd, context.filename));
+
+  for (const name of undeclaredNames(program, names)) {
+    context.report({ node: program, messageId: "staleCannotThrow", data: { name } });
+  }
 }
 
 export const noAwaitBeforeRethrowRule = defineRule({
@@ -37,56 +90,51 @@ export const noAwaitBeforeRethrowRule = defineRule({
     type: "problem",
     docs: {
       description:
-        "Refuse a catch block that awaits and then throws the caught error: a failing await replaces the error the caller needs (docs/agents/changing-code.md, State, writes and failures).",
+        "Refuse an await that runs before a catch block throws the caught error, and an await in a finally block: a failing await replaces the error the caller needs (docs/agents/changing-code.md, State, writes and failures).",
     },
     messages: {
       awaitBeforeRethrow:
-        "This await runs before the catch block throws the caught error, so a failure here replaces that error. Move the cleanup into a function that cannot throw and logs its own failure with logFailure, wrap it in its own try, or list the function under cannotThrow in oxlint.config.ts.",
+        "This await can run before the catch block throws the caught error, so a failure here replaces that error. Run the cleanup through bestEffort or readOrAssume (src/core/failure-log.ts), or put it in its own try with a catch.",
+      awaitInFinally:
+        "This await runs in a finally block, so a failure here replaces the error that ended the try block. Run the body and the cleanup through withCleanup (src/core/failure-log.ts), or the cleanup through bestEffort.",
+      staleCannotThrow:
+        "oxlint.config.ts lists {{name}} as a function of this module that cannot throw, and the module declares no such function.",
     },
-    schema: [
-      {
-        type: "object",
-        properties: { cannotThrow: { type: "array", items: { type: "string" } } },
-        additionalProperties: false,
-      },
-    ],
+    schema: [z.toJSONSchema(OptionsSchema, { target: "draft-4", io: "input" })],
   },
   createOnce(context) {
-    const firstAwaits = new Map<ESTree.CatchClause, ESTree.AwaitExpression>();
-    let cannotThrow = new Set<string>();
+    const found: Found = {
+      trusted: new Map(),
+      finalizers: true,
+      awaits: new Map(),
+      throws: new Map(),
+      reported: new Set(),
+    };
 
     return {
       before() {
-        firstAwaits.clear();
-        cannotThrow = new Set(OptionsSchema.parse(context.options[0] ?? {}).cannotThrow);
+        startOver(found, context.options);
+      },
+      Program(program) {
+        checkStale(context, found, program);
       },
       AwaitExpression(awaited) {
-        const { clause, guarded } = enclosingCatch(awaited);
-
-        if (clause === undefined || guarded || firstAwaits.has(clause)) return;
-
-        const { argument } = awaited;
-
-        const harmless =
-          argument.type === "CallExpression" &&
-          argument.callee.type === "Identifier" &&
-          cannotThrow.has(argument.callee.name);
-
-        if (!harmless) firstAwaits.set(clause, awaited);
+        noteAwait(context, found, awaited);
+      },
+      ForOfStatement(loop) {
+        if (loop.await) noteAwait(context, found, loop);
+      },
+      VariableDeclaration(declaration) {
+        if (declaration.kind === "await using") noteAwait(context, found, declaration);
       },
       ThrowStatement(thrown) {
-        const { argument } = thrown;
-        const { clause } = enclosingCatch(thrown);
-        const firstAwait = clause === undefined ? undefined : firstAwaits.get(clause);
+        const clause = caughtBy(context, thrown.argument);
 
-        if (clause === undefined || firstAwait === undefined) return;
-
-        if (argument.type !== "Identifier" || clause.param?.type !== "Identifier") return;
-
-        if (argument.name !== clause.param.name) return;
-
-        firstAwaits.delete(clause);
-        context.report({ node: firstAwait, messageId: "awaitBeforeRethrow" });
+        if (clause !== null)
+          found.throws.set(clause, [...(found.throws.get(clause) ?? []), thrown]);
+      },
+      "CatchClause:exit"(clause) {
+        checkClause(context, found, clause);
       },
     };
   },

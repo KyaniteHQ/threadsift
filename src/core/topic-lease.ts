@@ -1,6 +1,7 @@
 import { eq, lt, sql } from "drizzle-orm";
 
 import { AI_DEADLINE_MS } from "./ai-contract.ts";
+import { bestEffort } from "./failure-log.ts";
 import { batchAll } from "./guards.ts";
 import type { Database } from "./ports.ts";
 import { topicLeases } from "./schema.ts";
@@ -23,6 +24,15 @@ export function leaseMatches({ topicId, holder, generation }: Readonly<TopicLeas
 
 export function releaseTopicLease(db: Database, lease: Readonly<TopicLease>) {
   return db.update(topicLeases).set({ expiresAt: 0 }).where(leaseMatches(lease));
+}
+
+export async function leaseReleasedAfterFailure(
+  db: Database,
+  lease: Readonly<TopicLease>,
+): Promise<void> {
+  await bestEffort({ event: "topic-lease-not-released", fields: { topicId: lease.topicId } }, () =>
+    db.batch([releaseTopicLease(db, lease)]),
+  );
 }
 
 export async function releaseTopicLeases(

@@ -13,7 +13,7 @@ import {
   timedOutTask,
 } from "./bot-task-states.ts";
 import { newCallbackCredential } from "./callback-credential.ts";
-import { lostOutcome } from "./guarded-outcome.ts";
+import { cleaningOnFailure, lostOutcome } from "./guarded-outcome.ts";
 import type {
   ClaimedJob,
   DeferredOutcome,
@@ -23,7 +23,7 @@ import type {
   JobWrites,
   ModelHandler,
 } from "./job-outcome.ts";
-import { holding, releasedAfterAttemptFailure } from "./job-rows.ts";
+import { holding } from "./job-rows.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
 
@@ -118,18 +118,14 @@ async function startStep(
 
   const release = kind.release(ports.db, job);
 
-  try {
-    return await startedOutcome(ports, job, {
+  return cleaningOnFailure(ports.db, { job, cleanup: release }, () =>
+    startedOutcome(ports, job, {
       kind,
       start: prepared.start,
       started: prepared.started,
       release,
-    });
-  } catch (error) {
-    await releasedAfterAttemptFailure(ports, job, release);
-
-    throw error;
-  }
+    }),
+  );
 }
 
 async function resendStep(
@@ -148,13 +144,9 @@ async function resendStep(
 
   if (!renewed) return waiting(task, release);
 
-  try {
-    return await sentOutcome(ports, { ...context, token: credential.value, release });
-  } catch (error) {
-    await releasedAfterAttemptFailure(ports, job, release);
-
-    throw error;
-  }
+  return cleaningOnFailure(ports.db, { job, cleanup: release }, () =>
+    sentOutcome(ports, { ...context, token: credential.value, release }),
+  );
 }
 
 async function expireStep(
