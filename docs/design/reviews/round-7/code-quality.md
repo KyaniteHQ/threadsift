@@ -2,6 +2,8 @@
 
 **Verdict:** approve. 0 blockers, 1 major and 4 minors, found in the whole prototype tree before the design system was built (`Library.dc.html` 881 lines, `library.js` 276, `tokens.css` 237, `Reader.dc.html` 479, `Settings.dc.html` 173). The round-6 major (look options held in script tables instead of `tokens.css`) was fixed: every option of the seven look settings was a `[data-*]` block, and the script kept only ids and labels. The five findings below are the reasons for known issues 1 to 5 of Prompt 4 in `docs/design/claude-design-prompts.md`, which holds the fix of each. `design/system/tokens.css` and `design/system/settings-table.ts` carry them out.
 
+Not verified by this pass: runtime cost (the bar refit re-renders the Reader up to 5 times per width change, and the fold measures on every resize), deployment, and the Google Fonts request.
+
 ## Major: the ten settings were restated in five lists
 
 The settings table, `SETTING_KEYS`, `LOOK_KEYS`, `SETTINGS_DEFAULT` and `lookAttrs` all listed the same keys, and no list owned the link between a setting and its attribute. Nothing tied them together, so adding an eighth look setting meant editing 9 places: a key missing from `lookAttrs` silently did nothing, and one missing from `LOOK_KEYS` silently survived Reset look. Card images was the odd one. Its option ids were booleans, so `settingValue`, `toBit` and `lookAttrs` each had a branch that turned `true` into the `on` that `tokens.css` needed.

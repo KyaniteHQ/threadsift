@@ -4,7 +4,7 @@ Status: chosen on 2026-11-04.
 
 | State | Part |
 |---|---|
-| Not built | The rest of the wiki and the Vault mirror are not built |
+| Not built | The Vault mirror (`docs/architecture/vault-mirror.md`), the Cloudflare deploy button (`docs/architecture/cloudflare-deploy-button.md`), and any wiki part of `docs/spec.md` that `docs/wiki.md` does not describe |
 | Partly built | The Restore of every library record is built (`docs/architecture/export-backup-and-restore.md`). Stored images, the search rebuild, the Highlight checks, cancel, resume, the cleanup of abandoned parts and the setup page step are not built |
 | Partly built | Grok Bot: no AI task other than the X link send has run against a real bot (`docs/architecture/open-items-and-unverified-claims.md`) |
 

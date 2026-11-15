@@ -9,6 +9,8 @@ No single project does Reddit saved + X bookmarks + LLM tags + web UI. Two thing
 - Karakeep gives the web UI, REST API, CLI, tagging (OpenAI-compatible or Ollama only) and search. Its own crawler is weak on Reddit and X.
 - `afar1/fieldtheory-cli` (X) and `rhnfzl/reddit-stash` (Reddit) are the best fetchers.
 
+This research recommended adopting Karakeep as the store and UI. `docs/spec.md` (Build or adopt) chose an own app instead, so its Recommendation and its open points about Karakeep, Siftly and a Reddit script app are moot; `docs/spec.md` (Ingest flow, "Why Reddit works this way") records how Reddit access was settled.
+
 ## Comparison table
 
 | Repo | Stars | Last push | License | X source | Reddit source | LLM | Storage | UI |

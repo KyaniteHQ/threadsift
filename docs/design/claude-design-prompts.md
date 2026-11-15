@@ -2,6 +2,8 @@
 
 Attach `<scratch>/library-sample-data.json` to prompt 1.
 
+Prompts 2b, 3 (the counter prompt that kept A and C2) and 3d are not here, because Prompts 2c, 3b and 3e replaced them; `git log -p -- docs/design/claude-design-prompts.md` holds their text.
+
 ## Prompt 1: four drafts in one file, with a Tweaks panel
 
 ```text
@@ -42,12 +44,6 @@ Check contrast and keyboard focus in every draft and theme before showing it to 
 
 ```text
 Before I review: save this version as a checkpoint named "drafts-v1" and tell me where it is stored. Then list what each draft A to D is trying to do in one line each, and anything from my brief you could not do.
-```
-
-## Prompt 3: narrowing down (fill in after review)
-
-```text
-Keep drafts <X> and <Y>, drop the others. Make 2 new variations of each kept draft that push it further in different directions, as drafts <X>1, <X>2, <Y>1, <Y>2 in the same Tweaks panel. Keep every axis and the Compare mode working.
 ```
 
 ## Prompt 4: design system (final, after round 7; Omer: P0-P2 do not gate)

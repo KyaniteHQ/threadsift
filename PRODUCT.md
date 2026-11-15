@@ -54,4 +54,4 @@ Karakeep, the closest open-source tool, has no comment-thread model, so a saved 
 
 ## Accessibility & Inclusion
 
-`docs/spec.md` (Design) holds the accessibility floor: contrast ratios for text, marks and borders in every theme, Style and accent, text no smaller than 12px, 44px touch targets under 480px, a bar as well as colour on the open row, and a reduced-motion form of every motion.
+`docs/spec.md` (Design) holds the accessibility floor.

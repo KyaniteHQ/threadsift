@@ -57,7 +57,7 @@ The app answers on this machine only, over plain HTTP. To reach it from other de
 
 ## Status
 
-v1 is not ready for a library you want to keep. The status table at the top of [docs/architecture.md](docs/architecture.md) says what is built and what is not. The container image is the install target you can run today. A Cloudflare Worker runs the same app, and its deploy button is not built yet.
+v1 is not ready for a library you want to keep. The status table at the top of [docs/architecture.md](docs/architecture.md) lists the parts that are not fully built. The container image is the install target you can run today. A Cloudflare Worker runs the same app, and its deploy button is not built yet.
 
 ## Find your way around
 
