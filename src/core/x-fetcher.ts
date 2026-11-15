@@ -5,9 +5,9 @@ import { RETRY_DELAYS_MS, isLastAttempt } from "./job-outcome.ts";
 import type { XFetcherState, XReadNote } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
-import { parseXThreadValue } from "./x-thread.ts";
+import { readFetchedThread } from "./x-replies-ranked.ts";
 import { shownOnX } from "./x-verify.ts";
-import { StatusIdSchema, type XThreadValue } from "./x-wire.ts";
+import { StatusIdSchema, type XCliThreadValue, type XThreadValue } from "./x-wire.ts";
 
 export interface XFetcherStatus {
   readonly state: XFetcherState;
@@ -27,7 +27,7 @@ export interface UnreadableResult {
 }
 
 export type XFetch =
-  | { readonly kind: "thread"; readonly thread: XThreadValue }
+  | { readonly kind: "thread"; readonly thread: XCliThreadValue }
   | { readonly kind: "unanswered"; readonly ends: UnreadableResult }
   | { readonly kind: "failed"; readonly status: XFetchFailure; readonly note?: XReadNote };
 
@@ -107,7 +107,7 @@ async function unansweredBy(
 }
 
 async function concluded(
-  { network }: Readonly<Pick<Ports, "network">>,
+  { network, db }: Readonly<Pick<Ports, "network" | "db">>,
   fetcher: XFetcher,
   source: Readonly<XSource>,
   statusId: string,
@@ -127,17 +127,19 @@ async function concluded(
       : { status: fetched.status, note: fetched.note };
   }
 
-  if (parseXThreadValue(fetched.thread, statusId).kind === "refused") {
+  const thread = await readFetchedThread(db, source.itemId, statusId, fetched.thread);
+
+  if (thread === null) {
     report("x-fetch-refused", { category: "answer-refused" satisfies XRefusalCategory });
 
     return { status: "unreadable", note: NOTE_OF_REFUSAL["answer-refused"] };
   }
 
-  return { status: "to-verify", thread: fetched.thread };
+  return { status: "to-verify", thread };
 }
 
 export function fetchedByX(
-  ports: Readonly<Pick<Ports, "network">>,
+  ports: Readonly<Pick<Ports, "network" | "db">>,
   fetcher: XFetcher | null,
   source: Readonly<XSource>,
   signal: AbortSignal,

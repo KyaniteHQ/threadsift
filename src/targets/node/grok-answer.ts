@@ -8,7 +8,7 @@ import {
   type XFetchFailure,
   type XRefusalCategory,
 } from "../../core/x-fetcher.ts";
-import type { XThreadValue } from "../../core/x-wire.ts";
+import type { XCliThreadValue } from "../../core/x-wire.ts";
 import type { ProcessEnd } from "./cli-process.ts";
 import { XFetchAnswerSchema } from "./grok-surface.ts";
 
@@ -59,7 +59,7 @@ export const SURFACE_REFUSAL = refused(
   null,
 );
 
-function repairedParents({ post, replies }: XThreadValue) {
+function repairedParents({ post, replies }: XCliThreadValue) {
   const known = new Set([post.id, ...replies.map(({ id }) => id)]);
 
   const repaired = replies.filter(({ parentId }) => !known.has(parentId)).length;

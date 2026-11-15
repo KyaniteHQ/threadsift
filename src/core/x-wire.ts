@@ -66,6 +66,9 @@ export const XCliThreadSchema = XThreadSchema.extend({
   post: XThreadSchema.shape.post.extend({
     quoted: XThreadSchema.shape.post.shape.quoted.unwrap(),
   }),
+  replies: z
+    .array(XThreadSchema.shape.replies.element.extend({ replies: Count }))
+    .max(X_REPLIES_MAX, { error: `more than ${String(X_REPLIES_MAX)} replies` }),
 });
 
 export const StoredXThreadSchema = threadSchemaOf(StoredPostedAt, z.boolean().optional());
@@ -83,4 +86,11 @@ export type XPost = Readonly<Omit<XThread["post"], "quoted">> & {
 export interface XThreadValue {
   readonly post: XPost;
   readonly replies: readonly XReply[];
+}
+
+export type XCliReply = XReply & { readonly replies: number | null };
+
+export interface XCliThreadValue {
+  readonly post: XPost;
+  readonly replies: readonly XCliReply[];
 }

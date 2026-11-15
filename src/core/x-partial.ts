@@ -25,14 +25,21 @@ export function holdsAtLeastStored(itemId: number | Readonly<SQLWrapper>, replie
   return sql`${replies} >= ${storedReplies(itemId)}`;
 }
 
+export async function storedReplyCount(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+): Promise<number> {
+  const [row] = await db.select({ stored: storedReplies(itemId) }).from(sql`(select 1)`);
+
+  return row?.stored ?? 0;
+}
+
 export async function fewerThanStored(
   db: Database,
   owner: Readonly<Owner>,
   thread: Readonly<Pick<StoredThread, "nodes" | "followUps">>,
 ): Promise<boolean> {
-  const [row] = await db.select({ stored: storedReplies(owner.id) }).from(sql`(select 1)`);
-
-  return repliesOf(thread) < (row?.stored ?? 0);
+  return repliesOf(thread) < (await storedReplyCount(db, owner.id));
 }
 
 export async function publishableThread(

@@ -118,6 +118,12 @@ function fittingText(text: string, followUps: readonly Readonly<XReply>[]): XRep
   return fitting;
 }
 
+export function authorPartsOf(thread: Readonly<XThreadValue>): readonly Readonly<XReply>[] {
+  const byId = new Map(thread.replies.map((reply) => [reply.id, reply]));
+
+  return authorThreadOf(thread, byId, new Set(byId.keys()));
+}
+
 export function joinedAuthorThread(thread: Readonly<XThreadValue>, kept: Ids): JoinedAuthorThread {
   const { post, replies } = thread;
   const byId = new Map(replies.map((reply) => [reply.id, reply]));

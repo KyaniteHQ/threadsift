@@ -86,7 +86,7 @@ function checkedQuoted({ id, quoted }: XThreadValue["post"], replies: readonly X
   }
 }
 
-function order<Value extends bigint | number>(first: Value, second: Value): number {
+export function order<Value extends bigint | number>(first: Value, second: Value): number {
   if (first === second) return 0;
 
   return first < second ? -1 : 1;
