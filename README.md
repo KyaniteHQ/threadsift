@@ -6,20 +6,9 @@ Threadsift is a reading library for the links you save and never get back to. Pa
 
 v1 is not released, so do not use Threadsift for real yet.
 
-## Read the useful part of a thread
-
-The agent keeps a comment only when it adds a fact, a fix, a working link or command, first-hand experience or a real counterargument, and it leaves out agreement, jokes and repeats. The Reader shows the post, the Summary and Key points, and the comments in their tree (the Kept ones once the agent has chosen them, every comment that passes the first step until then). Where the agent dropped a parent comment, one short line stands in for it, so the reply under it still makes sense. Your Highlights and your Note on the Item sit in the same view.
-
 ## Let the agent keep a wiki of the library
 
-As Items arrive, the agent writes and updates these:
-
-- A Topic page for each Topic, with an overview the agent writes from that Topic's Items.
-- The Index, which lists every Topic with its Item count and overview line.
-- Related Items: up to 5 other Items the agent links to each new one, each with a one-line reason.
-- The Log, which lists the changes the agent committed to the library, newest first.
-
-Once a week the agent also looks for problems in the library, such as two Tags that mean the same thing, a Highlight whose text a refresh removed, or two Items of one Topic whose Summaries disagree. It lists each one as a Proposal, and nothing changes until you accept it. When you accept a disagreement, the Topic page lists the two Items as a Known disagreement.
+As Items arrive, the agent writes a Topic page for each Topic, the Index of every Topic, up to 5 Related Items for each new Item, and the Log of its changes. Once a week it also looks for problems in the library, such as two Tags that mean the same thing, and lists each one as a Proposal. Nothing changes until you accept it. [docs/wiki.md](docs/wiki.md) and [docs/proposals.md](docs/proposals.md) describe both.
 
 ## Save from wherever you are
 
@@ -68,17 +57,15 @@ The app answers on this machine only, over plain HTTP. To reach it from other de
 
 ## Status
 
-Threadsift is a working app that is still being built. The status table at the top of [docs/architecture.md](docs/architecture.md) says what is built and what is not. The restore of stored images, cancel and resume of a restore, and the Cloudflare deploy button are among the parts that are not built, which is why v1 is not ready for a library you want to keep. The container image is the install target you can run today. A Cloudflare Worker runs the same app, and its deploy button is not built yet.
+v1 is not ready for a library you want to keep. The status table at the top of [docs/architecture.md](docs/architecture.md) says what is built and what is not. The container image is the install target you can run today. A Cloudflare Worker runs the same app, and its deploy button is not built yet.
 
 ## Find your way around
 
 - [docs/spec.md](docs/spec.md): what v1 does, and the decisions behind it.
 - [docs/architecture.md](docs/architecture.md): what it is built with and where each part runs.
 - [GLOSSARY.md](GLOSSARY.md): the words the project uses, such as Item, Digest and Provider.
-- [docs/guides/](docs/guides/): the how-to guides for running and setting up an Instance.
-- [design/prototype/](design/prototype/): the clickable prototype of the first screens. Its README says how to open it.
-- [design/system/](design/system/): the design tokens, component styles and settings table.
-- [docs/design/](docs/design/): the design prompts, the final design reviews and the Style list.
+- [docs/guides/](docs/guides/): the guides for running and setting up an Instance.
+- [design/](design/) and [docs/design/](docs/design/): the prototype, the design system, the design prompts and the Style list.
 
 ## License
 

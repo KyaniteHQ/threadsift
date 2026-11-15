@@ -1,30 +1,14 @@
 # Threadsift: architecture
 
-Status: chosen on 2026-11-04 in a grill with the owner and revised after four model reviews the same day.
+Status: chosen on 2026-11-04.
 
 | State | Part |
 |---|---|
-| Built | The app saves a pasted link, fetches it through a job runner, writes a Digest with the saved Provider, lists, searches and filters Items, and opens one in the Reader (comments, images, Highlights, a Note) in the List and Grid Layouts, on both install targets |
-| Built | The Extension saves a page or a Reddit thread from the owner's tab, and a pasted Reddit link is filled from the Arctic Shift archive |
-| Built | A caller that fetched an X post with its replies saves them with a Paste as one JSON text |
-| Built | Agents with an agent token search, read and add Items through MCP at `/mcp` |
-| Built | The container loads a self-hoster's fetcher plug-ins at start (page text only) |
-| Built | The owner's connected Reddit account is the first source for a Reddit link without Extension content, one fill at a time; the Extension's Connect Reddit button and Settings Reconnect connect it in one click |
-| Built | A Reddit post that links to an article or a GitHub repository gives the Digest that page's text (the one hop) |
-| Built | A routine or an agent saves many links, with a cursor the Instance keeps, through `POST /api/items/batch`, and the owner imports a pasted or uploaded list of links on the Import screen at `/import` with the same call |
-| Built | The first wiki slice, Topic pages (an agent-written overview and the Topic's Items, reached from the Reader and the filters), is built |
-| Built | The Index (every Topic with its Item count and overview line, read from stored rows) is built too, and so are Related Items (up to 5 other Items that the agent links to an Item when its Digest lands, listed in the Reader) |
-| Built | The Log (the committed changes to the library, the agent's own and the merges the owner accepts, newest first, at `/log`) is built |
-| Built | The weekly Tag-merge Proposals (the weekly run, the Proposals page at `/proposals`, Reject, Accept and the Pin a merge leaves) are built, and so are the weekly Topic-merge Proposals (a second weekly run, Topic rows on the Proposals page, Reject and Accept) |
-| Built | Accept of a Topic merge (a state machine shared with the Tag merge, two Topic leases, the Topic Pin it leaves, a `merge-topic` Log entry, and the old address of the merged-away Topic opening the survivor) is built |
-| Built | So are the lost-Highlight Proposals (a third weekly check that needs no model, a Proposals page and contract that are generic over kinds, and Accept that removes the Highlight the way the Reader's Remove does), the overview-gap Proposals (a fourth weekly check, also with no model, whose Accept starts the Topic's overview run), and the disagreement Proposals (a fifth weekly check, a model run that names two Items of one Topic whose Summaries disagree, with Reject and Accept, which keeps the pair as a Pin outside the overview and lists it on the Topic page) |
-| Built | On the container, a Paste of an X link fetches the post and its replies through the owner's grok CLI when the owner chose it in Settings, or when the choice is `auto`, no Grok Bot is saved and the CLI is installed and signed in, under an isolation rule that allows the two X tools and the backend web search and no local tool (Fetchers, X; `GET /api/settings/x`, the X posts section of Settings); live runs on the owner's Instance are still open |
-| Built | The Export of the library is built: `POST /api/export` starts a chain of jobs that writes a store-mode zip with ZIP64 records, a manifest, the JSON Lines record files of every table the backup list includes, and a Markdown note for each Item with its stored images and post text file, `GET /api/export/{id}/download` streams it, `DELETE /api/export` removes it, all four owner-only, and the sweep removes a ready export after 24 hours, and the Backup section of Settings starts, follows, downloads and deletes it |
-| Built | The Restore of every library record is built: the owner uploads an export zip in parts from the Backup section of Settings into an Instance whose library is empty, a chain of `restore` jobs checks the whole zip and then writes every record with its id (`docs/architecture/export-backup-and-restore.md`). Stored images, the search rebuild, the Highlight checks, cancel, resume, the cleanup of abandoned parts and the setup page step are not built |
 | Not built | The rest of the wiki and the Vault mirror are not built |
-| Partly built | The Grok Bot settings (the routine's webhook address and key, sealed, and a Test button that sends one ping) are built, and so are the task lifecycle for every AI task kind (the Digest, the Topic overview, the Related pick and the three weekly runs: a job sends the task, waits for the bot's answer and applies it) with its per-task callback credential and result route, and Grok Bot is a selectable Provider (chosen only when the Grok Bot settings are usable, with a Verify that waits for the bot's answer); the fetch job hands an X link to the bot and takes its answer at `POST /api/ai-tasks/{id}/intake` (built, and a real bot answered X link sends on 2026-11-13, see `open-items-and-unverified-claims.md`), and `bot/` holds one skill, two routine prompts, the setup and update guides and one script; no AI task has run against a real bot yet |
+| Partly built | The Restore of every library record is built (`docs/architecture/export-backup-and-restore.md`). Stored images, the search rebuild, the Highlight checks, cancel, resume, the cleanup of abandoned parts and the setup page step are not built |
+| Partly built | Grok Bot: no AI task other than the X link send has run against a real bot (`docs/architecture/open-items-and-unverified-claims.md`) |
 
-The repository layout lists what exists at HEAD. The other sections are the v1 design and run ahead of the code; a section that names a file or binding that does not exist yet says "Not built". `docs/spec.md` says what v1 does; the files under `docs/architecture/` say what it is built with and where each part runs. Unless a section dates its own check, versions named in those files were checked on 2026-11-04.
+The table lists the parts of the app that are not fully built. A section that names a file or binding that does not exist yet says "Not built", as the deploy button and the releases do. `docs/spec.md` says what v1 does; the files under `docs/architecture/` say what it is built with and where each part runs. Unless a section dates its own check, versions named in those files were checked on 2026-11-04.
 
 ## Sections
 

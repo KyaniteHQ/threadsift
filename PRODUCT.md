@@ -12,7 +12,7 @@ People with a large pile of saved Reddit posts and comments, X posts, GitHub rep
 
 ## Product Purpose
 
-Threadsift is a reading library. A person pastes a link, the app fetches it and keeps only the useful parts, an agent tags and summarizes it, and everything reads, searches and filters on one page. Success is a saved thread that someone actually reads, and a library that gets more useful as it grows. `docs/spec.md` holds every decision.
+Threadsift is a reading library. A person pastes a link, the app fetches it and keeps only the useful parts, an agent tags and summarizes it, and everything reads, searches and filters on one page. Success is a saved thread that someone actually reads, and a library that gets more useful as it grows.
 
 ## Positioning
 
@@ -42,7 +42,6 @@ Karakeep, the closest open-source tool, has no comment-thread model, so a saved 
 
 ## Evidence on Hand
 
-- `design/prototype/` and `design/system/`: the finished first screens and the design system.
 - The owner's real saves exist only on the owner's machine and stay out of the repository.
 - There are no customers, testimonials, usage numbers or prices yet; nothing may claim them.
 
@@ -55,11 +54,4 @@ Karakeep, the closest open-source tool, has no comment-thread model, so a saved 
 
 ## Accessibility & Inclusion
 
-`docs/spec.md` (Design) holds the accessibility floor:
-
-- Every text and background pair is at least 4.5:1 in every theme with every accent and Style.
-- Every mark, icon and border a person needs to see a control or its state is at least 3:1 in the same combinations (W3C, WCAG 2.2 Non-text Contrast). Dividers, and the edge of a control that shows visible text, may be fainter.
-- Text is never under 12px.
-- Under 480px every target is at least 44px, except the width of a link inside post or comment text, which stays the width of its text (WCAG 2.2 SC 2.5.8, Inline exception).
-- The open row is marked by a bar as well as by colour.
-- Motion has a reduced-motion form.
+`docs/spec.md` (Design) holds the accessibility floor: contrast ratios for text, marks and borders in every theme, Style and accent, text no smaller than 12px, 44px touch targets under 480px, a bar as well as colour on the open row, and a reduced-motion form of every motion.

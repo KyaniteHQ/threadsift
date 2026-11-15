@@ -1,14 +1,8 @@
 # Library prototype: List and Grid
 
-This folder is a clickable mockup of the first screens, exported from a visual design tool as a standalone page. It is a reference, not production code. Its `tokens.css` holds the design's exact values, such as colours, font sizes, spacing, radii, shadows and layout, and the styles in `Library.dc.html` and the other parts except `Tweaks.dc.html` use them as tokens. The app copies those values into its own components and styles instead of copying the markup.
+This folder is a clickable mockup of the first screens, exported from a visual design tool as a standalone page. It is a reference, not production code. The app takes its values from `design/system/tokens.css`, not from this folder's `tokens.css`, and builds its own components instead of copying the markup.
 
-## Contents
-
-- `Main.dc.html`: the Compare shell, a Design Component made of an `<x-dc>` template and a small logic class. It shows the Library app once or twice side by side and is a prototype tool only. It holds no design values, because the app's styles live in `Library.dc.html`.
-- `Library.dc.html`, `Filters.dc.html`, `Settings.dc.html`, `Reader.dc.html`, `PasteStatus.dc.html`, `Picture.dc.html`, `Text.dc.html`, `Inline.dc.html` and `Tweaks.dc.html`: the parts of the artboard, one Design Component each.
-- `library.js` and `tokens.css`: the mockup's logic and its style values. The app's values live in `design/system/tokens.css`.
-- `data.json` and `img/`: the owner's saved Items. They are gitignored and are not in the repository.
-- `support.js` and `vendor/react*.js`: the runtime that renders the component in a browser. They are not part of the design.
+`data.json` and `img/` hold the owner's real saves, which include other people's posts, comments and images. Both are gitignored and not in the repository.
 
 ## Viewing
 
@@ -21,4 +15,4 @@ python3 -m http.server 8000
 
 Then open http://127.0.0.1:8000/Main.dc.html. Press T for the Tweaks panel, which has Compare for two settings side by side.
 
-The sample data is not in the repository, because it is the owner's real saves: other people's posts, comments and images. Without it the app shows "Couldn’t load the library data." To fill it, put a `data.json` in the shape `library.js` reads, and its images in `img/`, inside `design/prototype/`. Both paths are gitignored.
+Without the sample data the app shows "Couldn’t load the library data." To fill it, put a `data.json` in the shape `library.js` reads, and its images in `img/`, inside `design/prototype/`.
