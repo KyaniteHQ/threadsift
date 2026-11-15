@@ -154,7 +154,11 @@ _Avoid_: Sync, Obsidian export
 
 **Export**:
 The zip of the whole library that the owner starts and downloads: the manifest `threadsift.json`, every library record as JSON Lines files, and the Markdown note of each Item with its stored images and post text file beside it. The Instance builds it in slices, one export at a time, and keeps a ready one for 24 hours.
-_Avoid_: Backup, dump, archive
+_Avoid_: Dump, archive
+
+**Backup**:
+The section at the end of Settings where the owner starts an Export, follows it, downloads the zip and deletes it. It names the screen, never the zip; `backup` in the code names the list of tables the Export holds.
+_Avoid_: Export section, Backups page
 
 ### Settings
 

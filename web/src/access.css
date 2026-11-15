@@ -313,3 +313,12 @@
   outline: 2px solid var(--acc-ink);
   outline-offset: 2px;
 }
+
+.bk-state {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.bk-state:empty {
+  position: absolute;
+}
