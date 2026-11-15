@@ -24,8 +24,12 @@ const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
 };
 
 export function noteOf(item: Readonly<Item>): NoticeKey | null {
+  if (item.status === "processing") {
+    return null;
+  }
+
   if (item.xNote !== null && item.xNote !== undefined) {
-    return item.status === "processing" ? null : item.xNote;
+    return item.xNote;
   }
 
   if (item.fetch === null || item.fetch === "ok") {

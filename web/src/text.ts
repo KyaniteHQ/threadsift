@@ -154,8 +154,8 @@ export const WAITING = {
   "x-reread": {
     title: "Waiting for the grok CLI",
     until:
-      "The grok CLI couldn’t read the post and X didn’t say the post is gone, so Threadsift will read it again {when}.",
-    due: "The grok CLI couldn’t read the post and X didn’t say the post is gone, so Threadsift is waiting to read it again.",
+      "The grok CLI couldn’t read the post this time, so Threadsift will read it again {when}.",
+    due: "The grok CLI couldn’t read the post this time, so Threadsift is waiting to read it again.",
   },
   "topic-busy": {
     title: "Waiting for Topic",
