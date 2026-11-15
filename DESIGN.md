@@ -256,7 +256,7 @@ Quiet framed buttons that sit on the surface like the rest of the page.
 
 ### Chips
 - **Filter chips (Grid's filter bar):** surface fill, strong hairline edge, `--ctl-h` (34px) tall. Pressed fills with the accent and turns its count to on-accent.
-- **Tag chips:** a pill on the sunk surface, used only when Tag style is Chips. The default Tag style is a coloured dot before the name, and Text style writes "#name".
+- **Tag chips:** a pill on the sunk surface, used only when Tag style is Chips. The default Tag style is a coloured dot before the name, and Text style writes "#name". A name too long for its row wraps inside its own box in the Reader, in every Tag style, with the dot or the "#" beside the first line, and a Chips pill keeps its corner at half the height of one line so a wrapped name stays inside it. A name in a filter row of the rail wraps the same way and the count stays at the row's end. The Grid filter bar uses a native select instead, which stays inside the bar and clips a long name, both in the closed control and in the open list.
 
 ### Cards / Containers
 - **Corner Style:** 14px for Grid cards, the summary box and the repository block, and 8px for the paste card.

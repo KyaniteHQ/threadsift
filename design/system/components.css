@@ -66,10 +66,10 @@ a.btn { text-decoration: none; }
 .btn-danger { color: var(--warn); }
 .src { color: var(--text); font-weight: 600; }
 /* tags: the Tag style setting picks the --tag-* values; data-tag on each tag picks its hue */
-.tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }
-.tag { display: inline-flex; align-items: center; gap: var(--tag-gap); padding: var(--tag-pad-y) var(--tag-pad); border: var(--tag-box); border-radius: var(--r4); background: var(--tag-bg); color: var(--tag-fg); }
+.tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); max-width: 100%; }
+.tag { display: inline-flex; align-items: flex-start; gap: var(--tag-gap); max-width: 100%; overflow-wrap: anywhere; padding: var(--tag-pad-y) var(--tag-pad); border: var(--tag-box); border-radius: calc(0.5lh + var(--tag-pad-y) + 1px); background: var(--tag-bg); color: var(--tag-fg); }
 .tag::before { content: var(--tag-mark); }
-.tag-dot { display: var(--tag-dot); flex: none; width: var(--dot); height: var(--dot); border-radius: var(--r4); background: oklch(var(--tag-l) var(--tag-c) var(--tag-h)); }
+.tag-dot { display: var(--tag-dot); flex: none; margin-block-start: calc((1lh - var(--dot)) / 2); width: var(--dot); height: var(--dot); border-radius: var(--r4); background: oklch(var(--tag-l) var(--tag-c) var(--tag-h)); }
 
 /* 2. Settings ---------------------------------------------------------
    A gear button (a 44px target) and the settings panel: the rows in three groups, then the
@@ -182,6 +182,7 @@ a.btn { text-decoration: none; }
 .fl-group-h[aria-expanded="true"] .ic { transform: rotate(180deg); }
 .fl-rows { display: flex; flex-direction: column; gap: 1px; }
 .fl-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); width: 100%; min-height: var(--row-h); padding: 0 var(--s3); border: 0; border-radius: var(--r2); background: transparent; color: var(--text); cursor: pointer; text-align: left; font-size: var(--t-meta); }
+.fl-row bdi { min-width: 0; overflow-wrap: anywhere; }
 .fl-row:hover { background: var(--surface-2); }
 .fl-row[aria-pressed="true"] { background: var(--acc-soft); font-weight: 600; }
 .fl-link { align-self: flex-start; min-height: var(--ctl-h); padding: 0 var(--s3); border: 0; background: none; color: var(--acc-ink); cursor: pointer; font-size: var(--t-meta); text-decoration: underline; text-underline-offset: 2px; }

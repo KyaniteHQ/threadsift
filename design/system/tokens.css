@@ -62,8 +62,10 @@
      row's name, the revealed token), and the 0.5em that centres a list row's
      unread dot on its first line;
    - 1lh, the height of one line of text: a ghost row's line, the list
-     header's height and the padding that centres the revealed token in a
-     field-high box;
+     header's height, the padding that centres the revealed token in a
+     field-high box, the margin that centres a tag's dot on the first line
+     of its name, and a tag's corner radius (half a line plus its padding
+     and 1px hairline border, so a wrapped Chips name stays inside the pill);
    - 100vw in the maximum width of the settings popover and of a confirmation
      dialog;
    - the 2px underline offset of links and text buttons, and the 1px side
