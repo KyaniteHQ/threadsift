@@ -470,6 +470,13 @@
       "when": 1794767268152,
       "tag": "0066_budget-slot-day",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1794769035438,
+      "tag": "0067_digest-attempt-pending",
+      "breakpoints": true
     }
   ]
 }

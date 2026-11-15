@@ -73,6 +73,10 @@ const INPUT_VERSION = sql`case ${jobs.kind}
   when 'x_verify' then (select ${xVerifications.revision} from ${xVerifications} where ${xVerifications.itemId} = ${jobs.itemId})
 end`;
 
+const PENDING_DIGEST = sql`case ${jobs.kind}
+  when 'digest' then (select ${items.pendingDigest} from ${items} where ${items.id} = ${jobs.itemId})
+end`;
+
 function claimedRow(row: Readonly<ClaimedColumns>): ClaimedRow {
   const { attemptKey: _key, imagePrefix: _prefix, kind, itemId, ...columns } = row;
 
@@ -91,6 +95,7 @@ async function claim(db: Database, which: () => SQL, now: number): Promise<Claim
       claimExpires: sql`${now} + case ${jobs.kind} ${LEASE_MS} end`,
       attempts: sql`case when ${jobs.attemptGeneration} <> ${INPUT_VERSION} then 0 else ${jobs.attempts} + (${jobs.state} = 'running') end`,
       attemptGeneration: INPUT_VERSION,
+      attemptPending: PENDING_DIGEST,
       waitReason: null,
     })
     .where(and(which(), isDue(now)))

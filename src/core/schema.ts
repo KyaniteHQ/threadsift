@@ -132,6 +132,7 @@ export const jobs = sqliteTable(
     attempts: integer("attempts").notNull().default(0),
     staleRequeues: integer("stale_requeues").notNull().default(0),
     attemptGeneration: integer("attempt_generation"),
+    attemptPending: text("attempt_pending"),
     nextAttemptAt: integer("next_attempt_at").notNull(),
     claimExpires: integer("claim_expires"),
     waitReason: text("wait_reason", { enum: WAIT_REASONS }),

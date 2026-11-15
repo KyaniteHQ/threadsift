@@ -9,7 +9,7 @@ import {
   attemptGenerationCurrent,
   keptNotUpdated,
   lostClaim,
-  markDigest,
+  markAttemptsSpent,
 } from "./digest-source.ts";
 import type { ClaimedJob, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
 
@@ -50,6 +50,6 @@ export const digestHandler: JobHandler = {
   deadlineMs: DIGEST_DEADLINE_MS,
   blockedBy: ["fetch", "x_verify"],
   attempt: attemptDigest,
-  exhausted: (db, job) => [markDigest(db, job.itemId, "attempt-failed")],
+  exhausted: (db, job) => [markAttemptsSpent(db, job)],
   inputCurrent: attemptGenerationCurrent,
 };
