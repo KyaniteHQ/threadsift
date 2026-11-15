@@ -68,14 +68,14 @@ The app answers on this machine only, over plain HTTP. To reach it from other de
 
 ## Status
 
-Threadsift is a working app that is still being built. The status table at the top of [docs/architecture.md](docs/architecture.md) says what is built and what is not. Export and restore are among the parts that are not built, which is why v1 is not ready for a library you want to keep. The container image is the install target you can run today. A Cloudflare Worker runs the same app, and its deploy button is not built yet.
+Threadsift is a working app that is still being built. The status table at the top of [docs/architecture.md](docs/architecture.md) says what is built and what is not. Restore is among the parts that are not built, which is why v1 is not ready for a library you want to keep. The container image is the install target you can run today. A Cloudflare Worker runs the same app, and its deploy button is not built yet.
 
 ## Find your way around
 
 - [docs/spec.md](docs/spec.md): what v1 does, and the decisions behind it.
 - [docs/architecture.md](docs/architecture.md): what it is built with and where each part runs.
 - [GLOSSARY.md](GLOSSARY.md): the words the project uses, such as Item, Digest and Provider.
-- [docs/guides/](docs/guides/): how to run the container, set up a Provider and add a GitHub token.
+- [docs/guides/](docs/guides/): the how-to guides for running and setting up an Instance.
 - [design/prototype/](design/prototype/): the clickable prototype of the first screens. Its README says how to open it.
 - [design/system/](design/system/): the design tokens, component styles and settings table.
 - [docs/design/](docs/design/): the design prompts, the final design reviews and the Style list.

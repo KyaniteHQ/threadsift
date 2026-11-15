@@ -1,6 +1,6 @@
 # Development environment
 
-devenv owns everything a contributor or CI runs. A contributor needs Nix, devenv and direnv, and runs `direnv allow` once per clone or worktree; the git hooks and the agent edit hook find Node through that shell.
+devenv owns everything a contributor or CI runs. A contributor needs Nix, devenv and direnv, and runs `direnv allow` once per clone or worktree; the agent edit hook finds Node through that shell, and the git hooks run through the `with-node` script in `devenv.nix`.
 
 | devenv feature | Use |
 |---|---|

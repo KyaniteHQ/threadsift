@@ -1,10 +1,10 @@
 # Library prototype: List and Grid
 
-This folder is a clickable mockup of the first screens, exported from a visual design tool as a standalone page. It is a reference, not production code. Its markup and inline styles hold the design's exact values, such as colours, font sizes, spacing, radii, shadows and layout. The app copies those values into its own components and styles instead of copying the markup.
+This folder is a clickable mockup of the first screens, exported from a visual design tool as a standalone page. It is a reference, not production code. Its `tokens.css` holds the design's exact values, such as colours, font sizes, spacing, radii, shadows and layout, and the styles in `Library.dc.html` and the other parts except `Tweaks.dc.html` use them as tokens. The app copies those values into its own components and styles instead of copying the markup.
 
 ## Contents
 
-- `Main.dc.html`: the artboard, a Design Component made of an `<x-dc>` template and a small logic class. The values to copy live in its inline `style="…"` attributes and its `<helmet><style>` block.
+- `Main.dc.html`: the Compare shell, a Design Component made of an `<x-dc>` template and a small logic class. It shows the Library app once or twice side by side and is a prototype tool only. It holds no design values, because the app's styles live in `Library.dc.html`.
 - `Library.dc.html`, `Filters.dc.html`, `Settings.dc.html`, `Reader.dc.html`, `PasteStatus.dc.html`, `Picture.dc.html`, `Text.dc.html`, `Inline.dc.html` and `Tweaks.dc.html`: the parts of the artboard, one Design Component each.
 - `library.js` and `tokens.css`: the mockup's logic and its style values. The app's values live in `design/system/tokens.css`.
 - `data.json` and `img/`: the owner's saved Items. They are gitignored and are not in the repository.
