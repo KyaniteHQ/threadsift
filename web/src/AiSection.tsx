@@ -56,6 +56,7 @@ function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] 
       busyLabel:
         view.settings?.provider === GROK_BOT_PROVIDER ? AI_TEXT.verifyingBot : AI_TEXT.verifying,
       blocked: form.verifyBlocked,
+      hint: form.verifyHint,
       onClick: form.verifyNow,
       secondary: true,
     },

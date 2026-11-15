@@ -1,4 +1,4 @@
-import { type ReactNode, type SubmitEvent, useCallback, useState } from "react";
+import { type ReactNode, type SubmitEvent, useCallback, useId, useState } from "react";
 
 import { SwapButton } from "./SwapButton.tsx";
 import type { ActionButton, Outcome } from "./use-settings-action.ts";
@@ -45,21 +45,32 @@ export function SettingsActions<Action extends string>({
   running: Action | null;
   buttons: readonly ActionButton<Action>[];
 }>) {
+  const hintId = `${useId()}-hint`;
+  const hinted = buttons.find(({ hint }) => hint !== undefined)?.hint;
+
   return (
-    <div className="ai-actions">
-      {buttons.map(({ action, label, busyLabel, blocked, onClick, secondary }) => (
-        <SwapButton
-          key={action}
-          label={label}
-          busyLabel={busyLabel}
-          busy={running === action}
-          blocked={running !== null || blocked}
-          type={onClick === undefined ? "submit" : "button"}
-          onClick={onClick}
-          secondary={secondary}
-        />
-      ))}
-    </div>
+    <>
+      <div className="ai-actions">
+        {buttons.map(({ action, label, busyLabel, blocked, hint, onClick, secondary }) => (
+          <SwapButton
+            key={action}
+            label={label}
+            busyLabel={busyLabel}
+            busy={running === action}
+            blocked={running !== null || blocked}
+            type={onClick === undefined ? "submit" : "button"}
+            onClick={hint === undefined ? onClick : undefined}
+            secondary={secondary}
+            describedBy={hint === undefined ? undefined : hintId}
+          />
+        ))}
+      </div>
+      {hinted === undefined ? null : (
+        <p id={hintId} className="fld-help">
+          {hinted}
+        </p>
+      )}
+    </>
   );
 }
 

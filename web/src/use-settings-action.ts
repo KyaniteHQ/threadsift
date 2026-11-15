@@ -32,6 +32,7 @@ export interface ActionButton<Action extends string> {
   readonly label: string;
   readonly busyLabel: string;
   readonly blocked: boolean;
+  readonly hint?: string | undefined;
   readonly onClick?: () => void;
   readonly secondary: boolean;
 }
@@ -116,6 +117,7 @@ interface ButtonSet<Check extends string> {
   readonly check: Check;
   readonly labels: Readonly<Record<"save" | "remove" | Check, Labels>>;
   readonly unavailable: Readonly<Record<"save" | "remove" | Check, Unavailable>>;
+  readonly nothingSaved: boolean;
   readonly press: { readonly check: () => void; readonly remove: () => void };
   readonly saveSecondary?: boolean;
 }
@@ -124,6 +126,7 @@ export function useActionButtons<Check extends string>({
   check,
   labels,
   unavailable,
+  nothingSaved,
   press,
   saveSecondary = false,
 }: Readonly<ButtonSet<Check>>) {
@@ -132,6 +135,8 @@ export function useActionButtons<Check extends string>({
   const removeBlocked = unavailable.remove !== null;
   const { check: pressCheck, remove: pressRemove } = press;
 
+  const hint = nothingSaved ? (unavailable[check] ?? undefined) : undefined;
+
   return useMemo<readonly ActionButton<"save" | "remove" | Check>[]>(
     () => [
       { action: "save", ...labels.save, blocked: saveBlocked, secondary: saveSecondary },
@@ -139,6 +144,7 @@ export function useActionButtons<Check extends string>({
         action: check,
         ...labels[check],
         blocked: checkBlocked,
+        hint,
         onClick: pressCheck,
         secondary: true,
       },
@@ -155,6 +161,7 @@ export function useActionButtons<Check extends string>({
       labels,
       saveBlocked,
       checkBlocked,
+      hint,
       removeBlocked,
       pressCheck,
       pressRemove,

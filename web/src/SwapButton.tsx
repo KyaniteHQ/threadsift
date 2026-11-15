@@ -10,6 +10,7 @@ export function SwapButton({
   type = "submit",
   onClick,
   secondary = false,
+  describedBy,
 }: Readonly<{
   label: string;
   busyLabel: string;
@@ -18,6 +19,7 @@ export function SwapButton({
   type?: "submit" | "button";
   onClick?: MouseEventHandler<HTMLButtonElement> | undefined;
   secondary?: boolean;
+  describedBy?: string | undefined;
 }>) {
   return (
     <button
@@ -25,6 +27,7 @@ export function SwapButton({
       className={secondary ? "btn swap" : "btn btn-acc swap"}
       onClick={onClick}
       aria-disabled={busy || blocked ? true : undefined}
+      aria-describedby={describedBy}
       formNoValidate={blocked && type === "submit" ? true : undefined}
     >
       <span className={busy ? "swap-off" : undefined}>{label}</span>

@@ -30,6 +30,9 @@ export async function grokBotFlow(page: Page): Promise<void> {
   await openSection(page);
   await expect(page.getByText(GROK_BOT_TEXT.stateNone)).toBeVisible();
   await expect(button(page, GROK_BOT_TEXT.test)).toHaveAttribute("aria-disabled", "true");
+  await expect(button(page, GROK_BOT_TEXT.test)).toHaveAccessibleDescription(
+    GROK_BOT_TEXT.resultNotConfigured,
+  );
 
   await addressField(page).fill(ADDRESS);
   await button(page, GROK_BOT_TEXT.save).click();
@@ -39,6 +42,7 @@ export async function grokBotFlow(page: Page): Promise<void> {
   await button(page, GROK_BOT_TEXT.save).click();
   await expect(page.getByText(GROK_BOT_TEXT.saved)).toBeVisible();
   await expect(page.getByText(GROK_BOT_TEXT.stateSaved)).toBeVisible();
+  await expect(button(page, GROK_BOT_TEXT.test)).not.toHaveAttribute("aria-describedby");
   await expect(keyField(page)).toHaveAttribute("placeholder", GROK_BOT_TEXT.keySavedPlaceholder);
   await expect(keyField(page)).toHaveValue("");
 

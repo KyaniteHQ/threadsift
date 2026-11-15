@@ -212,6 +212,7 @@ export function useRedditAccountForm(view: RedditAccountView, changed: Changed) 
     check: "verify",
     labels: LABELS,
     unavailable,
+    nothingSaved: view.state === "none",
     press: { check: verifyNow, remove: disconnectNow },
     saveSecondary: extension.length > 0,
   });
