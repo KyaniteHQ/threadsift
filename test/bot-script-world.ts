@@ -101,14 +101,16 @@ export class ScriptWorld {
     return taskAfterStart(this.instance, this.source);
   }
 
+  eventOf(task: Readonly<{ id: number; token: string }>, kind: string): string {
+    return JSON.stringify({ taskId: task.id, kind, callbackToken: task.token });
+  }
+
   async opened(
     task: Readonly<{ id: number; token: string }>,
     kind: string,
     env = this.env(),
   ): Promise<string> {
-    const event = this.folder.event(
-      JSON.stringify({ taskId: task.id, kind, callbackToken: task.token }),
-    );
+    const event = this.folder.event(this.eventOf(task, kind));
 
     return (await this.folder.run(["task-open", event], env)).word;
   }

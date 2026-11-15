@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { type Ran } from "./bot-script-run.ts";
@@ -11,13 +13,19 @@ interface Case {
   readonly code: number;
   readonly env?: () => Readonly<Record<string, string>>;
   readonly args: () => Promise<readonly string[]>;
+  readonly taskId?: true;
+  readonly stored?: string;
 }
 
-const comparable = ({ word, reasons, code }: Ran) => ({
-  word: word.replace(/^TS_[0-9a-f]{32}$/u, "TS_<hex>").replace(/^ok \d+ /u, "ok <id> "),
-  reasons,
-  code,
-});
+const comparable = ({ word, reasons, code }: Ran, hasTaskId: boolean) => {
+  const normalized = word.replace(/^TS_[0-9a-f]{32}$/u, "TS_<hex>");
+
+  return {
+    word: hasTaskId ? normalized.replace(/^ok \d+ /u, "ok <id> ") : normalized,
+    reasons,
+    code,
+  };
+};
 
 describe("the script prints the same word, reasons and exit code with standard input closed as with it open and empty, for every command", () => {
   let world: ScriptWorld;
@@ -59,6 +67,7 @@ describe("the script prints the same word, reasons and exit code with standard i
       name: "write",
       word: /^ok$/u,
       code: 0,
+      stored: "",
       args: async () => ["write", `empty-${await hexOfMark()}.txt`],
     },
     {
@@ -71,6 +80,7 @@ describe("the script prints the same word, reasons and exit code with standard i
       name: "append",
       word: /^ok$/u,
       code: 0,
+      stored: "first",
       args: async () => {
         const name = `part-${await hexOfMark()}.txt`;
 
@@ -155,16 +165,13 @@ describe("the script prints the same word, reasons and exit code with standard i
       name: "task-open",
       word: /^ok \d+ related_pick$/u,
       code: 0,
+      taskId: true,
       args: async () => {
         world.reset();
 
-        const task = await world.result();
-
         return [
           "task-open",
-          world.folder.event(
-            JSON.stringify({ taskId: task.id, kind: "related_pick", callbackToken: task.token }),
-          ),
+          world.folder.event(world.eventOf(await world.result(), "related_pick")),
         ];
       },
     },
@@ -205,14 +212,28 @@ describe("the script prints the same word, reasons and exit code with standard i
 
   after(() => world.close());
 
-  const sameBothWays = async ({ word, code, env, args }: Case) => {
+  const storedAfter = (testCase: Case, args: readonly string[]) => {
+    if (testCase.stored !== undefined) {
+      assert.equal(
+        readFileSync(join(world.folder.path, "tmp", args[1] ?? ""), "utf8"),
+        testCase.stored,
+      );
+    }
+  };
+
+  const sameBothWays = async (testCase: Case) => {
+    const { word, code, env, args, taskId = false } = testCase;
     const environment = env ?? (() => world.env());
-    const empty = await world.folder.run(await args(), environment());
-    const closed = await world.folder.runWithClosedStdin(await args(), environment());
+    const emptyArgs = await args();
+    const empty = await world.folder.run(emptyArgs, environment());
+    const closedArgs = await args();
+    const closed = await world.folder.runWithClosedStdin(closedArgs, environment());
 
     assert.match(empty.word, word);
     assert.equal(empty.code, code);
-    assert.deepEqual(comparable(closed), comparable(empty));
+    assert.deepEqual(comparable(closed, taskId), comparable(empty, taskId));
+    storedAfter(testCase, emptyArgs);
+    storedAfter(testCase, closedArgs);
   };
 
   for (const testCase of cases) {
