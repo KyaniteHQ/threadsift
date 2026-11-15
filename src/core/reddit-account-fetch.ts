@@ -127,6 +127,7 @@ function limitedAtFirst(run: Readonly<Run>, first: Readonly<RedditAnswer>): Acco
 
 async function sessionAnswered(
   run: Readonly<Run>,
+  first: Readonly<RedditAnswer>,
   verdict: Awaited<ReturnType<typeof checkSession>>,
 ): Promise<string> {
   const { ports, held } = run;
@@ -140,13 +141,22 @@ async function sessionAnswered(
   }
 
   if (verdict.verdict === "ok") {
-    await clearRefusals(ports.db, held);
+    await clearRefusals(ports.db, held, Date.now());
 
     return "refused";
   }
 
-  if (verdict.verdict === "blocked" && verdict.answer?.status === FORBIDDEN) {
-    return (await countRefusal(ports, held, held.run.id, Date.now())) === "expired"
+  if (
+    verdict.verdict === "blocked" &&
+    first.status === FORBIDDEN &&
+    verdict.answer?.status === FORBIDDEN
+  ) {
+    return (await countRefusal(
+      ports,
+      held,
+      { thread: run.ref.postId, startedAt: run.startedAt },
+      Date.now(),
+    )) === "expired"
       ? "logged-out"
       : "refused";
   }
@@ -176,6 +186,7 @@ async function refusedAtFirst(
 
   const result = await sessionAnswered(
     run,
+    first,
     await checkSession(run.ports, run.held.session, run.deadline),
   );
 
@@ -247,7 +258,7 @@ async function afterFirst(
     return FALLBACK;
   }
 
-  await clearRefusals(run.ports.db, run.held);
+  await clearRefusals(run.ports.db, run.held, Date.now());
 
   return windowFits(first.remaining, hidden)
     ? filledThread(run, first, hidden)

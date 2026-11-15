@@ -76,26 +76,45 @@ describe("the account row records what Reddit answered", () => {
     assert.equal(account(instance)[0]?.limited_until, NOW + 3600 * SECOND_MS);
   });
 
-  it("expires the account at the third refusal from three different jobs, and counts one job once", async () => {
+  it("expires the account at the third refused thread in a row, and counts a thread once", async () => {
     const ports = instance.core;
 
-    assert.equal(await countRefusal(ports, session(), 10, NOW), "counted");
-    assert.equal(await countRefusal(ports, session(), 10, NOW), "counted");
+    assert.equal(
+      await countRefusal(ports, session(), { thread: "aaa111", startedAt: NOW }, NOW),
+      "counted",
+    );
+    assert.equal(
+      await countRefusal(ports, session(), { thread: "aaa111", startedAt: NOW }, NOW),
+      "counted",
+    );
     assert.equal(account(instance)[0]?.refused_count, 1);
-    assert.equal(await countRefusal(ports, session(), 11, NOW), "counted");
+    assert.equal(
+      await countRefusal(ports, session(), { thread: "bbb222", startedAt: NOW }, NOW),
+      "counted",
+    );
+    assert.equal(
+      await countRefusal(ports, session(), { thread: "aaa111", startedAt: NOW }, NOW),
+      "counted",
+    );
     assert.equal(account(instance)[0]?.refused_count, REFUSALS_TO_EXPIRE - 1);
-    assert.equal(await countRefusal(ports, session(), 12, NOW), "expired");
+    assert.equal(
+      await countRefusal(ports, session(), { thread: "ccc333", startedAt: NOW }, NOW),
+      "expired",
+    );
     assert.equal(account(instance)[0]?.state, "expired");
   });
 
   it("starts the count again after an answer that shows the session works", async () => {
     const ports = instance.core;
 
-    await countRefusal(ports, session(), 10, NOW);
-    await countRefusal(ports, session(), 11, NOW);
-    await clearRefusals(ports.db, session());
+    await countRefusal(ports, session(), { thread: "aaa111", startedAt: NOW }, NOW);
+    await countRefusal(ports, session(), { thread: "bbb222", startedAt: NOW }, NOW);
+    await clearRefusals(ports.db, session(), NOW);
     assert.equal(account(instance)[0]?.refused_count, 0);
-    assert.equal(await countRefusal(ports, session(), 12, NOW), "counted");
+    assert.equal(
+      await countRefusal(ports, session(), { thread: "ccc333", startedAt: NOW }, NOW),
+      "counted",
+    );
     assert.equal(account(instance)[0]?.state, "connected");
   });
 });
