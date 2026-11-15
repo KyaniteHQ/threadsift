@@ -134,6 +134,10 @@ _Avoid_: Placeholder, removed comment
 The view that shows one Item in full: header, Summary, Key points, post text, the comments (Kept comments once a Digest covers the thread, otherwise every comment that passes the first step of the comment filter), the link a Reddit link post points at, and the owner's Highlights and Note.
 _Avoid_: Detail view, article view
 
+**Author thread**:
+The posts an X post's author wrote as a chain of replies to their own post. The Reader shows them as part of the post text, in order, once each is checked against X (a Paste's own text is not checked); a follow-up that fails the check is left out and the post text says a part was not saved.
+_Avoid_: Thread (alone, it also means the replies), self-replies, author chain
+
 ### Keeping
 
 **Highlight**:

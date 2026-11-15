@@ -26,6 +26,7 @@ interface PromptItem {
   readonly title: string | null;
   readonly source: string;
   readonly postText: string | null;
+  readonly authorThread?: boolean;
 }
 
 export interface LinkedPage {
@@ -92,7 +93,9 @@ function selection(
   records: readonly Readonly<SerialisedComment>[],
   rest: number,
 ) {
-  const share = fill(records, [], Math.ceil(rest / 2));
+  const postBytes = item.postText === null ? 0 : jsonBytes(item.postText) - jsonBytes("");
+  const commentRoom = item.authorThread === true ? rest - postBytes : rest;
+  const share = fill(records, [], Math.max(0, Math.min(Math.ceil(rest / 2), commentRoom)));
   const prefix = item.postText === null ? null : longestPrefix(item.postText, rest - share.used);
   const afterText = rest - share.used - (prefix === null ? 0 : jsonBytes(prefix) - jsonBytes(""));
   const chosen = new Set(fill(records, share.picked, afterText).picked);

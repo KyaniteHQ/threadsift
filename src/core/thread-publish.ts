@@ -4,10 +4,10 @@ import { digestAfterFetch } from "./digest-job.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
-import type { ParsedThread } from "./reddit-json.ts";
 import { ownerOf, threadWrites } from "./reddit-thread.ts";
 import { items, media } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
+import type { StoredThread } from "./stored-thread.ts";
 
 export interface ThreadPlace extends Link {
   readonly address: string;
@@ -32,7 +32,7 @@ export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
 function contentWrites(
   db: Database,
   { normalizedUrl }: Readonly<ThreadPlace>,
-  thread: Readonly<ParsedThread>,
+  thread: Readonly<StoredThread>,
   pendingDigest: string | null,
 ) {
   const owner = ownerOf(normalizedUrl);
@@ -69,7 +69,7 @@ function digestWrites(db: Database, { normalizedUrl, address }: Readonly<ThreadP
 export function threadPublication(
   db: Database,
   place: Readonly<ThreadPlace>,
-  thread: Readonly<ParsedThread>,
+  thread: Readonly<StoredThread>,
   pendingDigest: string | null,
 ) {
   return [

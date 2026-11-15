@@ -69,13 +69,17 @@ function guarded(
   };
 }
 
+function reportVerified({ thread, dropped, followUps, unverifiedTails }: Readonly<Ready>): void {
+  report("x-verify", { replies: thread.replies.length, dropped, followUps, unverifiedTails });
+}
+
 async function published(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
   row: Readonly<Verification>,
   ready: Readonly<Ready>,
 ): Promise<SettledOutcome> {
-  const thread = await publishableThread(ports.db, job.itemId, ready.thread);
+  const thread = await publishableThread(ports.db, job.itemId, ready);
 
   if (thread === null) {
     report("x-fetch-refused", { category: "answer-refused" });
@@ -89,11 +93,7 @@ async function published(
     return withdrawn(ports, job, row.revision, NOTE_OF_REFUSAL["fewer-replies"]);
   }
 
-  report("x-verify", {
-    replies: ready.thread.replies.length,
-    dropped: ready.dropped,
-    unverifiedTails: ready.unverifiedTails,
-  });
+  reportVerified(ready);
 
   const outcome = await settledFetch(
     ports,
@@ -116,7 +116,7 @@ async function published(
     job,
     row,
     outcome,
-    thread.nodes.filter(({ kind }) => kind === "comment").length,
+    thread.nodes.filter(({ kind }) => kind === "comment").length + (thread.followUps ?? 0),
   );
 }
 

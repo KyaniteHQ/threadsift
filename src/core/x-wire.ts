@@ -21,7 +21,10 @@ const StoredPostedAt = z.number().int().nullable();
 
 const Count = z.number().int().nonnegative().nullable();
 
-function threadSchemaOf<PostedAt extends z.ZodType<number | null>>(postedAt: PostedAt) {
+function threadSchemaOf<
+  PostedAt extends z.ZodType<number | null>,
+  Repaired extends z.ZodType<boolean | undefined>,
+>(postedAt: PostedAt, repairedParent: Repaired) {
   return z.strictObject({
     post: z.strictObject({
       id: StatusIdSchema,
@@ -39,19 +42,20 @@ function threadSchemaOf<PostedAt extends z.ZodType<number | null>>(postedAt: Pos
           text: z.string(),
           postedAt,
           likes: Count,
+          repairedParent,
         }),
       )
       .max(X_REPLIES_MAX, { error: `more than ${String(X_REPLIES_MAX)} replies` }),
   });
 }
 
-export const XThreadSchema = threadSchemaOf(WirePostedAt);
+export const XThreadSchema = threadSchemaOf(WirePostedAt, z.never().optional());
 
-export const StoredXThreadSchema = threadSchemaOf(StoredPostedAt);
+export const StoredXThreadSchema = threadSchemaOf(StoredPostedAt, z.boolean().optional());
 
 export type XThread = z.output<typeof XThreadSchema>;
 
-export type XReply = Readonly<XThread["replies"][number]>;
+export type XReply = Readonly<z.output<typeof StoredXThreadSchema>["replies"][number]>;
 
 export interface XThreadValue {
   readonly post: Readonly<XThread["post"]>;

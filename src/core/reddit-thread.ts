@@ -5,8 +5,8 @@ import { StoredCommentId } from "./comment-id.ts";
 import type { CommentCandidate } from "./digest-prompt.ts";
 import { among, guardHolds } from "./guards.ts";
 import type { Database } from "./ports.ts";
-import type { ParsedThread } from "./reddit-json.ts";
 import { digests, highlights, items, redditComments, redditThreads } from "./schema.ts";
+import type { StoredThread } from "./stored-thread.ts";
 import { jsonArrays, rowJson } from "./thread-rows.ts";
 
 export function eligibleComments(): SQL {
@@ -177,7 +177,8 @@ function headerInsert(
     reported,
     linkedUrl,
     postLink,
-  }: Readonly<Pick<ParsedThread, "reported" | "linkedUrl" | "postLink">>,
+    followUps,
+  }: Readonly<Pick<StoredThread, "reported" | "linkedUrl" | "postLink" | "followUps">>,
   archivedAt: number | null,
 ) {
   return db.insert(redditThreads).select(
@@ -189,6 +190,7 @@ function headerInsert(
         archivedAt: sql<number | null>`${archivedAt}`.as("archived_at"),
         linkedUrl: sql<string | null>`${linkedUrl}`.as("linked_url"),
         postLink: sql<string | null>`${postLink}`.as("post_link"),
+        followUps: sql<number>`${followUps ?? 0}`.as("follow_ups"),
       })
       .from(sql`(select 1)`)
       .where(sql`1`),
@@ -221,7 +223,7 @@ function commentInsert(db: Database, owner: Readonly<Owner>, json: string) {
 export function threadWrites(
   db: Database,
   owner: Readonly<Owner>,
-  thread: Readonly<ParsedThread>,
+  thread: Readonly<StoredThread>,
   archivedAt: number | null,
 ): readonly BatchItem<"sqlite">[] {
   return [

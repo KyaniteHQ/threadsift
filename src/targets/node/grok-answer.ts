@@ -65,7 +65,7 @@ function repairedParents({ post, replies }: XThreadValue) {
   const repaired = replies.filter(({ parentId }) => !known.has(parentId)).length;
 
   const mended = replies.map((reply) =>
-    known.has(reply.parentId) ? reply : { ...reply, parentId: post.id },
+    known.has(reply.parentId) ? reply : { ...reply, parentId: post.id, repairedParent: true },
   );
 
   return { thread: { post, replies: mended }, repaired };

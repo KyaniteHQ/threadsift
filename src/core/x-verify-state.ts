@@ -1,5 +1,6 @@
+import { joinedAuthorThread } from "./x-author-thread.ts";
 import { type Judgement, MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
-import type { XReply, XThreadValue } from "./x-wire.ts";
+import type { XThreadValue } from "./x-wire.ts";
 
 const SLICE_REQUESTS = 40;
 
@@ -12,6 +13,7 @@ export type Progress =
       readonly kind: "ready";
       readonly thread: XThreadValue;
       readonly dropped: number;
+      readonly followUps: number;
       readonly unverifiedTails: number;
     };
 
@@ -58,50 +60,6 @@ export function startingJudged({ post, replies }: Readonly<XThreadValue>): Judge
   );
 }
 
-function survivor(
-  reply: Readonly<XReply>,
-  byId: Readonly<ReadonlyMap<string, XReply>>,
-  kept: Readonly<ReadonlySet<string>>,
-  postId: string,
-): string {
-  const seen = new Set<string>();
-
-  for (
-    let parent = reply.parentId;
-    !seen.has(parent);
-    parent = byId.get(parent)?.parentId ?? postId
-  ) {
-    if (parent === postId || kept.has(parent)) return parent;
-
-    seen.add(parent);
-  }
-
-  return postId;
-}
-
-function reattached(
-  reply: Readonly<XReply>,
-  byId: Readonly<ReadonlyMap<string, XReply>>,
-  kept: Readonly<ReadonlySet<string>>,
-  postId: string,
-): XReply {
-  return { ...reply, parentId: survivor(reply, byId, kept, postId) };
-}
-
-function withoutDropped(
-  { post, replies }: Readonly<XThreadValue>,
-  kept: Readonly<ReadonlySet<string>>,
-): XThreadValue {
-  const byId = new Map(replies.map((reply) => [reply.id, reply]));
-  const surviving = replies.filter(({ id }) => kept.has(id));
-  const dropped = replies.length - surviving.length;
-
-  return {
-    post: dropped === 0 ? post : { ...post, replies: Math.max(post.replies ?? 0, replies.length) },
-    replies: surviving.map((reply) => reattached(reply, byId, kept, post.id)),
-  };
-}
-
 export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged): Progress {
   if (judgedSoFar[thread.post.id] === "rejected") return { kind: "refused" };
 
@@ -113,9 +71,12 @@ export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged):
     thread.replies.filter(({ id }) => judgedSoFar[id] !== "rejected").map(({ id }) => id),
   );
 
+  const { thread: joined, followUps } = joinedAuthorThread(thread, kept);
+
   return {
     kind: "ready",
-    thread: withoutDropped(thread, kept),
+    thread: joined,
+    followUps,
     dropped: thread.replies.length - kept.size,
     unverifiedTails: postsOf(thread).filter(
       ({ id }) => judgedSoFar[id] === "tail-unverified" && (id === thread.post.id || kept.has(id)),

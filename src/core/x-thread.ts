@@ -3,7 +3,9 @@ import { storedCommentId } from "./comment-id.ts";
 import { utf8Length } from "./digest-prompt.ts";
 import type { ParsedThread, ThreadParse } from "./reddit-json.ts";
 import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts";
+import type { StoredParse } from "./stored-thread.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
+import { type JoinedAuthorThread, joinedAuthorThread } from "./x-author-thread.ts";
 import { type XReply, type XThreadValue, XThreadSchema } from "./x-wire.ts";
 import { fieldNamesOf, issueCodesOf } from "./zod-reasons.ts";
 
@@ -201,6 +203,15 @@ export function parseXThreadValue(thread: XThreadValue, statusId: string): Threa
   return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
 }
 
+export function parseJoinedXThread(
+  { thread, followUps }: Readonly<JoinedAuthorThread>,
+  statusId: string,
+): StoredParse {
+  const read = parseXThreadValue(thread, statusId);
+
+  return read.kind === "thread" ? { kind: "thread", thread: { ...read.thread, followUps } } : read;
+}
+
 const THREAD_FIELDS = fieldNamesOf(XThreadSchema);
 
 type ThreadRead =
@@ -237,8 +248,16 @@ export function readXThreadValue(answer: string): ThreadRead {
   };
 }
 
-export function parseXThread(answer: string, statusId: string): ThreadParse {
+export function parseXThread(answer: string, statusId: string): StoredParse {
   const read = readXThreadValue(answer);
 
-  return read.kind === "value" ? parseXThreadValue(read.value, statusId) : read;
+  if (read.kind !== "value") return read;
+
+  const original = parseXThreadValue(read.value, statusId);
+
+  if (original.kind === "refused") return original;
+
+  const everyReply = new Set(read.value.replies.map(({ id }) => id));
+
+  return parseJoinedXThread(joinedAuthorThread(read.value, everyReply), statusId);
 }
