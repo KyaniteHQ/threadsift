@@ -49,7 +49,7 @@
    comment and summary text, never under 16px), h2 (headings in posts and
    READMEs) and display (wordmark, reader title). Six spacing steps, four radii. */
 :root {
-  --t-label: 12px; --t-meta: 13px; --t-code: 14px; --t-h2: 20px;
+  --t-label: 12px; --t-meta: 13px; --t-code: 14px; --t-h2: 20px; --post-h-cap: 0.95;
   --lh-display: 1.15; --lh-title: 1.25; --lh-label: 1.4; --lh-ui: 1.45; --lh-text: 1.5; --lh-read: 1.6; --lh-code: 1.5;
   --ls-label: 0.06em;                 /* uppercase labels */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
@@ -152,8 +152,8 @@
 }
 
 /* Tag style: dots (a coloured dot before the name), text ("#name") or chips. */
-:root, [data-tags] { --tag-dot: inline-block; --tag-mark: none; --tag-pad: 0px; --tag-box: 0; --tag-bg: transparent; --tag-fg: var(--muted); }
-[data-tags="text"] { --tag-dot: none; --tag-mark: '#'; }
+:root, [data-tags] { --tag-dot: inline-block; --tag-mark: none; --tag-gap: var(--s1); --tag-pad: 0px; --tag-box: 0; --tag-bg: transparent; --tag-fg: var(--muted); }
+[data-tags="text"] { --tag-dot: none; --tag-mark: '#'; --tag-gap: 0px; }
 [data-tags="chips"] { --tag-dot: none; --tag-pad: var(--s2); --tag-box: 1px solid var(--line); --tag-bg: var(--surface-2); --tag-fg: var(--text); }
 
 /* Card images: the pictures on list rows and cards. The reader always shows an item's picture.

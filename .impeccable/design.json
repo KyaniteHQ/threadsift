@@ -396,7 +396,7 @@
       },
       {
         "name": "The One Reading Size Rule",
-        "body": "Post, comment and summary text share one size (`--t-read`). Headings inside a post render at that same size, so the reader's section headings (`--t-h2`) always outrank them and the page reads in outline order.",
+        "body": "Post, comment and summary text share one size (`--t-read`). Headings inside a post render at that same size, but never over `--post-h-cap` (0.95) times Headline, so the reader's section headings (`--t-h2`) always outrank them, at a Large Text size too, and the page reads in outline order.",
         "section": "typography"
       },
       {

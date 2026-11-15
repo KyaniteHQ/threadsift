@@ -78,7 +78,7 @@ export const HighlightList = memo(function HighlightList() {
 
   return items.length === 0 && failure === null ? null : (
     <section className="rd-hl" aria-labelledby={heading}>
-      <h3 id={heading} className="label">
+      <h3 id={heading} className="rd-h">
         {HIGHLIGHTS_TITLE}
       </h3>
       {failure === null ? null : (

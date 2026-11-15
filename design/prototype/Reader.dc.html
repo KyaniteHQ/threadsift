@@ -60,7 +60,7 @@ body{margin:0}
 .rd-src, .rd-meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
 .rd-src span:empty { display: none; }
 .rd-title { font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); overflow-wrap: anywhere; }
-.rd-title:focus { outline: none; }
+.rd-title:focus:not(:focus-visible) { outline: none; }
 
 .rd-agent { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); }
 .rd-filed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); font-family: var(--f-ui); font-size: var(--t-meta); }
@@ -71,7 +71,8 @@ body{margin:0}
 .rd-sec-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }
 .rd-count { color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; }
 .rd-orig, .rd-readme, .rd-comments { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
-.rd-comments h3:focus { outline: none; }
+.rd-h { color: var(--text); font-family: var(--f-display); font-size: var(--t-h2); font-weight: var(--dw); letter-spacing: var(--dls); line-height: var(--lh-title); }
+.rd-h:focus:not(:focus-visible) { outline: none; }
 .rd-note { color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); font-style: italic; }
 
 .rd-media { overflow: hidden; border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface-2); }
@@ -161,7 +162,7 @@ body{margin:0}
 </aside>
 
 <div class="rd-orig">
-<h3 class="label">{{origTitle}}</h3>
+<h3 class="rd-h">{{origTitle}}</h3>
 <sc-if value="{{hasByline}}" hint-placeholder-val="{{ false }}"><p class="rd-byline"><span class="x-av" aria-hidden="true">{{initial}}</span><span><strong>{{authorName}}</strong> {{authorSub}}</span></p></sc-if>
 <sc-if value="{{hasImage}}" hint-placeholder-val="{{ false }}"><figure class="rd-media"><dc-import name="Picture" file="{{imageFile}}" alt="{{imageAlt}}" hint-size="100%,240px"></dc-import></figure></sc-if>
 <sc-if value="{{isRepo}}" hint-placeholder-val="{{ false }}">
@@ -190,7 +191,7 @@ body{margin:0}
 
 <sc-if value="{{isRepo}}" hint-placeholder-val="{{ false }}">
 <section class="rd-readme" aria-label="README">
-<h3 class="label">README</h3>
+<h3 class="rd-h">README</h3>
 <sc-if value="{{hasReadme}}" hint-placeholder-val="{{ false }}"><dc-import name="Text" blocks="{{readme}}" hint-size="100%,120px"></dc-import></sc-if>
 <sc-if value="{{noReadme}}" hint-placeholder-val="{{ true }}"><p class="readme-ph">[README excerpt]</p></sc-if>
 </section>
@@ -198,7 +199,7 @@ body{margin:0}
 
 <sc-if value="{{showComments}}" hint-placeholder-val="{{ false }}">
 <div class="rd-comments">
-<div class="rd-sec-h"><h3 class="label" id="{{commentsId}}" tabindex="-1">{{commentsTitle}}</h3><p class="rd-count">{{keptLabel}}</p></div>
+<div class="rd-sec-h"><h3 class="rd-h" id="{{commentsId}}" tabindex="-1">{{commentsTitle}}</h3><p class="rd-count">{{keptLabel}}</p></div>
 <sc-if value="{{noneKept}}" hint-placeholder-val="{{ false }}"><p class="rd-note">{{noneLabel}}</p></sc-if>
 <ol class="tree">
 <sc-for list="{{comments}}" as="c" hint-placeholder-count="4">

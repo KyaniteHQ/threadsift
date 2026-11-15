@@ -184,7 +184,7 @@ export const CLOSE_LABEL = "Close";
 export const RESET_LABEL = "Reset look";
 
 export const RESET_NOTE =
-  "Reset look puts look settings back to their defaults and leaves Theme alone.";
+  "Reset look puts look settings back to their defaults and keeps Layout, Open items as and Theme.";
 
 export const MATCH_SYSTEM_NOTES = {
   dark: "Match system · dark now",

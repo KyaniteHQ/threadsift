@@ -57,7 +57,7 @@ body { margin: 0; }
 .src { color: var(--text); font-weight: 600; }
 /* tags: the Tag style setting picks the --tag-* values (tokens.css) */
 .tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }
-.tag { display: inline-flex; align-items: center; gap: var(--s1); padding: 0 var(--tag-pad); border: var(--tag-box); border-radius: var(--r4); background: var(--tag-bg); color: var(--tag-fg); }
+.tag { display: inline-flex; align-items: center; gap: var(--tag-gap); padding: 0 var(--tag-pad); border: var(--tag-box); border-radius: var(--r4); background: var(--tag-bg); color: var(--tag-fg); }
 .tag::before { content: var(--tag-mark); }
 .tag-dot { display: var(--tag-dot); flex: none; width: var(--dot); height: var(--dot); border-radius: var(--r4); background: oklch(var(--tag-l) var(--tag-c) var(--tag-h)); }
 

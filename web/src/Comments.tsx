@@ -251,7 +251,7 @@ function CommentTree({
   return (
     <section className="rd-comments" aria-labelledby={heading}>
       <div className="rd-sec-h">
-        <h3 id={heading} className="label" tabIndex={-1} style={TOP_OFFSET}>
+        <h3 id={heading} className="rd-h" tabIndex={-1} style={TOP_OFFSET}>
           {COMMENTS_TITLE}
         </h3>
         {counts === null ? null : <p className="rd-count">{countLabel(counts, "heading")}</p>}

@@ -71,8 +71,7 @@
    - percentage widths of loading placeholders: 60% for the second line of a
      skeleton, and 40% and 70% for a ghost row's lines;
    - the 1px box that visually hides text kept for screen readers, and the 2px
-     side padding of the reader bar's phone position text;
-   - the 180px height of a media placeholder in X posts.
+     side padding of the reader bar's phone position text.
    ===================================================================== */
 
 /* 1. Fixed tokens -------------------------------------------------------
@@ -86,14 +85,14 @@
    text field never go under: iOS Safari zooms the page when a focused field's
    text is smaller. Six spacing steps, four radii. */
 :root {
-  --t-label: 0.75rem; --t-meta: 0.8125rem; --t-code: 0.875rem; --t-h2: 1.25rem; --t-read-base: 1.0625rem; --t-floor: 16px;
+  --t-label: 0.75rem; --t-meta: 0.8125rem; --t-code: 0.875rem; --t-h2: 1.25rem; --post-h-cap: 0.95; --t-read-base: 1.0625rem; --t-floor: 16px;
   --lh-display: 1.15; --lh-title: 1.25; --lh-label: 1.4; --lh-ui: 1.45; --lh-text: 1.5; --lh-read: 1.6; --lh-code: 1.5;
   --ls-label: 0.06em;                 /* uppercase labels */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --r1: 4px; --r2: 8px; --r3: 14px; --r4: 999px;
   --target: 44px;                     /* the smallest touch target: phone controls, the settings gear, the sheet's side buttons */
   --ctl-h: 34px; --field-h: 40px; --seg-h: 30px; --row-h: 32px; --dot-hit: 28px; --link-pad: 0px;
-  --dot: 10px; --av: 26px; --av-l: 40px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
+  --dot: 10px; --av: 26px; --av-l: 40px; --ind: 22px; --ind-max: 25%; --media-max: 560px; --media-ph-h: 180px;
   --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the gear, the read mark on phones, empty states */
   --pop-w: 25rem;                     /* the settings panel under the gear */
   --dlg-w: 26rem;                     /* a confirmation dialog, such as Delete */
@@ -211,10 +210,11 @@
 [data-bp~="phone"][data-comments="rail"] { --cm-pad: var(--s3) 0 var(--s3) calc(var(--av) + var(--s2)); --cm-stub-pad: var(--s2) 0 var(--s2) calc(var(--av) + var(--s2)); }
 
 /* Tag style: dots (a coloured dot before the name), text ("#name") or chips.
-   --tag-pad and --tag-pad-y pad a chip around its name. */
+   --tag-pad and --tag-pad-y pad a chip around its name, and --tag-gap is the space between a
+   dot and the name. */
 /* plain: dots */
-:root, [data-tags] { --tag-dot: inline-block; --tag-mark: none; --tag-pad: 0px; --tag-pad-y: 0px; --tag-box: 0; --tag-bg: transparent; --tag-fg: var(--muted); }
-[data-tags="text"] { --tag-dot: none; --tag-mark: '#'; }
+:root, [data-tags] { --tag-dot: inline-block; --tag-mark: none; --tag-gap: var(--s1); --tag-pad: 0px; --tag-pad-y: 0px; --tag-box: 0; --tag-bg: transparent; --tag-fg: var(--muted); }
+[data-tags="text"] { --tag-dot: none; --tag-mark: '#'; --tag-gap: 0px; }
 [data-tags="chips"] { --tag-dot: none; --tag-pad: var(--s2); --tag-pad-y: calc(var(--s1) / 2); --tag-box: 1px solid var(--line); --tag-bg: var(--surface-2); --tag-fg: var(--text); }
 /* A tag's hue: one of eight, picked by data-tag on the tag (the app hashes the tag's name to
    0 to 7, so a tag keeps its colour everywhere). */
