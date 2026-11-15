@@ -67,7 +67,7 @@ A text that tells the owner where to look names only what a run shows there. Bad
 
 ## Docs, commit messages and PR bodies
 
-Write them, the README and the guides under `docs/guides/` included, by the `technical-writing` skill (`.claude/skills/technical-writing/`), and apply the `humanizer` skill (`.agents/skills/humanizer/`) as that skill says. A doc points at the code and never restates or copies it: it names the file, symbol or command, and holds only what the code cannot show, such as the reason for a choice, a constraint, a measured fact with its command, or a procedure.
+Write them, the README and the guides under `docs/guides/` included, by the `technical-writing` skill (`.claude/skills/technical-writing/`), and apply the `humanizer` skill (`.agents/skills/humanizer/`) as that skill says. A doc points at the code and never restates or copies it: it names the file, symbol or command, and holds only what the code cannot show, such as the reason for a choice, a constraint, a measured fact with its command, or a procedure. A change updates every doc line it makes untrue in the same change, as it updates a test; `pnpm docs:impact` lists the candidates.
 
 ## Tests
 
@@ -85,6 +85,7 @@ Write them, the README and the guides under `docs/guides/` included, by the `tec
 1. Run `pnpm lint:fix`. It also applies suggestion fixes, which can change behaviour, so read its diff and keep or revert each one. Dangerous fixes (`--fix-dangerously`) are never applied.
 2. Run `devenv tasks run ci:gate`.
 3. Judge every comment the diff adds with `.claude/agents/comment-sicko.md`, and act on each verdict.
-4. Prove the change the way its caller meets it, and keep the command and its output as the artifact. A change that reaches an install target or a screen also gets `devenv tasks run smoke:worker` and `devenv tasks run smoke:container`, as `docs/testing.md` says. A change to tooling, config or scripts gets a run of that tool as its caller runs it, such as the edit hook fed a sample payload, a commit through the git hooks, or `devenv test`.
+4. Run `pnpm docs:impact`, with the base of the diff as its argument when that is not `origin/main`, and update or confirm each line it lists. The report names each line kept and why.
+5. Prove the change the way its caller meets it, and keep the command and its output as the artifact. A change that reaches an install target or a screen also gets `devenv tasks run smoke:worker` and `devenv tasks run smoke:container`, as `docs/testing.md` says. A change to tooling, config or scripts gets a run of that tool as its caller runs it, such as the edit hook fed a sample payload, a commit through the git hooks, or `devenv test`.
 
-Done when all four pass on the final version of every changed file. `docs/agents/reviewing-code.md` says what happens next.
+Done when all five pass on the final version of every changed file. `docs/agents/reviewing-code.md` says what happens next.
