@@ -64,6 +64,7 @@
   overflow-y: auto;
 }
 .pg-bar {
+  flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
@@ -82,11 +83,16 @@
   padding-inline: var(--reader-pad);
   font-size: var(--t-read);
 }
+.pg-bar-in .btn {
+  flex-shrink: 0;
+}
 .pg-title {
+  min-width: 0;
   margin: 0;
+  overflow-wrap: anywhere;
   color: var(--text);
   font-family: var(--f-display);
-  font-size: var(--t-display);
+  font-size: max(var(--t-display), var(--t-h2) * var(--rd-title-min));
   font-weight: var(--dw);
   letter-spacing: var(--dls);
   line-height: var(--lh-title);
