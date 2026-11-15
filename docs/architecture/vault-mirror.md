@@ -1,5 +1,7 @@
 # Vault mirror
 
+Not built: `src` has no vault code, `JOB_KINDS` in `src/core/kinds.ts` has no vault job kind, and nothing calls GitHub's Git Data API (`git/blobs`, `git/trees`, `git/commits`, `git/refs`), so everything below is the design.
+
 - **Git mode, both targets:** commits through GitHub's REST API (create blobs, a tree and a commit, then move the branch ref), with a fine-grained token that can write the contents of one repository. Workers has no `git` binary, and one code path keeps both targets the same. The owner chose this on 2026-11-04; v1 mirrors only to a vault repository on GitHub.
 - **Folder mode, container only:** writes the same files into a mounted vault folder.
 - **Note paths.** A note keeps the path of its first write: an Item note's file name holds the Item id, so a later title, Topic or Tag change updates the front matter and its `aliases`, never the path, and the wikilinks between notes and the owner's own links to them keep working. A Topic page note keeps its path through a rename the same way; an accepted merge deletes the merged-away Topic's note and rewrites the wikilinks to it. Deleting an Item deletes its note. The export already writes the Item note: `itemNote` and `noteFileName` in `src/core/item-note.ts` are pure functions of an Item's values that the Vault mirror calls too, and the mirror adds the wikilinks, the `aliases` and a file name that holds the Item id. The export's file name, `note-<slug>.md`, holds the title and not the id, so the exact file-name format of the mirror is chosen in the Vault mirror slice.

@@ -1,7 +1,7 @@
 # Threadsift setup
 Follow with the owner, one step at a time. Never ask for a secret in chat; a secret typed in chat is not used, ask again with a secret-request card. Each card ends the turn; continue at the next step when the owner is back.
 1. Say in one line what this bot does: the Grok Bot side of their Threadsift Instance (webhook tasks, saving links, search, X bookmark sync).
-2. Send a secret-request card named `THREADSIFT_URL`, labeled "Threadsift Instance URL", described as "The https address of your Threadsift Instance, with no path, reachable from the internet or your tailnet."
+2. Send a secret-request card named `THREADSIFT_URL`, labeled "Threadsift Instance URL", described as "The https address of your Threadsift Instance, with no path, reachable from the internet, because this bot runs in Grok's cloud. Threadsift links the Items you save at this address."
 3. Send a secret-request card named `THREADSIFT_AGENT_TOKEN`, labeled "Threadsift agent token", described as "In Threadsift Settings, under Agent tokens, enter a token name, select the Read and Add scopes, press Create token and copy the token."
 4. Finish the install next to this file. First check that the bot's computer has `python3` and `curl`: run `command -v python3 curl`. If either is missing, tell the owner in one sentence which one ("This bot's computer has no python3, and Threadsift needs it.") and stop. Then:
    ```bash

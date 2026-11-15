@@ -75,6 +75,6 @@ Commercial faces were swapped for Google Fonts:
 
 - Page: https://styles.refero.design/style/5d7aa503-8cfa-49a4-bd3b-0c2f0f075c70
 - Fonts the style names: Cal Sans (headings; fallback Poppins), Cal Sans UI Variable Light 300 for body (fallback Inter Light), Inter 400-600 for small UI
-- Why: A strict monochrome on a #f4f4f4 ground with white cards, soft 8-12px radii and pill buttons is the quiet neutral baseline for the list and reader; body weight 300 needs a check, so fall back to Inter 400 if it is too thin.
+- Why: A strict monochrome on a #f4f4f4 ground with white cards, soft 8-12px radii and pill buttons is the quiet neutral baseline for the list and reader; the `cal-com` block sets the reading face to Inter (`--f-read`) at the default weight 400 instead of the Light 300 the style names.
 
 
