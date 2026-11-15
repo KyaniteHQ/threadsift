@@ -1,7 +1,8 @@
 import { guardHolds } from "./guards.ts";
+import { holding } from "./job-rows.ts";
 import type { Ports } from "./ports.ts";
 import type { HeldAccount } from "./reddit-account-fetch.ts";
-import { resumeAt, takeTurn } from "./reddit-account-queue.ts";
+import { type TurnRun, resumeAt, takeTurn } from "./reddit-account-queue.ts";
 import { accountRow } from "./reddit-account-states.ts";
 import { openedSession } from "./reddit-account.ts";
 import { noThreadFor } from "./reddit-thread.ts";
@@ -13,10 +14,11 @@ export type AccountTurn =
 
 export async function accountTurn(
   ports: Readonly<Pick<Ports, "db" | "secrets">>,
-  { id, itemId }: Readonly<{ id: number; itemId: number }>,
+  run: Readonly<TurnRun & { itemId: number }>,
 ): Promise<AccountTurn> {
   const { db, secrets } = ports;
   const row = await accountRow(db);
+  const { itemId } = run;
 
   if (row?.state !== "connected" || secrets === null) return { kind: "unused" };
 
@@ -25,9 +27,12 @@ export async function accountTurn(
   if (!(await guardHolds(db, noThreadFor(itemId)))) return { kind: "unused" };
 
   const now = Date.now();
-  const taken = await takeTurn(db, id, now);
+  const claim = { id: run.id, attempts: run.attempts, attemptGeneration: run.attemptGeneration };
+  const taken = await takeTurn(db, claim, now);
 
   if (taken === null) {
+    if (!(await guardHolds(db, holding(claim)))) return { kind: "unused" };
+
     const current = await accountRow(db);
 
     return current?.state === "connected"
@@ -42,7 +47,7 @@ export async function accountTurn(
     : {
         kind: "held",
         held: {
-          jobId: id,
+          run: claim,
           session,
           sealedSession: taken.sealedSession,
           lastRequestAt: taken.lastRequestAt,
