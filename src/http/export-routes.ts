@@ -66,7 +66,7 @@ const deleteRoute = createRoute({
   path: "/api/export",
   responses: {
     204: noContent(
-      `The export is gone from \`GET /api/export\`. A ready or failed export has its stored objects deleted at once. A running export stops, and the sweep deletes its objects 12 minutes later, after a slice that was still running has ended.${OWNER_ONLY}`,
+      `The export is gone from \`GET /api/export\`. A ready or failed export has its stored objects deleted at once. A running export stops, and the sweep deletes its objects 12 minutes later. A slice that a pause held past that point can still write afterwards, and a later sweep deletes what it wrote.${OWNER_ONLY}`,
     ),
     401: jsonBody(ErrorResponseSchema, "No owner session."),
     403: jsonBody(ErrorResponseSchema, "An agent token called this."),
