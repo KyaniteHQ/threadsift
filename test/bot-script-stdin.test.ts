@@ -66,6 +66,12 @@ describe("the script prints the same word, reasons and exit code with standard i
       args: () => Promise.resolve(["forget", "nope"]),
     },
     {
+      name: "same-address",
+      word: /^ok$/u,
+      code: 0,
+      args: async () => ["same-address", await world.folder.made("address", world.address, "txt")],
+    },
+    {
       name: "write",
       word: /^ok$/u,
       code: 0,

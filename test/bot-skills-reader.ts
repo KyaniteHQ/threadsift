@@ -52,7 +52,7 @@ export const DOC_PATHS = [
   ...ROUTINE_PATHS,
 ];
 
-export const LOCAL_COMMANDS = ["mark", "write", "append", "forget"];
+export const LOCAL_COMMANDS = ["mark", "write", "append", "forget", "same-address"];
 
 export const scriptText = (): string => botFile(join("scripts", "threadsift.sh")).text;
 
