@@ -10,6 +10,8 @@ import {
 import type { Ports } from "../core/ports.ts";
 import { guard } from "./guard.ts";
 
+const EXPORT_DOWNLOAD_PATH = "/api/export/:id/download";
+
 const PRIVATE_HEADERS = {
   "Cache-Control": "no-store",
   "Referrer-Policy": "no-referrer",
@@ -54,5 +56,6 @@ export function installApiMiddleware(app: OpenAPIHono, ports: Ports): void {
   app.use(CONNECT_START_PATH, privateResponse);
   app.use(CONNECT_CALLBACK_PATH, privateResponse, signedOutNavigation);
   app.use(`${FILE_ROUTE}*`, privateFile);
+  app.use(EXPORT_DOWNLOAD_PATH, privateFile);
   app.use("/api/*", guard(ports));
 }

@@ -86,7 +86,7 @@ export const X_READ_NOTES = [
 
 export const ITEM_JOB_KINDS = ["fetch", "digest", "x_verify"] as const;
 
-export const JOB_KINDS = [
+export const OWNED_JOB_KINDS = [
   ...ITEM_JOB_KINDS,
   "topic_overview",
   "related_pick",
@@ -95,9 +95,13 @@ export const JOB_KINDS = [
   "disagreement_proposals",
 ] as const;
 
+export const JOB_KINDS = [...OWNED_JOB_KINDS, "export"] as const;
+
 export const SETUP_CODE_STATUSES = ["missing", "short", "set"] as const;
 
 export const JOB_STATES = ["queued", "running", "done"] as const;
+
+export const EXPORT_STATES = ["running", "ready", "failed", "expired"] as const;
 
 export type Source = (typeof SOURCES)[number];
 
@@ -168,7 +172,11 @@ export type XReadNote = (typeof X_READ_NOTES)[number];
 
 export type JobKind = (typeof JOB_KINDS)[number];
 
+export type OwnedJobKind = (typeof OWNED_JOB_KINDS)[number];
+
 export type JobState = (typeof JOB_STATES)[number];
+
+export type ExportState = (typeof EXPORT_STATES)[number];
 
 export const WEEKLY_TASK = {
   "tag-merge": "proposals",

@@ -4,12 +4,12 @@ import { digestHandler } from "./digest-attempt.ts";
 import { disagreementProposalsHandler } from "./disagreement-job.ts";
 import { FETCH_HANDLERS } from "./fetch-job.ts";
 import type { JobHandler } from "./job-outcome.ts";
-import type { JobKind } from "./kinds.ts";
+import type { OwnedJobKind } from "./kinds.ts";
 import { proposalsHandler, topicProposalsHandler } from "./proposal-job.ts";
 import { relatedPickHandler } from "./related-job.ts";
 import { topicOverviewHandler } from "./topic-overview-job.ts";
 
-export const HANDLERS: Readonly<Record<JobKind, JobHandler>> = {
+export const HANDLERS: Readonly<Record<OwnedJobKind, JobHandler>> = {
   digest: digestHandler,
   disagreement_proposals: routedHandler(
     disagreementProposalsHandler,

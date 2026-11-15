@@ -2,7 +2,7 @@ import type { SQLWrapper } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { ModelAi } from "./ai-contract.ts";
-import type { JobKind, WaitReason } from "./kinds.ts";
+import type { JobKind, OwnedJobKind, WaitReason } from "./kinds.ts";
 import type { Database, Ports } from "./ports.ts";
 import type { JobRow } from "./schema.ts";
 
@@ -23,10 +23,39 @@ export type JobPorts = Pick<
 
 export type JobWrites = readonly BatchItem<"sqlite">[];
 
-export type ClaimedJob = JobRow & {
+type Claim<Kind extends JobKind, Owner extends number | null> = Omit<JobRow, "kind" | "itemId"> & {
+  readonly kind: Kind;
+  readonly itemId: Owner;
+};
+
+export type ClaimedJob = Claim<OwnedJobKind, number> & {
   readonly attemptKey: string;
   readonly imagePrefix: string;
 };
+
+export type ClaimedExport = Claim<"export", null>;
+
+export type ClaimedRow = ClaimedJob | ClaimedExport;
+
+export interface ClaimedColumns extends JobRow {
+  readonly attemptKey: string | null;
+  readonly imagePrefix: string | null;
+}
+
+export function ownedClaim(row: Readonly<ClaimedColumns>): ClaimedJob {
+  const { attemptKey, imagePrefix, ...columns } = row;
+
+  if (
+    columns.kind === "export" ||
+    columns.itemId === null ||
+    attemptKey === null ||
+    imagePrefix === null
+  ) {
+    throw new Error(`Job ${String(row.id)} of kind ${row.kind} is not owned by an Item`);
+  }
+
+  return { ...columns, kind: columns.kind, itemId: columns.itemId, attemptKey, imagePrefix };
+}
 
 export interface JobCurrency {
   readonly current: () => Promise<boolean>;
@@ -72,19 +101,23 @@ export type Closing =
   | { readonly kind: "closed" }
   | { readonly kind: "deferred"; readonly wait: WaitReason | null };
 
-export interface JobClosing {
-  readonly closing?: (db: Database, job: Readonly<JobRow>, how: Closing) => JobWrites;
-  readonly afterClosed?: (ports: JobPorts, job: Readonly<JobRow>, closed: boolean) => Promise<void>;
+export interface JobClosing<Claimed extends ClaimedRow = ClaimedJob> {
+  readonly closing?: (db: Database, job: Readonly<Claimed>, how: Closing) => JobWrites;
+  readonly afterClosed?: (
+    ports: JobPorts,
+    job: Readonly<Claimed>,
+    closed: boolean,
+  ) => Promise<void>;
 }
 
-export const NO_CLOSING: JobClosing = {};
+export const NO_CLOSING: JobClosing<ClaimedRow> = {};
 
-export interface JobHandler extends JobClosing {
+export interface JobHandler<Claimed extends ClaimedRow = ClaimedJob> extends JobClosing<Claimed> {
   readonly deadlineMs: number;
   readonly blockedBy: readonly JobKind[];
-  readonly attempt: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<JobOutcome>;
-  readonly exhausted?: (db: Database, job: Readonly<JobRow>) => JobWrites;
-  readonly inputCurrent?: (job: Readonly<JobRow>) => SQLWrapper;
+  readonly attempt: (ports: JobPorts, job: Readonly<Claimed>) => Promise<JobOutcome>;
+  readonly exhausted?: (db: Database, job: Readonly<Claimed>) => JobWrites;
+  readonly inputCurrent?: (job: Readonly<Claimed>) => SQLWrapper;
 }
 
 export interface ModelHandler extends Omit<JobHandler, "attempt"> {

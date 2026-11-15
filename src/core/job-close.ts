@@ -8,7 +8,7 @@ import { ITEM_JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, aiTasks, items, jobs, xVerifications } from "./schema.ts";
 
-const CLOSED_JOB = {
+export const CLOSED_JOB = {
   state: "done",
   claimExpires: null,
   waitReason: null,
@@ -30,15 +30,17 @@ export function closeJob(
   job: Readonly<Pick<JobRow, "id" | "kind" | "itemId">>,
   attempts: number,
 ): readonly BatchItem<"sqlite">[] {
+  const { itemId } = job;
+
   return [
     db
       .update(jobs)
       .set({ ...CLOSED_JOB, attempts })
       .where(eq(jobs.id, job.id)),
     ...givenUpTasks(db, eq(aiTasks.jobId, job.id)),
-    ...(job.kind === "digest" ? [owedDigest(db, job.itemId)] : []),
-    ...(ITEM_JOB_KINDS.some((owner) => owner === job.kind)
-      ? [setStatus(db, { kind: "jobs-changed" }, eq(items.id, job.itemId))]
+    ...(job.kind === "digest" && itemId !== null ? [owedDigest(db, itemId)] : []),
+    ...(itemId !== null && ITEM_JOB_KINDS.some((owner) => owner === job.kind)
+      ? [setStatus(db, { kind: "jobs-changed" }, eq(items.id, itemId))]
       : []),
   ];
 }

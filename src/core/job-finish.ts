@@ -10,6 +10,7 @@ import {
   type JobCurrency,
   type JobClosing,
   type JobFiles,
+  type ClaimedRow,
   type JobHandler,
   type JobWrites,
   NO_CLOSING,
@@ -37,9 +38,9 @@ function logClaimLost(job: Readonly<Pick<JobRow, "id" | "attempts">>): void {
   report("job-claim-lost", { jobId: job.id, attempt: job.attempts });
 }
 
-export async function finish(
+export async function finish<Claimed extends ClaimedRow>(
   ports: JobPorts,
-  job: Readonly<JobRow>,
+  job: Readonly<Claimed>,
   {
     writes,
     attempts,
@@ -53,7 +54,7 @@ export async function finish(
     files?: JobFiles | undefined;
     precondition?: Readonly<Precondition> | undefined;
     continuation?: readonly BatchItem<"sqlite">[] | undefined;
-    closing?: JobClosing | undefined;
+    closing?: JobClosing<Claimed> | undefined;
   }>,
 ): Promise<"done" | "lost" | Readonly<Precondition>> {
   const { db } = ports;
@@ -79,14 +80,14 @@ export async function finish(
   return wrote ? "done" : "lost";
 }
 
-async function afterClose(
+async function afterClose<Claimed extends ClaimedRow>(
   ports: JobPorts,
-  job: Readonly<JobRow>,
+  job: Readonly<Claimed>,
   wrote: boolean,
   files: JobFiles,
-  closing: JobClosing,
+  closing: JobClosing<Claimed>,
 ): Promise<void> {
-  await enqueueItemJobs(ports, job.itemId);
+  if (job.itemId !== null) await enqueueItemJobs(ports, job.itemId);
 
   await closing.afterClosed?.(ports, job, wrote);
 
@@ -97,10 +98,10 @@ async function afterClose(
   if (!wrote) logClaimLost(job);
 }
 
-export async function exhaust(
+export async function exhaust<Claimed extends ClaimedRow>(
   ports: JobPorts,
-  job: Readonly<JobRow>,
-  handler: Pick<JobHandler, "exhausted" | "inputCurrent" | "closing" | "afterClosed">,
+  job: Readonly<Claimed>,
+  handler: Pick<JobHandler<Claimed>, "exhausted" | "inputCurrent" | "closing" | "afterClosed">,
   attempts: number,
 ): Promise<void> {
   const { db } = ports;
@@ -135,9 +136,9 @@ function dueAt(until: number, closedTask: number | undefined): number | SQL {
   return sql`case when exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${closedTask} and (${aiTasks.answeredAt} is not null or ${aiTasks.state} <> 'running')) then ${now} else min(${until}, coalesce((select ${aiTasks.deadline} from ${aiTasks} where ${aiTasks.id} = ${closedTask}), ${until})) end`;
 }
 
-export async function queueLater(
+export async function queueLater<Claimed extends ClaimedRow>(
   ports: JobPorts,
-  job: Readonly<JobRow>,
+  job: Readonly<Claimed>,
   {
     until,
     attempts,
@@ -153,7 +154,7 @@ export async function queueLater(
     wait: WaitReason | null;
     unlessOpen?: number | undefined;
     writes?: JobWrites | undefined;
-    closing?: JobClosing | undefined;
+    closing?: JobClosing<Claimed> | undefined;
   }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
@@ -185,11 +186,11 @@ export async function queueLater(
   }
 }
 
-async function writeOutcome(
+async function writeOutcome<Claimed extends ClaimedRow>(
   ports: JobPorts,
-  job: Readonly<JobRow>,
+  job: Readonly<Claimed>,
   outcome: SettledOutcome,
-  closing: JobClosing,
+  closing: JobClosing<Claimed>,
 ): Promise<"done" | "lost" | "stale"> {
   let result: Awaited<ReturnType<typeof finish>>;
 
@@ -225,11 +226,11 @@ async function discardTask(
   if (first !== undefined) await db.batch([first, ...rest]);
 }
 
-async function applySettled(
+async function applySettled<Claimed extends ClaimedRow>(
   ports: JobPorts,
-  job: Readonly<JobRow>,
+  job: Readonly<Claimed>,
   outcome: SettledOutcome,
-  closing: JobClosing,
+  closing: JobClosing<Claimed>,
 ): Promise<void> {
   let result: Awaited<ReturnType<typeof writeOutcome>>;
 
@@ -271,11 +272,11 @@ async function applySettled(
   }
 }
 
-export async function applyOutcome(
+export async function applyOutcome<Claimed extends ClaimedRow>(
   ports: JobPorts,
-  job: Readonly<JobRow>,
+  job: Readonly<Claimed>,
   outcome: JobOutcome,
-  closing: JobClosing = NO_CLOSING,
+  closing: JobClosing<Claimed> = NO_CLOSING,
 ): Promise<void> {
   if ("deferredUntil" in outcome) {
     await queueLater(ports, job, {

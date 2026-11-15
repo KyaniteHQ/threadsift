@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { asc, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 
-import type { ClaimedJob } from "../src/core/job-outcome.ts";
+import { type ClaimedJob, ownedClaim } from "../src/core/job-outcome.ts";
 import { type JobRow, jobs } from "../src/core/schema.ts";
 import { KEY, PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
@@ -62,7 +62,7 @@ export function unblock(instance: Instance, itemId: number): void {
 }
 
 function claimedOf(job: Readonly<JobRow>): ClaimedJob {
-  return Object.assign({ attemptKey: "", imagePrefix: "" }, job);
+  return ownedClaim({ ...job, attemptKey: "", imagePrefix: "" });
 }
 
 export async function bulkJobs(
@@ -99,12 +99,7 @@ export async function bulkJobs(
     .where(gte(jobs.itemId, first))
     .orderBy(asc(jobs.id));
 
-  return found.map((job) =>
-    Object.assign(job, {
-      attemptKey: "",
-      imagePrefix: "",
-    }),
-  );
+  return found.map((job) => claimedOf(job));
 }
 
 export async function openJobOfKind(

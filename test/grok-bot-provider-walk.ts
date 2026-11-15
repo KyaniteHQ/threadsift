@@ -29,7 +29,7 @@ export async function claimedAgain(
 
   assert.equal(claimed?.id, job.id);
 
-  return claimed ?? job;
+  return claimed !== null && claimed.kind !== "export" ? claimed : job;
 }
 
 export async function unansweredClaim(
