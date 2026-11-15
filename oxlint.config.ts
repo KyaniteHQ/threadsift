@@ -1,5 +1,19 @@
 import { defineConfig } from "oxlint";
 
+const NODE_GLOBALS = ["process", "Buffer", "global", "__dirname", "__filename", "require"].map(
+  (name) => ({
+    name,
+    message:
+      "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture/one-codebase-two-install-targets.md).",
+  }),
+);
+
+const WEB_FETCH = {
+  name: "fetch",
+  message:
+    "The web app calls the server through web/src/calls.ts, which gives every read its deadline and makes every write name one (docs/architecture/web-app.md).",
+};
+
 export default defineConfig({
   plugins: [
     "eslint",
@@ -25,6 +39,20 @@ export default defineConfig({
   ],
   rules: {
     "threadsift/no-comments": "error",
+    "threadsift/no-await-before-rethrow": [
+      "error",
+      {
+        cannotThrow: [
+          "bestEffort",
+          "readOrAssume",
+          "releasedAfterFailure",
+          "recordedFailure",
+          "discardedAfterFailure",
+          "guardHeldOrUnread",
+          "releasedAfterAttemptFailure",
+        ],
+      },
+    ],
     "react/react-in-jsx-scope": "off",
     "typescript/ban-ts-comment": [
       "error",
@@ -170,16 +198,12 @@ export default defineConfig({
     },
     {
       files: ["src/core/**", "src/http/**", "web/**"],
-      rules: {
-        "eslint/no-restricted-globals": [
-          "error",
-          ...["process", "Buffer", "global", "__dirname", "__filename", "require"].map((name) => ({
-            name,
-            message:
-              "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture/one-codebase-two-install-targets.md).",
-          })),
-        ],
-      },
+      rules: { "eslint/no-restricted-globals": ["error", ...NODE_GLOBALS] },
+    },
+    {
+      files: ["web/**"],
+      excludeFiles: ["web/src/calls.ts"],
+      rules: { "eslint/no-restricted-globals": ["error", ...NODE_GLOBALS, WEB_FETCH] },
     },
     {
       files: ["web/**"],

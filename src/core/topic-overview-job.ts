@@ -1,5 +1,6 @@
 import { AI_DEADLINE_MS, type ModelAi } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
+import { bestEffort } from "./failure-log.ts";
 import { lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobOutcome, JobPorts, ModelHandler } from "./job-outcome.ts";
 import { releaseTopicLease } from "./topic-lease.ts";
@@ -61,7 +62,10 @@ async function attemptOverview(
   try {
     return await reviseOverview(ports, job, { ...prepared, ai });
   } catch (error) {
-    await ports.db.batch([releaseTopicLease(ports.db, prepared.lease)]);
+    await bestEffort(
+      { event: "topic-lease-not-released", fields: { topicId: prepared.lease.topicId } },
+      () => ports.db.batch([releaseTopicLease(ports.db, prepared.lease)]),
+    );
 
     throw error;
   }

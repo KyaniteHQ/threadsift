@@ -1,13 +1,12 @@
 import { type SQL, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { databaseCodeOf, logFailure, report } from "./failure-log.ts";
+import { databaseCodeOf, logFailure, readOrAssume, report } from "./failure-log.ts";
 import { deleteQuietly, unnamed } from "./file-cleanup.ts";
 import { closeJob } from "./job-close.ts";
 import {
   MAX_STALE_REQUEUES,
   STALE_DELAYS_MS,
-  type JobCurrency,
   type JobClosing,
   type JobFiles,
   type ClaimedRow,
@@ -20,7 +19,13 @@ import {
   type Precondition,
   type SettledOutcome,
 } from "./job-outcome.ts";
-import { enqueueItemJobs, enqueueQuietly, holding } from "./job-rows.ts";
+import {
+  discardTask,
+  discardedAfterFailure,
+  enqueueItemJobs,
+  enqueueQuietly,
+  holding,
+} from "./job-rows.ts";
 import type { WaitReason } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, aiTasks, guardHolds, guardedBatch, jobs } from "./schema.ts";
@@ -204,9 +209,13 @@ async function writeOutcome<Claimed extends ClaimedRow>(
       closing,
     });
   } catch (error) {
-    const state = await outcome.currency?.current();
+    const state = await readOrAssume(
+      true,
+      { event: "job-currency-read-failed", fields: { jobId: job.id, kind: job.kind } },
+      async () => (await outcome.currency?.current()) ?? true,
+    );
 
-    if (state !== false) throw error;
+    if (state) throw error;
 
     return "stale";
   }
@@ -214,16 +223,6 @@ async function writeOutcome<Claimed extends ClaimedRow>(
   if (result === "done" || result === "lost") return result;
 
   return writeOutcome(ports, job, await result.rebuild(), closing);
-}
-
-async function discardTask(
-  { db }: Readonly<Pick<JobPorts, "db">>,
-  currency: JobCurrency | undefined,
-  cause: Parameters<JobCurrency["discard"]>[0],
-): Promise<void> {
-  const [first, ...rest] = currency?.discard(cause) ?? [];
-
-  if (first !== undefined) await db.batch([first, ...rest]);
 }
 
 async function applySettled<Claimed extends ClaimedRow>(
@@ -242,7 +241,7 @@ async function applySettled<Claimed extends ClaimedRow>(
       { jobId: job.id, kind: job.kind, databaseCode: databaseCodeOf(error) },
       error,
     );
-    await discardTask(ports, outcome.currency, "error");
+    await discardedAfterFailure(ports, job, outcome.currency);
     throw error;
   }
 

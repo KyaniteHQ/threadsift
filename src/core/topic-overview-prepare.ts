@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 
+import { bestEffort, readOrAssume } from "./failure-log.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
 import {
   type ClaimedJob,
@@ -68,9 +69,20 @@ async function claimedLease(
   try {
     return await claimTopicLease(db, topicId, holder);
   } catch (error) {
-    const [topic] = await db.select({ id: topics.id }).from(topics).where(eq(topics.id, topicId));
+    const exists = await readOrAssume(
+      true,
+      { event: "topic-read-failed", fields: { topicId } },
+      async () => {
+        const [topic] = await db
+          .select({ id: topics.id })
+          .from(topics)
+          .where(eq(topics.id, topicId));
 
-    if (topic !== undefined) throw error;
+        return topic !== undefined;
+      },
+    );
+
+    if (exists) throw error;
 
     return "gone";
   }
@@ -98,7 +110,10 @@ export async function preparedOverview(
 
     return await readyOverview(db, lease);
   } catch (error) {
-    await db.batch([releaseTopicLease(db, lease)]);
+    await bestEffort(
+      { event: "topic-lease-not-released", fields: { topicId: lease.topicId } },
+      () => db.batch([releaseTopicLease(db, lease)]),
+    );
 
     throw error;
   }

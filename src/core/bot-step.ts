@@ -23,7 +23,7 @@ import type {
   JobWrites,
   ModelHandler,
 } from "./job-outcome.ts";
-import { holding } from "./job-rows.ts";
+import { holding, releasedAfterAttemptFailure } from "./job-rows.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
 
@@ -41,12 +41,6 @@ function waiting(task: Waiting, writes: JobWrites = []): DeferredOutcome {
     unlessOpen: task.id,
     writes,
   };
-}
-
-async function released(ports: JobPorts, release: JobWrites): Promise<void> {
-  const [first, ...rest] = release;
-
-  if (first !== undefined) await ports.db.batch([first, ...rest]);
 }
 
 async function sentOutcome(
@@ -132,7 +126,7 @@ async function startStep(
       release,
     });
   } catch (error) {
-    await released(ports, release);
+    await releasedAfterAttemptFailure(ports, job, release);
 
     throw error;
   }
@@ -157,7 +151,7 @@ async function resendStep(
   try {
     return await sentOutcome(ports, { ...context, token: credential.value, release });
   } catch (error) {
-    await released(ports, release);
+    await releasedAfterAttemptFailure(ports, job, release);
 
     throw error;
   }

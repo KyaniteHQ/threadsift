@@ -68,3 +68,35 @@ export function logFailure(
 ): void {
   console.error(JSON.stringify({ event, ...fields, error: errorClassOf(cause) }));
 }
+
+export interface FailureLine {
+  readonly event: string;
+  readonly fields: Readonly<Record<string, string | number>>;
+}
+
+export async function readOrAssume<Answer>(
+  assumed: Answer,
+  failure: Readonly<FailureLine>,
+  read: () => Promise<Answer>,
+): Promise<Answer> {
+  try {
+    return await read();
+  } catch (cause) {
+    logFailure(
+      failure.event,
+      { ...failure.fields, databaseCode: databaseCodeOf(cause), errno: errnoCodeOf(cause) },
+      cause,
+    );
+
+    return assumed;
+  }
+}
+
+export async function bestEffort<Done>(
+  failure: Readonly<FailureLine>,
+  cleanup: () => Promise<Done>,
+): Promise<void> {
+  await readOrAssume(undefined, failure, async () => {
+    await cleanup();
+  });
+}

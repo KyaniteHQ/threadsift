@@ -3,6 +3,7 @@ import { constants } from "node:fs";
 import { type FileHandle, lstat, mkdir, open, readdir, rename, rm } from "node:fs/promises";
 import { join, sep } from "node:path";
 
+import { bestEffort } from "../../core/failure-log.ts";
 import {
   EXPORT_FILES_ROOT,
   FileRefused,
@@ -22,6 +23,8 @@ import type { FilePage, FileStore, StoredFile } from "../../core/ports.ts";
 import { hasErrnoCode } from "./errno.ts";
 
 const CHUNK_BYTES = 65_536;
+
+const HANDLE_NOT_CLOSED = { event: "file-handle-not-closed", fields: {} } as const;
 
 type Kind = "directory" | "file";
 
@@ -205,7 +208,7 @@ async function readable(path: string): Promise<ReadableStream<Uint8Array> | null
       throw new FileRefused(`${path} is not a regular file`);
     }
   } catch (error) {
-    await handle.close();
+    await bestEffort(HANDLE_NOT_CLOSED, () => handle.close());
     throw error;
   }
 
@@ -226,7 +229,7 @@ async function readable(path: string): Promise<ReadableStream<Uint8Array> | null
           controller.enqueue(buffer.subarray(0, bytesRead));
         }
       } catch (error) {
-        await handle.close().catch(() => null);
+        await bestEffort(HANDLE_NOT_CLOSED, () => handle.close());
         throw error;
       }
     },
@@ -247,8 +250,10 @@ async function writeAtomically(temporary: string, leaf: string, bytes: Uint8Arra
     await handle.close();
     await rename(temporary, leaf);
   } catch (error) {
-    await handle.close().catch(() => {});
-    await rm(temporary, { force: true });
+    await bestEffort(HANDLE_NOT_CLOSED, () => handle.close());
+    await bestEffort({ event: "temporary-file-not-removed", fields: {} }, () =>
+      rm(temporary, { force: true }),
+    );
     throw error;
   }
 }
