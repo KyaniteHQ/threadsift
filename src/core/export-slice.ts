@@ -1,17 +1,18 @@
-import { sql } from "drizzle-orm";
-
-import { BACKUP_TABLES } from "./backup-tables.ts";
 import {
   EXPORT_ENTRY_BYTES,
-  EXPORT_FORMAT,
   EXPORT_PAGE_ROWS,
   EXPORT_SLICE_BYTES,
+  EXPORT_SLICE_ITEMS,
+  ITEM_FILES_STREAM,
   type ExportTally,
   ExportTallySchema,
+  type PartialItem,
   exportRootName,
 } from "./export-contract.ts";
+import { takeItems } from "./export-items.ts";
+import { manifestFile, recordPath } from "./export-manifest.ts";
 import { type RecordRow, STREAMS, openItemCount, tablePage } from "./export-records.ts";
-import type { Database } from "./ports.ts";
+import type { Database, Ports } from "./ports.ts";
 import type { ExportRow } from "./schema.ts";
 import { type ZipFile, joined } from "./zip.ts";
 
@@ -32,6 +33,10 @@ interface Progress {
   readonly perRow: number;
   readonly taken: readonly Taken[];
   readonly finished: readonly string[];
+  readonly itemFiles: readonly ZipFile[];
+  readonly itemCount: number;
+  readonly partial: PartialItem | null;
+  readonly full: boolean;
 }
 
 function takenFrom(table: string, rows: readonly RecordRow[]): Taken {
@@ -59,10 +64,6 @@ function entriesOf(lines: readonly Uint8Array[]): readonly Uint8Array[] {
   }
 
   return bytes === 0 ? entries : [...entries, joined(current)];
-}
-
-function recordPath(table: string, number: number): string {
-  return `records/${table}.${String(number)}.jsonl`;
 }
 
 function recordFiles(
@@ -112,7 +113,7 @@ function rowsToRead({ bytes, perRow }: Readonly<Pick<Progress, "bytes" | "perRow
   );
 }
 
-async function takePage(db: Database, progress: Readonly<Progress>): Promise<Progress> {
+async function takeRows(db: Database, progress: Readonly<Progress>): Promise<Progress> {
   const table = STREAMS[progress.position] ?? "";
 
   const page = await tablePage(db, table, {
@@ -129,6 +130,7 @@ async function takePage(db: Database, progress: Readonly<Progress>): Promise<Pro
       : 0;
 
   return {
+    ...progress,
     position: page.done ? progress.position + 1 : progress.position,
     cursor: page.done ? 0 : page.last,
     bytes: progress.bytes + sizeOf(taken),
@@ -139,61 +141,70 @@ async function takePage(db: Database, progress: Readonly<Progress>): Promise<Pro
   };
 }
 
-function hasRoom({ position, bytes }: Readonly<Progress>): boolean {
-  return position < STREAMS.length && bytes < EXPORT_SLICE_BYTES;
-}
-
-async function fill(db: Database, progress: Readonly<Progress>): Promise<Progress> {
-  return hasRoom(progress) ? fill(db, await takePage(db, progress)) : progress;
-}
-
-async function manifestFile(
-  db: Database,
-  { createdAt, tally }: Readonly<{ createdAt: number; tally: ExportTally }>,
-): Promise<ZipFile> {
-  const [migration] = await db
-    .select({ name: sql<string | null>`max(name)` })
-    .from(sql`d1_migrations`);
-
-  const steps = await db
-    .select({ name: sql<string>`name`, version: sql<number>`version` })
-    .from(sql`data_steps`)
-    .orderBy(sql`name`);
-
-  const sequences = await db
-    .select({ name: sql<string>`name`, seq: sql<number>`seq` })
-    .from(sql`sqlite_sequence`)
-    .orderBy(sql`name`);
-
-  const tables = Object.keys(BACKUP_TABLES).map((table) => {
-    const counted = tally.tables[table] ?? { files: 0, rows: 0 };
-
-    return [
-      table,
-      {
-        files: Array.from({ length: counted.files }, (_, at) => recordPath(table, at + 1)),
-        rows: counted.rows,
-      },
-    ] as const;
+async function takeItemFiles(
+  ports: Readonly<Pick<Ports, "db" | "files">>,
+  { root, progress }: Readonly<{ root: string; progress: Progress }>,
+): Promise<Progress> {
+  const taken = await takeItems(ports, {
+    root,
+    after: progress.cursor,
+    resume: progress.partial,
+    limit: EXPORT_SLICE_ITEMS - progress.itemCount,
+    used: progress.bytes,
   });
 
-  const manifest = {
-    format: EXPORT_FORMAT,
-    exportedAt: new Date(createdAt).toISOString(),
-    migration: migration?.name ?? null,
-    dataSteps: Object.fromEntries(steps.map(({ name, version }) => [name, version])),
-    tables: Object.fromEntries(tables),
-    sequences: Object.fromEntries(
-      sequences
-        .filter(({ name }) => Object.hasOwn(BACKUP_TABLES, name))
-        .map(({ name, seq }) => [name, seq]),
-    ),
-    openItems: tally.openItems,
-  };
-
   return {
-    name: `${exportRootName(createdAt)}/threadsift.json`,
-    bytes: TEXT.encode(`${JSON.stringify(manifest, null, 2)}\n`),
+    ...progress,
+    position: taken.done ? progress.position + 1 : progress.position,
+    cursor: taken.done ? 0 : taken.last,
+    bytes: taken.files.reduce((sum, { bytes }) => sum + bytes.length, progress.bytes),
+    itemFiles: [...progress.itemFiles, ...taken.files],
+    itemCount: progress.itemCount + taken.count,
+    partial: taken.partial,
+    full: taken.full,
+  };
+}
+
+function hasRoom({ position, bytes, itemCount, full }: Readonly<Progress>): boolean {
+  return (
+    position < STREAMS.length &&
+    bytes < EXPORT_SLICE_BYTES &&
+    itemCount < EXPORT_SLICE_ITEMS &&
+    !full
+  );
+}
+
+async function fill(
+  ports: Readonly<Pick<Ports, "db" | "files">>,
+  { root, progress }: Readonly<{ root: string; progress: Progress }>,
+): Promise<Progress> {
+  if (!hasRoom(progress)) return progress;
+
+  const next =
+    STREAMS[progress.position] === ITEM_FILES_STREAM
+      ? await takeItemFiles(ports, { root, progress })
+      : await takeRows(ports.db, progress);
+
+  return fill(ports, { root, progress: next });
+}
+
+function startOf({
+  position,
+  cursor,
+  partial,
+}: Readonly<Pick<Progress, "position" | "cursor" | "partial">>): Progress {
+  return {
+    position,
+    cursor,
+    partial,
+    bytes: 0,
+    openItems: 0,
+    perRow: 0,
+    taken: [],
+    finished: [],
+    itemFiles: [],
+    itemCount: 0,
+    full: false,
   };
 }
 
@@ -206,32 +217,38 @@ export interface BuiltSlice {
 }
 
 export async function buildSlice(
-  db: Database,
+  ports: Readonly<Pick<Ports, "db" | "files">>,
   run: Readonly<Pick<ExportRow, "createdAt" | "stream" | "cursor" | "tally">>,
 ): Promise<BuiltSlice | null> {
+  const { db } = ports;
+  const root = exportRootName(run.createdAt);
   const before = ExportTallySchema.parse(JSON.parse(run.tally));
   const position = streamPosition(run.stream);
 
   if (position === null || (before.list !== "" && before.list !== LIST)) return null;
 
-  const progress = await fill(db, {
-    position,
-    cursor: run.cursor,
-    bytes: 0,
-    openItems: 0,
-    perRow: 0,
-    taken: [],
-    finished: [],
+  const progress = await fill(ports, {
+    root,
+    progress: startOf({ position, cursor: run.cursor, partial: before.partial }),
   });
 
-  const { files, tally } = recordFiles(exportRootName(run.createdAt), before, progress);
-  const counted = { ...tally, list: LIST, openItems: tally.openItems + progress.openItems };
+  const { files, tally } = recordFiles(root, before, progress);
+
+  const counted = {
+    ...tally,
+    list: LIST,
+    openItems: tally.openItems + progress.openItems,
+    partial: progress.partial,
+  };
+
   const finished = progress.position >= STREAMS.length;
 
   return {
-    files: finished
-      ? [...files, await manifestFile(db, { createdAt: run.createdAt, tally: counted })]
-      : files,
+    files: [
+      ...files,
+      ...progress.itemFiles,
+      ...(finished ? [await manifestFile(db, { createdAt: run.createdAt, tally: counted })] : []),
+    ],
     stream: STREAMS[progress.position] ?? "",
     cursor: progress.cursor,
     tally: counted,

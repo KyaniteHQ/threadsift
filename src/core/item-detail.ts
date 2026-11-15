@@ -10,14 +10,14 @@ import { commentsOf } from "./thread-read.ts";
 function readerDigest(
   id: number,
   stored: string | undefined,
-  tagNames: readonly string[],
+  tagRows: readonly Readonly<{ name: string }>[],
 ): ReaderDigest | null {
   if (stored === undefined) return null;
 
   try {
     const { summary, keyPoints } = parseStoredDigest(stored);
 
-    return { summary, keyPoints, tags: tagNames };
+    return { summary, keyPoints, tags: tagRows.map((tag) => tag.name) };
   } catch (error) {
     logFailure("item-digest-unreadable", { itemId: id }, error);
 
@@ -31,7 +31,20 @@ export async function getItem(ports: Readonly<Pick<Ports, "db" | "files">>, id: 
   return first?.textLost === true ? (await readItem(ports, id))?.item : first?.item;
 }
 
-async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
+function commentViews(...args: Readonly<Parameters<typeof commentsOf>>) {
+  const [rows, ...rest] = args;
+
+  return {
+    comments: commentsOf(rows, ...rest),
+    keptNodes: () =>
+      commentsOf(
+        rows.map((row) => Object.assign({}, row, { readable: row.kept })),
+        ...rest,
+      ).nodes,
+  };
+}
+
+export async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
   const [
     [row],
     [stored],
@@ -43,6 +56,7 @@ async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id
     [note],
     sizes,
     related,
+    storedFiles,
   ] = await detailReads(db, id);
 
   if (row === undefined) {
@@ -52,22 +66,23 @@ async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id
   const { revision, postTextKey, ...item } = row;
   const postText = await postTextOf(files, id, { postText: item.postText, postTextKey });
 
+  const comments = commentViews(threadRows, threadReport, revision, {
+    outcome: item.digestOutcome,
+    stored: stored !== undefined,
+  });
+
   return {
     textLost: postText === null && postTextKey !== null,
+    postTextKey,
+    storedFiles,
+    keptNodes: comments.keptNodes,
     item: {
       ...item,
       postText,
-      digest: readerDigest(
-        id,
-        stored?.digest,
-        tagRows.map((tag) => tag.name),
-      ),
+      digest: readerDigest(id, stored?.digest, tagRows),
       repository: repository ?? null,
       images: sizedImagesOf(sizes),
-      comments: commentsOf(threadRows, threadReport, revision, {
-        outcome: item.digestOutcome,
-        stored: stored !== undefined,
-      }),
+      comments: comments.comments,
       link: threadReport[0]?.link ?? null,
       highlights: highlightsViewOf(held, {
         post: revision,

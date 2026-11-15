@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { highlightRows } from "./highlights.ts";
 import { DETAIL_COLUMNS, selectItems } from "./item-selection.ts";
@@ -7,7 +7,7 @@ import { noteRows } from "./notes.ts";
 import type { Database } from "./ports.ts";
 import { sizedImageRows } from "./post-text.ts";
 import { REPOSITORY_COLUMNS } from "./repositories.ts";
-import { digests, githubRepos, itemTags, items, relatedItems, tags } from "./schema.ts";
+import { digests, githubRepos, itemTags, items, media, relatedItems, tags } from "./schema.ts";
 import { threadReads } from "./thread-read.ts";
 
 function relatedRows(db: Database, itemId: number) {
@@ -23,6 +23,14 @@ function relatedRows(db: Database, itemId: number) {
     .leftJoin(digests, eq(digests.itemId, items.id))
     .where(eq(relatedItems.itemId, itemId))
     .orderBy(asc(relatedItems.position));
+}
+
+function storedFileRows(db: Database, itemId: number) {
+  return db
+    .select({ key: media.fileKey, size: media.size })
+    .from(media)
+    .where(and(eq(media.itemId, itemId), eq(media.outcome, "stored"), isNotNull(media.fileKey)))
+    .orderBy(asc(media.position));
 }
 
 export function detailReads(db: Database, id: number) {
@@ -44,5 +52,6 @@ export function detailReads(db: Database, id: number) {
     noteRows(db, id),
     sizedImageRows(db, id),
     relatedRows(db, id),
+    storedFileRows(db, id),
   ]);
 }

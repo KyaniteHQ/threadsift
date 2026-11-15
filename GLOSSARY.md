@@ -153,7 +153,7 @@ The Markdown copy of every Item, Topic page, the Index and the Log in a folder o
 _Avoid_: Sync, Obsidian export
 
 **Export**:
-The zip of the whole library that the owner starts and downloads: the manifest `threadsift.json` and every library record as JSON Lines files, and later the Markdown note of each Item with its stored images. The Instance builds it in slices, one export at a time, and keeps a ready one for 24 hours.
+The zip of the whole library that the owner starts and downloads: the manifest `threadsift.json`, every library record as JSON Lines files, and the Markdown note of each Item with its stored images and post text file beside it. The Instance builds it in slices, one export at a time, and keeps a ready one for 24 hours.
 _Avoid_: Backup, dump, archive
 
 ### Settings
