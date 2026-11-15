@@ -413,7 +413,7 @@ item = body["item"]["id"]
 if isinstance(item, bool) or not isinstance(item, int) or body["url"] != f"/items/{item}":
     sys.exit(1)
 print(item)
-' "$response" 2> /dev/null)" && word="$word $saved_id $URL/items/$saved_id" || word=failed
+' "$response" 2> /dev/null)" && word="$word $saved_id /items/$saved_id" || word=failed
 fi
 
 if [[ "$word" == ok ]]; then

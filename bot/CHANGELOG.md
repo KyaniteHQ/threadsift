@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## bot-v6
+
+- A chat save links the Item even when the Instance URL is a stored secret. `save` prints `ok <id> <path>` and `duplicate <id> <path>`, where `<path>` is `/items/<id>`, instead of an address with the Instance URL, which the chat hides because that URL is a stored secret. The skill tells the bot to join the path to the Instance URL it keeps as a memory, and to answer with the id and no link when that memory is missing.
+
 ## bot-v5
 
 - A chat save answers with a link to the Item in your library. `save` prints `ok <id> <address>` for a new link and `duplicate <id> <address>` for a link the library already holds, and the skill tells the bot to answer with the link, instead of `ok` and `duplicate` alone, which gave the bot no Item to link.
