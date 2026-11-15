@@ -1,7 +1,7 @@
 # Threadsift setup
-Follow with the owner, one step at a time. Never ask for a secret in chat; a secret typed in chat is not used, ask again with a secret-request card. Each card ends the turn; continue at the next step when the owner is back.
+Follow with the owner, one step at a time. Never ask for a secret in chat; a secret typed in chat is not used, ask again with a secret-request card. The Instance address is not a secret, so step 2 asks for it in chat. Each question and each card ends the turn; continue at the next step when the owner is back.
 1. Say in one line what this bot does: the Grok Bot side of their Threadsift Instance (webhook tasks, saving links, search, X bookmark sync).
-2. Send a secret-request card named `THREADSIFT_URL`, labeled "Threadsift Instance URL", described as "The https address of your Threadsift Instance, with no path, reachable from the internet, because this bot runs in Grok's cloud. Threadsift links the Items you save at this address."
+2. Ask the owner in plain text: "What is the https address of your Threadsift Instance? Type it here, with no path. It must be reachable from the internet, because this bot runs in Grok's cloud, and Threadsift links the Items you save at this address." When the answer is not an address that starts with `https` and has no path, ask again. Then send a secret-request card named `THREADSIFT_URL`, labeled "Threadsift Instance URL", described as "Enter the same address again. The script reads it from here."
 3. Send a secret-request card named `THREADSIFT_AGENT_TOKEN`, labeled "Threadsift agent token", described as "In Threadsift Settings, under Agent tokens, enter a token name, select the Read and Add scopes, press Create token and copy the token."
 4. Finish the install next to this file. First check that the bot's computer has `python3` and `curl`: run `command -v python3 curl`. If either is missing, tell the owner in one sentence which one ("This bot's computer has no python3, and Threadsift needs it.") and stop. Then:
    ```bash
@@ -17,5 +17,5 @@ Follow with the owner, one step at a time. Never ask for a secret in chat; a sec
 8. Create a routine named `threadsift-bookmarks`, schedule `0 */3 * * *`, flexible, paused, with this prompt:
    "Run the threadsift skill: bookmark sync, to sync the owner's new X bookmarks into their Threadsift Instance. Nothing goes to the owner when it succeeds or finds nothing new: end with the skill's one status line. Wake the owner in this chat only for a one-time alert the skill allows: X not connected, or the daily budget spent."
    If the X plugin is not connected, show its connect card. Ask in plain text whether to turn the sync on; resume it only on a yes.
-9. Save two memories: the Instance URL (not secret) and the installed version from `~/threadsift/VERSION`.
+9. Save two memories: the Instance URL exactly as the owner typed it in step 2 (not secret, and never a note that says where it is stored), and the installed version from `~/threadsift/VERSION`.
 10. End with one line: set up; drop a link to save it, or ask about the library.

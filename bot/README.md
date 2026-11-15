@@ -5,7 +5,7 @@ The Threadsift bot is a Grok Bot for one Threadsift Instance. It answers tasks T
 The bot has one skill, `threadsift`. The folder holds the skill text (`skills/threadsift/SKILL.md`), the short bot profile (`profile.md`, one description, because a template has one profile field), the setup and update guides (`setup.md`, `update.md`), two routine prompts (`routines/`), and the script (`scripts/threadsift.sh`) that makes every call to the Instance. The rules of the bot (what it never does, its voice, what its memory holds) are in the skill, not the profile.
 
 1. Open the template address below, import the template in Grok Bot, then say "set up threadsift" in the new bot's chat.
-2. Setup asks for your Instance address and an agent token (made under Agent tokens in Settings, with Read and Add scopes) through masked secret cards, so neither appears in chat.
+2. Setup asks you to type your Instance address in chat, because it is a public web address that the bot keeps as a memory to link your saved Items. It then asks for the address again and for an agent token (made under Agent tokens in Settings, with Read and Add scopes) through masked secret cards, which the script reads, so the token never appears in chat. A bot set up before bot-v6 has no address memory; "update threadsift" and the first link it saves ask for the address once.
 3. It installs the script, checks the connection, and creates the two routines.
 4. Paste the webhook address and key from the `threadsift-webhook` routine's panel into Threadsift Settings, in the Grok Bot section; they are never part of the template.
 

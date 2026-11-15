@@ -1,6 +1,6 @@
 # Threadsift update
 Never auto-apply. Only release tags, never a branch.
-1. Installed version: `~/threadsift/VERSION`.
+1. Installed version: `~/threadsift/VERSION`. Then check your memories: when none holds the Instance URL, ask the owner once in plain text: "What is the https address of your Threadsift Instance? Type it here, with no path. I use it to link the Items you save." When the answer is an address that starts with `https` and has no path, save it as the Instance URL memory. Go on with step 2 after the answer.
 2. Latest tag: read the tags that start with `bot-v` with this call. Every `ref` looks like `refs/tags/bot-v<N>`; the latest is the one with the highest number `N`, compared as numbers. No GitHub Release is needed.
    ```bash
    curl -fsSL https://api.github.com/repos/KyaniteHQ/threadsift/git/matching-refs/tags/bot-v
