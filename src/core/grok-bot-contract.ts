@@ -92,7 +92,7 @@ export const GROK_BOT_IN_USE =
 
 export const GROK_BOT_UNREADY = ["secret-missing", "not-configured", "refused"] as const;
 
-export type GrokBotUnready = (typeof GROK_BOT_UNREADY)[number];
+export type GrokBotUnreadyReason = (typeof GROK_BOT_UNREADY)[number];
 
 export const GrokBotUnreadySchema = z.object({
   error: z.string(),

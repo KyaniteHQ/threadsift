@@ -5,7 +5,7 @@ import {
   GROK_BOT_PING_KIND,
   type GrokBotInput,
   type GrokBotResult,
-  type GrokBotUnready,
+  type GrokBotUnreadyReason,
   type GrokBotView,
   allowedGrokBotUrl,
   grokBotAddressOf,
@@ -188,7 +188,7 @@ interface GrokBotPost {
 
 type GrokBotConnection =
   | { readonly kind: "ready"; readonly row: SavedRow; readonly key: string }
-  | { readonly kind: "unready"; readonly reason: GrokBotUnready };
+  | { readonly kind: "unready"; readonly reason: GrokBotUnreadyReason };
 
 export function connectionOf(
   secrets: GrokBotPorts["secrets"],
