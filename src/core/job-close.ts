@@ -21,7 +21,7 @@ function owedDigest(db: Database, itemId: number) {
     scope: and(eq(items.id, itemId), isNotNull(items.pendingDigest)) ?? sql`0`,
     address: items.originalUrl,
     now: Date.now(),
-  }).job;
+  });
 }
 
 export function closeJob(

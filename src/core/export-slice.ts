@@ -11,7 +11,13 @@ import {
 } from "./export-contract.ts";
 import { takeItems } from "./export-items.ts";
 import { manifestFile, recordPath } from "./export-manifest.ts";
-import { type RecordRow, STREAMS, openItemCount, tablePage } from "./export-records.ts";
+import {
+  type RecordRow,
+  STREAMS,
+  STREAM_LIST,
+  openItemCount,
+  tablePage,
+} from "./export-records.ts";
 import type { Database, Ports } from "./ports.ts";
 import type { ExportRow } from "./schema.ts";
 import { type ZipFile, joined } from "./zip.ts";
@@ -93,8 +99,6 @@ function recordFiles(
 
   return { files, tally: { ...tally, tables: counted } };
 }
-
-const LIST = STREAMS.join(",");
 
 function streamPosition(stream: string): number | null {
   if (stream === "") return 0;
@@ -225,7 +229,7 @@ export async function buildSlice(
   const before = ExportTallySchema.parse(JSON.parse(run.tally));
   const position = streamPosition(run.stream);
 
-  if (position === null || (before.list !== "" && before.list !== LIST)) return null;
+  if (position === null || (before.list !== "" && before.list !== STREAM_LIST)) return null;
 
   const progress = await fill(ports, {
     root,
@@ -236,7 +240,7 @@ export async function buildSlice(
 
   const counted = {
     ...tally,
-    list: LIST,
+    list: STREAM_LIST,
     openItems: tally.openItems + progress.openItems,
     partial: progress.partial,
   };

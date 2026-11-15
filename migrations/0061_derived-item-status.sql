@@ -2,6 +2,8 @@ DROP TRIGGER `items_status_reason_insert`;
 --> statement-breakpoint
 DROP TRIGGER `items_status_reason_update`;
 --> statement-breakpoint
+UPDATE `items` SET `reason` = NULL WHERE `status` <> 'failed' AND `reason` IS NOT NULL;
+--> statement-breakpoint
 ALTER TABLE `items` DROP COLUMN `status`;
 --> statement-breakpoint
 CREATE TRIGGER `items_reason_insert` BEFORE INSERT ON `items` WHEN NEW.reason is not null and NEW.reason not in ('timeout','network','gave-up','rate-limited') BEGIN

@@ -38,7 +38,7 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
       scope: live,
       address: known.originalUrl,
       now: Date.now(),
-    }).job,
+    }),
     markDigest(ports.db, id, "cleared"),
     selectItems(ports.db, LISTED_COLUMNS).where(eq(items.normalizedUrl, known.normalizedUrl)),
   ]);

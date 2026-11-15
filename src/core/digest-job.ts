@@ -34,7 +34,7 @@ export function openingDigest(
     now,
   }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
 ) {
-  return { job: opening(db, { kind: "digest", address, now, where: eligibleDigest(scope) }) };
+  return opening(db, { kind: "digest", address, now, where: eligibleDigest(scope) });
 }
 
 export async function sweepDigests(db: Database, now: number): Promise<void> {
@@ -64,7 +64,7 @@ export function digestAfterFetch(
       scope: and(eq(items.id, job.itemId), configured) ?? sql`0`,
       address: job.address,
       now: Date.now(),
-    }).job,
+    }),
     ...keptNotUpdated(
       db,
       job.itemId,
@@ -99,24 +99,24 @@ function owedDigests(
       ),
     ) ?? sql`0`;
 
-  const older = openingDigest(db, {
-    scope:
-      limit === undefined
-        ? withoutDigest
-        : inArray(
-            items.id,
-            db
-              .select({ id: items.id })
-              .from(items)
-              .where(eligibleDigest(withoutDigest))
-              .orderBy(asc(items.id))
-              .limit(limit),
-          ),
-    address: sql`${items.originalUrl}`,
-    now: Date.now(),
-  });
-
-  return [older.job] as const;
+  return [
+    openingDigest(db, {
+      scope:
+        limit === undefined
+          ? withoutDigest
+          : inArray(
+              items.id,
+              db
+                .select({ id: items.id })
+                .from(items)
+                .where(eligibleDigest(withoutDigest))
+                .orderBy(asc(items.id))
+                .limit(limit),
+            ),
+      address: sql`${items.originalUrl}`,
+      now: Date.now(),
+    }),
+  ] as const;
 }
 
 export function olderDigests(db: Database) {

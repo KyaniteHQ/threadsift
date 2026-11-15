@@ -36,6 +36,10 @@ function columnsOf(table: string): readonly string[] {
   return listed.columns;
 }
 
+export const STREAM_LIST = STREAMS.map((name) =>
+  name === ITEM_FILES_STREAM ? name : `${name}(${columnsOf(name).join(" ")})`,
+).join(",");
+
 function scopeOf(table: string): SQL {
   const listed = Object.entries(BACKUP_TABLES).find(([name]) => name === table)?.[1];
 
