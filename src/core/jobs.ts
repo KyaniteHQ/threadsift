@@ -15,8 +15,16 @@ import {
 import { logFailure } from "./failure-log.ts";
 import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";
 import { HANDLERS } from "./job-handlers.ts";
-import { CLAIM_MARGIN_MS, type ClaimedJob, type JobPorts, RETRY_DELAYS_MS } from "./job-outcome.ts";
-import { ATTEMPT_FILES, hasOpenJob } from "./job-rows.ts";
+import {
+  CLAIM_MARGIN_MS,
+  type ClaimedColumns,
+  type ClaimedRow,
+  type JobHandler,
+  type JobPorts,
+  RETRY_DELAYS_MS,
+  ownedClaim,
+} from "./job-outcome.ts";
+import { ATTEMPT_FILES, enqueueRows, hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { items, jobs, xVerifications } from "./schema.ts";
@@ -56,12 +64,26 @@ export function dueIds(db: Database, now: number, limit: number) {
     .limit(limit);
 }
 
+export async function enqueueDue(ports: JobPorts, now: number, limit: number): Promise<void> {
+  await enqueueRows(ports, await dueIds(ports.db, now, limit));
+}
+
 const INPUT_VERSION = sql`case ${jobs.kind}
   when 'digest' then (select ${items.generation} from ${items} where ${items.id} = ${jobs.itemId})
   when 'x_verify' then (select ${xVerifications.revision} from ${xVerifications} where ${xVerifications.itemId} = ${jobs.itemId})
 end`;
 
-async function claim(db: Database, which: () => SQL, now: number): Promise<ClaimedJob | null> {
+function claimedRow(row: Readonly<ClaimedColumns>): ClaimedRow {
+  const { attemptKey: _key, imagePrefix: _prefix, kind, itemId, ...columns } = row;
+
+  if (kind !== "export") return ownedClaim(row);
+
+  if (itemId !== null) throw new Error(`Job ${String(row.id)} is an export with an Item`);
+
+  return { ...columns, kind, itemId };
+}
+
+async function claim(db: Database, which: () => SQL, now: number): Promise<ClaimedRow | null> {
   const [claimed] = await db
     .update(jobs)
     .set({
@@ -74,22 +96,30 @@ async function claim(db: Database, which: () => SQL, now: number): Promise<Claim
     .where(and(which(), isDue(now)))
     .returning({
       ...getTableColumns(jobs),
-      attemptKey: ATTEMPT_FILES.postText,
-      imagePrefix: ATTEMPT_FILES.imagePrefix,
+      attemptKey: sql<string | null>`${ATTEMPT_FILES.postText}`,
+      imagePrefix: sql<string | null>`${ATTEMPT_FILES.imagePrefix}`,
     });
 
-  return claimed ?? null;
+  return claimed === undefined ? null : claimedRow(claimed);
 }
 
-export function claimNextDue(db: Database): Promise<ClaimedJob | null> {
+export function claimNextDue(db: Database): Promise<ClaimedRow | null> {
   const now = Date.now();
 
   return claim(db, () => inArray(jobs.id, dueIds(db, now, 1)), now);
 }
 
-export async function executeClaimed(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<void> {
-  const handler = HANDLERS[job.kind];
+export function executeClaimed(ports: JobPorts, job: Readonly<ClaimedRow>): Promise<void> {
+  return job.kind === "export"
+    ? attempted(ports, job, HANDLERS.export)
+    : attempted(ports, job, HANDLERS[job.kind]);
+}
 
+async function attempted<Claimed extends ClaimedRow>(
+  ports: JobPorts,
+  job: Readonly<Claimed>,
+  handler: JobHandler<Claimed>,
+): Promise<void> {
   if (job.attempts >= MAX_ATTEMPTS) {
     await exhaust(ports, job, handler, job.attempts);
 

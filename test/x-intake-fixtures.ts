@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { botStep } from "../src/core/bot-step.ts";
 import { ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
-import type { ClaimedJob } from "../src/core/job-outcome.ts";
+import { type ClaimedJob, ownedClaim } from "../src/core/job-outcome.ts";
 import { jobs } from "../src/core/schema.ts";
 import { xIntakeKind } from "../src/core/x-intake.ts";
 import type { Credential } from "./bot-task-http.ts";
@@ -74,7 +74,7 @@ export async function openFetchJob(instance: Instance, itemId: number): Promise<
 
   if (job === undefined) throw new Error("the job was not stored");
 
-  return Object.assign(job, { attemptKey: "", imagePrefix: "" });
+  return ownedClaim({ ...job, attemptKey: "", imagePrefix: "" });
 }
 
 export async function sentIntake(instance: Instance): Promise<IntakeTask> {

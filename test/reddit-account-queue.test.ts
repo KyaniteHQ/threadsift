@@ -4,9 +4,9 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 
 import { fetchHandler } from "../src/core/fetch-job.ts";
-import type { Closing } from "../src/core/job-outcome.ts";
+import { type Closing, ownedClaim } from "../src/core/job-outcome.ts";
 import { takeTurn } from "../src/core/reddit-account-queue.ts";
-import { jobs as jobsTable } from "../src/core/schema.ts";
+import { type JobRow, jobs as jobsTable } from "../src/core/schema.ts";
 import { Instance } from "./instance.ts";
 import {
   LATER,
@@ -27,6 +27,9 @@ const OTHER_LINK = "https://github.com/KyaniteHQ/threadsift";
 
 const WAIT_FOR_REDDIT: Closing = { kind: "deferred", wait: "reddit-limit" };
 
+const fetching = (row: Readonly<JobRow>, address: string) =>
+  ownedClaim({ ...row, address, attemptKey: "", imagePrefix: "" });
+
 describe("one fill takes the Reddit account at a time, oldest first", () => {
   let instance: Instance;
 
@@ -37,7 +40,7 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
 
     assert.ok(row !== undefined);
 
-    const writes = fetchHandler.closing?.(database(), { ...row, address }, how) ?? [];
+    const writes = fetchHandler.closing?.(database(), fetching(row, address), how) ?? [];
     const [first, ...rest] = writes;
 
     if (first !== undefined) await database().batch([first, ...rest]);
@@ -203,17 +206,16 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
 
     assert.ok(row !== undefined);
     assert.equal(
-      fetchHandler.closing?.(database(), { ...row, address: OTHER_LINK }, { kind: "closed" })
-        .length,
+      fetchHandler.closing?.(database(), fetching(row, OTHER_LINK), { kind: "closed" }).length,
       0,
     );
     assert.equal(
-      fetchHandler.closing?.(database(), { ...row, address: OTHER_LINK }, WAIT_FOR_REDDIT).length,
+      fetchHandler.closing?.(database(), fetching(row, OTHER_LINK), WAIT_FOR_REDDIT).length,
       0,
     );
     assert.ok(
-      (fetchHandler.closing?.(database(), { ...row, address: REDDIT_LINK }, { kind: "closed" })
-        .length ?? 0) > 0,
+      (fetchHandler.closing?.(database(), fetching(row, REDDIT_LINK), { kind: "closed" }).length ??
+        0) > 0,
     );
   });
 

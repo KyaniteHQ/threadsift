@@ -4,12 +4,13 @@ import { type FileHandle, lstat, mkdir, open, readdir, rename, rm } from "node:f
 import { join, sep } from "node:path";
 
 import {
+  EXPORT_FILES_ROOT,
   FileRefused,
+  ITEM_FILES_ROOT,
+  type StoreKey,
+  type StoreRoot,
   TEMPORARY_BYTES,
-  type FileKey,
-  isItemId,
-  itemFileKey,
-  itemFilesPrefix,
+  isOwnerId,
   parseStoredKey,
   requireFileKey,
   requireStoredKey,
@@ -67,6 +68,12 @@ function endsBefore(folderPrefix: string, cursor: string): boolean {
   return cursor > folderPrefix && !cursor.startsWith(folderPrefix);
 }
 
+const ROOT_PREFIX = { items: ITEM_FILES_ROOT, exports: EXPORT_FILES_ROOT } as const;
+
+function ownerPrefix(root: StoreRoot, ownerId: string): string {
+  return `${ROOT_PREFIX[root]}${ownerId}/`;
+}
+
 interface Located {
   readonly leaf: string;
   readonly present: boolean;
@@ -89,32 +96,32 @@ class FileFolder {
     return path;
   }
 
-  folders(itemId: string | null): string[] {
-    const items = this.path("items");
+  folders(root: StoreRoot, ownerId: string | null): string[] {
+    const kind = this.path(root);
 
-    return itemId === null ? [this.root, items] : [this.root, items, this.path("items", itemId)];
+    return ownerId === null ? [this.root, kind] : [this.root, kind, this.path(root, ownerId)];
   }
 
-  hasFolders(itemId: string | null): Promise<boolean> {
-    return allPresent(this.folders(itemId));
+  hasFolders(root: StoreRoot, ownerId: string | null): Promise<boolean> {
+    return allPresent(this.folders(root, ownerId));
   }
 
-  ensureFolders(itemId: string): Promise<void> {
-    return ensureAll(this.folders(itemId));
+  ensureFolders(root: StoreRoot, ownerId: string): Promise<void> {
+    return ensureAll(this.folders(root, ownerId));
   }
 
-  async locate({ itemId, name }: Readonly<FileKey>): Promise<Located> {
-    const leaf = this.path("items", itemId, name);
-    const present = (await this.hasFolders(itemId)) && (await exists(leaf, "file"));
+  async locate({ root, ownerId, name }: Readonly<StoreKey>): Promise<Located> {
+    const leaf = this.path(root, ownerId, name);
+    const present = (await this.hasFolders(root, ownerId)) && (await exists(leaf, "file"));
 
     return { leaf, present };
   }
 
-  private async keysIn(itemId: string): Promise<string[]> {
+  private async keysIn(root: StoreRoot, ownerId: string): Promise<string[]> {
     try {
-      return (await readdir(this.path("items", itemId), { withFileTypes: true }))
+      return (await readdir(this.path(root, ownerId), { withFileTypes: true }))
         .filter((entry) => entry.isFile())
-        .map((entry) => itemFileKey(itemId, entry.name))
+        .map((entry) => `${ownerPrefix(root, ownerId)}${entry.name}`)
         .filter((key) => parseStoredKey(key) !== null)
         .toSorted();
     } catch (error) {
@@ -124,36 +131,41 @@ class FileFolder {
     }
   }
 
-  private async itemIds(itemId: string | null): Promise<string[]> {
-    if (itemId !== null) return [itemId];
+  private async ownerIds(root: StoreRoot, ownerId: string | null): Promise<string[]> {
+    if (ownerId !== null) return [ownerId];
 
-    return (await readdir(this.path("items"), { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory() && isItemId(entry.name))
+    return (await readdir(this.path(root), { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory() && isOwnerId(entry.name))
       .map((entry) => entry.name)
       .toSorted();
   }
 
   private async keysFrom(
+    root: StoreRoot,
     [first, ...rest]: readonly string[],
     cursor: string | null,
     limit: number,
   ): Promise<string[]> {
     if (first === undefined || limit < 1) return [];
 
-    const found = (await this.keysIn(first)).filter((key) => cursor === null || key > cursor);
-    const later = await this.keysFrom(rest, cursor, limit - found.length);
+    const found = (await this.keysIn(root, first)).filter((key) => cursor === null || key > cursor);
+    const later = await this.keysFrom(root, rest, cursor, limit - found.length);
 
     return [...found, ...later].slice(0, limit);
   }
 
-  async keysAfter(itemId: string | null, cursor: string | null, limit: number): Promise<string[]> {
-    if (!(await this.hasFolders(itemId))) return [];
+  async keysAfter(
+    { root, ownerId }: Readonly<{ root: StoreRoot; ownerId: string | null }>,
+    cursor: string | null,
+    limit: number,
+  ): Promise<string[]> {
+    if (!(await this.hasFolders(root, ownerId))) return [];
 
-    const itemIds = (await this.itemIds(itemId)).filter(
-      (id) => cursor === null || !endsBefore(itemFilesPrefix(id), cursor),
+    const ownerIds = (await this.ownerIds(root, ownerId)).filter(
+      (id) => cursor === null || !endsBefore(ownerPrefix(root, id), cursor),
     );
 
-    return this.keysFrom(itemIds, cursor, limit);
+    return this.keysFrom(root, ownerIds, cursor, limit);
   }
 
   async uploaded(key: string): Promise<StoredFile | null> {
@@ -248,10 +260,10 @@ export function dataFileStore(dataDir: string): FileStore {
     put: async (key, bytes) => {
       const parsed = requireFileKey(key);
 
-      await folder.ensureFolders(parsed.itemId);
+      await folder.ensureFolders(parsed.root, parsed.ownerId);
 
       const { leaf } = await folder.locate(parsed);
-      const temporary = folder.path("items", parsed.itemId, temporaryName(parsed.name));
+      const temporary = folder.path(parsed.root, parsed.ownerId, temporaryName(parsed.name));
 
       await writeAtomically(temporary, leaf, bytes);
     },
@@ -270,7 +282,7 @@ export function dataFileStore(dataDir: string): FileStore {
     },
     list: async (prefix, cursor, limit): Promise<FilePage> => {
       const size = requireListLimit(limit);
-      const after = await folder.keysAfter(requireFilePrefix(prefix).itemId, cursor, size + 1);
+      const after = await folder.keysAfter(requireFilePrefix(prefix), cursor, size + 1);
       const page = after.slice(0, size);
 
       const files = (await Promise.all(page.map((key) => folder.uploaded(key)))).filter(

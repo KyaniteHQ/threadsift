@@ -44,6 +44,8 @@ export { grokBotSettings } from "./grok-bot-tables.ts";
 
 export { type HighlightRow, highlights } from "./highlight-tables.ts";
 
+export { type ExportRow, exportRuns } from "./export-tables.ts";
+
 export { type ImportRow, imports } from "./import-tables.ts";
 
 export { logEntries, logStart } from "./log-tables.ts";
@@ -123,9 +125,7 @@ export const jobs = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     kind: text("kind", { enum: JOB_KINDS }).notNull(),
-    itemId: integer("item_id")
-      .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
+    itemId: integer("item_id").references(() => items.id, { onDelete: "cascade" }),
     address: text("address").notNull(),
     state: text("state", { enum: JOB_STATES }).notNull(),
     attempts: integer("attempts").notNull().default(0),

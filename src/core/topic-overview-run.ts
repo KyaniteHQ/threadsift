@@ -5,7 +5,7 @@ import type { ClaimedJob } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { providerSet } from "./provider-saved.ts";
-import { type JobRow, aiTasks, items, jobs, topicLeases, topicPages, topics } from "./schema.ts";
+import { aiTasks, items, jobs, topicLeases, topicPages, topics } from "./schema.ts";
 import { coverageGaps } from "./topic-coverage.ts";
 import { type TopicLease, leaseMatches, recoverPrefixLeases } from "./topic-lease.ts";
 import type { BuiltFrom, OverviewFailure } from "./topic-overview-contract.ts";
@@ -121,7 +121,7 @@ function ownedByJob(jobId: number) {
 
 export function overviewGaveUp(
   db: Database,
-  { id, itemId }: Readonly<Pick<JobRow, "id" | "itemId">>,
+  { id, itemId }: Readonly<Pick<ClaimedJob, "id" | "itemId">>,
 ) {
   const owned = db
     .select({ topicId: sql<number>`${items.topicId}`.as("topic_id") })

@@ -1,9 +1,9 @@
 import { sweepDigests } from "./digest-job.ts";
+import { cleanExports } from "./export-cleanup.ts";
 import { logFailure } from "./failure-log.ts";
 import { cleanFiles } from "./file-cleanup.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { enqueueRows } from "./job-rows.ts";
-import { dueIds } from "./jobs.ts";
+import { enqueueDue } from "./jobs.ts";
 import { continueMerges } from "./merge-accept.ts";
 import { sweepConnectTransactions } from "./openrouter-connect.ts";
 import { weeklyStages } from "./proposal-week.ts";
@@ -18,7 +18,7 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
     [
       "enqueue",
       async () => {
-        await enqueueRows(ports, await dueIds(ports.db, now, SWEEP_LIMIT));
+        await enqueueDue(ports, now, SWEEP_LIMIT);
       },
     ],
     [
@@ -36,6 +36,7 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
     ...weeklyStages(ports, now),
     ["merges", () => continueMerges(ports)],
     ["search", () => reconcileSearchParts(ports)],
+    ["exports", () => cleanExports(ports)],
     ["files", () => cleanFiles(ports)],
   ];
 }
