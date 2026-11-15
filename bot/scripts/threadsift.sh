@@ -121,7 +121,6 @@ mark_word() {
 written() {
   local mode="$1" name="$2" target size
   [[ "$name" =~ $NAME ]] || stop bad-input "bad file name"
-  plain_dirs
   target="$HERE/tmp/$name"
   if [[ "$mode" == append ]]; then
     [[ -f "$target" && ! -L "$target" ]] || stop bad-input "append needs a file that write made"
@@ -139,20 +138,17 @@ written() {
   else
     mv -T -- "$part" "$target" || stop failed "cannot store the file"
   fi
-  find "$HERE/tmp" -maxdepth 1 -type f -mmin +1440 -delete 2> /dev/null || true
   echo ok
 }
 
 forgotten() {
   [[ "$1" =~ ^[0-9a-f]{32}$ ]] || stop bad-input "forget takes the hex of a mark"
-  plain_dirs
   rm -f -- "${HERE:?}/tmp/search-$1.json" "${HERE:?}/tmp/topics-$1.json"
   echo ok
 }
 
 same_address() {
   local typed
-  plain_dirs
   take "$1" "the address file"
   [[ "$(basename "$taken")" =~ $NAME ]] || stop bad-input "the address file needs a name made by write"
   typed="$(< "$taken")"
@@ -162,19 +158,21 @@ same_address() {
 }
 
 pruned_tasks() {
-  local dir
-  while IFS= read -r -d '' dir; do
-    [[ "$dir" =~ /tasks/[0-9]{1,16}$ ]] || continue
-    if [[ -f "$dir/done" ]]; then
-      [[ -z "$(find "$dir/done" -maxdepth 0 -mmin +10080)" ]] || rm -rf -- "${dir:?}"
-    elif [[ -f "$dir/token" ]]; then
-      find "$dir/token" -maxdepth 0 -mmin +1440 -delete 2> /dev/null || true
-    fi
-  done < <(find "$HERE/tasks" -mindepth 1 -maxdepth 1 -type d -print0)
+  local tasks="$HERE/tasks"
+  find "$HERE/tmp" -maxdepth 1 -type f -mmin +1440 -delete 2> /dev/null || true
+  find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[0-9]{1,16}/done' -mmin +10080 \
+    -exec sh -c 'for each; do rm -rf -- "${each%/*}"; done' _ {} + 2> /dev/null || true
+  find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[0-9]{1,16}/task\.json' -mmin +1440 \
+    -exec sh -c 'for each; do [ -e "${each%/*}/done" ] || rm -rf -- "${each%/*}"; done' _ {} + 2> /dev/null || true
+  find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[0-9]{1,16}/token' -mmin +1440 -delete 2> /dev/null || true
 }
 
+[[ "$command" != mark ]] || { mark_word; exit 0; }
+
+plain_dirs
+pruned_tasks
+
 case "$command" in
-  mark) mark_word; exit 0 ;;
   forget) forgotten "$first"; exit 0 ;;
   same-address) same_address "$first"; exit 0 ;;
   write) written write "$first"; exit 0 ;;
@@ -182,8 +180,6 @@ case "$command" in
 esac
 
 [[ "$command" != task-intake ]] && route_of "$command" || stop bad-input "unknown command"
-
-plain_dirs
 
 id=""
 token=""
@@ -243,7 +239,6 @@ PY
     echo already-open
     exit 0
   fi
-  pruned_tasks
 fi
 
 URL="${THREADSIFT_URL:-}"

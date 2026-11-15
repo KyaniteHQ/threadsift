@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## bot-v7
+
+- The script deletes the folder of a task that stays unanswered for one day, which takes its credential with it, the folder of a task 7 days after it is done, and any file in `tmp` older than a day, on every command except `mark`. Before, the folder rules ran only on a `task-open` that was not a ping and not for a task that was already done or was opened less than an hour ago, and the `tmp` rule only on `write` or `append`, so a bot that kept saving links and searching but received no new task kept the credential of an unanswered task past one day. A task folder that kept only its text after bot-v6 deleted the credential is deleted by the same rule. A prune that fails no longer stops the command.
+
 ## bot-v6
 
 - A chat save links the Item even when the Instance URL is a stored secret. `save` prints `ok <id> <path>` and `duplicate <id> <path>`, where `<path>` is `/items/<id>`, instead of an address with the Instance URL, which the chat hides because that URL is a stored secret. The skill joins the path to the Instance URL it keeps as a memory, and only after the new `same-address <file>` command printed `ok`: it compares that memory with the address in the `THREADSIFT_URL` card and prints `ok` or `differs`, never either address. Setup now asks you to type the address in chat and saves it as the memory, because a card's value is for the script only. A bot without the memory, or with a note in its place, asks for the address on the first link it saves and in later "update threadsift" runs, and answers with the id and no link until you answer. A bot that is updated from bot-v5 runs the old updater, which replaces the script before it rewrites the skill. When the skill rewrite fails in between, the old skill shows a path as a link that opens nothing; say "update threadsift" again to finish the update.
