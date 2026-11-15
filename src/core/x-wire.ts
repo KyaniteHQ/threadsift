@@ -21,6 +21,10 @@ const StoredPostedAt = z.number().int().nullable();
 
 const Count = z.number().int().nonnegative().nullable();
 
+function repliesArrayOf<Reply extends z.ZodType>(reply: Reply) {
+  return z.array(reply).max(X_REPLIES_MAX, { error: `more than ${String(X_REPLIES_MAX)} replies` });
+}
+
 function threadSchemaOf<
   PostedAt extends z.ZodType<number | null>,
   Repaired extends z.ZodType<boolean | undefined>,
@@ -44,19 +48,17 @@ function threadSchemaOf<
         .max(X_QUOTES_MAX, { error: `more than ${String(X_QUOTES_MAX)} quoted posts` })
         .default([]),
     }),
-    replies: z
-      .array(
-        z.strictObject({
-          id: StatusIdSchema,
-          parentId: StatusIdSchema,
-          author: Handle,
-          text: z.string(),
-          postedAt,
-          likes: Count,
-          repairedParent,
-        }),
-      )
-      .max(X_REPLIES_MAX, { error: `more than ${String(X_REPLIES_MAX)} replies` }),
+    replies: repliesArrayOf(
+      z.strictObject({
+        id: StatusIdSchema,
+        parentId: StatusIdSchema,
+        author: Handle,
+        text: z.string(),
+        postedAt,
+        likes: Count,
+        repairedParent,
+      }),
+    ),
   });
 }
 
@@ -66,9 +68,7 @@ export const XCliThreadSchema = XThreadSchema.extend({
   post: XThreadSchema.shape.post.extend({
     quoted: XThreadSchema.shape.post.shape.quoted.unwrap(),
   }),
-  replies: z
-    .array(XThreadSchema.shape.replies.element.extend({ replies: Count }))
-    .max(X_REPLIES_MAX, { error: `more than ${String(X_REPLIES_MAX)} replies` }),
+  replies: repliesArrayOf(XThreadSchema.shape.replies.element.extend({ replies: Count })),
 });
 
 export const StoredXThreadSchema = threadSchemaOf(StoredPostedAt, z.boolean().optional());

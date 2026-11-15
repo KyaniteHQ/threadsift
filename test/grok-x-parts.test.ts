@@ -183,6 +183,12 @@ describe("the prompt holds only the digits of the status id", () => {
       fetchPrompt(first).replaceAll(first, "ID"),
       fetchPrompt(second).replaceAll(second, "ID"),
     );
-    assert.ok(fetchPrompt(first).includes(first));
+
+    const queries = fetchPrompt(first)
+      .split("\n")
+      .filter((line) => line.includes("conversation_id:"));
+
+    assert.equal(queries.length, 5);
+    assert.ok(queries.every((line) => line.includes(`conversation_id:${first} filter:replies`)));
   });
 });

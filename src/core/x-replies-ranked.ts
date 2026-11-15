@@ -9,6 +9,14 @@ const PERCENT = 100;
 
 const NO_TEXT = "(No text content)";
 
+function hasText({ text }: Readonly<XCliReply>): boolean {
+  return text.trim() !== NO_TEXT;
+}
+
+function clamped(value: number, floor: number, ceiling: number): number {
+  return Math.min(Math.max(value, floor), ceiling);
+}
+
 function likesOf({ likes }: Readonly<XCliReply>): number {
   return likes ?? 0;
 }
@@ -71,25 +79,46 @@ function rankedThread(thread: Readonly<XCliThreadValue>, held: number): XThreadV
   const partIds = new Set(parts);
 
   const ranked = thread.replies
-    .filter(({ id, text }) => !partIds.has(id) && text.trim() !== NO_TEXT)
+    .filter((reply) => !partIds.has(reply.id) && hasText(reply))
     .toSorted(moreImportant);
 
   const rankedIds = ranked.map(({ id }) => id);
-
   const keptFor = (count: number) => withAncestors([...parts, ...rankedIds.slice(0, count)], byId);
+
+  const storedIn = (kept: Readonly<ReadonlySet<string>>) =>
+    thread.replies.filter(
+      (reply) => kept.has(reply.id) && (partIds.has(reply.id) || hasText(reply)),
+    ).length;
 
   let count = Math.min(
     ranked.length,
-    Math.min(Math.max(likesShareCount(ranked), X_REPLIES_MIN), X_REPLIES_KEPT_MAX),
+    clamped(likesShareCount(ranked), X_REPLIES_MIN, X_REPLIES_KEPT_MAX),
   );
 
-  while (count < ranked.length && keptFor(count).size < held) count += 1;
+  while (count < ranked.length && storedIn(keptFor(count)) < held) count += 1;
 
   const kept = keptFor(count);
+  const dropped = kept.size < thread.replies.length;
+  const { post } = thread;
 
   return {
-    post: thread.post,
+    post: dropped ? { ...post, replies: Math.max(post.replies ?? 0, thread.replies.length) } : post,
     replies: thread.replies.filter(({ id }) => kept.has(id)).map((reply) => plainReply(reply)),
+  };
+}
+
+function withoutRepeats(thread: Readonly<XCliThreadValue>): XCliThreadValue {
+  const seen = new Set<string>();
+
+  return {
+    ...thread,
+    replies: thread.replies.filter(({ id }) => {
+      if (seen.has(id)) return false;
+
+      seen.add(id);
+
+      return true;
+    }),
   };
 }
 
@@ -99,7 +128,9 @@ export async function readFetchedThread(
   statusId: string,
   thread: Readonly<XCliThreadValue>,
 ): Promise<XThreadValue | null> {
-  if (parseXThreadValue(thread, statusId).kind === "refused") return null;
+  const unique = withoutRepeats(thread);
 
-  return rankedThread(thread, await storedReplyCount(db, itemId));
+  if (parseXThreadValue(unique, statusId).kind === "refused") return null;
+
+  return rankedThread(unique, await storedReplyCount(db, itemId));
 }

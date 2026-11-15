@@ -3,12 +3,12 @@ import { attemptFetch } from "./fetch-attempt.ts";
 import type { JobHandler } from "./job-outcome.ts";
 import { redditRefOf } from "./links.ts";
 import { redditClosed, redditClosing } from "./reddit-account-queue.ts";
-import { FETCH_DEADLINE_MS } from "./request-waits.ts";
+import { X_RUN_DEADLINE_MS, X_SLOT_WAIT_MS } from "./request-waits.ts";
 import { failedFetch } from "./settle.ts";
 import { xVerifyHandler } from "./x-verify-job.ts";
 
 export const fetchHandler: JobHandler = {
-  deadlineMs: FETCH_DEADLINE_MS,
+  deadlineMs: X_RUN_DEADLINE_MS + X_SLOT_WAIT_MS,
   blockedBy: [],
   attempt: attemptFetch,
   exhausted: (db, job) => [failedFetch(db, job.itemId, "gave-up", botFailureNote(job.id))],

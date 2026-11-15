@@ -64,7 +64,7 @@ const PROVEN_ARGUMENTS: readonly string[] = [
   "--no-auto-update",
 ];
 
-const MAX_REPLY_CALLS = 7;
+const MAX_REPLY_CALLS = 6;
 
 const MAX_CALLS_PER_QUERY = 2;
 
