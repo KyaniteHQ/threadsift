@@ -12,13 +12,19 @@ export const CLOSED_JOB = {
   claimExpires: null,
   waitReason: null,
   attemptGeneration: null,
+  attemptPending: null,
   staleRequeues: 0,
   page: null,
 } as const;
 
-function owedDigest(db: Database, itemId: number) {
+function owedDigest(db: Database, job: Readonly<Pick<JobRow, "itemId" | "attemptPending">>) {
   return openingDigest(db, {
-    scope: and(eq(items.id, itemId), isNotNull(items.pendingDigest)) ?? sql`0`,
+    scope:
+      and(
+        eq(items.id, sql`${job.itemId}`),
+        isNotNull(items.pendingDigest),
+        sql`${items.pendingDigest} is not ${job.attemptPending}`,
+      ) ?? sql`0`,
     address: items.originalUrl,
     now: Date.now(),
   });
@@ -26,18 +32,16 @@ function owedDigest(db: Database, itemId: number) {
 
 export function closeJob(
   db: Database,
-  job: Readonly<Pick<JobRow, "id" | "kind" | "itemId">>,
+  job: Readonly<Pick<JobRow, "id" | "kind" | "itemId" | "attemptPending">>,
   attempts: number,
 ): readonly BatchItem<"sqlite">[] {
-  const { itemId } = job;
-
   return [
     db
       .update(jobs)
       .set({ ...CLOSED_JOB, attempts })
       .where(eq(jobs.id, job.id)),
     ...givenUpTasks(db, eq(aiTasks.jobId, job.id)),
-    ...(job.kind === "digest" && itemId !== null ? [owedDigest(db, itemId)] : []),
+    ...(job.kind === "digest" && job.itemId !== null ? [owedDigest(db, job)] : []),
   ];
 }
 

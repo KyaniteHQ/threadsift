@@ -1,4 +1,15 @@
-import { type SQLWrapper, and, desc, eq, exists, isNotNull, isNull, or, sql } from "drizzle-orm";
+import {
+  type SQLWrapper,
+  and,
+  desc,
+  eq,
+  exists,
+  isNotNull,
+  isNull,
+  not,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { failedAiTask } from "./ai-tasks.ts";
 import {
@@ -82,6 +93,24 @@ export function markDigest(
   mark: "cleared" | "attempt-failed",
 ) {
   return setMarker(db, itemId, mark === "attempt-failed", whileDigestOpen());
+}
+
+export function markAttemptsSpent(
+  db: Database,
+  job: Readonly<Pick<JobRow, "itemId" | "attemptPending">>,
+) {
+  const closingOpensNoJob = or(
+    isNull(items.pendingDigest),
+    not(hasDigestSource()),
+    sql`${items.pendingDigest} is ${job.attemptPending}`,
+  );
+
+  return setMarker(
+    db,
+    sql`${job.itemId}`,
+    true,
+    and(whileDigestOpen(), closingOpensNoJob) ?? sql`0`,
+  );
 }
 
 export function keptNotUpdated(
