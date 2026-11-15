@@ -36,7 +36,7 @@ const statusRoute = createRoute({
   responses: {
     200: jsonBody(
       ExportStatusSchema,
-      `The newest export that has not expired, or \`{ "state": "none" }\`. \`running\` carries \`entries\`, \`dataBytes\` and \`parts\`, the progress so far. \`ready\` adds \`finishedAt\` and \`zipBytes\`, the size of the download, and is kept 24 hours after \`finishedAt\`. \`failed\` carries a \`failure\` word: \`gave-up\` (a slice failed 3 times), \`cancelled\` (the owner deleted it while it ran) or \`replaced\` (a newer export started). Times are in milliseconds.${OWNER_ONLY}`,
+      `The newest export that has not expired, or \`{ "state": "none" }\`. \`running\` carries \`entries\`, \`dataBytes\` and \`parts\`, the progress so far. \`ready\` adds \`finishedAt\` and \`zipBytes\`, the size of the download, and is kept 24 hours after \`finishedAt\`. \`failed\` carries a \`failure\` word: \`gave-up\` (a slice failed 3 times) or \`list-changed\` (a deploy changed the list of tables while it ran). An export the owner stopped, or a newer export replaced, is never returned: the first reads as \`none\` and the second is never the newest. Times are in milliseconds.${OWNER_ONLY}`,
     ),
     401: jsonBody(ErrorResponseSchema, "No owner session."),
     403: jsonBody(ErrorResponseSchema, "An agent token called this."),

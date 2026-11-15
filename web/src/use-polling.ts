@@ -4,7 +4,11 @@ import { useLatest } from "./use-latest.ts";
 
 export const POLL_MS = 3000;
 
-export function usePolling(active: boolean, poll: () => Promise<void>): void {
+export function usePolling(
+  active: boolean,
+  poll: () => Promise<void>,
+  intervalMs: number = POLL_MS,
+): void {
   const latest = useLatest(poll);
 
   useEffect(() => {
@@ -19,11 +23,11 @@ export function usePolling(active: boolean, poll: () => Promise<void>): void {
           void latest.current().finally(() => {
             reading = false;
           });
-        }, POLL_MS)
+        }, intervalMs)
       : null;
 
     return () => {
       if (timer !== null) window.clearInterval(timer);
     };
-  }, [active, latest]);
+  }, [active, intervalMs, latest]);
 }

@@ -1,3 +1,4 @@
+import type { ExportStatus } from "../../src/core/export-contract.ts";
 import type { GithubSettingsView } from "../../src/core/github-contract.ts";
 import type { GrokBotView } from "../../src/core/grok-bot-contract.ts";
 import type { RedditAccountView } from "../../src/core/reddit-account-contract.ts";
@@ -12,6 +13,7 @@ export type Loaded<View> =
 
 export interface SettingsLoad {
   readonly ai: Loaded<AiView>;
+  readonly backup: Loaded<ExportStatus>;
   readonly github: Loaded<GithubSettingsView>;
   readonly grokBot: Loaded<GrokBotView>;
   readonly reddit: Loaded<RedditSettings>;
