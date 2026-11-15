@@ -2,7 +2,7 @@ import { AI_DEADLINE_MS, type ModelAi } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
 import { lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobOutcome, JobPorts, ModelHandler } from "./job-outcome.ts";
-import { releaseTopicLease } from "./topic-lease.ts";
+import { leaseReleasedAfterFailure, releaseTopicLease } from "./topic-lease.ts";
 import { type OverviewPrepared, preparedOverview } from "./topic-overview-prepare.ts";
 import { overviewGaveUp, overviewRefused } from "./topic-overview-run.ts";
 import { OVERVIEW_OUTPUT_TOKENS, topicOverviewTask } from "./topic-overview-task.ts";
@@ -61,7 +61,7 @@ async function attemptOverview(
   try {
     return await reviseOverview(ports, job, { ...prepared, ai });
   } catch (error) {
-    await ports.db.batch([releaseTopicLease(ports.db, prepared.lease)]);
+    await leaseReleasedAfterFailure(ports.db, prepared.lease);
 
     throw error;
   }

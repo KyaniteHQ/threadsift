@@ -3,7 +3,7 @@ import { and, eq, gt, lt, lte, sql } from "drizzle-orm";
 import type { DataStep } from "./data-step-contract.ts";
 import { STEPS } from "./data-step-list.ts";
 import { dataStepLease, dataSteps } from "./data-step-tables.ts";
-import { logFailure } from "./failure-log.ts";
+import { bestEffort, logFailure } from "./failure-log.ts";
 import { guardedBatch } from "./guards.ts";
 import { pause } from "./pause.ts";
 import type { Database } from "./ports.ts";
@@ -60,13 +60,10 @@ function leaseHeld(holder: string) {
   return sql`exists (select 1 from ${dataStepLease} where ${dataStepLease.id} = ${LEASE_ROW} and ${dataStepLease.holder} = ${holder})`;
 }
 
-async function releaseLease(db: Database, holder: string): Promise<void> {
-  await db
+function leaseRelease(db: Database, holder: string) {
+  return db
     .delete(dataStepLease)
-    .where(and(eq(dataStepLease.id, LEASE_ROW), eq(dataStepLease.holder, holder)))
-    .catch((error: Readonly<Error>) => {
-      logFailure("data-step-lease-not-released", {}, error);
-    });
+    .where(and(eq(dataStepLease.id, LEASE_ROW), eq(dataStepLease.holder, holder)));
 }
 
 async function runUnits(
@@ -113,7 +110,9 @@ export async function migrateData(db: Database): Promise<void> {
       Promise.resolve(UNITS_PER_RUN),
     );
   } finally {
-    await releaseLease(db, holder);
+    await bestEffort({ event: "data-step-lease-not-released", fields: {} }, () =>
+      leaseRelease(db, holder),
+    );
   }
 }
 

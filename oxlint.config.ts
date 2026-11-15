@@ -1,5 +1,26 @@
 import { defineConfig } from "oxlint";
 
+const NODE_GLOBALS = ["process", "Buffer", "global", "__dirname", "__filename", "require"].map(
+  (name) => ({
+    name,
+    message:
+      "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture/one-codebase-two-install-targets.md).",
+  }),
+);
+
+const CANNOT_THROW = {
+  "src/core/failure-log.ts": ["bestEffort", "readOrAssume"],
+  "src/core/merge-failure.ts": ["releasedAfterFailure"],
+  "src/core/guards.ts": ["guardHeldOrUnread"],
+  "src/core/topic-lease.ts": ["leaseReleasedAfterFailure"],
+};
+
+const WEB_FETCH = {
+  name: "fetch",
+  message:
+    "The web app calls the server through web/src/calls.ts, which gives every read its deadline and makes every write name one (docs/architecture/web-app.md).",
+};
+
 export default defineConfig({
   plugins: [
     "eslint",
@@ -25,6 +46,10 @@ export default defineConfig({
   ],
   rules: {
     "threadsift/no-comments": "error",
+    "threadsift/no-await-before-rethrow": [
+      "error",
+      { cannotThrow: CANNOT_THROW, finalizers: false },
+    ],
     "react/react-in-jsx-scope": "off",
     "typescript/ban-ts-comment": [
       "error",
@@ -52,7 +77,6 @@ export default defineConfig({
       {
         ignoreInferredTypes: true,
         allow: [
-          { from: "package", name: ["Context", "ImportExpression"], package: "@oxlint/plugins" },
           { from: "package", name: "Context", package: "hono" },
           { from: "package", name: "McpServer", package: "@modelcontextprotocol/server" },
           { from: "package", name: "OpenAPIHono", package: "@hono/zod-openapi" },
@@ -142,6 +166,19 @@ export default defineConfig({
       },
     },
     {
+      files: ["src/**"],
+      rules: {
+        "threadsift/no-await-before-rethrow": [
+          "error",
+          { cannotThrow: CANNOT_THROW, finalizers: true },
+        ],
+      },
+    },
+    {
+      files: ["tools/oxlint/threadsift/**"],
+      rules: { "typescript/prefer-readonly-parameter-types": "off" },
+    },
+    {
       files: ["tools/extension-chromium/**"],
       rules: { "typescript/prefer-readonly-parameter-types": "off" },
     },
@@ -170,13 +207,19 @@ export default defineConfig({
     },
     {
       files: ["src/core/**", "src/http/**", "web/**"],
+      rules: { "eslint/no-restricted-globals": ["error", ...NODE_GLOBALS] },
+    },
+    {
+      files: ["web/**"],
+      excludeFiles: ["web/src/calls.ts"],
       rules: {
-        "eslint/no-restricted-globals": [
+        "eslint/no-restricted-globals": ["error", ...NODE_GLOBALS, WEB_FETCH],
+        "eslint/no-restricted-properties": [
           "error",
-          ...["process", "Buffer", "global", "__dirname", "__filename", "require"].map((name) => ({
-            name,
-            message:
-              "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture/one-codebase-two-install-targets.md).",
+          ...["globalThis", "window", "self"].map((object) => ({
+            object,
+            property: WEB_FETCH.name,
+            message: WEB_FETCH.message,
           })),
         ],
       },

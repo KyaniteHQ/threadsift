@@ -4,6 +4,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { givenUpTasks, supersededTasks } from "./ai-tasks.ts";
 import { openingDigest } from "./digest-job.ts";
 import { setStatus } from "./item-status.ts";
+import type { JobCurrency } from "./job-outcome.ts";
 import { ITEM_JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, aiTasks, items, jobs, xVerifications } from "./schema.ts";
@@ -64,4 +65,14 @@ export function closeItemJobs(
       .where(and(ofItem, ne(jobs.state, "done"))),
     db.delete(xVerifications).where(eq(xVerifications.itemId, sql`${itemId}`)),
   ] as const;
+}
+
+export async function discardTask(
+  db: Database,
+  currency: JobCurrency | undefined,
+  cause: Parameters<JobCurrency["discard"]>[0],
+): Promise<void> {
+  const [first, ...rest] = currency?.discard(cause) ?? [];
+
+  if (first !== undefined) await db.batch([first, ...rest]);
 }

@@ -1,5 +1,6 @@
 import { count, inArray } from "drizzle-orm";
 
+import { readOrAssume } from "./failure-log.ts";
 import { releasedAfterFailure } from "./merge-failure.ts";
 import type { MergeRow, MergeUnit } from "./merge-unit.ts";
 import type { Database } from "./ports.ts";
@@ -55,7 +56,13 @@ async function claimed(
   try {
     return await claimBoth(db, id, ids, holder);
   } catch (error) {
-    if (await topicsExist(db, ids)) throw error;
+    const exist = await readOrAssume(
+      true,
+      { event: "topics-read-failed", fields: { proposal: id } },
+      () => topicsExist(db, ids),
+    );
+
+    if (exist) throw error;
 
     return "lost";
   }

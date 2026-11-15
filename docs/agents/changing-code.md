@@ -31,6 +31,19 @@ The app is one core with ports, and each install target supplies an adapter per 
 - A port exists only when two production adapters need it, such as the Node and Worker targets or two Providers. A test adapter does not count, because tests use no fakes (`docs/testing.md`).
 - Names come from `GLOSSARY.md`.
 
+## State, writes and failures
+
+Each rule names the code that shows its shape. Where a doc already states the rule, the rule points there.
+
+- **One module owns the writes of a state.** Every other module calls it, because a second writer closes or moves a row by its own path and skips what the owner does with it: a job closed outside `closeJob` leaves its Grok Bot task running. See `src/core/proposal-lifecycle.ts` (`docs/proposals.md`, The lifecycle) and `src/core/job-close.ts`. `src/core/export-run.ts` closes its own `export` job by address, in the batch that stops the run, because that job has no Item and no AI task for `closeJob` to settle.
+- **A write that follows an answer names what the answer was about.** Put the session, claim or revision in the same statement as the write, so a late answer about an old one changes nothing: a late reply about an old Reddit session would otherwise expire the new session. See `ofSession` in `src/core/reddit-account-states.ts` and `atRevision` in `src/core/proposal-lifecycle.ts`.
+- **States that exclude each other are one value.** Use a discriminated union, because two fields can disagree and the screen then shows both. Bad: `pending: boolean` beside `sent: Note | null`. Good: `NoteAttempt` in `web/src/note-state.ts`.
+- **A cleanup in a `catch` or a `finally` never replaces the error.** A cleanup that throws replaces the error the caller needs. Run it through `bestEffort`, which logs its own failure, and run a read that decides whether to rethrow through `readOrAssume` with the answer that keeps the error. When the body's result must still reach the caller and a failed cleanup must still fail the call, use `withCleanup`. All three are in `src/core/failure-log.ts`; `releasedAfterFailure` in `src/core/merge-failure.ts` shows a wrapper. `threadsift/no-await-before-rethrow` enforces the shape in `src/`, and `docs/architecture/lint-and-format.md` says what it trusts and what it misses.
+- **Every call that waits for something outside names its deadline.** Derive it from the constant of the side that sets the wait, because a deadline shorter than the longest legitimate wait fails a request that would have landed. `NO_DEADLINE` is for a write whose longest legitimate wait has no useful bound. `docs/architecture/web-app.md` (Read and write deadlines) owns the deadlines and names that write; see also `web/src/write-deadlines.ts` and `src/core/request-waits.ts`.
+- **A write the screen may repeat accepts the answer of its own first try.** The screen cannot know that a timed-out first call did not land. A delete accepts 404, a save compares what it sent with what is stored, and a create reads the list again. See `revokeToken` in `web/src/access-api.ts` and `ownSaveCommitted` in `web/src/note-state.ts`.
+- **The database refuses a column that means something in one state only.** A trigger refuses the column in every other state, and the migration gets a rollback entry in `docs/architecture/ci-releases-and-rollback.md` (Rollback). See the `proposals_accepting_*` triggers in `migrations/0050_proposal-lifecycle.sql`, which `migrations/0059_merge-failed-runs.sql` replaces.
+- **The web app imports server values only from contract modules.** A contract module holds constants, schemas and types. The bundler follows every value import, so an import of a module that runs server code ships that code to the browser. `src/core/request-waits.ts` imports nothing and holds the waits. Check a new import with `vite build --sourcemap` and read the `sources` of the maps.
+
 ## Interface text
 
 Every text a user reads in the product is written by `tools/copy/write-copy.sh`, never by hand: labels, buttons, messages, empty states, errors, onboarding, and site prose. The README and the guides under `docs/guides/` are docs and follow Docs, commit messages and PR bodies below. The owner chose this instead of picking a voice by hand. The script runs the Antigravity CLI (`agy`) on Gemini 4 Argon at high effort, falls back to Gemini 3.8 Flash at high effort when Argon is rate limited, and has it follow the vendored `humanizer` skill (`.agents/skills/humanizer/`) with `PRODUCT.md` and `GLOSSARY.md` as context.
@@ -43,6 +56,8 @@ Every text a user reads in the product is written by `tools/copy/write-copy.sh`,
 The `error` text of the HTTP API is read by agents and `curl` and never shown by the web app, so it is code and stays as written; the script covers only text a person reads in the product.
 
 `agy` must be signed in on the machine; a contributor without it leaves a visible placeholder, `[text needed]`, for the owner to run the script.
+
+A text that tells the owner where to look names only what a run shows there. Bad: a note that says the log has the reason while the line holds only an error class and a code. Good: a note that names the line and what it holds, written after a run of the failure and a read of the log.
 
 ## Code
 
@@ -61,6 +76,8 @@ Write them, the README and the guides under `docs/guides/` included, by the `tec
 ## Screens and browser code
 
 - For any change to what a screen shows or how it behaves, load the `impeccable` skill. Every value comes from `design/system/`.
+- A value that changes on a timer is not a live region. A screen reader reads each tick aloud, so announce a change once, through the page's announcer: `say` in `web/src/use-proposals-page.ts`, drawn by `web/src/Announcement.tsx`.
+- An action that cannot work says why before the press. Show the reason beside the control and tie it with `aria-describedby`. See `SettingsActions` in `web/src/SettingsForm.tsx`.
 - For HTML, CSS and browser APIs, load the `modern-web-guidance` skill (its plugin is enabled in `.claude/settings.json`) and follow the guide it returns. The browser target is Baseline Widely available.
 
 ## Finish

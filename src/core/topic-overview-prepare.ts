@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 
+import { readOrAssume } from "./failure-log.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
 import {
   type ClaimedJob,
@@ -10,7 +11,12 @@ import {
 } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { topics } from "./schema.ts";
-import { type TopicLease, claimTopicLease, releaseTopicLease } from "./topic-lease.ts";
+import {
+  type TopicLease,
+  claimTopicLease,
+  leaseReleasedAfterFailure,
+  releaseTopicLease,
+} from "./topic-lease.ts";
 import {
   type OverviewPrompt,
   type OverviewRead,
@@ -68,9 +74,20 @@ async function claimedLease(
   try {
     return await claimTopicLease(db, topicId, holder);
   } catch (error) {
-    const [topic] = await db.select({ id: topics.id }).from(topics).where(eq(topics.id, topicId));
+    const exists = await readOrAssume(
+      true,
+      { event: "topic-read-failed", fields: { topicId } },
+      async () => {
+        const [topic] = await db
+          .select({ id: topics.id })
+          .from(topics)
+          .where(eq(topics.id, topicId));
 
-    if (topic !== undefined) throw error;
+        return topic !== undefined;
+      },
+    );
+
+    if (exists) throw error;
 
     return "gone";
   }
@@ -98,7 +115,7 @@ export async function preparedOverview(
 
     return await readyOverview(db, lease);
   } catch (error) {
-    await db.batch([releaseTopicLease(db, lease)]);
+    await leaseReleasedAfterFailure(db, lease);
 
     throw error;
   }

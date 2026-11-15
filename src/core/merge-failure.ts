@@ -1,4 +1,4 @@
-import { databaseCodeOf, logFailure } from "./failure-log.ts";
+import { bestEffort, reportFailure } from "./failure-log.ts";
 import type { Database } from "./ports.ts";
 import { unitFailed } from "./proposal-lifecycle.ts";
 import { type TopicLease, releaseTopicLeases } from "./topic-lease.ts";
@@ -8,32 +8,26 @@ export async function releasedAfterFailure(
   id: number,
   leases: readonly Readonly<TopicLease>[],
 ): Promise<void> {
-  try {
-    await releaseTopicLeases(db, leases);
-  } catch (cause) {
-    logFailure(
-      "merge-unit-leases-not-released",
-      { proposal: id, databaseCode: databaseCodeOf(cause) },
-      cause,
-    );
-  }
+  await bestEffort({ event: "merge-unit-leases-not-released", fields: { proposal: id } }, () =>
+    releaseTopicLeases(db, leases),
+  );
 }
 
-export async function recordedFailure(
+export async function recordingFailure<Outcome>(
   db: Database,
-  id: number,
-  revision: number,
-  cause: unknown,
-): Promise<void> {
-  logFailure("merge-unit-failed", { proposal: id, databaseCode: databaseCodeOf(cause) }, cause);
-
+  unit: Readonly<{ id: number; revision: number }>,
+  run: () => Promise<Outcome>,
+): Promise<Outcome> {
   try {
-    await unitFailed(db, id, revision);
-  } catch (countCause) {
-    logFailure(
-      "merge-unit-failure-not-counted",
-      { proposal: id, databaseCode: databaseCodeOf(countCause) },
-      countCause,
+    return await run();
+  } catch (error) {
+    reportFailure({ event: "merge-unit-failed", fields: { proposal: unit.id } }, error);
+
+    await bestEffort(
+      { event: "merge-unit-failure-not-counted", fields: { proposal: unit.id } },
+      () => unitFailed(db, unit.id, unit.revision),
     );
+
+    throw error;
   }
 }

@@ -10,6 +10,7 @@ import {
   type CliProvider,
   refusedAi,
 } from "../../core/ai-contract.ts";
+import { withCleanup } from "../../core/failure-log.ts";
 import { PROBE_MS } from "../../core/request-waits.ts";
 import type { CliRunner } from "../shared/ai-runtime.ts";
 import type { ProcessEnd } from "./cli-process.ts";
@@ -49,11 +50,11 @@ export async function inEmptyFolder<Result>(
 ): Promise<Result> {
   const folder = await mkdtemp(join(tmpdir(), "threadsift-cli-"));
 
-  try {
-    return await work(folder);
-  } finally {
-    await rm(folder, { recursive: true, force: true });
-  }
+  return withCleanup(
+    { event: "cli-folder-not-removed", fields: {} },
+    () => work(folder),
+    () => rm(folder, { recursive: true, force: true }),
+  );
 }
 
 export function answerWithin<Answer>(
