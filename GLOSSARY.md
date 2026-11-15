@@ -123,7 +123,7 @@ The short list of points under the Summary.
 _Avoid_: Highlights, takeaways
 
 **Kept comment**:
-A comment the agent kept because it adds a fact, a fix, a working link or command, first-hand experience or a real counterargument. Until a Digest covers the thread the Reader shows the comments that pass the first step instead, under a line that says so; search and export still hold Kept comments only.
+A comment the agent kept because it adds a fact, a fix, a working link or command, first-hand experience or a real counterargument. Until a Digest covers the thread the Reader shows the comments that pass the first step instead, under a line that says so; search and the Item notes of the export still hold Kept comments only, while the backup records hold every stored comment.
 _Avoid_: Top comment, filtered comment
 
 **Context stub**:

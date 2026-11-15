@@ -12,7 +12,7 @@ export type ExclusionReason =
   | "provider-choice"
   | "work-in-flight"
   | "derived"
-  | "database-bookkeeping";
+  | "carried-in-manifest";
 
 export const BACKUP_TABLES = {
   items: {
@@ -240,9 +240,9 @@ export const BACKUP_TABLES = {
     leftOut: [],
   },
   reddit_settings: { scope: "whole-table", columns: ["id", "archive_fill"], leftOut: [] },
-  data_steps: { scope: "whole-table", columns: ["name", "version", "cursor"], leftOut: [] },
+  data_steps: { scope: "whole-table", columns: ["name", "version"], leftOut: ["cursor"] },
   catalog_version: { scope: "whole-table", columns: ["id", "version"], leftOut: [] },
-} satisfies Record<string, BackupTable>;
+} as const satisfies Readonly<Record<string, BackupTable>>;
 
 export const EXCLUDED_TABLES = {
   owner: "login-data",
@@ -276,6 +276,6 @@ export const EXCLUDED_TABLES = {
   search_index_data: "derived",
   search_index_docsize: "derived",
   search_index_idx: "derived",
-  d1_migrations: "database-bookkeeping",
-  sqlite_sequence: "database-bookkeeping",
-} satisfies Record<string, ExclusionReason>;
+  d1_migrations: "carried-in-manifest",
+  sqlite_sequence: "carried-in-manifest",
+} as const satisfies Readonly<Record<string, ExclusionReason>>;

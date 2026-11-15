@@ -83,7 +83,7 @@ describe("a database migrated from scratch has no table and no column of an incl
   it("exports or leaves out every column of an included table", () => {
     assert.deepEqual(
       Object.entries(BACKUP_TABLES).flatMap(([table, listing]) =>
-        columnProblems(table, namesOf(`select name from pragma_table_info('${table}')`), listing),
+        columnProblems(table, namesOf(`select name from pragma_table_xinfo('${table}')`), listing),
       ),
       [],
     );
