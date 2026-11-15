@@ -98,7 +98,7 @@ describe("the counts of a token stay equal to the Items it created", () => {
         parseLink(short),
         { status: "unresolved" },
         "refresh",
-        token.id,
+        { addedByToken: token.id, budgetSlotDay: null },
       );
 
     const first = await save("https://t.co/failedfirst");

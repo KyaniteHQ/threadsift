@@ -1,5 +1,5 @@
 import type { Digest } from "./ai-contract.ts";
-import { type Caller, countedToken } from "./caller.ts";
+import { type Caller, type Counting, countedBy } from "./caller.ts";
 import { saveFailedResolution } from "./failed-resolution.ts";
 import { resolveShortLink } from "./fetch-link.ts";
 import { type Existing, type SaveResult, saveQueued } from "./items.ts";
@@ -14,7 +14,7 @@ async function saveShortLink(
   pasted: string,
   digest: Digest | undefined,
   existing: Existing,
-  addedByToken: number | null,
+  counting: Counting,
 ): Promise<SaveResult> {
   const { normalizedUrl: shortLink } = parseLink(pasted);
   const known = await aliasedItem(ports.db, shortLink);
@@ -22,7 +22,7 @@ async function saveShortLink(
   if (known !== undefined) {
     return saveQueued(
       ports,
-      { originalUrl: pasted, address: known.address, digest, addedByToken },
+      { originalUrl: pasted, address: known.address, digest, counting },
       known,
       existing,
     );
@@ -42,17 +42,17 @@ async function saveShortLink(
           parseLink(pasted),
           resolution.fetched,
           existing,
-          addedByToken,
+          counting,
         )
       : await saveResolved(
           ports,
           shortLink,
-          { originalUrl: pasted, address: resolution.address, digest, addedByToken },
+          { originalUrl: pasted, address: resolution.address, digest, counting },
           parseLink(resolution.address),
           existing,
         );
 
-  return saved ?? saveShortLink(ports, pasted, digest, existing, addedByToken);
+  return saved ?? saveShortLink(ports, pasted, digest, existing, counting);
 }
 
 export function saveItem(
@@ -66,13 +66,13 @@ export function saveItem(
     return Promise.resolve({ kind: "refused" });
   }
 
-  const addedByToken = countedToken(caller);
+  const counting = countedBy(caller);
 
   return isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)
-    ? saveShortLink(ports, absoluteUrl, digest, existing, addedByToken)
+    ? saveShortLink(ports, absoluteUrl, digest, existing, counting)
     : saveQueued(
         ports,
-        { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
+        { originalUrl: absoluteUrl, address: absoluteUrl, digest, counting },
         parseLink(absoluteUrl),
         existing,
       );

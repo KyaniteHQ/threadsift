@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
+import type { Counting } from "./caller.ts";
 import { guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
 import { openingJob, enqueueRows } from "./job-rows.ts";
@@ -50,12 +51,12 @@ export interface Paste {
   readonly originalUrl: string;
   readonly address: string;
   readonly digest: Digest | undefined;
-  readonly addedByToken: number | null;
+  readonly counting: Counting;
 }
 
 export function queuedWrites(
   db: Database,
-  { originalUrl, address, digest, addedByToken }: Readonly<Paste>,
+  { originalUrl, address, digest, counting }: Readonly<Paste>,
   { normalizedUrl, kind, source }: Readonly<Link>,
   page?: string,
 ) {
@@ -71,7 +72,7 @@ export function queuedWrites(
         normalizedUrl,
         originalUrl,
         savedAt: now,
-        addedByToken,
+        ...counting,
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),

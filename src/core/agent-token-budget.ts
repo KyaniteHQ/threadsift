@@ -2,10 +2,10 @@ import { and, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { Caller } from "./caller.ts";
 import { withCleanup } from "./failure-log.ts";
-import { batchAll, refusedBy } from "./guards.ts";
+import { refusedBy } from "./guards.ts";
 import type { SaveResult } from "./items.ts";
 import { BUDGET_SPENT, type BudgetSpent, type TokenBudget } from "./kinds.ts";
-import { isRedditShareLink, isRefusedLink, isShortLink, parseLink } from "./links.ts";
+import { isRefusedLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
 import { agentTokenDays, agentTokens, itemAliases, items } from "./schema.ts";
 
@@ -86,42 +86,30 @@ async function reserveSlots(
   return reserved.length > 0;
 }
 
-function dayAdjustment(db: Database, tokenId: number, day: string, change: number) {
-  return db
-    .insert(agentTokenDays)
-    .values({ tokenId, day, added: Math.max(change, 0) })
-    .onConflictDoUpdate({
-      target: [agentTokenDays.tokenId, agentTokenDays.day],
-      set: { added: sql`max(${agentTokenDays.added} + ${change}, 0)` },
-    });
-}
-
 function jsonList(values: readonly (string | number)[]) {
   return sql`(select value from json_each(${JSON.stringify(values)}))`;
 }
 
 async function possiblyNew(db: Database, urls: readonly string[]): Promise<number> {
-  const addresses = new Set<string>();
-  const shortLinks = new Set<string>();
+  const links = new Set<string>();
 
   for (const url of urls) {
-    if (isRefusedLink(url)) continue;
-
-    const { normalizedUrl } = parseLink(url);
-
-    (isShortLink(url) || isRedditShareLink(url) ? shortLinks : addresses).add(normalizedUrl);
+    if (!isRefusedLink(url)) links.add(parseLink(url).normalizedUrl);
   }
 
-  const [heldAddresses, heldShortLinks] = await Promise.all([
-    addresses.size === 0
-      ? 0
-      : db.$count(items, sql`${items.normalizedUrl} in ${jsonList([...addresses])}`),
-    shortLinks.size === 0
-      ? 0
-      : db.$count(itemAliases, sql`${itemAliases.normalizedUrl} in ${jsonList([...shortLinks])}`),
+  if (links.size === 0) return 0;
+
+  const listed = jsonList([...links]);
+
+  const [heldItems, heldAliases] = await Promise.all([
+    db.$count(items, sql`${items.normalizedUrl} in ${listed}`),
+    db.$count(
+      itemAliases,
+      sql`${itemAliases.normalizedUrl} in ${listed} and ${itemAliases.normalizedUrl} not in (select ${items.normalizedUrl} from ${items})`,
+    ),
   ]);
 
-  return addresses.size - heldAddresses + (shortLinks.size - heldShortLinks);
+  return links.size - heldItems - heldAliases;
 }
 
 interface Reserved {
@@ -134,18 +122,21 @@ export type SaveAs = <Result extends SaveResult>(
 ) => Promise<Result>;
 
 function slotLedger(db: Database, tokenId: number, { slots, day }: Readonly<Reserved>) {
-  const created: { id: number; savedAt: number }[] = [];
   let held = 0;
+  let created = 0;
+  let createdOnDay = 0;
 
   const saveAs: SaveAs = async (write) => {
     if (held === slots) return write({ kind: "token", id: tokenId });
 
     held += 1;
 
-    const result = await write({ kind: "batch", id: tokenId });
+    const result = await write({ kind: "batch", id: tokenId, day });
 
     if (result.kind === "saved" && result.created) {
-      created.push({ id: result.item.id, savedAt: result.item.savedAt });
+      created += 1;
+
+      if (utcDay(result.item.savedAt) === day) createdOnDay += 1;
     } else {
       held -= 1;
     }
@@ -153,29 +144,15 @@ function slotLedger(db: Database, tokenId: number, { slots, day }: Readonly<Rese
     return result;
   };
 
-  const settle = () => {
-    const threw = held - created.length;
-    const perDay = new Map<string, number>([[day, threw - slots]]);
+  const settle = async () => {
+    const change = held - created + createdOnDay - slots;
 
-    for (const { savedAt } of created) {
-      const savedDay = utcDay(savedAt);
+    if (change === 0) return;
 
-      perDay.set(savedDay, (perDay.get(savedDay) ?? 0) + 1);
-    }
-
-    return batchAll(db, [
-      ...(created.length === 0
-        ? []
-        : [
-            db
-              .update(items)
-              .set({ addedByToken: tokenId })
-              .where(sql`${items.id} in ${jsonList(created.map(({ id }) => id))}`),
-          ]),
-      ...[...perDay].flatMap(([adjusted, change]) =>
-        change === 0 ? [] : [dayAdjustment(db, tokenId, adjusted, change)],
-      ),
-    ]);
+    await db
+      .update(agentTokenDays)
+      .set({ added: sql`max(${agentTokenDays.added} + ${change}, 0)` })
+      .where(and(eq(agentTokenDays.tokenId, tokenId), eq(agentTokenDays.day, day)));
   };
 
   return { saveAs, settle };
@@ -189,8 +166,9 @@ export async function withinBudget<Saved>(
 ): Promise<Budgeted<Saved>> {
   if (caller.kind !== "token") return run((write) => write(caller));
 
+  const slots = await possiblyNew(db, urls);
   const now = Date.now();
-  const reserved = { slots: await possiblyNew(db, urls), day: utcDay(now) };
+  const reserved = { slots, day: utcDay(now) };
 
   if (reserved.slots > 0 && !(await reserveSlots(db, caller.id, reserved.slots, reserved.day))) {
     return spentUntilMidnight(now);

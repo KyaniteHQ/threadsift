@@ -39,7 +39,7 @@ export const BACKUP_TABLES = {
       "post_text_key",
       "x_note",
     ],
-    leftOut: ["pending_digest", "added_by_token"],
+    leftOut: ["pending_digest", "added_by_token", "budget_slot_day"],
   },
   item_aliases: {
     scope: "per-item",
