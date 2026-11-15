@@ -16,6 +16,7 @@ const reply = (id: string, parentId: string, text = "a reply"): XReply => ({
   text,
   postedAt: null,
   likes: null,
+  images: [],
 });
 
 const thread = (replies: readonly XReply[], reported: number | null = replies.length) =>
@@ -26,6 +27,7 @@ const thread = (replies: readonly XReply[], reported: number | null = replies.le
       text: "the post",
       postedAt: null,
       replies: reported,
+      images: [],
       quoted: [],
     },
     replies,

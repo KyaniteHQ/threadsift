@@ -4,6 +4,7 @@ import { fileRouteOf } from "./file-keys.ts";
 import { type Fetched, decoded, downloaded, fits } from "./image-download.ts";
 import { imageSize } from "./image-size.ts";
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
+import { ITEM_IMAGES_MAX } from "./limits.ts";
 import {
   type Edit,
   type MarkdownImage,
@@ -14,7 +15,6 @@ import {
 import type { Crypto, FileStore, Network } from "./ports.ts";
 import type { MediaRow } from "./schema.ts";
 
-const MAX_IMAGES = 20;
 const MAX_VIDEOS = 20;
 const IMAGE_WIDTH = 2;
 const ALT_MAX = 300;
@@ -49,6 +49,8 @@ interface ImageSink {
   readonly network: Network;
   readonly files: FileStore;
   readonly crypto: Crypto;
+  readonly stopAt?: (address: string) => boolean;
+  readonly unsaved?: string;
 }
 
 type Source =
@@ -153,7 +155,7 @@ async function stored(
 
   const fetched =
     source.kind === "remote"
-      ? await downloaded(sink.network, source.url, deadline)
+      ? await downloaded(sink.network, source.url, deadline, sink.stopAt)
       : decoded(source.dataUrl);
 
   const key = fetched.ok
@@ -192,7 +194,11 @@ function candidatesOf(classified: readonly Classified[]): readonly Candidate[] {
   const candidates: Candidate[] = [];
 
   for (const entry of classified) {
-    if (entry.kind === "source" && !seen.has(entry.source.id) && candidates.length < MAX_IMAGES) {
+    if (
+      entry.kind === "source" &&
+      !seen.has(entry.source.id) &&
+      candidates.length < ITEM_IMAGES_MAX
+    ) {
       seen.add(entry.source.id);
       candidates.push({ source: entry.source, position: candidates.length, alt: entry.alt });
     }
@@ -209,6 +215,7 @@ function replacementOf(
   image: Readonly<MarkdownImage>,
   entry: Readonly<Classified>,
   pathOf: (id: string) => string | null,
+  unsaved: string | undefined,
 ): string | undefined {
   if (entry.kind === "embed") return embedMarkdown(image, entry.link);
 
@@ -220,7 +227,9 @@ function replacementOf(
 
   if (path !== null) return inlineImage(image, path);
 
-  return entry.source.kind === "inline" ? altText(image.alt) : undefined;
+  if (entry.source.kind === "inline") return altText(image.alt);
+
+  return unsaved === undefined ? undefined : altText(unsaved);
 }
 
 function linkedRow(sourceUrl: string, position: number): MediaRowValue {
@@ -258,7 +267,9 @@ export async function prepareMedia(
 
   images.forEach((image, at) => {
     const entry = classified[at];
-    const text = entry === undefined ? undefined : replacementOf(image, entry, pathOf);
+
+    const text =
+      entry === undefined ? undefined : replacementOf(image, entry, pathOf, sink.unsaved);
 
     if (text !== undefined) edits.push({ image, text });
 

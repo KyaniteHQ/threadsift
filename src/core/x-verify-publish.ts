@@ -10,7 +10,7 @@ import { type Verification, verificationOf } from "./x-verify-read.ts";
 import { type Progress, progressOf } from "./x-verify-state.ts";
 import {
   type WithdrawnNote,
-  forgotten,
+  guarded,
   reopened,
   revisionHolds,
   unreadableWrites,
@@ -52,29 +52,13 @@ async function rebuilt(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<Sett
     : ended(ports, job, verification, progress);
 }
 
-function guarded(
-  ports: JobPorts,
-  job: Readonly<ClaimedJob>,
-  row: Readonly<Verification>,
-  outcome: Readonly<SettledOutcome>,
-  replies: number,
-): SettledOutcome {
-  return {
-    ...outcome,
-    writes: [...outcome.writes, forgotten(ports.db, job.itemId, row.revision)],
-    precondition: {
-      holds: sql`${revisionHolds(job.itemId, row.revision)} and ${holdsAtLeastStored(job.itemId, replies)} and ${outcome.precondition?.holds ?? sql`1`}`,
-      rebuild: () => rebuilt(ports, job),
-    },
-  };
-}
-
 function reportVerified({
   thread,
   dropped,
   followUps,
   quoted,
   unverifiedTails,
+  photoless,
 }: Readonly<Ready>): void {
   report("x-verify", {
     replies: thread.replies.length,
@@ -82,6 +66,7 @@ function reportVerified({
     followUps,
     quoted,
     unverifiedTails,
+    photoless,
   });
 }
 
@@ -123,7 +108,11 @@ async function published(
     row.digest,
   );
 
-  return guarded(ports, job, row, outcome, repliesOf(thread));
+  const unchanged = sql`${revisionHolds(job.itemId, row.revision)} and ${holdsAtLeastStored(job.itemId, repliesOf(thread))}`;
+
+  return guarded(ports.db, { itemId: job.itemId, revision: row.revision }, outcome, unchanged, () =>
+    rebuilt(ports, job),
+  );
 }
 
 export function ended(

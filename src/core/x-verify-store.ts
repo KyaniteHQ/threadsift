@@ -1,7 +1,8 @@
-import { and, eq, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import type { JobWrites } from "./job-outcome.ts";
+import { guardHolds } from "./guards.ts";
+import type { JobWrites, SettledOutcome } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
 import type { Database } from "./ports.ts";
@@ -99,4 +100,26 @@ export function unreadableWrites(
       .where(eq(items.id, itemId)),
     forgotten(db, itemId, revision),
   ];
+}
+
+export function guarded(
+  db: Database,
+  address: Readonly<{ itemId: number; revision: number }>,
+  outcome: Readonly<SettledOutcome>,
+  unchanged: Readonly<SQLWrapper>,
+  rebuilt: () => Promise<SettledOutcome>,
+): SettledOutcome {
+  const { precondition } = outcome;
+
+  return {
+    ...outcome,
+    writes: [...outcome.writes, forgotten(db, address.itemId, address.revision)],
+    precondition: {
+      holds: sql`${unchanged} and ${precondition?.holds ?? sql`1`}`,
+      rebuild: async () =>
+        precondition !== undefined && (await guardHolds(db, unchanged))
+          ? guarded(db, address, await precondition.rebuild(), unchanged, rebuilt)
+          : rebuilt(),
+    },
+  };
 }

@@ -5,11 +5,9 @@ import type { ParsedThread, ThreadParse } from "./reddit-json.ts";
 import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts";
 import type { StoredParse } from "./stored-thread.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
-import { type JoinedPost, LINE_BREAK, joinedPost } from "./x-joined-post.ts";
+import { type JoinedPost, joinedPost, postTitle } from "./x-joined-post.ts";
 import { type XReply, type XThreadValue, XThreadSchema } from "./x-wire.ts";
 import { fieldNamesOf, issueCodesOf } from "./zod-reasons.ts";
-
-const TITLE_CHARACTERS = 120;
 
 const NOT_READABLE = "the content is not readable JSON";
 
@@ -17,29 +15,6 @@ interface Placed {
   readonly reply: XReply;
   readonly parentId: string | null;
   readonly depth: number;
-}
-
-function firstLineOf(text: string): string {
-  return (
-    text
-      .split(LINE_BREAK)
-      .find((line) => line.trim() !== "")
-      ?.trim() ?? ""
-  );
-}
-
-function postTitle(text: string): string {
-  const characters = Array.from(firstLineOf(text));
-
-  if (characters.length <= TITLE_CHARACTERS) return characters.join("");
-
-  const head = characters.slice(0, TITLE_CHARACTERS + 1);
-  const space = head.findLastIndex((character) => /\s/u.test(character));
-
-  return head
-    .slice(0, space > 0 ? space : TITLE_CHARACTERS)
-    .join("")
-    .trimEnd();
 }
 
 function checkedReplies(postId: string, replies: readonly XReply[]): void {
@@ -202,7 +177,7 @@ function parseThread(value: XThreadValue, statusId: string): ParsedThread {
   const nodes = walk(post.id, replies).map((entry, position) => nodeOf(entry, position));
 
   return withMoreMarked({
-    title: postTitle(post.text),
+    title: postTitle(post.text, post.author),
     author: post.author,
     community: null,
     postText: post.text,

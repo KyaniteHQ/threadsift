@@ -49,11 +49,13 @@ export interface StoredPost {
   readonly author: string;
   readonly text: string;
   readonly chain?: { readonly next: string | null };
+  readonly photos?: boolean;
 }
 
 export interface Checked {
   readonly judgement: Judgement;
   readonly rejects: readonly string[];
+  readonly photoless: boolean;
 }
 
 export type Resolved = ReadonlyMap<string, string>;
@@ -260,10 +262,11 @@ export function checked(
       ? whole
       : judgedAs(stored, { ...post, links: quote.links, whole: quote.whole }, resolved);
 
-  if (judgement === "rejected") return { judgement, rejects: [] };
+  if (judgement === "rejected") return { judgement, rejects: [], photoless: false };
 
   return {
     judgement,
+    photoless: stored.photos === true && post.media.length === 0,
     rejects: rejectedQuotes(
       stored.chain?.next,
       quote?.target ?? null,

@@ -1,5 +1,7 @@
 import { utf8Length } from "./digest-prompt.ts";
 import { INLINE_TEXT_BYTES } from "./limits.ts";
+import { closedBlocks } from "./x-blocks.ts";
+import { withImages } from "./x-images.ts";
 import type { XReply, XThreadValue } from "./x-wire.ts";
 
 const NOT_SAVED_NOTE = "Author follow-up posts that X did not confirm were not saved.";
@@ -100,6 +102,10 @@ function authorThreadOf(
   return followUps;
 }
 
+function partText({ text, images }: Readonly<XReply>): string {
+  return withImages(closedBlocks(text), images);
+}
+
 function fittingText(text: string, followUps: readonly Readonly<XReply>[]): XReply[] {
   const room =
     INLINE_TEXT_BYTES - utf8Length(text) - utf8Length(`${PART_SEPARATOR}${NOT_SAVED_NOTE}`);
@@ -108,7 +114,7 @@ function fittingText(text: string, followUps: readonly Readonly<XReply>[]): XRep
   let used = 0;
 
   for (const followUp of followUps) {
-    used += utf8Length(`${PART_SEPARATOR}${followUp.text}`);
+    used += utf8Length(`${PART_SEPARATOR}${partText(followUp)}`);
 
     if (used > room) break;
 
@@ -142,7 +148,11 @@ export function joinedAuthorThread(thread: Readonly<XThreadValue>, kept: Ids): J
 
   const text = [
     post.text,
-    ...fitting.flatMap((followUp) => (followUp.text.trim() === "" ? [] : [followUp.text])),
+    ...fitting.flatMap((followUp) => {
+      const part = partText(followUp);
+
+      return part === "" ? [] : [part];
+    }),
     ...(notSaved > 0 ? [NOT_SAVED_NOTE] : []),
   ].join(PART_SEPARATOR);
 

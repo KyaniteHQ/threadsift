@@ -14,6 +14,10 @@ export const MAX_THREAD_ANSWERS = 101;
 
 export const INLINE_TEXT_BYTES = 1_000_000;
 
+export const ITEM_IMAGES_MAX = 20;
+
+export const IMAGE_URL_MAX_BYTES = 4096;
+
 export const X_REPLIES_MAX = 500;
 
 export const X_QUOTES_MAX = 5;
