@@ -19,6 +19,7 @@ const ContextSchema = z
     builtFrom: BuiltFromSchema,
     included: z.array(z.object({ id: IdSchema, digest: IdSchema }).readonly()).readonly(),
     removed: z.array(IdSchema).readonly(),
+    removedTotal: z.number().int().min(0).default(0),
     citable: z.array(IdSchema).readonly(),
     mustChange: z.boolean(),
     current: z.string().nullable(),
@@ -28,8 +29,8 @@ const ContextSchema = z
 export const topicOverviewBotKind = botTaskKind({
   context: ContextSchema,
   task: topicOverviewTask,
-  current: ({ topicId, revision, included, removed }) =>
-    inputsHold(topicId, { revision, included, removed }),
+  current: ({ topicId, revision, included, removed, removedTotal }) =>
+    inputsHold(topicId, { revision, included, removed, removedTotal }),
   release: (db, job) => [recoverPrefixLeases(db, overviewHolderPrefix(job.id))],
   prepare: async (ports, job) => {
     const prepared = await preparedOverview(ports.db, job, overviewAtBot);
@@ -51,6 +52,7 @@ export const topicOverviewBotKind = botTaskKind({
           builtFrom: read.page?.builtFrom ?? [],
           included: prompt.included.map(({ id, digest }) => ({ id, digest })),
           removed: read.removed,
+          removedTotal: read.removedTotal,
           citable: prompt.citable,
           mustChange: prompt.mustChange,
           current: prompt.current,
@@ -68,6 +70,7 @@ export const topicOverviewBotKind = botTaskKind({
       read: {
         page: { revision: context.revision, builtFrom: context.builtFrom },
         removed: context.removed,
+        removedTotal: context.removedTotal,
       },
       prompt: { current: context.current, included: context.included },
       taskId,
