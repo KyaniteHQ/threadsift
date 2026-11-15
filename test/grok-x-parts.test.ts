@@ -31,7 +31,12 @@ const SIGNED_OUT_MESSAGE =
   "Not signed in. To authenticate without a browser, run:\n  grok login --device-code\n\nAlternatively, set the XAI_API_KEY environment variable or run `grok login` on a machine with a browser.";
 
 const found = (thread_: ReturnType<typeof thread>) =>
-  envelope({ structuredOutput: { found: true, thread: thread_ } });
+  envelope({
+    structuredOutput: {
+      found: true,
+      thread: { ...thread_, post: { ...thread_.post, quoted: [] } },
+    },
+  });
 
 describe("the grok CLI answer is read into a fetched thread or a named refusal", () => {
   it("takes the thread of a done answer", () => {

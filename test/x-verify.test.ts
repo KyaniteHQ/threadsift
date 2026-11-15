@@ -26,6 +26,7 @@ const thread = (replies: readonly XReply[], reported: number | null = replies.le
       text: "the post",
       postedAt: null,
       replies: reported,
+      quoted: [],
     },
     replies,
   }) satisfies XThreadValue;
@@ -134,20 +135,20 @@ describe("a verification job asks for as many posts as 40 requests allow, under 
     );
   });
 
-  it("takes at most the replies that fit the request budget of a slice, one request for each reply without links", () => {
+  it("takes at most the replies that fit the request budget of a slice, two requests for each reply without links", () => {
     const slice = sliceOf(many(100), { [ROOT]: "verified" });
 
-    assert.equal(slice.length, SLICE_REQUESTS);
+    assert.equal(slice.length, SLICE_REQUESTS / 2);
   });
 
-  it("counts a request for every link of a reply that may need its address resolved, and takes at least one reply", () => {
+  it("counts a request for every link of a reply that may need its address resolved and one for a quote link, and takes at least one reply", () => {
     const links = Array.from({ length: 5 }, (_, index) => `https://t.co/link${String(index)}`).join(
       " ",
     );
 
     const slice = sliceOf(many(100, links), { [ROOT]: "verified" });
 
-    assert.equal(slice.length, Math.floor(SLICE_REQUESTS / 6));
+    assert.equal(slice.length, Math.floor(SLICE_REQUESTS / 7));
     assert.equal(sliceOf(many(3, links), { [ROOT]: "verified" }).length, 3);
   });
 

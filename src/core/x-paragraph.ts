@@ -6,6 +6,13 @@ const WEB_DISPLAY = /^https?:\/\//u;
 const MENTION_DISPLAY = /^@[\p{L}\p{N}_]/u;
 const NOT_SPACE_AT_END = /\S$/u;
 
+export function squashed(text: string): string {
+  return text
+    .replaceAll(new RegExp(String.raw`\s*${LINK}\s*`, "gu"), LINK)
+    .replaceAll(/\s+/gu, " ")
+    .trim();
+}
+
 export interface Anchor {
   readonly href: string;
   readonly display: string;

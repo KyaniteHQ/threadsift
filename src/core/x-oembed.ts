@@ -2,7 +2,8 @@ import { parseHTML } from "linkedom";
 import { z } from "zod";
 
 import { parsedJson } from "./parsed-json.ts";
-import { type Anchor, type Item, LINK, itemsOf } from "./x-paragraph.ts";
+import { type Anchor, type Item, LINK, itemsOf, squashed } from "./x-paragraph.ts";
+import { rejectedQuotes, withoutQuoteLink } from "./x-quote-link.ts";
 
 const ELLIPSIS = "\u2026";
 const CLOSING = String.raw`[^\s.,;:!?)\]'"”’]`;
@@ -47,16 +48,15 @@ export interface StoredPost {
   readonly id: string;
   readonly author: string;
   readonly text: string;
+  readonly chain?: { readonly next: string | null };
+}
+
+export interface Checked {
+  readonly judgement: Judgement;
+  readonly rejects: readonly string[];
 }
 
 export type Resolved = ReadonlyMap<string, string>;
-
-function squashed(text: string): string {
-  return text
-    .replaceAll(new RegExp(String.raw`\s*${LINK}\s*`, "gu"), LINK)
-    .replaceAll(/\s+/gu, " ")
-    .trim();
-}
 
 const FLATTENED: Readonly<Record<Item["kind"], (item: Readonly<Item>) => string>> = {
   text: (item) => (item.kind === "text" ? item.text : ""),
@@ -207,18 +207,22 @@ export function resolutionsNeeded(stored: string, post: Readonly<OembedPost>): r
   const whole = tokens.length === post.links.length;
   const anchors = whole || post.cut === null ? post.links : post.links.slice(0, post.cut.links);
 
+  const quoteLink =
+    post.cut === null && tokens.length === post.links.length - 1 ? post.links.at(-1) : undefined;
+
   return [
-    ...new Set(
-      anchors.flatMap(({ href, display }, index) => {
+    ...new Set([
+      ...anchors.flatMap(({ href, display }, index) => {
         const token = tokens[index]?.[0];
 
         return token === undefined || token === href || token === display ? [] : [href];
       }),
-    ),
+      ...(quoteLink === undefined ? [] : [quoteLink.href]),
+    ]),
   ];
 }
 
-export function judged(
+function judgedAs(
   stored: Readonly<StoredPost>,
   post: Readonly<OembedPost>,
   resolved: Readonly<Resolved>,
@@ -241,4 +245,37 @@ export function judged(
   const head = marked(text, post.links.slice(0, post.cut.links), resolved, false);
 
   return head?.startsWith(post.cut.head) === true ? "tail-unverified" : "rejected";
+}
+
+export function checked(
+  stored: Readonly<StoredPost>,
+  post: Readonly<OembedPost>,
+  resolved: Readonly<Resolved>,
+): Checked {
+  const whole = judgedAs(stored, post, resolved);
+  const quote = whole === "rejected" ? withoutQuoteLink(post, resolved) : null;
+
+  const judgement =
+    quote === null
+      ? whole
+      : judgedAs(stored, { ...post, links: quote.links, whole: quote.whole }, resolved);
+
+  if (judgement === "rejected") return { judgement, rejects: [] };
+
+  return {
+    judgement,
+    rejects: rejectedQuotes(
+      stored.chain?.next,
+      quote?.target ?? null,
+      post.cut === null && post.links.length === 0,
+    ),
+  };
+}
+
+export function judged(
+  stored: Readonly<StoredPost>,
+  post: Readonly<OembedPost>,
+  resolved: Readonly<Resolved>,
+): Judgement {
+  return checked(stored, post, resolved).judgement;
 }
