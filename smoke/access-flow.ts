@@ -15,7 +15,7 @@ const passwordField = (page: Page) =>
 
 export async function setUp(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByLabel(SETUP.codeLabel).fill(SETUP_CODE);
+  await page.getByLabel(SETUP.codeLabel, { exact: true }).fill(SETUP_CODE);
   await page.getByRole("button", { name: SETUP.continue }).click();
   await passwordField(page).fill(PASSWORD);
   await page.getByLabel(FIELDS.confirmPassword).fill(PASSWORD);
