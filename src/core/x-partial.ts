@@ -14,18 +14,25 @@ function storedReplies(itemId: number | Readonly<SQLWrapper>) {
   return sql<number>`((select count(*) from ${redditComments} as kept where kept.item_id = ${itemId} and kept.kind = 'comment' and kept.generation = ${generation}) + coalesce((select stored.follow_ups from ${redditThreads} as stored where stored.item_id = ${itemId} and stored.generation = ${generation}), 0))`;
 }
 
-export function holdsAtLeastStored(itemId: number, replies: number) {
+export function repliesOf({
+  nodes,
+  followUps = 0,
+}: Readonly<Pick<StoredThread, "nodes" | "followUps">>): number {
+  return nodes.filter(({ kind }) => kind === "comment").length + followUps;
+}
+
+export function holdsAtLeastStored(itemId: number | Readonly<SQLWrapper>, replies: number) {
   return sql`${replies} >= ${storedReplies(itemId)}`;
 }
 
 export async function fewerThanStored(
   db: Database,
   owner: Readonly<Owner>,
-  { nodes, followUps = 0 }: Readonly<Pick<StoredThread, "nodes" | "followUps">>,
+  thread: Readonly<Pick<StoredThread, "nodes" | "followUps">>,
 ): Promise<boolean> {
   const [row] = await db.select({ stored: storedReplies(owner.id) }).from(sql`(select 1)`);
 
-  return nodes.filter(({ kind }) => kind === "comment").length + followUps < (row?.stored ?? 0);
+  return repliesOf(thread) < (row?.stored ?? 0);
 }
 
 export async function publishableThread(

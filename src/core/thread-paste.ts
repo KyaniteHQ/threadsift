@@ -5,7 +5,7 @@ import { enqueueItemJobs } from "./job-rows.ts";
 import { parseLink, statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { type ThreadAnswers, fitsContentLimit } from "./thread-answers.ts";
-import { fewerThanSaved, parsedThread } from "./thread-input.ts";
+import { parsedThread } from "./thread-input.ts";
 import { publishThread } from "./thread-save.ts";
 
 export type ThreadPasteResult =
@@ -13,12 +13,6 @@ export type ThreadPasteResult =
   | Invalid<"content" | "fill">
   | NotWaiting
   | { readonly kind: "too-large"; readonly field: "content" };
-
-const FEWER_REPLIES: Invalid<"content"> = {
-  kind: "invalid",
-  field: "content",
-  reason: "the thread has fewer replies than the saved one, so the saved one was kept",
-};
 
 export const FILL_NEEDS_CONTENT: Invalid<"fill"> = {
   kind: "invalid",
@@ -67,17 +61,15 @@ export async function saveThread(
     addedByToken: countedToken(caller),
   };
 
-  if (await fewerThanSaved(db, place, parsed.thread)) return FEWER_REPLIES;
-
-  const created = await publishThread(db, place, parsed.thread, {
+  const published = await publishThread(db, place, parsed.thread, {
     pendingDigest: digest === undefined ? null : JSON.stringify(digest),
     fillOnly,
   });
 
-  if (created === null) return { kind: "not-waiting" };
+  if (published.kind !== "published") return published;
 
   const item = await itemAt(db, place.normalizedUrl);
   await enqueueItemJobs(ports, item.id);
 
-  return { kind: "saved", item, created };
+  return { kind: "saved", item, created: published.created };
 }

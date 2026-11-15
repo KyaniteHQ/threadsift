@@ -5,7 +5,7 @@ import { settledFetch } from "./fetch-settle.ts";
 import type { ClaimedJob, JobPorts, SettledOutcome } from "./job-outcome.ts";
 import { ownerOfItem } from "./reddit-thread.ts";
 import { NOTE_OF_REFUSAL } from "./x-fetcher.ts";
-import { fewerThanStored, holdsAtLeastStored, publishableThread } from "./x-partial.ts";
+import { fewerThanStored, holdsAtLeastStored, publishableThread, repliesOf } from "./x-partial.ts";
 import { type Verification, verificationOf } from "./x-verify-read.ts";
 import { type Progress, progressOf } from "./x-verify-state.ts";
 import {
@@ -123,13 +123,7 @@ async function published(
     row.digest,
   );
 
-  return guarded(
-    ports,
-    job,
-    row,
-    outcome,
-    thread.nodes.filter(({ kind }) => kind === "comment").length + (thread.followUps ?? 0),
-  );
+  return guarded(ports, job, row, outcome, repliesOf(thread));
 }
 
 export function ended(

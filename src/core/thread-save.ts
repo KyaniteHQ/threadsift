@@ -1,64 +1,44 @@
-import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { guardHolds, guardedWrite } from "./guards.ts";
 import { anchoredOutcome, displayedBesideThread } from "./highlight-publish.ts";
-import type { AnchoredOutcome, JobWrites } from "./job-outcome.ts";
+import type { AnchoredOutcome } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { awaitsThread } from "./reddit-thread.ts";
 import { items } from "./schema.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import { type ThreadPlace, threadItemInsert, threadPublication } from "./thread-publish.ts";
+import { type Refusal, type Requirement, requirementOf } from "./thread-requirements.ts";
 
-export interface Binding {
-  readonly holds: Readonly<SQLWrapper>;
-  readonly writes: JobWrites;
-}
-
-interface Conditions {
-  readonly fillOnly: boolean;
-  readonly binding: Readonly<Binding> | undefined;
-}
-
-function requirementOf(
-  place: Readonly<ThreadPlace>,
-  { fillOnly, binding }: Readonly<Conditions>,
-): SQL | undefined {
-  return and(fillOnly ? awaitsThread(place.normalizedUrl) : undefined, binding?.holds);
-}
+export type Published = { readonly kind: "published"; readonly created: boolean } | Refusal;
 
 async function commit(
   db: Database,
   place: Readonly<ThreadPlace>,
+  requirement: Readonly<Requirement> | undefined,
   { writes, precondition }: Readonly<AnchoredOutcome>,
-  conditions: Readonly<Conditions>,
-): Promise<boolean | null> {
-  const required = requirementOf(place, conditions);
-
+): Promise<Published> {
   const holds =
-    required === undefined ? precondition.holds : sql`(${precondition.holds}) and (${required})`;
+    requirement === undefined
+      ? precondition.holds
+      : sql`(${precondition.holds}) and (${requirement.holds})`;
 
-  const inserted = await guardedWrite(db, holds, threadItemInsert(db, place), [
-    ...writes,
-    ...(conditions.binding?.writes ?? []),
-  ]);
+  const inserted = await guardedWrite(db, holds, threadItemInsert(db, place), writes);
 
-  if (inserted !== null) return inserted.length > 0;
+  if (inserted !== null) return { kind: "published", created: inserted.length > 0 };
 
-  if (required !== undefined && !(await guardHolds(db, required))) return null;
+  if (requirement !== undefined && !(await guardHolds(db, requirement.holds))) {
+    return requirement.refusal;
+  }
 
-  return commit(db, place, await precondition.rebuild(), conditions);
+  return commit(db, place, requirement, await precondition.rebuild());
 }
 
 export async function publishThread(
   db: Database,
   place: Readonly<ThreadPlace>,
   thread: Readonly<StoredThread>,
-  {
-    pendingDigest,
-    fillOnly,
-    binding,
-  }: Readonly<{ pendingDigest: string | null; fillOnly: boolean; binding?: Readonly<Binding> }>,
-): Promise<boolean | null> {
+  { pendingDigest, fillOnly }: Readonly<{ pendingDigest: string | null; fillOnly: boolean }>,
+): Promise<Published> {
   const publication = await anchoredOutcome(
     db,
     { writes: threadPublication(db, place, thread, pendingDigest) },
@@ -68,5 +48,5 @@ export async function publishThread(
     },
   );
 
-  return commit(db, place, publication, { fillOnly, binding });
+  return commit(db, place, requirementOf(place, thread, fillOnly), publication);
 }
