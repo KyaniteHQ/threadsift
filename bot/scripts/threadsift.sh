@@ -404,6 +404,18 @@ sys.exit(0 if ok else 1)
 
 if [[ "$word" == ok && ( "$method" == GET || "$command" == bookmarks-send ) ]] && ! shaped; then word=failed; fi
 
+if [[ "$command" == save && ( "$word" == ok || "$word" == duplicate ) ]]; then
+  saved_id="$(python3 -I -c '
+import json, sys
+
+body = json.load(open(sys.argv[1]))
+item = body["item"]["id"]
+if isinstance(item, bool) or not isinstance(item, int) or body["url"] != f"/items/{item}":
+    sys.exit(1)
+print(item)
+' "$response" 2> /dev/null)" && word="$word $saved_id $URL/items/$saved_id" || word=failed
+fi
+
 if [[ "$word" == ok ]]; then
   case "$command" in
     search|topics)

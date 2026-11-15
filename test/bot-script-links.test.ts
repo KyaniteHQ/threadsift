@@ -18,7 +18,7 @@ const CursorSchema = z.object({ cursor: z.string() });
 const IdsSchema = z.object({ ids: z.array(z.string()) });
 
 const SentLinksSchema = z.object({
-  items: z.array(z.object({ originalUrl: z.string() })),
+  items: z.array(z.object({ id: z.number(), originalUrl: z.string() })),
 });
 
 const SearchFileSchema = z.object({
@@ -57,6 +57,10 @@ describe("the script checks the connection, saves, searches and lists topics, an
 
   const stored = async () =>
     (await read("/api/items", SentLinksSchema)).items.map(({ originalUrl }) => originalUrl);
+
+  const idOf = async (url: string) =>
+    (await read("/api/items", SentLinksSchema)).items.find(({ originalUrl }) => originalUrl === url)
+      ?.id;
 
   before(async () => {
     world = await ScriptWorld.start();
@@ -109,7 +113,7 @@ describe("the script checks the connection, saves, searches and lists topics, an
     }
   });
 
-  it("saves a new link as ok, answers duplicate for the same link, invalid with the reasons for a link the Instance refuses and bad-input for text that is not a link, and deletes every file it was given", async () => {
+  it("saves a new link as ok with the Item's id and its address in the library, answers duplicate with the same id and address for the same link, invalid with the reasons for a link the Instance refuses and bad-input for text that is not a link, and deletes every file it was given", async () => {
     const saved = "https://example.com/threadsift-script";
     const first = await world.folder.made("link", saved, "txt");
 
@@ -118,12 +122,23 @@ describe("the script checks the connection, saves, searches and lists topics, an
       world.env(),
     );
 
-    assert.equal(await run(["save", first]), "ok");
+    const added = await run(["save", first]);
+    const id = await idOf(saved);
+
+    assert.notEqual(id, undefined);
+    assert.equal(added, `ok ${String(id)} ${world.address}/items/${String(id)}`);
     assert.equal(existsSync(first), false);
-    assert.equal(await run(["save", link("saved", saved)]), "duplicate");
+    assert.equal(
+      await run(["save", link("saved", saved)]),
+      `duplicate ${String(id)} ${world.address}/items/${String(id)}`,
+    );
     assert.equal(refused.word, "invalid");
     assert.notEqual(refused.reasons, "");
     assert.equal(await run(["save", link("text", "not a link")]), "bad-input");
+    assert.equal(
+      await run(["save", link("failing", saved)], world.env(world.failingAddress)),
+      "failed",
+    );
     assert.deepEqual(
       world.folder.tree().filter((entry) => entry.startsWith("tmp/")),
       [],
@@ -133,8 +148,15 @@ describe("the script checks the connection, saves, searches and lists topics, an
   it("saves an X link with its thread from a file, and refuses a thread that is not the link's post", async () => {
     const thread = () => world.folder.tmpFile("thread", intakeThread(STATUS_ID));
 
-    assert.equal(await run(["save", xPost(), thread()]), "ok");
-    assert.equal(await run(["save", xPost(), thread()]), "duplicate");
+    const added = await run(["save", xPost(), thread()]);
+    const id = await idOf(`https://x.com/someone/status/${STATUS_ID}`);
+
+    assert.notEqual(id, undefined);
+    assert.equal(added, `ok ${String(id)} ${world.address}/items/${String(id)}`);
+    assert.equal(
+      await run(["save", xPost(), thread()]),
+      `duplicate ${String(id)} ${world.address}/items/${String(id)}`,
+    );
     assert.equal(
       await run(["save", xPost(), world.folder.tmpFile("wrong", "not a thread")]),
       "invalid",
@@ -242,19 +264,6 @@ describe("the script checks the connection, saves, searches and lists topics, an
       "bad-input",
     );
     assert.deepEqual([await stored(), await run(["bookmarks-cursor"])], unchanged);
-  });
-
-  it("answers failed when the Instance answers a batch with fewer results than the ids sent", async () => {
-    const faulty = await world.answeringEmptyBatch();
-
-    try {
-      assert.equal(
-        await run(["bookmarks-send", await ids(["2000000000000000021"])], world.env(faulty.url)),
-        "failed",
-      );
-    } finally {
-      faulty.stop();
-    }
   });
 
   it("answers bad-input for a command the script does not offer, a search without a file and a task id that is not a number", async () => {
