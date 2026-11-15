@@ -23,4 +23,4 @@
 
 Every library above is MIT, ISC or Apache-2.0. All of them may be used by AGPL-3.0-only code. The owner chose pnpm with Node 26 over Bun on 2026-11-04: Bun 1.4.3 ran the database spike with the same results, but Vite, oxlint, Playwright and wrangler run on Node anyway, so Bun would be a third runtime to test.
 
-Two words this file uses beyond `GLOSSARY.md`: a **port** is an interface the core calls (Database, FileStore, JobQueue, Scheduler, AiExecutor, Network), and an **executor** is the adapter that runs an AI task for one kind of Provider.
+Two words this file uses beyond `GLOSSARY.md`: a **port** is an interface the core calls (`Ports` in `src/core/ports.ts` lists them), and an **executor** is the adapter that runs an AI task for one kind of Provider.
