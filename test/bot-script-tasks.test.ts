@@ -113,13 +113,13 @@ describe("the script opens, answers and reports a task and prints one word for e
     assert.equal(await world.opened(task, "related_pick"), `ok ${id} related_pick`);
   });
 
-  it("deletes the folder of a task that was done more than 7 days ago and the token of a task left open for more than a day when it opens a task", async () => {
-    const task = await world.intake();
+  it("deletes the folder of a task that was done more than 7 days ago and the folder of a task left open for more than a day when it runs a command", async () => {
     const finished = world.folder.taskFolder(111);
     const abandoned = world.folder.taskFolder(222);
     const recent = world.folder.taskFolder(333);
+    const kept = world.folder.taskFolder(444);
 
-    for (const folder of [finished, abandoned, recent]) {
+    for (const folder of [finished, abandoned, recent, kept]) {
       mkdirSync(folder, { recursive: true });
     }
 
@@ -127,15 +127,19 @@ describe("the script opens, answers and reports a task and prints one word for e
     writeFileSync(join(abandoned, "token"), "x");
     writeFileSync(join(abandoned, "task.json"), "{}");
     writeFileSync(join(recent, "done"), "x");
+    writeFileSync(join(kept, "done"), "x");
+    writeFileSync(join(kept, "task.json"), "{}");
     ageBy(join(finished, "done"), 8 * DAY);
     ageBy(join(abandoned, "token"), 2 * DAY);
+    ageBy(join(abandoned, "task.json"), 2 * DAY);
     ageBy(join(recent, "done"), 6 * DAY);
+    ageBy(join(kept, "task.json"), 2 * DAY);
 
-    assert.equal(await world.opened(task, "x_intake"), `ok ${String(task.id)} x_intake`);
+    assert.equal(await run(["check"]), "ok");
     assert.equal(existsSync(finished), false);
-    assert.equal(existsSync(join(abandoned, "token")), false);
-    assert.equal(existsSync(join(abandoned, "task.json")), true);
+    assert.equal(existsSync(abandoned), false);
     assert.equal(existsSync(join(recent, "done")), true);
+    assert.equal(existsSync(join(kept, "task.json")), true);
   });
 
   it("answers closed and marks the task done when Threadsift no longer takes an answer", async () => {
