@@ -1,8 +1,8 @@
 import { AI_DEADLINE_MS, AI_SAVE_ATTEMPTS } from "../../src/core/ai-contract.ts";
 import { VERIFY_WAIT_MS } from "../../src/core/grok-bot-contract.ts";
-import { HOP_DEADLINE_MS } from "../../src/core/ports.ts";
 import {
   FETCH_DEADLINE_MS,
+  HOP_DEADLINE_MS,
   LEASE_WAIT_MS,
   PROBE_MS,
   REQUEST_DEADLINE_MS,
