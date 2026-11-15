@@ -75,8 +75,8 @@ export const seedTopicItems = (
     instance,
     `
     ${range}
-    insert into items (id, source, kind, normalized_url, original_url, saved_at, status, topic_id)
-    select i, 'other', 'link', 'https://example.com/' || i, 'https://example.com/' || i, i, 'ready', ${String(topicId)} from n;
+    insert into items (id, source, kind, normalized_url, original_url, saved_at, topic_id)
+    select i, 'other', 'link', 'https://example.com/' || i, 'https://example.com/' || i, i, ${String(topicId)} from n;
     ${range}
     insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state, item_id)
     select i, 'digest', '{}', 0, 'caller', 1, 0, 'done', i from n;
@@ -180,8 +180,8 @@ export const seedFillerMerges = (
     insert into pins (kind, from_key, from_name, into_topic_id, created_at)
     select 'topic-merge', 'filler ' || i, 'Filler ' || i, ${String(target)}, i from n;
     ${range}
-    insert into items (id, source, kind, normalized_url, original_url, saved_at, status, topic_id)
-    select 100000 + i, 'other', 'link', 'https://example.com/filler/' || i, 'https://example.com/filler/' || i, i, 'ready', i from n;
+    insert into items (id, source, kind, normalized_url, original_url, saved_at, topic_id)
+    select 100000 + i, 'other', 'link', 'https://example.com/filler/' || i, 'https://example.com/filler/' || i, i, i from n;
     ${range}
     insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state, item_id)
     select 100000 + i, 'digest', '{}', 0, 'caller', 1, 0, 'done', 100000 + i from n;

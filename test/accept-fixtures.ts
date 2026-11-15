@@ -55,8 +55,8 @@ export function seedVolume(
   exec(
     instance,
     `with recursive n(i) as (select ${String(from)} union all select i + 1 from n where i < ${String(from + items - 1)})
-     insert into items (id, source, kind, normalized_url, original_url, saved_at, status)
-     select 100000 + i, 'other', 'link', 'https://example.com/volume/' || i, 'https://example.com/volume/' || i, i, 'ready' from n`,
+     insert into items (id, source, kind, normalized_url, original_url, saved_at)
+     select 100000 + i, 'other', 'link', 'https://example.com/volume/' || i, 'https://example.com/volume/' || i, i from n`,
   );
   exec(
     instance,

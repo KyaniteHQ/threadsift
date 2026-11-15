@@ -28,7 +28,6 @@ export const BACKUP_TABLES = {
       "author",
       "community",
       "fetched_at",
-      "status",
       "reason",
       "fetch_result",
       "post_text",
