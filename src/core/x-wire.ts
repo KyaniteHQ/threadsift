@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { WIRE_ID_MAX } from "./comment-id.ts";
-import { X_REPLIES_MAX } from "./limits.ts";
+import { X_QUOTES_MAX, X_REPLIES_MAX } from "./limits.ts";
 
 export const StatusIdSchema = z
   .string()
@@ -32,6 +32,17 @@ function threadSchemaOf<
       text: z.string().refine((text) => text.trim() !== "", { error: "must not be empty" }),
       postedAt,
       replies: Count,
+      quoted: z
+        .array(
+          z.strictObject({
+            id: StatusIdSchema,
+            author: Handle,
+            text: z.string(),
+            postedAt,
+          }),
+        )
+        .max(X_QUOTES_MAX, { error: `more than ${String(X_QUOTES_MAX)} quoted posts` })
+        .default([]),
     }),
     replies: z
       .array(
@@ -55,9 +66,15 @@ export const StoredXThreadSchema = threadSchemaOf(StoredPostedAt, z.boolean().op
 
 export type XThread = z.output<typeof XThreadSchema>;
 
+export type XQuoted = Readonly<z.output<typeof StoredXThreadSchema>["post"]["quoted"][number]>;
+
 export type XReply = Readonly<z.output<typeof StoredXThreadSchema>["replies"][number]>;
 
+export type XPost = Readonly<Omit<XThread["post"], "quoted">> & {
+  readonly quoted: readonly XQuoted[];
+};
+
 export interface XThreadValue {
-  readonly post: Readonly<XThread["post"]>;
+  readonly post: XPost;
   readonly replies: readonly XReply[];
 }

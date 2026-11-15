@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, desc, eq, exists, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, exists, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { failedAiTask } from "./ai-tasks.ts";
 import {
@@ -15,7 +15,7 @@ import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { providerSet } from "./provider-saved.ts";
 import { candidateLink, commentCandidates, eligibleComments } from "./reddit-thread.ts";
-import { type JobRow, digests, insertGuard, items, redditThreads } from "./schema.ts";
+import { type JobRow, digests, insertGuard, items } from "./schema.ts";
 
 export function openingPick(db: Database, itemId: number) {
   return opening(db, {
@@ -148,17 +148,6 @@ export async function staleOutcome(
   return (await read.current()) ? null : { currency: read, writes: [insertGuard(db, generation)] };
 }
 
-async function joinedFollowUps(db: Database, itemId: number): Promise<number> {
-  const [newest] = await db
-    .select({ followUps: redditThreads.followUps })
-    .from(redditThreads)
-    .where(eq(redditThreads.itemId, itemId))
-    .orderBy(desc(redditThreads.generation))
-    .limit(1);
-
-  return newest?.followUps ?? 0;
-}
-
 export async function modelInput(
   db: Database,
   item: Readonly<DigestInput>,
@@ -176,7 +165,7 @@ export async function modelInput(
       title: item.title,
       source: item.source,
       postText,
-      authorThread: item.source === "x" && (await joinedFollowUps(db, item.id)) > 0,
+      joinedPost: item.source === "x",
     },
     comments,
     catalog,

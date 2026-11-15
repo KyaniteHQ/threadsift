@@ -14,4 +14,6 @@ export const INLINE_TEXT_BYTES = 1_000_000;
 
 export const X_REPLIES_MAX = 500;
 
+export const X_QUOTES_MAX = 5;
+
 export const DEFAULT_TOKEN_BUDGET = 200;

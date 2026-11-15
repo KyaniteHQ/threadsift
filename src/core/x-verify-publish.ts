@@ -69,8 +69,20 @@ function guarded(
   };
 }
 
-function reportVerified({ thread, dropped, followUps, unverifiedTails }: Readonly<Ready>): void {
-  report("x-verify", { replies: thread.replies.length, dropped, followUps, unverifiedTails });
+function reportVerified({
+  thread,
+  dropped,
+  followUps,
+  quoted,
+  unverifiedTails,
+}: Readonly<Ready>): void {
+  report("x-verify", {
+    replies: thread.replies.length,
+    dropped,
+    followUps,
+    quoted,
+    unverifiedTails,
+  });
 }
 
 async function published(

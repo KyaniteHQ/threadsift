@@ -201,7 +201,7 @@ describe("a stored post must be what X shows for the id and the author, characte
     );
   });
 
-  it("names the t.co address to resolve for a link that is not the anchor's own", () => {
+  it("names the t.co address to resolve for a link that is not the anchor's own and for the last link the text lacks, which may be the quote link", () => {
     const post = postOf("link-and-hashtags.json");
 
     assert.deepEqual(
@@ -213,7 +213,7 @@ describe("a stored post must be what X shows for the id and the author, characte
         ),
         resolutionsNeeded("no link at all", post),
       ],
-      [[BAND_LINK], [], []],
+      [[BAND_LINK], [], [BAND_LINK]],
     );
   });
 

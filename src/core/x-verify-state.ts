@@ -1,4 +1,4 @@
-import { joinedAuthorThread } from "./x-author-thread.ts";
+import { joinedPost } from "./x-joined-post.ts";
 import { type Judgement, MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
 import type { XThreadValue } from "./x-wire.ts";
 
@@ -14,15 +14,16 @@ export type Progress =
       readonly thread: XThreadValue;
       readonly dropped: number;
       readonly followUps: number;
+      readonly quoted: number;
       readonly unverifiedTails: number;
     };
 
 function postsOf({ post, replies }: Readonly<XThreadValue>): readonly StoredPost[] {
-  return [post, ...replies].map(({ id, author, text }) => ({ id, author, text }));
+  return [post, ...post.quoted, ...replies].map(({ id, author, text }) => ({ id, author, text }));
 }
 
 function costOf({ text }: Readonly<StoredPost>): number {
-  return 1 + Math.min(linkCount(text), MAX_LINKS);
+  return 2 + Math.min(linkCount(text), MAX_LINKS);
 }
 
 export function sliceOf(
@@ -71,15 +72,24 @@ export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged):
     thread.replies.filter(({ id }) => judgedSoFar[id] !== "rejected").map(({ id }) => id),
   );
 
-  const { thread: joined, followUps } = joinedAuthorThread(thread, kept);
+  const {
+    thread: joined,
+    followUps,
+    quoted,
+  } = joinedPost(thread, kept, (id) => judgedSoFar[id] !== "rejected");
+
+  const shownQuotes = new Set(thread.post.quoted.slice(0, quoted).map((quote) => quote.id));
 
   return {
     kind: "ready",
     thread: joined,
     followUps,
+    quoted,
     dropped: thread.replies.length - kept.size,
     unverifiedTails: postsOf(thread).filter(
-      ({ id }) => judgedSoFar[id] === "tail-unverified" && (id === thread.post.id || kept.has(id)),
+      ({ id }) =>
+        judgedSoFar[id] === "tail-unverified" &&
+        (id === thread.post.id || kept.has(id) || shownQuotes.has(id)),
     ).length,
   };
 }

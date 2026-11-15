@@ -5,7 +5,7 @@ import type { ParsedThread, ThreadParse } from "./reddit-json.ts";
 import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts";
 import type { StoredParse } from "./stored-thread.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
-import { type JoinedAuthorThread, joinedAuthorThread } from "./x-author-thread.ts";
+import { type JoinedPost, joinedPost } from "./x-joined-post.ts";
 import { type XReply, type XThreadValue, XThreadSchema } from "./x-wire.ts";
 import { fieldNamesOf, issueCodesOf } from "./zod-reasons.ts";
 
@@ -63,6 +63,26 @@ function checkedReplies(postId: string, replies: readonly XReply[]): void {
     if (!ids.has(parentId)) {
       refuse(`the parentId ${parentId} of reply ${id} is not the post or a reply of the answer`);
     }
+  }
+}
+
+function checkedQuoted({ id, quoted }: XThreadValue["post"], replies: readonly XReply[]) {
+  const ids = new Set<string>([id, ...replies.map((reply) => reply.id)]);
+  let above = BigInt(id);
+
+  for (const quote of quoted) {
+    if (ids.has(quote.id)) {
+      refuse(`the quoted post ${quote.id} has the id of the post, a reply or another quoted post`);
+    }
+
+    if (BigInt(quote.id) > above) {
+      refuse(`the quoted post ${quote.id} is not older than the post that quotes it`);
+    }
+
+    ids.add(quote.id);
+    above = BigInt(quote.id);
+    checkedMetadata({ [`the author of quoted post ${quote.id}`]: quote.author });
+    checkedText(quote.text, `the text of quoted post ${quote.id}`);
   }
 }
 
@@ -177,6 +197,7 @@ function parseThread(value: XThreadValue, statusId: string): ParsedThread {
   checkedMetadata({ "the post author": post.author });
   checkedText(post.text, "the post text");
   checkedReplies(post.id, replies);
+  checkedQuoted(post, replies);
 
   const nodes = walk(post.id, replies).map((entry, position) => nodeOf(entry, position));
 
@@ -204,7 +225,7 @@ export function parseXThreadValue(thread: XThreadValue, statusId: string): Threa
 }
 
 export function parseJoinedXThread(
-  { thread, followUps }: Readonly<JoinedAuthorThread>,
+  { thread, followUps }: Readonly<Pick<JoinedPost, "thread" | "followUps">>,
   statusId: string,
 ): StoredParse {
   const read = parseXThreadValue(thread, statusId);
@@ -259,5 +280,8 @@ export function parseXThread(answer: string, statusId: string): StoredParse {
 
   const everyReply = new Set(read.value.replies.map(({ id }) => id));
 
-  return parseJoinedXThread(joinedAuthorThread(read.value, everyReply), statusId);
+  return parseJoinedXThread(
+    joinedPost(read.value, everyReply, () => true),
+    statusId,
+  );
 }

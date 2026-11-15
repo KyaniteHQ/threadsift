@@ -1,6 +1,7 @@
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
+import { statusIdOf } from "./links.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { type Anchor, type Item, LINK, itemsOf } from "./x-paragraph.ts";
 
@@ -207,18 +208,52 @@ export function resolutionsNeeded(stored: string, post: Readonly<OembedPost>): r
   const whole = tokens.length === post.links.length;
   const anchors = whole || post.cut === null ? post.links : post.links.slice(0, post.cut.links);
 
+  const quoteLink =
+    post.cut === null && tokens.length === post.links.length - 1 ? post.links.at(-1) : undefined;
+
   return [
-    ...new Set(
-      anchors.flatMap(({ href, display }, index) => {
+    ...new Set([
+      ...anchors.flatMap(({ href, display }, index) => {
         const token = tokens[index]?.[0];
 
         return token === undefined || token === href || token === display ? [] : [href];
       }),
-    ),
+      ...(quoteLink === undefined ? [] : [quoteLink.href]),
+    ]),
   ];
 }
 
-export function judged(
+function pointsAtOtherStatus(address: string | undefined, ownId: string): boolean {
+  if (address === undefined || !URL.canParse(address)) return false;
+
+  const id = statusIdOf(address);
+
+  return id !== null && id !== ownId;
+}
+
+function withoutQuoteLink(
+  post: Readonly<OembedPost>,
+  resolved: Readonly<Resolved>,
+): OembedPost | null {
+  const last = post.links.at(-1);
+
+  if (
+    post.cut !== null ||
+    last === undefined ||
+    !post.whole.endsWith(LINK) ||
+    !pointsAtOtherStatus(resolved.get(last.href), post.id)
+  ) {
+    return null;
+  }
+
+  return {
+    ...post,
+    links: post.links.slice(0, -1),
+    whole: squashed(post.whole.slice(0, -LINK.length)),
+  };
+}
+
+function judgedAs(
   stored: Readonly<StoredPost>,
   post: Readonly<OembedPost>,
   resolved: Readonly<Resolved>,
@@ -241,4 +276,18 @@ export function judged(
   const head = marked(text, post.links.slice(0, post.cut.links), resolved, false);
 
   return head?.startsWith(post.cut.head) === true ? "tail-unverified" : "rejected";
+}
+
+export function judged(
+  stored: Readonly<StoredPost>,
+  post: Readonly<OembedPost>,
+  resolved: Readonly<Resolved>,
+): Judgement {
+  const whole = judgedAs(stored, post, resolved);
+
+  if (whole !== "rejected") return whole;
+
+  const bare = withoutQuoteLink(post, resolved);
+
+  return bare === null ? whole : judgedAs(stored, bare, resolved);
 }

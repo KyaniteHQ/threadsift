@@ -138,6 +138,10 @@ _Avoid_: Detail view, article view
 The posts an X post's author wrote as a chain of replies to their own post. The Reader shows them as part of the post text, in order, once each is checked against X (a Paste's own text is not checked); a follow-up that fails the check is left out and the post text says a part was not saved.
 _Avoid_: Thread (alone, it also means the replies), self-replies, author chain
 
+**Quote chain**:
+The posts an X post quotes: the post it quotes, the post that one quotes, and so on, 5 at most. The Reader shows each as part of the post text under the post that quotes it, with its author, time and link, once it is checked against X (a Paste's own text is not checked); a quoted post that fails the check, and the ones after it, are replaced by a line that says they were not saved.
+_Avoid_: Quote thread, quoted tweet, embed
+
 ### Keeping
 
 **Highlight**:
