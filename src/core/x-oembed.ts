@@ -2,9 +2,8 @@ import { parseHTML } from "linkedom";
 import { z } from "zod";
 
 import { parsedJson } from "./parsed-json.ts";
+import { type Anchor, type Item, LINK, itemsOf } from "./x-paragraph.ts";
 
-const TEXT_NODE = 3;
-const LINK = "\uFFFC";
 const ELLIPSIS = "\u2026";
 const CLOSING = String.raw`[^\s.,;:!?)\]'"”’]`;
 const BEFORE_TOKEN = String.raw`(?<=^|[\s(\["“‘'])`;
@@ -15,8 +14,6 @@ const LINK_LENGTH = 23;
 export const MAX_LINKS = 20;
 
 const WEB_LINK = new RegExp(String.raw`https?://[^\s]*${CLOSING}`, "gu");
-const MEDIA_DISPLAY = /^(?:https?:\/\/)?pic\.(?:twitter|x)\.com\//u;
-const WEB_DISPLAY = /^https?:\/\//u;
 const NOT_AUTHORIZED = "Sorry, you are not authorized";
 
 const OembedSchema = z.object({
@@ -28,16 +25,6 @@ const OembedSchema = z.object({
 const ProtectedSchema = z.object({ error: z.string() });
 
 const IdOfUrl = /^https:\/\/(?:x|twitter)\.com\/[A-Za-z0-9_]+\/status\/(?<id>[1-9]\d*)$/u;
-
-export interface Anchor {
-  readonly href: string;
-  readonly display: string;
-}
-
-type Item =
-  | { readonly kind: "text"; readonly text: string }
-  | ({ readonly kind: "link" } & Anchor)
-  | ({ readonly kind: "media" } & Anchor);
 
 interface OembedPost {
   readonly id: string;
@@ -85,48 +72,6 @@ function handleOf(authorUrl: string): string | null {
   if (!URL.canParse(authorUrl)) return null;
 
   return new URL(authorUrl).pathname.split("/").find((part) => part !== "") ?? null;
-}
-
-interface ParagraphNode {
-  readonly nodeType: number;
-  readonly nodeName: string;
-  readonly textContent: string | null;
-  readonly children?: { readonly length: number } | undefined;
-  readonly getAttribute?: ((name: string) => string | null) | undefined;
-}
-
-function itemOf(node: Readonly<ParagraphNode>): Item | null {
-  if (node.nodeType === TEXT_NODE) return { kind: "text", text: node.textContent ?? "" };
-
-  if (node.nodeName === "BR") return { kind: "text", text: "\n" };
-
-  if (node.nodeName !== "A" || (node.children?.length ?? 0) > 0) return null;
-
-  const display = node.textContent ?? "";
-  const href = node.getAttribute?.("href") ?? "";
-
-  if (MEDIA_DISPLAY.test(display)) return { kind: "media", display, href };
-
-  if (WEB_DISPLAY.test(display))
-    return { kind: "link", display, href: href === "" ? display : href };
-
-  return { kind: "text", text: display };
-}
-
-function itemsOf(
-  paragraph: Readonly<{ childNodes: Readonly<Iterable<Readonly<ParagraphNode>>> }>,
-): Item[] | null {
-  const items: Item[] = [];
-
-  for (const node of paragraph.childNodes) {
-    const item = itemOf(node);
-
-    if (item === null || (item.kind === "text" && item.text.includes(LINK))) return null;
-
-    items.push(item);
-  }
-
-  return items;
 }
 
 function cutOf(items: readonly Item[]): OembedPost["cut"] {
