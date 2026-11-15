@@ -78,7 +78,7 @@ The obvious `min(bm25(...))` over a `GROUP BY` fails on both targets with `unabl
 
 ## The Log
 
-The Log lists the committed changes the agent made to the library (slice 23, second part). It is the `log_entries` table, one row for each change, read by `src/core/log-page.ts`, with its schema in `src/core/log-contract.ts`, its tables in `src/core/log-tables.ts`, its writers in `src/core/log-writes.ts` and its route in `src/http/log-route.ts`.
+The Log lists the committed changes to the library, the agent's own and the merges the owner accepts (slice 23, second part). It is the `log_entries` table, one row for each change, read by `src/core/log-page.ts`, with its schema in `src/core/log-contract.ts`, its tables in `src/core/log-tables.ts`, its writers in `src/core/log-writes.ts` and its route in `src/http/log-route.ts`.
 
 **Recording.** An entry is a statement in the guarded batch that commits the change it records, so a stale result, a lost claim, a failed guard or a rolled-back write appends nothing, and a committed change never lacks its entry. Logging adds no model call, no job and no retry. A statement that writes an entry stays in the Drizzle `batch`, and a list it needs is bound as one JSON value, because D1 limits a statement to 100 bound parameters.
 
