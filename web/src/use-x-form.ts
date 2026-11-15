@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import type { XReaderChoice } from "../../src/core/kinds.ts";
-import type { XSettingsView } from "../../src/core/x-settings.ts";
+import type { XSettingsView } from "../../src/core/x-settings-contract.ts";
 import { outcomeOf, useActionFlow } from "./use-settings-action.ts";
 import { saveXReader } from "./x-api.ts";
 import { X_TEXT } from "./x-text.ts";

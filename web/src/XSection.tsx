@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import type { XReaderChoice } from "../../src/core/kinds.ts";
-import type { XSettingsView } from "../../src/core/x-settings.ts";
+import type { XSettingsView } from "../../src/core/x-settings-contract.ts";
 import { Alert } from "./Alert.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { useXForm } from "./use-x-form.ts";

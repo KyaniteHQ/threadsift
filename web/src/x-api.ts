@@ -1,5 +1,5 @@
 import type { XReaderChoice } from "../../src/core/kinds.ts";
-import { XSettingsViewSchema } from "../../src/core/x-settings.ts";
+import { XSettingsViewSchema } from "../../src/core/x-settings-contract.ts";
 import { parsedFrom, put } from "./calls.ts";
 import { PROBED_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

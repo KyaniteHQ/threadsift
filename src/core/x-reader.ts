@@ -2,16 +2,13 @@ import { eq } from "drizzle-orm";
 
 import { hasOpenIntakeTask } from "./bot-task-states.ts";
 import type { Fetched } from "./details.ts";
-import { GROK_BOT_UNREADY, type GrokBotUnready, grokBotConnection } from "./grok-bot.ts";
+import { grokBotConnection } from "./grok-bot.ts";
 import { X_READER_CHOICES, type XReadNote, type XReaderChoice } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { xSettings } from "./schema.ts";
 import type { XFetcher } from "./x-fetcher.ts";
-
-export const X_BOT_STATES = ["ready", ...GROK_BOT_UNREADY] as const;
-
-export type XBotState = (typeof X_BOT_STATES)[number];
+import type { XBotState } from "./x-settings-contract.ts";
 
 type ChoicePorts = Pick<Ports, "db" | "xFetcher" | "ai">;
 
@@ -35,7 +32,7 @@ const NOTE_OF_BOT_STATE = {
   "not-configured": "bot-not-set-up",
   "secret-missing": "bot-key-unopened",
   refused: "bot-address-refused",
-} as const satisfies Readonly<Record<GrokBotUnready, XReadNote>>;
+} as const satisfies Readonly<Record<Exclude<XBotState, "ready">, XReadNote>>;
 
 export function offeredReaders({
   xFetcher,

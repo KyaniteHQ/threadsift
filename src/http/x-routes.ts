@@ -5,9 +5,8 @@ import {
   X_READER_NOT_OFFERED,
   XReaderInputSchema,
   XSettingsViewSchema,
-  chooseXReader,
-  readXSettings,
-} from "../core/x-settings.ts";
+} from "../core/x-settings-contract.ts";
+import { chooseXReader, readXSettings } from "../core/x-settings.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 

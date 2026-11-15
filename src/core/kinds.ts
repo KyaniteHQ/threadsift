@@ -66,6 +66,8 @@ export const WAIT_REASONS = [
 
 export const X_READER_CHOICES = ["auto", "grok-bot", "grok-cli"] as const;
 
+export const X_FETCHER_STATES = ["signed-in", "signed-out", "not-proven", "unknown"] as const;
+
 export const X_READ_NOTES = [
   "bot-not-set-up",
   "bot-key-unopened",
@@ -167,6 +169,8 @@ export type FailureReason = (typeof FAILURE_REASONS)[number];
 export type WaitReason = (typeof WAIT_REASONS)[number];
 
 export type XReaderChoice = (typeof X_READER_CHOICES)[number];
+
+export type XFetcherState = (typeof X_FETCHER_STATES)[number];
 
 export type XReadNote = (typeof X_READ_NOTES)[number];
 
