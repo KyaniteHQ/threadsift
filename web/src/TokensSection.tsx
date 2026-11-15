@@ -66,7 +66,7 @@ export function TokensSection({ initial }: Readonly<{ initial: Loaded<readonly T
         {SETTINGS.tokensTitle}
       </h2>
       <p>{SETTINGS.tokensIntro}</p>
-      <TokenForm name={name} created={created} />
+      <TokenForm name={name} created={created} reread={reread} />
       {revealed === null ? null : (
         <TokenReveal name={revealed.name} value={revealed.value} done={dismiss} />
       )}

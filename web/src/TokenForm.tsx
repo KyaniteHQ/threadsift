@@ -39,7 +39,10 @@ function useCreate(
   name: FieldState,
   scopes: Readonly<ReturnType<typeof useScopes>>,
   budget: Readonly<ReturnType<typeof useBudgetField>>,
-  created: (token: Token, value: string) => void,
+  {
+    created,
+    reread,
+  }: Readonly<{ created: (token: Token, value: string) => void; reread: () => void }>,
 ) {
   const { value, fail, clear } = name;
   const { selected, refuse, reset } = scopes;
@@ -73,17 +76,23 @@ function useCreate(
       created(result.token, result.value);
     } catch {
       fail(SETTINGS.tokenCreateFailed);
+      reread();
     }
-  }, [budget, clear, created, fail, refuse, reset, selected, value]);
+  }, [budget, clear, created, fail, reread, refuse, reset, selected, value]);
 }
 
 export function TokenForm({
   name,
   created,
-}: Readonly<{ name: FieldState; created: (token: Token, value: string) => void }>) {
+  reread,
+}: Readonly<{
+  name: FieldState;
+  created: (token: Token, value: string) => void;
+  reread: () => void;
+}>) {
   const scopes = useScopes();
   const budget = useBudgetField(DEFAULT_BUDGET_TEXT);
-  const { busy, onSubmit } = useSubmit(useCreate(name, scopes, budget, created));
+  const { busy, onSubmit } = useSubmit(useCreate(name, scopes, budget, { created, reread }));
 
   return (
     <form noValidate className="tok-form" onSubmit={onSubmit}>
