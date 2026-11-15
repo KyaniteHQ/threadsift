@@ -3,9 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import { givenUpTasks, supersededTasks } from "./ai-tasks.ts";
 import { openingDigest } from "./digest-job.ts";
-import { setStatus } from "./item-status.ts";
 import type { JobCurrency } from "./job-outcome.ts";
-import { ITEM_JOB_KINDS } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, aiTasks, items, jobs, xVerifications } from "./schema.ts";
 
@@ -40,9 +38,6 @@ export function closeJob(
       .where(eq(jobs.id, job.id)),
     ...givenUpTasks(db, eq(aiTasks.jobId, job.id)),
     ...(job.kind === "digest" && itemId !== null ? [owedDigest(db, itemId)] : []),
-    ...(itemId !== null && ITEM_JOB_KINDS.some((owner) => owner === job.kind)
-      ? [setStatus(db, { kind: "jobs-changed" }, eq(items.id, itemId))]
-      : []),
   ];
 }
 

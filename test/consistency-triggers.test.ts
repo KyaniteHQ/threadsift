@@ -4,22 +4,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import type {
-  FailureReason,
-  ItemStatus,
-  JobKind,
-  JobState,
-  Kind,
-  Source,
-} from "../src/core/kinds.ts";
-import {
-  FAILURE_REASONS,
-  ITEM_STATUSES,
-  JOB_KINDS,
-  JOB_STATES,
-  KINDS,
-  LOG_ACTIONS,
-} from "../src/core/kinds.ts";
+import type { FailureReason, JobKind, JobState, Kind, Source } from "../src/core/kinds.ts";
+import { FAILURE_REASONS, JOB_KINDS, JOB_STATES, KINDS, LOG_ACTIONS } from "../src/core/kinds.ts";
 import { sourceOf } from "../src/core/links.ts";
 import { Instance } from "./instance.ts";
 
@@ -28,7 +14,6 @@ const BUSY_TIMEOUT_MS = 5000;
 interface ItemRow {
   readonly source: Source;
   readonly kind: Kind;
-  readonly status: ItemStatus;
   readonly reason: FailureReason | null;
 }
 
@@ -40,30 +25,25 @@ interface JobRow {
 const BASELINE_ITEM: ItemRow = {
   source: "other",
   kind: "link",
-  status: "processing",
   reason: null,
 };
 
 const BASELINE_JOB: JobRow = { kind: "fetch", state: "queued" };
 
-const withStatus = (status: ItemStatus, reason: FailureReason | null): ItemRow => ({
+const withReason = (reason: FailureReason | null): ItemRow => ({
   source: BASELINE_ITEM.source,
   kind: BASELINE_ITEM.kind,
-  status,
   reason,
 });
 
 const withKind = (kind: Kind): ItemRow => ({
   source: sourceOf(kind),
   kind,
-  status: "ready",
   reason: null,
 });
 
-const statusRows: readonly ItemRow[] = ITEM_STATUSES.flatMap((status): readonly ItemRow[] =>
-  status === "failed"
-    ? FAILURE_REASONS.map((reason) => withStatus(status, reason))
-    : [withStatus(status, null)],
+const reasonRows: readonly ItemRow[] = [null, ...FAILURE_REASONS].map((reason) =>
+  withReason(reason),
 );
 
 const kindRows: readonly ItemRow[] = KINDS.filter((kind) => kind !== BASELINE_ITEM.kind).map(
@@ -74,7 +54,7 @@ const jobRows: readonly JobRow[] = JOB_KINDS.flatMap((kind) =>
   JOB_STATES.map((state) => ({ kind, state })),
 );
 
-describe("every status, reason, Source, kind, job and Log value in src/core/kinds.ts passes the consistency triggers", () => {
+describe("every failure reason, Source, kind, job and Log value in src/core/kinds.ts passes the consistency triggers", () => {
   let instance: Instance;
   let database: DatabaseSync;
   let saved = 0;
@@ -85,10 +65,10 @@ describe("every status, reason, Source, kind, job and Log value in src/core/kind
 
     const inserted = database
       .prepare(
-        `insert into items (source, kind, normalized_url, original_url, saved_at, status, reason)
-         values (?, ?, ?, ?, ?, ?, ?) returning id`,
+        `insert into items (source, kind, normalized_url, original_url, saved_at, reason)
+         values (?, ?, ?, ?, ?, ?) returning id`,
       )
-      .get(row.source, row.kind, url, url, saved, row.status, row.reason);
+      .get(row.source, row.kind, url, url, saved, row.reason);
 
     return z.object({ id: z.number() }).parse(inserted).id;
   };
@@ -113,7 +93,7 @@ describe("every status, reason, Source, kind, job and Log value in src/core/kind
   });
 
   const itemCases = (row: Readonly<ItemRow>): void => {
-    const name = `${row.kind} from ${row.source}, ${row.status}, reason ${String(row.reason)}`;
+    const name = `${row.kind} from ${row.source}, reason ${String(row.reason)}`;
 
     it(`stores an Item: ${name}`, () => {
       assert.doesNotThrow(() => insertItem(row));
@@ -124,8 +104,8 @@ describe("every status, reason, Source, kind, job and Log value in src/core/kind
 
       assert.doesNotThrow(() => {
         database
-          .prepare("update items set source = ?, kind = ?, status = ?, reason = ? where id = ?")
-          .run(row.source, row.kind, row.status, row.reason, id);
+          .prepare("update items set source = ?, kind = ?, reason = ? where id = ?")
+          .run(row.source, row.kind, row.reason, id);
       });
     });
   };
@@ -153,7 +133,7 @@ describe("every status, reason, Source, kind, job and Log value in src/core/kind
     });
   };
 
-  for (const row of [...statusRows, ...kindRows]) itemCases(row);
+  for (const row of [...reasonRows, ...kindRows]) itemCases(row);
 
   for (const row of jobRows) jobCases(row);
 

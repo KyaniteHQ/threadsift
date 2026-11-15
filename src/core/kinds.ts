@@ -51,7 +51,7 @@ export const LEGACY_SCOPES = ["read", "add", "digest", "delete"] as const;
 
 export const SCOPES = [...LEGACY_SCOPES, "reddit"] as const;
 
-export const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
+const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
 export const FAILURE_REASONS = ["timeout", "network", "gave-up", "rate-limited"] as const;
 

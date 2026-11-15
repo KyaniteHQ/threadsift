@@ -2,15 +2,13 @@ import { type SQL, eq } from "drizzle-orm";
 
 import type { Concluded, Content } from "./details.ts";
 import type { FetchResult } from "./fetch-results.ts";
-import { NO_OPEN_JOBS, type StatusEvent, statusColumns } from "./item-status.ts";
 import type { XReadNote } from "./kinds.ts";
 import { sourceOf } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { type ItemRow, items } from "./schema.ts";
 
-type Settled = Pick<ItemRow, "fetch" | "xNote"> & {
-  readonly event: Extract<StatusEvent, { kind: "settled" | "failed" }>;
-} & Partial<
+type Settled = Pick<ItemRow, "fetch" | "xNote" | "reason"> &
+  Partial<
     Pick<
       ItemRow,
       "title" | "author" | "community" | "fetchedAt" | "source" | "kind" | "postText" | "postedAt"
@@ -68,7 +66,7 @@ function settle(fetched: Readonly<Concluded>, current: string | null, now: numbe
     const { content, ...found } = fetched.found;
 
     const settled: Settled = {
-      event: { kind: "settled" },
+      reason: null,
       fetch: "ok",
       xNote,
       ...found,
@@ -81,22 +79,18 @@ function settle(fetched: Readonly<Concluded>, current: string | null, now: numbe
   const result = fetched.status;
 
   if (isRetryable(result) && current === null) {
-    return { event: { kind: "failed", reason: result }, fetch: result, xNote };
+    return { reason: result, fetch: result, xNote };
   }
 
-  return { event: { kind: "settled" }, fetch: result, xNote };
+  return { reason: null, fetch: result, xNote };
 }
 
 export function settledNew(fetched: Readonly<Concluded>, now: number) {
-  const { event, ...fields } = settle(fetched, null, now);
-
-  return { ...fields, ...statusColumns(event, NO_OPEN_JOBS) };
+  return settle(fetched, null, now);
 }
 
 export function settledKnown(fetched: Readonly<Concluded>, current: string | null, now: number) {
-  const { event, ...fields } = settle(fetched, current, now);
-
-  return { ...fields, ...statusColumns(event) };
+  return settle(fetched, current, now);
 }
 
 export function failedFetch(
@@ -105,8 +99,5 @@ export function failedFetch(
   reason: "gave-up" | "rate-limited",
   xNote: XReadNote | SQL<XReadNote | null> | null,
 ) {
-  return db
-    .update(items)
-    .set({ ...statusColumns({ kind: "failed", reason }), xNote, pendingDigest: null })
-    .where(eq(items.id, itemId));
+  return db.update(items).set({ reason, xNote, pendingDigest: null }).where(eq(items.id, itemId));
 }

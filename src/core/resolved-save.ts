@@ -31,7 +31,7 @@ function saveResolvedRefreshing(
   const noRival = holdsNoRival(db, shortLink, link);
 
   return unlessRefused(db, noRival, async () => {
-    const [, , inserted, , , queued, [item]] = await db.batch([
+    const [, , inserted, , queued, [item]] = await db.batch([
       insertGuard(db, noRival),
       promoteFailedItem(db, shortLink, link),
       ...queuedWrites(db, paste, link),
@@ -60,7 +60,7 @@ async function saveResolvedNewOnly(
   const bothHold = sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, shortLink)}`;
 
   const added = await unlessRefused(db, bothHold, async () => {
-    const [, , , , queued, [item]] = await db.batch([
+    const [, , , queued, [item]] = await db.batch([
       insertGuard(db, bothHold),
       ...queuedWrites(db, paste, link),
       recordAlias(db, shortLink, paste.address, link),

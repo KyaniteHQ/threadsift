@@ -1,4 +1,4 @@
-import { and, eq, exists, notExists, sql } from "drizzle-orm";
+import { and, eq, notExists, sql } from "drizzle-orm";
 
 import { openingDigest } from "./digest-job.ts";
 import { markDigest } from "./digest-source.ts";
@@ -8,7 +8,7 @@ import {
   getListedItem,
   selectItems,
 } from "./item-selection.ts";
-import { IS_FAILED, NOT_FAILED, setStatus } from "./item-status.ts";
+import { IS_FAILED, NOT_FAILED } from "./item-status.ts";
 import { enqueueRows, hasOpenJob } from "./job-rows.ts";
 import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
@@ -29,7 +29,7 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
 
   const live = and(eq(items.id, id), NOT_FAILED) ?? sql`0`;
 
-  const [, queued, , , [item]] = await ports.db.batch([
+  const [, queued, , [item]] = await ports.db.batch([
     ports.db
       .update(items)
       .set({ pendingDigest: null })
@@ -40,7 +40,6 @@ export async function retryDigest(ports: Ports, id: number): Promise<ListedItemR
       now: Date.now(),
     }).job,
     markDigest(ports.db, id, "cleared"),
-    setStatus(ports.db, { kind: "queued" }, and(live, exists(hasOpenJob("digest"))) ?? sql`0`),
     selectItems(ports.db, LISTED_COLUMNS).where(eq(items.normalizedUrl, known.normalizedUrl)),
   ]);
 

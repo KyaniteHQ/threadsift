@@ -13,7 +13,7 @@ import {
 
 import { expireAiTasks } from "./ai-tasks.ts";
 import { hasDigestSource, keptNotUpdated } from "./digest-source.ts";
-import { NOT_FAILED, setStatus } from "./item-status.ts";
+import { NOT_FAILED } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { linkOlderDigests } from "./older-digests.ts";
 import type { Database } from "./ports.ts";
@@ -34,9 +34,7 @@ export function openingDigest(
     now,
   }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
 ) {
-  const eligible = eligibleDigest(scope);
-
-  return { eligible, job: opening(db, { kind: "digest", address, now, where: eligible }) };
+  return { job: opening(db, { kind: "digest", address, now, where: eligibleDigest(scope) }) };
 }
 
 export async function sweepDigests(db: Database, now: number): Promise<void> {
@@ -118,7 +116,7 @@ function owedDigests(
     now: Date.now(),
   });
 
-  return [setStatus(db, { kind: "queued" }, older.eligible), older.job] as const;
+  return [older.job] as const;
 }
 
 export function olderDigests(db: Database) {
