@@ -196,11 +196,18 @@ export class Instance {
     return schema.parse(JSON.parse(await response.text()));
   }
 
-  async sendThrough(db: Ports["db"], method: string, path: string): Promise<Answer> {
-    const response = await createApp({ ...this.ports, db }).request(path, {
-      method,
-      headers: new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" }),
-    });
+  async sendThrough(
+    db: Ports["db"],
+    method: string,
+    path: string,
+    body: Json = null,
+  ): Promise<Answer> {
+    const headers = new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" });
+
+    const response = await createApp({ ...this.ports, db }).request(
+      path,
+      requestOf(method, headers, body),
+    );
 
     return { status: response.status, body: await response.text() };
   }
