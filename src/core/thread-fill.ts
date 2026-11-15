@@ -78,10 +78,12 @@ async function answerAfter(
   {
     wait,
     giveUpAt,
+    signal,
     mayContinue,
   }: Readonly<{
     wait: number;
     giveUpAt: number;
+    signal: AbortSignal | undefined;
     mayContinue: FillLimits["mayContinue"];
   }>,
 ): Promise<FillAnswer | null> {
@@ -89,7 +91,9 @@ async function answerAfter(
 
   const left = giveUpAt - Date.now();
 
-  if (left <= 0 || (mayContinue !== undefined && !(await mayContinue()))) return null;
+  if (left <= 0 || stopped(signal)) return null;
+
+  if (mayContinue !== undefined && !(await mayContinue())) return null;
 
   return answerFor(address, Math.min(REQUEST_DEADLINE_MS, left));
 }
@@ -120,7 +124,7 @@ export async function fillAnswers(
     const address = addressFor(id);
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- the requests are sequential and spaced.
-    const answer = await answerAfter(answerFor, address, { wait, giveUpAt, mayContinue });
+    const answer = await answerAfter(answerFor, address, { wait, giveUpAt, signal, mayContinue });
 
     if (answer === null) break;
 
