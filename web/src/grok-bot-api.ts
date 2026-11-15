@@ -5,7 +5,8 @@ import {
   GrokBotTestSchema,
   GrokBotViewSchema,
 } from "../../src/core/grok-bot-contract.ts";
-import { callOk, parsedBody, parsedFrom } from "./calls.ts";
+import { callOk, del, parsedBody, parsedFrom, post, put } from "./calls.ts";
+import { DATABASE_WRITE_DEADLINE_MS, HOP_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/grok-bot";
 
@@ -14,11 +15,13 @@ export function fetchGrokBotSettings(signal: AbortSignal) {
 }
 
 export function saveGrokBot(input: Readonly<GrokBotInput>) {
-  return parsedFrom("PUT", ENDPOINT, GrokBotSaveResponseSchema, { json: input });
+  return parsedFrom(put(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, GrokBotSaveResponseSchema, {
+    json: input,
+  });
 }
 
 export async function removeGrokBot() {
-  const response = await callOk("DELETE", ENDPOINT, { tolerates: [409] });
+  const response = await callOk(del(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, { tolerates: [409] });
 
   if (response.status === 409) {
     await parsedBody(response, GrokBotInUseSchema);
@@ -30,5 +33,6 @@ export async function removeGrokBot() {
 }
 
 export async function testGrokBot() {
-  return (await parsedFrom("POST", `${ENDPOINT}/test`, GrokBotTestSchema)).result;
+  return (await parsedFrom(post(HOP_WRITE_DEADLINE_MS), `${ENDPOINT}/test`, GrokBotTestSchema))
+    .result;
 }

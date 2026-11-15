@@ -1,8 +1,8 @@
 import { botStep } from "./bot-step.ts";
-import { FETCH_DEADLINE_MS } from "./fetch-link.ts";
 import { outcomeOfFetched } from "./fetch-outcome.ts";
 import { fetchedForJob } from "./fetch-source.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { FETCH_DEADLINE_MS } from "./request-waits.ts";
 import { xIntakeKind } from "./x-intake.ts";
 import { NO_READER, xRouteOf } from "./x-reader.ts";
 

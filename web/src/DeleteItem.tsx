@@ -14,10 +14,7 @@ import {
   DELETE_TITLE,
 } from "./reader-text.ts";
 import { useFlow } from "./use-flow.ts";
-import { useAfter } from "./use-form.ts";
 import { useModalDialog } from "./use-modal-dialog.ts";
-
-const DELETE_WAIT_MS = 20_000;
 
 function containTab(dialog: HTMLElement, signal: AbortSignal): void {
   dialog.addEventListener(
@@ -147,22 +144,17 @@ function useReturnFocus(asking: boolean, trigger: RefObject<HTMLElement | null>)
   }, [asking, trigger]);
 }
 
-async function settleDelete(
-  remove: () => Promise<void>,
-  attempt: number,
-  send: (event: DeleteEvent) => boolean,
-) {
+async function settleDelete(remove: () => Promise<void>, send: (event: DeleteEvent) => boolean) {
   try {
     await remove();
     send({ kind: "delete" });
   } catch {
-    send({ kind: "refuse", attempt });
+    send({ kind: "refuse" });
   }
 }
 
 function useDeleteFlow(item: Item, remove: (item: Item) => Promise<void>) {
   const [flow, send] = useFlow(reduceDelete, CLOSED);
-  const attempts = useRef(0);
 
   const ask = useCallback(() => {
     send({ kind: "ask" });
@@ -173,19 +165,10 @@ function useDeleteFlow(item: Item, remove: (item: Item) => Promise<void>) {
   }, [send]);
 
   const confirm = useCallback(() => {
-    const attempt = attempts.current + 1;
+    if (!send({ kind: "confirm" })) return;
 
-    if (!send({ kind: "confirm", attempt })) return;
-
-    attempts.current = attempt;
-    void settleDelete(() => remove(item), attempt, send);
+    void settleDelete(() => remove(item), send);
   }, [item, remove, send]);
-
-  const timedOut = useCallback(() => {
-    send({ kind: "time-out" });
-  }, [send]);
-
-  useAfter(flow.kind === "pending", DELETE_WAIT_MS, timedOut);
 
   return { flow, ask, cancel, confirm };
 }

@@ -10,14 +10,13 @@ import {
   type CliProvider,
   refusedAi,
 } from "../../core/ai-contract.ts";
+import { PROBE_MS } from "../../core/request-waits.ts";
 import type { CliRunner } from "../shared/ai-runtime.ts";
 import type { ProcessEnd } from "./cli-process.ts";
 import { type Slots, inSlot } from "./cli-slots.ts";
 
 export const STDOUT_CAP = 1024 * 1024;
 export const STDERR_CAP = 64 * 1024;
-const PROBE_MS = 15_000;
-
 const FIXED_PATH = ["/usr/local/bin", "/usr/bin", "/bin"];
 
 async function isExecutable(path: string): Promise<boolean> {

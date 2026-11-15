@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import type { Token } from "../../src/http/schemas.ts";
+import { fetchTokens } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
 import type { Loaded } from "./settings-load-types.ts";
@@ -32,7 +33,11 @@ function useTokens(initial: Loaded<readonly Token[]>) {
     setTokens((current) => current.map((token) => (token.id === changed.id ? changed : token)));
   }, []);
 
-  return { failed, tokens, add, remove, replace };
+  const reread = useCallback(() => {
+    fetchTokens(new AbortController().signal).then(setTokens, () => null);
+  }, []);
+
+  return { failed, tokens, add, remove, replace, reread };
 }
 
 export function TokensSection({ initial }: Readonly<{ initial: Loaded<readonly Token[]> }>) {
@@ -40,7 +45,7 @@ export function TokensSection({ initial }: Readonly<{ initial: Loaded<readonly T
   const [revealed, setRevealed] = useState<Revealed | null>(null);
   const { ref: nameRef } = name;
 
-  const { failed, tokens, add, remove, replace } = useTokens(initial);
+  const { failed, tokens, add, remove, replace, reread } = useTokens(initial);
 
   const created = useCallback(
     (token: Token, value: string) => {
@@ -61,12 +66,18 @@ export function TokensSection({ initial }: Readonly<{ initial: Loaded<readonly T
         {SETTINGS.tokensTitle}
       </h2>
       <p>{SETTINGS.tokensIntro}</p>
-      <TokenForm name={name} created={created} />
+      <TokenForm name={name} created={created} reread={reread} />
       {revealed === null ? null : (
         <TokenReveal name={revealed.name} value={revealed.value} done={dismiss} />
       )}
       <Alert text={failed ? SETTINGS.tokensLoadFailed : null} />
-      <TokenList tokens={tokens} removed={remove} changed={replace} nameField={nameRef} />
+      <TokenList
+        tokens={tokens}
+        removed={remove}
+        changed={replace}
+        reread={reread}
+        nameField={nameRef}
+      />
     </section>
   );
 }

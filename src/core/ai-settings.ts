@@ -1,6 +1,7 @@
 import { type SQL, sql } from "drizzle-orm";
 
 import {
+  AI_SAVE_ATTEMPTS,
   GROK_BOT_PROVIDER,
   type AiSettingsInput,
   type AiSettingsView,
@@ -96,8 +97,6 @@ export async function holdsSettings(
   }
 }
 
-const SAVE_ATTEMPTS = 5;
-
 async function preparedSave(ports: SettingsPorts, input: Readonly<AiSettingsInput>) {
   if (input.provider === GROK_BOT_PROVIDER) return preparedBot(ports);
 
@@ -115,7 +114,7 @@ export async function saveAiSettings(
   ports: SettingsPorts,
   input: Readonly<AiSettingsInput>,
   extraWrites: () => JobWrites,
-  attemptsLeft = SAVE_ATTEMPTS,
+  attemptsLeft = AI_SAVE_ATTEMPTS,
 ): Promise<AiSaveResponse> {
   const prepared = await preparedSave(ports, input);
 

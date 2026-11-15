@@ -1,7 +1,7 @@
 import { ImportStateSchema } from "../../src/core/import-contract.ts";
 import type { ImportRequest } from "../../src/core/import-list.ts";
 import { BatchResponseSchema } from "../../src/http/batch-schemas.ts";
-import { call, parsedBody, parsedOrNull } from "./calls.ts";
+import { NO_DEADLINE, call, parsedBody, parsedOrNull, post } from "./calls.ts";
 
 export interface Counts {
   readonly added: number;
@@ -35,7 +35,7 @@ function countsOf(outcomes: readonly (keyof Counts)[]): Counts {
 
 export async function postBatch(request: Readonly<ImportRequest>): Promise<BatchAnswer> {
   try {
-    const response = await call("POST", "/api/items/batch", { json: request });
+    const response = await call(post(NO_DEADLINE), "/api/items/batch", { json: request });
 
     if (response.status === 503) return { kind: "updating" };
 

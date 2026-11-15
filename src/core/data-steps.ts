@@ -1,14 +1,13 @@
 import { and, eq, gt, lt, lte, sql } from "drizzle-orm";
 
-import { aiTaskOwnersStep } from "./ai-task-owner-step.ts";
-import { catalogKeySteps } from "./catalog-key-step.ts";
 import type { DataStep } from "./data-step-contract.ts";
+import { STEPS } from "./data-step-list.ts";
 import { dataStepLease, dataSteps } from "./data-step-tables.ts";
 import { logFailure } from "./failure-log.ts";
 import { guardedBatch } from "./guards.ts";
-import { ITEM_IDENTITY_VERSION, advanceItemIdentity } from "./item-identity.ts";
 import { pause } from "./pause.ts";
 import type { Database } from "./ports.ts";
+import { LEASE_WAIT_MS } from "./request-waits.ts";
 
 const UNITS_PER_RUN = 100;
 
@@ -16,15 +15,7 @@ const LEASE_ROW = 1;
 
 const LEASE_MS = 30_000;
 
-const LEASE_WAIT_MS = 5_000;
-
 const LEASE_POLL_MS = 100;
-
-const STEPS: readonly DataStep[] = [
-  { name: "item-identity", version: ITEM_IDENTITY_VERSION, advance: advanceItemIdentity },
-  ...catalogKeySteps,
-  aiTaskOwnersStep,
-];
 
 function cursorKey(version: number): string {
   return `${version}|`;

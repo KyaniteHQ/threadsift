@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import { type ProposalPage, ProposalPageSchema } from "../../src/core/proposal-contract.ts";
-import { call, parsedFrom, withCursor } from "./calls.ts";
+import { NO_DEADLINE, call, parsedFrom, post, withCursor } from "./calls.ts";
+import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const BUSY_ANSWERS = ["merge-busy", "topic-busy", "no-provider"] as const;
 
@@ -23,7 +24,10 @@ export function fetchProposals(cursor: string | null): Promise<ProposalPage> {
 
 export async function sendReject(id: number): Promise<"rejected" | "unknown"> {
   try {
-    const response = await call("POST", `/api/proposals/${String(id)}/reject`);
+    const response = await call(
+      post(DATABASE_WRITE_DEADLINE_MS),
+      `/api/proposals/${String(id)}/reject`,
+    );
 
     return response.ok ? "rejected" : "unknown";
   } catch {
@@ -38,7 +42,7 @@ const ANSWERS = new Map<number, Acceptance>([
 
 export async function sendAccept(id: number): Promise<Acceptance> {
   try {
-    const response = await call("POST", `/api/proposals/${String(id)}/accept`);
+    const response = await call(post(NO_DEADLINE), `/api/proposals/${String(id)}/accept`);
 
     if (response.status !== 409) return ANSWERS.get(response.status) ?? "unknown";
 

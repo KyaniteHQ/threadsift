@@ -3,7 +3,8 @@ import {
   RedditAccountViewSchema,
   RedditVerifySchema,
 } from "../../src/core/reddit-account-contract.ts";
-import { parsedFrom } from "./calls.ts";
+import { del, parsedFrom, post, put } from "./calls.ts";
+import { DATABASE_WRITE_DEADLINE_MS, REDDIT_VERIFY_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/reddit-account";
 
@@ -12,13 +13,17 @@ export function fetchRedditAccount(signal?: AbortSignal) {
 }
 
 export function saveRedditAccount(session: string) {
-  return parsedFrom("PUT", ENDPOINT, RedditAccountSaveResponseSchema, { json: { session } });
+  return parsedFrom(put(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, RedditAccountSaveResponseSchema, {
+    json: { session },
+  });
 }
 
 export async function verifyRedditAccount() {
-  return (await parsedFrom("POST", `${ENDPOINT}/verify`, RedditVerifySchema)).result;
+  return (
+    await parsedFrom(post(REDDIT_VERIFY_DEADLINE_MS), `${ENDPOINT}/verify`, RedditVerifySchema)
+  ).result;
 }
 
 export function removeRedditAccount() {
-  return parsedFrom("DELETE", ENDPOINT, RedditAccountViewSchema);
+  return parsedFrom(del(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, RedditAccountViewSchema);
 }

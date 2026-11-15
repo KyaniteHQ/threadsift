@@ -27,8 +27,6 @@ type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
   | { readonly kind: "failed"; readonly fetched: Concluded };
 
-export const FETCH_DEADLINE_MS = 120_000;
-
 export const SMALL_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
   followMetaRefresh: isShortLink,
@@ -130,6 +128,7 @@ export async function fetchLink(
 export async function resolveShortLink(
   network: Network,
   address: string,
+  deadline: AbortSignal,
 ): Promise<ShortLinkResolution> {
   const shareLink = isRedditShareLink(address);
 
@@ -137,7 +136,7 @@ export async function resolveShortLink(
     network,
     address,
     shareLink ? SHARE_LINK_POLICY : RESOLVE_POLICY,
-    AbortSignal.timeout(FETCH_DEADLINE_MS),
+    deadline,
   );
 
   if (outcome.kind === "failed") {
