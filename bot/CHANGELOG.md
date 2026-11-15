@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## bot-v4
+
+- `write` stores an empty file and answers `ok`, and `append` leaves the file as it was and answers `ok`, when the shell starts the script with its standard input closed, the same as with an empty standard input, instead of `bad-input` with "no text on standard input". No other command reads standard input, so no other command changes.
 - A bookmark sync that stops at 20 pages stores the top bookmark as its cursor, so the next sync starts from the top instead of sending the same 2,000 bookmarks again.
 - A bookmark sync that finds the stored bookmark first on a page sends nothing for that page and goes on, instead of running `bookmarks-send` with no ids, which the script answers with `bad-input` and which ended the run.
 

@@ -69,6 +69,15 @@ export class ScriptFolder {
     return this.executed("bash", [join(this.path, "threadsift.sh"), ...args], env, input);
   }
 
+  runWithClosedStdin(args: readonly string[], env: Readonly<Record<string, string>>): Promise<Ran> {
+    return this.executed(
+      "sh",
+      ["-c", 'exec "$@" <&-', "closed-stdin", "bash", join(this.path, "threadsift.sh"), ...args],
+      env,
+      "",
+    );
+  }
+
   async heredoc(
     name: string,
     text: string | Uint8Array,

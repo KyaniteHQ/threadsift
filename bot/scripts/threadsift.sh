@@ -2,6 +2,9 @@
 set -euo pipefail
 umask 077
 
+stdin_is_open() { { true 3<&0; } 2> /dev/null; }
+stdin_is_open || exec 0< /dev/null
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 command="${1:-}"
 first="${2:-}"
