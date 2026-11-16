@@ -201,7 +201,7 @@ function Row({
   const Control = row.kind === "select" ? SelectControl : ButtonsControl;
 
   return (
-    <div className={disabled ? "st-row off" : "st-row"}>
+    <div className="st-row">
       <RowLabel row={row} labelId={labelId} controlId={controlId} />
       <Control
         row={row}
