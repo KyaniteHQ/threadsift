@@ -9,6 +9,7 @@ colors:
   bg: "oklch(0.976 0.008 255)"
   surface: "oklch(0.995 0.004 255)"
   surface-2: "oklch(0.948 0.008 255)"
+  press: "oklch(0.919 0.008 255)"
   line: "oklch(0.89 0.008 255)"
   line-2: "oklch(0.80 0.008 255)"
   ctl-line: "oklch(0.60 0.008 255)"
@@ -82,6 +83,8 @@ components:
     height: "34px"
   button-hover:
     backgroundColor: "{colors.surface-2}"
+  button-press:
+    backgroundColor: "{colors.press}"
   button-accent:
     backgroundColor: "{colors.cobalt}"
     textColor: "{colors.on-accent}"
@@ -123,6 +126,8 @@ components:
     padding: "9px 16px 9px 12px"
   list-row-hover:
     backgroundColor: "{colors.surface-2}"
+  list-row-press:
+    backgroundColor: "{colors.press}"
   list-row-open:
     backgroundColor: "{colors.cobalt-soft}"
   grid-card:
@@ -175,6 +180,7 @@ The palette is near-white surfaces with a faint cool tint, ink-dark text, and a 
 
 ### Neutral
 - **Page** (`bg`), **Surface** (`surface`) and **Sunk surface** (`surface-2`): the app background; controls, cards and boxes; and hover fills, the List sidebar, code and tag chips.
+- **Press fill** (`press`): the fill of a control while it is pressed, one step past the hover fill. Outside forced colours, a pressed selected filter row, filter segment or List row mixes the same step into the accent tint.
 - **Hairline** (`line`) and **Strong hairline** (`line-2`): row dividers and container edges; the heavier lines (comment indent guides, segmented control frames, the settings panel and the paste card).
 - **Control line** (`ctl-line`): the edge of buttons, fields and selects, and the ring of an empty unread dot.
 - **Ink** (`text`) and **Muted ink** (`muted`): primary text; metadata, counts, labels, hints and placeholders.
@@ -237,7 +243,7 @@ Corners follow size: `r1` for small inline parts, `r2` for controls, `r3` for la
 ## Components
 
 ### Buttons
-Quiet framed buttons that sit on the surface like the rest of the page. The accent button (a full Cobalt fill with on-accent text) is for the save button beside the paste box and the main action in a paste card. Focus draws a 2px accent-ink ring 2px outside the button.
+Quiet framed buttons that sit on the surface like the rest of the page. The accent button (a full Cobalt fill with on-accent text) is for the save button beside the paste box and the main action in a paste card. Focus draws a 2px accent-ink ring 2px outside the button. A press fills a neutral button with the press fill; an accent-filled button, a checked segment and a pressed chip keep their fill and show a 1px inner ring in the text colour of the fill. The danger button and the Read state dot keep the hover fill and show a 1px inner ring, because their marks lose contrast on the press fill. While a List row, Topic page row or open Grid card is pressed, its Read state mark takes the muted colour, or the accent ink when unread, for the same reason. A plain Grid card keeps its mark colours. In forced colours, selected filters keep their system colours and open Grid cards keep their system border while pressed. Disabled buttons show no press. The names ending in pressed in the front matter mean the toggled state, and button-press and list-row-press mean the moment of the press.
 
 ### Chips
 - **Tag chips:** a pill on the sunk surface, used only when Tag style is Chips. The default Tag style is a coloured dot before the name, and Text style writes "#name". A name too long for its row wraps inside its own box in the Reader, in every Tag style, with the dot or the "#" beside the first line, and a Chips pill keeps its corner at half the height of one line so a wrapped name stays inside it. A name in a filter row of the rail wraps the same way and the count stays at the row's end. The Grid filter bar uses a native select instead, which stays inside the bar and clips a long name, both in the closed control and in the open list.
