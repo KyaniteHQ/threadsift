@@ -153,7 +153,6 @@ export default defineConfig({
     "anti-slop/no-unknown-returns": "error",
     "anti-slop/no-unknown-type-aliases": "error",
     "anti-slop/no-unsafe-dictionary-type": "error",
-    "anti-slop/require-readable-spacing": "error",
   },
   overrides: [
     { files: ["*.config.ts", "tools/**"], env: { node: true } },
