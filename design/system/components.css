@@ -47,7 +47,7 @@
 .field input { flex: 1; align-self: stretch; min-width: 0; margin: -1px 0; padding: 0; border: 0; background: transparent; color: var(--text); font-size: var(--t-body); outline: none; }   /* reaches over the field's border, so the input itself is the field's full height (44px on phones) */
 .field input::placeholder { color: var(--muted); opacity: 1; }
 .app .field input:focus-visible { outline: none; }
-.app[data-bp~="phone"] .field input { font-size: max(var(--t-floor), var(--t-body)); }
+.app[data-bp~="phone"] .field input, .app[data-bp~="phone"] .fl-sel, .app[data-bp~="phone"] .st-sel { font-size: max(var(--t-floor), var(--t-body)); }
 .fld { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--s2); row-gap: var(--s1); min-width: 0; }
 .fld:has(> .fld-action) { grid-template-columns: minmax(0, 1fr) auto; }
 .fld > * { grid-column: 1 / -1; }
