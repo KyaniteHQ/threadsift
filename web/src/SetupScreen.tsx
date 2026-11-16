@@ -4,6 +4,7 @@ import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
 import { SETUP } from "./access-text.ts";
 import { AuthShell } from "./AuthShell.tsx";
 import { CodeStep } from "./CodeStep.tsx";
+import { Command } from "./Command.tsx";
 import { PasswordStep } from "./PasswordStep.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
 import type { SetupStep } from "./setup-step.ts";
@@ -14,7 +15,7 @@ function UnavailableBlock({ reason }: Readonly<{ reason: SetupCodeProblem }>) {
     <div role="alert" className="stack">
       <h1 className="auth-title">{reason === "missing" ? SETUP.missingTitle : SETUP.shortTitle}</h1>
       <p>{reason === "missing" ? SETUP.missingHelp : SETUP.shortHelp}</p>
-      {reason === "missing" ? <pre className="cmd">{SETUP.missingCommand}</pre> : null}
+      {reason === "missing" ? <Command text={SETUP.missingCommand} /> : null}
     </div>
   );
 }

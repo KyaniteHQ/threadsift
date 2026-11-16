@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import type { XReaderChoice } from "../../src/core/kinds.ts";
 import type { XSettingsView } from "../../src/core/x-settings-contract.ts";
 import { Alert } from "./Alert.tsx";
+import { Command } from "./Command.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { useXForm } from "./use-x-form.ts";
 import { BOT_STATES, READER_HELP, READER_LABELS, X_STATES, X_TEXT } from "./x-text.ts";
@@ -10,10 +11,6 @@ import { BOT_STATES, READER_HELP, READER_LABELS, X_STATES, X_TEXT } from "./x-te
 const LABEL_ID = "x-reader-label";
 
 const NOTE_ID = "x-reader-note";
-
-function Command({ text }: Readonly<{ text: string }>) {
-  return <pre className="cmd">{text}</pre>;
-}
 
 function Note({ view }: Readonly<{ view: XSettingsView }>) {
   switch (view.state) {
