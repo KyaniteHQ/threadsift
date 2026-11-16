@@ -109,7 +109,14 @@ export const EXPORT_STATES = ["running", "ready", "failed", "removing", "expired
 
 export const RESTORE_STATES = ["uploading", "running", "done", "failed", "cancelled"] as const;
 
-export const COPY_RESTORE_PHASES = ["check", "tables", "finish"] as const;
+export const COPY_RESTORE_PHASES = [
+  "check",
+  "tables",
+  "files",
+  "search",
+  "highlights",
+  "finish",
+] as const;
 
 export const RUNNING_RESTORE_PHASES = [...COPY_RESTORE_PHASES, "undoing"] as const;
 

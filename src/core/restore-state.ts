@@ -3,7 +3,13 @@ import { desc, eq, sql } from "drizzle-orm";
 import { FILE_LIST_LIMIT, restoreFilesPrefix } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { Database, FileStore } from "./ports.ts";
-import { CountsSchema, type RestoreStatus } from "./restore-contract.ts";
+import {
+  CountsSchema,
+  KEPT_HIGHLIGHTS,
+  MISSING_FILES,
+  RESTORED_FILES,
+  type RestoreStatus,
+} from "./restore-contract.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 
 const PART_NAME = /\/part-(?<part>[1-9][0-9]{0,9})$/u;
@@ -83,10 +89,15 @@ export function resumable(run: Readonly<Pick<RestoreRow, "state" | "phase" | "fa
 }
 
 function countsOf(run: Readonly<RestoreRow>) {
-  return {
-    restored: CountsSchema.parse(JSON.parse(run.restored)),
-    dropped: CountsSchema.parse(JSON.parse(run.dropped)),
-  };
+  const { [RESTORED_FILES]: files = 0, ...restored } = CountsSchema.parse(JSON.parse(run.restored));
+
+  const {
+    [MISSING_FILES]: missingFiles = 0,
+    [KEPT_HIGHLIGHTS]: keptHighlights = 0,
+    ...dropped
+  } = CountsSchema.parse(JSON.parse(run.dropped));
+
+  return { restored, dropped, files, missingFiles, keptHighlights };
 }
 
 type StatusPorts = Pick<JobPorts, "db" | "files">;

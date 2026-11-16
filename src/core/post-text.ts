@@ -2,6 +2,7 @@ import { and, asc, eq, isNotNull } from "drizzle-orm";
 
 import { FileRefused, fileRouteOf, parseFileKey } from "./file-keys.ts";
 import type { Database, FileStore } from "./ports.ts";
+import { readerUrl } from "./reader-url.ts";
 import { media } from "./schema.ts";
 
 const UNESCAPED_BY_JSON = /[\u007F-\u009F\u2028\u2029]/gu;
@@ -18,30 +19,45 @@ function unavailable(itemId: number, key: string, reason: string): null {
   return null;
 }
 
-async function textOf(stream: ReadableStream<Uint8Array>): Promise<string> {
+export type PostTextRead =
+  | { readonly kind: "text"; readonly text: string }
+  | { readonly kind: "over" }
+  | { readonly kind: "lost" };
+
+async function textOf(stream: ReadableStream<Uint8Array>, limit: number): Promise<PostTextRead> {
   const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
   let text = "";
+  let bytes = 0;
 
   for await (const chunk of stream) {
+    bytes += chunk.length;
+
+    if (bytes > limit) return { kind: "over" };
+
     text += decoder.decode(chunk, { stream: true });
   }
 
-  return text + decoder.decode();
+  return { kind: "text", text: text + decoder.decode() };
 }
 
-export async function readPostText(
+export async function readPostTextWithin(
   files: FileStore,
   itemId: number,
   key: string,
-): Promise<string | null> {
+  limit: number,
+): Promise<PostTextRead> {
   const parsed = parseFileKey(key);
 
   if (parsed === null) {
-    return unavailable(itemId, key, "refused-key");
+    unavailable(itemId, key, "refused-key");
+
+    return { kind: "lost" };
   }
 
   if (parsed.itemId !== String(itemId)) {
-    return unavailable(itemId, key, "foreign-key");
+    unavailable(itemId, key, "foreign-key");
+
+    return { kind: "lost" };
   }
 
   let stream: ReadableStream<Uint8Array> | null;
@@ -50,13 +66,31 @@ export async function readPostText(
     stream = await files.get(key);
   } catch (error) {
     if (error instanceof FileRefused) {
-      return unavailable(itemId, key, "refused-file");
+      unavailable(itemId, key, "refused-file");
+
+      return { kind: "lost" };
     }
 
     throw error;
   }
 
-  return stream === null ? unavailable(itemId, key, "missing") : textOf(stream);
+  if (stream === null) {
+    unavailable(itemId, key, "missing");
+
+    return { kind: "lost" };
+  }
+
+  return textOf(stream, limit);
+}
+
+export async function readPostText(
+  files: FileStore,
+  itemId: number,
+  key: string,
+): Promise<string | null> {
+  const read = await readPostTextWithin(files, itemId, key, Number.POSITIVE_INFINITY);
+
+  return read.kind === "text" ? read.text : null;
 }
 
 export function postTextOf(
@@ -71,7 +105,12 @@ export function postTextOf(
 
 export function sizedImageRows(db: Database, itemId: number) {
   return db
-    .select({ key: media.fileKey, width: media.width, height: media.height })
+    .select({
+      key: media.fileKey,
+      width: media.width,
+      height: media.height,
+      sourceUrl: media.sourceUrl,
+    })
     .from(media)
     .where(
       and(
@@ -84,12 +123,17 @@ export function sizedImageRows(db: Database, itemId: number) {
     .orderBy(asc(media.position));
 }
 
-type SizedRow = Readonly<{ key: string | null; width: number | null; height: number | null }>;
+type SizedRow = Readonly<{
+  key: string | null;
+  width: number | null;
+  height: number | null;
+  sourceUrl: string;
+}>;
 
 export function sizedImagesOf(rows: readonly SizedRow[]) {
-  return rows.flatMap(({ key, width, height }) =>
+  return rows.flatMap(({ key, width, height, sourceUrl }) =>
     key === null || width === null || height === null
       ? []
-      : [{ url: fileRouteOf(key), width, height }],
+      : [{ url: fileRouteOf(key), width, height, sourceUrl: readerUrl(sourceUrl) }],
   );
 }
