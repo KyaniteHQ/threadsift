@@ -223,7 +223,7 @@ The app measures its own width and writes every band it is under to `data-bp` (`
 
 ## Elevation & Depth
 
-The system is flat with tonal layering, plus soft ambient shadows on things that sit above the page. List rows, panes, the summary box and the repository block are flat and separated by hairlines and the sunk surface. Grid cards and the sheet's side buttons carry the low shadow (`--shadow`). The settings panel, the reader sheet and the floating paste card carry the high shadow (`--shadow-lg`), over a dimming scrim where they cover the page. In Dark, the sheet adds a strong hairline edge so it shows against the scrim.
+The system is flat with tonal layering, plus soft ambient shadows on things that sit above the page. List rows, panes, the summary box and the repository block are flat and separated by hairlines and the sunk surface. Grid cards, the sheet's side buttons and the focused skip button carry the low shadow (`--shadow`). The settings panel, the reader sheet and the floating paste card carry the high shadow (`--shadow-lg`), over a dimming scrim where they cover the page. In Dark, the sheet adds a strong hairline edge so it shows against the scrim.
 
 The paste card floats under the paste box in List's sidebar from `--bp-medium` (1080px) up, and under the Grid header from 760px up. Below those widths it sits in the page flow between the paste box and the list, with no shadow, so the list moves down while it shows and no row is ever under it. In the sidebar it adds to the sidebar's scroll height, so a window shorter than the card scrolls the sidebar.
 

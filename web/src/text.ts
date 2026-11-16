@@ -198,6 +198,7 @@ export const MATCH_SYSTEM_NOTES = {
 
 export const SEARCH_LABEL = "Search items";
 export const SEARCH_PLACEHOLDER = "Search title, post text, summary or tags";
+export const SKIP_LABEL = "Skip to items";
 
 export const FILTER_GROUPS = {
   source: "Source",

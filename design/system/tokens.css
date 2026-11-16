@@ -112,7 +112,7 @@
   --z-scrim: 20;                      /* the dimmed grid behind the sheet */
   --z-sheet: 21;                      /* the sheet */
   --z-sheet-nav: 22;                  /* the sheet's side buttons */
-  --z-popover: 40;                    /* the settings panel */
+  --z-popover: 40;                    /* the settings panel and focused skip button */
   --vh: 100dvh;
 }
 
