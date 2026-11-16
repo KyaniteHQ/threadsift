@@ -1,11 +1,15 @@
-import { type RefObject, useEffect, useLayoutEffect, useMemo } from "react";
+import { type RefObject, useLayoutEffect, useMemo } from "react";
+import { flushSync } from "react-dom";
 
 import { type BarStep, fitBar } from "./bar-fit.ts";
 
 type Steps = readonly [BarStep, ...BarStep[]];
 
-function watchBar(bar: HTMLElement, refit: () => void): () => void {
-  const observer = new ResizeObserver(refit);
+function watchBar(bar: HTMLElement, refit: (observed: boolean) => void): () => void {
+  const observer = new ResizeObserver(() => {
+    refit(true);
+  });
+
   let watching = true;
 
   const observeAgain = (): void => {
@@ -16,7 +20,7 @@ function watchBar(bar: HTMLElement, refit: () => void): () => void {
   };
 
   observer.observe(bar);
-  refit();
+  refit(false);
   document.fonts.addEventListener("loadingdone", observeAgain);
   void document.fonts.ready.then(observeAgain);
 
@@ -32,9 +36,22 @@ function fitWatch(
   steps: Steps,
   placed: (hintShown: boolean) => void,
 ): () => void {
-  return watchBar(bar, () => {
-    placed(fitBar(bar, steps).hint && bar.querySelector(".rd-hint") !== null);
+  const unwatch = watchBar(bar, (observed) => {
+    const shown = fitBar(bar, steps).hint && bar.querySelector(".rd-hint") !== null;
+
+    if (observed) {
+      flushSync(() => {
+        placed(shown);
+      });
+    } else {
+      placed(shown);
+    }
   });
+
+  return () => {
+    unwatch();
+    placed(false);
+  };
 }
 
 export function useBarFit(
@@ -48,12 +65,5 @@ export function useBarFit(
   useLayoutEffect(
     () => (bar.current === null ? undefined : fitWatch(bar.current, fit.steps, placed)),
     [bar, fit, placed],
-  );
-
-  useEffect(
-    () => () => {
-      placed(false);
-    },
-    [placed],
   );
 }

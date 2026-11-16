@@ -1,4 +1,4 @@
-import { type MouseEvent, useCallback, useEffect, useMemo } from "react";
+import { type MouseEvent, useCallback, useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 
 import { itemIdOf, itemPath } from "../../src/core/item-path.ts";
@@ -42,6 +42,21 @@ export interface Route {
 
 const LIBRARY_PATH = "/";
 
+const TRAVERSAL_WAIT_MS = 1000;
+
+interface Leaving {
+  readonly address: string;
+  readonly at: number;
+}
+
+function waiting(leaving: Leaving | null): leaving is Leaving {
+  return leaving !== null && performance.now() - leaving.at < TRAVERSAL_WAIT_MS;
+}
+
+export function onItem(): boolean {
+  return itemIdOf(window.location.pathname) !== null;
+}
+
 function pathOf(to: string): string {
   return new URL(to, window.location.origin).pathname;
 }
@@ -81,10 +96,43 @@ function usePopstate(show: (path: string) => void): void {
   }, [show]);
 }
 
+function useClosing(replace: Route["replace"], setPath: (path: string) => void) {
+  const leaving = useRef<Leaving | null>(null);
+
+  const arrive = useCallback(
+    (arrived: string) => {
+      const wasLeaving = waiting(leaving.current);
+      leaving.current = null;
+
+      if (wasLeaving && itemIdOf(arrived) !== null) replace(LIBRARY_PATH);
+      else setPath(arrived);
+    },
+    [replace, setPath],
+  );
+
+  const closeItem = useCallback(() => {
+    if (onItem()) replace(LIBRARY_PATH);
+  }, [replace]);
+
+  const leave = useCallback(() => {
+    const pending = leaving.current;
+
+    if (!onItem() || (waiting(pending) && pending.address === window.location.href)) return;
+
+    if (openedFromLibrary()) {
+      leaving.current = { address: window.location.href, at: performance.now() };
+      window.history.back();
+      setPath(LIBRARY_PATH);
+    } else {
+      replace(LIBRARY_PATH);
+    }
+  }, [replace, setPath]);
+
+  return { arrive, closeItem, leave };
+}
+
 export function usePath() {
   const [path, setPath] = useScreenState(window.location.pathname);
-
-  usePopstate(setPath);
 
   const navigate = useCallback(
     (to: string) => {
@@ -104,18 +152,9 @@ export function usePath() {
     [setPath],
   );
 
-  const closeItem = useCallback(() => {
-    if (itemIdOf(window.location.pathname) !== null) replace(LIBRARY_PATH);
-  }, [replace]);
+  const { arrive, closeItem, leave } = useClosing(replace, setPath);
 
-  const leave = useCallback(() => {
-    if (openedFromLibrary()) {
-      window.history.back();
-      setPath(LIBRARY_PATH);
-    } else {
-      replace(LIBRARY_PATH);
-    }
-  }, [replace, setPath]);
+  usePopstate(arrive);
 
   return { path, navigate, replace, leave, closeItem };
 }

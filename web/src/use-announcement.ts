@@ -59,5 +59,9 @@ export function useAnnouncement(setRead: Writes["setRead"]) {
     setAnnouncement({ text, failed });
   }, []);
 
-  return { announcement, announce, toggleRead };
+  const retract = useCallback((text: string): void => {
+    setAnnouncement((current) => (current.text === text ? { text: "", failed: false } : current));
+  }, []);
+
+  return { announcement, announce, retract, toggleRead };
 }

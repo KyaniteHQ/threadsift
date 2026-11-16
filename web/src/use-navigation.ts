@@ -19,6 +19,7 @@ export function useNavigation({
   covers,
   more,
   announce,
+  retract,
 }: Readonly<{
   list: ListState;
   route: Route;
@@ -27,6 +28,7 @@ export function useNavigation({
   covers: boolean;
   more: () => void;
   announce: (text: string, failed?: boolean) => void;
+  retract: (text: string) => void;
 }>) {
   const { openId, navigate, leave } = route;
   const { appOf } = dom;
@@ -51,7 +53,7 @@ export function useNavigation({
 
   useCardReturn({ list, openId, covers, attend, appOf });
 
-  const step = useStep({ list, route, attend, dom, focusTitleOf, covers, more, announce });
+  const step = useStep({ list, route, attend, dom, focusTitleOf, covers, more, announce, retract });
 
   const previous = neighbour(list, openId, -1) !== null;
   const next = neighbour(list, openId, 1) !== null || hasMore(list);
