@@ -1,6 +1,7 @@
 import { guardedFetch } from "./fetch-guard.ts";
 import { SMALL_POLICY } from "./fetch-link.ts";
 import type { Network } from "./ports.ts";
+import { noPhotosKey } from "./x-images.ts";
 import {
   type Judgement,
   MAX_LINKS,
@@ -176,11 +177,13 @@ async function checkedPost(
     return null;
   }
 
-  const { judgement, rejects } = checked(stored, answer.post, resolved);
+  const { judgement, rejects, photoless } = checked(stored, answer.post, resolved);
+
+  const rejected = [...rejects, ...(photoless ? [noPhotosKey(stored.id)] : [])];
 
   return {
     [stored.id]: judgement,
-    ...Object.fromEntries(rejects.map((id) => [id, "rejected"] as const)),
+    ...Object.fromEntries(rejected.map((id) => [id, "rejected"] as const)),
   };
 }
 

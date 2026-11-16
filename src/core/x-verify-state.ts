@@ -1,3 +1,4 @@
+import { noPhotosKey } from "./x-images.ts";
 import { joinedPost, leadingQuotes } from "./x-joined-post.ts";
 import { type Judgement, MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
 import type { XThreadValue } from "./x-wire.ts";
@@ -16,6 +17,7 @@ export type Progress =
       readonly followUps: number;
       readonly quoted: number;
       readonly unverifiedTails: number;
+      readonly photoless: number;
     };
 
 function postsOf(
@@ -23,15 +25,24 @@ function postsOf(
   judgedSoFar: Judged,
 ): readonly StoredPost[] {
   const chain = [post, ...leadingQuotes(post.quoted, judgedSoFar)].map(
-    ({ id, author, text }, index) => ({
+    ({ id, author, text, images }, index) => ({
       id,
       author,
       text,
+      photos: images.length > 0,
       chain: { next: post.quoted[index]?.id ?? null },
     }),
   );
 
-  return [...chain, ...replies.map(({ id, author, text }) => ({ id, author, text }))];
+  return [
+    ...chain,
+    ...replies.map(({ id, author, text, images }) => ({
+      id,
+      author,
+      text,
+      photos: images.length > 0,
+    })),
+  ];
 }
 
 function costOf({ text }: Readonly<StoredPost>): number {
@@ -95,6 +106,10 @@ export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged):
     dropped: thread.replies.length - kept.size,
     unverifiedTails: postsOf(thread, judgedSoFar).filter(
       ({ id }) => judgedSoFar[id] === "tail-unverified" && shown.has(id),
+    ).length,
+    photoless: postsOf(thread, judgedSoFar).filter(
+      ({ id, photos }) =>
+        photos === true && judgedSoFar[noPhotosKey(id)] === "rejected" && shown.has(id),
     ).length,
   };
 }

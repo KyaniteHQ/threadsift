@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { WIRE_ID_MAX } from "./comment-id.ts";
 import { X_QUOTES_MAX, X_REPLIES_MAX } from "./limits.ts";
+import { onlyXImages } from "./x-images.ts";
 
 export const StatusIdSchema = z
   .string()
@@ -21,6 +22,16 @@ const StoredPostedAt = z.number().int().nullable();
 
 const Count = z.number().int().nonnegative().nullable();
 
+const PhotoUrls = z
+  .array(z.string())
+  .transform((addresses) => onlyXImages(addresses))
+  .default([])
+  .readonly();
+
+const PostText = z.string().refine((text) => text.trim() !== "", { error: "must not be empty" });
+
+const NoPhotoUrls = z.array(z.never()).max(0).default([]).readonly();
+
 function repliesArrayOf<Reply extends z.ZodType>(reply: Reply) {
   return z.array(reply).max(X_REPLIES_MAX, { error: `more than ${String(X_REPLIES_MAX)} replies` });
 }
@@ -28,14 +39,17 @@ function repliesArrayOf<Reply extends z.ZodType>(reply: Reply) {
 function threadSchemaOf<
   PostedAt extends z.ZodType<number | null>,
   Repaired extends z.ZodType<boolean | undefined>,
->(postedAt: PostedAt, repairedParent: Repaired) {
+  Images extends z.ZodType<readonly string[]>,
+  RootText extends z.ZodType<string>,
+>(postedAt: PostedAt, repairedParent: Repaired, images: Images, rootText: RootText) {
   return z.strictObject({
     post: z.strictObject({
       id: StatusIdSchema,
       author: Handle,
-      text: z.string().refine((text) => text.trim() !== "", { error: "must not be empty" }),
+      text: rootText,
       postedAt,
       replies: Count,
+      images,
       quoted: z
         .array(
           z.strictObject({
@@ -43,6 +57,7 @@ function threadSchemaOf<
             author: Handle,
             text: z.string(),
             postedAt,
+            images,
           }),
         )
         .max(X_QUOTES_MAX, { error: `more than ${String(X_QUOTES_MAX)} quoted posts` })
@@ -57,21 +72,34 @@ function threadSchemaOf<
         postedAt,
         likes: Count,
         repairedParent,
+        images,
       }),
     ),
   });
 }
 
-export const XThreadSchema = threadSchemaOf(WirePostedAt, z.never().optional());
+export const XThreadSchema = threadSchemaOf(
+  WirePostedAt,
+  z.never().optional(),
+  NoPhotoUrls,
+  PostText,
+);
 
-export const XCliThreadSchema = XThreadSchema.extend({
-  post: XThreadSchema.shape.post.extend({
-    quoted: XThreadSchema.shape.post.shape.quoted.unwrap(),
+const CliThreadSchema = threadSchemaOf(WirePostedAt, z.never().optional(), PhotoUrls, z.string());
+
+export const XCliThreadSchema = CliThreadSchema.extend({
+  post: CliThreadSchema.shape.post.extend({
+    quoted: CliThreadSchema.shape.post.shape.quoted.unwrap(),
   }),
-  replies: repliesArrayOf(XThreadSchema.shape.replies.element.extend({ replies: Count })),
+  replies: repliesArrayOf(CliThreadSchema.shape.replies.element.extend({ replies: Count })),
 });
 
-export const StoredXThreadSchema = threadSchemaOf(StoredPostedAt, z.boolean().optional());
+export const StoredXThreadSchema = threadSchemaOf(
+  StoredPostedAt,
+  z.boolean().optional(),
+  PhotoUrls,
+  z.string(),
+);
 
 export type XThread = z.output<typeof XThreadSchema>;
 
@@ -79,7 +107,7 @@ export type XQuoted = Readonly<z.output<typeof StoredXThreadSchema>["post"]["quo
 
 export type XReply = Readonly<z.output<typeof StoredXThreadSchema>["replies"][number]>;
 
-export type XPost = Readonly<Omit<XThread["post"], "quoted">> & {
+export type XPost = Readonly<Omit<z.output<typeof StoredXThreadSchema>["post"], "quoted">> & {
   readonly quoted: readonly XQuoted[];
 };
 

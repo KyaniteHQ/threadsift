@@ -1,13 +1,12 @@
 import { X_REPLIES_KEPT_MAX, X_REPLIES_LIKES_PERCENT, X_REPLIES_MIN } from "./limits.ts";
 import type { Database } from "./ports.ts";
 import { authorPartsOf } from "./x-author-thread.ts";
+import { NO_TEXT, withoutPlaceholder } from "./x-images.ts";
 import { storedReplyCount } from "./x-partial.ts";
 import { order, parseXThreadValue } from "./x-thread.ts";
 import type { XCliReply, XCliThreadValue, XReply, XThreadValue } from "./x-wire.ts";
 
 const PERCENT = 100;
-
-const NO_TEXT = "(No text content)";
 
 function hasText({ text }: Readonly<XCliReply>): boolean {
   return text.trim() !== NO_TEXT;
@@ -69,8 +68,9 @@ function plainReply({
   postedAt,
   likes,
   repairedParent,
+  images,
 }: XCliReply): XReply {
-  return { id, parentId, author, text, postedAt, likes, repairedParent };
+  return { id, parentId, author, text, postedAt, likes, repairedParent, images };
 }
 
 function rankedThread(thread: Readonly<XCliThreadValue>, held: number): XThreadValue {
@@ -99,11 +99,19 @@ function rankedThread(thread: Readonly<XCliThreadValue>, held: number): XThreadV
 
   const kept = keptFor(count);
   const dropped = kept.size < thread.replies.length;
-  const { post } = thread;
+  const post = withoutPlaceholder(thread.post);
 
   return {
-    post: dropped ? { ...post, replies: Math.max(post.replies ?? 0, thread.replies.length) } : post,
-    replies: thread.replies.filter(({ id }) => kept.has(id)).map((reply) => plainReply(reply)),
+    post: {
+      ...post,
+      quoted: post.quoted.map((quoted) => withoutPlaceholder(quoted)),
+      replies: dropped ? Math.max(post.replies ?? 0, thread.replies.length) : post.replies,
+    },
+    replies: thread.replies
+      .filter(({ id }) => kept.has(id))
+      .map((reply) =>
+        plainReply(partIds.has(reply.id) ? withoutPlaceholder(reply) : { ...reply, images: [] }),
+      ),
   };
 }
 

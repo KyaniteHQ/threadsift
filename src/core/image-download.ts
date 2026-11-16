@@ -3,11 +3,11 @@ import { fromBase64 } from "./encoding.ts";
 import { type Failed, type FetchPolicy, NO_HEADERS, guardedFetchBytes } from "./fetch-guard.ts";
 import { type ImageType, declaredImageType, sniffImageType } from "./image-type.ts";
 import type { MediaFailure } from "./kinds.ts";
+import { IMAGE_URL_MAX_BYTES } from "./limits.ts";
 import { isRedditOrXLink } from "./links.ts";
 import type { Network } from "./ports.ts";
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-const MAX_URL_BYTES = 4096;
 
 const BASE64_CHARACTERS = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 4;
 
@@ -55,7 +55,7 @@ type Checked =
   | { readonly ok: false; readonly reason: MediaFailure };
 
 export function fits(url: string): boolean {
-  return utf8Length(url) <= MAX_URL_BYTES;
+  return utf8Length(url) <= IMAGE_URL_MAX_BYTES;
 }
 
 function checked(contentType: string | null, bytes: Uint8Array, cut: boolean): Checked {
@@ -100,10 +100,11 @@ export async function downloaded(
   network: Network,
   url: string,
   deadline: AbortSignal,
+  stopAt: (address: string) => boolean = IMAGE_POLICY.stopAt,
 ): Promise<Fetched> {
-  if (IMAGE_POLICY.stopAt(url)) return { ok: false, reason: "refused" };
+  if (stopAt(url)) return { ok: false, reason: "refused" };
 
-  const outcome = await guardedFetchBytes(network, url, IMAGE_POLICY, deadline);
+  const outcome = await guardedFetchBytes(network, url, { ...IMAGE_POLICY, stopAt }, deadline);
 
   if (outcome.kind === "stopped") return { ok: false, reason: "refused" };
 

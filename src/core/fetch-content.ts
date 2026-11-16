@@ -1,6 +1,5 @@
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { type MediaRowValue, prepareMedia } from "./article-images.ts";
 import type { Concluded } from "./details.ts";
 import type { ClaimedJob, JobFiles, JobPorts } from "./job-outcome.ts";
 import { mediaKeysOf, mediaWrites } from "./media-writes.ts";
@@ -8,36 +7,7 @@ import { placePostText } from "./post-text-files.ts";
 import { ownerOfItem, threadWrites } from "./reddit-thread.ts";
 import { fetchedRepository, repositoryWrites } from "./repositories.ts";
 import { settledKnown } from "./settle.ts";
-
-interface StoredMedia {
-  readonly fetched: Concluded;
-  readonly rows: readonly MediaRowValue[];
-  readonly written: readonly string[];
-}
-
-async function storeMedia(
-  ports: JobPorts,
-  prefix: string,
-  fetched: Readonly<Concluded>,
-  deadline: AbortSignal,
-): Promise<StoredMedia> {
-  const content = fetched.status === "ok" ? fetched.found.content : null;
-
-  if (fetched.status !== "ok" || (content?.kind !== "article" && content?.kind !== "page")) {
-    return { fetched, rows: [], written: [] };
-  }
-
-  const plan = await prepareMedia(ports, prefix, content, deadline);
-
-  return {
-    fetched: {
-      ...fetched,
-      found: { ...fetched.found, content: { ...content, postText: plan.postText } },
-    },
-    rows: plan.rows,
-    written: plan.written,
-  };
-}
+import { storeMedia } from "./store-media.ts";
 
 function archivedOf(fetched: Readonly<Concluded>) {
   return fetched.status === "ok" && fetched.found.content?.kind === "thread"
@@ -68,7 +38,7 @@ export async function settledContent(
   title: string | null,
   deadline: AbortSignal,
 ) {
-  const stored = await storeMedia(ports, job.imagePrefix, fetched, deadline);
+  const stored = await storeMedia(ports, job, fetched, deadline);
   const { postText, ...settled } = settledKnown(stored.fetched, title, Date.now());
   const replaces = postText !== undefined;
 
