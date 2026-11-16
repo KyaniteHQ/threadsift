@@ -36,21 +36,26 @@ function PasteForm({
     invalid: boolean;
   }
 >) {
+  const id = useId();
+
   return (
     <form className="paste-row" noValidate onSubmit={submit}>
-      <label className="field">
+      <label className="field" htmlFor={id}>
         <span className="vh">{PASTE_LABEL}</span>
         <Icon name="link" className="ic" />
         <input
           ref={field}
+          id={id}
           type="text"
           inputMode="url"
           enterKeyHint="go"
           autoComplete="off"
           spellCheck={false}
+          autoCapitalize="none"
+          autoCorrect="off"
           placeholder={PASTE_PLACEHOLDER}
           value={value}
-          aria-invalid={invalid ? true : undefined}
+          aria-invalid={invalid}
           aria-describedby={describedBy}
           onChange={change}
         />
