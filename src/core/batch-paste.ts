@@ -4,7 +4,7 @@ import type { Caller } from "./caller.ts";
 import type { ListedItemRow } from "./item-selection.ts";
 import { type Closed, whileOpen } from "./library-gate.ts";
 import type { Ports } from "./ports.ts";
-import { restoreRunning } from "./restore-state.ts";
+import { restoreHoldsLibrary } from "./restore-state.ts";
 import { saveItem } from "./save-link.ts";
 
 interface BatchLink {
@@ -63,7 +63,7 @@ export async function pasteBatch(
   links: readonly BatchLink[],
   caller: Caller,
 ): Promise<BatchPaste> {
-  if (await restoreRunning(ports.db)) return { kind: "restoring" };
+  if (await restoreHoldsLibrary(ports.db)) return { kind: "restoring" };
 
   return withinBudget(
     ports,

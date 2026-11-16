@@ -20,6 +20,9 @@ export async function setUp(page: Page): Promise<void> {
   await passwordField(page).fill(PASSWORD);
   await page.getByLabel(FIELDS.confirmPassword).fill(PASSWORD);
   await page.getByRole("button", { name: SETUP.create }).click();
+  await expect(page.getByRole("heading", { level: 1, name: SETUP.startTitle })).toBeVisible();
+  await expect(page.getByRole("button", { name: SETUP.startRestore })).toBeVisible();
+  await page.getByRole("button", { name: SETUP.startEmpty }).click();
   await expect(libraryHeading(page)).toBeVisible();
 }
 

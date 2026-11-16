@@ -4,7 +4,7 @@ import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../../src/core/setup-code.ts";
 import { filled } from "./text.ts";
 
 export const SETUP = {
-  codeTitle: "Step 1 of 2: enter the setup code",
+  codeTitle: "Step 1 of 3: enter the setup code",
   codeWhereContainer:
     'Find it in the container’s SETUP_CODE variable or the "Setup code:" log line.',
   codeWhereWorker: "On Cloudflare, find it in the Worker’s SETUP_CODE secret.",
@@ -18,13 +18,19 @@ export const SETUP = {
   missingCommand: "wrangler secret put SETUP_CODE",
   shortTitle: "Setup code is too short",
   shortHelp: `Threadsift doesn’t use a setup code shorter than ${SETUP_CODE_MIN} characters. Set a longer one and reload this page.`,
-  passwordTitle: "Step 2 of 2: choose a password",
+  passwordTitle: "Step 2 of 3: choose a password",
   passwordHelp: `At least ${PASSWORD_MIN} characters, any characters allowed.`,
   passwordTooShort: `Passwords must be at least ${PASSWORD_MIN} characters.`,
   passwordTooLong: `Passwords must be at most ${groupedNumber(PASSWORD_MAX)} characters.`,
   passwordMismatch: "The two passwords don’t match.",
   create: "Create password",
   creating: "Creating…",
+  startTitle: "Step 3 of 3: choose how to start",
+  startHelp: "Your password is set; start with an empty library or restore a backup.",
+  startEmpty: "Start with an empty library",
+  startRestore: "Restore a backup",
+  startRestoreHelp:
+    "Opens Settings to choose the Export zip; a Restore works only on an empty library.",
   backToCode: "Change setup code",
   failed: "Couldn’t finish setup, so try again.",
 } as const;

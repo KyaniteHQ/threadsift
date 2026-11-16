@@ -42,7 +42,14 @@ export function Screen({
 
   switch (screen.name) {
     case "setup":
-      return <SetupScreen problem={screen.problem} refresh={refresh} signedIn={signedIn} />;
+      return (
+        <SetupScreen
+          problem={screen.problem}
+          refresh={refresh}
+          signedIn={signedIn}
+          navigate={navigate}
+        />
+      );
     case "login":
     case "reset":
       return <SignedOutScreen name={screen.name} signedIn={signedIn} navigate={navigate} />;

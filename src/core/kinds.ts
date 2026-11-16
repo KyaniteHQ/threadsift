@@ -107,9 +107,11 @@ export const JOB_STATES = ["queued", "running", "done"] as const;
 
 export const EXPORT_STATES = ["running", "ready", "failed", "removing", "expired"] as const;
 
-export const RESTORE_STATES = ["uploading", "running", "done", "failed"] as const;
+export const RESTORE_STATES = ["uploading", "running", "done", "failed", "cancelled"] as const;
 
-export const RUNNING_RESTORE_PHASES = ["check", "tables", "finish"] as const;
+export const COPY_RESTORE_PHASES = ["check", "tables", "finish"] as const;
+
+export const RUNNING_RESTORE_PHASES = [...COPY_RESTORE_PHASES, "undoing"] as const;
 
 export const RESTORE_PHASES = ["upload", ...RUNNING_RESTORE_PHASES] as const;
 

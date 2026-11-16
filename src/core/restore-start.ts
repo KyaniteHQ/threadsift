@@ -5,7 +5,7 @@ import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { START_CHECK } from "./restore-contract.ts";
-import { EMPTY_LIBRARY, libraryIsEmpty, receivedParts, restoreById } from "./restore-state.ts";
+import { EMPTY_LIBRARY, holdsEveryPart, libraryIsEmpty, restoreById } from "./restore-state.ts";
 import { openingRestoreJob } from "./restore-unit.ts";
 import { restoreRuns } from "./schema.ts";
 
@@ -49,11 +49,7 @@ export async function startRestore(ports: JobPorts, id: number): Promise<Started
 
   if (!(await libraryIsEmpty(db))) return { kind: "library-not-empty" };
 
-  const received = new Set(await receivedParts(ports.files, id));
-
-  if (!Array.from({ length: run.parts }, (_, at) => at + 1).every((part) => received.has(part))) {
-    return { kind: "incomplete-upload" };
-  }
+  if (!(await holdsEveryPart(ports.files, run))) return { kind: "incomplete-upload" };
 
   const jobs = await opened(db, id);
 

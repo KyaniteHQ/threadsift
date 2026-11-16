@@ -16,6 +16,7 @@ import {
 import type { Progress } from "./restore-upload.ts";
 import { SettingsResult } from "./SettingsForm.tsx";
 import { SwapButton } from "./SwapButton.tsx";
+import { useHashTarget } from "./use-hash-target.ts";
 import { useRestore } from "./use-restore.ts";
 
 type Counts = Readonly<Record<string, number>>;
@@ -32,8 +33,12 @@ function statusLine(view: RestoreStatus, progress: Progress | null): string | nu
   switch (view.state) {
     case "running":
       return RESTORE_TEXT.running;
+    case "cancelling":
+      return RESTORE_TEXT.cancellingStatus;
     case "done":
       return RESTORE_TEXT.done;
+    case "cancelled":
+      return RESTORE_TEXT.cancelled;
     case "none":
     case "uploading":
     case "failed":
@@ -66,23 +71,65 @@ function Detail({ view, progress }: Readonly<{ view: RestoreStatus; progress: Pr
         </>
       );
     case "failed":
-      return <Alert text={failureLabel(view.failure)} />;
+      return <Alert text={failureLabel(view.failure, view)} />;
     case "none":
+    case "cancelling":
+    case "cancelled":
       return null;
     default:
       return view satisfies never;
   }
 }
 
+type Ending = Readonly<{
+  view: RestoreStatus;
+  acting: ReturnType<typeof useRestore>["acting"];
+  cancel: () => void;
+  resume: () => void;
+}>;
+
+function Actions({ view, acting, cancel, resume }: Ending) {
+  const canCancel =
+    view.state === "uploading" || view.state === "failed" || view.state === "running";
+
+  if (!canCancel) return null;
+
+  const blocked = acting !== null;
+
+  return (
+    <div className="ai-actions">
+      {view.state === "failed" && view.resumable ? (
+        <SwapButton
+          label={RESTORE_TEXT.resume}
+          busyLabel={RESTORE_TEXT.resuming}
+          busy={acting === "resume"}
+          blocked={blocked}
+          type="button"
+          onClick={resume}
+        />
+      ) : null}
+      <SwapButton
+        label={RESTORE_TEXT.cancel}
+        busyLabel={RESTORE_TEXT.cancelling}
+        busy={acting === "cancel"}
+        blocked={blocked}
+        type="button"
+        onClick={cancel}
+        secondary
+      />
+    </div>
+  );
+}
+
 function Picker({
-  busy,
+  acting,
   choose,
-}: Readonly<{ busy: boolean; choose: (file: Readonly<File>) => void }>) {
+}: Readonly<{ acting: Ending["acting"]; choose: (file: Readonly<File>) => void }>) {
   const picker = useRef<HTMLInputElement>(null);
 
   const open = useCallback(() => {
-    if (!busy) picker.current?.click();
-  }, [busy]);
+    if (acting === null) picker.current?.click();
+  }, [acting]);
 
   const read = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -100,7 +147,8 @@ function Picker({
       <SwapButton
         label={RESTORE_TEXT.choose}
         busyLabel={RESTORE_TEXT.uploadingButton}
-        busy={busy}
+        busy={acting === "choose"}
+        blocked={acting !== null}
         type="button"
         onClick={open}
         secondary
@@ -118,14 +166,17 @@ function Picker({
 }
 
 export function RestoreBlock() {
-  const { view, loadFailed, progress, busy, result, choose } = useRestore();
+  const { view, loadFailed, progress, acting, result, choose, cancel, resume } = useRestore();
+  const busy = acting !== null;
+
+  useHashTarget(view !== null);
 
   if (view === null) return <Alert text={loadFailed ? RESTORE_TEXT.loadFailed : null} />;
 
   if (view.state === "none" && !view.libraryEmpty && !busy) return null;
 
   const line = statusLine(view, progress);
-  const working = progress !== null || view.state === "running";
+  const working = progress !== null || view.state === "running" || view.state === "cancelling";
 
   return (
     <div className="sec">
@@ -143,8 +194,11 @@ export function RestoreBlock() {
         />
       ) : null}
       <Detail view={view} progress={progress} />
-      {view.libraryEmpty && view.state !== "running" ? (
-        <Picker busy={busy} choose={choose} />
+      {progress === null ? (
+        <Actions view={view} acting={acting} cancel={cancel} resume={resume} />
+      ) : null}
+      {view.libraryEmpty && view.state !== "running" && view.state !== "cancelling" ? (
+        <Picker acting={acting} choose={choose} />
       ) : null}
       <SettingsResult outcome={result} />
     </div>

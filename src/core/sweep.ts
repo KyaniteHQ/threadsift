@@ -1,17 +1,17 @@
 import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { restoreRunning } from "./restore-state.ts";
+import { restoreHoldsLibrary } from "./restore-state.ts";
 import { stagesOf } from "./sweep-stages.ts";
 
-const WHILE_RESTORING = "enqueue";
+const WHILE_RESTORING: ReadonlySet<string> = new Set(["enqueue", "restores"]);
 
 export async function sweep(ports: JobPorts): Promise<void> {
   let first: { readonly error: unknown } | undefined;
 
   const stages = stagesOf(ports, Date.now());
 
-  const owed = (await restoreRunning(ports.db))
-    ? stages.filter(([name]) => name === WHILE_RESTORING)
+  const owed = (await restoreHoldsLibrary(ports.db))
+    ? stages.filter(([name]) => WHILE_RESTORING.has(name))
     : stages;
 
   for (const [stage, run] of owed) {

@@ -1,15 +1,17 @@
 import { z } from "zod";
 
-import { RUNNING_RESTORE_PHASES } from "./kinds.ts";
+import { COPY_RESTORE_PHASES } from "./kinds.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
 
-export type RunningPhase = (typeof RUNNING_RESTORE_PHASES)[number];
+export type RunningPhase = (typeof COPY_RESTORE_PHASES)[number];
 
 export const RESTORE_MAX_BYTES = 50_000_000_000;
 
 export const RESTORE_MAX_PARTS = Math.ceil(RESTORE_MAX_BYTES / RESTORE_PART_BYTES);
 
 export const RESTORE_UNIT_DEADLINE_MS = 600_000;
+
+export const RESTORE_PARTS_KEEP_MS = 24 * 60 * 60 * 1000;
 
 export const RESTORE_UNIT_LINES = 500;
 
@@ -79,6 +81,12 @@ export type Cursor = z.infer<typeof CursorSchema>;
 
 export const START_CURSOR: Cursor = { file: 0, entry: null, offset: 0, line: 0 };
 
+export const UndoCursorSchema = z.object({ units: WholeCount }).readonly();
+
+export type UndoCursor = z.infer<typeof UndoCursorSchema>;
+
+export const START_UNDO: UndoCursor = { units: 0 };
+
 export const CheckCursorSchema = z
   .object({
     entry: WholeCount,
@@ -112,10 +120,11 @@ export const RestoreStatusSchema = z.discriminatedUnion("state", [
     state: z.literal("running"),
     ...Library,
     id: Id,
-    phase: z.enum(RUNNING_RESTORE_PHASES),
+    phase: z.enum(COPY_RESTORE_PHASES),
     restored: CountsSchema,
     dropped: CountsSchema,
   }),
+  z.object({ state: z.literal("cancelling"), ...Library, id: Id }),
   z.object({
     state: z.literal("done"),
     ...Library,
@@ -129,7 +138,10 @@ export const RestoreStatusSchema = z.discriminatedUnion("state", [
     ...Library,
     id: Id,
     failure: z.enum(RESTORE_FAILURES),
+    resumable: z.boolean(),
+    cancelFailed: z.boolean(),
   }),
+  z.object({ state: z.literal("cancelled"), ...Library, id: Id }),
 ]);
 
 export type RestoreStatus = z.infer<typeof RestoreStatusSchema>;

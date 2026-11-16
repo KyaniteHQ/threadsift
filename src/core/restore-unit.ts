@@ -1,14 +1,32 @@
-import { type SQLWrapper, and, eq, exists, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, exists, ne, sql } from "drizzle-orm";
 
 import { restorePartKey } from "./file-keys.ts";
-import type { JobOutcome } from "./job-outcome.ts";
-import { openingUnowned } from "./job-rows.ts";
+import { CLOSED_JOB } from "./job-close.ts";
+import type { JobOutcome, SettledOutcome } from "./job-outcome.ts";
+import { openingUnowned, unownedAddress } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import type { RestoreFailure } from "./restore-contract.ts";
-import { type RestoreRow, restoreRuns } from "./schema.ts";
+import { type RestoreRow, jobs, restoreRuns } from "./schema.ts";
+
+export function partKeysOf(run: Readonly<Pick<RestoreRow, "id" | "parts">>): readonly string[] {
+  return Array.from({ length: run.parts }, (_, at) => restorePartKey(run.id, at + 1));
+}
 
 export function openingRestoreJob(db: Database, scope: Readonly<SQLWrapper>) {
   return openingUnowned(db, "restore", restoreRuns, scope);
+}
+
+export function closingRestoreJobs(db: Database, id: number) {
+  return db
+    .update(jobs)
+    .set(CLOSED_JOB)
+    .where(
+      and(
+        eq(jobs.kind, "restore"),
+        eq(jobs.address, unownedAddress("restore", id)),
+        ne(jobs.state, "done"),
+      ),
+    );
 }
 
 function stillAt(db: Database, run: Readonly<RestoreRow>) {
@@ -42,7 +60,7 @@ export function steppedUnit(
   db: Database,
   run: Readonly<RestoreRow>,
   set: Readonly<Partial<typeof restoreRuns.$inferInsert>>,
-): JobOutcome {
+): SettledOutcome {
   return {
     writes: [
       db
@@ -68,9 +86,6 @@ export function failedUnit(
         .where(eq(restoreRuns.id, run.id)),
     ],
     precondition: precondition(db, run),
-    files: {
-      written: [],
-      superseded: Array.from({ length: run.parts }, (_, at) => restorePartKey(run.id, at + 1)),
-    },
+    files: { written: [], superseded: partKeysOf(run) },
   };
 }

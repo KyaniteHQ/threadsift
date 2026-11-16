@@ -1,9 +1,8 @@
 import { eq } from "drizzle-orm";
 
-import { restorePartKey } from "./file-keys.ts";
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
 import { sequenceWrites, singletonResets, stepWrites } from "./restore-sequences.ts";
-import { precondition } from "./restore-unit.ts";
+import { partKeysOf, precondition } from "./restore-unit.ts";
 import { recordFiles } from "./restore-window.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import type { ZipSource } from "./zip-read.ts";
@@ -27,9 +26,6 @@ export async function finishUnit(
         .where(eq(restoreRuns.id, run.id)),
     ],
     precondition: precondition(db, run),
-    files: {
-      written: [],
-      superseded: Array.from({ length: run.parts }, (_, at) => restorePartKey(run.id, at + 1)),
-    },
+    files: { written: [], superseded: partKeysOf(run) },
   };
 }

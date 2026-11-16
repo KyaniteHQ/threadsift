@@ -2,6 +2,7 @@ import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import { RESTORE_PART_BYTES } from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
+import { cancelRestore, resumeRestore } from "../core/restore-cancel.ts";
 import {
   NewRestoreSchema,
   RestoreErrorSchema,
@@ -52,7 +53,7 @@ const statusRoute = createRoute({
   responses: {
     200: jsonBody(
       RestoreStatusSchema,
-      `The newest restore, or \`{ "state": "none" }\`. \`libraryEmpty\` says whether a restore can start. \`uploading\` lists the \`received\` parts, so a client that reloaded sends the missing ones. \`running\` carries the \`phase\` (\`check\`, \`tables\` or \`finish\`) and the rows \`restored\` and \`dropped\` for each table, where a dropped row had no parent row in the zip or repeated the key of an earlier row. \`done\` carries the same counts. \`failed\` carries a \`failure\` word: a refusal code of the check (\`not-a-zip\`, \`unsupported-compression\`, \`bad-entry-name\`, \`no-manifest\`, \`format\`, \`newer-release\`, \`unknown-table\`, \`unknown-column\`, \`missing-column\` or \`crc\`), or \`gave-up\` (a unit failed 3 times).${OWNER_ONLY}`,
+      `The newest restore, or \`{ "state": "none" }\`. \`libraryEmpty\` says whether a restore can start. \`uploading\` lists the \`received\` parts, so a client that reloaded sends the missing ones. \`running\` carries the \`phase\` (\`check\`, \`tables\` or \`finish\`) and the rows \`restored\` and \`dropped\` for each table, where a dropped row had no parent row in the zip or repeated the key of an earlier row. \`cancelling\` has no counts. \`done\` carries the same counts. \`failed\` carries a \`failure\` word: a refusal code of the check (\`not-a-zip\`, \`unsupported-compression\`, \`bad-entry-name\`, \`no-manifest\`, \`format\`, \`newer-release\`, \`unknown-table\`, \`unknown-column\`, \`missing-column\` or \`crc\`), or \`gave-up\` (a unit failed 3 times). \`cancelFailed\` is true when the failed run was a cancel. \`resumable\` is true for \`gave-up\` while every part of the zip is still stored, and a refusal keeps no part. \`cancelled\` has no counts.${OWNER_ONLY}`,
     ),
     401: jsonBody(ErrorResponseSchema, "No owner session."),
     403: jsonBody(ErrorResponseSchema, "An agent token called this."),
@@ -89,7 +90,7 @@ const startRoute = createRoute({
   responses: {
     202: jsonBody(
       StartedRestoreSchema.pick({ id: true }),
-      `The restore was waiting for its start, the library is still empty and every part has arrived, so it is \`running\` in its \`check\` phase. Jobs check the whole zip first (a refusal shows in \`GET /api/restore\` as \`failed\` with a \`failure\` code, deletes the parts and writes nothing to the library), then restore the tables in foreign key order, one bounded unit after another, keep the ids of the zip, and then set each table's id counter and the version of each data step. \`POST /api/items\` and \`POST /api/items/batch\` answer 503 while it runs.${OWNER_ONLY}`,
+      `The restore was waiting for its start, the library is still empty and every part has arrived, so it is \`running\` in its \`check\` phase. Jobs check the whole zip first (a refusal shows in \`GET /api/restore\` as \`failed\` with a \`failure\` code, deletes the parts and writes nothing to the library), then restore the tables in foreign key order, one bounded unit after another, keep the ids of the zip, and then set each table's id counter and the version of each data step. \`POST /api/items\` and \`POST /api/items/batch\` answer 503 while it runs and while it is \`failed\` with \`gave-up\`, until it is resumed or cancelled.${OWNER_ONLY}`,
     ),
     400: jsonBody(
       RestoreErrorSchema,
@@ -101,6 +102,51 @@ const startRoute = createRoute({
     409: jsonBody(
       RestoreErrorSchema,
       `\`library-not-empty\`: ${LIBRARY_NOT_EMPTY} Or \`restore-open\`: the restore is not waiting for its start.`,
+    ),
+  },
+});
+
+const cancelRoute = createRoute({
+  method: "delete",
+  path: "/api/restore/{id}",
+  request: { params: IdParamSchema },
+  responses: {
+    202: jsonBody(
+      StartedRestoreSchema.pick({ id: true }),
+      `The restore was \`running\` or \`failed\` and is now \`cancelling\`, and jobs now delete every restored row, one bounded unit after another in the reverse of the table order, then every file under \`items/\`, and then the uploaded parts. \`GET /api/restore\` shows \`cancelled\` when the library is empty again. The ids the restore used are not reused. A repeat while it runs answers 202 again. A cancel that fails 3 times shows \`failed\` with \`cancelFailed\` true, and a cancel again continues it.${OWNER_ONLY}`,
+    ),
+    204: noContent(
+      `The restore was waiting for its upload, or is already cancelled. Its parts are deleted, and a new restore is accepted.${OWNER_ONLY}`,
+    ),
+    401: jsonBody(ErrorResponseSchema, "No owner session."),
+    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    404: jsonBody(ErrorResponseSchema, "No restore has this id."),
+    409: jsonBody(
+      ErrorResponseSchema,
+      "The restore is done, so there is nothing to cancel, or a newer restore exists, so only that one can be cancelled.",
+    ),
+  },
+});
+
+const resumeRoute = createRoute({
+  method: "post",
+  path: "/api/restore/{id}/resume",
+  request: { params: IdParamSchema },
+  responses: {
+    202: jsonBody(
+      StartedRestoreSchema.pick({ id: true }),
+      `The restore had \`failed\` with \`gave-up\` (a unit failed 3 times), so it is \`running\` again and a job continues from the cursor of its last committed unit. It ends \`done\` with the rows an uninterrupted run writes.${OWNER_ONLY}`,
+    ),
+    400: jsonBody(
+      RestoreErrorSchema,
+      "`code` is `incomplete-upload`: a part of the zip is gone, so the restore cannot continue. Cancel it and upload the zip again.",
+    ),
+    401: jsonBody(ErrorResponseSchema, "No owner session."),
+    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    404: jsonBody(ErrorResponseSchema, "No restore has this id."),
+    409: jsonBody(
+      ErrorResponseSchema,
+      "The restore did not fail with `gave-up`, its cancel is running, or a newer restore exists. A refusal of the check cannot be resumed.",
     ),
   },
 });
@@ -177,7 +223,50 @@ function registerRunRoutes(app: OpenAPIHono, ports: Ports): void {
   });
 }
 
+function registerEndRoutes(app: OpenAPIHono, ports: Ports): void {
+  app.openapi(cancelRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const cancelled = await cancelRestore(ports, id);
+
+    switch (cancelled.kind) {
+      case "cancelled":
+        return c.body(null, 204);
+      case "undoing":
+        return c.json({ id }, 202);
+      case "missing":
+        return c.json({ error: "Not found" }, 404);
+      case "finished":
+        return c.json({ error: "The restore is done, so there is nothing to cancel" }, 409);
+      case "superseded":
+        return c.json({ error: "A newer restore exists, so only that one can be cancelled" }, 409);
+      default:
+        return cancelled satisfies never;
+    }
+  });
+
+  app.openapi(resumeRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const resumed = await resumeRestore(ports, id);
+
+    switch (resumed.kind) {
+      case "resumed":
+        return c.json({ id }, 202);
+      case "missing":
+        return c.json({ error: "Not found" }, 404);
+      case "not-resumable":
+        return c.json({ error: "The restore did not give up, or its cancel is running" }, 409);
+      case "superseded":
+        return c.json({ error: "A newer restore exists, so only that one can be resumed" }, 409);
+      case "incomplete-upload":
+        return c.json({ error: "Some parts of the upload are gone", code: resumed.kind }, 400);
+      default:
+        return resumed satisfies never;
+    }
+  });
+}
+
 export function registerRestoreRoutes(app: OpenAPIHono, ports: Ports): void {
   registerUploadRoutes(app, ports);
   registerRunRoutes(app, ports);
+  registerEndRoutes(app, ports);
 }

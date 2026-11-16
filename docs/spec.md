@@ -224,7 +224,7 @@ Grok Bot's capabilities above come from asking the owner's Grok Bot on 2026-11-0
 - Language, runtime, database and libraries: `docs/architecture/the-stack-at-a-glance.md`.
 - Full-text search over title, post text, Kept comments (not the comments the Reader shows before a Digest covers the thread), the Digest's clean title, Summary, Tags, a GitHub repository's description and topics, Highlights and Notes.
 - The owner changes only Read state, Highlights and Notes, accepts or rejects Proposals, and can delete an Item; the agent sets everything else.
-- Backups: the export zip with its manifest, record files and Item notes (built), restored on an empty Instance (records built; stored images, the search rebuild, cancel, resume and the setup page step not built; Backup and restore decision above).
+- Backups: the export zip with its manifest, record files and Item notes (built), restored on an empty Instance (records, cancel, resume and the setup page step built; stored images, the search rebuild and the Highlight checks not built; Backup and restore decision above).
 
 ## Interfaces
 
