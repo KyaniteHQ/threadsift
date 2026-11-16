@@ -109,6 +109,21 @@
           "oklch(0.95 0.002 255)"
         ]
       },
+      "press": {
+        "role": "neutral",
+        "displayName": "Press fill",
+        "canonical": "oklch(0.919 0.008 255)",
+        "tonalRamp": [
+          "oklch(0.15 0.002 255)",
+          "oklch(0.26 0.004 255)",
+          "oklch(0.37 0.006 255)",
+          "oklch(0.48 0.008 255)",
+          "oklch(0.60 0.008 255)",
+          "oklch(0.72 0.006 255)",
+          "oklch(0.84 0.003 255)",
+          "oklch(0.95 0.002 255)"
+        ]
+      },
       "line": {
         "role": "neutral",
         "displayName": "Hairline",
@@ -314,7 +329,7 @@
       "refersTo": "button",
       "description": "The default framed button on a surface.",
       "html": "<button class=\"ds-btn\">Open original</button>",
-      "css": ".ds-btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; white-space: nowrap; cursor: pointer; } .ds-btn:hover { background: var(--surface-2); } .ds-btn:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
+      "css": ".ds-btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; white-space: nowrap; cursor: pointer; } .ds-btn:hover { background: var(--surface-2); } .ds-btn:active { background: var(--press); } .ds-btn:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
     },
     {
       "name": "Accent button",
@@ -322,7 +337,7 @@
       "refersTo": "button-accent",
       "description": "The save button beside the paste box and the main action in a paste card.",
       "html": "<button class=\"ds-btn-acc\">Save</button>",
-      "css": ".ds-btn-acc { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--acc); border-radius: var(--r2); background: var(--acc); color: var(--on-acc); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 600; white-space: nowrap; cursor: pointer; } .ds-btn-acc:hover { filter: brightness(1.07); } .ds-btn-acc:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
+      "css": ".ds-btn-acc { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--acc); border-radius: var(--r2); background: var(--acc); color: var(--on-acc); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 600; white-space: nowrap; cursor: pointer; } .ds-btn-acc:hover { filter: brightness(1.07); } .ds-btn-acc:active { box-shadow: inset 0 0 0 1px var(--on-acc); } .ds-btn-acc:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
     },
     {
       "name": "Field",
@@ -336,9 +351,9 @@
       "name": "Filter chip",
       "kind": "chip",
       "refersTo": "filter-chip",
-      "description": "A Grid filter bar choice with its count; pressed fills with the accent.",
+      "description": "A Grid filter bar choice with its count; pressed fills with the accent. In forced colours, selection keeps its system colours while pressed.",
       "html": "<button class=\"ds-chip\" aria-pressed=\"false\">Reddit <span class=\"ds-n\">42</span></button> <button class=\"ds-chip\" aria-pressed=\"true\">X <span class=\"ds-n\">17</span></button>",
-      "css": ".ds-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); cursor: pointer; } .ds-chip:hover { border-color: var(--ctl-line); } .ds-chip[aria-pressed=\"true\"] { border-color: var(--acc); background: var(--acc); color: var(--on-acc); font-weight: 600; } .ds-n { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; } .ds-chip[aria-pressed=\"true\"] .ds-n { color: var(--on-acc); } .ds-chip:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
+      "css": ".ds-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); cursor: pointer; } .ds-chip:hover { border-color: var(--ctl-line); } .ds-chip:active { border-color: var(--ctl-line); background: var(--press); } .ds-chip[aria-pressed=\"true\"] { border-color: var(--acc); background: var(--acc); color: var(--on-acc); font-weight: 600; } .ds-chip[aria-pressed=\"true\"]:active { box-shadow: inset 0 0 0 1px var(--on-acc); } .ds-n { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; } .ds-chip[aria-pressed=\"true\"] .ds-n { color: var(--on-acc); } .ds-chip:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
     },
     {
       "name": "Segmented control",
@@ -346,23 +361,23 @@
       "refersTo": "segment-pressed",
       "description": "Settings choices in a row; the pressed one fills with the accent.",
       "html": "<div class=\"ds-seg\"><button class=\"ds-seg-b\" aria-pressed=\"true\">Compact</button><button class=\"ds-seg-b\" aria-pressed=\"false\">Comfortable</button><button class=\"ds-seg-b\" aria-pressed=\"false\">Roomy</button></div>",
-      "css": ".ds-seg { box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 2px; min-width: 0; padding: 2px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); } .ds-seg-b { flex: 1 1 auto; min-width: 0; min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); cursor: pointer; } .ds-seg-b:hover { background: var(--surface); } .ds-seg-b[aria-pressed=\"true\"] { background: var(--acc); color: var(--on-acc); font-weight: 600; } .ds-seg-b:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
+      "css": ".ds-seg { box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 2px; min-width: 0; padding: 2px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); } .ds-seg-b { flex: 1 1 auto; min-width: 0; min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); cursor: pointer; } .ds-seg-b:hover { background: var(--surface); } .ds-seg-b:active { background: var(--press); } .ds-seg-b[aria-pressed=\"true\"] { background: var(--acc); color: var(--on-acc); font-weight: 600; } .ds-seg-b[aria-pressed=\"true\"]:active { box-shadow: inset 0 0 0 1px var(--on-acc); } .ds-seg-b:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
     },
     {
       "name": "List row",
       "kind": "custom",
       "refersTo": "list-row-open",
-      "description": "List rows: the unread dot on the first metadata line and the ring of a read row; the open row has a tint and a 3px bar, and a focused row an accent-ink ring inside its edge. A Topic page row draws the same dot as a mark with no hit area.",
+      "description": "List rows: the unread dot on the first metadata line and the ring of a read row; the open row has a tint and a 3px bar, and a focused row an accent-ink ring inside its edge. A Topic page row draws the same dot as a mark with no hit area. Outside forced colours, its Read state mark uses muted ink while pressed, or accent ink when unread.",
       "html": "<div class=\"ds-row ds-row-open ds-row-unread\"><i class=\"ds-row-dot\"></i><p class=\"ds-row-meta\">r/selfhosted &middot; 3 days ago</p><p class=\"ds-row-title\">A title of a saved thread</p></div><div class=\"ds-row\" tabindex=\"0\"><i class=\"ds-row-dot\"></i><p class=\"ds-row-meta\">example.com &middot; 2 weeks ago</p><p class=\"ds-row-title\">A read article</p></div>",
-      "css": ".ds-row { box-sizing: border-box; display: grid; grid-template-columns: var(--s4) minmax(0, 1fr); grid-template-areas: \"dot meta\" \"dot title\"; column-gap: var(--s3); padding: calc(var(--s3) * var(--k)) var(--s4) calc(var(--s3) * var(--k)) var(--s3); border-bottom: 1px solid var(--line); background: var(--bg); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); cursor: pointer; } .ds-row:hover { background: var(--surface-2); } .ds-row.ds-row-open { background: var(--acc-soft); box-shadow: inset 3px 0 0 var(--acc); } .ds-row-dot { grid-area: dot; align-self: start; justify-self: center; margin-top: calc(var(--lh-ui) * 0.5em - var(--dot) / 2); width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r4); } .ds-row-unread .ds-row-dot { border-color: var(--acc); background: var(--acc); } .ds-row:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: calc(var(--s1) / -2); } .ds-row-meta { grid-area: meta; margin: 0; color: var(--muted); } .ds-row-title { grid-area: title; margin: calc(var(--s1) * var(--k)) 0 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-soft); letter-spacing: var(--dls); line-height: var(--lh-title); } .ds-row-unread .ds-row-title { font-weight: var(--dw-strong); }"
+      "css": ".ds-row { box-sizing: border-box; display: grid; grid-template-columns: var(--s4) minmax(0, 1fr); grid-template-areas: \"dot meta\" \"dot title\"; column-gap: var(--s3); padding: calc(var(--s3) * var(--k)) var(--s4) calc(var(--s3) * var(--k)) var(--s3); border-bottom: 1px solid var(--line); background: var(--bg); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); cursor: pointer; } .ds-row:hover { background: var(--surface-2); } .ds-row:active { background: var(--press); } .ds-row.ds-row-open { background: var(--acc-soft); box-shadow: inset 3px 0 0 var(--acc); } .ds-row.ds-row-open:active { background: var(--press-soft); } .ds-row-dot { grid-area: dot; align-self: start; justify-self: center; margin-top: calc(var(--lh-ui) * 0.5em - var(--dot) / 2); width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r4); } .ds-row-unread .ds-row-dot { border-color: var(--acc); background: var(--acc); } .ds-row:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: calc(var(--s1) / -2); } .ds-row-meta { grid-area: meta; margin: 0; color: var(--muted); } .ds-row-title { grid-area: title; margin: calc(var(--s1) * var(--k)) 0 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-soft); letter-spacing: var(--dls); line-height: var(--lh-title); } .ds-row-unread .ds-row-title { font-weight: var(--dw-strong); }"
     },
     {
       "name": "Grid card",
       "kind": "card",
       "refersTo": "grid-card",
-      "description": "A Grid card: picture, metadata and title on the surface with the low shadow.",
+      "description": "A Grid card: picture, metadata and title on the surface with the low shadow. Only an open card changes its fill and Read state mark while pressed. In forced colours, its open border keeps the system colour while pressed.",
       "html": "<article class=\"ds-card\"><div class=\"ds-card-pic\"></div><div class=\"ds-card-in\"><p class=\"ds-card-meta\">github.com</p><p class=\"ds-card-title\">owner/repository</p></div></article>",
-      "css": ".ds-card { box-sizing: border-box; overflow: hidden; border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); --img-ratio: 16 / 10; } .ds-card:hover { border-color: var(--line-2); } .ds-card-pic { aspect-ratio: var(--img-ratio); background: var(--surface-2); border-bottom: 1px solid var(--line); } .ds-card-in { padding: 0 var(--s4) var(--s4); } .ds-card-meta { margin: var(--s4) 0 0; color: var(--muted); } .ds-card-title { margin: calc(var(--s1) * var(--k)) 0 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-soft); letter-spacing: var(--dls); line-height: var(--lh-title); }"
+      "css": ".ds-card { box-sizing: border-box; overflow: hidden; border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); --img-ratio: 16 / 10; } .ds-card:hover { border-color: var(--line-2); } .ds-card:active { border-color: var(--ctl-line); } .ds-card-pic { aspect-ratio: var(--img-ratio); background: var(--surface-2); border-bottom: 1px solid var(--line); } .ds-card-in { padding: 0 var(--s4) var(--s4); } .ds-card-meta { margin: var(--s4) 0 0; color: var(--muted); } .ds-card-title { margin: calc(var(--s1) * var(--k)) 0 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-soft); letter-spacing: var(--dls); line-height: var(--lh-title); }"
     },
     {
       "name": "Summary box",

@@ -30,6 +30,10 @@
 .hp-it:hover {
   background: var(--surface-2);
 }
+
+.hp-it:has(.hp-open:active) {
+  background: var(--press);
+}
 .hp-it .it-meta {
   gap: var(--s1) var(--s2);
   font-size: var(--t-meta);

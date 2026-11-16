@@ -235,7 +235,7 @@
 :root, [data-images] { --card-media: block; }
 [data-images="off"] { --card-media: none; }
 
-:root, .app, [data-theme], [data-accent] { --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); }
+:root, .app, [data-theme], [data-accent] { --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); --press: color-mix(in oklab, var(--text) 4%, var(--surface-2)); --press-soft: color-mix(in oklab, var(--text) 4%, var(--acc-soft)); }
 
 /* Worked out from the inputs above, declared again on every element where an input can
    change: the body, title, reading and display sizes, and the reading column. */
