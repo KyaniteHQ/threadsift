@@ -14,14 +14,19 @@ function Loading() {
   return <Skeleton label={HIGHLIGHTS_PAGE.loading} row="hp-it" title="hp-title" />;
 }
 
-function Head({ state, filters }: Readonly<{ state: Ready; filters: Filters }>) {
+export function highlightsHeadText(state: Readonly<Ready>, filters: Readonly<Filters>): string {
+  if (state.counts.total === 0) return "";
   const shown = isFiltered(filters) ? matchedCount(state.counts, filters) : null;
   const text = isSearching(filters) ? filters.q.trim() : "";
 
+  return pageHeadLabel(state.counts.total, shown, text);
+}
+
+function Head({ label }: Readonly<{ label: string }>) {
   return (
     <section className="list-head" aria-labelledby={RESULTS_ID}>
-      <p id={RESULTS_ID} className="results" aria-live="polite">
-        {pageHeadLabel(state.counts.total, shown, text)}
+      <p id={RESULTS_ID} className="results">
+        {label}
       </p>
       <p className="label">{HIGHLIGHTS_PAGE.sort}</p>
     </section>
@@ -96,7 +101,7 @@ function Listed({
 
   return (
     <>
-      <Head state={state} filters={filters} />
+      <Head label={highlightsHeadText(state, filters)} />
       {isEmptyResult(length, state.next) ? (
         <Notice
           text={HIGHLIGHTS_PAGE.noResults}

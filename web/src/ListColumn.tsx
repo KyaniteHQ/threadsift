@@ -11,6 +11,33 @@ function LookupNotice({ failed, again }: Readonly<{ failed: boolean; again: () =
   return failed ? <Notice text={LOAD_FAILED} action={again} label={RETRY_LABEL} alert /> : null;
 }
 
+function LibraryList({
+  view,
+  look,
+  openId,
+}: Readonly<{ view: LibraryView; look: Look; openId: number | null }>) {
+  const { library, shown, actions, side, listPane } = view;
+
+  return (
+    <main ref={listPane} className="list" tabIndex={-1}>
+      <LookupNotice failed={actions.lookupFailed} again={actions.lookAgain} />
+      <ListBody
+        list={shown}
+        cardImages={look.settings.images === "on"}
+        openId={openId}
+        attention={actions.attention}
+        attended={actions.attended}
+        retry={actions.retryAndKeepPlace}
+        tryAgain={actions.tryAgain}
+        clearAll={view.clearAll}
+        open={side.reader.open}
+        toggleRead={side.reader.toggleRead}
+        more={library.more}
+      />
+    </main>
+  );
+}
+
 export function ListColumn({
   view,
   look,
@@ -24,8 +51,7 @@ export function ListColumn({
   openId: number | null;
   pages: Pages;
 }>) {
-  const { library, shown, reserves, actions, side, covered, openItem, listPane, searchField } =
-    view;
+  const { library, shown, reserves, side, covered, openItem, searchField } = view;
 
   const hint =
     look.reader !== "pane" || (openItem !== null && side.reader.hintInBar) ? null : HINT_LIST;
@@ -37,27 +63,14 @@ export function ListColumn({
         list={shown}
         reserves={reserves}
         filters={library.filters}
+        query={library.query}
+        active={!covered}
         field={searchField}
         search={library.search}
         hint={hint}
         leave={side.leaveSearch}
       />
-      <main ref={listPane} className="list" tabIndex={-1}>
-        <LookupNotice failed={actions.lookupFailed} again={actions.lookAgain} />
-        <ListBody
-          list={shown}
-          cardImages={look.settings.images === "on"}
-          openId={openId}
-          attention={actions.attention}
-          attended={actions.attended}
-          retry={actions.retryAndKeepPlace}
-          tryAgain={actions.tryAgain}
-          clearAll={view.clearAll}
-          open={side.reader.open}
-          toggleRead={side.reader.toggleRead}
-          more={library.more}
-        />
-      </main>
+      <LibraryList view={view} look={look} openId={openId} />
     </div>
   );
 }
