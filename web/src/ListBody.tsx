@@ -21,6 +21,7 @@ import {
 import { useNearEnd } from "./use-near-end.ts";
 
 const SKELETON_ROWS = [0, 1, 2] as const;
+const EAGER_ROWS = 8;
 export const RESULTS_ID = "results";
 
 export function Skeleton({
@@ -114,12 +115,13 @@ function ItemList({
 }>) {
   return (
     <ol ref={rows} role="list" className="items" aria-labelledby={RESULTS_ID}>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <li key={item.id}>
           <ItemRow
             item={item}
             now={loadedAt}
             cardImages={shared.cardImages}
+            eager={index < EAGER_ROWS}
             isOpen={item.id === shared.openId}
             attention={item.id === shared.attention?.id ? shared.attention : null}
             attended={shared.attended}

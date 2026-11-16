@@ -27,8 +27,9 @@ function shownImage(item: Readonly<Item>, wanted: boolean, broken: string | null
 
 function CardImage({
   image,
+  eager,
   broke,
-}: Readonly<{ image: NonNullable<Item["image"]>; broke: (url: string) => void }>) {
+}: Readonly<{ image: NonNullable<Item["image"]>; eager: boolean; broke: (url: string) => void }>) {
   const fail = useCallback(() => {
     broke(image.url);
   }, [broke, image.url]);
@@ -39,7 +40,7 @@ function CardImage({
         className="pic"
         src={image.url}
         alt={image.alt}
-        loading="lazy"
+        loading={eager ? "eager" : "lazy"}
         decoding="async"
         onError={fail}
       />
@@ -144,6 +145,7 @@ export const ItemRow = memo(function ItemRow({
   item,
   now,
   cardImages,
+  eager,
   isOpen,
   attention,
   attended,
@@ -154,6 +156,7 @@ export const ItemRow = memo(function ItemRow({
   item: Item;
   now: number;
   cardImages: boolean;
+  eager: boolean;
   isOpen: boolean;
   attention: Attention;
   attended: () => void;
@@ -173,7 +176,7 @@ export const ItemRow = memo(function ItemRow({
       <ReadDot item={item} ids={ids} toggleRead={toggleRead} />
       <Meta item={item} now={now} id={ids.meta} />
       <RowTitle item={item} ids={ids} link={link} isOpen={isOpen} open={open} />
-      {image === null ? null : <CardImage image={image} broke={setBroken} />}
+      {image === null ? null : <CardImage image={image} eager={eager} broke={setBroken} />}
       <Status item={item} ids={ids} tryAgain={tryAgain} />
     </article>
   );
