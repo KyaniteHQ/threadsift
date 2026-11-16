@@ -12,6 +12,7 @@ import { useOutcome } from "./use-outcome.ts";
 const CODE_INPUT = {
   name: "setup-code",
   type: "text",
+  required: true,
   autoComplete: "one-time-code",
   mono: true,
 } as const;
