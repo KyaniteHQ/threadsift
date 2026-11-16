@@ -81,8 +81,8 @@
    reader) and display (wordmark, reader title). They are in rem, so the
    browser's own font size scales them (1rem is 16px at its default); Text size
    (--tz, below) scales body, title and read, and label and meta never scale.
-   --t-floor is the 16px that reading text and a phone's text field never go
-   under: iOS Safari zooms the page when a focused field's text is smaller.
+   --t-floor is the 16px that reading text and a phone's text field and select
+   never go under: iOS Safari zooms the page when a focused field's text is smaller.
    Six spacing steps, four radii. */
 :root {
   --t-label: max(var(--t-floor-ui), 0.75rem); --t-meta: max(var(--t-floor-ui), 0.8125rem); --t-code: max(var(--t-floor-ui), 0.875rem); --t-h2: max(1.25rem, calc(var(--t-floor) / var(--post-h-cap))); --post-h-cap: 0.95; --rd-title-min: 1.1; --t-read-base: 1.0625rem; --t-floor: 16px; --t-floor-ui: 12px;
