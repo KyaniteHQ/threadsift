@@ -25,8 +25,6 @@ import {
   scoreLabel,
 } from "./reader-text.ts";
 
-const TOP_OFFSET: CSSProperties = { scrollMarginTop: "calc(var(--bar-h) + var(--s4))" };
-
 function depthStyle(depth: number): CSSProperties {
   return Object.fromEntries([["--d", depth]]);
 }
@@ -251,7 +249,7 @@ function CommentTree({
   return (
     <section className="rd-comments" aria-labelledby={heading}>
       <div className="rd-sec-h">
-        <h3 id={heading} className="rd-h" tabIndex={-1} style={TOP_OFFSET}>
+        <h3 id={heading} className="rd-h" tabIndex={-1}>
           {COMMENTS_TITLE}
         </h3>
         {counts === null ? null : <p className="rd-count">{countLabel(counts, "heading")}</p>}

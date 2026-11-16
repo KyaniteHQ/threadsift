@@ -1,17 +1,18 @@
 import { RESET } from "./access-text.ts";
 import { CodeText } from "./CodeText.tsx";
+import { Command } from "./Command.tsx";
 
 export function ResetInstructions() {
   return (
     <div className="stack">
       <p className="fld-help">{RESET.intro}</p>
       <p className="fld-help">{RESET.generate}</p>
-      <pre className="cmd">{RESET.generateCommand}</pre>
+      <Command text={RESET.generateCommand} />
       <p className="fld-help">
         <CodeText text={RESET.container} />
       </p>
       <p className="fld-help">{RESET.worker}</p>
-      <pre className="cmd">{RESET.workerCommand}</pre>
+      <Command text={RESET.workerCommand} />
       <p className="fld-help">
         <CodeText text={RESET.remove} />
       </p>
