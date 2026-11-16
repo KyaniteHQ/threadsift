@@ -4,7 +4,6 @@ import type { Item } from "../../src/http/schemas.ts";
 import { Alert } from "./Alert.tsx";
 import { CLOSED, type DeleteEvent, type DeleteFlow, reduceDelete } from "./delete-flow.ts";
 import { Icon } from "./Icon.tsx";
-import { tabWrapTarget } from "./panel-dom.ts";
 import {
   CANCEL_LABEL,
   DELETE_CONFIRM,
@@ -16,21 +15,6 @@ import {
 } from "./reader-text.ts";
 import { useFlow } from "./use-flow.ts";
 import { useModalDialog } from "./use-modal-dialog.ts";
-
-function containTab(dialog: HTMLElement, signal: AbortSignal): void {
-  dialog.addEventListener(
-    "keydown",
-    (event) => {
-      const wrapTo = event.key === "Tab" ? tabWrapTarget(dialog, event.shiftKey) : null;
-
-      if (wrapTo !== null) {
-        event.preventDefault();
-        wrapTo.focus();
-      }
-    },
-    { signal },
-  );
-}
 
 function useDeleteModal(
   dialog: RefObject<HTMLDialogElement | null>,
@@ -59,7 +43,6 @@ function useDeleteModal(
       },
       { signal },
     );
-    containTab(element, signal);
     first.current?.focus();
   });
 }
