@@ -21,11 +21,17 @@ export async function libraryIsEmpty(db: Database): Promise<boolean> {
   return found?.empty === 1;
 }
 
-export async function restoreRunning(db: Database): Promise<boolean> {
+export const NEWEST_RESTORE = sql`${restoreRuns.id} = (select max(${restoreRuns.id}) from ${restoreRuns})`;
+
+export const RESUMABLE_RESTORE = sql`${restoreRuns.state} = 'failed' and ${restoreRuns.failure} = 'gave-up' and ${restoreRuns.phase} <> 'undoing'`;
+
+const HOLDS_LIBRARY = sql`(${restoreRuns.state} = 'running' or (${restoreRuns.state} = 'failed' and ${restoreRuns.failure} = 'gave-up')) and ${NEWEST_RESTORE}`;
+
+export async function restoreHoldsLibrary(db: Database): Promise<boolean> {
   const [found] = await db
     .select({ one: sql<number>`1` })
     .from(restoreRuns)
-    .where(eq(restoreRuns.state, "running"))
+    .where(HOLDS_LIBRARY)
     .limit(1);
 
   return found !== undefined;
@@ -35,6 +41,10 @@ async function newestRestore(db: Database): Promise<RestoreRow | null> {
   const [newest] = await db.select().from(restoreRuns).orderBy(desc(restoreRuns.id)).limit(1);
 
   return newest ?? null;
+}
+
+export async function isNewestRestore(db: Database, id: number): Promise<boolean> {
+  return (await newestRestore(db))?.id === id;
 }
 
 export async function restoreById(db: Database, id: number): Promise<RestoreRow | null> {
@@ -59,6 +69,19 @@ export async function receivedParts(
   return page.cursor === null ? here : [...here, ...(await receivedParts(files, id, page.cursor))];
 }
 
+export async function holdsEveryPart(
+  files: Pick<FileStore, "list">,
+  { id, parts }: Readonly<Pick<RestoreRow, "id" | "parts">>,
+): Promise<boolean> {
+  const received = new Set(await receivedParts(files, id));
+
+  return Array.from({ length: parts }, (_, at) => at + 1).every((part) => received.has(part));
+}
+
+export function resumable(run: Readonly<Pick<RestoreRow, "state" | "phase" | "failure">>): boolean {
+  return run.state === "failed" && run.failure === "gave-up" && run.phase !== "undoing";
+}
+
 function countsOf(run: Readonly<RestoreRow>) {
   return {
     restored: CountsSchema.parse(JSON.parse(run.restored)),
@@ -66,12 +89,48 @@ function countsOf(run: Readonly<RestoreRow>) {
   };
 }
 
-export async function restoreStatus({
-  db,
-  files,
-}: Pick<JobPorts, "db" | "files">): Promise<RestoreStatus> {
-  const libraryEmpty = await libraryIsEmpty(db);
-  const run = await newestRestore(db);
+type StatusPorts = Pick<JobPorts, "db" | "files">;
+
+async function uploadingStatus(
+  { files }: Pick<StatusPorts, "files">,
+  run: Readonly<RestoreRow>,
+  libraryEmpty: boolean,
+): Promise<RestoreStatus> {
+  const { id } = run;
+
+  return {
+    state: "uploading",
+    libraryEmpty,
+    id,
+    bytes: run.bytes,
+    parts: run.parts,
+    partBytes: run.partBytes,
+    received: (await receivedParts(files, id)).toSorted((left, right) => left - right),
+  };
+}
+
+async function failedStatus(
+  { files }: Pick<StatusPorts, "files">,
+  run: Readonly<RestoreRow>,
+  libraryEmpty: boolean,
+): Promise<RestoreStatus> {
+  const { id } = run;
+
+  if (run.failure === null) throw new Error(`Restore ${String(id)} failed with no reason`);
+
+  return {
+    state: "failed",
+    libraryEmpty,
+    id,
+    failure: run.failure,
+    resumable: resumable(run) && (await holdsEveryPart(files, run)),
+    cancelFailed: run.phase === "undoing",
+  };
+}
+
+export async function restoreStatus(ports: StatusPorts): Promise<RestoreStatus> {
+  const libraryEmpty = await libraryIsEmpty(ports.db);
+  const run = await newestRestore(ports.db);
 
   if (run === null) return { state: "none", libraryEmpty };
 
@@ -79,17 +138,11 @@ export async function restoreStatus({
 
   switch (run.state) {
     case "uploading":
-      return {
-        state: "uploading",
-        libraryEmpty,
-        id,
-        bytes: run.bytes,
-        parts: run.parts,
-        partBytes: run.partBytes,
-        received: (await receivedParts(files, id)).toSorted((left, right) => left - right),
-      };
+      return uploadingStatus(ports, run, libraryEmpty);
     case "running": {
       if (run.phase === "upload") throw new Error(`Restore ${String(id)} runs in its upload phase`);
+
+      if (run.phase === "undoing") return { state: "cancelling", libraryEmpty, id };
 
       return { state: "running", libraryEmpty, id, phase: run.phase, ...countsOf(run) };
     }
@@ -102,11 +155,11 @@ export async function restoreStatus({
         finishedAt: run.finishedAt ?? run.updatedAt,
         ...countsOf(run),
       };
-    case "failed": {
-      if (run.failure === null) throw new Error(`Restore ${String(id)} failed with no reason`);
+    case "failed":
+      return failedStatus(ports, run, libraryEmpty);
 
-      return { state: "failed", libraryEmpty, id, failure: run.failure };
-    }
+    case "cancelled":
+      return { state: "cancelled", libraryEmpty, id };
 
     default:
       return run.state satisfies never;

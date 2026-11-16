@@ -5,6 +5,7 @@ import { SETTINGS } from "./access-text.ts";
 import { READ_DEADLINE_MS } from "./calls.ts";
 import { PageBar } from "./PageBar.tsx";
 import { SettingsSections } from "./SettingsSections.tsx";
+import { useHashTarget } from "./use-hash-target.ts";
 import { useSettingsLoad } from "./use-settings-load.ts";
 
 function Loading() {
@@ -23,6 +24,8 @@ export function SettingsPage({
 }: Readonly<{ back: () => void; loggedOut: () => void }>) {
   const column = useRef<HTMLElement>(null);
   const loaded = useSettingsLoad(column);
+
+  useHashTarget(loaded !== null);
 
   const [failed, setFailed] = useState(false);
 

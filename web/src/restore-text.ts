@@ -20,6 +20,15 @@ export const RESTORE_TEXT = {
     "The zip holds no Provider key, password or agent tokens. Set the Provider and make agent tokens again in Settings.",
   loadFailed: "Couldn’t read the Restore state. Reload the page.",
   failed: "Couldn’t send the part or start the Restore. Try again.",
+  cancel: "Cancel Restore",
+  cancelling: "Cancelling…",
+  cancellingStatus: "Removing restored records and files…",
+  cancelled:
+    "The Restore is cancelled and the library is empty again, so you can start a new Restore.",
+  resume: "Resume Restore",
+  resuming: "Resuming…",
+  cancelFailed: "Couldn’t cancel the Restore. Try again.",
+  resumeFailed: "Couldn’t resume the Restore. Try again.",
 } as const;
 
 const UPLOADING = "Uploading part {sent} of {parts}.";
@@ -65,14 +74,27 @@ const REFUSAL_TEXT = {
 } as const satisfies Record<RestoreErrorCode, string>;
 
 const GAVE_UP =
-  "The Restore stopped because a step failed 3 times. Some records are already restored.";
+  "The Restore stopped because a step failed 3 times. Some records are already restored. Resume continues from the last finished step, and Cancel removes them.";
+
+const CANCEL_STOPPED =
+  "The Cancel stopped because a step failed 3 times. Some restored records are still in the library. Cancel again removes them from where it stopped.";
+
+const GAVE_UP_NO_ZIP =
+  "The Restore stopped because a step failed 3 times. Some records are already restored, and the Export zip is no longer on the Instance. Cancel removes the restored records so you can choose the zip again.";
 
 export function refusalLabel(code: RestoreErrorCode): string {
   return REFUSAL_TEXT[code];
 }
 
-export function failureLabel(failure: RestoreFailure): string {
-  return failure === "gave-up" ? GAVE_UP : REFUSAL_TEXT[failure];
+export function failureLabel(
+  failure: RestoreFailure,
+  { resumable, cancelFailed }: Readonly<{ resumable: boolean; cancelFailed: boolean }>,
+): string {
+  if (failure !== "gave-up") return REFUSAL_TEXT[failure];
+
+  if (cancelFailed) return CANCEL_STOPPED;
+
+  return resumable ? GAVE_UP : GAVE_UP_NO_ZIP;
 }
 
 export function uploadingLabel(sent: number, parts: number): string {

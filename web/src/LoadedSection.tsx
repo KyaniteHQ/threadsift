@@ -30,7 +30,7 @@ export function LoadedSection<View>({
 
   return (
     <section id={id} className="sec" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`} className="rd-h">
+      <h2 id={`${id}-title`} className="rd-h" tabIndex={-1}>
         {title}
       </h2>
       <p>{intro}</p>

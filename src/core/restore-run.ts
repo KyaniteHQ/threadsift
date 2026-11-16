@@ -1,10 +1,12 @@
+import { and, eq } from "drizzle-orm";
+
 import { restorePartKey } from "./file-keys.ts";
 import { refusedBy } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
 import type { Database } from "./ports.ts";
 import { partLength, partsOf } from "./restore-contract.ts";
-import { libraryIsEmpty, restoreById } from "./restore-state.ts";
+import { libraryIsEmpty, restoreById, resumable } from "./restore-state.ts";
 import { restoreRuns } from "./schema.ts";
 
 const ONE_OPEN_RESTORE = /UNIQUE constraint failed: (?:index 'restores_one_open'|restores\.)/u;
@@ -70,7 +72,17 @@ export async function storePart(
 
   await files.put(key, bytes);
 
-  if ((await restoreById(db, id))?.state === "uploading") return { kind: "stored" };
+  const touched = await db
+    .update(restoreRuns)
+    .set({ updatedAt: Date.now() })
+    .where(and(eq(restoreRuns.id, id), eq(restoreRuns.state, "uploading")))
+    .returning({ id: restoreRuns.id });
+
+  if (touched.length > 0) return { kind: "stored" };
+
+  const after = await restoreById(db, id);
+
+  if (after !== null && (after.state === "running" || resumable(after))) return { kind: "stored" };
 
   await files.delete([key]);
 

@@ -1,14 +1,14 @@
 import { dataStepsFinished } from "./data-steps.ts";
 import { refusedBy } from "./guards.ts";
 import type { Database } from "./ports.ts";
-import { restoreRunning } from "./restore-state.ts";
+import { restoreHoldsLibrary } from "./restore-state.ts";
 
 const RESTORE_TRIGGER = /items_restoring: /u;
 
 export type Closed = { readonly kind: "restoring" } | { readonly kind: "updating" };
 
 async function libraryGate(db: Database): Promise<Closed | null> {
-  if (await restoreRunning(db)) return { kind: "restoring" };
+  if (await restoreHoldsLibrary(db)) return { kind: "restoring" };
 
   return (await dataStepsFinished(db)) ? null : { kind: "updating" };
 }

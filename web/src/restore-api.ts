@@ -4,7 +4,7 @@ import {
   RestoreStatusSchema,
   StartedRestoreSchema,
 } from "../../src/core/restore-contract.ts";
-import { NO_DEADLINE, call, callOk, parsedBody, parsedFrom, post, put } from "./calls.ts";
+import { NO_DEADLINE, call, callOk, del, parsedBody, parsedFrom, post, put } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/restore";
@@ -49,4 +49,16 @@ export async function startRestore(id: number): Promise<Readonly<{ kind: "starte
   if (response.status === 400 || response.status === 409) return refusalOf(response);
 
   throw new Error(`POST ${ENDPOINT}/${String(id)}/start answered ${String(response.status)}`);
+}
+
+export async function cancelRestore(id: number): Promise<void> {
+  await callOk(del(DATABASE_WRITE_DEADLINE_MS), `${ENDPOINT}/${String(id)}`, {
+    tolerates: [404, 409],
+  });
+}
+
+export async function resumeRestore(id: number): Promise<void> {
+  await callOk(post(DATABASE_WRITE_DEADLINE_MS), `${ENDPOINT}/${String(id)}/resume`, {
+    tolerates: [400, 409],
+  });
 }
