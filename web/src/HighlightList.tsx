@@ -1,4 +1,4 @@
-import { type MouseEvent, memo, useCallback, useId } from "react";
+import { type MouseEvent, memo, useCallback } from "react";
 
 import type { Highlight } from "../../src/core/highlight-contract.ts";
 import { useHighlights } from "./highlights-context.ts";
@@ -74,13 +74,10 @@ function reloadPage(): void {
 
 export const HighlightList = memo(function HighlightList() {
   const { items, failure } = useHighlights();
-  const heading = useId();
 
   return items.length === 0 && failure === null ? null : (
-    <section className="rd-hl" aria-labelledby={heading}>
-      <h3 id={heading} className="rd-h">
-        {HIGHLIGHTS_TITLE}
-      </h3>
+    <section className="rd-hl">
+      <h3 className="rd-h">{HIGHLIGHTS_TITLE}</h3>
       {failure === null ? null : (
         <div role="alert">
           <p className="rd-note">{failure.text}</p>
@@ -92,7 +89,7 @@ export const HighlightList = memo(function HighlightList() {
         </div>
       )}
       {items.length === 0 ? null : (
-        <ul className="hl-list">
+        <ul role="list" className="hl-list">
           {items.map((highlight) => (
             <Entry key={highlight.id} highlight={highlight} />
           ))}

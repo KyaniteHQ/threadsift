@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { EmptyState, RESULTS_ID } from "./ListBody.tsx";
+import { EmptyState } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { SORT_LABEL } from "./text.ts";
 import { TOPIC_PAGE, itemsLabel } from "./topic-text.ts";
@@ -39,11 +39,9 @@ export function TopicItemsSection({
   navigate,
 }: Readonly<{ state: TopicReady; loadMore: () => void; navigate: (to: string) => void }>) {
   return (
-    <section aria-labelledby={RESULTS_ID} className="rl-items">
+    <section className="rl-items">
       <header className="list-head">
-        <h2 id={RESULTS_ID} className="results">
-          {itemsLabel(state.topic.itemCount)}
-        </h2>
+        <h2 className="results">{itemsLabel(state.topic.itemCount)}</h2>
         <p className="label">{SORT_LABEL}</p>
       </header>
       <ItemList state={state} navigate={navigate} />

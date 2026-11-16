@@ -25,7 +25,7 @@ const TOKEN_KIND = {
 function Steps() {
   return (
     <>
-      <ol className="gh-steps">
+      <ol role="list" className="gh-steps">
         <li>
           <a
             className="fl-link gh-link"

@@ -34,7 +34,7 @@ function PageLinkItem({
 export function PageLinks({ pages }: Readonly<{ pages: Pages }>) {
   return (
     <nav className="st-more">
-      <ul>
+      <ul role="list">
         <PageLinkItem
           path={HIGHLIGHTS_PATH}
           label={HIGHLIGHTS_PAGE.masthead}

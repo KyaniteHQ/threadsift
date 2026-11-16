@@ -24,7 +24,7 @@ export function highlightsHeadText(state: Readonly<Ready>, filters: Readonly<Fil
 
 function Head({ label }: Readonly<{ label: string }>) {
   return (
-    <section className="list-head" aria-labelledby={RESULTS_ID}>
+    <section className="list-head">
       <p id={RESULTS_ID} className="results">
         {label}
       </p>
