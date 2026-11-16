@@ -2,11 +2,10 @@ import { useCallback, useState } from "react";
 
 import { type Attempt, setUp } from "./access-api.ts";
 import { FIELDS, SETUP } from "./access-text.ts";
-import { Alert } from "./Alert.tsx";
 import { LENGTH_PROBLEM, checkNewPassword } from "./password-length.ts";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import type { GoTo } from "./setup-step.ts";
-import { SwapButton } from "./SwapButton.tsx";
+import { StepForm } from "./StepForm.tsx";
 import { type FieldState, useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
 import { useOutcome } from "./use-outcome.ts";
 
@@ -87,9 +86,16 @@ export function PasswordStep(props: Readonly<PasswordStepProps>) {
   useFocusOnMount(password.ref);
 
   return (
-    <form className="stack" method="post" onSubmit={onSubmit}>
-      <p className="label">{SETUP.stepTwo}</p>
-      <h1 className="auth-title">{SETUP.passwordTitle}</h1>
+    <StepForm
+      title={SETUP.passwordTitle}
+      onSubmit={onSubmit}
+      alert={lock.message ?? (failed ? SETUP.failed : null)}
+      submitLabel={SETUP.create}
+      busyLabel={SETUP.creating}
+      busy={busy}
+      blocked={lock.locked}
+      onBack={backToCode}
+    >
       <UsernameHint />
       <PasswordField
         field={password}
@@ -107,21 +113,6 @@ export function PasswordStep(props: Readonly<PasswordStepProps>) {
         autoComplete="new-password"
         shown={shown}
       />
-      <Alert text={lock.message ?? (failed ? SETUP.failed : null)} />
-      <SwapButton
-        label={SETUP.create}
-        busyLabel={SETUP.creating}
-        busy={busy}
-        blocked={lock.locked}
-      />
-      <button
-        type="button"
-        className="btn btn-plain btn-flush"
-        aria-disabled={busy ? true : undefined}
-        onClick={backToCode}
-      >
-        {SETUP.backToCode}
-      </button>
-    </form>
+    </StepForm>
   );
 }

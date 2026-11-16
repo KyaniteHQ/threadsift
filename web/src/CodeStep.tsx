@@ -2,11 +2,10 @@ import { useCallback } from "react";
 
 import { type Attempt, checkSetupCode } from "./access-api.ts";
 import { SETUP } from "./access-text.ts";
-import { Alert } from "./Alert.tsx";
 import { CodeText } from "./CodeText.tsx";
 import { FormField } from "./FormField.tsx";
 import type { GoTo } from "./setup-step.ts";
-import { SwapButton } from "./SwapButton.tsx";
+import { StepForm } from "./StepForm.tsx";
 import { useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
 import { useOutcome } from "./use-outcome.ts";
 
@@ -62,9 +61,15 @@ export function CodeStep(props: Readonly<CodeStepProps>) {
   useFocusOnMount(code.ref);
 
   return (
-    <form className="stack" method="post" onSubmit={onSubmit}>
-      <p className="label">{SETUP.stepOne}</p>
-      <h1 className="auth-title">{SETUP.codeTitle}</h1>
+    <StepForm
+      title={SETUP.codeTitle}
+      onSubmit={onSubmit}
+      alert={lock.message}
+      submitLabel={SETUP.continue}
+      busyLabel={SETUP.checking}
+      busy={busy}
+      blocked={lock.locked}
+    >
       <div className="help-pair">
         <p className="fld-help">
           <CodeText text={SETUP.codeWhereContainer} />
@@ -74,13 +79,6 @@ export function CodeStep(props: Readonly<CodeStepProps>) {
         </p>
       </div>
       <FormField field={code} label={SETUP.codeLabel} kind={CODE_INPUT} />
-      <Alert text={lock.message} />
-      <SwapButton
-        label={SETUP.continue}
-        busyLabel={SETUP.checking}
-        busy={busy}
-        blocked={lock.locked}
-      />
-    </form>
+    </StepForm>
   );
 }
