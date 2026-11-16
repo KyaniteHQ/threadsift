@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { type ComponentProps, useCallback } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { commentCountOf } from "./comment-counts.ts";
@@ -28,7 +28,14 @@ export function ReaderActions({
   controls,
   look,
   pages,
-}: Readonly<{ item: Item; controls: ReaderControls; look: Look; pages: PanelPages }>) {
+  panel,
+}: Readonly<{
+  item: Item;
+  controls: ReaderControls;
+  look: Look;
+  pages: PanelPages;
+  panel: ComponentProps<typeof SettingsPanel>["panel"];
+}>) {
   const { mode, toggleRead, remove } = controls;
   const read = item.readState === "read";
   const comments = commentCountOf(item);
@@ -45,7 +52,7 @@ export function ReaderActions({
         </p>
       ) : null}
       {comments === null || comments.shown === 0 ? null : <CommentsButton counts={comments} />}
-      {mode === "pane" ? null : <SettingsPanel look={look} pages={pages} />}
+      {mode === "pane" ? null : <SettingsPanel look={look} pages={pages} panel={panel} />}
       <button type="button" className="btn rd-act" aria-keyshortcuts="M" onClick={toggle}>
         <ReadIcon read={read} />
         <span className="rd-act-l">{read ? MARK_UNREAD : MARK_READ}</span>

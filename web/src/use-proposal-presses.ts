@@ -3,25 +3,21 @@ import { useCallback, useMemo } from "react";
 import type { Proposal } from "../../src/core/proposal-contract.ts";
 import type { RowEvent } from "./proposal-row-state.ts";
 import { type Failure, sendReject } from "./proposals-api.ts";
-import { type AcceptableProposal, PROPOSAL_WORDS, rejectedAnnouncement } from "./proposals-text.ts";
+import { type AcceptableProposal, rejectedAnnouncement } from "./proposals-text.ts";
+import { useAccept, useCheck } from "./use-proposal-check.ts";
 
 interface Presses {
   readonly send: (event: RowEvent) => boolean;
   readonly setNotice: (text: string | null) => void;
-  readonly accept: (proposal: Readonly<AcceptableProposal>) => Promise<void>;
-  readonly settle: (
-    proposal: Readonly<Proposal>,
-    failure: "reject",
-    goneNote: string,
-  ) => Promise<void>;
-  readonly leave: (
-    proposal: Readonly<Proposal>,
-    departure: "rejected",
-    says: string,
-  ) => Promise<void>;
+  readonly edit: Parameters<typeof useCheck>[0]["edit"];
+  readonly settle: Parameters<typeof useCheck>[0]["settle"];
+  readonly leave: Parameters<typeof useCheck>[0]["leave"];
 }
 
-export function usePresses({ send, setNotice, accept, settle, leave }: Readonly<Presses>) {
+export function usePresses({ send, setNotice, edit, settle, leave }: Readonly<Presses>) {
+  const check = useCheck({ send, edit, settle, leave });
+  const accept = useAccept({ check, send, edit, settle, leave });
+
   const decide = useCallback(
     async (proposal: Readonly<Proposal>, action: Failure, run: () => Promise<void>) => {
       if (!send({ kind: "press", id: proposal.id, action })) return;
@@ -38,10 +34,10 @@ export function usePresses({ send, setNotice, accept, settle, leave }: Readonly<
       if ((await sendReject(proposal.id)) === "rejected") {
         await leave(proposal, "rejected", rejectedAnnouncement(proposal));
       } else {
-        await settle(proposal, "reject", PROPOSAL_WORDS.alreadyDecided);
+        await check(proposal, "reject");
       }
     },
-    [leave, settle],
+    [check, leave],
   );
 
   const pressAccept = useCallback(

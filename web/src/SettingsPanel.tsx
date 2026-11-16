@@ -3,6 +3,7 @@ import { type RefObject, useId } from "react";
 import { DEFAULTS } from "../../design/system/settings.ts";
 import { Icon } from "./Icon.tsx";
 import { PageLinks } from "./PageLinks.tsx";
+import { PANEL_CLASS } from "./panel-dom.ts";
 import type { Pages } from "./routing.ts";
 import { SettingsRows } from "./SettingsRows.tsx";
 import {
@@ -12,7 +13,7 @@ import {
   SETTINGS_GEAR_LABEL,
   SETTINGS_TITLE,
 } from "./text.ts";
-import { usePanel } from "./use-panel.ts";
+import { type PanelState, usePanel } from "./use-panel.ts";
 import type { Look } from "./use-root.ts";
 
 function Gear({
@@ -47,7 +48,13 @@ function SheetHeader({ titleId, close }: Readonly<{ titleId: string; close: () =
       <h2 className="st-title" id={titleId}>
         {SETTINGS_TITLE}
       </h2>
-      <button type="button" className="st-close" aria-label={CLOSE_LABEL} onClick={close}>
+      <button
+        type="button"
+        className="st-close"
+        data-focus-key="close"
+        aria-label={CLOSE_LABEL}
+        onClick={close}
+      >
         <Icon name="close" className="ic" />
       </button>
     </div>
@@ -59,7 +66,13 @@ export type PanelPages = Pages;
 function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void }>) {
   return (
     <div className="st-foot">
-      <button type="button" className="st-reset" aria-describedby={noteId} onClick={reset}>
+      <button
+        type="button"
+        className="st-reset"
+        data-focus-key="reset"
+        aria-describedby={noteId}
+        onClick={reset}
+      >
         {RESET_LABEL}
       </button>
       <p className="st-foot-note" id={noteId}>
@@ -69,12 +82,16 @@ function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void 
   );
 }
 
-export function SettingsPanel({ look, pages }: Readonly<{ look: Look; pages: Pages }>) {
+export function SettingsPanel({
+  look,
+  pages,
+  panel: state,
+}: Readonly<{ look: Look; pages: Pages; panel: PanelState }>) {
   const { settings, themeNote, narrow: modal, pick: choose, reset } = look;
   const idBase = useId();
   const panelId = `${idBase}-panel`;
   const titleId = `${idBase}-title`;
-  const { open, toggle, closeToGear, gear, panel } = usePanel(modal);
+  const { open, toggle, closeToGear, gear, panel } = usePanel(modal, state);
 
   return (
     <>
@@ -83,7 +100,7 @@ export function SettingsPanel({ look, pages }: Readonly<{ look: Look; pages: Pag
         <dialog
           ref={panel}
           id={panelId}
-          className="st-pop"
+          className={PANEL_CLASS}
           aria-label={modal ? undefined : SETTINGS_TITLE}
           aria-labelledby={modal ? titleId : undefined}
           data-font={DEFAULTS.font}

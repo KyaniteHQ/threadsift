@@ -23,6 +23,8 @@ export const IMPORT = {
     "Known links are already in the library and are left as they are. Refused links point to a private address that the Instance will not fetch.",
   stop: "Stop",
   stopping: "Stopping after this batch…",
+  waiting:
+    "Waiting to see whether the last batch was saved because the Instance is slow to answer.",
   finished: "Import finished.",
   aiSettingsLink: "AI settings",
   noProvider:
@@ -79,7 +81,15 @@ const FAILED = {
     "Import stopped at {done} of {total} because a Restore is running. Start the Import again when the Restore has finished.",
   network: "Import stopped at {done} of {total} because Threadsift couldn’t be reached.",
   rejected: "Import stopped at {done} of {total} because the Instance didn’t accept a batch.",
+  unconfirmed:
+    "Import stopped at {done} of {total} links because the Instance did not confirm that the last batch was saved. Continue sends that batch again.",
 } as const;
+
+const UNCOUNTED_ONE =
+  "The outcome of {count} link is missing from the counts above because the Instance was slow to answer.";
+
+const UNCOUNTED_MANY =
+  "The outcomes of {count} links are missing from the counts above because the Instance was slow to answer.";
 
 const COUNTS = {
   added: "{count} added",
@@ -130,6 +140,10 @@ export function stoppedLabel(done: number, total: number): string {
 
 export function failedLabel(ending: FailedEnding, done: number, total: number): string {
   return filled(FAILED[ending], { done: groupedNumber(done), total: groupedNumber(total) });
+}
+
+export function uncountedLabel(count: number): string {
+  return filled(count === 1 ? UNCOUNTED_ONE : UNCOUNTED_MANY, { count: groupedNumber(count) });
 }
 
 export function countLabel(count: number, kind: keyof typeof COUNTS): string {

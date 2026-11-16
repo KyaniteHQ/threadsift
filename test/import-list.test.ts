@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { BATCH_LINKS_MAX } from "../src/core/import-contract.ts";
 import { importNameOf, nextBatch, parseImportList, resumeOf } from "../src/core/import-list.ts";
 import { BODY_LIMIT_BYTES } from "../src/core/limits.ts";
 import { BatchRequestSchema } from "../src/http/batch-schemas.ts";
@@ -130,7 +131,10 @@ describe("the Import list parser turns literal text into the links the batch cal
     const short = Array.from({ length: 250 }, (_, index) => `https://example.com/${index}`);
 
     assert.deepEqual(
-      [0, 100, 200].map((from) => nextBatch(short, from, "list-0123456789abcdef").links.length),
+      [0, 100, 200].map(
+        (from) =>
+          nextBatch(short, from, "list-0123456789abcdef", null, BATCH_LINKS_MAX).links.length,
+      ),
       [100, 100, 50],
     );
   });
@@ -151,7 +155,7 @@ describe("the Import list parser turns literal text into the links the batch cal
     const sizes: number[] = [];
 
     for (let from = 0; from < list.links.length;) {
-      const request = nextBatch(list.links, from, name);
+      const request = nextBatch(list.links, from, name, null, BATCH_LINKS_MAX);
       const bytes = new TextEncoder().encode(JSON.stringify(request)).length;
       const next = list.links[from + request.links.length];
 
@@ -159,6 +163,7 @@ describe("the Import list parser turns literal text into the links the batch cal
       assert.deepEqual(BatchRequestSchema.parse(request).import, {
         name,
         cursor: String(from + request.links.length),
+        previous: null,
       });
 
       if (next !== undefined) {

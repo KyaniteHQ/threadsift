@@ -1,8 +1,9 @@
-import { ImportStateSchema } from "../../src/core/import-contract.ts";
+import { type ImportState, ImportStateSchema } from "../../src/core/import-contract.ts";
 import type { ImportRequest } from "../../src/core/import-list.ts";
 import { BatchResponseSchema } from "../../src/http/batch-schemas.ts";
-import { NO_DEADLINE, call, parsedBody, parsedOrNull, post } from "./calls.ts";
+import { call, parsedBody, parsedOrNull, post } from "./calls.ts";
 import { unavailableKind } from "./unavailable.ts";
+import { IMPORT_BATCH_DEADLINE_MS } from "./write-deadlines.ts";
 
 export interface Counts {
   readonly added: number;
@@ -10,16 +11,22 @@ export interface Counts {
   readonly refused: number;
 }
 
-type BatchAnswer =
+export type BatchAnswer =
   | { readonly kind: "saved"; readonly counts: Counts }
-  | { readonly kind: "updating" | "restoring" | "network" | "rejected" };
+  | { readonly kind: "updating" | "restoring" | "network" | "rejected" }
+  | { readonly kind: "unanswered" };
 
 export const NO_COUNTS: Counts = { added: 0, known: 0, refused: 0 };
 
+export function readImportState(
+  name: string,
+  signal: AbortSignal | undefined,
+): Promise<ImportState | null> {
+  return parsedOrNull("GET", `/api/imports/${name}`, ImportStateSchema, 404, { signal });
+}
+
 export async function fetchImportCursor(name: string, signal: AbortSignal): Promise<string | null> {
-  const state = await parsedOrNull("GET", `/api/imports/${name}`, ImportStateSchema, 404, {
-    signal,
-  });
+  const state = await readImportState(name, signal);
 
   return state === null ? null : state.cursor;
 }
@@ -36,7 +43,9 @@ function countsOf(outcomes: readonly (keyof Counts)[]): Counts {
 
 export async function postBatch(request: Readonly<ImportRequest>): Promise<BatchAnswer> {
   try {
-    const response = await call(post(NO_DEADLINE), "/api/items/batch", { json: request });
+    const response = await call(post(IMPORT_BATCH_DEADLINE_MS), "/api/items/batch", {
+      json: request,
+    });
 
     if (response.status === 503) return { kind: await unavailableKind(response) };
 
@@ -45,7 +54,10 @@ export async function postBatch(request: Readonly<ImportRequest>): Promise<Batch
     const { results } = await parsedBody(response, BatchResponseSchema);
 
     return { kind: "saved", counts: countsOf(results.map(({ outcome }) => outcome)) };
-  } catch {
-    return { kind: "network" };
+  } catch (error) {
+    return {
+      kind:
+        error instanceof DOMException && error.name === "TimeoutError" ? "unanswered" : "network",
+    };
   }
 }

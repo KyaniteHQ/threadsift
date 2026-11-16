@@ -5,6 +5,14 @@ export type PanelRefs = Readonly<{
   panel: RefObject<HTMLDialogElement | null>;
 }>;
 
+export const PANEL_CLASS = "st-pop";
+
+export const PANEL_SELECTOR = `dialog.${PANEL_CLASS}`;
+
+export function panelHoldsFocus(): boolean {
+  return document.activeElement?.closest(PANEL_SELECTOR) instanceof Element;
+}
+
 export function tabWrapTarget(panel: HTMLElement, backwards: boolean): HTMLElement | null {
   const stops = [...panel.querySelectorAll<HTMLElement>("button, select")];
   const [first, last] = [stops.at(0), stops.at(-1)];
@@ -21,9 +29,12 @@ export function tabWrapTarget(panel: HTMLElement, backwards: boolean): HTMLEleme
 }
 
 function isOutside(refs: PanelRefs, target: EventTarget | null): boolean {
+  const panel = refs.panel.current;
+
   return (
+    panel !== null &&
     target instanceof Node &&
-    refs.panel.current?.contains(target) !== true &&
+    !panel.contains(target) &&
     refs.gear.current?.contains(target) !== true
   );
 }

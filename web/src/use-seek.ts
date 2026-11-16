@@ -1,8 +1,8 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { fetchItem } from "./api.ts";
 import { type Filters, isFiltered } from "./filters.ts";
+import { lookUp } from "./item-reads.ts";
 import type { Attention } from "./ItemRow.tsx";
 import { usePageReader } from "./list-more.ts";
 import type { ListState, Ready } from "./list-state.ts";
@@ -65,7 +65,7 @@ function useSharedArrival(
     shared.current = null;
 
     const find = async (): Promise<void> => {
-      const found = await fetchItem(id).catch(() => "failed" as const);
+      const found = await lookUp(id);
 
       if (found === "gone" || found === "failed") return;
 

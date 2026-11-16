@@ -7,10 +7,11 @@ import {
   AcceptedSchema,
   ProposalIdParamSchema,
   ProposalPageSchema,
+  ProposalStateSchema,
   RejectedSchema,
 } from "../core/proposal-contract.ts";
 import { acceptProposal, rejectProposal } from "../core/proposal-decision.ts";
-import { readProposalPage } from "../core/proposal-page.ts";
+import { readProposalPage, readProposalState } from "../core/proposal-page.ts";
 import { jsonBody } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, cursorParam } from "./schemas.ts";
@@ -30,6 +31,19 @@ const listProposalsRoute = createRoute({
       ErrorResponseSchema,
       "`cursor` is not a decimal integer of 1 to 16 digits that is at most 9007199254740991.",
     ),
+  },
+});
+
+const proposalStateRoute = createRoute({
+  method: "get",
+  path: "/api/proposals/{id}",
+  request: { params: ProposalIdParamSchema },
+  responses: {
+    200: jsonBody(
+      ProposalStateSchema,
+      "The stored `state` of the Proposal: `open`, `accepting`, `rejected` or `declined`. It answers for a row the list hides, such as an `open` disagreement whose Items sit in two Topics, and for a rejected or declined row, which the list never shows. A row that Accept removed has no state.",
+    ),
+    404: jsonBody(ErrorResponseSchema, "No Proposal of a kind this release knows has this id."),
   },
 });
 
@@ -79,6 +93,14 @@ function registerList(app: OpenAPIHono, ports: Ports): void {
     const { cursor } = c.req.valid("query");
 
     return c.json(await readProposalPage(ports.db, cursor ?? null), 200);
+  });
+}
+
+function registerState(app: OpenAPIHono, ports: Ports): void {
+  app.openapi(proposalStateRoute, async (c) => {
+    const state = await readProposalState(ports.db, Number(c.req.valid("param").id));
+
+    return state === undefined ? notFound(c) : c.json({ state }, 200);
   });
 }
 
@@ -132,6 +154,7 @@ function registerReject(app: OpenAPIHono, ports: Ports): void {
 
 export function registerProposalRoutes(app: OpenAPIHono, ports: Ports): void {
   registerList(app, ports);
+  registerState(app, ports);
   registerAccept(app, ports);
   registerReject(app, ports);
 }

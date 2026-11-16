@@ -1,14 +1,13 @@
 import { type Dispatch, type RefObject, type SetStateAction, useCallback, useState } from "react";
 
 import type { Proposal, ProposalPage } from "../../src/core/proposal-contract.ts";
-import { type Failure, fetchProposals, isBusy, sendAccept } from "./proposals-api.ts";
+import { type Failure, fetchProposalState, fetchProposals } from "./proposals-api.ts";
 import {
   type AcceptableProposal,
-  PROPOSAL_WORDS,
   acceptedAnnouncement,
   firstFailures,
   isAcceptable,
-  notCurrentNote,
+  PROPOSAL_WORDS,
 } from "./proposals-text.ts";
 import type { Announcement } from "./use-announcement.ts";
 import { useLatest } from "./use-latest.ts";
@@ -57,15 +56,6 @@ function onlyRowOfMore(state: Readonly<ProposalsState>, id: number): boolean {
 
 function without(page: Readonly<ProposalPage>, id: number): ProposalPage {
   return { ...page, proposals: page.proposals.filter((each) => each.id !== id) };
-}
-
-function applying(page: Readonly<ProposalPage>, id: number): ProposalPage {
-  return {
-    ...page,
-    proposals: page.proposals.map((each) =>
-      each.id === id ? { ...each, state: "accepting" as const } : each,
-    ),
-  };
 }
 
 interface Press {
@@ -165,37 +155,6 @@ function useLeave({ latest, edit, reread, lastLoaded, retry, setFocus, say }: Re
   );
 }
 
-function useAccept({
-  settle,
-  leave,
-  edit,
-  send,
-}: Readonly<{
-  settle: (proposal: Readonly<Proposal>, failure: Failure, goneNote: string) => Promise<void>;
-  leave: (proposal: Readonly<Proposal>, departure: Departure, says: string) => Promise<void>;
-  edit: Leaving["edit"];
-  send: RowSend;
-}>) {
-  return useCallback(
-    async (proposal: Readonly<AcceptableProposal>) => {
-      const outcome = await sendAccept(proposal.id);
-
-      if (outcome === "done") {
-        await leave(proposal, "accepted", acceptedAnnouncement(proposal));
-      } else if (outcome === "accepting") {
-        edit((page) => applying(page, proposal.id));
-      } else if (isBusy(outcome)) {
-        send({ kind: "hold", id: proposal.id, busy: outcome });
-      } else if (outcome === "not-current") {
-        await settle(proposal, "accept", notCurrentNote(proposal));
-      } else {
-        await settle(proposal, "accept", PROPOSAL_WORDS.alreadyDecided);
-      }
-    },
-    [edit, leave, send, settle],
-  );
-}
-
 function useRowFlags() {
   const { rowFor, send } = useProposalRows();
   const [focus, setFocus] = useState(NO_FOCUS);
@@ -238,15 +197,40 @@ function leftRows(
   return applyingRows(before).filter(({ id }) => id !== pressed && hasLeft(page, id));
 }
 
+function handedBackRows(
+  before: Readonly<ProposalsState>,
+  page: Readonly<ProposalPage> | null,
+  pressed: number | undefined,
+): readonly AcceptableProposal[] {
+  const open = new Set(page?.proposals.filter(({ state }) => state === "open").map(({ id }) => id));
+
+  return applyingRows(before).filter(({ id }) => id !== pressed && open.has(id));
+}
+
+async function announcedLeft(left: readonly Readonly<AcceptableProposal>[]): Promise<string[]> {
+  const states = await Promise.all(
+    left.map(({ id }) => fetchProposalState(id).catch(() => "gone" as const)),
+  );
+
+  const accepted = left.flatMap((row, at) =>
+    states[at] === "gone" ? [acceptedAnnouncement(row)] : [],
+  );
+
+  return states.some((state) => state !== "gone")
+    ? [...accepted, PROPOSAL_WORDS.alreadyDecided]
+    : accepted;
+}
+
 function useAnnouncingReread(
   reread: (through: (page: Readonly<ProposalPage>) => boolean) => Promise<ProposalPage | null>,
   latest: Readonly<RefObject<Readonly<ProposalsState>>>,
   announce: Readonly<{
     say: (text: string) => void;
     setFocus: Dispatch<SetStateAction<Focus>>;
+    send: RowSend;
   }>,
 ) {
-  const { say, setFocus } = announce;
+  const { say, setFocus, send } = announce;
 
   return useCallback(
     async (through: (page: Readonly<ProposalPage>) => boolean, press?: Readonly<Press>) => {
@@ -255,9 +239,13 @@ function useAnnouncingReread(
       const left = leftRows(before, page, press?.id);
       const own = press?.says(page) ?? null;
 
+      for (const { id } of handedBackRows(before, page, press?.id)) {
+        send({ kind: "fail", id, failure: "accept" });
+      }
+
       const texts = [
         ...(own === null ? [] : [own]),
-        ...left.map((row) => acceptedAnnouncement(row)),
+        ...(await announcedLeft(left)),
         ...firstFailures(applyingRows(before), page?.proposals ?? []),
       ];
 
@@ -269,7 +257,7 @@ function useAnnouncingReread(
 
       return page;
     },
-    [latest, reread, say, setFocus],
+    [latest, reread, say, send, setFocus],
   );
 }
 
@@ -279,12 +267,11 @@ export function useProposalsPage() {
   const latest = useLatest(state);
   const { flags, controls } = useRowFlags();
   const { send, setFocus, setNotice, say, focused } = controls;
-  const reread = useAnnouncingReread(rawReread, latest, { say, setFocus });
+  const reread = useAnnouncingReread(rawReread, latest, { say, setFocus, send });
   const lastLoaded = useLastLoaded(latest);
 
   const settle = useSettle({ reread, lastLoaded, send, setFocus, setNotice });
   const leave = useLeave({ latest, edit, reread, lastLoaded, retry, setFocus, say });
-  const accept = useAccept({ settle, leave, edit, send });
 
   const refresh = useCallback(async () => {
     await reread(reachesBelow(lastLoaded()));
@@ -292,7 +279,7 @@ export function useProposalsPage() {
 
   usePolling(applyingRows(state).length > 0, refresh);
 
-  const press = usePresses({ send, setNotice, accept, settle, leave });
+  const press = usePresses({ send, setNotice, edit, settle, leave });
 
   return { source, ...flags, focused, press };
 }

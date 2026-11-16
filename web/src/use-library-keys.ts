@@ -1,6 +1,8 @@
 import { useEffect, useEffectEvent } from "react";
 
-const TYPING = "input, textarea, select, dialog.st-pop, dialog.dlg, [popover], [contenteditable]";
+import { PANEL_SELECTOR } from "./panel-dom.ts";
+
+const TYPING = `input, textarea, select, ${PANEL_SELECTOR}, dialog.dlg, [popover], [contenteditable]`;
 const POPOVER_OPEN = ":popover-open";
 const SIDEWAYS = "pre, .tbl";
 

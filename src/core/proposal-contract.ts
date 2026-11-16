@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MERGE_KINDS, SOURCES } from "./kinds.ts";
+import { MERGE_KINDS, PROPOSAL_STATES, SOURCES } from "./kinds.ts";
 
 const SubjectRefSchema = z
   .object({ id: z.number().int(), name: z.string(), items: z.number().int().min(0) })
@@ -90,6 +90,8 @@ export const ProposalPageSchema = z
   .readonly();
 
 export const ProposalIdParamSchema = z.object({ id: z.string().regex(/^\d{1,16}$/u) });
+
+export const ProposalStateSchema = z.object({ state: z.enum(PROPOSAL_STATES) }).readonly();
 
 export const RejectedSchema = z.object({ state: z.literal("rejected") }).readonly();
 

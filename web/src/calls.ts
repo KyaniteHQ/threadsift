@@ -155,6 +155,16 @@ export async function parsedOrNull<Parsed>(
   return response.status === absentStatus ? null : parsedBody(response, schema);
 }
 
+export async function parsedOrGone<Parsed, Picked>(
+  path: string,
+  schema: ZodType<Parsed>,
+  pick: (parsed: Readonly<Parsed>) => Picked,
+): Promise<Picked | "gone"> {
+  const found = await parsedOrNull("GET", path, schema, 404);
+
+  return found === null ? "gone" : pick(found);
+}
+
 export function withCursor(path: string, cursor: string | null): string {
   return cursor === null ? path : `${path}?cursor=${encodeURIComponent(cursor)}`;
 }

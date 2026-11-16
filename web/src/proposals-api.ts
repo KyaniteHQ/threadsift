@@ -1,7 +1,12 @@
 import { z } from "zod";
 
-import { type ProposalPage, ProposalPageSchema } from "../../src/core/proposal-contract.ts";
-import { NO_DEADLINE, call, parsedFrom, post, withCursor } from "./calls.ts";
+import type { ProposalState } from "../../src/core/kinds.ts";
+import {
+  type ProposalPage,
+  ProposalPageSchema,
+  ProposalStateSchema,
+} from "../../src/core/proposal-contract.ts";
+import { call, parsedFrom, parsedOrGone, post, withCursor } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const BUSY_ANSWERS = ["merge-busy", "topic-busy", "no-provider"] as const;
@@ -20,6 +25,10 @@ export function isBusy(outcome: Acceptance): outcome is Busy {
 
 export function fetchProposals(cursor: string | null): Promise<ProposalPage> {
   return parsedFrom("GET", withCursor("/api/proposals", cursor), ProposalPageSchema);
+}
+
+export function fetchProposalState(id: number): Promise<ProposalState | "gone"> {
+  return parsedOrGone(`/api/proposals/${String(id)}`, ProposalStateSchema, ({ state }) => state);
 }
 
 export async function sendReject(id: number): Promise<"rejected" | "unknown"> {
@@ -42,7 +51,10 @@ const ANSWERS = new Map<number, Acceptance>([
 
 export async function sendAccept(id: number): Promise<Acceptance> {
   try {
-    const response = await call(post(NO_DEADLINE), `/api/proposals/${String(id)}/accept`);
+    const response = await call(
+      post(DATABASE_WRITE_DEADLINE_MS),
+      `/api/proposals/${String(id)}/accept`,
+    );
 
     if (response.status !== 409) return ANSWERS.get(response.status) ?? "unknown";
 

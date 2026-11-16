@@ -28,6 +28,7 @@ import {
   del,
   parsedBody,
   parsedFrom,
+  parsedOrGone,
   parsedOrNull,
   post,
   put,
@@ -48,10 +49,8 @@ export type SaveResult =
       readonly item: Item;
     };
 
-export async function fetchItem(id: number): Promise<Item | "gone"> {
-  const answer = await parsedOrNull("GET", `/api/items/${id}/status`, ItemResponseSchema, 404);
-
-  return answer === null ? "gone" : answer.item;
+export function fetchItem(id: number): Promise<Item | "gone"> {
+  return parsedOrGone(`/api/items/${id}/status`, ItemResponseSchema, ({ item }) => item);
 }
 
 export async function fetchItemDetail(id: number): Promise<ItemDetail> {
