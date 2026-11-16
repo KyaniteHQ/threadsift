@@ -73,6 +73,7 @@ a.btn { text-decoration: none; }
 .tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); max-width: 100%; }
 .tag { display: inline-flex; align-items: flex-start; gap: var(--tag-gap); max-width: 100%; overflow-wrap: anywhere; padding: var(--tag-pad-y) var(--tag-pad); border: var(--tag-box); border-radius: calc(0.5lh + var(--tag-pad-y) + 1px); background: var(--tag-bg); color: var(--tag-fg); }
 .tag::before { content: var(--tag-mark); }
+@supports (content: "" / "") { .tag::before { content: var(--tag-mark) / ""; } }
 .tag-dot { display: var(--tag-dot); flex: none; margin-block-start: calc((1lh - var(--dot)) / 2); width: var(--dot); height: var(--dot); border-radius: var(--r4); background: oklch(var(--tag-l) var(--tag-c) var(--tag-h)); }
 
 /* 2. Settings ---------------------------------------------------------
