@@ -1,4 +1,11 @@
-import { type ReactNode, useId } from "react";
+import {
+  type ChangeEvent,
+  type ReactNode,
+  type SyntheticEvent,
+  useCallback,
+  useId,
+  useState,
+} from "react";
 
 import type { FieldState } from "./use-form.ts";
 
@@ -20,18 +27,57 @@ function describedBy(help: string | null, error: string | null): string | undefi
   return present.length === 0 ? undefined : present.join(" ");
 }
 
+function checkedUnder(kind: InputKind, value: string) {
+  return `${kind.type} ${kind.required === true} ${kind.pattern ?? ""} ${value}`;
+}
+
+function useBrowserCheck(kind: InputKind, value: string) {
+  const [rejectedUnder, setRejectedUnder] = useState<string | null>(null);
+
+  const reject = useCallback(
+    (event: SyntheticEvent<HTMLInputElement>) => {
+      setRejectedUnder(checkedUnder(kind, event.currentTarget.value));
+    },
+    [kind],
+  );
+
+  const sync = useCallback(
+    (event: SyntheticEvent<HTMLInputElement>) => {
+      const input = event.currentTarget;
+
+      setRejectedUnder(input.matches(":user-invalid") ? checkedUnder(kind, input.value) : null);
+    },
+    [kind],
+  );
+
+  return { rejected: rejectedUnder === checkedUnder(kind, value), reject, sync } as const;
+}
+
+type BrowserCheck = ReturnType<typeof useBrowserCheck>;
+
 function Input({
   field,
   id,
   kind,
   described,
+  browser,
 }: Readonly<{
   field: FieldState;
   id: string;
   kind: InputKind;
   described: string | undefined;
+  browser: BrowserCheck;
 }>) {
   const { ref, value, error, change } = field;
+  const { sync } = browser;
+
+  const edit = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      sync(event);
+      change(event);
+    },
+    [sync, change],
+  );
 
   return (
     <input
@@ -41,7 +87,8 @@ function Input({
       type={kind.type}
       autoComplete={kind.autoComplete}
       spellCheck={false}
-      autoCapitalize="off"
+      autoCapitalize="none"
+      autoCorrect="off"
       className={kind.mono === true ? "mono" : undefined}
       maxLength={kind.maxLength}
       inputMode={kind.inputMode}
@@ -49,9 +96,11 @@ function Input({
       required={kind.required}
       pattern={kind.pattern}
       value={value}
-      aria-invalid={error === null ? undefined : true}
+      aria-invalid={error !== null || browser.rejected}
       aria-describedby={described}
-      onChange={change}
+      onInvalid={browser.reject}
+      onBlur={browser.sync}
+      onChange={edit}
     />
   );
 }
@@ -72,6 +121,7 @@ export function FormField({
   children?: ReactNode;
 }>) {
   const id = useId();
+  const browser = useBrowserCheck(kind, field.value);
   const errorId = `${id}-error`;
   const failed = field.error !== null;
   const helpId = help === undefined || failed ? null : `${id}-help`;
@@ -84,6 +134,7 @@ export function FormField({
       <div className="field">
         <Input
           field={field}
+          browser={browser}
           id={id}
           kind={kind}
           described={describedBy(helpId, failed ? errorId : null)}

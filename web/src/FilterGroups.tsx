@@ -224,7 +224,7 @@ export function RowGroup({
         type="button"
         className="fl-group-h"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         onClick={toggle}
       >
         <span id={headingId} className="label">
@@ -261,6 +261,8 @@ export function NamedSelect({
   searching: boolean;
   pick: (key: string | null) => void;
 }>) {
+  const id = useId();
+
   const change = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
       pick(event.target.value === "" ? null : event.target.value);
@@ -270,9 +272,9 @@ export function NamedSelect({
 
   return (
     <div className="fl-g">
-      <label className="fl-g">
+      <label className="fl-g" htmlFor={id}>
         <span className="label">{FILTER_GROUPS[facet]}</span>
-        <select className="fl-sel" value={chosen ?? ""} onChange={change}>
+        <select id={id} className="fl-sel" value={chosen ?? ""} onChange={change}>
           <option value="">{ANY_CHOICE[facet]}</option>
           {visibleRows(rows, chosen, searching).map((row) => (
             <option key={row.key} value={row.key}>

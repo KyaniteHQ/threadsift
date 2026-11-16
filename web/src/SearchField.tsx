@@ -1,5 +1,5 @@
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
-import { useCallback } from "react";
+import { useCallback, useId } from "react";
 
 import { SEARCH_MAX } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
@@ -26,6 +26,14 @@ function useHandlers(search: (text: string) => void, leave: () => void) {
   return { type, escape };
 }
 
+function SearchHint({ hint }: Readonly<{ hint: string | null }>) {
+  return hint === null ? null : (
+    <p className="list-hint" aria-hidden="true">
+      {hint}
+    </p>
+  );
+}
+
 export function SearchField({
   value,
   label,
@@ -46,17 +54,23 @@ export function SearchField({
   ghost: boolean;
 }>) {
   const { type, escape } = useHandlers(search, leave);
+  const id = useId();
 
   return (
     <search className="search" aria-hidden={ghost ? true : undefined} inert={ghost}>
-      <label className="field">
+      <label className="field" htmlFor={id}>
         <span className="vh">{label}</span>
         <Icon name="search" className="ic" />
         <input
           ref={field}
+          id={id}
           type="search"
           placeholder={placeholder}
           autoComplete="off"
+          enterKeyHint="search"
+          spellCheck={false}
+          autoCapitalize="none"
+          autoCorrect="off"
           maxLength={SEARCH_MAX}
           value={value}
           aria-keyshortcuts="/"
@@ -65,11 +79,7 @@ export function SearchField({
           onKeyDown={escape}
         />
       </label>
-      {hint === null ? null : (
-        <p className="list-hint" aria-hidden="true">
-          {hint}
-        </p>
-      )}
+      <SearchHint hint={hint} />
     </search>
   );
 }
