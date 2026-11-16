@@ -53,7 +53,7 @@ You need [Podman](https://podman.io/docs/installation), `openssl`, and bash or z
 5. Open Settings and choose a Provider. Have an API key from one of the vendors above ready, or install Claude Code or Codex on the container as [Set up a Provider](docs/guides/providers.md) shows. Press **Save**, then press **Verify**. Verify writes one small real Digest and adds no Item.
 6. Paste your first link.
 
-The app answers on this machine only, over plain HTTP. To reach it from other devices or go back to an older build, read [Run Threadsift on your own server](docs/guides/self-hosting.md).
+The app answers on this machine only, over plain HTTP. To reach it from other devices, read [Run Threadsift on your own server](docs/guides/self-hosting.md).
 
 ## Status
 

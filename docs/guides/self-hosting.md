@@ -15,7 +15,7 @@ The [package page](https://github.com/KyaniteHQ/threadsift/pkgs/container/thread
 
 `THREADSIFT_SECRET_KEY` in `~/threadsift.env` is 32 random bytes written as 64 hex characters. The app encrypts the keys you save in Settings with it: a Provider's API key, the GitHub token and the Grok Bot key. Without it, Settings cannot save an API key.
 
-Back up the file, and pass it with `--env-file` on every run, a rollback included.
+Back up the file, and pass it with `--env-file` on every run.
 
 When `THREADSIFT_SECRET_KEY` changes or is lost, the app cannot read the keys it saved before. You can recover in two ways:
 
@@ -28,15 +28,4 @@ A key saved under a replacement `THREADSIFT_SECRET_KEY` opens only with that rep
 
 The app listens on plain HTTP, and the README's `podman run` command publishes port 8080 on `127.0.0.1` only. To reach it from other devices, put your own reverse proxy or tunnel in front of it, and let that give it HTTPS. The data stays in the `threadsift-data` volume.
 
-Add the external address to `~/threadsift.env` as one more line, `THREADSIFT_PUBLIC_ORIGIN=https://<your host>`, with no path and no trailing slash, then recreate the container. Without it, the app refuses MCP requests that come through the public host, and OpenRouter's Connect button does not work. The key file keeps the line, so every later run and rollback that passes `--env-file` keeps it too.
-
-## Go back to an older build
-
-Find the commit of the tag you want on the package page, put it in place of `<commit sha>`, and run both lines. They remove the container and run that build on the same volume and key file:
-
-```sh
-podman rm --force threadsift
-podman run --detach --name threadsift --publish 127.0.0.1:8080:8080 --volume threadsift-data:/data --env-file "$HOME/threadsift.env" "ghcr.io/kyanitehq/threadsift:sha-<commit sha>"
-```
-
-If you started the container with an extra `--env` flag, such as `--env CLAUDE_CODE_OAUTH_TOKEN` from [Set up a Provider](providers.md), add the same flag to the second line.
+Add the external address to `~/threadsift.env` as one more line, `THREADSIFT_PUBLIC_ORIGIN=https://<your host>`, with no path and no trailing slash, then recreate the container. Without it, the app refuses MCP requests that come through the public host, and OpenRouter's Connect button does not work. The key file keeps the line, so every later run that passes `--env-file` keeps it too.
