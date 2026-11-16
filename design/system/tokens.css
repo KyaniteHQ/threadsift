@@ -252,11 +252,11 @@
 /* plain: list */
 :root, [data-layout] {
   --nh: 255; --nc: 0.008; --display-base: 1.5rem;
-  --thumb: 40px; --rail-w: 264px; --list-min: 300px; --list-w: 420px; --sum-lines: 2;
+  --thumb: 40px; --rail-w: 264px; --list-min: 300px; --list-w: 420px;
 }
 [data-layout="grid"] {
   --nh: 292; --nc: 0.01; --display-base: 1.875rem;
-  --img-ratio: 16 / 10; --sum-lines: 3; --sum-lines-text: 6; --page-max: 1480px; --paste-min: 280px; --paste-w: 420px;
+  --img-ratio: 16 / 10; --page-max: 1480px; --paste-min: 280px; --paste-w: 420px;
   /* the sheet: its widest, the room kept on each side for its side buttons (a 44px button,
      12px from the sheet, and 16px from the window's edge), and its width now */
   --sheet-w: 760px; --side-gap: calc(var(--target) + var(--s3) + var(--s4));
