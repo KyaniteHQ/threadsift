@@ -1,14 +1,16 @@
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { type SaveTarget, fetchItem } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { SaveAnswer } from "./library.ts";
 import { type ListState, readFor } from "./list-state.ts";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
-import type { PasteQueue, PasteRequest, SaveOutcome } from "./use-paste.ts";
+import { useLookup } from "./use-lookup.ts";
+import type { PasteQueue, PasteRequest, Save, SaveOutcome } from "./use-paste.ts";
 import { type Seeker, useSeek } from "./use-seek.ts";
+
+type SaveTarget = Parameters<Save>[0];
 
 function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
   const retried = useRef(false);
@@ -26,51 +28,6 @@ function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLEl
   }, [list.status, pane]);
 
   return retryAndKeepPlace;
-}
-
-function useLookup(
-  list: ListState,
-  { openId, replace }: Route,
-  know: (item: Readonly<Item>) => void,
-) {
-  const [failedFor, setFailedFor] = useState<number | null>(null);
-
-  const missing =
-    list.status === "ready" && openId !== null && !list.known.some((item) => item.id === openId);
-
-  const lookingUp = missing && openId !== failedFor;
-
-  useEffect(() => {
-    let current = true;
-
-    const find = async (): Promise<void> => {
-      if (!lookingUp || openId === null) return;
-
-      const found = await fetchItem(openId).catch(() => "failed" as const);
-
-      if (!current) return;
-
-      if (found === "gone") replace("/");
-      else if (found === "failed") setFailedFor(openId);
-      else know(found);
-    };
-
-    void find();
-
-    return () => {
-      current = false;
-    };
-  }, [know, lookingUp, openId, replace]);
-
-  if (failedFor !== null && openId !== failedFor) setFailedFor(null);
-
-  const lookupFailed = missing && openId === failedFor;
-
-  const lookAgain = useCallback(() => {
-    setFailedFor(null);
-  }, []);
-
-  return { lookupFailed, lookAgain };
 }
 
 function lostRow(list: ListState, query: string, attention: Attention): boolean {

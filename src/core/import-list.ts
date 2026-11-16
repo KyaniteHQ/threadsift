@@ -1,6 +1,5 @@
 import { webUrlOf } from "./addresses.ts";
 import { hex } from "./encoding.ts";
-import { BATCH_LINKS_MAX } from "./import-contract.ts";
 import { BODY_LIMIT_BYTES } from "./limits.ts";
 import { linkIn } from "./shared-link.ts";
 
@@ -45,7 +44,11 @@ export interface ImportList {
 
 export interface ImportRequest {
   readonly links: readonly { readonly url: string }[];
-  readonly import: { readonly name: string; readonly cursor: string };
+  readonly import: {
+    readonly name: string;
+    readonly cursor: string;
+    readonly previous: string | null;
+  };
 }
 
 export type Resume =
@@ -70,12 +73,25 @@ function bytesOf(value: Readonly<ImportRequest> | Readonly<{ url: string }>): nu
   return encoder.encode(JSON.stringify(value)).length;
 }
 
-function importRequest(links: readonly string[], name: string, cursor: number): ImportRequest {
-  return { links: links.map((url) => ({ url })), import: { name, cursor: String(cursor) } };
+function importRequest(
+  links: readonly string[],
+  name: string,
+  cursor: number,
+  previous: string | null,
+): ImportRequest {
+  return {
+    links: links.map((url) => ({ url })),
+    import: { name, cursor: String(cursor), previous },
+  };
 }
 
 const ENVELOPE_BYTES = bytesOf(
-  importRequest([], `${NAME_PREFIX}${"0".repeat(NAME_DIGITS)}`, Number.MAX_SAFE_INTEGER),
+  importRequest(
+    [],
+    `${NAME_PREFIX}${"0".repeat(NAME_DIGITS)}`,
+    Number.MAX_SAFE_INTEGER,
+    String(Number.MAX_SAFE_INTEGER),
+  ),
 );
 
 function entryBytes(link: string): number {
@@ -222,19 +238,29 @@ export async function importNameOf(links: readonly string[]): Promise<string> {
   return `${NAME_PREFIX}${hex(digest).slice(0, NAME_DIGITS)}`;
 }
 
+export function doneOf(cursor: string | null): number {
+  return cursor !== null && /^\d+$/u.test(cursor) ? Number(cursor) : 0;
+}
+
 export function resumeOf(cursor: string | null, total: number): Resume {
-  const done = cursor !== null && /^\d+$/u.test(cursor) ? Number(cursor) : 0;
+  const done = doneOf(cursor);
 
   if (total > 0 && done >= total) return { kind: "complete" };
 
   return done > 0 ? { kind: "partial", done } : { kind: "fresh" };
 }
 
-export function nextBatch(links: readonly string[], from: number, name: string): ImportRequest {
+export function nextBatch(
+  links: readonly string[],
+  from: number,
+  name: string,
+  previous: string | null,
+  limit: number,
+): ImportRequest {
   let end = from;
   let bytes = ENVELOPE_BYTES;
 
-  while (end < links.length && end - from < BATCH_LINKS_MAX) {
+  while (end < links.length && end - from < limit) {
     bytes += entryBytes(links[end] ?? "");
 
     if (bytes > BODY_LIMIT_BYTES && end > from) break;
@@ -242,5 +268,5 @@ export function nextBatch(links: readonly string[], from: number, name: string):
     end += 1;
   }
 
-  return importRequest(links.slice(from, end), name, end);
+  return importRequest(links.slice(from, end), name, end, previous);
 }

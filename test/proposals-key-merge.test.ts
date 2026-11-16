@@ -74,6 +74,7 @@ for (const subject of SUBJECTS) {
             row(1, 9, "rejected", "Rejected on the survivor, the older row."),
             row(2, 9, "accepting", "Accepting on the loser, the newer row."),
           ].join(",\n")};
+        update proposals set moved = 1, unit_revision = 1 where state = 'accepting';
       `);
 
       await migrateData(database.db);

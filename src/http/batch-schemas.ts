@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { BATCH_LINKS_MAX, ImportSchema } from "../core/import-contract.ts";
+import { BATCH_LINKS_MAX, ImportSchema, ImportWriteSchema } from "../core/import-contract.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { SavedItemResponseSchema } from "./schemas.ts";
 
@@ -11,7 +11,7 @@ const BatchLinkSchema = z.strictObject({
 
 export const BatchRequestSchema = z.object({
   links: z.array(BatchLinkSchema).min(1).max(BATCH_LINKS_MAX).readonly(),
-  import: ImportSchema.optional(),
+  import: ImportWriteSchema.optional(),
 });
 
 const ResultSchema = z.union([

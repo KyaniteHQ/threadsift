@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 
+import { POLL_MS } from "./poll-interval.ts";
 import { useLatest } from "./use-latest.ts";
-
-export const POLL_MS = 3000;
 
 export function usePolling(
   active: boolean,

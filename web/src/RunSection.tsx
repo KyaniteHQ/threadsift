@@ -7,6 +7,7 @@ import {
   progressLabel,
   resumePartialLabel,
   stoppedLabel,
+  uncountedLabel,
 } from "./import-text.ts";
 import type { Check } from "./use-import-list.ts";
 import { NOT_STARTED, type ImportRun, type RunState } from "./use-import-run.ts";
@@ -76,7 +77,9 @@ function endedLine({ ending, done }: Readonly<Outcome>, total: number): string |
 
 function lineOf(check: Check, run: RunState, total: number): string | null {
   if (run.phase === "running") {
-    return run.stopping ? IMPORT.stopping : progressLabel(run.progress.done, total);
+    if (run.stopping) return IMPORT.stopping;
+
+    return run.waiting ? IMPORT.waiting : progressLabel(run.progress.done, total);
   }
 
   if (run.phase === "ended") return endedLine(run.outcome, total);
@@ -188,6 +191,9 @@ export function RunSection({
         {progress === null ? null : <CountsList progress={progress} />}
       </output>
       {progress === null ? null : <p className="fld-help">{IMPORT.countsNote}</p>}
+      {progress === null || progress.uncounted === 0 ? null : (
+        <p className="fld-help">{uncountedLabel(progress.uncounted)}</p>
+      )}
     </div>
   );
 }

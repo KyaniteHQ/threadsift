@@ -1,4 +1,4 @@
-import { type RefObject, Suspense, useMemo, useState } from "react";
+import { type ComponentProps, type RefObject, Suspense, useMemo, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { type BarMode, ReaderBar } from "./ReaderBar.tsx";
@@ -107,6 +107,7 @@ export function Reader({
   look,
   titleId,
   pages,
+  panel,
   tryAgain,
 }: Readonly<{
   item: Item;
@@ -115,11 +116,12 @@ export function Reader({
   look: Look;
   titleId: string;
   pages: Pages;
+  panel: ComponentProps<typeof ReaderBar>["panel"];
   tryAgain: (item: Item) => void;
 }>) {
   return (
     <section className="reader" aria-labelledby={titleId}>
-      <ReaderBar item={item} controls={controls} look={look} pages={pages} />
+      <ReaderBar item={item} controls={controls} look={look} pages={pages} panel={panel} />
       <ReaderCol
         item={item}
         slot={slot}

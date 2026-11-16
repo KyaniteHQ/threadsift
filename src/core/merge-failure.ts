@@ -1,6 +1,6 @@
 import { bestEffort, reportFailure } from "./failure-log.ts";
 import type { Database } from "./ports.ts";
-import { unitFailed } from "./proposal-lifecycle.ts";
+import { handedBack, unitFailed } from "./proposal-lifecycle.ts";
 import { type TopicLease, releaseTopicLeases } from "./topic-lease.ts";
 
 export async function releasedAfterFailure(
@@ -26,6 +26,10 @@ export async function recordingFailure<Outcome>(
     await bestEffort(
       { event: "merge-unit-failure-not-counted", fields: { proposal: unit.id } },
       () => unitFailed(db, unit.id, unit.revision),
+    );
+
+    await bestEffort({ event: "merge-claim-not-handed-back", fields: { proposal: unit.id } }, () =>
+      handedBack(db, unit.id),
     );
 
     throw error;

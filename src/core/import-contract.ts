@@ -11,7 +11,13 @@ export const ImportSchema = z.object({
   cursor: z.string().min(1).max(256),
 });
 
+export const ImportWriteSchema = ImportSchema.extend({
+  previous: z.string().min(1).max(256).nullable().optional(),
+});
+
 export const ImportStateSchema = ImportSchema.extend({ updatedAt: z.number().int() });
+
+export type ImportWrite = z.infer<typeof ImportWriteSchema>;
 
 export type ImportCursor = z.infer<typeof ImportSchema>;
 

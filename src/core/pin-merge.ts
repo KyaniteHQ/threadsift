@@ -12,7 +12,7 @@ import type { Advance } from "./data-step-contract.ts";
 import { holdsNoRow } from "./guards.ts";
 import { repointedPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
-import { proposalRelinks } from "./proposal-lifecycle.ts";
+import { proposalRelinks, unitCommitted } from "./proposal-lifecycle.ts";
 import { pins, proposals, tags } from "./schema.ts";
 import { REWRITE_UNIT_ITEMS, readRewrite } from "./tag-rewrite.ts";
 
@@ -27,11 +27,7 @@ function noAcceptingProposal(
   kind: CatalogKind,
   fromId: Readonly<SQLWrapper> | number,
 ) {
-  return holdsNoRow(
-    db,
-    proposals,
-    sql`${eq(kind.proposalFrom, fromId)} and ${eq(proposals.state, "accepting")}`,
-  );
+  return holdsNoRow(db, proposals, sql`${eq(kind.proposalFrom, fromId)} and ${unitCommitted()}`);
 }
 
 function misfiled(db: Database, kind: CatalogKind) {

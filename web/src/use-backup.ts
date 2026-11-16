@@ -3,8 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { EXPORT_KEEP_MS, type ExportStatus } from "../../src/core/export-contract.ts";
 import { deleteExport, fetchExportStatus, startExport } from "./export-api.ts";
 import { EXPORT_TEXT } from "./export-text.ts";
+import { POLL_MS } from "./poll-interval.ts";
 import { useLatest } from "./use-latest.ts";
-import { POLL_MS, usePolling } from "./use-polling.ts";
+import { usePolling } from "./use-polling.ts";
 import { type Task, outcomeOf, useAction, useActionFlow } from "./use-settings-action.ts";
 import { type Ticket, useTicket } from "./use-ticket.ts";
 

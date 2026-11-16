@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { fetchItem } from "./api.ts";
+import { type ItemRead, readStatus } from "./item-reads.ts";
 
 const POLL_MS = 1000;
 const SLOW_POLL_MS = 5000;
 const FAST_POLLS = 10;
 const WAIT_POLL_MAX_MS = 60_000;
+const FAILED = "failed" as const;
 
 type Wait = Item["wait"];
 
@@ -51,7 +52,21 @@ interface Polled {
   readonly onGone: (id: number) => void;
 }
 
-function pollItem(id: number, { memory, onRead, onGone }: Readonly<Polled>): () => void {
+function deliver(id: number, { answer, startedAt }: Readonly<ItemRead>, polled: Readonly<Polled>) {
+  if (answer === "gone") {
+    polled.onGone(id);
+
+    return false;
+  }
+
+  polled.memory.answered(id, answer.wait);
+  polled.onRead(answer, startedAt);
+
+  return true;
+}
+
+function pollItem(id: number, polled: Readonly<Polled>): () => void {
+  const { memory } = polled;
   let timer = 0;
   let stopped = false;
   let paused = false;
@@ -63,25 +78,22 @@ function pollItem(id: number, { memory, onRead, onGone }: Readonly<Polled>): () 
     }, memory.pauseFor(id));
   };
 
-  const read = async (): Promise<void> => {
+  const wanted = (): boolean => {
+    paused = !stopped && document.hidden;
+
+    if (stopped || paused) return false;
+
     memory.started(id);
-    const startedAt = performance.now();
-    const answer = await fetchItem(id).catch(() => null);
 
-    if (stopped) return;
+    return true;
+  };
 
-    if (answer === "gone") {
-      onGone(id);
+  const read = async (): Promise<void> => {
+    const fetched = await readStatus(id, wanted).catch(() => FAILED);
 
-      return;
-    }
+    if (fetched === null || stopped) return;
 
-    if (answer !== null) {
-      memory.answered(id, answer.wait);
-      onRead(answer, startedAt);
-    }
-
-    schedule();
+    if (fetched === FAILED || deliver(id, fetched, polled)) schedule();
   };
 
   const resume = (): void => {

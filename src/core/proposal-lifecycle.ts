@@ -1,4 +1,4 @@
-import { type SQL, type SQLWrapper, and, eq, inArray, or, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { MergeKind, ProposalKind, ProposalState } from "./kinds.ts";
@@ -32,7 +32,9 @@ export type InsertedState<Kind extends ProposalKind> = (typeof LIFECYCLE)[Kind][
 
 const MOVES = {
   reject: { from: "open", to: "rejected" },
-  apply: { from: ["open", "accepting"], to: "accepting" },
+  claim: { from: "open", to: "accepting" },
+  handBack: { from: "accepting", to: "open" },
+  apply: { from: "accepting", to: "accepting" },
   remove: { from: "open" },
 } as const satisfies Readonly<
   Record<
@@ -41,17 +43,49 @@ const MOVES = {
   >
 >;
 
-const SURVIVAL_RANK = {
-  accepting: 0,
-  rejected: 1,
-  open: 2,
-  declined: 2,
-} as const satisfies { readonly [S in ProposalState]: number };
+const MOVED_RANK = 0;
+
+const REJECTED_RANK = 1;
 
 const OTHER_RANK = 2;
 
+export function unitCommitted(): SQL {
+  return sql`(${proposals.state} = ${MOVES.apply.to} and ${proposals.unitRevision} is not null)`;
+}
+
 export function anyAccepting(): SQL {
   return sql`exists (select 1 from ${proposals} where ${eq(proposals.state, MOVES.apply.to)})`;
+}
+
+export function proposalClaimed(db: Database, id: number) {
+  return db
+    .update(proposals)
+    .set({ state: MOVES.claim.to })
+    .where(
+      and(
+        eq(proposals.id, id),
+        knownProposal,
+        eq(proposals.state, MOVES.claim.from),
+        sql`not ${anyAccepting()}`,
+      ),
+    )
+    .returning({ id: proposals.id });
+}
+
+export function handedBack(db: Database, id: number) {
+  return db
+    .update(proposals)
+    .set({ state: MOVES.handBack.to, failedRuns: null })
+    .where(
+      and(
+        eq(proposals.id, id),
+        eq(proposals.state, MOVES.handBack.from),
+        isNull(proposals.cursor),
+        isNull(proposals.moved),
+        isNull(proposals.unitRevision),
+      ),
+    )
+    .returning({ id: proposals.id });
 }
 
 export function rejection(db: Database, id: number) {
@@ -65,8 +99,8 @@ export function rejection(db: Database, id: number) {
 export function unitApplied(db: Database, id: number, moving: Readonly<SQLWrapper>) {
   return db
     .update(proposals)
-    .set({ state: MOVES.apply.to, moved: sql`coalesce(${proposals.moved}, 0) + ${moving}` })
-    .where(and(eq(proposals.id, id), inArray(proposals.state, MOVES.apply.from)));
+    .set({ moved: sql`coalesce(${proposals.moved}, 0) + ${moving}` })
+    .where(and(eq(proposals.id, id), eq(proposals.state, MOVES.apply.from)));
 }
 
 export function revisionOf(): SQL {
@@ -120,6 +154,7 @@ interface Columns {
   readonly from: Readonly<SQLWrapper>;
   readonly into: Readonly<SQLWrapper>;
   readonly state: Readonly<SQLWrapper>;
+  readonly unitRevision: Readonly<SQLWrapper>;
 }
 
 function columnsOf(row: typeof proposals | typeof other, kind: MergeKind): Columns {
@@ -128,6 +163,7 @@ function columnsOf(row: typeof proposals | typeof other, kind: MergeKind): Colum
     from: kind === "tag-merge" ? row.fromTagId : row.fromTopicId,
     into: kind === "tag-merge" ? row.intoTagId : row.intoTopicId,
     state: row.state,
+    unitRevision: row.unitRevision,
   };
 }
 
@@ -139,10 +175,8 @@ function partner({ from, into }: Readonly<Columns>, subjectId: number): SQL {
   return sql`(case when ${from} = ${subjectId} then ${into} else ${from} end)`;
 }
 
-function survival({ state }: Readonly<Columns>): SQL {
-  const ranks = Object.entries(SURVIVAL_RANK).map(([name, rank]) => `when '${name}' then ${rank}`);
-
-  return sql`(case ${state} ${sql.raw(ranks.join(" "))} else ${sql.raw(String(OTHER_RANK))} end)`;
+function survival({ state, unitRevision }: Readonly<Columns>): SQL {
+  return sql`(case when ${state} = ${MOVES.apply.to} and ${unitRevision} is not null then ${MOVED_RANK} when ${state} = ${MOVES.reject.to} then ${REJECTED_RANK} else ${OTHER_RANK} end)`;
 }
 
 function outranks(first: Readonly<Columns>, second: Readonly<Columns>): SQL {

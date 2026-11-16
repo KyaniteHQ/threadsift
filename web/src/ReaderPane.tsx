@@ -1,37 +1,14 @@
-import { type ReactNode, useId, useRef } from "react";
+import { type ComponentProps, useId, useRef } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { Announcement } from "./Announcement.tsx";
 import { ArrivalsContext, useNewArrivals } from "./place-arrival.ts";
 import { Reader, type ReaderControls } from "./Reader.tsx";
+import { Placed } from "./ReaderPlaced.tsx";
 import { Placeholder } from "./ReaderPlaceholder.tsx";
 import type { Pages } from "./routing.ts";
-import { Sheet, type SheetNav } from "./Sheet.tsx";
 import type { Announcement as AnnouncementState } from "./use-announcement.ts";
+import { useHeldPanelState } from "./use-panel.ts";
 import type { Look } from "./use-root.ts";
-
-function Placed({
-  place,
-  titleId,
-  nav,
-  announcement,
-  children,
-}: Readonly<{
-  place: Look["reader"];
-  titleId: string;
-  nav: SheetNav;
-  announcement: AnnouncementState;
-  children: ReactNode;
-}>) {
-  return place === "sheet" ? (
-    <Sheet titleId={titleId} nav={nav}>
-      {children}
-      <Announcement {...announcement} />
-    </Sheet>
-  ) : (
-    children
-  );
-}
 
 export function ReaderPane({
   item,
@@ -44,7 +21,7 @@ export function ReaderPane({
 }: Readonly<{
   item: Item | null;
   controls: ReaderControls;
-  nav: SheetNav;
+  nav: ComponentProps<typeof Placed>["nav"];
   look: Look;
   pages: Pages;
   tryAgain: (item: Item) => void;
@@ -53,6 +30,7 @@ export function ReaderPane({
   const slot = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const arrivals = useNewArrivals();
+  const panel = useHeldPanelState(item === null || look.reader === "pane" ? null : String(item.id));
 
   if (item === null) return <Placeholder />;
 
@@ -66,6 +44,7 @@ export function ReaderPane({
         look={look}
         titleId={titleId}
         pages={pages}
+        panel={panel}
         tryAgain={tryAgain}
       />
     </div>

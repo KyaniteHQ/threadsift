@@ -1,4 +1,5 @@
 import { type RestoreStatus, partsOf } from "../../src/core/restore-contract.ts";
+import { pause } from "./pause.ts";
 import { createRestore, fetchRestoreStatus, sendPart, startRestore } from "./restore-api.ts";
 import { matchesFingerprint, rememberFingerprint } from "./restore-fingerprint.ts";
 import { RESTORE_TEXT, refusalLabel } from "./restore-text.ts";
@@ -32,12 +33,6 @@ const RETRY_PAUSE_MS = 1000;
 
 function failure(text: string): Outcome {
   return { kind: "error", text };
-}
-
-function pause(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
 }
 
 function resumed(file: Chosen, view: Extract<RestoreStatus, { state: "uploading" }>): Prepared {

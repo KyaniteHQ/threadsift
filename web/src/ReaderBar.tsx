@@ -70,11 +70,13 @@ export function ReaderBar({
   controls,
   look,
   pages,
+  panel,
 }: Readonly<{
   item: Item;
   controls: ReaderControls;
   look: Look;
   pages: ComponentProps<typeof ReaderActions>["pages"];
+  panel: ComponentProps<typeof ReaderActions>["panel"];
 }>) {
   const { mode, settingsKey, close, hintPlaced } = controls;
   const bar = useRef<HTMLDivElement>(null);
@@ -94,7 +96,7 @@ export function ReaderBar({
           </span>
         </button>
       )}
-      <ReaderActions item={item} controls={controls} look={look} pages={pages} />
+      <ReaderActions item={item} controls={controls} look={look} pages={pages} panel={panel} />
       <i className="rd-progress" aria-hidden="true" />
     </div>
   );

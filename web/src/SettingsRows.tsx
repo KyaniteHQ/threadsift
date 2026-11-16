@@ -61,6 +61,7 @@ function SelectControl({ row, value, controlId, noteId, disabled, choose }: Cont
   return (
     <select
       id={controlId}
+      data-focus-key={row.key}
       className="st-sel"
       aria-describedby={noteId}
       disabled={disabled}
@@ -99,6 +100,7 @@ function ChoiceInput(props: ChoiceProps & Readonly<{ label: string | undefined }
   return (
     <input
       id={inputIdOf(props)}
+      data-focus-key={`${row.key}:${option.id}`}
       type="radio"
       className="st-in"
       name={name}

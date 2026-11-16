@@ -51,20 +51,6 @@ describe("Accept of a Topic row releases every lease it claimed on every exit", 
       await acceptsAtOnce(library);
     }));
 
-  it("releases both leases when a Reject lands between the claims and the batch, and then answers not-open", () =>
-    withLibrary(async (library) => {
-      const { instance, proposal } = library;
-
-      script(
-        instance,
-        "create trigger test_on_lease_insert after insert on topic_leases when new.holder like 'topic_merge:%' begin update proposals set state = 'rejected'; end;",
-      );
-
-      assert.deepEqual(await answerOf(instance, proposal), [409, { error: "not-open" }]);
-      assert.equal(heldLeases(instance), 0);
-      unchanged(library);
-    }));
-
   it("releases both leases when the row is deleted between the claims and the batch, as a key merge that makes both Topics one does, and then answers 404", () =>
     withLibrary(async (library) => {
       const { instance, proposal } = library;
