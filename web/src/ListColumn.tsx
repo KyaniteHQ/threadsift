@@ -1,11 +1,28 @@
+import { type RefObject, useCallback } from "react";
+
 import { LibraryMasthead } from "./LibraryMasthead.tsx";
 import { ListBody, Notice } from "./ListBody.tsx";
 import { ListTools } from "./ListTools.tsx";
 import { HINT_LIST } from "./reader-text.ts";
+import { focusListStart } from "./reveal.ts";
 import type { Pages } from "./routing.ts";
-import { LOAD_FAILED, RETRY_LABEL } from "./text.ts";
+import { LOAD_FAILED, RETRY_LABEL, SKIP_LABEL } from "./text.ts";
 import type { LibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
+
+function SkipButton({ pane }: Readonly<{ pane: RefObject<HTMLElement | null> }>) {
+  const skip = useCallback(() => {
+    if (pane.current !== null) {
+      focusListStart(pane.current);
+    }
+  }, [pane]);
+
+  return (
+    <button type="button" className="btn skip" onClick={skip}>
+      {SKIP_LABEL}
+    </button>
+  );
+}
 
 function LookupNotice({ failed, again }: Readonly<{ failed: boolean; again: () => void }>) {
   return failed ? <Notice text={LOAD_FAILED} action={again} label={RETRY_LABEL} alert /> : null;
@@ -51,13 +68,14 @@ export function ListColumn({
   openId: number | null;
   pages: Pages;
 }>) {
-  const { library, shown, reserves, side, covered, openItem, searchField } = view;
+  const { library, shown, reserves, side, covered, openItem, listPane, searchField } = view;
 
   const hint =
     look.reader !== "pane" || (openItem !== null && side.reader.hintInBar) ? null : HINT_LIST;
 
   return (
     <div className="bg" inert={covered}>
+      <SkipButton pane={listPane} />
       <LibraryMasthead view={view} look={look} arrived={arrived} pages={pages} />
       <ListTools
         list={shown}

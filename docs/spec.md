@@ -70,7 +70,7 @@ The design is done for every screen in the first spec; the app takes its look fr
 - **Styles:** the 10 Style blocks live in `design/system/tokens.css`, with a palette for each Theme. Their fonts load from the Instance. The prototype keeps its copy until it imports the system file.
 - **Breakpoints:** 480, 760, 1080 and 1440px, with 1, 2, 3, 3 and 4 grid columns from the narrowest band up.
 - **Accessibility:** every text and background pair is at least 4.5:1 in every theme with every accent and Style. Every mark, icon and border a person needs to see a control or its state is at least 3:1 in the same combinations (W3C, WCAG 2.2 Non-text Contrast). Dividers, and the edge of a control that shows visible text, may be fainter. Text is never under 12px. Under 480px every target is at least 44px, except the width of a link inside the text of a post or comment, which stays the width of its text (WCAG 2.2 SC 2.5.8, Inline exception; `DESIGN.md` holds the rule). The open row is marked by a bar as well as by colour. Motion has a reduced-motion form.
-- **Keyboard:** j and k move through Items, Enter opens, m marks read or unread, / focuses search, the left and right arrows step to the previous or next Item while one is open in Grid, and Escape closes the open Item.
+- **Keyboard:** the first Tab stop in the Library is a button that moves focus to the first Item; j and k move through Items, Enter opens, m marks read or unread, / focuses search, the left and right arrows step to the previous or next Item while one is open in Grid, and Escape closes the open Item.
 
 ## Ingest flow
 
