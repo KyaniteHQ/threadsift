@@ -1,3 +1,4 @@
+import { deferWhileWorking, newestRequest } from "../../lib/newest-request.ts";
 import { element, say } from "../../lib/page-look.ts";
 import {
   type RedditAction,
@@ -25,30 +26,28 @@ export const redditSection = element(
 );
 
 let current: RedditView = { kind: "loading", access: false };
-let version = 0;
+const begin = newestRequest();
+const deferral = deferWhileWorking();
 
-function settlingAt(started: number): (answer: RedditView) => void {
-  return (answer) => {
-    if (version === started) {
-      move(answer);
+function settlePress(answer: RedditView): void {
+  if (!deferral.take()) {
+    move(answer);
 
-      return;
-    }
+    return;
+  }
 
-    move({ kind: "loading", access: false });
-    void refreshReddit();
-  };
+  move({ kind: "loading", access: false });
+  void refreshReddit();
 }
 
 function press(action: RedditAction): void {
   if (current.kind === "working") return;
 
+  begin();
   move({ kind: "working", access: false });
 
-  const started = version;
-
   void (action === "disconnect" ? disconnectRedditFromPage() : connectRedditFromPage()).then(
-    settlingAt(started),
+    settlePress,
   );
 }
 
@@ -68,20 +67,19 @@ function render(view: Readonly<RedditView>): void {
 }
 
 function move(next: RedditView): void {
-  version += 1;
   current = next;
   render(next);
 }
 
 export async function refreshReddit(): Promise<void> {
   if (current.kind === "working") {
-    version += 1;
+    deferral.defer();
 
     return;
   }
 
-  const started = version;
+  const isNewest = begin();
   const next = await loadReddit();
 
-  if (started === version) move(next);
+  if (isNewest()) move(next);
 }
