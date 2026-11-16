@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-16T00:12:29Z",
+  "generatedAt": "2026-11-16T00:23:05Z",
   "title": "Design System: Threadsift",
   "extensions": {
     "colorMeta": {
@@ -352,7 +352,7 @@
       "name": "List row",
       "kind": "custom",
       "refersTo": "list-row-open",
-      "description": "List rows: the unread dot on the first metadata line and the ring of a read row; the open row has a tint and a 3px bar, and a focused row an accent-ink ring inside its edge.",
+      "description": "List rows: the unread dot on the first metadata line and the ring of a read row; the open row has a tint and a 3px bar, and a focused row an accent-ink ring inside its edge. A Topic page row draws the same dot as a mark with no hit area.",
       "html": "<div class=\"ds-row ds-row-open ds-row-unread\"><i class=\"ds-row-dot\"></i><p class=\"ds-row-meta\">r/selfhosted &middot; 3 days ago</p><p class=\"ds-row-title\">A title of a saved thread</p><p class=\"ds-row-sum\">The first two lines of the summary sit here under the title.</p></div><div class=\"ds-row\" tabindex=\"0\"><i class=\"ds-row-dot\"></i><p class=\"ds-row-meta\">example.com &middot; 2 weeks ago</p><p class=\"ds-row-title\">A read article</p><p class=\"ds-row-sum\">A read row keeps a ring where the unread dot was.</p></div>",
       "css": ".ds-row { box-sizing: border-box; display: grid; grid-template-columns: var(--s4) minmax(0, 1fr); grid-template-areas: \"dot meta\" \"dot title\" \"dot sum\"; column-gap: var(--s3); padding: calc(var(--s3) * var(--k)) var(--s4) calc(var(--s3) * var(--k)) var(--s3); border-bottom: 1px solid var(--line); background: var(--bg); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); cursor: pointer; } .ds-row:hover { background: var(--surface-2); } .ds-row.ds-row-open { background: var(--acc-soft); box-shadow: inset 3px 0 0 var(--acc); } .ds-row-dot { grid-area: dot; align-self: start; justify-self: center; margin-top: calc(var(--lh-ui) * 0.5em - var(--dot) / 2); width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r4); } .ds-row-unread .ds-row-dot { border-color: var(--acc); background: var(--acc); } .ds-row:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: calc(var(--s1) / -2); } .ds-row-meta { grid-area: meta; margin: 0; color: var(--muted); } .ds-row-title { grid-area: title; margin: calc(var(--s1) * var(--k)) 0 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-soft); letter-spacing: var(--dls); line-height: var(--lh-title); } .ds-row-unread .ds-row-title { font-weight: var(--dw-strong); } .ds-row-sum { grid-area: sum; margin: calc(var(--s1) * var(--k)) 0 0; color: var(--muted); font-size: var(--t-body); line-height: var(--lh-ui); }"
     },

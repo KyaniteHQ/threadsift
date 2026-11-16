@@ -250,7 +250,7 @@ Quiet framed buttons that sit on the surface like the rest of the page. The acce
 - **Reader bar:** one row that sticks to the top of the reader. As it narrows it drops, in order, the key hint, the button labels, the comments total and the word on Back. A 2px accent line along its bottom edge shows reading progress.
 
 ### List row (signature)
-The unread dot sits on the first metadata line with a `--dot-hit` hit area, filled with the accent when unread and drawn as a control-line ring when read. The open row takes the soft accent tint and a 3px accent bar on its left edge, so shape tells it apart from hover. A focused row draws its 2px accent-ink ring inside its own edge, because the pane that scrolls the list clips anything drawn outside a row. On the open row the ring sits just in from the bar, so both stay visible.
+The unread dot sits on the first metadata line with a `--dot-hit` hit area, filled with the accent when unread and drawn as a control-line ring when read. A Topic page row draws the same dot at the start of its metadata line as a mark with no hit area, because that page sets no read state. The open row takes the soft accent tint and a 3px accent bar on its left edge, so shape tells it apart from hover. A focused row draws its 2px accent-ink ring inside its own edge, because the pane that scrolls the list clips anything drawn outside a row. On the open row the ring sits just in from the bar, so both stay visible.
 
 ### Comment tree (signature)
 Kept comments nest with an indent per level that is capped, so deep threads stay readable. Context stubs, dropped parent comments shown as one line so a kept reply under them still reads correctly, are muted, one line, and dashed when they have a box.

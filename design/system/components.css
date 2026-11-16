@@ -137,7 +137,6 @@ a.btn { text-decoration: none; }
   .nt-field:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
   .skel i { outline: 1px solid CanvasText; }
   [data-layout="list"] .it.open { border-inline-start: 3px solid Highlight; }
-  .it.unread .it-dot i { forced-color-adjust: none; border-color: CanvasText; background: CanvasText; }
 }
 
 /* 3. Paste box and paste card -------------------------------------------- */
@@ -208,8 +207,9 @@ a.btn { text-decoration: none; }
 .it-media { grid-area: media; display: var(--card-media); overflow: hidden; background: var(--surface-2); }   /* the Card images setting; with Off the app renders no picture at all */
 .it-dot { grid-area: dot; display: inline-grid; place-items: center; width: var(--dot-hit); height: var(--dot-hit); padding: 0; border: 0; border-radius: var(--r4); background: transparent; cursor: pointer; }
 .it-dot:hover { background: var(--surface-2); }
-.it-dot i { display: block; width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r4); }
-.it.unread .it-dot i { border-color: var(--acc); background: var(--acc); }
+.it-dot i, .rl-dot { display: block; width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r4); }
+.it.unread .it-dot i, .rl-row[data-read="false"] .rl-dot { border-color: var(--acc); background: var(--acc); }
+@media (forced-colors: active) { .it.unread .it-dot i, .rl-row[data-read="false"] .rl-dot { border-color: CanvasText; background: CanvasText; } }
 .it-meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); margin: 0; color: var(--muted); }
 .it-title { grid-area: title; margin: calc(var(--s1) * var(--k)) 0 0; font-size: var(--t-title); font-weight: inherit; line-height: var(--lh-title); }
 .it-open { all: unset; cursor: pointer; color: var(--text); font-family: var(--f-display); font-weight: var(--dw-soft); letter-spacing: var(--dls); overflow-wrap: anywhere; }
