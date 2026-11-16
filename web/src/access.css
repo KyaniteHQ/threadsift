@@ -41,6 +41,7 @@
   letter-spacing: var(--dls);
   font-size: var(--t-h2);
   line-height: var(--lh-title);
+  text-wrap: balance;
 }
 .stack {
   display: flex;

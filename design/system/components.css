@@ -388,10 +388,10 @@ a.btn { text-decoration: none; }
 .rd-head { display: flex; flex-direction: column; gap: var(--s2); }
 .rd-src, .rd-meta { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
 .rd-src span:empty { display: none; }
-.rd-title { font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: max(var(--t-display), var(--t-h2) * var(--rd-title-min)); line-height: var(--lh-display); overflow-wrap: anywhere; }
+.rd-title { font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: max(var(--t-display), var(--t-h2) * var(--rd-title-min)); line-height: var(--lh-display); overflow-wrap: anywhere; text-wrap: balance; }
 .rd-title:focus:not(:focus-visible) { outline: none; }
 .rd-link { display: block; width: fit-content; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--acc-ink); font-family: var(--f-ui); font-size: var(--t-meta); text-underline-offset: 2px; padding-block: var(--link-pad); }
-.rd-h { color: var(--text); font-family: var(--f-display); font-size: var(--t-h2); font-weight: var(--dw); letter-spacing: var(--dls); line-height: var(--lh-title); }
+.rd-h { color: var(--text); font-family: var(--f-display); font-size: var(--t-h2); font-weight: var(--dw); letter-spacing: var(--dls); line-height: var(--lh-title); text-wrap: balance; }
 .rd-h:focus:not(:focus-visible) { outline: none; }
 
 /* the summary: topic, tags, the 2-line summary and the key points. A box on the page; flat
@@ -497,7 +497,7 @@ button.hl-quote:hover { background: var(--surface-2); }
 .md p, .md li, .md blockquote { text-wrap: pretty; }
 .md .h { font-size: min(var(--t-read), var(--t-h2) * var(--post-h-cap)); line-height: var(--lh-title); }
 .md .h-2 { margin-top: 1.8em; padding-top: 0.7em; border-top: 1px solid var(--line); font-family: var(--f-display); font-weight: var(--dw-strong); letter-spacing: var(--dls); }
-.md .h-3 { margin-top: 1.2em; font-family: var(--f-read); font-weight: 600; }
+.md .h-3 { margin-top: 1.2em; font-family: var(--f-read); font-weight: 600; text-wrap: balance; }
 .md > .h:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 .md hr { height: 0; margin: 1.6em 0; border: 0; border-top: 1px solid var(--line-2); }
 .md hr:has(+ .h-2) { display: none; }
@@ -540,7 +540,7 @@ button.hl-quote:hover { background: var(--surface-2); }
 
 /* 10. Empty library, no results, loading ------------------------------------- */
 .empty { display: flex; flex-direction: column; align-items: center; gap: var(--s2); max-width: 34em; margin: 0 auto; padding: var(--s6) var(--s5); color: var(--muted); font-size: var(--t-body); text-align: center; }
-.empty h2 { margin: var(--s2) 0 var(--s1); color: var(--text); font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); }
+.empty h2 { margin: var(--s2) 0 var(--s1); color: var(--text); font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: var(--t-display); line-height: var(--lh-display); text-wrap: balance; }
 .empty p { margin: 0; }
 .noresults { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); padding: var(--s5) var(--s4); color: var(--muted); }
 .noresults p { margin: 0; }
