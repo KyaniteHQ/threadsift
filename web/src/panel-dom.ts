@@ -13,21 +13,6 @@ export function panelHoldsFocus(): boolean {
   return document.activeElement?.closest(PANEL_SELECTOR) instanceof Element;
 }
 
-export function tabWrapTarget(panel: HTMLElement, backwards: boolean): HTMLElement | null {
-  const stops = [...panel.querySelectorAll<HTMLElement>("button, select")];
-  const [first, last] = [stops.at(0), stops.at(-1)];
-
-  if (backwards && (document.activeElement === first || document.activeElement === panel)) {
-    return last ?? null;
-  }
-
-  if (!backwards && document.activeElement === last) {
-    return first ?? null;
-  }
-
-  return null;
-}
-
 function isOutside(refs: PanelRefs, target: EventTarget | null): boolean {
   const panel = refs.panel.current;
 
@@ -140,18 +125,4 @@ export function watchSheet(refs: PanelRefs, close: Close, signal: AbortSignal): 
       (press) => press.target === panel && !isInside(panel, press),
     );
   }
-
-  document.addEventListener(
-    "keydown",
-    (event) => {
-      const wrapTo =
-        event.key === "Tab" && panel !== null ? tabWrapTarget(panel, event.shiftKey) : null;
-
-      if (wrapTo !== null) {
-        event.preventDefault();
-        wrapTo.focus();
-      }
-    },
-    { capture: true, signal },
-  );
 }
