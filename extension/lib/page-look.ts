@@ -3,8 +3,18 @@ import "../../design/system/components.css";
 import "../entrypoints/pages.css";
 import { DARK_SCHEME } from "../../design/system/settings.ts";
 
+function writeTheme(dark: boolean): void {
+  document.documentElement.dataset["theme"] = dark ? "dark" : "light";
+}
+
 export function applyLook(): void {
-  document.documentElement.dataset["theme"] = matchMedia(DARK_SCHEME).matches ? "dark" : "light";
+  const query = matchMedia(DARK_SCHEME);
+
+  writeTheme(query.matches);
+
+  query.addEventListener("change", (event) => {
+    writeTheme(event.matches);
+  });
 }
 
 export function element<Tag extends keyof HTMLElementTagNameMap>(
