@@ -85,7 +85,7 @@ a.btn { text-decoration: none; }
 .st-gear:hover, .st-gear[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
 .st-gear:active { background: var(--press); }
 .st-gear .ic { width: var(--ic-m); height: var(--ic-m); }
-.st-pop { position: absolute; top: calc(100% + var(--s2)); left: 0; z-index: var(--z-popover); display: flex; margin: 0; padding: 0; flex-direction: column; width: var(--pop-w); container-type: inline-size; max-width: calc(100vw - var(--s4) * 2); max-height: calc(var(--vh) - var(--bar-h) * 2 - var(--s6)); overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-label); }
+.st-pop { position: absolute; top: calc(100% + var(--s2)); left: 0; z-index: var(--z-popover); display: flex; margin: 0; padding: 0; flex-direction: column; width: var(--pop-w); container-type: inline-size; max-width: calc(100vw - var(--s4) * 2); max-height: calc(var(--vh) - var(--bar-h) * 2 - var(--s6)); overflow: clip; border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-label); }
 .st-pop::backdrop { background: var(--scrim); }
 .st-pop p, .st-pop h2, .st-pop h3 { margin: 0; }
 .st-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: var(--bar-h); padding: 0 var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
@@ -223,7 +223,7 @@ a.btn { text-decoration: none; }
 .results { color: var(--muted); }
 .it { position: relative; display: grid; min-width: 0; }
 .it > * { min-width: 0; }
-.it-media { grid-area: media; display: var(--card-media); overflow: hidden; background: var(--surface-2); }   /* the Card images setting; with Off the app renders no picture at all */
+.it-media { grid-area: media; display: var(--card-media); overflow: clip; background: var(--surface-2); }   /* the Card images setting; with Off the app renders no picture at all */
 .it-dot { grid-area: dot; display: inline-grid; place-items: center; width: var(--dot-hit); height: var(--dot-hit); padding: 0; border: 0; border-radius: var(--r4); background: transparent; cursor: pointer; }
 .it-dot:hover { background: var(--surface-2); }
 .it-dot:active { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--ctl-line); }
@@ -246,7 +246,7 @@ a.btn { text-decoration: none; }
 .it-foot { grid-area: foot; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); margin: calc(var(--s2) * var(--k)) 0 0; color: var(--muted); }
 .it-topic { color: var(--text); font-weight: 600; }
 .it-proc.it-link-only .it-title { min-height: calc(var(--t-title) * var(--lh-title)); font-family: var(--f-mono); font-size: var(--t-meta); overflow-wrap: anywhere; }
-.it-link-only .it-title { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.it-link-only .it-title { display: block; min-width: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .it-link-only .it-open .vh { inset-inline-start: 0; }   /* the hidden text sits at the row's edge, not after the long link, so it adds no sideways scroll */
 .proc-ic { color: var(--acc-ink); }
 .skel { grid-area: note; position: relative; height: 0; }
@@ -267,7 +267,7 @@ a.btn { text-decoration: none; }
 [data-layout="list"] .it-media { width: var(--thumb); height: var(--thumb); margin-left: var(--s2); border-radius: var(--r1); }
 
 /* cards (Grid): unread dot in the body next to the source, never on the image */
-[data-layout="grid"] .it { grid-template-columns: var(--s4) auto minmax(0, 1fr) var(--s4); grid-template-areas: "media media media media" ". dot meta ." ". title title ." ". note note ." ". snip snip ." ". foot foot ."; padding-bottom: var(--s4); overflow: hidden; border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow); }
+[data-layout="grid"] .it { grid-template-columns: var(--s4) auto minmax(0, 1fr) var(--s4); grid-template-areas: "media media media media" ". dot meta ." ". title title ." ". note note ." ". snip snip ." ". foot foot ."; padding-bottom: var(--s4); overflow: clip; border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow); }
 [data-layout="grid"] .it:hover { border-color: var(--line-2); }
 @media (forced-colors: none) { [data-layout="grid"] .it:has(.it-open:active) { border-color: var(--ctl-line); } }
 [data-layout="grid"] .it.open { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc), var(--shadow); }
@@ -397,7 +397,7 @@ a.btn { text-decoration: none; }
 .rd-src span:empty { display: none; }
 .rd-title { font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); font-size: max(var(--t-display), var(--t-h2) * var(--rd-title-min)); line-height: var(--lh-display); overflow-wrap: anywhere; text-wrap: balance; }
 .rd-title:focus:not(:focus-visible) { outline: none; }
-.rd-link { display: block; width: fit-content; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--acc-ink); font-family: var(--f-ui); font-size: var(--t-meta); text-underline-offset: 2px; padding-block: var(--link-pad); }
+.rd-link { display: block; width: fit-content; max-width: 100%; overflow: clip; text-overflow: ellipsis; white-space: nowrap; color: var(--acc-ink); font-family: var(--f-ui); font-size: var(--t-meta); text-underline-offset: 2px; padding-block: var(--link-pad); }
 .rd-h { color: var(--text); font-family: var(--f-display); font-size: var(--t-h2); font-weight: var(--dw); letter-spacing: var(--dls); line-height: var(--lh-title); text-wrap: balance; }
 .rd-h:focus:not(:focus-visible) { outline: none; }
 
@@ -420,7 +420,7 @@ a.btn { text-decoration: none; }
 .hl-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 .hl-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--s1) var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); }
 .hl-entry:last-child { border-bottom: 1px solid var(--line); }
-.hl-quote { display: -webkit-box; grid-column: 1; min-width: 0; margin: 0; padding: 0; overflow: hidden; border: 0; background: transparent; color: var(--text); font-family: var(--f-read); font-size: var(--t-body); line-height: var(--lh-text); overflow-wrap: anywhere; text-align: start; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.hl-quote { display: -webkit-box; grid-column: 1; min-width: 0; margin: 0; padding: 0; overflow: clip; border: 0; background: transparent; color: var(--text); font-family: var(--f-read); font-size: var(--t-body); line-height: var(--lh-text); overflow-wrap: anywhere; text-align: start; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 button.hl-quote { min-height: var(--ctl-h); cursor: pointer; }
 button.hl-quote:hover { background: var(--surface-2); }
 button.hl-quote:active { background: var(--press); }
@@ -439,7 +439,7 @@ button.hl-quote:active { background: var(--press); }
 .nt-newer { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line-2); border-radius: var(--r3); background: var(--surface); }
 .nt-text { margin: 0; padding: 0; border: 0; color: var(--text); font-family: var(--f-read); font-size: var(--t-body); line-height: var(--lh-text); overflow-wrap: anywhere; white-space: pre-wrap; }
 
-.rd-media { overflow: hidden; border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface-2); }
+.rd-media { overflow: clip; border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface-2); }
 .rd-media .pic { height: auto; max-height: var(--media-max); object-fit: contain; object-position: center top; }
 .md .rd-media { display: block; width: fit-content; max-width: 100%; }
 .md .rd-media .pic { width: auto; max-width: 100%; }
@@ -475,7 +475,7 @@ button.hl-quote:active { background: var(--press); }
 .cm-stub { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); min-width: 0; padding: var(--cm-stub-pad); border: var(--cm-stub-box); border-radius: var(--cm-radius); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
 .cm-ctx { flex: none; padding: 0 var(--s2); border: 1px dashed var(--ctl-line); border-radius: var(--r1); font-size: var(--t-label); cursor: help; }
 .cm-stub .cm-author { flex: none; color: var(--muted); white-space: nowrap; }   /* a name never breaks: u/James-w07 stays whole */
-.cm-prev { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+.cm-prev { flex: 1 1 0; min-width: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
 [data-bp~="phone"] .cm.deep > .cm-row > .cm-card, [data-bp~="phone"] .cm.deep > .cm-row > .cm-stub { box-shadow: inset 1px 0 0 var(--line-2); }
 @media (forced-colors: active) { [data-bp~="phone"] .cm.deep > .cm-row > .cm-card, [data-bp~="phone"] .cm.deep > .cm-row > .cm-stub { border-inline-start: 3px solid CanvasText; } }
 

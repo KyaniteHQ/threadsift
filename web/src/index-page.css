@@ -20,7 +20,7 @@
 .ix-line {
   grid-column: 1 / -1;
   display: -webkit-box;
-  overflow: hidden;
+  overflow: clip;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   white-space: normal;
