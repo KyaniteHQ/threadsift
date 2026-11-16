@@ -227,7 +227,6 @@ a.btn { text-decoration: none; }
 .it :is(.btn, button, a):not(.it-open) { position: relative; z-index: calc(var(--z-raise) + 1); }   /* every action in a row sits above the row's stretched link */
 .it:has(.it-open:focus-visible) { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
 .app .it-open:focus-visible { outline: none; }
-.it-sum { grid-area: sum; display: -webkit-box; margin: calc(var(--s1) * var(--k)) 0 0; overflow: hidden; color: var(--muted); font-size: var(--t-body); line-height: var(--lh-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: var(--sum-lines); text-wrap: pretty; }
 .it-snip { grid-area: snip; margin: var(--s1) 0 0; color: var(--muted); text-wrap: pretty; }
 .app mark { padding: 0 1px; border-radius: var(--r1); background: var(--acc-soft); color: var(--text); }
 .it-foot { grid-area: foot; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); margin: calc(var(--s2) * var(--k)) 0 0; color: var(--muted); }
@@ -238,15 +237,15 @@ a.btn { text-decoration: none; }
 .it-link-only .it-title { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .it-link-only .it-open .vh { inset-inline-start: 0; }   /* the hidden text sits at the row's edge, not after the long link, so it adds no sideways scroll */
 .proc-ic { color: var(--acc-ink); }
-.skel { grid-area: sum; position: relative; height: 0; }
+.skel { grid-area: note; position: relative; height: 0; }
 .skel i, .it-ghost i { display: block; height: var(--s2); border-radius: var(--r1); background: var(--surface-2); }
 @media (prefers-reduced-motion: no-preference) { .skel i, .it-ghost i { animation: shimmer var(--loop-pulse) ease-in-out infinite; } }
 .skel i { position: absolute; top: var(--s1); width: 60%; height: var(--s1); }
 
-/* rows (List): unread dot on the left, 40px thumbnail on the right, 2-line summary. The open
+/* rows (List): unread dot on the left, 40px thumbnail on the right. The open
    row is tinted and carries a 3px bar on its left edge, so it is told apart from a hovered row
    by shape as well as colour. */
-[data-layout="list"] .it { grid-template-columns: var(--s4) minmax(0, 1fr) auto; grid-template-areas: "dot meta media" "dot title media" "dot sum sum" "dot snip snip" "dot foot foot"; column-gap: var(--s3); padding: calc(var(--s3) * var(--k)) var(--s4) calc(var(--s3) * var(--k)) var(--s3); border-bottom: 1px solid var(--line); }
+[data-layout="list"] .it { grid-template-columns: var(--s4) minmax(0, 1fr) auto; grid-template-areas: "dot meta media" "dot title media" "dot note note" "dot snip snip" "dot foot foot"; column-gap: var(--s3); padding: calc(var(--s3) * var(--k)) var(--s4) calc(var(--s3) * var(--k)) var(--s3); border-bottom: 1px solid var(--line); }
 [data-layout="list"] .it:hover { background: var(--surface-2); }
 [data-layout="list"] .it.open, [data-layout="list"] .it.open:hover { background: var(--acc-soft); box-shadow: inset 3px 0 0 var(--acc); }
 [data-layout="list"] .it-dot { align-self: start; justify-self: center; margin-top: calc(var(--lh-ui) * 0.5em - var(--dot-hit) / 2); }   /* centred on the first line of the meta row */
@@ -254,7 +253,7 @@ a.btn { text-decoration: none; }
 [data-layout="list"] .it-media { width: var(--thumb); height: var(--thumb); margin-left: var(--s2); border-radius: var(--r1); }
 
 /* cards (Grid): unread dot in the body next to the source, never on the image */
-[data-layout="grid"] .it { grid-template-columns: var(--s4) auto minmax(0, 1fr) var(--s4); grid-template-areas: "media media media media" ". dot meta ." ". title title ." ". sum sum ." ". snip snip ." ". foot foot ."; padding-bottom: var(--s4); overflow: hidden; border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow); }
+[data-layout="grid"] .it { grid-template-columns: var(--s4) auto minmax(0, 1fr) var(--s4); grid-template-areas: "media media media media" ". dot meta ." ". title title ." ". note note ." ". snip snip ." ". foot foot ."; padding-bottom: var(--s4); overflow: hidden; border: 1px solid var(--line); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow); }
 [data-layout="grid"] .it:hover { border-color: var(--line-2); }
 [data-layout="grid"] .it.open { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc), var(--shadow); }
 @media (forced-colors: active) { [data-layout="grid"] .it.open { border: 3px solid Highlight; } }
@@ -262,8 +261,6 @@ a.btn { text-decoration: none; }
 [data-theme="dark"][data-layout="grid"] .it-media { border-bottom: 0; }
 [data-layout="grid"] .it-meta { margin-top: var(--s4); }
 [data-layout="grid"] .it-dot { align-self: center; margin: calc(var(--s4) - (var(--dot-hit) - var(--dot)) / 2) calc(var(--s2) - (var(--dot-hit) - var(--dot)) / 2) calc((var(--dot-hit) - var(--dot)) / -2) calc((var(--dot-hit) - var(--dot)) / -2); }
-/* a card without a picture (too dark or flat to read at card size, or Card images off) is a text card */
-[data-layout="grid"] .it.text-only .it-sum, [data-layout="grid"][data-images="off"] .it-sum { --sum-lines: var(--sum-lines-text); color: var(--text); font-family: var(--f-read); font-size: var(--t-read); line-height: var(--lh-text); }
 [data-layout="grid"] .it-proc { border-style: dashed; box-shadow: none; }
 
 /* 6. Layouts ---------------------------------------------------------------

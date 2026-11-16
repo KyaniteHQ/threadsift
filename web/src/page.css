@@ -150,7 +150,7 @@ dialog.sheet::backdrop {
 }
 
 .it-fail {
-  grid-area: sum;
+  grid-area: note;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

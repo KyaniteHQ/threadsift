@@ -8,10 +8,9 @@ import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
 import { revealInPane } from "./reveal.ts";
 import { useInternalLink } from "./routing.ts";
 
-function rowClasses(item: Readonly<Item>, isOpen: boolean, hasImage: boolean): string {
+function rowClasses(item: Readonly<Item>, isOpen: boolean): string {
   return [
     "it",
-    ...(hasImage ? [] : ["text-only"]),
     ...(item.readState === "unread" ? ["unread"] : []),
     ...(isOpen ? ["open"] : []),
     ...(item.title === null ? ["it-link-only"] : []),
@@ -172,7 +171,7 @@ export const ItemRow = memo(function ItemRow({
   useAttention(row, link, attention, attended);
 
   return (
-    <article ref={row} className={rowClasses(item, isOpen, image !== null)} data-key={item.id}>
+    <article ref={row} className={rowClasses(item, isOpen)} data-key={item.id}>
       <ReadDot item={item} ids={ids} toggleRead={toggleRead} />
       <Meta item={item} now={now} id={ids.meta} />
       <RowTitle item={item} ids={ids} link={link} isOpen={isOpen} open={open} />
