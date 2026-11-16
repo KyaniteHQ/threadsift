@@ -37,3 +37,15 @@ export function say(target: HTMLElement, text: string, tone: Tone): void {
   target.textContent = text;
   target.dataset["tone"] = tone;
 }
+
+export function replaceControls(
+  container: HTMLElement,
+  heading: HTMLElement,
+  controls: readonly HTMLElement[],
+): void {
+  const lostFocus = container.contains(document.activeElement);
+
+  container.replaceChildren(...controls);
+
+  if (lostFocus) heading.focus();
+}
