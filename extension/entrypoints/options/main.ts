@@ -1,5 +1,6 @@
 import { browser } from "wxt/browser";
 
+import { instanceOrigin } from "../../lib/config.ts";
 import { type FillState, loadFill, turnFill } from "../../lib/fill-setting.ts";
 import { deferWhileWorking, newestRequest } from "../../lib/newest-request.ts";
 import { applyLook, element, say } from "../../lib/page-look.ts";
@@ -9,6 +10,7 @@ import {
   type SettingsState,
   loadSettings,
   saveSettings,
+  tokenMissing,
 } from "../../lib/settings.ts";
 import type { ConfigView } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
@@ -32,10 +34,18 @@ if (root === null) throw new Error("the settings page has no root element");
 
 const address = element("input", { id: "address", type: "url", autocomplete: "off" });
 const token = element("input", { id: "token", type: "password", autocomplete: "off" });
-const tokenHint = element("p", { class: "ext-hint" }, TEXT.tokenHint);
-const result = element("p", { class: "ext-status", role: "status" });
-const saveButton = element("button", { type: "submit", class: "btn btn-acc" }, TEXT.saveSettings);
+const addressHint = element("p", { id: "address-hint", class: "ext-hint" }, TEXT.addressHint);
+const tokenHint = element("p", { id: "token-hint", class: "ext-hint" }, TEXT.tokenHint);
+const result = element("p", { id: "settings-result", class: "ext-status", role: "status" });
 
+type SettingsField = Readonly<Record<"input" | "hint", HTMLElement>>;
+
+const fields: Readonly<Record<"address" | "token", SettingsField>> = {
+  address: { input: address, hint: addressHint },
+  token: { input: token, hint: tokenHint },
+};
+
+const saveButton = element("button", { type: "submit", class: "btn btn-acc" }, TEXT.saveSettings);
 const fillStatus = element("p", { class: "ext-status", "aria-live": "polite" });
 const fillNote = element("p", { class: "ext-status", role: "status" });
 const fillButton = element("button", { type: "button", class: "btn btn-acc" }, TEXT.fillTurnOn);
@@ -50,8 +60,8 @@ function field(label: string, input: HTMLElement, hint: HTMLElement): HTMLDivEle
     "div",
     { class: "ext-field" },
     element("label", { for: input.id, class: "label" }, label),
-    element("div", { class: "field" }, input),
     hint,
+    element("div", { class: "field" }, input),
   );
 }
 
@@ -61,9 +71,39 @@ function showStored({ origin, hasToken }: Readonly<ConfigView>): void {
   tokenHint.textContent = hasToken ? TEXT.tokenKept : TEXT.tokenHint;
 }
 
+function refusedField(state: Readonly<SettingsState>): SettingsField | null {
+  return state.kind === "refused" && state.reason !== "access" ? fields[state.reason] : null;
+}
+
+function markRefused({ input, hint }: SettingsField, refused: boolean): void {
+  if (refused) {
+    input.setAttribute("aria-invalid", "true");
+    input.setAttribute("aria-describedby", `${hint.id} ${result.id}`);
+  } else {
+    input.removeAttribute("aria-invalid");
+    input.setAttribute("aria-describedby", hint.id);
+  }
+}
+
+function markFields(state: Readonly<SettingsState>): void {
+  const refused = refusedField(state);
+  const missingToken = state.kind === "refused" && tokenMissing(state.stored, token.value);
+
+  markRefused(fields.address, refused === fields.address && instanceOrigin(address.value) === null);
+  markRefused(fields.token, refused === fields.token && missingToken);
+}
+
 function renderSettings(state: Readonly<SettingsState>): void {
   saveButton.disabled =
     state.kind === "loading" || state.kind === "unreadable" || state.kind === "saving";
+
+  const refusedInput = refusedField(state)?.input ?? null;
+
+  result.setAttribute(
+    "aria-live",
+    refusedInput !== null && document.activeElement !== refusedInput ? "off" : "polite",
+  );
+  markFields(state);
 
   switch (state.kind) {
     case "loading":
@@ -85,6 +125,8 @@ function renderSettings(state: Readonly<SettingsState>): void {
       break;
     case "refused":
       say(result, REFUSAL_TEXT[state.reason], "warn");
+
+      if (refusedInput !== null) refusedInput.focus();
       break;
     case "failed":
       showStored(state.stored);
@@ -210,6 +252,14 @@ browser.storage.onChanged.addListener((changes, area) => {
 
 fillButton.addEventListener("click", pressFill);
 
+address.addEventListener("input", () => {
+  markFields(settings);
+});
+
+token.addEventListener("input", () => {
+  markFields(settings);
+});
+
 const fillSection = element(
   "section",
   { class: "ext-form" },
@@ -223,7 +273,7 @@ const fillSection = element(
 const form = element(
   "form",
   { class: "ext-form" },
-  field(TEXT.addressLabel, address, element("p", { class: "ext-hint" }, TEXT.addressHint)),
+  field(TEXT.addressLabel, address, addressHint),
   field(TEXT.tokenLabel, token, tokenHint),
   element("div", { class: "ext-actions" }, saveButton),
   result,

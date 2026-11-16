@@ -85,6 +85,10 @@ function notSaved(): Promise<SettingsState> {
   return readState((stored) => ({ kind: "failed", stored, step: "not-saved" }));
 }
 
+export function tokenMissing(stored: Readonly<ConfigView>, token: string): boolean {
+  return token.trim() === "" && !stored.hasToken;
+}
+
 export async function saveSettings(
   stored: Readonly<ConfigView>,
   { address, token }: Readonly<SettingsInput>,
@@ -94,7 +98,7 @@ export async function saveSettings(
 
   if (origin === null) return { kind: "refused", stored, reason: "address" };
 
-  if (secret === "" && !stored.hasToken) return { kind: "refused", stored, reason: "token" };
+  if (tokenMissing(stored, token)) return { kind: "refused", stored, reason: "token" };
 
   let granted: boolean;
 
