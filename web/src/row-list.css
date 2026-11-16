@@ -39,6 +39,9 @@
   gap: var(--s1) var(--s2);
   font-size: var(--t-meta);
 }
+.rl-row .rl-dot {
+  flex: none;
+}
 .rl-row .it-date {
   margin-left: auto;
 }
