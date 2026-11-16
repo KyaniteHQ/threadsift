@@ -1,9 +1,7 @@
 import { useCallback, useState } from "react";
 
-import { Announcement } from "./Announcement.tsx";
+import { ANNOUNCE_SETTLE_MS, Announcement } from "./Announcement.tsx";
 import { useAfter } from "./use-form.ts";
-
-const ANNOUNCE_SETTLE_MS = 500;
 
 function useSettled(text: string | null, active: boolean): string {
   const [settled, setSettled] = useState("");

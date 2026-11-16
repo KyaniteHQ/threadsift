@@ -42,6 +42,7 @@
 .skip:not(:focus) { position: absolute; clip-path: inset(50%); }
 .skip:focus { position: fixed; inset-block-start: var(--s2); inset-inline-start: var(--s2); z-index: var(--z-popover); box-shadow: var(--shadow); }
 .field { display: flex; align-items: center; gap: var(--s2); min-height: var(--field-h); padding: 0 var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--muted); }
+.field:has(input:user-invalid) { box-shadow: 0 0 0 1px var(--ctl-line); }
 .field:has(input:focus-visible) { border-color: var(--acc-ink); box-shadow: 0 0 0 1px var(--acc-ink); }
 .field input { flex: 1; align-self: stretch; min-width: 0; margin: -1px 0; padding: 0; border: 0; background: transparent; color: var(--text); font-size: var(--t-body); outline: none; }   /* reaches over the field's border, so the input itself is the field's full height (44px on phones) */
 .field input::placeholder { color: var(--muted); opacity: 1; }

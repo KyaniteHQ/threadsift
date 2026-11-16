@@ -1,3 +1,4 @@
+import { FieldAnnouncer } from "./FieldAnnouncer.tsx";
 import type { Route } from "./routing.ts";
 import { type ScreenState, isSignedInScreen } from "./screens.ts";
 import { SetupScreen } from "./SetupScreen.tsx";
@@ -12,7 +13,7 @@ interface SessionActions {
   readonly loggedOut: () => void;
 }
 
-export function Screen({
+function ScreenContent({
   screen,
   look,
   arrived,
@@ -60,4 +61,12 @@ export function Screen({
     default:
       return screen satisfies never;
   }
+}
+
+export function Screen(props: Parameters<typeof ScreenContent>[0]) {
+  return (
+    <FieldAnnouncer>
+      <ScreenContent {...props} />
+    </FieldAnnouncer>
+  );
 }
