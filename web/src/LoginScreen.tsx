@@ -70,6 +70,7 @@ export function LoginScreen({
           label={FIELDS.password}
           name="password"
           autoComplete="current-password"
+          required
           shown={visibility.shown}
           toggle={visibility.toggle}
         />

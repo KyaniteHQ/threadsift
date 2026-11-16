@@ -12,6 +12,7 @@ import { useReset } from "./use-reset.ts";
 const CODE_INPUT = {
   name: "reset-code",
   type: "text",
+  required: true,
   autoComplete: "one-time-code",
   mono: true,
 } as const;
