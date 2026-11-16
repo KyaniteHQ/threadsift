@@ -22,6 +22,7 @@ const FILE_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "Cross-Origin-Resource-Policy": "same-origin",
   "Content-Security-Policy": "default-src 'none'; sandbox; frame-ancestors 'none'",
+  "X-Frame-Options": "DENY",
 } as const;
 
 function privateWith(headers: Readonly<Record<string, string>>): MiddlewareHandler {
