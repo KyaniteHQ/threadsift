@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## bot-v8
+
+- A thread read keeps the posts an X post quotes and the photos of the post. The skill asks the bot for the chain of quoted posts, 5 at most, in `post.quoted`, and for the photo addresses of the post, of each quoted post and of each reply by the post's author in `images`, and the bot leaves the media link out of the text of a post it sends with photos and the link of the quoted post out of the text of a post that quotes one, so the Instance can check the chain. The skill now names the fields it needs from the X tools, including `media.fields` `url`. Before, an answer held no quoted post and no photo. An X link saved in chat sends quoted posts and no photos, because a Paste carries no photos. A thread read now takes one more post read for each quoted post, 5 at most. Update the Threadsift Instance first: an Instance from before this release refuses an answer that holds `images`.
+
 ## bot-v7
 
 - The script deletes the folder of a task that stays unanswered for one day, which takes its credential with it, the folder of a task 7 days after it is done, and any file in `tmp` older than a day, on every command except `mark`. Before, the folder rules ran only on a `task-open` that was not a ping and not for a task that was already done or was opened less than an hour ago, and the `tmp` rule only on `write` or `append`, so a bot that kept saving links and searching but received no new task kept the credential of an unanswered task past one day. A task folder that kept only its text after bot-v6 deleted the credential is deleted by the same rule. A prune that fails no longer stops the command.

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { DigestSchema } from "../src/core/ai-contract.ts";
 import { storedCommentId } from "../src/core/comment-id.ts";
 import { IntakeAnswerSchema } from "../src/core/x-intake-contract.ts";
-import { parseXThread } from "../src/core/x-thread.ts";
-import { XThreadSchema } from "../src/core/x-wire.ts";
+import { parseXThread, parseXThreadValue, readXBotThreadValue } from "../src/core/x-thread.ts";
+import { XBotThreadSchema } from "../src/core/x-wire.ts";
 import { type JsonValue, JsonSchema } from "./bot-skills-fields.ts";
 import { SKILL_PATH, botFile, fencesOf } from "./bot-skills-reader.ts";
 
@@ -22,22 +22,49 @@ function jsonFence(label: string): JsonValue {
   return JsonSchema.parse(JSON.parse(fence.body));
 }
 
+function withoutImages(value: JsonValue): JsonValue {
+  return JsonSchema.parse(
+    JSON.parse(JSON.stringify(value), (name, entry: JsonValue) =>
+      name === "images" ? undefined : entry,
+    ),
+  );
+}
+
 export function assertExamplesAccepted(): void {
   const threadJson = jsonFence("thread");
-  const thread = XThreadSchema.parse(threadJson);
+  const thread = XBotThreadSchema.parse(threadJson);
   const digest = DigestSchema.parse(jsonFence("digest"));
   const content = JSON.stringify(threadJson);
+  const read = readXBotThreadValue(content);
 
-  assert.equal(parseXThread(content, thread.post.id).kind, "thread");
+  assert.equal(read.kind, "value");
+  assert.equal(
+    read.kind === "value" && parseXThreadValue(read.value, thread.post.id).kind,
+    "thread",
+  );
+  assert.ok(thread.post.quoted.length > 1);
+  assert.ok(thread.post.images.length > 0);
+  assert.equal(parseXThread(content, thread.post.id).kind, "refused");
+  assert.equal(
+    parseXThread(JSON.stringify(withoutImages(threadJson)), thread.post.id).kind,
+    "thread",
+  );
   assert.deepEqual(IntakeAnswerSchema.parse({ content, digest }), { content, digest });
   assert.deepEqual(digest.keptComments, [storedCommentId(thread.replies[0]?.id ?? "")]);
   assert.deepEqual(IntakeAnswerSchema.parse({ unavailable: true }), { unavailable: true });
 }
 
-export function intakeThread(statusId: string): string {
-  return JSON.stringify(jsonFence("thread")).replaceAll(`"${EXAMPLE_POST_ID}"`, `"${statusId}"`);
+function withStatusId(value: JsonValue, statusId: string): string {
+  return JSON.stringify(value).replaceAll(`"${EXAMPLE_POST_ID}"`, `"${statusId}"`);
+}
+
+export function pasteThread(statusId: string): string {
+  return withStatusId(withoutImages(jsonFence("thread")), statusId);
 }
 
 export function intakeExample(statusId: string): string {
-  return JSON.stringify({ content: intakeThread(statusId), digest: jsonFence("digest") });
+  return JSON.stringify({
+    content: withStatusId(jsonFence("thread"), statusId),
+    digest: jsonFence("digest"),
+  });
 }

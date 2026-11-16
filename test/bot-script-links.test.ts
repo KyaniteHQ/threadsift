@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { TopicIndexSchema } from "../src/core/topic-index-contract.ts";
 import { ScriptWorld } from "./bot-script-world.ts";
-import { intakeThread } from "./bot-skills-examples.ts";
+import { pasteThread } from "./bot-skills-examples.ts";
 import { SKILL_PATH, botFile, fencesOf } from "./bot-skills-reader.ts";
 
 const STATUS_ID = "1999999999999999001";
@@ -145,8 +145,8 @@ describe("the script checks the connection, saves, searches and lists topics, an
     );
   });
 
-  it("saves an X link with its thread from a file, and refuses a thread that is not the link's post", async () => {
-    const thread = () => world.folder.tmpFile("thread", intakeThread(STATUS_ID));
+  it("saves an X link with its thread from a file, and refuses content that is not a thread", async () => {
+    const thread = () => world.folder.tmpFile("thread", pasteThread(STATUS_ID));
 
     const added = await run(["save", xPost(), thread()]);
     const id = await idOf(`https://x.com/someone/status/${STATUS_ID}`);

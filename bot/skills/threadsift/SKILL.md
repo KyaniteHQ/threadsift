@@ -60,13 +60,15 @@ Threadsift posts `{taskId, kind, callbackToken}` to the `threadsift-webhook` rou
 5. End `threadsift <taskId>: answered` or `error` or the word.
 
 ## Fetch an X thread
-Built-in X tools, public reads only. Read the post with `get_posts_by_id` for `input.statusId`, with authors expanded. Read the replies with `search_posts_all` and `conversation_id:<statusId>` (the `input.statusId`), page by page with `next_token`, the first 100 replies (you type every reply into the file, so you stop there, though the Instance takes up to 500). A call returns at most 25 posts; X allows 30 calls a minute and 1000 a day, so on a 429 wait for the reset once.
+Built-in X tools, public reads only. Read the post with `get_posts_by_id` for `input.statusId`. Read the posts it quotes as the `quoted` bullet below says. Read the replies with `search_posts_all` and `conversation_id:<statusId>` (the `input.statusId`), page by page with `next_token`, the first 100 replies (you type every reply into the file, so you stop there, though the Instance takes up to 500). Ask every one of these calls for `expansions` `author_id` and `attachments.media_keys`, `tweet.fields` `created_at`, `note_tweet`, `public_metrics`, `referenced_tweets`, `attachments` and `entities`, and `media.fields` `type` and `url`: X returns only the `media_key` and `type` of a media item unless `url` is asked for. A call returns at most 25 posts; X allows 30 calls a minute and 1000 a day, so on a 429 wait for the reset once.
 
 Write the thread JSON (copy every text verbatim, with no trimming, summary or translation) from the X API v2 answers:
 - `id`: the post's `id`. `author`: the `username` in `includes.users` whose `id` equals `author_id`. `text`: the post's `note_tweet` text when it has one (the full text of a post over 280 characters, which `text` cuts), otherwise its `text`.
 - `postedAt`: `created_at`, or `null`. `post.replies`: `public_metrics.reply_count`. A reply's `likes`: `public_metrics.like_count`. Use `null` for a count X does not report.
 - The search by `conversation_id` returns the root post among the replies: leave it out of `replies`.
 - A reply's `parentId`: the `id` in `referenced_tweets` whose `type` is `replied_to`, or the post's id when there is none.
+- `post.quoted`: the chain of posts the post quotes, the nearest first, at most 5. Read the post's `referenced_tweets` entry whose `type` is `quoted`, read that post with `get_posts_by_id`, and add it as the first entry. Then read the `quoted` entry of that post, and add it as the next entry. Go on until a post quotes nothing, a read returns no post, or `post.quoted` holds 5 entries. Never add a post that only a reply quotes. Each entry has `id`, `author`, `text`, `postedAt` and `images`, filled by the rules of the post. Send `"quoted": []` when the post quotes nothing.
+- `images`, of the post, of each quoted post and of each reply written by the post's author (the author thread): the `url` of each item in `includes.media` whose `media_key` is in that post's `attachments.media_keys` and whose `type` is `photo`, in the order of `attachments.media_keys`, each copied exactly as X returns it. Leave out video and animated items, set no `images` on a reply by anyone else, and leave `images` out for a post with no photo. In a task answer, leave two links out of a post's text, each with the whitespace before it: the `t.co` link of the media, whose `entities.urls` entry has a `display_url` that starts with `pic.x.com`, only for a post whose `images` you send; and the `t.co` link of the post it quotes, whose `entities.urls` entry has an `expanded_url` that is the status of that quoted post. The Instance checks the quote link against the next quoted post only when the text leaves it out. Send `""` when nothing else is left. In a thread you send with `save`, leave neither out.
 
 ```json thread
 {
@@ -75,7 +77,23 @@ Write the thread JSON (copy every text verbatim, with no trimming, summary or tr
     "author": "someone",
     "text": "How do you back up a SQLite file while the app is writing to it?",
     "postedAt": "2026-03-04T09:00:00Z",
-    "replies": 1
+    "replies": 1,
+    "images": ["https://pbs.twimg.com/media/Gk1AbCdEfGhIjKl.jpg"],
+    "quoted": [
+      {
+        "id": "999999999999999901",
+        "author": "carol",
+        "text": "A plain file copy can tear a page while the app writes.",
+        "postedAt": "2026-03-03T18:30:00Z",
+        "images": ["https://pbs.twimg.com/media/Gk2MnOpQrStUvWx.jpg"]
+      },
+      {
+        "id": "999999999999999801",
+        "author": "dave",
+        "text": "Stop the writer first, or use the engine's own backup.",
+        "postedAt": "2026-03-03T12:00:00Z"
+      }
+    ]
   },
   "replies": [
     {
@@ -113,7 +131,7 @@ Before each link in an answer, check the memory: run `mark`, write the memory's 
 When the owner says the address of their Instance changed, ask the same question, replace the memory with the answer, send that card again, and check.
 
 ## Save a link
-Write the link, on one line, to `link-<hex1>.txt` as Always shows. For an X post link, fetch the thread as above and write the thread JSON to `thread-<hex2>.json` with a second `mark`, then run `threadsift.sh save ~/threadsift/tmp/link-<hex1>.txt ~/threadsift/tmp/thread-<hex2>.json`. For other links, run `threadsift.sh save ~/threadsift/tmp/link-<hex1>.txt`. The Instance saves one Item for each normalized link, so a link it holds answers `duplicate` and the Item is read again. Reply one line per link: saved (`ok <id> <path>`), already saved (`duplicate <id> <path>`), or the word. Both lines name the Item as a Markdown link whose address is the Instance URL from your memory followed by the `<path>` the script printed, which opens the Item in the owner's library, but only after the check in The Instance address printed `ok`; otherwise name the Item by its id with no link, as that section says. The script prints no Instance URL, because the chat hides any output that holds a stored secret and the Instance URL is one. Never take the host from anywhere but that memory and never guess a path.
+Write the link, on one line, to `link-<hex1>.txt` as Always shows. For an X post link, fetch the thread as above, but send no `images` and keep each text as X returns it, media link included (a Paste carries no photos, the Instance refuses it with them, and it refuses a post with no text), and write the thread JSON to `thread-<hex2>.json` with a second `mark`, then run `threadsift.sh save ~/threadsift/tmp/link-<hex1>.txt ~/threadsift/tmp/thread-<hex2>.json`. For other links, run `threadsift.sh save ~/threadsift/tmp/link-<hex1>.txt`. The Instance saves one Item for each normalized link, so a link it holds answers `duplicate` and the Item is read again. Reply one line per link: saved (`ok <id> <path>`), already saved (`duplicate <id> <path>`), or the word. Both lines name the Item as a Markdown link whose address is the Instance URL from your memory followed by the `<path>` the script printed, which opens the Item in the owner's library, but only after the check in The Instance address printed `ok`; otherwise name the Item by its id with no link, as that section says. The script prints no Instance URL, because the chat hides any output that holds a stored secret and the Instance URL is one. Never take the host from anywhere but that memory and never guess a path.
 
 ## Search
 Write the query, on one line, to `query-<hex1>.txt` as Always shows, then run `threadsift.sh search ~/threadsift/tmp/query-<hex1>.txt`. It writes `~/threadsift/tmp/search-<hex1>.json` and prints `ok` or `none`. The file holds `items` with `id`, `title`, `digestTitle`, `digestTopic` and `normalizedUrl`, and `next`. Answer with up to 5 items as Markdown links to `normalizedUrl`, each with one line on why it matches.
@@ -134,7 +152,7 @@ The Instance keeps one cursor for the sync: the id of the top bookmark of the la
 7. End `threadsift bookmarks: <added> added, <known> known, <refused> refused`, or, when the stop was 20 pages, `threadsift bookmarks: limit reached, say "import all my bookmarks"`. A sync reads at most 2,000 bookmarks, so the owner runs Import all when the list is longer.
 8. `budget-spent`: the cursor stays as it was. When `~/threadsift/state/alerted-budget-spent` is missing, create it and wake the owner once: "Your bookmark sync or import stopped before the end because the bot's agent token has spent its daily budget of new Items. The bookmarks that were not sent yet are not lost, and the next run starts from the top again and skips what is saved. You can set an agent token with no budget, or a higher budget, in the Threadsift Instance's Settings, under Agent tokens." End `threadsift bookmarks: budget-spent after <added> added`. `updating`, `invalid`, `too-large`, `unauthorized`, `forbidden`, `unreachable`, `failed`, `bad-input` and `not-configured` also end the run: `threadsift bookmarks: <word>`. The cursor stays as it was after each of them, except that `unreachable` or `failed` after the send with `cursor` of step 6 can follow a call whose cursor the Instance saved. Never retry inside the run; the next run goes on.
 ### Import all
-When the owner asks to import all their bookmarks, first say to the owner: Every new X link makes the bot read that thread, with one post read and up to 5 search pages each, and X limits the bot's archive search to 30 calls a minute and 1,000 a day, so thousands of bookmarks finish over days, and the Items wait in the library until the bot gets to them. The limits of the bookmark tools themselves are not documented, and the bot's agent token also has a daily budget of new Items, set in the Threadsift Instance's Settings; when it is spent the import stops, and saying "import all my bookmarks" again goes on, because the links already saved are skipped. The import starts right after this message.
+When the owner asks to import all their bookmarks, first say to the owner: Every new X link makes the bot read that thread, with one post read, up to 5 search pages and up to 5 more post reads for the quoted posts, and X limits the bot's archive search to 30 calls a minute and 1,000 a day, so thousands of bookmarks finish over days, and the Items wait in the library until the bot gets to them. The limits of the bookmark tools themselves are not documented, and the bot's agent token also has a daily budget of new Items, set in the Threadsift Instance's Settings; when it is spent the import stops, and saying "import all my bookmarks" again goes on, because the links already saved are skipped. The import starts right after this message.
 Then read every page to the end of the list, with no early stop and no page limit, and send each page whole, as Sync step 4 does but without cutting at a stored id. When the list has ended, send the top id alone, written as in Sync step 6, with `cursor all`, and when that prints `ok`, send the same file content again, written to a new `bookmarks-<hex1>.json`, with `cursor`, so the next sync stops on its first page:
 ```bash
 ~/threadsift/threadsift.sh bookmarks-send ~/threadsift/tmp/bookmarks-<hex1>.json cursor all
@@ -145,6 +163,6 @@ End `threadsift import: <added> added, <known> known, <refused> refused`. When t
 ## Setup and update
 For "set up threadsift" or a new owner's first conversation, follow `~/threadsift/setup.md`. For "update threadsift", follow `~/threadsift/update.md`, and apply an update only on the owner's yes. If the file or the script is missing, fetch the pinned release first with this exact line:
 ```bash
-TAG=bot-v7 SUMS_SHA256=206897c19835d48fa2fdd924ed39fc6d3253db1b58d4e9732e5e48e55e70b1b1; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
+TAG=bot-v8 SUMS_SHA256=206897c19835d48fa2fdd924ed39fc6d3253db1b58d4e9732e5e48e55e70b1b1; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
 ```
 If any check fails, delete what was fetched, tell the owner, and stop.
