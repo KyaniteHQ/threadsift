@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 
 import { type FillState, loadFill, turnFill } from "../../lib/fill-setting.ts";
+import { deferWhileWorking, newestRequest } from "../../lib/newest-request.ts";
 import { applyLook, element, say } from "../../lib/page-look.ts";
 import {
   type Failure,
@@ -41,7 +42,8 @@ const fillButton = element("button", { type: "button", class: "btn btn-acc" }, T
 
 let settings: SettingsState = { kind: "loading" };
 let fill: FillState = { kind: "loading" };
-let fillVersion = 0;
+const beginFill = newestRequest();
+const fillDeferral = deferWhileWorking();
 
 function field(label: string, input: HTMLElement, hint: HTMLElement): HTMLDivElement {
   return element(
@@ -141,7 +143,6 @@ function renderFill(state: Readonly<FillState>): void {
 }
 
 function moveFill(next: FillState): void {
-  fillVersion += 1;
   fill = next;
   renderFill(next);
 }
@@ -163,6 +164,12 @@ function submitSettings(): void {
   void saveSettings(current.stored, { address: address.value, token: token.value }).then(settled);
 }
 
+function settleFillPress(answer: FillState): void {
+  moveFill(answer);
+
+  if (fillDeferral.take()) void followFill();
+}
+
 function pressFill(): void {
   const current = fill;
 
@@ -170,27 +177,36 @@ function pressFill(): void {
     return;
   }
 
+  beginFill();
   moveFill({ kind: "working", on: current.on });
 
-  void turnFill(!current.on).then(moveFill);
+  void turnFill(!current.on).then(settleFillPress);
 }
 
 function fillIsWorking(): boolean {
   return fill.kind === "working";
 }
 
-async function followGrant(): Promise<void> {
-  if (fillIsWorking()) return;
+async function followFill(): Promise<void> {
+  if (fillIsWorking()) {
+    fillDeferral.defer();
 
-  const version = fillVersion;
+    return;
+  }
+
+  const isNewest = beginFill();
   const next = await loadFill();
 
-  if (version === fillVersion) moveFill(next);
+  if (isNewest()) moveFill(next);
 }
 
-browser.permissions.onAdded.addListener(() => void followGrant());
+browser.permissions.onAdded.addListener(() => void followFill());
 
-browser.permissions.onRemoved.addListener(() => void followGrant());
+browser.permissions.onRemoved.addListener(() => void followFill());
+
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && "fill" in changes) void followFill();
+});
 
 fillButton.addEventListener("click", pressFill);
 
@@ -226,7 +242,7 @@ renderFill(fill);
 
 root.append(element("h1", {}, TEXT.settingsTitle), form, fillSection, redditSection);
 
-void followGrant();
+void followFill();
 
 void refreshReddit();
 

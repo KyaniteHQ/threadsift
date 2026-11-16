@@ -6,6 +6,7 @@ import { restrictStorage } from "../lib/config.ts";
 import { syncScripts } from "../lib/content-scripts.ts";
 import { settleFill } from "../lib/credentials.ts";
 import { cancelFills, fillOpenedThread } from "../lib/fill.ts";
+import { logFailure } from "../lib/log.ts";
 import { FILL_PORT } from "../lib/state.ts";
 import { servePort } from "../lib/worker-ports.ts";
 
@@ -15,28 +16,31 @@ function fillFrom(tabId: number | undefined, frameId: number | undefined, url: s
   }
 }
 
-async function followRevoke(): Promise<void> {
-  await exclusive(settleFill);
+async function followAccess(): Promise<void> {
+  try {
+    await exclusive(settleFill);
+  } catch (cause) {
+    logFailure("fill-settle-failed", cause);
+  }
+
   await syncScripts();
 }
 
 export default defineBackground({
   main() {
     void restrictStorage();
-    void syncScripts();
+    void followAccess();
     browser.runtime.onStartup.addListener(() => {
       void exclusive(reconcileAccess);
-      void syncScripts();
     });
     browser.runtime.onInstalled.addListener(() => {
       void exclusive(reconcileAccess);
-      void syncScripts();
     });
     browser.permissions.onAdded.addListener(() => void syncScripts());
     browser.permissions.onRemoved.addListener(({ origins }) => {
       if ((origins ?? []).length > 0) cancelFills();
 
-      void followRevoke();
+      void followAccess();
     });
 
     browser.runtime.onConnect.addListener((port) => {
