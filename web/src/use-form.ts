@@ -53,14 +53,14 @@ export function useFocusOnMount(ref: RefObject<HTMLElement | null>, enabled = tr
   }, [enabled, ref]);
 }
 
-export function useAfter(enabled: boolean, ms: number, run: () => void): void {
+export function useAfter(armed: boolean | number, ms: number, run: () => void): void {
   useEffect(() => {
-    const timer = enabled ? window.setTimeout(run, ms) : 0;
+    const timer = armed === false || armed === 0 ? 0 : window.setTimeout(run, ms);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [enabled, ms, run]);
+  }, [armed, ms, run]);
 }
 
 export function useEscape(
