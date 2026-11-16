@@ -130,9 +130,6 @@
 .sec h2 {
   margin: 0;
 }
-.sec .fld-err:empty {
-  position: absolute;
-}
 .pg :is(p, li, legend, label) {
   text-wrap: pretty;
 }

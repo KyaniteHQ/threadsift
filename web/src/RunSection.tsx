@@ -1,4 +1,5 @@
 import type { Resume } from "../../src/core/import-list.ts";
+import { Alert } from "./Alert.tsx";
 import type { Outcome, Progress } from "./import-run.ts";
 import {
   IMPORT,
@@ -181,11 +182,7 @@ export function RunSection({
         </div>
       )}
       {progress === null ? null : <Meter progress={progress} total={total} />}
-      {alert === null ? null : (
-        <p role="alert" className="fld-err">
-          {alert}
-        </p>
-      )}
+      <Alert text={alert} />
       <output className="imp-status">
         {line === null ? null : <p className="imp-progress">{line}</p>}
         {progress === null ? null : <CountsList progress={progress} />}

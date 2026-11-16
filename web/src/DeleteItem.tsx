@@ -1,6 +1,7 @@
 import { type RefObject, useCallback, useEffect, useId, useRef } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
+import { Alert } from "./Alert.tsx";
 import { CLOSED, type DeleteEvent, type DeleteFlow, reduceDelete } from "./delete-flow.ts";
 import { Icon } from "./Icon.tsx";
 import { tabWrapTarget } from "./panel-dom.ts";
@@ -124,11 +125,7 @@ function DeleteDialog({
       <p id={textId} className="dlg-text">
         {DELETE_DESCRIPTION}
       </p>
-      {step === "failed" ? (
-        <p className="fld-err" role="alert">
-          {DELETE_FAILED}
-        </p>
-      ) : null}
+      <Alert text={step === "failed" ? DELETE_FAILED : null} />
       <Actions pending={pending} cancel={cancel} confirm={confirm} first={first} />
     </dialog>
   );

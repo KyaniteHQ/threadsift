@@ -57,6 +57,7 @@
 .fld-help { margin: 0; color: var(--muted); font-size: var(--t-meta); }
 .fld-help code { color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); white-space: nowrap; }
 .fld-err { margin: 0; color: var(--warn); font-size: var(--t-meta); font-weight: 500; }
+[role="alert"]:empty { position: absolute; }
 .field input.mono { font-family: var(--f-mono); font-size: var(--t-code); }
 .cmd { margin: 0; padding: var(--code-pad-y) var(--code-pad-x); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); line-height: var(--lh-code); overflow-wrap: anywhere; white-space: pre-wrap; }
 a.btn { text-decoration: none; }

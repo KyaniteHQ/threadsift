@@ -1,6 +1,7 @@
 import { type ChangeEvent, useCallback, useId, useRef } from "react";
 
 import type { ImportList, SkipReason, Skipped as SkippedRows } from "../../src/core/import-list.ts";
+import { Alert } from "./Alert.tsx";
 import {
   IMPORT,
   readyLabel,
@@ -81,11 +82,7 @@ function FileButton({ locked, input }: Readonly<{ locked: boolean; input: Import
         tabIndex={-1}
         onChange={read}
       />
-      {fileFailed ? (
-        <p role="alert" className="fld-err">
-          {IMPORT.fileFailed}
-        </p>
-      ) : null}
+      <Alert text={fileFailed ? IMPORT.fileFailed : null} />
     </div>
   );
 }
