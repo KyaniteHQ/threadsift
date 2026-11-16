@@ -1,8 +1,7 @@
 import { type RefObject, memo, useEffect, useRef } from "react";
 
-import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import { type Filters, isEmptyResult, isFiltered, isSearching } from "./filters.ts";
+import { isEmptyResult } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
@@ -16,7 +15,6 @@ import {
   NO_RESULTS,
   RETRY_LABEL,
   SORT_LABEL,
-  headLabel,
 } from "./text.ts";
 import { useNearEnd } from "./use-near-end.ts";
 
@@ -66,17 +64,11 @@ export function Notice({
   );
 }
 
-export function ListHead({
-  counts,
-  shown,
-  filters,
-}: Readonly<{ counts: FilterCounts; shown: number; filters: Filters }>) {
-  const text = isSearching(filters) ? filters.q.trim() : "";
-
+export function ListHead({ label }: Readonly<{ label: string }>) {
   return (
     <section className="list-head" aria-labelledby={RESULTS_ID}>
-      <p id={RESULTS_ID} className="results" aria-live="polite">
-        {headLabel(counts, isFiltered(filters) ? shown : null, text)}
+      <p id={RESULTS_ID} className="results">
+        {label}
       </p>
       <p className="label">{SORT_LABEL}</p>
     </section>
