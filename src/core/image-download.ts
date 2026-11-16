@@ -3,13 +3,11 @@ import { fromBase64 } from "./encoding.ts";
 import { type Failed, type FetchPolicy, NO_HEADERS, guardedFetchBytes } from "./fetch-guard.ts";
 import { type ImageType, declaredImageType, sniffImageType } from "./image-type.ts";
 import type { MediaFailure } from "./kinds.ts";
-import { IMAGE_URL_MAX_BYTES } from "./limits.ts";
+import { IMAGE_MAX_BYTES, IMAGE_URL_MAX_BYTES } from "./limits.ts";
 import { isRedditOrXLink } from "./links.ts";
 import type { Network } from "./ports.ts";
 
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-
-const BASE64_CHARACTERS = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 4;
+const BASE64_CHARACTERS = Math.ceil((IMAGE_MAX_BYTES * 4) / 3) + 4;
 
 const PERCENT_ESCAPE_CHARACTERS = 3;
 
@@ -26,8 +24,8 @@ const IMAGE_POLICY: FetchPolicy = {
     accept: "image/avif,image/webp,image/png,image/jpeg,image/gif",
   }),
   readsLimits: () => false,
-  htmlMaxBytes: MAX_IMAGE_BYTES,
-  dataMaxBytes: MAX_IMAGE_BYTES,
+  htmlMaxBytes: IMAGE_MAX_BYTES,
+  dataMaxBytes: IMAGE_MAX_BYTES,
 };
 
 const FAILURES: Readonly<Record<Failed["reason"], MediaFailure>> = {
@@ -88,7 +86,7 @@ export function decoded(dataUrl: string): Fetched {
     if (base64.length > BASE64_CHARACTERS) return { ok: false, reason: "too-large" };
 
     const bytes = fromBase64(base64);
-    const verdict = checked(type, bytes, bytes.length > MAX_IMAGE_BYTES);
+    const verdict = checked(type, bytes, bytes.length > IMAGE_MAX_BYTES);
 
     return verdict.ok ? { ...verdict, bytes, finalUrl: null } : verdict;
   } catch {

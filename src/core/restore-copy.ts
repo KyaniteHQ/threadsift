@@ -1,18 +1,13 @@
-import { type SQL, type SQLWrapper, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
-import { type Cursor, CursorSchema, START_CURSOR } from "./restore-contract.ts";
+import { type Cursor, CursorSchema, START_FILES } from "./restore-contract.ts";
 import { insertRows, knownTable } from "./restore-rows.ts";
+import { tallied } from "./restore-tally.ts";
 import { continuation, precondition, steppedUnit } from "./restore-unit.ts";
 import { opened, windowLines } from "./restore-window.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import type { ZipSource } from "./zip-read.ts";
-
-function tallied(column: Readonly<SQLWrapper>, table: string, delta: SQL): SQL {
-  const path = sql.raw(`'$.${table}'`);
-
-  return sql`json_set(${column}, ${path}, coalesce(json_extract(${column}, ${path}), 0) + ${delta})`;
-}
 
 export async function tablesUnit(
   ports: JobPorts,
@@ -24,7 +19,7 @@ export async function tablesUnit(
   const at = await opened(source, cursor);
 
   if (at === null) {
-    return steppedUnit(db, run, { phase: "finish", cursor: JSON.stringify(START_CURSOR) });
+    return steppedUnit(db, run, { phase: "files", cursor: JSON.stringify(START_FILES) });
   }
 
   const spec = knownTable(at.entry.table);

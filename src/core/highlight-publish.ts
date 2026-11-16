@@ -29,6 +29,8 @@ export function displayedBesideThread(after: Readonly<DisplayedAfter>): Publicat
   return ({ threaded }) => ({ post: after.post, comments: threaded ? undefined : after.comments });
 }
 
+const PLACES_PER_STATEMENT = 1000;
+
 type Project = (key: string, markdown: string) => string;
 
 function memoProjection(): Project {
@@ -132,19 +134,21 @@ function anchorWrites(
 
   if (places.length === 0) return [];
 
-  const json = JSON.stringify(places);
+  return Array.from({ length: Math.ceil(places.length / PLACES_PER_STATEMENT) }, (_, chunk) => {
+    const json = JSON.stringify(
+      places.slice(chunk * PLACES_PER_STATEMENT, (chunk + 1) * PLACES_PER_STATEMENT),
+    );
 
-  const placed = (field: "status" | "start") =>
-    sql`(select json_extract(value, ${`$.${field}`}) from json_each(${json}) where json_extract(value, '$.id') = ${highlights.id})`;
+    const placed = (field: "status" | "start") =>
+      sql`(select json_extract(value, ${`$.${field}`}) from json_each(${json}) where json_extract(value, '$.id') = ${highlights.id})`;
 
-  return [
-    db
+    return db
       .update(highlights)
       .set({ status: placed("status"), start: placed("start") })
       .where(
         inArray(highlights.id, sql`(select json_extract(value, '$.id') from json_each(${json}))`),
-      ),
-  ];
+      );
+  });
 }
 
 async function anchoredAttempt(

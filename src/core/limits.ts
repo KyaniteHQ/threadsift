@@ -4,6 +4,8 @@ export const ITEM_REQUEST_BYTES = 8 * 1024 * 1024;
 
 export const RESTORE_PART_BYTES = 32 * 1024 * 1024;
 
+export const IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+
 export const RESULT_BODY_BYTES = 256 * 1024;
 
 export const THREAD_CONTENT_BYTES = 4 * 1024 * 1024;

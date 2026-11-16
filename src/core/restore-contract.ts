@@ -23,6 +23,22 @@ export const RESTORE_CHECK_BYTES = RESTORE_LINE_BYTES + 256 * 1024;
 
 export const RESTORE_BIND_BYTES = 1_900_000;
 
+export const RESTORE_FILE_ENTRIES = 1000;
+
+export const RESTORE_FILE_BYTES = 8 * 1024 * 1024;
+
+export const RESTORE_INDEX_ITEMS = 8;
+
+export const RESTORE_INDEX_BYTES = 4 * 1024 * 1024;
+
+export const RESTORED_FILES = "files";
+
+export const MISSING_FILES = "missing-files";
+
+export const KEPT_HIGHLIGHTS = "highlights-as-exported";
+
+export const RESTORE_ANCHOR_BYTES = 256 * 1024;
+
 export const RESTORE_MANIFEST_BYTES = 4 * 1024 * 1024;
 
 export const RESTORE_DIRECTORY_BYTES = 256 * 1024 * 1024;
@@ -87,6 +103,14 @@ export type UndoCursor = z.infer<typeof UndoCursorSchema>;
 
 export const START_UNDO: UndoCursor = { units: 0 };
 
+export const FilesCursorSchema = z.object({ owner: WholeCount, key: z.string() }).readonly();
+
+export const START_FILES: z.infer<typeof FilesCursorSchema> = { owner: 0, key: "" };
+
+export const ItemsCursorSchema = z.object({ after: WholeCount }).readonly();
+
+export const START_ITEMS: z.infer<typeof ItemsCursorSchema> = { after: 0 };
+
 export const CheckCursorSchema = z
   .object({
     entry: WholeCount,
@@ -105,6 +129,14 @@ const Id = z.number().int().positive();
 
 const Library = { libraryEmpty: z.boolean() };
 
+const Counted = {
+  restored: CountsSchema,
+  dropped: CountsSchema,
+  files: WholeCount,
+  missingFiles: WholeCount,
+  keptHighlights: WholeCount,
+};
+
 export const RestoreStatusSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("none"), ...Library }),
   z.object({
@@ -121,8 +153,7 @@ export const RestoreStatusSchema = z.discriminatedUnion("state", [
     ...Library,
     id: Id,
     phase: z.enum(COPY_RESTORE_PHASES),
-    restored: CountsSchema,
-    dropped: CountsSchema,
+    ...Counted,
   }),
   z.object({ state: z.literal("cancelling"), ...Library, id: Id }),
   z.object({
@@ -130,8 +161,7 @@ export const RestoreStatusSchema = z.discriminatedUnion("state", [
     ...Library,
     id: Id,
     finishedAt: z.number().int(),
-    restored: CountsSchema,
-    dropped: CountsSchema,
+    ...Counted,
   }),
   z.object({
     state: z.literal("failed"),

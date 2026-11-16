@@ -9,6 +9,7 @@ import {
   droppedLabel,
   failureLabel,
   interruptedLabel,
+  missingFilesLabel,
   phaseLabel,
   soFarLabel,
   uploadingLabel,
@@ -57,7 +58,8 @@ function Detail({ view, progress }: Readonly<{ view: RestoreStatus; progress: Pr
     case "running":
       return (
         <p className="ai-meta">
-          {phaseLabel(view.phase)} {soFarLabel(total(view.restored))}
+          {phaseLabel(view.phase)}
+          {view.phase === "tables" ? ` ${soFarLabel(total(view.restored))}` : ""}
         </p>
       );
     case "done":
@@ -66,6 +68,9 @@ function Detail({ view, progress }: Readonly<{ view: RestoreStatus; progress: Pr
           <p className="ai-meta">{doneLabel(view.restored["items"] ?? 0, total(view.restored))}</p>
           {total(view.dropped) > 0 ? (
             <p className="ai-meta">{droppedLabel(total(view.dropped))}</p>
+          ) : null}
+          {view.missingFiles > 0 ? (
+            <p className="ai-meta">{missingFilesLabel(view.missingFiles)}</p>
           ) : null}
           <p className="ai-meta">{RESTORE_TEXT.enterAgain}</p>
         </>

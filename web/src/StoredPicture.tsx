@@ -7,9 +7,14 @@ import type { SizedImage } from "../../src/http/item-image.ts";
 import { Mark } from "./Mark.tsx";
 import { Link } from "./ReaderLink.tsx";
 
+interface StoredImage {
+  readonly size: ImageSize;
+  readonly sourceUrl: string;
+}
+
 interface Pictures {
   readonly itemId: number;
-  readonly sizes: ReadonlyMap<string, ImageSize>;
+  readonly images: ReadonlyMap<string, StoredImage>;
 }
 
 export const PictureScope = createContext<Pictures | null>(null);
@@ -25,7 +30,12 @@ export function usePictures(itemId: number | null, images: SizedImages): Picture
         ? null
         : {
             itemId,
-            sizes: new Map(images.map(({ url, width, height }) => [url, { width, height }])),
+            images: new Map(
+              images.map(({ url, width, height, sourceUrl }) => [
+                url,
+                { size: { width, height }, sourceUrl },
+              ]),
+            ),
           },
     [itemId, images],
   );
@@ -50,11 +60,15 @@ function marked(highlights: string | undefined, picture: ReactNode): ReactNode {
   return highlights === undefined ? picture : <Mark data-highlights={highlights}>{picture}</Mark>;
 }
 
-function PictureLink({ href, alt }: Readonly<{ href: string; alt: string | undefined }>) {
+function PictureLink({
+  href,
+  alt,
+  target = href,
+}: Readonly<{ href: string; alt: string | undefined; target?: string }>) {
   const projectedAsPlaceholder = (alt ?? "") === "" && keyOfFileRoute(href) !== null;
 
   return (
-    <Link href={href} data-failed-picture={projectedAsPlaceholder ? "" : undefined}>
+    <Link href={target} data-failed-picture={projectedAsPlaceholder ? "" : undefined}>
       {pictureLabel(href, alt)}
     </Link>
   );
@@ -64,9 +78,9 @@ function StoredPicture({
   href,
   alt,
   title,
-  size,
+  image,
   "data-highlights": highlights,
-}: Readonly<PictureAttributes & { href: string; size: ImageSize | undefined }>) {
+}: Readonly<PictureAttributes & { href: string; image: StoredImage | undefined }>) {
   const [failed, setFailed] = useState(false);
 
   const fail = useCallback(() => {
@@ -74,11 +88,18 @@ function StoredPicture({
   }, []);
 
   const style = useMemo(
-    () => (size === undefined ? undefined : { width: reservedWidth(size) }),
-    [size],
+    () => (image === undefined ? undefined : { width: reservedWidth(image.size) }),
+    [image],
   );
 
-  if (failed) return marked(highlights, <PictureLink href={href} alt={alt} />);
+  if (failed) {
+    const original = image?.sourceUrl ?? "";
+
+    return marked(
+      highlights,
+      <PictureLink href={href} alt={alt} target={original === "" ? href : original} />,
+    );
+  }
 
   return (
     <span className="rd-media">
@@ -89,8 +110,8 @@ function StoredPicture({
           src={href}
           alt={alt ?? ""}
           title={title}
-          width={size?.width}
-          height={size?.height}
+          width={image?.size.width}
+          height={image?.size.height}
           style={style}
           loading="lazy"
           decoding="async"
@@ -116,7 +137,7 @@ export function Picture({
       href={href}
       alt={alt}
       title={title}
-      size={pictures.sizes.get(href)}
+      image={pictures.images.get(href)}
       data-highlights={highlights}
     />
   ) : (
