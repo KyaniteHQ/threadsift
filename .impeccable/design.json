@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-15T23:38:42Z",
+  "generatedAt": "2026-11-16T00:12:29Z",
   "title": "Design System: Threadsift",
   "extensions": {
     "colorMeta": {
@@ -226,7 +226,7 @@
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Item titles in rows and cards. An unread title takes --dw-strong, 700 in the default Plex pair; Instrument Serif and the Cal.com Style have one display weight, so there the unread dot alone marks it in the Item list and in Grid, and a Topic page row, which has no dot, looks the same read or unread."
+        "purpose": "Item titles in rows and cards. An unread title takes --dw-strong, 700 in the default Plex pair; Instrument Serif and the Cal.com Style have one display weight, so there the unread dot alone marks it, in the Item list, in Grid and on a Topic page."
       },
       "body": {
         "displayName": "Body",

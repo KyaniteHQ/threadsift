@@ -39,6 +39,24 @@
   gap: var(--s1) var(--s2);
   font-size: var(--t-meta);
 }
+.rl-dot {
+  flex: none;
+  width: var(--dot);
+  height: var(--dot);
+  border: 1.5px solid var(--ctl-line);
+  border-radius: var(--r4);
+}
+.rl-row[data-read="false"] .rl-dot {
+  border-color: var(--acc);
+  background: var(--acc);
+}
+@media (forced-colors: active) {
+  .rl-row[data-read="false"] .rl-dot {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+    background: CanvasText;
+  }
+}
 .rl-row .it-date {
   margin-left: auto;
 }

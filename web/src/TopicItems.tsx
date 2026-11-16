@@ -4,7 +4,7 @@ import { itemPath } from "../../src/core/item-path.ts";
 import type { TopicItem } from "../../src/core/topic-overview-contract.ts";
 import { useNavigateLink } from "./routing.ts";
 import { savedLabel } from "./saved-label.ts";
-import { SOURCE_LABELS } from "./text.ts";
+import { READ_LABELS, SOURCE_LABELS } from "./text.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 
 export const TopicItemRow = memo(function TopicItemRow({
@@ -19,6 +19,7 @@ export const TopicItemRow = memo(function TopicItemRow({
   navigate: (to: string) => void;
 }>) {
   const summaryId = useId();
+  const unreadId = useId();
   const to = itemPath(item.id);
 
   const open = useNavigateLink(navigate, to);
@@ -27,13 +28,24 @@ export const TopicItemRow = memo(function TopicItemRow({
     <li>
       <article className="rl-row" data-read={item.read}>
         <p className="it-meta">
+          <i className="rl-dot" />
+          {item.read ? null : (
+            <span id={unreadId} className="vh">
+              {READ_LABELS.unread}
+            </span>
+          )}
           <span className="src">{SOURCE_LABELS[item.source]}</span>
           <time className="it-date" dateTime={new Date(item.savedAt).toISOString()}>
             {savedLabel(item.savedAt, now)}
           </time>
         </p>
         <h2 className="rl-title">
-          <a className="rl-open" href={to} aria-describedby={summaryId} onClick={open}>
+          <a
+            className="rl-open"
+            href={to}
+            aria-describedby={item.read ? summaryId : `${unreadId} ${summaryId}`}
+            onClick={open}
+          >
             <bdi dir="auto">{item.title}</bdi>
           </a>
         </h2>
