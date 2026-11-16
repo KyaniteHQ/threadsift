@@ -6,6 +6,7 @@ import { RETRY_LABEL } from "./text.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 import { TopicItemsSection } from "./TopicItemsSection.tsx";
 import { TopicOverview } from "./TopicOverview.tsx";
+import { usePageName } from "./use-document-title.ts";
 import { type TopicState, useTopicPage } from "./use-topic-page.ts";
 
 function Loading() {
@@ -57,6 +58,7 @@ export function TopicPage({
 }: Readonly<{ topicKey: string; route: Route; back: () => void }>) {
   const { state, retry, loadMore, writeOverview } = useTopicPage(topicKey, route.replace);
   const name = state.status === "ready" ? state.topic.name : "";
+  usePageName(name);
 
   return (
     <div className="pg tp">
