@@ -16,6 +16,8 @@ import {
 import { useFlow } from "./use-flow.ts";
 import { useModalDialog } from "./use-modal-dialog.ts";
 
+export const DELETE_DIALOG_CLASS = "dlg";
+
 function useDeleteModal(
   dialog: RefObject<HTMLDialogElement | null>,
   first: RefObject<HTMLElement | null>,
@@ -96,7 +98,7 @@ function DeleteDialog({
   return (
     <dialog
       ref={dialog}
-      className="dlg"
+      className={DELETE_DIALOG_CLASS}
       aria-labelledby={titleId}
       aria-describedby={textId}
       aria-busy={pending}

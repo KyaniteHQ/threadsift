@@ -1,9 +1,11 @@
 import { useEffect, useEffectEvent } from "react";
 
+import { DELETE_DIALOG_CLASS } from "./DeleteItem.tsx";
 import { PANEL_SELECTOR } from "./panel-dom.ts";
 
-const TYPING = `input, textarea, select, ${PANEL_SELECTOR}, dialog.dlg, [popover], [contenteditable]`;
+const TYPING = `input, textarea, select, ${PANEL_SELECTOR}, [popover], [contenteditable]`;
 const POPOVER_OPEN = ":popover-open";
+const DELETE_DIALOG_OPEN = `dialog.${DELETE_DIALOG_CLASS}[open]`;
 const SIDEWAYS = "pre, .tbl";
 
 interface KeyActions {
@@ -69,7 +71,12 @@ export function useLibraryKeys(actions: KeyActions): void {
     const target = event.target instanceof Element ? event.target : null;
     const modified = event.metaKey || event.ctrlKey || event.altKey;
 
-    if (!event.defaultPrevented && !modified && target?.closest(TYPING) === null) {
+    const libraryKeysOff =
+      target === null ||
+      target.closest(TYPING) !== null ||
+      document.querySelector(DELETE_DIALOG_OPEN) !== null;
+
+    if (!event.defaultPrevented && !modified && !libraryKeysOff) {
       press(event, target, actions);
     }
   });
