@@ -66,7 +66,7 @@ export function useReaderControls({
   dom: LibraryDom;
 }>): ReaderState {
   const [hintInBar, setHintInBar] = useState(false);
-  const { announcement, announce, toggleRead } = useAnnouncement(writes.setRead);
+  const { announcement, announce, retract, toggleRead } = useAnnouncement(writes.setRead);
   const remove = useDeletion({ route, attend, announce, appOf: dom.appOf, remove: writes.remove });
 
   const navigation = useNavigation({
@@ -76,6 +76,7 @@ export function useReaderControls({
     dom,
     more: writes.more,
     announce,
+    retract,
     covers: look.reader !== "pane",
   });
 
