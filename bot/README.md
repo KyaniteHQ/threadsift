@@ -1,6 +1,6 @@
 # The Threadsift bot
 
-The Threadsift bot is a Grok Bot for one Threadsift Instance. It answers tasks Threadsift sends (reading an X link with replies, writing a Digest), saves links you drop in chat, searches your library when asked, and can sync new X bookmarks.
+The Threadsift bot is a Grok Bot for one Threadsift Instance. It answers tasks Threadsift sends (reading an X link with its replies, the posts it quotes and its photos, writing a Digest), saves links you drop in chat, searches your library when asked, and can sync new X bookmarks.
 
 The folder holds the skill (`skills/threadsift/SKILL.md`, which carries the rules of the bot: what it never does, its voice, what its memory holds), the profile (`profile.md`, one description, because a template has one profile field), the setup and update guides the bot follows, two routine prompts and the script (`scripts/threadsift.sh`) that makes every call to the Instance.
 

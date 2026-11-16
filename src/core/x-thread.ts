@@ -6,7 +6,7 @@ import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts
 import type { StoredParse } from "./stored-thread.ts";
 import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
 import { type JoinedPost, joinedPost, postTitle } from "./x-joined-post.ts";
-import { type XReply, type XThreadValue, XThreadSchema } from "./x-wire.ts";
+import { type XReply, type XThreadValue, XBotThreadSchema, XThreadSchema } from "./x-wire.ts";
 import { fieldNamesOf, issueCodesOf } from "./zod-reasons.ts";
 
 const NOT_READABLE = "the content is not readable JSON";
@@ -222,7 +222,10 @@ type ThreadRead =
   | { readonly kind: "value"; readonly value: XThreadValue }
   | { readonly kind: "refused"; readonly reason: string; readonly logged: string };
 
-export function readXThreadValue(answer: string): ThreadRead {
+function readThread(
+  answer: string,
+  schema: typeof XThreadSchema | typeof XBotThreadSchema,
+): ThreadRead {
   let json: unknown;
 
   try {
@@ -235,7 +238,7 @@ export function readXThreadValue(answer: string): ThreadRead {
     throw error;
   }
 
-  const parsed = XThreadSchema.safeParse(json);
+  const parsed = schema.safeParse(json);
 
   if (parsed.success) return { kind: "value", value: parsed.data };
 
@@ -252,8 +255,12 @@ export function readXThreadValue(answer: string): ThreadRead {
   };
 }
 
+export function readXBotThreadValue(answer: string): ThreadRead {
+  return readThread(answer, XBotThreadSchema);
+}
+
 export function parseXThread(answer: string, statusId: string): StoredParse {
-  const read = readXThreadValue(answer);
+  const read = readThread(answer, XThreadSchema);
 
   if (read.kind !== "value") return read;
 

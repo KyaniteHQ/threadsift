@@ -85,13 +85,18 @@ export const XThreadSchema = threadSchemaOf(
   PostText,
 );
 
-const CliThreadSchema = threadSchemaOf(WirePostedAt, z.never().optional(), PhotoUrls, z.string());
+export const XBotThreadSchema = threadSchemaOf(
+  WirePostedAt,
+  z.never().optional(),
+  PhotoUrls,
+  z.string(),
+);
 
-export const XCliThreadSchema = CliThreadSchema.extend({
-  post: CliThreadSchema.shape.post.extend({
-    quoted: CliThreadSchema.shape.post.shape.quoted.unwrap(),
+export const XCliThreadSchema = XBotThreadSchema.extend({
+  post: XBotThreadSchema.shape.post.extend({
+    quoted: XBotThreadSchema.shape.post.shape.quoted.unwrap(),
   }),
-  replies: repliesArrayOf(CliThreadSchema.shape.replies.element.extend({ replies: Count })),
+  replies: repliesArrayOf(XBotThreadSchema.shape.replies.element.extend({ replies: Count })),
 });
 
 export const StoredXThreadSchema = threadSchemaOf(
