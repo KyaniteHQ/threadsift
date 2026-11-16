@@ -42,8 +42,9 @@
 
    Literal values that stay in the component styles, on purpose:
    - 1px hairline borders, the 1.5px unread-dot ring, the 3px swatch inner
-     ring, blockquote bar and open-row bar, and the 2px focus ring, its
-     offset, the progress line and the segmented controls' inset;
+     ring, blockquote bar and open-row bar, the 3px forced-colours borders
+     of an open Grid card and of a phone reply rail, and the 2px focus ring,
+     its offset, the progress line and the segmented controls' inset;
    - the swatch's 2px border and the 2px overlay that covers it, the 2px
      outline that marks the chosen swatch under forced colours, and the 24rem
      panel width under which the settings panel stacks each label above its
