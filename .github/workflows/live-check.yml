@@ -23,11 +23,7 @@ jobs:
       - uses: ./.github/actions/setup-devenv
         with:
           unprivileged-userns: "true"
-      - id: layer-cache
-        if: matrix.target == 'container'
-        uses: ./.github/actions/layer-cache-restore
       - env:
-          THREADSIFT_LAYER_CACHE: ${{ steps.layer-cache.outputs.cache-hit == 'true' && steps.layer-cache.outputs.path || '' }}
           GITHUB_TOKEN: ${{ github.token }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ matrix.target == 'container' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
         run: devenv tasks run live:${{ matrix.target }} --show-output
