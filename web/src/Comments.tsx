@@ -190,7 +190,7 @@ function Branches({
   first: boolean;
 }>) {
   return (
-    <ol className="tree">
+    <ol role="list" className="tree">
       {branches.map(({ node, replies }, index) => (
         <li
           key={node.id}
@@ -243,13 +243,12 @@ function CommentTree({
   section: { counts, note },
   nodes,
 }: Readonly<{ item: Item; section: Section; nodes: readonly CommentNode[] }>) {
-  const heading = useId();
   const branches = nest(nodes);
 
   return (
-    <section className="rd-comments" aria-labelledby={heading}>
+    <section className="rd-comments">
       <div className="rd-sec-h">
-        <h3 id={heading} className="rd-h" tabIndex={-1}>
+        <h3 className="rd-h" tabIndex={-1}>
           {COMMENTS_TITLE}
         </h3>
         {counts === null ? null : <p className="rd-count">{countLabel(counts, "heading")}</p>}

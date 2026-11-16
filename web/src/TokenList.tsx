@@ -143,7 +143,7 @@ export function TokenList({
     <>
       <Alert text={flow.kind === "failed" ? SETTINGS.revokeFailed : null} />
       {tokens.length === 0 ? null : (
-        <ul className="toks">
+        <ul role="list" className="toks">
           {tokens.map((token) => (
             <TokenRow
               key={token.id}

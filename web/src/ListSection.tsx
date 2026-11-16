@@ -21,7 +21,7 @@ function Skipped({ reason, skipped }: Readonly<{ reason: SkipReason; skipped: Sk
     <div className="imp-skipped">
       <p>{skippedLabel(reason, skipped.count)}</p>
       <p className="label">{skippedLead(reason)}</p>
-      <ul className="imp-lines">
+      <ul role="list" className="imp-lines">
         {skipped.first.map(({ row, text }) => (
           <li key={row}>
             <span className="imp-line">{skippedLineLabel(row)}</span>

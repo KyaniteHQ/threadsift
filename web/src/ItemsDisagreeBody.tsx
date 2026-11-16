@@ -60,7 +60,7 @@ export function ItemsDisagreeBody({
         </a>
         {ITEMS_DISAGREE_EFFECT.after}
       </h3>
-      <ul className="pr-sides" id={sidesId(proposal.id)}>
+      <ul role="list" className="pr-sides" id={sidesId(proposal.id)}>
         <SideOf side={first} other={second} openItem={openItem} />
         <SideOf side={second} other={first} openItem={openItem} />
       </ul>

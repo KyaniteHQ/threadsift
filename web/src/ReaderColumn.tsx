@@ -85,7 +85,7 @@ function Summary({
       </p>
       <p className="rd-summary">{digest.summary}</p>
       <h3 className="label">{KEY_POINTS_LABEL}</h3>
-      <ul className="rd-points">
+      <ul role="list" className="rd-points">
         {keyed(digest.keyPoints).map(({ key, text }) => (
           <li key={key}>{text}</li>
         ))}

@@ -1,6 +1,6 @@
 import { type MouseEvent, type ReactNode, useCallback, useRef } from "react";
 
-import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
+import { EmptyState, Notice, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { PageBar } from "./PageBar.tsx";
 import { RETRY_LABEL } from "./text.ts";
@@ -54,9 +54,9 @@ function Rows<Page extends PagedPage, Row>({
   );
 
   return (
-    <section aria-labelledby={RESULTS_ID} className="rl-items">
+    <section className="rl-items">
       <header className="list-head">
-        <h2 id={RESULTS_ID} className="results" tabIndex={-1}>
+        <h2 className="results" tabIndex={-1}>
           {listing.head(ready)}
         </h2>
         <p className="label">{listing.text.sort}</p>

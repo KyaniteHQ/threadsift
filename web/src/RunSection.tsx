@@ -29,7 +29,7 @@ function CountsList({ progress }: Readonly<{ progress: Progress }>) {
   const { counts } = progress;
 
   return (
-    <ul className="imp-counts">
+    <ul role="list" className="imp-counts">
       <li>{countLabel(counts.added, "added")}</li>
       <li>{countLabel(counts.known, "known")}</li>
       <li>{countLabel(counts.refused, "refused")}</li>
