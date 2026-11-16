@@ -290,5 +290,11 @@ export const SAVED_COMMENT = "Saved comment";
 export const STYLE_NOTE = "Set by the style";
 export const OPEN_AS_NARROW_NOTE = "Items open as a full page at this width.";
 export const NO_DIGEST = "No Digest";
-
 export const DIGEST_NOT_UPDATED = "Digest not updated";
+
+export const FIELD_TEXT = {
+  required: "Enter a value.",
+  legend: "Fields marked with * are required.",
+  spoken: (label: string): string => `${label}: ${FIELD_TEXT.required}`,
+  mark: " *",
+} as const;
