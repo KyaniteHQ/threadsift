@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { type AiTaskDefinition, MAX_OUTPUT_TOKENS } from "./ai-contract.ts";
-import { plainText } from "./plain-text.ts";
+import { isReadableText, plainText } from "./plain-text.ts";
 import { OVERVIEW_LINES_MAX, OVERVIEW_TEXT_MAX } from "./topic-overview-contract.ts";
 
 const OVERVIEW_INSTRUCTIONS =
@@ -17,7 +17,9 @@ const SOURCES_MAX = 5;
 
 const LineSchema = z
   .object({
-    text: plainText(LINE_TEXT_MAX),
+    text: plainText(LINE_TEXT_MAX).refine(isReadableText, {
+      error: "must not hold a control character or a lone surrogate",
+    }),
     items: z.array(z.number().int().positive()).min(1).max(SOURCES_MAX).readonly(),
   })
   .readonly();
