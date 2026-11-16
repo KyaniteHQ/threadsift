@@ -5,6 +5,7 @@ import { changeSettings } from "./change.ts";
 import type { Config } from "./config.ts";
 import { loadConfig, loadConfigView } from "./credentials.ts";
 import { logFailure } from "./log.ts";
+import { newestRequest } from "./newest-request.ts";
 import { connectReddit, disconnectReddit, readRedditState } from "./reddit-account.ts";
 import { savePage } from "./save.ts";
 import {
@@ -16,6 +17,7 @@ import {
   type RedditRequest,
   RedditRequestSchema,
   SAVE_PORT,
+  badgeTextOf,
   SETTINGS_PORT,
   SettingsRequestSchema,
   type SaveState,
@@ -33,6 +35,55 @@ async function serve(port: Port, compute: () => Promise<Answer>): Promise<void> 
     logFailure(`${port.name}-answer-failed`, cause);
     port.disconnect();
   }
+}
+
+const trackSave = newestRequest();
+
+async function showBadge(text: string): Promise<void> {
+  try {
+    await browser.action.setBadgeText({ text });
+  } catch (cause) {
+    logFailure("save-badge-failed", cause);
+  }
+}
+
+// oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a browser Port holds mutable listener state, so it cannot be deeply readonly.
+async function serveSave(port: Port): Promise<void> {
+  const isNewest = trackSave();
+  void showBadge("");
+  let popupOpen = true;
+
+  port.onDisconnect.addListener(() => {
+    popupOpen = false;
+  });
+
+  let state: SaveState;
+
+  try {
+    state = await savePage();
+  } catch (cause) {
+    logFailure(`${port.name}-answer-failed`, cause);
+
+    if (popupOpen) {
+      port.disconnect();
+
+      return;
+    }
+
+    state = { kind: "failed" };
+  }
+
+  if (popupOpen) {
+    try {
+      port.postMessage(state);
+
+      return;
+    } catch (cause) {
+      logFailure(`${port.name}-answer-failed`, cause);
+    }
+  }
+
+  if (isNewest()) await showBadge(badgeTextOf(state));
 }
 
 const REDDIT_CALLS = {
@@ -77,7 +128,7 @@ export function servePort(port: Port): void {
 
   switch (port.name) {
     case SAVE_PORT:
-      void serve(port, savePage);
+      void serveSave(port);
       break;
     case CONFIG_PORT:
       void serve(port, loadConfigView);

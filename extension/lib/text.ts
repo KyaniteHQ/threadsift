@@ -84,4 +84,6 @@ export const TEXT = {
     "Reddit stopped accepting the connected Reddit account; the button below reconnects it.",
   manifestDescription: "Save the page in your current tab to your Threadsift reading library.",
   actionTitle: "Save to Threadsift",
+  badgeSaved: "✓",
+  badgeNotSaved: "!",
 } as const;
