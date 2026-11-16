@@ -41,12 +41,14 @@
 .imp-box[readonly] {
   background: var(--surface-2);
 }
-.imp-box:focus-visible {
-  border-color: var(--acc-ink);
-  box-shadow: 0 0 0 1px var(--acc-ink);
-}
-.app .imp-box:focus-visible {
-  outline: none;
+@media (forced-colors: none) {
+  .imp-box:focus-visible {
+    border-color: var(--acc-ink);
+    box-shadow: 0 0 0 1px var(--acc-ink);
+  }
+  .app .imp-box:focus-visible {
+    outline: none;
+  }
 }
 .app[data-bp~="phone"] .imp-box {
   font-size: max(var(--t-floor), var(--t-body));

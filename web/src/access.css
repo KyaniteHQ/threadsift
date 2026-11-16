@@ -100,8 +100,7 @@
 .pg-bar[data-faces="loading"] .pg-title {
   opacity: 0;
 }
-.pg-title:focus,
-.rd-h:focus {
+.pg-title:focus:not(:focus-visible) {
   outline: none;
 }
 .pg-col {
