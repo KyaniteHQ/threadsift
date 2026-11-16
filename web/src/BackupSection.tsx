@@ -45,7 +45,7 @@ function State({ view, stale }: Readonly<{ view: ExportStatus; stale: boolean }>
       </output>
       {detail === null ? null : <p className="ai-meta">{detail}</p>}
       {stale ? <p className="ai-meta">{EXPORT_TEXT.stale}</p> : null}
-      {view.state === "failed" ? <Alert text={failureLabel(view.failure)} /> : null}
+      <Alert text={view.state === "failed" ? failureLabel(view.failure) : null} />
     </>
   );
 }

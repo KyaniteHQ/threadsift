@@ -72,8 +72,9 @@ export function FormField({
   children?: ReactNode;
 }>) {
   const id = useId();
-  const errorId = field.error === null ? null : `${id}-error`;
-  const helpId = help === undefined || errorId !== null ? null : `${id}-help`;
+  const errorId = `${id}-error`;
+  const failed = field.error !== null;
+  const helpId = help === undefined || failed ? null : `${id}-help`;
 
   return (
     <div className="fld">
@@ -81,7 +82,12 @@ export function FormField({
         {label}
       </label>
       <div className="field">
-        <Input field={field} id={id} kind={kind} described={describedBy(helpId, errorId)} />
+        <Input
+          field={field}
+          id={id}
+          kind={kind}
+          described={describedBy(helpId, failed ? errorId : null)}
+        />
         {children}
       </div>
       {action === undefined ? null : <div className="fld-action">{action}</div>}
@@ -90,11 +96,9 @@ export function FormField({
           {help}
         </p>
       )}
-      {errorId === null ? null : (
-        <p className="fld-err" id={errorId} role="alert">
-          {field.error}
-        </p>
-      )}
+      <p className="fld-err" id={errorId} role="alert">
+        {field.error}
+      </p>
     </div>
   );
 }
