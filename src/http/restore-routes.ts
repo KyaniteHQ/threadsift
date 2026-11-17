@@ -12,7 +12,7 @@ import {
 import { createRestore, storePart } from "../core/restore-run.ts";
 import { startRestore } from "../core/restore-start.ts";
 import { restoreStatus } from "../core/restore-state.ts";
-import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
+import { OWNER_SESSION_REFUSALS, jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
 
 const PartParamsSchema = IdParamSchema.extend({ part: z.coerce.number().int().positive() });
@@ -38,8 +38,7 @@ const createRestoreRoute = createRoute({
       ErrorResponseSchema,
       "`parts` is not `bytes` divided by `partBytes`, rounded up.",
     ),
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
     409: jsonBody(
       RestoreErrorSchema,
       `\`code\` is \`library-not-empty\`: ${LIBRARY_NOT_EMPTY} Or \`restore-open\`: ${OPEN}`,
@@ -55,8 +54,7 @@ const statusRoute = createRoute({
       RestoreStatusSchema,
       `The newest restore, or \`{ "state": "none" }\`. \`libraryEmpty\` says whether a restore can start. \`uploading\` lists the \`received\` parts, so a client that reloaded sends the missing ones. \`running\` carries the \`phase\` (\`check\`, \`tables\` or \`finish\`) and the rows \`restored\` and \`dropped\` for each table, where a dropped row had no parent row in the zip or repeated the key of an earlier row. \`cancelling\` has no counts. \`done\` carries the same counts. \`failed\` carries a \`failure\` word: a refusal code of the check (\`not-a-zip\`, \`unsupported-compression\`, \`bad-entry-name\`, \`no-manifest\`, \`format\`, \`other-release\`, \`unknown-table\`, \`unknown-column\`, \`missing-column\` or \`crc\`), or \`gave-up\` (a unit failed 3 times). \`cancelFailed\` is true when the failed run was a cancel. \`resumable\` is true for \`gave-up\` while every part of the zip is still stored, and a refusal keeps no part. \`cancelled\` has no counts.${OWNER_ONLY}`,
     ),
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
   },
 });
 
@@ -75,8 +73,7 @@ const partRoute = createRoute({
       `The part is stored. Sending a part again replaces it, so a repeat is safe. The body must be exactly \`partBytes\` (${String(RESTORE_PART_BYTES)}) bytes, except the last part, which holds the rest.${OWNER_ONLY}`,
     ),
     400: jsonBody(ErrorResponseSchema, "The body is not the length this part must have."),
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
     404: jsonBody(ErrorResponseSchema, "No restore has this id, or it has no such part."),
     409: jsonBody(ErrorResponseSchema, "The restore is no longer waiting for its upload."),
     413: jsonBody(ErrorResponseSchema, "The body is longer than `partBytes`."),
@@ -96,8 +93,7 @@ const startRoute = createRoute({
       RestoreErrorSchema,
       "`code` is `incomplete-upload`: a part has not arrived, and the restore keeps its parts.",
     ),
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
     404: jsonBody(ErrorResponseSchema, "No restore has this id."),
     409: jsonBody(
       RestoreErrorSchema,
@@ -118,8 +114,7 @@ const cancelRoute = createRoute({
     204: noContent(
       `The restore was waiting for its upload, or is already cancelled. Its parts are deleted, and a new restore is accepted.${OWNER_ONLY}`,
     ),
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
     404: jsonBody(ErrorResponseSchema, "No restore has this id."),
     409: jsonBody(
       ErrorResponseSchema,
@@ -141,8 +136,7 @@ const resumeRoute = createRoute({
       RestoreErrorSchema,
       "`code` is `incomplete-upload`: a part of the zip is gone, so the restore cannot continue. Cancel it and upload the zip again.",
     ),
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
     404: jsonBody(ErrorResponseSchema, "No restore has this id."),
     409: jsonBody(
       ErrorResponseSchema,
