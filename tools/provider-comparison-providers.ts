@@ -1,16 +1,11 @@
 import { z } from "zod";
 
-import {
-  type AiExecution,
-  type AiTaskRequest,
-  PROVIDERS,
-  ModelDigestSchema,
-} from "../src/core/ai-contract.ts";
+import { type AiConnection, PROVIDERS } from "../src/core/ai-contract.ts";
+import type { AiRuntime } from "../src/core/ports.ts";
 import { claudeCode } from "../src/targets/node/claude-code.ts";
 import { Slots } from "../src/targets/node/cli-slots.ts";
 import { codexCli } from "../src/targets/node/codex-cli.ts";
-import { runHttp } from "../src/targets/shared/ai-executor.ts";
-import type { CliRunner } from "../src/targets/shared/ai-runtime.ts";
+import { type CliRunner, aiAndSecrets } from "../src/targets/shared/ai-runtime.ts";
 import { bindingRunner } from "../src/targets/worker/ai-binding.ts";
 
 export const ProvidersSchema = z
@@ -25,18 +20,38 @@ export const ProvidersSchema = z
   .readonly();
 
 export type ProviderSpec = z.infer<typeof ProvidersSchema>[number];
-type DigestRequest = Omit<AiTaskRequest<z.infer<typeof ModelDigestSchema>>, "config">;
+type Adapters = Pick<Parameters<typeof aiAndSecrets>[0], "cli" | "binding">;
 
 export type PreparedProvider =
   | { readonly kind: "unavailable"; readonly reason: string }
   | {
       readonly kind: "ready";
-      readonly run: (
-        task: Readonly<DigestRequest>,
-        signal: AbortSignal,
-      ) => Promise<AiExecution<z.infer<typeof ModelDigestSchema>>>;
+      readonly config: AiConnection;
+      readonly run: AiRuntime["run"];
       readonly stop: () => void;
     };
+
+async function ready(
+  config: AiConnection,
+  adapters: Readonly<Adapters> = {},
+): Promise<PreparedProvider> {
+  const { ai } = await aiAndSecrets({
+    publicOnly: false,
+    secretKey: undefined,
+    request: fetch,
+    openRouterMaxPriceZero: "true",
+    ...adapters,
+  });
+
+  return {
+    kind: "ready",
+    config,
+    run: ai.run,
+    stop: () => {
+      for (const runner of adapters.cli ?? []) runner.stop();
+    },
+  };
+}
 
 async function preparedCli(
   runner: CliRunner | null,
@@ -49,25 +64,15 @@ async function preparedCli(
     return { kind: "unavailable", reason: "cli-not-signed-in" };
   }
 
-  return {
-    kind: "ready",
-    stop: () => {
-      runner.stop();
-    },
-    run: (task, signal) =>
-      runner.run(
-        { ...task, config: { kind: "cli", provider: runner.provider, model: spec.model } },
-        signal,
-      ),
-  };
+  return ready({ kind: "cli", provider: runner.provider, model: spec.model }, { cli: [runner] });
 }
 
-function workersAi(spec: Readonly<ProviderSpec>): PreparedProvider {
+function workersAi(spec: Readonly<ProviderSpec>): Promise<PreparedProvider> {
   const account = process.env["CLOUDFLARE_ACCOUNT_ID"];
   const token = process.env["CLOUDFLARE_WORKERS_AI_TOKEN"];
 
   if (account === undefined || account === "" || token === undefined || token === "")
-    return { kind: "unavailable", reason: "workers-ai-credentials-missing" };
+    return Promise.resolve({ kind: "unavailable", reason: "workers-ai-credentials-missing" });
   const runner = bindingRunner({
     run: async (model, inputs, { signal }) => {
       const response = await fetch(
@@ -89,45 +94,24 @@ function workersAi(spec: Readonly<ProviderSpec>): PreparedProvider {
     },
   });
 
-  return {
-    kind: "ready",
-    stop: () => {},
-    run: (task, signal) =>
-      runner(
-        { ...task, config: { kind: "binding", provider: "workers-ai", model: spec.model } },
-        signal,
-      ),
-  };
+  return ready({ kind: "binding", provider: "workers-ai", model: spec.model }, { binding: runner });
 }
 
-function openRouter(spec: Readonly<ProviderSpec>): PreparedProvider {
+function openRouter(spec: Readonly<ProviderSpec>): Promise<PreparedProvider> {
   if (!spec.model.endsWith(":free") && spec.model !== "openrouter/free")
-    return { kind: "unavailable", reason: "openrouter-model-must-be-free" };
+    return Promise.resolve({ kind: "unavailable", reason: "openrouter-model-must-be-free" });
   const key = process.env["OPENROUTER_API_KEY"];
 
   if (key === undefined || key === "")
-    return { kind: "unavailable", reason: "openrouter-key-missing" };
+    return Promise.resolve({ kind: "unavailable", reason: "openrouter-key-missing" });
 
-  return {
-    kind: "ready",
-    stop: () => {},
-    run: (task, signal) =>
-      runHttp(
-        fetch,
-        {
-          ...task,
-          config: {
-            kind: "http",
-            provider: "openrouter",
-            baseUrl: PROVIDERS.openrouter.url,
-            model: spec.model,
-            key,
-          },
-        },
-        signal,
-        true,
-      ),
-  };
+  return ready({
+    kind: "http",
+    provider: "openrouter",
+    baseUrl: PROVIDERS.openrouter.url,
+    model: spec.model,
+    key,
+  });
 }
 
 export async function prepareProvider(

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { access, readFile, realpath } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { readFile, realpath } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -55,17 +56,16 @@ export function schemaHash(): string {
 
 export async function outsideRepository(folder: string): Promise<string> {
   const canonical = await realpath(folder);
-  const inRepository = await access(join(canonical, ".git")).then(
-    () => true,
-    () => false,
-  );
+  let parent = canonical;
 
-  if (inRepository) throw new ComparisonError("Output must be outside every git checkout");
-  const parent = dirname(canonical);
+  for (;;) {
+    if (existsSync(join(parent, ".git")))
+      throw new ComparisonError("Output must be outside every git checkout");
+    const next = dirname(parent);
 
-  if (parent !== canonical) await outsideRepository(parent);
-
-  return canonical;
+    if (next === parent) return canonical;
+    parent = next;
+  }
 }
 
 function captureItem(sqlite: DatabaseSync, selector: z.infer<typeof Selector>): ComparisonItem {

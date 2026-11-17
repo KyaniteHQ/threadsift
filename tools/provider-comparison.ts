@@ -2,9 +2,7 @@ import { execFileSync } from "node:child_process";
 import { type FileHandle, mkdtemp, open, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { z } from "zod";
-
-import { AI_DEADLINE_MS, type AiExecution, ModelDigestSchema } from "../src/core/ai-contract.ts";
+import { AI_DEADLINE_MS } from "../src/core/ai-contract.ts";
 import { TASKS } from "../src/core/ai-tasks.ts";
 import { submittedAmong } from "../src/core/reddit-thread.ts";
 import {
@@ -23,6 +21,8 @@ import {
   ProvidersSchema,
   prepareProvider,
 } from "./provider-comparison-providers.ts";
+
+const PRIVATE_OUTPUT = { flag: "wx", mode: 0o600 } as const;
 
 const shutdown = new AbortController();
 
@@ -43,6 +43,7 @@ async function outcome(item: Readonly<ComparisonItem>, provider: PreparedProvide
   try {
     const result = await provider.run(
       {
+        config: provider.config,
         instructions: TASKS.digest.instructions,
         schema: TASKS.digest.schema,
         input: TASKS.digest.prepareInput(item.input),
@@ -51,36 +52,25 @@ async function outcome(item: Readonly<ComparisonItem>, provider: PreparedProvide
       AbortSignal.any([shutdown.signal, AbortSignal.timeout(AI_DEADLINE_MS)]),
     );
 
-    return digestResult(result, item.submitted);
+    if (result.kind !== "done") return result;
+
+    return {
+      kind: "done",
+      digest: result.result,
+      keptComments: submittedAmong(result.result.keptComments, item.submitted),
+    } as const;
   } catch {
     return { kind: "unavailable", reason: "executor-failed" } as const;
   }
 }
 
-function digestResult(
-  result: AiExecution<z.infer<typeof ModelDigestSchema>>,
-  submitted: readonly string[],
-) {
-  if (result.kind !== "done") return result;
-  const digest = ModelDigestSchema.parse(result.result);
-
-  return {
-    kind: "done",
-    digest,
-    keptComments: submittedAmong(digest.keptComments, submitted),
-  } as const;
-}
-
-async function recordItems(
+async function recordItem(
   records: Readonly<FileHandle>,
-  items: Snapshot["items"],
+  item: Readonly<ComparisonItem>,
   spec: Readonly<ProviderSpec>,
   provider: PreparedProvider,
   index: number,
 ): Promise<void> {
-  const item = items[index];
-
-  if (item === undefined) return;
   const start = performance.now();
   const result = await outcome(item, provider);
   const elapsedMs = performance.now() - start;
@@ -98,19 +88,14 @@ async function recordItems(
   );
   await records.sync();
   console.info(JSON.stringify({ provider: spec.id, index, kind: result.kind }));
-  await recordItems(records, items, spec, provider, index + 1);
 }
 
-async function recordProviders(
+async function recordProvider(
   records: Readonly<FileHandle>,
   items: Snapshot["items"],
-  specs: readonly Readonly<ProviderSpec>[],
+  spec: Readonly<ProviderSpec>,
   folder: string,
-  index: number,
 ): Promise<void> {
-  const spec = specs[index];
-
-  if (spec === undefined) return;
   let provider: PreparedProvider;
 
   try {
@@ -122,12 +107,13 @@ async function recordProviders(
   }
 
   try {
-    await recordItems(records, items, spec, provider, 0);
+    for (const [index, item] of items.entries()) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Provider calls share the owner's subscription and run serially.
+      await recordItem(records, item, spec, provider, index);
+    }
   } finally {
     if (provider.kind === "ready") provider.stop();
   }
-
-  await recordProviders(records, items, specs, folder, index + 1);
 }
 
 async function run(snapshotPath: string, providersPath: string, outputRoot: string): Promise<void> {
@@ -155,15 +141,21 @@ async function run(snapshotPath: string, providersPath: string, outputRoot: stri
     deadlineMs: AI_DEADLINE_MS,
   };
 
-  await writeFile(join(folder, "manifest.json"), JSON.stringify(manifest, null, 2), {
-    flag: "wx",
-    mode: 0o600,
-  });
-  await writeFile(join(folder, "inputs.json"), snapshotText, { flag: "wx", mode: 0o600 });
-  const records = await open(join(folder, "records.jsonl"), "wx", 0o600);
+  await Promise.all([
+    writeFile(join(folder, "manifest.json"), JSON.stringify(manifest, null, 2), PRIVATE_OUTPUT),
+    writeFile(join(folder, "inputs.json"), snapshotText, PRIVATE_OUTPUT),
+  ]);
+  const records = await open(
+    join(folder, "records.jsonl"),
+    PRIVATE_OUTPUT.flag,
+    PRIVATE_OUTPUT.mode,
+  );
 
   try {
-    await recordProviders(records, snapshot.items, providers, folder, 0);
+    for (const spec of providers) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Each Provider finishes before the next subscription starts.
+      await recordProvider(records, snapshot.items, spec, folder);
+    }
   } finally {
     await records.close();
   }
@@ -184,10 +176,7 @@ async function main(): Promise<void> {
     const snapshot = await capture(first, second);
     const folder = await mkdtemp(join(root, "inputs-"));
 
-    await writeFile(join(folder, "inputs.json"), JSON.stringify(snapshot, null, 2), {
-      flag: "wx",
-      mode: 0o600,
-    });
+    await writeFile(join(folder, "inputs.json"), JSON.stringify(snapshot, null, 2), PRIVATE_OUTPUT);
     console.info(JSON.stringify({ items: snapshot.items.length, folder }));
 
     return;
