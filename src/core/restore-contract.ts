@@ -76,7 +76,7 @@ export const RESTORE_FAILURES = [...RESTORE_REFUSALS, "gave-up"] as const;
 
 export type RestoreFailure = (typeof RESTORE_FAILURES)[number];
 
-const WholeCount = z.number().int().nonnegative();
+export const WholeCount = z.number().int().nonnegative();
 
 export const CountsSchema = z.record(z.string(), WholeCount).readonly();
 

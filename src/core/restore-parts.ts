@@ -1,12 +1,14 @@
-import { and, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, or } from "drizzle-orm";
 
 import { report } from "./failure-log.ts";
 import {
   FILE_LIST_LIMIT,
   RESTORE_FILES_ROOT,
   parseStoredKey,
+  removeUnder,
   restoreFilesPrefix,
 } from "./file-keys.ts";
+import { among } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import type { FileStore } from "./ports.ts";
 import { RESTORE_PARTS_KEEP_MS } from "./restore-contract.ts";
@@ -16,12 +18,7 @@ import { restoreRuns } from "./schema.ts";
 type PartPorts = Pick<JobPorts, "db" | "files">;
 
 export async function removeParts(files: FileStore, id: number): Promise<void> {
-  const page = await files.list(restoreFilesPrefix(id), null, FILE_LIST_LIMIT);
-
-  if (page.keys.length === 0) return;
-
-  await files.delete(page.keys);
-  await removeParts(files, id);
+  await removeUnder(files, restoreFilesPrefix(id));
 }
 
 async function endAbandonedUploads({ db }: Pick<PartPorts, "db">): Promise<void> {
@@ -57,7 +54,7 @@ async function holdingParts(
     .from(restoreRuns)
     .where(
       and(
-        inArray(restoreRuns.id, sql`(select value from json_each(${JSON.stringify(owners)}))`),
+        among(restoreRuns.id, owners),
         or(
           inArray(restoreRuns.state, ["uploading", "running"]),
           and(

@@ -1,5 +1,5 @@
 import { crc32 } from "./crc32.ts";
-import { type Manifest, refused } from "./restore-check.ts";
+import { type Manifest, recordTableOf, refused } from "./restore-check.ts";
 import { type CheckCursor, RESTORE_CHECK_BYTES, RESTORE_LINE_BYTES } from "./restore-contract.ts";
 import { completeLines, parsedRow } from "./restore-lines.ts";
 import { type TableSpec, lineVerdict, tableSpec } from "./restore-registry.ts";
@@ -28,11 +28,9 @@ function recordSpec(
   { directory }: Readonly<Env>,
   { name }: Readonly<ZipEntry>,
 ): TableSpec | undefined {
-  const prefix = `${directory.root}/records/`;
+  const table = recordTableOf(directory, name);
 
-  return name.startsWith(prefix)
-    ? tableSpec(name.slice(prefix.length).split(".")[0] ?? "")
-    : undefined;
+  return table === null ? undefined : tableSpec(table);
 }
 
 function lineRefusal(

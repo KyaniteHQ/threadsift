@@ -5,8 +5,8 @@ import type { JobOutcome, JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { CountsSchema, RESTORE_UNIT_LINES, UndoCursorSchema } from "./restore-contract.ts";
 import { RESTORE_ORDER, type TableSpec, tableSpec } from "./restore-registry.ts";
-import { partKeysOf, precondition, steppedUnit } from "./restore-unit.ts";
-import { type RestoreRow, restoreRuns } from "./schema.ts";
+import { endedUnit, steppedUnit } from "./restore-unit.ts";
+import type { RestoreRow } from "./schema.ts";
 import { searchParts } from "./search-tables.ts";
 
 type Undone = Readonly<Pick<TableSpec, "table">>;
@@ -73,14 +73,5 @@ export async function undoUnit(
 
   const now = Date.now();
 
-  return {
-    writes: [
-      db
-        .update(restoreRuns)
-        .set({ state: "cancelled", finishedAt: now, updatedAt: now })
-        .where(sql`${restoreRuns.id} = ${run.id}`),
-    ],
-    precondition: precondition(db, run),
-    files: { written: [], superseded: partKeysOf(run) },
-  };
+  return endedUnit(db, run, { state: "cancelled", finishedAt: now, updatedAt: now });
 }
