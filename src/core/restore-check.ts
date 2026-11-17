@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 import { EXPORT_FORMAT } from "./export-contract.ts";
-import { recordPath } from "./export-manifest.ts";
-import { WholeCount } from "./kinds.ts";
+import { recordPath, recordTableOf } from "./export-manifest.ts";
 import { RESTORE_MANIFEST_BYTES, type RestoreRefusal } from "./restore-contract.ts";
-import { parsedJson } from "./restore-lines.ts";
+import { parsedJsonBytes } from "./restore-lines.ts";
 import { RESTORE_TABLES, tableSpec } from "./restore-registry.ts";
+import { WholeCount } from "./whole-count.ts";
 import { type ZipDirectory, ZipRefused, type ZipSource, entryBytes } from "./zip-read.ts";
 
 const ManifestSchema = z
@@ -24,22 +24,14 @@ const ManifestSchema = z
 
 export type Manifest = z.infer<typeof ManifestSchema>;
 
-const RECORD_FOLDER = "records/";
-
 const MANIFEST_NAME = "threadsift.json";
-
-export function recordTableOf(directory: Readonly<ZipDirectory>, name: string): string | null {
-  const prefix = `${directory.root}/${RECORD_FOLDER}`;
-
-  return name.startsWith(prefix) ? (name.slice(prefix.length).split(".")[0] ?? "") : null;
-}
 
 export function refused(code: RestoreRefusal, message: string): ZipRefused {
   return new ZipRefused(code, message);
 }
 
 function manifestOf(bytes: Uint8Array): Manifest {
-  const manifest = parsedJson(bytes, ManifestSchema);
+  const manifest = parsedJsonBytes(ManifestSchema, bytes);
 
   if (manifest === null) throw refused("format", "The manifest is not in the export format");
 

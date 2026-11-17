@@ -12,12 +12,12 @@ import {
   type RedditSession,
   type RequestHeaders,
   NetworkFailure,
+  rateLimitHeadersOf,
 } from "../../core/ports.ts";
 import { assertPublicHost } from "../../core/public-host.ts";
 import {
   REDDIT_HOST,
   boundedBody,
-  redditRateLimitOf,
   redditSessionHeaders,
   refusedRequestLine,
 } from "../../core/reddit-session.ts";
@@ -109,7 +109,7 @@ function exchange(
           status: response.statusCode ?? 0,
           location: response.headers.location ?? null,
           contentType: response.headers["content-type"] ?? null,
-          rateLimit: redditRateLimitOf((name) => firstHeader(response.headers[name])),
+          rateLimit: rateLimitHeadersOf((name) => firstHeader(response.headers[name])),
           body: decodedBody(response, encoding),
         });
       },
@@ -153,7 +153,7 @@ export const nodeRedditSession: RedditSession = {
       status: response.status,
       location: response.headers.get("location"),
       contentType: response.headers.get("content-type"),
-      rateLimit: redditRateLimitOf((name) => response.headers.get(name)),
+      rateLimit: rateLimitHeadersOf((name) => response.headers.get(name)),
       body: boundedBody(response.body ?? []),
     };
   },

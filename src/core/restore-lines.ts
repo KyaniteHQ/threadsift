@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { parsedJson } from "./parsed-json.ts";
+
 const NEWLINE = 0x0a;
 
 const TEXT = new TextDecoder("utf-8", { fatal: true });
@@ -36,18 +38,19 @@ export function completeLines(
   return { lines, consumed: Math.min(from, window.length) };
 }
 
-export function parsedJson<Parsed>(bytes: Uint8Array, schema: z.ZodType<Parsed>): Parsed | null {
+export function parsedJsonBytes<Schema extends z.ZodType>(
+  schema: Schema,
+  bytes: Uint8Array,
+): z.output<Schema> | null {
   try {
-    const parsed = schema.safeParse(JSON.parse(TEXT.decode(bytes)));
-
-    return parsed.success ? parsed.data : null;
+    return parsedJson(schema, TEXT.decode(bytes));
   } catch {
     return null;
   }
 }
 
 export function parsedRow(line: Uint8Array): Row | null {
-  return parsedJson(line, RowSchema);
+  return parsedJsonBytes(RowSchema, line);
 }
 
 export function rowsOf(lines: readonly Uint8Array[]): readonly Row[] {

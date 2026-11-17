@@ -31,7 +31,7 @@ export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
 
 function contentWrites(
   db: Database,
-  { normalizedUrl }: Readonly<ThreadPlace>,
+  normalizedUrl: string,
   owner: Readonly<Owner>,
   thread: Readonly<StoredThread>,
   pendingDigest: string | null,
@@ -68,7 +68,7 @@ export function threadPublication(
   const owner = ownerOf(place.normalizedUrl);
 
   return [
-    ...contentWrites(db, place, owner, thread, pendingDigest),
+    ...contentWrites(db, place.normalizedUrl, owner, thread, pendingDigest),
     ...threadWrites(db, owner, thread, null),
     ...fetchedPartWrites(db, eq(items.normalizedUrl, place.normalizedUrl), thread.postText),
     ...digestAfterFetch(db, { itemId: owner.id, address: place.address }),

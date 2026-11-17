@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { StoredCommentId } from "./comment-id.ts";
 import { HIGHLIGHT_REASONS } from "./kinds.ts";
+import { WholeCount } from "./whole-count.ts";
 
 const HighlightTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("post") }),
@@ -13,7 +14,7 @@ const ExactSchema = z
   .refine((quote) => quote.trim() !== "", "a quote holds a character that shows")
   .refine((quote) => quote.isWellFormed(), "a quote is well-formed Unicode");
 
-const PositionSchema = z.number().int().nonnegative();
+const PositionSchema = WholeCount;
 
 const SelectorSchema = z.object({
   exact: z.string(),

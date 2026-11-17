@@ -3,12 +3,21 @@ import { sql } from "drizzle-orm";
 import { BACKUP_TABLES } from "./backup-tables.ts";
 import { EXPORT_FORMAT, type ExportTally, exportRootName } from "./export-contract.ts";
 import type { Database } from "./ports.ts";
+import type { ZipDirectory } from "./zip-read.ts";
 import type { ZipFile } from "./zip.ts";
 
 const TEXT = new TextEncoder();
 
+const RECORD_FOLDER = "records/";
+
 export function recordPath(table: string, number: number): string {
-  return `records/${table}.${String(number)}.jsonl`;
+  return `${RECORD_FOLDER}${table}.${String(number)}.jsonl`;
+}
+
+export function recordTableOf(directory: Readonly<ZipDirectory>, name: string): string | null {
+  const prefix = `${directory.root}/${RECORD_FOLDER}`;
+
+  return name.startsWith(prefix) ? (name.slice(prefix.length).split(".")[0] ?? "") : null;
 }
 
 export async function appliedMigration(db: Database): Promise<string | null> {

@@ -1,8 +1,10 @@
 import { z } from "zod";
 
+import { WholeCount } from "./whole-count.ts";
+
 export const NOTE_MAX_CODE_POINTS = 10_000;
 
-const RevisionSchema = z.number().int().nonnegative();
+const RevisionSchema = WholeCount;
 
 const BodySchema = z
   .string()
