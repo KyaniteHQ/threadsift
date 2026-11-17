@@ -182,10 +182,6 @@ export default defineConfig({
       rules: { "typescript/prefer-readonly-parameter-types": "off" },
     },
     {
-      files: ["tools/extension-chromium/**"],
-      rules: { "typescript/prefer-readonly-parameter-types": "off" },
-    },
-    {
       files: ["src/core/**", "src/http/**"],
       rules: {
         "threadsift/static-import-source": "error",
