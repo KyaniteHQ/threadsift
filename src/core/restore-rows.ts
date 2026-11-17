@@ -1,6 +1,6 @@
 import { type SQL, and, getTableColumns, sql } from "drizzle-orm";
 
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import type { Database } from "./ports.ts";
 import { RESTORE_BIND_BYTES } from "./restore-contract.ts";
 import { type Row, rowsOf } from "./restore-lines.ts";

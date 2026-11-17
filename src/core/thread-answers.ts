@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import { MAX_THREAD_ANSWERS, THREAD_CONTENT_BYTES } from "./limits.ts";
 
 export type ThreadAnswers = readonly [string, ...string[]];

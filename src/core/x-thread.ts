@@ -1,6 +1,6 @@
 import { isPlainCodeDrop } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import type { ParsedThread, ThreadParse } from "./reddit-json.ts";
 import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts";
 import type { StoredParse } from "./stored-thread.ts";

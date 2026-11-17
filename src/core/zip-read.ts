@@ -1,5 +1,5 @@
 import { crc32 } from "./crc32.ts";
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import type { RestoreRefusal } from "./restore-contract.ts";
 import { LOCAL_HEADER_BYTES, LOCAL_SIGNATURE, joined } from "./zip.ts";
 

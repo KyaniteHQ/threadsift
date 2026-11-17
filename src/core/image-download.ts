@@ -1,5 +1,4 @@
-import { utf8Length } from "./digest-prompt.ts";
-import { fromBase64 } from "./encoding.ts";
+import { fromBase64, utf8Length } from "./encoding.ts";
 import { type Failed, type FetchPolicy, NO_HEADERS, guardedFetchBytes } from "./fetch-guard.ts";
 import { type ImageType, declaredImageType, sniffImageType } from "./image-type.ts";
 import type { MediaFailure } from "./kinds.ts";

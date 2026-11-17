@@ -1,5 +1,5 @@
-import { utf8Length } from "./digest-prompt.ts";
 import { DISAGREEMENT_INPUT_BYTES, type SentTopic } from "./disagreement-task.ts";
+import { utf8Length } from "./encoding.ts";
 import { pairKey } from "./proposal-candidates.ts";
 
 const MIN_ITEMS = 2;

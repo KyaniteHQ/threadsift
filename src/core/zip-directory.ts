@@ -1,4 +1,4 @@
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import { RESTORE_DIRECTORY_BYTES } from "./restore-contract.ts";
 import {
   ZipRefused,

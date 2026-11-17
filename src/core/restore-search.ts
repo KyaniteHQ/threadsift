@@ -1,6 +1,6 @@
 import { type SQL, asc, eq, gt, sql } from "drizzle-orm";
 
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import type { JobPorts, JobWrites, SettledOutcome } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { postTextOf } from "./post-text.ts";

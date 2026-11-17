@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import { among } from "./guards.ts";
 import { type AnchorSnapshot, commentIdsOf } from "./highlight-publish.ts";
 import type { JobPorts } from "./job-outcome.ts";

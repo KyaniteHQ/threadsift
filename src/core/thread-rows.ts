@@ -1,4 +1,4 @@
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 
 export interface ThreadNode {
   readonly id: string;

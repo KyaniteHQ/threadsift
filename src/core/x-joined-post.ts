@@ -1,4 +1,4 @@
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import { INLINE_TEXT_BYTES, X_QUOTES_MAX } from "./limits.ts";
 import { type JoinedAuthorThread, PART_SEPARATOR, joinedAuthorThread } from "./x-author-thread.ts";
 import { LINE_BREAK, closedBlocks } from "./x-blocks.ts";

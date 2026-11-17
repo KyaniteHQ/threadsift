@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import { type Digest, parseStoredDigest } from "./ai-contract.ts";
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, topicPages, topics } from "./schema.ts";

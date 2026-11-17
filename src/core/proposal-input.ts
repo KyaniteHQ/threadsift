@@ -1,6 +1,6 @@
 import { asc, count, eq, gt, inArray, sql } from "drizzle-orm";
 
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import type { MergeKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import {
