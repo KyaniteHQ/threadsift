@@ -1,10 +1,16 @@
 import type { LoadedFetcher } from "../../core/fetcher.ts";
 import type { CliRunner } from "../shared/ai-runtime.ts";
-import { type CliEnvironments, startCliRunners } from "./cli-runners.ts";
+import { type ClaudeEnvironment, claudeCode } from "./claude-code.ts";
+import { Slots } from "./cli-slots.ts";
+import { type CodexEnvironment, codexCli } from "./codex-cli.ts";
 import { loadFetchers } from "./fetcher-modules.ts";
 import { type GrokEnvironment, type StoppableXFetcher, grokXFetcher } from "./grok-x.ts";
 
-export interface OperatorCodeOptions extends CliEnvironments {
+const TASK_LIMIT = 2;
+
+export interface OperatorCodeOptions {
+  readonly claude: Readonly<ClaudeEnvironment>;
+  readonly codex: Readonly<CodexEnvironment>;
   readonly fetchers: string | undefined;
   readonly grok: Readonly<GrokEnvironment>;
 }
@@ -13,6 +19,7 @@ interface OperatorCode {
   readonly fetchers: readonly LoadedFetcher[];
   readonly cli: readonly CliRunner[];
   readonly xFetcher: StoppableXFetcher | null;
+  readonly stop: () => void;
 }
 
 export async function startOperatorCode({
@@ -22,10 +29,19 @@ export async function startOperatorCode({
   grok,
 }: Readonly<OperatorCodeOptions>): Promise<OperatorCode> {
   const loaded = await loadFetchers(fetchers);
+  const slots = new Slots(TASK_LIMIT);
+  const runners = await Promise.all([claudeCode(claude, slots), codexCli(codex, slots)]);
+  const cli = runners.filter((runner) => runner !== null);
+  const xFetcher = await grokXFetcher(grok);
 
   return {
     fetchers: loaded,
-    cli: await startCliRunners({ claude, codex }),
-    xFetcher: await grokXFetcher(grok),
+    cli,
+    xFetcher,
+    stop: () => {
+      for (const runner of cli) runner.stop();
+
+      xFetcher?.stop();
+    },
   };
 }

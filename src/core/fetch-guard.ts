@@ -7,12 +7,12 @@ import type { FetchFailure } from "./fetch-results.ts";
 import type { RateLimit } from "./github-rate-limit.ts";
 import { metaRefreshTarget } from "./meta-refresh.ts";
 import {
-  HOP_DEADLINE_MS,
   type Network,
   NetworkFailure,
   type NetworkFailureReason,
   type RequestHeaders,
 } from "./ports.ts";
+import { HOP_DEADLINE_MS } from "./request-waits.ts";
 
 const MAX_REDIRECTS = 20;
 const DEADLINE_REASON = "deadline";

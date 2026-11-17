@@ -31,7 +31,7 @@ async function storedKeys(files: FileStore, itemId: number): Promise<string[]> {
   do {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each page starts at the cursor the previous page returned.
     const page = await files.list(itemFilesPrefix(itemId), cursor, FILE_LIST_LIMIT);
-    keys.push(...page.files.map(({ key }) => key));
+    keys.push(...page.keys);
     cursor = page.cursor;
   } while (cursor !== null);
 

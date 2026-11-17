@@ -1,27 +1,13 @@
-import { z } from "zod";
+import type { ArticleReading } from "../../core/article.ts";
+import type { SuppliedPage } from "../../core/supplied-page.ts";
 
-import { ArticleReadingSchema } from "../../core/article.ts";
-import { SuppliedPageSchema } from "../../core/supplied-page.ts";
+export type PageRequest =
+  | { readonly kind: "title"; readonly html: string }
+  | { readonly kind: "article"; readonly html: string; readonly url: string }
+  | { readonly kind: "page"; readonly page: SuppliedPage };
 
-const PageRequestSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("title"), html: z.string() }),
-  z.object({ kind: z.literal("article"), html: z.string(), url: z.string() }),
-  z.object({ kind: z.literal("page"), page: SuppliedPageSchema }),
-]);
+export type RequestMessage = PageRequest & { readonly id: number };
 
-export type PageRequest = z.infer<typeof PageRequestSchema>;
-
-export const RequestMessageSchema = z.intersection(z.object({ id: z.number() }), PageRequestSchema);
-
-export type RequestMessage = z.infer<typeof RequestMessageSchema>;
-
-export const ReplySchema = z.discriminatedUnion("ok", [
-  z.object({
-    id: z.number(),
-    ok: z.literal(true),
-    value: z.union([z.string(), ArticleReadingSchema]),
-  }),
-  z.object({ id: z.number(), ok: z.literal(false), message: z.string() }),
-]);
-
-export type Reply = z.infer<typeof ReplySchema>;
+export type Reply =
+  | { readonly id: number; readonly ok: true; readonly value: string | ArticleReading }
+  | { readonly id: number; readonly ok: false; readonly message: string };

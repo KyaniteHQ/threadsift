@@ -23,9 +23,9 @@ type CleanupPorts = Pick<JobPorts, "db" | "files">;
 async function removeObjects(files: FileStore, exportId: number): Promise<void> {
   const page = await files.list(exportFilesPrefix(exportId), null, FILE_LIST_LIMIT);
 
-  if (page.files.length === 0) return;
+  if (page.keys.length === 0) return;
 
-  await files.delete(page.files.map(({ key }) => key));
+  await files.delete(page.keys);
   await removeObjects(files, exportId);
 }
 
@@ -63,10 +63,7 @@ async function removeStrays(
 ): Promise<number> {
   const page = await files.list(EXPORT_FILES_ROOT, cursor, FILE_LIST_LIMIT);
 
-  const stray = await expiredKeys(
-    db,
-    page.files.map(({ key }) => key),
-  );
+  const stray = await expiredKeys(db, page.keys);
 
   if (stray.length > 0) await files.delete(stray);
 

@@ -1,7 +1,7 @@
 import { parentPort } from "node:worker_threads";
 
 import { readArticle, readSuppliedPage, readTitle } from "../../core/article.ts";
-import { type Reply, type RequestMessage, RequestMessageSchema } from "./page-reader-protocol.ts";
+import type { Reply, RequestMessage } from "./page-reader-protocol.ts";
 
 function answerOf(request: Readonly<RequestMessage>) {
   switch (request.kind) {
@@ -40,6 +40,6 @@ async function reply(request: Readonly<RequestMessage>): Promise<void> {
   }
 }
 
-parent.on("message", (message) => {
-  void reply(RequestMessageSchema.parse(message));
+parent.on("message", (message: RequestMessage) => {
+  void reply(message);
 });

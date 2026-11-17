@@ -4,12 +4,8 @@ import { z } from "zod";
 import { THREAD_CONTENT_BYTES } from "../../src/core/limits.ts";
 import { redditRefOf } from "../../src/core/links.ts";
 import { hiddenRepliesOf, unfilledStubsOf } from "../../src/core/reddit-tree.ts";
-import {
-  REQUEST_DEADLINE_MS,
-  THREAD_QUERY,
-  fillAnswers,
-  permalinkPath,
-} from "../../src/core/thread-fill.ts";
+import { REQUEST_DEADLINE_MS } from "../../src/core/request-waits.ts";
+import { THREAD_QUERY, fillAnswers, permalinkPath } from "../../src/core/thread-fill.ts";
 import { resultInTab } from "./tab-result.ts";
 import { type ThreadBody, fitThreadBody } from "./thread-body.ts";
 

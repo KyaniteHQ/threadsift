@@ -18,9 +18,9 @@ type PartPorts = Pick<JobPorts, "db" | "files">;
 export async function removeParts(files: FileStore, id: number): Promise<void> {
   const page = await files.list(restoreFilesPrefix(id), null, FILE_LIST_LIMIT);
 
-  if (page.files.length === 0) return;
+  if (page.keys.length === 0) return;
 
-  await files.delete(page.files.map(({ key }) => key));
+  await files.delete(page.keys);
   await removeParts(files, id);
 }
 
@@ -77,7 +77,7 @@ async function removeStrayParts(
   cursor: string | null,
 ): Promise<number> {
   const page = await ports.files.list(RESTORE_FILES_ROOT, cursor, FILE_LIST_LIMIT);
-  const keys = page.files.map(({ key }) => key);
+  const keys = page.keys;
   const holding = await holdingParts(ports.db, keys);
   const stray = keys.filter((key) => !holding.has(Number(parseStoredKey(key)?.ownerId)));
 

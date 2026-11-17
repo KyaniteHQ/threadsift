@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/d1";
 
-import type { Ports } from "../../core/ports.ts";
+import { batchesOf } from "../../core/batches.ts";
 import { aiAndSecrets } from "../shared/ai-runtime.ts";
 import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
@@ -14,12 +14,6 @@ const MAX_QUEUE_DELAY_SECONDS = 86_400;
 
 // sendBatch takes at most 100 messages per call: https://developers.cloudflare.com/queues/platform/limits/
 const QUEUE_BATCH_MESSAGES = 100;
-
-function batchesOf(jobIds: readonly number[]): readonly (readonly number[])[] {
-  return Array.from({ length: Math.ceil(jobIds.length / QUEUE_BATCH_MESSAGES) }, (_, at) =>
-    jobIds.slice(at * QUEUE_BATCH_MESSAGES, (at + 1) * QUEUE_BATCH_MESSAGES),
-  );
-}
 
 export interface Env {
   readonly DB: Parameters<typeof drizzle>[0];
@@ -39,7 +33,7 @@ export interface Env {
   readonly AI?: AiBinding;
 }
 
-export async function createWorkerPorts(env: Env): Promise<Ports> {
+export async function createWorkerPorts(env: Env): Promise<import("../../core/ports.ts").Ports> {
   return {
     db: drizzle(env.DB),
     files: r2FileStore(env.FILES),
@@ -54,9 +48,9 @@ export async function createWorkerPorts(env: Env): Promise<Ports> {
     redditSession: workerRedditSession,
     pages: workerPageReader,
     jobs: {
-      enqueue: async (jobIds, delayMs) => {
+      enqueue: async (jobIds: readonly number[], delayMs: number) => {
         await Promise.all(
-          batchesOf(jobIds).map((batch) =>
+          batchesOf(jobIds, QUEUE_BATCH_MESSAGES).map((batch) =>
             env.JOBS.sendBatch(
               batch.map((jobId) => ({ body: { jobId } })),
               { delaySeconds: Math.min(Math.ceil(delayMs / 1000), MAX_QUEUE_DELAY_SECONDS) },
