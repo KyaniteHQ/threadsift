@@ -2,34 +2,35 @@ import { type RefObject, useCallback, useMemo, useRef } from "react";
 
 import { fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
-import type { Stamps } from "./item-polling.ts";
 import { type ListState, type Ready, appended, continues, withMore } from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
+import type { Ticket } from "./use-ticket.ts";
 
 type SetList = (update: (current: ListState) => ListState) => void;
 
 interface Wiring {
   readonly setList: SetList;
-  readonly stamps: Stamps;
+  readonly ticket: Ticket;
 }
 
 interface MoreWiring {
   readonly setList: SetList;
-  readonly stamps: Stamps;
+  readonly ticket: Ticket;
   readonly latest: Readonly<RefObject<ListState>>;
   readonly filtersNow: Readonly<RefObject<Filters>>;
-  readonly flight: RefObject<string | null>;
 }
 
 async function readNext(
-  { setList, stamps }: Readonly<MoreWiring>,
+  { setList, ticket }: Readonly<MoreWiring>,
   asked: Readonly<Filters>,
   query: string,
   cursor: string,
 ): Promise<void> {
   setList((now) => withMore(now, query, cursor, "loading"));
-  const startedAt = performance.now();
+  const mine = ticket.now();
   const page = await fetchItemsAfter(asked, cursor).catch(() => null);
+
+  if (!ticket.matches(mine)) return;
 
   if (page === null) {
     setList((now) => withMore(now, query, cursor, "failed"));
@@ -37,13 +38,11 @@ async function readNext(
     return;
   }
 
-  const present = { ...page, items: page.items.filter((item) => !stamps.isGone(item.id)) };
-  const changed = stamps.changedSince(startedAt);
-  setList((now) => appended(now, present, { query, cursor, changed }));
+  setList((now) => appended(now, page, { query, cursor }));
 }
 
 function startNext(paging: Readonly<MoreWiring>): void {
-  const { latest, filtersNow, flight } = paging;
+  const { latest, filtersNow } = paging;
   const current = latest.current;
   const asked = filtersNow.current;
   const query = queryOf(asked);
@@ -51,28 +50,21 @@ function startNext(paging: Readonly<MoreWiring>): void {
 
   if (cursor === null || !continues(current, query, cursor)) return;
 
-  const key = `${query}|${cursor}`;
+  if (current.more === "loading") return;
 
-  if (flight.current === key) return;
-
-  flight.current = key;
-
-  void readNext(paging, asked, query, cursor).finally(() => {
-    if (flight.current === key) flight.current = null;
-  });
+  void readNext(paging, asked, query, cursor);
 }
 
 export function useMore(
-  { setList, stamps }: Readonly<Wiring>,
+  { setList, ticket }: Readonly<Wiring>,
   filters: Readonly<Filters>,
   latest: Readonly<RefObject<ListState>>,
 ) {
   const filtersNow = useLatest(filters);
-  const flight = useRef<string | null>(null);
 
   return useCallback(() => {
-    startNext({ setList, stamps, latest, filtersNow, flight });
-  }, [filtersNow, latest, setList, stamps]);
+    startNext({ setList, ticket, latest, filtersNow });
+  }, [filtersNow, latest, setList, ticket]);
 }
 
 export type Reading = "read" | "wait" | "end" | "failed";

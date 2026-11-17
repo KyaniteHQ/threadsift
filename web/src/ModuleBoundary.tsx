@@ -1,19 +1,13 @@
-import { Component, type ComponentType, type ReactNode, lazy } from "react";
+import { Component, type ReactNode } from "react";
 
-import { ModuleUnavailable, unavailable } from "./module-unavailable.ts";
-
-export function lazyModule<Props extends object>(load: () => Promise<ComponentType<Props>>) {
-  return lazy(() => load().then((component) => ({ default: component }), unavailable));
-}
+import { ModuleUnavailable } from "./module-unavailable.ts";
+import { Unreachable } from "./Unreachable.tsx";
 
 interface BoundaryState {
   readonly error: Error | null;
 }
 
-export class ModuleBoundary extends Component<
-  Readonly<{ fallback: (retry: () => void) => ReactNode; children: ReactNode }>,
-  BoundaryState
-> {
+export class ModuleBoundary extends Component<Readonly<{ children: ReactNode }>, BoundaryState> {
   static getDerivedStateFromError(error: Readonly<Error>): BoundaryState {
     return { error };
   }
@@ -31,6 +25,6 @@ export class ModuleBoundary extends Component<
 
     if (!(error instanceof ModuleUnavailable)) throw error;
 
-    return this.props.fallback(this.retry);
+    return <Unreachable retry={this.retry} />;
   }
 }

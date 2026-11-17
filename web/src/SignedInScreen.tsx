@@ -4,12 +4,13 @@ import { HighlightsPage } from "./HighlightsPage.tsx";
 import { IndexPage } from "./IndexPage.tsx";
 import { ImportPage, SettingsPage, LogPage, ProposalsPage } from "./lazy-pages.tsx";
 import { Library } from "./Library.tsx";
+import { ModuleBoundary } from "./ModuleBoundary.tsx";
 import { type Route, usePages } from "./routing.ts";
 import type { SignedInState } from "./screens.ts";
 import { TopicPage } from "./TopicPage.tsx";
 import type { Look } from "./use-root.ts";
 
-export function SignedInScreen({
+function SignedInContent({
   screen,
   look,
   arrived,
@@ -55,4 +56,12 @@ export function SignedInScreen({
     default:
       return screen satisfies never;
   }
+}
+
+export function SignedInScreen(props: Parameters<typeof SignedInContent>[0]) {
+  return (
+    <ModuleBoundary>
+      <SignedInContent {...props} />
+    </ModuleBoundary>
+  );
 }

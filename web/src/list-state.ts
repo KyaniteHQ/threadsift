@@ -118,33 +118,14 @@ export interface Answer {
   readonly query: string;
 }
 
-export interface Settled {
-  readonly changed: readonly number[];
-  readonly counts: boolean;
-}
-
-function lastWritten(
-  known: readonly Item[],
-  item: Readonly<Item>,
-  changed: readonly number[],
-): Item {
-  return (
-    (changed.includes(item.id) ? known.find((each) => each.id === item.id) : undefined) ?? item
-  );
-}
-
-export function loaded(
-  current: Readonly<ListState>,
-  answer: Readonly<Answer>,
-  settled: Readonly<Settled>,
-): ListState {
-  const items = answer.items.map((item) => lastWritten(current.known, item, settled.changed));
+export function loaded(current: Readonly<ListState>, answer: Readonly<Answer>): ListState {
+  const { items } = answer;
 
   return {
     status: "ready",
     known: items.reduceRight((all, item) => upserted(all, item), [...current.known]),
     items,
-    counts: settled.counts || current.status !== "ready" ? answer.counts : current.counts,
+    counts: answer.counts,
     loadedAt: Date.now(),
     query: answer.query,
     next: answer.next,
@@ -164,15 +145,13 @@ export interface Page {
 export function appended(
   list: Readonly<ListState>,
   page: Readonly<Page>,
-  position: Readonly<{ query: string; cursor: string; changed: readonly number[] }>,
+  position: Readonly<{ query: string; cursor: string }>,
 ): ListState {
   if (!continues(list, position.query, position.cursor)) return list;
 
   const have = new Set(list.items.map((item) => item.id));
 
-  const fresh = page.items
-    .filter((item) => !have.has(item.id))
-    .map((item) => lastWritten(list.known, item, position.changed));
+  const fresh = page.items.filter((item) => !have.has(item.id));
 
   return {
     ...list,
@@ -197,20 +176,6 @@ export function processingIds(list: Readonly<ListState>): string {
     .filter((item) => item.status === "processing")
     .map((item) => item.id)
     .join(",");
-}
-
-export function digestMoved(before: Readonly<Item> | undefined, after: Readonly<Item>): boolean {
-  return (
-    after.digestTopic !== (before?.digestTopic ?? null) ||
-    after.digestTitle !== (before?.digestTitle ?? null) ||
-    (before?.digestOutcome === "pending" &&
-      after.digestOutcome !== "pending" &&
-      after.digestTopic !== null)
-  );
-}
-
-export function leftProcessing(before: Readonly<Item> | undefined, after: Readonly<Item>): boolean {
-  return before?.status === "processing" && after.status !== "processing";
 }
 
 export function countsOf(list: Readonly<ListState>): FilterCounts | null {

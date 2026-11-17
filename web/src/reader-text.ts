@@ -51,7 +51,6 @@ export const HINT_PANE = "j k move · Enter open · m read · / search · Esc cl
 export const READER_LOADING = "Loading item…";
 export const READER_FAILED = "Couldn’t load this item.";
 export const READER_STALE = "This text is from earlier and may be outdated.";
-export const POST_TEXT_FAILED = "Couldn’t show this item’s post text and comments.";
 export const DIGEST_PENDING = "The summary and key points are not ready yet.";
 export const NO_POST_TEXT = "This item has no post text.";
 

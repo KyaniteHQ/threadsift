@@ -2,7 +2,6 @@ import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { Comments } from "./Comments.tsx";
 import { POST_KEY } from "./highlight-target.ts";
 import { PostTextView } from "./post-text-module.ts";
-import { PostTextBoundary } from "./PostTextBoundary.tsx";
 import { FILL_NOTE, NO_POST_TEXT, NO_README, SECTION_TITLES, archiveNote } from "./reader-text.ts";
 import { Related } from "./Related.tsx";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
@@ -56,21 +55,14 @@ export function Original({
       {detail.comments.archive === null ? null : (
         <p className="rd-note">{archiveNote(detail.comments.archive, now)}</p>
       )}
-      <PostTextBoundary>
-        {note === null ? null : <p className="rd-note">{note}</p>}
-        {hasText ? (
-          <section className="rd-orig">
-            <h3 className="rd-h">{SECTION_TITLES[item.kind]}</h3>
-            <PostTextView
-              text={text}
-              targetKey={POST_KEY}
-              itemId={item.id}
-              images={detail.images}
-            />
-          </section>
-        ) : null}
-        <Comments item={item} detail={detail} />
-      </PostTextBoundary>
+      {note === null ? null : <p className="rd-note">{note}</p>}
+      {hasText ? (
+        <section className="rd-orig">
+          <h3 className="rd-h">{SECTION_TITLES[item.kind]}</h3>
+          <PostTextView text={text} targetKey={POST_KEY} itemId={item.id} images={detail.images} />
+        </section>
+      ) : null}
+      <Comments item={item} detail={detail} />
       <Related entries={detail.related} />
     </>
   );

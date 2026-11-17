@@ -8,9 +8,7 @@ import {
   type ConnectNotice,
 } from "../../src/core/openrouter-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
-import { useAfter, useGuard } from "./use-form.ts";
-
-const LEAVE_WAIT_MS = 10_000;
+import { useGuard } from "./use-form.ts";
 
 export type Outcome =
   | { readonly kind: "ok"; readonly text: string; readonly digest?: Digest }
@@ -56,7 +54,13 @@ function reduce(state: FormState, event: Event): FormState {
     return state.phase === "idle" ? { ...state, outcome: event.outcome } : state;
   }
 
-  return state.phase === "leaving" ? { ...state, phase: "idle" } : state;
+  if (event.kind === "restore") {
+    return state.phase === LEAVING ? { ...state, phase: "idle" } : state;
+  }
+
+  const exhaustive: never = event;
+
+  return exhaustive;
 }
 
 export type Task = () => Promise<Outcome | typeof LEAVING>;
@@ -67,15 +71,21 @@ export function useAiPhase() {
   const { guard } = useGuard(phase === LEAVING);
   const noticed = notice !== null;
 
-  const restore = useCallback(() => {
-    dispatch({ kind: "restore" });
-  }, []);
-
-  useAfter(phase === LEAVING, LEAVE_WAIT_MS, restore);
-
   useEffect(() => {
     if (noticed) window.history.replaceState(null, "", window.location.pathname);
   }, [noticed]);
+
+  useEffect(() => {
+    const onPageShow = (event: Readonly<PageTransitionEvent>): void => {
+      if (event.persisted) dispatch({ kind: "restore" });
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, []);
 
   const refuse = useCallback((text: string) => {
     dispatch({ kind: "refuse", outcome: { kind: "error", text } });
@@ -102,7 +112,7 @@ export function useAiPhase() {
     [guard],
   );
 
-  return { phase, outcome: state.outcome, notice, run, restore, refuse };
+  return { phase, outcome: state.outcome, notice, run, refuse };
 }
 
 export type AiPhase = ReturnType<typeof useAiPhase>;

@@ -91,7 +91,6 @@ function ReaderCol({
           actions={actions}
           announce={controls.announce}
           now={now}
-          settingsKey={controls.settingsKey}
           titleId={titleId}
           focusTitle={focusTitle}
           tryAgain={tryAgain}

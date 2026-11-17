@@ -1,25 +1,20 @@
-import { type ComponentProps, Fragment, type ReactElement, createElement } from "react";
+import { type ComponentProps, Fragment, type ReactElement, createElement, lazy } from "react";
 
 import { HighlightAction } from "./HighlightAction.tsx";
 import { useSpans } from "./highlights-context.ts";
-import { lazyModule } from "./ModuleBoundary.tsx";
+import { unavailable } from "./module-unavailable.ts";
 
 type PostTextExports = typeof import("./PostText.tsx");
 
-const loadPostText = () => import("./PostText.tsx").then(({ PostText }) => PostText);
+let loading: Promise<PostTextExports> | null = null;
 
-const LazyPostText = lazyModule(loadPostText);
+export function postTextModule(): Promise<PostTextExports> {
+  loading ??= import("./PostText.tsx").catch(unavailable);
 
-let settled: Promise<boolean> | null = null;
-
-export function postTextModule(): Promise<boolean> {
-  settled ??= loadPostText().then(
-    () => true,
-    () => false,
-  );
-
-  return settled;
+  return loading;
 }
+
+const LazyPostText = lazy(() => postTextModule().then(({ PostText }) => ({ default: PostText })));
 
 export function PostTextView({
   targetKey,
