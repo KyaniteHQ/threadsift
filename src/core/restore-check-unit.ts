@@ -15,20 +15,14 @@ async function environment(
   const directory = await readDirectory(source);
   const manifest = await readManifest(source, directory);
   const running = await appliedMigration(db);
-  const comparable = manifest.migration !== null && running !== null;
 
-  if (comparable && manifest.migration > running) {
-    throw refused(
-      "newer-release",
-      "The export was made by a newer release; update this Instance first",
-    );
+  if (manifest.migration === null || running === null || manifest.migration !== running) {
+    throw refused("other-release", "The export migration does not match the running migration");
   }
 
-  const older = comparable && manifest.migration < running;
+  checkedTables(manifest, directory);
 
-  checkedTables(manifest, directory, older);
-
-  return { source, directory, manifest, older };
+  return { source, directory, manifest };
 }
 
 export async function checkUnit(

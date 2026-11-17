@@ -3,7 +3,7 @@ import { type SQL, and, getTableColumns, sql } from "drizzle-orm";
 import type { Database } from "./ports.ts";
 import { RESTORE_BIND_BYTES } from "./restore-contract.ts";
 import { type Row, rowsOf } from "./restore-lines.ts";
-import { type Fallback, type TableSpec, tableSpec } from "./restore-registry.ts";
+import { type TableSpec, tableSpec } from "./restore-registry.ts";
 import type { Extract } from "./restore-rewrites.ts";
 
 const ROW = sql.raw("r");
@@ -13,7 +13,6 @@ const ENCODER = new TextEncoder();
 interface Source {
   readonly from: SQL;
   readonly get: Extract;
-  readonly present: Extract;
 }
 
 function pathOf(column: string): SQL {
@@ -24,7 +23,6 @@ function jsonSource(json: string): Source {
   return {
     from: sql`json_each(${json}) as ${ROW}`,
     get: (column) => sql`json_extract(${ROW}.value, ${pathOf(column)})`,
-    present: (column) => sql`json_type(${ROW}.value, ${pathOf(column)}) is not null`,
   };
 }
 
@@ -32,12 +30,7 @@ function rowSource(row: Readonly<Row>): Source {
   return {
     from: sql`(select 1)`,
     get: (column) => sql`${row[column] ?? null}`,
-    present: (column) => (Object.hasOwn(row, column) ? sql`1` : sql`0`),
   };
-}
-
-function fallbackValue(fallback: Fallback | undefined): SQL {
-  return sql`${fallback ?? null}`;
 }
 
 function parentsPresent(spec: Readonly<TableSpec>, { get }: Readonly<Source>): SQL {
@@ -57,14 +50,14 @@ function parentsPresent(spec: Readonly<TableSpec>, { get }: Readonly<Source>): S
 
 function valueOf(spec: Readonly<TableSpec>, name: string, source: Readonly<Source>): SQL {
   if (!spec.columns.some((column) => column.name === name)) {
-    return fallbackValue(spec.fallbacks[name]);
+    const value = spec.defaults[name];
+
+    if (value === undefined) throw new Error(`${spec.name}.${name} has no restore default`);
+
+    return sql`${value}`;
   }
 
-  const value = spec.rewrites[name]?.(source.get) ?? source.get(name);
-
-  return Object.hasOwn(spec.fallbacks, name)
-    ? sql`case when ${source.present(name)} then ${value} else ${fallbackValue(spec.fallbacks[name])} end`
-    : value;
+  return spec.rewrites[name]?.(source.get) ?? source.get(name);
 }
 
 function selected(spec: Readonly<TableSpec>, source: Readonly<Source>) {
