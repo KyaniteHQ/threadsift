@@ -2,18 +2,13 @@ import { type SQL, type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { among } from "./guards.ts";
-import type { MergeKind } from "./kinds.ts";
-import { repointedPins, repointedTopicPins } from "./pins.ts";
 import type { Database } from "./ports.ts";
-import { proposalRelinks } from "./proposal-lifecycle.ts";
 import {
   catalogVersion,
-  dataStepRenames,
   digests,
   itemTags,
   items,
   logEntries,
-  pins,
   proposals,
   tags,
   topicLeases,
@@ -30,19 +25,10 @@ interface Moves {
 }
 
 export interface CatalogKind {
-  readonly step: string;
   readonly table: typeof topics | typeof tags;
-  readonly pinKind: MergeKind;
-  readonly pinTarget: typeof pins.intoTagId | typeof pins.intoTopicId;
   readonly proposalFrom: typeof proposals.fromTagId | typeof proposals.fromTopicId;
   readonly proposalInto: typeof proposals.intoTagId | typeof proposals.intoTopicId;
   readonly linked: (db: Database, id: number) => Promise<Moves>;
-  readonly relink: (
-    db: Database,
-    loser: number,
-    survivor: number,
-    moves: Readonly<Moves>,
-  ) => readonly BatchItem<"sqlite">[];
   readonly unlinked: (db: Database, id: number) => SQL;
 }
 
@@ -115,21 +101,13 @@ export function topicMoves(
 }
 
 export const TOPIC_KIND: CatalogKind = {
-  step: "topic-keys",
   table: topics,
-  pinKind: "topic-merge",
-  pinTarget: pins.intoTopicId,
   proposalFrom: proposals.fromTopicId,
   proposalInto: proposals.intoTopicId,
   linked: async (db, id) => ({
     itemIds: await firstIds(db, items.id, items.topicId, id),
     entryIds: await firstIds(db, logEntries.id, logEntries.topicId, id),
   }),
-  relink: (db, loser, survivor, moves) => [
-    ...proposalRelinks(db, "topic-merge", loser, survivor),
-    repointedTopicPins(db, loser, survivor),
-    ...topicMoves(db, loser, survivor, moves),
-  ],
   unlinked: emptied,
 };
 
@@ -161,21 +139,13 @@ export function tagMoves(
 }
 
 export const TAG_KIND: CatalogKind = {
-  step: "tag-keys",
   table: tags,
-  pinKind: "tag-merge",
-  pinTarget: pins.intoTagId,
   proposalFrom: proposals.fromTagId,
   proposalInto: proposals.intoTagId,
   linked: async (db, id) => ({
     itemIds: await firstIds(db, itemTags.itemId, itemTags.tagId, id),
     entryIds: [],
   }),
-  relink: (db, loser, survivor, { itemIds }) => [
-    ...proposalRelinks(db, "tag-merge", loser, survivor),
-    repointedPins(db, loser, survivor),
-    ...tagMoves(db, loser, survivor, (column) => among(column, itemIds)),
-  ],
   unlinked: (db, id) =>
     notExists(
       db
@@ -200,9 +170,6 @@ export function closingWrites(
       .update(catalogVersion)
       .set({ version: sql`${catalogVersion.version} + 1` })
       .where(and(eq(catalogVersion.id, 1), gone)),
-    db
-      .delete(dataStepRenames)
-      .where(and(eq(dataStepRenames.step, kind.step), eq(dataStepRenames.subject, id), gone)),
     db.delete(kind.table).where(and(eq(kind.table.id, id), gone)),
   ];
 }

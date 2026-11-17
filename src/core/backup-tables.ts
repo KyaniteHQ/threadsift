@@ -247,7 +247,6 @@ export const BACKUP_TABLES = {
     leftOut: [],
   },
   reddit_settings: { scope: "whole-table", columns: ["id", "archive_fill"], leftOut: [] },
-  data_steps: { scope: "whole-table", columns: ["name", "version"], leftOut: ["cursor"] },
   catalog_version: { scope: "whole-table", columns: ["id", "version"], leftOut: [] },
 } as const satisfies Readonly<Record<string, BackupTable>>;
 
@@ -269,8 +268,6 @@ export const EXCLUDED_TABLES = {
   exports: "work-in-flight",
   restores: "work-in-flight",
   topic_leases: "work-in-flight",
-  data_step_lease: "work-in-flight",
-  data_step_renames: "work-in-flight",
   guards: "work-in-flight",
   scheduled_runs: "work-in-flight",
   file_cleaning: "work-in-flight",

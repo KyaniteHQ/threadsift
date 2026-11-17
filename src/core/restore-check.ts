@@ -13,7 +13,6 @@ const ManifestSchema = z
   .object({
     format: z.literal(EXPORT_FORMAT),
     migration: z.string().nullable(),
-    dataSteps: z.record(z.string(), WholeCount).readonly(),
     tables: z
       .record(
         z.string(),

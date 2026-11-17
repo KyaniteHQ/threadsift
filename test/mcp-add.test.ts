@@ -4,7 +4,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import type { Client } from "@modelcontextprotocol/client";
 
-import { UPDATING } from "../src/http/refusals.ts";
+import { RESTORING } from "../src/http/refusals.ts";
 import {
   ErrorResponseSchema,
   ItemReadResponseSchema,
@@ -106,14 +106,14 @@ describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
   });
 });
 
-describe("add keeps the refusal that POST /api/items gives while a release rewrites stored Items", () => {
+describe("add keeps the refusal that POST /api/items gives while a Restore holds the library", () => {
   let instance: Instance;
   let client: Client;
 
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    client = await connectAgent(instance, await createAgentToken(instance, "mcp updating"));
+    client = await connectAgent(instance, await createAgentToken(instance, "mcp restoring"));
   });
 
   after(async () => {
@@ -124,10 +124,9 @@ describe("add keeps the refusal that POST /api/items gives while a release rewri
   it("refuses add with the text of the 503 and still serves search", async () => {
     const database = new DatabaseSync(instance.databaseFile);
 
-    database.exec("delete from data_steps");
-    database
-      .prepare("insert into data_step_lease (id, holder, expires_at) values (1, 'another run', ?)")
-      .run(Date.now() + 600_000);
+    database.exec(
+      "insert into restores (state, phase, bytes, parts, part_bytes, created_at, updated_at) values ('running', 'tables', 1, 1, 1, 1, 1)",
+    );
     database.close();
 
     const link = "https://x.com/someone/status/5000000001";
@@ -137,7 +136,11 @@ describe("add keeps the refusal that POST /api/items gives while a release rewri
     const added = await client.callTool({ name: "add", arguments: { url: link } });
 
     assert.equal(added.isError, true);
-    assert.deepEqual(added.content, [{ type: "text", text: UPDATING }]);
+    assert.equal(
+      (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total,
+      0,
+    );
+    assert.deepEqual(added.content, [{ type: "text", text: RESTORING }]);
     assert.notEqual((await client.callTool({ name: "search", arguments: {} })).isError, true);
   });
 });

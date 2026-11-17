@@ -147,7 +147,7 @@ export function wordOf(
   arms: ReadonlyMap<string, string>,
   { command, status }: Readonly<{ command: string; status: string }>,
 ): string | undefined {
-  return arms.get(`${command}:${status}`) ?? arms.get(`*:${status}`);
+  return arms.get(`${command}:${status}`) ?? arms.get(`*:${status}`) ?? arms.get("*");
 }
 
 export function scriptWordsOf(script: string): readonly string[] {

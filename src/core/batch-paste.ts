@@ -18,7 +18,6 @@ export type BatchEntry =
 
 type BatchSaved =
   | { readonly kind: "done"; readonly entries: readonly BatchEntry[] }
-  | { readonly kind: "updating" }
   | { readonly kind: "restoring" };
 
 type BatchPaste = Budgeted<BatchSaved>;
@@ -32,7 +31,7 @@ async function pasteOne(
     saveAs((caller) => saveItem(ports, url, digest, "keep", caller)),
   );
 
-  if (saved.kind === "restoring" || saved.kind === "updating") return saved;
+  if (saved.kind === "restoring") return saved;
 
   return saved.kind === "refused"
     ? { outcome: "refused", url }

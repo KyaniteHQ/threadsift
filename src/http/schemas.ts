@@ -198,7 +198,7 @@ export const ErrorResponseSchema = z.object({
 
 export const UnavailableResponseSchema = z.object({
   error: z.string(),
-  code: z.literal(RESTORING_CODE).optional(),
+  code: z.literal(RESTORING_CODE),
 });
 
 export const BudgetRefusalSchema = z.object({ error: z.string(), code: z.literal(BUDGET_SPENT) });
