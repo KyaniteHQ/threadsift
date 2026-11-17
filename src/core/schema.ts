@@ -72,6 +72,8 @@ export { searchParts } from "./search-tables.ts";
 
 export { topicChecks, topicPages } from "./topic-tables.ts";
 
+export { vaultSettings, mirrorPaths, mirrorFiles } from "./vault-tables.ts";
+
 export { xSettings } from "./x-settings-tables.ts";
 
 export { xVerifications } from "./x-verification-tables.ts";

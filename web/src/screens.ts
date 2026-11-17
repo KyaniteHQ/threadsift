@@ -1,5 +1,6 @@
 import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
 import { topicKeyOf } from "../../src/core/topic-path.ts";
+import { OBSIDIAN_TEXT } from "./obsidian-text.ts";
 import {
   HIGHLIGHTS_PATH,
   IMPORT_PATH,
@@ -16,6 +17,7 @@ const TITLES = {
   login: "Sign in to Threadsift",
   reset: "Reset password, Threadsift",
   settings: "Settings, Threadsift",
+  obsidian: `${OBSIDIAN_TEXT.title}, Threadsift`,
   highlights: "Highlights, Threadsift",
   import: "Import, Threadsift",
   index: "Index, Threadsift",
@@ -35,6 +37,7 @@ export type ScreenState =
   | Named<"login">
   | Named<"reset">
   | Named<"settings">
+  | Named<"obsidian">
   | Named<"highlights">
   | Named<"import">
   | Named<"index">
@@ -48,6 +51,7 @@ export type ScreenName = ScreenState["name"];
 
 const SIGNED_IN_SCREENS = [
   "settings",
+  "obsidian",
   "highlights",
   "import",
   "index",
@@ -67,6 +71,8 @@ export function isSignedInScreen(screen: Readonly<ScreenState>): screen is Signe
 }
 
 function signedInScreen(path: string): ScreenState {
+  if (path === "/settings/obsidian") return { name: "obsidian" };
+
   if (path === SETTINGS_PATH) return { name: "settings" };
 
   if (path === HIGHLIGHTS_PATH) return { name: "highlights" };

@@ -51,6 +51,17 @@ function networkResponse(response: Response): NetworkResponse {
 }
 
 export const workerNetwork: Network = {
+  patch: async (url, body, signal, headers) => {
+    assertPublicHost(url);
+    return networkResponse(
+      await workerFetch(url, {
+        method: "PATCH",
+        body,
+        signal,
+        headers: { ...REQUEST_HEADERS, ...headers },
+      }),
+    );
+  },
   get: async (url, signal, headers) =>
     networkResponse(
       await workerFetch(url, { signal, headers: { ...REQUEST_HEADERS, ...headers } }),

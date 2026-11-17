@@ -67,6 +67,12 @@ function expectManifestNamesItems(
     JSON.parse(new TextDecoder().decode(zip.get(manifestName ?? ""))),
   );
 
+  expect(manifest.tables).not.toHaveProperty("mirror_paths");
+  expect(manifest.tables).not.toHaveProperty("mirror_files");
+  expect(manifest.tables).not.toHaveProperty("vault_settings");
+  expect(
+    [...zip.keys()].some((name) => /(?:mirror_paths|mirror_files|vault_settings)/u.test(name)),
+  ).toBe(false);
   const items = manifest.tables["items"];
   const root = manifestName?.slice(0, -"threadsift.json".length) ?? "";
 

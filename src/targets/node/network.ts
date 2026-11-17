@@ -76,7 +76,7 @@ function decodedBody(response: IncomingMessage, encoding: string): Readable {
 }
 
 function exchange(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH",
   url: string,
   signal: AbortSignal,
   headers: RequestHeaders,
@@ -123,6 +123,10 @@ function exchange(
 }
 
 export const nodeNetwork: Network = {
+  patch: (url, body, signal, headers) => {
+    assertPublicHost(url);
+    return exchange("PATCH", url, signal, headers, body);
+  },
   get: (url, signal, headers) => exchange("GET", url, signal, headers),
   post: async (url, body, signal, headers) => {
     assertPublicHost(url);

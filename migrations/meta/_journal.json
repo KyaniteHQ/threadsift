@@ -8,6 +8,20 @@
       "when": 1794899092823,
       "tag": "0000_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794941258932,
+      "tag": "0001_vault",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794941401094,
+      "tag": "0002_vault_queue",
+      "breakpoints": true
     }
   ]
 }

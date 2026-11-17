@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
+import { ObsidianLink } from "./ObsidianPage.tsx";
 import { PageBar } from "./PageBar.tsx";
 import { SettingsSections } from "./SettingsSections.tsx";
 import { useHashTarget } from "./use-hash-target.ts";
@@ -41,7 +42,10 @@ export function SettingsPage({
         {loaded === null ? (
           <Loading />
         ) : (
-          <SettingsSections loaded={loaded} signOut={signOut} signOutFailed={failed} />
+          <>
+            <ObsidianLink />
+            <SettingsSections loaded={loaded} signOut={signOut} signOutFailed={failed} />
+          </>
         )}
       </main>
     </div>
