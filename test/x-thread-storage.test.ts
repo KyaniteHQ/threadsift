@@ -101,7 +101,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
       url: STORED_LINK,
       content: JSON.stringify(
         thread(
-          NEW_REPLIES.map((number) => reply(number, STORED)),
+          NEW_REPLIES.map((number) => reply(number, "20")),
           { id: STORED },
         ),
       ),
@@ -110,13 +110,13 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     await instance.settledItem(id);
 
     assert.equal(generationOf(id), first + 1);
-    assert.deepEqual(await nodeIds(id), ["t1_21"]);
+    assert.deepEqual(await nodeIds(id), ["t1_20", "t1_21"]);
 
     await saved({ url: STORED_LINK });
     await instance.settledItem(id);
 
     assert.equal(generationOf(id), first + 1);
-    assert.deepEqual(await nodeIds(id), ["t1_21"]);
+    assert.deepEqual(await nodeIds(id), ["t1_20", "t1_21"]);
   });
 
   it("deletes the Item with its thread rows", async () => {

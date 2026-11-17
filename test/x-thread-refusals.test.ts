@@ -78,11 +78,6 @@ const REFUSALS: readonly Refusal[] = [
     reason: /reply 1000000000000000003 has the id of the post/u,
   },
   {
-    name: "a parent that is not in the answer",
-    body: body(one([reply(2n, 3n)])),
-    reason: /parentId 3 of reply 2 is not the post or a reply of the answer/u,
-  },
-  {
     name: "a cycle",
     body: body(one([reply(2n, 3n), reply(3n, 2n)])),
     reason: /forms a cycle/u,

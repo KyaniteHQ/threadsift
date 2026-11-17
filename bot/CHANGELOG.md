@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## bot-v10
+
+- Keep the original parent id when a thread read returns a reply without its parent. Update the Instance first so it accepts the answer and shows the missing parent as Context.
+
 ## bot-v9
 
 - Remove the `updating` result because the Instance no longer rewrites stored keys. These calls use the existing failure result while a Restore holds the library.

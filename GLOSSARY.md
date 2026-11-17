@@ -127,7 +127,7 @@ A comment the agent kept because it adds a fact, a fix, a working link or comman
 _Avoid_: Top comment, filtered comment
 
 **Context stub**:
-One line in a comment tree that stands in for comments not shown: a dropped parent, so a Kept comment under it still reads correctly, or replies that were not saved. The second kind is a Reddit `more` stub, or the last line of an X thread whose post reports more replies than it holds, or no count; it says they were not saved.
+One line in a comment tree that stands in for comments not shown: a dropped parent or an X parent missing from the saved thread, so the replies under it still read correctly, or replies that were not saved. The second kind is a Reddit `more` stub, or the last line of an X thread whose post reports more replies than it holds, or no count; it says they were not saved.
 _Avoid_: Placeholder, removed comment
 
 **Reader**:
