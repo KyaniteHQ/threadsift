@@ -33,12 +33,6 @@ function checkedReplies(postId: string, replies: readonly XReply[]): void {
     });
     checkedText(text, `the text of reply ${id}`);
   }
-
-  for (const { id, parentId } of replies) {
-    if (!ids.has(parentId)) {
-      refuse(`the parentId ${parentId} of reply ${id} is not the post or a reply of the answer`);
-    }
-  }
 }
 
 function checkedQuoted({ id, quoted }: XThreadValue["post"], replies: readonly XReply[]) {
@@ -99,7 +93,13 @@ function placed(
 function walk(postId: string, replies: readonly XReply[]): readonly Placed[] {
   const children = childrenByParent(replies);
   const walked: Placed[] = [];
-  const stack = placed(children.get(postId), null, 0);
+  const known = new Set([postId, ...replies.map(({ id }) => id)]);
+  const stack = [...children]
+    .filter(([parent]) => !known.has(parent))
+    .toReversed()
+    .flatMap(([parent, siblings]) => placed(siblings, storedCommentId(parent), 1));
+
+  stack.push(...placed(children.get(postId), null, 0));
 
   for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
     walked.push(next);

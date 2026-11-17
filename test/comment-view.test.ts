@@ -6,7 +6,7 @@ import { Instance, type Json } from "./instance.ts";
 import { FACT, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, until } from "./related-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
-import { authored } from "./x-thread-fixtures.ts";
+import { authored, reply, thread } from "./x-thread-fixtures.ts";
 
 describe("the Reader shows the comments that pass the script's first step until a Digest covers the thread, then the Kept ones", () => {
   let instance: Instance;
@@ -137,6 +137,49 @@ describe("the Reader shows the comments that pass the script's first step until 
 
     assert.deepEqual(await nodes(id), ["comment:t1_c1", "comment:t1_c6"]);
     assert.deepEqual((await listed(id))?.commentCount, { filter: "kept", shown: 2, total: 6 });
+  });
+
+  it("shows an author's reply to a missing X parent under one Context stub with its sibling and its own reply", async () => {
+    const content = thread(
+      [
+        reply(160n, 150n),
+        reply(170n, 120n),
+        reply(150n, 120n, { author: "someone" }),
+        reply(180n, 100n),
+      ],
+      { id: "100" },
+    );
+    const item = await xClient(instance).saved({
+      url: "https://x.com/someone/status/100",
+      content: JSON.stringify(content),
+    });
+
+    await instance.settledItem(item.id);
+    const { postText, comments } = await instance.detail(item.id);
+
+    assert.equal(postText, content.post.text);
+    assert.deepEqual(
+      comments.nodes.map((node) => [
+        node.kind,
+        node.id,
+        node.parentId,
+        node.depth,
+        node.kind === "stub" ? node.reason : null,
+      ]),
+      [
+        ["comment", "t1_180", null, 0, null],
+        ["stub", "t1_120", null, 0, "not-saved"],
+        ["comment", "t1_150", "t1_120", 1, null],
+        ["comment", "t1_160", "t1_150", 2, null],
+        ["comment", "t1_170", "t1_120", 1, null],
+      ],
+    );
+    assert.equal(comments.received, 4);
+    assert.deepEqual(comments.view, {
+      filter: "unfiltered",
+      cause: "no-provider",
+      count: { filter: "unfiltered", shown: 4, total: 4 },
+    });
   });
 
   it("follows the same rule for an X thread", async () => {

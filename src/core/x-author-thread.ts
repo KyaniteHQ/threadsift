@@ -34,7 +34,7 @@ function survivingParent(
     !seen.has(parent);
     parent = byId.get(parent)?.parentId ?? postId
   ) {
-    if (parent === postId || kept.has(parent)) return parent;
+    if (!byId.has(parent) || kept.has(parent)) return parent;
 
     seen.add(parent);
   }
@@ -50,16 +50,16 @@ function partParent(
 ): string | null {
   const seen = new Set<string>();
 
-  for (
-    let parent = byId.get(reply.parentId);
-    parent !== undefined;
-    parent = byId.get(parent.parentId)
-  ) {
-    if (kept.has(parent.id)) return parent.id;
+  for (let id = reply.parentId; id !== post.id;) {
+    if (kept.has(id)) return id;
 
-    if (!sameHandle(parent.author, post.author) || seen.has(parent.id)) return null;
+    const parent = byId.get(id);
 
-    seen.add(parent.id);
+    if (parent === undefined || !sameHandle(parent.author, post.author) || seen.has(id))
+      return null;
+
+    seen.add(id);
+    id = parent.parentId;
   }
 
   return post.id;

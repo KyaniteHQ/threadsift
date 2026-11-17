@@ -19,7 +19,11 @@ const CommentNodeSchema = z.discriminatedUnion("kind", [
     score: z.number().int().nullable(),
     postedAt: z.number().int().nullable(),
   }),
-  z.object({ kind: z.literal("stub"), ...Place, reason: z.enum(["dropped", "not-kept"]) }),
+  z.object({
+    kind: z.literal("stub"),
+    ...Place,
+    reason: z.enum(["dropped", "not-kept", "not-saved"]),
+  }),
   z.object({ kind: z.literal("more"), ...Place }),
 ]);
 
@@ -154,6 +158,27 @@ function nodeOf(row: Readonly<CommentRow>): CommentNode {
   };
 }
 
+function visibleNodes(rows: readonly CommentRow[]): CommentNode[] {
+  const shown = shownIds(rows);
+  const missing = new Set<string>();
+  const nodes: CommentNode[] = [];
+
+  for (const row of rows) {
+    if (!shown.has(row.id)) continue;
+
+    const { parentId } = row;
+
+    if (parentId !== null && !shown.has(parentId) && !missing.has(parentId)) {
+      nodes.push({ kind: "stub", id: parentId, parentId: null, depth: 0, reason: "not-saved" });
+      missing.add(parentId);
+    }
+
+    nodes.push(nodeOf(row));
+  }
+
+  return nodes;
+}
+
 interface ThreadCounts {
   readonly received: number;
   readonly shown: number;
@@ -186,7 +211,6 @@ export function commentsViewOf(
   rows: readonly CommentRow[],
   { reported, archive, published, digest }: Readonly<ThreadReport>,
 ): CommentsView {
-  const shown = shownIds(rows);
   const comments = rows.filter((row) => row.kind === "comment");
 
   const counts: ThreadCounts = {
@@ -203,10 +227,7 @@ export function commentsViewOf(
     archive,
     received: counts.received,
     kept: counts.kept,
-    nodes:
-      view.filter === "removed"
-        ? []
-        : rows.flatMap((row) => (shown.has(row.id) ? [nodeOf(row)] : [])),
+    nodes: view.filter === "removed" ? [] : visibleNodes(rows),
     view,
   };
 }

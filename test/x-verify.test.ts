@@ -107,16 +107,22 @@ describe("a thread is shown only as far as every post of it was judged", () => {
     assert.equal(progressOf(CHAIN, { [ROOT]: "rejected" }).kind, "refused");
   });
 
-  it("rejects a reply that is older than the post or whose parent is not older than the reply", () => {
+  it("rejects a reply unless its parent is at least as recent as the post and older than the reply", () => {
     const older = reply("3100000000000000010", ROOT);
     const sideways = reply(THIRD, THIRD);
     const forward = reply(FIRST, SECOND);
 
-    assert.deepEqual(startingJudged(thread([older, sideways, forward, reply(SECOND, ROOT)])), {
-      "3100000000000000010": "rejected",
-      [THIRD]: "rejected",
-      [FIRST]: "rejected",
-    });
+    const parentBeforeRoot = reply("3100000000000000104", "3100000000000000009");
+
+    assert.deepEqual(
+      startingJudged(thread([older, sideways, forward, parentBeforeRoot, reply(SECOND, ROOT)])),
+      {
+        [parentBeforeRoot.id]: "rejected",
+        "3100000000000000010": "rejected",
+        [THIRD]: "rejected",
+        [FIRST]: "rejected",
+      },
+    );
   });
 });
 

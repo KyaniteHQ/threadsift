@@ -106,7 +106,7 @@ paste box, Share target, Extension, Import, HTTP API, MCP, Grok Bot
 ### X post
 
 - The owner chooses in Settings which reader fetches X links: `auto` (the default), `grok-bot` or `grok-cli` (`docs/architecture/fetchers.md`, X).
-- With a Grok Bot webhook set up, `auto` hands the link to the owner's bot first. The bot fetches the post, its thread, replies and media through its free X connector and sends them back to `POST /api/ai-tasks/{id}/intake`. A bot that never answers ends the Item `failed`, with no fallback to another source. The bot reads at most the first 100 replies of the post, because it types each reply into its answer by hand, while the intake route takes up to 500.
+- With a Grok Bot webhook set up, `auto` hands the link to the owner's bot first. The bot fetches the post, its thread, replies and media through its free X connector and sends them back to `POST /api/ai-tasks/{id}/intake`. A bot that never answers ends the Item `failed`, with no fallback to another source. The bot reads at most the first 100 replies of the post, because it types each reply into its answer by hand, while the intake route takes up to 500. When the answer omits a reply's parent, the Reader groups the saved replies to that parent under one Context stub and keeps their descendants beneath them.
 - Without a saved webhook whose key opens, `auto` fetches on the container build through the owner's grok CLI when it is installed and signed in, headless. A saved bot is never skipped for the CLI.
 - `grok-bot` and `grok-cli` use that reader alone and never fall back to the other. When it cannot be used, the Item is Link-only and carries a note that names the cause.
 - A fetch decides its route once. A change of the choice applies to fetches that start after it, and a job with an open Grok Bot task stays on the bot whatever the choice says, so the bot's answer is accepted and the task ends in a final state.
@@ -260,7 +260,7 @@ Rules for the Digest:
 - **The bar** holds the Comments button, Mark read or unread, Open on the Item's Source and Delete, and it drops the key hint and then the button labels until it fits.
 - **Comments.** Replies nest under their parent, drawn in the Comment style the owner chose, and the Item author's comments carry an OP badge.
 - A comment taller than 8 lines folds to its first 6 lines, and keyboard focus that lands inside a fold opens it.
-- A Context stub marks a dropped parent, and a stub that says "Further replies were not saved." marks replies behind a `more` stub.
+- A Context stub marks a dropped parent or an X parent that was not saved, and a stub that says "Further replies were not saved." marks replies behind a `more` stub.
 - The Comments button jumps to the section and shortens to "N of M" and then to the count as the bar narrows.
 - A row reads "Kept N of M" for an Item whose Digest covers the thread, "Showing N of M" before that, and "Saved comment" for a saved Reddit comment.
 - **Highlights.** The owner selects one passage inside the post text or inside one comment the Reader shows, and a popover offers Keep. A selection across two bodies, or one that touches a control or a Context stub, offers nothing.

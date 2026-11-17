@@ -9,6 +9,7 @@ export const UNTITLED = "Untitled";
 export const CONTEXT_LABEL = "Context";
 export const STUB_TEXTS = {
   dropped: "Removed comment shown so the replies below make sense.",
+  "not-saved": "The parent post was not saved.",
   "not-kept": "Comment not kept, shown so the replies below make sense.",
   more: "Further replies were not saved.",
 } as const;
