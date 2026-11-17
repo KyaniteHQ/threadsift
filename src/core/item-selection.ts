@@ -12,7 +12,6 @@ const {
   pendingDigest: _pendingDigest,
   topicId: _topicId,
   addedByToken: _addedByToken,
-  budgetSlotDay: _budgetSlotDay,
   ...DETAIL_COLUMNS
 } = getTableColumns(items);
 

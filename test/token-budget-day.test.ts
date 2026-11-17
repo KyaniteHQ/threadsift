@@ -3,19 +3,15 @@ import { after, before, describe, it } from "node:test";
 
 import { Instance } from "./instance.ts";
 import {
-  addBatch,
   addLink,
   atClock,
   budgetOf,
   dayOf,
-  execute,
-  itemsCounted,
   itemsSavedByDay,
   makeToken,
   nextMidnight,
   secondsUntilMidnight,
   steppingClock,
-  total,
   xLink,
 } from "./token-budget-fixtures.ts";
 
@@ -128,35 +124,9 @@ describe("an agent token's day is the UTC day, and a refusal says how long until
       firstMinute.adds.map(({ status }) => status),
       [201, 429],
     );
-    assert.deepEqual(itemsCounted(instance, token.id), [
+    assert.deepEqual(itemsSavedByDay(instance, token.id), [
       [dayOf(midnight - MINUTE_MS), 1],
       [dayOf(midnight + MINUTE_MS), 1],
-    ]);
-  });
-
-  it("charges a batch that crosses midnight, each Item to the day it was saved on, and stops it at the new day's budget", async () => {
-    const token = await makeToken(instance, 3);
-    const midnight = nextMidnight(Date.now());
-    const database = total(instance, "items");
-
-    execute(
-      instance,
-      `insert into agent_token_days (token_id, day, added) values (${String(token.id)}, '${dayOf(midnight)}', 2)`,
-    );
-
-    const answer = await atClock(
-      () => midnight - 500 + 1000 * (total(instance, "items") - database),
-      () => addBatch(instance, token, [301, 302, 303]),
-    );
-
-    assert.equal(answer.status, 429);
-    assert.deepEqual(itemsSavedByDay(instance, token.id), [
-      [dayOf(midnight - 1), 1],
-      [dayOf(midnight), 1],
-    ]);
-    assert.deepEqual(itemsCounted(instance, token.id), [
-      [dayOf(midnight - 1), 2],
-      [dayOf(midnight), 3],
     ]);
   });
 });

@@ -7,6 +7,7 @@ import type { ResetResult } from "../core/owner-password.ts";
 import type { SetupBlock } from "../core/owner.ts";
 import { PASSWORD_MAX, PASSWORD_MIN, type PasswordProblem } from "../core/passwords.ts";
 import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../core/setup-code.ts";
+import { UNKNOWN_TOKEN } from "../core/tokens.ts";
 import type { RefusalCode } from "./schemas.ts";
 
 const MESSAGES = {
@@ -23,6 +24,14 @@ const MESSAGES = {
   "reset-used": "The reset code was used already",
   "no-owner": "This Instance has no owner yet",
 } as const satisfies Record<RefusalCode, string>;
+
+export { UNKNOWN_TOKEN };
+
+export function unknownToken(c: Context) {
+  return c.json({ error: UNKNOWN_TOKEN }, 401, {
+    "WWW-Authenticate": 'Bearer error="invalid_token"',
+  });
+}
 
 export const NOT_FOUND = "Not found";
 

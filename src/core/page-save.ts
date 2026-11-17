@@ -1,5 +1,5 @@
 import type { Digest } from "./ai-contract.ts";
-import { type Caller, countedBy } from "./caller.ts";
+import { type Caller, tokenIdOf } from "./caller.ts";
 import { type Invalid, type SaveResult, type ThreadKept, itemAt, queuedWrites } from "./items.ts";
 import { closeItemJobs } from "./job-close.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
@@ -48,7 +48,7 @@ async function queuePage(
       originalUrl: absoluteUrl,
       address: absoluteUrl,
       digest,
-      counting: countedBy(caller),
+      addedByToken: tokenIdOf(caller),
     },
     link,
     JSON.stringify(page),
@@ -93,7 +93,7 @@ export async function savePage(
 
   const saved = await (redditRefOf(absoluteUrl) === null
     ? queuePage(ports, absoluteUrl, digest, page, caller)
-    : saveThreadPage(ports, absoluteUrl, { digest, page, counting: countedBy(caller) }));
+    : saveThreadPage(ports, absoluteUrl, { digest, page, addedByToken: tokenIdOf(caller) }));
 
   return saved;
 }

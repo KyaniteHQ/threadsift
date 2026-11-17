@@ -11,7 +11,7 @@ import {
   scopeNote,
   scopeRefusal,
 } from "./openapi.ts";
-import { REFUSED_HOST, RESTORING, budgetSpent } from "./refusals.ts";
+import { REFUSED_HOST, RESTORING, budgetSpent, unknownToken } from "./refusals.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
 import {
   ErrorResponseSchema,
@@ -38,6 +38,7 @@ const saveItemRoute = createRoute({
     scopeNote("POST", "/api/items", PASTE_DIGEST_SCOPE),
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
+    401: jsonBody(ErrorResponseSchema, "The agent token is unknown or revoked."),
     ...scopeRefusal("POST", "/api/items", PASTE_DIGEST_SCOPE),
     ...budgetRefusal("Nothing is saved."),
     201: jsonBody(
@@ -74,6 +75,8 @@ export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
     requirePasteScopes(c, digest !== undefined);
 
     const saved = await paste(ports, url, callerOf(c), { digest, content, page, fill });
+
+    if (saved.kind === "unknown-token") return unknownToken(c);
 
     if (saved.kind === "budget-spent") return budgetSpent(c, saved);
 
