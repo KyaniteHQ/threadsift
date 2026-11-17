@@ -13,7 +13,6 @@ export const planTagUnit: PlanUnit = async (db, id, row) => {
   const reachedEnd = unit.itemIds.length < REWRITE_UNIT_ITEMS;
 
   return {
-    leases: [],
     moving: unit.moving,
     pin: [
       db

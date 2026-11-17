@@ -38,22 +38,6 @@ export function proposeTopics(
   return row.id;
 }
 
-export const heldLeases = (instance: Instance): number =>
-  count(instance, "select count(*) as n from topic_leases where expires_at > ?", Date.now());
-
-export const holdLease = (instance: Instance, topic: number, holder: string): void => {
-  exec(
-    instance,
-    "insert or replace into topic_leases (topic_id, holder, expires_at, generation) values (?, ?, ?, 1)",
-    topic,
-    holder,
-    Date.now() + 600_000,
-  );
-};
-
-export const leaseGeneration = (instance: Instance, topic: number): number =>
-  count(instance, "select generation as n from topic_leases where topic_id = ?", topic);
-
 export const topicMergeLines = async (instance: Instance): Promise<readonly string[]> =>
   (await instance.read("GET", "/api/log", LogPageSchema)).entries.flatMap((entry) =>
     entry.action === "merge-topic"
@@ -120,5 +104,4 @@ export const unchanged = ({ instance, loser }: Library): void => {
 export const acceptsAtOnce = async ({ instance, survivor, proposal }: Library): Promise<void> => {
   assert.deepEqual(await answerOf(instance, proposal), [200, { state: "done" }]);
   assert.equal(itemsOf(instance, survivor), 4);
-  assert.equal(heldLeases(instance), 0);
 };

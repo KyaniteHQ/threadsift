@@ -8,13 +8,7 @@ import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { script, seedTopicItems } from "./pin-fixtures.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
-import {
-  heldLeases,
-  itemsOf,
-  proposeTopics,
-  topicId,
-  topicMergeLines,
-} from "./topic-accept-fixtures.ts";
+import { itemsOf, proposeTopics, topicId, topicMergeLines } from "./topic-accept-fixtures.ts";
 
 describe("Accept of a Topic row that one request cannot finish", () => {
   const UNIT = 500;
@@ -35,7 +29,7 @@ describe("Accept of a Topic row that one request cannot finish", () => {
 
   after(() => instance.close());
 
-  it("answers 202 after 50 units with the row, the Pin and the count in place and both leases free", async () => {
+  it("answers 202 after 50 units with the row, the Pin and the count in place", async () => {
     const answer = await accept(instance, proposal);
 
     assert.deepEqual([answer.status, JSON.parse(answer.body)], [202, { state: "accepting" }]);
@@ -50,7 +44,6 @@ describe("Accept of a Topic row that one request cannot finish", () => {
     );
     assert.equal(count(instance, "select count(*) as n from pins where kind = 'topic-merge'"), 1);
     assert.equal(itemsOf(instance, loser), 2);
-    assert.equal(heldLeases(instance), 0);
     assert.deepEqual(await topicMergeLines(instance), []);
   });
 
@@ -82,7 +75,6 @@ describe("Accept of a Topic row that one request cannot finish", () => {
     assert.deepEqual(await topicMergeLines(instance), [
       `Loser into Survivor | ${String(ITEMS + 1)} Items`,
     ]);
-    assert.equal(heldLeases(instance), 0);
   });
 });
 

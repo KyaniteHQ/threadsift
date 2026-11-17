@@ -35,7 +35,7 @@ export function queuedVerification(
     thread: Readonly<XThreadValue>;
     digest: string | null;
   }>,
-): JobWrites {
+): readonly [JobWrites[number], ...JobWrites] {
   const fresh = {
     thread: JSON.stringify(thread),
     digest,

@@ -80,7 +80,7 @@ const acceptProposalRoute = createRoute({
     404: jsonBody(ErrorResponseSchema, "No Proposal has this id."),
     409: jsonBody(
       ErrorResponseSchema,
-      "The Proposal is not open (`not-open`); the row is not current (`not-current`: the subject changed, or a concurrent Accept already removed the row), because a concurrent Accept removed a lost-Highlight or disagreement row, the Highlight of a `highlight-lost` row is found in its Item again, the Topic of an `overview-gap` row has no Item left that its overview was not built from or already has an overview run open, or an `items-disagree` row names an Item that has a newer Digest or the two Items no longer sit under one Topic; no Provider is saved for an `overview-gap` row (`no-provider`: the row stays open); another Proposal is accepting (`merge-busy`: one merge runs at a time); or an overview run or another merge holds the lease of one of the two Topics (`topic-busy`: a Topic merge only; the Proposal stays open and the call can be sent again).",
+      "The Proposal is not open (`not-open`); the row is not current (`not-current`: the subject changed, or a concurrent Accept already removed the row), because a concurrent Accept removed a lost-Highlight or disagreement row, the Highlight of a `highlight-lost` row is found in its Item again, the Topic of an `overview-gap` row has no Item left that its overview was not built from or already has an overview run open, or an `items-disagree` row names an Item that has a newer Digest or the two Items no longer sit under one Topic; no Provider is saved for an `overview-gap` row (`no-provider`: the row stays open); another Proposal is accepting (`merge-busy`: one merge runs at a time).",
     ),
   },
 });
@@ -117,7 +117,6 @@ function registerAccept(app: OpenAPIHono, ports: Ports): void {
       case "not-current":
       case "no-provider":
       case "merge-busy":
-      case "topic-busy":
         return c.json({ error: outcome }, 409);
       default: {
         const exhaustive: never = outcome;

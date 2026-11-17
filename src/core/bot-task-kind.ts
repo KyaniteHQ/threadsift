@@ -12,7 +12,7 @@ import { answerApplier } from "./bot-task-apply.ts";
 import type { BotTaskStart } from "./bot-task-start.ts";
 import type { BotTaskRow } from "./bot-task-states.ts";
 import { guardHolds } from "./guards.ts";
-import type { ClaimedJob, JobOutcome, JobPorts, JobWrites } from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { grokBotChosen } from "./provider-saved.ts";
 
@@ -38,7 +38,6 @@ export type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "context">>;
 
 export interface SentTaskKind {
   readonly prepare: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<BotPreparation>;
-  readonly release: (db: JobPorts["db"], job: Readonly<ClaimedJob>) => JobWrites;
   readonly current: (db: JobPorts["db"], context: string) => Promise<boolean>;
   readonly describe: BotAnswering["describe"];
   readonly apply: (
@@ -77,14 +76,12 @@ function whileChosen(prepare: BotTaskKind["prepare"]): BotTaskKind["prepare"] {
 
 export function botTaskKind<Context, Result>({
   current,
-  release = () => [],
   prepare,
   apply,
   ...parts
 }: Readonly<
   KindParts<Context, Result> & {
     current: (context: Context) => Readonly<SQLWrapper>;
-    release?: BotTaskKind["release"];
     prepare: BotTaskKind["prepare"];
   }
 >): BotTaskKind {
@@ -105,7 +102,6 @@ export function botTaskKind<Context, Result>({
 
   return {
     prepare: whileChosen(prepare),
-    release,
     current: async (db, contextText) => {
       const parsed = parsedJson(parts.context, contextText);
 

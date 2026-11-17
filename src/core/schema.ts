@@ -66,7 +66,7 @@ export { type RestoreRow, restoreRuns } from "./restore-tables.ts";
 
 export { searchParts } from "./search-tables.ts";
 
-export { topicChecks, topicLeases, topicPages } from "./topic-tables.ts";
+export { topicChecks, topicPages } from "./topic-tables.ts";
 
 export { xSettings } from "./x-settings-tables.ts";
 

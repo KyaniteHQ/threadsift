@@ -10,9 +10,7 @@ const NODE_GLOBALS = ["process", "Buffer", "global", "__dirname", "__filename", 
 
 const CANNOT_THROW = {
   "src/core/failure-log.ts": ["bestEffort", "readOrAssume"],
-  "src/core/merge-failure.ts": ["releasedAfterFailure"],
   "src/core/guards.ts": ["guardHeldOrUnread"],
-  "src/core/topic-lease.ts": ["leaseReleasedAfterFailure"],
 };
 
 const SERVER_MODULES = ["^(drizzle-orm|hono)(/|$)", "^@hono/", "^node:", "^cloudflare:"];
