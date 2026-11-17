@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { guardedResults } from "./guards.ts";
+import { guardedResults, guardedWrite } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { START_UNDO } from "./restore-contract.ts";
@@ -126,21 +126,21 @@ export async function resumeRestore(ports: JobPorts, id: number): Promise<Resume
 
   const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and ${RESUMABLE_RESTORE}`;
 
-  const written = await guardedResults(
+  const written = await guardedWrite(
     db,
     sql`exists (select 1 from ${restoreRuns} where ${waiting})`,
+    openingRestoreJob(db, waiting),
     [
       db
         .update(restoreRuns)
         .set({ state: "running", failure: null, updatedAt: Date.now() })
         .where(waiting),
-      openingRestoreJob(db, sql`${restoreRuns.id} = ${id} and ${RUNNING_AGAIN}`),
     ],
   );
 
   if (written === null) return { kind: "not-resumable" };
 
-  await enqueueRows(ports, OpenedJobsSchema.parse(written[1]));
+  await enqueueRows(ports, written);
 
   return { kind: "resumed" };
 }

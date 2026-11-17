@@ -1,9 +1,8 @@
 import { eq, inArray, max, sql } from "drizzle-orm";
 
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
-import { type ProposalKind, type ProposalState, WEEKLY_TASK } from "./kinds.ts";
+import { type ProposalState, WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { type Proposal, type ProposalPage, ProposalSchema } from "./proposal-contract.ts";
 import { pageQuery } from "./proposal-rows.ts";
 import { providerSet } from "./provider-saved.ts";
 import { proposals, scheduledRuns } from "./schema.ts";
@@ -11,7 +10,7 @@ import { proposals, scheduledRuns } from "./schema.ts";
 type Row = Awaited<ReturnType<typeof pageQuery>>[number];
 
 function mergeOf(row: Readonly<Row>) {
-  return ProposalSchema.parse({
+  return {
     id: row.id,
     kind: row.kind,
     state: row.state,
@@ -19,11 +18,11 @@ function mergeOf(row: Readonly<Row>) {
     failedRuns: row.failedRuns,
     from: { id: row.fromId, name: row.fromName, items: row.fromItems },
     into: { id: row.intoId, name: row.intoName, items: row.intoItems },
-  });
+  };
 }
 
 function lostOf(row: Readonly<Row>) {
-  return ProposalSchema.parse({
+  return {
     id: row.id,
     kind: row.kind,
     state: row.state,
@@ -32,11 +31,11 @@ function lostOf(row: Readonly<Row>) {
       quote: row.quote,
       item: { id: row.itemId, source: row.source, title: row.title },
     },
-  });
+  };
 }
 
 function gapOf(row: Readonly<Row>) {
-  return ProposalSchema.parse({
+  return {
     id: row.id,
     kind: row.kind,
     state: row.state,
@@ -46,11 +45,11 @@ function gapOf(row: Readonly<Row>) {
       uncovered: row.uncovered,
       items: row.digested,
     },
-  });
+  };
 }
 
 function disagreeOf(row: Readonly<Row>) {
-  return ProposalSchema.parse({
+  return {
     id: row.id,
     kind: row.kind,
     state: row.state,
@@ -58,7 +57,7 @@ function disagreeOf(row: Readonly<Row>) {
     topic: { key: row.topicKey, name: row.topicName },
     first: row.first,
     second: row.second,
-  });
+  };
 }
 
 const PROPOSAL_OF = {
@@ -67,9 +66,9 @@ const PROPOSAL_OF = {
   "highlight-lost": lostOf,
   "overview-gap": gapOf,
   "items-disagree": disagreeOf,
-} as const satisfies Readonly<Record<ProposalKind, (row: Readonly<Row>) => Proposal>>;
+} as const;
 
-export async function readProposalPage(db: Database, cursor: number | null): Promise<ProposalPage> {
+export async function readProposalPage(db: Database, cursor: number | null) {
   const [rows, [run], [provider]] = await db.batch([
     pageQuery(db, cursor),
     db

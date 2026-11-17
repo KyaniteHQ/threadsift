@@ -28,10 +28,6 @@ export const digestBotKind = botTaskKind({
       return settled({ writes: keptNotUpdated(ports.db, job.itemId) });
     }
 
-    if (item.pendingDigest !== null) {
-      throw new Error("A Digest the caller supplied is published without the Grok Bot");
-    }
-
     const prepared = await preparedDigest(ports, job, item);
 
     if (prepared.kind === "settled") return prepared;

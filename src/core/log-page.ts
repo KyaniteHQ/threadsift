@@ -1,26 +1,10 @@
 import { desc, eq, lt } from "drizzle-orm";
 
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
-import { type LogPage, LogEntrySchema } from "./log-contract.ts";
 import type { Database } from "./ports.ts";
 import { logEntries, logStart, topics } from "./schema.ts";
 
-type Row = Readonly<{
-  id: number;
-  at: number;
-  action: string;
-  title: string | null;
-  topic: string | null;
-  topicKey: string | null;
-  tags: readonly string[] | null;
-  added: number | null;
-  removed: number | null;
-  picks: number | null;
-  mergedFrom: string | null;
-  mergedInto: string | null;
-  moved: number | null;
-  itemId: number | null;
-}>;
+type Row = Readonly<Awaited<ReturnType<typeof pageQuery>>[number]>;
 
 function entryOf(row: Row) {
   const { id, at, action } = row;
@@ -28,17 +12,22 @@ function entryOf(row: Row) {
   const topic = { key: row.topicKey, name: row.topic };
   const merged = { id, at, from: row.mergedFrom, into: row.mergedInto, items: row.moved };
 
-  return LogEntrySchema.parse(
-    {
-      ingest: { id, at, action, item, topic, tags: row.tags },
-      digest: { id, at, action, item, topic, tags: row.tags },
-      topic: { id, at, action, topic },
-      overview: { id, at, action, topic, added: row.added, removed: row.removed },
-      related: { id, at, action, item, picks: row.picks },
-      merge: { ...merged, action },
-      "merge-topic": { ...merged, action },
-    }[action],
-  );
+  switch (action) {
+    case "ingest":
+    case "digest":
+      return { id, at, action, item, topic, tags: row.tags };
+    case "topic":
+      return { id, at, action, topic };
+    case "overview":
+      return { id, at, action, topic, added: row.added, removed: row.removed };
+    case "related":
+      return { id, at, action, item, picks: row.picks };
+    case "merge":
+    case "merge-topic":
+      return { ...merged, action };
+    default:
+      return action satisfies never;
+  }
 }
 
 function pageQuery(db: Database, cursor: number | null) {
@@ -66,7 +55,7 @@ function pageQuery(db: Database, cursor: number | null) {
     .limit(ITEMS_PAGE_SIZE + 1);
 }
 
-export async function readLog(db: Database, cursor: number | null): Promise<LogPage> {
+export async function readLog(db: Database, cursor: number | null) {
   const [rows, [start]] = await db.batch([
     pageQuery(db, cursor),
     db.select({ startedAt: logStart.startedAt }).from(logStart).where(eq(logStart.id, 1)),

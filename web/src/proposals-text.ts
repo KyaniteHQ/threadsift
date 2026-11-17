@@ -27,7 +27,7 @@ export function proposalsEmptyLine(provider: boolean, checkedDate: string | null
 
 type Wording = "effect" | "rejectNamed" | "rejectRetryNamed" | "rejected";
 
-type AcceptWording = "acceptNamed" | "acceptRetryNamed" | "accepted" | "notCurrent";
+type AcceptWording = "acceptNamed" | "acceptRetryNamed" | "accepted";
 
 const ALREADY_DECIDED = "This proposal was already decided or is no longer in the list.";
 
@@ -72,26 +72,21 @@ const ACCEPT_WORDS = {
     acceptNamed: "Accept merging {from} into {into}",
     acceptRetryNamed: "Try again to accept merging {from} into {into}",
     accepted: "Accepted merging {from} into {into}.",
-    notCurrent: ALREADY_DECIDED,
   },
   "topic-merge": {
     acceptNamed: "Accept merging topic {from} into {into}",
     acceptRetryNamed: "Try again to accept merging topic {from} into {into}",
     accepted: "Accepted merging topic {from} into {into}.",
-    notCurrent: ALREADY_DECIDED,
   },
   "highlight-lost": {
     acceptNamed: "Accept removing highlight “{quote}” from {title}",
     acceptRetryNamed: "Try again to accept removing highlight “{quote}” from {title}",
     accepted: "Accepted removing highlight “{quote}” from {title}.",
-    notCurrent: "Passage found in the item’s text again. The highlight stays; nothing was removed.",
   },
   "overview-gap": {
     acceptNamed: "Accept updating the overview of topic {topic}",
     acceptRetryNamed: "Try again to accept updating the overview of topic {topic}",
     accepted: "Accepted updating the overview of topic {topic}.",
-    notCurrent:
-      "Every item of this topic is in the overview now, or a run for the topic is already open; nothing was started.",
   },
   "items-disagree": {
     acceptNamed:
@@ -100,8 +95,6 @@ const ACCEPT_WORDS = {
       "Try again to accept keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
     accepted:
       "Accepted keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
-    notCurrent:
-      "Nothing was kept, because the agent read one of the two items again or the two items no longer share a topic.",
   },
 } as const satisfies Partial<Record<ProposalKind, Record<AcceptWording, string>>>;
 
@@ -240,8 +233,6 @@ export const acceptLabel = wordedBy(ACCEPT_WORDS, "acceptNamed");
 export const acceptRetryLabel = wordedBy(ACCEPT_WORDS, "acceptRetryNamed");
 
 export const acceptedAnnouncement = wordedBy(ACCEPT_WORDS, "accepted");
-
-export const notCurrentNote = wordedBy(ACCEPT_WORDS, "notCurrent");
 
 export function overviewCounts({
   uncovered,

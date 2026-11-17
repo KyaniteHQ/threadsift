@@ -29,9 +29,8 @@ interface Stored {
 type GrokBotSaveOutcome =
   | { readonly kind: "saved"; readonly view: GrokBotView }
   | { readonly kind: "secret-missing" }
-  | { readonly kind: "key-needed" };
-
-const SAVE_ATTEMPTS = 5;
+  | { readonly kind: "key-needed" }
+  | { readonly kind: "changed" };
 
 const ANSWER_BYTES = 16 * 1024;
 
@@ -95,7 +94,6 @@ function unchangedSince(ports: Readonly<GrokBotPorts>, stored: Readonly<Stored> 
 export async function saveGrokBot(
   ports: Readonly<GrokBotPorts>,
   input: Readonly<GrokBotInput>,
-  attemptsLeft = SAVE_ATTEMPTS,
 ): Promise<GrokBotSaveOutcome> {
   const { secrets } = ports;
 
@@ -126,10 +124,7 @@ export async function saveGrokBot(
 
   if (written) return { kind: "saved", view: await readGrokBot(ports) };
 
-  if (attemptsLeft <= 1)
-    throw new Error("The Grok Bot settings changed during every attempt to save.");
-
-  return saveGrokBot(ports, input, attemptsLeft - 1);
+  return { kind: "changed" };
 }
 
 export async function removeGrokBot(
