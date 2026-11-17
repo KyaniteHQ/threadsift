@@ -16,8 +16,8 @@ async function saveShortLink(
   existing: Existing,
   addedByToken: number | null,
 ): Promise<SaveResult> {
-  const { normalizedUrl: shortLink } = parseLink(pasted);
-  const known = await aliasedItem(ports.db, shortLink);
+  const link = parseLink(pasted);
+  const known = await aliasedItem(ports.db, link.normalizedUrl);
 
   if (known !== undefined) {
     return saveQueued(
@@ -39,14 +39,14 @@ async function saveShortLink(
       ? await saveFailedResolution(
           ports.db,
           pasted,
-          parseLink(pasted),
+          link,
           resolution.fetched,
           existing,
           addedByToken,
         )
       : await saveResolved(
           ports,
-          shortLink,
+          link.normalizedUrl,
           { originalUrl: pasted, address: resolution.address, digest, addedByToken },
           parseLink(resolution.address),
           existing,

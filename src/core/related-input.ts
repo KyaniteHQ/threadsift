@@ -52,7 +52,7 @@ export type PickRead =
   | { readonly kind: "absent" }
   | {
       readonly kind: "unreadable";
-      readonly source: Readonly<Pick<PickItem, "id" | "digest" | "storedTags">>;
+      readonly source: Version;
     }
   | {
       readonly kind: "read";

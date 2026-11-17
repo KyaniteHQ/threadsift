@@ -16,11 +16,12 @@ import {
   disconnectAccount,
   expireAccount,
   recordWindow,
+  windowRecordOf,
 } from "./reddit-account-states.ts";
 import { type AccountRow } from "./reddit-account-tables.ts";
 import { type RedditAnswer, answerOf } from "./reddit-session.ts";
-import { leftOf } from "./reddit-window.ts";
 import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
+import { RATE_LIMITED } from "./thread-fill.ts";
 
 type AccountPorts = Pick<Ports, "db" | "secrets">;
 
@@ -126,7 +127,7 @@ export async function disconnectRedditAccount(
 }
 
 export function verdictOf(answer: Readonly<Pick<RedditAnswer, "status" | "text">>): SessionVerdict {
-  if (answer.status === 429) return "limited";
+  if (answer.status === RATE_LIMITED) return "limited";
 
   if (answer.status === LOGGED_OUT) return "logged-out";
 
@@ -189,17 +190,7 @@ async function settledVerdict(
   const now = Date.now();
 
   if (answer !== null) {
-    await recordWindow(
-      ports.db,
-      session,
-      {
-        left: leftOf(answer.remaining),
-        reset: answer.reset,
-        retryAfter: answer.retryAfter,
-        limited: verdict === "limited",
-      },
-      now,
-    );
+    await recordWindow(ports.db, session, windowRecordOf(answer), now);
   }
 
   if (verdict === "logged-out") await expireAccount(ports, session, now);

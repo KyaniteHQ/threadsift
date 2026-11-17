@@ -46,7 +46,7 @@ async function claim(
 
     logFailure("fetcher-failed", failure(entry.module, "matches"), error);
 
-    return { kind: "failed", status: "unreadable" };
+    return UNREADABLE;
   }
 
   return claim(rest, address, deadline);
@@ -128,5 +128,5 @@ export async function pluginPage(
 
   if (claimed.kind === "claimed") return fetchedFrom(claimed.entry, address, deadline);
 
-  return claimed.kind === "failed" ? { kind: "failed", status: claimed.status } : UNCLAIMED;
+  return claimed;
 }

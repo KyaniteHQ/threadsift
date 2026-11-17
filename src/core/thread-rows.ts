@@ -13,6 +13,21 @@ export interface ThreadNode {
   readonly eligible: boolean;
 }
 
+export function moreNode(position: number, parentId: string | null, depth: number): ThreadNode {
+  return {
+    id: `more_${String(position)}`,
+    parentId,
+    position,
+    depth,
+    kind: "more",
+    author: null,
+    body: null,
+    score: null,
+    postedAt: null,
+    eligible: false,
+  };
+}
+
 const STATEMENT_JSON_BYTES = 1_500_000;
 
 const BRACKETS = 2;

@@ -14,18 +14,12 @@ import {
   type WindowRecord,
   recordWindow,
   resetAtOf,
+  windowRecordOf,
 } from "./reddit-account-states.ts";
 import { checkSession } from "./reddit-account.ts";
 import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
 import { type RedditAnswer, answerOf } from "./reddit-session.ts";
-import {
-  NEW_WINDOW,
-  afterRequest,
-  leftOf,
-  mayAsk,
-  pauseForSpacing,
-  windowFits,
-} from "./reddit-window.ts";
+import { NEW_WINDOW, afterRequest, mayAsk, pauseForSpacing, windowFits } from "./reddit-window.ts";
 import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
 import { RATE_LIMITED, THREAD_QUERY, fillAnswers, hiddenIn, permalinkPath } from "./thread-fill.ts";
 
@@ -98,12 +92,7 @@ async function record(run: Readonly<Run>, change: Readonly<WindowRecord>): Promi
 }
 
 function recorded(run: Readonly<Run>, answer: Readonly<RedditAnswer>): Promise<void> {
-  return record(run, {
-    left: leftOf(answer.remaining),
-    reset: answer.reset,
-    retryAfter: answer.retryAfter,
-    limited: answer.status === RATE_LIMITED,
-  });
+  return record(run, windowRecordOf(answer));
 }
 
 function limitedAtFirst(run: Readonly<Run>, first: Readonly<RedditAnswer>): AccountThread {
