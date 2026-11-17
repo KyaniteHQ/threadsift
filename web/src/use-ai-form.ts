@@ -16,11 +16,8 @@ import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";
 import { useConnect } from "./use-connect.ts";
 import { useField } from "./use-form.ts";
 
-const FALLBACK_PROVIDERS: readonly Provider[] = [PROVIDERS["openai-compatible"].id];
-
 function useAiFields(view: AiView) {
-  const { settings } = view;
-  const providers = view.providers.length === 0 ? FALLBACK_PROVIDERS : view.providers;
+  const { settings, providers } = view;
   const offered = settings !== null && providers.includes(settings.provider) ? settings : null;
 
   const [provider, setProvider] = useState<Provider>(

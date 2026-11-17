@@ -81,5 +81,5 @@ export async function acceptDisagreement(
     removedOpen(db, eq(proposals.id, id)),
   ]);
 
-  return accepted === null ? acceptDisagreement(db, id) : "done";
+  return accepted === null ? "not-current" : "done";
 }

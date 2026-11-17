@@ -10,7 +10,6 @@ import {
   type AcceptableProposal,
   PROPOSAL_WORDS,
   acceptedAnnouncement,
-  notCurrentNote,
   rejectedAnnouncement,
 } from "./proposals-text.ts";
 
@@ -100,7 +99,7 @@ export function useAccept({
       } else if (isBusy(outcome)) {
         send({ kind: "hold", id: proposal.id, busy: outcome });
       } else if (outcome === "not-current") {
-        await settle(proposal, "accept", notCurrentNote(proposal));
+        await settle(proposal, "accept", PROPOSAL_WORDS.alreadyDecided);
       } else {
         await check(proposal, "accept");
       }

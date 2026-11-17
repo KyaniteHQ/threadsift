@@ -3,7 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import { guardedWrite, refusedByGuard } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
+import { enqueueRows } from "./job-rows.ts";
 import { providerSet } from "./provider-saved.ts";
 import { digests, items } from "./schema.ts";
 import { hasOpenOverview, openOverviewJob } from "./topic-coverage.ts";
@@ -57,7 +57,7 @@ export async function startOverview(
 
     if (queued === null) return await refusalOf(ports, topicId);
 
-    await enqueueRows(ports, OpenedJobsSchema.parse(queued));
+    await enqueueRows(ports, queued);
 
     return { kind: "started" };
   } catch (error) {

@@ -1,12 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import {
-  GROK_BOT_IN_FLIGHT,
-  GROK_BOT_WEEKLY_RESERVE,
-  ownerOf,
-  startBotTask,
-} from "../src/core/bot-task-start.ts";
+import { GROK_BOT_IN_FLIGHT, ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import {
@@ -26,9 +21,7 @@ import { exec } from "./related-fixtures.ts";
 
 const START = { kind: "related_pick", inputs: "{}", inputRevision: 1, context: "{}" } as const;
 
-const SHARED_SLOTS = GROK_BOT_IN_FLIGHT - GROK_BOT_WEEKLY_RESERVE;
-
-describe("no more than 10 Grok Bot tasks are outstanding, however the starts overlap", () => {
+describe("one cap bounds outstanding Grok Bot tasks, however the starts overlap", () => {
   let instance: Instance;
   let library: BotLibrary;
 
@@ -55,13 +48,13 @@ describe("no more than 10 Grok Bot tasks are outstanding, however the starts ove
   const running = () => taskRows(instance, "executor = 'grok-bot' and state = 'running'");
 
   const fillCap = async () => {
-    const started = await startAll(await bulkJobs(instance, SHARED_SLOTS));
+    const started = await startAll(await bulkJobs(instance, GROK_BOT_IN_FLIGHT));
 
     assert.ok(started.every(({ kind }) => kind === "started"));
   };
 
-  it("starts exactly 7 of 9 shared-kind tasks in two concurrent batches and answers the other two full", async () => {
-    const jobs = await bulkJobs(instance, SHARED_SLOTS + 2);
+  it("admits the cap across two concurrent batches and answers the other two full", async () => {
+    const jobs = await bulkJobs(instance, GROK_BOT_IN_FLIGHT + 2);
 
     const [first, second] = await Promise.all([
       startAll(jobs.slice(0, 5)),
@@ -70,16 +63,22 @@ describe("no more than 10 Grok Bot tasks are outstanding, however the starts ove
 
     const kinds = [...first, ...second].map(({ kind }) => kind);
 
-    assert.equal(kinds.filter((kind) => kind === "started").length, SHARED_SLOTS);
+    assert.equal(kinds.filter((kind) => kind === "started").length, GROK_BOT_IN_FLIGHT);
     assert.equal(kinds.filter((kind) => kind === "full").length, 2);
-    assert.equal(running().length, SHARED_SLOTS);
+    assert.equal(running().length, GROK_BOT_IN_FLIGHT);
   });
 
-  it("keeps the last 3 places for the weekly runs and caps all kinds together at 10", async () => {
-    await fillCap();
+  it("caps all task kinds together", async () => {
+    await kindsOf(6, "digest");
 
+    assert.deepEqual(await kindsOf(5, "proposals"), [
+      "started",
+      "started",
+      "started",
+      "started",
+      "full",
+    ]);
     assert.deepEqual(await kindsOf(1, "digest"), ["full"]);
-    assert.deepEqual(await kindsOf(4, "proposals"), ["started", "started", "started", "full"]);
     assert.equal(running().length, GROK_BOT_IN_FLIGHT);
   });
 
@@ -131,7 +130,6 @@ describe("no more than 10 Grok Bot tasks are outstanding, however the starts ove
 
   it("starts a Digest while answered tasks wait on that Digest, however many there are", async () => {
     await fillCap();
-    await kindsOf(GROK_BOT_WEEKLY_RESERVE, "proposals");
     assert.equal(running().length, GROK_BOT_IN_FLIGHT);
     exec(
       instance,

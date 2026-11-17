@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { parseHttpDate } from "./http-date.ts";
 import { parsedJson } from "./parsed-json.ts";
 import type { RateLimitHeaders } from "./ports.ts";
 
@@ -50,9 +49,7 @@ function retryAfterAt(value: string | null, now: number): number | null {
 
   if (WHOLE_NUMBER.test(text)) return laterThan(now + Number(text) * MS_PER_SECOND, now);
 
-  const date = parseHttpDate(text, now);
-
-  return date === null ? null : laterThan(date, now);
+  return laterThan(Date.parse(text), now);
 }
 
 export function rateLimitOf(answer: Readonly<LimitedAnswer>, now: number): RateLimit | null {

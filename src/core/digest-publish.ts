@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
-import { type Digest, StoredDigestSchema } from "./ai-contract.ts";
+import type { Digest } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
 import { catalogCurrent, pinnedCatalog, publishedLinks } from "./catalog.ts";
 import {
@@ -168,10 +168,10 @@ function digestOrigin(
   entries: Parameters<typeof catalogCurrent>[1],
   submitted: readonly string[],
 ) {
-  const published = StoredDigestSchema.parse({
+  const published: Digest = {
     ...digest,
     keptComments: submittedAmong(digest.keptComments ?? [], submitted),
-  });
+  };
 
   switch (source.executor) {
     case "caller":
