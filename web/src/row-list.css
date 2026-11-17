@@ -10,7 +10,7 @@
 .pg .rl-items .list-head {
   padding: 0 0 var(--s2);
   font-size: var(--t-meta);
-  border-right: 0;
+  border-inline-end: 0;
   border-bottom: 1px solid var(--line);
 }
 .rl-items .list-head h2 {
@@ -47,7 +47,7 @@
   flex: none;
 }
 .rl-row .it-date {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .rl-title {
   margin: 0;

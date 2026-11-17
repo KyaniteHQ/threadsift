@@ -4,12 +4,12 @@
 .pg .hp-col .search {
   position: static;
   padding: 0;
-  border-right: 0;
+  border-inline-end: 0;
 }
 .pg .hp-col .list-head {
   padding: 0 0 var(--s2);
   font-size: var(--t-meta);
-  border-right: 0;
+  border-inline-end: 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -39,7 +39,7 @@
   font-size: var(--t-meta);
 }
 .hp-it .it-date {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .hp-title {
   margin: 0;
