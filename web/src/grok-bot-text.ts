@@ -58,7 +58,7 @@ export const KEY_STATES = {
   missing: AI_TEXT["secret-missing"],
 } as const;
 
-const RESULT_TEXT = {
+export const RESULT_TEXT = {
   ok: GROK_BOT_TEXT.resultOk,
   "wrong-key": GROK_BOT_TEXT.resultWrongKey,
   "not-found": GROK_BOT_TEXT.resultNotFound,
@@ -69,7 +69,3 @@ const RESULT_TEXT = {
   "not-configured": GROK_BOT_TEXT.resultNotConfigured,
   "secret-missing": AI_TEXT["secret-missing"],
 } as const satisfies Record<GrokBotResult, string>;
-
-export function resultText(result: GrokBotResult): string {
-  return RESULT_TEXT[result];
-}

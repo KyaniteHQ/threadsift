@@ -10,6 +10,7 @@ import {
   useSpanIndex,
 } from "./highlights-context.ts";
 import { dropHighlight, keepHighlight } from "./keeping-api.ts";
+import { NOTHING } from "./nothing.ts";
 import {
   KEEP_FAILED,
   KEEP_STALE,
@@ -44,7 +45,7 @@ function useSerial() {
 
   return useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
     const run = tail.current.then(task);
-    tail.current = run.catch(() => {});
+    tail.current = run.catch(NOTHING);
 
     return run;
   }, []);

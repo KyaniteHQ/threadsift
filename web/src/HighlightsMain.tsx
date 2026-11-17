@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from "react";
 
 import { useFilters } from "./filters.ts";
-import { HighlightsBody, highlightsHeadText } from "./HighlightsBody.tsx";
+import { highlightsHeadText } from "./highlights-page-text.ts";
+import { HighlightsBody } from "./HighlightsBody.tsx";
 import { HighlightsTools } from "./HighlightsTools.tsx";
 import type { Route } from "./routing.ts";
 import { SettledAnnouncement } from "./SettledAnnouncement.tsx";

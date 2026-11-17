@@ -1,9 +1,8 @@
 import { type RefObject, useCallback } from "react";
 
-import { type Filters, isEmptyResult, isFiltered, isSearching } from "./filters.ts";
+import { type Filters, isEmptyResult } from "./filters.ts";
 import { HighlightEntry } from "./HighlightEntry.tsx";
-import { HIGHLIGHTS_PAGE, pageHeadLabel } from "./highlights-page-text.ts";
-import { matchedCount } from "./list-counts.ts";
+import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { EmptyState, ListHead, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { CLEAR_ALL, RETRY_LABEL } from "./text.ts";
@@ -12,14 +11,6 @@ import { type PageState, type Ready, canLoadMore } from "./use-highlights-page.t
 
 function Loading() {
   return <Skeleton label={HIGHLIGHTS_PAGE.loading} row="hp-it" title="hp-title" />;
-}
-
-export function highlightsHeadText(state: Readonly<Ready>, filters: Readonly<Filters>): string {
-  if (state.counts.total === 0) return "";
-  const shown = isFiltered(filters) ? matchedCount(state.counts, filters) : null;
-  const text = isSearching(filters) ? filters.q.trim() : "";
-
-  return pageHeadLabel(state.counts.total, shown, text);
 }
 
 function More({

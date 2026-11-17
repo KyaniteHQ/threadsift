@@ -105,7 +105,8 @@ function rankInTry(owner: ESTree.TryStatement, part: Node): number {
 
 function followsInList(
   list: readonly Node[],
-  pair: Readonly<{ awaited: Node; clause: Node }>,
+  awaited: Node,
+  clause: Node,
   owner: Node,
   parts: readonly [Node, Node],
 ): boolean {
@@ -113,11 +114,11 @@ function followsInList(
   const from = list.indexOf(fromPart);
   const to = list.indexOf(toPart);
 
-  if (!runsToEnd(pair.awaited, fromPart)) return false;
+  if (!runsToEnd(awaited, fromPart)) return false;
 
   if (from < to) return !exitsAmong(list, from + 1, to);
 
-  return insideLoop(owner, pair.clause) && !exitsAmong(list, from + 1, list.length);
+  return insideLoop(owner, clause) && !exitsAmong(list, from + 1, list.length);
 }
 
 export function canThrowAfter(awaited: Node, thrown: Node, clause: ESTree.CatchClause): boolean {
@@ -136,8 +137,7 @@ export function canThrowAfter(awaited: Node, thrown: Node, clause: ESTree.CatchC
 
   const list = statementsOf(common);
 
-  if (list !== undefined)
-    return followsInList(list, { awaited, clause }, common, [fromPart, toPart]);
+  if (list !== undefined) return followsInList(list, awaited, clause, common, [fromPart, toPart]);
 
   if (common.type === "IfStatement") return fromPart === common.test;
 

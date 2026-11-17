@@ -90,7 +90,7 @@ function removedExports(mergeBase: string, changes: readonly Change[]): Set<stri
 }
 
 function namedBy(ref: Readonly<PathRef>, paths: Readonly<ReadonlySet<string>>): string | undefined {
-  if (ref.glob) return ref.paths.some((glob) => matchesAny(glob, paths)) ? ref.span : undefined;
+  if (ref.glob) return matchesAny(ref.paths, paths) ? ref.span : undefined;
 
   return ref.paths.find((path) => paths.has(path));
 }

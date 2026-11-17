@@ -6,7 +6,7 @@ import {
   grokBotAddressOf,
 } from "../../src/core/grok-bot-contract.ts";
 import { removeGrokBot, saveGrokBot, testGrokBot } from "./grok-bot-api.ts";
-import { GROK_BOT_TEXT, KEY_STATES, resultText } from "./grok-bot-text.ts";
+import { GROK_BOT_TEXT, KEY_STATES, RESULT_TEXT } from "./grok-bot-text.ts";
 import { type FieldState, useField } from "./use-form.ts";
 import {
   type Task,
@@ -77,7 +77,7 @@ function useSave(view: Readonly<GrokBotView>, fields: Readonly<Fields>, changed:
       key: key.value === "" ? undefined : key.value,
     });
 
-    if ("kind" in response) return { kind: "error", text: resultText(response.reason) };
+    if ("kind" in response) return { kind: "error", text: RESULT_TEXT[response.reason] };
     changed(response);
     setAddress(response.webhookUrl ?? "");
     clearKey();
@@ -89,7 +89,7 @@ function useSave(view: Readonly<GrokBotView>, fields: Readonly<Fields>, changed:
 const test: Task = async () => {
   const result = await testGrokBot();
 
-  return { kind: result === "ok" ? "ok" : "error", text: resultText(result) };
+  return { kind: result === "ok" ? "ok" : "error", text: RESULT_TEXT[result] };
 };
 
 function useRemove({ address, key }: Readonly<Fields>, changed: Changed): Task {
