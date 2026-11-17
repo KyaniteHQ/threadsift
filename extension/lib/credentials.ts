@@ -19,13 +19,13 @@ export async function stored(): Promise<z.infer<typeof StoredSchema>> {
 }
 
 export async function fillWanted(): Promise<boolean> {
-  return (await stored()).fill !== false;
+  return (await stored()).fill === true;
 }
 
 export async function settleFill(): Promise<void> {
   const { fill } = await stored();
   const granted = await hasRedditAccess();
-  const settled = fill === undefined ? granted : fill && granted;
+  const settled = fill === true && granted;
 
   if (settled !== fill) await storeFill(settled);
 }

@@ -1,7 +1,6 @@
 import { type ComponentProps, useCallback } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { commentCountOf } from "./comment-counts.ts";
 import { CommentsButton } from "./CommentsButton.tsx";
 import { DeleteItem } from "./DeleteItem.tsx";
 import { Icon } from "./Icon.tsx";
@@ -38,7 +37,7 @@ export function ReaderActions({
 }>) {
   const { mode, toggleRead, remove } = controls;
   const read = item.readState === "read";
-  const comments = commentCountOf(item);
+  const comments = item.commentCount;
 
   const toggle = useCallback(() => {
     toggleRead(item);

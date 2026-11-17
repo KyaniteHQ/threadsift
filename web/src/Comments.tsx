@@ -2,7 +2,6 @@ import { type CSSProperties, type FocusEvent, useCallback, useEffect, useId, use
 
 import type { CommentCount, CommentNode, CommentsFilter } from "../../src/core/comment-view.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
-import { commentsFilterOf } from "./comment-counts.ts";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
 import { useOpenOnReveal } from "./highlights-context.ts";
@@ -260,7 +259,7 @@ function CommentTree({
 }
 
 export function Comments({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
-  const section = sectionOf(commentsFilterOf(item, detail.comments));
+  const section = sectionOf(detail.comments.view);
 
   return section === null ? null : (
     <CommentTree item={item} section={section} nodes={detail.comments.nodes} />

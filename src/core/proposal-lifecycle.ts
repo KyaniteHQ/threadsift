@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 
 import type { MergeKind, ProposalKind, ProposalState } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { highlights, knownProposal, proposals } from "./schema.ts";
+import { highlights, proposals } from "./schema.ts";
 
 interface Lifecycle {
   readonly held: readonly ProposalState[];
@@ -62,12 +62,7 @@ export function proposalClaimed(db: Database, id: number) {
     .update(proposals)
     .set({ state: MOVES.claim.to })
     .where(
-      and(
-        eq(proposals.id, id),
-        knownProposal,
-        eq(proposals.state, MOVES.claim.from),
-        sql`not ${anyAccepting()}`,
-      ),
+      and(eq(proposals.id, id), eq(proposals.state, MOVES.claim.from), sql`not ${anyAccepting()}`),
     )
     .returning({ id: proposals.id });
 }
@@ -92,7 +87,7 @@ export function rejection(db: Database, id: number) {
   return db
     .update(proposals)
     .set({ state: MOVES.reject.to })
-    .where(and(eq(proposals.id, id), knownProposal, eq(proposals.state, MOVES.reject.from)))
+    .where(and(eq(proposals.id, id), eq(proposals.state, MOVES.reject.from)))
     .returning({ id: proposals.id });
 }
 

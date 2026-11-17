@@ -19,7 +19,7 @@ const ContextSchema = z
     builtFrom: BuiltFromSchema,
     included: z.array(z.object({ id: IdSchema, digest: IdSchema }).readonly()).readonly(),
     removed: z.array(IdSchema).readonly(),
-    removedTotal: z.number().int().min(0).default(0),
+    removedTotal: z.number().int().min(0),
     citable: z.array(IdSchema).readonly(),
     mustChange: z.boolean(),
     current: z.string().nullable(),

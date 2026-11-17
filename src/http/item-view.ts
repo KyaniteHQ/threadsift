@@ -1,13 +1,12 @@
 import type { z } from "zod";
 
 import { type CommentCount, type CountColumns, commentCountOf } from "../core/comment-view.ts";
-import { logFailure } from "../core/failure-log.ts";
 import { itemPath } from "../core/item-path.ts";
 import type { WaitReason } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { type ShownStatus, type ShownStatusInput, shownStatus } from "../core/shown-status.ts";
 import { type ImageColumns, type ItemImageSchema, imageOf } from "./item-image.ts";
-import { ItemSchema, type WaitSchema } from "./schemas.ts";
+import { type WaitSchema } from "./schemas.ts";
 
 type StatusRow = Pick<ItemRow, "id"> &
   ShownStatusInput & {
@@ -78,21 +77,6 @@ export function itemView<Row extends StatusRow>(
     image: imageOf(row),
     commentCount: commentCountOf(row),
   };
-}
-
-export function shownItems<Row extends StatusRow>(rows: readonly Readonly<Row>[]) {
-  return rows.flatMap((row) => {
-    try {
-      const view = itemView(row);
-      ItemSchema.parse(view);
-
-      return [view];
-    } catch (error) {
-      logFailure("item-not-shown", { itemId: row.id }, error);
-
-      return [];
-    }
-  });
 }
 
 export function savedView<Row extends StatusRow>(row: Readonly<Row>) {

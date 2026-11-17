@@ -1,4 +1,4 @@
-import { inArray, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { highlights } from "./highlight-tables.ts";
@@ -58,5 +58,3 @@ export const proposals = sqliteTable(
     ),
   ],
 );
-
-export const knownProposal = inArray(proposals.kind, [...PROPOSAL_KINDS]);

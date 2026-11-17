@@ -28,7 +28,7 @@ describe("the Reader shows the comments that pass the script's first step until 
     return saved;
   };
 
-  it("shows every comment that passes step 1 with the cause 'no-provider', counts them in the list row and keeps the old counts empty", async () => {
+  it("shows every comment that passes step 1 with the cause 'no-provider', counts them in the list row", async () => {
     const id = await paste("none1", { content: threadOf("none1") });
     const row = await listed(id);
 
@@ -44,10 +44,9 @@ describe("the Reader shows the comments that pass the script's first step until 
       "comment:t1_c6",
     ]);
     assert.deepEqual(row?.commentCount, { filter: "unfiltered", shown: 3, total: 6 });
-    assert.deepEqual([row?.commentsKept, row?.commentsTotal], [null, null]);
   });
 
-  it("shows the Kept comments, the stub of a dropped parent and the old counts once a Digest covers the thread", async () => {
+  it("shows the Kept comments, the stub of a dropped parent once a Digest covers the thread", async () => {
     const id = await paste("kept1", {
       content: threadOf("kept1"),
       digest: { ...DIGEST, keptComments: ["t1_c3"] },
@@ -61,7 +60,6 @@ describe("the Reader shows the comments that pass the script's first step until 
     });
     assert.deepEqual(await nodes(id), ["stub:t1_c2", "comment:t1_c3"]);
     assert.deepEqual(row?.commentCount, { filter: "kept", shown: 1, total: 6 });
-    assert.deepEqual([row?.commentsKept, row?.commentsTotal], [1, 6]);
     assert.equal((await instance.detail(id)).comments.kept, 1);
   });
 

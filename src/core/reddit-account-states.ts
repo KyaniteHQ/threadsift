@@ -181,7 +181,7 @@ export async function countRefusal(
   { thread, startedAt }: Readonly<{ thread: string; startedAt: number }>,
   now: number,
 ): Promise<"counted" | "ignored" | "expired"> {
-  const current = sql`(case when json_array_length(${redditAccount.refusedThreads}) = ${redditAccount.refusedCount} then ${redditAccount.refusedThreads} else ${NO_THREADS} end)`;
+  const current = redditAccount.refusedThreads;
 
   const known = sql`exists (select 1 from json_each(${current}) where value = ${thread})`;
 

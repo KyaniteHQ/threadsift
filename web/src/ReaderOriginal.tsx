@@ -42,7 +42,7 @@ export function Original({
 }: Readonly<{ item: Item; detail: ItemDetail; now: number }>) {
   const text = detail.postText;
   const hasText = text !== null && text.trim() !== "";
-  const note = hasText ? null : missingTextNote(item, (detail.link ?? null) !== null);
+  const note = hasText ? null : missingTextNote(item, detail.link !== null);
 
   return (
     <>
