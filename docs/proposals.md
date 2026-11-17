@@ -21,11 +21,11 @@ Only `src/core/proposal-lifecycle.ts` moves a row between states or removes it. 
 
 - **Reject.** A row of any kind moves from `open` to `rejected`.
 - **Apply.** The claim that starts an Accept (`proposalClaimed`) moves the row from `open` to `accepting` before any unit runs. A first unit that throws hands the row back to `open` (`handedBack`). `handedBack` matches only a row with no `cursor`, `moved`, or `unit_revision`. The columns `cursor`, `moved`, `unit_revision`, and `failed_runs` mean something only while the row is `accepting`. The row leaves with the Tag or Topic it names, in the last unit's batch, by the cascade.
-- **Remove.** An `open` row is deleted in two cases: when Accept of an overview update or of a disagreement commits, and when a weekly stage finds that the row no longer holds. The row of a lost Highlight goes with the Highlight. `goneWithItem` deletes the rows of any state that name a deleted Item or its Highlights.
+- **Remove.** An `open` row is deleted when Accept of an overview update or of a disagreement commits, and when a weekly stage finds that the row no longer holds. The row of a lost Highlight goes with the Highlight. `goneWithItem` deletes the rows of any state that name a deleted Item or its Highlights.
 - **`declined`.** The weekly merge run inserts a row in this state for each pair the model refused. A `declined` row never changes.
 - **Merge lock.** One merge runs at a time. `anyAccepting` holds while a row of any kind is `accepting`.
 
-The database refuses a state that a kind cannot hold. It also refuses the `accepting` columns on a row that is not `accepting` (The value guard). `test/consistency-triggers-proposals.test.ts` and `test/consistency-triggers-lifecycle.test.ts` check those constraints. Neither the constraints nor the two tests check a transition between states.
+The database refuses a state that a kind cannot hold. It also refuses the `accepting` columns on a row that is not `accepting` (The value guard). `test/consistency-triggers-proposals.test.ts` and `test/consistency-triggers-lifecycle.test.ts` check those constraints. The constraints and the two tests do not define which transitions are allowed.
 
 ## The value guard
 
@@ -40,20 +40,17 @@ The database refuses a state that a kind cannot hold. It also refuses the `accep
 
 `GET /api/proposals?cursor=` answers the owner's session and an agent token, and the MCP endpoint gets no tool for it. It lists `open` and `accepting` rows of every kind, 50 to a page, newest first by `id`, with the Log's cursor rule. `src/core/proposal-contract.ts` holds the shapes. These fields need a reason:
 
-- A merge row's `items` counts are read when the call is made. A disagreement row shows the title and `summary` of the stored Digest whose task id the row holds. The page therefore shows the text the model judged, and never a later text.
-- `pageQuery` is one statement. Its `WHERE` holds the condition that makes a row listable (`LISTED_WHILE`), and the condition applies before the page limit. A merge row is always listable. A `highlight-lost` row is listable while its Highlight is not `attached`. An `overview-gap` row is listable while `overviewGap` holds for its Topic. An `items-disagree` row is listable while `DISAGREEMENT.listed` holds. A hidden row therefore leaves the page full and not short. The eligibility, the quote, the Item, and the title come from one snapshot. The Node adapter runs each batch in its own transaction, so a later read could pair a row with a subject that the row was not chosen for.
+- The list reads a merge row's `items` counts when the call is made. A disagreement row shows the title and `summary` of the stored Digest whose task id the row holds. The page shows the text the model judged, and never a later text.
+- `pageQuery` is one statement. Its `WHERE` holds the condition that makes a row listable (`LISTED_WHILE`), and the condition applies before the page limit. A merge row is always listable. A `highlight-lost` row is listable while its Highlight is not `attached`. An `overview-gap` row is listable while `overviewGap` holds for its Topic. An `items-disagree` row is listable while `DISAGREEMENT.listed` holds. A hidden row leaves a page of up to 50 full and not short. The eligibility, the quote, the Item, and the title come from one snapshot, because the Node adapter runs each batch in its own transaction. A later read could pair a row with a subject that the row was not chosen for.
 - `checkedAt` is the largest `last_run_at` of the weekly claims in `WEEKLY_TASK`. `provider` says whether a Provider is saved.
 
 ## Reject
 
 `POST /api/proposals/{id}/reject` is owner-only (Access). It runs one `UPDATE ... WHERE state = 'open' RETURNING`. It reads the row again only when the update changed nothing. It then answers 404 for an unknown id and 409 `not-open` for a row in another state.
 
-Reject is final. There is no undo and no flip of direction. Reject changes no Highlight and no Topic page. Each kind keeps the rejected row for its own reason:
+Reject is final. There is no undo and no flip of direction. Reject changes no Highlight and no Topic page.
 
-- **Merge.** A rejected row never reaches a later run's input, because the plain check skips every pair that has a row, in either order.
-- **Overview update.** The weekly overview check never inserts a row for a Topic that has one in any state.
-- **Lost Highlight.** The row stays, so that Highlight is not proposed again.
-- **Disagreement.** The row stays, so the pair is never stored again in either order (`proposals_item_pair`), and the pair is sent to the model as decided.
+A rejected merge row never reaches a later run's input, because the plain check skips every pair that has a row, in either order. The weekly overview check never inserts a row for a Topic that has one in any state. A rejected lost-Highlight row stays, so that Highlight is not proposed again. A rejected disagreement row stays, so the pair is never stored again in either order (`proposals_item_pair`), and the pair is sent to the model as decided.
 
 An accepted disagreement row is deleted. Its Pin keeps the pair decided while both Items carry the Digests the Pin was accepted on.
 
@@ -61,19 +58,20 @@ An accepted disagreement row is deleted. Its Pin keeps the pair decided while bo
 
 `POST /api/proposals/{id}/accept` is owner-only. An agent token gets 403 (`OWNER_ONLY_PATH` in `src/http/access-rules.ts`), and the MCP endpoint has no tool for it. Accept has no confirmation and no undo. `acceptProposal` reads the row's `kind` and calls the entry of a table keyed by kind (`ACCEPT`). `readRow` answers only for a merge kind.
 
-Every kind shares these answers:
+Every kind shares two answers:
 
-- 404 for an unknown id. A successful Accept of a kind whose row is deleted also leaves the id unknown.
+- 404 for an unknown id. A repeated Accept after a success also answers 404 for a kind whose Accept deletes the row.
 - 409 `not-open` for a row in another state.
-- 409 `not-current` when the row's subject changed since the row was made, or when a concurrent Accept already removed a lost-Highlight row or a disagreement row.
 
-A changed subject leaves its row stored but hidden until the weekly stage deletes the row. A concurrent Accept may leave no row. Each kind adds its own answers.
+A lost-Highlight row, a disagreement row, and an overview row also answer 409 `not-current`. A merge row never does. `not-current` means that the row's subject changed since the row was made. For a lost-Highlight row or a disagreement row it also means that a concurrent Accept removed the row between the read and the guarded batch. A concurrent Accept that finished before the read leaves no row, so the call answers 404.
+
+A changed subject leaves its row stored but hidden. For most kinds the weekly stage deletes the row. A disagreement row whose Items sit in two Topics is kept. Each kind adds its own answers.
 
 ### Lost Highlight
 
 `acceptLostHighlight` (`src/core/highlight-proposals.ts`) removes the Highlight with the two statements of Remove in the Reader (`removalWrites` in `src/core/highlights.ts`), and the cascade deletes the row. The two statements run in one guarded batch. The guard holds only while the row is `open` and its Highlight is not `attached`. When a publication anchors the Highlight again between the read and the batch, the batch writes nothing and the call answers `not-current`. `acceptLostHighlight` ignores `merge-busy`.
 
-Accept leaves no Pin. A Pin keeps a regeneration from undoing a correction, and nothing regenerates a Highlight.
+Accept leaves no Pin, because a Pin keeps a regeneration from undoing a correction and nothing regenerates a Highlight.
 
 ### Disagreement
 
@@ -83,15 +81,15 @@ Accept leaves no Pin. A Pin keeps a regeneration from undoing a correction, and 
 - The two Items no longer sit under one Topic.
 - A concurrent Accept removed the row before the guarded write.
 
-One guarded batch inserts the Pin and deletes the row. Its guard holds while the row is `open` and `DISAGREEMENT.accepts` holds. The Pin insert is an upsert on `(kind, from_key)` with `DO UPDATE ... WHERE NOT currentDisagreementPin`. A stale Pin of the same pair is therefore replaced in place and keeps its id, and a current Pin stays. That `WHERE` also covers an `open` row whose pair already has a current Pin. In that case the batch deletes the row, the Pin stays, and the call answers 200. Accept changes no Item, Summary, or overview.
+One guarded batch inserts the Pin and deletes the row. Its guard holds while the row is `open` and `DISAGREEMENT.accepts` holds. The Pin insert is an upsert on `(kind, from_key)` with `DO UPDATE ... WHERE NOT currentDisagreementPin`. A stale Pin of the same pair is replaced in place and keeps its id, and a current Pin stays. That `WHERE` also covers an `open` row whose pair already has a current Pin. In that case the batch deletes the row, the Pin stays, and the call answers 200. Accept changes no Item, Summary, or overview.
 
 ### Overview update
 
 `acceptOverviewGap` (`src/core/overview-accept.ts`) answers 409 `no-provider` when no Provider is saved, and the row stays open. `not-current` also covers a Topic that has no Item with a Digest outside `built_from`, and a Topic that already has an overview run open.
 
-Accept uses `startOverview` with its guard, owner choice, and answers, which `docs/wiki.md` (Topic pages, Try again) owns. Accept adds two conditions to the guard: the row is `open` for this Topic, and the Topic still has an Item the overview was not built from. Accept also adds one statement right after the job insert, the delete of the row with `WHERE changes() > 0`. The batch inserts the job first, then deletes the row, then clears the failure marker. Neither later statement changes anything unless a job was inserted.
+Accept uses `startOverview`. `docs/wiki.md` (Topic pages, Try again) owns the guard, the owner choice, and the answers of `startOverview`. Accept adds two conditions to the guard: the row is `open` for this Topic, and the Topic still has an Item the overview was not built from. Accept also adds one statement right after the job insert, the delete of the row with `WHERE changes() > 0`. The batch inserts the job first, then deletes the row, then clears the failure marker. Neither later statement changes anything unless a job was inserted.
 
-The guard makes the insert certain. An open job owned by the chosen owner is an open job owned by an Item of the Topic, and the guard refuses that. The open-job index therefore suppresses nothing. The same holds for an Item that moved in with a run still open for its old Topic. Accept of an overview update has no `accepting` state and no `merge-busy`.
+The guard makes the insert certain. An open job owned by the chosen owner is an open job owned by an Item of the Topic, and the guard refuses that. The open-job index suppresses nothing. The same holds for an Item that moved in with a run still open for its old Topic. Accept of an overview update has no `accepting` state and no `merge-busy`.
 
 ### Cost of an overview update
 
@@ -99,7 +97,7 @@ One run reads at most 40 uncovered Items (`ADDED_READ_LIMIT`). It reads fewer wh
 
 Covering N uncovered Items therefore needs at least ceil(N / 40) successful model calls. Three numbers stay apart: the calls attempted, the calls that succeeded, and whether coverage completed. The row shows N, so the owner sees the size before the press.
 
-A Topic whose uncovered Items have only unparsable Digests is never covered. Its row, once accepted, is proposed again the next week unless the owner rejects it. The design accepts that repeat.
+A Topic whose uncovered Items have only unparsable Digests is never covered. Its row, once accepted, is proposed again in a later weekly check unless the owner rejects it, and the design accepts that repeat.
 
 ### Merge
 
@@ -115,11 +113,11 @@ In the rest of this section, `from` is the Tag or Topic that goes, and `into` is
 
 #### The Tag unit
 
-`planTagUnit` plans the Tag unit. The unit has these parts:
+`planTagUnit` builds each unit from these parts:
 
-1. Accept starts with one statement (`proposalClaimed`) that moves the row from `open` to `accepting` when no row is `accepting`. A claim that matches nothing answers `merge-busy`, or `not-open` when the row is no longer `open`. Every unit, the first included, holds while the row is `accepting` at the unit revision the unit read. Two runners therefore never move the same Items twice or count them twice, even after the cursor goes back to 0. Every unit also holds both Tag ids and both stored keys as it read them. A unit that loses the guard writes nothing, and the next run reads the row again.
+1. Accept starts with one statement (`proposalClaimed`) that moves the row from `open` to `accepting` when no row is `accepting`. A claim that matches nothing answers `merge-busy`, or `not-open` when the row is no longer `open`. Every unit, the first included, holds while the row is `accepting` at the unit revision the unit read. Two runners never move the same Items twice or count them twice, even after the cursor goes back to 0. Every unit also holds both Tag ids and both stored keys as it read them. A unit that loses the guard writes nothing, and the next run reads the row again.
 2. The Pin insert is an upsert on `(kind, from_key)`, so every unit can carry it. The Pin commits with the first Items, so a Digest that publishes during the merge already lands on `into`. `from_key` is `catalogKey` of the name of `from`. The unit also repoints every Pin that targets `from` to `into`.
-3. Each unit takes the next 100 Items that link to `from` (`REWRITE_UNIT_ITEMS`), by ascending Item id after the cursor. It rewrites the `tags` of each stored Digest: it drops repeats by key and keeps the first place. The rewrite is guarded per Digest on `digests.task_id` and on the Digest's `tags` still being the ones read. The rewrite writes `$.tags` alone with `json_set`, so it does not undo a concurrent Topic rewrite of the same Digest. The links move (`tagMoves` in `src/core/catalog-key-links.ts`) before the Digests are rewritten, because the link guard reads the Digests as they were read. An Item whose Digest changed in between keeps its link and its Digest for a later unit. A stored Digest therefore never names `from` beside a link to `into`. A stored Digest that does not parse keeps its text, its link still moves, and one `merge-digest-unreadable` line names the Item id. An unparsable Digest never stops the merge, because one merge at a time blocks every other merge Accept.
+3. Each unit takes the next 100 Items that link to `from` (`REWRITE_UNIT_ITEMS`), by ascending Item id after the cursor. It rewrites the `tags` of each stored Digest: it drops repeats by key and keeps the first place. The rewrite is guarded per Digest on `digests.task_id` and on the Digest's `tags` still being the ones read. The rewrite writes `$.tags` alone with `json_set`, so it does not undo a concurrent Topic rewrite of the same Digest. The links move (`tagMoves` in `src/core/catalog-key-links.ts`) before the Digests are rewritten, because the link guard reads the Digests as they were read. An Item whose Digest changed in between keeps its link and its Digest for a later unit. A readable stored Digest never names `from` beside a link to `into`. A stored Digest that does not parse keeps its text, its link still moves, and one `merge-digest-unreadable` line names the Item id. An unparsable Digest never stops the merge, because one merge at a time blocks every other merge Accept.
 4. `moved` counts the `item_tags` rows of `from` among the unit's Items whose Digest still matched the read. The count is computed before the link writes, so an Item deleted or republished in between is not counted.
 5. The last part runs only when no `item_tags` row for `from` remains. It writes the `merge` Log entry and the closing writes (`closingWrites`). The closing writes are one bump of `catalog_version` and the delete of the Tag `from`. The bump makes a Digest that read the old Tag list ask again. The cascade of the delete removes the row and any other Proposal that names `from`.
 
@@ -127,36 +125,36 @@ A Tag on 100 Items or fewer therefore merges in one batch. `moved` and the Log's
 
 #### The Topic unit
 
-`planTopicUnit` in `src/core/topic-merge-unit.ts` plans the Topic unit. The unit has the same parts as the Tag unit, with these differences:
+`planTopicUnit` in `src/core/topic-merge-unit.ts` builds each unit from the same parts as the Tag unit, with these differences:
 
 1. Its guard holds the Proposal revision, both Topic ids, and both stored keys. An overview result whose Topic or input revision changed writes nothing and requeues over fresh inputs.
 2. The Pin is a `topic-merge` Pin, and the repoint covers the Topic Pins that target `from`.
-3. The moves are the shared Topic rewrite (`topicMoves`, described in `docs/architecture/data-model-outline.md`, Catalog keys). A unit moves the next 500 Items under `from` (`MERGE_ITEMS`) and the next 500 Log entries that name `from`. A Topic therefore merges in one unit only when both collections fit. The cursor stays null, because the next read takes the first Items still linked.
+3. The moves are the shared Topic rewrite (`topicMoves`, described in `docs/architecture/data-model-outline.md`, Catalog keys). A unit moves the next 500 Items under `from` (`MERGE_ITEMS`) and the next 500 Log entries that name `from`. A Topic merges in one unit only when both collections fit. The cursor stays null, because the next read takes the first Items still linked.
 4. When no Item and no Log entry names `from`, the unit writes the `merge-topic` Log entry and then the closing writes (`topicClosingWrites`). The closing writes run in this order: one attempt to open an overview run for `into`, one bump of `catalog_version`, and the delete of `from`. The row stays until that last statement, because the row holds the count that the Log entry reads.
 
 #### Failed units
 
-A first unit that throws hands the claim back to `open` (`recordingFailure` in `src/core/merge-failure.ts`). A request that ends after the claim and before the first unit commits leaves the row `accepting` at revision 0. The `merges` stage then runs the first unit on the next tick. The unit revision guard prevents two runners from committing the same unit.
+A first unit that throws before its batch commits hands the claim back to `open` (`recordingFailure` in `src/core/merge-failure.ts`). A request that ends after the claim and before the first unit commits leaves the row `accepting` at revision 0. The `merges` stage then runs the first unit on the next tick. The unit revision guard prevents two runners from committing the same unit.
 
 #### The overview run after a Topic merge
 
-The closing writes try to open one `topic_overview` job for `into` (`continuingOverview`). They insert a job only when three conditions hold: a Provider is saved, `into` has Items its page does not cover, and its owner Item has no open job of that kind. The owner Item is the Item of `into` with the lowest id. The closing writes can insert nothing while a job for that owner Item already waits. That job then runs for `into`, because a job takes its Topic from its owner Item when the job starts.
+The closing writes try to open one `topic_overview` job for `into` (`continuingOverview`). They insert a job only when three conditions hold: a Provider is saved, `coverageGaps` holds for `into`, and its owner Item has no open job of that kind. `coverageGaps` holds when `into` has Items its page does not cover, or removed Items that `built_from` still lists. The owner Item is the Item of `into` with the lowest id. The closing writes can insert nothing while a job for that owner Item already waits. That job then runs for `into`, because a job takes its Topic from its owner Item when the job starts.
 
 The cost is the lower bound of Cost of an overview update. The row shows both Item counts, so the owner sees the size before pressing Accept. A survivor page that has overview text marks the moved Items "Not in overview yet". A survivor page with no overview text shows no marker, because the page flags an Item only when the overview has text.
 
 #### Who runs the units
 
-The accept request claims the row, then runs up to 50 units (`UNITS_PER_ACCEPT`). The `merges` sweep stage continues every `accepting` row of either kind, with the same bound, on each tick. The stage is `continueMerges` in `src/core/merge-accept.ts`, and `src/core/sweep.ts` registers it. A merge therefore finishes by itself after a closed tab, a crash, or an ended Worker invocation.
+The accept request claims the row, then runs up to 50 units (`UNITS_PER_ACCEPT`). The `merges` sweep stage continues every `accepting` row of either kind, with the same bound, on each tick. The stage is `continueMerges` in `src/core/merge-accept.ts`, and `src/core/sweep.ts` registers it. A merge finishes by itself after a closed tab, a crash, or an ended Worker invocation.
 
 The route and the stage call one function (`continueMerge`) with the job ports (`JobPorts`). The function needs the job ports because a Topic unit that opens an overview job wakes the runner with `enqueueRows`. The next sweep finds a queued row that is not woken. A unit that throws a database error ends the call. The stage is then logged as `sweep-stage-failed`, and the next tick starts again from the stored row.
 
 #### A unit that keeps failing
 
-A unit that fails writes nothing, so the row stays `accepting`. Until a later run commits the unit, `merge-busy` refuses every other merge Accept, and Reject of the row stays refused. The first unit is the exception. Its failure hands the row back to `open`, so the failure leaves the row as it was.
+A unit that fails before its batch commits writes nothing, so the row stays `accepting`. Until a later run commits the unit, `merge-busy` refuses every other merge Accept, and Reject of the row stays refused. The first unit is the exception. Its failure hands the row back to `open`, so the failure leaves the row as it was.
 
 No `failed` state exists. A merge that started cannot go back to `open`, because the Pin commits in the first unit, and the one-merge rule keeps two merges off one Tag or Topic. The row counts its failed runs in `failed_runs` instead.
 
-`runUnit` runs planning and applying through `recordingFailure` (`src/core/merge-failure.ts`). When either throws, `recordingFailure` does three things in order. It logs `merge-unit-failed` with the proposal id, the error class, and, for a database error, its code (`databaseCodeOf`, no SQL and no parameters). It runs `unitFailed` in a write of its own. It throws the original error. A cleanup write that fails is logged as `merge-unit-failure-not-counted` and does not replace the original error.
+`runUnit` runs planning and applying through `recordingFailure` (`src/core/merge-failure.ts`). When either throws, `recordingFailure` does four things in order. It logs `merge-unit-failed` with the Proposal id, the error class, and, for a database error, its code (`databaseCodeOf`, no SQL and no parameters). It runs `unitFailed` in a write of its own. It tries `handedBack`, which matches only a first unit. It throws the original error. A cleanup write that fails does not replace the original error. A failed `unitFailed` is logged as `merge-unit-failure-not-counted`, and a failed `handedBack` as `merge-claim-not-handed-back`.
 
 `unitFailed` matches only a row that is still `accepting` at the unit revision the run read, so a run that lost the row to another writer counts nothing. The first unit's failure count is cleared when the row is handed back. A unit that commits clears the count (`unitAdvanced`). The read returns the count as `failedRuns`, and the page points the owner to the log line.
 
@@ -172,33 +170,33 @@ A Topic unit runs 3 reads (`readRow` and the two reads of `TOPIC_KIND.linked`) a
 
 ## Pins
 
-A Pin records an accepted merge. It holds the merged-away name's `from_key` and `from_name`, and the target's id in `into_tag_id` or `into_topic_id`. Neither target column has a delete action, so no target can be deleted while pinned. One Pin exists for a name in each kind (a unique index on `kind` and `from_key`), so a Tag and a Topic can share a key.
+A merge Pin records an accepted merge. It holds the merged-away name's `from_key` and `from_name`, and the target's id in `into_tag_id` or `into_topic_id`. Neither target column has a delete action, so no target can be deleted while pinned. One Pin exists for a name in each kind (a unique index on `kind` and `from_key`), so a Tag and a Topic can share a key.
 
-`publishing` in `src/core/digest-publish.ts` reads the Pins for the Digest's Tag keys and its Topic key. It reads them for a model result, a caller-sent Digest, and `items.pending_digest` alike. A name whose key is pinned becomes the target's name before `catalogEntries` runs. The Item therefore links to the target, the stored Digest names the target, and no `tags` or `topics` row with the pinned key is inserted. The AI task's own result keeps the names the model returned.
+`publishing` in `src/core/digest-publish.ts` reads the Pins for the Digest's Tag keys and its Topic key. It reads them for a model result, a caller-sent Digest, and `items.pending_digest` alike. A name whose key is pinned becomes the target's name before `catalogEntries` runs. The Item links to the target, the stored Digest names the target, and no `tags` or `topics` row with the pinned key is inserted. The AI task's own result keeps the names the model returned.
 
-Publication guards its batch on the exact resolution it used (`pinnedDigest` in `src/core/pins.ts`). For each key, the resolution is the Pin it found and its target (the token `id:target`), or that no Pin existed. The Pin guard is separate from the catalog guard. The model path drops its catalog guard after `MAX_STALE_REQUEUES`, and the caller path has no catalog guard. The Pin guard inherits neither gap. `test/topic-pins-wiring.test.ts` shows publication refusing its batch when a Pin appears after the read. A publication that loses the guard is stale and requeues under the existing stale rules.
+Publication guards its batch on the exact resolution it used (`pinnedDigest` in `src/core/pins.ts`). For each key, the resolution is the Pin it found and its target (the token `id:target`), or that no Pin existed. The Pin guard is separate from the catalog guard, because the model path drops its catalog guard after `MAX_STALE_REQUEUES` and the caller path has no catalog guard. The Pin guard inherits neither gap. `test/topic-pins-wiring.test.ts` shows publication refusing its batch when a Pin appears after the read. A publication that loses the guard is stale and requeues under the existing stale rules.
 
 ### The address of a merged-away Topic
 
 `topicOfKey` (`src/core/topic-page.ts`) looks a key up in `topics` first. When no Topic has the key, `topicOfKey` looks in the `topic-merge` Pins and answers the Pin's target. A Topic with the key always wins over a Pin. A Pin is repointed when its target is merged away, so a chain of merges resolves the first address to the last Topic.
 
-The Topic page replaces the address with the survivor's path when `topic.key` differs from the requested key (`web/src/use-survivor-address.ts` calls `history.replaceState`). A reload and the Back button therefore land on a key that exists. The `topic=` filter of `GET /api/items` and the Index do not follow a Pin, because a filter is built from live lists and an address is stored by the owner. A Tag Pin is not read for an address.
+The Topic page replaces the address with the survivor's path when `topic.key` differs from the requested key (`web/src/use-survivor-address.ts` calls the router's `replace` in `web/src/routing.ts`, which calls `history.replaceState`). A reload and the Back button land on a key that exists. The `topic=` filter of `GET /api/items` and the Index do not follow a Pin, because a filter is built from live lists and an address is stored by the owner. A Tag Pin is not read for an address.
 
 ### The Pin of a disagreement
 
-Accept of a disagreement writes an `items-disagree` Pin. This Pin names a pair of Items and not a name. It therefore reuses two columns that every Pin has, because the table cannot make those columns nullable without a second rebuild of `pins`:
+Accept of a disagreement writes an `items-disagree` Pin. This Pin names a pair of Items and not a name. It reuses two columns that every Pin has, because the table cannot make those columns nullable without a second rebuild of `pins`:
 
 - `from_key` holds the pair key `<lowItemId>:<highItemId>` (`pairKey`). The unique index turns the pair key into one Pin per pair.
 - `from_name` holds the agent's reason as the owner accepted it.
 
 Both Item columns are `ON DELETE cascade`, because the Pin is a statement about those two Items.
 
-The Pin is weaker than a merge Pin, and `docs/spec.md` and the **Pin** entry of `GLOSSARY.md` say so. The Pin binds the pair to the two Digest versions the pair was judged on:
+The disagreement Pin is weaker than a merge Pin, and `docs/spec.md` and the **Pin** entry of `GLOSSARY.md` say so. It binds the pair to the two Digest versions the pair was judged on:
 
-- The Pin survives a regenerated overview, a Topic merge (the Pin names Items and no Topic), a refresh that leaves both Digests alone, and a restart.
-- The Pin does not survive a new Digest of either Item, even one with the same Summary text, because the version token changes.
+- It survives a regenerated overview, a Topic merge (it names Items and no Topic), a refresh that leaves both Digests alone, and a restart.
+- It does not survive a new Digest of either Item, even one with the same Summary text, because the version token changes.
 
-After a new Digest the Pin is stale. The Topic page no longer lists the entry, the weekly check judges the pair again, and a later Accept replaces the Pin in place.
+After a new Digest it is stale. The Topic page no longer lists the entry, a later weekly check can judge the pair again once its Topic is touched, and a later Accept replaces the Pin in place.
 
 A pair is current when `currentDisagreementPin` holds. Four readers use that one condition:
 
@@ -209,17 +207,17 @@ A pair is current when `currentDisagreementPin` holds. Four readers use that one
 
 ## The weekly Tag and Topic checks
 
-The `proposals` and `topic-proposals` sweep stages claim the `scheduled_runs` rows `proposals` and `topic_proposals` with `claimingWeek`. A claim succeeds in three cases: the task has no row, its `last_run_at` is at least 7 days old, or its `last_run_at` is more than 7 days ahead of the clock. Each stage opens one job in its own batch, and the newest Item with a Digest owns the job. The two claims are independent, so a stage or a job that fails in one check does not skip the other check. A Topic row names no Item, and a Topic with no Item is not sent.
+The `proposals` and `topic-proposals` sweep stages claim the `scheduled_runs` rows `proposals` and `topic_proposals` with `claimingWeek`. A claim succeeds when a Provider is saved, at least one Item has a Digest, and one of three things holds: the task has no row, its `last_run_at` is at least 7 days old, or its `last_run_at` is more than 7 days ahead of the clock. Each stage opens one job in its own batch, and the newest Item with a Digest owns the job. The stage opens no job when that owner Item already has an open job of that kind. The two claims are independent, so a stage or a job that fails in one check does not skip the other check. A Topic row names no Item, and a Topic with no Item is not sent.
 
 ## The weekly Highlight check
 
 The `highlight-proposals` sweep stage claims `highlight_proposals` on the same rule and under the same conditions as the other stages: a Provider is saved and at least one Item has a Digest. The condition is shared so that the page's empty state stays true. The empty state says that the weekly check needs a Provider. The stage calls no model, makes no `ai_tasks` row, and opens no job. It is one `db.batch` of three statements:
 
 1. The claim.
-2. The insert, with `WHERE changes() > 0` after the claim. A second tick in the week therefore inserts nothing, and a batch that fails spends no week. The insert takes the 20 newest Highlights (`PROPOSALS_MAX`) whose status is not `attached` and that have no `proposals` row in any state. It inserts them in ascending id order, so the newest Highlight lists first. Each row is `open` with the fixed reason `plain-check`, because the `proposals_open_reason` check needs a reason on an open row. `ON CONFLICT DO NOTHING` keeps the unique index `proposals_highlight` from failing the batch.
-3. The delete of `open` rows whose Highlight is `attached` again. The delete comes after the insert, so that `changes()` in the insert still reads the claim's row. The delete runs only when the `scheduled_runs` row holds this tick's time (`claimedAt` in `src/core/scheduled-claim.ts`), because a tick that lost the claim must delete nothing. A rejected row stays, so Reject is final for that Highlight.
+2. The insert, with `WHERE changes() > 0` after the claim. A second tick in the week inserts nothing, and a batch that fails spends no week. The insert takes the 20 newest Highlights (`PROPOSALS_MAX`) whose status is not `attached` and that have no `proposals` row in any state. It inserts them in ascending id order, so the newest Highlight lists first. Each row is `open` with the fixed reason `plain-check`, because the `proposals_open_reason` check needs a reason on an open row. `ON CONFLICT DO NOTHING` keeps the unique index `proposals_highlight` from failing the batch.
+3. The delete of `open` rows whose Highlight is `attached` again. It comes after the insert, so that `changes()` in the insert still reads the claim's row. It runs only when the `scheduled_runs` row holds this tick's time (`claimedAt` in `src/core/scheduled-claim.ts`), because a tick that lost the claim must delete nothing. A rejected row stays, so Reject is final for that Highlight.
 
-Nothing in the check updates `highlights`. `src/core/highlight-publish.ts` stays the one writer of `status` and `start`. A Highlight whose text comes back is therefore `attached` again with no help from a Proposal.
+Nothing in the check updates `highlights`. `src/core/highlight-publish.ts` stays the one writer of `status` and `start` after the insert. A Highlight whose text comes back is `attached` again with no help from a Proposal.
 
 ### Unattended path of the Highlight check
 
@@ -227,19 +225,19 @@ A stage that throws before its batch commits logs `sweep-stage-failed`. The next
 
 ## The weekly overview check
 
-The `overview-proposals` sweep stage claims `overview_proposals` on the same rule and under the same conditions. The Provider condition is real here. With no Provider every Item is outside an overview, and Accept needs a Provider. The stage calls no model, makes no `ai_tasks` row, and opens no job. It is one `db.batch` of three statements:
+The `overview-proposals` sweep stage claims `overview_proposals` on the same rule and under the same conditions. The Provider condition is real here, because Accept starts an overview run and an overview run needs a Provider. The stage calls no model, makes no `ai_tasks` row, and opens no job. It is one `db.batch` of three statements:
 
 1. The claim.
-2. The insert, with `WHERE changes() > 0` after the claim. It takes up to 20 Topics (`PROPOSALS_MAX`) for which `overviewGap` holds and that have no `proposals` row of this kind in any state, so a Reject is final for the Topic. `overviewGap` holds on two conditions. First, the Topic has an Item with a Digest that `built_from` does not list with that Digest's task id. That is the predicate the Topic page uses. The stage does not use `coverageGaps`, because `coverageGaps` also counts removed Items. Second, no Item of the Topic owns a `topic_overview` job that is not `done`, because that run and the chain it starts are the cure. The stage chooses the Topics by the number of uncovered Items, most first, then by Topic id. It inserts them in the reverse order, so the Topic furthest behind lists first, with the fixed reason `plain-check`. `ON CONFLICT DO NOTHING` keeps the unique index `proposals_overview_topic` from failing the batch.
-3. The delete of `open` rows whose Topic no longer has a gap. The delete runs only in the tick that won the claim, and after the insert. Between claims the page hides such a row and the row stays. A row whose Topic has a run open therefore lists again if that run ends and leaves a gap. A Topic that falls behind again after its row was deleted is proposed again.
+2. The insert, with `WHERE changes() > 0` after the claim. It takes up to 20 Topics (`PROPOSALS_MAX`) for which `overviewGap` holds and that have no `proposals` row of this kind in any state, so a Reject is final for the Topic. `overviewGap` holds on two conditions. First, the Topic has an Item with a Digest that `built_from` does not list with that Digest's task id. That is the predicate the Topic page uses. The stage does not use `coverageGaps`, because `coverageGaps` also counts removed Items. Second, no Item of the Topic owns a `topic_overview` job that is not `done`, because that run, and the runs it chains, close the gap. The stage chooses the Topics by the number of uncovered Items, most first, then by Topic id. It inserts them in the reverse order, so the Topic furthest behind lists first, with the fixed reason `plain-check`. `ON CONFLICT DO NOTHING` keeps the unique index `proposals_overview_topic` from failing the batch.
+3. The delete of `open` rows whose Topic no longer has a gap. The delete runs only in the tick that won the claim, and after the insert. Between claims the page hides such a row and the row stays. A row whose Topic has a run open lists again if that run ends and leaves a gap. A Topic that falls behind again after its row was deleted is proposed again.
 
-An overview run that failed leaves a failure marker and uncovered Items with no open job. That is exactly a Topic this stage finds. The stage also finds Items that arrived, or that a Topic merge moved, while no Provider was saved.
+An overview run that failed leaves a failure marker and uncovered Items with no open job, so this stage finds that Topic. It also finds Items that arrived, or that a Topic merge moved, while no Provider was saved.
 
 ## The weekly disagreement check
 
 The `disagreement-proposals` sweep stage claims `disagreement_proposals` on the same rule and under the same conditions. It opens one job in the same batch (`openModelRun` in `src/core/proposal-week.ts`), and the newest Item with a Digest owns the job.
 
-The batch holds a second statement, `staleDisagreements`. It deletes two sets of `open` rows: the rows whose Items no longer both have the Digest the row names, and the rows whose pair has a current Pin. The second set makes a duplicate that an older release stored for an accepted pair go at once. `staleDisagreements` runs only when the claim row holds this tick's time, so a tick that lost the claim deletes nothing. The one exception is two ticks with the same millisecond, which both delete. That is harmless, because the rows they delete are stale for both ticks. `staleDisagreements` never deletes a `rejected` row. It also never deletes an `open` row whose Items merely sit in two Topics.
+The batch also holds a third statement, `staleDisagreements`, which deletes two sets of `open` rows: the rows whose Items no longer both have the Digest the row names, and the rows whose pair has a current Pin. The second set makes a duplicate that an older release stored for an accepted pair go at once. The statement runs only when the claim row holds this tick's time, so a tick that lost the claim deletes nothing. The one exception is two ticks with the same millisecond, which both delete. That is harmless, because the rows they delete are stale for both ticks. A `rejected` row is never deleted, and neither is an `open` row whose Items merely sit in two Topics.
 
 ### Which Topics are read
 
@@ -257,8 +255,8 @@ The result is at most 10 pairs (`DISAGREEMENTS_MAX`). Each pair is two different
 
 One guarded batch stores the result. Its guard holds while the AI task is running and the membership text of every sent Topic, computed again inside the batch, is still the text the run read. The batch does four things in order:
 
-1. It deletes the `open` rows that no longer match the stored Digests or whose pair has a current Pin (`clearedStaleDisagreements`). A hidden row of a pair that the run judged again therefore cannot keep the pair's slot in `proposals_item_pair`.
-2. It inserts an `open` row for each pair, with `ON CONFLICT DO NOTHING` and a `NOT EXISTS` on the pair's current Pin. A row that still matches, open or rejected, is therefore kept, and a returned pair that the owner already accepted stores no row.
+1. It deletes the `open` rows that no longer match the stored Digests or whose pair has a current Pin (`clearedStaleDisagreements`). A hidden row of a pair that the run judged again cannot keep the pair's slot in `proposals_item_pair`.
+2. It inserts an `open` row for each pair, with `ON CONFLICT DO NOTHING` and a `NOT EXISTS` on the pair's current Pin. A row that still matches, open or rejected, is kept, and a returned pair that the owner already accepted stores no row.
 3. It upserts `topic_checks` for every sent Topic, including a Topic that produced no pair.
 4. It completes the AI task.
 
@@ -271,15 +269,15 @@ An `open` row stays listed while three conditions hold (`DISAGREEMENT.listed`): 
 - `accepts` leaves the Pin out, so Accept answers 200 for an open row whose pair already has a current Pin.
 - `stale` leaves the Topic out, so the weekly delete keeps a row while its Items sit in two Topics.
 
-A refreshed Summary hides a row at once. The next weekly stage, or the next store of the same pair, deletes the row. Two Items in different Topics hide the row too, but nothing deletes it. A Topic merge of more than 500 Items commits in units (`MERGE_ITEMS`), so a pair can sit in two Topics between two units, and the row is listed again when the merge ends. A Topic merge leaves the row alone, because the row names no Topic column.
+A refreshed Summary hides a row at once. The next weekly stage, or the next store of any disagreement result, deletes the row. Two Items in different Topics hide the row too, but nothing deletes it, because a Topic merge of more than 500 Items commits in units (`MERGE_ITEMS`). A pair can sit in two Topics between two units, and the row is listed again when the merge ends. A Topic merge leaves the row alone, because the row names no Topic column.
 
 ### Cost and budget
 
-Each attempt makes at most one model call, with SDK retries off. The week opens one job, and error retries and stale reruns add calls. A Topic is judged again only after its membership changed, so a library with no new Items costs no call.
+Each attempt makes at most one model call, with SDK retries off. The week opens one job, and error retries and stale reruns add calls. A Topic is judged again only after its membership changed, so a library where no Topic's membership changed costs no call.
 
-The output allowance is 4,096 tokens (`DISAGREEMENT_OUTPUT_TOKENS`, chosen). It is passed to the executors that take one, and Claude Code takes none. A valid answer of 10 pairs with 6-digit ids and 160-character ASCII reasons is 1,979 bytes of JSON, which is under the allowance at one token per byte. With 160 CJK characters in each reason the answer is 5,179 bytes, which can pass the allowance at one token per byte. A cut-off answer is a refusal that is not retried. The token count of CJK text was not measured.
+The output allowance is 4,096 tokens (`DISAGREEMENT_OUTPUT_TOKENS`, chosen). It is passed to the executors that take one, and Claude Code takes none. A valid answer of 10 pairs with 6-digit ids and 160-character ASCII reasons is 1,979 bytes of JSON, which is under the allowance at one token per byte. With 160 CJK characters in each reason the answer is 5,179 bytes, which would exceed the allowance at one token per byte. A cut-off answer is a refusal that is not retried. The token count of CJK text was not measured.
 
-The static bound counts one token per byte against the 24,000-token context of the model of Measured Digest input budget (`docs/architecture/ai-tasks-and-providers.md`). Five inputs were filled to within 14,000 bytes: plain English, escape-heavy, CJK, emoji, and Turkish. The input was 12,806 to 13,838 bytes, the instructions 1,098 bytes, and the schema 559 bytes. Input, instructions, schema, and allowance therefore came to at most 19,591, which is at least 4,409 under the context. The measurement built each input with `fillDisagreementInput` and `disagreementTask` and counted bytes. The script is not kept.
+The static bound counts one token per byte against the 24,000-token context of the model of Measured Digest input budget (`docs/architecture/ai-tasks-and-providers.md`). The measurement filled five inputs to within 14,000 bytes: plain English, escape-heavy, CJK, emoji, and Turkish. The input was 12,806 to 13,838 bytes, the instructions 1,098 bytes, and the schema 559 bytes. Input, instructions, schema, and allowance therefore came to at most 19,591, which is at least 4,409 under the context. It built each input with `fillDisagreementInput` and `disagreementTask` and counted bytes. The script is not kept.
 
 A run on 2026-11-12 sent the same five inputs with `claude -p --output-format json --json-schema` and the executor's other flags (Claude Code, `claude-sonnet-5-5`, `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`). The input-side usage was:
 
@@ -295,7 +293,7 @@ A run on 2026-11-12 sent the same five inputs with `claude -p --output-format js
 
 ### Unattended path of the disagreement check
 
-A stage that throws before its batch commits logs `sweep-stage-failed` and tries again on the next tick. A refusal retries after 30 seconds and after 2 minutes. The last retry closes the job with nothing stored and every `topic_checks` row unchanged, so the Topics that changed are read again the next week. The handler has no `blockedBy`, because it writes only `proposals` and `topic_checks` rows. When the job fails before a task row exists, one `disagreement-proposals-run-failed` line names the refusal.
+A stage that throws before its batch commits logs `sweep-stage-failed` and tries again on the next tick. A refusal that can be retried (`retriesAi`) retries after 30 seconds and after 2 minutes. The last retry closes the job with nothing stored and every `topic_checks` row unchanged, so the Topics that changed are read again the next week. The handler has no `blockedBy`, because it writes only `proposals` and `topic_checks` rows. When the job fails before a task row exists, one `disagreement-proposals-run-failed` line names the refusal.
 
 ## The Log entry
 
@@ -310,7 +308,7 @@ A `merge` entry (`loggedMerge` in `src/core/log-writes.ts`) holds the two Tag na
 - **The failed-merge note.** The note ("Applying this merge failed once…", `applyFailedNote`) has no live role, because the count rises about once a minute and each rise would be announced again. Polling updates the count silently.
 - **Empty state.** The date is the most recent claim time of the weekly runs. A claim time does not say that a check finished, so the last line says no more than the page knows. The list is empty because the check found nothing, is still running, or failed, or because the owner rejected every row. The page shows no failure of the weekly run.
 - **No "applying" state for a disagreement or overview row.** Accept answers 200 for these rows, and the overview run belongs to the Topic page. A 409 `no-provider` or `merge-busy` shows a note beside the buttons and keeps the row with its buttons on (`BUSY_NOTES` in `web/src/ProposalActions.tsx`). A 409 `not-current` reads the list again, where the row is gone, and shows the existing notice that the Proposal was already decided or is no longer in the list.
-- **Reload after a press.** `useProposalsPage` (`web/src/use-proposals-page.ts`) reloads the first page once after an Accept or a Reject that changes the list, and announces one result. It keeps one busy id. While a Proposal is being applied, `usePolling` reads the first page again every few seconds and folds back any later pages that were loaded. A refused or failed press keeps the loaded list, its row note, and focus. Changes made elsewhere are not announced. A reload returns to the first page, because keeping later pages adds machinery for a single owner before the first release.
+- **Reload after a press.** `useProposalsPage` (`web/src/use-proposals-page.ts`) reloads the first page once after an Accept or a Reject that changes the list, and announces one result. It keeps one busy id. While a Proposal is being applied, `usePolling` reads the first page again every few seconds and folds back any later pages that were loaded. A refused or failed press keeps the loaded list, its row note, and focus. The page does not announce changes made elsewhere. A reload returns to the first page, because keeping later pages adds machinery for a single owner before the first release.
 
 ## The reads of the run
 
@@ -318,11 +316,11 @@ A `merge` entry (`loggedMerge` in `src/core/log-writes.ts`) holds the two Tag na
 
 ## Identity
 
-Every `proposals`, `pins`, and `topic_checks` row has a generated id that is never reused (`AUTOINCREMENT`). The weekly claims in `scheduled_runs` are keyed by the task name. They survive a restart and a deploy, and they stay out of the export as working tables. The rows below break only where the table says.
+Every `proposals` and `pins` row has a generated id that is never reused (`AUTOINCREMENT`). A `topic_checks` row is keyed by its Topic id. The weekly claims in `scheduled_runs` are keyed by the task name. They survive a restart and a deploy, and they stay out of the export as working tables. The rows below break only where the table says.
 
 | Record | Identity | Breaks |
 |---|---|---|
-| A merge row | a generated id, and the unordered pair of two generated Tag or Topic ids, one row in any state | deleting either side outside a key merge (the accepted merge's last unit removes the row by cascade) or brings the row onto a pair that already has a row it loses to |
+| A merge row | a generated id, and the unordered pair of two generated Tag or Topic ids, one row in any state | deleting either Tag or Topic. The cascade removes every merge row that names it, and an accepted merge's last unit deletes the merged-away side, so it also removes the other rows that name that side. No row is ever repointed to another pair. |
 | A `highlight-lost` row | a generated id, and `highlight_id` | removing the Highlight, deleting its Item, a Highlight that becomes `attached` (the weekly stage deletes the open row) |
 | An `overview-gap` row | a generated id, and `topic_id` | deleting the Topic (a Topic merge, by cascade), Accept (the row is deleted with the run it starts), a gap that closes (the weekly stage deletes the open row) |
 | An `items-disagree` row | a generated id, and the unordered pair of two Item ids (`proposals_item_pair`), with the two Digest task ids as version tokens | deleting either Item (cascade), a refreshed Digest of either Item (the row is hidden at once and the weekly stage deletes it while it is `open`, and a `rejected` row stays), and a row whose Items sit in two Topics is kept and listed again when they sit in one |
@@ -334,7 +332,7 @@ Every `proposals`, `pins`, and `topic_checks` row has a generated id that is nev
 
 An Item delete changes no merge Pin and no merge row, because a Pin of a merge, a `merge` or `merge-topic` entry, and a merge Proposal name no Item.
 
-A disagreement Pin and an `items-disagree` row name two Items and go with either of them. `deleteItem` deletes them before the Item, and the cascade on both columns backs that delete up. The `highlight-lost` rows that name a Highlight of the Item go in any state in the same way, because the quote the row showed is the owner's own text, kept nowhere else.
+A disagreement Pin and an `items-disagree` row name two Items and go with either of them. `deleteItem` deletes them before the Item, and the cascade on both columns deletes them if `deleteItem` missed one. The `highlight-lost` rows that name a Highlight of the Item go in any state in the same way, because the quote the row showed is the owner's own text, kept nowhere else.
 
 The reason on a disagreement Pin is the agent's own sentence and cites no Item text beyond what the agent wrote. That claim is not verified (`docs/architecture/open-items-and-unverified-claims.md`). The Summaries a disagreement row showed stay in the Digests and in no row. The AI task's `inputs` keep the Item titles and Summaries of the Topics that were sent, until the owner Item or the task goes.
 
@@ -342,10 +340,10 @@ The weekly model runs open their jobs on the same owner Item. Deleting that Item
 
 ## Probes
 
-Each probe ran on `node:sqlite` (Node 26.12.1, SQLite 3.53.3) and on local D1 (`wrangler d1 execute --local`, wrangler 4.158.0) with the schema applied. The output was identical unless a line says otherwise. The scripts are not in the repository, so the probes cannot be repeated from it. Each entry says what the probe shows that the migration files and tests do not.
+Each probe ran on `node:sqlite` (Node 26.12.1, SQLite 3.53.3) and on local D1 (`wrangler d1 execute --local`, wrangler 4.158.0) with the schema applied. The output was identical unless a line says otherwise. The scripts are not in the repository, so the probes cannot be repeated from it. Each probe shows something the migration files and tests do not.
 
 - **Unordered pair index and claim (2026-11-11).** A row for the pair `(2, 1)` after `(1, 2)` was ignored by `INSERT OR IGNORE` and by `ON CONFLICT DO NOTHING`. A pair of one Tag with itself failed `proposals_distinct`. A claim followed by `INSERT ... SELECT ... WHERE changes() > 0` opened one job, a second claim in the same week opened none, and a claim of a row 7 days old opened one. That is why the claim must be the statement right before the insert that reads `changes()`.
-- **Accept of a Tag merge (2026-11-11).** The seed held thousands of Items with stored Digests, 30 of them naming `ml`, and two `open` Proposals, one of them `ml` into `machine learning`. The Tags, links, stored Digest names, Pin, `merge` Log entry, remaining Proposal row, `catalog_version`, and `tags` search part came out equal in every dumped table. Local D1 ran each unit's batch without error.
+- **Accept of a Tag merge (2026-11-11).** The seed held thousands of Items with stored Digests, 30 of them naming `ml`, and two `open` Proposals, one of them `ml` into `machine learning`. The Tags, links, stored Digest names, Pin, `merge` Log entry, remaining Proposal row, `catalog_version`, and `tags` search part came out equal on `node:sqlite` and on local D1 in every dumped table. Local D1 ran each unit's batch without error.
 - **Lease guard, `merge-topic` triggers and address lookup (2026-11-12).** A batch that starts with the two-lease guard released both leases when the guard held. The batch was refused with `CHECK constraint failed` when a lease generation had moved. A release placed before a failing guard rolled back with the batch, so both leases kept their expiry. A Topic with the key was found before a `topic-merge` Pin, and a Tag Pin of the same key was not read.
 - **Lost-Highlight claim (2026-11-12).** `foreign_key_list` named `highlights` with `ON DELETE CASCADE` for `highlight_id`. Deleting a Highlight deleted its row, and the next insert took an id above the old high-water mark. A claim inserted one row for each of three `gone` or `ambiguous` Highlights and none for an `attached` one. A claim 8 days later inserted for a Highlight lost since. An `open` row whose Highlight was `attached` again went with the next claim, and a rejected row was never inserted again.
 - **Overview-gap stage (2026-11-12).** The stage's three statements, run in order on a seed of 5 Topics, stored rows for the Topics with uncovered Items and none for a Topic whose open `topic_overview` job closes its gap. A second run in the same week stored nothing, because the claim's `changes()` was 0. After the claim moved back 7 days, the run deleted the row of a Topic that was covered and stored the row of the Topic whose job was gone. A second row for one Topic failed `UNIQUE constraint failed: proposals.topic_id` with the same text on both. D1 also printed the claim's `RETURNING` row, which the `node:sqlite` runner did not read, and that is the only difference.
@@ -362,7 +360,7 @@ These findings shaped the code:
 - On the container on 2026-11-11, a Tag with 5,100 Items showed "Applying…" after the press. With the tab closed, the sweep finished the merge 35 seconds after the press (the request had moved 5,000 Items).
 - On the container on 2026-11-12, a Topic of 25,001 Items answered 202 after 2,671 ms with 25,000 Items moved. With the tab closed, the sweep finished the merge 30.4 s after the request.
 - On the Worker (`wrangler dev --local --test-scheduled`, 2026-11-11), a Tag with 5,100 Items answered 202 in 646 ms. The merge finished at the last of 6 scheduled events sent 2 seconds apart. The sweep runs at most once every 30 seconds (`TICK_SPACING_MS` in `src/core/tick.ts`).
-- Accept of an overview update on a Topic of 45 Items ran 2 `topic_overview` tasks (executor `cli`, Claude Code 2.1.319) and left 0 Items out of the overview (2026-11-12). Two tasks equal ceil(45 / 40).
+- Accept of an overview update on a Topic of 45 Items ran 2 `topic_overview` tasks (executor `cli`, Claude Code 2.1.319), which equals ceil(45 / 40), and left 0 Items out of the overview (2026-11-12).
 - With `fillDisagreementInput` and every pair of every Topic decided (60 Topics of 12 Items), the input stayed within the 14,000-byte bound. Short Items gave 47 Items of 4 Topics and 253 pairs in 13,743 bytes. Long Items gave 10 Items of 1 Topic and 45 pairs in 13,860 bytes.
 
 These were not run:
