@@ -16,7 +16,7 @@ import {
 } from "./reddit-tree.ts";
 import type { WireChild, WirePost } from "./reddit-wire.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
-import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
+import { MAX_ROW_BYTES, type ThreadNode, moreNode, rowFits } from "./thread-rows.ts";
 
 export interface ParsedThread {
   readonly title: string;
@@ -47,20 +47,7 @@ function nodeOf(
   const parentId = parent === place.root ? null : parent;
   const depth = entry.depth - place.base;
 
-  if (comment === null) {
-    return {
-      id: `more_${String(position)}`,
-      parentId,
-      position,
-      depth,
-      kind: "more",
-      author: null,
-      body: null,
-      score: null,
-      postedAt: null,
-      eligible: false,
-    };
-  }
+  if (comment === null) return moreNode(position, parentId, depth);
 
   const eligible = !isPlainCodeDrop(comment.author, comment.body);
 

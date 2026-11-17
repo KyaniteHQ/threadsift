@@ -36,12 +36,29 @@ export function renamedTags(
   return [...kept.values()];
 }
 
-export function repointedPins(db: Database, loser: number, survivor: number) {
-  return db.update(pins).set({ intoTagId: survivor }).where(eq(pins.intoTagId, loser));
-}
+export function mergePinWrites(
+  db: Database,
+  merge: Readonly<{
+    kind: MergeKind;
+    fromName: string;
+    loser: number;
+    survivor: number;
+  }>,
+) {
+  const { kind, fromName, loser, survivor } = merge;
+  const tagMerge = kind === "tag-merge";
+  const into = tagMerge ? { intoTagId: survivor } : { intoTopicId: survivor };
 
-export function repointedTopicPins(db: Database, loser: number, survivor: number) {
-  return db.update(pins).set({ intoTopicId: survivor }).where(eq(pins.intoTopicId, loser));
+  return [
+    db
+      .insert(pins)
+      .values({ kind, fromKey: catalogKey(fromName), fromName, ...into, createdAt: Date.now() })
+      .onConflictDoUpdate({ target: [pins.kind, pins.fromKey], set: into }),
+    db
+      .update(pins)
+      .set(into)
+      .where(eq(tagMerge ? pins.intoTagId : pins.intoTopicId, loser)),
+  ];
 }
 
 function pinToken(id: number, target: number): string {

@@ -3,14 +3,11 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import {
-  WAIT_CHECK_MS,
-  enqueueWaiting,
-  releaseWaiting,
-  releaseWaitingWhen,
-} from "./reddit-account-queue.ts";
-import { type AccountRow, redditAccount } from "./reddit-account-tables.ts";
-import { millisecondsOf } from "./reddit-window.ts";
+import { WAIT_CHECK_MS, enqueueWaiting, releaseWaiting } from "./reddit-account-queue.ts";
+import { ACCOUNT_ROW, type AccountRow, redditAccount } from "./reddit-account-tables.ts";
+import type { RedditAnswer } from "./reddit-session.ts";
+import { leftOf, millisecondsOf } from "./reddit-window.ts";
+import { RATE_LIMITED } from "./thread-fill.ts";
 
 export const REFUSALS_TO_EXPIRE = 3;
 
@@ -19,8 +16,6 @@ const NO_THREADS = "[]";
 const MAX_LIMIT_MS = 3_600_000;
 
 const LIMIT_FLOOR_MS = 60_000;
-
-const ACCOUNT_ROW = 1;
 
 export function limitedUntilOf(
   { reset, retryAfter }: Readonly<{ reset: string | null; retryAfter: string | null }>,
@@ -56,6 +51,15 @@ export interface WindowRecord {
   readonly reset: string | null;
   readonly retryAfter: string | null;
   readonly limited: boolean;
+}
+
+export function windowRecordOf(answer: Readonly<RedditAnswer>): WindowRecord {
+  return {
+    left: leftOf(answer.remaining),
+    reset: answer.reset,
+    retryAfter: answer.retryAfter,
+    limited: answer.status === RATE_LIMITED,
+  };
 }
 
 export async function recordWindow(
@@ -124,7 +128,7 @@ function releaseWhenExpired(
   session: AccountSession,
   now: number,
 ): BatchItem<"sqlite"> {
-  return releaseWaitingWhen(
+  return releaseWaiting(
     db,
     now,
     exists(
