@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useRef } from "react";
 
+import { useFieldAnnouncementsIn } from "./FieldAnnouncer.tsx";
 import { Icon } from "./Icon.tsx";
 import { watchDismissal } from "./panel-dom.ts";
 import { NEXT_ITEM, PREVIOUS_ITEM } from "./reader-text.ts";
@@ -70,6 +71,8 @@ function useSheet(close: () => void) {
       signal,
     );
   });
+
+  useFieldAnnouncementsIn(dialog);
 
   return dialog;
 }
