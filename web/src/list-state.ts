@@ -1,8 +1,11 @@
+import type { Dispatch, SetStateAction } from "react";
+
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { isEmptyResult } from "./filters.ts";
 import { countedWith } from "./list-counts.ts";
 import { type More, newer } from "./list-paging.ts";
+import type { Ticket } from "./use-ticket.ts";
 
 export type ListState =
   | { readonly status: "loading"; readonly known: readonly Item[] }
@@ -24,6 +27,13 @@ export type ListState =
 
 export type Ready = Extract<ListState, { readonly status: "ready" }>;
 
+export type SetList = Dispatch<SetStateAction<ListState>>;
+
+export interface Wiring {
+  readonly setList: SetList;
+  readonly ticket: Ticket;
+}
+
 export function readFor(list: Readonly<ListState>, query: string): list is Ready {
   return list.status === "ready" && list.query === query;
 }
@@ -32,14 +42,12 @@ export function hasRows(list: Readonly<ListState>): boolean {
   return list.status !== "ready" || !isEmptyResult(list.items.length, list.next);
 }
 
-function upserted(items: readonly Item[], item: Readonly<Item>): Item[] {
-  return items.some((current) => current.id === item.id)
-    ? items.map((current) => (current.id === item.id ? item : current))
-    : [item, ...items];
-}
-
 function replaced(items: readonly Item[], item: Readonly<Item>): Item[] {
   return items.map((current) => (current.id === item.id ? item : current));
+}
+
+function upserted(items: readonly Item[], item: Readonly<Item>): Item[] {
+  return items.some((current) => current.id === item.id) ? replaced(items, item) : [item, ...items];
 }
 
 function placed(list: Readonly<Ready>, item: Readonly<Item>): Item[] {
@@ -56,23 +64,21 @@ function placed(list: Readonly<Ready>, item: Readonly<Item>): Item[] {
   return at < 0 ? [...items, item] : [...items.slice(0, at), item, ...items.slice(at)];
 }
 
-export function withItem(
+function withItem(
   list: Readonly<ListState>,
+  before: Readonly<Item>,
   item: Readonly<Item>,
   unfiltered: boolean,
-  created = false,
 ): ListState {
-  const known = upserted(list.known, item);
+  const known = replaced(list.known, item);
 
   if (list.status !== "ready") return { ...list, known };
-
-  const before = list.known.find((current) => current.id === item.id);
 
   return {
     ...list,
     known,
     items: unfiltered ? placed(list, item) : replaced(list.items, item),
-    counts: unfiltered ? countedWith(list.counts, before, item, created) : list.counts,
+    counts: unfiltered ? countedWith(list.counts, before, item) : list.counts,
   };
 }
 
@@ -104,7 +110,9 @@ export function withRead(
 ): ListState {
   const current = list.known.find((item) => item.id === read.id);
 
-  return current === undefined || sameItem(current, read) ? list : withItem(list, read, unfiltered);
+  return current === undefined || sameItem(current, read)
+    ? list
+    : withItem(list, current, read, unfiltered);
 }
 
 export function sameItem(left: Readonly<Item>, right: Readonly<Item>): boolean {

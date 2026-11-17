@@ -11,7 +11,7 @@ export interface Counts {
   readonly refused: number;
 }
 
-export type BatchAnswer =
+type BatchAnswer =
   | { readonly kind: "saved"; readonly counts: Counts }
   | { readonly kind: "restoring" | "network" | "rejected" }
   | { readonly kind: "unanswered" };
@@ -23,12 +23,6 @@ export function readImportState(
   signal: AbortSignal | undefined,
 ): Promise<ImportState | null> {
   return parsedOrNull("GET", `/api/imports/${name}`, ImportStateSchema, 404, { signal });
-}
-
-export async function fetchImportCursor(name: string, signal: AbortSignal): Promise<string | null> {
-  const state = await readImportState(name, signal);
-
-  return state === null ? null : state.cursor;
 }
 
 function countsOf(outcomes: readonly (keyof Counts)[]): Counts {

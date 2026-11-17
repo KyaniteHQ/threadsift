@@ -6,7 +6,7 @@ import {
   parseImportList,
   resumeOf,
 } from "../../src/core/import-list.ts";
-import { fetchImportCursor } from "./import-api.ts";
+import { readImportState } from "./import-api.ts";
 
 export type Check =
   | { readonly status: "none" | "checking" | "failed" }
@@ -22,9 +22,13 @@ async function checkOf(links: readonly string[], signal: AbortSignal): Promise<C
   const name = await importNameOf(links);
 
   try {
-    const cursor = await fetchImportCursor(name, signal);
+    const state = await readImportState(name, signal);
 
-    return { status: "ready", name, resume: resumeOf(cursor, links.length) };
+    return {
+      status: "ready",
+      name,
+      resume: resumeOf(state === null ? null : state.cursor, links.length),
+    };
   } catch {
     return { status: "failed" };
   }
