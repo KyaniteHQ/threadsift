@@ -10,6 +10,8 @@
 - **Restore.** The canonical `HOLDS_LIBRARY` predicate pauses the writer while the newest Restore holds the library. Starting a Restore invalidates the lease. Save and a completed or cancelled Restore reconcile the repository's managed Item paths with the current library, including paths written by another Instance. Cancelling an upload that never changed the library does not requeue it. No mirror table is restored from a zip.
 - **Settings.** `vault-settings.ts` seals tokens through the Instance's `Sealer`. Verify reads a candidate branch without saving or writing files; it does not prove Contents write permission or permission to update a protected branch. A missing sealing key prevents Save. Disconnect leaves repository files in place.
 
+A real GitHub `Retry-After` wait and resume remains unverified on both install targets. The 600-Item Imports, 60 further note updates per target and two bounded 450-request impossible-head probes produced no rate refusal. No further load should be sent to force one. `docs/architecture/open-items-and-unverified-claims.md` records the missing evidence and the run that would establish it.
+
 ## File ordering and byte budget
 
 GitHub's [FileAddition and FileChanges](https://docs.github.com/en/graphql/reference/git#fileaddition) require full base64 contents and unique paths; a deletion must name an existing path. The writer reads only needed subtrees, adds an Item's assets in earlier commits, writes its note last, then deletes obsolete assets. Removing an Item reverses that dependency: delete its note before its assets. A missing file parks that Item, leaving others eligible. A single file above the byte budget remains queued with `file-too-large`; it needs a smaller source file before it can mirror.
@@ -28,11 +30,11 @@ const { repository, branch, token } = JSON.parse(readFileSync(process.env.VAULT_
 for (const [count, bytes] of [[500, 100], [20, 2 * 1024 * 1024]]) {
   const contents = Buffer.alloc(bytes, 65).toString('base64');
   const body = JSON.stringify({
-    query: 'mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }',
+    query: 'mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input:$input) { commit { oid } } }',
     variables: { input: {
       branch: { repositoryNameWithOwner: repository, branchName: branch },
       expectedHeadOid: '0'.repeat(40), message: { headline: 'Capacity refusal probe' },
-      fileChanges: { additions: Array.from({ length: count }, (_, n) => ({ path: `Threadsift/capacity-probe/${n}.bin`, contents })) }
+      fileChanges: { additions: Array.from({ length: count }, (_, n) => ({ path: `Threadsift/capacity-probe/${n}.bin`, contents })), deletions: [] }
     } }
   });
   const response = await fetch('https://api.github.com/graphql', {

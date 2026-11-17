@@ -422,7 +422,6 @@ C. Intake webhook
 - A Restore pauses the writer and queues the final library when it finishes or is cancelled. The Export leaves the settings, queue and written-file list out.
 - The mirror is one-way: the owner reads in Obsidian and edits Highlights and Notes in Threadsift. Vault repositories on other Git hosts are not in the first release.
 - Not built: triggers for every other Item change, Related Item wikilinks, Topic page notes, the Index, the Log and container folder mode.
-- GitHub writes are not yet verified against the private test vault. `docs/architecture/vault-mirror.md` names the implementation and this proof gap.
 
 ## Access
 
