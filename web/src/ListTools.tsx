@@ -3,14 +3,13 @@ import type { RefObject } from "react";
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { matchedCount } from "./list-counts.ts";
 import { type ListState, type Ready, countsOf, readFor } from "./list-state.ts";
-import { ListHead, ListHeadGhost } from "./ListBody.tsx";
+import { ListHead } from "./ListBody.tsx";
 import { SearchField } from "./SearchField.tsx";
 import { SettledAnnouncement } from "./SettledAnnouncement.tsx";
 import { SEARCH_LABEL, SEARCH_PLACEHOLDER, headLabel } from "./text.ts";
 
 interface ListToolsProps {
   readonly list: ListState;
-  readonly reserves: boolean;
   readonly filters: Filters;
   readonly field: RefObject<HTMLInputElement | null>;
   readonly search: (text: string) => void;
@@ -31,7 +30,6 @@ function headText(list: Readonly<Ready>, filters: Readonly<Filters>): string {
 
 function Tools({
   list,
-  reserves,
   filters,
   field,
   search,
@@ -41,7 +39,7 @@ function Tools({
 }: Readonly<Omit<ListToolsProps, "query" | "active"> & { head: string }>) {
   const counts = countsOf(list);
 
-  if (!reserves && (counts === null || counts.total === 0)) return null;
+  if (list.status !== "loading" && (counts === null || counts.total === 0)) return null;
 
   return (
     <>
@@ -53,10 +51,12 @@ function Tools({
         search={search}
         hint={hint}
         leave={leave}
-        ghost={reserves}
       />
-      {reserves ? <ListHeadGhost /> : null}
-      {list.status === "ready" ? <ListHead label={head} /> : null}
+      {list.status === "loading" ? (
+        <div className="list-head" data-loading aria-hidden="true" />
+      ) : (
+        <ListHead label={head} />
+      )}
     </>
   );
 }

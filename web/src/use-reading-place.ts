@@ -1,5 +1,6 @@
 import { type RefObject, useLayoutEffect } from "react";
 
+import { READ_DEADLINE_MS } from "./calls.ts";
 import { useArrivals } from "./place-arrival.ts";
 import { anchorAt, keepPlace, placeOf, scrollToAnchor } from "./reading-place.ts";
 
@@ -33,6 +34,29 @@ function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): () =>
   };
 }
 
+function watchAfterFonts(slot: HTMLElement, itemId: number, arriving: boolean): () => void {
+  if (arriving) return watchPlace(slot, itemId, true);
+
+  let stop: (() => void) | undefined;
+  let cancelled = false;
+
+  const restore = (): void => {
+    if (cancelled || stop !== undefined) return;
+
+    window.clearTimeout(deadline);
+    stop = watchPlace(slot, itemId, arriving);
+  };
+
+  const deadline = window.setTimeout(restore, READ_DEADLINE_MS);
+  void document.fonts.ready.then(restore);
+
+  return () => {
+    cancelled = true;
+    window.clearTimeout(deadline);
+    stop?.();
+  };
+}
+
 export function useReadingPlace(
   slot: RefObject<HTMLElement | null>,
   itemId: number,
@@ -43,6 +67,6 @@ export function useReadingPlace(
   useLayoutEffect(() => {
     const element = slot.current;
 
-    return ready && element !== null ? watchPlace(element, itemId, pending()) : undefined;
+    return ready && element !== null ? watchAfterFonts(element, itemId, pending()) : undefined;
   }, [slot, itemId, ready, pending]);
 }

@@ -1,4 +1,11 @@
-import { useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { THEME, type SettingKey, type Settings } from "../../design/system/settings-table.ts";
 import {
@@ -12,8 +19,7 @@ import {
   rootAttributes,
   serialize,
 } from "../../design/system/settings.ts";
-import { facesOf } from "../../design/system/style-faces.ts";
-import { useSettledAttributes } from "./look-faces.ts";
+import { facesOf, loadFaces } from "../../design/system/style-faces.ts";
 import { MATCH_SYSTEM_NOTES } from "./text.ts";
 
 function readStorage(): string | null {
@@ -62,8 +68,10 @@ function usePageAttributes(attributes: Readonly<Record<string, string>>): void {
 export function useSettings(onLayoutChange: () => void, initial: Settings) {
   const [settings, setSettings] = useState(initial);
   const isDark = useSyncExternalStore(subscribeToDeviceScheme, deviceIsDark);
-  const wanted = useMemo(() => rootAttributes(settings, isDark), [settings, isDark]);
-  const attributes = useSettledAttributes(wanted, facesOf(settings));
+  const attributes = useMemo(() => rootAttributes(settings, isDark), [settings, isDark]);
+  useEffect(() => {
+    void loadFaces(facesOf(settings));
+  }, [settings]);
 
   usePageAttributes(attributes);
 

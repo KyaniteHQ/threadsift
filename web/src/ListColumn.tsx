@@ -18,13 +18,13 @@ function LibraryList({
   look,
   openId,
 }: Readonly<{ view: LibraryView; look: Look; openId: number | null }>) {
-  const { library, shown, actions, side, listPane } = view;
+  const { library, actions, side, listPane } = view;
 
   return (
     <main ref={listPane} className="list" tabIndex={-1}>
       <LookupNotice failed={actions.lookupFailed} again={actions.lookAgain} />
       <ListBody
-        list={shown}
+        list={library.list}
         cardImages={look.settings.images === "on"}
         openId={openId}
         attention={actions.attention}
@@ -53,7 +53,7 @@ export function ListColumn({
   openId: number | null;
   pages: Pages;
 }>) {
-  const { library, shown, reserves, side, covered, openItem, listPane, searchField } = view;
+  const { library, side, covered, openItem, listPane, searchField } = view;
 
   return (
     <div className="bg" inert={covered}>
@@ -62,7 +62,7 @@ export function ListColumn({
         look={look}
         pages={pages}
         counts={view.counts}
-        loading={reserves}
+        loading={library.list.status === "loading"}
         filters={library.filters}
         choose={library.choose}
         clearChosen={library.clearChosen}
@@ -74,8 +74,7 @@ export function ListColumn({
         open={side.openFromCard}
       />
       <ListTools
-        list={shown}
-        reserves={reserves}
+        list={library.list}
         filters={library.filters}
         query={library.query}
         active={!covered}

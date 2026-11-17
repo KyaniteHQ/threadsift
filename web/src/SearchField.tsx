@@ -42,7 +42,6 @@ export function SearchField({
   search,
   hint,
   leave,
-  ghost,
 }: Readonly<{
   value: string;
   label: string;
@@ -51,13 +50,12 @@ export function SearchField({
   search: (text: string) => void;
   hint: string | null;
   leave: () => void;
-  ghost: boolean;
 }>) {
   const { type, escape } = useHandlers(search, leave);
   const id = useId();
 
   return (
-    <search className="search" aria-hidden={ghost ? true : undefined} inert={ghost}>
+    <search className="search">
       <label className="field" htmlFor={id}>
         <span className="vh">{label}</span>
         <Icon name="search" className="ic" />
@@ -74,7 +72,6 @@ export function SearchField({
           maxLength={SEARCH_MAX}
           value={value}
           aria-keyshortcuts="/"
-          disabled={ghost}
           onChange={type}
           onKeyDown={escape}
         />

@@ -3,7 +3,7 @@ import type { Item } from "../../src/http/schemas.ts";
 import type { SaveTarget } from "./api.ts";
 import { Brand } from "./Brand.tsx";
 import type { Choice, Filters } from "./filters.ts";
-import { FilterGhost, FilterPane } from "./Filters.tsx";
+import { FilterPane } from "./Filters.tsx";
 import { PasteBox } from "./PasteBox.tsx";
 import type { Pages } from "./routing.ts";
 import type { PasteQueue, SaveOutcome } from "./use-paste.ts";
@@ -29,12 +29,7 @@ function FilterSlot({
   const bar = look.settings.layout === "grid";
   const collapsible = bar ? look.narrow : look.medium;
 
-  if (loading)
-    return collapsible || bar ? (
-      <div className="filters-slot">
-        <FilterGhost collapsible={collapsible} bar={bar} />
-      </div>
-    ) : null;
+  if (loading) return <div className="filters-slot" data-loading aria-hidden="true" />;
 
   if (counts === null || counts.total === 0) return null;
 
