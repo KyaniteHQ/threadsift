@@ -293,7 +293,7 @@ A run on 2026-11-12 sent the same five inputs with `claude -p --output-format js
 
 ### Unattended path of the disagreement check
 
-A stage that throws before its batch commits logs `sweep-stage-failed` and tries again on the next tick. A refusal that can be retried (`retriesAi`) retries after 30 seconds and after 2 minutes. The last retry closes the job with nothing stored and every `topic_checks` row unchanged, so the Topics that changed are read again the next week. The handler has no `blockedBy`, because it writes only `proposals` and `topic_checks` rows. When the job fails before a task row exists, one `disagreement-proposals-run-failed` line names the refusal.
+A stage that throws before its batch commits logs `sweep-stage-failed` and tries again on the next tick. A refusal that can be retried (`retriesAi`) retries after 30 seconds and after 2 minutes while the inputs remain current. When the job finds stale inputs, it requeues without spending an attempt. On the last attempt with current inputs, a refusal closes the job with nothing stored and every `topic_checks` row unchanged, so the Topics that changed are read again the next week. The handler has no `blockedBy`, because it writes only `proposals` and `topic_checks` rows. When the job fails before a task row exists, one `disagreement-proposals-run-failed` line names the refusal.
 
 ## The Log entry
 
