@@ -50,7 +50,7 @@ const ViewSchema = z.discriminatedUnion("filter", [
 export type CommentsFilter = z.infer<typeof ViewSchema>;
 
 export const CommentsViewSchema = z.object({
-  reported: z.number().int().nonnegative().nullable(),
+  reported: WholeCount.nullable(),
   archive: z.object({ at: WholeCount, withPost: z.boolean() }).nullable(),
   received: WholeCount,
   kept: WholeCount,

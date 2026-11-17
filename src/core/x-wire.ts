@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { WIRE_ID_MAX } from "./comment-id.ts";
 import { X_QUOTES_MAX, X_REPLIES_MAX } from "./limits.ts";
+import { WholeCount } from "./whole-count.ts";
 import { onlyXImages } from "./x-images.ts";
 
 export const StatusIdSchema = z
@@ -20,7 +21,7 @@ const WirePostedAt = z.iso
 
 const StoredPostedAt = z.number().int().nullable();
 
-const Count = z.number().int().nonnegative().nullable();
+const Count = WholeCount.nullable();
 
 const PhotoUrls = z
   .array(z.string())

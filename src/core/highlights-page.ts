@@ -9,9 +9,9 @@ import {
   formatCursor,
 } from "./highlights-page-contract.ts";
 import { type ItemFilters, facetCounts, facetQueries, itemConditions } from "./item-filters.ts";
-import { pageTail } from "./item-page.ts";
 import { itemTitle } from "./item-title.ts";
 import type { Source } from "./kinds.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { digests, highlights, items, notes, searchParts } from "./schema.ts";
 import { partMatching } from "./search.ts";
@@ -141,7 +141,7 @@ export async function highlightsPage(
   const { items: entries, next } = pageTail(
     rows.map((row) => entryOf(row)),
     HIGHLIGHTS_PAGE_SIZE,
-    ({ date, kind, id }) => formatCursor({ date, kind, id }),
+    formatCursor,
   );
 
   return {

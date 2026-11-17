@@ -1,7 +1,7 @@
 import { type ComponentType, lazy } from "react";
 
+import { NOTHING } from "../../src/core/nothing.ts";
 import { unavailable } from "./module-unavailable.ts";
-import { NOTHING } from "./nothing.ts";
 import { IMPORT_PATH, LOG_PATH, PROPOSALS_PATH, SETTINGS_PATH } from "./routing.ts";
 
 const LOADERS = {

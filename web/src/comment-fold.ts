@@ -1,7 +1,7 @@
 import { type RefObject, useLayoutEffect, useState } from "react";
 
+import { NOTHING } from "../../src/core/nothing.ts";
 import { pixelsOf } from "./css-length.ts";
-import { NOTHING } from "./nothing.ts";
 
 const FOLD_OVER_LINES = 8;
 

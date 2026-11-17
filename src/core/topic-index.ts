@@ -1,7 +1,8 @@
 import { asc, count, eq, gt } from "drizzle-orm";
 
 import { TOPIC_USES } from "./catalog-uses.ts";
-import { ITEMS_PAGE_SIZE, pageTail } from "./item-page.ts";
+import { ITEMS_PAGE_SIZE } from "./item-page.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { topicPages, topics } from "./schema.ts";
 import type { TopicIndex } from "./topic-index-contract.ts";

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { WireCommentId } from "./comment-id.ts";
+import { WholeCount } from "./whole-count.ts";
 
 export interface WireComment {
   readonly id: string;
@@ -65,7 +66,7 @@ const PostData = z
       .optional()
       .transform((value) => z.string().safeParse(value).data ?? null),
     created_utc: z.number().nonnegative(),
-    num_comments: z.number().int().nonnegative().nullish(),
+    num_comments: WholeCount.nullish(),
   })
   .readonly();
 

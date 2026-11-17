@@ -1,7 +1,8 @@
 import { eq, inArray, max, sql } from "drizzle-orm";
 
-import { ITEMS_PAGE_SIZE, pageTail } from "./item-page.ts";
+import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { type ProposalState, WEEKLY_TASK } from "./kinds.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { pageQuery } from "./proposal-rows.ts";
 import { providerSet } from "./provider-saved.ts";

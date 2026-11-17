@@ -1,8 +1,9 @@
 import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
-import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor, pageTail } from "./item-page.ts";
+import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { JOINED_VIEW_COLUMNS } from "./joined-view.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { digests, githubRepos, items } from "./schema.ts";
 

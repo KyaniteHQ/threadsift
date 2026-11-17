@@ -9,8 +9,6 @@ const REQUEST_SPACING_MS = 500;
 
 export const RATE_LIMITED = 429;
 
-export const LOGGED_OUT = 401;
-
 export interface RequestWindow {
   readonly sent: number;
   readonly left: number | null;

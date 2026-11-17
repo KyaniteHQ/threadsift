@@ -14,18 +14,16 @@ const ExactSchema = z
   .refine((quote) => quote.trim() !== "", "a quote holds a character that shows")
   .refine((quote) => quote.isWellFormed(), "a quote is well-formed Unicode");
 
-const PositionSchema = WholeCount;
-
 const SelectorSchema = z.object({
   exact: z.string(),
   prefix: z.string(),
   suffix: z.string(),
-  hint: PositionSchema,
+  hint: WholeCount,
 });
 
 export const CreateHighlightRequestSchema = z.object({
   target: HighlightTargetSchema,
-  revision: PositionSchema,
+  revision: WholeCount,
   selector: SelectorSchema.extend({ exact: ExactSchema }),
 });
 
@@ -40,19 +38,19 @@ const HighlightSchema = z.discriminatedUnion("status", [
   z.object({
     ...Recorded,
     status: z.literal("attached"),
-    revision: PositionSchema,
-    start: PositionSchema,
+    revision: WholeCount,
+    start: WholeCount,
   }),
   z.object({
     ...Recorded,
     status: z.literal("unattached"),
     reason: z.enum(HIGHLIGHT_REASONS),
-    revision: PositionSchema.nullable(),
+    revision: WholeCount.nullable(),
   }),
 ]);
 
 export const HighlightsViewSchema = z.object({
-  revisions: z.object({ post: PositionSchema, comments: PositionSchema.nullable() }),
+  revisions: z.object({ post: WholeCount, comments: WholeCount.nullable() }),
   items: z.array(HighlightSchema).readonly(),
 });
 

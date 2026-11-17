@@ -7,6 +7,7 @@ import type { FetchFailure } from "./fetch-results.ts";
 import { type GithubRun, UNAUTHORIZED, type Waiting, apiPolicy, requestApi } from "./github-api.ts";
 import { parsedJson } from "./parsed-json.ts";
 import type { RepositoryRef } from "./repository-ref.ts";
+import { WholeCount } from "./whole-count.ts";
 
 const NOT_FOUND = 404;
 const MARKDOWN_NAME = /\.(?:md|markdown)$/iu;
@@ -19,7 +20,7 @@ const RepositoryAnswerSchema = z
     owner: z.object({ login: z.string().min(1) }),
     full_name: z.string().min(1),
     description: z.string().nullable(),
-    stargazers_count: z.number().int().nonnegative(),
+    stargazers_count: WholeCount,
     language: z.string().nullable(),
     license: z.object({ spdx_id: z.string().nullable() }).nullable(),
     topics: z.array(z.string()).default([]),

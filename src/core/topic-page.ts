@@ -1,8 +1,9 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { catalogKey } from "./catalog-key.ts";
-import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor, pageTail } from "./item-page.ts";
+import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { readDisagreements } from "./known-disagreements.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { providerSet } from "./provider-saved.ts";
 import { digests, items, pins, topicPages, topics } from "./schema.ts";

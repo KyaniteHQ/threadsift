@@ -1,5 +1,5 @@
+import { NOTHING } from "../../src/core/nothing.ts";
 import { fetchItem } from "./api.ts";
-import { NOTHING } from "./nothing.ts";
 
 export type ItemRead = Awaited<ReturnType<typeof fetchItem>>;
 

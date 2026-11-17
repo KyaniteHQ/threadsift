@@ -4,8 +4,6 @@ import { WholeCount } from "./whole-count.ts";
 
 export const NOTE_MAX_CODE_POINTS = 10_000;
 
-const RevisionSchema = WholeCount;
-
 const BodySchema = z
   .string()
   .refine((body) => body.isWellFormed(), "a Note is well-formed Unicode")
@@ -14,9 +12,9 @@ const BodySchema = z
     `a Note holds at most ${String(NOTE_MAX_CODE_POINTS)} code points`,
   );
 
-export const NoteViewSchema = z.object({ body: z.string().nullable(), revision: RevisionSchema });
+export const NoteViewSchema = z.object({ body: z.string().nullable(), revision: WholeCount });
 
-export const SaveNoteRequestSchema = z.object({ body: BodySchema, revision: RevisionSchema });
+export const SaveNoteRequestSchema = z.object({ body: BodySchema, revision: WholeCount });
 
 export const NoteResponseSchema = z.object({ note: NoteViewSchema });
 

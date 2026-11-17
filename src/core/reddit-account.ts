@@ -20,7 +20,7 @@ import {
 } from "./reddit-account-states.ts";
 import type { AccountRow } from "./reddit-account-tables.ts";
 import { type RedditAnswer, answerOf } from "./reddit-session.ts";
-import { LOGGED_OUT, RATE_LIMITED } from "./reddit-window.ts";
+import { RATE_LIMITED } from "./reddit-window.ts";
 import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
 
 type AccountPorts = Pick<Ports, "db" | "secrets">;
@@ -45,6 +45,8 @@ export interface SessionCheck {
 }
 
 const ME_PATH = "/api/me.json";
+
+const LOGGED_OUT = 401;
 
 const MeSchema = z.object({ kind: z.literal("t2"), data: z.object({ name: z.string() }) });
 
