@@ -1,20 +1,51 @@
 import { z } from "zod";
 
-import { type AiConnection, PROVIDERS } from "../src/core/ai-contract.ts";
+import {
+  type AiConnection,
+  AI_MODEL_MAX,
+  PROVIDERS,
+  isCliProvider,
+} from "../src/core/ai-contract.ts";
+import { bestEffort } from "../src/core/failure-log.ts";
 import type { AiRuntime } from "../src/core/ports.ts";
 import { claudeCode } from "../src/targets/node/claude-code.ts";
 import { Slots } from "../src/targets/node/cli-slots.ts";
+import { findBinary } from "../src/targets/node/cli-support.ts";
 import { codexCli } from "../src/targets/node/codex-cli.ts";
 import { type CliRunner, aiAndSecrets } from "../src/targets/shared/ai-runtime.ts";
 import { bindingRunner } from "../src/targets/worker/ai-binding.ts";
 
+const Id = z.string().regex(/^[a-z0-9-]+$/u);
+
 export const ProvidersSchema = z
   .array(
-    z.strictObject({
-      id: z.string().regex(/^[a-z0-9-]+$/u),
-      provider: z.enum(["claude-code", "codex", "workers-ai", "openrouter", "grok-bot"]),
-      model: z.string().max(240),
-    }),
+    z.discriminatedUnion("provider", [
+      z.strictObject({
+        id: Id,
+        provider: z.literal(PROVIDERS["claude-code"].id),
+        model: PROVIDERS["claude-code"].fields.model.min(1),
+      }),
+      z.strictObject({
+        id: Id,
+        provider: z.literal(PROVIDERS.codex.id),
+        model: PROVIDERS.codex.fields.model.min(1),
+      }),
+      z.strictObject({
+        id: Id,
+        provider: z.literal(PROVIDERS["workers-ai"].id),
+        model: PROVIDERS["workers-ai"].fields.model,
+      }),
+      z.strictObject({
+        id: Id,
+        provider: z.literal(PROVIDERS.openrouter.id),
+        model: PROVIDERS.openrouter.fields.model,
+      }),
+      z.strictObject({
+        id: Id,
+        provider: z.literal(PROVIDERS["grok-bot"].id),
+        model: z.string().trim().min(1).max(AI_MODEL_MAX),
+      }),
+    ]),
   )
   .min(1)
   .readonly();
@@ -57,14 +88,24 @@ async function preparedCli(
   runner: CliRunner | null,
   spec: Readonly<ProviderSpec>,
 ): Promise<PreparedProvider> {
-  if (runner === null) return { kind: "unavailable", reason: "cli-missing-or-surface-refused" };
-  if (!(await runner.signedIn())) {
+  if (runner === null) return { kind: "unavailable", reason: "cli-setup-refused" };
+
+  try {
+    if (await runner.signedIn())
+      return await ready(
+        { kind: "cli", provider: runner.provider, model: spec.model },
+        { cli: [runner] },
+      );
     runner.stop();
 
     return { kind: "unavailable", reason: "cli-not-signed-in" };
+  } catch (error) {
+    await bestEffort({ event: "comparison-cli-not-stopped", fields: {} }, () => {
+      runner.stop();
+      return Promise.resolve();
+    });
+    throw error;
   }
-
-  return ready({ kind: "cli", provider: runner.provider, model: spec.model }, { cli: [runner] });
 }
 
 function workersAi(spec: Readonly<ProviderSpec>): Promise<PreparedProvider> {
@@ -85,7 +126,17 @@ function workersAi(spec: Readonly<ProviderSpec>): Promise<PreparedProvider> {
         },
       );
 
-      if (!response.ok) throw new Error("Workers AI request refused");
+      if (!response.ok) {
+        const body = z
+          .object({
+            errors: z.array(z.object({ code: z.number().int(), message: z.string() })).min(1),
+          })
+          .parse(await response.json());
+        const error = body.errors[0];
+
+        if (error !== undefined) throw new Error(`${error.code}: ${error.message}`);
+        throw new Error("Workers AI request refused");
+      }
       const body = z
         .object({ success: z.literal(true), result: z.json() })
         .parse(await response.json());
@@ -98,7 +149,9 @@ function workersAi(spec: Readonly<ProviderSpec>): Promise<PreparedProvider> {
 }
 
 function openRouter(spec: Readonly<ProviderSpec>): Promise<PreparedProvider> {
-  if (!spec.model.endsWith(":free") && spec.model !== "openrouter/free")
+  if (spec.model === "openrouter/free")
+    return Promise.resolve({ kind: "unavailable", reason: "openrouter-router-not-comparable" });
+  if (!spec.model.endsWith(":free"))
     return Promise.resolve({ kind: "unavailable", reason: "openrouter-model-must-be-free" });
   const key = process.env["OPENROUTER_API_KEY"];
 
@@ -120,6 +173,12 @@ export async function prepareProvider(
 ): Promise<PreparedProvider> {
   const slots = new Slots(1);
   const path = process.env["PATH"] ?? "";
+
+  if (
+    isCliProvider(spec.provider) &&
+    (await findBinary(path, spec.provider === "codex" ? "codex" : "claude")) === null
+  )
+    return { kind: "unavailable", reason: "cli-missing" };
 
   switch (spec.provider) {
     case "claude-code":
@@ -146,7 +205,7 @@ export async function prepareProvider(
     case "openrouter":
       return openRouter(spec);
     default: {
-      const exhaustive: never = spec.provider;
+      const exhaustive: never = spec;
 
       return exhaustive;
     }
