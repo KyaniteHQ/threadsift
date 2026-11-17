@@ -13,9 +13,16 @@ export async function finishUnit(
   const { db } = ports;
   const { manifest } = await recordFiles(source);
 
-  return endedUnit(db, run, { state: "done", finishedAt: Date.now(), updatedAt: Date.now() }, [
+  const before = [
     ...sequenceWrites(db, manifest),
     ...jobKeyWrites(db),
     ...singletonResets(db, manifest),
-  ]);
+  ];
+
+  return endedUnit(
+    db,
+    run,
+    { state: "done", finishedAt: Date.now(), updatedAt: Date.now() },
+    before,
+  );
 }

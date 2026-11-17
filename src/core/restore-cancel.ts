@@ -1,10 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
 
+import { removeUnder, restoreFilesPrefix } from "./file-keys.ts";
 import { guardedResults, guardedWrite } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { START_UNDO } from "./restore-contract.ts";
-import { removeParts } from "./restore-parts.ts";
 import {
   NEWEST_RESTORE,
   RESUMABLE_RESTORE,
@@ -41,7 +41,7 @@ async function cancelledUpload({ db, files }: Pick<JobPorts, "db" | "files">, id
     .where(and(eq(restoreRuns.id, id), eq(restoreRuns.state, "uploading")))
     .returning({ id: restoreRuns.id });
 
-  if (ended.length > 0) await removeParts(files, id);
+  if (ended.length > 0) await removeUnder(files, restoreFilesPrefix(id));
 
   return ended.length > 0;
 }
@@ -99,7 +99,7 @@ export async function cancelRestore(ports: JobPorts, id: number): Promise<Cancel
     case "done":
       return { kind: "finished" };
     case "cancelled":
-      await removeParts(ports.files, id);
+      await removeUnder(ports.files, restoreFilesPrefix(id));
 
       return { kind: "cancelled" };
     case "uploading":

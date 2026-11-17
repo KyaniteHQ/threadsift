@@ -1,25 +1,14 @@
 import { and, eq, gte, inArray, lt, or } from "drizzle-orm";
 
 import { report } from "./failure-log.ts";
-import {
-  FILE_LIST_LIMIT,
-  RESTORE_FILES_ROOT,
-  parseStoredKey,
-  removeUnder,
-  restoreFilesPrefix,
-} from "./file-keys.ts";
+import { FILE_LIST_LIMIT, RESTORE_FILES_ROOT, parseStoredKey } from "./file-keys.ts";
 import { among } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import type { FileStore } from "./ports.ts";
 import { RESTORE_PARTS_KEEP_MS } from "./restore-contract.ts";
 import { NEWEST_RESTORE, RESUMABLE_RESTORE } from "./restore-state.ts";
 import { restoreRuns } from "./schema.ts";
 
 type PartPorts = Pick<JobPorts, "db" | "files">;
-
-export async function removeParts(files: FileStore, id: number): Promise<void> {
-  await removeUnder(files, restoreFilesPrefix(id));
-}
 
 async function endAbandonedUploads({ db }: Pick<PartPorts, "db">): Promise<void> {
   const now = Date.now();
