@@ -109,11 +109,7 @@ function exchange(
           status: response.statusCode ?? 0,
           location: response.headers.location ?? null,
           contentType: response.headers["content-type"] ?? null,
-          rateLimit: {
-            retryAfter: firstHeader(response.headers["retry-after"]),
-            remaining: firstHeader(response.headers["x-ratelimit-remaining"]),
-            reset: firstHeader(response.headers["x-ratelimit-reset"]),
-          },
+          rateLimit: redditRateLimitOf((name) => firstHeader(response.headers[name])),
           body: decodedBody(response, encoding),
         });
       },
