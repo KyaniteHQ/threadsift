@@ -1,4 +1,4 @@
-import { type ComponentProps, useCallback } from "react";
+import { useCallback } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { CommentsButton } from "./CommentsButton.tsx";
@@ -6,7 +6,9 @@ import { DeleteItem } from "./DeleteItem.tsx";
 import { Icon } from "./Icon.tsx";
 import { HINT_PANE, MARK_READ, MARK_UNREAD, OPEN_LABELS } from "./reader-text.ts";
 import type { ReaderControls } from "./Reader.tsx";
-import { type PanelPages, SettingsPanel } from "./SettingsPanel.tsx";
+import type { Pages } from "./routing.ts";
+import { SettingsPanel } from "./SettingsPanel.tsx";
+import type { PanelState } from "./use-panel.ts";
 import type { Look } from "./use-root.ts";
 
 function ReadIcon({ read }: Readonly<{ read: boolean }>) {
@@ -32,8 +34,8 @@ export function ReaderActions({
   item: Item;
   controls: ReaderControls;
   look: Look;
-  pages: PanelPages;
-  panel: ComponentProps<typeof SettingsPanel>["panel"];
+  pages: Pages;
+  panel: PanelState;
 }>) {
   const { mode, toggleRead, remove } = controls;
   const read = item.readState === "read";

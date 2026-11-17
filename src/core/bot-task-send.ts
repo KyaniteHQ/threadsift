@@ -1,6 +1,6 @@
 import type { SQL } from "drizzle-orm";
 
-import { type AiRefusal } from "./ai-contract.ts";
+import type { AiRefusal } from "./ai-contract.ts";
 import type { WebhookBody } from "./ai-task-read.ts";
 import { failedAiTask } from "./ai-tasks.ts";
 import type { SentTask, SentTaskKind } from "./bot-task-kind.ts";

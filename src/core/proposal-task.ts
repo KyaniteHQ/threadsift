@@ -66,16 +66,12 @@ function mergesAreSentPairs(
   );
 }
 
-export function mergeTaskKind(kind: MergeKind) {
-  return WEEKLY_TASK[kind];
-}
-
 export function proposalsTask(
   kind: MergeKind,
   sent: readonly Readonly<SentPair>[],
 ): AiTaskDefinition<ProposalsResult> {
   return {
-    kind: mergeTaskKind(kind),
+    kind: WEEKLY_TASK[kind],
     instructions: INSTRUCTIONS[kind],
     prepareInput: (input) => input,
     schema: z

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { type AiConnection, type ModelAi } from "./ai-contract.ts";
+import type { AiConnection, ModelAi } from "./ai-contract.ts";
 import { type Keyless, type Stored, StoredSettingsSchema } from "./ai-next-settings.ts";
 import { grokBotSettings } from "./grok-bot-tables.ts";
 import { connectionOf, openedGrokBot } from "./grok-bot.ts";

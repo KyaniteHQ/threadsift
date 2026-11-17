@@ -6,7 +6,7 @@ import type { WaitReason } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { type ShownStatus, type ShownStatusInput, shownStatus } from "../core/shown-status.ts";
 import { type ImageColumns, type ItemImageSchema, imageOf } from "./item-image.ts";
-import { type WaitSchema } from "./schemas.ts";
+import type { WaitSchema } from "./schemas.ts";
 
 type StatusRow = Pick<ItemRow, "id"> &
   ShownStatusInput & {

@@ -3,7 +3,7 @@ import { type RefObject, useCallback } from "react";
 import type { Item } from "../../src/http/schemas.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { Writes } from "./library.ts";
-import { type ListState } from "./list-state.ts";
+import type { ListState } from "./list-state.ts";
 import type { Route } from "./routing.ts";
 import { useAutoOpen } from "./use-auto-open.ts";
 import { useLibraryKeys } from "./use-library-keys.ts";

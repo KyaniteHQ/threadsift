@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { type BotTaskRow } from "./bot-task-states.ts";
+import type { BotTaskRow } from "./bot-task-states.ts";
 import { digestOf, randomSecret } from "./encoding.ts";
 import type { Crypto, Database } from "./ports.ts";
 import { aiTasks } from "./schema.ts";

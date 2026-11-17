@@ -61,8 +61,6 @@ function SheetHeader({ titleId, close }: Readonly<{ titleId: string; close: () =
   );
 }
 
-export type PanelPages = Pages;
-
 function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void }>) {
   return (
     <div className="st-foot">

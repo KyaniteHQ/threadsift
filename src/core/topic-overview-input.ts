@@ -3,6 +3,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { type Digest, parseStoredDigest } from "./ai-contract.ts";
 import { utf8Length } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
+import { among } from "./guards.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, topicPages, topics } from "./schema.ts";
 import { notBuiltFrom, removedItemIds } from "./topic-coverage.ts";
@@ -135,7 +136,7 @@ async function withCitedRemoved(
   const gone = await db
     .select({ id: sql<number>`gone.id` })
     .from(sql`(${removedItemIds(topicId)}) as gone`)
-    .where(sql`gone.id in (select value from json_each(${JSON.stringify(cited)}))`);
+    .where(among(sql`gone.id`, cited));
 
   return [...new Set([...read, ...gone.map(({ id }) => id)])];
 }

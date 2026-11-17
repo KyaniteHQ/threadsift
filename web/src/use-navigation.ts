@@ -7,9 +7,6 @@ import type { Route } from "./routing.ts";
 import { useSharedArrival } from "./share-handoff.ts";
 import { useCardReturn } from "./use-card-return.ts";
 import { type LibraryDom, neighbour, useStep } from "./use-step.ts";
-
-export type { LibraryDom };
-
 import { changeView } from "./view-transition.ts";
 
 export function useNavigation({

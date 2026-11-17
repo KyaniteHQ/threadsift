@@ -11,7 +11,7 @@ import { type BotTaskRow, stateOf } from "./bot-task-states.ts";
 import { VERIFY_WAIT_MS } from "./grok-bot-contract.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { pause } from "./pause.ts";
-import { type Database } from "./ports.ts";
+import type { Database } from "./ports.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
 import { aiTasks } from "./schema.ts";
 
