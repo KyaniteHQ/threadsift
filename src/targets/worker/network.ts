@@ -50,24 +50,23 @@ function networkResponse(response: Response): NetworkResponse {
   };
 }
 
-const post: Network["post"] = async (url, body, signal, headers) => {
-  assertPublicHost(url);
-  return networkResponse(
-    await workerFetch(url, {
-      method: "POST",
-      body,
-      signal,
-      headers: { "user-agent": REQUEST_HEADERS["user-agent"], ...headers },
-    }),
-  );
-};
-
 export const workerNetwork: Network = {
   get: async (url, signal, headers) =>
     networkResponse(
       await workerFetch(url, { signal, headers: { ...REQUEST_HEADERS, ...headers } }),
     ),
-  post,
+  post: async (url, body, signal, headers) => {
+    assertPublicHost(url);
+
+    return networkResponse(
+      await workerFetch(url, {
+        method: "POST",
+        body,
+        signal,
+        headers: { "user-agent": REQUEST_HEADERS["user-agent"], ...headers },
+      }),
+    );
+  },
 };
 
 export const workerFetch: typeof fetch = async (input, init) => {
