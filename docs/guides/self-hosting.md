@@ -34,4 +34,4 @@ Add the external address to `~/threadsift.env` as one more line, `THREADSIFT_PUB
 
 Enable Actions and Issues in your copy. Create a fine-grained GitHub personal access token scoped to that repository with read and write access to Contents, Pull requests and Workflows. Save it as a repository Actions secret named `UPDATE_TOKEN`.
 
-The **Update from upstream** workflow runs weekly. To check sooner, select it in Actions and choose **Run workflow**. Review the diff for local edits and provision any new bindings listed in the pull request before merging. Workers Builds deploys the merge.
+The **Update from upstream** workflow runs weekly. To check sooner, select it in Actions and choose **Run workflow**. In a public repository, GitHub disables scheduled runs after 60 days without repository activity. To resume them, select the workflow in Actions and choose **Enable workflow**. Review any local edits the update would remove and provision the bindings listed for provisioning before merging. Workers Builds deploys the merge.

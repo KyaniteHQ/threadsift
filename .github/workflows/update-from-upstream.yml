@@ -7,7 +7,8 @@ on:
 
 permissions:
   contents: read
-  issues: write
+
+concurrency: update-from-upstream
 
 defaults:
   run:
@@ -18,17 +19,28 @@ jobs:
     if: github.repository != 'KyaniteHQ/threadsift'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    concurrency: update-from-upstream
+    outputs:
+      steps: ${{ toJSON(steps) }}
     env:
-      BASE: ${{ github.event.repository.default_branch }}
+      BRANCH: threadsift-update
     steps:
       - name: Check UPDATE_TOKEN
         id: check_UPDATE_TOKEN
         env:
           GH_TOKEN: ${{ secrets.UPDATE_TOKEN }}
         run: test -n "$GH_TOKEN"
+      - id: default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base=$(gh repo view "$GITHUB_REPOSITORY" --json defaultBranchRef --jq .defaultBranchRef.name)
+          if [[ "$base" == "$BRANCH" ]]; then
+            echo "Choose a default branch other than the reserved update branch $BRANCH." >&2
+            exit 1
+          fi
+          echo "BASE=$base" >> "$GITHUB_ENV"
       - id: checkout_copy
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.BASE }}
           persist-credentials: false
@@ -36,7 +48,7 @@ jobs:
         id: fetch_upstream_release
         run: git fetch --no-tags --depth=1 https://github.com/KyaniteHQ/threadsift.git refs/heads/release
       - id: setup_node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
@@ -45,9 +57,10 @@ jobs:
         run: |
           work="$RUNNER_TEMP/update"
           mkdir -p "$work"
-          npm install --prefix "$work" --ignore-scripts --no-audit --no-fund jsonc-parser@3.3.1 zod@4.6.7
           release=$(git rev-parse FETCH_HEAD)
-          cp tools/update-bindings.ts "$work/update-bindings.mts"
+          parser=$(git show "$release:package.json" | jq -er '.devDependencies["jsonc-parser"]')
+          npm install --prefix "$work" --ignore-scripts --no-audit --no-fund "jsonc-parser@$parser"
+          git show "$release:tools/update-bindings.ts" > "$work/update-bindings.mts"
           git show HEAD:wrangler.jsonc > "$work/copy.jsonc"
           git show "$release:wrangler.jsonc" > "$work/release.jsonc"
           printf 'Review the changes from upstream release %s before merging.\n' "$release" > "$work/body.md"
@@ -56,29 +69,69 @@ jobs:
           blob=$(git hash-object -w "$work/release.jsonc")
           git update-index --cacheinfo "100644,$blob,wrangler.jsonc"
           if ! git diff --cached --quiet; then
-            echo "branch=threadsift-update/$(git rev-parse HEAD)-$release" >> "$GITHUB_OUTPUT"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Open the update pull request
-        id: open_pull_request
-        if: steps.prepare_update.outputs.branch != ''
+      - name: Push the update branch
+        id: push_update_branch
+        if: steps.prepare_update.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.UPDATE_TOKEN }}
-          BRANCH: ${{ steps.prepare_update.outputs.branch }}
         run: |
           gh auth setup-git
-          if ! git ls-remote --exit-code origin "refs/heads/$BRANCH" > /dev/null; then
-            git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -m "Update Threadsift from upstream release"
-            git push origin "HEAD:refs/heads/$BRANCH"
-          fi
-          existing=$(gh pr list --base "$BASE" --head "$BRANCH" --state all --json number --jq '.[0].number // empty')
-          if [[ -z "$existing" ]]; then
+          export GIT_AUTHOR_DATE GIT_COMMITTER_DATE
+          GIT_AUTHOR_DATE=$(git show -s --format=%cI HEAD)
+          GIT_COMMITTER_DATE=$GIT_AUTHOR_DATE
+          git -c user.name=github-actions -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Update Threadsift from upstream release"
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+      - name: Reconcile the update pull request
+        id: create_pull_request
+        env:
+          GH_TOKEN: ${{ secrets.UPDATE_TOKEN }}
+          CHANGED: ${{ steps.prepare_update.outputs.changed }}
+        run: |
+          existing=$(gh pr list --base "$BASE" --head "$BRANCH" --state open --json number,isCrossRepository --jq '[.[] | select(.isCrossRepository == false)][0].number // empty')
+          if [[ "$CHANGED" != true ]]; then
+            if [[ -n "$existing" ]]; then
+              gh pr close "$existing" --comment "The current release has no changes for this copy."
+            fi
+          elif [[ -n "$existing" ]]; then
+            gh pr edit "$existing" --body-file "$RUNNER_TEMP/update/body.md"
+          else
             gh pr create --base "$BASE" --head "$BRANCH" --title "Update Threadsift from upstream release" --body-file "$RUNNER_TEMP/update/body.md"
           fi
-      - name: Report the failed step
-        if: failure()
+
+  report:
+    needs: update
+    if: always() && (needs.update.result == 'failure' || needs.update.result == 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - id: failure_title
+        env:
+          STEPS: ${{ needs.update.outputs.steps }}
+          RESULT: ${{ needs.update.result }}
+        run: |
+          failed=$(jq -r '(. // {}) | to_entries | map(select(.value.outcome == "failure")) | first.key // empty' <<< "${STEPS:-null}")
+          case "$failed" in
+            check_UPDATE_TOKEN) cause="find UPDATE_TOKEN" ;;
+            fetch_upstream_release) cause="fetch upstream release" ;;
+            push_update_branch) cause="push the branch (check Contents and Workflows write access)" ;;
+            create_pull_request) cause="update the pull request (check Pull requests write access)" ;;
+            "") cause="finish the job ($RESULT; check for timeout or cancellation)" ;;
+            *) cause="${failed//_/ }" ;;
+          esac
+          echo "title=Threadsift update failed to $cause" >> "$GITHUB_OUTPUT"
+      - name: Open or comment on the failure issue
         env:
           GH_TOKEN: ${{ github.token }}
-          STEPS: ${{ toJSON(steps) }}
+          TITLE: ${{ steps.failure_title.outputs.title }}
         run: |
-          cause=$(jq -r 'to_entries[] | select(.value.outcome == "failure") | .key | if . == "check_UPDATE_TOKEN" then "find UPDATE_TOKEN" else gsub("_"; " ") end' <<< "$STEPS")
-          gh issue create --repo "$GITHUB_REPOSITORY" --title "Threadsift update failed to $cause" --body "See the failed step in $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."
+          link="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" | jq -sr --arg title "$TITLE" '[.[][] | select(.pull_request == null and .title == $title and .user.login == "github-actions[bot]")][0].number // empty')
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "The update failed again: $link"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "See the failed run: $link"
+          fi
