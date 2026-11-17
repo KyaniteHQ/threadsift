@@ -22,7 +22,6 @@ export interface Env {
   readonly source: Readonly<ZipSource>;
   readonly directory: Readonly<ZipDirectory>;
   readonly manifest: Readonly<Manifest>;
-  readonly older: boolean;
 }
 
 function recordSpec(
@@ -37,7 +36,6 @@ function recordSpec(
 }
 
 function lineRefusal(
-  env: Readonly<Env>,
   spec: Readonly<TableSpec>,
   line: Uint8Array,
   number: number,
@@ -49,7 +47,7 @@ function lineRefusal(
     return refused("format", `The ${where} is not a record that fits the table`);
   }
 
-  const verdict = lineVerdict(spec, row, env.older);
+  const verdict = lineVerdict(spec, row);
 
   return verdict === "valid" ? null : refused(verdict, `The ${where} does not match the table`);
 }
@@ -78,7 +76,7 @@ function scanned(
   }
 
   for (const [position, line] of lines.entries()) {
-    const refusal = lineRefusal(env, spec, line, at.line + position + 1);
+    const refusal = lineRefusal(spec, line, at.line + position + 1);
 
     if (refusal !== null) throw refusal;
   }

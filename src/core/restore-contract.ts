@@ -50,7 +50,7 @@ export const RESTORE_REFUSALS = [
   "bad-entry-name",
   "no-manifest",
   "format",
-  "newer-release",
+  "other-release",
   "unknown-table",
   "unknown-column",
   "missing-column",

@@ -58,8 +58,8 @@ function known(name: string): boolean {
   return tableSpec(name) !== undefined;
 }
 
-function checkedManifest(manifest: Readonly<Manifest>, older: boolean): void {
-  if (!older && RESTORE_TABLES.some((name) => manifest.tables[name] === undefined)) {
+function checkedManifest(manifest: Readonly<Manifest>): void {
+  if (RESTORE_TABLES.some((name) => manifest.tables[name] === undefined)) {
     throw refused("format", "The manifest leaves out a table of the export format");
   }
 
@@ -110,8 +110,7 @@ function checkedEntries(manifest: Readonly<Manifest>, directory: Readonly<ZipDir
 export function checkedTables(
   manifest: Readonly<Manifest>,
   directory: Readonly<ZipDirectory>,
-  older: boolean,
 ): void {
-  checkedManifest(manifest, older);
+  checkedManifest(manifest);
   checkedEntries(manifest, directory);
 }

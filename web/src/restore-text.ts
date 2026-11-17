@@ -67,8 +67,7 @@ const REFUSAL_TEXT = {
   "no-manifest": "The zip has no threadsift.json. Nothing was restored.",
   format:
     "The zip isn’t in the format of an Export, or a record file in it is damaged. Nothing was restored.",
-  "newer-release":
-    "The zip was made by a newer release of Threadsift, so nothing was restored. Update this Instance first.",
+  "other-release": "The zip was made by another release of Threadsift. Nothing was restored.",
   "unknown-table": "The zip holds a table this Instance doesn’t know. Nothing was restored.",
   "unknown-column": "The zip holds a column this Instance doesn’t know. Nothing was restored.",
   "missing-column":
