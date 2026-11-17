@@ -56,8 +56,6 @@ export const LOCAL_COMMANDS = ["mark", "write", "append", "forget", "same-addres
 
 export const scriptText = (): string => botFile(join("scripts", "threadsift.sh")).text;
 
-export const versionText = (): string => botFile("VERSION").text.trim();
-
 export function fencesOf(text: string): readonly Fence[] {
   return [...text.matchAll(FENCE)].map(([, , language = "", label = "", body = ""]) => ({
     language,

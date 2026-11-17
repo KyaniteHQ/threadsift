@@ -116,7 +116,6 @@ export function FormField({
   label,
   help,
   kind,
-  action,
   children,
   marked,
 }: Readonly<{
@@ -124,7 +123,6 @@ export function FormField({
   label: string;
   help?: string | undefined;
   kind: InputKind;
-  action?: ReactNode;
   children?: ReactNode;
   marked?: boolean;
 }>) {
@@ -156,7 +154,6 @@ export function FormField({
         />
         {children}
       </div>
-      {action === undefined ? null : <div className="fld-action">{action}</div>}
       <FieldFeedback error={field.error} errorId={errorId} needId={needId} />
     </div>
   );

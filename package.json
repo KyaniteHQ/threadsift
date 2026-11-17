@@ -12,7 +12,6 @@
     "check:extension": "pnpm --filter threadsift-extension run check",
     "check:faces": "node tools/check-font-faces.ts",
     "docs:impact": "node tools/docs-impact.ts",
-    "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "lint": "oxlint --format=agent",
     "lint:extension": "pnpm --filter threadsift-extension run lint:firefox",
