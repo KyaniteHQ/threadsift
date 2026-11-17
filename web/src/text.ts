@@ -116,7 +116,7 @@ export const CARD_TITLES = {
 
 export const READING_NOTE = "Usually done within a minute";
 
-export const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
+const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
   timeout: "The website didn’t answer in time",
   network: "Couldn’t reach the website",
   "gave-up": "Something went wrong while reading the link",

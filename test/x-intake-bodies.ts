@@ -1,8 +1,6 @@
 import { DIGEST } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
 
-export const DIGEST_TITLE = DIGEST.title;
-
 export const contentOf = (statusId: string): string => JSON.stringify(authored(statusId));
 
 export const suppliedContent = (statusId: string): string =>

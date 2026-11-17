@@ -1,8 +1,9 @@
+import { SECTION_TITLES } from "../../src/core/reader-text.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { Comments } from "./Comments.tsx";
 import { POST_KEY } from "./highlight-target.ts";
 import { PostTextView } from "./post-text-module.ts";
-import { FILL_NOTE, NO_POST_TEXT, NO_README, SECTION_TITLES, archiveNote } from "./reader-text.ts";
+import { FILL_NOTE, NO_POST_TEXT, NO_README, archiveNote } from "./reader-text.ts";
 import { Related } from "./Related.tsx";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
 import { SETTINGS_PATH } from "./routing.ts";

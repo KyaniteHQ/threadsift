@@ -49,7 +49,7 @@ function scaled(value: number, unit: number): string {
   return `${unit === 0 ? String(value) : rounded(value).toFixed(1)} ${UNITS[unit] ?? "B"}`;
 }
 
-export function byteLabel(bytes: number): string {
+function byteLabel(bytes: number): string {
   return scaled(bytes, 0);
 }
 

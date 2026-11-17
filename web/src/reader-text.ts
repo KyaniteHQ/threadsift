@@ -1,21 +1,7 @@
 import type { CommentCount, UnfilteredCause } from "../../src/core/comment-view.ts";
 import { groupedNumber } from "../../src/core/format.ts";
 import type { Source } from "../../src/core/kinds.ts";
-import {
-  COMMENTS_TITLE,
-  CONTEXT_LABEL,
-  HIGHLIGHTS_TITLE,
-  KEY_POINTS_LABEL,
-  NOTE_TITLE,
-  NOT_FOUND,
-  SECTION_TITLES,
-  STUB_DROPPED,
-  STUB_MORE,
-  STUB_NOT_KEPT,
-  SUMMARY_LABEL,
-  UNTITLED,
-  handleOf,
-} from "../../src/core/reader-text.ts";
+import { UNTITLED } from "../../src/core/reader-text.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
 import { collapsedText } from "./collapsed-text.ts";
 import { plural } from "./plural.ts";
@@ -235,18 +221,3 @@ export function scoreLabel(score: number, source: Source): string {
 export function isSameHandle(first: string | null, second: string | null): boolean {
   return first !== null && second !== null && first.toLowerCase() === second.toLowerCase();
 }
-
-export {
-  COMMENTS_TITLE,
-  CONTEXT_LABEL,
-  HIGHLIGHTS_TITLE,
-  KEY_POINTS_LABEL,
-  NOTE_TITLE,
-  NOT_FOUND,
-  SECTION_TITLES,
-  STUB_DROPPED,
-  STUB_MORE,
-  STUB_NOT_KEPT,
-  SUMMARY_LABEL,
-  handleOf,
-};

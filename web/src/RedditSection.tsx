@@ -58,7 +58,7 @@ function ArchiveFillRow({
   );
 }
 
-export const REDDIT_SECTION: SectionSpec<RedditSettings> = {
+const REDDIT_SECTION: SectionSpec<RedditSettings> = {
   id: "reddit",
   title: REDDIT_TEXT.sectionTitle,
   intro: REDDIT_TEXT.intro,

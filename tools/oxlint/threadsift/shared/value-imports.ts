@@ -36,7 +36,7 @@ function isTypeOnlyList(names: string): boolean {
   return members.every((member) => member.startsWith("type "));
 }
 
-export function valueSpecifiersOf(text: string): string[] {
+function valueSpecifiersOf(text: string): string[] {
   const found: string[] = [];
 
   for (const [, typeOnly, names = "", specifier = ""] of text.matchAll(STATEMENT_FROM)) {

@@ -93,7 +93,7 @@
   --r1: 4px; --r2: 8px; --r3: 14px; --r4: 999px;
   --target: 44px;                     /* the smallest touch target: phone controls, the settings gear, the sheet's side buttons */
   --ctl-h: 34px; --field-h: 40px; --seg-h: 30px; --row-h: 32px; --dot-hit: 28px; --link-pad: 0px;
-  --dot: 10px; --av: 26px; --av-l: 40px; --ind: 22px; --ind-max: 25%; --media-max: 560px; --media-ph-h: 180px;
+  --dot: 10px; --av: 26px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
   --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the gear, the read mark on phones, empty states */
   --pop-w: 25rem;                     /* the settings panel under the gear */
   --dlg-w: 26rem;                     /* a confirmation dialog, such as Delete */

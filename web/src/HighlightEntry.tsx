@@ -1,10 +1,10 @@
 import { memo, useId } from "react";
 
 import type { Entry } from "../../src/core/highlights-page-contract.ts";
+import { NOT_FOUND } from "../../src/core/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { type Place, placePath } from "./place.ts";
 import { QuoteText } from "./QuoteText.tsx";
-import { NOT_FOUND } from "./reader-text.ts";
 import { useNavigateLink } from "./routing.ts";
 import { ageLabel, savedLabel } from "./saved-label.ts";
 import { SOURCE_LABELS } from "./text.ts";

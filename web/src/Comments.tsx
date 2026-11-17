@@ -1,6 +1,14 @@
 import { type CSSProperties, type FocusEvent, useCallback, useEffect, useId, useRef } from "react";
 
 import type { CommentCount, CommentNode, CommentsFilter } from "../../src/core/comment-view.ts";
+import {
+  COMMENTS_TITLE,
+  CONTEXT_LABEL,
+  STUB_DROPPED,
+  STUB_MORE,
+  STUB_NOT_KEPT,
+  handleOf,
+} from "../../src/core/reader-text.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
@@ -8,18 +16,12 @@ import { useOpenOnReveal } from "./highlights-context.ts";
 import { PostTextView } from "./post-text-module.ts";
 import {
   ALL_REMOVED,
-  COMMENTS_TITLE,
-  CONTEXT_LABEL,
   NONE_KEPT,
   OP_LABEL,
   SHOW_FULL_COMMENT,
   SHOW_LESS,
-  STUB_DROPPED,
-  STUB_MORE,
-  STUB_NOT_KEPT,
   UNFILTERED_NOTES,
   countLabel,
-  handleOf,
   isSameHandle,
   scoreLabel,
 } from "./reader-text.ts";
