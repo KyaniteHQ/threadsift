@@ -9,7 +9,7 @@ import {
 } from "./vault-contract.ts";
 import { vaultGithub } from "./vault-github.ts";
 import { VaultFailure } from "./vault-request.ts";
-import { mirrorFiles, mirrorNotes, mirrorBlobs, vaultSettings } from "./vault-tables.ts";
+import { mirrorFiles, mirrorNotes, vaultSettings } from "./vault-tables.ts";
 
 type VaultPorts = Pick<Ports, "db" | "secrets">;
 
@@ -35,11 +35,6 @@ export async function saveVaultSettings(ports: VaultPorts, input: Readonly<Vault
   };
   await db.batch([
     db
-      .delete(mirrorBlobs)
-      .where(
-        sql`exists (select 1 from ${vaultSettings} where ${vaultSettings.repository} <> ${input.repository})`,
-      ),
-    db
       .delete(mirrorFiles)
       .where(
         sql`exists (select 1 from ${vaultSettings} where ${vaultSettings.repository} <> ${input.repository} or ${vaultSettings.branch} <> ${input.branch})`,
@@ -54,6 +49,7 @@ export async function saveVaultSettings(ports: VaultPorts, input: Readonly<Vault
           generation: sql`${vaultSettings.generation} + 1`,
           leaseUntil: 0,
           nextAttemptAt: 0,
+          rateFailures: 0,
           scanPending: true,
         },
       }),
@@ -66,7 +62,6 @@ export async function removeVaultSettings(ports: VaultPorts): Promise<VaultView>
     ports.db.delete(vaultSettings).where(eq(vaultSettings.id, 1)),
     ports.db.delete(mirrorNotes),
     ports.db.delete(mirrorFiles),
-    ports.db.delete(mirrorBlobs),
   ]);
   return readVaultSettings(ports);
 }
@@ -96,7 +91,9 @@ export async function verifyVaultSettings(
       return {
         kind: "refused",
         reason:
-          error.reason === "stale" || error.reason === "invalid-response"
+          error.reason === "stale" ||
+          error.reason === "invalid-response" ||
+          error.reason === "branch-moved"
             ? "github-error"
             : error.reason,
       } as const;

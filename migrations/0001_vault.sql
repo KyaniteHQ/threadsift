@@ -1,12 +1,9 @@
-CREATE TABLE `mirror_blobs` (
-	`digest` text PRIMARY KEY NOT NULL,
-	`sha` text NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE `mirror_files` (
 	`path` text PRIMARY KEY NOT NULL,
 	`kind` text NOT NULL,
 	`subject_id` integer NOT NULL,
+	`sequence` integer NOT NULL,
+	`sha` text,
 	CONSTRAINT "mirror_files_kind" CHECK("mirror_files"."kind" in ('item'))
 );
 --> statement-breakpoint
@@ -28,9 +25,11 @@ CREATE TABLE `vault_settings` (
 	`generation` integer DEFAULT 0 NOT NULL,
 	`lease_until` integer DEFAULT 0 NOT NULL,
 	`next_attempt_at` integer DEFAULT 0 NOT NULL,
+	`rate_failures` integer DEFAULT 0 NOT NULL,
 	`scan_pending` integer DEFAULT true NOT NULL,
 	CONSTRAINT "vault_settings_one_row" CHECK("vault_settings"."id" = 1)
 );
+
 --> statement-breakpoint
 CREATE TRIGGER vault_settings_insert AFTER INSERT ON vault_settings BEGIN
   INSERT INTO mirror_notes(kind, subject_id) SELECT 'item', id FROM items WHERE true ON CONFLICT(kind, subject_id) DO UPDATE SET sequence = excluded.sequence, retry_at = 0;

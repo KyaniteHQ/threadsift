@@ -76,7 +76,7 @@ function decodedBody(response: IncomingMessage, encoding: string): Readable {
 }
 
 function exchange(
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST",
   url: string,
   signal: AbortSignal,
   headers: RequestHeaders,
@@ -122,24 +122,21 @@ function exchange(
   });
 }
 
-function send(method: "POST" | "PATCH"): Network["post"] {
-  return async (url, body, signal, headers) => {
-    assertPublicHost(url);
-    const response = await exchange(
-      method,
-      url,
-      signal,
-      { ...headers, "accept-encoding": IDENTITY },
-      body,
-    );
-    return response;
-  };
-}
+const post: Network["post"] = async (url, body, signal, headers) => {
+  assertPublicHost(url);
+  const response = await exchange(
+    "POST",
+    url,
+    signal,
+    { ...headers, "accept-encoding": IDENTITY },
+    body,
+  );
+  return response;
+};
 
 export const nodeNetwork: Network = {
   get: (url, signal, headers) => exchange("GET", url, signal, headers),
-  post: send("POST"),
-  patch: send("PATCH"),
+  post,
 };
 
 export const nodeRedditSession: RedditSession = {

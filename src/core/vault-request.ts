@@ -5,7 +5,7 @@ import type { Network, NetworkResponse } from "./ports.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
 import type { VaultInput, VaultRefusal } from "./vault-contract.ts";
 
-type FailureReason = VaultRefusal["reason"] | "stale" | "invalid-response";
+type FailureReason = VaultRefusal["reason"] | "stale" | "invalid-response" | "branch-moved";
 
 interface Refusal {
   readonly reason: FailureReason;
@@ -85,9 +85,33 @@ function refused(response: NetworkResponse, text: string): VaultFailure {
   });
 }
 
+const GraphqlErrors = z.object({
+  errors: z.array(z.object({ type: z.string().optional(), message: z.string() })).optional(),
+});
+
+function graphqlFailure(response: NetworkResponse, text: string): void {
+  const errors = parsed(GraphqlErrors, text).errors ?? [];
+  if (errors.length === 0) return;
+  const rate = errors.some(
+    (error) => error.type === "RATE_LIMITED" || /rate limit/iu.test(error.message),
+  );
+  if (rate) {
+    const failure = refused({ ...response, status: 429 }, text);
+    throw new VaultFailure({
+      reason: failure.reason,
+      until: failure.until,
+      status: response.status,
+    });
+  }
+  const reason = errors.some((error) => error.type === "STALE_DATA")
+    ? "branch-moved"
+    : errors.some((error) => error.type === "FORBIDDEN")
+      ? "permission"
+      : "github-error";
+  throw new VaultFailure({ reason, until: null, status: response.status });
+}
+
 type Mutation<Output> = Readonly<{
-  method: "post" | "patch";
-  path: string;
   schema: z.ZodType<Output>;
   body: string;
   current: (() => Promise<boolean>) | null;
@@ -95,7 +119,7 @@ type Mutation<Output> = Readonly<{
 
 type Exchange =
   | Readonly<{ method: "get"; path: string }>
-  | Readonly<{ method: "post" | "patch"; path: string; body: string }>;
+  | Readonly<{ method: "post"; path: string; body: string }>;
 
 function parsed<Output>(schema: z.ZodType<Output>, text: string): Output {
   try {
@@ -106,14 +130,18 @@ function parsed<Output>(schema: z.ZodType<Output>, text: string): Output {
   }
 }
 
-export function vaultRequest(network: Network, input: Readonly<VaultInput>, signal: AbortSignal) {
-  const root = `https://api.github.com/repos/${input.repository}`;
-  const headers = {
-    authorization: `Bearer ${input.token}`,
+function vaultHeaders(token: string) {
+  return {
+    authorization: `Bearer ${token}`,
     accept: "application/vnd.github+json",
     "x-github-api-version": "2022-11-28",
     "content-type": "application/json",
   };
+}
+
+export function vaultRequest(network: Network, input: Readonly<VaultInput>, signal: AbortSignal) {
+  const root = `https://api.github.com/repos/${input.repository}`;
+  const headers = vaultHeaders(input.token);
   let lastWrite = 0;
 
   async function exchange(request: Exchange): Promise<string> {
@@ -123,7 +151,7 @@ export function vaultRequest(network: Network, input: Readonly<VaultInput>, sign
     try {
       response = await (request.method === "get"
         ? network.get(root + request.path, deadline, headers)
-        : network[request.method](root + request.path, request.body, deadline, headers));
+        : network.post("https://api.github.com/graphql", request.body, deadline, headers));
       text = await responseText(response);
     } catch (error) {
       if (error instanceof VaultFailure) throw error;
@@ -134,6 +162,7 @@ export function vaultRequest(network: Network, input: Readonly<VaultInput>, sign
       });
     }
     if (response.status < 200 || response.status >= 300) throw refused(response, text);
+    if (request.method === "post") graphqlFailure(response, text);
     return text;
   }
 
@@ -149,7 +178,10 @@ export function vaultRequest(network: Network, input: Readonly<VaultInput>, sign
       signal.throwIfAborted();
       if (request.current !== null && !(await request.current())) throw staleVault();
       lastWrite = Date.now();
-      return parsed(request.schema, await exchange(request));
+      return parsed(
+        request.schema,
+        await exchange({ method: "post", path: "/graphql", body: request.body }),
+      );
     },
   };
 }

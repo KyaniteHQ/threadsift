@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ed7a2e55-90f9-4583-beea-d1f9a81648da",
+  "id": "443d4a40-9bf9-46cd-bdcc-678c40ca873a",
   "prevId": "55b1ece3-00ad-4b62-960f-bf79184b3230",
   "tables": {
     "agent_tokens": {
@@ -1660,30 +1660,6 @@
         }
       }
     },
-    "mirror_blobs": {
-      "name": "mirror_blobs",
-      "columns": {
-        "digest": {
-          "name": "digest",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "sha": {
-          "name": "sha",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "mirror_files": {
       "name": "mirror_files",
       "columns": {
@@ -1706,6 +1682,20 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sha": {
+          "name": "sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         }
       },
@@ -3444,6 +3434,14 @@
         },
         "next_attempt_at": {
           "name": "next_attempt_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "rate_failures": {
+          "name": "rate_failures",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

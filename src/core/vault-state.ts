@@ -4,7 +4,7 @@ import { guardedBatch } from "./guards.ts";
 import type { Database } from "./ports.ts";
 import { HOLDS_LIBRARY } from "./restore-state.ts";
 import { restoreRuns } from "./schema.ts";
-import type { VaultFile } from "./vault-github.ts";
+import type { VaultProgress } from "./vault-github.ts";
 import type { PendingVaultNote } from "./vault-queue.ts";
 import { mirrorFiles, mirrorNotes, vaultSettings } from "./vault-tables.ts";
 
@@ -74,9 +74,13 @@ export async function seedVaultInventory(
   );
 }
 
-function fileWrites(db: Database, sameSettings: Readonly<SQLWrapper>, files: readonly VaultFile[]) {
+function fileWrites(
+  db: Database,
+  sameSettings: Readonly<SQLWrapper>,
+  files: readonly VaultProgress[],
+) {
   return files.map((file) =>
-    file.kind === "delete"
+    file.sha === null
       ? db.delete(mirrorFiles).where(and(eq(mirrorFiles.path, file.path), sameSettings))
       : db
           .insert(mirrorFiles)
@@ -86,11 +90,17 @@ function fileWrites(db: Database, sameSettings: Readonly<SQLWrapper>, files: rea
                 path: sql<string>`${file.path}`.as("path"),
                 kind: sql<"item">`'item'`.as("kind"),
                 subjectId: sql<number>`${file.subjectId}`.as("subject_id"),
+                sequence: sql<number>`${file.sequence}`.as("sequence"),
+                sha: sql<string>`${file.sha}`.as("sha"),
               })
               .from(sql`(select 1)`)
               .where(sql`${sameSettings}`),
           )
-          .onConflictDoNothing(),
+          .onConflictDoUpdate({
+            target: mirrorFiles.path,
+            set: { sequence: sql`excluded.sequence`, sha: sql`excluded.sha` },
+            setWhere: sql`${mirrorFiles.sequence} <= excluded.sequence`,
+          }),
   );
 }
 
@@ -99,14 +109,14 @@ export async function acknowledgeVault(
   input: Readonly<{
     lease: VaultLease;
     pending: readonly PendingVaultNote[];
-    files: readonly VaultFile[];
+    files: readonly VaultProgress[];
   }>,
 ): Promise<void> {
   const { lease, pending, files } = input;
   const held = sql`exists (select 1 from ${vaultSettings} where ${vaultHolding(lease)})`;
   const sameSettings = sql`exists (select 1 from ${vaultSettings} where ${vaultSettings.sealedToken} = ${lease.sealedToken})`;
   await db.batch([
-    db.update(vaultSettings).set({ nextAttemptAt: 0 }).where(vaultHolding(lease)),
+    db.update(vaultSettings).set({ nextAttemptAt: 0, rateFailures: 0 }).where(vaultHolding(lease)),
     ...pending.map(({ kind, subjectId }) =>
       db
         .insert(mirrorNotes)
@@ -165,12 +175,20 @@ export function claimVaultLease(
 export async function finishVaultLease(
   db: Database,
   lease: Readonly<VaultLease>,
-  until: number | null,
+  backoff: Readonly<{ until: number | null; limited: boolean }>,
 ): Promise<void> {
+  const until = backoff.limited
+    ? Math.max(backoff.until ?? 0, Date.now() + 60_000 * 2 ** Math.min(lease.rateFailures, 5))
+    : backoff.until;
   await db.batch([
     db
       .update(vaultSettings)
-      .set({ nextAttemptAt: sql`max(${vaultSettings.nextAttemptAt}, ${until ?? 0})` })
+      .set({
+        nextAttemptAt: sql`max(${vaultSettings.nextAttemptAt}, ${until ?? 0})`,
+        rateFailures: backoff.limited
+          ? sql`max(${vaultSettings.rateFailures}, ${lease.rateFailures + 1})`
+          : sql`${vaultSettings.rateFailures}`,
+      })
       .where(eq(vaultSettings.sealedToken, lease.sealedToken)),
     db.update(vaultSettings).set({ leaseUntil: 0 }).where(vaultHolding(lease)),
   ]);

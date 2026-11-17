@@ -52,12 +52,6 @@ export interface FileStore {
 export type RequestHeaders = Readonly<Record<string, string>>;
 
 export interface Network {
-  readonly patch: (
-    url: string,
-    body: string,
-    signal: AbortSignal,
-    headers: RequestHeaders,
-  ) => Promise<NetworkResponse>;
   readonly get: (
     url: string,
     signal: AbortSignal,

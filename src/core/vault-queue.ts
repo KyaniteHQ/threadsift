@@ -10,7 +10,7 @@ export type PendingVaultNote = Readonly<typeof mirrorNotes.$inferSelect>;
 
 export class VaultItemFailure extends Error {
   readonly subjectId: number;
-  readonly reason: "file-missing" | "file-changed" | "item-unreadable";
+  readonly reason: "file-missing" | "file-changed" | "item-unreadable" | "file-too-large";
 
   constructor(input: Readonly<{ subjectId: number; reason: VaultItemFailure["reason"] }>) {
     super(input.reason);

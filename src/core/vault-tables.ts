@@ -11,6 +11,7 @@ export const vaultSettings = sqliteTable(
     generation: integer("generation").notNull().default(0),
     leaseUntil: integer("lease_until").notNull().default(0),
     nextAttemptAt: integer("next_attempt_at").notNull().default(0),
+    rateFailures: integer("rate_failures").notNull().default(0),
     scanPending: integer("scan_pending", { mode: "boolean" }).notNull().default(true),
   },
   (table) => [check("vault_settings_one_row", sql`${table.id} = 1`)],
@@ -37,11 +38,8 @@ export const mirrorFiles = sqliteTable(
     path: text("path").primaryKey(),
     kind: text("kind", { enum: ["item"] }).notNull(),
     subjectId: integer("subject_id").notNull(),
+    sequence: integer("sequence").notNull(),
+    sha: text("sha"),
   },
   (table) => [check("mirror_files_kind", sql`${table.kind} in ('item')`)],
 );
-
-export const mirrorBlobs = sqliteTable("mirror_blobs", {
-  digest: text("digest").primaryKey(),
-  sha: text("sha").notNull(),
-});

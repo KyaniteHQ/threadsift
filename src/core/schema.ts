@@ -72,7 +72,7 @@ export { searchParts } from "./search-tables.ts";
 
 export { topicChecks, topicPages } from "./topic-tables.ts";
 
-export { vaultSettings, mirrorNotes, mirrorFiles, mirrorBlobs } from "./vault-tables.ts";
+export { vaultSettings, mirrorNotes, mirrorFiles } from "./vault-tables.ts";
 
 export { xSettings } from "./x-settings-tables.ts";
 

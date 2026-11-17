@@ -74,3 +74,5 @@ export type VaultRefusal = z.infer<typeof VaultRefusalSchema>;
 
 export const VAULT_DEADLINE_MS = 120_000;
 export const VAULT_NOTE_LIMIT = 20;
+
+export const VAULT_FILE_BYTES = 8 * 1024 * 1024;
