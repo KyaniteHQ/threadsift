@@ -80,10 +80,18 @@ export function steppedUnit(
   };
 }
 
+type Ending =
+  | {
+      readonly state: "done" | "cancelled";
+      readonly finishedAt: number;
+      readonly updatedAt: number;
+    }
+  | { readonly state: "failed"; readonly failure: RestoreFailure; readonly updatedAt: number };
+
 export function endedUnit(
   db: Database,
   run: Readonly<RestoreRow>,
-  set: RestoreSet,
+  set: Ending,
   before: JobWrites = [],
 ): JobOutcome {
   return {

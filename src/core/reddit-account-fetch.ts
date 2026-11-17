@@ -19,9 +19,16 @@ import {
 import { checkSession } from "./reddit-account.ts";
 import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
 import { type RedditAnswer, answerOf } from "./reddit-session.ts";
-import { NEW_WINDOW, afterRequest, mayAsk, pauseForSpacing, windowFits } from "./reddit-window.ts";
+import {
+  NEW_WINDOW,
+  RATE_LIMITED,
+  afterRequest,
+  mayAsk,
+  pauseForSpacing,
+  windowFits,
+} from "./reddit-window.ts";
 import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
-import { RATE_LIMITED, THREAD_QUERY, fillAnswers, hiddenIn, permalinkPath } from "./thread-fill.ts";
+import { THREAD_QUERY, fillAnswers, hiddenIn, permalinkPath } from "./thread-fill.ts";
 
 type RedditRef = import("./links.ts").RedditRef;
 

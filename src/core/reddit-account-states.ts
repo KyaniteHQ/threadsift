@@ -6,8 +6,7 @@ import type { Database } from "./ports.ts";
 import { WAIT_CHECK_MS, enqueueWaiting, releaseWaiting } from "./reddit-account-queue.ts";
 import { ACCOUNT_ROW, type AccountRow, redditAccount } from "./reddit-account-tables.ts";
 import type { RedditAnswer } from "./reddit-session.ts";
-import { leftOf, millisecondsOf } from "./reddit-window.ts";
-import { RATE_LIMITED } from "./thread-fill.ts";
+import { RATE_LIMITED, leftOf, millisecondsOf } from "./reddit-window.ts";
 
 export const REFUSALS_TO_EXPIRE = 3;
 

@@ -7,6 +7,8 @@ const MS_PER_SECOND = 1000;
 
 const REQUEST_SPACING_MS = 500;
 
+export const RATE_LIMITED = 429;
+
 export interface RequestWindow {
   readonly sent: number;
   readonly left: number | null;

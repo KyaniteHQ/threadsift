@@ -4,6 +4,7 @@ import { hiddenRepliesOf } from "./reddit-tree.ts";
 import {
   NEW_WINDOW,
   type RequestWindow,
+  RATE_LIMITED,
   afterRequest,
   mayAsk,
   spacingWaitMs,
@@ -12,8 +13,6 @@ import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
 
 export const THREAD_QUERY = "limit=500&raw_json=1";
-
-export const RATE_LIMITED = 429;
 
 export interface FillAnswer {
   readonly status: number;

@@ -1,6 +1,6 @@
 import { browser } from "wxt/browser";
 
-import { oneAtATime } from "./access.ts";
+import { oneAtATime } from "./one-at-a-time.ts";
 
 export interface Registration {
   readonly js: string;

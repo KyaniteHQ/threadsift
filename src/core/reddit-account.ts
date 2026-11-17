@@ -20,8 +20,8 @@ import {
 } from "./reddit-account-states.ts";
 import { type AccountRow } from "./reddit-account-tables.ts";
 import { type RedditAnswer, answerOf } from "./reddit-session.ts";
+import { RATE_LIMITED } from "./reddit-window.ts";
 import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
-import { RATE_LIMITED } from "./thread-fill.ts";
 
 type AccountPorts = Pick<Ports, "db" | "secrets">;
 

@@ -2,9 +2,10 @@ import { browser } from "wxt/browser";
 
 import { RedditAccountSaveResponseSchema } from "../../src/core/reddit-account-contract.ts";
 import type { RedditConnectState } from "../../src/core/reddit-relay-contract.ts";
-import { exclusive, oneAtATime, reconcileAccess } from "./access.ts";
+import { exclusive, reconcileAccess } from "./access.ts";
 import { type Config, holdsInstanceAccess, holdsRedditConnect, instanceRequest } from "./config.ts";
 import { logFailure } from "./log.ts";
+import { oneAtATime } from "./one-at-a-time.ts";
 
 const accountWrites = oneAtATime();
 
