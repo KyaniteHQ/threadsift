@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import type { Attention } from "./ItemRow.tsx";
-import type { Paging, Writes } from "./library.ts";
+import type { Writes } from "./library.ts";
 import type { ListState } from "./list-state.ts";
 import type { ReaderControls } from "./Reader.tsx";
 import type { Route } from "./routing.ts";
@@ -62,11 +62,11 @@ export function useReaderControls({
   route: Route;
   look: Look;
   attend: (attention: Attention) => void;
-  writes: Writes & Paging;
+  writes: Writes;
   dom: LibraryDom;
 }>): ReaderState {
   const [hintInBar, setHintInBar] = useState(false);
-  const { announcement, announce, retract, toggleRead } = useAnnouncement(writes.setRead);
+  const { announcement, announce, toggleRead } = useAnnouncement(writes.setRead);
   const remove = useDeletion({ route, attend, announce, appOf: dom.appOf, remove: writes.remove });
 
   const navigation = useNavigation({
@@ -74,9 +74,6 @@ export function useReaderControls({
     route,
     attend,
     dom,
-    more: writes.more,
-    announce,
-    retract,
     covers: look.reader !== "pane",
   });
 

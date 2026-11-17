@@ -33,10 +33,6 @@ export interface Writes {
   ) => Promise<number | null>;
 }
 
-export interface Paging {
-  readonly more: () => void;
-}
-
 type SetList = Dispatch<SetStateAction<ListState>>;
 
 interface Upkeep {
