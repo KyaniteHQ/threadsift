@@ -35,20 +35,22 @@ released_tag() {
   tag_known "$tag" && echo "$tag"
 }
 
-changelog_release() {
-  local version="$1" temp
+rewritten() {
+  local file="$1" expression="$2" temp
   temp="$(mktemp)"
-  sed -E "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/" "$bot/CHANGELOG.md" > "$temp"
-  cat "$temp" > "$bot/CHANGELOG.md"
+  sed -E "$expression" "$file" > "$temp"
+  cat "$temp" > "$file"
   rm -f "${temp:?}"
 }
 
+changelog_release() {
+  local version="$1"
+  rewritten "$bot/CHANGELOG.md" "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/"
+}
+
 pin() {
-  local tag="$1" hash="$2" temp
-  temp="$(mktemp)"
-  sed -E "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/" "$skill" > "$temp"
-  cat "$temp" > "$skill"
-  rm -f "${temp:?}"
+  local tag="$1" hash="$2"
+  rewritten "$skill" "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/"
 }
 
 case "$mode" in

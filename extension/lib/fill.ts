@@ -2,7 +2,7 @@ import { browser } from "wxt/browser";
 import { z } from "zod";
 
 import { parseLink, redditRefOf } from "../../src/core/links.ts";
-import { type Config, REDDIT_HOSTS, REQUEST_DEADLINE_MS, hostPattern } from "./config.ts";
+import { type Config, REDDIT_HOSTS, hostPattern, instanceRequest } from "./config.ts";
 import { fillWanted, loadConfig } from "./credentials.ts";
 import { type ThreadTab, fetchThread } from "./reddit-thread.ts";
 import { send } from "./save.ts";
@@ -15,15 +15,10 @@ export function cancelFills(): void {
   for (const running of filling.values()) running.abort();
 }
 
-async function isWaiting({ origin, token }: Readonly<Config>, url: string): Promise<boolean> {
-  const address = new URL("/api/items", origin);
-  address.searchParams.set("url", url);
-
+async function isWaiting(config: Readonly<Config>, url: string): Promise<boolean> {
   try {
-    const response = await fetch(address, {
-      headers: { authorization: `Bearer ${token}` },
-      redirect: "error",
-      signal: AbortSignal.timeout(REQUEST_DEADLINE_MS),
+    const response = await instanceRequest(config, `/api/items?${new URLSearchParams({ url })}`, {
+      method: "GET",
     });
 
     const listed = ListedSchema.safeParse(response.ok ? await response.json() : null);

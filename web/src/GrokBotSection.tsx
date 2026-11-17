@@ -72,6 +72,8 @@ function GrokBotForm({
 
   return (
     <>
+      <p className="fld-help">{GROK_BOT_TEXT.xLinks}</p>
+      <p className="fld-help">{GROK_BOT_TEXT.tokenPointer}</p>
       <SettingsForm
         action="/api/settings/grok-bot"
         busy={form.busy}
@@ -92,21 +94,10 @@ function GrokBotForm({
   );
 }
 
-const GrokBotFormWithHelp = ({
-  view,
-  changed,
-}: Readonly<{ view: GrokBotView; changed: (view: GrokBotView) => void }>) => (
-  <>
-    <p className="fld-help">{GROK_BOT_TEXT.xLinks}</p>
-    <p className="fld-help">{GROK_BOT_TEXT.tokenPointer}</p>
-    <GrokBotForm view={view} changed={changed} />
-  </>
-);
-
 export const GROK_BOT_SECTION: SectionSpec<GrokBotView> = {
   id: "grok-bot",
   title: GROK_BOT_TEXT.sectionTitle,
   intro: GROK_BOT_TEXT.intro,
   loadFailed: GROK_BOT_TEXT.loadFailed,
-  Form: GrokBotFormWithHelp,
+  Form: GrokBotForm,
 };

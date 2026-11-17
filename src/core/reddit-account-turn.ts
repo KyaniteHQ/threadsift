@@ -5,7 +5,7 @@ import type { HeldAccount } from "./reddit-account-fetch.ts";
 import { type TurnRun, resumeAt, takeTurn } from "./reddit-account-queue.ts";
 import { accountRow } from "./reddit-account-states.ts";
 import { openedSession } from "./reddit-account.ts";
-import { noThreadFor } from "./reddit-thread.ts";
+import { holdsNoThread } from "./reddit-thread.ts";
 
 export type AccountTurn =
   | { readonly kind: "unused" }
@@ -24,7 +24,7 @@ export async function accountTurn(
 
   if ((await openedSession(secrets, row)) === null) return { kind: "unused" };
 
-  if (!(await guardHolds(db, noThreadFor(itemId)))) return { kind: "unused" };
+  if (!(await holdsNoThread(db, itemId))) return { kind: "unused" };
 
   const now = Date.now();
   const claim = { id: run.id, attempts: run.attempts, attemptGeneration: run.attemptGeneration };

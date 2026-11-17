@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+export const ACCOUNT_ROW = 1;
+
 export const REDDIT_ACCOUNT_STATES = ["connected", "expired"] as const;
 
 export const redditAccount = sqliteTable(

@@ -1,5 +1,6 @@
 import { type SQL, and, getTableColumns, sql } from "drizzle-orm";
 
+import { utf8Length } from "./encoding.ts";
 import type { Database } from "./ports.ts";
 import { RESTORE_BIND_BYTES } from "./restore-contract.ts";
 import { type Row, rowsOf } from "./restore-lines.ts";
@@ -7,8 +8,6 @@ import { type TableSpec, tableSpec } from "./restore-registry.ts";
 import type { Extract } from "./restore-rewrites.ts";
 
 const ROW = sql.raw("r");
-
-const ENCODER = new TextEncoder();
 
 interface Source {
   readonly from: SQL;
@@ -73,7 +72,7 @@ function sourceOf(rows: readonly Readonly<Row>[]): Source {
   const json = JSON.stringify(rows);
   const [only] = rows;
 
-  return rows.length === 1 && only !== undefined && ENCODER.encode(json).length > RESTORE_BIND_BYTES
+  return rows.length === 1 && only !== undefined && utf8Length(json) > RESTORE_BIND_BYTES
     ? rowSource(only)
     : jsonSource(json);
 }

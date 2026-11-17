@@ -68,6 +68,18 @@ export async function checkSetupCode(ports: Ports, code: string): Promise<SetupB
   return outcome.kind === "ok" ? null : outcome;
 }
 
+async function startedWhile(ports: Ports, passwordHash: string): Promise<StartedSession | null> {
+  const session = prepareSession(ports.crypto);
+
+  const committed = await guardedBatch(
+    ports.db,
+    passwordHashIs(passwordHash),
+    sessionWrites(ports.db, session),
+  );
+
+  return committed ? session : null;
+}
+
 export async function setUpOwner(
   ports: Ports,
   code: string,
@@ -97,15 +109,9 @@ export async function setUpOwner(
     return { kind: "owner-exists" };
   }
 
-  const session = prepareSession(ports.crypto);
+  const session = await startedWhile(ports, passwordHash);
 
-  const committed = await guardedBatch(
-    ports.db,
-    passwordHashIs(passwordHash),
-    sessionWrites(ports.db, session),
-  );
-
-  return committed ? { kind: "created", session } : { kind: "superseded" };
+  return session === null ? { kind: "superseded" } : { kind: "created", session };
 }
 
 export function verifyOwnerPassword(ports: Ports, password: string): Promise<Attempt<string>> {
@@ -125,13 +131,7 @@ export async function login(ports: Ports, password: string): Promise<LoginResult
     return verified;
   }
 
-  const session = prepareSession(ports.crypto);
+  const session = await startedWhile(ports, verified.proof);
 
-  const committed = await guardedBatch(
-    ports.db,
-    passwordHashIs(verified.proof),
-    sessionWrites(ports.db, session),
-  );
-
-  return committed ? { kind: "signed-in", session } : { kind: "superseded" };
+  return session === null ? { kind: "superseded" } : { kind: "signed-in", session };
 }

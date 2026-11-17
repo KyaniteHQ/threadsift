@@ -11,11 +11,10 @@ import {
   scopeNote,
   scopeRefusal,
 } from "./openapi.ts";
-import { REFUSED_HOST, RESTORING, budgetSpent, unknownToken } from "./refusals.ts";
+import { REFUSED_HOST, budgetSpent, restoring, unknownToken } from "./refusals.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
 import {
   ErrorResponseSchema,
-  RESTORING_CODE,
   SavedItemResponseSchema,
   UnavailableResponseSchema,
 } from "./schemas.ts";
@@ -89,7 +88,7 @@ export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
     }
 
     if (saved.kind === "restoring") {
-      return c.json({ error: RESTORING, code: RESTORING_CODE } as const, 503);
+      return restoring(c);
     }
 
     if (saved.kind === "not-waiting") {

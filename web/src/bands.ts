@@ -1,13 +1,13 @@
 import { type RefObject, useLayoutEffect, useState } from "react";
 
+import { pixelsOf } from "./css-length.ts";
+
 const BANDS = ["phone", "narrow", "medium", "wide"] as const;
 
 function readBreakpoints(): number[] | null {
   const style = getComputedStyle(document.documentElement);
 
-  const widths = BANDS.map((band) =>
-    Number(style.getPropertyValue(`--bp-${band}`).trim().replace(/px$/u, "")),
-  );
+  const widths = BANDS.map((band) => pixelsOf(style.getPropertyValue(`--bp-${band}`).trim()) ?? 0);
 
   return widths.every((width) => width > 0) ? widths : null;
 }

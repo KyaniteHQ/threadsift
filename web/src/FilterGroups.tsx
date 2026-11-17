@@ -16,7 +16,7 @@ import { TopicPageLink } from "./TopicLink.tsx";
 
 const SHOWN_ROWS = 5;
 
-export interface Segment<Key extends string> {
+interface Segment<Key extends string> {
   readonly key: Key | null;
   readonly label: string;
   readonly name?: string;
@@ -152,7 +152,7 @@ function MoreRows({
   );
 }
 
-function useToggle(initial: boolean) {
+export function useToggle(initial: boolean) {
   const [on, setOn] = useState(initial);
 
   const toggle = useCallback(() => {

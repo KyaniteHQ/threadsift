@@ -8,7 +8,7 @@ import type { SetupBlock } from "../core/owner.ts";
 import { PASSWORD_MAX, PASSWORD_MIN, type PasswordProblem } from "../core/passwords.ts";
 import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../core/setup-code.ts";
 import { UNKNOWN_TOKEN } from "../core/tokens.ts";
-import type { RefusalCode } from "./schemas.ts";
+import { RESTORING_CODE, type RefusalCode } from "./schemas.ts";
 
 const MESSAGES = {
   wrong: "The setup code is wrong",
@@ -67,6 +67,10 @@ export function budgetSpent(c: Context, spent: Readonly<BudgetSpent>) {
   c.header("Retry-After", String(retryAfterSeconds(spent, Date.now())));
 
   return c.json({ error: BUDGET_SPENT_MESSAGE, code: BUDGET_SPENT } as const, 429);
+}
+
+export function restoring(c: Context) {
+  return c.json({ error: RESTORING, code: RESTORING_CODE } as const, 503);
 }
 
 export function wrongPassword(c: Context) {

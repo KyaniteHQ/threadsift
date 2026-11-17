@@ -8,18 +8,8 @@ const SWEEP_TASK = "sweep";
 
 const TICK_SPACING_MS = 30_000;
 
-async function claimSweep({ db }: Readonly<JobPorts>, now: number): Promise<boolean> {
-  const claimed = await claimingRun(db, SWEEP_TASK, now, TICK_SPACING_MS, sql`true`);
-
-  return claimed.length > 0;
-}
-
-async function sweepWhenDue(ports: JobPorts): Promise<void> {
-  if (await claimSweep(ports, Date.now())) {
-    await sweep(ports);
-  }
-}
-
 export async function tick(ports: JobPorts): Promise<void> {
-  await sweepWhenDue(ports);
+  const claimed = await claimingRun(ports.db, SWEEP_TASK, Date.now(), TICK_SPACING_MS, sql`true`);
+
+  if (claimed.length > 0) await sweep(ports);
 }

@@ -2,8 +2,7 @@ import { TAG_KIND, closingWrites } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { loggedMerge } from "./log-writes.ts";
 import type { PlanUnit } from "./merge-unit.ts";
-import { repointedPins } from "./pins.ts";
-import { pins } from "./schema.ts";
+import { mergePinWrites } from "./pins.ts";
 import { REWRITE_UNIT_ITEMS, readRewrite } from "./tag-rewrite.ts";
 
 export const planTagUnit: PlanUnit = async (db, id, row) => {
@@ -14,19 +13,12 @@ export const planTagUnit: PlanUnit = async (db, id, row) => {
 
   return {
     moving: unit.moving,
-    pin: [
-      db
-        .insert(pins)
-        .values({
-          kind: "tag-merge",
-          fromKey: from.key,
-          fromName: from.name,
-          intoTagId: into.id,
-          createdAt: Date.now(),
-        })
-        .onConflictDoUpdate({ target: [pins.kind, pins.fromKey], set: { intoTagId: into.id } }),
-      repointedPins(db, from.id, into.id),
-    ],
+    pin: mergePinWrites(db, {
+      kind: "tag-merge",
+      fromName: from.name,
+      loser: from.id,
+      survivor: into.id,
+    }),
     moves: unit.writes,
     cursor: reachedEnd ? 0 : unit.last,
     closing: {

@@ -23,7 +23,7 @@ function shownGroups(settings: Readonly<Settings>) {
   })).filter(({ rows }) => rows.length > 0);
 }
 
-export type Choose = (key: SettingKey, id: string) => void;
+type Choose = (key: SettingKey, id: string) => void;
 
 type ControlProps = Readonly<{
   row: SettingRow;

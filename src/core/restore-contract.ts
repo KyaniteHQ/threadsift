@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { COPY_RESTORE_PHASES } from "./kinds.ts";
+import { COPY_RESTORE_PHASES, WholeCount } from "./kinds.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
 
 export type RunningPhase = (typeof COPY_RESTORE_PHASES)[number];
@@ -75,8 +75,6 @@ export type RestoreErrorCode = (typeof RESTORE_ERROR_CODES)[number];
 export const RESTORE_FAILURES = [...RESTORE_REFUSALS, "gave-up"] as const;
 
 export type RestoreFailure = (typeof RESTORE_FAILURES)[number];
-
-const WholeCount = z.number().int().nonnegative();
 
 export const CountsSchema = z.record(z.string(), WholeCount).readonly();
 

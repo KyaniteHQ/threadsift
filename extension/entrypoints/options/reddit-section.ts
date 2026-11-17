@@ -1,5 +1,5 @@
 import { deferWhileWorking, newestRequest } from "../../lib/newest-request.ts";
-import { element, replaceControls, say } from "../../lib/page-look.ts";
+import { button, element, replaceControls, say } from "../../lib/page-look.ts";
 import {
   type RedditAction,
   type RedditView,
@@ -52,15 +52,6 @@ function press(action: RedditAction): void {
   );
 }
 
-function actionButton(action: RedditAction): HTMLButtonElement {
-  const created = element("button", { type: "button", class: "btn btn-acc" }, redditLabel(action));
-  created.addEventListener("click", () => {
-    press(action);
-  });
-
-  return created;
-}
-
 function render(view: Readonly<RedditView>): void {
   const hidden = view.kind === "unavailable" && !view.access;
 
@@ -76,7 +67,11 @@ function render(view: Readonly<RedditView>): void {
   replaceControls(
     buttons,
     heading,
-    redditActions(view).map((action) => actionButton(action)),
+    redditActions(view).map((action) =>
+      button(redditLabel(action), () => {
+        press(action);
+      }),
+    ),
   );
 }
 

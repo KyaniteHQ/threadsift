@@ -85,7 +85,7 @@ export default defineConfig({
             from: "file",
             name: ["Database", "CatalogKind", "Look", "InputKind", "Slots", "GrokCli"],
           },
-          { from: "package", name: ["ZodError", "ZodObject"], package: "zod" },
+          { from: "package", name: ["ZodError", "ZodObject", "ZodType"], package: "zod" },
           {
             from: "package",
             name: ["DatabaseSync", "IncomingMessage", "ErrnoException"],
@@ -127,7 +127,6 @@ export default defineConfig({
             ],
             package: "@types/react",
           },
-          { from: "package", name: ["ZodType"], package: "zod" },
           {
             from: "package",
             name: ["SQL", "SQLWrapper", "SQLiteColumn", "SQLiteTable", "Subquery"],

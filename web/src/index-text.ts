@@ -1,4 +1,4 @@
-import { filled } from "./text.ts";
+import { plural } from "./plural.ts";
 
 export const INDEX_PAGE = {
   masthead: "Index",
@@ -12,8 +12,8 @@ export const INDEX_PAGE = {
 } as const;
 
 const HEAD_ONE = "1 topic";
-const HEAD_MANY = "{total} topics";
+const HEAD_MANY = "{count} topics";
 
 export function indexHeadLabel(total: number): string {
-  return total === 1 ? HEAD_ONE : filled(HEAD_MANY, { total: String(total) });
+  return plural(total, HEAD_ONE, HEAD_MANY);
 }

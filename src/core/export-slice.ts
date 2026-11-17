@@ -161,7 +161,7 @@ async function takeItemFiles(
     ...progress,
     position: taken.done ? progress.position + 1 : progress.position,
     cursor: taken.done ? 0 : taken.last,
-    bytes: taken.files.reduce((sum, { bytes }) => sum + bytes.length, progress.bytes),
+    bytes: taken.bytes,
     itemFiles: [...progress.itemFiles, ...taken.files],
     itemCount: progress.itemCount + taken.count,
     partial: taken.partial,

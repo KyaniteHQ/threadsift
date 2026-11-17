@@ -1,6 +1,6 @@
 import { asc, count, eq, gt, inArray, sql } from "drizzle-orm";
 
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import type { MergeKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import {
@@ -71,9 +71,7 @@ async function knownPairs(db: Database, kind: MergeKind): Promise<ReadonlySet<st
 }
 
 function mostUsed(rows: readonly Readonly<NameRow>[]): ReadonlyMap<number, readonly string[]> {
-  const byOwner = new Map<number, NameRow[]>();
-
-  for (const row of rows) byOwner.set(row.owner, [...(byOwner.get(row.owner) ?? []), row]);
+  const byOwner = Map.groupBy(rows, ({ owner }) => owner);
 
   return new Map(
     [...byOwner].map(([owner, each]) => [

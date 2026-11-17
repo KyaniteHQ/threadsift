@@ -4,7 +4,7 @@ import { type Filters, isEmptyResult, isFiltered, isSearching } from "./filters.
 import { HighlightEntry } from "./HighlightEntry.tsx";
 import { HIGHLIGHTS_PAGE, pageHeadLabel } from "./highlights-page-text.ts";
 import { matchedCount } from "./list-counts.ts";
-import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
+import { EmptyState, ListHead, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { CLEAR_ALL, RETRY_LABEL } from "./text.ts";
 import { useFocusNewEntries } from "./use-highlights-focus.ts";
@@ -20,17 +20,6 @@ export function highlightsHeadText(state: Readonly<Ready>, filters: Readonly<Fil
   const text = isSearching(filters) ? filters.q.trim() : "";
 
   return pageHeadLabel(state.counts.total, shown, text);
-}
-
-function Head({ label }: Readonly<{ label: string }>) {
-  return (
-    <section className="list-head">
-      <p id={RESULTS_ID} className="results">
-        {label}
-      </p>
-      <p className="label">{HIGHLIGHTS_PAGE.sort}</p>
-    </section>
-  );
 }
 
 function More({
@@ -77,6 +66,7 @@ function EntryList({
 
 function Listed({
   state,
+  head,
   filters,
   now,
   navigate,
@@ -85,6 +75,7 @@ function Listed({
   list,
 }: Readonly<{
   state: Ready;
+  head: string;
   filters: Filters;
   now: number;
   navigate: (to: string) => void;
@@ -101,7 +92,7 @@ function Listed({
 
   return (
     <>
-      <Head label={highlightsHeadText(state, filters)} />
+      <ListHead label={head} sort={HIGHLIGHTS_PAGE.sort} />
       {isEmptyResult(length, state.next) ? (
         <Notice
           text={HIGHLIGHTS_PAGE.noResults}
@@ -123,6 +114,7 @@ export function HighlightsBody({
   ...listed
 }: Readonly<{
   state: PageState;
+  head: string;
   filters: Filters;
   now: number;
   navigate: (to: string) => void;

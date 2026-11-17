@@ -1,5 +1,7 @@
 import type { CommentNode } from "./comment-view.ts";
+import { utf8Length } from "./encoding.ts";
 import { isImageRouteOf, keyOfFileRoute } from "./file-keys.ts";
+import { collapsed } from "./format.ts";
 import type { Kind, ReadState, Source } from "./kinds.ts";
 import { inlineImage, rewriteImages, scanMarkdown } from "./markdown-images.ts";
 import {
@@ -10,9 +12,7 @@ import {
   NOTE_TITLE,
   NOT_FOUND,
   SECTION_TITLES,
-  STUB_DROPPED,
-  STUB_MORE,
-  STUB_NOT_KEPT,
+  STUB_TEXTS,
   SUMMARY_LABEL,
   UNTITLED,
   handleOf,
@@ -27,8 +27,6 @@ const SLUG_FALLBACK = "item";
 const NOTE_PREFIX = "note-";
 
 const NOTE_SUFFIX = ".md";
-
-const ENCODER = new TextEncoder();
 
 const NOT_PLAIN_YAML = /[\u007F-\u009F\u2028\u2029\uFFFE\uFFFF]/gu;
 
@@ -93,7 +91,7 @@ function plainMarkdown(text: string): string {
 }
 
 function titleOf({ title }: Readonly<Pick<ItemNoteInput, "title">>): string {
-  const single = (title ?? "").replaceAll(/\s+/gu, " ").trim();
+  const single = collapsed(title ?? "");
 
   return single === "" ? UNTITLED : plainMarkdown(single);
 }
@@ -143,12 +141,6 @@ function markers(count: number): string {
 function depthPrefix(depth: number): string {
   return `${markers(depth + 1)} `;
 }
-
-const STUB_TEXTS = {
-  dropped: STUB_DROPPED,
-  "not-kept": STUB_NOT_KEPT,
-  more: STUB_MORE,
-} as const;
 
 function commentLines(node: Readonly<CommentNode>, source: Source): string[] {
   const prefix = depthPrefix(node.depth);
@@ -221,7 +213,7 @@ export function itemNote(input: Readonly<ItemNoteInput>): string {
 function sliced(slug: string): string {
   const points = Array.from(slug).slice(0, SLUG_CODE_POINTS);
 
-  while (ENCODER.encode(points.join("")).length > SLUG_BYTES) points.pop();
+  while (utf8Length(points.join("")) > SLUG_BYTES) points.pop();
 
   return points.join("").replaceAll(/-+$/gu, "");
 }

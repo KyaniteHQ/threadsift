@@ -37,7 +37,6 @@ export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Ro
     <main className="pg-col hp-col" aria-busy={state.status === "loading"}>
       <HighlightsTools
         state={state}
-        filters={filters}
         look={look}
         field={field}
         filtering={filtering}
@@ -45,6 +44,7 @@ export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Ro
       />
       <HighlightsBody
         state={state}
+        head={head}
         filters={filters}
         now={now}
         navigate={route.navigate}

@@ -15,9 +15,9 @@ type WriteMethod = "POST" | "PUT" | "PATCH" | "DELETE";
 
 export const NO_DEADLINE = "none";
 
-export type Deadline = number | typeof NO_DEADLINE;
+type Deadline = number | typeof NO_DEADLINE;
 
-export interface Write {
+interface Write {
   readonly method: WriteMethod;
   readonly deadline: Deadline;
 }

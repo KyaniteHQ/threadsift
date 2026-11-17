@@ -12,8 +12,8 @@ import {
 } from "./batch-schemas.ts";
 import { savedView } from "./item-view.ts";
 import { budgetRefusal, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
-import { RESTORING, budgetSpent, unknownToken } from "./refusals.ts";
-import { ErrorResponseSchema, RESTORING_CODE, UnavailableResponseSchema } from "./schemas.ts";
+import { budgetSpent, restoring, unknownToken } from "./refusals.ts";
+import { ErrorResponseSchema, UnavailableResponseSchema } from "./schemas.ts";
 import { callerOf, requirePasteScopes } from "./token-scopes.ts";
 
 const BATCH_DIGEST_SCOPE =
@@ -85,8 +85,7 @@ export function registerBatchRoutes(app: OpenAPIHono, ports: Ports): void {
 
     if (pasted.kind === "budget-spent") return budgetSpent(c, pasted);
 
-    if (pasted.kind === "restoring")
-      return c.json({ error: RESTORING, code: RESTORING_CODE } as const, 503);
+    if (pasted.kind === "restoring") return restoring(c);
 
     const saved = cursor === undefined ? null : await saveImport(ports.db, cursor);
 

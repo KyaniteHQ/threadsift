@@ -13,7 +13,7 @@ export interface Attempt {
   readonly before: Readonly<ImportState> | null;
 }
 
-export const CURSOR_READ_FAILURES_MAX = 3;
+const CURSOR_READ_FAILURES_MAX = 3;
 
 function landedIn(state: Readonly<ImportState> | null, { through, before }: Readonly<Attempt>) {
   return (

@@ -6,14 +6,13 @@ import { preparedDigest } from "./digest-prepare.ts";
 import { publishing } from "./digest-publish.ts";
 import {
   type DigestInput,
-  currency,
   generationCurrent,
   logSubmission,
   lostClaim,
   markDigest,
 } from "./digest-source.ts";
+import { guardedOutcome } from "./guarded-outcome.ts";
 import { type ClaimedJob, type JobOutcome, type JobPorts, isLastAttempt } from "./job-outcome.ts";
-import { insertGuard } from "./schema.ts";
 
 async function attemptOnExecutor(
   ports: JobPorts,
@@ -65,12 +64,12 @@ function refusedAi(
 
   if (retriable && !isLastAttempt(job.attempts)) throw new Error(`Digest ${result.reason}`);
 
-  const generation = generationCurrent(item);
-
   return {
-    currency: currency(db, generation, result.taskId),
+    ...guardedOutcome(db, generationCurrent(item), {
+      taskId: result.taskId,
+      writes: [markDigest(db, item.id, "attempt-failed")],
+    }),
     failedAttempt: retriable,
-    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
   };
 }
 

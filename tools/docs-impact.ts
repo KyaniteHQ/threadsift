@@ -2,11 +2,12 @@ import {
   docLines,
   docPaths,
   exists,
-  globMatches,
+  matchesAny,
   readRepository,
   readText,
   runGit,
   symbolChain,
+  type PathRef,
 } from "./doc-lines.ts";
 
 const EXPORT_DECLARATION =
@@ -88,6 +89,12 @@ function removedExports(mergeBase: string, changes: readonly Change[]): Set<stri
   return removed;
 }
 
+function namedBy(ref: Readonly<PathRef>, paths: Readonly<ReadonlySet<string>>): string | undefined {
+  if (ref.glob) return ref.paths.some((glob) => matchesAny(glob, paths)) ? ref.span : undefined;
+
+  return ref.paths.find((path) => paths.has(path));
+}
+
 function impactSince(base: string): string[] {
   const mergeBase = runGit(["merge-base", base, "HEAD"]).trim();
   const net = nameStatus(mergeBase);
@@ -102,12 +109,9 @@ function impactSince(base: string): string[] {
       const named = new Set<string>();
 
       for (const ref of line.refs) {
-        const hit = ref.glob
-          ? ref.paths.some((glob) => globMatches(glob, paths).length > 0)
-          : ref.paths.some((path) => paths.has(path));
+        const name = namedBy(ref, paths);
 
-        if (hit)
-          named.add(ref.glob ? ref.span : (ref.paths.find((path) => paths.has(path)) ?? ref.span));
+        if (name !== undefined) named.add(name);
       }
 
       for (const span of line.spans) {

@@ -1,6 +1,6 @@
 import { browser } from "wxt/browser";
 
-import { hostPattern, instanceOrigin } from "./config.ts";
+import { hostPattern, instanceOrigin, requestAccess } from "./config.ts";
 import { logFailure } from "./log.ts";
 import {
   ANSWER_DEADLINE_MS,
@@ -100,15 +100,12 @@ export async function saveSettings(
 
   if (tokenMissing(stored, token)) return { kind: "refused", stored, reason: "token" };
 
-  let granted: boolean;
+  const granted = await requestAccess(
+    () => browser.permissions.request({ origins: [hostPattern(origin)] }),
+    "settings-request-failed",
+  );
 
-  try {
-    granted = await browser.permissions.request({ origins: [hostPattern(origin)] });
-  } catch (cause) {
-    logFailure("settings-request-failed", cause);
-
-    return notSaved();
-  }
+  if (granted === null) return notSaved();
 
   if (!granted) return { kind: "refused", stored, reason: "access" };
 

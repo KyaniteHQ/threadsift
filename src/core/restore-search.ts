@@ -1,5 +1,6 @@
 import { type SQL, asc, eq, gt, sql } from "drizzle-orm";
 
+import { utf8Length } from "./encoding.ts";
 import type { JobPorts, JobWrites, SettledOutcome } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
 import { postTextOf } from "./post-text.ts";
@@ -58,8 +59,6 @@ function snapshotHolds(row: Readonly<ItemToIndex>) {
   return sql`exists (select 1 from ${items} where ${items.id} = ${row.id} and ${items.title} is ${row.title} and ${items.postText} is ${row.postText} and ${items.postTextKey} is ${row.postTextKey} and (select ${digests.digest} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digest} and (select ${digests.generation} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digestGeneration} and ${tagNamesOfItem()} = ${row.tagNames} and ${repositoryOfItem()} is ${row.repository} and ${keptCommentIds()} = ${row.comments})`;
 }
 
-const ENCODER = new TextEncoder();
-
 async function restoredPartWrites(
   db: Database,
   row: Readonly<ItemToIndex>,
@@ -83,7 +82,7 @@ async function restoredPartWrites(
 
   return {
     writes,
-    commentBytes: comments.reduce((sum, body) => sum + ENCODER.encode(body).length, 0),
+    commentBytes: comments.reduce((sum, body) => sum + utf8Length(body), 0),
   };
 }
 
@@ -115,7 +114,7 @@ export async function searchUnit(
     holds.push(snapshotHolds(row));
 
     last = row.id;
-    held += ENCODER.encode(text ?? "").length + parts.commentBytes;
+    held += utf8Length(text ?? "") + parts.commentBytes;
 
     if (held >= RESTORE_INDEX_BYTES) break;
   }

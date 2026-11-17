@@ -1,4 +1,4 @@
-import { type Dispatch, type RefObject, type SetStateAction, useCallback, useState } from "react";
+import { type RefObject, useCallback, useState } from "react";
 import { flushSync } from "react-dom";
 
 import type { ReadState } from "../../src/core/kinds.ts";
@@ -16,6 +16,7 @@ import { useItemPolling } from "./item-polling.ts";
 import { type Reads, useReads } from "./list-reads.ts";
 import {
   type ListState,
+  type SetList,
   processingIds,
   sameItem,
   survivorOf,
@@ -32,8 +33,6 @@ export interface Writes {
     whenGone: (survivor: number | null) => void,
   ) => Promise<number | null>;
 }
-
-type SetList = Dispatch<SetStateAction<ListState>>;
 
 interface Upkeep {
   readonly reads: Reads;

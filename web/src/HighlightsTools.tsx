@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 
-import { type Filters, type useFilters, isEmptyResult } from "./filters.ts";
+import { type useFilters, isEmptyResult } from "./filters.ts";
 import { FilterPane } from "./Filters.tsx";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { SearchField } from "./SearchField.tsx";
@@ -9,19 +9,19 @@ import type { Look } from "./use-root.ts";
 
 export function HighlightsTools({
   state,
-  filters,
   look,
   field,
   filtering,
   leave,
 }: Readonly<{
   state: PageState;
-  filters: Filters;
   look: Look;
   field: RefObject<HTMLInputElement | null>;
   filtering: Readonly<ReturnType<typeof useFilters>>;
   leave: () => void;
 }>) {
+  const { filters } = filtering;
+
   if (state.status === "failed" || (state.status === "ready" && state.counts.total === 0)) {
     return null;
   }

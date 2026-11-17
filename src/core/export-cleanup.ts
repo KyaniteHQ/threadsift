@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, or } from "drizzle-orm";
 
 import {
   EXPORT_CLEANUP_BATCH,
@@ -11,23 +11,15 @@ import {
   FILE_LIST_LIMIT,
   exportFilesPrefix,
   parseStoredKey,
+  removeUnder,
 } from "./file-keys.ts";
+import { among } from "./guards.ts";
 import { CLAIM_MARGIN_MS, type JobPorts } from "./job-outcome.ts";
-import type { FileStore } from "./ports.ts";
 import { exportRuns } from "./schema.ts";
 
 const SETTLE_MS = EXPORT_SLICE_DEADLINE_MS + CLAIM_MARGIN_MS;
 
 type CleanupPorts = Pick<JobPorts, "db" | "files">;
-
-async function removeObjects(files: FileStore, exportId: number): Promise<void> {
-  const page = await files.list(exportFilesPrefix(exportId), null, FILE_LIST_LIMIT);
-
-  if (page.keys.length === 0) return;
-
-  await files.delete(page.keys);
-  await removeObjects(files, exportId);
-}
 
 async function expiredKeys(
   db: CleanupPorts["db"],
@@ -45,12 +37,7 @@ async function expiredKeys(
   const expired = await db
     .select({ id: exportRuns.id })
     .from(exportRuns)
-    .where(
-      and(
-        eq(exportRuns.state, "expired"),
-        inArray(exportRuns.id, sql`(select value from json_each(${JSON.stringify(owners)}))`),
-      ),
-    );
+    .where(and(eq(exportRuns.state, "expired"), among(exportRuns.id, owners)));
 
   const ids = new Set(expired.map(({ id }) => id));
 
@@ -76,7 +63,7 @@ export async function removeExport({ db, files }: Readonly<CleanupPorts>, id: nu
     .set({ state: "removing", updatedAt: Date.now() })
     .where(and(eq(exportRuns.id, id), inArray(exportRuns.state, ["ready", "failed"])));
 
-  await removeObjects(files, id);
+  await removeUnder(files, exportFilesPrefix(id));
 
   await db
     .update(exportRuns)

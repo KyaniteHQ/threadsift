@@ -1,4 +1,4 @@
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import { INLINE_TEXT_BYTES } from "./limits.ts";
 import { closedBlocks } from "./x-blocks.ts";
 import { withImages } from "./x-images.ts";

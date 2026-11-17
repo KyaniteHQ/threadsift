@@ -1,6 +1,13 @@
 import { browser } from "wxt/browser";
 
-import { applyLook, element, replaceControls, say, type Tone } from "../../lib/page-look.ts";
+import {
+  applyLook,
+  button,
+  element,
+  replaceControls,
+  say,
+  type Tone,
+} from "../../lib/page-look.ts";
 import {
   type RedditView,
   loadReddit,
@@ -29,13 +36,6 @@ const redditButtons = element("div", { class: "ext-actions" });
 const redditBlock = element("div", { class: "ext-form", hidden: "" }, redditStatus, redditButtons);
 
 root.replaceChildren(title, saveStatus, saveActions, redditBlock);
-
-function button(label: string, onClick: () => void): HTMLButtonElement {
-  const created = element("button", { type: "button", class: "btn btn-acc" }, label);
-  created.addEventListener("click", onClick);
-
-  return created;
-}
 
 interface Message {
   readonly text: string;
