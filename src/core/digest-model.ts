@@ -1,4 +1,4 @@
-import { type AiRefused, type ModelAi, retriesAi } from "./ai-contract.ts";
+import type { AiRefused, ModelAi } from "./ai-contract.ts";
 import { TASKS, runAiTask } from "./ai-tasks.ts";
 import { onGrokBot } from "./bot-step.ts";
 import { digestBotKind } from "./digest-bot.ts";
@@ -11,8 +11,8 @@ import {
   lostClaim,
   markDigest,
 } from "./digest-source.ts";
-import { guardedOutcome } from "./guarded-outcome.ts";
-import { type ClaimedJob, type JobOutcome, type JobPorts, isLastAttempt } from "./job-outcome.ts";
+import { refusalOutcome } from "./guarded-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobPorts, SettledOutcome } from "./job-outcome.ts";
 
 async function attemptOnExecutor(
   ports: JobPorts,
@@ -59,18 +59,13 @@ function refusedAi(
   job: Readonly<ClaimedJob>,
   item: Readonly<DigestInput>,
   result: Readonly<AiRefused & { readonly taskId: number | null }>,
-): JobOutcome {
-  const retriable = retriesAi(result);
-
-  if (retriable && !isLastAttempt(job.attempts)) throw new Error(`Digest ${result.reason}`);
-
-  return {
-    ...guardedOutcome(db, generationCurrent(item), {
-      taskId: result.taskId,
-      writes: [markDigest(db, item.id, "attempt-failed")],
-    }),
-    failedAttempt: retriable,
-  };
+): Promise<SettledOutcome> {
+  return refusalOutcome(db, job, {
+    result,
+    current: generationCurrent(item),
+    label: "Digest",
+    writes: [markDigest(db, item.id, "attempt-failed")],
+  });
 }
 
 export const attemptModel = onGrokBot(attemptOnExecutor, digestBotKind);
