@@ -26,7 +26,7 @@ export interface Listing<Page extends PagedPage, Row> {
 
 interface Source<Page extends PagedPage> {
   readonly state: Paged<Page>;
-  readonly retry: () => void;
+  readonly retry: () => Promise<void>;
   readonly loadMore: () => void;
 }
 
@@ -81,11 +81,15 @@ function Body<Page extends PagedPage, Row>({
   listing,
   draw,
 }: Readonly<{ source: Source<Page> } & Shown<Page, Row>>) {
+  const retryLoad = useCallback(() => {
+    void retry();
+  }, [retry]);
+
   switch (state.status) {
     case "loading":
       return <Skeleton label={listing.text.loading} row="rl-row" title="rl-title" />;
     case "failed":
-      return <Notice text={listing.text.loadFailed} action={retry} label={RETRY_LABEL} alert />;
+      return <Notice text={listing.text.loadFailed} action={retryLoad} label={RETRY_LABEL} alert />;
     case "ready":
       return listing.rows(state).length === 0 ? (
         <EmptyState heading={listing.text.emptyHeading} line={listing.emptyLine(state)} />

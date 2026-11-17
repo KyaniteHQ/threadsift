@@ -22,6 +22,10 @@ export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Ro
   const { state, retry, loadMore } = useHighlightsPage(filters);
   useEntryKeys(list);
 
+  const retryLoad = useCallback(() => {
+    void retry();
+  }, [retry]);
+
   const clearAll = useCallback(() => {
     clear();
     field.current?.focus();
@@ -44,7 +48,7 @@ export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Ro
         filters={filters}
         now={now}
         navigate={route.navigate}
-        retry={retry}
+        retry={retryLoad}
         loadMore={loadMore}
         clearAll={clearAll}
         list={list}
