@@ -1,14 +1,32 @@
 # Threadsift
 
-Threadsift is a reading library for the links you save and never get back to. Paste a link to a Reddit post or comment, a GitHub repo or an article. Threadsift fetches it, and an agent keeps only the comments that add something, then writes a Topic, Tags, a two-line Summary and Key points. Everything you saved reads, searches and filters on one page, and you run it on your own machine.
+Threadsift is a self-hosted reading library for saved links. Paste a link to a Reddit post or comment, an X post, a GitHub repository, or an article. With a Provider set up, the agent turns the fetched text into a Digest with a Topic, Tags, a two-line Summary, and Key points. For threads, the agent picks the comments that add something. Search and filter your Items in the library and open one in the Reader.
 
-![Threadsift with six saved Items: the filters on the left, the list in the middle, and an article open in the Reader with its Topic, Tags, Summary and Key points](docs/assets/reader.png)
+![Threadsift library with Astronomy and Web Development filters and an article about HTTP ETags open in the Reader with its Digest](docs/assets/reader.png)
 
 v1 is not released, so do not use Threadsift for real yet.
 
+## From a Paste to a Digest
+
+![A Paste of an MDN article on HTTP conditional requests shows its progress. The Reader then displays the Digest with its Summary and Key points.](docs/assets/paste-to-digest.gif)
+
+The recording and screenshots use a library of public links. The recording skips part of the wait for the Digest.
+
+## Keep Highlights and Notes
+
+Select a passage of the post text or of a comment in the Reader to keep it as a Highlight. You can also write a Note on the Item. The Highlights page gathers both and links back to the Reader.
+
+![Highlights page with saved passages and a Note from the library's public articles](docs/assets/highlights.png)
+
 ## Let the agent keep a wiki of the library
 
-As Items arrive, the agent writes a Topic page for each Topic, the Index of every Topic, up to 5 Related Items for each new Item, and the Log of its changes. Once a week it also looks for problems in the library, such as two Tags that mean the same thing, and lists each one as a Proposal. Nothing changes until you accept it. [docs/wiki.md](docs/wiki.md) and [docs/proposals.md](docs/proposals.md) describe both.
+As Items arrive, the agent writes an overview for each Topic page and picks up to five Related Items for each new Item. The Index lists the Topics and the Log records changes. Read how they fit together in the [library wiki guide](docs/wiki.md). The agent checks the library each week and may suggest changes such as merging two Tags. You choose which [Proposals](docs/proposals.md) to accept.
+
+The screenshots show the same Topic page in three Styles: Library, Monocle, and Modal.
+
+| Library · Light | Monocle · Sepia | Modal · Dark |
+| --- | --- | --- |
+| ![Astronomy Topic page in the Library Style and Light Theme](docs/assets/topic-library.png) | ![Astronomy Topic page in the Monocle Style and Sepia Theme](docs/assets/topic-monocle.png) | ![Astronomy Topic page in the Modal Style and Dark Theme](docs/assets/topic-modal.png) |
 
 ## Save from wherever you are
 
@@ -21,11 +39,18 @@ As Items arrive, the agent writes a Topic page for each Topic, the Index of ever
 
 ## Bring your own AI
 
-Threadsift has no AI of its own. In Settings you pick one Provider, and the agent uses it for every Digest (its output for one Item). On the container you can choose an API key for Anthropic, OpenAI, xAI, OpenRouter or any OpenAI-compatible address. You can also choose Claude Code or Codex signed in on your server, which runs the Digests on your Claude or ChatGPT plan, or Grok Bot. [Set up a Provider](docs/guides/providers.md) covers the last three.
+Pick a Provider in Settings to run the agent. Both install routes support Anthropic, OpenAI, xAI, OpenRouter, an OpenAI-compatible address, or Grok Bot. The container also supports Claude Code and Codex signed in on your server. On Cloudflare you can use Workers AI, and an OpenAI-compatible address must use public HTTPS. See [how to set up a Provider](docs/guides/providers.md).
 
-## Try it on your machine
+## Install Threadsift
 
-You need [Podman](https://podman.io/docs/installation), `openssl`, and bash or zsh. On macOS and Windows, start a Podman machine first.
+| Container | Cloudflare |
+| --- | --- |
+| A machine that can run Podman or Docker, a persistent data volume, and a secret key. The commands below use Podman, `openssl`, and Bash or Zsh. | A Cloudflare account on the Workers Paid plan ($5 a month), with D1, R2, Queues, and Workers AI. Clone the repository and install its dependencies with Node 26 or later and pnpm. Sign in to Cloudflare with Wrangler and keep the setup code and secret key in a private JSON file. |
+| [Start the container](README.md#try-it-on-your-machine) | The deploy button is not available yet. [Deploy with the CLI](docs/guides/self-hosting.md#deploy-on-cloudflare) |
+
+### Try it on your machine
+
+Install [Podman](https://podman.io/docs/installation). On macOS and Windows, start a Podman machine first.
 
 1. Create the secret key. The command stops without changing a file that already exists.
 
@@ -50,14 +75,14 @@ You need [Podman](https://podman.io/docs/installation), `openssl`, and bash or z
    Until you choose a password, every start logs a new `Setup code: <code>` line, and only the newest code works. If the line is not there yet, run the command again after a few seconds.
 
 4. Open http://127.0.0.1:8080, enter the code and choose a password.
-5. Open Settings and choose a Provider. Have an API key from one of the vendors above ready, or install Claude Code or Codex on the container as [Set up a Provider](docs/guides/providers.md) shows. Press **Save**, then press **Verify**. Verify writes one small real Digest and adds no Item.
+5. Open Settings and choose a Provider. Follow the [Provider setup guide](docs/guides/providers.md) if your choice needs an API key, Claude Code or Codex on the container, or Grok Bot. Press **Save**, then press **Verify**. Verify writes one small real Digest and adds no Item.
 6. Paste your first link.
 
 The app answers on this machine only, over plain HTTP. To reach it from other devices, read [Run Threadsift on your own server](docs/guides/self-hosting.md).
 
 ## Status
 
-v1 is not ready for a library you want to keep. The status table at the top of [docs/architecture.md](docs/architecture.md) lists the parts that are not fully built. The container image is the install target you can run today. A Cloudflare Worker runs the same app, and its deploy button is not built yet.
+The [architecture status table](docs/architecture.md) lists the parts still in development.
 
 ## Find your way around
 

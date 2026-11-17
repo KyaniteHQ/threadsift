@@ -1,6 +1,6 @@
 # Run Threadsift on your own server
 
-The README's "Try it on your machine" section starts an Instance. This guide covers what comes after.
+Start a container Instance with the [README's container instructions](../../README.md#try-it-on-your-machine), or deploy a Worker with the steps below.
 
 ## Pick an image tag
 
@@ -29,6 +29,46 @@ A key saved under a replacement `THREADSIFT_SECRET_KEY` opens only with that rep
 The app listens on plain HTTP, and the README's `podman run` command publishes port 8080 on `127.0.0.1` only. To reach it from other devices, put your own reverse proxy or tunnel in front of it, and let that give it HTTPS. The data stays in the `threadsift-data` volume.
 
 Add the external address to `~/threadsift.env` as one more line, `THREADSIFT_PUBLIC_ORIGIN=https://<your host>`, with no path and no trailing slash, then recreate the container. Without it, the app refuses MCP requests that come through the public host, and OpenRouter's Connect button does not work. The key file keeps the line, so every later run that passes `--env-file` keeps it too.
+
+## Deploy on Cloudflare
+
+Use a Cloudflare account on the Workers Paid plan, Node 26 or later, pnpm, and `openssl`.
+
+1. Clone the repository and install its dependencies, including Wrangler.
+
+   ```sh
+   git clone https://github.com/KyaniteHQ/threadsift.git
+   cd threadsift
+   pnpm install --frozen-lockfile
+   ```
+
+2. Sign in to the Cloudflare account where you want to run Threadsift.
+
+   ```sh
+   pnpm exec wrangler login
+   ```
+
+3. Turn on R2 in that account. The deploy command creates the D1 database, R2 bucket, and Queue named in [wrangler.jsonc](../../wrangler.jsonc) if they do not exist. It also applies the D1 migrations.
+4. Create the secrets file outside the checkout. This command stops if the file already exists.
+
+   ```sh
+   (set -Ceu; umask 077
+     key=$(openssl rand -hex 32)
+     code=$(openssl rand -hex 16)
+     printf '{"THREADSIFT_SECRET_KEY":"%s","SETUP_CODE":"%s"}\n' "$key" "$code" > "$HOME/threadsift-secrets.json"
+     chmod 600 "$HOME/threadsift-secrets.json"
+   )
+   ```
+
+5. Deploy from the checkout.
+
+   ```sh
+   pnpm run deploy --secrets-file "$HOME/threadsift-secrets.json"
+   ```
+
+6. Open the Worker URL that Wrangler prints. Enter the `SETUP_CODE` from your secrets file and choose an owner password. Back up the file so the Instance can still read its saved keys after a redeploy.
+
+The [Cloudflare architecture notes](../architecture/cloudflare-deploy-button.md) explain the bindings and how the command deploys the Worker.
 
 ## Update a Cloudflare copy
 

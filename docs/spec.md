@@ -474,7 +474,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 - One codebase serves both: the database, the file store, the job queue and the AI caller each have one adapter per target.
 - The container image is pushed as `ghcr.io/kyanitehq/threadsift:main` on each push to `main`. The release workflow publishes a version tag for both architectures with provenance and moves `release` after the runtime checks pass (`docs/architecture/ci-releases-and-rollback.md`, Releases).
 - The owner's own Instance runs in the container on the owner's home server, at a public HTTPS address with the owner login, so Grok Bot can reach it.
-- **README.** It shows a hero screenshot of the Reader and the container install route. Not built: a short recording of a Paste turning into a Digest, screenshots of the Highlights page and a Topic page in several Styles, and the two deploy routes as buttons.
+- **README.** It shows a Paste turning into a Digest and screenshots of the Reader, the Highlights page and a Topic page in three Styles. The media comes from an Instance with a library of public links. The README lists the container and Cloudflare install routes side by side.
 
 ## Hosted product (after the first release)
 
