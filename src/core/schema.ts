@@ -65,7 +65,7 @@ export { relatedItems } from "./related-tables.ts";
 
 export { type RestoreRow, restoreRuns } from "./restore-tables.ts";
 
-export { searchFingerprints, searchParts, searchReconciling } from "./search-tables.ts";
+export { searchParts } from "./search-tables.ts";
 
 export { topicChecks, topicLeases, topicPages } from "./topic-tables.ts";
 
@@ -273,13 +273,4 @@ export const catalogVersion = sqliteTable(
     version: integer("version").notNull().default(0),
   },
   (table) => [check("catalog_is_one_row", sql`${table.id} = 1`)],
-);
-
-export const catalogLinking = sqliteTable(
-  "catalog_linking",
-  {
-    id: integer("id").primaryKey(),
-    lastItemId: integer("last_item_id").notNull(),
-  },
-  (table) => [check("catalog_linking_is_one_row", sql`${table.id} = 1`)],
 );

@@ -1,7 +1,9 @@
-import { gt } from "drizzle-orm";
+import { type SQL, asc, eq, gt, sql } from "drizzle-orm";
 
 import type { JobPorts, JobWrites, SettledOutcome } from "./job-outcome.ts";
+import type { Database } from "./ports.ts";
 import { postTextOf } from "./post-text.ts";
+import { keptBodies, keptCommentIds } from "./reddit-thread.ts";
 import {
   ItemsCursorSchema,
   RESTORE_INDEX_BYTES,
@@ -9,10 +11,81 @@ import {
   START_ITEMS,
 } from "./restore-contract.ts";
 import { snapshotted, steppedUnit } from "./restore-unit.ts";
-import { type RestoreRow, items } from "./schema.ts";
-import { itemsToIndex, snapshotHolds, stalePartWrites } from "./search-item-parts.ts";
+import { type RestoreRow, digests, githubRepos, itemTags, items, tags } from "./schema.ts";
+import {
+  commentPartWrites,
+  digestPartWrites,
+  fetchedPartWrites,
+  highlightPartWrites,
+  notePartWrites,
+  repositoryPartWrites,
+  repositoryText,
+} from "./search.ts";
+
+function tagNamesOfItem() {
+  return sql<string>`(select coalesce(json_group_array(name), '[]') from (select ${tags.name} as name from ${itemTags} join ${tags} on ${tags.id} = ${itemTags.tagId} where ${itemTags.itemId} = ${items.id} order by ${tags.key}))`;
+}
+
+function repositoryOfItem() {
+  return sql<
+    string | null
+  >`(select ${repositoryText()} from ${githubRepos} where ${githubRepos.itemId} = ${items.id})`;
+}
+
+function itemsToIndex(db: Database, where: SQL, limit: number) {
+  return db
+    .select({
+      id: items.id,
+      title: items.title,
+      postText: items.postText,
+      postTextKey: items.postTextKey,
+      digest: digests.digest,
+      tagNames: tagNamesOfItem(),
+      repository: repositoryOfItem(),
+      digestGeneration: digests.generation,
+      comments: keptCommentIds(),
+    })
+    .from(items)
+    .leftJoin(digests, eq(digests.itemId, items.id))
+    .where(where)
+    .orderBy(asc(items.id))
+    .limit(limit);
+}
+
+type ItemToIndex = Awaited<ReturnType<typeof itemsToIndex>>[number];
+
+function snapshotHolds(row: Readonly<ItemToIndex>) {
+  return sql`exists (select 1 from ${items} where ${items.id} = ${row.id} and ${items.title} is ${row.title} and ${items.postText} is ${row.postText} and ${items.postTextKey} is ${row.postTextKey} and (select ${digests.digest} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digest} and (select ${digests.generation} from ${digests} where ${digests.itemId} = ${items.id}) is ${row.digestGeneration} and ${tagNamesOfItem()} = ${row.tagNames} and ${repositoryOfItem()} is ${row.repository} and ${keptCommentIds()} = ${row.comments})`;
+}
 
 const ENCODER = new TextEncoder();
+
+async function restoredPartWrites(
+  db: Database,
+  row: Readonly<ItemToIndex>,
+  postText: string | null,
+) {
+  const scope = eq(items.id, row.id);
+
+  const comments =
+    row.digestGeneration === null
+      ? []
+      : await keptBodies(db, { itemId: row.id, generation: row.digestGeneration });
+
+  const writes = [
+    ...fetchedPartWrites(db, scope, postText),
+    ...digestPartWrites(db, scope),
+    ...commentPartWrites(db, scope, comments),
+    ...repositoryPartWrites(db, scope),
+    ...highlightPartWrites(db, scope),
+    ...notePartWrites(db, scope),
+  ];
+
+  return {
+    writes,
+    commentBytes: comments.reduce((sum, body) => sum + ENCODER.encode(body).length, 0),
+  };
+}
 
 export async function searchUnit(
   ports: JobPorts,
@@ -34,14 +107,12 @@ export async function searchUnit(
   for (const row of rows) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- the loop stops at RESTORE_INDEX_BYTES of text and Kept comments, so Items are read one after another.
     const text = row.postTextKey === null ? row.postText : await postTextOf(files, row.id, row);
-    const fileBacked = row.postTextKey !== null;
-    const indexed = fileBacked ? { ...row, fingerprint: null } : row;
     // oxlint-disable-next-line eslint/no-await-in-loop -- the Kept comments of one Item are read after its text, inside the same byte budget.
-    const parts = await stalePartWrites(ports, indexed, text);
+    const parts = await restoredPartWrites(db, row, text);
 
-    writes.push(...parts.fingerprinted, ...parts.direct);
+    writes.push(...parts.writes);
 
-    if (parts.fingerprinted.length > 0) holds.push(snapshotHolds(row));
+    holds.push(snapshotHolds(row));
 
     last = row.id;
     held += ENCODER.encode(text ?? "").length + parts.commentBytes;

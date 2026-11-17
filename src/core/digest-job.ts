@@ -15,7 +15,6 @@ import { expireAiTasks } from "./ai-tasks.ts";
 import { hasDigestSource, keptNotUpdated } from "./digest-source.ts";
 import { NOT_FAILED } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
-import { linkOlderDigests } from "./older-digests.ts";
 import type { Database } from "./ports.ts";
 import { grokBotChosen, providerSet } from "./provider-saved.ts";
 import { aiTasks, digests, items } from "./schema.ts";
@@ -39,7 +38,6 @@ export function openingDigest(
 
 export async function sweepDigests(db: Database, now: number): Promise<void> {
   await expireAiTasks(db, now);
-  await linkOlderDigests(db);
   await db.batch(
     owedDigests(db, {
       provider: grokBotChosen(),

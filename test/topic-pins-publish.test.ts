@@ -6,7 +6,6 @@ import { z } from "zod";
 import { count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { item, script } from "./pin-fixtures.ts";
 import { exec, paste, rows, until } from "./related-fixtures.ts";
 
 const TARGET = "Machine Learning";
@@ -118,16 +117,6 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
 
     assert.equal(linkedTopic(instance, id), TARGET);
     assert.deepEqual(stored(instance, id), { topic: TARGET, json_topic: TARGET });
-    assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
-  });
-
-  it("links an unlinked stored Digest in the older-Digest linking and writes the target's name into it", async () => {
-    script(instance, item(900, [], [], { topic: "ML" }));
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-
-    assert.equal(linkedTopic(instance, 900), TARGET);
-    assert.deepEqual(stored(instance, 900), { topic: TARGET, json_topic: TARGET });
     assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
   });
 });

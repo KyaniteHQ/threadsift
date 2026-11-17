@@ -6,10 +6,9 @@ import { sql } from "drizzle-orm";
 
 import { publishing, readForPublishing } from "../src/core/digest-publish.ts";
 import { guardedBatch } from "../src/core/guards.ts";
-import { readOlderDigestLink } from "../src/core/older-digests.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
-import { item, script, storedDigestOf, topicNameOf } from "./pin-fixtures.ts";
+import { item, script, topicNameOf } from "./pin-fixtures.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 
@@ -49,17 +48,12 @@ describe("each publication path refuses its batch when a Topic Pin appeared afte
     return outcome.writes;
   };
 
-  const unlinkedDigest = (itemId: number) =>
-    readOlderDigestLink(database.db, { id: itemId, digest: storedDigestOf(instance, itemId) });
-
   before(async () => {
     instance = await Instance.start();
     sqlite(`
       insert into topics (id, key, name) values (1, 'machine learning', 'Machine Learning');
       ${item(1, [], [], { topic: "Reading" })}
       ${item(2, [], [], { topic: "Reading" })}
-      ${item(3, [], [], { topic: "ML" })}
-      ${item(4, [], [], { topic: "ML" })}
       update items set topic_id = null where id in (1, 2);
       ${runningTask(101, 1)}
       ${runningTask(102, 2)}`);
@@ -85,23 +79,5 @@ describe("each publication path refuses its batch when a Topic Pin appeared afte
 
     await assert.rejects(guardedBatch(database.db, sql`1`, writes), /guards_hold/u);
     assert.equal(topicNameOf(instance, 2), null);
-  });
-
-  it("commits the older-Digest link while no Pin changed", async () => {
-    sqlite("delete from pins");
-
-    const { condition, writes } = await unlinkedDigest(3);
-
-    assert.equal(await guardedBatch(database.db, condition, writes), true);
-    assert.equal(topicNameOf(instance, 3), "ML");
-  });
-
-  it("refuses the older-Digest link when the Pin appeared after the read", async () => {
-    const { condition, writes } = await unlinkedDigest(4);
-
-    sqlite(topicPin(1, 1));
-
-    assert.equal(await guardedBatch(database.db, condition, writes), false);
-    assert.equal(topicNameOf(instance, 4), null);
   });
 });

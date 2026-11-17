@@ -20,7 +20,6 @@ import {
   redditComments,
   redditThreads,
   relatedItems,
-  searchFingerprints,
   searchParts,
   xVerifications,
 } from "./schema.ts";
@@ -66,7 +65,6 @@ export async function deleteItem(
     db.delete(notes).where(eq(notes.itemId, id)),
     db.delete(relatedItems).where(or(eq(relatedItems.itemId, id), eq(relatedItems.relatedId, id))),
     db.delete(logEntries).where(eq(logEntries.itemId, id)),
-    db.delete(searchFingerprints).where(eq(searchFingerprints.itemId, id)),
     db.delete(itemTags).where(eq(itemTags.itemId, id)),
     db.delete(itemAliases).where(eq(itemAliases.itemId, id)),
     db.delete(digests).where(eq(digests.itemId, id)),
