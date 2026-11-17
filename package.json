@@ -6,8 +6,8 @@
   "scripts": {
     "build": "vite build",
     "build:worker": "node tools/check-worker-size.ts",
-    "deploy": "node tools/deploy-worker.ts",
     "build:extension": "pnpm --filter threadsift-extension run build && pnpm --filter threadsift-extension run build:firefox",
+    "deploy": "node tools/deploy-worker.ts",
     "check": "pnpm run fmt:check && pnpm run check:extension && pnpm run lint && pnpm run check:doc-refs",
     "check:doc-refs": "node tools/doc-refs.ts",
     "check:extension": "pnpm --filter threadsift-extension run check",
@@ -75,6 +75,8 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.3.0",
+    "dotenv": "16.3.1",
+    "dotenv-expand": "13.0.0",
     "drizzle-kit": "0.31.11",
     "oxfmt": "0.78.0",
     "oxlint": "1.93.0",

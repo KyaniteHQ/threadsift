@@ -469,7 +469,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 | Deploy button | none needed | Not built |
 | Cost to the self-hoster | their own server | Cloudflare's $5 a month Workers Paid plan; the reason is in `docs/architecture/cloudflare-deploy-button.md` |
 
-- `pnpm run deploy` prepares a Cloudflare Instance with D1 migrations before the Worker deploy, provisions missing resources, requires the two secrets in `.dev.vars.example`, preserves Worker variables and enables Workers Logs with request query strings redacted. The deploy button itself is not built.
+- A self-hoster can deploy a Cloudflare Instance with `pnpm run deploy` and keep its library when running the command again. The deploy button itself is not built.
 - One codebase serves both: the database, the file store, the job queue and the AI caller each have one adapter per target.
 - The container image is pushed as `ghcr.io/kyanitehq/threadsift:main` on each push to `main`. The release workflow publishes a version tag for both architectures with provenance and moves `release` after the runtime checks pass (`docs/architecture/ci-releases-and-rollback.md`, Releases).
 - The owner's own Instance runs in the container on the owner's home server, at a public HTTPS address with the owner login, so Grok Bot can reach it.

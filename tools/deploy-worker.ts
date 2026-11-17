@@ -1,83 +1,204 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { parseArgs, parseEnv } from "node:util";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { parseArgs, stripVTControlCharacters } from "node:util";
 
+import { parse } from "dotenv";
+import { expand } from "dotenv-expand";
 import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
 
+import { reportFailure } from "../src/core/failure-log.ts";
+
+const REQUIRED_SECRETS = ["THREADSIFT_SECRET_KEY", "SETUP_CODE"] as const;
+const WRANGLER = ["exec", "wrangler", "--env", ""];
+const SecretsSchema = z.record(z.string(), z.string().nullable());
 const { values } = parseArgs({
   options: { "secrets-file": { type: "string" }, "dry-run": { type: "boolean" } },
 });
 const config = z
   .object({
+    name: z.string(),
     d1_databases: z.array(
       z.object({
         binding: z.string(),
-        database_name: z.string(),
+        database_name: z.string().optional(),
         database_id: z.string().optional(),
       }),
     ),
-    secrets: z.object({ required: z.array(z.string()) }),
   })
   .parse(unstable_readConfig({ config: "wrangler.jsonc", env: "" }));
-const secretsFile = values["secrets-file"];
-const WRANGLER = ["exec", "wrangler", "--env", ""];
 
-if (secretsFile !== undefined) {
-  const text = readFileSync(secretsFile, "utf8");
-  const secrets = z
-    .record(z.string(), z.string())
-    .parse(secretsFile.endsWith(".json") ? JSON.parse(text) : parseEnv(text));
-  const missing = config.secrets.required.filter(
-    (name) => (process.env[name] ?? secrets[name] ?? "") === "",
-  );
+class DeployError extends Error {}
 
-  if (missing.length > 0) {
-    process.stderr.write(
-      `Missing required secrets: ${missing.join(", ")}. Set them in ${secretsFile}.\n`,
-    );
-    process.exit(1);
+function refuseEmpty(secrets: Readonly<z.infer<typeof SecretsSchema>>, path: string): void {
+  const empty = REQUIRED_SECRETS.filter((name) => secrets[name] === "");
+  if (empty.length > 0) {
+    throw new DeployError(`Empty required secrets: ${empty.join(", ")}. Set them in ${path}.`);
   }
 }
 
-function pnpm(args: readonly string[], capture = false): string {
+function secretsOf(path: string): z.infer<typeof SecretsSchema> {
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    throw new DeployError(`Cannot read secrets file ${path}. Check its path and read permissions.`);
+  }
+
+  try {
+    const secrets = SecretsSchema.safeParse(JSON.parse(text));
+    if (!secrets.success) {
+      throw new DeployError(`Invalid secrets file ${path}. Use a JSON object of strings or nulls.`);
+    }
+    refuseEmpty(secrets.data, path);
+    return secrets.data;
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+  }
+
+  const parsed = parse(text);
+  if (Object.keys(parsed).length === 0) {
+    throw new DeployError(`Invalid secrets file ${path}. Use a JSON object or dotenv assignments.`);
+  }
+  refuseEmpty(parsed, path);
+  const environment = z.record(z.string(), z.string()).parse({ ...process.env });
+  const expanded = { ...parsed };
+  expand({ parsed: expanded, processEnv: { ...environment } });
+  for (const name of Object.keys(parsed)) {
+    if (Object.hasOwn(environment, name)) expanded[name] = environment[name] ?? "";
+  }
+  refuseEmpty(expanded, path);
+  return expanded;
+}
+
+function pnpm(
+  args: readonly string[],
+  capture = false,
+  missingMessage: string | null = null,
+): string | null {
   const result = spawnSync("pnpm", args, {
     encoding: "utf8",
-    stdio: capture ? ["inherit", "pipe", "inherit"] : "inherit",
-    env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
+    stdio: ["ignore", capture ? "pipe" : "inherit", capture ? "pipe" : "inherit"],
   });
-
   if (result.error) {
-    throw result.error;
+    throw new DeployError("Cannot start pnpm. Check that pnpm is installed and on PATH.");
   }
   if (result.status !== 0) {
+    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+    if (missingMessage !== null && stripVTControlCharacters(output).includes(missingMessage)) {
+      return null;
+    }
+    process.stderr.write(output);
     process.exit(result.status ?? 1);
   }
   return result.stdout ?? "";
 }
 
-if (values["dry-run"] !== true) {
-  const databases = z
-    .array(z.object({ name: z.string() }))
-    .parse(JSON.parse(pnpm([...WRANGLER, "d1", "list", "--json"], true)));
-
-  for (const database of config.d1_databases) {
-    if (
-      database.database_id === undefined &&
-      !databases.some(({ name }) => name === database.database_name)
-    ) {
-      pnpm([...WRANGLER, "d1", "create", database.database_name, "--no-update-config"]);
-    }
-    pnpm([...WRANGLER, "d1", "migrations", "apply", database.binding, "--remote"]);
+function checkSecrets(supplied: Readonly<z.infer<typeof SecretsSchema>>): void {
+  const missing = REQUIRED_SECRETS.filter(
+    (name) => supplied[name] === undefined || supplied[name] === null,
+  );
+  if (missing.length === 0) return;
+  if (values["dry-run"] === true) {
+    throw new DeployError(
+      `Cannot verify inherited secrets in --dry-run: ${missing.join(", ")}. Supply them with --secrets-file for an offline check.`,
+    );
+  }
+  const stored = pnpm(
+    [...WRANGLER, "secret", "list", "--format", "json"],
+    true,
+    `Worker "${config.name}" not found.`,
+  );
+  const names = z.array(z.object({ name: z.string() })).parse(JSON.parse(stored ?? "[]"));
+  const absent = missing.filter((name) => !names.some((secret) => secret.name === name));
+  if (absent.length > 0) {
+    throw new DeployError(
+      `Missing required secrets: ${absent.join(", ")}. Supply them with --secrets-file.`,
+    );
   }
 }
 
-pnpm(["run", "build"]);
+function interrupted(): never {
+  process.exit(130);
+}
 
-pnpm([
-  ...WRANGLER,
-  "deploy",
-  "--keep-vars",
-  ...(secretsFile === undefined ? [] : ["--secrets-file", secretsFile]),
-  ...(values["dry-run"] === true ? ["--dry-run"] : []),
-]);
+function terminated(): never {
+  process.exit(143);
+}
+
+function upload(supplied: Readonly<z.infer<typeof SecretsSchema>> | null): void {
+  if (supplied === null) {
+    pnpm([...WRANGLER, "deploy", "--keep-vars"]);
+    return;
+  }
+  const directory = mkdtempSync(join(tmpdir(), "threadsift-deploy-"));
+  const cleanup = () => {
+    try {
+      rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      reportFailure({ event: "deploy-secret-cleanup", fields: {} }, error);
+      process.exitCode = 1;
+    }
+  };
+  process.once("exit", cleanup);
+  process.once("SIGINT", interrupted);
+  process.once("SIGTERM", terminated);
+  try {
+    const uploadFile = join(directory, "secrets.json");
+    writeFileSync(uploadFile, JSON.stringify(supplied), { mode: 0o600 });
+    pnpm([
+      ...WRANGLER,
+      "deploy",
+      "--keep-vars",
+      "--secrets-file",
+      uploadFile,
+      ...(values["dry-run"] === true ? ["--dry-run"] : []),
+    ]);
+  } finally {
+    cleanup();
+    process.removeListener("exit", cleanup);
+  }
+}
+
+function deploy(): void {
+  const secretsFile = values["secrets-file"];
+  const supplied = secretsFile === undefined ? {} : secretsOf(secretsFile);
+  checkSecrets(supplied);
+
+  if (values["dry-run"] !== true) {
+    for (const database of config.d1_databases) {
+      if (database.database_id === undefined) {
+        const name = database.database_name;
+        if (name === undefined) {
+          throw new DeployError(
+            `D1 binding ${database.binding} needs database_id or database_name in wrangler.jsonc.`,
+          );
+        }
+        const existing = pnpm(
+          [...WRANGLER, "d1", "info", name, "--json"],
+          true,
+          `Couldn't find a D1 DB named '${name}'`,
+        );
+        if (existing === null) {
+          pnpm([...WRANGLER, "d1", "create", name, "--no-update-config"]);
+        }
+      }
+      pnpm([...WRANGLER, "d1", "migrations", "apply", database.binding, "--remote"]);
+    }
+  }
+  pnpm(["run", "build"]);
+  upload(secretsFile === undefined ? null : supplied);
+}
+
+try {
+  deploy();
+  await new Promise<void>((resolve) => {
+    setImmediate(resolve);
+  });
+} catch (error) {
+  if (!(error instanceof DeployError)) throw error;
+  process.stderr.write(`${error.message}\n`);
+  process.exit(1);
+}
