@@ -18,7 +18,6 @@ const OTHER_PROJECT_SPANS: ReadonlyMap<string, readonly string[]> = new Map([
   ["docs/architecture/data-model-outline.md", ["src/annotator/anchoring/"]],
   ["docs/architecture/fetchers.md", ["src/extractors/c2-wiki.ts", "lib/util/date.js"]],
   ["docs/architecture/files.md", ["items/1/", "items/10/"]],
-  ["docs/pr-previews.md", ["src/workerd/util/sqlite.c++:1490"]],
 ]);
 
 const OTHER_PROJECT_SYMBOLS: ReadonlySet<string> = new Set(["env.AI.run"]);
