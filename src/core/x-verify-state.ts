@@ -79,7 +79,7 @@ export function startingJudged({ post, replies }: Readonly<XThreadValue>): Judge
 
   return Object.fromEntries(
     replies
-      .filter(({ id, parentId }) => BigInt(id) <= root || BigInt(parentId) >= BigInt(id))
+      .filter(({ id, parentId }) => BigInt(parentId) < root || BigInt(parentId) >= BigInt(id))
       .map(({ id }) => [id, "rejected"] as const),
   );
 }
