@@ -64,10 +64,10 @@ export async function undoUnit(
     };
   }
 
-  const { files: stored } = await files.list(ITEM_FILES_ROOT, null, FILE_LIST_LIMIT);
+  const { keys: stored } = await files.list(ITEM_FILES_ROOT, null, FILE_LIST_LIMIT);
 
   if (stored.length > 0) {
-    await files.delete(stored.map(({ key }) => key));
+    await files.delete(stored);
 
     return stepped;
   }

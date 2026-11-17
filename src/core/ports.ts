@@ -9,8 +9,6 @@ import type { Sealer } from "./sealed-secret.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 import type { XFetcher } from "./x-fetcher.ts";
 
-export { HOP_DEADLINE_MS } from "./request-waits.ts";
-
 export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
 
 export interface RateLimitHeaders {
@@ -31,13 +29,8 @@ export interface JobQueue {
   readonly enqueue: (jobIds: readonly number[], delayMs: number) => Promise<void>;
 }
 
-export interface StoredFile {
-  readonly key: string;
-  readonly uploadedAt: number;
-}
-
 export interface FilePage {
-  readonly files: readonly StoredFile[];
+  readonly keys: readonly string[];
   readonly cursor: string | null;
 }
 
@@ -62,7 +55,6 @@ export interface Network {
     signal: AbortSignal,
     headers: RequestHeaders,
   ) => Promise<NetworkResponse>;
-  readonly reachable: (url: string, signal: AbortSignal) => Promise<boolean>;
 }
 
 export interface RedditSession {

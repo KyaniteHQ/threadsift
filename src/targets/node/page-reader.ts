@@ -1,25 +1,12 @@
 import { Worker } from "node:worker_threads";
 
-import { z } from "zod";
-
-import { type ArticleReading, ArticleReadingSchema } from "../../core/article.ts";
+import type { ArticleReading } from "../../core/article.ts";
 import { PageReadTimeout } from "../../core/page-read-timeout.ts";
 import type { PageReader } from "../../core/ports.ts";
 import type { SuppliedPage } from "../../core/supplied-page.ts";
-import { type PageRequest, ReplySchema } from "./page-reader-protocol.ts";
+import type { PageRequest, Reply } from "./page-reader-protocol.ts";
 
 const WORKER_FILE = new URL("./page-reader-worker.ts", import.meta.url);
-
-const AnswerSchema = z.union([
-  ReplySchema,
-  z.object({ id: z.number() }).transform(({ id }) => ({
-    id,
-    ok: false as const,
-    message: "the page reader sent an answer that could not be read",
-  })),
-]);
-
-type WorkerAnswer = z.infer<typeof AnswerSchema>;
 
 type Answered = string | Readonly<ArticleReading>;
 
@@ -45,15 +32,13 @@ export class WorkerPageReader implements PageReader {
   private readonly pending = new Map<number, Pending>();
 
   readonly title = (html: string, deadline: AbortSignal): Promise<string> =>
-    this.ask({ kind: "title", html }, deadline, (value) => z.string().parse(value));
+    this.ask({ kind: "title", html }, deadline);
 
   readonly article = (html: string, url: string, deadline: AbortSignal) =>
-    this.ask({ kind: "article", html, url }, deadline, (value) =>
-      ArticleReadingSchema.parse(value),
-    );
+    this.ask({ kind: "article", html, url }, deadline);
 
   readonly page = (page: SuppliedPage, deadline: AbortSignal) =>
-    this.ask({ kind: "page", page }, deadline, (value) => ArticleReadingSchema.parse(value));
+    this.ask({ kind: "page", page }, deadline);
 
   stop(): void {
     this.terminate();
@@ -61,19 +46,23 @@ export class WorkerPageReader implements PageReader {
     this.failAll(new Error(STOPPED));
   }
 
-  private async ask<Answer>(
-    request: Readonly<PageRequest>,
+  private ask(
+    request: Readonly<Extract<PageRequest, { readonly kind: "title" }>>,
     deadline: AbortSignal,
-    parse: (value: Answered) => Answer,
-  ): Promise<Answer> {
-    if (this.state.kind === "stopped") throw new Error(STOPPED);
+  ): Promise<string>;
+  private ask(
+    request: Readonly<Exclude<PageRequest, { readonly kind: "title" }>>,
+    deadline: AbortSignal,
+  ): Promise<ArticleReading>;
+  private ask(request: Readonly<PageRequest>, deadline: AbortSignal): Promise<Answered> {
+    if (this.state.kind === "stopped") return Promise.reject(new Error(STOPPED));
 
-    if (deadline.aborted) throw new PageReadTimeout();
+    if (deadline.aborted) return Promise.reject(new PageReadTimeout());
 
     const id = this.nextId;
     this.nextId += 1;
 
-    const value = await new Promise<Answered>((succeed, fail) => {
+    return new Promise<Answered>((succeed, fail) => {
       const onDeadline = (): void => {
         this.expire(id);
       };
@@ -98,8 +87,6 @@ export class WorkerPageReader implements PageReader {
 
       this.post(id, request);
     });
-
-    return parse(value);
   }
 
   private expire(id: number): void {
@@ -141,10 +128,14 @@ export class WorkerPageReader implements PageReader {
       }
     };
 
-    worker.on("message", (message) => {
-      const answer = AnswerSchema.safeParse(message);
+    worker.on("message", (answer: Reply) => {
+      try {
+        this.conclude(answer);
+      } catch (cause) {
+        const error = cause instanceof Error ? cause : new Error("the page reader reply failed");
 
-      if (answer.success) this.conclude(answer.data);
+        this.failAll(error);
+      }
     });
 
     worker.on("error", lose);
@@ -158,7 +149,7 @@ export class WorkerPageReader implements PageReader {
     return worker;
   }
 
-  private conclude(answer: Readonly<WorkerAnswer>): void {
+  private conclude(answer: Readonly<Reply>): void {
     const entry = this.pending.get(answer.id);
 
     if (entry === undefined) return;

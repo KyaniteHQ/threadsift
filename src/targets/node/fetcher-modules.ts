@@ -1,11 +1,29 @@
+import { type LookupAddress, lookup } from "node:dns";
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { z } from "zod";
 
+import { isGlobalAddress } from "../../core/addresses.ts";
 import { errorClassOf } from "../../core/failure-log.ts";
 import { type Fetcher, type LoadedFetcher, isFetcher } from "../../core/fetcher.ts";
+import { NetworkFailure } from "../../core/ports.ts";
+
+function lookedUp(hostname: string, signal: AbortSignal): Promise<readonly LookupAddress[] | null> {
+  return new Promise((resolve) => {
+    const abandon = () => {
+      resolve(null);
+    };
+
+    signal.addEventListener("abort", abandon, { once: true });
+
+    lookup(hostname, { all: true }, (error, addresses) => {
+      signal.removeEventListener("abort", abandon);
+      resolve(error === null ? addresses : null);
+    });
+  });
+}
 
 type Stage = "specifier" | "file" | "import" | "shape";
 
@@ -79,7 +97,30 @@ async function importedFetcher({ module, path }: Readonly<Entry>): Promise<Loade
 
   const exported = await atStage(module, "shape", () => ModuleSchema.parse(namespace));
 
-  return { module, fetcher: exported.default };
+  const fetcher = exported.default;
+
+  return {
+    module,
+    matches: async (url, signal) => {
+      const addresses = await lookedUp(new URL(url).hostname.replaceAll(/^\[|\]$/gu, ""), signal);
+
+      if (signal.aborted) throw new NetworkFailure("timeout", "the fetch deadline passed");
+
+      if (addresses !== null && !addresses.some(({ address }) => isGlobalAddress(address)))
+        throw new NetworkFailure("refused", "the plug-in host has no globally reachable address");
+
+      const answer = fetcher.matches(url);
+      const verdict = z.boolean().safeParse(answer);
+
+      if (!verdict.success) {
+        Promise.resolve(answer).catch(() => null);
+        throw verdict.error;
+      }
+
+      return verdict.data;
+    },
+    fetch: fetcher.fetch.bind(fetcher),
+  };
 }
 
 async function importedInOrder(entries: readonly Entry[]): Promise<readonly LoadedFetcher[]> {

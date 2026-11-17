@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-import { type AiExecution, type AiTaskRequest, refusedAi } from "../../core/ai-contract.ts";
+import { type AiExecution, refusedAi } from "../../core/ai-contract.ts";
 import { logFailure } from "../../core/failure-log.ts";
+import type { RunnerTask } from "../shared/ai-runtime.ts";
 
 type Json = string | number | boolean | null | readonly Json[] | { readonly [key: string]: Json };
 
@@ -56,11 +57,9 @@ function refusalOf(cause: unknown) {
 
 async function runBinding<Result>(
   binding: AiBinding,
-  task: AiTaskRequest<Result>,
+  task: RunnerTask<Result, "binding">,
   signal: AbortSignal,
 ): Promise<AiExecution<Result>> {
-  if (task.config.kind !== "binding") return refusedAi("unreachable");
-
   try {
     const answer = AnswerSchema.safeParse(
       await binding.run(
@@ -93,6 +92,6 @@ async function runBinding<Result>(
 }
 
 export function bindingRunner(binding: AiBinding) {
-  return <Result>(task: AiTaskRequest<Result>, signal: AbortSignal) =>
+  return <Result>(task: RunnerTask<Result, "binding">, signal: AbortSignal) =>
     runBinding(binding, task, signal);
 }

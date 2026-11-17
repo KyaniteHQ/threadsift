@@ -8,7 +8,7 @@ import { hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { itemAliases, items } from "./schema.ts";
-import { settledKnown, settledNew } from "./settle.ts";
+import { settle } from "./settle.ts";
 
 interface Failure {
   readonly address: string;
@@ -34,7 +34,7 @@ async function insertedFailure(
         originalUrl: address,
         savedAt: now,
         addedByToken,
-        ...settledNew(fetched, now),
+        ...settle(fetched, null, now),
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),
@@ -62,7 +62,7 @@ async function refreshedFailure(
       .where(and(eq(items.id, known.id), notExists(hasOpenJob("digest")))),
     db
       .update(items)
-      .set(settledKnown(fetched, known.title, now))
+      .set(settle(fetched, known.title, now))
       .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
     selectItems(db, LISTED_COLUMNS).where(eq(items.id, known.id)),
     db.delete(guards),

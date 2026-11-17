@@ -1,18 +1,22 @@
-import { z } from "zod";
-
 import { logFailure } from "./failure-log.ts";
 import { type LoadedFetcher, type PluginPage, PluginPageSchema } from "./fetcher.ts";
+import { NetworkFailure } from "./ports.ts";
 import { PAGE_BYTES, pageBytes } from "./supplied-page.ts";
+
+type PluginFailure = {
+  readonly kind: "failed";
+  readonly status: "unreadable" | "timeout" | "refused";
+};
 
 type PluginResult =
   | { readonly kind: "unclaimed" }
   | { readonly kind: "page"; readonly page: PluginPage }
-  | { readonly kind: "failed"; readonly status: "unreadable" | "timeout" };
+  | PluginFailure;
 
 type Claim =
   | { readonly kind: "unclaimed" }
   | { readonly kind: "claimed"; readonly entry: LoadedFetcher }
-  | { readonly kind: "failed" };
+  | PluginFailure;
 
 type Stage = "matches" | "fetch" | "page" | "size" | "timeout";
 
@@ -28,28 +32,24 @@ function failure(module: string, stage: Stage) {
   return { module, stage };
 }
 
-function claim(fetchers: readonly LoadedFetcher[], address: string): Claim {
-  for (const entry of fetchers) {
-    try {
-      const answer = entry.fetcher.matches(address);
-      const verdict = z.boolean().safeParse(answer);
+async function claim(
+  [entry, ...rest]: readonly LoadedFetcher[],
+  address: string,
+  deadline: AbortSignal,
+): Promise<Claim> {
+  if (entry === undefined) return UNCLAIMED;
 
-      if (!verdict.success) {
-        Promise.resolve(answer).catch(() => null);
-        logFailure("fetcher-failed", failure(entry.module, "matches"), verdict.error);
+  try {
+    if (await entry.matches(address, deadline)) return { kind: "claimed", entry };
+  } catch (error) {
+    if (error instanceof NetworkFailure) return { kind: "failed", status: error.reason };
 
-        return { kind: "failed" };
-      }
+    logFailure("fetcher-failed", failure(entry.module, "matches"), error);
 
-      if (verdict.data) return { kind: "claimed", entry };
-    } catch (error) {
-      logFailure("fetcher-failed", failure(entry.module, "matches"), error);
-
-      return { kind: "failed" };
-    }
+    return { kind: "failed", status: "unreadable" };
   }
 
-  return UNCLAIMED;
+  return claim(rest, address, deadline);
 }
 
 async function beforeDeadline(
@@ -76,14 +76,14 @@ async function beforeDeadline(
 }
 
 async function fetchedFrom(
-  { module, fetcher }: Readonly<LoadedFetcher>,
+  { module, fetch: fetchPage }: Readonly<LoadedFetcher>,
   address: string,
   deadline: AbortSignal,
 ): Promise<PluginResult> {
   let answer: PluginPage | typeof EXPIRED;
 
   try {
-    answer = await beforeDeadline(() => fetcher.fetch(address, { signal: deadline }), deadline);
+    answer = await beforeDeadline(() => fetchPage(address, { signal: deadline }), deadline);
   } catch (error) {
     logFailure("fetcher-failed", failure(module, deadline.aborted ? "timeout" : "fetch"), error);
 
@@ -113,7 +113,7 @@ async function fetchedFrom(
   return { kind: "page", page: parsed.data };
 }
 
-export function pluginPage(
+export async function pluginPage(
   fetchers: readonly LoadedFetcher[],
   address: string,
   deadline: AbortSignal,
@@ -121,12 +121,12 @@ export function pluginPage(
   if (deadline.aborted) {
     logFailure("fetcher-failed", { stage: "timeout" }, deadline.reason);
 
-    return Promise.resolve(TIMEOUT);
+    return TIMEOUT;
   }
 
-  const claimed = claim(fetchers, address);
+  const claimed = await claim(fetchers, address, deadline);
 
   if (claimed.kind === "claimed") return fetchedFrom(claimed.entry, address, deadline);
 
-  return Promise.resolve(claimed.kind === "failed" ? UNREADABLE : UNCLAIMED);
+  return claimed.kind === "failed" ? { kind: "failed", status: claimed.status } : UNCLAIMED;
 }

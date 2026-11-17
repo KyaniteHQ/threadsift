@@ -15,8 +15,6 @@ export const THREAD_QUERY = "limit=500&raw_json=1";
 
 export const RATE_LIMITED = 429;
 
-export { REQUEST_DEADLINE_MS };
-
 export interface FillAnswer {
   readonly status: number;
   readonly text: string;
