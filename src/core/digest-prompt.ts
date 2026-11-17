@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { BASE_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS } from "./ai-contract.ts";
 import { utf8Length } from "./encoding.ts";
 
@@ -119,28 +121,38 @@ export function digestPrompt(
   const shareBytes = jsonBytes(share) - jsonBytes("");
   const records = comments.map((comment) => recordOf(comment));
   const { prefix, kept } = selection(item, records, room - shareBytes);
-  const submitted = kept.map(({ id }) => id);
 
   const written = (linkedText: string) =>
     envelope(item, prefix, kept, linked === null ? null : linkedWith(linked, linkedText));
 
   const unused = DIGEST_INPUT_BYTES - catalogBytes - utf8Length(written(share));
   const linkedText = linked === null ? "" : longestPrefix(linked.text, shareBytes + unused);
+  const input = `${lists}\n${written(linkedText)}`;
+  const submitted = submittedOf(input);
 
   return {
     kind: "ready",
-    input: `${lists}\n${written(linkedText)}`,
+    input,
     submitted,
-    maxOutputTokens: Math.min(
-      MAX_OUTPUT_TOKENS,
-      BASE_OUTPUT_TOKENS + utf8Length(JSON.stringify(submitted)),
-    ),
+    maxOutputTokens: digestOutputTokens(submitted),
     counts: {
       eligible: records.length,
       submitted: kept.length,
       omitted: records.length - kept.length,
     },
   };
+}
+
+export function digestOutputTokens(submitted: readonly string[]): number {
+  return Math.min(MAX_OUTPUT_TOKENS, BASE_OUTPUT_TOKENS + utf8Length(JSON.stringify(submitted)));
+}
+
+export function submittedOf(input: string): readonly string[] {
+  const parsed = z
+    .object({ comments: z.array(z.object({ id: z.string() })) })
+    .parse(JSON.parse(input.slice(input.indexOf("\n") + 1)));
+
+  return parsed.comments.map(({ id }) => id);
 }
 
 function linkedWith({ url, title }: Readonly<LinkedPage>, text: string): LinkedPage {
