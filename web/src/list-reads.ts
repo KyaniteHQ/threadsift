@@ -1,31 +1,24 @@
-import {
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { fetchItems, fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
 import { useMore } from "./list-more.ts";
 import { newer } from "./list-paging.ts";
-import { type ListState, failedList, type Page, loaded, readFor } from "./list-state.ts";
+import {
+  type ListState,
+  type SetList,
+  type Wiring,
+  failedList,
+  type Page,
+  loaded,
+  readFor,
+} from "./list-state.ts";
 import { type Ticket, useTicket } from "./use-ticket.ts";
-
-type SetList = Dispatch<SetStateAction<ListState>>;
 
 export interface Reads {
   readonly more: () => void;
   readonly reload: () => void;
-  readonly ticket: Ticket;
-}
-
-interface Wiring {
-  readonly setList: SetList;
   readonly ticket: Ticket;
 }
 

@@ -1,15 +1,13 @@
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import type { SaveResult } from "./api.ts";
+import type { SaveResult, SaveTarget } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
 import { type ListState, readFor } from "./list-state.ts";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
 import { useLookup } from "./use-lookup.ts";
-import type { PasteQueue, PasteRequest, Save, SaveOutcome } from "./use-paste.ts";
-
-type SaveTarget = Parameters<Save>[0];
+import type { PasteQueue, PasteRequest, SaveOutcome } from "./use-paste.ts";
 
 function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
   const retried = useRef(false);

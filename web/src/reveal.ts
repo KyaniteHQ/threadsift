@@ -1,3 +1,5 @@
+import { pixelsOf } from "./css-length.ts";
+
 function scrollingPane(element: HTMLElement): HTMLElement | null {
   for (let parent: HTMLElement | null = element; parent !== null; parent = parent.parentElement) {
     const { overflowY } = getComputedStyle(parent);
@@ -22,8 +24,7 @@ export function revealInPane(element: HTMLElement): void {
 
   const paneBox = pane.getBoundingClientRect();
   const box = element.getBoundingClientRect();
-  const inset = Number(getComputedStyle(pane).scrollPaddingTop.replace(/px$/u, ""));
-  const top = paneBox.top + (Number.isNaN(inset) ? 0 : inset);
+  const top = paneBox.top + (pixelsOf(getComputedStyle(pane).scrollPaddingTop) ?? 0);
 
   if (box.top < top) {
     pane.scrollTop -= Math.ceil(top - box.top);

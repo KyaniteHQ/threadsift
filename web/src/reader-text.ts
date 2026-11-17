@@ -1,9 +1,8 @@
 import type { CommentCount, UnfilteredCause } from "../../src/core/comment-view.ts";
-import { groupedNumber } from "../../src/core/format.ts";
+import { collapsed, groupedNumber } from "../../src/core/format.ts";
 import type { Source } from "../../src/core/kinds.ts";
 import { UNTITLED } from "../../src/core/reader-text.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
-import { collapsedText } from "./collapsed-text.ts";
 import { plural } from "./plural.ts";
 import { ageLabel, dateLabel } from "./saved-label.ts";
 import { CLOSE_LABEL, filled } from "./text.ts";
@@ -148,7 +147,7 @@ export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: numb
 }
 
 export function removeNamed(exact: string): string {
-  const words = collapsedText(exact.replaceAll(STORED_PICTURE_TEXT, PICTURE_LABEL));
+  const words = collapsed(exact.replaceAll(STORED_PICTURE_TEXT, PICTURE_LABEL));
   const points = Array.from(words);
 
   const quote =

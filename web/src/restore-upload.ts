@@ -8,7 +8,7 @@ export type Progress =
   | Readonly<{ kind: "sending"; sent: number; parts: number }>
   | Readonly<{ kind: "checking" }>;
 
-export interface UploadSteps {
+interface UploadSteps {
   readonly progress: (progress: Progress) => void;
   readonly refresh: () => Promise<RestoreStatus | null>;
 }

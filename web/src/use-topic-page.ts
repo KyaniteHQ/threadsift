@@ -43,17 +43,6 @@ async function attempt(key: string, cursor: string | null) {
   }
 }
 
-function refreshed(now: TopicReady, page: Readonly<TopicPage>): TopicReady {
-  return {
-    ...now,
-    topic: page.topic,
-    overview: page.overview,
-    disagreements: page.disagreements,
-    items: page.items,
-    next: page.next,
-  };
-}
-
 async function readThrough(
   key: string,
   last: Readonly<TopicItem> | undefined,
@@ -138,7 +127,7 @@ function applyRefresh(
     now.next === loaded.next &&
     now.items.length === loaded.items.length;
 
-  return unchanged ? refreshed(now, page) : now;
+  return unchanged ? { ...now, ...page } : now;
 }
 
 function useOverviewPoll(

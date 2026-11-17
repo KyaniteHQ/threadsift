@@ -1,10 +1,9 @@
 import { fetchItem } from "./api.ts";
+import { NOTHING } from "./nothing.ts";
 
 export type ItemRead = Awaited<ReturnType<typeof fetchItem>>;
 
 const queues = new Map<number, Promise<void>>();
-
-function nothing(): void {}
 
 export function readStatus(id: number, proceed: () => boolean): Promise<ItemRead | null> {
   const previous = queues.get(id) ?? Promise.resolve();
@@ -15,7 +14,7 @@ export function readStatus(id: number, proceed: () => boolean): Promise<ItemRead
     return fetchItem(id);
   });
 
-  const settled = read.then(nothing, nothing);
+  const settled = read.then(NOTHING, NOTHING);
 
   queues.set(id, settled);
 

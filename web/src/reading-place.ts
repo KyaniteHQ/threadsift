@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { collapsedText } from "./collapsed-text.ts";
+import { collapsed } from "../../src/core/format.ts";
 
 const STORAGE_KEY = "threadsift:reading-places";
 const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";
@@ -61,7 +61,7 @@ function shownBottom(block: Element): number | null {
 }
 
 function passageOf(block: Element): string {
-  return collapsedText(block.textContent ?? "").slice(0, PASSAGE_LENGTH);
+  return collapsed(block.textContent ?? "").slice(0, PASSAGE_LENGTH);
 }
 
 export function anchorAt(slot: HTMLElement): Anchor | null {

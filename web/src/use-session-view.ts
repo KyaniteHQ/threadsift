@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useRef } from "react";
 
 import { fetchSession } from "./access-api.ts";
 import { setUnauthorizedListener } from "./calls.ts";
@@ -21,17 +21,25 @@ async function answer(check: Readonly<AbortController>, send: (event: SessionEve
   send({ kind: "answer", check, view: await readSession(check) });
 }
 
+function begin(
+  live: RefObject<Readonly<AbortController> | null>,
+  send: (event: SessionEvent) => boolean,
+  kind: "check" | "logged-out",
+) {
+  const check = new AbortController();
+
+  live.current?.abort();
+  live.current = check;
+  send({ kind, check });
+  void answer(check, send);
+}
+
 export function useSessionView() {
   const [flow, send] = useFlow(reduceSession, startSession(), true);
   const live = useRef<Readonly<AbortController> | null>(null);
 
   const refresh = useCallback(() => {
-    const check = new AbortController();
-
-    live.current?.abort();
-    live.current = check;
-    send({ kind: "check", check });
-    void answer(check, send);
+    begin(live, send, "check");
   }, [send]);
 
   useEffect(
@@ -60,12 +68,7 @@ export function useSessionView() {
   useUnauthorized(unauthorized);
 
   const loggedOut = useCallback(() => {
-    const check = new AbortController();
-
-    live.current?.abort();
-    live.current = check;
-    send({ kind: "logged-out", check });
-    void answer(check, send);
+    begin(live, send, "logged-out");
   }, [send]);
 
   return { view: flow.view, refresh, signedIn, loggedOut };

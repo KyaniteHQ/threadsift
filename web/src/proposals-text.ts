@@ -1,3 +1,4 @@
+import { collapsed } from "../../src/core/format.ts";
 import type { MergeKind, ProposalKind } from "../../src/core/kinds.ts";
 import type { MergeProposal, Proposal } from "../../src/core/proposal-contract.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
@@ -167,7 +168,7 @@ export function applyFailedNote(failedRuns: number): string {
 const TEXT_CUT = 40;
 
 function textCut(text: string): string {
-  const letters = Array.from(text.replaceAll(/\s+/gu, " ").trim());
+  const letters = Array.from(collapsed(text));
 
   return letters.length > TEXT_CUT
     ? `${letters.slice(0, TEXT_CUT).join("").trimEnd()}…`

@@ -2,20 +2,10 @@ import { type RefObject, useCallback } from "react";
 
 import { fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
-import { type ListState, appended, continues, withMore } from "./list-state.ts";
+import { type ListState, type Wiring, appended, continues, withMore } from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
-import type { Ticket } from "./use-ticket.ts";
 
-type SetList = (update: (current: ListState) => ListState) => void;
-
-interface Wiring {
-  readonly setList: SetList;
-  readonly ticket: Ticket;
-}
-
-interface MoreWiring {
-  readonly setList: SetList;
-  readonly ticket: Ticket;
+interface MoreWiring extends Wiring {
   readonly latest: Readonly<RefObject<ListState>>;
   readonly filtersNow: Readonly<RefObject<Filters>>;
 }
