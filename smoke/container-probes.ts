@@ -95,7 +95,7 @@ function insideRequest(url: string): string {
   return `fetch(${JSON.stringify(url)}, { signal: AbortSignal.timeout(5000) }).then((response) => console.log(response.status), (error) => console.log(error.cause?.code ?? error.message))`;
 }
 
-export function reachability(options: Options, endedAt: string, deadline: number): string {
+export function reachability(options: Options, reportedAt: string, deadline: number): string {
   const inside = run(
     "podman",
     ["exec", options.container, "node", "--eval", insideRequest(options.insideUrl)],
@@ -123,12 +123,35 @@ export function reachability(options: Options, endedAt: string, deadline: number
   const publishedTime = new Date().toISOString();
 
   return [
-    `test ended ${endedAt}`,
+    `reporter observed failure ${reportedAt}`,
     `${insideTime} inside the container, ${options.insideUrl}:`,
     describe(inside),
     `${publishedTime} published port, ${options.publishedUrl}:`,
     describe(published),
   ].join("\n");
+}
+
+export function containerTcpCounters(container: string, deadline: number): string {
+  return describe(
+    run(
+      "podman",
+      ["exec", container, "tail", "-n", "+1", "/proc/net/netstat", "/proc/net/snmp"],
+      deadline,
+    ),
+  );
+}
+
+const ContainerPidSchema = z.string().regex(/^[1-9][0-9]*$/u);
+
+export function containerListeners(container: string, deadline: number): string {
+  const inspect = run("podman", ["inspect", container, "--format", "{{.State.Pid}}"], deadline);
+  const pid = ContainerPidSchema.safeParse(inspect.stdout.trim());
+
+  if (inspect.status !== 0 || !pid.success) return describe(inspect);
+
+  return describe(
+    run("podman", ["unshare", "nsenter", "--target", pid.data, "--net", "ss", "-ltn"], deadline),
+  );
 }
 
 export function processIdentity(container: string, deadline: number): string {

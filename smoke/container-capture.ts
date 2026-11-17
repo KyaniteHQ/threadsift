@@ -8,6 +8,8 @@ import {
   COMMAND_TIMEOUT_MS,
   OptionsSchema,
   type Options,
+  containerListeners,
+  containerTcpCounters,
   describe,
   executionIdentity,
   listeningSockets,
@@ -26,7 +28,6 @@ const EVENT_FORMAT =
   '{"time":"{{.Time}}","status":"{{.Status}}","name":"{{.Name}}","exitCode":"{{.ContainerExitCode}}"}';
 
 const CONTAINER_FILES = [
-  "/proc/net/netstat",
   "/proc/net/tcp",
   "/proc/sys/net/core/somaxconn",
   "/proc/sys/net/ipv4/tcp_abort_on_overflow",
@@ -48,6 +49,8 @@ export default class ContainerCapture implements Reporter {
 
   #processBefore = "";
 
+  #tcpCountersBefore = "";
+
   #captured = false;
 
   constructor(options: z.input<typeof OptionsSchema>) {
@@ -56,6 +59,10 @@ export default class ContainerCapture implements Reporter {
 
   onTestBegin(): void {
     if (this.#processBefore === "") {
+      this.#tcpCountersBefore = containerTcpCounters(
+        this.#options.container,
+        Date.now() + COMMAND_TIMEOUT_MS,
+      );
       this.#processBefore = processIdentity(
         this.#options.container,
         Date.now() + 2 * COMMAND_TIMEOUT_MS,
@@ -70,8 +77,10 @@ export default class ContainerCapture implements Reporter {
     const { container, stateDir, image, port } = options;
     const captureDir = join(options.captureDir, runFolder(this.#startedAt));
     const deadline = Date.now() + CAPTURE_BUDGET_MS;
-    const endedAt = new Date(result.startTime.getTime() + result.duration).toISOString();
-    const probes = reachability(options, endedAt, deadline);
+    const reportedAt = new Date().toISOString();
+    const tcpCountersAfter = containerTcpCounters(container, deadline);
+    const containerLog = readFile(join(stateDir, "container.log"));
+    const probes = reachability(options, reportedAt, deadline);
 
     const keep = (name: string, text: string): void => {
       try {
@@ -83,6 +92,10 @@ export default class ContainerCapture implements Reporter {
     };
 
     keep("reachability.txt", probes);
+    keep("container-tcp-counters-before.txt", this.#tcpCountersBefore);
+    keep("container-tcp-counters-after.txt", tcpCountersAfter);
+    keep("container-listeners.txt", containerListeners(container, deadline));
+    keep("container.log", containerLog);
     keep("execution-identity.txt", executionIdentity(image, deadline));
     keep("container-process-before.txt", this.#processBefore);
     keep("container-process-after.txt", processIdentity(container, deadline));
@@ -120,7 +133,6 @@ export default class ContainerCapture implements Reporter {
         run("podman", ["exec", container, "tail", "-n", "+1", ...CONTAINER_FILES], deadline),
       ),
     );
-    keep("container.log", readFile(join(stateDir, "container.log")));
     keep("pasta.log", withoutHostNetwork(readFile(join(stateDir, "pasta.log"))));
     keep("port-forward-processes.txt", ownForwarder(options, deadline));
     keep("host-counters-before.txt", this.#hostCountersBefore);
