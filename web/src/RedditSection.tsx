@@ -1,12 +1,14 @@
-import { useCallback } from "react";
-
 import type { RedditSettings } from "../../src/core/reddit-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { LoadedSection, type SectionSpec } from "./LoadedSection.tsx";
+import { RadioChoice } from "./RadioChoice.tsx";
+import { saveRedditSettings } from "./reddit-api.ts";
 import { REDDIT_TEXT } from "./reddit-text.ts";
 import { REDDIT_ACCOUNT_SECTION } from "./RedditAccountSection.tsx";
 import type { SettingsLoad } from "./settings-load-types.ts";
-import { useRedditForm } from "./use-reddit-form.ts";
+import { useSaveOnPick } from "./use-save-on-pick.ts";
+
+const saveArchiveFill = (archiveFill: boolean) => saveRedditSettings({ archiveFill });
 
 const LABEL_ID = "reddit-archive-label";
 
@@ -17,44 +19,11 @@ const OPTIONS = [
   { archiveFill: false, id: "off", label: REDDIT_TEXT.optionOff },
 ] as const;
 
-type Option = (typeof OPTIONS)[number];
-
-function Choice({
-  option,
-  checked,
-  busy,
-  pick,
-}: Readonly<{
-  option: Option;
-  checked: boolean;
-  busy: boolean;
-  pick: (archiveFill: boolean) => void;
-}>) {
-  const choose = useCallback(() => {
-    pick(option.archiveFill);
-  }, [pick, option.archiveFill]);
-
-  return (
-    <label className="st-b" htmlFor={`reddit-archive-${option.id}`}>
-      <input
-        id={`reddit-archive-${option.id}`}
-        type="radio"
-        className="st-in"
-        name={LABEL_ID}
-        checked={checked}
-        aria-disabled={busy || undefined}
-        onChange={choose}
-      />
-      {option.label}
-    </label>
-  );
-}
-
 function ArchiveFillRow({
   view,
   changed,
 }: Readonly<{ view: RedditSettings; changed: (view: RedditSettings) => void }>) {
-  const form = useRedditForm(changed);
+  const form = useSaveOnPick(saveArchiveFill, changed, REDDIT_TEXT.failed);
 
   return (
     <div className="stack" aria-busy={form.busy}>
@@ -68,9 +37,12 @@ function ArchiveFillRow({
         aria-describedby={NOTE_ID}
       >
         {OPTIONS.map((option) => (
-          <Choice
+          <RadioChoice
             key={option.id}
-            option={option}
+            id={`reddit-archive-${option.id}`}
+            name={LABEL_ID}
+            value={option.archiveFill}
+            label={option.label}
             checked={view.archiveFill === option.archiveFill}
             busy={form.busy}
             pick={form.pick}
@@ -86,16 +58,12 @@ function ArchiveFillRow({
   );
 }
 
-const archiveFillForm = (view: RedditSettings, changed: (view: RedditSettings) => void) => (
-  <ArchiveFillRow view={view} changed={changed} />
-);
-
 export const REDDIT_SECTION: SectionSpec<RedditSettings> = {
   id: "reddit",
   title: REDDIT_TEXT.sectionTitle,
   intro: REDDIT_TEXT.intro,
   loadFailed: REDDIT_TEXT.loadFailed,
-  form: archiveFillForm,
+  Form: ArchiveFillRow,
 };
 
 export function RedditSections({ loaded }: Readonly<{ loaded: SettingsLoad }>) {

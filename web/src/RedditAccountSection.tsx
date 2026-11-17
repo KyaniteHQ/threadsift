@@ -52,10 +52,6 @@ function RedditAccountForm({
   );
 }
 
-const redditAccountForm = (view: RedditAccountView, changed: (view: RedditAccountView) => void) => (
-  <RedditAccountForm view={view} changed={changed} />
-);
-
 export const REDDIT_ACCOUNT_SECTION: SectionSpec<RedditAccountView> = {
   id: "reddit-account",
   title: REDDIT_ACCOUNT_TEXT.sectionTitle,
@@ -71,5 +67,5 @@ export const REDDIT_ACCOUNT_SECTION: SectionSpec<RedditAccountView> = {
       {REDDIT_ACCOUNT_TEXT.guideLink}
     </a>
   ),
-  form: redditAccountForm,
+  Form: RedditAccountForm,
 };

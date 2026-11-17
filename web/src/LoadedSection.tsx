@@ -13,7 +13,7 @@ export interface SectionSpec<View> {
   readonly loadFailed: string;
   readonly lead?: ReactNode;
   readonly foot?: ReactNode;
-  readonly form: (view: View, changed: (view: View) => void) => ReactNode;
+  readonly Form: (props: Readonly<{ view: View; changed: (view: View) => void }>) => ReactNode;
 }
 
 export function LoadedSection<View>({
@@ -24,7 +24,7 @@ export function LoadedSection<View>({
   lead,
   foot,
   initial,
-  form,
+  Form,
 }: Readonly<SectionSpec<View> & { initial: Loaded<View> }>) {
   const { loaded, ready } = useLoaded(initial);
 
@@ -35,7 +35,11 @@ export function LoadedSection<View>({
       </h2>
       <p>{intro}</p>
       {lead}
-      {loaded.kind === "ready" ? form(loaded.view, ready) : <Alert text={loadFailed} />}
+      {loaded.kind === "ready" ? (
+        <Form view={loaded.view} changed={ready} />
+      ) : (
+        <Alert text={loadFailed} />
+      )}
       {foot}
     </section>
   );

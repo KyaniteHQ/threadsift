@@ -1,6 +1,7 @@
 import type { MergeKind, ProposalKind } from "../../src/core/kinds.ts";
 import type { MergeProposal, Proposal } from "../../src/core/proposal-contract.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
+import { plural } from "./plural.ts";
 import { NEWEST_FIRST, filled } from "./text.ts";
 
 export const PROPOSALS_PAGE = {
@@ -163,16 +164,12 @@ export function sideNamedWords(other: string): string {
   return filled(PROPOSAL_WORDS.sideNamed, { other });
 }
 
-function counted(count: number, one: string, many: string): string {
-  return count === 1 ? one : filled(many, { count: String(count) });
-}
-
 export function itemCount(count: number): string {
-  return counted(count, PROPOSAL_WORDS.itemsOne, PROPOSAL_WORDS.itemsMany);
+  return plural(count, PROPOSAL_WORDS.itemsOne, PROPOSAL_WORDS.itemsMany);
 }
 
 export function applyFailedNote(failedRuns: number): string {
-  return counted(failedRuns, PROPOSAL_WORDS.applyFailedOnce, PROPOSAL_WORDS.applyFailedMany);
+  return plural(failedRuns, PROPOSAL_WORDS.applyFailedOnce, PROPOSAL_WORDS.applyFailedMany);
 }
 
 export function firstFailures(

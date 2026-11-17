@@ -133,10 +133,6 @@ function useSetRead(setList: SetList, upkeep: Readonly<Upkeep>) {
   );
 }
 
-function survivorIn(latest: Readonly<RefObject<ListState>>, id: number): number | null {
-  return survivorOf(latest.current, id);
-}
-
 function useRemove(setList: SetList, upkeep: Readonly<Upkeep>) {
   const { reads, stamps, latest } = upkeep;
 
@@ -144,7 +140,7 @@ function useRemove(setList: SetList, upkeep: Readonly<Upkeep>) {
     async (id: number, whenGone: (survivor: number | null) => void): Promise<number | null> => {
       await removeItem(id);
 
-      const survivor = survivorIn(latest, id);
+      const survivor = survivorOf(latest.current, id);
 
       flushSync(() => {
         stamps.remove(id);

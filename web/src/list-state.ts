@@ -32,10 +32,6 @@ export function hasRows(list: Readonly<ListState>): boolean {
   return list.status !== "ready" || !isEmptyResult(list.items.length, list.next);
 }
 
-export function knownItems(list: Readonly<ListState>): readonly Item[] {
-  return list.known;
-}
-
 function upserted(items: readonly Item[], item: Readonly<Item>): Item[] {
   return items.some((current) => current.id === item.id)
     ? items.map((current) => (current.id === item.id ? item : current))

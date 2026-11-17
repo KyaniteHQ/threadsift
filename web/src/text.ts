@@ -8,6 +8,7 @@ import type {
   WaitReason,
   XReadNote,
 } from "../../src/core/kinds.ts";
+import { ITEM_HEAD, headLabel as filledHeadLabel } from "./head-label.ts";
 import { type XNoticeKey, X_NOTICES } from "./x-text.ts";
 
 export function filled(template: string, values: Readonly<Record<string, string>>): string {
@@ -233,26 +234,12 @@ export function namedOption(name: string, count: number): string {
 
 export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
 
-const HEAD_ONE = "1 item, {unread} unread";
-const HEAD_MANY = "{total} items, {unread} unread";
-const HEAD_MATCHING = "{shown} of {total} items";
-const HEAD_MATCHING_TEXT = "{shown} of {total} items matching “{text}”";
-
 export function headLabel(
   counts: Readonly<Pick<FilterCounts, "total" | "unread">>,
   shown: number | null,
   text: string,
 ): string {
-  const values = {
-    total: String(counts.total),
-    unread: String(counts.unread),
-    shown: String(shown ?? 0),
-    text,
-  };
-
-  if (shown === null) return filled(counts.total === 1 ? HEAD_ONE : HEAD_MANY, values);
-
-  return filled(text === "" ? HEAD_MATCHING : HEAD_MATCHING_TEXT, values);
+  return filledHeadLabel(ITEM_HEAD, { ...counts, shown }, text);
 }
 
 export const NO_RESULTS = "No items match";

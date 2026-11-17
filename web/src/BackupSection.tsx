@@ -96,15 +96,11 @@ function BackupForm({
   );
 }
 
-const backupForm = (view: ExportStatus, changed: (view: ExportStatus) => void) => (
-  <BackupForm view={view} changed={changed} />
-);
-
 export const BACKUP_SECTION: SectionSpec<ExportStatus> = {
   id: "backup",
   title: EXPORT_TEXT.sectionTitle,
   intro: EXPORT_TEXT.intro,
   loadFailed: EXPORT_TEXT.loadFailed,
   lead: <p>{EXPORT_TEXT.caution}</p>,
-  form: backupForm,
+  Form: BackupForm,
 };

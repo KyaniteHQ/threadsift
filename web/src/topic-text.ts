@@ -1,3 +1,4 @@
+import { plural } from "./plural.ts";
 import { filled } from "./text.ts";
 
 export const TOPIC_PAGE = {
@@ -38,7 +39,7 @@ export function builtFromLabel(built: number, total: number): string {
 }
 
 export function itemsLabel(count: number): string {
-  return count === 1 ? TOPIC_PAGE.itemsOne : filled(ITEMS_MANY, { count: String(count) });
+  return plural(count, TOPIC_PAGE.itemsOne, ITEMS_MANY);
 }
 
 export function citationLabel(title: string): string {
