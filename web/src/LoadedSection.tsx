@@ -4,8 +4,6 @@ import { Alert } from "./Alert.tsx";
 import type { Loaded } from "./settings-load-types.ts";
 import { useLoaded } from "./use-settings-load.ts";
 
-export type { Loaded };
-
 export interface SectionSpec<View> {
   readonly id: string;
   readonly title: string;

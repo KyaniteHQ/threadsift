@@ -7,8 +7,9 @@ import type { ReaderControls } from "./Reader.tsx";
 import type { Route } from "./routing.ts";
 import { type Announcement, useAnnouncement } from "./use-announcement.ts";
 import { useDeletion } from "./use-deletion.ts";
-import { type LibraryDom, useNavigation } from "./use-navigation.ts";
+import { useNavigation } from "./use-navigation.ts";
 import type { Look } from "./use-root.ts";
+import type { LibraryDom } from "./use-step.ts";
 
 function modeOf(look: Readonly<Look>): ReaderControls["mode"] {
   return look.phone ? "phone" : look.reader;

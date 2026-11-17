@@ -13,6 +13,7 @@ import { createRestore, storePart } from "../core/restore-run.ts";
 import { startRestore } from "../core/restore-start.ts";
 import { restoreStatus } from "../core/restore-state.ts";
 import { OWNER_SESSION_REFUSALS, jsonBody, jsonRequest, noContent } from "./openapi.ts";
+import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
 
 const PartParamsSchema = IdParamSchema.extend({ part: z.coerce.number().int().positive() });
@@ -176,7 +177,7 @@ function registerUploadRoutes(app: OpenAPIHono, ports: Ports): void {
       case "stored":
         return c.body(null, 204);
       case "missing":
-        return c.json({ error: "Not found" }, 404);
+        return notFound(c);
       case "not-uploading":
         return c.json({ error: "The restore is no longer waiting for its upload" }, 409);
       case "wrong-length":
@@ -198,7 +199,7 @@ function registerRunRoutes(app: OpenAPIHono, ports: Ports): void {
       case "started":
         return c.json({ id }, 202);
       case "missing":
-        return c.json({ error: "Not found" }, 404);
+        return notFound(c);
       case "not-uploading":
         return c.json(
           { error: "The restore is not waiting for its start", code: "restore-open" as const },
@@ -228,7 +229,7 @@ function registerEndRoutes(app: OpenAPIHono, ports: Ports): void {
       case "undoing":
         return c.json({ id }, 202);
       case "missing":
-        return c.json({ error: "Not found" }, 404);
+        return notFound(c);
       case "finished":
         return c.json({ error: "The restore is done, so there is nothing to cancel" }, 409);
       case "superseded":
@@ -246,7 +247,7 @@ function registerEndRoutes(app: OpenAPIHono, ports: Ports): void {
       case "resumed":
         return c.json({ id }, 202);
       case "missing":
-        return c.json({ error: "Not found" }, 404);
+        return notFound(c);
       case "not-resumable":
         return c.json({ error: "The restore did not give up, or its cancel is running" }, 409);
       case "superseded":

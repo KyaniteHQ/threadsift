@@ -1,11 +1,11 @@
 import { type SQL, and, asc, eq, sql } from "drizzle-orm";
 
 import { selectorHolds } from "./highlight-anchor.ts";
-import {
-  type CreateHighlightRequest,
-  type Highlight,
-  type HighlightTarget,
-  type HighlightsView,
+import type {
+  CreateHighlightRequest,
+  Highlight,
+  HighlightTarget,
+  HighlightsView,
 } from "./highlight-contract.ts";
 import type { Database, Ports } from "./ports.ts";
 import { postTextOf } from "./post-text.ts";

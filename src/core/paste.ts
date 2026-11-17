@@ -1,5 +1,5 @@
 import { type Budgeted, withinBudget } from "./agent-token-budget.ts";
-import { type Digest } from "./ai-contract.ts";
+import type { Digest } from "./ai-contract.ts";
 import type { Caller } from "./caller.ts";
 import { whileOpen } from "./library-gate.ts";
 import { type PageSaveResult, savePage } from "./page-save.ts";

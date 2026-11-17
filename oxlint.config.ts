@@ -135,6 +135,8 @@ export default defineConfig({
         ],
       },
     ],
+    "import/max-dependencies": ["error", { max: 10, ignoreTypeImports: true }],
+    "typescript/no-import-type-side-effects": "error",
     "import/extensions": ["error", "always", { ignorePackages: true }],
     "import/no-unassigned-import": ["error", { allow: ["**/*.css", "**/zod-jitless.ts"] }],
 

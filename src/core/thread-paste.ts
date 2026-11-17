@@ -1,4 +1,4 @@
-import { type Digest } from "./ai-contract.ts";
+import type { Digest } from "./ai-contract.ts";
 import { type Caller, tokenIdOf } from "./caller.ts";
 import { type Invalid, type NotWaiting, type SaveResult, itemAt } from "./items.ts";
 import { enqueueItemJobs } from "./job-rows.ts";

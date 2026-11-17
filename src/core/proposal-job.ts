@@ -2,6 +2,7 @@ import { type SQL, sql } from "drizzle-orm";
 
 import { readCatalogVersion } from "./catalog.ts";
 import type { JobWrites } from "./job-outcome.ts";
+import { type MergeKind, WEEKLY_TASK } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { proposalsInput, readProposalPairs } from "./proposal-input.ts";
@@ -11,7 +12,6 @@ import {
   type ProposalsResult,
   type SentPair,
   SentPairsSchema,
-  mergeTaskKind,
   proposalsTask,
 } from "./proposal-task.ts";
 import { proposals, tags, topics } from "./schema.ts";
@@ -23,8 +23,6 @@ interface StoredRow {
   readonly reason: string | null;
   readonly state: InsertedState<MergeKind>;
 }
-
-type MergeKind = Parameters<typeof proposalsTask>[0];
 
 type Sent = readonly Readonly<SentPair>[];
 
@@ -94,7 +92,7 @@ function storedRows(
 export function runOf(kind: MergeKind): WeeklyModelRun<Sent, ProposalsResult> {
   return {
     ...RUNS[kind],
-    kind: mergeTaskKind(kind),
+    kind: WEEKLY_TASK[kind],
     sent: SentPairsSchema,
     maxOutputTokens: PROPOSALS_OUTPUT_TOKENS,
     read: async (db) => {

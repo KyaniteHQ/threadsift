@@ -13,7 +13,7 @@ import { endCooldown } from "./github-cooldown.ts";
 import { CredentialChanged, type GithubAuth } from "./github-credential.ts";
 import { githubSettings } from "./github-tables.ts";
 import { parsedJson } from "./parsed-json.ts";
-import { type Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
 
 type GuardOutcome = import("./fetch-guard.ts").GuardOutcome;
