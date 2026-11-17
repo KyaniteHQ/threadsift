@@ -2,18 +2,16 @@ import { z } from "zod";
 
 import { EXPORT_FORMAT } from "./export-contract.ts";
 import { recordPath } from "./export-manifest.ts";
+import { WholeCount } from "./kinds.ts";
 import { RESTORE_MANIFEST_BYTES, type RestoreRefusal } from "./restore-contract.ts";
 import { parsedJson } from "./restore-lines.ts";
 import { RESTORE_TABLES, tableSpec } from "./restore-registry.ts";
 import { type ZipDirectory, ZipRefused, type ZipSource, entryBytes } from "./zip-read.ts";
 
-const WholeCount = z.number().int().nonnegative();
-
 const ManifestSchema = z
   .object({
     format: z.literal(EXPORT_FORMAT),
     migration: z.string().nullable(),
-    dataSteps: z.record(z.string(), WholeCount).readonly(),
     tables: z
       .record(
         z.string(),
@@ -29,6 +27,12 @@ export type Manifest = z.infer<typeof ManifestSchema>;
 const RECORD_FOLDER = "records/";
 
 const MANIFEST_NAME = "threadsift.json";
+
+export function recordTableOf(directory: Readonly<ZipDirectory>, name: string): string | null {
+  const prefix = `${directory.root}/${RECORD_FOLDER}`;
+
+  return name.startsWith(prefix) ? (name.slice(prefix.length).split(".")[0] ?? "") : null;
+}
 
 export function refused(code: RestoreRefusal, message: string): ZipRefused {
   return new ZipRefused(code, message);
@@ -59,8 +63,8 @@ function known(name: string): boolean {
   return tableSpec(name) !== undefined;
 }
 
-function checkedManifest(manifest: Readonly<Manifest>, older: boolean): void {
-  if (!older && RESTORE_TABLES.some((name) => manifest.tables[name] === undefined)) {
+function checkedManifest(manifest: Readonly<Manifest>): void {
+  if (RESTORE_TABLES.some((name) => manifest.tables[name] === undefined)) {
     throw refused("format", "The manifest leaves out a table of the export format");
   }
 
@@ -76,8 +80,6 @@ function checkedManifest(manifest: Readonly<Manifest>, older: boolean): void {
 }
 
 function checkedEntries(manifest: Readonly<Manifest>, directory: Readonly<ZipDirectory>): void {
-  const prefix = `${directory.root}/${RECORD_FOLDER}`;
-
   const listed = new Set(
     Object.values(manifest.tables).flatMap(({ files }) =>
       files.map((file) => `${directory.root}/${file}`),
@@ -85,9 +87,9 @@ function checkedEntries(manifest: Readonly<Manifest>, directory: Readonly<ZipDir
   );
 
   for (const { name } of directory.entries) {
-    if (name.startsWith(prefix) && !name.endsWith("/")) {
-      const table = name.slice(prefix.length).split(".")[0] ?? "";
+    const table = recordTableOf(directory, name);
 
+    if (table !== null && !name.endsWith("/")) {
       if (!known(table)) {
         throw refused(
           "unknown-table",
@@ -111,8 +113,7 @@ function checkedEntries(manifest: Readonly<Manifest>, directory: Readonly<ZipDir
 export function checkedTables(
   manifest: Readonly<Manifest>,
   directory: Readonly<ZipDirectory>,
-  older: boolean,
 ): void {
-  checkedManifest(manifest, older);
+  checkedManifest(manifest);
   checkedEntries(manifest, directory);
 }

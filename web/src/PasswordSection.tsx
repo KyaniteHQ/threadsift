@@ -73,6 +73,7 @@ export function PasswordSection() {
           label={PASSWORD.current}
           name="current-password"
           autoComplete="current-password"
+          required
           shown={shown}
           toggle={toggle}
         />

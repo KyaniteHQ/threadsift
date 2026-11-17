@@ -71,6 +71,24 @@ export function afterPreflight(
   return { kind: "refused", binary, verdict: result.verdict, version: result.version };
 }
 
+export function keptBar(
+  current: Readonly<Proof>,
+  binary: Readonly<BinaryIdentity>,
+  next: Readonly<Proof>,
+): Proof {
+  return current.kind === "refused" && sameBinary(current.binary, binary) ? current : next;
+}
+
+export function afterRun(
+  current: Readonly<Proof>,
+  binary: Readonly<BinaryIdentity>,
+  next: Readonly<Proof>,
+): Proof {
+  const ofAnotherBinary = current.kind !== "unproven" && !sameBinary(current.binary, binary);
+
+  return ofAnotherBinary ? current : keptBar(current, binary, next);
+}
+
 export function preflightResultOf(
   verdict: ToolsVerdict | "version-changed",
   version: string | null,

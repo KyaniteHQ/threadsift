@@ -1,6 +1,6 @@
 import { pixelsOf } from "./css-length.ts";
 
-export interface Box {
+interface Box {
   readonly left: number;
   readonly top: number;
   readonly right: number;

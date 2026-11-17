@@ -1,5 +1,5 @@
-import { type Budgeted, unlessSpent } from "./agent-token-budget.ts";
-import { type Digest } from "./ai-contract.ts";
+import { type Budgeted, withinBudget } from "./agent-token-budget.ts";
+import type { Digest } from "./ai-contract.ts";
 import type { Caller } from "./caller.ts";
 import { whileOpen } from "./library-gate.ts";
 import { type PageSaveResult, savePage } from "./page-save.ts";
@@ -16,11 +16,7 @@ export interface Supplied {
   readonly fill?: true | undefined;
 }
 
-type Pasted =
-  | ThreadPasteResult
-  | PageSaveResult
-  | { readonly kind: "updating" }
-  | { readonly kind: "restoring" };
+type Pasted = ThreadPasteResult | PageSaveResult | { readonly kind: "restoring" };
 
 type PasteResult = Budgeted<Pasted>;
 
@@ -52,20 +48,13 @@ function savedBy(
   });
 }
 
-function pasted(
-  ports: Ports,
-  absoluteUrl: string,
-  caller: Caller,
-  supplied: Readonly<Supplied>,
-): Promise<Pasted> {
-  return whileOpen(ports.db, () => savedBy(ports, absoluteUrl, caller, supplied));
-}
-
 export function paste(
   ports: Ports,
   absoluteUrl: string,
   caller: Caller,
   supplied: Readonly<Supplied>,
 ): Promise<PasteResult> {
-  return unlessSpent(() => pasted(ports, absoluteUrl, caller, supplied));
+  return whileOpen(ports.db, () =>
+    withinBudget(ports, caller, [absoluteUrl], () => savedBy(ports, absoluteUrl, caller, supplied)),
+  );
 }

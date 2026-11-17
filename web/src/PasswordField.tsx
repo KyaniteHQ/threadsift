@@ -34,11 +34,17 @@ export function UsernameHint() {
   );
 }
 
-function passwordInput(name: string, autoComplete: string, shown: boolean) {
+function passwordInput({
+  name,
+  autoComplete,
+  shown,
+  required,
+}: Readonly<{ name: string; autoComplete: string; shown: boolean; required: boolean }>) {
   return {
     name,
     type: shown ? "text" : "password",
     autoComplete,
+    required,
   } as const;
 }
 
@@ -61,6 +67,7 @@ export function PasswordField({
   label,
   name,
   autoComplete,
+  required = false,
   help,
   shown,
   toggle,
@@ -69,6 +76,7 @@ export function PasswordField({
   label: string;
   name: string;
   autoComplete: "new-password" | "current-password";
+  required?: boolean;
   help?: string | undefined;
   shown: boolean;
   toggle?: (() => void) | undefined;
@@ -77,7 +85,7 @@ export function PasswordField({
     <FormField
       field={field}
       label={label}
-      kind={passwordInput(name, autoComplete, shown)}
+      kind={passwordInput({ name, autoComplete, shown, required })}
       help={help}
     >
       {toggle === undefined ? null : <ShowToggle shown={shown} toggle={toggle} />}

@@ -4,8 +4,6 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { z } from "zod";
 
-import { linkOlderDigests } from "../src/core/older-digests.ts";
-import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
 import { entryCount } from "./log-fixtures.ts";
 import {
@@ -20,10 +18,6 @@ import {
   saveProvider,
   until,
 } from "./related-fixtures.ts";
-
-const MIGRATIONS = new URL("../migrations", import.meta.url).pathname;
-
-const KindSchema = z.object({ kind: z.string(), state: z.string() });
 
 const WAIT_FOR_POLL_MS = 7000;
 
@@ -89,30 +83,6 @@ describe("the pick job opens only when a Provider is saved, once for each Item, 
     await paste(instance, "again", { title: "Again lattice, revised" });
     assert.equal(openPicks(instance, id), 1);
     assert.equal(pickJobs(instance, id).length, 1);
-  });
-
-  it("opens none for a Digest the older-Digest linking handles", async () => {
-    const id = await paste(instance, "linked", { title: "Linked later" });
-
-    exec(instance, "delete from jobs where item_id = ?", id);
-    exec(instance, "update items set topic_id = null where id = ?", id);
-
-    const database = openDatabase(instance.databaseFile, MIGRATIONS);
-
-    try {
-      await linkOlderDigests(database.db);
-    } finally {
-      database.close();
-    }
-
-    const kinds = rows(
-      instance,
-      KindSchema,
-      "select kind, state from jobs where item_id = ?",
-      id,
-    ).map(({ kind }) => kind);
-
-    assert.deepEqual(kinds, ["topic_overview"]);
   });
 });
 

@@ -2,7 +2,6 @@ import { type SQLWrapper, sql } from "drizzle-orm";
 
 import { type AiRefused, retriesAi } from "./ai-contract.ts";
 import { currency } from "./digest-source.ts";
-import { bestEffort } from "./failure-log.ts";
 import { insertGuard } from "./guards.ts";
 import {
   type ClaimedJob,
@@ -64,24 +63,4 @@ export async function refusalOutcome(
   }
 
   return { ...outcome, failedAttempt: retriable };
-}
-
-export async function cleaningOnFailure<Outcome>(
-  db: Database,
-  { job, cleanup }: Readonly<{ job: Readonly<Pick<ClaimedJob, "id">>; cleanup: JobWrites }>,
-  attempt: () => Promise<Outcome>,
-): Promise<Outcome> {
-  try {
-    return await attempt();
-  } catch (error) {
-    const [first, ...rest] = cleanup;
-
-    if (first !== undefined) {
-      await bestEffort({ event: "job-writes-not-released", fields: { jobId: job.id } }, () =>
-        db.batch([first, ...rest]),
-      );
-    }
-
-    throw error;
-  }
 }

@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { digestOf } from "./encoding.ts";
-import { guardedBatch } from "./guards.ts";
+import { guardHolds, guardedBatch } from "./guards.ts";
 import { passwordHashIs, passwordHashOf, verifyOwnerPassword } from "./owner.ts";
 import { type PasswordProblem, hashPassword, passwordLength } from "./passwords.ts";
 import type { Database, Ports } from "./ports.ts";
@@ -77,15 +77,6 @@ function codeIsSpent(digest: string) {
   return sql`exists (select 1 from ${spentResetCodes} where ${spentResetCodes.digest} = ${digest})`;
 }
 
-async function isSpent(db: Database, digest: string): Promise<boolean> {
-  const [row] = await db
-    .select({ digest: spentResetCodes.digest })
-    .from(spentResetCodes)
-    .where(eq(spentResetCodes.digest, digest));
-
-  return row !== undefined;
-}
-
 async function commitReset(
   ports: Ports,
   observed: string,
@@ -111,7 +102,7 @@ async function commitReset(
     return { kind: "reset" };
   }
 
-  return (await isSpent(db, digest)) ? { kind: "used" } : { kind: "superseded" };
+  return (await guardHolds(db, codeIsSpent(digest))) ? { kind: "used" } : { kind: "superseded" };
 }
 
 export async function resetPassword(

@@ -8,6 +8,7 @@ import type { Network, Ports } from "./ports.ts";
 import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
 import { archiveFillIsOn } from "./reddit-settings.ts";
 import { noThreadFor } from "./reddit-thread.ts";
+import { RATE_LIMITED } from "./reddit-window.ts";
 
 export interface ArchivedThread {
   readonly thread: ParsedThread;
@@ -17,8 +18,6 @@ export interface ArchivedThread {
 const ARCHIVE_ORIGIN = "https://arctic-shift.photon-reddit.com";
 
 const MAX_RESET_WAIT_MS = 10_000;
-
-const TOO_MANY_REQUESTS = 429;
 
 const WHOLE_SECONDS = /^\d+$/u;
 
@@ -38,7 +37,7 @@ function resetWaitOf(outcome: Readonly<GuardOutcome>): number | null {
   if (
     outcome.kind !== "failed" ||
     outcome.reason !== "status" ||
-    outcome.httpStatus !== TOO_MANY_REQUESTS ||
+    outcome.httpStatus !== RATE_LIMITED ||
     outcome.reset === null ||
     !WHOLE_SECONDS.test(outcome.reset.trim())
   ) {

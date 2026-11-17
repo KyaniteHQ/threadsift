@@ -22,11 +22,9 @@ export function LoadMore({
 }>) {
   return (
     <div className="rl-more">
-      {more === "failed" ? (
-        <p className="rd-note" role="alert">
-          {failedText}
-        </p>
-      ) : null}
+      <p className="rd-note" role="alert">
+        {more === "failed" ? failedText : null}
+      </p>
       <button type="button" className="btn" aria-disabled={disabled} onClick={loadMore}>
         {moreLabel(more)}
       </button>

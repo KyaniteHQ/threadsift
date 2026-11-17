@@ -1,6 +1,6 @@
 import { type MouseEvent, type ReactNode, useCallback, useRef } from "react";
 
-import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
+import { EmptyState, Notice, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { PageBar } from "./PageBar.tsx";
 import { RETRY_LABEL } from "./text.ts";
@@ -26,7 +26,7 @@ export interface Listing<Page extends PagedPage, Row> {
 
 interface Source<Page extends PagedPage> {
   readonly state: Paged<Page>;
-  readonly retry: () => void;
+  readonly retry: () => Promise<void>;
   readonly loadMore: () => void;
 }
 
@@ -54,9 +54,9 @@ function Rows<Page extends PagedPage, Row>({
   );
 
   return (
-    <section aria-labelledby={RESULTS_ID} className="rl-items">
+    <section className="rl-items">
       <header className="list-head">
-        <h2 id={RESULTS_ID} className="results" tabIndex={-1}>
+        <h2 className="results" tabIndex={-1}>
           {listing.head(ready)}
         </h2>
         <p className="label">{listing.text.sort}</p>
@@ -81,11 +81,15 @@ function Body<Page extends PagedPage, Row>({
   listing,
   draw,
 }: Readonly<{ source: Source<Page> } & Shown<Page, Row>>) {
+  const retryLoad = useCallback(() => {
+    void retry();
+  }, [retry]);
+
   switch (state.status) {
     case "loading":
       return <Skeleton label={listing.text.loading} row="rl-row" title="rl-title" />;
     case "failed":
-      return <Notice text={listing.text.loadFailed} action={retry} label={RETRY_LABEL} alert />;
+      return <Notice text={listing.text.loadFailed} action={retryLoad} label={RETRY_LABEL} alert />;
     case "ready":
       return listing.rows(state).length === 0 ? (
         <EmptyState heading={listing.text.emptyHeading} line={listing.emptyLine(state)} />

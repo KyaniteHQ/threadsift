@@ -6,7 +6,6 @@ import { z } from "zod";
 import { count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { dump, item, rerunSteps, script } from "./pin-fixtures.ts";
 import { exec, paste, rows, until } from "./related-fixtures.ts";
 
 const TARGET = "Machine Learning";
@@ -118,69 +117,6 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
 
     assert.equal(linkedTopic(instance, id), TARGET);
     assert.deepEqual(stored(instance, id), { topic: TARGET, json_topic: TARGET });
-    assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
-  });
-
-  it("links an unlinked stored Digest in the older-Digest linking and writes the target's name into it", async () => {
-    script(instance, item(900, [], [], { topic: "ML" }));
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-
-    assert.equal(linkedTopic(instance, 900), TARGET);
-    assert.deepEqual(stored(instance, 900), { topic: TARGET, json_topic: TARGET });
-    assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
-  });
-});
-
-describe("a Pin whose target a key merge removes follows the survivor", () => {
-  let instance: Instance;
-
-  before(async () => {
-    instance = await Instance.start();
-    await instance.setUp();
-    script(
-      instance,
-      `
-      insert into topics (id, key, name) values (1, 'stored-a', 'Machine Learning'), (2, 'stored-b', 'machine learning'), (3, 'stored-c', 'AI');
-      ${item(1, [], [], { topic: "Machine Learning", topicId: 1 })}
-      ${item(2, [], [], { topic: "machine learning", topicId: 2 })}
-      insert into pins (id, kind, from_key, from_name, into_topic_id, created_at) values
-        (1, 'topic-merge', 'ml', 'ML', 2, 1),
-        (2, 'topic-merge', 'artificial intelligence', 'artificial intelligence', 3, 2);`,
-    );
-    await rerunSteps(instance, "topic-keys");
-  });
-
-  after(() => instance.close());
-
-  it("repoints the Pin, and the delete of the merged Topic does not fail", () => {
-    assert.equal(count(instance, "select count(*) as n from topics where id = 2"), 0);
-    assert.equal(
-      dump(instance, "select id, into_topic_id from pins order by id"),
-      JSON.stringify([
-        { id: 1, into_topic_id: 1 },
-        { id: 2, into_topic_id: 3 },
-      ]),
-    );
-  });
-
-  it("rewrites the stored Digest of every moved Item to the survivor's name", () => {
-    assert.equal(
-      dump(
-        instance,
-        "select item_id, topic, json_extract(digest, '$.topic') as json from digests order by item_id",
-      ),
-      JSON.stringify([
-        { item_id: 1, topic: "Machine Learning", json: "Machine Learning" },
-        { item_id: 2, topic: "Machine Learning", json: "Machine Learning" },
-      ]),
-    );
-  });
-
-  it("resolves a Digest that names the first merged-away Topic to the last target", async () => {
-    const id = await paste(instance, "later", { title: "Later", topic: "ML" });
-
-    assert.equal(linkedTopic(instance, id), "Machine Learning");
     assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
   });
 });

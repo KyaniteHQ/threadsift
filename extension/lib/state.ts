@@ -2,6 +2,7 @@ import { browser } from "wxt/browser";
 import { z } from "zod";
 
 import { REDDIT_CONNECT_STATES } from "../../src/core/reddit-relay-contract.ts";
+import { TEXT } from "./text.ts";
 
 export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("saving") }),
@@ -18,12 +19,37 @@ export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unsupported-link") }),
   z.object({ kind: z.literal("thread-kept") }),
   z.object({ kind: z.literal("budget-spent") }),
-  z.object({ kind: z.literal("updating") }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("failed") }),
 ]);
 
 export type SaveState = z.infer<typeof SaveStateSchema>;
+
+export function badgeTextOf(state: Readonly<SaveState>): string {
+  switch (state.kind) {
+    case "saving":
+      return "";
+    case "saved":
+    case "saved-incomplete":
+    case "saved-page":
+      return TEXT.badgeSaved;
+    case "not-configured":
+    case "access-missing":
+    case "page-blocked":
+    case "token-refused":
+    case "scope-refused":
+    case "too-large":
+    case "private-link":
+    case "unsupported-link":
+    case "thread-kept":
+    case "budget-spent":
+    case "unreachable":
+    case "failed":
+      return TEXT.badgeNotSaved;
+    default:
+      return state satisfies never;
+  }
+}
 
 export const SAVE_PORT = "save";
 

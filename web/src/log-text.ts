@@ -1,3 +1,4 @@
+import { plural } from "./plural.ts";
 import { NEWEST_FIRST, filled } from "./text.ts";
 
 export const LOG_PAGE = {
@@ -32,7 +33,7 @@ export function addedRemoved(added: number, removed: number): string {
 }
 
 export function picksLabel(picks: number): string {
-  return picks === 1 ? "1 pick" : `${String(picks)} picks`;
+  return plural(picks, "1 pick", "{count} picks");
 }
 
 export function mergeLabel(from: string, into: string): string {
@@ -40,5 +41,5 @@ export function mergeLabel(from: string, into: string): string {
 }
 
 export function itemsLabel(items: number): string {
-  return items === 1 ? "1 Item" : `${String(items)} Items`;
+  return plural(items, "1 Item", "{count} Items");
 }

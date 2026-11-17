@@ -1,4 +1,4 @@
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 
 export interface ThreadNode {
   readonly id: string;
@@ -11,6 +11,21 @@ export interface ThreadNode {
   readonly score: number | null;
   readonly postedAt: number | null;
   readonly eligible: boolean;
+}
+
+export function moreNode(position: number, parentId: string | null, depth: number): ThreadNode {
+  return {
+    id: `more_${String(position)}`,
+    parentId,
+    position,
+    depth,
+    kind: "more",
+    author: null,
+    body: null,
+    score: null,
+    postedAt: null,
+    eligible: false,
+  };
 }
 
 const STATEMENT_JSON_BYTES = 1_500_000;

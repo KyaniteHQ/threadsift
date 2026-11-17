@@ -1,6 +1,8 @@
+import { collapsed } from "../../src/core/format.ts";
 import type { MergeKind, ProposalKind } from "../../src/core/kinds.ts";
 import type { MergeProposal, Proposal } from "../../src/core/proposal-contract.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
+import { plural } from "./plural.ts";
 import { NEWEST_FIRST, filled } from "./text.ts";
 
 export const PROPOSALS_PAGE = {
@@ -26,7 +28,7 @@ export function proposalsEmptyLine(provider: boolean, checkedDate: string | null
 
 type Wording = "effect" | "rejectNamed" | "rejectRetryNamed" | "rejected";
 
-type AcceptWording = "acceptNamed" | "acceptRetryNamed" | "accepted" | "notCurrent";
+type AcceptWording = "acceptNamed" | "acceptRetryNamed" | "accepted";
 
 const ALREADY_DECIDED = "This proposal was already decided or is no longer in the list.";
 
@@ -71,26 +73,21 @@ const ACCEPT_WORDS = {
     acceptNamed: "Accept merging {from} into {into}",
     acceptRetryNamed: "Try again to accept merging {from} into {into}",
     accepted: "Accepted merging {from} into {into}.",
-    notCurrent: ALREADY_DECIDED,
   },
   "topic-merge": {
     acceptNamed: "Accept merging topic {from} into {into}",
     acceptRetryNamed: "Try again to accept merging topic {from} into {into}",
     accepted: "Accepted merging topic {from} into {into}.",
-    notCurrent: ALREADY_DECIDED,
   },
   "highlight-lost": {
     acceptNamed: "Accept removing highlight “{quote}” from {title}",
     acceptRetryNamed: "Try again to accept removing highlight “{quote}” from {title}",
     accepted: "Accepted removing highlight “{quote}” from {title}.",
-    notCurrent: "Passage found in the item’s text again. The highlight stays; nothing was removed.",
   },
   "overview-gap": {
     acceptNamed: "Accept updating the overview of topic {topic}",
     acceptRetryNamed: "Try again to accept updating the overview of topic {topic}",
     accepted: "Accepted updating the overview of topic {topic}.",
-    notCurrent:
-      "Every item of this topic is in the overview now, or a run for the topic is already open; nothing was started.",
   },
   "items-disagree": {
     acceptNamed:
@@ -99,8 +96,6 @@ const ACCEPT_WORDS = {
       "Try again to accept keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
     accepted:
       "Accepted keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
-    notCurrent:
-      "Nothing was kept, because the agent read one of the two items again or the two items no longer share a topic.",
   },
 } as const satisfies Partial<Record<ProposalKind, Record<AcceptWording, string>>>;
 
@@ -127,7 +122,6 @@ export const PROPOSAL_WORDS = {
   applyFailedMany:
     "Applying this merge failed {count} times. The server log has a merge-unit-failed line with the error class and any database code.",
   mergeBusy: "Another merge is already running.",
-  topicBusy: "One of these topics has an overview or another merge running.",
   topicOverviewEffect:
     "The surviving topic’s overview is written again later and counts the moved items.",
   reject: "Reject",
@@ -163,37 +157,18 @@ export function sideNamedWords(other: string): string {
   return filled(PROPOSAL_WORDS.sideNamed, { other });
 }
 
-function counted(count: number, one: string, many: string): string {
-  return count === 1 ? one : filled(many, { count: String(count) });
-}
-
 export function itemCount(count: number): string {
-  return counted(count, PROPOSAL_WORDS.itemsOne, PROPOSAL_WORDS.itemsMany);
+  return plural(count, PROPOSAL_WORDS.itemsOne, PROPOSAL_WORDS.itemsMany);
 }
 
 export function applyFailedNote(failedRuns: number): string {
-  return counted(failedRuns, PROPOSAL_WORDS.applyFailedOnce, PROPOSAL_WORDS.applyFailedMany);
-}
-
-export function firstFailures(
-  applying: readonly Readonly<Proposal>[],
-  read: readonly Readonly<Proposal>[],
-): readonly string[] {
-  const unfailed = new Set(
-    applying.flatMap((each) => (isMerge(each) && each.failedRuns === 0 ? [each.id] : [])),
-  );
-
-  return read.flatMap((each) =>
-    isMerge(each) && unfailed.has(each.id) && each.failedRuns > 0
-      ? [applyFailedNote(each.failedRuns)]
-      : [],
-  );
+  return plural(failedRuns, PROPOSAL_WORDS.applyFailedOnce, PROPOSAL_WORDS.applyFailedMany);
 }
 
 const TEXT_CUT = 40;
 
 function textCut(text: string): string {
-  const letters = Array.from(text.replaceAll(/\s+/gu, " ").trim());
+  const letters = Array.from(collapsed(text));
 
   return letters.length > TEXT_CUT
     ? `${letters.slice(0, TEXT_CUT).join("").trimEnd()}…`
@@ -243,8 +218,6 @@ export const acceptLabel = wordedBy(ACCEPT_WORDS, "acceptNamed");
 export const acceptRetryLabel = wordedBy(ACCEPT_WORDS, "acceptRetryNamed");
 
 export const acceptedAnnouncement = wordedBy(ACCEPT_WORDS, "accepted");
-
-export const notCurrentNote = wordedBy(ACCEPT_WORDS, "notCurrent");
 
 export function overviewCounts({
   uncovered,

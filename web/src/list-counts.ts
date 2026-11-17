@@ -4,7 +4,7 @@ import type { Filters } from "./filters.ts";
 
 function moved<Key extends string>(
   rows: readonly { readonly key: Key; readonly count: number }[],
-  from: Key | null,
+  from: Key,
   to: Key,
 ) {
   return rows.map((row) => ({
@@ -15,21 +15,16 @@ function moved<Key extends string>(
 
 export function countedWith(
   counts: Readonly<FilterCounts>,
-  before: Readonly<Item> | undefined,
+  before: Readonly<Item>,
   after: Readonly<Item>,
-  created: boolean,
 ): FilterCounts {
-  if (before === undefined && !created) return counts;
-
-  const added = before === undefined;
-  const wasUnread = before?.readState === "unread";
+  const wasUnread = before.readState === "unread";
 
   return {
     ...counts,
-    total: counts.total + (added ? 1 : 0),
     unread: counts.unread + (after.readState === "unread" ? 1 : 0) - (wasUnread ? 1 : 0),
-    sources: moved(counts.sources, before?.source ?? null, after.source),
-    reads: moved(counts.reads, before?.readState ?? null, after.readState),
+    sources: moved(counts.sources, before.source, after.source),
+    reads: moved(counts.reads, before.readState, after.readState),
   };
 }
 

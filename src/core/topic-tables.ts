@@ -14,15 +14,6 @@ export const topicPages = sqliteTable("topic_pages", {
   updatedAt: integer("updated_at").notNull(),
 });
 
-export const topicLeases = sqliteTable("topic_leases", {
-  topicId: integer("topic_id")
-    .primaryKey()
-    .references(() => topics.id),
-  holder: text("holder").notNull(),
-  expiresAt: integer("expires_at").notNull(),
-  generation: integer("generation").notNull(),
-});
-
 export const topicChecks = sqliteTable("topic_checks", {
   topicId: integer("topic_id")
     .primaryKey()

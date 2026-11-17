@@ -1,11 +1,13 @@
-import { and, desc, eq, getTableColumns, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, isNull, lte, or } from "drizzle-orm";
 
-import { budgetOf, forgetOldDays, utcDay } from "./agent-token-budget.ts";
+import { budgetOf, tokenItemsToday } from "./agent-token-budget.ts";
 import { digestOf, randomSecret } from "./encoding.ts";
-import { StoredScopesSchema, type Scope, type TokenBudget } from "./kinds.ts";
+import { ScopeListSchema, type Scope, type TokenBudget } from "./kinds.ts";
 import { DEFAULT_TOKEN_BUDGET } from "./limits.ts";
 import type { Ports } from "./ports.ts";
-import { type AgentTokenRow, agentTokenDays, agentTokens } from "./schema.ts";
+import { type AgentTokenRow, agentTokens } from "./schema.ts";
+
+export const UNKNOWN_TOKEN = "Unknown or revoked agent token";
 
 const TOKEN_BYTES = 32;
 const TOKEN_PREFIX = "tsa_";
@@ -24,7 +26,7 @@ function summaryOf(
   { dailyBudget, added, ...row }: Readonly<SummaryRow>,
   now: number,
 ): TokenSummary {
-  const scopes = StoredScopesSchema.safeParse(row.scopes);
+  const scopes = ScopeListSchema.safeParse(row.scopes);
 
   return {
     ...row,
@@ -35,12 +37,8 @@ function summaryOf(
 
 function summaries(ports: Ports, now: number) {
   return ports.db
-    .select({ ...summary, added: sql<number>`coalesce(${agentTokenDays.added}, 0)` })
-    .from(agentTokens)
-    .leftJoin(
-      agentTokenDays,
-      and(eq(agentTokenDays.tokenId, agentTokens.id), eq(agentTokenDays.day, utcDay(now))),
-    );
+    .select({ ...summary, added: tokenItemsToday(ports.db, agentTokens.id, now) })
+    .from(agentTokens);
 }
 
 export async function createToken(
@@ -143,9 +141,7 @@ export async function verifyToken(ports: Ports, value: string): Promise<Verified
           or(isNull(agentTokens.lastUsedAt), lte(agentTokens.lastUsedAt, staleBefore)),
         ),
       );
-
-    await forgetOldDays(ports.db, row.id, now);
   }
 
-  return { id: row.id, name: row.name, scopes: StoredScopesSchema.parse(row.scopes) };
+  return { id: row.id, name: row.name, scopes: ScopeListSchema.parse(row.scopes) };
 }

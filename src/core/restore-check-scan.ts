@@ -1,5 +1,5 @@
 import { crc32 } from "./crc32.ts";
-import { type Manifest, refused } from "./restore-check.ts";
+import { type Manifest, recordTableOf, refused } from "./restore-check.ts";
 import { type CheckCursor, RESTORE_CHECK_BYTES, RESTORE_LINE_BYTES } from "./restore-contract.ts";
 import { completeLines, parsedRow } from "./restore-lines.ts";
 import { type TableSpec, lineVerdict, tableSpec } from "./restore-registry.ts";
@@ -22,22 +22,18 @@ export interface Env {
   readonly source: Readonly<ZipSource>;
   readonly directory: Readonly<ZipDirectory>;
   readonly manifest: Readonly<Manifest>;
-  readonly older: boolean;
 }
 
 function recordSpec(
   { directory }: Readonly<Env>,
   { name }: Readonly<ZipEntry>,
 ): TableSpec | undefined {
-  const prefix = `${directory.root}/records/`;
+  const table = recordTableOf(directory, name);
 
-  return name.startsWith(prefix)
-    ? tableSpec(name.slice(prefix.length).split(".")[0] ?? "")
-    : undefined;
+  return table === null ? undefined : tableSpec(table);
 }
 
 function lineRefusal(
-  env: Readonly<Env>,
   spec: Readonly<TableSpec>,
   line: Uint8Array,
   number: number,
@@ -49,7 +45,7 @@ function lineRefusal(
     return refused("format", `The ${where} is not a record that fits the table`);
   }
 
-  const verdict = lineVerdict(spec, row, env.older);
+  const verdict = lineVerdict(spec, row);
 
   return verdict === "valid" ? null : refused(verdict, `The ${where} does not match the table`);
 }
@@ -78,7 +74,7 @@ function scanned(
   }
 
   for (const [position, line] of lines.entries()) {
-    const refusal = lineRefusal(env, spec, line, at.line + position + 1);
+    const refusal = lineRefusal(spec, line, at.line + position + 1);
 
     if (refusal !== null) throw refusal;
   }

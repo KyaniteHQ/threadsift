@@ -1,13 +1,15 @@
-const FULL = new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeStyle: "medium" });
-
 const pad = (value: number): string => String(value).padStart(2, "0");
 
-export function localDate(at: number): string {
-  const day = new Date(at);
-
+function calendarDate(day: Readonly<Date>): string {
   return `${String(day.getFullYear())}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
 }
 
-export function localTime(at: number): string {
-  return FULL.format(new Date(at));
+export function localDate(at: number): string {
+  return calendarDate(new Date(at));
+}
+
+export function localStamp(at: number): string {
+  const day = new Date(at);
+
+  return `${calendarDate(day)} ${pad(day.getHours())}:${pad(day.getMinutes())}`;
 }

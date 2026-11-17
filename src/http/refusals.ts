@@ -7,7 +7,8 @@ import type { ResetResult } from "../core/owner-password.ts";
 import type { SetupBlock } from "../core/owner.ts";
 import { PASSWORD_MAX, PASSWORD_MIN, type PasswordProblem } from "../core/passwords.ts";
 import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../core/setup-code.ts";
-import type { RefusalCode } from "./schemas.ts";
+import { UNKNOWN_TOKEN } from "../core/tokens.ts";
+import { RESTORING_CODE, type RefusalCode } from "./schemas.ts";
 
 const MESSAGES = {
   wrong: "The setup code is wrong",
@@ -24,12 +25,17 @@ const MESSAGES = {
   "no-owner": "This Instance has no owner yet",
 } as const satisfies Record<RefusalCode, string>;
 
+export { UNKNOWN_TOKEN };
+
+export function unknownToken(c: Context) {
+  return c.json({ error: UNKNOWN_TOKEN }, 401, {
+    "WWW-Authenticate": 'Bearer error="invalid_token"',
+  });
+}
+
 export const NOT_FOUND = "Not found";
 
 export const REFUSED_HOST = "url: the host is not globally reachable";
-
-export const UPDATING =
-  "The library is being updated and takes no new link yet. Try again in a minute.";
 
 export const RESTORING =
   "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
@@ -61,6 +67,10 @@ export function budgetSpent(c: Context, spent: Readonly<BudgetSpent>) {
   c.header("Retry-After", String(retryAfterSeconds(spent, Date.now())));
 
   return c.json({ error: BUDGET_SPENT_MESSAGE, code: BUDGET_SPENT } as const, 429);
+}
+
+export function restoring(c: Context) {
+  return c.json({ error: RESTORING, code: RESTORING_CODE } as const, 503);
 }
 
 export function wrongPassword(c: Context) {

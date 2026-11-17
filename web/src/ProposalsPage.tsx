@@ -4,12 +4,11 @@ import type { Proposal, ProposalPage } from "../../src/core/proposal-contract.ts
 import { Announcement } from "./Announcement.tsx";
 import { type Listing, ListPage } from "./ListPage.tsx";
 import { localDate } from "./log-date.ts";
-import { REJECT_SELECTOR, rejectSelectorOf } from "./proposal-dom.ts";
+import { REJECT_SELECTOR } from "./proposal-dom.ts";
 import { ProposalRow } from "./ProposalRow.tsx";
 import { PROPOSALS_PAGE, proposalsEmptyLine } from "./proposals-text.ts";
 import type { Pages } from "./routing.ts";
 import { useProposalsPage } from "./use-proposals-page.ts";
-import type { Focus } from "./use-proposals-page.ts";
 
 const LISTING: Listing<ProposalPage, Proposal> = {
   text: PROPOSALS_PAGE,
@@ -20,24 +19,22 @@ const LISTING: Listing<ProposalPage, Proposal> = {
   rows: ({ proposals }) => proposals,
 };
 
-function useMoveFocus(focus: Readonly<Focus>, done: () => void) {
+function useResultFocus(requested: boolean, done: () => void) {
   useLayoutEffect(() => {
-    if (focus.kind === "none") return;
+    if (!requested) return;
 
-    const target =
-      focus.kind === "row"
-        ? document.querySelector<HTMLElement>(rejectSelectorOf(focus.id))
-        : document.querySelector<HTMLElement>("main h2");
+    const target = document.querySelector<HTMLElement>("main h2, main button");
 
     target?.focus();
     done();
-  }, [focus, done]);
+  }, [requested, done]);
 }
 
 export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: () => void }>) {
-  const { source, rowFor, announcement, notice, focus, focused, press } = useProposalsPage();
+  const { source, rowFor, announcement, notice, focusResult, focusedResult, press } =
+    useProposalsPage();
 
-  useMoveFocus(focus, focused);
+  useResultFocus(focusResult, focusedResult);
 
   const overviewFollows = source.state.status === "ready" && source.state.provider;
 
@@ -61,7 +58,7 @@ export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: ()
   return (
     <>
       <ListPage source={source} listing={LISTING} draw={draw} back={back} notice={notice} />
-      <Announcement text={announcement.text} failed={announcement.failed} />
+      <Announcement text={announcement} failed={false} />
     </>
   );
 }

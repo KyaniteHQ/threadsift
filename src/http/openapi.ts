@@ -38,6 +38,11 @@ export function scopeRefusal(method: string, path: string, extra = "") {
   };
 }
 
+export const OWNER_SESSION_REFUSALS = {
+  401: jsonBody(ErrorResponseSchema, "No owner session."),
+  403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+};
+
 export function budgetRefusal(whatIsSaved: string) {
   return {
     429: jsonBody(

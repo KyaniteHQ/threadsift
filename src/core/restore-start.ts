@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 
-import { guardedResults } from "./guards.ts";
+import { guardedWrite } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
+import { enqueueRows } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { START_CHECK } from "./restore-contract.ts";
 import { EMPTY_LIBRARY, holdsEveryPart, libraryIsEmpty, restoreById } from "./restore-state.ts";
@@ -19,9 +19,10 @@ export type StartedRestore =
 async function opened(db: Database, id: number) {
   const waiting = sql`${restoreRuns.id} = ${id} and ${restoreRuns.state} = 'uploading'`;
 
-  const written = await guardedResults(
+  const written = await guardedWrite(
     db,
     sql`${EMPTY_LIBRARY} and exists (select 1 from ${restoreRuns} where ${waiting})`,
+    openingRestoreJob(db, waiting),
     [
       db
         .update(restoreRuns)
@@ -32,11 +33,10 @@ async function opened(db: Database, id: number) {
           updatedAt: Date.now(),
         })
         .where(sql`${waiting}`),
-      openingRestoreJob(db, sql`${restoreRuns.id} = ${id} and ${restoreRuns.state} = 'running'`),
     ],
   );
 
-  return written === null ? [] : OpenedJobsSchema.parse(written[1]);
+  return written ?? [];
 }
 
 export async function startRestore(ports: JobPorts, id: number): Promise<StartedRestore> {

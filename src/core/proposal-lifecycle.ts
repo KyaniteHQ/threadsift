@@ -1,22 +1,18 @@
 import { type SQL, type SQLWrapper, and, eq, inArray, isNull, or, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/sqlite-core";
 
-import type { MergeKind, ProposalKind, ProposalState } from "./kinds.ts";
+import type { ProposalKind, ProposalState } from "./kinds.ts";
 import type { Database } from "./ports.ts";
-import { highlights, knownProposal, proposals } from "./schema.ts";
+import { highlights, proposals } from "./schema.ts";
 
 interface Lifecycle {
-  readonly held: readonly ProposalState[];
   readonly inserted: readonly ProposalState[];
 }
 
 const MERGE_LIFECYCLE = {
-  held: ["open", "accepting", "rejected", "declined"],
   inserted: ["open", "declined"],
 } as const satisfies Lifecycle;
 
 const PLAIN_LIFECYCLE = {
-  held: ["open", "rejected"],
   inserted: ["open"],
 } as const satisfies Lifecycle;
 
@@ -43,16 +39,6 @@ const MOVES = {
   >
 >;
 
-const MOVED_RANK = 0;
-
-const REJECTED_RANK = 1;
-
-const OTHER_RANK = 2;
-
-export function unitCommitted(): SQL {
-  return sql`(${proposals.state} = ${MOVES.apply.to} and ${proposals.unitRevision} is not null)`;
-}
-
 export function anyAccepting(): SQL {
   return sql`exists (select 1 from ${proposals} where ${eq(proposals.state, MOVES.apply.to)})`;
 }
@@ -62,12 +48,7 @@ export function proposalClaimed(db: Database, id: number) {
     .update(proposals)
     .set({ state: MOVES.claim.to })
     .where(
-      and(
-        eq(proposals.id, id),
-        knownProposal,
-        eq(proposals.state, MOVES.claim.from),
-        sql`not ${anyAccepting()}`,
-      ),
+      and(eq(proposals.id, id), eq(proposals.state, MOVES.claim.from), sql`not ${anyAccepting()}`),
     )
     .returning({ id: proposals.id });
 }
@@ -92,7 +73,7 @@ export function rejection(db: Database, id: number) {
   return db
     .update(proposals)
     .set({ state: MOVES.reject.to })
-    .where(and(eq(proposals.id, id), knownProposal, eq(proposals.state, MOVES.reject.from)))
+    .where(and(eq(proposals.id, id), eq(proposals.state, MOVES.reject.from)))
     .returning({ id: proposals.id });
 }
 
@@ -144,79 +125,6 @@ export function goneWithItem(db: Database, itemId: number) {
     db
       .delete(proposals)
       .where(or(eq(proposals.fromItemId, itemId), eq(proposals.intoItemId, itemId))),
-  ];
-}
-
-const other = alias(proposals, "other");
-
-interface Columns {
-  readonly id: Readonly<SQLWrapper>;
-  readonly from: Readonly<SQLWrapper>;
-  readonly into: Readonly<SQLWrapper>;
-  readonly state: Readonly<SQLWrapper>;
-  readonly unitRevision: Readonly<SQLWrapper>;
-}
-
-function columnsOf(row: typeof proposals | typeof other, kind: MergeKind): Columns {
-  return {
-    id: row.id,
-    from: kind === "tag-merge" ? row.fromTagId : row.fromTopicId,
-    into: kind === "tag-merge" ? row.intoTagId : row.intoTopicId,
-    state: row.state,
-    unitRevision: row.unitRevision,
-  };
-}
-
-function names({ from, into }: Readonly<Columns>, subjectId: number): SQL {
-  return sql`(${from} = ${subjectId} or ${into} = ${subjectId})`;
-}
-
-function partner({ from, into }: Readonly<Columns>, subjectId: number): SQL {
-  return sql`(case when ${from} = ${subjectId} then ${into} else ${from} end)`;
-}
-
-function survival({ state, unitRevision }: Readonly<Columns>): SQL {
-  return sql`(case when ${state} = ${MOVES.apply.to} and ${unitRevision} is not null then ${MOVED_RANK} when ${state} = ${MOVES.reject.to} then ${REJECTED_RANK} else ${OTHER_RANK} end)`;
-}
-
-function outranks(first: Readonly<Columns>, second: Readonly<Columns>): SQL {
-  return sql`(${survival(first)} < ${survival(second)} or (${survival(first)} = ${survival(second)} and ${first.id} < ${second.id}))`;
-}
-
-export function proposalRelinks(db: Database, kind: MergeKind, loser: number, survivor: number) {
-  const outer = columnsOf(proposals, kind);
-  const inner = columnsOf(other, kind);
-
-  return [
-    db
-      .delete(proposals)
-      .where(
-        sql`(${outer.from} = ${loser} and ${outer.into} = ${survivor}) or (${outer.from} = ${survivor} and ${outer.into} = ${loser})`,
-      ),
-    db
-      .delete(proposals)
-      .where(
-        sql`${names(outer, loser)} and exists (select 1 from ${proposals} as other where ${names(inner, survivor)} and ${partner(inner, survivor)} = ${partner(outer, loser)} and not ${outranks(outer, inner)})`,
-      ),
-    db
-      .delete(proposals)
-      .where(
-        sql`${names(outer, survivor)} and exists (select 1 from ${proposals} as other where ${names(inner, loser)} and ${partner(inner, loser)} = ${partner(outer, survivor)} and ${outranks(inner, outer)})`,
-      ),
-    db
-      .update(proposals)
-      .set(
-        kind === "tag-merge"
-          ? {
-              fromTagId: sql`case when ${outer.from} = ${loser} then ${survivor} else ${outer.from} end`,
-              intoTagId: sql`case when ${outer.into} = ${loser} then ${survivor} else ${outer.into} end`,
-            }
-          : {
-              fromTopicId: sql`case when ${outer.from} = ${loser} then ${survivor} else ${outer.from} end`,
-              intoTopicId: sql`case when ${outer.into} = ${loser} then ${survivor} else ${outer.into} end`,
-            },
-      )
-      .where(names(outer, loser)),
   ];
 }
 

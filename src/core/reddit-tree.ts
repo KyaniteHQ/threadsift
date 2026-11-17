@@ -1,5 +1,5 @@
 import { storedCommentId, wireCommentId } from "./comment-id.ts";
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import { INLINE_TEXT_BYTES } from "./limits.ts";
 import { type WireChild, type WireComment, type WirePost, ThreadJson } from "./reddit-wire.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";

@@ -71,7 +71,7 @@ async function deleteUnclaimed(
 export async function cleanFiles({ db, files }: Readonly<Pick<JobPorts, "db" | "files">>) {
   const [saved] = await db.select().from(fileCleaning).where(eq(fileCleaning.id, 1));
   const page = await files.list(ITEM_FILES_ROOT, saved?.cursor ?? null, CLEANUP_PAGE_KEYS);
-  const keys = page.files.map(({ key }) => key);
+  const keys = page.keys;
   const owned = keys.filter((key) => isSweptKey(finalKeyOf(key)));
   const kept = await protectedKeys(db, [...new Set(owned.map((key) => finalKeyOf(key)))]);
   const stray = owned.filter((key) => !kept.has(finalKeyOf(key)));

@@ -1,7 +1,5 @@
 import type { FileStore } from "./ports.ts";
 
-export class ExportObjectMissing extends Error {}
-
 type Controller = ReadableStreamDefaultController<Uint8Array>;
 
 async function opened(
@@ -10,7 +8,7 @@ async function opened(
 ): Promise<ReadableStream<Uint8Array>> {
   const body = await files.get(key);
 
-  if (body === null) throw new ExportObjectMissing(`The export object ${key} is missing`);
+  if (body === null) throw new Error(`The export object ${key} is missing`);
 
   return body;
 }

@@ -1,8 +1,9 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { EXPORT_FAILURES } from "./export-contract.ts";
 import { EXPORT_STATES } from "./kinds.ts";
+import { listed } from "./schema-checks.ts";
 
 export const exportRuns = sqliteTable(
   "exports",
@@ -23,6 +24,7 @@ export const exportRuns = sqliteTable(
     updatedAt: integer("updated_at").notNull(),
   },
   (table) => [
+    check("exports_values_check", sql`${table.state} in (${listed(EXPORT_STATES)})`),
     uniqueIndex("exports_one_live")
       .on(sql`1`)
       .where(sql`${table.state} in ('running', 'ready')`),

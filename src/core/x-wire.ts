@@ -106,8 +106,6 @@ export const StoredXThreadSchema = threadSchemaOf(
   z.string(),
 );
 
-export type XThread = z.output<typeof XThreadSchema>;
-
 export type XQuoted = Readonly<z.output<typeof StoredXThreadSchema>["post"]["quoted"][number]>;
 
 export type XReply = Readonly<z.output<typeof StoredXThreadSchema>["replies"][number]>;

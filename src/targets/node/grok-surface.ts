@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { X_QUOTES_MAX, X_REPLIES_MAX } from "../../core/limits.ts";
+import { parsedJson } from "../../core/parsed-json.ts";
 import { XCliThreadSchema } from "../../core/x-wire.ts";
 
 export const PROVEN_VERSION = "grok 1.0.77 (50ca579fa996)";
@@ -91,13 +92,11 @@ export function runArguments(promptFile: string, cwd: string): string[] {
 const ToolListSchema = z.array(z.object({ function: z.object({ name: z.string() }) }));
 
 export function localToolNames(toolDefinitions: string): readonly string[] | null {
-  try {
-    const parsed = ToolListSchema.safeParse(JSON.parse(toolDefinitions));
-
-    return parsed.success ? parsed.data.map(({ function: { name } }) => name).toSorted() : null;
-  } catch {
-    return null;
-  }
+  return (
+    parsedJson(ToolListSchema, toolDefinitions)
+      ?.map(({ function: { name } }) => name)
+      .toSorted() ?? null
+  );
 }
 
 export type ToolList =

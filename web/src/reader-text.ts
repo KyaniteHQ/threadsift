@@ -1,23 +1,9 @@
 import type { CommentCount, UnfilteredCause } from "../../src/core/comment-view.ts";
-import { groupedNumber } from "../../src/core/format.ts";
+import { collapsed, groupedNumber } from "../../src/core/format.ts";
 import type { Source } from "../../src/core/kinds.ts";
-import {
-  COMMENTS_TITLE,
-  CONTEXT_LABEL,
-  HIGHLIGHTS_TITLE,
-  KEY_POINTS_LABEL,
-  NOTE_TITLE,
-  NOT_FOUND,
-  SECTION_TITLES,
-  STUB_DROPPED,
-  STUB_MORE,
-  STUB_NOT_KEPT,
-  SUMMARY_LABEL,
-  UNTITLED,
-  handleOf,
-} from "../../src/core/reader-text.ts";
+import { UNTITLED } from "../../src/core/reader-text.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
-import { collapsedText } from "./collapsed-text.ts";
+import { plural } from "./plural.ts";
 import { ageLabel, dateLabel } from "./saved-label.ts";
 import { CLOSE_LABEL, filled } from "./text.ts";
 
@@ -50,7 +36,6 @@ export const HINT_PANE = "j k move · Enter open · m read · / search · Esc cl
 export const READER_LOADING = "Loading item…";
 export const READER_FAILED = "Couldn’t load this item.";
 export const READER_STALE = "This text is from earlier and may be outdated.";
-export const POST_TEXT_FAILED = "Couldn’t show this item’s post text and comments.";
 export const DIGEST_PENDING = "The summary and key points are not ready yet.";
 export const NO_POST_TEXT = "This item has no post text.";
 
@@ -162,7 +147,7 @@ export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: numb
 }
 
 export function removeNamed(exact: string): string {
-  const words = collapsedText(exact.replaceAll(STORED_PICTURE_TEXT, PICTURE_LABEL));
+  const words = collapsed(exact.replaceAll(STORED_PICTURE_TEXT, PICTURE_LABEL));
   const points = Array.from(words);
 
   const quote =
@@ -185,7 +170,7 @@ export function archiveNote(
 }
 
 export function codeName(lines: number): string {
-  return lines === 1 ? CODE_ONE : filled(CODE_MANY, { count: String(lines) });
+  return plural(lines, CODE_ONE, CODE_MANY);
 }
 
 export function tableName(columns: number): string {
@@ -235,18 +220,3 @@ export function scoreLabel(score: number, source: Source): string {
 export function isSameHandle(first: string | null, second: string | null): boolean {
   return first !== null && second !== null && first.toLowerCase() === second.toLowerCase();
 }
-
-export {
-  COMMENTS_TITLE,
-  CONTEXT_LABEL,
-  HIGHLIGHTS_TITLE,
-  KEY_POINTS_LABEL,
-  NOTE_TITLE,
-  NOT_FOUND,
-  SECTION_TITLES,
-  STUB_DROPPED,
-  STUB_MORE,
-  STUB_NOT_KEPT,
-  SUMMARY_LABEL,
-  handleOf,
-};

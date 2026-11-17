@@ -9,8 +9,8 @@ import {
   DIGEST_INPUT_BYTES,
   type LinkedPage,
   digestPrompt,
-  utf8Length,
 } from "../src/core/digest-prompt.ts";
+import { utf8Length } from "../src/core/encoding.ts";
 
 const NO_CATALOG = { topics: [], tags: [] };
 

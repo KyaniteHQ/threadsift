@@ -1,5 +1,5 @@
 import { deferWhileWorking, newestRequest } from "../../lib/newest-request.ts";
-import { element, say } from "../../lib/page-look.ts";
+import { button, element, replaceControls, say } from "../../lib/page-look.ts";
 import {
   type RedditAction,
   type RedditView,
@@ -13,13 +13,14 @@ import {
 } from "../../lib/reddit-setting.ts";
 import { TEXT } from "../../lib/text.ts";
 
+const heading = element("h2", { tabindex: "-1" }, TEXT.redditTitle);
 const status = element("p", { class: "ext-status", role: "status" });
 const buttons = element("div", { class: "ext-actions" });
 
 export const redditSection = element(
   "section",
   { class: "ext-form", hidden: "" },
-  element("h2", {}, TEXT.redditTitle),
+  heading,
   element("p", { class: "ext-hint" }, TEXT.redditHint),
   buttons,
   status,
@@ -51,19 +52,27 @@ function press(action: RedditAction): void {
   );
 }
 
-function actionButton(action: RedditAction): HTMLButtonElement {
-  const created = element("button", { type: "button", class: "btn btn-acc" }, redditLabel(action));
-  created.addEventListener("click", () => {
-    press(action);
-  });
-
-  return created;
-}
-
 function render(view: Readonly<RedditView>): void {
-  redditSection.hidden = view.kind === "unavailable" && !view.access;
+  const hidden = view.kind === "unavailable" && !view.access;
+
+  if (hidden && redditSection.contains(document.activeElement)) {
+    const pageHeading = document.querySelector("h1");
+
+    pageHeading?.setAttribute("tabindex", "-1");
+    pageHeading?.focus();
+  }
+
+  redditSection.hidden = hidden;
   say(status, redditStatusText(view), redditTone(view));
-  buttons.replaceChildren(...redditActions(view).map((action) => actionButton(action)));
+  replaceControls(
+    buttons,
+    heading,
+    redditActions(view).map((action) =>
+      button(redditLabel(action), () => {
+        press(action);
+      }),
+    ),
+  );
 }
 
 function move(next: RedditView): void {

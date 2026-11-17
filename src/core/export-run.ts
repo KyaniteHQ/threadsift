@@ -5,8 +5,8 @@ import {
   type ExportStatus,
   ExportTallySchema,
   NO_TALLY,
-  exportDay,
   exportObjectName,
+  exportRootName,
   exportTailName,
 } from "./export-contract.ts";
 import { exportAddress, openingExportJob } from "./export-job.ts";
@@ -179,6 +179,6 @@ export async function readyExport(db: JobPorts["db"], id: number): Promise<Ready
   return {
     keys: [...named("part"), ...named("dir"), exportFileKey(run.id, exportTailName(tail))],
     size: run.dataBytes + run.dirBytes + run.tailBytes,
-    filename: `threadsift-${exportDay(run.createdAt)}.zip`,
+    filename: `${exportRootName(run.createdAt)}.zip`,
   };
 }

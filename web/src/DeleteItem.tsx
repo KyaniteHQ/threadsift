@@ -1,9 +1,9 @@
 import { type RefObject, useCallback, useEffect, useId, useRef } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
+import { Alert } from "./Alert.tsx";
 import { CLOSED, type DeleteEvent, type DeleteFlow, reduceDelete } from "./delete-flow.ts";
 import { Icon } from "./Icon.tsx";
-import { tabWrapTarget } from "./panel-dom.ts";
 import {
   CANCEL_LABEL,
   DELETE_CONFIRM,
@@ -16,20 +16,7 @@ import {
 import { useFlow } from "./use-flow.ts";
 import { useModalDialog } from "./use-modal-dialog.ts";
 
-function containTab(dialog: HTMLElement, signal: AbortSignal): void {
-  dialog.addEventListener(
-    "keydown",
-    (event) => {
-      const wrapTo = event.key === "Tab" ? tabWrapTarget(dialog, event.shiftKey) : null;
-
-      if (wrapTo !== null) {
-        event.preventDefault();
-        wrapTo.focus();
-      }
-    },
-    { signal },
-  );
-}
+export const DELETE_DIALOG_CLASS = "dlg";
 
 function useDeleteModal(
   dialog: RefObject<HTMLDialogElement | null>,
@@ -58,7 +45,6 @@ function useDeleteModal(
       },
       { signal },
     );
-    containTab(element, signal);
     first.current?.focus();
   });
 }
@@ -112,7 +98,7 @@ function DeleteDialog({
   return (
     <dialog
       ref={dialog}
-      className="dlg"
+      className={DELETE_DIALOG_CLASS}
       aria-labelledby={titleId}
       aria-describedby={textId}
       aria-busy={pending}
@@ -124,11 +110,7 @@ function DeleteDialog({
       <p id={textId} className="dlg-text">
         {DELETE_DESCRIPTION}
       </p>
-      {step === "failed" ? (
-        <p className="fld-err" role="alert">
-          {DELETE_FAILED}
-        </p>
-      ) : null}
+      <Alert text={step === "failed" ? DELETE_FAILED : null} />
       <Actions pending={pending} cancel={cancel} confirm={confirm} first={first} />
     </dialog>
   );

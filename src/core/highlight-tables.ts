@@ -16,7 +16,6 @@ export const highlights = sqliteTable(
     prefix: text("prefix").notNull(),
     suffix: text("suffix").notNull(),
     hint: integer("hint").notNull(),
-    projection: integer("projection").notNull(),
     createdAt: integer("created_at").notNull(),
     status: text("status", { enum: HIGHLIGHT_STATUSES }).notNull(),
     start: integer("start"),

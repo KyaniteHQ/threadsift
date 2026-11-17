@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import type { GuardOutcome, Page, RateLimited } from "./fetch-guard.ts";
 import { UNAUTHORIZED, apiPolicy, requestApi } from "./github-api.ts";
 import {
   type GithubRefused,
@@ -14,7 +13,14 @@ import { endCooldown } from "./github-cooldown.ts";
 import { CredentialChanged, type GithubAuth } from "./github-credential.ts";
 import { githubSettings } from "./github-tables.ts";
 import { parsedJson } from "./parsed-json.ts";
-import { HOP_DEADLINE_MS, type Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
+import { HOP_DEADLINE_MS } from "./request-waits.ts";
+
+type GuardOutcome = import("./fetch-guard.ts").GuardOutcome;
+
+type Page = import("./fetch-guard.ts").Page;
+
+type RateLimited = import("./fetch-guard.ts").RateLimited;
 
 type TokenPorts = Pick<Ports, "db" | "secrets">;
 

@@ -1,4 +1,4 @@
-.st-more {
+.st-more ul {
   flex-wrap: wrap;
   gap: var(--s1) var(--s4);
 }

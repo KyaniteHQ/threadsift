@@ -8,7 +8,7 @@ const BUSY_TIMEOUT_MS = 5000;
 
 const ITEM_COLUMNS = "from_item_id, into_item_id, from_digest, into_digest";
 
-describe("the Pin triggers hold which columns each Pin kind uses", () => {
+describe("the Pin constraints hold which columns each Pin kind uses", () => {
   let instance: Instance;
   let database: DatabaseSync;
 

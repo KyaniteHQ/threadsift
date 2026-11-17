@@ -4,11 +4,9 @@ import { itemPath } from "../../src/core/item-path.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
 import type { Route } from "./routing.ts";
+import { useSharedArrival } from "./share-handoff.ts";
 import { useCardReturn } from "./use-card-return.ts";
-import { type LibraryDom, hasMore, neighbour, useStep } from "./use-step.ts";
-
-export type { LibraryDom };
-
+import { type LibraryDom, neighbour, useStep } from "./use-step.ts";
 import { changeView } from "./view-transition.ts";
 
 export function useNavigation({
@@ -17,18 +15,12 @@ export function useNavigation({
   attend,
   dom,
   covers,
-  more,
-  announce,
-  retract,
 }: Readonly<{
   list: ListState;
   route: Route;
   attend: (attention: Attention) => void;
   dom: LibraryDom;
   covers: boolean;
-  more: () => void;
-  announce: (text: string, failed?: boolean) => void;
-  retract: (text: string) => void;
 }>) {
   const { openId, navigate, leave } = route;
   const { appOf } = dom;
@@ -37,12 +29,13 @@ export function useNavigation({
   const open = useCallback(
     (id: number) => {
       focusTitleOf(null);
+      attend({ id, focus: !covers });
 
       changeView(appOf(), id, covers, () => {
         navigate(itemPath(id));
       });
     },
-    [appOf, covers, navigate],
+    [appOf, attend, covers, navigate],
   );
 
   const close = useCallback(() => {
@@ -51,12 +44,14 @@ export function useNavigation({
     changeView(appOf(), openId, covers, leave);
   }, [appOf, covers, leave, openId]);
 
+  useSharedArrival(list.status === "ready", open);
+
   useCardReturn({ list, openId, covers, attend, appOf });
 
-  const step = useStep({ list, route, attend, dom, focusTitleOf, covers, more, announce, retract });
+  const step = useStep({ list, route, attend, dom, focusTitleOf, covers });
 
   const previous = neighbour(list, openId, -1) !== null;
-  const next = neighbour(list, openId, 1) !== null || hasMore(list);
+  const next = neighbour(list, openId, 1) !== null;
   const steps = useMemo(() => ({ previous, next }), [previous, next]);
 
   return { open, close, step, titleFocus, steps };

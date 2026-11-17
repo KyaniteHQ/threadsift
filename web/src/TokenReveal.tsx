@@ -8,9 +8,16 @@ import { useAfter, useFocusOnMount } from "./use-form.ts";
 const COPIED_MS = 2000;
 const TOKEN_ROWS = 2;
 
+const NO_BREAK_SPACE = "\u00A0";
+
+function confirmationOf(presses: number): string {
+  return presses % 2 === 0 ? `${SETTINGS.copied}${NO_BREAK_SPACE}` : SETTINGS.copied;
+}
+
 function useCopy(value: string) {
   const field = useRef<HTMLTextAreaElement>(null);
   const [copied, setCopied] = useState(false);
+  const [presses, setPresses] = useState(0);
   const [failed, setFailed] = useState(false);
 
   useFocusOnMount(field);
@@ -19,7 +26,7 @@ function useCopy(value: string) {
     setCopied(false);
   }, []);
 
-  useAfter(copied, COPIED_MS, clearCopied);
+  useAfter(copied && presses, COPIED_MS, clearCopied);
 
   const copy = useCallback(() => {
     const write = async (): Promise<void> => {
@@ -27,6 +34,7 @@ function useCopy(value: string) {
         await navigator.clipboard.writeText(value);
         setFailed(false);
         setCopied(true);
+        setPresses((count) => count + 1);
       } catch {
         setCopied(false);
         setFailed(true);
@@ -42,7 +50,9 @@ function useCopy(value: string) {
     field.current?.select();
   }, []);
 
-  return { field, copied, failed, copy, selectValue };
+  const announcement = copied ? confirmationOf(presses) : "";
+
+  return { field, copied, announcement, failed, copy, selectValue };
 }
 
 export function TokenReveal({
@@ -50,7 +60,7 @@ export function TokenReveal({
   value,
   done,
 }: Readonly<{ name: string; value: string; done: () => void }>) {
-  const { field, copied, failed, copy, selectValue } = useCopy(value);
+  const { field, copied, announcement, failed, copy, selectValue } = useCopy(value);
   const titleId = useId();
   const noteId = useId();
 
@@ -77,7 +87,7 @@ export function TokenReveal({
           {copied ? SETTINGS.copied : SETTINGS.copy}
         </button>
       </div>
-      <output className="vh">{copied ? SETTINGS.copied : ""}</output>
+      <output className="vh">{announcement}</output>
       <Alert text={failed ? SETTINGS.copyFailed : null} />
       <button type="button" className="btn btn-block" onClick={done}>
         {SETTINGS.done}

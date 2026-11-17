@@ -4,7 +4,8 @@ import { AI_KEY_MAX } from "../../core/ai-contract.ts";
 import { readCapped } from "../../core/capped.ts";
 import type { OpenRouterExchange } from "../../core/openrouter-contract.ts";
 import { pause } from "../../core/pause.ts";
-import { HOP_DEADLINE_MS, type AiRuntime } from "../../core/ports.ts";
+import type { AiRuntime } from "../../core/ports.ts";
+import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
 import { aiTransport } from "./ai-transport.ts";
 
 const EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";

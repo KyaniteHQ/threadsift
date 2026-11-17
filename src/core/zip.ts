@@ -4,9 +4,19 @@ export const ZIP_COUNT_LIMIT = 0xff_ff;
 
 export const ZIP_SIZE_LIMIT = 0xff_ff_ff_ff;
 
+export const LOCAL_SIGNATURE = 0x04_03_4b_50;
+
+export const CENTRAL_SIGNATURE = 0x02_01_4b_50;
+
+export const ZIP64_END_SIGNATURE = 0x06_06_4b_50;
+
+export const ZIP64_LOCATOR_SIGNATURE = 0x07_06_4b_50;
+
+export const END_SIGNATURE = 0x06_05_4b_50;
+
 const UTF8_NAME_FLAG = 0x08_00;
 
-const STORE_METHOD = 0;
+export const STORE_METHOD = 0;
 
 const VERSION_PLAIN = 20;
 
@@ -16,19 +26,19 @@ const UNIX_HOST = 3;
 
 const REGULAR_FILE_MODE = 0o100_644;
 
-const LOCAL_HEADER_BYTES = 30;
+export const LOCAL_HEADER_BYTES = 30;
 
-const CENTRAL_RECORD_BYTES = 46;
+export const CENTRAL_RECORD_BYTES = 46;
 
 const ZIP64_OFFSET_FIELD_BYTES = 12;
 
-const ZIP64_END_BYTES = 56;
+export const ZIP64_END_BYTES = 56;
 
-const ZIP64_LOCATOR_BYTES = 20;
+export const ZIP64_LOCATOR_BYTES = 20;
 
-const END_BYTES = 22;
+export const END_BYTES = 22;
 
-const ZIP64_EXTRA_ID = 0x00_01;
+export const ZIP64_EXTRA_ID = 0x00_01;
 
 const MINIMUM_YEAR = 1980;
 
@@ -73,7 +83,7 @@ function viewOf(length: number) {
 function localHeader(name: Uint8Array, bytes: Uint8Array, crc: number, dos: DosTime): Uint8Array {
   const { bytes: header, view } = viewOf(LOCAL_HEADER_BYTES + name.length);
 
-  view.setUint32(0, 0x04_03_4b_50, true);
+  view.setUint32(0, LOCAL_SIGNATURE, true);
   view.setUint16(4, VERSION_PLAIN, true);
   view.setUint16(6, UTF8_NAME_FLAG, true);
   view.setUint16(8, STORE_METHOD, true);
@@ -96,7 +106,7 @@ function centralRecord(
   const extraBytes = wide ? ZIP64_OFFSET_FIELD_BYTES : 0;
   const { bytes: record, view } = viewOf(CENTRAL_RECORD_BYTES + name.length + extraBytes);
 
-  view.setUint32(0, 0x02_01_4b_50, true);
+  view.setUint32(0, CENTRAL_SIGNATURE, true);
   view.setUint16(4, (UNIX_HOST << 8) | VERSION_ZIP64, true);
   view.setUint16(6, wide ? VERSION_ZIP64 : VERSION_PLAIN, true);
   view.setUint16(8, UTF8_NAME_FLAG, true);
@@ -176,7 +186,7 @@ export function endOfArchive(end: Readonly<ArchiveEnd>): Uint8Array {
   const classic = wide ? ZIP64_END_BYTES + ZIP64_LOCATOR_BYTES : 0;
 
   if (wide) {
-    view.setUint32(0, 0x06_06_4b_50, true);
+    view.setUint32(0, ZIP64_END_SIGNATURE, true);
     view.setBigUint64(4, BigInt(ZIP64_END_BYTES - 12), true);
     view.setUint16(12, (UNIX_HOST << 8) | VERSION_ZIP64, true);
     view.setUint16(14, VERSION_ZIP64, true);
@@ -184,12 +194,12 @@ export function endOfArchive(end: Readonly<ArchiveEnd>): Uint8Array {
     view.setBigUint64(32, BigInt(end.entries), true);
     view.setBigUint64(40, BigInt(end.directorySize), true);
     view.setBigUint64(48, BigInt(end.directoryOffset), true);
-    view.setUint32(ZIP64_END_BYTES, 0x07_06_4b_50, true);
+    view.setUint32(ZIP64_END_BYTES, ZIP64_LOCATOR_SIGNATURE, true);
     view.setBigUint64(ZIP64_END_BYTES + 8, BigInt(end.directoryOffset + end.directorySize), true);
     view.setUint32(ZIP64_END_BYTES + 16, 1, true);
   }
 
-  view.setUint32(classic, 0x06_05_4b_50, true);
+  view.setUint32(classic, END_SIGNATURE, true);
   view.setUint16(classic + 8, Math.min(end.entries, ZIP_COUNT_LIMIT), true);
   view.setUint16(classic + 10, Math.min(end.entries, ZIP_COUNT_LIMIT), true);
   view.setUint32(classic + 12, Math.min(end.directorySize, ZIP_SIZE_LIMIT), true);

@@ -9,7 +9,7 @@ import {
   type Provider,
 } from "../../src/core/ai-contract.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
-import { FormField } from "./FormField.tsx";
+import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
 import type { SavedKey, useAiForm } from "./use-ai-form.ts";
 
 type Fields = ReturnType<typeof useAiForm>["fields"];
@@ -108,17 +108,24 @@ export function AiFields({
   publicOnly: boolean;
   savedKey: SavedKey;
 }>) {
-  const names = PROVIDERS[fields.provider].names;
+  const kinds = PROVIDERS[fields.provider].names.map((name) => ({
+    name,
+    kind: kindFor(name, fields.provider, publicOnly, savedKey !== "applies"),
+  }));
+
+  const marked = isMixed(kinds.map(({ kind }) => kind));
 
   return (
     <>
       <AiProviderPicker fields={fields} disabled={disabled} />
-      {names.map((name) => (
+      {marked ? <RequiredLegend /> : null}
+      {kinds.map(({ name, kind }) => (
         <FormField
           key={name}
           field={fields[name]}
           label={AI_TEXT[name]}
-          kind={kindFor(name, fields.provider, publicOnly, savedKey !== "applies")}
+          kind={kind}
+          marked={marked}
           help={helpFor(name, fields.provider, { publicOnly, savedKey })}
         />
       ))}

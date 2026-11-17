@@ -17,7 +17,8 @@ export interface Fetcher {
 
 export interface LoadedFetcher {
   readonly module: string;
-  readonly fetcher: Fetcher;
+  readonly matches: (url: string, signal: AbortSignal) => Promise<boolean>;
+  readonly fetch: Fetcher["fetch"];
 }
 
 const FetcherMethodsSchema = z.object({

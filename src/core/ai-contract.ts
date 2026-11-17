@@ -1,10 +1,8 @@
 import { z } from "zod";
 
 import { StoredCommentId } from "./comment-id.ts";
+import { READABLE_TEXT, STORED_TEXT } from "./digest-text.ts";
 
-export const SHORT_TEXT_MAX = 240;
-
-const ShortText = z.string().trim().min(1).max(SHORT_TEXT_MAX);
 export const AI_URL_MAX = 2048;
 export const AI_MODEL_MAX = 240;
 export const AI_KEY_MAX = 4096;
@@ -13,22 +11,16 @@ const KEPT_COMMENTS_MAX = 2000;
 
 const ModelCommentId = z.string().max(32);
 
-export const ModelDigestSchema = z.object({
-  title: ShortText,
-  topic: ShortText,
-  tags: z.array(ShortText).max(3).readonly(),
-  summary: z
-    .string()
-    .trim()
-    .min(1)
-    .max(1200)
-    .refine((text) => text.split(/\r\n|\r|\n/u).length <= 2),
+export const StoredDigestSchema = z.object({
+  ...STORED_TEXT,
   keyPoints: z.array(z.string().trim().min(1).max(1200)).min(1).max(12).readonly(),
-  keptComments: z.array(ModelCommentId).max(KEPT_COMMENTS_MAX).readonly(),
+  keptComments: z.array(StoredCommentId).max(KEPT_COMMENTS_MAX).readonly().optional(),
 });
 
-export const DigestSchema = ModelDigestSchema.extend({
-  keptComments: z.array(StoredCommentId).max(KEPT_COMMENTS_MAX).readonly().optional(),
+export const DigestSchema = StoredDigestSchema.extend(READABLE_TEXT);
+
+export const ModelDigestSchema = DigestSchema.extend({
+  keptComments: z.array(ModelCommentId).max(KEPT_COMMENTS_MAX).readonly(),
 });
 
 const Model = z.string().trim().min(1).max(AI_MODEL_MAX);
@@ -157,10 +149,14 @@ export type AiSettingsInput = z.infer<typeof AiSettingsInputSchema>;
 export type Digest = z.infer<typeof DigestSchema>;
 
 export function parseStoredDigest(stored: string): Digest {
-  return DigestSchema.parse(JSON.parse(stored));
+  return StoredDigestSchema.parse(JSON.parse(stored));
 }
 
-export const ReaderDigestSchema = DigestSchema.pick({ summary: true, keyPoints: true, tags: true });
+export const ReaderDigestSchema = StoredDigestSchema.pick({
+  summary: true,
+  keyPoints: true,
+  tags: true,
+});
 
 export type ReaderDigest = z.infer<typeof ReaderDigestSchema>;
 
@@ -293,8 +289,6 @@ export const BASE_OUTPUT_TOKENS = 2048;
 export const MAX_OUTPUT_TOKENS = 8192;
 
 export const AI_DEADLINE_MS = 10 * 60 * 1000;
-
-export const AI_SAVE_ATTEMPTS = 5;
 
 export const VERIFY_INPUT =
   "A post on Notebook Weekly describes how a reading group keeps a shared notebook. Each reader records a useful passage and its source, then compares notes at the next meeting. The group keeps corrections beside the original passages so readers can see what changed.";

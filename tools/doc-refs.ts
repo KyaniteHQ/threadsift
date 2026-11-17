@@ -2,7 +2,7 @@ import {
   docLines,
   docPaths,
   escapeRegExp,
-  globMatches,
+  matchesAny,
   isIgnored,
   readRepository,
   readText,
@@ -18,7 +18,6 @@ const OTHER_PROJECT_SPANS: ReadonlyMap<string, readonly string[]> = new Map([
   ["docs/architecture/data-model-outline.md", ["src/annotator/anchoring/"]],
   ["docs/architecture/fetchers.md", ["src/extractors/c2-wiki.ts", "lib/util/date.js"]],
   ["docs/architecture/files.md", ["items/1/", "items/10/"]],
-  ["docs/pr-previews.md", ["src/workerd/util/sqlite.c++:1490"]],
 ]);
 
 const OTHER_PROJECT_SYMBOLS: ReadonlySet<string> = new Set(["env.AI.run"]);
@@ -55,9 +54,7 @@ function checkLines(line: Readonly<DocLine>, ref: Readonly<PathRef>, path: strin
 
 function absence(ref: Readonly<PathRef>, repo: Repository): string | undefined {
   if (ref.glob) {
-    return ref.paths.some((glob) => globMatches(glob, repo.files).length > 0)
-      ? undefined
-      : "matches no file";
+    return ref.paths.some((glob) => matchesAny(glob, repo.files)) ? undefined : "matches no file";
   }
 
   const found = ref.paths.some((path) => repo.files.has(path) || repo.directories.has(path));

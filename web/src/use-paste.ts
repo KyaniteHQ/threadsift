@@ -20,9 +20,13 @@ import { useFocusOnMount, useGuard } from "./use-form.ts";
 import { useShownCard } from "./use-shown-card.ts";
 
 export type SaveOutcome =
-  | { readonly kind: "item"; readonly itemId: number; readonly refreshed: boolean }
-  | { readonly kind: "notice"; readonly notice: NoticeKey }
-  | { readonly kind: "discarded" };
+  | {
+      readonly kind: "item";
+      readonly itemId: number;
+      readonly known: boolean;
+      readonly refreshed: boolean;
+    }
+  | { readonly kind: "notice"; readonly notice: NoticeKey };
 
 export type Save = (target: SaveTarget) => Promise<SaveOutcome>;
 
@@ -44,11 +48,7 @@ async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
   }
 }
 
-function shownOf(
-  outcome: Readonly<Exclude<SaveOutcome, { kind: "discarded" }>>,
-  url: string,
-  seq: number,
-): Shown {
+function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Shown {
   return outcome.kind === "item"
     ? { kind: "item", itemId: outcome.itemId, refreshed: outcome.refreshed, url, seq }
     : { kind: "notice", key: outcome.notice, url, seq };
@@ -60,22 +60,22 @@ function useSaveValue({
   setShown,
   focusField,
   release,
+  open,
 }: Readonly<{
   save: Save;
   setValue: Dispatch<SetStateAction<string>>;
   setShown: (shown: Shown | null) => void;
   focusField: () => void;
   release: () => void;
+  open: (id: number) => void;
 }>) {
   const sequence = useRef(0);
 
   return useCallback(
-    async (target: SaveTarget, refocus = true) => {
+    async (target: SaveTarget, origin: "field" | "card" | "queue") => {
       const { url } = target;
       setShown(null);
       const outcome = url === "" ? EMPTY : await attempt(save, target);
-
-      if (outcome.kind === "discarded") return;
 
       if (outcome.kind === "item") {
         setValue((current) => (current.trim() === url ? "" : current));
@@ -85,11 +85,13 @@ function useSaveValue({
       sequence.current += 1;
       setShown(shownOf(outcome, url, sequence.current));
 
-      if (refocus) {
+      if (origin === "field" && outcome.kind === "item" && outcome.known) {
+        open(outcome.itemId);
+      } else if (origin !== "queue") {
         focusField();
       }
     },
-    [focusField, release, save, setShown, setValue],
+    [focusField, open, release, save, setShown, setValue],
   );
 }
 
@@ -133,7 +135,14 @@ function useCloseCard({
   return { close, dismiss };
 }
 
-export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item[]) {
+type PasteOptions = Readonly<{
+  save: Save;
+  focusOnMount: boolean;
+  items: readonly Item[];
+  open: (id: number) => void;
+}>;
+
+export function usePaste({ save, focusOnMount, items, open }: PasteOptions) {
   const handoff = useContext(ShareContext);
   const { release } = handoff;
   const { shown, show: setShown, prefill } = useShownCard(handoff, items);
@@ -146,7 +155,7 @@ export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item
 
   useFocusOnMount(field, focusOnMount);
 
-  const saveValue = useSaveValue({ save, setValue, setShown, focusField, release });
+  const saveValue = useSaveValue({ save, setValue, setShown, focusField, release, open });
 
   const { busy: saving, guard } = useGuard();
 
@@ -156,9 +165,9 @@ export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item
       const url = value.trim();
 
       if (url !== "") {
-        guard(() => saveValue({ kind: "paste", url }));
+        guard(() => saveValue({ kind: "paste", url }, "field"));
       } else if (!saving) {
-        void saveValue({ kind: "paste", url });
+        void saveValue({ kind: "paste", url }, "field");
       }
     },
     [guard, saveValue, saving, value],
@@ -177,7 +186,7 @@ export function usePaste(save: Save, focusOnMount: boolean, items: readonly Item
 
   const retry = useCallback(() => {
     if (shown !== null) {
-      guard(() => saveValue({ kind: "paste", url: shown.url }));
+      guard(() => saveValue({ kind: "paste", url: shown.url }, "card"));
     }
   }, [guard, saveValue, shown]);
 
@@ -193,7 +202,7 @@ export function usePasteRequest(
   }: Readonly<Pick<ReturnType<typeof usePaste>, "guard" | "saveValue" | "saving">>,
 ) {
   const run = useEffectEvent((target: SaveTarget) => {
-    guard(() => saveValue(target, false));
+    guard(() => saveValue(target, "queue"));
   });
 
   useEffect(() => {

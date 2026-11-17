@@ -32,15 +32,13 @@ function suppliedDetails(
 }
 
 async function fetchedByPlugin(
-  { db, pages, network, fetchers }: SourcePorts,
+  { db, pages, fetchers }: SourcePorts,
   { address, itemId }: Readonly<JobSource>,
   deadline: AbortSignal,
 ): Promise<Concluded | null> {
   if (fetchers.length === 0 || !takesPage(address)) return null;
 
   if (redditRefOf(address) !== null && !(await holdsNoThread(db, itemId))) return null;
-
-  if (!(await network.reachable(address, deadline))) return { status: "refused" };
 
   const result = await pluginPage(fetchers, address, deadline);
 

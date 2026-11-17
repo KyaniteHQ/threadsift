@@ -113,9 +113,6 @@ export interface JobClosing<Claimed extends ClaimedRow = ClaimedJob> {
   ) => Promise<void>;
 }
 
-export type JobHandlers = Readonly<Record<OwnedJobKind, JobHandler>> &
-  Readonly<{ export: JobHandler<ClaimedExport>; restore: JobHandler<ClaimedRestore> }>;
-
 export const NO_CLOSING: JobClosing<ClaimedRow> = {};
 
 export interface JobHandler<Claimed extends ClaimedRow = ClaimedJob> extends JobClosing<Claimed> {

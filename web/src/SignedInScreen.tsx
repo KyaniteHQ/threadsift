@@ -1,15 +1,16 @@
 import { useCallback } from "react";
 
 import { HighlightsPage } from "./HighlightsPage.tsx";
-import { ImportPage, SettingsPage } from "./lazy-pages.tsx";
+import { IndexPage } from "./IndexPage.tsx";
+import { ImportPage, SettingsPage, LogPage, ProposalsPage } from "./lazy-pages.tsx";
 import { Library } from "./Library.tsx";
+import { ModuleBoundary } from "./ModuleBoundary.tsx";
 import { type Route, usePages } from "./routing.ts";
 import type { SignedInState } from "./screens.ts";
 import { TopicPage } from "./TopicPage.tsx";
 import type { Look } from "./use-root.ts";
-import { WikiPage } from "./WikiPage.tsx";
 
-export function SignedInScreen({
+function SignedInContent({
   screen,
   look,
   arrived,
@@ -43,9 +44,11 @@ export function SignedInScreen({
     case "import":
       return <ImportPage pages={pages} back={toLibrary} />;
     case "index":
+      return <IndexPage pages={pages} back={toLibrary} />;
     case "log":
+      return <LogPage pages={pages} back={toLibrary} />;
     case "proposals":
-      return <WikiPage name={screen.name} pages={pages} back={toLibrary} />;
+      return <ProposalsPage pages={pages} back={toLibrary} />;
     case "topic":
       return <TopicPage key={screen.key} topicKey={screen.key} route={route} back={toLibrary} />;
     case "library":
@@ -53,4 +56,12 @@ export function SignedInScreen({
     default:
       return screen satisfies never;
   }
+}
+
+export function SignedInScreen(props: Parameters<typeof SignedInContent>[0]) {
+  return (
+    <ModuleBoundary>
+      <SignedInContent {...props} />
+    </ModuleBoundary>
+  );
 }

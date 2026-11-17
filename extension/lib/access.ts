@@ -4,19 +4,9 @@ import { z } from "zod";
 import { REDDIT_HOSTS, holdsRedditConnect, hostPattern, instanceOrigin } from "./config.ts";
 import { settleFill, stored } from "./credentials.ts";
 import { logFailure } from "./log.ts";
+import { oneAtATime } from "./one-at-a-time.ts";
 
 export type AccessResult = "reconciled" | "kept";
-
-export function oneAtATime(): <Result>(task: () => Promise<Result>) => Promise<Result> {
-  let queue: Promise<unknown> = Promise.resolve();
-
-  return (task) => {
-    const run = queue.then(task);
-    queue = run.catch(() => {});
-
-    return run;
-  };
-}
 
 export const exclusive = oneAtATime();
 

@@ -1,18 +1,17 @@
 import { eq, sql } from "drizzle-orm";
 
-import type { Counting } from "./caller.ts";
 import { digestAfterFetch } from "./digest-job.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
-import { ownerOf, threadWrites } from "./reddit-thread.ts";
+import { type Owner, ownerOf, threadWrites } from "./reddit-thread.ts";
 import { items, media } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import type { StoredThread } from "./stored-thread.ts";
 
 export interface ThreadPlace extends Link {
   readonly address: string;
-  readonly counting: Counting;
+  readonly addedByToken: number | null;
 }
 
 export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
@@ -24,7 +23,7 @@ export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
       normalizedUrl: place.normalizedUrl,
       originalUrl: place.address,
       savedAt: Date.now(),
-      ...place.counting,
+      addedByToken: place.addedByToken,
     })
     .onConflictDoNothing({ target: items.normalizedUrl })
     .returning({ id: items.id });
@@ -33,11 +32,10 @@ export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
 function contentWrites(
   db: Database,
   { normalizedUrl }: Readonly<ThreadPlace>,
+  owner: Readonly<Owner>,
   thread: Readonly<StoredThread>,
   pendingDigest: string | null,
 ) {
-  const owner = ownerOf(normalizedUrl);
-
   return [
     ...closeItemJobs(db, owner.id),
     db.delete(media).where(eq(media.itemId, owner.id)),
@@ -61,22 +59,18 @@ function contentWrites(
   ];
 }
 
-function digestWrites(db: Database, { normalizedUrl, address }: Readonly<ThreadPlace>) {
-  const owner = ownerOf(normalizedUrl);
-
-  return digestAfterFetch(db, { itemId: owner.id, address });
-}
-
 export function threadPublication(
   db: Database,
   place: Readonly<ThreadPlace>,
   thread: Readonly<StoredThread>,
   pendingDigest: string | null,
 ) {
+  const owner = ownerOf(place.normalizedUrl);
+
   return [
-    ...contentWrites(db, place, thread, pendingDigest),
-    ...threadWrites(db, ownerOf(place.normalizedUrl), thread, null),
+    ...contentWrites(db, place, owner, thread, pendingDigest),
+    ...threadWrites(db, owner, thread, null),
     ...fetchedPartWrites(db, eq(items.normalizedUrl, place.normalizedUrl), thread.postText),
-    ...digestWrites(db, place),
+    ...digestAfterFetch(db, { itemId: owner.id, address: place.address }),
   ];
 }

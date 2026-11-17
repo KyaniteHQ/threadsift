@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
+import { utf8Length } from "./encoding.ts";
 import { among } from "./guards.ts";
 import { type AnchorSnapshot, commentIdsOf } from "./highlight-publish.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -14,12 +15,6 @@ export type Display = Readonly<{
   post?: string | null;
   comments?: readonly Readonly<{ id: string; body: string | null }>[];
 }>;
-
-const ENCODER = new TextEncoder();
-
-function sizeOf(text: string): number {
-  return ENCODER.encode(text).length;
-}
 
 export async function postDisplay(
   { db, files }: Readonly<Pick<JobPorts, "db" | "files">>,
@@ -38,7 +33,7 @@ export async function postDisplay(
   if (item === undefined) return {};
 
   if (item.postTextKey === null) {
-    const size = sizeOf(item.postText ?? "");
+    const size = utf8Length(item.postText ?? "");
 
     if (size > RESTORE_ANCHOR_BYTES) {
       note(wanting, 0);
@@ -59,7 +54,7 @@ export async function postDisplay(
   );
 
   if (read.kind === "text") {
-    note(0, sizeOf(read.text));
+    note(0, utf8Length(read.text));
 
     return { post: read.text };
   }
@@ -101,9 +96,9 @@ export async function commentDisplay(
       ),
     );
 
-  const size = comments.reduce((sum, { body }) => sum + sizeOf(body ?? ""), 0);
+  const size = comments.reduce((sum, { body }) => sum + utf8Length(body ?? ""), 0);
 
-  if (comments.some(({ body }) => sizeOf(body ?? "") > RESTORE_ANCHOR_BYTES)) {
+  if (comments.some(({ body }) => utf8Length(body ?? "") > RESTORE_ANCHOR_BYTES)) {
     note(snapshot.highlights.filter(({ commentId }) => commentId !== null).length, 0);
 
     return {};

@@ -1,4 +1,5 @@
 import type { Resume } from "../../src/core/import-list.ts";
+import { Alert } from "./Alert.tsx";
 import type { Outcome, Progress } from "./import-run.ts";
 import {
   IMPORT,
@@ -28,7 +29,7 @@ function CountsList({ progress }: Readonly<{ progress: Progress }>) {
   const { counts } = progress;
 
   return (
-    <ul className="imp-counts">
+    <ul role="list" className="imp-counts">
       <li>{countLabel(counts.added, "added")}</li>
       <li>{countLabel(counts.known, "known")}</li>
       <li>{countLabel(counts.refused, "refused")}</li>
@@ -109,21 +110,15 @@ function actionOf(
   const { name, resume } = check;
 
   if (run.phase === "ended") {
-    return run.outcome.ending === "finished"
-      ? {
-          label: IMPORT.again,
-          accent: true,
-          press: () => {
-            runner.start(links, name, NOT_STARTED);
-          },
-        }
-      : {
-          label: IMPORT.resume,
-          accent: true,
-          press: () => {
-            runner.start(links, name, run.outcome);
-          },
-        };
+    const finished = run.outcome.ending === "finished";
+
+    return {
+      label: finished ? IMPORT.again : IMPORT.resume,
+      accent: true,
+      press: () => {
+        runner.start(links, name, finished ? NOT_STARTED : run.outcome);
+      },
+    };
   }
 
   const from = resume.kind === "partial" ? { ...NOT_STARTED, done: resume.done } : NOT_STARTED;
@@ -181,11 +176,7 @@ export function RunSection({
         </div>
       )}
       {progress === null ? null : <Meter progress={progress} total={total} />}
-      {alert === null ? null : (
-        <p role="alert" className="fld-err">
-          {alert}
-        </p>
-      )}
+      <Alert text={alert} />
       <output className="imp-status">
         {line === null ? null : <p className="imp-progress">{line}</p>}
         {progress === null ? null : <CountsList progress={progress} />}

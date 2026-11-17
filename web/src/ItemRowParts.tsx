@@ -2,11 +2,10 @@ import { useCallback } from "react";
 
 import { whereOf } from "../../src/core/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import { commentCountOf } from "./comment-counts.ts";
 import { Icon } from "./Icon.tsx";
 import { countLabel } from "./reader-text.ts";
 import { SETTINGS_PATH } from "./routing.ts";
-import { savedLabel } from "./saved-label.ts";
+import { SavedTime } from "./SavedTime.tsx";
 import {
   CARD_TITLES,
   DIGEST_NOT_UPDATED,
@@ -131,7 +130,7 @@ function Skeleton() {
 function commentNote(item: Readonly<Item>): string | null {
   if (item.kind === "reddit-comment") return SAVED_COMMENT;
 
-  const counts = commentCountOf(item);
+  const counts = item.commentCount;
 
   return counts === null ? null : countLabel(counts, "row");
 }
@@ -181,9 +180,7 @@ export function Meta({ item, now, id }: Readonly<{ item: Item; now: number; id: 
       {item.status === "processing" ? <Icon name="spin" className="ic ic-s proc-ic spin" /> : null}
       <span className="src">{SOURCE_LABELS[item.source]}</span>
       <span>{whereOf(item)}</span>
-      <time className="it-date" dateTime={new Date(item.savedAt).toISOString()}>
-        {savedLabel(item.savedAt, now)}
-      </time>
+      <SavedTime savedAt={item.savedAt} now={now} />
     </p>
   );
 }

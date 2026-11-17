@@ -1,4 +1,4 @@
-import { type ComponentProps, type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import type { BarStep } from "./bar-fit.ts";
@@ -7,7 +7,9 @@ import { leaveOf } from "./reader-text.ts";
 import type { ReaderControls } from "./Reader.tsx";
 import { ReaderActions } from "./ReaderActions.tsx";
 import { followProgress } from "./reading-progress.ts";
+import type { Pages } from "./routing.ts";
 import { useBarFit } from "./use-bar-fit.ts";
+import type { PanelState } from "./use-panel.ts";
 import type { Look } from "./use-root.ts";
 
 export type BarMode = "pane" | "page" | "sheet" | "phone";
@@ -42,18 +44,9 @@ const STEPS: Readonly<Record<BarMode, Steps>> = {
 };
 
 function fitSignature(item: Readonly<Item>, mode: BarMode, settingsKey: string): string {
-  const { id, readState, commentCount, commentsKept, commentsTotal } = item;
+  const { id, readState, commentCount } = item;
 
-  return [
-    id,
-    readState,
-    commentCount?.shown,
-    commentCount?.total,
-    commentsKept,
-    commentsTotal,
-    mode,
-    settingsKey,
-  ].join("|");
+  return [id, readState, commentCount?.shown, commentCount?.total, mode, settingsKey].join("|");
 }
 
 function useProgress(bar: RefObject<HTMLElement | null>): void {
@@ -75,8 +68,8 @@ export function ReaderBar({
   item: Item;
   controls: ReaderControls;
   look: Look;
-  pages: ComponentProps<typeof ReaderActions>["pages"];
-  panel: ComponentProps<typeof ReaderActions>["panel"];
+  pages: Pages;
+  panel: PanelState;
 }>) {
   const { mode, settingsKey, close, hintPlaced } = controls;
   const bar = useRef<HTMLDivElement>(null);

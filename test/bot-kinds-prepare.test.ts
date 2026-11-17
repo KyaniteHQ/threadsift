@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
-import { KIND_CASES, caseOf } from "./bot-kinds-cases.ts";
+import { KIND_CASES } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf, selectGrokBot } from "./bot-kinds-fixtures.ts";
 import { outcomeOf } from "./bot-kinds-steps.ts";
 import { jobRow, rowCount, taskRows } from "./bot-task-rows.ts";
@@ -34,15 +34,6 @@ describe("what a kind does when there is nothing to ask the bot", () => {
 
     assert.equal(jobRow(instance, job.id).state, "done");
     assert.equal(rowCount(instance, "ai_tasks"), 0);
-  });
-
-  it("refuses a Digest job whose Item holds a Digest the caller supplied", async () => {
-    const owner = await caseOf("digest").library(instance);
-    const job = await openJobOf(instance, { kind: "digest", itemId: owner });
-
-    exec(instance, "update items set pending_digest = '{}' where id = ?", owner);
-
-    await assert.rejects(BOT_TASK_KINDS.digest.prepare(instance.core, job));
   });
 });
 

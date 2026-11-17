@@ -1,6 +1,6 @@
 import { browser } from "wxt/browser";
 
-import { hostPattern, instanceOrigin } from "./config.ts";
+import { hostPattern, instanceOrigin, requestAccess } from "./config.ts";
 import { logFailure } from "./log.ts";
 import {
   ANSWER_DEADLINE_MS,
@@ -85,6 +85,10 @@ function notSaved(): Promise<SettingsState> {
   return readState((stored) => ({ kind: "failed", stored, step: "not-saved" }));
 }
 
+export function tokenMissing(stored: Readonly<ConfigView>, token: string): boolean {
+  return token.trim() === "" && !stored.hasToken;
+}
+
 export async function saveSettings(
   stored: Readonly<ConfigView>,
   { address, token }: Readonly<SettingsInput>,
@@ -94,17 +98,14 @@ export async function saveSettings(
 
   if (origin === null) return { kind: "refused", stored, reason: "address" };
 
-  if (secret === "" && !stored.hasToken) return { kind: "refused", stored, reason: "token" };
+  if (tokenMissing(stored, token)) return { kind: "refused", stored, reason: "token" };
 
-  let granted: boolean;
+  const granted = await requestAccess(
+    () => browser.permissions.request({ origins: [hostPattern(origin)] }),
+    "settings-request-failed",
+  );
 
-  try {
-    granted = await browser.permissions.request({ origins: [hostPattern(origin)] });
-  } catch (cause) {
-    logFailure("settings-request-failed", cause);
-
-    return notSaved();
-  }
+  if (granted === null) return notSaved();
 
   if (!granted) return { kind: "refused", stored, reason: "access" };
 

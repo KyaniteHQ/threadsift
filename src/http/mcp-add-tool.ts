@@ -14,7 +14,7 @@ import {
   BUDGET_SPENT_MESSAGE,
   REFUSED_HOST,
   RESTORING,
-  UPDATING,
+  UNKNOWN_TOKEN,
   budgetRefusalOf,
 } from "./refusals.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";
@@ -48,13 +48,13 @@ export function registerAddTool(server: McpServer, ports: Ports, tokenId: number
     guarded("add", async ({ url, digest }: Readonly<z.infer<typeof AddInputSchema>>) => {
       const saved = await paste(ports, url, { kind: "token", id: tokenId }, { digest });
 
+      if (saved.kind === "unknown-token") return refused(UNKNOWN_TOKEN);
+
       if (saved.kind === "budget-spent") {
         return refused(BUDGET_SPENT_MESSAGE, budgetRefusalOf(saved));
       }
 
       if (saved.kind === "refused") return refused(REFUSED_HOST);
-
-      if (saved.kind === "updating") return refused(UPDATING);
 
       if (saved.kind === "restoring") return refused(RESTORING);
 

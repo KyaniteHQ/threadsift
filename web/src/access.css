@@ -41,6 +41,7 @@
   letter-spacing: var(--dls);
   font-size: var(--t-h2);
   line-height: var(--lh-title);
+  text-wrap: balance;
 }
 .stack {
   display: flex;
@@ -62,6 +63,7 @@
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
+  scroll-padding-top: var(--bar-h);
 }
 .pg-bar {
   flex-shrink: 0;
@@ -97,11 +99,7 @@
   letter-spacing: var(--dls);
   line-height: var(--lh-title);
 }
-.pg-bar[data-faces="loading"] .pg-title {
-  opacity: 0;
-}
-.pg-title:focus,
-.rd-h:focus {
+.pg-title:focus:not(:focus-visible) {
   outline: none;
 }
 .pg-col {
@@ -121,7 +119,7 @@
 }
 .sec {
   position: relative;
-  scroll-margin-top: calc(var(--bar-h) + var(--s3));
+  scroll-margin-top: var(--s3);
   display: flex;
   flex-direction: column;
   gap: var(--s3);
@@ -130,9 +128,6 @@
 .sec p,
 .sec h2 {
   margin: 0;
-}
-.sec .fld-err:empty {
-  position: absolute;
 }
 .pg :is(p, li, legend, label) {
   text-wrap: pretty;

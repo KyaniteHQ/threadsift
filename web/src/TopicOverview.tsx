@@ -1,5 +1,3 @@
-import { useId } from "react";
-
 import { itemPath } from "../../src/core/item-path.ts";
 import { type Overview, overviewLines } from "../../src/core/topic-overview-contract.ts";
 import { keyed } from "./keyed.ts";
@@ -110,13 +108,9 @@ export function TopicOverview({
   write: () => void;
   navigate: (to: string) => void;
 }>) {
-  const headingId = useId();
-
   return (
-    <section className="rd-agent tp-overview" aria-labelledby={headingId}>
-      <h2 id={headingId} className="label">
-        {TOPIC_PAGE.overviewHeading}
-      </h2>
+    <section className="rd-agent tp-overview">
+      <h2 className="label">{TOPIC_PAGE.overviewHeading}</h2>
       {overview.text === null ? null : <Lines overview={overview} navigate={navigate} />}
       <Status overview={overview} write={write} />
       {overview.text === null ? null : (

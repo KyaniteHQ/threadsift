@@ -1,6 +1,6 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
-import { digests, items, jobs, topicPages } from "./schema.ts";
+import { digests, items, jobs, topicPages, topics } from "./schema.ts";
 
 type TopicRef = number | Readonly<SQLWrapper>;
 
@@ -48,7 +48,7 @@ export function inputsHold(
 
   const removedCount = sql`(select count(*) from (${removedItemIds(topicId)})) = ${removedTotal}`;
 
-  return sql`${revised} and ${includedHold} and ${removedStay} and ${removedCount}`;
+  return sql`exists (select 1 from ${topics} where ${topics.id} = ${topicId}) and ${revised} and ${includedHold} and ${removedStay} and ${removedCount}`;
 }
 
 function uncoveredFrom(topicId: TopicRef): SQL {

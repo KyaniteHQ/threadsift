@@ -3,7 +3,7 @@ import { memo, useId } from "react";
 import { itemPath } from "../../src/core/item-path.ts";
 import type { TopicItem } from "../../src/core/topic-overview-contract.ts";
 import { useNavigateLink } from "./routing.ts";
-import { savedLabel } from "./saved-label.ts";
+import { SavedTime } from "./SavedTime.tsx";
 import { READ_LABELS, SOURCE_LABELS } from "./text.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 
@@ -21,9 +21,7 @@ function TopicItemMeta({
         </span>
       )}
       <span className="src">{SOURCE_LABELS[item.source]}</span>
-      <time className="it-date" dateTime={new Date(item.savedAt).toISOString()}>
-        {savedLabel(item.savedAt, now)}
-      </time>
+      <SavedTime savedAt={item.savedAt} now={now} />
     </p>
   );
 }

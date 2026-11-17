@@ -1,128 +1,25 @@
-import {
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { fetchItems, fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
-import type { Stamps } from "./item-polling.ts";
 import { useMore } from "./list-more.ts";
 import { newer } from "./list-paging.ts";
 import {
-  type Answer,
   type ListState,
+  type SetList,
+  type Wiring,
   failedList,
   type Page,
   loaded,
   readFor,
 } from "./list-state.ts";
-import { useLatest } from "./use-latest.ts";
-
-type SetList = Dispatch<SetStateAction<ListState>>;
+import { type Ticket, useTicket } from "./use-ticket.ts";
 
 export interface Reads {
   readonly more: () => void;
   readonly reload: () => void;
-  readonly recount: (wanted: boolean) => void;
-  readonly settle: (wanted: boolean) => void;
-}
-
-interface Request {
-  readonly generation: number;
-  readonly ticket: number;
-  readonly startedAt: number;
-}
-
-function useRequests() {
-  const generation = useRef(0);
-  const clock = useRef(0);
-  const countsFrom = useRef(0);
-  const reading = useRef(false);
-
-  return useMemo(() => {
-    const issue = (): Request => {
-      clock.current += 1;
-
-      return {
-        generation: generation.current,
-        ticket: clock.current,
-        startedAt: performance.now(),
-      };
-    };
-
-    return {
-      list: (): Request => {
-        generation.current += 1;
-        reading.current = true;
-
-        return issue();
-      },
-      counts: issue,
-      isReading: () => reading.current,
-      finish: () => {
-        reading.current = false;
-      },
-      isCurrent: (request: Readonly<Request>) => request.generation === generation.current,
-      claimCounts: (request: Readonly<Request>, unchanged: boolean) => {
-        const claimed = unchanged && request.ticket > countsFrom.current;
-
-        if (claimed) countsFrom.current = request.ticket;
-
-        return claimed;
-      },
-    };
-  }, []);
-}
-
-type Requests = Readonly<ReturnType<typeof useRequests>>;
-
-interface Wiring {
-  readonly setList: SetList;
-  readonly requests: Requests;
-  readonly stamps: Stamps;
-}
-
-function useRecount(wiring: Readonly<Wiring>, reload: () => void, filters: Readonly<Filters>) {
-  const { setList, requests, stamps } = wiring;
-  const filtersNow = useLatest(filters);
-
-  return useCallback(
-    (wanted: boolean) => {
-      if (!wanted) return;
-
-      const run = async (): Promise<void> => {
-        const request = requests.counts();
-        const answer = await fetchItems(filtersNow.current).catch(() => null);
-        const unchanged = stamps.changedSince(request.startedAt).length === 0;
-
-        if (answer === null) {
-          reload();
-
-          return;
-        }
-
-        if (!requests.isCurrent(request)) return;
-
-        if (!unchanged) return run();
-
-        if (requests.claimCounts(request, true)) {
-          setList((current) =>
-            current.status === "ready" ? { ...current, counts: answer.counts } : current,
-          );
-        }
-      };
-
-      void run();
-    },
-    [filtersNow, reload, requests, setList, stamps],
-  );
+  readonly ticket: Ticket;
 }
 
 interface Reach {
@@ -163,90 +60,59 @@ async function readThrough(filters: Readonly<Filters>, reach: Readonly<Reach>) {
   return { ...first, ...(await continuing(filters, first, reach)) };
 }
 
-function landing(
-  { setList, requests, stamps }: Readonly<Wiring>,
-  request: Readonly<Request>,
-  asked: string,
-  recount: (wanted: boolean) => void,
-) {
-  return (answer: Readonly<Omit<Answer, "query">>): void => {
-    const changed = stamps.changedSince(request.startedAt);
-    const counts = requests.claimCounts(request, changed.length === 0);
-
-    const present = {
-      ...answer,
-      items: answer.items.filter((item) => !stamps.isGone(item.id)),
-      query: asked,
-    };
-
-    setList((current) => loaded(current, present, { changed, counts }));
-
-    if (changed.length > 0) recount(true);
-  };
-}
-
 function useListRead(
   query: Readonly<{ filters: Filters; generation: number }>,
   wiring: Readonly<Wiring>,
-  recount: (wanted: boolean) => void,
   latest: Readonly<RefObject<ListState>>,
 ) {
-  const { setList, requests } = wiring;
+  const { setList, ticket } = wiring;
 
   useEffect(() => {
-    const request = requests.list();
+    const mine = ticket.take();
     const asked = queryOf(query.filters);
 
     const reach = {
       edge: () => edgeOf(latest.current, asked),
-      isCurrent: () => requests.isCurrent(request),
+      isCurrent: () => ticket.matches(mine),
     };
-
-    const land = landing(wiring, request, asked, recount);
 
     const read = async (): Promise<void> => {
       const answer = await readThrough(query.filters, reach).catch(() => null);
 
-      if (!requests.isCurrent(request)) return;
-
-      requests.finish();
+      if (!ticket.matches(mine)) return;
 
       if (answer === null) {
-        setList((current) => (readFor(current, asked) ? current : failedList(current)));
+        setList(failedList);
       } else {
-        land(answer);
+        setList((current) => loaded(current, { ...answer, query: asked }));
       }
     };
 
     void read();
-  }, [latest, query, recount, requests, setList, wiring]);
+
+    return () => {
+      ticket.take();
+    };
+  }, [latest, query, ticket, setList]);
 }
 
 export function useReads(
   setList: SetList,
   filters: Readonly<Filters>,
-  stamps: Stamps,
   latest: Readonly<RefObject<ListState>>,
 ): Reads {
-  const requests = useRequests();
-  const wiring = useMemo(() => ({ setList, requests, stamps }), [setList, requests, stamps]);
+  const ticket = useTicket();
+  const wiring = useMemo(() => ({ setList, ticket }), [setList, ticket]);
   const [generation, setGeneration] = useState(0);
   const query = useMemo(() => ({ filters, generation }), [filters, generation]);
 
   const reload = useCallback(() => {
+    ticket.take();
     setGeneration((now) => now + 1);
-  }, []);
+  }, [ticket]);
 
-  const recount = useRecount(wiring, reload, filters);
-  useListRead(query, wiring, recount, latest);
+  useListRead(query, wiring, latest);
   const more = useMore(wiring, filters, latest);
 
-  const settle = useCallback(
-    (wanted: boolean) => {
-      if (wanted || requests.isReading()) reload();
-    },
-    [reload, requests],
-  );
-
-  return useMemo(() => ({ more, reload, recount, settle }), [more, reload, recount, settle]);
+  return useMemo(() => ({ more, reload, ticket }), [more, reload, ticket]);
 }

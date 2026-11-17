@@ -1,6 +1,7 @@
 import { type ChangeEvent, type KeyboardEvent, useCallback, useId, useRef } from "react";
 
 import type { NoteView } from "../../src/core/note-contract.ts";
+import { NOTE_TITLE } from "../../src/core/reader-text.ts";
 import { useNoteArrival } from "./place-arrival.ts";
 import {
   NOTE_CHANGED,
@@ -11,7 +12,6 @@ import {
   NOTE_NEWER_LABEL,
   NOTE_SAVE,
   NOTE_SAVED,
-  NOTE_TITLE,
   NOTE_TOO_LONG,
   NOTE_USE_NEWER,
 } from "./reader-text.ts";
@@ -132,7 +132,7 @@ export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial:
   );
 
   return (
-    <section className="rd-nt" aria-labelledby={heading}>
+    <section className="rd-nt">
       <h3 id={heading} className="rd-h">
         {NOTE_TITLE}
       </h3>

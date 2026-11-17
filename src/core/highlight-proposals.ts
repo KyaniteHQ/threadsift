@@ -96,5 +96,5 @@ export async function acceptLostHighlight(
     removalWrites(db, row.itemId, row.highlightId),
   );
 
-  return removed === null ? acceptLostHighlight(db, id) : "done";
+  return removed === null ? "not-current" : "done";
 }

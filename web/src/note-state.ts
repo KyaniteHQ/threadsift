@@ -4,99 +4,56 @@ import {
   storedNoteBody,
 } from "../../src/core/note-contract.ts";
 import type { NoteSaveResult } from "./keeping-api.ts";
-import type { NoteDraft, NoteSent } from "./note-draft.ts";
+import type { NoteDraft } from "./note-draft.ts";
 
-export type NoteAttempt =
-  | { readonly kind: "none" }
-  | { readonly kind: "in-flight"; readonly sent: Readonly<NoteSent> }
-  | { readonly kind: "unanswered"; readonly sent: Readonly<NoteSent> };
-
-const NO_ATTEMPT: NoteAttempt = { kind: "none" };
-
-export function sentOf(attempt: Readonly<NoteAttempt>): NoteSent | null {
-  return attempt.kind === "none" ? null : attempt.sent;
-}
+type NoteAttempt = "idle" | "saving" | "failed" | "saved";
 
 export interface NoteState {
   readonly saved: NoteView;
   readonly draft: string;
   readonly newer: NoteView | null;
-  readonly outcome: "idle" | "saved" | "failed";
   readonly attempt: NoteAttempt;
-  readonly adopted: boolean;
 }
 
 export type NoteAction =
   | { readonly kind: "type"; readonly text: string }
-  | { readonly kind: "send"; readonly sent: Readonly<NoteSent> }
-  | { readonly kind: "answer"; readonly answer: NoteSaveResult | null }
-  | { readonly kind: "take-newer" }
-  | { readonly kind: "adopt"; readonly kept: Readonly<NoteDraft> };
-
-function ownSaveCommitted(saved: Readonly<NoteView>, attempt: Readonly<NoteAttempt>): boolean {
-  const sent = sentOf(attempt);
-
-  return (
-    sent !== null &&
-    saved.revision === sent.revision + 1 &&
-    saved.body === storedNoteBody(sent.body)
-  );
-}
+  | { readonly kind: "send" }
+  | { readonly kind: "answer"; readonly answer: NoteSaveResult | null; readonly body: string }
+  | { readonly kind: "take-newer" };
 
 export function noteStart(saved: Readonly<NoteView>, kept: Readonly<NoteDraft> | null): NoteState {
-  const idle = { newer: null, outcome: "idle", adopted: false } as const;
-
-  if (kept === null || storedNoteBody(kept.body) === saved.body) {
-    return { ...idle, saved, draft: saved.body ?? "", attempt: NO_ATTEMPT };
-  }
-
-  const reloaded: NoteAttempt =
-    kept.sent === null ? NO_ATTEMPT : { kind: "unanswered", sent: kept.sent };
-
-  const committed = ownSaveCommitted(saved, reloaded);
-  const revision = committed ? saved.revision : kept.revision;
+  const keptDraft = kept === null || storedNoteBody(kept.body) === saved.body ? null : kept;
 
   return {
-    ...idle,
-    saved: { body: saved.body, revision },
-    draft: kept.body,
-    attempt: committed ? NO_ATTEMPT : reloaded,
+    saved: { body: saved.body, revision: keptDraft?.revision ?? saved.revision },
+    draft: keptDraft?.body ?? saved.body ?? "",
+    newer: null,
+    attempt: "idle",
   };
 }
 
 export function noteFlags({ saved, draft, newer, attempt }: Readonly<NoteState>) {
   const dirty = storedNoteBody(draft) !== saved.body;
   const tooLong = Array.from(draft).length > NOTE_MAX_CODE_POINTS;
-  const pending = attempt.kind === "in-flight";
+  const pending = attempt === "saving";
 
   return { dirty, tooLong, pending, canSave: dirty && !tooLong && !pending && newer === null };
 }
 
-function answered(state: Readonly<NoteState>, answer: Readonly<NoteSaveResult> | null): NoteState {
-  const idle = { ...state, adopted: false };
+function answered(
+  state: Readonly<NoteState>,
+  { answer, body }: Readonly<Extract<NoteAction, { kind: "answer" }>>,
+): NoteState {
+  if (answer === null) return { ...state, attempt: "failed" };
 
-  if (answer === null) {
-    const { attempt } = state;
-
-    return {
-      ...idle,
-      attempt: attempt.kind === "none" ? attempt : { kind: "unanswered", sent: attempt.sent },
-      outcome: "failed",
-    };
-  }
-
-  const resolved = { ...idle, attempt: NO_ATTEMPT };
-
-  if (answer.outcome === "newer" && !ownSaveCommitted(answer.note, state.attempt)) {
-    return { ...resolved, newer: answer.note };
-  }
+  if (answer.outcome === "newer") return { ...state, attempt: "idle", newer: answer.note };
 
   return {
-    ...resolved,
+    ...state,
+    attempt: "saved",
     saved: answer.note,
     newer: null,
-    outcome: "saved",
-    draft: state.draft === sentOf(state.attempt)?.body ? (answer.note.body ?? "") : state.draft,
+    draft: state.draft === body ? (answer.note.body ?? "") : state.draft,
   };
 }
 
@@ -106,37 +63,25 @@ export function noteReducer(state: Readonly<NoteState>, action: Readonly<NoteAct
       return {
         ...state,
         draft: action.text,
-        adopted: false,
-        outcome: state.outcome === "saved" ? "idle" : state.outcome,
+        attempt: state.attempt === "saved" ? "idle" : state.attempt,
       };
     case "send":
       return {
         ...state,
-        attempt: { kind: "in-flight", sent: action.sent },
-        adopted: false,
-        outcome: "idle",
+        attempt: "saving",
       };
     case "answer":
-      return answered(state, action.answer);
+      return answered(state, action);
     case "take-newer":
-      return state.newer === null || state.attempt.kind === "in-flight"
+      return state.newer === null || state.attempt === "saving"
         ? state
         : {
             ...state,
             saved: state.newer,
             draft: state.newer.body ?? "",
             newer: null,
-            adopted: false,
-            outcome: "idle",
+            attempt: "idle",
           };
-
-    case "adopt": {
-      if (action.kept.revision < state.saved.revision) return state;
-
-      const { saved, draft } = noteStart(state.saved, action.kept);
-
-      return { ...state, saved, draft, adopted: true };
-    }
 
     default: {
       const exhaustive: never = action;

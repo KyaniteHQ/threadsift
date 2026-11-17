@@ -4,7 +4,7 @@ import { type Filters, isEmptyResult, isFiltered, isSearching } from "./filters.
 import { HighlightEntry } from "./HighlightEntry.tsx";
 import { HIGHLIGHTS_PAGE, pageHeadLabel } from "./highlights-page-text.ts";
 import { matchedCount } from "./list-counts.ts";
-import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
+import { EmptyState, ListHead, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { CLEAR_ALL, RETRY_LABEL } from "./text.ts";
 import { useFocusNewEntries } from "./use-highlights-focus.ts";
@@ -14,18 +14,12 @@ function Loading() {
   return <Skeleton label={HIGHLIGHTS_PAGE.loading} row="hp-it" title="hp-title" />;
 }
 
-function Head({ state, filters }: Readonly<{ state: Ready; filters: Filters }>) {
+export function highlightsHeadText(state: Readonly<Ready>, filters: Readonly<Filters>): string {
+  if (state.counts.total === 0) return "";
   const shown = isFiltered(filters) ? matchedCount(state.counts, filters) : null;
   const text = isSearching(filters) ? filters.q.trim() : "";
 
-  return (
-    <section className="list-head" aria-labelledby={RESULTS_ID}>
-      <p id={RESULTS_ID} className="results" aria-live="polite">
-        {pageHeadLabel(state.counts.total, shown, text)}
-      </p>
-      <p className="label">{HIGHLIGHTS_PAGE.sort}</p>
-    </section>
-  );
+  return pageHeadLabel(state.counts.total, shown, text);
 }
 
 function More({
@@ -72,6 +66,7 @@ function EntryList({
 
 function Listed({
   state,
+  head,
   filters,
   now,
   navigate,
@@ -80,6 +75,7 @@ function Listed({
   list,
 }: Readonly<{
   state: Ready;
+  head: string;
   filters: Filters;
   now: number;
   navigate: (to: string) => void;
@@ -96,7 +92,7 @@ function Listed({
 
   return (
     <>
-      <Head state={state} filters={filters} />
+      <ListHead label={head} sort={HIGHLIGHTS_PAGE.sort} />
       {isEmptyResult(length, state.next) ? (
         <Notice
           text={HIGHLIGHTS_PAGE.noResults}
@@ -118,6 +114,7 @@ export function HighlightsBody({
   ...listed
 }: Readonly<{
   state: PageState;
+  head: string;
   filters: Filters;
   now: number;
   navigate: (to: string) => void;

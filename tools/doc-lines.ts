@@ -146,7 +146,7 @@ function candidates(path: string, doc: string, relative: boolean): string[] {
   return relative || own === path ? [path] : [path, own];
 }
 
-export function parsePath(span: string, doc: string, repository: Repository): PathRef | undefined {
+function parsePath(span: string, doc: string, repository: Repository): PathRef | undefined {
   const groups = PATH_SPAN.exec(span)?.groups;
   const raw = groups?.["path"];
   const path = raw === undefined ? undefined : resolved(raw, doc, false)?.replace(/\/$/u, "");
@@ -241,8 +241,10 @@ export function symbolChain(span: string): string[] | undefined {
   return SYMBOL_SPAN.exec(span)?.groups?.["chain"]?.split(".");
 }
 
-export function globMatches(glob: string, paths: Readonly<Iterable<string>>): string[] {
-  return [...paths].filter((path) => posix.matchesGlob(path, glob));
+export function matchesAny(glob: string, paths: Readonly<Iterable<string>>): boolean {
+  for (const path of paths) if (posix.matchesGlob(path, glob)) return true;
+
+  return false;
 }
 
 export function escapeRegExp(text: string): string {

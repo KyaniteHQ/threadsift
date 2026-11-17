@@ -77,11 +77,9 @@ export function ScopePicker({
       <p id={hintId} className="fld-help">
         {SETTINGS.scopesHint}
       </p>
-      {error === null ? null : (
-        <p id={errorId} className="fld-err" role="alert">
-          {error}
-        </p>
-      )}
+      <p id={errorId} className="fld-err" role="alert">
+        {error}
+      </p>
     </div>
   );
 }

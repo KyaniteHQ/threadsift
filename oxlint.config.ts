@@ -10,9 +10,7 @@ const NODE_GLOBALS = ["process", "Buffer", "global", "__dirname", "__filename", 
 
 const CANNOT_THROW = {
   "src/core/failure-log.ts": ["bestEffort", "readOrAssume"],
-  "src/core/merge-failure.ts": ["releasedAfterFailure"],
   "src/core/guards.ts": ["guardHeldOrUnread"],
-  "src/core/topic-lease.ts": ["leaseReleasedAfterFailure"],
 };
 
 const SERVER_MODULES = ["^(drizzle-orm|hono)(/|$)", "^@hono/", "^node:", "^cloudflare:"];
@@ -87,7 +85,7 @@ export default defineConfig({
             from: "file",
             name: ["Database", "CatalogKind", "Look", "InputKind", "Slots", "GrokCli"],
           },
-          { from: "package", name: ["ZodError", "ZodObject"], package: "zod" },
+          { from: "package", name: ["ZodError", "ZodObject", "ZodType"], package: "zod" },
           {
             from: "package",
             name: ["DatabaseSync", "IncomingMessage", "ErrnoException"],
@@ -129,7 +127,6 @@ export default defineConfig({
             ],
             package: "@types/react",
           },
-          { from: "package", name: ["ZodType"], package: "zod" },
           {
             from: "package",
             name: ["SQL", "SQLWrapper", "SQLiteColumn", "SQLiteTable", "Subquery"],
@@ -138,6 +135,8 @@ export default defineConfig({
         ],
       },
     ],
+    "import/max-dependencies": ["error", { max: 10, ignoreTypeImports: true }],
+    "typescript/no-import-type-side-effects": "error",
     "import/extensions": ["error", "always", { ignorePackages: true }],
     "import/no-unassigned-import": ["error", { allow: ["**/*.css", "**/zod-jitless.ts"] }],
 
@@ -155,7 +154,6 @@ export default defineConfig({
     "anti-slop/no-unknown-returns": "error",
     "anti-slop/no-unknown-type-aliases": "error",
     "anti-slop/no-unsafe-dictionary-type": "error",
-    "anti-slop/require-readable-spacing": "error",
   },
   overrides: [
     { files: ["*.config.ts", "tools/**"], env: { node: true } },
@@ -182,10 +180,6 @@ export default defineConfig({
     },
     {
       files: ["tools/oxlint/threadsift/**"],
-      rules: { "typescript/prefer-readonly-parameter-types": "off" },
-    },
-    {
-      files: ["tools/extension-chromium/**"],
       rules: { "typescript/prefer-readonly-parameter-types": "off" },
     },
     {

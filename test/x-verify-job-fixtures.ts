@@ -1,4 +1,3 @@
-import { batchAll } from "../src/core/guards.ts";
 import { enqueueItemJobs } from "../src/core/job-rows.ts";
 import { type Judged, startingJudged } from "../src/core/x-verify-state.ts";
 import { queuedVerification, savedProgress } from "../src/core/x-verify-store.ts";
@@ -37,7 +36,7 @@ export async function storedForVerification(
 ): Promise<void> {
   const { db } = instance.core;
 
-  await batchAll(db, [
+  await db.batch([
     ...queuedVerification(db, { itemId, address: addressOf(statusId), thread: value, digest }),
     savedProgress(db, itemId, 0, judged),
   ]);

@@ -8,6 +8,7 @@ import type {
   WaitReason,
   XReadNote,
 } from "../../src/core/kinds.ts";
+import { ITEM_HEAD, headLabel as filledHeadLabel } from "./head-label.ts";
 import { type XNoticeKey, X_NOTICES } from "./x-text.ts";
 
 export function filled(template: string, values: Readonly<Record<string, string>>): string {
@@ -30,7 +31,6 @@ export type NoticeKey =
   | "empty"
   | "invalid"
   | "failed"
-  | "updating"
   | "restoring"
   | "title-kept"
   | XNoticeKey
@@ -48,10 +48,6 @@ export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
     kind: "input-error",
   },
   failed: { text: "Couldn’t save this link.", kind: "save-error" },
-  updating: {
-    text: "The library is finishing an update, so this link wasn’t saved. Paste the link again in a minute.",
-    kind: "save-error",
-  },
   restoring: {
     text: "A Restore is running, so this link wasn’t saved. Paste the link again when the Restore has finished.",
     kind: "save-error",
@@ -120,7 +116,7 @@ export const CARD_TITLES = {
 
 export const READING_NOTE = "Usually done within a minute";
 
-export const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
+const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
   timeout: "The website didn’t answer in time",
   network: "Couldn’t reach the website",
   "gave-up": "Something went wrong while reading the link",
@@ -130,8 +126,8 @@ export const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
 export function failureTitleOf({
   reason,
   xNote,
-}: Readonly<{ reason: FailureReason; xNote?: XReadNote | null | undefined }>): string {
-  return xNote === null || xNote === undefined ? FAILURE_TITLES[reason] : NOTICES[xNote].text;
+}: Readonly<{ reason: FailureReason; xNote: XReadNote | null }>): string {
+  return xNote === null ? FAILURE_TITLES[reason] : NOTICES[xNote].text;
 }
 
 export const WAITING = {
@@ -173,7 +169,6 @@ export function waitTitle({ reason }: Readonly<{ reason: WaitReason }>): string 
   return WAITING[reason].title;
 }
 
-export const BLANK = "\u00A0";
 export const SORT_LABEL = "Newest saved first";
 export const LOADING_LABEL = "Loading saved links…";
 
@@ -198,6 +193,7 @@ export const MATCH_SYSTEM_NOTES = {
 
 export const SEARCH_LABEL = "Search items";
 export const SEARCH_PLACEHOLDER = "Search title, post text, summary or tags";
+export const SKIP_LABEL = "Skip to items";
 
 export const FILTER_GROUPS = {
   source: "Source",
@@ -232,26 +228,12 @@ export function namedOption(name: string, count: number): string {
 
 export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
 
-const HEAD_ONE = "1 item, {unread} unread";
-const HEAD_MANY = "{total} items, {unread} unread";
-const HEAD_MATCHING = "{shown} of {total} items";
-const HEAD_MATCHING_TEXT = "{shown} of {total} items matching “{text}”";
-
 export function headLabel(
   counts: Readonly<Pick<FilterCounts, "total" | "unread">>,
   shown: number | null,
   text: string,
 ): string {
-  const values = {
-    total: String(counts.total),
-    unread: String(counts.unread),
-    shown: String(shown ?? 0),
-    text,
-  };
-
-  if (shown === null) return filled(counts.total === 1 ? HEAD_ONE : HEAD_MANY, values);
-
-  return filled(text === "" ? HEAD_MATCHING : HEAD_MATCHING_TEXT, values);
+  return filledHeadLabel(ITEM_HEAD, { ...counts, shown }, text);
 }
 
 export const NO_RESULTS = "No items match";
@@ -289,5 +271,11 @@ export const SAVED_COMMENT = "Saved comment";
 export const STYLE_NOTE = "Set by the style";
 export const OPEN_AS_NARROW_NOTE = "Items open as a full page at this width.";
 export const NO_DIGEST = "No Digest";
-
 export const DIGEST_NOT_UPDATED = "Digest not updated";
+
+export const FIELD_TEXT = {
+  required: "Enter a value.",
+  legend: "Fields marked with * are required.",
+  spoken: (label: string): string => `${label}: ${FIELD_TEXT.required}`,
+  mark: " *",
+} as const;

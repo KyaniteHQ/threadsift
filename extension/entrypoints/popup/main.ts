@@ -1,6 +1,13 @@
 import { browser } from "wxt/browser";
 
-import { applyLook, element } from "../../lib/page-look.ts";
+import {
+  applyLook,
+  button,
+  element,
+  replaceControls,
+  say,
+  type Tone,
+} from "../../lib/page-look.ts";
 import {
   type RedditView,
   loadReddit,
@@ -17,21 +24,22 @@ const SAVE_DEADLINE_MS = 240_000;
 
 let reddit: RedditView | null = null;
 
-let latest: SaveState = { kind: "saving" };
-
 const root = document.querySelector("#root");
 
 if (root === null) throw new Error("the popup has no root element");
 
-function button(label: string, onClick: () => void): HTMLButtonElement {
-  const created = element("button", { type: "button", class: "btn btn-acc" }, label);
-  created.addEventListener("click", onClick);
+const title = element("h1", { tabindex: "-1" }, "Threadsift");
+const saveStatus = element("p", { class: "ext-status", role: "status" });
+const saveActions = element("div", { class: "ext-actions" });
+const redditStatus = element("p", { class: "ext-status", role: "status" });
+const redditButtons = element("div", { class: "ext-actions" });
+const redditBlock = element("div", { class: "ext-form", hidden: "" }, redditStatus, redditButtons);
 
-  return created;
-}
+root.replaceChildren(title, saveStatus, saveActions, redditBlock);
 
-function status(text: string, tone: "ok" | "warn" | "plain"): HTMLParagraphElement {
-  return element("p", { class: "ext-status", role: "status", "data-tone": tone }, text);
+interface Message {
+  readonly text: string;
+  readonly tone: Tone;
 }
 
 function openItem(itemUrl: string): HTMLAnchorElement {
@@ -61,7 +69,6 @@ function actions(state: Readonly<SaveState>): HTMLElement[] {
     case "too-large":
     case "private-link":
     case "unsupported-link":
-    case "updating":
     case "unreachable":
     case "failed":
       return [button(TEXT.tryAgain, () => void save())];
@@ -70,16 +77,16 @@ function actions(state: Readonly<SaveState>): HTMLElement[] {
   }
 }
 
-function warning(text: string): HTMLParagraphElement {
-  return status(text, "warn");
+function warning(text: string): Message {
+  return { text, tone: "warn" };
 }
 
-function messageOf(state: Readonly<SaveState>): HTMLParagraphElement {
+function messageOf(state: Readonly<SaveState>): Message {
   switch (state.kind) {
     case "saving":
-      return status(TEXT.saving, "plain");
+      return { text: TEXT.saving, tone: "plain" };
     case "saved":
-      return status(TEXT.saved, "ok");
+      return { text: TEXT.saved, tone: "ok" };
     case "saved-incomplete":
       return warning(TEXT.savedIncomplete);
     case "saved-page":
@@ -104,8 +111,6 @@ function messageOf(state: Readonly<SaveState>): HTMLParagraphElement {
       return warning(TEXT.threadKept);
     case "budget-spent":
       return warning(TEXT.budgetSpent);
-    case "updating":
-      return warning(TEXT.updating);
     case "unreachable":
       return warning(TEXT.unreachable);
     case "failed":
@@ -115,32 +120,28 @@ function messageOf(state: Readonly<SaveState>): HTMLParagraphElement {
   }
 }
 
-function redditBlock(view: Readonly<RedditView> | null): HTMLElement[] {
-  if (view === null) return [];
+function show(state: Readonly<SaveState>): void {
+  const { text, tone } = messageOf(state);
 
-  const text = view.kind === "expired" ? TEXT.popupExpired : redditStatusText(view);
+  say(saveStatus, text, tone);
+  replaceControls(saveActions, title, actions(state));
+}
 
-  const buttons = redditActions(view)
+function showReddit(view: Readonly<RedditView>): void {
+  const controls = redditActions(view)
     .filter((action) => action !== "disconnect")
     .map((action) => button(redditLabel(action), () => void reconnect()));
 
-  return [status(text, redditTone(view)), element("div", { class: "ext-actions" }, ...buttons)];
+  const text = view.kind === "expired" ? TEXT.popupExpired : redditStatusText(view);
+
+  redditBlock.hidden = false;
+  say(redditStatus, text, redditTone(view));
+  replaceControls(redditButtons, title, controls);
 }
 
-function show(state: Readonly<SaveState>): void {
-  latest = state;
-
-  root?.replaceChildren(
-    element("h1", {}, "Threadsift"),
-    messageOf(state),
-    element("div", { class: "ext-actions" }, ...actions(state)),
-    ...redditBlock(reddit),
-  );
-}
-
-function moveReddit(next: RedditView | null): void {
+function moveReddit(next: RedditView): void {
   reddit = next;
-  show(latest);
+  showReddit(next);
 }
 
 async function reconnect(): Promise<void> {

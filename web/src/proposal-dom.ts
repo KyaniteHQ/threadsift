@@ -10,10 +10,6 @@ export function rowId(id: number): string {
   return `proposal-${String(id)}`;
 }
 
-export function rejectSelectorOf(id: number): string {
-  return `#${rowId(id)} ${REJECT_SELECTOR}`;
-}
-
 export function sidesId(id: number): string {
   return `${rowId(id)}-sides`;
 }

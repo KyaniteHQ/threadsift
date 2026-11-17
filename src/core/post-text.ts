@@ -11,18 +11,18 @@ function escaped(character: string): string {
   return "\\u" + (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
 }
 
-function unavailable(itemId: number, key: string, reason: string): null {
-  const line = JSON.stringify({ event: "post-text-unavailable", itemId, reason, key });
-
-  console.warn(line.replaceAll(UNESCAPED_BY_JSON, escaped));
-
-  return null;
-}
-
 export type PostTextRead =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "over" }
   | { readonly kind: "lost" };
+
+function unavailable(itemId: number, key: string, reason: string): PostTextRead {
+  const line = JSON.stringify({ event: "post-text-unavailable", itemId, reason, key });
+
+  console.warn(line.replaceAll(UNESCAPED_BY_JSON, escaped));
+
+  return { kind: "lost" };
+}
 
 async function textOf(stream: ReadableStream<Uint8Array>, limit: number): Promise<PostTextRead> {
   const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
@@ -49,15 +49,11 @@ export async function readPostTextWithin(
   const parsed = parseFileKey(key);
 
   if (parsed === null) {
-    unavailable(itemId, key, "refused-key");
-
-    return { kind: "lost" };
+    return unavailable(itemId, key, "refused-key");
   }
 
   if (parsed.itemId !== String(itemId)) {
-    unavailable(itemId, key, "foreign-key");
-
-    return { kind: "lost" };
+    return unavailable(itemId, key, "foreign-key");
   }
 
   let stream: ReadableStream<Uint8Array> | null;
@@ -66,18 +62,14 @@ export async function readPostTextWithin(
     stream = await files.get(key);
   } catch (error) {
     if (error instanceof FileRefused) {
-      unavailable(itemId, key, "refused-file");
-
-      return { kind: "lost" };
+      return unavailable(itemId, key, "refused-file");
     }
 
     throw error;
   }
 
   if (stream === null) {
-    unavailable(itemId, key, "missing");
-
-    return { kind: "lost" };
+    return unavailable(itemId, key, "missing");
   }
 
   return textOf(stream, limit);

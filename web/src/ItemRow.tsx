@@ -8,10 +8,9 @@ import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
 import { revealInPane } from "./reveal.ts";
 import { useInternalLink } from "./routing.ts";
 
-function rowClasses(item: Readonly<Item>, isOpen: boolean, hasImage: boolean): string {
+function rowClasses(item: Readonly<Item>, isOpen: boolean): string {
   return [
     "it",
-    ...(hasImage ? [] : ["text-only"]),
     ...(item.readState === "unread" ? ["unread"] : []),
     ...(isOpen ? ["open"] : []),
     ...(item.title === null ? ["it-link-only"] : []),
@@ -27,8 +26,9 @@ function shownImage(item: Readonly<Item>, wanted: boolean, broken: string | null
 
 function CardImage({
   image,
+  eager,
   broke,
-}: Readonly<{ image: NonNullable<Item["image"]>; broke: (url: string) => void }>) {
+}: Readonly<{ image: NonNullable<Item["image"]>; eager: boolean; broke: (url: string) => void }>) {
   const fail = useCallback(() => {
     broke(image.url);
   }, [broke, image.url]);
@@ -39,7 +39,7 @@ function CardImage({
         className="pic"
         src={image.url}
         alt={image.alt}
-        loading="lazy"
+        loading={eager ? "eager" : "lazy"}
         decoding="async"
         onError={fail}
       />
@@ -144,6 +144,7 @@ export const ItemRow = memo(function ItemRow({
   item,
   now,
   cardImages,
+  eager,
   isOpen,
   attention,
   attended,
@@ -154,6 +155,7 @@ export const ItemRow = memo(function ItemRow({
   item: Item;
   now: number;
   cardImages: boolean;
+  eager: boolean;
   isOpen: boolean;
   attention: Attention;
   attended: () => void;
@@ -169,11 +171,11 @@ export const ItemRow = memo(function ItemRow({
   useAttention(row, link, attention, attended);
 
   return (
-    <article ref={row} className={rowClasses(item, isOpen, image !== null)} data-key={item.id}>
+    <article ref={row} className={rowClasses(item, isOpen)} data-key={item.id}>
       <ReadDot item={item} ids={ids} toggleRead={toggleRead} />
       <Meta item={item} now={now} id={ids.meta} />
       <RowTitle item={item} ids={ids} link={link} isOpen={isOpen} open={open} />
-      {image === null ? null : <CardImage image={image} broke={setBroken} />}
+      {image === null ? null : <CardImage image={image} eager={eager} broke={setBroken} />}
       <Status item={item} ids={ids} tryAgain={tryAgain} />
     </article>
   );

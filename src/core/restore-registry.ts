@@ -7,7 +7,7 @@ import type { Row } from "./restore-lines.ts";
 import { REWRITES, type Rewrite } from "./restore-rewrites.ts";
 import * as schema from "./schema.ts";
 
-export type Fallback = string | number | null;
+export type LeftOutColumnDefault = string | number | null;
 
 export type Singleton = "keep" | "reset";
 
@@ -20,7 +20,7 @@ export interface TableSpec {
   readonly name: string;
   readonly table: SQLiteTable;
   readonly columns: readonly ColumnSpec[];
-  readonly fallbacks: Readonly<Record<string, Fallback>>;
+  readonly defaults: Readonly<Record<string, LeftOutColumnDefault>>;
   readonly rewrites: Readonly<Record<string, Rewrite>>;
   readonly parents: readonly Readonly<{
     table: string;
@@ -31,12 +31,10 @@ export interface TableSpec {
   readonly singleton: Singleton | null;
 }
 
-const STEPS_TABLE = "data_steps";
-
 const SINGLETONS: ReadonlyMap<string, Singleton> = new Map([
   ["log_start", "keep"],
   ["reddit_settings", "reset"],
-  ["catalog_version", "reset"],
+  ["catalog_version", "keep"],
 ]);
 
 const Literal = z.union([z.number(), z.string(), z.boolean().transform((flag) => (flag ? 1 : 0))]);
@@ -86,9 +84,9 @@ function tablesByName(): ReadonlyMap<string, SQLiteTable> {
   return found;
 }
 
-function fallbackOf(
+function defaultValueOf(
   column: Readonly<{ notNull: boolean; default: unknown }>,
-): Fallback | undefined {
+): LeftOutColumnDefault | undefined {
   const literal = Literal.safeParse(column.default);
 
   if (literal.success) return literal.data;
@@ -96,18 +94,18 @@ function fallbackOf(
   return column.notNull ? undefined : null;
 }
 
-function fallbacksOf(
+function defaultsOf(
   name: string,
   columns: readonly Readonly<{ name: string; notNull: boolean; default: unknown }>[],
   exported: readonly string[],
 ) {
   return Object.fromEntries(
     columns.flatMap((column) => {
-      const fallback = fallbackOf(column);
-
-      if (fallback !== undefined) return [[column.name, fallback] as const];
-
       if (exported.includes(column.name)) return [];
+
+      const defaultValue = defaultValueOf(column);
+
+      if (defaultValue !== undefined) return [[column.name, defaultValue] as const];
 
       throw new Error(`${name}.${column.name} is left out of a backup and has no default`);
     }),
@@ -132,7 +130,7 @@ function specOf(name: string, table: SQLiteTable): TableSpec {
     name,
     table,
     columns: listed,
-    fallbacks: fallbacksOf(name, columns, exported.columns),
+    defaults: defaultsOf(name, columns, exported.columns),
     rewrites: REWRITES.get(name) ?? {},
     parents: foreignKeys.map((key) => {
       const reference = key.reference();
@@ -185,7 +183,7 @@ function buildRegistry() {
     Array.from(specs, ([name, spec]) => [name, spec.parents.map(({ table }) => table)]),
   );
 
-  return { specs, order: ordered(parents).filter((name) => name !== STEPS_TABLE) };
+  return { specs, order: ordered(parents) };
 }
 
 const REGISTRY = buildRegistry();
@@ -200,35 +198,22 @@ export function tableSpec(name: string): TableSpec | undefined {
 
 export type LineVerdict = "valid" | "unknown-column" | "missing-column" | "format";
 
-function columnsVerdict(
-  spec: Readonly<TableSpec>,
-  row: Readonly<Row>,
-  older: boolean,
-): LineVerdict {
+function columnsVerdict(spec: Readonly<TableSpec>, row: Readonly<Row>): LineVerdict {
   const held = new Set(spec.columns.map(({ name }) => name));
 
-  if (!older && Object.keys(row).some((column) => !held.has(column))) return "unknown-column";
+  if (Object.keys(row).some((column) => !held.has(column))) return "unknown-column";
 
-  const lacking = spec.columns.filter(({ name }) => !Object.hasOwn(row, name));
-
-  if (lacking.some(({ name }) => !older || !Object.hasOwn(spec.fallbacks, name)))
-    return "missing-column";
+  if (spec.columns.some(({ name }) => !Object.hasOwn(row, name))) return "missing-column";
 
   return "valid";
 }
 
-export function lineVerdict(
-  spec: Readonly<TableSpec>,
-  row: Readonly<Row>,
-  older: boolean,
-): LineVerdict {
-  const verdict = columnsVerdict(spec, row, older);
+export function lineVerdict(spec: Readonly<TableSpec>, row: Readonly<Row>): LineVerdict {
+  const verdict = columnsVerdict(spec, row);
 
   if (verdict !== "valid") return verdict;
 
-  return spec.columns.every(
-    ({ name, cell }) => !Object.hasOwn(row, name) || cell.safeParse(row[name]).success,
-  )
+  return spec.columns.every(({ name, cell }) => cell.safeParse(row[name]).success)
     ? "valid"
     : "format";
 }

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
@@ -11,7 +10,6 @@ import {
 import { type Answer, Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
-import { type OlderRelease, startOlderRelease } from "./older-release.ts";
 import { SECRET_KEY, paste, saveProvider } from "./related-fixtures.ts";
 
 type Send = (method: string, path: string, body?: Json) => Promise<Answer>;
@@ -197,42 +195,7 @@ describe("an agent token calls only what its scopes allow", () => {
   });
 });
 
-describe("a token that existed before scopes keeps all four", () => {
-  const VALUE = "tsa_a-token-saved-by-the-release-before-scopes";
-
-  let release: OlderRelease;
-
-  before(async () => {
-    const digest = createHash("sha256").update(VALUE).digest("hex");
-
-    release = await startOlderRelease(
-      "0049_agent-token-scopes.sql",
-      `insert into agent_tokens (name, digest, created_at) values ('before scopes', '${digest}', 1)`,
-    );
-  });
-
-  after(() => release.close());
-
-  it("lists all four scopes after the migration and passes every gated call", async () => {
-    const { instance } = release;
-    const { tokens } = await instance.read("GET", "/api/tokens", TokenListResponseSchema);
-
-    assert.deepEqual(
-      tokens.map(({ name, scopes }) => [name, scopes]),
-      [["before scopes", ALL]],
-    );
-
-    const { statuses } = await callsOf(
-      instance,
-      (...call) => instance.sendWithToken(VALUE, ...call),
-      "400",
-    );
-
-    assert.ok(CALLS.every((call) => statuses[call] !== 403));
-  });
-});
-
-describe("a token whose stored scopes name a scope this release does not know", () => {
+describe("a token whose stored scopes are unreadable", () => {
   let instance: Instance;
 
   const store = (id: number, scopes: string): void => {
@@ -248,19 +211,6 @@ describe("a token whose stored scopes name a scope this release does not know", 
   });
 
   after(() => instance.close());
-
-  it("keeps the scopes it knows, drops the others, and lists the same", async () => {
-    const { id, value } = await createAgentToken(instance, "from a later release");
-
-    store(id, JSON.stringify(["read", "add", "scope-of-a-later-release"]));
-
-    assert.equal((await instance.sendWithToken(value, "GET", "/api/items")).status, 200);
-    assert.equal((await instance.sendWithToken(value, "DELETE", "/api/items/1")).status, 403);
-
-    const { tokens } = await instance.read("GET", "/api/tokens", TokenListResponseSchema);
-
-    assert.deepEqual(tokens.find((each) => each.id === id)?.scopes, ["read", "add"]);
-  });
 
   it("still fails closed when the stored scopes are not a list of names", async () => {
     const { id, value } = await createAgentToken(instance, "unreadable scopes");

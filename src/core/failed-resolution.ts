@@ -8,20 +8,20 @@ import { hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { itemAliases, items } from "./schema.ts";
-import { settledKnown, settledNew } from "./settle.ts";
+import { settle } from "./settle.ts";
 
 interface Failure {
   readonly address: string;
   readonly link: Readonly<Link>;
   readonly fetched: Readonly<Concluded>;
   readonly now: number;
-  readonly counting: Paste["counting"];
+  readonly addedByToken: Paste["addedByToken"];
 }
 
 async function insertedFailure(
   db: Database,
   noAlias: Readonly<SQLWrapper>,
-  { address, link: { normalizedUrl, kind, source }, fetched, now, counting }: Readonly<Failure>,
+  { address, link: { normalizedUrl, kind, source }, fetched, now, addedByToken }: Readonly<Failure>,
 ): Promise<SaveResult | undefined> {
   const [, inserted, [item]] = await db.batch([
     insertGuard(db, noAlias),
@@ -33,8 +33,8 @@ async function insertedFailure(
         normalizedUrl,
         originalUrl: address,
         savedAt: now,
-        ...counting,
-        ...settledNew(fetched, now),
+        addedByToken,
+        ...settle(fetched, null, now),
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),
@@ -62,7 +62,7 @@ async function refreshedFailure(
       .where(and(eq(items.id, known.id), notExists(hasOpenJob("digest")))),
     db
       .update(items)
-      .set(settledKnown(fetched, known.title, now))
+      .set(settle(fetched, known.title, now))
       .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
     selectItems(db, LISTED_COLUMNS).where(eq(items.id, known.id)),
     db.delete(guards),
@@ -81,10 +81,10 @@ export function saveFailedResolution(
   link: Readonly<Link>,
   fetched: Readonly<Concluded>,
   existing: Existing,
-  counting: Paste["counting"],
+  addedByToken: Paste["addedByToken"],
 ): Promise<SaveResult | null> {
   const noAlias = holdsNoRow(db, itemAliases, eq(itemAliases.normalizedUrl, link.normalizedUrl));
-  const failure = { address, link, fetched, now: Date.now(), counting };
+  const failure = { address, link, fetched, now: Date.now(), addedByToken };
 
   return unlessRefused(
     db,

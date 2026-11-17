@@ -1,8 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
-import { READ_DEADLINE_MS } from "./calls.ts";
 import { PageBar } from "./PageBar.tsx";
 import { SettingsSections } from "./SettingsSections.tsx";
 import { useHashTarget } from "./use-hash-target.ts";
@@ -22,8 +21,7 @@ export function SettingsPage({
   back,
   loggedOut,
 }: Readonly<{ back: () => void; loggedOut: () => void }>) {
-  const column = useRef<HTMLElement>(null);
-  const loaded = useSettingsLoad(column);
+  const loaded = useSettingsLoad();
 
   useHashTarget(loaded !== null);
 
@@ -38,8 +36,8 @@ export function SettingsPage({
 
   return (
     <div className="pg">
-      <PageBar title={SETTINGS.title} back={back} faceWaitMs={READ_DEADLINE_MS} />
-      <main ref={column} className="pg-col" aria-busy={loaded === null}>
+      <PageBar title={SETTINGS.title} back={back} />
+      <main className="pg-col" aria-busy={loaded === null}>
         {loaded === null ? (
           <Loading />
         ) : (

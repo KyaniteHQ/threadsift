@@ -103,7 +103,7 @@ export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
       token: value,
       clientId: `agent-token-${String(token.id)}`,
       scopes: [...token.scopes],
-      extra: { name: token.name, tokenId: token.id },
+      extra: { tokenId: token.id },
     });
 
     return true;

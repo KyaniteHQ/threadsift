@@ -87,7 +87,8 @@ export function startingJudged({ post, replies }: Readonly<XThreadValue>): Judge
 export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged): Progress {
   if (judgedSoFar[thread.post.id] === "rejected") return { kind: "refused" };
 
-  const pending = postsOf(thread, judgedSoFar).filter(({ id }) => judgedSoFar[id] === undefined);
+  const posts = postsOf(thread, judgedSoFar);
+  const pending = posts.filter(({ id }) => judgedSoFar[id] === undefined);
 
   if (pending.length > 0) return { kind: "asking", pending };
 
@@ -104,10 +105,10 @@ export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged):
     followUps,
     quoted: quotes.length,
     dropped: thread.replies.length - kept.size,
-    unverifiedTails: postsOf(thread, judgedSoFar).filter(
+    unverifiedTails: posts.filter(
       ({ id }) => judgedSoFar[id] === "tail-unverified" && shown.has(id),
     ).length,
-    photoless: postsOf(thread, judgedSoFar).filter(
+    photoless: posts.filter(
       ({ id, photos }) =>
         photos === true && judgedSoFar[noPhotosKey(id)] === "rejected" && shown.has(id),
     ).length,

@@ -18,6 +18,7 @@ import { type TaskOrigin, type TaskOwner, originOf, startTask } from "./ai-task-
 import { mayComplete, mayExpire, mayFail } from "./bot-task-states.ts";
 import { within } from "./deadline.ts";
 import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
+import { bestEffort } from "./failure-log.ts";
 import type { AiPorts, Database } from "./ports.ts";
 import { aiTasks } from "./schema.ts";
 
@@ -235,13 +236,11 @@ async function failTask(
 ) {
   const failure = { ...refusedAi(reason), taskId };
 
-  try {
-    await failedAiTask(ports.db, taskId, failure);
+  await bestEffort({ event: "ai-task-failure-not-recorded", fields: { taskId } }, () =>
+    failedAiTask(ports.db, taskId, failure),
+  );
 
-    return failure;
-  } catch {
-    return failure;
-  }
+  return failure;
 }
 
 const CALLER_ORIGIN: TaskOrigin = { executor: "caller", provider: null, model: null };

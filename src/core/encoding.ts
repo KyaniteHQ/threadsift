@@ -1,5 +1,11 @@
 import type { Crypto } from "./ports.ts";
 
+const encoder = new TextEncoder();
+
+export function utf8Length(text: string): number {
+  return encoder.encode(text).length;
+}
+
 export function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

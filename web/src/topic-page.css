@@ -11,7 +11,7 @@
   display: inline-block;
   max-inline-size: 14em;
   margin-inline: calc(var(--s1) / 2);
-  overflow: hidden;
+  overflow: clip;
   color: var(--acc-ink);
   font-family: var(--f-ui);
   font-size: var(--t-meta);
@@ -70,15 +70,13 @@ a.fl-link {
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-  padding-block: var(--s3);
+}
+.tp-dis:not(:first-child) {
+  padding-block-start: var(--s3);
   border-block-start: 1px solid var(--line);
 }
-.tp-dis:first-child {
-  padding-block-start: 0;
-  border-block-start: 0;
-}
-.tp-dis:last-child {
-  padding-block-end: 0;
+.tp-dis:not(:last-child) {
+  padding-block-end: var(--s3);
 }
 .tp-dis-items {
   display: flex;

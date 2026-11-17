@@ -47,9 +47,7 @@ export const HIGHLIGHT_STATUSES = ["attached", ...HIGHLIGHT_REASONS] as const;
 
 export const THROTTLE_KINDS = ["setup", "login", "reset"] as const;
 
-export const LEGACY_SCOPES = ["read", "add", "digest", "delete"] as const;
-
-export const SCOPES = [...LEGACY_SCOPES, "reddit"] as const;
+export const SCOPES = ["read", "add", "digest", "delete", "reddit"] as const;
 
 const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
@@ -144,10 +142,6 @@ export type Scope = (typeof SCOPES)[number];
 
 export const ScopeListSchema = z.array(z.enum(SCOPES));
 
-export const StoredScopesSchema = z
-  .array(z.string())
-  .transform((names) => SCOPES.filter((scope) => names.includes(scope)));
-
 export const DEFAULT_SCOPES = ["read", "add"] as const satisfies readonly Scope[];
 
 export const BUDGET_SPENT = "budget-spent";
@@ -157,7 +151,7 @@ export interface BudgetSpent {
   readonly until: number;
 }
 
-const WholeCount = z.number().int().nonnegative();
+export const WholeCount = z.number().int().nonnegative();
 
 export const TokenBudgetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unlimited"), added: WholeCount }),
@@ -194,14 +188,6 @@ export type XReadNote = (typeof X_READ_NOTES)[number];
 export type JobKind = (typeof JOB_KINDS)[number];
 
 export type OwnedJobKind = (typeof OWNED_JOB_KINDS)[number];
-
-export type JobState = (typeof JOB_STATES)[number];
-
-export type ExportState = (typeof EXPORT_STATES)[number];
-
-export type RestoreState = (typeof RESTORE_STATES)[number];
-
-export type RestorePhase = (typeof RESTORE_PHASES)[number];
 
 export type UnownedJobKind = (typeof UNOWNED_JOB_KINDS)[number];
 

@@ -4,15 +4,20 @@ import { within } from "../../src/core/deadline.ts";
 import type { CreateHighlightRequest } from "../../src/core/highlight-contract.ts";
 import type { ImportRequest } from "../../src/core/import-list.ts";
 import type { ChangeBudgetRequest, CreateTokenRequest } from "../../src/http/schemas.ts";
-import { announceUnauthorized } from "./unauthorized.ts";
+
+let unauthorized: (() => void) | null = null;
+
+export function setUnauthorizedListener(listener: (() => void) | null): void {
+  unauthorized = listener;
+}
 
 type WriteMethod = "POST" | "PUT" | "PATCH" | "DELETE";
 
 export const NO_DEADLINE = "none";
 
-export type Deadline = number | typeof NO_DEADLINE;
+type Deadline = number | typeof NO_DEADLINE;
 
-export interface Write {
+interface Write {
   readonly method: WriteMethod;
   readonly deadline: Deadline;
 }
@@ -102,7 +107,7 @@ export async function call(
   const response = await fetch(path, limit === undefined ? init : { ...init, signal: limit });
 
   if (signsOut && response.status === 401) {
-    announceUnauthorized();
+    unauthorized?.();
   }
 
   return response;

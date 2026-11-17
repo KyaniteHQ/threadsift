@@ -22,7 +22,6 @@ const ColumnsSchema = z.object({
   prefix: z.string(),
   suffix: z.string(),
   hint: z.number(),
-  projection: z.number(),
   status: z.string(),
   start: z.number().nullable(),
 });

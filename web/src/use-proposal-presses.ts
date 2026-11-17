@@ -1,58 +1,110 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import type { Proposal } from "../../src/core/proposal-contract.ts";
-import type { RowEvent } from "./proposal-row-state.ts";
-import { type Failure, sendReject } from "./proposals-api.ts";
-import { type AcceptableProposal, rejectedAnnouncement } from "./proposals-text.ts";
-import { useAccept, useCheck } from "./use-proposal-check.ts";
+import { stateAfterWaiting } from "./proposal-check.ts";
+import { type Busy, type Failure, isBusy, sendAccept, sendReject } from "./proposals-api.ts";
+import {
+  type AcceptableProposal,
+  PROPOSAL_WORDS,
+  acceptedAnnouncement,
+  rejectedAnnouncement,
+} from "./proposals-text.ts";
 
-interface Presses {
-  readonly send: (event: RowEvent) => boolean;
-  readonly setNotice: (text: string | null) => void;
-  readonly edit: Parameters<typeof useCheck>[0]["edit"];
-  readonly settle: Parameters<typeof useCheck>[0]["settle"];
-  readonly leave: Parameters<typeof useCheck>[0]["leave"];
+export type RowState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "pressing" }
+  | { readonly kind: "failed"; readonly failure: Failure }
+  | { readonly kind: "busy"; readonly busy: Busy };
+
+const IDLE: RowState = { kind: "idle" };
+
+type Result = { readonly row: RowState; readonly text: string | null };
+
+async function check(proposal: Readonly<Proposal>, action: Failure): Promise<Result> {
+  const state = await stateAfterWaiting(proposal.id);
+
+  if (state === null || state === "open")
+    return { row: { kind: "failed", failure: action }, text: null };
+
+  if (state === "accepting") return { row: IDLE, text: null };
+
+  return {
+    row: IDLE,
+    text:
+      state === "rejected" && action === "reject"
+        ? rejectedAnnouncement(proposal)
+        : PROPOSAL_WORDS.alreadyDecided,
+  };
 }
 
-export function usePresses({ send, setNotice, edit, settle, leave }: Readonly<Presses>) {
-  const check = useCheck({ send, edit, settle, leave });
-  const accept = useAccept({ check, send, edit, settle, leave });
+async function accept(proposal: Readonly<AcceptableProposal>): Promise<Result> {
+  const outcome = await sendAccept(proposal.id);
+
+  if (outcome === "done") return { row: IDLE, text: acceptedAnnouncement(proposal) };
+
+  if (outcome === "accepting") return { row: IDLE, text: null };
+
+  if (isBusy(outcome)) return { row: { kind: "busy", busy: outcome }, text: null };
+
+  if (outcome === "not-current") return { row: IDLE, text: PROPOSAL_WORDS.alreadyDecided };
+
+  return check(proposal, "accept");
+}
+
+async function reject(proposal: Readonly<Proposal>): Promise<Result> {
+  return (await sendReject(proposal.id)) === "rejected"
+    ? { row: IDLE, text: rejectedAnnouncement(proposal) }
+    : check(proposal, "reject");
+}
+
+interface Presses {
+  readonly begin: () => void;
+  readonly finish: (text: string | null) => Promise<void>;
+}
+
+export function usePresses({ begin, finish }: Readonly<Presses>) {
+  const busyId = useRef<number | null>(null);
+  const [row, setRow] = useState<{ readonly id: number; readonly state: RowState } | null>(null);
 
   const decide = useCallback(
-    async (proposal: Readonly<Proposal>, action: Failure, run: () => Promise<void>) => {
-      if (!send({ kind: "press", id: proposal.id, action })) return;
+    async (proposal: Readonly<Proposal>, run: () => Promise<Result>) => {
+      if (busyId.current !== null) return;
 
-      setNotice(null);
-      await run();
-      send({ kind: "release", id: proposal.id });
-    },
-    [send, setNotice],
-  );
+      busyId.current = proposal.id;
+      begin();
+      setRow({ id: proposal.id, state: { kind: "pressing" } });
 
-  const reject = useCallback(
-    async (proposal: Readonly<Proposal>) => {
-      if ((await sendReject(proposal.id)) === "rejected") {
-        await leave(proposal, "rejected", rejectedAnnouncement(proposal));
-      } else {
-        await check(proposal, "reject");
+      try {
+        const result = await run();
+
+        if (result.row.kind === "idle") await finish(result.text);
+        setRow({ id: proposal.id, state: result.row });
+      } finally {
+        busyId.current = null;
+        setRow((current) => (current?.state.kind === "pressing" ? null : current));
       }
     },
-    [check, leave],
+    [begin, finish],
+  );
+
+  const rowFor = useCallback(
+    (id: number): RowState => (row?.state.kind === "pressing" || row?.id === id ? row.state : IDLE),
+    [row],
   );
 
   const pressAccept = useCallback(
     (proposal: Readonly<AcceptableProposal>) => {
-      void decide(proposal, "accept", () => accept(proposal));
+      void decide(proposal, () => accept(proposal));
     },
-    [accept, decide],
+    [decide],
   );
 
   const pressReject = useCallback(
     (proposal: Readonly<Proposal>) => {
-      void decide(proposal, "reject", () => reject(proposal));
+      void decide(proposal, () => reject(proposal));
     },
-    [decide, reject],
+    [decide],
   );
 
-  return useMemo(() => ({ accept: pressAccept, reject: pressReject }), [pressAccept, pressReject]);
+  return { rowFor, accept: pressAccept, reject: pressReject };
 }

@@ -13,14 +13,10 @@ import {
   TypeValidationError,
 } from "ai";
 
-import {
-  type AiExecution,
-  type AiTaskRequest,
-  type HttpAiConnection,
-  refusedAi,
-} from "../../core/ai-contract.ts";
+import { type AiExecution, type HttpAiConnection, refusedAi } from "../../core/ai-contract.ts";
 import { AiAddressRefused } from "../../core/ai-url.ts";
 import { AI_CALL_OPTIONS, apiRefusal } from "./ai-call.ts";
+import type { RunnerTask } from "./ai-runtime.ts";
 import { aiTransport } from "./ai-transport.ts";
 
 const ZERO_OPENROUTER_PRICE = {
@@ -66,13 +62,11 @@ function rejectsKeyWith400(
 
 export async function runHttp<Result>(
   request: typeof fetch,
-  task: AiTaskRequest<Result>,
+  task: RunnerTask<Result, "http">,
   signal: AbortSignal,
   zeroOpenRouterPrice: boolean,
 ): Promise<AiExecution<Result>> {
   const { config } = task;
-
-  if (config.kind !== "http") return refusedAi("unreachable");
 
   try {
     const result = await generateText({

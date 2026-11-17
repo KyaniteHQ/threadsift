@@ -1,5 +1,5 @@
 import { GROK_BOT_KEY_MAX, type GrokBotView } from "../../src/core/grok-bot-contract.ts";
-import { FormField } from "./FormField.tsx";
+import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
 import { GROK_BOT_TEXT, KEY_STATES } from "./grok-bot-text.ts";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
@@ -38,20 +38,25 @@ function GrokBotFields({
   keyField: FieldState;
   keyRequired: boolean;
 }>) {
+  const keyKind = keyRequired ? KEY_REQUIRED_KIND : KEY_SAVED_KIND;
+  const marked = isMixed([ADDRESS_KIND, keyKind]);
   const addressChanged = view.key === "usable" && keyRequired;
 
   return (
     <>
+      {marked ? <RequiredLegend /> : null}
       <FormField
         field={address}
         label={GROK_BOT_TEXT.addressLabel}
         kind={ADDRESS_KIND}
+        marked={marked}
         help={GROK_BOT_TEXT.addressHelp}
       />
       <FormField
         field={keyField}
         label={GROK_BOT_TEXT.keyLabel}
-        kind={keyRequired ? KEY_REQUIRED_KIND : KEY_SAVED_KIND}
+        kind={keyKind}
+        marked={marked}
         help={addressChanged ? GROK_BOT_TEXT.keyNewAddress : GROK_BOT_TEXT.keyHelp}
       />
       <p>{KEY_STATES[view.key]}</p>
@@ -67,6 +72,8 @@ function GrokBotForm({
 
   return (
     <>
+      <p className="fld-help">{GROK_BOT_TEXT.xLinks}</p>
+      <p className="fld-help">{GROK_BOT_TEXT.tokenPointer}</p>
       <SettingsForm
         action="/api/settings/grok-bot"
         busy={form.busy}
@@ -87,18 +94,10 @@ function GrokBotForm({
   );
 }
 
-const grokBotForm = (view: GrokBotView, changed: (view: GrokBotView) => void) => (
-  <>
-    <p className="fld-help">{GROK_BOT_TEXT.xLinks}</p>
-    <p className="fld-help">{GROK_BOT_TEXT.tokenPointer}</p>
-    <GrokBotForm view={view} changed={changed} />
-  </>
-);
-
 export const GROK_BOT_SECTION: SectionSpec<GrokBotView> = {
   id: "grok-bot",
   title: GROK_BOT_TEXT.sectionTitle,
   intro: GROK_BOT_TEXT.intro,
   loadFailed: GROK_BOT_TEXT.loadFailed,
-  form: grokBotForm,
+  Form: GrokBotForm,
 };

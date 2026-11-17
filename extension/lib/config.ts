@@ -1,5 +1,7 @@
 import { type Browser, browser } from "wxt/browser";
 
+import { logFailure } from "./log.ts";
+
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
 
 export const REDDIT_HOSTS = ["https://*.reddit.com/*"];
@@ -23,6 +25,19 @@ export function holdsInstanceAccess(origin: string): Promise<boolean> {
 
 export function holdsRedditConnect(): Promise<boolean> {
   return browser.permissions.contains(REDDIT_PERMISSIONS);
+}
+
+export async function requestAccess(
+  request: () => Promise<boolean>,
+  event: string,
+): Promise<boolean | null> {
+  try {
+    return await request();
+  } catch (cause) {
+    logFailure(event, cause);
+
+    return null;
+  }
 }
 
 export const REQUEST_DEADLINE_MS = 25_000;

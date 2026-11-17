@@ -17,14 +17,12 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { CLAIM_MARGIN_MS, type Closing, type JobPorts } from "./job-outcome.ts";
 import { enqueueQuietly, holding } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
-import { type AccountRow, redditAccount } from "./reddit-account-tables.ts";
+import { ACCOUNT_ROW, type AccountRow, redditAccount } from "./reddit-account-tables.ts";
 import { type JobRow, jobs } from "./schema.ts";
 
 export const FILL_DEADLINE_MS = 90_000;
 
 export const WAIT_CHECK_MS = 300_000;
-
-const ACCOUNT_ROW = 1;
 
 const WAITING = and(
   eq(jobs.kind, "fetch"),
@@ -201,11 +199,7 @@ export async function redditClosed(
   await enqueueWaiting(ports, now, "oldest");
 }
 
-export function releaseWaiting(db: Database, now: number): BatchItem<"sqlite"> {
-  return db.update(jobs).set({ nextAttemptAt: now }).where(WAITING);
-}
-
-export function releaseWaitingWhen(db: Database, now: number, condition: SQL): BatchItem<"sqlite"> {
+export function releaseWaiting(db: Database, now: number, condition?: SQL): BatchItem<"sqlite"> {
   return db.update(jobs).set({ nextAttemptAt: now }).where(and(WAITING, condition));
 }
 

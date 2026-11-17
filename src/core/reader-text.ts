@@ -7,9 +7,11 @@ export const HIGHLIGHTS_TITLE = "Highlights";
 export const NOTE_TITLE = "Note";
 export const UNTITLED = "Untitled";
 export const CONTEXT_LABEL = "Context";
-export const STUB_DROPPED = "Removed comment shown so the replies below make sense.";
-export const STUB_NOT_KEPT = "Comment not kept, shown so the replies below make sense.";
-export const STUB_MORE = "Further replies were not saved.";
+export const STUB_TEXTS = {
+  dropped: "Removed comment shown so the replies below make sense.",
+  "not-kept": "Comment not kept, shown so the replies below make sense.",
+  more: "Further replies were not saved.",
+} as const;
 export const NOT_FOUND = "Passage no longer found because the item’s text changed.";
 
 export const SECTION_TITLES: Readonly<Record<Kind, string>> = {

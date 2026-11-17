@@ -13,6 +13,7 @@ import { type FieldState, useSubmit } from "./use-form.ts";
 const NAME_INPUT = {
   name: "token-name",
   type: "text",
+  required: true,
   autoComplete: "off",
   maxLength: TOKEN_NAME_MAX,
 } as const;

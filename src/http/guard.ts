@@ -10,7 +10,7 @@ import {
   RESULT_BODY_BYTES,
 } from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
-import { verifyToken } from "../core/tokens.ts";
+import { UNKNOWN_TOKEN, verifyToken } from "../core/tokens.ts";
 import {
   isIntakeCallback,
   isOwnerOnly,
@@ -21,25 +21,20 @@ import {
 import { ownerHasSession } from "./session-cookie.ts";
 import { requireScopes } from "./token-scopes.ts";
 
-export const bodyCap = bodyLimit({
-  maxSize: BODY_LIMIT_BYTES,
-  onError: (c) => c.json({ error: "The request body is larger than 64 KiB" }, 413),
-});
+function capAt(maxSize: number, size: string) {
+  return bodyLimit({
+    maxSize,
+    onError: (c) => c.json({ error: `The request body is larger than ${size}` }, 413),
+  });
+}
 
-const itemCap = bodyLimit({
-  maxSize: ITEM_REQUEST_BYTES,
-  onError: (c) => c.json({ error: "The request body is larger than 8 MiB" }, 413),
-});
+export const bodyCap = capAt(BODY_LIMIT_BYTES, "64 KiB");
 
-const resultCap = bodyLimit({
-  maxSize: RESULT_BODY_BYTES,
-  onError: (c) => c.json({ error: "The request body is larger than 256 KiB" }, 413),
-});
+const itemCap = capAt(ITEM_REQUEST_BYTES, "8 MiB");
 
-const partCap = bodyLimit({
-  maxSize: RESTORE_PART_BYTES,
-  onError: (c) => c.json({ error: "The request body is larger than the part size" }, 413),
-});
+const resultCap = capAt(RESULT_BODY_BYTES, "256 KiB");
+
+const partCap = capAt(RESTORE_PART_BYTES, "the part size");
 
 const PART_PATH = /^\/api\/restore\/[^/]+\/parts\/[^/]+$/u;
 
@@ -68,7 +63,7 @@ export function bearerCheck(
     verifyToken: verified,
     noAuthenticationHeader: { message: notBearer },
     invalidAuthenticationHeader: { message: { error: NOT_BEARER } },
-    invalidToken: { message: { error: "Unknown or revoked agent token" } },
+    invalidToken: { message: { error: UNKNOWN_TOKEN } },
   });
 }
 
@@ -91,8 +86,6 @@ export function guard(ports: Ports): MiddlewareHandler {
     const { method, path } = c.req;
     const protectedRoute = !isPublic(method, path);
     const carriesToken = protectedRoute && c.req.header("authorization") !== undefined;
-
-    c.set("principal", { kind: "anonymous" });
 
     if (protectedRoute) {
       if (carriesToken) {

@@ -12,7 +12,7 @@ import {
 } from "../../core/ai-contract.ts";
 import { withCleanup } from "../../core/failure-log.ts";
 import { PROBE_MS } from "../../core/request-waits.ts";
-import type { CliRunner } from "../shared/ai-runtime.ts";
+import type { CliRunner, RunnerTask } from "../shared/ai-runtime.ts";
 import type { ProcessEnd } from "./cli-process.ts";
 import { type Slots, inSlot } from "./cli-slots.ts";
 
@@ -155,10 +155,9 @@ export abstract class SlottedCli implements CliRunner {
     answerWithin(this.shutdown.signal, (signal) => this.probe(signal), false);
 
   readonly run = async <Result>(
-    task: AiTaskRequest<Result>,
+    task: RunnerTask<Result, "cli">,
     signal: AbortSignal,
   ): Promise<AiExecution<Result>> => {
-    if (task.config.kind !== "cli") return refusedAi("unreachable");
     const { model } = task.config;
     const early = this.refusalBeforeSlot(model);
 

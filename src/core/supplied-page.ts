@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 
 export const PAGE_BYTES = 1_000_000;
 

@@ -66,7 +66,7 @@ export async function receivedParts(
 ): Promise<readonly number[]> {
   const page = await files.list(restoreFilesPrefix(id), cursor, FILE_LIST_LIMIT);
 
-  const here = page.files.flatMap(({ key }) => {
+  const here = page.keys.flatMap((key) => {
     const part = PART_NAME.exec(key)?.groups?.["part"];
 
     return part === undefined ? [] : [Number(part)];

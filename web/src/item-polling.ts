@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { type ItemRead, readStatus } from "./item-reads.ts";
+import type { Ticket } from "./use-ticket.ts";
 
 const POLL_MS = 1000;
 const SLOW_POLL_MS = 5000;
@@ -48,11 +49,12 @@ type PollMemory = ReturnType<typeof newPollMemory>;
 
 interface Polled {
   readonly memory: PollMemory;
-  readonly onRead: (item: Readonly<Item>, startedAt: number) => void;
+  readonly ticket: Ticket;
+  readonly onRead: (item: Readonly<Item>) => void;
   readonly onGone: (id: number) => void;
 }
 
-function deliver(id: number, { answer, startedAt }: Readonly<ItemRead>, polled: Readonly<Polled>) {
+function deliver(id: number, answer: Readonly<ItemRead>, polled: Readonly<Polled>) {
   if (answer === "gone") {
     polled.onGone(id);
 
@@ -60,7 +62,7 @@ function deliver(id: number, { answer, startedAt }: Readonly<ItemRead>, polled: 
   }
 
   polled.memory.answered(id, answer.wait);
-  polled.onRead(answer, startedAt);
+  polled.onRead(answer);
 
   return true;
 }
@@ -89,11 +91,13 @@ function pollItem(id: number, polled: Readonly<Polled>): () => void {
   };
 
   const read = async (): Promise<void> => {
+    const mine = polled.ticket.now();
     const fetched = await readStatus(id, wanted).catch(() => FAILED);
 
     if (fetched === null || stopped) return;
 
-    if (fetched === FAILED || deliver(id, fetched, polled)) schedule();
+    if (!polled.ticket.matches(mine) || fetched === FAILED || deliver(id, fetched, polled))
+      schedule();
   };
 
   const resume = (): void => {
@@ -117,6 +121,7 @@ export function useItemPolling(
   ids: string,
   onRead: Polled["onRead"],
   onGone: Polled["onGone"],
+  ticket: Ticket,
 ): void {
   const [memory] = useState(newPollMemory);
 
@@ -125,33 +130,12 @@ export function useItemPolling(
 
     memory.keepOnly(polled);
 
-    const stops = polled.map((id) => pollItem(id, { memory, onRead, onGone }));
+    const stops = polled.map((id) => pollItem(id, { memory, onRead, onGone, ticket }));
 
     return () => {
       for (const stop of stops) {
         stop();
       }
     };
-  }, [memory, ids, onRead, onGone]);
+  }, [memory, ids, onRead, onGone, ticket]);
 }
-
-export function newStamps() {
-  const times = new Map<number, number>();
-  const gone = new Set<number>();
-
-  return {
-    mark: (id: number): void => {
-      times.set(id, performance.now());
-    },
-    remove: (id: number): void => {
-      gone.add(id);
-      times.set(id, performance.now());
-    },
-    isGone: (id: number): boolean => gone.has(id),
-    isFresh: (id: number, startedAt: number): boolean => startedAt > (times.get(id) ?? 0),
-    changedSince: (startedAt: number): number[] =>
-      [...times].flatMap(([id, markedAt]) => (markedAt > startedAt ? [id] : [])),
-  } as const;
-}
-
-export type Stamps = ReturnType<typeof newStamps>;

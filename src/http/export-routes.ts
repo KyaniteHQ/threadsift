@@ -4,7 +4,7 @@ import { ExportStatusSchema, StartedExportSchema } from "../core/export-contract
 import { zipStream } from "../core/export-download.ts";
 import { deleteExport, exportStatus, readyExport, startExport } from "../core/export-run.ts";
 import type { Ports } from "../core/ports.ts";
-import { jsonBody, noContent } from "./openapi.ts";
+import { OWNER_SESSION_REFUSALS, jsonBody, noContent } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
 
@@ -21,8 +21,7 @@ const startRoute = createRoute({
       StartedExportSchema,
       `An export started and its first slice is queued; \`id\` names it. The export is a chain of job slices that survives a restart. A ready export that already exists is replaced and its objects are deleted.${OWNER_ONLY}`,
     ),
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
     409: jsonBody(
       ErrorResponseSchema,
       "An export is running already. Wait for it, or delete it with `DELETE /api/export`.",
@@ -38,8 +37,7 @@ const statusRoute = createRoute({
       ExportStatusSchema,
       `The newest export that has not expired, or \`{ "state": "none" }\`. \`running\` carries \`entries\`, \`dataBytes\` and \`parts\`, the progress so far. \`ready\` adds \`finishedAt\` and \`zipBytes\`, the size of the download, and is kept 24 hours after \`finishedAt\`. \`failed\` carries a \`failure\` word: \`gave-up\` (a slice failed 3 times) or \`list-changed\` (a deploy changed the list of tables while it ran). An export the owner stopped, or a newer export replaced, is never returned: the first reads as \`none\` and the second is never the newest. Times are in milliseconds.${OWNER_ONLY}`,
     ),
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
   },
 });
 
@@ -49,11 +47,10 @@ const downloadRoute = createRoute({
   request: { params: IdParamSchema },
   responses: {
     200: {
-      description: `The export as one zip, streamed from the stored slices in order. \`Content-Disposition\` is \`attachment; filename="threadsift-<UTC date>.zip"\`, \`Content-Length\` is \`zipBytes\`, and the answer carries \`Cache-Control: no-store\`, \`X-Content-Type-Options: nosniff\`, \`Cross-Origin-Resource-Policy: same-origin\` and \`Referrer-Policy: no-referrer\`. A client that disconnects ends the stream. There are no range requests: a download that stops starts again from the beginning.${OWNER_ONLY}`,
+      description: `The export as one zip, streamed from the stored slices in order. \`Content-Disposition\` is \`attachment; filename="threadsift-<UTC date>.zip"\`, \`Content-Length\` is \`zipBytes\`, and the answer carries \`Cache-Control: no-store\`, \`X-Content-Type-Options: nosniff\`, \`Cross-Origin-Resource-Policy: same-origin\`, \`Referrer-Policy: no-referrer\` and \`X-Frame-Options: DENY\`. A client that disconnects ends the stream. There are no range requests: a download that stops starts again from the beginning.${OWNER_ONLY}`,
       content: { "application/zip": { schema: ZipBytesSchema } },
     },
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
     404: jsonBody(
       ErrorResponseSchema,
       "No export has this id, or it is not `ready`: it is still running, failed, expired or replaced.",
@@ -68,8 +65,7 @@ const deleteRoute = createRoute({
     204: noContent(
       `The export is gone from \`GET /api/export\`. A ready or failed export has its stored objects deleted at once. A running export stops, and the sweep deletes its objects 12 minutes later. A slice that a pause held past that point can still write afterwards, and a later sweep deletes what it wrote.${OWNER_ONLY}`,
     ),
-    401: jsonBody(ErrorResponseSchema, "No owner session."),
-    403: jsonBody(ErrorResponseSchema, "An agent token called this."),
+    ...OWNER_SESSION_REFUSALS,
     404: jsonBody(ErrorResponseSchema, "There is no export to delete."),
   },
 });

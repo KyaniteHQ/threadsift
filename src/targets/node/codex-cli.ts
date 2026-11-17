@@ -14,7 +14,6 @@ import {
 } from "./cli-support.ts";
 import { codexHomeOf, reserveCodexHome } from "./codex-home.ts";
 import {
-  type Capture,
   type Installation,
   type RunFolders,
   bundledCatalog,
@@ -60,7 +59,10 @@ class CodexCli extends SlottedCli {
 
   protected async probe(signal: AbortSignal): Promise<boolean> {
     const end = await inRunFolders((folders) =>
-      this.spawn(folders, ["login", "status"], "", signal, { cap: STDOUT_CAP, keep: false }),
+      spawnCodex(this.installation, folders, ["login", "status"], "", signal, {
+        cap: STDOUT_CAP,
+        keep: false,
+      }),
     );
 
     return end.kind === "exited" && end.code === 0;
@@ -85,10 +87,17 @@ class CodexCli extends SlottedCli {
 
       if (unsafe !== null) return { result: unsafe, code: null };
 
-      const end = await this.spawn(folders, taskArguments(folders, model), promptOf(task), signal, {
-        cap: STDOUT_CAP,
-        keep: true,
-      });
+      const end = await spawnCodex(
+        this.installation,
+        folders,
+        taskArguments(folders, model),
+        promptOf(task),
+        signal,
+        {
+          cap: STDOUT_CAP,
+          keep: true,
+        },
+      );
 
       const result = await this.outcome(end, ({ stdout, code }) =>
         readOutcome(task.schema, stdout, code),
@@ -99,7 +108,8 @@ class CodexCli extends SlottedCli {
   }
 
   private async unsafeSurface(folders: Readonly<RunFolders>, model: string, signal: AbortSignal) {
-    const end = await this.spawn(
+    const end = await spawnCodex(
+      this.installation,
       folders,
       surfaceArguments(folders, model),
       "",
@@ -117,16 +127,6 @@ class CodexCli extends SlottedCli {
     reportSurface(surface.extraTools, surface.foreignTexts);
 
     return refusedAi("provider-unavailable");
-  }
-
-  private spawn(
-    folders: Readonly<RunFolders>,
-    args: readonly string[],
-    stdin: string,
-    signal: AbortSignal,
-    stdout: Readonly<Capture>,
-  ) {
-    return spawnCodex(this.installation, folders, args, stdin, signal, stdout);
   }
 }
 

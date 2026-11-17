@@ -1,4 +1,4 @@
-import { type SQL, and, desc, eq, gt, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+import { type SQL, and, desc, eq, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { DATABASE_NOW, guardHolds, guardedBatch } from "./guards.ts";
@@ -88,22 +88,12 @@ export function stepOf(
   }
 }
 
-export async function overviewAtBot(db: Database, topicId: number): Promise<boolean> {
-  const [found] = await db
-    .select({ id: aiTasks.id })
-    .from(aiTasks)
-    .where(
-      and(
-        eq(aiTasks.executor, GROK_BOT_EXECUTOR),
-        eq(aiTasks.kind, "topic_overview"),
-        eq(aiTasks.state, "running"),
-        sql`json_extract(${aiTasks.context}, '$.topicId') = ${topicId}`,
-        or(isNotNull(aiTasks.answeredAt), gt(aiTasks.deadline, Date.now())),
-      ),
-    )
-    .limit(1);
+export function overviewAtBotHolds(topicId: number): SQL {
+  return sql`not exists (select 1 from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.kind} = 'topic_overview' and ${aiTasks.state} = 'running' and json_extract(${aiTasks.context}, '$.topicId') = ${topicId} and (${aiTasks.answeredAt} is not null or ${aiTasks.deadline} > ${Date.now()}))`;
+}
 
-  return found !== undefined;
+export async function overviewAtBot(db: Database, topicId: number): Promise<boolean> {
+  return !(await guardHolds(db, overviewAtBotHolds(topicId)));
 }
 
 export async function latestTask(db: Database, jobId: number): Promise<BotTaskRow | null> {
@@ -230,14 +220,13 @@ export function reportedWrites(
 export async function chargedReport(
   db: Database,
   job: Readonly<Held>,
-  { taskId, release }: Readonly<{ taskId: number; release: readonly BatchItem<"sqlite">[] }>,
+  taskId: number,
 ): Promise<void> {
   await guardedBatch(db, holding(job), [
     db
       .update(aiTasks)
       .set({ answeredAt: null })
       .where(and(eq(aiTasks.id, taskId), REPORTED_ERROR)),
-    ...release,
   ]);
 }
 
