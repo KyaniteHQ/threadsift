@@ -1,6 +1,6 @@
 import { asc, count, eq, gt } from "drizzle-orm";
 
-import { TOPIC_USES } from "./catalog.ts";
+import { TOPIC_USES } from "./catalog-uses.ts";
 import { ITEMS_PAGE_SIZE, pageTail } from "./item-page.ts";
 import type { Database } from "./ports.ts";
 import { topicPages, topics } from "./schema.ts";
@@ -28,10 +28,10 @@ export async function readTopicIndex(db: Database, cursor: string | null): Promi
     db.select({ total: count() }).from(topics),
   ]);
 
-  const { shown, next } = pageTail(rows, ({ key }) => key);
+  const { items, next } = pageTail(rows, ITEMS_PAGE_SIZE, ({ key }) => key);
 
   return {
-    topics: shown.map(({ key, name, itemCount, overview }) => ({
+    topics: items.map(({ key, name, itemCount, overview }) => ({
       key,
       name,
       itemCount,

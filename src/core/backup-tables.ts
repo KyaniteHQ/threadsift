@@ -249,6 +249,14 @@ export const BACKUP_TABLES = {
   catalog_version: { scope: "whole-table", columns: ["id", "version"], leftOut: [] },
 } as const satisfies Readonly<Record<string, BackupTable>>;
 
+export function backupTable(name: string): BackupTable {
+  const listed = Object.entries(BACKUP_TABLES).find(([table]) => table === name)?.[1];
+
+  if (listed === undefined) throw new Error(`${name} is not in the backup list`);
+
+  return listed;
+}
+
 export const EXCLUDED_TABLES = {
   owner: "login-data",
   sessions: "login-data",

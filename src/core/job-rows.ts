@@ -62,7 +62,7 @@ export function openingJob(
   return opening(db, { kind, address, now, page, where: eq(items.normalizedUrl, normalizedUrl) });
 }
 
-function queuedRow<Kind extends JobKind, ItemId extends typeof items.id | SQL.Aliased<null>>(
+function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
   itemId: ItemId,
   {
     kind,
@@ -70,7 +70,7 @@ function queuedRow<Kind extends JobKind, ItemId extends typeof items.id | SQL.Al
     nextAttemptAt,
     page,
   }: Readonly<{
-    kind: Kind;
+    kind: JobKind;
     address: string | Readonly<SQLWrapper>;
     nextAttemptAt: number;
     page: string | null | Readonly<SQLWrapper>;
@@ -78,7 +78,7 @@ function queuedRow<Kind extends JobKind, ItemId extends typeof items.id | SQL.Al
 ) {
   return {
     id: sql<null>`null`.as("id"),
-    kind: sql<Kind>`${kind}`.as("kind"),
+    kind: sql<JobKind>`${kind}`.as("kind"),
     itemId,
     address: sql<string>`${address}`.as("address"),
     state: sql<"queued">`'queued'`.as("state"),

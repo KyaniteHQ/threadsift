@@ -1,5 +1,4 @@
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
-import type { FileStore } from "./ports.ts";
 
 export const FILE_LIST_LIMIT = 1000;
 
@@ -152,15 +151,6 @@ export function restoreFilesPrefix(restoreId: number | string): string {
 
 export function restorePartKey(restoreId: number | string, part: number): string {
   return `${restoreFilesPrefix(restoreId)}part-${String(part)}`;
-}
-
-export async function removeUnder(files: FileStore, prefix: string): Promise<void> {
-  const page = await files.list(prefix, null, FILE_LIST_LIMIT);
-
-  if (page.keys.length === 0) return;
-
-  await files.delete(page.keys);
-  await removeUnder(files, prefix);
 }
 
 export function parseFileKey(key: string): FileKey | null {

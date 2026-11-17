@@ -151,13 +151,13 @@ export async function readTopicPage(
   ]);
 
   const built = new Map(builtFrom.map(({ item, digest }) => [item, digest]));
-  const { shown, next } = pageTail(rows, formatCursor);
+  const page = pageTail(rows, ITEMS_PAGE_SIZE, formatCursor);
 
   return {
     topic: { key: topic.key, name: topic.name, itemCount: total },
     overview,
     disagreements,
-    items: shown.map((row) => ({
+    items: page.items.map((row) => ({
       id: row.id,
       source: row.source,
       title: row.title,
@@ -166,6 +166,6 @@ export async function readTopicPage(
       read: row.readState === "read",
       inOverview: built.get(row.id) === row.digest,
     })),
-    next,
+    next: page.next,
   };
 }

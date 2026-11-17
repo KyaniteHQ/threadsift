@@ -143,7 +143,7 @@ export interface TakenItems {
   readonly partial: PartialItem | null;
   readonly done: boolean;
   readonly full: boolean;
-  readonly bytes: number;
+  readonly usedBytes: number;
 }
 
 interface Taker {
@@ -162,7 +162,7 @@ async function takeEach(
   if (id === undefined) return taking;
 
   const skip = taker.resume?.id === id ? taker.resume.entries : 0;
-  const gathered = await itemEntries(ports, id, { skip, used: taking.bytes });
+  const gathered = await itemEntries(ports, id, { skip, used: taking.usedBytes });
 
   if (gathered.kind === "gone") {
     return takeEach(ports, taker, rest, { ...taking, count: taking.count + 1, last: id });
@@ -174,7 +174,7 @@ async function takeEach(
       ...taking.files,
       ...gathered.files.map(({ name, bytes }) => ({ name: `${taker.root}/${name}`, bytes })),
     ],
-    bytes: gathered.files.reduce((sum, { bytes }) => sum + bytes.length, taking.bytes),
+    usedBytes: gathered.files.reduce((sum, { bytes }) => sum + bytes.length, taking.usedBytes),
     count: taking.count + 1,
   };
 
@@ -216,7 +216,7 @@ export async function takeItems(
     ports,
     { root, resume },
     listed.map(({ id }) => id),
-    { files: [], count: 0, last: after, partial: null, done: false, full: false, bytes: used },
+    { files: [], count: 0, last: after, partial: null, done: false, full: false, usedBytes: used },
   );
 
   return { ...taken, done: !taken.full && listed.length < limit };

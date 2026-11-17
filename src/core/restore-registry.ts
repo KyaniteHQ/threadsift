@@ -2,7 +2,7 @@ import { getTableName, is } from "drizzle-orm";
 import { SQLiteBaseInteger, SQLiteTable, getTableConfig } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
-import { BACKUP_TABLES } from "./backup-tables.ts";
+import { BACKUP_TABLES, backupTable } from "./backup-tables.ts";
 import type { Row } from "./restore-lines.ts";
 import { REWRITES, type Rewrite } from "./restore-rewrites.ts";
 import * as schema from "./schema.ts";
@@ -114,9 +114,7 @@ function defaultsOf(
 
 function specOf(name: string, table: SQLiteTable): TableSpec {
   const { columns, foreignKeys } = getTableConfig(table);
-  const exported = Object.entries(BACKUP_TABLES).find(([listed]) => listed === name)?.[1];
-
-  if (exported === undefined) throw new Error(`${name} is not in the backup list`);
+  const exported = backupTable(name);
 
   const listed = exported.columns.map((column) => {
     const found = columns.find((held) => held.name === column);

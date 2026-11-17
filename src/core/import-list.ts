@@ -1,5 +1,5 @@
 import { webUrlOf } from "./addresses.ts";
-import { hex } from "./encoding.ts";
+import { hex, utf8Length } from "./encoding.ts";
 import { BODY_LIMIT_BYTES } from "./limits.ts";
 import { linkIn } from "./shared-link.ts";
 
@@ -70,7 +70,7 @@ interface CsvRecord {
 const encoder = new TextEncoder();
 
 function bytesOf(value: Readonly<ImportRequest> | Readonly<{ url: string }>): number {
-  return encoder.encode(JSON.stringify(value)).length;
+  return utf8Length(JSON.stringify(value));
 }
 
 function importRequest(

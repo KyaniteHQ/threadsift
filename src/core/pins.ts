@@ -1,4 +1,5 @@
 import { type SQL, and, eq, or, sql } from "drizzle-orm";
+import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
@@ -36,6 +37,19 @@ export function renamedTags(
   return [...kept.values()];
 }
 
+const MERGE_PINS = {
+  "tag-merge": { column: pins.intoTagId, into: (id: number) => ({ intoTagId: id }) },
+  "topic-merge": { column: pins.intoTopicId, into: (id: number) => ({ intoTopicId: id }) },
+} satisfies Readonly<
+  Record<
+    MergeKind,
+    {
+      readonly column: SQLiteColumn;
+      readonly into: (id: number) => Readonly<Record<string, number>>;
+    }
+  >
+>;
+
 export function mergePinWrites(
   db: Database,
   merge: Readonly<{
@@ -46,18 +60,15 @@ export function mergePinWrites(
   }>,
 ) {
   const { kind, fromName, loser, survivor } = merge;
-  const tagMerge = kind === "tag-merge";
-  const into = tagMerge ? { intoTagId: survivor } : { intoTopicId: survivor };
+  const { column, into: intoOf } = MERGE_PINS[kind];
+  const into = intoOf(survivor);
 
   return [
     db
       .insert(pins)
       .values({ kind, fromKey: catalogKey(fromName), fromName, ...into, createdAt: Date.now() })
       .onConflictDoUpdate({ target: [pins.kind, pins.fromKey], set: into }),
-    db
-      .update(pins)
-      .set(into)
-      .where(eq(tagMerge ? pins.intoTagId : pins.intoTopicId, loser)),
+    db.update(pins).set(into).where(eq(column, loser)),
   ];
 }
 

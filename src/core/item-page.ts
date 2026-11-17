@@ -1,10 +1,10 @@
 export const ITEMS_PAGE_SIZE = 50;
 
-export function pageTail<Row>(rows: readonly Row[], cursorOf: (last: Row) => string) {
-  const shown = rows.slice(0, ITEMS_PAGE_SIZE);
-  const last = shown.at(-1);
+export function pageTail<Row>(rows: readonly Row[], size: number, cursorOf: (last: Row) => string) {
+  const items = rows.slice(0, size);
+  const last = items.at(-1);
 
-  return { shown, next: rows.length > shown.length && last !== undefined ? cursorOf(last) : null };
+  return { items, next: rows.length > items.length && last !== undefined ? cursorOf(last) : null };
 }
 
 export interface ItemCursor {
