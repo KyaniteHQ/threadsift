@@ -124,3 +124,32 @@ The app makes one test run before the first fetch after it starts, and again whe
 The run asks the model to make at most 6 reply searches, besides the reads of the post's thread and quoted posts. That is a request, not a limit the app enforces; the 3-minute run deadline (`X_RUN_DEADLINE_MS` in `src/core/request-waits.ts`) is the limit. A post with very many replies stores only the replies the first lookups return, the Reader then shows that further replies were not saved, and a later fetch never replaces a stored thread with one that has fewer replies.
 
 A signed-out CLI leaves a Link-only Item with no Try again button. Sign in, then paste the link again.
+
+## Compare Providers
+
+Run `tools/provider-comparison.ts` from this checkout with Node from `direnv exec .`. The run records results without choosing a default model.
+
+1. Choose 20 Items from the owner's library. Put their numeric Item ids, or their original or normalized URLs, in a JSON array outside every git checkout. The capture reuses a current model Digest input when one exists. Otherwise it reads the Item and its post text file, comments and catalog, and follows its linked page through the app's core functions, then freezes the prepared input. An Item without usable content gets a reason in each Provider's record. Capture changes no library data. If linked GitHub pages need the library's saved GitHub token, inject that Instance's `THREADSIFT_SECRET_KEY` for capture. If capture reports `Duplicate Items`, remove the repeated selector and capture again.
+2. Make an output folder outside every git checkout. Keep the Item list there as `items.json`. Capture the inputs from the container's SQLite database, with read access to the data volume:
+
+   ```sh
+   mkdir -m 700 /tmp/threadsift-comparison
+   direnv exec . node tools/provider-comparison.ts capture /path/to/data/threadsift.db /tmp/threadsift-comparison/items.json /tmp/threadsift-comparison
+   ```
+
+   The command prints the capture folder. Keep its `inputs.json`: it freezes the app's selected comments, catalog and linked-page text together. Use that same file in later runs, even if the library changes.
+3. Create `providers.json` outside the checkout. `ProvidersSchema` in `tools/provider-comparison-providers.ts` defines the fields. Each row has a unique `id`, a `provider` and a `model`. Use `claude-code`, `codex`, `workers-ai`, `openrouter` and `grok-bot` for the five Provider kinds. Add another row with a different id to compare another model without changing the Item list. Every Provider row needs an explicit model. OpenRouter accepts only model ids ending in `:free` and sends the app's zero-price routing limit as well. Its free router and the CLI defaults are unsuitable here because the executors do not report which model actually answered. Keep the key's own free-only guardrail enabled.
+4. Sign in to the CLIs with their own commands, as this guide describes. Set `CLAUDE_CONFIG_DIR` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code, and `CODEX_HOME` for the reserved Codex home. Keep both CLI home paths outside every git checkout. The tool checks their location before starting a CLI and uses the app's isolation checks without reading login files. A `cli-missing` record means the executable was not found. For `cli-setup-refused`, read the adapter's category on stderr for the exact cause. Inject `OPENROUTER_API_KEY`, `CLOUDFLARE_WORKERS_AI_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from the secret store into the environment. Put no secret in either JSON file or a command argument.
+5. Start the comparison, replacing the capture path with the one printed in step 2:
+
+   ```sh
+   direnv exec . node tools/provider-comparison.ts run /tmp/threadsift-comparison/inputs-XXXXXX/inputs.json /tmp/threadsift-comparison/providers.json /tmp/threadsift-comparison
+   ```
+
+   The command prints a new run folder. Run it again with the same files to get a second set. Direct any captured terminal output to a file outside the repository too.
+
+Each run folder holds `inputs.json`, `manifest.json` and `records.jsonl`. The snapshot hash, source revision and Provider models in the manifest identify comparable runs. Item references belong to the captured library: a refreshed Item keeps its id but can have a different generation, and an unrelated library can reuse the id. The captured text and snapshot hash keep the comparison tied to its original inputs. Capture and run require committed Digest-contract files. The manifest keeps both the capture revision and the run revision. If the contract paths checked in `tools/provider-comparison-source.ts` changed between those revisions, capture the Item list again; this includes readable-text refinements that JSON Schema cannot express. Provider or model changes can reuse a capture when those paths stay unchanged.
+
+The records retain the model's Digest and, separately, the Kept comment ids the app would publish after its submitted-id filter. Every pair has an elapsed time measured with `performance.now()` around the same executor call and result check. Provider startup, input capture and disk writes are outside that interval. The first HTTP call also includes loading the HTTP adapter module. An unavailable pair records the time spent deciding it cannot run. Calls run one at a time, with the app's `AI_DEADLINE_MS` deadline and no comparison retry. A refusal or a missing login does not end the run.
+
+Workers AI uses Cloudflare's REST transport with the app's binding adapter and Digest schema. Grok Bot records `bot-callback-fixed-to-live-instance`: its installed routine answers the live Instance and cannot answer this separate run without a different callback destination. The comparison sends it no webhook and changes no bot settings.

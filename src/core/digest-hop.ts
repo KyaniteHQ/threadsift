@@ -6,6 +6,7 @@ import { type DigestInput, staleOutcome } from "./digest-source.ts";
 import { report } from "./failure-log.ts";
 import { fetchLink } from "./fetch-link.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
+import type { Ports } from "./ports.ts";
 import { FETCH_DEADLINE_MS } from "./request-waits.ts";
 
 type HopPage = LinkedPage | null;
@@ -44,7 +45,9 @@ function pageTextOf(fetched: Readonly<Fetched>): PageText | null {
   }
 }
 
-async function fetchedHop(ports: JobPorts, url: string): Promise<Fetched | null> {
+type HopPorts = Readonly<Pick<Ports, "db" | "secrets" | "network" | "pages">>;
+
+async function fetchedHop(ports: HopPorts, url: string): Promise<Fetched | null> {
   try {
     return await fetchLink(ports, url, GITHUB_HOP_ATTEMPTS, AbortSignal.timeout(FETCH_DEADLINE_MS));
   } catch {
@@ -85,15 +88,22 @@ async function linkedPageOf(
   if (linkedUrl === null) return null;
 
   const startedAt = Date.now();
-  const fetched = await fetchedHop(ports, linkedUrl);
+  const { page, result } = await readLinkedPage(ports, linkedUrl);
+
+  logHop(job, item, result, startedAt);
+
+  return page;
+}
+
+export async function readLinkedPage(ports: HopPorts, url: string) {
+  const fetched = await fetchedHop(ports, url);
   const read = fetched === null ? null : pageTextOf(fetched);
   const found = read === null || read.text.trim() === "" ? null : read;
 
-  logHop(job, item, resultOf(fetched, found), startedAt);
-
-  return found === null
-    ? null
-    : { url: linkedUrl, title: found.title, text: cutDigestInput(found.text) };
+  return {
+    result: resultOf(fetched, found),
+    page: found === null ? null : { url, title: found.title, text: cutDigestInput(found.text) },
+  };
 }
 
 async function aiCanRun(ports: JobPorts): Promise<boolean> {
