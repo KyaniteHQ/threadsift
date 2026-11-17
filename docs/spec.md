@@ -19,7 +19,7 @@ The owner is also a user, with many saved bookmarks to bring in and read.
 
 | Release | What it is |
 |---|---|
-| First release | The self-hosted open-source app, one owner per Instance. It ships as a container image (Podman or Docker) and as a Cloudflare deploy button on the same day, and the browser smoke spec runs on both. Not built: the Cloudflare deploy button. The release workflow exists; its pre-release proof remains unverified. |
+| First release | The self-hosted open-source app, one owner per Instance. It ships as a container image (Podman or Docker) and as a Cloudflare deploy button on the same day, and the browser smoke spec runs on both. Not built: the Cloudflare deploy button. |
 | After it | The hosted product, once its pricing and the AI and content terms are settled. |
 | Later passes | A desktop app and mobile apps. The web app comes first. |
 
@@ -469,7 +469,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 | Cost to the self-hoster | their own server | Cloudflare's $5 a month Workers Paid plan; the reason is in `docs/architecture/cloudflare-deploy-button.md` |
 
 - One codebase serves both: the database, the file store, the job queue and the AI caller each have one adapter per target.
-- The container image is pushed as `ghcr.io/kyanitehq/threadsift:main` on each push to `main`. The release workflow publishes a version tag for both architectures with provenance and moves `release` after the runtime checks pass; its pre-release proof remains unverified (`docs/architecture/ci-releases-and-rollback.md`, Releases).
+- The container image is pushed as `ghcr.io/kyanitehq/threadsift:main` on each push to `main`. The release workflow publishes a version tag for both architectures with provenance and moves `release` after the runtime checks pass (`docs/architecture/ci-releases-and-rollback.md`, Releases).
 - The owner's own Instance runs in the container on the owner's home server, at a public HTTPS address with the owner login, so Grok Bot can reach it.
 - **README.** It shows a hero screenshot of the Reader and the container install route. Not built: a short recording of a Paste turning into a Digest, screenshots of the Highlights page and a Topic page in several Styles, and the two deploy routes as buttons.
 
