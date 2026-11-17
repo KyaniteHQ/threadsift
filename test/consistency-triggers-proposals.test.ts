@@ -4,8 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { PIN_KINDS, PROPOSAL_KINDS, type PinKind, type ProposalKind } from "../src/core/kinds.ts";
-import { LIFECYCLE } from "../src/core/proposal-lifecycle.ts";
+import { type PinKind, type ProposalKind } from "../src/core/kinds.ts";
 import { Instance } from "./instance.ts";
 import { paste } from "./related-fixtures.ts";
 
@@ -13,7 +12,7 @@ const BUSY_TIMEOUT_MS = 5000;
 
 type Subjects = Readonly<{ columns: readonly string[]; create: () => readonly number[] }>;
 
-describe("every proposal and Pin value in src/core/kinds.ts passes the consistency triggers", () => {
+describe("Proposals and Pins refuse unknown values and mismatched subjects", () => {
   let instance: Instance;
   let database: DatabaseSync;
   let saved = 0;
@@ -59,8 +58,8 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
 
     const rows = database
       .prepare(
-        `insert into highlights (item_id, exact, prefix, suffix, hint, projection, created_at, status, start)
-         select id, ?, '', '', 0, 1, 0, 'gone', null from items limit 1 returning id`,
+        `insert into highlights (item_id, exact, prefix, suffix, hint, created_at, status, start)
+         select id, ?, '', '', 0, 0, 'gone', null from items limit 1 returning id`,
       )
       .all(`quote ${String(saved)}`);
 
@@ -92,33 +91,6 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
       `insert into proposals (kind, ${columns.join(", ")}, reason, state, created_at) values (?, ${marks}, 'a reason', ?, 0)`,
     );
   };
-
-  const proposalCases = (kind: ProposalKind, state: string): void => {
-    it(`stores a ${kind} proposal, ${state}`, () => {
-      const subjects = PROPOSAL_SUBJECTS[kind].create();
-
-      assert.doesNotThrow(() => {
-        proposalInsert(kind).run(kind, ...subjects, state);
-      });
-    });
-
-    it(`updates a ${kind} proposal to ${state}`, () => {
-      const subjects = PROPOSAL_SUBJECTS[kind].create();
-      proposalInsert(kind).run(kind, ...subjects, "open");
-
-      assert.doesNotThrow(() => {
-        database
-          .prepare(
-            `update proposals set kind = ?, state = ? where ${PROPOSAL_SUBJECTS[kind].columns[0]} = ?`,
-          )
-          .run(kind, state, subjects[0]);
-      });
-    });
-  };
-
-  for (const kind of PROPOSAL_KINDS) {
-    for (const state of LIFECYCLE[kind].held) proposalCases(kind, state);
-  }
 
   it("refuses a proposal with a kind or state the code does not list, on insert and on update", () => {
     const [from, into] = insertTags();
@@ -186,21 +158,6 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
       `insert into pins (kind, from_key, from_name, ${columns.join(", ")}, created_at) values (?, ?, 'a name', ${marks}, 0)`,
     );
   };
-
-  const pinCases = (kind: PinKind): void => {
-    it(`stores and updates a ${kind} Pin`, () => {
-      const subjects = PIN_SUBJECTS[kind].create();
-
-      assert.doesNotThrow(() => {
-        pinInsert(kind).run(kind, `a key for ${kind}`, ...subjects);
-        database
-          .prepare("update pins set kind = ? where from_key = ?")
-          .run(kind, `a key for ${kind}`);
-      });
-    });
-  };
-
-  for (const kind of PIN_KINDS) pinCases(kind);
 
   it("refuses a Pin with a kind the code does not list, on insert and on update", () => {
     const [, into] = insertTags();
@@ -291,4 +248,33 @@ describe("every proposal and Pin value in src/core/kinds.ts passes the consisten
       pinInsert("topic-merge").run("topic-merge", "shared key", intoTopic);
     }, /UNIQUE/u);
   });
+
+  for (const kind of ["tag-merge", "topic-merge"] as const) {
+    it(`keeps one ${kind} Proposal for an unordered pair`, () => {
+      const [from, into] = PROPOSAL_SUBJECTS[kind].create();
+      const insert = proposalInsert(kind);
+
+      insert.run(kind, from, into, "open");
+      assert.throws(() => insert.run(kind, into, from, "open"), /UNIQUE constraint failed/u);
+    });
+
+    it(`refuses a ${kind} Proposal with the same subject twice`, () => {
+      const [from] = PROPOSAL_SUBJECTS[kind].create();
+
+      assert.throws(
+        () => proposalInsert(kind).run(kind, from, from, "open"),
+        /proposals_(?:topic_)?distinct/u,
+      );
+    });
+  }
+
+  for (const kind of ["highlight-lost", "overview-gap"] as const) {
+    it(`keeps one ${kind} Proposal for its subject`, () => {
+      const subjects = PROPOSAL_SUBJECTS[kind].create();
+      const insert = proposalInsert(kind);
+
+      insert.run(kind, ...subjects, "open");
+      assert.throws(() => insert.run(kind, ...subjects, "open"), /UNIQUE constraint failed/u);
+    });
+  }
 });

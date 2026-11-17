@@ -91,8 +91,8 @@ describe("the Proposals list filters before the page limit", () => {
     exec(
       instance,
       `with recursive n(i) as (select 1 union all select i + 1 from n where i < 62)
-       insert into highlights (item_id, exact, prefix, suffix, hint, projection, created_at, status, start)
-       select (select max(id) from items), 'quote ' || i, '', '', 0, 1, i, case when i > 51 then 'attached' else 'gone' end, case when i > 51 then 1 else null end from n`,
+       insert into highlights (item_id, exact, prefix, suffix, hint, created_at, status, start)
+       select (select max(id) from items), 'quote ' || i, '', '', 0, i, case when i > 51 then 'attached' else 'gone' end, case when i > 51 then 1 else null end from n`,
     );
     exec(
       instance,

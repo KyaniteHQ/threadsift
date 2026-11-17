@@ -12,7 +12,7 @@ import { postTextOf } from "./post-text.ts";
 import { readGeneration } from "./reddit-thread.ts";
 import { type HighlightRow, guardedWrite, highlights, items, searchParts } from "./schema.ts";
 import { highlightPartWrites } from "./search.ts";
-import { PROJECTION_VERSION, projectText } from "./text-projection.ts";
+import { projectText } from "./text-projection.ts";
 import { readableBody } from "./thread-read.ts";
 
 type CreatedHighlight =
@@ -32,7 +32,6 @@ function highlightOf(row: Readonly<HighlightRow>, revisions: Revisions): Highlig
     id: row.id,
     target: targetOf(row),
     selector: { exact: row.exact, prefix: row.prefix, suffix: row.suffix, hint: row.hint },
-    projection: row.projection,
     createdAt: row.createdAt,
   };
 
@@ -98,7 +97,6 @@ function highlightInsert(
     itemId,
     commentId: target.kind === "post" ? null : target.commentId,
     ...selector,
-    projection: PROJECTION_VERSION,
     createdAt: Date.now(),
     status: "attached",
     start: selector.hint,

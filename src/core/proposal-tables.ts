@@ -2,8 +2,17 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { highlights } from "./highlight-tables.ts";
-import { PROPOSAL_KINDS, PROPOSAL_STATES } from "./kinds.ts";
+import { MERGE_KINDS, PROPOSAL_KINDS, PROPOSAL_STATES } from "./kinds.ts";
+import { listed, subjectsForKind } from "./schema-checks.ts";
 import { items, tags, topics } from "./schema.ts";
+
+const SUBJECTS = {
+  "tag-merge": ["fromTagId", "intoTagId"],
+  "topic-merge": ["fromTopicId", "intoTopicId"],
+  "highlight-lost": ["highlightId"],
+  "overview-gap": ["topicId"],
+  "items-disagree": ["fromItemId", "intoItemId", "fromDigest", "intoDigest"],
+} as const;
 
 export const proposals = sqliteTable(
   "proposals",
@@ -28,33 +37,41 @@ export const proposals = sqliteTable(
     fromDigest: integer("from_digest"),
     intoDigest: integer("into_digest"),
   },
-  (table) => [
-    uniqueIndex("proposals_pair").on(
-      sql`min(${table.fromTagId}, ${table.intoTagId})`,
-      sql`max(${table.fromTagId}, ${table.intoTagId})`,
-    ),
-    uniqueIndex("proposals_topic_pair").on(
-      sql`min(${table.fromTopicId}, ${table.intoTopicId})`,
-      sql`max(${table.fromTopicId}, ${table.intoTopicId})`,
-    ),
-    uniqueIndex("proposals_highlight").on(table.highlightId),
-    uniqueIndex("proposals_overview_topic").on(table.topicId),
-    uniqueIndex("proposals_item_pair").on(
-      sql`min(${table.fromItemId}, ${table.intoItemId})`,
-      sql`max(${table.fromItemId}, ${table.intoItemId})`,
-    ),
-    index("proposals_from").on(table.fromTagId),
-    index("proposals_into").on(table.intoTagId),
-    index("proposals_from_topic").on(table.fromTopicId),
-    index("proposals_into_topic").on(table.intoTopicId),
-    index("proposals_from_item").on(table.fromItemId),
-    index("proposals_into_item").on(table.intoItemId),
-    index("proposals_state").on(table.state, table.id),
-    check("proposals_distinct", sql`${table.fromTagId} <> ${table.intoTagId}`),
-    check("proposals_topic_distinct", sql`${table.fromTopicId} <> ${table.intoTopicId}`),
-    check(
-      "proposals_open_reason",
-      sql`${table.state} <> 'open' or length(coalesce(${table.reason}, '')) > 0`,
-    ),
-  ],
+  (table) => {
+    const subject = subjectsForKind(table.kind, table, SUBJECTS);
+
+    return [
+      check(
+        "proposals_accepting_check",
+        sql`${table.state} = 'accepting' or (${table.cursor} is null and ${table.moved} is null and ${table.unitRevision} is null and ${table.failedRuns} is null)`,
+      ),
+      check(
+        "proposals_state_check",
+        sql`${table.state} not in ('accepting', 'declined') or ${table.kind} in (${listed(MERGE_KINDS)})`,
+      ),
+      check(
+        "proposals_subject_check",
+        sql`${subject} and (${table.kind} <> 'items-disagree' or ${table.fromItemId} <> ${table.intoItemId})`,
+      ),
+      check(
+        "proposals_values_check",
+        sql`${table.kind} in (${listed(PROPOSAL_KINDS)}) and ${table.state} in (${listed(PROPOSAL_STATES)})`,
+      ),
+      uniqueIndex("proposals_highlight").on(table.highlightId),
+      uniqueIndex("proposals_overview_topic").on(table.topicId),
+      index("proposals_from").on(table.fromTagId),
+      index("proposals_into").on(table.intoTagId),
+      index("proposals_from_topic").on(table.fromTopicId),
+      index("proposals_into_topic").on(table.intoTopicId),
+      index("proposals_from_item").on(table.fromItemId),
+      index("proposals_into_item").on(table.intoItemId),
+      index("proposals_state").on(table.state, table.id),
+      check("proposals_distinct", sql`${table.fromTagId} <> ${table.intoTagId}`),
+      check("proposals_topic_distinct", sql`${table.fromTopicId} <> ${table.intoTopicId}`),
+      check(
+        "proposals_open_reason",
+        sql`${table.state} <> 'open' or length(coalesce(${table.reason}, '')) > 0`,
+      ),
+    ];
+  },
 );

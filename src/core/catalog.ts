@@ -7,7 +7,7 @@ import { amongJson } from "./guards.ts";
 import { loggedDigest, loggedTopic } from "./log-writes.ts";
 import { pinnedDigest } from "./pins.ts";
 import type { Database } from "./ports.ts";
-import { catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
+import { UninitializedDatabase, catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
 import { openingOverview } from "./topic-overview-run.ts";
 
 function catalogEntries(digest: Readonly<Digest>) {
@@ -37,12 +37,17 @@ export async function pinnedCatalog(db: Database, digest: Readonly<Digest>) {
   };
 }
 
-const CATALOG_VERSION = sql<number>`coalesce((select version from ${catalogVersion} where id = 1), 0)`;
+const CATALOG_VERSION = sql<number>`(select version from ${catalogVersion} where id = 1)`;
 
 export async function readCatalogVersion(db: Database): Promise<number> {
-  const [row] = await db.select({ version: CATALOG_VERSION }).from(sql`(select 1) as one`);
+  const [row] = await db
+    .select({ version: catalogVersion.version })
+    .from(catalogVersion)
+    .where(eq(catalogVersion.id, 1));
 
-  return row?.version ?? 0;
+  if (row === undefined) throw new UninitializedDatabase("catalog_version");
+
+  return row.version;
 }
 
 export function catalogCurrent(version: number, entries: CatalogEntries) {
@@ -77,8 +82,12 @@ export async function readCatalog(db: Database) {
     ),
   ]);
 
+  const [counter] = version;
+
+  if (counter === undefined) throw new UninitializedDatabase("catalog_version");
+
   return {
-    version: version[0]?.version ?? 0,
+    version: counter.version,
     topics: topicNames.map(({ name }) => name),
     tags: tagNames.map(({ name }) => name),
   };
@@ -95,7 +104,6 @@ export function linkingDigest(db: Database, itemId: number, entries: CatalogEntr
   const keys = entries.tagKeys;
 
   return [
-    db.insert(catalogVersion).values({ id: 1, version: 0 }).onConflictDoNothing(),
     db.insert(topics).values(entries.topic).onConflictDoNothing({ target: topics.key }),
     bumpVersion(db),
     loggedTopic(db, entries.topic.key),

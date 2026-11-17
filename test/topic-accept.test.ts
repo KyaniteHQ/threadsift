@@ -34,8 +34,12 @@ const itemsWithTopic = async (instance: Instance, name: string) =>
     )
   ).items.map(({ id }) => id);
 
+const CatalogVersionSchema = z.object({ version: z.number() });
+
 const catalogVersion = (instance: Instance): number =>
-  count(instance, "select coalesce(max(version), 0) as n from catalog_version");
+  CatalogVersionSchema.parse(
+    rows(instance, CatalogVersionSchema, "select version from catalog_version where id = 1")[0],
+  ).version;
 
 describe("Accept of a Topic row answers by the row's state and refuses the wrong caller", () => {
   let instance: Instance;

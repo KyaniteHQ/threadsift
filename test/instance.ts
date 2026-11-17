@@ -100,17 +100,13 @@ export class Instance {
     publicOrigin,
     fetchers,
     secretKey,
-    prepare,
   }: Readonly<{
     publicOrigin?: string | undefined;
     fetchers?: string | undefined;
     secretKey?: string | undefined;
-    prepare?: ((databaseFile: string) => void) | undefined;
   }> = {}): Promise<Instance> {
     const folder = await mkdtemp(join(tmpdir(), "threadsift-test-"));
     const file = join(folder, "threadsift.db");
-
-    prepare?.(file);
 
     const database = openDatabase(file, MIGRATIONS);
 

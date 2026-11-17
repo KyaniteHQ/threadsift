@@ -5,17 +5,14 @@ import type { Database } from "./ports.ts";
 import { highlights, proposals } from "./schema.ts";
 
 interface Lifecycle {
-  readonly held: readonly ProposalState[];
   readonly inserted: readonly ProposalState[];
 }
 
 const MERGE_LIFECYCLE = {
-  held: ["open", "accepting", "rejected", "declined"],
   inserted: ["open", "declined"],
 } as const satisfies Lifecycle;
 
 const PLAIN_LIFECYCLE = {
-  held: ["open", "rejected"],
   inserted: ["open"],
 } as const satisfies Lifecycle;
 

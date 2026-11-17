@@ -27,7 +27,7 @@ const SUBJECTS = {
 const setting = (id: number, assignment: string): string =>
   `update proposals set ${assignment} where id = ${String(id)}`;
 
-describe("the proposal triggers keep a state with the kinds that hold it and the merge columns with accepting", () => {
+describe("the proposal constraints keep a state with the kinds that hold it and the merge columns with accepting", () => {
   let instance: Instance;
   let database: DatabaseSync;
   let used = 0;
@@ -45,8 +45,8 @@ describe("the proposal triggers keep a state with the kinds that hold it and the
       insert into items (id, source, kind, normalized_url, original_url, saved_at)
         select i, 'article', 'article', 'u' || i, 'u' || i, 0 from n;
       with recursive n(i) as (select 1 union all select i + 1 from n where i < ${String(SEEDED)})
-      insert into highlights (id, item_id, exact, prefix, suffix, hint, projection, created_at, status, start)
-        select i, 1, 'q' || i, '', '', 0, 1, 0, 'gone', null from n;
+      insert into highlights (id, item_id, exact, prefix, suffix, hint, created_at, status, start)
+        select i, 1, 'q' || i, '', '', 0, 0, 'gone', null from n;
     `);
   });
 

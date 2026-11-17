@@ -1,1 +1,0 @@
-ALTER TABLE `reddit_account` ADD `busy_attempt` integer;

@@ -11,7 +11,9 @@ import {
   SOURCES,
   WAIT_REASONS,
   X_READ_NOTES,
+  UNOWNED_JOB_KINDS,
 } from "./kinds.ts";
+import { listed } from "./schema-checks.ts";
 
 export {
   type AgentTokenRow,
@@ -64,6 +66,8 @@ export { relatedItems } from "./related-tables.ts";
 
 export { type RestoreRow, restoreRuns } from "./restore-tables.ts";
 
+export { UninitializedDatabase } from "./schema-checks.ts";
+
 export { searchParts } from "./search-tables.ts";
 
 export { topicChecks, topicPages } from "./topic-tables.ts";
@@ -99,6 +103,12 @@ export const items = sqliteTable(
     addedByToken: integer("added_by_token"),
   },
   (table) => [
+    check("items_post_text_check", sql`${table.postText} is null or ${table.postTextKey} is null`),
+    check("items_reason_check", sql`${table.reason} in (${listed(FAILURE_REASONS)})`),
+    check(
+      "items_source_kind_check",
+      sql`${table.source} is (case ${table.kind} when 'reddit-post' then 'reddit' when 'reddit-comment' then 'reddit' when 'x-post' then 'x' when 'github-repo' then 'github' when 'article' then 'article' when 'link' then 'other' end)`,
+    ),
     index("items_saved_at_id").on(table.savedAt, table.id),
     index("items_topic").on(table.topicId),
     index("items_post_text_key").on(table.postTextKey),
@@ -135,6 +145,14 @@ export const jobs = sqliteTable(
     page: text("page"),
   },
   (table) => [
+    check(
+      "jobs_owner_check",
+      sql`${table.kind} in (${listed(UNOWNED_JOB_KINDS)}) or ${table.itemId} is not null`,
+    ),
+    check(
+      "jobs_values_check",
+      sql`${table.kind} in (${listed(JOB_KINDS)}) and ${table.state} in (${listed(JOB_STATES)})`,
+    ),
     uniqueIndex("jobs_one_open_per_item_kind")
       .on(table.itemId, table.kind)
       .where(sql`${table.state} <> 'done'`),

@@ -17,7 +17,6 @@ export const redditAccount = sqliteTable(
     queueHead: integer("queue_head"),
     lastRequestAt: integer("last_request_at"),
     refusedCount: integer("refused_count").notNull().default(0),
-    refusedJob: integer("refused_job"),
     refusedThreads: text("refused_threads").notNull().default("[]"),
     refusalsClearedAt: integer("refusals_cleared_at"),
     windowRemaining: integer("window_remaining"),
