@@ -52,7 +52,7 @@ function intakeOf(
   if ((state !== "unsent" && state !== "sent") || task.deadline <= now) return CLOSED;
 
   if (answer.kind === "error") {
-    report("grok-bot-error", { taskId: task.id, jobId: task.jobId ?? 0, text: answer.text });
+    report("grok-bot-error", { taskId: task.id, jobId: task.jobId ?? 0 });
 
     return { kind: "write", writes: reportedWrites(db, task, now) };
   }
