@@ -2,20 +2,12 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { parseArgs, parseEnv } from "node:util";
 
+import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
 
 const { values } = parseArgs({
   options: { "secrets-file": { type: "string" }, "dry-run": { type: "boolean" } },
 });
-const wranglerModule = z
-  .object({
-    experimental_readRawConfig: z.function({
-      input: [z.object({ config: z.string() })],
-      output: z.object({ rawConfig: z.unknown() }),
-    }),
-  })
-  .parse(await import("wrangler"));
-const { rawConfig } = wranglerModule.experimental_readRawConfig({ config: "wrangler.jsonc" });
 const config = z
   .object({
     d1_databases: z.array(
@@ -27,8 +19,9 @@ const config = z
     ),
     secrets: z.object({ required: z.array(z.string()) }),
   })
-  .parse(rawConfig);
+  .parse(unstable_readConfig({ config: "wrangler.jsonc", env: "" }));
 const secretsFile = values["secrets-file"];
+const WRANGLER = ["exec", "wrangler", "--env", ""];
 
 if (secretsFile !== undefined) {
   const text = readFileSync(secretsFile, "utf8");
@@ -47,8 +40,8 @@ if (secretsFile !== undefined) {
   }
 }
 
-function wrangler(args: readonly string[], capture = false): string {
-  const result = spawnSync("pnpm", ["exec", "wrangler", ...args, "--env", ""], {
+function pnpm(args: readonly string[], capture = false): string {
+  const result = spawnSync("pnpm", args, {
     encoding: "utf8",
     stdio: capture ? ["inherit", "pipe", "inherit"] : "inherit",
     env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
@@ -66,28 +59,23 @@ function wrangler(args: readonly string[], capture = false): string {
 if (values["dry-run"] !== true) {
   const databases = z
     .array(z.object({ name: z.string() }))
-    .parse(JSON.parse(wrangler(["d1", "list", "--json"], true)));
+    .parse(JSON.parse(pnpm([...WRANGLER, "d1", "list", "--json"], true)));
 
   for (const database of config.d1_databases) {
     if (
       database.database_id === undefined &&
       !databases.some(({ name }) => name === database.database_name)
     ) {
-      wrangler(["d1", "create", database.database_name, "--no-update-config"]);
+      pnpm([...WRANGLER, "d1", "create", database.database_name, "--no-update-config"]);
     }
-    wrangler(["d1", "migrations", "apply", database.binding, "--remote"]);
+    pnpm([...WRANGLER, "d1", "migrations", "apply", database.binding, "--remote"]);
   }
 }
 
-const build = spawnSync("pnpm", ["run", "build"], { stdio: "inherit" });
-if (build.error) {
-  throw build.error;
-}
-if (build.status !== 0) {
-  process.exit(build.status ?? 1);
-}
+pnpm(["run", "build"]);
 
-wrangler([
+pnpm([
+  ...WRANGLER,
   "deploy",
   "--keep-vars",
   ...(secretsFile === undefined ? [] : ["--secrets-file", secretsFile]),
