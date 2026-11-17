@@ -1,5 +1,3 @@
-import { type ChangeEvent, useCallback, useRef } from "react";
-
 import type { RestoreStatus } from "../../src/core/restore-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
@@ -17,6 +15,7 @@ import {
 import type { Progress } from "./restore-upload.ts";
 import { SettingsResult } from "./SettingsForm.tsx";
 import { SwapButton } from "./SwapButton.tsx";
+import { useFilePicker } from "./use-file-picker.ts";
 import { useHashTarget } from "./use-hash-target.ts";
 import { useRestore } from "./use-restore.ts";
 
@@ -130,22 +129,7 @@ function Picker({
   acting,
   choose,
 }: Readonly<{ acting: Ending["acting"]; choose: (file: Readonly<File>) => void }>) {
-  const picker = useRef<HTMLInputElement>(null);
-
-  const open = useCallback(() => {
-    if (acting === null) picker.current?.click();
-  }, [acting]);
-
-  const read = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-
-      event.target.value = "";
-
-      if (file !== undefined) choose(file);
-    },
-    [choose],
-  );
+  const { picker, open, read } = useFilePicker(choose, acting === null);
 
   return (
     <div className="imp-file">

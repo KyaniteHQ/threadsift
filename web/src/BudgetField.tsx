@@ -15,7 +15,7 @@ const BUDGET_INPUT = {
 
 export const DEFAULT_BUDGET_TEXT = String(DEFAULT_TOKEN_BUDGET);
 
-export interface BudgetRead {
+interface BudgetRead {
   readonly dailyBudget: number | null;
 }
 

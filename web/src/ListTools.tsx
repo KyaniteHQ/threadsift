@@ -6,7 +6,7 @@ import { type ListState, type Ready, countsOf, readFor } from "./list-state.ts";
 import { ListHead } from "./ListBody.tsx";
 import { SearchField } from "./SearchField.tsx";
 import { SettledAnnouncement } from "./SettledAnnouncement.tsx";
-import { SEARCH_LABEL, SEARCH_PLACEHOLDER, headLabel } from "./text.ts";
+import { SEARCH_LABEL, SEARCH_PLACEHOLDER, SORT_LABEL, headLabel } from "./text.ts";
 
 interface ListToolsProps {
   readonly list: ListState;
@@ -55,7 +55,7 @@ function Tools({
       {list.status === "loading" ? (
         <div className="list-head" data-loading aria-hidden="true" />
       ) : (
-        <ListHead label={head} />
+        <ListHead label={head} sort={SORT_LABEL} />
       )}
     </>
   );

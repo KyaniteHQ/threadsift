@@ -58,30 +58,18 @@ export const KEY_STATES = {
   missing: AI_TEXT["secret-missing"],
 } as const;
 
-export function resultText(result: GrokBotResult): string {
-  switch (result) {
-    case "ok":
-      return GROK_BOT_TEXT.resultOk;
-    case "wrong-key":
-      return GROK_BOT_TEXT.resultWrongKey;
-    case "not-found":
-      return GROK_BOT_TEXT.resultNotFound;
-    case "bot-error":
-      return GROK_BOT_TEXT.resultBotError;
-    case "unreachable":
-      return GROK_BOT_TEXT.resultUnreachable;
-    case "timeout":
-      return GROK_BOT_TEXT.resultTimeout;
-    case "refused":
-      return GROK_BOT_TEXT.resultRefused;
-    case "not-configured":
-      return GROK_BOT_TEXT.resultNotConfigured;
-    case "secret-missing":
-      return AI_TEXT["secret-missing"];
-    default: {
-      const exhaustive: never = result;
+const RESULT_TEXT = {
+  ok: GROK_BOT_TEXT.resultOk,
+  "wrong-key": GROK_BOT_TEXT.resultWrongKey,
+  "not-found": GROK_BOT_TEXT.resultNotFound,
+  "bot-error": GROK_BOT_TEXT.resultBotError,
+  unreachable: GROK_BOT_TEXT.resultUnreachable,
+  timeout: GROK_BOT_TEXT.resultTimeout,
+  refused: GROK_BOT_TEXT.resultRefused,
+  "not-configured": GROK_BOT_TEXT.resultNotConfigured,
+  "secret-missing": AI_TEXT["secret-missing"],
+} as const satisfies Record<GrokBotResult, string>;
 
-      return exhaustive;
-    }
-  }
+export function resultText(result: GrokBotResult): string {
+  return RESULT_TEXT[result];
 }
