@@ -2,11 +2,12 @@ import { z } from "zod";
 
 import type { DigestOutcome } from "./kinds.ts";
 import type { COMMENT_KINDS } from "./reddit-tables.ts";
+import { WholeCount } from "./whole-count.ts";
 
 const Place = {
   id: z.string(),
   parentId: z.string().nullable(),
-  depth: z.number().int().nonnegative(),
+  depth: WholeCount,
 };
 
 const CommentNodeSchema = z.discriminatedUnion("kind", [
@@ -28,7 +29,7 @@ export type UnfilteredCause = z.infer<typeof UnfilteredCauseSchema>;
 
 export const CommentCountSchema = z.object({
   filter: z.enum(["kept", "unfiltered"]),
-  shown: z.number().int().nonnegative(),
+  shown: WholeCount,
   total: z.number().int().positive(),
 });
 
@@ -49,10 +50,10 @@ const ViewSchema = z.discriminatedUnion("filter", [
 export type CommentsFilter = z.infer<typeof ViewSchema>;
 
 export const CommentsViewSchema = z.object({
-  reported: z.number().int().nonnegative().nullable(),
-  archive: z.object({ at: z.number().int().nonnegative(), withPost: z.boolean() }).nullable(),
-  received: z.number().int().nonnegative(),
-  kept: z.number().int().nonnegative(),
+  reported: WholeCount.nullable(),
+  archive: z.object({ at: WholeCount, withPost: z.boolean() }).nullable(),
+  received: WholeCount,
+  kept: WholeCount,
   nodes: z.array(CommentNodeSchema).readonly(),
   view: ViewSchema,
 });

@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 
 import type { Highlight, HighlightsView } from "../../src/core/highlight-contract.ts";
+import { NOTHING } from "../../src/core/nothing.ts";
 import { HighlightList } from "./HighlightList.tsx";
 import {
   type HighlightsApi,
@@ -44,7 +45,7 @@ function useSerial() {
 
   return useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
     const run = tail.current.then(task);
-    tail.current = run.catch(() => {});
+    tail.current = run.catch(NOTHING);
 
     return run;
   }, []);

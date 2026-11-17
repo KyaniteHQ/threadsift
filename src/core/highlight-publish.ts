@@ -117,8 +117,6 @@ function anchorWrites(
   after: Readonly<DisplayedAfter>,
   project: Project,
 ) {
-  if (snapshot.highlights.length === 0) return [];
-
   const places = snapshot.highlights.flatMap((row) => {
     const anchor = anchorOf(row, after, project);
 
@@ -132,8 +130,6 @@ function anchorWrites(
           },
         ];
   });
-
-  if (places.length === 0) return [];
 
   return batchesOf(places, PLACES_PER_STATEMENT).map((batch) => {
     const json = JSON.stringify(batch);

@@ -1,6 +1,9 @@
 import { type ChangeEvent, useCallback, useRef } from "react";
 
-export function useFilePicker(choose: (file: Readonly<File>) => void, enabled: boolean) {
+export function useFilePicker(
+  choose: (file: Readonly<File>) => void | Promise<void>,
+  enabled: boolean,
+) {
   const picker = useRef<HTMLInputElement>(null);
 
   const open = useCallback(() => {
@@ -13,7 +16,7 @@ export function useFilePicker(choose: (file: Readonly<File>) => void, enabled: b
 
       event.target.value = "";
 
-      if (file !== undefined) choose(file);
+      if (file !== undefined) void choose(file);
     },
     [choose],
   );

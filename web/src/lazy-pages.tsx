@@ -1,5 +1,6 @@
 import { type ComponentType, lazy } from "react";
 
+import { NOTHING } from "../../src/core/nothing.ts";
 import { unavailable } from "./module-unavailable.ts";
 import { IMPORT_PATH, LOG_PATH, PROPOSALS_PATH, SETTINGS_PATH } from "./routing.ts";
 
@@ -17,7 +18,7 @@ function isLazyPath(path: string): path is LazyPath {
 }
 
 export function preloadPage(path: string): void {
-  if (isLazyPath(path)) LOADERS[path]().catch(() => {});
+  if (isLazyPath(path)) LOADERS[path]().catch(NOTHING);
 }
 
 function page<Props extends object>(load: () => Promise<ComponentType<Props>>) {

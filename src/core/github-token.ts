@@ -15,6 +15,7 @@ import { githubSettings } from "./github-tables.ts";
 import { parsedJson } from "./parsed-json.ts";
 import type { Ports } from "./ports.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
+import { WholeCount } from "./whole-count.ts";
 
 type GuardOutcome = import("./fetch-guard.ts").GuardOutcome;
 
@@ -30,8 +31,8 @@ const ANONYMOUS: GithubAuth = { kind: "anonymous" };
 
 const RateLimitSchema = z.object({
   rate: z.object({
-    limit: z.number().int().nonnegative(),
-    remaining: z.number().int().nonnegative(),
+    limit: WholeCount,
+    remaining: WholeCount,
   }),
 });
 

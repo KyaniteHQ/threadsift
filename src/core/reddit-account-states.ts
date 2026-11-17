@@ -3,7 +3,12 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { JobPorts } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
-import { WAIT_CHECK_MS, enqueueWaiting, releaseWaiting } from "./reddit-account-queue.ts";
+import {
+  WAIT_CHECK_MS,
+  enqueueWaiting,
+  releaseWaiting,
+  releaseWaitingWhen,
+} from "./reddit-account-queue.ts";
 import { ACCOUNT_ROW, type AccountRow, redditAccount } from "./reddit-account-tables.ts";
 import type { RedditAnswer } from "./reddit-session.ts";
 import { RATE_LIMITED, leftOf, millisecondsOf } from "./reddit-window.ts";
@@ -127,7 +132,7 @@ function releaseWhenExpired(
   session: AccountSession,
   now: number,
 ): BatchItem<"sqlite"> {
-  return releaseWaiting(
+  return releaseWaitingWhen(
     db,
     now,
     exists(

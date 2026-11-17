@@ -241,10 +241,12 @@ export function symbolChain(span: string): string[] | undefined {
   return SYMBOL_SPAN.exec(span)?.groups?.["chain"]?.split(".");
 }
 
-export function matchesAny(glob: string, paths: Readonly<Iterable<string>>): boolean {
-  for (const path of paths) if (posix.matchesGlob(path, glob)) return true;
+export function matchesAny(globs: readonly string[], paths: Readonly<Iterable<string>>): boolean {
+  return globs.some((glob) => {
+    for (const path of paths) if (posix.matchesGlob(path, glob)) return true;
 
-  return false;
+    return false;
+  });
 }
 
 export function escapeRegExp(text: string): string {

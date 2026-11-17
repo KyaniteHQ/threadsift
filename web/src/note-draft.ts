@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-const DraftSchema = z.object({ body: z.string(), revision: z.number().int().nonnegative() });
+import { WholeCount } from "../../src/core/whole-count.ts";
+
+const DraftSchema = z.object({ body: z.string(), revision: WholeCount });
 
 export type NoteDraft = z.infer<typeof DraftSchema>;
 

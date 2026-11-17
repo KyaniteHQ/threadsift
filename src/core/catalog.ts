@@ -2,6 +2,7 @@ import { type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
+import { TAG_USES, TOPIC_USES } from "./catalog-uses.ts";
 import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
 import { amongJson } from "./guards.ts";
 import { loggedDigest, loggedTopic } from "./log-writes.ts";
@@ -37,10 +38,6 @@ export async function pinnedCatalog(db: Database, digest: Readonly<Digest>) {
   };
 }
 
-export const TOPIC_USES = sql<number>`(select count(*) from ${items} where ${items.topicId} = ${topics.id})`;
-
-export const TAG_USES = sql<number>`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${tags.id})`;
-
 const CATALOG_VERSION = sql<number>`(select version from ${catalogVersion} where id = 1)`;
 
 function versionRow(db: Database) {
@@ -50,12 +47,16 @@ function versionRow(db: Database) {
     .where(eq(catalogVersion.id, 1));
 }
 
-export async function readCatalogVersion(db: Database): Promise<number> {
-  const [row] = await versionRow(db);
+function versionOf(rows: readonly Readonly<{ version: number }>[]): number {
+  const [row] = rows;
 
   if (row === undefined) throw new UninitializedDatabase("catalog_version");
 
   return row.version;
+}
+
+export async function readCatalogVersion(db: Database): Promise<number> {
+  return versionOf(await versionRow(db));
 }
 
 export function catalogCurrent(version: number, entries: CatalogEntries) {
@@ -79,12 +80,8 @@ export async function readCatalog(db: Database) {
     topNames(db, tags, TAG_USES),
   ]);
 
-  const [counter] = version;
-
-  if (counter === undefined) throw new UninitializedDatabase("catalog_version");
-
   return {
-    version: counter.version,
+    version: versionOf(version),
     topics: topicNames.map(({ name }) => name),
     tags: tagNames.map(({ name }) => name),
   };

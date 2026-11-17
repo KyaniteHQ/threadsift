@@ -1,6 +1,10 @@
-import { type Network, type NetworkResponse, REQUEST_HEADERS } from "../../core/ports.ts";
+import {
+  type Network,
+  type NetworkResponse,
+  REQUEST_HEADERS,
+  rateLimitHeadersOf,
+} from "../../core/ports.ts";
 import { assertPublicHost } from "../../core/public-host.ts";
-import { redditRateLimitOf } from "../../core/reddit-session.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
 const CLOUDFLARE_ERROR_PAGE = /^error code: 1[0-9]{3}\s*$/u;
@@ -41,7 +45,7 @@ function networkResponse(response: Response): NetworkResponse {
     status: response.status,
     location: response.headers.get("location"),
     contentType: response.headers.get("content-type"),
-    rateLimit: redditRateLimitOf((name) => response.headers.get(name)),
+    rateLimit: rateLimitHeadersOf((name) => response.headers.get(name)),
     body: chunksOf(response.bodyUsed ? null : response.body),
   };
 }

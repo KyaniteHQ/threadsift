@@ -54,14 +54,7 @@ function Summary({ list }: Readonly<{ list: ImportList }>) {
 function FileButton({ locked, input }: Readonly<{ locked: boolean; input: ImportInput }>) {
   const { choose, fileFailed } = input;
 
-  const pick = useCallback(
-    (file: Readonly<File>) => {
-      void choose(file);
-    },
-    [choose],
-  );
-
-  const { picker, open, read } = useFilePicker(pick, !locked);
+  const { picker, open, read } = useFilePicker(choose, !locked);
 
   return (
     <div className="imp-file">

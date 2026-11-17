@@ -43,11 +43,6 @@ rewritten() {
   rm -f "${temp:?}"
 }
 
-changelog_release() {
-  local version="$1"
-  rewritten "$bot/CHANGELOG.md" "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/"
-}
-
 pin() {
   local tag="$1" hash="$2"
   rewritten "$skill" "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/"
@@ -67,7 +62,7 @@ case "$mode" in
     echo "$version" > "$bot/VERSION"
     computed_sums > "$sums"
     pin "bot-v$version" "$(sums_hash)"
-    changelog_release "$version"
+    rewritten "$bot/CHANGELOG.md" "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/"
     echo "bot-v$version"
     ;;
   check)

@@ -13,7 +13,7 @@ import {
 import { withCleanup } from "../../core/failure-log.ts";
 import { PROBE_MS } from "../../core/request-waits.ts";
 import type { CliRunner, RunnerTask } from "../shared/ai-runtime.ts";
-import type { ProcessEnd } from "./cli-process.ts";
+import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";
 import { type Slots, inSlot } from "./cli-slots.ts";
 
 export const STDOUT_CAP = 1024 * 1024;
@@ -86,7 +86,7 @@ function report(provider: CliProvider, reason: string, code: number | null): voi
   console.error(JSON.stringify({ event: "cli-refused", provider, reason, exit: code }));
 }
 
-export function endRefusal(end: Exclude<ProcessEnd, { readonly kind: "exited" }>) {
+export function endRefusal(end: UnfinishedEnd) {
   switch (end.kind) {
     case "aborted":
       return refusedAi("timeout");

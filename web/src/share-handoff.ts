@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 
+import { NOTHING } from "../../src/core/nothing.ts";
 import { type ShareArrival, arrivalOf } from "../../src/core/share-address.ts";
 
 export interface ShareHandoff {
@@ -17,7 +18,7 @@ export interface ShareHandoff {
 
 export const ShareContext = createContext<ShareHandoff>({
   arrival: null,
-  release: () => {},
+  release: NOTHING,
 });
 
 export function useShareHandoff(): ShareHandoff {

@@ -3,7 +3,7 @@ import type { JobOutcome, JobPorts } from "./job-outcome.ts";
 import { type Env, advance, rowsMatch } from "./restore-check-scan.ts";
 import { checkedTables, readManifest, refused } from "./restore-check.ts";
 import { CheckCursorSchema, START_CURSOR } from "./restore-contract.ts";
-import { failedUnit, steppedUnit } from "./restore-unit.ts";
+import { endedUnit, steppedUnit } from "./restore-unit.ts";
 import type { RestoreRow } from "./schema.ts";
 import { readDirectory } from "./zip-directory.ts";
 import { ZipRefused, type ZipSource } from "./zip-read.ts";
@@ -46,6 +46,6 @@ export async function checkUnit(
   } catch (error) {
     if (!(error instanceof ZipRefused)) throw error;
 
-    return failedUnit(db, run, error.code);
+    return endedUnit(db, run, { state: "failed", failure: error.code, updatedAt: Date.now() });
   }
 }

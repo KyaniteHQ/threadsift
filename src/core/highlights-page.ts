@@ -11,6 +11,7 @@ import {
 import { type ItemFilters, facetCounts, facetQueries, itemConditions } from "./item-filters.ts";
 import { itemTitle } from "./item-title.ts";
 import type { Source } from "./kinds.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { digests, highlights, items, notes, searchParts } from "./schema.ts";
 import { partMatching } from "./search.ts";
@@ -137,15 +138,15 @@ export async function highlightsPage(
     ...facetQueries(db, facets, () => entryUnit(filters.terms)),
   ]);
 
-  const entries = rows.slice(0, HIGHLIGHTS_PAGE_SIZE).map((row) => entryOf(row));
-  const last = entries.at(-1);
+  const { items: entries, next } = pageTail(
+    rows.map((row) => entryOf(row)),
+    HIGHLIGHTS_PAGE_SIZE,
+    formatCursor,
+  );
 
   return {
     entries,
-    next:
-      rows.length > HIGHLIGHTS_PAGE_SIZE && last !== undefined
-        ? formatCursor({ date: last.date, kind: last.kind, id: last.id })
-        : null,
+    next,
     counts: {
       total: (highlightTotal?.count ?? 0) + (noteTotal?.count ?? 0),
       ...facetCounts(counted),

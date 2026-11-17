@@ -67,6 +67,8 @@ const NOT_AN_ARTICLE: Content = { kind: "link" };
 
 const EMPTY_PAGE: Content = { kind: "empty-page" };
 
+const NO_BYLINE = { author: null, community: null } as const;
+
 function isArticleAddress(url: string): boolean {
   return !isVideoLink(url) && !isGitHubLink(url);
 }
@@ -86,7 +88,7 @@ function articleDetails(
   return titled(
     title,
     words < MIN_ARTICLE_WORDS
-      ? { author: null, community: null, content: NOT_AN_ARTICLE }
+      ? { ...NO_BYLINE, content: NOT_AN_ARTICLE }
       : {
           author,
           community: null,
@@ -123,8 +125,7 @@ export async function detailsOfSuppliedPage(
 
   if (!isArticleAddress(url)) {
     return titled(collapsed(page.title), {
-      author: null,
-      community: null,
+      ...NO_BYLINE,
       content: NOT_AN_ARTICLE,
     });
   }
@@ -140,16 +141,14 @@ export async function detailsOfPage(
 ): Promise<Concluded> {
   if (link.kind !== "link") {
     return titled(await pages.title(page.text, deadline), {
-      author: null,
-      community: null,
+      ...NO_BYLINE,
       content: null,
     });
   }
 
   if (!isArticleCandidate(page)) {
     return titled(await pages.title(page.text, deadline), {
-      author: null,
-      community: null,
+      ...NO_BYLINE,
       content: NOT_AN_ARTICLE,
     });
   }

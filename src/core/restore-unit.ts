@@ -101,14 +101,6 @@ export function endedUnit(
   };
 }
 
-export function failedUnit(
-  db: Database,
-  run: Readonly<RestoreRow>,
-  failure: RestoreFailure,
-): JobOutcome {
-  return endedUnit(db, run, { state: "failed", failure, updatedAt: Date.now() });
-}
-
 export function snapshotted(
   ports: Readonly<{ db: Database }>,
   run: Readonly<RestoreRow>,

@@ -9,7 +9,7 @@ import {
   type XRefusalCategory,
 } from "../../core/x-fetcher.ts";
 import type { XCliThreadValue } from "../../core/x-wire.ts";
-import type { ProcessEnd } from "./cli-process.ts";
+import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";
 import { XFetchAnswerSchema } from "./grok-surface.ts";
 
 export interface Refusal {
@@ -99,9 +99,7 @@ function exitedOutcome(stdout: string, code: number | null): Outcome {
   return answerOutcome(envelope, code);
 }
 
-function unfinishedRefusal(
-  end: Readonly<Exclude<ProcessEnd, { readonly kind: "exited" }>>,
-): Refused {
+function unfinishedRefusal(end: Readonly<UnfinishedEnd>): Refused {
   switch (end.kind) {
     case "aborted":
       return refused({ status: "timeout", category: "deadline" }, null);
