@@ -18,6 +18,7 @@ import {
 } from "../../src/core/reader-text.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
 import { collapsedText } from "./collapsed-text.ts";
+import { plural } from "./plural.ts";
 import { ageLabel, dateLabel } from "./saved-label.ts";
 import { CLOSE_LABEL, filled } from "./text.ts";
 
@@ -185,7 +186,7 @@ export function archiveNote(
 }
 
 export function codeName(lines: number): string {
-  return lines === 1 ? CODE_ONE : filled(CODE_MANY, { count: String(lines) });
+  return plural(lines, CODE_ONE, CODE_MANY);
 }
 
 export function tableName(columns: number): string {

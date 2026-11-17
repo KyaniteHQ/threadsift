@@ -2,14 +2,13 @@ import { type Dispatch, type RefObject, useCallback, useEffect, useReducer, useR
 
 import type { NoteView } from "../../src/core/note-contract.ts";
 import { putNote } from "./keeping-api.ts";
-import { draftOf, keepDraft, watchDraft } from "./note-draft.ts";
+import { draftOf, keepDraft } from "./note-draft.ts";
 import {
   type NoteAction,
   type NoteState,
   noteFlags,
   noteReducer,
   noteStart,
-  sentOf,
 } from "./note-state.ts";
 
 function useSend(
@@ -25,12 +24,12 @@ function useSend(
       if (sending.current) return;
 
       sending.current = true;
-      dispatch({ kind: "send", sent: { body: draft, revision } });
+      dispatch({ kind: "send" });
 
       const answer = await putNote(itemId, { body: draft, revision }).catch(() => null);
 
       sending.current = false;
-      dispatch({ kind: "answer", answer });
+      dispatch({ kind: "answer", answer, body: draft });
 
       if (resolving && answer?.outcome === "saved") field.current?.focus();
     },
@@ -45,34 +44,20 @@ function view(state: Readonly<NoteState>) {
     draft: state.draft,
     newer: state.newer,
     pending,
-    failed: state.outcome === "failed",
-    justSaved: state.outcome === "saved" && !dirty,
+    failed: state.attempt === "failed",
+    justSaved: state.attempt === "saved" && !dirty,
     tooLong,
     canSave,
     dirty,
   };
 }
 
-function useKeptDraft(
-  itemId: number,
-  { saved, draft, attempt, adopted }: Readonly<NoteState>,
-  dirty: boolean,
-  dispatch: Dispatch<NoteAction>,
-) {
+function useKeptDraft(itemId: number, { saved, draft }: Readonly<NoteState>, dirty: boolean) {
   const { revision } = saved;
 
-  useEffect(
-    () =>
-      watchDraft(itemId, (kept) => {
-        dispatch({ kind: "adopt", kept });
-      }),
-    [itemId, dispatch],
-  );
-
   useEffect(() => {
-    if (!adopted)
-      keepDraft(itemId, dirty ? { body: draft, revision, sent: sentOf(attempt) } : null);
-  }, [itemId, dirty, draft, revision, attempt, adopted]);
+    keepDraft(itemId, dirty ? { body: draft, revision } : null);
+  }, [itemId, dirty, draft, revision]);
 }
 
 export function useNote(
@@ -87,7 +72,7 @@ export function useNote(
   const send = useSend(itemId, state.draft, dispatch, field);
   const shown = view(state);
   const { saved, newer } = state;
-  useKeptDraft(itemId, state, shown.dirty || shown.pending, dispatch);
+  useKeptDraft(itemId, state, shown.dirty || shown.pending);
 
   const save = useCallback(() => {
     if (shown.canSave) void send(saved.revision, false);
