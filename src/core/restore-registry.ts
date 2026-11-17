@@ -34,7 +34,7 @@ export interface TableSpec {
 const SINGLETONS: ReadonlyMap<string, Singleton> = new Map([
   ["log_start", "keep"],
   ["reddit_settings", "reset"],
-  ["catalog_version", "reset"],
+  ["catalog_version", "keep"],
 ]);
 
 const Literal = z.union([z.number(), z.string(), z.boolean().transform((flag) => (flag ? 1 : 0))]);

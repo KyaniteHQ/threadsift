@@ -25,8 +25,12 @@ const PinSchema = z.object({
 
 const byNumber = (first: number, second: number): number => first - second;
 
+const CatalogVersionSchema = z.object({ version: z.number() });
+
 const catalogVersion = (instance: Instance): number =>
-  count(instance, "select coalesce(max(version), 0) as n from catalog_version");
+  CatalogVersionSchema.parse(
+    rows(instance, CatalogVersionSchema, "select version from catalog_version where id = 1")[0],
+  ).version;
 
 const listed = async (instance: Instance, query: string) =>
   (await instance.read("GET", `/api/items${query}`, ItemReadResponseSchema)).items.map(

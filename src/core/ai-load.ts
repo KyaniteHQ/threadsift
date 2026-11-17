@@ -5,7 +5,7 @@ import { type Keyless, type Stored, StoredSettingsSchema } from "./ai-next-setti
 import { grokBotSettings } from "./grok-bot-tables.ts";
 import { connectionOf, openedGrokBot } from "./grok-bot.ts";
 import type { AiPorts, Database } from "./ports.ts";
-import { aiSettingsRevision, settings } from "./schema.ts";
+import { UninitializedDatabase, aiSettingsRevision, settings } from "./schema.ts";
 
 export interface Snapshot {
   readonly sealer: AiPorts["secrets"];
@@ -30,9 +30,11 @@ export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
     ports.db.select().from(grokBotSettings).where(eq(grokBotSettings.id, 1)),
   ]);
 
+  if (counter === undefined) throw new UninitializedDatabase("ai_settings_revision");
+
   const snapshot = {
     sealer: ports.secrets,
-    revision: counter?.revision ?? 0,
+    revision: counter.revision,
     saved: row === undefined ? undefined : StoredSettingsSchema.parse(row),
     botSelected: bot?.useAsProvider === true,
   };

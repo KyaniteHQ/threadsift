@@ -129,7 +129,6 @@ export const BACKUP_TABLES = {
       "prefix",
       "suffix",
       "hint",
-      "projection",
       "created_at",
       "status",
       "start",

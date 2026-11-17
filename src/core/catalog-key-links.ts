@@ -159,7 +159,6 @@ export function closingWrites(
 
   return [
     ...before,
-    db.insert(catalogVersion).values({ id: 1, version: 0 }).onConflictDoNothing(),
     db
       .update(catalogVersion)
       .set({ version: sql`${catalogVersion.version} + 1` })

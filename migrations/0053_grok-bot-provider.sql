@@ -1,1 +1,0 @@
-ALTER TABLE `grok_bot_settings` ADD `use_as_provider` integer DEFAULT false NOT NULL;

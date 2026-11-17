@@ -11,7 +11,8 @@ import { rows } from "./related-fixtures.ts";
 const VersionSchema = z.object({ version: z.number() });
 
 const catalogVersion = (instance: Instance): number =>
-  rows(instance, VersionSchema, "select version from catalog_version")[0]?.version ?? 0;
+  VersionSchema.parse(rows(instance, VersionSchema, "select version from catalog_version")[0])
+    .version;
 
 describe("the Log records a first Digest, a second Item and a Digest sent again", () => {
   let instance: Instance;

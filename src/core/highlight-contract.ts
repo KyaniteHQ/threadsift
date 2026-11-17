@@ -32,7 +32,6 @@ const Recorded = {
   id: z.number().int().positive(),
   target: HighlightTargetSchema,
   selector: SelectorSchema,
-  projection: z.number().int().positive(),
   createdAt: z.number().int(),
 };
 

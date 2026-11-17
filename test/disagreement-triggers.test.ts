@@ -8,7 +8,7 @@ const BUSY_TIMEOUT_MS = 5000;
 
 const PAIR_COLUMNS = "from_item_id, into_item_id, from_digest, into_digest";
 
-describe("the subject triggers of an items-disagree proposal and of the kinds that came before it", () => {
+describe("the subject constraints of an items-disagree proposal and of the kinds that came before it", () => {
   let instance: Instance;
   let database: DatabaseSync;
   let first = 0;
@@ -64,8 +64,8 @@ describe("the subject triggers of an items-disagree proposal and of the kinds th
     database.exec(`
       insert into topics (id, key, name) values (1, 'topic', 'Topic'), (2, 'other', 'Other');
       insert into tags (id, key, name) values (11, 'first', 'First'), (12, 'second', 'Second');
-      insert into highlights (id, item_id, exact, prefix, suffix, hint, projection, created_at, status, start)
-        values (1, ${String(first)}, 'one', '', '', 0, 1, 1, 'gone', null);
+      insert into highlights (id, item_id, exact, prefix, suffix, hint, created_at, status, start)
+        values (1, ${String(first)}, 'one', '', '', 0, 1, 'gone', null);
     `);
 
     const subjects = [
