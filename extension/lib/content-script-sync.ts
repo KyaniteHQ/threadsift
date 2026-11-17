@@ -1,5 +1,7 @@
 import { browser } from "wxt/browser";
 
+import { oneAtATime } from "./access.ts";
+
 export interface Registration {
   readonly js: string;
   readonly matches: readonly string[];
@@ -36,11 +38,8 @@ async function syncOnce(id: string, decide: Decide): Promise<void> {
   }
 }
 
-let pending: Promise<void> = Promise.resolve();
+const inOrder = oneAtATime();
 
 export function syncContentScript(id: string, decide: Decide): Promise<void> {
-  const run = pending.then(() => syncOnce(id, decide));
-  pending = run.catch(() => {});
-
-  return run;
+  return inOrder(() => syncOnce(id, decide));
 }

@@ -33,6 +33,10 @@ let
     ${buildImage}
     podman image prune --force --filter label=${smokeLabel} > /dev/null || echo "podman image prune failed" >&2
   '';
+  playwright = env: project: ''
+    ${checkoutEnv}
+    ${env} pnpm exec playwright test --project=${project}
+  '';
   port = name: toString config.processes.${name}.ports.http.value;
   browsers = pkgs.playwright-driver.browsers.override {
     withFirefox = false;
@@ -186,37 +190,25 @@ in
     };
     "smoke:worker" = {
       after = [ "web:build" ];
-      exec = ''
-        ${checkoutEnv}
-        THREADSIFT_TARGET=worker pnpm exec playwright test --project=smoke
-      '';
+      exec = playwright "THREADSIFT_TARGET=worker" "smoke";
     };
     "smoke:container" = {
       after = [
         "ci:install"
         "container:build"
       ];
-      exec = ''
-        ${checkoutEnv}
-        THREADSIFT_TARGET=container pnpm exec playwright test --project=smoke
-      '';
+      exec = playwright "THREADSIFT_TARGET=container" "smoke";
     };
     "live:worker" = {
       after = [ "web:build" ];
-      exec = ''
-        ${checkoutEnv}
-        THREADSIFT_TARGET=worker pnpm exec playwright test --project=live
-      '';
+      exec = playwright "THREADSIFT_TARGET=worker" "live";
     };
     "live:container" = {
       after = [
         "ci:install"
         "live:image"
       ];
-      exec = ''
-        ${checkoutEnv}
-        THREADSIFT_LIVE=1 THREADSIFT_TARGET=container pnpm exec playwright test --project=live
-      '';
+      exec = playwright "THREADSIFT_LIVE=1 THREADSIFT_TARGET=container" "live";
     };
   };
 }

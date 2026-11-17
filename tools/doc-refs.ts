@@ -2,7 +2,7 @@ import {
   docLines,
   docPaths,
   escapeRegExp,
-  globMatches,
+  matchesAny,
   isIgnored,
   readRepository,
   readText,
@@ -54,9 +54,7 @@ function checkLines(line: Readonly<DocLine>, ref: Readonly<PathRef>, path: strin
 
 function absence(ref: Readonly<PathRef>, repo: Repository): string | undefined {
   if (ref.glob) {
-    return ref.paths.some((glob) => globMatches(glob, repo.files).length > 0)
-      ? undefined
-      : "matches no file";
+    return ref.paths.some((glob) => matchesAny(glob, repo.files)) ? undefined : "matches no file";
   }
 
   const found = ref.paths.some((path) => repo.files.has(path) || repo.directories.has(path));

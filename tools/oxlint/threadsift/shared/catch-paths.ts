@@ -105,7 +105,7 @@ function rankInTry(owner: ESTree.TryStatement, part: Node): number {
 
 function followsInList(
   list: readonly Node[],
-  pair: Readonly<{ awaited: Node; thrown: Node; clause: Node }>,
+  pair: Readonly<{ awaited: Node; clause: Node }>,
   owner: Node,
   parts: readonly [Node, Node],
 ): boolean {
@@ -137,7 +137,7 @@ export function canThrowAfter(awaited: Node, thrown: Node, clause: ESTree.CatchC
   const list = statementsOf(common);
 
   if (list !== undefined)
-    return followsInList(list, { awaited, thrown, clause }, common, [fromPart, toPart]);
+    return followsInList(list, { awaited, clause }, common, [fromPart, toPart]);
 
   if (common.type === "IfStatement") return fromPart === common.test;
 
