@@ -2,9 +2,10 @@ import { type ComponentType, lazy } from "react";
 
 import { NOTHING } from "../../src/core/nothing.ts";
 import { unavailable } from "./module-unavailable.ts";
-import { IMPORT_PATH, LOG_PATH, PROPOSALS_PATH, SETTINGS_PATH } from "./routing.ts";
+import { IMPORT_PATH, LOG_PATH, PROPOSALS_PATH, SETTINGS_PATH, OBSIDIAN_PATH } from "./routing.ts";
 
 const LOADERS = {
+  [OBSIDIAN_PATH]: () => import("./ObsidianPage.tsx").then((m) => m.ObsidianPage),
   [SETTINGS_PATH]: () => import("./SettingsPage.tsx").then((m) => m.SettingsPage),
   [IMPORT_PATH]: () => import("./ImportPage.tsx").then((m) => m.ImportPage),
   [LOG_PATH]: () => import("./LogPage.tsx").then((m) => m.LogPage),
@@ -32,3 +33,5 @@ export const ImportPage = page(LOADERS[IMPORT_PATH]);
 export const LogPage = page(LOADERS[LOG_PATH]);
 
 export const ProposalsPage = page(LOADERS[PROPOSALS_PATH]);
+
+export const ObsidianPage = page(LOADERS[OBSIDIAN_PATH]);

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 
 import { HighlightsPage } from "./HighlightsPage.tsx";
 import { IndexPage } from "./IndexPage.tsx";
-import { ImportPage, SettingsPage, LogPage, ProposalsPage } from "./lazy-pages.tsx";
+import { ImportPage, SettingsPage, LogPage, ProposalsPage, ObsidianPage } from "./lazy-pages.tsx";
 import { Library } from "./Library.tsx";
 import { ModuleBoundary } from "./ModuleBoundary.tsx";
 import { type Route, usePages } from "./routing.ts";
@@ -37,8 +37,10 @@ function SignedInContent({
   }, [navigate, loggedOut]);
 
   switch (screen.name) {
+    case "obsidian":
+      return <ObsidianPage back={pages.settings} />;
     case "settings":
-      return <SettingsPage back={toLibrary} loggedOut={leave} />;
+      return <SettingsPage back={toLibrary} loggedOut={leave} openObsidian={pages.obsidian} />;
     case "highlights":
       return <HighlightsPage look={look} route={route} back={toLibrary} />;
     case "import":

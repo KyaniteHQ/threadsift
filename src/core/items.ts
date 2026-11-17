@@ -8,6 +8,7 @@ import type { Link } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
 import { items } from "./schema.ts";
 import type { UNSUPPORTED_PAGE_LINK } from "./supplied-page.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 export type SaveResult =
   | { readonly kind: "saved"; readonly item: ListedItemRow; readonly created: boolean }
@@ -81,6 +82,7 @@ export function queuedWrites(
       .where(eq(items.normalizedUrl, normalizedUrl)),
     openingJob(db, { kind: "fetch", address, normalizedUrl, now, page }),
     selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
+    queueVaultItems(db, eq(items.normalizedUrl, normalizedUrl)),
   ] as const;
 }
 

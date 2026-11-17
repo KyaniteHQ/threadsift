@@ -258,6 +258,9 @@ export function backupTable(name: string): BackupTable {
 }
 
 export const EXCLUDED_TABLES = {
+  vault_settings: "secret",
+  mirror_notes: "derived",
+  mirror_files: "derived",
   owner: "login-data",
   sessions: "login-data",
   agent_tokens: "login-data",

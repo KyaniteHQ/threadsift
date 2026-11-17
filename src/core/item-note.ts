@@ -100,6 +100,9 @@ function frontMatter(input: Readonly<ItemNoteInput>): string {
   return [
     "---",
     `id: ${String(input.id)}`,
+    ...(input.title === null || input.title.trim() === ""
+      ? []
+      : [`aliases: [${scalar(input.title)}]`]),
     `source: ${scalar(input.source)}`,
     `url: ${scalar(input.url)}`,
     `author: ${scalar(input.author)}`,
