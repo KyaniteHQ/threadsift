@@ -69,7 +69,6 @@ function actions(state: Readonly<SaveState>): HTMLElement[] {
     case "too-large":
     case "private-link":
     case "unsupported-link":
-    case "updating":
     case "unreachable":
     case "failed":
       return [button(TEXT.tryAgain, () => void save())];
@@ -112,8 +111,6 @@ function messageOf(state: Readonly<SaveState>): Message {
       return warning(TEXT.threadKept);
     case "budget-spent":
       return warning(TEXT.budgetSpent);
-    case "updating":
-      return warning(TEXT.updating);
     case "unreachable":
       return warning(TEXT.unreachable);
     case "failed":

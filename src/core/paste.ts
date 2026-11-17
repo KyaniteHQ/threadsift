@@ -16,11 +16,7 @@ export interface Supplied {
   readonly fill?: true | undefined;
 }
 
-type Pasted =
-  | ThreadPasteResult
-  | PageSaveResult
-  | { readonly kind: "updating" }
-  | { readonly kind: "restoring" };
+type Pasted = ThreadPasteResult | PageSaveResult | { readonly kind: "restoring" };
 
 type PasteResult = Budgeted<Pasted>;
 

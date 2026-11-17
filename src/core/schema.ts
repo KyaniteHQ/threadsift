@@ -25,8 +25,6 @@ export {
 
 export { itemAliases } from "./alias-tables.ts";
 
-export { dataStepLease, dataStepRenames, dataSteps } from "./data-step-tables.ts";
-
 export {
   DATABASE_NOW,
   guardHolds,

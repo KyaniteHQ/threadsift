@@ -28,9 +28,6 @@ export const NOT_FOUND = "Not found";
 
 export const REFUSED_HOST = "url: the host is not globally reachable";
 
-export const UPDATING =
-  "The library is being updated and takes no new link yet. Try again in a minute.";
-
 export const RESTORING =
   "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
 

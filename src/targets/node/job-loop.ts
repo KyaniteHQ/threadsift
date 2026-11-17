@@ -1,6 +1,5 @@
 import { setTimeout } from "node:timers/promises";
 
-import { migrateData } from "../../core/data-steps.ts";
 import { logFailure, report } from "../../core/failure-log.ts";
 import type { JobPorts } from "../../core/job-outcome.ts";
 import { abandonRunning, claimNextDue, executeClaimed } from "../../core/jobs.ts";
@@ -56,10 +55,6 @@ export class JobLoop {
 
     try {
       await abandonRunning(ports.db);
-
-      await migrateData(ports.db).catch((error: Readonly<Error>) => {
-        reportFailure("The data steps failed", error);
-      });
     } catch (error) {
       this.state = { kind: "idle" };
 

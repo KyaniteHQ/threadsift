@@ -35,13 +35,13 @@ import {
   withCursor,
 } from "./calls.ts";
 import { type Filters, queryOf } from "./filters.ts";
-import { unavailableKind } from "./unavailable.ts";
+import { isRestoring } from "./unavailable.ts";
 import { DATABASE_WRITE_DEADLINE_MS, PASTE_DEADLINE_MS } from "./write-deadlines.ts";
 
 export type SaveResult =
   | { readonly outcome: "invalid" }
   | { readonly outcome: "private" }
-  | { readonly outcome: "updating" | "restoring" }
+  | { readonly outcome: "restoring" }
   | {
       readonly outcome: "saved";
       readonly known: boolean;
@@ -127,8 +127,8 @@ export async function saveLink(url: string): Promise<SaveResult> {
     return { outcome: refusal === "refused" ? "private" : "invalid" };
   }
 
-  if (response.status === 503) {
-    return { outcome: await unavailableKind(response) };
+  if (await isRestoring(response)) {
+    return { outcome: "restoring" };
   }
 
   const { item } = await parsedBody(response, SavedItemResponseSchema);

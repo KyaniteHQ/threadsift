@@ -31,8 +31,6 @@ export interface TableSpec {
   readonly singleton: Singleton | null;
 }
 
-const STEPS_TABLE = "data_steps";
-
 const SINGLETONS: ReadonlyMap<string, Singleton> = new Map([
   ["log_start", "keep"],
   ["reddit_settings", "reset"],
@@ -185,7 +183,7 @@ function buildRegistry() {
     Array.from(specs, ([name, spec]) => [name, spec.parents.map(({ table }) => table)]),
   );
 
-  return { specs, order: ordered(parents).filter((name) => name !== STEPS_TABLE) };
+  return { specs, order: ordered(parents) };
 }
 
 const REGISTRY = buildRegistry();

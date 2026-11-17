@@ -43,7 +43,6 @@ word_of() {
     *:409) echo closed ;;
     *:413) echo too-large ;;
     save:429|bookmarks-send:429) echo budget-spent ;;
-    save:503|bookmarks-send:503) echo updating ;;
     *:000) echo unreachable ;;
     *) echo failed ;;
   esac
