@@ -175,21 +175,13 @@ function wakeWhenFree(db: Database, run: TurnRun, now: number): BatchItem<"sqlit
     );
 }
 
-function wakingOldestAndReleasing(
-  db: Database,
-  job: TurnRun,
-  now: number,
-): readonly [BatchItem<"sqlite">, BatchItem<"sqlite">] {
-  return [wakeOldest(db, job, now), releaseTurn(db, job)];
-}
-
 export function redditClosing(
   db: Database,
   job: TurnRun,
   how: Closing,
 ): readonly BatchItem<"sqlite">[] {
   return how.kind === "closed"
-    ? wakingOldestAndReleasing(db, job, Date.now())
+    ? [wakeOldest(db, job, Date.now()), releaseTurn(db, job)]
     : how.wait === "reddit-limit"
       ? [deferTurn(db, job, true), wakeWhenFree(db, job, Date.now())]
       : [deferTurn(db, job, false)];
@@ -202,7 +194,7 @@ export async function redditClosed(
 ): Promise<void> {
   const now = Date.now();
 
-  if (!closed) await ports.db.batch(wakingOldestAndReleasing(ports.db, job, now));
+  if (!closed) await ports.db.batch([wakeOldest(ports.db, job, now), releaseTurn(ports.db, job)]);
 
   await enqueueWaiting(ports, now, "oldest");
 }

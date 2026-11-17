@@ -98,10 +98,6 @@ async function record(run: Readonly<Run>, change: Readonly<WindowRecord>): Promi
   if (await holds(run)) await recordWindow(run.ports.db, run.held, change, Date.now());
 }
 
-function recorded(run: Readonly<Run>, answer: Readonly<RedditAnswer>): Promise<void> {
-  return record(run, windowRecordOf(answer));
-}
-
 function limitedAtFirst(run: Readonly<Run>, first: Readonly<RedditAnswer>): AccountThread {
   const now = Date.now();
 
@@ -123,7 +119,7 @@ async function sessionAnswered(
 ): Promise<string> {
   const { ports, held } = run;
 
-  if (verdict.answer !== null) await recorded(run, verdict.answer);
+  if (verdict.answer !== null) await record(run, windowRecordOf(verdict.answer));
 
   if (verdict.verdict === "logged-out") {
     await expireAccount(ports, held, Date.now());
@@ -235,7 +231,7 @@ async function afterFirst(
   run: Readonly<Run>,
   first: Readonly<RedditAnswer>,
 ): Promise<AccountThread> {
-  await recorded(run, first);
+  await record(run, windowRecordOf(first));
 
   if (first.status === RATE_LIMITED) return limitedAtFirst(run, first);
 

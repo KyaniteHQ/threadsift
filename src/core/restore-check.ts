@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { EXPORT_FORMAT } from "./export-contract.ts";
 import { recordPath } from "./export-manifest.ts";
-import { RESTORE_MANIFEST_BYTES, type RestoreRefusal, WholeCount } from "./restore-contract.ts";
+import { WholeCount } from "./kinds.ts";
+import { RESTORE_MANIFEST_BYTES, type RestoreRefusal } from "./restore-contract.ts";
 import { parsedJson } from "./restore-lines.ts";
 import { RESTORE_TABLES, tableSpec } from "./restore-registry.ts";
 import { type ZipDirectory, ZipRefused, type ZipSource, entryBytes } from "./zip-read.ts";

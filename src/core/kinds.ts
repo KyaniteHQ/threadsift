@@ -151,7 +151,7 @@ export interface BudgetSpent {
   readonly until: number;
 }
 
-const WholeCount = z.number().int().nonnegative();
+export const WholeCount = z.number().int().nonnegative();
 
 export const TokenBudgetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unlimited"), added: WholeCount }),

@@ -71,14 +71,7 @@ async function knownPairs(db: Database, kind: MergeKind): Promise<ReadonlySet<st
 }
 
 function mostUsed(rows: readonly Readonly<NameRow>[]): ReadonlyMap<number, readonly string[]> {
-  const byOwner = new Map<number, NameRow[]>();
-
-  for (const row of rows) {
-    const bucket = byOwner.get(row.owner);
-
-    if (bucket === undefined) byOwner.set(row.owner, [row]);
-    else bucket.push(row);
-  }
+  const byOwner = Map.groupBy(rows, ({ owner }) => owner);
 
   return new Map(
     [...byOwner].map(([owner, each]) => [

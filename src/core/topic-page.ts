@@ -151,7 +151,7 @@ export async function readTopicPage(
   ]);
 
   const built = new Map(builtFrom.map(({ item, digest }) => [item, digest]));
-  const { shown, next } = pageTail(rows, ({ savedAt, id }) => formatCursor({ savedAt, id }));
+  const { shown, next } = pageTail(rows, formatCursor);
 
   return {
     topic: { key: topic.key, name: topic.name, itemCount: total },

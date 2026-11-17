@@ -1,6 +1,6 @@
 export const ITEMS_PAGE_SIZE = 50;
 
-export function pageTail<Row, Cursor>(rows: readonly Row[], cursorOf: (last: Row) => Cursor) {
+export function pageTail<Row>(rows: readonly Row[], cursorOf: (last: Row) => string) {
   const shown = rows.slice(0, ITEMS_PAGE_SIZE);
   const last = shown.at(-1);
 

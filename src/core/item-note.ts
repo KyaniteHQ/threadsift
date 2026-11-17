@@ -1,4 +1,5 @@
 import type { CommentNode } from "./comment-view.ts";
+import { utf8Length } from "./encoding.ts";
 import { isImageRouteOf, keyOfFileRoute } from "./file-keys.ts";
 import { collapsed } from "./format.ts";
 import type { Kind, ReadState, Source } from "./kinds.ts";
@@ -26,8 +27,6 @@ const SLUG_FALLBACK = "item";
 const NOTE_PREFIX = "note-";
 
 const NOTE_SUFFIX = ".md";
-
-const ENCODER = new TextEncoder();
 
 const NOT_PLAIN_YAML = /[\u007F-\u009F\u2028\u2029\uFFFE\uFFFF]/gu;
 
@@ -214,7 +213,7 @@ export function itemNote(input: Readonly<ItemNoteInput>): string {
 function sliced(slug: string): string {
   const points = Array.from(slug).slice(0, SLUG_CODE_POINTS);
 
-  while (ENCODER.encode(points.join("")).length > SLUG_BYTES) points.pop();
+  while (utf8Length(points.join("")) > SLUG_BYTES) points.pop();
 
   return points.join("").replaceAll(/-+$/gu, "");
 }
