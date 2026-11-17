@@ -50,6 +50,7 @@ in
   };
 
   env = {
+    CONTAINERS_STORAGE_CONF = (pkgs.formats.toml { }).generate "storage.conf" { storage = { }; };
     PLAYWRIGHT_BROWSERS_PATH = "${browsers}";
     PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
   };
