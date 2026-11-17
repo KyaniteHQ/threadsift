@@ -164,21 +164,6 @@ export function applyFailedNote(failedRuns: number): string {
   return plural(failedRuns, PROPOSAL_WORDS.applyFailedOnce, PROPOSAL_WORDS.applyFailedMany);
 }
 
-export function firstFailures(
-  applying: readonly Readonly<Proposal>[],
-  read: readonly Readonly<Proposal>[],
-): readonly string[] {
-  const unfailed = new Set(
-    applying.flatMap((each) => (isMerge(each) && each.failedRuns === 0 ? [each.id] : [])),
-  );
-
-  return read.flatMap((each) =>
-    isMerge(each) && unfailed.has(each.id) && each.failedRuns > 0
-      ? [applyFailedNote(each.failedRuns)]
-      : [],
-  );
-}
-
 const TEXT_CUT = 40;
 
 function textCut(text: string): string {

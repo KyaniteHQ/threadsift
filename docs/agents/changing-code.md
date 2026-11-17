@@ -76,7 +76,7 @@ Write them, the README and the guides under `docs/guides/` included, by the `tec
 ## Screens and browser code
 
 - For any change to what a screen shows or how it behaves, load the `impeccable` skill. Every value comes from `design/system/`.
-- A value that changes on a timer is not a live region. A screen reader reads each tick aloud, so announce a change once, through the page's announcer: `say` in `web/src/use-proposals-page.ts`, drawn by `web/src/Announcement.tsx`.
+- A value that changes on a timer is not a live region. A screen reader reads each tick aloud, so announce a change once, through the page's announcer: `announcement` in `web/src/use-proposals-page.ts`, drawn by `web/src/Announcement.tsx`.
 - An action that cannot work says why before the press. Show the reason beside the control and tie it with `aria-describedby`. See `SettingsActions` in `web/src/SettingsForm.tsx`.
 - For HTML, CSS and browser APIs, load the `modern-web-guidance` skill (its plugin is enabled in `.claude/settings.json`) and follow the guide it returns. The browser target is Baseline Widely available.
 
