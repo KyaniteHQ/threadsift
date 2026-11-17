@@ -56,9 +56,12 @@ export async function refusalOutcome(
   >,
 ): Promise<SettledOutcome> {
   const retriable = retriesAi(result);
-  const outcome = guardedOutcome(db, current, { taskId: result.taskId, writes, cleanup });
+  const { taskId } = result;
+  const outcome = guardedOutcome(db, current, { taskId, writes, cleanup });
 
-  if (retriable && !isLastAttempt(job.attempts) && (await outcome.currency.current())) {
+  if (retriable && !isLastAttempt(job.attempts)) {
+    if (!(await outcome.currency.current())) return lostOutcome(db, { taskId, cleanup });
+
     throw new Error(`${label} ${result.reason}`);
   }
 
