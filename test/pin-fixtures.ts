@@ -87,11 +87,3 @@ export const topicNameOf = (instance: Instance, itemId: number): string | null =
     "select topics.name as name from items left join topics on topics.id = items.topic_id where items.id = ?",
     itemId,
   )[0]?.name ?? null;
-
-export const storedDigestOf = (instance: Instance, itemId: number): string =>
-  rows(
-    instance,
-    z.object({ digest: z.string() }),
-    "select digest from digests where item_id = ?",
-    itemId,
-  )[0]?.digest ?? "";

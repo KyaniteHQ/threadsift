@@ -7,7 +7,6 @@ import { continueMerges } from "./merge-accept.ts";
 import { sweepConnectTransactions } from "./openrouter-connect.ts";
 import { weeklyStages } from "./proposal-week.ts";
 import { cleanRestoreParts } from "./restore-parts.ts";
-import { reconcileSearchParts } from "./search-reconciler.ts";
 
 const SWEEP_LIMIT = 100;
 
@@ -35,7 +34,6 @@ export function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
     ],
     ...weeklyStages(ports, now),
     ["merges", () => continueMerges(ports)],
-    ["search", () => reconcileSearchParts(ports)],
     ["exports", () => cleanExports(ports)],
     ["restores", () => cleanRestoreParts(ports)],
     ["files", () => cleanFiles(ports)],
