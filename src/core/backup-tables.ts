@@ -39,7 +39,7 @@ export const BACKUP_TABLES = {
       "post_text_key",
       "x_note",
     ],
-    leftOut: ["pending_digest", "added_by_token", "budget_slot_day"],
+    leftOut: ["pending_digest", "added_by_token"],
   },
   item_aliases: {
     scope: "per-item",
@@ -254,7 +254,6 @@ export const EXCLUDED_TABLES = {
   owner: "login-data",
   sessions: "login-data",
   agent_tokens: "login-data",
-  agent_token_days: "login-data",
   spent_reset_codes: "login-data",
   throttles: "login-data",
   settings: "secret",

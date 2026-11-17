@@ -10,7 +10,13 @@ import type { Ports } from "../core/ports.ts";
 import { pasteScopes } from "../core/scopes.ts";
 import { savedView } from "./item-view.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
-import { BUDGET_SPENT_MESSAGE, REFUSED_HOST, RESTORING, budgetRefusalOf } from "./refusals.ts";
+import {
+  BUDGET_SPENT_MESSAGE,
+  REFUSED_HOST,
+  RESTORING,
+  UNKNOWN_TOKEN,
+  budgetRefusalOf,
+} from "./refusals.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { SavedItemResponseSchema } from "./schemas.ts";
 
@@ -41,6 +47,8 @@ export function registerAddTool(server: McpServer, ports: Ports, tokenId: number
     },
     guarded("add", async ({ url, digest }: Readonly<z.infer<typeof AddInputSchema>>) => {
       const saved = await paste(ports, url, { kind: "token", id: tokenId }, { digest });
+
+      if (saved.kind === "unknown-token") return refused(UNKNOWN_TOKEN);
 
       if (saved.kind === "budget-spent") {
         return refused(BUDGET_SPENT_MESSAGE, budgetRefusalOf(saved));

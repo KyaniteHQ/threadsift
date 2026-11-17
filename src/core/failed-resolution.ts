@@ -15,13 +15,13 @@ interface Failure {
   readonly link: Readonly<Link>;
   readonly fetched: Readonly<Concluded>;
   readonly now: number;
-  readonly counting: Paste["counting"];
+  readonly addedByToken: Paste["addedByToken"];
 }
 
 async function insertedFailure(
   db: Database,
   noAlias: Readonly<SQLWrapper>,
-  { address, link: { normalizedUrl, kind, source }, fetched, now, counting }: Readonly<Failure>,
+  { address, link: { normalizedUrl, kind, source }, fetched, now, addedByToken }: Readonly<Failure>,
 ): Promise<SaveResult | undefined> {
   const [, inserted, [item]] = await db.batch([
     insertGuard(db, noAlias),
@@ -33,7 +33,7 @@ async function insertedFailure(
         normalizedUrl,
         originalUrl: address,
         savedAt: now,
-        ...counting,
+        addedByToken,
         ...settledNew(fetched, now),
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
@@ -81,10 +81,10 @@ export function saveFailedResolution(
   link: Readonly<Link>,
   fetched: Readonly<Concluded>,
   existing: Existing,
-  counting: Paste["counting"],
+  addedByToken: Paste["addedByToken"],
 ): Promise<SaveResult | null> {
   const noAlias = holdsNoRow(db, itemAliases, eq(itemAliases.normalizedUrl, link.normalizedUrl));
-  const failure = { address, link, fetched, now: Date.now(), counting };
+  const failure = { address, link, fetched, now: Date.now(), addedByToken };
 
   return unlessRefused(
     db,
