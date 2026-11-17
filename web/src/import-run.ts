@@ -104,7 +104,7 @@ export async function runImport(
   run: Readonly<Run>,
 ): Promise<Outcome> {
   let progress = initial;
-  let written: string | null | undefined = undefined;
+  let written: string | null | undefined;
 
   while (progress.done < links.length) {
     if (run.signal.aborted) return { ...progress, ending: "stopped" };
