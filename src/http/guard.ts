@@ -92,8 +92,6 @@ export function guard(ports: Ports): MiddlewareHandler {
     const protectedRoute = !isPublic(method, path);
     const carriesToken = protectedRoute && c.req.header("authorization") !== undefined;
 
-    c.set("principal", { kind: "anonymous" });
-
     if (protectedRoute) {
       if (carriesToken) {
         await bearer(c, async () => {});
