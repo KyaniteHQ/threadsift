@@ -6,10 +6,10 @@ import { z } from "zod";
 import { TASKS } from "../src/core/ai-tasks.ts";
 
 const CONTRACT_FILES = [
-  "src/core/ai-contract.ts",
-  "src/core/digest-text.ts",
-  "src/core/digest-prompt.ts",
-  "src/core/plain-text.ts",
+  ":(top)src/core/ai-contract.ts",
+  ":(top)src/core/digest-text.ts",
+  ":(top)src/core/digest-prompt.ts",
+  ":(top)src/core/plain-text.ts",
 ];
 
 function git(args: readonly string[]): string {
