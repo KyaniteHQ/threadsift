@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import { claimNextDue } from "../src/core/jobs.ts";
 import type { KindCase } from "./bot-kinds-cases.ts";
-import { leasesRunOut, sentTask } from "./bot-kinds-fixtures.ts";
+import { sentTask } from "./bot-kinds-fixtures.ts";
 import { pastDeadline } from "./bot-task-fixtures.ts";
 import { chooseGrokBot, unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
@@ -43,7 +43,6 @@ export async function unansweredClaim(
 ) {
   const sent = await sentTask(instance, kindCase.kind, job);
 
-  leasesRunOut(instance);
   pastDeadline(instance, sent.id);
 
   return sent;

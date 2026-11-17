@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { exhaust } from "../src/core/job-finish.ts";
 import { topicOverviewHandler } from "../src/core/topic-overview-job.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
-import { botInstance, holdTopic, leasesRunOut, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
+import { botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { insertedTask, taskRow, topicFailures } from "./bot-task-rows.ts";
 import { seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
@@ -23,7 +23,7 @@ describe("a Topic overview that gave up after the third unanswered send marks th
 
   after(() => instance.close());
 
-  it("writes the marker by the Topic id of the task while another holder owns the released lease and the owner Item sits in another Topic", async () => {
+  it("writes the marker by the Topic id of the task while the owner Item sits in another Topic", async () => {
     const job = await openJobOf(instance, {
       kind: "topic_overview",
       itemId: 101,
@@ -44,8 +44,7 @@ describe("a Topic overview that gave up after the third unanswered send marks th
     );
 
     const sent = await sentTask(instance, "topic_overview", job);
-    leasesRunOut(instance);
-    await holdTopic(instance, 1, "overview:foreign");
+
     exec(instance, "update items set topic_id = 2 where id = 101");
 
     await exhaust(instance.core, job, topicOverviewHandler, THIRD_SEND + 1);
@@ -69,7 +68,6 @@ describe("a Topic overview that gave up after the third unanswered send marks th
   });
 
   it("leaves a page that a newer overview stored since the task was sent unmarked", async () => {
-    leasesRunOut(instance);
     exec(instance, "delete from topic_pages");
     exec(instance, "update items set topic_id = 1 where id = 101");
 

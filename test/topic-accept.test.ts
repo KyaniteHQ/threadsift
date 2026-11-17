@@ -9,14 +9,7 @@ import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { seedLogEntries } from "./pin-fixtures.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
-import {
-  heldLeases,
-  itemsOf,
-  leaseGeneration,
-  proposeTopics,
-  topicId,
-  topicMergeLines,
-} from "./topic-accept-fixtures.ts";
+import { itemsOf, proposeTopics, topicId, topicMergeLines } from "./topic-accept-fixtures.ts";
 
 const StateSchema = z.object({ state: z.string() });
 
@@ -146,13 +139,11 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
 
   after(() => instance.close());
 
-  it("answers 200 done and leaves the one batch as the only unit", async () => {
+  it("answers 200 done for the accepted merge", async () => {
     const id = proposeTopics(instance, ["ML", "Machine learning"]);
     const answer = await accept(instance, id);
 
     assert.deepEqual([answer.status, JSON.parse(answer.body)], [200, { state: "done" }]);
-    assert.equal(leaseGeneration(instance, survivor), 1);
-    assert.equal(heldLeases(instance), 0);
   });
 
   it("links every Item to the survivor and finds them by its name and none by the merged-away name", async () => {
@@ -185,7 +176,7 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
     assert.equal(count(instance, "select count(*) as n from digests where topic = 'ML'"), 0);
   });
 
-  it("moves the Log lines that named the merged-away Topic and removes the Topic, its page and its lease", () => {
+  it("moves the Log lines that named the merged-away Topic and removes the Topic and its page", () => {
     assert.equal(
       count(
         instance,
@@ -200,10 +191,6 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
     assert.equal(count(instance, "select count(*) as n from topics where id = ?", loser), 0);
     assert.equal(
       count(instance, "select count(*) as n from topic_pages where topic_id = ?", loser),
-      0,
-    );
-    assert.equal(
-      count(instance, "select count(*) as n from topic_leases where topic_id = ?", loser),
       0,
     );
   });
@@ -245,7 +232,7 @@ describe("Accept of a Topic row on more Items and Log entries than one unit hold
 
   after(() => instance.close());
 
-  it("takes more than one unit for a Topic with few Items and more Log entries than one unit holds, and writes the Log entry once", async () => {
+  it("moves more Log entries than one unit holds and writes the merge Log entry once", async () => {
     seedLogEntries(instance, { topicId: loser, name: "Loser", entries: 1001 });
 
     const id = proposeTopics(instance, ["Loser", "Survivor"]);
@@ -259,7 +246,6 @@ describe("Accept of a Topic row on more Items and Log entries than one unit hold
     const answer = await accept(instance, id);
 
     assert.deepEqual([answer.status, JSON.parse(answer.body)], [200, { state: "done" }]);
-    assert.equal(leaseGeneration(instance, survivor), 3);
     assert.equal(count(instance, "select count(*) as n from topics where id = ?", loser), 0);
     assert.equal(
       count(instance, "select count(*) as n from log_entries where topic_id = ?", survivor) >=

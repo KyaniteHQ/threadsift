@@ -1,6 +1,5 @@
 import { eq, inArray } from "drizzle-orm";
 
-import { batchAll } from "../src/core/guards.ts";
 import { enqueueItemJobs } from "../src/core/job-rows.ts";
 import { claimNextDue, dueIds } from "../src/core/jobs.ts";
 import { jobs, xVerifications } from "../src/core/schema.ts";
@@ -43,7 +42,7 @@ export async function claimedBeforeNewerAnswer(
 
   const claimed = await claimNextDue(db);
 
-  await batchAll(db, [
+  await db.batch([
     ...queuedVerification(db, {
       itemId,
       address: addressOf(statusId),
@@ -108,7 +107,7 @@ export async function jobAfterNewerAnswer(
     .update(jobs)
     .set({ attempts: 2, waitReason: "x-verify", nextAttemptAt: Date.now() + 3_600_000 })
     .where(eq(jobs.itemId, itemId));
-  await batchAll(db, [
+  await db.batch([
     ...queuedVerification(db, {
       itemId,
       address: addressOf(statusId),

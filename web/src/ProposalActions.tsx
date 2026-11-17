@@ -38,7 +38,6 @@ function Note({ children, alert }: Readonly<{ children: string; alert: boolean }
 
 const BUSY_NOTES = {
   "merge-busy": PROPOSAL_WORDS.mergeBusy,
-  "topic-busy": PROPOSAL_WORDS.topicBusy,
   "no-provider": PROPOSAL_WORDS.noProvider,
 } as const satisfies Record<Busy, string>;
 

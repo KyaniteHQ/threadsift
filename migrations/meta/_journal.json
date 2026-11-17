@@ -505,6 +505,13 @@
       "when": 1794885444792,
       "tag": "0071_simple-token-budget",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1794893826413,
+      "tag": "0072_remove-topic-leases",
+      "breakpoints": true
     }
   ]
 }

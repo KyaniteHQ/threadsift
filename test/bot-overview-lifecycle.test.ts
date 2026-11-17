@@ -3,18 +3,10 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { applyOutcome } from "../src/core/job-finish.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
-import {
-  answeredAs,
-  botInstance,
-  claimedAndReleased,
-  holdTopic,
-  leasesRunOut,
-  openJobOf,
-  sentTask,
-} from "./bot-kinds-fixtures.ts";
+import { answeredAs, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { outcomeOf } from "./bot-kinds-steps.ts";
-import { pastDeadline, retireTasks, selectGrokBot } from "./bot-task-fixtures.ts";
-import { insertedTask, jobRow, rowCount, taskRow, topicLeaseFree } from "./bot-task-rows.ts";
+import { retireTasks, selectGrokBot } from "./bot-task-fixtures.ts";
+import { insertedTask, jobRow, rowCount, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 
@@ -24,7 +16,7 @@ const FILL = 10;
 
 const overview = caseOf("topic_overview");
 
-describe("a Topic overview holds the Topic's lease for the read and the send only", () => {
+describe("a Topic overview keeps its task and job state across retries", () => {
   let instance: Instance;
 
   const newJob = () => openJobOf(instance, { kind: "topic_overview", itemId: 101 });
@@ -37,13 +29,12 @@ describe("a Topic overview holds the Topic's lease for the read and the send onl
 
   beforeEach(() => {
     retireTasks(instance);
-    exec(instance, "update topic_leases set expires_at = 0");
     exec(instance, "delete from topic_pages");
   });
 
   after(() => instance.close());
 
-  it("frees the lease in the same batch that records the deferral when the cap is full", async () => {
+  it("defers without an attempt when the bot cap is full", async () => {
     for (const index of Array.from({ length: FILL }, (_, position) => position)) {
       insertedTask(instance, {
         kind: "related_pick",
@@ -55,104 +46,63 @@ describe("a Topic overview holds the Topic's lease for the read and the send onl
     const job = await newJob();
     const outcome = await outcomeOf(instance, "topic_overview", job);
 
-    assert.equal(topicLeaseFree(instance, 1), false);
-
     await applyOutcome(instance.core, job, outcome);
 
     const deferred = jobRow(instance, job.id);
 
-    assert.equal(topicLeaseFree(instance, 1), true);
     assert.deepEqual(
       [deferred.state, deferred.wait_reason, deferred.attempts],
       ["queued", "grok-bot", 0],
     );
   });
 
-  it("frees the lease when the send fails and the step throws", async () => {
+  it("throws when the send fails", async () => {
     const job = await newJob();
 
     await assert.rejects(outcomeOf(instance, "topic_overview", job), SEND_FAILED);
-
-    assert.equal(topicLeaseFree(instance, 1), true);
   });
 
-  it("frees a lease an earlier attempt left held when the job finds its task still waiting", async () => {
+  it("defers without an attempt when its task is still waiting", async () => {
     const job = await newJob();
 
     await sentTask(instance, "topic_overview", job);
-
-    assert.equal(topicLeaseFree(instance, 1), false);
 
     await applyOutcome(instance.core, job, await outcomeOf(instance, "topic_overview", job));
 
     const deferred = jobRow(instance, job.id);
 
-    assert.equal(topicLeaseFree(instance, 1), true);
     assert.deepEqual(
       [deferred.state, deferred.wait_reason, deferred.attempts],
       ["queued", "grok-bot", 0],
     );
   });
 
-  it("frees a lease an earlier attempt left held when the resend fails", async () => {
+  it("throws when a resend fails", async () => {
     const job = await newJob();
     const sent = await sentTask(instance, "topic_overview", job);
 
     exec(instance, "update ai_tasks set sent_at = null where id = ?", sent.id);
 
     await assert.rejects(outcomeOf(instance, "topic_overview", job), SEND_FAILED);
-
-    assert.equal(topicLeaseFree(instance, 1), true);
   });
 
-  it("leaves the Topic to another claimer while the bot works, and takes the lease again to apply", async () => {
+  it("applies the answer and stores one page", async () => {
     const job = await newJob();
     const sent = await answeredAs(instance, { kindCase: overview, job });
-
-    leasesRunOut(instance);
-
-    await claimedAndReleased(instance, 1, "overview:another");
 
     await applyOutcome(instance.core, job, await outcomeOf(instance, "topic_overview", job));
 
     assert.equal(taskRow(instance, sent.id).state, "done");
-    assert.equal(topicLeaseFree(instance, 1), true);
     assert.equal(rowCount(instance, "topic_pages", "topic_id = 1"), 1);
   });
 
-  it("defers topic-busy without an attempt while another holder has the lease, and keeps the answered task past its deadline", async () => {
-    const job = await newJob();
-    const sent = await answeredAs(instance, { kindCase: overview, job });
-
-    leasesRunOut(instance);
-    await holdTopic(instance, 1, "overview:foreign");
-
-    await applyOutcome(instance.core, job, await outcomeOf(instance, "topic_overview", job));
-
-    const deferred = jobRow(instance, job.id);
-
-    assert.deepEqual(
-      [deferred.state, deferred.wait_reason, deferred.attempts],
-      ["queued", "topic-busy", 0],
-    );
-
-    pastDeadline(instance, sent.id);
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-
-    const task = taskRow(instance, sent.id);
-
-    assert.deepEqual([task.state, task.answered_at === null], ["running", false]);
-  });
-
-  it("frees the lease when the job lost its claim before the task could start", async () => {
+  it("starts no task when the job lost its claim", async () => {
     const job = await newJob();
 
     exec(instance, "update jobs set attempts = attempts + 1 where id = ?", job.id);
 
     await applyOutcome(instance.core, job, await outcomeOf(instance, "topic_overview", job));
 
-    assert.equal(topicLeaseFree(instance, 1), true);
     assert.equal(rowCount(instance, "ai_tasks", `job_id = ${String(job.id)}`), 0);
   });
 
@@ -162,7 +112,6 @@ describe("a Topic overview holds the Topic's lease for the read and the send onl
 
     exec(instance, "update items set topic_id = null where topic_id = 1");
     exec(instance, "delete from log_entries where topic_id = 1");
-    exec(instance, "delete from topic_leases where topic_id = 1");
     exec(instance, "delete from topics where id = 1");
 
     await applyOutcome(instance.core, job, await outcomeOf(instance, "topic_overview", job));

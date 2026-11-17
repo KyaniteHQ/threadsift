@@ -11,7 +11,6 @@ import {
   logEntries,
   proposals,
   tags,
-  topicLeases,
   topics,
 } from "./schema.ts";
 import { siblingTags, tagPartWrites } from "./search.ts";
@@ -62,10 +61,6 @@ function emptied(db: Database, id: number): SQL {
   )}`;
 }
 
-export function isLastUnit({ itemIds, entryIds }: Readonly<Moves>): boolean {
-  return itemIds.length < MERGE_ITEMS && entryIds.length < MERGE_ITEMS;
-}
-
 export function topicMoves(
   db: Database,
   loser: number,
@@ -96,7 +91,6 @@ export function topicMoves(
       .set({ topicId: survivor })
       .where(and(eq(logEntries.topicId, loser), among(logEntries.id, entryIds))),
     overviewRemoved(db, loser, emptied(db, loser)),
-    db.delete(topicLeases).where(and(eq(topicLeases.topicId, loser), emptied(db, loser))),
   ];
 }
 
