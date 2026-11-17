@@ -2,12 +2,13 @@
 
 | State | Part |
 |---|---|
-| Not built | The Vault mirror (`docs/architecture/vault-mirror.md`), the Cloudflare deploy button (`docs/architecture/cloudflare-deploy-button.md`), the Provider comparison that picks the default model, the version-tagged release image with its `release` branch (`docs/architecture/ci-releases-and-rollback.md`), the contributor licence agreement workflow, and the README's recording, screenshots and deploy buttons |
+| Not built | The Vault mirror (`docs/architecture/vault-mirror.md`), the Cloudflare deploy button (`docs/architecture/cloudflare-deploy-button.md`), the Provider comparison that picks the default model, the contributor licence agreement workflow, and the README's recording, screenshots and deploy buttons |
+| Partly built | The release workflow exists; its pre-release tag proof and cleanup remain unverified (`docs/architecture/ci-releases-and-rollback.md`) |
 | Partly built | The Restore of every library record, the stored images and post text files, the search parts and the Highlight anchors is built (`docs/architecture/export-backup-and-restore.md`). Cancel, resume, the cleanup of abandoned parts and the setup page step are built |
 | Partly built | Grok Bot: no AI task other than the X link send has run against a real bot (`docs/architecture/open-items-and-unverified-claims.md`) |
 | Partly built | X readers: the grok CLI reader ran on the container Instance on 2026-11-15 and 2026-11-16. The Grok Bot reader has not read a link from a real bot answer, and 10 of the 15 cause notes have not shown on a real Item there (`docs/architecture/open-items-and-unverified-claims.md`) |
 
-The table lists the parts of the app that are not fully built. A section that names a file or binding that does not exist yet says "Not built", as the deploy button and the releases do. `docs/spec.md` says what v1 does, each bullet matching the code; the files under `docs/architecture/` say what it is built with and where each part runs. Unless a section dates its own check, versions named in those files were checked on 2026-11-04.
+The table lists the parts of the app that are not fully built. A section that names a file or binding that does not exist yet says "Not built", as the deploy button does. `docs/spec.md` says what v1 does, each bullet matching the code; the files under `docs/architecture/` say what it is built with and where each part runs. Unless a section dates its own check, versions named in those files were checked on 2026-11-04.
 
 ## Sections
 
