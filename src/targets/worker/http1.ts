@@ -1,5 +1,4 @@
-import type { NetworkResponse, RequestHeaders } from "../../core/ports.ts";
-import { redditRateLimitOf } from "../../core/reddit-session.ts";
+import { type NetworkResponse, type RequestHeaders, rateLimitHeadersOf } from "../../core/ports.ts";
 
 const HEAD_LIMIT_BYTES = 16 * 1024;
 
@@ -233,7 +232,7 @@ export async function readResponse(
     status,
     location: headers.get("location") ?? null,
     contentType: headers.get("content-type") ?? null,
-    rateLimit: redditRateLimitOf((name) => headers.get(name) ?? null),
+    rateLimit: rateLimitHeadersOf((name) => headers.get(name) ?? null),
     body: bodyOf(reader, status, headers),
   };
 }

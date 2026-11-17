@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useId, useState } from "react";
+import { type ChangeEvent, useCallback, useId } from "react";
 
 import type { CountedName } from "../../src/core/filter-counts-contract.ts";
 import { Icon } from "./Icon.tsx";
@@ -13,6 +13,7 @@ import {
   namedOption,
 } from "./text.ts";
 import { TopicPageLink } from "./TopicLink.tsx";
+import { useToggle } from "./use-toggle.ts";
 
 const SHOWN_ROWS = 5;
 
@@ -150,16 +151,6 @@ function MoreRows({
       {all ? SHOW_FEWER : filled(ALL_ROWS[facet], { count: String(count) })}
     </button>
   );
-}
-
-export function useToggle(initial: boolean) {
-  const [on, setOn] = useState(initial);
-
-  const toggle = useCallback(() => {
-    setOn((now) => !now);
-  }, []);
-
-  return [on, toggle] as const;
 }
 
 function Rows({

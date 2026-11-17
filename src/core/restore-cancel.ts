@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { removeUnder, restoreFilesPrefix } from "./file-keys.ts";
+import { removeUnder } from "./file-cleanup.ts";
+import { restoreFilesPrefix } from "./file-keys.ts";
 import { guardedResults, guardedWrite } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";

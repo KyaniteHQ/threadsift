@@ -1,4 +1,3 @@
-import { HIGHLIGHTS_HEAD, headLabel } from "./head-label.ts";
 import { NEWEST_FIRST } from "./text.ts";
 
 export const HIGHLIGHTS_PAGE = {
@@ -17,7 +16,3 @@ export const HIGHLIGHTS_PAGE = {
   untitled: "Untitled",
   loadMoreFailed: "Couldn’t load more highlights and notes.",
 } as const;
-
-export function pageHeadLabel(total: number, shown: number | null, text: string): string {
-  return headLabel(HIGHLIGHTS_HEAD, { total, shown }, text);
-}

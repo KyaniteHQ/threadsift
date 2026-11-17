@@ -1,5 +1,6 @@
 import { type RefObject, useLayoutEffect, useState } from "react";
 
+import { NOTHING } from "../../src/core/nothing.ts";
 import { pixelsOf } from "./css-length.ts";
 
 const FOLD_OVER_LINES = 8;
@@ -16,15 +17,13 @@ function foldOf(box: HTMLElement): CommentFold {
   return box.scrollHeight > screen ? "long" : "tall";
 }
 
-function unobserved(): void {}
-
 export function useCommentFold(box: RefObject<HTMLElement | null>): CommentFold {
   const [fold, setFold] = useState<CommentFold>("none");
 
   useLayoutEffect(() => {
     const element = box.current;
 
-    if (element === null) return unobserved;
+    if (element === null) return NOTHING;
 
     const measure = (): void => {
       setFold(foldOf(element));

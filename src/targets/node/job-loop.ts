@@ -3,6 +3,7 @@ import { setTimeout } from "node:timers/promises";
 import { logFailure } from "../../core/failure-log.ts";
 import type { JobPorts } from "../../core/job-outcome.ts";
 import { abandonRunning, claimNextDue, executeClaimed } from "../../core/jobs.ts";
+import { NOTHING } from "../../core/nothing.ts";
 import type { JobQueue } from "../../core/ports.ts";
 import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
 import { tick } from "../../core/tick.ts";
@@ -85,7 +86,7 @@ export class JobLoop {
       this.settle().finally(() => {
         waiting.abort();
       }),
-      setTimeout(waitMs, undefined, { signal: waiting.signal }).catch(() => {}),
+      setTimeout(waitMs, undefined, { signal: waiting.signal }).catch(NOTHING),
     ]);
   }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { NOTHING } from "./nothing.ts";
+import { NOTHING } from "../../src/core/nothing.ts";
 import { type PanelRefs, watchPopover, watchSheet } from "./panel-dom.ts";
 
 const FIRST_CHOICE = '.st-body input[type="radio"]:checked';

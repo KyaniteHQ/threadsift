@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { collapsed } from "../../src/core/format.ts";
+import { WholeCount } from "../../src/core/whole-count.ts";
 
 const STORAGE_KEY = "threadsift:reading-places";
 const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";
@@ -8,7 +9,7 @@ const BAR_FALLBACK_HEIGHT = 56;
 const PASSAGE_LENGTH = 80;
 
 const AnchorSchema = z.object({
-  index: z.number().int().nonnegative(),
+  index: WholeCount,
   text: z.string(),
   fraction: z.number().min(0).max(1),
   offset: z.number().nonnegative(),

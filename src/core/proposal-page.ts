@@ -1,7 +1,8 @@
 import { eq, inArray, max, sql } from "drizzle-orm";
 
-import { pageTail } from "./item-page.ts";
+import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { type ProposalState, WEEKLY_TASK } from "./kinds.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { pageQuery } from "./proposal-rows.ts";
 import { providerSet } from "./provider-saved.ts";
@@ -78,10 +79,10 @@ export async function readProposalPage(db: Database, cursor: number | null) {
     db.select({ set: sql<number>`${providerSet()}` }).from(sql`(select 1)`),
   ]);
 
-  const { shown, next } = pageTail(rows, ({ id }) => String(id));
+  const { items, next } = pageTail(rows, ITEMS_PAGE_SIZE, ({ id }) => String(id));
 
   return {
-    proposals: shown.map((row) => PROPOSAL_OF[row.kind](row)),
+    proposals: items.map((row) => PROPOSAL_OF[row.kind](row)),
     checkedAt: run?.at ?? null,
     provider: provider?.set === 1,
     next,

@@ -3,7 +3,7 @@ import { browser } from "wxt/browser";
 import { instanceOrigin } from "../../lib/config.ts";
 import { type FillState, loadFill, turnFill } from "../../lib/fill-setting.ts";
 import { deferWhileWorking, newestRequest } from "../../lib/newest-request.ts";
-import { applyLook, element, say } from "../../lib/page-look.ts";
+import { applyLook, button, element, say } from "../../lib/page-look.ts";
 import {
   type Failure,
   type Refusal,
@@ -48,7 +48,7 @@ const fields: Readonly<Record<"address" | "token", SettingsField>> = {
 const saveButton = element("button", { type: "submit", class: "btn btn-acc" }, TEXT.saveSettings);
 const fillStatus = element("p", { class: "ext-status", "aria-live": "polite" });
 const fillNote = element("p", { class: "ext-status", role: "status" });
-const fillButton = element("button", { type: "button", class: "btn btn-acc" }, TEXT.fillTurnOn);
+const fillButton = button(TEXT.fillTurnOn, pressFill);
 
 let settings: SettingsState = { kind: "loading" };
 let fill: FillState = { kind: "loading" };
@@ -249,8 +249,6 @@ browser.permissions.onRemoved.addListener(() => void followFill());
 browser.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && "fill" in changes) void followFill();
 });
-
-fillButton.addEventListener("click", pressFill);
 
 address.addEventListener("input", () => {
   markFields(settings);

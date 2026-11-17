@@ -6,12 +6,12 @@ import {
   EXPORT_SLICE_DEADLINE_MS,
 } from "./export-contract.ts";
 import { logFailure, report } from "./failure-log.ts";
+import { removeUnder } from "./file-cleanup.ts";
 import {
   EXPORT_FILES_ROOT,
   FILE_LIST_LIMIT,
   exportFilesPrefix,
   parseStoredKey,
-  removeUnder,
 } from "./file-keys.ts";
 import { among } from "./guards.ts";
 import { CLAIM_MARGIN_MS, type JobPorts } from "./job-outcome.ts";

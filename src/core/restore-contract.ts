@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-import { COPY_RESTORE_PHASES, WholeCount } from "./kinds.ts";
+import { COPY_RESTORE_PHASES } from "./kinds.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
+import { WholeCount } from "./whole-count.ts";
 
 export type RunningPhase = (typeof COPY_RESTORE_PHASES)[number];
 

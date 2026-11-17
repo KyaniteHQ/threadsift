@@ -26,6 +26,8 @@ export type ProcessEnd =
   | { readonly kind: "over-cap" }
   | { readonly kind: "spawn-failed" };
 
+export type UnfinishedEnd = Exclude<ProcessEnd, { readonly kind: "exited" }>;
+
 function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
   try {
     process.kill(-pid, signal);

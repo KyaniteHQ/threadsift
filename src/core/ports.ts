@@ -17,6 +17,14 @@ export interface RateLimitHeaders {
   readonly reset: string | null;
 }
 
+export function rateLimitHeadersOf(header: (name: string) => string | null): RateLimitHeaders {
+  return {
+    retryAfter: header("retry-after"),
+    remaining: header("x-ratelimit-remaining"),
+    reset: header("x-ratelimit-reset"),
+  };
+}
+
 export interface NetworkResponse {
   readonly status: number;
   readonly location: string | null;

@@ -2,7 +2,7 @@ import { useCallback, useId } from "react";
 
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { ReadState, Source } from "../../src/core/kinds.ts";
-import { NamedSelect, RowGroup, Segments, useToggle, withAll } from "./FilterGroups.tsx";
+import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
 import { type Choice, type Filters, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import {
@@ -15,6 +15,7 @@ import {
   SOURCE_LABELS,
   filled,
 } from "./text.ts";
+import { useToggle } from "./use-toggle.ts";
 
 type Choose = (choice: Choice) => void;
 

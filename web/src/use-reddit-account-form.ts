@@ -7,7 +7,7 @@ import {
   saveRedditAccount,
   verifyRedditAccount,
 } from "./reddit-account-api.ts";
-import { REDDIT_ACCOUNT_TEXT, relayText, resultText } from "./reddit-account-text.ts";
+import { REDDIT_ACCOUNT_TEXT, RESULT_TEXT, relayText } from "./reddit-account-text.ts";
 import { askExtension } from "./reddit-relay.ts";
 import { type FieldState, useField } from "./use-form.ts";
 import {
@@ -68,7 +68,7 @@ function useConnect(session: FieldState, changed: Changed): Task {
     const response = await saveRedditAccount(value);
 
     if ("kind" in response) {
-      return { kind: "error", text: resultText(response.reason) };
+      return { kind: "error", text: RESULT_TEXT[response.reason] };
     }
 
     changed(response);
@@ -84,7 +84,7 @@ function useVerify(changed: Changed): Task {
 
     changed(await fetchRedditAccount());
 
-    return { kind: result === "ok" ? "ok" : "error", text: resultText(result) };
+    return { kind: result === "ok" ? "ok" : "error", text: RESULT_TEXT[result] };
   }, [changed]);
 }
 
@@ -117,9 +117,9 @@ function useDisconnect(session: FieldState, changed: Changed): Task {
 function verifyUnavailable({ state }: Readonly<RedditAccountView>): Unavailable {
   switch (state) {
     case "none":
-      return resultText("not-configured");
+      return RESULT_TEXT["not-configured"];
     case "missing":
-      return resultText("secret-missing");
+      return RESULT_TEXT["secret-missing"];
     case "connected":
     case "expired":
     case "unreadable":
@@ -138,7 +138,7 @@ function removeUnavailable({ state }: Readonly<RedditAccountView>): Unavailable 
 
 function unavailableOf(view: Readonly<RedditAccountView>) {
   return {
-    save: view.state === "missing" ? resultText("secret-missing") : null,
+    save: view.state === "missing" ? RESULT_TEXT["secret-missing"] : null,
     verify: verifyUnavailable(view),
     remove: removeUnavailable(view),
   } as const;

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { WholeCount } from "./whole-count.ts";
+
 export const SOURCES = ["reddit", "x", "github", "article", "other"] as const;
 
 export const KINDS = [
@@ -150,8 +152,6 @@ export interface BudgetSpent {
   readonly kind: typeof BUDGET_SPENT;
   readonly until: number;
 }
-
-export const WholeCount = z.number().int().nonnegative();
 
 export const TokenBudgetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unlimited"), added: WholeCount }),

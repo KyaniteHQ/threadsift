@@ -1,11 +1,11 @@
 import { and, eq, exists, or, sql } from "drizzle-orm";
 
 import { logFailure } from "./failure-log.ts";
-import { ITEM_FILES_ROOT, finalKeyOf, isSweptKey } from "./file-keys.ts";
+import { FILE_LIST_LIMIT, ITEM_FILES_ROOT, finalKeyOf, isSweptKey } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { ATTEMPT_FILES } from "./job-rows.ts";
 import { NAMED_FILES } from "./named-files.ts";
-import type { Database } from "./ports.ts";
+import type { Database, FileStore } from "./ports.ts";
 import { restoreHoldsLibrary } from "./restore-state.ts";
 import { fileCleaning, jobs } from "./schema.ts";
 
@@ -82,6 +82,15 @@ export async function cleanFiles({ db, files }: Readonly<Pick<JobPorts, "db" | "
     .insert(fileCleaning)
     .values({ id: 1, cursor: page.cursor })
     .onConflictDoUpdate({ target: fileCleaning.id, set: { cursor: page.cursor } });
+}
+
+export async function removeUnder(files: FileStore, prefix: string): Promise<void> {
+  const page = await files.list(prefix, null, FILE_LIST_LIMIT);
+
+  if (page.keys.length === 0) return;
+
+  await files.delete(page.keys);
+  await removeUnder(files, prefix);
 }
 
 export async function deleteQuietly(

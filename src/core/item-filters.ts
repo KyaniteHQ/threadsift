@@ -1,7 +1,7 @@
 import { type SQL, and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { catalogKey } from "./catalog-key.ts";
-import { TAG_USES, TOPIC_USES } from "./catalog.ts";
+import { TAG_USES, TOPIC_USES } from "./catalog-uses.ts";
 import type { CountedName, FilterCounts } from "./filter-counts-contract.ts";
 import type { ReadState, Source } from "./kinds.ts";
 import { READ_STATES, SOURCES } from "./kinds.ts";

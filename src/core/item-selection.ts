@@ -1,8 +1,9 @@
 import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
-import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor, pageTail } from "./item-page.ts";
+import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { JOINED_VIEW_COLUMNS } from "./joined-view.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { digests, githubRepos, items } from "./schema.ts";
 
@@ -54,19 +55,16 @@ function pageQuery(
     .limit(ITEMS_PAGE_SIZE + 1);
 }
 
-function pageOf(rows: readonly ListedItemRow[]) {
-  const { shown, next } = pageTail(rows, formatCursor);
-
-  return { items: shown, next };
-}
-
 export async function listItems(
   db: Database,
   filters: Readonly<ItemFilters>,
   cursor: Readonly<ItemCursor> | null,
 ) {
   if (cursor !== null) {
-    return { ...pageOf(await pageQuery(db, filters, cursor)), counts: null };
+    return {
+      ...pageTail(await pageQuery(db, filters, cursor), ITEMS_PAGE_SIZE, formatCursor),
+      counts: null,
+    };
   }
 
   const [rows, ...counted] = await db.batch([
@@ -74,7 +72,7 @@ export async function listItems(
     ...countQueries(db, filters),
   ]);
 
-  return { ...pageOf(rows), counts: filterCounts(counted) };
+  return { ...pageTail(rows, ITEMS_PAGE_SIZE, formatCursor), counts: filterCounts(counted) };
 }
 
 export async function getListedItem(db: Database, id: number): Promise<ListedItemRow | undefined> {

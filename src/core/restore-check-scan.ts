@@ -1,5 +1,6 @@
 import { crc32 } from "./crc32.ts";
-import { type Manifest, recordTableOf, refused } from "./restore-check.ts";
+import { recordTableOf } from "./export-manifest.ts";
+import { type Manifest, refused } from "./restore-check.ts";
 import { type CheckCursor, RESTORE_CHECK_BYTES, RESTORE_LINE_BYTES } from "./restore-contract.ts";
 import { completeLines, parsedRow } from "./restore-lines.ts";
 import { type TableSpec, lineVerdict, tableSpec } from "./restore-registry.ts";

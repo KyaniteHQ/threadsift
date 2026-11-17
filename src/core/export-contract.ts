@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { WholeCount } from "./kinds.ts";
+import { WholeCount } from "./whole-count.ts";
 
 export const EXPORT_FORMAT = 1;
 
