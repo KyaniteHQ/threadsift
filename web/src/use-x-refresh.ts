@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { createElement, useCallback, useMemo, useState } from "react";
 
 import type { GrokBotView } from "../../src/core/grok-bot-contract.ts";
 import type { XSettingsView } from "../../src/core/x-settings-contract.ts";
@@ -23,17 +23,18 @@ export function useXRefreshedByGrokBot(initial: Loaded<XSettingsView>) {
     );
   }, []);
 
-  const grokBot = useMemo<SectionSpec<GrokBotView>>(
-    () => ({
-      ...GROK_BOT_SECTION,
-      form: (view, changed) =>
-        GROK_BOT_SECTION.form(view, (next) => {
-          changed(next);
-          refresh();
-        }),
-    }),
-    [refresh],
-  );
+  const grokBot = useMemo<SectionSpec<GrokBotView>>(() => {
+    const Form: SectionSpec<GrokBotView>["Form"] = ({ view, changed }) => {
+      const saved = (next: GrokBotView) => {
+        changed(next);
+        refresh();
+      };
+
+      return createElement(GROK_BOT_SECTION.Form, { view, changed: saved });
+    };
+
+    return { ...GROK_BOT_SECTION, Form };
+  }, [refresh]);
 
   return { x, version, grokBot };
 }

@@ -162,8 +162,8 @@ function AiControls({ view, form }: Readonly<{ view: AiView; form: Form }>) {
   );
 }
 
-function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView) => void }>) {
-  const form = useAiForm(view, saved);
+function AiForm({ view, changed }: Readonly<{ view: AiView; changed: (value: AiView) => void }>) {
+  const form = useAiForm(view, changed);
   const { phase, submit } = form;
 
   return (
@@ -178,14 +178,10 @@ function AiForm({ view, saved }: Readonly<{ view: AiView; saved: (value: AiView)
   );
 }
 
-const aiForm = (view: AiView, saved: (view: AiView) => void) => (
-  <AiForm view={view} saved={saved} />
-);
-
 export const AI_SECTION: SectionSpec<AiView> = {
   id: "ai",
   title: AI_TEXT.title,
   intro: AI_TEXT.intro,
   loadFailed: AI_TEXT.loadFailed,
-  form: aiForm,
+  Form: AiForm,
 };

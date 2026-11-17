@@ -3,7 +3,7 @@ import { type RefObject, useCallback, useRef } from "react";
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { useLibrary } from "./library.ts";
-import { type ListState, countsOf, knownItems } from "./list-state.ts";
+import { type ListState, countsOf } from "./list-state.ts";
 import type { Route } from "./routing.ts";
 import { useListActions } from "./use-list-actions.ts";
 import { type ReaderSide, useReaderSide } from "./use-reader-side.ts";
@@ -33,7 +33,7 @@ export function useLibraryView(look: Look, route: Route): LibraryView {
   const library = useLibrary();
   const { list, clear } = library;
   const actions = useListActions(list, library, listPane, route);
-  const openItem = knownItems(list).find((item) => item.id === route.openId) ?? null;
+  const openItem = list.known.find((item) => item.id === route.openId) ?? null;
   const covered = look.reader !== "pane" && openItem !== null;
   const attend = actions.attend;
   const { shown, focusSearch, expectsEmpty } = useShownList({ root, searchField, list, look });

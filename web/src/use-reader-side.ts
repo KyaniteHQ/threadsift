@@ -3,7 +3,7 @@ import { type RefObject, useCallback } from "react";
 import type { Item } from "../../src/http/schemas.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { Paging, Writes } from "./library.ts";
-import { type ListState, knownItems } from "./list-state.ts";
+import { type ListState } from "./list-state.ts";
 import type { Route } from "./routing.ts";
 import { useAutoOpen } from "./use-auto-open.ts";
 import { useLibraryKeys } from "./use-library-keys.ts";
@@ -31,7 +31,7 @@ function useKeyActions({
     arrows,
     step: reader.step,
     toggle: (id: number) => {
-      const item = knownItems(list).find((each: Readonly<Item>) => each.id === id);
+      const item = list.known.find((each: Readonly<Item>) => each.id === id);
 
       if (item !== undefined) reader.toggleRead(item);
     },
