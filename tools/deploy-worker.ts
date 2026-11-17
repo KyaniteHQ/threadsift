@@ -1,19 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { parseArgs, stripVTControlCharacters } from "node:util";
 
-import { parse } from "dotenv";
-import { expand } from "dotenv-expand";
 import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
 
-import { reportFailure } from "../src/core/failure-log.ts";
-
 const REQUIRED_SECRETS = ["THREADSIFT_SECRET_KEY", "SETUP_CODE"] as const;
 const WRANGLER = ["exec", "wrangler", "--env", ""];
-const SecretsSchema = z.record(z.string(), z.string().nullable());
+const SecretsSchema = z.record(z.string(), z.string());
 const { values } = parseArgs({
   options: { "secrets-file": { type: "string" }, "dry-run": { type: "boolean" } },
 });
@@ -32,13 +26,6 @@ const config = z
 
 class DeployError extends Error {}
 
-function refuseEmpty(secrets: Readonly<z.infer<typeof SecretsSchema>>, path: string): void {
-  const empty = REQUIRED_SECRETS.filter((name) => secrets[name] === "");
-  if (empty.length > 0) {
-    throw new DeployError(`Empty required secrets: ${empty.join(", ")}. Set them in ${path}.`);
-  }
-}
-
 function secretsOf(path: string): z.infer<typeof SecretsSchema> {
   let text: string;
   try {
@@ -47,30 +34,19 @@ function secretsOf(path: string): z.infer<typeof SecretsSchema> {
     throw new DeployError(`Cannot read secrets file ${path}. Check its path and read permissions.`);
   }
 
+  const invalid = `Invalid JSON secrets file ${path}. Use {"THREADSIFT_SECRET_KEY":"<64 hex characters>","SETUP_CODE":"<setup code>"}.`;
   try {
     const secrets = SecretsSchema.safeParse(JSON.parse(text));
-    if (!secrets.success) {
-      throw new DeployError(`Invalid secrets file ${path}. Use a JSON object of strings or nulls.`);
+    if (!secrets.success) throw new DeployError(invalid);
+    const empty = REQUIRED_SECRETS.filter((name) => secrets.data[name] === "");
+    if (empty.length > 0) {
+      throw new DeployError(`Empty required secrets: ${empty.join(", ")}. Set them in ${path}.`);
     }
-    refuseEmpty(secrets.data, path);
     return secrets.data;
   } catch (error) {
-    if (!(error instanceof SyntaxError)) throw error;
+    if (error instanceof DeployError) throw error;
+    throw new DeployError(invalid);
   }
-
-  const parsed = parse(text);
-  if (Object.keys(parsed).length === 0) {
-    throw new DeployError(`Invalid secrets file ${path}. Use a JSON object or dotenv assignments.`);
-  }
-  refuseEmpty(parsed, path);
-  const environment = z.record(z.string(), z.string()).parse({ ...process.env });
-  const expanded = { ...parsed };
-  expand({ parsed: expanded, processEnv: { ...environment } });
-  for (const name of Object.keys(parsed)) {
-    if (Object.hasOwn(environment, name)) expanded[name] = environment[name] ?? "";
-  }
-  refuseEmpty(expanded, path);
-  return expanded;
 }
 
 function pnpm(
@@ -97,9 +73,7 @@ function pnpm(
 }
 
 function checkSecrets(supplied: Readonly<z.infer<typeof SecretsSchema>>): void {
-  const missing = REQUIRED_SECRETS.filter(
-    (name) => supplied[name] === undefined || supplied[name] === null,
-  );
+  const missing = REQUIRED_SECRETS.filter((name) => supplied[name] === undefined);
   if (missing.length === 0) return;
   if (values["dry-run"] === true) {
     throw new DeployError(
@@ -117,48 +91,6 @@ function checkSecrets(supplied: Readonly<z.infer<typeof SecretsSchema>>): void {
     throw new DeployError(
       `Missing required secrets: ${absent.join(", ")}. Supply them with --secrets-file.`,
     );
-  }
-}
-
-function interrupted(): never {
-  process.exit(130);
-}
-
-function terminated(): never {
-  process.exit(143);
-}
-
-function upload(supplied: Readonly<z.infer<typeof SecretsSchema>> | null): void {
-  if (supplied === null) {
-    pnpm([...WRANGLER, "deploy", "--keep-vars"]);
-    return;
-  }
-  const directory = mkdtempSync(join(tmpdir(), "threadsift-deploy-"));
-  const cleanup = () => {
-    try {
-      rmSync(directory, { recursive: true, force: true });
-    } catch (error) {
-      reportFailure({ event: "deploy-secret-cleanup", fields: {} }, error);
-      process.exitCode = 1;
-    }
-  };
-  process.once("exit", cleanup);
-  process.once("SIGINT", interrupted);
-  process.once("SIGTERM", terminated);
-  try {
-    const uploadFile = join(directory, "secrets.json");
-    writeFileSync(uploadFile, JSON.stringify(supplied), { mode: 0o600 });
-    pnpm([
-      ...WRANGLER,
-      "deploy",
-      "--keep-vars",
-      "--secrets-file",
-      uploadFile,
-      ...(values["dry-run"] === true ? ["--dry-run"] : []),
-    ]);
-  } finally {
-    cleanup();
-    process.removeListener("exit", cleanup);
   }
 }
 
@@ -189,14 +121,17 @@ function deploy(): void {
     }
   }
   pnpm(["run", "build"]);
-  upload(secretsFile === undefined ? null : supplied);
+  pnpm([
+    ...WRANGLER,
+    "deploy",
+    "--keep-vars",
+    ...(secretsFile === undefined ? [] : ["--secrets-file", secretsFile]),
+    ...(values["dry-run"] === true ? ["--dry-run"] : []),
+  ]);
 }
 
 try {
   deploy();
-  await new Promise<void>((resolve) => {
-    setImmediate(resolve);
-  });
 } catch (error) {
   if (!(error instanceof DeployError)) throw error;
   process.stderr.write(`${error.message}\n`);
