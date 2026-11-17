@@ -1,8 +1,7 @@
 import { eq, notExists, sql } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { STEPS } from "./data-step-list.ts";
-import { dataSteps } from "./data-step-tables.ts";
+import { NAMED_FILES } from "./named-files.ts";
 import type { Database } from "./ports.ts";
 import type { Manifest } from "./restore-check.ts";
 import { RESTORE_TABLES, tableSpec } from "./restore-registry.ts";
@@ -35,15 +34,26 @@ export function sequenceWrites(db: Database, manifest: Readonly<Manifest>) {
   });
 }
 
-export function stepWrites(db: Database, manifest: Readonly<Manifest>) {
-  return STEPS.map(({ name }) => {
-    const version = manifest.dataSteps[name] ?? 0;
+const EMBEDDED_JOB_ID = sql`(select coalesce(max(cast(substr(n, instr(n, '-') + 1) as integer)), 0) from (select substr(named.key, length('items/' || named.owner || '/') + 1) as n from ${NAMED_FILES} as named where named.key like 'items/%'))`;
 
-    return db
-      .insert(dataSteps)
-      .values({ name, version, cursor: null })
-      .onConflictDoUpdate({ target: dataSteps.name, set: { version, cursor: null } });
-  });
+export function jobKeyWrites(db: Database) {
+  return [
+    db
+      .update(sqliteSequence)
+      .set({ seq: sql`max(${sqliteSequence.seq}, ${EMBEDDED_JOB_ID})` })
+      .where(eq(sqliteSequence.name, "jobs")),
+    db.insert(sqliteSequence).select(
+      db
+        .select({
+          name: sql<string>`'jobs'`.as("name"),
+          seq: sql<number>`${EMBEDDED_JOB_ID}`.as("seq"),
+        })
+        .from(sql`(select 1)`)
+        .where(
+          sql`${EMBEDDED_JOB_ID} > 0 and not exists (select 1 from ${sqliteSequence} where ${sqliteSequence.name} = 'jobs')`,
+        ),
+    ),
+  ];
 }
 
 export function singletonResets(db: Database, manifest: Readonly<Manifest>) {

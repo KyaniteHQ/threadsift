@@ -1,6 +1,7 @@
-import { useId, useRef } from "react";
+import { useContext, useEffect, useId, useRef } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
+import { FieldVoiceContext } from "./FieldAnnouncer.tsx";
 import { Icon } from "./Icon.tsx";
 import { PasteCard, announcementsOf, type faceOf } from "./PasteCard.tsx";
 import { SwapButton } from "./SwapButton.tsx";
@@ -36,21 +37,26 @@ function PasteForm({
     invalid: boolean;
   }
 >) {
+  const id = useId();
+
   return (
     <form className="paste-row" noValidate onSubmit={submit}>
-      <label className="field">
+      <label className="field" htmlFor={id}>
         <span className="vh">{PASTE_LABEL}</span>
         <Icon name="link" className="ic" />
         <input
           ref={field}
+          id={id}
           type="text"
           inputMode="url"
           enterKeyHint="go"
           autoComplete="off"
           spellCheck={false}
+          autoCapitalize="none"
+          autoCorrect="off"
           placeholder={PASTE_PLACEHOLDER}
           value={value}
-          aria-invalid={invalid ? true : undefined}
+          aria-invalid={invalid}
           aria-describedby={describedBy}
           onChange={change}
         />
@@ -65,11 +71,20 @@ function Announcements({
   saving,
 }: Readonly<{ face: ReturnType<typeof faceOf>; saving: boolean }>) {
   const { polite, alert } = announcementsOf(face);
+  const voice = useContext(FieldVoiceContext);
+  const modal = voice?.modal === true;
+  const complete = face?.closes === true;
+
+  useEffect(() => {
+    const text = polite || alert;
+
+    if (modal && complete && text !== "") voice?.announce(text);
+  }, [alert, complete, modal, polite, voice]);
 
   return (
     <>
       <output className="vh" aria-live="polite" aria-atomic="true">
-        {saving ? SAVING_STATUS : polite}
+        {saving ? SAVING_STATUS : modal ? "" : polite}
       </output>
       <div className="vh" role="alert">
         {alert}
@@ -91,7 +106,7 @@ export function PasteBox({
   queue: PasteQueue;
   open: (id: number) => void;
 }>) {
-  const paste = usePaste(save, focusOnMount, items);
+  const paste = usePaste({ save, focusOnMount, items, open });
   const { shown, saving, close, dismiss, retry } = paste;
 
   const openShown = useOpenShown(paste, open);

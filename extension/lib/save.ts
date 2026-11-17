@@ -118,8 +118,6 @@ async function stateOf(
       return { kind: "too-large" };
     case 429:
       return spentState(response);
-    case 503:
-      return { kind: "updating" };
     default:
       return { kind: "failed" };
   }

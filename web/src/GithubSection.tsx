@@ -25,7 +25,7 @@ const TOKEN_KIND = {
 function Steps() {
   return (
     <>
-      <ol className="gh-steps">
+      <ol role="list" className="gh-steps">
         <li>
           <a
             className="fl-link gh-link"
@@ -68,10 +68,6 @@ function GithubForm({
   );
 }
 
-const githubForm = (view: GithubSettingsView, changed: (view: GithubSettingsView) => void) => (
-  <GithubForm view={view} changed={changed} />
-);
-
 export const GITHUB_SECTION: SectionSpec<GithubSettingsView> = {
   id: "github",
   title: GITHUB_TEXT.sectionTitle,
@@ -83,5 +79,5 @@ export const GITHUB_SECTION: SectionSpec<GithubSettingsView> = {
       {GITHUB_TEXT.guideLink}
     </a>
   ),
-  form: githubForm,
+  Form: GithubForm,
 };

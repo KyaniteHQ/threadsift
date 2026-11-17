@@ -1,13 +1,14 @@
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
 import { ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
-import { claimTopicLease, releaseTopicLease } from "../src/core/topic-lease.ts";
 import type { BotKindName, KindCase } from "./bot-kinds-cases.ts";
 import { openJobOfKind, selectGrokBot } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
+
+export { BOT_TASK_KINDS, ownerOf, startBotTask, taskRow };
 
 export { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 
@@ -77,27 +78,4 @@ export async function answeredAs(
   if (response.status !== 204) throw new Error(`the answer was refused: ${response.text}`);
 
   return sent;
-}
-
-export function leasesRunOut(instance: Instance): void {
-  exec(instance, "update topic_leases set expires_at = 0");
-}
-
-export async function holdTopic(instance: Instance, topicId: number, holder: string) {
-  const lease = await claimTopicLease(instance.core.db, topicId, holder);
-
-  if (lease === null)
-    throw new Error(`${holder} could not take the lease of Topic ${String(topicId)}`);
-
-  return lease;
-}
-
-export async function claimedAndReleased(
-  instance: Instance,
-  topicId: number,
-  holder: string,
-): Promise<void> {
-  const lease = await holdTopic(instance, topicId, holder);
-
-  await instance.core.db.batch([releaseTopicLease(instance.core.db, lease)]);
 }

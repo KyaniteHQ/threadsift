@@ -4,26 +4,15 @@ import { logFailure } from "./failure-log.ts";
 import { ITEM_FILES_ROOT, finalKeyOf, isSweptKey } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { ATTEMPT_FILES } from "./job-rows.ts";
+import { NAMED_FILES } from "./named-files.ts";
 import type { Database } from "./ports.ts";
-import { fileCleaning, items, jobs, media } from "./schema.ts";
+import { restoreHoldsLibrary } from "./restore-state.ts";
+import { fileCleaning, jobs } from "./schema.ts";
 
 const CLEANUP_PAGE_KEYS = 100;
 
-function named(db: Database) {
-  return or(
-    exists(
-      db
-        .select({ one: sql`1` })
-        .from(items)
-        .where(sql`${items.postTextKey} = listed.value`),
-    ),
-    exists(
-      db
-        .select({ one: sql`1` })
-        .from(media)
-        .where(sql`${media.fileKey} = listed.value`),
-    ),
-  );
+function named() {
+  return sql`exists (select 1 from ${NAMED_FILES} as named where named.key = listed.value)`;
 }
 
 function listed(db: Database, keys: readonly string[]) {
@@ -36,7 +25,7 @@ export async function namedKeys(
   db: Database,
   keys: readonly string[],
 ): Promise<ReadonlySet<string>> {
-  const rows = await listed(db, keys).where(named(db));
+  const rows = await listed(db, keys).where(named());
 
   return new Set(rows.map(({ key }) => key));
 }
@@ -57,20 +46,37 @@ async function protectedKeys(db: Database, keys: readonly string[]): Promise<Rea
       ),
   );
 
-  const rows = await listed(db, keys).where(or(named(db), claimed));
+  const rows = await listed(db, keys).where(or(named(), claimed));
 
   return new Set(rows.map(({ key }) => key));
+}
+
+async function deleteUnclaimed(
+  db: Database,
+  files: JobPorts["files"],
+  stray: readonly string[],
+): Promise<void> {
+  if (await restoreHoldsLibrary(db)) return;
+
+  const held = await namedKeys(
+    db,
+    stray.map((key) => finalKeyOf(key)),
+  );
+
+  const doomed = stray.filter((key) => !held.has(finalKeyOf(key)));
+
+  if (doomed.length > 0) await files.delete(doomed);
 }
 
 export async function cleanFiles({ db, files }: Readonly<Pick<JobPorts, "db" | "files">>) {
   const [saved] = await db.select().from(fileCleaning).where(eq(fileCleaning.id, 1));
   const page = await files.list(ITEM_FILES_ROOT, saved?.cursor ?? null, CLEANUP_PAGE_KEYS);
-  const keys = page.files.map(({ key }) => key);
+  const keys = page.keys;
   const owned = keys.filter((key) => isSweptKey(finalKeyOf(key)));
   const kept = await protectedKeys(db, [...new Set(owned.map((key) => finalKeyOf(key)))]);
   const stray = owned.filter((key) => !kept.has(finalKeyOf(key)));
 
-  if (stray.length > 0) await files.delete(stray);
+  if (stray.length > 0) await deleteUnclaimed(db, files, stray);
 
   await db
     .insert(fileCleaning)

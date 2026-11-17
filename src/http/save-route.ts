@@ -11,7 +11,7 @@ import {
   scopeNote,
   scopeRefusal,
 } from "./openapi.ts";
-import { REFUSED_HOST, RESTORING, UPDATING, budgetSpent } from "./refusals.ts";
+import { REFUSED_HOST, RESTORING, budgetSpent, unknownToken } from "./refusals.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
 import {
   ErrorResponseSchema,
@@ -38,6 +38,7 @@ const saveItemRoute = createRoute({
     scopeNote("POST", "/api/items", PASTE_DIGEST_SCOPE),
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
+    401: jsonBody(ErrorResponseSchema, "The agent token is unknown or revoked."),
     ...scopeRefusal("POST", "/api/items", PASTE_DIGEST_SCOPE),
     ...budgetRefusal("Nothing is saved."),
     201: jsonBody(
@@ -62,7 +63,7 @@ const saveItemRoute = createRoute({
     ),
     503: jsonBody(
       UnavailableResponseSchema,
-      "A new release is rewriting the stored Items and has not finished, or a restore is running (`code` is `restoring`), so the link is not saved. Reads and deletes work meanwhile. Send the link again after a minute, or when the restore has finished.",
+      "A restore is running (`code` is `restoring`), so the link is not saved. Reads and deletes work meanwhile. Send the link again when the restore has finished.",
     ),
   },
 });
@@ -75,6 +76,8 @@ export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
 
     const saved = await paste(ports, url, callerOf(c), { digest, content, page, fill });
 
+    if (saved.kind === "unknown-token") return unknownToken(c);
+
     if (saved.kind === "budget-spent") return budgetSpent(c, saved);
 
     if (saved.kind === "too-large") {
@@ -85,12 +88,8 @@ export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
       return c.json({ error: REFUSED_HOST, fetch: "refused" as const }, 400);
     }
 
-    if (saved.kind === "updating") {
-      return c.json({ error: UPDATING }, 503);
-    }
-
     if (saved.kind === "restoring") {
-      return c.json({ error: RESTORING, code: RESTORING_CODE }, 503);
+      return c.json({ error: RESTORING, code: RESTORING_CODE } as const, 503);
     }
 
     if (saved.kind === "not-waiting") {

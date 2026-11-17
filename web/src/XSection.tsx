@@ -1,19 +1,15 @@
-import { useCallback } from "react";
-
-import type { XReaderChoice } from "../../src/core/kinds.ts";
 import type { XSettingsView } from "../../src/core/x-settings-contract.ts";
 import { Alert } from "./Alert.tsx";
+import { Command } from "./Command.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
-import { useXForm } from "./use-x-form.ts";
+import { RadioChoice } from "./RadioChoice.tsx";
+import { useSaveOnPick } from "./use-save-on-pick.ts";
+import { saveXReader } from "./x-api.ts";
 import { BOT_STATES, READER_HELP, READER_LABELS, X_STATES, X_TEXT } from "./x-text.ts";
 
 const LABEL_ID = "x-reader-label";
 
 const NOTE_ID = "x-reader-note";
-
-function Command({ text }: Readonly<{ text: string }>) {
-  return <pre className="cmd">{text}</pre>;
-}
 
 function Note({ view }: Readonly<{ view: XSettingsView }>) {
   switch (view.state) {
@@ -53,42 +49,11 @@ function Note({ view }: Readonly<{ view: XSettingsView }>) {
   }
 }
 
-function Choice({
-  reader,
-  checked,
-  busy,
-  pick,
-}: Readonly<{
-  reader: XReaderChoice;
-  checked: boolean;
-  busy: boolean;
-  pick: (reader: XReaderChoice) => void;
-}>) {
-  const choose = useCallback(() => {
-    pick(reader);
-  }, [pick, reader]);
-
-  return (
-    <label className="st-b" htmlFor={`x-reader-${reader}`}>
-      <input
-        id={`x-reader-${reader}`}
-        type="radio"
-        className="st-in"
-        name={LABEL_ID}
-        checked={checked}
-        aria-disabled={busy || undefined}
-        onChange={choose}
-      />
-      {READER_LABELS[reader]}
-    </label>
-  );
-}
-
 function ReaderChoice({
   view,
   changed,
 }: Readonly<{ view: XSettingsView; changed: (view: XSettingsView) => void }>) {
-  const form = useXForm(changed);
+  const form = useSaveOnPick(saveXReader, changed, X_TEXT.failed);
 
   return (
     <div className="stack" aria-busy={form.busy}>
@@ -102,9 +67,12 @@ function ReaderChoice({
         aria-describedby={NOTE_ID}
       >
         {view.choices.map((reader) => (
-          <Choice
+          <RadioChoice
             key={reader}
-            reader={reader}
+            id={`x-reader-${reader}`}
+            name={LABEL_ID}
+            value={reader}
+            label={READER_LABELS[reader]}
             checked={view.reader === reader}
             busy={form.busy}
             pick={form.pick}
@@ -154,14 +122,10 @@ function XRows({
   );
 }
 
-const xForm = (view: XSettingsView, changed: (view: XSettingsView) => void) => (
-  <XRows view={view} changed={changed} />
-);
-
 export const X_SECTION: SectionSpec<XSettingsView> = {
   id: "x-posts",
   title: X_TEXT.sectionTitle,
   intro: X_TEXT.intro,
   loadFailed: X_TEXT.loadFailed,
-  form: xForm,
+  Form: XRows,
 };

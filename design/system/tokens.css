@@ -42,8 +42,9 @@
 
    Literal values that stay in the component styles, on purpose:
    - 1px hairline borders, the 1.5px unread-dot ring, the 3px swatch inner
-     ring, blockquote bar and open-row bar, and the 2px focus ring, its
-     offset, the progress line and the segmented controls' inset;
+     ring, blockquote bar and open-row bar, the 3px forced-colours borders
+     of an open Grid card and of a phone reply rail, and the 2px focus ring,
+     its offset, the progress line and the segmented controls' inset;
    - the swatch's 2px border and the 2px overlay that covers it, the 2px
      outline that marks the chosen swatch under forced colours, and the 24rem
      panel width under which the settings panel stacks each label above its
@@ -81,8 +82,8 @@
    reader) and display (wordmark, reader title). They are in rem, so the
    browser's own font size scales them (1rem is 16px at its default); Text size
    (--tz, below) scales body, title and read, and label and meta never scale.
-   --t-floor is the 16px that reading text and a phone's text field never go
-   under: iOS Safari zooms the page when a focused field's text is smaller.
+   --t-floor is the 16px that reading text and a phone's text field and select
+   never go under: iOS Safari zooms the page when a focused field's text is smaller.
    Six spacing steps, four radii. */
 :root {
   --t-label: max(var(--t-floor-ui), 0.75rem); --t-meta: max(var(--t-floor-ui), 0.8125rem); --t-code: max(var(--t-floor-ui), 0.875rem); --t-h2: max(1.25rem, calc(var(--t-floor) / var(--post-h-cap))); --post-h-cap: 0.95; --rd-title-min: 1.1; --t-read-base: 1.0625rem; --t-floor: 16px; --t-floor-ui: 12px;
@@ -92,7 +93,7 @@
   --r1: 4px; --r2: 8px; --r3: 14px; --r4: 999px;
   --target: 44px;                     /* the smallest touch target: phone controls, the settings gear, the sheet's side buttons */
   --ctl-h: 34px; --field-h: 40px; --seg-h: 30px; --row-h: 32px; --dot-hit: 28px; --link-pad: 0px;
-  --dot: 10px; --av: 26px; --av-l: 40px; --ind: 22px; --ind-max: 25%; --media-max: 560px; --media-ph-h: 180px;
+  --dot: 10px; --av: 26px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
   --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the gear, the read mark on phones, empty states */
   --pop-w: 25rem;                     /* the settings panel under the gear */
   --dlg-w: 26rem;                     /* a confirmation dialog, such as Delete */
@@ -112,7 +113,7 @@
   --z-scrim: 20;                      /* the dimmed grid behind the sheet */
   --z-sheet: 21;                      /* the sheet */
   --z-sheet-nav: 22;                  /* the sheet's side buttons */
-  --z-popover: 40;                    /* the settings panel */
+  --z-popover: 40;                    /* the settings panel and focused skip button */
   --vh: 100dvh;
 }
 
@@ -234,7 +235,7 @@
 :root, [data-images] { --card-media: block; }
 [data-images="off"] { --card-media: none; }
 
-:root, .app, [data-theme], [data-accent] { --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); }
+:root, .app, [data-theme], [data-accent] { --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); --press: color-mix(in oklab, var(--text) 4%, var(--surface-2)); --press-soft: color-mix(in oklab, var(--text) 4%, var(--acc-soft)); }
 
 /* Worked out from the inputs above, declared again on every element where an input can
    change: the body, title, reading and display sizes, and the reading column. */
@@ -251,11 +252,11 @@
 /* plain: list */
 :root, [data-layout] {
   --nh: 255; --nc: 0.008; --display-base: 1.5rem;
-  --thumb: 40px; --rail-w: 264px; --list-min: 300px; --list-w: 420px; --sum-lines: 2;
+  --thumb: 40px; --rail-w: 264px; --list-min: 300px; --list-w: 420px;
 }
 [data-layout="grid"] {
   --nh: 292; --nc: 0.01; --display-base: 1.875rem;
-  --img-ratio: 16 / 10; --sum-lines: 3; --sum-lines-text: 6; --page-max: 1480px; --paste-min: 280px; --paste-w: 420px;
+  --img-ratio: 16 / 10; --page-max: 1480px; --paste-min: 280px; --paste-w: 420px;
   /* the sheet: its widest, the room kept on each side for its side buttons (a 44px button,
      12px from the sheet, and 16px from the window's edge), and its width now */
   --sheet-w: 760px; --side-gap: calc(var(--target) + var(--s3) + var(--s4));

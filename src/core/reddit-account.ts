@@ -20,7 +20,7 @@ import {
 import { type AccountRow } from "./reddit-account-tables.ts";
 import { type RedditAnswer, answerOf } from "./reddit-session.ts";
 import { leftOf } from "./reddit-window.ts";
-import { REQUEST_DEADLINE_MS } from "./thread-fill.ts";
+import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
 
 type AccountPorts = Pick<Ports, "db" | "secrets">;
 

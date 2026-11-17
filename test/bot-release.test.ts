@@ -45,7 +45,7 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
     writeFileSync(join(copy, "bot", "VERSION"), "0\n");
     writeFileSync(
       skillPath(),
-      readFileSync(skillPath(), "utf8").replace(/TAG=[^ ;]+/u, "TAG=unreleased"),
+      readFileSync(skillPath(), "utf8").replace(/TAG=[^ ;]+/u, "TAG=bot-v0"),
     );
   });
 

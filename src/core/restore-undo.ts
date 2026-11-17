@@ -8,11 +8,10 @@ import { RESTORE_ORDER, type TableSpec, tableSpec } from "./restore-registry.ts"
 import { partKeysOf, precondition, steppedUnit } from "./restore-unit.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import { searchParts } from "./search-tables.ts";
-import { topicLeases } from "./topic-tables.ts";
 
 type Undone = Readonly<Pick<TableSpec, "table">>;
 
-const DEPENDENTS: readonly Undone[] = [{ table: searchParts }, { table: topicLeases }];
+const DEPENDENTS: readonly Undone[] = [{ table: searchParts }];
 
 const UNDO_TABLES: readonly TableSpec[] = RESTORE_ORDER.toReversed().flatMap((name) => {
   const spec = tableSpec(name);
@@ -64,10 +63,10 @@ export async function undoUnit(
     };
   }
 
-  const { files: stored } = await files.list(ITEM_FILES_ROOT, null, FILE_LIST_LIMIT);
+  const { keys: stored } = await files.list(ITEM_FILES_ROOT, null, FILE_LIST_LIMIT);
 
   if (stored.length > 0) {
-    await files.delete(stored.map(({ key }) => key));
+    await files.delete(stored);
 
     return stepped;
   }

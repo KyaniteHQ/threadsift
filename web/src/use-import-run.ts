@@ -18,59 +18,24 @@ export type RunState =
 
 export const NOT_STARTED: Progress = { done: 0, counts: NO_COUNTS, uncounted: 0 };
 
-const NO_RUN = 0;
-
-function useActiveRun() {
-  const active = useRef(NO_RUN);
-  const issued = useRef(NO_RUN);
+export function useImportRun(seal: () => void) {
+  const [state, setState] = useState<RunState>({ phase: "idle" });
   const controller = useRef(new AbortController());
-
-  const abort = useCallback(() => {
-    controller.current.abort();
-  }, []);
 
   useEffect(
     () => () => {
-      active.current = NO_RUN;
-      abort();
+      controller.current.abort();
     },
-    [abort],
+    [],
   );
-
-  const claim = useCallback((): { isActive: () => boolean; signal: AbortSignal } | null => {
-    if (active.current !== NO_RUN) return null;
-
-    issued.current += 1;
-
-    const mine = issued.current;
-
-    active.current = mine;
-    controller.current = new AbortController();
-
-    return { isActive: () => active.current === mine, signal: controller.current.signal };
-  }, []);
-
-  const release = useCallback(() => {
-    active.current = NO_RUN;
-  }, []);
-
-  return { claim, release, abort };
-}
-
-export function useImportRun(seal: () => void) {
-  const [state, setState] = useState<RunState>({ phase: "idle" });
-  const { claim, release, abort } = useActiveRun();
 
   const start = useCallback(
     (links: readonly string[], name: string, from: Progress) => {
-      const claimed = claim();
-
-      if (claimed === null) return;
-
-      const { isActive, signal } = claimed;
+      controller.current = new AbortController();
+      const { signal } = controller.current;
 
       const whileRunning = (change: (running: RunningState) => RunningState): void => {
-        if (isActive()) setState((now) => (now.phase === "running" ? change(now) : now));
+        setState((now) => (now.phase === "running" ? change(now) : now));
       };
 
       const run = async (): Promise<void> => {
@@ -84,23 +49,20 @@ export function useImportRun(seal: () => void) {
           signal,
         });
 
-        if (isActive()) {
-          release();
-          setState({ phase: "ended", name, outcome });
-        }
+        setState({ phase: "ended", name, outcome });
       };
 
       seal();
       setState({ phase: "running", name, progress: from, stopping: false, waiting: false });
       void run();
     },
-    [claim, release, seal],
+    [seal],
   );
 
   const stop = useCallback(() => {
-    abort();
+    controller.current.abort();
     setState((current) => (current.phase === "running" ? { ...current, stopping: true } : current));
-  }, [abort]);
+  }, []);
 
   return { state, start, stop };
 }

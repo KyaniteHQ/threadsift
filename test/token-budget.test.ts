@@ -197,16 +197,14 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
     });
   });
 
-  it("removes a token's counts when the token is revoked, and keeps the Items it added", async () => {
+  it("keeps the Items a token added when the token is revoked", async () => {
     const token = await makeToken(instance, 4);
 
     await addLink(instance, token, 61);
 
     const items = total(instance, "items");
-    const counts = total(instance, "agent_token_days");
 
     assert.equal((await instance.send("DELETE", `/api/tokens/${String(token.id)}`)).status, 204);
-    assert.equal(total(instance, "agent_token_days"), counts - 1);
     assert.equal(total(instance, "items"), items);
   });
 });

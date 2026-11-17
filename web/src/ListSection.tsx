@@ -1,6 +1,7 @@
 import { type ChangeEvent, useCallback, useId, useRef } from "react";
 
 import type { ImportList, SkipReason, Skipped as SkippedRows } from "../../src/core/import-list.ts";
+import { Alert } from "./Alert.tsx";
 import {
   IMPORT,
   readyLabel,
@@ -20,7 +21,7 @@ function Skipped({ reason, skipped }: Readonly<{ reason: SkipReason; skipped: Sk
     <div className="imp-skipped">
       <p>{skippedLabel(reason, skipped.count)}</p>
       <p className="label">{skippedLead(reason)}</p>
-      <ul className="imp-lines">
+      <ul role="list" className="imp-lines">
         {skipped.first.map(({ row, text }) => (
           <li key={row}>
             <span className="imp-line">{skippedLineLabel(row)}</span>
@@ -81,11 +82,7 @@ function FileButton({ locked, input }: Readonly<{ locked: boolean; input: Import
         tabIndex={-1}
         onChange={read}
       />
-      {fileFailed ? (
-        <p role="alert" className="fld-err">
-          {IMPORT.fileFailed}
-        </p>
-      ) : null}
+      <Alert text={fileFailed ? IMPORT.fileFailed : null} />
     </div>
   );
 }

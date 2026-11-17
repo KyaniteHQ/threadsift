@@ -55,17 +55,22 @@ fieldset.fl-g {
   visibility: hidden;
 }
 
-.app[data-faces="loading"] :is(.brand h1, .paste-row .swap, .brand .st-gear, .search) {
-  visibility: hidden;
+.filters-slot[data-loading] {
+  height: var(--ctl-h);
+}
+
+.list-head[data-loading] {
+  height: calc(var(--t-meta) * var(--lh-ui));
+  box-sizing: content-box;
+}
+
+[data-layout="list"]:not([data-bp~="narrow"]) .search {
+  min-height: calc(var(--s4) + var(--field-h) + var(--s2) * 2 + var(--t-label) * var(--lh-label));
 }
 
 .rd-head[inert] {
   position: absolute;
   opacity: 0;
-}
-
-.fl-ghost .fl-panel {
-  visibility: hidden;
 }
 
 .items {
@@ -150,7 +155,7 @@ dialog.sheet::backdrop {
 }
 
 .it-fail {
-  grid-area: sum;
+  grid-area: note;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -210,6 +215,7 @@ dialog.dlg::backdrop {
   font-size: var(--t-h2);
   font-weight: 600;
   line-height: var(--lh-title);
+  text-wrap: balance;
 }
 
 .dlg-text {

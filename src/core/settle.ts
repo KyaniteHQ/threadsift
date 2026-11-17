@@ -59,7 +59,7 @@ export function isRetryable(result: FetchResult): result is "timeout" | "network
   return result === "timeout" || result === "network";
 }
 
-function settle(fetched: Readonly<Concluded>, current: string | null, now: number): Settled {
+export function settle(fetched: Readonly<Concluded>, current: string | null, now: number): Settled {
   const xNote = fetched.note ?? null;
 
   if (fetched.status === "ok") {
@@ -83,14 +83,6 @@ function settle(fetched: Readonly<Concluded>, current: string | null, now: numbe
   }
 
   return { reason: null, fetch: result, xNote };
-}
-
-export function settledNew(fetched: Readonly<Concluded>, now: number) {
-  return settle(fetched, null, now);
-}
-
-export function settledKnown(fetched: Readonly<Concluded>, current: string | null, now: number) {
-  return settle(fetched, current, now);
 }
 
 export function failedFetch(

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { fetchSession } from "./access-api.ts";
+import { setUnauthorizedListener } from "./calls.ts";
 import { UNREACHABLE, type SessionEvent, reduceSession, startSession } from "./session-state.ts";
-import { useUnauthorizedListener } from "./unauthorized.ts";
 import { useFlow } from "./use-flow.ts";
 
 const CHECK_DEADLINE_MS = 10_000;
@@ -57,7 +57,7 @@ export function useSessionView() {
     }
   }, [send]);
 
-  useUnauthorizedListener(unauthorized);
+  useUnauthorized(unauthorized);
 
   const loggedOut = useCallback(() => {
     const check = new AbortController();
@@ -69,4 +69,14 @@ export function useSessionView() {
   }, [send]);
 
   return { view: flow.view, refresh, signedIn, loggedOut };
+}
+
+function useUnauthorized(listener: () => void) {
+  useEffect(() => {
+    setUnauthorizedListener(listener);
+
+    return () => {
+      setUnauthorizedListener(null);
+    };
+  }, [listener]);
 }

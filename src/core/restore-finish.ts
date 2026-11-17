@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
-import { sequenceWrites, singletonResets, stepWrites } from "./restore-sequences.ts";
+import { jobKeyWrites, sequenceWrites, singletonResets } from "./restore-sequences.ts";
 import { partKeysOf, precondition } from "./restore-unit.ts";
 import { recordFiles } from "./restore-window.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
@@ -18,7 +18,7 @@ export async function finishUnit(
   return {
     writes: [
       ...sequenceWrites(db, manifest),
-      ...stepWrites(db, manifest),
+      ...jobKeyWrites(db),
       ...singletonResets(db, manifest),
       db
         .update(restoreRuns)

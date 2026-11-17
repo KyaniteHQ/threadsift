@@ -13,7 +13,12 @@ import {
 import { answered } from "./bot-task-http.ts";
 import { startedTask } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, rowCount, taskRow, taskRows } from "./bot-task-rows.ts";
-import { chooseGrokBot, sentVerifyTask, waitingIntake } from "./grok-bot-provider-fixtures.ts";
+import {
+  GROK_BOT_IN_FLIGHT,
+  chooseGrokBot,
+  sentVerifyTask,
+  waitingIntake,
+} from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, saveProvider } from "./related-fixtures.ts";
 
@@ -104,7 +109,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
   it("frees the places the abandoned tasks held", async () => {
     await chooseGrokBot(instance);
 
-    for (const slot of [1, 2, 3, 4, 5, 6, 7]) {
+    for (const slot of Array.from({ length: GROK_BOT_IN_FLIGHT }, (_, at) => at)) {
       exec(
         instance,
         "update ai_tasks set sent_at = 1 where id = ?",

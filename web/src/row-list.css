@@ -35,6 +35,10 @@
 .rl-row:has(.rl-open):hover {
   background: var(--surface-2);
 }
+
+.rl-row:has(.rl-open:active) {
+  background: var(--press);
+}
 .rl-row .it-meta {
   gap: var(--s1) var(--s2);
   font-size: var(--t-meta);

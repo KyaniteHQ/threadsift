@@ -39,6 +39,9 @@ const INTERRUPTED =
 const PHASE_TEXT = {
   check: "Checking the zip…",
   tables: "Restoring records…",
+  files: "Restoring files…",
+  search: "Rebuilding search…",
+  highlights: "Checking Highlights…",
   finish: "Finishing Restore…",
 } as const satisfies Record<RunningPhase, string>;
 
@@ -51,6 +54,9 @@ const DONE_MANY = "Restored {items} Items ({records} records in all).";
 const DROPPED =
   "Records left out because the record they belong to wasn’t in the zip or an earlier record in the zip already holds the same key: {dropped}.";
 
+const MISSING_FILES_TEXT =
+  "Files missing from the zip: {missing}; the Reader links a missing image to its original web address, and a missing post text file leaves the Item without its text.";
+
 const REFUSAL_TEXT = {
   "incomplete-upload":
     "A part of the zip didn’t arrive, so nothing was restored. Choose the same zip to send it again.",
@@ -61,8 +67,7 @@ const REFUSAL_TEXT = {
   "no-manifest": "The zip has no threadsift.json. Nothing was restored.",
   format:
     "The zip isn’t in the format of an Export, or a record file in it is damaged. Nothing was restored.",
-  "newer-release":
-    "The zip was made by a newer release of Threadsift, so nothing was restored. Update this Instance first.",
+  "other-release": "The zip was made by another release of Threadsift. Nothing was restored.",
   "unknown-table": "The zip holds a table this Instance doesn’t know. Nothing was restored.",
   "unknown-column": "The zip holds a column this Instance doesn’t know. Nothing was restored.",
   "missing-column":
@@ -122,4 +127,8 @@ export function doneLabel(items: number, records: number): string {
 
 export function droppedLabel(dropped: number): string {
   return filled(DROPPED, { dropped: groupedNumber(dropped) });
+}
+
+export function missingFilesLabel(missing: number): string {
+  return filled(MISSING_FILES_TEXT, { missing: groupedNumber(missing) });
 }

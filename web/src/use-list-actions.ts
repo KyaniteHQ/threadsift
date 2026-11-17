@@ -1,14 +1,13 @@
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
+import type { SaveResult } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
-import type { SaveAnswer } from "./library.ts";
 import { type ListState, readFor } from "./list-state.ts";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
 import { useLookup } from "./use-lookup.ts";
 import type { PasteQueue, PasteRequest, Save, SaveOutcome } from "./use-paste.ts";
-import { type Seeker, useSeek } from "./use-seek.ts";
 
 type SaveTarget = Parameters<Save>[0];
 
@@ -53,28 +52,27 @@ function useOpenItem(list: ListState, query: string, { openId }: Route) {
 }
 
 function useSaveAndShow(
-  save: (target: SaveTarget) => Promise<SaveAnswer>,
-  { seek, cancel }: Readonly<ReturnType<typeof useSeek>>,
+  save: (target: SaveTarget) => Promise<SaveResult>,
   pane: RefObject<HTMLElement | null>,
 ) {
   return useCallback(
     async (target: SaveTarget): Promise<SaveOutcome> => {
-      cancel();
       const result = await save(target);
-
-      if (result.outcome === "discarded") return { kind: "discarded" };
 
       if (result.outcome !== "saved") return { kind: "notice", notice: result.outcome };
 
-      if (result.known) {
-        seek(result.item.id);
-      } else if (pane.current !== null) {
+      if (!result.known && pane.current !== null) {
         scrollToTop(pane.current);
       }
 
-      return { kind: "item", itemId: result.item.id, refreshed: result.refreshed };
+      return {
+        kind: "item",
+        itemId: result.item.id,
+        known: result.known,
+        refreshed: result.refreshed,
+      };
     },
-    [cancel, pane, save, seek],
+    [pane, save],
   );
 }
 
@@ -106,52 +104,21 @@ function usePasteQueue() {
   return { queue, retryItem };
 }
 
-function useSeekingAttention(
-  list: ListState,
-  route: Route,
-  actions: Readonly<Pick<Seeker, "filters" | "know" | "more">>,
-  reveal: (attention: Attention) => void,
-) {
-  const seeking = useSeek({
-    list,
-    openId: route.openId,
-    filters: actions.filters,
-    know: actions.know,
-    more: actions.more,
-    attend: reveal,
-  });
-
-  const { cancel } = seeking;
-
-  const attend = useCallback(
-    (moved: Attention) => {
-      cancel();
-      reveal(moved);
-    },
-    [cancel, reveal],
-  );
-
-  return { seeking, attend };
-}
-
 export function useListActions(
   list: ListState,
   actions: Readonly<{
-    save: (target: SaveTarget) => Promise<SaveAnswer>;
+    save: (target: SaveTarget) => Promise<SaveResult>;
     retry: () => void;
     know: (item: Readonly<Item>) => void;
-    more: () => void;
-    filters: Seeker["filters"];
     query: string;
   }>,
   pane: RefObject<HTMLElement | null>,
   route: Route,
 ) {
-  const { attention, attend: reveal, attended } = useOpenItem(list, actions.query, route);
+  const { attention, attend, attended } = useOpenItem(list, actions.query, route);
   const { lookupFailed, lookAgain } = useLookup(list, route, actions.know);
 
   const { queue, retryItem } = usePasteQueue();
-  const { seeking, attend } = useSeekingAttention(list, route, actions, reveal);
 
   const tryAgain = useCallback(
     (item: Item) => {
@@ -170,7 +137,7 @@ export function useListActions(
     queue,
     tryAgain,
     retryItem,
-    saveAndShow: useSaveAndShow(actions.save, seeking, pane),
+    saveAndShow: useSaveAndShow(actions.save, pane),
     retryAndKeepPlace: useKeptPlace(list, actions.retry, pane),
   };
 }

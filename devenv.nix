@@ -23,21 +23,7 @@ let
     export THREADSIFT_SMOKE_PORT=$((20000 + 0x$slot % 10000))
   '';
   buildImage = ''
-    cache=()
-    if [ -n "''${THREADSIFT_LAYER_CACHE:-}" ]; then
-      storage=''${THREADSIFT_LAYER_CACHE%/}
-      mkdir -p "$storage"
-      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY="$storage" OTEL_TRACES_EXPORTER=none \
-        ${lib.getExe pkgs.distribution} serve ${layerCache.config} > "$storage.log" 2>&1 &
-      registry=$!
-      trap 'kill "$registry" 2>/dev/null || true; wait "$registry" 2>/dev/null || true' EXIT
-      ${lib.getExe pkgs.curl} --silent --fail --max-time 2 --retry 10 --retry-delay 1 --retry-all-errors \
-        --output /dev/null http://${layerCache.address}/v2/ && kill -0 "$registry" \
-        || { cat "$storage.log"; exit 1; }
-      export CONTAINERS_REGISTRIES_CONF=${layerCache.registries}
-      cache=(--cache-from ${layerCache.repository} --cache-to ${layerCache.repository})
-    fi
-    podman build --jobs 0 --signature-policy ${podmanPolicy} "''${cache[@]}" "''${labels[@]}" --tag "$tag" --file Containerfile .
+    podman build --jobs 0 --signature-policy ${podmanPolicy} "''${labels[@]}" --tag "$tag" --file Containerfile .
   '';
   containerBuild = ''
     set -euo pipefail
@@ -47,24 +33,6 @@ let
     ${buildImage}
     podman image prune --force --filter label=${smokeLabel} > /dev/null || echo "podman image prune failed" >&2
   '';
-  layerCache = {
-    address = "127.0.0.1:5000";
-    config = (pkgs.formats.yaml { }).generate "registry.yml" {
-      version = "0.1";
-      log.accesslog.disabled = true;
-      http.addr = layerCache.address;
-      storage.filesystem = { };
-    };
-    repository = "${layerCache.address}/threadsift-layers";
-    registries = (pkgs.formats.toml { }).generate "registries.conf" {
-      registry = [
-        {
-          location = layerCache.address;
-          insecure = true;
-        }
-      ];
-    };
-  };
   port = name: toString config.processes.${name}.ports.http.value;
   browsers = pkgs.playwright-driver.browsers.override {
     withFirefox = false;
@@ -182,6 +150,7 @@ in
       exec = "pnpm audit --prod --audit-level high";
     };
     "design:check" = {
+      after = [ "ci:install" ];
       showOutput = true;
       exec = ''
         set -e

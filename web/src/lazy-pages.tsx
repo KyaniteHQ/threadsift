@@ -1,8 +1,7 @@
-import type { ComponentType, ReactNode } from "react";
+import { type ComponentType, lazy } from "react";
 
-import { ModuleBoundary, lazyModule } from "./ModuleBoundary.tsx";
+import { unavailable } from "./module-unavailable.ts";
 import { IMPORT_PATH, LOG_PATH, PROPOSALS_PATH, SETTINGS_PATH } from "./routing.ts";
-import { Unreachable } from "./Unreachable.tsx";
 
 const LOADERS = {
   [SETTINGS_PATH]: () => import("./SettingsPage.tsx").then((m) => m.SettingsPage),
@@ -21,20 +20,8 @@ export function preloadPage(path: string): void {
   if (isLazyPath(path)) LOADERS[path]().catch(() => {});
 }
 
-function unreachable(retry: () => void): ReactNode {
-  return <Unreachable retry={retry} />;
-}
-
 function page<Props extends object>(load: () => Promise<ComponentType<Props>>) {
-  const Page = lazyModule(load);
-
-  return function LazyPage(props: Readonly<Props>) {
-    return (
-      <ModuleBoundary fallback={unreachable}>
-        <Page {...props} />
-      </ModuleBoundary>
-    );
-  };
+  return lazy(() => load().then((component) => ({ default: component }), unavailable));
 }
 
 export const SettingsPage = page(LOADERS[SETTINGS_PATH]);

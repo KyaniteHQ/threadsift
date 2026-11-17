@@ -13,6 +13,8 @@ const TARGET_PX = 44;
 
 const FILLERS = 22;
 
+const STAMP_PATTERN = "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}";
+
 const MARKDOWN = Array.from(
   { length: 6 },
   () =>
@@ -81,12 +83,12 @@ export async function logFlow(page: Page, browser: Browser): Promise<void> {
   await openLogFromPanel(page);
   await expect(rows(page).first()).toContainText(
     new RegExp(
-      `^\\[\\d{4}-\\d{2}-\\d{2}\\] ingest \\| ${LONG_TITLE} \\| topic: ${LOGGED.topic} \\| tags: ${LOGGED.tags.join(", ")}$`,
+      `^\\[${STAMP_PATTERN}\\] ingest \\| ${LONG_TITLE} \\| topic: ${LOGGED.topic} \\| tags: ${LOGGED.tags.join(", ")}$`,
       "u",
     ),
   );
   await expect(rows(page).nth(1)).toContainText(
-    new RegExp(`^\\[\\d{4}-\\d{2}-\\d{2}\\] topic \\| ${LOGGED.topic}$`, "u"),
+    new RegExp(`^\\[${STAMP_PATTERN}\\] topic \\| ${LOGGED.topic}$`, "u"),
   );
 
   await page.reload();

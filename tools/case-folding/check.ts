@@ -31,10 +31,6 @@ const MATTERS = [
   "\u00A0",
 ];
 
-function previousRuleKey(name: string): string {
-  return name.normalize("NFKC").toLowerCase().trim().replaceAll(/\s+/gu, " ");
-}
-
 function* samples(): Generator<string> {
   for (let codePoint = 0; codePoint <= LAST_CODE_POINT; codePoint += 1) {
     if (codePoint < SURROGATES_FIRST || codePoint > SURROGATES_LAST) {
@@ -62,10 +58,6 @@ for (const name of samples()) {
 
   if (catalogKey(key) !== key) {
     failures.push(`${JSON.stringify(name)}: key ${JSON.stringify(key)} is not stable`);
-  }
-
-  if (catalogKey(previousRuleKey(name)) !== key) {
-    failures.push(`${JSON.stringify(name)}: the previous rule's key gives another key`);
   }
 }
 

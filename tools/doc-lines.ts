@@ -146,7 +146,7 @@ function candidates(path: string, doc: string, relative: boolean): string[] {
   return relative || own === path ? [path] : [path, own];
 }
 
-export function parsePath(span: string, doc: string, repository: Repository): PathRef | undefined {
+function parsePath(span: string, doc: string, repository: Repository): PathRef | undefined {
   const groups = PATH_SPAN.exec(span)?.groups;
   const raw = groups?.["path"];
   const path = raw === undefined ? undefined : resolved(raw, doc, false)?.replace(/\/$/u, "");

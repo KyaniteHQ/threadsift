@@ -1,32 +1,45 @@
 import type { RefObject } from "react";
 
-import type { Filters } from "./filters.ts";
+import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { matchedCount } from "./list-counts.ts";
-import { type ListState, countsOf } from "./list-state.ts";
-import { ListHead, ListHeadGhost } from "./ListBody.tsx";
+import { type ListState, type Ready, countsOf, readFor } from "./list-state.ts";
+import { ListHead } from "./ListBody.tsx";
 import { SearchField } from "./SearchField.tsx";
-import { SEARCH_LABEL, SEARCH_PLACEHOLDER } from "./text.ts";
+import { SettledAnnouncement } from "./SettledAnnouncement.tsx";
+import { SEARCH_LABEL, SEARCH_PLACEHOLDER, headLabel } from "./text.ts";
 
-export function ListTools({
+interface ListToolsProps {
+  readonly list: ListState;
+  readonly filters: Filters;
+  readonly field: RefObject<HTMLInputElement | null>;
+  readonly search: (text: string) => void;
+  readonly hint: string | null;
+  readonly leave: () => void;
+  readonly query: string;
+  readonly active: boolean;
+}
+
+function headText(list: Readonly<Ready>, filters: Readonly<Filters>): string {
+  if (list.counts.total === 0) return "";
+
+  const shown = list.next === null ? list.items.length : matchedCount(list.counts, filters);
+  const text = isSearching(filters) ? filters.q.trim() : "";
+
+  return headLabel(list.counts, isFiltered(filters) ? shown : null, text);
+}
+
+function Tools({
   list,
-  reserves,
   filters,
   field,
   search,
   hint,
   leave,
-}: Readonly<{
-  list: ListState;
-  reserves: boolean;
-  filters: Filters;
-  field: RefObject<HTMLInputElement | null>;
-  search: (text: string) => void;
-  hint: string | null;
-  leave: () => void;
-}>) {
+  head,
+}: Readonly<Omit<ListToolsProps, "query" | "active"> & { head: string }>) {
   const counts = countsOf(list);
 
-  if (!reserves && (counts === null || counts.total === 0)) return null;
+  if (list.status !== "loading" && (counts === null || counts.total === 0)) return null;
 
   return (
     <>
@@ -38,16 +51,24 @@ export function ListTools({
         search={search}
         hint={hint}
         leave={leave}
-        ghost={reserves}
       />
-      {reserves ? <ListHeadGhost /> : null}
-      {list.status === "ready" && counts !== null ? (
-        <ListHead
-          counts={counts}
-          shown={list.next === null ? list.items.length : matchedCount(counts, filters)}
-          filters={filters}
-        />
-      ) : null}
+      {list.status === "loading" ? (
+        <div className="list-head" data-loading aria-hidden="true" />
+      ) : (
+        <ListHead label={head} />
+      )}
+    </>
+  );
+}
+
+export function ListTools({ query, active, ...tools }: Readonly<ListToolsProps>) {
+  const { list, filters } = tools;
+  const head = list.status === "ready" ? headText(list, filters) : "";
+
+  return (
+    <>
+      <Tools {...tools} head={head} />
+      <SettledAnnouncement text={readFor(list, query) ? head : null} active={active} />
     </>
   );
 }

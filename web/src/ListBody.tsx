@@ -1,13 +1,11 @@
 import { type RefObject, memo, useEffect, useRef } from "react";
 
-import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import { type Filters, isEmptyResult, isFiltered, isSearching } from "./filters.ts";
+import { isEmptyResult } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
 import {
-  BLANK,
   CLEAR_ALL,
   EMPTY_LIST,
   LOADING_LABEL,
@@ -16,11 +14,11 @@ import {
   NO_RESULTS,
   RETRY_LABEL,
   SORT_LABEL,
-  headLabel,
 } from "./text.ts";
 import { useNearEnd } from "./use-near-end.ts";
 
 const SKELETON_ROWS = [0, 1, 2] as const;
+const EAGER_ROWS = 8;
 export const RESULTS_ID = "results";
 
 export function Skeleton({
@@ -65,28 +63,13 @@ export function Notice({
   );
 }
 
-export function ListHead({
-  counts,
-  shown,
-  filters,
-}: Readonly<{ counts: FilterCounts; shown: number; filters: Filters }>) {
-  const text = isSearching(filters) ? filters.q.trim() : "";
-
+export function ListHead({ label }: Readonly<{ label: string }>) {
   return (
-    <section className="list-head" aria-labelledby={RESULTS_ID}>
-      <p id={RESULTS_ID} className="results" aria-live="polite">
-        {headLabel(counts, isFiltered(filters) ? shown : null, text)}
+    <section className="list-head">
+      <p id={RESULTS_ID} className="results">
+        {label}
       </p>
       <p className="label">{SORT_LABEL}</p>
-    </section>
-  );
-}
-
-export function ListHeadGhost() {
-  return (
-    <section className="list-head" aria-hidden="true">
-      <p className="results">{BLANK}</p>
-      <p className="label">{BLANK}</p>
     </section>
   );
 }
@@ -114,12 +97,13 @@ function ItemList({
 }>) {
   return (
     <ol ref={rows} role="list" className="items" aria-labelledby={RESULTS_ID}>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <li key={item.id}>
           <ItemRow
             item={item}
             now={loadedAt}
             cardImages={shared.cardImages}
+            eager={index < EAGER_ROWS}
             isOpen={item.id === shared.openId}
             attention={item.id === shared.attention?.id ? shared.attention : null}
             attended={shared.attended}

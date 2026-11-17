@@ -9,6 +9,7 @@ colors:
   bg: "oklch(0.976 0.008 255)"
   surface: "oklch(0.995 0.004 255)"
   surface-2: "oklch(0.948 0.008 255)"
+  press: "oklch(0.919 0.008 255)"
   line: "oklch(0.89 0.008 255)"
   line-2: "oklch(0.80 0.008 255)"
   ctl-line: "oklch(0.60 0.008 255)"
@@ -82,6 +83,8 @@ components:
     height: "34px"
   button-hover:
     backgroundColor: "{colors.surface-2}"
+  button-press:
+    backgroundColor: "{colors.press}"
   button-accent:
     backgroundColor: "{colors.cobalt}"
     textColor: "{colors.on-accent}"
@@ -123,6 +126,8 @@ components:
     padding: "9px 16px 9px 12px"
   list-row-hover:
     backgroundColor: "{colors.surface-2}"
+  list-row-press:
+    backgroundColor: "{colors.press}"
   list-row-open:
     backgroundColor: "{colors.cobalt-soft}"
   grid-card:
@@ -175,6 +180,7 @@ The palette is near-white surfaces with a faint cool tint, ink-dark text, and a 
 
 ### Neutral
 - **Page** (`bg`), **Surface** (`surface`) and **Sunk surface** (`surface-2`): the app background; controls, cards and boxes; and hover fills, the List sidebar, code and tag chips.
+- **Press fill** (`press`): the fill of a control while it is pressed, one step past the hover fill. Outside forced colours, a pressed selected filter row, filter segment or List row mixes the same step into the accent tint.
 - **Hairline** (`line`) and **Strong hairline** (`line-2`): row dividers and container edges; the heavier lines (comment indent guides, segmented control frames, the settings panel and the paste card).
 - **Control line** (`ctl-line`): the edge of buttons, fields and selects, and the ring of an empty unread dot.
 - **Ink** (`text`) and **Muted ink** (`muted`): primary text; metadata, counts, labels, hints and placeholders.
@@ -196,12 +202,12 @@ IBM Plex Sans sets titles, lists, labels and reading text, and IBM Plex Mono set
 - **Headline** (`--t-h2`): reader section headings such as Original post, Comments and README, and the heading of each sign-in and setup screen. It is never under the 16px reading floor divided by `--post-h-cap`, about 16.84px, so a heading inside a post keeps the floor too.
 - **Title** (`--t-title`): item titles in rows and cards. An unread item's title takes `--dw-strong`, which each Font and Style sets: 700 in the default Plex pair. Instrument Serif and the Cal.com Style have one display weight, so there an unread title keeps the read weight and the unread dot alone marks it, in the Item list, in Grid and on a Topic page. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped.
 - **Body** (`--t-read`): post and comment text in the reading column, up to 62 average characters a line at Medium text width (56 Narrow, 68 Wide). The reader's summary and key points use the same size at line height 1.5 (`--lh-text`).
-- **Body list**: row and card summaries. Comfortable and Roomy density raise it.
+- **Body list**: the interface text of fields, dialogs, page sections and the Highlights and Proposals lists. Comfortable and Roomy density raise it.
 - **Meta** (`--t-meta`): the app's default UI size, for metadata, buttons, filters and bylines.
 - **Label** (`--t-label`, uppercase): names of controls, filter groups, settings groups and data fields such as Stars and Language.
 - **Code** (`--t-code`): code blocks. Inline code keeps the size of the text around it.
 
-Type sizes are in rem, so the browser's own font size scales them, and the pixel values above are the ones at its default of 16px. Text size (`--tz`) multiplies the title, list body and reading sizes. Reading text keeps its 16px floor (`--t-floor`) at Small, and Headline keeps the floor divided by `--post-h-cap` (about 16.84px), so a heading inside a post is never under 16px; the minimum only takes effect at a browser font under about 13.5px. Label and meta text never scale with Text size, and every text size (`--t-label`, `--t-meta`, `--t-code`, `--t-body`, `--t-title` and `--t-display`) keeps a 12px floor (`--t-floor-ui`), so no text is under 12px at any browser font. Under 480px the paste field's text is at least 16px, because iOS Safari zooms the page when a focused field's text is smaller.
+Type sizes are in rem, so the browser's own font size scales them, and the pixel values above are the ones at its default of 16px. Text size (`--tz`) multiplies the title, list body and reading sizes. Reading text keeps its 16px floor (`--t-floor`) at Small, and Headline keeps the floor divided by `--post-h-cap` (about 16.84px), so a heading inside a post is never under 16px; the minimum only takes effect at a browser font under about 13.5px. Label and meta text never scale with Text size, and every text size (`--t-label`, `--t-meta`, `--t-code`, `--t-body`, `--t-title` and `--t-display`) keeps a 12px floor (`--t-floor-ui`), so no text is under 12px at any browser font. Under 480px the text of the paste field and selects is at least 16px, because iOS Safari zooms the page when a focused field's text is smaller.
 
 ### Named Rules
 **The One Reading Size Rule.** Post, comment and summary text share one size (`--t-read`). Headings inside a post render at that same size, but never over `--post-h-cap` (0.95) times Headline, so the reader's section headings (`--t-h2`) always outrank them, at a Large Text size too, and the page reads in outline order.
@@ -223,7 +229,7 @@ The app measures its own width and writes every band it is under to `data-bp` (`
 
 ## Elevation & Depth
 
-The system is flat with tonal layering, plus soft ambient shadows on things that sit above the page. List rows, panes, the summary box and the repository block are flat and separated by hairlines and the sunk surface. Grid cards and the sheet's side buttons carry the low shadow (`--shadow`). The settings panel, the reader sheet and the floating paste card carry the high shadow (`--shadow-lg`), over a dimming scrim where they cover the page. In Dark, the sheet adds a strong hairline edge so it shows against the scrim.
+The system is flat with tonal layering, plus soft ambient shadows on things that sit above the page. List rows, panes, the summary box and the repository block are flat and separated by hairlines and the sunk surface. Grid cards, the sheet's side buttons and the focused skip button carry the low shadow (`--shadow`). The settings panel, the reader sheet and the floating paste card carry the high shadow (`--shadow-lg`), over a dimming scrim where they cover the page. In Dark, the sheet adds a strong hairline edge so it shows against the scrim.
 
 The paste card floats under the paste box in List's sidebar from `--bp-medium` (1080px) up, and under the Grid header from 760px up. Below those widths it sits in the page flow between the paste box and the list, with no shadow, so the list moves down while it shows and no row is ever under it. In the sidebar it adds to the sidebar's scroll height, so a window shorter than the card scrolls the sidebar.
 
@@ -237,13 +243,16 @@ Corners follow size: `r1` for small inline parts, `r2` for controls, `r3` for la
 ## Components
 
 ### Buttons
-Quiet framed buttons that sit on the surface like the rest of the page. The accent button (a full Cobalt fill with on-accent text) is for the save button beside the paste box and the main action in a paste card. Focus draws a 2px accent-ink ring 2px outside the button.
+Quiet framed buttons that sit on the surface like the rest of the page. The accent button (a full Cobalt fill with on-accent text) is for the save button beside the paste box and the main action in a paste card. Focus draws a 2px accent-ink ring 2px outside the button. A press fills a neutral button with the press fill; an accent-filled button, a checked segment and a pressed chip keep their fill and show a 1px inner ring in the text colour of the fill. The danger button and the Read state dot keep the hover fill and show a 1px inner ring, because their marks lose contrast on the press fill. While a List row, Topic page row or open Grid card is pressed, its Read state mark takes the muted colour, or the accent ink when unread, for the same reason. A plain Grid card keeps its mark colours. In forced colours, selected filters keep their system colours and open Grid cards keep their system border while pressed. Disabled buttons show no press. The names ending in pressed in the front matter mean the toggled state, and button-press and list-row-press mean the moment of the press.
 
 ### Chips
 - **Tag chips:** a pill on the sunk surface, used only when Tag style is Chips. The default Tag style is a coloured dot before the name, and Text style writes "#name". A name too long for its row wraps inside its own box in the Reader, in every Tag style, with the dot or the "#" beside the first line, and a Chips pill keeps its corner at half the height of one line so a wrapped name stays inside it. A name in a filter row of the rail wraps the same way and the count stays at the row's end. The Grid filter bar uses a native select instead, which stays inside the bar and clips a long name, both in the closed control and in the open list.
 
 ### Inputs / Fields
+- **Hint:** a field's hint sits between its label and the field, so the browser's suggestion list does not cover it, and it stays while an error shows.
+- **Required:** in a form that mixes required and optional fields, a required field's label ends with `*` and one line above the fields says what it means. A form whose fields are all required, or that has one field, keeps plain labels.
 - **Focus:** the field's edge turns accent-ink and thickens with a 1px ring outside the border.
+- **Invalid:** once a person has used a field and the browser holds its value invalid, the field's edge thickens with a 1px ring in the control line colour. An empty required field also gets a line in the `warn` tone that says it is required, and a screen reader hears that line with the field's label when the field is left empty. The edge never turns `warn`.
 
 ### Navigation
 - **Filter rail (List):** a selected row or segment takes the soft accent tint and weight 600. The tint measures under 3:1 against the rail, so the change to weight 600 is what shows the state.

@@ -1,5 +1,4 @@
 import { report } from "./failure-log.ts";
-import type { RedditRef } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import {
   FILL_DEADLINE_MS,
@@ -27,14 +26,10 @@ import {
   pauseForSpacing,
   windowFits,
 } from "./reddit-window.ts";
-import {
-  RATE_LIMITED,
-  REQUEST_DEADLINE_MS,
-  THREAD_QUERY,
-  fillAnswers,
-  hiddenIn,
-  permalinkPath,
-} from "./thread-fill.ts";
+import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
+import { RATE_LIMITED, THREAD_QUERY, fillAnswers, hiddenIn, permalinkPath } from "./thread-fill.ts";
+
+type RedditRef = import("./links.ts").RedditRef;
 
 export type AccountThread =
   | { readonly kind: "thread"; readonly thread: ParsedThread }

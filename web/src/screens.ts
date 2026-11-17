@@ -108,6 +108,8 @@ export function screenOf(view: View, path: string): ScreenState {
   }
 }
 
-export function titleOf(screen: ScreenState): string {
-  return TITLES[screen.name];
+export function titleOf(screen: ScreenState, pageName: string): string {
+  return pageName !== "" && (screen.name === "library" || screen.name === "topic")
+    ? `${pageName}, ${TITLES.library}`
+    : TITLES[screen.name];
 }

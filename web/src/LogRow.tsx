@@ -3,7 +3,7 @@ import { type ReactNode, memo, useCallback } from "react";
 import { itemPath } from "../../src/core/item-path.ts";
 import type { LogEntry } from "../../src/core/log-contract.ts";
 import { topicPath } from "../../src/core/topic-path.ts";
-import { localDate, localTime } from "./log-date.ts";
+import { localStamp } from "./log-date.ts";
 import { LOG_WORDS, addedRemoved, itemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
 import { LogLink } from "./LogLink.tsx";
 import type { Pages } from "./routing.ts";
@@ -147,12 +147,8 @@ export const LogRow = memo(function LogRow({
     <li>
       <article className="rl-row">
         <p className="rl-sum lg-line">
-          <time
-            className="lg-date"
-            dateTime={new Date(entry.at).toISOString()}
-            title={localTime(entry.at)}
-          >
-            [{localDate(entry.at)}]
+          <time className="lg-date" dateTime={new Date(entry.at).toISOString()}>
+            [{localStamp(entry.at)}]
           </time>{" "}
           <Parts>{body(entry, pages)}</Parts>
         </p>

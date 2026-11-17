@@ -109,21 +109,6 @@ export function steppingClock(start: number): () => number {
   return () => start + calls++;
 }
 
-export function itemsCounted(
-  instance: Instance,
-  tokenId: number,
-): readonly (readonly [string, number])[] {
-  return z
-    .array(z.object({ day: z.string(), added: z.number() }))
-    .parse(
-      rows(
-        instance,
-        `select day, added from agent_token_days where token_id = ${String(tokenId)} order by day`,
-      ),
-    )
-    .map(({ day, added }) => [day, added] as const);
-}
-
 export function itemsSavedByDay(
   instance: Instance,
   tokenId: number,

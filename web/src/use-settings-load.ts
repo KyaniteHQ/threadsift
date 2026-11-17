@@ -1,8 +1,7 @@
-import { type RefObject, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { within } from "../../src/core/deadline.ts";
 import { READ_DEADLINE_MS } from "./calls.ts";
-import { SECTION_FONTS, loadFonts } from "./load-fonts.ts";
 import type { Loaded, SettingsLoad } from "./settings-load-types.ts";
 import { readSettings } from "./settings-reads.ts";
 
@@ -16,7 +15,7 @@ export function useLoaded<View>(initial: Loaded<View>) {
   return { loaded, ready };
 }
 
-export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLoad | null {
+export function useSettingsLoad(): SettingsLoad | null {
   const [loaded, setLoaded] = useState<SettingsLoad | null>(null);
 
   useEffect(() => {
@@ -26,10 +25,7 @@ export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLo
     const load = async (): Promise<void> => {
       const signal = within(controller.signal, AbortSignal.timeout(READ_DEADLINE_MS));
 
-      const [reads] = await Promise.all([
-        readSettings(signal),
-        page.current === null ? undefined : loadFonts(page.current, SECTION_FONTS, signal),
-      ]);
+      const reads = await readSettings(signal);
 
       if (mounted) setLoaded(reads);
     };
@@ -40,7 +36,7 @@ export function useSettingsLoad(page: RefObject<HTMLElement | null>): SettingsLo
       mounted = false;
       controller.abort();
     };
-  }, [page]);
+  }, []);
 
   return loaded;
 }

@@ -3,15 +3,15 @@ import { useEffect } from "react";
 import { POLL_MS } from "./poll-interval.ts";
 import { useLatest } from "./use-latest.ts";
 
-export function usePolling(
-  active: boolean,
-  poll: () => Promise<void>,
-  intervalMs: number = POLL_MS,
-): void {
+export function usePolling(active: boolean, poll: () => Promise<void>): void {
   const latest = useLatest(poll);
 
   useEffect(() => {
     let reading = false;
+
+    const settled = (): void => {
+      reading = false;
+    };
 
     const timer = active
       ? window.setInterval(() => {
@@ -19,14 +19,12 @@ export function usePolling(
 
           reading = true;
 
-          void latest.current().finally(() => {
-            reading = false;
-          });
-        }, intervalMs)
+          void latest.current().then(settled, settled);
+        }, POLL_MS)
       : null;
 
     return () => {
       if (timer !== null) window.clearInterval(timer);
     };
-  }, [active, intervalMs, latest]);
+  }, [active, latest]);
 }

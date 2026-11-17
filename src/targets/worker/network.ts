@@ -50,7 +50,6 @@ function networkResponse(response: Response): NetworkResponse {
 }
 
 export const workerNetwork: Network = {
-  reachable: () => Promise.resolve(true),
   get: async (url, signal, headers) =>
     networkResponse(
       await workerFetch(url, { signal, headers: { ...REQUEST_HEADERS, ...headers } }),

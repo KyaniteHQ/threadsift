@@ -10,7 +10,6 @@ import {
   count,
   mergeLines,
   propose,
-  seedVolume,
   tagId,
   tagNames,
   tagsOfDigest,
@@ -144,22 +143,6 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
         tagId(instance, "machine learning"),
       ),
       1,
-    );
-  });
-
-  it("links a stored Digest that names the merged-away Tag to the survivor in the older-Digest linking", async () => {
-    seedVolume(instance, { tags: ["ML", "ai"], items: 1, from: 1 });
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-
-    assert.deepEqual(tagNames(instance), ["machine learning", "ai"]);
-    assert.equal(tagsOfDigest(instance, 100001), JSON.stringify(["machine learning", "ai"]));
-    assert.equal(
-      count(
-        instance,
-        "select count(*) as n from item_tags where item_id = 100001 and tag_id in (select id from tags where key in ('machine learning', 'ai'))",
-      ),
-      2,
     );
   });
 

@@ -1,7 +1,7 @@
 import { groupedNumber } from "../../src/core/format.ts";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../../src/core/passwords.ts";
 import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../../src/core/setup-code.ts";
-import { filled } from "./text.ts";
+import { plural } from "./plural.ts";
 
 export const SETUP = {
   codeTitle: "Step 1 of 3: enter the setup code",
@@ -159,16 +159,16 @@ export const SETTINGS = {
 
 export function waitLabel(seconds: number): string {
   if (seconds < 60) {
-    return seconds === 1 ? WAIT.second : filled(WAIT.seconds, { count: String(seconds) });
+    return plural(seconds, WAIT.second, WAIT.seconds);
   }
 
   if (seconds < 3600) {
     const minutes = Math.ceil(seconds / 60);
 
-    return minutes === 1 ? WAIT.minute : filled(WAIT.minutes, { count: String(minutes) });
+    return plural(minutes, WAIT.minute, WAIT.minutes);
   }
 
   const hours = Math.ceil(seconds / 3600);
 
-  return hours === 1 ? WAIT.hour : filled(WAIT.hours, { count: String(hours) });
+  return plural(hours, WAIT.hour, WAIT.hours);
 }

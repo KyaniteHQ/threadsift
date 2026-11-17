@@ -1,5 +1,4 @@
 import type { Digest } from "./ai-contract.ts";
-import type { Counting } from "./caller.ts";
 import { guardedWrite } from "./guards.ts";
 import { type SaveResult, type ThreadKept, itemAt, queuedWrites } from "./items.ts";
 import { closeItemJobs } from "./job-close.ts";
@@ -15,15 +14,15 @@ export async function saveThreadPage(
   {
     digest,
     page,
-    counting,
-  }: Readonly<{ digest: Digest | undefined; page: SuppliedPage; counting: Counting }>,
+    addedByToken,
+  }: Readonly<{ digest: Digest | undefined; page: SuppliedPage; addedByToken: number | null }>,
 ): Promise<SaveResult | ThreadKept> {
   const { db } = ports;
   const link = parseLink(absoluteUrl);
 
   const [insert, ...rest] = queuedWrites(
     db,
-    { originalUrl: absoluteUrl, address: absoluteUrl, digest, counting },
+    { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
     link,
     JSON.stringify(page),
   );

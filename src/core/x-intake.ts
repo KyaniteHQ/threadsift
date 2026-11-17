@@ -18,7 +18,6 @@ import {
 
 export const xIntakeKind: SentTaskKind = {
   apply: ({ db }, _job, { id }) => Promise.resolve(lostOutcome(db, { taskId: id })),
-  release: () => [],
   prepare: async ({ db }, job) => {
     const [item] = await db
       .select({ generation: items.generation, normalizedUrl: items.normalizedUrl })

@@ -6,7 +6,7 @@ import { answeredAs, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtur
 import { settled } from "./bot-kinds-steps.ts";
 import { pastDeadline } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { jobRow, taskRow, topicLeaseFree } from "./bot-task-rows.ts";
+import { jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 
 describe("an answer whose guard moved between the send and the answer is accepted and then fails the task as stale", () => {
@@ -111,7 +111,6 @@ describe("a task whose input moved before any answer is failed as stale, and no 
         assert.equal(task.refusal, "stale");
         assert.deepEqual([queued.state, queued.attempts, queued.stale_requeues], ["queued", 0, 3]);
         assert.equal(kindCase.wrote(instance, owner), false);
-        assert.equal(topicLeaseFree(instance, 1), true);
       } finally {
         await instance.close();
       }
@@ -149,7 +148,6 @@ describe("a reported bot error is charged as an attempt even when the input move
           ["failed", "provider-busy", null],
         );
         assert.equal(kindCase.wrote(instance, owner), false);
-        assert.equal(topicLeaseFree(instance, 1), true);
       } finally {
         await instance.close();
       }

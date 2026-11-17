@@ -3,6 +3,7 @@
 }
 .lg-date {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .lg-link {
   color: var(--text);

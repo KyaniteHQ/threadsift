@@ -15,7 +15,6 @@ import {
 
 export {
   type AgentTokenRow,
-  agentTokenDays,
   agentTokens,
   owner,
   sessions,
@@ -24,8 +23,6 @@ export {
 } from "./access-tables.ts";
 
 export { itemAliases } from "./alias-tables.ts";
-
-export { dataStepLease, dataStepRenames, dataSteps } from "./data-step-tables.ts";
 
 export {
   DATABASE_NOW,
@@ -61,15 +58,15 @@ export { redditComments, redditSettings, redditThreads } from "./reddit-tables.t
 
 export { pins } from "./pin-tables.ts";
 
-export { knownProposal, proposals } from "./proposal-tables.ts";
+export { proposals } from "./proposal-tables.ts";
 
 export { relatedItems } from "./related-tables.ts";
 
 export { type RestoreRow, restoreRuns } from "./restore-tables.ts";
 
-export { searchFingerprints, searchParts, searchReconciling } from "./search-tables.ts";
+export { searchParts } from "./search-tables.ts";
 
-export { topicChecks, topicLeases, topicPages } from "./topic-tables.ts";
+export { topicChecks, topicPages } from "./topic-tables.ts";
 
 export { xSettings } from "./x-settings-tables.ts";
 
@@ -100,7 +97,6 @@ export const items = sqliteTable(
     fetch: text("fetch_result", { enum: FETCH_RESULTS }),
     xNote: text("x_note", { enum: X_READ_NOTES }),
     addedByToken: integer("added_by_token"),
-    budgetSlotDay: text("budget_slot_day"),
   },
   (table) => [
     index("items_saved_at_id").on(table.savedAt, table.id),
@@ -275,13 +271,4 @@ export const catalogVersion = sqliteTable(
     version: integer("version").notNull().default(0),
   },
   (table) => [check("catalog_is_one_row", sql`${table.id} = 1`)],
-);
-
-export const catalogLinking = sqliteTable(
-  "catalog_linking",
-  {
-    id: integer("id").primaryKey(),
-    lastItemId: integer("last_item_id").notNull(),
-  },
-  (table) => [check("catalog_linking_is_one_row", sql`${table.id} = 1`)],
 );

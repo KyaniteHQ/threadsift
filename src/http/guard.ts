@@ -10,7 +10,7 @@ import {
   RESULT_BODY_BYTES,
 } from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
-import { verifyToken } from "../core/tokens.ts";
+import { UNKNOWN_TOKEN, verifyToken } from "../core/tokens.ts";
 import {
   isIntakeCallback,
   isOwnerOnly,
@@ -68,7 +68,7 @@ export function bearerCheck(
     verifyToken: verified,
     noAuthenticationHeader: { message: notBearer },
     invalidAuthenticationHeader: { message: { error: NOT_BEARER } },
-    invalidToken: { message: { error: "Unknown or revoked agent token" } },
+    invalidToken: { message: { error: UNKNOWN_TOKEN } },
   });
 }
 
@@ -91,8 +91,6 @@ export function guard(ports: Ports): MiddlewareHandler {
     const { method, path } = c.req;
     const protectedRoute = !isPublic(method, path);
     const carriesToken = protectedRoute && c.req.header("authorization") !== undefined;
-
-    c.set("principal", { kind: "anonymous" });
 
     if (protectedRoute) {
       if (carriesToken) {

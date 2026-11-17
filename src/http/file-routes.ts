@@ -19,7 +19,7 @@ const imageRoute = createRoute({
   responses: {
     200: {
       description:
-        "A stored image of an article, as the Reader's post text links it. It is served only while a published `media` row of the Item names this exact key as a stored image. Every answer, errors included, carries `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Cross-Origin-Resource-Policy: same-origin`, `Referrer-Policy: no-referrer` and `Content-Security-Policy: default-src 'none'; sandbox; frame-ancestors 'none'`.",
+        "A stored image of an article, as the Reader's post text links it. It is served only while a published `media` row of the Item names this exact key as a stored image. Every answer, errors included, carries `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Cross-Origin-Resource-Policy: same-origin`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: default-src 'none'; sandbox; frame-ancestors 'none'` and `X-Frame-Options: DENY`.",
       content: Object.fromEntries(IMAGE_TYPES.map((type) => [type, { schema: ImageBytesSchema }])),
       headers: z.object({
         "content-disposition": z.string().openapi({ example: 'inline; filename="image-1.png"' }),

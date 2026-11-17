@@ -17,21 +17,15 @@ async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
     return prefillOf(link, "invalid");
   }
 
-  const saved = await paste(
-    ports,
-    request.data.url,
-    { kind: "owner" },
-    { digest: request.data.digest },
-  );
+  const saved = await paste(ports, request.data.url, { kind: "owner" }, {});
 
   switch (saved.kind) {
     case "refused": {
       return prefillOf(link, "private");
     }
 
-    case "updating":
     case "restoring": {
-      return prefillOf(link, "updating");
+      return prefillOf(link, "restoring");
     }
 
     case "saved": {
@@ -44,6 +38,7 @@ async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
 
     case "invalid":
     case "budget-spent":
+    case "unknown-token":
     case "too-large":
     case "thread-kept":
     case "not-waiting": {

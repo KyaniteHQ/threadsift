@@ -39,6 +39,10 @@ const saveRoute = createRoute({
       ErrorResponseSchema,
       "The address is not a public `https` address with no credentials, query or fragment (a bare `?` or `#` counts), the key is longer than 4,096 characters or holds a character other than printable ASCII (a space, a control character or any non-ASCII character), or no key came with a new address or a key this Instance cannot open. Nothing is saved.",
     ),
+    409: jsonBody(
+      ErrorResponseSchema,
+      "The settings changed while this save was prepared (`error: settings-changed`). Nothing from this save was written; send it again.",
+    ),
   },
 });
 
@@ -79,6 +83,8 @@ export function registerGrokBotRoutes(app: OpenAPIHono, ports: Ports): void {
         return c.json(saved.view, 200);
       case "secret-missing":
         return c.json({ kind: "refused", reason: "secret-missing" } as const, 200);
+      case "changed":
+        return c.json({ error: "settings-changed" }, 409);
       case "key-needed":
         return c.json({ error: KEY_NEEDED }, 400);
       default: {

@@ -1,31 +1,30 @@
 import { type CSSProperties, type FocusEvent, useCallback, useEffect, useId, useRef } from "react";
 
 import type { CommentCount, CommentNode, CommentsFilter } from "../../src/core/comment-view.ts";
+import {
+  COMMENTS_TITLE,
+  CONTEXT_LABEL,
+  STUB_DROPPED,
+  STUB_MORE,
+  STUB_NOT_KEPT,
+  handleOf,
+} from "../../src/core/reader-text.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
-import { commentsFilterOf } from "./comment-counts.ts";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
 import { useOpenOnReveal } from "./highlights-context.ts";
 import { PostTextView } from "./post-text-module.ts";
 import {
   ALL_REMOVED,
-  COMMENTS_TITLE,
-  CONTEXT_LABEL,
   NONE_KEPT,
   OP_LABEL,
   SHOW_FULL_COMMENT,
   SHOW_LESS,
-  STUB_DROPPED,
-  STUB_MORE,
-  STUB_NOT_KEPT,
   UNFILTERED_NOTES,
   countLabel,
-  handleOf,
   isSameHandle,
   scoreLabel,
 } from "./reader-text.ts";
-
-const TOP_OFFSET: CSSProperties = { scrollMarginTop: "calc(var(--bar-h) + var(--s4))" };
 
 function depthStyle(depth: number): CSSProperties {
   return Object.fromEntries([["--d", depth]]);
@@ -192,7 +191,7 @@ function Branches({
   first: boolean;
 }>) {
   return (
-    <ol className="tree">
+    <ol role="list" className="tree">
       {branches.map(({ node, replies }, index) => (
         <li
           key={node.id}
@@ -245,13 +244,12 @@ function CommentTree({
   section: { counts, note },
   nodes,
 }: Readonly<{ item: Item; section: Section; nodes: readonly CommentNode[] }>) {
-  const heading = useId();
   const branches = nest(nodes);
 
   return (
-    <section className="rd-comments" aria-labelledby={heading}>
+    <section className="rd-comments">
       <div className="rd-sec-h">
-        <h3 id={heading} className="rd-h" tabIndex={-1} style={TOP_OFFSET}>
+        <h3 className="rd-h" tabIndex={-1}>
           {COMMENTS_TITLE}
         </h3>
         {counts === null ? null : <p className="rd-count">{countLabel(counts, "heading")}</p>}
@@ -263,7 +261,7 @@ function CommentTree({
 }
 
 export function Comments({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
-  const section = sectionOf(commentsFilterOf(item, detail.comments));
+  const section = sectionOf(detail.comments.view);
 
   return section === null ? null : (
     <CommentTree item={item} section={section} nodes={detail.comments.nodes} />

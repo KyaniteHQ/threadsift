@@ -1,30 +1,17 @@
-import { type SQL, and, asc, eq, sql } from "drizzle-orm";
+import { type SQL, asc, eq, sql } from "drizzle-orm";
 
 import { guardedResults } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
-import { recordingFailure, releasedAfterFailure } from "./merge-failure.ts";
+import { recordingFailure } from "./merge-failure.ts";
 import { MERGES, readRow } from "./merge-kinds.ts";
 import type { MergeRow, MergeUnit } from "./merge-unit.ts";
-import {
-  atRevision,
-  proposalClaimed,
-  handedBack,
-  unitAdvanced,
-  unitApplied,
-} from "./proposal-lifecycle.ts";
+import { atRevision, proposalClaimed, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
-import { leaseHolds, releaseTopicLease } from "./topic-lease.ts";
 
 const UNITS_PER_ACCEPT = 50;
 
-export type MergeAcceptance =
-  | "done"
-  | "accepting"
-  | "unknown"
-  | "not-open"
-  | "merge-busy"
-  | "topic-busy";
+export type MergeAcceptance = "done" | "accepting" | "unknown" | "not-open" | "merge-busy";
 
 function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
   const { catalog } = MERGES[row.kind];
@@ -33,7 +20,7 @@ function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
   return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'accepting' and ${atRevision(row.revision)})`;
 }
 
-type Outcome = "ran" | "lost" | "busy";
+type Outcome = "ran" | "lost";
 
 async function applyUnit(
   ports: JobPorts,
@@ -48,39 +35,27 @@ async function applyUnit(
     ...unit.pin,
     ...unit.moves,
     unitAdvanced(db, id, unit.cursor, row.revision + 1),
-    ...unit.leases.map((lease) => releaseTopicLease(db, lease)),
   ];
 
   const writes = [...head, ...unit.closing.writes];
 
-  try {
-    const holds = sql`${and(unitGuard(id, row), ...unit.leases.map((lease) => leaseHolds(lease)))}`;
-    const results = await guardedResults(db, holds, writes);
+  const results = await guardedResults(db, unitGuard(id, row), writes);
 
-    if (results === null) {
-      await releasedAfterFailure(db, id, unit.leases);
+  if (results === null) return "lost";
 
-      return "lost";
-    }
+  await enqueueRows(
+    ports,
+    unit.closing.wakes.flatMap((at) => OpenedJobsSchema.parse(results[head.length + at])),
+  );
 
-    await enqueueRows(
-      ports,
-      unit.closing.wakes.flatMap((at) => OpenedJobsSchema.parse(results[head.length + at])),
-    );
-
-    return "ran";
-  } catch (error) {
-    await releasedAfterFailure(db, id, unit.leases);
-
-    throw error;
-  }
+  return "ran";
 }
 
 function runUnit(ports: JobPorts, id: number, row: Readonly<MergeRow>): Promise<Outcome> {
   return recordingFailure(ports.db, { id, revision: row.revision }, async () => {
     const unit = await MERGES[row.kind].plan(ports.db, id, row);
 
-    return unit === "busy" || unit === "lost" ? unit : applyUnit(ports, id, row, unit);
+    return applyUnit(ports, id, row, unit);
   });
 }
 
@@ -95,21 +70,9 @@ async function continueMerge(
 
   if (budget === 0) return "accepting";
 
-  if ((await runUnit(ports, id, row)) === "busy") return "accepting";
+  await runUnit(ports, id, row);
 
   return continueMerge(ports, id, budget - 1);
-}
-
-async function firstUnit(
-  ports: JobPorts,
-  id: number,
-  row: Readonly<MergeRow>,
-): Promise<Outcome | "handed-back"> {
-  const outcome = await runUnit(ports, id, row);
-
-  return outcome === "busy" && (await handedBack(ports.db, id)).length > 0
-    ? "handed-back"
-    : outcome;
 }
 
 async function startUnit(
@@ -117,9 +80,7 @@ async function startUnit(
   id: number,
   row: Readonly<MergeRow>,
 ): Promise<MergeAcceptance> {
-  const outcome = await firstUnit(ports, id, row);
-
-  if (outcome === "handed-back") return "topic-busy";
+  const outcome = await runUnit(ports, id, row);
 
   const after = await readRow(ports.db, id);
 

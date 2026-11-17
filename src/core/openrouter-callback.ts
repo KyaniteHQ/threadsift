@@ -5,7 +5,8 @@ import type { JobWrites } from "./job-outcome.ts";
 import { claim, refusalBeforeExchange } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
 import { saveConnectedKey } from "./openrouter-save.ts";
-import { HOP_DEADLINE_MS, type Ports } from "./ports.ts";
+import { type Ports } from "./ports.ts";
+import { HOP_DEADLINE_MS } from "./request-waits.ts";
 
 const CallbackQuerySchema = z.object({
   code: z.tuple([z.string().min(1).max(AI_KEY_MAX)]),

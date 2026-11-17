@@ -5,6 +5,7 @@ import { type BarMode, ReaderBar } from "./ReaderBar.tsx";
 import { ReaderBody } from "./ReaderBody.tsx";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import type { Pages } from "./routing.ts";
+import { usePageName } from "./use-document-title.ts";
 import { useFocusMoved } from "./use-focus-moved.ts";
 import { refreshKey, useItemDetail } from "./use-item-detail.ts";
 import type { Look } from "./use-root.ts";
@@ -90,7 +91,6 @@ function ReaderCol({
           actions={actions}
           announce={controls.announce}
           now={now}
-          settingsKey={controls.settingsKey}
           titleId={titleId}
           focusTitle={focusTitle}
           tryAgain={tryAgain}
@@ -119,6 +119,8 @@ export function Reader({
   panel: ComponentProps<typeof ReaderBar>["panel"];
   tryAgain: (item: Item) => void;
 }>) {
+  usePageName(item.digestTitle ?? item.title ?? "");
+
   return (
     <section className="reader" aria-labelledby={titleId}>
       <ReaderBar item={item} controls={controls} look={look} pages={pages} panel={panel} />

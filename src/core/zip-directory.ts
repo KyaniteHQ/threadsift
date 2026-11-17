@@ -265,6 +265,10 @@ export async function readDirectory(source: Readonly<ZipSource>): Promise<ZipDir
 
   const entries = await recordsOf(source, placement);
 
+  if (new Set(entries.map(({ name }) => name)).size !== entries.length) {
+    throw new ZipRefused("bad-entry-name", "The zip holds two entries of one name");
+  }
+
   for (const entry of entries) {
     const nameBytes = new TextEncoder().encode(entry.name).length;
 

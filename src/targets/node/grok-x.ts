@@ -22,8 +22,10 @@ import {
   type Proof,
   UNPROVEN,
   afterPreflight,
+  afterRun,
   checkedRun,
   exitedCleanly,
+  keptBar,
   permission,
   preflightResultOf,
   sameBinary,
@@ -147,7 +149,7 @@ class GrokXFetcher implements StoppableXFetcher {
     signal: AbortSignal,
   ): Promise<Refused | null> {
     const run = this.preflight(signal).then(({ result, failure }) => {
-      this.proof = afterPreflight(identity, result);
+      this.proof = keptBar(this.proof, identity, afterPreflight(identity, result));
 
       return failure;
     }, internal);
@@ -199,17 +201,17 @@ class GrokXFetcher implements StoppableXFetcher {
       case "surface-held":
         return outcomeOf(run.end);
       case "barred":
-        this.proof = {
+        this.proof = afterRun(this.proof, identity, {
           kind: "refused",
           binary: identity,
           verdict: check.verdict,
           version: PROVEN_VERSION,
-        };
+        });
 
         return SURFACE_REFUSAL;
       case "discard":
       case "reprove":
-        this.proof = UNPROVEN;
+        this.proof = afterRun(this.proof, identity, UNPROVEN);
 
         return check.refusal;
       case "keep":

@@ -54,7 +54,7 @@ export const CommentsViewSchema = z.object({
   received: z.number().int().nonnegative(),
   kept: z.number().int().nonnegative(),
   nodes: z.array(CommentNodeSchema).readonly(),
-  view: ViewSchema.optional(),
+  view: ViewSchema,
 });
 
 export type CommentNode = z.infer<typeof CommentNodeSchema>;

@@ -4,17 +4,14 @@ import { type CheckCursor, RESTORE_CHECK_BYTES, RESTORE_LINE_BYTES } from "./res
 import { completeLines, parsedRow } from "./restore-lines.ts";
 import { type TableSpec, lineVerdict, tableSpec } from "./restore-registry.ts";
 import {
-  LOCAL_BYTES,
   type ZipDirectory,
   type ZipEntry,
   ZipRefused,
   type ZipSource,
   bytesAt,
   entryStart,
-  viewOf,
+  localDataStart,
 } from "./zip-read.ts";
-
-const LOCAL_SIGNATURE = 0x04_03_4b_50;
 
 interface Region {
   readonly bytes: Uint8Array;
@@ -25,7 +22,6 @@ export interface Env {
   readonly source: Readonly<ZipSource>;
   readonly directory: Readonly<ZipDirectory>;
   readonly manifest: Readonly<Manifest>;
-  readonly older: boolean;
 }
 
 function recordSpec(
@@ -40,7 +36,6 @@ function recordSpec(
 }
 
 function lineRefusal(
-  env: Readonly<Env>,
   spec: Readonly<TableSpec>,
   line: Uint8Array,
   number: number,
@@ -52,7 +47,7 @@ function lineRefusal(
     return refused("format", `The ${where} is not a record that fits the table`);
   }
 
-  const verdict = lineVerdict(spec, row, env.older);
+  const verdict = lineVerdict(spec, row);
 
   return verdict === "valid" ? null : refused(verdict, `The ${where} does not match the table`);
 }
@@ -81,7 +76,7 @@ function scanned(
   }
 
   for (const [position, line] of lines.entries()) {
-    const refusal = lineRefusal(env, spec, line, at.line + position + 1);
+    const refusal = lineRefusal(spec, line, at.line + position + 1);
 
     if (refusal !== null) throw refusal;
   }
@@ -111,18 +106,10 @@ function finished(
   return { entry: at.entry + 1, offset: 0, line: 0, crc: 0, rows };
 }
 
-function dataStart(bytes: Uint8Array, at: number): number | null {
-  if (at < 0 || at + LOCAL_BYTES > bytes.length) return null;
+function dataStart(bytes: Uint8Array, at: number, entry: Readonly<ZipEntry>): number | null {
+  const start = localDataStart(bytes, at, entry);
 
-  const header = viewOf(bytes.subarray(at, at + LOCAL_BYTES));
-
-  if (header.getUint32(0, true) !== LOCAL_SIGNATURE) {
-    throw new ZipRefused("not-a-zip", "A local header of the zip is malformed");
-  }
-
-  const start = at + LOCAL_BYTES + header.getUint16(26, true) + header.getUint16(28, true);
-
-  return start > bytes.length ? null : start;
+  return start === null || start > bytes.length ? null : start;
 }
 
 function dataIn(
@@ -131,7 +118,7 @@ function dataIn(
   entry: Readonly<ZipEntry>,
   offset: number,
 ): Uint8Array | null {
-  const from = offset === 0 ? dataStart(bytes, entry.headerOffset - base) : 0;
+  const from = offset === 0 ? dataStart(bytes, entry.headerOffset - base, entry) : 0;
 
   if (from === null) return null;
 

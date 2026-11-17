@@ -1,7 +1,47 @@
+import { sweepDigests } from "./digest-job.ts";
+import { cleanExports } from "./export-cleanup.ts";
 import { logFailure } from "./failure-log.ts";
-import type { JobPorts } from "./job-outcome.ts";
+import { cleanFiles } from "./file-cleanup.ts";
+import { enqueueDue } from "./jobs.ts";
+import { continueMerges } from "./merge-accept.ts";
+import { sweepConnectTransactions } from "./openrouter-connect.ts";
+import { weeklyStages } from "./proposal-week.ts";
+import { cleanRestoreParts } from "./restore-parts.ts";
 import { restoreHoldsLibrary } from "./restore-state.ts";
-import { stagesOf } from "./sweep-stages.ts";
+
+type JobPorts = import("./job-outcome.ts").JobPorts;
+
+const SWEEP_LIMIT = 100;
+
+type Stage = readonly [name: string, run: () => Promise<void>];
+
+function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
+  return [
+    [
+      "enqueue",
+      async () => {
+        await enqueueDue(ports, now, SWEEP_LIMIT);
+      },
+    ],
+    [
+      "connect",
+      async () => {
+        await sweepConnectTransactions(ports.db);
+      },
+    ],
+    [
+      "digests",
+      async () => {
+        await sweepDigests(ports.db, now);
+      },
+    ],
+    ...weeklyStages(ports, now),
+    ["merges", () => continueMerges(ports)],
+    ["exports", () => cleanExports(ports)],
+    ["restores", () => cleanRestoreParts(ports)],
+    ["files", () => cleanFiles(ports)],
+  ];
+}
 
 const WHILE_RESTORING: ReadonlySet<string> = new Set(["enqueue", "restores"]);
 

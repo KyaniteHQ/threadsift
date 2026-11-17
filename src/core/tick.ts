@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 
-import { migrateData } from "./data-steps.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { claimingRun } from "./scheduled-claim.ts";
 import { sweep } from "./sweep.ts";
@@ -22,11 +21,5 @@ async function sweepWhenDue(ports: JobPorts): Promise<void> {
 }
 
 export async function tick(ports: JobPorts): Promise<void> {
-  const results = await Promise.allSettled([migrateData(ports.db), sweepWhenDue(ports)]);
-
-  for (const result of results) {
-    if (result.status === "rejected") {
-      throw result.reason;
-    }
-  }
+  await sweepWhenDue(ports);
 }

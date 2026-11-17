@@ -32,7 +32,7 @@ sums_at() {
 released_tag() {
   local tag
   tag="$(pinned TAG)"
-  [[ "$tag" != unreleased ]] && tag_known "$tag" && echo "$tag"
+  tag_known "$tag" && echo "$tag"
 }
 
 changelog_release() {
@@ -71,7 +71,7 @@ case "$mode" in
   check)
     version="$(< "$bot/VERSION")"
     tag="$(pinned TAG)"
-    [[ "$tag" == unreleased || "$tag" == "bot-v$version" ]] || { echo "SKILL.md pins tag $tag but bot/VERSION is $version" >&2; exit 1; }
+    [[ "$tag" == "bot-v$version" ]] || { echo "SKILL.md pins tag $tag but bot/VERSION is $version" >&2; exit 1; }
     [[ "$(computed_sums)" == "$(< "$sums")" ]] || { echo "bot/SHA256SUMS does not match setup.md, update.md and scripts/threadsift.sh; run tools/bot-release.sh" >&2; exit 1; }
     [[ "$(pinned SUMS_SHA256)" == "$(sums_hash)" ]] || { echo "SKILL.md pins another SHA256SUMS hash; run tools/bot-release.sh" >&2; exit 1; }
     if tag="$(released_tag)"; then

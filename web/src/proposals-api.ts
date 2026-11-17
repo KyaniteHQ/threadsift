@@ -9,7 +9,7 @@ import {
 import { call, parsedFrom, parsedOrGone, post, withCursor } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
-const BUSY_ANSWERS = ["merge-busy", "topic-busy", "no-provider"] as const;
+const BUSY_ANSWERS = ["merge-busy", "no-provider"] as const;
 
 export type Busy = (typeof BUSY_ANSWERS)[number];
 

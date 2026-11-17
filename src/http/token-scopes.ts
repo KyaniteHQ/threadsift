@@ -7,10 +7,7 @@ import { type NeededScopes, lacksScope, missingScope, pasteScopes } from "../cor
 
 type Principal =
   | { readonly kind: "owner" }
-  | { readonly kind: "token"; readonly id: number; readonly scopes: readonly Scope[] }
-  | { readonly kind: "anonymous" };
-
-const SIGN_IN = "Sign in or send an agent token";
+  | { readonly kind: "token"; readonly id: number; readonly scopes: readonly Scope[] };
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -34,8 +31,6 @@ export function requireScopes(c: Context, needed: NeededScopes): void {
       return;
     }
 
-    case "anonymous":
-      throw new HTTPException(401, { message: SIGN_IN });
     default:
       return principal satisfies never;
   }
@@ -53,8 +48,6 @@ export function callerOf(c: Context): Caller {
       return { kind: "owner" };
     case "token":
       return { kind: "token", id: principal.id };
-    case "anonymous":
-      throw new HTTPException(401, { message: SIGN_IN });
     default:
       return principal satisfies never;
   }

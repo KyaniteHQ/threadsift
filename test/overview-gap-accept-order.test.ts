@@ -17,7 +17,6 @@ import {
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
-import { holdLease, topicId } from "./topic-accept-fixtures.ts";
 
 const GUARDED_BATCH = 3;
 
@@ -151,12 +150,11 @@ describe("Accept of an overview-gap row chooses the run's owner inside its guard
     await saveProvider(instance);
   });
 
-  it("clears the failure marker, starts one run for the newest Item and deletes the row while another holder owns the Topic lease", async () => {
+  it("clears the failure marker, starts one run for the newest Item and deletes the row", async () => {
     const [, newest] = made["Single call"] ?? [];
 
     assert.ok(newest !== undefined);
     storePage(instance, "Single call", { builtFrom: [], failure: "gave-up" });
-    holdLease(instance, topicId(instance, "Single call"), "someone-else");
 
     const id = proposeGap(instance, "Single call");
     const owners = jobOwners(instance);
@@ -169,7 +167,6 @@ describe("Accept of an overview-gap row chooses the run's owner inside its guard
       gapRows(instance).filter((row) => row.id === id),
       [],
     );
-    exec(instance, "delete from topic_leases");
   });
 
   it("answers 200 and starts the run when the Provider returns between the refused batch and its recheck", async () => {

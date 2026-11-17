@@ -82,8 +82,6 @@ export function facesOf(settings: Settings): readonly FaceId[] {
     : STYLE_FACES[settings.style];
 }
 
-export async function loadFaces(faces: readonly FaceId[]): Promise<boolean> {
-  const results = await Promise.allSettled(faces.map((face) => FACES[face]()));
-
-  return results.every((result) => result.status === "fulfilled");
+export async function loadFaces(faces: readonly FaceId[]): Promise<void> {
+  await Promise.allSettled(faces.map((face) => FACES[face]()));
 }

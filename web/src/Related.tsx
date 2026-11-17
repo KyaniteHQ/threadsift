@@ -31,16 +31,12 @@ const Entry = memo(function Entry({ entry }: Readonly<{ entry: RelatedEntries[nu
 });
 
 export function Related({ entries }: Readonly<{ entries: RelatedEntries }>) {
-  const heading = useId();
-
   if (entries.length === 0) return null;
 
   return (
-    <section className="rel" aria-labelledby={heading}>
-      <h3 id={heading} className="rd-h">
-        {RELATED.title}
-      </h3>
-      <ul className="rel-list">
+    <section className="rel">
+      <h3 className="rd-h">{RELATED.title}</h3>
+      <ul role="list" className="rel-list">
         {entries.map((entry) => (
           <Entry key={entry.id} entry={entry} />
         ))}
