@@ -150,6 +150,7 @@ in
       exec = "pnpm audit --prod --audit-level high";
     };
     "design:check" = {
+      after = [ "ci:install" ];
       showOutput = true;
       exec = ''
         set -e
