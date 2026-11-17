@@ -29,7 +29,6 @@ function useReadyState(
   state: DetailState,
   slot: RefObject<HTMLElement | null>,
   itemId: number,
-  settingsKey: string,
 ): Exclude<DetailState, { status: "loading" }> | null {
   use(postTextModule());
 
@@ -37,7 +36,7 @@ function useReadyState(
   const [faces] = useFaces(slot, LOOK_FONTS, FACE_WAIT_MS, sample);
   const ready = state.status === "loading" || !faces ? null : state;
 
-  useReadingPlace(slot, itemId, ready?.status === "ready", settingsKey);
+  useReadingPlace(slot, itemId, ready?.status === "ready");
 
   return ready;
 }
@@ -49,7 +48,6 @@ export function ReaderBody({
   actions,
   announce,
   now,
-  settingsKey,
   titleId,
   focusTitle,
   tryAgain,
@@ -60,12 +58,11 @@ export function ReaderBody({
   actions: DetailActions;
   announce: (text: string) => void;
   now: number;
-  settingsKey: string;
   titleId: string;
   focusTitle: boolean;
   tryAgain: (item: Item) => void;
 }>) {
-  const ready = useReadyState(state, slot, item.id, settingsKey);
+  const ready = useReadyState(state, slot, item.id);
   const content = { item, actions, announce, tryAgain, now };
 
   return (

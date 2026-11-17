@@ -16,8 +16,6 @@ export const EXPORT_TEXT = {
   remove: "Delete export",
   removing: "Deleting…",
   download: "Download",
-  stale:
-    "The Instance did not answer, so the Export state shown may be out of date while the page keeps trying.",
   running: "Export running.",
   ready: "Export ready.",
   failed: "Couldn’t start, stop or delete the Export. Try again.",

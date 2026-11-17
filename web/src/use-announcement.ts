@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 
 import type { ReadState } from "../../src/core/kinds.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import type { Applied, Writes } from "./library.ts";
+import type { Writes } from "./library.ts";
 import { MARKED_READ, MARKED_UNREAD, READ_FAILED } from "./reader-text.ts";
 
 const OTHER: Readonly<Record<ReadState, ReadState>> = { read: "unread", unread: "read" };
@@ -41,14 +41,11 @@ export function useAnnouncement(setRead: Writes["setRead"]) {
       const wanted = OTHER[writes.latest(item.id) ?? item.readState];
 
       writes.queue(item.id, wanted, async () => {
-        const answer: Applied | "failed" = await setRead(item.id, wanted).then(
-          (applied) => applied,
-          (): "failed" => "failed",
+        const failed = await setRead(item.id, wanted).then(
+          () => false,
+          () => true,
         );
 
-        if (answer === "discarded") return;
-
-        const failed = answer === "failed";
         setAnnouncement({ text: failed ? READ_FAILED : MARKED[wanted], failed });
       });
     },

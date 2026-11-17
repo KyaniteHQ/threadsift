@@ -21,8 +21,7 @@ import { useShownCard } from "./use-shown-card.ts";
 
 export type SaveOutcome =
   | { readonly kind: "item"; readonly itemId: number; readonly refreshed: boolean }
-  | { readonly kind: "notice"; readonly notice: NoticeKey }
-  | { readonly kind: "discarded" };
+  | { readonly kind: "notice"; readonly notice: NoticeKey };
 
 export type Save = (target: SaveTarget) => Promise<SaveOutcome>;
 
@@ -44,11 +43,7 @@ async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
   }
 }
 
-function shownOf(
-  outcome: Readonly<Exclude<SaveOutcome, { kind: "discarded" }>>,
-  url: string,
-  seq: number,
-): Shown {
+function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Shown {
   return outcome.kind === "item"
     ? { kind: "item", itemId: outcome.itemId, refreshed: outcome.refreshed, url, seq }
     : { kind: "notice", key: outcome.notice, url, seq };
@@ -74,8 +69,6 @@ function useSaveValue({
       const { url } = target;
       setShown(null);
       const outcome = url === "" ? EMPTY : await attempt(save, target);
-
-      if (outcome.kind === "discarded") return;
 
       if (outcome.kind === "item") {
         setValue((current) => (current.trim() === url ? "" : current));

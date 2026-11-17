@@ -1,8 +1,8 @@
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
+import type { SaveResult } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
-import type { SaveAnswer } from "./library.ts";
 import { type ListState, readFor } from "./list-state.ts";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
@@ -53,7 +53,7 @@ function useOpenItem(list: ListState, query: string, { openId }: Route) {
 }
 
 function useSaveAndShow(
-  save: (target: SaveTarget) => Promise<SaveAnswer>,
+  save: (target: SaveTarget) => Promise<SaveResult>,
   { seek, cancel }: Readonly<ReturnType<typeof useSeek>>,
   pane: RefObject<HTMLElement | null>,
 ) {
@@ -61,8 +61,6 @@ function useSaveAndShow(
     async (target: SaveTarget): Promise<SaveOutcome> => {
       cancel();
       const result = await save(target);
-
-      if (result.outcome === "discarded") return { kind: "discarded" };
 
       if (result.outcome !== "saved") return { kind: "notice", notice: result.outcome };
 
@@ -137,7 +135,7 @@ function useSeekingAttention(
 export function useListActions(
   list: ListState,
   actions: Readonly<{
-    save: (target: SaveTarget) => Promise<SaveAnswer>;
+    save: (target: SaveTarget) => Promise<SaveResult>;
     retry: () => void;
     know: (item: Readonly<Item>) => void;
     more: () => void;
