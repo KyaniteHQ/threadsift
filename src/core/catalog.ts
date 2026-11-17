@@ -37,13 +37,21 @@ export async function pinnedCatalog(db: Database, digest: Readonly<Digest>) {
   };
 }
 
+export const TOPIC_USES = sql<number>`(select count(*) from ${items} where ${items.topicId} = ${topics.id})`;
+
+export const TAG_USES = sql<number>`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${tags.id})`;
+
 const CATALOG_VERSION = sql<number>`(select version from ${catalogVersion} where id = 1)`;
 
-export async function readCatalogVersion(db: Database): Promise<number> {
-  const [row] = await db
+function versionRow(db: Database) {
+  return db
     .select({ version: catalogVersion.version })
     .from(catalogVersion)
     .where(eq(catalogVersion.id, 1));
+}
+
+export async function readCatalogVersion(db: Database): Promise<number> {
+  const [row] = await versionRow(db);
 
   if (row === undefined) throw new UninitializedDatabase("catalog_version");
 
@@ -66,20 +74,9 @@ function topNames(db: Database, table: Readonly<SQLWrapper>, usage: Readonly<SQL
 
 export async function readCatalog(db: Database) {
   const [version, topicNames, tagNames] = await db.batch([
-    db
-      .select({ version: catalogVersion.version })
-      .from(catalogVersion)
-      .where(eq(catalogVersion.id, 1)),
-    topNames(
-      db,
-      topics,
-      sql`(select count(*) from ${items} where ${items.topicId} = ${topics.id})`,
-    ),
-    topNames(
-      db,
-      tags,
-      sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${tags.id})`,
-    ),
+    versionRow(db),
+    topNames(db, topics, TOPIC_USES),
+    topNames(db, tags, TAG_USES),
   ]);
 
   const [counter] = version;

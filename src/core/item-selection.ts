@@ -1,7 +1,7 @@
 import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
-import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
+import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor, pageTail } from "./item-page.ts";
 import { JOINED_VIEW_COLUMNS } from "./joined-view.ts";
 import type { Database } from "./ports.ts";
 import { digests, githubRepos, items } from "./schema.ts";
@@ -55,13 +55,9 @@ function pageQuery(
 }
 
 function pageOf(rows: readonly ListedItemRow[]) {
-  const shown = rows.slice(0, ITEMS_PAGE_SIZE);
-  const last = shown.at(-1);
+  const { shown, next } = pageTail(rows, formatCursor);
 
-  return {
-    items: shown,
-    next: rows.length > shown.length && last !== undefined ? formatCursor(last) : null,
-  };
+  return { items: shown, next };
 }
 
 export async function listItems(

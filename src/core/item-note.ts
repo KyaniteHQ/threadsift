@@ -1,5 +1,6 @@
 import type { CommentNode } from "./comment-view.ts";
 import { isImageRouteOf, keyOfFileRoute } from "./file-keys.ts";
+import { collapsed } from "./format.ts";
 import type { Kind, ReadState, Source } from "./kinds.ts";
 import { inlineImage, rewriteImages, scanMarkdown } from "./markdown-images.ts";
 import {
@@ -10,9 +11,7 @@ import {
   NOTE_TITLE,
   NOT_FOUND,
   SECTION_TITLES,
-  STUB_DROPPED,
-  STUB_MORE,
-  STUB_NOT_KEPT,
+  STUB_TEXTS,
   SUMMARY_LABEL,
   UNTITLED,
   handleOf,
@@ -93,7 +92,7 @@ function plainMarkdown(text: string): string {
 }
 
 function titleOf({ title }: Readonly<Pick<ItemNoteInput, "title">>): string {
-  const single = (title ?? "").replaceAll(/\s+/gu, " ").trim();
+  const single = collapsed(title ?? "");
 
   return single === "" ? UNTITLED : plainMarkdown(single);
 }
@@ -143,12 +142,6 @@ function markers(count: number): string {
 function depthPrefix(depth: number): string {
   return `${markers(depth + 1)} `;
 }
-
-const STUB_TEXTS = {
-  dropped: STUB_DROPPED,
-  "not-kept": STUB_NOT_KEPT,
-  more: STUB_MORE,
-} as const;
 
 function commentLines(node: Readonly<CommentNode>, source: Source): string[] {
   const prefix = depthPrefix(node.depth);
