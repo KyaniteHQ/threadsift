@@ -4,7 +4,7 @@ The README's "Try it on your machine" section starts an Instance. This guide cov
 
 ## Pick an image tag
 
-The image is published at `ghcr.io/kyanitehq/threadsift` for `amd64` and `arm64`.
+The image is published at `ghcr.io/kyanitehq/threadsift` for `amd64`.
 
 - `main` is the latest build that started and answered.
 - `sha-<commit sha>` is one build and never moves.
