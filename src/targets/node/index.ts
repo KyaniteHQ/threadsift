@@ -13,6 +13,8 @@ import { webRoutes } from "./web-routes.ts";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 
+const HTTP_DRAIN_TIMEOUT_MS = 9000;
+
 const env = z
   .object({
     PORT: z.coerce.number().int().min(0).max(65_535).default(8080),
@@ -71,15 +73,39 @@ app.route("/", createApp(node.ports));
 
 app.route("/", webRoutes(join(repositoryRoot, "dist", "web")));
 
-const server = serve({ fetch: app.fetch, port: env.PORT });
+const server = serve({
+  fetch: app.fetch,
+  port: env.PORT,
+  serverOptions: { keepAliveTimeout: 65_000 },
+});
 
-async function shutdown(): Promise<void> {
-  await node.stop();
-  server.close(() => {
-    database.close();
-    process.exit(0);
-  });
+if (!("closeAllConnections" in server)) {
+  throw new Error("The container requires an HTTP/1 server");
 }
+
+server.prependListener("request", (_request, response) => {
+  response.once("finish", () => {
+    if (!server.listening) server.closeIdleConnections();
+  });
+});
+
+const shutdown = async (): Promise<void> => {
+  const drained = new Promise<void>((finishDrain) => {
+    server.close(() => {
+      finishDrain();
+    });
+  });
+  const deadline = setTimeout(() => {
+    server.closeAllConnections();
+  }, HTTP_DRAIN_TIMEOUT_MS);
+  try {
+    await Promise.all([drained, node.stop()]);
+  } finally {
+    clearTimeout(deadline);
+  }
+  database.close();
+  process.exit(0);
+};
 
 let shuttingDown: Promise<void> | undefined;
 
