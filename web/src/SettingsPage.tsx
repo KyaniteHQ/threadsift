@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 
 import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
-import { ObsidianLink } from "./ObsidianPage.tsx";
+import { ObsidianLink } from "./ObsidianLink.tsx";
 import { PageBar } from "./PageBar.tsx";
 import { SettingsSections } from "./SettingsSections.tsx";
 import { useHashTarget } from "./use-hash-target.ts";
@@ -21,7 +21,8 @@ function Loading() {
 export function SettingsPage({
   back,
   loggedOut,
-}: Readonly<{ back: () => void; loggedOut: () => void }>) {
+  openObsidian,
+}: Readonly<{ back: () => void; loggedOut: () => void; openObsidian: () => void }>) {
   const loaded = useSettingsLoad();
 
   useHashTarget(loaded !== null);
@@ -43,7 +44,7 @@ export function SettingsPage({
           <Loading />
         ) : (
           <>
-            <ObsidianLink />
+            <ObsidianLink open={openObsidian} />
             <SettingsSections loaded={loaded} signOut={signOut} signOutFailed={failed} />
           </>
         )}

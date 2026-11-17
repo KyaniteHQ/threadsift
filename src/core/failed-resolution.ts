@@ -9,6 +9,7 @@ import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
 import { itemAliases, items } from "./schema.ts";
 import { settle } from "./settle.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 interface Failure {
   readonly address: string;
@@ -39,6 +40,7 @@ async function insertedFailure(
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),
     selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
+    queueVaultItems(db, eq(items.normalizedUrl, normalizedUrl)),
     db.delete(guards),
   ]);
 
@@ -65,6 +67,7 @@ async function refreshedFailure(
       .set(settle(fetched, known.title, now))
       .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
     selectItems(db, LISTED_COLUMNS).where(eq(items.id, known.id)),
+    queueVaultItems(db, eq(items.normalizedUrl, normalizedUrl)),
     db.delete(guards),
   ]);
 

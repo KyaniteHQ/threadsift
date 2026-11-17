@@ -36,13 +36,16 @@ export const VaultVerifyInputSchema = VaultInputSchema.extend({
 });
 export type VaultVerifyInput = z.infer<typeof VaultVerifyInputSchema>;
 
-export const VaultViewSchema = z.object({
-  configured: z.boolean(),
+const VaultLocationSchema = z.object({
   repository: z.string(),
   branch: z.string(),
   secretReady: z.boolean(),
-  token: z.enum(["none", "saved", "unreadable"]),
 });
+export const VaultViewSchema = z.discriminatedUnion("token", [
+  VaultLocationSchema.extend({ token: z.literal("none") }),
+  VaultLocationSchema.extend({ token: z.literal("saved") }),
+  VaultLocationSchema.extend({ token: z.literal("unreadable") }),
+]);
 
 export const VaultRefusalSchema = z.object({
   kind: z.literal("refused"),

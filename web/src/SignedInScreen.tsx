@@ -2,10 +2,9 @@ import { useCallback } from "react";
 
 import { HighlightsPage } from "./HighlightsPage.tsx";
 import { IndexPage } from "./IndexPage.tsx";
-import { ImportPage, SettingsPage, LogPage, ProposalsPage } from "./lazy-pages.tsx";
+import { ImportPage, SettingsPage, LogPage, ProposalsPage, ObsidianPage } from "./lazy-pages.tsx";
 import { Library } from "./Library.tsx";
 import { ModuleBoundary } from "./ModuleBoundary.tsx";
-import { ObsidianPage } from "./ObsidianPage.tsx";
 import { type Route, usePages } from "./routing.ts";
 import type { SignedInState } from "./screens.ts";
 import { TopicPage } from "./TopicPage.tsx";
@@ -39,9 +38,9 @@ function SignedInContent({
 
   switch (screen.name) {
     case "obsidian":
-      return <ObsidianPage back={toLibrary} />;
+      return <ObsidianPage back={pages.settings} />;
     case "settings":
-      return <SettingsPage back={toLibrary} loggedOut={leave} />;
+      return <SettingsPage back={toLibrary} loggedOut={leave} openObsidian={pages.obsidian} />;
     case "highlights":
       return <HighlightsPage look={look} route={route} back={toLibrary} />;
     case "import":

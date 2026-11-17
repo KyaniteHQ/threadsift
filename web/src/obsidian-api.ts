@@ -1,5 +1,4 @@
 import {
-  VaultInputSchema,
   VaultResultSchema,
   VaultViewSchema,
   VAULT_DEADLINE_MS,
@@ -17,7 +16,7 @@ export function fetchObsidian(signal: AbortSignal) {
 
 export function saveObsidian(input: Readonly<VaultInput>) {
   return parsedFrom(put(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, VaultResultSchema, {
-    json: VaultInputSchema.parse(input),
+    json: input,
   });
 }
 

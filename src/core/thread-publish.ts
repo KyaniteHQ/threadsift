@@ -8,6 +8,7 @@ import { type Owner, ownerOf, threadWrites } from "./reddit-thread.ts";
 import { items, media } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import type { StoredThread } from "./stored-thread.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 export interface ThreadPlace extends Link {
   readonly address: string;
@@ -72,5 +73,6 @@ export function threadPublication(
     ...threadWrites(db, owner, thread, null),
     ...fetchedPartWrites(db, eq(items.normalizedUrl, place.normalizedUrl), thread.postText),
     ...digestAfterFetch(db, { itemId: owner.id, address: place.address }),
+    queueVaultItems(db, eq(items.normalizedUrl, place.normalizedUrl)),
   ];
 }

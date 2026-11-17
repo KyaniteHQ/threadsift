@@ -9,6 +9,7 @@ import {
   PROPOSALS_PATH,
   RESET_PATH,
   SETTINGS_PATH,
+  OBSIDIAN_PATH,
 } from "./routing.ts";
 import type { View } from "./session-state.ts";
 
@@ -71,7 +72,7 @@ export function isSignedInScreen(screen: Readonly<ScreenState>): screen is Signe
 }
 
 function signedInScreen(path: string): ScreenState {
-  if (path === "/settings/obsidian") return { name: "obsidian" };
+  if (path === OBSIDIAN_PATH) return { name: "obsidian" };
 
   if (path === SETTINGS_PATH) return { name: "settings" };
 

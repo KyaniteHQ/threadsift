@@ -9,7 +9,7 @@ import {
 } from "./vault-contract.ts";
 import { vaultGithub } from "./vault-github.ts";
 import { VaultFailure } from "./vault-request.ts";
-import { mirrorFiles, mirrorPaths, vaultSettings } from "./vault-tables.ts";
+import { mirrorFiles, mirrorNotes, mirrorBlobs, vaultSettings } from "./vault-tables.ts";
 
 type VaultPorts = Pick<Ports, "db" | "secrets">;
 
@@ -17,7 +17,6 @@ export async function readVaultSettings({ db, secrets }: VaultPorts): Promise<Va
   const [row] = await db.select().from(vaultSettings);
   const opened = row === undefined || secrets === null ? null : await secrets.open(row.sealedToken);
   return {
-    configured: row !== undefined,
     repository: row?.repository ?? "",
     branch: row?.branch ?? "main",
     secretReady: secrets !== null,
@@ -36,6 +35,11 @@ export async function saveVaultSettings(ports: VaultPorts, input: Readonly<Vault
   };
   await db.batch([
     db
+      .delete(mirrorBlobs)
+      .where(
+        sql`exists (select 1 from ${vaultSettings} where ${vaultSettings.repository} <> ${input.repository})`,
+      ),
+    db
       .delete(mirrorFiles)
       .where(
         sql`exists (select 1 from ${vaultSettings} where ${vaultSettings.repository} <> ${input.repository} or ${vaultSettings.branch} <> ${input.branch})`,
@@ -50,6 +54,7 @@ export async function saveVaultSettings(ports: VaultPorts, input: Readonly<Vault
           generation: sql`${vaultSettings.generation} + 1`,
           leaseUntil: 0,
           nextAttemptAt: 0,
+          scanPending: true,
         },
       }),
   ]);
@@ -59,8 +64,9 @@ export async function saveVaultSettings(ports: VaultPorts, input: Readonly<Vault
 export async function removeVaultSettings(ports: VaultPorts): Promise<VaultView> {
   await ports.db.batch([
     ports.db.delete(vaultSettings).where(eq(vaultSettings.id, 1)),
-    ports.db.delete(mirrorPaths),
+    ports.db.delete(mirrorNotes),
     ports.db.delete(mirrorFiles),
+    ports.db.delete(mirrorBlobs),
   ]);
   return readVaultSettings(ports);
 }
@@ -86,7 +92,14 @@ export async function verifyVaultSettings(
     ).verify();
     return { kind: "verified" } as const;
   } catch (error) {
-    if (error instanceof VaultFailure) return { kind: "refused", reason: error.reason } as const;
+    if (error instanceof VaultFailure)
+      return {
+        kind: "refused",
+        reason:
+          error.reason === "stale" || error.reason === "invalid-response"
+            ? "github-error"
+            : error.reason,
+      } as const;
     throw error;
   }
 }

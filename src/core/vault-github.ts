@@ -1,100 +1,139 @@
-import { z } from "zod";
-
+import type { JobPorts } from "./job-outcome.ts";
 import type { Network } from "./ports.ts";
+import { vaultBlob, type VaultBinary } from "./vault-blob.ts";
 import type { VaultInput } from "./vault-contract.ts";
-import { VaultFailure, vaultRequest } from "./vault-request.ts";
-const ShaSchema = z.object({ sha: z.string().regex(/^[\da-f]{40}$/u) });
-const RefSchema = z.object({ object: ShaSchema });
-const CommitSchema = z.object({ tree: ShaSchema });
-const TreeSchema = z.object({
-  truncated: z.boolean(),
-  tree: z.array(z.object({ path: z.string(), type: z.string(), sha: z.string() })),
-});
+import { vaultRequest } from "./vault-request.ts";
+import {
+  isVaultItemFile,
+  VaultRefSchema,
+  VaultShaSchema,
+  vaultTree,
+  type VaultTree,
+} from "./vault-tree.ts";
 
-export type VaultFile = Readonly<{ path: string; itemId: number }> &
-  (
-    | Readonly<{ kind: "text" | "binary"; content: string }>
-    | Readonly<{ kind: "delete"; content: null }>
-  );
+export type VaultFile =
+  | VaultBinary
+  | (Readonly<{ path: string; subjectId: number }> &
+      (Readonly<{ kind: "text"; content: string }> | Readonly<{ kind: "delete"; content: null }>));
 
-function treeEntries(files: readonly VaultFile[], present: Readonly<ReadonlySet<string>>) {
-  return files.flatMap<
-    | Readonly<{ path: string; mode: string; type: string; sha: string | null }>
-    | Readonly<{ path: string; mode: string; type: string; content: string }>
-  >(({ path, content, kind }) =>
-    content === null
-      ? present.has(path)
-        ? [{ path, mode: "100644", type: "blob", sha: null }]
-        : []
-      : kind === "binary"
-        ? [{ path, mode: "100644", type: "blob", sha: content }]
-        : [{ path, mode: "100644", type: "blob", content }],
-  );
+type Entry = Readonly<{ path: string; mode: "100644"; type: "blob" }> &
+  (Readonly<{ content: string }> | Readonly<{ sha: string | null }>);
+type Request = Readonly<ReturnType<typeof vaultRequest>>;
+interface BlobContext {
+  readonly ports: JobPorts;
+  readonly request: Request;
+  readonly sealedToken: string;
+  readonly signal: AbortSignal;
+}
+
+async function entriesOf(
+  context: BlobContext,
+  files: readonly VaultFile[],
+): Promise<readonly Entry[]> {
+  const [file, ...rest] = files;
+  if (file === undefined) return [];
+  const entry = { path: file.path, mode: "100644", type: "blob" } as const;
+  const value =
+    file.kind === "text"
+      ? { ...entry, content: file.content }
+      : { ...entry, sha: file.kind === "delete" ? null : await vaultBlob({ ...context, file }) };
+  return [value, ...(await entriesOf(context, rest))];
+}
+
+async function commitFiles(
+  input: Readonly<{
+    context: BlobContext;
+    branch: string;
+    files: readonly VaultFile[];
+    current: () => Promise<boolean>;
+    base: VaultTree;
+  }>,
+): Promise<void> {
+  const { context, branch, files, current } = input;
+  const base = input.base;
+  const entries = await entriesOf(context, files);
+  if (entries.length === 0) return;
+  const created = await context.request.mutate({
+    method: "post",
+    path: "/git/trees",
+    schema: VaultShaSchema,
+    body: JSON.stringify({ base_tree: base.root, tree: entries }),
+    current: null,
+  });
+  if (created.sha === base.root) return;
+  const commit = await context.request.mutate({
+    method: "post",
+    path: "/git/commits",
+    schema: VaultShaSchema,
+    body: JSON.stringify({
+      message: "Update Threadsift Item notes",
+      tree: created.sha,
+      parents: [base.parent],
+    }),
+    current: null,
+  });
+  await moveVaultRef({ request: context.request, branch, sha: commit.sha, current });
+}
+
+async function moveVaultRef(
+  input: Readonly<{
+    request: Request;
+    branch: string;
+    sha: string;
+    current: () => Promise<boolean>;
+  }>,
+): Promise<void> {
+  await input.request.mutate({
+    method: "patch",
+    path: `/git/refs/heads/${encodeURIComponent(input.branch)}`,
+    schema: VaultRefSchema,
+    body: JSON.stringify({ sha: input.sha, force: false }),
+    current: input.current,
+  });
 }
 
 export function vaultGithub(network: Network, input: Readonly<VaultInput>, signal: AbortSignal) {
-  const branch = encodeURIComponent(input.branch);
   const request = vaultRequest(network, input, signal);
-
-  const tip = () => request("get", `/git/ref/heads/${branch}`, RefSchema);
-
+  let snapshot: Promise<VaultTree> | null = null;
+  const treeOf = () => {
+    snapshot ??= vaultTree(request, input.branch);
+    return snapshot;
+  };
   return {
     verify: async () => {
-      await tip();
+      await request.read(`/git/ref/heads/${encodeURIComponent(input.branch)}`, VaultRefSchema);
     },
-    write: async (files: readonly VaultFile[], current: () => Promise<boolean>): Promise<void> => {
-      const parent = (await tip()).object.sha;
-      const base = (await request("get", `/git/commits/${parent}`, CommitSchema)).tree.sha;
-      const deleting = files.filter(({ content }) => content === null);
-      const tree =
-        deleting.length === 0
-          ? null
-          : await request("get", `/git/trees/${base}?recursive=1`, TreeSchema);
-      if (tree?.truncated === true) throw new VaultFailure("github-error");
-      const present = new Set(tree?.tree.map(({ path }) => path));
-      const entries = treeEntries(await blobFiles(request, files), present);
-      if (entries.length === 0) return;
-      const created = await request(
-        "post",
-        "/git/trees",
-        ShaSchema,
-        JSON.stringify({ base_tree: base, tree: entries }),
-      );
-      const commit = await request(
-        "post",
-        "/git/commits",
-        ShaSchema,
-        JSON.stringify({
-          message: "Update Threadsift Item notes",
-          tree: created.sha,
-          parents: [parent],
-        }),
-      );
-      await request(
-        "patch",
-        `/git/refs/heads/${branch}`,
-        RefSchema,
-        JSON.stringify({ sha: commit.sha, force: false }),
-        current,
-      );
+    subjects: async (): Promise<readonly number[]> => {
+      const tree = await treeOf();
+      const entries = await tree.at(["Threadsift", "items"]);
+      return entries
+        .filter(
+          ({ path, type }) =>
+            type === "tree" && /^[1-9][0-9]*$/u.test(path) && Number.isSafeInteger(Number(path)),
+        )
+        .map(({ path }) => Number(path));
     },
+    files: async (subjectId: number): Promise<readonly string[]> => {
+      const tree = await treeOf();
+      const entries = await tree.at(["Threadsift", "items", String(subjectId)]);
+      return entries
+        .filter(({ path, type }) => type === "blob" && isVaultItemFile(subjectId, path))
+        .map(({ path }) => `Threadsift/items/${String(subjectId)}/${path}`);
+    },
+    write: async (
+      operation: Readonly<{
+        ports: JobPorts;
+        sealedToken: string;
+        files: readonly VaultFile[];
+        current: () => Promise<boolean>;
+      }>,
+    ) =>
+      commitFiles({
+        context: { ports: operation.ports, request, signal, sealedToken: operation.sealedToken },
+        branch: input.branch,
+        base: await treeOf(),
+        files: operation.files,
+        current: operation.current,
+      }),
   };
-}
-
-type Request = ReturnType<typeof vaultRequest>;
-
-async function blobFiles(
-  request: Request,
-  files: readonly VaultFile[],
-): Promise<readonly VaultFile[]> {
-  const [next, ...rest] = files;
-  if (next === undefined) return [];
-  if (next.kind !== "binary") return [next, ...(await blobFiles(request, rest))];
-  const blob = await request(
-    "post",
-    "/git/blobs",
-    ShaSchema,
-    JSON.stringify({ content: next.content, encoding: "base64" }),
-  );
-  return [{ ...next, content: blob.sha }, ...(await blobFiles(request, rest))];
 }

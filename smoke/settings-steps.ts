@@ -23,6 +23,12 @@ export async function settingsSteps(page: Page, browser: Browser): Promise<void>
 
 async function obsidianFlow(page: Page): Promise<void> {
   await page.goto("/settings");
+  await expect(page.getByRole("link", { name: OBSIDIAN_TEXT.title, exact: true })).toBeVisible();
+  await captureThemes(page, { themes: ["light", "dark", "sepia"], prefix: "settings" });
+  await page.setViewportSize(PHONE);
+  await expectNoSidewaysScroll(page);
+  await page.screenshot({ path: test.info().outputPath("settings-phone.png") });
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole("link", { name: OBSIDIAN_TEXT.title, exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: OBSIDIAN_TEXT.title })).toBeVisible();
   await page
@@ -59,7 +65,7 @@ async function obsidianFlow(page: Page): Promise<void> {
     }),
   );
   await page.request.delete(`/api/tokens/${String(token.token.id)}`);
-  await obsidianThemes(page, ["light", "dark", "sepia"]);
+  await captureThemes(page, { themes: ["light", "dark", "sepia"], prefix: "obsidian" });
   await page.setViewportSize(PHONE);
   await expectNoSidewaysScroll(page);
   await page.screenshot({ path: test.info().outputPath("obsidian-phone.png") });
@@ -67,15 +73,21 @@ async function obsidianFlow(page: Page): Promise<void> {
   await page.getByRole("button", { name: OBSIDIAN_TEXT.remove, exact: true }).click();
   await expect(page.getByText(OBSIDIAN_TEXT.removed, { exact: true })).toBeVisible();
   await expect(page.getByText(OBSIDIAN_TEXT.missing, { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: OBSIDIAN_TEXT.backToSettings, exact: true }).click();
+  await expect(page).toHaveURL(/\/settings$/u);
 }
 
-async function obsidianThemes(page: Page, themes: readonly string[]): Promise<void> {
+async function captureThemes(
+  page: Page,
+  input: Readonly<{ themes: readonly string[]; prefix: string }>,
+): Promise<void> {
+  const { themes, prefix } = input;
   const [theme, ...rest] = themes;
   if (theme === undefined) return;
   await page.locator(".app").evaluate((element, value) => {
     element.dataset["theme"] = value;
     document.documentElement.dataset["theme"] = value;
   }, theme);
-  await page.screenshot({ path: test.info().outputPath(`obsidian-${theme}.png`) });
-  await obsidianThemes(page, rest);
+  await page.screenshot({ path: test.info().outputPath(`${prefix}-${theme}.png`) });
+  await captureThemes(page, { themes: rest, prefix });
 }

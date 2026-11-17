@@ -83,9 +83,9 @@ function exchange(
   body?: string,
 ): Promise<NetworkResponse> {
   return new Promise<NetworkResponse>((resolve, reject) => {
-    const send = new URL(url).protocol === "https:" ? httpsRequest : httpRequest;
+    const requestWith = new URL(url).protocol === "https:" ? httpsRequest : httpRequest;
 
-    const request = send(
+    const request = requestWith(
       url,
       {
         method,
@@ -122,25 +122,24 @@ function exchange(
   });
 }
 
-export const nodeNetwork: Network = {
-  patch: (url, body, signal, headers) => {
+function send(method: "POST" | "PATCH"): Network["post"] {
+  return async (url, body, signal, headers) => {
     assertPublicHost(url);
-    return exchange("PATCH", url, signal, headers, body);
-  },
-  get: (url, signal, headers) => exchange("GET", url, signal, headers),
-  post: async (url, body, signal, headers) => {
-    assertPublicHost(url);
-
     const response = await exchange(
-      "POST",
+      method,
       url,
       signal,
       { ...headers, "accept-encoding": IDENTITY },
       body,
     );
-
     return response;
-  },
+  };
+}
+
+export const nodeNetwork: Network = {
+  get: (url, signal, headers) => exchange("GET", url, signal, headers),
+  post: send("POST"),
+  patch: send("PATCH"),
 };
 
 export const nodeRedditSession: RedditSession = {

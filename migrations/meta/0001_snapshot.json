@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4d3662fa-0a2c-4482-a29c-589762b119e8",
+  "id": "ed7a2e55-90f9-4583-beea-d1f9a81648da",
   "prevId": "55b1ece3-00ad-4b62-960f-bf79184b3230",
   "tables": {
     "agent_tokens": {
@@ -1660,19 +1660,19 @@
         }
       }
     },
-    "mirror_files": {
-      "name": "mirror_files",
+    "mirror_blobs": {
+      "name": "mirror_blobs",
       "columns": {
-        "path": {
-          "name": "path",
+        "digest": {
+          "name": "digest",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "item_id": {
-          "name": "item_id",
-          "type": "integer",
+        "sha": {
+          "name": "sha",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -1684,8 +1684,44 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "mirror_paths": {
-      "name": "mirror_paths",
+    "mirror_files": {
+      "name": "mirror_files",
+      "columns": {
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "mirror_files_kind": {
+          "name": "mirror_files_kind",
+          "value": "\"mirror_files\".\"kind\" in ('item')"
+        }
+      }
+    },
+    "mirror_notes": {
+      "name": "mirror_notes",
       "columns": {
         "sequence": {
           "name": "sequence",
@@ -1694,25 +1730,49 @@
           "notNull": true,
           "autoincrement": true
         },
-        "item_id": {
-          "name": "item_id",
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subject_id": {
+          "name": "subject_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "retry_at": {
+          "name": "retry_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         }
       },
       "indexes": {
-        "mirror_paths_item_id_unique": {
-          "name": "mirror_paths_item_id_unique",
-          "columns": ["item_id"],
+        "mirror_notes_subject": {
+          "name": "mirror_notes_subject",
+          "columns": ["kind", "subject_id"],
           "isUnique": true
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "mirror_notes_kind": {
+          "name": "mirror_notes_kind",
+          "value": "\"mirror_notes\".\"kind\" in ('item')"
+        },
+        "mirror_notes_retry": {
+          "name": "mirror_notes_retry",
+          "value": "\"mirror_notes\".\"retry_at\" >= 0"
+        }
+      }
     },
     "notes": {
       "name": "notes",
@@ -3389,6 +3449,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
+        },
+        "scan_pending": {
+          "name": "scan_pending",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
         }
       },
       "indexes": {},

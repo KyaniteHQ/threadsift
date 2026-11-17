@@ -1,68 +1,30 @@
 import { useEffect, useState } from "react";
 
 import type { VaultView } from "../../src/core/vault-contract.ts";
-import { FormField } from "./FormField.tsx";
-import { LoadedSection, type SectionSpec } from "./LoadedSection.tsx";
+import { Alert } from "./Alert.tsx";
 import { fetchObsidian } from "./obsidian-api.ts";
 import { OBSIDIAN_TEXT as TEXT } from "./obsidian-text.ts";
+import { ObsidianForm } from "./ObsidianForm.tsx";
 import { PageBar } from "./PageBar.tsx";
+import { SETTINGS_PATH } from "./routing.ts";
 import type { Loaded } from "./settings-load-types.ts";
-import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
-import { useObsidian } from "./use-obsidian.ts";
+import { useLoaded } from "./use-settings-load.ts";
 
-const FIELD = { type: "text", autoComplete: "off", required: true, maxLength: 240 } as const;
-const REPOSITORY = { ...FIELD, name: "repository" };
-const BRANCH = { ...FIELD, name: "branch" };
-const TOKEN = {
-  name: "token",
-  type: "password",
-  autoComplete: "off",
-  required: true,
-  maxLength: 4096,
-} as const;
+const SETTINGS_BACK = { href: SETTINGS_PATH, label: TEXT.backToSettings };
 
-function ObsidianForm({
-  view,
-  changed,
-}: Readonly<{ view: VaultView; changed: (view: VaultView) => void }>) {
-  const form = useObsidian(view, changed);
+function ObsidianLoaded({ initial }: Readonly<{ initial: Loaded<VaultView> }>) {
+  const { loaded, ready } = useLoaded(initial);
   return (
-    <>
-      <SettingsForm action="/api/settings/obsidian" busy={form.busy} submit={form.submit}>
-        <FormField
-          field={form.repository}
-          label={TEXT.repositoryLabel}
-          help={TEXT.repositoryHelp}
-          kind={REPOSITORY}
-        />
-        <FormField
-          field={form.branch}
-          label={TEXT.branchLabel}
-          help={TEXT.branchHelp}
-          kind={BRANCH}
-        />
-        <FormField field={form.token} label={TEXT.tokenLabel} help={TEXT.tokenHelp} kind={TOKEN} />
-        <p>
-          {view.token === "none"
-            ? TEXT.missing
-            : view.token === "saved"
-              ? TEXT.configured
-              : TEXT.unreadable}
-        </p>
-        <SettingsActions running={form.running} buttons={form.buttons} />
-      </SettingsForm>
-      <SettingsResult outcome={form.outcome} />
-    </>
+    <div className="sec">
+      <p>{TEXT.intro}</p>
+      {loaded.kind === "ready" ? (
+        <ObsidianForm view={loaded.view} changed={ready} />
+      ) : (
+        <Alert text={TEXT.loadFailed} />
+      )}
+    </div>
   );
 }
-
-const SECTION: SectionSpec<VaultView> = {
-  id: "obsidian",
-  title: TEXT.title,
-  intro: TEXT.intro,
-  loadFailed: TEXT.loadFailed,
-  Form: ObsidianForm,
-};
 
 export function ObsidianPage({ back }: Readonly<{ back: () => void }>) {
   const [loaded, setLoaded] = useState<Loaded<VaultView> | null>(null);
@@ -84,7 +46,7 @@ export function ObsidianPage({ back }: Readonly<{ back: () => void }>) {
   }, []);
   return (
     <div className="pg">
-      <PageBar title={TEXT.title} back={back} />
+      <PageBar title={TEXT.title} back={back} backLink={SETTINGS_BACK} />
       <main className="pg-col" aria-busy={loaded === null}>
         {loaded === null ? (
           <div className="pg-ghost it-ghost" aria-hidden="true">
@@ -93,19 +55,9 @@ export function ObsidianPage({ back }: Readonly<{ back: () => void }>) {
             <i />
           </div>
         ) : (
-          <LoadedSection {...SECTION} initial={loaded} />
+          <ObsidianLoaded initial={loaded} />
         )}
       </main>
     </div>
-  );
-}
-
-export function ObsidianLink() {
-  return (
-    <section className="sec">
-      <a className="fl-link" href="/settings/obsidian">
-        {TEXT.title}
-      </a>
-    </section>
   );
 }

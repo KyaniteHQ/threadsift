@@ -78,15 +78,8 @@ async function performObsidian(
     clear();
     return { kind: "ok", text: TEXT.removed };
   }
-  const input = (action === "save" ? VaultInputSchema : VaultVerifyInputSchema).safeParse(
-    fields.token === "" && action === "verify"
-      ? { repository: fields.repository, branch: fields.branch }
-      : fields,
-  );
-  if (!input.success) return { kind: "error", text: TEXT.invalid };
-  const result = await (action === "save"
-    ? saveObsidian(VaultInputSchema.parse(input.data))
-    : verifyObsidian(input.data));
+  const result = await sendObsidian(action, fields);
+  if (result === null) return { kind: "error", text: TEXT.invalid };
   if ("kind" in result)
     return result.kind === "verified"
       ? { kind: "ok", text: TEXT.verified }
@@ -96,27 +89,44 @@ async function performObsidian(
   return { kind: "ok", text: TEXT.saved };
 }
 
-function obsidianButtons(view: VaultView, action: (name: Action) => void) {
+function sendObsidian(
+  action: "save" | "verify",
+  fields: Readonly<{ repository: string; branch: string; token: string }>,
+) {
+  if (action === "save") {
+    const input = VaultInputSchema.safeParse(fields);
+    return input.success ? saveObsidian(input.data) : null;
+  }
+  const candidate =
+    fields.token === "" ? { repository: fields.repository, branch: fields.branch } : fields;
+  const input = VaultVerifyInputSchema.safeParse(candidate);
+  return input.success ? verifyObsidian(input.data) : null;
+}
+
+function obsidianButton(name: Action, view: VaultView, action: (name: Action) => void) {
   const labels = {
     save: [TEXT.save, TEXT.saving],
     verify: [TEXT.verify, TEXT.verifying],
     remove: [TEXT.remove, TEXT.removing],
   } as const;
-  return (["save", "verify", "remove"] as const).map((name) => {
-    const button = {
-      action: name,
-      label: labels[name][0],
-      busyLabel: labels[name][1],
-      blocked: name === "remove" ? !view.configured : !view.secretReady,
-      hint: name !== "remove" && !view.secretReady ? TEXT.secretMissing : undefined,
-      secondary: name !== "save",
-    };
-    return name === "save"
-      ? button
-      : Object.assign(button, {
-          onClick: () => {
-            action(name);
-          },
-        });
-  });
+  const button = {
+    action: name,
+    label: labels[name][0],
+    busyLabel: labels[name][1],
+    blocked: name === "remove" ? view.token === "none" : !view.secretReady,
+    hint: name !== "remove" && !view.secretReady ? TEXT.secretMissing : undefined,
+    secondary: name !== "save",
+  };
+  return name === "save"
+    ? button
+    : {
+        ...button,
+        onClick: () => {
+          action(name);
+        },
+      };
+}
+
+function obsidianButtons(view: VaultView, action: (name: Action) => void) {
+  return (["save", "verify", "remove"] as const).map((name) => obsidianButton(name, view, action));
 }

@@ -1,4 +1,5 @@
 export const OBSIDIAN_TEXT = {
+  backToSettings: "Back to settings",
   title: "Obsidian",
   intro:
     "Write a one-way Vault mirror of Markdown notes to a GitHub repository for your Obsidian vault. Verify checks the repository and branch without saving or writing files. Save seals the token and queues existing Items and later Pastes. Only Paste notes are mirrored right now; other Item changes and wiki notes follow later.",

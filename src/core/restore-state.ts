@@ -31,7 +31,7 @@ export const NEWEST_RESTORE = sql`${restoreRuns.id} = (select max(${restoreRuns.
 
 export const RESUMABLE_RESTORE = sql`${restoreRuns.state} = 'failed' and ${restoreRuns.failure} = 'gave-up' and ${restoreRuns.phase} <> 'undoing'`;
 
-const HOLDS_LIBRARY = sql`(${restoreRuns.state} = 'running' or (${restoreRuns.state} = 'failed' and ${restoreRuns.failure} = 'gave-up')) and ${NEWEST_RESTORE}`;
+export const HOLDS_LIBRARY = sql`(${restoreRuns.state} = 'running' or (${restoreRuns.state} = 'failed' and ${restoreRuns.failure} = 'gave-up')) and ${NEWEST_RESTORE}`;
 
 export async function restoreHoldsLibrary(db: Database): Promise<boolean> {
   const [found] = await db

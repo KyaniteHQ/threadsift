@@ -284,7 +284,7 @@ Rules for the Digest:
 
 ## Export, backup and restore
 
-- The owner downloads the library as a zip with one Markdown file per Item: front matter with Source, URL, author, dates, Topic, Tags and Read state, then the Summary, Key points, Highlights, Note, post text and Kept comments (not the comments the Reader shows before a Digest covers the thread), with the Item's stored images beside it.
+- The owner downloads the library as a zip with one Markdown file per Item: front matter with Source, URL, author, dates, Topic, Tags, Read state and a title alias when present, then the Summary, Key points, Highlights, Note, post text and Kept comments (not the comments the Reader shows before a Digest covers the thread), with the Item's stored images beside it.
 - One export exists at a time, and a ready export is kept 24 hours, then the sweep removes it.
 - The export zip also holds every library record (everything except secrets, login data, work in flight, the owner's choice of Provider and of X reader, and the search tables, which are derived from the records).
 - A new Instance can restore from the zip after its setup code is entered, so the same zip backs up both install targets and moves a library between them (`docs/architecture/export-backup-and-restore.md`). The restore brings back the records, the stored images, the search rebuild and the Highlight anchors, and it has cancel, resume and a setup page step.

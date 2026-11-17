@@ -8,6 +8,8 @@ import { useScreenState } from "./use-screen-state.ts";
 
 export const SETTINGS_PATH = "/settings";
 
+export const OBSIDIAN_PATH = "/settings/obsidian";
+
 export const HIGHLIGHTS_PATH = "/highlights";
 
 export const IMPORT_PATH = "/import";
@@ -22,6 +24,7 @@ export const RESET_PATH = "/reset";
 
 export interface Pages {
   readonly settings: () => void;
+  readonly obsidian: () => void;
   readonly highlights: () => void;
   readonly index: () => void;
   readonly log: () => void;
@@ -162,6 +165,9 @@ export function usePath() {
 export function usePages(navigate: Route["navigate"]): Pages {
   return useMemo(
     () => ({
+      obsidian: () => {
+        navigate(OBSIDIAN_PATH);
+      },
       settings: () => {
         navigate(SETTINGS_PATH);
       },
