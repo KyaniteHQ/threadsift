@@ -1,4 +1,5 @@
-.rl-col {
+.rl-col,
+.hp-col {
   gap: var(--s4);
 }
 
@@ -7,7 +8,8 @@
   flex-direction: column;
   gap: var(--s2);
 }
-.pg .rl-items .list-head {
+.pg .rl-items .list-head,
+.pg .hp-col .list-head {
   padding: 0 0 var(--s2);
   font-size: var(--t-meta);
   border-inline-end: 0;
@@ -18,12 +20,14 @@
   font-weight: inherit;
 }
 
-.rl-list {
+.rl-list,
+.hp-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.rl-row {
+.rl-row,
+.hp-it {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -32,30 +36,36 @@
   padding: var(--s3);
   border-bottom: 1px solid var(--line);
 }
-.rl-row:has(.rl-open):hover {
+.rl-row:has(.rl-open):hover,
+.hp-it:hover {
   background: var(--surface-2);
 }
 
-.rl-row:has(.rl-open:active) {
+.rl-row:has(.rl-open:active),
+.hp-it:has(.hp-open:active) {
   background: var(--press);
 }
-.rl-row .it-meta {
+.rl-row .it-meta,
+.hp-it .it-meta {
   gap: var(--s1) var(--s2);
   font-size: var(--t-meta);
 }
 .rl-row .rl-dot {
   flex: none;
 }
-.rl-row .it-date {
+.rl-row .it-date,
+.hp-it .it-date {
   margin-inline-start: auto;
 }
-.rl-title {
+.rl-title,
+.hp-title {
   margin: 0;
   font-size: var(--t-title);
   font-weight: inherit;
   line-height: var(--lh-title);
 }
-.rl-open {
+.rl-open,
+.hp-open {
   color: var(--text);
   font-family: var(--f-display);
   font-weight: var(--dw-soft);
@@ -67,17 +77,20 @@
 .rl-row[data-read="false"] .rl-open {
   font-weight: var(--dw-strong);
 }
-.rl-open::after {
+.rl-open::after,
+.hp-open::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: var(--z-raise);
 }
-.rl-row:has(.rl-open:focus-visible) {
+.rl-row:has(.rl-open:focus-visible),
+.hp-it:has(.hp-open:focus-visible) {
   outline: 2px solid var(--acc-ink);
   outline-offset: calc(var(--s1) / -2);
 }
-.app .rl-open:focus-visible {
+.app .rl-open:focus-visible,
+.app .hp-open:focus-visible {
   outline: none;
 }
 .rl-sum {
@@ -102,6 +115,7 @@
   flex: 1 1 auto;
 }
 
-.rl-row.it-ghost {
+.rl-row.it-ghost,
+.hp-it.it-ghost {
   min-height: calc(var(--s6) * 2);
 }
