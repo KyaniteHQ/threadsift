@@ -15,11 +15,11 @@ export function Library({
   pages,
 }: Readonly<{ look: Look; arrived: boolean; route: Route; pages: Pages }>) {
   const view = useLibraryView(look, route);
-  const { root, counts, openItem, covered, side, shown, expectsEmpty } = view;
+  const { root, counts, openItem, covered, side } = view;
 
   const classes = [
     "lib",
-    ...(counts?.total === 0 || (shown.status === "loading" && expectsEmpty) ? ["is-empty"] : []),
+    ...(counts?.total === 0 ? ["is-empty"] : []),
     ...(covered && look.reader === "page" ? ["covered"] : []),
   ];
 

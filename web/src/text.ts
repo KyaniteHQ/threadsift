@@ -169,7 +169,6 @@ export function waitTitle({ reason }: Readonly<{ reason: WaitReason }>): string 
   return WAITING[reason].title;
 }
 
-export const BLANK = "\u00A0";
 export const SORT_LABEL = "Newest saved first";
 export const LOADING_LABEL = "Loading saved links…";
 

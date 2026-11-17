@@ -1,29 +1,11 @@
-import { type RefObject, use, useMemo } from "react";
+import { type RefObject, use } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { BASE_SAMPLE, FACE_WAIT_MS, LOOK_FONTS, sampleOf } from "./load-fonts.ts";
 import { postTextModule } from "./post-text-module.ts";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import { ReaderContent } from "./ReaderContent.tsx";
-import { useFaces } from "./use-faces.ts";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
-
-function sampleOfDetail(state: DetailState): string | null {
-  switch (state.status) {
-    case "loading":
-      return null;
-    case "failed":
-      return BASE_SAMPLE;
-    case "ready":
-      return sampleOf(JSON.stringify(state.detail));
-    default: {
-      const exhaustive: never = state;
-
-      return exhaustive;
-    }
-  }
-}
 
 function useReadyState(
   state: DetailState,
@@ -32,9 +14,7 @@ function useReadyState(
 ): Exclude<DetailState, { status: "loading" }> | null {
   use(postTextModule());
 
-  const sample = useMemo(() => sampleOfDetail(state), [state]);
-  const [faces] = useFaces(slot, LOOK_FONTS, FACE_WAIT_MS, sample);
-  const ready = state.status === "loading" || !faces ? null : state;
+  const ready = state.status === "loading" ? null : state;
 
   useReadingPlace(slot, itemId, ready?.status === "ready");
 

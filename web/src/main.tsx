@@ -22,10 +22,8 @@ import "./related.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { loadFaces, facesOf } from "../../design/system/style-faces.ts";
 import { App } from "./App.tsx";
 import { preloadPage } from "./lazy-pages.tsx";
-import { FACE_WAIT_MS, settledOrAborted } from "./load-fonts.ts";
 import { storedSettings } from "./use-settings.ts";
 
 const container = document.querySelector("#root");
@@ -37,8 +35,6 @@ if (container === null) {
 preloadPage(window.location.pathname);
 
 const settings = storedSettings();
-
-await settledOrAborted(loadFaces(facesOf(settings)), AbortSignal.timeout(FACE_WAIT_MS));
 
 createRoot(container).render(
   <StrictMode>
