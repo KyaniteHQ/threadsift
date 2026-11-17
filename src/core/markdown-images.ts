@@ -3,6 +3,8 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { z } from "zod";
 
+import { collapsed } from "./format.ts";
+
 interface Offset {
   readonly offset?: number | undefined;
 }
@@ -107,7 +109,7 @@ export function scanMarkdown(markdown: string, wantsLinks: boolean): MarkdownSca
 }
 
 export function altText(alt: string): string {
-  return alt.replaceAll(/\s+/gu, " ").trim().replaceAll(ALT_SPECIALS, "\\$&");
+  return collapsed(alt).replaceAll(ALT_SPECIALS, "\\$&");
 }
 
 export function inlineImage(image: Readonly<MarkdownImage>, destination: string): string {

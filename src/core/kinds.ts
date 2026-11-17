@@ -189,14 +189,6 @@ export type JobKind = (typeof JOB_KINDS)[number];
 
 export type OwnedJobKind = (typeof OWNED_JOB_KINDS)[number];
 
-export type JobState = (typeof JOB_STATES)[number];
-
-export type ExportState = (typeof EXPORT_STATES)[number];
-
-export type RestoreState = (typeof RESTORE_STATES)[number];
-
-export type RestorePhase = (typeof RESTORE_PHASES)[number];
-
 export type UnownedJobKind = (typeof UNOWNED_JOB_KINDS)[number];
 
 export const WEEKLY_TASK = {

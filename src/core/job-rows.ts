@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
@@ -62,6 +62,37 @@ export function openingJob(
   return opening(db, { kind, address, now, page, where: eq(items.normalizedUrl, normalizedUrl) });
 }
 
+function queuedRow<Kind extends JobKind, ItemId extends typeof items.id | SQL.Aliased<null>>(
+  itemId: ItemId,
+  {
+    kind,
+    address,
+    nextAttemptAt,
+    page,
+  }: Readonly<{
+    kind: Kind;
+    address: string | Readonly<SQLWrapper>;
+    nextAttemptAt: number;
+    page: string | null | Readonly<SQLWrapper>;
+  }>,
+) {
+  return {
+    id: sql<null>`null`.as("id"),
+    kind: sql<Kind>`${kind}`.as("kind"),
+    itemId,
+    address: sql<string>`${address}`.as("address"),
+    state: sql<"queued">`'queued'`.as("state"),
+    attempts: sql<number>`0`.as("attempts"),
+    staleRequeues: sql<number>`0`.as("stale_requeues"),
+    attemptGeneration: sql<null>`null`.as("attempt_generation"),
+    attemptPending: sql<null>`null`.as("attempt_pending"),
+    nextAttemptAt: sql<number>`${nextAttemptAt}`.as("next_attempt_at"),
+    claimExpires: sql<null>`null`.as("claim_expires"),
+    waitReason: sql<null>`null`.as("wait_reason"),
+    page: sql<string | null>`${page}`.as("page"),
+  };
+}
+
 export function opening(
   db: Database,
   {
@@ -82,21 +113,14 @@ export function opening(
     .insert(jobs)
     .select(
       db
-        .select({
-          id: sql<null>`null`.as("id"),
-          kind: sql<JobKind>`${kind}`.as("kind"),
-          itemId: items.id,
-          address: sql<string>`${address}`.as("address"),
-          state: sql<"queued">`'queued'`.as("state"),
-          attempts: sql<number>`0`.as("attempts"),
-          staleRequeues: sql<number>`0`.as("stale_requeues"),
-          attemptGeneration: sql<null>`null`.as("attempt_generation"),
-          attemptPending: sql<null>`null`.as("attempt_pending"),
-          nextAttemptAt: sql<number>`${now}`.as("next_attempt_at"),
-          claimExpires: sql<null>`null`.as("claim_expires"),
-          waitReason: sql<null>`null`.as("wait_reason"),
-          page: sql<string | null>`${page}`.as("page"),
-        })
+        .select(
+          queuedRow(items.id, {
+            kind,
+            address,
+            nextAttemptAt: now,
+            page,
+          }),
+        )
         .from(items)
         .where(sql`${where}`),
     )
@@ -139,21 +163,14 @@ export function openingUnowned(
     .insert(jobs)
     .select(
       db
-        .select({
-          id: sql<null>`null`.as("id"),
-          kind: sql<UnownedJobKind>`${kind}`.as("kind"),
-          itemId: sql<null>`null`.as("item_id"),
-          address: sql<string>`${ADDRESS_ROOTS[kind]} || '/' || ${owner.id}`.as("address"),
-          state: sql<"queued">`'queued'`.as("state"),
-          attempts: sql<number>`0`.as("attempts"),
-          staleRequeues: sql<number>`0`.as("stale_requeues"),
-          attemptGeneration: sql<null>`null`.as("attempt_generation"),
-          attemptPending: sql<null>`null`.as("attempt_pending"),
-          nextAttemptAt: sql<number>`${Date.now()}`.as("next_attempt_at"),
-          claimExpires: sql<null>`null`.as("claim_expires"),
-          waitReason: sql<null>`null`.as("wait_reason"),
-          page: sql<null>`null`.as("page"),
-        })
+        .select(
+          queuedRow(sql<null>`null`.as("item_id"), {
+            kind,
+            address: sql`${ADDRESS_ROOTS[kind]} || '/' || ${owner.id}`,
+            nextAttemptAt: Date.now(),
+            page: sql`null`,
+          }),
+        )
         .from(owner)
         .where(sql`${where}`),
     )

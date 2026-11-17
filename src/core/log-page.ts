@@ -1,6 +1,6 @@
 import { desc, eq, lt } from "drizzle-orm";
 
-import { ITEMS_PAGE_SIZE } from "./item-page.ts";
+import { ITEMS_PAGE_SIZE, pageTail } from "./item-page.ts";
 import type { Database } from "./ports.ts";
 import { logEntries, logStart, topics } from "./schema.ts";
 
@@ -61,12 +61,11 @@ export async function readLog(db: Database, cursor: number | null) {
     db.select({ startedAt: logStart.startedAt }).from(logStart).where(eq(logStart.id, 1)),
   ]);
 
-  const shown = rows.slice(0, ITEMS_PAGE_SIZE);
-  const last = shown.at(-1);
+  const { shown, next } = pageTail(rows, ({ id }) => String(id));
 
   return {
     startedAt: start?.startedAt ?? 0,
     entries: shown.map((row) => entryOf(row)),
-    next: rows.length > shown.length && last !== undefined ? String(last.id) : null,
+    next,
   };
 }

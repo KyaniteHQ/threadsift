@@ -3,7 +3,6 @@ import { hoppedPage } from "./digest-hop.ts";
 import { type DigestPrompt, cutDigestInput } from "./digest-prompt.ts";
 import {
   type DigestInput,
-  currency,
   generationCurrent,
   markDigest,
   modelInput,
@@ -11,7 +10,7 @@ import {
   unusableInput,
 } from "./digest-source.ts";
 import { logFailure, report } from "./failure-log.ts";
-import { insertGuard } from "./guards.ts";
+import { guardedOutcome } from "./guarded-outcome.ts";
 import {
   type ClaimedJob,
   type JobOutcome,
@@ -43,32 +42,27 @@ async function unreadableText(
 
   if (stale !== null) return stale;
 
-  const generation = generationCurrent(item);
-  const read = currency(db, generation, null);
-
   if (!isLastAttempt(job.attempts))
     throw new PostTextUnreadable(`The post text file of Item ${item.id} cannot be read`);
 
   return {
-    currency: read,
+    ...guardedOutcome(db, generationCurrent(item), {
+      writes: [markDigest(db, item.id, "attempt-failed")],
+    }),
     failedAttempt: true,
-    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
   };
 }
 
 function refusedInput(db: Database, item: Readonly<DigestInput>, fixedBytes: number): JobOutcome {
-  const generation = generationCurrent(item);
-
   report("digest-input-refused", {
     itemId: item.id,
     reason: "fixed-metadata-over-cap",
     fixedBytes,
   });
 
-  return {
-    currency: currency(db, generation, null),
-    writes: [insertGuard(db, generation), markDigest(db, item.id, "attempt-failed")],
-  };
+  return guardedOutcome(db, generationCurrent(item), {
+    writes: [markDigest(db, item.id, "attempt-failed")],
+  });
 }
 
 type DigestText = { readonly text: string | null } | { readonly outcome: JobOutcome };
@@ -99,12 +93,7 @@ export function hasContent(item: Readonly<DigestInput>): boolean {
 }
 
 export function emptyInput(db: Database, item: Readonly<DigestInput>): JobOutcome {
-  const generation = generationCurrent(item);
-
-  return {
-    currency: currency(db, generation, null),
-    writes: [insertGuard(db, generation), ...unusableInput(db, item.id)],
-  };
+  return guardedOutcome(db, generationCurrent(item), { writes: unusableInput(db, item.id) });
 }
 
 export async function preparedDigest(
