@@ -16,7 +16,7 @@ export type Choice =
   | { readonly facet: "read"; readonly value: ReadState | null }
   | { readonly facet: "topic" | "tag"; readonly value: string | null };
 
-export const NO_FILTERS: Filters = { q: "", source: null, read: null, topic: null, tag: null };
+const NO_FILTERS: Filters = { q: "", source: null, read: null, topic: null, tag: null };
 
 export function chosenCount({ source, read, topic, tag }: Readonly<Filters>): number {
   return [source, read, topic, tag].filter((value) => value !== null).length;

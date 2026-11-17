@@ -1,8 +1,8 @@
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId } from "react";
 
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import { type ReadState, type Source } from "../../src/core/kinds.ts";
-import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
+import { NamedSelect, RowGroup, Segments, useToggle, withAll } from "./FilterGroups.tsx";
 import { type Choice, type Filters, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import {
@@ -204,13 +204,9 @@ export function FilterPane({
   clearChosen: () => void;
   hasRows: boolean;
 }>) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, toggle] = useToggle(false);
   const panelId = useId();
   const chosen = chosenCount(filters);
-
-  const toggle = useCallback(() => {
-    setExpanded((now) => !now);
-  }, []);
 
   return (
     <div className={bar ? "fl fl-bar" : "fl fl-rail"}>

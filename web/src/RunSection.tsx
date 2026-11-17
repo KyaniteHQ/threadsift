@@ -110,21 +110,15 @@ function actionOf(
   const { name, resume } = check;
 
   if (run.phase === "ended") {
-    return run.outcome.ending === "finished"
-      ? {
-          label: IMPORT.again,
-          accent: true,
-          press: () => {
-            runner.start(links, name, NOT_STARTED);
-          },
-        }
-      : {
-          label: IMPORT.resume,
-          accent: true,
-          press: () => {
-            runner.start(links, name, run.outcome);
-          },
-        };
+    const finished = run.outcome.ending === "finished";
+
+    return {
+      label: finished ? IMPORT.again : IMPORT.resume,
+      accent: true,
+      press: () => {
+        runner.start(links, name, finished ? NOT_STARTED : run.outcome);
+      },
+    };
   }
 
   const from = resume.kind === "partial" ? { ...NOT_STARTED, done: resume.done } : NOT_STARTED;

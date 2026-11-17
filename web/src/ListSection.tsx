@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useId, useRef } from "react";
+import { type ChangeEvent, useCallback, useId } from "react";
 
 import type { ImportList, SkipReason, Skipped as SkippedRows } from "../../src/core/import-list.ts";
 import { Alert } from "./Alert.tsx";
@@ -10,6 +10,7 @@ import {
   skippedLineLabel,
   skippedMoreLabel,
 } from "./import-text.ts";
+import { useFilePicker } from "./use-file-picker.ts";
 import type { ImportInput } from "./use-import-input.ts";
 
 const REASONS: readonly SkipReason[] = ["noLink", "tooLong"];
@@ -51,23 +52,16 @@ function Summary({ list }: Readonly<{ list: ImportList }>) {
 }
 
 function FileButton({ locked, input }: Readonly<{ locked: boolean; input: ImportInput }>) {
-  const picker = useRef<HTMLInputElement>(null);
   const { choose, fileFailed } = input;
 
-  const read = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const [file] = event.target.files ?? [];
-
-      event.target.value = "";
-
-      if (file !== undefined) void choose(file);
+  const pick = useCallback(
+    (file: Readonly<File>) => {
+      void choose(file);
     },
     [choose],
   );
 
-  const open = useCallback(() => {
-    if (!locked) picker.current?.click();
-  }, [locked]);
+  const { picker, open, read } = useFilePicker(pick, !locked);
 
   return (
     <div className="imp-file">

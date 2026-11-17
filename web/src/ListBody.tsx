@@ -13,7 +13,6 @@ import {
   LOAD_MORE,
   NO_RESULTS,
   RETRY_LABEL,
-  SORT_LABEL,
 } from "./text.ts";
 import { useNearEnd } from "./use-near-end.ts";
 
@@ -63,13 +62,13 @@ export function Notice({
   );
 }
 
-export function ListHead({ label }: Readonly<{ label: string }>) {
+export function ListHead({ label, sort }: Readonly<{ label: string; sort: string }>) {
   return (
     <section className="list-head">
       <p id={RESULTS_ID} className="results">
         {label}
       </p>
-      <p className="label">{SORT_LABEL}</p>
+      <p className="label">{sort}</p>
     </section>
   );
 }
