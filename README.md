@@ -61,7 +61,7 @@ v1 is not ready for a library you want to keep. The status table at the top of [
 
 ## Find your way around
 
-- [docs/spec.md](docs/spec.md): what v1 does, and the decisions behind it.
+- [docs/spec.md](docs/spec.md): what v1 does today.
 - [docs/architecture.md](docs/architecture.md): what it is built with and where each part runs.
 - [GLOSSARY.md](GLOSSARY.md): the words the project uses, such as Item, Digest and Provider.
 - [docs/guides/](docs/guides/): the guides for running and setting up an Instance.
