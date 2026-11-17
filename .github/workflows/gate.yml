@@ -42,7 +42,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [worker, container]
+        target: [container]
+        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        include:
+          - target: worker
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-devenv
@@ -52,14 +55,14 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
-          name: smoke-${{ matrix.target }}
+          name: smoke-${{ matrix.target }}${{ matrix.run && format('-{0}', matrix.run) || '' }}
           path: test-results
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
-          name: smoke-${{ matrix.target }}-evidence
+          name: smoke-${{ matrix.target }}${{ matrix.run && format('-{0}', matrix.run) || '' }}-evidence
           path: smoke-evidence
           if-no-files-found: ignore
           retention-days: 7
