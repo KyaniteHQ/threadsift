@@ -12,6 +12,7 @@ import {
 import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import { utf8Length } from "./digest-prompt.ts";
 import type { SearchPartKind } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import {
@@ -53,7 +54,7 @@ function hardCut(text: string): number {
 }
 
 function chunkPostText(text: string): readonly string[] {
-  if (new TextEncoder().encode(text).length <= CHUNK_TRIGGER_BYTES) {
+  if (utf8Length(text) <= CHUNK_TRIGGER_BYTES) {
     return text.trim() === "" ? [] : [text];
   }
 
@@ -87,11 +88,15 @@ export function partMatching(terms: readonly string[]): SQL {
   return sql`${searchParts.id} in (select rowid from search_index where search_index match ${query})`;
 }
 
-function replacing(db: Database, scope: Readonly<SQLWrapper>, kinds: readonly SearchPartKind[]) {
-  const owners = db
+function ownersIn(db: Database, scope: Readonly<SQLWrapper>) {
+  return db
     .select({ id: items.id })
     .from(items)
     .where(sql`${scope}`);
+}
+
+function replacing(db: Database, scope: Readonly<SQLWrapper>, kinds: readonly SearchPartKind[]) {
+  const owners = ownersIn(db, scope);
 
   return db
     .delete(searchParts)
@@ -223,10 +228,7 @@ export function digestPartWrites(
 }
 
 export function highlightPartWrites(db: Database, scope: Readonly<SQLWrapper>) {
-  const owners = db
-    .select({ id: items.id })
-    .from(items)
-    .where(sql`${scope}`);
+  const owners = ownersIn(db, scope);
 
   const current = db
     .select({ one: sql`1` })

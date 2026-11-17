@@ -1,9 +1,7 @@
 import { crc32 } from "./crc32.ts";
+import { utf8Length } from "./digest-prompt.ts";
 import type { RestoreRefusal } from "./restore-contract.ts";
-
-const LOCAL_SIGNATURE = 0x04_03_4b_50;
-
-export const LOCAL_BYTES = 30;
+import { LOCAL_HEADER_BYTES, LOCAL_SIGNATURE, joined } from "./zip.ts";
 
 export class ZipRefused extends Error {
   readonly code: RestoreRefusal;
@@ -32,18 +30,6 @@ export interface ZipDirectory {
   readonly root: string;
 }
 
-export function joinedBytes(parts: readonly Uint8Array[], length: number): Uint8Array {
-  const bytes = new Uint8Array(length);
-
-  parts.reduce((at, part) => {
-    bytes.set(part, at);
-
-    return at + part.length;
-  }, 0);
-
-  return bytes;
-}
-
 export async function bytesAt(
   source: Readonly<ZipSource>,
   offset: number,
@@ -61,7 +47,7 @@ export async function bytesAt(
     throw new ZipRefused("not-a-zip", "The zip ends before the bytes its records name");
   }
 
-  return joinedBytes(parts, length);
+  return joined(parts);
 }
 
 export function viewOf(bytes: Uint8Array): DataView {
@@ -85,16 +71,16 @@ export function localDataStart(
   at: number,
   entry: Readonly<ZipEntry>,
 ): number | null {
-  if (at < 0 || at + LOCAL_BYTES > bytes.length) return null;
+  if (at < 0 || at + LOCAL_HEADER_BYTES > bytes.length) return null;
 
-  const header = viewOf(bytes.subarray(at, at + LOCAL_BYTES));
+  const header = viewOf(bytes.subarray(at, at + LOCAL_HEADER_BYTES));
 
   if (header.getUint32(0, true) !== LOCAL_SIGNATURE) {
     throw new ZipRefused("not-a-zip", "A local header of the zip is malformed");
   }
 
   const name = NAMES.encode(entry.name);
-  const nameEnd = at + LOCAL_BYTES + name.length;
+  const nameEnd = at + LOCAL_HEADER_BYTES + name.length;
 
   if (header.getUint16(26, true) !== name.length) {
     throw new ZipRefused("not-a-zip", "A local header of the zip names another entry");
@@ -102,7 +88,7 @@ export function localDataStart(
 
   if (nameEnd > bytes.length) return null;
 
-  if (!name.every((byte, position) => bytes[at + LOCAL_BYTES + position] === byte)) {
+  if (!name.every((byte, position) => bytes[at + LOCAL_HEADER_BYTES + position] === byte)) {
     throw new ZipRefused("not-a-zip", "A local header of the zip names another entry");
   }
 
@@ -114,7 +100,7 @@ export async function entryStart(
   directory: Readonly<ZipDirectory>,
   entry: Readonly<ZipEntry>,
 ): Promise<number> {
-  const headerBytes = LOCAL_BYTES + NAMES.encode(entry.name).length;
+  const headerBytes = LOCAL_HEADER_BYTES + utf8Length(entry.name);
   const bytes = await bytesAt(source, entry.headerOffset, headerBytes);
   const start = localDataStart(bytes, 0, entry);
 
@@ -139,7 +125,7 @@ export async function entryBytes(
   return bytes;
 }
 
-export const LOCAL_HEADER_ROOM = LOCAL_BYTES + 1024;
+export const LOCAL_HEADER_ROOM = LOCAL_HEADER_BYTES + 1024;
 
 export interface ReadEntry {
   readonly entry: ZipEntry;

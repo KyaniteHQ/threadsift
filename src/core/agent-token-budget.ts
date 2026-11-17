@@ -1,6 +1,7 @@
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 
 import type { Caller } from "./caller.ts";
+import { among } from "./guards.ts";
 import { BUDGET_SPENT, type BudgetSpent, type TokenBudget } from "./kinds.ts";
 import { isRefusedLink, parseLink } from "./links.ts";
 import type { Database, Ports } from "./ports.ts";
@@ -47,10 +48,6 @@ export function tokenItemsToday(
   );
 }
 
-function jsonList(values: readonly (string | number)[]) {
-  return sql`(select value from json_each(${JSON.stringify(values)}))`;
-}
-
 async function possiblyNew(db: Database, urls: readonly string[]): Promise<number> {
   const links = new Set<string>();
 
@@ -60,13 +57,13 @@ async function possiblyNew(db: Database, urls: readonly string[]): Promise<numbe
 
   if (links.size === 0) return 0;
 
-  const listed = jsonList([...links]);
+  const listed = [...links];
 
   const [heldItems, heldAliases] = await Promise.all([
-    db.$count(items, sql`${items.normalizedUrl} in ${listed}`),
+    db.$count(items, among(items.normalizedUrl, listed)),
     db.$count(
       itemAliases,
-      sql`${itemAliases.normalizedUrl} in ${listed} and ${itemAliases.normalizedUrl} not in (select ${items.normalizedUrl} from ${items})`,
+      sql`${among(itemAliases.normalizedUrl, listed)} and ${itemAliases.normalizedUrl} not in (select ${items.normalizedUrl} from ${items})`,
     ),
   ]);
 

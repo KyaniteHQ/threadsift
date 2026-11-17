@@ -1,38 +1,32 @@
+import { utf8Length } from "./digest-prompt.ts";
 import { RESTORE_DIRECTORY_BYTES } from "./restore-contract.ts";
 import {
-  LOCAL_BYTES,
   ZipRefused,
   type ZipDirectory,
   type ZipEntry,
   type ZipSource,
-  joinedBytes,
   viewOf,
   wide,
   bytesAt,
 } from "./zip-read.ts";
-import { ZIP_COUNT_LIMIT, ZIP_SIZE_LIMIT } from "./zip.ts";
-
-const END_SIGNATURE = 0x06_05_4b_50;
-
-const ZIP64_END_SIGNATURE = 0x06_06_4b_50;
-
-const ZIP64_LOCATOR_SIGNATURE = 0x07_06_4b_50;
-
-const CENTRAL_SIGNATURE = 0x02_01_4b_50;
-
-const END_BYTES = 22;
-
-const ZIP64_END_BYTES = 56;
-
-const ZIP64_LOCATOR_BYTES = 20;
-
-const CENTRAL_BYTES = 46;
+import {
+  CENTRAL_RECORD_BYTES,
+  CENTRAL_SIGNATURE,
+  END_BYTES,
+  END_SIGNATURE,
+  LOCAL_HEADER_BYTES,
+  STORE_METHOD,
+  ZIP_COUNT_LIMIT,
+  ZIP_SIZE_LIMIT,
+  ZIP64_END_BYTES,
+  ZIP64_END_SIGNATURE,
+  ZIP64_EXTRA_ID,
+  ZIP64_LOCATOR_BYTES,
+  ZIP64_LOCATOR_SIGNATURE,
+  joined,
+} from "./zip.ts";
 
 const END_SEARCH_BYTES = 0xff_ff + END_BYTES;
-
-const STORE_METHOD = 0;
-
-const ZIP64_EXTRA_ID = 0x00_01;
 
 const NAMES = new TextDecoder("utf-8", { fatal: true });
 
@@ -178,14 +172,14 @@ function parsedRecords(pending: Uint8Array): Parsed {
   const entries: ZipEntry[] = [];
   let at = 0;
 
-  while (at + CENTRAL_BYTES <= pending.length) {
+  while (at + CENTRAL_RECORD_BYTES <= pending.length) {
     if (view.getUint32(at, true) !== CENTRAL_SIGNATURE) {
       throw new ZipRefused("not-a-zip", "The central directory is malformed");
     }
 
     const nameBytes = view.getUint16(at + 28, true);
     const extraBytes = view.getUint16(at + 30, true);
-    const next = at + CENTRAL_BYTES + nameBytes + extraBytes + view.getUint16(at + 32, true);
+    const next = at + CENTRAL_RECORD_BYTES + nameBytes + extraBytes + view.getUint16(at + 32, true);
 
     if (next > pending.length) break;
 
@@ -203,7 +197,7 @@ function parsedRecords(pending: Uint8Array): Parsed {
       throw new ZipRefused("not-a-zip", "An entry of the zip has two sizes");
     }
 
-    const nameAt = at + CENTRAL_BYTES;
+    const nameAt = at + CENTRAL_RECORD_BYTES;
     const name = decoded(pending.subarray(nameAt, nameAt + nameBytes));
 
     checkedName(name);
@@ -226,8 +220,7 @@ async function recordsOf(
   let pending: Uint8Array = new Uint8Array(0);
 
   for await (const chunk of source.read(offset, size)) {
-    pending =
-      pending.length === 0 ? chunk : joinedBytes([pending, chunk], pending.length + chunk.length);
+    pending = pending.length === 0 ? chunk : joined([pending, chunk]);
 
     const parsed = parsedRecords(pending);
 
@@ -270,9 +263,9 @@ export async function readDirectory(source: Readonly<ZipSource>): Promise<ZipDir
   }
 
   for (const entry of entries) {
-    const nameBytes = new TextEncoder().encode(entry.name).length;
+    const nameBytes = utf8Length(entry.name);
 
-    if (entry.headerOffset + LOCAL_BYTES + nameBytes + entry.size > placement.offset) {
+    if (entry.headerOffset + LOCAL_HEADER_BYTES + nameBytes + entry.size > placement.offset) {
       throw new ZipRefused("not-a-zip", "An entry of the zip runs past its end");
     }
   }

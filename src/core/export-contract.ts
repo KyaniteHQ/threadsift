@@ -90,7 +90,7 @@ export type ExportStatus = z.infer<typeof ExportStatusSchema>;
 
 export const StartedExportSchema = z.object({ id: z.number().int().positive() });
 
-export function exportDay(createdAt: number): string {
+function exportDay(createdAt: number): string {
   return new Date(createdAt).toISOString().slice(0, 10);
 }
 

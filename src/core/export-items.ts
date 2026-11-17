@@ -143,9 +143,6 @@ export interface TakenItems {
   readonly partial: PartialItem | null;
   readonly done: boolean;
   readonly full: boolean;
-}
-
-interface Taking extends TakenItems {
   readonly bytes: number;
 }
 
@@ -158,8 +155,8 @@ async function takeEach(
   ports: Readonly<ItemPorts>,
   taker: Readonly<Taker>,
   pending: readonly number[],
-  taking: Readonly<Taking>,
-): Promise<Taking> {
+  taking: Readonly<TakenItems>,
+): Promise<TakenItems> {
   const [id, ...rest] = pending;
 
   if (id === undefined) return taking;
@@ -215,7 +212,7 @@ export async function takeItems(
     .orderBy(asc(items.id))
     .limit(limit);
 
-  const { bytes: _bytes, ...taken } = await takeEach(
+  const taken = await takeEach(
     ports,
     { root, resume },
     listed.map(({ id }) => id),
