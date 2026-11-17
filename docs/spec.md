@@ -411,6 +411,7 @@ C. Intake webhook
 - The section holds the address and the key and no token. The key stays on the server, sealed, and no screen or route shows it again. Save and Remove contact no one. Test sends one ping with no library text, wakes the routine and costs the bot one run. A new address needs a new key, so the saved key never goes to an address the owner just typed. The address must be a public `https` address, and only the owner's views show it.
 - **The Threadsift bot:** a public Grok Bot template with one skill that saves links dropped in chat, searches the library, runs the X bookmark sync and answers Threadsift's webhook. Its setup guide (`bot/setup.md`) walks the user through adding their Threadsift URL and token, because a template cannot carry a custom MCP server. The bot's Digest reuses the library's Topic names, which it reads with the script's `topics` command. The script reads no Tags, though the first page of `GET /api/items` returns their counts, so a Digest the bot writes picks its Tags without them, unlike a Digest the Provider writes, which gets the catalog.
 - **AI tasks:** when Grok Bot is the Provider, Threadsift sends it every AI task (a Digest, a Topic overview, a Related Items pick, the weekly Proposals) through the same webhook, and the bot posts the result back. Grok Bot is chosen as the Provider only when its settings can send. Switching to another Provider at once fails every open bot task as abandoned and makes the jobs that wait on it due, so a late answer is refused and never applied. Without Grok Bot, every task runs on the Provider the owner picked (`docs/architecture/ai-tasks-and-providers.md`).
+- A bot error is logged with its task and job ids. The log holds no error text from the bot.
 - **Speed:** an X link through the webhook may take longer than a direct fetch, because the bot has to wake and run. The Item shows "waiting for Grok Bot" until the bot answers, for at most one hour a send and three sends.
 
 ## Obsidian vault mirror
@@ -468,6 +469,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 | Deploy button | none needed | Not built |
 | Cost to the self-hoster | their own server | Cloudflare's $5 a month Workers Paid plan; the reason is in `docs/architecture/cloudflare-deploy-button.md` |
 
+- A self-hoster can deploy a Cloudflare Instance with `pnpm run deploy` and keep its library when running the command again. The deploy button itself is not built.
 - One codebase serves both: the database, the file store, the job queue and the AI caller each have one adapter per target.
 - The container image is pushed as `ghcr.io/kyanitehq/threadsift:main` on each push to `main`. The release workflow publishes a version tag for both architectures with provenance and moves `release` after the runtime checks pass (`docs/architecture/ci-releases-and-rollback.md`, Releases).
 - The owner's own Instance runs in the container on the owner's home server, at a public HTTPS address with the owner login, so Grok Bot can reach it.

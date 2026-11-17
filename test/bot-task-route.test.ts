@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { after, before, beforeEach, describe, it } from "node:test";
+import { after, before, beforeEach, describe, it, mock } from "node:test";
+
+import { z } from "zod";
 
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import {
@@ -244,7 +246,21 @@ describe("the result route answers each status of its contract and writes nothin
   it("fails the task provider-busy and makes the job due for an { error } answer", async () => {
     const task = await fresh();
 
-    assert.equal((await answered(instance, task, { error: "I could not do it." })).status, 204);
+    const logged = mock.method(console, "warn");
+    const answer = await answered(instance, task, {
+      error: "Could not read https://x.com/author/status/123?s=private-query",
+    });
+    const lines = logged.mock.calls.map(({ arguments: args }) => String(args[0]));
+
+    logged.mock.restore();
+
+    assert.equal(answer.status, 204);
+    assert.deepEqual(
+      lines
+        .filter((line) => line.includes("grok-bot-error"))
+        .map((line) => z.record(z.string(), z.unknown()).parse(JSON.parse(line))),
+      [{ event: "grok-bot-error", taskId: task.id, jobId: task.job.id }],
+    );
 
     const row = taskRow(instance, task.id);
 

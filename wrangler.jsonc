@@ -22,6 +22,12 @@
     "turndown": "turndown/lib/turndown.cjs.js",
     "@mixmark-io/domino": "@mixmark-io/domino/lib/index.js",
   },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true },
+    "redact_query_string": true,
+  },
   "env": {
     "live": {
       "workers_dev": true,
@@ -31,12 +37,6 @@
       "queues": {
         "producers": [{ "binding": "JOBS", "queue": "threadsift-live-jobs" }],
         "consumers": [{ "queue": "threadsift-live-jobs", "max_batch_size": 1 }],
-      },
-      "observability": {
-        "enabled": true,
-        "head_sampling_rate": 1,
-        "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true },
-        "redact_query_string": true,
       },
     },
   },
