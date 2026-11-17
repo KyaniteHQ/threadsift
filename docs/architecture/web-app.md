@@ -1,6 +1,6 @@
 # Web app
 
-- A React 19 single-page app built by Vite (owner's decision, 2026-11-04). One static build serves Workers static assets and Hono's `serveStatic` on Node, and it is the shape Tauri and Capacitor take for a later desktop or mobile app. No server rendering: one owner behind a login gains nothing from it.
+- A React 19 single-page app built by Vite. One static build serves Workers static assets and Hono's `serveStatic` on Node, and it is the shape Tauri and Capacitor take for a later desktop or mobile app. No server rendering: one owner behind a login gains nothing from it.
 - React-specific libraries stay few, so the app can try Preact 11 through `preact/compat` after the first release if page weight matters: in a small comparable build, React's framework JavaScript was 68.0 KB gzip and Preact's 7.7 KB (measured 2026-11-04 in a scratch build, not on this app).
 - The prototype is Claude Design's own template format on React 18 classes, so the app rewrites it. Its behaviour (reader bar fitting, folding by measured height, reading-place restore, the keys) is plain DOM code and becomes plain TypeScript modules that take an element.
 - `design/system/tokens.css`, `components.css` and `settings-table.ts` are the one source of values and settings; `settings.ts` builds the defaults, the stored-settings reader and the root attributes from the table's rows. `docs/spec.md` owns what each setting does.

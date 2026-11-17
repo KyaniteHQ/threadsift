@@ -53,7 +53,7 @@ The Drizzle schema (`src/core/schema.ts` and the `src/core/*-tables.ts` files) l
 
 - Post text and comments are stored as Markdown, which Defuddle can return directly. The Reader renders Markdown without raw HTML, so other people's posts never reach the page as HTML, and the export and the Vault mirror reuse the stored text.
 - **`jobs.page`.** The JSON of a page the Extension sent, owned by one open fetch job: it points to nothing and nothing points to it, and the job's own row is its identity (`id`, never reused). It is set when the save queues the job, read by the job that runs it, and cleared to null when the job ends, is replaced by a newer save, or is closed by `closeItemJobs`, so no page text outlives its job. An export carries no job rows, so it carries no page. A restore starts with no open jobs.
-- A refresh re-anchors each Highlight by its quote, prefix and suffix; a Highlight whose quote is gone keeps its text and is marked as no longer found (`docs/spec.md`, Highlights and Notes; the rules are under Highlights below).
+- A refresh re-anchors each Highlight by its quote, prefix and suffix; a Highlight whose quote is gone keeps its text and is marked as no longer found (`docs/spec.md`, Highlights, Notes and the Highlights page; the rules are under Highlights below).
 
 ## Highlights
 

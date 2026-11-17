@@ -12,7 +12,8 @@ Use these exact terms in code, docs and issues.
 
 | Need | Read |
 |---|---|
-| What v1 does, and the decisions behind it | `docs/spec.md` |
+| What v1 does today, one bullet per behaviour; a code change edits its bullets | `docs/spec.md` |
+| The route rules, and the reasons and measurements behind the product decisions | `docs/architecture/http-interfaces.md`, `docs/architecture/decisions-and-evidence.md` |
 | What is not fully built yet, and the file of each architecture section | `docs/architecture.md`, the index |
 | The tech stack | `docs/architecture/the-stack-at-a-glance.md` |
 | The module seams and the two install targets | `docs/architecture/one-codebase-two-install-targets.md` |

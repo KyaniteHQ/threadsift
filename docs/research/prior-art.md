@@ -1,6 +1,6 @@
 # Prior art: archive Reddit saved + X bookmarks, tag with an LLM, read in a web UI
 
-Researched 2026-11-03 with `gh api`, README greps, source reads (read-only; nothing cloned into the workspace). Star counts and push dates are from `gh api repos/<o>/<r>` on 2026-11-03.
+Researched with `gh api`, README greps, source reads (read-only; nothing cloned into the workspace). Star counts and push dates are from `gh api repos/<o>/<r>` on 2026-11-03.
 
 ## Bottom line
 
@@ -9,7 +9,7 @@ No single project does Reddit saved + X bookmarks + LLM tags + web UI. Two thing
 - Karakeep gives the web UI, REST API, CLI, tagging (OpenAI-compatible or Ollama only) and search. Its own crawler is weak on Reddit and X.
 - `afar1/fieldtheory-cli` (X) and `rhnfzl/reddit-stash` (Reddit) are the best fetchers.
 
-This research recommended adopting Karakeep as the store and UI. `docs/spec.md` (Build or adopt) chose an own app instead, so its Recommendation and its open points about Karakeep, Siftly and a Reddit script app are moot; `docs/spec.md` (Ingest flow, "Why Reddit works this way") records how Reddit access was settled.
+This research recommended adopting Karakeep as the store and UI. `docs/architecture/decisions-and-evidence.md` (Product decisions, Build or adopt) chose an own app instead, so its Recommendation and its open points about Karakeep, Siftly and a Reddit script app are moot; `docs/architecture/decisions-and-evidence.md` (Reddit) records how Reddit access was settled.
 
 ## Comparison table
 

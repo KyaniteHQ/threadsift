@@ -33,7 +33,7 @@ Karakeep, the closest open-source tool, has no comment-thread model, so a saved 
 
 - `docs/spec.md` and `GLOSSARY.md` hold the features and the words; `docs/architecture/the-stack-at-a-glance.md` holds the stack.
 - Tags are set only by the agent; the interface has no tag editing.
-- Reddit content comes from the owner's own signed-in tab, from the Arctic Shift archive, or from the owner's own connected Reddit account (`docs/spec.md`, Reddit).
+- Reddit content comes from the owner's own signed-in tab, from the Arctic Shift archive, or from the owner's own connected Reddit account (`docs/spec.md`, Product).
 
 ## Brand Commitments
 
