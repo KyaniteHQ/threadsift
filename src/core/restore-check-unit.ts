@@ -3,7 +3,7 @@ import type { JobOutcome, JobPorts } from "./job-outcome.ts";
 import { type Env, advance, rowsMatch } from "./restore-check-scan.ts";
 import { checkedTables, readManifest, refused } from "./restore-check.ts";
 import { CheckCursorSchema, START_CURSOR } from "./restore-contract.ts";
-import { failedUnit, steppedUnit } from "./restore-unit.ts";
+import { endedUnit, steppedUnit } from "./restore-unit.ts";
 import type { RestoreRow } from "./schema.ts";
 import { readDirectory } from "./zip-directory.ts";
 import { ZipRefused, type ZipSource } from "./zip-read.ts";
@@ -15,20 +15,14 @@ async function environment(
   const directory = await readDirectory(source);
   const manifest = await readManifest(source, directory);
   const running = await appliedMigration(db);
-  const comparable = manifest.migration !== null && running !== null;
 
-  if (comparable && manifest.migration > running) {
-    throw refused(
-      "newer-release",
-      "The export was made by a newer release; update this Instance first",
-    );
+  if (manifest.migration === null || running === null || manifest.migration !== running) {
+    throw refused("other-release", "The export migration does not match the running migration");
   }
 
-  const older = comparable && manifest.migration < running;
+  checkedTables(manifest, directory);
 
-  checkedTables(manifest, directory, older);
-
-  return { source, directory, manifest, older };
+  return { source, directory, manifest };
 }
 
 export async function checkUnit(
@@ -52,6 +46,6 @@ export async function checkUnit(
   } catch (error) {
     if (!(error instanceof ZipRefused)) throw error;
 
-    return failedUnit(db, run, error.code);
+    return endedUnit(db, run, { state: "failed", failure: error.code, updatedAt: Date.now() });
   }
 }

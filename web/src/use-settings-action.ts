@@ -7,7 +7,7 @@ export interface Outcome {
   readonly text: string;
 }
 
-export type ActionFlow<Action extends string> =
+type ActionFlow<Action extends string> =
   | { readonly kind: "idle" }
   | { readonly kind: "running"; readonly action: Action }
   | { readonly kind: "done"; readonly action: Action; readonly outcome: Outcome };

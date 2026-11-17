@@ -1,7 +1,6 @@
 import { type SQL, sql } from "drizzle-orm";
 
 import {
-  AI_SAVE_ATTEMPTS,
   GROK_BOT_PROVIDER,
   type AiSettingsInput,
   type AiSettingsView,
@@ -114,8 +113,7 @@ export async function saveAiSettings(
   ports: SettingsPorts,
   input: Readonly<AiSettingsInput>,
   extraWrites: () => JobWrites,
-  attemptsLeft = AI_SAVE_ATTEMPTS,
-): Promise<AiSaveResponse> {
+): Promise<AiSaveResponse | { readonly kind: "changed" }> {
   const prepared = await preparedSave(ports, input);
 
   if ("kind" in prepared) return prepared;
@@ -127,7 +125,5 @@ export async function saveAiSettings(
 
   if (written) return readAiSettings(ports);
 
-  if (attemptsLeft <= 1) throw new Error("The AI settings changed during every attempt to save.");
-
-  return saveAiSettings(ports, input, extraWrites, attemptsLeft - 1);
+  return { kind: "changed" };
 }

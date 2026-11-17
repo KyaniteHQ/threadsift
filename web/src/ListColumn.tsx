@@ -1,28 +1,13 @@
-import { type RefObject, useCallback } from "react";
-
-import { LibraryMasthead } from "./LibraryMasthead.tsx";
+import { hasRows } from "./list-state.ts";
 import { ListBody, Notice } from "./ListBody.tsx";
 import { ListTools } from "./ListTools.tsx";
+import { Masthead } from "./Masthead.tsx";
 import { HINT_LIST } from "./reader-text.ts";
-import { focusListStart } from "./reveal.ts";
 import type { Pages } from "./routing.ts";
-import { LOAD_FAILED, RETRY_LABEL, SKIP_LABEL } from "./text.ts";
+import { SkipButton } from "./SkipButton.tsx";
+import { LOAD_FAILED, RETRY_LABEL } from "./text.ts";
 import type { LibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
-
-function SkipButton({ pane }: Readonly<{ pane: RefObject<HTMLElement | null> }>) {
-  const skip = useCallback(() => {
-    if (pane.current !== null) {
-      focusListStart(pane.current);
-    }
-  }, [pane]);
-
-  return (
-    <button type="button" className="btn skip" onClick={skip}>
-      {SKIP_LABEL}
-    </button>
-  );
-}
 
 function LookupNotice({ failed, again }: Readonly<{ failed: boolean; again: () => void }>) {
   return failed ? <Notice text={LOAD_FAILED} action={again} label={RETRY_LABEL} alert /> : null;
@@ -33,13 +18,13 @@ function LibraryList({
   look,
   openId,
 }: Readonly<{ view: LibraryView; look: Look; openId: number | null }>) {
-  const { library, shown, actions, side, listPane } = view;
+  const { library, actions, side, listPane } = view;
 
   return (
     <main ref={listPane} className="list" tabIndex={-1}>
       <LookupNotice failed={actions.lookupFailed} again={actions.lookAgain} />
       <ListBody
-        list={shown}
+        list={library.list}
         cardImages={look.settings.images === "on"}
         openId={openId}
         attention={actions.attention}
@@ -68,24 +53,36 @@ export function ListColumn({
   openId: number | null;
   pages: Pages;
 }>) {
-  const { library, shown, reserves, side, covered, openItem, listPane, searchField } = view;
-
-  const hint =
-    look.reader !== "pane" || (openItem !== null && side.reader.hintInBar) ? null : HINT_LIST;
+  const { library, side, covered, openItem, listPane, searchField } = view;
 
   return (
     <div className="bg" inert={covered}>
       <SkipButton pane={listPane} />
-      <LibraryMasthead view={view} look={look} arrived={arrived} pages={pages} />
+      <Masthead
+        look={look}
+        pages={pages}
+        counts={view.counts}
+        loading={library.list.status === "loading"}
+        filters={library.filters}
+        choose={library.choose}
+        clearChosen={library.clearChosen}
+        hasRows={hasRows(library.list)}
+        save={view.actions.saveAndShow}
+        focusOnMount={arrived}
+        items={library.list.known}
+        queue={view.actions.queue}
+        open={side.openFromCard}
+      />
       <ListTools
-        list={shown}
-        reserves={reserves}
+        list={library.list}
         filters={library.filters}
         query={library.query}
         active={!covered}
         field={searchField}
         search={library.search}
-        hint={hint}
+        hint={
+          look.reader !== "pane" || (openItem !== null && side.reader.hintInBar) ? null : HINT_LIST
+        }
         leave={side.leaveSearch}
       />
       <LibraryList view={view} look={look} openId={openId} />

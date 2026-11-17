@@ -99,9 +99,6 @@
   letter-spacing: var(--dls);
   line-height: var(--lh-title);
 }
-.pg-bar[data-faces="loading"] .pg-title {
-  opacity: 0;
-}
 .pg-title:focus:not(:focus-visible) {
   outline: none;
 }

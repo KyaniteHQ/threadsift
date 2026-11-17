@@ -1,12 +1,15 @@
 import {
   type ReactNode,
+  type RefObject,
   createContext,
   use,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { ANNOUNCE_SETTLE_MS, Announcement } from "./Announcement.tsx";
 import { useAfter } from "./use-form.ts";
@@ -17,6 +20,8 @@ interface Voice {
 }
 
 interface FieldVoice {
+  readonly modal: boolean;
+  readonly mount: (element: HTMLElement | null) => void;
   readonly announce: (text: string) => void;
   readonly retract: (text: string) => void;
 }
@@ -27,6 +32,7 @@ export const FieldVoiceContext = createContext<FieldVoice | null>(null);
 
 export function FieldAnnouncer({ children }: Readonly<{ children: ReactNode }>) {
   const [voice, setVoice] = useState(SILENT);
+  const [surface, setSurface] = useState<HTMLElement | null>(null);
   const { next } = voice;
 
   const announce = useCallback((text: string) => {
@@ -43,12 +49,22 @@ export function FieldAnnouncer({ children }: Readonly<{ children: ReactNode }>) 
 
   useAfter(next !== null, ANNOUNCE_SETTLE_MS, say);
 
-  const api = useMemo(() => ({ announce, retract }), [announce, retract]);
+  const mount = useCallback((element: HTMLElement | null) => {
+    setSurface(element);
+    setVoice(SILENT);
+  }, []);
+
+  const api = useMemo(
+    () => ({ announce, retract, mount, modal: surface !== null }),
+    [announce, mount, retract, surface],
+  );
+
+  const announcement = <Announcement text={voice.said} failed={false} />;
 
   return (
     <FieldVoiceContext value={api}>
       {children}
-      <Announcement text={voice.said} failed={false} />
+      {surface === null ? announcement : createPortal(announcement, surface)}
     </FieldVoiceContext>
   );
 }
@@ -68,4 +84,17 @@ export function useRequiredVoice(missing: boolean, spoken: string | null) {
     },
     [missing, spoken, voice],
   );
+}
+
+export function useFieldAnnouncementsIn(dialog: RefObject<HTMLDialogElement | null>) {
+  const voice = use(FieldVoiceContext);
+  const mount = voice?.mount;
+
+  useLayoutEffect(() => {
+    mount?.(dialog.current);
+
+    return () => {
+      mount?.(null);
+    };
+  }, [dialog, mount]);
 }

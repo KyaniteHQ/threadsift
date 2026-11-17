@@ -1,28 +1,20 @@
+import { NOTHING } from "../../src/core/nothing.ts";
 import { fetchItem } from "./api.ts";
 
-type Answer = Awaited<ReturnType<typeof fetchItem>>;
-
-export interface ItemRead {
-  readonly answer: Answer;
-  readonly startedAt: number;
-}
+export type ItemRead = Awaited<ReturnType<typeof fetchItem>>;
 
 const queues = new Map<number, Promise<void>>();
-
-function nothing(): void {}
 
 export function readStatus(id: number, proceed: () => boolean): Promise<ItemRead | null> {
   const previous = queues.get(id) ?? Promise.resolve();
 
-  const read = previous.then(async (): Promise<ItemRead | null> => {
+  const read = previous.then(() => {
     if (!proceed()) return null;
 
-    const startedAt = performance.now();
-
-    return { answer: await fetchItem(id), startedAt };
+    return fetchItem(id);
   });
 
-  const settled = read.then(nothing, nothing);
+  const settled = read.then(NOTHING, NOTHING);
 
   queues.set(id, settled);
 
@@ -33,9 +25,9 @@ export function readStatus(id: number, proceed: () => boolean): Promise<ItemRead
   return read;
 }
 
-export async function lookUp(id: number): Promise<Answer | "failed"> {
+export async function lookUp(id: number): Promise<ItemRead | "failed"> {
   try {
-    return (await readStatus(id, () => true))?.answer ?? "failed";
+    return (await readStatus(id, () => true)) ?? "failed";
   } catch {
     return "failed";
   }

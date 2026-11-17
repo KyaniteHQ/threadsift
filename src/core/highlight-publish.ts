@@ -1,5 +1,6 @@
 import { type SQL, type SQLWrapper, asc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 
+import { batchesOf } from "./batches.ts";
 import { type Anchor, anchorIn } from "./highlight-anchor.ts";
 import type { AnchoredOutcome, SettledOutcome } from "./job-outcome.ts";
 import type { Database } from "./ports.ts";
@@ -116,8 +117,6 @@ function anchorWrites(
   after: Readonly<DisplayedAfter>,
   project: Project,
 ) {
-  if (snapshot.highlights.length === 0) return [];
-
   const places = snapshot.highlights.flatMap((row) => {
     const anchor = anchorOf(row, after, project);
 
@@ -132,12 +131,8 @@ function anchorWrites(
         ];
   });
 
-  if (places.length === 0) return [];
-
-  return Array.from({ length: Math.ceil(places.length / PLACES_PER_STATEMENT) }, (_, chunk) => {
-    const json = JSON.stringify(
-      places.slice(chunk * PLACES_PER_STATEMENT, (chunk + 1) * PLACES_PER_STATEMENT),
-    );
+  return batchesOf(places, PLACES_PER_STATEMENT).map((batch) => {
+    const json = JSON.stringify(batch);
 
     const placed = (field: "status" | "start") =>
       sql`(select json_extract(value, ${`$.${field}`}) from json_each(${json}) where json_extract(value, '$.id') = ${highlights.id})`;

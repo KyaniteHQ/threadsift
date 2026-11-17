@@ -6,7 +6,6 @@ import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
 import {
-  BLANK,
   CLEAR_ALL,
   EMPTY_LIST,
   LOADING_LABEL,
@@ -14,7 +13,6 @@ import {
   LOAD_MORE,
   NO_RESULTS,
   RETRY_LABEL,
-  SORT_LABEL,
 } from "./text.ts";
 import { useNearEnd } from "./use-near-end.ts";
 
@@ -64,22 +62,13 @@ export function Notice({
   );
 }
 
-export function ListHead({ label }: Readonly<{ label: string }>) {
+export function ListHead({ label, sort }: Readonly<{ label: string; sort: string }>) {
   return (
     <section className="list-head">
       <p id={RESULTS_ID} className="results">
         {label}
       </p>
-      <p className="label">{SORT_LABEL}</p>
-    </section>
-  );
-}
-
-export function ListHeadGhost() {
-  return (
-    <section className="list-head" aria-hidden="true">
-      <p className="results">{BLANK}</p>
-      <p className="label">{BLANK}</p>
+      <p className="label">{sort}</p>
     </section>
   );
 }

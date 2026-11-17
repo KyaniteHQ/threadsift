@@ -41,6 +41,10 @@ const saveRoute = createRoute({
       z.union([ErrorResponseSchema, GrokBotUnreadySchema]),
       "The Provider is not in `providers` of `GET /api/settings/ai`, such as `workers-ai` on the container; or the Provider is `grok-bot` and the Grok Bot settings are not saved (`code: not-configured`) or their key cannot be opened (`code: secret-missing`). Nothing is saved and no Digest job is queued.",
     ),
+    409: jsonBody(
+      ErrorResponseSchema,
+      "The settings changed while this save was prepared (`error: settings-changed`). Nothing from this save was written; send it again.",
+    ),
   },
 });
 
@@ -64,6 +68,9 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
       return c.json({ error: PROVIDER_UNAVAILABLE }, 400);
 
     const saved = await saveAiSettings(ports, input, () => olderDigests(ports.db));
+
+    if ("kind" in saved && saved.kind === "changed")
+      return c.json({ error: "settings-changed" }, 409);
 
     if ("kind" in saved && input.provider === GROK_BOT_PROVIDER)
       return c.json(

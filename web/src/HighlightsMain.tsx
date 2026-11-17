@@ -1,16 +1,26 @@
 import { useCallback, useRef, useState } from "react";
 
-import { useFilters } from "./filters.ts";
-import { HighlightsBody, highlightsHeadText } from "./HighlightsBody.tsx";
+import { type Filters, isFiltered, isSearching, useFilters } from "./filters.ts";
+import { HIGHLIGHTS_HEAD, headLabel } from "./head-label.ts";
+import { HighlightsBody } from "./HighlightsBody.tsx";
 import { HighlightsTools } from "./HighlightsTools.tsx";
+import { matchedCount } from "./list-counts.ts";
 import type { Route } from "./routing.ts";
 import { SettledAnnouncement } from "./SettledAnnouncement.tsx";
 import { useEntryKeys } from "./use-highlights-focus.ts";
-import { useHighlightsPage } from "./use-highlights-page.ts";
+import { type Ready, useHighlightsPage } from "./use-highlights-page.ts";
 import type { Look } from "./use-root.ts";
 
 function focusFirstEntry(): void {
   document.querySelector<HTMLElement>(".hp-open")?.focus();
+}
+
+function highlightsHeadText(state: Readonly<Ready>, filters: Readonly<Filters>): string {
+  if (state.counts.total === 0) return "";
+  const shown = isFiltered(filters) ? matchedCount(state.counts, filters) : null;
+  const text = isSearching(filters) ? filters.q.trim() : "";
+
+  return headLabel(HIGHLIGHTS_HEAD, { total: state.counts.total, shown }, text);
 }
 
 export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Route }>) {
@@ -21,6 +31,10 @@ export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Ro
   const { filters, clear } = filtering;
   const { state, retry, loadMore } = useHighlightsPage(filters);
   useEntryKeys(list);
+
+  const retryLoad = useCallback(() => {
+    void retry();
+  }, [retry]);
 
   const clearAll = useCallback(() => {
     clear();
@@ -33,7 +47,6 @@ export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Ro
     <main className="pg-col hp-col" aria-busy={state.status === "loading"}>
       <HighlightsTools
         state={state}
-        filters={filters}
         look={look}
         field={field}
         filtering={filtering}
@@ -41,10 +54,11 @@ export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Ro
       />
       <HighlightsBody
         state={state}
+        head={head}
         filters={filters}
         now={now}
         navigate={route.navigate}
-        retry={retry}
+        retry={retryLoad}
         loadMore={loadMore}
         clearAll={clearAll}
         list={list}

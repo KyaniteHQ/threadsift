@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { LOG_ACTIONS } from "./kinds.ts";
+import { listed } from "./schema-checks.ts";
 import { items, topics } from "./schema.ts";
 
 export const logEntries = sqliteTable(
@@ -23,6 +24,7 @@ export const logEntries = sqliteTable(
     topicId: integer("topic_id").references(() => topics.id),
   },
   (table) => [
+    check("log_entries_action_check", sql`${table.action} in (${listed(LOG_ACTIONS)})`),
     index("log_entries_item").on(table.itemId),
     index("log_entries_topic").on(table.topicId),
   ],

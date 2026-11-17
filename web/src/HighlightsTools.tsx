@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 
-import { type Filters, type useFilters, isEmptyResult } from "./filters.ts";
-import { FilterGhost, FilterPane } from "./Filters.tsx";
+import { type useFilters, isEmptyResult } from "./filters.ts";
+import { FilterPane } from "./Filters.tsx";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { SearchField } from "./SearchField.tsx";
 import type { PageState } from "./use-highlights-page.ts";
@@ -9,19 +9,19 @@ import type { Look } from "./use-root.ts";
 
 export function HighlightsTools({
   state,
-  filters,
   look,
   field,
   filtering,
   leave,
 }: Readonly<{
   state: PageState;
-  filters: Filters;
   look: Look;
   field: RefObject<HTMLInputElement | null>;
   filtering: Readonly<ReturnType<typeof useFilters>>;
   leave: () => void;
 }>) {
+  const { filters } = filtering;
+
   if (state.status === "failed" || (state.status === "ready" && state.counts.total === 0)) {
     return null;
   }
@@ -36,9 +36,12 @@ export function HighlightsTools({
         search={filtering.search}
         hint={null}
         leave={leave}
-        ghost={state.status === "loading"}
       />
-      <div className="filters-slot">
+      <div
+        className="filters-slot"
+        data-loading={state.status === "loading" ? true : undefined}
+        aria-hidden={state.status === "loading" ? true : undefined}
+      >
         {state.status === "ready" ? (
           <FilterPane
             counts={state.counts}
@@ -49,9 +52,7 @@ export function HighlightsTools({
             clearChosen={filtering.clearChosen}
             hasRows={!isEmptyResult(state.entries.length, state.next)}
           />
-        ) : (
-          <FilterGhost collapsible={look.narrow} bar />
-        )}
+        ) : null}
       </div>
     </>
   );

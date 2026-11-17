@@ -1,7 +1,7 @@
 import { type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { BACKUP_TABLES } from "./backup-tables.ts";
+import { BACKUP_TABLES, backupTable } from "./backup-tables.ts";
 import { ITEM_FILES_STREAM } from "./export-contract.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
@@ -29,11 +29,7 @@ export const STREAMS: readonly string[] = [
 ];
 
 function columnsOf(table: string): readonly string[] {
-  const listed = Object.entries(BACKUP_TABLES).find(([name]) => name === table)?.[1];
-
-  if (listed === undefined) throw new Error(`${table} is not in the backup list`);
-
-  return listed.columns;
+  return backupTable(table).columns;
 }
 
 export const STREAM_LIST = STREAMS.map((name) =>
@@ -41,9 +37,7 @@ export const STREAM_LIST = STREAMS.map((name) =>
 ).join(",");
 
 function scopeOf(table: string): SQL {
-  const listed = Object.entries(BACKUP_TABLES).find(([name]) => name === table)?.[1];
-
-  return listed?.scope === "per-item-digest-tasks"
+  return backupTable(table).scope === "per-item-digest-tasks"
     ? sql`id in (select task_id from digests)`
     : sql`1`;
 }

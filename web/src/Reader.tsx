@@ -1,4 +1,4 @@
-import { type ComponentProps, type RefObject, Suspense, useMemo, useState } from "react";
+import { type RefObject, Suspense, useMemo, useState } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import { type BarMode, ReaderBar } from "./ReaderBar.tsx";
@@ -8,6 +8,7 @@ import type { Pages } from "./routing.ts";
 import { usePageName } from "./use-document-title.ts";
 import { useFocusMoved } from "./use-focus-moved.ts";
 import { refreshKey, useItemDetail } from "./use-item-detail.ts";
+import type { PanelState } from "./use-panel.ts";
 import type { Look } from "./use-root.ts";
 
 export interface ReaderControls {
@@ -91,7 +92,6 @@ function ReaderCol({
           actions={actions}
           announce={controls.announce}
           now={now}
-          settingsKey={controls.settingsKey}
           titleId={titleId}
           focusTitle={focusTitle}
           tryAgain={tryAgain}
@@ -117,7 +117,7 @@ export function Reader({
   look: Look;
   titleId: string;
   pages: Pages;
-  panel: ComponentProps<typeof ReaderBar>["panel"];
+  panel: PanelState;
   tryAgain: (item: Item) => void;
 }>) {
   usePageName(item.digestTitle ?? item.title ?? "");

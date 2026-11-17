@@ -1,26 +1,20 @@
 import { type CSSProperties, type FocusEvent, useCallback, useEffect, useId, useRef } from "react";
 
 import type { CommentCount, CommentNode, CommentsFilter } from "../../src/core/comment-view.ts";
+import { COMMENTS_TITLE, CONTEXT_LABEL, STUB_TEXTS, handleOf } from "../../src/core/reader-text.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
-import { commentsFilterOf } from "./comment-counts.ts";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
 import { useOpenOnReveal } from "./highlights-context.ts";
 import { PostTextView } from "./post-text-module.ts";
 import {
   ALL_REMOVED,
-  COMMENTS_TITLE,
-  CONTEXT_LABEL,
   NONE_KEPT,
   OP_LABEL,
   SHOW_FULL_COMMENT,
   SHOW_LESS,
-  STUB_DROPPED,
-  STUB_MORE,
-  STUB_NOT_KEPT,
   UNFILTERED_NOTES,
   countLabel,
-  handleOf,
   isSameHandle,
   scoreLabel,
 } from "./reader-text.ts";
@@ -131,12 +125,6 @@ function KeptComment({
     </div>
   );
 }
-
-const STUB_TEXTS = {
-  dropped: STUB_DROPPED,
-  "not-kept": STUB_NOT_KEPT,
-  more: STUB_MORE,
-} as const;
 
 function Stub({ kind }: Readonly<{ kind: keyof typeof STUB_TEXTS }>) {
   const text = STUB_TEXTS[kind];
@@ -260,7 +248,7 @@ function CommentTree({
 }
 
 export function Comments({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
-  const section = sectionOf(commentsFilterOf(item, detail.comments));
+  const section = sectionOf(detail.comments.view);
 
   return section === null ? null : (
     <CommentTree item={item} section={section} nodes={detail.comments.nodes} />

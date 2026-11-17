@@ -19,7 +19,6 @@ export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unsupported-link") }),
   z.object({ kind: z.literal("thread-kept") }),
   z.object({ kind: z.literal("budget-spent") }),
-  z.object({ kind: z.literal("updating") }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("failed") }),
 ]);
@@ -44,7 +43,6 @@ export function badgeTextOf(state: Readonly<SaveState>): string {
     case "unsupported-link":
     case "thread-kept":
     case "budget-spent":
-    case "updating":
     case "unreachable":
     case "failed":
       return TEXT.badgeNotSaved;

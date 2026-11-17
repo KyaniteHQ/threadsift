@@ -4,7 +4,7 @@ export const SHARE_PATH = "/share";
 
 const PREFILL_MAX = 1000;
 
-const PREFILL_NOTICES = ["empty", "invalid", "private", "updating"] as const;
+const PREFILL_NOTICES = ["empty", "invalid", "private", "restoring"] as const;
 
 type PrefillNotice = (typeof PREFILL_NOTICES)[number];
 

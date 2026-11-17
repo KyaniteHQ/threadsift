@@ -1,5 +1,5 @@
 import type { Digest } from "./ai-contract.ts";
-import { type Caller, type Counting, countedBy } from "./caller.ts";
+import { type Caller, tokenIdOf } from "./caller.ts";
 import { saveFailedResolution } from "./failed-resolution.ts";
 import { resolveShortLink } from "./fetch-link.ts";
 import { type Existing, type SaveResult, saveQueued } from "./items.ts";
@@ -14,15 +14,15 @@ async function saveShortLink(
   pasted: string,
   digest: Digest | undefined,
   existing: Existing,
-  counting: Counting,
+  addedByToken: number | null,
 ): Promise<SaveResult> {
-  const { normalizedUrl: shortLink } = parseLink(pasted);
-  const known = await aliasedItem(ports.db, shortLink);
+  const shortLink = parseLink(pasted);
+  const known = await aliasedItem(ports.db, shortLink.normalizedUrl);
 
   if (known !== undefined) {
     return saveQueued(
       ports,
-      { originalUrl: pasted, address: known.address, digest, counting },
+      { originalUrl: pasted, address: known.address, digest, addedByToken },
       known,
       existing,
     );
@@ -39,20 +39,20 @@ async function saveShortLink(
       ? await saveFailedResolution(
           ports.db,
           pasted,
-          parseLink(pasted),
+          shortLink,
           resolution.fetched,
           existing,
-          counting,
+          addedByToken,
         )
       : await saveResolved(
           ports,
-          shortLink,
-          { originalUrl: pasted, address: resolution.address, digest, counting },
+          shortLink.normalizedUrl,
+          { originalUrl: pasted, address: resolution.address, digest, addedByToken },
           parseLink(resolution.address),
           existing,
         );
 
-  return saved ?? saveShortLink(ports, pasted, digest, existing, counting);
+  return saved ?? saveShortLink(ports, pasted, digest, existing, addedByToken);
 }
 
 export function saveItem(
@@ -66,13 +66,13 @@ export function saveItem(
     return Promise.resolve({ kind: "refused" });
   }
 
-  const counting = countedBy(caller);
+  const addedByToken = tokenIdOf(caller);
 
   return isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)
-    ? saveShortLink(ports, absoluteUrl, digest, existing, counting)
+    ? saveShortLink(ports, absoluteUrl, digest, existing, addedByToken)
     : saveQueued(
         ports,
-        { originalUrl: absoluteUrl, address: absoluteUrl, digest, counting },
+        { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
         parseLink(absoluteUrl),
         existing,
       );

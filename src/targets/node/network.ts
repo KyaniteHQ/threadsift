@@ -1,33 +1,32 @@
-import { type LookupAddress, lookup } from "node:dns";
-import { type IncomingMessage, request as httpRequest } from "node:http";
+import { lookup } from "node:dns";
+import { type IncomingMessage, type RequestOptions, request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import type { LookupFunction, TcpNetConnectOpts } from "node:net";
 import { type Readable, type Transform, pipeline } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
 import { isGlobalAddress } from "../../core/addresses.ts";
 import {
-  HOP_DEADLINE_MS,
   type Network,
   type NetworkResponse,
   REQUEST_HEADERS,
   type RedditSession,
   type RequestHeaders,
   NetworkFailure,
+  rateLimitHeadersOf,
 } from "../../core/ports.ts";
 import { assertPublicHost } from "../../core/public-host.ts";
 import {
   REDDIT_HOST,
   boundedBody,
-  redditRateLimitOf,
   redditSessionHeaders,
   refusedRequestLine,
 } from "../../core/reddit-session.ts";
+import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
 const IDENTITY = "identity";
 
-const CONNECT_OPTIONS: Pick<TcpNetConnectOpts, "autoSelectFamilyAttemptTimeout"> = {
+const CONNECT_OPTIONS = {
   autoSelectFamilyAttemptTimeout: HOP_DEADLINE_MS,
 };
 
@@ -37,7 +36,11 @@ const DECODERS: ReadonlyMap<string, () => Transform> = new Map([
   ["br", createBrotliDecompress],
 ]);
 
-const globalAddressesOnly: LookupFunction = (hostname, options, callback) => {
+const globalAddressesOnly: NonNullable<RequestOptions["lookup"]> = (
+  hostname,
+  options,
+  callback,
+) => {
   lookup(hostname, { ...options, all: true }, (error, resolved) => {
     if (error !== null) {
       callback(error, []);
@@ -57,21 +60,6 @@ const globalAddressesOnly: LookupFunction = (hostname, options, callback) => {
     }
   });
 };
-
-function lookedUp(hostname: string, signal: AbortSignal): Promise<readonly LookupAddress[] | null> {
-  return new Promise((resolve) => {
-    const abandon = () => {
-      resolve(null);
-    };
-
-    signal.addEventListener("abort", abandon, { once: true });
-
-    lookup(hostname, { all: true }, (error, resolved) => {
-      signal.removeEventListener("abort", abandon);
-      resolve(error === null ? resolved : null);
-    });
-  });
-}
 
 function firstHeader(value: string | readonly string[] | undefined): string | null {
   return [value].flat()[0] ?? null;
@@ -121,11 +109,7 @@ function exchange(
           status: response.statusCode ?? 0,
           location: response.headers.location ?? null,
           contentType: response.headers["content-type"] ?? null,
-          rateLimit: {
-            retryAfter: firstHeader(response.headers["retry-after"]),
-            remaining: firstHeader(response.headers["x-ratelimit-remaining"]),
-            reset: firstHeader(response.headers["x-ratelimit-reset"]),
-          },
+          rateLimit: rateLimitHeadersOf((name) => firstHeader(response.headers[name])),
           body: decodedBody(response, encoding),
         });
       },
@@ -139,11 +123,6 @@ function exchange(
 }
 
 export const nodeNetwork: Network = {
-  reachable: async (url, signal) => {
-    const addresses = await lookedUp(new URL(url).hostname.replaceAll(/^\[|\]$/gu, ""), signal);
-
-    return addresses === null || addresses.some(({ address }) => isGlobalAddress(address));
-  },
   get: (url, signal, headers) => exchange("GET", url, signal, headers),
   post: async (url, body, signal, headers) => {
     assertPublicHost(url);
@@ -174,7 +153,7 @@ export const nodeRedditSession: RedditSession = {
       status: response.status,
       location: response.headers.get("location"),
       contentType: response.headers.get("content-type"),
-      rateLimit: redditRateLimitOf((name) => response.headers.get(name)),
+      rateLimit: rateLimitHeadersOf((name) => response.headers.get(name)),
       body: boundedBody(response.body ?? []),
     };
   },

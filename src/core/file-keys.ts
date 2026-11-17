@@ -38,10 +38,10 @@ const TEMPORARY = new RegExp(
   "u",
 );
 
-const POST_TEXT = new RegExp(`^${ITEM_FILES_ROOT}[1-9][0-9]{0,18}/post-[0-9]+-[0-9]+\\.md$`, "u");
+const POST_TEXT = new RegExp(`^${ITEM_FILES_ROOT}${OWNER_ID}/post-[0-9]+-[0-9]+\\.md$`, "u");
 
 const IMAGE = new RegExp(
-  `^${ITEM_FILES_ROOT}[1-9][0-9]{0,18}/img-[0-9]+-[0-9]+-[0-9]+\\.(?:${Object.values(IMAGE_EXTENSIONS).join("|")})$`,
+  `^${ITEM_FILES_ROOT}${OWNER_ID}/img-[0-9]+-[0-9]+-[0-9]+\\.(?:${Object.values(IMAGE_EXTENSIONS).join("|")})$`,
   "u",
 );
 
@@ -125,7 +125,7 @@ function named(parsed: Readonly<StoreKey> | null): StoreKey | null {
   return parsed;
 }
 
-function storedKeyOf(key: string): StoreKey | null {
+export function parseStoredKey(key: string): StoreKey | null {
   const final = named(storeKeyOf(KEY, key));
 
   if (final !== null) return final;
@@ -159,36 +159,20 @@ export function parseFileKey(key: string): FileKey | null {
   return parsed?.root === "items" ? { itemId: parsed.ownerId, name: parsed.name } : null;
 }
 
-export function parseStoredKey(key: string): StoreKey | null {
-  return storedKeyOf(key);
+function refused(key: string): never {
+  throw new FileRefused(`${JSON.stringify(key)} is not a file key`);
 }
 
 export function requireStoredKey(key: string): StoreKey {
-  const parsed = storedKeyOf(key);
-
-  if (parsed === null) {
-    throw new FileRefused(`${JSON.stringify(key)} is not a file key`);
-  }
-
-  return parsed;
+  return parseStoredKey(key) ?? refused(key);
 }
 
 export function requireFileKey(key: string): StoreKey {
-  const parsed = named(storeKeyOf(KEY, key));
-
-  if (parsed === null) {
-    throw new FileRefused(`${JSON.stringify(key)} is not a file key`);
-  }
-
-  return parsed;
+  return named(storeKeyOf(KEY, key)) ?? refused(key);
 }
 
 export function fileRouteOf(key: string): string {
-  if (parseFileKey(key) === null) {
-    throw new FileRefused(`${JSON.stringify(key)} is not a file key`);
-  }
-
-  return FILE_ROUTE + key;
+  return parseFileKey(key) === null ? refused(key) : FILE_ROUTE + key;
 }
 
 export function keyOfFileRoute(path: string): string | null {

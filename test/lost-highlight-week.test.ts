@@ -187,8 +187,8 @@ describe("the weekly lost-Highlight check with more than 20 lost Highlights", ()
     exec(
       instance,
       `with recursive n(i) as (select 1 union all select i + 1 from n where i < 25)
-       insert into highlights (item_id, exact, prefix, suffix, hint, projection, created_at, status, start)
-       select (select max(id) from items), 'quote ' || i, '', '', 0, 1, i, case when i % 2 = 0 then 'gone' else 'ambiguous' end, null from n`,
+       insert into highlights (item_id, exact, prefix, suffix, hint, created_at, status, start)
+       select (select max(id) from items), 'quote ' || i, '', '', 0, i, case when i % 2 = 0 then 'gone' else 'ambiguous' end, null from n`,
     );
     await saveProvider(instance);
   });

@@ -18,7 +18,7 @@ import {
   requireListLimit,
   temporaryPrefix,
 } from "../../core/file-keys.ts";
-import type { FilePage, FileStore, StoredFile } from "../../core/ports.ts";
+import type { FilePage, FileStore } from "../../core/ports.ts";
 import { hasErrnoCode } from "./errno.ts";
 
 const CHUNK_BYTES = 65_536;
@@ -167,18 +167,6 @@ class FileFolder {
 
     return this.keysFrom(root, ownerIds, cursor, limit);
   }
-
-  async uploaded(key: string): Promise<StoredFile | null> {
-    try {
-      const stats = await lstat(this.path(key));
-
-      return stats.isFile() ? { key, uploadedAt: Math.floor(stats.mtimeMs) } : null;
-    } catch (error) {
-      if (isMissing(error)) return null;
-
-      throw error;
-    }
-  }
 }
 
 async function openLeaf(path: string): Promise<FileHandle | null> {
@@ -287,11 +275,7 @@ export function dataFileStore(dataDir: string): FileStore {
       const after = await folder.keysAfter(requireFilePrefix(prefix), cursor, size + 1);
       const page = after.slice(0, size);
 
-      const files = (await Promise.all(page.map((key) => folder.uploaded(key)))).filter(
-        (file) => file !== null,
-      );
-
-      return { files, cursor: after.length > size ? (page.at(-1) ?? null) : null };
+      return { keys: page, cursor: after.length > size ? (page.at(-1) ?? null) : null };
     },
   };
 }

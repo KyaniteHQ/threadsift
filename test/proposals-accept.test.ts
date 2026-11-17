@@ -10,7 +10,6 @@ import {
   count,
   mergeLines,
   propose,
-  seedVolume,
   tagId,
   tagNames,
   tagsOfDigest,
@@ -26,8 +25,12 @@ const PinSchema = z.object({
 
 const byNumber = (first: number, second: number): number => first - second;
 
+const CatalogVersionSchema = z.object({ version: z.number() });
+
 const catalogVersion = (instance: Instance): number =>
-  count(instance, "select coalesce(max(version), 0) as n from catalog_version");
+  CatalogVersionSchema.parse(
+    rows(instance, CatalogVersionSchema, "select version from catalog_version where id = 1")[0],
+  ).version;
 
 const listed = async (instance: Instance, query: string) =>
   (await instance.read("GET", `/api/items${query}`, ItemReadResponseSchema)).items.map(
@@ -144,22 +147,6 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
         tagId(instance, "machine learning"),
       ),
       1,
-    );
-  });
-
-  it("links a stored Digest that names the merged-away Tag to the survivor in the older-Digest linking", async () => {
-    seedVolume(instance, { tags: ["ML", "ai"], items: 1, from: 1 });
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-
-    assert.deepEqual(tagNames(instance), ["machine learning", "ai"]);
-    assert.equal(tagsOfDigest(instance, 100001), JSON.stringify(["machine learning", "ai"]));
-    assert.equal(
-      count(
-        instance,
-        "select count(*) as n from item_tags where item_id = 100001 and tag_id in (select id from tags where key in ('machine learning', 'ai'))",
-      ),
-      2,
     );
   });
 

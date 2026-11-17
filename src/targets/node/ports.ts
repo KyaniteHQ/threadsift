@@ -63,9 +63,7 @@ export async function startNode(
     stop: async () => {
       const drained = loop.stop();
 
-      for (const runner of operator.cli) runner.stop();
-
-      operator.xFetcher?.stop();
+      operator.stop();
 
       await drained;
       pages.stop();

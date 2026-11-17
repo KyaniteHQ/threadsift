@@ -1,12 +1,13 @@
 import { memo, useId } from "react";
 
 import type { Entry } from "../../src/core/highlights-page-contract.ts";
+import { NOT_FOUND } from "../../src/core/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { type Place, placePath } from "./place.ts";
 import { QuoteText } from "./QuoteText.tsx";
-import { NOT_FOUND } from "./reader-text.ts";
 import { useNavigateLink } from "./routing.ts";
-import { ageLabel, savedLabel } from "./saved-label.ts";
+import { ageLabel } from "./saved-label.ts";
+import { SavedTime } from "./SavedTime.tsx";
 import { SOURCE_LABELS } from "./text.ts";
 
 function placeOf(entry: Readonly<Entry>): Place {
@@ -54,9 +55,7 @@ export const HighlightEntry = memo(function HighlightEntry({
       <article className="hp-it" data-kind={entry.kind}>
         <p className="it-meta">
           <span className="src">{SOURCE_LABELS[item.source]}</span>
-          <time className="it-date" dateTime={new Date(item.savedAt).toISOString()}>
-            {savedLabel(item.savedAt, now)}
-          </time>
+          <SavedTime savedAt={item.savedAt} now={now} />
         </p>
         <h2 className="hp-title">
           <a

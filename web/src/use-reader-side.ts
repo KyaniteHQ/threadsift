@@ -2,8 +2,8 @@ import { type RefObject, useCallback } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
 import type { Attention } from "./ItemRow.tsx";
-import type { Paging, Writes } from "./library.ts";
-import { type ListState, knownItems } from "./list-state.ts";
+import type { Writes } from "./library.ts";
+import type { ListState } from "./list-state.ts";
 import type { Route } from "./routing.ts";
 import { useAutoOpen } from "./use-auto-open.ts";
 import { useLibraryKeys } from "./use-library-keys.ts";
@@ -31,7 +31,7 @@ function useKeyActions({
     arrows,
     step: reader.step,
     toggle: (id: number) => {
-      const item = knownItems(list).find((each: Readonly<Item>) => each.id === id);
+      const item = list.known.find((each: Readonly<Item>) => each.id === id);
 
       if (item !== undefined) reader.toggleRead(item);
     },
@@ -73,7 +73,7 @@ export function useReaderSide({
   list: ListState;
   look: Look;
   route: Route;
-  writes: Writes & Paging;
+  writes: Writes;
   attend: (attention: Attention) => void;
   root: RefObject<HTMLDivElement | null>;
   focusSearch: () => void;
@@ -90,14 +90,6 @@ export function useReaderSide({
     else attend({ id: openId, focus: true });
   }, [attend, openId, root]);
 
-  const openFromCard = useCallback(
-    (id: number) => {
-      attend({ id, focus: look.reader === "pane" });
-      reader.open(id);
-    },
-    [attend, look.reader, reader],
-  );
-
   useKeyActions({
     list,
     openId,
@@ -107,5 +99,5 @@ export function useReaderSide({
     focusSearch,
   });
 
-  return { reader, leaveSearch, openFromCard };
+  return { reader, leaveSearch, openFromCard: reader.open };
 }

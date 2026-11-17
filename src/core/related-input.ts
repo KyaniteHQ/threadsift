@@ -1,8 +1,8 @@
 import { type SQL, type SQLWrapper, eq, inArray, sql } from "drizzle-orm";
 
 import { parseStoredDigest } from "./ai-contract.ts";
-import { utf8Length } from "./digest-prompt.ts";
 import { storedTags, unchangedDigests } from "./digest-state.ts";
+import { utf8Length } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
 import type { Database } from "./ports.ts";
 import { candidateIds, relatedTerms } from "./related-candidates.ts";
@@ -52,7 +52,7 @@ export type PickRead =
   | { readonly kind: "absent" }
   | {
       readonly kind: "unreadable";
-      readonly source: Readonly<Pick<PickItem, "id" | "digest" | "storedTags">>;
+      readonly source: Version;
     }
   | {
       readonly kind: "read";

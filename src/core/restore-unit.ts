@@ -9,7 +9,7 @@ import type { RestoreFailure } from "./restore-contract.ts";
 import { restoreById } from "./restore-state.ts";
 import { type RestoreRow, jobs, restoreRuns } from "./schema.ts";
 
-export function partKeysOf(run: Readonly<Pick<RestoreRow, "id" | "parts">>): readonly string[] {
+function partKeysOf(run: Readonly<Pick<RestoreRow, "id" | "parts">>): readonly string[] {
   return Array.from({ length: run.parts }, (_, at) => restorePartKey(run.id, at + 1));
 }
 
@@ -80,18 +80,22 @@ export function steppedUnit(
   };
 }
 
-export function failedUnit(
+type Ending =
+  | {
+      readonly state: "done" | "cancelled";
+      readonly finishedAt: number;
+      readonly updatedAt: number;
+    }
+  | { readonly state: "failed"; readonly failure: RestoreFailure; readonly updatedAt: number };
+
+export function endedUnit(
   db: Database,
   run: Readonly<RestoreRow>,
-  failure: RestoreFailure,
+  set: Ending,
+  before: JobWrites = [],
 ): JobOutcome {
   return {
-    writes: [
-      db
-        .update(restoreRuns)
-        .set({ state: "failed", failure, updatedAt: Date.now() })
-        .where(eq(restoreRuns.id, run.id)),
-    ],
+    writes: [...before, db.update(restoreRuns).set(set).where(eq(restoreRuns.id, run.id))],
     precondition: precondition(db, run),
     files: { written: [], superseded: partKeysOf(run) },
   };

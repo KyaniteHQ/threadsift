@@ -2,7 +2,6 @@ import { useCallback } from "react";
 
 import type { Proposal } from "../../src/core/proposal-contract.ts";
 import { ACCEPT_CLASS, REJECT_CLASS, rowDescription } from "./proposal-dom.ts";
-import type { RowState } from "./proposal-row-state.ts";
 import type { Busy } from "./proposals-api.ts";
 import {
   type AcceptableProposal,
@@ -16,6 +15,7 @@ import {
   rejectRetryLabel,
 } from "./proposals-text.ts";
 import { RETRY_LABEL } from "./text.ts";
+import type { RowState } from "./use-proposal-presses.ts";
 
 export interface RowControls {
   readonly proposal: Proposal;
@@ -38,7 +38,6 @@ function Note({ children, alert }: Readonly<{ children: string; alert: boolean }
 
 const BUSY_NOTES = {
   "merge-busy": PROPOSAL_WORDS.mergeBusy,
-  "topic-busy": PROPOSAL_WORDS.topicBusy,
   "no-provider": PROPOSAL_WORDS.noProvider,
 } as const satisfies Record<Busy, string>;
 
@@ -70,7 +69,6 @@ function Notes({
     case "busy":
       return <Note alert={false}>{BUSY_NOTES[row.busy]}</Note>;
     case "pressing":
-      return row.busy === null ? null : <Note alert={false}>{BUSY_NOTES[row.busy]}</Note>;
     case "idle":
       return null;
     default:

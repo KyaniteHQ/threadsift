@@ -6,8 +6,6 @@ import { z } from "zod";
 
 import { FOOTNOTE_LABEL_ID, pictureText } from "./reader-url.ts";
 
-export const PROJECTION_VERSION = 2;
-
 interface HastProperties {
   readonly alt?: unknown;
   readonly src?: unknown;

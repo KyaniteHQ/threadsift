@@ -21,7 +21,7 @@ import {
   digestPrompt,
 } from "./digest-prompt.ts";
 import { report } from "./failure-log.ts";
-import { type JobCurrency, type JobOutcome } from "./job-outcome.ts";
+import type { JobCurrency, JobOutcome } from "./job-outcome.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { providerSet } from "./provider-saved.ts";

@@ -9,6 +9,7 @@ import {
   THEME,
 } from "../../design/system/settings-table.ts";
 import { isSetByStyle } from "../../design/system/settings.ts";
+import { RadioChoice } from "./RadioChoice.tsx";
 import { OPEN_AS_NARROW_NOTE, STYLE_NOTE } from "./text.ts";
 
 function appliesTo(row: SettingRow, settings: Readonly<Settings>): boolean {
@@ -22,7 +23,7 @@ function shownGroups(settings: Readonly<Settings>) {
   })).filter(({ rows }) => rows.length > 0);
 }
 
-export type Choose = (key: SettingKey, id: string) => void;
+type Choose = (key: SettingKey, id: string) => void;
 
 type ControlProps = Readonly<{
   row: SettingRow;
@@ -90,8 +91,8 @@ function inputIdOf({ name, option }: ChoiceProps): string {
   return `${name}-${option.id}`;
 }
 
-function ChoiceInput(props: ChoiceProps & Readonly<{ label: string | undefined }>) {
-  const { row, option, name, checked, disabled, choose, label } = props;
+function ChoiceInput(props: ChoiceProps) {
+  const { row, option, name, checked, disabled, choose } = props;
 
   const pick = useCallback(() => {
     choose(row.key, option.id);
@@ -107,7 +108,7 @@ function ChoiceInput(props: ChoiceProps & Readonly<{ label: string | undefined }
       value={option.id}
       checked={checked}
       disabled={disabled}
-      aria-label={label}
+      aria-label={option.label}
       onChange={pick}
     />
   );
@@ -120,17 +121,33 @@ function Swatch(props: ChoiceProps) {
       htmlFor={inputIdOf(props)}
       {...{ [props.row.attribute]: props.option.id }}
     >
-      <ChoiceInput {...props} label={props.option.label} />
+      <ChoiceInput {...props} />
     </label>
   );
 }
 
 function Segment(props: ChoiceProps) {
+  const { choose, row } = props;
+
+  const pick = useCallback(
+    (id: string) => {
+      choose(row.key, id);
+    },
+    [choose, row.key],
+  );
+
   return (
-    <label className="st-b" htmlFor={inputIdOf(props)}>
-      <ChoiceInput {...props} label={undefined} />
-      {props.option.label}
-    </label>
+    <RadioChoice
+      id={inputIdOf(props)}
+      name={props.name}
+      value={props.option.id}
+      label={props.option.label}
+      checked={props.checked}
+      disabled={props.disabled}
+      inputValue={props.option.id}
+      focusKey={`${props.row.key}:${props.option.id}`}
+      pick={pick}
+    />
   );
 }
 

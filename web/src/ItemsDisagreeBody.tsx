@@ -2,10 +2,10 @@ import { useCallback } from "react";
 
 import { itemPath } from "../../src/core/item-path.ts";
 import type { ItemsDisagreeProposal } from "../../src/core/proposal-contract.ts";
-import { topicPath } from "../../src/core/topic-path.ts";
 import { reasonId, sidesId } from "./proposal-dom.ts";
 import { ITEMS_DISAGREE_EFFECT, PROPOSAL_WORDS, sideNamedWords } from "./proposals-text.ts";
 import { useInternalLink } from "./routing.ts";
+import { TopicEffect } from "./TopicEffect.tsx";
 
 type Side = ItemsDisagreeProposal["first"];
 
@@ -45,21 +45,9 @@ export function ItemsDisagreeBody({
 }>) {
   const { topic, first, second, reason } = proposal;
 
-  const go = useInternalLink(
-    useCallback(() => {
-      openTopic(topic.key);
-    }, [openTopic, topic.key]),
-  );
-
   return (
     <>
-      <h3 className="rl-title pr-effect">
-        {ITEMS_DISAGREE_EFFECT.before}
-        <a className="pr-place" href={topicPath(topic.key)} onClick={go}>
-          <bdi dir="auto">{topic.name}</bdi>
-        </a>
-        {ITEMS_DISAGREE_EFFECT.after}
-      </h3>
+      <TopicEffect effect={ITEMS_DISAGREE_EFFECT} topic={topic} openTopic={openTopic} />
       <ul role="list" className="pr-sides" id={sidesId(proposal.id)}>
         <SideOf side={first} other={second} openItem={openItem} />
         <SideOf side={second} other={first} openItem={openItem} />

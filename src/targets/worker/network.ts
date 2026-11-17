@@ -1,4 +1,9 @@
-import { type Network, type NetworkResponse, REQUEST_HEADERS } from "../../core/ports.ts";
+import {
+  type Network,
+  type NetworkResponse,
+  REQUEST_HEADERS,
+  rateLimitHeadersOf,
+} from "../../core/ports.ts";
 import { assertPublicHost } from "../../core/public-host.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
@@ -40,17 +45,12 @@ function networkResponse(response: Response): NetworkResponse {
     status: response.status,
     location: response.headers.get("location"),
     contentType: response.headers.get("content-type"),
-    rateLimit: {
-      retryAfter: response.headers.get("retry-after"),
-      remaining: response.headers.get("x-ratelimit-remaining"),
-      reset: response.headers.get("x-ratelimit-reset"),
-    },
+    rateLimit: rateLimitHeadersOf((name) => response.headers.get(name)),
     body: chunksOf(response.bodyUsed ? null : response.body),
   };
 }
 
 export const workerNetwork: Network = {
-  reachable: () => Promise.resolve(true),
   get: async (url, signal, headers) =>
     networkResponse(
       await workerFetch(url, { signal, headers: { ...REQUEST_HEADERS, ...headers } }),

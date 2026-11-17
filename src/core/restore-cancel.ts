@@ -1,10 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { guardedResults } from "./guards.ts";
+import { removeUnder } from "./file-cleanup.ts";
+import { restoreFilesPrefix } from "./file-keys.ts";
+import { guardedResults, guardedWrite } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { START_UNDO } from "./restore-contract.ts";
-import { removeParts } from "./restore-parts.ts";
 import {
   NEWEST_RESTORE,
   RESUMABLE_RESTORE,
@@ -41,7 +42,7 @@ async function cancelledUpload({ db, files }: Pick<JobPorts, "db" | "files">, id
     .where(and(eq(restoreRuns.id, id), eq(restoreRuns.state, "uploading")))
     .returning({ id: restoreRuns.id });
 
-  if (ended.length > 0) await removeParts(files, id);
+  if (ended.length > 0) await removeUnder(files, restoreFilesPrefix(id));
 
   return ended.length > 0;
 }
@@ -99,7 +100,7 @@ export async function cancelRestore(ports: JobPorts, id: number): Promise<Cancel
     case "done":
       return { kind: "finished" };
     case "cancelled":
-      await removeParts(ports.files, id);
+      await removeUnder(ports.files, restoreFilesPrefix(id));
 
       return { kind: "cancelled" };
     case "uploading":
@@ -126,21 +127,21 @@ export async function resumeRestore(ports: JobPorts, id: number): Promise<Resume
 
   const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and ${RESUMABLE_RESTORE}`;
 
-  const written = await guardedResults(
+  const written = await guardedWrite(
     db,
     sql`exists (select 1 from ${restoreRuns} where ${waiting})`,
+    openingRestoreJob(db, waiting),
     [
       db
         .update(restoreRuns)
         .set({ state: "running", failure: null, updatedAt: Date.now() })
         .where(waiting),
-      openingRestoreJob(db, sql`${restoreRuns.id} = ${id} and ${RUNNING_AGAIN}`),
     ],
   );
 
   if (written === null) return { kind: "not-resumable" };
 
-  await enqueueRows(ports, OpenedJobsSchema.parse(written[1]));
+  await enqueueRows(ports, written);
 
   return { kind: "resumed" };
 }

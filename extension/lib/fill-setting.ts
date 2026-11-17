@@ -1,7 +1,6 @@
 import { browser } from "wxt/browser";
 
-import { REDDIT_HOSTS } from "./config.ts";
-import { logFailure } from "./log.ts";
+import { REDDIT_HOSTS, requestAccess } from "./config.ts";
 import { readStored, requestChange } from "./settings.ts";
 
 export type FillState =
@@ -20,19 +19,12 @@ export function loadFill(): Promise<FillState> {
   return readFill("idle");
 }
 
-async function requestAccess(): Promise<boolean | null> {
-  try {
-    return await browser.permissions.request({ origins: REDDIT_HOSTS });
-  } catch (cause) {
-    logFailure("fill-request-failed", cause);
-
-    return null;
-  }
-}
-
 export async function turnFill(turnOn: boolean): Promise<FillState> {
   if (turnOn) {
-    const granted = await requestAccess();
+    const granted = await requestAccess(
+      () => browser.permissions.request({ origins: REDDIT_HOSTS }),
+      "fill-request-failed",
+    );
 
     if (granted === null) return readFill("failed");
 

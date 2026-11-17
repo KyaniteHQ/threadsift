@@ -1,6 +1,6 @@
 import { DailyBudgetSchema } from "../../src/core/kinds.ts";
 
-export type BudgetInput =
+type BudgetInput =
   | { readonly kind: "none" }
   | { readonly kind: "limit"; readonly limit: number }
   | { readonly kind: "invalid" };
@@ -29,7 +29,7 @@ export type BudgetFlow =
   | { readonly kind: "saving"; readonly id: number; readonly request: number }
   | { readonly kind: "failed"; readonly id: number };
 
-export type BudgetEvent =
+type BudgetEvent =
   | { readonly kind: "edit"; readonly id: number }
   | { readonly kind: "cancel"; readonly id: number }
   | { readonly kind: "begin"; readonly id: number; readonly request: number }

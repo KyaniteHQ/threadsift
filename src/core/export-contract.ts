@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { WholeCount } from "./whole-count.ts";
+
 export const EXPORT_FORMAT = 1;
 
 export const EXPORT_SLICE_DEADLINE_MS = 600_000;
@@ -21,8 +23,6 @@ export const EXPORT_CLEANUP_BATCH = 5;
 export const EXPORT_FAILURES = ["gave-up", "cancelled", "replaced", "list-changed"] as const;
 
 export type ExportFailure = (typeof EXPORT_FAILURES)[number];
-
-const WholeCount = z.number().int().nonnegative();
 
 const PartialItemSchema = z
   .object({ id: z.number().int().positive(), entries: WholeCount })
@@ -90,7 +90,7 @@ export type ExportStatus = z.infer<typeof ExportStatusSchema>;
 
 export const StartedExportSchema = z.object({ id: z.number().int().positive() });
 
-export function exportDay(createdAt: number): string {
+function exportDay(createdAt: number): string {
   return new Date(createdAt).toISOString().slice(0, 10);
 }
 

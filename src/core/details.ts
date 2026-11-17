@@ -67,6 +67,8 @@ const NOT_AN_ARTICLE: Content = { kind: "link" };
 
 const EMPTY_PAGE: Content = { kind: "empty-page" };
 
+const NO_BYLINE = { author: null, community: null } as const;
+
 function isArticleAddress(url: string): boolean {
   return !isVideoLink(url) && !isGitHubLink(url);
 }
@@ -75,10 +77,8 @@ function isArticleCandidate(page: Readonly<Page>): boolean {
   return page.html && !page.cut && isArticleAddress(page.url);
 }
 
-function titled(title: string, found: Readonly<Pick<Found, "author" | "content">>): Concluded {
-  return title === ""
-    ? { status: "no-title" }
-    : { status: "ok", found: { title, community: null, ...found } };
+function titled(title: string, found: Readonly<Omit<Found, "title">>): Concluded {
+  return title === "" ? { status: "no-title" } : { status: "ok", found: { title, ...found } };
 }
 
 function articleDetails(
@@ -88,8 +88,12 @@ function articleDetails(
   return titled(
     title,
     words < MIN_ARTICLE_WORDS
-      ? { author: null, content: NOT_AN_ARTICLE }
-      : { author, content: { kind: "article", postText, postedAt, videos, images, url } },
+      ? { ...NO_BYLINE, content: NOT_AN_ARTICLE }
+      : {
+          author,
+          community: null,
+          content: { kind: "article", postText, postedAt, videos, images, url },
+        },
   );
 }
 
@@ -97,20 +101,14 @@ function redditPageDetails(
   { title, author, words, postText, postedAt, videos, images }: Readonly<ArticleReading>,
   url: string,
 ): Concluded {
-  if (title === "") return { status: "no-title" };
-
-  return {
-    status: "ok",
-    found: {
-      title,
-      author,
-      community: redditRefOf(url)?.community ?? null,
-      content:
-        words < MIN_ARTICLE_WORDS
-          ? EMPTY_PAGE
-          : { kind: "page", postText, postedAt, videos, images, url },
-    },
-  };
+  return titled(title, {
+    author,
+    community: redditRefOf(url)?.community ?? null,
+    content:
+      words < MIN_ARTICLE_WORDS
+        ? EMPTY_PAGE
+        : { kind: "page", postText, postedAt, videos, images, url },
+  });
 }
 
 export async function detailsOfSuppliedPage(
@@ -126,7 +124,10 @@ export async function detailsOfSuppliedPage(
   }
 
   if (!isArticleAddress(url)) {
-    return titled(collapsed(page.title), { author: null, content: NOT_AN_ARTICLE });
+    return titled(collapsed(page.title), {
+      ...NO_BYLINE,
+      content: NOT_AN_ARTICLE,
+    });
   }
 
   return articleDetails(await pages.page(page, deadline), url);
@@ -139,12 +140,15 @@ export async function detailsOfPage(
   deadline: AbortSignal,
 ): Promise<Concluded> {
   if (link.kind !== "link") {
-    return titled(await pages.title(page.text, deadline), { author: null, content: null });
+    return titled(await pages.title(page.text, deadline), {
+      ...NO_BYLINE,
+      content: null,
+    });
   }
 
   if (!isArticleCandidate(page)) {
     return titled(await pages.title(page.text, deadline), {
-      author: null,
+      ...NO_BYLINE,
       content: NOT_AN_ARTICLE,
     });
   }

@@ -1,10 +1,9 @@
 import { type RefObject, useCallback } from "react";
 
-import { type Filters, isEmptyResult, isFiltered, isSearching } from "./filters.ts";
+import { type Filters, isEmptyResult } from "./filters.ts";
 import { HighlightEntry } from "./HighlightEntry.tsx";
-import { HIGHLIGHTS_PAGE, pageHeadLabel } from "./highlights-page-text.ts";
-import { matchedCount } from "./list-counts.ts";
-import { EmptyState, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
+import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
+import { EmptyState, ListHead, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { CLEAR_ALL, RETRY_LABEL } from "./text.ts";
 import { useFocusNewEntries } from "./use-highlights-focus.ts";
@@ -12,25 +11,6 @@ import { type PageState, type Ready, canLoadMore } from "./use-highlights-page.t
 
 function Loading() {
   return <Skeleton label={HIGHLIGHTS_PAGE.loading} row="hp-it" title="hp-title" />;
-}
-
-export function highlightsHeadText(state: Readonly<Ready>, filters: Readonly<Filters>): string {
-  if (state.counts.total === 0) return "";
-  const shown = isFiltered(filters) ? matchedCount(state.counts, filters) : null;
-  const text = isSearching(filters) ? filters.q.trim() : "";
-
-  return pageHeadLabel(state.counts.total, shown, text);
-}
-
-function Head({ label }: Readonly<{ label: string }>) {
-  return (
-    <section className="list-head">
-      <p id={RESULTS_ID} className="results">
-        {label}
-      </p>
-      <p className="label">{HIGHLIGHTS_PAGE.sort}</p>
-    </section>
-  );
 }
 
 function More({
@@ -77,6 +57,7 @@ function EntryList({
 
 function Listed({
   state,
+  head,
   filters,
   now,
   navigate,
@@ -85,6 +66,7 @@ function Listed({
   list,
 }: Readonly<{
   state: Ready;
+  head: string;
   filters: Filters;
   now: number;
   navigate: (to: string) => void;
@@ -101,7 +83,7 @@ function Listed({
 
   return (
     <>
-      <Head label={highlightsHeadText(state, filters)} />
+      <ListHead label={head} sort={HIGHLIGHTS_PAGE.sort} />
       {isEmptyResult(length, state.next) ? (
         <Notice
           text={HIGHLIGHTS_PAGE.noResults}
@@ -123,6 +105,7 @@ export function HighlightsBody({
   ...listed
 }: Readonly<{
   state: PageState;
+  head: string;
   filters: Filters;
   now: number;
   navigate: (to: string) => void;

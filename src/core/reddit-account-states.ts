@@ -9,8 +9,9 @@ import {
   releaseWaiting,
   releaseWaitingWhen,
 } from "./reddit-account-queue.ts";
-import { type AccountRow, redditAccount } from "./reddit-account-tables.ts";
-import { millisecondsOf } from "./reddit-window.ts";
+import { ACCOUNT_ROW, type AccountRow, redditAccount } from "./reddit-account-tables.ts";
+import type { RedditAnswer } from "./reddit-session.ts";
+import { RATE_LIMITED, leftOf, millisecondsOf } from "./reddit-window.ts";
 
 export const REFUSALS_TO_EXPIRE = 3;
 
@@ -19,8 +20,6 @@ const NO_THREADS = "[]";
 const MAX_LIMIT_MS = 3_600_000;
 
 const LIMIT_FLOOR_MS = 60_000;
-
-const ACCOUNT_ROW = 1;
 
 export function limitedUntilOf(
   { reset, retryAfter }: Readonly<{ reset: string | null; retryAfter: string | null }>,
@@ -56,6 +55,15 @@ export interface WindowRecord {
   readonly reset: string | null;
   readonly retryAfter: string | null;
   readonly limited: boolean;
+}
+
+export function windowRecordOf(answer: Readonly<RedditAnswer>): WindowRecord {
+  return {
+    left: leftOf(answer.remaining),
+    reset: answer.reset,
+    retryAfter: answer.retryAfter,
+    limited: answer.status === RATE_LIMITED,
+  };
 }
 
 export async function recordWindow(
@@ -181,7 +189,7 @@ export async function countRefusal(
   { thread, startedAt }: Readonly<{ thread: string; startedAt: number }>,
   now: number,
 ): Promise<"counted" | "ignored" | "expired"> {
-  const current = sql`(case when json_array_length(${redditAccount.refusedThreads}) = ${redditAccount.refusedCount} then ${redditAccount.refusedThreads} else ${NO_THREADS} end)`;
+  const current = redditAccount.refusedThreads;
 
   const known = sql`exists (select 1 from json_each(${current}) where value = ${thread})`;
 

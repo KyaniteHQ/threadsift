@@ -2,7 +2,6 @@ import { AI_DEADLINE_MS, type ModelAi } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
 import { lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobOutcome, JobPorts, ModelHandler } from "./job-outcome.ts";
-import { leaseReleasedAfterFailure, releaseTopicLease } from "./topic-lease.ts";
 import { type OverviewPrepared, preparedOverview } from "./topic-overview-prepare.ts";
 import { overviewGaveUp, overviewRefused } from "./topic-overview-run.ts";
 import { OVERVIEW_OUTPUT_TOKENS, topicOverviewTask } from "./topic-overview-task.ts";
@@ -17,7 +16,7 @@ async function reviseOverview(
 ): Promise<JobOutcome> {
   const { db } = ports;
 
-  const { lease, read, prompt } = asked;
+  const { topicId, read, prompt } = asked;
 
   const result = await runAiTask(
     ports,
@@ -33,20 +32,24 @@ async function reviseOverview(
   );
 
   if (result.kind === "claim-lost") {
-    return lostOutcome(db, { cleanup: [releaseTopicLease(db, lease)] });
+    return lostOutcome(db);
   }
 
   if (result.kind !== "done") {
     return refusalOutcome(db, job, {
       result,
-      current: currentInputs(lease, read, prompt.included),
+      current: currentInputs(topicId, read, prompt.included),
       label: "Overview",
-      writes: [overviewRefused(db, lease, result.reason)],
-      cleanup: [releaseTopicLease(db, lease)],
+      writes: [overviewRefused(db, topicId, result.reason)],
     });
   }
 
-  return revisedOutcome(db, lease, { read, prompt, taskId: result.taskId, result: result.result });
+  return revisedOutcome(db, topicId, {
+    read,
+    prompt,
+    taskId: result.taskId,
+    result: result.result,
+  });
 }
 
 async function attemptOverview(
@@ -58,13 +61,7 @@ async function attemptOverview(
 
   if (prepared.kind === "settled") return prepared.outcome;
 
-  try {
-    return await reviseOverview(ports, job, { ...prepared, ai });
-  } catch (error) {
-    await leaseReleasedAfterFailure(ports.db, prepared.lease);
-
-    throw error;
-  }
+  return reviseOverview(ports, job, { ...prepared, ai });
 }
 
 export const topicOverviewHandler: ModelHandler = {

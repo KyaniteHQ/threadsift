@@ -1,13 +1,13 @@
 import { redditJsonOfArchive } from "./archive-adapter.ts";
 import { type FetchPolicy, type GuardOutcome, guardedFetch } from "./fetch-guard.ts";
-import { guardHolds } from "./guards.ts";
 import { ITEM_REQUEST_BYTES } from "./limits.ts";
 import type { RedditRef } from "./links.ts";
 import { pause } from "./pause.ts";
 import type { Network, Ports } from "./ports.ts";
 import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
 import { archiveFillIsOn } from "./reddit-settings.ts";
-import { noThreadFor } from "./reddit-thread.ts";
+import { holdsNoThread } from "./reddit-thread.ts";
+import { RATE_LIMITED } from "./reddit-window.ts";
 
 export interface ArchivedThread {
   readonly thread: ParsedThread;
@@ -17,8 +17,6 @@ export interface ArchivedThread {
 const ARCHIVE_ORIGIN = "https://arctic-shift.photon-reddit.com";
 
 const MAX_RESET_WAIT_MS = 10_000;
-
-const TOO_MANY_REQUESTS = 429;
 
 const WHOLE_SECONDS = /^\d+$/u;
 
@@ -38,7 +36,7 @@ function resetWaitOf(outcome: Readonly<GuardOutcome>): number | null {
   if (
     outcome.kind !== "failed" ||
     outcome.reason !== "status" ||
-    outcome.httpStatus !== TOO_MANY_REQUESTS ||
+    outcome.httpStatus !== RATE_LIMITED ||
     outcome.reset === null ||
     !WHOLE_SECONDS.test(outcome.reset.trim())
   ) {
@@ -99,7 +97,7 @@ export async function archivedThread(
   ref: Readonly<RedditRef>,
   deadline: AbortSignal,
 ): Promise<ArchivedThread | null> {
-  if (!(await archiveFillIsOn(ports)) || !(await guardHolds(ports.db, noThreadFor(itemId)))) {
+  if (!(await archiveFillIsOn(ports)) || !(await holdsNoThread(ports.db, itemId))) {
     return null;
   }
 

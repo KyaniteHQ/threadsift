@@ -13,14 +13,13 @@ import {
   timedOutTask,
 } from "./bot-task-states.ts";
 import { newCallbackCredential } from "./callback-credential.ts";
-import { cleaningOnFailure, lostOutcome } from "./guarded-outcome.ts";
+import { lostOutcome } from "./guarded-outcome.ts";
 import type {
   ClaimedJob,
   DeferredOutcome,
   JobHandler,
   JobOutcome,
   JobPorts,
-  JobWrites,
   ModelHandler,
 } from "./job-outcome.ts";
 import { holding } from "./job-rows.ts";
@@ -33,13 +32,13 @@ type Waiting = Readonly<Pick<BotTaskRow, "id" | "deadline">>;
 
 type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "inputs" | "context" | "deadline">>;
 
-function waiting(task: Waiting, writes: JobWrites = []): DeferredOutcome {
+function waiting(task: Waiting): DeferredOutcome {
   return {
     deferredUntil: task.deadline,
     wait: "grok-bot",
     countsAttempt: false,
     unlessOpen: task.id,
-    writes,
+    writes: [],
   };
 }
 
@@ -50,7 +49,6 @@ async function sentOutcome(
     job: Readonly<ClaimedJob>;
     task: SentTask;
     token: string;
-    release?: JobWrites;
   }>,
 ): Promise<JobOutcome> {
   const { kind, job, task, token } = context;
@@ -58,7 +56,7 @@ async function sentOutcome(
 
   if (sent.kind === "failed") throw new Error(`The Grok Bot send failed: ${sent.reason}`);
 
-  return waiting(context.task, context.release);
+  return waiting(context.task);
 }
 
 async function startedOutcome(
@@ -68,12 +66,10 @@ async function startedOutcome(
     kind,
     start,
     started: logStarted,
-    release,
   }: Readonly<{
     kind: SentTaskKind;
     start: BotTaskStart;
     started: ((taskId: number) => void) | undefined;
-    release: JobWrites;
   }>,
 ): Promise<JobOutcome> {
   const started = await startBotTask(ports, ownerOf(job), start);
@@ -87,7 +83,6 @@ async function startedOutcome(
         job,
         task: started.task,
         token: started.token,
-        release,
       });
     case "full":
     case "lease-lost":
@@ -95,10 +90,10 @@ async function startedOutcome(
         deferredUntil: Date.now() + FULL_CAP_DEFER_MS,
         wait: "grok-bot",
         countsAttempt: false,
-        writes: release,
+        writes: [],
       };
     case "claim-lost":
-      return lostOutcome(ports.db, { cleanup: release });
+      return lostOutcome(ports.db);
     default: {
       const exhaustive: never = started;
 
@@ -116,23 +111,18 @@ async function startStep(
 
   if (prepared.kind === "settled") return prepared.outcome;
 
-  const release = kind.release(ports.db, job);
-
-  return cleaningOnFailure(ports.db, { job, cleanup: release }, () =>
-    startedOutcome(ports, job, {
-      kind,
-      start: prepared.start,
-      started: prepared.started,
-      release,
-    }),
-  );
+  return startedOutcome(ports, job, {
+    kind,
+    start: prepared.start,
+    started: prepared.started,
+  });
 }
 
 async function resendStep(
   ports: JobPorts,
   context: Readonly<{ kind: SentTaskKind; job: Readonly<ClaimedJob>; task: SentTask }>,
 ): Promise<JobOutcome> {
-  const { kind, job, task } = context;
+  const { job, task } = context;
   const credential = newCallbackCredential(ports.crypto);
 
   const renewed = await renewedCredential(ports.db, job, {
@@ -140,13 +130,9 @@ async function resendStep(
     callbackHash: credential.hash,
   });
 
-  const release = kind.release(ports.db, job);
+  if (!renewed) return waiting(task);
 
-  if (!renewed) return waiting(task, release);
-
-  return cleaningOnFailure(ports.db, { job, cleanup: release }, () =>
-    sentOutcome(ports, { ...context, token: credential.value, release }),
-  );
+  return sentOutcome(ports, { ...context, token: credential.value });
 }
 
 async function expireStep(
@@ -182,20 +168,20 @@ export async function botStep(
   if (task === null || step === "start") return startStep(ports, job, kind);
 
   if (STALENESS_CHECKED_STEPS.has(step) && !(await kind.current(ports.db, task.context ?? ""))) {
-    return lostOutcome(ports.db, { taskId: task.id, cleanup: kind.release(ports.db, job) });
+    return lostOutcome(ports.db, { taskId: task.id });
   }
 
   switch (step) {
     case "resend":
       return resendStep(ports, { kind, job, task });
     case "wait":
-      return waiting(task, kind.release(ports.db, job));
+      return waiting(task);
     case "apply":
       return kind.apply(ports, job, task);
     case "expire":
       return expireStep(ports, job, { kind, task });
     case "charge":
-      await chargedReport(ports.db, job, { taskId: task.id, release: kind.release(ports.db, job) });
+      await chargedReport(ports.db, job, task.id);
 
       throw new Error("The Grok Bot reported an error for the task");
     default: {

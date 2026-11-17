@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, or } from "drizzle-orm";
 
 import {
   EXPORT_CLEANUP_BATCH,
@@ -6,28 +6,20 @@ import {
   EXPORT_SLICE_DEADLINE_MS,
 } from "./export-contract.ts";
 import { logFailure, report } from "./failure-log.ts";
+import { removeUnder } from "./file-cleanup.ts";
 import {
   EXPORT_FILES_ROOT,
   FILE_LIST_LIMIT,
   exportFilesPrefix,
   parseStoredKey,
 } from "./file-keys.ts";
+import { among } from "./guards.ts";
 import { CLAIM_MARGIN_MS, type JobPorts } from "./job-outcome.ts";
-import type { FileStore } from "./ports.ts";
 import { exportRuns } from "./schema.ts";
 
 const SETTLE_MS = EXPORT_SLICE_DEADLINE_MS + CLAIM_MARGIN_MS;
 
 type CleanupPorts = Pick<JobPorts, "db" | "files">;
-
-async function removeObjects(files: FileStore, exportId: number): Promise<void> {
-  const page = await files.list(exportFilesPrefix(exportId), null, FILE_LIST_LIMIT);
-
-  if (page.files.length === 0) return;
-
-  await files.delete(page.files.map(({ key }) => key));
-  await removeObjects(files, exportId);
-}
 
 async function expiredKeys(
   db: CleanupPorts["db"],
@@ -45,12 +37,7 @@ async function expiredKeys(
   const expired = await db
     .select({ id: exportRuns.id })
     .from(exportRuns)
-    .where(
-      and(
-        eq(exportRuns.state, "expired"),
-        inArray(exportRuns.id, sql`(select value from json_each(${JSON.stringify(owners)}))`),
-      ),
-    );
+    .where(and(eq(exportRuns.state, "expired"), among(exportRuns.id, owners)));
 
   const ids = new Set(expired.map(({ id }) => id));
 
@@ -63,10 +50,7 @@ async function removeStrays(
 ): Promise<number> {
   const page = await files.list(EXPORT_FILES_ROOT, cursor, FILE_LIST_LIMIT);
 
-  const stray = await expiredKeys(
-    db,
-    page.files.map(({ key }) => key),
-  );
+  const stray = await expiredKeys(db, page.keys);
 
   if (stray.length > 0) await files.delete(stray);
 
@@ -79,7 +63,7 @@ export async function removeExport({ db, files }: Readonly<CleanupPorts>, id: nu
     .set({ state: "removing", updatedAt: Date.now() })
     .where(and(eq(exportRuns.id, id), inArray(exportRuns.state, ["ready", "failed"])));
 
-  await removeObjects(files, id);
+  await removeUnder(files, exportFilesPrefix(id));
 
   await db
     .update(exportRuns)

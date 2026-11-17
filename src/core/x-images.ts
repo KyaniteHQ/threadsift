@@ -1,4 +1,4 @@
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import { IMAGE_URL_MAX_BYTES, ITEM_IMAGES_MAX } from "./limits.ts";
 
 const IMAGE_HOST = "pbs.twimg.com";

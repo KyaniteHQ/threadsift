@@ -43,12 +43,10 @@ const ItemBaseSchema = z.object({
   community: z.string().nullable(),
   fetchedAt: z.number().int().nullable(),
   fetch: z.enum(FETCH_RESULTS).nullable(),
-  xNote: z.enum(X_READ_NOTES).nullable().optional(),
+  xNote: z.enum(X_READ_NOTES).nullable(),
   readState: z.enum(READ_STATES),
   stars: z.number().int().nonnegative().nullable(),
-  commentsKept: z.number().int().nonnegative().nullable(),
-  commentsTotal: z.number().int().nonnegative().nullable(),
-  commentCount: CommentCountSchema.nullable().optional(),
+  commentCount: CommentCountSchema.nullable(),
   wait: WaitSchema.nullable(),
   image: ItemImageSchema.nullable(),
   fillable: z.boolean(),
@@ -95,7 +93,7 @@ const ItemDetailSchema = withStatus(
     digest: ReaderDigestSchema.nullable(),
     repository: RepositorySchema.nullable(),
     images: z.array(SizedImageSchema).readonly(),
-    link: HttpUrlSchema.nullable().optional(),
+    link: HttpUrlSchema.nullable(),
     comments: CommentsViewSchema,
     highlights: HighlightsViewSchema,
     note: NoteViewSchema,
@@ -200,7 +198,7 @@ export const ErrorResponseSchema = z.object({
 
 export const UnavailableResponseSchema = z.object({
   error: z.string(),
-  code: z.literal(RESTORING_CODE).optional(),
+  code: z.literal(RESTORING_CODE),
 });
 
 export const BudgetRefusalSchema = z.object({ error: z.string(), code: z.literal(BUDGET_SPENT) });

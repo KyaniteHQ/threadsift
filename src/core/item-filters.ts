@@ -1,6 +1,7 @@
 import { type SQL, and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { catalogKey } from "./catalog-key.ts";
+import { TAG_USES, TOPIC_USES } from "./catalog-uses.ts";
 import type { CountedName, FilterCounts } from "./filter-counts-contract.ts";
 import type { ReadState, Source } from "./kinds.ts";
 import { READ_STATES, SOURCES } from "./kinds.ts";
@@ -114,10 +115,7 @@ function tagCounts(db: Database, filters: Readonly<ItemFilters>, unit: Unit) {
 function catalogRows(db: Database, facet: "topic" | "tag") {
   const table = facet === "topic" ? topics : tags;
 
-  const uses =
-    facet === "topic"
-      ? sql`(select count(*) from ${items} where ${items.topicId} = ${topics.id})`
-      : sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${tags.id})`;
+  const uses = facet === "topic" ? TOPIC_USES : TAG_USES;
 
   return db
     .select({ id: table.id, key: table.key, name: table.name })

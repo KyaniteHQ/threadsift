@@ -6,18 +6,9 @@ import { newCallbackCredential } from "./callback-credential.ts";
 import { guardHolds } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { holding } from "./job-rows.ts";
-import type { JobKind } from "./kinds.ts";
 import { type JobRow, aiTasks } from "./schema.ts";
 
 export const GROK_BOT_IN_FLIGHT = 10;
-
-export const GROK_BOT_WEEKLY_RESERVE = 3;
-
-const WEEKLY_JOB_KINDS = new Set<JobKind>([
-  "proposals",
-  "topic_proposals",
-  "disagreement_proposals",
-]);
 
 const BOT_TASK_DEADLINE_MS = 60 * 60 * 1000;
 
@@ -35,7 +26,6 @@ interface BotOwner {
   readonly jobId: number | null;
   readonly itemId: number | null;
   readonly attempts: number;
-  readonly places: number;
 }
 
 export const ownerOf = (job: Readonly<JobRow>): BotOwner => ({
@@ -43,9 +33,6 @@ export const ownerOf = (job: Readonly<JobRow>): BotOwner => ({
   jobId: job.id,
   itemId: job.itemId,
   attempts: job.attempts + 1,
-  places: WEEKLY_JOB_KINDS.has(job.kind)
-    ? GROK_BOT_IN_FLIGHT
-    : GROK_BOT_IN_FLIGHT - GROK_BOT_WEEKLY_RESERVE,
 });
 
 export const VERIFY_OWNER: BotOwner = {
@@ -53,7 +40,6 @@ export const VERIFY_OWNER: BotOwner = {
   jobId: null,
   itemId: null,
   attempts: 1,
-  places: GROK_BOT_IN_FLIGHT - GROK_BOT_WEEKLY_RESERVE,
 };
 
 type BotStarted =
@@ -66,8 +52,8 @@ type BotStarted =
   | { readonly kind: "lease-lost" }
   | { readonly kind: "claim-lost" };
 
-function underCap(now: number, places: number) {
-  return sql`(select count(*) from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null and ${aiTasks.deadline} > ${now}) < ${places}`;
+function underCap(now: number) {
+  return sql`(select count(*) from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null and ${aiTasks.deadline} > ${now}) < ${GROK_BOT_IN_FLIGHT}`;
 }
 
 export async function startBotTask(
@@ -79,7 +65,7 @@ export async function startBotTask(
   const deadline = now + (start.deadlineMs ?? BOT_TASK_DEADLINE_MS);
   const credential = newCallbackCredential(crypto);
   const { claim } = owner;
-  const cap = underCap(now, owner.places);
+  const cap = underCap(now);
 
   const inserted = await insertTask(
     db,

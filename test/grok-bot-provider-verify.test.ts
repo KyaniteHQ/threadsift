@@ -6,6 +6,7 @@ import { botInstance, pastDeadline } from "./bot-task-fixtures.ts";
 import { answered, errorOf } from "./bot-task-http.ts";
 import { taskRow, taskRows } from "./bot-task-rows.ts";
 import {
+  GROK_BOT_IN_FLIGHT,
   chooseGrokBot,
   occupyBot,
   sentVerifyTask,
@@ -127,7 +128,7 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
   });
 
   it("through the route refuses with provider-busy and starts no task when the bot has no free place", async () => {
-    occupyBot(instance, 7);
+    occupyBot(instance, GROK_BOT_IN_FLIGHT);
 
     const known = taskRows(instance).length;
     const answer = await instance.send("POST", VERIFY_PATH);

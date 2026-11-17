@@ -1,4 +1,5 @@
 import { type SQL, and, eq, or, sql } from "drizzle-orm";
+import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
@@ -36,12 +37,39 @@ export function renamedTags(
   return [...kept.values()];
 }
 
-export function repointedPins(db: Database, loser: number, survivor: number) {
-  return db.update(pins).set({ intoTagId: survivor }).where(eq(pins.intoTagId, loser));
-}
+const MERGE_PINS = {
+  "tag-merge": { column: pins.intoTagId, into: (id: number) => ({ intoTagId: id }) },
+  "topic-merge": { column: pins.intoTopicId, into: (id: number) => ({ intoTopicId: id }) },
+} satisfies Readonly<
+  Record<
+    MergeKind,
+    {
+      readonly column: SQLiteColumn;
+      readonly into: (id: number) => Readonly<Record<string, number>>;
+    }
+  >
+>;
 
-export function repointedTopicPins(db: Database, loser: number, survivor: number) {
-  return db.update(pins).set({ intoTopicId: survivor }).where(eq(pins.intoTopicId, loser));
+export function mergePinWrites(
+  db: Database,
+  merge: Readonly<{
+    kind: MergeKind;
+    fromName: string;
+    loser: number;
+    survivor: number;
+  }>,
+) {
+  const { kind, fromName, loser, survivor } = merge;
+  const { column, into: intoOf } = MERGE_PINS[kind];
+  const into = intoOf(survivor);
+
+  return [
+    db
+      .insert(pins)
+      .values({ kind, fromKey: catalogKey(fromName), fromName, ...into, createdAt: Date.now() })
+      .onConflictDoUpdate({ target: [pins.kind, pins.fromKey], set: into }),
+    db.update(pins).set(into).where(eq(column, loser)),
+  ];
 }
 
 function pinToken(id: number, target: number): string {

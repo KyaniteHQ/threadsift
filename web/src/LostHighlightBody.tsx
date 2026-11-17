@@ -1,11 +1,11 @@
 import { useCallback, useId } from "react";
 
 import type { LostHighlightProposal } from "../../src/core/proposal-contract.ts";
+import { NOT_FOUND } from "../../src/core/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { placePath } from "./place.ts";
 import { LOST_HIGHLIGHT_EFFECT } from "./proposals-text.ts";
 import { QuoteText } from "./QuoteText.tsx";
-import { NOT_FOUND } from "./reader-text.ts";
 import { useInternalLink } from "./routing.ts";
 
 export function LostHighlightBody({

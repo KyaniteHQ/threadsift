@@ -1,1 +1,0 @@
-ALTER TABLE `ai_tasks` ADD `answer_refusals` integer DEFAULT 0 NOT NULL;

@@ -46,32 +46,24 @@ export type ScreenState =
 
 export type ScreenName = ScreenState["name"];
 
+const SIGNED_IN_SCREENS = [
+  "settings",
+  "highlights",
+  "import",
+  "index",
+  "log",
+  "proposals",
+  "library",
+  "topic",
+] as const;
+
 export type SignedInState = Extract<
   ScreenState,
-  {
-    readonly name:
-      | "settings"
-      | "highlights"
-      | "import"
-      | "index"
-      | "log"
-      | "proposals"
-      | "library"
-      | "topic";
-  }
+  { readonly name: (typeof SIGNED_IN_SCREENS)[number] }
 >;
 
 export function isSignedInScreen(screen: Readonly<ScreenState>): screen is SignedInState {
-  return (
-    screen.name === "settings" ||
-    screen.name === "highlights" ||
-    screen.name === "import" ||
-    screen.name === "index" ||
-    screen.name === "log" ||
-    screen.name === "proposals" ||
-    screen.name === "library" ||
-    screen.name === "topic"
-  );
+  return SIGNED_IN_SCREENS.some((name) => name === screen.name);
 }
 
 function signedInScreen(path: string): ScreenState {

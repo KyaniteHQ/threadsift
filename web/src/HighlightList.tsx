@@ -1,9 +1,10 @@
 import { type MouseEvent, memo, useCallback } from "react";
 
 import type { Highlight } from "../../src/core/highlight-contract.ts";
+import { HIGHLIGHTS_TITLE, NOT_FOUND } from "../../src/core/reader-text.ts";
 import { useHighlights } from "./highlights-context.ts";
 import { QuoteText } from "./QuoteText.tsx";
-import { HIGHLIGHTS_TITLE, NOT_FOUND, REMOVE_LABEL, removeNamed } from "./reader-text.ts";
+import { REMOVE_LABEL, removeNamed } from "./reader-text.ts";
 import { RETRY_LABEL } from "./text.ts";
 
 function neighbourOf(entry: Element): HTMLElement | null {

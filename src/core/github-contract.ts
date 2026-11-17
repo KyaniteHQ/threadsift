@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { SECRET_INPUT_MAX, SecretInputSchema } from "./secret-input.ts";
+import { WholeCount } from "./whole-count.ts";
 
 export const GITHUB_TOKEN_MAX = SECRET_INPUT_MAX;
 
@@ -38,8 +39,8 @@ export type GithubRefused = z.infer<typeof GithubRefusedSchema>;
 export const GithubVerifyResultSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("verified"),
-    limit: z.number().int().nonnegative(),
-    remaining: z.number().int().nonnegative(),
+    limit: WholeCount,
+    remaining: WholeCount,
   }),
   GithubRefusedSchema,
 ]);

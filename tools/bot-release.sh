@@ -32,23 +32,20 @@ sums_at() {
 released_tag() {
   local tag
   tag="$(pinned TAG)"
-  [[ "$tag" != unreleased ]] && tag_known "$tag" && echo "$tag"
+  tag_known "$tag" && echo "$tag"
 }
 
-changelog_release() {
-  local version="$1" temp
+rewritten() {
+  local file="$1" expression="$2" temp
   temp="$(mktemp)"
-  sed -E "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/" "$bot/CHANGELOG.md" > "$temp"
-  cat "$temp" > "$bot/CHANGELOG.md"
+  sed -E "$expression" "$file" > "$temp"
+  cat "$temp" > "$file"
   rm -f "${temp:?}"
 }
 
 pin() {
-  local tag="$1" hash="$2" temp
-  temp="$(mktemp)"
-  sed -E "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/" "$skill" > "$temp"
-  cat "$temp" > "$skill"
-  rm -f "${temp:?}"
+  local tag="$1" hash="$2"
+  rewritten "$skill" "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/"
 }
 
 case "$mode" in
@@ -65,13 +62,13 @@ case "$mode" in
     echo "$version" > "$bot/VERSION"
     computed_sums > "$sums"
     pin "bot-v$version" "$(sums_hash)"
-    changelog_release "$version"
+    rewritten "$bot/CHANGELOG.md" "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/"
     echo "bot-v$version"
     ;;
   check)
     version="$(< "$bot/VERSION")"
     tag="$(pinned TAG)"
-    [[ "$tag" == unreleased || "$tag" == "bot-v$version" ]] || { echo "SKILL.md pins tag $tag but bot/VERSION is $version" >&2; exit 1; }
+    [[ "$tag" == "bot-v$version" ]] || { echo "SKILL.md pins tag $tag but bot/VERSION is $version" >&2; exit 1; }
     [[ "$(computed_sums)" == "$(< "$sums")" ]] || { echo "bot/SHA256SUMS does not match setup.md, update.md and scripts/threadsift.sh; run tools/bot-release.sh" >&2; exit 1; }
     [[ "$(pinned SUMS_SHA256)" == "$(sums_hash)" ]] || { echo "SKILL.md pins another SHA256SUMS hash; run tools/bot-release.sh" >&2; exit 1; }
     if tag="$(released_tag)"; then

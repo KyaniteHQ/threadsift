@@ -1,10 +1,11 @@
 import { setTimeout } from "node:timers/promises";
 
-import { migrateData } from "../../core/data-steps.ts";
-import { logFailure, report } from "../../core/failure-log.ts";
+import { logFailure } from "../../core/failure-log.ts";
 import type { JobPorts } from "../../core/job-outcome.ts";
 import { abandonRunning, claimNextDue, executeClaimed } from "../../core/jobs.ts";
-import { HOP_DEADLINE_MS, type JobQueue } from "../../core/ports.ts";
+import { NOTHING } from "../../core/nothing.ts";
+import type { JobQueue } from "../../core/ports.ts";
+import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
 import { tick } from "../../core/tick.ts";
 
 const LOOP_WIDTH = 4;
@@ -16,23 +17,6 @@ function reportFailure(what: string, error: Readonly<Error>): void {
   logFailure("job-loop-failed", { what }, error);
 }
 
-type State =
-  | { readonly kind: "idle" }
-  | { readonly kind: "starting" }
-  | {
-      readonly kind: "running";
-      readonly ports: JobPorts;
-      readonly timers: readonly NodeJS.Timeout[];
-    }
-  | { readonly kind: "stopping" }
-  | { readonly kind: "stopped" };
-
-interface Run {
-  readonly jobId: number;
-  readonly claimExpires: number;
-  abandoned: boolean;
-}
-
 export class JobLoop {
   readonly queue: JobQueue = {
     enqueue: () => {
@@ -42,71 +26,57 @@ export class JobLoop {
     },
   };
 
-  private state: State = { kind: "idle" };
+  private running = false;
   private ticking = false;
   private draining = false;
-  private wokenWhileDraining = false;
-  private readonly runs = new Set<Run>();
+  private woken = false;
+  private readonly timers: NodeJS.Timeout[] = [];
+  private readonly runs = new Set<Promise<void>>();
   private readonly inFlight = new Set<Promise<void>>();
+  private wake = (): void => {};
 
   async start(ports: JobPorts): Promise<void> {
-    if (this.state.kind !== "idle") return;
+    await abandonRunning(ports.db);
+    this.running = true;
+    this.wake = () => {
+      if (!this.running) return;
 
-    this.state = { kind: "starting" };
+      if (this.draining) {
+        this.woken = true;
 
-    try {
-      await abandonRunning(ports.db);
+        return;
+      }
 
-      await migrateData(ports.db).catch((error: Readonly<Error>) => {
-        reportFailure("The data steps failed", error);
-      });
-    } catch (error) {
-      this.state = { kind: "idle" };
+      this.woken = false;
+      this.draining = true;
+      this.track(() =>
+        this.startJobs(ports)
+          .catch((error: Readonly<Error>) => {
+            reportFailure("The job loop could not read the next job", error);
+          })
+          .finally(() => {
+            this.draining = false;
 
-      throw error;
-    }
-
-    if (this.kind() !== "starting") return;
-
-    this.state = {
-      kind: "running",
-      ports,
-      timers: [
-        setInterval(() => {
-          this.wake();
-        }, LOOP_POLL_MS),
-        setInterval(() => {
-          this.tick(ports);
-        }, TICK_MS),
-      ],
+            if (this.woken) this.wake();
+          }),
+      );
     };
 
+    this.timers.push(
+      setInterval(this.wake, LOOP_POLL_MS),
+      setInterval(() => {
+        this.tick(ports);
+      }, TICK_MS),
+    );
     this.wake();
   }
 
   async stop(): Promise<void> {
-    const { state } = this;
+    this.running = false;
 
-    if (state.kind === "idle" || state.kind === "starting") {
-      this.state = { kind: "stopped" };
-
-      return;
-    }
-
-    if (state.kind !== "running") return;
-
-    this.state = { kind: "stopping" };
-
-    for (const timer of state.timers) {
-      clearInterval(timer);
-    }
+    for (const timer of this.timers) clearInterval(timer);
 
     await this.settleWithin(STOP_WAIT_MS);
-    this.state = { kind: "stopped" };
-  }
-
-  private kind(): State["kind"] {
-    return this.state.kind;
   }
 
   private async settleWithin(waitMs: number): Promise<void> {
@@ -116,7 +86,7 @@ export class JobLoop {
       this.settle().finally(() => {
         waiting.abort();
       }),
-      setTimeout(waitMs, undefined, { signal: waiting.signal }).catch(() => {}),
+      setTimeout(waitMs, undefined, { signal: waiting.signal }).catch(NOTHING),
     ]);
   }
 
@@ -153,75 +123,25 @@ export class JobLoop {
     );
   }
 
-  private wake(): void {
-    this.track(() => this.drain());
-  }
+  private async startJobs(ports: JobPorts): Promise<void> {
+    if (!this.running || this.runs.size >= LOOP_WIDTH) return;
 
-  private async drain(): Promise<void> {
-    if (this.draining) {
-      this.wokenWhileDraining = true;
+    const job = await claimNextDue(ports.db);
 
-      return;
-    }
+    if (job === null) return;
 
-    this.draining = true;
+    const run = executeClaimed(ports, job)
+      .catch((error: Readonly<Error>) => {
+        reportFailure(`Job ${job.id} could not be finished`, error);
+      })
+      .finally(() => {
+        this.runs.delete(run);
+        this.wake();
+      });
 
-    try {
-      do {
-        this.wokenWhileDraining = false;
-
-        // oxlint-disable-next-line eslint/no-await-in-loop -- a wake that arrives during a pass starts one more pass.
-        await this.startJobs().catch((error: Readonly<Error>) => {
-          reportFailure("The job loop could not read the next job", error);
-        });
-      } while (this.wokenWhileDraining);
-    } finally {
-      this.draining = false;
-    }
-  }
-
-  private liveRuns(now: number): number {
-    let live = 0;
-
-    for (const run of this.runs) {
-      if (run.claimExpires > now) {
-        live += 1;
-      } else if (!run.abandoned) {
-        run.abandoned = true;
-        report("job-run-abandoned", { jobId: run.jobId });
-      }
-    }
-
-    return live;
-  }
-
-  private async startJobs(): Promise<void> {
-    const { state } = this;
-
-    if (state.kind !== "running" || this.liveRuns(Date.now()) >= LOOP_WIDTH) {
-      return;
-    }
-
-    const job = await claimNextDue(state.ports.db);
-
-    if (job === null) {
-      return;
-    }
-
-    const run: Run = { jobId: job.id, claimExpires: job.claimExpires ?? 0, abandoned: false };
     this.runs.add(run);
+    this.track(() => run);
 
-    this.track(() =>
-      executeClaimed(state.ports, job)
-        .catch((error: Readonly<Error>) => {
-          reportFailure(`Job ${job.id} could not be finished`, error);
-        })
-        .finally(() => {
-          this.runs.delete(run);
-          this.wake();
-        }),
-    );
-
-    await this.startJobs();
+    await this.startJobs(ports);
   }
 }

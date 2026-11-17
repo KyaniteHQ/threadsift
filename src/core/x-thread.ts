@@ -1,10 +1,10 @@
 import { isPlainCodeDrop } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
-import { utf8Length } from "./digest-prompt.ts";
+import { utf8Length } from "./encoding.ts";
 import type { ParsedThread, ThreadParse } from "./reddit-json.ts";
 import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts";
 import type { StoredParse } from "./stored-thread.ts";
-import { MAX_ROW_BYTES, type ThreadNode, rowFits } from "./thread-rows.ts";
+import { MAX_ROW_BYTES, type ThreadNode, moreNode, rowFits } from "./thread-rows.ts";
 import { type JoinedPost, joinedPost, postTitle } from "./x-joined-post.ts";
 import { type XReply, type XThreadValue, XBotThreadSchema, XThreadSchema } from "./x-wire.ts";
 import { fieldNamesOf, issueCodesOf } from "./zod-reasons.ts";
@@ -148,20 +148,7 @@ function withMoreMarked(thread: Readonly<ParsedThread>): ParsedThread {
 
   if (!missing) return thread;
 
-  const more: ThreadNode = {
-    id: `more_${String(received)}`,
-    parentId: null,
-    position: received,
-    depth: 0,
-    kind: "more",
-    author: null,
-    body: null,
-    score: null,
-    postedAt: null,
-    eligible: false,
-  };
-
-  return { ...thread, nodes: [...thread.nodes, more] };
+  return { ...thread, nodes: [...thread.nodes, moreNode(received, null, 0)] };
 }
 
 function parseThread(value: XThreadValue, statusId: string): ParsedThread {

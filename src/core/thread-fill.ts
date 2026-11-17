@@ -3,19 +3,16 @@ import { pause } from "./pause.ts";
 import { hiddenRepliesOf } from "./reddit-tree.ts";
 import {
   NEW_WINDOW,
-  REQUEST_SPACING_MS,
   type RequestWindow,
+  RATE_LIMITED,
   afterRequest,
   mayAsk,
+  spacingWaitMs,
 } from "./reddit-window.ts";
 import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
 
 export const THREAD_QUERY = "limit=500&raw_json=1";
-
-export const RATE_LIMITED = 429;
-
-export { REQUEST_DEADLINE_MS };
 
 export interface FillAnswer {
   readonly status: number;
@@ -57,10 +54,6 @@ export function hiddenIn(first: Readonly<FillAnswer>, postId: string): readonly 
 
 function stopped(signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true;
-}
-
-function spacingWait(startedAt: number): number {
-  return Math.max(0, REQUEST_SPACING_MS - (Date.now() - startedAt));
 }
 
 function withinLimits(
@@ -118,7 +111,7 @@ export async function fillAnswers(
 
     asked.add(id);
 
-    const wait = spacingWait(startedAt);
+    const wait = spacingWaitMs(startedAt);
     startedAt = Date.now() + wait;
 
     const address = addressFor(id);

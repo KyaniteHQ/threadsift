@@ -1,9 +1,8 @@
-import { AI_DEADLINE_MS, AI_SAVE_ATTEMPTS } from "../../src/core/ai-contract.ts";
+import { AI_DEADLINE_MS } from "../../src/core/ai-contract.ts";
 import { VERIFY_WAIT_MS } from "../../src/core/grok-bot-contract.ts";
 import {
   FETCH_DEADLINE_MS,
   HOP_DEADLINE_MS,
-  LEASE_WAIT_MS,
   PROBE_MS,
   REQUEST_DEADLINE_MS,
 } from "../../src/core/request-waits.ts";
@@ -17,7 +16,7 @@ function withMargin(waitMs: number): number {
 
 export const DATABASE_WRITE_DEADLINE_MS = MARGIN_MS;
 
-const LINK_WAIT_MS = LEASE_WAIT_MS + FETCH_DEADLINE_MS;
+const LINK_WAIT_MS = FETCH_DEADLINE_MS;
 
 export const PASTE_DEADLINE_MS = withMargin(LINK_WAIT_MS);
 
@@ -26,7 +25,7 @@ export const IMPORT_BATCH_DEADLINE_MS = PASTE_DEADLINE_MS;
 const SHORT_LINK_FETCHES = 2;
 
 export const IMPORT_BATCH_LINKS = Math.floor(
-  (IMPORT_BATCH_DEADLINE_MS - MARGIN_MS - LEASE_WAIT_MS) / (SHORT_LINK_FETCHES * HOP_DEADLINE_MS),
+  (IMPORT_BATCH_DEADLINE_MS - MARGIN_MS) / (SHORT_LINK_FETCHES * HOP_DEADLINE_MS),
 );
 
 export const IMPORT_BATCH_PATIENCE_MS = withMargin(IMPORT_BATCH_LINKS * LINK_WAIT_MS);
@@ -37,7 +36,7 @@ export const REDDIT_VERIFY_DEADLINE_MS = withMargin(REQUEST_DEADLINE_MS);
 
 export const PROBED_WRITE_DEADLINE_MS = withMargin(PROBE_MS);
 
-export const AI_SAVE_DEADLINE_MS = withMargin((AI_SAVE_ATTEMPTS + 1) * PROBE_MS);
+export const AI_SAVE_DEADLINE_MS = withMargin(2 * PROBE_MS);
 
 export const AI_VERIFY_DEADLINE_MS = withMargin(
   Math.max(AI_DEADLINE_MS, VERIFY_WAIT_MS + HOP_DEADLINE_MS),

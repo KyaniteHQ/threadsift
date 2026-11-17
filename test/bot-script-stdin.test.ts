@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { type Ran } from "./bot-script-run.ts";
+import type { Ran } from "./bot-script-run.ts";
 import { ScriptWorld } from "./bot-script-world.ts";
 import { picksFor } from "./bot-task-fixtures.ts";
 

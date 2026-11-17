@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+export const ACCOUNT_ROW = 1;
+
 export const REDDIT_ACCOUNT_STATES = ["connected", "expired"] as const;
 
 export const redditAccount = sqliteTable(
@@ -17,7 +19,6 @@ export const redditAccount = sqliteTable(
     queueHead: integer("queue_head"),
     lastRequestAt: integer("last_request_at"),
     refusedCount: integer("refused_count").notNull().default(0),
-    refusedJob: integer("refused_job"),
     refusedThreads: text("refused_threads").notNull().default("[]"),
     refusalsClearedAt: integer("refusals_cleared_at"),
     windowRemaining: integer("window_remaining"),

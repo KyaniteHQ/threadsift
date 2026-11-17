@@ -3,6 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { saveFailedResolution } from "../src/core/failed-resolution.ts";
+import { parseLink } from "../src/core/links.ts";
 import { BudgetRefusalSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
 import { callBoth, connectBoth, type Agents } from "./mcp-client.ts";
@@ -10,9 +12,9 @@ import {
   addBatch,
   addLink,
   budgetOf,
-  itemsCounted,
   itemsSavedByDay,
   makeToken,
+  rows,
   secondsUntilMidnight,
   total,
   xLink,
@@ -62,12 +64,39 @@ describe("every way a token adds an Item draws on the same daily budget", () => 
     const state = await budgetOf(instance, token.id);
 
     assert.ok(state.kind === "within" && state.added === 5 && state.left === 5);
-    assert.deepEqual(itemsSavedByDay(instance, token.id), itemsCounted(instance, token.id));
     assert.equal(total(instance, "items"), 5);
     assert.equal(
       itemsSavedByDay(instance, token.id).reduce((sum, [, saved]) => sum + saved, 0),
       5,
     );
+  });
+
+  it("attributes a short link whose resolution failed to its token and counts it toward the budget", async () => {
+    const token = await makeToken(instance, 1);
+    const short = "https://t.co/failedfirst";
+
+    const first = await saveFailedResolution(
+      instance.core.db,
+      short,
+      parseLink(short),
+      { status: "unresolved" },
+      "refresh",
+      token.id,
+    );
+
+    assert.equal(first?.kind === "saved" && first.created, true);
+
+    const state = await budgetOf(instance, token.id);
+
+    assert.ok(state.kind === "spent" && state.added === 1);
+
+    const attributed = rows(
+      instance,
+      `select added_by_token as who from items where normalized_url = '${parseLink(short).normalizedUrl}'`,
+    );
+
+    assert.equal(attributed.length, 1);
+    assert.equal(Object.values(attributed[0] ?? {})[0], token.id);
   });
 
   it("refuses a link, a page, a thread and a batch of new links with 429 once the budget is spent, and saves none", async () => {

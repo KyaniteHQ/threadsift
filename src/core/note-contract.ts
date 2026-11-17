@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-export const NOTE_MAX_CODE_POINTS = 10_000;
+import { WholeCount } from "./whole-count.ts";
 
-const RevisionSchema = z.number().int().nonnegative();
+export const NOTE_MAX_CODE_POINTS = 10_000;
 
 const BodySchema = z
   .string()
@@ -12,9 +12,9 @@ const BodySchema = z
     `a Note holds at most ${String(NOTE_MAX_CODE_POINTS)} code points`,
   );
 
-export const NoteViewSchema = z.object({ body: z.string().nullable(), revision: RevisionSchema });
+export const NoteViewSchema = z.object({ body: z.string().nullable(), revision: WholeCount });
 
-export const SaveNoteRequestSchema = z.object({ body: BodySchema, revision: RevisionSchema });
+export const SaveNoteRequestSchema = z.object({ body: BodySchema, revision: WholeCount });
 
 export const NoteResponseSchema = z.object({ note: NoteViewSchema });
 

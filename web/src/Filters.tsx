@@ -1,14 +1,12 @@
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId } from "react";
 
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
-import { READ_STATES, SOURCES, type ReadState, type Source } from "../../src/core/kinds.ts";
+import type { ReadState, Source } from "../../src/core/kinds.ts";
 import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
-import { type Choice, type Filters, NO_FILTERS, chosenCount, isSearching } from "./filters.ts";
+import { type Choice, type Filters, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
-import { NOTHING } from "./nothing.ts";
 import {
   ALL_NAMED,
-  BLANK,
   CLEAR_FILTERS,
   FILTERS_BUTTON,
   FILTERS_BUTTON_ACTIVE,
@@ -17,6 +15,7 @@ import {
   SOURCE_LABELS,
   filled,
 } from "./text.ts";
+import { useToggle } from "./use-toggle.ts";
 
 type Choose = (choice: Choice) => void;
 
@@ -169,45 +168,6 @@ function Panel({
   );
 }
 
-const UNLOADED_COUNTS: FilterCounts = {
-  total: 0,
-  unread: 0,
-  sources: SOURCES.map((key) => ({ key, count: 0 })),
-  reads: READ_STATES.map((key) => ({ key, count: 0 })),
-  topics: [],
-  tags: [],
-};
-
-export function FilterGhost({
-  collapsible,
-  bar,
-}: Readonly<{ collapsible: boolean; bar: boolean }>) {
-  const panelId = useId();
-
-  if (!collapsible && !bar) return null;
-
-  return (
-    <div className={bar ? "fl fl-bar fl-ghost" : "fl fl-rail fl-ghost"} aria-hidden="true" inert>
-      {collapsible ? (
-        <button type="button" className="btn fl-toggle">
-          <Icon name="filters" className="ic ic-s" />
-          {BLANK}
-        </button>
-      ) : (
-        <Panel
-          counts={UNLOADED_COUNTS}
-          filters={NO_FILTERS}
-          choose={NOTHING}
-          clearChosen={NOTHING}
-          hasRows={false}
-          bar
-          id={panelId}
-        />
-      )}
-    </div>
-  );
-}
-
 function FilterToggle({
   expanded,
   panelId,
@@ -245,13 +205,9 @@ export function FilterPane({
   clearChosen: () => void;
   hasRows: boolean;
 }>) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, toggle] = useToggle(false);
   const panelId = useId();
   const chosen = chosenCount(filters);
-
-  const toggle = useCallback(() => {
-    setExpanded((now) => !now);
-  }, []);
 
   return (
     <div className={bar ? "fl fl-bar" : "fl fl-rail"}>

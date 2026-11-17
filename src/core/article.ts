@@ -9,7 +9,7 @@ import { MarkdownImageSchema, NOTHING_SCANNED, scanMarkdown } from "./markdown-i
 import type { SuppliedPage } from "./supplied-page.ts";
 import { projectText } from "./text-projection.ts";
 
-export const ArticleReadingSchema = z.object({
+const ArticleReadingSchema = z.object({
   title: z.string(),
   author: z.string().nullable(),
   words: z.number(),

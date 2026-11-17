@@ -10,7 +10,6 @@ import type { FilePage, FileStore } from "../../core/ports.ts";
 
 interface BucketObject {
   readonly key: string;
-  readonly uploaded: Date;
 }
 
 interface BucketListing {
@@ -60,9 +59,7 @@ export function r2FileStore(bucket: FilesBucket): FileStore {
       const listing = await bucket.list(options);
 
       return {
-        files: listing.objects.flatMap(({ key, uploaded }) =>
-          parseStoredKey(key) === null ? [] : [{ key, uploadedAt: uploaded.getTime() }],
-        ),
+        keys: listing.objects.flatMap(({ key }) => (parseStoredKey(key) === null ? [] : [key])),
         cursor: listing.truncated ? (listing.cursor ?? null) : null,
       };
     },

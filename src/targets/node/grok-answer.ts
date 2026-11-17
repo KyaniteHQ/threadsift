@@ -9,7 +9,7 @@ import {
   type XRefusalCategory,
 } from "../../core/x-fetcher.ts";
 import type { XCliThreadValue } from "../../core/x-wire.ts";
-import type { ProcessEnd } from "./cli-process.ts";
+import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";
 import { XFetchAnswerSchema } from "./grok-surface.ts";
 
 export interface Refusal {
@@ -99,10 +99,8 @@ function exitedOutcome(stdout: string, code: number | null): Outcome {
   return answerOutcome(envelope, code);
 }
 
-export function outcomeOf(end: Readonly<ProcessEnd>): Outcome {
+function unfinishedRefusal(end: Readonly<UnfinishedEnd>): Refused {
   switch (end.kind) {
-    case "exited":
-      return exitedOutcome(end.stdout, end.code);
     case "aborted":
       return refused({ status: "timeout", category: "deadline" }, null);
     case "over-cap":
@@ -115,6 +113,10 @@ export function outcomeOf(end: Readonly<ProcessEnd>): Outcome {
       return exhaustive;
     }
   }
+}
+
+export function outcomeOf(end: Readonly<ProcessEnd>): Outcome {
+  return end.kind === "exited" ? exitedOutcome(end.stdout, end.code) : unfinishedRefusal(end);
 }
 
 export function refusalOf(end: Readonly<ProcessEnd>): Refused {
@@ -124,21 +126,9 @@ export function refusalOf(end: Readonly<ProcessEnd>): Refused {
 }
 
 export function versionRefusal(end: Readonly<ProcessEnd>): Refused {
-  switch (end.kind) {
-    case "exited":
-      return refused({ status: "unreadable", category: "cli-error" }, end.code);
-    case "aborted":
-      return refused({ status: "timeout", category: "deadline" }, null);
-    case "over-cap":
-      return refused({ status: "unreadable", category: "over-size" }, null);
-    case "spawn-failed":
-      return refused({ status: "unreadable", category: "spawn-failed" }, null);
-    default: {
-      const exhaustive: never = end;
-
-      return exhaustive;
-    }
-  }
+  return end.kind === "exited"
+    ? refused({ status: "unreadable", category: "cli-error" }, end.code)
+    : unfinishedRefusal(end);
 }
 
 export function internal(cause: unknown): Refused {

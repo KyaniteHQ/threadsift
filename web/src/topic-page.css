@@ -11,7 +11,7 @@
   display: inline-block;
   max-inline-size: 14em;
   margin-inline: calc(var(--s1) / 2);
-  overflow: hidden;
+  overflow: clip;
   color: var(--acc-ink);
   font-family: var(--f-ui);
   font-size: var(--t-meta);

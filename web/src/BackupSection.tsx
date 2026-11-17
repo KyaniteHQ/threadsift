@@ -34,7 +34,7 @@ function detailOf(view: ExportStatus): string | null {
   }
 }
 
-function State({ view, stale }: Readonly<{ view: ExportStatus; stale: boolean }>) {
+function State({ view }: Readonly<{ view: ExportStatus }>) {
   const detail = detailOf(view);
 
   return (
@@ -44,7 +44,6 @@ function State({ view, stale }: Readonly<{ view: ExportStatus; stale: boolean }>
         {STATUS_TEXT[view.state]}
       </output>
       {detail === null ? null : <p className="ai-meta">{detail}</p>}
-      {stale ? <p className="ai-meta">{EXPORT_TEXT.stale}</p> : null}
       <Alert text={view.state === "failed" ? failureLabel(view.failure) : null} />
     </>
   );
@@ -54,7 +53,7 @@ function BackupForm({
   view,
   changed,
 }: Readonly<{ view: ExportStatus; changed: (view: ExportStatus) => void }>) {
-  const { busy, result, stale, start, remove } = useBackup(view, changed);
+  const { busy, result, start, remove } = useBackup(view, changed);
   const blocked = busy !== null;
   const startable = view.state === "none" || view.state === "failed";
   const removable = view.state === "ready" || view.state === "failed";
@@ -62,7 +61,7 @@ function BackupForm({
 
   return (
     <>
-      <State view={view} stale={stale} />
+      <State view={view} />
       <div className="ai-actions">
         {startable ? (
           <SwapButton
@@ -96,15 +95,11 @@ function BackupForm({
   );
 }
 
-const backupForm = (view: ExportStatus, changed: (view: ExportStatus) => void) => (
-  <BackupForm view={view} changed={changed} />
-);
-
 export const BACKUP_SECTION: SectionSpec<ExportStatus> = {
   id: "backup",
   title: EXPORT_TEXT.sectionTitle,
   intro: EXPORT_TEXT.intro,
   loadFailed: EXPORT_TEXT.loadFailed,
   lead: <p>{EXPORT_TEXT.caution}</p>,
-  form: backupForm,
+  Form: BackupForm,
 };

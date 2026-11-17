@@ -1,6 +1,13 @@
 import { browser } from "wxt/browser";
 
-import { applyLook, element, replaceControls, say, type Tone } from "../../lib/page-look.ts";
+import {
+  applyLook,
+  button,
+  element,
+  replaceControls,
+  say,
+  type Tone,
+} from "../../lib/page-look.ts";
 import {
   type RedditView,
   loadReddit,
@@ -29,13 +36,6 @@ const redditButtons = element("div", { class: "ext-actions" });
 const redditBlock = element("div", { class: "ext-form", hidden: "" }, redditStatus, redditButtons);
 
 root.replaceChildren(title, saveStatus, saveActions, redditBlock);
-
-function button(label: string, onClick: () => void): HTMLButtonElement {
-  const created = element("button", { type: "button", class: "btn btn-acc" }, label);
-  created.addEventListener("click", onClick);
-
-  return created;
-}
 
 interface Message {
   readonly text: string;
@@ -69,7 +69,6 @@ function actions(state: Readonly<SaveState>): HTMLElement[] {
     case "too-large":
     case "private-link":
     case "unsupported-link":
-    case "updating":
     case "unreachable":
     case "failed":
       return [button(TEXT.tryAgain, () => void save())];
@@ -112,8 +111,6 @@ function messageOf(state: Readonly<SaveState>): Message {
       return warning(TEXT.threadKept);
     case "budget-spent":
       return warning(TEXT.budgetSpent);
-    case "updating":
-      return warning(TEXT.updating);
     case "unreachable":
       return warning(TEXT.unreachable);
     case "failed":

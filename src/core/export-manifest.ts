@@ -3,12 +3,21 @@ import { sql } from "drizzle-orm";
 import { BACKUP_TABLES } from "./backup-tables.ts";
 import { EXPORT_FORMAT, type ExportTally, exportRootName } from "./export-contract.ts";
 import type { Database } from "./ports.ts";
+import type { ZipDirectory } from "./zip-read.ts";
 import type { ZipFile } from "./zip.ts";
 
 const TEXT = new TextEncoder();
 
+const RECORD_FOLDER = "records/";
+
 export function recordPath(table: string, number: number): string {
-  return `records/${table}.${String(number)}.jsonl`;
+  return `${RECORD_FOLDER}${table}.${String(number)}.jsonl`;
+}
+
+export function recordTableOf(directory: Readonly<ZipDirectory>, name: string): string | null {
+  const prefix = `${directory.root}/${RECORD_FOLDER}`;
+
+  return name.startsWith(prefix) ? (name.slice(prefix.length).split(".")[0] ?? "") : null;
 }
 
 export async function appliedMigration(db: Database): Promise<string | null> {
@@ -23,11 +32,6 @@ export async function manifestFile(
   db: Database,
   { createdAt, tally }: Readonly<{ createdAt: number; tally: ExportTally }>,
 ): Promise<ZipFile> {
-  const steps = await db
-    .select({ name: sql<string>`name`, version: sql<number>`version` })
-    .from(sql`data_steps`)
-    .orderBy(sql`name`);
-
   const sequences = await db
     .select({ name: sql<string>`name`, seq: sql<number>`seq` })
     .from(sql`sqlite_sequence`)
@@ -49,7 +53,6 @@ export async function manifestFile(
     format: EXPORT_FORMAT,
     exportedAt: new Date(createdAt).toISOString(),
     migration: await appliedMigration(db),
-    dataSteps: Object.fromEntries(steps.map(({ name, version }) => [name, version])),
     tables: Object.fromEntries(tables),
     sequences: Object.fromEntries(
       sequences

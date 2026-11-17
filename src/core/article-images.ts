@@ -1,6 +1,8 @@
+import { webUrlOf } from "./addresses.ts";
 import { type EmbedLink, embedLinkOf } from "./embed-links.ts";
 import { digestOf } from "./encoding.ts";
 import { fileRouteOf } from "./file-keys.ts";
+import { collapsed } from "./format.ts";
 import { type Fetched, decoded, downloaded, fits } from "./image-download.ts";
 import { imageSize } from "./image-size.ts";
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
@@ -70,19 +72,15 @@ interface Candidate {
 }
 
 function plainAlt(alt: string): string {
-  return Array.from(alt.replaceAll(/\s+/gu, " ").trim()).slice(0, ALT_MAX).join("");
+  return Array.from(collapsed(alt)).slice(0, ALT_MAX).join("");
 }
 
 function remoteOf(address: string, base: string, alt: string): Classified {
-  const url = URL.parse(address, base);
+  const url = webUrlOf(address, base);
 
-  if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
-    return { kind: "alt" };
-  }
+  if (url === null) return { kind: "alt" };
 
   url.hash = "";
-  url.username = "";
-  url.password = "";
 
   return fits(url.href)
     ? { kind: "source", source: { id: url.href, kind: "remote", url: url.href }, alt }

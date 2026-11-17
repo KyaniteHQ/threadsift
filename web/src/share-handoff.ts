@@ -1,5 +1,14 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
+import { NOTHING } from "../../src/core/nothing.ts";
 import { type ShareArrival, arrivalOf } from "../../src/core/share-address.ts";
 
 export interface ShareHandoff {
@@ -9,7 +18,7 @@ export interface ShareHandoff {
 
 export const ShareContext = createContext<ShareHandoff>({
   arrival: null,
-  release: () => {},
+  release: NOTHING,
 });
 
 export function useShareHandoff(): ShareHandoff {
@@ -26,4 +35,17 @@ export function useShareHandoff(): ShareHandoff {
   }, []);
 
   return useMemo(() => ({ arrival, release }), [arrival, release]);
+}
+
+export function useSharedArrival(ready: boolean, open: (id: number) => void) {
+  const { arrival } = useContext(ShareContext);
+  const shared = useRef(arrival?.kind === "saved" && arrival.refreshed ? arrival.id : null);
+
+  useEffect(() => {
+    if (!ready || shared.current === null) return;
+
+    const id = shared.current;
+    shared.current = null;
+    open(id);
+  }, [open, ready]);
 }

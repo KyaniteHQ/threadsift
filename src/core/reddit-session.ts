@@ -1,11 +1,6 @@
 import { readCapped } from "./capped.ts";
 import { THREAD_CONTENT_BYTES } from "./limits.ts";
-import {
-  type NetworkResponse,
-  REQUEST_HEADERS,
-  type RateLimitHeaders,
-  type RequestHeaders,
-} from "./ports.ts";
+import { type NetworkResponse, REQUEST_HEADERS, type RequestHeaders } from "./ports.ts";
 import type { FillAnswer } from "./thread-fill.ts";
 
 export const REDDIT_HOST = "www.reddit.com";
@@ -23,14 +18,6 @@ export function redditSessionHeaders(cookie: string): RequestHeaders {
 
 export function refusedRequestLine(path: string, cookie: string): boolean {
   return !path.startsWith("/") || HEADER_BREAK.test(path) || HEADER_BREAK.test(cookie);
-}
-
-export function redditRateLimitOf(header: (name: string) => string | null): RateLimitHeaders {
-  return {
-    retryAfter: header("retry-after"),
-    remaining: header("x-ratelimit-remaining"),
-    reset: header("x-ratelimit-reset"),
-  };
 }
 
 export async function* boundedBody(

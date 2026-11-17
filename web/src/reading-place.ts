@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { collapsedText } from "./collapsed-text.ts";
+import { collapsed } from "../../src/core/format.ts";
+import { WholeCount } from "../../src/core/whole-count.ts";
 
 const STORAGE_KEY = "threadsift:reading-places";
 const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";
@@ -8,7 +9,7 @@ const BAR_FALLBACK_HEIGHT = 56;
 const PASSAGE_LENGTH = 80;
 
 const AnchorSchema = z.object({
-  index: z.number().int().nonnegative(),
+  index: WholeCount,
   text: z.string(),
   fraction: z.number().min(0).max(1),
   offset: z.number().nonnegative(),
@@ -61,7 +62,7 @@ function shownBottom(block: Element): number | null {
 }
 
 function passageOf(block: Element): string {
-  return collapsedText(block.textContent ?? "").slice(0, PASSAGE_LENGTH);
+  return collapsed(block.textContent ?? "").slice(0, PASSAGE_LENGTH);
 }
 
 export function anchorAt(slot: HTMLElement): Anchor | null {

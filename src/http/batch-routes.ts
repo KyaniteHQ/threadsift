@@ -12,8 +12,8 @@ import {
 } from "./batch-schemas.ts";
 import { savedView } from "./item-view.ts";
 import { budgetRefusal, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
-import { RESTORING, UPDATING, budgetSpent } from "./refusals.ts";
-import { ErrorResponseSchema, RESTORING_CODE, UnavailableResponseSchema } from "./schemas.ts";
+import { budgetSpent, restoring, unknownToken } from "./refusals.ts";
+import { ErrorResponseSchema, UnavailableResponseSchema } from "./schemas.ts";
 import { callerOf, requirePasteScopes } from "./token-scopes.ts";
 
 const BATCH_DIGEST_SCOPE =
@@ -27,9 +27,10 @@ const batchRoute = createRoute({
   description: `Save many links in one call and, optionally, keep a cursor on the Instance. \`links\` holds 1 to ${String(BATCH_LINKS_MAX)} entries of \`url\` and optionally \`digest\`, with the rules of \`POST /api/items\`; an entry takes no \`content\`, \`page\` or \`fill\`. The links are saved one after the other, in the order given. \`results[i]\` answers \`links[i]\`: \`added\` (a new Item, with its \`item\` and \`url\` as \`POST /api/items\` answers them), \`known\` (the library already holds the link, so it is not fetched again, gets no new Digest and keeps the Digest sent with it unused; \`POST /api/items\` refreshes it) or \`refused\` (the host is not globally reachable; \`url\` is the link sent). A refused link does not stop the others. \`import\` is \`{name, cursor}\`: \`name\` is 1 to 64 characters of letters, digits, \`.\`, \`_\` and \`-\` that the caller chooses, and \`cursor\` is an opaque text of 1 to 256 characters, such as the last bookmark id. The Instance saves \`cursor\` under \`name\` only after every link has an outcome, so a call that dies half way leaves the old cursor and the caller sends the same links again, and the repeat answers \`known\` for the links already saved. \`import.previous\` is optional: with a text, the Instance saves \`cursor\` only while the stored cursor equals it; with null, only while nothing is stored; without it, always. A caller whose earlier call may still be running sends it, so the older call cannot move the cursor back. The answer holds the \`import\` the Instance stores after the call, which is not the one sent when \`previous\` did not match, or null when the call sent none or \`previous\` was a text and nothing is stored. \`GET /api/imports/{name}\` reads the cursor back.${scopeNote("POST", "/api/items/batch", BATCH_DIGEST_SCOPE)}`,
   request: { body: jsonRequest(BatchRequestSchema) },
   responses: {
+    401: jsonBody(ErrorResponseSchema, "The agent token is unknown or revoked."),
     ...scopeRefusal("POST", "/api/items/batch", BATCH_DIGEST_SCOPE),
     ...budgetRefusal(
-      "The check before the first save refuses a call when the token lacks budget for every new link in it, and then nothing is saved. A held link that another request deletes during the call is saved again and can use the last of the budget, and a call that crosses 00:00 UTC counts the links it saves after midnight on the new day and stops at that day's budget. The call then answers 429 after it saved the links before that one. Those links stay saved and counted. Send the same links again, and the saved ones answer `known`.",
+      "The count is checked once before the first save. If the token lacks budget for every possibly new link, nothing is saved and the import cursor stays. The batch is not checked again when a held link is deleted or midnight passes. Two concurrent requests can both pass the check and exceed the limit by one request's links.",
     ),
     200: jsonBody(
       BatchResponseSchema,
@@ -42,7 +43,7 @@ const batchRoute = createRoute({
     413: jsonBody(ErrorResponseSchema, "The request body is larger than 64 KiB."),
     503: jsonBody(
       UnavailableResponseSchema,
-      "A new release is rewriting the stored Items and has not finished, so the link it reached is not saved. Links before it stay saved and the cursor does not move. Send the call again after a minute. While a restore runs (`code` is `restoring`), nothing is saved.",
+      "While a restore runs (`code` is `restoring`), nothing is saved.",
     ),
   },
 });
@@ -80,11 +81,11 @@ export function registerBatchRoutes(app: OpenAPIHono, ports: Ports): void {
 
     const pasted = await pasteBatch(ports, links, callerOf(c));
 
+    if (pasted.kind === "unknown-token") return unknownToken(c);
+
     if (pasted.kind === "budget-spent") return budgetSpent(c, pasted);
 
-    if (pasted.kind === "updating") return c.json({ error: UPDATING }, 503);
-
-    if (pasted.kind === "restoring") return c.json({ error: RESTORING, code: RESTORING_CODE }, 503);
+    if (pasted.kind === "restoring") return restoring(c);
 
     const saved = cursor === undefined ? null : await saveImport(ports.db, cursor);
 

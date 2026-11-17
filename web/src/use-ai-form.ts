@@ -13,14 +13,11 @@ import {
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT, signedOutSentence } from "./ai-text.ts";
 import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";
-import { type SaveOrder, useConnect, useSaveOrder } from "./use-connect.ts";
+import { useConnect } from "./use-connect.ts";
 import { useField } from "./use-form.ts";
 
-const FALLBACK_PROVIDERS: readonly Provider[] = [PROVIDERS["openai-compatible"].id];
-
 function useAiFields(view: AiView) {
-  const { settings } = view;
-  const providers = view.providers.length === 0 ? FALLBACK_PROVIDERS : view.providers;
+  const { settings, providers } = view;
   const offered = settings !== null && providers.includes(settings.provider) ? settings : null;
 
   const [provider, setProvider] = useState<Provider>(
@@ -162,7 +159,7 @@ function useSave(
   view: AiView,
   fields: ReturnType<typeof useAiFields>,
   { run, refuse }: Readonly<Pick<AiPhase, "run" | "refuse">>,
-  order: SaveOrder,
+  saved: (view: AiView) => void,
 ) {
   const { provider, baseUrl, model, key } = fields;
   const { value: keyValue, clear: clearKey } = key;
@@ -183,18 +180,16 @@ function useSave(
         key: keyValue === "" ? undefined : keyValue,
       });
 
-      order.saveStarted();
-
       const response = await saveAiSettings(input);
 
       if ("kind" in response) return { kind: "error", text: failureText(response, provider) };
 
-      order.saveAccepted(response);
+      saved(response);
       clearKey();
 
       return { kind: "ok", text: AI_TEXT.saved };
     });
-  }, [unavailable, refuse, run, provider, baseUrl.value, model.value, keyValue, clearKey, order]);
+  }, [unavailable, refuse, run, provider, baseUrl.value, model.value, keyValue, clearKey, saved]);
 
   return { submit, saveBlocked: unavailable !== null };
 }
@@ -205,9 +200,8 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
   const flow = useAiPhase();
 
   const { verifyNow, verifyBlocked, verifyHint } = useVerify(view, flow);
-  const order = useSaveOrder(saved);
-  const { submit, saveBlocked } = useSave(view, fields, flow, order);
-  const connection = useConnect(view, fields, flow, saved, order);
+  const { submit, saveBlocked } = useSave(view, fields, flow, saved);
+  const connection = useConnect(view, fields, flow);
   const savedKey = savedKeyOf(view, { provider, baseUrl: baseUrl.value, model: model.value });
 
   return {

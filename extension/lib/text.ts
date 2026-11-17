@@ -19,7 +19,6 @@ export const TEXT = {
     "Your agent token’s daily budget of Items is used up, so this page wasn’t saved. Saving works again after 00:00 UTC, or the budget can be raised in the Threadsift settings.",
   threadKept:
     "Couldn’t read this Reddit thread from the page. The copy in Threadsift stays as it was.",
-  updating: "The library is finishing an update, so this page wasn’t saved. Try again in a minute.",
   unreachable: "Couldn’t reach your Threadsift address. Check the address and your connection.",
   failed: "Couldn’t save this page.",
   tryAgain: "Try again",

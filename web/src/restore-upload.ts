@@ -1,5 +1,4 @@
 import { type RestoreStatus, partsOf } from "../../src/core/restore-contract.ts";
-import { pause } from "./pause.ts";
 import { createRestore, fetchRestoreStatus, sendPart, startRestore } from "./restore-api.ts";
 import { matchesFingerprint, rememberFingerprint } from "./restore-fingerprint.ts";
 import { RESTORE_TEXT, refusalLabel } from "./restore-text.ts";
@@ -9,7 +8,7 @@ export type Progress =
   | Readonly<{ kind: "sending"; sent: number; parts: number }>
   | Readonly<{ kind: "checking" }>;
 
-export interface UploadSteps {
+interface UploadSteps {
   readonly progress: (progress: Progress) => void;
   readonly refresh: () => Promise<RestoreStatus | null>;
 }
@@ -26,10 +25,6 @@ interface Target {
 type Prepared =
   | Readonly<{ kind: "ready"; target: Target }>
   | Readonly<{ kind: "stop"; outcome: Outcome }>;
-
-const PART_RETRIES = 3;
-
-const RETRY_PAUSE_MS = 1000;
 
 function failure(text: string): Outcome {
   return { kind: "error", text };
@@ -70,22 +65,13 @@ async function prepare(file: Chosen, view: RestoreStatus | null): Promise<Prepar
   };
 }
 
-async function sendWithRetries(
-  id: number,
-  part: number,
-  bytes: Readonly<Blob>,
-  attempt = 0,
-): Promise<boolean> {
+async function sendOnce(id: number, part: number, bytes: Readonly<Blob>): Promise<boolean> {
   try {
     await sendPart(id, part, bytes);
 
     return true;
   } catch {
-    if (attempt >= PART_RETRIES) return false;
-
-    await pause((attempt + 1) * RETRY_PAUSE_MS);
-
-    return sendWithRetries(id, part, bytes, attempt + 1);
+    return false;
   }
 }
 
@@ -107,7 +93,7 @@ async function sendMissing(
 
   const start = (part - 1) * target.partBytes;
 
-  if (!(await sendWithRetries(target.id, part, file.slice(start, start + target.partBytes)))) {
+  if (!(await sendOnce(target.id, part, file.slice(start, start + target.partBytes)))) {
     return false;
   }
 

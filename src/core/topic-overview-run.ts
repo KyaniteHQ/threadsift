@@ -5,22 +5,9 @@ import type { ClaimedJob } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
 import { providerSet } from "./provider-saved.ts";
-import { aiTasks, items, jobs, topicLeases, topicPages, topics } from "./schema.ts";
+import { aiTasks, items, jobs, topicPages, topics } from "./schema.ts";
 import { coverageGaps } from "./topic-coverage.ts";
-import { type TopicLease, leaseMatches, recoverPrefixLeases } from "./topic-lease.ts";
 import type { BuiltFrom, OverviewFailure } from "./topic-overview-contract.ts";
-
-export function overviewHolderPrefix(jobId: number): string {
-  return `topic_overview:${String(jobId)}:`;
-}
-
-export function overviewHolder({
-  id,
-  attempts,
-  staleRequeues,
-}: Readonly<Pick<ClaimedJob, "id" | "attempts" | "staleRequeues">>): string {
-  return `${overviewHolderPrefix(id)}${String(attempts)}:${String(staleRequeues)}`;
-}
 
 export function openingOverview(db: Database, itemId: number | Readonly<SQLWrapper>) {
   return opening(db, {
@@ -101,18 +88,14 @@ function failed(db: Database, topicIds: TopicIds, failure: OverviewFailure) {
     .onConflictDoUpdate({ target: topicPages.topicId, set: { failure } });
 }
 
-export function overviewRefused(
-  db: Database,
-  lease: Readonly<TopicLease>,
-  failure: OverviewFailure,
-) {
-  const held = db
-    .select({ topicId: sql<number>`${topicLeases.topicId}`.as("topic_id") })
-    .from(topicLeases)
-    .where(leaseMatches(lease))
+export function overviewRefused(db: Database, topicId: number, failure: OverviewFailure) {
+  const failing = db
+    .select({ topicId: sql<number>`${topics.id}`.as("topic_id") })
+    .from(topics)
+    .where(eq(topics.id, topicId))
     .as("failing");
 
-  return failed(db, held, failure);
+  return failed(db, failing, failure);
 }
 
 function ownedByJob(jobId: number) {
@@ -129,11 +112,7 @@ export function overviewGaveUp(
     .where(and(eq(items.id, itemId), isNotNull(items.topicId), sql`not ${ownedByJob(id)}`))
     .as("failing");
 
-  return [
-    failed(db, owned, "gave-up"),
-    markTopicOverviewFailed(db, id, "gave-up"),
-    recoverPrefixLeases(db, overviewHolderPrefix(id)),
-  ];
+  return [failed(db, owned, "gave-up"), markTopicOverviewFailed(db, id, "gave-up")];
 }
 
 function markTopicOverviewFailed(db: Database, jobId: number, failure: OverviewFailure) {

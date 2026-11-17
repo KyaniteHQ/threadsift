@@ -74,7 +74,7 @@ const STATE_TEXT = {
   missing: AI_TEXT["secret-missing"],
 } as const satisfies Record<RedditAccountView["state"], string>;
 
-const RESULT_TEXT = {
+export const RESULT_TEXT = {
   ok: REDDIT_ACCOUNT_TEXT.resultOk,
   "logged-out": REDDIT_ACCOUNT_TEXT.resultLoggedOut,
   blocked: REDDIT_ACCOUNT_TEXT.resultBlocked,
@@ -108,8 +108,4 @@ export function relayText(state: RedditConnectState): string {
 
 export function stateText(state: RedditAccountView["state"]): string {
   return STATE_TEXT[state];
-}
-
-export function resultText(result: RedditVerifyResult): string {
-  return RESULT_TEXT[result];
 }

@@ -98,17 +98,6 @@ export function rowCount(instance: Instance, table: string, where = "1 = 1"): nu
   );
 }
 
-export function topicLeaseFree(instance: Instance, topicId: number): boolean {
-  const [lease] = rows(
-    instance,
-    z.object({ expires_at: z.number() }),
-    "select expires_at from topic_leases where topic_id = ?",
-    topicId,
-  );
-
-  return (lease?.expires_at ?? 0) <= Date.now();
-}
-
 export function topicFailures(instance: Instance) {
   return rows(
     instance,

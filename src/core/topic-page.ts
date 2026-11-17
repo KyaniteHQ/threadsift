@@ -3,6 +3,7 @@ import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { catalogKey } from "./catalog-key.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { readDisagreements } from "./known-disagreements.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { providerSet } from "./provider-saved.ts";
 import { digests, items, pins, topicPages, topics } from "./schema.ts";
@@ -151,14 +152,13 @@ export async function readTopicPage(
   ]);
 
   const built = new Map(builtFrom.map(({ item, digest }) => [item, digest]));
-  const shown = rows.slice(0, ITEMS_PAGE_SIZE);
-  const last = shown.at(-1);
+  const page = pageTail(rows, ITEMS_PAGE_SIZE, formatCursor);
 
   return {
     topic: { key: topic.key, name: topic.name, itemCount: total },
     overview,
     disagreements,
-    items: shown.map((row) => ({
+    items: page.items.map((row) => ({
       id: row.id,
       source: row.source,
       title: row.title,
@@ -167,9 +167,6 @@ export async function readTopicPage(
       read: row.readState === "read",
       inOverview: built.get(row.id) === row.digest,
     })),
-    next:
-      rows.length > shown.length && last !== undefined
-        ? formatCursor({ savedAt: last.savedAt, id: last.id })
-        : null,
+    next: page.next,
   };
 }

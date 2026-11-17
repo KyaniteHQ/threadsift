@@ -1,8 +1,10 @@
-import { asc, count, eq, gt, sql } from "drizzle-orm";
+import { asc, count, eq, gt } from "drizzle-orm";
 
+import { TOPIC_USES } from "./catalog-uses.ts";
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
+import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
-import { items, topicPages, topics } from "./schema.ts";
+import { topicPages, topics } from "./schema.ts";
 import type { TopicIndex } from "./topic-index-contract.ts";
 import { overviewLine } from "./topic-overview-contract.ts";
 
@@ -11,7 +13,7 @@ function pageQuery(db: Database, cursor: string | null) {
     .select({
       key: topics.key,
       name: topics.name,
-      itemCount: sql<number>`(select count(*) from ${items} where ${items.topicId} = ${topics.id})`,
+      itemCount: TOPIC_USES,
       overview: topicPages.overview,
     })
     .from(topics)
@@ -27,17 +29,16 @@ export async function readTopicIndex(db: Database, cursor: string | null): Promi
     db.select({ total: count() }).from(topics),
   ]);
 
-  const shown = rows.slice(0, ITEMS_PAGE_SIZE);
-  const last = shown.at(-1);
+  const { items, next } = pageTail(rows, ITEMS_PAGE_SIZE, ({ key }) => key);
 
   return {
-    topics: shown.map(({ key, name, itemCount, overview }) => ({
+    topics: items.map(({ key, name, itemCount, overview }) => ({
       key,
       name,
       itemCount,
       overviewLine: overview === null ? null : overviewLine(overview),
     })),
     total: totals?.total ?? 0,
-    next: rows.length > shown.length && last !== undefined ? last.key : null,
+    next,
   };
 }

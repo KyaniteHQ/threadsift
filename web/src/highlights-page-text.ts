@@ -1,4 +1,4 @@
-import { NEWEST_FIRST, filled } from "./text.ts";
+import { NEWEST_FIRST } from "./text.ts";
 
 export const HIGHLIGHTS_PAGE = {
   masthead: "Highlights",
@@ -16,16 +16,3 @@ export const HIGHLIGHTS_PAGE = {
   untitled: "Untitled",
   loadMoreFailed: "Couldn’t load more highlights and notes.",
 } as const;
-
-const HEAD_ONE = "1 highlight or note";
-const HEAD_MANY = "{total} highlights and notes";
-const HEAD_MATCHING = "{shown} of {total} highlights and notes";
-const HEAD_MATCHING_TEXT = "{shown} of {total} highlights and notes matching “{text}”";
-
-export function pageHeadLabel(total: number, shown: number | null, text: string): string {
-  const values = { total: String(total), shown: String(shown ?? 0), text };
-
-  if (shown === null) return filled(total === 1 ? HEAD_ONE : HEAD_MANY, values);
-
-  return filled(text === "" ? HEAD_MATCHING : HEAD_MATCHING_TEXT, values);
-}

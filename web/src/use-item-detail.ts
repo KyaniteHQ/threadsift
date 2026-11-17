@@ -11,7 +11,6 @@ import {
 import type { HighlightsView } from "../../src/core/highlight-contract.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { fetchItemDetail } from "./api.ts";
-import { commentCountOf } from "./comment-counts.ts";
 
 export type DetailState =
   | { readonly status: "loading" }
@@ -29,7 +28,7 @@ export interface DetailActions {
 const LOADING: DetailState = { status: "loading" };
 
 export function refreshKey(item: Readonly<Item>): string {
-  const counts = commentCountOf(item);
+  const counts = item.commentCount;
 
   return [
     item.status,
