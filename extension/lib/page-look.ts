@@ -31,6 +31,13 @@ export function element<Tag extends keyof HTMLElementTagNameMap>(
   return created;
 }
 
+export function button(label: string, onClick: () => void): HTMLButtonElement {
+  const created = element("button", { type: "button", class: "btn btn-acc" }, label);
+  created.addEventListener("click", onClick);
+
+  return created;
+}
+
 export type Tone = "ok" | "warn" | "plain";
 
 export function say(target: HTMLElement, text: string, tone: Tone): void {

@@ -22,7 +22,6 @@ interface Rule {
 }
 
 interface Choice {
-  readonly key: "style" | "font";
   readonly label: string;
   readonly faces: readonly FaceId[];
   readonly stacks: Readonly<Record<string, readonly string[]>>;
@@ -132,7 +131,6 @@ function choicesOf(
     const selectors = selectorsOf(key, id);
 
     return {
-      key,
       label: `${label} ${id}`,
       faces,
       stacks: Object.fromEntries(

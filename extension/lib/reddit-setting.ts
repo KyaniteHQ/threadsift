@@ -1,7 +1,12 @@
 import { browser } from "wxt/browser";
 
 import type { RedditConnectState } from "../../src/core/reddit-relay-contract.ts";
-import { REDDIT_DEADLINE_MS, REDDIT_PERMISSIONS, holdsRedditConnect } from "./config.ts";
+import {
+  REDDIT_DEADLINE_MS,
+  REDDIT_PERMISSIONS,
+  holdsRedditConnect,
+  requestAccess,
+} from "./config.ts";
 import { logFailure } from "./log.ts";
 import type { Tone } from "./page-look.ts";
 import { REDDIT_PORT, RedditAnswerSchema, type RedditRequest, ask } from "./state.ts";
@@ -81,22 +86,15 @@ async function askReddit(request: Readonly<RedditRequest>): Promise<RedditView> 
   }
 }
 
-async function requestAccess(): Promise<boolean | null> {
-  try {
-    return await browser.permissions.request(REDDIT_PERMISSIONS);
-  } catch (cause) {
-    logFailure("reddit-request-failed", cause);
-
-    return null;
-  }
-}
-
 export function loadReddit(): Promise<RedditView> {
   return askReddit({ kind: "read" });
 }
 
 export async function connectRedditFromPage(): Promise<RedditView> {
-  const granted = await requestAccess();
+  const granted = await requestAccess(
+    () => browser.permissions.request(REDDIT_PERMISSIONS),
+    "reddit-request-failed",
+  );
 
   if (granted === null) return viewOf("failed");
 
