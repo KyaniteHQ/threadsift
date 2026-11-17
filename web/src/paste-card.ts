@@ -28,7 +28,7 @@ export function noteOf(item: Readonly<Item>): NoticeKey | null {
     return null;
   }
 
-  if (item.xNote !== null && item.xNote !== undefined) {
+  if (item.xNote !== null) {
     return item.xNote;
   }
 

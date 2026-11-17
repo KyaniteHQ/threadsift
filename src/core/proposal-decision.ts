@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { acceptDisagreement } from "./disagreement-accept.ts";
 import { acceptLostHighlight } from "./highlight-proposals.ts";
@@ -7,7 +7,7 @@ import { type MergeAcceptance, acceptMerge } from "./merge-accept.ts";
 import { acceptOverviewGap } from "./overview-accept.ts";
 import type { Database } from "./ports.ts";
 import { rejection } from "./proposal-lifecycle.ts";
-import { knownProposal, proposals } from "./schema.ts";
+import { proposals } from "./schema.ts";
 
 export type Acceptance = MergeAcceptance | "not-current" | "no-provider";
 
@@ -25,7 +25,7 @@ export async function acceptProposal(ports: JobPorts, id: number): Promise<Accep
   const [found] = await ports.db
     .select({ kind: proposals.kind })
     .from(proposals)
-    .where(and(eq(proposals.id, id), knownProposal));
+    .where(eq(proposals.id, id));
 
   return found === undefined ? "unknown" : ACCEPT[found.kind](ports, id);
 }
@@ -37,10 +37,7 @@ export async function rejectProposal(db: Database, id: number): Promise<Rejectio
 
   if (moved.length > 0) return "rejected";
 
-  const [found] = await db
-    .select({ id: proposals.id })
-    .from(proposals)
-    .where(and(eq(proposals.id, id), knownProposal));
+  const [found] = await db.select({ id: proposals.id }).from(proposals).where(eq(proposals.id, id));
 
   return found === undefined ? "unknown" : "not-open";
 }

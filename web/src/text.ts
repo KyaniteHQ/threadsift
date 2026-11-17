@@ -131,8 +131,8 @@ export const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
 export function failureTitleOf({
   reason,
   xNote,
-}: Readonly<{ reason: FailureReason; xNote?: XReadNote | null | undefined }>): string {
-  return xNote === null || xNote === undefined ? FAILURE_TITLES[reason] : NOTICES[xNote].text;
+}: Readonly<{ reason: FailureReason; xNote: XReadNote | null }>): string {
+  return xNote === null ? FAILURE_TITLES[reason] : NOTICES[xNote].text;
 }
 
 export const WAITING = {

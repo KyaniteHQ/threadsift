@@ -1,4 +1,4 @@
-import { and, eq, inArray, max, sql } from "drizzle-orm";
+import { eq, inArray, max, sql } from "drizzle-orm";
 
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { type ProposalKind, type ProposalState, WEEKLY_TASK } from "./kinds.ts";
@@ -6,7 +6,7 @@ import type { Database } from "./ports.ts";
 import { type Proposal, type ProposalPage, ProposalSchema } from "./proposal-contract.ts";
 import { pageQuery } from "./proposal-rows.ts";
 import { providerSet } from "./provider-saved.ts";
-import { knownProposal, proposals, scheduledRuns } from "./schema.ts";
+import { proposals, scheduledRuns } from "./schema.ts";
 
 type Row = Awaited<ReturnType<typeof pageQuery>>[number];
 
@@ -97,7 +97,7 @@ export async function readProposalState(
   const [row] = await db
     .select({ state: proposals.state })
     .from(proposals)
-    .where(and(eq(proposals.id, id), knownProposal));
+    .where(eq(proposals.id, id));
 
   return row?.state;
 }

@@ -2,7 +2,6 @@ import { useCallback } from "react";
 
 import { whereOf } from "../../src/core/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
-import { commentCountOf } from "./comment-counts.ts";
 import { Icon } from "./Icon.tsx";
 import { countLabel } from "./reader-text.ts";
 import { SETTINGS_PATH } from "./routing.ts";
@@ -131,7 +130,7 @@ function Skeleton() {
 function commentNote(item: Readonly<Item>): string | null {
   if (item.kind === "reddit-comment") return SAVED_COMMENT;
 
-  const counts = commentCountOf(item);
+  const counts = item.commentCount;
 
   return counts === null ? null : countLabel(counts, "row");
 }

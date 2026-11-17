@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { LEGACY_SCOPES, THROTTLE_KINDS } from "./kinds.ts";
+import { THROTTLE_KINDS } from "./kinds.ts";
 
 export const owner = sqliteTable(
   "owner",
@@ -32,7 +32,7 @@ export const agentTokens = sqliteTable("agent_tokens", {
   scopes: text("scopes", { mode: "json" })
     .$type<readonly string[]>()
     .notNull()
-    .default(LEGACY_SCOPES),
+    .default(["read", "add", "digest", "delete"]),
   dailyBudget: integer("daily_budget"),
 });
 

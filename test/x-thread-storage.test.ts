@@ -66,7 +66,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
       await instance.read("GET", "/api/items?source=x", ItemReadResponseSchema)
     ).items.find(({ id }) => id === item.id);
 
-    assert.deepEqual([listed?.commentsKept, listed?.commentsTotal], [1, 6]);
+    assert.deepEqual(listed?.commentCount, { filter: "kept", shown: 1, total: 6 });
   });
 
   it("opens with the kept reply under its parent as context, the post's handle and no archive note", async () => {
