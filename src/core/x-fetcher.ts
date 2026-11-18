@@ -91,7 +91,7 @@ async function notFoundBy(
     return unansweredBy(
       network,
       source,
-      { status: "unreadable", note: "cli-failed" },
+      { status: "unreadable", note: NOTE_OF_REFUSAL["no-answer"] },
       statusId,
       signal,
     );

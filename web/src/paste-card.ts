@@ -1,5 +1,4 @@
 import type { FetchResult } from "../../src/core/fetch-results.ts";
-import { type XFetchRetryNote, isXFetchRetryNote } from "../../src/core/kinds.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { type NoteKey, type NoticeKey, failureTitleOf } from "./text.ts";
 
@@ -24,10 +23,8 @@ const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
   "github-token": "github-token",
 };
 
-export function offersFetchRetry(
-  item: Readonly<Item>,
-): item is Item & { retry: "paste"; xNote: XFetchRetryNote; status: "ready" } {
-  return item.status === "ready" && item.retry === "paste" && isXFetchRetryNote(item.xNote);
+export function offersFetchRetry(item: Readonly<Item>) {
+  return item.status === "ready" && item.retry === "paste" && item.digestOutcome === "none";
 }
 
 export function noteOf(item: Readonly<Item>): NoticeKey | null {

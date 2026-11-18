@@ -105,7 +105,7 @@ export const X_NOTICES: Readonly<
     kind: "save-note",
   },
   "cli-failed": {
-    text: "The grok CLI ran but gave no answer Threadsift could use, so this post couldn’t be read. Any saved copy was kept; paste the link again later.",
+    text: "The grok CLI couldn’t give Threadsift a usable read. Any saved copy was kept.",
     kind: "save-note",
   },
   "x-unconfirmed": {
