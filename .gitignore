@@ -19,6 +19,5 @@ dist/
 .wrangler/
 .data/
 test-results/
-smoke-evidence/
 .dev.vars*
 !.dev.vars.example
