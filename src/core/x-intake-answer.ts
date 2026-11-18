@@ -1,3 +1,4 @@
+import { parseStoredDigest } from "./ai-contract.ts";
 import { type BotTaskRow, acceptsAnswer } from "./bot-task-states.ts";
 import { logFailure, report } from "./failure-log.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
@@ -57,13 +58,10 @@ async function stored(
     return { kind: "invalid", reasons: read.reason, logged: read.logged };
   }
 
-  const parsed = await readFetchedThread(
-    db,
-    task.itemId,
-    statusId,
-    read.value,
-    answer.digest?.keptComments,
-  );
+  const digest =
+    answer.digest ?? (item.pendingDigest === null ? null : parseStoredDigest(item.pendingDigest));
+  const picks = digest?.keptComments ?? [];
+  const parsed = await readFetchedThread(db, task.itemId, statusId, read.value, picks);
 
   if (parsed.kind === "refused") {
     return {
@@ -79,7 +77,7 @@ async function stored(
     storedIntake(db, task, {
       address: item.originalUrl,
       thread: parsed.thread,
-      digest: answer.digest === undefined ? item.pendingDigest : JSON.stringify(answer.digest),
+      digest: digest === null ? null : JSON.stringify(digest),
     }),
   );
 

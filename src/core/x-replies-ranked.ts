@@ -1,4 +1,4 @@
-import { wireCommentId } from "./comment-id.ts";
+import { storedCommentId } from "./comment-id.ts";
 import { X_REPLIES_KEPT_MAX, X_REPLIES_LIKES_PERCENT, X_REPLIES_MIN } from "./limits.ts";
 import type { Database } from "./ports.ts";
 import { authorPartsOf } from "./x-author-thread.ts";
@@ -83,7 +83,8 @@ function rankedThread(
     .toSorted(moreImportant);
 
   const rankedIds = ranked.map(({ id }) => id);
-  const digestIds = keptComments.flatMap((id) => wireCommentId(id) ?? []);
+  const picked = new Set(keptComments);
+  const digestIds = rankedIds.filter((id) => picked.has(storedCommentId(id)));
   const keptFor = (count: number) =>
     withAncestors([...parts, ...digestIds, ...rankedIds.slice(0, count)], byId);
 
@@ -121,7 +122,7 @@ export async function readFetchedThread(
   itemId: number,
   statusId: string,
   thread: Readonly<XCliThreadValue>,
-  keptComments: readonly string[] = [],
+  keptComments: readonly string[],
 ): Promise<ReturnType<typeof storedXThread>> {
   const parsed = parseXThreadValue(thread, statusId);
 

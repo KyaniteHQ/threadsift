@@ -137,7 +137,7 @@ async function concluded(
       : { status: fetched.status, note: fetched.note };
   }
 
-  const read = await readFetchedThread(db, source.itemId, statusId, fetched.thread);
+  const read = await readFetchedThread(db, source.itemId, statusId, fetched.thread, []);
 
   if (read.kind === "refused") {
     report("x-fetch-refused", { category: "answer-refused" satisfies XRefusalCategory });

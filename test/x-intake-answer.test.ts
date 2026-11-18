@@ -66,7 +66,10 @@ describe("an X link answer with the task's credential is stored once and only fo
     assert.ok(content.length > 1_499_998);
 
     const root = BigInt(task.statusId);
-    const digest = { ...digestOf(), keptComments: [`t1_${String(root + 99n)}`, "t1_missing"] };
+    const digest = {
+      ...digestOf(),
+      keptComments: [2n, 3n, 99n, 101n].map((offset) => `t1_${String(root + offset)}`),
+    };
     const response = await intakeTo(instance, task, { content, digest });
     assert.equal(response.status, 204, await response.text());
 
@@ -90,16 +93,19 @@ describe("an X link answer with the task's credential is stored once and only fo
 
   it("keeps a Digest the owner supplied with the link when the answer holds none", async () => {
     const task = await sentIntakeForContent(instance);
-    const supplied = JSON.stringify(digestOf());
+    const picked = String(BigInt(task.statusId) + 99n);
+    const supplied = JSON.stringify({ ...digestOf(), keptComments: [`t1_${picked}`] });
 
     exec(instance, "update items set pending_digest = ? where id = ?", supplied, task.itemId);
 
     const answer = await intakeTo(instance, task, {
-      content: contentOf(task.statusId),
+      content: JSON.stringify(largeThreadOf(task.statusId)),
     });
 
     assert.equal(answer.status, 204);
-    assert.equal(verificationRow(instance, task.itemId)?.digest, supplied);
+    const verification = verificationRow(instance, task.itemId);
+    assert.equal(verification?.digest, supplied);
+    assert.ok(verification.thread.replies.some(({ id }) => id === picked));
   });
 
   it("answers 401 for a missing, wrong, foreign or unknown credential and 403 for a session or an agent token, with no row changed", async () => {
