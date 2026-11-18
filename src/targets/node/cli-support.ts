@@ -117,20 +117,14 @@ export interface Attempt<Result> {
   readonly code: number | null;
 }
 
-const RECOMMENDED = {
-  "claude-code": { model: "claude-sonnet-5-5", effort: "medium" },
-  codex: { model: "gpt-6.2-sol", effort: "medium" },
-} as const;
-
 export abstract class SlottedCli implements CliRunner {
   abstract readonly provider: CliProvider;
+  abstract readonly recommendation: CliRunner["recommendation"];
   private readonly shutdown = new AbortController();
   private readonly slots: Slots;
-  private readonly recommendsModel: boolean;
 
-  constructor(slots: Slots, recommendsModel = true) {
+  constructor(slots: Slots) {
     this.slots = slots;
-    this.recommendsModel = recommendsModel;
   }
 
   protected abstract modelChoice(
@@ -141,11 +135,8 @@ export abstract class SlottedCli implements CliRunner {
     const { model, effort } = config;
     if (model !== "") return this.select(config);
 
-    const recommended = RECOMMENDED[this.provider];
-    if (
-      this.recommendsModel &&
-      this.modelChoice(recommended.model)?.levels.includes(recommended.effort) === true
-    )
+    const recommended = this.recommendation;
+    if (recommended !== undefined)
       return this.select({
         ...config,
         model: recommended.model,

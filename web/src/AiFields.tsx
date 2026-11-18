@@ -8,7 +8,7 @@ import {
   isCliProvider,
   type Provider,
 } from "../../src/core/ai-contract.ts";
-import { AI_TEXT } from "./ai-text.ts";
+import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
 import type { SavedKey, useAiForm } from "./use-ai-form.ts";
 
@@ -68,15 +68,13 @@ function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disab
 }
 
 function modelHelp({ provider, recommendation }: Fields): string | undefined {
-  const recommended =
-    recommendation === undefined
-      ? undefined
-      : AI_TEXT.recommendedModelHelp.replace("{model}", recommendation.model);
-
-  if (provider === "claude-code") return recommended ?? AI_TEXT.claudeCodeModelHelp;
-  if (provider === "codex") {
-    const model = recommended ?? AI_TEXT.codexModelHelp;
-    return `${model} ${AI_TEXT.codexCatalogHelp}`;
+  if (isCliProvider(provider)) {
+    const { modelHelp: fallback, catalogHelp } = CLI_TEXT[provider];
+    const model =
+      recommendation === undefined
+        ? fallback
+        : AI_TEXT.recommendedModelHelp.replace("{model}", recommendation.model);
+    return catalogHelp === undefined ? model : `${model} ${catalogHelp}`;
   }
 
   return provider === "workers-ai" ? AI_TEXT.workersAiHelp : undefined;

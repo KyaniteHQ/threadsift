@@ -4,7 +4,13 @@ An API Provider needs only the fields Settings shows. Fill them in, press **Save
 
 The container image ships no AI command-line tool. Everything you install or sign in to stays in its `/data` volume. In the commands below, replace `<container>` with the container's name, which is `threadsift` if you followed the README.
 
-Claude Code and Codex both offer **Effort** beside **Model**. Leave both fields blank to use the recommended pair shown in Settings. If you enter only Effort, it applies to the recommended model. If you enter only Model, the CLI chooses that model's effort. Claude Code accepts the levels in `podman exec <container> claude --help` through `--effort <level>`. Codex uses `-c model_reasoning_effort=<level>`; find the levels for your model under `supported_reasoning_levels` in `podman exec <container> codex debug models --bundled`. Save applies the level to Verify and all other AI tasks.
+Claude Code and Codex both offer **Effort** beside **Model**. The rules depend on what Settings shows:
+
+- When Settings names a recommendation, leaving both fields blank uses that pair. Filling in only Effort applies it to the recommended model. After an update, saved blank fields start following these rules without another Save.
+- When Settings shows no recommendation, leaving both fields blank uses the CLI defaults. Filling in only Effort lets Claude Code choose the model. For Codex, Threadsift uses the first visible model by bundled catalog priority.
+- Filling in only Model uses the CLI's default effort for that model. To use Claude Code's own model and effort defaults, enter `default` as Model and leave Effort blank. For Codex, enter the model you want and leave Effort blank.
+
+A saved effort applies to Verify and all other AI tasks. Claude Code accepts the levels in `podman exec <container> claude --help` through `--effort <level>`. Codex uses `-c model_reasoning_effort=<level>`. Its levels and defaults are under `supported_reasoning_levels` and `default_reasoning_level` in `podman exec <container> codex debug models --bundled`.
 
 ## Use Claude Code on the container
 
@@ -60,7 +66,7 @@ Installing, updating or removing Claude Code needs a restart. Claude Code versio
 
    Codex prints a link and a code. Open the link on any device, enter the code and approve. Codex has no token variable. The login is saved in `/data/codex/auth.json` in the volume.
 
-4. Open Settings, choose "Codex on this server" as the Provider, press **Save**, then press **Verify**. If the installed Codex does not support the recommended pair, Settings shows the fallback. Blank fields use Codex's defaults. With only Effort set, Threadsift chooses the first visible model by catalog priority. A model you type must be listed by `podman exec <container> codex debug models --bundled`.
+4. Open Settings, choose "Codex on this server" as the Provider, press **Save**, then press **Verify**. Settings shows a recommendation when the installed Codex lists the recommended model and its effort. A model you type must be listed by `podman exec <container> codex debug models --bundled`.
 
 Installing, updating or removing Codex needs a restart, because the app reads Codex's model list once at start. At most 2 AI tasks run at once across Claude Code and Codex together. The app never reads or stores the login.
 

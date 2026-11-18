@@ -47,7 +47,7 @@ The owner chose `claude-sonnet-5-5` at medium for Claude Code and `gpt-6.2-sol` 
 | Claude Code | `claude-sonnet-5-5` | Medium | 20/20 | 5.6 s | 9.1 s |
 | Claude Code | `claude-sonnet-5-5` | High | 20/20 | 7.1 s | 20.0 s |
 | Claude Code | `claude-sonnet-5-5` | CLI default | 20/20 | 5.5 s | 8.6 s |
-| Claude Code | `claude-haiku-5-5` | CLI default | 20/20 | 10.4 s | 22.3 s |
+| Claude Code | `claude-haiku-5-5` | CLI default | 20/20 | 10.3 s | 22.3 s |
 | Codex | `gpt-6.2-sol` | Medium | 20/20 | 15.3 s | 26.1 s |
 | Codex | `gpt-6.2-sol` | CLI default (low) | 20/20 | 13.9 s | 22.6 s |
 

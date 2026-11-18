@@ -7,6 +7,7 @@ import type {
   CliAiConnection,
   CliSelection,
   CliProvider,
+  CliRecommendation,
   Provider,
 } from "./ai-contract.ts";
 import type { ArticleReading } from "./article.ts";
@@ -109,6 +110,7 @@ export interface Crypto {
 
 export interface AiRuntime {
   readonly providers: readonly Provider[];
+  readonly recommendations: Readonly<Partial<Record<CliProvider, CliRecommendation>>>;
   readonly publicOnly: boolean;
   readonly allowsUrl: (url: string) => boolean;
   readonly resolveCli: (config: Readonly<CliAiConnection>) => CliSelection;

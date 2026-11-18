@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { z } from "zod";
 
 import { type AiExecution, PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
+import { readOrAssume } from "../../core/failure-log.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
 import { PROBE_MS } from "../../core/request-waits.ts";
 import { apiRefusal } from "../shared/ai-call.ts";
@@ -32,10 +33,12 @@ export interface ClaudeEnvironment {
 
 const BINARY = "claude";
 const SONNET_5_5_VERSION = /^(\d+)\.(\d+)\.(\d+) \(Claude Code\)\s*$/u;
+const RECOMMENDED = { model: "claude-sonnet-5-5", effort: "medium" } as const;
+const VERSION_UNKNOWN = "claude-version-unknown";
 
-function supportsSonnet55(stdout: string): boolean {
+function supportsSonnet55(stdout: string): boolean | null {
   const parts = SONNET_5_5_VERSION.exec(stdout);
-  if (parts === null) return false;
+  if (parts === null) return null;
 
   const major = Number(parts[1]);
   const minor = Number(parts[2]);
@@ -81,6 +84,7 @@ function taskArguments(
 
 class ClaudeCode extends SlottedCli {
   readonly provider = PROVIDERS["claude-code"].id;
+  readonly recommendation;
   private readonly binary: string;
   private readonly environment: Readonly<ClaudeEnvironment>;
 
@@ -88,11 +92,12 @@ class ClaudeCode extends SlottedCli {
     binary: string,
     environment: Readonly<ClaudeEnvironment>,
     slots: Slots,
-    recommendsModel: boolean,
+    recommendation: typeof RECOMMENDED | undefined,
   ) {
-    super(slots, recommendsModel);
+    super(slots);
     this.binary = binary;
     this.environment = environment;
+    this.recommendation = recommendation;
   }
 
   protected modelChoice(slug: string) {
@@ -179,17 +184,35 @@ function spawnClaude(
   );
 }
 
-export async function claudeCode(environment: Readonly<ClaudeEnvironment>, slots: Slots) {
-  const binary = await findBinary(environment.path, BINARY);
-
-  if (binary === null) return null;
-
+async function recommendationOf(binary: string) {
   const version = await spawnClaude(
     binary,
     ["--version"],
     { PATH: childPath(binary) },
     "",
     AbortSignal.timeout(PROBE_MS),
+  );
+  const supports =
+    version.kind === "exited" && version.code === 0 ? supportsSonnet55(version.stdout) : null;
+  if (supports === null)
+    console.error(
+      JSON.stringify({
+        event: VERSION_UNKNOWN,
+        kind: version.kind,
+        exit: exitCode(version),
+      }),
+    );
+
+  return supports === true ? RECOMMENDED : undefined;
+}
+
+export async function claudeCode(environment: Readonly<ClaudeEnvironment>, slots: Slots) {
+  const binary = await findBinary(environment.path, BINARY);
+
+  if (binary === null) return null;
+
+  const recommendation = await readOrAssume(undefined, { event: VERSION_UNKNOWN, fields: {} }, () =>
+    recommendationOf(binary),
   );
 
   return new ClaudeCode(
@@ -200,6 +223,6 @@ export async function claudeCode(environment: Readonly<ClaudeEnvironment>, slots
       token: configuredCode(environment.token),
     },
     slots,
-    version.kind === "exited" && version.code === 0 && supportsSonnet55(version.stdout),
+    recommendation,
   );
 }

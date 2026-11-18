@@ -117,12 +117,16 @@ export const AI_TEXT = {
 export const CLI_TEXT = {
   "claude-code": {
     keyNotNeeded: AI_TEXT.claudeCodeKeyNotNeeded,
+    modelHelp: AI_TEXT.claudeCodeModelHelp,
+    catalogHelp: undefined,
     signedOut: AI_TEXT.claudeCodeSignedOut,
     signInCommand: AI_TEXT.claudeCodeSignInCommand,
     rejected: AI_TEXT.claudeCodeRejected,
   },
   codex: {
     keyNotNeeded: AI_TEXT.codexKeyNotNeeded,
+    modelHelp: AI_TEXT.codexModelHelp,
+    catalogHelp: AI_TEXT.codexCatalogHelp,
     signedOut: AI_TEXT.codexSignedOut,
     signInCommand: AI_TEXT.codexSignInCommand,
     rejected: AI_TEXT.codexRejected,

@@ -27,6 +27,7 @@ import { type ToollessCatalog, readOutcome, surfaceOf } from "./codex-protocol.t
 
 const BINARY = "codex";
 const SURFACE_MS = 60_000;
+const RECOMMENDED = { model: "gpt-6.2-sol", effort: "medium" } as const;
 
 function reportSurface(extraTools: readonly string[], foreignTexts: number): void {
   console.error(JSON.stringify({ event: "codex-surface-refused", extraTools, foreignTexts }));
@@ -40,6 +41,7 @@ export interface CodexEnvironment {
 
 class CodexCli extends SlottedCli {
   readonly provider = PROVIDERS.codex.id;
+  readonly recommendation;
   private readonly installation: Readonly<Installation>;
   private readonly catalog: Readonly<ToollessCatalog>;
 
@@ -51,6 +53,10 @@ class CodexCli extends SlottedCli {
     super(slots);
     this.installation = installation;
     this.catalog = catalog;
+    this.recommendation =
+      this.modelChoice(RECOMMENDED.model)?.levels.includes(RECOMMENDED.effort) === true
+        ? RECOMMENDED
+        : undefined;
   }
 
   protected async probe(signal: AbortSignal): Promise<boolean> {

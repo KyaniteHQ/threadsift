@@ -2,7 +2,6 @@ import { type SQL, sql } from "drizzle-orm";
 
 import {
   GROK_BOT_PROVIDER,
-  isCliProvider,
   type AiSettingsInput,
   type AiSettingsView,
   type AiSaveResponse,
@@ -13,27 +12,15 @@ import { leaveGrokBotWrites, preparedBot } from "./bot-provider.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import { CURRENT_REVISION } from "./openrouter-tables.ts";
-import type { AiRuntime, Database, SettingsPorts } from "./ports.ts";
+import type { Database, SettingsPorts } from "./ports.ts";
 import { settings } from "./schema.ts";
-
-function cliRecommendations(ai: AiRuntime): AiSettingsView["recommendations"] {
-  const recommendations: AiSettingsView["recommendations"] = {};
-
-  for (const provider of ai.providers.filter(isCliProvider)) {
-    const resolved = ai.resolveCli({ kind: "cli", provider, model: "", effort: undefined });
-    if (resolved.kind === "cli" && resolved.effort !== undefined)
-      recommendations[provider] = { model: resolved.model, effort: resolved.effort };
-  }
-
-  return recommendations;
-}
 
 async function aiView(loaded: LoadedAi, ports: SettingsPorts): Promise<AiSettingsView> {
   return {
     settings: viewOf(loaded, loaded.state !== "secret-missing"),
     providers: ports.ai.providers,
     signedIn: await ports.ai.signedIn(),
-    recommendations: cliRecommendations(ports.ai),
+    recommendations: ports.ai.recommendations,
     secretReady: ports.secrets !== null,
     publicOnly: ports.ai.publicOnly,
     revision: loaded.revision,
