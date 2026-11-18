@@ -5,7 +5,7 @@ import {
   AiSaveResponseSchema,
   VerifyResultSchema,
   type AiSettingsInput,
-} from "../../src/core/ai-contract.ts";
+} from "../../src/core/ai-settings-contract.ts";
 import { GrokBotUnreadySchema } from "../../src/core/grok-bot-contract.ts";
 import {
   CONNECT_START_PATH,

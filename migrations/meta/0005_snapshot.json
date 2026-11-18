@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "69854abf-dfe6-4020-a860-0849cd161152",
+  "id": "609c0e4a-35bb-481a-8e5b-6c28dec1dba4",
   "prevId": "81da11d6-9bf5-45b6-a032-c21884e06002",
   "tables": {
     "agent_tokens": {
@@ -3177,6 +3177,10 @@
         "settings_cli_choice": {
           "name": "settings_cli_choice",
           "value": "\"settings\".\"cli_choice\" = 'custom' or (\"settings\".\"cli_choice\" in ('recommended', 'cli-defaults') and \"settings\".\"provider\" in ('claude-code', 'codex') and \"settings\".\"model\" = '' and \"settings\".\"effort\" is null)"
+        },
+        "settings_custom_cli_overrides": {
+          "name": "settings_custom_cli_overrides",
+          "value": "\"settings\".\"cli_choice\" <> 'custom' or \"settings\".\"provider\" not in ('claude-code', 'codex') or trim(\"settings\".\"model\") <> '' or nullif(trim(\"settings\".\"effort\"), '') is not null"
         },
         "settings_effort_provider": {
           "name": "settings_effort_provider",

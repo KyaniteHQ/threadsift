@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { CliAiConnection } from "../../core/ai-contract.ts";
+import type { ResolvedCliConnection } from "../../core/ai-contract.ts";
 import { runProcess } from "./cli-process.ts";
 import { STDERR_CAP, childPath, inEmptyFolder } from "./cli-support.ts";
 import { SURFACE_PROMPT, toollessCatalog } from "./codex-protocol.ts";
@@ -34,7 +34,7 @@ function sharedArguments(folders: Readonly<RunFolders>): string[] {
 
 function rootArguments(
   folders: Readonly<RunFolders>,
-  { model, effort }: Readonly<CliAiConnection>,
+  { model, effort }: Readonly<ResolvedCliConnection>,
 ): string[] {
   return [
     "-C",
@@ -56,7 +56,7 @@ const EXEC_FLAGS = [
 
 export function surfaceArguments(
   folders: Readonly<RunFolders>,
-  config: Readonly<CliAiConnection>,
+  config: Readonly<ResolvedCliConnection>,
 ): string[] {
   return [
     ...rootArguments(folders, config),
@@ -69,7 +69,7 @@ export function surfaceArguments(
 
 export function taskArguments(
   folders: Readonly<RunFolders>,
-  config: Readonly<CliAiConnection>,
+  config: Readonly<ResolvedCliConnection>,
 ): string[] {
   return [
     "exec",

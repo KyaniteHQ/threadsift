@@ -1,7 +1,8 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { AiSaveResponseSchema, DigestSchema, VerifyResultSchema } from "../src/core/ai-contract.ts";
+import { DigestSchema } from "../src/core/ai-contract.ts";
+import { AiSaveResponseSchema, VerifyResultSchema } from "../src/core/ai-settings-contract.ts";
 import { catalogKey } from "../src/core/catalog-key.ts";
 import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/topic-path.ts";
@@ -145,12 +146,12 @@ async function expectCallerDigest(
 async function saveAndVerifyClaudeCode(request: APIRequestContext): Promise<void> {
   await test.step("save the Claude Code Provider", async () => {
     const saved = await request.put("/api/settings/ai", {
-      data: { provider: "claude-code", model: CLAUDE_MODEL },
+      data: { provider: "claude-code", choice: "custom", model: CLAUDE_MODEL },
     });
 
     expect(saved.status()).toBe(200);
     expect(AiSaveResponseSchema.parse(await saved.json())).toMatchObject({
-      settings: { provider: "claude-code", model: CLAUDE_MODEL, effort: "" },
+      settings: { provider: "claude-code", choice: "custom", model: CLAUDE_MODEL, effort: "" },
     });
   });
 

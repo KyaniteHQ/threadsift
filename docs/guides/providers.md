@@ -8,7 +8,7 @@ For Claude Code and Codex, use **Model and effort** in Settings to choose what r
 
 - **Recommended** runs the pair named in Settings. This choice appears when the installed CLI supports the pair.
 - **CLI defaults** lets the CLI choose its model and effort, including after a CLI update.
-- **Custom** shows **Model** and **Effort**. Enter just a model to use its default effort. Enter just an effort to use the recommended model. If there is no recommendation, Claude Code chooses its model and Codex uses the first visible model by bundled catalog priority. With both fields blank, Threadsift uses the recommended pair if available and the CLI defaults otherwise.
+- **Custom** requires a **Model**, an **Effort**, or both. Enter just a model to use its default effort. Enter just an effort to use the recommended model. If there is no recommendation, Claude Code chooses its model and Codex uses the first visible model by bundled catalog priority.
 
 The saved choice applies to Verify and all other AI tasks. Claude Code accepts the levels in `podman exec <container> claude --help` through `--effort <level>`. Codex uses `-c model_reasoning_effort=<level>`. Its levels and defaults are under `supported_reasoning_levels` and `default_reasoning_level` in `podman exec <container> codex debug models --bundled`.
 

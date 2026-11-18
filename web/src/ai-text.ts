@@ -35,8 +35,8 @@ export const AI_TEXT = {
     "Workers AI runs on this Instance's Cloudflare account. No URL or API key is needed.",
   keyNotNeeded: "No API key needed for Workers AI.",
   claudeCodeKeyNotNeeded: "No API key is needed. Claude Code uses its own sign-in on this server.",
-  claudeCodeModelHelp: "Leave blank to use Claude Code's default model.",
-  recommendedModelHelp: "The recommended model is {model}. Leaving Model blank uses it.",
+  claudeCodeModelHelp: "If you enter only an effort, Claude Code chooses the model.",
+  recommendedModelHelp: "If you enter only an effort, Threadsift uses {model}.",
   claudeCodeSignedOut:
     "Claude Code is not signed in on this server. Reload this page after signing in with",
   claudeCodeSignInCommand: "claude auth login",
@@ -44,7 +44,7 @@ export const AI_TEXT = {
     "Claude Code's sign-in was rejected. Run claude auth login on the server, or replace the token it started with, then press Verify again.",
   codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in on this server.",
   codexModelHelp:
-    "Codex uses its defaults when both fields are blank. If only Effort is filled in, Threadsift uses the first visible model in the bundled catalog by priority.",
+    "If you enter only an effort, Threadsift uses the first visible model in Codex's bundled catalog.",
   codexCatalogHelp: "A model you enter must be listed by codex debug models --bundled.",
   codexSignedOut: "Codex is not signed in on this server. Reload this page after signing in with",
   codexSignInCommand: "codex login --device-auth",
@@ -52,6 +52,9 @@ export const AI_TEXT = {
     "Codex's sign-in was rejected. Run codex login --device-auth on the server, then press Verify again.",
   baseUrl: "Base URL",
   cliChoice: "Model and effort",
+  customMissing: "Enter a model or an effort.",
+  recommendationFallback:
+    "The CLI uses its defaults until the recommended pair is supported again.",
   cliChoices: {
     recommended: {
       label: "Recommended",
@@ -68,9 +71,7 @@ export const AI_TEXT = {
   },
   model: "Model",
   effort: "Effort",
-  effortHelp: "Leave blank to use the CLI default.",
-  recommendedEffortHelp:
-    "Threadsift uses {effort} when both Model and Effort are blank. If a Model is entered and Effort is blank, the CLI uses that model's default effort.",
+  effortHelp: "If you enter only a model, the CLI uses that model's default effort.",
   invalidEffort:
     "This model rejects that effort and accepts only {levels}. Save one of those levels or clear Effort.",
   noEfforts: "This model accepts no effort levels. Clear Effort and press Save.",

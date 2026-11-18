@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import type { AiConnection, ModelAi } from "./ai-contract.ts";
+import type { ModelAi } from "./ai-contract.ts";
 import { type Keyless, type Stored, StoredSettingsSchema } from "./ai-next-settings.ts";
 import { grokBotSettings } from "./grok-bot-tables.ts";
 import { connectionOf, openedGrokBot } from "./grok-bot.ts";
@@ -87,14 +87,14 @@ async function modelLoaded(snapshot: Readonly<Snapshot>): Promise<Snapshot & Mod
       };
 }
 
-function keylessConnection(saved: Readonly<Keyless>): AiConnection {
+function keylessConnection(
+  saved: Readonly<Keyless>,
+): Extract<ModelAi, { state: "ready" }>["config"] {
   return saved.provider === "workers-ai"
     ? { kind: "binding", provider: saved.provider, model: saved.model }
     : {
         kind: "cli",
         provider: saved.provider,
-        choice: saved.cliChoice,
-        model: saved.model,
-        effort: saved.effort ?? undefined,
+        ...saved.preference,
       };
 }

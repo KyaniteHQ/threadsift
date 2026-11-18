@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { CLI_CHOICES } from "./ai-provider-contract.ts";
+import { CLI_CHOICES } from "./ai-contract.ts";
 
 export const settings = sqliteTable(
   "settings",
@@ -29,6 +29,10 @@ export const settings = sqliteTable(
     check(
       "settings_cli_choice",
       sql`${table.cliChoice} = 'custom' or (${table.cliChoice} in ('recommended', 'cli-defaults') and ${table.provider} in ('claude-code', 'codex') and ${table.model} = '' and ${table.effort} is null)`,
+    ),
+    check(
+      "settings_custom_cli_overrides",
+      sql`${table.cliChoice} <> 'custom' or ${table.provider} not in ('claude-code', 'codex') or trim(${table.model}) <> '' or nullif(trim(${table.effort}), '') is not null`,
     ),
     check(
       "settings_effort_provider",

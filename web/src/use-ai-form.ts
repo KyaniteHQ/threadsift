@@ -4,7 +4,6 @@ import {
   GROK_BOT_PROVIDER,
   PROVIDERS,
   ProviderSchema,
-  AiSettingsInputSchema,
   CliChoiceSchema,
   type AiRefused,
   type CliChoice,
@@ -12,6 +11,7 @@ import {
   isCliProvider,
   withoutTrailingSlashes,
 } from "../../src/core/ai-contract.ts";
+import { AiSettingsInputSchema } from "../../src/core/ai-settings-contract.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT, signedOutSentence } from "./ai-text.ts";
 import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";
@@ -25,18 +25,15 @@ function useCliChoice(
 ) {
   const [choice, setChoice] = useState(savedChoice);
   const recommendation = isCliProvider(provider) ? recommendations[provider] : undefined;
-  const cliChoice =
-    choice === "custom" || choice === "cli-defaults"
-      ? choice
-      : recommendation === undefined
-        ? "cli-defaults"
-        : "recommended";
+  const preference = choice ?? (recommendation === undefined ? "cli-defaults" : "recommended");
+  const fallsBack = preference === "recommended" && recommendation === undefined;
+  const cliChoice = fallsBack ? "cli-defaults" : preference;
 
   const changeCliChoice = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
     setChoice(CliChoiceSchema.parse(event.target.value));
   }, []);
 
-  return { cliChoice, recommendation, setChoice, changeCliChoice } as const;
+  return { preference, cliChoice, fallsBack, recommendation, setChoice, changeCliChoice } as const;
 }
 
 function useAiFields(view: AiView) {
@@ -200,7 +197,7 @@ function savedKeyOf(
 }
 
 function settingsInput(fields: ReturnType<typeof useAiFields>) {
-  const { provider, cliChoice: choice } = fields;
+  const { provider, preference: choice } = fields;
   if (isCliProvider(provider)) {
     const values =
       choice === "custom" ? { model: fields.model.value, effort: fields.effort.value } : {};
@@ -212,6 +209,15 @@ function settingsInput(fields: ReturnType<typeof useAiFields>) {
     return [name, name === "key" && value === "" ? undefined : value];
   });
   return AiSettingsInputSchema.parse({ provider, ...Object.fromEntries(entries) });
+}
+
+export function missingCustomOverrides(fields: Readonly<ReturnType<typeof useAiFields>>): boolean {
+  return (
+    isCliProvider(fields.provider) &&
+    fields.preference === "custom" &&
+    fields.model.value.trim() === "" &&
+    fields.effort.value.trim() === ""
+  );
 }
 
 function useSave(
@@ -230,6 +236,11 @@ function useSave(
     if (unavailable !== null) {
       refuse(unavailable);
 
+      return;
+    }
+
+    if (missingCustomOverrides(fields)) {
+      fields.model.fail(AI_TEXT.customMissing);
       return;
     }
 

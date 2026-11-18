@@ -24,7 +24,7 @@ export {
   throttles,
 } from "./access-tables.ts";
 
-export { settings } from "./ai-settings-table.ts";
+export { settings } from "./ai-settings-tables.ts";
 
 export { itemAliases } from "./alias-tables.ts";
 
