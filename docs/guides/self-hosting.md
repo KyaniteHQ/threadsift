@@ -4,7 +4,7 @@ Start a container Instance with the [README's container instructions](../../READ
 
 ## Pick an image tag
 
-The image is published at `ghcr.io/kyanitehq/threadsift` for `amd64`.
+The image is published at `ghcr.io/kyanitehq/threadsift`. The `main` and `sha-<commit sha>` tags are `amd64` only (the `image` job in `.github/workflows/gate.yml`). A release tag builds `amd64` and `arm64` (`.github/workflows/release.yml`).
 
 - `main` is the latest build that started and answered.
 - `sha-<commit sha>` is one build and never moves.

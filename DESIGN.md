@@ -142,11 +142,6 @@ components:
     textColor: "{colors.text}"
     rounded: "{rounded.r4}"
     padding: "2px 8px"
-  unread-badge:
-    backgroundColor: "{colors.cobalt}"
-    textColor: "{colors.on-accent}"
-    rounded: "{rounded.r4}"
-    padding: "0 8px"
 ---
 
 # Design System: Threadsift

@@ -79,7 +79,7 @@ Before every task the app checks what Codex would load. The task is refused, and
 
 The app then logs `codex-surface-refused` with the names of the extra tools. Remove the extra configuration, or choose another Provider.
 
-The app keeps `AGENTS.md`, `AGENTS.override.md` and `skills` in `/data/codex` empty on purpose, so Codex loads no instructions from them. The app deletes nothing. If it finds a real `AGENTS.md`, a real `AGENTS.override.md`, or a `skills` folder with anything in it, it does not offer Codex and logs `codex-home-refused` with the path.
+The app keeps `AGENTS.md`, `AGENTS.override.md` and `skills` in `/data/codex` empty on purpose, so Codex loads no instructions from them. The app deletes nothing. If it finds an `AGENTS.md` or `AGENTS.override.md` that is not an empty folder, or a `skills` that is not an empty file, it does not offer Codex and logs `codex-home-refused` with the path.
 
 Run no `codex` command in that home before step 2. A Codex command that runs there before the app has made its empty `skills` file creates a `skills/.system` folder, and the app then refuses the home. If that happened, remove `/data/codex/skills` yourself and restart.
 

@@ -27,7 +27,7 @@ Karakeep, the closest open-source tool, has no comment-thread model, so a saved 
 
 - Intake is one link at a time (paste box, Web Share Target, the Extension, the HTTP API, MCP, Grok Bot) or an Import of many links.
 - Reading happens in the Reader, on desktop and on phones; the web app comes first, desktop and mobile apps later.
-- The owner runs one Instance, as a container or through the Cloudflare deploy button, and picks one Provider.
+- The owner runs one Instance, as a container or on Cloudflare, and picks one Provider.
 
 ## Capabilities and Constraints
 

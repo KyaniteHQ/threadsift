@@ -34,7 +34,7 @@ If you prefer not to give the Extension that permission, paste the value by hand
 ## How the account is used
 
 - Every Reddit link that arrives without Extension content uses the account: a Paste, a Share, an Import, a batch, and an agent token's `add`.
-- Threadsift reads one Reddit thread at a time, oldest link first. Reddit allows about 100 requests every 10 minutes, so a long thread, or an Import with many Reddit links, can wait up to 10 minutes. The library shows a waiting link as waiting for Reddit, with the time of the next check.
+- Threadsift reads one Reddit thread at a time, oldest link first. Reddit allows about 100 requests every 10 minutes, so a long thread, or an Import with many Reddit links, usually waits up to 10 minutes, and up to an hour when Reddit answers that the account made too many requests. The library shows a waiting link as waiting for Reddit, with the time of the next check.
 - When Reddit answers 429, the Instance waits for the window to end and then continues. A link that Reddit has already limited twice falls back to the archive when the third answer is a 429 as well.
 
 ## Replace, disconnect or let it expire
