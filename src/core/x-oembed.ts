@@ -2,7 +2,7 @@ import { parseHTML } from "linkedom";
 import { z } from "zod";
 
 import { parsedJson } from "./parsed-json.ts";
-import { type Anchor, type Item, LINK, itemsOf, squashed } from "./x-paragraph.ts";
+import { type Anchor, type Item, LINK, itemsOf, matchingPrefix, squashed } from "./x-paragraph.ts";
 import { rejectedQuotes, withoutQuoteLink } from "./x-quote-link.ts";
 
 const ELLIPSIS = "\u2026";
@@ -48,11 +48,13 @@ export interface StoredPost {
   readonly id: string;
   readonly author: string;
   readonly text: string;
+  readonly reply?: boolean;
   readonly chain?: { readonly next: string | null };
   readonly photos?: boolean;
 }
 
 export interface Checked {
+  readonly omittedPrefix: number;
   readonly judgement: Judgement;
   readonly rejects: readonly string[];
   readonly photoless: boolean;
@@ -228,25 +230,37 @@ function judgedAs(
   stored: Readonly<StoredPost>,
   post: Readonly<OembedPost>,
   resolved: Readonly<Resolved>,
-): Judgement {
+): Pick<Checked, "judgement" | "omittedPrefix"> {
+  const rejected = { judgement: "rejected", omittedPrefix: 0 } as const;
+
   if (
     post.id !== stored.id ||
     post.handle.toLowerCase() !== stored.author.toLowerCase() ||
     post.links.length > MAX_LINKS ||
     stored.text.includes(LINK)
   ) {
-    return "rejected";
+    return rejected;
   }
 
   const text = withoutMedia(stored.text, post.media);
 
-  if (marked(text, post.links, resolved, true) === post.whole) return "verified";
+  const whole = matchingPrefix(
+    stored.text,
+    stored.reply === true,
+    marked(text, post.links, resolved, true),
+    post.whole,
+    false,
+  );
 
-  if (post.cut === null) return "rejected";
+  if (whole !== null) return { judgement: "verified", omittedPrefix: whole };
+
+  if (post.cut === null) return rejected;
 
   const head = marked(text, post.links.slice(0, post.cut.links), resolved, false);
 
-  return head?.startsWith(post.cut.head) === true ? "tail-unverified" : "rejected";
+  const cut = matchingPrefix(stored.text, stored.reply === true, head, post.cut.head, true);
+
+  return cut === null ? rejected : { judgement: "tail-unverified", omittedPrefix: cut };
 }
 
 export function checked(
@@ -255,17 +269,17 @@ export function checked(
   resolved: Readonly<Resolved>,
 ): Checked {
   const whole = judgedAs(stored, post, resolved);
-  const quote = whole === "rejected" ? withoutQuoteLink(post, resolved) : null;
+  const quote = whole.judgement === "rejected" ? withoutQuoteLink(post, resolved) : null;
 
-  const judgement =
+  const match =
     quote === null
       ? whole
       : judgedAs(stored, { ...post, links: quote.links, whole: quote.whole }, resolved);
 
-  if (judgement === "rejected") return { judgement, rejects: [], photoless: false };
+  if (match.judgement === "rejected") return { ...match, rejects: [], photoless: false };
 
   return {
-    judgement,
+    ...match,
     photoless: stored.photos === true && post.media.length === 0,
     rejects: rejectedQuotes(
       stored.chain?.next,

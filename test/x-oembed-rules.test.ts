@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { resolutionsNeeded } from "../src/core/x-oembed.ts";
+import { checked, resolutionsNeeded } from "../src/core/x-oembed.ts";
 import {
   CUT_BARE_HEAD,
   CUT_BARE_ID,
@@ -25,7 +25,16 @@ import {
 } from "./x-oembed-fixtures.ts";
 
 describe("a stored post must be what X shows for the id and the author, character for character", () => {
-  it("verifies the text of recorded posts, with the line breaks, spaces, entities and scripts X shows", () => {
+  it("verifies the text X shows and omits extra leading mentions only for replies", () => {
+    const prefix = "@reader_1\t@orchard\n";
+    const post = postOf("reply-short.json");
+    const stored = { id: post.id, author: post.handle, text: prefix + REPLY_SHORT };
+    const reply = checked({ ...stored, reply: true }, post, NOTHING_RESOLVED);
+
+    assert.equal(reply.judgement, "verified");
+    assert.equal(stored.text.slice(reply.omittedPrefix), REPLY_SHORT);
+    assert.equal(checked(stored, post, NOTHING_RESOLVED).judgement, "rejected");
+
     assert.deepEqual(
       [
         SHORT(REPLY_SHORT),

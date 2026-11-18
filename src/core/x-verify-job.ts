@@ -28,7 +28,7 @@ async function slice(
   );
 
   const judged = { ...row.judged, ...asked.added };
-  const next = progressOf(row.thread, judged);
+  const next = progressOf(asked.thread, judged);
 
   report("x-verify-slice", {
     requests: asked.requests,
@@ -46,7 +46,15 @@ async function slice(
     deferredUntil: Date.now() + (asked.unavailable ? (RETRY_DELAYS_MS[job.attempts] ?? 0) : 0),
     wait: asked.unavailable ? "x-verify" : null,
     countsAttempt: asked.unavailable,
-    writes: [savedProgress(ports.db, job.itemId, row.revision, judged)],
+    writes: [
+      savedProgress(
+        ports.db,
+        job.itemId,
+        row.revision,
+        judged,
+        asked.thread === row.thread ? undefined : asked.thread,
+      ),
+    ],
   };
 }
 

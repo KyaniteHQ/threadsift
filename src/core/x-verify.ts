@@ -32,6 +32,7 @@ type Resolution =
   | { readonly kind: "unavailable" };
 
 interface Slice {
+  readonly thread: XThreadValue;
   readonly added: Judged;
   readonly requests: number;
   readonly unavailable: boolean;
@@ -152,6 +153,7 @@ async function checkedPost(
   signal: AbortSignal,
   asking: Readonly<Asking>,
   isRoot: boolean,
+  replaceText: (text: string) => void,
 ): Promise<Judged | null> {
   asking.counted();
 
@@ -177,7 +179,9 @@ async function checkedPost(
     return null;
   }
 
-  const { judgement, rejects, photoless } = checked(stored, answer.post, resolved);
+  const { judgement, rejects, photoless, omittedPrefix } = checked(stored, answer.post, resolved);
+
+  if (omittedPrefix > 0) replaceText(stored.text.slice(omittedPrefix));
 
   const rejected = [...rejects, ...(photoless ? [noPhotosKey(stored.id)] : [])];
 
@@ -194,6 +198,7 @@ export async function askedSlice(
   signal: AbortSignal,
 ): Promise<Slice> {
   const { asking, requests } = openAsking();
+  const replyTexts = new Map<string, string>();
   const queue = [...sliceOf(thread, judgedSoFar)];
   const added: Record<string, Judgement> = {};
 
@@ -208,6 +213,9 @@ export async function askedSlice(
       signal,
       asking,
       stored.id === thread.post.id,
+      (text) => {
+        replyTexts.set(stored.id, text);
+      },
     );
 
     for (const [id, judgement] of Object.entries(judgements ?? {})) {
@@ -219,5 +227,16 @@ export async function askedSlice(
 
   await Promise.all(Array.from({ length: CONCURRENT_REQUESTS }, work));
 
-  return { added, requests: requests(), unavailable: asking.isStopped() };
+  const checkedThread =
+    replyTexts.size === 0
+      ? thread
+      : {
+          ...thread,
+          replies: thread.replies.map((reply) => ({
+            ...reply,
+            text: replyTexts.get(reply.id) ?? reply.text,
+          })),
+        };
+
+  return { thread: checkedThread, added, requests: requests(), unavailable: asking.isStopped() };
 }

@@ -1,3 +1,4 @@
+import { possibleAuthorParts } from "./x-author-thread.ts";
 import { noPhotosKey } from "./x-images.ts";
 import { joinedPost, leadingQuotes } from "./x-joined-post.ts";
 import { type Judgement, MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
@@ -34,9 +35,12 @@ function postsOf(
     }),
   );
 
+  const authorParts = possibleAuthorParts({ post, replies });
+
   return [
     ...chain,
     ...replies.map(({ id, author, text, images }) => ({
+      reply: !authorParts.has(id),
       id,
       author,
       text,

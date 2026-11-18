@@ -71,10 +71,11 @@ export function savedProgress(
   itemId: number,
   revision: number,
   judged: Judged,
+  thread?: Readonly<XThreadValue>,
 ): BatchItem<"sqlite"> {
   return db
     .update(xVerifications)
-    .set({ judged })
+    .set({ judged, thread: thread === undefined ? undefined : JSON.stringify(thread) })
     .where(and(eq(xVerifications.itemId, itemId), eq(xVerifications.revision, revision)));
 }
 

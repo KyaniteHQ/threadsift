@@ -65,6 +65,25 @@ function partParent(
   return post.id;
 }
 
+export function possibleAuthorParts({
+  post,
+  replies,
+}: Readonly<XThreadValue>): ReadonlySet<string> {
+  const byId = new Map(replies.map((reply) => [reply.id, reply]));
+  const kept = new Set<string>();
+
+  return new Set(
+    replies
+      .filter(
+        (reply) =>
+          reply.repairedParent !== true &&
+          sameHandle(reply.author, post.author) &&
+          partParent(reply, byId, kept, post) === post.id,
+      )
+      .map(({ id }) => id),
+  );
+}
+
 function followUpTo(
   tipId: string,
   { post, replies }: Readonly<XThreadValue>,

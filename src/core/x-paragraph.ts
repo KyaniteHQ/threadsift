@@ -75,3 +75,33 @@ export function itemsOf(
 
   return items;
 }
+
+export function matchingPrefix(
+  text: string,
+  reply: boolean,
+  normalized: string | null,
+  shown: string,
+  cut: boolean,
+): number | null {
+  if (normalized === null) return null;
+
+  const matches = (at: number) =>
+    (cut || at + shown.length === normalized.length) && normalized.startsWith(shown, at);
+
+  if (matches(0)) return 0;
+
+  if (!reply) return null;
+
+  const mention = /@[A-Za-z0-9_]+\s+/uy;
+  let at = 0;
+
+  for (let word = mention.exec(text); word !== null; word = mention.exec(text)) {
+    at += word[0].trimEnd().length;
+
+    if (normalized[at] === " ") at += 1;
+
+    if (matches(at)) return mention.lastIndex;
+  }
+
+  return null;
+}
