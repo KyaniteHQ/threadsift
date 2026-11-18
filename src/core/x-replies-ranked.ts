@@ -1,3 +1,4 @@
+import { wireCommentId } from "./comment-id.ts";
 import { X_REPLIES_KEPT_MAX, X_REPLIES_LIKES_PERCENT, X_REPLIES_MIN } from "./limits.ts";
 import type { Database } from "./ports.ts";
 import { authorPartsOf } from "./x-author-thread.ts";
@@ -67,7 +68,11 @@ function plainReply({ id, parentId, author, text, postedAt, likes, images }: XCl
   return { id, parentId, author, text, postedAt, likes, images };
 }
 
-function rankedThread(thread: Readonly<XCliThreadValue>, held: number): XThreadValue {
+function rankedThread(
+  thread: Readonly<XCliThreadValue>,
+  held: number,
+  keptComments: readonly string[],
+): XThreadValue {
   const byId = new Map(thread.replies.map((reply) => [reply.id, reply]));
   const parts = authorPartsOf(thread).map(({ id }) => id);
   const partIds = new Set(parts);
@@ -78,7 +83,9 @@ function rankedThread(thread: Readonly<XCliThreadValue>, held: number): XThreadV
     .toSorted(moreImportant);
 
   const rankedIds = ranked.map(({ id }) => id);
-  const keptFor = (count: number) => withAncestors([...parts, ...rankedIds.slice(0, count)], byId);
+  const digestIds = keptComments.flatMap((id) => wireCommentId(id) ?? []);
+  const keptFor = (count: number) =>
+    withAncestors([...parts, ...digestIds, ...rankedIds.slice(0, count)], byId);
 
   const storedIn = (kept: Readonly<ReadonlySet<string>>) =>
     possible.filter((reply) => kept.has(reply.id) && (partIds.has(reply.id) || hasText(reply)))
@@ -114,10 +121,11 @@ export async function readFetchedThread(
   itemId: number,
   statusId: string,
   thread: Readonly<XCliThreadValue>,
+  keptComments: readonly string[] = [],
 ): Promise<ReturnType<typeof storedXThread>> {
   const parsed = parseXThreadValue(thread, statusId);
 
   if (parsed.kind === "refused") return parsed;
 
-  return storedXThread(rankedThread(thread, await storedReplyCount(db, itemId)));
+  return storedXThread(rankedThread(thread, await storedReplyCount(db, itemId), keptComments));
 }

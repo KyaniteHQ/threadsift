@@ -57,7 +57,13 @@ async function stored(
     return { kind: "invalid", reasons: read.reason, logged: read.logged };
   }
 
-  const parsed = await readFetchedThread(db, task.itemId, statusId, read.value);
+  const parsed = await readFetchedThread(
+    db,
+    task.itemId,
+    statusId,
+    read.value,
+    answer.digest?.keptComments,
+  );
 
   if (parsed.kind === "refused") {
     return {

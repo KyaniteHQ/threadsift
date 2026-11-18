@@ -26,6 +26,7 @@ export function largeThreadOf(statusId: string) {
   entries[1] = reply(root + 2n, root - 1n, { likes: 999 });
   entries[2] = reply(root + 3n, statusId, { likes: 999, text: " " });
   entries[3] = reply(root + 4n, root + 1n, { text: LONG_TEXT });
+  entries[98] = reply(root + 99n, root + 98n, { likes: 0 });
   entries[99] = reply(root + 100n, statusId, { author: "someone", likes: 0 });
 
   return thread(entries.toReversed(), { id: statusId });

@@ -59,18 +59,22 @@ describe("an X link answer with the task's credential is stored once and only fo
     assert.equal(stored(instance), unchanged);
   });
 
-  it("stores the ranked IDs, their ancestors and the author thread from 100 intake replies when the full answer exceeds the stored row limit", async () => {
+  it("stores ranked replies, Digest picks, their ancestors and the author thread from 100 intake replies when the full answer exceeds the stored row limit", async () => {
     const task = await sentIntakeForContent(instance);
     const value = largeThreadOf(task.statusId);
-    const content = JSON.stringify(value);
+    const content = JSON.stringify({ ...value, post: { ...value.post, replies: 0 } });
     assert.ok(content.length > 1_499_998);
 
-    const response = await intakeTo(instance, task, { content });
+    const root = BigInt(task.statusId);
+    const digest = { ...digestOf(), keptComments: [`t1_${String(root + 99n)}`, "t1_missing"] };
+    const response = await intakeTo(instance, task, { content, digest });
     assert.equal(response.status, 204, await response.text());
 
-    const offsets = [100, ...Array.from({ length: 40 }, (_, index) => 43 - index), 1];
+    const offsets = [100, 99, 98, ...Array.from({ length: 40 }, (_, index) => 43 - index), 1];
+    const verification = verificationRow(instance, task.itemId);
+    assert.equal(verification?.thread.post.replies, 100);
     assert.deepEqual(
-      verificationRow(instance, task.itemId)?.thread.replies.map(({ id }) => id),
+      verification?.thread.replies.map(({ id }) => id),
       offsets.map((offset) => String(BigInt(task.statusId) + BigInt(offset))),
     );
   });
