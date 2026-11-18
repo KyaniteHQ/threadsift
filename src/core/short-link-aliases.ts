@@ -53,20 +53,24 @@ export function holdsNoFailedItem(db: Database, shortLink: string) {
   return holdsNoRow(db, items, failedResolutionAt(shortLink));
 }
 
-export function promoteFailedItem(
-  db: Database,
-  shortLink: string,
-  { normalizedUrl, kind, source }: Readonly<Link>,
-) {
+export function promotableFailedItem(db: Database, shortLink: string, normalizedUrl: string) {
   const taken = db
     .select({ one: sql`1` })
     .from(holder)
     .where(eq(holder.normalizedUrl, normalizedUrl));
 
+  return sql`${failedResolutionAt(shortLink)} and ${notExists(taken)}`;
+}
+
+export function promoteFailedItem(
+  db: Database,
+  shortLink: string,
+  { normalizedUrl, kind, source }: Readonly<Link>,
+) {
   return db
     .update(items)
     .set({ normalizedUrl, kind, source })
-    .where(and(failedResolutionAt(shortLink), notExists(taken)));
+    .where(promotableFailedItem(db, shortLink, normalizedUrl));
 }
 
 export function recordAlias(

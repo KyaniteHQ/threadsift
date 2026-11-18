@@ -76,6 +76,8 @@ const REFUSAL_TEXT = {
   "library-not-empty":
     "This Instance already holds Items or other library records. A Restore needs an empty library.",
   "restore-open": "Another Restore is waiting for its upload or is running. Reload the page.",
+  "vault-busy":
+    "The Vault mirror is finishing a write. Wait a moment and choose the same zip again to start the Restore.",
 } as const satisfies Record<RestoreErrorCode, string>;
 
 const GAVE_UP =

@@ -64,6 +64,7 @@ export const RESTORE_ERROR_CODES = [
   ...RESTORE_REFUSALS,
   "library-not-empty",
   "restore-open",
+  "vault-busy",
 ] as const;
 
 export const RestoreErrorSchema = z.object({

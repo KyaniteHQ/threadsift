@@ -12,6 +12,10 @@ export type VaultLease = typeof vaultSettings.$inferSelect;
 export const VAULT_CLOCK = sql`cast(unixepoch('subsec') * 1000 as integer)`;
 export const VAULT_AVAILABLE = sql`not exists (select 1 from ${restoreRuns} where ${HOLDS_LIBRARY})`;
 
+export function vaultIdleAt(at: number) {
+  return sql<number>`not exists (select 1 from ${vaultSettings} where ${vaultSettings.leaseUntil} > ${at})`;
+}
+
 export function vaultHolding(lease: Readonly<VaultLease>) {
   return and(
     eq(vaultSettings.generation, lease.generation),

@@ -25,7 +25,7 @@ import { repositoryRef } from "./repository-ref.ts";
 
 type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
-  | { readonly kind: "failed"; readonly fetched: Concluded };
+  | { readonly kind: "failed"; readonly fetched: Exclude<Concluded, { status: "ok" }> };
 
 export const SMALL_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
