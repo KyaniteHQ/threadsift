@@ -3,6 +3,7 @@ import { type ReactNode, memo, useCallback } from "react";
 import { itemPath } from "../../src/core/item-path.ts";
 import type { LogEntry } from "../../src/core/log-contract.ts";
 import { topicPath } from "../../src/core/topic-path.ts";
+import { VAULT_TEXT } from "../../src/core/vault-text.ts";
 import { localStamp } from "./log-date.ts";
 import { LOG_WORDS, addedRemoved, itemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
 import { LogLink } from "./LogLink.tsx";
@@ -134,6 +135,11 @@ function body(entry: Readonly<LogEntry>, pages: Pages): readonly Part[] {
       return mergeParts(LOG_WORDS.tag, entry);
     case "merge-topic":
       return mergeParts(LOG_WORDS.topic, entry);
+    case "vault-file-skipped":
+      return [
+        { key: "action", node: VAULT_TEXT.skipped },
+        { key: "path", node: entry.path },
+      ];
     default:
       return entry satisfies never;
   }

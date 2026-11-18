@@ -7,7 +7,7 @@ import { START_CHECK } from "./restore-contract.ts";
 import { EMPTY_LIBRARY, holdsEveryPart, libraryIsEmpty, restoreById } from "./restore-state.ts";
 import { openingRestoreJob } from "./restore-unit.ts";
 import { restoreRuns } from "./schema.ts";
-import { vaultIdleAt } from "./vault-state.ts";
+import { fenceVault, vaultIdleAt } from "./vault-state.ts";
 
 export type StartedRestore =
   | { readonly kind: "started" }
@@ -38,6 +38,7 @@ function opened(db: Database, id: number) {
         updatedAt: now,
       })
       .where(ready),
+    fenceVault(db),
   ]);
 }
 

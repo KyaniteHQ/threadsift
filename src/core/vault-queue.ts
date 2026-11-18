@@ -1,37 +1,43 @@
-import { type SQLWrapper, and, asc, eq, lte, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, lte, sql } from "drizzle-orm";
+import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import { report } from "./failure-log.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
-import { items } from "./schema.ts";
-import { mirrorNotes, vaultSettings } from "./vault-tables.ts";
+import { items, topics } from "./schema.ts";
+import { mirrorNotes, vaultSettings, type VaultKind } from "./vault-tables.ts";
 
 export type PendingVaultNote = Readonly<typeof mirrorNotes.$inferSelect>;
 
-export class VaultItemFailure extends Error {
-  readonly subjectId: number;
+export class VaultNoteFailure extends Error {
   readonly reason: "file-missing" | "file-changed" | "item-unreadable" | "file-too-large";
 
-  constructor(input: Readonly<{ subjectId: number; reason: VaultItemFailure["reason"] }>) {
-    super(input.reason);
-    this.subjectId = input.subjectId;
-    this.reason = input.reason;
+  constructor(reason: VaultNoteFailure["reason"]) {
+    super(reason);
+    this.reason = reason;
   }
 }
 
-export function queueVaultItems(db: Database, where: Readonly<SQLWrapper>) {
+interface Subjects {
+  readonly kind: VaultKind | Readonly<SQLWrapper>;
+  readonly id: number | Readonly<SQLWrapper>;
+  readonly from?: SQLiteTable | SQL;
+  readonly when: Readonly<SQLWrapper>;
+}
+
+export function queueVaultNotes(db: Database, { kind, id, from, when }: Readonly<Subjects>) {
   return db
     .insert(mirrorNotes)
     .select(
       db
         .select({
           sequence: sql<number>`null`.as("sequence"),
-          kind: sql<"item">`'item'`.as("kind"),
-          subjectId: items.id,
+          kind: sql<VaultKind>`${kind}`.as("kind"),
+          subjectId: sql<number>`${id}`.as("subject_id"),
           retryAt: sql<number>`0`.as("retry_at"),
         })
-        .from(items)
-        .where(sql`${where} and exists (select 1 from ${vaultSettings})`),
+        .from(from ?? sql`(select 1)`)
+        .where(sql`(${when}) and exists (select 1 from ${vaultSettings})`),
     )
     .onConflictDoUpdate({
       target: [mirrorNotes.kind, mirrorNotes.subjectId],
@@ -39,10 +45,38 @@ export function queueVaultItems(db: Database, where: Readonly<SQLWrapper>) {
     });
 }
 
+export function queueVaultItems(db: Database, when: Readonly<SQLWrapper>) {
+  return queueVaultNotes(db, { kind: "item", id: items.id, from: items, when });
+}
+
+export function queueVaultTopics(db: Database, when: Readonly<SQLWrapper>) {
+  return queueVaultNotes(db, { kind: "topic", id: topics.id, from: topics, when });
+}
+
+export function queueVaultIndex(db: Database, when: Readonly<SQLWrapper>) {
+  return queueVaultNotes(db, { kind: "index", id: 0, when });
+}
+
+export function queueVaultLog(db: Database, when: Readonly<SQLWrapper>) {
+  return queueVaultNotes(db, { kind: "log", id: 0, when });
+}
+
+export function queueVaultLibrary(db: Database) {
+  const all = sql`1`;
+
+  return [
+    queueVaultItems(db, all),
+    queueVaultTopics(db, all),
+    queueVaultIndex(db, all),
+    queueVaultLog(db, all),
+    db.update(vaultSettings).set({ scanPending: true }),
+  ];
+}
+
 export async function parkVaultNote(
   db: Database,
   note: Readonly<PendingVaultNote>,
-  failure: Readonly<VaultItemFailure>,
+  failure: Readonly<VaultNoteFailure>,
 ): Promise<void> {
   await db
     .update(mirrorNotes)
@@ -54,7 +88,11 @@ export async function parkVaultNote(
         eq(mirrorNotes.subjectId, note.subjectId),
       ),
     );
-  report("vault-note-parked", { subjectId: note.subjectId, reason: failure.reason });
+  report("vault-note-parked", {
+    kind: note.kind,
+    subjectId: note.subjectId,
+    reason: failure.reason,
+  });
 }
 
 export function dueVaultNotes(db: Database, limit: number) {
@@ -64,7 +102,7 @@ export function dueVaultNotes(db: Database, limit: number) {
     .where(
       and(
         lte(mirrorNotes.retryAt, Date.now()),
-        sql`not exists ${hasOpenJob(undefined, sql`${mirrorNotes.subjectId}`)}`,
+        sql`${mirrorNotes.kind} <> 'item' or not exists ${hasOpenJob(undefined, sql`${mirrorNotes.subjectId}`)}`,
       ),
     )
     .orderBy(asc(mirrorNotes.sequence))

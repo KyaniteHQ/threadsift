@@ -8,6 +8,7 @@ import {
   type VaultVerifyInput,
 } from "./vault-contract.ts";
 import { vaultGithub } from "./vault-github.ts";
+import { queueVaultLibrary } from "./vault-queue.ts";
 import { VaultFailure } from "./vault-request.ts";
 import { mirrorFiles, mirrorNotes, vaultSettings } from "./vault-tables.ts";
 
@@ -32,6 +33,7 @@ export async function saveVaultSettings(ports: VaultPorts, input: Readonly<Vault
     repository: input.repository,
     branch: input.branch,
     sealedToken: await secrets.seal(input.token),
+    wikiPending: false,
   };
   await db.batch([
     db
@@ -53,6 +55,7 @@ export async function saveVaultSettings(ports: VaultPorts, input: Readonly<Vault
           scanPending: true,
         },
       }),
+    ...queueVaultLibrary(db),
   ]);
   return readVaultSettings(ports);
 }

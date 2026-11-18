@@ -3,7 +3,7 @@ import type { JobPorts } from "./job-outcome.ts";
 import { VAULT_DEADLINE_MS, VAULT_NOTE_LIMIT } from "./vault-contract.ts";
 import { vaultFiles } from "./vault-files.ts";
 import { vaultGithub } from "./vault-github.ts";
-import { VaultItemFailure, parkVaultNote, dueVaultNotes } from "./vault-queue.ts";
+import { dueVaultNotes } from "./vault-queue.ts";
 import { VaultFailure, staleVault } from "./vault-request.ts";
 import {
   type VaultLease,
@@ -23,22 +23,22 @@ async function drain(
   if (token === null || token === undefined)
     throw new VaultFailure({ reason: "secret-missing", until: null, status: null });
   const github = vaultGithub(ports.network, { ...lease, token }, signal);
-  if (lease.scanPending) await seedVaultInventory(ports.db, lease, await github.subjects());
+  if (lease.scanPending || lease.wikiPending)
+    await seedVaultInventory(ports.db, lease, await github.subjects());
   const pending = await dueVaultNotes(ports.db, VAULT_NOTE_LIMIT);
   if (pending.length === 0) return;
   const batch = await vaultFiles({ ports, github, signal, pending });
-  try {
-    if (!(await vaultCurrent(ports.db, lease, batch.pending))) throw staleVault();
-    await github.write({
-      files: batch.files,
-      current: () => vaultCurrent(ports.db, lease, batch.pending),
-    });
-    await acknowledgeVault(ports.db, { lease, pending: batch.complete, files: batch.progress });
-  } catch (error) {
-    if (!(error instanceof VaultItemFailure)) throw error;
-    const failed = batch.pending.find(({ subjectId }) => subjectId === error.subjectId);
-    if (failed !== undefined) await parkVaultNote(ports.db, failed, error);
-  }
+  if (!(await vaultCurrent(ports.db, lease, batch.pending))) throw staleVault();
+  await github.write({
+    files: batch.files,
+    current: () => vaultCurrent(ports.db, lease, batch.pending),
+  });
+  await acknowledgeVault(ports.db, {
+    lease,
+    pending: batch.complete,
+    files: batch.progress,
+    oversized: batch.oversized,
+  });
 }
 
 function failureWait(lease: Readonly<VaultLease>, cause: unknown): number | null {

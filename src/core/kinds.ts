@@ -222,6 +222,7 @@ export const LOG_ACTIONS = [
   "related",
   "merge",
   "merge-topic",
+  "vault-file-skipped",
 ] as const;
 
 export type LogAction = (typeof LOG_ACTIONS)[number];

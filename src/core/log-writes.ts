@@ -4,6 +4,7 @@ import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { LogAction } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, logEntries, proposals, topics } from "./schema.ts";
+import { queueVaultLog } from "./vault-queue.ts";
 
 interface Fields {
   readonly action: SQL<LogAction> | LogAction;
@@ -22,9 +23,9 @@ interface Fields {
 
 function appended(
   db: Database,
-  fields: Readonly<Fields & { from: SQLiteTable; where: SQL | undefined }>,
+  fields: Readonly<Fields & { from: SQLiteTable | SQL; where: SQL | undefined }>,
 ) {
-  return db.insert(logEntries).select(
+  const write = db.insert(logEntries).select(
     db
       .select({
         id: sql<null>`null`.as("id"),
@@ -45,6 +46,8 @@ function appended(
       .from(fields.from)
       .where(fields.where),
   );
+
+  return [write, queueVaultLog(db, sql`changes() > 0`)] as const;
 }
 
 export function loggedDigest(
@@ -128,5 +131,14 @@ export function loggedMerge(
     mergedFrom,
     mergedInto,
     moved: sql`coalesce(${proposals.moved}, 0)`,
+  });
+}
+
+export function loggedVaultSkip(db: Database, path: string, held: Readonly<SQLWrapper>) {
+  return appended(db, {
+    from: sql`(select 1)`,
+    where: sql`${held} and not exists (select 1 from ${logEntries} where ${logEntries.action} = 'vault-file-skipped' and ${logEntries.title} = ${path})`,
+    action: "vault-file-skipped",
+    title: path,
   });
 }

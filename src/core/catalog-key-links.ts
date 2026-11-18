@@ -15,6 +15,7 @@ import {
 } from "./schema.ts";
 import { siblingTags, tagPartWrites } from "./search.ts";
 import { continuingOverview, overviewRemoved } from "./topic-overview-run.ts";
+import { queueVaultIndex, queueVaultItems, queueVaultTopics } from "./vault-queue.ts";
 
 const MERGE_ITEMS = 500;
 
@@ -68,8 +69,13 @@ export function topicMoves(
   { itemIds, entryIds }: Readonly<Moves>,
 ) {
   const survivorName = sql`(select ${topics.name} from ${topics} where ${topics.id} = ${survivor})`;
+  const moving = and(eq(items.topicId, loser), among(items.id, itemIds));
+  const moved = sql`exists (select 1 from ${items} where ${moving})`;
 
   return [
+    queueVaultItems(db, sql`${moving}`),
+    queueVaultTopics(db, sql`${topics.id} in (${loser}, ${survivor}) and ${moved}`),
+    queueVaultIndex(db, moved),
     db
       .update(digests)
       .set({
@@ -82,10 +88,7 @@ export function topicMoves(
           sql`${digests.itemId} in (select ${items.id} from ${items} where ${items.topicId} = ${loser})`,
         ),
       ),
-    db
-      .update(items)
-      .set({ topicId: survivor })
-      .where(and(eq(items.topicId, loser), among(items.id, itemIds))),
+    db.update(items).set({ topicId: survivor }).where(moving),
     db
       .update(logEntries)
       .set({ topicId: survivor })

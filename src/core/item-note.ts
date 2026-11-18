@@ -34,7 +34,7 @@ function unicodeEscape(character: string): string {
   return "\\u" + (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
 }
 
-function scalar(value: string | null): string {
+export function scalar(value: string | null): string {
   return JSON.stringify(value ?? "").replaceAll(NOT_PLAIN_YAML, unicodeEscape);
 }
 
@@ -79,7 +79,7 @@ const BLOCK_MARKER = /^(\s{0,3})([#>+=-])/u;
 
 const LIST_NUMBER = /^(\s{0,3}\d+)([.)])/u;
 
-function plainMarkdown(text: string): string {
+export function plainMarkdown(text: string): string {
   return lineBreaksOf(text)
     .map((line) =>
       line
@@ -189,12 +189,13 @@ function imagesBesideNote(text: string, itemId: number): string {
   );
 }
 
-export function itemNote(input: Readonly<ItemNoteInput>): string {
+export function itemNote(input: Readonly<ItemNoteInput>, links: readonly string[] = []): string {
   const postText = input.postText === null || input.postText.trim() === "" ? null : input.postText;
 
   const body = [
     `# ${titleOf(input)}`,
     "",
+    ...links,
     ...(input.summary === null
       ? []
       : [`## ${SUMMARY_LABEL}`, "", plainMarkdown(input.summary), ""]),

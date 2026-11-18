@@ -37,6 +37,9 @@ export const LogEntrySchema = z.discriminatedUnion("action", [
     .readonly(),
   z.object({ ...Shared, action: z.literal("merge"), ...Merged }).readonly(),
   z.object({ ...Shared, action: z.literal("merge-topic"), ...Merged }).readonly(),
+  z
+    .object({ ...Shared, action: z.literal("vault-file-skipped"), path: z.string().min(1) })
+    .readonly(),
 ]);
 
 export type LogEntry = z.infer<typeof LogEntrySchema>;

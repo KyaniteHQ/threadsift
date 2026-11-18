@@ -93,11 +93,11 @@ The page that lists every Topic with its Item count and overview line.
 _Avoid_: Home, dashboard, catalogue
 
 **Log**:
-The list of the committed changes to the library, newest first, from the day the Instance began it: the agent's own changes, and the merges the owner accepts.
+The list of committed library changes and files the Vault mirror skipped, newest first, from the day the Instance began it.
 _Avoid_: History, activity feed, audit trail
 
 **Log entry**:
-One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks), a `merge` (a Tag merged into another) or a `merge-topic` (a Topic merged into another). It keeps the title and names as they were when the change committed.
+One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks), a `merge` (a Tag merged into another), a `merge-topic` (a Topic merged into another) or a `vault-file-skipped` (a file above GitHub's size limit). It keeps the title and names as they were when the change committed.
 _Avoid_: Event, Audit record
 
 **Proposal**:

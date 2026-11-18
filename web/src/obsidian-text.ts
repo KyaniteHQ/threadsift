@@ -2,7 +2,7 @@ export const OBSIDIAN_TEXT = {
   backToSettings: "Back to settings",
   title: "Obsidian",
   intro:
-    "Writes one-way Markdown Item notes and files to the GitHub repository for your Obsidian vault. Verify checks that the branch is reachable without saving or writing files. Save seals the token and queues existing Items. The Vault mirror then updates Item notes for later Pastes, published Digests, Read state changes, Highlight changes, Note changes, refreshes and deletions.",
+    "The Vault mirror writes Item notes and files, Topic pages, the Index and the Log as Markdown in the chosen GitHub repository for your Obsidian vault. Edits flow from Threadsift to the vault. Verify checks the branch without saving or writing. Save queues the current library.",
   repositoryLabel: "Repository",
   repositoryHelp: "The GitHub repository for your vault, written as owner/repo.",
   branchLabel: "Branch",
@@ -16,7 +16,7 @@ export const OBSIDIAN_TEXT = {
   verifying: "Verifying…",
   remove: "Remove",
   removing: "Removing…",
-  saved: "Vault mirror saved. Existing Items are queued.",
+  saved: "Vault mirror settings saved. The library is queued.",
   removed: "Vault mirror removed.",
   verified: "Repository and branch reached. Verify does not test write permission or write files.",
   missing: "No Vault mirror is set up on this Instance.",

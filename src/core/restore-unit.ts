@@ -8,6 +8,7 @@ import type { Database } from "./ports.ts";
 import type { RestoreFailure } from "./restore-contract.ts";
 import { restoreById } from "./restore-state.ts";
 import { type RestoreRow, jobs, restoreRuns } from "./schema.ts";
+import { queueVaultLibrary } from "./vault-queue.ts";
 
 function partKeysOf(run: Readonly<Pick<RestoreRow, "id" | "parts">>): readonly string[] {
   return Array.from({ length: run.parts }, (_, at) => restorePartKey(run.id, at + 1));
@@ -95,7 +96,11 @@ export function endedUnit(
   before: JobWrites = [],
 ): JobOutcome {
   return {
-    writes: [...before, db.update(restoreRuns).set(set).where(eq(restoreRuns.id, run.id))],
+    writes: [
+      ...before,
+      db.update(restoreRuns).set(set).where(eq(restoreRuns.id, run.id)),
+      ...(set.state === "failed" ? [] : queueVaultLibrary(db)),
+    ],
     precondition: precondition(db, run),
     files: { written: [], superseded: partKeysOf(run) },
   };

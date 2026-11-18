@@ -23,7 +23,7 @@ import {
   searchParts,
   xVerifications,
 } from "./schema.ts";
-import { queueVaultItems } from "./vault-queue.ts";
+import { queueVaultItemDeletion } from "./vault-wiki-writes.ts";
 
 async function storedKeys(files: FileStore, itemId: number): Promise<string[]> {
   const keys: string[] = [];
@@ -54,6 +54,7 @@ export async function deleteItem(
   id: number,
 ): Promise<boolean> {
   const results = await db.batch([
+    ...queueVaultItemDeletion(db, id),
     db.delete(redditComments).where(eq(redditComments.itemId, id)),
     db.delete(redditThreads).where(eq(redditThreads.itemId, id)),
     db.delete(githubRepos).where(eq(githubRepos.itemId, id)),
@@ -71,7 +72,6 @@ export async function deleteItem(
     db.delete(digests).where(eq(digests.itemId, id)),
     db.delete(aiTasks).where(eq(aiTasks.itemId, id)),
     db.delete(jobs).where(eq(jobs.itemId, id)),
-    queueVaultItems(db, eq(items.id, id)),
     db.delete(items).where(eq(items.id, id)).returning({ id: items.id }),
   ]);
 

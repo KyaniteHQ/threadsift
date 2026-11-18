@@ -81,7 +81,7 @@ Accept leaves no Pin, because a Pin keeps a regeneration from undoing a correcti
 - The two Items no longer sit under one Topic.
 - A concurrent Accept removed the row before the guarded write.
 
-One guarded batch inserts the Pin and deletes the row. Its guard holds while the row is `open` and `DISAGREEMENT.accepts` holds. The Pin insert is an upsert on `(kind, from_key)` with `DO UPDATE ... WHERE NOT currentDisagreementPin`. A stale Pin of the same pair is replaced in place and keeps its id, and a current Pin stays. That `WHERE` also covers an `open` row whose pair already has a current Pin. In that case the batch deletes the row, the Pin stays, and the call answers 200. Accept changes no Item, Summary, or overview.
+One guarded batch inserts the Pin and deletes the row. It queues the Topic page note for the Vault mirror when the Pin changes. Its guard holds while the row is `open` and `DISAGREEMENT.accepts` holds. The Pin insert is an upsert on `(kind, from_key)` with `DO UPDATE ... WHERE NOT currentDisagreementPin`. A stale Pin of the same pair is replaced in place and keeps its id, and a current Pin stays. That `WHERE` also covers an `open` row whose pair already has a current Pin. In that case the batch deletes the row, the Pin stays, and the call answers 200. Accept changes no Item, Summary, or overview.
 
 ### Overview update
 
@@ -297,7 +297,7 @@ A stage that throws before its batch commits logs `sweep-stage-failed` and tries
 
 ## The Log entry
 
-A `merge` entry (`loggedMerge` in `src/core/log-writes.ts`) holds the two Tag names as written when the merge finishes and the Items that carried the Tag. It names no Tag and no Item, so it blocks no delete and survives an Item delete. A failed unit writes nothing, and the Log has no failure entries. A `merge-topic` entry is the same row for a Topic merge. Its `moved` is the number of Items that the units of this Accept moved.
+A `merge` entry (`loggedMerge` in `src/core/log-writes.ts`) holds the two Tag names as written when the merge finishes and the Items that carried the Tag. It names no Tag and no Item, so it blocks no delete and survives an Item delete. A failed merge unit adds no Log entry. A `merge-topic` entry is the same row for a Topic merge. Its `moved` is the number of Items that the units of this Accept moved.
 
 ## The page
 

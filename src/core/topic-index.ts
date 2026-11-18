@@ -8,9 +8,10 @@ import { topicPages, topics } from "./schema.ts";
 import type { TopicIndex } from "./topic-index-contract.ts";
 import { overviewLine } from "./topic-overview-contract.ts";
 
-function pageQuery(db: Database, cursor: string | null) {
+export function topicIndexRows(db: Database, cursor: string | null, limit: number) {
   return db
     .select({
+      id: topics.id,
       key: topics.key,
       name: topics.name,
       itemCount: TOPIC_USES,
@@ -20,12 +21,12 @@ function pageQuery(db: Database, cursor: string | null) {
     .leftJoin(topicPages, eq(topicPages.topicId, topics.id))
     .where(cursor === null ? undefined : gt(topics.key, cursor))
     .orderBy(asc(topics.key))
-    .limit(ITEMS_PAGE_SIZE + 1);
+    .limit(limit);
 }
 
 export async function readTopicIndex(db: Database, cursor: string | null): Promise<TopicIndex> {
   const [rows, [totals]] = await db.batch([
-    pageQuery(db, cursor),
+    topicIndexRows(db, cursor, ITEMS_PAGE_SIZE + 1),
     db.select({ total: count() }).from(topics),
   ]);
 
