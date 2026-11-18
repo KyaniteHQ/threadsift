@@ -10,7 +10,7 @@
 - **A public address.** The app needs a public HTTPS address so that Grok Bot can reach it, because Grok Bot's MCP connections run on Cursor's servers (Grok Bot's own answer).
 - **Ownership of Tags.** Only the agent sets Tags, so the UI has no Tag editing, and Proposals keep the lists clean over time.
 - **One Provider.** The owner picks one Provider in settings. The Threadsift bot ships as a public Grok Bot template, with its skill files in this repository so the bot stays in step with the API, and one short profile because a template has one profile field. The bot's rules live in its skill.
-- **Obsidian.** The mirror is one-way, as Readwise's Obsidian sync is: the owner reads in Obsidian and edits Highlights and Notes in Threadsift. Vault repositories on other Git hosts are not in the first release (`docs/architecture/vault-mirror.md`).
+- **Obsidian.** The mirror is one-way, as Readwise's Obsidian sync is: the owner reads in Obsidian and edits Highlights and Notes in Threadsift. Vault repositories on other Git hosts are not in the first release (`docs/spec.md`).
 - **Design of new screens.** Every screen the first design lacks is built from `design/system/` to match the existing screens. The building agent checks each from screenshots in every theme before it lands, and decides the approval. No Claude Design round.
 - **README.** The README sells the project. An agent drafts its prose and the building agent approves it.
 - **One codebase.** EdgeEver and Open Managed Agents already ship one app on both targets.

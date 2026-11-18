@@ -21,7 +21,7 @@ Use these exact terms in code, docs and issues.
 | The data model | `docs/architecture/data-model-outline.md` |
 | The testing approach | `docs/architecture/testing.md` |
 | Topic pages, the Index, Related Items, and the Log | `docs/wiki.md` |
-| The weekly Tag-merge Proposals, the Proposals page and Reject (Accept and Pins build on them) | `docs/proposals.md` |
+| The weekly Proposals, the Proposals page, Accept, Reject and Pins | `docs/proposals.md` |
 | Before writing, changing or deleting a test | `docs/testing.md` |
 | Before changing a workflow, the gate, the live deploy or the live check | `docs/architecture/ci-releases-and-rollback.md` |
 | Before writing or changing code, config or scripts: official docs first, module design, no comments, state, repeated writes and deadlines, the finish checks | `docs/agents/changing-code.md`; the `implementer` agent (`.claude/agents/implementer.md`) runs it |
