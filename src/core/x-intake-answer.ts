@@ -4,7 +4,6 @@ import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueItemJobs, enqueueQuietly } from "./job-rows.ts";
 import { statusIdOf } from "./links.ts";
-import { withPartImagesOnly } from "./x-author-thread.ts";
 import { X_INTAKE_TASK, type IntakeAnswer } from "./x-intake-contract.ts";
 import {
   type IntakeTask,
@@ -16,7 +15,8 @@ import {
   storedIntake,
   unavailableIntake,
 } from "./x-intake-writes.ts";
-import { parseXThreadValue, readXBotThreadValue } from "./x-thread.ts";
+import { readFetchedThread } from "./x-replies-ranked.ts";
+import { readXBotThreadValue } from "./x-thread.ts";
 
 type IntakeOutcome =
   | { readonly kind: "accepted" }
@@ -57,7 +57,7 @@ async function stored(
     return { kind: "invalid", reasons: read.reason, logged: read.logged };
   }
 
-  const parsed = parseXThreadValue(read.value, statusId);
+  const parsed = await readFetchedThread(db, task.itemId, statusId, read.value);
 
   if (parsed.kind === "refused") {
     return {
@@ -72,7 +72,7 @@ async function stored(
     intakeLive(task),
     storedIntake(db, task, {
       address: item.originalUrl,
-      thread: withPartImagesOnly(read.value),
+      thread: parsed.thread,
       digest: answer.digest === undefined ? item.pendingDigest : JSON.stringify(answer.digest),
     }),
   );

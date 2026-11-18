@@ -130,17 +130,6 @@ export function authorPartsOf(thread: Readonly<XThreadValue>): readonly Readonly
   return authorThreadOf(thread, byId, new Set(byId.keys()));
 }
 
-export function withPartImagesOnly(thread: Readonly<XThreadValue>): XThreadValue {
-  const partIds = new Set(authorPartsOf(thread).map(({ id }) => id));
-
-  return {
-    ...thread,
-    replies: thread.replies.map((reply) =>
-      partIds.has(reply.id) ? reply : { ...reply, images: [] },
-    ),
-  };
-}
-
 export function joinedAuthorThread(
   thread: Readonly<XThreadValue>,
   kept: Ids,

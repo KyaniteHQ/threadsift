@@ -4,11 +4,15 @@ import { authorPartsOf } from "./x-author-thread.ts";
 import { NO_TEXT, withoutPlaceholder } from "./x-images.ts";
 import { storedReplyCount } from "./x-partial.ts";
 import { order, parseXThreadValue } from "./x-thread.ts";
-import type { XCliReply, XCliThreadValue, XReply, XThreadValue } from "./x-wire.ts";
+import type { XReply, XThreadValue } from "./x-wire.ts";
+
+type RankedReply = XReply & { readonly replies?: number | null };
+
+type FetchedThread = Omit<XThreadValue, "replies"> & { readonly replies: readonly RankedReply[] };
 
 const PERCENT = 100;
 
-function hasText({ text }: Readonly<XCliReply>): boolean {
+function hasText({ text }: Readonly<RankedReply>): boolean {
   return text.trim() !== NO_TEXT;
 }
 
@@ -16,11 +20,11 @@ function clamped(value: number, floor: number, ceiling: number): number {
   return Math.min(Math.max(value, floor), ceiling);
 }
 
-function likesOf({ likes }: Readonly<XCliReply>): number {
+function likesOf({ likes }: Readonly<RankedReply>): number {
   return likes ?? 0;
 }
 
-function moreImportant(first: Readonly<XCliReply>, second: Readonly<XCliReply>): number {
+function moreImportant(first: Readonly<RankedReply>, second: Readonly<RankedReply>): number {
   return (
     order(likesOf(second), likesOf(first)) ||
     order(second.replies ?? 0, first.replies ?? 0) ||
@@ -28,7 +32,7 @@ function moreImportant(first: Readonly<XCliReply>, second: Readonly<XCliReply>):
   );
 }
 
-function likesShareCount(ranked: readonly Readonly<XCliReply>[]): number {
+function likesShareCount(ranked: readonly Readonly<RankedReply>[]): number {
   const total = ranked.reduce((sum, reply) => sum + likesOf(reply), 0);
   let held = 0;
 
@@ -43,7 +47,7 @@ function likesShareCount(ranked: readonly Readonly<XCliReply>[]): number {
 
 function withAncestors(
   topIds: readonly string[],
-  byId: Readonly<ReadonlyMap<string, Readonly<XCliReply>>>,
+  byId: Readonly<ReadonlyMap<string, Readonly<RankedReply>>>,
 ): Set<string> {
   const kept = new Set<string>();
 
@@ -69,11 +73,11 @@ function plainReply({
   likes,
   repairedParent,
   images,
-}: XCliReply): XReply {
+}: RankedReply): XReply {
   return { id, parentId, author, text, postedAt, likes, repairedParent, images };
 }
 
-function rankedThread(thread: Readonly<XCliThreadValue>, held: number): XThreadValue {
+function rankedThread(thread: Readonly<FetchedThread>, held: number): XThreadValue {
   const byId = new Map(thread.replies.map((reply) => [reply.id, reply]));
   const parts = authorPartsOf(thread).map(({ id }) => id);
   const partIds = new Set(parts);
@@ -115,30 +119,15 @@ function rankedThread(thread: Readonly<XCliThreadValue>, held: number): XThreadV
   };
 }
 
-function withoutRepeats(thread: Readonly<XCliThreadValue>): XCliThreadValue {
-  const seen = new Set<string>();
-
-  return {
-    ...thread,
-    replies: thread.replies.filter(({ id }) => {
-      if (seen.has(id)) return false;
-
-      seen.add(id);
-
-      return true;
-    }),
-  };
-}
-
 export async function readFetchedThread(
   db: Database,
   itemId: number,
   statusId: string,
-  thread: Readonly<XCliThreadValue>,
-): Promise<XThreadValue | null> {
-  const unique = withoutRepeats(thread);
+  thread: Readonly<FetchedThread>,
+): Promise<{ kind: "thread"; thread: XThreadValue } | { kind: "refused"; reason: string }> {
+  const parsed = parseXThreadValue(thread, statusId);
 
-  if (parseXThreadValue(unique, statusId).kind === "refused") return null;
+  if (parsed.kind === "refused") return parsed;
 
-  return rankedThread(unique, await storedReplyCount(db, itemId));
+  return { kind: "thread", thread: rankedThread(thread, await storedReplyCount(db, itemId)) };
 }
