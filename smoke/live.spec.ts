@@ -150,7 +150,7 @@ async function saveAndVerifyClaudeCode(request: APIRequestContext): Promise<void
 
     expect(saved.status()).toBe(200);
     expect(AiSaveResponseSchema.parse(await saved.json())).toMatchObject({
-      settings: { provider: "claude-code", model: CLAUDE_MODEL },
+      settings: { provider: "claude-code", model: CLAUDE_MODEL, effort: "" },
     });
   });
 

@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 
-import { type AiTaskRequest, PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
+import { PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
+import type { RunnerTask } from "../shared/ai-runtime.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
   type Attempt,
@@ -68,12 +69,22 @@ class CodexCli extends SlottedCli {
     return end.kind === "exited" && end.code === 0;
   }
 
+  effortLevels(model: string): readonly string[] {
+    const chosen =
+      model === ""
+        ? this.catalog.models[0]
+        : this.catalog.models.find(({ slug }) => slug === model);
+    return chosen?.levels ?? [];
+  }
+
   protected override refusalBeforeSlot(model: string) {
-    return model !== "" && !this.catalog.slugs.includes(model) ? UNKNOWN_MODEL_REFUSAL : null;
+    return model !== "" && !this.catalog.models.some(({ slug }) => slug === model)
+      ? UNKNOWN_MODEL_REFUSAL
+      : null;
   }
 
   protected attempt<Result>(
-    task: AiTaskRequest<Result>,
+    task: RunnerTask<Result, "cli">,
     model: string,
     signal: AbortSignal,
   ): Promise<Attempt<Result>> {
@@ -83,14 +94,14 @@ class CodexCli extends SlottedCli {
         writeFile(folders.schemaFile, outputSchema(task.schema)),
       ]);
 
-      const unsafe = await this.unsafeSurface(folders, model, signal);
+      const unsafe = await this.unsafeSurface(folders, model, signal, task.config.effort);
 
       if (unsafe !== null) return { result: unsafe, code: null };
 
       const end = await spawnCodex(
         this.installation,
         folders,
-        taskArguments(folders, model),
+        taskArguments(folders, model, task.config.effort),
         promptOf(task),
         signal,
         {
@@ -107,11 +118,16 @@ class CodexCli extends SlottedCli {
     });
   }
 
-  private async unsafeSurface(folders: Readonly<RunFolders>, model: string, signal: AbortSignal) {
+  private async unsafeSurface(
+    folders: Readonly<RunFolders>,
+    model: string,
+    signal: AbortSignal,
+    effort?: string,
+  ) {
     const end = await spawnCodex(
       this.installation,
       folders,
-      surfaceArguments(folders, model),
+      surfaceArguments(folders, model, effort),
       "",
       AbortSignal.any([signal, AbortSignal.timeout(SURFACE_MS)]),
       { cap: STDOUT_CAP, keep: true },

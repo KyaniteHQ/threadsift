@@ -33,6 +33,7 @@ const FIELD_KINDS = {
     required: true,
     maxLength: AI_MODEL_MAX,
   },
+  effort: { name: "effort", type: "text", autoComplete: "off" },
   key: { name: "key", type: "password", autoComplete: "new-password", maxLength: AI_KEY_MAX },
 } as const;
 
@@ -73,10 +74,12 @@ function modelHelp(provider: Provider) {
 }
 
 function helpFor(
-  name: "baseUrl" | "model" | "key",
+  name: keyof typeof FIELD_KINDS,
   provider: Provider,
   { publicOnly, savedKey }: Readonly<{ publicOnly: boolean; savedKey: SavedKey }>,
 ) {
+  if (name === "effort") return AI_TEXT.effortHelp;
+
   if (name === "key") return savedKey === "unreadable" ? undefined : AI_TEXT.keyHelp;
 
   if (name === "model") return modelHelp(provider);
@@ -85,11 +88,13 @@ function helpFor(
 }
 
 function kindFor(
-  name: "baseUrl" | "model" | "key",
+  name: keyof typeof FIELD_KINDS,
   provider: Provider,
   publicOnly: boolean,
   keyRequired: boolean,
 ) {
+  if (name === "effort") return FIELD_KINDS.effort;
+
   if (name === "key") return keyRequired ? REQUIRED_KEY_KIND : FIELD_KINDS.key;
 
   if (name === "model") return isCliProvider(provider) ? OPTIONAL_MODEL_KIND : FIELD_KINDS.model;

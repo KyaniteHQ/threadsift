@@ -19,6 +19,7 @@ export const StoredSettingsSchema = z.union([
     model: z.string(),
     baseUrl: z.null(),
     sealedKey: z.null(),
+    effort: z.string().nullable(),
   }),
   z.object({
     provider: HttpProviderSchema,
@@ -32,8 +33,8 @@ export type Stored = z.infer<typeof StoredSettingsSchema>;
 
 export type Keyless = Extract<Stored, { readonly sealedKey: null }>;
 
-function keylessRow(provider: Keyless["provider"], model: string) {
-  return { provider, model, baseUrl: null, sealedKey: null } as const;
+function keylessRow(provider: Keyless["provider"], model: string, effort: string | null = null) {
+  return { provider, model, effort, baseUrl: null, sealedKey: null } as const;
 }
 
 export async function nextSettings(
@@ -45,7 +46,7 @@ export async function nextSettings(
 
   if (input.provider === "claude-code" || input.provider === "codex")
     return (await ports.ai.signedIn()).includes(input.provider)
-      ? keylessRow(input.provider, input.model)
+      ? keylessRow(input.provider, input.model, input.effort === "" ? null : input.effort)
       : refusedAi("not-configured");
 
   if (sealer === null) return refusedAi("secret-missing");
@@ -70,5 +71,6 @@ export async function nextSettings(
     model: input.model,
     baseUrl,
     sealedKey: await sealer.seal(key),
+    effort: null,
   } as const;
 }

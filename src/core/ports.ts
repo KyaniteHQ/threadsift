@@ -104,6 +104,7 @@ export interface AiRuntime {
   readonly providers: readonly Provider[];
   readonly publicOnly: boolean;
   readonly allowsUrl: (url: string) => boolean;
+  readonly effortLevels: (provider: CliProvider, model: string) => readonly string[];
   readonly signedIn: () => Promise<readonly CliProvider[]>;
   readonly run: <Result>(
     task: AiTaskRequest<Result>,

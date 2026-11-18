@@ -11,6 +11,8 @@ const CatalogSchema = z
         z
           .looseObject({
             slug: z.string(),
+            priority: z.number(),
+            supported_reasoning_levels: z.array(z.looseObject({ effort: z.string() })),
             tool_mode: z.string().nullable().optional(),
             apply_patch_tool_type: z.string().nullable(),
             shell_type: z.string(),
@@ -65,7 +67,7 @@ const TOOLLESS = {
 
 export interface ToollessCatalog {
   readonly bytes: string;
-  readonly slugs: readonly string[];
+  readonly models: readonly { readonly slug: string; readonly levels: readonly string[] }[];
 }
 
 export function toollessCatalog(stdout: string): ToollessCatalog | null {
@@ -74,7 +76,12 @@ export function toollessCatalog(stdout: string): ToollessCatalog | null {
   if (catalog === null) return null;
 
   return {
-    slugs: catalog.models.map(({ slug }) => slug),
+    models: catalog.models
+      .toSorted((a, b) => a.priority - b.priority)
+      .map(({ slug, supported_reasoning_levels }) => ({
+        slug,
+        levels: supported_reasoning_levels.map(({ effort }) => effort),
+      })),
     bytes: JSON.stringify({
       ...catalog,
       models: catalog.models.map((model) => Object.assign({}, model, TOOLLESS)),

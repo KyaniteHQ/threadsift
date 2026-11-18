@@ -29,6 +29,7 @@ type TaskRunner<Kind extends AiTaskRequest<never>["config"]["kind"]> = <Result>(
 export interface CliRunner {
   readonly provider: CliProvider;
   readonly run: TaskRunner<"cli">;
+  readonly effortLevels: (model: string) => readonly string[];
   readonly signedIn: () => Promise<boolean>;
   readonly stop: () => void;
 }
@@ -74,6 +75,8 @@ export async function aiAndSecrets({
     ],
     publicOnly,
     allowsUrl: (url) => allowedAiUrl(url, publicOnly),
+    effortLevels: (provider, model) =>
+      cli.find((runner) => runner.provider === provider)?.effortLevels(model) ?? [],
     signedIn: () => signedInProviders(cli),
     run: async (task, signal) => {
       if (task.config.kind === "binding")

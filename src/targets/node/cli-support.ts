@@ -124,10 +124,12 @@ export abstract class SlottedCli implements CliRunner {
     this.slots = slots;
   }
 
+  abstract effortLevels(model: string): readonly string[];
+
   protected abstract probe(signal: AbortSignal): Promise<boolean>;
 
   protected abstract attempt<Result>(
-    task: AiTaskRequest<Result>,
+    task: RunnerTask<Result, "cli">,
     model: string,
     signal: AbortSignal,
   ): Promise<Attempt<Result>>;
@@ -162,6 +164,12 @@ export abstract class SlottedCli implements CliRunner {
     const early = this.refusalBeforeSlot(model);
 
     if (early !== null) return early;
+    if (
+      task.config.effort !== undefined &&
+      task.config.effort !== "" &&
+      !this.effortLevels(model).includes(task.config.effort)
+    )
+      return refusedAi("refused");
 
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
 

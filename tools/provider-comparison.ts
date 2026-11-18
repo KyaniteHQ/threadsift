@@ -127,6 +127,7 @@ async function recordItem(
       selector: item.selector,
       provider: spec.id,
       model: spec.model,
+      effort: "effort" in spec ? spec.effort : undefined,
       availability: provider.kind === "unavailable" ? provider.reason : "ready",
       elapsedMs,
       result,

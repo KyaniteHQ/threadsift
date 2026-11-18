@@ -2,6 +2,7 @@ import { type SQL, sql } from "drizzle-orm";
 
 import {
   GROK_BOT_PROVIDER,
+  isCliProvider,
   type AiSettingsInput,
   type AiSettingsView,
   type AiSaveResponse,
@@ -35,8 +36,11 @@ function viewOf(
 
   if (saved === undefined) return null;
 
+  if (saved.sealedKey === null && isCliProvider(saved.provider))
+    return { provider: saved.provider, model: saved.model, effort: saved.effort ?? "" };
+
   return saved.sealedKey === null
-    ? { provider: saved.provider, model: saved.model }
+    ? { provider: "workers-ai", model: saved.model }
     : {
         provider: saved.provider,
         baseUrl: saved.baseUrl,
@@ -98,6 +102,11 @@ export async function holdsSettings(
 
 async function preparedSave(ports: SettingsPorts, input: Readonly<AiSettingsInput>) {
   if (input.provider === GROK_BOT_PROVIDER) return preparedBot(ports);
+
+  if ("effort" in input && input.effort !== undefined && input.effort !== "") {
+    const levels = ports.ai.effortLevels(input.provider, input.model);
+    if (!levels.includes(input.effort)) return { kind: "invalid-effort", levels } as const;
+  }
 
   const prepared = await prepareAiSettings(ports, input);
 

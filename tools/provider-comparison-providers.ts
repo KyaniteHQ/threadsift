@@ -24,11 +24,13 @@ export const ProvidersSchema = z
         id: Id,
         provider: z.literal(PROVIDERS["claude-code"].id),
         model: PROVIDERS["claude-code"].fields.model.min(1),
+        effort: PROVIDERS["claude-code"].fields.effort,
       }),
       z.strictObject({
         id: Id,
         provider: z.literal(PROVIDERS.codex.id),
         model: PROVIDERS.codex.fields.model.min(1),
+        effort: PROVIDERS.codex.fields.effort,
       }),
       z.strictObject({
         id: Id,
@@ -93,7 +95,12 @@ async function preparedCli(
   try {
     if (await runner.signedIn())
       return await ready(
-        { kind: "cli", provider: runner.provider, model: spec.model },
+        {
+          kind: "cli",
+          provider: runner.provider,
+          model: spec.model,
+          effort: "effort" in spec ? spec.effort : undefined,
+        },
         { cli: [runner] },
       );
     runner.stop();

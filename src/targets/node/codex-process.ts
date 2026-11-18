@@ -31,12 +31,13 @@ function sharedArguments(folders: Readonly<RunFolders>): string[] {
   ];
 }
 
-function rootArguments(folders: Readonly<RunFolders>, model: string): string[] {
+function rootArguments(folders: Readonly<RunFolders>, model: string, effort?: string): string[] {
   return [
     "-C",
     folders.cwd,
     "--sandbox",
     "read-only",
+    ...(effort !== undefined && effort !== "" ? ["-c", `model_reasoning_effort=${effort}`] : []),
     ...(model === "" ? [] : [`--model=${model}`]),
   ];
 }
@@ -49,9 +50,13 @@ const EXEC_FLAGS = [
   "--ignore-rules",
 ];
 
-export function surfaceArguments(folders: Readonly<RunFolders>, model: string): string[] {
+export function surfaceArguments(
+  folders: Readonly<RunFolders>,
+  model: string,
+  effort?: string,
+): string[] {
   return [
-    ...rootArguments(folders, model),
+    ...rootArguments(folders, model, effort),
     "debug",
     "prompt-input",
     ...sharedArguments(folders),
@@ -59,11 +64,15 @@ export function surfaceArguments(folders: Readonly<RunFolders>, model: string): 
   ];
 }
 
-export function taskArguments(folders: Readonly<RunFolders>, model: string): string[] {
+export function taskArguments(
+  folders: Readonly<RunFolders>,
+  model: string,
+  effort?: string,
+): string[] {
   return [
     "exec",
     ...EXEC_FLAGS,
-    ...rootArguments(folders, model),
+    ...rootArguments(folders, model, effort),
     ...sharedArguments(folders),
     "--output-schema",
     folders.schemaFile,

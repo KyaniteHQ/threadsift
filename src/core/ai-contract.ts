@@ -6,9 +6,7 @@ import { READABLE_TEXT, STORED_TEXT } from "./digest-text.ts";
 export const AI_URL_MAX = 2048;
 export const AI_MODEL_MAX = 240;
 export const AI_KEY_MAX = 4096;
-
 const KEPT_COMMENTS_MAX = 2000;
-
 const ModelCommentId = z.string().max(32);
 
 export const StoredDigestSchema = z.object({
@@ -37,6 +35,16 @@ function keyedProvider<const Id extends string, const Url extends string>(id: Id
   } as const;
 }
 
+function cliProvider<const Id extends string, const Label extends string>(id: Id, label: Label) {
+  return {
+    id,
+    label,
+    url: null,
+    names: ["model", "effort"],
+    fields: { model: CliModel, effort: z.string().trim().optional() },
+  } as const;
+}
+
 export const PROVIDERS = {
   "openai-compatible": {
     id: "openai-compatible",
@@ -56,20 +64,8 @@ export const PROVIDERS = {
     names: ["model"],
     fields: { model: Model },
   },
-  "claude-code": {
-    id: "claude-code",
-    label: "claudeCode",
-    url: null,
-    names: ["model"],
-    fields: { model: CliModel },
-  },
-  codex: {
-    id: "codex",
-    label: "codex",
-    url: null,
-    names: ["model"],
-    fields: { model: CliModel },
-  },
+  "claude-code": cliProvider("claude-code", "claudeCode"),
+  codex: cliProvider("codex", "codex"),
   "grok-bot": { id: "grok-bot", label: "grokBot", url: null, names: [], fields: {} },
 } as const;
 
@@ -169,12 +165,18 @@ const HttpSettingsViewSchema = z.object({
 });
 
 const KeylessSettingsViewSchema = z.object({
-  provider: z.enum([PROVIDERS["workers-ai"].id, ...CliProviderSchema.options, GROK_BOT_PROVIDER]),
+  provider: z.enum([PROVIDERS["workers-ai"].id, GROK_BOT_PROVIDER]),
   model: z.string(),
 });
 
 export const AiSettingsViewSchema = z.object({
-  settings: z.union([HttpSettingsViewSchema, KeylessSettingsViewSchema]).nullable(),
+  settings: z
+    .union([
+      HttpSettingsViewSchema,
+      KeylessSettingsViewSchema,
+      z.object({ provider: CliProviderSchema, model: z.string(), effort: z.string() }),
+    ])
+    .nullable(),
   providers: z.array(ProviderSchema).readonly(),
   signedIn: z.array(CliProviderSchema).readonly(),
   secretReady: z.boolean(),
@@ -198,7 +200,11 @@ export const VerifyResultSchema = z.discriminatedUnion("kind", [
 
 export type AiRefused = Extract<z.infer<typeof VerifyResultSchema>, { readonly kind: "refused" }>;
 
-export const AiSaveResponseSchema = z.union([AiSettingsViewSchema, AiRefusedSchema]);
+export const AiSaveResponseSchema = z.union([
+  AiSettingsViewSchema,
+  AiRefusedSchema,
+  z.object({ kind: z.literal("invalid-effort"), levels: z.array(z.string()).readonly() }),
+]);
 
 export type AiSaveResponse = z.infer<typeof AiSaveResponseSchema>;
 
@@ -258,6 +264,7 @@ interface BindingAiConnection {
 interface CliAiConnection {
   readonly kind: "cli";
   readonly provider: CliProvider;
+  readonly effort?: string | undefined;
   readonly model: string;
 }
 
@@ -285,9 +292,7 @@ export interface AiTaskRequest<Result> {
 }
 
 export const BASE_OUTPUT_TOKENS = 2048;
-
 export const MAX_OUTPUT_TOKENS = 8192;
-
 export const AI_DEADLINE_MS = 10 * 60 * 1000;
 
 export const VERIFY_INPUT =

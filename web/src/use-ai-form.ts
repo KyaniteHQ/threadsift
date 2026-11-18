@@ -26,6 +26,9 @@ function useAiFields(view: AiView) {
 
   const baseUrl = useField(null, offered?.provider === "openai-compatible" ? offered.baseUrl : "");
   const model = useField(null, offered?.model ?? "");
+  const savedEffort = offered && "effort" in offered ? offered.effort : "";
+  const effort = useField(null, savedEffort);
+  const { set: setEffort } = effort;
   const key = useField();
   const { clear: clearKey } = key;
 
@@ -38,12 +41,13 @@ function useAiFields(view: AiView) {
       const next = ProviderSchema.parse(event.target.value);
       setProvider(next);
       setModel(next === savedProvider ? savedModel : "");
+      setEffort(next === savedProvider ? savedEffort : "");
       clearKey();
     },
-    [clearKey, setModel, savedProvider, savedModel],
+    [clearKey, setModel, savedProvider, savedModel, setEffort, savedEffort],
   );
 
-  return { provider, providers, baseUrl, model, key, changeProvider } as const;
+  return { provider, providers, baseUrl, model, effort, key, changeProvider } as const;
 }
 
 function refusalText(refusal: AiRefused, provider: Provider): string {
@@ -62,6 +66,11 @@ function failureText(
   response: Extract<Awaited<ReturnType<typeof saveAiSettings>>, { readonly kind: string }>,
   provider: Provider,
 ): string {
+  if (response.kind === "invalid-effort")
+    return response.levels.length === 0
+      ? AI_TEXT.noEfforts
+      : AI_TEXT.invalidEffort.replace("{levels}", response.levels.join(", "));
+
   if (response.kind === "refused") return refusalText(response, provider);
 
   return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
@@ -161,7 +170,7 @@ function useSave(
   { run, refuse }: Readonly<Pick<AiPhase, "run" | "refuse">>,
   saved: (view: AiView) => void,
 ) {
-  const { provider, baseUrl, model, key } = fields;
+  const { provider, baseUrl, model, effort, key } = fields;
   const { value: keyValue, clear: clearKey } = key;
   const unavailable = saveUnavailable(view, provider);
 
@@ -177,6 +186,7 @@ function useSave(
         provider,
         baseUrl: baseUrl.value,
         model: model.value,
+        effort: effort.value,
         key: keyValue === "" ? undefined : keyValue,
       });
 
@@ -189,7 +199,18 @@ function useSave(
 
       return { kind: "ok", text: AI_TEXT.saved };
     });
-  }, [unavailable, refuse, run, provider, baseUrl.value, model.value, keyValue, clearKey, saved]);
+  }, [
+    unavailable,
+    refuse,
+    run,
+    provider,
+    baseUrl.value,
+    model.value,
+    effort.value,
+    keyValue,
+    clearKey,
+    saved,
+  ]);
 
   return { submit, saveBlocked: unavailable !== null };
 }
