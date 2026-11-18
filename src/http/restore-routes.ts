@@ -98,7 +98,7 @@ const startRoute = createRoute({
     404: jsonBody(ErrorResponseSchema, "No restore has this id."),
     409: jsonBody(
       RestoreErrorSchema,
-      `\`library-not-empty\`: ${LIBRARY_NOT_EMPTY} Or \`restore-open\`: the restore is not waiting for its start.`,
+      `\`library-not-empty\`: ${LIBRARY_NOT_EMPTY} Or \`restore-open\`: the restore is not waiting for its start. Or \`vault-busy\`: the Vault mirror holds a write lease. The uploaded parts stay available for retry.`,
     ),
   },
 });
@@ -207,6 +207,8 @@ function registerRunRoutes(app: OpenAPIHono, ports: Ports): void {
         );
       case "library-not-empty":
         return c.json({ error: LIBRARY_NOT_EMPTY, code: "library-not-empty" as const }, 409);
+      case "vault-busy":
+        return c.json({ error: "The Vault mirror holds a write lease", code: started.kind }, 409);
       case "incomplete-upload":
         return c.json(
           { error: "Some parts of the upload have not arrived", code: started.kind },

@@ -8,6 +8,7 @@ import type { ClaimedJob, JobPorts, SettledOutcome } from "./job-outcome.ts";
 import { items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import { isRetryable } from "./settle.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 async function titleOf(db: JobPorts["db"], itemId: number): Promise<string | null> {
   const [item] = await db.select({ title: items.title }).from(items).where(eq(items.id, itemId));
@@ -23,6 +24,7 @@ export async function settledFetch(
   suppliedDigest: string | null = null,
 ) {
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
+  const item = eq(items.id, job.itemId);
 
   const { postText, replaces, thread, fields, contentPublication, mediaPublication, files } =
     await settledContent(ports, job, fetched, title, deadline);
@@ -37,20 +39,19 @@ export async function settledFetch(
 
   const outcome: SettledOutcome = {
     writes: [
-      ports.db.update(items).set(columns).where(eq(items.id, job.itemId)),
-      ...(fields.title === undefined
-        ? []
-        : fetchedPartWrites(ports.db, eq(items.id, job.itemId), postText)),
+      ports.db.update(items).set(columns).where(item),
+      ...(fields.title === undefined ? [] : fetchedPartWrites(ports.db, item, postText)),
       ...contentPublication,
       ...mediaPublication,
       ...(replaces ? digestAfterFetch(ports.db, job) : []),
+      ...(fetched.status === "ok" ? [queueVaultItems(ports.db, item)] : []),
     ],
     files,
   };
 
   return replaces
     ? anchoredOutcome(ports.db, outcome, {
-        owner: eq(items.id, job.itemId),
+        owner: item,
         displayed: displayedBesideThread({ post: postText, comments: thread?.nodes }),
       })
     : outcome;

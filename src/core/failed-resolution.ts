@@ -3,7 +3,14 @@ import { type SQLWrapper, and, eq, notExists } from "drizzle-orm";
 import type { Concluded } from "./details.ts";
 import { guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { LISTED_COLUMNS, selectItems } from "./item-selection.ts";
-import { type Existing, type Paste, type SaveResult, foundItem, itemAt } from "./items.ts";
+import {
+  type Existing,
+  type Paste,
+  type SaveResult,
+  foundItem,
+  holdsNoItem,
+  itemAt,
+} from "./items.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Database } from "./ports.ts";
@@ -11,24 +18,29 @@ import { itemAliases, items } from "./schema.ts";
 import { settle } from "./settle.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 
+type FailedFetch = Exclude<Concluded, { status: "ok" }>;
+
 interface Failure {
   readonly address: string;
   readonly link: Readonly<Link>;
-  readonly fetched: Readonly<Concluded>;
+  readonly fetched: Readonly<FailedFetch>;
   readonly now: number;
   readonly addedByToken: Paste["addedByToken"];
 }
 
-async function insertedFailure(
+function insertedFailure(
   db: Database,
   noAlias: Readonly<SQLWrapper>,
   { address, link: { normalizedUrl, kind, source }, fetched, now, addedByToken }: Readonly<Failure>,
-): Promise<SaveResult | undefined> {
-  const [, inserted, [item]] = await db.batch([
-    insertGuard(db, noAlias),
-    db
-      .insert(items)
-      .values({
+): Promise<SaveResult | null> {
+  const missing = holdsNoItem(db, normalizedUrl);
+  const itemKey = eq(items.normalizedUrl, normalizedUrl);
+
+  return unlessRefused(db, missing, async () => {
+    const [, , , [item]] = await db.batch([
+      insertGuard(db, noAlias),
+      insertGuard(db, missing),
+      db.insert(items).values({
         source,
         kind,
         normalizedUrl,
@@ -36,17 +48,14 @@ async function insertedFailure(
         savedAt: now,
         addedByToken,
         ...settle(fetched, null, now),
-      })
-      .onConflictDoNothing({ target: items.normalizedUrl })
-      .returning({ id: items.id }),
-    selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
-    queueVaultItems(db, eq(items.normalizedUrl, normalizedUrl)),
-    db.delete(guards),
-  ]);
+      }),
+      selectItems(db, LISTED_COLUMNS).where(itemKey),
+      queueVaultItems(db, itemKey),
+      db.delete(guards),
+    ]);
 
-  return inserted.length === 0
-    ? undefined
-    : { kind: "saved", item: foundItem(item, normalizedUrl), created: true };
+    return { kind: "saved", item: foundItem(item, normalizedUrl), created: true };
+  });
 }
 
 async function refreshedFailure(
@@ -67,7 +76,6 @@ async function refreshedFailure(
       .set(settle(fetched, known.title, now))
       .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
     selectItems(db, LISTED_COLUMNS).where(eq(items.id, known.id)),
-    queueVaultItems(db, eq(items.normalizedUrl, normalizedUrl)),
     db.delete(guards),
   ]);
 
@@ -82,7 +90,7 @@ export function saveFailedResolution(
   db: Database,
   address: string,
   link: Readonly<Link>,
-  fetched: Readonly<Concluded>,
+  fetched: Readonly<FailedFetch>,
   existing: Existing,
   addedByToken: Paste["addedByToken"],
 ): Promise<SaveResult | null> {

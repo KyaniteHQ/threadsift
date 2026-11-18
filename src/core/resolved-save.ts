@@ -18,8 +18,10 @@ import {
   holdsNoFailedItem,
   holdsNoRival,
   promoteFailedItem,
+  promotableFailedItem,
   recordAlias,
 } from "./short-link-aliases.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 function saveResolvedRefreshing(
   ports: Ports,
@@ -75,8 +77,11 @@ async function saveResolvedNewOnly(
   if (added !== null || !(await guardHolds(db, noRival))) return added;
 
   return unlessRefused(db, noRival, async () => {
-    const [, , , [item]] = await db.batch([
+    const promotable = promotableFailedItem(db, shortLink, link.normalizedUrl);
+    const changed = sql`(${items.source}, ${items.kind}) is not (${link.source}, ${link.kind})`;
+    const [, , , , [item]] = await db.batch([
       insertGuard(db, noRival),
+      queueVaultItems(db, sql`${promotable} and ${changed}`),
       promoteFailedItem(db, shortLink, link),
       recordAlias(db, shortLink, paste.address, link),
       selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, link.normalizedUrl)),

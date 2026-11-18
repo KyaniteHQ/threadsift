@@ -12,6 +12,10 @@ export type VaultLease = typeof vaultSettings.$inferSelect;
 export const VAULT_CLOCK = sql`cast(unixepoch('subsec') * 1000 as integer)`;
 export const VAULT_AVAILABLE = sql`not exists (select 1 from ${restoreRuns} where ${HOLDS_LIBRARY})`;
 
+export function vaultIdleAt(at: number) {
+  return sql<number>`not exists (select 1 from ${vaultSettings} where ${vaultSettings.leaseUntil} > ${at})`;
+}
+
 export function vaultHolding(lease: Readonly<VaultLease>) {
   return and(
     eq(vaultSettings.generation, lease.generation),
@@ -25,22 +29,20 @@ export async function vaultCurrent(
   lease: Readonly<VaultLease>,
   pending: readonly PendingVaultNote[],
 ): Promise<boolean> {
-  const [held] = await db
-    .select({ id: vaultSettings.id })
-    .from(vaultSettings)
-    .where(and(vaultHolding(lease), VAULT_AVAILABLE));
-  if (held === undefined) return false;
   const versions = JSON.stringify(
     pending.map(({ kind, subjectId, sequence }) => ({ kind, subjectId, sequence })),
   );
-  const [changed] = await db
-    .select({ one: sql<number>`1` })
-    .from(sql`json_each(${versions}) as expected`)
+  const [held] = await db
+    .select({ id: vaultSettings.id })
+    .from(vaultSettings)
     .where(
-      sql`not exists (select 1 from ${mirrorNotes} where ${mirrorNotes.kind} = json_extract(expected.value, '$.kind') and ${mirrorNotes.subjectId} = json_extract(expected.value, '$.subjectId') and ${mirrorNotes.sequence} = json_extract(expected.value, '$.sequence'))`,
-    )
-    .limit(1);
-  return changed === undefined;
+      and(
+        vaultHolding(lease),
+        VAULT_AVAILABLE,
+        sql`not exists (select 1 from json_each(${versions}) as expected where not exists (select 1 from ${mirrorNotes} where ${mirrorNotes.kind} = json_extract(expected.value, '$.kind') and ${mirrorNotes.subjectId} = json_extract(expected.value, '$.subjectId') and ${mirrorNotes.sequence} = json_extract(expected.value, '$.sequence')))`,
+      ),
+    );
+  return held !== undefined;
 }
 
 export async function seedVaultInventory(

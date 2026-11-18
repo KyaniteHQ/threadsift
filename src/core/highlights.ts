@@ -1,4 +1,4 @@
-import { type SQL, and, asc, eq, sql } from "drizzle-orm";
+import { type SQL, and, asc, eq, exists, sql } from "drizzle-orm";
 
 import { selectorHolds } from "./highlight-anchor.ts";
 import type {
@@ -14,6 +14,7 @@ import { type HighlightRow, guardedWrite, highlights, items, searchParts } from 
 import { highlightPartWrites } from "./search.ts";
 import { projectText } from "./text-projection.ts";
 import { readableBody } from "./thread-read.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 type CreatedHighlight =
   | { readonly kind: "created" | "existing"; readonly highlight: Highlight }
@@ -108,12 +109,13 @@ async function saveHighlight(
   itemId: number,
   request: Readonly<CreateHighlightRequest>,
 ): Promise<HighlightRow | null> {
+  const item = eq(items.id, itemId);
   const [saved] =
     (await guardedWrite(
       db,
       sql`${revisionHolds(itemId, request.target, request.revision)} and not exists ${existingHighlight(db, itemId, request)}`,
       highlightInsert(db, itemId, request).returning(),
-      highlightPartWrites(db, eq(items.id, itemId)),
+      [...highlightPartWrites(db, item), queueVaultItems(db, item)],
     )) ?? [];
 
   return saved ?? null;
@@ -178,14 +180,14 @@ export async function createHighlight(
 }
 
 export function removalWrites(db: Database, itemId: number, highlightId: number) {
+  const target = and(eq(highlights.id, highlightId), eq(highlights.itemId, itemId));
+  const held = exists(db.select({ id: highlights.id }).from(highlights).where(target));
   return [
     db
       .delete(searchParts)
       .where(and(eq(searchParts.highlightId, highlightId), eq(searchParts.itemId, itemId))),
-    db
-      .delete(highlights)
-      .where(and(eq(highlights.id, highlightId), eq(highlights.itemId, itemId)))
-      .returning({ id: highlights.id }),
+    queueVaultItems(db, sql`${eq(items.id, itemId)} and ${held}`),
+    db.delete(highlights).where(target).returning({ id: highlights.id }),
   ] as const;
 }
 
@@ -194,7 +196,7 @@ export async function removeHighlight(
   itemId: number,
   highlightId: number,
 ): Promise<boolean> {
-  const [, removed] = await db.batch(removalWrites(db, itemId, highlightId));
+  const [, , removed] = await db.batch(removalWrites(db, itemId, highlightId));
 
   return removed.length > 0;
 }
