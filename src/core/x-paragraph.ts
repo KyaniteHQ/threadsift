@@ -8,6 +8,13 @@ const MEDIA_DISPLAY = /^(?:https?:\/\/)?pic\.(?:twitter|x)\.com\//u;
 const WEB_DISPLAY = /^https?:\/\//u;
 const MENTION_DISPLAY = /^@[\p{L}\p{N}_]/u;
 const NOT_SPACE_AT_END = /\S$/u;
+const EMOJI_BASE = String.raw`[\p{Emoji}--[#*0-9]]`;
+const EMOJI_SEQUENCE = String.raw`[#*0-9]\uFE0F?\u20E3|\p{RGI_Emoji_Tag_Sequence}|\p{RGI_Emoji_Flag_Sequence}|${EMOJI_BASE}(?:\uFE0F?\p{Emoji_Modifier}|\uFE0F)`;
+const EMOJI_PART = String.raw`(?:${EMOJI_SEQUENCE}|${EMOJI_BASE})`;
+const WEIGHTED_TOKEN = new RegExp(
+  String.raw`(?<emoji>${EMOJI_PART}(?:\u200D${EMOJI_PART})+|${EMOJI_SEQUENCE}|\p{RGI_Emoji})|(?<single>[\0-\u10FF\u2000-\u200D\u2010-\u201F\u2032-\u2037])|.`,
+  "gsv",
+);
 
 export function squashed(text: string): string {
   return text
@@ -92,21 +99,15 @@ function flat(items: readonly Item[]): string {
 function weightedLength(text: string): number {
   let length = 0;
 
-  for (const [token] of text.normalize().matchAll(/\p{RGI_Emoji}|./gsv)) {
+  for (const match of text.normalize().matchAll(WEIGHTED_TOKEN)) {
+    const [token] = match;
+
     if (token === LINK) {
       length += LINK_LENGTH;
       continue;
     }
 
-    const code = token.codePointAt(0) ?? Infinity;
-    const singleWeight =
-      token.length === 1 &&
-      (code <= 0x10ff ||
-        (code >= 0x2000 && code <= 0x200d) ||
-        (code >= 0x2010 && code <= 0x201f) ||
-        (code >= 0x2032 && code <= 0x2037));
-
-    length += singleWeight ? 1 : 2;
+    length += match.groups?.["single"] === undefined ? 2 : 1;
   }
 
   return length;

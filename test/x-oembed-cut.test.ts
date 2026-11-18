@@ -78,20 +78,34 @@ describe("a cut post is checked by the head X shows, and its tail is left unveri
     );
   });
 
-  it("compares a short post that ends in an ellipsis whole, so a forged tail after it is rejected", () => {
-    const short = `${"가".repeat(123)} 👨‍👩‍👧‍👦…`;
-    const answer = withParagraph("long-cut-bare.json", short);
+  it("compares an ellipsis post whole below weight 250 and accepts a matching head from weight 250", () => {
+    const familyHead = `${"가".repeat(123)} 👨‍👩‍👧‍👦`;
+    const cases = [
+      [familyHead, "…", "verified"],
+      [familyHead, "… and a forged tail", "rejected"],
+      [`a${familyHead}`, " and the rest", "tail-unverified"],
+      [`ab${familyHead}`, " and the rest", "tail-unverified"],
+      [`${"a".repeat(247)}1⃣`, "… and a forged tail", "rejected"],
+      [`${"a".repeat(247)}👁‍🗨`, "… and a forged tail", "rejected"],
+      [`${"a".repeat(247)}⛷️🏽`, "… and a forged tail", "rejected"],
+      [`${"a".repeat(248)}©️`, " and the rest", "tail-unverified"],
+      [`${"a".repeat(248)}\u200C`, "… and a forged tail", "rejected"],
+      ["\u1100\u1161".repeat(100), "… and a forged tail", "rejected"],
+    ] as const;
 
     assert.deepEqual(
-      [
-        typed("Maybe…"),
-        typed("Maybe… and a forged tail"),
-        typed("Perhaps…"),
-        verdictOf(answer, CUT_BARE_ID, "fieldnotes_ana", short),
-        verdictOf(answer, CUT_BARE_ID, "fieldnotes_ana", `${short} and a forged tail`),
-      ],
-      ["verified", "rejected", "rejected", "verified", "rejected"],
+      [typed("Maybe…"), typed("Maybe… and a forged tail"), typed("Perhaps…")],
+      ["verified", "rejected", "rejected"],
     );
+
+    for (const [head, continuation, judgement] of cases) {
+      const answer = withParagraph("long-cut-bare.json", `${head}…`);
+      assert.equal(
+        verdictOf(answer, CUT_BARE_ID, "fieldnotes_ana", head + continuation),
+        judgement,
+        head,
+      );
+    }
   });
 
   it("rejects a cut post whose head is altered or shorter than the head X shows", () => {
