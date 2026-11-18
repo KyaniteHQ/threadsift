@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 import { isSweptKey } from "./file-keys.ts";
+import { VAULT_ROOT, vaultNotePath } from "./vault-paths.ts";
 import { invalidVaultResponse, type vaultRequest } from "./vault-request.ts";
+import type { VaultSubject } from "./vault-tables.ts";
 
 export const VaultShaSchema = z.object({ sha: z.string().regex(/^[\da-f]{40}$/u) });
 export const VaultRefSchema = z.object({ object: VaultShaSchema });
@@ -40,10 +42,56 @@ export async function vaultTree(request: Request, branch: string) {
   return { parent, root, at: (parts: readonly string[]) => at(root, parts) };
 }
 
-export function isVaultItemFile(subjectId: number, name: string): boolean {
-  return (
-    name === `note-${String(subjectId)}.md` || isSweptKey(`items/${String(subjectId)}/${name}`)
-  );
+export type VaultTree = Readonly<Awaited<ReturnType<typeof vaultTree>>>;
+
+export async function vaultLogMonths(tree: VaultTree): Promise<readonly number[]> {
+  const entries = await tree.at([VAULT_ROOT, "log"]);
+  return entries.flatMap(({ path, type }) => {
+    const match = /^(\d{4})-(0[1-9]|1[0-2])\.md$/u.exec(path);
+
+    return type === "blob" && match !== null ? [Number(`${match[1]}${match[2]}`)] : [];
+  });
 }
 
-export type VaultTree = Readonly<Awaited<ReturnType<typeof vaultTree>>>;
+export async function vaultSubjects(tree: VaultTree): Promise<readonly VaultSubject[]> {
+  const [items, topics, months] = await Promise.all([
+    tree.at([VAULT_ROOT, "items"]),
+    tree.at([VAULT_ROOT, "topics"]),
+    vaultLogMonths(tree),
+  ]);
+
+  return [
+    ...items.flatMap(({ path, type }) => {
+      const subjectId = Number(path);
+
+      return type === "tree" && /^[1-9][0-9]*$/u.test(path) && Number.isSafeInteger(subjectId)
+        ? [{ kind: "item" as const, subjectId }]
+        : [];
+    }),
+    ...topics.flatMap(({ path, type }) => {
+      const subjectId = Number(/^topic-([1-9][0-9]*)\.md$/u.exec(path)?.[1]);
+
+      return type === "blob" && Number.isSafeInteger(subjectId)
+        ? [{ kind: "topic" as const, subjectId }]
+        : [];
+    }),
+    ...months.map((subjectId) => ({ kind: "log-month" as const, subjectId })),
+  ];
+}
+
+export async function vaultTreeFiles(tree: VaultTree, subject: VaultSubject) {
+  const notePath = vaultNotePath(subject);
+  const parts = notePath.split("/");
+  const directory = parts.slice(0, -1);
+  const prefix = directory.join("/");
+  const entries = await tree.at(directory);
+
+  return entries.flatMap(({ path: name, type, sha }) => {
+    const path = `${prefix}/${name}`;
+    const managed =
+      path === notePath ||
+      (subject.kind === "item" && isSweptKey(`items/${String(subject.subjectId)}/${name}`));
+
+    return type === "blob" && managed ? [{ path, sha }] : [];
+  });
+}

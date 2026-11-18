@@ -10,6 +10,7 @@ import { pinnedDigest } from "./pins.ts";
 import type { Database } from "./ports.ts";
 import { UninitializedDatabase, catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
 import { openingOverview } from "./topic-overview-run.ts";
+import { queueVaultDigestWiki } from "./vault-wiki-writes.ts";
 
 function catalogEntries(digest: Readonly<Digest>) {
   const names = new Map<string, { readonly key: string; readonly name: string }>();
@@ -94,13 +95,14 @@ function bumpVersion(db: Database) {
     .where(and(eq(catalogVersion.id, 1), sql`changes() > 0`));
 }
 
-export function linkingDigest(db: Database, itemId: number, entries: CatalogEntries) {
+function linkingDigest(db: Database, itemId: number, entries: CatalogEntries, title: string) {
   const keys = entries.tagKeys;
 
   return [
     db.insert(topics).values(entries.topic).onConflictDoNothing({ target: topics.key }),
     bumpVersion(db),
-    loggedTopic(db, entries.topic.key),
+    ...loggedTopic(db, entries.topic.key),
+    ...queueVaultDigestWiki(db, { itemId, title, topicKey: entries.topic.key }),
     db
       .insert(tags)
       .select(
@@ -148,8 +150,8 @@ export function publishedLinks(
   title: string,
 ) {
   return [
-    ...linkingDigest(db, itemId, entries),
-    loggedDigest(db, {
+    ...linkingDigest(db, itemId, entries, title),
+    ...loggedDigest(db, {
       itemId,
       title,
       topicKey: entries.topic.key,

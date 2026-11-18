@@ -4,10 +4,13 @@ import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { LogAction } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { digests, logEntries, proposals, topics } from "./schema.ts";
+import { logMonthAt } from "./vault-log-month.ts";
+import { queueVaultNotes } from "./vault-queue.ts";
 
 interface Fields {
   readonly action: SQL<LogAction> | LogAction;
   readonly title?: SQLWrapper | string;
+  readonly path?: string;
   readonly topic?: SQLWrapper;
   readonly tags?: SQL;
   readonly added?: number;
@@ -22,15 +25,17 @@ interface Fields {
 
 function appended(
   db: Database,
-  fields: Readonly<Fields & { from: SQLiteTable; where: SQL | undefined }>,
+  fields: Readonly<Fields & { from: SQLiteTable | SQL; where: SQL | undefined }>,
 ) {
-  return db.insert(logEntries).select(
+  const at = Date.now();
+  const write = db.insert(logEntries).select(
     db
       .select({
         id: sql<null>`null`.as("id"),
-        at: sql<number>`${Date.now()}`.as("at"),
+        at: sql<number>`${at}`.as("at"),
         action: sql`${fields.action}`.as("action"),
         title: sql`${fields.title ?? null}`.as("title"),
+        path: sql`${fields.path ?? null}`.as("path"),
         topic: sql`${fields.topic ?? null}`.as("topic"),
         tags: sql`${fields.tags ?? null}`.as("tags"),
         added: sql`${fields.added ?? null}`.as("added"),
@@ -45,6 +50,11 @@ function appended(
       .from(fields.from)
       .where(fields.where),
   );
+
+  return [
+    write,
+    queueVaultNotes(db, { kind: "log-month", id: logMonthAt(at), when: sql`changes() > 0` }),
+  ] as const;
 }
 
 export function loggedDigest(
@@ -128,5 +138,14 @@ export function loggedMerge(
     mergedFrom,
     mergedInto,
     moved: sql`coalesce(${proposals.moved}, 0)`,
+  });
+}
+
+export function loggedVaultSkip(db: Database, path: string, held: Readonly<SQLWrapper>) {
+  return appended(db, {
+    from: sql`(select 1)`,
+    where: sql`${held} and not exists (select 1 from ${logEntries} where ${logEntries.action} = 'vault-file-skipped' and ${logEntries.path} = ${path})`,
+    action: "vault-file-skipped",
+    path,
   });
 }

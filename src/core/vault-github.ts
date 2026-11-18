@@ -3,18 +3,27 @@ import { z } from "zod";
 import type { Network } from "./ports.ts";
 import type { VaultInput } from "./vault-contract.ts";
 import { vaultRequest } from "./vault-request.ts";
-import { isVaultItemFile, VaultRefSchema, vaultTree, type VaultTree } from "./vault-tree.ts";
+import type { VaultKind, VaultSubject } from "./vault-tables.ts";
+import {
+  VaultRefSchema,
+  vaultLogMonths,
+  vaultSubjects,
+  vaultTree,
+  vaultTreeFiles,
+  type VaultTree,
+} from "./vault-tree.ts";
 
-export type VaultFile = Readonly<{ path: string; subjectId: number }> &
+export type VaultFile = Readonly<{ path: string }> &
   (
     | Readonly<{ kind: "binary"; key: string; size: number }>
-    | Readonly<{ kind: "text"; content: string }>
-    | Readonly<{ kind: "delete"; content: null }>
+    | Readonly<{ kind: "memory"; bytes: Uint8Array }>
+    | Readonly<{ kind: "delete" }>
   );
 
 export interface VaultProgress {
   readonly path: string;
   readonly subjectId: number;
+  readonly noteKind: VaultKind;
   readonly sequence: number;
   readonly sha: string | null;
 }
@@ -39,7 +48,7 @@ function commitBody(
       input: {
         branch: { repositoryNameWithOwner: input.repository, branchName: input.branch },
         expectedHeadOid: parent,
-        message: { headline: "Update Threadsift Item notes" },
+        message: { headline: "Update Threadsift vault notes" },
         fileChanges: {
           additions: files.flatMap((file) =>
             file.kind === "put" ? [{ path: file.path, contents: file.contents }] : [],
@@ -62,21 +71,9 @@ export function vaultGithub(network: Network, input: Readonly<VaultInput>, signa
     verify: async () => {
       await request.read(`/git/ref/heads/${encodeURIComponent(input.branch)}`, VaultRefSchema);
     },
-    subjects: async (): Promise<readonly number[]> => {
-      const entries = await (await treeOf()).at(["Threadsift", "items"]);
-      return entries
-        .filter(
-          ({ path, type }) =>
-            type === "tree" && /^[1-9][0-9]*$/u.test(path) && Number.isSafeInteger(Number(path)),
-        )
-        .map(({ path }) => Number(path));
-    },
-    files: async (subjectId: number) => {
-      const entries = await (await treeOf()).at(["Threadsift", "items", String(subjectId)]);
-      return entries
-        .filter(({ path, type }) => type === "blob" && isVaultItemFile(subjectId, path))
-        .map(({ path, sha }) => ({ path: `Threadsift/items/${String(subjectId)}/${path}`, sha }));
-    },
+    subjects: async () => vaultSubjects(await treeOf()),
+    logMonths: async () => vaultLogMonths(await treeOf()),
+    files: async (subject: VaultSubject) => vaultTreeFiles(await treeOf(), subject),
     write: async (
       operation: Readonly<{ files: readonly VaultChange[]; current: () => Promise<boolean> }>,
     ) => {
@@ -87,6 +84,7 @@ export function vaultGithub(network: Network, input: Readonly<VaultInput>, signa
         current: operation.current,
         body: commitBody(input, base.parent, operation.files),
       });
+      snapshot = null;
     },
   };
 }

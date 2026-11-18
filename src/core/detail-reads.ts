@@ -37,6 +37,7 @@ export function detailReads(db: Database, id: number) {
   return db.batch([
     selectItems(db, {
       ...DETAIL_COLUMNS,
+      topicId: items.topicId,
       revision: sql<number>`${items.generation}`.as("post_revision"),
     }).where(eq(items.id, id)),
     db.select({ digest: digests.digest }).from(digests).where(eq(digests.itemId, id)),

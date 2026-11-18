@@ -22,7 +22,10 @@ export const planTagUnit: PlanUnit = async (db, id, row) => {
     moves: unit.writes,
     cursor: reachedEnd ? 0 : unit.last,
     closing: {
-      writes: closingWrites(db, TAG_KIND, from.id, [
+      writes: closingWrites(
+        db,
+        TAG_KIND,
+        from.id,
         loggedMerge(db, {
           action: "merge",
           proposalId: id,
@@ -30,7 +33,7 @@ export const planTagUnit: PlanUnit = async (db, id, row) => {
           mergedInto: into.name,
           when: TAG_KIND.unlinked(db, from.id),
         }),
-      ]),
+      ),
       wakes: [],
     },
   };

@@ -63,7 +63,7 @@ export async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files
     return row;
   }
 
-  const { revision, postTextKey, ...item } = row;
+  const { revision, postTextKey, topicId, ...item } = row;
   const postText = await postTextOf(files, id, { postText: item.postText, postTextKey });
 
   const comments = commentViews(threadRows, threadReport, revision, {
@@ -74,6 +74,7 @@ export async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files
   return {
     textLost: postText === null && postTextKey !== null,
     postTextKey,
+    topicId,
     storedFiles,
     keptNodes: comments.keptNodes,
     item: {

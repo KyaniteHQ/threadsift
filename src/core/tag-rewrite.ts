@@ -12,9 +12,11 @@ import {
   unchangedDigests,
 } from "./digest-state.ts";
 import { report } from "./failure-log.ts";
+import { among } from "./guards.ts";
 import { renamedTags } from "./pins.ts";
 import type { Database } from "./ports.ts";
-import { digests, itemTags } from "./schema.ts";
+import { digests, items, itemTags } from "./schema.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 export const REWRITE_UNIT_ITEMS = 100;
 
@@ -48,37 +50,40 @@ function mergedTags(
   return renamedTags(parsed.tags, (key) => (key === from.key ? into.name : undefined));
 }
 
-function digestRewrites(
-  db: Database,
+function readableDigests(
   stored: readonly Readonly<StoredDigest>[],
   merge: Readonly<{ from: TagRef; into: TagRef }>,
-): readonly BatchItem<"sqlite">[] {
+) {
   return stored.flatMap((row) => {
     try {
-      const rewritten = mergedTags(row, merge);
-
-      return rewritten === null
-        ? []
-        : [
-            db
-              .update(digests)
-              .set({
-                digest: sql`json_set(${digests.digest}, '$.tags', json(${JSON.stringify(rewritten)}))`,
-              })
-              .where(
-                and(
-                  eq(digests.itemId, row.itemId),
-                  eq(digests.taskId, row.taskId),
-                  sql`${storedTags} is ${row.tags}`,
-                ),
-              ),
-          ];
+      return [{ row, rewritten: mergedTags(row, merge) } as const];
     } catch {
       report("merge-digest-unreadable", { itemId: row.itemId });
 
       return [];
     }
   });
+}
+
+function digestRewrites(db: Database, reading: Readonly<ReturnType<typeof readableDigests>>) {
+  return reading.flatMap(({ row, rewritten }) =>
+    rewritten === null
+      ? []
+      : [
+          db
+            .update(digests)
+            .set({
+              digest: sql`json_set(${digests.digest}, '$.tags', json(${JSON.stringify(rewritten)}))`,
+            })
+            .where(
+              and(
+                eq(digests.itemId, row.itemId),
+                eq(digests.taskId, row.taskId),
+                sql`${storedTags} is ${row.tags}`,
+              ),
+            ),
+        ],
+  );
 }
 
 export async function readRewrite(
@@ -105,14 +110,22 @@ export async function readRewrite(
       tags: read.get(id)?.tags ?? null,
     })),
   );
+  const readable = readableDigests(stored, { from, into });
 
   return {
     itemIds,
     last: itemIds.at(-1) ?? 0,
     moving: sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${from.id} and ${unchanged(itemTags.itemId)})`,
     writes: [
+      queueVaultItems(
+        db,
+        sql`${among(
+          items.id,
+          readable.map(({ row }) => row.itemId),
+        )} and ${items.id} in (select ${itemTags.itemId} from ${itemTags} where ${itemTags.tagId} = ${from.id} and ${unchanged(itemTags.itemId)})`,
+      ),
       ...tagMoves(db, from.id, into.id, unchanged),
-      ...digestRewrites(db, stored, { from, into }),
+      ...digestRewrites(db, readable),
     ],
   };
 }

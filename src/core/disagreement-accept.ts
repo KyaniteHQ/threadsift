@@ -6,7 +6,9 @@ import { guardedResults } from "./guards.ts";
 import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { removedOpen } from "./proposal-lifecycle.ts";
-import { pins, proposals } from "./schema.ts";
+import { pins, proposals, topics } from "./schema.ts";
+import { queueVaultTopics } from "./vault-queue.ts";
+import { vaultTopicOf } from "./vault-wiki-writes.ts";
 
 type DisagreementAcceptance = "done" | "unknown" | "not-open" | "not-current";
 
@@ -78,6 +80,7 @@ export async function acceptDisagreement(
 
   const accepted = await guardedResults(db, stillCurrent(id), [
     keptPair(db, reason, sides),
+    queueVaultTopics(db, sql`${topics.id} = ${vaultTopicOf(sides[0].item)} and changes() > 0`),
     removedOpen(db, eq(proposals.id, id)),
   ]);
 

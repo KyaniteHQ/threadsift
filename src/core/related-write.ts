@@ -8,10 +8,15 @@ import { loggedRelated } from "./log-writes.ts";
 import type { Database } from "./ports.ts";
 import { type Version, type Versions, versionsHold } from "./related-input.ts";
 import type { RelatedResult } from "./related-task.ts";
-import { digests, relatedItems } from "./schema.ts";
+import { digests, items, relatedItems } from "./schema.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 function replacedSet(db: Database, sourceId: number, picks: RelatedResult["picks"]): JobWrites {
   return [
+    queueVaultItems(
+      db,
+      sql`${items.id} = ${sourceId} and (select json_group_array(json_object('item', ${relatedItems.relatedId}, 'reason', ${relatedItems.reason}) order by ${relatedItems.position}) from ${relatedItems} where ${relatedItems.itemId} = ${sourceId}) <> ${JSON.stringify(picks)}`,
+    ),
     db.delete(relatedItems).where(eq(relatedItems.itemId, sourceId)),
     db.insert(relatedItems).select(
       db
@@ -57,7 +62,7 @@ export function pickedOutcome(
       ...replacedSet(db, versions.source.id, result.picks),
       ...(result.picks.length === 0
         ? []
-        : [loggedRelated(db, versions.source.id, result.picks.length)]),
+        : loggedRelated(db, versions.source.id, result.picks.length)),
       completedAiTask(db, { taskId, result }),
     ],
   });

@@ -9,6 +9,7 @@ import { items, media } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import { queueVaultItems } from "./vault-queue.ts";
+import { queueVaultFetchedTitle } from "./vault-wiki-writes.ts";
 
 export interface ThreadPlace extends Link {
   readonly address: string;
@@ -69,6 +70,7 @@ export function threadPublication(
   const owner = ownerOf(place.normalizedUrl);
 
   return [
+    ...queueVaultFetchedTitle(db, eq(items.normalizedUrl, place.normalizedUrl), thread.title),
     ...contentWrites(db, place.normalizedUrl, owner, thread, pendingDigest),
     ...threadWrites(db, owner, thread, null),
     ...fetchedPartWrites(db, eq(items.normalizedUrl, place.normalizedUrl), thread.postText),

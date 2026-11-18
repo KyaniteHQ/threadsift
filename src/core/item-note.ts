@@ -34,7 +34,7 @@ function unicodeEscape(character: string): string {
   return "\\u" + (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
 }
 
-function scalar(value: string | null): string {
+export function scalar(value: string | null): string {
   return JSON.stringify(value ?? "").replaceAll(NOT_PLAIN_YAML, unicodeEscape);
 }
 
@@ -79,7 +79,7 @@ const BLOCK_MARKER = /^(\s{0,3})([#>+=-])/u;
 
 const LIST_NUMBER = /^(\s{0,3}\d+)([.)])/u;
 
-function plainMarkdown(text: string): string {
+export function plainMarkdown(text: string): string {
   return lineBreaksOf(text)
     .map((line) =>
       line
@@ -175,26 +175,38 @@ function commentSection(nodes: readonly CommentNode[], source: Source): string[]
   return [`## ${COMMENTS_TITLE}`, "", ...lines, ""];
 }
 
-function imagesBesideNote(text: string, itemId: number): string {
+function imagesBesideNote(text: string, itemId: number, omittedImages: readonly string[]): string {
   const { images } = scanMarkdown(text, false);
 
   return rewriteImages(
     text,
     images
       .filter(({ destination }) => isImageRouteOf(destination, itemId))
-      .map((image) => ({
-        image,
-        text: inlineImage(image, keyOfFileRoute(image.destination)?.split("/").at(-1) ?? ""),
-      })),
+      .map((image) => {
+        const key = keyOfFileRoute(image.destination) ?? "";
+        return {
+          image,
+          text: omittedImages.includes(key) ? "" : inlineImage(image, key.split("/").at(-1) ?? ""),
+        };
+      }),
   );
 }
 
-export function itemNote(input: Readonly<ItemNoteInput>): string {
+interface ItemNoteOptions {
+  readonly links: readonly string[];
+  readonly omittedImages: readonly string[];
+}
+
+export function itemNote(
+  input: Readonly<ItemNoteInput>,
+  { links, omittedImages }: ItemNoteOptions,
+): string {
   const postText = input.postText === null || input.postText.trim() === "" ? null : input.postText;
 
   const body = [
     `# ${titleOf(input)}`,
     "",
+    ...links,
     ...(input.summary === null
       ? []
       : [`## ${SUMMARY_LABEL}`, "", plainMarkdown(input.summary), ""]),
@@ -206,7 +218,12 @@ export function itemNote(input: Readonly<ItemNoteInput>): string {
     ...(input.note === null ? [] : [`## ${NOTE_TITLE}`, "", plainMarkdown(input.note), ""]),
     ...(postText === null
       ? []
-      : [`## ${SECTION_TITLES[input.kind]}`, "", imagesBesideNote(postText, input.id), ""]),
+      : [
+          `## ${SECTION_TITLES[input.kind]}`,
+          "",
+          imagesBesideNote(postText, input.id, omittedImages),
+          "",
+        ]),
     ...commentSection(input.comments, input.source),
   ];
 

@@ -1,9 +1,12 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { loggedOverview } from "./log-writes.ts";
 import type { Database } from "./ports.ts";
+import { topicPages, topics } from "./schema.ts";
+import { overviewLine } from "./topic-overview-contract.ts";
 import type { OverviewBasis, OverviewSent } from "./topic-overview-input.ts";
 import { continuingOverview, overviewStored } from "./topic-overview-run.ts";
+import { queueVaultIndex, queueVaultTopics } from "./vault-queue.ts";
 
 function revisedPage(
   topicId: number,
@@ -27,7 +30,7 @@ function revisedPage(
   };
 }
 
-export function storedPage(
+export async function storedPage(
   db: Database,
   {
     topicId,
@@ -41,13 +44,24 @@ export function storedPage(
     overview: string | null;
   }>,
 ) {
+  const [page] = await db
+    .select({ overview: topicPages.overview })
+    .from(topicPages)
+    .where(eq(topicPages.topicId, topicId));
+  const previous = page?.overview ?? null;
+
   return {
     writes: [
       overviewStored(db, revisedPage(topicId, read, prompt, overview)),
-      loggedOverview(db, topicId, {
+      ...loggedOverview(db, topicId, {
         added: prompt.included.length,
         removed: read.removed.length,
       }),
+      ...(overview === previous ? [] : [queueVaultTopics(db, eq(topics.id, topicId))]),
+      ...((overview === null ? null : overviewLine(overview)) ===
+      (previous === null ? null : overviewLine(previous))
+        ? []
+        : [queueVaultIndex(db, sql`1`)]),
     ],
     continuation: [continuingOverview(db, topicId, sql`1`)],
   };

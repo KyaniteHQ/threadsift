@@ -4,6 +4,8 @@ import type { readItem } from "./item-detail.ts";
 import { itemNote, noteFileName } from "./item-note.ts";
 import type { ZipFile } from "./zip.ts";
 
+type NoteOptions = Parameters<typeof itemNote>[1];
+
 const TEXT = new TextEncoder();
 
 export interface StoredFile {
@@ -56,39 +58,44 @@ export function ownedBy(itemId: number, key: string): boolean {
   return parseFileKey(key)?.itemId === String(itemId);
 }
 
-function noteTextOf(item: NotedItem, comments: readonly CommentNode[]): string {
-  return itemNote({
-    id: item.id,
-    source: item.source,
-    kind: item.kind,
-    url: item.originalUrl,
-    author: item.author,
-    community: item.community,
-    postedAt: item.postedAt,
-    savedAt: item.savedAt,
-    fetchedAt: item.fetchedAt,
-    topic: item.digestTopic,
-    tags: item.digest?.tags ?? [],
-    readState: item.readState,
-    title: item.digestTitle ?? item.title,
-    summary: item.digest?.summary ?? null,
-    keyPoints: item.digest?.keyPoints ?? [],
-    highlights: item.highlights.items.map(({ selector, status }) => ({
-      exact: selector.exact,
-      found: status === "attached",
-    })),
-    note: item.note.body,
-    postText: item.postText,
-    comments,
-  });
+function noteTextOf(
+  item: NotedItem,
+  comments: readonly CommentNode[],
+  options: NoteOptions,
+): string {
+  return itemNote(
+    {
+      id: item.id,
+      source: item.source,
+      kind: item.kind,
+      url: item.originalUrl,
+      author: item.author,
+      community: item.community,
+      postedAt: item.postedAt,
+      savedAt: item.savedAt,
+      fetchedAt: item.fetchedAt,
+      topic: item.digestTopic,
+      tags: item.digest?.tags ?? [],
+      readState: item.readState,
+      title: item.digestTitle ?? item.title,
+      summary: item.digest?.summary ?? null,
+      keyPoints: item.digest?.keyPoints ?? [],
+      highlights: item.highlights.items.map(({ selector, status }) => ({
+        exact: selector.exact,
+        found: status === "attached",
+      })),
+      note: item.note.body,
+      postText: item.postText,
+      comments,
+    },
+    options,
+  );
 }
 
-export function planOf({
-  item,
-  keptNodes,
-  postTextKey,
-  storedFiles,
-}: Readonly<PlanSource>): Planned {
+export function planOf(
+  { item, keptNodes, postTextKey, storedFiles }: Readonly<PlanSource>,
+  options: NoteOptions,
+): Planned {
   const { id, postText } = item;
 
   if (postTextKey !== null && (postText === null || !ownedBy(id, postTextKey))) {
@@ -105,7 +112,7 @@ export function planOf({
 
   const note = {
     name: `items/${String(id)}/${noteFileName(item.digestTitle ?? item.title)}`,
-    bytes: TEXT.encode(noteTextOf(item, keptNodes)),
+    bytes: TEXT.encode(noteTextOf(item, keptNodes, options)),
   };
 
   return {

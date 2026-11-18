@@ -34,7 +34,7 @@ async function readyOverview(db: Database, topicId: number): Promise<OverviewPre
   }
 
   if (prompt.included.length === 0) {
-    return settled(keptOutcome(db, topicId, { read, prompt }));
+    return settled(await keptOutcome(db, topicId, { read, prompt }));
   }
 
   return { kind: "ask", topicId, read, prompt };

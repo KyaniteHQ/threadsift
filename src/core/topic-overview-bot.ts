@@ -60,16 +60,14 @@ export const topicOverviewBotKind = botTaskKind({
     };
   },
   apply: ({ db }, _job, { context, taskId, result }) =>
-    Promise.resolve(
-      revisedOutcome(db, context.topicId, {
-        read: {
-          page: { revision: context.revision, builtFrom: context.builtFrom },
-          removed: context.removed,
-          removedTotal: context.removedTotal,
-        },
-        prompt: { current: context.current, included: context.included },
-        taskId,
-        result,
-      }),
-    ),
+    revisedOutcome(db, context.topicId, {
+      read: {
+        page: { revision: context.revision, builtFrom: context.builtFrom },
+        removed: context.removed,
+        removedTotal: context.removedTotal,
+      },
+      prompt: { current: context.current, included: context.included },
+      taskId,
+      result,
+    }),
 });

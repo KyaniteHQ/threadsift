@@ -27,6 +27,8 @@ export function lineOf(entry: Readonly<LogEntry>): string {
       return `merge | tag: ${entry.from} into ${entry.into} | ${String(entry.items)} Items`;
     case "merge-topic":
       return `merge | topic: ${entry.from} into ${entry.into} | ${String(entry.items)} Items`;
+    case "vault-file-skipped":
+      return `vault-file-skipped | ${entry.path}`;
     default:
       return entry satisfies never;
   }

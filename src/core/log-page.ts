@@ -1,11 +1,12 @@
-import { desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
+import { LogEntrySchema } from "./log-contract.ts";
 import { pageTail } from "./page-tail.ts";
 import type { Database } from "./ports.ts";
 import { logEntries, logStart, topics } from "./schema.ts";
 
-type Row = Readonly<Awaited<ReturnType<typeof pageQuery>>[number]>;
+type Row = Readonly<Awaited<ReturnType<typeof logRows>>[number]>;
 
 function entryOf(row: Row) {
   const { id, at, action } = row;
@@ -26,18 +27,26 @@ function entryOf(row: Row) {
     case "merge":
     case "merge-topic":
       return { ...merged, action };
+    case "vault-file-skipped":
+      return { id, at, action, path: row.path };
     default:
       return action satisfies never;
   }
 }
 
-function pageQuery(db: Database, cursor: number | null) {
+interface LogRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+function logRows(db: Database, cursor: number | null, limit: number, range?: LogRange) {
   return db
     .select({
       id: logEntries.id,
       at: logEntries.at,
       action: logEntries.action,
       title: logEntries.title,
+      path: logEntries.path,
       topic: logEntries.topic,
       topicKey: topics.key,
       tags: logEntries.tags,
@@ -51,14 +60,30 @@ function pageQuery(db: Database, cursor: number | null) {
     })
     .from(logEntries)
     .leftJoin(topics, eq(topics.id, logEntries.topicId))
-    .where(cursor === null ? undefined : lt(logEntries.id, cursor))
+    .where(
+      and(
+        cursor === null ? undefined : lt(logEntries.id, cursor),
+        range === undefined
+          ? undefined
+          : and(gte(logEntries.at, range.start), lt(logEntries.at, range.end)),
+      ),
+    )
     .orderBy(desc(logEntries.id))
-    .limit(ITEMS_PAGE_SIZE + 1);
+    .limit(limit);
+}
+
+export async function readLogEntries(
+  db: Database,
+  cursor: number | null,
+  limit: number,
+  range: LogRange,
+) {
+  return (await logRows(db, cursor, limit, range)).map((row) => LogEntrySchema.parse(entryOf(row)));
 }
 
 export async function readLog(db: Database, cursor: number | null) {
   const [rows, [start]] = await db.batch([
-    pageQuery(db, cursor),
+    logRows(db, cursor, ITEMS_PAGE_SIZE + 1),
     db.select({ startedAt: logStart.startedAt }).from(logStart).where(eq(logStart.id, 1)),
   ]);
 

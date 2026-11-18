@@ -9,6 +9,7 @@ import { items } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import { isRetryable } from "./settle.ts";
 import { queueVaultItems } from "./vault-queue.ts";
+import { queueVaultFetchedTitle } from "./vault-wiki-writes.ts";
 
 async function titleOf(db: JobPorts["db"], itemId: number): Promise<string | null> {
   const [item] = await db.select({ title: items.title }).from(items).where(eq(items.id, itemId));
@@ -39,6 +40,7 @@ export async function settledFetch(
 
   const outcome: SettledOutcome = {
     writes: [
+      ...(fields.title === undefined ? [] : queueVaultFetchedTitle(ports.db, item, fields.title)),
       ports.db.update(items).set(columns).where(item),
       ...(fields.title === undefined ? [] : fetchedPartWrites(ports.db, item, postText)),
       ...contentPublication,

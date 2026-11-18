@@ -2,6 +2,8 @@
 
 The records the agent keeps beside the Items: the Topic pages with their overviews, the Index of every Topic, the Related Items of each Item, and the Log of committed changes. [Proposals](proposals.md) owns Proposals and Pins. [The data model outline](architecture/data-model-outline.md) owns the tables.
 
+The [Vault mirror](architecture/vault-mirror.md) writes the Topic pages, Index and Log as Markdown. The vault's Log links to UTC month notes. Item notes link to their Topic pages and Related Items. A Topic page note lists all current Known disagreements, while the app shows the most recent 20 (`DISAGREEMENTS_SHOWN`).
+
 - [Topic pages](#topic-pages)
 - [The Index](#the-index)
 - [Related Items](#related-items)
@@ -74,9 +76,9 @@ The obvious `min(bm25(...))` over a `GROUP BY` fails on both targets with `unabl
 
 ## The Log
 
-The Log lists the committed changes to the library, the agent's own and the merges the owner accepts. It is the `log_entries` table, one row for each change.
+The Log lists committed library changes and files the Vault mirror skipped. It is the `log_entries` table, one row for each entry.
 
-**Recording.** An entry is a statement in the guarded batch that commits the change it records, so a stale result, a lost claim, a failed guard or a rolled-back write appends nothing, and a committed change never lacks its entry. A statement that writes an entry stays in the Drizzle `batch`, and a list it needs is bound as one JSON value, because D1 limits a statement to 100 bound parameters.
+**Recording.** A library change writes its Log entry in the guarded batch that commits the change. A skipped file writes its entry when the Vault mirror acknowledges the write, while the same lease still holds. Both batches queue the entry's UTC month immediately after the Log insert. A list binds as one JSON value because D1 allows at most 100 bound parameters per statement.
 
 | Action | Written |
 |---|---|
@@ -87,10 +89,11 @@ The Log lists the committed changes to the library, the agent's own and the merg
 | `related` | the stored set has at least one pick (`loggedRelated`) |
 | `merge` | the last unit of an accepted Tag merge left no `item_tags` row for the merged-away Tag |
 | `merge-topic` | no Item and no Log entry names the merged-away Topic any more |
+| `vault-file-skipped` | the writer leaves a file above GitHub's 100 MiB limit out and records its managed path once under the write lease |
 
 - **`changes()` placement.** `bumpVersion` reads `changes()` right after the Topic insert, and SQLite defines `changes()` as the count of the most recent completed insert, update or delete. The `topic` entry therefore sits after `bumpVersion` and before the Tag insert, conditioned on `changes() > 0`, so no statement comes between a catalog insert and the one that reads its count. The count is 1 when the Topic row was inserted and 0 when `ON CONFLICT DO NOTHING` skipped it (`node:sqlite`, Node 26, and local D1, 2026-11-11), so a second publication that reuses a Topic writes no `topic` entry.
 - **`ingest` or `digest`.** The statement reads whether a `digests` row exists, so it runs before the upsert. Entries of one batch keep their insertion order, so a first Digest in a new Topic shows `ingest` above `topic`, because the newest id comes first.
-- **No failure entries.** A failed Digest, overview or pick, the Verify task and an Item's deletion are not entries. An empty set of picks records nothing, and neither does a set that clears an older one.
+- **No AI failure entries.** A failed Digest, overview or pick, the Verify task and an Item's deletion add no entries. An empty set of picks records nothing, including when it clears an older one.
 - **The action list.** `LOG_ACTIONS` in `src/core/kinds.ts` is the list, and the `log_entries_action_check` CHECK refuses a row with another action, as `jobs_values_check` does for jobs. `test/consistency-triggers.test.ts` refuses an unknown action on insert and update through the real database.
 - **Start time.** The initial migration inserts the start time into `log_start` from the database clock.
 - **The read.** Rows come newest first by `id`, so a clock that steps back cannot reorder them. The route does not check that an entry with the cursor's `id` exists, so a cursor stays valid after its entry is deleted with an Item.

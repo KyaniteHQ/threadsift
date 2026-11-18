@@ -76,3 +76,4 @@ export const VAULT_DEADLINE_MS = 120_000;
 export const VAULT_NOTE_LIMIT = 20;
 
 export const VAULT_FILE_BYTES = 8 * 1024 * 1024;
+export const GITHUB_FILE_BYTES = 100 * 1024 * 1024;

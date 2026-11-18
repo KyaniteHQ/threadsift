@@ -3,16 +3,71 @@ import type { JobPorts } from "./job-outcome.ts";
 import { VAULT_DEADLINE_MS, VAULT_NOTE_LIMIT } from "./vault-contract.ts";
 import { vaultFiles } from "./vault-files.ts";
 import { vaultGithub } from "./vault-github.ts";
-import { VaultItemFailure, parkVaultNote, dueVaultNotes } from "./vault-queue.ts";
+import { dueVaultNotes, type PendingVaultNote } from "./vault-queue.ts";
 import { VaultFailure, staleVault } from "./vault-request.ts";
 import {
   type VaultLease,
   acknowledgeVault,
   seedVaultInventory,
-  vaultCurrent,
+  currentVaultNotes,
   claimVaultLease,
   finishVaultLease,
 } from "./vault-state.ts";
+
+const TOPIC_NOTE_LIMIT = 4;
+const SHARED_NOTE_LIMIT = 4;
+
+interface Drain {
+  readonly ports: JobPorts;
+  readonly lease: Readonly<VaultLease>;
+  readonly github: Readonly<ReturnType<typeof vaultGithub>>;
+  readonly signal: AbortSignal;
+}
+
+async function publish(
+  { ports, github, signal, lease }: Drain,
+  pending: readonly PendingVaultNote[],
+) {
+  const batch = await vaultFiles({ ports, github, signal, pending });
+  if (batch.pending.length === 0) return;
+  const current = async () =>
+    (await currentVaultNotes(ports.db, lease, batch.pending)).length === batch.pending.length;
+  if (!(await current())) throw staleVault();
+  await github.write({
+    files: batch.files,
+    current,
+  });
+  await acknowledgeVault(ports.db, {
+    lease,
+    pending: batch.complete,
+    files: batch.progress,
+    oversized: batch.oversized,
+    logMonthsChanged: batch.logMonthsChanged,
+  });
+}
+
+async function publishCurrent(input: Drain, pending: readonly PendingVaultNote[]): Promise<void> {
+  try {
+    await publish(input, pending);
+  } catch (error) {
+    if (!(error instanceof VaultFailure) || error.reason !== "stale") throw error;
+    const remaining = await currentVaultNotes(input.ports.db, input.lease, pending);
+    report("vault-write-stale", {
+      generation: input.lease.generation,
+      kind: pending[0]?.kind ?? "none",
+      remaining: remaining.length,
+    });
+    if (remaining.length > 0 && remaining.length < pending.length)
+      await publishCurrent(input, remaining);
+  }
+}
+
+async function publishShared(input: Drain, pending: readonly PendingVaultNote[]): Promise<void> {
+  const [note, ...remaining] = pending;
+  if (note === undefined) return;
+  await publishCurrent(input, [note]);
+  await publishShared(input, remaining);
+}
 
 async function drain(
   ports: JobPorts,
@@ -23,22 +78,17 @@ async function drain(
   if (token === null || token === undefined)
     throw new VaultFailure({ reason: "secret-missing", until: null, status: null });
   const github = vaultGithub(ports.network, { ...lease, token }, signal);
-  if (lease.scanPending) await seedVaultInventory(ports.db, lease, await github.subjects());
-  const pending = await dueVaultNotes(ports.db, VAULT_NOTE_LIMIT);
-  if (pending.length === 0) return;
-  const batch = await vaultFiles({ ports, github, signal, pending });
-  try {
-    if (!(await vaultCurrent(ports.db, lease, batch.pending))) throw staleVault();
-    await github.write({
-      files: batch.files,
-      current: () => vaultCurrent(ports.db, lease, batch.pending),
-    });
-    await acknowledgeVault(ports.db, { lease, pending: batch.complete, files: batch.progress });
-  } catch (error) {
-    if (!(error instanceof VaultItemFailure)) throw error;
-    const failed = batch.pending.find(({ subjectId }) => subjectId === error.subjectId);
-    if (failed !== undefined) await parkVaultNote(ports.db, failed, error);
-  }
+  if (lease.scanPending || lease.wikiPending)
+    await seedVaultInventory(ports.db, lease, await github.subjects());
+  const input = { ports, lease, github, signal };
+  const items = await dueVaultNotes(
+    ports.db,
+    VAULT_NOTE_LIMIT - TOPIC_NOTE_LIMIT - SHARED_NOTE_LIMIT,
+    "item",
+  );
+  await publishCurrent(input, items);
+  await publishCurrent(input, await dueVaultNotes(ports.db, TOPIC_NOTE_LIMIT, "topic"));
+  await publishShared(input, await dueVaultNotes(ports.db, SHARED_NOTE_LIMIT, "shared"));
 }
 
 function failureWait(lease: Readonly<VaultLease>, cause: unknown): number | null {

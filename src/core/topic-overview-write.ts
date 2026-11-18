@@ -32,12 +32,12 @@ export function currentInputs(
   });
 }
 
-export function keptOutcome(
+export async function keptOutcome(
   db: Database,
   topicId: number,
   { read, prompt }: Readonly<{ read: Readonly<OverviewBasis>; prompt: Readonly<OverviewSent> }>,
-): SettledOutcome {
-  const stored = storedPage(db, {
+): Promise<SettledOutcome> {
+  const stored = await storedPage(db, {
     topicId,
     read,
     prompt,
@@ -52,7 +52,7 @@ export function keptOutcome(
   };
 }
 
-export function revisedOutcome(
+export async function revisedOutcome(
   db: Database,
   topicId: number,
   {
@@ -66,9 +66,9 @@ export function revisedOutcome(
     taskId: number;
     result: Readonly<OverviewResult>;
   }>,
-): SettledOutcome {
+): Promise<SettledOutcome> {
   const overview = result.unchanged ? prompt.current : overviewText(result);
-  const stored = storedPage(db, { topicId, read, prompt, overview });
+  const stored = await storedPage(db, { topicId, read, prompt, overview });
 
   const current = sql`${currentInputs(topicId, read, prompt.included)} and ${aiTaskRunning(taskId)}`;
 
