@@ -41,3 +41,5 @@ Should You wish to submit work that is not Your original creation, You may submi
 You agree to notify Kyanite Labs of any facts or circumstances of which you become aware that would make these representations inaccurate in any respect.
 
 Adapted from the [Apache Individual Contributor License Agreement v2.2](https://www.apache.org/licenses/icla.pdf).
+
+Test line for the CLA check. This pull request will be closed without a merge.
