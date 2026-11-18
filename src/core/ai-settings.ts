@@ -35,15 +35,20 @@ function viewOf(
 
   if (saved === undefined) return null;
 
-  return saved.sealedKey === null
-    ? { provider: saved.provider, model: saved.model }
-    : {
-        provider: saved.provider,
-        baseUrl: saved.baseUrl,
-        model: saved.model,
-        keySet: true,
-        keyReadable,
-      };
+  if (saved.sealedKey === null) {
+    const { provider, model, effort } = saved;
+    return provider === "workers-ai"
+      ? { provider, model }
+      : { provider, model, effort: effort ?? "" };
+  }
+
+  return {
+    provider: saved.provider,
+    baseUrl: saved.baseUrl,
+    model: saved.model,
+    keySet: true,
+    keyReadable,
+  };
 }
 
 export async function readAiSettings(ports: SettingsPorts): Promise<AiSettingsView> {

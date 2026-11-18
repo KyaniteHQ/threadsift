@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 
-import { type AiTaskRequest, PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
+import { PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
+import type { RunnerTask } from "../shared/ai-runtime.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
   type Attempt,
@@ -22,12 +23,7 @@ import {
   surfaceArguments,
   taskArguments,
 } from "./codex-process.ts";
-import {
-  type ToollessCatalog,
-  UNKNOWN_MODEL_REFUSAL,
-  readOutcome,
-  surfaceOf,
-} from "./codex-protocol.ts";
+import { type ToollessCatalog, readOutcome, surfaceOf } from "./codex-protocol.ts";
 
 const BINARY = "codex";
 const SURFACE_MS = 60_000;
@@ -68,13 +64,14 @@ class CodexCli extends SlottedCli {
     return end.kind === "exited" && end.code === 0;
   }
 
-  protected override refusalBeforeSlot(model: string) {
-    return model !== "" && !this.catalog.slugs.includes(model) ? UNKNOWN_MODEL_REFUSAL : null;
+  protected modelChoice(model: string) {
+    return model === ""
+      ? this.catalog.models.find((choice) => choice.visible)
+      : this.catalog.models.find(({ slug }) => slug === model);
   }
 
   protected attempt<Result>(
-    task: AiTaskRequest<Result>,
-    model: string,
+    task: RunnerTask<Result, "cli">,
     signal: AbortSignal,
   ): Promise<Attempt<Result>> {
     return inRunFolders(async (folders) => {
@@ -83,14 +80,14 @@ class CodexCli extends SlottedCli {
         writeFile(folders.schemaFile, outputSchema(task.schema)),
       ]);
 
-      const unsafe = await this.unsafeSurface(folders, model, signal);
+      const unsafe = await this.unsafeSurface(folders, task.config, signal);
 
       if (unsafe !== null) return { result: unsafe, code: null };
 
       const end = await spawnCodex(
         this.installation,
         folders,
-        taskArguments(folders, model),
+        taskArguments(folders, task.config),
         promptOf(task),
         signal,
         {
@@ -107,11 +104,15 @@ class CodexCli extends SlottedCli {
     });
   }
 
-  private async unsafeSurface(folders: Readonly<RunFolders>, model: string, signal: AbortSignal) {
+  private async unsafeSurface(
+    folders: Readonly<RunFolders>,
+    config: RunnerTask<unknown, "cli">["config"],
+    signal: AbortSignal,
+  ) {
     const end = await spawnCodex(
       this.installation,
       folders,
-      surfaceArguments(folders, model),
+      surfaceArguments(folders, config),
       "",
       AbortSignal.any([signal, AbortSignal.timeout(SURFACE_MS)]),
       { cap: STDOUT_CAP, keep: true },

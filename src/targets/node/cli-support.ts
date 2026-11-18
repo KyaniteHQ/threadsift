@@ -8,6 +8,8 @@ import {
   type AiExecution,
   type AiTaskRequest,
   type CliProvider,
+  type CliAiConnection,
+  type CliSelection,
   refusedAi,
 } from "../../core/ai-contract.ts";
 import { withCleanup } from "../../core/failure-log.ts";
@@ -124,17 +126,25 @@ export abstract class SlottedCli implements CliRunner {
     this.slots = slots;
   }
 
+  protected abstract modelChoice(
+    model: string,
+  ): { readonly slug: string; readonly levels: readonly string[] } | undefined;
+
+  resolve(config: Readonly<CliAiConnection>): CliSelection {
+    if (config.model === "" && config.effort === undefined) return config;
+    const choice = this.modelChoice(config.model);
+    if (choice === undefined) return refusedAi("model-not-found", 404);
+    if (config.effort !== undefined && !choice.levels.includes(config.effort))
+      return { ...refusedAi("invalid-effort"), levels: choice.levels };
+    return { ...config, model: choice.slug };
+  }
+
   protected abstract probe(signal: AbortSignal): Promise<boolean>;
 
   protected abstract attempt<Result>(
-    task: AiTaskRequest<Result>,
-    model: string,
+    task: RunnerTask<Result, "cli">,
     signal: AbortSignal,
   ): Promise<Attempt<Result>>;
-
-  protected refusalBeforeSlot(_model: string): AiExecution<never> | null {
-    return null;
-  }
 
   protected async outcome<Result>(
     end: Readonly<ProcessEnd>,
@@ -158,15 +168,13 @@ export abstract class SlottedCli implements CliRunner {
     task: RunnerTask<Result, "cli">,
     signal: AbortSignal,
   ): Promise<AiExecution<Result>> => {
-    const { model } = task.config;
-    const early = this.refusalBeforeSlot(model);
-
-    if (early !== null) return early;
+    const config = this.resolve(task.config);
+    if (config.kind === "refused") return config;
 
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
 
     const done = await inSlot(this.slots, stop, async () => {
-      const { result, code } = await this.attempt(task, model, stop);
+      const { result, code } = await this.attempt({ ...task, config }, stop);
 
       if (result.kind === "refused") report(this.provider, result.reason, code);
 

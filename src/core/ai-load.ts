@@ -90,5 +90,10 @@ async function modelLoaded(snapshot: Readonly<Snapshot>): Promise<Snapshot & Mod
 function keylessConnection(saved: Readonly<Keyless>): AiConnection {
   return saved.provider === "workers-ai"
     ? { kind: "binding", provider: saved.provider, model: saved.model }
-    : { kind: "cli", provider: saved.provider, model: saved.model };
+    : {
+        kind: "cli",
+        provider: saved.provider,
+        model: saved.model,
+        effort: saved.effort ?? undefined,
+      };
 }

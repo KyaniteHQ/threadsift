@@ -6,7 +6,7 @@ import { z } from "zod";
 import { TASKS } from "../src/core/ai-tasks.ts";
 
 const CONTRACT_FILES = [
-  ":(top)src/core/ai-contract.ts",
+  ":(top)src/core/digest-schema.ts",
   ":(top)src/core/digest-text.ts",
   ":(top)src/core/digest-prompt.ts",
   ":(top)src/core/plain-text.ts",

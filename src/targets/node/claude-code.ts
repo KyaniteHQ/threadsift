@@ -2,14 +2,10 @@ import { homedir } from "node:os";
 
 import { z } from "zod";
 
-import {
-  type AiExecution,
-  type AiTaskRequest,
-  PROVIDERS,
-  refusedAi,
-} from "../../core/ai-contract.ts";
+import { type AiExecution, PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
 import { apiRefusal } from "../shared/ai-call.ts";
+import type { RunnerTask } from "../shared/ai-runtime.ts";
 import { configuredCode } from "../shared/configured-code.ts";
 import { runProcess } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
@@ -43,7 +39,10 @@ const EnvelopeSchema = z.object({
 
 const StatusSchema = z.object({ loggedIn: z.boolean() });
 
-function taskArguments(schema: string, model: string): string[] {
+function taskArguments(
+  schema: string,
+  { model, effort }: Readonly<RunnerTask<unknown, "cli">["config"]>,
+): string[] {
   return [
     "-p",
     "--output-format",
@@ -62,6 +61,7 @@ function taskArguments(schema: string, model: string): string[] {
     "--permission-prompts",
     "none",
     "--no-session-persistence",
+    ...(effort === undefined ? [] : ["--effort", effort]),
     ...(model === "" ? [] : [`--model=${model}`]),
   ];
 }
@@ -77,6 +77,10 @@ class ClaudeCode extends SlottedCli {
     this.environment = environment;
   }
 
+  protected modelChoice(slug: string) {
+    return { slug, levels: ["low", "medium", "high", "xhigh", "max"] } as const;
+  }
+
   protected async probe(signal: AbortSignal): Promise<boolean> {
     const end = await this.spawn(["auth", "status", "--json"], "", signal);
 
@@ -84,12 +88,11 @@ class ClaudeCode extends SlottedCli {
   }
 
   protected async attempt<Result>(
-    task: AiTaskRequest<Result>,
-    model: string,
+    task: RunnerTask<Result, "cli">,
     signal: AbortSignal,
   ): Promise<Attempt<Result>> {
     const end = await this.spawn(
-      taskArguments(outputSchema(task.schema), model),
+      taskArguments(outputSchema(task.schema), task.config),
       promptOf(task),
       signal,
     );

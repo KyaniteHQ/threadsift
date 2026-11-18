@@ -26,6 +26,9 @@ function useAiFields(view: AiView) {
 
   const baseUrl = useField(null, offered?.provider === "openai-compatible" ? offered.baseUrl : "");
   const model = useField(null, offered?.model ?? "");
+  const savedEffort = offered && "effort" in offered ? offered.effort : "";
+  const effort = useField(null, savedEffort);
+  const { set: setEffort } = effort;
   const key = useField();
   const { clear: clearKey } = key;
 
@@ -38,15 +41,21 @@ function useAiFields(view: AiView) {
       const next = ProviderSchema.parse(event.target.value);
       setProvider(next);
       setModel(next === savedProvider ? savedModel : "");
+      setEffort(next === savedProvider ? savedEffort : "");
       clearKey();
     },
-    [clearKey, setModel, savedProvider, savedModel],
+    [clearKey, setModel, savedProvider, savedModel, setEffort, savedEffort],
   );
 
-  return { provider, providers, baseUrl, model, key, changeProvider } as const;
+  return { provider, providers, baseUrl, model, effort, key, changeProvider } as const;
 }
 
 function refusalText(refusal: AiRefused, provider: Provider): string {
+  if (refusal.reason === "invalid-effort")
+    return refusal.levels !== undefined && refusal.levels.length > 0
+      ? AI_TEXT.invalidEffort.replace("{levels}", refusal.levels.join(", "))
+      : AI_TEXT.noEfforts;
+
   if (isCliProvider(provider) && refusal.reason === "wrong-key") return CLI_TEXT[provider].rejected;
 
   if (provider === GROK_BOT_PROVIDER && refusal.reason === "timeout") return AI_TEXT.botTimeout;
@@ -155,14 +164,25 @@ function savedKeyOf(
   return same ? "applies" : "changed";
 }
 
+function settingsInput(fields: ReturnType<typeof useAiFields>) {
+  const { provider } = fields;
+  const entries = PROVIDERS[provider].names.map((name) => {
+    const value = fields[name].value;
+    return [name, name === "key" && value === "" ? undefined : value];
+  });
+  return AiSettingsInputSchema.parse({ provider, ...Object.fromEntries(entries) });
+}
+
 function useSave(
   view: AiView,
   fields: ReturnType<typeof useAiFields>,
   { run, refuse }: Readonly<Pick<AiPhase, "run" | "refuse">>,
   saved: (view: AiView) => void,
 ) {
-  const { provider, baseUrl, model, key } = fields;
-  const { value: keyValue, clear: clearKey } = key;
+  const {
+    provider,
+    key: { clear: clearKey },
+  } = fields;
   const unavailable = saveUnavailable(view, provider);
 
   const submit = useCallback(() => {
@@ -173,14 +193,7 @@ function useSave(
     }
 
     run("saving", async (): Promise<Outcome> => {
-      const input = AiSettingsInputSchema.parse({
-        provider,
-        baseUrl: baseUrl.value,
-        model: model.value,
-        key: keyValue === "" ? undefined : keyValue,
-      });
-
-      const response = await saveAiSettings(input);
+      const response = await saveAiSettings(settingsInput(fields));
 
       if ("kind" in response) return { kind: "error", text: failureText(response, provider) };
 
@@ -189,7 +202,7 @@ function useSave(
 
       return { kind: "ok", text: AI_TEXT.saved };
     });
-  }, [unavailable, refuse, run, provider, baseUrl.value, model.value, keyValue, clearKey, saved]);
+  }, [unavailable, refuse, run, fields, provider, clearKey, saved]);
 
   return { submit, saveBlocked: unavailable !== null };
 }

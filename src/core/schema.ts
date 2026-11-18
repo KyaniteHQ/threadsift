@@ -199,8 +199,13 @@ export const settings = sqliteTable(
     baseUrl: text("base_url"),
     model: text("model").notNull(),
     sealedKey: text("sealed_key"),
+    effort: text("effort"),
   },
   (table) => [
+    check(
+      "settings_effort_provider",
+      sql`${table.effort} is null or ${table.provider} in ('claude-code', 'codex')`,
+    ),
     check("settings_is_one_row", sql`${table.id} = 1`),
     check(
       "settings_connection_columns",

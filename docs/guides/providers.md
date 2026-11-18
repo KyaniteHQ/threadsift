@@ -4,6 +4,8 @@ An API Provider needs only the fields Settings shows. Fill them in, press **Save
 
 The container image ships no AI command-line tool. Everything you install or sign in to stays in its `/data` volume. In the commands below, replace `<container>` with the container's name, which is `threadsift` if you followed the README.
 
+Claude Code and Codex both offer **Effort** beside **Model**. Leave it blank for the CLI default. Claude Code accepts the levels in `podman exec <container> claude --help` through `--effort <level>`. Codex uses `-c model_reasoning_effort=<level>`; find the levels for your model under `supported_reasoning_levels` in `podman exec <container> codex debug models --bundled`. Save applies the level to Verify and all other AI tasks.
+
 ## Use Claude Code on the container
 
 1. Install Claude Code into the volume:
@@ -58,7 +60,7 @@ Installing or removing Claude Code needs a restart. npm 12 skips the install scr
 
    Codex prints a link and a code. Open the link on any device, enter the code and approve. Codex has no token variable. The login is saved in `/data/codex/auth.json` in the volume.
 
-4. Open Settings, choose "Codex on this server" as the Provider, press **Save**, then press **Verify**. You can leave the model field blank to use Codex's default model. A model you type must be listed by `codex debug models --bundled`.
+4. Open Settings, choose "Codex on this server" as the Provider, press **Save**, then press **Verify**. Leave Model and Effort blank to use Codex's defaults. With only Effort set, Threadsift chooses the first visible model by catalog priority. A model you type must be listed by `podman exec <container> codex debug models --bundled`.
 
 Installing, updating or removing Codex needs a restart, because the app reads Codex's model list once at start. At most 2 AI tasks run at once across Claude Code and Codex together. The app never reads or stores the login.
 
@@ -138,7 +140,7 @@ Run `tools/provider-comparison.ts` from this checkout with Node from `direnv exe
    ```
 
    The command prints the capture folder. Keep its `inputs.json`: it freezes the app's selected comments, catalog and linked-page text together. Use that same file in later runs, even if the library changes.
-3. Create `providers.json` outside the checkout. `ProvidersSchema` in `tools/provider-comparison-providers.ts` defines the fields. Each row has a unique `id`, a `provider` and a `model`. Use `claude-code`, `codex`, `workers-ai`, `openrouter` and `grok-bot` for the five Provider kinds. Add another row with a different id to compare another model without changing the Item list. Every Provider row needs an explicit model. OpenRouter accepts only model ids ending in `:free` and sends the app's zero-price routing limit as well. Its free router and the CLI defaults are unsuitable here because the executors do not report which model actually answered. Keep the key's own free-only guardrail enabled.
+3. Create `providers.json` outside the checkout. `ProvidersSchema` in `tools/provider-comparison-providers.ts` defines the fields. Each row has a unique `id`, a `provider` and a `model`. A Claude Code or Codex row may include an `effort`. Use different ids to compare two efforts on the same model. The manifest and each record include the supplied effort. Use `claude-code`, `codex`, `workers-ai`, `openrouter` and `grok-bot` for the five Provider kinds. Add another row with a different id to compare another model without changing the Item list. Every Provider row needs an explicit model. OpenRouter accepts only model ids ending in `:free` and sends the app's zero-price routing limit as well. Its free router and the CLI defaults are unsuitable here because the executors do not report which model actually answered. Keep the key's own free-only guardrail enabled.
 4. Sign in to the CLIs with their own commands, as this guide describes. Set `CLAUDE_CONFIG_DIR` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code, and `CODEX_HOME` for the reserved Codex home. Keep both CLI home paths outside every git checkout. The tool checks their location before starting a CLI and uses the app's isolation checks without reading login files. A `cli-missing` record means the executable was not found. For `cli-setup-refused`, read the adapter's category on stderr for the exact cause. Inject `OPENROUTER_API_KEY` from the secret store into the environment. Workers AI bills by use: inject `CLOUDFLARE_WORKERS_AI_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` only when you accept that cost. With either one unset, the `workers-ai` row records `workers-ai-credentials-missing` and no call is sent; an agent leaves the token unset (`AGENTS.md`, Spending). Put no secret in either JSON file or a command argument.
 5. Start the comparison, replacing the capture path with the one printed in step 2:
 

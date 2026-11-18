@@ -29,6 +29,7 @@ type TaskRunner<Kind extends AiTaskRequest<never>["config"]["kind"]> = <Result>(
 export interface CliRunner {
   readonly provider: CliProvider;
   readonly run: TaskRunner<"cli">;
+  readonly resolve: AiRuntime["resolveCli"];
   readonly signedIn: () => Promise<boolean>;
   readonly stop: () => void;
 }
@@ -63,7 +64,7 @@ export async function aiAndSecrets({
   const zeroOpenRouterPrice =
     z.enum(["true", "false"]).default("false").parse(openRouterMaxPriceZero) === "true";
 
-  const secrets = await sealedSecrets(secretKey);
+  const runnerFor = (provider: CliProvider) => cli.find((runner) => runner.provider === provider);
 
   const ai: AiRuntime = {
     providers: [
@@ -74,6 +75,8 @@ export async function aiAndSecrets({
     ],
     publicOnly,
     allowsUrl: (url) => allowedAiUrl(url, publicOnly),
+    resolveCli: (config) =>
+      runnerFor(config.provider)?.resolve(config) ?? refusedAi("not-configured"),
     signedIn: () => signedInProviders(cli),
     run: async (task, signal) => {
       if (task.config.kind === "binding")
@@ -83,7 +86,7 @@ export async function aiAndSecrets({
 
       if (task.config.kind === "cli") {
         const { provider } = task.config;
-        const runner = cli.find((candidate) => candidate.provider === provider);
+        const runner = runnerFor(provider);
 
         return runner === undefined
           ? refusedAi("not-configured")
@@ -98,5 +101,5 @@ export async function aiAndSecrets({
     awaitOpenRouterActivation: openRouterActivation(request),
   };
 
-  return { ai, secrets };
+  return { ai, secrets: await sealedSecrets(secretKey) };
 }

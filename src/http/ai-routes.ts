@@ -72,7 +72,7 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
     if ("kind" in saved && saved.kind === "changed")
       return c.json({ error: "settings-changed" }, 409);
 
-    if ("kind" in saved && input.provider === GROK_BOT_PROVIDER)
+    if ("kind" in saved && saved.kind === "refused" && input.provider === GROK_BOT_PROVIDER)
       return c.json(
         {
           error: GROK_BOT_FIRST,

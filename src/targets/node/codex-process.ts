@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
+import type { CliAiConnection } from "../../core/ai-contract.ts";
 import { runProcess } from "./cli-process.ts";
 import { STDERR_CAP, childPath, inEmptyFolder } from "./cli-support.ts";
 import { SURFACE_PROMPT, toollessCatalog } from "./codex-protocol.ts";
@@ -31,12 +32,16 @@ function sharedArguments(folders: Readonly<RunFolders>): string[] {
   ];
 }
 
-function rootArguments(folders: Readonly<RunFolders>, model: string): string[] {
+function rootArguments(
+  folders: Readonly<RunFolders>,
+  { model, effort }: Readonly<CliAiConnection>,
+): string[] {
   return [
     "-C",
     folders.cwd,
     "--sandbox",
     "read-only",
+    ...(effort === undefined ? [] : ["-c", `model_reasoning_effort=${effort}`]),
     ...(model === "" ? [] : [`--model=${model}`]),
   ];
 }
@@ -49,9 +54,12 @@ const EXEC_FLAGS = [
   "--ignore-rules",
 ];
 
-export function surfaceArguments(folders: Readonly<RunFolders>, model: string): string[] {
+export function surfaceArguments(
+  folders: Readonly<RunFolders>,
+  config: Readonly<CliAiConnection>,
+): string[] {
   return [
-    ...rootArguments(folders, model),
+    ...rootArguments(folders, config),
     "debug",
     "prompt-input",
     ...sharedArguments(folders),
@@ -59,11 +67,14 @@ export function surfaceArguments(folders: Readonly<RunFolders>, model: string): 
   ];
 }
 
-export function taskArguments(folders: Readonly<RunFolders>, model: string): string[] {
+export function taskArguments(
+  folders: Readonly<RunFolders>,
+  config: Readonly<CliAiConnection>,
+): string[] {
   return [
     "exec",
     ...EXEC_FLAGS,
-    ...rootArguments(folders, model),
+    ...rootArguments(folders, config),
     ...sharedArguments(folders),
     "--output-schema",
     folders.schemaFile,
