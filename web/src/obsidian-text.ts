@@ -3,6 +3,24 @@ export const OBSIDIAN_TEXT = {
   title: "Obsidian",
   intro:
     "The Vault mirror writes Item notes and files, Topic pages, the Index and the Log as Markdown in the chosen GitHub repository for your Obsidian vault. Edits flow from Threadsift to the vault. Verify checks the branch without saving or writing. Save queues the current library.",
+  containerIntro:
+    "The Vault mirror writes Item notes and files, Topic pages, the Index and the Log as Markdown in your Obsidian vault. Edits flow from Threadsift to the vault.",
+  modeLabel: "Destination",
+  githubMode: "GitHub repository",
+  folderMode: "Folder",
+  folderLabel: "Folder path",
+  folderHelp:
+    "Enter the absolute path of the mounted Obsidian vault inside the container, such as /vault. Threadsift writes under its own Threadsift folder.",
+  folderConfigured: "Vault folder saved on this Instance.",
+  folderVerified: "Mounted folder is writable.",
+  folderMissing:
+    "That folder does not exist in the container. Check the mounted path and try again.",
+  folderPermission:
+    "This Instance cannot write to the vault or its Threadsift folder. Check the mount permissions and try again.",
+  folderInvalid: "Enter an absolute path in the container with no . or .. segments.",
+  folderUnavailable: "Folder mode is only available on the container.",
+  vaultBusy:
+    "The Vault mirror is finishing a write, so the setting cannot be saved or removed yet. Wait a moment and try again.",
   repositoryLabel: "Repository",
   repositoryHelp: "The GitHub repository for your vault, written as owner/repo.",
   branchLabel: "Branch",

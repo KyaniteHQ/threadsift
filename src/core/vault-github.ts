@@ -1,9 +1,10 @@
 import { z } from "zod";
 
 import type { Network } from "./ports.ts";
-import type { VaultInput } from "./vault-contract.ts";
+import { base64VaultBytes } from "./vault-content.ts";
+import type { GithubVaultInput } from "./vault-contract.ts";
 import { vaultRequest } from "./vault-request.ts";
-import type { VaultKind, VaultSubject } from "./vault-tables.ts";
+import type { VaultChange, VaultTarget } from "./vault-target.ts";
 import {
   VaultRefSchema,
   vaultLogMonths,
@@ -13,24 +14,6 @@ import {
   type VaultTree,
 } from "./vault-tree.ts";
 
-export type VaultFile = Readonly<{ path: string }> &
-  (
-    | Readonly<{ kind: "binary"; key: string; size: number }>
-    | Readonly<{ kind: "memory"; bytes: Uint8Array }>
-    | Readonly<{ kind: "delete" }>
-  );
-
-export interface VaultProgress {
-  readonly path: string;
-  readonly subjectId: number;
-  readonly noteKind: VaultKind;
-  readonly sequence: number;
-  readonly sha: string | null;
-}
-
-export type VaultChange = VaultProgress &
-  (Readonly<{ kind: "put"; contents: string }> | Readonly<{ kind: "delete" }>);
-
 const CommitSchema = z.object({
   data: z.object({ createCommitOnBranch: z.object({ commit: z.object({ oid: z.string() }) }) }),
 });
@@ -38,7 +21,7 @@ const COMMIT =
   "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }";
 
 function commitBody(
-  input: Readonly<VaultInput>,
+  input: Readonly<GithubVaultInput>,
   parent: string,
   files: readonly VaultChange[],
 ): string {
@@ -51,7 +34,9 @@ function commitBody(
         message: { headline: "Update Threadsift vault notes" },
         fileChanges: {
           additions: files.flatMap((file) =>
-            file.kind === "put" ? [{ path: file.path, contents: file.contents }] : [],
+            file.kind === "put"
+              ? [{ path: file.path, contents: base64VaultBytes(file.bytes) }]
+              : [],
           ),
           deletions: files.flatMap((file) => (file.kind === "delete" ? [{ path: file.path }] : [])),
         },
@@ -60,7 +45,11 @@ function commitBody(
   });
 }
 
-export function vaultGithub(network: Network, input: Readonly<VaultInput>, signal: AbortSignal) {
+export function vaultGithub(
+  network: Network,
+  input: Readonly<GithubVaultInput>,
+  signal: AbortSignal,
+): VaultTarget {
   const request = vaultRequest(network, input, signal);
   let snapshot: Promise<VaultTree> | null = null;
   const treeOf = () => {
@@ -73,10 +62,8 @@ export function vaultGithub(network: Network, input: Readonly<VaultInput>, signa
     },
     subjects: async () => vaultSubjects(await treeOf()),
     logMonths: async () => vaultLogMonths(await treeOf()),
-    files: async (subject: VaultSubject) => vaultTreeFiles(await treeOf(), subject),
-    write: async (
-      operation: Readonly<{ files: readonly VaultChange[]; current: () => Promise<boolean> }>,
-    ) => {
+    files: async (subject) => vaultTreeFiles(await treeOf(), subject),
+    write: async (operation) => {
       if (operation.files.length === 0) return;
       const base = await treeOf();
       await request.mutate({

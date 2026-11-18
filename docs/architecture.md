@@ -3,7 +3,7 @@
 | State | Part |
 |---|---|
 | Not built | The Cloudflare deploy button (`docs/architecture/cloudflare-deploy-button.md`) |
-| Partly built | The Vault mirror keeps Item notes and the library wiki current on GitHub. Folder mode is Not built (`docs/architecture/vault-mirror.md`) |
+| Built | The Vault mirror keeps Item notes and the library wiki current on GitHub or in a mounted folder on the container (`docs/architecture/vault-mirror.md`) |
 | Partly built | The Restore of every library record, the stored images and post text files, the search parts and the Highlight anchors is built (`docs/architecture/export-backup-and-restore.md`). Cancel, resume, the cleanup of abandoned parts and the setup page step are built |
 | Partly built | Grok Bot: no AI task other than the X link send has run against a real bot (`docs/architecture/open-items-and-unverified-claims.md`) |
 | Partly built | X readers: the grok CLI reader ran on the container Instance on 2026-11-15 and 2026-11-16. The Grok Bot reader has not read a link from a real bot answer, and 10 of the 15 cause notes have not shown on a real Item there (`docs/architecture/open-items-and-unverified-claims.md`) |

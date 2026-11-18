@@ -11,9 +11,13 @@ export const vaultSettings = sqliteTable(
   "vault_settings",
   {
     id: integer("id").primaryKey(),
-    repository: text("repository").notNull(),
-    branch: text("branch").notNull(),
-    sealedToken: text("sealed_token").notNull(),
+    mode: text("mode", { enum: ["github", "folder"] })
+      .notNull()
+      .default("github"),
+    folder: text("folder"),
+    repository: text("repository"),
+    branch: text("branch"),
+    sealedToken: text("sealed_token"),
     generation: integer("generation").notNull().default(0),
     leaseUntil: integer("lease_until").notNull().default(0),
     nextAttemptAt: integer("next_attempt_at").notNull().default(0),
@@ -21,7 +25,14 @@ export const vaultSettings = sqliteTable(
     scanPending: integer("scan_pending", { mode: "boolean" }).notNull().default(true),
     wikiPending: integer("wiki_pending", { mode: "boolean" }).notNull().default(true),
   },
-  (table) => [check("vault_settings_one_row", sql`${table.id} = 1`)],
+  (table) => [
+    check("vault_settings_one_row", sql`${table.id} = 1`),
+    check(
+      "vault_settings_target",
+      sql`(${table.mode} = 'github' and ${table.repository} is not null and ${table.branch} is not null and ${table.sealedToken} is not null and ${table.folder} is null)
+        or (${table.mode} = 'folder' and ${table.folder} is not null and ${table.repository} is null and ${table.branch} is null and ${table.sealedToken} is null)`,
+    ),
+  ],
 );
 
 export const mirrorNotes = sqliteTable(

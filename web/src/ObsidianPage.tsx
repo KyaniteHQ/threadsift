@@ -16,7 +16,9 @@ function ObsidianLoaded({ initial }: Readonly<{ initial: Loaded<VaultView> }>) {
   const { loaded, ready } = useLoaded(initial);
   return (
     <div className="sec">
-      <p>{TEXT.intro}</p>
+      <p>
+        {loaded.kind === "ready" && loaded.view.folderAvailable ? TEXT.containerIntro : TEXT.intro}
+      </p>
       {loaded.kind === "ready" ? (
         <ObsidianForm view={loaded.view} changed={ready} />
       ) : (

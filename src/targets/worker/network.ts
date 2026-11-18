@@ -5,6 +5,8 @@ import {
   rateLimitHeadersOf,
 } from "../../core/ports.ts";
 import { assertPublicHost } from "../../core/public-host.ts";
+import { vaultGithub } from "../../core/vault-github.ts";
+import type { VaultTargets } from "../../core/vault-target.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
 const CLOUDFLARE_ERROR_PAGE = /^error code: 1[0-9]{3}\s*$/u;
@@ -75,4 +77,9 @@ export const workerFetch: typeof fetch = async (input, init) => {
   await refuseUnreachableOrigin(request.url, response);
 
   return response;
+};
+
+export const workerVaultTargets: VaultTargets = {
+  github: (input, signal) => vaultGithub(workerNetwork, input, signal),
+  folder: null,
 };

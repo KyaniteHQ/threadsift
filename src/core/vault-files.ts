@@ -3,18 +3,18 @@ import { and, eq } from "drizzle-orm";
 import { planOf } from "./export-plan.ts";
 import { readItem } from "./item-detail.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { base64VaultBytes, vaultContent, vaultContentSha } from "./vault-content.ts";
+import { vaultContent, vaultContentSha } from "./vault-content.ts";
 import { GITHUB_FILE_BYTES, VAULT_FILE_BYTES } from "./vault-contract.ts";
-import type { VaultChange, VaultFile, VaultProgress, vaultGithub } from "./vault-github.ts";
 import { itemWikiSections } from "./vault-markdown.ts";
 import { VAULT_ROOT, vaultNotePath } from "./vault-paths.ts";
 import { type PendingVaultNote, VaultNoteFailure, parkVaultNote } from "./vault-queue.ts";
 import { mirrorFiles, type VaultSubject } from "./vault-tables.ts";
+import type { VaultChange, VaultFile, VaultProgress, VaultTarget } from "./vault-target.ts";
 import { vaultWikiContent } from "./vault-wiki.ts";
 
 interface Reader {
   readonly ports: JobPorts;
-  readonly github: Readonly<ReturnType<typeof vaultGithub>>;
+  readonly target: VaultTarget;
   readonly signal: AbortSignal;
 }
 
@@ -92,7 +92,7 @@ async function subjectFiles(reader: Reader, { kind, subjectId }: VaultSubject) {
     reader.ports.db,
     { kind, subjectId },
     reader.signal,
-    reader.github.logMonths,
+    reader.target.logMonths,
   );
   const path = vaultNotePath({ kind, subjectId });
 
@@ -160,10 +160,7 @@ async function prepareFile(reader: FileReader, file: VaultFile) {
   const sha = await vaultContentSha(bytes);
   return {
     progress: { ...progress, sha },
-    change:
-      sha === held
-        ? null
-        : { ...progress, kind: "put" as const, sha, contents: base64VaultBytes(bytes) },
+    change: sha === held ? null : { ...progress, kind: "put" as const, sha, bytes },
   };
 }
 
@@ -195,7 +192,7 @@ async function prepareSubject(
   budget: number,
 ): Promise<Prepared & { oversized: readonly string[]; logMonthsChanged: boolean }> {
   const { files, oversized } = await subjectFiles(reader, note);
-  const previous = await reader.github.files(note);
+  const previous = await reader.target.files(note);
   const saved = await reader.ports.db
     .select()
     .from(mirrorFiles)

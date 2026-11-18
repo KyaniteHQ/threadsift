@@ -8,6 +8,7 @@ import { nodeNetwork, nodeRedditSession } from "./network.ts";
 import { type OperatorCodeOptions, startOperatorCode } from "./operator-code.ts";
 import { WorkerPageReader } from "./page-reader.ts";
 import { setupCodeOf } from "./setup-code.ts";
+import { nodeVaultTargets } from "./vault-folder.ts";
 
 interface NodeRuntime {
   readonly ports: Ports;
@@ -45,6 +46,7 @@ export async function startNode(
       cli: operator.cli,
     })),
     network: nodeNetwork,
+    vaultTargets: nodeVaultTargets,
     redditSession: nodeRedditSession,
     pages,
     jobs: loop.queue,

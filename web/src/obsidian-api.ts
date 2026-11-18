@@ -28,5 +28,5 @@ export function verifyObsidian(input: Readonly<VaultVerifyInput>) {
 }
 
 export function removeObsidian() {
-  return parsedFrom(del(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, VaultViewSchema);
+  return parsedFrom(del(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, VaultResultSchema);
 }

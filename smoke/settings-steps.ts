@@ -31,6 +31,34 @@ async function obsidianFlow(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole("link", { name: OBSIDIAN_TEXT.title, exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: OBSIDIAN_TEXT.title })).toBeVisible();
+  const destination = page.getByRole("radiogroup", { name: OBSIDIAN_TEXT.modeLabel });
+  if (process.env["THREADSIFT_TARGET"] === "container") {
+    await expect(destination.getByRole("radio", { name: OBSIDIAN_TEXT.githubMode })).toBeChecked();
+    await destination.getByRole("radio", { name: OBSIDIAN_TEXT.folderMode }).check();
+    await page.getByLabel(OBSIDIAN_TEXT.folderLabel).fill("/tmp");
+    await page.getByRole("button", { name: OBSIDIAN_TEXT.verify, exact: true }).click();
+    await expect(page.getByText(OBSIDIAN_TEXT.folderVerified, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: OBSIDIAN_TEXT.save, exact: true }).click();
+    await expect(page.getByText(OBSIDIAN_TEXT.folderConfigured, { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByLabel(OBSIDIAN_TEXT.folderLabel)).toHaveValue("/tmp");
+    await captureThemes(page, { themes: ["light", "dark", "sepia"], prefix: "obsidian-folder" });
+    await page.setViewportSize(PHONE);
+    await expectNoSidewaysScroll(page);
+    await page.screenshot({ path: test.info().outputPath("obsidian-folder-phone.png") });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await destination.getByRole("radio", { name: OBSIDIAN_TEXT.githubMode }).check();
+  } else {
+    await expect(destination).toHaveCount(0);
+    const data = { mode: "folder", folder: "/vault" };
+    const [saved, verified] = await Promise.all([
+      page.request.put("/api/settings/obsidian", { data }),
+      page.request.post("/api/settings/obsidian/verify", { data }),
+    ]);
+    const refusal = { kind: "refused", reason: "folder-unavailable" };
+    expect(await saved.json()).toEqual(refusal);
+    expect(await verified.json()).toEqual(refusal);
+  }
   await page
     .getByLabel(OBSIDIAN_TEXT.repositoryLabel, { exact: true })
     .fill("example/threadsift-vault");

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { limitedUntil, rateLimitOf } from "./github-rate-limit.ts";
 import type { Network, NetworkResponse } from "./ports.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
-import type { VaultInput, VaultRefusal } from "./vault-contract.ts";
+import type { GithubVaultInput, VaultRefusal } from "./vault-contract.ts";
 
 type FailureReason = VaultRefusal["reason"] | "stale" | "invalid-response" | "branch-moved";
 
@@ -139,7 +139,11 @@ function vaultHeaders(token: string) {
   };
 }
 
-export function vaultRequest(network: Network, input: Readonly<VaultInput>, signal: AbortSignal) {
+export function vaultRequest(
+  network: Network,
+  input: Readonly<GithubVaultInput>,
+  signal: AbortSignal,
+) {
   const root = `https://api.github.com/repos/${input.repository}`;
   const headers = vaultHeaders(input.token);
   let lastWrite = 0;

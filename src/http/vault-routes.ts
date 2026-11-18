@@ -19,19 +19,24 @@ const read = createRoute({
   method: "get",
   path: "/api/settings/obsidian",
   responses: {
-    200: jsonBody(VaultViewSchema, "Vault repository and token state. No token is returned."),
+    200: jsonBody(
+      VaultViewSchema,
+      "Vault target and its configuration state. No token is returned.",
+    ),
   },
 });
 const save = createRoute({
   method: "put",
   path: "/api/settings/obsidian",
   request: { body: jsonRequest(VaultInputSchema) },
-  responses: { 200: jsonBody(VaultResultSchema, "Seal the token and queue existing Item notes.") },
+  responses: { 200: jsonBody(VaultResultSchema, "Save a vault target and queue the library.") },
 });
 const remove = createRoute({
   method: "delete",
   path: "/api/settings/obsidian",
-  responses: { 200: jsonBody(VaultViewSchema, "Disconnect the vault without deleting its files.") },
+  responses: {
+    200: jsonBody(VaultResultSchema, "Disconnect the vault without deleting its files."),
+  },
 });
 const verify = createRoute({
   method: "post",
@@ -40,7 +45,7 @@ const verify = createRoute({
   responses: {
     200: jsonBody(
       VaultResultSchema,
-      "Check that the candidate repository branch is reachable. Writes no file and saves no setting.",
+      "Check if a branch is reachable or a mounted folder is writable. Saves no setting.",
     ),
   },
 });
