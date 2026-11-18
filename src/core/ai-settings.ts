@@ -1,13 +1,9 @@
 import { type SQL, sql } from "drizzle-orm";
 
-import {
-  GROK_BOT_PROVIDER,
-  type AiSettingsInput,
-  type AiSettingsView,
-  type AiSaveResponse,
-} from "./ai-contract.ts";
+import { GROK_BOT_PROVIDER } from "./ai-contract.ts";
 import { type LoadedAi, type Snapshot, loadAiConfig } from "./ai-load.ts";
 import { type ModelSettingsInput, nextSettings } from "./ai-next-settings.ts";
+import type { AiSettingsInput, AiSettingsView, AiSaveResponse } from "./ai-settings-contract.ts";
 import { leaveGrokBotWrites, preparedBot } from "./bot-provider.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
@@ -37,10 +33,12 @@ function viewOf(
   if (saved === undefined) return null;
 
   if (saved.sealedKey === null) {
-    const { provider, model, effort } = saved;
-    return provider === "workers-ai"
-      ? { provider, model }
-      : { provider, model, effort: effort ?? "" };
+    const { provider } = saved;
+    if (provider === "workers-ai") return { provider, model: saved.model };
+    const { preference } = saved;
+    return preference.choice === "custom"
+      ? { provider, ...preference, effort: preference.effort ?? "" }
+      : { provider, ...preference, model: "", effort: "" };
   }
 
   return {
@@ -71,7 +69,7 @@ export async function prepareAiSettings(ports: SettingsPorts, input: Readonly<Mo
 
 type Prepared = Exclude<
   Awaited<ReturnType<typeof prepareAiSettings>>,
-  { readonly kind: "refused" }
+  { readonly kind: "refused" | "recommendation-unavailable" }
 >;
 
 export type PreparedSave = Prepared;
@@ -119,7 +117,9 @@ export async function saveAiSettings(
   ports: SettingsPorts,
   input: Readonly<AiSettingsInput>,
   extraWrites: () => JobWrites,
-): Promise<AiSaveResponse | { readonly kind: "changed" }> {
+): Promise<
+  AiSaveResponse | { readonly kind: "changed" } | { readonly kind: "recommendation-unavailable" }
+> {
   const prepared = await preparedSave(ports, input);
 
   if ("kind" in prepared) return prepared;

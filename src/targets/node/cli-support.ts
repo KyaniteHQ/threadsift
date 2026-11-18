@@ -10,6 +10,7 @@ import {
   type CliProvider,
   type CliAiConnection,
   type CliSelection,
+  type ResolvedCliConnection,
   refusedAi,
 } from "../../core/ai-contract.ts";
 import { withCleanup } from "../../core/failure-log.ts";
@@ -132,21 +133,31 @@ export abstract class SlottedCli implements CliRunner {
   ): { readonly slug: string; readonly levels: readonly string[] } | undefined;
 
   resolve(config: Readonly<CliAiConnection>): CliSelection {
-    const { model, effort } = config;
-    if (model !== "") return this.select(config);
+    const base = { kind: config.kind, provider: config.provider } as const;
+    const defaults = { ...base, model: "", effort: undefined };
+    const recommendation = this.recommendation;
 
-    const recommended = this.recommendation;
-    if (recommended !== undefined)
-      return this.select({
-        ...config,
-        model: recommended.model,
-        effort: effort ?? recommended.effort,
-      });
-
-    return effort === undefined ? config : this.select(config);
+    switch (config.choice) {
+      case "cli-defaults":
+        return defaults;
+      case "recommended":
+        return recommendation === undefined
+          ? defaults
+          : this.select({ ...base, ...recommendation });
+      case "custom":
+        return this.select({
+          ...base,
+          model: config.model === "" ? (recommendation?.model ?? "") : config.model,
+          effort: config.effort,
+        });
+      default: {
+        const exhaustive: never = config;
+        return exhaustive;
+      }
+    }
   }
 
-  private select(config: Readonly<CliAiConnection>): CliSelection {
+  private select(config: Readonly<ResolvedCliConnection>): CliSelection {
     const choice = this.modelChoice(config.model);
     if (choice === undefined) return refusedAi("model-not-found", 404);
     if (config.effort !== undefined && !choice.levels.includes(config.effort))
@@ -183,13 +194,10 @@ export abstract class SlottedCli implements CliRunner {
     task: RunnerTask<Result, "cli">,
     signal: AbortSignal,
   ): Promise<AiExecution<Result>> => {
-    const config = this.resolve(task.config);
-    if (config.kind === "refused") return config;
-
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
 
     const done = await inSlot(this.slots, stop, async () => {
-      const { result, code } = await this.attempt({ ...task, config }, stop);
+      const { result, code } = await this.attempt(task, stop);
 
       if (result.kind === "refused") report(this.provider, result.reason, code);
 

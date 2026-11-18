@@ -1,12 +1,12 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { GROK_BOT_PROVIDER } from "../core/ai-contract.ts";
 import {
   AiSettingsInputSchema,
-  GROK_BOT_PROVIDER,
   AiSettingsViewSchema,
   AiSaveResponseSchema,
   VerifyResultSchema,
-} from "../core/ai-contract.ts";
+} from "../core/ai-settings-contract.ts";
 import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
 import { verifyProvider } from "../core/bot-verify.ts";
 import { olderDigests } from "../core/digest-job.ts";
@@ -39,7 +39,7 @@ const saveRoute = createRoute({
     ),
     400: jsonBody(
       z.union([ErrorResponseSchema, GrokBotUnreadySchema]),
-      "The Provider is not in `providers` of `GET /api/settings/ai`, such as `workers-ai` on the container; or the Provider is `grok-bot` and the Grok Bot settings are not saved (`code: not-configured`) or their key cannot be opened (`code: secret-missing`). Nothing is saved and no Digest job is queued.",
+      "The Provider is not in `providers` of `GET /api/settings/ai`, such as `workers-ai` on the container; the CLI has no recommendation to select (`error: recommendation-unavailable`); or the Provider is `grok-bot` and the Grok Bot settings are not saved (`code: not-configured`) or their key cannot be opened (`code: secret-missing`). Nothing is saved and no Digest job is queued.",
     ),
     409: jsonBody(
       ErrorResponseSchema,
@@ -71,6 +71,9 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
 
     if ("kind" in saved && saved.kind === "changed")
       return c.json({ error: "settings-changed" }, 409);
+
+    if ("kind" in saved && saved.kind === "recommendation-unavailable")
+      return c.json({ error: "recommendation-unavailable" }, 400);
 
     if ("kind" in saved && saved.kind === "refused" && input.provider === GROK_BOT_PROVIDER)
       return c.json(

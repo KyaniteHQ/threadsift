@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { DigestSchema } from "./digest-schema.ts";
-
 export {
   DigestSchema,
   ModelDigestSchema,
@@ -19,6 +17,15 @@ export const AI_KEY_MAX = 4096;
 const Model = z.string().trim().min(1).max(AI_MODEL_MAX);
 const Key = z.string().min(1).max(AI_KEY_MAX).optional();
 const CliModel = z.string().trim().max(AI_MODEL_MAX);
+const CliEffort = z
+  .string()
+  .trim()
+  .transform((value) => (value === "" ? undefined : value))
+  .optional();
+
+export const CLI_CHOICES = ["recommended", "cli-defaults", "custom"] as const;
+export const CliChoiceSchema = z.enum(CLI_CHOICES);
+export type CliChoice = z.infer<typeof CliChoiceSchema>;
 
 function keyedProvider<const Id extends string, const Url extends string>(id: Id, url: Url) {
   return {
@@ -36,14 +43,7 @@ function cliProvider<const Id extends string, const Label extends string>(id: Id
     label,
     url: null,
     names: ["model", "effort"],
-    fields: {
-      model: CliModel,
-      effort: z
-        .string()
-        .trim()
-        .transform((value) => (value === "" ? undefined : value))
-        .optional(),
-    },
+    fields: { model: CliModel, effort: CliEffort },
   } as const;
 }
 
@@ -102,26 +102,27 @@ export const ProviderSchema = z.enum([
 
 export type Provider = z.infer<typeof ProviderSchema>;
 
-export const AiSettingsInputSchema = z.discriminatedUnion("provider", [
-  z.strictObject({
-    provider: z.literal(PROVIDERS["openai-compatible"].id),
-    ...PROVIDERS["openai-compatible"].fields,
-  }),
-  z.strictObject({ provider: z.literal(PROVIDERS.openrouter.id), ...PROVIDERS.openrouter.fields }),
-  z.strictObject({ provider: z.literal(PROVIDERS.anthropic.id), ...PROVIDERS.anthropic.fields }),
-  z.strictObject({ provider: z.literal(PROVIDERS.openai.id), ...PROVIDERS.openai.fields }),
-  z.strictObject({ provider: z.literal(PROVIDERS.xai.id), ...PROVIDERS.xai.fields }),
-  z.strictObject({
-    provider: z.literal(PROVIDERS["workers-ai"].id),
-    ...PROVIDERS["workers-ai"].fields,
-  }),
-  z.strictObject({
-    provider: z.literal(PROVIDERS["claude-code"].id),
-    ...PROVIDERS["claude-code"].fields,
-  }),
-  z.strictObject({ provider: z.literal(PROVIDERS.codex.id), ...PROVIDERS.codex.fields }),
-  z.strictObject({ provider: z.literal(GROK_BOT_PROVIDER) }),
+export const CliPreferenceSchema = z.discriminatedUnion("choice", [
+  z.strictObject({ choice: z.literal("recommended") }),
+  z.strictObject({ choice: z.literal("cli-defaults") }),
+  z
+    .strictObject({ choice: z.literal("custom"), model: CliModel.default(""), effort: CliEffort })
+    .refine(({ model, effort }) => model !== "" || effort !== undefined, {
+      message: "Custom requires a model or effort.",
+    }),
 ]);
+
+export const CliRecommendationSchema = z
+  .object({ model: z.string(), effort: z.string() })
+  .readonly();
+
+export type CliRecommendation = z.infer<typeof CliRecommendationSchema>;
+
+type ParsedCliPreference = Readonly<z.infer<typeof CliPreferenceSchema>>;
+type CustomPreference = Extract<ParsedCliPreference, { choice: "custom" }>;
+export type CliPreference =
+  | CustomPreference
+  | (Exclude<ParsedCliPreference, CustomPreference> & Readonly<{ model?: never; effort?: never }>);
 
 const AiExecutionRefusalSchema = z.enum([
   "invalid-effort",
@@ -146,61 +147,14 @@ export const AiRefusalSchema = z.enum([
 
 export type AiRefusal = z.infer<typeof AiRefusalSchema>;
 
-export type AiSettingsInput = z.infer<typeof AiSettingsInputSchema>;
-
-const HttpSettingsViewSchema = z.object({
-  provider: HttpProviderSchema,
-  baseUrl: z.string(),
-  model: z.string(),
-  keySet: z.boolean(),
-  keyReadable: z.boolean(),
-});
-
-const KeylessSettingsViewSchema = z.object({
-  provider: z.enum([PROVIDERS["workers-ai"].id, GROK_BOT_PROVIDER]),
-  model: z.string(),
-});
-
-const CliRecommendationSchema = z.object({ model: z.string(), effort: z.string() }).readonly();
-
-export type CliRecommendation = z.infer<typeof CliRecommendationSchema>;
-
-export const AiSettingsViewSchema = z.object({
-  settings: z
-    .union([
-      HttpSettingsViewSchema,
-      KeylessSettingsViewSchema,
-      z.object({ provider: CliProviderSchema, model: z.string(), effort: z.string() }),
-    ])
-    .nullable(),
-  providers: z.array(ProviderSchema).readonly(),
-  signedIn: z.array(CliProviderSchema).readonly(),
-  recommendations: z.partialRecord(CliProviderSchema, CliRecommendationSchema),
-  secretReady: z.boolean(),
-  publicOnly: z.boolean(),
-  revision: z.number().int().min(0),
-  connect: z.boolean(),
-});
-
-export type AiSettingsView = z.infer<typeof AiSettingsViewSchema>;
-
-const AiRefusedSchema = z.object({
+export const AiRefusedSchema = z.object({
   kind: z.literal("refused"),
   reason: AiRefusalSchema,
   status: z.number().int().nullable(),
   levels: z.array(z.string()).readonly().optional(),
 });
 
-export const VerifyResultSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("done"), taskId: z.number().int(), digest: DigestSchema }),
-  AiRefusedSchema,
-]);
-
-export type AiRefused = Extract<z.infer<typeof VerifyResultSchema>, { readonly kind: "refused" }>;
-
-export const AiSaveResponseSchema = z.union([AiSettingsViewSchema, AiRefusedSchema]);
-
-export type AiSaveResponse = z.infer<typeof AiSaveResponseSchema>;
+export type AiRefused = z.infer<typeof AiRefusedSchema>;
 
 export function refusedAi<Reason extends AiRefusal>(
   reason: Reason,
@@ -236,11 +190,14 @@ export function retriesAi({ reason, status }: Readonly<AiRefused>): boolean {
   }
 }
 
-export type AiConnection = HttpAiConnection | BindingAiConnection | CliAiConnection;
+export type AiConnection = HttpAiConnection | BindingAiConnection | ResolvedCliConnection;
 
 export type ModelAi =
   | { readonly state: "not-configured" | "secret-missing" }
-  | { readonly state: "ready"; readonly config: AiConnection };
+  | {
+      readonly state: "ready";
+      readonly config: HttpAiConnection | BindingAiConnection | CliAiConnection;
+    };
 
 export interface HttpAiConnection {
   readonly kind: "http";
@@ -256,7 +213,9 @@ interface BindingAiConnection {
   readonly model: string;
 }
 
-export interface CliAiConnection {
+export type CliAiConnection = Readonly<{ kind: "cli"; provider: CliProvider }> & CliPreference;
+
+export interface ResolvedCliConnection {
   readonly kind: "cli";
   readonly provider: CliProvider;
   readonly effort: string | undefined;
@@ -264,7 +223,7 @@ export interface CliAiConnection {
 }
 
 export type CliSelection =
-  | CliAiConnection
+  | ResolvedCliConnection
   | (AiRefused & { readonly reason: "invalid-effort" | "model-not-found" | "not-configured" });
 
 export function modelOf({ model }: Readonly<Pick<AiConnection, "model">>): string | null {

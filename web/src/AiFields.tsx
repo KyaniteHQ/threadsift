@@ -1,16 +1,17 @@
-import { useId } from "react";
+import { type ChangeEvent, type ReactNode, useId } from "react";
 
 import {
   AI_URL_MAX,
   AI_MODEL_MAX,
   AI_KEY_MAX,
   PROVIDERS,
+  CliChoiceSchema,
   isCliProvider,
   type Provider,
 } from "../../src/core/ai-contract.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
-import type { SavedKey, useAiForm } from "./use-ai-form.ts";
+import { missingCustomOverrides, type SavedKey, type useAiForm } from "./use-ai-form.ts";
 
 type Fields = ReturnType<typeof useAiForm>["fields"];
 
@@ -41,29 +42,76 @@ const OPTIONAL_MODEL_KIND = { ...FIELD_KINDS.model, required: false } as const;
 
 const REQUIRED_KEY_KIND = { ...FIELD_KINDS.key, required: true } as const;
 
-function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disabled: boolean }>) {
+function AiSelect({
+  name,
+  label,
+  value,
+  children,
+  help,
+  disabled,
+  change,
+}: Readonly<{
+  name: string;
+  label: string;
+  value: string;
+  children: ReactNode;
+  help?: string | undefined;
+  disabled: boolean;
+  change: (event: ChangeEvent<HTMLSelectElement>) => void;
+}>) {
   const id = useId();
+  const helpId = help === undefined ? undefined : `${id}-help`;
 
   return (
     <div className="fld">
       <label className="label" htmlFor={id}>
-        {AI_TEXT.provider}
+        {label}
       </label>
+      {help === undefined ? null : (
+        <p className="fld-help" id={helpId}>
+          {help}
+        </p>
+      )}
       <select
         id={id}
-        name="provider"
+        name={name}
         className="st-sel"
-        value={fields.provider}
+        value={value}
+        aria-describedby={helpId}
         aria-disabled={disabled || undefined}
-        onChange={disabled ? undefined : fields.changeProvider}
+        onChange={disabled ? undefined : change}
       >
-        {fields.providers.map((provider) => (
-          <option key={provider} value={provider}>
-            {AI_TEXT[PROVIDERS[provider].label]}
-          </option>
-        ))}
+        {children}
       </select>
     </div>
+  );
+}
+
+function CliChoicePicker({ fields, disabled }: Readonly<{ fields: Fields; disabled: boolean }>) {
+  const { cliChoice, fallsBack, recommendation } = fields;
+  const options = CliChoiceSchema.options.filter(
+    (choice) => choice !== "recommended" || recommendation !== undefined,
+  );
+  const help = fallsBack ? AI_TEXT.recommendationFallback : AI_TEXT.cliChoices[cliChoice].help;
+  return (
+    <AiSelect
+      name="cliChoice"
+      label={AI_TEXT.cliChoice}
+      value={cliChoice}
+      help={
+        recommendation === undefined
+          ? help
+          : help.replace("{model}", recommendation.model).replace("{effort}", recommendation.effort)
+      }
+      disabled={disabled}
+      change={fields.changeCliChoice}
+    >
+      {options.map((choice) => (
+        <option key={choice} value={choice}>
+          {AI_TEXT.cliChoices[choice].label}
+        </option>
+      ))}
+    </AiSelect>
   );
 }
 
@@ -85,12 +133,7 @@ function helpFor(
   fields: Fields,
   { publicOnly, savedKey }: Readonly<{ publicOnly: boolean; savedKey: SavedKey }>,
 ) {
-  if (name === "effort") {
-    const { recommendation } = fields;
-    return recommendation === undefined
-      ? AI_TEXT.effortHelp
-      : AI_TEXT.recommendedEffortHelp.replace("{effort}", recommendation.effort);
-  }
+  if (name === "effort") return AI_TEXT.effortHelp;
 
   if (name === "key") return savedKey === "unreadable" ? undefined : AI_TEXT.keyHelp;
 
@@ -114,6 +157,31 @@ function kindFor(
   return publicOnly ? PUBLIC_URL_KIND : FIELD_KINDS.baseUrl;
 }
 
+function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disabled: boolean }>) {
+  return (
+    <AiSelect
+      name="provider"
+      label={AI_TEXT.provider}
+      value={fields.provider}
+      disabled={disabled}
+      change={fields.changeProvider}
+    >
+      {fields.providers.map((provider) => (
+        <option key={provider} value={provider}>
+          {AI_TEXT[PROVIDERS[provider].label]}
+        </option>
+      ))}
+    </AiSelect>
+  );
+}
+
+function fieldFor(fields: Fields, name: keyof typeof FIELD_KINDS) {
+  const field = fields[name];
+  return name === "model" && field.error !== null && !missingCustomOverrides(fields)
+    ? { ...field, error: null }
+    : field;
+}
+
 export function AiFields({
   fields,
   disabled,
@@ -125,7 +193,9 @@ export function AiFields({
   publicOnly: boolean;
   savedKey: SavedKey;
 }>) {
-  const kinds = PROVIDERS[fields.provider].names.map((name) => ({
+  const cli = isCliProvider(fields.provider);
+  const names = cli && fields.cliChoice !== "custom" ? [] : PROVIDERS[fields.provider].names;
+  const kinds = names.map((name) => ({
     name,
     kind: kindFor(name, fields.provider, publicOnly, savedKey !== "applies"),
   }));
@@ -135,11 +205,12 @@ export function AiFields({
   return (
     <>
       <AiProviderPicker fields={fields} disabled={disabled} />
+      {cli ? <CliChoicePicker fields={fields} disabled={disabled} /> : null}
       {marked ? <RequiredLegend /> : null}
       {kinds.map(({ name, kind }) => (
         <FormField
           key={name}
-          field={fields[name]}
+          field={fieldFor(fields, name)}
           label={AI_TEXT[name]}
           kind={kind}
           marked={marked}

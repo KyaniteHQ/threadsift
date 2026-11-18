@@ -171,7 +171,7 @@ export async function runAiTask<Result>(
 ): Promise<TaskResult<Result> | ClaimLost> {
   if (ai.state !== "ready") return { ...refusedAi(ai.state), taskId: null };
   const available = ports.ai.providers.includes(ai.config.provider);
-  const config = available && ai.config.kind === "cli" ? ports.ai.resolveCli(ai.config) : ai.config;
+  const config = executionConfig(ports, ai.config, available);
 
   if (config.kind === "refused") return { ...config, taskId: null };
   if (config.kind === "http" && !ports.ai.allowsUrl(config.baseUrl))
@@ -190,6 +190,22 @@ export async function runAiTask<Result>(
     { config, text, taskId: task.id, maxOutputTokens: input.maxOutputTokens },
     attempt,
   );
+}
+
+function executionConfig(
+  { ai }: AiPorts,
+  config: Readonly<Extract<ModelAi, { state: "ready" }>["config"]>,
+  available: boolean,
+) {
+  if (config.kind !== "cli") return config;
+  if (available) return ai.resolveCli(config);
+
+  return {
+    kind: config.kind,
+    provider: config.provider,
+    model: config.choice === "custom" ? config.model : "",
+    effort: undefined,
+  } as const;
 }
 
 async function execute<Result>(

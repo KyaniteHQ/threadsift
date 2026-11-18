@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-import { type VerifyResultSchema, VERIFY_INPUT, refusedAi } from "./ai-contract.ts";
+import { VERIFY_INPUT, refusedAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
+import type { VerifyResultSchema } from "./ai-settings-contract.ts";
 import { TASKS, verifyAi } from "./ai-tasks.ts";
 import { botAnswering } from "./bot-task-answering.ts";
 import { sendBotTask } from "./bot-task-send.ts";
