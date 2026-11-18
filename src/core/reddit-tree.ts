@@ -1,4 +1,4 @@
-import { storedCommentId, wireCommentId } from "./comment-id.ts";
+import { WireCommentId, storedCommentId, wireCommentId } from "./comment-id.ts";
 import { utf8Length } from "./encoding.ts";
 import { INLINE_TEXT_BYTES } from "./limits.ts";
 import { type WireChild, type WireComment, type WirePost, ThreadJson } from "./reddit-wire.ts";
@@ -47,9 +47,13 @@ function pendingOf(children: readonly WireChild[], parent: string, depth: number
   return children.map((child) => ({ child, parent, depth })).toReversed();
 }
 
-export function walk(children: readonly WireChild[], root: string): readonly Walked[] {
+export function walk(
+  children: readonly WireChild[],
+  root: string,
+  rootDepth = 0,
+): readonly Walked[] {
   const walked: Walked[] = [];
-  const stack = pendingOf(children, root, 0);
+  const stack = pendingOf(children, root, rootDepth);
 
   for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
     const { child, parent, depth } = next;
@@ -75,6 +79,28 @@ export function walk(children: readonly WireChild[], root: string): readonly Wal
 
     for (const reply of pendingOf(repliesOf(data), storedCommentId(data.id), depth + 1)) {
       stack.push(reply);
+    }
+  }
+
+  return walked;
+}
+
+export function walkArchive(children: readonly WireChild[], root: string): readonly Walked[] {
+  const groups = Map.groupBy(children, (child) =>
+    child.kind === "t1" ? child.data.parent_id : root,
+  );
+  const walked = [...groups].flatMap(([parent, siblings]) =>
+    walk(siblings, parent, parent === root ? 0 : 1),
+  );
+  const present = new Set(walked.map(({ comment }) => comment?.id));
+
+  for (const parent of groups.keys()) {
+    if (parent === root) continue;
+
+    const id = WireCommentId.safeParse(wireCommentId(parent));
+
+    if (!id.success || present.has(id.data)) {
+      refuse(`a parent_id does not match the tree under ${root}`);
     }
   }
 

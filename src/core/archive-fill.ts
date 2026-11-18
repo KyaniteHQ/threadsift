@@ -86,7 +86,7 @@ async function fetchedThread(
 
   if (json === null) return null;
 
-  const parsed = parseRedditThread([json], ref);
+  const parsed = parseRedditThread([json], ref, "archive");
 
   return parsed.kind === "thread" ? parsed.thread : null;
 }

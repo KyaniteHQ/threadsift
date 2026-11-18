@@ -130,6 +130,8 @@ describe("the parsers turn literal input into the values the library stores", ()
           ),
           { retrieved_2nd_on: 1_700_000_900 },
         ),
+        archiveComment("c5", "t1_c0", "I keep two copies.", ""),
+        archiveComment("c6", "t1_c0", "I check both copies.", ""),
       ],
     };
 
@@ -137,11 +139,15 @@ describe("the parsers turn literal input into the values the library stores", ()
 
     assert.notEqual(json, null);
 
-    const parsed = parseRedditThread([json ?? ""], {
+    const ref = {
       postId: "abc123",
       commentId: undefined,
       community: undefined,
-    });
+    };
+
+    assert.equal(parseRedditThread([json ?? ""], ref).kind, "refused");
+
+    const parsed = parseRedditThread([json ?? ""], ref, "archive");
 
     assert.equal(parsed.kind, "thread");
 
@@ -156,6 +162,8 @@ describe("the parsers turn literal input into the values the library stores", ()
         ["t1_c2", 1, false, null],
         ["t1_c3", 2, true, "It worked for me after a restart."],
         ["t1_c4", 2, false, null],
+        ["t1_c5", 1, true, "I keep two copies."],
+        ["t1_c6", 1, true, "I check both copies."],
       ],
     );
   });

@@ -13,6 +13,7 @@ import {
   refusing,
   refuse,
   walk,
+  walkArchive,
 } from "./reddit-tree.ts";
 import type { WireChild, WirePost } from "./reddit-wire.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
@@ -122,7 +123,11 @@ function ofComment(
   }
 
   const rest = walked.slice(at + 1);
-  const end = rest.findIndex((entry) => entry.depth <= root.depth);
+  const rootId = storedCommentId(comment.id);
+  const childDepth = root.depth + 1;
+  const end = rest.findIndex(
+    ({ depth, parent }) => depth < childDepth || (depth === childDepth && parent !== rootId),
+  );
 
   return {
     title: post.title,
@@ -133,11 +138,7 @@ function ofComment(
     reported: null,
     linkedUrl: null,
     postLink: null,
-    nodes: nodesOf(
-      end === -1 ? rest : rest.slice(0, end),
-      root.depth + 1,
-      storedCommentId(comment.id),
-    ),
+    nodes: nodesOf(end === -1 ? rest : rest.slice(0, end), childDepth, rootId),
   };
 }
 
@@ -149,7 +150,13 @@ function boundaryOf(
   return ref.commentId === undefined ? `t3_${post.id}` : firstParentOf(children);
 }
 
-function parseThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ParsedThread {
+type ThreadSource = "reddit" | "archive";
+
+function parseThread(
+  answers: ThreadAnswers,
+  ref: Readonly<RedditRef>,
+  source: ThreadSource,
+): ParsedThread {
   const [content, ...later] = answers;
   const { post, children } = readAnswer(content, ref.postId);
 
@@ -161,7 +168,10 @@ function parseThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ParsedTh
   checkedText(post.selftext, "the post text");
 
   const ids = new Set<string>();
-  const first = walk(children, boundaryOf(children, post, ref));
+  const first =
+    source === "archive"
+      ? walkArchive(children, `t3_${post.id}`)
+      : walk(children, boundaryOf(children, post, ref));
 
   checkedIds(ids, first);
 
@@ -172,8 +182,12 @@ function parseThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ParsedTh
     : ofComment(post, walked, ref.commentId.toLowerCase());
 }
 
-export function parseRedditThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ThreadParse {
-  const read = refusing(() => parseThread(answers, ref));
+export function parseRedditThread(
+  answers: ThreadAnswers,
+  ref: Readonly<RedditRef>,
+  source: ThreadSource = "reddit",
+): ThreadParse {
+  const read = refusing(() => parseThread(answers, ref, source));
 
   return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
 }
