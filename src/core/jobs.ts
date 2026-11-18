@@ -96,7 +96,7 @@ async function claim(db: Database, which: () => SQL, now: number): Promise<Claim
       attempts: sql`case when ${jobs.attemptGeneration} <> ${INPUT_VERSION} then 0 else ${jobs.attempts} + (${jobs.state} = 'running') end`,
       attemptGeneration: INPUT_VERSION,
       attemptPending: PENDING_DIGEST,
-      waitReason: sql`case when ${jobs.waitReason} = 'x-reread' then ${jobs.waitReason} end`,
+      waitReason: null,
     })
     .where(and(which(), isDue(now)))
     .returning({

@@ -43,9 +43,15 @@ const found = (value: ReturnType<typeof thread>) => envelope({ structuredOutput:
 
 describe("the grok CLI answer is read into a fetched thread or a named refusal", () => {
   it("takes the thread of a done answer", () => {
-    const value = thread([reply(1000000000000000011n, POST_ID)], { text: 'A "}" or { in a post.' });
-    const structured = found(value);
-    const outcome = outcomeOf(exited(structured));
+    const outcome = outcomeOf(exited(found(thread([reply(1000000000000000011n, POST_ID)]))));
+    assert.equal(outcome.kind, "fetched");
+    assert.equal(outcome.kind === "fetched" && outcome.fetch.kind, "thread");
+    assert.equal(outcome.kind === "fetched" && outcome.repaired, 0);
+  });
+
+  it("reads only the last JSON answer when structured output is null", () => {
+    const value = thread([], { text: 'The quoted "}" is followed by {{ in the post.' });
+    const outcome = outcomeOf(exited(found(value)));
     const last = JSON.stringify(answerOf(value));
     const absent = JSON.stringify({ found: false, thread: null });
     const fallback = (text: string) =>
@@ -58,10 +64,6 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
     );
     assert.equal(fallback(last + "{}").kind, "refused");
     assert.equal(fallback(last + " trailing").kind, "refused");
-
-    assert.equal(outcome.kind, "fetched");
-    assert.equal(outcome.kind === "fetched" && outcome.fetch.kind, "thread");
-    assert.equal(outcome.kind === "fetched" && outcome.repaired, 0);
   });
 
   it("maps a post the tools cannot find to the status result", () => {

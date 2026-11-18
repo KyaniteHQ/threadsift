@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { hasOpenIntakeTask } from "./bot-task-states.ts";
 import type { Fetched } from "./details.ts";
 import { grokBotConnection } from "./grok-bot.ts";
-import { X_READER_CHOICES, type XReadNote, type XReaderChoice, type WaitReason } from "./kinds.ts";
+import { X_READER_CHOICES, type XReadNote, type XReaderChoice } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { xSettings } from "./schema.ts";
@@ -94,11 +94,9 @@ export function routeOf(choice: XReaderChoice, { bot, cli }: Readonly<XReaders>)
 
 export async function xRouteOf(
   ports: Readonly<ReaderPorts>,
-  job: Readonly<{ id: number; address: string; waitReason: WaitReason | null }>,
+  job: Readonly<{ id: number; address: string }>,
 ): Promise<XRoute> {
   if (statusIdOf(job.address) === null) return NO_READER;
-
-  if (job.waitReason === "x-reread") return cliRoute(ports.xFetcher, "cli-not-installed");
 
   if (await hasOpenIntakeTask(ports.db, job.id)) return BOT;
 

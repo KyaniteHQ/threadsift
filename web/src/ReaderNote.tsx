@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import type { Item } from "../../src/http/schemas.ts";
-import { noteOf } from "./paste-card.ts";
+import { noteOf, offersFetchRetry } from "./paste-card.ts";
 import { NOTICES, RETRY_LABEL, failureTitleOf } from "./text.ts";
 import { WaitText } from "./WaitText.tsx";
 
@@ -54,9 +54,7 @@ export function HeadNote({
         <Note
           item={item}
           text={text}
-          withRetry={
-            item.status === "failed" || (item.retry === "paste" && item.xNote === "x-unconfirmed")
-          }
+          withRetry={item.status === "failed" || offersFetchRetry(item)}
           tryAgain={tryAgain}
         />
       )}

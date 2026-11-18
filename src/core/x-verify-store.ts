@@ -2,7 +2,12 @@ import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { guardHolds } from "./guards.ts";
-import { RETRY_DELAYS_MS, type JobWrites, type SettledOutcome } from "./job-outcome.ts";
+import {
+  RETRY_DELAYS_MS,
+  isLastAttempt,
+  type JobWrites,
+  type SettledOutcome,
+} from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
 import type { Database } from "./ports.ts";
@@ -110,8 +115,7 @@ export function afterRefusedRoot(
   { itemId, address }: Readonly<{ itemId: number; address: string }>,
   { revision, cliAttempts }: Readonly<{ revision: number; cliAttempts: number | null }>,
 ): JobWrites {
-  const delay = cliAttempts === null ? undefined : RETRY_DELAYS_MS[cliAttempts];
-  if (cliAttempts === null || delay === undefined)
+  if (cliAttempts === null || isLastAttempt(cliAttempts))
     return unreadableWrites(db, itemId, revision, "x-unconfirmed");
 
   return [
@@ -120,7 +124,7 @@ export function afterRefusedRoot(
       kind: "fetch",
       address,
       where: eq(items.id, itemId),
-      now: Date.now() + delay,
+      now: Date.now() + (RETRY_DELAYS_MS[cliAttempts] ?? 0),
       attempts: cliAttempts + 1,
       waitReason: "x-reread",
     }),
