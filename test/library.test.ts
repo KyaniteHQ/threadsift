@@ -9,6 +9,7 @@ import {
   SavedItemResponseSchema,
 } from "../src/http/schemas.ts";
 import { Instance, type Json } from "./instance.ts";
+import { addressOf, comment, threadOf } from "./reader-thread-fixtures.ts";
 
 interface Supplied {
   readonly page?: Json;
@@ -82,6 +83,15 @@ describe("a link the owner pastes reaches the library, and the owner finds, read
     assert.deepEqual(reader.digest?.keyPoints, DIGEST.keyPoints);
   });
 
+  it("refuses a supplied Reddit thread with a reply to a missing parent at the top", async () => {
+    const id = "abc456";
+    const content = threadOf(id, {}, [comment("c1", "t1_missing", "reader", SENTENCE)]);
+    const answer = await instance.send("POST", "/api/items", { url: addressOf(id), content });
+
+    assert.equal(answer.status, 400);
+    assert.match(ErrorResponseSchema.parse(JSON.parse(answer.body)).error, /parent_id/u);
+  });
+
   it("keeps the useful comment of a Reddit thread and shows its dropped parent as a Context stub", async () => {
     const thread = [
       {
@@ -107,36 +117,25 @@ describe("a link the owner pastes reaches the library, and the owner finds, read
         kind: "Listing",
         data: {
           children: [
-            {
-              kind: "t1",
+            comment("c1", "t3_abc123", "first", "this", {
+              kind: "Listing",
               data: {
-                id: "c1",
-                author: "first",
-                body: "this",
-                parent_id: "t3_abc123",
-                score: 3,
-                created_utc: 1_700_000_100,
-                replies: {
-                  kind: "Listing",
-                  data: {
-                    children: [
-                      {
-                        kind: "t1",
-                        data: {
-                          id: "c2",
-                          author: "second",
-                          body: "Use sqlite3 .backup, a plain copy can tear a page while a writer is busy.",
-                          parent_id: "t1_c1",
-                          score: 9,
-                          created_utc: 1_700_000_200,
-                          replies: "",
-                        },
-                      },
-                    ],
+                children: [
+                  {
+                    kind: "t1",
+                    data: {
+                      id: "c2",
+                      author: "second",
+                      body: "Use sqlite3 .backup, a plain copy can tear a page while a writer is busy.",
+                      parent_id: "t1_c1",
+                      score: 9,
+                      created_utc: 1_700_000_200,
+                      replies: "",
+                    },
                   },
-                },
+                ],
               },
-            },
+            }),
           ],
         },
       },

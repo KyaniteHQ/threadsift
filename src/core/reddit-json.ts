@@ -3,6 +3,7 @@ import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
 import { type RedditRef, redditRefOf } from "./links.ts";
 import {
+  type Answer,
   type Walked,
   checkedIds,
   checkedMetadata,
@@ -15,7 +16,7 @@ import {
   walk,
   walkArchive,
 } from "./reddit-tree.ts";
-import type { WireChild, WirePost } from "./reddit-wire.ts";
+import type { WirePost } from "./reddit-wire.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
 import { MAX_ROW_BYTES, type ThreadNode, moreNode, rowFits } from "./thread-rows.ts";
 
@@ -142,52 +143,44 @@ function ofComment(
   };
 }
 
-function boundaryOf(
-  children: readonly WireChild[],
-  post: Readonly<WirePost>,
-  ref: Readonly<RedditRef>,
-): string {
-  return ref.commentId === undefined ? `t3_${post.id}` : firstParentOf(children);
-}
-
-type ThreadSource = "reddit" | "archive";
-
-function parseThread(
+function parsedThread(
   answers: ThreadAnswers,
   ref: Readonly<RedditRef>,
-  source: ThreadSource,
-): ParsedThread {
-  const [content, ...later] = answers;
-  const { post, children } = readAnswer(content, ref.postId);
-
-  checkedMetadata({
-    "the post title": post.title,
-    "the post author": post.author,
-    "the subreddit": post.subreddit,
-  });
-  checkedText(post.selftext, "the post text");
-
-  const ids = new Set<string>();
-  const first =
-    source === "archive"
-      ? walkArchive(children, `t3_${post.id}`)
-      : walk(children, boundaryOf(children, post, ref));
-
-  checkedIds(ids, first);
-
-  const walked = graftAll(ids, first, later, ref.postId);
-
-  return ref.commentId === undefined
-    ? ofPost(post, walked)
-    : ofComment(post, walked, ref.commentId.toLowerCase());
-}
-
-export function parseRedditThread(
-  answers: ThreadAnswers,
-  ref: Readonly<RedditRef>,
-  source: ThreadSource = "reddit",
+  firstRows: (answer: Answer) => readonly Walked[],
 ): ThreadParse {
-  const read = refusing(() => parseThread(answers, ref, source));
+  const read = refusing(() => {
+    const [content, ...later] = answers;
+    const answer = readAnswer(content, ref.postId);
+    const { post } = answer;
+
+    checkedMetadata({
+      "the post title": post.title,
+      "the post author": post.author,
+      "the subreddit": post.subreddit,
+    });
+    checkedText(post.selftext, "the post text");
+
+    const ids = new Set<string>();
+    const first = firstRows(answer);
+
+    checkedIds(ids, first);
+
+    const walked = graftAll(ids, first, later, ref.postId);
+
+    return ref.commentId === undefined
+      ? ofPost(post, walked)
+      : ofComment(post, walked, ref.commentId.toLowerCase());
+  });
 
   return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
+}
+
+export function parseRedditThread(answers: ThreadAnswers, ref: Readonly<RedditRef>): ThreadParse {
+  return parsedThread(answers, ref, ({ post, children }) =>
+    walk(children, ref.commentId === undefined ? `t3_${post.id}` : firstParentOf(children)),
+  );
+}
+
+export function parseArchiveThread(json: string, ref: Readonly<RedditRef>): ThreadParse {
+  return parsedThread([json], ref, ({ post, children }) => walkArchive(children, `t3_${post.id}`));
 }
