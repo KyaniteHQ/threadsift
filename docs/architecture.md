@@ -2,7 +2,7 @@
 
 | State | Part |
 |---|---|
-| Not built | The Cloudflare deploy button (`docs/architecture/cloudflare-deploy-button.md`), the Provider comparison that picks the default model, the contributor licence agreement workflow, and the README's recording, screenshots and deploy buttons |
+| Not built | The Cloudflare deploy button (`docs/architecture/cloudflare-deploy-button.md`), the Provider comparison that picks the default model, and the contributor licence agreement workflow |
 | Partly built | The Vault mirror copies Paste notes to GitHub and has Obsidian settings. Other Item changes, wiki notes and folder mode are Not built (`docs/architecture/vault-mirror.md`) |
 | Partly built | The Restore of every library record, the stored images and post text files, the search parts and the Highlight anchors is built (`docs/architecture/export-backup-and-restore.md`). Cancel, resume, the cleanup of abandoned parts and the setup page step are built |
 | Partly built | Grok Bot: no AI task other than the X link send has run against a real bot (`docs/architecture/open-items-and-unverified-claims.md`) |
