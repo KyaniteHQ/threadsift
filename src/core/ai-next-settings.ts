@@ -2,9 +2,11 @@ import { z } from "zod";
 
 import {
   PROVIDERS,
+  CliChoiceSchema,
   CliProviderSchema,
   HttpProviderSchema,
   type AiSettingsInput,
+  type CliAiConnection,
   refusedAi,
   withoutTrailingSlashes,
 } from "./ai-contract.ts";
@@ -20,6 +22,7 @@ export const StoredSettingsSchema = z.union([
     baseUrl: z.null(),
     sealedKey: z.null(),
     effort: z.string().nullable(),
+    cliChoice: CliChoiceSchema,
   }),
   z.object({
     provider: HttpProviderSchema,
@@ -33,8 +36,20 @@ export type Stored = z.infer<typeof StoredSettingsSchema>;
 
 export type Keyless = Extract<Stored, { readonly sealedKey: null }>;
 
-function keylessRow(provider: Keyless["provider"], model: string, effort: string | null = null) {
-  return { provider, model, effort, baseUrl: null, sealedKey: null } as const;
+async function nextCliSettings(ports: AiPorts, config: Readonly<CliAiConnection>) {
+  const { provider, model, effort, choice } = config;
+  const selection = ports.ai.resolveCli(config);
+  if (selection.kind === "refused") return selection;
+  if (!(await ports.ai.signedIn()).includes(provider)) return refusedAi("not-configured");
+
+  return {
+    provider,
+    model,
+    effort: effort ?? null,
+    cliChoice: choice,
+    baseUrl: null,
+    sealedKey: null,
+  };
 }
 
 export async function nextSettings(
@@ -42,15 +57,17 @@ export async function nextSettings(
   { sealer, saved }: Readonly<{ sealer: Sealer | null; saved: Stored | undefined }>,
   input: Readonly<ModelSettingsInput>,
 ) {
-  if (input.provider === "workers-ai") return keylessRow(input.provider, input.model);
+  if (input.provider === "workers-ai")
+    return { ...input, effort: null, cliChoice: "custom", baseUrl: null, sealedKey: null } as const;
 
   if (input.provider === "claude-code" || input.provider === "codex") {
-    const { provider, model, effort } = input;
-    const selection = ports.ai.resolveCli({ kind: "cli", provider, model, effort });
-    if (selection.kind === "refused") return selection;
-    return (await ports.ai.signedIn()).includes(provider)
-      ? keylessRow(provider, model, effort)
-      : refusedAi("not-configured");
+    const {
+      provider,
+      model,
+      effort,
+      choice = model === "" && effort === undefined ? "recommended" : "custom",
+    } = input;
+    return nextCliSettings(ports, { kind: "cli", provider, model, effort, choice });
   }
 
   if (sealer === null) return refusedAi("secret-missing");
@@ -76,5 +93,6 @@ export async function nextSettings(
     baseUrl,
     sealedKey: await sealer.seal(key),
     effort: null,
+    cliChoice: "custom",
   } as const;
 }

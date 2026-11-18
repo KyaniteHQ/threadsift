@@ -37,10 +37,10 @@ function viewOf(
   if (saved === undefined) return null;
 
   if (saved.sealedKey === null) {
-    const { provider, model, effort } = saved;
+    const { provider, model, effort, cliChoice } = saved;
     return provider === "workers-ai"
       ? { provider, model }
-      : { provider, model, effort: effort ?? "" };
+      : { provider, model, effort: effort ?? "", choice: cliChoice };
   }
 
   return {

@@ -132,6 +132,8 @@ export abstract class SlottedCli implements CliRunner {
   ): { readonly slug: string; readonly levels: readonly string[] } | undefined;
 
   resolve(config: Readonly<CliAiConnection>): CliSelection {
+    if (config.choice === "cli-defaults") return { ...config, model: "", effort: undefined };
+
     const { model, effort } = config;
     if (model !== "") return this.select(config);
 

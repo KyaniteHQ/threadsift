@@ -93,6 +93,7 @@ function keylessConnection(saved: Readonly<Keyless>): AiConnection {
     : {
         kind: "cli",
         provider: saved.provider,
+        choice: saved.cliChoice,
         model: saved.model,
         effort: saved.effort ?? undefined,
       };

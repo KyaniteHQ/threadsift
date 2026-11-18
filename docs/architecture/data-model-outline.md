@@ -13,7 +13,7 @@
 - [Catalog keys](#catalog-keys)
 - [Deleting an Item](#deleting-an-item)
 
-The Drizzle schema (`src/core/schema.ts` and the `src/core/*-tables.ts` files) lists every column. The table below holds what the schema does not say. A table described as one row has a `CHECK` on `id = 1`.
+The Drizzle schema (`src/core/schema.ts` and the table definitions it re-exports) lists every column. The table below holds what the schema does not say. A table described as one row has a `CHECK` on `id = 1`.
 
 | Table | Holds |
 |---|---|
@@ -45,7 +45,7 @@ The Drizzle schema (`src/core/schema.ts` and the `src/core/*-tables.ts` files) l
 | `throttles` | at most one row for each of `setup`, `login` and `reset`; an attempt counts itself before it is checked (`admit`) and a success deletes the row it counted (`settleAttempt` in `src/core/throttle.ts`; see Access, Throttle). It is login data, so a restore starts with no lock |
 | `owner`, `sessions`, `agent_tokens`, `spent_reset_codes` | login and access (see Access, Agent tokens and Daily budget) |
 | `ai_settings_revision`, `openrouter_connect_transactions` | the count of changes to `settings`, kept by triggers, and the pending OpenRouter Connect attempts, removed with the session |
-| `settings` | server-side settings; secrets in it are encrypted. Only a Claude Code or Codex row can store an effort. A `CHECK` keeps an HTTP row's base URL and sealed key in step with its Provider. Grok Bot is not a value of this row: the flag on `grok_bot_settings` says it is the Provider |
+| `settings` | server-side settings; secrets in it are encrypted. Only a Claude Code or Codex row can store an effort or use a choice other than `custom`. A `CHECK` requires an empty model and NULL effort for `recommended` and `cli-defaults`. The CLI choice migration assigns `recommended` to saved CLI rows with both fields empty and `custom` to every other row. A `CHECK` keeps an HTTP row's base URL and sealed key in step with its Provider. Grok Bot is not a value of this row: the flag on `grok_bot_settings` says it is the Provider |
 | `jobs`, `scheduled_runs`, `guards`, `file_cleaning` | the job runner, the schedule claims, the guard table of guarded batches and the cursor of the file cleanup. `jobs.address` is the link a fetch reads, which can differ from the Item's normalized URL. A unique index allows one open job per Item and kind. `item_id` is null only for an `export` or `restore` job, because neither has an owner Item, and the `jobs_owner_check` CHECK refuses a null Item for every other kind. |
 | `exports` | the library export (see Export, backup and restore in `export-backup-and-restore.md`). The partial unique index `exports_one_live` allows one row that is `running` or `ready`. The zip's objects live under `exports/<id>/` in the file store (see Files). The backup list leaves this table out as work in flight |
 | `restores` | the library restore. The partial unique index `restores_one_open` allows one restore that is not `done`, `cancelled` or `failed`. A cancelled restore keeps its row with state `cancelled`, and a cancel runs in the phase `undoing` while the state is still `running`. It holds no library data. See Export, backup and restore in `export-backup-and-restore.md` |

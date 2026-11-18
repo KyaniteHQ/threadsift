@@ -96,6 +96,7 @@ async function preparedCli(
     const config = runner.resolve({
       kind: "cli",
       provider: runner.provider,
+      choice: "custom",
       model: spec.model,
       effort: "effort" in spec ? spec.effort : undefined,
     });

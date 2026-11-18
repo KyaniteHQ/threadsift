@@ -24,6 +24,8 @@ export {
   throttles,
 } from "./access-tables.ts";
 
+export { settings } from "./ai-settings-table.ts";
+
 export { itemAliases } from "./alias-tables.ts";
 
 export {
@@ -179,40 +181,6 @@ export const fileCleaning = sqliteTable(
 export type ItemRow = typeof items.$inferSelect;
 
 export type JobRow = typeof jobs.$inferSelect;
-
-export const settings = sqliteTable(
-  "settings",
-  {
-    id: integer("id").primaryKey(),
-    provider: text("provider", {
-      enum: [
-        "openai-compatible",
-        "openrouter",
-        "anthropic",
-        "openai",
-        "xai",
-        "workers-ai",
-        "claude-code",
-        "codex",
-      ],
-    }).notNull(),
-    baseUrl: text("base_url"),
-    model: text("model").notNull(),
-    sealedKey: text("sealed_key"),
-    effort: text("effort"),
-  },
-  (table) => [
-    check(
-      "settings_effort_provider",
-      sql`${table.effort} is null or ${table.provider} in ('claude-code', 'codex')`,
-    ),
-    check("settings_is_one_row", sql`${table.id} = 1`),
-    check(
-      "settings_connection_columns",
-      sql`(${table.provider} in ('workers-ai', 'claude-code', 'codex') and ${table.baseUrl} is null and ${table.sealedKey} is null) or (${table.provider} not in ('workers-ai', 'claude-code', 'codex') and ${table.baseUrl} is not null and ${table.sealedKey} is not null)`,
-    ),
-  ],
-);
 
 export const aiTasks = sqliteTable(
   "ai_tasks",

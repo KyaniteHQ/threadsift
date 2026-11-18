@@ -5,7 +5,9 @@ import {
   PROVIDERS,
   ProviderSchema,
   AiSettingsInputSchema,
+  CliChoiceSchema,
   type AiRefused,
+  type CliChoice,
   type Provider,
   isCliProvider,
   withoutTrailingSlashes,
@@ -15,6 +17,27 @@ import { AI_TEXT, CLI_TEXT, signedOutSentence } from "./ai-text.ts";
 import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";
 import { useConnect } from "./use-connect.ts";
 import { useField } from "./use-form.ts";
+
+function useCliChoice(
+  savedChoice: CliChoice | undefined,
+  provider: Provider,
+  recommendations: Readonly<AiView["recommendations"]>,
+) {
+  const [choice, setChoice] = useState(savedChoice);
+  const recommendation = isCliProvider(provider) ? recommendations[provider] : undefined;
+  const cliChoice =
+    choice === "custom" || choice === "cli-defaults"
+      ? choice
+      : recommendation === undefined
+        ? "cli-defaults"
+        : "recommended";
+
+  const changeCliChoice = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    setChoice(CliChoiceSchema.parse(event.target.value));
+  }, []);
+
+  return { cliChoice, recommendation, setChoice, changeCliChoice } as const;
+}
 
 function useAiFields(view: AiView) {
   const { settings, providers, recommendations } = view;
@@ -27,6 +50,8 @@ function useAiFields(view: AiView) {
   const baseUrl = useField(null, offered?.provider === "openai-compatible" ? offered.baseUrl : "");
   const model = useField(null, offered?.model ?? "");
   const savedEffort = offered && "effort" in offered ? offered.effort : "";
+  const savedChoice = offered && "choice" in offered ? offered.choice : undefined;
+  const { setChoice, ...cli } = useCliChoice(savedChoice, provider, recommendations);
   const effort = useField(null, savedEffort);
   const { set: setEffort } = effort;
   const key = useField();
@@ -42,17 +67,16 @@ function useAiFields(view: AiView) {
       setProvider(next);
       setModel(next === savedProvider ? savedModel : "");
       setEffort(next === savedProvider ? savedEffort : "");
+      setChoice(next === savedProvider ? savedChoice : undefined);
       clearKey();
     },
-    [clearKey, setModel, savedProvider, savedModel, setEffort, savedEffort],
+    [clearKey, setModel, savedProvider, savedModel, setEffort, savedEffort, savedChoice, setChoice],
   );
-
-  const recommendation = isCliProvider(provider) ? recommendations[provider] : undefined;
 
   return {
     provider,
     providers,
-    recommendation,
+    ...cli,
     baseUrl,
     model,
     effort,
@@ -176,7 +200,13 @@ function savedKeyOf(
 }
 
 function settingsInput(fields: ReturnType<typeof useAiFields>) {
-  const { provider } = fields;
+  const { provider, cliChoice: choice } = fields;
+  if (isCliProvider(provider)) {
+    const values =
+      choice === "custom" ? { model: fields.model.value, effort: fields.effort.value } : {};
+    return AiSettingsInputSchema.parse({ provider, choice, ...values });
+  }
+
   const entries = PROVIDERS[provider].names.map((name) => {
     const value = fields[name].value;
     return [name, name === "key" && value === "" ? undefined : value];

@@ -51,6 +51,21 @@ export const AI_TEXT = {
   codexRejected:
     "Codex's sign-in was rejected. Run codex login --device-auth on the server, then press Verify again.",
   baseUrl: "Base URL",
+  cliChoice: "Model and effort",
+  cliChoices: {
+    recommended: {
+      label: "Recommended",
+      help: "Threadsift uses {model} with {effort} effort.",
+    },
+    "cli-defaults": {
+      label: "CLI defaults",
+      help: "The CLI chooses its model and effort.",
+    },
+    custom: {
+      label: "Custom",
+      help: "You can set the model, effort or both.",
+    },
+  },
   model: "Model",
   effort: "Effort",
   effortHelp: "Leave blank to use the CLI default.",
