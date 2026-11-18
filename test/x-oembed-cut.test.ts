@@ -12,7 +12,17 @@ import {
   TWO_LINKS_ID,
   typed,
   verdict,
+  verdictOf,
+  withParagraph,
 } from "./x-oembed-fixtures.ts";
+
+const KOREAN_HEAD = [
+  "Town library notesT도서관에서책을빌리고정원에갔다도",
+  "The courtyard opens today.아침에작은정원을둘러보고새로심은꽃을보았다오후에는친구와책을읽고차를마셨다다음에는사진도찍고싶다아침에작은",
+  "Weekend reading at the library.We새책을친구와함께읽었다",
+  "Today.T내일다시정원으로가자내",
+  "PS",
+].join("\n\n");
 
 describe("a cut post is checked by the head X shows, and its tail is left unverified", () => {
   it("verifies the head of a cut post and leaves its tail unverified, whether the cut is followed by a link, a media link or nothing", () => {
@@ -49,6 +59,12 @@ describe("a cut post is checked by the head X shows, and its tail is left unveri
           "gridwright",
           `${TWO_LINKS_HEAD} the rest of the post that X does not show`,
         ),
+        verdict(
+          "long-cut-korean.json",
+          "3100000000000000035",
+          "library_demo",
+          `${KOREAN_HEAD} and the rest of the library update`,
+        ),
       ],
       [
         "tail-unverified",
@@ -57,14 +73,24 @@ describe("a cut post is checked by the head X shows, and its tail is left unveri
         "tail-unverified",
         "tail-unverified",
         "tail-unverified",
+        "tail-unverified",
       ],
     );
   });
 
   it("compares a short post that ends in an ellipsis whole, so a forged tail after it is rejected", () => {
+    const short = `${"가".repeat(123)} 👨‍👩‍👧‍👦…`;
+    const answer = withParagraph("long-cut-bare.json", short);
+
     assert.deepEqual(
-      [typed("Maybe…"), typed("Maybe… and a forged tail"), typed("Perhaps…")],
-      ["verified", "rejected", "rejected"],
+      [
+        typed("Maybe…"),
+        typed("Maybe… and a forged tail"),
+        typed("Perhaps…"),
+        verdictOf(answer, CUT_BARE_ID, "fieldnotes_ana", short),
+        verdictOf(answer, CUT_BARE_ID, "fieldnotes_ana", `${short} and a forged tail`),
+      ],
+      ["verified", "rejected", "rejected", "verified", "rejected"],
     );
   });
 

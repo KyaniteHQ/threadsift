@@ -89,6 +89,29 @@ function flat(items: readonly Item[]): string {
   return squashed(items.map((item) => FLATTENED[item.kind](item)).join(""));
 }
 
+function weightedLength(text: string): number {
+  let length = 0;
+
+  for (const [token] of text.normalize().matchAll(/\p{RGI_Emoji}|./gsv)) {
+    if (token === LINK) {
+      length += LINK_LENGTH;
+      continue;
+    }
+
+    const code = token.codePointAt(0) ?? Infinity;
+    const singleWeight =
+      token.length === 1 &&
+      (code <= 0x10ff ||
+        (code >= 0x2000 && code <= 0x200d) ||
+        (code >= 0x2010 && code <= 0x201f) ||
+        (code >= 0x2032 && code <= 0x2037));
+
+    length += singleWeight ? 1 : 2;
+  }
+
+  return length;
+}
+
 function cutOf(items: readonly Item[]): { readonly head: string; readonly links: number } | null {
   const marker = items.findLastIndex(
     (item) => item.kind === "text" && item.text.trimEnd().endsWith(ELLIPSIS),
@@ -110,9 +133,7 @@ function cutOf(items: readonly Item[]): { readonly head: string; readonly links:
   const text = flat(head);
   const links = head.filter((item) => item.kind === "link").length;
 
-  return afterwards && text.length + links * (LINK_LENGTH - 1) >= MIN_CUT_HEAD
-    ? { head: text, links }
-    : null;
+  return afterwards && weightedLength(text) >= MIN_CUT_HEAD ? { head: text, links } : null;
 }
 
 function anchorsOf(items: readonly Item[], kind: "link" | "media"): readonly Anchor[] {
