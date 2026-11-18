@@ -10,7 +10,7 @@ import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/obsidian";
 
-export function fetchObsidian(signal: AbortSignal) {
+export function fetchObsidian(signal?: AbortSignal) {
   return parsedFrom("GET", ENDPOINT, VaultViewSchema, { signal });
 }
 
@@ -28,5 +28,5 @@ export function verifyObsidian(input: Readonly<VaultVerifyInput>) {
 }
 
 export function removeObsidian() {
-  return parsedFrom(del(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, VaultViewSchema);
+  return parsedFrom(del(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, VaultResultSchema);
 }

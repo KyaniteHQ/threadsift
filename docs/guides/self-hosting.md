@@ -30,6 +30,18 @@ The app listens on plain HTTP, and the README's `podman run` command publishes p
 
 Add the external address to `~/threadsift.env` as one more line, `THREADSIFT_PUBLIC_ORIGIN=https://<your host>`, with no path and no trailing slash, then recreate the container. Without it, the app refuses MCP requests that come through the public host, and OpenRouter's Connect button does not work. The key file keeps the line, so every later run that passes `--env-file` keeps it too.
 
+## Mount an Obsidian vault
+
+Add a second mount to the [container command](../../README.md#try-it-on-your-machine). Keep the existing `threadsift-data` volume for `/data`. Replace `/absolute/path/to/your/vault` with the existing vault on the host.
+
+```sh
+--userns=keep-id:uid=1000,gid=1000 --volume threadsift-data:/data:U --volume /absolute/path/to/your/vault:/vault
+```
+
+Use these options with rootless Podman. The user namespace maps your host user to the image's `node` user, UID and GID 1000, so the container can write files you own. Replace the old `/data` mount flag with the one above. Its `:U` suffix lets Podman adjust ownership in the dedicated data volume for the new mapping. Keep `:U` off the vault mount. On SELinux, append `:z` to relabel the vault recursively with a shared label. Use `:Z` only if this container alone should have access under that label. With Docker, keep the original data mount and omit the Podman user namespace option. Grant write access to the host UID and GID that map to the container's `node` user.
+
+Open **Settings**, then **Obsidian**. Choose **Folder** and enter `/vault`. Use **Verify** to check write access, then **Save**. Keep the vault on a filesystem that supports hard links. If the vault is a checkout of the GitHub mirror, move the existing `Threadsift/` files out of the way before switching. Settings names the file that blocks a note. Move that file so the next retry can write the note. If a sync tool moves files between machines, exclude the `.written` directory under `Threadsift/` from sync so the container keeps its local ownership records.
+
 ## Deploy on Cloudflare
 
 Use a Cloudflare account on the Workers Paid plan, Node 26 or later, pnpm, and `openssl`.

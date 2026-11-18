@@ -24,7 +24,11 @@ function entryParts(entry: Readonly<LogEntry>): readonly (string | number)[] {
     case "merge-topic":
       return [entry.action, `${entry.from} → ${entry.into}`, entry.items];
     case "vault-file-skipped":
-      return [VAULT_TEXT.skipped, entry.path];
+    case "vault-file-conflict":
+      return [
+        entry.action === "vault-file-conflict" ? VAULT_TEXT.conflict : VAULT_TEXT.skipped,
+        entry.path,
+      ];
     default:
       return entry satisfies never;
   }

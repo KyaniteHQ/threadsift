@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { z } from "zod";
 
 import { listed } from "./schema-checks.ts";
 
@@ -11,9 +12,13 @@ export const vaultSettings = sqliteTable(
   "vault_settings",
   {
     id: integer("id").primaryKey(),
-    repository: text("repository").notNull(),
-    branch: text("branch").notNull(),
-    sealedToken: text("sealed_token").notNull(),
+    mode: text("mode", { enum: ["github", "folder"] })
+      .notNull()
+      .default("github"),
+    folder: text("folder"),
+    repository: text("repository"),
+    branch: text("branch"),
+    sealedToken: text("sealed_token"),
     generation: integer("generation").notNull().default(0),
     leaseUntil: integer("lease_until").notNull().default(0),
     nextAttemptAt: integer("next_attempt_at").notNull().default(0),
@@ -21,8 +26,33 @@ export const vaultSettings = sqliteTable(
     scanPending: integer("scan_pending", { mode: "boolean" }).notNull().default(true),
     wikiPending: integer("wiki_pending", { mode: "boolean" }).notNull().default(true),
   },
-  (table) => [check("vault_settings_one_row", sql`${table.id} = 1`)],
+  (table) => [
+    check("vault_settings_one_row", sql`${table.id} = 1`),
+    check(
+      "vault_settings_target",
+      sql`(${table.mode} = 'github' and ${table.repository} is not null and ${table.branch} is not null and ${table.sealedToken} is not null and ${table.folder} is null)
+        or (${table.mode} = 'folder' and ${table.folder} is not null and substr(${table.folder}, 1, 1) = '/' and ${table.repository} is null and ${table.branch} is null and ${table.sealedToken} is null)`,
+    ),
+  ],
 );
+
+const VaultDestinationSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("github"),
+    repository: z.string(),
+    branch: z.string(),
+    sealedToken: z.string(),
+  }),
+  z.object({ mode: z.literal("folder"), folder: z.string().startsWith("/") }),
+]);
+
+export type VaultDestination = z.infer<typeof VaultDestinationSchema>;
+
+export function vaultDestination(
+  row: Readonly<typeof vaultSettings.$inferSelect>,
+): VaultDestination {
+  return VaultDestinationSchema.parse(row);
+}
 
 export const mirrorNotes = sqliteTable(
   "mirror_notes",
@@ -31,6 +61,7 @@ export const mirrorNotes = sqliteTable(
     kind: text("kind", { enum: VAULT_KINDS }).notNull(),
     subjectId: integer("subject_id").notNull(),
     retryAt: integer("retry_at").notNull().default(0),
+    conflictPath: text("conflict_path"),
   },
   (table) => [
     uniqueIndex("mirror_notes_subject").on(table.kind, table.subjectId),

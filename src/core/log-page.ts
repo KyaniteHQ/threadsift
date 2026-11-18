@@ -28,6 +28,7 @@ function entryOf(row: Row) {
     case "merge-topic":
       return { ...merged, action };
     case "vault-file-skipped":
+    case "vault-file-conflict":
       return { id, at, action, path: row.path };
     default:
       return action satisfies never;

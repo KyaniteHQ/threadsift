@@ -53,6 +53,7 @@ export function queueVaultNotes(db: Database, { kind, id, from, when }: Readonly
           kind: sql<VaultKind>`${kind}`.as("kind"),
           subjectId: sql<number>`${id}`.as("subject_id"),
           retryAt: sql<number>`0`.as("retry_at"),
+          conflictPath: sql<null>`null`.as("conflict_path"),
         })
         .from(from ?? sql`(select 1)`)
         .where(sql`(${when}) and exists (select 1 from ${vaultSettings})`),

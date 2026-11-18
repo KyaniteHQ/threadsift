@@ -43,7 +43,7 @@ The owner is also a user, with many saved bookmarks to bring in and read.
 - In the self-hosted builds it also comes from the Arctic Shift archive, on by default with a setting that turns it off.
 - Either self-hosted build can connect the owner's own Reddit account, which is then the first server source, before Arctic Shift.
 - There is no background fill (Fetchers).
-- **Obsidian.** The GitHub Vault mirror keeps the library wiki and Item notes current on both install targets (Obsidian vault mirror).
+- **Obsidian.** The Vault mirror keeps the library wiki and Item notes current in a GitHub repository on both targets or in a mounted folder on the container (Obsidian vault mirror).
 - **Tech stack.** `docs/architecture/the-stack-at-a-glance.md` lists it: TypeScript on Node 26 and Cloudflare Workers, Hono, SQLite with FTS5 through Drizzle (D1 on Cloudflare), a React single-page app, the AI SDK for HTTP Providers. `docs/architecture.md` holds every choice, its trade-off and its evidence.
 - **Delete.** The owner can delete an Item from the Reader, after a confirmation. Deleting removes the Item, its Digest, its stored images, its Highlights, its Note and the Log entries that name it. Agents use `DELETE /api/items/:id`.
 - **Search.** Full-text search covers title, post text, Kept comments (not the comments the Reader shows before a Digest covers the thread), the Digest's clean title, Summary, Tags, a GitHub repository's description and topics, Highlights and Notes.
@@ -420,15 +420,15 @@ C. Intake webhook
 ## Obsidian vault mirror
 
 - The owner opens Obsidian from Settings, enters a GitHub repository, an existing branch and a fine-grained token, and uses Verify to check that the branch is reachable. Verify writes no file and does not test write permission. Save seals the token under the Instance's secret key and never returns it to a screen or route. Agent tokens cannot use these settings routes.
-- Saving the settings queues every Item and Topic page, the Index and the Log. Library changes queue the notes they affect in the same write batch. The writer waits for an Item's open jobs before it reads that Item.
+- On the container, the owner can choose Folder in Obsidian and enter the path from the [vault mount instructions](guides/self-hosting.md#mount-an-obsidian-vault). Verify reports whether the mounted folder is writable and distinguishes a missing folder from a write refusal. The mirror writes only within `Threadsift/` and removes only files it wrote. An owner file at a generated path pauses that subject. Obsidian settings names the path and the Log records it once. Cloudflare offers GitHub.
+- Saving a destination queues every Item and Topic page, the Index and the Log. Library changes queue the notes they affect in the same write batch. The writer waits for an Item's open jobs before it reads that Item. Switching destinations mirrors the whole library to the new destination and leaves the old files in place.
 - Each Item note keeps an Item-id path with the current title as an alias. Its front matter holds Source, URL, author, dates, Topic, Tags and Read state. The body holds wikilinks to the Topic page and Related Items, plus the Summary, Key points, Highlights, Note, post text and Kept comments. Stored images sit beside the note. A refresh adds new images and removes images the Item no longer holds.
 - A Topic page note keeps a Topic-id path through a rename and holds the overview, Known disagreements and wikilinks to its Items. The Index links to every Topic page and shows its Item count and overview line. The Log links to notes by UTC month, newest month first. Each month lists its entries newest first.
 - A Topic merge removes the old Topic page note and rewrites the affected Item notes and their wikilinks to the surviving Topic. A Tag merge rewrites the affected Item notes. Accepting a lost Highlight, an overview gap or a disagreement updates the notes when the change is stored.
 - A file above GitHub's 100 MiB limit is omitted and recorded in the Log. See the writer's separate request and memory budget in `docs/architecture/vault-mirror.md`.
-- A single leased writer drains the queue through GitHub GraphQL commits bounded by note count and file bytes. Each commit compares the expected branch tip; a moved branch is read again and the commit rebuilt. An Item can span commits: assets arrive before its note, and deletion removes the note before its assets. File progress survives retries, and a rate limit waits until GitHub's retry time. A newer queued change survives an older write.
+- A single leased writer drains the queue, with the same file paths, Markdown, and write order for either destination. Assets arrive before the Item note. Deletion removes the note before the assets. Folder publication installs complete files atomically. GitHub compares the expected branch tip, rebuilds after a moved tip, and waits until GitHub's retry time when it meets a rate limit. File progress survives retries, and a newer queued change survives an older write.
 - If the Vault mirror holds a write lease, Restore keeps the uploaded zip and asks the owner to try again with the same file. A running Restore pauses the writer and queues the final library when it finishes or is cancelled. The Export leaves the settings, queue and written-file list out.
 - The mirror is one-way: the owner reads in Obsidian and edits Highlights and Notes in Threadsift. Vault repositories on other Git hosts are not in the first release.
-- Not built: container folder mode.
 
 ## Access
 
@@ -472,7 +472,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 | AI Providers | every row of AI providers marked for the container | API keys, OpenRouter, an OpenAI-compatible URL at a public HTTPS address, Workers AI, Grok Bot |
 | X fetching | Grok Bot webhook, or the grok CLI installed by the owner and checked at run time, as the owner chooses in Settings (`auto`: the webhook first when both are set), with every post checked against X's oEmbed answer | Grok Bot webhook; without it, X links are Link-only Items |
 | Reddit | Extension, `.json` paste, archive fill, the owner's Reddit account, Link-only Items, own adapter if added | Extension, `.json` paste, archive fill, the owner's Reddit account, Link-only Items |
-| Vault mirror | Item notes and the library wiki in a GitHub repository. Local folder Not built | Item notes and the library wiki in a GitHub repository |
+| Vault mirror | Item notes and the library wiki in a GitHub repository or mounted folder | Item notes and the library wiki in a GitHub repository |
 | Deploy button | none needed | Not built |
 | Cost to the self-hoster | their own server | Cloudflare's $5 a month Workers Paid plan; the reason is in `docs/architecture/cloudflare-deploy-button.md` |
 

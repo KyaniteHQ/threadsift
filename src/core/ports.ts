@@ -15,6 +15,7 @@ import type { LoadedFetcher } from "./fetcher.ts";
 import type { OpenRouterExchange } from "./openrouter-contract.ts";
 import type { Sealer } from "./sealed-secret.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
+import type { VaultFolder } from "./vault-target.ts";
 import type { XFetcher } from "./x-fetcher.ts";
 
 export type Database = BaseSQLiteDatabase<"async", unknown> & Pick<SqliteRemoteDatabase, "batch">;
@@ -130,6 +131,7 @@ export interface Ports {
   readonly db: Database;
   readonly files: FileStore;
   readonly network: Network;
+  readonly vaultFolder: VaultFolder | null;
   readonly redditSession: RedditSession;
   readonly pages: PageReader;
   readonly jobs: JobQueue;

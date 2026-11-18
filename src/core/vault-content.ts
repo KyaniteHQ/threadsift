@@ -1,7 +1,7 @@
 import { hex } from "./encoding.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import type { VaultFile } from "./vault-github.ts";
 import { VaultNoteFailure } from "./vault-queue.ts";
+import type { VaultFile } from "./vault-target.ts";
 
 export function base64VaultBytes(bytes: Uint8Array): string {
   let text = "";

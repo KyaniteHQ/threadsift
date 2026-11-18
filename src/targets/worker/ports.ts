@@ -45,6 +45,7 @@ export async function createWorkerPorts(env: Env): Promise<import("../../core/po
       binding: env.AI === undefined ? undefined : bindingRunner(env.AI),
     })),
     network: workerNetwork,
+    vaultFolder: null,
     redditSession: workerRedditSession,
     pages: workerPageReader,
     jobs: {

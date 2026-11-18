@@ -136,8 +136,12 @@ function body(entry: Readonly<LogEntry>, pages: Pages): readonly Part[] {
     case "merge-topic":
       return mergeParts(LOG_WORDS.topic, entry);
     case "vault-file-skipped":
+    case "vault-file-conflict":
       return [
-        { key: "action", node: VAULT_TEXT.skipped },
+        {
+          key: "action",
+          node: entry.action === "vault-file-conflict" ? VAULT_TEXT.conflict : VAULT_TEXT.skipped,
+        },
         { key: "path", node: entry.path },
       ];
     default:

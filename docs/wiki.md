@@ -90,6 +90,7 @@ The Log lists committed library changes and files the Vault mirror skipped. It i
 | `merge` | the last unit of an accepted Tag merge left no `item_tags` row for the merged-away Tag |
 | `merge-topic` | no Item and no Log entry names the merged-away Topic any more |
 | `vault-file-skipped` | the writer leaves a file above GitHub's 100 MiB limit out and records its managed path once under the write lease |
+| `vault-file-conflict` | an unowned file occupies a Folder mode path. The writer parks that subject and records the path once |
 
 - **`changes()` placement.** `bumpVersion` reads `changes()` right after the Topic insert, and SQLite defines `changes()` as the count of the most recent completed insert, update or delete. The `topic` entry therefore sits after `bumpVersion` and before the Tag insert, conditioned on `changes() > 0`, so no statement comes between a catalog insert and the one that reads its count. The count is 1 when the Topic row was inserted and 0 when `ON CONFLICT DO NOTHING` skipped it (`node:sqlite`, Node 26, and local D1, 2026-11-11), so a second publication that reuses a Topic writes no `topic` entry.
 - **`ingest` or `digest`.** The statement reads whether a `digests` row exists, so it runs before the upsert. Entries of one batch keep their insertion order, so a first Digest in a new Topic shows `ingest` above `topic`, because the newest id comes first.

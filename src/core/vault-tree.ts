@@ -13,6 +13,12 @@ const TreeSchema = z.object({
   tree: z.array(z.object({ path: z.string(), type: z.string(), sha: z.string() })),
 });
 
+export interface VaultEntries {
+  readonly at: (
+    parts: readonly string[],
+  ) => Promise<readonly Readonly<{ path: string; type: string; sha: string }>[]>;
+}
+
 type Request = Readonly<ReturnType<typeof vaultRequest>>;
 
 export async function vaultTree(request: Request, branch: string) {
@@ -44,7 +50,7 @@ export async function vaultTree(request: Request, branch: string) {
 
 export type VaultTree = Readonly<Awaited<ReturnType<typeof vaultTree>>>;
 
-export async function vaultLogMonths(tree: VaultTree): Promise<readonly number[]> {
+export async function vaultLogMonths(tree: VaultEntries): Promise<readonly number[]> {
   const entries = await tree.at([VAULT_ROOT, "log"]);
   return entries.flatMap(({ path, type }) => {
     const match = /^(\d{4})-(0[1-9]|1[0-2])\.md$/u.exec(path);
@@ -53,7 +59,7 @@ export async function vaultLogMonths(tree: VaultTree): Promise<readonly number[]
   });
 }
 
-export async function vaultSubjects(tree: VaultTree): Promise<readonly VaultSubject[]> {
+export async function vaultSubjects(tree: VaultEntries): Promise<readonly VaultSubject[]> {
   const [items, topics, months] = await Promise.all([
     tree.at([VAULT_ROOT, "items"]),
     tree.at([VAULT_ROOT, "topics"]),
@@ -79,7 +85,14 @@ export async function vaultSubjects(tree: VaultTree): Promise<readonly VaultSubj
   ];
 }
 
-export async function vaultTreeFiles(tree: VaultTree, subject: VaultSubject) {
+export function vaultFileName(subject: VaultSubject, name: string): boolean {
+  return (
+    vaultNotePath(subject).split("/").at(-1) === name ||
+    (subject.kind === "item" && isSweptKey(`items/${String(subject.subjectId)}/${name}`))
+  );
+}
+
+export async function vaultTreeFiles(tree: VaultEntries, subject: VaultSubject) {
   const notePath = vaultNotePath(subject);
   const parts = notePath.split("/");
   const directory = parts.slice(0, -1);
@@ -88,10 +101,6 @@ export async function vaultTreeFiles(tree: VaultTree, subject: VaultSubject) {
 
   return entries.flatMap(({ path: name, type, sha }) => {
     const path = `${prefix}/${name}`;
-    const managed =
-      path === notePath ||
-      (subject.kind === "item" && isSweptKey(`items/${String(subject.subjectId)}/${name}`));
-
-    return type === "blob" && managed ? [{ path, sha }] : [];
+    return type === "blob" && vaultFileName(subject, name) ? [{ path, sha }] : [];
   });
 }

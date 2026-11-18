@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
   VaultInputSchema,
@@ -21,19 +21,37 @@ const REASONS = {
   unreachable: TEXT.unreachable,
   "github-error": TEXT.githubError,
   timeout: TEXT.timeout,
+  "folder-unavailable": TEXT.folderUnavailable,
+  "folder-missing": TEXT.folderMissing,
+  "folder-permission": TEXT.folderPermission,
+  "folder-path": TEXT.folderPath,
+  "folder-full": TEXT.folderFull,
+  "folder-links": TEXT.folderLinks,
+  "folder-failed": TEXT.folderFailed,
+  "vault-busy": TEXT.vaultBusy,
 } satisfies Readonly<Record<VaultRefusal["reason"], string>>;
 
 type Action = "save" | "verify" | "remove";
+type Mode = VaultView["mode"];
+type Draft =
+  | Readonly<{ mode: "github"; repository: string; branch: string; token: string }>
+  | Readonly<{ mode: "folder"; folder: string }>;
 
 export function useObsidian(view: VaultView, changed: (view: VaultView) => void) {
-  const repository = useField(null, view.repository);
-  const branch = useField(null, view.branch);
+  const [mode, setMode] = useState<Mode>(view.mode);
+  const repository = useField(null, view.mode === "github" ? view.repository : "");
+  const branch = useField(null, view.mode === "github" ? view.branch : "main");
+  const folder = useField(null, view.mode === "folder" ? view.folder : "");
   const token = useField();
   const { flow, run } = useActionFlow<Action>(TEXT.failed);
-  const fields = useMemo(
-    () => ({ repository: repository.value, branch: branch.value, token: token.value }),
-    [repository.value, branch.value, token.value],
+  const fields = useMemo<Draft>(
+    () =>
+      mode === "folder"
+        ? { mode, folder: folder.value }
+        : { mode, repository: repository.value, branch: branch.value, token: token.value },
+    [mode, folder.value, repository.value, branch.value, token.value],
   );
+  const needsSecret = mode === "github" && !view.secretReady;
 
   const perform = useCallback(
     (name: Action) => performObsidian(name, fields, changed, token.clear),
@@ -45,17 +63,20 @@ export function useObsidian(view: VaultView, changed: (view: VaultView) => void)
       void run(
         name,
         () => perform(name),
-        name !== "remove" && !view.secretReady ? TEXT.secretMissing : null,
+        name !== "remove" && needsSecret ? TEXT.secretMissing : null,
       );
     },
-    [run, perform, view.secretReady],
+    [run, perform, needsSecret],
   );
   const submit = useCallback(() => {
     action("save");
   }, [action]);
-  const buttons = obsidianButtons(view, action);
+  const buttons = obsidianButtons(view, needsSecret, action);
 
   return {
+    mode,
+    setMode,
+    folder,
     repository,
     branch,
     token,
@@ -69,41 +90,41 @@ export function useObsidian(view: VaultView, changed: (view: VaultView) => void)
 
 async function performObsidian(
   action: Action,
-  fields: Readonly<{ repository: string; branch: string; token: string }>,
+  fields: Draft,
   changed: (view: VaultView) => void,
   clear: () => void,
 ): Promise<Outcome> {
-  if (action === "remove") {
-    changed(await removeObsidian());
-    clear();
-    return { kind: "ok", text: TEXT.removed };
+  const result = await (action === "remove" ? removeObsidian() : sendObsidian(action, fields));
+  if (result === null)
+    return { kind: "error", text: fields.mode === "folder" ? TEXT.folderInvalid : TEXT.invalid };
+  if ("kind" in result) {
+    if (result.kind === "refused") return { kind: "error", text: REASONS[result.reason] };
+    return { kind: "ok", text: fields.mode === "folder" ? TEXT.folderVerified : TEXT.verified };
   }
-  const result = await sendObsidian(action, fields);
-  if (result === null) return { kind: "error", text: TEXT.invalid };
-  if ("kind" in result)
-    return result.kind === "verified"
-      ? { kind: "ok", text: TEXT.verified }
-      : { kind: "error", text: REASONS[result.reason] };
   changed(result);
   clear();
-  return { kind: "ok", text: TEXT.saved };
+  return { kind: "ok", text: action === "remove" ? TEXT.removed : TEXT.saved };
 }
 
-function sendObsidian(
-  action: "save" | "verify",
-  fields: Readonly<{ repository: string; branch: string; token: string }>,
-) {
+function sendObsidian(action: "save" | "verify", fields: Draft) {
   if (action === "save") {
     const input = VaultInputSchema.safeParse(fields);
     return input.success ? saveObsidian(input.data) : null;
   }
   const candidate =
-    fields.token === "" ? { repository: fields.repository, branch: fields.branch } : fields;
+    fields.mode === "github" && fields.token === ""
+      ? { mode: fields.mode, repository: fields.repository, branch: fields.branch }
+      : fields;
   const input = VaultVerifyInputSchema.safeParse(candidate);
   return input.success ? verifyObsidian(input.data) : null;
 }
 
-function obsidianButton(name: Action, view: VaultView, action: (name: Action) => void) {
+function obsidianButton(
+  name: Action,
+  view: VaultView,
+  needsSecret: boolean,
+  action: (name: Action) => void,
+) {
   const labels = {
     save: [TEXT.save, TEXT.saving],
     verify: [TEXT.verify, TEXT.verifying],
@@ -113,8 +134,8 @@ function obsidianButton(name: Action, view: VaultView, action: (name: Action) =>
     action: name,
     label: labels[name][0],
     busyLabel: labels[name][1],
-    blocked: name === "remove" ? view.token === "none" : !view.secretReady,
-    hint: name !== "remove" && !view.secretReady ? TEXT.secretMissing : undefined,
+    blocked: name === "remove" ? view.mode === "github" && view.token === "none" : needsSecret,
+    hint: name !== "remove" && needsSecret ? TEXT.secretMissing : undefined,
     secondary: name !== "save",
   };
   return name === "save"
@@ -127,6 +148,8 @@ function obsidianButton(name: Action, view: VaultView, action: (name: Action) =>
       };
 }
 
-function obsidianButtons(view: VaultView, action: (name: Action) => void) {
-  return (["save", "verify", "remove"] as const).map((name) => obsidianButton(name, view, action));
+function obsidianButtons(view: VaultView, needsSecret: boolean, action: (name: Action) => void) {
+  return (["save", "verify", "remove"] as const).map((name) =>
+    obsidianButton(name, view, needsSecret, action),
+  );
 }

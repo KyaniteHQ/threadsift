@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+
 import { type Browser, type Page, expect, test } from "@playwright/test";
 
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
@@ -7,6 +9,20 @@ import { grokBotFlow } from "./grok-bot-flow.ts";
 import { proposalsFlow } from "./proposals-flow.ts";
 import { redditAccountFlow } from "./reddit-account-flow.ts";
 import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+
+function folderIndexArrived(): Promise<boolean> {
+  const name = `threadsift-smoke-${process.env["THREADSIFT_SMOKE_PORT"] ?? "8799"}`;
+  return new Promise((resolve) => {
+    execFile(
+      "podman",
+      ["exec", name, "test", "-f", "/tmp/Threadsift/Index.md"],
+      { timeout: 5000 },
+      (error) => {
+        resolve(error === null);
+      },
+    );
+  });
+}
 
 export async function settingsSteps(page: Page, browser: Browser): Promise<void> {
   await test.step("follow the settings panel's Proposals link, see the no-Provider empty state with no Reject, reload on the address, fit a phone width, and visit it signed out", () =>
@@ -31,6 +47,35 @@ async function obsidianFlow(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole("link", { name: OBSIDIAN_TEXT.title, exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: OBSIDIAN_TEXT.title })).toBeVisible();
+  const destination = page.getByRole("radiogroup", { name: OBSIDIAN_TEXT.modeLabel });
+  if (process.env["THREADSIFT_TARGET"] === "container") {
+    await expect(destination.getByRole("radio", { name: OBSIDIAN_TEXT.githubMode })).toBeChecked();
+    await destination.getByRole("radio", { name: OBSIDIAN_TEXT.folderMode }).check();
+    await page.getByLabel(OBSIDIAN_TEXT.folderLabel).fill("/tmp");
+    await page.getByRole("button", { name: OBSIDIAN_TEXT.verify, exact: true }).click();
+    await expect(page.getByText(OBSIDIAN_TEXT.folderVerified, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: OBSIDIAN_TEXT.save, exact: true }).click();
+    await expect(page.getByText(OBSIDIAN_TEXT.folderConfigured, { exact: true })).toBeVisible();
+    await expect.poll(folderIndexArrived, { timeout: 75_000, intervals: [1000] }).toBe(true);
+    await page.reload();
+    await expect(page.getByLabel(OBSIDIAN_TEXT.folderLabel)).toHaveValue("/tmp");
+    await captureThemes(page, { themes: ["light", "dark", "sepia"], prefix: "obsidian-folder" });
+    await page.setViewportSize(PHONE);
+    await expectNoSidewaysScroll(page);
+    await page.screenshot({ path: test.info().outputPath("obsidian-folder-phone.png") });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await destination.getByRole("radio", { name: OBSIDIAN_TEXT.githubMode }).check();
+  } else {
+    await expect(destination).toHaveCount(0);
+    const data = { mode: "folder", folder: "/vault" };
+    const [saved, verified] = await Promise.all([
+      page.request.put("/api/settings/obsidian", { data }),
+      page.request.post("/api/settings/obsidian/verify", { data }),
+    ]);
+    const refusal = { kind: "refused", reason: "folder-unavailable" };
+    expect(await saved.json()).toEqual(refusal);
+    expect(await verified.json()).toEqual(refusal);
+  }
   await page
     .getByLabel(OBSIDIAN_TEXT.repositoryLabel, { exact: true })
     .fill("example/threadsift-vault");

@@ -23,7 +23,7 @@ const WORKER = [
   `exec worker-local ${STATE}/state ${PORT} --ip 127.0.0.1 --inspector-port 0 --env-file ${STATE}/env`,
 ].join(" && ");
 
-const CONTAINER_RUN = `podman run --rm --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY`;
+const CONTAINER_RUN = `podman run --rm --name threadsift-smoke-${PORT} --publish 127.0.0.1:${PORT}:8080 --env SETUP_CODE --env THREADSIFT_SECRET_KEY`;
 
 const IMAGE = '"${THREADSIFT_IMAGE:?run through devenv tasks}"';
 
@@ -44,7 +44,7 @@ const SERVERS = {
 export default defineConfig({
   testDir: "smoke",
   workers: 1,
-  timeout: 90_000,
+  timeout: TARGET === "container" ? 120_000 : 90_000,
   expect: { timeout: 20_000 },
   reporter: "list",
   use: { baseURL: BASE_URL, trace: "retain-on-failure" },

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const VaultInputSchema = z.object({
+const GithubInputSchema = z.strictObject({
+  mode: z.literal("github").optional(),
   repository: z
     .string()
     .trim()
@@ -31,21 +32,42 @@ export const VaultInputSchema = z.object({
     .regex(/^[\u0021-\u007E]+$/u),
 });
 
-export const VaultVerifyInputSchema = VaultInputSchema.extend({
-  token: VaultInputSchema.shape.token.optional(),
+export const VAULT_FOLDER_MAX = 4096;
+
+export const VaultFolderInputSchema = z.strictObject({
+  mode: z.literal("folder"),
+  folder: z
+    .string()
+    .trim()
+    .max(VAULT_FOLDER_MAX)
+    .regex(/^\/[^\\\p{Cc}]*$/u)
+    .refine((path) => !path.split("/").some((part) => part === "." || part === ".."))
+    .transform((path) => path.replaceAll(/\/{2,}/gu, "/").replace(/\/$/u, "") || "/"),
 });
+
+export const VaultInputSchema = z.union([GithubInputSchema, VaultFolderInputSchema]);
+export const VaultVerifyInputSchema = z.union([
+  GithubInputSchema.extend({ token: GithubInputSchema.shape.token.optional() }),
+  VaultFolderInputSchema,
+]);
 export type VaultVerifyInput = z.infer<typeof VaultVerifyInputSchema>;
 
-const VaultLocationSchema = z.object({
+const GithubViewSchema = z.object({
+  mode: z.literal("github"),
+  folderAvailable: z.boolean(),
   repository: z.string(),
   branch: z.string(),
   secretReady: z.boolean(),
+  token: z.enum(["none", "saved", "unreadable"]),
 });
-export const VaultViewSchema = z.discriminatedUnion("token", [
-  VaultLocationSchema.extend({ token: z.literal("none") }),
-  VaultLocationSchema.extend({ token: z.literal("saved") }),
-  VaultLocationSchema.extend({ token: z.literal("unreadable") }),
-]);
+const FolderViewSchema = z.object({
+  mode: z.literal("folder"),
+  folderAvailable: z.literal(true),
+  folder: z.string(),
+  conflicts: z.array(z.string()).readonly(),
+  secretReady: z.boolean(),
+});
+export const VaultViewSchema = z.discriminatedUnion("mode", [GithubViewSchema, FolderViewSchema]);
 
 export const VaultRefusalSchema = z.object({
   kind: z.literal("refused"),
@@ -59,6 +81,14 @@ export const VaultRefusalSchema = z.object({
     "unreachable",
     "github-error",
     "timeout",
+    "folder-unavailable",
+    "folder-missing",
+    "folder-permission",
+    "folder-path",
+    "folder-full",
+    "folder-links",
+    "folder-failed",
+    "vault-busy",
   ]),
 });
 
@@ -68,6 +98,7 @@ export const VaultResultSchema = z.union([
   z.object({ kind: z.literal("verified") }),
 ]);
 
+export type GithubVaultInput = z.infer<typeof GithubInputSchema>;
 export type VaultInput = z.infer<typeof VaultInputSchema>;
 export type VaultView = z.infer<typeof VaultViewSchema>;
 export type VaultRefusal = z.infer<typeof VaultRefusalSchema>;
