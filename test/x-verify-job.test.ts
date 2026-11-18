@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { Instance } from "./instance.ts";
 import { until } from "./related-fixtures.ts";
 import { digestOf } from "./x-intake-bodies.ts";
-import { addressOf, insertedXItem } from "./x-intake-fixtures.ts";
+import { addressOf, insertedXItem, openFetchJob } from "./x-intake-fixtures.ts";
 import { commentCount, itemRow, verificationRow, verifyJobStates } from "./x-intake-rows.ts";
 import { xClient } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
@@ -54,7 +54,7 @@ describe("a thread waits as stored state until every post of it was judged, and 
     assert.equal(verificationRow(instance, itemId), undefined);
   });
 
-  it("shows nothing and ends the Item as unreadable when the post itself was rejected", async () => {
+  it("offers Try again on a Link-only Item when X rejects a root with no CLI attempt count", async () => {
     const itemId = insertedXItem(instance, REFUSED);
     const value = valueOf(REFUSED);
 
@@ -65,8 +65,60 @@ describe("a thread waits as stored state until every post of it was judged, and 
     const item = itemRow(instance, itemId);
 
     assert.deepEqual([item.fetch_result, item.reason], ["unreadable", null]);
+    const detail = await instance.detail(itemId);
+
+    assert.equal(detail.xNote, "x-unconfirmed");
+    assert.equal(detail.retry, "paste");
+    assert.equal(detail.digestOutcome, "none");
     assert.equal(commentCount(instance, itemId), 0);
     assert.equal(verificationRow(instance, itemId), undefined);
+  });
+
+  it("retries a refused CLI root within the fetch budget and keeps any published thread", async () => {
+    const { saved } = xClient(instance);
+    const cases = [
+      { id: "1000000000000000701", attempts: 0, delay: 30_000, refresh: false },
+      { id: "1000000000000000702", attempts: 1, delay: 120_000, refresh: false },
+      { id: "1000000000000000703", attempts: 2, delay: null, refresh: false },
+      { id: "1000000000000000704", attempts: 2, delay: null, refresh: true },
+    ];
+
+    await Promise.all(
+      cases.map(async ({ id, attempts, delay, refresh }) => {
+        const itemId = refresh
+          ? (await saved({ url: addressOf(id), content: JSON.stringify(authored(id)) })).id
+          : insertedXItem(instance, id);
+        const previous = await instance.detail(itemId);
+        const candidate = withOneReply(id);
+        const started = Date.now();
+
+        await storedForVerification(instance, itemId, id, candidate, {
+          judged: { [id]: "rejected" },
+          cliAttempts: attempts,
+        });
+
+        const item = await instance.detail(itemId);
+        assert.equal(item.postText, previous.postText);
+        assert.deepEqual(item.comments, previous.comments);
+        assert.equal(verificationRow(instance, itemId), undefined);
+
+        if (delay === null) {
+          assert.equal(item.status, "ready");
+          assert.equal(item.fetch, "unreadable");
+          assert.equal(item.xNote, "x-unconfirmed");
+          assert.equal(item.retry, refresh ? null : "paste");
+        } else {
+          assert.equal(item.status, "processing");
+          assert.equal(item.wait?.reason, "x-reread");
+          const fetch = await openFetchJob(instance, itemId);
+          assert.equal(fetch.state, "queued");
+          assert.equal(fetch.attempts, attempts + 1);
+          assert.ok(
+            fetch.nextAttemptAt >= started + delay && fetch.nextAttemptAt <= Date.now() + delay,
+          );
+        }
+      }),
+    );
   });
 
   it("keeps the saved thread and ends unreadable when the verified thread has fewer replies than the saved one", async () => {

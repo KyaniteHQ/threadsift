@@ -12,6 +12,7 @@ import {
   type WithdrawnNote,
   guarded,
   reopened,
+  afterRefusedRoot,
   revisionHolds,
   unreadableWrites,
 } from "./x-verify-store.ts";
@@ -22,6 +23,10 @@ type Ending = Exclude<Progress, { kind: "asking" }> | { readonly kind: "gave-up"
 
 type Ready = Extract<Progress, { kind: "ready" }>;
 
+function currentRevision(ports: JobPorts, job: Readonly<ClaimedJob>, revision: number) {
+  return { holds: revisionHolds(job.itemId, revision), rebuild: () => rebuilt(ports, job) };
+}
+
 export function withdrawn(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
@@ -30,10 +35,7 @@ export function withdrawn(
 ): SettledOutcome {
   return {
     writes: unreadableWrites(ports.db, job.itemId, revision, note),
-    precondition: {
-      holds: revisionHolds(job.itemId, revision),
-      rebuild: () => rebuilt(ports, job),
-    },
+    precondition: currentRevision(ports, job, revision),
   };
 }
 
@@ -127,7 +129,10 @@ export function ended(
     case "refused":
       report("x-verify-refused", { reason: "root" });
 
-      return Promise.resolve(withdrawn(ports, job, row.revision, "x-unconfirmed"));
+      return Promise.resolve({
+        precondition: currentRevision(ports, job, row.revision),
+        writes: afterRefusedRoot(ports.db, job, row),
+      });
     case "gave-up":
       report("x-verify-refused", { reason: "unavailable" });
 

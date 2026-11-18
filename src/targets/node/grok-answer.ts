@@ -71,16 +71,46 @@ function repairedParents({ post, replies }: XCliThreadValue) {
   return { thread: { post, replies: mended }, repaired };
 }
 
-function answerOutcome({ structuredOutput }: Readonly<Envelope>, exit: number | null): Outcome {
-  const answer = XFetchAnswerSchema.safeParse(structuredOutput);
+function lastObject(text: string): string {
+  const end = text.trimEnd();
+  let depth = 0;
+  let quoted = false;
 
-  if (!answer.success) return refused({ status: "unreadable", category: "no-answer" }, exit);
+  if (!end.endsWith("}")) return "";
 
-  if (!answer.data.found) {
+  for (let i = end.length - 1; i >= 0; i -= 1) {
+    const char = end[i];
+
+    if (char === '"') {
+      let before = i - 1;
+      while (end[before] === "\\") before -= 1;
+      if ((i - before) % 2 === 1) quoted = !quoted;
+    } else if (!quoted && char === "}") {
+      depth += 1;
+    } else if (!quoted && char === "{") {
+      depth -= 1;
+      if (depth === 0) return end.slice(i);
+    }
+  }
+  return "";
+}
+
+function answerOutcome(
+  { structuredOutput, text }: Readonly<Envelope>,
+  exit: number | null,
+): Outcome {
+  const answer =
+    structuredOutput === null
+      ? parsedJson(XFetchAnswerSchema, lastObject(text))
+      : (XFetchAnswerSchema.safeParse(structuredOutput).data ?? null);
+
+  if (answer === null) return refused({ status: "unreadable", category: "no-answer" }, exit);
+
+  if (!answer.found) {
     return { kind: "fetched", fetch: { kind: "failed", status: "status" }, repaired: 0 };
   }
 
-  const { thread, repaired } = repairedParents(answer.data.thread);
+  const { thread, repaired } = repairedParents(answer.thread);
 
   return { kind: "fetched", fetch: { kind: "thread", thread }, repaired };
 }

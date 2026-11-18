@@ -5,7 +5,7 @@ import { z } from "zod";
 import { logFailure } from "./failure-log.ts";
 import { ITEM_FILES_ROOT } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { ITEM_JOB_KINDS, type JobKind, type UnownedJobKind } from "./kinds.ts";
+import { ITEM_JOB_KINDS, type JobKind, type UnownedJobKind, type WaitReason } from "./kinds.ts";
 import type { Database } from "./ports.ts";
 import { type JobRow, exportRuns, items, jobs, restoreRuns } from "./schema.ts";
 
@@ -68,11 +68,15 @@ function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
     kind,
     address,
     nextAttemptAt,
+    attempts = 0,
+    waitReason = null,
     page,
   }: Readonly<{
     kind: JobKind;
     address: string | Readonly<SQLWrapper>;
     nextAttemptAt: number;
+    attempts?: number | undefined;
+    waitReason?: WaitReason | null | undefined;
     page: string | null | Readonly<SQLWrapper>;
   }>,
 ) {
@@ -82,13 +86,13 @@ function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
     itemId,
     address: sql<string>`${address}`.as("address"),
     state: sql<"queued">`'queued'`.as("state"),
-    attempts: sql<number>`0`.as("attempts"),
+    attempts: sql<number>`${attempts}`.as("attempts"),
     staleRequeues: sql<number>`0`.as("stale_requeues"),
     attemptGeneration: sql<null>`null`.as("attempt_generation"),
     attemptPending: sql<null>`null`.as("attempt_pending"),
     nextAttemptAt: sql<number>`${nextAttemptAt}`.as("next_attempt_at"),
     claimExpires: sql<null>`null`.as("claim_expires"),
-    waitReason: sql<null>`null`.as("wait_reason"),
+    waitReason: sql<WaitReason | null>`${waitReason}`.as("wait_reason"),
     page: sql<string | null>`${page}`.as("page"),
   };
 }
@@ -100,11 +104,15 @@ export function opening(
     address,
     now,
     where,
+    attempts,
+    waitReason,
     page = null,
   }: Readonly<{
     kind: JobKind;
     address: string | Readonly<SQLWrapper>;
     now: number;
+    attempts?: number;
+    waitReason?: WaitReason;
     where: Readonly<SQLWrapper>;
     page?: string | null | undefined;
   }>,
@@ -118,6 +126,8 @@ export function opening(
             kind,
             address,
             nextAttemptAt: now,
+            attempts,
+            waitReason,
             page,
           }),
         )

@@ -78,6 +78,13 @@ function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.
     base.extend({
       status: z.literal("ready"),
       reason: z.null(),
+      retry: z.literal("paste"),
+      xNote: z.literal("x-unconfirmed"),
+      digestOutcome: z.literal("none"),
+    }),
+    base.extend({
+      status: z.literal("ready"),
+      reason: z.null(),
       retry: z.null(),
       digestOutcome: z.literal("none"),
     }),

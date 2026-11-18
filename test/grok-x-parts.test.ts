@@ -30,25 +30,40 @@ const ENDS_OF_A_VERSION_RUN: readonly ProcessEnd[] = [
 const SIGNED_OUT_MESSAGE =
   "Not signed in. To authenticate without a browser, run:\n  grok login --device-code\n\nAlternatively, set the XAI_API_KEY environment variable or run `grok login` on a machine with a browser.";
 
-const found = (thread_: ReturnType<typeof thread>) =>
-  envelope({
-    structuredOutput: {
-      found: true,
-      thread: {
-        ...thread_,
-        post: { ...thread_.post, quoted: [] },
-        replies: thread_.replies.map((each) => ({ ...each, replies: null })),
-      },
-    },
-  });
+const answerOf = (thread_: ReturnType<typeof thread>) => ({
+  found: true,
+  thread: {
+    ...thread_,
+    post: { ...thread_.post, quoted: [] },
+    replies: thread_.replies.map((each) => ({ ...each, replies: null })),
+  },
+});
+
+const found = (value: ReturnType<typeof thread>) => envelope({ structuredOutput: answerOf(value) });
 
 describe("the grok CLI answer is read into a fetched thread or a named refusal", () => {
   it("takes the thread of a done answer", () => {
     const outcome = outcomeOf(exited(found(thread([reply(1000000000000000011n, POST_ID)]))));
-
     assert.equal(outcome.kind, "fetched");
     assert.equal(outcome.kind === "fetched" && outcome.fetch.kind, "thread");
     assert.equal(outcome.kind === "fetched" && outcome.repaired, 0);
+  });
+
+  it("reads only the last JSON answer when structured output is null", () => {
+    const value = thread([], { text: 'The quoted "}" is followed by {{ in the post.' });
+    const outcome = outcomeOf(exited(found(value)));
+    const last = JSON.stringify(answerOf(value));
+    const absent = JSON.stringify({ found: false, thread: null });
+    const fallback = (text: string) =>
+      outcomeOf(exited(envelope({ structuredOutput: null, text })));
+
+    assert.deepEqual(fallback([absent, absent, last].join("\n")), outcome);
+    assert.deepEqual(
+      fallback(last + absent),
+      outcomeOf(exited(envelope({ structuredOutput: { found: false, thread: null } }))),
+    );
+    assert.equal(fallback(last + "{}").kind, "refused");
+    assert.equal(fallback(last + " trailing").kind, "refused");
   });
 
   it("maps a post the tools cannot find to the status result", () => {

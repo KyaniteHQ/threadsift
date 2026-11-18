@@ -27,17 +27,25 @@ export async function storedForVerification(
   {
     judged,
     digest = null,
+    cliAttempts = null,
     waiting = false,
   }: Readonly<{
     judged: Judged;
     digest?: string | null;
+    cliAttempts?: number | null;
     waiting?: boolean;
   }>,
 ): Promise<void> {
   const { db } = instance.core;
 
   await db.batch([
-    ...queuedVerification(db, { itemId, address: addressOf(statusId), thread: value, digest }),
+    ...queuedVerification(db, {
+      itemId,
+      address: addressOf(statusId),
+      thread: value,
+      digest,
+      cliAttempts,
+    }),
     savedProgress(db, itemId, 0, judged),
   ]);
 

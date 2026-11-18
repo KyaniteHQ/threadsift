@@ -17,24 +17,6 @@ type StatusRow = Pick<ItemRow, "id"> &
 
 type Wait = z.infer<typeof WaitSchema>;
 
-type StatusFields =
-  | Extract<ShownStatus, { status: "failed" | "processing" }>
-  | (Extract<ShownStatus, { status: "ready" }> &
-      (
-        | { readonly retry: "digest" | "paste"; readonly digestOutcome: "failed" }
-        | { readonly retry: null; readonly digestOutcome: "none" }
-      ));
-
-function statusFields(row: Readonly<StatusRow>): StatusFields {
-  const shown = shownStatus(row);
-
-  if (shown.status !== "ready") return shown;
-
-  return shown.retry === null
-    ? { ...shown, retry: null, digestOutcome: "none" }
-    : { ...shown, retry: shown.retry, digestOutcome: "failed" };
-}
-
 function waitOf({ status, waitReason, retryAt }: Readonly<StatusRow>): Wait | null {
   return status === "processing" && waitReason !== null && retryAt !== null
     ? { reason: waitReason, retryAt }
@@ -49,11 +31,12 @@ export function itemView<Row extends StatusRow>(
   | keyof CountColumns
   | "status"
   | "reason"
+  | "digestOutcome"
   | "digestSource"
   | "waitReason"
   | "retryAt"
 > &
-  StatusFields & {
+  ShownStatus & {
     readonly wait: Wait | null;
     readonly commentCount: CommentCount | null;
     readonly image: z.infer<typeof ItemImageSchema> | null;
@@ -72,7 +55,7 @@ export function itemView<Row extends StatusRow>(
 
   return {
     ...view,
-    ...statusFields(row),
+    ...shownStatus(row),
     wait: waitOf(row),
     image: imageOf(row),
     commentCount: commentCountOf(row),

@@ -109,7 +109,7 @@ export const X_NOTICES: Readonly<
     kind: "save-note",
   },
   "x-unconfirmed": {
-    text: "X’s own page couldn’t confirm the post: X’s embed service couldn’t be reached or the post didn’t match what X shows. Nothing was changed; paste the link again later.",
+    text: "X’s embed service was unavailable or the returned post did not match what X shows. The new read saved nothing, and any earlier copy was kept.",
     kind: "save-note",
   },
   "x-answer-refused": {

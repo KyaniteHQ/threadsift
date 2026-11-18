@@ -11,6 +11,7 @@ import { type XThreadValue, StoredXThreadSchema } from "./x-wire.ts";
 export interface Verification {
   readonly revision: number;
   readonly thread: XThreadValue;
+  readonly cliAttempts: number | null;
   readonly digest: string | null;
   readonly judged: Judged;
 }
@@ -36,7 +37,13 @@ export async function verificationOf(db: Database, itemId: number): Promise<Stor
   return judged.success && thread !== null
     ? {
         kind: "readable",
-        verification: { revision: row.revision, digest: row.digest, thread, judged: judged.data },
+        verification: {
+          revision: row.revision,
+          cliAttempts: row.cliAttempts,
+          digest: row.digest,
+          thread,
+          judged: judged.data,
+        },
       }
     : { kind: "unreadable", revision: row.revision };
 }

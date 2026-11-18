@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { whereOf } from "../../src/core/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
+import { offersFetchRetry } from "./paste-card.ts";
 import { countLabel } from "./reader-text.ts";
 import { SETTINGS_PATH } from "./routing.ts";
 import { SavedTime } from "./SavedTime.tsx";
@@ -10,6 +11,7 @@ import {
   CARD_TITLES,
   DIGEST_NOT_UPDATED,
   NO_DIGEST,
+  NOTICES,
   RETRY_LABEL,
   SAVED_COMMENT,
   SOURCE_LABELS,
@@ -74,9 +76,11 @@ function Failed({
         <Icon name="warn" className="ic ic-s tone-warn" />
         {item.status === "failed"
           ? failureTitleOf(item)
-          : item.digestTitle === null
-            ? NO_DIGEST
-            : DIGEST_NOT_UPDATED}
+          : offersFetchRetry(item)
+            ? NOTICES[item.xNote].text
+            : item.digestTitle === null
+              ? NO_DIGEST
+              : DIGEST_NOT_UPDATED}
       </p>
       <button
         type="button"

@@ -9,6 +9,7 @@ export const xVerifications = sqliteTable("x_verifications", {
     .references(() => items.id, { onDelete: "cascade" }),
   revision: integer("revision").notNull(),
   thread: text("thread").notNull(),
+  cliAttempts: integer("cli_attempts"),
   digest: text("digest"),
   judged: text("judged", { mode: "json" }).$type<Judged>().notNull(),
 });

@@ -15,6 +15,13 @@
       "when": 1794947430738,
       "tag": "0001_vault",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794994092060,
+      "tag": "0002_x_cli_attempts",
+      "breakpoints": true
     }
   ]
 }
