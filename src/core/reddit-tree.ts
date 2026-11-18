@@ -1,4 +1,4 @@
-import { storedCommentId, wireCommentId } from "./comment-id.ts";
+import { WireCommentId, storedCommentId, wireCommentId } from "./comment-id.ts";
 import { utf8Length } from "./encoding.ts";
 import { INLINE_TEXT_BYTES } from "./limits.ts";
 import { type WireChild, type WireComment, type WirePost, ThreadJson } from "./reddit-wire.ts";
@@ -44,19 +44,21 @@ function repliesOf({ replies }: Readonly<WireComment>): readonly WireChild[] {
 }
 
 function pendingOf(children: readonly WireChild[], parent: string, depth: number): Pending[] {
-  return children.map((child) => ({ child, parent, depth })).toReversed();
-}
-
-export function walk(children: readonly WireChild[], root: string): readonly Walked[] {
-  const walked: Walked[] = [];
-  const stack = pendingOf(children, root, 0);
-
-  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
-    const { child, parent, depth } = next;
-
+  return children.map((child) => {
     if (child.data.parent_id !== parent) {
       refuse(`a parent_id does not match the tree under ${parent}`);
     }
+
+    return { child, parent, depth };
+  });
+}
+
+function walkPending(roots: readonly Pending[]): readonly Walked[] {
+  const walked: Walked[] = [];
+  const stack = roots.toReversed();
+
+  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
+    const { child, parent, depth } = next;
 
     if (child.kind === "more") {
       walked.push({ comment: null, children: child.data.children, parent, depth });
@@ -73,8 +75,56 @@ export function walk(children: readonly WireChild[], root: string): readonly Wal
     checkedText(data.body, `the body of comment ${data.id}`);
     walked.push({ comment: data, children: [], parent, depth });
 
-    for (const reply of pendingOf(repliesOf(data), storedCommentId(data.id), depth + 1)) {
+    for (const reply of pendingOf(
+      repliesOf(data),
+      storedCommentId(data.id),
+      depth + 1,
+    ).toReversed()) {
       stack.push(reply);
+    }
+  }
+
+  return walked;
+}
+
+export function walk(children: readonly WireChild[], root: string): readonly Walked[] {
+  return walkPending(pendingOf(children, root, 0));
+}
+
+export function walkArchive(children: readonly WireChild[], root: string): readonly Walked[] {
+  const branches: Pending[][] = [];
+  const missing = new Map<string, Pending[]>();
+
+  for (const child of children) {
+    if (child.kind === "more" || child.data.parent_id === root) {
+      branches.push(pendingOf([child], root, 0));
+      continue;
+    }
+
+    const parent = child.data.parent_id.toLowerCase();
+    const reply = { child, parent, depth: 1 };
+    const siblings = missing.get(parent);
+
+    if (siblings === undefined) {
+      const branch = [reply];
+
+      missing.set(parent, branch);
+      branches.push(branch);
+    } else {
+      siblings.push(reply);
+    }
+  }
+
+  const walked = walkPending(branches.flat());
+  const present = new Set(
+    walked.flatMap(({ comment }) => (comment === null ? [] : [comment.id.toLowerCase()])),
+  );
+
+  for (const parent of missing.keys()) {
+    const id = WireCommentId.safeParse(wireCommentId(parent));
+
+    if (!id.success || present.has(id.data)) {
+      refuse(`the archive tree has an unexpected top-level parent_id ${parent}`);
     }
   }
 

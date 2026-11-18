@@ -4,7 +4,7 @@ import { ITEM_REQUEST_BYTES } from "./limits.ts";
 import type { RedditRef } from "./links.ts";
 import { pause } from "./pause.ts";
 import type { Network, Ports } from "./ports.ts";
-import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
+import { type ParsedThread, parseArchiveThread } from "./reddit-json.ts";
 import { archiveFillIsOn } from "./reddit-settings.ts";
 import { holdsNoThread } from "./reddit-thread.ts";
 import { RATE_LIMITED } from "./reddit-window.ts";
@@ -86,7 +86,7 @@ async function fetchedThread(
 
   if (json === null) return null;
 
-  const parsed = parseRedditThread([json], ref);
+  const parsed = parseArchiveThread(json, ref);
 
   return parsed.kind === "thread" ? parsed.thread : null;
 }

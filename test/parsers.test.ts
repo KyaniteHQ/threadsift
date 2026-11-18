@@ -5,7 +5,7 @@ import { redditJsonOfArchive } from "../src/core/archive-adapter.ts";
 import { readArticle } from "../src/core/article.ts";
 import { CATALOG_KEY_EXPANSION_MAX, CATALOG_KEY_MAX } from "../src/core/catalog-key-limit.ts";
 import { catalogKey } from "../src/core/catalog-key.ts";
-import { parseRedditThread } from "../src/core/reddit-json.ts";
+import { parseArchiveThread } from "../src/core/reddit-json.ts";
 import { relatedPickTask } from "../src/core/related-task.ts";
 import { overviewLine } from "../src/core/topic-overview-contract.ts";
 
@@ -130,18 +130,23 @@ describe("the parsers turn literal input into the values the library stores", ()
           ),
           { retrieved_2nd_on: 1_700_000_900 },
         ),
+        archiveComment("c5", "t1_c0", "I keep two copies.", ""),
+        archiveComment("C7", "t3_abc123", "Check the restore.", ""),
+        archiveComment("c6", "t1_C0", "I check both copies.", ""),
       ],
     };
 
     const json = redditJsonOfArchive(JSON.stringify(post), JSON.stringify(tree));
 
-    assert.notEqual(json, null);
+    assert.ok(json !== null);
 
-    const parsed = parseRedditThread([json ?? ""], {
+    const ref = {
       postId: "abc123",
       commentId: undefined,
       community: undefined,
-    });
+    };
+
+    const parsed = parseArchiveThread(json, ref);
 
     assert.equal(parsed.kind, "thread");
 
@@ -150,12 +155,21 @@ describe("the parsers turn literal input into the values the library stores", ()
     assert.equal(parsed.thread.title, "How do you back up SQLite?");
     assert.equal(parsed.thread.reported, 4);
     assert.deepEqual(
-      parsed.thread.nodes.map(({ id, depth, eligible, body }) => [id, depth, eligible, body]),
+      parsed.thread.nodes.map(({ id, parentId, depth, eligible, body }) => [
+        id,
+        parentId,
+        depth,
+        eligible,
+        body,
+      ]),
       [
-        ["t1_c1", 0, true, "Use the online backup command instead of copying the file."],
-        ["t1_c2", 1, false, null],
-        ["t1_c3", 2, true, "It worked for me after a restart."],
-        ["t1_c4", 2, false, null],
+        ["t1_c1", null, 0, true, "Use the online backup command instead of copying the file."],
+        ["t1_c2", "t1_c1", 1, false, null],
+        ["t1_c3", "t1_c2", 2, true, "It worked for me after a restart."],
+        ["t1_c4", "t1_c2", 2, false, null],
+        ["t1_c5", "t1_c0", 1, true, "I keep two copies."],
+        ["t1_c6", "t1_c0", 1, true, "I check both copies."],
+        ["t1_C7", null, 0, true, "Check the restore."],
       ],
     );
   });

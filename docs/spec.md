@@ -140,6 +140,7 @@ paste box, Share target, Extension, Import, HTTP API, MCP, Grok Bot
 
 
 - A Reddit link that arrives without Extension content (Paste, Import, Share) is filled from Arctic Shift when no Reddit account is connected or the account request fails. It is on by default, and a setting turns it off.
+- When Arctic Shift returns replies at the top of the tree because their parent is missing, the Reader groups them under one Context stub per missing parent.
 - Comments that Arctic marks as deleted later are dropped. The oEmbed title wins when Arctic's title differs, and the Item names the archive and its date as its source.
 - A 429 whose reset is at most 10 s away is retried once, after `X-RateLimit-Reset`. A longer reset, a second 429, a timeout or an outage leaves the Item Link-only without a retry.
 - The fill runs once, when the link is pasted and the Item holds no thread. A later Paste of the same link does not replace a saved thread. Extension content replaces an archive fill on the next Save.
@@ -262,7 +263,7 @@ Rules for the Digest:
 - **The bar** holds the Comments button, Mark read or unread, Open on the Item's Source and Delete, and it drops the key hint and then the button labels until it fits.
 - **Comments.** Replies nest under their parent, drawn in the Comment style the owner chose, and the Item author's comments carry an OP badge.
 - A comment taller than 8 lines folds to its first 6 lines, and keyboard focus that lands inside a fold opens it.
-- A Context stub marks a dropped parent or an X parent that was not saved, and a stub that says "Further replies were not saved." marks replies behind a `more` stub.
+- A Context stub marks a dropped parent or a parent missing from an X thread or a Reddit archive fill, and a stub that says "Further replies were not saved." marks replies behind a `more` stub.
 - The Comments button jumps to the section and shortens to "N of M" and then to the count as the bar narrows.
 - A row reads "Kept N of M" for an Item whose Digest covers the thread, "Showing N of M" before that, and "Saved comment" for a saved Reddit comment.
 - **Highlights.** The owner selects one passage inside the post text or inside one comment the Reader shows, and a popover offers Keep. A selection across two bodies, or one that touches a control or a Context stub, offers nothing.
