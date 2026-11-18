@@ -11,18 +11,19 @@ describe("a post is read from the oEmbed answer X gave for its id", () => {
     assert.deepEqual([post.id, post.handle], [CUT_BARE_ID, "fieldnotes_ana"]);
   });
 
-  it("takes a post as cut only when its text ends in the ellipsis, before the links X appends, and the text before it is at least 250 characters with each link counted as 23", () => {
+  it("takes a post as cut only when its text ends in the ellipsis before the links X appends and the head weighs at least 250 by X's character weights, with each link counted as 23", () => {
     assert.deepEqual(
       [
         "long-cut-bare.json",
         "long-cut-link.json",
         "long-cut-media.json",
         "long-cut-two-links.json",
+        "long-cut-korean.json",
         "typed-ellipsis.json",
         "long-whole-links.json",
         "reply-long-whole.json",
       ].map((name) => postOf(name).cut !== null),
-      [true, true, true, true, false, false, false],
+      [true, true, true, true, true, false, false, false],
     );
   });
 

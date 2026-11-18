@@ -8,6 +8,13 @@ const MEDIA_DISPLAY = /^(?:https?:\/\/)?pic\.(?:twitter|x)\.com\//u;
 const WEB_DISPLAY = /^https?:\/\//u;
 const MENTION_DISPLAY = /^@[\p{L}\p{N}_]/u;
 const NOT_SPACE_AT_END = /\S$/u;
+const EMOJI_BASE = String.raw`[\p{Emoji}--[#*0-9]]`;
+const EMOJI_SEQUENCE = String.raw`[#*0-9]\uFE0F?\u20E3|\p{RGI_Emoji_Tag_Sequence}|\p{RGI_Emoji_Flag_Sequence}|${EMOJI_BASE}(?:\uFE0F?\p{Emoji_Modifier}|\uFE0F)`;
+const EMOJI_PART = String.raw`(?:${EMOJI_SEQUENCE}|${EMOJI_BASE})`;
+const WEIGHTED_TOKEN = new RegExp(
+  String.raw`(?<emoji>${EMOJI_PART}(?:\u200D${EMOJI_PART})+|${EMOJI_SEQUENCE}|\p{RGI_Emoji})|(?<single>[\0-\u10FF\u2000-\u200D\u2010-\u201F\u2032-\u2037])|.`,
+  "gsv",
+);
 
 export function squashed(text: string): string {
   return text
@@ -89,6 +96,23 @@ function flat(items: readonly Item[]): string {
   return squashed(items.map((item) => FLATTENED[item.kind](item)).join(""));
 }
 
+function weightedLength(text: string): number {
+  let length = 0;
+
+  for (const match of text.normalize().matchAll(WEIGHTED_TOKEN)) {
+    const [token] = match;
+
+    if (token === LINK) {
+      length += LINK_LENGTH;
+      continue;
+    }
+
+    length += match.groups?.["single"] === undefined ? 2 : 1;
+  }
+
+  return length;
+}
+
 function cutOf(items: readonly Item[]): { readonly head: string; readonly links: number } | null {
   const marker = items.findLastIndex(
     (item) => item.kind === "text" && item.text.trimEnd().endsWith(ELLIPSIS),
@@ -110,9 +134,7 @@ function cutOf(items: readonly Item[]): { readonly head: string; readonly links:
   const text = flat(head);
   const links = head.filter((item) => item.kind === "link").length;
 
-  return afterwards && text.length + links * (LINK_LENGTH - 1) >= MIN_CUT_HEAD
-    ? { head: text, links }
-    : null;
+  return afterwards && weightedLength(text) >= MIN_CUT_HEAD ? { head: text, links } : null;
 }
 
 function anchorsOf(items: readonly Item[], kind: "link" | "media"): readonly Anchor[] {
