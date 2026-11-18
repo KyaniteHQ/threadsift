@@ -67,22 +67,34 @@ function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disab
   );
 }
 
-function modelHelp(provider: Provider) {
-  if (isCliProvider(provider)) return CLI_TEXT[provider].modelHelp;
+function modelHelp({ provider, recommendation }: Fields): string | undefined {
+  if (isCliProvider(provider)) {
+    const { modelHelp: fallback, catalogHelp } = CLI_TEXT[provider];
+    const model =
+      recommendation === undefined
+        ? fallback
+        : AI_TEXT.recommendedModelHelp.replace("{model}", recommendation.model);
+    return catalogHelp === undefined ? model : `${model} ${catalogHelp}`;
+  }
 
   return provider === "workers-ai" ? AI_TEXT.workersAiHelp : undefined;
 }
 
 function helpFor(
   name: keyof typeof FIELD_KINDS,
-  provider: Provider,
+  fields: Fields,
   { publicOnly, savedKey }: Readonly<{ publicOnly: boolean; savedKey: SavedKey }>,
 ) {
-  if (name === "effort") return AI_TEXT.effortHelp;
+  if (name === "effort") {
+    const { recommendation } = fields;
+    return recommendation === undefined
+      ? AI_TEXT.effortHelp
+      : AI_TEXT.recommendedEffortHelp.replace("{effort}", recommendation.effort);
+  }
 
   if (name === "key") return savedKey === "unreadable" ? undefined : AI_TEXT.keyHelp;
 
-  if (name === "model") return modelHelp(provider);
+  if (name === "model") return modelHelp(fields);
 
   return publicOnly ? AI_TEXT.publicUrlHelp : undefined;
 }
@@ -131,7 +143,7 @@ export function AiFields({
           label={AI_TEXT[name]}
           kind={kind}
           marked={marked}
-          help={helpFor(name, fields.provider, { publicOnly, savedKey })}
+          help={helpFor(name, fields, { publicOnly, savedKey })}
         />
       ))}
     </>

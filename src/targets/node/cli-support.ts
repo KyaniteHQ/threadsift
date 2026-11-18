@@ -119,6 +119,7 @@ export interface Attempt<Result> {
 
 export abstract class SlottedCli implements CliRunner {
   abstract readonly provider: CliProvider;
+  abstract readonly recommendation: CliRunner["recommendation"];
   private readonly shutdown = new AbortController();
   private readonly slots: Slots;
 
@@ -131,7 +132,21 @@ export abstract class SlottedCli implements CliRunner {
   ): { readonly slug: string; readonly levels: readonly string[] } | undefined;
 
   resolve(config: Readonly<CliAiConnection>): CliSelection {
-    if (config.model === "" && config.effort === undefined) return config;
+    const { model, effort } = config;
+    if (model !== "") return this.select(config);
+
+    const recommended = this.recommendation;
+    if (recommended !== undefined)
+      return this.select({
+        ...config,
+        model: recommended.model,
+        effort: effort ?? recommended.effort,
+      });
+
+    return effort === undefined ? config : this.select(config);
+  }
+
+  private select(config: Readonly<CliAiConnection>): CliSelection {
     const choice = this.modelChoice(config.model);
     if (choice === undefined) return refusedAi("model-not-found", 404);
     if (config.effort !== undefined && !choice.levels.includes(config.effort))

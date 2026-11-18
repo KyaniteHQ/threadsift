@@ -20,6 +20,7 @@ async function aiView(loaded: LoadedAi, ports: SettingsPorts): Promise<AiSetting
     settings: viewOf(loaded, loaded.state !== "secret-missing"),
     providers: ports.ai.providers,
     signedIn: await ports.ai.signedIn(),
+    recommendations: ports.ai.recommendations,
     secretReady: ports.secrets !== null,
     publicOnly: ports.ai.publicOnly,
     revision: loaded.revision,

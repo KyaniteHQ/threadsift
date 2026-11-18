@@ -36,6 +36,7 @@ export const AI_TEXT = {
   keyNotNeeded: "No API key needed for Workers AI.",
   claudeCodeKeyNotNeeded: "No API key is needed. Claude Code uses its own sign-in on this server.",
   claudeCodeModelHelp: "Leave blank to use Claude Code's default model.",
+  recommendedModelHelp: "The recommended model is {model}. Leaving Model blank uses it.",
   claudeCodeSignedOut:
     "Claude Code is not signed in on this server. Reload this page after signing in with",
   claudeCodeSignInCommand: "claude auth login",
@@ -43,7 +44,8 @@ export const AI_TEXT = {
     "Claude Code's sign-in was rejected. Run claude auth login on the server, or replace the token it started with, then press Verify again.",
   codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in on this server.",
   codexModelHelp:
-    "When Model and Effort are blank, Codex uses its defaults. If only Effort is set, Threadsift uses the first visible model by priority in the bundled catalog. Any model you enter must be listed by codex debug models --bundled.",
+    "Codex uses its defaults when both fields are blank. If only Effort is filled in, Threadsift uses the first visible model in the bundled catalog by priority.",
+  codexCatalogHelp: "A model you enter must be listed by codex debug models --bundled.",
   codexSignedOut: "Codex is not signed in on this server. Reload this page after signing in with",
   codexSignInCommand: "codex login --device-auth",
   codexRejected:
@@ -52,6 +54,8 @@ export const AI_TEXT = {
   model: "Model",
   effort: "Effort",
   effortHelp: "Leave blank to use the CLI default.",
+  recommendedEffortHelp:
+    "Threadsift uses {effort} when both Model and Effort are blank. If a Model is entered and Effort is blank, the CLI uses that model's default effort.",
   invalidEffort:
     "This model rejects that effort and accepts only {levels}. Save one of those levels or clear Effort.",
   noEfforts: "This model accepts no effort levels. Clear Effort and press Save.",
@@ -114,6 +118,7 @@ export const CLI_TEXT = {
   "claude-code": {
     keyNotNeeded: AI_TEXT.claudeCodeKeyNotNeeded,
     modelHelp: AI_TEXT.claudeCodeModelHelp,
+    catalogHelp: undefined,
     signedOut: AI_TEXT.claudeCodeSignedOut,
     signInCommand: AI_TEXT.claudeCodeSignInCommand,
     rejected: AI_TEXT.claudeCodeRejected,
@@ -121,6 +126,7 @@ export const CLI_TEXT = {
   codex: {
     keyNotNeeded: AI_TEXT.codexKeyNotNeeded,
     modelHelp: AI_TEXT.codexModelHelp,
+    catalogHelp: AI_TEXT.codexCatalogHelp,
     signedOut: AI_TEXT.codexSignedOut,
     signInCommand: AI_TEXT.codexSignInCommand,
     rejected: AI_TEXT.codexRejected,

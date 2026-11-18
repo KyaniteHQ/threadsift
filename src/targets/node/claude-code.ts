@@ -3,7 +3,9 @@ import { homedir } from "node:os";
 import { z } from "zod";
 
 import { type AiExecution, PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
+import { readOrAssume } from "../../core/failure-log.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
+import { PROBE_MS } from "../../core/request-waits.ts";
 import { apiRefusal } from "../shared/ai-call.ts";
 import type { RunnerTask } from "../shared/ai-runtime.ts";
 import { configuredCode } from "../shared/configured-code.ts";
@@ -30,6 +32,20 @@ export interface ClaudeEnvironment {
 }
 
 const BINARY = "claude";
+const SONNET_5_5_VERSION = /^(\d+)\.(\d+)\.(\d+) \(Claude Code\)\s*$/u;
+const RECOMMENDED = { model: "claude-sonnet-5-5", effort: "medium" } as const;
+const VERSION_UNKNOWN = "claude-version-unknown";
+
+function supportsSonnet55(stdout: string): boolean | null {
+  const parts = SONNET_5_5_VERSION.exec(stdout);
+  if (parts === null) return null;
+
+  const major = Number(parts[1]);
+  const minor = Number(parts[2]);
+  const patch = Number(parts[3]);
+
+  return major > 2 || (major === 2 && (minor > 1 || (minor === 1 && patch >= 284)));
+}
 
 const EnvelopeSchema = z.object({
   is_error: z.boolean(),
@@ -68,13 +84,20 @@ function taskArguments(
 
 class ClaudeCode extends SlottedCli {
   readonly provider = PROVIDERS["claude-code"].id;
+  readonly recommendation;
   private readonly binary: string;
   private readonly environment: Readonly<ClaudeEnvironment>;
 
-  constructor(binary: string, environment: Readonly<ClaudeEnvironment>, slots: Slots) {
+  constructor(
+    binary: string,
+    environment: Readonly<ClaudeEnvironment>,
+    slots: Slots,
+    recommendation: typeof RECOMMENDED | undefined,
+  ) {
     super(slots);
     this.binary = binary;
     this.environment = environment;
+    this.recommendation = recommendation;
   }
 
   protected modelChoice(slug: string) {
@@ -103,21 +126,7 @@ class ClaudeCode extends SlottedCli {
   }
 
   private spawn(args: readonly string[], stdin: string, signal: AbortSignal) {
-    return inEmptyFolder((cwd) =>
-      runProcess(
-        {
-          file: this.binary,
-          args,
-          env: this.childEnvironment(),
-          cwd,
-          stdin,
-          stdoutCap: STDOUT_CAP,
-          stderrCap: STDERR_CAP,
-          keepStdout: true,
-        },
-        signal,
-      ),
-    );
+    return spawnClaude(this.binary, args, this.childEnvironment(), stdin, signal);
   }
 
   private childEnvironment() {
@@ -151,18 +160,69 @@ class ClaudeCode extends SlottedCli {
   }
 }
 
+function spawnClaude(
+  file: string,
+  args: readonly string[],
+  env: Readonly<Record<string, string>>,
+  stdin: string,
+  signal: AbortSignal,
+) {
+  return inEmptyFolder((cwd) =>
+    runProcess(
+      {
+        file,
+        args,
+        env,
+        cwd,
+        stdin,
+        stdoutCap: STDOUT_CAP,
+        stderrCap: STDERR_CAP,
+        keepStdout: true,
+      },
+      signal,
+    ),
+  );
+}
+
+async function recommendationOf(binary: string) {
+  const version = await spawnClaude(
+    binary,
+    ["--version"],
+    { PATH: childPath(binary) },
+    "",
+    AbortSignal.timeout(PROBE_MS),
+  );
+  const supports =
+    version.kind === "exited" && version.code === 0 ? supportsSonnet55(version.stdout) : null;
+  if (supports === null)
+    console.error(
+      JSON.stringify({
+        event: VERSION_UNKNOWN,
+        kind: version.kind,
+        exit: exitCode(version),
+      }),
+    );
+
+  return supports === true ? RECOMMENDED : undefined;
+}
+
 export async function claudeCode(environment: Readonly<ClaudeEnvironment>, slots: Slots) {
   const binary = await findBinary(environment.path, BINARY);
 
-  return binary === null
-    ? null
-    : new ClaudeCode(
-        binary,
-        {
-          ...environment,
-          configDir: configuredCode(environment.configDir),
-          token: configuredCode(environment.token),
-        },
-        slots,
-      );
+  if (binary === null) return null;
+
+  const recommendation = await readOrAssume(undefined, { event: VERSION_UNKNOWN, fields: {} }, () =>
+    recommendationOf(binary),
+  );
+
+  return new ClaudeCode(
+    binary,
+    {
+      ...environment,
+      configDir: configuredCode(environment.configDir),
+      token: configuredCode(environment.token),
+    },
+    slots,
+    recommendation,
+  );
 }

@@ -40,6 +40,19 @@ Measurements behind the Reddit fetch:
 
 ## AI providers
 
+The owner chose `claude-sonnet-5-5` at medium for Claude Code and `gpt-6.2-sol` at medium for Codex. The comparison ran Digests on 20 Items from the owner's library on 2026-11-18 with `tools/provider-comparison.ts` at revisions `fd4eee8` and `d43acd8`. The records stay outside the repository.
+
+| Provider | Model | Effort | Digests | Median call | Longest call |
+|---|---|---|---:|---:|---:|
+| Claude Code | `claude-sonnet-5-5` | Medium | 20/20 | 5.6 s | 9.1 s |
+| Claude Code | `claude-sonnet-5-5` | High | 20/20 | 7.1 s | 20.0 s |
+| Claude Code | `claude-sonnet-5-5` | CLI default | 20/20 | 5.5 s | 8.6 s |
+| Claude Code | `claude-haiku-5-5` | CLI default | 20/20 | 10.3 s | 22.3 s |
+| Codex | `gpt-6.2-sol` | Medium | 20/20 | 15.3 s | 26.1 s |
+| Codex | `gpt-6.2-sol` | CLI default (low) | 20/20 | 13.9 s | 22.6 s |
+
+Workers AI bills by use. The free OpenRouter rows returned 6 Digests across 120 attempts in the comparison. Grok Bot has no model field. These Providers have no recommendation.
+
 - The Providers Anthropic, OpenAI and xAI have no successful live run until the owner supplies a key; only their refusal of a wrong key was run against the vendors. OpenRouter ran a real Verify on the container with a free model.
 - OpenRouter turns a new key on some seconds after it makes it (up to 17.2 s in 16 runs), so Connect saves the key and then checks once a second for up to 45 s.
 - Anthropic allows "an end user… signing in to the unmodified Claude Code binary with their own Claude subscription" and forbids a third party from offering "Claude.ai login" or routing plan credentials for its users (`code.claude.com/docs/en/legal-and-compliance`). So the hosted product never offers a Claude plan login. Plan limits are small for an Import, so the Import screen suggests an API key when a plan Provider is picked.

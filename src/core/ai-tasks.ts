@@ -170,8 +170,10 @@ export async function runAiTask<Result>(
   attempt?: AbortSignal,
 ): Promise<TaskResult<Result> | ClaimLost> {
   if (ai.state !== "ready") return { ...refusedAi(ai.state), taskId: null };
-  const { config } = ai;
+  const available = ports.ai.providers.includes(ai.config.provider);
+  const config = available && ai.config.kind === "cli" ? ports.ai.resolveCli(ai.config) : ai.config;
 
+  if (config.kind === "refused") return { ...config, taskId: null };
   if (config.kind === "http" && !ports.ai.allowsUrl(config.baseUrl))
     return { ...refusedAi("refused"), taskId: null };
   const text = definition.prepareInput(input.text);
@@ -180,8 +182,7 @@ export async function runAiTask<Result>(
 
   if (task === null) return CLAIM_LOST;
 
-  if (!ports.ai.providers.includes(config.provider))
-    return failTask(ports, task.id, "provider-unavailable");
+  if (!available) return failTask(ports, task.id, "provider-unavailable");
 
   return execute(
     ports,

@@ -161,6 +161,10 @@ const KeylessSettingsViewSchema = z.object({
   model: z.string(),
 });
 
+const CliRecommendationSchema = z.object({ model: z.string(), effort: z.string() }).readonly();
+
+export type CliRecommendation = z.infer<typeof CliRecommendationSchema>;
+
 export const AiSettingsViewSchema = z.object({
   settings: z
     .union([
@@ -171,6 +175,7 @@ export const AiSettingsViewSchema = z.object({
     .nullable(),
   providers: z.array(ProviderSchema).readonly(),
   signedIn: z.array(CliProviderSchema).readonly(),
+  recommendations: z.partialRecord(CliProviderSchema, CliRecommendationSchema),
   secretReady: z.boolean(),
   publicOnly: z.boolean(),
   revision: z.number().int().min(0),

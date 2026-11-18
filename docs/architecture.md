@@ -2,7 +2,7 @@
 
 | State | Part |
 |---|---|
-| Not built | The Cloudflare deploy button (`docs/architecture/cloudflare-deploy-button.md`) and the Provider comparison that picks the default model |
+| Not built | The Cloudflare deploy button (`docs/architecture/cloudflare-deploy-button.md`) |
 | Partly built | The Vault mirror keeps Item notes and the library wiki current on GitHub. Folder mode is Not built (`docs/architecture/vault-mirror.md`) |
 | Partly built | The Restore of every library record, the stored images and post text files, the search parts and the Highlight anchors is built (`docs/architecture/export-backup-and-restore.md`). Cancel, resume, the cleanup of abandoned parts and the setup page step are built |
 | Partly built | Grok Bot: no AI task other than the X link send has run against a real bot (`docs/architecture/open-items-and-unverified-claims.md`) |

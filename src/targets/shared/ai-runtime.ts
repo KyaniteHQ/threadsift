@@ -7,6 +7,7 @@ import {
   type AiExecution,
   type AiTaskRequest,
   type CliProvider,
+  type CliRecommendation,
   refusedAi,
 } from "../../core/ai-contract.ts";
 import { allowedAiUrl } from "../../core/ai-url.ts";
@@ -28,6 +29,7 @@ type TaskRunner<Kind extends AiTaskRequest<never>["config"]["kind"]> = <Result>(
 
 export interface CliRunner {
   readonly provider: CliProvider;
+  readonly recommendation: CliRecommendation | undefined;
   readonly run: TaskRunner<"cli">;
   readonly resolve: AiRuntime["resolveCli"];
   readonly signedIn: () => Promise<boolean>;
@@ -45,12 +47,29 @@ interface AiRuntimeOptions {
 
 const HTTP_PROVIDERS = HttpProviderSchema.options;
 
+function providersOf(cli: readonly CliRunner[], binding: AiRuntimeOptions["binding"]) {
+  return [
+    ...HTTP_PROVIDERS,
+    ...(binding === undefined ? [] : [PROVIDERS["workers-ai"].id]),
+    ...cli.map(({ provider }) => provider),
+    GROK_BOT_PROVIDER,
+  ];
+}
+
 async function signedInProviders(cli: readonly CliRunner[]): Promise<readonly CliProvider[]> {
   const states = await Promise.all(
     cli.map(async (runner) => [runner, await runner.signedIn()] as const),
   );
 
   return states.flatMap(([runner, signedIn]) => (signedIn ? [runner.provider] : []));
+}
+
+function recommendationsOf(cli: readonly CliRunner[]): AiRuntime["recommendations"] {
+  return Object.fromEntries(
+    cli.flatMap(({ provider, recommendation }) =>
+      recommendation === undefined ? [] : [[provider, recommendation] as const],
+    ),
+  );
 }
 
 export async function aiAndSecrets({
@@ -67,12 +86,8 @@ export async function aiAndSecrets({
   const runnerFor = (provider: CliProvider) => cli.find((runner) => runner.provider === provider);
 
   const ai: AiRuntime = {
-    providers: [
-      ...HTTP_PROVIDERS,
-      ...(binding === undefined ? [] : [PROVIDERS["workers-ai"].id]),
-      ...cli.map(({ provider }) => provider),
-      GROK_BOT_PROVIDER,
-    ],
+    providers: providersOf(cli, binding),
+    recommendations: recommendationsOf(cli),
     publicOnly,
     allowsUrl: (url) => allowedAiUrl(url, publicOnly),
     resolveCli: (config) =>
