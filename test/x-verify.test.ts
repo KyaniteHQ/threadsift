@@ -143,6 +143,32 @@ describe("a verification job asks for as many posts as 40 requests allow, under 
     );
   });
 
+  it("requires full text for the post, quotes and author thread, and can keep a separate reply by the author", () => {
+    const value = thread([
+      { ...reply(FIRST, ROOT, "First part"), author: "FIELDNOTES_ANA" },
+      { ...reply(SECOND, ROOT, "Separate reply"), author: "fieldnotes_ana" },
+      reply(THIRD, ROOT),
+    ]);
+    const quote = { ...value.post, id: "3100000000000000009" };
+    const quoted = { ...value, post: { ...value.post, quoted: [quote] } };
+    const roles = [...sliceOf(quoted, {}), ...sliceOf(quoted, { [ROOT]: "verified" })];
+    assert.deepEqual(
+      roles.map(({ recipientsMayBeOmitted }) => recipientsMayBeOmitted),
+      [false, false, false, true, true],
+    );
+
+    const progress = progressOf(quoted, {
+      [ROOT]: "verified",
+      [quote.id]: "verified",
+      [FIRST]: "rejected",
+      [SECOND]: "verified-without-recipients",
+      [THIRD]: "verified",
+    });
+    assert.ok(progress.kind === "ready");
+    assert.equal(progress.followUps, 0);
+    assert.deepEqual(idsOf(progress.thread), [SECOND, THIRD]);
+  });
+
   it("takes at most the replies that fit the request budget of a slice, two requests for each reply without links", () => {
     const slice = sliceOf(many(100), { [ROOT]: "verified" });
 

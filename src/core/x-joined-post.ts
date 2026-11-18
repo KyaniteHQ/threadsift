@@ -3,7 +3,7 @@ import { INLINE_TEXT_BYTES, X_QUOTES_MAX } from "./limits.ts";
 import { type JoinedAuthorThread, PART_SEPARATOR, joinedAuthorThread } from "./x-author-thread.ts";
 import { LINE_BREAK, closedBlocks } from "./x-blocks.ts";
 import { NO_PHOTOS_PREFIX, isImageLine, noPhotosKey, withImages } from "./x-images.ts";
-import type { Judgement } from "./x-oembed.ts";
+import type { Judged } from "./x-verify-state.ts";
 import type { XQuoted, XThreadValue } from "./x-wire.ts";
 
 const NOT_SAVED_NOTE = "Quoted posts were not saved.";
@@ -37,8 +37,6 @@ export function postTitle(text: string, author: string): string {
     .join("")
     .trimEnd();
 }
-
-type Judgements = Readonly<Record<string, Judgement>>;
 
 function prefixOf(depth: number): string {
   return "> ".repeat(depth + 1);
@@ -87,7 +85,7 @@ function blockOf(chain: readonly Readonly<XQuoted>[], notSaved: boolean): string
 
 export function leadingQuotes(
   quoted: readonly Readonly<XQuoted>[],
-  judged: Judgements,
+  judged: Judged,
 ): readonly Readonly<XQuoted>[] {
   const stop = quoted.findIndex(({ id }) => judged[id] === "rejected");
 
@@ -107,7 +105,7 @@ function fittingQuotes(
   return [];
 }
 
-function omittedQuote(thread: Readonly<XThreadValue>, judged: Judgements): boolean {
+function omittedQuote(thread: Readonly<XThreadValue>, judged: Judged): boolean {
   const known = new Set([
     thread.post.id,
     ...thread.replies.map(({ id }) => id),
@@ -126,7 +124,7 @@ export interface JoinedPost extends JoinedAuthorThread {
 
 function withoutUnshownPhotos<Post extends Readonly<{ id: string; images: readonly string[] }>>(
   post: Post,
-  judged: Judgements,
+  judged: Judged,
 ): Post {
   return judged[noPhotosKey(post.id)] === "rejected" ? { ...post, images: [] } : post;
 }
@@ -134,7 +132,7 @@ function withoutUnshownPhotos<Post extends Readonly<{ id: string; images: readon
 export function joinedPost(
   shown: Readonly<XThreadValue>,
   keptReplies: Readonly<ReadonlySet<string>>,
-  judged: Judgements,
+  judged: Judged,
 ): JoinedPost {
   const thread: XThreadValue = {
     post: {
@@ -161,6 +159,13 @@ export function joinedPost(
       },
     },
     keptReplies,
+    new Set(
+      [...keptReplies].filter(
+        (id) =>
+          judged[id] !== "verified-without-recipients" &&
+          judged[id] !== "tail-unverified-without-recipients",
+      ),
+    ),
   );
 
   return { ...author, quotes };

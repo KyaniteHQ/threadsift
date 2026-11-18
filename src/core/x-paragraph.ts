@@ -1,3 +1,6 @@
+const LINK_LENGTH = 23;
+const MIN_CUT_HEAD = 250;
+const ELLIPSIS = "\u2026";
 export const LINK = "\uFFFC";
 
 const TEXT_NODE = 3;
@@ -74,4 +77,59 @@ export function itemsOf(
   }
 
   return items;
+}
+
+const FLATTENED: Readonly<Record<Item["kind"], (item: Readonly<Item>) => string>> = {
+  text: (item) => (item.kind === "text" ? item.text : ""),
+  link: () => LINK,
+  media: () => "",
+};
+
+function flat(items: readonly Item[]): string {
+  return squashed(items.map((item) => FLATTENED[item.kind](item)).join(""));
+}
+
+function cutOf(items: readonly Item[]): { readonly head: string; readonly links: number } | null {
+  const marker = items.findLastIndex(
+    (item) => item.kind === "text" && item.text.trimEnd().endsWith(ELLIPSIS),
+  );
+
+  const last = items[marker];
+
+  if (last?.kind !== "text") return null;
+
+  const afterwards = items
+    .slice(marker + 1)
+    .every((item) => item.kind !== "text" || item.text.trim() === "");
+
+  const head = [
+    ...items.slice(0, marker),
+    { kind: "text", text: last.text.trimEnd().slice(0, -1) } as const,
+  ];
+
+  const text = flat(head);
+  const links = head.filter((item) => item.kind === "link").length;
+
+  return afterwards && text.length + links * (LINK_LENGTH - 1) >= MIN_CUT_HEAD
+    ? { head: text, links }
+    : null;
+}
+
+function anchorsOf(items: readonly Item[], kind: "link" | "media"): readonly Anchor[] {
+  return items.flatMap((item) =>
+    item.kind === kind ? [{ href: item.href, display: item.display }] : [],
+  );
+}
+
+export function paragraphOf(node: Parameters<typeof itemsOf>[0]) {
+  const items = itemsOf(node);
+
+  return items === null
+    ? null
+    : {
+        whole: flat(items),
+        links: anchorsOf(items, "link"),
+        media: anchorsOf(items, "media"),
+        cut: cutOf(items),
+      };
 }

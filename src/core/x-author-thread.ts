@@ -141,10 +141,14 @@ export function withPartImagesOnly(thread: Readonly<XThreadValue>): XThreadValue
   };
 }
 
-export function joinedAuthorThread(thread: Readonly<XThreadValue>, kept: Ids): JoinedAuthorThread {
+export function joinedAuthorThread(
+  thread: Readonly<XThreadValue>,
+  kept: Ids,
+  strict: Ids,
+): JoinedAuthorThread {
   const { post, replies } = thread;
   const byId = new Map(replies.map((reply) => [reply.id, reply]));
-  const shown = authorThreadOf(thread, byId, kept);
+  const shown = authorThreadOf(thread, byId, strict);
   const fitting = fittingText(post.text, shown);
 
   const refused = authorThreadOf(thread, byId, new Set(byId.keys())).filter(

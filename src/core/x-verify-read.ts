@@ -4,8 +4,7 @@ import { z } from "zod";
 import { parsedJson } from "./parsed-json.ts";
 import type { Database } from "./ports.ts";
 import { xVerifications } from "./schema.ts";
-import type { Judgement } from "./x-oembed.ts";
-import type { Judged } from "./x-verify-state.ts";
+import type { Judged, StoredJudgement } from "./x-verify-state.ts";
 import { type XThreadValue, StoredXThreadSchema } from "./x-wire.ts";
 
 export interface Verification {
@@ -23,7 +22,13 @@ export type StoredVerification =
 
 const StoredJudgedSchema = z.record(
   z.string(),
-  z.enum(["verified", "tail-unverified", "rejected"] satisfies readonly Judgement[]),
+  z.enum([
+    "verified",
+    "tail-unverified",
+    "rejected",
+    "verified-without-recipients",
+    "tail-unverified-without-recipients",
+  ] satisfies readonly StoredJudgement[]),
 );
 
 export async function verificationOf(db: Database, itemId: number): Promise<StoredVerification> {
