@@ -29,6 +29,7 @@ import {
 } from "./reddit-thread.ts";
 import { digests, insertGuard, items } from "./schema.ts";
 import { commentPartWrites, digestPartWrites } from "./search.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 type CatalogRule =
   | { readonly kind: "checked"; readonly version: number; readonly staleRequeues: number }
@@ -113,8 +114,7 @@ export async function publishing(
 
   const origin = digestOrigin(source, digest, entries, submitted);
   const { published } = origin;
-  const generation = sql`${generationCurrent(item)} and ${aiTaskRunning(taskId)}`;
-  const catalog = sql`${origin.catalog} and ${pinned.current}`;
+  const current = sql`${generationCurrent(item)} and ${aiTaskRunning(taskId)} and ${origin.catalog} and ${pinned.current}`;
   const kept = published.keptComments ?? [];
   const bodies = kept.length === 0 ? [] : await selectedBodies(db, snapshot, kept);
 
@@ -123,10 +123,9 @@ export async function publishing(
   return anchoredOutcome(
     db,
     {
-      currency: currency(db, sql`${generation} and ${catalog}`, taskId),
+      currency: currency(db, current, taskId),
       writes: [
-        insertGuard(db, generation),
-        insertGuard(db, catalog),
+        insertGuard(db, current),
         ...publishedLinks(db, item.id, entries, digest.title),
         db
           .insert(digests)
@@ -139,6 +138,7 @@ export async function publishing(
         completedAiTask(db, { taskId, result: published }),
         db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
         markDigest(db, item.id, "cleared"),
+        queueVaultItems(db, eq(items.id, item.id)),
       ],
     },
     keptCommentsPublication(db, snapshot),

@@ -69,7 +69,7 @@ A changed subject leaves its row stored but hidden. For most kinds the weekly st
 
 ### Lost Highlight
 
-`acceptLostHighlight` (`src/core/highlight-proposals.ts`) removes the Highlight with the two statements of Remove in the Reader (`removalWrites` in `src/core/highlights.ts`), and the cascade deletes the row. The two statements run in one guarded batch. The guard holds only while the row is `open` and its Highlight is not `attached`. When a publication anchors the Highlight again between the read and the batch, the batch writes nothing and the call answers `not-current`. `acceptLostHighlight` ignores `merge-busy`.
+`acceptLostHighlight` (`src/core/highlight-proposals.ts`) uses the same writes as Remove in the Reader (`removalWrites` in `src/core/highlights.ts`), including the Vault mirror queue entry. The cascade deletes the Proposal row. The guard holds only while the row is `open` and its Highlight is not `attached`. When a publication anchors the Highlight again between the read and the batch, the batch writes nothing and the call answers `not-current`. `acceptLostHighlight` ignores `merge-busy`.
 
 Accept leaves no Pin, because a Pin keeps a regeneration from undoing a correction and nothing regenerates a Highlight.
 

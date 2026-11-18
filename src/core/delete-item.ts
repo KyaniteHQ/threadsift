@@ -23,6 +23,7 @@ import {
   searchParts,
   xVerifications,
 } from "./schema.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 async function storedKeys(files: FileStore, itemId: number): Promise<string[]> {
   const keys: string[] = [];
@@ -70,6 +71,7 @@ export async function deleteItem(
     db.delete(digests).where(eq(digests.itemId, id)),
     db.delete(aiTasks).where(eq(aiTasks.itemId, id)),
     db.delete(jobs).where(eq(jobs.itemId, id)),
+    queueVaultItems(db, eq(items.id, id)),
     db.delete(items).where(eq(items.id, id)).returning({ id: items.id }),
   ]);
 

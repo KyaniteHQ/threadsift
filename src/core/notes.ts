@@ -5,6 +5,7 @@ import { type NoteView, type SaveNoteRequest, storedNoteBody } from "./note-cont
 import type { Database } from "./ports.ts";
 import { items, notes } from "./schema.ts";
 import { notePartWrites } from "./search.ts";
+import { queueVaultItems } from "./vault-queue.ts";
 
 type SavedNote =
   | { readonly kind: "saved" | "stale"; readonly note: NoteView }
@@ -43,20 +44,21 @@ export async function saveNote(
   itemId: number,
   { body, revision }: Readonly<SaveNoteRequest>,
 ): Promise<SavedNote> {
+  const item = eq(items.id, itemId);
   const [saved] =
     (await guardedWrite(
       db,
       revisionHolds(itemId, revision),
       noteUpsert(db, itemId, storedNoteBody(body), revision),
-      notePartWrites(db, eq(items.id, itemId)),
+      [...notePartWrites(db, item), queueVaultItems(db, item)],
     )) ?? [];
 
   if (saved !== undefined) return { kind: "saved", note: saved };
 
-  const [[item], [current]] = await db.batch([
-    db.select({ id: items.id }).from(items).where(eq(items.id, itemId)),
+  const [[held], [current]] = await db.batch([
+    db.select({ id: items.id }).from(items).where(item),
     noteRows(db, itemId),
   ]);
 
-  return item === undefined ? { kind: "no-item" } : { kind: "stale", note: noteViewOf(current) };
+  return held === undefined ? { kind: "no-item" } : { kind: "stale", note: noteViewOf(current) };
 }
