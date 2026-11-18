@@ -22,7 +22,7 @@ Subject to the terms and conditions of this Agreement, You hereby grant to Kyani
 
 ## 4. Authority to Grant Licenses
 
-You represent that you are legally entitled to grant the above license. If your employer(s) has rights to intellectual property that you create that includes your Contributions, you represent that you have received permission to make Contributions on behalf of that employer, that your employer has waived such rights for your Contributions to Kyanite Labs, or that your employer has executed a separate Corporate CLA with Kyanite Labs.
+You represent that you are legally entitled to grant the above license. If your employer(s) has rights to intellectual property that you create that includes your Contributions, you represent that you have received permission to make Contributions on behalf of that employer or that your employer has waived such rights for your Contributions to Kyanite Labs.
 
 ## 5. Original Creation and Third-Party Restrictions
 
