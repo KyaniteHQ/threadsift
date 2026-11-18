@@ -1,0 +1,85 @@
+name: Contributor licence agreement
+run-name: "CLA PR #${{ github.event.pull_request.number || github.event.issue.number }}"
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+env:
+  CLA_BRANCH: cla-signatures
+  CLA_SIGNATURES: signatures/version1/cla.json
+
+jobs:
+  cla:
+    if: >-
+      github.repository == 'KyaniteHQ/threadsift' &&
+      !contains(fromJSON('["OmerFarukOruc", "renovate[bot]"]'),
+                github.event.pull_request.user.login || github.event.issue.user.login) &&
+      (github.event_name == 'pull_request_target' ||
+       (github.event.issue.pull_request && github.event.issue.state == 'open' &&
+        github.event.comment.user.type != 'Bot' &&
+        (github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA' ||
+         (github.event.comment.body == 'recheck' &&
+          (github.event.comment.user.id == github.event.issue.user.id ||
+           contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+                    github.event.comment.author_association))))))
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cla-signatures
+      queue: max
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Reject pull requests with more than 100 commits
+        if: github.event_name == 'pull_request_target' && github.event.pull_request.commits > 100
+        shell: bash
+        run: |
+          echo "::error::Squash this pull request to 100 commits or fewer so the CLA check can read every commit."
+          exit 1
+      - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          path-to-document: ${{ format('{0}/{1}/blob/{2}/CLA.md', github.server_url, github.repository, github.event.repository.default_branch) }}
+          path-to-signatures: ${{ env.CLA_SIGNATURES }}
+          branch: ${{ env.CLA_BRANCH }}
+          custom-pr-sign-comment: I have read the CLA Document and I hereby sign the CLA
+      - name: Verify the PR author's signature
+        if: github.event_name == 'pull_request_target'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_AUTHOR_ID: ${{ github.event.pull_request.user.id }}
+        run: |
+          signatures=$(gh api "repos/$GITHUB_REPOSITORY/contents/$CLA_SIGNATURES?ref=$CLA_BRANCH" --jq .content | base64 --decode)
+          if ! jq -e --argjson author "$PR_AUTHOR_ID" 'any(.signedContributors[]; .id == $author)' <<< "$signatures" > /dev/null; then
+            echo "::error::The pull request author must sign the CLA. Include a commit attributed to your GitHub account to sign here."
+            exit 1
+          fi
+
+  rerun-cla:
+    needs: cla
+    if: github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      pull-requests: read
+    steps:
+      - name: Rerun this PR's CLA check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          head_sha=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .head.sha)
+          runs=$(gh api --paginate --slurp --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/cla.yml/runs" -f event=pull_request_target -f head_sha="$head_sha")
+          run_id=$(jq -r --arg name "CLA PR #$PR_NUMBER" '[.[].workflow_runs[] | select(.display_title == $name)] | .[0] | select(.conclusion == "failure") | .id' <<< "$runs")
+          if [[ -n "$run_id" ]]; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/rerun"
+          fi

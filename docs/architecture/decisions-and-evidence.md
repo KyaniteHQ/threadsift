@@ -5,7 +5,7 @@
 ## Product decisions
 
 - **Name.** The repository is named to match. Threadsift was picked from 26 checked names for free `.app` and `.dev` domains and no app or real repository of the same name. The masthead wordmark, which the design draws as "Library", reads Threadsift. Words inside the app (Item, Reader, Highlights page and the rest) and the Style named Library stay as `GLOSSARY.md` and the design define them.
-- **Licence.** AGPL-3.0-only, so a rival hosted copy must publish its changes. A contributor licence agreement (CLA) is in place before the first outside pull request, so the owner stays the only copyright holder.
+- **Licence.** AGPL-3.0-only, so a rival hosted copy must publish its changes. The contributor licence agreement (CLA) applies to outside contributions. Contributors keep copyright in their contributions and grant Kyanite Labs a perpetual, irrevocable, non-exclusive licence that includes the right to sublicense. This lets Kyanite Labs license contributions under other terms (section 2 of `CLA.md`).
 - **Build or adopt.** The app is its own. Karakeep, Linkwarden, Shiori and Raindrop were rejected as the base. `docs/research/prior-art.md` compares Karakeep with other projects and does not name the other three.
 - **A public address.** The app needs a public HTTPS address so that Grok Bot can reach it, because Grok Bot's MCP connections run on Cursor's servers (Grok Bot's own answer).
 - **Ownership of Tags.** Only the agent sets Tags, so the UI has no Tag editing, and Proposals keep the lists clean over time.

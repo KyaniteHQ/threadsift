@@ -25,7 +25,7 @@ The owner is also a user, with many saved bookmarks to bring in and read.
 
 ## Product
 
-- **Name and licence.** The product is Threadsift. The licence is AGPL-3.0-only. Not built: the contributor licence agreement workflow.
+- **Name and licence.** The product is Threadsift. The licence is AGPL-3.0-only. The required CLA check verifies that outside contributors have signed the contributor licence agreement.
 - **App type.** A public web app with an owner login. Each connected agent gets its own token. The app needs a public HTTPS address so that Grok Bot can reach it.
 - **Intake.** One link at a time through the paste box, the Web Share Target, the Extension, the HTTP API, MCP or Grok Bot, plus an Import of many links at once.
 - **Import.** The Import screen at `/import`, opened from the Import link in the settings panel beside Highlights, takes a pasted list or a `.csv` or `.txt` file, shows its progress and resumes a list it imported before (`docs/architecture/web-app.md`, The Import screen). A Reddit `saved_posts.csv` goes in through the list import as Link-only Items.
