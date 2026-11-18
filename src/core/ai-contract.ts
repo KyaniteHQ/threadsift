@@ -171,6 +171,10 @@ export const AiSettingsViewSchema = z.object({
     .nullable(),
   providers: z.array(ProviderSchema).readonly(),
   signedIn: z.array(CliProviderSchema).readonly(),
+  recommendations: z.partialRecord(
+    CliProviderSchema,
+    z.object({ model: z.string(), effort: z.string() }),
+  ),
   secretReady: z.boolean(),
   publicOnly: z.boolean(),
   revision: z.number().int().min(0),

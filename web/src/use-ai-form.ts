@@ -17,7 +17,7 @@ import { useConnect } from "./use-connect.ts";
 import { useField } from "./use-form.ts";
 
 function useAiFields(view: AiView) {
-  const { settings, providers } = view;
+  const { settings, providers, recommendations } = view;
   const offered = settings !== null && providers.includes(settings.provider) ? settings : null;
 
   const [provider, setProvider] = useState<Provider>(
@@ -47,7 +47,18 @@ function useAiFields(view: AiView) {
     [clearKey, setModel, savedProvider, savedModel, setEffort, savedEffort],
   );
 
-  return { provider, providers, baseUrl, model, effort, key, changeProvider } as const;
+  const recommendation = isCliProvider(provider) ? recommendations[provider] : undefined;
+
+  return {
+    provider,
+    providers,
+    recommendation,
+    baseUrl,
+    model,
+    effort,
+    key,
+    changeProvider,
+  } as const;
 }
 
 function refusalText(refusal: AiRefused, provider: Provider): string {

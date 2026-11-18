@@ -117,13 +117,20 @@ export interface Attempt<Result> {
   readonly code: number | null;
 }
 
+const RECOMMENDED = {
+  "claude-code": { model: "claude-sonnet-5-5", effort: "medium" },
+  codex: { model: "gpt-6.2-sol", effort: "medium" },
+} as const;
+
 export abstract class SlottedCli implements CliRunner {
   abstract readonly provider: CliProvider;
   private readonly shutdown = new AbortController();
   private readonly slots: Slots;
+  private readonly recommendsModel: boolean;
 
-  constructor(slots: Slots) {
+  constructor(slots: Slots, recommendsModel = true) {
     this.slots = slots;
+    this.recommendsModel = recommendsModel;
   }
 
   protected abstract modelChoice(
@@ -131,7 +138,24 @@ export abstract class SlottedCli implements CliRunner {
   ): { readonly slug: string; readonly levels: readonly string[] } | undefined;
 
   resolve(config: Readonly<CliAiConnection>): CliSelection {
-    if (config.model === "" && config.effort === undefined) return config;
+    const { model, effort } = config;
+    if (model !== "") return this.select(config);
+
+    const recommended = RECOMMENDED[this.provider];
+    if (
+      this.recommendsModel &&
+      this.modelChoice(recommended.model)?.levels.includes(recommended.effort) === true
+    )
+      return this.select({
+        ...config,
+        model: recommended.model,
+        effort: effort ?? recommended.effort,
+      });
+
+    return effort === undefined ? config : this.select(config);
+  }
+
+  private select(config: Readonly<CliAiConnection>): CliSelection {
     const choice = this.modelChoice(config.model);
     if (choice === undefined) return refusedAi("model-not-found", 404);
     if (config.effort !== undefined && !choice.levels.includes(config.effort))

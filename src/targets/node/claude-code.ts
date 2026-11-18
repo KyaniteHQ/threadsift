@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { type AiExecution, PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
+import { PROBE_MS } from "../../core/request-waits.ts";
 import { apiRefusal } from "../shared/ai-call.ts";
 import type { RunnerTask } from "../shared/ai-runtime.ts";
 import { configuredCode } from "../shared/configured-code.ts";
@@ -30,6 +31,18 @@ export interface ClaudeEnvironment {
 }
 
 const BINARY = "claude";
+const SONNET_5_5_VERSION = /^(\d+)\.(\d+)\.(\d+) \(Claude Code\)\s*$/u;
+
+function supportsSonnet55(stdout: string): boolean {
+  const parts = SONNET_5_5_VERSION.exec(stdout);
+  if (parts === null) return false;
+
+  const major = Number(parts[1]);
+  const minor = Number(parts[2]);
+  const patch = Number(parts[3]);
+
+  return major > 2 || (major === 2 && (minor > 1 || (minor === 1 && patch >= 284)));
+}
 
 const EnvelopeSchema = z.object({
   is_error: z.boolean(),
@@ -71,8 +84,13 @@ class ClaudeCode extends SlottedCli {
   private readonly binary: string;
   private readonly environment: Readonly<ClaudeEnvironment>;
 
-  constructor(binary: string, environment: Readonly<ClaudeEnvironment>, slots: Slots) {
-    super(slots);
+  constructor(
+    binary: string,
+    environment: Readonly<ClaudeEnvironment>,
+    slots: Slots,
+    recommendsModel: boolean,
+  ) {
+    super(slots, recommendsModel);
     this.binary = binary;
     this.environment = environment;
   }
@@ -103,21 +121,7 @@ class ClaudeCode extends SlottedCli {
   }
 
   private spawn(args: readonly string[], stdin: string, signal: AbortSignal) {
-    return inEmptyFolder((cwd) =>
-      runProcess(
-        {
-          file: this.binary,
-          args,
-          env: this.childEnvironment(),
-          cwd,
-          stdin,
-          stdoutCap: STDOUT_CAP,
-          stderrCap: STDERR_CAP,
-          keepStdout: true,
-        },
-        signal,
-      ),
-    );
+    return spawnClaude(this.binary, args, this.childEnvironment(), stdin, signal);
   }
 
   private childEnvironment() {
@@ -151,18 +155,51 @@ class ClaudeCode extends SlottedCli {
   }
 }
 
+function spawnClaude(
+  file: string,
+  args: readonly string[],
+  env: Readonly<Record<string, string>>,
+  stdin: string,
+  signal: AbortSignal,
+) {
+  return inEmptyFolder((cwd) =>
+    runProcess(
+      {
+        file,
+        args,
+        env,
+        cwd,
+        stdin,
+        stdoutCap: STDOUT_CAP,
+        stderrCap: STDERR_CAP,
+        keepStdout: true,
+      },
+      signal,
+    ),
+  );
+}
+
 export async function claudeCode(environment: Readonly<ClaudeEnvironment>, slots: Slots) {
   const binary = await findBinary(environment.path, BINARY);
 
-  return binary === null
-    ? null
-    : new ClaudeCode(
-        binary,
-        {
-          ...environment,
-          configDir: configuredCode(environment.configDir),
-          token: configuredCode(environment.token),
-        },
-        slots,
-      );
+  if (binary === null) return null;
+
+  const version = await spawnClaude(
+    binary,
+    ["--version"],
+    { PATH: childPath(binary) },
+    "",
+    AbortSignal.timeout(PROBE_MS),
+  );
+
+  return new ClaudeCode(
+    binary,
+    {
+      ...environment,
+      configDir: configuredCode(environment.configDir),
+      token: configuredCode(environment.token),
+    },
+    slots,
+    version.kind === "exited" && version.code === 0 && supportsSonnet55(version.stdout),
+  );
 }
