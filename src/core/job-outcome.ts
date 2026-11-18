@@ -11,7 +11,7 @@ export type JobPorts = Pick<
   | "db"
   | "files"
   | "network"
-  | "vaultTargets"
+  | "vaultFolder"
   | "redditSession"
   | "pages"
   | "jobs"

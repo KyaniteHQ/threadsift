@@ -24,6 +24,10 @@ const REASONS = {
   "folder-unavailable": TEXT.folderUnavailable,
   "folder-missing": TEXT.folderMissing,
   "folder-permission": TEXT.folderPermission,
+  "folder-path": TEXT.folderPath,
+  "folder-full": TEXT.folderFull,
+  "folder-links": TEXT.folderLinks,
+  "folder-failed": TEXT.folderFailed,
   "vault-busy": TEXT.vaultBusy,
 } satisfies Readonly<Record<VaultRefusal["reason"], string>>;
 

@@ -28,7 +28,8 @@ export function lineOf(entry: Readonly<LogEntry>): string {
     case "merge-topic":
       return `merge | topic: ${entry.from} into ${entry.into} | ${String(entry.items)} Items`;
     case "vault-file-skipped":
-      return `vault-file-skipped | ${entry.path}`;
+    case "vault-file-conflict":
+      return `${entry.action} | ${entry.path}`;
     default:
       return entry satisfies never;
   }

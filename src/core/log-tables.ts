@@ -28,7 +28,7 @@ export const logEntries = sqliteTable(
     check("log_entries_action_check", sql`${table.action} in (${listed(LOG_ACTIONS)})`),
     check(
       "log_entries_vault_path",
-      sql`(${table.path} is not null) = (${table.action} = 'vault-file-skipped')`,
+      sql`(${table.path} is not null) = (${table.action} in ('vault-file-skipped', 'vault-file-conflict'))`,
     ),
     index("log_entries_at").on(table.at),
     index("log_entries_item").on(table.itemId),

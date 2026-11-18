@@ -223,6 +223,7 @@ export const LOG_ACTIONS = [
   "merge",
   "merge-topic",
   "vault-file-skipped",
+  "vault-file-conflict",
 ] as const;
 
 export type LogAction = (typeof LOG_ACTIONS)[number];

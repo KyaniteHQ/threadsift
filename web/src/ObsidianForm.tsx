@@ -1,11 +1,14 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import { VAULT_FOLDER_MAX, type VaultView } from "../../src/core/vault-contract.ts";
+import { Alert } from "./Alert.tsx";
 import { FormField } from "./FormField.tsx";
+import { fetchObsidian } from "./obsidian-api.ts";
 import { OBSIDIAN_TEXT as TEXT } from "./obsidian-text.ts";
 import { RadioChoice } from "./RadioChoice.tsx";
 import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
 import { useObsidian } from "./use-obsidian.ts";
+import { usePolling } from "./use-polling.ts";
 
 const FIELD = { type: "text", autoComplete: "off", required: true, maxLength: 240 } as const;
 const REPOSITORY = { ...FIELD, name: "repository" };
@@ -59,6 +62,28 @@ function statusOf(view: VaultView): string {
   return view.token === "saved" ? TEXT.configured : TEXT.unreadable;
 }
 
+function FolderConflicts({ view }: Readonly<{ view: Extract<VaultView, { mode: "folder" }> }>) {
+  const [conflicts, setConflicts] = useState(view.conflicts);
+  usePolling(true, async () => {
+    if (document.hidden) return;
+    const result = await fetchObsidian();
+    if (result.mode === "folder" && result.folder === view.folder) setConflicts(result.conflicts);
+  });
+
+  return conflicts.map((path) => (
+    <Alert key={path} text={TEXT.conflict.replace("{path}", () => path)} />
+  ));
+}
+
+function VaultStatus({ view }: Readonly<{ view: VaultView }>) {
+  return (
+    <>
+      <p>{statusOf(view)}</p>
+      {view.mode === "folder" ? <FolderConflicts key={view.folder} view={view} /> : null}
+    </>
+  );
+}
+
 export function ObsidianForm({
   view,
   changed,
@@ -99,7 +124,7 @@ export function ObsidianForm({
             />
           </>
         )}
-        <p>{statusOf(view)}</p>
+        <VaultStatus view={view} />
         <SettingsActions running={form.running} buttons={form.buttons} />
       </SettingsForm>
       <SettingsResult outcome={form.outcome} />

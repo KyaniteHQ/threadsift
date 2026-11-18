@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, isNotNull, sql } from "drizzle-orm";
 
 import { guardedBatch } from "./guards.ts";
 import type { Ports } from "./ports.ts";
@@ -9,37 +9,55 @@ import {
   type VaultView,
   type VaultVerifyInput,
 } from "./vault-contract.ts";
+import { vaultGithub } from "./vault-github.ts";
 import { queueVaultLibrary } from "./vault-queue.ts";
 import { VaultFailure } from "./vault-request.ts";
 import { VAULT_CLOCK, vaultIdleAt } from "./vault-state.ts";
-import { mirrorFiles, mirrorNotes, vaultSettings } from "./vault-tables.ts";
+import { mirrorFiles, mirrorNotes, vaultDestination, vaultSettings } from "./vault-tables.ts";
 
-type VaultPorts = Pick<Ports, "db" | "secrets" | "vaultTargets">;
+type VaultPorts = Pick<Ports, "db" | "secrets" | "vaultFolder">;
+
+async function readTarget(db: Ports["db"]) {
+  const [row] = await db.select().from(vaultSettings);
+  return row === undefined ? null : vaultDestination(row);
+}
+
+async function folderConflicts(db: Ports["db"]) {
+  const rows = await db
+    .selectDistinct({ path: mirrorNotes.conflictPath })
+    .from(mirrorNotes)
+    .where(isNotNull(mirrorNotes.conflictPath))
+    .orderBy(mirrorNotes.conflictPath);
+  return rows.flatMap(({ path }) => (path === null ? [] : [path]));
+}
 
 export async function readVaultSettings({
   db,
   secrets,
-  vaultTargets,
+  vaultFolder,
 }: VaultPorts): Promise<VaultView> {
-  const [row] = await db.select().from(vaultSettings);
+  const target = await readTarget(db);
   const secretReady = secrets !== null;
-  if (row?.mode === "folder" && row.folder !== null && vaultTargets.folder !== null)
-    return { mode: "folder", folderAvailable: true, folder: row.folder, secretReady };
+  const folderAvailable = vaultFolder !== null;
+  if (target?.mode === "folder" && folderAvailable)
+    return {
+      mode: "folder",
+      folderAvailable: true,
+      folder: target.folder,
+      conflicts: await folderConflicts(db),
+      secretReady,
+    };
 
-  const token = row?.sealedToken;
-  const opened = token === null || token === undefined ? null : await secrets?.open(token);
+  const github = target?.mode === "github" ? target : null;
+  const opened = github === null ? null : await secrets?.open(github.sealedToken);
   return {
     mode: "github",
-    folderAvailable: vaultTargets.folder !== null,
-    repository: row?.repository ?? "",
-    branch: row?.branch ?? "main",
+    folderAvailable,
+    repository: github?.repository ?? "",
+    branch: github?.branch ?? "main",
     secretReady,
     token:
-      token === null || token === undefined
-        ? "none"
-        : opened === null || opened === undefined
-          ? "unreadable"
-          : "saved",
+      github === null ? "none" : opened === null || opened === undefined ? "unreadable" : "saved",
   };
 }
 
@@ -50,9 +68,9 @@ function refused(reason: VaultRefusal["reason"]): VaultRefusal {
 const folderIdle = sql`not exists (select 1 from ${vaultSettings}
   where ${vaultSettings.mode} = 'folder' and ${vaultSettings.leaseUntil} > ${VAULT_CLOCK})`;
 
-async function settingRow({ secrets, vaultTargets }: VaultPorts, input: Readonly<VaultInput>) {
+async function settingRow({ secrets, vaultFolder }: VaultPorts, input: Readonly<VaultInput>) {
   if (input.mode === "folder") {
-    if (vaultTargets.folder === null) return refused("folder-unavailable");
+    if (vaultFolder === null) return refused("folder-unavailable");
     return {
       mode: input.mode,
       folder: input.folder,
@@ -77,14 +95,14 @@ export async function saveVaultSettings(ports: VaultPorts, input: Readonly<Vault
   if ("kind" in target) return target;
   const row = { ...target, id: 1, wikiPending: false };
   const idle = target.mode === "folder" ? vaultIdleAt(VAULT_CLOCK) : folderIdle;
+  const changed = sql`exists (select 1 from ${vaultSettings}
+    where ${vaultSettings.mode} <> ${row.mode}
+      or ${vaultSettings.folder} is not ${row.folder}
+      or ${vaultSettings.repository} is not ${row.repository}
+      or ${vaultSettings.branch} is not ${row.branch})`;
   const saved = await guardedBatch(db, idle, [
-    db.delete(mirrorFiles).where(
-      sql`exists (select 1 from ${vaultSettings}
-          where ${vaultSettings.mode} <> ${row.mode}
-            or ${vaultSettings.folder} is not ${row.folder}
-            or ${vaultSettings.repository} is not ${row.repository}
-            or ${vaultSettings.branch} is not ${row.branch})`,
-    ),
+    db.delete(mirrorFiles).where(changed),
+    db.update(mirrorNotes).set({ conflictPath: null }).where(changed),
     db
       .insert(vaultSettings)
       .values(row)
@@ -114,35 +132,34 @@ export async function removeVaultSettings(ports: VaultPorts) {
 }
 
 async function verifyGithub(
-  ports: VaultPorts,
+  ports: VaultPorts & Pick<Ports, "network">,
   input: Readonly<Exclude<VaultVerifyInput, { mode: "folder" }>>,
   signal: AbortSignal,
 ) {
   if (ports.secrets === null) return refused("secret-missing");
-  const [saved] = await ports.db.select().from(vaultSettings);
+  const saved = await readTarget(ports.db);
   const stored =
-    saved !== undefined &&
-    saved.sealedToken !== null &&
+    saved?.mode === "github" &&
     saved.repository === input.repository &&
     saved.branch === input.branch
       ? await ports.secrets.open(saved.sealedToken)
       : null;
   const token = input.token ?? stored;
   if (token === null) return refused("not-configured");
-  await ports.vaultTargets.github({ ...input, token }, signal).verify();
+  await vaultGithub(ports.network, { ...input, token }, signal).verify();
   return { kind: "verified" } as const;
 }
 
 export async function verifyVaultSettings(
-  ports: VaultPorts,
+  ports: VaultPorts & Pick<Ports, "network">,
   input: Readonly<VaultVerifyInput>,
   signal: AbortSignal,
 ) {
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(VAULT_DEADLINE_MS)]);
   try {
     if (input.mode !== "folder") return await verifyGithub(ports, input, deadline);
-    if (ports.vaultTargets.folder === null) return refused("folder-unavailable");
-    await ports.vaultTargets.folder(input.folder, deadline).verify();
+    if (ports.vaultFolder === null) return refused("folder-unavailable");
+    await ports.vaultFolder(input.folder, deadline).verify();
     return { kind: "verified" } as const;
   } catch (error) {
     if (!(error instanceof VaultFailure)) throw error;

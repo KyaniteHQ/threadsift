@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { z } from "zod";
 
 import { listed } from "./schema-checks.ts";
 
@@ -30,10 +31,28 @@ export const vaultSettings = sqliteTable(
     check(
       "vault_settings_target",
       sql`(${table.mode} = 'github' and ${table.repository} is not null and ${table.branch} is not null and ${table.sealedToken} is not null and ${table.folder} is null)
-        or (${table.mode} = 'folder' and ${table.folder} is not null and ${table.repository} is null and ${table.branch} is null and ${table.sealedToken} is null)`,
+        or (${table.mode} = 'folder' and ${table.folder} is not null and substr(${table.folder}, 1, 1) = '/' and ${table.repository} is null and ${table.branch} is null and ${table.sealedToken} is null)`,
     ),
   ],
 );
+
+const VaultDestinationSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("github"),
+    repository: z.string(),
+    branch: z.string(),
+    sealedToken: z.string(),
+  }),
+  z.object({ mode: z.literal("folder"), folder: z.string().startsWith("/") }),
+]);
+
+export type VaultDestination = z.infer<typeof VaultDestinationSchema>;
+
+export function vaultDestination(
+  row: Readonly<typeof vaultSettings.$inferSelect>,
+): VaultDestination {
+  return VaultDestinationSchema.parse(row);
+}
 
 export const mirrorNotes = sqliteTable(
   "mirror_notes",
@@ -42,6 +61,7 @@ export const mirrorNotes = sqliteTable(
     kind: text("kind", { enum: VAULT_KINDS }).notNull(),
     subjectId: integer("subject_id").notNull(),
     retryAt: integer("retry_at").notNull().default(0),
+    conflictPath: text("conflict_path"),
   },
   (table) => [
     uniqueIndex("mirror_notes_subject").on(table.kind, table.subjectId),

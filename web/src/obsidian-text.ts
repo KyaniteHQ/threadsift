@@ -10,7 +10,15 @@ export const OBSIDIAN_TEXT = {
   folderMode: "Folder",
   folderLabel: "Folder path",
   folderHelp:
-    "Enter the absolute path of the mounted Obsidian vault inside the container, such as /vault. Threadsift writes under its own Threadsift folder.",
+    "Enter the absolute path of the mounted Obsidian vault inside the container, such as /vault. The mounted filesystem must support hard links, and the Vault mirror writes under Threadsift.",
+  conflict:
+    "A file at {path} that Threadsift did not write blocks a note. Move the file so Threadsift can write the note.",
+  folderPath:
+    "An expected vault directory is a symlink or is not a directory. Check those paths and try again.",
+  folderFull: "The mounted vault has no disk space or quota left.",
+  folderLinks:
+    "The mounted filesystem does not support hard links. Choose a folder on a filesystem that supports them.",
+  folderFailed: "A file operation in the vault folder failed. Try again.",
   folderConfigured: "Vault folder saved on this Instance.",
   folderVerified: "Mounted folder is writable.",
   folderMissing:

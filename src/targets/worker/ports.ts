@@ -6,7 +6,7 @@ import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 import { type AiBinding, bindingRunner } from "./ai-binding.ts";
 import { type FilesBucket, r2FileStore } from "./file-store.ts";
-import { workerNetwork, workerFetch, workerVaultTargets } from "./network.ts";
+import { workerNetwork, workerFetch } from "./network.ts";
 import { workerPageReader } from "./page-reader.ts";
 import { workerRedditSession } from "./reddit-session.ts";
 
@@ -45,7 +45,7 @@ export async function createWorkerPorts(env: Env): Promise<import("../../core/po
       binding: env.AI === undefined ? undefined : bindingRunner(env.AI),
     })),
     network: workerNetwork,
-    vaultTargets: workerVaultTargets,
+    vaultFolder: null,
     redditSession: workerRedditSession,
     pages: workerPageReader,
     jobs: {

@@ -64,6 +64,7 @@ const FolderViewSchema = z.object({
   mode: z.literal("folder"),
   folderAvailable: z.literal(true),
   folder: z.string(),
+  conflicts: z.array(z.string()).readonly(),
   secretReady: z.boolean(),
 });
 export const VaultViewSchema = z.discriminatedUnion("mode", [GithubViewSchema, FolderViewSchema]);
@@ -83,6 +84,10 @@ export const VaultRefusalSchema = z.object({
     "folder-unavailable",
     "folder-missing",
     "folder-permission",
+    "folder-path",
+    "folder-full",
+    "folder-links",
+    "folder-failed",
     "vault-busy",
   ]),
 });

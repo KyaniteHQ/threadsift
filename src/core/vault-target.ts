@@ -1,4 +1,3 @@
-import type { GithubVaultInput } from "./vault-contract.ts";
 import type { VaultKind, VaultSubject } from "./vault-tables.ts";
 
 export type VaultFile = Readonly<{ path: string }> &
@@ -36,7 +35,11 @@ export interface VaultTarget {
 
 export type VaultFolder = (path: string, signal: AbortSignal) => VaultTarget;
 
-export interface VaultTargets {
-  readonly github: (input: Readonly<GithubVaultInput>, signal: AbortSignal) => VaultTarget;
-  readonly folder: VaultFolder | null;
+export class VaultFileConflict extends Error {
+  readonly file: Readonly<VaultChange>;
+
+  constructor(file: Readonly<VaultChange>) {
+    super("folder-conflict");
+    this.file = file;
+  }
 }

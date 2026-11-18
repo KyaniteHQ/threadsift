@@ -1,4 +1,12 @@
-import { accessSync, closeSync, constants, mkdirSync, openSync, readlinkSync } from "node:fs";
+import {
+  accessSync,
+  closeSync,
+  fsyncSync,
+  constants,
+  mkdirSync,
+  openSync,
+  readlinkSync,
+} from "node:fs";
 
 import { errnoCodeOf, reportFailure } from "../../core/failure-log.ts";
 import { VaultFailure } from "../../core/vault-request.ts";
@@ -15,11 +23,12 @@ function descriptor(fd: number): string {
   return `/proc/self/fd/${String(fd)}`;
 }
 
-export function vaultFolderFailure(reason: "folder-missing" | "folder-permission") {
+export function vaultFolderFailure(reason: Extract<VaultFailure["reason"], `folder-${string}`>) {
   return new VaultFailure({ reason, until: null, status: null });
 }
 
-function openDirectory(path: string, create: boolean): number | undefined {
+function openDirectory(parent: VaultDirectory, part: string, create: boolean): number | undefined {
+  const path = `${parent.path}/${part}`;
   try {
     return openSync(path, DIRECTORY);
   } catch (error) {
@@ -27,7 +36,9 @@ function openDirectory(path: string, create: boolean): number | undefined {
     if (!create) return undefined;
   }
   try {
+    assertVaultDirectory(parent);
     mkdirSync(path);
+    fsyncSync(parent.fd);
   } catch (error) {
     if (errnoCodeOf(error) !== "EEXIST") throw error;
   }
@@ -57,7 +68,7 @@ export async function inVaultDirectory<Result>(
   const [part, ...rest] = parts;
   if (part === undefined) return run(root);
   if (!isVaultSegment(part)) throw vaultFolderFailure("folder-permission");
-  const fd = openDirectory(`${root.path}/${part}`, create);
+  const fd = openDirectory(root, part, create);
   if (fd === undefined) return undefined;
   try {
     const location = root.location === "/" ? `/${part}` : `${root.location}/${part}`;

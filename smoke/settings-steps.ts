@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+
 import { type Browser, type Page, expect, test } from "@playwright/test";
 
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
@@ -7,6 +9,20 @@ import { grokBotFlow } from "./grok-bot-flow.ts";
 import { proposalsFlow } from "./proposals-flow.ts";
 import { redditAccountFlow } from "./reddit-account-flow.ts";
 import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+
+function folderIndexArrived(): Promise<boolean> {
+  const name = `threadsift-smoke-${process.env["THREADSIFT_SMOKE_PORT"] ?? "8799"}`;
+  return new Promise((resolve) => {
+    execFile(
+      "podman",
+      ["exec", name, "test", "-f", "/tmp/Threadsift/Index.md"],
+      { timeout: 5000 },
+      (error) => {
+        resolve(error === null);
+      },
+    );
+  });
+}
 
 export async function settingsSteps(page: Page, browser: Browser): Promise<void> {
   await test.step("follow the settings panel's Proposals link, see the no-Provider empty state with no Reject, reload on the address, fit a phone width, and visit it signed out", () =>
@@ -40,6 +56,7 @@ async function obsidianFlow(page: Page): Promise<void> {
     await expect(page.getByText(OBSIDIAN_TEXT.folderVerified, { exact: true })).toBeVisible();
     await page.getByRole("button", { name: OBSIDIAN_TEXT.save, exact: true }).click();
     await expect(page.getByText(OBSIDIAN_TEXT.folderConfigured, { exact: true })).toBeVisible();
+    await expect.poll(folderIndexArrived, { timeout: 75_000, intervals: [1000] }).toBe(true);
     await page.reload();
     await expect(page.getByLabel(OBSIDIAN_TEXT.folderLabel)).toHaveValue("/tmp");
     await captureThemes(page, { themes: ["light", "dark", "sepia"], prefix: "obsidian-folder" });

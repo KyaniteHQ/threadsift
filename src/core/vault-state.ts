@@ -1,7 +1,7 @@
 import { type SQLWrapper, and, eq, gt, lte, sql } from "drizzle-orm";
 
-import { among, guardedBatch } from "./guards.ts";
-import { loggedVaultSkip } from "./log-writes.ts";
+import { among, guardHolds, guardedBatch } from "./guards.ts";
+import { loggedVaultFile } from "./log-writes.ts";
 import type { Database } from "./ports.ts";
 import { HOLDS_LIBRARY } from "./restore-state.ts";
 import { restoreRuns } from "./schema.ts";
@@ -15,12 +15,20 @@ import {
   mirrorFiles,
   mirrorNotes,
   vaultSettings,
+  vaultDestination,
+  type VaultDestination,
   type VaultKind,
   type VaultSubject,
 } from "./vault-tables.ts";
-import type { VaultProgress } from "./vault-target.ts";
+import type { VaultChange, VaultProgress } from "./vault-target.ts";
 
-export type VaultLease = typeof vaultSettings.$inferSelect;
+export type VaultLease = Readonly<{
+  target: Readonly<VaultDestination>;
+  generation: number;
+  scanPending: boolean;
+  wikiPending: boolean;
+  rateFailures: number;
+}>;
 export const VAULT_CLOCK = sql`cast(unixepoch('subsec') * 1000 as integer)`;
 export const VAULT_AVAILABLE = sql`not exists (select 1 from ${restoreRuns} where ${HOLDS_LIBRARY})`;
 
@@ -35,10 +43,10 @@ export function fenceVault(db: Database) {
     .where(sql`changes() > 0`);
 }
 
-function sameVaultTarget(lease: Readonly<VaultLease>) {
-  return sql`${vaultSettings.mode} = ${lease.mode}
-    and ${vaultSettings.folder} is ${lease.folder}
-    and ${vaultSettings.sealedToken} is ${lease.sealedToken}`;
+function sameVaultTarget({ target }: VaultLease) {
+  return target.mode === "folder"
+    ? sql`${vaultSettings.mode} = 'folder' and ${vaultSettings.folder} = ${target.folder}`
+    : sql`${vaultSettings.mode} = 'github' and ${vaultSettings.sealedToken} = ${target.sealedToken}`;
 }
 
 export function vaultHolding(lease: Readonly<VaultLease>) {
@@ -47,6 +55,37 @@ export function vaultHolding(lease: Readonly<VaultLease>) {
     sameVaultTarget(lease),
     gt(vaultSettings.leaseUntil, VAULT_CLOCK),
   );
+}
+
+function activeVault(lease: VaultLease) {
+  return sql`exists (select 1 from ${vaultSettings} where ${vaultHolding(lease)}) and ${VAULT_AVAILABLE}`;
+}
+
+export function currentVaultLease(db: Database, lease: VaultLease): Promise<boolean> {
+  return guardHolds(db, activeVault(lease));
+}
+
+export async function parkVaultConflict(
+  db: Database,
+  lease: VaultLease,
+  { path, sequence }: Readonly<VaultChange>,
+): Promise<void> {
+  const held = activeVault(lease);
+  const note = eq(mirrorNotes.sequence, sequence);
+  await db.batch([
+    db
+      .update(mirrorNotes)
+      .set({ retryAt: Date.now() + 60_000, conflictPath: path })
+      .where(and(note, held)),
+    ...loggedVaultFile(
+      db,
+      "vault-file-conflict",
+      path,
+      sql`${held} and exists (
+      select 1 from ${mirrorNotes} where ${note}
+    )`,
+    ),
+  ]);
 }
 
 export async function currentVaultNotes(
@@ -59,8 +98,7 @@ export async function currentVaultNotes(
     .from(mirrorNotes)
     .where(
       and(
-        sql`exists (select 1 from ${vaultSettings} where ${vaultHolding(lease)})`,
-        VAULT_AVAILABLE,
+        activeVault(lease),
         among(
           mirrorNotes.sequence,
           pending.map(({ sequence }) => sequence),
@@ -76,23 +114,19 @@ export async function seedVaultInventory(
   lease: Readonly<VaultLease>,
   subjects: readonly VaultSubject[],
 ): Promise<void> {
-  await guardedBatch(
-    db,
-    sql`exists (select 1 from ${vaultSettings} where ${vaultHolding(lease)}) and ${VAULT_AVAILABLE}`,
-    [
-      ...(lease.wikiPending ? queueVaultLibrary(db) : []),
-      queueVaultNotes(db, {
-        kind: sql`json_extract(remote.value, '$.kind')`,
-        id: sql`json_extract(remote.value, '$.subjectId')`,
-        from: sql`json_each(${JSON.stringify(subjects)}) as remote`,
-        when: sql`not exists (select 1 from ${mirrorNotes} where ${mirrorNotes.kind} = json_extract(remote.value, '$.kind') and ${mirrorNotes.subjectId} = json_extract(remote.value, '$.subjectId'))`,
-      }),
-      db
-        .update(vaultSettings)
-        .set({ scanPending: false, wikiPending: false })
-        .where(vaultHolding(lease)),
-    ],
-  );
+  await guardedBatch(db, activeVault(lease), [
+    ...(lease.wikiPending ? queueVaultLibrary(db) : []),
+    queueVaultNotes(db, {
+      kind: sql`json_extract(remote.value, '$.kind')`,
+      id: sql`json_extract(remote.value, '$.subjectId')`,
+      from: sql`json_each(${JSON.stringify(subjects)}) as remote`,
+      when: sql`not exists (select 1 from ${mirrorNotes} where ${mirrorNotes.kind} = json_extract(remote.value, '$.kind') and ${mirrorNotes.subjectId} = json_extract(remote.value, '$.subjectId'))`,
+    }),
+    db
+      .update(vaultSettings)
+      .set({ scanPending: false, wikiPending: false })
+      .where(vaultHolding(lease)),
+  ]);
 }
 
 function fileWrites(
@@ -164,16 +198,16 @@ export async function acknowledgeVault(
           ),
         ),
     ),
-    ...oversized.flatMap((path) => loggedVaultSkip(db, path, held)),
+    ...oversized.flatMap((path) => loggedVaultFile(db, "vault-file-skipped", path, held)),
     ...(logMonthsChanged ? [queueVaultLog(db, held)] : []),
   ]);
 }
 
-export function claimVaultLease(
+export async function claimVaultLease(
   db: Database,
   input: Readonly<{ started: number; deadlineMs: number }>,
 ) {
-  return db
+  const [row] = await db
     .update(vaultSettings)
     .set({
       generation: sql`${vaultSettings.generation} + 1`,
@@ -187,6 +221,9 @@ export function claimVaultLease(
       ),
     )
     .returning();
+  if (row === undefined) return null;
+  const { generation, scanPending, wikiPending, rateFailures } = row;
+  return { target: vaultDestination(row), generation, scanPending, wikiPending, rateFailures };
 }
 
 export async function finishVaultLease(

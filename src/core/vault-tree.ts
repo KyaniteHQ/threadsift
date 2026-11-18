@@ -85,6 +85,13 @@ export async function vaultSubjects(tree: VaultEntries): Promise<readonly VaultS
   ];
 }
 
+export function vaultFileName(subject: VaultSubject, name: string): boolean {
+  return (
+    vaultNotePath(subject).split("/").at(-1) === name ||
+    (subject.kind === "item" && isSweptKey(`items/${String(subject.subjectId)}/${name}`))
+  );
+}
+
 export async function vaultTreeFiles(tree: VaultEntries, subject: VaultSubject) {
   const notePath = vaultNotePath(subject);
   const parts = notePath.split("/");
@@ -94,10 +101,6 @@ export async function vaultTreeFiles(tree: VaultEntries, subject: VaultSubject) 
 
   return entries.flatMap(({ path: name, type, sha }) => {
     const path = `${prefix}/${name}`;
-    const managed =
-      path === notePath ||
-      (subject.kind === "item" && isSweptKey(`items/${String(subject.subjectId)}/${name}`));
-
-    return type === "blob" && managed ? [{ path, sha }] : [];
+    return type === "blob" && vaultFileName(subject, name) ? [{ path, sha }] : [];
   });
 }

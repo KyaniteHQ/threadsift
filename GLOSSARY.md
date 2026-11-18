@@ -97,7 +97,7 @@ The list of committed library changes and files the Vault mirror skipped, newest
 _Avoid_: History, activity feed, audit trail
 
 **Log entry**:
-One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks), a `merge` (a Tag merged into another), a `merge-topic` (a Topic merged into another) or a `vault-file-skipped` (a file above GitHub's size limit). It keeps the title and names as they were when the change committed.
+One line of the Log: an `ingest` (an Item's first Digest), a `digest` (a later one), a `topic` (a Topic created), an `overview` (a stored overview revision), a `related` (a stored set of picks), a `merge` (a Tag merged into another), a `merge-topic` (a Topic merged into another) a `vault-file-skipped` (a file above GitHub's size limit), or a `vault-file-conflict` (an unowned file at a Folder mode path). It keeps the title and names as they were when the change committed.
 _Avoid_: Event, Audit record
 
 **Proposal**:

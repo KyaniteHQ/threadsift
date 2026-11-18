@@ -141,11 +141,16 @@ export function loggedMerge(
   });
 }
 
-export function loggedVaultSkip(db: Database, path: string, held: Readonly<SQLWrapper>) {
+export function loggedVaultFile(
+  db: Database,
+  action: "vault-file-skipped" | "vault-file-conflict",
+  path: string,
+  held: Readonly<SQLWrapper>,
+) {
   return appended(db, {
     from: sql`(select 1)`,
-    where: sql`${held} and not exists (select 1 from ${logEntries} where ${logEntries.action} = 'vault-file-skipped' and ${logEntries.path} = ${path})`,
-    action: "vault-file-skipped",
+    where: sql`${held} and not exists (select 1 from ${logEntries} where ${logEntries.action} = ${action} and ${logEntries.path} = ${path})`,
+    action,
     path,
   });
 }

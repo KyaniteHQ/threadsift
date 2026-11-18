@@ -2,6 +2,7 @@ import { bestEffort, logFailure, report } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { VAULT_DEADLINE_MS, VAULT_NOTE_LIMIT } from "./vault-contract.ts";
 import { vaultFiles } from "./vault-files.ts";
+import { vaultGithub } from "./vault-github.ts";
 import { dueVaultNotes, type PendingVaultNote } from "./vault-queue.ts";
 import { VaultFailure, staleVault } from "./vault-request.ts";
 import {
@@ -9,10 +10,12 @@ import {
   acknowledgeVault,
   seedVaultInventory,
   currentVaultNotes,
+  currentVaultLease,
+  parkVaultConflict,
   claimVaultLease,
   finishVaultLease,
 } from "./vault-state.ts";
-import type { VaultTarget } from "./vault-target.ts";
+import { VaultFileConflict, type VaultTarget } from "./vault-target.ts";
 
 const TOPIC_NOTE_LIMIT = 4;
 const SHARED_NOTE_LIMIT = 4;
@@ -50,6 +53,12 @@ async function publishCurrent(input: Drain, pending: readonly PendingVaultNote[]
   try {
     await publish(input, pending);
   } catch (error) {
+    if (error instanceof VaultFileConflict) {
+      await parkVaultConflict(input.ports.db, input.lease, error.file);
+      const remaining = pending.filter(({ sequence }) => sequence !== error.file.sequence);
+      if (remaining.length < pending.length) await publishCurrent(input, remaining);
+      return;
+    }
     if (!(error instanceof VaultFailure) || error.reason !== "stale") throw error;
     const remaining = await currentVaultNotes(input.ports.db, input.lease, pending);
     report("vault-write-stale", {
@@ -70,16 +79,18 @@ async function publishShared(input: Drain, pending: readonly PendingVaultNote[])
 }
 
 async function targetFor(ports: JobPorts, lease: Readonly<VaultLease>, signal: AbortSignal) {
-  if (lease.mode === "folder") {
-    if (ports.vaultTargets.folder === null || lease.folder === null)
+  const { target } = lease;
+  if (target.mode === "folder") {
+    if (ports.vaultFolder === null)
       throw new VaultFailure({ reason: "folder-unavailable", until: null, status: null });
-    return ports.vaultTargets.folder(lease.folder, signal);
+    return ports.vaultFolder(target.folder, signal);
   }
-  const token = lease.sealedToken === null ? null : await ports.secrets?.open(lease.sealedToken);
-  if (token === null || token === undefined || lease.repository === null || lease.branch === null)
+  const token = await ports.secrets?.open(target.sealedToken);
+  if (token === null || token === undefined)
     throw new VaultFailure({ reason: "secret-missing", until: null, status: null });
-  return ports.vaultTargets.github(
-    { repository: lease.repository, branch: lease.branch, token },
+  return vaultGithub(
+    ports.network,
+    { repository: target.repository, branch: target.branch, token },
     signal,
   );
 }
@@ -90,6 +101,8 @@ async function drain(
   signal: AbortSignal,
 ): Promise<void> {
   const target = await targetFor(ports, lease, signal);
+  if (lease.target.mode === "folder")
+    await target.write({ files: [], current: () => currentVaultLease(ports.db, lease) });
   if (lease.scanPending || lease.wikiPending)
     await seedVaultInventory(ports.db, lease, await target.subjects());
   const input = { ports, lease, target, signal };
@@ -140,8 +153,8 @@ async function rebuildingDrain(
 export async function mirrorVault(ports: JobPorts): Promise<void> {
   const started = Date.now();
   const signal = AbortSignal.timeout(VAULT_DEADLINE_MS);
-  const [lease] = await claimVaultLease(ports.db, { started, deadlineMs: VAULT_DEADLINE_MS });
-  if (lease === undefined) return;
+  const lease = await claimVaultLease(ports.db, { started, deadlineMs: VAULT_DEADLINE_MS });
+  if (lease === null) return;
   let until: number | null = null;
   let limited = false;
   try {
