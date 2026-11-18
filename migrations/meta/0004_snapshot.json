@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e94347b4-9cad-4784-b244-c42ed7940ba0",
+  "id": "81da11d6-9bf5-45b6-a032-c21884e06002",
   "prevId": "177cea63-2f6a-4b86-9235-2d789e0772bd",
   "tables": {
     "agent_tokens": {
@@ -1376,6 +1376,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "topic": {
           "name": "topic",
           "type": "text",
@@ -1448,6 +1455,11 @@
         }
       },
       "indexes": {
+        "log_entries_at": {
+          "name": "log_entries_at",
+          "columns": ["at"],
+          "isUnique": false
+        },
         "log_entries_item": {
           "name": "log_entries_item",
           "columns": ["item_id"],
@@ -1485,6 +1497,10 @@
         "log_entries_action_check": {
           "name": "log_entries_action_check",
           "value": "\"log_entries\".\"action\" in ('ingest', 'digest', 'topic', 'overview', 'related', 'merge', 'merge-topic', 'vault-file-skipped')"
+        },
+        "log_entries_vault_path": {
+          "name": "log_entries_vault_path",
+          "value": "(\"log_entries\".\"path\" is not null) = (\"log_entries\".\"action\" = 'vault-file-skipped')"
         }
       }
     },
@@ -1706,7 +1722,7 @@
       "checkConstraints": {
         "mirror_files_kind": {
           "name": "mirror_files_kind",
-          "value": "\"mirror_files\".\"kind\" in ('item', 'topic', 'index', 'log')"
+          "value": "\"mirror_files\".\"kind\" in ('item', 'topic', 'index', 'log', 'log-month')"
         }
       }
     },
@@ -1756,7 +1772,7 @@
       "checkConstraints": {
         "mirror_notes_kind": {
           "name": "mirror_notes_kind",
-          "value": "\"mirror_notes\".\"kind\" in ('item', 'topic', 'index', 'log')"
+          "value": "\"mirror_notes\".\"kind\" in ('item', 'topic', 'index', 'log', 'log-month')"
         },
         "mirror_notes_retry": {
           "name": "mirror_notes_retry",

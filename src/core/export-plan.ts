@@ -4,6 +4,8 @@ import type { readItem } from "./item-detail.ts";
 import { itemNote, noteFileName } from "./item-note.ts";
 import type { ZipFile } from "./zip.ts";
 
+type NoteOptions = Parameters<typeof itemNote>[1];
+
 const TEXT = new TextEncoder();
 
 export interface StoredFile {
@@ -59,7 +61,7 @@ export function ownedBy(itemId: number, key: string): boolean {
 function noteTextOf(
   item: NotedItem,
   comments: readonly CommentNode[],
-  links: readonly string[],
+  options: NoteOptions,
 ): string {
   return itemNote(
     {
@@ -86,13 +88,13 @@ function noteTextOf(
       postText: item.postText,
       comments,
     },
-    links,
+    options,
   );
 }
 
 export function planOf(
   { item, keptNodes, postTextKey, storedFiles }: Readonly<PlanSource>,
-  links: readonly string[] = [],
+  options: NoteOptions,
 ): Planned {
   const { id, postText } = item;
 
@@ -110,7 +112,7 @@ export function planOf(
 
   const note = {
     name: `items/${String(id)}/${noteFileName(item.digestTitle ?? item.title)}`,
-    bytes: TEXT.encode(noteTextOf(item, keptNodes, links)),
+    bytes: TEXT.encode(noteTextOf(item, keptNodes, options)),
   };
 
   return {

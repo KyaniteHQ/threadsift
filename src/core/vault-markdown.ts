@@ -4,13 +4,10 @@ import { vaultNotePath } from "./vault-paths.ts";
 import type { VaultSubject } from "./vault-tables.ts";
 import { VAULT_TEXT } from "./vault-text.ts";
 
-function displayCharacter(character: string): string {
-  return `&#${String(character.codePointAt(0))};`;
-}
-
 export function wikiLink(subject: VaultSubject, label: string | null): string {
   const path = vaultNotePath(subject).slice(0, -".md".length);
-  const text = label?.replaceAll(/[[\]|\p{Cc}]/gu, displayCharacter) ?? "";
+  const text =
+    label?.replaceAll(/\p{Cc}/gu, " ").replaceAll(/(\[(?=\[)|\](?=\]|$))/gu, "$1\u2060") ?? "";
 
   return text === "" ? `[[${path}]]` : `[[${path}|${text}]]`;
 }
@@ -65,11 +62,13 @@ export async function* linesOf<Row, Cursor>(
   read: (cursor: Cursor | null) => PromiseLike<readonly Row[]>,
   line: (row: Row) => string,
   after: (row: Row) => Cursor,
+  heading?: string,
 ): AsyncGenerator<string> {
   let cursor: Cursor | null = null;
   for (;;) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each page starts at the cursor the previous page returned.
     const rows = await read(cursor);
+    if (cursor === null && heading !== undefined && rows.length > 0) yield heading;
     yield* rows.map((row) => line(row));
 
     const last = rows.at(-1);

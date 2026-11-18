@@ -14,6 +14,7 @@ CREATE TABLE `__new_log_entries` (
 	`at` integer NOT NULL,
 	`action` text NOT NULL,
 	`title` text,
+	`path` text,
 	`topic` text,
 	`tags` text,
 	`added` integer,
@@ -26,12 +27,14 @@ CREATE TABLE `__new_log_entries` (
 	`topic_id` integer,
 	FOREIGN KEY (`item_id`) REFERENCES `items`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`topic_id`) REFERENCES `topics`(`id`) ON UPDATE no action ON DELETE no action,
-	CONSTRAINT "log_entries_action_check" CHECK("__new_log_entries"."action" in ('ingest', 'digest', 'topic', 'overview', 'related', 'merge', 'merge-topic', 'vault-file-skipped'))
+	CONSTRAINT "log_entries_action_check" CHECK("__new_log_entries"."action" in ('ingest', 'digest', 'topic', 'overview', 'related', 'merge', 'merge-topic', 'vault-file-skipped')),
+	CONSTRAINT "log_entries_vault_path" CHECK(("__new_log_entries"."path" is not null) = ("__new_log_entries"."action" = 'vault-file-skipped'))
 );
 --> statement-breakpoint
 INSERT INTO `__new_log_entries`("id", "at", "action", "title", "topic", "tags", "added", "removed", "picks", "merged_from", "merged_into", "moved", "item_id", "topic_id") SELECT "id", "at", "action", "title", "topic", "tags", "added", "removed", "picks", "merged_from", "merged_into", "moved", "item_id", "topic_id" FROM `log_entries`;--> statement-breakpoint
 DROP TABLE `log_entries`;--> statement-breakpoint
 ALTER TABLE `__new_log_entries` RENAME TO `log_entries`;--> statement-breakpoint
+CREATE INDEX `log_entries_at` ON `log_entries` (`at`);--> statement-breakpoint
 CREATE INDEX `log_entries_item` ON `log_entries` (`item_id`);--> statement-breakpoint
 CREATE INDEX `log_entries_topic` ON `log_entries` (`topic_id`);--> statement-breakpoint
 CREATE TABLE `__new_mirror_files` (
@@ -40,7 +43,7 @@ CREATE TABLE `__new_mirror_files` (
 	`subject_id` integer NOT NULL,
 	`sequence` integer NOT NULL,
 	`sha` text,
-	CONSTRAINT "mirror_files_kind" CHECK("__new_mirror_files"."kind" in ('item', 'topic', 'index', 'log'))
+	CONSTRAINT "mirror_files_kind" CHECK("__new_mirror_files"."kind" in ('item', 'topic', 'index', 'log', 'log-month'))
 );
 --> statement-breakpoint
 INSERT INTO `__new_mirror_files`("path", "kind", "subject_id", "sequence", "sha") SELECT "path", "kind", "subject_id", "sequence", "sha" FROM `mirror_files`;--> statement-breakpoint
@@ -51,7 +54,7 @@ CREATE TABLE `__new_mirror_notes` (
 	`kind` text NOT NULL,
 	`subject_id` integer NOT NULL,
 	`retry_at` integer DEFAULT 0 NOT NULL,
-	CONSTRAINT "mirror_notes_kind" CHECK("__new_mirror_notes"."kind" in ('item', 'topic', 'index', 'log')),
+	CONSTRAINT "mirror_notes_kind" CHECK("__new_mirror_notes"."kind" in ('item', 'topic', 'index', 'log', 'log-month')),
 	CONSTRAINT "mirror_notes_retry" CHECK("__new_mirror_notes"."retry_at" >= 0)
 );
 --> statement-breakpoint

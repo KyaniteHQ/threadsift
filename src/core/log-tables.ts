@@ -12,6 +12,7 @@ export const logEntries = sqliteTable(
     at: integer("at").notNull(),
     action: text("action", { enum: LOG_ACTIONS }).notNull(),
     title: text("title"),
+    path: text("path"),
     topic: text("topic"),
     tags: text("tags", { mode: "json" }).$type<readonly string[]>(),
     added: integer("added"),
@@ -25,6 +26,11 @@ export const logEntries = sqliteTable(
   },
   (table) => [
     check("log_entries_action_check", sql`${table.action} in (${listed(LOG_ACTIONS)})`),
+    check(
+      "log_entries_vault_path",
+      sql`(${table.path} is not null) = (${table.action} = 'vault-file-skipped')`,
+    ),
+    index("log_entries_at").on(table.at),
     index("log_entries_item").on(table.itemId),
     index("log_entries_topic").on(table.topicId),
   ],

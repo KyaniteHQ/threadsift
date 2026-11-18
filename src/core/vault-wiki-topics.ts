@@ -37,13 +37,13 @@ export async function* topicLines(db: Database, topicId: number): AsyncGenerator
 
   yield topicWikiHeader(topic);
 
-  yield `\n## ${VAULT_TEXT.disagreementsHeading}\n\n`;
   yield* linesOf(
     (cursor: { readonly at: number; readonly id: number } | null) =>
       disagreementPage(db, topicId, { cursor, limit: WIKI_PAGE_ROWS }),
     ({ items: [first, second], reason }) =>
       `- ${itemWikiLink(first)} · ${itemWikiLink(second)} · ${plainMarkdown(reason)}\n`,
     ({ at, id }) => ({ at, id }),
+    `\n## ${VAULT_TEXT.disagreementsHeading}\n\n`,
   );
 
   yield `\n## ${VAULT_TEXT.itemsHeading}\n\n`;

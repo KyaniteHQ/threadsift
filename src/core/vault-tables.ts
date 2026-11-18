@@ -3,7 +3,7 @@ import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
 
 import { listed } from "./schema-checks.ts";
 
-const VAULT_KINDS = ["item", "topic", "index", "log"] as const;
+const VAULT_KINDS = ["item", "topic", "index", "log", "log-month"] as const;
 export type VaultKind = (typeof VAULT_KINDS)[number];
 export type VaultSubject = Readonly<{ kind: VaultKind; subjectId: number }>;
 

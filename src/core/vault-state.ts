@@ -1,12 +1,17 @@
 import { type SQLWrapper, and, eq, gt, lte, sql } from "drizzle-orm";
 
-import { guardedBatch } from "./guards.ts";
+import { among, guardedBatch } from "./guards.ts";
 import { loggedVaultSkip } from "./log-writes.ts";
 import type { Database } from "./ports.ts";
 import { HOLDS_LIBRARY } from "./restore-state.ts";
 import { restoreRuns } from "./schema.ts";
 import type { VaultProgress } from "./vault-github.ts";
-import { type PendingVaultNote, queueVaultLibrary, queueVaultNotes } from "./vault-queue.ts";
+import {
+  type PendingVaultNote,
+  queueVaultLibrary,
+  queueVaultLog,
+  queueVaultNotes,
+} from "./vault-queue.ts";
 import {
   mirrorFiles,
   mirrorNotes,
@@ -38,25 +43,26 @@ export function vaultHolding(lease: Readonly<VaultLease>) {
   );
 }
 
-export async function vaultCurrent(
+export async function currentVaultNotes(
   db: Database,
   lease: Readonly<VaultLease>,
   pending: readonly PendingVaultNote[],
-): Promise<boolean> {
-  const versions = JSON.stringify(
-    pending.map(({ kind, subjectId, sequence }) => ({ kind, subjectId, sequence })),
-  );
-  const [held] = await db
-    .select({ id: vaultSettings.id })
-    .from(vaultSettings)
+): Promise<readonly PendingVaultNote[]> {
+  const rows = await db
+    .select({ sequence: mirrorNotes.sequence })
+    .from(mirrorNotes)
     .where(
       and(
-        vaultHolding(lease),
+        sql`exists (select 1 from ${vaultSettings} where ${vaultHolding(lease)})`,
         VAULT_AVAILABLE,
-        sql`not exists (select 1 from json_each(${versions}) as expected where not exists (select 1 from ${mirrorNotes} where ${mirrorNotes.kind} = json_extract(expected.value, '$.kind') and ${mirrorNotes.subjectId} = json_extract(expected.value, '$.subjectId') and ${mirrorNotes.sequence} = json_extract(expected.value, '$.sequence')))`,
+        among(
+          mirrorNotes.sequence,
+          pending.map(({ sequence }) => sequence),
+        ),
       ),
     );
-  return held !== undefined;
+  const sequences = new Set(rows.map(({ sequence }) => sequence));
+  return pending.filter(({ sequence }) => sequences.has(sequence));
 }
 
 export async function seedVaultInventory(
@@ -128,9 +134,10 @@ export async function acknowledgeVault(
     pending: readonly PendingVaultNote[];
     files: readonly VaultProgress[];
     oversized: readonly string[];
+    logMonthsChanged: boolean;
   }>,
 ): Promise<void> {
-  const { lease, pending, files, oversized } = input;
+  const { lease, pending, files, oversized, logMonthsChanged } = input;
   const held = sql`exists (select 1 from ${vaultSettings} where ${vaultHolding(lease)})`;
   const sameSettings = sql`exists (select 1 from ${vaultSettings} where ${vaultSettings.sealedToken} = ${lease.sealedToken})`;
   await db.batch([
@@ -152,6 +159,7 @@ export async function acknowledgeVault(
         ),
     ),
     ...oversized.flatMap((path) => loggedVaultSkip(db, path, held)),
+    ...(logMonthsChanged ? [queueVaultLog(db, held)] : []),
   ]);
 }
 

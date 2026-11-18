@@ -1,3 +1,4 @@
+import { logMonthName } from "./vault-log-month.ts";
 import type { VaultSubject } from "./vault-tables.ts";
 
 export const VAULT_ROOT = "Threadsift";
@@ -14,6 +15,8 @@ export function vaultNotePath({ kind, subjectId }: VaultSubject): string {
       return `${VAULT_ROOT}/Index.md`;
     case "log":
       return `${VAULT_ROOT}/Log.md`;
+    case "log-month":
+      return `${VAULT_ROOT}/log/${logMonthName(subjectId)}.md`;
     default:
       return kind satisfies never;
   }

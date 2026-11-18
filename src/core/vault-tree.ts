@@ -44,10 +44,20 @@ export async function vaultTree(request: Request, branch: string) {
 
 export type VaultTree = Readonly<Awaited<ReturnType<typeof vaultTree>>>;
 
+export async function vaultLogMonths(tree: VaultTree): Promise<readonly number[]> {
+  const entries = await tree.at([VAULT_ROOT, "log"]);
+  return entries.flatMap(({ path, type }) => {
+    const match = /^(\d{4})-(0[1-9]|1[0-2])\.md$/u.exec(path);
+
+    return type === "blob" && match !== null ? [Number(`${match[1]}${match[2]}`)] : [];
+  });
+}
+
 export async function vaultSubjects(tree: VaultTree): Promise<readonly VaultSubject[]> {
-  const [items, topics] = await Promise.all([
+  const [items, topics, months] = await Promise.all([
     tree.at([VAULT_ROOT, "items"]),
     tree.at([VAULT_ROOT, "topics"]),
+    vaultLogMonths(tree),
   ]);
 
   return [
@@ -65,6 +75,7 @@ export async function vaultSubjects(tree: VaultTree): Promise<readonly VaultSubj
         ? [{ kind: "topic" as const, subjectId }]
         : [];
     }),
+    ...months.map((subjectId) => ({ kind: "log-month" as const, subjectId })),
   ];
 }
 

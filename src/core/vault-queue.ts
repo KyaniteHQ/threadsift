@@ -1,16 +1,34 @@
-import { type SQL, type SQLWrapper, and, asc, eq, lte, sql } from "drizzle-orm";
+import {
+  type SQL,
+  type SQLWrapper,
+  and,
+  asc,
+  eq,
+  lte,
+  ne,
+  notExists,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import { report } from "./failure-log.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Database } from "./ports.ts";
-import { items, topics } from "./schema.ts";
+import { items, logEntries, topics } from "./schema.ts";
+import { logMonthColumn } from "./vault-log-month.ts";
 import { mirrorNotes, vaultSettings, type VaultKind } from "./vault-tables.ts";
 
 export type PendingVaultNote = Readonly<typeof mirrorNotes.$inferSelect>;
 
 export class VaultNoteFailure extends Error {
-  readonly reason: "file-missing" | "file-changed" | "item-unreadable" | "file-too-large";
+  readonly reason:
+    | "file-missing"
+    | "file-changed"
+    | "item-unreadable"
+    | "file-too-large"
+    | "log-unreadable";
 
   constructor(reason: VaultNoteFailure["reason"]) {
     super(reason);
@@ -61,6 +79,21 @@ export function queueVaultLog(db: Database, when: Readonly<SQLWrapper>) {
   return queueVaultNotes(db, { kind: "log", id: 0, when });
 }
 
+export function queueVaultLogMonths(db: Database, when: Readonly<SQLWrapper>) {
+  const months = db
+    .selectDistinct({ month: logMonthColumn(logEntries.at).as("month") })
+    .from(logEntries)
+    .where(sql`${when}`)
+    .as("months");
+
+  return queueVaultNotes(db, {
+    kind: "log-month",
+    id: sql`months.month`,
+    from: sql`${months}`,
+    when: sql`months.month is not null`,
+  });
+}
+
 export function queueVaultLibrary(db: Database) {
   const all = sql`1`;
 
@@ -68,6 +101,7 @@ export function queueVaultLibrary(db: Database) {
     queueVaultItems(db, all),
     queueVaultTopics(db, all),
     queueVaultIndex(db, all),
+    queueVaultLogMonths(db, all),
     queueVaultLog(db, all),
     db.update(vaultSettings).set({ scanPending: true }),
   ];
@@ -95,16 +129,26 @@ export async function parkVaultNote(
   });
 }
 
-export function dueVaultNotes(db: Database, limit: number) {
+export function dueVaultNotes(db: Database, limit: number, scope?: "item" | "topic" | "shared") {
+  const kind =
+    scope === "shared"
+      ? notInArray(mirrorNotes.kind, ["item", "topic"])
+      : scope === undefined
+        ? undefined
+        : eq(mirrorNotes.kind, scope);
   return db
     .select()
     .from(mirrorNotes)
     .where(
       and(
         lte(mirrorNotes.retryAt, Date.now()),
-        sql`${mirrorNotes.kind} <> 'item' or not exists ${hasOpenJob(undefined, sql`${mirrorNotes.subjectId}`)}`,
+        or(
+          ne(mirrorNotes.kind, "item"),
+          notExists(hasOpenJob(undefined, sql`${mirrorNotes.subjectId}`)),
+        ),
+        kind,
       ),
     )
-    .orderBy(asc(mirrorNotes.sequence))
+    .orderBy(sql`${mirrorNotes.kind} = 'log'`, asc(mirrorNotes.sequence))
     .limit(limit);
 }

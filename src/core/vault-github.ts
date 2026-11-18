@@ -6,6 +6,7 @@ import { vaultRequest } from "./vault-request.ts";
 import type { VaultKind, VaultSubject } from "./vault-tables.ts";
 import {
   VaultRefSchema,
+  vaultLogMonths,
   vaultSubjects,
   vaultTree,
   vaultTreeFiles,
@@ -71,6 +72,7 @@ export function vaultGithub(network: Network, input: Readonly<VaultInput>, signa
       await request.read(`/git/ref/heads/${encodeURIComponent(input.branch)}`, VaultRefSchema);
     },
     subjects: async () => vaultSubjects(await treeOf()),
+    logMonths: async () => vaultLogMonths(await treeOf()),
     files: async (subject: VaultSubject) => vaultTreeFiles(await treeOf(), subject),
     write: async (
       operation: Readonly<{ files: readonly VaultChange[]; current: () => Promise<boolean> }>,
@@ -82,6 +84,7 @@ export function vaultGithub(network: Network, input: Readonly<VaultInput>, signa
         current: operation.current,
         body: commitBody(input, base.parent, operation.files),
       });
+      snapshot = null;
     },
   };
 }

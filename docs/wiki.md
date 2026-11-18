@@ -2,7 +2,7 @@
 
 The records the agent keeps beside the Items: the Topic pages with their overviews, the Index of every Topic, the Related Items of each Item, and the Log of committed changes. [Proposals](proposals.md) owns Proposals and Pins. [The data model outline](architecture/data-model-outline.md) owns the tables.
 
-The [Vault mirror](architecture/vault-mirror.md) writes the Topic pages, Index and Log as Markdown. Item notes link to their Topic pages and Related Items. A Topic page note lists all current Known disagreements, while the app shows the most recent 20 (`DISAGREEMENTS_SHOWN`).
+The [Vault mirror](architecture/vault-mirror.md) writes the Topic pages, Index and Log as Markdown. The vault's Log links to UTC month notes. Item notes link to their Topic pages and Related Items. A Topic page note lists all current Known disagreements, while the app shows the most recent 20 (`DISAGREEMENTS_SHOWN`).
 
 - [Topic pages](#topic-pages)
 - [The Index](#the-index)
@@ -78,7 +78,7 @@ The obvious `min(bm25(...))` over a `GROUP BY` fails on both targets with `unabl
 
 The Log lists committed library changes and files the Vault mirror skipped. It is the `log_entries` table, one row for each entry.
 
-**Recording.** An entry is a statement in the guarded batch that commits the change it records, so a stale result, a lost claim, a failed guard or a rolled-back write appends nothing, and a committed change never lacks its entry. A statement that writes an entry stays in the Drizzle `batch`, and a list it needs is bound as one JSON value, because D1 limits a statement to 100 bound parameters.
+**Recording.** A library change writes its Log entry in the guarded batch that commits the change. A skipped file writes its entry when the Vault mirror acknowledges the write, while the same lease still holds. Both batches queue the entry's UTC month immediately after the Log insert. A list binds as one JSON value because D1 allows at most 100 bound parameters per statement.
 
 | Action | Written |
 |---|---|

@@ -31,6 +31,7 @@ export interface VaultBatch {
   readonly files: readonly VaultChange[];
   readonly progress: readonly VaultProgress[];
   readonly oversized: readonly string[];
+  readonly logMonthsChanged: boolean;
 }
 
 const EMPTY: Prepared = { changes: [], progress: [], bytes: 0, complete: true };
@@ -40,6 +41,9 @@ async function itemFiles(reader: Reader, subjectId: number): Promise<readonly Va
   const read = await readItem(reader.ports, subjectId);
   reader.signal.throwIfAborted();
   if (read === undefined) return [];
+  const omittedImages = read.storedFiles.flatMap(({ key, size }) =>
+    key !== null && size !== null && size > GITHUB_FILE_BYTES ? [key] : [],
+  );
   const planned = planOf(
     {
       item: read.item,
@@ -47,7 +51,7 @@ async function itemFiles(reader: Reader, subjectId: number): Promise<readonly Va
       postTextKey: read.postTextKey,
       storedFiles: read.storedFiles,
     },
-    itemWikiSections(read),
+    { links: itemWikiSections(read), omittedImages },
   );
   if (planned.kind === "missing") throw new VaultNoteFailure("file-missing");
   const [note, ...text] = planned.plan.head;
@@ -84,12 +88,17 @@ async function subjectFiles(reader: Reader, { kind, subjectId }: VaultSubject) {
     };
   }
 
-  const content = await vaultWikiContent(reader.ports.db, { kind, subjectId }, reader.signal);
+  const content = await vaultWikiContent(
+    reader.ports.db,
+    { kind, subjectId },
+    reader.signal,
+    reader.github.logMonths,
+  );
   const path = vaultNotePath({ kind, subjectId });
 
   return {
     files: content.kind === "memory" ? [{ ...content, path }] : [],
-    oversized: content.kind === "oversized" ? [path] : [],
+    oversized: [],
   };
 }
 
@@ -184,7 +193,7 @@ async function prepareSubject(
   reader: Reader,
   note: PendingVaultNote,
   budget: number,
-): Promise<Prepared & { oversized: readonly string[] }> {
+): Promise<Prepared & { oversized: readonly string[]; logMonthsChanged: boolean }> {
   const { files, oversized } = await subjectFiles(reader, note);
   const previous = await reader.github.files(note);
   const saved = await reader.ports.db
@@ -198,7 +207,11 @@ async function prepareSubject(
     saved,
   };
   const prepared = await prepareGroups(input, groupsOf(files, previous, note), budget, []);
-  return { ...prepared, oversized };
+  const logMonthsChanged =
+    note.kind === "log-month" &&
+    prepared.complete &&
+    (files.length === 0 || previous.length === 0 || saved.length === 0);
+  return { ...prepared, oversized, logMonthsChanged };
 }
 
 async function prepareGroups(
@@ -242,6 +255,7 @@ async function take(
     files: [...taken.files, ...prepared.changes],
     progress: [...taken.progress, ...prepared.progress],
     oversized: [...taken.oversized, ...prepared.oversized],
+    logMonthsChanged: taken.logMonthsChanged || prepared.logMonthsChanged,
   };
   return prepared.complete ? take(reader, rest, next, bytes + prepared.bytes) : next;
 }
@@ -252,7 +266,7 @@ export function vaultFiles(
   return take(
     input,
     input.pending,
-    { pending: [], complete: [], files: [], progress: [], oversized: [] },
+    { pending: [], complete: [], files: [], progress: [], oversized: [], logMonthsChanged: false },
     0,
   );
 }

@@ -104,12 +104,15 @@ async function gather(
 
   if (read === undefined) return { kind: "gone" };
 
-  const planned = planOf({
-    item: read.item,
-    keptNodes: read.keptNodes(),
-    postTextKey: read.postTextKey,
-    storedFiles: read.storedFiles,
-  });
+  const planned = planOf(
+    {
+      item: read.item,
+      keptNodes: read.keptNodes(),
+      postTextKey: read.postTextKey,
+      storedFiles: read.storedFiles,
+    },
+    { links: [], omittedImages: [] },
+  );
 
   if (planned.kind === "missing") return planned;
 

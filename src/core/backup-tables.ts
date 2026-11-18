@@ -184,6 +184,7 @@ export const BACKUP_TABLES = {
       "at",
       "action",
       "title",
+      "path",
       "topic",
       "tags",
       "added",

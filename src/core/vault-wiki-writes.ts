@@ -1,13 +1,13 @@
 import { type SQLWrapper, eq, sql } from "drizzle-orm";
 
-import { currentDisagreementPin } from "./disagreement-pins.ts";
 import { itemTitle } from "./item-title.ts";
+import { disagreementInTopic } from "./known-disagreements.ts";
 import type { Database } from "./ports.ts";
 import { digests, items, logEntries, pins, relatedItems, topics } from "./schema.ts";
 import {
   queueVaultIndex,
   queueVaultItems,
-  queueVaultLog,
+  queueVaultLogMonths,
   queueVaultTopics,
 } from "./vault-queue.ts";
 
@@ -48,7 +48,7 @@ export function queueVaultDigestWiki(
   const nextTopic = sql`(select ${topics.id} from ${topics} where ${topics.key} = ${topicKey})`;
   const moved = sql`${oldTopic} is not ${nextTopic}`;
   const titleChanged = sql`(select ${itemTitle()} from ${items} left join ${digests} on ${digests.itemId} = ${items.id} where ${items.id} = ${itemId}) is not ${title}`;
-  const agreementChanged = sql`exists (select 1 from ${pins} join items as other on other.id = case when ${pins.fromItemId} = ${itemId} then ${pins.intoItemId} else ${pins.fromItemId} end where ${currentDisagreementPin()} and (${pins.fromItemId} = ${itemId} or ${pins.intoItemId} = ${itemId}) and other.topic_id = ${oldTopic})`;
+  const agreementChanged = sql`exists (select 1 from ${pins} where ${disagreementInTopic(oldTopic)} and (${pins.fromItemId} = ${itemId} or ${pins.intoItemId} = ${itemId}))`;
 
   return [
     queueVaultTopics(
@@ -67,10 +67,7 @@ export function queueVaultItemDeletion(db: Database, itemId: number) {
     queueVaultItems(db, eq(items.id, itemId)),
     queueVaultTopics(db, eq(topics.id, topic)),
     queueVaultIndex(db, sql`${topic} is not null`),
-    queueVaultLog(
-      db,
-      sql`exists (select 1 from ${logEntries} where ${logEntries.itemId} = ${itemId})`,
-    ),
+    queueVaultLogMonths(db, eq(logEntries.itemId, itemId)),
     incomingLinks(db, sql`select ${itemId}`),
   ] as const;
 }

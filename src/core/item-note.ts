@@ -175,21 +175,32 @@ function commentSection(nodes: readonly CommentNode[], source: Source): string[]
   return [`## ${COMMENTS_TITLE}`, "", ...lines, ""];
 }
 
-function imagesBesideNote(text: string, itemId: number): string {
+function imagesBesideNote(text: string, itemId: number, omittedImages: readonly string[]): string {
   const { images } = scanMarkdown(text, false);
 
   return rewriteImages(
     text,
     images
       .filter(({ destination }) => isImageRouteOf(destination, itemId))
-      .map((image) => ({
-        image,
-        text: inlineImage(image, keyOfFileRoute(image.destination)?.split("/").at(-1) ?? ""),
-      })),
+      .map((image) => {
+        const key = keyOfFileRoute(image.destination) ?? "";
+        return {
+          image,
+          text: omittedImages.includes(key) ? "" : inlineImage(image, key.split("/").at(-1) ?? ""),
+        };
+      }),
   );
 }
 
-export function itemNote(input: Readonly<ItemNoteInput>, links: readonly string[] = []): string {
+interface ItemNoteOptions {
+  readonly links: readonly string[];
+  readonly omittedImages: readonly string[];
+}
+
+export function itemNote(
+  input: Readonly<ItemNoteInput>,
+  { links, omittedImages }: ItemNoteOptions,
+): string {
   const postText = input.postText === null || input.postText.trim() === "" ? null : input.postText;
 
   const body = [
@@ -207,7 +218,12 @@ export function itemNote(input: Readonly<ItemNoteInput>, links: readonly string[
     ...(input.note === null ? [] : [`## ${NOTE_TITLE}`, "", plainMarkdown(input.note), ""]),
     ...(postText === null
       ? []
-      : [`## ${SECTION_TITLES[input.kind]}`, "", imagesBesideNote(postText, input.id), ""]),
+      : [
+          `## ${SECTION_TITLES[input.kind]}`,
+          "",
+          imagesBesideNote(postText, input.id, omittedImages),
+          "",
+        ]),
     ...commentSection(input.comments, input.source),
   ];
 

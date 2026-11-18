@@ -1,4 +1,4 @@
-import { desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { LogEntrySchema } from "./log-contract.ts";
@@ -28,19 +28,25 @@ function entryOf(row: Row) {
     case "merge-topic":
       return { ...merged, action };
     case "vault-file-skipped":
-      return { id, at, action, path: row.title };
+      return { id, at, action, path: row.path };
     default:
       return action satisfies never;
   }
 }
 
-function logRows(db: Database, cursor: number | null, limit: number) {
+interface LogRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+function logRows(db: Database, cursor: number | null, limit: number, range?: LogRange) {
   return db
     .select({
       id: logEntries.id,
       at: logEntries.at,
       action: logEntries.action,
       title: logEntries.title,
+      path: logEntries.path,
       topic: logEntries.topic,
       topicKey: topics.key,
       tags: logEntries.tags,
@@ -54,13 +60,25 @@ function logRows(db: Database, cursor: number | null, limit: number) {
     })
     .from(logEntries)
     .leftJoin(topics, eq(topics.id, logEntries.topicId))
-    .where(cursor === null ? undefined : lt(logEntries.id, cursor))
+    .where(
+      and(
+        cursor === null ? undefined : lt(logEntries.id, cursor),
+        range === undefined
+          ? undefined
+          : and(gte(logEntries.at, range.start), lt(logEntries.at, range.end)),
+      ),
+    )
     .orderBy(desc(logEntries.id))
     .limit(limit);
 }
 
-export async function readLogEntries(db: Database, cursor: number | null, limit: number) {
-  return (await logRows(db, cursor, limit)).map((row) => LogEntrySchema.parse(entryOf(row)));
+export async function readLogEntries(
+  db: Database,
+  cursor: number | null,
+  limit: number,
+  range: LogRange,
+) {
+  return (await logRows(db, cursor, limit, range)).map((row) => LogEntrySchema.parse(entryOf(row)));
 }
 
 export async function readLog(db: Database, cursor: number | null) {
