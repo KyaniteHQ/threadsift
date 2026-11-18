@@ -176,20 +176,21 @@ function parseThread(value: XThreadValue, statusId: string): ParsedThread {
   });
 }
 
-function checkedRow(value: XThreadValue): void {
-  if (utf8Length(JSON.stringify(value)) > MAX_ROW_BYTES) {
-    refuse(`the thread is longer than ${String(MAX_ROW_BYTES)} bytes once stored`);
-  }
+export function storedXThread(
+  thread: XThreadValue,
+):
+  | { readonly kind: "thread"; readonly thread: XThreadValue }
+  | Extract<ThreadParse, { kind: "refused" }> {
+  return utf8Length(JSON.stringify(thread)) > MAX_ROW_BYTES
+    ? {
+        kind: "refused",
+        reason: `the thread is longer than ${String(MAX_ROW_BYTES)} bytes once stored`,
+      }
+    : { kind: "thread", thread };
 }
 
 export function parseXThreadValue(thread: XThreadValue, statusId: string): ThreadParse {
-  const read = refusing(() => {
-    const parsed = parseThread(thread, statusId);
-
-    checkedRow(thread);
-
-    return parsed;
-  });
+  const read = refusing(() => parseThread(thread, statusId));
 
   return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
 }
@@ -254,6 +255,10 @@ export function parseXThread(answer: string, statusId: string): StoredParse {
   const original = parseXThreadValue(read.value, statusId);
 
   if (original.kind === "refused") return original;
+
+  const stored = storedXThread(read.value);
+
+  if (stored.kind === "refused") return stored;
 
   const everyReply = new Set(read.value.replies.map(({ id }) => id));
 

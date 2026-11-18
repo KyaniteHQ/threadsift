@@ -120,7 +120,7 @@ export interface XThreadValue {
   readonly replies: readonly XReply[];
 }
 
-export type XCliReply = XReply & { readonly replies: number | null };
+export type XCliReply = XReply & { readonly replies?: number | null };
 
 export interface XCliThreadValue {
   readonly post: XPost;

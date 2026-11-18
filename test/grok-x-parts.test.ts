@@ -145,7 +145,7 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
   });
 
   it("preserves the parent id of a reply whose parent is missing", () => {
-    const orphan = reply(1000000000000000012n, 1000000000000000099n);
+    const orphan = reply(1000000000000000012n, 1000000000000000010n);
     const placed = reply(1000000000000000011n, POST_ID);
     const nested = reply(1000000000000000013n, 1000000000000000011n);
     const outcome = outcomeOf(exited(found(thread([orphan, placed, nested]))));
