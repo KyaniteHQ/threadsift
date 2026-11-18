@@ -10,7 +10,7 @@ import {
   answerOf,
   contentOf,
   digestOf,
-  longAnswerOf,
+  largeThreadOf,
   oversizedAnswerOf,
 } from "./x-intake-bodies.ts";
 import { intakeTo, sentIntake, sentIntakeForContent } from "./x-intake-fixtures.ts";
@@ -47,7 +47,7 @@ describe("an X link answer with the task's credential is stored once and only fo
     assert.deepEqual([row.state, row.refusal], ["done", null]);
     assert.ok((row.answered_at ?? 0) >= started);
     assert.equal(jobRow(instance, task.job.id).state, "done");
-    assert.equal(verification?.thread.replies.length, 6);
+    assert.equal(verification?.thread.replies.length, 1);
     assert.equal(verification?.digest, JSON.stringify(digestOf()));
     assert.deepEqual([item.fetch_result, item.generation], [null, 0]);
     assert.equal(stored(instance, ["reddit_comments", "digests"]), "[[],[]]");
@@ -59,17 +59,30 @@ describe("an X link answer with the task's credential is stored once and only fo
     assert.equal(stored(instance), unchanged);
   });
 
-  it("takes a thread answer of more than 256 KiB, the size of a result answer, up to 8 MiB", async () => {
+  it("stores ranked replies, Digest picks, their ancestors and the author thread from 100 intake replies when the full answer exceeds the stored row limit", async () => {
     const task = await sentIntakeForContent(instance);
-    const body = longAnswerOf(task.statusId);
+    const value = largeThreadOf(task.statusId);
+    const content = JSON.stringify({ ...value, post: { ...value.post, replies: 0 } });
+    assert.ok(content.length > 1_499_998);
 
-    assert.ok(body.content.length > 256 * 1024);
-    const response = await intakeTo(instance, task, body);
-
+    const root = BigInt(task.statusId);
+    const digest = {
+      ...digestOf(),
+      keptComments: [2n, 3n, 99n, 101n].map((offset) => `t1_${String(root + offset)}`),
+    };
+    const response = await intakeTo(instance, task, { content, digest });
     assert.equal(response.status, 204, await response.text());
+
+    const offsets = [100, 99, 98, ...Array.from({ length: 40 }, (_, index) => 43 - index), 1];
+    const verification = verificationRow(instance, task.itemId);
+    assert.equal(verification?.thread.post.replies, 100);
+    assert.deepEqual(
+      verification?.thread.replies.map(({ id }) => id),
+      offsets.map((offset) => String(BigInt(task.statusId) + BigInt(offset))),
+    );
   });
 
-  it("refuses with 400 a thread whose stored row would pass the limit of one D1 statement, and names the limit", async () => {
+  it("refuses a thread when the selected replies exceed the stored row limit and names the limit", async () => {
     const task = await sentIntakeForContent(instance);
     const response = await intakeTo(instance, task, oversizedAnswerOf(task.statusId));
 
@@ -80,16 +93,19 @@ describe("an X link answer with the task's credential is stored once and only fo
 
   it("keeps a Digest the owner supplied with the link when the answer holds none", async () => {
     const task = await sentIntakeForContent(instance);
-    const supplied = JSON.stringify(digestOf());
+    const picked = String(BigInt(task.statusId) + 99n);
+    const supplied = JSON.stringify({ ...digestOf(), keptComments: [`t1_${picked}`] });
 
     exec(instance, "update items set pending_digest = ? where id = ?", supplied, task.itemId);
 
     const answer = await intakeTo(instance, task, {
-      content: contentOf(task.statusId),
+      content: JSON.stringify(largeThreadOf(task.statusId)),
     });
 
     assert.equal(answer.status, 204);
-    assert.equal(verificationRow(instance, task.itemId)?.digest, supplied);
+    const verification = verificationRow(instance, task.itemId);
+    assert.equal(verification?.digest, supplied);
+    assert.ok(verification.thread.replies.some(({ id }) => id === picked));
   });
 
   it("answers 401 for a missing, wrong, foreign or unknown credential and 403 for a session or an agent token, with no row changed", async () => {

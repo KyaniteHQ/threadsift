@@ -23,9 +23,7 @@ export interface Refused {
   readonly exit: number | null;
 }
 
-export type Outcome =
-  | { readonly kind: "fetched"; readonly fetch: XFetch; readonly repaired: number }
-  | Refused;
+export type Outcome = { readonly kind: "fetched"; readonly fetch: XFetch } | Refused;
 
 const EnvelopeSchema = z.object({
   text: z.string(),
@@ -59,16 +57,19 @@ export const SURFACE_REFUSAL = refused(
   null,
 );
 
-function repairedParents({ post, replies }: XCliThreadValue) {
-  const known = new Set([post.id, ...replies.map(({ id }) => id)]);
+function withoutRepeats(thread: Readonly<XCliThreadValue>): XCliThreadValue {
+  const seen = new Set<string>();
 
-  const repaired = replies.filter(({ parentId }) => !known.has(parentId)).length;
+  return {
+    ...thread,
+    replies: thread.replies.filter(({ id }) => {
+      if (seen.has(id)) return false;
 
-  const mended = replies.map((reply) =>
-    known.has(reply.parentId) ? reply : { ...reply, parentId: post.id, repairedParent: true },
-  );
+      seen.add(id);
 
-  return { thread: { post, replies: mended }, repaired };
+      return true;
+    }),
+  };
 }
 
 function lastObject(text: string): string {
@@ -107,12 +108,10 @@ function answerOutcome(
   if (answer === null) return refused({ status: "unreadable", category: "no-answer" }, exit);
 
   if (!answer.found) {
-    return { kind: "fetched", fetch: { kind: "failed", status: "status" }, repaired: 0 };
+    return { kind: "fetched", fetch: { kind: "failed", status: "status" } };
   }
 
-  const { thread, repaired } = repairedParents(answer.thread);
-
-  return { kind: "fetched", fetch: { kind: "thread", thread }, repaired };
+  return { kind: "fetched", fetch: { kind: "thread", thread: withoutRepeats(answer.thread) } };
 }
 
 function exitedOutcome(stdout: string, code: number | null): Outcome {
@@ -169,10 +168,10 @@ export function internal(cause: unknown): Refused {
 
 export function logged(outcome: Outcome, elapsedMs: number): XFetch {
   if (outcome.kind === "fetched") {
-    const { fetch, repaired } = outcome;
+    const { fetch } = outcome;
     const replies = fetch.kind === "thread" ? fetch.thread.replies.length : 0;
 
-    report("x-fetch", { replies, repaired, elapsedMs });
+    report("x-fetch", { replies, elapsedMs });
 
     return fetch;
   }

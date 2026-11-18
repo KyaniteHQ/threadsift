@@ -137,15 +137,15 @@ async function concluded(
       : { status: fetched.status, note: fetched.note };
   }
 
-  const thread = await readFetchedThread(db, source.itemId, statusId, fetched.thread);
+  const read = await readFetchedThread(db, source.itemId, statusId, fetched.thread, []);
 
-  if (thread === null) {
+  if (read.kind === "refused") {
     report("x-fetch-refused", { category: "answer-refused" satisfies XRefusalCategory });
 
     return { status: "unreadable", note: NOTE_OF_REFUSAL["answer-refused"] };
   }
 
-  return { status: "to-verify", thread };
+  return { status: "to-verify", thread: read.thread };
 }
 
 export function fetchedByX(

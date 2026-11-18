@@ -33,7 +33,10 @@ export function itemRow(instance: Instance, id: number) {
   return row;
 }
 
-const ThreadRepliesSchema = z.object({ replies: z.array(z.unknown()) });
+const ThreadRepliesSchema = z.object({
+  post: z.object({ replies: z.number().nullable() }),
+  replies: z.array(z.object({ id: z.string() })),
+});
 
 const VerificationRowSchema = z.object({
   revision: z.number(),

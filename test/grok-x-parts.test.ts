@@ -46,7 +46,6 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
     const outcome = outcomeOf(exited(found(thread([reply(1000000000000000011n, POST_ID)]))));
     assert.equal(outcome.kind, "fetched");
     assert.equal(outcome.kind === "fetched" && outcome.fetch.kind, "thread");
-    assert.equal(outcome.kind === "fetched" && outcome.repaired, 0);
   });
 
   it("reads only the last JSON answer when structured output is null", () => {
@@ -74,7 +73,6 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
     assert.deepEqual(outcome, {
       kind: "fetched",
       fetch: { kind: "failed", status: "status" },
-      repaired: 0,
     });
   });
 
@@ -146,18 +144,17 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
     ]);
   });
 
-  it("makes a reply whose parent is missing a child of the post, and counts it", () => {
-    const orphan = reply(1000000000000000012n, 1000000000000000099n);
+  it("preserves the parent id of a reply whose parent is missing", () => {
+    const orphan = reply(1000000000000000012n, 1000000000000000010n);
     const placed = reply(1000000000000000011n, POST_ID);
     const nested = reply(1000000000000000013n, 1000000000000000011n);
     const outcome = outcomeOf(exited(found(thread([orphan, placed, nested]))));
 
-    assert.equal(outcome.kind === "fetched" && outcome.repaired, 1);
     assert.deepEqual(
       outcome.kind === "fetched" && outcome.fetch.kind === "thread"
         ? outcome.fetch.thread.replies.map(({ parentId }) => parentId)
         : null,
-      [POST_ID, POST_ID, "1000000000000000011"],
+      [orphan.parentId, POST_ID, "1000000000000000011"],
     );
   });
 
