@@ -35,7 +35,7 @@ export const verdict = (
   author: string,
   text: string,
   resolved: Resolved = NOTHING_RESOLVED,
-): Judgement => judged({ id, author, text }, postOf(name), resolved);
+): Judgement => judged({ id, author, text, recipientsMayBeOmitted: false }, postOf(name), resolved);
 
 export const CUT_BARE_HEAD =
   "Libraries should always be open to the whole neighbourhood.\n\nThe committee is against the notion that it would be acceptable for readers to be reduced to a role of doing things that “the schedule thinks makes sense to reward in members”.\n\nPeople should not cede control of the reading room to";
@@ -97,7 +97,7 @@ export const verdictOf = (body: string, id: string, author: string, text: string
 
   if (answer.kind !== "post") throw new Error(answer.kind);
 
-  return judged({ id, author, text }, answer.post, NOTHING_RESOLVED);
+  return judged({ id, author, text, recipientsMayBeOmitted: false }, answer.post, NOTHING_RESOLVED);
 };
 
 export const mediaOnly = (text: string) =>

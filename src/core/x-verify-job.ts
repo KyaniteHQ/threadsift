@@ -46,15 +46,7 @@ async function slice(
     deferredUntil: Date.now() + (asked.unavailable ? (RETRY_DELAYS_MS[job.attempts] ?? 0) : 0),
     wait: asked.unavailable ? "x-verify" : null,
     countsAttempt: asked.unavailable,
-    writes: [
-      savedProgress(
-        ports.db,
-        job.itemId,
-        row.revision,
-        judged,
-        asked.thread === row.thread ? undefined : asked.thread,
-      ),
-    ],
+    writes: [savedProgress(ports.db, job.itemId, row.revision, judged, asked.thread)],
   };
 }
 

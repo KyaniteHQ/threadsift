@@ -3,7 +3,6 @@ import { SMALL_POLICY } from "./fetch-link.ts";
 import type { Network } from "./ports.ts";
 import { noPhotosKey } from "./x-images.ts";
 import {
-  type Judgement,
   MAX_LINKS,
   type OembedAnswer,
   type Resolved,
@@ -12,7 +11,7 @@ import {
   oembedAnswerOf,
   resolutionsNeeded,
 } from "./x-oembed.ts";
-import { type Judged, sliceOf } from "./x-verify-state.ts";
+import { type Judged, type StoredJudgement, sliceOf } from "./x-verify-state.ts";
 import type { XThreadValue } from "./x-wire.ts";
 
 const OEMBED = "https://publish.x.com/oembed";
@@ -153,14 +152,13 @@ async function checkedPost(
   signal: AbortSignal,
   asking: Readonly<Asking>,
   isRoot: boolean,
-  replaceText: (text: string) => void,
-): Promise<Judged | null> {
+): Promise<{ readonly judged: Judged; readonly text: string } | null> {
   asking.counted();
 
   const answer = await answerFor(network, stored.id, signal);
 
   if (answer.kind === "absent" || (answer.kind === "unusable" && !isRoot)) {
-    return { [stored.id]: "rejected" };
+    return { judged: { [stored.id]: "rejected" }, text: stored.text };
   }
 
   const resolved =
@@ -179,15 +177,19 @@ async function checkedPost(
     return null;
   }
 
-  const { judgement, rejects, photoless, omittedPrefix } = checked(stored, answer.post, resolved);
-
-  if (omittedPrefix > 0) replaceText(stored.text.slice(omittedPrefix));
-
+  const { judgement, rejects, photoless, keptText } = checked(stored, answer.post, resolved);
+  const verdict =
+    keptText === stored.text || judgement === "rejected"
+      ? judgement
+      : (`${judgement}-without-recipients` as const);
   const rejected = [...rejects, ...(photoless ? [noPhotosKey(stored.id)] : [])];
 
   return {
-    [stored.id]: judgement,
-    ...Object.fromEntries(rejected.map((id) => [id, "rejected"] as const)),
+    text: keptText,
+    judged: {
+      [stored.id]: verdict,
+      ...Object.fromEntries(rejected.map((id) => [id, "rejected"] as const)),
+    },
   };
 }
 
@@ -200,25 +202,19 @@ export async function askedSlice(
   const { asking, requests } = openAsking();
   const replyTexts = new Map<string, string>();
   const queue = [...sliceOf(thread, judgedSoFar)];
-  const added: Record<string, Judgement> = {};
+  const added: Record<string, StoredJudgement> = {};
 
   const work = async (): Promise<void> => {
     const stored = queue.shift();
 
     if (stored === undefined || asking.isStopped()) return;
 
-    const judgements = await checkedPost(
-      network,
-      stored,
-      signal,
-      asking,
-      stored.id === thread.post.id,
-      (text) => {
-        replyTexts.set(stored.id, text);
-      },
-    );
+    const result = await checkedPost(network, stored, signal, asking, stored.id === thread.post.id);
 
-    for (const [id, judgement] of Object.entries(judgements ?? {})) {
+    if (result === null) return;
+    if (result.text !== stored.text) replyTexts.set(stored.id, result.text);
+
+    for (const [id, judgement] of Object.entries(result.judged)) {
       if (added[id] !== "rejected") added[id] = judgement;
     }
 

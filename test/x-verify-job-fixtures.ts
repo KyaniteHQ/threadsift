@@ -46,7 +46,7 @@ export async function storedForVerification(
       digest,
       cliAttempts,
     }),
-    savedProgress(db, itemId, 0, judged),
+    savedProgress(db, itemId, 0, judged, value),
   ]);
 
   if (waiting) return;

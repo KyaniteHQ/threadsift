@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { checked, resolutionsNeeded } from "../src/core/x-oembed.ts";
+import { checked, oembedAnswerOf, resolutionsNeeded } from "../src/core/x-oembed.ts";
 import {
   CUT_BARE_HEAD,
   CUT_BARE_ID,
@@ -25,16 +25,7 @@ import {
 } from "./x-oembed-fixtures.ts";
 
 describe("a stored post must be what X shows for the id and the author, character for character", () => {
-  it("verifies the text X shows and omits extra leading mentions only for replies", () => {
-    const prefix = "@reader_1\t@orchard\n";
-    const post = postOf("reply-short.json");
-    const stored = { id: post.id, author: post.handle, text: prefix + REPLY_SHORT };
-    const reply = checked({ ...stored, reply: true }, post, NOTHING_RESOLVED);
-
-    assert.equal(reply.judgement, "verified");
-    assert.equal(stored.text.slice(reply.omittedPrefix), REPLY_SHORT);
-    assert.equal(checked(stored, post, NOTHING_RESOLVED).judgement, "rejected");
-
+  it("verifies the text of recorded posts, with the line breaks, spaces, entities and scripts X shows", () => {
     assert.deepEqual(
       [
         SHORT(REPLY_SHORT),
@@ -46,6 +37,55 @@ describe("a stored post must be what X shows for the id and the author, characte
       ],
       ["verified", "verified", "verified", "verified", "verified", "verified"],
     );
+  });
+
+  it("keeps only the matching suffix after complete recipient handles", () => {
+    const rows = [
+      ["@a @b_9\tHello", "Hello", "Hello"],
+      [" \n @a\u00A0Hello", "Hello", "Hello"],
+      ["@abcdefghijklmno Hello", "Hello", "Hello"],
+      ["@abcdefghijklmnop Hello", "Hello", null],
+      ["@aHello", "Hello", null],
+      ["@a Hello x", "Hello", null],
+      ["@b Hello", "@b Hello", "@b Hello"],
+      ["@a evil Hello", "Hello", null],
+      ["@a Hellx", "Hello", null],
+      ["@a @b Hello", "@b Hello", "@b Hello"],
+      ["@a Hello", "@b Hello", null],
+      ["@a.b Hello", "Hello", null],
+      ["@a\u200BHello", "Hello", null],
+      ["＠a Hello", "Hello", null],
+      ["@a @b", "", null],
+      ["@a @b  ", "", null],
+      ["@a    ", '<a href="https://t.co/abc">pic.x.com/abc</a>', null],
+      [
+        "@a https://t.co/abc rest",
+        '<a href="https://t.co/abc">https://example.org</a> rest',
+        "https://t.co/abc rest",
+      ],
+      ["@a hi\n@c there", "hi<a>@c</a> there", "hi\n@c there"],
+      [
+        `@a ${CUT_BARE_HEAD} the end.`,
+        `${CUT_BARE_HEAD}…`,
+        `${CUT_BARE_HEAD} the end.`,
+        "tail-unverified",
+      ],
+    ] as const;
+
+    for (const [text, shown, expected, expectedVerdict = "verified"] of rows) {
+      const answer = oembedAnswerOf(200, withParagraph("reply-short.json", shown));
+
+      assert.ok(answer.kind === "post");
+      const { id, handle } = answer.post;
+      const result = checked(
+        { id, author: handle, text, recipientsMayBeOmitted: true },
+        answer.post,
+        NOTHING_RESOLVED,
+      );
+
+      assert.equal(result.judgement, expected === null ? "rejected" : expectedVerdict, text);
+      if (expected !== null) assert.equal(result.keptText, expected);
+    }
   });
 
   it("takes a line break, a run of spaces and a space as one separator, and no other change of white space", () => {

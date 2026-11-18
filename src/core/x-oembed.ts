@@ -2,16 +2,13 @@ import { parseHTML } from "linkedom";
 import { z } from "zod";
 
 import { parsedJson } from "./parsed-json.ts";
-import { type Anchor, type Item, LINK, itemsOf, matchingPrefix, squashed } from "./x-paragraph.ts";
+import { type Anchor, LINK, paragraphOf, squashed } from "./x-paragraph.ts";
 import { rejectedQuotes, withoutQuoteLink } from "./x-quote-link.ts";
 
-const ELLIPSIS = "\u2026";
 const CLOSING = String.raw`[^\s.,;:!?)\]'"”’]`;
 const BEFORE_TOKEN = String.raw`(?<=^|[\s(\["“‘'])`;
 const AFTER_TOKEN = String.raw`(?=$|[\s.,;:!?)\]'"”’])`;
 
-const MIN_CUT_HEAD = 250;
-const LINK_LENGTH = 23;
 export const MAX_LINKS = 20;
 
 const WEB_LINK = new RegExp(String.raw`https?://[^\s]*${CLOSING}`, "gu");
@@ -48,13 +45,13 @@ export interface StoredPost {
   readonly id: string;
   readonly author: string;
   readonly text: string;
-  readonly reply?: boolean;
+  readonly recipientsMayBeOmitted: boolean;
   readonly chain?: { readonly next: string | null };
   readonly photos?: boolean;
 }
 
 export interface Checked {
-  readonly omittedPrefix: number;
+  readonly keptText: string;
   readonly judgement: Judgement;
   readonly rejects: readonly string[];
   readonly photoless: boolean;
@@ -62,52 +59,10 @@ export interface Checked {
 
 export type Resolved = ReadonlyMap<string, string>;
 
-const FLATTENED: Readonly<Record<Item["kind"], (item: Readonly<Item>) => string>> = {
-  text: (item) => (item.kind === "text" ? item.text : ""),
-  link: () => LINK,
-  media: () => "",
-};
-
-function flat(items: readonly Item[]): string {
-  return squashed(items.map((item) => FLATTENED[item.kind](item)).join(""));
-}
-
 function handleOf(authorUrl: string): string | null {
   if (!URL.canParse(authorUrl)) return null;
 
   return new URL(authorUrl).pathname.split("/").find((part) => part !== "") ?? null;
-}
-
-function cutOf(items: readonly Item[]): OembedPost["cut"] {
-  const marker = items.findLastIndex(
-    (item) => item.kind === "text" && item.text.trimEnd().endsWith(ELLIPSIS),
-  );
-
-  const last = items[marker];
-
-  if (last?.kind !== "text") return null;
-
-  const afterwards = items
-    .slice(marker + 1)
-    .every((item) => item.kind !== "text" || item.text.trim() === "");
-
-  const head = [
-    ...items.slice(0, marker),
-    { kind: "text", text: last.text.trimEnd().slice(0, -1) } as const,
-  ];
-
-  const text = flat(head);
-  const links = head.filter((item) => item.kind === "link").length;
-
-  return afterwards && text.length + links * (LINK_LENGTH - 1) >= MIN_CUT_HEAD
-    ? { head: text, links }
-    : null;
-}
-
-function anchorsOf(items: readonly Item[], kind: "link" | "media"): readonly Anchor[] {
-  return items.flatMap((item) =>
-    item.kind === kind ? [{ href: item.href, display: item.display }] : [],
-  );
 }
 
 function oembedPostOf(body: string): OembedPost | null {
@@ -121,18 +76,9 @@ function oembedPostOf(body: string): OembedPost | null {
 
   if (paragraph === null || id === undefined || handle === null) return null;
 
-  const items = itemsOf(paragraph);
+  const parsed = paragraphOf(paragraph);
 
-  if (items === null) return null;
-
-  return {
-    id,
-    handle,
-    whole: flat(items),
-    links: anchorsOf(items, "link"),
-    media: anchorsOf(items, "media"),
-    cut: cutOf(items),
-  };
+  return parsed === null ? null : { id, handle, ...parsed };
 }
 
 function protectedByX(body: string): boolean {
@@ -226,12 +172,44 @@ export function resolutionsNeeded(stored: string, post: Readonly<OembedPost>): r
   ];
 }
 
+function wholeMatches(text: string, shown: string, at: number): boolean {
+  return text.length === at + shown.length && text.startsWith(shown, at);
+}
+
+function headMatches(text: string, shown: string, at: number): boolean {
+  return text.startsWith(shown, at);
+}
+
+function matchingText(
+  stored: Readonly<StoredPost>,
+  normalized: string,
+  shown: string,
+  matches: typeof wholeMatches,
+): string | null {
+  if (matches(normalized, shown, 0)) return stored.text;
+  if (!stored.recipientsMayBeOmitted || normalized === "") return null;
+
+  const mention = /@[A-Za-z0-9_]{1,15}\s+/uy;
+  mention.lastIndex = stored.text.length - stored.text.trimStart().length;
+  let at = 0;
+
+  for (let word = mention.exec(stored.text); word !== null; word = mention.exec(stored.text)) {
+    const name = word[0].trimEnd();
+    if (!normalized.startsWith(name, at)) return null;
+    at += name.length;
+    if (normalized[at] === " ") at += 1;
+    if (at < normalized.length && matches(normalized, shown, at))
+      return stored.text.slice(mention.lastIndex);
+  }
+  return null;
+}
+
 function judgedAs(
   stored: Readonly<StoredPost>,
   post: Readonly<OembedPost>,
   resolved: Readonly<Resolved>,
-): Pick<Checked, "judgement" | "omittedPrefix"> {
-  const rejected = { judgement: "rejected", omittedPrefix: 0 } as const;
+): Pick<Checked, "judgement" | "keptText"> {
+  const rejected = { judgement: "rejected", keptText: stored.text } as const;
 
   if (
     post.id !== stored.id ||
@@ -244,26 +222,18 @@ function judgedAs(
 
   const text = withoutMedia(stored.text, post.media);
 
-  const whole = matchingPrefix(
-    stored.text,
-    stored.reply === true,
-    marked(text, post.links, resolved, true),
-    post.whole,
-    false,
-  );
-
-  if (whole !== null) return { judgement: "verified", omittedPrefix: whole };
-
+  const whole = marked(text, post.links, resolved, true);
+  const exact = whole === null ? null : matchingText(stored, whole, post.whole, wholeMatches);
+  if (exact !== null) return { judgement: "verified", keptText: exact };
   if (post.cut === null) return rejected;
 
   const head = marked(text, post.links.slice(0, post.cut.links), resolved, false);
+  const cut = head === null ? null : matchingText(stored, head, post.cut.head, headMatches);
 
-  const cut = matchingPrefix(stored.text, stored.reply === true, head, post.cut.head, true);
-
-  return cut === null ? rejected : { judgement: "tail-unverified", omittedPrefix: cut };
+  return cut === null ? rejected : { judgement: "tail-unverified", keptText: cut };
 }
 
-export function checked(
+function checkText(
   stored: Readonly<StoredPost>,
   post: Readonly<OembedPost>,
   resolved: Readonly<Resolved>,
@@ -287,6 +257,19 @@ export function checked(
       post.cut === null && post.links.length === 0,
     ),
   };
+}
+
+export function checked(
+  stored: Readonly<StoredPost>,
+  post: Readonly<OembedPost>,
+  resolved: Readonly<Resolved>,
+): Checked {
+  const strict = checkText({ ...stored, recipientsMayBeOmitted: false }, post, resolved);
+  return strict.judgement === "rejected" &&
+    stored.recipientsMayBeOmitted &&
+    stored.text.trimStart().startsWith("@")
+    ? checkText(stored, post, resolved)
+    : strict;
 }
 
 export function judged(

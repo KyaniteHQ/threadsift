@@ -49,7 +49,7 @@ export async function claimedBeforeNewerAnswer(
       thread: value,
       digest: null,
     }),
-    savedProgress(db, itemId, 1, allJudged(value)),
+    savedProgress(db, itemId, 1, allJudged(value), value),
   ]);
 
   return claimed;

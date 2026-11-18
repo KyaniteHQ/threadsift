@@ -1,4 +1,4 @@
-import { possibleAuthorParts } from "./x-author-thread.ts";
+import { authorPartsOf } from "./x-author-thread.ts";
 import { noPhotosKey } from "./x-images.ts";
 import { joinedPost, leadingQuotes } from "./x-joined-post.ts";
 import { type Judgement, MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
@@ -6,7 +6,11 @@ import type { XThreadValue } from "./x-wire.ts";
 
 const SLICE_REQUESTS = 40;
 
-export type Judged = Readonly<Record<string, Judgement>>;
+export type StoredJudgement =
+  | Judgement
+  | "verified-without-recipients"
+  | "tail-unverified-without-recipients";
+export type Judged = Readonly<Record<string, StoredJudgement>>;
 
 export type Progress =
   | { readonly kind: "asking"; readonly pending: readonly StoredPost[] }
@@ -31,16 +35,17 @@ function postsOf(
       author,
       text,
       photos: images.length > 0,
+      recipientsMayBeOmitted: false,
       chain: { next: post.quoted[index]?.id ?? null },
     }),
   );
 
-  const authorParts = possibleAuthorParts({ post, replies });
+  const authorParts = new Set(authorPartsOf({ post, replies }).map(({ id }) => id));
 
   return [
     ...chain,
     ...replies.map(({ id, author, text, images }) => ({
-      reply: !authorParts.has(id),
+      recipientsMayBeOmitted: !authorParts.has(id),
       id,
       author,
       text,
@@ -110,7 +115,10 @@ export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged):
     quoted: quotes.length,
     dropped: thread.replies.length - kept.size,
     unverifiedTails: posts.filter(
-      ({ id }) => judgedSoFar[id] === "tail-unverified" && shown.has(id),
+      ({ id }) =>
+        (judgedSoFar[id] === "tail-unverified" ||
+          judgedSoFar[id] === "tail-unverified-without-recipients") &&
+        shown.has(id),
     ).length,
     photoless: posts.filter(
       ({ id, photos }) =>
