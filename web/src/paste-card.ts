@@ -23,10 +23,8 @@ const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
   "github-token": "github-token",
 };
 
-export function offersFetchRetry(
-  item: Readonly<Item>,
-): item is Item & { retry: "paste"; xNote: "x-unconfirmed"; status: "ready" } {
-  return item.status === "ready" && item.retry === "paste" && item.xNote === "x-unconfirmed";
+export function offersFetchRetry(item: Readonly<Item>) {
+  return item.status === "ready" && item.retry === "paste" && item.digestOutcome === "none";
 }
 
 export function noteOf(item: Readonly<Item>): NoticeKey | null {

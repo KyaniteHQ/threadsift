@@ -87,7 +87,17 @@ async function notFoundBy(
   statusId: string,
   signal: AbortSignal,
 ): Promise<Fetched> {
-  if (isLastAttempt(source.attempts) || (await shownOnX(network, statusId, signal)) === "absent") {
+  if (isLastAttempt(source.attempts)) {
+    return unansweredBy(
+      network,
+      source,
+      { status: "unreadable", note: NOTE_OF_REFUSAL["no-answer"] },
+      statusId,
+      signal,
+    );
+  }
+
+  if ((await shownOnX(network, statusId, signal)) === "absent") {
     return { status: "status" };
   }
 

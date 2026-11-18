@@ -68,6 +68,16 @@ export const X_READER_CHOICES = ["auto", "grok-bot", "grok-cli"] as const;
 
 export const X_FETCHER_STATES = ["signed-in", "signed-out", "not-proven", "unknown"] as const;
 
+const X_FETCH_RETRY_NOTES = ["cli-failed", "x-unconfirmed"] as const;
+
+export const XFetchRetryNoteSchema = z.enum(X_FETCH_RETRY_NOTES);
+
+export type XFetchRetryNote = (typeof X_FETCH_RETRY_NOTES)[number];
+
+export function isXFetchRetryNote(note: XReadNote | null): note is XFetchRetryNote {
+  return X_FETCH_RETRY_NOTES.some((retryNote) => retryNote === note);
+}
+
 export const X_READ_NOTES = [
   "bot-not-set-up",
   "bot-key-unopened",
@@ -80,8 +90,7 @@ export const X_READ_NOTES = [
   "cli-not-proven",
   "cli-usage-limit",
   "cli-unreachable",
-  "cli-failed",
-  "x-unconfirmed",
+  ...X_FETCH_RETRY_NOTES,
   "x-answer-refused",
   "x-fewer-replies",
 ] as const;
