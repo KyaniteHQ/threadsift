@@ -1,0 +1,1 @@
+ALTER TABLE `x_verifications` ADD `cli_attempts` integer;

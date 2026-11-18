@@ -51,7 +51,14 @@ export function HeadNote({
         </p>
       )}
       {text === null ? null : (
-        <Note item={item} text={text} withRetry={item.status === "failed"} tryAgain={tryAgain} />
+        <Note
+          item={item}
+          text={text}
+          withRetry={
+            item.status === "failed" || (item.retry === "paste" && item.xNote === "x-unconfirmed")
+          }
+          tryAgain={tryAgain}
+        />
       )}
     </>
   );

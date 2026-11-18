@@ -65,6 +65,11 @@ describe("a thread waits as stored state until every post of it was judged, and 
     const item = itemRow(instance, itemId);
 
     assert.deepEqual([item.fetch_result, item.reason], ["unreadable", null]);
+    const detail = await instance.detail(itemId);
+
+    assert.equal(detail.xNote, "x-unconfirmed");
+    assert.equal(detail.retry, "paste");
+    assert.equal(detail.digestOutcome, "none");
     assert.equal(commentCount(instance, itemId), 0);
     assert.equal(verificationRow(instance, itemId), undefined);
   });

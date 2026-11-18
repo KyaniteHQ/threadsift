@@ -34,6 +34,7 @@ export function outcomeOfFetched(
         address: job.address,
         thread: fetched.thread,
         digest: null,
+        cliAttempts: job.attempts,
       }),
     };
   }

@@ -2,7 +2,7 @@ import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { guardHolds } from "./guards.ts";
-import type { JobWrites, SettledOutcome } from "./job-outcome.ts";
+import { RETRY_DELAYS_MS, type JobWrites, type SettledOutcome } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
 import type { Database } from "./ports.ts";
@@ -29,16 +29,19 @@ export function queuedVerification(
     address,
     thread,
     digest,
+    cliAttempts = null,
   }: Readonly<{
     itemId: number;
     address: string;
     thread: Readonly<XThreadValue>;
     digest: string | null;
+    cliAttempts?: number | null;
   }>,
 ): readonly [JobWrites[number], ...JobWrites] {
   const fresh = {
     thread: JSON.stringify(thread),
     digest,
+    cliAttempts,
     judged: startingJudged(thread),
   };
 
@@ -99,6 +102,28 @@ export function unreadableWrites(
       })
       .where(eq(items.id, itemId)),
     forgotten(db, itemId, revision),
+  ];
+}
+
+export function afterRefusedRoot(
+  db: Database,
+  { itemId, address }: Readonly<{ itemId: number; address: string }>,
+  { revision, cliAttempts }: Readonly<{ revision: number; cliAttempts: number | null }>,
+): JobWrites {
+  const delay = cliAttempts === null ? undefined : RETRY_DELAYS_MS[cliAttempts];
+  if (cliAttempts === null || delay === undefined)
+    return unreadableWrites(db, itemId, revision, "x-unconfirmed");
+
+  return [
+    forgotten(db, itemId, revision),
+    opening(db, {
+      kind: "fetch",
+      address,
+      where: eq(items.id, itemId),
+      now: Date.now() + delay,
+      attempts: cliAttempts + 1,
+      waitReason: "x-reread",
+    }),
   ];
 }
 

@@ -10,6 +10,7 @@ import {
   CARD_TITLES,
   DIGEST_NOT_UPDATED,
   NO_DIGEST,
+  NOTICES,
   RETRY_LABEL,
   SAVED_COMMENT,
   SOURCE_LABELS,
@@ -74,9 +75,11 @@ function Failed({
         <Icon name="warn" className="ic ic-s tone-warn" />
         {item.status === "failed"
           ? failureTitleOf(item)
-          : item.digestTitle === null
-            ? NO_DIGEST
-            : DIGEST_NOT_UPDATED}
+          : item.retry === "paste" && item.xNote === "x-unconfirmed"
+            ? NOTICES[item.xNote].text
+            : item.digestTitle === null
+              ? NO_DIGEST
+              : DIGEST_NOT_UPDATED}
       </p>
       <button
         type="button"

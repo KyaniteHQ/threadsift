@@ -1,18 +1,43 @@
-import type { DigestOutcome, FailureReason, ItemStatus } from "./kinds.ts";
+import type { DigestOutcome, FailureReason, ItemStatus, XReadNote } from "./kinds.ts";
 
 export type ShownStatus =
-  | { readonly status: "failed"; readonly reason: FailureReason; readonly retry: "paste" }
-  | { readonly status: "processing"; readonly reason: null; readonly retry: null }
+  | {
+      readonly status: "failed";
+      readonly reason: FailureReason;
+      readonly retry: "paste";
+      readonly digestOutcome: DigestOutcome;
+    }
+  | {
+      readonly status: "processing";
+      readonly reason: null;
+      readonly retry: null;
+      readonly digestOutcome: DigestOutcome;
+    }
   | {
       readonly status: "ready";
       readonly reason: null;
-      readonly retry: "digest" | "paste" | null;
+      readonly retry: "digest" | "paste";
+      readonly digestOutcome: "failed";
+    }
+  | {
+      readonly status: "ready";
+      readonly reason: null;
+      readonly retry: "paste";
+      readonly xNote: "x-unconfirmed";
+      readonly digestOutcome: "none";
+    }
+  | {
+      readonly status: "ready";
+      readonly reason: null;
+      readonly retry: null;
+      readonly digestOutcome: "none";
     };
 
 export interface ShownStatusInput {
   readonly status: ItemStatus;
   readonly reason: FailureReason | null;
   readonly digestOutcome: DigestOutcome;
+  readonly xNote: XReadNote | null;
   readonly digestSource: boolean;
 }
 
@@ -21,16 +46,21 @@ export function shownStatus({
   reason,
   digestOutcome,
   digestSource,
+  xNote,
 }: Readonly<ShownStatusInput>): ShownStatus {
   if (status === "failed") {
     if (reason === null) throw new Error("A failed status comes with its reason");
 
-    return { status, reason, retry: "paste" };
+    return { status, reason, digestOutcome, retry: "paste" };
   }
 
-  if (status === "processing") return { status, reason: null, retry: null };
+  if (status === "processing") return { status, reason: null, digestOutcome, retry: null };
 
-  if (digestOutcome !== "failed") return { status, reason: null, retry: null };
+  if (digestOutcome !== "failed") {
+    if (xNote === "x-unconfirmed" && !digestSource)
+      return { status, reason: null, retry: "paste", xNote, digestOutcome: "none" };
+    return { status, reason: null, retry: null, digestOutcome: "none" };
+  }
 
-  return { status, reason: null, retry: digestSource ? "digest" : "paste" };
+  return { status, reason: null, digestOutcome, retry: digestSource ? "digest" : "paste" };
 }
