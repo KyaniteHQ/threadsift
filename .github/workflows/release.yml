@@ -99,9 +99,7 @@ jobs:
         if: failure()
         with:
           name: release-failure-${{ matrix.arch }}
-          path: |
-            test-results
-            smoke-evidence
+          path: test-results
           if-no-files-found: ignore
           retention-days: 7
 
