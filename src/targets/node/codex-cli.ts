@@ -23,12 +23,7 @@ import {
   surfaceArguments,
   taskArguments,
 } from "./codex-process.ts";
-import {
-  type ToollessCatalog,
-  UNKNOWN_MODEL_REFUSAL,
-  readOutcome,
-  surfaceOf,
-} from "./codex-protocol.ts";
+import { type ToollessCatalog, readOutcome, surfaceOf } from "./codex-protocol.ts";
 
 const BINARY = "codex";
 const SURFACE_MS = 60_000;
@@ -69,23 +64,14 @@ class CodexCli extends SlottedCli {
     return end.kind === "exited" && end.code === 0;
   }
 
-  effortLevels(model: string): readonly string[] {
-    const chosen =
-      model === ""
-        ? this.catalog.models[0]
-        : this.catalog.models.find(({ slug }) => slug === model);
-    return chosen?.levels ?? [];
-  }
-
-  protected override refusalBeforeSlot(model: string) {
-    return model !== "" && !this.catalog.models.some(({ slug }) => slug === model)
-      ? UNKNOWN_MODEL_REFUSAL
-      : null;
+  protected modelChoice(model: string) {
+    return model === ""
+      ? this.catalog.models.find((choice) => choice.visible)
+      : this.catalog.models.find(({ slug }) => slug === model);
   }
 
   protected attempt<Result>(
     task: RunnerTask<Result, "cli">,
-    model: string,
     signal: AbortSignal,
   ): Promise<Attempt<Result>> {
     return inRunFolders(async (folders) => {
@@ -94,14 +80,14 @@ class CodexCli extends SlottedCli {
         writeFile(folders.schemaFile, outputSchema(task.schema)),
       ]);
 
-      const unsafe = await this.unsafeSurface(folders, model, signal, task.config.effort);
+      const unsafe = await this.unsafeSurface(folders, task.config, signal);
 
       if (unsafe !== null) return { result: unsafe, code: null };
 
       const end = await spawnCodex(
         this.installation,
         folders,
-        taskArguments(folders, model, task.config.effort),
+        taskArguments(folders, task.config),
         promptOf(task),
         signal,
         {
@@ -120,14 +106,13 @@ class CodexCli extends SlottedCli {
 
   private async unsafeSurface(
     folders: Readonly<RunFolders>,
-    model: string,
+    config: RunnerTask<unknown, "cli">["config"],
     signal: AbortSignal,
-    effort?: string,
   ) {
     const end = await spawnCodex(
       this.installation,
       folders,
-      surfaceArguments(folders, model, effort),
+      surfaceArguments(folders, config),
       "",
       AbortSignal.any([signal, AbortSignal.timeout(SURFACE_MS)]),
       { cap: STDOUT_CAP, keep: true },

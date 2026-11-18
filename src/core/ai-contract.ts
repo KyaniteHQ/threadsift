@@ -1,25 +1,20 @@
 import { z } from "zod";
 
-import { StoredCommentId } from "./comment-id.ts";
-import { READABLE_TEXT, STORED_TEXT } from "./digest-text.ts";
+import { DigestSchema } from "./digest-schema.ts";
+
+export {
+  DigestSchema,
+  ModelDigestSchema,
+  StoredDigestSchema,
+  ReaderDigestSchema,
+  parseStoredDigest,
+  type Digest,
+  type ReaderDigest,
+} from "./digest-schema.ts";
 
 export const AI_URL_MAX = 2048;
 export const AI_MODEL_MAX = 240;
 export const AI_KEY_MAX = 4096;
-const KEPT_COMMENTS_MAX = 2000;
-const ModelCommentId = z.string().max(32);
-
-export const StoredDigestSchema = z.object({
-  ...STORED_TEXT,
-  keyPoints: z.array(z.string().trim().min(1).max(1200)).min(1).max(12).readonly(),
-  keptComments: z.array(StoredCommentId).max(KEPT_COMMENTS_MAX).readonly().optional(),
-});
-
-export const DigestSchema = StoredDigestSchema.extend(READABLE_TEXT);
-
-export const ModelDigestSchema = DigestSchema.extend({
-  keptComments: z.array(ModelCommentId).max(KEPT_COMMENTS_MAX).readonly(),
-});
 
 const Model = z.string().trim().min(1).max(AI_MODEL_MAX);
 const Key = z.string().min(1).max(AI_KEY_MAX).optional();
@@ -41,7 +36,14 @@ function cliProvider<const Id extends string, const Label extends string>(id: Id
     label,
     url: null,
     names: ["model", "effort"],
-    fields: { model: CliModel, effort: z.string().trim().optional() },
+    fields: {
+      model: CliModel,
+      effort: z
+        .string()
+        .trim()
+        .transform((value) => (value === "" ? undefined : value))
+        .optional(),
+    },
   } as const;
 }
 
@@ -101,24 +103,28 @@ export const ProviderSchema = z.enum([
 export type Provider = z.infer<typeof ProviderSchema>;
 
 export const AiSettingsInputSchema = z.discriminatedUnion("provider", [
-  z.object({
+  z.strictObject({
     provider: z.literal(PROVIDERS["openai-compatible"].id),
     ...PROVIDERS["openai-compatible"].fields,
   }),
-  z.object({ provider: z.literal(PROVIDERS.openrouter.id), ...PROVIDERS.openrouter.fields }),
-  z.object({ provider: z.literal(PROVIDERS.anthropic.id), ...PROVIDERS.anthropic.fields }),
-  z.object({ provider: z.literal(PROVIDERS.openai.id), ...PROVIDERS.openai.fields }),
-  z.object({ provider: z.literal(PROVIDERS.xai.id), ...PROVIDERS.xai.fields }),
-  z.object({ provider: z.literal(PROVIDERS["workers-ai"].id), ...PROVIDERS["workers-ai"].fields }),
-  z.object({
+  z.strictObject({ provider: z.literal(PROVIDERS.openrouter.id), ...PROVIDERS.openrouter.fields }),
+  z.strictObject({ provider: z.literal(PROVIDERS.anthropic.id), ...PROVIDERS.anthropic.fields }),
+  z.strictObject({ provider: z.literal(PROVIDERS.openai.id), ...PROVIDERS.openai.fields }),
+  z.strictObject({ provider: z.literal(PROVIDERS.xai.id), ...PROVIDERS.xai.fields }),
+  z.strictObject({
+    provider: z.literal(PROVIDERS["workers-ai"].id),
+    ...PROVIDERS["workers-ai"].fields,
+  }),
+  z.strictObject({
     provider: z.literal(PROVIDERS["claude-code"].id),
     ...PROVIDERS["claude-code"].fields,
   }),
-  z.object({ provider: z.literal(PROVIDERS.codex.id), ...PROVIDERS.codex.fields }),
-  z.object({ provider: z.literal(GROK_BOT_PROVIDER) }),
+  z.strictObject({ provider: z.literal(PROVIDERS.codex.id), ...PROVIDERS.codex.fields }),
+  z.strictObject({ provider: z.literal(GROK_BOT_PROVIDER) }),
 ]);
 
 const AiExecutionRefusalSchema = z.enum([
+  "invalid-effort",
   "wrong-key",
   "model-not-found",
   "no-json",
@@ -141,20 +147,6 @@ export const AiRefusalSchema = z.enum([
 export type AiRefusal = z.infer<typeof AiRefusalSchema>;
 
 export type AiSettingsInput = z.infer<typeof AiSettingsInputSchema>;
-
-export type Digest = z.infer<typeof DigestSchema>;
-
-export function parseStoredDigest(stored: string): Digest {
-  return StoredDigestSchema.parse(JSON.parse(stored));
-}
-
-export const ReaderDigestSchema = StoredDigestSchema.pick({
-  summary: true,
-  keyPoints: true,
-  tags: true,
-});
-
-export type ReaderDigest = z.infer<typeof ReaderDigestSchema>;
 
 const HttpSettingsViewSchema = z.object({
   provider: HttpProviderSchema,
@@ -191,6 +183,7 @@ const AiRefusedSchema = z.object({
   kind: z.literal("refused"),
   reason: AiRefusalSchema,
   status: z.number().int().nullable(),
+  levels: z.array(z.string()).readonly().optional(),
 });
 
 export const VerifyResultSchema = z.discriminatedUnion("kind", [
@@ -200,11 +193,7 @@ export const VerifyResultSchema = z.discriminatedUnion("kind", [
 
 export type AiRefused = Extract<z.infer<typeof VerifyResultSchema>, { readonly kind: "refused" }>;
 
-export const AiSaveResponseSchema = z.union([
-  AiSettingsViewSchema,
-  AiRefusedSchema,
-  z.object({ kind: z.literal("invalid-effort"), levels: z.array(z.string()).readonly() }),
-]);
+export const AiSaveResponseSchema = z.union([AiSettingsViewSchema, AiRefusedSchema]);
 
 export type AiSaveResponse = z.infer<typeof AiSaveResponseSchema>;
 
@@ -223,6 +212,7 @@ export function retriesAi({ reason, status }: Readonly<AiRefused>): boolean {
       return true;
     case "no-json":
       return status === null || (status >= 200 && status < 300);
+    case "invalid-effort":
     case "wrong-key":
     case "model-not-found":
     case "declined":
@@ -261,12 +251,16 @@ interface BindingAiConnection {
   readonly model: string;
 }
 
-interface CliAiConnection {
+export interface CliAiConnection {
   readonly kind: "cli";
   readonly provider: CliProvider;
-  readonly effort?: string | undefined;
+  readonly effort: string | undefined;
   readonly model: string;
 }
+
+export type CliSelection =
+  | CliAiConnection
+  | (AiRefused & { readonly reason: "invalid-effort" | "model-not-found" | "not-configured" });
 
 export function modelOf({ model }: Readonly<Pick<AiConnection, "model">>): string | null {
   return model === "" ? null : model;
@@ -292,7 +286,9 @@ export interface AiTaskRequest<Result> {
 }
 
 export const BASE_OUTPUT_TOKENS = 2048;
+
 export const MAX_OUTPUT_TOKENS = 8192;
+
 export const AI_DEADLINE_MS = 10 * 60 * 1000;
 
 export const VERIFY_INPUT =

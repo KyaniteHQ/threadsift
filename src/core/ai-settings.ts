@@ -2,7 +2,6 @@ import { type SQL, sql } from "drizzle-orm";
 
 import {
   GROK_BOT_PROVIDER,
-  isCliProvider,
   type AiSettingsInput,
   type AiSettingsView,
   type AiSaveResponse,
@@ -36,18 +35,20 @@ function viewOf(
 
   if (saved === undefined) return null;
 
-  if (saved.sealedKey === null && isCliProvider(saved.provider))
-    return { provider: saved.provider, model: saved.model, effort: saved.effort ?? "" };
+  if (saved.sealedKey === null) {
+    const { provider, model, effort } = saved;
+    return provider === "workers-ai"
+      ? { provider, model }
+      : { provider, model, effort: effort ?? "" };
+  }
 
-  return saved.sealedKey === null
-    ? { provider: "workers-ai", model: saved.model }
-    : {
-        provider: saved.provider,
-        baseUrl: saved.baseUrl,
-        model: saved.model,
-        keySet: true,
-        keyReadable,
-      };
+  return {
+    provider: saved.provider,
+    baseUrl: saved.baseUrl,
+    model: saved.model,
+    keySet: true,
+    keyReadable,
+  };
 }
 
 export async function readAiSettings(ports: SettingsPorts): Promise<AiSettingsView> {
@@ -102,11 +103,6 @@ export async function holdsSettings(
 
 async function preparedSave(ports: SettingsPorts, input: Readonly<AiSettingsInput>) {
   if (input.provider === GROK_BOT_PROVIDER) return preparedBot(ports);
-
-  if ("effort" in input && input.effort !== undefined && input.effort !== "") {
-    const levels = ports.ai.effortLevels(input.provider, input.model);
-    if (!levels.includes(input.effort)) return { kind: "invalid-effort", levels } as const;
-  }
 
   const prepared = await prepareAiSettings(ports, input);
 

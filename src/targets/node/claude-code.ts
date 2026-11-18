@@ -39,7 +39,10 @@ const EnvelopeSchema = z.object({
 
 const StatusSchema = z.object({ loggedIn: z.boolean() });
 
-function taskArguments(schema: string, model: string, effort?: string): string[] {
+function taskArguments(
+  schema: string,
+  { model, effort }: Readonly<RunnerTask<unknown, "cli">["config"]>,
+): string[] {
   return [
     "-p",
     "--output-format",
@@ -58,7 +61,7 @@ function taskArguments(schema: string, model: string, effort?: string): string[]
     "--permission-prompts",
     "none",
     "--no-session-persistence",
-    ...(effort !== undefined && effort !== "" ? ["--effort", effort] : []),
+    ...(effort === undefined ? [] : ["--effort", effort]),
     ...(model === "" ? [] : [`--model=${model}`]),
   ];
 }
@@ -74,8 +77,8 @@ class ClaudeCode extends SlottedCli {
     this.environment = environment;
   }
 
-  effortLevels() {
-    return ["low", "medium", "high", "xhigh", "max"] as const;
+  protected modelChoice(slug: string) {
+    return { slug, levels: ["low", "medium", "high", "xhigh", "max"] } as const;
   }
 
   protected async probe(signal: AbortSignal): Promise<boolean> {
@@ -86,11 +89,10 @@ class ClaudeCode extends SlottedCli {
 
   protected async attempt<Result>(
     task: RunnerTask<Result, "cli">,
-    model: string,
     signal: AbortSignal,
   ): Promise<Attempt<Result>> {
     const end = await this.spawn(
-      taskArguments(outputSchema(task.schema), model, task.config.effort),
+      taskArguments(outputSchema(task.schema), task.config),
       promptOf(task),
       signal,
     );

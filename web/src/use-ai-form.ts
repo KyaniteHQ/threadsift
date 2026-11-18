@@ -51,6 +51,11 @@ function useAiFields(view: AiView) {
 }
 
 function refusalText(refusal: AiRefused, provider: Provider): string {
+  if (refusal.reason === "invalid-effort")
+    return refusal.levels !== undefined && refusal.levels.length > 0
+      ? AI_TEXT.invalidEffort.replace("{levels}", refusal.levels.join(", "))
+      : AI_TEXT.noEfforts;
+
   if (isCliProvider(provider) && refusal.reason === "wrong-key") return CLI_TEXT[provider].rejected;
 
   if (provider === GROK_BOT_PROVIDER && refusal.reason === "timeout") return AI_TEXT.botTimeout;
@@ -66,11 +71,6 @@ function failureText(
   response: Extract<Awaited<ReturnType<typeof saveAiSettings>>, { readonly kind: string }>,
   provider: Provider,
 ): string {
-  if (response.kind === "invalid-effort")
-    return response.levels.length === 0
-      ? AI_TEXT.noEfforts
-      : AI_TEXT.invalidEffort.replace("{levels}", response.levels.join(", "));
-
   if (response.kind === "refused") return refusalText(response, provider);
 
   return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
@@ -164,14 +164,25 @@ function savedKeyOf(
   return same ? "applies" : "changed";
 }
 
+function settingsInput(fields: ReturnType<typeof useAiFields>) {
+  const { provider } = fields;
+  const entries = PROVIDERS[provider].names.map((name) => {
+    const value = fields[name].value;
+    return [name, name === "key" && value === "" ? undefined : value];
+  });
+  return AiSettingsInputSchema.parse({ provider, ...Object.fromEntries(entries) });
+}
+
 function useSave(
   view: AiView,
   fields: ReturnType<typeof useAiFields>,
   { run, refuse }: Readonly<Pick<AiPhase, "run" | "refuse">>,
   saved: (view: AiView) => void,
 ) {
-  const { provider, baseUrl, model, effort, key } = fields;
-  const { value: keyValue, clear: clearKey } = key;
+  const {
+    provider,
+    key: { clear: clearKey },
+  } = fields;
   const unavailable = saveUnavailable(view, provider);
 
   const submit = useCallback(() => {
@@ -182,15 +193,7 @@ function useSave(
     }
 
     run("saving", async (): Promise<Outcome> => {
-      const input = AiSettingsInputSchema.parse({
-        provider,
-        baseUrl: baseUrl.value,
-        model: model.value,
-        effort: effort.value,
-        key: keyValue === "" ? undefined : keyValue,
-      });
-
-      const response = await saveAiSettings(input);
+      const response = await saveAiSettings(settingsInput(fields));
 
       if ("kind" in response) return { kind: "error", text: failureText(response, provider) };
 
@@ -199,18 +202,7 @@ function useSave(
 
       return { kind: "ok", text: AI_TEXT.saved };
     });
-  }, [
-    unavailable,
-    refuse,
-    run,
-    provider,
-    baseUrl.value,
-    model.value,
-    effort.value,
-    keyValue,
-    clearKey,
-    saved,
-  ]);
+  }, [unavailable, refuse, run, fields, provider, clearKey, saved]);
 
   return { submit, saveBlocked: unavailable !== null };
 }

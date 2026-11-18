@@ -6,6 +6,7 @@ import { z } from "zod";
 import { TASKS } from "../src/core/ai-tasks.ts";
 
 const CONTRACT_FILES = [
+  ":(top)src/core/digest-schema.ts",
   ":(top)src/core/digest-text.ts",
   ":(top)src/core/digest-prompt.ts",
   ":(top)src/core/plain-text.ts",
@@ -19,13 +20,9 @@ function git(args: readonly string[]): string {
   }).trim();
 }
 
-function contractChanged(
-  from: string,
-  to: readonly string[],
-  paths: readonly string[] = CONTRACT_FILES,
-): boolean {
+function contractChanged(from: string, to: readonly string[]): boolean {
   try {
-    git(["diff", "--quiet", from, ...to, "--", ...paths]);
+    git(["diff", "--quiet", from, ...to, "--", ...CONTRACT_FILES]);
 
     return false;
   } catch {
@@ -49,7 +46,7 @@ export function compatibleSource(
 ) {
   const source = comparisonSource();
 
-  if (contractChanged("HEAD", []) || contractChanged("HEAD", [], [":(top)src/core/ai-contract.ts"]))
+  if (contractChanged("HEAD", []))
     return {
       error: "Commit the Digest contract changes before capturing or running a comparison",
     } as const;

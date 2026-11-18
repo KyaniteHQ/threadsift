@@ -44,10 +44,14 @@ export async function nextSettings(
 ) {
   if (input.provider === "workers-ai") return keylessRow(input.provider, input.model);
 
-  if (input.provider === "claude-code" || input.provider === "codex")
-    return (await ports.ai.signedIn()).includes(input.provider)
-      ? keylessRow(input.provider, input.model, input.effort === "" ? null : input.effort)
+  if (input.provider === "claude-code" || input.provider === "codex") {
+    const { provider, model, effort } = input;
+    const selection = ports.ai.resolveCli({ kind: "cli", provider, model, effort });
+    if (selection.kind === "refused") return selection;
+    return (await ports.ai.signedIn()).includes(provider)
+      ? keylessRow(provider, model, effort)
       : refusedAi("not-configured");
+  }
 
   if (sealer === null) return refusedAi("secret-missing");
 

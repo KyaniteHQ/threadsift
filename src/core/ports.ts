@@ -1,7 +1,14 @@
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
-import type { AiExecution, AiTaskRequest, CliProvider, Provider } from "./ai-contract.ts";
+import type {
+  AiExecution,
+  AiTaskRequest,
+  CliAiConnection,
+  CliSelection,
+  CliProvider,
+  Provider,
+} from "./ai-contract.ts";
 import type { ArticleReading } from "./article.ts";
 import type { LoadedFetcher } from "./fetcher.ts";
 import type { OpenRouterExchange } from "./openrouter-contract.ts";
@@ -104,7 +111,7 @@ export interface AiRuntime {
   readonly providers: readonly Provider[];
   readonly publicOnly: boolean;
   readonly allowsUrl: (url: string) => boolean;
-  readonly effortLevels: (provider: CliProvider, model: string) => readonly string[];
+  readonly resolveCli: (config: Readonly<CliAiConnection>) => CliSelection;
   readonly signedIn: () => Promise<readonly CliProvider[]>;
   readonly run: <Result>(
     task: AiTaskRequest<Result>,

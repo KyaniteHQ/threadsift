@@ -120,7 +120,12 @@ export async function verifyAi(ports: AiPorts, ai: ModelAi, attempt: AbortSignal
   );
 
   if (result.kind !== "done")
-    return { kind: result.kind, reason: result.reason, status: result.status };
+    return {
+      kind: result.kind,
+      reason: result.reason,
+      status: result.status,
+      levels: result.levels,
+    };
 
   const digest = { ...result.result, keptComments: [] };
 

@@ -12,6 +12,7 @@ const CatalogSchema = z
           .looseObject({
             slug: z.string(),
             priority: z.number(),
+            visibility: z.string(),
             supported_reasoning_levels: z.array(z.looseObject({ effort: z.string() })),
             tool_mode: z.string().nullable().optional(),
             apply_patch_tool_type: z.string().nullable(),
@@ -67,7 +68,11 @@ const TOOLLESS = {
 
 export interface ToollessCatalog {
   readonly bytes: string;
-  readonly models: readonly { readonly slug: string; readonly levels: readonly string[] }[];
+  readonly models: readonly {
+    readonly visible: boolean;
+    readonly slug: string;
+    readonly levels: readonly string[];
+  }[];
 }
 
 export function toollessCatalog(stdout: string): ToollessCatalog | null {
@@ -78,7 +83,8 @@ export function toollessCatalog(stdout: string): ToollessCatalog | null {
   return {
     models: catalog.models
       .toSorted((a, b) => a.priority - b.priority)
-      .map(({ slug, supported_reasoning_levels }) => ({
+      .map(({ slug, visibility, supported_reasoning_levels }) => ({
+        visible: visibility === "list",
         slug,
         levels: supported_reasoning_levels.map(({ effort }) => effort),
       })),
@@ -135,8 +141,6 @@ function accepted<Result>(schema: z.ZodType<Result>, answer: string): AiExecutio
 
   return parsed.success ? { kind: "done", result: parsed.data } : refusedAi("no-json");
 }
-
-export const UNKNOWN_MODEL_REFUSAL = apiRefusal(404);
 
 export function readOutcome<Result>(
   schema: z.ZodType<Result>,

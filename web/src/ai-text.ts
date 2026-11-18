@@ -43,7 +43,7 @@ export const AI_TEXT = {
     "Claude Code's sign-in was rejected. Run claude auth login on the server, or replace the token it started with, then press Verify again.",
   codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in on this server.",
   codexModelHelp:
-    "Leave blank to use Codex's default model. Any model you enter must be listed by codex debug models --bundled.",
+    "When Model and Effort are blank, Codex uses its defaults. If only Effort is set, Threadsift uses the first visible model by priority in the bundled catalog. Any model you enter must be listed by codex debug models --bundled.",
   codexSignedOut: "Codex is not signed in on this server. Reload this page after signing in with",
   codexSignInCommand: "codex login --device-auth",
   codexRejected:
@@ -52,8 +52,9 @@ export const AI_TEXT = {
   model: "Model",
   effort: "Effort",
   effortHelp: "Leave blank to use the CLI default.",
-  invalidEffort: "Invalid effort level. Accepted levels: {levels}.",
-  noEfforts: "This model lists no effort levels. Leave Effort blank.",
+  invalidEffort:
+    "This model rejects that effort and accepts only {levels}. Save one of those levels or clear Effort.",
+  noEfforts: "This model accepts no effort levels. Clear Effort and press Save.",
   key: "API key",
   keySet: "API key saved on this Instance.",
   keyMissing: "No API key saved yet.",

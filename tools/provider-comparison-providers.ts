@@ -93,16 +93,17 @@ async function preparedCli(
   if (runner === null) return { kind: "unavailable", reason: "cli-setup-refused" };
 
   try {
-    if (await runner.signedIn())
-      return await ready(
-        {
-          kind: "cli",
-          provider: runner.provider,
-          model: spec.model,
-          effort: "effort" in spec ? spec.effort : undefined,
-        },
-        { cli: [runner] },
-      );
+    const config = runner.resolve({
+      kind: "cli",
+      provider: runner.provider,
+      model: spec.model,
+      effort: "effort" in spec ? spec.effort : undefined,
+    });
+    if (config.kind === "refused") {
+      runner.stop();
+      return { kind: "unavailable", reason: config.reason };
+    }
+    if (await runner.signedIn()) return await ready(config, { cli: [runner] });
     runner.stop();
 
     return { kind: "unavailable", reason: "cli-not-signed-in" };
