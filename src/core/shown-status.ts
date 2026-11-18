@@ -1,4 +1,11 @@
-import type { DigestOutcome, FailureReason, ItemStatus, XReadNote } from "./kinds.ts";
+import {
+  type DigestOutcome,
+  type FailureReason,
+  type ItemStatus,
+  type XFetchRetryNote,
+  type XReadNote,
+  isXFetchRetryNote,
+} from "./kinds.ts";
 
 export type ShownStatus =
   | {
@@ -23,7 +30,7 @@ export type ShownStatus =
       readonly status: "ready";
       readonly reason: null;
       readonly retry: "paste";
-      readonly xNote: "x-unconfirmed";
+      readonly xNote: XFetchRetryNote;
       readonly digestOutcome: "none";
     }
   | {
@@ -57,7 +64,7 @@ export function shownStatus({
   if (status === "processing") return { status, reason: null, digestOutcome, retry: null };
 
   if (digestOutcome !== "failed") {
-    if (xNote === "x-unconfirmed" && !digestSource)
+    if (!digestSource && isXFetchRetryNote(xNote))
       return { status, reason: null, retry: "paste", xNote, digestOutcome: "none" };
     return { status, reason: null, retry: null, digestOutcome: "none" };
   }

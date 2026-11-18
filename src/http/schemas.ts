@@ -19,6 +19,7 @@ import {
   TokenBudgetSchema,
   WAIT_REASONS,
   X_READ_NOTES,
+  XFetchRetryNoteSchema,
 } from "../core/kinds.ts";
 import { NoteViewSchema } from "../core/note-contract.ts";
 import { RelatedSchema } from "../core/related-contract.ts";
@@ -79,7 +80,7 @@ function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.
       status: z.literal("ready"),
       reason: z.null(),
       retry: z.literal("paste"),
-      xNote: z.literal("x-unconfirmed"),
+      xNote: XFetchRetryNoteSchema,
       digestOutcome: z.literal("none"),
     }),
     base.extend({
