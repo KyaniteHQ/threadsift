@@ -5,10 +5,10 @@
 | Not built | The Cloudflare deploy button (`docs/architecture/cloudflare-deploy-button.md`) |
 | Built | The Vault mirror keeps Item notes and the library wiki current on GitHub or in a mounted folder on the container (`docs/architecture/vault-mirror.md`) |
 | Partly built | The Restore of every library record, the stored images and post text files, the search parts and the Highlight anchors is built (`docs/architecture/export-backup-and-restore.md`). Cancel, resume, the cleanup of abandoned parts and the setup page step are built |
-| Partly built | Grok Bot: no AI task other than the X link send has run against a real bot (`docs/architecture/open-items-and-unverified-claims.md`) |
-| Partly built | X readers: the grok CLI reader ran on the container Instance on 2026-11-15 and 2026-11-16. The Grok Bot reader has not read a link from a real bot answer, and 10 of the 15 cause notes have not shown on a real Item there (`docs/architecture/open-items-and-unverified-claims.md`) |
+| Partly verified | Grok Bot completed all six Provider task kinds on the owner's container Instance. The Worker Queue wake after a bot result remains unverified (`docs/architecture/open-items-and-unverified-claims.md`, Grok Bot task runs). |
+| Partly verified | The Grok CLI read X links on the owner's container Instance on 2026-11-15 and 2026-11-16. Grok Bot answered X link sends on both targets. Which reader the deployed Worker's rule chose, and why, remains unverified. The container checks did not observe 10 of the 15 cause notes on a real Item (`docs/architecture/open-items-and-unverified-claims.md`, Grok Bot task runs). |
 
-The table lists the parts of the app that are not fully built. A section that names a file or binding that does not exist yet says "Not built", as the deploy button does. `docs/spec.md` says what v1 does, each bullet matching the code; the files under `docs/architecture/` say what it is built with and where each part runs. Unless a section dates its own check, versions named in those files were checked on 2026-11-04.
+The table lists implementation and verification status. "Partly verified" means a live run proved part of the behaviour and other checks remain open. A section that names a file or binding that does not exist yet says "Not built", as the deploy button does. `docs/spec.md` says what v1 does, each bullet matching the code; the files under `docs/architecture/` say what it is built with and where each part runs. Unless a section dates its own check, versions named in those files were checked on 2026-11-04.
 
 ## Sections
 
