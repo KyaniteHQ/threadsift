@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
 import { completedAiTask } from "./ai-tasks.ts";
-import { publishedLinks } from "./catalog.ts";
+import { type CatalogEntries, publishedLinks } from "./catalog.ts";
 import type { Database } from "./database.ts";
 import { markDigest, openingPick } from "./digest-source.ts";
 import { selectionWrites } from "./reddit-thread.ts";
@@ -12,10 +12,10 @@ import { queueVaultItems } from "./vault-queue.ts";
 
 interface DigestWrite {
   readonly stored: Readonly<typeof digests.$inferSelect>;
-  readonly entries: Parameters<typeof publishedLinks>[2];
+  readonly entries: CatalogEntries;
   readonly published: Readonly<Digest>;
   readonly taskId: number;
-  readonly bodies: Parameters<typeof commentPartWrites>[2];
+  readonly bodies: readonly string[];
 }
 
 export function digestWrites(

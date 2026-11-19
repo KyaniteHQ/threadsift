@@ -28,7 +28,7 @@ function catalogEntries(digest: Readonly<Digest>) {
   } as const;
 }
 
-type CatalogEntries = Readonly<ReturnType<typeof catalogEntries>>;
+export type CatalogEntries = Readonly<ReturnType<typeof catalogEntries>>;
 
 export async function pinnedCatalog(db: Database, digest: Readonly<Digest>) {
   const pinned = await pinnedDigest(db, digest);
