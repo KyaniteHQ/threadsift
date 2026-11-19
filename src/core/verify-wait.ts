@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { AiRefusalSchema, ModelDigestSchema, refusedAi } from "./ai-contract.ts";
 import type { VerifyResultSchema } from "./ai-settings-contract.ts";
 import { completedAiTask, failedAiTask } from "./ai-task-rows.ts";
-import { type BotTaskRow, stateOf } from "./ai-task-state.ts";
+import { type AiTaskRow, stateOf } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { VERIFY_WAIT_MS } from "./grok-bot-contract.ts";
 import { parsedJson } from "./parsed-json.ts";
@@ -24,7 +24,7 @@ type VerifyStage =
   | { readonly kind: "timed-out" };
 
 function verifyStage(
-  task: Readonly<Pick<BotTaskRow, "state" | "sentAt" | "answeredAt" | "deadline">>,
+  task: Readonly<Pick<AiTaskRow, "state" | "sentAt" | "answeredAt" | "deadline">>,
   { now, endsAt }: Readonly<{ now: number; endsAt: number }>,
 ): VerifyStage {
   const state = stateOf(task);
@@ -52,13 +52,13 @@ async function readTask(db: Database, taskId: number) {
   return task ?? null;
 }
 
-function refusalOf({ refusal, status }: Readonly<Pick<BotTaskRow, "refusal" | "status">>) {
+function refusalOf({ refusal, status }: Readonly<Pick<AiTaskRow, "refusal" | "status">>) {
   const parsed = AiRefusalSchema.safeParse(refusal);
 
   return refusedAi(parsed.success ? parsed.data : "unreachable", status);
 }
 
-async function answeredDigest(db: Database, task: Readonly<BotTaskRow>): Promise<Verified> {
+async function answeredDigest(db: Database, task: Readonly<AiTaskRow>): Promise<Verified> {
   const parsed = parsedJson(ModelDigestSchema, task.result ?? "");
 
   if (parsed === null) {

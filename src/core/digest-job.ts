@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm";
 
 import { expireAiTasks } from "./ai-task-rows.ts";
+import { refusedAs } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { hasDigestSource, keptNotUpdated } from "./digest-source.ts";
 import { NOT_FAILED } from "./item-status.ts";
@@ -85,7 +86,7 @@ export function digestAfterFetch(
 }
 
 function lastDigestRefusedKey() {
-  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.itemId} = ${items.id} and ${aiTasks.kind} = 'digest' and ${aiTasks.state} = 'failed' and ${aiTasks.refusal} = 'wrong-key' and ${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.item_id = ${items.id} and latest.kind = 'digest'))`;
+  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.itemId} = ${items.id} and ${aiTasks.kind} = 'digest' and ${refusedAs("wrong-key")} and ${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.item_id = ${items.id} and latest.kind = 'digest'))`;
 }
 
 function owedDigests(

@@ -39,6 +39,13 @@ export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${
   )}))`;
 }
 
+export function wokenJob(db: Database, jobId: number, now: number, when?: Readonly<SQLWrapper>) {
+  return db
+    .update(jobs)
+    .set({ nextAttemptAt: now })
+    .where(and(eq(jobs.id, jobId), ne(jobs.state, "done"), when && sql`${when}`));
+}
+
 export function holding(job: Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration">>) {
   return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobs.state} = 'running' and ${jobs.attempts} = ${job.attempts} and ${jobs.attemptGeneration} is ${job.attemptGeneration})`;
 }

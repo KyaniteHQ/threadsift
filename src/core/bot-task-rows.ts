@@ -1,11 +1,13 @@
-import { type SQL, type SQLWrapper, and, desc, eq, isNull, lte, ne, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, desc, eq, lte, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import {
-  type BotTaskRow,
+  type AiTaskRow,
   BOT_ERROR_REFUSAL,
   GROK_BOT_EXECUTOR,
+  NOT_SENT,
   REPORTED_ERROR,
+  RUNNING,
   UNSENT,
   openTask,
   resendDue,
@@ -13,14 +15,14 @@ import {
 } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
-import { holding } from "./job-rows.ts";
-import { type JobRow, aiTasks, jobs } from "./schema.ts";
+import { holding, wokenJob } from "./job-rows.ts";
+import { type JobRow, aiTasks } from "./schema.ts";
 
 type Held = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration">>;
 
 const ABANDONED_REFUSAL = "abandoned";
 
-export async function latestTask(db: Database, jobId: number): Promise<BotTaskRow | null> {
+export async function latestTask(db: Database, jobId: number): Promise<AiTaskRow | null> {
   const [task] = await db
     .select()
     .from(aiTasks)
@@ -39,9 +41,7 @@ export async function sentTask(
   await db
     .update(aiTasks)
     .set({ sentAt: now })
-    .where(
-      and(eq(aiTasks.id, taskId), eq(aiTasks.state, "running"), isNull(aiTasks.sentAt), claim),
-    );
+    .where(and(eq(aiTasks.id, taskId), RUNNING, NOT_SENT, claim));
 }
 
 export async function renewedCredential(
@@ -60,22 +60,17 @@ export async function renewedCredential(
 
 function jobDue(
   db: Database,
-  task: Readonly<Pick<BotTaskRow, "jobId">>,
+  task: Readonly<Pick<AiTaskRow, "jobId">>,
   now: number,
 ): readonly BatchItem<"sqlite">[] {
   if (task.jobId === null) return [];
 
-  return [
-    db
-      .update(jobs)
-      .set({ nextAttemptAt: now })
-      .where(and(eq(jobs.id, task.jobId), ne(jobs.state, "done"))),
-  ];
+  return [wokenJob(db, task.jobId, now)];
 }
 
 export function answeredWrites(
   db: Database,
-  task: Readonly<Pick<BotTaskRow, "id" | "jobId">>,
+  task: Readonly<Pick<AiTaskRow, "id" | "jobId">>,
   { resultText, now }: Readonly<{ resultText: string; now: number }>,
 ): readonly BatchItem<"sqlite">[] {
   return [
@@ -86,7 +81,7 @@ export function answeredWrites(
 
 export function reportedWrites(
   db: Database,
-  task: Readonly<Pick<BotTaskRow, "id" | "jobId">>,
+  task: Readonly<Pick<AiTaskRow, "id" | "jobId">>,
   now: number,
 ): readonly BatchItem<"sqlite">[] {
   return [
@@ -140,20 +135,14 @@ export function abandonedTasks(db: Database, keeping: string) {
   return db
     .update(aiTasks)
     .set({ state: "failed", result: null, refusal: ABANDONED_REFUSAL, status: null })
-    .where(
-      and(
-        eq(aiTasks.executor, GROK_BOT_EXECUTOR),
-        eq(aiTasks.state, "running"),
-        ne(aiTasks.kind, keeping),
-      ),
-    );
+    .where(and(eq(aiTasks.executor, GROK_BOT_EXECUTOR), RUNNING, ne(aiTasks.kind, keeping)));
 }
 
 export function answeredTask(db: Database, taskId: number, now: number) {
   return db
     .update(aiTasks)
     .set({ answeredAt: now })
-    .where(and(eq(aiTasks.id, taskId), eq(aiTasks.state, "running")));
+    .where(and(eq(aiTasks.id, taskId), RUNNING));
 }
 
 export async function countedRefusal(
@@ -176,10 +165,7 @@ export async function countedRefusal(
         refusals: aiTasks.answerRefusals,
         resend: resendDue(aiTasks.answerRefusals).mapWith(Boolean),
       }),
-    db
-      .update(jobs)
-      .set({ nextAttemptAt: now })
-      .where(and(eq(jobs.id, task.jobId), ne(jobs.state, "done"), resendRequested(task.id, now))),
+    wokenJob(db, task.jobId, now, resendRequested(task.id, now)),
   ]);
 
   return counted[0] ?? null;

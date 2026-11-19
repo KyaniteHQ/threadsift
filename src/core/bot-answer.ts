@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-import {
-  type BotTaskRow,
-  GROK_BOT_EXECUTOR,
-  acceptsAnswer,
-  awaitsAnswer,
-} from "./ai-task-state.ts";
+import { type AiTaskRow, GROK_BOT_EXECUTOR, acceptsAnswer, awaitsAnswer } from "./ai-task-state.ts";
 import type { BotResult } from "./bot-task-answering.ts";
 import { botKindOf } from "./bot-task-kinds.ts";
 import { answeredWrites, reportedWrites } from "./bot-task-rows.ts";
@@ -40,7 +35,7 @@ const CLOSED: Intake = { kind: "closed" };
 
 function intakeOf(
   db: Database,
-  task: Readonly<BotTaskRow>,
+  task: Readonly<AiTaskRow>,
   { answer, now }: Readonly<{ answer: StoredAnswer; now: number }>,
 ): Intake {
   const kind = botKindOf(task);
@@ -67,7 +62,7 @@ function intakeOf(
 
 async function committed(
   ports: JobPorts,
-  task: Readonly<BotTaskRow>,
+  task: Readonly<AiTaskRow>,
   writes: JobWrites,
 ): Promise<AnswerOutcome> {
   if (!(await guardedBatch(ports.db, acceptsAnswer(task), writes))) {
@@ -81,7 +76,7 @@ async function committed(
 
 export function acceptBotAnswer(
   ports: JobPorts,
-  task: Readonly<BotTaskRow>,
+  task: Readonly<AiTaskRow>,
   answer: StoredAnswer,
 ): Promise<AnswerOutcome> {
   const now = Date.now();

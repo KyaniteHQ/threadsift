@@ -1,7 +1,7 @@
-import { type SQLWrapper, and, eq, isNotNull, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 
 import type { AiRefusal, Provider } from "./ai-contract.ts";
-import { mayComplete, mayExpire, mayFail } from "./ai-task-state.ts";
+import { ANSWERED, RUNNING, mayComplete, mayExpire, mayFail } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { aiTasks } from "./schema.ts";
 
@@ -68,7 +68,7 @@ export function completedAiTask<Result>(db: Database, task: Readonly<CompletedTa
   return db
     .update(aiTasks)
     .set({ state: "done", result: JSON.stringify(task.result), refusal: null, status: null })
-    .where(and(eq(aiTasks.id, task.taskId), eq(aiTasks.state, "running"), mayComplete()));
+    .where(and(eq(aiTasks.id, task.taskId), RUNNING, mayComplete()));
 }
 
 type Failure = Readonly<{ reason: AiRefusal | "stale" | "lease-lost"; status: number | null }>;
@@ -86,34 +86,25 @@ export function failedAiTask(
   claim?: Readonly<SQLWrapper>,
 ) {
   return failingAiTask(db, failure).where(
-    and(
-      eq(aiTasks.id, taskId),
-      eq(aiTasks.state, "running"),
-      mayFail(failure.reason),
-      claim && sql`${claim}`,
-    ),
+    and(eq(aiTasks.id, taskId), RUNNING, mayFail(failure.reason), claim && sql`${claim}`),
   );
 }
 
 export function givenUpTasks(db: Database, tasks: Readonly<SQLWrapper>) {
-  const running = and(sql`${tasks}`, eq(aiTasks.state, "running"));
+  const running = and(sql`${tasks}`, RUNNING);
 
   return [
     failingAiTask(db, { reason: "timeout", status: null }).where(and(running, mayFail("timeout"))),
-    failingAiTask(db, { reason: "stale", status: null }).where(
-      and(running, isNotNull(aiTasks.answeredAt)),
-    ),
+    failingAiTask(db, { reason: "stale", status: null }).where(and(running, ANSWERED)),
   ] as const;
 }
 
 export function supersededTasks(db: Database, tasks: Readonly<SQLWrapper>) {
   return failingAiTask(db, { reason: "stale", status: null }).where(
-    and(sql`${tasks}`, eq(aiTasks.state, "running"), mayFail("stale")),
+    and(sql`${tasks}`, RUNNING, mayFail("stale")),
   );
 }
 
 export function expireAiTasks(db: Database, now: number) {
-  return failingAiTask(db, { reason: "timeout", status: null }).where(
-    and(eq(aiTasks.state, "running"), mayExpire(now)),
-  );
+  return failingAiTask(db, { reason: "timeout", status: null }).where(and(RUNNING, mayExpire(now)));
 }

@@ -2,7 +2,7 @@ import { and, type SQLWrapper } from "drizzle-orm";
 import { z } from "zod";
 
 import { failedAiTask } from "./ai-task-rows.ts";
-import type { BotTaskRow } from "./ai-task-state.ts";
+import type { AiTaskRow } from "./ai-task-state.ts";
 import {
   type AnsweringParts,
   type BotAnswer,
@@ -32,12 +32,12 @@ type BotParse =
       readonly apply: (
         ports: JobPorts,
         job: Readonly<ClaimedJob>,
-        task: Readonly<Pick<BotTaskRow, "id">>,
+        task: Readonly<Pick<AiTaskRow, "id">>,
       ) => Promise<JobOutcome>;
     })
   | Extract<BotAnswer, { readonly kind: "invalid" }>;
 
-export type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "context">>;
+export type SentTask = Readonly<Pick<AiTaskRow, "id" | "kind" | "context">>;
 
 export interface SentTaskKind {
   readonly prepare: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<BotPreparation>;
@@ -46,7 +46,7 @@ export interface SentTaskKind {
   readonly apply: (
     ports: JobPorts,
     job: Readonly<ClaimedJob>,
-    task: Readonly<BotTaskRow>,
+    task: Readonly<AiTaskRow>,
   ) => Promise<JobOutcome>;
 }
 
@@ -64,7 +64,7 @@ interface KindParts<Context, Result> extends AnsweringParts<Context, Result> {
 
 function reparsed(
   kind: Readonly<Pick<BotTaskKind, "parse">>,
-  { context, result }: Readonly<Pick<BotTaskRow, "context" | "result">>,
+  { context, result }: Readonly<Pick<AiTaskRow, "context" | "result">>,
 ): BotParse {
   return kind.parse(context ?? "", { result: parsedJson(z.json(), result ?? "") });
 }

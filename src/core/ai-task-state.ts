@@ -18,7 +18,7 @@ export const GROK_BOT_EXECUTOR = "grok-bot";
 
 export const BOT_ERROR_REFUSAL = "provider-busy";
 
-export type BotTaskRow = typeof aiTasks.$inferSelect;
+export type AiTaskRow = typeof aiTasks.$inferSelect;
 
 type BotTaskState = "unsent" | "sent" | "answered" | "applied" | "failed";
 
@@ -31,7 +31,7 @@ const KEEPS_ANSWER_UNLESS = new Set<string>(["stale", "no-json"]);
 const REFUSALS_BEFORE_RESEND = 2;
 
 export function stateOf(
-  task: Readonly<Pick<BotTaskRow, "state" | "sentAt" | "answeredAt">>,
+  task: Readonly<Pick<AiTaskRow, "state" | "sentAt" | "answeredAt">>,
 ): BotTaskState {
   switch (task.state) {
     case "done":
@@ -50,8 +50,8 @@ export function stateOf(
   }
 }
 
-export function reportedError(
-  task: Readonly<Pick<BotTaskRow, "state" | "refusal" | "answeredAt">>,
+function reportedError(
+  task: Readonly<Pick<AiTaskRow, "state" | "refusal" | "answeredAt">>,
 ): boolean {
   return task.state === "failed" && task.refusal === BOT_ERROR_REFUSAL && task.answeredAt !== null;
 }
@@ -62,10 +62,18 @@ export const REPORTED_ERROR = and(
   isNotNull(aiTasks.answeredAt),
 );
 
-export const UNANSWERED = sql`${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null`;
+export const RUNNING = sql`${aiTasks.state} = 'running'`;
+
+export function isRunning(task: Readonly<Pick<AiTaskRow, "state">>): boolean {
+  return task.state === "running";
+}
+
+export const ANSWERED = isNotNull(aiTasks.answeredAt);
+
+export const UNANSWERED = sql`${RUNNING} and ${aiTasks.answeredAt} is null`;
 
 export function awaitsAnswer(
-  task: Readonly<Pick<BotTaskRow, "state" | "sentAt" | "answeredAt" | "deadline">>,
+  task: Readonly<Pick<AiTaskRow, "state" | "sentAt" | "answeredAt" | "deadline">>,
   now: number,
 ): boolean {
   const state = stateOf(task);
@@ -77,12 +85,18 @@ export function awaitsAnswerBy(by: Readonly<SQLWrapper> | number): SQL {
   return sql`${UNANSWERED} and ${aiTasks.deadline} > ${by}`;
 }
 
-export const UNSENT = sql`${UNANSWERED} and ${aiTasks.sentAt} is null`;
+export const NOT_SENT = sql`${aiTasks.sentAt} is null`;
 
-export const TIMED_OUT = sql`${aiTasks.state} = 'failed' and ${aiTasks.refusal} = 'timeout'`;
+export const UNSENT = sql`${UNANSWERED} and ${NOT_SENT}`;
 
-export function outstanding(now: number): SQL {
-  return sql`${aiTasks.state} = 'running' and (${aiTasks.answeredAt} is not null or ${aiTasks.deadline} > ${now})`;
+export function refusedAs(refusal: string): SQL {
+  return sql`${aiTasks.state} = 'failed' and ${aiTasks.refusal} = ${refusal}`;
+}
+
+export const TIMED_OUT = refusedAs("timeout");
+
+export function answeredOrBefore(now: number): SQL {
+  return sql`(${aiTasks.answeredAt} is not null or ${aiTasks.deadline} > ${now})`;
 }
 
 export function openTask(taskId: number) {
@@ -90,14 +104,14 @@ export function openTask(taskId: number) {
 }
 
 export function aiTaskRunning(taskId: number) {
-  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${taskId} and ${aiTasks.state} = 'running')`;
+  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${taskId} and ${RUNNING})`;
 }
 
 export function answeredOrClosed(taskId: number) {
   return sql`exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${taskId} and not (${UNANSWERED}))`;
 }
 
-export function acceptsAnswer(task: Readonly<Pick<BotTaskRow, "id" | "callbackHash">>) {
+export function acceptsAnswer(task: Readonly<Pick<AiTaskRow, "id" | "callbackHash">>) {
   return sql`exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${task.id} and ${aiTasks.callbackHash} = ${task.callbackHash} and ${awaitsAnswerBy(DATABASE_NOW)})`;
 }
 
@@ -114,7 +128,7 @@ export function mayFail(reason: string): SQL | undefined {
 }
 
 export function mayComplete(): SQL | undefined {
-  return or(ne(aiTasks.executor, GROK_BOT_EXECUTOR), isNotNull(aiTasks.answeredAt));
+  return or(ne(aiTasks.executor, GROK_BOT_EXECUTOR), ANSWERED);
 }
 
 export function mayExpire(now: number): SQL | undefined {
@@ -126,7 +140,7 @@ export function mayExpire(now: number): SQL | undefined {
 
 export function stepOf(
   task: Readonly<
-    Pick<BotTaskRow, "state" | "sentAt" | "answeredAt" | "refusal" | "deadline">
+    Pick<AiTaskRow, "state" | "sentAt" | "answeredAt" | "refusal" | "deadline">
   > | null,
   now: number,
 ): BotStep {

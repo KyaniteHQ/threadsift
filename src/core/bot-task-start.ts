@@ -1,7 +1,7 @@
 import { type SQL, type SQLWrapper, and, sql } from "drizzle-orm";
 
 import { insertTask } from "./ai-task-rows.ts";
-import { type BotTaskRow, GROK_BOT_EXECUTOR, awaitsAnswerBy } from "./ai-task-state.ts";
+import { type AiTaskRow, GROK_BOT_EXECUTOR, awaitsAnswerBy } from "./ai-task-state.ts";
 import { newCallbackCredential } from "./callback-credential.ts";
 import { guardHolds } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -45,7 +45,7 @@ export const VERIFY_OWNER: BotOwner = {
 type BotStarted =
   | {
       readonly kind: "started";
-      readonly task: Readonly<Pick<BotTaskRow, "id" | "kind" | "inputs" | "context" | "deadline">>;
+      readonly task: Readonly<Pick<AiTaskRow, "id" | "kind" | "inputs" | "context" | "deadline">>;
       readonly token: string;
     }
   | { readonly kind: "full" }

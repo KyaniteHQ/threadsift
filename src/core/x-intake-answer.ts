@@ -1,5 +1,5 @@
 import { parseStoredDigest } from "./ai-contract.ts";
-import { type BotTaskRow, acceptsAnswer } from "./ai-task-state.ts";
+import { type AiTaskRow, acceptsAnswer } from "./ai-task-state.ts";
 import { logFailure, report } from "./failure-log.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -28,7 +28,7 @@ const CLOSED: IntakeOutcome = { kind: "closed" };
 
 const REFUSAL_LOGGED_MAX = 1000;
 
-function intakeTaskOf(task: Readonly<BotTaskRow>): IntakeTask | null {
+function intakeTaskOf(task: Readonly<AiTaskRow>): IntakeTask | null {
   const { jobId, itemId } = task;
 
   return jobId === null || itemId === null ? null : { ...task, jobId, itemId };
@@ -89,7 +89,7 @@ async function stored(
 
 export async function acceptIntake(
   ports: JobPorts,
-  task: Readonly<BotTaskRow>,
+  task: Readonly<AiTaskRow>,
   answer: Readonly<IntakeAnswer>,
 ): Promise<IntakeOutcome> {
   if (task.kind !== X_INTAKE_TASK) return { kind: "unsupported" };
@@ -111,7 +111,7 @@ export async function acceptIntake(
 
 export async function refusedIntake(
   ports: JobPorts,
-  task: Readonly<BotTaskRow>,
+  task: Readonly<AiTaskRow>,
   logged: string,
 ): Promise<void> {
   const intake = task.kind === X_INTAKE_TASK ? intakeTaskOf(task) : null;

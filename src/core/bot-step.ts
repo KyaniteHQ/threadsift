@@ -1,6 +1,6 @@
 import type { ModelAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
-import { type BotStep, type BotTaskRow, stepOf } from "./ai-task-state.ts";
+import { type BotStep, type AiTaskRow, stepOf } from "./ai-task-state.ts";
 import type { SentTaskKind } from "./bot-task-kind.ts";
 import { chargedReport, latestTask, renewedCredential, timedOutTask } from "./bot-task-rows.ts";
 import { sendBotTask } from "./bot-task-send.ts";
@@ -16,9 +16,9 @@ const FULL_CAP_DEFER_MS = 60_000;
 
 const STALENESS_CHECKED_STEPS: ReadonlySet<BotStep> = new Set(["resend", "wait", "expire"]);
 
-type Waiting = Readonly<Pick<BotTaskRow, "id" | "deadline">>;
+type Waiting = Readonly<Pick<AiTaskRow, "id" | "deadline">>;
 
-type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "inputs" | "context" | "deadline">>;
+type SentTask = Readonly<Pick<AiTaskRow, "id" | "kind" | "inputs" | "context" | "deadline">>;
 
 function waiting(task: Waiting): DeferredOutcome {
   return {
@@ -126,7 +126,7 @@ async function resendStep(
 async function expireStep(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
-  { kind, task }: Readonly<{ kind: SentTaskKind; task: BotTaskRow }>,
+  { kind, task }: Readonly<{ kind: SentTaskKind; task: AiTaskRow }>,
 ): Promise<JobOutcome> {
   const timedOut = await timedOutTask(ports.db, job, { taskId: task.id, now: Date.now() });
 

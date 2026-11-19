@@ -1,7 +1,7 @@
 import { type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { GROK_BOT_EXECUTOR, outstanding } from "./ai-task-state.ts";
+import { GROK_BOT_EXECUTOR, RUNNING, answeredOrBefore } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
 import { aiTasks } from "./schema.ts";
@@ -26,7 +26,7 @@ export const ContextSchema = z
   .readonly();
 
 export function overviewAtBotHolds(topicId: number): SQL {
-  return sql`not exists (select 1 from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.kind} = ${TOPIC_OVERVIEW_TASK} and ${outstanding(Date.now())} and json_extract(${aiTasks.context}, '$.topicId') = ${topicId})`;
+  return sql`not exists (select 1 from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.kind} = ${TOPIC_OVERVIEW_TASK} and ${RUNNING} and json_extract(${aiTasks.context}, '$.topicId') = ${topicId} and ${answeredOrBefore(Date.now())})`;
 }
 
 export async function overviewAtBot(db: Database, topicId: number): Promise<boolean> {

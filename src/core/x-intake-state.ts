@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { TIMED_OUT, UNANSWERED } from "./ai-task-state.ts";
+import { TIMED_OUT, UNANSWERED, isRunning } from "./ai-task-state.ts";
 import { latestTask } from "./bot-task-rows.ts";
 import type { Database } from "./database.ts";
 import type { XReadNote } from "./kinds.ts";
@@ -16,5 +16,5 @@ export function botFailureNote(jobId: number) {
 export async function hasOpenIntakeTask(db: Database, jobId: number): Promise<boolean> {
   const task = await latestTask(db, jobId);
 
-  return task !== null && task.kind === X_INTAKE_TASK && task.state === "running";
+  return task !== null && task.kind === X_INTAKE_TASK && isRunning(task);
 }

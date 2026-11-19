@@ -1,7 +1,7 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 
 import { completedAiTask, failedAiTask } from "./ai-task-rows.ts";
-import { type BotTaskRow, acceptsAnswer } from "./ai-task-state.ts";
+import { type AiTaskRow, acceptsAnswer } from "./ai-task-state.ts";
 import { answeredTask, countedRefusal } from "./bot-task-rows.ts";
 import type { Database } from "./database.ts";
 import { closeItemJobs } from "./job-close.ts";
@@ -12,7 +12,7 @@ import { queuedVerification } from "./x-verify-store.ts";
 import type { XThreadValue } from "./x-wire.ts";
 
 export type IntakeTask = Readonly<
-  Pick<BotTaskRow, "id" | "callbackHash" | "inputRevision"> & {
+  Pick<AiTaskRow, "id" | "callbackHash" | "inputRevision"> & {
     jobId: number;
     itemId: number;
   }
