@@ -7,14 +7,6 @@ import { guardHolds } from "./guards.ts";
 import { X_INTAKE_TASK } from "./x-intake-contract.ts";
 import { xIntakeKind } from "./x-intake.ts";
 
-export const WebhookBodySchema = z.strictObject({
-  taskId: z.number().int().positive(),
-  kind: z.string(),
-  callbackToken: z.string(),
-});
-
-export type WebhookBody = z.output<typeof WebhookBodySchema>;
-
 export const TaskReadSchema = z.strictObject({
   taskId: z.number().int().positive(),
   kind: z.string(),

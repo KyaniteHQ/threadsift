@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 
 import { PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
-import type { RunnerTask } from "../shared/ai-runtime.ts";
+import type { RunnerTask } from "../shared/ai-runner.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
   type Attempt,

@@ -103,3 +103,11 @@ export const GrokBotInUseSchema = z.object({
   error: z.literal(GROK_BOT_IN_USE),
   code: z.literal("in-use"),
 });
+
+export const WebhookBodySchema = z.strictObject({
+  taskId: z.number().int().positive(),
+  kind: z.string(),
+  callbackToken: z.string(),
+});
+
+export type WebhookBody = z.output<typeof WebhookBodySchema>;

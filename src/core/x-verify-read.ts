@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Database } from "./database.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { xVerifications } from "./schema.ts";
-import type { Judged, StoredJudgement } from "./x-verify-state.ts";
+import type { Judged, StoredJudgement } from "./x-verdict.ts";
 import { type XThreadValue, StoredXThreadSchema } from "./x-wire.ts";
 
 export interface Verification {

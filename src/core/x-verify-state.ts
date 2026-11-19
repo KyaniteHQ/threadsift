@@ -1,16 +1,11 @@
 import { authorPartsOf } from "./x-author-thread.ts";
 import { noPhotosKey } from "./x-images.ts";
 import { joinedPost, leadingQuotes } from "./x-joined-post.ts";
-import { type Judgement, MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
+import { MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
+import type { Judged } from "./x-verdict.ts";
 import type { XReply, XThreadValue } from "./x-wire.ts";
 
 const SLICE_REQUESTS = 40;
-
-export type StoredJudgement =
-  | Judgement
-  | "verified-without-recipients"
-  | "tail-unverified-without-recipients";
-export type Judged = Readonly<Record<string, StoredJudgement>>;
 
 export type Progress =
   | { readonly kind: "asking"; readonly pending: readonly StoredPost[] }

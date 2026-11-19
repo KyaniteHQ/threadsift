@@ -1,5 +1,5 @@
 import type { LoadedFetcher } from "../../core/fetcher.ts";
-import type { CliRunner } from "../shared/ai-runtime.ts";
+import type { CliRunner } from "../shared/ai-runner.ts";
 import { type ClaudeEnvironment, claudeCode } from "./claude-code.ts";
 import { Slots } from "./cli-slots.ts";
 import { type CodexEnvironment, codexCli } from "./codex-cli.ts";

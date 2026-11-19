@@ -11,7 +11,8 @@ import {
   oembedAnswerOf,
   resolutionsNeeded,
 } from "./x-oembed.ts";
-import { type Judged, type StoredJudgement, sliceOf } from "./x-verify-state.ts";
+import type { Judged, StoredJudgement } from "./x-verdict.ts";
+import { sliceOf } from "./x-verify-state.ts";
 import type { XThreadValue } from "./x-wire.ts";
 
 const OEMBED = "https://publish.x.com/oembed";

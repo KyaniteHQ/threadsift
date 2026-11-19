@@ -1,5 +1,6 @@
 import { enqueueItemJobs } from "../src/core/job-rows.ts";
-import { type Judged, startingJudged } from "../src/core/x-verify-state.ts";
+import type { Judged } from "../src/core/x-verdict.ts";
+import { startingJudged } from "../src/core/x-verify-state.ts";
 import { queuedVerification, savedProgress } from "../src/core/x-verify-store.ts";
 import { type XThreadValue, XThreadSchema } from "../src/core/x-wire.ts";
 import type { Instance } from "./instance.ts";

@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-import { type AiExecution, refusedAi } from "../../core/ai-contract.ts";
+import { type AiExecution, apiRefusal, refusedAi } from "../../core/ai-contract.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
-import { apiRefusal } from "../shared/ai-call.ts";
 
 const CatalogSchema = z
   .looseObject({

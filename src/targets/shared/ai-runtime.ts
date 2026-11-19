@@ -4,38 +4,15 @@ import {
   GROK_BOT_PROVIDER,
   PROVIDERS,
   HttpProviderSchema,
-  type AiExecution,
-  type AiTaskRequest,
   type CliProvider,
-  type CliRecommendation,
   refusedAi,
 } from "../../core/ai-contract.ts";
 import type { AiRuntime } from "../../core/ai-runtime.ts";
 import { allowedAiUrl } from "../../core/ai-url.ts";
 import type { Ports } from "../../core/ports.ts";
 import { sealedSecrets } from "../../core/sealed-secret.ts";
+import type { CliRunner, TaskRunner } from "./ai-runner.ts";
 import { openRouterActivation, openRouterExchange } from "./openrouter-exchange.ts";
-
-export type RunnerTask<Result, Kind extends AiTaskRequest<Result>["config"]["kind"]> = Omit<
-  AiTaskRequest<Result>,
-  "config"
-> & {
-  readonly config: Extract<AiTaskRequest<Result>["config"], { readonly kind: Kind }>;
-};
-
-type TaskRunner<Kind extends AiTaskRequest<never>["config"]["kind"]> = <Result>(
-  task: RunnerTask<Result, Kind>,
-  signal: AbortSignal,
-) => Promise<AiExecution<Result>>;
-
-export interface CliRunner {
-  readonly provider: CliProvider;
-  readonly recommendation: CliRecommendation | undefined;
-  readonly run: TaskRunner<"cli">;
-  readonly resolve: AiRuntime["resolveCli"];
-  readonly signedIn: () => Promise<boolean>;
-  readonly stop: () => void;
-}
 
 interface AiRuntimeOptions {
   readonly publicOnly: boolean;

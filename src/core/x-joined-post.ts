@@ -3,7 +3,7 @@ import { INLINE_TEXT_BYTES, X_QUOTES_MAX } from "./limits.ts";
 import { type JoinedAuthorThread, PART_SEPARATOR, joinedAuthorThread } from "./x-author-thread.ts";
 import { LINE_BREAK, closedBlocks } from "./x-blocks.ts";
 import { NO_PHOTOS_PREFIX, isImageLine, noPhotosKey, withImages } from "./x-images.ts";
-import type { Judged } from "./x-verify-state.ts";
+import type { Judged } from "./x-verdict.ts";
 import type { XQuoted, XThreadValue } from "./x-wire.ts";
 
 const NOT_SAVED_NOTE = "Quoted posts were not saved.";

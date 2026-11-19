@@ -12,7 +12,8 @@ import { claudeCode } from "../src/targets/node/claude-code.ts";
 import { Slots } from "../src/targets/node/cli-slots.ts";
 import { findBinary } from "../src/targets/node/cli-support.ts";
 import { codexCli } from "../src/targets/node/codex-cli.ts";
-import { type CliRunner, aiAndSecrets } from "../src/targets/shared/ai-runtime.ts";
+import type { CliRunner } from "../src/targets/shared/ai-runner.ts";
+import { aiAndSecrets } from "../src/targets/shared/ai-runtime.ts";
 import { bindingRunner } from "../src/targets/worker/ai-binding.ts";
 
 const Id = z.string().regex(/^[a-z0-9-]+$/u);

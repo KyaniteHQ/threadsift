@@ -13,11 +13,20 @@ import {
   TypeValidationError,
 } from "ai";
 
-import { type AiExecution, type HttpAiConnection, refusedAi } from "../../core/ai-contract.ts";
+import {
+  type AiExecution,
+  type HttpAiConnection,
+  apiRefusal,
+  refusedAi,
+} from "../../core/ai-contract.ts";
 import { AiAddressRefused } from "../../core/ai-url.ts";
-import { AI_CALL_OPTIONS, apiRefusal } from "./ai-call.ts";
-import type { RunnerTask } from "./ai-runtime.ts";
+import type { RunnerTask } from "./ai-runner.ts";
 import { aiTransport } from "./ai-transport.ts";
+
+const AI_CALL_OPTIONS = {
+  maxRetries: 0,
+  telemetry: { isEnabled: false, recordInputs: false, recordOutputs: false },
+} as const;
 
 const ZERO_OPENROUTER_PRICE = {
   openrouter: {
