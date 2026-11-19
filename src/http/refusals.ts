@@ -1,14 +1,13 @@
-import type { Context } from "hono";
+import type { Context, TypedResponse } from "hono";
+import type { JSONParsed } from "hono/utils/types";
 
-import { retryAfterSeconds } from "../core/agent-token-budget.ts";
 import { groupedNumber } from "../core/format.ts";
-import { BUDGET_SPENT, type BudgetSpent } from "../core/kinds.ts";
 import type { ResetResult } from "../core/owner-password.ts";
 import type { SetupBlock } from "../core/owner.ts";
 import { PASSWORD_MAX, PASSWORD_MIN, type PasswordProblem } from "../core/passwords.ts";
+import type { AdmissionRefusal, Refusal } from "../core/paste-refusal.ts";
 import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../core/setup-code.ts";
-import { UNKNOWN_TOKEN } from "../core/tokens.ts";
-import { RESTORING_CODE, type RefusalCode } from "./schemas.ts";
+import type { RefusalCode } from "./schemas.ts";
 
 const MESSAGES = {
   wrong: "The setup code is wrong",
@@ -25,20 +24,7 @@ const MESSAGES = {
   "no-owner": "This Instance has no owner yet",
 } as const satisfies Record<RefusalCode, string>;
 
-export { UNKNOWN_TOKEN };
-
-export function unknownToken(c: Context) {
-  return c.json({ error: UNKNOWN_TOKEN }, 401, {
-    "WWW-Authenticate": 'Bearer error="invalid_token"',
-  });
-}
-
 export const NOT_FOUND = "Not found";
-
-export const REFUSED_HOST = "url: the host is not globally reachable";
-
-export const RESTORING =
-  "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
 
 const WRONG_PASSWORD = "The password is wrong";
 
@@ -56,21 +42,46 @@ export function locked(c: Context, retryAfter: number) {
   return c.json({ error: MESSAGES.locked, code: "locked" } as const, 429);
 }
 
-export const BUDGET_SPENT_MESSAGE =
-  "This agent token has added its daily budget of Items, so nothing was saved. The budget starts again at 00:00 UTC.";
+type Answer<Status extends Refusal["status"]> = Response &
+  TypedResponse<JSONParsed<Extract<Refusal, { readonly status: Status }>["body"]>, Status, "json">;
 
-export function budgetRefusalOf(spent: Readonly<BudgetSpent>) {
-  return { code: BUDGET_SPENT, retryAfter: retryAfterSeconds(spent, Date.now()) } as const;
-}
+export function refusing(
+  c: Context,
+  refusal: Readonly<AdmissionRefusal>,
+): Answer<401> | Answer<429> | Answer<503>;
+export function refusing(
+  c: Context,
+  refusal: Readonly<Refusal>,
+): Answer<401> | Answer<429> | Answer<503> | Answer<400> | Answer<409 | 413>;
+export function refusing(c: Context, refusal: Readonly<Refusal>) {
+  switch (refusal.status) {
+    case 401: {
+      return c.json(refusal.body, 401, { "WWW-Authenticate": 'Bearer error="invalid_token"' });
+    }
 
-export function budgetSpent(c: Context, spent: Readonly<BudgetSpent>) {
-  c.header("Retry-After", String(retryAfterSeconds(spent, Date.now())));
+    case 429: {
+      c.header("Retry-After", String(refusal.retryAfter));
 
-  return c.json({ error: BUDGET_SPENT_MESSAGE, code: BUDGET_SPENT } as const, 429);
-}
+      return c.json(refusal.body, 429);
+    }
 
-export function restoring(c: Context) {
-  return c.json({ error: RESTORING, code: RESTORING_CODE } as const, 503);
+    case 503: {
+      return c.json(refusal.body, 503);
+    }
+
+    case 400: {
+      return c.json(refusal.body, 400);
+    }
+
+    case 409:
+    case 413: {
+      return c.json(refusal.body, refusal.status);
+    }
+
+    default: {
+      return refusal satisfies never;
+    }
+  }
 }
 
 export function wrongPassword(c: Context) {

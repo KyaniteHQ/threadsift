@@ -5,18 +5,12 @@ import {
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import { paste } from "../core/paste.ts";
+import { refusalOf } from "../core/paste-refusal.ts";
+import { pasteLink } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
 import { pasteScopes } from "../core/scopes.ts";
 import { savedView } from "./item-view.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
-import {
-  BUDGET_SPENT_MESSAGE,
-  REFUSED_HOST,
-  RESTORING,
-  UNKNOWN_TOKEN,
-  budgetRefusalOf,
-} from "./refusals.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { SavedItemResponseSchema } from "./schemas.ts";
 
@@ -46,19 +40,15 @@ export function registerAddTool(server: McpServer, ports: Ports, tokenId: number
       scopeChallenge: addScopes,
     },
     guarded("add", async ({ url, digest }: Readonly<z.infer<typeof AddInputSchema>>) => {
-      const saved = await paste(ports, url, { kind: "token", id: tokenId }, { digest });
+      const saved = await pasteLink(ports, url, { kind: "token", id: tokenId }, digest);
 
-      if (saved.kind === "unknown-token") return refused(UNKNOWN_TOKEN);
+      if (saved.kind !== "saved") {
+        const refusal = refusalOf(saved);
 
-      if (saved.kind === "budget-spent") {
-        return refused(BUDGET_SPENT_MESSAGE, budgetRefusalOf(saved));
+        return refusal.kind === "budget-spent"
+          ? refused(refusal.body.error, { code: refusal.body.code, retryAfter: refusal.retryAfter })
+          : refused(refusal.body.error);
       }
-
-      if (saved.kind === "refused") return refused(REFUSED_HOST);
-
-      if (saved.kind === "restoring") return refused(RESTORING);
-
-      if (saved.kind !== "saved") throw new Error(`Paste answered ${saved.kind} without content`);
 
       return answered(SavedItemResponseSchema, savedView(saved.item));
     }),

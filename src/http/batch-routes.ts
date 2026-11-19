@@ -1,7 +1,8 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { type BatchEntry, pasteBatch } from "../core/batch-paste.ts";
-import { readImport, saveImport } from "../core/import-cursor.ts";
+import { type BatchEntry, pasteLinksThenSaveCursor } from "../core/batch-paste.ts";
+import { readImport } from "../core/import-cursor.ts";
+import { refusalOf } from "../core/paste-refusal.ts";
 import type { Ports } from "../core/ports.ts";
 import {
   BATCH_LINKS_MAX,
@@ -12,7 +13,7 @@ import {
 } from "./batch-schemas.ts";
 import { savedView } from "./item-view.ts";
 import { budgetRefusal, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
-import { budgetSpent, restoring, unknownToken } from "./refusals.ts";
+import { refusing } from "./refusals.ts";
 import { ErrorResponseSchema, UnavailableResponseSchema } from "./schemas.ts";
 import { callerOf, requirePasteScopes } from "./token-scopes.ts";
 
@@ -79,17 +80,11 @@ export function registerBatchRoutes(app: OpenAPIHono, ports: Ports): void {
       links.some(({ digest }) => digest !== undefined),
     );
 
-    const pasted = await pasteBatch(ports, links, callerOf(c));
+    const pasted = await pasteLinksThenSaveCursor(ports, links, callerOf(c), cursor);
 
-    if (pasted.kind === "unknown-token") return unknownToken(c);
+    if (pasted.kind !== "done") return refusing(c, refusalOf(pasted));
 
-    if (pasted.kind === "budget-spent") return budgetSpent(c, pasted);
-
-    if (pasted.kind === "restoring") return restoring(c);
-
-    const saved = cursor === undefined ? null : await saveImport(ports.db, cursor);
-
-    return c.json({ results: pasted.entries.map(resultOf), import: saved }, 200);
+    return c.json({ results: pasted.entries.map(resultOf), import: pasted.import }, 200);
   });
 
   app.openapi(getImportRoute, async (c) => {

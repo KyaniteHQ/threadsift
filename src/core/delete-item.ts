@@ -50,6 +50,12 @@ async function deleteFilesQuietly(files: FileStore, itemId: number): Promise<voi
   }
 }
 
+function rowsOfLast(results: readonly unknown[]): number {
+  const last = results.at(-1);
+
+  return Array.isArray(last) ? last.length : 0;
+}
+
 export async function deleteItem(
   { db, files }: Readonly<Pick<Ports, "db" | "files">>,
   id: number,
@@ -76,9 +82,7 @@ export async function deleteItem(
     db.delete(items).where(eq(items.id, id)).returning({ id: items.id }),
   ]);
 
-  const removed = results.at(-1);
-
-  if (!Array.isArray(removed) || removed.length === 0) return false;
+  if (rowsOfLast(results) === 0) return false;
 
   await deleteFilesQuietly(files, id);
 

@@ -1,7 +1,7 @@
-import { redditRefOf } from "./links.ts";
 import { parseRedditThread } from "./reddit-json.ts";
 import type { StoredParse } from "./stored-thread.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
+import type { ThreadSource } from "./thread-source.ts";
 import { parseXThread } from "./x-thread.ts";
 
 const NOT_A_THREAD_LINK = "only a Reddit post or comment link or an X post link takes content";
@@ -12,18 +12,24 @@ function refused(reason: string): StoredParse {
   return { kind: "refused", reason };
 }
 
-export function parsedThread(
-  absoluteUrl: string,
-  statusId: string | null,
-  answers: ThreadAnswers,
-): StoredParse {
-  const ref = redditRefOf(absoluteUrl);
+export function parsedThread(source: Readonly<ThreadSource>, answers: ThreadAnswers): StoredParse {
+  switch (source.kind) {
+    case "reddit": {
+      return parseRedditThread(answers, source.ref);
+    }
 
-  if (ref !== null) return parseRedditThread(answers, ref);
+    case "none": {
+      return refused(NOT_A_THREAD_LINK);
+    }
 
-  if (statusId === null) return refused(NOT_A_THREAD_LINK);
+    case "x": {
+      const [answer, ...later] = answers;
 
-  const [answer, ...later] = answers;
+      return later.length === 0 ? parseXThread(answer, source.statusId) : refused(ONE_X_TEXT);
+    }
 
-  return later.length === 0 ? parseXThread(answer, statusId) : refused(ONE_X_TEXT);
+    default: {
+      return source satisfies never;
+    }
+  }
 }

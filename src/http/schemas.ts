@@ -13,6 +13,7 @@ import {
   FAILURE_REASONS,
   KINDS,
   READ_STATES,
+  RESTORING_CODE,
   ScopeListSchema,
   SETUP_CODE_STATUSES,
   SOURCES,
@@ -178,8 +179,6 @@ export const ItemListResponseSchema = ItemPageResponseSchema.extend({ counts: Fi
 export const ItemReadResponseSchema = ItemPageResponseSchema.extend({
   counts: FilterCountsSchema.optional(),
 });
-
-export const RESTORING_CODE = "restoring";
 
 const REFUSAL_CODES = [
   "wrong",

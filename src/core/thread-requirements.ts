@@ -1,6 +1,6 @@
 import type { SQLWrapper } from "drizzle-orm";
 
-import type { Invalid, NotWaiting } from "./items.ts";
+import type { Invalid, NotWaiting } from "./paste-outcome.ts";
 import { awaitsThread, ownerOf } from "./reddit-thread.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import type { ThreadPlace } from "./thread-publish.ts";
