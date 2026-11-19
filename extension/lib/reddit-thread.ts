@@ -57,23 +57,23 @@ async function readInTab(
       return { status: 0, text: "", remaining };
     }
 
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
     let received = 0;
+    let text = "";
 
-    const limited = new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        received += chunk.byteLength;
+    for (;;) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- The byte cap is checked before reading the next chunk.
+      const { done, value } = await reader.read();
 
-        if (received > maxBytes) {
-          controller.error(new RangeError("the answer is longer than the limit"));
-        } else {
-          controller.enqueue(chunk);
-        }
-      },
-    });
+      if (done) return { status: 200, text: text + decoder.decode(), remaining };
 
-    const text = await new Response(response.body.pipeThrough(limited)).text();
+      received += value.byteLength;
 
-    return { status: 200, text, remaining };
+      if (received > maxBytes) return { status: 0, text: "", remaining };
+
+      text += decoder.decode(value, { stream: true });
+    }
   } catch {
     return { status: 0, text: "", remaining };
   } finally {
