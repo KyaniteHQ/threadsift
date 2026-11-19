@@ -9,8 +9,9 @@ import {
   type Paste,
   type Saved,
   holdsNoItem,
+  foundItem,
   itemAt,
-  itemFound,
+  itemRead,
   writeQueued,
 } from "./item-rows.ts";
 import { hasOpenJob } from "./job-rows.ts";
@@ -51,6 +52,10 @@ interface Failure {
   readonly addedByToken: Paste["addedByToken"];
 }
 
+const PROMOTED_ITEM = 4;
+
+const FAILED_ITEM = 3;
+
 async function promotedAndKept(
   ports: Ports,
   { shortLink, paste, link }: Readonly<Resolved>,
@@ -67,13 +72,12 @@ async function promotedAndKept(
       queueVaultItems(db, sql`${promotable} and ${changed}`),
       promoteFailedItem(db, shortLink, link),
       recordAlias(db, shortLink, paste.address, link),
+      itemRead(db, eq(items.normalizedUrl, link.normalizedUrl)),
       db.delete(guards),
     ]);
   });
 
-  if (promoted === null) return null;
-
-  const item = await itemFound(db, link.normalizedUrl);
+  const item = promoted?.[PROMOTED_ITEM][0];
 
   return item === undefined ? null : { kind: "saved", item, created: false };
 }
@@ -109,6 +113,7 @@ async function insertedFailure(
   { address, link: { normalizedUrl, kind, source }, fetched, now, addedByToken }: Readonly<Failure>,
 ): Promise<Saved | null> {
   const missing = holdsNoItem(db, normalizedUrl);
+  const itemKey = eq(items.normalizedUrl, normalizedUrl);
 
   const inserted = await unlessRefused(db, missing, () =>
     db.batch([
@@ -123,14 +128,15 @@ async function insertedFailure(
         addedByToken,
         ...settle(fetched, null, now),
       }),
-      queueVaultItems(db, eq(items.normalizedUrl, normalizedUrl)),
+      itemRead(db, itemKey),
+      queueVaultItems(db, itemKey),
       db.delete(guards),
     ]),
   );
 
   return inserted === null
     ? null
-    : { kind: "saved", item: await itemAt(db, normalizedUrl), created: true };
+    : { kind: "saved", item: foundItem(inserted[FAILED_ITEM][0], normalizedUrl), created: true };
 }
 
 async function refreshedFailure(
@@ -140,7 +146,7 @@ async function refreshedFailure(
 ): Promise<Saved> {
   const known = await itemAt(db, normalizedUrl);
 
-  await db.batch([
+  const refreshed = await db.batch([
     insertGuard(db, noAlias),
     db
       .update(items)
@@ -150,10 +156,15 @@ async function refreshedFailure(
       .update(items)
       .set(settle(fetched, known.title, now))
       .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
+    itemRead(db, eq(items.id, known.id)),
     db.delete(guards),
   ]);
 
-  return { kind: "saved", item: await itemAt(db, normalizedUrl), created: false };
+  return {
+    kind: "saved",
+    item: foundItem(refreshed[FAILED_ITEM][0], normalizedUrl),
+    created: false,
+  };
 }
 
 export function saveUnresolved(

@@ -1,4 +1,4 @@
-import { type SQLWrapper, eq } from "drizzle-orm";
+import { type SQL, type SQLWrapper, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Digest } from "./ai-contract.ts";
@@ -26,12 +26,16 @@ export interface Paste {
   readonly addedByToken: number | null;
 }
 
-function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
+export function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
   if (item === undefined) {
     throw new Error(`Item ${normalizedUrl} was neither inserted nor found`);
   }
 
   return item;
+}
+
+export function itemRead(db: Database, at: SQL) {
+  return selectItems(db, LISTED_COLUMNS).where(at);
 }
 
 export async function itemFound(
