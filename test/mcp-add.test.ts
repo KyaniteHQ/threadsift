@@ -4,7 +4,6 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import type { Client } from "@modelcontextprotocol/client";
 
-import { RESTORING } from "../src/http/refusals.ts";
 import {
   ErrorResponseSchema,
   ItemReadResponseSchema,
@@ -20,6 +19,9 @@ import {
   sameAsRest,
 } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
+
+const RESTORING =
+  "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
 
 describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
   let instance: Instance;

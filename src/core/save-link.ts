@@ -1,13 +1,16 @@
+import { refusedHost } from "./admission.ts";
 import type { Digest } from "./ai-contract.ts";
 import { type Caller, tokenIdOf } from "./caller.ts";
-import { saveFailedResolution } from "./failed-resolution.ts";
 import { resolveShortLink } from "./fetch-link.ts";
-import { type Existing, type SaveResult, saveQueued } from "./items.ts";
-import { isRedditShareLink, isRefusedLink, isShortLink, parseLink } from "./links.ts";
+import type { Existing, Saved } from "./item-rows.ts";
+import { writeItem } from "./item-save.ts";
+import { isRedditShareLink, isShortLink, parseLink } from "./links.ts";
+import type { Refused } from "./paste-outcome.ts";
 import type { Ports } from "./ports.ts";
 import { FETCH_DEADLINE_MS } from "./request-waits.ts";
-import { saveResolved } from "./resolved-save.ts";
 import { aliasedItem } from "./short-link-aliases.ts";
+
+export type SaveResult = Saved | Refused;
 
 async function saveShortLink(
   ports: Ports,
@@ -15,17 +18,17 @@ async function saveShortLink(
   digest: Digest | undefined,
   existing: Existing,
   addedByToken: number | null,
-): Promise<SaveResult> {
+): Promise<Saved> {
   const shortLink = parseLink(pasted);
   const known = await aliasedItem(ports.db, shortLink.normalizedUrl);
 
   if (known !== undefined) {
-    return saveQueued(
-      ports,
-      { originalUrl: pasted, address: known.address, digest, addedByToken },
-      known,
+    return writeItem(ports, {
+      kind: "link",
+      paste: { originalUrl: pasted, address: known.address, digest, addedByToken },
+      link: known,
       existing,
-    );
+    });
   }
 
   const resolution = await resolveShortLink(
@@ -36,21 +39,20 @@ async function saveShortLink(
 
   const saved =
     resolution.kind === "failed"
-      ? await saveFailedResolution(
-          ports.db,
-          pasted,
-          shortLink,
-          resolution.fetched,
+      ? await writeItem(ports, {
+          kind: "unresolved",
+          paste: { originalUrl: pasted, address: pasted, digest: undefined, addedByToken },
+          link: shortLink,
+          fetched: resolution.fetched,
           existing,
-          addedByToken,
-        )
-      : await saveResolved(
-          ports,
-          shortLink.normalizedUrl,
-          { originalUrl: pasted, address: resolution.address, digest, addedByToken },
-          parseLink(resolution.address),
+        })
+      : await writeItem(ports, {
+          kind: "resolved",
+          shortLink: shortLink.normalizedUrl,
+          paste: { originalUrl: pasted, address: resolution.address, digest, addedByToken },
+          link: parseLink(resolution.address),
           existing,
-        );
+        });
 
   return saved ?? saveShortLink(ports, pasted, digest, existing, addedByToken);
 }
@@ -62,18 +64,18 @@ export function saveItem(
   existing: Existing,
   caller: Caller,
 ): Promise<SaveResult> {
-  if (isRefusedLink(absoluteUrl)) {
-    return Promise.resolve({ kind: "refused" });
-  }
+  const refused = refusedHost(absoluteUrl);
+
+  if (refused !== null) return Promise.resolve(refused);
 
   const addedByToken = tokenIdOf(caller);
 
   return isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)
     ? saveShortLink(ports, absoluteUrl, digest, existing, addedByToken)
-    : saveQueued(
-        ports,
-        { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
-        parseLink(absoluteUrl),
+    : writeItem(ports, {
+        kind: "link",
+        paste: { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
+        link: parseLink(absoluteUrl),
         existing,
-      );
+      });
 }

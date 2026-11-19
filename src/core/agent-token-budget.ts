@@ -30,7 +30,11 @@ function spentUntilMidnight(now: number): BudgetSpent {
   return { kind: BUDGET_SPENT, until: nextUtcMidnight(now) };
 }
 
-export type Budgeted<Result> = Result | BudgetSpent | { readonly kind: "unknown-token" };
+export interface UnknownToken {
+  readonly kind: "unknown-token";
+}
+
+export type Budgeted<Result> = Result | BudgetSpent | UnknownToken;
 
 export function tokenItemsToday(
   db: Database,

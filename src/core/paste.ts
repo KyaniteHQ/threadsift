@@ -1,10 +1,11 @@
-import { type Budgeted, withinBudget } from "./agent-token-budget.ts";
+import { admitted } from "./admission.ts";
+import type { Budgeted } from "./agent-token-budget.ts";
 import type { Digest } from "./ai-contract.ts";
 import type { Caller } from "./caller.ts";
-import { whileOpen } from "./library-gate.ts";
+import type { Closed } from "./library-gate.ts";
 import { type PageSaveResult, savePage } from "./page-save.ts";
 import type { Ports } from "./ports.ts";
-import { saveItem } from "./save-link.ts";
+import { type SaveResult, saveItem } from "./save-link.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
 import { FILL_NEEDS_CONTENT, type ThreadPasteResult, saveThread } from "./thread-paste.ts";
@@ -16,9 +17,9 @@ export interface Supplied {
   readonly fill?: true | undefined;
 }
 
-type Pasted = ThreadPasteResult | PageSaveResult | { readonly kind: "restoring" };
+type Pasted = ThreadPasteResult | PageSaveResult | SaveResult;
 
-type PasteResult = Budgeted<Pasted>;
+type OwnerCaller = Extract<Caller, { readonly kind: "owner" }>;
 
 const ONE_OF_TWO = "a link takes content or a page, not both";
 
@@ -48,13 +49,36 @@ function savedBy(
   });
 }
 
+export function pasteLink(
+  ports: Ports,
+  absoluteUrl: string,
+  caller: Readonly<OwnerCaller>,
+  digest?: Digest,
+): Promise<SaveResult | Closed>;
+export function pasteLink(
+  ports: Ports,
+  absoluteUrl: string,
+  caller: Readonly<Caller>,
+  digest?: Digest,
+): Promise<Budgeted<SaveResult> | Closed>;
+export function pasteLink(
+  ports: Ports,
+  absoluteUrl: string,
+  caller: Readonly<Caller>,
+  digest?: Digest,
+): Promise<Budgeted<SaveResult> | Closed> {
+  return admitted(ports, caller, [absoluteUrl], () =>
+    saveItem(ports, absoluteUrl, digest, "refresh", caller),
+  );
+}
+
 export function paste(
   ports: Ports,
   absoluteUrl: string,
   caller: Caller,
   supplied: Readonly<Supplied>,
-): Promise<PasteResult> {
-  return whileOpen(ports.db, () =>
-    withinBudget(ports, caller, [absoluteUrl], () => savedBy(ports, absoluteUrl, caller, supplied)),
+): Promise<Budgeted<Pasted> | Closed> {
+  return admitted(ports, caller, [absoluteUrl], () =>
+    savedBy(ports, absoluteUrl, caller, supplied),
   );
 }

@@ -1,0 +1,105 @@
+import { type UnknownToken, retryAfterSeconds } from "./agent-token-budget.ts";
+import { BUDGET_SPENT, type BudgetSpent, RESTORING_CODE } from "./kinds.ts";
+import type { Closed } from "./library-gate.ts";
+import type { Invalid, NotWaiting, Refused, ThreadKept, TooLarge } from "./paste-outcome.ts";
+import type { UNSUPPORTED_PAGE_LINK } from "./supplied-page.ts";
+import { UNKNOWN_TOKEN } from "./tokens.ts";
+
+const REFUSED_HOST = "url: the host is not globally reachable";
+
+const RESTORING =
+  "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
+
+const BUDGET_SPENT_MESSAGE =
+  "This agent token has added its daily budget of Items, so nothing was saved. The budget starts again at 00:00 UTC.";
+
+const TOO_LARGE = {
+  content: "content: longer than 4 MiB",
+  page: "page: longer than 1,000,000 bytes",
+} as const;
+
+const THREAD_KEPT = "page: the saved thread stays";
+
+const NOT_WAITING = "fill: no Item with this link is waiting for its thread";
+
+type Unsaved =
+  | UnknownToken
+  | BudgetSpent
+  | Closed
+  | Refused
+  | TooLarge<keyof typeof TOO_LARGE>
+  | Invalid<string>
+  | NotWaiting
+  | ThreadKept;
+
+export type Refusal =
+  | { readonly status: 401; readonly body: { readonly error: string } }
+  | {
+      readonly status: 429;
+      readonly body: { readonly error: string; readonly code: typeof BUDGET_SPENT };
+      readonly retryAfter: number;
+    }
+  | {
+      readonly status: 503;
+      readonly body: { readonly error: string; readonly code: typeof RESTORING_CODE };
+    }
+  | {
+      readonly status: 400;
+      readonly body:
+        | { readonly error: string; readonly fetch: "refused" }
+        | { readonly error: string; readonly code?: typeof UNSUPPORTED_PAGE_LINK | undefined };
+    }
+  | { readonly status: 409 | 413; readonly body: { readonly error: string } };
+
+export type AdmissionRefusal = Extract<Refusal, { readonly status: 401 | 429 | 503 }>;
+
+export function refusalOf(outcome: Readonly<UnknownToken | BudgetSpent | Closed>): AdmissionRefusal;
+export function refusalOf(outcome: Readonly<Unsaved>): Refusal;
+export function refusalOf(outcome: Readonly<Unsaved>): Refusal {
+  switch (outcome.kind) {
+    case "unknown-token": {
+      return { status: 401, body: { error: UNKNOWN_TOKEN } };
+    }
+
+    case "budget-spent": {
+      return {
+        status: 429,
+        body: { error: BUDGET_SPENT_MESSAGE, code: BUDGET_SPENT },
+        retryAfter: retryAfterSeconds(outcome, Date.now()),
+      };
+    }
+
+    case "restoring": {
+      return { status: 503, body: { error: RESTORING, code: RESTORING_CODE } };
+    }
+
+    case "refused": {
+      return { status: 400, body: { error: REFUSED_HOST, fetch: "refused" } };
+    }
+
+    case "too-large": {
+      return { status: 413, body: { error: TOO_LARGE[outcome.field] } };
+    }
+
+    case "invalid": {
+      return {
+        status: 400,
+        body: { error: `${outcome.field}: ${outcome.reason}`, code: outcome.code },
+      };
+    }
+
+    case "not-waiting": {
+      return { status: 409, body: { error: NOT_WAITING } };
+    }
+
+    case "thread-kept": {
+      return { status: 409, body: { error: THREAD_KEPT } };
+    }
+
+    default: {
+      const exhaustive: never = outcome;
+
+      return exhaustive;
+    }
+  }
+}

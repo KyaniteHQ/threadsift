@@ -1,6 +1,6 @@
 import type { SQLWrapper } from "drizzle-orm";
 
-import type { Invalid, NotWaiting } from "./items.ts";
+import type { Invalid, NotWaiting } from "./paste-outcome.ts";
 import { awaitsThread, ownerOf } from "./reddit-thread.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import type { ThreadPlace } from "./thread-publish.ts";
@@ -28,7 +28,7 @@ export function requirementOf(
 ): Requirement | undefined {
   if (fillOnly) return { holds: awaitsThread(place.normalizedUrl), refusal: NOT_WAITING };
 
-  if (place.kind !== "x-post") return undefined;
+  if (place.thread.kind !== "x") return undefined;
 
   return {
     holds: holdsAtLeastStored(ownerOf(place.normalizedUrl).id, repliesOf(thread)),

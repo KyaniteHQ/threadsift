@@ -1,10 +1,12 @@
-import { type Budgeted, withinBudget } from "./agent-token-budget.ts";
+import { admitted } from "./admission.ts";
+import type { Budgeted } from "./agent-token-budget.ts";
 import type { Digest } from "./ai-contract.ts";
 import type { Caller } from "./caller.ts";
+import type { ImportCursor, ImportWrite } from "./import-contract.ts";
+import { saveImport } from "./import-cursor.ts";
 import type { ListedItemRow } from "./item-selection.ts";
 import { type Closed, whileOpen } from "./library-gate.ts";
 import type { Ports } from "./ports.ts";
-import { restoreHoldsLibrary } from "./restore-state.ts";
 import { saveItem } from "./save-link.ts";
 
 interface BatchLink {
@@ -16,11 +18,14 @@ export type BatchEntry =
   | { readonly outcome: "added" | "known"; readonly item: ListedItemRow }
   | { readonly outcome: "refused"; readonly url: string };
 
-type BatchSaved =
-  | { readonly kind: "done"; readonly entries: readonly BatchEntry[] }
-  | { readonly kind: "restoring" };
+interface Entries {
+  readonly kind: "done";
+  readonly entries: readonly BatchEntry[];
+}
 
-type BatchPaste = Budgeted<BatchSaved>;
+interface BatchDone extends Entries {
+  readonly import: ImportCursor | null;
+}
 
 async function pasteOne(
   ports: Ports,
@@ -40,7 +45,7 @@ async function pasteEach(
   ports: Ports,
   links: readonly BatchLink[],
   caller: Caller,
-): Promise<BatchSaved> {
+): Promise<Entries | Closed> {
   const entries: BatchEntry[] = [];
 
   for (const link of links) {
@@ -55,17 +60,23 @@ async function pasteEach(
   return { kind: "done", entries };
 }
 
-export async function pasteBatch(
+export async function pasteLinksThenSaveCursor(
   ports: Ports,
   links: readonly BatchLink[],
   caller: Caller,
-): Promise<BatchPaste> {
-  if (await restoreHoldsLibrary(ports.db)) return { kind: "restoring" };
-
-  return withinBudget(
+  cursor: Readonly<ImportWrite> | undefined,
+): Promise<Budgeted<BatchDone | Closed> | Closed> {
+  const pasted = await admitted(
     ports,
     caller,
     links.map(({ url }) => url),
     () => pasteEach(ports, links, caller),
   );
+
+  if (pasted.kind !== "done") return pasted;
+
+  return {
+    ...pasted,
+    import: cursor === undefined ? null : await saveImport(ports.db, cursor),
+  };
 }

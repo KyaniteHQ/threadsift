@@ -54,7 +54,8 @@ export async function deleteItem(
   { db, files }: Readonly<Pick<Ports, "db" | "files">>,
   id: number,
 ): Promise<boolean> {
-  const results = await db.batch([
+  const [held] = await db.batch([
+    db.select({ id: items.id }).from(items).where(eq(items.id, id)),
     ...queueVaultItemDeletion(db, id),
     db.delete(redditComments).where(eq(redditComments.itemId, id)),
     db.delete(redditThreads).where(eq(redditThreads.itemId, id)),
@@ -73,12 +74,10 @@ export async function deleteItem(
     db.delete(digests).where(eq(digests.itemId, id)),
     db.delete(aiTasks).where(eq(aiTasks.itemId, id)),
     db.delete(jobs).where(eq(jobs.itemId, id)),
-    db.delete(items).where(eq(items.id, id)).returning({ id: items.id }),
+    db.delete(items).where(eq(items.id, id)),
   ]);
 
-  const removed = results.at(-1);
-
-  if (!Array.isArray(removed) || removed.length === 0) return false;
+  if (held.length === 0) return false;
 
   await deleteFilesQuietly(files, id);
 

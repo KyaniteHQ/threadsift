@@ -1,18 +1,20 @@
 import type { Digest } from "./ai-contract.ts";
 import { type Caller, tokenIdOf } from "./caller.ts";
-import { type Invalid, type NotWaiting, type SaveResult, itemAt } from "./items.ts";
-import { enqueueItemJobs } from "./job-rows.ts";
-import { parseLink, statusIdOf } from "./links.ts";
+import type { Saved } from "./item-rows.ts";
+import { savedItem } from "./item-save.ts";
+import { parseLink } from "./links.ts";
+import type { Invalid, NotWaiting, TooLarge } from "./paste-outcome.ts";
 import type { Ports } from "./ports.ts";
 import { type ThreadAnswers, fitsContentLimit } from "./thread-answers.ts";
 import { parsedThread } from "./thread-input.ts";
 import { publishThread } from "./thread-save.ts";
+import { threadSourceOf } from "./thread-source.ts";
 
 export type ThreadPasteResult =
-  | SaveResult
+  | Saved
   | Invalid<"content" | "fill">
   | NotWaiting
-  | { readonly kind: "too-large"; readonly field: "content" };
+  | TooLarge<"content">;
 
 export const FILL_NEEDS_CONTENT: Invalid<"fill"> = {
   kind: "invalid",
@@ -43,11 +45,11 @@ export async function saveThread(
 ): Promise<ThreadPasteResult> {
   if (!fitsContentLimit(answers)) return { kind: "too-large", field: "content" };
 
-  const statusId = statusIdOf(absoluteUrl);
+  const source = threadSourceOf(absoluteUrl);
 
-  if (fillOnly && statusId !== null) return FILL_IS_REDDIT_ONLY;
+  if (fillOnly && source.kind === "x") return FILL_IS_REDDIT_ONLY;
 
-  const parsed = parsedThread(absoluteUrl, statusId, answers);
+  const parsed = parsedThread(source, answers);
 
   if (parsed.kind === "refused") {
     return { kind: "invalid", field: "content", reason: parsed.reason };
@@ -59,6 +61,7 @@ export async function saveThread(
     ...parseLink(absoluteUrl),
     address: absoluteUrl,
     addedByToken: tokenIdOf(caller),
+    thread: source,
   };
 
   const published = await publishThread(db, place, parsed.thread, {
@@ -68,8 +71,5 @@ export async function saveThread(
 
   if (published.kind !== "published") return published;
 
-  const item = await itemAt(db, place.normalizedUrl);
-  await enqueueItemJobs(ports, item.id);
-
-  return { kind: "saved", item, created: published.created };
+  return savedItem(ports, place.normalizedUrl, published.created);
 }

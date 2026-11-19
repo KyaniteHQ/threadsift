@@ -1,5 +1,6 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { refusalOf } from "../core/paste-refusal.ts";
 import { paste } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
 import { savedView } from "./item-view.ts";
@@ -11,7 +12,7 @@ import {
   scopeNote,
   scopeRefusal,
 } from "./openapi.ts";
-import { REFUSED_HOST, budgetSpent, restoring, unknownToken } from "./refusals.ts";
+import { refusing } from "./refusals.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
 import {
   ErrorResponseSchema,
@@ -19,15 +20,6 @@ import {
   UnavailableResponseSchema,
 } from "./schemas.ts";
 import { callerOf, requirePasteScopes } from "./token-scopes.ts";
-
-const TOO_LARGE = {
-  content: "content: longer than 4 MiB",
-  page: "page: longer than 1,000,000 bytes",
-} as const;
-
-const THREAD_KEPT = "page: the saved thread stays";
-
-const NOT_WAITING = "fill: no Item with this link is waiting for its thread";
 
 const saveItemRoute = createRoute({
   method: "post",
@@ -75,33 +67,7 @@ export function registerSaveRoute(app: OpenAPIHono, ports: Ports): void {
 
     const saved = await paste(ports, url, callerOf(c), { digest, content, page, fill });
 
-    if (saved.kind === "unknown-token") return unknownToken(c);
-
-    if (saved.kind === "budget-spent") return budgetSpent(c, saved);
-
-    if (saved.kind === "too-large") {
-      return c.json({ error: TOO_LARGE[saved.field] }, 413);
-    }
-
-    if (saved.kind === "refused") {
-      return c.json({ error: REFUSED_HOST, fetch: "refused" as const }, 400);
-    }
-
-    if (saved.kind === "restoring") {
-      return restoring(c);
-    }
-
-    if (saved.kind === "not-waiting") {
-      return c.json({ error: NOT_WAITING }, 409);
-    }
-
-    if (saved.kind === "thread-kept") {
-      return c.json({ error: THREAD_KEPT }, 409);
-    }
-
-    if (saved.kind === "invalid") {
-      return c.json({ error: `${saved.field}: ${saved.reason}`, code: saved.code }, 400);
-    }
+    if (saved.kind !== "saved") return refusing(c, refusalOf(saved));
 
     return c.json(savedView(saved.item), saved.created ? 201 : 200);
   });

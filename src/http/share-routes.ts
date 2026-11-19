@@ -1,7 +1,7 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
 import { refreshedOf } from "../core/fetch-results.ts";
-import { paste } from "../core/paste.ts";
+import { pasteLink } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
 import { SHARE_PATH, type ShareArrival, prefillOf, shareAddress } from "../core/share-address.ts";
 import { type SharedContent, sharedContentOf } from "../core/shared-link.ts";
@@ -17,7 +17,7 @@ async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
     return prefillOf(link, "invalid");
   }
 
-  const saved = await paste(ports, request.data.url, { kind: "owner" }, {});
+  const saved = await pasteLink(ports, request.data.url, { kind: "owner" });
 
   switch (saved.kind) {
     case "refused": {
@@ -36,17 +36,10 @@ async function savedFrom(ports: Ports, link: string): Promise<ShareArrival> {
       };
     }
 
-    case "invalid":
-    case "budget-spent":
-    case "unknown-token":
-    case "too-large":
-    case "thread-kept":
-    case "not-waiting": {
-      break;
+    default: {
+      return saved satisfies never;
     }
   }
-
-  return prefillOf(link, "invalid");
 }
 
 function arrivalFor(

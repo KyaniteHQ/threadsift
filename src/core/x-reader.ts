@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 import type { Fetched } from "./details.ts";
 import { grokBotConnection } from "./grok-bot.ts";
 import { X_READER_CHOICES, type XReadNote, type XReaderChoice } from "./kinds.ts";
-import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { xSettings } from "./schema.ts";
+import { threadSourceOf } from "./thread-source.ts";
 import type { XFetcher } from "./x-fetcher-port.ts";
 import { hasOpenIntakeTask } from "./x-intake-state.ts";
 import type { XBotState } from "./x-settings-contract.ts";
@@ -96,7 +96,7 @@ export async function xRouteOf(
   ports: Readonly<ReaderPorts>,
   job: Readonly<{ id: number; address: string }>,
 ): Promise<XRoute> {
-  if (statusIdOf(job.address) === null) return NO_READER;
+  if (threadSourceOf(job.address).kind !== "x") return NO_READER;
 
   if (await hasOpenIntakeTask(ports.db, job.id)) return BOT;
 

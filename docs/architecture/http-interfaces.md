@@ -21,6 +21,7 @@ Every call needs the owner's session or an agent token, except the session check
 - `page` is the Extension's own-tab read, up to 1,000,000 bytes. It takes no X or GitHub link, no short link or Reddit share link (a page is saved at the address a short link leads to, so the caller sends it there, or sends the short link alone and the Paste resolves it) and no Reddit link that is not a post or comment (400 with `code: unsupported-link`).
 - A link whose host is not globally reachable answers 400.
 - The answer is 201 for a new Item and 200 for a known one it refreshed, 409 when a `page` meets a Reddit thread already saved, and 503 while a Restore holds the library.
+- Every refusal of a Paste, a batch and the MCP `add` tool has its status, code and text from one function, `refusalOf` in `src/core/paste-refusal.ts`; the routes render it with `refusing` in `src/http/refusals.ts`. `pasteLink` takes a link alone and answers only the kinds a link can meet, and `paste` takes `content`, `page` and `fill` as well.
 
 ## Batches and the import cursor
 

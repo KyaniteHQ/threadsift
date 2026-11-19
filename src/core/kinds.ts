@@ -160,6 +160,8 @@ export const ScopeListSchema = z.array(z.enum(SCOPES));
 
 export const DEFAULT_SCOPES = ["read", "add"] as const satisfies readonly Scope[];
 
+export const RESTORING_CODE = "restoring";
+
 export const BUDGET_SPENT = "budget-spent";
 
 export interface BudgetSpent {
