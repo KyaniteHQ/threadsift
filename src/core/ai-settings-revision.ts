@@ -15,12 +15,13 @@ export const aiSettingsRevision = sqliteTable(
   ],
 );
 
-export const CURRENT_REVISION = sql<
-  number | null
->`(select ${aiSettingsRevision.revision} from ${aiSettingsRevision} where ${aiSettingsRevision.id} = 1)`;
+export const CURRENT_REVISION = sql<number>`(select ${aiSettingsRevision.revision} from ${aiSettingsRevision} where ${aiSettingsRevision.id} = 1)`;
 
 export function readRevision(db: Database) {
-  return db.select({ revision: CURRENT_REVISION }).from(sql`(select 1)`);
+  return db
+    .select({ revision: aiSettingsRevision.revision })
+    .from(aiSettingsRevision)
+    .where(eq(aiSettingsRevision.id, 1));
 }
 
 export function bumpedRevision(db: Database) {

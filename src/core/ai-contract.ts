@@ -151,8 +151,8 @@ export type CliSelection =
   | ResolvedCliConnection
   | (AiRefused & { readonly reason: "invalid-effort" | "model-not-found" | "not-configured" });
 
-export function modelOf({ model }: Readonly<{ model?: string | undefined }>): string | null {
-  return model === undefined || model === "" ? null : model;
+export function modelOf({ model }: Readonly<Pick<AiConnection, "model">>): string | null {
+  return model === "" ? null : model;
 }
 
 export type AiExecution<Result> =

@@ -7,14 +7,13 @@ import type { MergeKind } from "./kinds.ts";
 import {
   type Candidate,
   type CandidatePair,
+  NAMES_PER_SUBJECT,
   candidatePairs,
   disjointPairs,
   pairKey,
 } from "./proposal-candidates.ts";
 import type { SentPair, SentSubject } from "./proposal-task.ts";
 import { itemTags, items, proposals, tags, topics } from "./schema.ts";
-
-const NAMES_PER_SUBJECT = 3;
 
 const SUBJECT_PAGE = 1000;
 

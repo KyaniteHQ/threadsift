@@ -66,7 +66,9 @@ export const WAIT_REASONS = [
   "x-reread",
 ] as const;
 
-export const X_READER_CHOICES = ["auto", "grok-bot", "grok-cli"] as const;
+export const X_READER_BOT = "grok-bot";
+
+export const X_READER_CHOICES = ["auto", X_READER_BOT, "grok-cli"] as const;
 
 export const X_FETCHER_STATES = ["signed-in", "signed-out", "not-proven", "unknown"] as const;
 

@@ -2,10 +2,9 @@ import { z } from "zod";
 
 import { resolveUrl } from "./addresses.ts";
 import { allowedAiUrl } from "./ai-url.ts";
+import { groupedNumber } from "./format.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
 import { SECRET_INPUT_MAX } from "./secret-input.ts";
-
-export const GROK_BOT_KEY_MAX = SECRET_INPUT_MAX;
 
 export const GROK_BOT_PING_KIND = "ping";
 
@@ -34,9 +33,9 @@ export const GrokBotInputSchema = z.object({
     .refine(allowedGrokBotUrl, { error: `must be ${GROK_BOT_ADDRESS_RULE}` }),
   key: z
     .string()
-    .max(GROK_BOT_KEY_MAX)
+    .max(SECRET_INPUT_MAX)
     .regex(HEADER_SAFE_KEY, {
-      error: `must be 1 to ${GROK_BOT_KEY_MAX.toLocaleString("en-US")} printable ASCII characters, no space`,
+      error: `must be 1 to ${groupedNumber(SECRET_INPUT_MAX)} printable ASCII characters, no space`,
     })
     .optional(),
 });

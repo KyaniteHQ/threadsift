@@ -6,12 +6,11 @@ import type { AiSettingsInput, AiSettingsView, AiSaveResponse } from "./ai-setti
 import { CURRENT_REVISION } from "./ai-settings-revision.ts";
 import { type BotFirst, leaveGrokBotWrites, preparedBot } from "./bot-provider.ts";
 import type { Database } from "./database.ts";
-import { olderDigests } from "./digest-job.ts";
+import { requeuedDigests } from "./digest-job.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { SettingsPorts } from "./ports.ts";
-import { GROK_BOT_PROVIDER } from "./provider-families.ts";
-import { hasKind } from "./provider-families.ts";
+import { GROK_BOT_PROVIDER, hasKind } from "./provider-families.ts";
 import { settings } from "./schema.ts";
 
 async function aiView(loaded: LoadedAi, ports: SettingsPorts): Promise<AiSettingsView> {
@@ -114,7 +113,7 @@ export async function saveAiSettings(
 
   const written = await guardedBatch(ports.db, prepared.guard, [
     ...prepared.writes,
-    ...olderDigests(ports.db),
+    ...requeuedDigests(ports.db, true),
   ]);
 
   if (written) return readAiSettings(ports);

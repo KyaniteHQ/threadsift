@@ -28,8 +28,7 @@ export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
     ports.db.select().from(grokBotSettings).where(eq(grokBotSettings.id, 1)),
   ]);
 
-  if (counter === undefined || counter.revision === null)
-    throw new UninitializedDatabase("ai_settings_revision");
+  if (counter === undefined) throw new UninitializedDatabase("ai_settings_revision");
 
   const snapshot = {
     sealer: ports.secrets,

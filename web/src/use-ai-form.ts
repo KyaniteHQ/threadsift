@@ -109,7 +109,9 @@ function failureText(
 }
 
 function needsSecret(provider: Provider): boolean {
-  return provider !== "workers-ai" && !isCliProvider(provider);
+  const { kind } = PROVIDERS[provider];
+
+  return kind === "http" || kind === "bot";
 }
 
 function holdsUnreadableKey({ secretReady, settings }: Readonly<AiView>): boolean {
@@ -183,10 +185,8 @@ function savedKeyOf(
 
   if (holdsUnreadableKey(view)) return "unreadable";
 
-  const url =
-    form.provider === "openai-compatible"
-      ? withoutTrailingSlashes(form.baseUrl)
-      : PROVIDERS[form.provider].url;
+  const family = PROVIDERS[form.provider];
+  const url = "baseUrl" in family.fields ? withoutTrailingSlashes(form.baseUrl) : family.url;
 
   const same =
     settings.provider === form.provider &&

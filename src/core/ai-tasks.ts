@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm";
 
 import {
   type AiConnection,
-  type CliAiConnection,
   type ModelAi,
   type AiRefused,
   type AiTaskDefinition,
@@ -42,8 +41,22 @@ interface TaskOrigin {
   readonly model: string | null;
 }
 
-function originOf(config: Readonly<AiConnection | CliAiConnection>): TaskOrigin {
+type SavedConfig = Readonly<Extract<ModelAi, { state: "ready" }>["config"]>;
+
+function originOf(config: Readonly<AiConnection>): TaskOrigin {
   return { executor: config.kind, provider: config.provider, model: modelOf(config) };
+}
+
+function unavailableOriginOf(config: SavedConfig): TaskOrigin {
+  const model = config.kind === "cli" && config.choice !== "custom" ? "" : (config.model ?? "");
+
+  return { executor: config.kind, provider: config.provider, model: modelOf({ model }) };
+}
+
+function executionConfig({ ai }: AiPorts, config: SavedConfig) {
+  if (!ai.providers.includes(config.provider)) return null;
+
+  return config.kind === "cli" ? ai.resolveCli(config) : config;
 }
 
 function startTask(
@@ -105,19 +118,19 @@ export async function runAiTask<Result>(
 ): Promise<TaskResult<Result> | ClaimLost> {
   if (ai.state !== "ready") return { ...refusedAi(ai.state), taskId: null };
 
-  if (!ports.ai.providers.includes(ai.config.provider))
-    return failedUnavailable(ports, ai.config, { definition, input, owner });
+  const config = executionConfig(ports, ai.config);
 
-  const config = ai.config.kind === "cli" ? ports.ai.resolveCli(ai.config) : ai.config;
-
-  if (config.kind === "refused") return { ...config, taskId: null };
-  if (config.kind === "http" && !ports.ai.allowsUrl(config.baseUrl))
+  if (config?.kind === "refused") return { ...config, taskId: null };
+  if (config?.kind === "http" && !ports.ai.allowsUrl(config.baseUrl))
     return { ...refusedAi("refused"), taskId: null };
   const text = definition.prepareInput(input.text);
 
-  const task = await startTask(ports, definition.kind, text, input, originOf(config), owner);
+  const origin = config === null ? unavailableOriginOf(ai.config) : originOf(config);
+  const task = await startTask(ports, definition.kind, text, input, origin, owner);
 
   if (task === null) return CLAIM_LOST;
+
+  if (config === null) return failTask(ports, task.id, "provider-unavailable");
 
   return execute(
     ports,
@@ -125,28 +138,6 @@ export async function runAiTask<Result>(
     { config, text, taskId: task.id, maxOutputTokens: input.maxOutputTokens },
     attempt,
   );
-}
-
-async function failedUnavailable<Result>(
-  ports: AiPorts,
-  config: Readonly<Extract<ModelAi, { state: "ready" }>["config"]>,
-  {
-    definition,
-    input,
-    owner,
-  }: Readonly<{
-    definition: AiTaskDefinition<Result>;
-    input: Readonly<TaskInput>;
-    owner: TaskOwner | null;
-  }>,
-): Promise<TaskResult<Result> | ClaimLost> {
-  if (config.kind === "http" && !ports.ai.allowsUrl(config.baseUrl))
-    return { ...refusedAi("refused"), taskId: null };
-
-  const text = definition.prepareInput(input.text);
-  const task = await startTask(ports, definition.kind, text, input, originOf(config), owner);
-
-  return task === null ? CLAIM_LOST : failTask(ports, task.id, "provider-unavailable");
 }
 
 async function execute<Result>(

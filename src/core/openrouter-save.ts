@@ -8,7 +8,7 @@ import {
   providerWrites,
   storedSettings,
 } from "./ai-settings.ts";
-import { olderDigests } from "./digest-job.ts";
+import { requeuedDigests } from "./digest-job.ts";
 import { logFailure } from "./failure-log.ts";
 import { DATABASE_NOW, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
@@ -78,7 +78,7 @@ async function afterActivation(
 ): Promise<ConnectNotice> {
   const active = await ports.ai.awaitOpenRouterActivation(key);
 
-  if (!(await stillStored(ports, row, active ? olderDigests(ports.db) : [])))
+  if (!(await stillStored(ports, row, requeuedDigests(ports.db, active))))
     return "settings-changed";
 
   return active ? "connected" : "activation-pending";

@@ -5,7 +5,7 @@ import {
   CLI_CHOICES,
   CliProviderSchema,
   KEYLESS_PROVIDERS,
-  type StoredProvider,
+  STORED_PROVIDERS,
 } from "./provider-families.ts";
 
 function quotedList(ids: readonly string[]) {
@@ -20,7 +20,7 @@ export const settings = sqliteTable(
   "settings",
   {
     id: integer("id").primaryKey(),
-    provider: text("provider").$type<StoredProvider>().notNull(),
+    provider: text("provider", { enum: STORED_PROVIDERS }).notNull(),
     baseUrl: text("base_url"),
     model: text("model").notNull(),
     sealedKey: text("sealed_key"),

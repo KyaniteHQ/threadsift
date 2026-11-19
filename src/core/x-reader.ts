@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { Fetched } from "./details.ts";
 import { grokBotConnection } from "./grok-bot-ready.ts";
-import { X_READER_CHOICES, type XReadNote, type XReaderChoice } from "./kinds.ts";
+import { X_READER_BOT, X_READER_CHOICES, type XReadNote, type XReaderChoice } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { xSettings } from "./schema.ts";
@@ -20,11 +20,11 @@ interface XReaders {
 }
 
 export type XRoute =
-  | { readonly kind: "grok-bot" }
+  | { readonly kind: typeof X_READER_BOT }
   | { readonly kind: "grok-cli"; readonly fetcher: XFetcher }
   | { readonly kind: "none"; readonly note: XReadNote | null };
 
-const BOT: XRoute = { kind: "grok-bot" };
+const BOT: XRoute = { kind: X_READER_BOT };
 
 export const NO_READER: XRoute = { kind: "none", note: null };
 
@@ -80,7 +80,7 @@ export function routeOf(choice: XReaderChoice, { bot, cli }: Readonly<XReaders>)
   switch (choice) {
     case "auto":
       return bot === "ready" ? BOT : cliRoute(cli, null);
-    case "grok-bot":
+    case X_READER_BOT:
       return bot === "ready" ? BOT : { kind: "none", note: NOTE_OF_BOT_STATE[bot] };
     case "grok-cli":
       return cliRoute(cli, "cli-not-installed");
