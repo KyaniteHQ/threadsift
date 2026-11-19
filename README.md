@@ -4,6 +4,10 @@ Threadsift is a self-hosted reading library for saved links. Paste a link to a R
 
 ![Threadsift library with Astronomy and Web Development filters and an article about HTTP ETags open in the Reader with its Digest](docs/assets/reader.png)
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/kyanitehq/threadsift/tree/release) [![Built with Cloudflare](https://workers.cloudflare.com/built-with-cloudflare.svg)](https://cloudflare.com)
+
+The Cloudflare route needs the [Workers Paid plan](https://developers.cloudflare.com/workers/platform/pricing/).
+
 v1 is not released, so do not use Threadsift for real yet.
 
 ## From a Paste to a Digest
@@ -39,14 +43,25 @@ The screenshots show the same Topic page in three Styles: Library, Monocle, and 
 
 ## Bring your own AI
 
-Pick a Provider in Settings to run the agent. Both install routes support Anthropic, OpenAI, xAI, OpenRouter, an OpenAI-compatible address, or Grok Bot. The container also supports Claude Code and Codex signed in on your server. On Cloudflare you can use Workers AI, and an OpenAI-compatible address must use public HTTPS. See [how to set up a Provider](docs/guides/providers.md).
+Pick a Provider in Settings to run the agent. Both install targets support Anthropic, OpenAI, xAI, OpenRouter, an OpenAI-compatible address, or Grok Bot. The container also supports Claude Code and Codex signed in on your server. On Cloudflare you can use Workers AI, and an OpenAI-compatible address must use public HTTPS. See [how to set up a Provider](docs/guides/providers.md).
 
 ## Install Threadsift
 
 | Container | Cloudflare |
 | --- | --- |
-| A machine that can run Podman or Docker, a persistent data volume, and a secret key. The commands below use Podman, `openssl`, and Bash or Zsh. | A Cloudflare account on the Workers Paid plan ($5 a month), with D1, R2, Queues, and Workers AI. Clone the repository and install its dependencies with Node 26 or later and pnpm. Sign in to Cloudflare with Wrangler and keep the setup code and secret key in a private JSON file. |
-| [Start the container](README.md#try-it-on-your-machine) | The deploy button is not available yet. [Deploy with the CLI](docs/guides/self-hosting.md#deploy-on-cloudflare) |
+| A machine that can run Podman or Docker, a persistent data volume, and a secret key. The commands below use Podman, `openssl`, and Bash or Zsh. | A Cloudflare account on Workers Paid with R2 turned on. For the button, use a GitHub account. For the CLI, use Node 26 or later, pnpm, and `openssl`, and sign in with Wrangler. |
+| [Start the container](README.md#try-it-on-your-machine) | [Deploy with the button](README.md#deploy-on-cloudflare) or [deploy with the CLI](docs/guides/self-hosting.md#deploy-on-cloudflare-with-the-cli) |
+
+### Deploy on Cloudflare
+
+Use a GitHub account, `openssl`, and a Cloudflare account on the Workers Paid plan with R2 turned on.
+
+1. Open [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/kyanitehq/threadsift/tree/release). Select **Create private Git repository**.
+2. Run `openssl rand -hex 32` and paste the result into `THREADSIFT_SECRET_KEY`. Keep a private backup of the key for the lifetime of the Instance.
+3. Run `openssl rand -hex 16` and paste the result into `SETUP_CODE`.
+4. Choose **Deploy**. When the build finishes, open the Worker URL. Enter the code on the setup page and choose an owner password.
+
+See the guide for the [full deploy steps](docs/guides/self-hosting.md#deploy-with-the-cloudflare-button), [update setup](docs/guides/self-hosting.md#update-a-cloudflare-copy), and [expired GitHub authorization fix](docs/guides/self-hosting.md#fix-an-expired-github-authorization).
 
 ### Try it on your machine
 

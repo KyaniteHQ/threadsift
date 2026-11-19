@@ -106,10 +106,10 @@
         "description": "Serves the web app built from this repository."
       },
       "THREADSIFT_SECRET_KEY": {
-        "description": "Encrypts stored Provider keys and tokens. It must be 64 hexadecimal characters, and the owner must keep it for the lifetime of the Instance."
+        "description": "Generate a 64-character hexadecimal key with `openssl rand -hex 32`. It encrypts stored Provider keys and tokens. Keep it for the lifetime of the Instance."
       },
       "SETUP_CODE": {
-        "description": "Used once on the setup page to create the owner. It needs at least 16 characters."
+        "description": "Generate a 32-character setup code with `openssl rand -hex 16`, or use a code of at least 16 characters. Enter it on the setup page to create the owner."
       }
     }
   }

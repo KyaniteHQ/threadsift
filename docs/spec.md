@@ -19,7 +19,7 @@ The owner is also a user, with many saved bookmarks to bring in and read.
 
 | Release | What it is |
 |---|---|
-| First release | The self-hosted open-source app, one owner per Instance. It ships as a container image (Podman or Docker) and as a Cloudflare deploy button on the same day, and the browser smoke spec runs on both. Not built: the Cloudflare deploy button. |
+| First release | The self-hosted open-source app, one owner per Instance. It ships as a container image (Podman or Docker) and as a Cloudflare deploy button on the same day, and the browser smoke spec runs on both. |
 | After it | The hosted product, once its pricing and the AI and content terms are settled. |
 | Later passes | A desktop app and mobile apps. The web app comes first. |
 
@@ -474,11 +474,11 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 | X fetching | Grok Bot webhook, or the grok CLI installed by the owner and checked at run time, as the owner chooses in Settings (`auto`: the webhook first when both are set), with every post checked against X's oEmbed answer | Grok Bot webhook; without it, X links are Link-only Items |
 | Reddit | Extension, `.json` paste, archive fill, the owner's Reddit account, Link-only Items, own adapter if added | Extension, `.json` paste, archive fill, the owner's Reddit account, Link-only Items |
 | Vault mirror | Item notes and the library wiki in a GitHub repository or mounted folder | Item notes and the library wiki in a GitHub repository |
-| Deploy button | none needed | Not built |
+| Deploy button | none needed | Deploys `release` to the owner's Cloudflare account and creates a GitHub copy in the owner's account. The copy is private when the owner selects **Create private Git repository**. |
 | Cost to the self-hoster | their own server | Cloudflare's $5 a month Workers Paid plan; the reason is in `docs/architecture/cloudflare-deploy-button.md` |
 
-- A self-hoster can deploy a Cloudflare Instance with `pnpm run deploy` and keep its library when running the command again. The deploy button itself is not built.
-- A standalone repository copied from the `release` branch checks for updates weekly or on demand. It keeps one pull request for the upstream changes, preserves the copy's resource ids and lists new bindings. A failed update opens an issue in the copy. Later runs with the same failure comment on that issue.
+- A self-hoster can deploy a Cloudflare Instance with the README button or run `pnpm run deploy` to deploy or update an Instance while keeping its library. The button's [live run on 2026-11-19](architecture/cloudflare-deploy-button.md#live-run-on-2026-11-19) verified owner setup, a working Reader, and a later release that kept the library.
+- A standalone repository copied from the `release` branch checks for updates weekly or on demand once the owner [sets up the workflow and its token](guides/self-hosting.md#update-a-cloudflare-copy). It keeps one pull request for the upstream changes, preserves the copy's resource ids and lists new bindings. A failed update opens an issue in the copy. Later runs with the same failure comment on that issue.
 - One codebase serves both: the database, the file store, the job queue and the AI caller each have one adapter per target.
 - The container image is pushed as `ghcr.io/kyanitehq/threadsift:main` on each push to `main`. The release workflow publishes a version tag for both architectures with provenance and moves `release` after the runtime checks pass (`docs/architecture/ci-releases-and-rollback.md`, Releases).
 - The owner's own Instance runs in the container on the owner's home server, at a public HTTPS address with the owner login, so Grok Bot can reach it.
