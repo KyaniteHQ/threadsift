@@ -1,4 +1,4 @@
-import { digestHandler } from "./digest-attempt.ts";
+import { digestHandler } from "./digest-job.ts";
 import { disagreementProposalsHandler } from "./disagreement-job.ts";
 import { exportHandler } from "./export-job.ts";
 import { FETCH_HANDLERS } from "./fetch-job.ts";

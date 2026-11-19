@@ -1,11 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 
-import type { Digest, ModelDigest } from "./ai-contract.ts";
 import { storedOutcome } from "./ai-kind-publish.ts";
 import type { Stored } from "./ai-kind-types.ts";
 import { catalogCurrent, pinnedCatalog } from "./catalog.ts";
 import type { Database } from "./database.ts";
-import { type DigestInput, digestInput, generationCurrent } from "./digest-source.ts";
+import { type DigestInput, digestInput, generationCurrent } from "./digest-input.ts";
+import type { Digest, ModelDigest } from "./digest-schema.ts";
 import { digestWrites } from "./digest-writes.ts";
 import {
   type AnchorSnapshot,

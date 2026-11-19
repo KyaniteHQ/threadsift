@@ -1,17 +1,18 @@
 import { type SQL, type SQLWrapper, and, asc, eq, gt, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { parseStoredDigest } from "./ai-contract.ts";
 import { tagMoves } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
 import type { Database } from "./database.ts";
+import type { Digest } from "./digest-schema.ts";
 import {
   type DigestRead,
   type StoredDigest,
+  readStoredDigest,
   storedDigests,
   storedTags,
   unchangedDigests,
-} from "./digest-state.ts";
+} from "./digest-stored.ts";
 import { report } from "./failure-log.ts";
 import { among } from "./guards.ts";
 import { renamedTags } from "./pins.ts";
@@ -40,14 +41,12 @@ function digestsUnchanged(reads: readonly DigestRead[]) {
 }
 
 function mergedTags(
-  { digest }: Readonly<StoredDigest>,
+  { tags }: Readonly<Digest>,
   { from, into }: Readonly<{ from: TagRef; into: TagRef }>,
 ): readonly string[] | null {
-  const parsed = parseStoredDigest(digest);
+  if (!tags.some((name) => catalogKey(name) === from.key)) return null;
 
-  if (!parsed.tags.some((name) => catalogKey(name) === from.key)) return null;
-
-  return renamedTags(parsed.tags, (key) => (key === from.key ? into.name : undefined));
+  return renamedTags(tags, (key) => (key === from.key ? into.name : undefined));
 }
 
 function readableDigests(
@@ -55,13 +54,15 @@ function readableDigests(
   merge: Readonly<{ from: TagRef; into: TagRef }>,
 ) {
   return stored.flatMap((row) => {
-    try {
-      return [{ row, rewritten: mergedTags(row, merge) } as const];
-    } catch {
+    const read = readStoredDigest(row.digest);
+
+    if (read.kind === "unreadable") {
       report("merge-digest-unreadable", { itemId: row.itemId });
 
       return [];
     }
+
+    return [{ row, rewritten: mergedTags(read.digest, merge) } as const];
   });
 }
 

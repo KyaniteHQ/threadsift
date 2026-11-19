@@ -7,17 +7,6 @@ import {
   type HttpProvider,
 } from "./provider-families.ts";
 
-export {
-  DigestSchema,
-  ModelDigestSchema,
-  StoredDigestSchema,
-  ReaderDigestSchema,
-  parseStoredDigest,
-  type Digest,
-  type ModelDigest,
-  type ReaderDigest,
-} from "./digest-schema.ts";
-
 export const CliRecommendationSchema = z
   .object({ model: z.string(), effort: z.string() })
   .readonly();

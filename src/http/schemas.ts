@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { ReaderDigestSchema } from "../core/ai-contract.ts";
 import { CommentCountSchema, CommentsViewSchema } from "../core/comment-view.ts";
+import { ReaderDigestSchema } from "../core/digest-schema.ts";
 import { FETCH_RESULTS } from "../core/fetch-results.ts";
 import { HighlightsViewSchema } from "../core/highlight-contract.ts";
 import { parseCursor } from "../core/item-page.ts";

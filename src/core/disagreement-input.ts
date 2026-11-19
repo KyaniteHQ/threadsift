@@ -13,6 +13,7 @@ import {
 import { z } from "zod";
 
 import type { Database } from "./database.ts";
+import { digestField } from "./digest-stored.ts";
 import { fillDisagreementInput, hasNoRoomForAnother } from "./disagreement-fill.ts";
 import { decidedPairs } from "./disagreement-pins.ts";
 import { DISAGREEMENT_ITEMS, type SentItem, type SentTopic } from "./disagreement-task.ts";
@@ -68,16 +69,8 @@ function newestItemsOf(db: Database, topicIds: readonly number[]) {
       topicId: sql<number>`${items.topicId}`.as("topic_id"),
       itemId: sql<number>`${items.id}`.as("item_id"),
       digest: sql<number>`${digests.taskId}`.as("digest"),
-      title: sql<
-        string | null
-      >`case when json_valid(${digests.digest}) then json_extract(${digests.digest}, '$.title') end`.as(
-        "title",
-      ),
-      summary: sql<
-        string | null
-      >`case when json_valid(${digests.digest}) then json_extract(${digests.digest}, '$.summary') end`.as(
-        "summary",
-      ),
+      title: digestField("title").as("title"),
+      summary: digestField("summary").as("summary"),
       place:
         sql<number>`row_number() over (partition by ${items.topicId} order by ${items.savedAt} desc, ${items.id} desc)`.as(
           "place",

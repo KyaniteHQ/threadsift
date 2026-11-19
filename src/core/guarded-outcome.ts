@@ -1,8 +1,8 @@
 import { type SQLWrapper, sql } from "drizzle-orm";
 
 import { type AiRefused, retriesAi } from "./ai-contract.ts";
+import { failedAiTask } from "./ai-task-rows.ts";
 import type { Database } from "./database.ts";
-import { currency } from "./digest-source.ts";
 import { insertGuard } from "./guards.ts";
 import type {
   ClaimedJob,
@@ -20,6 +20,32 @@ interface Guarded {
 }
 
 export type GuardedOutcome = SettledOutcome & { readonly currency: JobCurrency };
+
+function currency(
+  db: Database,
+  current: Readonly<SQLWrapper>,
+  taskId: number | null,
+  alsoOnDiscard: ReturnType<JobCurrency["discard"]> = [],
+): JobCurrency {
+  return {
+    current: async () => {
+      const [row] = await db.select({ current: sql<number>`${current}` }).from(sql`(select 1)`);
+
+      return row?.current === 1;
+    },
+    discard: (cause) => [
+      ...(taskId === null
+        ? []
+        : [
+            failedAiTask(db, taskId, {
+              reason: cause === "error" ? "unreachable" : cause,
+              status: null,
+            }),
+          ]),
+      ...alsoOnDiscard,
+    ],
+  };
+}
 
 export function guardedOutcome(
   db: Database,

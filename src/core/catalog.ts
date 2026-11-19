@@ -1,10 +1,10 @@
 import { type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
 
-import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { TAG_USES, TOPIC_USES } from "./catalog-uses.ts";
 import type { Database } from "./database.ts";
 import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
+import type { Digest } from "./digest-schema.ts";
 import { amongJson } from "./guards.ts";
 import { loggedDigest, loggedTopic } from "./log-writes.ts";
 import { pinnedDigest } from "./pins.ts";

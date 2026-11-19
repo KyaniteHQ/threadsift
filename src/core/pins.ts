@@ -1,9 +1,9 @@
 import { type SQL, and, eq, or, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
 import type { Database } from "./database.ts";
+import type { Digest } from "./digest-schema.ts";
 import { among } from "./guards.ts";
 import type { MergeKind } from "./kinds.ts";
 import { pins, tags, topics } from "./schema.ts";

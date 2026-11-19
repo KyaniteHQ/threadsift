@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import type { Concluded } from "./details.ts";
-import { digestAfterFetch } from "./digest-job.ts";
+import { digestAfterFetch } from "./digest-opening.ts";
 import { settledContent } from "./fetch-content.ts";
 import { anchoredOutcome, displayedBesideThread } from "./highlight-publish.ts";
 import type { ClaimedJob, JobPorts, SettledOutcome } from "./job-outcome.ts";

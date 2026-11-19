@@ -13,6 +13,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./database.ts";
+import { holdsTitleAndSummary } from "./digest-stored.ts";
 import { utf8Length } from "./encoding.ts";
 import type { SearchPartKind } from "./kinds.ts";
 import {
@@ -153,10 +154,6 @@ export function fetchedPartWrites(
   ];
 }
 
-function readableDigest() {
-  return sql`(case when json_valid(${digests.digest}) then json_type(${digests.digest}, '$.title') = 'text' and json_type(${digests.digest}, '$.summary') = 'text' end) = 1`;
-}
-
 function digestFieldPart(
   db: Database,
   scope: Readonly<SQLWrapper>,
@@ -169,7 +166,7 @@ function digestFieldPart(
       .select(partOf(kind, sql`json_extract(${digests.digest}, ${`$.${field}`})`))
       .from(items)
       .innerJoin(digests, sql`${digests.itemId} = ${items.id}`)
-      .where(and(sql`${scope}`, readableDigest())),
+      .where(and(sql`${scope}`, holdsTitleAndSummary())),
   );
 }
 

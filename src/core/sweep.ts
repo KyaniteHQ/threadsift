@@ -1,4 +1,4 @@
-import { sweepDigests } from "./digest-job.ts";
+import { sweepDigests } from "./digest-opening.ts";
 import { cleanExports } from "./export-cleanup.ts";
 import { logFailure } from "./failure-log.ts";
 import { cleanFiles } from "./file-cleanup.ts";

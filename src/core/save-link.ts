@@ -1,6 +1,6 @@
 import { refusedHost } from "./admission.ts";
-import type { Digest } from "./ai-contract.ts";
 import { type Caller, tokenIdOf } from "./caller.ts";
+import type { Digest } from "./digest-schema.ts";
 import { resolveShortLink } from "./fetch-link.ts";
 import {
   type Existing,

@@ -1,7 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
-import { AI_INPUT_BYTES, type Digest, parseStoredDigest } from "./ai-contract.ts";
+import { AI_INPUT_BYTES } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
+import { readStoredDigest } from "./digest-stored.ts";
 import { utf8Length } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
 import { among } from "./guards.ts";
@@ -65,23 +66,25 @@ interface AddedRow {
 }
 
 function addedItem(row: Readonly<AddedRow>) {
-  try {
-    const { title, summary, keyPoints }: Digest = parseStoredDigest(row.stored);
+  const read = readStoredDigest(row.stored);
 
-    return [
-      {
-        id: row.id,
-        digest: row.digest,
-        title,
-        summary,
-        keyPoints: keyPoints.slice(0, KEY_POINTS_SENT),
-      },
-    ];
-  } catch (error) {
-    logFailure("topic-digest-unreadable", { itemId: row.id }, error);
+  if (read.kind === "unreadable") {
+    logFailure("topic-digest-unreadable", { itemId: row.id }, read.cause);
 
     return [];
   }
+
+  const { title, summary, keyPoints } = read.digest;
+
+  return [
+    {
+      id: row.id,
+      digest: row.digest,
+      title,
+      summary,
+      keyPoints: keyPoints.slice(0, KEY_POINTS_SENT),
+    },
+  ];
 }
 
 function addedRows(db: Database, topicId: number) {

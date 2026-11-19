@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { AiRefusedSchema, CliRecommendationSchema, DigestSchema } from "./ai-contract.ts";
+import { AiRefusedSchema, CliRecommendationSchema } from "./ai-contract.ts";
+import { DigestSchema } from "./digest-schema.ts";
 import {
   CliChoiceSchema,
   CliPreferenceSchema,

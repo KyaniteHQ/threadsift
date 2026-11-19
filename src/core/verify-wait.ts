@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
 
-import { AiRefusalSchema, ModelDigestSchema, refusedAi } from "./ai-contract.ts";
+import { AiRefusalSchema, refusedAi } from "./ai-contract.ts";
 import type { VerifyResultSchema } from "./ai-settings-contract.ts";
 import { completedAiTask, failedAiTask } from "./ai-task-rows.ts";
 import { type AiTaskRow, stateOf } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
+import { ModelDigestSchema } from "./digest-schema.ts";
 import { VERIFY_WAIT_MS } from "./grok-bot-contract.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { pause } from "./pause.ts";

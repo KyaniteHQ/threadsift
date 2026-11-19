@@ -1,5 +1,5 @@
-import type { Digest } from "./ai-contract.ts";
 import { type Caller, tokenIdOf } from "./caller.ts";
+import type { Digest } from "./digest-schema.ts";
 import { type Saved, savedItem } from "./item-save.ts";
 import { parseLink } from "./links.ts";
 import type { Invalid, NotWaiting, TooLarge } from "./paste-outcome.ts";
