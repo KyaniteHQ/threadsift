@@ -21,7 +21,7 @@ export type XRoute =
 
 const BOT: XRoute = { kind: X_READER_BOT };
 
-export const NO_READER: XRoute = { kind: "none", note: null };
+const NO_READER: XRoute = { kind: "none", note: null };
 
 const NOTE_OF_BOT_STATE = {
   "not-configured": "bot-not-set-up",

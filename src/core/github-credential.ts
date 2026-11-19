@@ -1,6 +1,11 @@
-import { type SQL, sql } from "drizzle-orm";
+import { type SQL, eq, sql } from "drizzle-orm";
 
 import { githubSettings } from "./github-tables.ts";
+import type { Ports } from "./ports.ts";
+
+export type TokenPorts = Pick<Ports, "db" | "secrets">;
+
+const ANONYMOUS: GithubAuth = { kind: "anonymous" };
 
 export type GithubAuth =
   | { readonly kind: "anonymous" }
@@ -17,4 +22,28 @@ export function credentialCurrent(auth: Readonly<GithubAuth>): SQL {
   return auth.kind === "anonymous"
     ? sql`NOT EXISTS (SELECT 1 FROM ${githubSettings})`
     : sql`EXISTS (SELECT 1 FROM ${githubSettings} WHERE ${githubSettings.id} = 1 AND ${githubSettings.sealedToken} = ${auth.sealed})`;
+}
+
+export async function loadGithubAuth({ db, secrets }: Readonly<TokenPorts>): Promise<GithubAuth> {
+  const [row] = await db.select().from(githubSettings).where(eq(githubSettings.id, 1));
+
+  if (row === undefined) return ANONYMOUS;
+
+  const { sealedToken: sealed } = row;
+  const token = secrets === null ? null : await secrets.open(sealed);
+
+  return token === null ? { kind: "unreadable", sealed } : { kind: "token", token, sealed };
+}
+
+export async function withCurrentCredential<Result>(
+  ports: Readonly<TokenPorts>,
+  work: (auth: Readonly<GithubAuth>) => Promise<Result>,
+): Promise<Result> {
+  try {
+    return await work(await loadGithubAuth(ports));
+  } catch (error) {
+    if (error instanceof CredentialChanged) return withCurrentCredential(ports, work);
+
+    throw error;
+  }
 }

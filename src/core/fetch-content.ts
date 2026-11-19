@@ -63,8 +63,7 @@ export async function settledContent(
     replaces,
     thread: archived?.thread ?? null,
     fields: { ...settled, ...placed.columns },
-    contentPublication: contentWrites(ports, job.itemId, fetched, archived),
-    mediaPublication,
+    publication: [...contentWrites(ports, job.itemId, fetched, archived), ...mediaPublication],
     files,
   };
 }

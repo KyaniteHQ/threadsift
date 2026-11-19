@@ -1,5 +1,7 @@
 export const BODY_LIMIT_BYTES = 64 * 1024;
 
+export const ERROR_BODY_BYTES = 8 * 1024;
+
 export const ITEM_REQUEST_BYTES = 8 * 1024 * 1024;
 
 export const RESTORE_PART_BYTES = 32 * 1024 * 1024;
@@ -15,10 +17,6 @@ export const REDDIT_WINDOW_REQUESTS = 100;
 export const MAX_THREAD_ANSWERS = 101;
 
 export const INLINE_TEXT_BYTES = 1_000_000;
-
-export const ITEM_IMAGES_MAX = 20;
-
-export const IMAGE_URL_MAX_BYTES = 4096;
 
 export const MIN_ARTICLE_WORDS = 100;
 

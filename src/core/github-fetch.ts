@@ -4,7 +4,8 @@ import type { Fetched } from "./details.ts";
 import { fromBase64 } from "./encoding.ts";
 import { type FetchPolicy, type GuardOutcome, type Page, loggedFailureOf } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import { type GithubRun, UNAUTHORIZED, type Waiting, apiPolicy, requestApi } from "./github-api.ts";
+import { type GithubRun, type Waiting, apiPolicy, rejectsToken, requestApi } from "./github-api.ts";
+import type { RateLimit } from "./github-rate-limit.ts";
 import { parsedJson } from "./parsed-json.ts";
 import type { RepositoryRef } from "./repository-ref.ts";
 import { WholeCount } from "./whole-count.ts";
@@ -87,14 +88,11 @@ function readmeOf(page: Readonly<Page>): Readme {
   return text.trim() === "" ? WITHOUT_README : { kind: "text", text };
 }
 
-function failureOf(outcome: Exclude<GuardOutcome, Page>, tokenSent: boolean): FetchFailure {
-  const rejected =
-    tokenSent &&
-    outcome.kind === "failed" &&
-    outcome.reason === "status" &&
-    outcome.httpStatus === UNAUTHORIZED;
-
-  return rejected ? TOKEN_REJECTED : loggedFailureOf(outcome);
+function failureOf(
+  outcome: Exclude<GuardOutcome<RateLimit>, Page>,
+  tokenSent: boolean,
+): FetchFailure {
+  return tokenSent && rejectsToken(outcome) ? TOKEN_REJECTED : loggedFailureOf(outcome);
 }
 
 function waitingFetched({ until, limited }: Readonly<Waiting>): Fetched {
@@ -105,7 +103,7 @@ async function readmeAfter(
   run: Readonly<GithubRun>,
   owner: string,
   name: string,
-  policy: Readonly<FetchPolicy>,
+  policy: Readonly<FetchPolicy<RateLimit>>,
   tokenSent: boolean,
   deadline: AbortSignal,
 ): Promise<Readme> {

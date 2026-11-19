@@ -4,6 +4,8 @@ export const X_RUN_DEADLINE_MS = 180_000;
 
 export const X_SLOT_WAIT_MS = X_RUN_DEADLINE_MS;
 
+export const X_FETCH_DEADLINE_MS = X_RUN_DEADLINE_MS + X_SLOT_WAIT_MS;
+
 export const X_VERIFY_DEADLINE_MS = 90_000;
 
 export const FILL_DEADLINE_MS = 90_000;

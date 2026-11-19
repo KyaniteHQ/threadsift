@@ -1,9 +1,9 @@
-import { fromBase64, utf8Length } from "./encoding.ts";
-import { type Failed, type FetchPolicy, NO_HEADERS, guardedFetchBytes } from "./fetch-guard.ts";
+import { fromBase64 } from "./encoding.ts";
+import { type Failed, guardedFetchBytes } from "./fetch-guard.ts";
+import { fits } from "./image-rules.ts";
 import { type ImageType, declaredImageType, sniffImageType } from "./image-type.ts";
 import type { MediaFailure } from "./kinds.ts";
-import { IMAGE_MAX_BYTES, IMAGE_URL_MAX_BYTES } from "./limits.ts";
-import { isRedditOrXLink } from "./links.ts";
+import { IMAGE_MAX_BYTES } from "./limits.ts";
 import type { Network } from "./network.ts";
 
 const BASE64_CHARACTERS = Math.ceil((IMAGE_MAX_BYTES * 4) / 3) + 4;
@@ -14,31 +14,18 @@ const PAYLOAD_CHARACTERS = BASE64_CHARACTERS * PERCENT_ESCAPE_CHARACTERS;
 
 const BASE64_WHITESPACE = /[\t\n\f\r ]+/gu;
 
-const IMAGE_POLICY: FetchPolicy = {
-  stopAt: isRedditOrXLink,
-  followMetaRefresh: () => false,
-  readsBody: () => true,
-  headers: () => ({
-    ...NO_HEADERS,
-    accept: "image/avif,image/webp,image/png,image/jpeg,image/gif",
-  }),
-  readsLimits: () => false,
-  htmlMaxBytes: IMAGE_MAX_BYTES,
-  dataMaxBytes: IMAGE_MAX_BYTES,
-};
+const IMAGE_HEADERS = { accept: "image/avif,image/webp,image/png,image/jpeg,image/gif" } as const;
 
 const FAILURES: Readonly<Record<Failed["reason"], MediaFailure>> = {
   timeout: "timeout",
   refused: "refused",
   unsupported: "unsupported",
   "redirect-limit": "redirect-limit",
-  unresolved: "network",
   network: "network",
   status: "status",
-  "rate-limited": "status",
 };
 
-export type Fetched =
+export type Downloaded =
   | {
       readonly ok: true;
       readonly type: ImageType;
@@ -50,10 +37,6 @@ export type Fetched =
 type Checked =
   | { readonly ok: true; readonly type: ImageType }
   | { readonly ok: false; readonly reason: MediaFailure };
-
-export function fits(url: string): boolean {
-  return utf8Length(url) <= IMAGE_URL_MAX_BYTES;
-}
 
 function checked(contentType: string | null, bytes: Uint8Array, cut: boolean): Checked {
   if (cut) return { ok: false, reason: "too-large" };
@@ -67,7 +50,7 @@ function checked(contentType: string | null, bytes: Uint8Array, cut: boolean): C
     : { ok: false, reason: "type-mismatch" };
 }
 
-export function decoded(dataUrl: string): Fetched {
+export function decoded(dataUrl: string): Downloaded {
   const comma = dataUrl.indexOf(",");
   const [type = "", ...parameters] = dataUrl.slice("data:".length, comma).split(";");
 
@@ -97,11 +80,21 @@ export async function downloaded(
   network: Network,
   url: string,
   deadline: AbortSignal,
-  stopAt: (address: string) => boolean = IMAGE_POLICY.stopAt,
-): Promise<Fetched> {
+  stopAt: (address: string) => boolean,
+): Promise<Downloaded> {
   if (stopAt(url)) return { ok: false, reason: "refused" };
 
-  const outcome = await guardedFetchBytes(network, url, { ...IMAGE_POLICY, stopAt }, deadline);
+  const outcome = await guardedFetchBytes(
+    network,
+    url,
+    {
+      stopAt,
+      headers: () => IMAGE_HEADERS,
+      htmlMaxBytes: IMAGE_MAX_BYTES,
+      dataMaxBytes: IMAGE_MAX_BYTES,
+    },
+    deadline,
+  );
 
   if (outcome.kind === "stopped") return { ok: false, reason: "refused" };
 

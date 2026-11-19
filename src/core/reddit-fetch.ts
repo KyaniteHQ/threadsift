@@ -1,8 +1,8 @@
 import { type ArchivedThread, archivedThread } from "./archive-fill.ts";
 import type { Concluded, Fetched } from "./details.ts";
-import { fetchLink } from "./fetch-link.ts";
+import { type LinkRoute, fetchedOfOembed } from "./fetch-link.ts";
+import type { ClaimedJob } from "./job-outcome.ts";
 import { isLastAttempt } from "./job-retry.ts";
-import { redditRefOf } from "./links.ts";
 import type { RedditRef } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { accountThread } from "./reddit-account-fetch.ts";
@@ -13,13 +13,7 @@ type RedditPorts = Pick<
   "db" | "secrets" | "network" | "pages" | "jobs" | "redditSession" | "fetchers"
 >;
 
-interface RedditSource {
-  readonly id: number;
-  readonly address: string;
-  readonly attempts: number;
-  readonly attemptGeneration: number | null;
-  readonly itemId: number;
-}
+type RedditRoute = Extract<LinkRoute, { readonly kind: "reddit" }>;
 
 type ServedThread =
   | ({ readonly kind: "thread" } & ArchivedThread)
@@ -44,7 +38,7 @@ function threadFilled(
 
 async function servedThread(
   ports: RedditPorts,
-  { attempts, itemId }: Readonly<RedditSource>,
+  { attempts, itemId }: Readonly<ClaimedJob>,
   ref: Readonly<RedditRef>,
   turn: Readonly<AccountTurn>,
   deadline: AbortSignal,
@@ -69,14 +63,10 @@ async function servedThread(
 
 export async function fetchedWithThread(
   ports: RedditPorts,
-  source: Readonly<RedditSource>,
+  source: Readonly<ClaimedJob>,
+  { link, ref }: Readonly<RedditRoute>,
   deadline: AbortSignal,
 ): Promise<Fetched> {
-  const { address, attempts } = source;
-  const ref = redditRefOf(address);
-
-  if (ref === null) return fetchLink(ports, address, attempts, deadline);
-
   const turn = await accountTurn(ports, source);
 
   if (turn.kind === "waiting") {
@@ -84,7 +74,7 @@ export async function fetchedWithThread(
   }
 
   const [fetched, served] = await Promise.all([
-    fetchLink(ports, address, attempts, deadline),
+    fetchedOfOembed(ports.network, link.normalizedUrl, deadline),
     servedThread(ports, source, ref, turn, deadline),
   ]);
 
@@ -97,5 +87,5 @@ export async function fetchedWithThread(
     };
   }
 
-  return served === null || fetched.status === "waiting" ? fetched : threadFilled(fetched, served);
+  return served === null ? fetched : threadFilled(fetched, served);
 }
