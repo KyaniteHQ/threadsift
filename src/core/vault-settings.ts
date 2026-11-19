@@ -1,5 +1,6 @@
 import { eq, isNotNull, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { guardedBatch } from "./guards.ts";
 import type { Ports } from "./ports.ts";
 import {
@@ -17,12 +18,12 @@ import { mirrorFiles, mirrorNotes, vaultDestination, vaultSettings } from "./vau
 
 type VaultPorts = Pick<Ports, "db" | "secrets" | "vaultFolder">;
 
-async function readTarget(db: Ports["db"]) {
+async function readTarget(db: Database) {
   const [row] = await db.select().from(vaultSettings);
   return row === undefined ? null : vaultDestination(row);
 }
 
-async function folderConflicts(db: Ports["db"]) {
+async function folderConflicts(db: Database) {
   const rows = await db
     .selectDistinct({ path: mirrorNotes.conflictPath })
     .from(mirrorNotes)

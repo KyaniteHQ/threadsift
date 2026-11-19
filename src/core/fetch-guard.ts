@@ -11,7 +11,7 @@ import {
   NetworkFailure,
   type NetworkFailureReason,
   type RequestHeaders,
-} from "./ports.ts";
+} from "./network.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
 
 const MAX_REDIRECTS = 20;

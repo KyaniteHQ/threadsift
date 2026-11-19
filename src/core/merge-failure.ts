@@ -1,5 +1,5 @@
+import type { Database } from "./database.ts";
 import { bestEffort, reportFailure } from "./failure-log.ts";
-import type { Database } from "./ports.ts";
 import { handedBack, unitFailed } from "./proposal-lifecycle.ts";
 
 export async function recordingFailure<Outcome>(

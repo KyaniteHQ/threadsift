@@ -11,6 +11,7 @@ import {
 import { answerApplier } from "./bot-task-apply.ts";
 import type { BotTaskStart } from "./bot-task-start.ts";
 import type { BotTaskRow } from "./bot-task-states.ts";
+import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { parsedJson } from "./parsed-json.ts";
@@ -38,7 +39,7 @@ export type SentTask = Readonly<Pick<BotTaskRow, "id" | "kind" | "context">>;
 
 export interface SentTaskKind {
   readonly prepare: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<BotPreparation>;
-  readonly current: (db: JobPorts["db"], context: string) => Promise<boolean>;
+  readonly current: (db: Database, context: string) => Promise<boolean>;
   readonly describe: BotAnswering["describe"];
   readonly apply: (
     ports: JobPorts,

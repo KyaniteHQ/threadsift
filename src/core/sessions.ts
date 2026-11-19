@@ -1,7 +1,9 @@
 import { and, eq, gt, lt, sql, type SQLWrapper } from "drizzle-orm";
 
+import type { Crypto } from "./crypto.ts";
+import type { Database } from "./database.ts";
 import { digestOf, randomSecret } from "./encoding.ts";
-import type { Crypto, Database, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import { sessions } from "./schema.ts";
 
 const SESSION_BYTES = 32;

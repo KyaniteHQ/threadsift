@@ -28,7 +28,7 @@ The app is one core with ports, and each install target supplies an adapter per 
 
 - A module hides a lot of behaviour behind a small interface. A module whose interface is as big as its body is shallow: merge it into its caller or deepen it.
 - `src/core/` and `src/http/` run on both targets and call ports only. Lint refuses there a `node:` or `cloudflare:` import, any import from `targets/`, and an `import()` whose source is not a plain string; the target's entry passes adapters in through `createApp(ports)`.
-- A port exists only when two production adapters need it, such as the Node and Worker targets or two Providers. A test adapter does not count, because tests use no fakes (`docs/testing.md`). `Crypto` and `fetchers` are the accepted exceptions: `Crypto` has one adapter because lint bans `node:` imports in `src/core`, and `fetchers` is a plug-in list that only the container loads (`docs/architecture/one-codebase-two-install-targets.md`).
+- A port exists only when two production adapters need it, such as the Node and Worker targets or two Providers. A test adapter does not count, because tests use no fakes (`docs/testing.md`). `Crypto`, `fetchers`, `xFetcher` and `vaultFolder` are the four accepted exceptions, and `docs/architecture/one-codebase-two-install-targets.md` gives the reason for each.
 - Names come from `GLOSSARY.md`.
 
 ## State, writes and failures

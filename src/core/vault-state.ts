@@ -1,8 +1,8 @@
 import { type SQLWrapper, and, eq, gt, lte, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { among, guardHolds, guardedBatch } from "./guards.ts";
 import { loggedVaultFile } from "./log-writes.ts";
-import type { Database } from "./ports.ts";
 import { HOLDS_LIBRARY } from "./restore-state.ts";
 import { restoreRuns } from "./schema.ts";
 import {

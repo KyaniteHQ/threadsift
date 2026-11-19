@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { acceptDisagreement } from "./disagreement-accept.ts";
 import { acceptLostHighlight } from "./highlight-proposals.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { type MergeAcceptance, acceptMerge } from "./merge-accept.ts";
 import { acceptOverviewGap } from "./overview-accept.ts";
-import type { Database } from "./ports.ts";
 import { rejection } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
 

@@ -1,5 +1,7 @@
 import { type SQL, and, asc, eq, exists, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
+import { guardedWrite } from "./guards.ts";
 import { selectorHolds } from "./highlight-anchor.ts";
 import type {
   CreateHighlightRequest,
@@ -7,10 +9,10 @@ import type {
   HighlightTarget,
   HighlightsView,
 } from "./highlight-contract.ts";
-import type { Database, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import { postTextOf } from "./post-text.ts";
 import { readGeneration } from "./reddit-thread.ts";
-import { type HighlightRow, guardedWrite, highlights, items, searchParts } from "./schema.ts";
+import { type HighlightRow, highlights, items, searchParts } from "./schema.ts";
 import { highlightPartWrites } from "./search.ts";
 import { projectText } from "./text-projection.ts";
 import { readableBody } from "./thread-read.ts";

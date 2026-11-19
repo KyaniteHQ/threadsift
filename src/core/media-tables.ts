@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+import { items } from "./item-tables.ts";
 import { MEDIA_FAILURES, MEDIA_KINDS, MEDIA_OUTCOMES } from "./kinds.ts";
-import { items } from "./schema.ts";
 
 export const media = sqliteTable(
   "media",

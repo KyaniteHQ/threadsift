@@ -1,6 +1,7 @@
 import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
 import {
   RETRY_DELAYS_MS,
@@ -10,7 +11,6 @@ import {
 } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { items, jobs, xVerifications } from "./schema.ts";
 import { type Judged, startingJudged } from "./x-verify-state.ts";
 import type { XThreadValue } from "./x-wire.ts";

@@ -1,9 +1,9 @@
 import { and, asc, desc, eq, exists, inArray, ne, notExists, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { guardedResults } from "./guards.ts";
 import { removalWrites } from "./highlights.ts";
 import { plainCheckRow, plainCheckWeek } from "./plain-check-week.ts";
-import type { Database } from "./ports.ts";
 import { PROPOSALS_MAX } from "./proposal-candidates.ts";
 import { highlights, proposals } from "./schema.ts";
 

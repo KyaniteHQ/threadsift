@@ -1,5 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import type { Concluded } from "./details.ts";
 import { digestAfterFetch } from "./digest-job.ts";
 import { settledContent } from "./fetch-content.ts";
@@ -11,7 +12,7 @@ import { isRetryable } from "./settle.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 import { queueVaultFetchedTitle } from "./vault-wiki-writes.ts";
 
-async function titleOf(db: JobPorts["db"], itemId: number): Promise<string | null> {
+async function titleOf(db: Database, itemId: number): Promise<string | null> {
   const [item] = await db.select({ title: items.title }).from(items).where(eq(items.id, itemId));
 
   return item?.title ?? null;

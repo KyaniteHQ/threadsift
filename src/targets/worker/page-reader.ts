@@ -1,5 +1,5 @@
 import { readArticle, readSuppliedPage, readTitle } from "../../core/article.ts";
-import type { PageReader } from "../../core/ports.ts";
+import type { PageReader } from "../../core/page-reader.ts";
 
 export const MAX_HTML_BYTES = 900 * 1024;
 

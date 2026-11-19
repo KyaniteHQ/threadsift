@@ -1,9 +1,9 @@
 import { and, eq, isNotNull, isNull, ne, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import type { Database } from "./database.ts";
 import { holdsNoRow } from "./guards.ts";
 import type { Link } from "./links.ts";
-import type { Database } from "./ports.ts";
 import { itemAliases, items } from "./schema.ts";
 
 const holder = alias(items, "holder");

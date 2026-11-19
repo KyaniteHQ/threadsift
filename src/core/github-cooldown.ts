@@ -1,10 +1,10 @@
 import { and, eq, gt, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { type GithubAuth, CredentialChanged, credentialCurrent } from "./github-credential.ts";
 import { MAX_COOLDOWN_MS } from "./github-rate-limit.ts";
 import { githubCooldown } from "./github-tables.ts";
 import { guardedBatch } from "./guards.ts";
-import type { Database } from "./ports.ts";
 
 const COOLDOWN_ROW = 1;
 

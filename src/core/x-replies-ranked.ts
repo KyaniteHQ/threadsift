@@ -1,6 +1,6 @@
 import { storedCommentId } from "./comment-id.ts";
+import type { Database } from "./database.ts";
 import { X_REPLIES_KEPT_MAX, X_REPLIES_LIKES_PERCENT, X_REPLIES_MIN } from "./limits.ts";
-import type { Database } from "./ports.ts";
 import { authorPartsOf } from "./x-author-thread.ts";
 import { NO_TEXT, withoutPlaceholder } from "./x-images.ts";
 import { storedReplyCount } from "./x-partial.ts";

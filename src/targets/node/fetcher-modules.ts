@@ -8,7 +8,7 @@ import { z } from "zod";
 import { isGlobalAddress } from "../../core/addresses.ts";
 import { errorClassOf } from "../../core/failure-log.ts";
 import { type Fetcher, type LoadedFetcher, isFetcher } from "../../core/fetcher.ts";
-import { NetworkFailure } from "../../core/ports.ts";
+import { NetworkFailure } from "../../core/network.ts";
 
 function lookedUp(hostname: string, signal: AbortSignal): Promise<readonly LookupAddress[] | null> {
   return new Promise((resolve) => {

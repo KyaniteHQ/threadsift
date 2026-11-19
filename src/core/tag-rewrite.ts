@@ -4,6 +4,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { parseStoredDigest } from "./ai-contract.ts";
 import { tagMoves } from "./catalog-key-links.ts";
 import { catalogKey } from "./catalog-key.ts";
+import type { Database } from "./database.ts";
 import {
   type DigestRead,
   type StoredDigest,
@@ -14,7 +15,6 @@ import {
 import { report } from "./failure-log.ts";
 import { among } from "./guards.ts";
 import { renamedTags } from "./pins.ts";
-import type { Database } from "./ports.ts";
 import { digests, items, itemTags } from "./schema.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 

@@ -1,5 +1,5 @@
+import type { Database } from "./database.ts";
 import { refusedBy } from "./guards.ts";
-import type { Database } from "./ports.ts";
 import { restoreHoldsLibrary } from "./restore-state.ts";
 
 const RESTORE_TRIGGER = /items_restoring: /u;

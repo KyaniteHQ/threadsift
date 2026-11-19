@@ -1,8 +1,9 @@
 import { type SQLWrapper, sql } from "drizzle-orm";
 
 import { type AiConnection, type Provider, AI_DEADLINE_MS, modelOf } from "./ai-contract.ts";
+import type { Database } from "./database.ts";
 import { holding } from "./job-rows.ts";
-import type { AiPorts, Database } from "./ports.ts";
+import type { AiPorts } from "./ports.ts";
 import { type JobRow, aiTasks } from "./schema.ts";
 
 export type TaskOwner = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration" | "itemId">>;

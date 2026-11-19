@@ -1,8 +1,8 @@
 import { asc, count, eq, gt, inArray, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
 import type { MergeKind } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import {
   type Candidate,
   type CandidatePair,

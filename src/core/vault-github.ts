@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Network } from "./ports.ts";
+import type { Network } from "./network.ts";
 import { base64VaultBytes } from "./vault-content.ts";
 import type { GithubVaultInput } from "./vault-contract.ts";
 import { vaultRequest } from "./vault-request.ts";

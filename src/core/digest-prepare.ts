@@ -1,4 +1,5 @@
 import { readCatalog } from "./catalog.ts";
+import type { Database } from "./database.ts";
 import { hoppedPage } from "./digest-hop.ts";
 import { type DigestPrompt, cutDigestInput } from "./digest-prompt.ts";
 import {
@@ -18,7 +19,6 @@ import {
   isLastAttempt,
   settled,
 } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import { readPostText } from "./post-text.ts";
 
 type ReadyPrompt = Extract<DigestPrompt, { kind: "ready" }>;

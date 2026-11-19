@@ -1,8 +1,8 @@
 import { and, eq, exists, isNull, lte, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import type { Database } from "./database.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import {
   WAIT_CHECK_MS,
   enqueueWaiting,

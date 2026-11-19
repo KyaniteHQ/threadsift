@@ -1,35 +1,14 @@
 import type { Fetched } from "./details.ts";
 import { report } from "./failure-log.ts";
-import type { FetchFailure } from "./fetch-results.ts";
 import { RETRY_DELAYS_MS, isLastAttempt } from "./job-outcome.ts";
-import type { XFetcherState, XReadNote } from "./kinds.ts";
+import type { XReadNote } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
+import type { Network } from "./network.ts";
 import type { Ports } from "./ports.ts";
+import type { UnreadableResult, XFetcher } from "./x-fetcher-port.ts";
 import { readFetchedThread } from "./x-replies-ranked.ts";
 import { shownOnX } from "./x-verify.ts";
-import { StatusIdSchema, type XCliThreadValue, type XThreadValue } from "./x-wire.ts";
-
-export interface XFetcherStatus {
-  readonly state: XFetcherState;
-  readonly version: string | null;
-}
-
-export type XFetchFailure = Extract<FetchFailure, "unreadable" | "timeout" | "network" | "status">;
-
-export interface ToVerify {
-  readonly status: "to-verify";
-  readonly thread: XThreadValue;
-}
-
-export interface UnreadableResult {
-  readonly status: XFetchFailure;
-  readonly note: XReadNote;
-}
-
-export type XFetch =
-  | { readonly kind: "thread"; readonly thread: XCliThreadValue }
-  | { readonly kind: "unanswered"; readonly ends: UnreadableResult }
-  | { readonly kind: "failed"; readonly status: XFetchFailure; readonly note?: XReadNote };
+import { StatusIdSchema, type XThreadValue } from "./x-wire.ts";
 
 export type XRefusalCategory =
   | "signed-out"
@@ -60,10 +39,9 @@ export const NOTE_OF_REFUSAL = {
   internal: "cli-failed",
 } as const satisfies Readonly<Record<XRefusalCategory, XReadNote | null>>;
 
-export interface XFetcher {
-  readonly id: "grok-cli";
-  readonly fetch: (statusId: string, signal: AbortSignal) => Promise<XFetch>;
-  readonly status: () => Promise<XFetcherStatus>;
+export interface ToVerify {
+  readonly status: "to-verify";
+  readonly thread: XThreadValue;
 }
 
 interface XSource {
@@ -84,7 +62,7 @@ function readAgain({ attempts }: Readonly<XSource>): Fetched {
 }
 
 async function notFoundBy(
-  network: Ports["network"],
+  network: Network,
   source: Readonly<XSource>,
   statusId: string,
   signal: AbortSignal,
@@ -107,7 +85,7 @@ async function notFoundBy(
 }
 
 async function unansweredBy(
-  network: Ports["network"],
+  network: Network,
   source: Readonly<XSource>,
   ends: Readonly<UnreadableResult>,
   statusId: string,

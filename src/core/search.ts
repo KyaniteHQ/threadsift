@@ -12,9 +12,9 @@ import {
 import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
 import type { SearchPartKind } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import {
   digests,
   githubRepos,

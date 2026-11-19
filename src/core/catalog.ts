@@ -3,11 +3,11 @@ import { type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
 import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
 import { TAG_USES, TOPIC_USES } from "./catalog-uses.ts";
+import type { Database } from "./database.ts";
 import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
 import { amongJson } from "./guards.ts";
 import { loggedDigest, loggedTopic } from "./log-writes.ts";
 import { pinnedDigest } from "./pins.ts";
-import type { Database } from "./ports.ts";
 import { UninitializedDatabase, catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
 import { openingOverview } from "./topic-overview-run.ts";
 import { queueVaultDigestWiki } from "./vault-wiki-writes.ts";
@@ -28,7 +28,7 @@ function catalogEntries(digest: Readonly<Digest>) {
   } as const;
 }
 
-type CatalogEntries = Readonly<ReturnType<typeof catalogEntries>>;
+export type CatalogEntries = Readonly<ReturnType<typeof catalogEntries>>;
 
 export async function pinnedCatalog(db: Database, digest: Readonly<Digest>) {
   const pinned = await pinnedDigest(db, digest);

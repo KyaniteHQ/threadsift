@@ -6,7 +6,7 @@ import {
   isLimitStatus,
   rateLimitOf,
 } from "./github-rate-limit.ts";
-import type { NetworkResponse } from "./ports.ts";
+import type { NetworkResponse } from "./network.ts";
 
 const FORBIDDEN = 403;
 

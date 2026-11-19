@@ -2,8 +2,8 @@ import { type SQLWrapper, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { type SQLiteTable, check, integer, sqliteTable } from "drizzle-orm/sqlite-core";
 
+import type { Database } from "./database.ts";
 import { readOrAssume } from "./failure-log.ts";
-import type { Database } from "./ports.ts";
 
 export const guards = sqliteTable(
   "guards",

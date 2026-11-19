@@ -6,8 +6,8 @@ import {
   PROVIDERS,
   isCliProvider,
 } from "../src/core/ai-contract.ts";
+import type { AiRuntime } from "../src/core/ai-runtime.ts";
 import { bestEffort } from "../src/core/failure-log.ts";
-import type { AiRuntime } from "../src/core/ports.ts";
 import { claudeCode } from "../src/targets/node/claude-code.ts";
 import { Slots } from "../src/targets/node/cli-slots.ts";
 import { findBinary } from "../src/targets/node/cli-support.ts";

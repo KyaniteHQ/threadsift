@@ -1,5 +1,6 @@
 import { type SQLWrapper, and, asc, eq, exists, gt, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { anchoredOutcome } from "./highlight-publish.ts";
 import type { JobPorts, JobWrites, SettledOutcome } from "./job-outcome.ts";
 import { type Note, commentDisplay, postDisplay } from "./restore-anchor-display.ts";
@@ -28,7 +29,7 @@ function anchorItem(ports: JobPorts, itemId: number, note: Note) {
   );
 }
 
-function ownersAfter(db: JobPorts["db"], after: number) {
+function ownersAfter(db: Database, after: number) {
   return db
     .select({ id: items.id })
     .from(items)

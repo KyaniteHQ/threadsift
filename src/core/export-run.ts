@@ -1,5 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { removeExport, removeQuietly } from "./export-cleanup.ts";
 import {
   type ExportStatus,
@@ -23,7 +24,7 @@ export type StartedExport =
   | { readonly kind: "started"; readonly id: number }
   | { readonly kind: "running" };
 
-async function newestExport(db: JobPorts["db"]): Promise<ExportRow | null> {
+async function newestExport(db: Database): Promise<ExportRow | null> {
   const [newest] = await db.select().from(exportRuns).orderBy(desc(exportRuns.id)).limit(1);
 
   return newest ?? null;
@@ -80,7 +81,7 @@ export async function startExport(ports: JobPorts): Promise<StartedExport> {
   }
 }
 
-export async function exportStatus(db: JobPorts["db"]): Promise<ExportStatus> {
+export async function exportStatus(db: Database): Promise<ExportStatus> {
   const run = await newestExport(db);
 
   if (run === null || !shown(run)) return { state: "none" };
@@ -157,7 +158,7 @@ export interface ReadyExport {
   readonly filename: string;
 }
 
-export async function readyExport(db: JobPorts["db"], id: number): Promise<ReadyExport | null> {
+export async function readyExport(db: Database, id: number): Promise<ReadyExport | null> {
   const [run] = await db
     .select()
     .from(exportRuns)

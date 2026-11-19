@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 
-import type { Database } from "../src/core/ports.ts";
+import type { Database } from "../src/core/database.ts";
 import { batchTo, proxyTo } from "../src/targets/node/database.ts";
 
 export interface Interruption {

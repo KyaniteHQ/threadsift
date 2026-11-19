@@ -20,6 +20,8 @@ export const ITEM_IMAGES_MAX = 20;
 
 export const IMAGE_URL_MAX_BYTES = 4096;
 
+export const MIN_ARTICLE_WORDS = 100;
+
 export const X_REPLIES_MAX = 500;
 
 export const X_QUOTES_MAX = 5;

@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import { botKindOf } from "./bot-task-kinds.ts";
 import { type BotTaskRow, acceptsAnswer } from "./bot-task-states.ts";
+import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
-import type { Database } from "./ports.ts";
 import { X_INTAKE_TASK } from "./x-intake-contract.ts";
 import { xIntakeKind } from "./x-intake.ts";
 

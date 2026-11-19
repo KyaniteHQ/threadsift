@@ -1,10 +1,10 @@
 import { type SQL, type SQLWrapper, eq, inArray, sql } from "drizzle-orm";
 
 import { parseStoredDigest } from "./ai-contract.ts";
+import type { Database } from "./database.ts";
 import { storedTags, unchangedDigests } from "./digest-state.ts";
 import { utf8Length } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
-import type { Database } from "./ports.ts";
 import { candidateIds, relatedTerms } from "./related-candidates.ts";
 import { RELATED_INPUT_BYTES } from "./related-task.ts";
 import { digests } from "./schema.ts";

@@ -10,8 +10,9 @@ import {
   type CliRecommendation,
   refusedAi,
 } from "../../core/ai-contract.ts";
+import type { AiRuntime } from "../../core/ai-runtime.ts";
 import { allowedAiUrl } from "../../core/ai-url.ts";
-import type { AiRuntime, Ports } from "../../core/ports.ts";
+import type { Ports } from "../../core/ports.ts";
 import { sealedSecrets } from "../../core/sealed-secret.ts";
 import { openRouterActivation, openRouterExchange } from "./openrouter-exchange.ts";
 

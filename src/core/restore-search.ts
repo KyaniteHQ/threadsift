@@ -1,8 +1,8 @@
 import { type SQL, asc, eq, gt, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
 import type { JobPorts, JobWrites, SettledOutcome } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import { postTextOf } from "./post-text.ts";
 import { keptBodies, keptCommentIds } from "./reddit-thread.ts";
 import {

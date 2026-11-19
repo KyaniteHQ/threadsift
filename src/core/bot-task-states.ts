@@ -1,10 +1,10 @@
 import { type SQL, and, desc, eq, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import type { Database } from "./database.ts";
 import { DATABASE_NOW, guardHolds, guardedBatch } from "./guards.ts";
 import { holding } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { type JobRow, aiTasks, jobs } from "./schema.ts";
 import { X_INTAKE_TASK } from "./x-intake-contract.ts";
 

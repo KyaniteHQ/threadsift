@@ -1,8 +1,8 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { highlights } from "./highlight-tables.ts";
+import { items } from "./item-tables.ts";
 import { SEARCH_PART_KINDS } from "./kinds.ts";
-import { items } from "./schema.ts";
 
 export const searchParts = sqliteTable(
   "search_parts",

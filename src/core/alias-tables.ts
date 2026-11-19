@@ -1,6 +1,6 @@
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { items } from "./schema.ts";
+import { items } from "./item-tables.ts";
 
 export const itemAliases = sqliteTable(
   "item_aliases",

@@ -1,5 +1,5 @@
+import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
-import type { Database } from "./ports.ts";
 import { VAULT_FILE_BYTES } from "./vault-contract.ts";
 import { VaultNoteFailure } from "./vault-queue.ts";
 import type { VaultSubject } from "./vault-tables.ts";

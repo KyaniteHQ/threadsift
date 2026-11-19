@@ -4,7 +4,7 @@ import { type ImageType, declaredImageType, sniffImageType } from "./image-type.
 import type { MediaFailure } from "./kinds.ts";
 import { IMAGE_MAX_BYTES, IMAGE_URL_MAX_BYTES } from "./limits.ts";
 import { isRedditOrXLink } from "./links.ts";
-import type { Network } from "./ports.ts";
+import type { Network } from "./network.ts";
 
 const BASE64_CHARACTERS = Math.ceil((IMAGE_MAX_BYTES * 4) / 3) + 4;
 

@@ -2,6 +2,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 
 import { completedAiTask, failedAiTask } from "./ai-tasks.ts";
 import { type BotTaskRow, acceptsAnswer } from "./bot-task-states.ts";
+import type { Database } from "./database.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { JobPorts, JobWrites } from "./job-outcome.ts";
 import { enqueueQuietly } from "./job-rows.ts";
@@ -22,7 +23,7 @@ export function intakeLive(task: IntakeTask) {
   return sql`${acceptsAnswer(task)} and exists (select 1 from ${jobs} where ${jobs.id} = ${task.jobId} and ${jobs.state} <> 'done') and exists (select 1 from ${items} where ${items.id} = ${task.itemId} and ${items.generation} = ${task.inputRevision})`;
 }
 
-export async function intakeItem(db: JobPorts["db"], task: IntakeTask) {
+export async function intakeItem(db: Database, task: IntakeTask) {
   const [item] = await db
     .select({
       normalizedUrl: items.normalizedUrl,
@@ -36,7 +37,7 @@ export async function intakeItem(db: JobPorts["db"], task: IntakeTask) {
 }
 
 export function answeredIntake(
-  db: JobPorts["db"],
+  db: Database,
   { id }: Readonly<Pick<IntakeTask, "id">>,
   result: Readonly<{ unavailable: boolean }>,
 ): JobWrites {
@@ -50,7 +51,7 @@ export function answeredIntake(
 }
 
 export function storedIntake(
-  db: JobPorts["db"],
+  db: Database,
   task: IntakeTask,
   stored: Readonly<{
     address: string;
@@ -65,7 +66,7 @@ export function storedIntake(
   ];
 }
 
-export function unavailableIntake(db: JobPorts["db"], task: IntakeTask): JobWrites {
+export function unavailableIntake(db: Database, task: IntakeTask): JobWrites {
   const { itemId } = task;
 
   return [
@@ -99,7 +100,7 @@ export async function staleIntake(
 }
 
 export async function refusedAnswer(
-  db: JobPorts["db"],
+  db: Database,
   task: IntakeTask,
   now: number,
 ): Promise<number | null> {

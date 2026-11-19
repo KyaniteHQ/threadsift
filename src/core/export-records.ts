@@ -2,9 +2,9 @@ import { type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { BACKUP_TABLES, backupTable } from "./backup-tables.ts";
+import type { Database } from "./database.ts";
 import { ITEM_FILES_STREAM } from "./export-contract.ts";
 import { hasOpenJob } from "./job-rows.ts";
-import type { Database } from "./ports.ts";
 
 export type RecordRow = Readonly<Record<string, string | number | null>>;
 

@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+import { tags, topics } from "./catalog-tables.ts";
 import { highlights } from "./highlight-tables.ts";
+import { items } from "./item-tables.ts";
 import { MERGE_KINDS, PROPOSAL_KINDS, PROPOSAL_STATES } from "./kinds.ts";
 import { listed, subjectsForKind } from "./schema-checks.ts";
-import { items, tags, topics } from "./schema.ts";
 
 const SUBJECTS = {
   "tag-merge": ["fromTagId", "intoTagId"],

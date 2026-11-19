@@ -1,4 +1,5 @@
-import type { Database, Ports } from "../../core/ports.ts";
+import type { Database } from "../../core/database.ts";
+import type { Ports } from "../../core/ports.ts";
 import { aiAndSecrets } from "../shared/ai-runtime.ts";
 import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
 import { nodeCrypto } from "../shared/crypto.ts";

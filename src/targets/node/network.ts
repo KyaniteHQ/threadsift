@@ -13,7 +13,7 @@ import {
   type RequestHeaders,
   NetworkFailure,
   rateLimitHeadersOf,
-} from "../../core/ports.ts";
+} from "../../core/network.ts";
 import { assertPublicHost } from "../../core/public-host.ts";
 import {
   REDDIT_HOST,

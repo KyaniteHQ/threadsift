@@ -1,10 +1,10 @@
 import { type SQL, eq } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import type { Concluded, Content } from "./details.ts";
 import type { FetchResult } from "./fetch-results.ts";
 import type { XReadNote } from "./kinds.ts";
 import { sourceOf } from "./links.ts";
-import type { Database } from "./ports.ts";
 import { type ItemRow, items } from "./schema.ts";
 
 type Settled = Pick<ItemRow, "fetch" | "xNote" | "reason"> &

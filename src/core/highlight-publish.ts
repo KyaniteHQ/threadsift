@@ -1,9 +1,9 @@
 import { type SQL, type SQLWrapper, asc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 
 import { batchesOf } from "./batches.ts";
+import type { Database } from "./database.ts";
 import { type Anchor, anchorIn } from "./highlight-anchor.ts";
 import type { AnchoredOutcome, SettledOutcome } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import { publishedGeneration } from "./reddit-thread.ts";
 import { type HighlightRow, highlights, items } from "./schema.ts";
 import { projectText } from "./text-projection.ts";

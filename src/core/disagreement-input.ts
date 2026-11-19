@@ -12,11 +12,11 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 
+import type { Database } from "./database.ts";
 import { fillDisagreementInput, hasNoRoomForAnother } from "./disagreement-fill.ts";
 import { decidedPairs } from "./disagreement-pins.ts";
 import { DISAGREEMENT_ITEMS, type SentItem, type SentTopic } from "./disagreement-task.ts";
 import { logFailure } from "./failure-log.ts";
-import type { Database } from "./ports.ts";
 import { digests, items, topicChecks, topics } from "./schema.ts";
 import { digestedCount } from "./topic-coverage.ts";
 

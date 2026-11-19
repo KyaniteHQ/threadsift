@@ -1,5 +1,6 @@
 import { type SQLWrapper, and, eq, exists, ne, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import {
   EXPORT_SLICE_DEADLINE_MS,
   type ExportFailure,
@@ -17,7 +18,6 @@ import {
   unownedOwnerId,
   unownedRun,
 } from "./job-rows.ts";
-import type { Database } from "./ports.ts";
 import { type ExportRow, exportRuns, jobs } from "./schema.ts";
 import { dosTimeOf, endOfArchive, packFiles } from "./zip.ts";
 

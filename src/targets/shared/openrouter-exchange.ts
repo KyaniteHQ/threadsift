@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import { AI_KEY_MAX } from "../../core/ai-contract.ts";
+import type { AiRuntime } from "../../core/ai-runtime.ts";
 import { readCapped } from "../../core/capped.ts";
 import type { OpenRouterExchange } from "../../core/openrouter-contract.ts";
 import { pause } from "../../core/pause.ts";
-import type { AiRuntime } from "../../core/ports.ts";
 import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
 import { aiTransport } from "./ai-transport.ts";
 

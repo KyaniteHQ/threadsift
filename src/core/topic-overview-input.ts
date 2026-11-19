@@ -1,10 +1,10 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import { type Digest, parseStoredDigest } from "./ai-contract.ts";
+import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
 import { among } from "./guards.ts";
-import type { Database } from "./ports.ts";
 import { digests, items, topicPages, topics } from "./schema.ts";
 import { notBuiltFrom, removedItemIds } from "./topic-coverage.ts";
 import { type BuiltFrom, citedIds } from "./topic-overview-contract.ts";

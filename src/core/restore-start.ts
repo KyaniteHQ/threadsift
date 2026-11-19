@@ -1,8 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
-import type { Database } from "./ports.ts";
 import { START_CHECK } from "./restore-contract.ts";
 import { EMPTY_LIBRARY, holdsEveryPart, libraryIsEmpty, restoreById } from "./restore-state.ts";
 import { openingRestoreJob } from "./restore-unit.ts";

@@ -18,7 +18,7 @@ import {
   requireListLimit,
   temporaryPrefix,
 } from "../../core/file-keys.ts";
-import type { FilePage, FileStore } from "../../core/ports.ts";
+import type { FilePage, FileStore } from "../../core/file-store.ts";
 import { hasErrnoCode } from "./errno.ts";
 
 const CHUNK_BYTES = 65_536;

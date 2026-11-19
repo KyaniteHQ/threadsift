@@ -1,8 +1,8 @@
 import type { SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import type { Database } from "./database.ts";
 import type { MergeKind, ProposalState } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 
 interface MergeSide {
   readonly id: number;

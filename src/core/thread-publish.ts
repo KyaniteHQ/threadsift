@@ -1,9 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { digestAfterFetch } from "./digest-job.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
-import type { Database } from "./ports.ts";
 import { type Owner, ownerOf, threadWrites } from "./reddit-thread.ts";
 import { items, media } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";

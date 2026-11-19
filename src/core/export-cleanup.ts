@@ -1,5 +1,6 @@
 import { and, eq, inArray, lt, or } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import {
   EXPORT_CLEANUP_BATCH,
   EXPORT_KEEP_MS,
@@ -21,10 +22,7 @@ const SETTLE_MS = EXPORT_SLICE_DEADLINE_MS + CLAIM_MARGIN_MS;
 
 type CleanupPorts = Pick<JobPorts, "db" | "files">;
 
-async function expiredKeys(
-  db: CleanupPorts["db"],
-  keys: readonly string[],
-): Promise<readonly string[]> {
+async function expiredKeys(db: Database, keys: readonly string[]): Promise<readonly string[]> {
   const owned = keys.flatMap((key) => {
     const parsed = parseStoredKey(key);
     const id = Number(parsed?.ownerId);

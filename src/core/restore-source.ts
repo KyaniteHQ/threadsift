@@ -1,5 +1,5 @@
 import { restorePartKey } from "./file-keys.ts";
-import type { FileStore } from "./ports.ts";
+import type { FileStore } from "./file-store.ts";
 import { partLength } from "./restore-contract.ts";
 import { ZipRefused, type ZipSource } from "./zip-read.ts";
 

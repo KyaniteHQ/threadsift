@@ -2,9 +2,9 @@ import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import { type CatalogKind, TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
+import type { Database } from "./database.ts";
 import { MERGE_KINDS } from "./kinds.ts";
 import type { MergeRow, PlanUnit } from "./merge-unit.ts";
-import type { Database } from "./ports.ts";
 import { revisionOf } from "./proposal-lifecycle.ts";
 import { proposals, tags, topics } from "./schema.ts";
 import { planTagUnit } from "./tag-merge-unit.ts";

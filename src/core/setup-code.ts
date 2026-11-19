@@ -1,5 +1,5 @@
+import type { Crypto } from "./crypto.ts";
 import type { SetupCodeStatus } from "./kinds.ts";
-import type { Crypto } from "./ports.ts";
 
 export const SETUP_CODE_MIN = 16;
 

@@ -1,6 +1,6 @@
 import { readCapped } from "./capped.ts";
 import { THREAD_CONTENT_BYTES } from "./limits.ts";
-import { type NetworkResponse, REQUEST_HEADERS, type RequestHeaders } from "./ports.ts";
+import { type NetworkResponse, REQUEST_HEADERS, type RequestHeaders } from "./network.ts";
 import type { FillAnswer } from "./thread-fill.ts";
 
 export const REDDIT_HOST = "www.reddit.com";

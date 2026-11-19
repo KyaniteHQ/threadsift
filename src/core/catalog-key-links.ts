@@ -1,8 +1,8 @@
 import { type SQL, type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import type { Database } from "./database.ts";
 import { among } from "./guards.ts";
-import type { Database } from "./ports.ts";
 import {
   catalogVersion,
   digests,

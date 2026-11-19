@@ -2,11 +2,11 @@ import { type SQL, and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm
 
 import { catalogKey } from "./catalog-key.ts";
 import { TAG_USES, TOPIC_USES } from "./catalog-uses.ts";
+import type { Database } from "./database.ts";
 import type { CountedName, FilterCounts } from "./filter-counts-contract.ts";
 import type { ReadState, Source } from "./kinds.ts";
 import { READ_STATES, SOURCES } from "./kinds.ts";
 import { parseLink } from "./links.ts";
-import type { Database } from "./ports.ts";
 import { itemTags, items, tags, topics } from "./schema.ts";
 import { searchTerms } from "./search-terms.ts";
 import { matching } from "./search.ts";

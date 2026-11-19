@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+import { tags, topics } from "./catalog-tables.ts";
+import { items } from "./item-tables.ts";
 import { PIN_KINDS } from "./kinds.ts";
 import { listed, subjectsForKind } from "./schema-checks.ts";
-import { items, tags, topics } from "./schema.ts";
 
 export const pins = sqliteTable(
   "pins",

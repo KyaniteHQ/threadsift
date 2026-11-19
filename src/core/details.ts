@@ -3,9 +3,10 @@ import type { Page } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { collapsed } from "./format.ts";
 import type { WaitReason, XReadNote } from "./kinds.ts";
+import { MIN_ARTICLE_WORDS } from "./limits.ts";
 import { type Link, isGitHubLink, isVideoLink, parseLink, redditRefOf } from "./links.ts";
 import type { MarkdownImage } from "./markdown-images.ts";
-import type { PageReader } from "./ports.ts";
+import type { PageReader } from "./page-reader.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 
@@ -60,8 +61,6 @@ export type Fetched =
     };
 
 export const NOT_REQUESTED: Concluded = { status: "not-requested" };
-
-export const MIN_ARTICLE_WORDS = 100;
 
 const NOT_AN_ARTICLE: Content = { kind: "link" };
 

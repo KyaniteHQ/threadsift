@@ -1,3 +1,4 @@
+import type { FileStore } from "./file-store.ts";
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
 import {
   FilesCursorSchema,
@@ -13,7 +14,7 @@ import { readDirectory } from "./zip-directory.ts";
 import { type ReadEntry, type ZipDirectory, type ZipSource, entriesBytes } from "./zip-read.ts";
 
 function putEach(
-  store: JobPorts["files"],
+  store: FileStore,
   directory: Readonly<ZipDirectory>,
   read: readonly Readonly<ReadEntry>[],
 ): Promise<void> {

@@ -1,5 +1,6 @@
 import { and, eq, gte, inArray, lt, or } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { FILE_LIST_LIMIT, RESTORE_FILES_ROOT, parseStoredKey } from "./file-keys.ts";
 import { among } from "./guards.ts";
@@ -24,10 +25,7 @@ async function endAbandonedUploads({ db }: Pick<PartPorts, "db">): Promise<void>
     );
 }
 
-async function holdingParts(
-  db: PartPorts["db"],
-  keys: readonly string[],
-): Promise<ReadonlySet<number>> {
+async function holdingParts(db: Database, keys: readonly string[]): Promise<ReadonlySet<number>> {
   const owners = [
     ...new Set(
       keys.flatMap((key) => {

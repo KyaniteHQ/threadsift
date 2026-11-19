@@ -1,11 +1,12 @@
 import { eq } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
+import type { Database } from "./database.ts";
 import { guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
 import { openingJob, enqueueRows } from "./job-rows.ts";
 import type { Link } from "./links.ts";
-import type { Database, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
 import type { UNSUPPORTED_PAGE_LINK } from "./supplied-page.ts";
 import { queueVaultItems } from "./vault-queue.ts";

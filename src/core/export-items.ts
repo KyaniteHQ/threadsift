@@ -2,8 +2,9 @@ import { asc, gt } from "drizzle-orm";
 
 import { EXPORT_SLICE_BYTES, type PartialItem } from "./export-contract.ts";
 import { type Plan, type StoredFile, planOf } from "./export-plan.ts";
+import type { FileStore } from "./file-store.ts";
 import { readItem } from "./item-detail.ts";
-import type { FileStore, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
 import type { ZipFile } from "./zip.ts";
 

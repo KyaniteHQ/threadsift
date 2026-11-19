@@ -1,9 +1,9 @@
 import { and, desc, eq, gte, lt } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { LogEntrySchema } from "./log-contract.ts";
 import { pageTail } from "./page-tail.ts";
-import type { Database } from "./ports.ts";
 import { logEntries, logStart, topics } from "./schema.ts";
 
 type Row = Readonly<Awaited<ReturnType<typeof logRows>>[number]>;

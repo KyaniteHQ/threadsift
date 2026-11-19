@@ -1,7 +1,9 @@
 import { webUrlOf } from "./addresses.ts";
+import type { Crypto } from "./crypto.ts";
 import { type EmbedLink, embedLinkOf } from "./embed-links.ts";
 import { digestOf } from "./encoding.ts";
 import { fileRouteOf } from "./file-keys.ts";
+import type { FileStore } from "./file-store.ts";
 import { collapsed } from "./format.ts";
 import { type Fetched, decoded, downloaded, fits } from "./image-download.ts";
 import { imageSize } from "./image-size.ts";
@@ -14,7 +16,7 @@ import {
   inlineImage,
   rewriteImages,
 } from "./markdown-images.ts";
-import type { Crypto, FileStore, Network } from "./ports.ts";
+import type { Network } from "./network.ts";
 import type { MediaRow } from "./schema.ts";
 
 const MAX_VIDEOS = 20;

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
+import type { RateLimitHeaders } from "./network.ts";
 import { parsedJson } from "./parsed-json.ts";
-import type { RateLimitHeaders } from "./ports.ts";
 
 type RateLimitKind = "primary" | "secondary";
 
