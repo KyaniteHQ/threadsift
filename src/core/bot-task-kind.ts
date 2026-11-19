@@ -1,5 +1,7 @@
 import { and, type SQLWrapper } from "drizzle-orm";
+import { z } from "zod";
 
+import { failedAiTask } from "./ai-tasks.ts";
 import {
   type AnsweringParts,
   type BotAnswer,
@@ -8,12 +10,12 @@ import {
   answerOf,
   botAnswering,
 } from "./bot-task-answering.ts";
-import { answerApplier } from "./bot-task-apply.ts";
 import type { BotTaskStart } from "./bot-task-start.ts";
 import type { BotTaskRow } from "./bot-task-states.ts";
 import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { holding } from "./job-rows.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { grokBotChosen } from "./provider-saved.ts";
 
@@ -25,7 +27,7 @@ type BotPreparation =
     }
   | { readonly kind: "settled"; readonly outcome: JobOutcome };
 
-export type BotParse =
+type BotParse =
   | (Extract<BotAnswer, { readonly kind: "valid" }> & {
       readonly apply: (
         ports: JobPorts,
@@ -58,6 +60,25 @@ interface KindParts<Context, Result> extends AnsweringParts<Context, Result> {
     job: Readonly<ClaimedJob>,
     applied: Readonly<{ context: Context; taskId: number; result: Result }>,
   ) => Promise<JobOutcome>;
+}
+
+function reparsed(
+  kind: Readonly<Pick<BotTaskKind, "parse">>,
+  { context, result }: Readonly<Pick<BotTaskRow, "context" | "result">>,
+): BotParse {
+  return kind.parse(context ?? "", { result: parsedJson(z.json(), result ?? "") });
+}
+
+function answerApplier(parse: BotTaskKind["parse"]): SentTaskKind["apply"] {
+  return async (ports, job, task) => {
+    const parsed = reparsed({ parse }, task);
+
+    if (parsed.kind === "valid") return parsed.apply(ports, job, task);
+
+    await failedAiTask(ports.db, task.id, { reason: "no-json", status: null }, holding(job));
+
+    throw new Error("The Grok Bot answer no longer fits its task");
+  };
 }
 
 function whileChosen(prepare: BotTaskKind["prepare"]): BotTaskKind["prepare"] {

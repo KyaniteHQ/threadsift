@@ -2,12 +2,11 @@ import { homedir } from "node:os";
 
 import { z } from "zod";
 
-import { type AiExecution, PROVIDERS, refusedAi } from "../../core/ai-contract.ts";
+import { type AiExecution, PROVIDERS, apiRefusal, refusedAi } from "../../core/ai-contract.ts";
 import { readOrAssume } from "../../core/failure-log.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
 import { PROBE_MS } from "../../core/request-waits.ts";
-import { apiRefusal } from "../shared/ai-call.ts";
-import type { RunnerTask } from "../shared/ai-runtime.ts";
+import type { RunnerTask } from "../shared/ai-runner.ts";
 import { configuredCode } from "../shared/configured-code.ts";
 import { runProcess } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";

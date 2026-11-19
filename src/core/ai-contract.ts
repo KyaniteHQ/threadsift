@@ -163,6 +163,25 @@ export function refusedAi<Reason extends AiRefusal>(
   return { kind: "refused", reason, status };
 }
 
+export function apiRefusal(status: number | undefined) {
+  if (status === undefined) return refusedAi("unreachable");
+
+  switch (status) {
+    case 401:
+    case 403:
+      return refusedAi("wrong-key", status);
+    case 400:
+    case 422:
+      return refusedAi("no-json", status);
+    case 404:
+      return refusedAi("model-not-found", status);
+    default:
+      return status === 429 || status >= 500
+        ? refusedAi("provider-busy", status)
+        : refusedAi("unreachable", status);
+  }
+}
+
 export function retriesAi({ reason, status }: Readonly<AiRefused>): boolean {
   switch (reason) {
     case "unreachable":

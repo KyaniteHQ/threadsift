@@ -4,6 +4,7 @@ import { z } from "zod";
 import { parsedJson } from "./parsed-json.ts";
 import { type Anchor, LINK, paragraphOf, squashed } from "./x-paragraph.ts";
 import { rejectedQuotes, withoutQuoteLink } from "./x-quote-link.ts";
+import type { Judgement } from "./x-verdict.ts";
 
 const CLOSING = String.raw`[^\s.,;:!?)\]'"”’]`;
 const BEFORE_TOKEN = String.raw`(?<=^|[\s(\["“‘'])`;
@@ -38,8 +39,6 @@ export type OembedAnswer =
   | { readonly kind: "absent" }
   | { readonly kind: "unusable" }
   | { readonly kind: "unavailable" };
-
-export type Judgement = "verified" | "tail-unverified" | "rejected";
 
 export interface StoredPost {
   readonly id: string;
@@ -270,12 +269,4 @@ export function checked(
     stored.text.trimStart().startsWith("@")
     ? checkText(stored, post, resolved)
     : strict;
-}
-
-export function judged(
-  stored: Readonly<StoredPost>,
-  post: Readonly<OembedPost>,
-  resolved: Readonly<Resolved>,
-): Judgement {
-  return checked(stored, post, resolved).judgement;
 }

@@ -15,7 +15,7 @@ import {
 } from "../../core/ai-contract.ts";
 import { withCleanup } from "../../core/failure-log.ts";
 import { PROBE_MS } from "../../core/request-waits.ts";
-import type { CliRunner, RunnerTask } from "../shared/ai-runtime.ts";
+import type { CliRunner, RunnerTask } from "../shared/ai-runner.ts";
 import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";
 import { type Slots, inSlot } from "./cli-slots.ts";
 

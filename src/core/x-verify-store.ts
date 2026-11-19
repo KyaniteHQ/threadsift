@@ -12,7 +12,8 @@ import {
 import { opening } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
 import { items, jobs, xVerifications } from "./schema.ts";
-import { type Judged, startingJudged } from "./x-verify-state.ts";
+import type { Judged } from "./x-verdict.ts";
+import { startingJudged } from "./x-verify-state.ts";
 import type { XThreadValue } from "./x-wire.ts";
 
 export function reopened(db: Database, itemId: number, address: string) {
