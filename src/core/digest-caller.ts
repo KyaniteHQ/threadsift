@@ -1,8 +1,9 @@
 import { parseStoredDigest } from "./ai-contract.ts";
 import { startCallerTask } from "./ai-tasks.ts";
 import { publishedByCaller } from "./digest-publish.ts";
-import { type DigestInput, lostClaim } from "./digest-source.ts";
+import type { DigestInput } from "./digest-source.ts";
 import { DIGEST_TASK } from "./digest-task.ts";
+import { lostClaim } from "./guarded-outcome.ts";
 import type { AnchorSnapshot } from "./highlight-publish.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
 

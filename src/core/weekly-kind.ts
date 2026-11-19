@@ -14,6 +14,7 @@ interface WeeklyRead<Sent> {
 }
 
 export interface WeeklyRun<Sent, Result> {
+  readonly kind: string;
   readonly sent: z.ZodType<Sent>;
   readonly label: string;
   readonly event: string;
@@ -30,6 +31,7 @@ export function storedField<Value = unknown>(path: string): SQL<Value> {
 
 export function weeklyKind<Sent, Result>(run: Readonly<WeeklyRun<Sent, Result>>) {
   return defineAiKind({
+    kind: run.kind,
     context: run.sent,
     label: run.label,
     task: run.task,

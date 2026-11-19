@@ -4,12 +4,13 @@ import type {
   BotOnlyDeclaration,
   BotTaskKind,
   IntakeKind,
+  PlainDeclaration,
 } from "./ai-kind-types.ts";
 import { loadAiConfig } from "./ai-load.ts";
 import { botStep } from "./bot-step.ts";
 import { botFace, botOnlyFace } from "./bot-task-kind.ts";
 
-export function defineAiKind<Context, Result, Basis = never>(
+export function defineBasedAiKind<Context, Result, Basis>(
   declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
 ): BotTaskKind {
   const face = botFace(declaration);
@@ -23,6 +24,19 @@ export function defineAiKind<Context, Result, Basis = never>(
       return ai.state === "grok-bot" ? botStep(ports, job, face) : onModel(ports, job, ai);
     },
   };
+}
+
+export function defineAiKind<Context, Result>(
+  declaration: Readonly<PlainDeclaration<Context, Result>>,
+): BotTaskKind {
+  return defineBasedAiKind({
+    ...declaration,
+    prepare: async (ports, job) => {
+      const prepared = await declaration.prepare(ports, job);
+
+      return prepared.kind === "settled" ? prepared : { ...prepared, basis: undefined };
+    },
+  });
 }
 
 export function defineBotOnlyKind<Context>(

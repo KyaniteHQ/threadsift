@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { defineAiKind } from "./ai-kind.ts";
+import { defineBasedAiKind } from "./ai-kind.ts";
 import { preparedDigest } from "./digest-prepare.ts";
-import { catalogRuleOf, digestStored } from "./digest-publish.ts";
+import { digestStored } from "./digest-publish.ts";
 import {
   digestInput,
   generationCurrent,
@@ -21,7 +21,8 @@ const ContextSchema = z
   })
   .readonly();
 
-export const digestKind = defineAiKind({
+export const digestKind = defineBasedAiKind({
+  kind: DIGEST_TASK.kind,
   context: ContextSchema,
   label: "Digest",
   task: () => DIGEST_TASK,
@@ -51,19 +52,26 @@ export const digestKind = defineAiKind({
     };
   },
   refused: (db, { itemId }) => ({ writes: [markDigest(db, itemId, "attempt-failed")] }),
-  publish: (db, { context, result, taskId, by, basis }) =>
+  publish: (db, answered) =>
     digestStored(
       db,
-      { id: context.itemId, generation: context.generation, pendingDigest: null },
-      result,
       {
-        taskId,
+        id: answered.context.itemId,
+        generation: answered.context.generation,
+        pendingDigest: null,
+      },
+      answered.result,
+      {
+        taskId: answered.taskId,
         source: {
           executor: "model",
-          provider: by.provider,
-          model: by.model,
-          catalog: catalogRuleOf(basis),
-          submitted: context.submitted,
+          provider: answered.by.provider,
+          model: answered.by.model,
+          catalog:
+            answered.executor === "model"
+              ? { kind: "checked", ...answered.basis }
+              : { kind: "unchecked" },
+          submitted: answered.context.submitted,
         },
       },
     ),

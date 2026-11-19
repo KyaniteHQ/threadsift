@@ -7,6 +7,7 @@ export {
   ReaderDigestSchema,
   parseStoredDigest,
   type Digest,
+  type ModelDigest,
   type ReaderDigest,
 } from "./digest-schema.ts";
 

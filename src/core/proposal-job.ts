@@ -15,6 +15,7 @@ import {
   type SentPair,
   SentPairsSchema,
   proposalsTask,
+  proposalsTaskKind,
 } from "./proposal-task.ts";
 import { proposals, tags, topics } from "./schema.ts";
 import { type WeeklyRun, storedField, weeklyKind } from "./weekly-kind.ts";
@@ -94,6 +95,7 @@ function storedRows(
 function runOf(kind: MergeKind): WeeklyRun<Sent, ProposalsResult> {
   return {
     ...RUNS[kind],
+    kind: proposalsTaskKind(kind),
     sent: SentPairsSchema,
     maxOutputTokens: PROPOSALS_OUTPUT_TOKENS,
     read: async (db) => {

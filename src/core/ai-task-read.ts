@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { type AiTaskRow, acceptsAnswer } from "./ai-task-state.ts";
-import { botKindOf } from "./bot-task-kinds.ts";
+import { describerOf } from "./bot-task-kinds.ts";
 import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
 
@@ -21,7 +21,7 @@ type TaskReading =
   | { readonly kind: "closed" };
 
 function describedTask(task: Readonly<Pick<AiTaskRow, "kind" | "context">>) {
-  return botKindOf(task)?.describe(task.context ?? "") ?? null;
+  return describerOf(task)?.describe(task.context ?? "") ?? null;
 }
 
 export async function readableTask(db: Database, task: Readonly<AiTaskRow>): Promise<TaskReading> {

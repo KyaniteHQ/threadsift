@@ -5,14 +5,14 @@ import type { z } from "zod";
 import type {
   AiKindDeclaration,
   BotOnlyDeclaration,
-  IntakeFace,
+  Deferral,
   KindFace,
   ResultFace,
-  Scope,
 } from "./ai-kind-types.ts";
 import { botAnswering } from "./bot-task-answering.ts";
 import { appliedFor } from "./bot-task-apply.ts";
 import type { Database } from "./database.ts";
+import { lostOutcome } from "./guarded-outcome.ts";
 import { guardHolds } from "./guards.ts";
 import type { JobOutcome } from "./job-outcome.ts";
 import { parsedJson } from "./parsed-json.ts";
@@ -31,15 +31,15 @@ function currentOf<Context>(
   };
 }
 
-async function deferredByScope(
+async function deferredBy(
   db: Database,
-  scope: Readonly<Scope> | null,
+  deferral: Readonly<Deferral> | null,
 ): Promise<JobOutcome | null> {
-  if (scope === null || (await guardHolds(db, sql`not ${scope.open}`))) return null;
+  if (deferral === null || (await guardHolds(db, sql`not ${deferral.busy}`))) return null;
 
   return {
     deferredUntil: Date.now() + BUSY_RETRY_MS,
-    wait: scope.wait,
+    wait: deferral.wait,
     countsAttempt: false,
     writes: [],
   };
@@ -48,11 +48,10 @@ async function deferredByScope(
 function preparedFor<Context, Result, Basis>(
   declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
 ): KindFace["prepare"] {
-  const { scope, prepare, current, task } = declaration;
+  const { defer, holds, prepare, current, kind } = declaration;
 
   return async (ports, job) => {
-    const held = (await scope?.(ports.db, job)) ?? null;
-    const deferred = await deferredByScope(ports.db, held);
+    const deferred = await deferredBy(ports.db, (await defer?.(ports.db, job)) ?? null);
 
     if (deferred !== null) return { kind: "settled", outcome: deferred };
 
@@ -62,16 +61,15 @@ function preparedFor<Context, Result, Basis>(
 
     const { context } = prepared;
     const chosen = grokBotChosen();
-    const scoped = held === null ? undefined : sql`not ${held.open} and ${current(context)}`;
 
     return {
       kind: "ask",
       start: {
-        kind: task(context).kind,
+        kind,
         inputs: prepared.input,
         inputRevision: prepared.inputRevision,
         context: JSON.stringify(context),
-        holds: and(scoped, chosen) ?? chosen,
+        holds: and(holds?.(context), current(context), chosen) ?? chosen,
       },
       started: prepared.started,
     };
@@ -84,7 +82,6 @@ export function botFace<Context, Result, Basis>(
   const { describe, parse } = botAnswering(declaration);
 
   return {
-    answers: "result",
     prepare: preparedFor(declaration),
     current: currentOf(declaration.context, declaration.current),
     describe,
@@ -93,13 +90,10 @@ export function botFace<Context, Result, Basis>(
   };
 }
 
-export function botOnlyFace<Context>(
-  declaration: Readonly<BotOnlyDeclaration<Context>>,
-): IntakeFace {
+export function botOnlyFace<Context>(declaration: Readonly<BotOnlyDeclaration<Context>>): KindFace {
   const { context, current, describe, kind, prepare } = declaration;
 
   return {
-    answers: "intake",
     prepare: async (ports, job) => {
       const prepared = await prepare(ports, job);
 
@@ -121,5 +115,6 @@ export function botOnlyFace<Context>(
 
       return parsed === null ? null : describe(parsed);
     },
+    apply: ({ db }, _job, task) => Promise.resolve(lostOutcome(db, { taskId: task.id })),
   };
 }

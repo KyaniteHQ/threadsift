@@ -4,7 +4,13 @@ import { type AiRefused, retriesAi } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
 import { currency } from "./digest-source.ts";
 import { insertGuard } from "./guards.ts";
-import type { ClaimedJob, JobCurrency, JobWrites, SettledOutcome } from "./job-outcome.ts";
+import type {
+  ClaimedJob,
+  JobCurrency,
+  JobOutcome,
+  JobWrites,
+  SettledOutcome,
+} from "./job-outcome.ts";
 import { isLastAttempt } from "./job-retry.ts";
 
 interface Guarded {
@@ -31,6 +37,10 @@ export function lostOutcome(
   guarded: Readonly<Pick<Guarded, "taskId" | "cleanup">> = {},
 ): GuardedOutcome {
   return guardedOutcome(db, sql`0`, guarded);
+}
+
+export function lostClaim(db: Database): JobOutcome {
+  return { writes: [insertGuard(db, sql`0`)] };
 }
 
 export async function refusalOutcome(

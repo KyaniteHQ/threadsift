@@ -3,7 +3,7 @@ import { z } from "zod";
 import { defineAiKind } from "./ai-kind.ts";
 import { VersionSchema, versionOf, versionsHold } from "./related-input.ts";
 import { preparedRelated } from "./related-prepare.ts";
-import { RELATED_OUTPUT_TOKENS, relatedPickTask } from "./related-task.ts";
+import { RELATED_OUTPUT_TOKENS, RELATED_TASK_KIND, relatedPickTask } from "./related-task.ts";
 import { pickedWrites } from "./related-write.ts";
 
 const ContextSchema = z
@@ -11,6 +11,7 @@ const ContextSchema = z
   .readonly();
 
 export const relatedKind = defineAiKind({
+  kind: RELATED_TASK_KIND,
   context: ContextSchema,
   label: "Related pick",
   task: ({ sent }) => relatedPickTask(sent.map(({ id }) => id)),

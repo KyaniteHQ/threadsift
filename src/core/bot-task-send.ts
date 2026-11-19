@@ -1,7 +1,7 @@
 import type { SQL } from "drizzle-orm";
 
 import type { AiRefusal } from "./ai-contract.ts";
-import type { SentTask, SentTaskKind } from "./ai-kind-types.ts";
+import type { SentTask, KindFace } from "./ai-kind-types.ts";
 import { failedAiTask } from "./ai-task-rows.ts";
 import { sentTask } from "./bot-task-rows.ts";
 import { report } from "./failure-log.ts";
@@ -49,7 +49,7 @@ async function failedSend(
 }
 
 export function webhookBodyOf(
-  kind: Pick<SentTaskKind, "describe">,
+  kind: Pick<KindFace, "describe">,
   { task, token }: Readonly<{ task: SentTask; token: string }>,
 ): string | null {
   if (kind.describe(task.context ?? "") === null) return null;
@@ -71,7 +71,7 @@ export async function sendBotTask(
     token,
     claim,
   }: Readonly<{
-    kind: Pick<SentTaskKind, "describe">;
+    kind: Pick<KindFace, "describe">;
     task: SentTask;
     token: string;
     claim: SQL | undefined;

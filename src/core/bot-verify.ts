@@ -16,10 +16,10 @@ const VerifyContextSchema = z.strictObject({ verify: z.literal(true) }).readonly
 
 const VERIFY_CONTEXT = JSON.stringify({ verify: true });
 
-export const verifyAnswering = {
-  answers: "result",
-  ...botAnswering({ context: VerifyContextSchema, task: () => DIGEST_TASK }),
-} as const;
+export const verifyAnswering = botAnswering({
+  context: VerifyContextSchema,
+  task: () => DIGEST_TASK,
+});
 
 export function isVerifyContext(context: string | null): boolean {
   return parsedJson(VerifyContextSchema, context ?? "") !== null;

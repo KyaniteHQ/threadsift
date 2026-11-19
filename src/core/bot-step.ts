@@ -1,4 +1,4 @@
-import type { SentTaskKind } from "./ai-kind-types.ts";
+import type { KindFace } from "./ai-kind-types.ts";
 import { type BotStep, type AiTaskRow, stepOf } from "./ai-task-state.ts";
 import { chargedReport, latestTask, renewedCredential, timedOutTask } from "./bot-task-rows.ts";
 import { sendBotTask } from "./bot-task-send.ts";
@@ -29,7 +29,7 @@ function waiting(task: Waiting): DeferredOutcome {
 async function sentOutcome(
   ports: JobPorts,
   context: Readonly<{
-    kind: SentTaskKind;
+    kind: KindFace;
     job: Readonly<ClaimedJob>;
     task: SentTask;
     token: string;
@@ -51,7 +51,7 @@ async function startedOutcome(
     start,
     started: logStarted,
   }: Readonly<{
-    kind: SentTaskKind;
+    kind: KindFace;
     start: BotTaskStart;
     started: ((taskId: number) => void) | undefined;
   }>,
@@ -89,7 +89,7 @@ async function startedOutcome(
 async function startStep(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
-  kind: SentTaskKind,
+  kind: KindFace,
 ): Promise<JobOutcome> {
   const prepared = await kind.prepare(ports, job);
 
@@ -104,7 +104,7 @@ async function startStep(
 
 async function resendStep(
   ports: JobPorts,
-  context: Readonly<{ kind: SentTaskKind; job: Readonly<ClaimedJob>; task: SentTask }>,
+  context: Readonly<{ kind: KindFace; job: Readonly<ClaimedJob>; task: SentTask }>,
 ): Promise<JobOutcome> {
   const { job, task } = context;
   const credential = newCallbackCredential(ports.crypto);
@@ -122,7 +122,7 @@ async function resendStep(
 async function expireStep(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
-  { kind, task }: Readonly<{ kind: SentTaskKind; task: AiTaskRow }>,
+  { kind, task }: Readonly<{ kind: KindFace; task: AiTaskRow }>,
 ): Promise<JobOutcome> {
   const timedOut = await timedOutTask(ports.db, job, { taskId: task.id, now: Date.now() });
 
@@ -144,7 +144,7 @@ async function expireStep(
 export async function botStep(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
-  kind: SentTaskKind,
+  kind: KindFace,
 ): Promise<JobOutcome> {
   const task = await latestTask(ports.db, job.id);
   const step = stepOf(task, Date.now());
@@ -161,9 +161,7 @@ export async function botStep(
     case "wait":
       return waiting(task);
     case "apply":
-      return kind.answers === "result"
-        ? kind.apply(ports, job, task)
-        : lostOutcome(ports.db, { taskId: task.id });
+      return kind.apply(ports, job, task);
     case "expire":
       return expireStep(ports, job, { kind, task });
     case "charge":

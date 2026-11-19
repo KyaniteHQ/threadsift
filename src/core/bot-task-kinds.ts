@@ -1,5 +1,6 @@
-import type { BotTaskKind, IntakeKind } from "./ai-kind-types.ts";
+import type { BotTaskKind } from "./ai-kind-types.ts";
 import type { AiTaskRow } from "./ai-task-state.ts";
+import type { BotAnswering } from "./bot-task-answering.ts";
 import { isVerifyContext, verifyAnswering } from "./bot-verify.ts";
 import { digestKind } from "./digest-kind.ts";
 import { disagreementKind } from "./disagreement-job.ts";
@@ -19,19 +20,21 @@ export const BOT_TASK_KINDS = {
   disagreement_proposals: disagreementKind,
 } as const satisfies Readonly<Record<Exclude<OwnedJobKind, IntakeJobKind>, BotTaskKind>>;
 
-export const AI_TASK_KINDS = {
-  ...BOT_TASK_KINDS,
-  [X_INTAKE_TASK]: xIntakeKind,
-} as const satisfies Readonly<
-  Record<Exclude<OwnedJobKind, IntakeJobKind> | typeof X_INTAKE_TASK, BotTaskKind | IntakeKind>
->;
-
-function isAiTaskKind(kind: string): kind is keyof typeof AI_TASK_KINDS {
-  return Object.hasOwn(AI_TASK_KINDS, kind);
+function isBotTaskKind(kind: string): kind is keyof typeof BOT_TASK_KINDS {
+  return Object.hasOwn(BOT_TASK_KINDS, kind);
 }
 
-export function botKindOf({ kind, context }: Readonly<Pick<AiTaskRow, "kind" | "context">>) {
+export function botKindOf({
+  kind,
+  context,
+}: Readonly<Pick<AiTaskRow, "kind" | "context">>): BotAnswering | null {
   if (isVerifyContext(context)) return verifyAnswering;
 
-  return isAiTaskKind(kind) ? AI_TASK_KINDS[kind] : null;
+  return isBotTaskKind(kind) ? BOT_TASK_KINDS[kind] : null;
+}
+
+export function describerOf(
+  task: Readonly<Pick<AiTaskRow, "kind" | "context">>,
+): Pick<BotAnswering, "describe"> | null {
+  return task.kind === X_INTAKE_TASK ? xIntakeKind : botKindOf(task);
 }

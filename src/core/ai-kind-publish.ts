@@ -8,14 +8,14 @@ import type { Database } from "./database.ts";
 import { guardedOutcome } from "./guarded-outcome.ts";
 import type { JobOutcome } from "./job-outcome.ts";
 
-export function storedOutcome(
+export function storedOutcome<Result>(
   db: Database,
   {
     current,
     taskId,
     answer,
   }: Readonly<{ current: Readonly<SQLWrapper>; taskId: number; answer: unknown }>,
-  stored: Readonly<Stored>,
+  stored: Readonly<Stored<Result>>,
 ): JobOutcome | Promise<JobOutcome> {
   const running = sql`${current} and ${aiTaskRunning(taskId)}`;
   const guard = stored.also === undefined ? running : sql`${running} and ${stored.also}`;

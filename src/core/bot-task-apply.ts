@@ -27,7 +27,7 @@ export function appliedFor<Context, Result, Basis>(
       result: answer.result,
       taskId: task.id,
       by: { provider: GROK_BOT_EXECUTOR, model: null },
-      basis: null,
+      executor: GROK_BOT_EXECUTOR,
     });
   };
 }

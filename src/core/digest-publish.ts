@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
-import type { Digest } from "./ai-contract.ts";
+import type { Digest, ModelDigest } from "./ai-contract.ts";
 import { storedOutcome } from "./ai-kind-publish.ts";
 import type { Stored } from "./ai-kind-types.ts";
 import { catalogCurrent, pinnedCatalog } from "./catalog.ts";
@@ -25,16 +25,9 @@ import {
 } from "./reddit-thread.ts";
 import { items } from "./schema.ts";
 
-export interface CatalogBasis {
-  readonly version: number;
-  readonly staleRequeues: number;
-}
-
-type CatalogRule = ({ readonly kind: "checked" } & CatalogBasis) | { readonly kind: "unchecked" };
-
-export function catalogRuleOf(basis: Readonly<CatalogBasis> | null): CatalogRule {
-  return basis === null ? { kind: "unchecked" } : { kind: "checked", ...basis };
-}
+type CatalogRule =
+  | { readonly kind: "checked"; readonly version: number; readonly staleRequeues: number }
+  | { readonly kind: "unchecked" };
 
 type DigestSource =
   | { readonly executor: "caller" }
@@ -106,7 +99,7 @@ export async function digestStored(
     source,
     anchors,
   }: Readonly<{ taskId: number; source: DigestSource; anchors?: Readonly<AnchorSnapshot> }>,
-): Promise<Stored> {
+): Promise<Stored<ModelDigest>> {
   const { pinned, entries } = await pinnedCatalog(db, digest);
   const snapshot = { itemId: item.id, generation: item.generation };
 
@@ -168,7 +161,7 @@ function digestOrigin(
   entries: Parameters<typeof catalogCurrent>[1],
   submitted: readonly string[],
 ) {
-  const published: Digest = {
+  const published = {
     ...digest,
     keptComments: submittedAmong(digest.keptComments ?? [], submitted),
   };

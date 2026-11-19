@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { eq } from "drizzle-orm";
 
+import { GROK_BOT_EXECUTOR } from "../src/core/ai-task-state.ts";
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
 import { aiTasks } from "../src/core/schema.ts";
 import { openJobOfKind } from "./bot-task-fixtures.ts";
@@ -24,9 +25,11 @@ export async function applyAnswer(
 ): Promise<void> {
   exec(
     instance,
-    "update ai_tasks set context = ?, result = ? where id = ?",
+    "update ai_tasks set context = ?, result = ?, executor = ?, answered_at = ? where id = ?",
     JSON.stringify(sent),
     JSON.stringify({ disagreements }),
+    GROK_BOT_EXECUTOR,
+    Date.now(),
     taskId,
   );
 

@@ -1,12 +1,11 @@
 import type { AiRefused, ModelAi } from "./ai-contract.ts";
 import { publishedOutcome } from "./ai-kind-publish.ts";
-import type { AiKindDeclaration, Asked } from "./ai-kind-types.ts";
+import type { AiKindDeclaration } from "./ai-kind-types.ts";
 import { runAiTask } from "./ai-tasks.ts";
 import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
-import { lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
+import { lostClaim, refusalOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
-import { parsedJson } from "./parsed-json.ts";
 
 type Refused<Context, Result, Basis> = Readonly<{
   declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>;
@@ -33,17 +32,6 @@ async function refusedOutcome<Context, Result, Basis>(
   return outcome;
 }
 
-function contextOf<Context, Result, Basis>(
-  declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
-  asked: Readonly<Asked<Context, Basis>>,
-): Context {
-  const context = parsedJson(declaration.context, JSON.stringify(asked.context));
-
-  if (context === null) throw new Error(`The ${declaration.label} context does not fit its schema`);
-
-  return context;
-}
-
 export function modelAttempt<Context, Result, Basis>(
   declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
 ) {
@@ -52,7 +40,7 @@ export function modelAttempt<Context, Result, Basis>(
 
     if (prepared.kind === "settled") return prepared.outcome;
 
-    const context = contextOf(declaration, prepared);
+    const { context } = prepared;
 
     const result = await runAiTask(
       ports,
@@ -67,7 +55,7 @@ export function modelAttempt<Context, Result, Basis>(
       job,
     );
 
-    if (result.kind === "claim-lost") return lostOutcome(ports.db);
+    if (result.kind === "claim-lost") return lostClaim(ports.db);
 
     if (result.taskId !== null) prepared.started?.(result.taskId);
 
@@ -80,7 +68,8 @@ export function modelAttempt<Context, Result, Basis>(
       result: result.result,
       taskId: result.taskId,
       by: { provider: result.provider, model: result.model },
-      basis: prepared.basis ?? null,
+      executor: "model",
+      basis: prepared.basis,
     });
   };
 }

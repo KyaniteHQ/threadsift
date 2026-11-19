@@ -232,7 +232,3 @@ export const DIGEST_INPUT = {
   version: items.generation,
   pending: items.pendingDigest,
 };
-
-export function lostClaim(db: Database): JobOutcome {
-  return { writes: [insertGuard(db, sql`0`)] };
-}
