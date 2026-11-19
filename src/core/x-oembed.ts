@@ -12,7 +12,7 @@ const AFTER_TOKEN = String.raw`(?=$|[\s.,;:!?)\]'"”’])`;
 export const MAX_LINKS = 20;
 
 const WEB_LINK = new RegExp(String.raw`https?://[^\s]*${CLOSING}`, "gu");
-const NOT_AUTHORIZED = "Sorry, you are not authorized";
+const STATUS_NOT_AUTHORIZED = "Sorry, you are not authorized to see this status.";
 
 const OembedSchema = z.object({
   url: z.string(),
@@ -82,7 +82,7 @@ function oembedPostOf(body: string): OembedPost | null {
 }
 
 function protectedByX(body: string): boolean {
-  return parsedJson(ProtectedSchema, body)?.error.startsWith(NOT_AUTHORIZED) ?? false;
+  return parsedJson(ProtectedSchema, body)?.error === STATUS_NOT_AUTHORIZED;
 }
 
 export function oembedAnswerOf(status: number, body: string): OembedAnswer {

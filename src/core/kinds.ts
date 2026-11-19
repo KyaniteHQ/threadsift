@@ -93,6 +93,7 @@ export const X_READ_NOTES = [
   ...X_FETCH_RETRY_NOTES,
   "x-answer-refused",
   "x-fewer-replies",
+  "x-post-absent",
 ] as const;
 
 export const ITEM_JOB_KINDS = ["fetch", "digest", "x_verify"] as const;

@@ -72,6 +72,8 @@ interface XSource {
   readonly attempts: number;
 }
 
+const POST_ABSENT = { status: "status", note: "x-post-absent" } as const;
+
 function readAgain({ attempts }: Readonly<XSource>): Fetched {
   return {
     status: "waiting",
@@ -98,7 +100,7 @@ async function notFoundBy(
   }
 
   if ((await shownOnX(network, statusId, signal)) === "absent") {
-    return { status: "status" };
+    return POST_ABSENT;
   }
 
   return readAgain(source);
@@ -113,7 +115,7 @@ async function unansweredBy(
 ): Promise<Fetched> {
   if (!isLastAttempt(source.attempts)) return readAgain(source);
 
-  return (await shownOnX(network, statusId, signal)) === "absent" ? { status: "status" } : ends;
+  return (await shownOnX(network, statusId, signal)) === "absent" ? POST_ABSENT : ends;
 }
 
 async function concluded(
